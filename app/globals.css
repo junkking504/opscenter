@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --surface: 246 248 250;
+  --panel: 255 255 255;
+  --ink: 20 24 31;
+  --muted: 92 101 115;
+  --line: 218 224 232;
+  --brand: 22 112 90;
+  --accent: 40 105 190;
+  --good: 24 145 82;
+  --warn: 198 120 32;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: 15 18 24;
+    --panel: 24 29 38;
+    --ink: 235 239 245;
+    --muted: 155 166 181;
+    --line: 54 63 76;
+    --brand: 68 190 151;
+    --accent: 113 163 232;
+    --good: 89 205 139;
+    --warn: 232 168 83;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}

@@ -27,7 +27,7 @@ export function DateSwitcher({ options, selectedDate }: DateSwitcherProps) {
       value={currentValue}
       onChange={handleChange}
       className="
-        w-[230px] rounded-md border border-line bg-panel px-3 py-2
+        w-[240px] rounded-md border border-line bg-panel px-3 py-2
         text-sm font-medium text-ink
         hover:border-brand focus:border-brand focus:outline-none
         cursor-pointer
@@ -35,7 +35,7 @@ export function DateSwitcher({ options, selectedDate }: DateSwitcherProps) {
     >
       {options.map((option) => (
         <option key={option.key} value={option.date}>
-          {option.label}
+          {option.date}
         </option>
       ))}
     </select>

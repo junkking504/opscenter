@@ -20,21 +20,27 @@ function rphBadge(rph: number) {
 
 export default async function DashboardPage({ searchParams }: { searchParams?: { date?: string | string[] } }) {
   const selectedDate = resolveReportDate(searchParams?.date);
-  const { metrics, error, lastUpdated } = await getDailyMetrics(selectedDate);
+  const { metrics, lastUpdated } = await getDailyMetrics(selectedDate);
   const dataStatus = metrics ? (metrics.provisional ? "Provisional" : "Final") : "Provisional";
-  const revenueByTruck = numericEntries(metrics?.revenue_by_truck);
-  const revenueByMarket = numericEntries(metrics?.revenue_by_market);
-  const jobsCompleted = totalRecordValues(metrics?.jobs_by_truck);
-  const employeeRph = [...(metrics?.employee_leaderboard ?? [])].sort((a, b) => (b.rph ?? 0) - (a.rph ?? 0));
   const reportDate = selectedDate ?? metrics?.date;
+
+  if (!metrics) {
+    return (
+      <Shell dataStatus={dataStatus} lastUpdated={lastUpdated} selectedDate={reportDate}>
+        <div className="rounded-lg border border-line bg-panel px-4 py-3 text-sm text-muted">
+          No data available for this date.
+        </div>
+      </Shell>
+    );
+  }
+
+  const revenueByTruck = numericEntries(metrics.revenue_by_truck);
+  const revenueByMarket = numericEntries(metrics.revenue_by_market);
+  const jobsCompleted = totalRecordValues(metrics.jobs_by_truck);
+  const employeeRph = [...(metrics.employee_leaderboard ?? [])].sort((a, b) => (b.rph ?? 0) - (a.rph ?? 0));
 
   return (
     <Shell dataStatus={dataStatus} lastUpdated={lastUpdated} selectedDate={reportDate}>
-      {error && (
-        <div className="mb-4 rounded-lg border border-warn bg-warn/10 px-4 py-3 text-sm text-warn">
-          ⚠ Data source unavailable — dashboard showing empty states.
-        </div>
-      )}
 
       {/* Hero metrics */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">

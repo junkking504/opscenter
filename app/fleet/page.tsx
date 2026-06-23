@@ -21,14 +21,25 @@ export default async function FleetPage({ searchParams }: { searchParams?: { dat
   const selectedDate = resolveReportDate(searchParams?.date);
   const { metrics, lastUpdated } = await getDailyMetrics(selectedDate);
   const dataStatus = metrics ? (metrics.provisional ? "Provisional" : "Final") : "Provisional";
-  const miles = numericEntries(metrics?.miles_by_truck);
-  const drive = entries(metrics?.drive_time_by_truck);
-  const idle = entries(metrics?.idle_time_by_truck);
-  const totalMiles = totalRecordValues(metrics?.miles_by_truck);
-  const activeTrucks = numericEntries(metrics?.revenue_by_truck).length;
-  const truckPerformance: TruckPerformance[] = metrics?.truck_performance ?? [];
-  const crew: EmployeeRph[] = metrics?.employee_leaderboard ?? [];
   const reportDate = selectedDate ?? metrics?.date;
+
+  if (!metrics) {
+    return (
+      <Shell dataStatus={dataStatus} lastUpdated={lastUpdated} selectedDate={reportDate}>
+        <div className="rounded-lg border border-line bg-panel px-4 py-3 text-sm text-muted">
+          No data available for this date.
+        </div>
+      </Shell>
+    );
+  }
+
+  const miles = numericEntries(metrics.miles_by_truck);
+  const drive = entries(metrics.drive_time_by_truck);
+  const idle = entries(metrics.idle_time_by_truck);
+  const totalMiles = totalRecordValues(metrics.miles_by_truck);
+  const activeTrucks = numericEntries(metrics.revenue_by_truck).length;
+  const truckPerformance: TruckPerformance[] = metrics.truck_performance ?? [];
+  const crew: EmployeeRph[] = metrics.employee_leaderboard ?? [];
 
   return (
     <Shell dataStatus={dataStatus} lastUpdated={lastUpdated} selectedDate={reportDate}>
@@ -46,17 +57,67 @@ export default async function FleetPage({ searchParams }: { searchParams?: { dat
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title="Truck Performance">
-          <Table
-            columns={["Truck", "Crew Hours", "Revenue", "Revenue / Labor Hr", "Jobs"]}
-            rows={truckPerformance.map((truck) => [
-              truck.truck ?? "Unassigned",
-              `${number(truck.crew_hours)}h`,
-              money(truck.revenue),
-              `${money(truck.revenue_per_labor_hour)}/hr`,
-              number(truck.jobs)
-            ])}
-          />
+        <Panel title="Truck Performance — Current vs Verified RPH">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-muted border-b border-line">
+                <th className="pb-2 pr-4 font-medium">Truck</th>
+                <th className="pb-2 pr-4 font-medium">Crew Hrs</th>
+                <th className="pb-2 pr-4 font-medium">Revenue</th>
+                <th className="pb-2 pr-4 font-medium">Jobs</th>
+                <th className="pb-2 pr-4 font-medium">Current RPH</th>
+                <th className="pb-2 pr-4 font-medium">Verified RPH</th>
+                <th className="pb-2 font-medium">Diff %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {truckPerformance.map((truck) => {
+                const truckName = truck.truck ?? "Unassigned";
+                const current = truck.revenue_per_labor_hour ?? metrics?.rph_by_truck?.[truckName] ?? null;
+                const verifiedRaw =
+                  truck.rph_verified ?? metrics?.rph_verified_by_truck?.[truckName] ?? null;
+                const hasBoth =
+                  typeof current === "number" && current > 0 && typeof verifiedRaw === "number";
+                const diffPct = hasBoth ? ((verifiedRaw - current) / current) * 100 : null;
+                const flagged = diffPct !== null && Math.abs(diffPct) > 10;
+                return (
+                  <tr
+                    key={truckName}
+                    className={`border-b border-line/50 last:border-0 ${flagged ? "bg-warn/10" : ""}`}
+                  >
+                    <td className="py-2.5 pr-4 font-medium">{truckName}</td>
+                    <td className="py-2.5 pr-4 tabular-nums">{number(truck.crew_hours)}h</td>
+                    <td className="py-2.5 pr-4 tabular-nums">{money(truck.revenue)}</td>
+                    <td className="py-2.5 pr-4 tabular-nums">{number(truck.jobs)}</td>
+                    <td className="py-2.5 pr-4 tabular-nums">
+                      {typeof current === "number" ? `${money(current)}/hr` : <span className="text-muted">—</span>}
+                    </td>
+                    <td className="py-2.5 pr-4 tabular-nums">
+                      {typeof verifiedRaw === "number" ? (
+                        <span className={flagged ? "font-semibold text-warn" : ""}>{money(verifiedRaw)}/hr</span>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 tabular-nums">
+                      {diffPct !== null ? (
+                        <span className={`inline-flex items-center gap-1 font-semibold ${flagged ? "text-warn" : "text-muted"}`}>
+                          {diffPct > 0 ? "+" : ""}
+                          {diffPct.toFixed(1)}%{flagged && " ⚠"}
+                        </span>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="mt-3 text-xs text-muted">
+            Current RPH = revenue per labor hour (all clocked crew). Verified RPH = revenue per
+            verified-crew labor hour. Rows where the two differ by more than 10% are highlighted.
+          </p>
         </Panel>
         <Panel title="Miles by Truck">
           <BarChart labels={miles.map(([l]) => l)} values={miles.map(([, v]) => v)} format="miles" />

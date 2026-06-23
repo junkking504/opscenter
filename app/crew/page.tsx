@@ -33,12 +33,22 @@ export default async function CrewPage({ searchParams }: { searchParams?: { date
   const selectedDate = resolveReportDate(searchParams?.date);
   const { metrics, lastUpdated } = await getDailyMetrics(selectedDate);
   const dataStatus = metrics ? (metrics.provisional ? "Provisional" : "Final") : "Provisional";
+  const reportDate = selectedDate ?? metrics?.date;
 
-  const crew: EmployeeRph[] = metrics?.employee_leaderboard ?? [];
+  if (!metrics) {
+    return (
+      <Shell dataStatus={dataStatus} lastUpdated={lastUpdated} selectedDate={reportDate}>
+        <div className="rounded-lg border border-line bg-panel px-4 py-3 text-sm text-muted">
+          No data available for this date.
+        </div>
+      </Shell>
+    );
+  }
+
+  const crew: EmployeeRph[] = metrics.employee_leaderboard ?? [];
   const trucks = [...new Set(crew.map((e) => e.truck ?? "Unassigned"))].sort();
   const assigned = crew.filter((e) => (e.truck ?? "Unassigned") !== "Unassigned").length;
   const unassigned = crew.filter((e) => (e.truck ?? "Unassigned") === "Unassigned").length;
-  const reportDate = selectedDate ?? metrics?.date;
 
   return (
     <Shell dataStatus={dataStatus} lastUpdated={lastUpdated} selectedDate={reportDate}>
@@ -64,6 +74,11 @@ export default async function CrewPage({ searchParams }: { searchParams?: { date
         const truckRph = metrics?.rph_by_truck?.[truck] ?? members[0]?.rph ?? 0;
         const allGood = members.every((e) => e.meets_target);
 
+        const payrollCount = members.length;
+        const verifiedNames = metrics?.verified_crew_by_truck?.[truck] ?? [];
+        const verifiedCount = verifiedNames.length;
+        const crewMismatch = payrollCount !== verifiedCount;
+
         return (
           <div key={truck} className="mb-5">
             <Panel
@@ -80,6 +95,34 @@ export default async function CrewPage({ searchParams }: { searchParams?: { date
                 </span>
               }
             >
+              {/* Verified crew strip */}
+              <div
+                className={`mb-3 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-md border px-3 py-2 text-sm ${
+                  crewMismatch ? "border-warn/40 bg-warn/10" : "border-line bg-surface/40"
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="text-muted">Payroll Crew:</span>
+                  <span className="font-semibold tabular-nums text-ink">{payrollCount}</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-muted">Verified Crew:</span>
+                  <span className={`font-semibold tabular-nums ${crewMismatch ? "text-warn" : "text-good"}`}>
+                    {verifiedCount}
+                  </span>
+                </span>
+                <span className="flex items-center gap-1.5 min-w-0">
+                  <span className="text-muted">Verified Names:</span>
+                  <span className="font-medium text-ink">
+                    {verifiedCount ? verifiedNames.join(", ") : <span className="text-muted">None</span>}
+                  </span>
+                </span>
+                {crewMismatch && (
+                  <span className="ml-auto inline-flex items-center rounded-full bg-warn/15 px-2 py-0.5 text-xs font-semibold text-warn">
+                    ⚠ Crew count mismatch
+                  </span>
+                )}
+              </div>
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-muted border-b border-line">

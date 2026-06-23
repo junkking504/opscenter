@@ -30,17 +30,27 @@ export default async function JobsPage({ searchParams }: { searchParams?: { date
   const selectedDate = resolveReportDate(searchParams?.date);
   const { metrics, lastUpdated } = await getDailyMetrics(selectedDate);
   const dataStatus = metrics ? (metrics.provisional ? "Provisional" : "Final") : "Provisional";
-  const jobsByTruck = numericEntries(metrics?.jobs_by_truck);
-  const jobsByMarket = numericEntries(metrics?.jobs_by_market).map(
-    ([label, v]) => [label.replace("Junk King ", ""), v] as [string, number]
-  );
-  const totalJobs = totalRecordValues(metrics?.jobs_by_truck);
-  const totalRevenue = metrics?.total_revenue ?? 0;
-  const avgTicket = totalJobs > 0 ? totalRevenue / totalJobs : 0;
   const reportDate = selectedDate ?? metrics?.date;
 
-  const appointments: Appointment[] = metrics?.appointments ?? [];
-  const jobs = appointments.filter((a) => a.appointment_type?.toLowerCase() !== "estimate");
+  if (!metrics) {
+    return (
+      <Shell dataStatus={dataStatus} lastUpdated={lastUpdated} selectedDate={reportDate}>
+        <div className="rounded-lg border border-line bg-panel px-4 py-3 text-sm text-muted">
+          No data available for this date.
+        </div>
+      </Shell>
+    );
+  }
+
+  const jobsByTruck = numericEntries(metrics.jobs_by_truck);
+  const jobsByMarket = numericEntries(metrics.jobs_by_market).map(
+    ([label, v]) => [label.replace("Junk King ", ""), v] as [string, number]
+  );
+  const totalJobs = totalRecordValues(metrics.jobs_by_truck);
+  const totalRevenue = metrics.total_revenue ?? 0;
+  const avgTicket = totalJobs > 0 ? totalRevenue / totalJobs : 0;
+
+  const appointments: Appointment[] = metrics.appointments ?? [];
   const estimates = appointments.filter((a) => a.appointment_type?.toLowerCase() === "estimate");
 
   return (

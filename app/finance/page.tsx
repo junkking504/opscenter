@@ -44,13 +44,24 @@ export default async function FinancePage({ searchParams }: { searchParams?: { d
   const selectedDate = resolveReportDate(searchParams?.date);
   const { metrics, lastUpdated } = await getDailyMetrics(selectedDate);
   const dataStatus = metrics ? (metrics.provisional ? "Provisional" : "Final") : "Provisional";
-  const unmatched = metrics?.unmatched_payments ?? [];
-  const paymentTotals = totalsByPaymentType(metrics?.appointments);
   const reportDate = selectedDate ?? metrics?.date;
 
-  const totalTips = metrics?.total_tips ?? totalTipsFromAppointments(metrics?.appointments);
-  const totalExpenses = metrics?.total_expenses ?? 0;
-  const expensesByTruck: Record<string, TruckExpenses> = metrics?.expenses_by_truck ?? {};
+  if (!metrics) {
+    return (
+      <Shell dataStatus={dataStatus} lastUpdated={lastUpdated} selectedDate={reportDate}>
+        <div className="rounded-lg border border-line bg-panel px-4 py-3 text-sm text-muted">
+          No data available for this date.
+        </div>
+      </Shell>
+    );
+  }
+
+  const unmatched = metrics.unmatched_payments ?? [];
+  const paymentTotals = totalsByPaymentType(metrics.appointments);
+
+  const totalTips = metrics.total_tips ?? totalTipsFromAppointments(metrics.appointments);
+  const totalExpenses = metrics.total_expenses ?? 0;
+  const expensesByTruck: Record<string, TruckExpenses> = metrics.expenses_by_truck ?? {};
 
   // Aggregate expense columns for the summary table
   const expenseTotals = Object.values(expensesByTruck).reduce(

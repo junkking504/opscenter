@@ -1,0 +1,36 @@
+{
+  "scrapedAt": "2026-06-24T21:49:33.171Z",
+  "source": "junkware_schedule",
+  "activeJobs": [
+    {
+      "jobId": "JK3985605",
+      "truck": "3",
+      "amount": "$1,067.00",
+      "durationMinutes": 60,
+      "rawText": "11:00 AM - 12:00 PM\tJK3985605\nEstimate\nTruck# 3\tVictoria Holley, (228) 238-6370\n1613 Pauger St\nNew Orleans, LA 70116\nNotes:\nResidential, Pricing Not Discussed\nCustomer has to get approval - JK - Franchise\ncaller is a broker and will like for us to come and check the property to get the items of it - CCR\nOther: Customer has to get approval - Driver\nFollowup  \nMore Details\n\t\t\t$1,067.00\tCompleted\n\nDuration: 60 min(s)"
+    },
+    {
+      "jobId": "JK3988743",
+      "truck": "8",
+      "amount": "$250.00",
+      "durationMinutes": 60,
+      "rawText": "02:00 PM - 03:00 PM\tJK3988743\nJob\nTruck# 8\tBilly Saas, (702) 265-5426\n4551 Lennox Blvd\nNew Orleans, LA 70131\nNotes:\nResidential, Pricing Not Discussed\nThe client is requesting junk removal. Items include a couple of large delivery crates (approximately 4x4), a box spring or bed, a child’s car seat, and additional smaller miscellaneous items. please call the customer 30 mins before - CCR\nFollowup  \nMore Details\n\t\tCheck\t$250.00\tCompleted\n\nDuration: 60 min(s)"
+    }
+  ],
+  "cancelledJobs": [
+    {
+      "jobId": "JK3987013",
+      "truck": "",
+      "amount": "",
+      "durationMinutes": null,
+      "rawText": "08:00 AM\t09:00 AM\tJK3987013\tJob\tDabezies, Eugene\tBen Flood\n8315660744\n2635 Myrtle St New Orleans, LA 70122\nNo show\nFollowup"
+    },
+    {
+      "jobId": "JK3987417",
+      "truck": "",
+      "amount": "",
+      "durationMinutes": null,
+      "rawText": "08:00 AM\t09:00 AM\tJK3987417\tJob\tAlvarez, Dennis\tMarisa Kay\n8177091516\n505 S Carrollton Ave New Orleans, LA 70118\nThe customer would like to cancel the appointment due to her not being ready. Offered to reschedule but she mention she will call us back.\nFollowup"
+    }
+  ]
+}

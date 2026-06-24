@@ -1,4 +1,14 @@
 import { chromium } from "playwright";
+import fs from "fs/promises";
+
+function todayKey() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
 
 async function main() {
   const context = await chromium.launchPersistentContext(".auth/junkware", {
@@ -18,17 +28,46 @@ async function main() {
     process.stdin.once("data", () => resolve());
   });
 
-  await page.waitForURL("**/franchise/schedule.aspx", { timeout: 30000 }).catch(() => {});
+  const rows = await page.locator("table tr").all();
 
-  console.log("TITLE:", await page.title());
-  console.log("URL:", page.url());
+  const activeJobs = [];
+  const cancelledJobs = [];
 
-  await page.screenshot({
-    path: "junkware-schedule.png",
-    fullPage: true,
-  });
+  for (const row of rows) {
+    const text = await row.innerText().catch(() => "");
+    if (!text.includes("JK")) continue;
+    if (text.includes("Time\tJK #") || text.includes("From\tTo\tJK #")) continue;
 
-  console.log("Saved screenshot: junkware-schedule.png");
+    const jobMatch = text.match(/JK\d+/);
+    const truckMatch = text.match(/Truck#\s*(\d+)/i);
+    const amountMatch = text.match(/\$([\d,]+\.\d{2})/);
+    const durationMatch = text.match(/Duration:\s*(\d+)\s*min/i);
+
+    const record = {
+      jobId: jobMatch?.[0] ?? "",
+      truck: truckMatch?.[1] ?? "",
+      amount: amountMatch?.[0] ?? "",
+      durationMinutes: durationMatch ? Number(durationMatch[1]) : null,
+      rawText: text,
+    };
+
+    if (truckMatch) activeJobs.push(record);
+    else cancelledJobs.push(record);
+  }
+
+  const payload = {
+    scrapedAt: new Date().toISOString(),
+    source: "junkware_schedule",
+    activeJobs,
+    cancelledJobs,
+  };
+
+  await fs.mkdir("data/history/raw/junkware", { recursive: true });
+
+  const out = `data/history/raw/junkware/schedule_${todayKey()}.json`;
+  await fs.writeFile(out, JSON.stringify(payload, null, 2));
+
+  console.log(`Saved ${activeJobs.length} active jobs and ${cancelledJobs.length} cancelled jobs to ${out}`);
 
   await context.close();
 }

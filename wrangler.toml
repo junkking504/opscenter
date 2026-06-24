@@ -1,4 +1,4 @@
-name = "opscenter"
+name = "opscenterv2"
 compatibility_date = "2026-06-24"
 compatibility_flags = ["nodejs_compat"]
 main = ".open-next/worker.js"

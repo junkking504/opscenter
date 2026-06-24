@@ -73,6 +73,9 @@ export type TruckPerformance = {
   revenue_per_labor_hour?: number;
   jobs?: number;
   crew_count?: number;
+  verified_crew?: string[];
+  verified_crew_count?: number;
+  rph_verified?: number | null;
 };
 
 export type DailyMetrics = {
@@ -104,6 +107,8 @@ export type DailyMetrics = {
   drive_time_by_truck?: Record<string, string | number>;
   truck_utilization?: Record<string, number>;
   rph_by_truck?: Record<string, number>;
+  rph_verified_by_truck?: Record<string, number>;
+  verified_crew_by_truck?: Record<string, string[]>;
   trucks_below_90_per_hr_person?: TruckIssue[];
   trucks_below_90_hr_person?: TruckIssue[];
   revenue_not_yet_collected?: number;

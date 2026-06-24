@@ -55,7 +55,7 @@ type HistoryIndex = {
 };
 
 async function readHistoryIndex(): Promise<HistoryIndex | null> {
-  const indexPath = path.resolve(process.cwd(), "..", "opsbot", "data", "processed", "history_index.json");
+  const indexPath = path.resolve(process.cwd(), "data", "history", "history_index.json");
   try {
     return JSON.parse(await fs.readFile(indexPath, "utf8")) as HistoryIndex;
   } catch {

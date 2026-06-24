@@ -5,27 +5,23 @@ import { chicagoDateKey } from "@/lib/report-dates";
 
 export async function getDailyMetrics(dateKey?: string): Promise<MetricsResult> {
   const todayKey = chicagoDateKey();
-  const opsbotRoot = path.resolve(process.cwd(), "..", "opsbot");
   const resolvedDate = dateKey ?? todayKey;
-  const dataPaths = dateKey
-    ? [
-        path.join(opsbotRoot, "data", "processed", `daily_metrics_${resolvedDate}.json`),
-        path.join(opsbotRoot, "data", "history", "daily_metrics", `daily_metrics_${resolvedDate}.json`)
-      ]
-    : [
-        path.join(opsbotRoot, "data", "processed", `daily_metrics_${resolvedDate}.json`),
-        path.join(opsbotRoot, "data", "processed", "daily_metrics.json"),
-        path.join(opsbotRoot, "data", "history", "daily_metrics", `daily_metrics_${resolvedDate}.json`)
-      ];
+  const dataRoot = path.resolve(process.cwd(), "data");
+  const dataPaths = [
+    path.join(dataRoot, "history", "daily_metrics", `daily_metrics_${resolvedDate}.json`),
+  ];
 
-  for (const dataPath of dataPaths) {
+  for (let i = 0; i < dataPaths.length; i++) {
+    const dataPath = dataPaths[i];
     try {
       const [raw, stat] = await Promise.all([fs.readFile(dataPath, "utf8"), fs.stat(dataPath)]);
+      console.log(`[metrics]\nrequested=${dateKey ?? "(none)"}\nresolved=${resolvedDate}\npath=${dataPath}\nfallback=${i > 0}`);
       return { metrics: JSON.parse(raw) as DailyMetrics, dataPath, lastUpdated: stat.mtime.toISOString() };
     } catch {
-      // Try the next known location.
+      // File not found or unreadable — try next path or return empty state below.
     }
   }
+  console.log(`[metrics]\nrequested=${dateKey ?? "(none)"}\nresolved=${resolvedDate}\npath=${dataPaths[0]}\nfallback=false\nerror=file-not-found`);
   return { metrics: null, dataPath: dataPaths[0], error: "Unable to read daily metrics" };
 }
 

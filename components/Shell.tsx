@@ -7,7 +7,6 @@ import { reportDateOptions } from "@/lib/report-dates";
 const nav = [
   { href: "/", label: "Dashboard" },
   { href: "/fleet", label: "Fleet" },
-  { href: "/finance", label: "Finance" },
   { href: "/jobs", label: "Jobs" },
   { href: "/crew", label: "Crew" }
 ];

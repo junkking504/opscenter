@@ -1,0 +1,600 @@
+{
+  "date": "2026-06-19",
+  "generated_at": "2026-06-22T21:00:03.524300-05:00",
+  "provisional": true,
+  "provisional_reason": "completed Junkware file was empty; live file used",
+  "inputs": {
+    "junkware_raw": "data/history/junkware/junkware_2026-06-19_raw.json",
+    "junkware_truck_records": "data/history/junkware/junkware_truck_records_2026-06-19.csv",
+    "junkware_summary": "data/history/junkware/junkware_live_2026-06-19_summary.csv",
+    "junkware_live_summary": "data/history/junkware/junkware_live_2026-06-19_summary.csv",
+    "junkware_completed_summary": "data/history/junkware/junkware_completed_2026-06-19_summary.csv",
+    "junkware_employee_summary": "data/history/junkware/junkware_employees_2026-06-19_summary.csv",
+    "linxup_raw": "data/history/linxup/linxup_2026-06-19_raw.json",
+    "linxup_summary": "data/history/linxup/linxup_2026-06-19_summary.csv",
+    "qbo_raw": "data/history/qbo/qbo_2026-06-19_raw.csv",
+    "qbo_dashboard": "data/history/qbo/qbo_2026-06-19_dashboard.json",
+    "qbo_summary": "data/history/qbo/qbo_2026-06-19_summary.csv",
+    "missing": [
+      "data/history/linxup/linxup_2026-06-19_summary.csv"
+    ]
+  },
+  "total_revenue": 6988.72,
+  "total_tips": 0.0,
+  "total_expenses": 341.46,
+  "expenses_by_truck": {
+    "Truck# 1": {
+      "dumps": 0.0,
+      "gas": 0.0,
+      "recycling": 0.0,
+      "other": 0.0,
+      "total": 0.0
+    },
+    "Truck# 3": {
+      "dumps": 0.0,
+      "gas": 223.55,
+      "recycling": 0.0,
+      "other": 0.0,
+      "total": 223.55
+    },
+    "Truck# 6": {
+      "dumps": 0.0,
+      "gas": 39.0,
+      "recycling": 0.0,
+      "other": 0.0,
+      "total": 39.0
+    },
+    "Truck# 9": {
+      "dumps": 0.0,
+      "gas": 0.0,
+      "recycling": 0.0,
+      "other": 78.91,
+      "total": 78.91
+    }
+  },
+  "tips_by_truck": {},
+  "cc_fee_rate": 0.03,
+  "cc_fees": 209.66,
+  "net_revenue": 6779.06,
+  "total_payments_collected": 0.0,
+  "open_invoice_total": 0.0,
+  "employee_count": 4,
+  "revenue_by_market": {
+    "Junk King Baton Rouge": 2467.44,
+    "Junk King Jefferson Parish": 0.0,
+    "Junk King New Orleans": 1197.1,
+    "Junk King Northshore": 3324.18
+  },
+  "revenue_by_truck": {
+    "Truck# 1": 3147.1,
+    "Truck# 3": 1374.18,
+    "Truck# 6": 0.0,
+    "Truck# 9": 2467.44
+  },
+  "jobs_by_truck": {
+    "Truck# 1": 6,
+    "Truck# 3": 3,
+    "Truck# 6": 0,
+    "Truck# 9": 5
+  },
+  "jobs_by_market": {
+    "Junk King Baton Rouge": 5,
+    "Junk King Jefferson Parish": 0,
+    "Junk King New Orleans": 4,
+    "Junk King Northshore": 5
+  },
+  "employee_hours_by_truck": {
+    "Truck# 1": 16.03,
+    "Truck# 3": 18.33
+  },
+  "employees_by_truck": {
+    "Truck# 1": 2,
+    "Truck# 3": 2
+  },
+  "employee_leaderboard": [
+    {
+      "name": "Edwards, Jeff",
+      "truck": "Truck# 1",
+      "trucks": [
+        "Truck# 1"
+      ],
+      "time_in": "07:33 AM",
+      "time_out": "01:30 PM",
+      "clock_in": "07:33 AM",
+      "clock_out": "01:30 PM",
+      "clock_out_display": "01:30 PM",
+      "hours": 5.95,
+      "hours_worked": 5.95,
+      "hours_basis": "logged",
+      "shift_status": "Clocked Out",
+      "truck_revenue": 1573.55,
+      "revenue_generated": 1573.55,
+      "tip": 0.0,
+      "rph": 264.46,
+      "revenue_per_hour": 264.46,
+      "meets_target": true,
+      "rph_verified": 264.46,
+      "meets_target_verified": true,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 1",
+          "revenue": 1573.55,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    },
+    {
+      "name": "Harris, Rich'ard",
+      "truck": "Truck# 1",
+      "trucks": [
+        "Truck# 1"
+      ],
+      "time_in": "07:29 AM",
+      "time_out": "05:34 PM",
+      "clock_in": "07:29 AM",
+      "clock_out": "05:34 PM",
+      "clock_out_display": "05:34 PM",
+      "hours": 10.08,
+      "hours_worked": 10.08,
+      "hours_basis": "logged",
+      "shift_status": "Clocked Out",
+      "truck_revenue": 1573.55,
+      "revenue_generated": 1573.55,
+      "tip": 0.0,
+      "rph": 156.11,
+      "revenue_per_hour": 156.11,
+      "meets_target": true,
+      "rph_verified": 156.11,
+      "meets_target_verified": true,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 1",
+          "revenue": 1573.55,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    },
+    {
+      "name": "Burris, Brant",
+      "truck": "Truck# 3",
+      "trucks": [
+        "Truck# 3"
+      ],
+      "time_in": "07:34 AM",
+      "time_out": "04:39 PM",
+      "clock_in": "07:34 AM",
+      "clock_out": "04:39 PM",
+      "clock_out_display": "04:39 PM",
+      "hours": 9.08,
+      "hours_worked": 9.08,
+      "hours_basis": "logged",
+      "shift_status": "Clocked Out",
+      "truck_revenue": 687.09,
+      "revenue_generated": 687.09,
+      "tip": 0.0,
+      "rph": 75.67,
+      "revenue_per_hour": 75.67,
+      "meets_target": false,
+      "rph_verified": 75.67,
+      "meets_target_verified": false,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 3",
+          "revenue": 687.09,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    },
+    {
+      "name": "Myles, Jonathan",
+      "truck": "Truck# 3",
+      "trucks": [
+        "Truck# 3"
+      ],
+      "time_in": "07:36 AM",
+      "time_out": "04:51 PM",
+      "clock_in": "07:36 AM",
+      "clock_out": "04:51 PM",
+      "clock_out_display": "04:51 PM",
+      "hours": 9.25,
+      "hours_worked": 9.25,
+      "hours_basis": "logged",
+      "shift_status": "Clocked Out",
+      "truck_revenue": 687.09,
+      "revenue_generated": 687.09,
+      "tip": 0.0,
+      "rph": 74.28,
+      "revenue_per_hour": 74.28,
+      "meets_target": false,
+      "rph_verified": 74.28,
+      "meets_target_verified": false,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 3",
+          "revenue": 687.09,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    }
+  ],
+  "payroll_records": [
+    {
+      "date": "2026-06-19",
+      "name": "Burris, Brant",
+      "truck": "Truck# 3",
+      "trucks": [
+        "Truck# 3"
+      ],
+      "clock_in": "07:34 AM",
+      "clock_out": "04:39 PM",
+      "clock_out_display": "04:39 PM",
+      "shift_status": "Clocked Out",
+      "hours_worked": 9.08,
+      "hours_basis": "logged",
+      "pay": "$145.28",
+      "revenue_generated": 687.09,
+      "revenue_per_hour": 75.67,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 3",
+          "revenue": 687.09,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    },
+    {
+      "date": "2026-06-19",
+      "name": "Edwards, Jeff",
+      "truck": "Truck# 1",
+      "trucks": [
+        "Truck# 1"
+      ],
+      "clock_in": "07:33 AM",
+      "clock_out": "01:30 PM",
+      "clock_out_display": "01:30 PM",
+      "shift_status": "Clocked Out",
+      "hours_worked": 5.95,
+      "hours_basis": "logged",
+      "pay": "$95.20",
+      "revenue_generated": 1573.55,
+      "revenue_per_hour": 264.46,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 1",
+          "revenue": 1573.55,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    },
+    {
+      "date": "2026-06-19",
+      "name": "Harris, Rich'ard",
+      "truck": "Truck# 1",
+      "trucks": [
+        "Truck# 1"
+      ],
+      "clock_in": "07:29 AM",
+      "clock_out": "05:34 PM",
+      "clock_out_display": "05:34 PM",
+      "shift_status": "Clocked Out",
+      "hours_worked": 10.08,
+      "hours_basis": "logged",
+      "pay": "$161.28",
+      "revenue_generated": 1573.55,
+      "revenue_per_hour": 156.11,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 1",
+          "revenue": 1573.55,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    },
+    {
+      "date": "2026-06-19",
+      "name": "Myles, Jonathan",
+      "truck": "Truck# 3",
+      "trucks": [
+        "Truck# 3"
+      ],
+      "clock_in": "07:36 AM",
+      "clock_out": "04:51 PM",
+      "clock_out_display": "04:51 PM",
+      "shift_status": "Clocked Out",
+      "hours_worked": 9.25,
+      "hours_basis": "logged",
+      "pay": "$148.00",
+      "revenue_generated": 687.09,
+      "revenue_per_hour": 74.28,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 3",
+          "revenue": 687.09,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    }
+  ],
+  "truck_performance": [
+    {
+      "truck": "Truck# 1",
+      "crew_hours": 16.03,
+      "revenue": 3147.1,
+      "revenue_per_labor_hour": 196.33,
+      "jobs": 6,
+      "crew_count": 2,
+      "verified_crew": [
+        "Edwards, Jeff",
+        "Harris, Rich'ard"
+      ],
+      "verified_crew_count": 2,
+      "rph_verified": 98.16
+    },
+    {
+      "truck": "Truck# 3",
+      "crew_hours": 18.33,
+      "revenue": 1374.18,
+      "revenue_per_labor_hour": 74.97,
+      "jobs": 3,
+      "crew_count": 2,
+      "verified_crew": [
+        "Burris, Brant",
+        "Myles, Jonathan"
+      ],
+      "verified_crew_count": 2,
+      "rph_verified": 37.48
+    },
+    {
+      "truck": "Truck# 6",
+      "crew_hours": 0.0,
+      "revenue": 0.0,
+      "revenue_per_labor_hour": 0.0,
+      "jobs": 0,
+      "crew_count": 0,
+      "verified_crew": [],
+      "verified_crew_count": 0,
+      "rph_verified": null
+    },
+    {
+      "truck": "Truck# 9",
+      "crew_hours": 0.0,
+      "revenue": 2467.44,
+      "revenue_per_labor_hour": 0.0,
+      "jobs": 5,
+      "crew_count": 0,
+      "verified_crew": [],
+      "verified_crew_count": 0,
+      "rph_verified": null
+    }
+  ],
+  "miles_by_truck": {},
+  "idle_time_by_truck": {},
+  "drive_time_by_truck": {},
+  "rph_by_truck": {
+    "Truck# 1": 196.33,
+    "Truck# 3": 74.97
+  },
+  "rph_verified_by_truck": {
+    "Truck# 1": 98.16,
+    "Truck# 3": 37.48
+  },
+  "verified_crew_by_truck": {
+    "Truck# 1": [
+      "Edwards, Jeff",
+      "Harris, Rich'ard"
+    ],
+    "Truck# 3": [
+      "Burris, Brant",
+      "Myles, Jonathan"
+    ]
+  },
+  "trucks_below_90_per_hr_person": [
+    {
+      "truck": "Truck# 3",
+      "rph": 74.97,
+      "target": 90.0
+    }
+  ],
+  "appointments": [
+    {
+      "job_id": "JK3980129",
+      "appt_id": "3966951",
+      "customer_name": "James Fiorenza",
+      "market": "",
+      "truck": "Virtual Truck",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(318) 792-6693",
+      "address": "256 Fairfield Oaks Dr Madisonville, LA 70447",
+      "lat": null,
+      "lng": null,
+      "revenue": "$488.00",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3984157",
+      "appt_id": "3970979",
+      "customer_name": "Jennifer Addison",
+      "market": "Northshore",
+      "truck": "Truck# 4",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(843) 801-5455",
+      "address": "30223 East Street Lacombe, LA 70445",
+      "lat": 30.314466,
+      "lng": -89.9009723,
+      "revenue": "$0.00",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Estimate"
+    },
+    {
+      "job_id": "JK3983969",
+      "appt_id": "3970791",
+      "customer_name": "Shantel Johnson",
+      "market": "Northshore",
+      "truck": "Truck# 4",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(504) 957-0013",
+      "address": "5701 Oakworth Street Slidell, LA 70461",
+      "lat": null,
+      "lng": null,
+      "revenue": "$0.00",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3983356",
+      "appt_id": "3970178",
+      "customer_name": "Triconne Johson",
+      "market": "",
+      "truck": "Virtual Truck",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(504) 536-2096",
+      "address": "102 Covington Meadow Cir Apt B Covington, LA 70433",
+      "lat": null,
+      "lng": null,
+      "revenue": "$0.00",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3981025",
+      "appt_id": "3967847",
+      "customer_name": "Lyndsay Cox",
+      "market": "",
+      "truck": "Virtual Truck",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(318) 341-9443",
+      "address": "2166 Ozone Pl MANDEVILLE, LA 70448",
+      "lat": null,
+      "lng": null,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3984432",
+      "appt_id": "3971254",
+      "customer_name": "Jake Flint",
+      "market": "Baton Rouge",
+      "truck": "Truck# 6",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(574) 323-3660",
+      "address": "3012 Grand Field Ave Baton Rouge, LA 70810",
+      "lat": 30.3317789,
+      "lng": -91.1273673,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3971201",
+      "appt_id": "3958023",
+      "customer_name": "Alexander Wiggins",
+      "market": "",
+      "truck": "Virtual Truck",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(409) 658-3721",
+      "address": "1645 Brightside Dr Building H Apt 165 Baton Rouge, LA 70820",
+      "lat": null,
+      "lng": null,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3974657",
+      "appt_id": "",
+      "customer_name": "Micah Price 6012138993 4200 Lake Trail Dr Kenner",
+      "market": "New Orleans",
+      "truck": "",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "",
+      "address": "",
+      "lat": null,
+      "lng": null,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Cancelled by Dabezies, Eugene",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3984574",
+      "appt_id": "",
+      "customer_name": "Ashley Thomas 5049750330 4101 Hessmer Ave Metairie",
+      "market": "New Orleans",
+      "truck": "",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "",
+      "address": "",
+      "lat": null,
+      "lng": null,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Cancelled by Zaldana, Eliezer",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3980045",
+      "appt_id": "",
+      "customer_name": "Barbara Vado 6015904712 413 Pinewood Dr Covington",
+      "market": "Northshore",
+      "truck": "",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "",
+      "address": "",
+      "lat": null,
+      "lng": null,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Cancelled by Melara, Erika",
+      "appointment_type": "Job"
+    }
+  ],
+  "unmatched_payments": [],
+  "revenue_not_yet_collected": 6988.72
+}

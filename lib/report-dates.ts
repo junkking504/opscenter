@@ -1,5 +1,4 @@
-import { promises as fs } from "fs";
-import path from "path";
+import { historyIndex } from "@/lib/history-data";
 
 export const EARLIEST_REPORT_DATE = "2026-06-15";
 
@@ -54,18 +53,13 @@ type HistoryIndex = {
   };
 };
 
-async function readHistoryIndex(): Promise<HistoryIndex | null> {
-  const indexPath = path.resolve(process.cwd(), "data", "history", "history_index.json");
-  try {
-    return JSON.parse(await fs.readFile(indexPath, "utf8")) as HistoryIndex;
-  } catch {
-    return null;
-  }
+function readHistoryIndex(): HistoryIndex | null {
+  return historyIndex as HistoryIndex;
 }
 
 export async function reportDateOptions(): Promise<ReportDateOption[]> {
   const today = chicagoDateKey();
-  const index = await readHistoryIndex();
+  const index = readHistoryIndex();
   const availableDates: string[] = index?.selector?.available_dates ?? index?.dates ?? [];
 
   // Always include today; merge with history dates, deduplicate, sort newest-first.

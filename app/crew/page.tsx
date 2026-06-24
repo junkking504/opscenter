@@ -1,4 +1,6 @@
-import { MetricCard } from "@/components/MetricCard";
+import {
+  const metrics = await getDailyMetrics();
+ MetricCard } from "@/components/MetricCard";
 import { Shell } from "@/components/Shell";
 import { Panel } from "@/components/Panel";
 import { getDailyMetrics, money, number } from "@/lib/metrics";

@@ -1,4 +1,6 @@
-import { BarChart } from "@/components/BarChart";
+import {
+  const metrics = await getDailyMetrics();
+ BarChart } from "@/components/BarChart";
 import { MetricCard } from "@/components/MetricCard";
 import { JobsMap } from "@/components/JobsMap";
 import { Panel } from "@/components/Panel";

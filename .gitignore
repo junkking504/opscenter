@@ -11,3 +11,19 @@ node_modules/
 
 .auth/
 junkware-*.png
+
+# OpenNext build output
+.open-next/
+
+# Wrangler local state
+.wrangler/
+
+# Next.js
+.next/
+
+# Playwright
+playwright-report/
+test-results/
+
+# macOS
+.DS_Store

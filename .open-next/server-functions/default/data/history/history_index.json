@@ -1,0 +1,941 @@
+{
+  "generated_at": "2026-06-23T12:25:32.638370-05:00",
+  "dates": [
+    "2026-06-08",
+    "2026-06-09",
+    "2026-06-10",
+    "2026-06-11",
+    "2026-06-12",
+    "2026-06-13",
+    "2026-06-14",
+    "2026-06-15",
+    "2026-06-16",
+    "2026-06-17",
+    "2026-06-18",
+    "2026-06-19",
+    "2026-06-20",
+    "2026-06-21",
+    "2026-06-22",
+    "2026-06-23"
+  ],
+  "selector": {
+    "available_dates": [
+      "2026-06-08",
+      "2026-06-09",
+      "2026-06-10",
+      "2026-06-11",
+      "2026-06-12",
+      "2026-06-13",
+      "2026-06-14",
+      "2026-06-15",
+      "2026-06-16",
+      "2026-06-17",
+      "2026-06-18",
+      "2026-06-19",
+      "2026-06-20",
+      "2026-06-21",
+      "2026-06-22",
+      "2026-06-23"
+    ],
+    "shortcuts": {
+      "today": "2026-06-23",
+      "yesterday": "2026-06-22"
+    }
+  },
+  "source_domains": {
+    "junkware": [
+      "raw",
+      "live",
+      "completed",
+      "employees",
+      "truck_records"
+    ],
+    "qbo": [
+      "raw",
+      "dashboard",
+      "summary"
+    ],
+    "linxup": [
+      "raw",
+      "summary"
+    ],
+    "daily_metrics": [
+      "metrics"
+    ]
+  },
+  "future_extensions": [
+    "dispatch_map",
+    "live_truck_tracking",
+    "route_optimization"
+  ],
+  "records": [
+    {
+      "date": "2026-06-08",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-08.json",
+        "bytes": 2105,
+        "mtime": "2026-06-22T21:06:12.270990-05:00",
+        "provisional": false,
+        "missing_inputs": [
+          "data/history/junkware/junkware_truck_records_2026-06-08.csv",
+          "data/processed/junkware_2026-06-08_summary.csv",
+          "data/history/junkware/junkware_employees_2026-06-08_summary.csv",
+          "data/history/linxup/linxup_2026-06-08_summary.csv"
+        ]
+      },
+      "sources": {
+        "junkware": {
+          "raw": null,
+          "live": null,
+          "completed": null,
+          "employees": null,
+          "truck_records": null
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-08_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-22T21:06:11.974376-05:00"
+          },
+          "dashboard": null,
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-08_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-22T21:06:11.975045-05:00"
+          }
+        },
+        "linxup": {
+          "raw": null,
+          "summary": null
+        }
+      }
+    },
+    {
+      "date": "2026-06-09",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-09.json",
+        "bytes": 2105,
+        "mtime": "2026-06-22T21:06:11.706797-05:00",
+        "provisional": false,
+        "missing_inputs": [
+          "data/history/junkware/junkware_truck_records_2026-06-09.csv",
+          "data/processed/junkware_2026-06-09_summary.csv",
+          "data/history/junkware/junkware_employees_2026-06-09_summary.csv",
+          "data/history/linxup/linxup_2026-06-09_summary.csv"
+        ]
+      },
+      "sources": {
+        "junkware": {
+          "raw": null,
+          "live": null,
+          "completed": null,
+          "employees": null,
+          "truck_records": null
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-09_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-22T21:06:11.411422-05:00"
+          },
+          "dashboard": null,
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-09_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-22T21:06:11.412036-05:00"
+          }
+        },
+        "linxup": {
+          "raw": null,
+          "summary": null
+        }
+      }
+    },
+    {
+      "date": "2026-06-10",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-10.json",
+        "bytes": 2105,
+        "mtime": "2026-06-22T21:06:11.151528-05:00",
+        "provisional": false,
+        "missing_inputs": [
+          "data/history/junkware/junkware_truck_records_2026-06-10.csv",
+          "data/processed/junkware_2026-06-10_summary.csv",
+          "data/history/junkware/junkware_employees_2026-06-10_summary.csv",
+          "data/history/linxup/linxup_2026-06-10_summary.csv"
+        ]
+      },
+      "sources": {
+        "junkware": {
+          "raw": null,
+          "live": null,
+          "completed": null,
+          "employees": null,
+          "truck_records": null
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-10_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-22T21:06:10.851286-05:00"
+          },
+          "dashboard": null,
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-10_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-22T21:06:10.851951-05:00"
+          }
+        },
+        "linxup": {
+          "raw": null,
+          "summary": null
+        }
+      }
+    },
+    {
+      "date": "2026-06-11",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-11.json",
+        "bytes": 2105,
+        "mtime": "2026-06-22T21:06:10.591166-05:00",
+        "provisional": false,
+        "missing_inputs": [
+          "data/history/junkware/junkware_truck_records_2026-06-11.csv",
+          "data/processed/junkware_2026-06-11_summary.csv",
+          "data/history/junkware/junkware_employees_2026-06-11_summary.csv",
+          "data/history/linxup/linxup_2026-06-11_summary.csv"
+        ]
+      },
+      "sources": {
+        "junkware": {
+          "raw": null,
+          "live": null,
+          "completed": null,
+          "employees": null,
+          "truck_records": null
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-11_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-22T21:06:10.296242-05:00"
+          },
+          "dashboard": null,
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-11_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-22T21:06:10.296904-05:00"
+          }
+        },
+        "linxup": {
+          "raw": null,
+          "summary": null
+        }
+      }
+    },
+    {
+      "date": "2026-06-12",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-12.json",
+        "bytes": 2105,
+        "mtime": "2026-06-22T21:06:10.042901-05:00",
+        "provisional": false,
+        "missing_inputs": [
+          "data/history/junkware/junkware_truck_records_2026-06-12.csv",
+          "data/processed/junkware_2026-06-12_summary.csv",
+          "data/history/junkware/junkware_employees_2026-06-12_summary.csv",
+          "data/history/linxup/linxup_2026-06-12_summary.csv"
+        ]
+      },
+      "sources": {
+        "junkware": {
+          "raw": null,
+          "live": null,
+          "completed": null,
+          "employees": null,
+          "truck_records": null
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-12_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-22T21:06:09.820396-05:00"
+          },
+          "dashboard": null,
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-12_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-22T21:06:09.820724-05:00"
+          }
+        },
+        "linxup": {
+          "raw": null,
+          "summary": null
+        }
+      }
+    },
+    {
+      "date": "2026-06-13",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-13.json",
+        "bytes": 2105,
+        "mtime": "2026-06-22T21:06:09.540962-05:00",
+        "provisional": false,
+        "missing_inputs": [
+          "data/history/junkware/junkware_truck_records_2026-06-13.csv",
+          "data/processed/junkware_2026-06-13_summary.csv",
+          "data/history/junkware/junkware_employees_2026-06-13_summary.csv",
+          "data/history/linxup/linxup_2026-06-13_summary.csv"
+        ]
+      },
+      "sources": {
+        "junkware": {
+          "raw": null,
+          "live": null,
+          "completed": null,
+          "employees": null,
+          "truck_records": null
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-13_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-22T21:06:09.239156-05:00"
+          },
+          "dashboard": null,
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-13_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-22T21:06:09.239818-05:00"
+          }
+        },
+        "linxup": {
+          "raw": null,
+          "summary": null
+        }
+      }
+    },
+    {
+      "date": "2026-06-14",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-14.json",
+        "bytes": 2105,
+        "mtime": "2026-06-22T21:06:08.975271-05:00",
+        "provisional": false,
+        "missing_inputs": [
+          "data/history/junkware/junkware_truck_records_2026-06-14.csv",
+          "data/processed/junkware_2026-06-14_summary.csv",
+          "data/history/junkware/junkware_employees_2026-06-14_summary.csv",
+          "data/history/linxup/linxup_2026-06-14_summary.csv"
+        ]
+      },
+      "sources": {
+        "junkware": {
+          "raw": null,
+          "live": null,
+          "completed": null,
+          "employees": null,
+          "truck_records": null
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-14_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-22T21:06:08.660984-05:00"
+          },
+          "dashboard": null,
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-14_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-22T21:06:08.661803-05:00"
+          }
+        },
+        "linxup": {
+          "raw": null,
+          "summary": null
+        }
+      }
+    },
+    {
+      "date": "2026-06-15",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-15.json",
+        "bytes": 19254,
+        "mtime": "2026-06-22T21:06:08.308619-05:00",
+        "provisional": false,
+        "missing_inputs": [
+          "data/history/junkware/junkware_truck_records_2026-06-15.csv",
+          "data/history/linxup/linxup_2026-06-15_summary.csv"
+        ]
+      },
+      "sources": {
+        "junkware": {
+          "raw": {
+            "path": "data/history/junkware/junkware_2026-06-15_raw.json",
+            "bytes": 6553,
+            "mtime": "2026-06-22T07:43:32.041502-05:00"
+          },
+          "live": {
+            "path": "data/history/junkware/junkware_live_2026-06-15_summary.csv",
+            "bytes": 1204,
+            "mtime": "2026-06-17T08:42:27.415183-05:00"
+          },
+          "completed": {
+            "path": "data/history/junkware/junkware_completed_2026-06-15_summary.csv",
+            "bytes": 281,
+            "mtime": "2026-06-17T08:42:27.415425-05:00"
+          },
+          "employees": {
+            "path": "data/history/junkware/junkware_employees_2026-06-15_summary.csv",
+            "bytes": 695,
+            "mtime": "2026-06-17T08:42:27.415590-05:00"
+          },
+          "truck_records": null
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-15_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-22T21:06:07.761487-05:00"
+          },
+          "dashboard": null,
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-15_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-22T21:06:07.762389-05:00"
+          }
+        },
+        "linxup": {
+          "raw": null,
+          "summary": null
+        }
+      }
+    },
+    {
+      "date": "2026-06-16",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-16.json",
+        "bytes": 20759,
+        "mtime": "2026-06-22T21:06:07.044158-05:00",
+        "provisional": false,
+        "missing_inputs": []
+      },
+      "sources": {
+        "junkware": {
+          "raw": {
+            "path": "data/history/junkware/junkware_2026-06-16_raw.json",
+            "bytes": 6552,
+            "mtime": "2026-06-22T07:46:07.753276-05:00"
+          },
+          "live": {
+            "path": "data/history/junkware/junkware_live_2026-06-16_summary.csv",
+            "bytes": 1204,
+            "mtime": "2026-06-17T08:41:09.797717-05:00"
+          },
+          "completed": {
+            "path": "data/history/junkware/junkware_completed_2026-06-16_summary.csv",
+            "bytes": 281,
+            "mtime": "2026-06-17T08:41:09.798256-05:00"
+          },
+          "employees": {
+            "path": "data/history/junkware/junkware_employees_2026-06-16_summary.csv",
+            "bytes": 694,
+            "mtime": "2026-06-17T08:41:09.798446-05:00"
+          },
+          "truck_records": {
+            "path": "data/history/junkware/junkware_truck_records_2026-06-16.csv",
+            "bytes": 270,
+            "mtime": "2026-06-16T14:22:29.170326-05:00"
+          }
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-16_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-22T21:06:06.382748-05:00"
+          },
+          "dashboard": {
+            "path": "data/history/qbo/qbo_2026-06-16_dashboard.json",
+            "bytes": 248,
+            "mtime": "2026-06-16T12:11:40.893559-05:00"
+          },
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-16_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-22T21:06:06.383525-05:00"
+          }
+        },
+        "linxup": {
+          "raw": {
+            "path": "data/history/linxup/linxup_2026-06-16_raw.json",
+            "bytes": 66100,
+            "mtime": "2026-06-16T12:13:49.271591-05:00"
+          },
+          "summary": {
+            "path": "data/history/linxup/linxup_2026-06-16_summary.csv",
+            "bytes": 1047,
+            "mtime": "2026-06-16T12:13:49.273394-05:00"
+          }
+        }
+      }
+    },
+    {
+      "date": "2026-06-17",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-17.json",
+        "bytes": 20646,
+        "mtime": "2026-06-22T21:00:04.626929-05:00",
+        "provisional": false,
+        "missing_inputs": []
+      },
+      "sources": {
+        "junkware": {
+          "raw": {
+            "path": "data/history/junkware/junkware_2026-06-17_raw.json",
+            "bytes": 16668,
+            "mtime": "2026-06-22T07:49:41.020524-05:00"
+          },
+          "live": {
+            "path": "data/history/junkware/junkware_live_2026-06-17_summary.csv",
+            "bytes": 3025,
+            "mtime": "2026-06-17T19:27:21.456145-05:00"
+          },
+          "completed": {
+            "path": "data/history/junkware/junkware_completed_2026-06-17_summary.csv",
+            "bytes": 2046,
+            "mtime": "2026-06-17T19:27:21.456369-05:00"
+          },
+          "employees": {
+            "path": "data/history/junkware/junkware_employees_2026-06-17_summary.csv",
+            "bytes": 444,
+            "mtime": "2026-06-17T19:27:21.456486-05:00"
+          },
+          "truck_records": {
+            "path": "data/history/junkware/junkware_truck_records_2026-06-17.csv",
+            "bytes": 486,
+            "mtime": "2026-06-17T19:27:21.456605-05:00"
+          }
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-17_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-22T21:00:04.326892-05:00"
+          },
+          "dashboard": null,
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-17_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-22T21:00:04.327565-05:00"
+          }
+        },
+        "linxup": {
+          "raw": {
+            "path": "data/history/linxup/linxup_2026-06-17_raw.json",
+            "bytes": 99743,
+            "mtime": "2026-06-17T18:41:49.779467-05:00"
+          },
+          "summary": {
+            "path": "data/history/linxup/linxup_2026-06-17_summary.csv",
+            "bytes": 999,
+            "mtime": "2026-06-17T18:41:49.780160-05:00"
+          }
+        }
+      }
+    },
+    {
+      "date": "2026-06-18",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-18.json",
+        "bytes": 17286,
+        "mtime": "2026-06-22T21:00:04.071314-05:00",
+        "provisional": false,
+        "missing_inputs": []
+      },
+      "sources": {
+        "junkware": {
+          "raw": {
+            "path": "data/history/junkware/junkware_2026-06-18_raw.json",
+            "bytes": 8457,
+            "mtime": "2026-06-22T07:51:53.838237-05:00"
+          },
+          "live": {
+            "path": "data/history/junkware/junkware_live_2026-06-18_summary.csv",
+            "bytes": 1393,
+            "mtime": "2026-06-18T13:50:55.041041-05:00"
+          },
+          "completed": {
+            "path": "data/history/junkware/junkware_completed_2026-06-18_summary.csv",
+            "bytes": 648,
+            "mtime": "2026-06-18T13:50:55.041378-05:00"
+          },
+          "employees": {
+            "path": "data/history/junkware/junkware_employees_2026-06-18_summary.csv",
+            "bytes": 574,
+            "mtime": "2026-06-18T13:50:55.041537-05:00"
+          },
+          "truck_records": {
+            "path": "data/history/junkware/junkware_truck_records_2026-06-18.csv",
+            "bytes": 311,
+            "mtime": "2026-06-18T13:50:55.041660-05:00"
+          }
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-18_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-22T21:00:03.769828-05:00"
+          },
+          "dashboard": null,
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-18_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-22T21:00:03.770546-05:00"
+          }
+        },
+        "linxup": {
+          "raw": {
+            "path": "data/history/linxup/linxup_2026-06-18_raw.json",
+            "bytes": 65226,
+            "mtime": "2026-06-18T13:50:56.463053-05:00"
+          },
+          "summary": {
+            "path": "data/history/linxup/linxup_2026-06-18_summary.csv",
+            "bytes": 1031,
+            "mtime": "2026-06-18T13:50:56.463860-05:00"
+          }
+        }
+      }
+    },
+    {
+      "date": "2026-06-19",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-19.json",
+        "bytes": 15061,
+        "mtime": "2026-06-22T21:00:03.526636-05:00",
+        "provisional": true,
+        "missing_inputs": [
+          "data/history/linxup/linxup_2026-06-19_summary.csv"
+        ]
+      },
+      "sources": {
+        "junkware": {
+          "raw": {
+            "path": "data/history/junkware/junkware_2026-06-19_raw.json",
+            "bytes": 7575,
+            "mtime": "2026-06-22T07:55:13.636535-05:00"
+          },
+          "live": {
+            "path": "data/history/junkware/junkware_live_2026-06-19_summary.csv",
+            "bytes": 1469,
+            "mtime": "2026-06-22T07:20:37.485217-05:00"
+          },
+          "completed": {
+            "path": "data/history/junkware/junkware_completed_2026-06-19_summary.csv",
+            "bytes": 122,
+            "mtime": "2026-06-22T07:20:37.485614-05:00"
+          },
+          "employees": {
+            "path": "data/history/junkware/junkware_employees_2026-06-19_summary.csv",
+            "bytes": 433,
+            "mtime": "2026-06-22T07:20:37.485969-05:00"
+          },
+          "truck_records": {
+            "path": "data/history/junkware/junkware_truck_records_2026-06-19.csv",
+            "bytes": 425,
+            "mtime": "2026-06-22T07:20:37.486319-05:00"
+          }
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-19_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-22T21:00:03.237088-05:00"
+          },
+          "dashboard": null,
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-19_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-22T21:00:03.237605-05:00"
+          }
+        },
+        "linxup": {
+          "raw": null,
+          "summary": null
+        }
+      }
+    },
+    {
+      "date": "2026-06-20",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-20.json",
+        "bytes": 15355,
+        "mtime": "2026-06-23T11:51:57.704860-05:00",
+        "provisional": true,
+        "missing_inputs": []
+      },
+      "sources": {
+        "junkware": {
+          "raw": {
+            "path": "data/history/junkware/junkware_2026-06-20_raw.json",
+            "bytes": 6848,
+            "mtime": "2026-06-22T07:57:26.835491-05:00"
+          },
+          "live": {
+            "path": "data/history/junkware/junkware_live_2026-06-20_summary.csv",
+            "bytes": 1071,
+            "mtime": "2026-06-21T12:16:23.352358-05:00"
+          },
+          "completed": {
+            "path": "data/history/junkware/junkware_completed_2026-06-20_summary.csv",
+            "bytes": 140,
+            "mtime": "2026-06-21T12:16:23.352526-05:00"
+          },
+          "employees": {
+            "path": "data/history/junkware/junkware_employees_2026-06-20_summary.csv",
+            "bytes": 520,
+            "mtime": "2026-06-21T12:16:23.352647-05:00"
+          },
+          "truck_records": {
+            "path": "data/history/junkware/junkware_truck_records_2026-06-20.csv",
+            "bytes": 366,
+            "mtime": "2026-06-21T12:16:23.352761-05:00"
+          }
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-20_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-22T21:00:02.725748-05:00"
+          },
+          "dashboard": null,
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-20_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-22T21:00:02.726407-05:00"
+          }
+        },
+        "linxup": {
+          "raw": {
+            "path": "data/history/linxup/linxup_2026-06-20_raw.json",
+            "bytes": 120129,
+            "mtime": "2026-06-23T11:51:57.637012-05:00"
+          },
+          "summary": {
+            "path": "data/history/linxup/linxup_2026-06-20_summary.csv",
+            "bytes": 1000,
+            "mtime": "2026-06-23T11:51:57.638070-05:00"
+          }
+        }
+      }
+    },
+    {
+      "date": "2026-06-21",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-21.json",
+        "bytes": 2548,
+        "mtime": "2026-06-23T12:08:29.731201-05:00",
+        "provisional": false,
+        "missing_inputs": []
+      },
+      "sources": {
+        "junkware": {
+          "raw": {
+            "path": "data/history/junkware/junkware_2026-06-21_raw.json",
+            "bytes": 548,
+            "mtime": "2026-06-23T12:08:03.006173-05:00"
+          },
+          "live": {
+            "path": "data/history/junkware/junkware_live_2026-06-21_summary.csv",
+            "bytes": 122,
+            "mtime": "2026-06-23T12:08:03.002650-05:00"
+          },
+          "completed": {
+            "path": "data/history/junkware/junkware_completed_2026-06-21_summary.csv",
+            "bytes": 122,
+            "mtime": "2026-06-23T12:08:03.003644-05:00"
+          },
+          "employees": {
+            "path": "data/history/junkware/junkware_employees_2026-06-21_summary.csv",
+            "bytes": 87,
+            "mtime": "2026-06-23T12:08:03.004385-05:00"
+          },
+          "truck_records": {
+            "path": "data/history/junkware/junkware_truck_records_2026-06-21.csv",
+            "bytes": 76,
+            "mtime": "2026-06-23T12:08:03.005095-05:00"
+          }
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-21_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-22T21:00:02.175207-05:00"
+          },
+          "dashboard": null,
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-21_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-22T21:00:02.175925-05:00"
+          }
+        },
+        "linxup": {
+          "raw": {
+            "path": "data/history/linxup/linxup_2026-06-21_raw.json",
+            "bytes": 24010,
+            "mtime": "2026-06-23T12:08:29.634927-05:00"
+          },
+          "summary": {
+            "path": "data/history/linxup/linxup_2026-06-21_summary.csv",
+            "bytes": 901,
+            "mtime": "2026-06-23T12:08:29.636562-05:00"
+          }
+        }
+      }
+    },
+    {
+      "date": "2026-06-22",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-22.json",
+        "bytes": 10657,
+        "mtime": "2026-06-23T12:25:32.559936-05:00",
+        "provisional": true,
+        "missing_inputs": []
+      },
+      "sources": {
+        "junkware": {
+          "raw": {
+            "path": "data/history/junkware/junkware_2026-06-22_raw.json",
+            "bytes": 5704,
+            "mtime": "2026-06-22T08:00:46.783702-05:00"
+          },
+          "live": {
+            "path": "data/history/junkware/junkware_live_2026-06-22_summary.csv",
+            "bytes": 1469,
+            "mtime": "2026-06-22T07:16:27.292688-05:00"
+          },
+          "completed": {
+            "path": "data/history/junkware/junkware_completed_2026-06-22_summary.csv",
+            "bytes": 122,
+            "mtime": "2026-06-22T07:16:27.292924-05:00"
+          },
+          "employees": {
+            "path": "data/history/junkware/junkware_employees_2026-06-22_summary.csv",
+            "bytes": 146,
+            "mtime": "2026-06-22T07:16:27.293055-05:00"
+          },
+          "truck_records": {
+            "path": "data/history/junkware/junkware_truck_records_2026-06-22.csv",
+            "bytes": 204,
+            "mtime": "2026-06-22T07:16:27.293188-05:00"
+          }
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-22_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-23T09:32:48.113994-05:00"
+          },
+          "dashboard": null,
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-22_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-23T09:32:48.114151-05:00"
+          }
+        },
+        "linxup": {
+          "raw": {
+            "path": "data/history/linxup/linxup_2026-06-22_raw.json",
+            "bytes": 153087,
+            "mtime": "2026-06-23T11:50:14.441971-05:00"
+          },
+          "summary": {
+            "path": "data/history/linxup/linxup_2026-06-22_summary.csv",
+            "bytes": 1066,
+            "mtime": "2026-06-23T11:50:14.444048-05:00"
+          }
+        }
+      }
+    },
+    {
+      "date": "2026-06-23",
+      "daily_metrics": {
+        "present": true,
+        "path": "data/history/daily_metrics/daily_metrics_2026-06-23.json",
+        "bytes": 2551,
+        "mtime": "2026-06-23T12:25:32.626446-05:00",
+        "provisional": false,
+        "missing_inputs": []
+      },
+      "sources": {
+        "junkware": {
+          "raw": {
+            "path": "data/history/junkware/junkware_2026-06-23_raw.json",
+            "bytes": 548,
+            "mtime": "2026-06-23T12:12:23.890309-05:00"
+          },
+          "live": {
+            "path": "data/history/junkware/junkware_live_2026-06-23_summary.csv",
+            "bytes": 122,
+            "mtime": "2026-06-23T12:12:23.886056-05:00"
+          },
+          "completed": {
+            "path": "data/history/junkware/junkware_completed_2026-06-23_summary.csv",
+            "bytes": 122,
+            "mtime": "2026-06-23T12:12:23.887295-05:00"
+          },
+          "employees": {
+            "path": "data/history/junkware/junkware_employees_2026-06-23_summary.csv",
+            "bytes": 87,
+            "mtime": "2026-06-23T12:12:23.888307-05:00"
+          },
+          "truck_records": {
+            "path": "data/history/junkware/junkware_truck_records_2026-06-23.csv",
+            "bytes": 76,
+            "mtime": "2026-06-23T12:12:23.889156-05:00"
+          }
+        },
+        "qbo": {
+          "raw": {
+            "path": "data/history/qbo/qbo_2026-06-23_raw.csv",
+            "bytes": 138,
+            "mtime": "2026-06-23T12:17:34.495582-05:00"
+          },
+          "dashboard": null,
+          "summary": {
+            "path": "data/history/qbo/qbo_2026-06-23_summary.csv",
+            "bytes": 104,
+            "mtime": "2026-06-23T12:17:34.495752-05:00"
+          }
+        },
+        "linxup": {
+          "raw": {
+            "path": "data/history/linxup/linxup_2026-06-23_raw.json",
+            "bytes": 88359,
+            "mtime": "2026-06-23T12:12:50.326884-05:00"
+          },
+          "summary": {
+            "path": "data/history/linxup/linxup_2026-06-23_summary.csv",
+            "bytes": 1062,
+            "mtime": "2026-06-23T12:12:50.327807-05:00"
+          }
+        }
+      }
+    }
+  ]
+}

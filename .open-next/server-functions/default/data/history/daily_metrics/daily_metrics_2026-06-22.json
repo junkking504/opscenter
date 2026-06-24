@@ -1,0 +1,424 @@
+{
+  "date": "2026-06-22",
+  "generated_at": "2026-06-23T12:25:32.558895-05:00",
+  "provisional": true,
+  "provisional_reason": "completed Junkware file was empty; live file used",
+  "inputs": {
+    "junkware_raw": "data/history/junkware/junkware_2026-06-22_raw.json",
+    "junkware_truck_records": "data/history/junkware/junkware_truck_records_2026-06-22.csv",
+    "junkware_summary": "data/history/junkware/junkware_live_2026-06-22_summary.csv",
+    "junkware_live_summary": "data/history/junkware/junkware_live_2026-06-22_summary.csv",
+    "junkware_completed_summary": "data/history/junkware/junkware_completed_2026-06-22_summary.csv",
+    "junkware_employee_summary": "data/history/junkware/junkware_employees_2026-06-22_summary.csv",
+    "linxup_raw": "data/history/linxup/linxup_2026-06-22_raw.json",
+    "linxup_summary": "data/history/linxup/linxup_2026-06-22_summary.csv",
+    "qbo_raw": "data/history/qbo/qbo_2026-06-22_raw.csv",
+    "qbo_dashboard": "data/history/qbo/qbo_2026-06-22_dashboard.json",
+    "qbo_summary": "data/history/qbo/qbo_2026-06-22_summary.csv",
+    "missing": []
+  },
+  "total_revenue": 0.0,
+  "total_tips": 0.0,
+  "total_expenses": 0.0,
+  "expenses_by_truck": {
+    "Truck# 1": {
+      "dumps": 0.0,
+      "gas": 0.0,
+      "recycling": 0.0,
+      "other": 0.0,
+      "total": 0.0
+    },
+    "Truck# 2": {
+      "dumps": 0.0,
+      "gas": 0.0,
+      "recycling": 0.0,
+      "other": 0.0,
+      "total": 0.0
+    },
+    "Truck# 4": {
+      "dumps": 0.0,
+      "gas": 0.0,
+      "recycling": 0.0,
+      "other": 0.0,
+      "total": 0.0
+    }
+  },
+  "tips_by_truck": {},
+  "cc_fee_rate": 0.03,
+  "cc_fees": 0.0,
+  "net_revenue": 0.0,
+  "total_payments_collected": 0.0,
+  "open_invoice_total": 0.0,
+  "employee_count": 1,
+  "revenue_by_market": {
+    "Junk King New Orleans": 0.0,
+    "Junk King Northshore": 0.0
+  },
+  "revenue_by_truck": {
+    "Truck# 1": 0.0,
+    "Truck# 2": 0.0,
+    "Truck# 4": 0.0
+  },
+  "jobs_by_truck": {
+    "Truck# 1": 0,
+    "Truck# 2": 0,
+    "Truck# 4": 0
+  },
+  "jobs_by_market": {
+    "Junk King New Orleans": 0,
+    "Junk King Northshore": 0
+  },
+  "employee_hours_by_truck": {
+    "Unassigned": 0.0
+  },
+  "employees_by_truck": {
+    "Unassigned": 1
+  },
+  "employee_leaderboard": [
+    {
+      "name": "Harris, Devin",
+      "truck": "Unassigned",
+      "trucks": [
+        "Unassigned"
+      ],
+      "time_in": "07:15 AM",
+      "time_out": null,
+      "clock_in": "07:15 AM",
+      "clock_out": null,
+      "clock_out_display": "Missing",
+      "hours": 0.0,
+      "hours_worked": 0.0,
+      "hours_basis": "none",
+      "shift_status": "Missing Clock Out",
+      "truck_revenue": 0.0,
+      "revenue_generated": 0.0,
+      "tip": 0.0,
+      "rph": 0.0,
+      "revenue_per_hour": 0.0,
+      "meets_target": false,
+      "rph_verified": null,
+      "meets_target_verified": null,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Unassigned",
+          "revenue": 0.0,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    }
+  ],
+  "payroll_records": [
+    {
+      "date": "2026-06-22",
+      "name": "Harris, Devin",
+      "truck": "Unassigned",
+      "trucks": [
+        "Unassigned"
+      ],
+      "clock_in": "07:15 AM",
+      "clock_out": null,
+      "clock_out_display": "Missing",
+      "shift_status": "Missing Clock Out",
+      "hours_worked": 0.0,
+      "hours_basis": "none",
+      "pay": "$0.00",
+      "revenue_generated": 0.0,
+      "revenue_per_hour": 0.0,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Unassigned",
+          "revenue": 0.0,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    }
+  ],
+  "truck_performance": [
+    {
+      "truck": "Truck# 1",
+      "crew_hours": 0.0,
+      "revenue": 0.0,
+      "revenue_per_labor_hour": 0.0,
+      "jobs": 0,
+      "crew_count": 0,
+      "verified_crew": [],
+      "verified_crew_count": 0,
+      "rph_verified": null
+    },
+    {
+      "truck": "Truck# 2",
+      "crew_hours": 0.0,
+      "revenue": 0.0,
+      "revenue_per_labor_hour": 0.0,
+      "jobs": 0,
+      "crew_count": 0,
+      "verified_crew": [],
+      "verified_crew_count": 0,
+      "rph_verified": null
+    },
+    {
+      "truck": "Truck# 4",
+      "crew_hours": 0.0,
+      "revenue": 0.0,
+      "revenue_per_labor_hour": 0.0,
+      "jobs": 0,
+      "crew_count": 0,
+      "verified_crew": [],
+      "verified_crew_count": 0,
+      "rph_verified": null
+    },
+    {
+      "truck": "Unassigned",
+      "crew_hours": 0.0,
+      "revenue": 0.0,
+      "revenue_per_labor_hour": 0.0,
+      "jobs": 0,
+      "crew_count": 1,
+      "verified_crew": [
+        "Harris, Devin"
+      ],
+      "verified_crew_count": 1,
+      "rph_verified": null
+    }
+  ],
+  "miles_by_truck": {
+    "DOA": 0.0,
+    "Truck Four": 2.9,
+    "Truck# 1": 0.0,
+    "Truck# 2": 68.8,
+    "Truck# 3": 21.6,
+    "Truck# 4": 0.0,
+    "Truck# 6": 43.6,
+    "Truck# 7": 0.0,
+    "Truck# 8": 0.0,
+    "Truck# 9": 133.0
+  },
+  "idle_time_by_truck": {
+    "DOA": "0:00",
+    "Truck Four": "0:00",
+    "Truck# 1": "0:02",
+    "Truck# 2": "3:21",
+    "Truck# 3": "1:42",
+    "Truck# 4": "0:00",
+    "Truck# 6": "0:58",
+    "Truck# 7": "0:00",
+    "Truck# 8": "0:00",
+    "Truck# 9": "0:38"
+  },
+  "drive_time_by_truck": {
+    "DOA": "0:00",
+    "Truck Four": "0:00",
+    "Truck# 1": "0:03",
+    "Truck# 2": "8:29",
+    "Truck# 3": "4:41",
+    "Truck# 4": "0:00",
+    "Truck# 6": "3:51",
+    "Truck# 7": "0:00",
+    "Truck# 8": "0:00",
+    "Truck# 9": "4:54"
+  },
+  "rph_by_truck": {},
+  "rph_verified_by_truck": {},
+  "verified_crew_by_truck": {
+    "Unassigned": [
+      "Harris, Devin"
+    ]
+  },
+  "trucks_below_90_per_hr_person": [],
+  "appointments": [
+    {
+      "job_id": "JK3980129",
+      "appt_id": "3966951",
+      "customer_name": "James Fiorenza",
+      "market": "",
+      "truck": "Virtual Truck",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(318) 792-6693",
+      "address": "256 Fairfield Oaks Dr Madisonville, LA 70447",
+      "lat": null,
+      "lng": null,
+      "revenue": "$488.00",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3984157",
+      "appt_id": "3970979",
+      "customer_name": "Jennifer Addison",
+      "market": "Northshore",
+      "truck": "Truck# 4",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(843) 801-5455",
+      "address": "30223 East Street Lacombe, LA 70445",
+      "lat": 30.314466,
+      "lng": -89.9009723,
+      "revenue": "$0.00",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Estimate"
+    },
+    {
+      "job_id": "JK3983969",
+      "appt_id": "3970791",
+      "customer_name": "Shantel Johnson",
+      "market": "Northshore",
+      "truck": "Truck# 4",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(504) 957-0013",
+      "address": "5701 Oakworth Street Slidell, LA 70461",
+      "lat": null,
+      "lng": null,
+      "revenue": "$0.00",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3983356",
+      "appt_id": "3970178",
+      "customer_name": "Triconne Johson",
+      "market": "",
+      "truck": "Virtual Truck",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(504) 536-2096",
+      "address": "102 Covington Meadow Cir Apt B Covington, LA 70433",
+      "lat": null,
+      "lng": null,
+      "revenue": "$0.00",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3981025",
+      "appt_id": "3967847",
+      "customer_name": "Lyndsay Cox",
+      "market": "",
+      "truck": "Virtual Truck",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(318) 341-9443",
+      "address": "2166 Ozone Pl MANDEVILLE, LA 70448",
+      "lat": null,
+      "lng": null,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3984432",
+      "appt_id": "3971254",
+      "customer_name": "Jake Flint",
+      "market": "Baton Rouge",
+      "truck": "Truck# 6",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(574) 323-3660",
+      "address": "3012 Grand Field Ave Baton Rouge, LA 70810",
+      "lat": 30.3317789,
+      "lng": -91.1273673,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3971201",
+      "appt_id": "3958023",
+      "customer_name": "Alexander Wiggins",
+      "market": "",
+      "truck": "Virtual Truck",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(409) 658-3721",
+      "address": "1645 Brightside Dr Building H Apt 165 Baton Rouge, LA 70820",
+      "lat": null,
+      "lng": null,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3974657",
+      "appt_id": "",
+      "customer_name": "Micah Price 6012138993 4200 Lake Trail Dr Kenner",
+      "market": "New Orleans",
+      "truck": "",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "",
+      "address": "",
+      "lat": null,
+      "lng": null,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Cancelled by Dabezies, Eugene",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3984574",
+      "appt_id": "",
+      "customer_name": "Ashley Thomas 5049750330 4101 Hessmer Ave Metairie",
+      "market": "New Orleans",
+      "truck": "",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "",
+      "address": "",
+      "lat": null,
+      "lng": null,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Cancelled by Zaldana, Eliezer",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3980045",
+      "appt_id": "",
+      "customer_name": "Barbara Vado 6015904712 413 Pinewood Dr Covington",
+      "market": "Northshore",
+      "truck": "",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "",
+      "address": "",
+      "lat": null,
+      "lng": null,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Cancelled by Melara, Erika",
+      "appointment_type": "Job"
+    }
+  ],
+  "unmatched_payments": [],
+  "revenue_not_yet_collected": 0.0
+}

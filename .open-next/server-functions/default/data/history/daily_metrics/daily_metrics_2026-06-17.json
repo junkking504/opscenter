@@ -1,0 +1,813 @@
+{
+  "date": "2026-06-17",
+  "generated_at": "2026-06-22T21:00:04.624485-05:00",
+  "provisional": false,
+  "provisional_reason": "",
+  "inputs": {
+    "junkware_raw": "data/history/junkware/junkware_2026-06-17_raw.json",
+    "junkware_truck_records": "data/history/junkware/junkware_truck_records_2026-06-17.csv",
+    "junkware_summary": "data/history/junkware/junkware_completed_2026-06-17_summary.csv",
+    "junkware_live_summary": "data/history/junkware/junkware_live_2026-06-17_summary.csv",
+    "junkware_completed_summary": "data/history/junkware/junkware_completed_2026-06-17_summary.csv",
+    "junkware_employee_summary": "data/history/junkware/junkware_employees_2026-06-17_summary.csv",
+    "linxup_raw": "data/history/linxup/linxup_2026-06-17_raw.json",
+    "linxup_summary": "data/history/linxup/linxup_2026-06-17_summary.csv",
+    "qbo_raw": "data/history/qbo/qbo_2026-06-17_raw.csv",
+    "qbo_dashboard": "data/history/qbo/qbo_2026-06-17_dashboard.json",
+    "qbo_summary": "data/history/qbo/qbo_2026-06-17_summary.csv",
+    "missing": []
+  },
+  "total_revenue": 8228.82,
+  "total_tips": 0.0,
+  "total_expenses": 468.35,
+  "expenses_by_truck": {
+    "Truck# 1": {
+      "dumps": 0.0,
+      "gas": 0.0,
+      "recycling": 0.0,
+      "other": 0.0,
+      "total": 0.0
+    },
+    "Truck# 3": {
+      "dumps": 0.0,
+      "gas": 0.0,
+      "recycling": 0.0,
+      "other": 0.0,
+      "total": 0.0
+    },
+    "Truck# 6": {
+      "dumps": 0.0,
+      "gas": 0.0,
+      "recycling": 0.0,
+      "other": 129.49,
+      "total": 129.49
+    },
+    "Truck# 9": {
+      "dumps": 0.0,
+      "gas": 210.3,
+      "recycling": 0.0,
+      "other": 128.56,
+      "total": 338.86
+    }
+  },
+  "tips_by_truck": {},
+  "cc_fee_rate": 0.03,
+  "cc_fees": 246.86,
+  "net_revenue": 7981.96,
+  "total_payments_collected": 0.0,
+  "open_invoice_total": 0.0,
+  "employee_count": 4,
+  "revenue_by_market": {
+    "Junk King Baton Rouge": 3943.8,
+    "Junk King Jefferson Parish": 2349.88,
+    "Junk King New Orleans": 154.0,
+    "Junk King Northshore": 1781.14
+  },
+  "revenue_by_truck": {
+    "Truck# 1": 553.64,
+    "Truck# 3": 1950.24,
+    "Truck# 6": 3943.8,
+    "Truck# 9": 1781.14
+  },
+  "jobs_by_truck": {
+    "Truck# 1": 2,
+    "Truck# 3": 2,
+    "Truck# 6": 5,
+    "Truck# 9": 3
+  },
+  "jobs_by_market": {
+    "Junk King Baton Rouge": 5,
+    "Junk King Jefferson Parish": 3,
+    "Junk King New Orleans": 1,
+    "Junk King Northshore": 3
+  },
+  "employee_hours_by_truck": {
+    "Truck# 1": 4.26,
+    "Truck# 3": 4.26,
+    "Truck# 6": 11.5,
+    "Truck# 9": 22.5
+  },
+  "employees_by_truck": {
+    "Truck# 1": 1,
+    "Truck# 3": 1,
+    "Truck# 6": 1,
+    "Truck# 9": 2
+  },
+  "employee_leaderboard": [
+    {
+      "name": "Mire, Gavin",
+      "truck": "Truck# 6",
+      "trucks": [
+        "Truck# 6"
+      ],
+      "time_in": "06:57 AM",
+      "time_out": "06:27 PM",
+      "clock_in": "06:57 AM",
+      "clock_out": "06:27 PM",
+      "clock_out_display": "06:27 PM",
+      "hours": 11.5,
+      "hours_worked": 11.5,
+      "hours_basis": "logged",
+      "shift_status": "Clocked Out",
+      "truck_revenue": 1971.9,
+      "revenue_generated": 1971.9,
+      "tip": 0.0,
+      "rph": 171.47,
+      "revenue_per_hour": 171.47,
+      "meets_target": true,
+      "rph_verified": 342.94,
+      "meets_target_verified": true,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 6",
+          "revenue": 1971.9,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    },
+    {
+      "name": "Adams, Dajion",
+      "truck": "Truck# 1",
+      "trucks": [
+        "Truck# 1",
+        "Truck# 3"
+      ],
+      "time_in": "09:38 AM",
+      "time_out": "06:10 PM",
+      "clock_in": "09:38 AM",
+      "clock_out": "06:10 PM",
+      "clock_out_display": "06:10 PM",
+      "hours": 8.53,
+      "hours_worked": 8.53,
+      "hours_basis": "logged",
+      "shift_status": "Clocked Out",
+      "truck_revenue": 1251.94,
+      "revenue_generated": 1251.94,
+      "tip": 0.0,
+      "rph": 146.77,
+      "revenue_per_hour": 146.77,
+      "meets_target": true,
+      "rph_verified": 293.54,
+      "meets_target_verified": true,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 1",
+          "revenue": 276.82,
+          "tip": 0.0,
+          "crew_size": 2
+        },
+        {
+          "truck": "Truck# 3",
+          "revenue": 975.12,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    },
+    {
+      "name": "Smith, Gabriel",
+      "truck": "Truck# 9",
+      "trucks": [
+        "Truck# 9"
+      ],
+      "time_in": "07:27 AM",
+      "time_out": "06:38 PM",
+      "clock_in": "07:27 AM",
+      "clock_out": "06:38 PM",
+      "clock_out_display": "06:38 PM",
+      "hours": 11.18,
+      "hours_worked": 11.18,
+      "hours_basis": "logged",
+      "shift_status": "Clocked Out",
+      "truck_revenue": 890.57,
+      "revenue_generated": 890.57,
+      "tip": 0.0,
+      "rph": 79.66,
+      "revenue_per_hour": 79.66,
+      "meets_target": false,
+      "rph_verified": 79.66,
+      "meets_target_verified": false,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 9",
+          "revenue": 890.57,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    },
+    {
+      "name": "Tillis, Toney",
+      "truck": "Truck# 9",
+      "trucks": [
+        "Truck# 9"
+      ],
+      "time_in": "07:35 AM",
+      "time_out": "06:54 PM",
+      "clock_in": "07:35 AM",
+      "clock_out": "06:54 PM",
+      "clock_out_display": "06:54 PM",
+      "hours": 11.32,
+      "hours_worked": 11.32,
+      "hours_basis": "logged",
+      "shift_status": "Clocked Out",
+      "truck_revenue": 890.57,
+      "revenue_generated": 890.57,
+      "tip": 0.0,
+      "rph": 78.67,
+      "revenue_per_hour": 78.67,
+      "meets_target": false,
+      "rph_verified": 78.67,
+      "meets_target_verified": false,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 9",
+          "revenue": 890.57,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    }
+  ],
+  "payroll_records": [
+    {
+      "date": "2026-06-17",
+      "name": "Mire, Gavin",
+      "truck": "Truck# 6",
+      "trucks": [
+        "Truck# 6"
+      ],
+      "clock_in": "06:57 AM",
+      "clock_out": "06:27 PM",
+      "clock_out_display": "06:27 PM",
+      "shift_status": "Clocked Out",
+      "hours_worked": 11.5,
+      "hours_basis": "logged",
+      "pay": "$195.50",
+      "revenue_generated": 1971.9,
+      "revenue_per_hour": 171.47,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 6",
+          "revenue": 1971.9,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    },
+    {
+      "date": "2026-06-17",
+      "name": "Adams, Dajion",
+      "truck": "Truck# 1",
+      "trucks": [
+        "Truck# 1",
+        "Truck# 3"
+      ],
+      "clock_in": "09:38 AM",
+      "clock_out": "06:10 PM",
+      "clock_out_display": "06:10 PM",
+      "shift_status": "Clocked Out",
+      "hours_worked": 8.53,
+      "hours_basis": "logged",
+      "pay": "$136.48",
+      "revenue_generated": 1251.94,
+      "revenue_per_hour": 146.77,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 1",
+          "revenue": 276.82,
+          "tip": 0.0,
+          "crew_size": 2
+        },
+        {
+          "truck": "Truck# 3",
+          "revenue": 975.12,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    },
+    {
+      "date": "2026-06-17",
+      "name": "Smith, Gabriel",
+      "truck": "Truck# 9",
+      "trucks": [
+        "Truck# 9"
+      ],
+      "clock_in": "07:27 AM",
+      "clock_out": "06:38 PM",
+      "clock_out_display": "06:38 PM",
+      "shift_status": "Clocked Out",
+      "hours_worked": 11.18,
+      "hours_basis": "logged",
+      "pay": "$190.06",
+      "revenue_generated": 890.57,
+      "revenue_per_hour": 79.66,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 9",
+          "revenue": 890.57,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    },
+    {
+      "date": "2026-06-17",
+      "name": "Tillis, Toney",
+      "truck": "Truck# 9",
+      "trucks": [
+        "Truck# 9"
+      ],
+      "clock_in": "07:35 AM",
+      "clock_out": "06:54 PM",
+      "clock_out_display": "06:54 PM",
+      "shift_status": "Clocked Out",
+      "hours_worked": 11.32,
+      "hours_basis": "logged",
+      "pay": "$181.12",
+      "revenue_generated": 890.57,
+      "revenue_per_hour": 78.67,
+      "truck_revenue_breakdown": [
+        {
+          "truck": "Truck# 9",
+          "revenue": 890.57,
+          "tip": 0.0,
+          "crew_size": 2
+        }
+      ]
+    }
+  ],
+  "truck_performance": [
+    {
+      "truck": "Truck# 1",
+      "crew_hours": 4.26,
+      "revenue": 553.64,
+      "revenue_per_labor_hour": 129.96,
+      "jobs": 2,
+      "crew_count": 1,
+      "verified_crew": [
+        "Adams, Dajion"
+      ],
+      "verified_crew_count": 1,
+      "rph_verified": 129.81
+    },
+    {
+      "truck": "Truck# 3",
+      "crew_hours": 4.26,
+      "revenue": 1950.24,
+      "revenue_per_labor_hour": 457.8,
+      "jobs": 2,
+      "crew_count": 1,
+      "verified_crew": [
+        "Adams, Dajion"
+      ],
+      "verified_crew_count": 1,
+      "rph_verified": 457.27
+    },
+    {
+      "truck": "Truck# 6",
+      "crew_hours": 11.5,
+      "revenue": 3943.8,
+      "revenue_per_labor_hour": 342.94,
+      "jobs": 5,
+      "crew_count": 1,
+      "verified_crew": [
+        "Mire, Gavin"
+      ],
+      "verified_crew_count": 1,
+      "rph_verified": 342.94
+    },
+    {
+      "truck": "Truck# 9",
+      "crew_hours": 22.5,
+      "revenue": 1781.14,
+      "revenue_per_labor_hour": 79.16,
+      "jobs": 3,
+      "crew_count": 2,
+      "verified_crew": [
+        "Smith, Gabriel",
+        "Tillis, Toney"
+      ],
+      "verified_crew_count": 2,
+      "rph_verified": 39.58
+    }
+  ],
+  "miles_by_truck": {
+    "DOA": 0.0,
+    "Truck Four": 2.9,
+    "Truck# 1": 14.0,
+    "Truck# 2": 0.0,
+    "Truck# 3": 87.0,
+    "Truck# 4": 0.0,
+    "Truck# 6": 83.1,
+    "Truck# 7": 0.0,
+    "Truck# 8": 0.0,
+    "Truck# 9": 0.0
+  },
+  "idle_time_by_truck": {
+    "DOA": "0:00",
+    "Truck Four": "0:00",
+    "Truck# 1": "0:10",
+    "Truck# 2": "0:00",
+    "Truck# 3": "0:49",
+    "Truck# 4": "0:00",
+    "Truck# 6": "2:10",
+    "Truck# 7": "0:00",
+    "Truck# 8": "0:00",
+    "Truck# 9": "0:00"
+  },
+  "drive_time_by_truck": {
+    "DOA": "0:00",
+    "Truck Four": "0:00",
+    "Truck# 1": "1:33",
+    "Truck# 2": "0:00",
+    "Truck# 3": "4:19",
+    "Truck# 4": "0:00",
+    "Truck# 6": "6:12",
+    "Truck# 7": "0:00",
+    "Truck# 8": "0:00",
+    "Truck# 9": "0:00"
+  },
+  "rph_by_truck": {
+    "Truck# 1": 129.81,
+    "Truck# 3": 457.27,
+    "Truck# 6": 342.94,
+    "Truck# 9": 79.16
+  },
+  "rph_verified_by_truck": {
+    "Truck# 1": 129.81,
+    "Truck# 3": 457.27,
+    "Truck# 6": 342.94,
+    "Truck# 9": 39.58
+  },
+  "verified_crew_by_truck": {
+    "Truck# 1": [
+      "Adams, Dajion"
+    ],
+    "Truck# 3": [
+      "Adams, Dajion"
+    ],
+    "Truck# 6": [
+      "Mire, Gavin"
+    ],
+    "Truck# 9": [
+      "Smith, Gabriel",
+      "Tillis, Toney"
+    ]
+  },
+  "trucks_below_90_per_hr_person": [
+    {
+      "truck": "Truck# 9",
+      "rph": 79.16,
+      "target": 90.0
+    }
+  ],
+  "appointments": [
+    {
+      "job_id": "JK3979923",
+      "appt_id": "",
+      "customer_name": "Katrice Oreaboe",
+      "market": "New Orleans",
+      "truck": "Truck# 1",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(504) 331-0773",
+      "address": "5731 Dimaggio Pl Metairie, LA 70003",
+      "lat": 29.9825713,
+      "lng": -90.1969906,
+      "revenue": "$399.64",
+      "tip": "",
+      "payment_type": "Credit Card",
+      "job_status": "Completed Duration: 60 min(s)",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3978396",
+      "appt_id": "",
+      "customer_name": "Kleon Arthur",
+      "market": "New Orleans",
+      "truck": "Truck# 3",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(301) 920-4720",
+      "address": "Storage Center. 2012 Belle Chasse Hwy Gretna, LA 70056",
+      "lat": null,
+      "lng": null,
+      "revenue": "$1,450.24",
+      "tip": "",
+      "payment_type": "Credit Card",
+      "job_status": "Completed Duration: 60 min(s)",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3979739",
+      "appt_id": "",
+      "customer_name": "Brett Vreeland",
+      "market": "New Orleans",
+      "truck": "Truck# 3",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(225) 431-5926",
+      "address": "Critter Control 3056 Sorbonne Dr Marrero, LA 70072",
+      "lat": null,
+      "lng": null,
+      "revenue": "$500.00",
+      "tip": "",
+      "payment_type": "Billed",
+      "job_status": "Completed Duration: 85 min(s)",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3977071",
+      "appt_id": "",
+      "customer_name": "John Chetta",
+      "market": "Jefferson Parish",
+      "truck": "Truck# 9",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(504) 616-5908",
+      "address": "North Cross Memphis Church In Madisonville 311 La-21 Madisonville, LA 70447",
+      "lat": null,
+      "lng": null,
+      "revenue": "$500.00",
+      "tip": "",
+      "payment_type": "Credit Card",
+      "job_status": "Completed Duration: 60 min(s)",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3979712",
+      "appt_id": "",
+      "customer_name": "Kevin Adams",
+      "market": "Jefferson Parish",
+      "truck": "Truck# 9",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(985) 630-1058",
+      "address": "1729 Lakeshore Dr Mandeville, LA 70448",
+      "lat": 30.3506417,
+      "lng": -90.0642006,
+      "revenue": "$418.00",
+      "tip": "",
+      "payment_type": "Cash",
+      "job_status": "Completed Duration: 60 min(s)",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3979190",
+      "appt_id": "",
+      "customer_name": "Brittney Young",
+      "market": "Jefferson Parish",
+      "truck": "Truck# 9",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(504) 418-9348",
+      "address": "3429 Bellwick Bay Dr Slidell, LA 70461",
+      "lat": null,
+      "lng": null,
+      "revenue": "$863.14",
+      "tip": "",
+      "payment_type": "Credit Card",
+      "job_status": "Completed Duration: 60 min(s)",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3979768",
+      "appt_id": "",
+      "customer_name": "Jackie Cooper",
+      "market": "Jefferson Parish",
+      "truck": "Truck# 9",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(504) 450-5962",
+      "address": "106 Nickel Loop Slidell, LA 70458",
+      "lat": 30.2892893,
+      "lng": -89.7512875,
+      "revenue": "$377.00",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Completed Duration: 60 min(s)",
+      "appointment_type": "Estimate"
+    },
+    {
+      "job_id": "JK3979798",
+      "appt_id": "",
+      "customer_name": "Larry Dillon",
+      "market": "Jefferson Parish",
+      "truck": "Truck# 9",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(504) 261-9301",
+      "address": "6609 Alisa Dr Slidell, LA 70460",
+      "lat": null,
+      "lng": null,
+      "revenue": "$308.00",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Completed Duration: 60 min(s)",
+      "appointment_type": "Estimate"
+    },
+    {
+      "job_id": "JK3976574",
+      "appt_id": "",
+      "customer_name": "Brent Hicks",
+      "market": "Baton Rouge",
+      "truck": "Truck# 6",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(225) 802-3127",
+      "address": "4644 Whitehaven Street Baton Rouge, LA 70808",
+      "lat": 30.4071812,
+      "lng": -91.1471327,
+      "revenue": "$198.00",
+      "tip": "",
+      "payment_type": "Check",
+      "job_status": "Completed Duration: 60 min(s)",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3979209",
+      "appt_id": "",
+      "customer_name": "Laronica Dickerson",
+      "market": "Baton Rouge",
+      "truck": "Truck# 6",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(225) 205-3492",
+      "address": "2996 Lexington Drive Baton Rouge, LA 70808",
+      "lat": 30.4148721,
+      "lng": -91.1317128,
+      "revenue": "$492.34",
+      "tip": "",
+      "payment_type": "Credit Card",
+      "job_status": "Completed Duration: 60 min(s)",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3969786",
+      "appt_id": "",
+      "customer_name": "Jennifer Nauright",
+      "market": "Baton Rouge",
+      "truck": "Truck# 6",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(706) 961-9749",
+      "address": "14209 Spalding Way Baton Rouge, LA 70817",
+      "lat": 30.3775907,
+      "lng": -91.0321415,
+      "revenue": "$1,386.38",
+      "tip": "",
+      "payment_type": "Credit Card",
+      "job_status": "Completed Duration: 60 min(s)",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3979580",
+      "appt_id": "",
+      "customer_name": "Tracey Woodward",
+      "market": "Baton Rouge",
+      "truck": "Truck# 6",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(309) 830-4797",
+      "address": "4929 Arrowhead St Baton Rouge, LA 70808",
+      "lat": 30.4107993,
+      "lng": -91.1405783,
+      "revenue": "$388.00",
+      "tip": "",
+      "payment_type": "Cash",
+      "job_status": "Completed Duration: 60 min(s)",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3979197",
+      "appt_id": "",
+      "customer_name": "Robert Pace",
+      "market": "Baton Rouge",
+      "truck": "Truck# 6",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(985) 788-8799",
+      "address": "841 Bancroft Way Baton Rouge, LA 70808",
+      "lat": 30.4012987,
+      "lng": -91.1570715,
+      "revenue": "$1,479.08",
+      "tip": "",
+      "payment_type": "Credit Card",
+      "job_status": "Completed Duration: 60 min(s)",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3979983",
+      "appt_id": "",
+      "customer_name": "Leslie Carter",
+      "market": "Baton Rouge",
+      "truck": "Truck# 6",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "(225) 747-6669",
+      "address": "4473 Monroe Ave Baton Rouge, LA 70802",
+      "lat": 30.4698485,
+      "lng": -91.1452937,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Estimate"
+    },
+    {
+      "job_id": "JK3979499",
+      "appt_id": "",
+      "customer_name": "Felicia Hollier 5044957433 2400 Claire Ave Gretna",
+      "market": "New Orleans",
+      "truck": "",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "",
+      "address": "",
+      "lat": null,
+      "lng": null,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Cancelled by Dabezies, Eugene",
+      "appointment_type": "Estimate"
+    },
+    {
+      "job_id": "JK3979968",
+      "appt_id": "",
+      "customer_name": "Jamila Myal 2196700797 3734 Derbigny St Metairie",
+      "market": "New Orleans",
+      "truck": "",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "",
+      "address": "",
+      "lat": null,
+      "lng": null,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Cancelled by Dabezies, Eugene",
+      "appointment_type": "Estimate"
+    },
+    {
+      "job_id": "JK3979187",
+      "appt_id": "",
+      "customer_name": "Zachary Junda 2257888278 2053 Walnut Ridge Ave Baton Rouge",
+      "market": "Baton Rouge",
+      "truck": "",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "",
+      "address": "",
+      "lat": null,
+      "lng": null,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Cancelled by Melendez, Roxanne",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3979403",
+      "appt_id": "",
+      "customer_name": "Julie Page 5157070354 4167 Cottonwood St Zachary",
+      "market": "Baton Rouge",
+      "truck": "",
+      "driver": "",
+      "navigator": "",
+      "crew": "",
+      "phone": "",
+      "address": "",
+      "lat": null,
+      "lng": null,
+      "revenue": "",
+      "tip": "",
+      "payment_type": "",
+      "job_status": "Cancelled by Claros, Bella",
+      "appointment_type": "Estimate"
+    }
+  ],
+  "unmatched_payments": [],
+  "revenue_not_yet_collected": 8228.82
+}

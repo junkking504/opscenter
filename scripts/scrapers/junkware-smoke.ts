@@ -11,8 +11,7 @@ function todayKey() {
 }
 
 function moneyToNumber(value: string) {
-  const n = Number(value.replace(/[$,]/g, ""));
-  return Number.isFinite(n) ? n : 0;
+  return Number(value.replace(/[$,]/g, "")) || 0;
 }
 
 function parseActiveJob(text: string) {
@@ -26,19 +25,16 @@ function parseActiveJob(text: string) {
   const durationMatch = text.match(/Duration:\s*(\d+)\s*min/i);
 
   const jobType = lines[1] ?? "";
-  const detailsLine = lines.find((line) => line.includes(", (")) ?? "";
-  const customerMatch = detailsLine.match(/^(.+?),\s*\(([^)]+)\)/);
+  const contactLine = lines.find((line) => line.startsWith("Truck#")) ?? "";
+  const contactMatch = contactLine.match(/^Truck#\s*(\d+)\s+(.+?),\s*\((\d{3})\)\s*(\d{3})-(\d{4})/);
 
-  const detailIndex = lines.findIndex((line) => line.includes(", ("));
+  const detailIndex = lines.findIndex((line) => line.startsWith("Truck#"));
   const addressLines =
     detailIndex >= 0
       ? lines.slice(detailIndex + 1, detailIndex + 3).filter((line) => line !== "Notes:")
       : [];
 
-  const status =
-    lines.findLast((line) =>
-      ["Confirmed", "Completed", "On Route", "En Route", "Cancelled"].includes(line)
-    ) ?? "";
+  const statusMatch = text.match(/\$[\d,]+\.\d{2}\s+(Completed|Confirmed|Cancelled|On Route|En Route)/);
 
   const paymentType =
     ["Credit Card", "Cash", "Check", "Billed"].find((p) => text.includes(`\t\t${p}\t`)) ?? "";
@@ -47,14 +43,14 @@ function parseActiveJob(text: string) {
     jobId: jobMatch?.[0] ?? "",
     jobType,
     truck: truckMatch ? Number(truckMatch[1]) : null,
-    customer: customerMatch?.[1] ?? "",
-    phone: customerMatch?.[2]?.replace(/\D/g, "") ?? "",
+    customer: contactMatch?.[2] ?? "",
+    phone: contactMatch ? `${contactMatch[3]}${contactMatch[4]}${contactMatch[5]}` : "",
     address: addressLines.join(", "),
     scheduledStart: timeMatch?.[1] ?? "",
     scheduledEnd: timeMatch?.[2] ?? "",
     paymentType,
     amount: amountMatch ? moneyToNumber(amountMatch[0]) : 0,
-    status,
+    status: statusMatch?.[1] ?? "",
     durationMinutes: durationMatch ? Number(durationMatch[1]) : null,
     rawText: text,
   };

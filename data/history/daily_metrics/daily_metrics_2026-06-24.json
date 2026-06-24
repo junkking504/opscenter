@@ -1,0 +1,250 @@
+{
+  "date": "2026-06-24",
+  "provisional": true,
+  "total_revenue": 4362.93,
+  "total_payments_collected": 4362.93,
+  "revenue_not_yet_collected": 0,
+  "jobs_by_truck": {
+    "3": 1,
+    "6": 4,
+    "8": 1,
+    "9": 4
+  },
+  "revenue_by_truck": {
+    "3": 1067,
+    "6": 2338.9300000000003,
+    "8": 250,
+    "9": 707
+  },
+  "jobs_by_market": {
+    "ALL": 10
+  },
+  "revenue_by_market": {
+    "ALL": 4362.93
+  },
+  "appointments": [
+    {
+      "job_id": "JK3987103",
+      "customer_name": "Ali Odak",
+      "market": "ALL",
+      "truck": "9",
+      "address": "135 Belle Terre Blvd, Covington, LA 70433",
+      "revenue": "$249.00",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3983477",
+      "customer_name": "Larry Dillon",
+      "market": "ALL",
+      "truck": "9",
+      "address": "6609 Alisa Dr, Slidell, LA 70460",
+      "revenue": "$308.00",
+      "payment_type": "Check",
+      "job_status": "Completed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3986848",
+      "customer_name": "Emma Heckman",
+      "market": "ALL",
+      "truck": "6",
+      "address": "9855 Jefferson Hwy Apt W9, Baton Rouge, LA 70809",
+      "revenue": "$198.00",
+      "payment_type": "Credit Card",
+      "job_status": "Completed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3979678",
+      "customer_name": "Charlie Womack",
+      "market": "ALL",
+      "truck": "6",
+      "address": "1114 Gentle Wind Dr, Baton Rouge, LA 70809",
+      "revenue": "$1,654.18",
+      "payment_type": "Credit Card",
+      "job_status": "Completed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3985605",
+      "customer_name": "Victoria Holley",
+      "market": "ALL",
+      "truck": "3",
+      "address": "1613 Pauger St, New Orleans, LA 70116",
+      "revenue": "$1,067.00",
+      "payment_type": "",
+      "job_status": "Completed",
+      "appointment_type": "Estimate"
+    },
+    {
+      "job_id": "JK3988067",
+      "customer_name": "Lotoya Ellis",
+      "market": "ALL",
+      "truck": "9",
+      "address": "1406 Natchez St, Hammond, LA 70403",
+      "revenue": "",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3988310",
+      "customer_name": "Chuck Ortego",
+      "market": "ALL",
+      "truck": "9",
+      "address": "603 Dean St, Mandeville, LA 70448",
+      "revenue": "$150.00",
+      "payment_type": "",
+      "job_status": "Confirmed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3988233",
+      "customer_name": "Lake Towers",
+      "market": "ALL",
+      "truck": "6",
+      "address": "1St Lake Properties, 999 N Ninth Street",
+      "revenue": "$358.00",
+      "payment_type": "Billed",
+      "job_status": "Completed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3988743",
+      "customer_name": "Billy Saas",
+      "market": "ALL",
+      "truck": "8",
+      "address": "4551 Lennox Blvd, New Orleans, LA 70131",
+      "revenue": "$250.00",
+      "payment_type": "Check",
+      "job_status": "Completed",
+      "appointment_type": "Job"
+    },
+    {
+      "job_id": "JK3984409",
+      "customer_name": "Gavin Antione",
+      "market": "ALL",
+      "truck": "6",
+      "address": "6135 Government Street, Baton Rouge, LA 70806",
+      "revenue": "$128.75",
+      "payment_type": "Credit Card",
+      "job_status": "Completed",
+      "appointment_type": "Job"
+    }
+  ],
+  "cancelled_jobs": [
+    {
+      "jobId": "JK3972003",
+      "source": "junkware",
+      "territory": "ALL",
+      "jobType": "Estimate",
+      "truck": null,
+      "customer": "Tyvna Mccrae",
+      "phone": "9194346430",
+      "address": "2501 Metairie Lawn Dr Apt 1219 Metairie, LA 70002",
+      "scheduledStart": "08:00 AM",
+      "scheduledEnd": "09:00 AM",
+      "revenue": 0,
+      "paymentType": "",
+      "status": "Cancelled",
+      "durationMinutes": null,
+      "cancelled": true,
+      "cancellationReason": "customer requested cancellation via sms - no reason provided"
+    },
+    {
+      "jobId": "JK3986663",
+      "source": "junkware",
+      "territory": "ALL",
+      "jobType": "Job",
+      "truck": null,
+      "customer": "Scott Jacob",
+      "phone": "5044587914",
+      "address": "536 Gelpi Ave New Orleans, LA 70121",
+      "scheduledStart": "04:00 PM",
+      "scheduledEnd": "05:00 PM",
+      "revenue": 0,
+      "paymentType": "",
+      "status": "Cancelled",
+      "durationMinutes": null,
+      "cancelled": true,
+      "cancellationReason": "customer requested cancellation via email - no reason provided"
+    },
+    {
+      "jobId": "JK3986756",
+      "source": "junkware",
+      "territory": "ALL",
+      "jobType": "Job",
+      "truck": null,
+      "customer": "Krista Haefner",
+      "phone": "2256037196",
+      "address": "2111 Hood Ave Baton Rouge, LA 70808",
+      "scheduledStart": "08:00 AM",
+      "scheduledEnd": "09:00 AM",
+      "revenue": 0,
+      "paymentType": "",
+      "status": "Cancelled",
+      "durationMinutes": null,
+      "cancelled": true,
+      "cancellationReason": "The customer thought that $178 for a sofa is too expensive"
+    },
+    {
+      "jobId": "JK3987013",
+      "source": "junkware",
+      "territory": "ALL",
+      "jobType": "Job",
+      "truck": null,
+      "customer": "Ben Flood",
+      "phone": "8315660744",
+      "address": "2635 Myrtle St New Orleans, LA 70122",
+      "scheduledStart": "08:00 AM",
+      "scheduledEnd": "09:00 AM",
+      "revenue": 0,
+      "paymentType": "",
+      "status": "Cancelled",
+      "durationMinutes": null,
+      "cancelled": true,
+      "cancellationReason": "No show"
+    },
+    {
+      "jobId": "JK3987417",
+      "source": "junkware",
+      "territory": "ALL",
+      "jobType": "Job",
+      "truck": null,
+      "customer": "Marisa Kay",
+      "phone": "8177091516",
+      "address": "505 S Carrollton Ave New Orleans, LA 70118",
+      "scheduledStart": "08:00 AM",
+      "scheduledEnd": "09:00 AM",
+      "revenue": 0,
+      "paymentType": "",
+      "status": "Cancelled",
+      "durationMinutes": null,
+      "cancelled": true,
+      "cancellationReason": "The customer would like to cancel the appointment due to her not being ready. Offered to reschedule but she mention she will call us back."
+    },
+    {
+      "jobId": "JK3988243",
+      "source": "junkware",
+      "territory": "ALL",
+      "jobType": "Estimate",
+      "truck": null,
+      "customer": "Yolanda Williams",
+      "phone": "5048748370",
+      "address": "1044 Beechwood Dr Harvey, LA 70058",
+      "scheduledStart": "11:00 AM",
+      "scheduledEnd": "12:00 PM",
+      "revenue": 0,
+      "paymentType": "",
+      "status": "Cancelled",
+      "durationMinutes": null,
+      "cancelled": true,
+      "cancellationReason": "Does not want to pay"
+    }
+  ],
+  "inputs": {
+    "raw_junkware_schedule": "data/history/raw/junkware/schedule_2026-06-24.json"
+  }
+}

@@ -10,7 +10,8 @@
     "cf-build": "opennextjs-cloudflare build",
     "deploy": "opennextjs-cloudflare build && wrangler deploy",
     "preview": "opennextjs-cloudflare build && wrangler dev",
-    "scrape:junkware": "tsx scripts/scrapers/junkware-smoke.ts"
+    "scrape:junkware": "tsx scripts/scrapers/junkware-smoke.ts",
+    "metrics:daily": "tsx scripts/pipelines/build-daily-metrics.ts"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

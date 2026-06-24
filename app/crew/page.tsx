@@ -29,8 +29,13 @@ function StatusBadge({ meets }: { meets: boolean }) {
     : <span className="inline-flex items-center rounded-full bg-red-400/10 px-2 py-0.5 text-xs font-medium text-red-400">✗ Below $90</span>;
 }
 
-export default async function CrewPage({ searchParams }: { searchParams?: { date?: string | string[] } }) {
-  const selectedDate = resolveReportDate(searchParams?.date);
+type PageProps = {
+  searchParams?: Promise<{ date?: string | string[] }>;
+};
+
+export default async function CrewPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const selectedDate = resolveReportDate(params?.date);
   const { metrics, lastUpdated } = await getDailyMetrics(selectedDate);
   const dataStatus = metrics ? (metrics.provisional ? "Provisional" : "Final") : "Provisional";
   const reportDate = selectedDate ?? metrics?.date;

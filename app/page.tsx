@@ -7,6 +7,10 @@ import { reportDateLabel, resolveReportDate } from "@/lib/report-dates";
 
 const RPH_TARGET = 90;
 
+type PageProps = {
+  searchParams?: Promise<{ date?: string | string[] }>;
+};
+
 function truckListLabel(trucks?: string[] | string) {
   if (Array.isArray(trucks)) return trucks.length ? trucks.join(", ") : "Unassigned";
   return trucks || "Unassigned";
@@ -18,8 +22,9 @@ function rphBadge(rph: number) {
   return <span className="text-red-400 font-semibold">{money(rph)}/hr ✗</span>;
 }
 
-export default async function DashboardPage({ searchParams }: { searchParams?: { date?: string | string[] } }) {
-  const selectedDate = resolveReportDate(searchParams?.date);
+export default async function DashboardPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const selectedDate = resolveReportDate(params?.date);
   const { metrics, lastUpdated } = await getDailyMetrics(selectedDate);
   const dataStatus = metrics ? (metrics.provisional ? "Provisional" : "Final") : "Provisional";
   const reportDate = selectedDate ?? metrics?.date;
@@ -41,51 +46,22 @@ export default async function DashboardPage({ searchParams }: { searchParams?: {
 
   return (
     <Shell dataStatus={dataStatus} lastUpdated={lastUpdated} selectedDate={reportDate}>
-
-      {/* Hero metrics */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-6">
-        <MetricCard
-          label="Gross Revenue"
-          value={money(metrics?.total_revenue)}
-          sublabel="All markets, jobs only"
-        />
-        <MetricCard
-          label="Net Revenue (after 3% CC)"
-          value={money(metrics?.net_revenue)}
-          highlight="positive"
-          sublabel={`CC fees: ${money(metrics?.cc_fees)}`}
-        />
-        <MetricCard
-          label="Collected Today"
-          value={money(metrics?.total_payments_collected)}
-          sublabel={`Uncollected: ${money(metrics?.revenue_not_yet_collected)}`}
-        />
-        <MetricCard
-          label="Jobs Completed"
-          value={number(jobsCompleted)}
-          sublabel={reportDate ? reportDateLabel(reportDate) : ""}
-        />
+        <MetricCard label="Gross Revenue" value={money(metrics.total_revenue)} sublabel="All markets, jobs only" />
+        <MetricCard label="Net Revenue (after 3% CC)" value={money(metrics.net_revenue)} highlight="positive" sublabel={`CC fees: ${money(metrics.cc_fees)}`} />
+        <MetricCard label="Collected Today" value={money(metrics.total_payments_collected)} sublabel={`Uncollected: ${money(metrics.revenue_not_yet_collected)}`} />
+        <MetricCard label="Jobs Completed" value={number(jobsCompleted)} sublabel={reportDate ? reportDateLabel(reportDate) : ""} />
       </div>
 
-      {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-2 mb-6">
         <Panel title="Revenue by Truck">
-          <BarChart
-            labels={revenueByTruck.map(([l]) => l)}
-            values={revenueByTruck.map(([, v]) => v)}
-            format="money"
-          />
+          <BarChart labels={revenueByTruck.map(([l]) => l)} values={revenueByTruck.map(([, v]) => v)} format="money" />
         </Panel>
         <Panel title="Revenue by Market">
-          <BarChart
-            labels={revenueByMarket.map(([l]) => l)}
-            values={revenueByMarket.map(([, v]) => v)}
-            format="money"
-          />
+          <BarChart labels={revenueByMarket.map(([l]) => l)} values={revenueByMarket.map(([, v]) => v)} format="money" />
         </Panel>
       </div>
 
-      {/* Employee RPH leaderboard */}
       <Panel title="Employee RPH Leaderboard">
         <table className="w-full text-sm">
           <thead>

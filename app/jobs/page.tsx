@@ -7,17 +7,30 @@ import { getDailyMetrics, money, number, numericEntries, totalRecordValues } fro
 import { reportDateLabel, resolveReportDate } from "@/lib/report-dates";
 import type { Appointment } from "@/types/metrics";
 
+type PageProps = {
+  searchParams?: Promise<{ date?: string | string[] }>;
+};
+
 function statusBadge(status: string, type: string) {
   const s = status.toLowerCase();
   const t = type.toLowerCase();
-  if (t === "estimate")
+
+  if (t === "estimate") {
     return <span className="inline-flex rounded-full bg-warn/10 px-2 py-0.5 text-xs font-medium text-warn">Estimate</span>;
-  if (s.startsWith("completed"))
+  }
+
+  if (s.startsWith("completed")) {
     return <span className="inline-flex rounded-full bg-good/10 px-2 py-0.5 text-xs font-medium text-good">Completed</span>;
-  if (s === "confirmed")
+  }
+
+  if (s === "confirmed") {
     return <span className="inline-flex rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">Confirmed</span>;
-  if (s === "on route" || s === "en route")
+  }
+
+  if (s === "on route" || s === "en route") {
     return <span className="inline-flex rounded-full bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand">On Route</span>;
+  }
+
   return <span className="inline-flex rounded-full border border-line px-2 py-0.5 text-xs text-muted">{status || "—"}</span>;
 }
 
@@ -26,8 +39,9 @@ function durationFromStatus(status: string): string {
   return match ? `${match[1]} min` : "—";
 }
 
-export default async function JobsPage({ searchParams }: { searchParams?: { date?: string | string[] } }) {
-  const selectedDate = resolveReportDate(searchParams?.date);
+export default async function JobsPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const selectedDate = resolveReportDate(params?.date);
   const { metrics, lastUpdated } = await getDailyMetrics(selectedDate);
   const dataStatus = metrics ? (metrics.provisional ? "Provisional" : "Final") : "Provisional";
   const reportDate = selectedDate ?? metrics?.date;
@@ -62,7 +76,6 @@ export default async function JobsPage({ searchParams }: { searchParams?: { date
         </p>
       </div>
 
-      {/* Summary cards */}
       <div className="grid gap-4 sm:grid-cols-4 mb-6">
         <MetricCard label="Jobs" value={number(totalJobs)} sublabel="Estimates excluded" />
         <MetricCard label="Estimates" value={number(estimates.length)} sublabel="Not counted in revenue" />
@@ -74,7 +87,6 @@ export default async function JobsPage({ searchParams }: { searchParams?: { date
         <JobsMap appointments={appointments} />
       </div>
 
-      {/* Appointment detail table */}
       <div className="mb-6">
         <Panel title={`Appointments — ${appointments.length} total`}>
           <div className="overflow-x-auto">
@@ -99,16 +111,24 @@ export default async function JobsPage({ searchParams }: { searchParams?: { date
                     <td className="py-2.5 pr-4 text-muted">{a.market?.replace("Junk King ", "") || "—"}</td>
                     <td className="py-2.5 pr-4 text-muted">{a.truck || "—"}</td>
                     <td className="py-2.5 pr-4 tabular-nums text-right">
-                      {a.appointment_type?.toLowerCase() === "estimate"
-                        ? <span className="text-muted">—</span>
-                        : <span className="font-medium">{a.revenue || "—"}</span>}
+                      {a.appointment_type?.toLowerCase() === "estimate" ? (
+                        <span className="text-muted">—</span>
+                      ) : (
+                        <span className="font-medium">{a.revenue || "—"}</span>
+                      )}
                     </td>
                     <td className="py-2.5 pr-4 text-xs">
                       {a.payment_type === "Credit Card" && <span className="text-accent">💳 CC</span>}
                       {a.payment_type === "Cash" && <span className="text-good">💵 Cash</span>}
                       {a.payment_type === "Billed" && <span className="text-warn">📋 Billed</span>}
                       {a.payment_type === "Check" && <span className="text-ink">✏️ Check</span>}
-                      {(!a.payment_type || (a.payment_type !== "Credit Card" && a.payment_type !== "Cash" && a.payment_type !== "Billed" && a.payment_type !== "Check")) && <span className="text-muted">{a.payment_type || "—"}</span>}
+                      {(!a.payment_type ||
+                        (a.payment_type !== "Credit Card" &&
+                          a.payment_type !== "Cash" &&
+                          a.payment_type !== "Billed" &&
+                          a.payment_type !== "Check")) && (
+                        <span className="text-muted">{a.payment_type || "—"}</span>
+                      )}
                     </td>
                     <td className="py-2.5 pr-4 text-muted text-xs tabular-nums">
                       {durationFromStatus(a.job_status ?? "")}
@@ -119,11 +139,12 @@ export default async function JobsPage({ searchParams }: { searchParams?: { date
               </tbody>
             </table>
           </div>
-          <p className="mt-3 text-xs text-muted">Estimates are excluded from revenue totals · Duration extracted from Junkware status field · Load size &amp; other charges require per-job detail scrape</p>
+          <p className="mt-3 text-xs text-muted">
+            Estimates are excluded from revenue totals · Duration extracted from Junkware status field · Load size &amp; other charges require per-job detail scrape
+          </p>
         </Panel>
       </div>
 
-      {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel title="Jobs by Truck">
           <BarChart labels={jobsByTruck.map(([l]) => l)} values={jobsByTruck.map(([, v]) => v)} />

@@ -17,8 +17,13 @@ function clockOutLabel(employee: EmployeeRph) {
   return employee.time_out || employee.clock_out_display || "Missing";
 }
 
-export default async function FleetPage({ searchParams }: { searchParams?: { date?: string | string[] } }) {
-  const selectedDate = resolveReportDate(searchParams?.date);
+type PageProps = {
+  searchParams?: Promise<{ date?: string | string[] }>;
+};
+
+export default async function FleetPage({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const selectedDate = resolveReportDate(params?.date);
   const { metrics, lastUpdated } = await getDailyMetrics(selectedDate);
   const dataStatus = metrics ? (metrics.provisional ? "Provisional" : "Final") : "Provisional";
   const reportDate = selectedDate ?? metrics?.date;

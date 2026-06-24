@@ -6,3 +6,8 @@ node_modules/
 .env.production
 .env.development
 .env*.local
+
+.auth/
+
+.auth/
+junkware-*.png

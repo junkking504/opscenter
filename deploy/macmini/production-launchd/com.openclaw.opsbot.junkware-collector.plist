@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.openclaw.opsbot.junkware-collector</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/missioncontrol/opscenter-v2/opscenter/scripts/run-junkware-live-refresh-loop.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/missioncontrol/.openclaw/workspace/opsbot</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/missioncontrol/.openclaw/workspace/opsbot/logs/opscenter_safe_background_refresh.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/missioncontrol/.openclaw/workspace/opsbot/logs/opscenter_safe_background_refresh.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/missioncontrol</string>
+    <key>OPSBOT_DIR</key>
+    <string>/Users/missioncontrol/.openclaw/workspace/opsbot</string>
+    <key>OPSCENTER_DIR</key>
+    <string>/Users/missioncontrol/opscenter-v2/opscenter</string>
+    <key>OPSCENTER_OPENCLAW</key>
+    <string>/Users/missioncontrol/.npm-global/bin/openclaw</string>
+    <key>OPSCENTER_SSH_KEY</key>
+    <string>/Users/missioncontrol/.ssh/id_ed25519_opscenter</string>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/Users/missioncontrol/Library/Python/3.9/bin:/Users/missioncontrol/.npm-global/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>PYTHONUNBUFFERED</key>
+    <string>1</string>
+  </dict>
+</dict>
+</plist>

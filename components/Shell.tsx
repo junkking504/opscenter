@@ -2,14 +2,8 @@ import type { ReactNode } from "react";
 import { DateSwitcher } from "@/components/DateSwitcher";
 import { DataStatus } from "@/components/DataStatus";
 import { NavLink } from "@/components/NavLink";
+import { primaryNavItems } from "@/components/navItems";
 import { reportDateOptions } from "@/lib/report-dates";
-
-const nav = [
-  { href: "/", label: "Dashboard" },
-  { href: "/fleet", label: "Fleet" },
-  { href: "/jobs", label: "Jobs" },
-  { href: "/crew", label: "Crew" }
-];
 
 type ShellProps = {
   children: ReactNode;
@@ -34,7 +28,7 @@ export async function Shell({ children, dataStatus, lastUpdated, selectedDate }:
           </div>
           <div className="flex flex-col gap-4 lg:items-end">
             <nav className="flex flex-wrap gap-2">
-              {nav.map((item) => (
+              {primaryNavItems.map((item) => (
                 <NavLink key={item.href} href={item.href} label={item.label} selectedDate={selectedDate} />
               ))}
             </nav>

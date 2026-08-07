@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.openclaw.opscenter</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/missioncontrol/opscenter-v2/opscenter/scripts/run_opscenter.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/missioncontrol/opscenter-v2/opscenter</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/missioncontrol/opscenter-v2/opscenter/logs/opscenter_launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/missioncontrol/opscenter-v2/opscenter/logs/opscenter_launchd.err.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/missioncontrol</string>
+    <key>NODE_ENV</key>
+    <string>production</string>
+    <key>OPSCENTER_APP_DIR</key>
+    <string>/Users/missioncontrol/opscenter-v2/opscenter</string>
+    <key>OPSCENTER_HOST</key>
+    <string>127.0.0.1</string>
+    <key>OPSBOT_DATA_DIR</key>
+    <string>/Users/missioncontrol/.openclaw/workspace/opsbot/data</string>
+    <key>PORT</key>
+    <string>3000</string>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+</dict>
+</plist>

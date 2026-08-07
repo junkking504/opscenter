@@ -1,0 +1,63 @@
+import Link from "next/link";
+import PageHeader from "@/components/PageHeader";
+import { getQboSetupStatus } from "@/lib/qbo-status";
+
+export const metadata = {
+  title: "QBO Connection Status | OpsCenter",
+  description: "Review the current QuickBooks Online connection setup status.",
+};
+
+export default function QboStatusPage() {
+  const status = getQboSetupStatus();
+
+  return (
+    <div className="ops-dashboard">
+      <PageHeader
+        title="QBO Connection Status"
+        subtitle="A server-rendered summary of the OAuth setup, storage path, and missing configuration."
+        date="2026-07-16"
+        showDateSelector={false}
+        showRefresh={false}
+        status={status.ready ? "Configured" : "Setup incomplete"}
+      />
+
+      <div className="ops-card">
+        <div className="ops-detail-grid">
+          <div>
+            <span>Status</span>
+            <strong>{status.ready ? "Ready for connect flow" : "Missing configuration"}</strong>
+          </div>
+          <div>
+            <span>Environment</span>
+            <strong>{status.environment}</strong>
+          </div>
+          <div>
+            <span>Redirect URI</span>
+            <strong>{status.redirectUri}</strong>
+          </div>
+          <div>
+            <span>Support email</span>
+            <strong>{status.supportEmail || "Not configured"}</strong>
+          </div>
+          <div>
+            <span>Token store</span>
+            <strong>{status.tokenStore.file}</strong>
+          </div>
+          <div>
+            <span>Token store writable</span>
+            <strong>{status.tokenStore.writable ? "Yes" : "No"}</strong>
+          </div>
+        </div>
+
+        <div className="ops-muted" style={{ marginTop: 16 }}>
+          {status.missingConfig.length ? `Missing configuration: ${status.missingConfig.join(", ")}` : "All required setup inputs are present."}
+        </div>
+
+        <div className="ops-compact-links">
+          <Link href="/integrations/qbo">Back to QBO Connection</Link>
+          <Link href="/api/integrations/qbo/status">JSON status endpoint</Link>
+        </div>
+      </div>
+    </div>
+  );
+}

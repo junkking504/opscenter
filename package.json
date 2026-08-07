@@ -11,7 +11,13 @@
     "deploy": "opennextjs-cloudflare build && wrangler deploy",
     "preview": "opennextjs-cloudflare build && wrangler dev",
     "scrape:junkware": "tsx scripts/scrapers/junkware-smoke.ts",
-    "metrics:daily": "tsx scripts/pipelines/build-daily-metrics.ts"
+    "metrics:daily": "tsx scripts/pipelines/build-daily-metrics.ts",
+    "reconcile:payments": "python3 scripts/collect-payment-reconciliation.py",
+    "collect:searchkings": "tsx scripts/collect-searchkings.ts",
+    "sync:crew-portal": "tsx scripts/sync-crew-portal-data.ts",
+    "verify:monthly": "tsx scripts/verify-monthly-reporting.ts",
+    "verify:searchkings": "node --import tsx scripts/test-searchkings.ts",
+    "verify:junkware-sms": "node --import tsx scripts/test-junkware-sms.ts"
   },
   "dependencies": {
     "@types/node": "^20.14.10",
@@ -19,6 +25,7 @@
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.19",
     "chart.js": "^4.4.3",
+    "leaflet": "^1.9.4",
     "next": "^15.5.19",
     "postcss": "^8.4.39",
     "react": "^19.2.7",
@@ -29,7 +36,10 @@
   "devDependencies": {
     "@opennextjs/cloudflare": "^1.19.11",
     "@playwright/test": "^1.61.1",
+    "@types/leaflet": "^1.9.21",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^15.5.19",
     "tsx": "^4.22.4",
-    "wrangler": "^4.104.0"
+    "wrangler": "^4.116.0"
   }
 }

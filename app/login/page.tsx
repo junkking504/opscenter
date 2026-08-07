@@ -1,0 +1,89 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
+import JunkKingLogo from "@/components/JunkKingLogo";
+
+type LoginPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function firstParam(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return value[0] || "";
+  return value || "";
+}
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const cookieStore = await cookies();
+  const session = await verifyAuthSessionCookie(cookieStore.get(AUTH_SESSION_COOKIE)?.value || "");
+  if (session) {
+    redirect("/");
+  }
+
+  const params = (await searchParams) || {};
+  const error = firstParam(params.error);
+  const next = firstParam(params.next);
+  const invalidEmail = error === "invalid-email";
+
+  return (
+    <main className="ops-login-shell">
+      <div className="ops-login-grid" aria-hidden="true" />
+      <section className="ops-login-brand-panel">
+        <div className="ops-login-brand">
+          <JunkKingLogo className="ops-login-junk-king-logo" />
+          <div>
+            <div className="ops-login-wordmark">OPSCENTER</div>
+            <div className="ops-login-designation">JUNK KING LOUISIANA // JKLA–01</div>
+          </div>
+        </div>
+        <div className="ops-login-hero">
+          <div className="ops-login-kicker"><span /> Operations intelligence</div>
+          <h1>Every crew.<br />Every truck.<br /><em>One command.</em></h1>
+          <p>Real-time visibility across production, people, fleet, and financial performance.</p>
+        </div>
+        <div className="ops-login-system-line">
+          <span><i /> System operational</span>
+          <span>Central time</span>
+          <span>Protected access</span>
+        </div>
+      </section>
+
+      <section className="ops-login-access-panel">
+        <div className="ops-login-access-card">
+          <div className="ops-login-access-index">SECURE ACCESS // 01</div>
+          <h2>Enter OpsCenter</h2>
+          <p>Use your authorized Junk King email to continue.</p>
+
+          <form action="/api/auth/login" method="post" className="ops-login-form">
+            <input type="hidden" name="next" value={next} />
+            <label>
+              <span>Email address</span>
+              <input
+                name="email"
+                type="email"
+                autoComplete="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
+                placeholder="name@junk-king.com"
+                className="ops-field"
+                required
+              />
+            </label>
+
+            {invalidEmail ? (
+              <div role="alert" className="ops-login-error">
+                Please enter a valid @junk-king.com email address.
+              </div>
+            ) : null}
+
+            <button type="submit" className="ops-login-button">
+              <span>Authenticate</span><span aria-hidden="true">→</span>
+            </button>
+          </form>
+
+          <div className="ops-login-footnote">Authorized personnel only · This browser stays trusted for one year</div>
+        </div>
+      </section>
+    </main>
+  );
+}

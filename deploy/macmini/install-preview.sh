@@ -77,6 +77,7 @@ NEXT_DIST_DIR="tmp/macmini-preview-next" npm run build
 
 /usr/bin/install -m 644 "$SOURCE_PLIST" "$INSTALLED_PLIST"
 launchctl bootout "gui/$(id -u)/$PREVIEW_LABEL" >/dev/null 2>&1 || true
+launchctl enable "gui/$(id -u)/$PREVIEW_LABEL"
 launchctl bootstrap "gui/$(id -u)" "$INSTALLED_PLIST"
 
 echo

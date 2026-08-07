@@ -42,11 +42,11 @@ do
   fi
 done
 
-status="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/login || true)"
-if [[ "$status" == "200" ]]; then
+http_status="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/login || true)"
+if [[ "$http_status" == "200" ]]; then
   pass "preview login responds locally with HTTP 200"
 else
-  fail "preview login returned HTTP ${status:-unreachable}"
+  fail "preview login returned HTTP ${http_status:-unreachable}"
 fi
 
 if (( FAILURES > 0 )); then

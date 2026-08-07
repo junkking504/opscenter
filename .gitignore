@@ -1,5 +1,6 @@
 node_modules/
 .next/
+.next-*/
 
 .env
 .env.local
@@ -17,6 +18,22 @@ junkware-*.png
 
 # Wrangler local state
 .wrangler/
+
+# Runtime data and local operational output
+/data
+/logs/
+/tmp/
+
+# Local editor/build metadata
+*.tsbuildinfo
+
+# Timestamped/manual backup copies
+**/*.bak
+**/*.bak.*
+**/*.bak_*
+**/*.backup
+**/*.backup.*
+**/*backup_*
 
 # Next.js
 .next/

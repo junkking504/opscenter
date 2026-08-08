@@ -1,6 +1,8 @@
 #!/bin/zsh
 set -euo pipefail
 
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
 EXPECTED_USER="missioncontrol"
 EXPECTED_HOME="/Users/missioncontrol"
 DEPLOY_ROOT="$EXPECTED_HOME/opscenter-v2"

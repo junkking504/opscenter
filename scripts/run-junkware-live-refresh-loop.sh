@@ -17,8 +17,9 @@ SMS_PENDING_DATES=()
 export PYTHONPYCACHEPREFIX="/private/tmp/opscenter-live-pycache"
 
 network_available() {
-  /usr/sbin/scutil -r junkware.junk-king.com 2>/dev/null \
-    | /usr/bin/grep -q '^Reachable$'
+  local reachability
+  reachability=$(/usr/sbin/scutil -r junkware.junk-king.com 2>/dev/null) || return 1
+  [[ "$reachability" == Reachable* ]]
 }
 
 auto_virtualize_external_bookings() {

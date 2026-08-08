@@ -1,5 +1,13 @@
-export type OpsRuntime = "LIVE" | "VPS";
+export type OpsRuntime = "LIVE" | "VPS" | "MISSION_CONTROL" | "MAC_MINI_PREVIEW";
 
 export function getOpsRuntime(): OpsRuntime {
-  return process.env["OPSCENTER_RUNTIME"]?.trim().toUpperCase() === "VPS" ? "VPS" : "LIVE";
+  const configuredRuntime = process.env["OPSCENTER_RUNTIME"]?.trim().toUpperCase();
+  if (
+    configuredRuntime === "VPS"
+    || configuredRuntime === "MISSION_CONTROL"
+    || configuredRuntime === "MAC_MINI_PREVIEW"
+  ) {
+    return configuredRuntime;
+  }
+  return "LIVE";
 }

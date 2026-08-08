@@ -6,6 +6,17 @@ import { chicagoDateKey } from "@/lib/report-dates";
 
 export const dynamic = "force-dynamic";
 
+const OPERATOR_STATE_DIRECTORIES = [
+  "manual_bonuses",
+  "job-route-assignments",
+  "job-route-geocodes",
+  "searchkings-overrides",
+  "fleet",
+  "finance",
+  "job-call-ahead",
+  path.join("integrations", "junkware-sms"),
+] as const;
+
 function latestMetricsFile(directory: string, throughDate?: string): string | null {
   try {
     const files = fs.readdirSync(directory)
@@ -16,6 +27,14 @@ function latestMetricsFile(directory: string, throughDate?: string): string | nu
   } catch {
     return null;
   }
+}
+
+function writableStateTarget(directory: string): string {
+  let target = directory;
+  while (!fs.existsSync(target) && path.dirname(target) !== target) {
+    target = path.dirname(target);
+  }
+  return target;
 }
 
 export async function GET(request: Request) {
@@ -45,9 +64,22 @@ export async function GET(request: Request) {
     assignmentStoreWritable = false;
   }
 
+  const operatorStateUnwritable = OPERATOR_STATE_DIRECTORIES.filter((relativeDirectory) => {
+    const directory = path.join(process.cwd(), "data", relativeDirectory);
+    try {
+      fs.accessSync(writableStateTarget(directory), fs.constants.W_OK);
+      return false;
+    } catch {
+      return true;
+    }
+  });
+  const operatorStateWritable = operatorStateUnwritable.length === 0;
+
   const assignmentHealth = {
     assignmentPersistence: "durable-local-first-v2",
     assignmentStoreWritable,
+    operatorStateWritable,
+    operatorStateUnwritable,
   };
 
   if (!metricsFile) {
@@ -63,15 +95,17 @@ export async function GET(request: Request) {
     const metricsDate = path.basename(metricsFile).slice("daily_metrics_".length, -".json".length);
     const monitorsCurrentDate = metricsDate === expectedMetricsDate;
     const stale = monitorsCurrentDate && ageSeconds > maxAgeSeconds;
-    const healthy = !stale && assignmentStoreWritable;
+    const healthy = !stale && assignmentStoreWritable && operatorStateWritable;
     return NextResponse.json(
       {
         ok: healthy,
         status: stale
           ? "stale-data"
-          : assignmentStoreWritable
-            ? monitorsCurrentDate ? "healthy" : "available"
-            : "assignment-storage-unwritable",
+          : !assignmentStoreWritable
+            ? "assignment-storage-unwritable"
+            : !operatorStateWritable
+              ? "operator-storage-unwritable"
+              : monitorsCurrentDate ? "healthy" : "available",
         runtime,
         metricsDate,
         latestMetricsDate,

@@ -3,7 +3,6 @@ import OpsNav from "@/components/OpsNav";
 import OperationsClock from "@/components/OperationsClock";
 import JunkKingLogo from "@/components/JunkKingLogo";
 import AddOnNotifications from "@/components/AddOnNotifications";
-import JunkwareTextUpdates from "@/components/JunkwareTextUpdates";
 import { getOpsRuntime } from "@/lib/runtime";
 
 export default function OpsShell({
@@ -14,6 +13,28 @@ export default function OpsShell({
   sessionEmail?: string | null;
 }) {
   const runtimeStatus = getOpsRuntime();
+  const runtimeBadge = runtimeStatus === "VPS"
+    ? {
+        className: "is-vps",
+        prefix: "View via",
+        value: "VPS",
+        label: "Current view is served from the snapshot stored on the remote VPS",
+      }
+    : runtimeStatus === "MAC_MINI_PREVIEW"
+      ? {
+          className: "is-preview",
+          prefix: "Preview",
+          value: "Mission Control",
+          label: "Preview served by the Mission Control Mac Mini",
+        }
+      : runtimeStatus === "MISSION_CONTROL"
+        ? {
+            className: "is-mission-control",
+            prefix: "Host",
+            value: "Mission Control",
+            label: "Served by the Mission Control Mac Mini",
+          }
+        : null;
 
   return (
     <div className="ops-app">
@@ -24,7 +45,7 @@ export default function OpsShell({
           <JunkKingLogo className="ops-junk-king-logo" />
           <div className="ops-brand-product">
             <div className="ops-brand-title">OpsCenter</div>
-            <div className="ops-brand-subtitle">Louisiana Operations Command</div>
+            <div className="ops-brand-subtitle">Junk King | Louisiana</div>
           </div>
         </div>
 
@@ -56,9 +77,9 @@ export default function OpsShell({
           </div>
           <header className="ops-topbar">
             <div className="ops-topbar-identity">
-              <div className="ops-eyebrow">Junk King Louisiana // Mission Control</div>
+              <div className="ops-eyebrow">Junk King | Louisiana</div>
               <div className="ops-topbar-title-row">
-                <h1>Operations Command</h1>
+                <h1>OpsCenter</h1>
               </div>
             </div>
 
@@ -72,18 +93,18 @@ export default function OpsShell({
                 <span className="ops-pulse" />
                 Live feed
               </div>
-              <div
-                className={`ops-runtime-status is-${runtimeStatus.toLowerCase()}`}
-                aria-label={`Status: ${runtimeStatus}`}
-                title={runtimeStatus === "VPS" ? "Served by the remote VPS" : "Served by the live Mac connector"}
-              >
-                <span>STATUS</span>
-                <strong>{runtimeStatus}</strong>
-              </div>
+              {runtimeBadge ? (
+                <div
+                  className={`ops-runtime-status ${runtimeBadge.className}`}
+                  aria-label={runtimeBadge.label}
+                  title={runtimeBadge.label}
+                >
+                  <span>{runtimeBadge.prefix}</span>
+                  <strong>{runtimeBadge.value}</strong>
+                </div>
+              ) : null}
             </div>
           </header>
-
-          <JunkwareTextUpdates />
 
           <section className="ops-content">{children}</section>
         </div>

@@ -3883,7 +3883,7 @@ body {
   .ops-add-on-toast { animation: none; }
 }
 
-/* Runtime origin badge: makes it obvious which connector served the page. */
+/* View origin badge: shown only when the view is remote or on Mission Control. */
 .ops-runtime-status {
   display: inline-flex;
   min-height: 34px;
@@ -3922,17 +3922,17 @@ body {
   letter-spacing: 0.06em;
 }
 
-.ops-runtime-status.is-live {
+.ops-runtime-status.is-mission-control {
   border-color: rgba(55, 214, 122, 0.3);
   background: rgba(55, 214, 122, 0.1);
 }
 
-.ops-runtime-status.is-live::before {
+.ops-runtime-status.is-mission-control::before {
   background: var(--ops-green);
   box-shadow: 0 0 0 4px rgba(55, 214, 122, 0.12);
 }
 
-.ops-runtime-status.is-live > strong {
+.ops-runtime-status.is-mission-control > strong {
   color: #86efac;
 }
 

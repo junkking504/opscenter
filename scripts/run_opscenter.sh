@@ -4,7 +4,7 @@ set -euo pipefail
 USER_HOME="${HOME:?HOME must be set}"
 APP_DIR="${OPSCENTER_APP_DIR:-$USER_HOME/opscenter-v2/opscenter}"
 PORT="${PORT:-3000}"
-HOST="${OPSCENTER_HOST:-0.0.0.0}"
+HOST="${OPSCENTER_HOST:-127.0.0.1}"
 LOCK_DIR="/tmp/com.openclaw.opscenter.lock"
 PID_FILE="$LOCK_DIR/pid"
 LOG_PREFIX="[run_opscenter]"
@@ -33,7 +33,11 @@ cd "$APP_DIR"
 export NODE_ENV=production
 export HOSTNAME="$HOST"
 export PORT="$PORT"
-export OPSCENTER_RUNTIME="LIVE"
+if [[ "$(id -un)" == "missioncontrol" ]]; then
+  export OPSCENTER_RUNTIME="MISSION_CONTROL"
+else
+  export OPSCENTER_RUNTIME="${OPSCENTER_RUNTIME:-LIVE}"
+fi
 export OPSBOT_DATA_DIR="${OPSBOT_DATA_DIR:-$USER_HOME/.openclaw/workspace/opsbot/data}"
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 

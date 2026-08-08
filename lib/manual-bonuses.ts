@@ -128,7 +128,8 @@ function writeJsonFile(filePath: string, store: ManualBonusStore): void {
     `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`,
   );
 
-  fs.writeFileSync(tempFile, payload, { encoding: "utf8", mode: 0o600 });
+  fs.writeFileSync(tempFile, payload, { encoding: "utf8", mode: 0o660 });
+  fs.chmodSync(tempFile, 0o660);
   fs.renameSync(tempFile, filePath);
 }
 

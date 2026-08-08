@@ -48,12 +48,12 @@ rsync -az -e "$RSYNC_RSH" --delete-delay --delay-updates \
   "$PROJECT_ROOT/" "$REMOTE:$REMOTE_ROOT/source/"
 
 # The Playwright runtime's pwuser is UID/GID 1001 and the VPS deployment user is
-# UID/GID 1000. Route assignments are shared application state: the container
+# UID/GID 1000. These directories are shared application state: the container
 # writes them and the host pulls them back during the five-minute data sync.
 ssh "${SSH_ARGS[@]}" "$REMOTE" "docker run --rm --user 0 \
   -v '$REMOTE_ROOT/data:/data' \
   --entrypoint /bin/sh node:22-bookworm-slim \
-  -c 'mkdir -p /data/job-route-assignments /data/integrations/junkware-sms && chown -R 1001:1000 /data/job-route-assignments /data/integrations/junkware-sms && find /data/job-route-assignments /data/integrations/junkware-sms -type d -exec chmod 2770 {} \; && find /data/job-route-assignments /data/integrations/junkware-sms -type f -exec chmod 0660 {} \;'"
+  -c 'state_dirs=\"/data/manual_bonuses /data/job-route-assignments /data/job-route-geocodes /data/searchkings-overrides /data/fleet /data/finance /data/job-call-ahead /data/integrations/junkware-sms\" && mkdir -p \$state_dirs && chown -R 1001:1000 \$state_dirs && find \$state_dirs -type d -exec chmod 2770 {} \; && find \$state_dirs -type f -exec chmod 0660 {} \;'"
 
 ssh "${SSH_ARGS[@]}" "$REMOTE" "cd '$REMOTE_ROOT/source' && docker compose -f deploy/vps/compose.yaml up -d --build --remove-orphans"
 ssh "${SSH_ARGS[@]}" "$REMOTE" "cd '$REMOTE_ROOT/source' && \

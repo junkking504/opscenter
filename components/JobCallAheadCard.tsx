@@ -8,6 +8,7 @@ import type { JobCallAheadStatus } from "@/lib/job-call-ahead";
 
 type MenuPosition = { left: number; top: number };
 const APPOINTMENT_SELECTION_EVENT = "ops:select-appointment";
+const APPOINTMENT_ON_SITE_EVENT = "ops:appointment-on-site";
 
 export default function JobCallAheadCard({
   children,
@@ -15,12 +16,16 @@ export default function JobCallAheadCard({
   jobKey,
   initialStatus,
   articleId,
+  isCanceled = false,
+  truckOnSite = false,
 }: {
   children: ReactNode;
   date: string;
   jobKey: string;
   initialStatus?: JobCallAheadStatus;
   articleId: string;
+  isCanceled?: boolean;
+  truckOnSite?: boolean;
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<JobCallAheadStatus | undefined>(initialStatus);
@@ -29,6 +34,10 @@ export default function JobCallAheadCard({
   const [error, setError] = useState("");
   const [promoted, setPromoted] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<HTMLElement | null>(null);
+  const [canceledDetailsOpen, setCanceledDetailsOpen] = useState(false);
+  const [onSite, setOnSite] = useState(truckOnSite);
+
+  useEffect(() => setOnSite(truckOnSite), [truckOnSite]);
 
   useEffect(() => {
     setSelectedSlot(document.getElementById("jobs-selected-appointment-slot"));
@@ -41,14 +50,24 @@ export default function JobCallAheadCard({
   }, [articleId]);
 
   useEffect(() => {
+    const handleOnSiteStatus = (event: Event) => {
+      const statuses = (event as CustomEvent<{ statuses?: Record<string, boolean> }>).detail?.statuses;
+      if (statuses && articleId in statuses) setOnSite(Boolean(statuses[articleId]));
+    };
+    window.addEventListener(APPOINTMENT_ON_SITE_EVENT, handleOnSiteStatus);
+    return () => window.removeEventListener(APPOINTMENT_ON_SITE_EVENT, handleOnSiteStatus);
+  }, [articleId]);
+
+  useEffect(() => {
     if (!promoted) return;
+    if (isCanceled) setCanceledDetailsOpen(true);
     const frame = window.requestAnimationFrame(() => {
       document.getElementById(articleId)?.querySelectorAll<HTMLDetailsElement>("details").forEach((details) => {
         details.open = true;
       });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [articleId, promoted]);
+  }, [articleId, isCanceled, promoted]);
 
   useEffect(() => {
     if (!menu) return;
@@ -101,12 +120,14 @@ export default function JobCallAheadCard({
       ? "Not called yet"
       : "Call-ahead not set";
 
+  const canceledCollapsed = isCanceled && !canceledDetailsOpen;
+
   const card = (
     <article
-      className={`ops-appointment-card${promoted ? " is-map-selected" : ""}`}
+      className={`ops-appointment-card${onSite ? " is-on-site" : ""}${promoted ? " is-map-selected" : ""}${isCanceled ? " is-canceled" : ""}${canceledCollapsed ? " is-canceled-collapsed" : ""}`}
       id={articleId}
       tabIndex={-1}
-      title="Right-click to update the office call-ahead"
+      title={isCanceled ? "Canceled appointment — right-click to update the office call-ahead" : "Right-click to update the office call-ahead"}
       onContextMenu={(event) => {
         event.preventDefault();
         setError("");
@@ -117,12 +138,29 @@ export default function JobCallAheadCard({
       }}
     >
       <div className="ops-call-ahead-row">
+        {onSite ? (
+          <span className="ops-appointment-on-site" title="GPS confirms a truck is currently at this appointment">
+            <i aria-hidden="true" />
+            Truck on site
+          </span>
+        ) : null}
         <span className={`ops-call-ahead-badge ${status || "unset"}${saving ? " saving" : ""}`}>
           {saving ? "Saving…" : label}
         </span>
         {error ? <span className="ops-call-ahead-error" role="alert">{error}</span> : null}
       </div>
       {children}
+      {isCanceled ? (
+        <button
+          type="button"
+          className="ops-canceled-card-toggle"
+          aria-expanded={canceledDetailsOpen}
+          onClick={() => setCanceledDetailsOpen((open) => !open)}
+        >
+          <span>{canceledDetailsOpen ? "Hide details" : "View details"}</span>
+          <i aria-hidden="true">{canceledDetailsOpen ? "−" : "+"}</i>
+        </button>
+      ) : null}
       {menu ? (
         <div
           className="ops-call-ahead-menu"

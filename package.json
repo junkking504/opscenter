@@ -17,7 +17,8 @@
     "sync:crew-portal": "tsx scripts/sync-crew-portal-data.ts",
     "verify:monthly": "tsx scripts/verify-monthly-reporting.ts",
     "verify:searchkings": "node --import tsx scripts/test-searchkings.ts",
-    "verify:junkware-sms": "node --import tsx scripts/test-junkware-sms.ts"
+    "verify:junkware-sms": "node --import tsx scripts/test-junkware-sms.ts",
+    "alerts:slack": "node --import tsx scripts/publish-slack-alerts.ts"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

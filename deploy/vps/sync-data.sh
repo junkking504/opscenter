@@ -41,14 +41,18 @@ ssh "${SSH_ARGS[@]}" "$REMOTE" "test -d '$REMOTE_DATA_DIR'"
 if [[ "$MODE" == "incremental" ]]; then
   # These folders are written by the VPS app. Pull them back first so the Mac
   # collector sees manual changes before it produces the next metrics file.
-  for state_dir in manual_bonuses job-route-assignments job-route-geocodes searchkings-overrides; do
-    if ssh "${SSH_ARGS[@]}" "$REMOTE" "test -d '$REMOTE_DATA_DIR/$state_dir'"; then
-      mkdir -p "$LOCAL_DATA_DIR/$state_dir"
-      rsync -az -e "$RSYNC_RSH" --delay-updates \
-        "$REMOTE:$REMOTE_DATA_DIR/$state_dir/" \
-        "$LOCAL_DATA_DIR/$state_dir/"
-    fi
-  done
+  rsync -az -e "$RSYNC_RSH" --delay-updates \
+    --include '/manual_bonuses/***' \
+    --include '/job-route-assignments/***' \
+    --include '/job-route-geocodes/***' \
+    --include '/searchkings-overrides/***' \
+    --include '/fleet/***' \
+    --include '/finance/***' \
+    --include '/job-call-ahead/***' \
+    --include '/integrations/' \
+    --include '/integrations/junkware-sms/***' \
+    --exclude '*' \
+    "$REMOTE:$REMOTE_DATA_DIR/" "$LOCAL_DATA_DIR/"
 elif [[ "$MODE" != "initial" ]]; then
   echo "Usage: $0 [initial|incremental]" >&2
   exit 64
@@ -67,16 +71,23 @@ rsync -az -e "$RSYNC_RSH" --delay-updates \
   --exclude '/job-route-assignments/' \
   --exclude '/job-route-geocodes/' \
   --exclude '/searchkings-overrides/' \
+  --exclude '/fleet/' \
+  --exclude '/finance/' \
+  --exclude '/job-call-ahead/' \
+  --exclude '/integrations/' \
   "$LOCAL_DATA_DIR/" "$REMOTE:$REMOTE_DATA_DIR/"
 
 if [[ "$MODE" == "initial" ]]; then
-  for state_dir in manual_bonuses job-route-assignments job-route-geocodes searchkings-overrides; do
-    if [[ -d "$LOCAL_DATA_DIR/$state_dir" ]]; then
-      rsync -az -e "$RSYNC_RSH" --delay-updates \
-        "$LOCAL_DATA_DIR/$state_dir/" \
-        "$REMOTE:$REMOTE_DATA_DIR/$state_dir/"
-    fi
-  done
+  rsync -az -e "$RSYNC_RSH" --delay-updates \
+    --include '/manual_bonuses/***' \
+    --include '/job-route-assignments/***' \
+    --include '/job-route-geocodes/***' \
+    --include '/searchkings-overrides/***' \
+    --include '/fleet/***' \
+    --include '/finance/***' \
+    --include '/job-call-ahead/***' \
+    --exclude '*' \
+    "$LOCAL_DATA_DIR/" "$REMOTE:$REMOTE_DATA_DIR/"
 fi
 
 echo "OpsCenter data sync completed: $MODE"

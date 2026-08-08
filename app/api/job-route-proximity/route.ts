@@ -15,11 +15,13 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const date = String(body?.date || "").trim();
-  const rawJobs = Array.isArray(body?.jobs) ? body.jobs.slice(0, 40) : [];
+  const rawJobs = Array.isArray(body?.jobs) ? body.jobs.slice(0, 100) : [];
   const jobs: JobRouteProximityInput[] = rawJobs
     .map((job: Record<string, unknown>) => ({
       jobKey: String(job?.jobKey || "").trim().slice(0, 500),
       address: String(job?.address || "").trim().slice(0, 500),
+      latitude: Number.isFinite(Number(job?.latitude)) ? Number(job?.latitude) : null,
+      longitude: Number.isFinite(Number(job?.longitude)) ? Number(job?.longitude) : null,
     }))
     .filter((job: JobRouteProximityInput) => job.jobKey && job.address && job.address !== "—");
 

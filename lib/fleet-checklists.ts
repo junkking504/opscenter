@@ -193,7 +193,8 @@ function writeFleetChecklistStore(store: FleetChecklistStore): void {
     version: 1,
     updatedAt: store.updatedAt,
     entries: sortEntries(store.entries),
-  }, null, 2), { encoding: "utf8", mode: 0o600 });
+  }, null, 2), { encoding: "utf8", mode: 0o660 });
+  fs.chmodSync(temporaryFile, 0o660);
   fs.renameSync(temporaryFile, filePath);
 }
 

@@ -61,8 +61,9 @@ function writeStore(store: JobCallAheadStore): void {
   );
   fs.writeFileSync(temporaryFile, JSON.stringify(store, null, 2), {
     encoding: "utf8",
-    mode: 0o600,
+    mode: 0o660,
   });
+  fs.chmodSync(temporaryFile, 0o660);
   fs.renameSync(temporaryFile, STORE_FILE);
 }
 

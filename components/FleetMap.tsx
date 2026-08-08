@@ -73,6 +73,16 @@ function statusTone(status: string): string {
       return "dump";
     case "At Yard":
       return "yard";
+    case "NOHQ":
+    case "BRHQ":
+      return "yard";
+    case "GL":
+    case "RBL":
+    case "BRL":
+    case "STS":
+    case "GMTS":
+    case "EMR":
+      return "dump";
     case "Idle":
       return "idle";
     case "Offline":
@@ -86,13 +96,13 @@ function statusTone(status: string): string {
 
 function operationalLabel(record: FleetTruckMapRecord): string {
   if (record.freshnessLabel === "Offline") return "Offline";
-  if (record.freshnessLabel === "GPS Stale") return "Stale";
+  if (record.freshnessLabel === "GPS Stale") return `${record.operationalStatus} · GPS stale`;
   if (record.operationalStatus === "Driving") return "Driving";
   if (record.operationalStatus === "At Job") return "At Job";
   if (record.operationalStatus === "At Dump/Recycling") return "At Dump/Recycling";
   if (record.operationalStatus === "At Yard") return "At Yard";
   if (record.operationalStatus === "Idle") return "Idle";
-  return "Stopped";
+  return record.operationalStatus || "Stopped";
 }
 
 function markerIcon(leaflet: LeafletModule, record: FleetTruckMapRecord, selected: boolean) {

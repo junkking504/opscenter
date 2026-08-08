@@ -113,6 +113,24 @@ export type FleetMapPayload = {
 
 const STALE_THRESHOLD_MINUTES = 120;
 
+type OperationalLocationCode = "NOHQ" | "BRHQ" | "GL" | "RBL" | "BRL" | "STS" | "GMTS" | "EMR";
+
+const OPERATIONAL_LOCATIONS: Array<{
+  code: OperationalLocationCode;
+  latitude: number;
+  longitude: number;
+  radiusMeters: number;
+}> = [
+  { code: "NOHQ", latitude: 29.9863006, longitude: -90.0586452, radiusMeters: 300 },
+  { code: "BRHQ", latitude: 30.4191544, longitude: -91.1449730, radiusMeters: 300 },
+  { code: "GL", latitude: 30.0064, longitude: -89.9766, radiusMeters: 750 },
+  { code: "RBL", latitude: 29.9264, longitude: -90.2652, radiusMeters: 1_200 },
+  { code: "BRL", latitude: 30.6025, longitude: -91.2341, radiusMeters: 750 },
+  { code: "STS", latitude: 30.43145, longitude: -90.0388, radiusMeters: 350 },
+  { code: "GMTS", latitude: 30.5119195, longitude: -91.1794450, radiusMeters: 350 },
+  { code: "EMR", latitude: 29.9688, longitude: -90.0817, radiusMeters: 300 },
+];
+
 function roots(): string[] {
   return [
     process.cwd(),
@@ -230,6 +248,41 @@ function latestPoint(points: AnyRecord[]): AnyRecord | null {
   return [...points].sort((a, b) => String(a.timestamp || "").localeCompare(String(b.timestamp || "")))[points.length - 1] ?? null;
 }
 
+function distanceMeters(
+  from: { latitude: number; longitude: number },
+  to: { latitude: number; longitude: number },
+): number {
+  const radians = (degrees: number) => degrees * Math.PI / 180;
+  const latitudeDelta = radians(to.latitude - from.latitude);
+  const longitudeDelta = radians(to.longitude - from.longitude);
+  const a = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(radians(from.latitude)) * Math.cos(radians(to.latitude)) * Math.sin(longitudeDelta / 2) ** 2;
+  return 6_371_000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function operationalLocationCodeFromName(value: unknown): OperationalLocationCode | null {
+  const raw = String(value || "").trim().replace(/\s+/g, " ");
+  const directCode = raw.toUpperCase().replace(/\s+/g, "");
+  if (["NOHQ", "BRHQ", "GL", "RBL", "BRL", "STS", "GMTS", "EMR"].includes(directCode)) {
+    return directCode as OperationalLocationCode;
+  }
+  const name = raw.toLowerCase();
+  if (!name) return null;
+  if (/^warehouse$|new orleans.*(warehouse|hq)|\bno\s*hq\b/.test(name)) return "NOHQ";
+  if (/baton rouge.*(warehouse|hq)|\bbr\s*hq\b/.test(name)) return "BRHQ";
+  if (/gentilly/.test(name)) return "GL";
+  if (/river\s*birch|riverbirch|jefferson parish landfill/.test(name)) return "RBL";
+  if (/br landfill|baton rouge landfill/.test(name)) return "BRL";
+  if (/stranco/.test(name)) return "STS";
+  if (/green meadow|mengel/.test(name)) return "GMTS";
+  if (/\bemr\b/.test(name)) return "EMR";
+  return null;
+}
+
+function operationalLocationCodeAt(point: { latitude: number; longitude: number }): OperationalLocationCode | null {
+  return OPERATIONAL_LOCATIONS.find((location) => distanceMeters(point, location) <= location.radiusMeters)?.code || null;
+}
+
 function classifyOperationalStatus({
   latest,
   routeStops,
@@ -240,10 +293,22 @@ function classifyOperationalStatus({
   routePoints: FleetMapPoint[];
 }): string {
   if (!latest && !routePoints.length) return "Unknown";
+  const latestLocation = latest && Number.isFinite(Number(latest.latitude)) && Number.isFinite(Number(latest.longitude))
+    ? { latitude: Number(latest.latitude), longitude: Number(latest.longitude) }
+    : null;
+  const currentStop = latestLocation
+    ? [...routeStops]
+        .reverse()
+        .find((stop) => stop.kind !== "Unknown" && distanceMeters(latestLocation, stop) <= 150)
+    : null;
+  const namedLocationCode = operationalLocationCodeFromName(currentStop?.label);
+  if (namedLocationCode) return namedLocationCode;
+  const coordinateLocationCode = latestLocation && Number(latest?.speed || 0) <= 15
+    ? operationalLocationCodeAt(latestLocation)
+    : null;
+  if (coordinateLocationCode) return coordinateLocationCode;
   if (latest && Number(latest.speed || 0) > 0) return "Driving";
-  if (routeStops.some((stop) => stop.kind === "At Job")) return "At Job";
-  if (routeStops.some((stop) => stop.kind === "At Dump/Recycling")) return "At Dump/Recycling";
-  if (routeStops.some((stop) => stop.kind === "At Yard")) return "At Yard";
+  if (currentStop) return currentStop.kind;
   if (latest && Number(latest.speed || 0) === 0) return "Idle";
   return "Unknown";
 }
@@ -268,8 +333,11 @@ function freshnessLabel({
 
 function supportedStopKind(stop: AnyRecord): FleetMapStop["kind"] | null {
   const geofence = String(stop?.geofenceName || "").toLowerCase();
+  const locationCode = operationalLocationCodeFromName(geofence);
+  if (locationCode === "NOHQ" || locationCode === "BRHQ") return "At Yard";
+  if (locationCode) return "At Dump/Recycling";
   if (/warehouse|yard/.test(geofence)) return "At Yard";
-  if (/stranco|dump|recycl/.test(geofence)) return "At Dump/Recycling";
+  if (/landfill|transfer|dump|recycl/.test(geofence)) return "At Dump/Recycling";
   if (/fuel|gas/.test(geofence)) return "At Fuel";
   return null;
 }
@@ -379,7 +447,7 @@ function buildTruckRecord({
           const kind = supportedStopKind(row) || "Unknown";
           return {
             kind,
-            label: String(row.geofenceName || row.street || kind),
+            label: operationalLocationCodeFromName(row.geofenceName) || String(row.geofenceName || row.street || kind),
             truck,
             latitude: Number(row.latitude),
             longitude: Number(row.longitude),

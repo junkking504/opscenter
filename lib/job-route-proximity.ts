@@ -21,6 +21,8 @@ type PrivateGeocodeStore = {
 export type JobRouteProximityInput = {
   jobKey: string;
   address: string;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 export type JobTruckProximity = {
@@ -174,6 +176,11 @@ async function resolveJobCoordinates(jobs: JobRouteProximityInput[]): Promise<Ma
   const unresolved: Array<{ jobKey: string; address: string; hash: string }> = [];
 
   for (const job of jobs) {
+    const suppliedCoordinates = validCoordinates(job.latitude, job.longitude);
+    if (suppliedCoordinates) {
+      results.set(job.jobKey, suppliedCoordinates);
+      continue;
+    }
     const hash = addressHash(job.address);
     const trustedCoordinates = validCoordinates(trusted[hash]?.latitude, trusted[hash]?.longitude);
     if (trustedCoordinates) {

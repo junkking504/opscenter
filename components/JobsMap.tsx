@@ -76,6 +76,7 @@ const LINXUP_MINIMUM_DWELL_MS = 2 * 60_000;
 const LINXUP_MAX_POINT_GAP_MS = 5 * 60_000;
 const LINXUP_FRESHNESS_MS = 10 * 60_000;
 const APPOINTMENT_SELECTION_EVENT = "ops:select-appointment";
+const APPOINTMENT_ON_SITE_EVENT = "ops:appointment-on-site";
 
 function isLocated(job: JobsMapPoint): job is JobsMapPoint & { latitude: number; longitude: number } {
   return Number.isFinite(job.latitude) && Number.isFinite(job.longitude);
@@ -131,7 +132,8 @@ function truckHasConfirmedDwellAtJob(
 
 export function anyTruckIsCurrentlyAtJob(job: JobsMapPoint, trucks: JobsMapTruck[], now = Date.now()): boolean {
   if (!isLocated(job)) return false;
-  return trucks.some((truck) => truckHasConfirmedDwellAtJob(job, truck, now));
+  return trucks.some((truck) => truckHasConfirmedDwellAtJob(job, truck, now)
+    || (truck.status === "At Job" && distanceMeters(truck, job) <= LINXUP_SITE_RADIUS_METERS));
 }
 
 function truckHasConfirmedVisitAtJob(
@@ -210,6 +212,18 @@ function nearestTruck(
   return available.length ? { truck: available[0][0], proximity: available[0][1] } : null;
 }
 
+function unavailableProximityText(jobKey: string, proximity: JobRouteProximityPayload | null): string {
+  const distances = Object.values(proximity?.distances?.[jobKey] || {});
+  if (!distances.length) return "Proximity has not been calculated for this job";
+  if (distances.every((distance) => distance.status === "job_location_unavailable")) {
+    return "Job location could not be verified";
+  }
+  if (distances.every((distance) => distance.status === "truck_gps_unavailable")) {
+    return "No truck has a verified GPS position";
+  }
+  return "No current truck route is available";
+}
+
 function markerIcon(leaflet: LeafletModule, job: JobsMapPoint, selected: boolean) {
   const tone = territoryTone(job);
   return leaflet.divIcon({
@@ -232,9 +246,10 @@ function escapeHtml(value: string): string {
 
 function truckIcon(leaflet: LeafletModule, truck: JobsMapTruck, selected: boolean) {
   const number = truck.truck.match(/(\d+)/)?.[1] || truck.truck;
+  const atJob = truck.status === "At Job";
   return leaflet.divIcon({
     className: "",
-    html: `<span class="ops-jobs-truck-marker${selected ? " is-selected" : ""}">
+    html: `<span class="ops-jobs-truck-marker${atJob ? " is-at-job" : ""}${selected ? " is-selected" : ""}">
       <svg viewBox="0 0 28 18" aria-hidden="true"><path d="M2 3h14v10H2zM16 7h5l4 4v2h-9z"/><circle cx="7" cy="14" r="2.5"/><circle cx="21" cy="14" r="2.5"/></svg>
       <b>T${escapeHtml(number)}</b>
     </span>`,
@@ -568,6 +583,14 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const scheduleTimeColumnCount = scheduleBoard.rows.length + (scheduleBoard.untimed ? 1 : 0);
 
   useEffect(() => {
+    window.dispatchEvent(new CustomEvent(APPOINTMENT_ON_SITE_EVENT, {
+      detail: {
+        statuses: Object.fromEntries(displayJobs.map((job) => [job.detailId, job.truckOnSite])),
+      },
+    }));
+  }, [displayJobs]);
+
+  useEffect(() => {
     if (selectedKey && !jobs.some((job) => job.key === selectedKey)) {
       setSelectedKey("");
       window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
@@ -894,8 +917,13 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     let timer: ReturnType<typeof setInterval> | undefined;
     const proximityJobs = jobs
       .filter((job) => job.address && job.address !== "—" && job.address !== "Address unavailable")
-      .slice(0, 40)
-      .map((job) => ({ jobKey: job.key, address: job.address }));
+      .slice(0, 100)
+      .map((job) => ({
+        jobKey: job.key,
+        address: job.address,
+        latitude: job.latitude,
+        longitude: job.longitude,
+      }));
 
     async function loadProximity(initial: boolean) {
       if (!proximityJobs.length) {
@@ -1157,7 +1185,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                         ? "Truck locations unavailable"
                         : closestTruck
                           ? `${closestTruck.truck} · ${proximityText(closestTruck.proximity)}`
-                          : "No truck with usable GPS is available"}
+                          : unavailableProximityText(selectedJob.key, proximity)}
                 </strong>
               </div> : null}
               {scheduleView && selectedJob.statusBucket !== "Canceled" ? (

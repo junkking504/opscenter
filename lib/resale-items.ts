@@ -115,8 +115,9 @@ function writeResaleStore(store: ResaleStore): void {
   fs.writeFileSync(
     temporaryFile,
     `${JSON.stringify({ ...store, items: sortItems(store.items) }, null, 2)}\n`,
-    { encoding: "utf8", mode: 0o600 },
+    { encoding: "utf8", mode: 0o660 },
   );
+  fs.chmodSync(temporaryFile, 0o660);
   fs.renameSync(temporaryFile, filePath);
 }
 

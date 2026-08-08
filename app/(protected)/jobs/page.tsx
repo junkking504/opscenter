@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- JunkWare job photos are public closeout media URLs. */
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
@@ -15,7 +16,14 @@ import { buildMonthlyRange, monthOptions, readMonthlyAuthority } from "@/lib/mon
 import { readJobRouteAssignmentOverrides } from "@/lib/job-route-assignments";
 import { jobRouteAssignmentKey } from "@/lib/job-route-key";
 import { jobCallAheadLookupKey, readJobCallAheadStatuses } from "@/lib/job-call-ahead";
-import { appointmentNotes, junkItemKeywords, readJunkwareDayActivity } from "@/lib/junkware-job-details";
+import {
+  appointmentNotes,
+  junkItemKeywords,
+  junkwareJobPhotos,
+  junkwarePhotoAuditAvailable,
+  readJunkwareDayActivity,
+  type JunkwareJobPhoto,
+} from "@/lib/junkware-job-details";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
 
 const OPSBOT_DATA_DIR =
@@ -54,6 +62,8 @@ type JobRow = {
   paymentAmount: number;
   tipAmount: number;
   closeout: JobCloseout | null;
+  photos: JunkwareJobPhoto[];
+  photoAuditAvailable: boolean;
   junkItems: string[];
   appointmentNotes: string[];
 };
@@ -109,7 +119,7 @@ type SiteTimeAppointment = {
 };
 
 type JobStatusBucket = "Open / Scheduled" | "Estimate" | "Completed" | "Canceled" | "Unclosed or Needs Attention";
-type JobsView = "daily" | "monthly";
+type JobsView = "daily" | "calendar" | "monthly";
 type JobsWorkspace = "dispatch";
 
 type JobsFilters = {
@@ -602,7 +612,10 @@ function siteTimeLookupKeys(job: JobRow): string[] {
 }
 
 function normalizeJobsView(value: unknown): JobsView {
-  return String(value || "").toLowerCase() === "monthly" ? "monthly" : "daily";
+  const normalized = String(value || "").toLowerCase();
+  if (normalized === "calendar") return "calendar";
+  if (normalized === "monthly") return "monthly";
+  return "daily";
 }
 
 function normalizeJobsWorkspace(value: unknown): JobsWorkspace {
@@ -707,11 +720,43 @@ function monthPrefixForDate(date: string): string {
   return date.slice(0, 7);
 }
 
+function availableJobDates(): string[] {
+  const found = new Set<string>();
+  for (const dir of junkwareDirs()) {
+    try {
+      if (!fs.existsSync(dir)) continue;
+      for (const file of fs.readdirSync(dir)) {
+        const match = file.match(/^junkware_(?:live_|completed_)?(\d{4}-\d{2}-\d{2})(?:_summary\.csv|_raw\.json)$/);
+        if (match) found.add(match[1]);
+      }
+    } catch {}
+  }
+  return Array.from(found).sort((a, b) => a.localeCompare(b));
+}
+
 function monthDatesFor(date: string): string[] {
   const prefix = monthPrefixForDate(date);
-  return availableDates()
+  return Array.from(new Set([...availableDates(), ...availableJobDates()]))
     .filter((value) => value.startsWith(prefix))
     .sort((a, b) => a.localeCompare(b));
+}
+
+function jobsMonthOptions() {
+  const byMonth = new Map(monthOptions().map((month) => [month.key, month]));
+  for (const date of availableJobDates()) {
+    const key = monthPrefixForDate(date);
+    if (byMonth.has(key)) continue;
+    byMonth.set(key, {
+      key,
+      date: `${key}-01`,
+      label: new Date(`${key}-01T12:00:00Z`).toLocaleDateString("en-US", {
+        timeZone: "UTC",
+        month: "long",
+        year: "numeric",
+      }),
+    });
+  }
+  return Array.from(byMonth.values()).sort((a, b) => b.key.localeCompare(a.key));
 }
 
 function jobKey(job: JobRow): string {
@@ -755,6 +800,7 @@ function jobStatusRank(job: JobRow): number {
 
 function buildMonthlyJobsSummary(selectedDate: string) {
   const monthDates = monthDatesFor(selectedDate);
+  const jobsByDate = new Map<string, JobRow[]>();
   const finalJobs = new Map<
     string,
     {
@@ -781,7 +827,9 @@ function buildMonthlyJobsSummary(selectedDate: string) {
       jobs: completedJobs(metrics),
     });
 
-    for (const job of readJobRows(date)) {
+    const dayJobs = applyJobRouteAssignmentOverrides(readJobRows(date), date);
+    jobsByDate.set(date, dayJobs);
+    for (const job of dayJobs) {
       const key = jobKey(job);
       const existing = finalJobs.get(key);
       if (!existing) {
@@ -882,6 +930,7 @@ function buildMonthlyJobsSummary(selectedDate: string) {
     monthLabel,
     monthDisplay,
     monthDates,
+    jobsByDate,
     jobs,
     completedJobsCount,
     estimateRows,
@@ -912,6 +961,45 @@ function buildMonthlyJobsSummary(selectedDate: string) {
     siteTimeByKey,
     siteTimeByTruck,
   };
+}
+
+const CALENDAR_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function calendarDays(selectedDate: string, jobsByDate: Map<string, JobRow[]>) {
+  const monthKey = monthPrefixForDate(selectedDate);
+  const [year, month] = monthKey.split("-").map(Number);
+  const firstWeekday = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  const dayCount = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const days: Array<{ date: string; dayNumber: number; jobs: JobRow[] } | null> = Array(firstWeekday).fill(null);
+
+  for (let dayNumber = 1; dayNumber <= dayCount; dayNumber++) {
+    const date = `${monthKey}-${String(dayNumber).padStart(2, "0")}`;
+    days.push({
+      date,
+      dayNumber,
+      jobs: [...(jobsByDate.get(date) || [])].sort(compareJobSchedule),
+    });
+  }
+
+  while (days.length % 7 !== 0) days.push(null);
+  return days;
+}
+
+function calendarStatusClass(job: JobRow): string {
+  switch (statusBucket(job)) {
+    case "Completed": return "is-completed";
+    case "Estimate": return "is-estimate";
+    case "Canceled": return "is-canceled";
+    case "Unclosed or Needs Attention": return "is-attention";
+    default: return "is-scheduled";
+  }
+}
+
+function calendarJobMeta(job: JobRow): string {
+  const territory = normalizeTerritory(job.territory);
+  const rawTruck = String(job.assignedTruck || job.truck || "").trim();
+  const hasTruck = Boolean(rawTruck && rawTruck !== "—" && !/^unavailable$/i.test(rawTruck));
+  return hasTruck ? `${territory} · ${rawTruck}` : territory;
 }
 
 function firstValue(row: Record<string, any>, keys: string[]): string {
@@ -1360,6 +1448,8 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
     paymentAmount,
     tipAmount: moneyNumber(firstValue(row, ["tip", "Tip", "customer_tip", "Customer Tip"]) || "0"),
     closeout: null,
+    photos: junkwareJobPhotos(row),
+    photoAuditAvailable: junkwarePhotoAuditAvailable(row),
     junkItems: junkItemKeywords(row),
     appointmentNotes: appointmentNotes(row),
   };
@@ -1679,6 +1769,8 @@ function readJobRows(date: string): JobRow[] {
             .replace(/[^0-9.-]/g, "")
         ) || 0,
         closeout: parseJobCloseout(sourceRow),
+        photos: junkwareJobPhotos(sourceRow),
+        photoAuditAvailable: junkwarePhotoAuditAvailable(sourceRow),
         junkItems: junkItemKeywords(sourceRow),
         appointmentNotes: appointmentNotes(sourceRow),
       });
@@ -1786,6 +1878,10 @@ function statusBucket(job: JobRow): JobStatusBucket {
   if (isClosedOut) return "Completed";
   if (status.includes("confirmed") || status.includes("open") || status.includes("schedule")) return "Open / Scheduled";
   return "Unclosed or Needs Attention";
+}
+
+function jobMissingPhotos(job: JobRow): boolean {
+  return statusBucket(job) === "Completed" && job.photoAuditAvailable && job.photos.length === 0;
 }
 
 function cardStatusLabel(job: JobRow): string {
@@ -2000,6 +2096,46 @@ function JobContextDetails({ job }: { job: JobRow }) {
         </details>
       ) : null}
     </div>
+  );
+}
+
+function JobPhotoDetails({ job }: { job: JobRow }) {
+  if (jobMissingPhotos(job)) {
+    return (
+      <div className="ops-job-photo-alert" role="status">
+        <span aria-hidden="true">!</span>
+        <div>
+          <strong>Closeout photos missing</strong>
+          <small>JunkWare was checked and no job photos were uploaded.</small>
+        </div>
+      </div>
+    );
+  }
+
+  if (!job.photos.length) return null;
+
+  return (
+    <details className="ops-job-photo-details">
+      <summary>
+        <span>Job photos</span>
+        <strong>{job.photos.length} uploaded</strong>
+      </summary>
+      <div className="ops-job-photo-gallery">
+        {job.photos.map((photo, index) => (
+          <a
+            href={photo.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ops-job-photo"
+            key={`${photo.url}-${index}`}
+            aria-label={`Open ${photo.category.toLowerCase()} photo ${index + 1}`}
+          >
+            <img src={photo.url} alt={`${photo.category} job photo ${index + 1}`} loading="lazy" />
+            <span>{photo.category}</span>
+          </a>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -2302,16 +2438,20 @@ export default async function JobsPage({
 }) {
   noStore();
   const params = searchParams ? await searchParams : undefined;
-  const date = resolveDate(params, { allowTomorrow: true });
+  const requestedDate = typeof params?.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(params.date)
+    ? params.date
+    : null;
+  const date = requestedDate || resolveDate(params, { allowTomorrow: true });
   const view = normalizeJobsView(params?.view);
   const workspace = normalizeJobsWorkspace(params?.workspace);
   const requestedMonthlySection = String(params?.section || "overview").toLowerCase();
   const monthlySection = ["overview", "breakdown", "trend"].includes(requestedMonthlySection)
     ? requestedMonthlySection
     : "overview";
+  const isMonthView = view === "calendar" || view === "monthly";
   const metrics = readMetrics(date);
-  const month = view === "monthly" ? buildMonthlyRange(date) : null;
-  const monthlySummary = view === "monthly" ? buildMonthlyJobsSummary(date) : null;
+  const month = isMonthView ? buildMonthlyRange(date) : null;
+  const monthlySummary = isMonthView ? buildMonthlyJobsSummary(date) : null;
   const monthlyAuthority = view === "monthly" ? readMonthlyAuthority(date) : null;
   const jobs = view === "daily"
     ? applyJobRouteAssignmentOverrides(readJobRows(date), date)
@@ -2401,7 +2541,9 @@ export default async function JobsPage({
     gpsVisitedTrucks(job, fleetMapPayload?.trucks || []),
   ]));
   const mapPoints = buildJobsMapPoints(filteredJobs, siteTimeByKey, gpsVisitedTrucksByJobKey);
-  const needsAttention = jobs.filter((job) => statusBucket(job) === "Unclosed or Needs Attention").length;
+  const unclosedNeedsAttention = jobs.filter((job) => statusBucket(job) === "Unclosed or Needs Attention").length;
+  const missingPhotoJobs = jobs.filter(jobMissingPhotos).length;
+  const needsAttention = unclosedNeedsAttention + missingPhotoJobs;
   const scheduledOpen = jobs.filter((job) => statusBucket(job) === "Open / Scheduled").length;
   const hasActiveFilters = Object.values(filters).some(Boolean);
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
@@ -2443,42 +2585,162 @@ export default async function JobsPage({
   const scheduleDates = Array.from(new Set([tomorrow, today, ...availableDates()])).sort((a, b) =>
     b.localeCompare(a),
   );
+  const monthCalendarDays = monthlySummary ? calendarDays(date, monthlySummary.jobsByDate) : [];
+  const calendarScheduledCount = monthlySummary
+    ? Array.from(monthlySummary.jobsByDate.values()).flat().filter((job) => statusBucket(job) !== "Canceled").length
+    : 0;
+  const requestedCalendarDay = typeof params?.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(params.day)
+    && params.day.startsWith(`${date.slice(0, 7)}-`)
+    ? params.day
+    : "";
+  const defaultCalendarDay = today.startsWith(`${date.slice(0, 7)}-`)
+    ? today
+    : monthCalendarDays.find((day) => day?.jobs.length)?.date || `${date.slice(0, 7)}-01`;
+  const selectedCalendarDate = requestedCalendarDay || defaultCalendarDay;
+  const selectedCalendarDay = monthCalendarDays.find((day) => day?.date === selectedCalendarDate) || null;
 
   return (
     <div className="ops-dashboard ops-jobs-page">
       <PageHeader
         title="Jobs"
-        subtitle={view === "monthly"
-          ? `Monthly summary for ${month?.monthDisplay || monthlySummary?.monthDisplay || date.slice(0, 7)} · ${month?.warningLabel || "Monthly data"} · Data through ${month?.dataThroughLabel || date}`
+        subtitle={isMonthView
+          ? view === "calendar"
+            ? `${month?.monthDisplay || monthlySummary?.monthDisplay || date.slice(0, 7)} schedule · ${calendarScheduledCount} appointment${calendarScheduledCount === 1 ? "" : "s"} on file`
+            : `Monthly summary for ${month?.monthDisplay || monthlySummary?.monthDisplay || date.slice(0, 7)} · ${month?.warningLabel || "Monthly data"} · Data through ${month?.dataThroughLabel || date}`
           : `${scheduleCopy.possessive} dispatch. Review the map, appointment details, and overall schedule.`}
         date={date}
         dates={scheduleDates}
-        showDateSelector={view !== "monthly"}
-        dateLabel={view === "monthly" ? "Month" : "Date"}
+        showDateSelector={!isMonthView}
+        dateLabel={isMonthView ? "Month" : "Date"}
         lastUpdated={monthlyAuthority?.verifiedAt || metrics?.generated_at}
         controls={
           <>
-            {view === "monthly" ? (
-              <OpsMonthSelector months={monthOptions()} selectedMonthKey={date.slice(0, 7)} />
+            {isMonthView ? (
+              <OpsMonthSelector months={jobsMonthOptions()} selectedMonthKey={date.slice(0, 7)} currentMonthKey={today.slice(0, 7)} />
             ) : <ScheduleDayToggle date={date} workspace={workspace} filters={filters} />}
           </>
         }
-        sections={view === "monthly" ? [
-          { label: "Dispatch", href: buildJobsHref({ date, view: "daily", workspace: "dispatch", ...filters }) },
-          { label: "Monthly overview", href: `/jobs?date=${date}&view=monthly&section=overview`, active: monthlySection === "overview" },
-          { label: "Breakdown", href: `/jobs?date=${date}&view=monthly&section=breakdown`, active: monthlySection === "breakdown" },
-          { label: "Trend", href: `/jobs?date=${date}&view=monthly&section=trend`, active: monthlySection === "trend" },
-        ] : [
-          { label: "Dispatch", href: buildJobsHref({ date, view: "daily", workspace: "dispatch", ...filters }), active: true, badge: mapPoints.length || undefined },
-          { label: "Monthly", href: buildJobsHref({ date, view: "monthly", ...filters }) },
+        sections={[
+          { label: "Dispatch", href: buildJobsHref({ date, view: "daily", workspace: "dispatch", ...filters }), active: view === "daily", badge: view === "daily" ? mapPoints.length || undefined : undefined },
+          { label: "Calendar", href: buildJobsHref({ date, view: "calendar", ...filters }), active: view === "calendar" },
+          { label: "Monthly Summary", href: buildJobsHref({ date, view: "monthly", ...filters }), active: view === "monthly" },
         ]}
       />
 
-      {(view === "daily" || monthlySection === "overview") ? <div className="ops-kpi-row ops-jobs-kpi-strip" id="jobs-overview">
+      {view === "daily" ? (
+        <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} />
+      ) : null}
+
+      {monthlySummary && view === "calendar" ? (
+        <section className="ops-card ops-jobs-calendar-card" aria-label={`${monthlySummary.monthDisplay} job calendar`}>
+          <div className="ops-jobs-calendar-head">
+            <div>
+              <div className="ops-section-title">{monthlySummary.monthDisplay}</div>
+              <div className="ops-muted">Choose a day to see every appointment below the calendar.</div>
+            </div>
+            <div className="ops-jobs-calendar-legend" aria-label="Job status legend">
+              <span><i className="is-scheduled" /> Scheduled</span>
+              <span><i className="is-estimate" /> Estimate</span>
+              <span><i className="is-completed" /> Completed</span>
+              <span><i className="is-attention" /> Attention</span>
+              <span><i className="is-canceled" /> Canceled</span>
+            </div>
+          </div>
+          <div className="ops-jobs-calendar-scroll">
+            <div className="ops-jobs-calendar-grid">
+              {CALENDAR_WEEKDAYS.map((weekday) => (
+                <div className="ops-jobs-calendar-weekday" key={weekday}>{weekday}</div>
+              ))}
+              {monthCalendarDays.map((day, index) => day ? (
+                <article
+                  className={`ops-jobs-calendar-day${day.date === today ? " is-today" : ""}${day.date < today ? " is-past" : ""}${day.date === selectedCalendarDate ? " is-selected" : ""}`}
+                  key={day.date}
+                >
+                  <div className="ops-jobs-calendar-date-row">
+                    <Link href={`/jobs?date=${date.slice(0, 7)}-01&view=calendar&day=${day.date}#calendar-day-appointments`} aria-label={`Show appointments for ${day.date}`}>
+                      {day.dayNumber}
+                    </Link>
+                    {day.jobs.length ? <span>{day.jobs.length} job{day.jobs.length === 1 ? "" : "s"}</span> : null}
+                  </div>
+                  <div className="ops-jobs-calendar-appointments">
+                    {day.jobs.slice(0, 4).map((job) => (
+                      <a
+                        className={`ops-jobs-calendar-job ${calendarStatusClass(job)}`}
+                        href={job.appointmentUrl || buildJobsHref({ date: day.date, view: "daily", workspace: "dispatch" })}
+                        target={job.appointmentUrl ? "_blank" : undefined}
+                        rel={job.appointmentUrl ? "noopener noreferrer" : undefined}
+                        key={`${day.date}-${jobKey(job)}`}
+                      >
+                        <strong><time>{job.appointmentTime}</time> {safeText(job.customerName)}</strong>
+                        <span>{calendarJobMeta(job)}</span>
+                      </a>
+                    ))}
+                    {day.jobs.length > 4 ? (
+                      <Link className="ops-jobs-calendar-more" href={`/jobs?date=${date.slice(0, 7)}-01&view=calendar&day=${day.date}#calendar-day-appointments`}>
+                        +{day.jobs.length - 4} more
+                      </Link>
+                    ) : null}
+                  </div>
+                </article>
+              ) : <div className="ops-jobs-calendar-day is-outside" aria-hidden="true" key={`empty-${index}`} />)}
+            </div>
+          </div>
+          <div className="ops-jobs-calendar-day-list" id="calendar-day-appointments">
+            <div className="ops-jobs-calendar-day-list-head">
+              <div>
+                <div className="ops-section-title">{jobActivityDate(selectedCalendarDate)}</div>
+                <div className="ops-muted">
+                  {selectedCalendarDay?.jobs.length || 0} appointment{selectedCalendarDay?.jobs.length === 1 ? "" : "s"}
+                </div>
+              </div>
+              <Link href={buildJobsHref({ date: selectedCalendarDate, view: "daily", workspace: "dispatch" })}>
+                Open dispatch
+              </Link>
+            </div>
+            {selectedCalendarDay?.jobs.length ? (
+              <div className="ops-jobs-calendar-day-rows">
+                {selectedCalendarDay.jobs.map((job) => {
+                  const assignedCrew = [job.driverName || job.driver, job.navigatorName || job.navigator, ...(job.additionalCrew || [])]
+                    .map((name) => String(name || "").trim())
+                    .filter((name) => name && name !== "—");
+                  return (
+                    <article className={`ops-jobs-calendar-list-row ${calendarStatusClass(job)}`} key={`${selectedCalendarDate}-list-${jobKey(job)}`}>
+                      <div className="ops-jobs-calendar-list-time">
+                        <time>{job.appointmentTime}</time>
+                        <span className={statusBadgeClass(statusBucket(job))}>{cardStatusLabel(job)}</span>
+                      </div>
+                      <div className="ops-jobs-calendar-list-customer">
+                        <strong>{safeText(job.customerName)}</strong>
+                        <span>{safeText(job.address)}</span>
+                      </div>
+                      <div className="ops-jobs-calendar-list-assignment">
+                        <strong>{calendarJobMeta(job)}</strong>
+                        <span>{assignedCrew.length ? assignedCrew.join(" · ") : "Crew not assigned"}</span>
+                      </div>
+                      <div className="ops-jobs-calendar-list-contact">
+                        {job.phone && job.phone !== "—" ? <a href={`tel:${job.phone.replace(/[^\d+]/g, "")}`}>{job.phone}</a> : <span>Phone unavailable</span>}
+                        {job.appointmentUrl ? <a href={job.appointmentUrl} target="_blank" rel="noopener noreferrer">{safeText(job.jkNumber)} ↗</a> : <span>{safeText(job.jkNumber)}</span>}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="ops-jobs-calendar-day-empty">No appointments are currently on file for this day.</div>
+            )}
+          </div>
+        </section>
+      ) : null}
+
+      {(view === "daily" || (view === "monthly" && monthlySection === "overview")) ? <div className="ops-kpi-row ops-jobs-kpi-strip" id="jobs-overview">
         <div className={`ops-card ops-kpi-card ops-jobs-priority-card${needsAttention > 0 ? " has-attention" : ""}`}>
           <div className="ops-card-title">Needs Attention</div>
           <div className="ops-kpi-value">{needsAttention}</div>
-          <div className="ops-kpi-sub">{needsAttention ? "Unclosed or incomplete records" : "Nothing urgent"}</div>
+          <div className="ops-kpi-sub">
+            {needsAttention
+              ? `${unclosedNeedsAttention} unclosed · ${missingPhotoJobs} missing photos`
+              : "Nothing urgent"}
+          </div>
         </div>
 
         <div className="ops-card ops-kpi-card">
@@ -2577,8 +2839,13 @@ export default async function JobsPage({
         </section>
       ) : null}
 
-      {monthlySummary && (
+      {view === "monthly" && monthlySummary && (
         <>
+          <nav className="ops-monthly-summary-tabs" aria-label="Monthly summary sections">
+            <Link href={`/jobs?date=${date}&view=monthly&section=overview`} className={monthlySection === "overview" ? "active" : ""}>Overview</Link>
+            <Link href={`/jobs?date=${date}&view=monthly&section=breakdown`} className={monthlySection === "breakdown" ? "active" : ""}>Breakdown</Link>
+            <Link href={`/jobs?date=${date}&view=monthly&section=trend`} className={monthlySection === "trend" ? "active" : ""}>Daily trend</Link>
+          </nav>
           {monthlySection === "overview" ? <div className="ops-monthly-insight-grid">
             <section className="ops-card ops-monthly-insight-card">
               <div className="ops-monthly-insight-heading">
@@ -2817,8 +3084,6 @@ export default async function JobsPage({
         ) : null}
       </div>
 
-      <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} />
-
       <div className="ops-card" id="jobs-schedule">
         <div className="ops-card-header compact">
           <div>
@@ -2905,6 +3170,8 @@ export default async function JobsPage({
                             jobKey={callAheadJobKey}
                             initialStatus={callAheadStatus}
                             articleId={appointmentCardId(job)}
+                            isCanceled={statusBucket(job) === "Canceled"}
+                            truckOnSite={date === chicagoDateKey() && Boolean(mapPoints.find((point) => point.detailId === appointmentCardId(job))?.truckOnSite)}
                             key={`${territory}-${scheduleGroup}-${job.jkNumber}-${index}`}
                           >
                             <div className="ops-appointment-card-topline">
@@ -2964,6 +3231,13 @@ export default async function JobsPage({
 
                               <div className="ops-appointment-card-outcome">
                                 <span className={`ops-status-tag compact ${statusBadgeClass(statusBucket(job))}`}>{cardStatusLabel(job)}</span>
+                                {jobMissingPhotos(job) ? (
+                                  <span className="ops-job-photo-badge missing" title="JunkWare was checked and no closeout photos were found.">
+                                    Photos missing
+                                  </span>
+                                ) : job.photos.length ? (
+                                  <span className="ops-job-photo-badge complete">{job.photos.length} photo{job.photos.length === 1 ? "" : "s"}</span>
+                                ) : null}
                                 {visitedButNotClosed ? (
                                   <span
                                     className="ops-visited-unclosed-badge"
@@ -2995,6 +3269,8 @@ export default async function JobsPage({
                             </div>
 
                             <JobContextDetails job={job} />
+
+                            <JobPhotoDetails job={job} />
 
                             {job.tipAmount > 0 ? <div className="ops-appointment-card-tip">
                               <span className="ops-appointment-card-tip-label">TIPS</span>
@@ -3182,6 +3458,8 @@ export default async function JobsPage({
                           jobKey={callAheadJobKey}
                           initialStatus={callAheadStatus}
                           articleId={appointmentCardId(job)}
+                          isCanceled={statusBucket(job) === "Canceled"}
+                          truckOnSite={date === chicagoDateKey() && Boolean(mapPoints.find((point) => point.detailId === appointmentCardId(job))?.truckOnSite)}
                           key={`${territory}-unscheduled-${job.jkNumber}-${index}`}
                         >
                           <div className="ops-appointment-card-topline">
@@ -3241,6 +3519,13 @@ export default async function JobsPage({
 
                             <div className="ops-appointment-card-outcome">
                               <span className={`ops-status-tag compact ${statusBadgeClass(statusBucket(job))}`}>{cardStatusLabel(job)}</span>
+                              {jobMissingPhotos(job) ? (
+                                <span className="ops-job-photo-badge missing" title="JunkWare was checked and no closeout photos were found.">
+                                  Photos missing
+                                </span>
+                              ) : job.photos.length ? (
+                                <span className="ops-job-photo-badge complete">{job.photos.length} photo{job.photos.length === 1 ? "" : "s"}</span>
+                              ) : null}
                               {visitedButNotClosed ? (
                                 <span
                                   className="ops-visited-unclosed-badge"
@@ -3272,6 +3557,8 @@ export default async function JobsPage({
                           </div>
 
                           <JobContextDetails job={job} />
+
+                          <JobPhotoDetails job={job} />
 
                           {job.tipAmount > 0 ? <div className="ops-appointment-card-tip">
                             <span className="ops-appointment-card-tip-label">TIPS</span>

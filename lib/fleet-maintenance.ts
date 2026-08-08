@@ -151,7 +151,8 @@ function writeFleetMaintenanceStore(store: FleetMaintenanceStore): void {
     records: sortRecords(store.records),
   }, null, 2);
   const temporaryFile = path.join(directory, `.${STORE_FILE}.${process.pid}.${Date.now()}.tmp`);
-  fs.writeFileSync(temporaryFile, payload, { encoding: "utf8", mode: 0o600 });
+  fs.writeFileSync(temporaryFile, payload, { encoding: "utf8", mode: 0o660 });
+  fs.chmodSync(temporaryFile, 0o660);
   fs.renameSync(temporaryFile, filePath);
 }
 

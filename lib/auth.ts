@@ -4,6 +4,7 @@ export const AUTH_SESSION_COOKIE = "opscenter_email_session";
 export const AUTH_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 export const AUTH_TRUSTED_DEVICE_COOKIE = "opscenter_trusted_device";
 export const AUTH_TRUSTED_DEVICE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+export const AUTH_TRUSTED_DEVICE_REFRESH_AFTER_SECONDS = 60 * 60 * 24 * 30;
 export const AUTH_LOGIN_PATH = "/login";
 export const AUTH_LOGOUT_PATH = "/api/auth/logout";
 export const LEGACY_AUTH_COOKIE_NAMES = [
@@ -306,6 +307,23 @@ export async function verifyTrustedDeviceCookie(
     issuedAt: new Date(issuedAtMs),
     expiresAt: new Date(expiresAtMs),
   };
+}
+
+export function shouldRefreshTrustedDevice(
+  device: Pick<TrustedDevice, "issuedAt" | "expiresAt">,
+  now = new Date(),
+): boolean {
+  const nowMs = now.getTime();
+  const issuedAtMs = device.issuedAt.getTime();
+  const expiresAtMs = device.expiresAt.getTime();
+  if (!Number.isFinite(nowMs) || !Number.isFinite(issuedAtMs) || !Number.isFinite(expiresAtMs)) {
+    return true;
+  }
+
+  return (
+    nowMs - issuedAtMs >= AUTH_TRUSTED_DEVICE_REFRESH_AFTER_SECONDS * 1000 ||
+    expiresAtMs - nowMs <= AUTH_TRUSTED_DEVICE_REFRESH_AFTER_SECONDS * 1000
+  );
 }
 
 export async function verifyAuthSessionCookie(cookieValue: string | null | undefined): Promise<AuthSession | null> {

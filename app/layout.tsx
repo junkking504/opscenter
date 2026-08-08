@@ -2,13 +2,14 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import "./ops-design-system.css";
+import "./dashboard-v2.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "OpsCenter | Junk King Louisiana",
+    default: "OpsCenter | Junk King | Louisiana",
     template: "%s | OpsCenter",
   },
-  description: "Junk King Louisiana real-time operations command center",
+  description: "OpsCenter for Junk King | Louisiana",
   applicationName: "OpsCenter",
   appleWebApp: {
     capable: true,

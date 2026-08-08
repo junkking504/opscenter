@@ -147,7 +147,8 @@ function writeStore(store: FleetIssueStore): void {
   const directory = path.dirname(filePath);
   fs.mkdirSync(directory, { recursive: true });
   const temporaryFile = path.join(directory, `.${STORE_FILE}.${process.pid}.${Date.now()}.tmp`);
-  fs.writeFileSync(temporaryFile, JSON.stringify({ ...store, issues: sortIssues(store.issues) }, null, 2), { encoding: "utf8", mode: 0o600 });
+  fs.writeFileSync(temporaryFile, JSON.stringify({ ...store, issues: sortIssues(store.issues) }, null, 2), { encoding: "utf8", mode: 0o660 });
+  fs.chmodSync(temporaryFile, 0o660);
   fs.renameSync(temporaryFile, filePath);
 }
 

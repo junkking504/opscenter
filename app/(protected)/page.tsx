@@ -231,6 +231,12 @@ function signedPercent(value: number): string {
   return `${sign}${Math.abs(value).toFixed(1)}%`;
 }
 
+function operatingStatusLabel(status: OperatingStatus): string {
+  if (status === "on-track") return "On track";
+  if (status === "off-track") return "Off track";
+  return "Watch";
+}
+
 function shortMonthDay(date: string): string {
   return new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", {
     timeZone: "UTC",
@@ -589,6 +595,22 @@ export default async function DashboardPage({
     status: dailyAverageJobGoal == null ? "watch" : minimumStatus(dailyAverageJob, dailyAverageJobGoal),
     href: `/jobs?date=${date}`,
   });
+  const dailyReadiness = Math.round(
+    dailyPulseItems.reduce(
+      (sum, item) => sum + (item.status === "on-track" ? 100 : item.status === "watch" ? 68 : 28),
+      0,
+    ) / Math.max(dailyPulseItems.length, 1),
+  );
+  const dailyOverallStatus: OperatingStatus = dailyReadiness >= 85
+    ? "on-track"
+    : dailyReadiness >= 60
+      ? "watch"
+      : "off-track";
+  const dailyRevenueStatus = dailyPulseItems[0].status;
+  const dailyRevenueProgress = dailyRevenuePlan > 0
+    ? Math.min(100, Math.max(0, (grossRevenue / dailyRevenuePlan) * 100))
+    : 0;
+  const dailyRevenueRemaining = Math.max(0, dailyRevenuePlan - grossRevenue);
 
   const rankedCrew = [...crew]
     .sort((a, b) =>
@@ -607,8 +629,8 @@ export default async function DashboardPage({
   return (
     <div className="ops-dashboard ops-daily-dashboard">
       <PageHeader
-        title="Daily Dashboard"
-        subtitle="Crew, fleet, revenue, and job performance"
+        title="Daily command"
+        subtitle={`${shortMonthDay(date)} · ${jobs} completed job${jobs === 1 ? "" : "s"} · ${activeTruckCount} active truck${activeTruckCount === 1 ? "" : "s"}`}
         date={date}
         lastUpdated={metrics?.generated_at}
         sections={[
@@ -620,16 +642,75 @@ export default async function DashboardPage({
       />
 
       {section === "overview" ? <>
-        <OperatingPulse
-          id="command-overview"
-          title="Today against operating plan"
-          subtitle="The management view: performance variance, labor leverage, and job economics."
-          targetSummary={configuredDailyTarget > 0
-            ? `${money(configuredDailyTarget)} average daily goal · ${money(operatingTargets.annualRevenue)} yearly`
-            : `${money(recentRevenueBaseline)} recent daily revenue baseline`}
-          items={dailyPulseItems}
-          actions={dailyActions.slice(0, 3)}
-        />
+        <section className="ops-command-center-v2" id="command-overview" aria-labelledby="command-center-title">
+          <header className="ops-command-center-v2-head">
+            <div>
+              <div className="ops-operating-kicker"><span /> Live command view</div>
+              <h2 id="command-center-title">What needs attention today</h2>
+              <p>Revenue pace, operating health, and the next management actions in one view.</p>
+            </div>
+            <div className={`ops-command-readiness-v2 is-${dailyOverallStatus}`}>
+              <span>Readiness</span>
+              <strong>{dailyReadiness}</strong>
+              <small>/100 · {operatingStatusLabel(dailyOverallStatus)}</small>
+            </div>
+          </header>
+
+          <div className="ops-command-center-v2-grid">
+            <article className={`ops-revenue-hero-v2 is-${dailyRevenueStatus}`}>
+              <div className="ops-revenue-hero-v2-top">
+                <span>Revenue pace</span>
+                <strong>{operatingStatusLabel(dailyRevenueStatus)}</strong>
+              </div>
+              <div className="ops-revenue-hero-v2-value">{money(grossRevenue)}</div>
+              <div className="ops-revenue-hero-v2-variance">
+                {signedPercent(dailyRevenueVariance)} against today&apos;s plan
+              </div>
+              <div className="ops-revenue-progress-v2" aria-label={`${dailyRevenueProgress.toFixed(0)}% of daily revenue goal`}>
+                <span style={{ width: `${dailyRevenueProgress}%` }} />
+              </div>
+              <div className="ops-revenue-hero-v2-foot">
+                <div><span>Daily goal</span><strong>{money(dailyRevenuePlan)}</strong></div>
+                <div><span>Remaining</span><strong>{money(dailyRevenueRemaining)}</strong></div>
+              </div>
+            </article>
+
+            <div className="ops-health-stack-v2" aria-label="Operating health scorecard">
+              {dailyPulseItems.slice(1).map((item) => (
+                <article className={`ops-health-card-v2 is-${item.status}`} key={item.label}>
+                  <div>
+                    <span>{item.label}</span>
+                    <small>{operatingStatusLabel(item.status)}</small>
+                  </div>
+                  <strong>{item.value}</strong>
+                  <p>Target {item.target}</p>
+                </article>
+              ))}
+            </div>
+
+            <aside className="ops-priority-column-v2">
+              <div className="ops-priority-column-v2-head">
+                <div>
+                  <span>Next actions</span>
+                  <strong>Manager queue</strong>
+                </div>
+                <small>{String(dailyActions.slice(0, 3).length).padStart(2, "0")}</small>
+              </div>
+              <div className="ops-priority-list-v2">
+                {dailyActions.slice(0, 3).map((action, index) => (
+                  <a className={`ops-priority-item-v2 is-${action.status}`} href={action.href} key={`${action.title}-${index}`}>
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    <div>
+                      <strong>{action.title}</strong>
+                      <small>{action.detail}</small>
+                    </div>
+                    <b aria-hidden="true">→</b>
+                  </a>
+                ))}
+              </div>
+            </aside>
+          </div>
+        </section>
 
         {marketing.available && marketing.lostLeads + marketing.needsFollowUp > 0 ? (
           <div className="ops-card ops-command-marketing-alert">
@@ -652,63 +733,41 @@ export default async function DashboardPage({
         </div>
         )}
 
-        <div className="ops-daily-kpi-grid" aria-label="Daily key performance indicators">
-          <div className="ops-card ops-daily-kpi-card">
-            <div className="ops-card-title">Gross Revenue</div>
-            <div className="ops-kpi-value ops-kpi-accent">{money(grossRevenue)}</div>
-            <div className="ops-kpi-sub">{signedPercent(dailyRevenueVariance)} vs {money(dailyRevenuePlan)} daily goal</div>
-          </div>
-
-          <div className="ops-card ops-daily-kpi-card">
-            <div className="ops-card-title">Completed Jobs</div>
-            <div className="ops-kpi-value">{jobs}</div>
-            <div className="ops-kpi-sub">Goal {dailyJobsAtPlan.toFixed(1)}/day at {money(operatingTargets.averageJobSize)} average</div>
-          </div>
-
-          <div className="ops-card ops-daily-kpi-card">
-            <div className="ops-card-title">Estimated Operating Profit</div>
-            <div className="ops-kpi-value ops-kpi-good">{money(dailyOperatingProfit)}</div>
-            <div className="ops-kpi-sub">{dailyOperatingMargin.toFixed(1)}% margin · at daily goal ≥ {money(dailyOperatingProfitAtPlan)}</div>
-          </div>
-
-          <div className="ops-card ops-daily-kpi-card">
-            <div className="ops-card-title">Active Trucks</div>
-            <div className="ops-kpi-value">{activeTruckCount}</div>
-            <div className="ops-kpi-sub">Producing revenue today</div>
-          </div>
-
-          <div className="ops-card ops-daily-kpi-card">
-            <div className="ops-card-title">Average Job Size</div>
-            <div className={`ops-kpi-value ${dailyAverageJobGoal == null ? "" : dailyAverageJob >= dailyAverageJobGoal ? "ops-kpi-good" : "ops-kpi-danger"}`}>
-              {money(dailyAverageJob)}
+        <section className="ops-supporting-metrics" aria-labelledby="supporting-metrics-title">
+          <div className="ops-supporting-metrics-heading">
+            <div>
+              <div className="ops-operating-kicker"><span /> Daily output</div>
+              <h2 id="supporting-metrics-title">Supporting metrics</h2>
             </div>
-            <div className="ops-kpi-sub">
-              {dailyAverageJobGoal == null
-                ? "AJS goal available after the first completed job"
-                : `AJS goal ${money(dailyAverageJobGoal)} based on ${jobs} completed job${jobs === 1 ? "" : "s"}`}
-            </div>
+            <p>The command view owns the headline numbers; these measures explain throughput and capacity.</p>
           </div>
 
-          <div className="ops-card ops-daily-kpi-card">
-            <div className="ops-card-title">Total Payroll</div>
-            <div className={`ops-kpi-value ${dailyPayrollPercentage <= operatingTargets.maxPayrollPercent ? "ops-kpi-good" : "ops-kpi-danger"}`}>
-              {money(totalPayroll)}
-            </div>
-            <div className="ops-kpi-sub">{dailyPayrollPercentage.toFixed(1)}% of revenue · at daily goal ≤ {money(dailyPayrollBudgetAtPlan)}</div>
-          </div>
+          <div className="ops-daily-kpi-grid" aria-label="Supporting daily metrics">
+            <a className="ops-card ops-daily-kpi-card" href={`/jobs?date=${date}`}>
+              <div className="ops-card-title">Completed jobs</div>
+              <div className="ops-kpi-value">{jobs}</div>
+              <div className="ops-kpi-sub">Goal {dailyJobsAtPlan.toFixed(1)}/day at {money(operatingTargets.averageJobSize)} average <span aria-hidden="true">→</span></div>
+            </a>
 
-          <div className="ops-card ops-daily-kpi-card">
-            <div className="ops-card-title">Revenue / Active Truck</div>
-            <div className="ops-kpi-value">{money(dailyRevenuePerTruck)}</div>
-            <div className="ops-kpi-sub">Across {activeTruckCount} producing truck{activeTruckCount === 1 ? "" : "s"}</div>
-          </div>
+            <a className="ops-card ops-daily-kpi-card" href={`/fleet?date=${date}`}>
+              <div className="ops-card-title">Active trucks</div>
+              <div className="ops-kpi-value">{activeTruckCount}</div>
+              <div className="ops-kpi-sub">Producing revenue today <span aria-hidden="true">→</span></div>
+            </a>
 
-          <div className="ops-card ops-daily-kpi-card">
-            <div className="ops-card-title">Profit / Completed Job</div>
-            <div className="ops-kpi-value ops-kpi-good">{money(dailyProfitPerJob)}</div>
-            <div className="ops-kpi-sub">Estimated after operating costs</div>
+            <a className="ops-card ops-daily-kpi-card" href={`/fleet?date=${date}`}>
+              <div className="ops-card-title">Revenue / active truck</div>
+              <div className="ops-kpi-value">{money(dailyRevenuePerTruck)}</div>
+              <div className="ops-kpi-sub">Across {activeTruckCount} producing truck{activeTruckCount === 1 ? "" : "s"} <span aria-hidden="true">→</span></div>
+            </a>
+
+            <a className="ops-card ops-daily-kpi-card" href={`/finance?date=${date}`}>
+              <div className="ops-card-title">Profit / completed job</div>
+              <div className="ops-kpi-value ops-kpi-good">{money(dailyProfitPerJob)}</div>
+              <div className="ops-kpi-sub">Estimated after operating costs <span aria-hidden="true">→</span></div>
+            </a>
           </div>
-        </div>
+        </section>
       </> : null}
 
       {section === "crew" ? <section className="ops-card ops-daily-leaderboard" id="command-crew">

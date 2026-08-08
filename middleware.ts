@@ -11,6 +11,7 @@ import {
   isValidJunkKingEmail,
   publicAuthRoute,
   protectedApiRoute,
+  shouldRefreshTrustedDevice,
   trustedDeviceCookieOptionsForRequest,
   verifyAuthSessionCookie,
   verifyTrustedDeviceCookie,
@@ -191,12 +192,18 @@ export async function middleware(request: NextRequest) {
     valid: Boolean(session),
   });
   if (session) {
+    if (trustedDevice && shouldRefreshTrustedDevice(trustedDevice)) {
+      return initializeOpsSession(request, session.email, {
+        rememberDevice: true,
+        redirect: false,
+      });
+    }
     return NextResponse.next();
   }
 
   if (trustedDevice) {
     return initializeOpsSession(request, trustedDevice.email, {
-      rememberDevice: false,
+      rememberDevice: shouldRefreshTrustedDevice(trustedDevice),
       redirect: request.method === "GET" || request.method === "HEAD",
     });
   }

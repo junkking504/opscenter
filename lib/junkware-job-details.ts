@@ -33,6 +33,12 @@ export type JunkwareDayActivity = {
   cancelled: JunkwareCancellation[];
 };
 
+export type JunkwareJobPhoto = {
+  url: string;
+  category: "Before" | "After" | "Donation" | "Receipt" | "Other";
+  fileName: string;
+};
+
 const JUNK_ITEM_PATTERNS: Array<[string, RegExp]> = [
   ["Mattress", /\b(?:mattress|box\s*spring)s?\b/i],
   ["Bed / bed frame", /\b(?:bed\s*frame|headboard|footboard|bed)s?\b/i],
@@ -102,6 +108,66 @@ function unique(values: string[]): string[] {
     seen.add(key);
     return true;
   });
+}
+
+function photoCategory(value: unknown): JunkwareJobPhoto["category"] {
+  const raw = clean(value).toLowerCase();
+  if (/\bbefore\b/.test(raw)) return "Before";
+  if (/\bafter\b/.test(raw)) return "After";
+  if (/\bdonat(?:ion|ed)?\b/.test(raw)) return "Donation";
+  if (/\b(?:receipt|rcpt)\b/.test(raw)) return "Receipt";
+  return "Other";
+}
+
+function safePhotoUrl(value: unknown): URL | null {
+  const raw = clean(value);
+  if (!raw) return null;
+  try {
+    const url = new URL(raw, "https://junkware.junk-king.com/franchise/appointment.aspx");
+    if (url.protocol !== "https:" || url.hostname !== "junkware.junk-king.com") return null;
+    if (!url.pathname.startsWith("/system/aspnet/local/media/")) return null;
+    if (!/\.(?:jpe?g|png|webp)$/i.test(url.pathname)) return null;
+    url.hash = "";
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+export function junkwareJobPhotos(row: AnyRecord): JunkwareJobPhoto[] {
+  const rawPhotos = Array.isArray(row?.photos)
+    ? row.photos
+    : Array.isArray(row?.job_photos)
+      ? row.job_photos
+      : [];
+  const seen = new Set<string>();
+  const photos: JunkwareJobPhoto[] = [];
+
+  for (const entry of rawPhotos) {
+    const source = typeof entry === "string" ? { url: entry } : entry;
+    if (!source || typeof source !== "object") continue;
+    const url = safePhotoUrl(source.url || source.src || source.href);
+    if (!url || seen.has(url.href)) continue;
+    seen.add(url.href);
+    let fileName = "Job photo";
+    try {
+      fileName = decodeURIComponent(url.pathname.split("/").pop() || "Job photo");
+    } catch {
+      // Keep the safe fallback when JunkWare returns a malformed encoded filename.
+    }
+    photos.push({
+      url: url.href,
+      category: photoCategory(source.category || source.type || fileName),
+      fileName,
+    });
+  }
+
+  return photos;
+}
+
+export function junkwarePhotoAuditAvailable(row: AnyRecord): boolean {
+  return Object.prototype.hasOwnProperty.call(row || {}, "photos")
+    || Object.prototype.hasOwnProperty.call(row || {}, "job_photos");
 }
 
 function usefulAppointmentNote(value: string): string {

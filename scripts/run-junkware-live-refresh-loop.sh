@@ -9,17 +9,38 @@ OPSCENTER_SSH_KEY="${OPSCENTER_SSH_KEY:-$USER_HOME/.ssh/id_ed25519_opscenter}"
 OPENCLAW="${OPSCENTER_OPENCLAW:-$USER_HOME/.npm-global/bin/openclaw}"
 REFRESH_INTERVAL_SECONDS=300
 FAILED_REFRESH_RETRY_SECONDS=15
+MAX_FAILED_REFRESH_RETRY_SECONDS=300
 NETWORK_POLL_SECONDS=5
+SLACK_ALERT_MIN_INTERVAL_SECONDS=60
 TOMORROW_REFRESH_INTERVAL_SECONDS=3600
 JUNKWARE_SMS_SIGNAL_URL="${JUNKWARE_SMS_SIGNAL_URL:-https://hooks.junk-king.app/api/integrations/junkware/sms/status}"
 LAST_SMS_SEQUENCE=0
 SMS_PENDING_DATES=()
+CONSECUTIVE_FAILED_CYCLES=0
+LAST_SLACK_ALERT_RUN=0
 export PYTHONPYCACHEPREFIX="/private/tmp/opscenter-live-pycache"
 
 network_available() {
   local reachability
   reachability=$(/usr/sbin/scutil -r junkware.junk-king.com 2>/dev/null) || return 1
   [[ "$reachability" == Reachable* ]]
+}
+
+failed_refresh_retry_seconds() {
+  local failed_cycles="${1:-1}"
+  local retry_seconds="$FAILED_REFRESH_RETRY_SECONDS"
+  local attempt=1
+
+  while [ "$attempt" -lt "$failed_cycles" ] && [ "$retry_seconds" -lt "$MAX_FAILED_REFRESH_RETRY_SECONDS" ]
+  do
+    retry_seconds=$((retry_seconds * 2))
+    attempt=$((attempt + 1))
+  done
+
+  if [ "$retry_seconds" -gt "$MAX_FAILED_REFRESH_RETRY_SECONDS" ]; then
+    retry_seconds="$MAX_FAILED_REFRESH_RETRY_SECONDS"
+  fi
+  printf '%s\n' "$retry_seconds"
 }
 
 auto_virtualize_external_bookings() {
@@ -105,7 +126,8 @@ for ENV_FILE in \
   "$OPSBOT_DIR/.env" \
   "$OPSBOT_DIR/.env.local" \
   "$USER_HOME/.openclaw/.env" \
-  "$OPSCENTER_DIR/.env.sms.local"
+  "$OPSCENTER_DIR/.env.sms.local" \
+  "$OPSCENTER_DIR/.env.slack.local"
 do
   if [ -f "$ENV_FILE" ]; then
     set -a
@@ -193,6 +215,23 @@ do
     fi
   fi
 
+  SLACK_ALERT_RUN_STARTED=$(date +%s)
+  if [[ "${SLACK_OPSCENTER_ALERTS_ENABLED:-false}" =~ ^(1|true|yes|on)$ ]] \
+    && { [ "$PUBLISH_SUCCEEDED" = true ] || [ $((SLACK_ALERT_RUN_STARTED - LAST_SLACK_ALERT_RUN)) -ge "$SLACK_ALERT_MIN_INTERVAL_SECONDS" ]; }; then
+    if [ -z "${SLACK_BOT_TOKEN:-}" ]; then
+      SLACK_BOT_TOKEN=$(/usr/bin/security find-generic-password \
+        -a opscenter \
+        -s com.opscenter.slack-bot-token \
+        -w 2>/dev/null || true)
+      export SLACK_BOT_TOKEN
+    fi
+    (
+      cd "$OPSCENTER_DIR" || exit 1
+      node --import tsx scripts/publish-slack-alerts.ts --date "$TODAY"
+    ) || echo "WARNING: OpsCenter Slack alert publish failed."
+    LAST_SLACK_ALERT_RUN=$(date +%s)
+  fi
+
   TOMORROW_SCHEDULE="$OPSBOT_DIR/data/history/junkware/junkware_live_${TOMORROW}_summary.csv"
   TOMORROW_SCHEDULE_AGE=$TOMORROW_REFRESH_INTERVAL_SECONDS
   if [ -f "$TOMORROW_SCHEDULE" ]; then
@@ -213,9 +252,11 @@ do
   CYCLE_FINISHED=$(date +%s)
   CYCLE_ELAPSED=$((CYCLE_FINISHED - CYCLE_STARTED))
   if [ "$PUBLISH_SUCCEEDED" = true ]; then
+    CONSECUTIVE_FAILED_CYCLES=0
     SLEEP_SECONDS=$((REFRESH_INTERVAL_SECONDS - CYCLE_ELAPSED))
   else
-    SLEEP_SECONDS=$FAILED_REFRESH_RETRY_SECONDS
+    CONSECUTIVE_FAILED_CYCLES=$((CONSECUTIVE_FAILED_CYCLES + 1))
+    SLEEP_SECONDS=$(failed_refresh_retry_seconds "$CONSECUTIVE_FAILED_CYCLES")
   fi
   if [ "$SLEEP_SECONDS" -lt 1 ]; then
     SLEEP_SECONDS=1

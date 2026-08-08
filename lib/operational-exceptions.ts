@@ -745,6 +745,42 @@ function jobsExceptions(metrics: AnyRecord, date: string): OperationalException[
   return exceptions;
 }
 
+function junkwarePhotoExceptions(date: string): OperationalException[] {
+  const payload = readJsonFile<AnyRecord>(path.join("data", "history", "junkware", `junkware_${date}_raw.json`));
+  const completedRows = Array.isArray(payload?.completed) ? payload.completed : [];
+  const exceptions: OperationalException[] = [];
+  const seen = new Set<string>();
+
+  for (const row of completedRows) {
+    if (!row || typeof row !== "object" || !Object.prototype.hasOwnProperty.call(row, "photos")) continue;
+    const appointmentType = String(row?.final_appointment_type || row?.appointment_type || "");
+    if (/estimate/i.test(appointmentType)) continue;
+    const photos = Array.isArray(row?.photos) ? row.photos : [];
+    if (photos.length) continue;
+
+    const apptId = String(row?.appt_id || row?.appointment_id || "").trim();
+    const jkNumber = String(row?.job_id || row?.jk_number || "").trim();
+    const reference = jkNumber || apptId || "Appointment";
+    const cardReference = reference.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
+    addException(exceptions, seen, {
+      id: `jobs-${apptId || jkNumber}-completed-no-photos`,
+      rule: "completed_job_with_no_closeout_photos",
+      category: "Jobs",
+      severity: "warning",
+      entityType: "job",
+      entityId: apptId || jkNumber || reference,
+      entityLabel: jkNumber || apptId || "Appointment",
+      title: "Completed job missing photos",
+      reason: `${reference} is completed, but JunkWare has no uploaded job photos.`,
+      source: `data/history/junkware/junkware_${date}_raw.json`,
+      timestamp: String(row?.collection_timestamp || payload?.collection_timestamp || chicagoNow().toISOString()),
+      href: `/jobs?date=${date}#job-${cardReference}`,
+    });
+  }
+
+  return exceptions;
+}
+
 function fleetExceptions(metrics: AnyRecord, date: string): OperationalException[] {
   const exceptions: OperationalException[] = [];
   const seen = new Set<string>();
@@ -1025,6 +1061,7 @@ export function buildOperationalExceptions(date?: string | null): OperationalExc
   const all: OperationalException[] = [
     ...crewExceptions(metrics, resolvedDate),
     ...jobsExceptions(metrics, resolvedDate),
+    ...junkwarePhotoExceptions(resolvedDate),
     ...fleetExceptions(metrics, resolvedDate),
     ...financeExceptions(metrics, resolvedDate),
   ];

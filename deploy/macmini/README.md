@@ -45,6 +45,10 @@ private environment and run:
 OPSCENTER_MC_HOST=<mc-host> ./deploy/macmini/deploy-from-macbook.sh HEAD
 ```
 
+The controller uses `~/.ssh/id_ed25519_opscenter` by default. Set
+`OPSCENTER_MC_SSH_KEY` when the approved Mission Control key is stored at a
+different private path.
+
 The remote deployment refuses commits that are not contained in a pushed
 origin branch. It builds the release before changing the live link. If an
 OpsCenter preview or production LaunchAgent is already loaded, it restarts that

@@ -5,6 +5,7 @@ SCRIPT_DIR="${0:A:h}"
 REPOSITORY_ROOT="${SCRIPT_DIR:h:h}"
 BOOTSTRAP=false
 MC_HOST="${OPSCENTER_MC_HOST:-}"
+MC_SSH_KEY="${OPSCENTER_MC_SSH_KEY:-$HOME/.ssh/id_ed25519_opscenter}"
 REQUESTED_REF="HEAD"
 
 fail() {
@@ -39,6 +40,7 @@ for command in git ssh; do
 done
 
 [[ -d "$REPOSITORY_ROOT/.git" ]] || fail "$REPOSITORY_ROOT is not a Git checkout"
+[[ -f "$MC_SSH_KEY" ]] || fail "missing Mission Control SSH key: $MC_SSH_KEY"
 commit="$(git -C "$REPOSITORY_ROOT" rev-parse --verify "${REQUESTED_REF}^{commit}" 2>/dev/null || true)"
 [[ -n "$commit" ]] || fail "cannot resolve local Git ref: $REQUESTED_REF"
 
@@ -58,7 +60,7 @@ else
   ssh_target="missioncontrol@$MC_HOST"
 fi
 
-ssh_options=(-o BatchMode=yes -o ConnectTimeout=10)
+ssh_options=(-i "$MC_SSH_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=10)
 ssh "${ssh_options[@]}" "$ssh_target" /usr/bin/true
 
 if $BOOTSTRAP; then

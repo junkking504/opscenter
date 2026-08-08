@@ -10,6 +10,11 @@ Application code travels through Git. Authoritative OpsCenter/OpsBot data,
 secrets, browser profiles, credentials, and logs remain outside the repository
 on Mission Control.
 
+Mission Control also keeps the ignored Slack alert configuration outside each
+release at `/Users/missioncontrol/Library/Application Support/OpsCenter/slack.env`.
+When that file exists, every deployed release links it as `.env.slack.local`;
+the bot token remains in Keychain rather than in this file.
+
 ## Ongoing commit-based deployments
 
 The Git deployment uses immutable release directories under

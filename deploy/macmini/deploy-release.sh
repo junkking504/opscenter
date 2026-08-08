@@ -10,6 +10,8 @@ APP_LINK="$DEPLOY_ROOT/opscenter"
 REPOSITORY="$DEPLOY_ROOT/repository"
 RELEASES_DIR="$DEPLOY_ROOT/releases"
 SHARED_LOGS="$EXPECTED_HOME/Library/Logs/OpsCenter"
+SHARED_CONFIG="$EXPECTED_HOME/Library/Application Support/OpsCenter"
+SLACK_ENV="$SHARED_CONFIG/slack.env"
 DATA_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/data"
 PRODUCTION_LABEL="com.openclaw.opscenter"
 PREVIEW_LABEL="com.openclaw.opscenter.macmini-preview"
@@ -57,7 +59,7 @@ for command in git node npm curl launchctl; do
   command -v "$command" >/dev/null 2>&1 || fail "required command is missing: $command"
 done
 
-mkdir -p "$RELEASES_DIR" "$SHARED_LOGS"
+mkdir -p "$RELEASES_DIR" "$SHARED_LOGS" "$SHARED_CONFIG"
 git -C "$REPOSITORY" fetch --prune origin
 
 commit="$(git -C "$REPOSITORY" rev-parse --verify "${REQUESTED_REF}^{commit}" 2>/dev/null || true)"
@@ -89,6 +91,16 @@ if [[ -L "$release/logs" && "$(readlink "$release/logs")" != "$SHARED_LOGS" ]]; 
   fail "$release/logs points to an unexpected location"
 fi
 [[ -L "$release/logs" ]] || ln -s "$SHARED_LOGS" "$release/logs"
+
+if [[ -f "$SLACK_ENV" ]]; then
+  if [[ -e "$release/.env.slack.local" && ! -L "$release/.env.slack.local" ]]; then
+    fail "$release/.env.slack.local exists and is not a symbolic link"
+  fi
+  if [[ -L "$release/.env.slack.local" && "$(readlink "$release/.env.slack.local")" != "$SLACK_ENV" ]]; then
+    fail "$release/.env.slack.local points to an unexpected location"
+  fi
+  [[ -L "$release/.env.slack.local" ]] || ln -s "$SLACK_ENV" "$release/.env.slack.local"
+fi
 
 cd "$release"
 npm ci

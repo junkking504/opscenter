@@ -28,6 +28,8 @@
     <string>/Users/missioncontrol/opscenter-v2/opscenter</string>
     <key>OPSCENTER_HOST</key>
     <string>127.0.0.1</string>
+    <key>OPSCENTER_ENV_FILE</key>
+    <string>/Users/missioncontrol/Library/Application Support/OpsCenter/production.env</string>
     <key>OPSBOT_DATA_DIR</key>
     <string>/Users/missioncontrol/.openclaw/workspace/opsbot/data</string>
     <key>PORT</key>

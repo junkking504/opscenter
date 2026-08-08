@@ -174,6 +174,9 @@ Before a future cutover:
 1. transfer the final authoritative OpsBot data, secrets, Keychain items,
    persistent browser profile, Cloudflare credentials, Wrangler authentication,
    and VPS SSH key;
+   store production environment values in
+   `/Users/missioncontrol/Library/Application Support/OpsCenter/production.env`
+   with mode `600`;
 2. run `deploy/macmini/prepare-runtime-paths.sh` to convert the active OpsBot and
    OpenClaw configuration paths from `/Users/ejd` to
    `/Users/missioncontrol`;

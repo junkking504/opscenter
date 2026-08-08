@@ -3,11 +3,22 @@ set -euo pipefail
 
 USER_HOME="${HOME:?HOME must be set}"
 APP_DIR="${OPSCENTER_APP_DIR:-$USER_HOME/opscenter-v2/opscenter}"
+ENV_FILE="${OPSCENTER_ENV_FILE:-}"
 PORT="${PORT:-3000}"
 HOST="${OPSCENTER_HOST:-127.0.0.1}"
 LOCK_DIR="/tmp/com.openclaw.opscenter.lock"
 PID_FILE="$LOCK_DIR/pid"
 LOG_PREFIX="[run_opscenter]"
+
+if [[ -n "$ENV_FILE" ]]; then
+  [[ -f "$ENV_FILE" ]] || {
+    echo "$LOG_PREFIX missing environment file: $ENV_FILE" >&2
+    exit 66
+  }
+  set -a
+  source "$ENV_FILE"
+  set +a
+fi
 
 mkdir -p "$APP_DIR/logs"
 

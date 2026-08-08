@@ -1,4 +1,59 @@
-# OpsCenter Mac Mini staging deployment
+# OpsCenter Mission Control deployment
+
+The intended long-term flow is:
+
+```text
+MacBook edits and tests -> Git commit and push -> Mission Control builds and runs that commit
+```
+
+Application code travels through Git. Authoritative OpsCenter/OpsBot data,
+secrets, browser profiles, credentials, and logs remain outside the repository
+on Mission Control.
+
+## Ongoing commit-based deployments
+
+The Git deployment uses immutable release directories under
+`/Users/missioncontrol/opscenter-v2/releases`. The stable live path remains
+`/Users/missioncontrol/opscenter-v2/opscenter`, but becomes a symbolic link to
+the active release. This keeps all existing LaunchAgent paths valid.
+
+Before deploying, commit and push the intended code from the MacBook. A dirty
+working tree is allowed, but uncommitted changes are deliberately excluded.
+
+For the first deployment, supply MC's Bonjour name, DNS name, or address:
+
+```sh
+cd /Users/ejd/opscenter-v2/opscenter
+./deploy/macmini/deploy-from-macbook.sh --bootstrap <mc-host> HEAD
+```
+
+The bootstrap preserves the existing transferred application folder as a
+timestamped `pre-git-snapshot-*` directory. It does not enable a production
+service or Cloudflare Tunnel.
+
+For later deployments:
+
+```sh
+git push
+./deploy/macmini/deploy-from-macbook.sh <mc-host> HEAD
+```
+
+To avoid repeating the host, set `OPSCENTER_MC_HOST` in the MacBook shell's
+private environment and run:
+
+```sh
+OPSCENTER_MC_HOST=<mc-host> ./deploy/macmini/deploy-from-macbook.sh HEAD
+```
+
+The remote deployment refuses commits that are not contained in a pushed
+origin branch. It builds the release before changing the live link. If an
+OpsCenter preview or production LaunchAgent is already loaded, it restarts that
+service and requires the login page to return HTTP 200. A failed startup
+automatically restores the previous live link and restarts the prior release.
+
+To roll back manually, deploy the previous commit SHA with the same command.
+
+## Initial isolated preview transfer
 
 This package prepares a second OpsCenter instance for the macOS account
 `missioncontrol`. It is deliberately isolated from the production instance on

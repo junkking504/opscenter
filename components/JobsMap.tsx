@@ -1094,32 +1094,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
             <div className="ops-jobs-map-empty">No verified job locations are available for this view.</div>
           ) : null}
 
-          {selectedTruck ? (
-            <article className="ops-jobs-map-selection is-truck" aria-live="polite">
-              <button type="button" className="ops-jobs-map-selection-close" onClick={() => setSelectedTruckName("")} aria-label="Close truck details">×</button>
-              <div className="ops-jobs-map-selection-kicker">
-                <span className="ops-jobs-map-selection-truck-icon" aria-hidden="true">🚚</span>
-                Live truck
-              </div>
-              <strong className="ops-jobs-map-selection-customer">{selectedTruck.truck}</strong>
-              <div className="ops-jobs-map-truck-details">
-                <div><span>Driver</span><strong>{selectedTruck.driver && selectedTruck.driver !== "—" ? selectedTruck.driver : "Unassigned"}</strong></div>
-                <div><span>Navigator</span><strong>{selectedTruck.navigator && selectedTruck.navigator !== "—" ? selectedTruck.navigator : "Unassigned"}</strong></div>
-                <div>
-                  <span>Current address</span>
-                  <strong>
-                    {selectedTruckAddress.loading
-                      ? "Finding current street address…"
-                      : selectedTruckAddress.address
-                        ? selectedTruckAddress.address
-                        : `${selectedTruckAddress.error || "Address unavailable"} · GPS ${selectedTruck.latitude.toFixed(5)}, ${selectedTruck.longitude.toFixed(5)}`}
-                  </strong>
-                </div>
-                <div><span>Truck status</span><strong>{selectedTruck.status}</strong></div>
-                <div><span>GPS freshness</span><strong>{selectedTruck.freshness}</strong></div>
-              </div>
-            </article>
-          ) : selectedJob ? (
+          {selectedTruck ? null : selectedJob ? (
             <article className="ops-jobs-map-selection" aria-live="polite">
               <button
                 type="button"
@@ -1322,6 +1297,33 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
               ))}
             </div>
           </aside>
+        ) : null}
+
+        {selectedTruck ? (
+          <article className="ops-jobs-map-selection ops-jobs-map-truck-selection is-truck" aria-live="polite">
+            <button type="button" className="ops-jobs-map-selection-close" onClick={() => setSelectedTruckName("")} aria-label="Close truck details">×</button>
+            <div className="ops-jobs-map-selection-kicker">
+              <span className="ops-jobs-map-selection-truck-icon" aria-hidden="true">🚚</span>
+              Live truck
+            </div>
+            <strong className="ops-jobs-map-selection-customer">{selectedTruck.truck}</strong>
+            <div className="ops-jobs-map-truck-details">
+              <div><span>Driver</span><strong>{selectedTruck.driver && selectedTruck.driver !== "—" ? selectedTruck.driver : "Unassigned"}</strong></div>
+              <div><span>Navigator</span><strong>{selectedTruck.navigator && selectedTruck.navigator !== "—" ? selectedTruck.navigator : "Unassigned"}</strong></div>
+              <div>
+                <span>Current address</span>
+                <strong>
+                  {selectedTruckAddress.loading
+                    ? "Finding current street address…"
+                    : selectedTruckAddress.address
+                      ? selectedTruckAddress.address
+                      : `${selectedTruckAddress.error || "Address unavailable"} · GPS ${selectedTruck.latitude.toFixed(5)}, ${selectedTruck.longitude.toFixed(5)}`}
+                </strong>
+              </div>
+              <div><span>Truck status</span><strong>{selectedTruck.status}</strong></div>
+              <div><span>GPS freshness</span><strong>{selectedTruck.freshness}</strong></div>
+            </div>
+          </article>
         ) : null}
       </div>
 

@@ -4,6 +4,8 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import type { FleetMapPayload } from "@/lib/fleet-map";
 
+const LIVE_FLEET_REFRESH_INTERVAL_MS = 30_000;
+
 const FleetMap = dynamic(() => import("@/components/FleetMap"), {
   ssr: false,
   loading: () => <div className="ops-fleet-map-empty">Loading fleet map…</div>,
@@ -39,15 +41,19 @@ export default function FleetMapClient({ payload }: { payload: FleetMapPayload }
   useEffect(() => {
     if (!payload.isToday) return;
 
-    const timer = window.setInterval(refreshFleetMap, 60_000);
+    void refreshFleetMap();
+    const timer = window.setInterval(refreshFleetMap, LIVE_FLEET_REFRESH_INTERVAL_MS);
     const refreshWhenVisible = () => {
       if (document.visibilityState === "visible") void refreshFleetMap();
     };
+    const refreshWhenOnline = () => void refreshFleetMap();
 
     document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("online", refreshWhenOnline);
     return () => {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("online", refreshWhenOnline);
     };
   }, [payload.isToday, refreshFleetMap]);
 

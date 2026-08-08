@@ -5003,17 +5003,72 @@ a {
   scrollbar-gutter: stable;
 }
 
-@media (min-width: 900px) {
-  .ops-jobs-map-workspace .ops-jobs-map-selection.is-truck {
-    max-height: 12rem;
-  }
+.ops-jobs-map-workspace .ops-jobs-map-truck-selection {
+  grid-column: 1 / -1;
+  grid-row: auto;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  width: 100%;
+  max-height: none;
+  gap: 4px 12px;
+  overflow: visible;
+  padding: 11px 14px 13px;
+}
 
-  .ops-jobs-map-workspace .ops-jobs-map-truck-details {
+.ops-jobs-map-truck-selection .ops-jobs-map-selection-kicker {
+  padding-right: 0;
+}
+
+.ops-jobs-map-truck-selection .ops-jobs-map-selection-customer {
+  font-size: .86rem;
+}
+
+.ops-jobs-map-truck-selection .ops-jobs-map-truck-details {
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(120px, .85fr) minmax(120px, .85fr) minmax(260px, 2.2fr) minmax(110px, .7fr) minmax(110px, .7fr);
+}
+
+.ops-jobs-map-truck-selection .ops-jobs-map-truck-details > div {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px 10px;
+  border-right: 1px solid rgba(255, 255, 255, .07);
+  border-bottom: 0;
+}
+
+.ops-jobs-map-truck-selection .ops-jobs-map-truck-details > div:last-child {
+  border-right: 0;
+}
+
+.ops-jobs-map-truck-selection .ops-jobs-map-truck-details strong {
+  overflow-wrap: anywhere;
+  font-size: .72rem;
+  line-height: 1.3;
+}
+
+@media (max-width: 860px) {
+  .ops-jobs-map-truck-selection .ops-jobs-map-truck-details {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .ops-jobs-map-workspace .ops-jobs-map-truck-details > div:nth-child(3) {
+  .ops-jobs-map-truck-selection .ops-jobs-map-truck-details > div {
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, .07);
+  }
+
+  .ops-jobs-map-truck-selection .ops-jobs-map-truck-details > div:nth-child(odd) {
+    border-right: 1px solid rgba(255, 255, 255, .07);
+  }
+
+  .ops-jobs-map-truck-selection .ops-jobs-map-truck-details > div:nth-child(3) {
     grid-column: 1 / -1;
+    border-right: 0;
+  }
+
+  .ops-jobs-map-truck-selection .ops-jobs-map-truck-details > div:nth-last-child(-n + 2) {
+    border-bottom: 0;
   }
 }
 
@@ -5348,6 +5403,29 @@ a.ops-jobs-map-selection-phone:focus-visible {
     bottom: auto;
     width: 100%;
     max-height: 11.5rem;
+  }
+
+  .ops-jobs-map-workspace .ops-jobs-map-truck-selection {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 520px) {
+  .ops-jobs-map-truck-selection .ops-jobs-map-truck-details {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ops-jobs-map-truck-selection .ops-jobs-map-truck-details > div,
+  .ops-jobs-map-truck-selection .ops-jobs-map-truck-details > div:nth-child(odd),
+  .ops-jobs-map-truck-selection .ops-jobs-map-truck-details > div:nth-last-child(-n + 2) {
+    grid-column: auto;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, .07);
+  }
+
+  .ops-jobs-map-truck-selection .ops-jobs-map-truck-details > div:last-child {
+    border-bottom: 0;
   }
 }
 

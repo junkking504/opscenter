@@ -48,36 +48,37 @@ function day(date: string): CrewPayPeriodDayRow {
 }
 
 assert.equal(PAY_PERIOD_DAYS, 14);
-assert.deepEqual(payPeriodForDate("2026-08-03"), { start: "2026-08-03", end: "2026-08-16" });
-assert.deepEqual(payPeriodForDate("2026-08-10"), { start: "2026-08-03", end: "2026-08-16" });
-assert.deepEqual(payPeriodForDate("2026-08-17"), { start: "2026-08-17", end: "2026-08-30" });
+assert.deepEqual(payPeriodForDate("2026-08-09"), { start: "2026-07-27", end: "2026-08-09" });
+assert.deepEqual(payPeriodForDate("2026-08-10"), { start: "2026-08-10", end: "2026-08-23" });
+assert.deepEqual(payPeriodForDate("2026-08-23"), { start: "2026-08-10", end: "2026-08-23" });
+assert.deepEqual(payPeriodForDate("2026-08-24"), { start: "2026-08-24", end: "2026-09-06" });
 assert.equal(payPeriodDates("2026-08-10").dates.length, 14);
 
 const cardWeeks = summarizeCrewCardWeeks(
-  [day("2026-08-03")],
-  "2026-08-03",
-  "2026-08-16",
+  [day("2026-07-27")],
+  "2026-07-27",
+  "2026-08-09",
 );
 assert.equal(cardWeeks.length, 2);
 assert.deepEqual(
   cardWeeks.map((week) => ({ start: week.start, end: week.end, label: week.label, days: week.days.length })),
   [
-    { start: "2026-08-03", end: "2026-08-09", label: "Week 1: 2026-08-03–2026-08-09", days: 1 },
-    { start: "2026-08-10", end: "2026-08-16", label: "Week 2: 2026-08-10–2026-08-16", days: 0 },
+    { start: "2026-07-27", end: "2026-08-02", label: "Week 1: 2026-07-27–2026-08-02", days: 1 },
+    { start: "2026-08-03", end: "2026-08-09", label: "Week 2: 2026-08-03–2026-08-09", days: 0 },
   ],
 );
 assert.equal(cardWeeks[1].totals.totalHours, 0);
 assert.equal(cardWeeks[1].totals.totalPay, 0);
 
 const serverWeeks = summarizeServerWeeks(
-  [day("2026-08-10")],
-  "2026-08-03",
-  "2026-08-16",
+  [day("2026-08-03")],
+  "2026-07-27",
+  "2026-08-09",
 );
 assert.equal(serverWeeks.length, 2);
 assert.equal(serverWeeks[0].days.length, 0);
-assert.equal(serverWeeks[0].label, "Week 1: 2026-08-03–2026-08-09");
+assert.equal(serverWeeks[0].label, "Week 1: 2026-07-27–2026-08-02");
 assert.equal(serverWeeks[1].days.length, 1);
-assert.equal(serverWeeks[1].label, "Week 2: 2026-08-10–2026-08-16");
+assert.equal(serverWeeks[1].label, "Week 2: 2026-08-03–2026-08-09");
 
 console.log("Pay-period verification passed: every period spans 14 days and always exposes Week 1 and Week 2.");

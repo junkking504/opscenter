@@ -30,36 +30,16 @@ function toneClass(status: OperatingStatus): string {
 }
 
 export default function CommandBrief({
-  readiness,
-  overallStatus,
   metrics,
   signals,
   actions,
 }: {
-  readiness: number;
-  overallStatus: OperatingStatus;
   metrics: CommandBriefMetric[];
   signals: CommandBriefSignal[];
   actions: OperatingAction[];
 }) {
   return (
-    <section className={styles.brief} id="command-overview" aria-labelledby="command-brief-title">
-      <header className={styles.header}>
-        <div>
-          <div className={styles.kicker}><span /> Daily overview</div>
-          <h2 id="command-brief-title">Today&apos;s command brief</h2>
-          <p>{String(signals.length).padStart(2, "0")} operating signals · {String(actions.slice(0, 3).length).padStart(2, "0")} priority actions</p>
-        </div>
-        <div className={`${styles.readiness} ${toneClass(overallStatus)}`}>
-          <span className={styles.readinessDot} />
-          <div>
-            <span>Readiness</span>
-            <small>{statusLabel[overallStatus]}</small>
-          </div>
-          <strong>{readiness}<small>/100</small></strong>
-        </div>
-      </header>
-
+    <section className={styles.brief} id="command-overview" aria-label="Command overview">
       <div className={styles.metricStrip} aria-label="Headline operating metrics">
         {metrics.map((metric) => (
           <Link className={`${styles.metric} ${toneClass(metric.status)}`} href={metric.href} key={metric.label}>

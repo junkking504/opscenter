@@ -6,6 +6,7 @@ import type {
   WorkItemStatus,
 } from "@/lib/platform/contracts";
 import { createPlatformId, workItemDedupeKey } from "@/lib/platform/identifiers";
+import { assertWorkItemTransition } from "@/lib/platform/state-machines";
 import { appendPlatformEvent } from "@/lib/platform/persistence/events";
 import { getKernelPool } from "@/lib/platform/persistence/pool";
 import { withKernelTransaction } from "@/lib/platform/persistence/transaction";
@@ -158,7 +159,15 @@ export async function reconcileDetectedWorkItem(
               last_detected_at = $8,
               last_absent_at = NULL,
               consecutive_fresh_absences = 0,
-              version = version + 1,
+              version = version + CASE
+                WHEN source_observed_at IS DISTINCT FROM $7::timestamptz
+                  OR severity IS DISTINCT FROM $2
+                  OR entity_label IS DISTINCT FROM $3
+                  OR title IS DISTINCT FROM $4
+                  OR description IS DISTINCT FROM $5
+                  OR source IS DISTINCT FROM $6
+                  OR status IN ('resolved', 'dismissed')
+                THEN 1 ELSE 0 END,
               updated_at = now()
           WHERE id = $1
           RETURNING *
@@ -211,6 +220,8 @@ export async function listWorkItems(input: {
   statuses?: WorkItemStatus[];
   category?: WorkItem["category"];
   ownerActorId?: string;
+  unassigned?: boolean;
+  severity?: WorkItemSeverity;
   limit?: number;
 } = {}): Promise<WorkItem[]> {
   const conditions: string[] = [];
@@ -231,6 +242,11 @@ export async function listWorkItems(input: {
     values.push(input.ownerActorId);
     conditions.push(`owner_actor_id = $${values.length}`);
   }
+  if (input.unassigned) conditions.push("owner_actor_id IS NULL");
+  if (input.severity) {
+    values.push(input.severity);
+    conditions.push(`severity = $${values.length}`);
+  }
   const limit = Math.min(200, Math.max(1, Math.floor(input.limit || 100)));
   values.push(limit);
 
@@ -248,4 +264,128 @@ export async function listWorkItems(input: {
     values,
   );
   return result.rows.map(workItemFromRow);
+}
+
+export type WorkItemMutation =
+  | { action: "acknowledge" }
+  | { action: "assign_self" }
+  | { action: "unassign" }
+  | { action: "snooze"; until: string }
+  | { action: "dismiss"; reason: string }
+  | { action: "resolve_manually"; reason: string }
+  | { action: "reopen" };
+
+function requiredReason(value: string): string {
+  const reason = String(value || "").trim();
+  if (reason.length < 3) throw new Error("A reason of at least 3 characters is required.");
+  return reason.slice(0, 1_000);
+}
+
+export async function mutateWorkItem(input: {
+  id: string;
+  expectedVersion: number;
+  actorId: string;
+  correlationId: string;
+  mutation: WorkItemMutation;
+}): Promise<WorkItem> {
+  return withKernelTransaction(async (client) => {
+    const selected = await client.query<WorkItemRow>(
+      "SELECT * FROM opscenter_kernel.work_items WHERE id = $1 FOR UPDATE",
+      [input.id],
+    );
+    const current = selected.rows[0];
+    if (!current) throw new Error("Work item not found.");
+    if (current.version !== input.expectedVersion) throw new Error("WORK_ITEM_VERSION_CONFLICT");
+
+    let nextStatus = current.status;
+    let ownerActorId = current.owner_actor_id;
+    let snoozedUntil: string | null = current.snoozed_until ? iso(current.snoozed_until) : null;
+    let resolutionCode = current.resolution_code;
+    let resolutionNote = current.resolution_note;
+    let resolvedAt: string | null = current.resolved_at ? iso(current.resolved_at) : null;
+    const now = new Date().toISOString();
+
+    switch (input.mutation.action) {
+      case "acknowledge":
+        nextStatus = "acknowledged";
+        break;
+      case "assign_self":
+        ownerActorId = input.actorId;
+        break;
+      case "unassign":
+        ownerActorId = null;
+        break;
+      case "snooze": {
+        const until = new Date(input.mutation.until);
+        if (Number.isNaN(until.getTime()) || until.getTime() <= Date.now()) {
+          throw new Error("Snooze time must be in the future.");
+        }
+        nextStatus = "snoozed";
+        snoozedUntil = until.toISOString();
+        break;
+      }
+      case "dismiss":
+        nextStatus = "dismissed";
+        resolutionCode = "operator_dismissed";
+        resolutionNote = requiredReason(input.mutation.reason);
+        resolvedAt = now;
+        break;
+      case "resolve_manually":
+        nextStatus = "resolved";
+        resolutionCode = "manual_resolution";
+        resolutionNote = requiredReason(input.mutation.reason);
+        resolvedAt = now;
+        break;
+      case "reopen":
+        nextStatus = "open";
+        resolutionCode = null;
+        resolutionNote = null;
+        resolvedAt = null;
+        snoozedUntil = null;
+        break;
+    }
+
+    assertWorkItemTransition(current.status, nextStatus);
+    const result = await client.query<WorkItemRow>(
+      `
+        UPDATE opscenter_kernel.work_items
+        SET status = $2, owner_actor_id = $3, snoozed_until = $4,
+            resolution_code = $5, resolution_note = $6, resolved_at = $7,
+            version = version + 1, updated_at = now()
+        WHERE id = $1
+        RETURNING *
+      `,
+      [current.id, nextStatus, ownerActorId, snoozedUntil, resolutionCode, resolutionNote, resolvedAt],
+    );
+    const workItem = workItemFromRow(result.rows[0]);
+    const eventTypeByAction: Record<WorkItemMutation["action"], string> = {
+      acknowledge: "work.acknowledged.v1",
+      assign_self: "work.assigned.v1",
+      unassign: "work.assigned.v1",
+      snooze: "work.snoozed.v1",
+      dismiss: "work.dismissed.v1",
+      resolve_manually: "work.resolved_manually.v1",
+      reopen: "work.reopened.v1",
+    };
+    await appendPlatformEvent(client, {
+      eventType: eventTypeByAction[input.mutation.action],
+      eventVersion: 1,
+      aggregateType: "work_item",
+      aggregateId: workItem.id,
+      actorId: input.actorId,
+      occurredAt: now,
+      correlationId: input.correlationId,
+      payload: {
+        fromStatus: current.status,
+        toStatus: workItem.status,
+        ownerActorId: workItem.ownerActorId || null,
+        snoozedUntil: workItem.snoozedUntil || null,
+        resolutionCode: workItem.resolutionCode || null,
+        reason: workItem.resolutionNote || null,
+        action: input.mutation.action,
+        version: workItem.version,
+      },
+    });
+    return workItem;
+  });
 }

@@ -4569,3 +4569,10 @@ body {
     white-space: nowrap;
   }
 }
+
+/* Seven primary workspaces now include the durable Operating Inbox. */
+@media (max-width: 1050px) {
+  .ops-bottom-nav {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+}

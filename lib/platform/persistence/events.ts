@@ -2,6 +2,7 @@ import type { PoolClient } from "pg";
 import type { PlatformEvent } from "@/lib/platform/contracts";
 import { createPlatformId } from "@/lib/platform/identifiers";
 import { redactOperationalValue } from "@/lib/platform/redaction";
+import { getKernelPool } from "@/lib/platform/persistence/pool";
 
 type AppendEventInput = Omit<PlatformEvent, "id" | "recordedAt" | "payload"> & {
   id?: string;
@@ -42,4 +43,44 @@ export async function appendPlatformEvent(
   );
 
   return event;
+}
+
+type EventRow = {
+  id: string;
+  event_type: string;
+  event_version: number;
+  aggregate_type: string;
+  aggregate_id: string;
+  actor_id: string | null;
+  occurred_at: Date | string;
+  recorded_at: Date | string;
+  correlation_id: string;
+  causation_id: string | null;
+  payload_json: Record<string, unknown> | string;
+};
+
+export async function listPlatformEvents(aggregateType: string, aggregateId: string): Promise<PlatformEvent[]> {
+  const result = await getKernelPool().query<EventRow>(
+    `
+      SELECT *
+      FROM opscenter_kernel.events
+      WHERE aggregate_type = $1 AND aggregate_id = $2
+      ORDER BY recorded_at DESC, id DESC
+      LIMIT 100
+    `,
+    [aggregateType, aggregateId],
+  );
+  return result.rows.map((row) => ({
+    id: row.id,
+    eventType: row.event_type,
+    eventVersion: row.event_version,
+    aggregateType: row.aggregate_type,
+    aggregateId: row.aggregate_id,
+    actorId: row.actor_id || undefined,
+    occurredAt: new Date(row.occurred_at).toISOString(),
+    recordedAt: new Date(row.recorded_at).toISOString(),
+    correlationId: row.correlation_id,
+    causationId: row.causation_id || undefined,
+    payload: typeof row.payload_json === "string" ? JSON.parse(row.payload_json) : row.payload_json,
+  }));
 }

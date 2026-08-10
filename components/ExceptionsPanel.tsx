@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import type { OperationalExceptionsReport, ExceptionCategory, ExceptionSeverity } from "@/lib/operational-exceptions";
 
 const severityLabels: Record<ExceptionSeverity, string> = {
@@ -129,6 +130,13 @@ export default function ExceptionsPanel({ compact = false }: ExceptionsPanelProp
             ) : null}
           </div>
           <div className="ops-exceptions-summary-actions">
+            <Link
+              className="ops-mini-link"
+              href={`/inbox?date=${encodeURIComponent(date)}`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              Open inbox
+            </Link>
             <button
               type="button"
               className="ops-mini-link ops-exception-refresh"

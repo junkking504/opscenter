@@ -11,6 +11,19 @@ HOST="127.0.0.1"
 LOCK_DIR="/tmp/com.openclaw.opscenter.macmini-preview.lock"
 LOG_PREFIX="[macmini-preview]"
 
+load_environment_file() {
+  local file="$1"
+  local config_line
+  while IFS= read -r config_line || [[ -n "$config_line" ]]; do
+    [[ -z "$config_line" || "$config_line" == \#* ]] && continue
+    [[ "$config_line" =~ '^[A-Za-z_][A-Za-z0-9_]*=' ]] || {
+      echo "$LOG_PREFIX invalid environment entry in $file" >&2
+      return 1
+    }
+    export "$config_line"
+  done < "$file"
+}
+
 if [[ "$(id -un)" != "$EXPECTED_USER" || "$HOME" != "$EXPECTED_HOME" ]]; then
   echo "$LOG_PREFIX must run as $EXPECTED_USER with home $EXPECTED_HOME" >&2
   exit 64
@@ -20,9 +33,7 @@ fi
 [[ -d "$DATA_DIR" ]] || { echo "$LOG_PREFIX missing preview data: $DATA_DIR" >&2; exit 66; }
 [[ -f "$ENV_FILE" ]] || { echo "$LOG_PREFIX missing preview environment: $ENV_FILE" >&2; exit 66; }
 
-set -a
-source "$ENV_FILE"
-set +a
+load_environment_file "$ENV_FILE"
 
 mkdir -p "$APP_DIR/logs"
 

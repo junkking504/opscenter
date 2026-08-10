@@ -27,6 +27,16 @@ fail() {
   exit 1
 }
 
+load_environment_file() {
+  local file="$1"
+  local config_line
+  while IFS= read -r config_line || [[ -n "$config_line" ]]; do
+    [[ -z "$config_line" || "$config_line" == \#* ]] && continue
+    [[ "$config_line" =~ '^[A-Za-z_][A-Za-z0-9_]*=' ]] || fail "invalid environment entry in $file"
+    export "$config_line"
+  done < "$file"
+}
+
 service_loaded() {
   launchctl print "gui/$(id -u)/$1" >/dev/null 2>&1
 }
@@ -158,9 +168,7 @@ cd "$release"
 npm ci
 NEXT_DIST_DIR="tmp/macmini-preview-next" npm run build
 
-set -a
-source "$PREVIEW_ENV"
-set +a
+load_environment_file "$PREVIEW_ENV"
 export OPSCENTER_RUNTIME="MAC_MINI_PREVIEW"
 npm run platform:migrate
 

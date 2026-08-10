@@ -465,48 +465,50 @@ body {
   white-space: normal;
 }
 
-.ops-crew-dashboard .ops-daily-leaderboard-table .ops-daily-leaderboard-person strong {
+.ops-daily-leaderboard-table .ops-daily-leaderboard-person strong {
   color: #20242b;
   font-weight: 850;
 }
 
-.ops-crew-dashboard .ops-daily-leaderboard-table .ops-daily-leaderboard-person small {
+.ops-daily-leaderboard-table .ops-daily-leaderboard-person small {
   color: #606873;
 }
 
-.ops-crew-dashboard .ops-daily-leaderboard-table .ops-daily-leaderboard-jobs,
-.ops-crew-dashboard .ops-daily-leaderboard-table .ops-daily-leaderboard-revenue {
+.ops-daily-leaderboard-table .ops-daily-leaderboard-jobs,
+.ops-daily-leaderboard-table .ops-daily-leaderboard-revenue {
   color: #303741 !important;
 }
 
-.ops-crew-dashboard .ops-daily-leaderboard-table .is-rank-1 .ops-daily-leaderboard-revenue {
+.ops-daily-leaderboard-table .is-rank-1 .ops-daily-leaderboard-revenue {
   color: #79560e !important;
 }
 
-.ops-crew-dashboard .ops-daily-leaderboard-table .ops-daily-leaderboard-rank {
+.ops-daily-leaderboard-table .ops-daily-leaderboard-rank {
   border-color: #d8dcd8;
   background: #f4f5f3;
   color: #59636f;
 }
 
-.ops-crew-dashboard .ops-daily-leaderboard-table .is-rank-1 .ops-daily-leaderboard-rank {
+.ops-daily-leaderboard-table .is-rank-1 .ops-daily-leaderboard-rank {
   border-color: #d9b85e;
   background: #fff5d8;
   color: #79560e;
   box-shadow: none;
 }
 
-.ops-crew-dashboard .ops-daily-leaderboard-table .is-rank-2 .ops-daily-leaderboard-rank {
+.ops-daily-leaderboard-table .is-rank-2 .ops-daily-leaderboard-rank {
   border-color: #bfc6ce;
   background: #f0f2f4;
   color: #4d5865;
 }
 
-.ops-crew-dashboard .ops-daily-leaderboard-table .is-rank-3 .ops-daily-leaderboard-rank {
+.ops-daily-leaderboard-table .is-rank-3 .ops-daily-leaderboard-rank {
   border-color: #d7b28c;
   background: #fff1e4;
   color: #87562a;
 }
+.ops-daily-leaderboard :where(.ops-daily-leaderboard-state, .ops-mini-link, .ops-daily-leaderboard-rank) { font-size: max(1rem, 12px) !important; }
+.ops-daily-leaderboard :where(.ops-daily-leaderboard-state, .ops-mini-link) { color: #3f4650; }
 
 /* Pay-period totals use direct-child labels; reset the live value nested span
  * so it remains a value instead of inheriting the compact label treatment. */

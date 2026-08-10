@@ -6,6 +6,7 @@ const username = String(process.env.OPS_A11Y_USERNAME || "");
 const password = String(process.env.OPS_A11Y_PASSWORD || "");
 const routes = [
   "/",
+  "/?section=crew",
   "/jobs",
   "/crew",
   "/crew?date=2026-08-10&section=pay-period",
@@ -146,6 +147,49 @@ async function main() {
           assert.equal(commandPage.title, "Daily Command", `${routeLabel} must retain the Daily Command title.`);
           assert.equal(commandPage.heroCount, 0, `${routeLabel} must retain the compact Command layout without the retired hero.`);
           assert.equal(commandPage.metricCount, 4, `${routeLabel} must lead with four headline operating metrics.`);
+        }
+        if (route === "/?section=crew") {
+          const readability = await page.evaluate(() => {
+            function rgb(value) {
+              const match = value.match(/rgba?\((\d+)[, ]+(\d+)[, ]+(\d+)/);
+              return match ? match.slice(1).map(Number) : null;
+            }
+            function luminance(color) {
+              return color
+                .map((channel) => channel / 255)
+                .map((channel) => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+                .reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+            }
+            function background(element) {
+              for (let current = element; current instanceof HTMLElement; current = current.parentElement) {
+                const value = getComputedStyle(current).backgroundColor;
+                const alpha = value.match(/rgba\([^)]*,\s*([\d.]+)\)/)?.[1];
+                if (alpha === undefined || Number(alpha) >= 0.95) return rgb(value) || [255, 255, 255];
+              }
+              return [255, 255, 255];
+            }
+            return Array.from(document.querySelectorAll([
+              ".ops-daily-leaderboard-person strong",
+              ".ops-daily-leaderboard-person small",
+              ".ops-daily-leaderboard-jobs",
+              ".ops-daily-leaderboard-revenue",
+              ".ops-daily-leaderboard-rank",
+              ".ops-daily-leaderboard-state",
+              ".ops-daily-leaderboard .ops-mini-link",
+            ].join(","))).map((element) => {
+              const foreground = rgb(getComputedStyle(element).color) || [255, 255, 255];
+              const bg = background(element);
+              const [bright, dark] = [luminance(foreground), luminance(bg)].sort((left, right) => right - left);
+              return {
+                className: element.className,
+                text: element.textContent?.trim() || "",
+                contrast: (bright + 0.05) / (dark + 0.05),
+                fontSize: Number.parseFloat(getComputedStyle(element).fontSize),
+              };
+            });
+          });
+          const failures = readability.filter((item) => item.contrast < 4.5 || item.fontSize < 12);
+          assert.deepEqual(failures, [], `${routeLabel} leaderboard text must remain readable: ${JSON.stringify(failures)}.`);
         }
         if (route === "/jobs") {
           const dispatch = await page.evaluate(() => {

@@ -140,3 +140,27 @@
   .page { padding: 0; align-items: stretch; }
   .card { width: 100%; min-height: 100vh; border: 0; border-radius: 0; padding: 34px 22px; }
 }
+
+/* OpsCenter light-workspace redesign */
+.page {
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.92), transparent 28rem),
+    #eceeeb;
+  color: #20242b;
+}
+
+.card {
+  border-color: #d7dad6;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(25, 28, 35, 0.12);
+}
+
+.brand { color: #d8222a; }
+.brandMark { background: #ed1c24; box-shadow: none; }
+.lead { color: #6f7782; }
+.button { background: #20242b; color: #fff; }
+.button:hover { background: #ed1c24; }
+.error { border-color: #edc5c6; background: #fff3f3; color: #b52027; }
+.finePrint { color: #858d97; }
+.secondaryLink { color: #5b6470; }
+.secondaryLink:hover { color: #d8222a; }

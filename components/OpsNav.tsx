@@ -219,7 +219,7 @@ export default function OpsNav({ variant = "tabs" }: { variant?: "tabs" | "sideb
               aria-current={active ? "page" : undefined}
             >
               <span>{item.icon}</span>
-              <small>{item.label}</small>
+              <small>{item.mobileLabel}</small>
             </Link>
           );
         })}

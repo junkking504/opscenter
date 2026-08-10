@@ -5,6 +5,8 @@ import { getDataHealthReport, type DataHealthSource } from "@/lib/data-health";
 import { readFleetIssueStore, type FleetIssue } from "@/lib/fleet-issues";
 import { buildOperationalExceptions, type OperationalException } from "@/lib/operational-exceptions";
 import { chicagoDateKey } from "@/lib/report-dates";
+import { reconcileOpsActionSignals } from "@/lib/ops-actions";
+import { buildSlackActionBlocks } from "@/lib/slack-interactions";
 
 export type SlackAlertSeverity = "critical" | "warning";
 export type SlackAlertKind = "add_on" | "unassigned_crew" | "late_job" | "fleet_down" | "stale_data";
@@ -251,6 +253,7 @@ async function postSlackMessage(
   channelId: string,
   text: string,
   threadTs?: string,
+  blocks?: Array<Record<string, unknown>>,
 ): Promise<SlackApiResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
@@ -268,6 +271,7 @@ async function postSlackMessage(
         unfurl_links: false,
         unfurl_media: false,
         ...(threadTs ? { thread_ts: threadTs } : {}),
+        ...(blocks?.length ? { blocks } : {}),
       }),
       signal: controller.signal,
     });
@@ -315,6 +319,7 @@ export async function runSlackOpsAlerts(options?: {
   };
 
   if (dryRun) return result;
+  const actionsByFingerprint = reconcileOpsActionSignals(preview);
   if (!enabled) return result;
 
   const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
@@ -346,7 +351,14 @@ export async function runSlackOpsAlerts(options?: {
       continue;
     }
 
-    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
+    const action = actionsByFingerprint.get(alert.fingerprint);
+    const response = await postSlackMessage(
+      token,
+      alert.channelId,
+      formatSlackAlert(alert),
+      undefined,
+      action ? buildSlackActionBlocks(action, boolEnv("SLACK_OPSCENTER_ACTIONS_ENABLED")) : undefined,
+    );
     if (!response.ok || !response.ts) {
       result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
       continue;
@@ -384,7 +396,14 @@ export async function runSlackOpsAlerts(options?: {
 
   const deliveredAppointmentIds = new Set<string>();
   for (const alert of notifications) {
-    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
+    const action = actionsByFingerprint.get(alert.fingerprint);
+    const response = await postSlackMessage(
+      token,
+      alert.channelId,
+      formatSlackAlert(alert),
+      undefined,
+      action ? buildSlackActionBlocks(action, boolEnv("SLACK_OPSCENTER_ACTIONS_ENABLED")) : undefined,
+    );
     if (!response.ok || !response.ts) {
       result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
       continue;

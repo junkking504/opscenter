@@ -17,7 +17,7 @@ export const LEGACY_AUTH_COOKIE_NAMES = [
 ] as const;
 export const AUTH_PUBLIC_PREFIXES = ["/legal/", "/support", "/integrations/qbo"] as const;
 export const AUTH_PUBLIC_API_PREFIXES = ["/api/auth/", "/api/health", "/api/integrations/qbo", "/api/integrations/junkware/sms"] as const;
-export const AUTH_PROTECTED_API_PREFIXES = ["/api/exceptions", "/api/fleet-map", "/api/fleet-maintenance", "/api/fleet-checklists", "/api/fleet-checklist-templates", "/api/fleet-checklist-photos", "/api/fleet-issues", "/api/fleet-issue-photos", "/api/manual-bonuses", "/api/searchkings"] as const;
+export const AUTH_PROTECTED_API_PREFIXES = ["/api/actions", "/api/exceptions", "/api/fleet-map", "/api/fleet-maintenance", "/api/fleet-checklists", "/api/fleet-checklist-templates", "/api/fleet-checklist-photos", "/api/fleet-issues", "/api/fleet-issue-photos", "/api/manual-bonuses", "/api/searchkings"] as const;
 export const LEGACY_VERIFICATION_CODE_FLOW_ENABLED = false;
 
 export type AuthSessionPayload = {

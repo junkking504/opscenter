@@ -81,6 +81,7 @@ export async function middleware(request: NextRequest) {
   const smsHostname = String(process.env.OPS_SMS_WEBHOOK_HOSTNAME || "hooks.junk-king.app").trim().toLowerCase();
   const isCrewHostname = hostname === crewHostname;
   const isSmsHostname = hostname === smsHostname;
+  const slackActionsPath = "/api/integrations/slack/actions";
 
   if (pathname.startsWith("/_next/")) {
     return NextResponse.next();
@@ -88,6 +89,9 @@ export async function middleware(request: NextRequest) {
 
   if (isSmsHostname) {
     if (pathname === JUNKWARE_SMS_API_PREFIX || pathname.startsWith(`${JUNKWARE_SMS_API_PREFIX}/`)) {
+      return NextResponse.next();
+    }
+    if (pathname === slackActionsPath) {
       return NextResponse.next();
     }
     return new NextResponse("Not Found", { status: 404 });

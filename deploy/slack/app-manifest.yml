@@ -12,6 +12,9 @@ oauth_config:
       - chat:write
       - chat:write.public
 settings:
+  interactivity:
+    is_enabled: true
+    request_url: https://hooks.junk-king.app/api/integrations/slack/actions
   org_deploy_enabled: false
   socket_mode_enabled: false
   token_rotation_enabled: false

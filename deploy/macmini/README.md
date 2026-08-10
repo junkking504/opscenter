@@ -59,6 +59,9 @@ origin branch. It builds the release before changing the live link. If an
 OpsCenter preview or production LaunchAgent is already loaded, it restarts that
 service and requires the login page to return HTTP 200. A failed startup
 automatically restores the previous live link and restarts the prior release.
+Each release also installs the Chromium revision pinned by Playwright so
+JunkWare closeout and truck-assignment actions remain available after dependency
+updates.
 
 To roll back manually, deploy the previous commit SHA with the same command.
 

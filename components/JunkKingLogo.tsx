@@ -9,6 +9,7 @@ export default function JunkKingLogo({ className = "" }: { className?: string })
       width={218}
       height={48}
       priority
+      unoptimized
     />
   );
 }

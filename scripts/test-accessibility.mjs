@@ -59,6 +59,7 @@ async function auditPage(page) {
 
     document.querySelectorAll("img").forEach((image) => {
       if (!image.hasAttribute("alt")) issues.push({ rule: "image-alt", detail: image.src });
+      if (visible(image) && image.complete && image.naturalWidth === 0) issues.push({ rule: "image-load", detail: image.src });
     });
 
     document.querySelectorAll("button, a[href], input, select, textarea, [role='button'], [role='tab']").forEach((element) => {

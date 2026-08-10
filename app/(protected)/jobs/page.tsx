@@ -2627,6 +2627,10 @@ export default async function JobsPage({
         ]}
       />
 
+      {view === "daily" ? (
+        <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} />
+      ) : null}
+
       {monthlySummary && view === "calendar" ? (
         <section className="ops-card ops-jobs-calendar-card" aria-label={`${monthlySummary.monthDisplay} job calendar`}>
           <div className="ops-jobs-calendar-head">
@@ -3084,8 +3088,6 @@ export default async function JobsPage({
         <a href="#jobs-map">Map &amp; board</a>
         <a href="#jobs-schedule">Appointment queue <small>{filterCount}</small></a>
       </nav>
-
-      <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} />
 
       <div className="ops-card" id="jobs-schedule">
         <div className="ops-card-header compact">

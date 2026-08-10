@@ -1,4 +1,8 @@
 import PageHeader from "@/components/PageHeader";
+import CommandBrief, {
+  type CommandBriefMetric,
+  type CommandBriefSignal,
+} from "@/components/CommandBrief";
 import OpsMonthSelector from "@/components/OpsMonthSelector";
 import OperatingPulse, {
   type OperatingAction,
@@ -229,12 +233,6 @@ function maximumStatus(value: number, target: number): OperatingStatus {
 function signedPercent(value: number): string {
   const sign = value >= 0 ? "+" : "−";
   return `${sign}${Math.abs(value).toFixed(1)}%`;
-}
-
-function operatingStatusLabel(status: OperatingStatus): string {
-  if (status === "on-track") return "On track";
-  if (status === "off-track") return "Off track";
-  return "Watch";
 }
 
 function shortMonthDay(date: string): string {
@@ -607,10 +605,71 @@ export default async function DashboardPage({
       ? "watch"
       : "off-track";
   const dailyRevenueStatus = dailyPulseItems[0].status;
-  const dailyRevenueProgress = dailyRevenuePlan > 0
-    ? Math.min(100, Math.max(0, (grossRevenue / dailyRevenuePlan) * 100))
-    : 0;
   const dailyRevenueRemaining = Math.max(0, dailyRevenuePlan - grossRevenue);
+  const commandBriefMetrics: CommandBriefMetric[] = [
+    {
+      label: "Revenue pace",
+      value: money(grossRevenue),
+      detail: `${money(dailyRevenueRemaining)} remaining to plan`,
+      status: dailyRevenueStatus,
+      href: `/jobs?date=${date}`,
+    },
+    {
+      label: "Payroll load",
+      value: `${dailyPayrollPercentage.toFixed(1)}%`,
+      detail: `${money(totalPayroll)} deployed · target ≤ ${operatingTargets.maxPayrollPercent.toFixed(0)}%`,
+      status: dailyPulseItems[1].status,
+      href: `/crew?date=${date}`,
+    },
+    {
+      label: "Operating margin",
+      value: `${dailyOperatingMargin.toFixed(1)}%`,
+      detail: `${money(dailyOperatingProfit)} estimated profit`,
+      status: dailyPulseItems[2].status,
+      href: `/finance?date=${date}`,
+    },
+    {
+      label: "Active trucks",
+      value: String(activeTruckCount),
+      detail: `${money(dailyRevenuePerTruck)} revenue per active truck`,
+      status: activeTruckCount > 0 ? "on-track" : "watch",
+      href: `/fleet?date=${date}`,
+    },
+  ];
+  const commandBriefSignals: CommandBriefSignal[] = [
+    {
+      title: "Revenue performance",
+      detail: dailyPulseItems[0].detail,
+      status: dailyPulseItems[0].status,
+      href: `/jobs?date=${date}`,
+    },
+    {
+      title: "Payroll efficiency",
+      detail: dailyPulseItems[1].detail,
+      status: dailyPulseItems[1].status,
+      href: `/crew?date=${date}`,
+    },
+    {
+      title: "Operating margin",
+      detail: dailyPulseItems[2].detail,
+      status: dailyPulseItems[2].status,
+      href: `/finance?date=${date}`,
+    },
+    {
+      title: "Average job size",
+      detail: dailyPulseItems[3].detail,
+      status: dailyPulseItems[3].status,
+      href: `/jobs?date=${date}`,
+    },
+  ];
+  if (marketing.available && marketing.lostLeads + marketing.needsFollowUp > 0) {
+    commandBriefSignals.push({
+      title: "Lost-lead recovery",
+      detail: `${marketing.needsFollowUp} qualified call${marketing.needsFollowUp === 1 ? "" : "s"} need follow-up · ${marketing.lostLeads} lost · ${money(marketing.estimatedLostRevenue)} potential revenue`,
+      status: marketing.lostLeads > 0 ? "off-track" : "watch",
+      href: "/marketing?section=lost-leads",
+    });
+  }
 
   const rankedCrew = [...crew]
     .sort((a, b) =>
@@ -642,87 +701,13 @@ export default async function DashboardPage({
       />
 
       {section === "overview" ? <>
-        <section className="ops-command-center-v2" id="command-overview" aria-labelledby="command-center-title">
-          <header className="ops-command-center-v2-head">
-            <div>
-              <div className="ops-operating-kicker"><span /> Live command view</div>
-              <h2 id="command-center-title">What needs attention today</h2>
-              <p>Revenue pace, operating health, and the next management actions in one view.</p>
-            </div>
-            <div className={`ops-command-readiness-v2 is-${dailyOverallStatus}`}>
-              <span>Readiness</span>
-              <strong>{dailyReadiness}</strong>
-              <small>/100 · {operatingStatusLabel(dailyOverallStatus)}</small>
-            </div>
-          </header>
-
-          <div className="ops-command-center-v2-grid">
-            <article className={`ops-revenue-hero-v2 is-${dailyRevenueStatus}`}>
-              <div className="ops-revenue-hero-v2-top">
-                <span>Revenue pace</span>
-                <strong>{operatingStatusLabel(dailyRevenueStatus)}</strong>
-              </div>
-              <div className="ops-revenue-hero-v2-value">{money(grossRevenue)}</div>
-              <div className="ops-revenue-hero-v2-variance">
-                {signedPercent(dailyRevenueVariance)} against today&apos;s plan
-              </div>
-              <div className="ops-revenue-progress-v2" aria-label={`${dailyRevenueProgress.toFixed(0)}% of daily revenue goal`}>
-                <span style={{ width: `${dailyRevenueProgress}%` }} />
-              </div>
-              <div className="ops-revenue-hero-v2-foot">
-                <div><span>Daily goal</span><strong>{money(dailyRevenuePlan)}</strong></div>
-                <div><span>Remaining</span><strong>{money(dailyRevenueRemaining)}</strong></div>
-              </div>
-            </article>
-
-            <div className="ops-health-stack-v2" aria-label="Operating health scorecard">
-              {dailyPulseItems.slice(1).map((item) => (
-                <article className={`ops-health-card-v2 is-${item.status}`} key={item.label}>
-                  <div>
-                    <span>{item.label}</span>
-                    <small>{operatingStatusLabel(item.status)}</small>
-                  </div>
-                  <strong>{item.value}</strong>
-                  <p>Target {item.target}</p>
-                </article>
-              ))}
-            </div>
-
-            <aside className="ops-priority-column-v2">
-              <div className="ops-priority-column-v2-head">
-                <div>
-                  <span>Next actions</span>
-                  <strong>Manager queue</strong>
-                </div>
-                <small>{String(dailyActions.slice(0, 3).length).padStart(2, "0")}</small>
-              </div>
-              <div className="ops-priority-list-v2">
-                {dailyActions.slice(0, 3).map((action, index) => (
-                  <a className={`ops-priority-item-v2 is-${action.status}`} href={action.href} key={`${action.title}-${index}`}>
-                    <span>{String(index + 1).padStart(2, "0")}</span>
-                    <div>
-                      <strong>{action.title}</strong>
-                      <small>{action.detail}</small>
-                    </div>
-                    <b aria-hidden="true">→</b>
-                  </a>
-                ))}
-              </div>
-            </aside>
-          </div>
-        </section>
-
-        {marketing.available && marketing.lostLeads + marketing.needsFollowUp > 0 ? (
-          <div className="ops-card ops-command-marketing-alert">
-            <div>
-              <div className="ops-section-title">Marketing follow-up</div>
-              <div className="ops-muted">
-                {marketing.needsFollowUp} qualified call{marketing.needsFollowUp === 1 ? "" : "s"} need follow-up · {marketing.lostLeads} currently lost · {money(marketing.estimatedLostRevenue)} potential revenue
-              </div>
-            </div>
-            <a className="ops-refresh-button" href="/marketing?section=lost-leads">Work lost leads</a>
-          </div>
-        ) : null}
+        <CommandBrief
+          readiness={dailyReadiness}
+          overallStatus={dailyOverallStatus}
+          metrics={commandBriefMetrics}
+          signals={commandBriefSignals}
+          actions={dailyActions}
+        />
 
         {!metrics && (
         <div className="ops-card ops-alert-card">

@@ -77,9 +77,9 @@ export default function OpsShell({
           </div>
           <header className="ops-topbar">
             <div className="ops-topbar-identity">
-              <div className="ops-eyebrow">Junk King | Louisiana</div>
+              <div className="ops-eyebrow">Operations workspace</div>
               <div className="ops-topbar-title-row">
-                <h1>OpsCenter</h1>
+                <div className="ops-workspace-title">Junk King Louisiana</div>
               </div>
             </div>
 

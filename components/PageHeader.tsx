@@ -44,7 +44,7 @@ export default function PageHeader({
         <CurrentDataSync selectedDate={date} initialUpdatedAt={lastUpdated} />
       </Suspense>
       <div className="ops-page-header-copy">
-        <div className="ops-page-title">{title}</div>
+        <h1 className="ops-page-title">{title}</h1>
         {subtitle ? <div className="ops-muted ops-page-header-subtitle">{subtitle}</div> : null}
       </div>
 

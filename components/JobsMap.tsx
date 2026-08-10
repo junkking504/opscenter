@@ -1052,11 +1052,11 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     <section className="ops-card ops-jobs-map-card" id="jobs-map" aria-labelledby="jobs-map-title">
       <div className="ops-card-header compact ops-jobs-map-header">
         <div>
-          <div className="ops-section-title" id="jobs-map-title">Schedule Map</div>
+          <div className="ops-section-title" id="jobs-map-title">Dispatch workspace</div>
           <div className="ops-muted">
             {scheduleView
-              ? "Select a square for details, or drag it to a different truck and time slot."
-              : "Select any appointment square to see the customer, service address, and closest truck."}
+              ? "Select a job for details. Drag it to change the truck or appointment window."
+              : "Select a job to review the customer, service address, and closest truck."}
           </div>
         </div>
         <div className="ops-jobs-map-counts" aria-label="Map coverage">

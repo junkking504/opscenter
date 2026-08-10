@@ -32,13 +32,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <JunkKingLogo className="ops-login-junk-king-logo" />
           <div>
             <div className="ops-login-wordmark">OPSCENTER</div>
-            <div className="ops-login-designation">JUNK KING LOUISIANA // JKLA–01</div>
+            <div className="ops-login-designation">JUNK KING LOUISIANA</div>
           </div>
         </div>
         <div className="ops-login-hero">
-          <div className="ops-login-kicker"><span /> Operations intelligence</div>
-          <h1>Every crew.<br />Every truck.<br /><em>One command.</em></h1>
-          <p>Real-time visibility across production, people, fleet, and financial performance.</p>
+          <div className="ops-login-kicker"><span /> Louisiana operations</div>
+          <h1>Run the day.<br />Know the numbers.<br /><em>Keep moving.</em></h1>
+          <p>One clear workspace for jobs, crews, trucks, marketing, and financial performance.</p>
         </div>
         <div className="ops-login-system-line">
           <span><i /> System operational</span>
@@ -49,7 +49,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
       <section className="ops-login-access-panel">
         <div className="ops-login-access-card">
-          <div className="ops-login-access-index">SECURE ACCESS // 01</div>
+          <div className="ops-login-access-index">Secure sign in</div>
           <h2>Enter OpsCenter</h2>
           <p>Use your authorized Junk King email to continue.</p>
 
@@ -77,7 +77,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             ) : null}
 
             <button type="submit" className="ops-login-button">
-              <span>Authenticate</span><span aria-hidden="true">→</span>
+              <span>Continue</span><span aria-hidden="true">→</span>
             </button>
           </form>
 

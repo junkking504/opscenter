@@ -514,3 +514,42 @@
   .metrics { grid-template-columns: 1fr 1fr; }
   .metric:nth-child(5) { grid-column: 1 / -1; }
 }
+
+/* OpsCenter light-workspace redesign */
+.page { background: #eceeeb; color: #20242b; }
+.topbar { border-bottom-color: rgba(255,255,255,.1); background: rgba(24,27,33,.96); }
+.brand { color: #fff; }
+.brandMark { background: #ed1c24; }
+.logout { color: #adb4be; }
+.main { padding-top: 38px; }
+.eyebrow { color: #d8222a; }
+.updated, .sectionHeader p, .notice { color: #737b86; }
+.viewToggle { border-color: #d7dad6; background: #fff; }
+.viewOption { color: #68717c; }
+.viewOption:hover { color: #20242b; background: #f2f3f1; }
+.viewOptionActive, .viewOptionActive:hover { background: #20242b; color: #fff; box-shadow: none; }
+.summaryCard, .panel, .historyItem, .leaderboardPanel {
+  border-color: #d9dcd8;
+  background: #fff;
+  box-shadow: 0 7px 22px rgba(25,28,35,.045);
+}
+.summaryCardPrimary { border-color: #20242b; background: #20242b; color: #fff; }
+.summaryCardPrimary .cardLabel, .summaryCardPrimary .cardSub { color: #aeb4bd; }
+.performanceGrid, .monthSummary {
+  border-color: #d7dad6;
+  background: #fff;
+  box-shadow: 0 7px 22px rgba(25,28,35,.045);
+}
+.performanceCard, .monthSummaryCard, .metric { border-color: #e1e3e0; }
+.performanceCard strong, .monthSummaryCard strong, .metricValue, .crewName, .datePrimary, .table .pay { color: #20242b; }
+.privatePerformanceCard { background: #20242b; }
+.privatePerformanceCard strong { color: #ff777c; }
+.table th, .historyStat span { color: #777f89; }
+.table td { border-bottom-color: #e3e5e2; color: #343a43; }
+.leaderboardTable tbody tr:hover { background: #f7f8f6; }
+.leaderboardTable .youRow, .leaderboardTable .youRow:hover { background: #fff1f1; }
+.rank { background: #eff1ee; color: #5f6873; }
+.leaderboardTable tr:nth-child(1) .rank { background: #f7e8c5; color: #8d650c; }
+.youBadge { background: #fee8e8; color: #bd2027; }
+.historyItem:hover { border-color: #aeb4bd; }
+.notice { background: rgba(255,255,255,.6); }

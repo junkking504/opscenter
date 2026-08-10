@@ -2602,12 +2602,12 @@ export default async function JobsPage({
   return (
     <div className="ops-dashboard ops-jobs-page">
       <PageHeader
-        title="Jobs"
+        title={view === "daily" ? "Dispatch board" : "Jobs"}
         subtitle={isMonthView
           ? view === "calendar"
             ? `${month?.monthDisplay || monthlySummary?.monthDisplay || date.slice(0, 7)} schedule · ${calendarScheduledCount} appointment${calendarScheduledCount === 1 ? "" : "s"} on file`
             : `Monthly summary for ${month?.monthDisplay || monthlySummary?.monthDisplay || date.slice(0, 7)} · ${month?.warningLabel || "Monthly data"} · Data through ${month?.dataThroughLabel || date}`
-          : `${scheduleCopy.possessive} dispatch. Review the map, appointment details, and overall schedule.`}
+          : `${scheduleCopy.possessive} route plan · ${scheduledOpen} open · ${needsAttention} need attention`}
         date={date}
         dates={scheduleDates}
         showDateSelector={!isMonthView}
@@ -2626,10 +2626,6 @@ export default async function JobsPage({
           { label: "Monthly Summary", href: buildJobsHref({ date, view: "monthly", ...filters }), active: view === "monthly" },
         ]}
       />
-
-      {view === "daily" ? (
-        <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} />
-      ) : null}
 
       {monthlySummary && view === "calendar" ? (
         <section className="ops-card ops-jobs-calendar-card" aria-label={`${monthlySummary.monthDisplay} job calendar`}>
@@ -2734,7 +2730,7 @@ export default async function JobsPage({
 
       {(view === "daily" || (view === "monthly" && monthlySection === "overview")) ? <div className="ops-kpi-row ops-jobs-kpi-strip" id="jobs-overview">
         <div className={`ops-card ops-kpi-card ops-jobs-priority-card${needsAttention > 0 ? " has-attention" : ""}`}>
-          <div className="ops-card-title">Needs Attention</div>
+          <div className="ops-card-title">Needs attention</div>
           <div className="ops-kpi-value">{needsAttention}</div>
           <div className="ops-kpi-sub">
             {needsAttention
@@ -2744,13 +2740,13 @@ export default async function JobsPage({
         </div>
 
         <div className="ops-card ops-kpi-card">
-          <div className="ops-card-title">Scheduled / Open</div>
+          <div className="ops-card-title">Open jobs</div>
           <div className="ops-kpi-value">{scheduledOpen}</div>
           <div className="ops-kpi-sub">Upcoming appointments</div>
         </div>
 
         <div className="ops-card ops-kpi-card">
-          <div className="ops-card-title">Completed</div>
+          <div className="ops-card-title">Closed jobs</div>
           <div className="ops-kpi-value">{completed || completedVisible}</div>
           <div className="ops-kpi-sub">
             {monthlyAuthority && monthlyAuthority.jobDelta !== 0
@@ -3012,7 +3008,7 @@ export default async function JobsPage({
           {view !== "daily" ? <input type="hidden" name="view" value={view} /> : null}
           <label className="ops-jobs-search-field" htmlFor="jobs-search">
             <span className="ops-visually-hidden">Find a job</span>
-            <input id="jobs-search" name="q" defaultValue={filters.q} placeholder="Search JK, customer, phone, or address" />
+            <input id="jobs-search" name="q" defaultValue={filters.q} placeholder="Find a job, customer, phone, or address" />
           </label>
           <button type="submit" className="ops-jobs-search-button">Search</button>
           <details className="ops-jobs-filter-menu" open={hasActiveFilters && activeFilterCount > (filters.q ? 1 : 0)}>
@@ -3084,12 +3080,19 @@ export default async function JobsPage({
         ) : null}
       </div>
 
+      <nav className="ops-jobs-workspace-jump" aria-label="Dispatch workspace views">
+        <a href="#jobs-map">Map &amp; board</a>
+        <a href="#jobs-schedule">Appointment queue <small>{filterCount}</small></a>
+      </nav>
+
+      <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} />
+
       <div className="ops-card" id="jobs-schedule">
         <div className="ops-card-header compact">
           <div>
-            <div className="ops-section-title">{scheduleCopy.possessive} Schedule</div>
+            <div className="ops-section-title">Appointment queue</div>
             <div className="ops-muted">
-              Appointments are grouped by territory and kept in scheduled-time order, including completed jobs. Open a card only when you need contact, crew, or payment details.
+              {scheduleCopy.possessive} jobs, grouped by territory and ordered by appointment time.
             </div>
           </div>
           <div className="ops-job-count-pill">{filterCount} appointments</div>

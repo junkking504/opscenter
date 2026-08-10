@@ -195,6 +195,32 @@ When validating the isolated preview database and kernel, add:
 The coexistence verifier reports aggregate application health as a warning so
 data freshness can be handled separately without weakening isolation checks.
 
+### Install the isolated preview database
+
+PostgreSQL 18 must be installed through Homebrew without starting its default
+service. The OpsCenter installer creates its own cluster, Unix socket, app
+role, database, and LaunchAgent:
+
+```sh
+brew install postgresql@18
+cd /Users/missioncontrol/opscenter-v2/opscenter
+./deploy/macmini/install-postgres-preview.sh
+```
+
+The preview cluster uses a Unix socket under the protected OpsCenter support
+directory and has no TCP listener. It does not change `production.env` and it
+refuses to proceed if Homebrew's default PostgreSQL service is loaded.
+
+Run schema migrations from the release being validated, with the preview
+runtime and database URL loaded from the protected preview environment. Then
+verify the cluster and exercise backup/restore:
+
+```sh
+./deploy/macmini/verify-postgres-preview.sh
+./deploy/macmini/test-postgres-preview-backup.sh
+./deploy/macmini/verify-coexistence.sh --require-preview-kernel
+```
+
 ## Future production preparation
 
 The `production-launchd` directory contains the final service definitions for

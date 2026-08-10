@@ -128,6 +128,11 @@ if $REQUIRE_PREVIEW_KERNEL; then
   else
     fail "preview platform kernel configuration is incomplete"
   fi
+  if "$(dirname "$0")/verify-postgres-preview.sh" >/dev/null; then
+    pass "preview PostgreSQL isolation checks pass"
+  else
+    fail "preview PostgreSQL isolation checks failed"
+  fi
 fi
 
 if (( FAILURES > 0 )); then

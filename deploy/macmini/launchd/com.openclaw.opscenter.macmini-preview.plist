@@ -6,22 +6,24 @@
   <string>com.openclaw.opscenter.macmini-preview</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/missioncontrol/opscenter-v2/opscenter/deploy/macmini/run-preview.sh</string>
+    <string>/Users/missioncontrol/opscenter-v2/opscenter-preview/deploy/macmini/run-preview.sh</string>
   </array>
   <key>WorkingDirectory</key>
-  <string>/Users/missioncontrol/opscenter-v2/opscenter</string>
+  <string>/Users/missioncontrol/opscenter-v2/opscenter-preview</string>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
   <true/>
   <key>StandardOutPath</key>
-  <string>/Users/missioncontrol/opscenter-v2/opscenter/logs/macmini_preview.out.log</string>
+    <string>/Users/missioncontrol/opscenter-v2/opscenter-preview/logs/macmini_preview.out.log</string>
   <key>StandardErrorPath</key>
-  <string>/Users/missioncontrol/opscenter-v2/opscenter/logs/macmini_preview.err.log</string>
+    <string>/Users/missioncontrol/opscenter-v2/opscenter-preview/logs/macmini_preview.err.log</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>HOME</key>
     <string>/Users/missioncontrol</string>
+    <key>OPSCENTER_PREVIEW_APP_DIR</key>
+    <string>/Users/missioncontrol/opscenter-v2/opscenter-preview</string>
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>

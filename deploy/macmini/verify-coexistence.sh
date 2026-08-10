@@ -4,6 +4,7 @@ set -euo pipefail
 EXPECTED_USER="missioncontrol"
 EXPECTED_HOME="/Users/missioncontrol"
 APP_DIR="$EXPECTED_HOME/opscenter-v2/opscenter"
+PREVIEW_APP_DIR="$EXPECTED_HOME/opscenter-v2/opscenter-preview"
 DATA_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/data"
 CONFIG_DIR="$EXPECTED_HOME/Library/Application Support/OpsCenter"
 PRODUCTION_ENV="$CONFIG_DIR/production.env"
@@ -84,12 +85,23 @@ check_mode() {
 [[ "$(id -un)" == "$EXPECTED_USER" ]] && pass "running as $EXPECTED_USER" || fail "expected user $EXPECTED_USER"
 [[ "$HOME" == "$EXPECTED_HOME" ]] && pass "home directory is $EXPECTED_HOME" || fail "unexpected HOME: $HOME"
 [[ -L "$APP_DIR" ]] && pass "live application path is a release symlink" || fail "$APP_DIR must be a release symlink"
+[[ -L "$PREVIEW_APP_DIR" ]] && pass "preview application path is a release symlink" || fail "$PREVIEW_APP_DIR must be a release symlink"
+if [[ -L "$APP_DIR" && -L "$PREVIEW_APP_DIR" && "$(readlink "$APP_DIR")" != "$(readlink "$PREVIEW_APP_DIR")" ]]; then
+  pass "production and preview use distinct release targets"
+else
+  fail "production and preview must use distinct release targets"
+fi
 [[ -d "$DATA_DIR" ]] && pass "authoritative OpsBot data exists" || fail "missing authoritative OpsBot data"
 
 if [[ -L "$APP_DIR/data" && "$(readlink "$APP_DIR/data")" == "$DATA_DIR" ]]; then
   pass "application data link targets authoritative Mission Control data"
 else
   fail "application data link is missing or incorrect"
+fi
+if [[ -L "$PREVIEW_APP_DIR/data" && "$(readlink "$PREVIEW_APP_DIR/data")" == "$DATA_DIR" ]]; then
+  pass "preview data link targets authoritative Mission Control data"
+else
+  fail "preview data link is missing or incorrect"
 fi
 
 for label in \

@@ -3,7 +3,7 @@ set -euo pipefail
 
 EXPECTED_USER="missioncontrol"
 EXPECTED_HOME="/Users/missioncontrol"
-APP_DIR="$EXPECTED_HOME/opscenter-v2/opscenter"
+APP_DIR="${OPSCENTER_PREVIEW_APP_DIR:-$EXPECTED_HOME/opscenter-v2/opscenter-preview}"
 DATA_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/data"
 ENV_FILE="$EXPECTED_HOME/Library/Application Support/OpsCenter/macmini-preview.env"
 PORT="3100"

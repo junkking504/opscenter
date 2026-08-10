@@ -4,6 +4,7 @@ set -euo pipefail
 EXPECTED_USER="missioncontrol"
 EXPECTED_HOME="/Users/missioncontrol"
 APP_DIR="$EXPECTED_HOME/opscenter-v2/opscenter"
+PREVIEW_APP_LINK="$EXPECTED_HOME/opscenter-v2/opscenter-preview"
 DATA_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/data"
 DATA_LINK="$APP_DIR/data"
 PREVIEW_ENV_DIR="$EXPECTED_HOME/Library/Application Support/OpsCenter"
@@ -70,6 +71,14 @@ chmod 600 "$PREVIEW_ENV"
 
 chmod 755 "$APP_DIR/deploy/macmini/run-preview.sh" "$APP_DIR/deploy/macmini/verify-preview.sh"
 plutil -lint "$SOURCE_PLIST"
+
+if [[ -L "$PREVIEW_APP_LINK" ]]; then
+  [[ "$(readlink "$PREVIEW_APP_LINK")" == "$APP_DIR" ]] || fail "$PREVIEW_APP_LINK points to an unexpected location"
+elif [[ -e "$PREVIEW_APP_LINK" ]]; then
+  fail "$PREVIEW_APP_LINK exists but is not a symbolic link"
+else
+  ln -s "$APP_DIR" "$PREVIEW_APP_LINK"
+fi
 
 cd "$APP_DIR"
 npm ci

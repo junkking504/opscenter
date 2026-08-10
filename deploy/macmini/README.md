@@ -62,6 +62,37 @@ automatically restores the previous live link and restarts the prior release.
 
 To roll back manually, deploy the previous commit SHA with the same command.
 
+### Preview-only deployments after cutover
+
+Production and preview must not share the same stable release symlink after
+cutover. Production continues to use:
+
+```text
+/Users/missioncontrol/opscenter-v2/opscenter
+```
+
+Preview uses a separate link and release tree:
+
+```text
+/Users/missioncontrol/opscenter-v2/opscenter-preview
+/Users/missioncontrol/opscenter-v2/preview-releases/<commit>
+```
+
+After pushing the intended commit, deploy only preview with:
+
+```sh
+./deploy/macmini/deploy-preview-from-macbook.sh <mc-host> HEAD
+```
+
+Or use `OPSCENTER_MC_HOST` as with production deployments. The preview deploy
+builds in the preview release tree, runs kernel migrations, atomically switches
+only the preview link, restarts only the preview LaunchAgent, verifies both
+runtimes, and restores the previous preview link if validation fails. It records
+and checks the production link before and after activation.
+
+Do not use `deploy-release.sh` for preview after cutover; when production is
+loaded that script deliberately targets production.
+
 ## Initial isolated preview transfer
 
 This package prepares a second OpsCenter instance for the macOS account

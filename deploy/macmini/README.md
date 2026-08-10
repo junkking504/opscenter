@@ -168,6 +168,33 @@ cd /Users/missioncontrol/opscenter-v2/opscenter
 Every check must report `PASS`. In particular, the production collector and
 Cloudflare tunnel must report as unloaded.
 
+`verify-preview.sh` is a pre-cutover verifier. It is intentionally expected to
+fail after Mission Control becomes production because production services are
+then loaded.
+
+## Post-cutover production and preview coexistence
+
+After a supervised cutover, use the separate coexistence verifier:
+
+```sh
+cd /Users/missioncontrol/opscenter-v2/opscenter
+./deploy/macmini/verify-coexistence.sh
+```
+
+This verifies that production and preview are distinct localhost listeners,
+report their expected runtimes, use protected environment files, and keep the
+new platform kernel disabled in production. It does not require production
+services to be unloaded.
+
+When validating the isolated preview database and kernel, add:
+
+```sh
+./deploy/macmini/verify-coexistence.sh --require-preview-kernel
+```
+
+The coexistence verifier reports aggregate application health as a warning so
+data freshness can be handled separately without weakening isolation checks.
+
 ## Future production preparation
 
 The `production-launchd` directory contains the final service definitions for

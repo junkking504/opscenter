@@ -3,6 +3,7 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { getOpsRuntime } from "@/lib/runtime";
 import { chicagoDateKey } from "@/lib/report-dates";
+import { getKernelDatabaseHealth } from "@/lib/platform/persistence/health";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,7 @@ function writableStateTarget(directory: string): string {
 
 export async function GET(request: Request) {
   const runtime = getOpsRuntime();
+  const platformKernel = await getKernelDatabaseHealth();
   const metricsDirectory = path.join(process.cwd(), "data", "history", "daily_metrics");
   const expectedMetricsDate = chicagoDateKey();
   const requestedDate = new URL(request.url).searchParams.get("date") || "";
@@ -80,6 +82,7 @@ export async function GET(request: Request) {
     assignmentStoreWritable,
     operatorStateWritable,
     operatorStateUnwritable,
+    platformKernel,
   };
 
   if (!metricsFile) {
@@ -95,7 +98,7 @@ export async function GET(request: Request) {
     const metricsDate = path.basename(metricsFile).slice("daily_metrics_".length, -".json".length);
     const monitorsCurrentDate = metricsDate === expectedMetricsDate;
     const stale = monitorsCurrentDate && ageSeconds > maxAgeSeconds;
-    const healthy = !stale && assignmentStoreWritable && operatorStateWritable;
+    const healthy = !stale && assignmentStoreWritable && operatorStateWritable && platformKernel.healthy;
     return NextResponse.json(
       {
         ok: healthy,
@@ -105,7 +108,9 @@ export async function GET(request: Request) {
             ? "assignment-storage-unwritable"
             : !operatorStateWritable
               ? "operator-storage-unwritable"
-              : monitorsCurrentDate ? "healthy" : "available",
+              : !platformKernel.healthy
+                ? "platform-kernel-unhealthy"
+                : monitorsCurrentDate ? "healthy" : "available",
         runtime,
         metricsDate,
         latestMetricsDate,

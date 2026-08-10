@@ -19,6 +19,8 @@
     "verify:searchkings": "node --import tsx scripts/test-searchkings.ts",
     "verify:junkware-sms": "node --import tsx scripts/test-junkware-sms.ts",
     "verify:ops-auth": "node --import tsx scripts/test-ops-auth.ts",
+    "verify:platform-kernel": "node --import tsx scripts/test-platform-kernel.ts",
+    "platform:migrate": "node --import tsx scripts/migrate-platform-kernel.ts",
     "alerts:slack": "node --import tsx scripts/publish-slack-alerts.ts"
   },
   "dependencies": {
@@ -29,6 +31,7 @@
     "chart.js": "^4.4.3",
     "leaflet": "^1.9.4",
     "next": "^15.5.19",
+    "pg": "^8.23.0",
     "postcss": "^8.4.39",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
@@ -39,6 +42,7 @@
     "@opennextjs/cloudflare": "^1.19.11",
     "@playwright/test": "^1.61.1",
     "@types/leaflet": "^1.9.21",
+    "@types/pg": "^8.21.0",
     "eslint": "^8.57.0",
     "eslint-config-next": "^15.5.19",
     "tsx": "^4.22.4",

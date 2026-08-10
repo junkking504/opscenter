@@ -1,16 +1,30 @@
-# OpsCenter v1
+# OpsCenter
 
-Local read-only operations dashboard for Junk King Operations.
+OpsCenter is evolving from an operations dashboard into the operating control
+plane for Junk King Operations: one place to understand current state, own
+work, execute policy-controlled actions, and verify outcomes.
+
+The current application includes dashboard, Jobs, Crew, Fleet, Marketing, and
+Finance surfaces plus selected operational write workflows. The original daily
+metrics file remains the primary read projection while the platform kernel is
+built underneath the existing application.
+
+## Product direction
+
+- [OpsCenter OS Constitution](docs/OPSCENTER_OS_CONSTITUTION.md)
+- [Platform Kernel Architecture](docs/PLATFORM_KERNEL_ARCHITECTURE.md)
+- [Operating Inbox: First Vertical Slice](docs/OPERATING_INBOX_VERTICAL_SLICE.md)
 
 ## Data Source
 
-OpsCenter reads one local file:
+The primary dashboard projection is read from:
 
 ```text
 ../opsbot/data/processed/daily_metrics.json
 ```
 
-It does not connect directly to Junkware, QuickBooks Online, LinxUp, databases, or live APIs.
+Several operational workflows also use narrowly scoped integrations documented
+under `docs/`. Consult the platform architecture before adding a new write path.
 
 ## Start
 

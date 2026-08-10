@@ -1,4 +1,5 @@
 import PageHeader from "@/components/PageHeader";
+import OperatingInbox from "@/components/OperatingInbox";
 import CommandBrief, {
   type CommandBriefMetric,
   type CommandBriefSignal,
@@ -708,6 +709,8 @@ export default async function DashboardPage({
           signals={commandBriefSignals}
           actions={dailyActions}
         />
+
+        <OperatingInbox date={date} variant="command" />
 
         {!metrics && (
         <div className="ops-card ops-alert-card">

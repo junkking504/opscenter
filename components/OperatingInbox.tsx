@@ -57,7 +57,13 @@ async function responseJson<T>(response: Response): Promise<T> {
   return payload;
 }
 
-export default function OperatingInbox({ date }: { date: string }) {
+export default function OperatingInbox({
+  date,
+  variant = "standalone",
+}: {
+  date: string;
+  variant?: "standalone" | "command";
+}) {
   const [payload, setPayload] = useState<InboxPayload | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [events, setEvents] = useState<InboxEvent[]>([]);
@@ -173,7 +179,17 @@ export default function OperatingInbox({ date }: { date: string }) {
   if (!payload) return null;
 
   return (
-    <div className={styles.shell}>
+    <div className={`${styles.shell}${variant === "command" ? ` ${styles.command}` : ""}`} id={variant === "command" ? "operating-inbox" : undefined}>
+      {variant === "command" ? (
+        <div className={styles.commandHead}>
+          <div>
+            <div className={styles.kicker}><span /> Operating Inbox</div>
+            <h2>Work requiring a decision</h2>
+            <p>Signals become assigned work, controlled actions, and auditable outcomes.</p>
+          </div>
+          <Link className={styles.focusLink} href={`/inbox?date=${encodeURIComponent(date)}`}>Open focused view →</Link>
+        </div>
+      ) : null}
       <div className={styles.metrics}>
         <div className={styles.metric}><span>Active work</span><strong>{payload.counts.active}</strong></div>
         <div className={styles.metric}><span>Assigned to me</span><strong>{payload.counts.mine}</strong></div>

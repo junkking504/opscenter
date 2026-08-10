@@ -9,18 +9,18 @@ import {
   clearLegacyAuthCookieNames,
   createAuthSessionCookieValue,
   createTrustedDeviceCookieValue,
-  isValidJunkKingEmail,
-  normalizeAuthEmail,
+  opsAuthIdentity,
   sanitizeAuthRedirectTarget,
   trustedDeviceCookieOptionsForRequest,
+  verifyOpsCredentials,
 } from "@/lib/auth";
 
-async function buildInvalidEmailResponse(request: Request, next: string, json = false) {
+async function buildInvalidCredentialsResponse(request: Request, next: string, json = false) {
   if (json) {
     return NextResponse.json(
       {
         ok: false,
-        error: "Please enter a valid @junk-king.com email address.",
+        error: "Invalid username or password.",
       },
       {
         status: 400,
@@ -33,7 +33,7 @@ async function buildInvalidEmailResponse(request: Request, next: string, json = 
 
   const url = new URL("/login", resolveRequestOrigin(request));
   if (next) url.searchParams.set("next", next);
-  url.searchParams.set("error", "invalid-email");
+  url.searchParams.set("error", "invalid-credentials");
   return NextResponse.redirect(url);
 }
 
@@ -54,26 +54,30 @@ export async function POST(request: Request) {
     contentType,
   });
 
-  let emailRaw = "";
+  let usernameRaw = "";
+  let passwordRaw = "";
   let redirectTarget = next;
 
   if (contentType.includes("application/json")) {
     const body = await request.json().catch(() => null);
     if (body && typeof body === "object") {
-      emailRaw = String((body as Record<string, unknown>).email || "");
+      usernameRaw = String((body as Record<string, unknown>).username || "");
+      passwordRaw = String((body as Record<string, unknown>).password || "");
       redirectTarget = sanitizeAuthRedirectTarget((body as Record<string, unknown>).next);
     }
   } else {
     const formData = await request.formData();
-    emailRaw = String(formData.get("email") || "");
+    usernameRaw = String(formData.get("username") || "");
+    passwordRaw = String(formData.get("password") || "");
     redirectTarget = sanitizeAuthRedirectTarget(formData.get("next"));
   }
 
-  const email = normalizeAuthEmail(emailRaw);
-  if (!isValidJunkKingEmail(email)) {
-    console.info("[auth] rejected email", email || "(blank)");
-    return buildInvalidEmailResponse(request, redirectTarget, acceptsJson);
+  if (!(await verifyOpsCredentials(usernameRaw, passwordRaw))) {
+    console.info("[auth] rejected credentials", usernameRaw ? "username-present" : "username-blank");
+    return buildInvalidCredentialsResponse(request, redirectTarget, acceptsJson);
   }
+
+  const email = opsAuthIdentity();
 
   const sessionValue = await createAuthSessionCookieValue(email);
   const response = NextResponse.redirect(new URL(redirectTarget, requestOrigin));
@@ -92,8 +96,8 @@ export async function POST(request: Request) {
     ),
   );
   response.headers.set("Cache-Control", "no-store, max-age=0");
-  console.info("[auth] accepted email", email);
-  console.info("[auth] session created for", email);
+  console.info("[auth] accepted username", usernameRaw.trim().toLowerCase());
+  console.info("[auth] session created");
   console.info("[auth] cookie options", {
     secure: cookieSecure,
     httpOnly: true,
@@ -101,6 +105,5 @@ export async function POST(request: Request) {
     path: "/",
   });
   console.info("[auth] redirect target", redirectTarget);
-  console.info("[auth] verification email function not invoked");
   return response;
 }

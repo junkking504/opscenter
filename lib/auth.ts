@@ -130,6 +130,65 @@ export function normalizeAuthEmail(value: unknown): string {
   return String(value || "").trim().toLowerCase();
 }
 
+export function normalizeAuthUsername(value: unknown): string {
+  return String(value || "").trim().toLowerCase();
+}
+
+function constantTimeEqual(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.length !== right.length) return false;
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    difference |= left[index] ^ right[index];
+  }
+  return difference === 0;
+}
+
+export function opsAuthIdentity(): string {
+  const username = normalizeAuthUsername(process.env.OPS_AUTH_USERNAME);
+  return username ? `${username}@junk-king.com` : "";
+}
+
+export async function verifyOpsCredentials(usernameValue: unknown, passwordValue: unknown): Promise<boolean> {
+  const configuredUsername = normalizeAuthUsername(process.env.OPS_AUTH_USERNAME);
+  const username = normalizeAuthUsername(usernameValue);
+  const password = String(passwordValue || "");
+  const passwordHash = String(process.env.OPS_AUTH_PASSWORD_HASH || "").trim();
+  if (!configuredUsername || !username || !password || username !== configuredUsername || !passwordHash) {
+    return false;
+  }
+
+  const [algorithm, iterationsRaw, saltRaw, expectedRaw] = passwordHash.split("$");
+  const iterations = Number.parseInt(iterationsRaw, 10);
+  if (algorithm !== "pbkdf2-sha256" || !Number.isSafeInteger(iterations) || iterations < 100_000 || !saltRaw || !expectedRaw) {
+    return false;
+  }
+
+  try {
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(password),
+      "PBKDF2",
+      false,
+      ["deriveBits"],
+    );
+    const expected = base64UrlDecode(expectedRaw);
+    const salt = Uint8Array.from(base64UrlDecode(saltRaw)).buffer;
+    const derived = new Uint8Array(await crypto.subtle.deriveBits(
+      {
+        name: "PBKDF2",
+        hash: "SHA-256",
+        salt,
+        iterations,
+      },
+      key,
+      expected.length * 8,
+    ));
+    return constantTimeEqual(derived, expected);
+  } catch {
+    return false;
+  }
+}
+
 function normalizeDeviceUserAgent(value: string | null | undefined): string {
   return String(value || "")
     .trim()

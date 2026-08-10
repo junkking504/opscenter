@@ -152,8 +152,9 @@ Open the preview directly on the Mac Mini:
 http://127.0.0.1:3100
 ```
 
-Use an authorized `@junk-king.com` email on the local login screen. Preview
-authentication is local and uses a secret generated specifically for the Mini.
+Use the shared username and password on the local login screen. Configure
+`OPS_AUTH_USERNAME` and a salted `OPS_AUTH_PASSWORD_HASH` in the protected
+runtime environment; never store the password in the repository.
 
 ## 5. Verify isolation
 

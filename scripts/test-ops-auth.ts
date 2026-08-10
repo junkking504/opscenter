@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { pbkdf2Sync } from "node:crypto";
-import { opsAuthIdentity, verifyOpsCredentials } from "../lib/auth";
+import { opsAuthDisplayName, opsAuthIdentity, publicAuthRoute, verifyOpsCredentials } from "../lib/auth";
 
 const base64Url = (value: Buffer) => value.toString("base64url");
 const username = "test-operator";
@@ -18,6 +18,10 @@ async function main() {
   assert.equal(await verifyOpsCredentials(username, "wrong password"), false);
   assert.equal(await verifyOpsCredentials("wrong-user", password), false);
   assert.equal(opsAuthIdentity(), `${username}@junk-king.com`);
+  assert.equal(opsAuthDisplayName(opsAuthIdentity()), username);
+  assert.equal(opsAuthDisplayName("manager@junk-king.com"), "manager@junk-king.com");
+  assert.equal(publicAuthRoute("/junk-king-logo.svg"), true);
+  assert.equal(publicAuthRoute("/fleet"), false);
 
   console.log("OpsCenter username/password authentication checks passed.");
 }

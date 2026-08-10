@@ -229,7 +229,7 @@ export default function FleetMaintenanceRecords({
       <div className="ops-card ops-linxup-vehicle-card">
         <div className="ops-card-header compact ops-maintenance-header">
           <div>
-            <div className="ops-section-title">Linxup vehicle details</div>
+            <div className="ops-section-title">Linxup Vehicle Details</div>
             <div className="ops-muted">VIN, license plate, and latest odometer from the {linxupInventory.sourceDate || "current"} Linxup vehicle feed.</div>
           </div>
           <div className={`ops-linxup-coverage ${platesOnFile < linxupInventory.vehicles.length ? "has-gaps" : ""}`}>
@@ -264,7 +264,7 @@ export default function FleetMaintenanceRecords({
       <div className="ops-card ops-maintenance-card">
         <div className="ops-card-header compact ops-maintenance-header">
           <div>
-            <div className="ops-section-title">Maintenance records</div>
+            <div className="ops-section-title">Maintenance Records</div>
             <div className="ops-muted">Log completed work and schedule upcoming service for every truck.</div>
           </div>
           <button type="button" className="ops-refresh-button" onClick={startNew}>Add maintenance</button>

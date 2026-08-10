@@ -23,23 +23,27 @@ type LiveClockProps = {
 };
 
 function useLiveClock(props: LiveClockProps) {
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
   const isOpenHourlyShift = Boolean(props.clockIn) && !props.clockOut && !props.isSalary;
 
   useEffect(() => {
     if (!isOpenHourlyShift) return;
+    setNow(new Date());
     const timer = window.setInterval(() => setNow(new Date()), 30000);
     return () => window.clearInterval(timer);
   }, [isOpenHourlyShift]);
 
   return useMemo(
-    () => calculateLivePay({ ...props, now }),
-    [props, now],
+    () => isOpenHourlyShift && !now
+      ? null
+      : calculateLivePay({ ...props, now: now || new Date(`${props.date}T12:00:00Z`) }),
+    [isOpenHourlyShift, props, now],
   );
 }
 
 export function LiveClockSummary(props: LiveClockProps) {
   const result = useLiveClock(props);
+  if (!result) return <span className="ops-cell-secondary">Updating…</span>;
   if (!result.valid || result.state === "salary") {
     return <span className="ops-cell-secondary">{result.message || result.throughLabel}</span>;
   }
@@ -68,6 +72,9 @@ export default function LiveClockPay({
   compact?: boolean;
 }) {
   const result = useLiveClock({ date, clockIn, clockOut, hourlyRate, totalBonus, tips, isSalary });
+  if (!result) {
+    return <div className={`ops-pay-stack${compact ? " ops-pay-stack-compact" : ""}`}>Updating…</div>;
+  }
   const unavailable = !result.valid || result.state === "salary";
   const detail = result.message || result.throughLabel;
 

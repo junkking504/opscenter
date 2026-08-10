@@ -15,6 +15,8 @@ import {
   verifyOpsCredentials,
 } from "@/lib/auth";
 
+const authDebug = process.env.OPS_AUTH_DEBUG === "1";
+
 async function buildInvalidCredentialsResponse(request: Request, next: string, json = false) {
   if (json) {
     return NextResponse.json(
@@ -23,7 +25,7 @@ async function buildInvalidCredentialsResponse(request: Request, next: string, j
         error: "Invalid username or password.",
       },
       {
-        status: 400,
+        status: 401,
         headers: {
           "Cache-Control": "no-store, max-age=0",
         },
@@ -34,7 +36,7 @@ async function buildInvalidCredentialsResponse(request: Request, next: string, j
   const url = new URL("/login", resolveRequestOrigin(request));
   if (next) url.searchParams.set("next", next);
   url.searchParams.set("error", "invalid-credentials");
-  return NextResponse.redirect(url);
+  return NextResponse.redirect(url, 303);
 }
 
 export async function POST(request: Request) {
@@ -45,14 +47,16 @@ export async function POST(request: Request) {
   const next = sanitizeAuthRedirectTarget(requestUrl.searchParams.get("next"));
   const cookieSecure = authCookieOptionsForRequest(request, new Date(Date.now() + AUTH_SESSION_MAX_AGE_SECONDS * 1000)).secure;
 
-  console.info("[auth] login POST received", {
-    host: request.headers.get("host"),
-    forwardedHost: request.headers.get("x-forwarded-host"),
-    forwardedProto: request.headers.get("x-forwarded-proto"),
-    path: requestUrl.pathname,
-    next,
-    contentType,
-  });
+  if (authDebug) {
+    console.info("[auth] login POST received", {
+      host: request.headers.get("host"),
+      forwardedHost: request.headers.get("x-forwarded-host"),
+      forwardedProto: request.headers.get("x-forwarded-proto"),
+      path: requestUrl.pathname,
+      next,
+      contentType,
+    });
+  }
 
   let usernameRaw = "";
   let passwordRaw = "";
@@ -73,14 +77,16 @@ export async function POST(request: Request) {
   }
 
   if (!(await verifyOpsCredentials(usernameRaw, passwordRaw))) {
-    console.info("[auth] rejected credentials", usernameRaw ? "username-present" : "username-blank");
+    if (authDebug) {
+      console.info("[auth] rejected credentials", usernameRaw ? "username-present" : "username-blank");
+    }
     return buildInvalidCredentialsResponse(request, redirectTarget, acceptsJson);
   }
 
   const email = opsAuthIdentity();
 
   const sessionValue = await createAuthSessionCookieValue(email);
-  const response = NextResponse.redirect(new URL(redirectTarget, requestOrigin));
+  const response = NextResponse.redirect(new URL(redirectTarget, requestOrigin), 303);
   clearLegacyAuthCookieNames(response, cookieSecure);
   response.cookies.set(
     AUTH_SESSION_COOKIE,
@@ -96,14 +102,16 @@ export async function POST(request: Request) {
     ),
   );
   response.headers.set("Cache-Control", "no-store, max-age=0");
-  console.info("[auth] accepted username", usernameRaw.trim().toLowerCase());
-  console.info("[auth] session created");
-  console.info("[auth] cookie options", {
-    secure: cookieSecure,
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-  });
-  console.info("[auth] redirect target", redirectTarget);
+  if (authDebug) {
+    console.info("[auth] accepted credentials", "username-present");
+    console.info("[auth] session created");
+    console.info("[auth] cookie options", {
+      secure: cookieSecure,
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+    });
+    console.info("[auth] redirect target", redirectTarget);
+  }
   return response;
 }

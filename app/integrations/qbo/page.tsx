@@ -28,7 +28,7 @@ export default function QboPage() {
       <div className="ops-card">
         <div className="ops-card-header compact">
           <div>
-            <div className="ops-section-title">Connection overview</div>
+            <div className="ops-section-title">Connection Overview</div>
             <div className="ops-muted">This page is public and designed for Intuit app review and internal setup.</div>
           </div>
           <Link href="/api/integrations/qbo/connect" className="ops-button">
@@ -78,7 +78,7 @@ export default function QboPage() {
 
         <div className="ops-compact-links">
           <Link href="/integrations/qbo/status">Connection status</Link>
-          <Link href="/integrations/qbo/disconnected">Disconnect confirmation</Link>
+          <Link href="/integrations/qbo/disconnected">Disconnect Confirmation</Link>
           <Link href="/legal/privacy">Privacy Policy</Link>
           <Link href="/legal/terms">Terms of Use</Link>
           <Link href="/support">Support</Link>

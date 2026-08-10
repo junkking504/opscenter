@@ -39,7 +39,11 @@ export default function CurrentDataSync({
   }, [parsedInitialUpdatedAt, selectedDate]);
 
   const syncCurrentData = useCallback(async () => {
-    if (navigatingRef.current || searchParams.get("mode") === "historical") return;
+    if (
+      navigatingRef.current ||
+      searchParams.get("mode") === "historical" ||
+      document.visibilityState === "hidden"
+    ) return;
 
     try {
       const response = await fetch(`/api/health?date=${encodeURIComponent(selectedDate)}`, { cache: "no-store" });

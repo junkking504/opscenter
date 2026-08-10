@@ -63,7 +63,7 @@ export default async function MarketingPage({ searchParams }: { searchParams?: P
 
       {!view.available ? (
         <div className="ops-card ops-alert-card">
-          <div className="ops-section-title">Waiting for the first SearchKings refresh</div>
+          <div className="ops-section-title">Waiting for the First SearchKings Refresh</div>
           <div className="ops-muted">{view.error} Once the signed-in collector publishes a snapshot, this page will fill in automatically.</div>
         </div>
       ) : null}

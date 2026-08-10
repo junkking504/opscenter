@@ -3,6 +3,7 @@ import PageRefreshButton from "@/components/PageRefreshButton";
 import CurrentDataSync from "@/components/CurrentDataSync";
 import { availableDates } from "@/lib/opsData";
 import { stableUpdatedAt } from "@/lib/stable-date";
+import { titleCaseLabel } from "@/lib/title-case";
 import { Suspense, type ReactNode } from "react";
 
 export default function PageHeader({
@@ -44,7 +45,7 @@ export default function PageHeader({
         <CurrentDataSync selectedDate={date} initialUpdatedAt={lastUpdated} />
       </Suspense>
       <div className="ops-page-header-copy">
-        <h1 className="ops-page-title">{title}</h1>
+        <h1 className="ops-page-title">{titleCaseLabel(title)}</h1>
         {subtitle ? <div className="ops-muted ops-page-header-subtitle">{subtitle}</div> : null}
       </div>
 
@@ -72,7 +73,7 @@ export default function PageHeader({
               className={`${section.active ? "active" : ""}${section.attention ? " needs-attention" : ""}`}
               aria-current={section.active ? "page" : undefined}
             >
-              <span>{section.label}</span>
+              <span>{titleCaseLabel(section.label)}</span>
               {section.badge !== undefined ? <small>{section.badge}</small> : null}
             </a>
           ))}

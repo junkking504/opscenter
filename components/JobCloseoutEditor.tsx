@@ -210,7 +210,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
             </div>
 
             <section className="ops-closeout-editor-section">
-              <h4>Crew assigned to this job</h4>
+              <h4>Crew Assigned to This Job</h4>
               <label>
                 <span>Driver</span>
                 <select value={live.driver.value} onChange={(event) => update("driver", { value: event.target.value, label: event.target.selectedOptions[0]?.text || "" })}>
@@ -234,7 +234,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
             </section>
 
             <section className="ops-closeout-editor-section">
-              <h4>Job charges</h4>
+              <h4>Job Charges</h4>
               <div className="ops-closeout-editor-grid">
                 <label><span>Truck quantity</span><input value={live.loadQuantity} inputMode="decimal" onChange={(event) => update("loadQuantity", event.target.value)} /></label>
                 <label><span>Load size</span><select value={live.loadSize.value} onChange={(event) => updateSelect("loadSize", event.target.value)}>{live.loadSize.options.map((option) => <option key={`load-${option.value}`} value={option.value}>{option.label || "Full truck / none"}</option>)}</select></label>
@@ -247,7 +247,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
                 <label><span>Job category</span><select value={live.jobCategory.value} onChange={(event) => updateSelect("jobCategory", event.target.value)}>{live.jobCategory.options.map((option) => <option key={`category-${option.value}`} value={option.value}>{option.label || "Choose category"}</option>)}</select></label>
               </div>
               <div className="ops-closeout-other-charges">
-                <h5>Other charges</h5>
+                <h5>Other Charges</h5>
                 {live.otherCharges.length ? (
                   <div className="ops-closeout-charge-list" aria-label="Existing Other Charges">
                     {live.otherCharges.map((charge, index) => (
@@ -285,7 +285,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
             </section>
 
             <section className="ops-closeout-editor-section">
-              <h4>Actual job time</h4>
+              <h4>Actual Job Time</h4>
               <div className="ops-closeout-time-grid">
                 <span>Started</span>
                 <select value={live.actualStartHour.value} onChange={(event) => updateSelect("actualStartHour", event.target.value)}>{live.actualStartHour.options.map((option) => <option key={`sh-${option.value}`} value={option.value}>{option.label}</option>)}</select>

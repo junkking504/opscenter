@@ -3082,7 +3082,7 @@ export default async function JobsPage({
 
       <nav className="ops-jobs-workspace-jump" aria-label="Dispatch workspace views">
         <a href="#jobs-map">Map &amp; board</a>
-        <a href="#jobs-schedule">Appointment queue <small>{filterCount}</small></a>
+        <a href="#jobs-schedule">Appointment Queue <small>{filterCount}</small></a>
       </nav>
 
       <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} />
@@ -3090,7 +3090,7 @@ export default async function JobsPage({
       <div className="ops-card" id="jobs-schedule">
         <div className="ops-card-header compact">
           <div>
-            <div className="ops-section-title">Appointment queue</div>
+            <div className="ops-section-title">Appointment Queue</div>
             <div className="ops-muted">
               {scheduleCopy.possessive} jobs, grouped by territory and ordered by appointment time.
             </div>

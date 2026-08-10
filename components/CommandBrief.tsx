@@ -79,7 +79,7 @@ export default function CommandBrief({
           <div className={styles.sectionHeader}>
             <div>
               <span>Priority actions</span>
-              <h3 id="manager-queue-title">Manager queue</h3>
+              <h2 id="manager-queue-title">Manager Queue</h2>
             </div>
             <small>{String(actions.slice(0, 3).length).padStart(2, "0")} actions</small>
           </div>
@@ -112,7 +112,7 @@ export default function CommandBrief({
           <div className={styles.sectionHeader}>
             <div>
               <span>Operating status</span>
-              <h3 id="operating-brief-title">Current conditions</h3>
+              <h2 id="operating-brief-title">Current Conditions</h2>
             </div>
             <small>{String(signals.length).padStart(2, "0")} signals</small>
           </div>

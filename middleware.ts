@@ -29,6 +29,8 @@ import {
 } from "@/lib/cloudflare-access";
 import { JUNKWARE_SMS_API_PREFIX } from "@/lib/junkware-sms-constants";
 
+const authDebug = process.env.OPS_AUTH_DEBUG === "1";
+
 function requestHeadersWithSession(request: NextRequest, sessionValue: string): Headers {
   const requestHeaders = new Headers(request.headers);
   const cookies = String(request.headers.get("cookie") || "")
@@ -182,15 +184,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  console.info("[auth] protected request", {
-    pathname,
-    sessionCookie: sessionCookie ? "present" : "absent",
-    trustedDevice: trustedDevice ? `valid:${trustedDevice.matchedBy}` : "absent-or-invalid",
-  });
-  console.info("[auth] session validation", {
-    pathname,
-    valid: Boolean(session),
-  });
+  if (authDebug) {
+    console.info("[auth] protected request", {
+      pathname,
+      sessionCookie: sessionCookie ? "present" : "absent",
+      trustedDevice: trustedDevice ? `valid:${trustedDevice.matchedBy}` : "absent-or-invalid",
+    });
+    console.info("[auth] session validation", {
+      pathname,
+      valid: Boolean(session),
+    });
+  }
   if (session) {
     if (trustedDevice && shouldRefreshTrustedDevice(trustedDevice)) {
       return initializeOpsSession(request, session.email, {

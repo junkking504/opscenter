@@ -21,6 +21,7 @@
     "verify:ops-auth": "node --import tsx scripts/test-ops-auth.ts",
     "verify:platform-kernel": "node --import tsx scripts/test-platform-kernel.ts",
     "platform:migrate": "node --import tsx scripts/migrate-platform-kernel.ts",
+    "verify:ui-copy": "node --import tsx scripts/test-ui-copy.ts",
     "alerts:slack": "node --import tsx scripts/publish-slack-alerts.ts"
   },
   "dependencies": {

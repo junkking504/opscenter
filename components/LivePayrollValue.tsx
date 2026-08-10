@@ -38,16 +38,19 @@ export default function LivePayrollValue({
   revenue?: number;
   showIncompleteNote?: boolean;
 }) {
-  const [now, setNow] = useState(() => new Date());
+  const [now, setNow] = useState<Date | null>(null);
   const hasOpenShift = records.some((row) => row.clockIn && !row.clockOut && !row.isSalary);
 
   useEffect(() => {
     if (!hasOpenShift) return;
+    setNow(new Date());
     const timer = window.setInterval(() => setNow(new Date()), 30000);
     return () => window.clearInterval(timer);
   }, [hasOpenShift]);
 
   const result = useMemo(() => {
+    if (hasOpenShift && !now) return null;
+    const calculationTime = now || new Date(`${date}T12:00:00Z`);
     let regular = 0;
     let regularPay = 0;
     let overtimeHours = 0;
@@ -70,7 +73,7 @@ export default function LivePayrollValue({
         totalBonus: row.totalBonus,
         isSalary: row.isSalary,
         weeklyHoursBeforeShift: row.weeklyHoursBeforeShift,
-        now,
+        now: calculationTime,
       });
       if (pay.hourlyLaborCost != null) {
         regular += pay.hourlyLaborCost - (pay.overtimePremium || 0);
@@ -99,7 +102,11 @@ export default function LivePayrollValue({
       ? revenue > 0 ? payroll / revenue * 100 : 0
       : baseAmount + values[field];
     return { value, incomplete };
-  }, [baseAmount, date, field, now, records, revenue]);
+  }, [baseAmount, date, field, hasOpenShift, now, records, revenue]);
+
+  if (!result) {
+    return <span className="ops-live-pay-pending">Updating…</span>;
+  }
 
   return (
     <span>

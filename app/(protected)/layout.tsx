@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import OpsShell from "@/components/OpsShell";
-import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
+import { AUTH_SESSION_COOKIE, opsAuthDisplayName, verifyAuthSessionCookie } from "@/lib/auth";
 
 export default async function ProtectedLayout({
   children,
@@ -14,5 +14,9 @@ export default async function ProtectedLayout({
     redirect("/login");
   }
 
-  return <OpsShell sessionEmail={session.email}>{children}</OpsShell>;
+  return (
+    <OpsShell sessionEmail={session.email} sessionLabel={opsAuthDisplayName(session.email)}>
+      {children}
+    </OpsShell>
+  );
 }

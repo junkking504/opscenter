@@ -16,7 +16,7 @@ export default function Error({
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-base text-ink p-8">
       <div className="max-w-md w-full rounded-lg border border-line bg-panel p-6">
-        <h2 className="text-lg font-semibold text-red-400 mb-2">Something went wrong</h2>
+        <h2 className="text-lg font-semibold text-red-400 mb-2">Something Went Wrong</h2>
         <p className="text-sm text-muted mb-4">
           {error?.message || "An unexpected error occurred loading this page."}
         </p>

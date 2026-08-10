@@ -193,7 +193,7 @@ export default function FleetControlCenter({
   return (
     <section className="ops-card ops-fleet-control-card">
       <div className="ops-card-header compact ops-maintenance-header">
-        <div><div className="ops-section-title">Fleet readiness</div><div className="ops-muted">Today’s required inspections and unresolved repair issues in one view.</div></div>
+        <div><div className="ops-section-title">Fleet Readiness</div><div className="ops-muted">Today’s required inspections and unresolved repair issues in one view.</div></div>
         <button type="button" className="ops-refresh-button" onClick={() => startIssue()}>Add repair issue</button>
       </div>
 
@@ -216,7 +216,7 @@ export default function FleetControlCenter({
       </div>
 
       <div className="ops-repair-queue-header">
-        <div><div className="ops-section-title">Repair queue</div><div className="ops-muted">Checklist exceptions automatically appear here as repair work orders.</div></div>
+        <div><div className="ops-section-title">Repair Queue</div><div className="ops-muted">Checklist exceptions automatically appear here as repair work orders.</div></div>
         <div className="ops-checklist-cadence"><button type="button" className={issueFilter === "active" ? "active" : ""} onClick={() => setIssueFilter("active")}>Active</button><button type="button" className={issueFilter === "all" ? "active" : ""} onClick={() => setIssueFilter("all")}>All history</button></div>
       </div>
 

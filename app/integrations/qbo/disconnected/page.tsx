@@ -21,7 +21,7 @@ export default function QboDisconnectedPage() {
       />
 
       <div className="ops-card">
-        <div className="ops-section-title">Disconnect confirmation</div>
+        <div className="ops-section-title">Disconnect Confirmation</div>
         <p className="ops-muted">
           If a live connection exists in the future, disconnecting should clear the local token store outside the Git repository and revoke
           access from the application side. No live QBO token has been provisioned in this phase.

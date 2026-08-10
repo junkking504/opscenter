@@ -177,7 +177,7 @@ export default function AddOnNotifications({ sessionEmail }: { sessionEmail?: st
     let active = true;
 
     async function checkForAddOns() {
-      if (pollingRef.current) return;
+      if (pollingRef.current || document.visibilityState === "hidden") return;
       pollingRef.current = true;
       try {
         const response = await fetch("/api/add-on-notifications", { cache: "no-store" });

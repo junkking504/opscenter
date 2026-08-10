@@ -1,0 +1,400 @@
+/*
+ * OpsCenter usability layer
+ *
+ * The application still contains legacy dark-theme rules alongside the light
+ * redesign. This file is imported last and establishes the readable, shared
+ * contract while those older screens are migrated incrementally.
+ */
+
+:root {
+  --oc-text-secondary: #3f4650;
+  --oc-text-muted: #606873;
+  --oc-line: #d6d9d5;
+  --oc-line-strong: #bfc4bf;
+}
+
+html {
+  scroll-padding-bottom: 7.5rem;
+  text-size-adjust: 100%;
+}
+
+body {
+  line-height: 1.5;
+}
+
+.ops-login-access-card > p,
+.ops-login-hero > p {
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.ops-login-form label > span,
+.ops-login-access-index {
+  font-size: 0.875rem;
+}
+
+.ops-login-form .ops-field,
+.ops-login-button {
+  min-height: 52px;
+  font-size: 0.9375rem;
+}
+
+.ops-login-footnote,
+.ops-login-system-line {
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+/* Titles, section headers, navigation, and tabs follow one Title Case rule. */
+.ops-main :where(h1, h2, h3, h4, h5, h6, .ops-section-title, .ops-card-title),
+.ops-sidebar :where(.ops-nav-item, .ops-nav-subitem),
+.ops-bottom-nav-item small,
+.ops-page-subnav a,
+.ops-tabs a,
+.ops-fleet-summary-tabs a,
+.ops-jobs-mode-toggle a,
+.ops-button,
+.ops-refresh-button {
+  text-transform: capitalize;
+}
+
+/* Restore a clear page hierarchy where compact legacy selectors won. */
+.ops-main .ops-page-title,
+.ops-finance-page .ops-page-title {
+  color: #171a1f;
+  font-size: clamp(2rem, 2.8vw, 2.65rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+
+.ops-main .ops-page-header-subtitle,
+.ops-main .ops-card-header .ops-muted,
+.ops-main .ops-table-note,
+.ops-main .ops-kpi-sub,
+.ops-main .ops-small-muted {
+  color: #606873;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.ops-main .ops-page-header-meta,
+.ops-main .ops-page-header-updated,
+.ops-main .ops-page-header-status {
+  color: #646c76;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+}
+
+.ops-main .ops-section-title {
+  color: #20242b;
+  font-size: 1.0625rem;
+  line-height: 1.25;
+}
+
+.ops-main .ops-card-title,
+.ops-dashboard > .ops-kpi-row > .ops-card .ops-card-title,
+.ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-card-title {
+  color: #626b77;
+  font-size: 0.9375rem;
+  line-height: 1.3;
+  letter-spacing: 0.075em;
+}
+
+/* Navigation and controls meet comfortable reading and touch dimensions. */
+.ops-nav-item {
+  min-height: 46px;
+  font-size: 0.9375rem;
+}
+
+.ops-nav-icon,
+.ops-nav-item.active .ops-nav-icon {
+  font-size: 0.9375rem;
+}
+
+.ops-brand-subtitle,
+.ops-sidebar-footer-code,
+.ops-main .ops-eyebrow {
+  font-size: 0.9375rem;
+}
+
+.ops-page-subnav a,
+.ops-refresh-button,
+.ops-button,
+.ops-page-header input,
+.ops-page-header select,
+.ops-date-selector,
+.ops-jobs-search-button,
+.ops-jobs-filter-menu > summary {
+  min-height: 44px;
+}
+
+.ops-page-subnav a {
+  padding-inline: 15px;
+  color: #555e69;
+  font-size: 0.9375rem;
+}
+
+.ops-date-label,
+.ops-page-header label {
+  color: #59616c;
+  font-size: 0.9375rem;
+}
+
+.ops-refresh-button,
+.ops-button,
+.ops-date-selector,
+.ops-page-header input,
+.ops-page-header select {
+  font-size: 0.9375rem;
+}
+
+/* Make the light top bar legible; older badge rules assumed a dark surface. */
+.ops-notification-trigger,
+.ops-command-clock,
+.ops-live-chip,
+.ops-runtime-status {
+  min-height: 38px;
+  border-color: #cfd4d0;
+  background: rgba(255, 255, 255, 0.78);
+  color: #3f4752;
+  box-shadow: 0 2px 8px rgba(25, 28, 35, 0.05);
+}
+
+.ops-notification-trigger.is-offline {
+  border-color: #e8b8bb;
+  color: #a1262c;
+}
+
+.ops-notification-trigger-label,
+.ops-command-clock-date,
+.ops-command-clock-zone,
+.ops-live-chip,
+.ops-runtime-status > span {
+  color: #4f5864;
+  font-size: 0.875rem;
+}
+
+.ops-runtime-status > strong {
+  color: #24599b;
+  font-size: 0.9375rem;
+}
+
+/* Tables are operational reading surfaces, not decorative micro-copy. */
+.ops-main .ops-table {
+  color: #303741;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.ops-main .ops-table th {
+  color: #59616c;
+  font-size: 0.9375rem;
+  line-height: 1.3;
+}
+
+.ops-main .ops-table td {
+  color: #303741;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.ops-main .ops-table td,
+.ops-main .ops-table th {
+  padding-block: 12px;
+}
+
+.ops-fleet-truck-link {
+  min-height: 32px;
+  color: #20242b;
+  font-weight: 750;
+}
+
+/* Supporting dashboard cards inherited dark text onto a dark background. */
+.ops-supporting-metrics .ops-daily-kpi-card {
+  border-color: #d8dcd8;
+  background: #fff;
+  color: #20242b;
+  box-shadow: 0 7px 20px rgba(25, 28, 35, 0.05);
+}
+
+.ops-supporting-metrics .ops-daily-kpi-card:hover,
+.ops-supporting-metrics .ops-daily-kpi-card:focus-visible {
+  border-color: #aeb8c5;
+  background: #f8fafb;
+}
+
+.ops-supporting-metrics .ops-daily-kpi-card .ops-card-title {
+  color: #626b77;
+}
+
+.ops-supporting-metrics .ops-daily-kpi-card .ops-kpi-value {
+  color: #171a1f;
+}
+
+.ops-supporting-metrics .ops-daily-kpi-card .ops-kpi-sub {
+  color: #606873;
+}
+
+.ops-supporting-metrics-heading p {
+  color: #606873;
+  font-size: 0.875rem;
+}
+
+/* Dense operational screens previously rendered important details at 8–11px. */
+.ops-crew-dashboard :where(
+  .ops-crew-detail-label,
+  .ops-crew-summary-label,
+  .ops-crew-detail-section-title,
+  .ops-live-pay-note,
+  .ops-crew-detail-subvalue,
+  .ops-crew-employee-subtitle,
+  .ops-crew-summary-subvalue,
+  .ops-manual-bonus-editor-meta,
+  .ops-daily-leaderboard-rank,
+  .ops-daily-leaderboard-state,
+  .ops-crew-status-chip
+) {
+  font-size: 0.9375rem !important;
+  line-height: 1.4;
+}
+
+.ops-crew-dashboard :where(.ops-crew-detail-subvalue, .ops-crew-summary-subvalue) > span,
+.ops-crew-dashboard .ops-manual-bonus-field > span,
+.ops-crew-dashboard .ops-daily-leaderboard-person > small {
+  font-size: inherit !important;
+}
+
+.ops-jobs-page :where(
+  .ops-view-toggle a,
+  .ops-kpi-sub,
+  .ops-jobs-map-prompt,
+  .ops-jobs-map-board-time,
+  .ops-jobs-map-board-truck,
+  .ops-job-activity-view-label,
+  .ops-job-activity-meta,
+  .ops-jk-number,
+  .ops-job-closeout-heading,
+  .ops-call-ahead-badge,
+  .ops-physical-truck-badge,
+  .ops-appointment-card-driver,
+  .ops-appointment-card-navigator,
+  .ops-status-tag,
+  .ops-appointment-site-time-label,
+  .ops-job-exception-badge,
+  .ops-outcome-unavailable
+) {
+  font-size: 0.9375rem !important;
+  line-height: 1.4;
+}
+
+.ops-jobs-page :where(
+  .ops-job-activity-summary,
+  .ops-job-activity-group,
+  .ops-reschedule-path,
+  .ops-cancellation-summary,
+  .ops-appointment-gps-details,
+  .ops-appointment-more-details,
+  .ops-appointment-junk-summary,
+  .ops-job-closeout-line,
+  .ops-job-closeout-total,
+  .ops-job-closeout-balance,
+  .ops-appointment-detail-grid,
+  .ops-appointment-note-details
+) :where(a, b, label, li, small, span, strong, summary) {
+  font-size: 0.9375rem !important;
+  line-height: 1.4;
+}
+
+.ops-jobs-page .ops-jobs-map-board-block {
+  min-width: 24px;
+}
+
+/* Avoid a stretched empty manager panel beside the longer signal list. */
+.ops-daily-dashboard #command-overview > div:nth-child(2) {
+  align-items: start;
+}
+
+@media (max-width: 1050px) {
+  .ops-main {
+    padding-bottom: calc(7.5rem + env(safe-area-inset-bottom));
+  }
+
+  .ops-bottom-nav {
+    min-height: 66px;
+  }
+
+  .ops-bottom-nav-item {
+    min-height: 54px;
+  }
+
+  .ops-bottom-nav-item span {
+    font-size: 0.875rem;
+    color: #aeb5c0;
+  }
+
+  .ops-bottom-nav-item small {
+    color: #c9ced6;
+    font-size: 0.8125rem;
+    letter-spacing: -0.025em;
+  }
+
+  .ops-bottom-nav-item.active span {
+    color: #ff6670;
+  }
+
+  .ops-bottom-nav-item.active small {
+    color: #fff;
+  }
+}
+
+@media (max-width: 720px) {
+  .ops-main .ops-page-title,
+  .ops-finance-page .ops-page-title {
+    font-size: clamp(1.7rem, 8vw, 2.15rem);
+  }
+
+  .ops-main .ops-page-header-subtitle {
+    font-size: 0.875rem;
+  }
+
+  .ops-page-subnav {
+    scroll-snap-type: x proximity;
+  }
+
+  .ops-page-subnav a {
+    min-height: 44px;
+    scroll-snap-align: start;
+  }
+
+  /* Put the dispatch schedule before the map on small screens. */
+  .ops-jobs-map-workspace.has-schedule {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ops-jobs-map-workspace.has-schedule .ops-jobs-map-schedule {
+    order: 1;
+    max-height: 34rem;
+    border-top: 0;
+    border-bottom: 1px solid var(--oc-line);
+  }
+
+  .ops-jobs-map-workspace.has-schedule .ops-jobs-map-shell {
+    order: 2;
+    height: 19rem;
+  }
+}
+
+@media (max-width: 460px) {
+  .ops-page-header-controls {
+    align-items: stretch;
+  }
+
+  .ops-page-header-controls > .ops-date-selector-wrap {
+    flex-basis: calc(100% - 96px);
+  }
+
+  .ops-supporting-metrics-heading p {
+    font-size: 0.9375rem;
+  }
+}

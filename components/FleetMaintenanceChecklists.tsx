@@ -308,7 +308,7 @@ export default function FleetMaintenanceChecklists({
     <section className={`ops-card ops-checklist-card ${driverMode ? "driver-mode" : ""}`}>
       <div className="ops-card-header compact ops-maintenance-header">
         <div>
-          <div className="ops-section-title">Truck maintenance checklists</div>
+          <div className="ops-section-title">Truck Maintenance Checklists</div>
           <div className="ops-muted">Complete routine safety and condition checks for each truck. Progress saves by truck and checklist period.</div>
         </div>
         <div className="ops-checklist-header-actions">
@@ -373,7 +373,7 @@ export default function FleetMaintenanceChecklists({
         <div className="ops-checklist-workspace">
           <div className="ops-checklist-workspace-header">
             <div>
-              <h3>{selectedTruck} · {fleetChecklistCadenceLabel(cadence)} checklist</h3>
+              <h3>{selectedTruck} · {fleetChecklistCadenceLabel(cadence)} Checklist</h3>
               <p>{dateLabel(inspectionDate)}{currentEntry?.updatedAt ? ` · Last saved ${new Date(currentEntry.updatedAt).toLocaleString("en-US")}` : " · Not yet saved"}</p>
             </div>
             <div className={`ops-checklist-count ${answeredCount === definitions.length ? "complete" : ""}`}><strong>{answeredCount}/{definitions.length}</strong><span>items checked</span></div>
@@ -421,7 +421,7 @@ export default function FleetMaintenanceChecklists({
 
       {entries.length > 0 ? (
         <div className="ops-checklist-history">
-          <div className="ops-section-title">Recent checklist history</div>
+          <div className="ops-section-title">Recent Checklist History</div>
           <div className="ops-wide-table-wrap">
             <table className="ops-table ops-checklist-history-table">
               <thead><tr><th>Date</th><th>Truck</th><th>Frequency</th><th>Progress</th><th>Issues</th><th>Inspector</th><th>Verified</th><th></th></tr></thead>

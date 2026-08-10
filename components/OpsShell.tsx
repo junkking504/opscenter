@@ -8,9 +8,11 @@ import { getOpsRuntime } from "@/lib/runtime";
 export default function OpsShell({
   children,
   sessionEmail,
+  sessionLabel,
 }: {
   children: React.ReactNode;
   sessionEmail?: string | null;
+  sessionLabel?: string | null;
 }) {
   const runtimeStatus = getOpsRuntime();
   const runtimeBadge = runtimeStatus === "VPS"
@@ -61,7 +63,7 @@ export default function OpsShell({
             </div>
             <span className="ops-sidebar-footer-code">JKLA</span>
           </div>
-          {sessionEmail ? <div className="ops-small-muted">Signed in as {sessionEmail}</div> : null}
+          {sessionLabel ? <div className="ops-small-muted">Signed In As {sessionLabel}</div> : null}
           <a href="/api/auth/logout" className="ops-mini-link">
             Logout
           </a>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { primaryNavItems } from "@/components/navItems";
+import { titleCaseLabel } from "@/lib/title-case";
 
 type SidebarSubItem = {
   label: string;
@@ -219,7 +220,7 @@ export default function OpsNav({ variant = "tabs" }: { variant?: "tabs" | "sideb
               aria-current={active ? "page" : undefined}
             >
               <span>{item.icon}</span>
-              <small>{item.mobileLabel}</small>
+              <small>{titleCaseLabel(item.mobileLabel)}</small>
             </Link>
           );
         })}
@@ -244,7 +245,7 @@ export default function OpsNav({ variant = "tabs" }: { variant?: "tabs" | "sideb
               className={`ops-tab${active ? " active" : ""}`}
               aria-current={active ? "page" : undefined}
             >
-              <span>{item.label}</span>
+              <span>{titleCaseLabel(item.label)}</span>
             </Link>
           );
         }
@@ -258,7 +259,7 @@ export default function OpsNav({ variant = "tabs" }: { variant?: "tabs" | "sideb
               aria-current={active ? "page" : undefined}
             >
               <span className="ops-nav-icon">{item.icon}</span>
-              <span>{item.label}</span>
+              <span>{titleCaseLabel(item.label)}</span>
             </Link>
           </div>
         );

@@ -66,7 +66,7 @@ export default function FleetServicePlanner({ initialRecords, truckOptions, inve
           serviceDate,
           status: "scheduled",
           serviceType: row.rule.serviceType,
-          description: `${row.rule.label} scheduled from the Fleet preventive-service planner.`,
+          description: `${row.rule.label} scheduled from the Fleet Preventive-Service Planner.`,
           odometer: vehicle?.odometer ?? null,
           nextServiceOdometer: row.nextOdometer,
         }),
@@ -104,7 +104,7 @@ export default function FleetServicePlanner({ initialRecords, truckOptions, inve
   return (
     <section className="ops-card ops-service-planner-card">
       <div className="ops-card-header compact ops-maintenance-header">
-        <div><div className="ops-section-title">Preventive-service planner</div><div className="ops-muted">Mileage and date-based recommendations using completed maintenance and current Linxup mileage.</div></div>
+        <div><div className="ops-section-title">Preventive-Service Planner</div><div className="ops-muted">Mileage and date-based recommendations using completed maintenance and current Linxup mileage.</div></div>
       </div>
       <div className="ops-service-truck-tabs-wrap">
         <span className="ops-service-truck-tabs-label">Choose a truck</span>

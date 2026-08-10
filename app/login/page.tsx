@@ -36,20 +36,20 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </div>
         </div>
         <div className="ops-login-hero">
-          <div className="ops-login-kicker"><span /> Louisiana operations</div>
-          <h1>Run the day.<br />Know the numbers.<br /><em>Keep moving.</em></h1>
+          <div className="ops-login-kicker"><span /> Louisiana Operations</div>
+          <h1>Run the Day.<br />Know the Numbers.<br /><em>Keep Moving.</em></h1>
           <p>One clear workspace for jobs, crews, trucks, marketing, and financial performance.</p>
         </div>
         <div className="ops-login-system-line">
-          <span><i /> System operational</span>
-          <span>Central time</span>
-          <span>Protected access</span>
+          <span><i /> System Operational</span>
+          <span>Central Time</span>
+          <span>Protected Access</span>
         </div>
       </section>
 
       <section className="ops-login-access-panel">
         <div className="ops-login-access-card">
-          <div className="ops-login-access-index">Secure sign in</div>
+          <div className="ops-login-access-index">Secure Sign In</div>
           <h2>Enter OpsCenter</h2>
           <p>Enter the shared OpsCenter credentials to continue.</p>
 

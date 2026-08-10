@@ -689,7 +689,7 @@ export default async function DashboardPage({
   return (
     <div className="ops-dashboard ops-daily-dashboard">
       <PageHeader
-        title="Daily command"
+        title="Daily Command"
         subtitle={`${shortMonthDay(date)} · ${jobs} completed job${jobs === 1 ? "" : "s"} · ${activeTruckCount} active truck${activeTruckCount === 1 ? "" : "s"}`}
         date={date}
         lastUpdated={metrics?.generated_at}
@@ -725,7 +725,7 @@ export default async function DashboardPage({
           <div className="ops-supporting-metrics-heading">
             <div>
               <div className="ops-operating-kicker"><span /> Daily output</div>
-              <h2 id="supporting-metrics-title">Supporting metrics</h2>
+              <h2 id="supporting-metrics-title">Supporting Metrics</h2>
             </div>
             <p>The command view owns the headline numbers; these measures explain throughput and capacity.</p>
           </div>

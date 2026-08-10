@@ -17,6 +17,7 @@ export const LEGACY_AUTH_COOKIE_NAMES = [
 ] as const;
 export const AUTH_PUBLIC_PREFIXES = ["/legal/", "/support", "/integrations/qbo"] as const;
 export const AUTH_PUBLIC_API_PREFIXES = ["/api/auth/", "/api/health", "/api/integrations/qbo", "/api/integrations/junkware/sms"] as const;
+export const AUTH_PUBLIC_FILES = ["/junk-king-logo.svg"] as const;
 export const AUTH_PROTECTED_API_PREFIXES = ["/api/exceptions", "/api/inbox", "/api/fleet-map", "/api/fleet-maintenance", "/api/fleet-checklists", "/api/fleet-checklist-templates", "/api/fleet-checklist-photos", "/api/fleet-issues", "/api/fleet-issue-photos", "/api/manual-bonuses", "/api/searchkings"] as const;
 export const LEGACY_VERIFICATION_CODE_FLOW_ENABLED = false;
 
@@ -143,9 +144,25 @@ function constantTimeEqual(left: Uint8Array, right: Uint8Array): boolean {
   return difference === 0;
 }
 
+async function constantTimeStringEqual(left: string, right: string): Promise<boolean> {
+  const [leftHash, rightHash] = await Promise.all([
+    crypto.subtle.digest("SHA-256", encoder.encode(left)),
+    crypto.subtle.digest("SHA-256", encoder.encode(right)),
+  ]);
+  return constantTimeEqual(new Uint8Array(leftHash), new Uint8Array(rightHash));
+}
+
 export function opsAuthIdentity(): string {
   const username = normalizeAuthUsername(process.env.OPS_AUTH_USERNAME);
   return username ? `${username}@junk-king.com` : "";
+}
+
+export function opsAuthDisplayName(identityValue: unknown): string {
+  const identity = normalizeAuthEmail(identityValue);
+  const configuredUsername = normalizeAuthUsername(process.env.OPS_AUTH_USERNAME);
+  return configuredUsername && identity === `${configuredUsername}@junk-king.com`
+    ? configuredUsername
+    : identity;
 }
 
 export async function verifyOpsCredentials(usernameValue: unknown, passwordValue: unknown): Promise<boolean> {
@@ -153,20 +170,18 @@ export async function verifyOpsCredentials(usernameValue: unknown, passwordValue
   const username = normalizeAuthUsername(usernameValue);
   const password = String(passwordValue || "");
   const passwordHash = String(process.env.OPS_AUTH_PASSWORD_HASH || "").trim();
-  if (!configuredUsername || !username || !password || username !== configuredUsername || !passwordHash) {
-    return false;
-  }
 
   const [algorithm, iterationsRaw, saltRaw, expectedRaw] = passwordHash.split("$");
   const iterations = Number.parseInt(iterationsRaw, 10);
-  if (algorithm !== "pbkdf2-sha256" || !Number.isSafeInteger(iterations) || iterations < 100_000 || !saltRaw || !expectedRaw) {
+  if (!configuredUsername || algorithm !== "pbkdf2-sha256" || !Number.isSafeInteger(iterations) || iterations < 100_000 || !saltRaw || !expectedRaw) {
     return false;
   }
 
   try {
+    const usernameMatches = await constantTimeStringEqual(username, configuredUsername);
     const key = await crypto.subtle.importKey(
       "raw",
-      encoder.encode(password),
+      encoder.encode(password || "\0"),
       "PBKDF2",
       false,
       ["deriveBits"],
@@ -183,7 +198,7 @@ export async function verifyOpsCredentials(usernameValue: unknown, passwordValue
       key,
       expected.length * 8,
     ));
-    return constantTimeEqual(derived, expected);
+    return Boolean(username && password) && usernameMatches && constantTimeEqual(derived, expected);
   } catch {
     return false;
   }
@@ -475,7 +490,8 @@ export async function requireAuthSession(request: Request): Promise<AuthSession 
 
 export function publicAuthRoute(pathname: string): boolean {
   if (pathname === AUTH_LOGIN_PATH || pathname === AUTH_LOGOUT_PATH) return true;
-  return AUTH_PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
+  return AUTH_PUBLIC_FILES.includes(pathname as (typeof AUTH_PUBLIC_FILES)[number]) ||
+    AUTH_PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
     AUTH_PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 

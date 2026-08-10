@@ -25,6 +25,7 @@ import {
   readJunkwareDayActivity,
   type JunkwareJobPhoto,
 } from "@/lib/junkware-job-details";
+import { missingPaymentTypeLabel, shouldFlagMissingPhotos } from "@/lib/job-audit-rules";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
 
 const OPSBOT_DATA_DIR =
@@ -1887,7 +1888,17 @@ function statusBucket(job: JobRow): JobStatusBucket {
 }
 
 function jobMissingPhotos(job: JobRow): boolean {
-  return statusBucket(job) === "Completed" && job.photoAuditAvailable && job.photos.length === 0;
+  return shouldFlagMissingPhotos({
+    appointmentType: job.appointmentType,
+    status: job.status,
+    photoAuditAvailable: job.photoAuditAvailable,
+    photoCount: job.photos.length,
+  });
+}
+
+function appointmentPaymentTypeLabel(job: JobRow, compact = false): string {
+  if (job.paymentType !== "—") return job.paymentType;
+  return missingPaymentTypeLabel(job.appointmentType, compact);
 }
 
 function cardStatusLabel(job: JobRow): string {
@@ -2111,8 +2122,8 @@ function JobPhotoDetails({ job }: { job: JobRow }) {
       <div className="ops-job-photo-alert" role="status">
         <span aria-hidden="true">!</span>
         <div>
-          <strong>Closeout photos missing</strong>
-          <small>JunkWare was checked and no job photos were uploaded.</small>
+          <strong>Appointment Photos Missing</strong>
+          <small>JunkWare was checked and no appointment photos were uploaded.</small>
         </div>
       </div>
     );
@@ -2644,6 +2655,10 @@ export default async function JobsPage({
         ]}
       />
 
+      {view === "daily" ? (
+        <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} />
+      ) : null}
+
       {monthlySummary && view === "calendar" ? (
         <section className="ops-card ops-jobs-calendar-card" aria-label={`${monthlySummary.monthDisplay} job calendar`}>
           <div className="ops-jobs-calendar-head">
@@ -3102,8 +3117,6 @@ export default async function JobsPage({
         <a href="#jobs-schedule">Appointment Queue <small>{filterCount}</small></a>
       </nav>
 
-      <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} />
-
       <div className="ops-card" id="jobs-schedule">
         <div className="ops-card-header compact">
           <div>
@@ -3260,8 +3273,8 @@ export default async function JobsPage({
                               <div className="ops-appointment-card-outcome">
                                 <span className={`ops-status-tag compact ${statusBadgeClass(statusBucket(job))}`}>{cardStatusLabel(job)}</span>
                                 {jobMissingPhotos(job) ? (
-                                  <span className="ops-job-photo-badge missing" title="JunkWare was checked and no closeout photos were found.">
-                                    Photos missing
+                                  <span className="ops-job-photo-badge missing" title="JunkWare was checked and no appointment photos were found.">
+                                    Photos Missing
                                   </span>
                                 ) : job.photos.length ? (
                                   <span className="ops-job-photo-badge complete">{job.photos.length} photo{job.photos.length === 1 ? "" : "s"}</span>
@@ -3281,7 +3294,7 @@ export default async function JobsPage({
                                   </strong>
                                 </div>
                                 <span className={job.paymentType !== "—" ? paymentClass(job.paymentType) : "ops-outcome-unavailable"}>
-                                  {job.paymentType !== "—" ? job.paymentType : "Payment not selected"}
+                                  {appointmentPaymentTypeLabel(job, true)}
                                 </span>
                                 {jobExceptionsForCard.length > 0 && (
                                   <a
@@ -3425,7 +3438,7 @@ export default async function JobsPage({
                                 </div>
                                 <div>
                                   <span>Payment method</span>
-                                  <strong>{job.paymentType === "—" ? "Unavailable" : job.paymentType}</strong>
+                                  <strong>{appointmentPaymentTypeLabel(job)}</strong>
                                 </div>
                                 <div>
                                   <span>{appointmentAmountLabel(job)}</span>
@@ -3548,8 +3561,8 @@ export default async function JobsPage({
                             <div className="ops-appointment-card-outcome">
                               <span className={`ops-status-tag compact ${statusBadgeClass(statusBucket(job))}`}>{cardStatusLabel(job)}</span>
                               {jobMissingPhotos(job) ? (
-                                <span className="ops-job-photo-badge missing" title="JunkWare was checked and no closeout photos were found.">
-                                  Photos missing
+                                <span className="ops-job-photo-badge missing" title="JunkWare was checked and no appointment photos were found.">
+                                  Photos Missing
                                 </span>
                               ) : job.photos.length ? (
                                 <span className="ops-job-photo-badge complete">{job.photos.length} photo{job.photos.length === 1 ? "" : "s"}</span>
@@ -3569,7 +3582,7 @@ export default async function JobsPage({
                                 </strong>
                               </div>
                               <span className={job.paymentType !== "—" ? paymentClass(job.paymentType) : "ops-outcome-unavailable"}>
-                                {job.paymentType !== "—" ? job.paymentType : "Payment not selected"}
+                                {appointmentPaymentTypeLabel(job, true)}
                               </span>
                               {jobExceptionsForCard.length > 0 && (
                                 <a
@@ -3713,7 +3726,7 @@ export default async function JobsPage({
                               </div>
                               <div>
                                 <span>Payment method</span>
-                                <strong>{job.paymentType === "—" ? "Unavailable" : job.paymentType}</strong>
+                                <strong>{appointmentPaymentTypeLabel(job)}</strong>
                               </div>
                               <div>
                                 <span>{appointmentAmountLabel(job)}</span>

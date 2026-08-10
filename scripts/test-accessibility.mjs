@@ -8,6 +8,7 @@ const routes = [
   "/",
   "/jobs",
   "/crew",
+  "/crew?date=2026-08-10&section=pay-period",
   "/fleet?view=maintenance&section=service",
   "/finance",
   "/marketing",
@@ -145,6 +146,62 @@ async function main() {
           assert.equal(commandPage.title, "Daily Command", `${routeLabel} must retain the Daily Command title.`);
           assert.equal(commandPage.heroCount, 0, `${routeLabel} must retain the compact Command layout without the retired hero.`);
           assert.equal(commandPage.metricCount, 4, `${routeLabel} must lead with four headline operating metrics.`);
+        }
+        if (route === "/jobs") {
+          const dispatch = await page.evaluate(() => {
+            const header = document.querySelector(".ops-page-header");
+            const map = document.querySelector("#jobs-map");
+            const board = document.querySelector(".ops-jobs-map-board");
+            const schedule = document.querySelector(".ops-jobs-map-schedule");
+            const kpis = document.querySelector(".ops-jobs-kpi-strip");
+            const cell = document.querySelector(".ops-jobs-map-board-cell");
+            if (!(header instanceof HTMLElement)
+              || !(map instanceof HTMLElement)
+              || !(board instanceof HTMLElement)
+              || !(schedule instanceof HTMLElement)
+              || !(kpis instanceof HTMLElement)) return null;
+            return {
+              headerNextIsMap: header.nextElementSibling === map,
+              mapTop: map.getBoundingClientRect().top,
+              kpiTop: kpis.getBoundingClientRect().top,
+              boardClientWidth: board.clientWidth,
+              boardGridColumns: getComputedStyle(board).gridTemplateColumns,
+              boardGridWidth: getComputedStyle(board).gridTemplateColumns
+                .split(" ")
+                .reduce((sum, width) => sum + Number.parseFloat(width), 0),
+              cellMinWidth: cell ? getComputedStyle(cell).minWidth : "",
+              boardOverflowers: Array.from(board.querySelectorAll("*"))
+                .filter((element) => element.getBoundingClientRect().right > board.getBoundingClientRect().right + 1)
+                .slice(0, 5)
+                .map((element) => ({
+                  className: element.className,
+                  text: element.textContent?.trim().slice(0, 40) || "",
+                  right: element.getBoundingClientRect().right,
+                  width: element.getBoundingClientRect().width,
+                })),
+              scheduleClientHeight: schedule.clientHeight,
+              scheduleScrollHeight: schedule.scrollHeight,
+              scheduleOverflow: getComputedStyle(schedule).overflow,
+            };
+          });
+          assert.ok(dispatch, `${routeLabel} must render the Dispatch Board.`);
+          assert.equal(dispatch.headerNextIsMap, true, `${routeLabel} must place the Dispatch Board directly after the page header.`);
+          assert.ok(dispatch.mapTop < dispatch.kpiTop, `${routeLabel} must place the Dispatch Board before the KPI and filter controls.`);
+          assert.ok(dispatch.boardGridWidth <= dispatch.boardClientWidth + 1, `${routeLabel} Dispatch Board grid must fit its container: ${JSON.stringify(dispatch)}.`);
+          assert.deepEqual(dispatch.boardOverflowers, [], `${routeLabel} Dispatch Board content must not extend beyond the fitted grid.`);
+          assert.ok(
+            dispatch.scheduleScrollHeight <= dispatch.scheduleClientHeight + 1,
+            `${routeLabel} Dispatch Board must expand without vertical scrolling (${dispatch.scheduleScrollHeight}px content in ${dispatch.scheduleClientHeight}px).`,
+          );
+          assert.equal(dispatch.scheduleOverflow, "visible", `${routeLabel} Dispatch Board must expose the complete schedule.`);
+        }
+        if (route === "/crew?date=2026-08-10&section=pay-period") {
+          const period = await page.evaluate(() => ({
+            copy: document.body.textContent || "",
+            weekLabels: Array.from(document.querySelectorAll(".ops-crew-period-week-title"))
+              .map((element) => element.textContent?.trim() || ""),
+          }));
+          assert.match(period.copy, /2026-08-10 through 2026-08-23/, `${routeLabel} must show the correct 14-day pay period.`);
         }
         if (route === "/jobs" || route === "/crew") {
           const elementCount = await page.locator("*").count();

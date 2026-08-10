@@ -149,7 +149,7 @@ export type SearchKingsLead = {
   reason: LostLeadReason;
   note: string;
   franchiseContacted: boolean;
-  potentialRevenue: number;
+  potentialRevenue: number | null;
   matchedAppointment: SearchKingsAppointmentMatch | null;
   searchKingsUrl: string;
   updatedAt: string;
@@ -185,6 +185,7 @@ export type SearchKingsView = {
   lostLeads: number;
   needsFollowUp: number;
   recoveredLeads: number;
+  valuedLostLeads: number;
   estimatedLostRevenue: number;
   accountRows: Array<{
     id: string;
@@ -276,6 +277,46 @@ export function canonicalSearchKingsCallId(call: SearchKingsCall): string {
 function moneyNumber(value: unknown): number {
   const match = String(value ?? "").replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
   return match ? finiteNumber(match[0]) : 0;
+}
+
+const EXPLICIT_MONEY = String.raw`(?:\$\s*~?\s*\d+(?:,\d{3})*(?:\.\d{1,2})?|~?\s*\d+(?:,\d{3})*(?:\.\d{1,2})?\s*(?:dollars?|USD))`;
+
+function uniqueMoneyMatches(value: string, patterns: RegExp[]): number[] {
+  const amounts = new Set<number>();
+  for (const pattern of patterns) {
+    for (const match of value.matchAll(pattern)) {
+      const amount = moneyNumber(match[0]);
+      if (amount > 0) amounts.add(roundMoney(amount));
+    }
+  }
+  return Array.from(amounts);
+}
+
+export function explicitCallValue(value: unknown): number | null {
+  const summary = String(value || "").trim();
+  if (!summary) return null;
+
+  const finalAmounts = uniqueMoneyMatches(summary, [
+    new RegExp(String.raw`discounted(?:\s+(?:price|quote))?\s+to\s+${EXPLICIT_MONEY}`, "gi"),
+    new RegExp(String.raw`final(?:\s+(?:price|quote|amount))?(?:\s+(?:was|is|of|at))?\s+${EXPLICIT_MONEY}`, "gi"),
+  ]);
+  if (finalAmounts.length === 1) return finalAmounts[0];
+  if (finalAmounts.length > 1) return null;
+
+  const quotedRange = new RegExp(
+    String.raw`${EXPLICIT_MONEY}\s*(?:or|to|and|[-–])\s*${EXPLICIT_MONEY}`,
+    "i",
+  );
+  if (quotedRange.test(summary)) return null;
+
+  const quotedAmounts = uniqueMoneyMatches(summary, [
+    new RegExp(String.raw`(?:quoted?|priced|estimated)(?:\s+(?:at|as|around|about|approximately|of|was|is))?\s*(?:around|about|approximately|approx\.?|~)?\s*${EXPLICIT_MONEY}`, "gi"),
+    new RegExp(String.raw`(?:provided|gave)\s+(?:a\s+)?${EXPLICIT_MONEY}\s+(?:quote|quoted\s+price|estimate|starting\s+price|price)`, "gi"),
+    new RegExp(String.raw`${EXPLICIT_MONEY}\s+(?:starting\s+price|quote|quoted\s+price|estimate|estimated\s+price)`, "gi"),
+    new RegExp(String.raw`starting(?:\s+price)?(?:\s+(?:of|at|was|is))?\s+${EXPLICIT_MONEY}`, "gi"),
+    new RegExp(String.raw`(?:price|cost)(?:\s+(?:was|is|of|at))\s+${EXPLICIT_MONEY}`, "gi"),
+  ]);
+  return quotedAmounts.length === 1 ? quotedAmounts[0] : null;
 }
 
 function metricValue(account: SearchKingsAccount, label: string): number {
@@ -481,23 +522,6 @@ function appointmentRows(start: string, end: string): SearchKingsAppointmentMatc
   return rows;
 }
 
-function averageRevenueByTerritory(appointments: SearchKingsAppointmentMatch[]): Map<string, number> {
-  const totals = new Map<string, { revenue: number; jobs: number }>();
-  for (const appointment of appointments) {
-    if (appointment.revenue <= 0) continue;
-    const current = totals.get(appointment.territory) || { revenue: 0, jobs: 0 };
-    current.revenue += appointment.revenue;
-    current.jobs += 1;
-    totals.set(appointment.territory, current);
-  }
-  return new Map(
-    Array.from(totals.entries()).map(([territory, value]) => [
-      territory,
-      value.jobs ? roundMoney(value.revenue / value.jobs) : 0,
-    ]),
-  );
-}
-
 function matchAppointment(
   call: SearchKingsCall,
   appointments: SearchKingsAppointmentMatch[],
@@ -545,6 +569,7 @@ function emptyView(error: string): SearchKingsView {
     lostLeads: 0,
     needsFollowUp: 0,
     recoveredLeads: 0,
+    valuedLostLeads: 0,
     estimatedLostRevenue: 0,
     accountRows: [],
     territoryRows: [],
@@ -560,11 +585,6 @@ export function buildSearchKingsViewFromData(
   now = new Date(),
 ): SearchKingsView {
   const overrideByCall = new Map(overrides.map((entry) => [entry.callId, entry]));
-  const territoryAverages = averageRevenueByTerritory(appointments);
-  const allRevenue = appointments.reduce((sum, appointment) => sum + appointment.revenue, 0);
-  const revenueJobs = appointments.filter((appointment) => appointment.revenue > 0).length;
-  const overallAverage = revenueJobs ? roundMoney(allRevenue / revenueJobs) : 0;
-
   const leads = snapshot.calls.calls.map((call): SearchKingsLead => {
     const calledAt = parseCalledAt(call);
     const calledDate = parseCalledDate(call);
@@ -596,7 +616,7 @@ export function buildSearchKingsViewFromData(
       reason: override?.reason || inferredReason(call),
       note: override?.note || "",
       franchiseContacted: override?.franchiseContacted === true,
-      potentialRevenue: territoryAverages.get(territory) || overallAverage,
+      potentialRevenue: explicitCallValue(call.reportingTag),
       matchedAppointment,
       searchKingsUrl: String(call.id).startsWith("browser-")
         ? `https://searchkings.app/customers/${encodeURIComponent(snapshot.customerId)}/calls?dateRange=${snapshot.range.startDate},${snapshot.range.endDate}`
@@ -622,6 +642,8 @@ export function buildSearchKingsViewFromData(
   const platformConversions = accountRows.reduce((sum, row) => sum + row.conversions, 0);
   const qualifiedLeads = leads.filter((lead) => lead.qualified);
   const bookedLeads = leads.filter((lead) => lead.status === "booked" || lead.status === "recovered");
+  const lostLeads = leads.filter((lead) => lead.status === "lost");
+  const valuedLostLeads = lostLeads.filter((lead) => lead.potentialRevenue != null);
   const attributedRevenue = roundMoney(
     bookedLeads.reduce((sum, lead) => sum + finiteNumber(lead.matchedAppointment?.revenue), 0),
   );
@@ -665,11 +687,12 @@ export function buildSearchKingsViewFromData(
     attributedRevenue,
     costPerBookedJob: bookedLeads.length ? roundMoney(spend / bookedLeads.length) : 0,
     roas: spend ? attributedRevenue / spend : 0,
-    lostLeads: leads.filter((lead) => lead.status === "lost").length,
+    lostLeads: lostLeads.length,
     needsFollowUp: leads.filter((lead) => lead.status === "needs_follow_up").length,
     recoveredLeads: leads.filter((lead) => lead.status === "recovered").length,
+    valuedLostLeads: valuedLostLeads.length,
     estimatedLostRevenue: roundMoney(
-      leads.filter((lead) => lead.status === "lost").reduce((sum, lead) => sum + lead.potentialRevenue, 0),
+      valuedLostLeads.reduce((sum, lead) => sum + finiteNumber(lead.potentialRevenue), 0),
     ),
     accountRows,
     territoryRows,

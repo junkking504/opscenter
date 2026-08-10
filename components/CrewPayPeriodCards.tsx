@@ -190,8 +190,6 @@ export function summarizeWorkWeeks(
       .filter((day) => day.date >= start && day.date <= end)
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    if (!weekDays.length) continue;
-
     const derivedDays: DerivedCrewPayPeriodDayRow[] = [];
     let regularHoursTotal = 0;
     let overtimeHoursTotal = 0;
@@ -278,7 +276,7 @@ export function summarizeWorkWeeks(
     weeks.push({
       start,
       end,
-      label: `Week ${weeks.length + 1}: ${start}–${end}`,
+      label: `Week ${index + 1}: ${start}–${end}`,
       days: derivedDays,
       totals: {
         regularHours: Number(regularHoursTotal.toFixed(2)),
@@ -308,7 +306,7 @@ export function summarizeWorkWeeks(
 }
 
 function summarizePeriodTotals(weeks: CrewPayPeriodWorkWeek[], summary: CrewPayPeriodSummaryRow) {
-  if (!weeks.length) {
+  if (!weeks.some((week) => week.days.length > 0)) {
     return {
       regularHours: Number(summary.hours.toFixed(2)),
       overtimeHours: 0,
@@ -585,17 +583,18 @@ export default function CrewPayPeriodCards({
 
                             <div className="ops-crew-period-week-days">
                               <div className="ops-crew-period-day-list">
-                                {week.days.map((day) => {
-                                const dayPeriodStatus =
-                                  day.today
-                                    ? "Today"
-                                    : day.selected
-                                      ? "Selected"
-                                      : day.isOpenShift
-                                        ? "On Shift"
-                                        : day.salary
-                                          ? "Salary"
-                                          : "Clocked Out";
+                                {week.days.length ? (
+                                  week.days.map((day) => {
+                                    const dayPeriodStatus =
+                                      day.today
+                                        ? "Today"
+                                        : day.selected
+                                          ? "Selected"
+                                          : day.isOpenShift
+                                            ? "On Shift"
+                                            : day.salary
+                                              ? "Salary"
+                                              : "Clocked Out";
 
                                 return (
                                   <details
@@ -716,7 +715,10 @@ export default function CrewPayPeriodCards({
                                     </div>
                                   </details>
                                 );
-                                })}
+                                  })
+                                ) : (
+                                  <div className="ops-muted">No worked days recorded for this week.</div>
+                                )}
                               </div>
                             </div>
 

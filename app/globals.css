@@ -4647,9 +4647,7 @@ a {
 
 .ops-jobs-map-schedule {
   min-width: 0;
-  height: 36rem;
-  max-height: 36rem;
-  overflow: auto;
+  overflow: visible;
   border-left: 1px solid var(--ops-border);
   background: #0b0e14;
 }
@@ -4720,7 +4718,7 @@ a {
 
 .ops-jobs-map-board-cell {
   display: flex;
-  min-width: 38px;
+  min-width: 0;
   min-height: 48px;
   gap: 2px;
   padding: 2px;
@@ -4912,7 +4910,7 @@ a {
 
 .ops-jobs-map-current-time span {
   position: absolute;
-  left: 50%;
+  right: 50%;
   top: 4px;
   padding: 2px 5px;
   border-radius: 4px;
@@ -4922,7 +4920,7 @@ a {
   font-weight: 950;
   line-height: 1;
   white-space: nowrap;
-  transform: translateX(-50%);
+  transform: none;
 }
 
 .ops-jobs-map-board-block:active {
@@ -5383,7 +5381,6 @@ a.ops-jobs-map-selection-phone:focus-visible {
   }
 
   .ops-jobs-map-schedule {
-    max-height: 30rem;
     border-top: 1px solid var(--ops-border);
     border-left: 0;
   }

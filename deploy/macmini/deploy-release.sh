@@ -104,6 +104,7 @@ fi
 
 cd "$release"
 npm ci
+npx playwright install chromium
 
 active_label=""
 active_port=""

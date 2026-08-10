@@ -127,8 +127,8 @@ export default function LostLeadTracker({ leads }: { leads: SearchKingsLead[] })
                 <div className="ops-muted">{leadDate(lead.calledAt)} · {lead.territory}</div>
               </div>
               <div className="ops-marketing-lead-value">
-                <small>Potential value</small>
-                <strong>{dollars(lead.potentialRevenue)}</strong>
+                <small>Potential Value</small>
+                <strong>{lead.potentialRevenue == null ? "Unknown" : dollars(lead.potentialRevenue)}</strong>
               </div>
             </div>
 

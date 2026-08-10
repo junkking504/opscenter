@@ -3,6 +3,7 @@ import path from "path";
 import { unstable_noStore as noStore } from "next/cache";
 import { readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoClockToDate } from "@/lib/live-pay";
+import { isClosedAppointment, isEstimateAppointment, shouldFlagMissingPaymentType } from "@/lib/job-audit-rules";
 
 export type ExceptionSeverity = "critical" | "warning" | "info";
 export type ExceptionCategory = "Crew" | "Jobs" | "Fleet" | "Finance";
@@ -669,7 +670,7 @@ function jobsExceptions(metrics: AnyRecord, date: string): OperationalException[
       });
     }
 
-    if (revenue > 0 && !paymentType) {
+    if (shouldFlagMissingPaymentType({ appointmentType, status, paymentAmount: revenue, paymentType })) {
       addException(exceptions, seen, {
         id: `jobs-${apptId || jkNumber}-payment-type-missing`,
         rule: "payment_amount_present_but_payment_type_missing",
@@ -748,13 +749,16 @@ function jobsExceptions(metrics: AnyRecord, date: string): OperationalException[
 function junkwarePhotoExceptions(date: string): OperationalException[] {
   const payload = readJsonFile<AnyRecord>(path.join("data", "history", "junkware", `junkware_${date}_raw.json`));
   const completedRows = Array.isArray(payload?.completed) ? payload.completed : [];
+  const closedEstimateRows = (Array.isArray(payload?.appointments) ? payload.appointments : []).filter((row: AnyRecord) => {
+    const appointmentType = String(row?.final_appointment_type || row?.appointment_type || "");
+    const status = String(row?.final_status || row?.job_status || row?.status || "");
+    return isEstimateAppointment(appointmentType) && isClosedAppointment(status);
+  });
   const exceptions: OperationalException[] = [];
   const seen = new Set<string>();
 
-  for (const row of completedRows) {
+  for (const row of [...completedRows, ...closedEstimateRows]) {
     if (!row || typeof row !== "object" || !Object.prototype.hasOwnProperty.call(row, "photos")) continue;
-    const appointmentType = String(row?.final_appointment_type || row?.appointment_type || "");
-    if (/estimate/i.test(appointmentType)) continue;
     const photos = Array.isArray(row?.photos) ? row.photos : [];
     if (photos.length) continue;
 
@@ -770,8 +774,8 @@ function junkwarePhotoExceptions(date: string): OperationalException[] {
       entityType: "job",
       entityId: apptId || jkNumber || reference,
       entityLabel: jkNumber || apptId || "Appointment",
-      title: "Completed job missing photos",
-      reason: `${reference} is completed, but JunkWare has no uploaded job photos.`,
+      title: "Closed Appointment Missing Photos",
+      reason: `${reference} is closed, but JunkWare has no uploaded appointment photos.`,
       source: `data/history/junkware/junkware_${date}_raw.json`,
       timestamp: String(row?.collection_timestamp || payload?.collection_timestamp || chicagoNow().toISOString()),
       href: `/jobs?date=${date}#job-${cardReference}`,

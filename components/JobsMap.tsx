@@ -290,7 +290,6 @@ type ScheduleDragGesture = {
 };
 
 const SCHEDULE_TRUCK_COLUMN_WIDTH = 72;
-const SCHEDULE_TIME_COLUMN_MIN_WIDTH = 44;
 
 type ScheduleJobState = "completed" | "canceled" | "on-site" | "visited-unclosed" | "waiting";
 
@@ -574,7 +573,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     const timeColumnCount = scheduleBoard.rows.length + (scheduleBoard.untimed ? 1 : 0);
     return {
       label: currentScheduleTime.label,
-      left: `calc(${SCHEDULE_TRUCK_COLUMN_WIDTH}px + (100% - ${SCHEDULE_TRUCK_COLUMN_WIDTH}px) * ${elapsedHours / Math.max(timeColumnCount, 1)})`,
+      left: `min(calc(${SCHEDULE_TRUCK_COLUMN_WIDTH}px + (100% - ${SCHEDULE_TRUCK_COLUMN_WIDTH}px) * ${elapsedHours / Math.max(timeColumnCount, 1)}), calc(100% - 6px))`,
     };
   }, [currentScheduleTime, date, scheduleBoard.rows, scheduleBoard.untimed]);
   const scheduleTruckRows: ScheduleColumn[] = scheduleBoard.columns.length
@@ -1209,8 +1208,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
             <div
               className="ops-jobs-map-board"
               style={{
-                gridTemplateColumns: `${SCHEDULE_TRUCK_COLUMN_WIDTH}px repeat(${Math.max(scheduleTimeColumnCount, 1)}, minmax(${SCHEDULE_TIME_COLUMN_MIN_WIDTH}px, 1fr))`,
-                minWidth: `${SCHEDULE_TRUCK_COLUMN_WIDTH + Math.max(scheduleTimeColumnCount, 1) * SCHEDULE_TIME_COLUMN_MIN_WIDTH}px`,
+                gridTemplateColumns: `${SCHEDULE_TRUCK_COLUMN_WIDTH}px repeat(${Math.max(scheduleTimeColumnCount, 1)}, minmax(0, 1fr))`,
               }}
             >
               {currentTimeLine ? (

@@ -285,8 +285,6 @@ export function summarizeWorkWeeks(
       .filter((day) => day.date >= start && day.date <= end)
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    if (!weekDays.length) continue;
-
     const derivedDays: CrewPayPeriodWeekDay[] = [];
     let regularHoursTotal = 0;
     let overtimeHoursTotal = 0;
@@ -371,7 +369,7 @@ export function summarizeWorkWeeks(
     weeks.push({
       start,
       end,
-      label: `Week ${weeks.length + 1}: ${start}–${end}`,
+      label: `Week ${index + 1}: ${start}–${end}`,
       days: derivedDays,
       totals: {
         regularHours: Number(regularHoursTotal.toFixed(2)),

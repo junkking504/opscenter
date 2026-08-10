@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { appointmentScheduleHref } from "../lib/job-links";
 import {
   buildSearchKingsViewFromData,
+  explicitCallValue,
   type LostLeadOverride,
   type SearchKingsAppointmentMatch,
   type SearchKingsSnapshot,
@@ -28,7 +29,7 @@ const snapshot: SearchKingsSnapshot = {
     callsQuality: [],
     calls: [
       { id: "booked", name: "Booked Caller", callerNumberComplete: "+1 504 555 0101", city: "New Orleans", score: 4, tagList: [], reportingTag: "Asked about a same-day pickup.", trackingLabel: "NOLA", duration: "03:20", calledAtDate: "2026-08-01", calledAtTime: "10:00 AM" },
-      { id: "lost", name: "Lost Caller", callerNumberComplete: "+1 225 555 0102", city: "Baton Rouge", score: 5, tagList: ["Availability objection"], trackingLabel: "Baton Rouge LSA", duration: "02:00", calledAtDate: "2026-08-01", calledAtTime: "9:00 AM" },
+      { id: "lost", name: "Lost Caller", callerNumberComplete: "+1 225 555 0102", city: "Baton Rouge", score: 5, tagList: ["Availability objection"], reportingTag: "Agent quoted $250; customer declined.", trackingLabel: "Baton Rouge LSA", duration: "02:00", calledAtDate: "2026-08-01", calledAtTime: "9:00 AM" },
       { id: "unqualified", name: "Bad Caller", callerNumberComplete: "+1 504 555 0103", city: "New Orleans", score: 1, tagList: [], duration: "00:30", calledAtDate: "2026-08-02", calledAtTime: "9:00 AM" },
       { id: "recovered", name: "Recovered Caller", callerNumberComplete: "+1 225 555 0104", city: "Baton Rouge", score: 4, tagList: [], duration: "01:30", calledAtDate: "2026-08-01", calledAtTime: "8:00 AM" },
     ],
@@ -59,14 +60,26 @@ assert.equal(view.qualifiedCalls, 3);
 assert.equal(view.bookedJobs, 2);
 assert.equal(view.attributedRevenue, 1000);
 assert.equal(view.lostLeads, 1);
+assert.equal(view.valuedLostLeads, 1);
+assert.equal(view.estimatedLostRevenue, 250);
 assert.equal(view.leads.find((lead) => lead.callerName === "Booked Caller")?.status, "booked");
 assert.equal(view.leads.find((lead) => lead.callerName === "Lost Caller")?.status, "lost");
 assert.equal(view.leads.find((lead) => lead.callerName === "Lost Caller")?.reason, "availability");
+assert.equal(view.leads.find((lead) => lead.callerName === "Lost Caller")?.potentialRevenue, 250);
+assert.equal(view.leads.find((lead) => lead.callerName === "Booked Caller")?.potentialRevenue, null);
 assert.equal(view.leads.find((lead) => lead.callerName === "Bad Caller")?.status, "unqualified");
 assert.equal(view.leads.find((lead) => lead.callerName === "Recovered Caller")?.status, "recovered");
 assert.equal(view.leads.find((lead) => lead.callerName === "Recovered Caller")?.franchiseContacted, true);
 assert.equal(view.leads.find((lead) => lead.callerName === "Lost Caller")?.franchiseContacted, false);
 assert.equal(view.territoryRows.find((row) => row.territory === "Baton Rouge")?.lostLeads, 1);
 assert.equal(appointmentScheduleHref("2026-08-02", "JK-101"), "/jobs?date=2026-08-02#job-jk-101");
+
+assert.equal(explicitCallValue("King-size mattress pickup quoted $128."), 128);
+assert.equal(explicitCallValue("Agent quoted $448, discounted to $388."), 388);
+assert.equal(explicitCallValue("Agent quoted $128; caller had a $79 offer elsewhere."), 128);
+assert.equal(explicitCallValue("Agent provided $200 starting price."), 200);
+assert.equal(explicitCallValue("Free on-site estimate scheduled between 12 PM and 2 PM."), null);
+assert.equal(explicitCallValue("Quote requested outside the 25-mile service area."), null);
+assert.equal(explicitCallValue("Agent quoted $128 or $158 depending on volume."), null);
 
 console.log("SearchKings attribution and lost-lead checks passed.");

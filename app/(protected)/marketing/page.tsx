@@ -75,7 +75,7 @@ export default async function MarketingPage({ searchParams }: { searchParams?: P
           <div className="ops-card ops-kpi-card"><div className="ops-card-title">Qualified Calls</div><div className="ops-kpi-value">{view.qualifiedCalls}</div><div className="ops-kpi-sub">{percent(view.qualifiedRate)} of calls</div></div>
           <div className="ops-card ops-kpi-card"><div className="ops-card-title">Matched Bookings</div><div className="ops-kpi-value ops-kpi-good">{view.bookedJobs}</div><div className="ops-kpi-sub">{money(view.costPerBookedJob)} ad cost each</div></div>
           <div className="ops-card ops-kpi-card"><div className="ops-card-title">Attributed Revenue</div><div className="ops-kpi-value ops-kpi-good">{money(view.attributedRevenue)}</div><div className="ops-kpi-sub">{ratio(view.roas)} return on ad spend</div></div>
-          <div className="ops-card ops-kpi-card"><div className="ops-card-title">Lost Opportunity</div><div className="ops-kpi-value ops-kpi-danger">{money(view.estimatedLostRevenue)}</div><div className="ops-kpi-sub">{view.lostLeads} lost · {view.needsFollowUp} need follow-up</div></div>
+          <div className="ops-card ops-kpi-card"><div className="ops-card-title">Quoted Lost Value</div><div className="ops-kpi-value ops-kpi-danger">{view.valuedLostLeads ? money(view.estimatedLostRevenue) : "Unknown"}</div><div className="ops-kpi-sub">{view.valuedLostLeads} of {view.lostLeads} lost leads state a value</div></div>
         </div>
 
         <div className="ops-marketing-overview-grid">
@@ -91,7 +91,7 @@ export default async function MarketingPage({ searchParams }: { searchParams?: P
               <div><span>Needs follow-up</span><strong>{view.needsFollowUp}</strong></div>
               <div><span>Lost</span><strong>{view.lostLeads}</strong></div>
               <div><span>Recovered</span><strong>{view.recoveredLeads}</strong></div>
-              <div><span>Potential lost revenue</span><strong>{money(view.estimatedLostRevenue)}</strong></div>
+              <div><span>Quoted Lost Value</span><strong>{view.valuedLostLeads ? money(view.estimatedLostRevenue) : "Unknown"}</strong></div>
             </div>
           </section>
         </div>

@@ -1,5 +1,5 @@
-const DEFAULT_PAY_PERIOD_ANCHOR = "2026-07-13";
-export const PAY_PERIOD_DAYS = 7;
+const DEFAULT_PAY_PERIOD_ANCHOR = "2026-07-27";
+export const PAY_PERIOD_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function validDateKey(value: unknown): value is string {

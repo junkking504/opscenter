@@ -105,12 +105,45 @@ body {
 }
 
 /* Titles, section headers, navigation, and tabs follow one Title Case rule. */
-.ops-main :where(h1, h2, h3, h4, h5, h6, .ops-section-title, .ops-card-title),
+.ops-main :where(
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
+  th,
+  .ops-section-title,
+  .ops-card-title,
+  .ops-call-ahead-menu-title,
+  .ops-closeout-editor-heading,
+  .ops-crew-card-subsection-title,
+  .ops-crew-detail-section-title,
+  .ops-crew-period-week-title,
+  .ops-driver-panel-heading,
+  .ops-driver-panel-title,
+  .ops-exception-item-title,
+  .ops-finance-brief-heading,
+  .ops-job-activity-group-title,
+  .ops-job-activity-heading,
+  .ops-job-activity-title,
+  .ops-job-closeout-heading,
+  .ops-maintenance-form-title,
+  .ops-marketing-lead-heading,
+  .ops-operating-pulse-title,
+  .ops-resale-form-heading,
+  .ops-route-plan-heading,
+  .ops-status-group-title,
+  .ops-territory-title,
+  .ops-workspace-title
+),
 .ops-sidebar :where(.ops-nav-item, .ops-nav-subitem),
 .ops-bottom-nav-item small,
 .ops-page-subnav a,
 .ops-tabs a,
 .ops-fleet-summary-tabs a,
+.ops-monthly-summary-tabs a,
+.ops-service-truck-tabs button,
 .ops-jobs-mode-toggle a,
 .ops-button,
 .ops-refresh-button {
@@ -143,6 +176,53 @@ body {
   font-size: 0.9375rem;
   line-height: 1.4;
 }
+
+/* The current design-system bundle still contains a late legacy rule that
+ * paints every card dark. Re-establish the light workspace contract here and
+ * opt the few deliberate dark canvases back in below. */
+.ops-main .ops-card {
+  border-color: #d8dcd8 !important;
+  background: #fff !important;
+  color: #20242b;
+  box-shadow: 0 7px 22px rgba(25, 28, 35, 0.045);
+}
+
+.ops-main .ops-dashboard > .ops-kpi-row > .ops-card,
+.ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card {
+  border-color: #d8dcd8; background: #fff; color: #20242b;
+}
+
+.ops-main .ops-dashboard > .ops-kpi-row > .ops-card .ops-card-title,
+.ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-card-title {
+  color: #626b77;
+}
+
+.ops-main .ops-dashboard > .ops-kpi-row > .ops-card .ops-kpi-value,
+.ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-value { color: #171a1f; }
+
+.ops-main .ops-dashboard > .ops-kpi-row > .ops-card .ops-kpi-accent,
+.ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-accent { color: #91620b; }
+
+.ops-main .ops-dashboard > .ops-kpi-row > .ops-card .ops-kpi-good,
+.ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-good { color: #087849; }
+
+.ops-main .ops-dashboard > .ops-kpi-row > .ops-card .ops-kpi-danger,
+.ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-danger { color: #c32f3a; }
+
+.ops-main .ops-dashboard > .ops-kpi-row > .ops-card .ops-kpi-sub,
+.ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-sub,
+.ops-main .ops-card-header .ops-muted { color: #606873; }
+
+.ops-main .ops-jobs-map-card,
+.ops-main .ops-crew-section-period,
+.ops-main .ops-finance-page > .ops-finance-brief {
+  border-color: rgba(255, 255, 255, 0.1) !important; background: #10151b !important;
+  color: #f8fafc; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+}
+
+.ops-main .ops-finance-page > .ops-finance-brief :where(h2, strong) { color: #f8fafc; }
+
+.ops-main .ops-finance-page > .ops-finance-brief :where(p, small, span) { color: #aeb7c3; }
 
 /* Daily Command intentionally uses a dark control strip; keep its copy and
  * tabs readable after the shared light-surface typography rules above. */
@@ -295,6 +375,8 @@ body {
   font-weight: 750;
 }
 
+.ops-main :where(.ops-fleet-truck-link, .ops-fleet-truck-link strong) { color: #20242b !important; }
+
 /* Supporting dashboard cards inherited dark text onto a dark background. */
 .ops-supporting-metrics .ops-daily-kpi-card {
   border-color: #d8dcd8;
@@ -309,21 +391,28 @@ body {
   background: #f8fafb;
 }
 
-.ops-supporting-metrics .ops-daily-kpi-card .ops-card-title {
-  color: #626b77;
-}
+.ops-supporting-metrics .ops-daily-kpi-card .ops-card-title { color: #626b77; }
 
-.ops-supporting-metrics .ops-daily-kpi-card .ops-kpi-value {
-  color: #171a1f;
-}
+.ops-supporting-metrics .ops-daily-kpi-card .ops-kpi-value { color: #171a1f; }
 
-.ops-supporting-metrics .ops-daily-kpi-card .ops-kpi-sub {
-  color: #606873;
-}
+.ops-supporting-metrics .ops-daily-kpi-card .ops-kpi-sub { color: #606873; }
 
 .ops-supporting-metrics-heading p {
   color: #606873;
   font-size: 0.875rem;
+}
+
+/* These section headers sit on intentionally dark operational canvases. */
+.ops-main .ops-jobs-page .ops-jobs-map-card .ops-jobs-map-header .ops-section-title,
+.ops-crew-section-period > .ops-card-header .ops-section-title { color: #f8fafc !important; }
+
+.ops-main .ops-jobs-page .ops-jobs-map-card .ops-jobs-map-header .ops-muted,
+.ops-crew-section-period > .ops-card-header .ops-muted { color: #b8c1cc !important; }
+
+.ops-jobs-map-legend {
+  color: #c2c9d2;
+  font-size: 0.8125rem;
+  line-height: 1.35;
 }
 
 /* Dense operational screens previously rendered important details at 8–11px. */
@@ -348,6 +437,133 @@ body {
 .ops-crew-dashboard .ops-manual-bonus-field > span,
 .ops-crew-dashboard .ops-daily-leaderboard-person > small {
   font-size: inherit !important;
+}
+
+/* Crew cards and leaderboard rows originated on dark surfaces. Keep their
+ * context, warnings, names, and ranks legible on the current light workspace. */
+.ops-crew-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-value {
+  grid-row: 1;
+}
+
+.ops-crew-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-sub {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  max-width: 100%;
+  overflow: visible;
+  color: #606873;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.ops-crew-dashboard > .ops-crew-kpi-row > .ops-card .ops-live-pay-note {
+  margin-top: 0.35rem;
+  color: #79560e;
+  font-size: 0.9375rem !important;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-align: right;
+  white-space: normal;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .ops-daily-leaderboard-person strong {
+  color: #20242b;
+  font-weight: 850;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .ops-daily-leaderboard-person small {
+  color: #606873;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .ops-daily-leaderboard-jobs,
+.ops-crew-dashboard .ops-daily-leaderboard-table .ops-daily-leaderboard-revenue {
+  color: #303741 !important;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .is-rank-1 .ops-daily-leaderboard-revenue {
+  color: #79560e !important;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .ops-daily-leaderboard-rank {
+  border-color: #d8dcd8;
+  background: #f4f5f3;
+  color: #59636f;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .is-rank-1 .ops-daily-leaderboard-rank {
+  border-color: #d9b85e;
+  background: #fff5d8;
+  color: #79560e;
+  box-shadow: none;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .is-rank-2 .ops-daily-leaderboard-rank {
+  border-color: #bfc6ce;
+  background: #f0f2f4;
+  color: #4d5865;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .is-rank-3 .ops-daily-leaderboard-rank {
+  border-color: #d7b28c;
+  background: #fff1e4;
+  color: #87562a;
+}
+
+/* Pay-period totals use direct-child labels; reset the live value nested span
+ * so it remains a value instead of inheriting the compact label treatment. */
+.ops-crew-section-period .ops-period-summary-compact {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 1.2fr);
+}
+
+.ops-crew-section-period .ops-period-summary strong > span {
+  display: inline;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: none;
+}
+
+.ops-crew-section-period .ops-period-summary .ops-live-pay-note {
+  display: block;
+  margin-top: 0.35rem;
+  color: #8a6215;
+  font-size: 0.8125rem !important;
+  font-weight: 750;
+  line-height: 1.3;
+  white-space: normal;
+}
+
+.ops-crew-period-employee-card .ops-crew-employee-summary-grid {
+  grid-template-columns: minmax(150px, 1.35fr) repeat(3, minmax(110px, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.ops-crew-period-employee-card .ops-crew-period-badge {
+  display: none;
+}
+
+.ops-crew-dashboard .ops-crew-period-employee-card .ops-crew-summary-label {
+  color: #66707c;
+  font-size: 0.8125rem !important;
+  line-height: 1.3;
+}
+
+.ops-crew-dashboard .ops-crew-period-employee-card :where(.ops-crew-summary-value, .ops-crew-employee-name) {
+  color: #20242b;
+  font-size: 0.9375rem;
+  line-height: 1.35;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.ops-crew-dashboard .ops-crew-period-employee-card :where(.ops-crew-summary-subvalue, .ops-crew-employee-subtitle) {
+  color: #606873;
+  font-size: 0.8125rem !important;
+  line-height: 1.35;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal !important;
 }
 
 .ops-jobs-page :where(
@@ -392,7 +608,7 @@ body {
 }
 
 .ops-jobs-page .ops-jobs-map-board-block {
-  min-width: 24px;
+  min-width: 0;
 }
 
 /* Avoid a stretched empty manager panel beside the longer signal list. */
@@ -443,6 +659,14 @@ body {
     font-size: 0.875rem;
   }
 
+  .ops-crew-section-period .ops-period-summary-compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-crew-period-employee-card .ops-crew-employee-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .ops-page-subnav {
     scroll-snap-type: x proximity;
   }
@@ -467,8 +691,8 @@ body {
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    max-height: 34rem;
-    overflow-x: auto;
+    max-height: none;
+    overflow: visible;
     border-top: 0;
     border-bottom: 1px solid var(--oc-line);
   }

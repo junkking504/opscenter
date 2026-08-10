@@ -363,12 +363,13 @@ export default async function FinancePage({
   const date = resolveDate(params);
   const view = normalizeView(params?.view);
   const requestedSection = String(params?.section || "overview").toLowerCase();
+  const currentDate = new Date();
   const todayParts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Chicago",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).formatToParts(new Date());
+  }).formatToParts(currentDate);
   const todayValues = Object.fromEntries(todayParts.map((part) => [part.type, part.value]));
   const today = `${todayValues.year}-${todayValues.month}-${todayValues.day}`;
   const yesterdayParts = new Intl.DateTimeFormat("en-US", {
@@ -376,7 +377,7 @@ export default async function FinancePage({
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).formatToParts(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  }).formatToParts(new Date(currentDate.getTime() - 24 * 60 * 60 * 1000));
   const yesterdayValues = Object.fromEntries(yesterdayParts.map((part) => [part.type, part.value]));
   const yesterday = `${yesterdayValues.year}-${yesterdayValues.month}-${yesterdayValues.day}`;
   const isLivePaymentWindow = date === today || date === yesterday;

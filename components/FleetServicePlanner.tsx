@@ -51,7 +51,7 @@ export default function FleetServicePlanner({ initialRecords, truckOptions, inve
     const dueSoonMiles = Boolean(nextOdometer != null && vehicle?.odometer != null && nextOdometer - vehicle.odometer <= 1000 && nextOdometer > vehicle.odometer);
     const status = scheduled ? "scheduled" : !completed ? "baseline" : dateDue || mileageDue ? "overdue" : dueSoonDate || dueSoonMiles ? "soon" : "current";
     return { rule, completed, scheduled, nextDate, nextOdometer, status };
-  }), [records, today, truck, vehicle?.odometer]);
+  }), [records, today, truck, vehicle]);
 
   async function schedule(row: (typeof rows)[number]) {
     setSavingType(row.rule.serviceType);

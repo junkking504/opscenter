@@ -40,7 +40,12 @@ export default function OpsShell({
 
   return (
     <div className="ops-app">
-      <input id="ops-sidebar-toggle" className="ops-sidebar-toggle" type="checkbox" aria-hidden="true" />
+      <input
+        id="ops-sidebar-toggle"
+        className="ops-sidebar-toggle"
+        type="checkbox"
+        aria-label="Open Navigation Menu"
+      />
       <label htmlFor="ops-sidebar-toggle" className="ops-sidebar-backdrop" aria-hidden="true" />
       <aside className="ops-sidebar">
         <div className="ops-brand">

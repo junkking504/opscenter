@@ -60,9 +60,13 @@ async function responseJson<T>(response: Response): Promise<T> {
 export default function OperatingInbox({
   date,
   variant = "standalone",
+  enabled = true,
+  disabledReason,
 }: {
   date: string;
   variant?: "standalone" | "command";
+  enabled?: boolean;
+  disabledReason?: string;
 }) {
   const [payload, setPayload] = useState<InboxPayload | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -71,11 +75,12 @@ export default function OperatingInbox({
   const [lifecycle, setLifecycle] = useState<LifecycleFilter>("open");
   const [severity, setSeverity] = useState("all");
   const [category, setCategory] = useState("all");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!enabled) return;
     setLoading(true);
     setError(null);
     try {
@@ -94,9 +99,9 @@ export default function OperatingInbox({
     } finally {
       setLoading(false);
     }
-  }, [date]);
+  }, [date, enabled]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (enabled) void load(); }, [enabled, load]);
 
   const visibleItems = useMemo(() => {
     if (!payload) return [];
@@ -168,6 +173,17 @@ export default function OperatingInbox({
     return value && value.trim().length >= 3 ? value.trim() : null;
   }
 
+  if (!enabled) {
+    return (
+      <div className={styles.error}>
+        <div>
+          <strong>Operating Inbox Is Not Enabled</strong>
+          {disabledReason || "The platform database is unavailable for this runtime."}<br />
+          The rest of OpsCenter remains available.
+        </div>
+      </div>
+    );
+  }
   if (loading && !payload) return <div className={styles.loading}>Reconciling current operating signals…</div>;
   if (error && !payload) {
     return (

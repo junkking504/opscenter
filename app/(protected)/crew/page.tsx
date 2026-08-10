@@ -29,9 +29,18 @@ import { buildMonthlyRange, buildMonthlySummary, monthOptions } from "@/lib/mont
 import { buildFleetDailyRecord } from "@/lib/fleet-history";
 import { payPeriodForDate } from "@/lib/pay-period";
 import CrewCallInPlan from "@/components/CrewCallInPlan";
+import OpsPagination from "@/components/OpsPagination";
 import { buildCrewCallInPlan } from "@/lib/crew-call-in-recommendations";
 
 export const dynamic = "force-dynamic";
+
+const CREW_PER_PAGE = 8;
+
+function crewPageHref(date: string, page: number): string {
+  const params = new URLSearchParams({ date, section: "crew" });
+  if (page > 1) params.set("page", String(page));
+  return `/crew?${params.toString()}#crew-today`;
+}
 
 function chicagoTodayIso(): string {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -1482,6 +1491,13 @@ export default async function CrewPage({
   const hasLeaderboardResults = rankedCrew.some(
     (row) => employeeRevenue(row) > 0 || employeeJobs(row, metrics) > 0,
   );
+  const requestedCrewPage = Number.parseInt(String(params?.page || "1"), 10);
+  const totalCrewPages = Math.max(1, Math.ceil(crew.length / CREW_PER_PAGE));
+  const crewPage = Math.min(
+    totalCrewPages,
+    Math.max(1, Number.isFinite(requestedCrewPage) ? requestedCrewPage : 1),
+  );
+  const visibleCrew = crew.slice((crewPage - 1) * CREW_PER_PAGE, crewPage * CREW_PER_PAGE);
 
   const totalTips = crew.reduce((sum, row) => sum + tipPay(row), 0);
   const totalBonus = crew.reduce((sum, row) => sum + bonusPay(row), 0);
@@ -1680,9 +1696,17 @@ export default async function CrewPage({
           </div>
         </div>
 
+        <OpsPagination
+          label="Crew performance pages"
+          currentPage={crewPage}
+          totalPages={totalCrewPages}
+          previousHref={crewPage > 1 ? crewPageHref(date, crewPage - 1) : undefined}
+          nextHref={crewPage < totalCrewPages ? crewPageHref(date, crewPage + 1) : undefined}
+        />
+
         <div className="ops-crew-card-grid">
-          {crew.length ? (
-            crew.map((row, idx) => {
+          {visibleCrew.length ? (
+            visibleCrew.map((row, idx) => {
               const name = employeeName(row);
               const revenue = employeeRevenue(row);
               const jobRevenueWorked = employeeJobRevenueWorked(row, metrics);
@@ -1917,6 +1941,14 @@ export default async function CrewPage({
             <div className="ops-muted">No crew data available.</div>
           )}
         </div>
+
+        <OpsPagination
+          label="Crew performance pages"
+          currentPage={crewPage}
+          totalPages={totalCrewPages}
+          previousHref={crewPage > 1 ? crewPageHref(date, crewPage - 1) : undefined}
+          nextHref={crewPage < totalCrewPages ? crewPageHref(date, crewPage + 1) : undefined}
+        />
       </div> : null}
 
       {section === "pay-period" ? <div className="ops-card ops-crew-section ops-crew-section-period" id="crew-pay-period">

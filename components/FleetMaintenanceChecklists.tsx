@@ -373,7 +373,7 @@ export default function FleetMaintenanceChecklists({
         <div className="ops-checklist-workspace">
           <div className="ops-checklist-workspace-header">
             <div>
-              <h3>{selectedTruck} · {fleetChecklistCadenceLabel(cadence)} Checklist</h3>
+              <h2>{selectedTruck} · {fleetChecklistCadenceLabel(cadence)} Checklist</h2>
               <p>{dateLabel(inspectionDate)}{currentEntry?.updatedAt ? ` · Last saved ${new Date(currentEntry.updatedAt).toLocaleString("en-US")}` : " · Not yet saved"}</p>
             </div>
             <div className={`ops-checklist-count ${answeredCount === definitions.length ? "complete" : ""}`}><strong>{answeredCount}/{definitions.length}</strong><span>items checked</span></div>
@@ -400,7 +400,13 @@ export default function FleetMaintenanceChecklists({
                     <button type="button" className={answer.status === "attention" ? "active attention" : ""} onClick={() => updateAnswer(item.itemId, { status: "attention" })}>Needs attention</button>
                     <button type="button" className={answer.status === "na" ? "active na" : ""} onClick={() => updateAnswer(item.itemId, { status: "na" })}>N/A</button>
                   </div>
-                  <input className="ops-checklist-note" value={answer.notes} onChange={(event) => updateAnswer(item.itemId, { notes: event.target.value })} placeholder={answer.status === "attention" ? "Describe the issue or needed repair…" : "Optional note"} />
+                  <input
+                    className="ops-checklist-note"
+                    value={answer.notes}
+                    onChange={(event) => updateAnswer(item.itemId, { notes: event.target.value })}
+                    placeholder={answer.status === "attention" ? "Describe the issue or needed repair…" : "Optional note"}
+                    aria-label={`${item.label} Notes`}
+                  />
                   {answer.status === "attention" || savedPhotos.length || queuedPhotos.length ? <div className="ops-checklist-item-media">
                     <label className="ops-photo-add"><span>Add photos</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple capture="environment" onChange={(event) => { addPendingPhotos(item.itemId, event.target.files); event.target.value = ""; }} /></label>
                     {savedPhotos.map((photo) => <div className="ops-photo-thumb" key={photo.photoId}><img src={`/api/fleet-checklist-photos?photoId=${encodeURIComponent(photo.photoId)}`} alt={photo.fileName} /><button type="button" onClick={() => removePhoto(photo)}>Remove</button></div>)}

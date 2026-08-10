@@ -1,0 +1,14 @@
+/*
+ * One explicit cascade for OpsCenter.
+ *
+ * The legacy application, redesign, design-system, dashboard, and usability
+ * rules used to compete solely through import order and selector specificity.
+ * A single entry makes that precedence intentional and testable. Next.js 15's
+ * CSS pipeline does not preserve import-layer syntax, so these imports stay
+ * plain and ordered until the framework upgrade is complete.
+ */
+@import "./globals.css";
+@import "./ops-redesign.css";
+@import "./ops-design-system.css";
+@import "./dashboard-v2.css";
+@import "./ops-usability.css";

@@ -1000,9 +1000,12 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
 
     markers.clearLayers();
     for (const job of locatedJobs) {
+      const markerLabel = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber}`;
       const marker = leaflet.marker([job.latitude, job.longitude], {
         icon: markerIcon(leaflet, job, selectedKey === job.key),
         keyboard: true,
+        title: markerLabel,
+        alt: markerLabel,
         zIndexOffset: selectedKey === job.key ? 1000 : 0,
       });
       const itemSummary = job.junkItems.length ? ` · ${job.junkItems.join(", ")}` : " · Items not listed";
@@ -1018,9 +1021,12 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     }
 
     for (const truck of liveTruckLocations) {
+      const markerLabel = `${truck.truck} · ${truck.status} · ${truck.freshness}`;
       const marker = leaflet.marker([truck.latitude, truck.longitude], {
         icon: truckIcon(leaflet, truck, selectedTruckName === truck.truck),
         keyboard: true,
+        title: markerLabel,
+        alt: markerLabel,
         zIndexOffset: 1800,
       });
       const driver = truck.driver && truck.driver !== "—" ? ` · ${truck.driver}` : "";

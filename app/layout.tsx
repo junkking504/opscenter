@@ -1,10 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import "./globals.css";
 import "leaflet/dist/leaflet.css";
-import "./ops-design-system.css";
-import "./dashboard-v2.css";
-import "./ops-redesign.css";
-import "./ops-usability.css";
+import "./ops-styles.css";
 
 export const metadata: Metadata = {
   title: {

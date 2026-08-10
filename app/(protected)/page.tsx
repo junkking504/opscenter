@@ -1,5 +1,6 @@
 import PageHeader from "@/components/PageHeader";
 import OperatingInbox from "@/components/OperatingInbox";
+import { resolveKernelDatabaseConfig } from "@/lib/platform/persistence/config";
 import CommandBrief, {
   type CommandBriefMetric,
   type CommandBriefSignal,
@@ -488,6 +489,7 @@ export default async function DashboardPage({
   searchParams?: Promise<AnyRecord>;
 }) {
   const params = searchParams ? await searchParams : undefined;
+  const kernelDatabase = resolveKernelDatabaseConfig();
   const date = resolveDate(params);
   const view = normalizeView(params?.view);
   const requestedSection = String(params?.section || "overview").toLowerCase();
@@ -710,7 +712,12 @@ export default async function DashboardPage({
           actions={dailyActions}
         />
 
-        <OperatingInbox date={date} variant="command" />
+        <OperatingInbox
+          date={date}
+          variant="command"
+          enabled={kernelDatabase.status === "ready"}
+          disabledReason={kernelDatabase.status === "ready" ? undefined : kernelDatabase.reason}
+        />
 
         {!metrics && (
         <div className="ops-card ops-alert-card">

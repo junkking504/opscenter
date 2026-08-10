@@ -74,7 +74,7 @@ async function initializeOpsSession(
   return response;
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const hostname = String(
     request.headers.get("x-forwarded-host") || request.headers.get("host") || request.nextUrl.host,

@@ -22,6 +22,50 @@ body {
   line-height: 1.5;
 }
 
+.ops-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.ops-pagination-link,
+.ops-pagination-status {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.65rem;
+  font-size: 0.9375rem;
+  font-weight: 750;
+}
+
+.ops-pagination-link {
+  min-width: 6.5rem;
+  border: 1px solid var(--oc-line-strong);
+  background: #fff;
+  color: #252a31;
+  text-decoration: none;
+}
+
+.ops-pagination-link:hover,
+.ops-pagination-link:focus-visible {
+  border-color: #8e969f;
+  outline: 3px solid rgba(20, 93, 160, 0.25);
+  outline-offset: 2px;
+}
+
+.ops-pagination-link.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.ops-pagination-status {
+  min-width: 8rem;
+  color: var(--oc-text-secondary);
+}
+
 /* Grid children must be allowed to shrink instead of widening the page. */
 .ops-dashboard > *,
 .ops-page-header,
@@ -384,12 +428,20 @@ body {
   /* Put the dispatch schedule before the map on small screens. */
   .ops-jobs-map-workspace.has-schedule {
     display: flex;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
     flex-direction: column;
   }
 
   .ops-jobs-map-workspace.has-schedule .ops-jobs-map-schedule {
     order: 1;
+    flex: 0 1 100%;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     max-height: 34rem;
+    overflow-x: auto;
     border-top: 0;
     border-bottom: 1px solid var(--oc-line);
   }

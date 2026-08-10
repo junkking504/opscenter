@@ -9,6 +9,7 @@ import OpsMonthSelector from "@/components/OpsMonthSelector";
 import JobCallAheadCard from "@/components/JobCallAheadCard";
 import JobCloseoutEditor from "@/components/JobCloseoutEditor";
 import { JobsMap, type JobsMapPoint } from "@/components/JobsMap";
+import OpsPagination from "@/components/OpsPagination";
 import { AnyRecord, availableDates, completedJobs, money, readMetrics, resolveDate } from "@/lib/opsData";
 import { buildOperationalExceptions } from "@/lib/operational-exceptions";
 import { buildFleetMapPayload, type FleetTruckMapRecord } from "@/lib/fleet-map";
@@ -121,6 +122,8 @@ type SiteTimeAppointment = {
 type JobStatusBucket = "Open / Scheduled" | "Estimate" | "Completed" | "Canceled" | "Unclosed or Needs Attention";
 type JobsView = "daily" | "calendar" | "monthly";
 type JobsWorkspace = "dispatch";
+
+const JOBS_PER_PAGE = 12;
 
 type JobsFilters = {
   territory: string;
@@ -635,6 +638,7 @@ function buildJobsHref({
   truck,
   q,
   siteTime,
+  page,
 }: {
   date: string;
   view: JobsView;
@@ -645,6 +649,7 @@ function buildJobsHref({
   truck?: string;
   q?: string;
   siteTime?: string;
+  page?: number;
 }) {
   const params = new URLSearchParams();
   params.set("date", date);
@@ -656,6 +661,7 @@ function buildJobsHref({
   if (truck) params.set("truck", truck);
   if (q) params.set("q", q);
   if (siteTime) params.set("siteTime", siteTime);
+  if (page && page > 1) params.set("page", String(page));
   return `/jobs?${params.toString()}`;
 }
 
@@ -2484,7 +2490,18 @@ export default async function JobsPage({
       return totalMinutes > 60;
     });
   }
-  const groupedJobs = groupJobsByTerritory(filteredJobs);
+  const orderedFilteredJobs = groupJobsByTerritory(filteredJobs).flatMap(([, territoryJobs]) => territoryJobs);
+  const requestedPage = Number.parseInt(String(params?.page || "1"), 10);
+  const totalQueuePages = Math.max(1, Math.ceil(orderedFilteredJobs.length / JOBS_PER_PAGE));
+  const queuePage = Math.min(
+    totalQueuePages,
+    Math.max(1, Number.isFinite(requestedPage) ? requestedPage : 1),
+  );
+  const queueStart = (queuePage - 1) * JOBS_PER_PAGE;
+  const queueJobs = view === "daily"
+    ? orderedFilteredJobs.slice(queueStart, queueStart + JOBS_PER_PAGE)
+    : orderedFilteredJobs;
+  const groupedJobs = groupJobsByTerritory(queueJobs);
   const jobsExceptions = buildOperationalExceptions(date).exceptions.filter((exception) => exception.category === "Jobs");
   const exceptionByJob = new Map<string, (typeof jobsExceptions)[number][]>();
   for (const exception of jobsExceptions) {
@@ -3097,6 +3114,14 @@ export default async function JobsPage({
           </div>
           <div className="ops-job-count-pill">{filterCount} appointments</div>
         </div>
+
+        <OpsPagination
+          label="Appointment queue pages"
+          currentPage={queuePage}
+          totalPages={totalQueuePages}
+          previousHref={queuePage > 1 ? buildJobsHref({ date, view, workspace, ...filters, page: queuePage - 1 }) : undefined}
+          nextHref={queuePage < totalQueuePages ? buildJobsHref({ date, view, workspace, ...filters, page: queuePage + 1 }) : undefined}
+        />
 
         <div
           className="ops-selected-appointment-slot"
@@ -3713,11 +3738,21 @@ export default async function JobsPage({
             </section>
           ))}
 
-          {jobs.length === 0 && (
+          {filteredJobs.length === 0 && (
             <div className="ops-empty-state">
-              No appointments are currently published for this date. The schedule will appear here automatically when JunkWare has appointments available.
+              {jobs.length === 0
+                ? "No appointments are currently published for this date. The schedule will appear here automatically when JunkWare has appointments available."
+                : "No appointments match the selected filters."}
             </div>
           )}
+
+          <OpsPagination
+            label="Appointment queue pages"
+            currentPage={queuePage}
+            totalPages={totalQueuePages}
+            previousHref={queuePage > 1 ? buildJobsHref({ date, view, workspace, ...filters, page: queuePage - 1 }) : undefined}
+            nextHref={queuePage < totalQueuePages ? buildJobsHref({ date, view, workspace, ...filters, page: queuePage + 1 }) : undefined}
+          />
 
           {jobs.length > 0 && (
             <div className="ops-job-total-row compact-total">

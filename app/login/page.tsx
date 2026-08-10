@@ -22,7 +22,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = (await searchParams) || {};
   const error = firstParam(params.error);
   const next = firstParam(params.next);
-  const invalidEmail = error === "invalid-email";
+  const invalidCredentials = error === "invalid-credentials";
 
   return (
     <main className="ops-login-shell">
@@ -51,28 +51,40 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <div className="ops-login-access-card">
           <div className="ops-login-access-index">Secure sign in</div>
           <h2>Enter OpsCenter</h2>
-          <p>Use your authorized Junk King email to continue.</p>
+          <p>Enter the shared OpsCenter credentials to continue.</p>
 
           <form action="/api/auth/login" method="post" className="ops-login-form">
             <input type="hidden" name="next" value={next} />
             <label>
-              <span>Email address</span>
+              <span>Username</span>
               <input
-                name="email"
-                type="email"
-                autoComplete="email"
+                name="username"
+                type="text"
+                autoComplete="username"
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck="false"
-                placeholder="name@junk-king.com"
+                placeholder="Username"
                 className="ops-field"
                 required
               />
             </label>
 
-            {invalidEmail ? (
+            <label>
+              <span>Password</span>
+              <input
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="Password"
+                className="ops-field"
+                required
+              />
+            </label>
+
+            {invalidCredentials ? (
               <div role="alert" className="ops-login-error">
-                Please enter a valid @junk-king.com email address.
+                Invalid username or password.
               </div>
             ) : null}
 

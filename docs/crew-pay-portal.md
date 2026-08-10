@@ -34,13 +34,13 @@ Each employee also has a personal performance summary with Day, Week, and Month 
 
 ## Pay-period schedule
 
-The portal uses weekly Monday-through-Sunday pay periods anchored to Monday `2026-07-13`, matching the current OpsCenter crew-period implementation. If the authoritative schedule uses another Monday anchor, set:
+The portal uses two-week pay periods anchored to Monday `2026-07-27`, matching the current OpsCenter crew-period implementation. The period ending Sunday `2026-08-09` is followed by the period beginning Monday `2026-08-10`. If the authoritative schedule uses another Monday anchor, set:
 
 ```text
 OPS_PAY_PERIOD_ANCHOR=YYYY-MM-DD
 ```
 
-The anchor must be the Monday that starts a pay period. Overtime is calculated after 40 hours in that Monday-through-Sunday period, at 1.5× the recorded hourly rate.
+The anchor must be the Monday that starts a two-week pay period. Overtime is calculated after 40 hours in each Monday-through-Sunday work week within the pay period, at 1.5× the recorded hourly rate.
 
 ## Activation sequence
 

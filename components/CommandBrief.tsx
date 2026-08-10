@@ -18,9 +18,9 @@ export type CommandBriefSignal = {
 };
 
 const statusLabel: Record<OperatingStatus, string> = {
-  "on-track": "On track",
+  "on-track": "On Track",
   watch: "Watch",
-  "off-track": "Act now",
+  "off-track": "Act Now",
 };
 
 function toneClass(status: OperatingStatus): string {
@@ -46,8 +46,8 @@ export default function CommandBrief({
     <section className={styles.brief} id="command-overview" aria-labelledby="command-brief-title">
       <header className={styles.header}>
         <div>
-          <div className={styles.kicker}><span /> Daily overview</div>
-          <h2 id="command-brief-title">Today&apos;s command brief</h2>
+          <div className={styles.kicker}><span /> Daily Overview</div>
+          <h2 id="command-brief-title">Today&apos;s Command Brief</h2>
           <p>{String(signals.length).padStart(2, "0")} operating signals · {String(actions.slice(0, 3).length).padStart(2, "0")} priority actions</p>
         </div>
         <div className={`${styles.readiness} ${toneClass(overallStatus)}`}>
@@ -78,7 +78,7 @@ export default function CommandBrief({
         <section className={styles.queue} aria-labelledby="manager-queue-title">
           <div className={styles.sectionHeader}>
             <div>
-              <span>Priority actions</span>
+              <span>Priority Actions</span>
               <h2 id="manager-queue-title">Manager Queue</h2>
             </div>
             <small>{String(actions.slice(0, 3).length).padStart(2, "0")} actions</small>
@@ -111,7 +111,7 @@ export default function CommandBrief({
         <section className={styles.signals} aria-labelledby="operating-brief-title">
           <div className={styles.sectionHeader}>
             <div>
-              <span>Operating status</span>
+              <span>Operating Status</span>
               <h2 id="operating-brief-title">Current Conditions</h2>
             </div>
             <small>{String(signals.length).padStart(2, "0")} signals</small>

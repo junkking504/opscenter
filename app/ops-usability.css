@@ -22,6 +22,21 @@ body {
   line-height: 1.5;
 }
 
+/* Grid children must be allowed to shrink instead of widening the page. */
+.ops-dashboard > *,
+.ops-page-header,
+.ops-card {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ops-page-subnav,
+.ops-wide-table-wrap {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 .ops-login-access-card > p,
 .ops-login-hero > p {
   font-size: 0.9375rem;

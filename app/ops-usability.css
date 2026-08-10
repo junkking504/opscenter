@@ -144,6 +144,33 @@ body {
   line-height: 1.4;
 }
 
+/* Daily Command intentionally uses a dark control strip; keep its copy and
+ * tabs readable after the shared light-surface typography rules above. */
+.ops-main .ops-daily-dashboard .ops-page-title {
+  color: #f8fafc;
+}
+
+.ops-main .ops-daily-dashboard .ops-page-header-subtitle,
+.ops-main .ops-daily-dashboard .ops-page-header-meta,
+.ops-main .ops-daily-dashboard .ops-page-header-updated,
+.ops-main .ops-daily-dashboard .ops-page-header-status {
+  color: #b8c1cc;
+}
+
+.ops-main .ops-daily-dashboard .ops-date-label,
+.ops-main .ops-daily-dashboard .ops-page-header label {
+  color: #d7dde5;
+}
+
+.ops-main .ops-daily-dashboard .ops-page-subnav a {
+  color: #c3cad4;
+}
+
+.ops-main .ops-daily-dashboard .ops-page-subnav a:hover,
+.ops-main .ops-daily-dashboard .ops-page-subnav a:focus-visible {
+  color: #fff;
+}
+
 .ops-main .ops-section-title {
   color: #20242b;
   font-size: 1.0625rem;

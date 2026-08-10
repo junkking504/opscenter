@@ -596,17 +596,6 @@ export default async function DashboardPage({
     status: dailyAverageJobGoal == null ? "watch" : minimumStatus(dailyAverageJob, dailyAverageJobGoal),
     href: `/jobs?date=${date}`,
   });
-  const dailyReadiness = Math.round(
-    dailyPulseItems.reduce(
-      (sum, item) => sum + (item.status === "on-track" ? 100 : item.status === "watch" ? 68 : 28),
-      0,
-    ) / Math.max(dailyPulseItems.length, 1),
-  );
-  const dailyOverallStatus: OperatingStatus = dailyReadiness >= 85
-    ? "on-track"
-    : dailyReadiness >= 60
-      ? "watch"
-      : "off-track";
   const dailyRevenueStatus = dailyPulseItems[0].status;
   const dailyRevenueRemaining = Math.max(0, dailyRevenuePlan - grossRevenue);
   const commandBriefMetrics: CommandBriefMetric[] = [
@@ -705,8 +694,6 @@ export default async function DashboardPage({
 
       {section === "overview" ? <>
         <CommandBrief
-          readiness={dailyReadiness}
-          overallStatus={dailyOverallStatus}
           metrics={commandBriefMetrics}
           signals={commandBriefSignals}
           actions={dailyActions}

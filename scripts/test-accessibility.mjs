@@ -136,6 +136,16 @@ async function main() {
         const issues = await auditPage(page);
         assert.deepEqual(issues, [], `${routeLabel} accessibility issues:\n${issues.map((issue) => `- ${issue.rule}: ${issue.detail}`).join("\n")}`);
         assert.deepEqual(runtimeErrors, [], `${routeLabel} browser errors:\n${runtimeErrors.join("\n")}`);
+        if (route === "/") {
+          const commandPage = await page.evaluate(() => ({
+            title: document.querySelector("h1")?.textContent?.trim() || "",
+            heroCount: document.querySelectorAll("#command-overview > header").length,
+            metricCount: document.querySelectorAll("#command-overview > div:first-child > a").length,
+          }));
+          assert.equal(commandPage.title, "Daily Command", `${routeLabel} must retain the Daily Command title.`);
+          assert.equal(commandPage.heroCount, 0, `${routeLabel} must retain the compact Command layout without the retired hero.`);
+          assert.equal(commandPage.metricCount, 4, `${routeLabel} must lead with four headline operating metrics.`);
+        }
         if (route === "/jobs" || route === "/crew") {
           const elementCount = await page.locator("*").count();
           const elementBudget = route === "/jobs" ? 2_700 : 2_200;

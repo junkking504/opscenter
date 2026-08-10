@@ -943,12 +943,86 @@ textarea {
   color: #fff;
 }
 
+/* Keep Crew KPI context and live-pay warnings readable in the light theme. */
+.ops-crew-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-value {
+  grid-row: 1;
+}
+
+.ops-crew-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-sub {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  max-width: 100%;
+  overflow: visible;
+  color: #6b737e;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.ops-crew-dashboard > .ops-crew-kpi-row > .ops-card .ops-live-pay-note {
+  margin-top: 5px;
+  color: #8a6215;
+  font-size: 0.6rem;
+  font-weight: 750;
+  line-height: 1.25;
+  letter-spacing: 0;
+  text-align: right;
+  white-space: normal;
+}
+
 .ops-daily-leaderboard-table-wrap,
 .ops-wide-table-wrap,
 .ops-table-scroll,
 .ops-finance-table-scroll {
   border-color: #dde0dc;
   background: #fff;
+}
+
+/* The leaderboard originated in the dark theme and carried pale !important
+   colors. Re-state its hierarchy for the redesign's white table surface. */
+.ops-crew-dashboard .ops-daily-leaderboard-table .ops-daily-leaderboard-person strong {
+  color: #20242b;
+  font-weight: 850;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .ops-daily-leaderboard-person small {
+  color: #68717d;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .ops-daily-leaderboard-jobs {
+  color: #303741 !important;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .ops-daily-leaderboard-revenue {
+  color: #2f3742 !important;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .is-rank-1 .ops-daily-leaderboard-revenue {
+  color: #8a6215 !important;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .ops-daily-leaderboard-rank {
+  border-color: #d8dcd8;
+  background: #f4f5f3;
+  color: #59636f;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .is-rank-1 .ops-daily-leaderboard-rank {
+  border-color: #d9b85e;
+  background: #fff5d8;
+  color: #79560e;
+  box-shadow: none;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .is-rank-2 .ops-daily-leaderboard-rank {
+  border-color: #bfc6ce;
+  background: #f0f2f4;
+  color: #4d5865;
+}
+
+.ops-crew-dashboard .ops-daily-leaderboard-table .is-rank-3 .ops-daily-leaderboard-rank {
+  border-color: #d7b28c;
+  background: #fff1e4;
+  color: #87562a;
 }
 
 .ops-crew-summary-field,

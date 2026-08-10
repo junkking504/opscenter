@@ -20,7 +20,12 @@ type BarChartProps = {
 
 function formatValue(value: number, format: BarChartProps["format"]): string {
   if (format === "money") {
-    return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(value);
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
   }
   if (format === "miles") {
     return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 }).format(value)} mi`;

@@ -35,6 +35,11 @@ http://localhost:3000
 
 ## Notes
 
+- Rule #1: OpsCenter must maintain current data. The collector refreshes at
+  service startup, retries failed publishes after 15 seconds, and interrupts
+  its normal wait as soon as network connectivity returns. Open current-data
+  pages automatically advance when a newer daily snapshot is published;
+  historical dates remain fixed only when an operator selects them explicitly.
 - Missing data is handled with empty states.
 - Dark mode follows the system color scheme.
 - All data is read locally from `daily_metrics.json`.

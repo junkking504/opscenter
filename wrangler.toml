@@ -1,8 +1,21 @@
 name = "opscenter"
+workers_dev = false
 compatibility_date = "2026-06-24"
 compatibility_flags = ["nodejs_compat"]
 main = ".open-next/worker.js"
 
+[vars]
+OPS_CREW_ACCESS_TEAM_DOMAIN = "https://square-credit-167f.cloudflareaccess.com"
+OPS_CREW_HOSTNAME = "crew.junk-king.app"
+
 [assets]
 directory = ".open-next/assets"
 binding = "ASSETS"
+
+[[kv_namespaces]]
+binding = "CREW_METRICS"
+id = "d23581743d0f4bad96c5dea3c1c3385a"
+
+[[routes]]
+pattern = "crew.junk-king.app/*"
+zone_name = "junk-king.app"

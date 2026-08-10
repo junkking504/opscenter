@@ -5,21 +5,37 @@ type MetricCardProps = {
   value: string;
   sublabel?: string;
   highlight?: Highlight;
+  sublabelTone?: Highlight;
 };
 
-const valueColor: Record<Highlight, string> = {
-  positive: "text-good",
-  negative: "text-red-400",
-  warn: "text-warn",
-  neutral: "text-ink",
+const valueClass: Record<Highlight, string> = {
+  positive: "ops-kpi-good",
+  negative: "ops-kpi-danger",
+  warn: "ops-kpi-accent",
+  neutral: "",
 };
 
-export function MetricCard({ label, value, sublabel, highlight = "neutral" }: MetricCardProps) {
+const sublabelClass: Record<Highlight, string> = {
+  positive: "ops-kpi-good",
+  negative: "ops-kpi-danger",
+  warn: "ops-kpi-sub-warn",
+  neutral: "",
+};
+
+export function MetricCard({
+  label,
+  value,
+  sublabel,
+  highlight = "neutral",
+  sublabelTone = "neutral",
+}: MetricCardProps) {
   return (
-    <section className="rounded-lg border border-line bg-panel p-4 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
-      <p className={`mt-2 text-3xl font-semibold tracking-tight ${valueColor[highlight]}`}>{value}</p>
-      {sublabel ? <p className="mt-1 text-xs text-muted">{sublabel}</p> : null}
+    <section className="ops-card ops-kpi-card">
+      <div className="ops-card-title">{label}</div>
+      <div className={`ops-kpi-value ${valueClass[highlight]}`.trim()}>{value}</div>
+      {sublabel ? (
+        <div className={`ops-kpi-sub ${sublabelClass[sublabelTone]}`.trim()}>{sublabel}</div>
+      ) : null}
     </section>
   );
 }

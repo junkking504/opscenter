@@ -10,6 +10,69 @@ function todayKey() {
   }).format(new Date());
 }
 
+function moneyToNumber(value: string) {
+  return Number(value.replace(/[$,]/g, "")) || 0;
+}
+
+function parseActiveJob(text: string) {
+  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  const first = lines[0] ?? "";
+
+  const timeMatch = first.match(/^(.+?)\s*-\s*(.+?)\t/);
+  const jobMatch = text.match(/JK\d+/);
+  const truckMatch = text.match(/Truck#\s*(\d+)/i);
+  const amountMatch = text.match(/\$[\d,]+\.\d{2}/);
+  const durationMatch = text.match(/Duration:\s*(\d+)\s*min/i);
+
+  const jobType = lines[1] ?? "";
+  const contactLine = lines.find((line) => line.startsWith("Truck#")) ?? "";
+  const contactMatch = contactLine.match(/^Truck#\s*(\d+)\s+(.+?),\s*\((\d{3})\)\s*(\d{3})-(\d{4})/);
+
+  const detailIndex = lines.findIndex((line) => line.startsWith("Truck#"));
+  const addressLines =
+    detailIndex >= 0
+      ? lines.slice(detailIndex + 1, detailIndex + 3).filter((line) => line !== "Notes:")
+      : [];
+
+  const statusMatch = text.match(/\$[\d,]+\.\d{2}\s+(Completed|Confirmed|Cancelled|On Route|En Route)/);
+
+  const paymentType =
+    ["Credit Card", "Cash", "Check", "Billed"].find((p) => text.includes(`\t\t${p}\t`)) ?? "";
+
+  return {
+    jobId: jobMatch?.[0] ?? "",
+    jobType,
+    truck: truckMatch ? Number(truckMatch[1]) : null,
+    customer: contactMatch?.[2] ?? "",
+    phone: contactMatch ? `${contactMatch[3]}${contactMatch[4]}${contactMatch[5]}` : "",
+    address: addressLines.join(", "),
+    scheduledStart: timeMatch?.[1] ?? "",
+    scheduledEnd: timeMatch?.[2] ?? "",
+    paymentType,
+    amount: amountMatch ? moneyToNumber(amountMatch[0]) : 0,
+    status: statusMatch?.[1] ?? "",
+    durationMinutes: durationMatch ? Number(durationMatch[1]) : null,
+    rawText: text,
+  };
+}
+
+function parseCancelledJob(text: string) {
+  const parts = text.split(/\t|\n/).map((part) => part.trim()).filter(Boolean);
+
+  return {
+    scheduledStart: parts[0] ?? "",
+    scheduledEnd: parts[1] ?? "",
+    jobId: parts.find((p) => /^JK\d+$/.test(p)) ?? "",
+    jobType: parts[3] ?? "",
+    cancelledBy: parts[4] ?? "",
+    customer: parts[5] ?? "",
+    phone: (parts[6] ?? "").replace(/\D/g, ""),
+    address: parts[7] ?? "",
+    reason: parts.slice(8).filter((p) => p !== "Followup").join(" "),
+    rawText: text,
+  };
+}
+
 async function main() {
   const context = await chromium.launchPersistentContext(".auth/junkware", {
     headless: false,
@@ -28,6 +91,14 @@ async function main() {
     process.stdin.once("data", () => resolve());
   });
 
+  console.log("Set the territory dropdown to ALL manually, confirm/load the schedule, then press Enter.");
+
+  await new Promise<void>((resolve) => {
+    process.stdin.once("data", () => resolve());
+  });
+
+  await page.waitForTimeout(3000);
+
   const rows = await page.locator("table tr").all();
 
   const activeJobs = [];
@@ -38,26 +109,14 @@ async function main() {
     if (!text.includes("JK")) continue;
     if (text.includes("Time\tJK #") || text.includes("From\tTo\tJK #")) continue;
 
-    const jobMatch = text.match(/JK\d+/);
-    const truckMatch = text.match(/Truck#\s*(\d+)/i);
-    const amountMatch = text.match(/\$([\d,]+\.\d{2})/);
-    const durationMatch = text.match(/Duration:\s*(\d+)\s*min/i);
-
-    const record = {
-      jobId: jobMatch?.[0] ?? "",
-      truck: truckMatch?.[1] ?? "",
-      amount: amountMatch?.[0] ?? "",
-      durationMinutes: durationMatch ? Number(durationMatch[1]) : null,
-      rawText: text,
-    };
-
-    if (truckMatch) activeJobs.push(record);
-    else cancelledJobs.push(record);
+    if (text.includes("Truck#")) activeJobs.push(parseActiveJob(text));
+    else cancelledJobs.push(parseCancelledJob(text));
   }
 
   const payload = {
     scrapedAt: new Date().toISOString(),
     source: "junkware_schedule",
+    territory: "ALL",
     activeJobs,
     cancelledJobs,
   };

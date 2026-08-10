@@ -1,0 +1,9 @@
+tunnel: replace-with-tunnel-id
+credentials-file: /etc/cloudflared/credentials.json
+
+ingress:
+  - hostname: ops.junk-king.app
+    service: http://127.0.0.1:3000
+  - hostname: hooks.junk-king.app
+    service: http://127.0.0.1:3000
+  - service: http_status:404

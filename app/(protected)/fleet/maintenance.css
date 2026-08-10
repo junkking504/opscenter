@@ -1,0 +1,1209 @@
+.ops-maintenance-layout {
+  display: grid;
+  gap: 16px;
+}
+
+.ops-maintenance-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ops-maintenance-kpi {
+  display: grid;
+  gap: 4px;
+  min-height: 104px;
+  align-content: center;
+}
+
+.ops-maintenance-kpi > span,
+.ops-maintenance-form label > span,
+.ops-maintenance-toolbar label > span {
+  color: var(--ops-muted-2);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.ops-maintenance-kpi > strong {
+  color: var(--ops-text);
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-maintenance-kpi > small {
+  color: var(--ops-muted);
+  font-size: 0.72rem;
+}
+
+.ops-maintenance-kpi.is-overdue {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: linear-gradient(145deg, rgba(127, 29, 29, 0.16), rgba(255, 255, 255, 0.02));
+}
+
+.ops-maintenance-kpi.is-overdue > strong {
+  color: #fca5a5;
+}
+
+.ops-maintenance-card {
+  overflow: hidden;
+}
+
+.ops-linxup-vehicle-card {
+  overflow: hidden;
+}
+
+.ops-linxup-coverage {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.12);
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.ops-linxup-coverage.has-gaps {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.ops-linxup-vehicle-table {
+  min-width: 900px;
+}
+
+.ops-linxup-vehicle-table td {
+  vertical-align: top;
+}
+
+.ops-linxup-vehicle-table td small {
+  display: block;
+  margin-top: 3px;
+  color: var(--ops-muted-2);
+  font-size: 0.68rem;
+}
+
+.ops-linxup-vin {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
+.ops-linxup-missing {
+  color: #fcd34d;
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.ops-maintenance-header {
+  gap: 16px;
+  align-items: center;
+}
+
+.ops-maintenance-form {
+  margin: 0 0 16px;
+  padding: 16px;
+  border: 1px solid rgba(246, 195, 67, 0.22);
+  border-radius: 14px;
+  background: rgba(246, 195, 67, 0.04);
+}
+
+.ops-maintenance-form-title {
+  margin-bottom: 14px;
+  color: var(--ops-text);
+  font-size: 0.92rem;
+  font-weight: 900;
+}
+
+.ops-maintenance-form-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ops-maintenance-form label,
+.ops-maintenance-toolbar label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ops-maintenance-form label.wide {
+  grid-column: span 2;
+}
+
+.ops-maintenance-form input,
+.ops-maintenance-form select,
+.ops-maintenance-form textarea,
+.ops-maintenance-toolbar select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.24);
+  color: var(--ops-text);
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 0.84rem;
+  outline: none;
+}
+
+.ops-maintenance-form textarea {
+  resize: vertical;
+}
+
+.ops-maintenance-source-hint {
+  color: var(--ops-muted-2);
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+.ops-maintenance-form input:focus,
+.ops-maintenance-form select:focus,
+.ops-maintenance-form textarea:focus,
+.ops-maintenance-toolbar select:focus {
+  border-color: rgba(246, 195, 67, 0.5);
+}
+
+.ops-maintenance-form-actions,
+.ops-maintenance-row-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ops-maintenance-form-actions {
+  margin-top: 14px;
+}
+
+.ops-maintenance-toolbar {
+  display: grid;
+  grid-template-columns: 180px 180px minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+  margin: 4px 0 14px;
+}
+
+.ops-maintenance-message {
+  min-height: 1.2em;
+  padding-bottom: 9px;
+  color: var(--ops-muted);
+  font-size: 0.78rem;
+  text-align: right;
+}
+
+.ops-maintenance-table {
+  min-width: 1120px;
+}
+
+.ops-maintenance-table td {
+  vertical-align: top;
+}
+
+.ops-maintenance-table td small {
+  display: block;
+  max-width: 300px;
+  margin-top: 4px;
+  color: var(--ops-muted);
+  font-size: 0.72rem;
+  white-space: normal;
+}
+
+.ops-maintenance-status {
+  display: inline-flex;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.67rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ops-maintenance-status.completed {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.13);
+}
+
+.ops-maintenance-status.scheduled {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.14);
+}
+
+.ops-maintenance-status.overdue {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.ops-maintenance-row-actions button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--ops-gold);
+  padding: 2px;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.ops-maintenance-row-actions button.danger {
+  color: #fca5a5;
+}
+
+.ops-maintenance-row-actions button:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
+.ops-maintenance-empty {
+  padding: 28px !important;
+  color: var(--ops-muted);
+  text-align: center;
+}
+
+.ops-checklist-card {
+  overflow: hidden;
+}
+
+.ops-checklist-fleet-progress {
+  display: grid;
+  min-width: 92px;
+  text-align: right;
+}
+
+.ops-checklist-fleet-progress strong {
+  color: var(--ops-text);
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-checklist-fleet-progress span {
+  color: var(--ops-muted-2);
+  font-size: 0.67rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.ops-checklist-period-controls {
+  display: flex;
+  gap: 14px;
+  align-items: end;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.ops-checklist-cadence {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.ops-checklist-cadence button,
+.ops-checklist-status-buttons button,
+.ops-checklist-load {
+  appearance: none;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ops-muted);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.ops-checklist-cadence button {
+  padding: 7px 13px;
+}
+
+.ops-checklist-cadence button.active {
+  border-color: rgba(246, 195, 67, 0.3);
+  background: rgba(246, 195, 67, 0.12);
+  color: var(--ops-gold);
+}
+
+.ops-checklist-period-controls label,
+.ops-checklist-meta label {
+  display: grid;
+  gap: 6px;
+}
+
+.ops-checklist-period-controls label > span,
+.ops-checklist-meta label > span,
+.ops-checklist-issues > span {
+  color: var(--ops-muted-2);
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.ops-checklist-period-controls input,
+.ops-checklist-meta input,
+.ops-checklist-note {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.24);
+  color: var(--ops-text);
+  padding: 9px 10px;
+  font: inherit;
+  font-size: 0.82rem;
+  outline: none;
+}
+
+.ops-checklist-period-controls input:focus,
+.ops-checklist-meta input:focus,
+.ops-checklist-note:focus {
+  border-color: rgba(246, 195, 67, 0.5);
+}
+
+.ops-checklist-truck-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ops-checklist-truck {
+  appearance: none;
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.025);
+  color: var(--ops-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ops-checklist-truck:hover,
+.ops-checklist-truck.active {
+  border-color: rgba(246, 195, 67, 0.4);
+}
+
+.ops-checklist-truck.active {
+  background: rgba(246, 195, 67, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(246, 195, 67, 0.08);
+}
+
+.ops-checklist-truck.complete {
+  border-color: rgba(34, 197, 94, 0.24);
+}
+
+.ops-checklist-truck-top,
+.ops-checklist-truck-bottom {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ops-checklist-truck-top strong {
+  color: var(--ops-text);
+  font-size: 0.86rem;
+}
+
+.ops-checklist-truck-top em {
+  color: var(--ops-muted-2);
+  font-size: 0.61rem;
+  font-style: normal;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.ops-checklist-truck.complete .ops-checklist-truck-top em {
+  color: #86efac;
+}
+
+.ops-checklist-truck.started .ops-checklist-truck-top em {
+  color: #93c5fd;
+}
+
+.ops-checklist-truck > span:nth-child(2),
+.ops-checklist-truck-bottom small {
+  overflow: hidden;
+  color: var(--ops-muted-2);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-checklist-truck-bottom b {
+  color: #fca5a5;
+  font-size: 0.64rem;
+}
+
+.ops-checklist-workspace {
+  scroll-margin-top: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 13px;
+  background: rgba(0, 0, 0, 0.13);
+}
+
+.ops-checklist-workspace-header {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.ops-checklist-workspace-header h3 {
+  margin: 0 0 3px;
+  color: var(--ops-text);
+  font-size: 1rem;
+}
+
+.ops-checklist-workspace-header p {
+  margin: 0;
+  color: var(--ops-muted-2);
+  font-size: 0.7rem;
+}
+
+.ops-checklist-count {
+  display: grid;
+  min-width: 84px;
+  text-align: right;
+}
+
+.ops-checklist-count strong {
+  color: var(--ops-text);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-checklist-count.complete strong {
+  color: #86efac;
+}
+
+.ops-checklist-count span {
+  color: var(--ops-muted-2);
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.ops-checklist-meta {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 180px 110px;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.ops-checklist-issues {
+  display: grid;
+  align-content: end;
+  gap: 4px;
+  padding: 0 4px 6px;
+  text-align: right;
+}
+
+.ops-checklist-issues strong {
+  color: #fca5a5;
+  font-size: 1.15rem;
+}
+
+.ops-checklist-progress-bar {
+  height: 3px;
+  margin: 0 16px 14px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.ops-checklist-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--ops-gold), #86efac);
+  transition: width 160ms ease;
+}
+
+.ops-checklist-items {
+  display: grid;
+  gap: 1px;
+  background: rgba(255, 255, 255, 0.055);
+  border-top: 1px solid rgba(255, 255, 255, 0.055);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+}
+
+.ops-checklist-item {
+  display: grid;
+  grid-template-columns: minmax(230px, 1.2fr) minmax(285px, auto) minmax(190px, 0.9fr);
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--ops-card, #141414);
+}
+
+.ops-checklist-item.status-attention {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.075), var(--ops-card, #141414) 36%);
+}
+
+.ops-checklist-item-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.ops-checklist-item-copy > span {
+  color: var(--ops-gold);
+  font-size: 0.59rem;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.ops-checklist-item-copy strong {
+  color: var(--ops-text);
+  font-size: 0.82rem;
+}
+
+.ops-checklist-item-copy small {
+  color: var(--ops-muted-2);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.ops-checklist-status-buttons {
+  display: flex;
+  gap: 5px;
+}
+
+.ops-checklist-status-buttons button {
+  padding: 7px 9px;
+  border-color: rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+
+.ops-checklist-status-buttons button.active.pass {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.14);
+  color: #86efac;
+}
+
+.ops-checklist-status-buttons button.active.attention {
+  border-color: rgba(239, 68, 68, 0.32);
+  background: rgba(239, 68, 68, 0.14);
+  color: #fca5a5;
+}
+
+.ops-checklist-status-buttons button.active.na {
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+}
+
+.ops-checklist-note {
+  width: 100%;
+}
+
+.ops-checklist-actions {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 15px 16px;
+}
+
+.ops-checklist-actions .ops-maintenance-message {
+  padding: 0;
+  text-align: center;
+}
+
+.ops-checklist-history {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.ops-checklist-history > .ops-section-title {
+  margin-bottom: 10px;
+}
+
+.ops-checklist-history-table {
+  min-width: 760px;
+}
+
+.ops-checklist-history-status {
+  display: inline-flex;
+  padding: 4px 8px;
+  border-radius: 999px;
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.14);
+  font-size: 0.66rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.ops-checklist-history-status.complete {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.13);
+}
+
+.ops-checklist-attention-text {
+  color: #fca5a5;
+  font-size: 0.73rem;
+}
+
+.ops-checklist-load {
+  padding: 3px;
+  color: var(--ops-gold);
+}
+
+.ops-checklist-header-actions,
+.ops-report-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.ops-driver-mode-banner {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(34, 197, 94, 0.24);
+  border-radius: 12px;
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.ops-driver-mode-banner > div {
+  display: grid;
+  gap: 2px;
+}
+
+.ops-driver-mode-banner strong {
+  color: #86efac;
+  font-size: 0.82rem;
+}
+
+.ops-driver-mode-banner span {
+  color: var(--ops-muted);
+  font-size: 0.72rem;
+}
+
+.ops-template-editor,
+.ops-repair-form {
+  margin-bottom: 16px;
+  padding: 15px;
+  border: 1px solid rgba(246, 195, 67, 0.22);
+  border-radius: 13px;
+  background: rgba(246, 195, 67, 0.04);
+}
+
+.ops-template-standard-items {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.ops-template-standard-items label {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.ops-template-standard-items label > span,
+.ops-template-custom-items span {
+  display: grid;
+  gap: 2px;
+}
+
+.ops-template-standard-items strong,
+.ops-template-custom-items strong {
+  color: var(--ops-text);
+  font-size: 0.74rem;
+}
+
+.ops-template-standard-items small,
+.ops-template-custom-items small {
+  color: var(--ops-muted-2);
+  font-size: 0.64rem;
+}
+
+.ops-template-custom-items {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.ops-template-custom-items > div {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 10px;
+  border: 1px solid rgba(34, 197, 94, 0.15);
+  border-radius: 9px;
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.ops-template-custom-items button,
+.ops-photo-thumb button,
+.ops-photo-queued button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #fca5a5;
+  font: inherit;
+  font-size: 0.67rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.ops-template-add-grid {
+  display: grid;
+  grid-template-columns: 150px 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+.ops-template-add-grid label,
+.ops-repair-form-grid label {
+  display: grid;
+  gap: 5px;
+}
+
+.ops-template-add-grid label > span,
+.ops-repair-form-grid label > span {
+  color: var(--ops-muted-2);
+  font-size: 0.63rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ops-template-add-grid input,
+.ops-repair-form-grid input,
+.ops-repair-form-grid select,
+.ops-repair-form-grid textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.24);
+  color: var(--ops-text);
+  padding: 8px 9px;
+  font: inherit;
+  font-size: 0.78rem;
+  outline: none;
+}
+
+.ops-checklist-item-media,
+.ops-repair-photos {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding-top: 2px;
+}
+
+.ops-repair-photos {
+  margin-top: 10px;
+}
+
+.ops-photo-add {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px dashed rgba(246, 195, 67, 0.35);
+  border-radius: 9px;
+  color: var(--ops-gold);
+  font-size: 0.7rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.ops-photo-add input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.ops-photo-thumb,
+.ops-photo-queued {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  min-height: 42px;
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.ops-photo-thumb img {
+  width: 48px;
+  height: 36px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.ops-photo-queued span {
+  max-width: 180px;
+  overflow: hidden;
+  color: var(--ops-muted);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-fleet-control-card,
+.ops-service-planner-card,
+.ops-fleet-reports-card {
+  overflow: hidden;
+}
+
+.ops-readiness-summary,
+.ops-report-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ops-readiness-summary > div,
+.ops-report-kpis > div {
+  display: grid;
+  gap: 2px;
+  padding: 11px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.ops-readiness-summary span,
+.ops-report-kpis span {
+  color: var(--ops-muted-2);
+  font-size: 0.63rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.ops-readiness-summary strong,
+.ops-report-kpis strong {
+  color: var(--ops-text);
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-readiness-summary .ready strong { color: #86efac; }
+.ops-readiness-summary .missing strong { color: #fcd34d; }
+.ops-readiness-summary .attention strong { color: #fdba74; }
+.ops-readiness-summary .out strong { color: #fca5a5; }
+
+.ops-report-kpis small {
+  color: var(--ops-muted-2);
+  font-size: 0.65rem;
+}
+
+.ops-readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ops-readiness-truck {
+  display: grid;
+  gap: 5px;
+  padding: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ops-readiness-truck > div {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ops-readiness-truck strong { color: var(--ops-text); font-size: 0.8rem; }
+.ops-readiness-truck > div span { color: var(--ops-muted-2); font-size: 0.59rem; font-weight: 900; text-transform: uppercase; }
+.ops-readiness-truck small { color: var(--ops-muted); font-size: 0.66rem; }
+.ops-readiness-truck button { appearance: none; width: max-content; border: 0; background: transparent; color: var(--ops-gold); padding: 2px 0 0; font: inherit; font-size: 0.66rem; font-weight: 850; cursor: pointer; }
+.ops-readiness-truck.state-ready { border-color: rgba(34, 197, 94, 0.22); }
+.ops-readiness-truck.state-ready > div span { color: #86efac; }
+.ops-readiness-truck.state-missing { border-color: rgba(245, 158, 11, 0.22); }
+.ops-readiness-truck.state-missing > div span { color: #fcd34d; }
+.ops-readiness-truck.state-attention { border-color: rgba(249, 115, 22, 0.25); }
+.ops-readiness-truck.state-attention > div span { color: #fdba74; }
+.ops-readiness-truck.state-out { border-color: rgba(239, 68, 68, 0.34); background: rgba(127, 29, 29, 0.1); }
+.ops-readiness-truck.state-out > div span { color: #fca5a5; }
+
+.ops-repair-queue-header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 18px 0 10px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.ops-repair-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ops-repair-form-grid .wide { grid-column: span 2; }
+.ops-repair-form-grid .full { grid-column: 1 / -1; }
+.ops-repair-table { min-width: 960px; }
+.ops-repair-table td { vertical-align: top; }
+.ops-repair-table td small,
+.ops-service-table td small,
+.ops-fleet-reports-card td small { display: block; margin-top: 3px; color: var(--ops-muted-2); font-size: 0.66rem; white-space: normal; }
+
+.ops-issue-severity,
+.ops-service-status {
+  display: inline-flex;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 0.64rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ops-issue-severity.monitor { color: #cbd5e1; background: rgba(148, 163, 184, 0.13); }
+.ops-issue-severity.repair_soon { color: #fdba74; background: rgba(249, 115, 22, 0.14); }
+.ops-issue-severity.out_of_service { color: #fca5a5; background: rgba(239, 68, 68, 0.16); }
+
+.ops-service-truck-tabs-wrap { margin-bottom: 12px; }
+.ops-service-truck-tabs-label { display: block; margin-bottom: 7px; color: var(--ops-muted-2); font-size: 0.63rem; font-weight: 850; letter-spacing: 0.06em; text-transform: uppercase; }
+.ops-service-truck-tabs { display: flex; gap: 6px; overflow-x: auto; padding: 3px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; background: rgba(0, 0, 0, 0.18); scrollbar-width: thin; }
+.ops-service-truck-tabs button { appearance: none; flex: 1 0 112px; min-height: 42px; padding: 9px 14px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--ops-muted); cursor: pointer; font: inherit; font-size: 0.78rem; font-weight: 850; white-space: nowrap; transition: border-color 140ms ease, background 140ms ease, color 140ms ease; }
+.ops-service-truck-tabs button:hover { border-color: rgba(101, 167, 255, 0.24); background: rgba(101, 167, 255, 0.07); color: var(--ops-text); }
+.ops-service-truck-tabs button.active { border-color: rgba(101, 167, 255, 0.48); background: rgba(101, 167, 255, 0.17); color: #dbeafe; box-shadow: inset 0 0 0 1px rgba(101, 167, 255, 0.08); }
+.ops-service-truck-tabs button:focus-visible { outline: 2px solid rgba(101, 167, 255, 0.75); outline-offset: 1px; }
+.ops-service-vehicle-summary { display: flex; gap: 14px; align-items: center; margin-bottom: 12px; padding: 10px 12px; border-radius: 10px; background: rgba(255, 255, 255, 0.025); }
+.ops-service-vehicle-summary strong { color: var(--ops-text); }
+.ops-service-vehicle-summary span { color: var(--ops-muted); font-size: 0.72rem; }
+.ops-service-table { min-width: 760px; }
+.ops-service-status.current { color: #86efac; background: rgba(34, 197, 94, 0.13); }
+.ops-service-status.soon { color: #fcd34d; background: rgba(245, 158, 11, 0.13); }
+.ops-service-status.overdue, .ops-service-status.baseline { color: #fca5a5; background: rgba(239, 68, 68, 0.14); }
+.ops-service-status.scheduled { color: #93c5fd; background: rgba(59, 130, 246, 0.14); }
+.ops-service-disclaimer { margin: 8px 0 0; color: var(--ops-muted-2); font-size: 0.66rem; }
+
+.ops-report-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.ops-report-grid > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 11px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+body.ops-fleet-driver-mode .ops-sidebar,
+body.ops-fleet-driver-mode .ops-topbar,
+body.ops-fleet-driver-mode .ops-bottom-nav,
+body.ops-fleet-driver-mode .ops-fleet-control-card,
+body.ops-fleet-driver-mode .ops-service-planner-card,
+body.ops-fleet-driver-mode .ops-fleet-reports-card,
+body.ops-fleet-driver-mode .ops-linxup-vehicle-card,
+body.ops-fleet-driver-mode .ops-maintenance-kpis,
+body.ops-fleet-driver-mode .ops-maintenance-card,
+body.ops-fleet-driver-mode .ops-maintenance-page > .ops-page-header,
+.ops-checklist-card.driver-mode .ops-checklist-truck-grid,
+.ops-checklist-card.driver-mode .ops-checklist-fleet-progress,
+.ops-checklist-card.driver-mode .ops-checklist-history {
+  display: none !important;
+}
+
+body.ops-fleet-driver-mode .ops-app { display: block; }
+body.ops-fleet-driver-mode .ops-main { padding: 12px; }
+body.ops-fleet-driver-mode .ops-main-frame { max-width: 920px; }
+body.ops-fleet-driver-mode .ops-maintenance-layout { gap: 0; }
+body.ops-fleet-driver-mode .ops-checklist-card { border-radius: 14px; }
+body.ops-fleet-driver-mode .ops-checklist-status-buttons button { min-height: 44px; font-size: 0.8rem; }
+
+@media print {
+  .ops-sidebar,
+  .ops-topbar,
+  .ops-bottom-nav,
+  .ops-page-header-controls,
+  .ops-report-actions,
+  .ops-checklist-header-actions,
+  .ops-checklist-actions,
+  .ops-maintenance-row-actions,
+  .ops-repair-form,
+  .ops-checklist-load,
+  .ops-photo-add,
+  .ops-photo-thumb button {
+    display: none !important;
+  }
+
+  body,
+  .ops-main,
+  .ops-card {
+    background: #fff !important;
+    color: #111 !important;
+    box-shadow: none !important;
+  }
+
+  .ops-app { display: block; }
+  .ops-main { padding: 0; }
+  .ops-main-frame { max-width: none; }
+  .ops-card { break-inside: avoid; border-color: #bbb !important; }
+  .ops-card *, .ops-table th, .ops-table td { color: #111 !important; }
+}
+
+@media (max-width: 1050px) {
+  .ops-maintenance-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-maintenance-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-checklist-truck-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-checklist-item {
+    grid-template-columns: minmax(230px, 1fr) minmax(285px, auto);
+  }
+
+  .ops-checklist-note {
+    grid-column: 1 / -1;
+  }
+
+  .ops-template-standard-items,
+  .ops-readiness-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-template-add-grid,
+  .ops-repair-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-template-add-grid button { min-height: 38px; }
+}
+
+@media (max-width: 620px) {
+  .ops-maintenance-header {
+    align-items: flex-start;
+  }
+
+  .ops-maintenance-form-grid,
+  .ops-maintenance-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-maintenance-form label.wide {
+    grid-column: auto;
+  }
+
+  .ops-maintenance-message {
+    padding: 2px 0 0;
+    text-align: left;
+  }
+
+  .ops-checklist-period-controls,
+  .ops-checklist-workspace-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ops-checklist-period-controls label input {
+    width: 100%;
+  }
+
+  .ops-checklist-cadence {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .ops-checklist-truck-grid,
+  .ops-checklist-meta,
+  .ops-checklist-item,
+  .ops-checklist-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-checklist-count,
+  .ops-checklist-issues {
+    text-align: left;
+  }
+
+  .ops-checklist-note {
+    grid-column: auto;
+  }
+
+  .ops-checklist-status-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr 0.7fr;
+  }
+
+  .ops-checklist-actions .ops-maintenance-message {
+    min-height: 0;
+    text-align: left;
+  }
+
+  .ops-checklist-header-actions,
+  .ops-report-actions,
+  .ops-driver-mode-banner,
+  .ops-repair-queue-header,
+  .ops-service-vehicle-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ops-template-standard-items,
+  .ops-template-add-grid,
+  .ops-readiness-summary,
+  .ops-readiness-grid,
+  .ops-repair-form-grid,
+  .ops-report-kpis,
+  .ops-report-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-repair-form-grid .wide,
+  .ops-repair-form-grid .full {
+    grid-column: auto;
+  }
+
+  .ops-checklist-item-media { grid-column: auto; }
+  .ops-service-truck-tabs button { flex-basis: 104px; }
+
+  body.ops-fleet-driver-mode .ops-checklist-item {
+    gap: 14px;
+    padding: 16px 14px;
+  }
+}

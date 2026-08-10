@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.openclaw.opsbot.junkware-history-reconciliation</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/ejd/opscenter-v2/opscenter/scripts/run-junkware-history-reconciliation.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/ejd/opscenter-v2/opscenter</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>21600</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/ejd/.openclaw/workspace/opsbot/logs/junkware_history_reconciliation.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/ejd/.openclaw/workspace/opsbot/logs/junkware_history_reconciliation.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/Users/ejd/Library/Python/3.9/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>PYTHONUNBUFFERED</key>
+    <string>1</string>
+  </dict>
+</dict>
+</plist>

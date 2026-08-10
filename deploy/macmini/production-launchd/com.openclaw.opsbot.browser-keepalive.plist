@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.openclaw.opsbot.browser-keepalive</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/missioncontrol/.openclaw/workspace/opsbot/scripts/browser_keepalive.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/missioncontrol/.openclaw/workspace</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>StartInterval</key>
+  <integer>300</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/missioncontrol/.openclaw/workspace/opsbot/data/logs/browser_keepalive.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/missioncontrol/.openclaw/workspace/opsbot/data/logs/browser_keepalive.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/missioncontrol</string>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/Users/missioncontrol/.npm-global/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+</dict>
+</plist>

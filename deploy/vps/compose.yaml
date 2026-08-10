@@ -1,0 +1,66 @@
+services:
+  opscenter:
+    build:
+      context: ../..
+      dockerfile: deploy/vps/Dockerfile
+    image: opscenter:local
+    restart: unless-stopped
+    init: true
+    group_add:
+      - "1000"
+    env_file:
+      - /etc/opscenter/app.env
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      OPSCENTER_RUNTIME: VPS
+      OPSBOT_DATA_DIR: /app/data
+      QBO_TOKEN_STORE_DIR: /var/lib/opscenter/qbo
+    volumes:
+      - /srv/opscenter/data:/app/data
+      - /srv/opscenter/qbo:/var/lib/opscenter/qbo
+    ports:
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+
+  assignment-retry:
+    image: opscenter:local
+    restart: unless-stopped
+    init: true
+    group_add:
+      - "1000"
+    env_file:
+      - /etc/opscenter/app.env
+    environment:
+      NODE_ENV: production
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
+      OPSCENTER_RUNTIME: VPS
+      OPSBOT_DATA_DIR: /app/data
+      QBO_TOKEN_STORE_DIR: /var/lib/opscenter/qbo
+    volumes:
+      - /srv/opscenter/data:/app/data
+      - /srv/opscenter/qbo:/var/lib/opscenter/qbo
+    command:
+      - /bin/sh
+      - -lc
+      - while true; do node --import tsx scripts/retry-pending-job-route-assignments.ts; sleep 60; done
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"

@@ -2676,7 +2676,7 @@ export default async function JobsPage({
   return (
     <div className="ops-dashboard ops-jobs-page">
       <PageHeader
-        title={view === "daily" ? "Dispatch board" : "Jobs"}
+        title={view === "daily" ? "Dispatch board" : "Schedule"}
         subtitle={isMonthView
           ? view === "calendar"
             ? `${month?.monthDisplay || monthlySummary?.monthDisplay || date.slice(0, 7)} schedule · ${calendarScheduledCount} appointment${calendarScheduledCount === 1 ? "" : "s"} on file`

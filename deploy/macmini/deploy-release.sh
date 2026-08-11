@@ -15,6 +15,7 @@ SLACK_ENV="$SHARED_CONFIG/slack.env"
 DATA_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/data"
 PRODUCTION_LABEL="com.openclaw.opscenter"
 PREVIEW_LABEL="com.openclaw.opscenter.macmini-preview"
+WHATSAPP_PHOTO_LABEL="com.openclaw.opscenter.whatsapp-photos"
 REQUESTED_REF="${1:-}"
 
 fail() {
@@ -139,6 +140,10 @@ if [[ -n "$active_label" ]]; then
   fi
 fi
 
+if service_loaded "$WHATSAPP_PHOTO_LABEL"; then
+  launchctl kickstart -k "gui/$(id -u)/$WHATSAPP_PHOTO_LABEL"
+fi
+
 echo
 echo "Deployed OpsCenter commit $commit"
 echo "Live path: $APP_LINK -> $release"
@@ -147,5 +152,8 @@ if [[ -n "$active_label" ]]; then
   echo "Health:    http://127.0.0.1:$active_port/login returned HTTP 200"
 else
   echo "Service:   no OpsCenter launch service is loaded; release is prepared but not running"
+fi
+if service_loaded "$WHATSAPP_PHOTO_LABEL"; then
+  echo "Worker:    $WHATSAPP_PHOTO_LABEL restarted on the active release"
 fi
 echo "Rollback:  deploy this previous target's commit again: $previous_target"

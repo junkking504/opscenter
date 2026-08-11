@@ -65,6 +65,12 @@ updates.
 
 To roll back manually, deploy the previous commit SHA with the same command.
 
+The WhatsApp job-photo integration has a separate, opt-in worker because it
+performs authenticated JunkWare writes. Follow `docs/whatsapp-job-photos.md`
+to configure Meta credentials and the private truck-phone map, then install
+only `com.openclaw.opscenter.whatsapp-photos`. Do not start the worker until
+the webhook, sender mapping, GPS safety gates, and test-safe JK are ready.
+
 ### Preview-only deployments after cutover
 
 Production and preview must not share the same stable release symlink after

@@ -28,6 +28,7 @@ import {
   verifyOpsAccessJwt,
 } from "@/lib/cloudflare-access";
 import { JUNKWARE_SMS_API_PREFIX } from "@/lib/junkware-sms-constants";
+import { WHATSAPP_JOB_PHOTO_API_PREFIX } from "@/lib/whatsapp-job-photo-constants";
 
 const authDebug = process.env.OPS_AUTH_DEBUG === "1";
 
@@ -89,7 +90,11 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isSmsHostname) {
-    if (pathname === JUNKWARE_SMS_API_PREFIX || pathname.startsWith(`${JUNKWARE_SMS_API_PREFIX}/`)) {
+    if (
+      pathname === JUNKWARE_SMS_API_PREFIX
+      || pathname.startsWith(`${JUNKWARE_SMS_API_PREFIX}/`)
+      || pathname === WHATSAPP_JOB_PHOTO_API_PREFIX
+    ) {
       return NextResponse.next();
     }
     return new NextResponse("Not Found", { status: 404 });

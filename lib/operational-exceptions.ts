@@ -785,6 +785,50 @@ function junkwarePhotoExceptions(date: string): OperationalException[] {
   return exceptions;
 }
 
+function whatsappPhotoReviewExceptions(date: string): OperationalException[] {
+  const configured = String(process.env.WHATSAPP_JOB_PHOTO_STATE_DIR || "").trim();
+  const reviewDirectory = configured
+    ? path.join(configured, "review")
+    : resolveHistoryPath(path.join("data", "integrations", "whatsapp-job-photos", "review"));
+  if (!reviewDirectory || !fs.existsSync(reviewDirectory)) return [];
+  const exceptions: OperationalException[] = [];
+  for (const fileName of fs.readdirSync(reviewDirectory).filter((name) => /^[a-f0-9]{64}\.json$/.test(name)).sort()) {
+    try {
+      const payload = JSON.parse(fs.readFileSync(path.join(reviewDirectory, fileName), "utf8"));
+      const receivedAt = String(payload.receivedAt || payload.outcomeAt || "");
+      const parsed = new Date(receivedAt);
+      if (Number.isNaN(parsed.getTime())) continue;
+      const receivedDate = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Chicago",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(parsed);
+      if (receivedDate !== date) continue;
+      const jkNumber = String(payload.match?.jkNumber || "").trim();
+      const reason = String(payload.review?.detail || "WhatsApp photo matching or upload needs operator review.").trim();
+      const entityId = jkNumber || `whatsapp-${fileName.slice(0, 12)}`;
+      exceptions.push({
+        id: `jobs-whatsapp-photo-${fileName.slice(0, 20)}`,
+        rule: "whatsapp_job_photo_needs_review",
+        category: "Jobs",
+        severity: "warning",
+        entityType: "job",
+        entityId,
+        entityLabel: jkNumber || "Unmatched WhatsApp photo",
+        title: "WhatsApp job photo needs review",
+        reason,
+        source: "whatsapp-job-photos.review",
+        timestamp: receivedAt,
+        href: `/jobs?date=${date}`,
+      });
+    } catch {
+      continue;
+    }
+  }
+  return exceptions;
+}
+
 function fleetExceptions(metrics: AnyRecord, date: string): OperationalException[] {
   const exceptions: OperationalException[] = [];
   const seen = new Set<string>();
@@ -1066,6 +1110,7 @@ export function buildOperationalExceptions(date?: string | null): OperationalExc
     ...crewExceptions(metrics, resolvedDate),
     ...jobsExceptions(metrics, resolvedDate),
     ...junkwarePhotoExceptions(resolvedDate),
+    ...whatsappPhotoReviewExceptions(resolvedDate),
     ...fleetExceptions(metrics, resolvedDate),
     ...financeExceptions(metrics, resolvedDate),
   ];

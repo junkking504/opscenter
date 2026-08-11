@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.openclaw.opscenter.whatsapp-photos</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/missioncontrol/opscenter-v2/opscenter/scripts/run-whatsapp-photo-worker.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/missioncontrol/opscenter-v2/opscenter</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>/Users/missioncontrol/opscenter-v2/opscenter/logs/whatsapp_photo_worker.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/missioncontrol/opscenter-v2/opscenter/logs/whatsapp_photo_worker.err.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>/Users/missioncontrol</string>
+    <key>NODE_ENV</key>
+    <string>production</string>
+    <key>OPSCENTER_APP_DIR</key>
+    <string>/Users/missioncontrol/opscenter-v2/opscenter</string>
+    <key>OPSCENTER_ENV_FILE</key>
+    <string>/Users/missioncontrol/Library/Application Support/OpsCenter/production.env</string>
+    <key>OPSBOT_DATA_DIR</key>
+    <string>/Users/missioncontrol/.openclaw/workspace/opsbot/data</string>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+</dict>
+</plist>

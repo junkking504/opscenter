@@ -15,6 +15,7 @@ export const INBOX_RULES = new Set([
   "job_with_revenue_but_no_credited_crew",
   "payment_amount_present_but_payment_type_missing",
   "completed_job_with_no_closeout_photos",
+  "whatsapp_job_photo_needs_review",
 ]);
 
 export type InboxWorkItem = WorkItem & {

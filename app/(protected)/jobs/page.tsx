@@ -28,6 +28,7 @@ import {
 } from "@/lib/junkware-job-details";
 import { missingPaymentTypeLabel, shouldFlagMissingPhotos } from "@/lib/job-audit-rules";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
+import "./jobs.css";
 
 const OPSBOT_DATA_DIR =
   process.env.OPSBOT_DATA_DIR ||

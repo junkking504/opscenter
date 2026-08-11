@@ -19,9 +19,18 @@ function addDays(dateKey: string, days: number) {
 
 function optionLabel(date: string) {
   const today = chicagoDateKey();
-  if (date === today) return `Today · ${date}`;
-  if (date === addDays(today, 1)) return `Tomorrow · ${date}`;
-  return date;
+  const formattedDate = new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  })
+    .format(new Date(`${date}T12:00:00Z`))
+    .replace(",", "");
+
+  if (date === today) return `Today · ${formattedDate}`;
+  if (date === addDays(today, 1)) return `Tomorrow · ${formattedDate}`;
+  return formattedDate;
 }
 
 export default function OpsDateSelector({

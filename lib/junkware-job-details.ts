@@ -165,6 +165,11 @@ export function junkwareJobPhotos(row: AnyRecord): JunkwareJobPhoto[] {
   return photos;
 }
 
+export function junkwarePhotoMatchesAppointment(photo: JunkwareJobPhoto, appointmentId: unknown): boolean {
+  const normalizedId = clean(appointmentId);
+  return /^\d{1,12}$/.test(normalizedId) && photo.fileName.includes(`-${normalizedId}-`);
+}
+
 export function junkwarePhotoAuditAvailable(row: AnyRecord): boolean {
   return Object.prototype.hasOwnProperty.call(row || {}, "photos")
     || Object.prototype.hasOwnProperty.call(row || {}, "job_photos");

@@ -21,6 +21,7 @@ import {
   appointmentNotes,
   junkItemKeywords,
   junkwareJobPhotos,
+  junkwarePhotoMatchesAppointment,
   junkwarePhotoAuditAvailable,
   readJunkwareDayActivity,
   type JunkwareJobPhoto,
@@ -34,6 +35,7 @@ const OPSBOT_DATA_DIR =
 
 type JobRow = {
   appointmentId: string;
+  sourceEstimateAppointmentId: string;
   sourceDate: string;
   jkNumber: string;
   appointmentUrl: string;
@@ -1425,6 +1427,7 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
 
   return {
     appointmentId: junkwareAppointmentId(appointmentUrl),
+    sourceEstimateAppointmentId: firstValue(row, ["source_estimate_appointment_id", "sourceEstimateAppointmentId"]),
     sourceDate: "",
     jkNumber,
     appointmentUrl,
@@ -1686,6 +1689,7 @@ function readJobRows(date: string): JobRow[] {
 
       jobs.push({
         appointmentId: apptId || "",
+        sourceEstimateAppointmentId: sourceValue(["source_estimate_appointment_id", "sourceEstimateAppointmentId"]),
         sourceDate: date,
         jkNumber,
         appointmentUrl: buildJunkwareAppointmentUrl({ ...row, ...sourceRow }),
@@ -2131,6 +2135,60 @@ function JobPhotoDetails({ job }: { job: JobRow }) {
 
   if (!job.photos.length) return null;
 
+  const sourceEstimateId = job.sourceEstimateAppointmentId.trim();
+  const estimatePhotos = sourceEstimateId && sourceEstimateId !== job.appointmentId
+    ? job.photos.filter((photo) => junkwarePhotoMatchesAppointment(photo, sourceEstimateId))
+    : [];
+  const appointmentPhotos = estimatePhotos.length
+    ? job.photos.filter((photo) => !estimatePhotos.includes(photo))
+    : job.photos;
+
+  const photoLink = (photo: JunkwareJobPhoto, index: number, label: string) => (
+    <a
+      href={photo.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="ops-job-photo"
+      key={`${photo.url}-${index}`}
+      aria-label={`Open ${label.toLowerCase()} photo ${index + 1}`}
+    >
+      <img src={photo.url} alt={`${label} photo ${index + 1}`} loading="lazy" />
+      <span>{label}</span>
+    </a>
+  );
+
+  if (estimatePhotos.length) {
+    const previewPhotos = estimatePhotos.slice(0, 4);
+    const remainingEstimatePhotos = estimatePhotos.slice(4);
+    return (
+      <section className="ops-job-photo-details ops-job-photo-evidence" aria-label="Before photos from the prior estimate">
+        <header>
+          <span>Before Photos From Estimate</span>
+          <strong>{estimatePhotos.length} attached</strong>
+        </header>
+        <div className="ops-job-photo-gallery compact">
+          {previewPhotos.map((photo, index) => photoLink(photo, index, "Before"))}
+        </div>
+        {remainingEstimatePhotos.length ? (
+          <details className="ops-job-photo-more">
+            <summary>View {remainingEstimatePhotos.length} More Before Photo{remainingEstimatePhotos.length === 1 ? "" : "s"}</summary>
+            <div className="ops-job-photo-gallery">
+              {remainingEstimatePhotos.map((photo, index) => photoLink(photo, index + previewPhotos.length, "Before"))}
+            </div>
+          </details>
+        ) : null}
+        {appointmentPhotos.length ? (
+          <details className="ops-job-photo-more">
+            <summary>View {appointmentPhotos.length} Appointment Photo{appointmentPhotos.length === 1 ? "" : "s"}</summary>
+            <div className="ops-job-photo-gallery">
+              {appointmentPhotos.map((photo, index) => photoLink(photo, index, photo.category))}
+            </div>
+          </details>
+        ) : null}
+      </section>
+    );
+  }
+
   return (
     <details className="ops-job-photo-details">
       <summary>
@@ -2138,19 +2196,7 @@ function JobPhotoDetails({ job }: { job: JobRow }) {
         <strong>{job.photos.length} uploaded</strong>
       </summary>
       <div className="ops-job-photo-gallery">
-        {job.photos.map((photo, index) => (
-          <a
-            href={photo.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ops-job-photo"
-            key={`${photo.url}-${index}`}
-            aria-label={`Open ${photo.category.toLowerCase()} photo ${index + 1}`}
-          >
-            <img src={photo.url} alt={`${photo.category} job photo ${index + 1}`} loading="lazy" />
-            <span>{photo.category}</span>
-          </a>
-        ))}
+        {job.photos.map((photo, index) => photoLink(photo, index, photo.category))}
       </div>
     </details>
   );

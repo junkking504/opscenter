@@ -9877,11 +9877,47 @@ a.ops-appointment-card-address:hover {
   font-size: 0.64rem;
 }
 
+.ops-job-photo-evidence > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  color: #d1fae5;
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.ops-job-photo-evidence > header strong {
+  color: #86efac;
+  font-size: 0.64rem;
+}
+
 .ops-job-photo-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 9px;
   padding: 10px;
+  border-top: 1px solid rgba(52, 211, 153, 0.13);
+}
+
+.ops-job-photo-gallery.compact {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ops-job-photo-more {
+  border-top: 1px solid rgba(52, 211, 153, 0.13);
+}
+
+.ops-job-photo-more > summary {
+  padding: 9px 10px;
+  color: #a7f3d0;
+  cursor: pointer;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.ops-job-photo-more > .ops-job-photo-gallery {
   border-top: 1px solid rgba(52, 211, 153, 0.13);
 }
 
@@ -9918,6 +9954,12 @@ a.ops-appointment-card-address:hover {
   font-weight: 850;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+@media (max-width: 720px) {
+  .ops-job-photo-gallery.compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .ops-job-closeout-details > summary {

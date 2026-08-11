@@ -4515,7 +4515,7 @@ a {
 
 .ops-jobs-map-workspace .ops-jobs-map-shell {
   display: grid;
-  height: 36rem;
+  height: 22.5rem;
   min-width: 0;
   border-top: 0;
   grid-template-rows: minmax(0, 1fr) auto;
@@ -4682,7 +4682,7 @@ a {
   position: sticky;
   top: 0;
   z-index: 3;
-  height: 40px;
+  height: 30px;
   background: #28294a;
   white-space: nowrap;
 }
@@ -4699,7 +4699,7 @@ a {
   position: sticky;
   left: 0;
   z-index: 2;
-  min-height: 48px;
+  min-height: 30px;
   justify-content: flex-start;
   background: #151827;
   font-size: .72rem;
@@ -4719,7 +4719,7 @@ a {
 .ops-jobs-map-board-cell {
   display: flex;
   min-width: 0;
-  min-height: 48px;
+  min-height: 30px;
   gap: 2px;
   padding: 2px;
   border-right: 1px solid rgba(255, 255, 255, .1);
@@ -4737,7 +4737,7 @@ a {
   place-items: center;
   flex: 1 1 0;
   min-width: 10px;
-  min-height: 42px;
+  min-height: 24px;
   appearance: none;
   padding: 0;
   border: 0;
@@ -4899,7 +4899,7 @@ a {
 .ops-jobs-map-current-time::after {
   position: absolute;
   left: -4px;
-  top: 36px;
+  top: 26px;
   width: 9px;
   height: 9px;
   border-radius: 50%;
@@ -5365,8 +5365,8 @@ a.ops-jobs-map-selection-phone:focus-visible {
 }
 
 .ops-jobs-map-assignment-status {
-  min-height: 38px;
-  padding: 10px 14px;
+  min-height: 32px;
+  padding: 7px 12px;
   border-top: 1px solid var(--ops-border);
   background: rgba(101, 167, 255, .045);
   color: var(--ops-muted);
@@ -5383,6 +5383,24 @@ a.ops-jobs-map-selection-phone:focus-visible {
   .ops-jobs-map-schedule {
     border-top: 1px solid var(--ops-border);
     border-left: 0;
+  }
+
+  .ops-jobs-map-board-corner,
+  .ops-jobs-map-board-time {
+    height: 40px;
+  }
+
+  .ops-jobs-map-board-truck.is-row-label,
+  .ops-jobs-map-board-cell {
+    min-height: 44px;
+  }
+
+  .ops-jobs-map-board-block {
+    min-height: 38px;
+  }
+
+  .ops-jobs-map-current-time::after {
+    top: 36px;
   }
 }
 

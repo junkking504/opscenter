@@ -4224,8 +4224,8 @@ body {
 }
 
 .ops-page-subnav a.active {
-  border-color: rgba(96, 165, 250, 0.3);
-  background: rgba(96, 165, 250, 0.12);
+  border-color: var(--ops-red);
+  background: #20242b;
 }
 
 .ops-nav {

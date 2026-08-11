@@ -6304,16 +6304,16 @@ a.ops-jobs-map-selection-phone:focus-visible {
 
 .ops-page-subnav a:hover,
 .ops-page-subnav a:focus-visible {
-  border-color: rgba(96, 165, 250, 0.38);
-  background: rgba(96, 165, 250, 0.07);
+  border-color: rgba(237, 28, 36, 0.42);
+  background: rgba(237, 28, 36, 0.08);
   color: var(--ops-text);
   outline: none;
 }
 
 .ops-page-subnav a.active {
-  border-color: rgba(96, 165, 250, 0.34);
-  background: rgba(96, 165, 250, 0.14);
-  color: #174f82;
+  border-color: var(--ops-red);
+  background: #20242b;
+  color: #fff;
 }
 
 .ops-page-subnav a.needs-attention:not(.active) {
@@ -6328,8 +6328,8 @@ a.ops-jobs-map-selection-phone:focus-visible {
   height: 20px;
   padding: 0 6px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: inherit;
+  background: var(--ops-gold);
+  color: #20242b;
   font-size: 0.64rem;
   font-weight: 900;
 }

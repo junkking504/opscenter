@@ -710,7 +710,8 @@ textarea {
 .ops-jobs-page .ops-territory-header.is-new-orleans,
 .ops-jobs-page .ops-territory-header.is-jefferson,
 .ops-jobs-page .ops-territory-header.is-northshore,
-.ops-jobs-page .ops-territory-header.is-baton-rouge {
+.ops-jobs-page .ops-territory-header.is-baton-rouge,
+.ops-jobs-page .ops-territory-header.is-lafayette {
   margin: 0;
   padding: 12px 14px 12px 18px;
   border: 0;

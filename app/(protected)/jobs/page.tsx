@@ -167,7 +167,7 @@ type JobsRoutePlan = {
   routes: TruckRoutePlan[];
 };
 
-const TERRITORY_ORDER = ["New Orleans", "Jefferson Parish", "Northshore", "Baton Rouge", "Unknown territory"];
+const TERRITORY_ORDER = ["New Orleans", "Jefferson Parish", "Northshore", "Baton Rouge", "Lafayette", "Unknown territory"];
 const STATUS_ORDER: JobStatusBucket[] = [
   "Open / Scheduled",
   "Estimate",
@@ -1931,6 +1931,7 @@ function territoryToneClass(territory: string): string {
   if (normalized.includes("jefferson")) return "is-jefferson";
   if (normalized.includes("northshore")) return "is-northshore";
   if (normalized.includes("baton rouge")) return "is-baton-rouge";
+  if (normalized.includes("lafayette")) return "is-lafayette";
   return "is-unknown-territory";
 }
 

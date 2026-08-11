@@ -6,6 +6,7 @@ export const metadata = {
   title: "QBO Connection Status | OpsCenter",
   description: "Review the current QuickBooks Online connection setup status.",
 };
+export const dynamic = "force-dynamic";
 
 export default function QboStatusPage() {
   const status = getQboSetupStatus();
@@ -14,18 +15,18 @@ export default function QboStatusPage() {
     <div className="ops-dashboard">
       <PageHeader
         title="QBO Connection Status"
-        subtitle="A server-rendered summary of the OAuth setup, storage path, and missing configuration."
+        subtitle="Live OAuth configuration and encrypted token status for QuickBooks Online collection."
         date="2026-07-16"
         showDateSelector={false}
         showRefresh={false}
-        status={status.ready ? "Configured" : "Setup incomplete"}
+        status={status.connected ? "Connected" : status.ready ? "Ready to connect" : "Setup incomplete"}
       />
 
       <div className="ops-card">
         <div className="ops-detail-grid">
           <div>
             <span>Status</span>
-            <strong>{status.ready ? "Ready for connect flow" : "Missing configuration"}</strong>
+            <strong>{status.connected ? "Connected" : status.ready ? "Ready for authorization" : "Missing configuration"}</strong>
           </div>
           <div>
             <span>Environment</span>
@@ -40,12 +41,28 @@ export default function QboStatusPage() {
             <strong>{status.supportEmail || "Not configured"}</strong>
           </div>
           <div>
+            <span>Expected company</span>
+            <strong>{status.expectedCompanyName || "Confirm after authorization"}</strong>
+          </div>
+          <div>
             <span>Token store</span>
             <strong>{status.tokenStore.file}</strong>
           </div>
           <div>
             <span>Token store writable</span>
             <strong>{status.tokenStore.writable ? "Yes" : "No"}</strong>
+          </div>
+          <div>
+            <span>Token encryption</span>
+            <strong>{status.tokenStore.encrypted ? "AES-256-GCM" : "Awaiting authorization"}</strong>
+          </div>
+          <div>
+            <span>Granted scopes</span>
+            <strong>{status.tokenStore.masked.scope || status.scopes.join(" + ")}</strong>
+          </div>
+          <div>
+            <span>Access token expires</span>
+            <strong>{status.tokenStore.masked.expiresAt || "Not connected"}</strong>
           </div>
         </div>
 

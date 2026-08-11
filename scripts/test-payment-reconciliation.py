@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import importlib.util
+import json
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -121,6 +123,42 @@ class JunkwarePaymentAmountTests(unittest.TestCase):
         self.assertEqual(result["exceptions"]["missing_in_merchant_center"], [])
         self.assertEqual(result["exceptions"]["merchant_center_only"], [])
         self.assertEqual(result["exceptions"]["amount_mismatch"][0]["amount_difference"], 50.80)
+
+
+class QboSourceTests(unittest.TestCase):
+    def test_qbo_metadata_is_fresh_without_merchant_account_number(self):
+        with tempfile.TemporaryDirectory() as directory:
+            csv_path = Path(directory) / "transactions-2026-08-10.csv"
+            csv_path.write_text(
+                "Trans ID,Date,Merchant Account Name,Amount\n1,2026-08-10,Junk Krewe LLC,100.00\n",
+                encoding="utf-8",
+            )
+            collected_at = "2026-08-11T08:00:00-05:00"
+            csv_path.with_suffix(".json").write_text(json.dumps({
+                "date": "2026-08-10",
+                "collected_at": collected_at,
+                "account_name": "Junk Krewe LLC",
+                "qbo_company_name": "Junk Krewe LLC",
+                "collector": "qbo-accounting-api",
+            }), encoding="utf-8")
+
+            self.assertEqual(MODULE.merchant_collected_at(csv_path, "2026-08-10"), collected_at)
+            MODULE.validate_merchant_account(csv_path, [{"Merchant Account Name": "Junk Krewe LLC"}])
+
+    def test_qbo_rows_must_match_connected_company_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            csv_path = Path(directory) / "transactions-2026-08-10.csv"
+            csv_path.write_text("Trans ID,Date\n", encoding="utf-8")
+            csv_path.with_suffix(".json").write_text(json.dumps({
+                "qbo_company_name": "Junk Krewe LLC",
+                "collector": "qbo-accounting-api",
+            }), encoding="utf-8")
+
+            with self.assertRaisesRegex(RuntimeError, "connected company"):
+                MODULE.validate_merchant_account(
+                    csv_path,
+                    [{"Merchant Account Name": "Another Company"}],
+                )
 
 
 if __name__ == "__main__":

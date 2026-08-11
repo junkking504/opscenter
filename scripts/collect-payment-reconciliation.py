@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reconcile JunkWare Update QuickBooks card payments with Intuit Merchant Center."""
+"""Reconcile JunkWare Update QuickBooks card payments with QuickBooks Online."""
 
 from __future__ import annotations
 
@@ -316,18 +316,36 @@ def merchant_collected_at(path: Path | None, target_date: str) -> str | None:
     metadata_path = path.with_suffix(".json")
     try:
         metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-        if (
-            metadata.get("date") == target_date
-            and normalized_name(metadata.get("account_name"))
+        legacy_account_matches = (
+            normalized_name(metadata.get("account_name"))
             == normalized_name(EXPECTED_MERCHANT_ACCOUNT_NAME)
             and clean(metadata.get("account_number_last_four"))
             == EXPECTED_MERCHANT_ACCOUNT_LAST_FOUR
+        )
+        qbo_api_identity = (
+            metadata.get("collector") == "qbo-accounting-api"
+            and clean(metadata.get("qbo_company_name"))
+            and normalized_name(metadata.get("account_name"))
+            == normalized_name(metadata.get("qbo_company_name"))
+        )
+        if (
+            metadata.get("date") == target_date
+            and (legacy_account_matches or qbo_api_identity)
             and metadata.get("collected_at")
         ):
             return str(metadata["collected_at"])
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         pass
     return datetime.fromtimestamp(path.stat().st_mtime, TIMEZONE).isoformat()
+
+
+def merchant_source_metadata(path: Path | None) -> dict[str, Any]:
+    if path is None:
+        return {}
+    try:
+        return json.loads(path.with_suffix(".json").read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
 
 
 def path_is_within(path: Path, directory: Path) -> bool:
@@ -343,6 +361,15 @@ def validate_merchant_account(path: Path, rows: list[dict[str, str]]) -> None:
     numbers = {first_value(row, "merchant_account_number") for row in rows}
     names.discard("")
     numbers.discard("")
+
+    metadata = merchant_source_metadata(path)
+    if metadata.get("collector") == "qbo-accounting-api":
+        qbo_company_name = clean(metadata.get("qbo_company_name"))
+        if not qbo_company_name:
+            raise RuntimeError("QBO source metadata does not identify the connected company.")
+        if names and any(normalized_name(value) != normalized_name(qbo_company_name) for value in names):
+            raise RuntimeError("QBO transaction rows do not match the connected company metadata.")
+        return
 
     if names or numbers:
         expected_name = normalized_name(EXPECTED_MERCHANT_ACCOUNT_NAME)
@@ -548,6 +575,9 @@ def reconcile(
     merchant_available = merchant_source is not None
     balanced = merchant_available and exception_count == 0 and abs(merchant_total - junkware_total) <= 0.01
 
+    source_metadata = merchant_source_metadata(merchant_source)
+    qbo_api_source = source_metadata.get("collector") == "qbo-accounting-api"
+
     return {
         "date": target_date,
         "generated_at": datetime.now(TIMEZONE).isoformat(),
@@ -559,13 +589,29 @@ def reconcile(
                 "available": True,
             },
             "merchant_center": {
-                "name": "Intuit Merchant Center Transactions — Junk Krewe",
-                "url": "https://merchantcenter.intuit.com/msc/portal/home",
+                "name": (
+                    f"QuickBooks Online API — {source_metadata.get('qbo_company_name') or 'Connected company'}"
+                    if qbo_api_source
+                    else "Intuit Merchant Center Transactions — Junk Krewe"
+                ),
+                "url": (
+                    "https://ops.junk-king.app/integrations/qbo/status"
+                    if qbo_api_source
+                    else "https://merchantcenter.intuit.com/msc/portal/home"
+                ),
                 "available": merchant_available,
                 "file": str(merchant_source) if merchant_source else None,
                 "collected_at": merchant_collected_at(merchant_source, target_date),
-                "account_name": EXPECTED_MERCHANT_ACCOUNT_NAME,
-                "account_number_last_four": EXPECTED_MERCHANT_ACCOUNT_LAST_FOUR,
+                "account_name": (
+                    source_metadata.get("qbo_company_name")
+                    if qbo_api_source
+                    else EXPECTED_MERCHANT_ACCOUNT_NAME
+                ),
+                "account_number_last_four": (
+                    None if qbo_api_source else EXPECTED_MERCHANT_ACCOUNT_LAST_FOUR
+                ),
+                "qbo_company_name": source_metadata.get("qbo_company_name") if qbo_api_source else None,
+                "collector": source_metadata.get("collector") or "merchant-center-export",
             },
         },
         "summary": {

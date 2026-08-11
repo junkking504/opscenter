@@ -9,6 +9,8 @@ export type PaymentSource = {
   collected_at?: string | null;
   account_name?: string;
   account_number_last_four?: string;
+  qbo_company_name?: string;
+  collector?: string;
 };
 
 export type JunkwarePayment = {
@@ -88,7 +90,7 @@ export type PaymentReconciliation = {
 
 export type PaymentExceptionRow = {
   date: string;
-  type: "Missing in Merchant Center" | "Merchant Center only" | "Ambiguous match" | "Amount mismatch";
+  type: "Missing in QBO" | "QBO only" | "Ambiguous match" | "Amount mismatch";
   reference: string;
   customer: string;
   cardLastFour: string;
@@ -104,6 +106,8 @@ export type PaymentReconciliationView = {
   merchantCenterAvailable: boolean;
   merchantCenterFresh: boolean;
   merchantCenterCollectedAt: string | null;
+  merchantSourceName: string;
+  merchantCollector: string;
   coverage: {
     collectedDays: number;
     expectedDays: number;
@@ -172,6 +176,12 @@ function merchantDataIsFresh(payload: PaymentReconciliation): boolean {
 function isExpectedMerchantAccount(payload: PaymentReconciliation): boolean {
   const merchant = payload.sources?.merchant_center;
   if (!merchant?.available) return true;
+  if (merchant.collector === "qbo-accounting-api") {
+    return Boolean(
+      merchant.qbo_company_name?.trim()
+      && merchant.account_name?.trim().toLowerCase() === merchant.qbo_company_name.trim().toLowerCase(),
+    );
+  }
   return (
     merchant.account_name?.trim().toLowerCase() === EXPECTED_MERCHANT_ACCOUNT &&
     merchant.account_number_last_four === EXPECTED_MERCHANT_ACCOUNT_LAST_FOUR
@@ -219,7 +229,7 @@ export function readPaymentReconciliation(date: string): PaymentReconciliation |
 function exceptionRows(payload: PaymentReconciliation): PaymentExceptionRow[] {
   const missing = (payload.exceptions?.missing_in_merchant_center || []).map((row) => ({
     date: payload.date,
-    type: "Missing in Merchant Center" as const,
+    type: "Missing in QBO" as const,
     reference: row.jk_number || "—",
     customer: row.customer_name || "—",
     cardLastFour: row.card_last_four || "",
@@ -228,7 +238,7 @@ function exceptionRows(payload: PaymentReconciliation): PaymentExceptionRow[] {
   }));
   const merchantOnly = (payload.exceptions?.merchant_center_only || []).map((row) => ({
     date: payload.date,
-    type: "Merchant Center only" as const,
+    type: "QBO only" as const,
     reference: row.transaction_id || "—",
     customer: row.customer_name || "—",
     cardLastFour: row.card_last_four || "",
@@ -267,6 +277,8 @@ export function buildDailyPaymentReconciliation(date: string): PaymentReconcilia
       merchantCenterAvailable: false,
       merchantCenterFresh: false,
       merchantCenterCollectedAt: null,
+      merchantSourceName: "QuickBooks Online API",
+      merchantCollector: "qbo-accounting-api",
       coverage: { collectedDays: 0, expectedDays: 1, merchantDays: 0 },
     };
   }
@@ -281,6 +293,8 @@ export function buildDailyPaymentReconciliation(date: string): PaymentReconcilia
     merchantCenterAvailable,
     merchantCenterFresh,
     merchantCenterCollectedAt: merchantCollectedAt(payload),
+    merchantSourceName: payload.sources.merchant_center.name || "QuickBooks Online API",
+    merchantCollector: payload.sources.merchant_center.collector || "merchant-center-export",
     coverage: {
       collectedDays: 1,
       expectedDays: 1,
@@ -302,6 +316,8 @@ export function buildMonthlyPaymentReconciliation(dates: string[]): PaymentRecon
       merchantCenterAvailable: false,
       merchantCenterFresh: false,
       merchantCenterCollectedAt: null,
+      merchantSourceName: "QuickBooks Online API",
+      merchantCollector: "qbo-accounting-api",
       coverage: { collectedDays: 0, expectedDays: dates.length, merchantDays: 0 },
     };
   }
@@ -342,6 +358,8 @@ export function buildMonthlyPaymentReconciliation(dates: string[]): PaymentRecon
       .filter((value): value is string => Boolean(value))
       .sort()
       .at(-1) || null,
+    merchantSourceName: merchantPayloads.at(-1)?.sources.merchant_center.name || "QuickBooks Online API",
+    merchantCollector: merchantPayloads.at(-1)?.sources.merchant_center.collector || "merchant-center-export",
     coverage: { collectedDays: payloads.length, expectedDays: dates.length, merchantDays },
   };
 }

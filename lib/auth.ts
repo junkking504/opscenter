@@ -15,10 +15,15 @@ export const LEGACY_AUTH_COOKIE_NAMES = [
   "opscenter_magic_link",
   "opscenter_auth_pending",
 ] as const;
-export const AUTH_PUBLIC_PREFIXES = ["/legal/", "/support", "/integrations/qbo"] as const;
-export const AUTH_PUBLIC_API_PREFIXES = ["/api/auth/", "/api/health", "/api/integrations/qbo", "/api/integrations/junkware/sms"] as const;
+export const AUTH_PUBLIC_PREFIXES = ["/legal/", "/support"] as const;
+export const AUTH_PUBLIC_ROUTES = ["/integrations/qbo", "/integrations/qbo/disconnected"] as const;
+export const AUTH_PUBLIC_API_PREFIXES = ["/api/auth/", "/api/health", "/api/integrations/junkware/sms"] as const;
+export const AUTH_PUBLIC_API_ROUTES = [
+  "/api/integrations/qbo/connect",
+  "/api/integrations/qbo/callback",
+] as const;
 export const AUTH_PUBLIC_FILES = ["/junk-king-logo.svg"] as const;
-export const AUTH_PROTECTED_API_PREFIXES = ["/api/exceptions", "/api/inbox", "/api/fleet-map", "/api/fleet-maintenance", "/api/fleet-checklists", "/api/fleet-checklist-templates", "/api/fleet-checklist-photos", "/api/fleet-issues", "/api/fleet-issue-photos", "/api/manual-bonuses", "/api/searchkings"] as const;
+export const AUTH_PROTECTED_API_PREFIXES = ["/api/exceptions", "/api/inbox", "/api/fleet-map", "/api/fleet-maintenance", "/api/fleet-checklists", "/api/fleet-checklist-templates", "/api/fleet-checklist-photos", "/api/fleet-issues", "/api/fleet-issue-photos", "/api/manual-bonuses", "/api/searchkings", "/api/integrations/qbo/status", "/api/integrations/qbo/disconnect"] as const;
 export const LEGACY_VERIFICATION_CODE_FLOW_ENABLED = false;
 
 export type AuthSessionPayload = {
@@ -491,8 +496,10 @@ export async function requireAuthSession(request: Request): Promise<AuthSession 
 export function publicAuthRoute(pathname: string): boolean {
   if (pathname === AUTH_LOGIN_PATH || pathname === AUTH_LOGOUT_PATH) return true;
   return AUTH_PUBLIC_FILES.includes(pathname as (typeof AUTH_PUBLIC_FILES)[number]) ||
+    AUTH_PUBLIC_ROUTES.includes(pathname as (typeof AUTH_PUBLIC_ROUTES)[number]) ||
     AUTH_PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
-    AUTH_PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+    AUTH_PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
+    AUTH_PUBLIC_API_ROUTES.includes(pathname as (typeof AUTH_PUBLIC_API_ROUTES)[number]);
 }
 
 export function protectedApiRoute(pathname: string): boolean {

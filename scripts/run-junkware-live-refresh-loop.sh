@@ -6,7 +6,6 @@ OPSBOT_DIR="${OPSBOT_DIR:-$USER_HOME/.openclaw/workspace/opsbot}"
 OPSCENTER_DIR="${OPSCENTER_DIR:-$USER_HOME/opscenter-v2/opscenter}"
 OPSCENTER_VPS="${OPSCENTER_VPS:-opscenter@104.248.63.228}"
 OPSCENTER_SSH_KEY="${OPSCENTER_SSH_KEY:-$USER_HOME/.ssh/id_ed25519_opscenter}"
-OPENCLAW="${OPSCENTER_OPENCLAW:-$USER_HOME/.npm-global/bin/openclaw}"
 REFRESH_INTERVAL_SECONDS=300
 FAILED_REFRESH_RETRY_SECONDS=15
 MAX_FAILED_REFRESH_RETRY_SECONDS=300
@@ -19,6 +18,10 @@ SMS_PENDING_DATES=()
 CONSECUTIVE_FAILED_CYCLES=0
 LAST_SLACK_ALERT_RUN=0
 export PYTHONPYCACHEPREFIX="/private/tmp/opscenter-live-pycache"
+
+if [ -f "$OPSCENTER_DIR/scripts/load-opscenter-secrets.sh" ]; then
+  . "$OPSCENTER_DIR/scripts/load-opscenter-secrets.sh"
+fi
 
 network_available() {
   local reachability
@@ -185,19 +188,15 @@ do
       fi
     done
 
-    if "$OPENCLAW" browser --browser-profile openclaw start --headless; then
-      for PAYMENT_DATE in "$TODAY" "$YESTERDAY"
-      do
-        if python3 "$OPSCENTER_DIR/scripts/collect-merchant-center-live.py" --date "$PAYMENT_DATE"; then
-          python3 "$OPSCENTER_DIR/scripts/collect-payment-reconciliation.py" --date "$PAYMENT_DATE" \
-            || echo "WARNING: payment reconciliation failed for $PAYMENT_DATE."
-        else
-          echo "WARNING: Merchant Center refresh failed for $PAYMENT_DATE; retaining the last verified reconciliation."
-        fi
-      done
-    else
-      echo "WARNING: persistent browser unavailable; retaining the last verified payment reconciliation."
-    fi
+    for PAYMENT_DATE in "$TODAY" "$YESTERDAY"
+    do
+      if npm --prefix "$OPSCENTER_DIR" run collect:qbo -- --date "$PAYMENT_DATE"; then
+        python3 "$OPSCENTER_DIR/scripts/collect-payment-reconciliation.py" --date "$PAYMENT_DATE" \
+          || echo "WARNING: payment reconciliation failed for $PAYMENT_DATE."
+      else
+        echo "WARNING: QBO Accounting API refresh failed for $PAYMENT_DATE; retaining the last verified reconciliation."
+      fi
+    done
 
     npm --prefix "$OPSCENTER_DIR" run sync:crew-portal \
       || echo "WARNING: Crew Portal data sync failed."

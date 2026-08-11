@@ -6295,7 +6295,7 @@ a.ops-jobs-map-selection-phone:focus-visible {
 .ops-page-subnav a.active {
   border-color: rgba(96, 165, 250, 0.34);
   background: rgba(96, 165, 250, 0.14);
-  color: #dceeff;
+  color: #174f82;
 }
 
 .ops-page-subnav a.needs-attention:not(.active) {

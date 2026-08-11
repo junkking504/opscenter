@@ -20,6 +20,10 @@ if [[ -n "$ENV_FILE" ]]; then
   set +a
 fi
 
+if [[ -f "$APP_DIR/scripts/load-opscenter-secrets.sh" ]]; then
+  source "$APP_DIR/scripts/load-opscenter-secrets.sh"
+fi
+
 mkdir -p "$APP_DIR/logs"
 
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then

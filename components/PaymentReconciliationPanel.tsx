@@ -3,14 +3,14 @@ import { money } from "@/lib/opsData";
 import type { PaymentReconciliationView } from "@/lib/payment-reconciliation";
 import { stableUpdatedAt } from "@/lib/stable-date";
 
-const MERCHANT_CENTER_URL = "https://merchantcenter.intuit.com/msc/portal/home";
+const QBO_STATUS_URL = "/integrations/qbo/status";
 const JUNKWARE_URL = "https://junkware.junk-king.com/franchise/accounting/update-quickbooks.aspx";
 
 function statusText(status: PaymentReconciliationView["status"]): string {
   if (status === "balanced") return "Reconciled";
   if (status === "needs_review") return "Needs review";
   if (status === "merchant_data_stale") return "Refreshing";
-  if (status === "merchant_data_missing") return "Merchant data needed";
+  if (status === "merchant_data_missing") return "QBO data needed";
   return "Not collected";
 }
 
@@ -54,7 +54,7 @@ export default function PaymentReconciliationPanel({
         <div>
           <div className="ops-section-title">Card Payment Reconciliation</div>
           <div className="ops-muted">
-            JunkWare Accounting → Update QuickBooks compared with the Junk Krewe Intuit Merchant Center account for {periodLabel}.
+            JunkWare Accounting → Update QuickBooks compared with {view.merchantSourceName} for {periodLabel}.
           </div>
         </div>
         <span className={`ops-reconciliation-status ${statusClass(view.status)}`}>
@@ -65,13 +65,13 @@ export default function PaymentReconciliationPanel({
       {view.status === "not_collected" || view.status === "merchant_data_missing" ? (
         <div className="ops-reconciliation-callout">
           <div>
-            <strong>Merchant Center transactions have not been imported for this period.</strong>
+            <strong>QuickBooks Online transactions have not been collected for this period.</strong>
             <span>
-              Select Junk Krewe in Merchant Center, open Activity &amp; Reports → Transactions, choose the date range, and export CSV. Exports from other merchant accounts are rejected.
+              OpsCenter will retry the API automatically. Check the encrypted OAuth connection if this message persists.
             </span>
           </div>
           <div className="ops-reconciliation-links">
-            <Link href={MERCHANT_CENTER_URL} target="_blank" rel="noreferrer">Open Junk Krewe Merchant Center</Link>
+            <Link href={QBO_STATUS_URL}>Check QBO connection</Link>
             <Link href={JUNKWARE_URL} target="_blank" rel="noreferrer">Open JunkWare ledger</Link>
           </div>
         </div>
@@ -80,7 +80,7 @@ export default function PaymentReconciliationPanel({
       {view.status === "merchant_data_stale" ? (
         <div className="ops-reconciliation-callout">
           <div>
-            <strong>Merchant Center is refreshing.</strong>
+            <strong>QuickBooks Online is refreshing.</strong>
             <span>
               The last transaction snapshot was collected {merchantRefreshLabel}. Differences and exceptions are hidden until a current snapshot is available.
             </span>
@@ -90,18 +90,18 @@ export default function PaymentReconciliationPanel({
 
       {coverage.expectedDays > 1 && !coverageComplete ? (
         <div className="ops-reconciliation-coverage">
-          Merchant Center coverage: {coverage.merchantDays} of {coverage.expectedDays} published days. Totals below include collected days only.
+          QBO coverage: {coverage.merchantDays} of {coverage.expectedDays} published days. Totals below include collected days only.
         </div>
       ) : null}
 
       <div className="ops-reconciliation-summary">
         <div><span>JunkWare card payments</span><strong>{money(summary.junkware_total)}</strong><small>{summary.junkware_count} paid totals</small></div>
-        <div><span>Junk Krewe Merchant Center</span><strong>{merchantReady ? money(summary.merchant_center_total) : "—"}</strong><small>{merchantReady ? `${summary.merchant_center_count} transactions` : view.merchantCenterAvailable ? "Refreshing transactions" : "Awaiting export"}</small></div>
+        <div><span>QuickBooks Online</span><strong>{merchantReady ? money(summary.merchant_center_total) : "—"}</strong><small>{merchantReady ? `${summary.merchant_center_count} card transactions` : view.merchantCenterAvailable ? "Refreshing transactions" : "Awaiting API"}</small></div>
         <div><span>Matched</span><strong>{merchantReady ? money(summary.matched_total) : "—"}</strong><small>{merchantReady ? `${summary.matched_count} one-to-one matches` : "Not current"}</small></div>
         <div><span>Tips</span><strong>{merchantReady ? money(summary.tip_total) : "—"}</strong><small>Paid total minus job revenue</small></div>
-        <div><span>Difference</span><strong className={merchantReady && Math.abs(summary.net_difference) > 0.01 ? "ops-reconciliation-difference" : ""}>{merchantReady ? money(summary.net_difference) : "—"}</strong><small>{merchantReady ? "Merchant Center minus JunkWare" : "Waiting for current feed"}</small></div>
+        <div><span>Difference</span><strong className={merchantReady && Math.abs(summary.net_difference) > 0.01 ? "ops-reconciliation-difference" : ""}>{merchantReady ? money(summary.net_difference) : "—"}</strong><small>{merchantReady ? "QuickBooks Online minus JunkWare" : "Waiting for current feed"}</small></div>
         <div><span>Exceptions</span><strong>{merchantReady ? summary.exception_count : "—"}</strong><small>{merchantReady ? "Require review" : "Waiting for current feed"}</small></div>
-        <div><span>Processing fees</span><strong>{merchantReady ? money(summary.processing_fees) : "—"}</strong><small>When included in the export</small></div>
+        <div><span>Processing fees</span><strong>—</strong><small>Not included in QBO transaction queries</small></div>
       </div>
 
       {showExceptions ? (
@@ -122,7 +122,7 @@ export default function PaymentReconciliationPanel({
                   <th>Customer</th>
                   <th>Card</th>
                   <th>JunkWare</th>
-                  <th>Merchant Center</th>
+                  <th>QuickBooks Online</th>
                 </tr>
               </thead>
               <tbody>

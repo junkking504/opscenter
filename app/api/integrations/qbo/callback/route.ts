@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getQboConfig, QBO_STATE_COOKIE, QBO_ROUTE_PATHS } from "@/lib/qbo-config";
+import { exchangeQboAuthorizationCode } from "@/lib/qbo-oauth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ function jsonError(status: number, message: string, details?: Record<string, unk
   );
 }
 
-export function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
   const config = getQboConfig();
   const url = new URL(request.url);
   const state = url.searchParams.get("state");
@@ -36,23 +37,23 @@ export function GET(request: NextRequest) {
     });
   }
 
-  if (!code) {
-    return jsonError(400, "Missing authorization code from Intuit.");
+  if (!code || !realmId) {
+    return jsonError(400, "Missing authorization code or company identifier from Intuit.");
   }
 
-  return NextResponse.json(
-    {
-      ok: true,
-      phase: "setup",
-      message: "OAuth callback verified. Token exchange is intentionally deferred in this setup phase.",
-      realmId: realmId || null,
-      redirectUri: config.redirectUri,
-      scope: config.accountingScope,
-    },
-    {
-      headers: {
-        "Cache-Control": "no-store, max-age=0",
-      },
-    },
-  );
+  try {
+    await exchangeQboAuthorizationCode(code, realmId);
+    const response = NextResponse.redirect(new URL(`${QBO_ROUTE_PATHS.statusPage}?connected=1`, request.url));
+    response.cookies.set(QBO_STATE_COOKIE, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: true,
+      path: "/api/integrations/qbo",
+      maxAge: 0,
+    });
+    response.headers.set("Cache-Control", "no-store, max-age=0");
+    return response;
+  } catch (error) {
+    return jsonError(502, error instanceof Error ? error.message : "Intuit token exchange failed.");
+  }
 }

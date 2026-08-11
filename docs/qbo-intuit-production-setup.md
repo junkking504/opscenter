@@ -1,6 +1,6 @@
 # OpsCenter QuickBooks Online production setup worksheet
 
-This worksheet is intended to minimize guesswork when creating the Intuit Developer app that will connect QuickBooks Online to OpsCenter.
+This worksheet covers the Intuit Developer app that connects QuickBooks Online Accounting to OpsCenter. Merchant Center and the QuickBooks Payments API are not used.
 
 ## Proposed app identity
 
@@ -12,7 +12,7 @@ This worksheet is intended to minimize guesswork when creating the Intuit Develo
 | Industry / category | Accounting (recommended) | Codex-derived recommendation | Use the closest available Intuit category for accounting / financial software. If Intuit presents a different list, choose the closest equivalent and note the final choice. |
 | Intended users | Internal employees and authorized business owners only | Codex-derived | OpsCenter is not intended for external customer access. |
 | Distribution | Private / unlisted internal-use application | Codex-derived | This is an internal tool, not a public consumer app. |
-| QuickBooks scope | Accounting only | Codex-derived | Do not enable Payments unless a later requirement explicitly needs it. |
+| QuickBooks scopes | Accounting | OpsCenter requirement | OpsCenter reads QBO payments and sales receipts; Merchant Center is not used. |
 | Intuit sign-in / OpenID | Not required for this setup phase | Codex-derived | Only add if Intuit later requires it. |
 
 ## Public URLs
@@ -39,8 +39,9 @@ These variables are used by the server-side QBO scaffold. No real values are sto
 | `INTUIT_CLIENT_SECRET` | Yes before production connect | User | Intuit app client secret. |
 | `INTUIT_REDIRECT_URI` | Yes before production connect | Codex-derived value, copied by user | Must match the redirect URI above exactly. |
 | `INTUIT_ENVIRONMENT` | Yes before production connect | User | Usually `production` for the live app; `sandbox` only for testing. |
-| `QBO_TOKEN_ENCRYPTION_KEY` | Recommended before storing real tokens | User | Reserved for future token encryption support. |
+| `QBO_TOKEN_ENCRYPTION_KEY` | Required before storing real tokens | Mission Control Keychain | Encrypts OAuth tokens with AES-256-GCM before they are written to disk. |
 | `QBO_SUPPORT_EMAIL` | Recommended | User unless already present in deployment config | Support/contact email displayed on the support page and setup pages. |
+| `QBO_EXPECTED_COMPANY_NAME` | Recommended after first authorization | User confirms | Pins scheduled collection to the intended QBO company name. |
 | `QBO_TOKEN_STORE_DIR` | Optional | User or deployment config | Overrides the default local Mac-hosted token storage directory. |
 
 ## Data access explanation
@@ -59,7 +60,7 @@ The app does not expose the data to third-party customers and is not designed as
 - Daily QBO artifacts remain on the Mac host that runs OpsCenter.
 - The token store is designed to live outside the Git repository.
 - Token writes should use atomic replacement and restrictive file permissions.
-- The scaffold does not claim encryption is implemented until a real encrypted token store is enabled and tested.
+- The token store is encrypted with AES-256-GCM and uses atomic writes with restrictive permissions.
 
 ## Revocation / disconnect
 
@@ -74,7 +75,10 @@ The disconnect flow should:
 - server-side only configuration access
 - no token values sent to the client
 - OAuth state validation on the callback route
-- no secrets logged by the scaffolding routes
+- authorization-code exchange and rotating refresh-token persistence
+- AES-256-GCM encryption for the token store, with the encryption key in macOS Keychain
+- no secrets logged by setup, status, collector, or refresh paths
+- public access limited to the Intuit-required connect, callback, legal, support, and disconnect landing routes
 
 ## Remaining unanswered questions
 
@@ -83,8 +87,8 @@ The disconnect flow should:
 | Legal business name for the Intuit application | User must supply |
 | Support email to publish publicly | User must supply unless already configured in the environment |
 | Final Intuit category selection | User must confirm |
-| Whether the final production token store should use encryption in addition to file permissions | User must confirm for phase 2 |
-| Whether the app will need QuickBooks Payments | Not required for this phase |
+| Whether the final production token store should use encryption in addition to file permissions | Resolved: AES-256-GCM plus mode 0600 |
+| Whether the app will need QuickBooks Payments | Resolved: no; this workflow uses QBO Accounting only |
 
 ## User-only checklist
 
@@ -96,5 +100,5 @@ The following actions require the business owner:
 4. Provide the legal business name if Intuit requests one.
 5. Provide a support email if no environment value already exists.
 6. Answer any ownership or security review questions from Intuit.
-7. Copy the Client ID and Client Secret into a secure environment file on the Mac host.
-8. Approve the one-time QBO connection when ready.
+7. Store the Client ID, Client Secret, and generated token-encryption key in the Mission Control login Keychain.
+8. Approve the one-time QBO connection with the Accounting scope and select the intended company.

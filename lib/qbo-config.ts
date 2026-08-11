@@ -1,5 +1,3 @@
-import "server-only";
-
 import { QBO_TOKEN_STORE_DIR } from "@/lib/qbo-token-store";
 
 export const QBO_PUBLIC_ORIGIN = "https://ops.junk-king.app";
@@ -17,6 +15,7 @@ export const QBO_ROUTE_PATHS = {
 } as const;
 
 export const QBO_ACCOUNTING_SCOPE = "com.intuit.quickbooks.accounting";
+export const QBO_SCOPES = [QBO_ACCOUNTING_SCOPE] as const;
 export const QBO_STATE_COOKIE = "opscenter_qbo_oauth_state";
 
 export type IntuitEnvironment = "sandbox" | "production";
@@ -29,8 +28,10 @@ export type QboConfig = {
   redirectUri: string;
   environment: IntuitEnvironment;
   supportEmail: string | null;
+  expectedCompanyName: string | null;
   tokenStoreDir: string;
-  accountingScope: string;
+  encryptionKey: string;
+  scopes: readonly string[];
 };
 
 function normalizeEnvironment(value: string | undefined): IntuitEnvironment {
@@ -47,10 +48,13 @@ export function getQboConfig(): QboConfig {
   const redirectUri = String(process.env.INTUIT_REDIRECT_URI || qboUrl(QBO_ROUTE_PATHS.callbackApi)).trim();
   const environment = normalizeEnvironment(process.env.INTUIT_ENVIRONMENT);
   const supportEmail = String(process.env.QBO_SUPPORT_EMAIL || "").trim() || null;
+  const expectedCompanyName = String(process.env.QBO_EXPECTED_COMPANY_NAME || "").trim() || null;
+  const encryptionKey = String(process.env.QBO_TOKEN_ENCRYPTION_KEY || "").trim();
   const missing = [
     clientId ? "" : "INTUIT_CLIENT_ID",
     clientSecret ? "" : "INTUIT_CLIENT_SECRET",
     redirectUri ? "" : "INTUIT_REDIRECT_URI",
+    encryptionKey ? "" : "QBO_TOKEN_ENCRYPTION_KEY",
   ].filter(Boolean);
 
   return {
@@ -61,8 +65,10 @@ export function getQboConfig(): QboConfig {
     redirectUri,
     environment,
     supportEmail,
+    expectedCompanyName,
     tokenStoreDir: QBO_TOKEN_STORE_DIR,
-    accountingScope: QBO_ACCOUNTING_SCOPE,
+    encryptionKey,
+    scopes: QBO_SCOPES,
   };
 }
 
@@ -73,7 +79,7 @@ export function intuitAuthBaseUrl(_environment: IntuitEnvironment): string {
 export function buildIntuitConnectUrl(config: QboConfig, state: string): string {
   const params = new URLSearchParams({
     client_id: config.clientId,
-    scope: config.accountingScope,
+    scope: config.scopes.join(" "),
     redirect_uri: config.redirectUri,
     response_type: "code",
     state,
@@ -97,6 +103,13 @@ export function qboCurrentConfigSummary() {
       statusApi: qboUrl(QBO_ROUTE_PATHS.statusApi),
       callbackApi: qboUrl(QBO_ROUTE_PATHS.callbackApi),
     },
-    config,
+    environment: config.environment,
+    scopes: config.scopes,
+    ready: config.ready,
+    missing: config.missing,
+    redirectUri: config.redirectUri,
+    supportEmail: config.supportEmail,
+    expectedCompanyName: config.expectedCompanyName,
+    tokenStoreDir: config.tokenStoreDir,
   };
 }

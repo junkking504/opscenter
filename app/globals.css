@@ -8652,7 +8652,7 @@ a.ops-jobs-map-selection-phone:focus-visible {
   border: 1px solid var(--ops-border);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.025);
-  color: var(--ops-text);
+  color: #f5f7fb;
   font-size: 0.82rem;
   font-weight: 850;
   line-height: 1.35;

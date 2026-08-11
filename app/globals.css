@@ -318,34 +318,27 @@
   font-size: 0.7rem;
 }
 
-.ops-jobs-calendar-legend {
+.ops-jobs-calendar-territory-legend {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 7px 12px;
-  color: var(--ops-muted);
+  color: #52606d;
   font-size: 0.64rem;
   font-weight: 750;
 }
 
-.ops-jobs-calendar-legend span {
+.ops-jobs-calendar-territory-legend span {
   display: inline-flex;
   align-items: center;
   gap: 5px;
 }
 
-.ops-jobs-calendar-legend i {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--ops-blue);
+.ops-jobs-calendar-territory-legend strong {
+  color: #315b87;
+  font-weight: 950;
 }
-
-.ops-jobs-calendar-legend i.is-estimate { background: #a78bfa; }
-.ops-jobs-calendar-legend i.is-completed { background: #37d67a; }
-.ops-jobs-calendar-legend i.is-attention { background: #f6c343; }
-.ops-jobs-calendar-legend i.is-canceled { background: #8b929d; }
 
 .ops-jobs-calendar-scroll {
   overflow-x: auto;
@@ -371,8 +364,8 @@
 
 .ops-jobs-calendar-day {
   min-width: 0;
-  min-height: 156px;
-  padding: 8px;
+  min-height: 126px;
+  padding: 0;
   background: #10151d;
 }
 
@@ -403,210 +396,98 @@
   justify-content: space-between;
   gap: 8px;
   min-height: 24px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
-.ops-jobs-calendar-date-row > a {
+.ops-jobs-calendar-day-link {
+  display: block;
+  min-height: 126px;
+  padding: 8px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.ops-jobs-calendar-day-link:hover,
+.ops-jobs-calendar-day-link:focus-visible {
+  background: rgba(101, 167, 255, 0.08);
+  outline: 2px solid rgba(101, 167, 255, 0.58);
+  outline-offset: -2px;
+}
+
+.ops-jobs-calendar-date-row > strong {
   display: inline-grid;
   width: 25px;
   height: 25px;
   place-items: center;
   border-radius: 999px;
-  color: var(--ops-text);
+  color: #f8fafc;
   font-size: 0.76rem;
   font-weight: 900;
-  text-decoration: none;
 }
 
-.ops-jobs-calendar-day.is-today .ops-jobs-calendar-date-row > a {
+.ops-jobs-calendar-day.is-today .ops-jobs-calendar-date-row > strong {
   background: var(--ops-blue);
   color: #06101e;
 }
 
 .ops-jobs-calendar-date-row > span {
-  color: var(--ops-muted-2);
+  color: #bac5d2;
   font-size: 0.58rem;
   font-weight: 800;
 }
 
-.ops-jobs-calendar-appointments {
+.ops-jobs-calendar-territory-counts {
   display: grid;
-  gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
 }
 
-.ops-jobs-calendar-job {
-  display: block;
-  min-width: 0;
-  padding: 5px 6px 5px 8px;
-  border-left: 3px solid var(--ops-blue);
-  border-radius: 5px;
-  background: rgba(101, 167, 255, 0.08);
-  color: var(--ops-text);
-  text-decoration: none;
-}
-
-.ops-jobs-calendar-job:hover,
-.ops-jobs-calendar-job:focus-visible {
-  background: rgba(101, 167, 255, 0.16);
-  outline: none;
-}
-
-.ops-jobs-calendar-job strong,
-.ops-jobs-calendar-job span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ops-jobs-calendar-job strong {
-  font-size: 0.63rem;
-  line-height: 1.25;
-}
-
-.ops-jobs-calendar-job time {
-  color: #b9d8ff;
-  font-weight: 900;
-}
-
-.ops-jobs-calendar-job span {
-  margin-top: 2px;
-  color: var(--ops-muted);
-  font-size: 0.55rem;
-}
-
-.ops-jobs-calendar-job.is-estimate {
-  border-left-color: #a78bfa;
-  background: rgba(167, 139, 250, 0.09);
-}
-
-.ops-jobs-calendar-job.is-completed {
-  border-left-color: #37d67a;
-  background: rgba(55, 214, 122, 0.075);
-}
-
-.ops-jobs-calendar-job.is-attention {
-  border-left-color: #f6c343;
-  background: rgba(246, 195, 67, 0.09);
-}
-
-.ops-jobs-calendar-job.is-canceled {
-  border-left-color: #8b929d;
-  background: rgba(139, 146, 157, 0.06);
-  opacity: 0.58;
-  text-decoration: line-through;
-}
-
-.ops-jobs-calendar-more {
-  display: inline-block;
-  padding: 3px 2px;
-  color: #9cc8ff;
-  font-size: 0.6rem;
-  font-weight: 850;
-  text-decoration: none;
-}
-
-.ops-jobs-calendar-day-list {
-  scroll-margin-top: 18px;
-  border-top: 1px solid var(--ops-border);
-  background: #0d1219;
-}
-
-.ops-jobs-calendar-day-list-head {
+.ops-jobs-calendar-territory-counts span {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--ops-border);
-}
-
-.ops-jobs-calendar-day-list-head .ops-muted {
-  margin-top: 3px;
-  font-size: 0.68rem;
-}
-
-.ops-jobs-calendar-day-list-head > a {
-  padding: 7px 10px;
-  border: 1px solid rgba(101, 167, 255, 0.3);
-  border-radius: 8px;
-  background: rgba(101, 167, 255, 0.08);
-  color: #bddaff;
-  font-size: 0.68rem;
-  font-weight: 850;
-  text-decoration: none;
-}
-
-.ops-jobs-calendar-day-rows {
-  display: grid;
-}
-
-.ops-jobs-calendar-list-row {
-  display: grid;
-  grid-template-columns: minmax(150px, 0.8fr) minmax(220px, 1.45fr) minmax(210px, 1.2fr) minmax(135px, 0.65fr);
-  gap: 14px;
-  align-items: center;
   min-width: 0;
-  padding: 11px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  border-left: 3px solid var(--ops-blue);
+  padding: 6px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.035);
 }
 
-.ops-jobs-calendar-list-row:last-child {
-  border-bottom: 0;
+.ops-jobs-calendar-territory-counts strong {
+  color: #b7c3d2;
+  font-size: 0.59rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
 }
 
-.ops-jobs-calendar-list-row.is-estimate { border-left-color: #a78bfa; }
-.ops-jobs-calendar-list-row.is-completed { border-left-color: #37d67a; }
-.ops-jobs-calendar-list-row.is-attention { border-left-color: #f6c343; }
-.ops-jobs-calendar-list-row.is-canceled { border-left-color: #8b929d; opacity: 0.62; }
-
-.ops-jobs-calendar-list-time,
-.ops-jobs-calendar-list-customer,
-.ops-jobs-calendar-list-assignment,
-.ops-jobs-calendar-list-contact {
-  display: grid;
-  min-width: 0;
-  gap: 4px;
+.ops-jobs-calendar-territory-counts b {
+  color: #f8fafc;
+  font-size: 0.7rem;
+  font-weight: 950;
 }
 
-.ops-jobs-calendar-list-time time,
-.ops-jobs-calendar-list-customer strong,
-.ops-jobs-calendar-list-assignment strong {
-  overflow: hidden;
-  color: var(--ops-text);
+.ops-jobs-calendar-day.is-selected .ops-jobs-calendar-territory-counts span {
+  border-color: rgba(246, 195, 67, 0.2);
+  background: rgba(246, 195, 67, 0.055);
+}
+
+.ops-calendar-open-dispatch {
+  padding: 8px 11px;
+  border: 1px solid rgba(101, 167, 255, 0.44);
+  border-radius: 9px;
+  background: rgba(101, 167, 255, 0.12);
+  color: #174f7a;
   font-size: 0.72rem;
-  font-weight: 850;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ops-jobs-calendar-list-time .ops-status-tag {
-  width: fit-content;
-}
-
-.ops-jobs-calendar-list-customer span,
-.ops-jobs-calendar-list-assignment span,
-.ops-jobs-calendar-list-contact span,
-.ops-jobs-calendar-list-contact a {
-  overflow: hidden;
-  color: var(--ops-muted);
-  font-size: 0.63rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.ops-jobs-calendar-list-contact a {
-  color: #9cc8ff;
-  font-weight: 800;
+  font-weight: 900;
   text-decoration: none;
+  white-space: nowrap;
 }
 
-.ops-jobs-calendar-day-empty {
-  padding: 28px 16px;
-  color: var(--ops-muted);
-  font-size: 0.76rem;
-  text-align: center;
+.ops-calendar-open-dispatch:hover,
+.ops-calendar-open-dispatch:focus-visible {
+  border-color: rgba(101, 167, 255, 0.75);
+  background: rgba(101, 167, 255, 0.2);
+  color: #0e3f66;
 }
 
 .ops-monthly-insight-card {
@@ -771,17 +652,12 @@
     flex-direction: column;
   }
 
-  .ops-jobs-calendar-legend {
+  .ops-jobs-calendar-territory-legend {
     justify-content: flex-start;
   }
 
   .ops-jobs-calendar-grid {
     min-width: 780px;
-  }
-
-  .ops-jobs-calendar-list-row {
-    grid-template-columns: 1fr;
-    gap: 8px;
   }
 
   .ops-jobs-mode-toggle a {
@@ -8744,6 +8620,12 @@ a.ops-jobs-map-selection-phone:focus-visible {
   --ops-territory-accent: #f87171;
   --ops-territory-border: rgba(248, 113, 113, 0.36);
   --ops-territory-wash: rgba(248, 113, 113, 0.16);
+}
+
+.ops-territory-header.is-lafayette {
+  --ops-territory-accent: #a78bfa;
+  --ops-territory-border: rgba(167, 139, 250, 0.36);
+  --ops-territory-wash: rgba(167, 139, 250, 0.16);
 }
 
 .ops-territory-header::before {

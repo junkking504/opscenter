@@ -167,7 +167,14 @@ type JobsRoutePlan = {
   routes: TruckRoutePlan[];
 };
 
-const TERRITORY_ORDER = ["New Orleans", "Jefferson Parish", "Northshore", "Baton Rouge", "Unknown territory"];
+const TERRITORY_ORDER = ["New Orleans", "Jefferson Parish", "Northshore", "Baton Rouge", "Lafayette", "Unknown territory"];
+const CALENDAR_TERRITORIES = [
+  { abbreviation: "NO", territory: "New Orleans" },
+  { abbreviation: "BR", territory: "Baton Rouge" },
+  { abbreviation: "NS", territory: "Northshore" },
+  { abbreviation: "JP", territory: "Jefferson Parish" },
+  { abbreviation: "LF", territory: "Lafayette" },
+] as const;
 const STATUS_ORDER: JobStatusBucket[] = [
   "Open / Scheduled",
   "Estimate",
@@ -995,21 +1002,18 @@ function calendarDays(selectedDate: string, jobsByDate: Map<string, JobRow[]>) {
   return days;
 }
 
-function calendarStatusClass(job: JobRow): string {
-  switch (statusBucket(job)) {
-    case "Completed": return "is-completed";
-    case "Estimate": return "is-estimate";
-    case "Canceled": return "is-canceled";
-    case "Unclosed or Needs Attention": return "is-attention";
-    default: return "is-scheduled";
+function calendarTerritoryCounts(jobs: JobRow[]) {
+  const counts = new Map<string, number>();
+  for (const job of jobs) {
+    const territory = normalizeTerritory(job.territory);
+    counts.set(territory, (counts.get(territory) || 0) + 1);
   }
-}
 
-function calendarJobMeta(job: JobRow): string {
-  const territory = normalizeTerritory(job.territory);
-  const rawTruck = String(job.assignedTruck || job.truck || "").trim();
-  const hasTruck = Boolean(rawTruck && rawTruck !== "—" && !/^unavailable$/i.test(rawTruck));
-  return hasTruck ? `${territory} · ${rawTruck}` : territory;
+  return CALENDAR_TERRITORIES.map(({ abbreviation, territory }) => ({
+    abbreviation,
+    territory,
+    count: counts.get(territory) || 0,
+  }));
 }
 
 function firstValue(row: Record<string, any>, keys: string[]): string {
@@ -1872,8 +1876,10 @@ function normalizeTerritory(value: string): string {
 
   const lower = raw.toLowerCase();
   if (lower.includes("new orleans") || lower === "no") return "New Orleans";
+  if (lower.includes("jefferson") || lower === "jp") return "Jefferson Parish";
   if (lower.includes("northshore") || lower.includes("north shore")) return "Northshore";
   if (lower.includes("baton rouge") || lower === "br") return "Baton Rouge";
+  if (lower.includes("lafayette") || lower === "lf") return "Lafayette";
   if (lower.includes("unknown")) return "Unknown territory";
 
   return raw;
@@ -1931,6 +1937,7 @@ function territoryToneClass(territory: string): string {
   if (normalized.includes("jefferson")) return "is-jefferson";
   if (normalized.includes("northshore")) return "is-northshore";
   if (normalized.includes("baton rouge")) return "is-baton-rouge";
+  if (normalized.includes("lafayette")) return "is-lafayette";
   return "is-unknown-territory";
 }
 
@@ -2517,6 +2524,17 @@ export default async function JobsPage({
   const month = isMonthView ? buildMonthlyRange(date) : null;
   const monthlySummary = isMonthView ? buildMonthlyJobsSummary(date) : null;
   const monthlyAuthority = view === "monthly" ? readMonthlyAuthority(date) : null;
+  const today = chicagoDateKey();
+  const monthCalendarDays = monthlySummary ? calendarDays(date, monthlySummary.jobsByDate) : [];
+  const requestedCalendarDay = typeof params?.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(params.day)
+    && params.day.startsWith(`${date.slice(0, 7)}-`)
+    ? params.day
+    : "";
+  const defaultCalendarDay = today.startsWith(`${date.slice(0, 7)}-`)
+    ? today
+    : monthCalendarDays.find((day) => day?.jobs.length)?.date || `${date.slice(0, 7)}-01`;
+  const selectedCalendarDate = requestedCalendarDay || defaultCalendarDay;
+  const selectedCalendarDay = monthCalendarDays.find((day) => day?.date === selectedCalendarDate) || null;
   const jobs = view === "daily"
     ? applyJobRouteAssignmentOverrides(readJobRows(date), date)
     : monthlySummary?.jobs || readJobRows(date);
@@ -2549,18 +2567,25 @@ export default async function JobsPage({
     });
   }
   const orderedFilteredJobs = groupJobsByTerritory(filteredJobs).flatMap(([, territoryJobs]) => territoryJobs);
+  const selectedCalendarJobs = selectedCalendarDay?.jobs || [];
+  const orderedQueueJobs = view === "calendar"
+    ? groupJobsByTerritory(selectedCalendarJobs).flatMap(([, territoryJobs]) => territoryJobs)
+    : orderedFilteredJobs;
   const requestedPage = Number.parseInt(String(params?.page || "1"), 10);
-  const totalQueuePages = Math.max(1, Math.ceil(orderedFilteredJobs.length / JOBS_PER_PAGE));
+  const totalQueuePages = view === "daily"
+    ? Math.max(1, Math.ceil(orderedQueueJobs.length / JOBS_PER_PAGE))
+    : 1;
   const queuePage = Math.min(
     totalQueuePages,
     Math.max(1, Number.isFinite(requestedPage) ? requestedPage : 1),
   );
   const queueStart = (queuePage - 1) * JOBS_PER_PAGE;
   const queueJobs = view === "daily"
-    ? orderedFilteredJobs.slice(queueStart, queueStart + JOBS_PER_PAGE)
-    : orderedFilteredJobs;
+    ? orderedQueueJobs.slice(queueStart, queueStart + JOBS_PER_PAGE)
+    : orderedQueueJobs;
   const groupedJobs = groupJobsByTerritory(queueJobs);
-  const jobsExceptions = buildOperationalExceptions(date).exceptions.filter((exception) => exception.category === "Jobs");
+  const jobsExceptions = buildOperationalExceptions(view === "calendar" ? selectedCalendarDate : date).exceptions
+    .filter((exception) => exception.category === "Jobs");
   const exceptionByJob = new Map<string, (typeof jobsExceptions)[number][]>();
   for (const exception of jobsExceptions) {
     const keys = [exception.entityId, exception.entityLabel].map((value) => String(value || "").trim().toLowerCase()).filter(Boolean);
@@ -2655,25 +2680,13 @@ export default async function JobsPage({
       })),
     }));
   const scheduleCopy = scheduleDayCopy(date);
-  const today = chicagoDateKey();
   const tomorrow = addDays(today, 1);
   const scheduleDates = Array.from(new Set([tomorrow, today, ...availableDates()])).sort((a, b) =>
     b.localeCompare(a),
   );
-  const monthCalendarDays = monthlySummary ? calendarDays(date, monthlySummary.jobsByDate) : [];
   const calendarScheduledCount = monthlySummary
     ? Array.from(monthlySummary.jobsByDate.values()).flat().filter((job) => statusBucket(job) !== "Canceled").length
     : 0;
-  const requestedCalendarDay = typeof params?.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(params.day)
-    && params.day.startsWith(`${date.slice(0, 7)}-`)
-    ? params.day
-    : "";
-  const defaultCalendarDay = today.startsWith(`${date.slice(0, 7)}-`)
-    ? today
-    : monthCalendarDays.find((day) => day?.jobs.length)?.date || `${date.slice(0, 7)}-01`;
-  const selectedCalendarDate = requestedCalendarDay || defaultCalendarDay;
-  const selectedCalendarDay = monthCalendarDays.find((day) => day?.date === selectedCalendarDate) || null;
-
   return (
     <div className="ops-dashboard ops-jobs-page">
       <PageHeader
@@ -2711,14 +2724,12 @@ export default async function JobsPage({
           <div className="ops-jobs-calendar-head">
             <div>
               <div className="ops-section-title">{monthlySummary.monthDisplay}</div>
-              <div className="ops-muted">Choose a day to see every appointment below the calendar.</div>
+              <div className="ops-muted">Select a day to open its dispatch-style appointment list below.</div>
             </div>
-            <div className="ops-jobs-calendar-legend" aria-label="Job status legend">
-              <span><i className="is-scheduled" /> Scheduled</span>
-              <span><i className="is-estimate" /> Estimate</span>
-              <span><i className="is-completed" /> Completed</span>
-              <span><i className="is-attention" /> Attention</span>
-              <span><i className="is-canceled" /> Canceled</span>
+            <div className="ops-jobs-calendar-territory-legend" aria-label="Territory abbreviations">
+              {CALENDAR_TERRITORIES.map(({ abbreviation, territory }) => (
+                <span key={abbreviation}><strong>{abbreviation}</strong> {territory}</span>
+              ))}
             </div>
           </div>
           <div className="ops-jobs-calendar-scroll">
@@ -2731,78 +2742,28 @@ export default async function JobsPage({
                   className={`ops-jobs-calendar-day${day.date === today ? " is-today" : ""}${day.date < today ? " is-past" : ""}${day.date === selectedCalendarDate ? " is-selected" : ""}`}
                   key={day.date}
                 >
-                  <div className="ops-jobs-calendar-date-row">
-                    <Link href={`/jobs?date=${date.slice(0, 7)}-01&view=calendar&day=${day.date}#calendar-day-appointments`} aria-label={`Show appointments for ${day.date}`}>
-                      {day.dayNumber}
-                    </Link>
-                    {day.jobs.length ? <span>{day.jobs.length} job{day.jobs.length === 1 ? "" : "s"}</span> : null}
-                  </div>
-                  <div className="ops-jobs-calendar-appointments">
-                    {day.jobs.slice(0, 4).map((job) => (
-                      <a
-                        className={`ops-jobs-calendar-job ${calendarStatusClass(job)}`}
-                        href={job.appointmentUrl || buildJobsHref({ date: day.date, view: "daily", workspace: "dispatch" })}
-                        target={job.appointmentUrl ? "_blank" : undefined}
-                        rel={job.appointmentUrl ? "noopener noreferrer" : undefined}
-                        key={`${day.date}-${jobKey(job)}`}
-                      >
-                        <strong><time>{job.appointmentTime}</time> {safeText(job.customerName)}</strong>
-                        <span>{calendarJobMeta(job)}</span>
-                      </a>
-                    ))}
-                    {day.jobs.length > 4 ? (
-                      <Link className="ops-jobs-calendar-more" href={`/jobs?date=${date.slice(0, 7)}-01&view=calendar&day=${day.date}#calendar-day-appointments`}>
-                        +{day.jobs.length - 4} more
-                      </Link>
-                    ) : null}
-                  </div>
+                  <Link
+                    className="ops-jobs-calendar-day-link"
+                    href={`/jobs?date=${date.slice(0, 7)}-01&view=calendar&day=${day.date}#calendar-day-appointments`}
+                    aria-label={`Show ${day.jobs.length} appointment${day.jobs.length === 1 ? "" : "s"} for ${day.date}`}
+                    aria-current={day.date === selectedCalendarDate ? "date" : undefined}
+                  >
+                    <div className="ops-jobs-calendar-date-row">
+                      <strong>{day.dayNumber}</strong>
+                      <span>{day.jobs.length} appt{day.jobs.length === 1 ? "" : "s"}</span>
+                    </div>
+                    <div className="ops-jobs-calendar-territory-counts">
+                      {calendarTerritoryCounts(day.jobs).map(({ abbreviation, territory, count }) => (
+                        <span title={territory} key={abbreviation}>
+                          <strong>{abbreviation}</strong>
+                          <b>{count}</b>
+                        </span>
+                      ))}
+                    </div>
+                  </Link>
                 </article>
               ) : <div className="ops-jobs-calendar-day is-outside" aria-hidden="true" key={`empty-${index}`} />)}
             </div>
-          </div>
-          <div className="ops-jobs-calendar-day-list" id="calendar-day-appointments">
-            <div className="ops-jobs-calendar-day-list-head">
-              <div>
-                <div className="ops-section-title">{jobActivityDate(selectedCalendarDate)}</div>
-                <div className="ops-muted">
-                  {selectedCalendarDay?.jobs.length || 0} appointment{selectedCalendarDay?.jobs.length === 1 ? "" : "s"}
-                </div>
-              </div>
-              <Link href={buildJobsHref({ date: selectedCalendarDate, view: "daily", workspace: "dispatch" })}>
-                Open dispatch
-              </Link>
-            </div>
-            {selectedCalendarDay?.jobs.length ? (
-              <div className="ops-jobs-calendar-day-rows">
-                {selectedCalendarDay.jobs.map((job) => {
-                  const assignedCrew = [job.driverName || job.driver, job.navigatorName || job.navigator, ...(job.additionalCrew || [])]
-                    .map((name) => String(name || "").trim())
-                    .filter((name) => name && name !== "—");
-                  return (
-                    <article className={`ops-jobs-calendar-list-row ${calendarStatusClass(job)}`} key={`${selectedCalendarDate}-list-${jobKey(job)}`}>
-                      <div className="ops-jobs-calendar-list-time">
-                        <time>{job.appointmentTime}</time>
-                        <span className={statusBadgeClass(statusBucket(job))}>{cardStatusLabel(job)}</span>
-                      </div>
-                      <div className="ops-jobs-calendar-list-customer">
-                        <strong>{safeText(job.customerName)}</strong>
-                        <span>{safeText(job.address)}</span>
-                      </div>
-                      <div className="ops-jobs-calendar-list-assignment">
-                        <strong>{calendarJobMeta(job)}</strong>
-                        <span>{assignedCrew.length ? assignedCrew.join(" · ") : "Crew not assigned"}</span>
-                      </div>
-                      <div className="ops-jobs-calendar-list-contact">
-                        {job.phone && job.phone !== "—" ? <a href={`tel:${job.phone.replace(/[^\d+]/g, "")}`}>{job.phone}</a> : <span>Phone unavailable</span>}
-                        {job.appointmentUrl ? <a href={job.appointmentUrl} target="_blank" rel="noopener noreferrer">{safeText(job.jkNumber)} ↗</a> : <span>{safeText(job.jkNumber)}</span>}
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="ops-jobs-calendar-day-empty">No appointments are currently on file for this day.</div>
-            )}
           </div>
         </section>
       ) : null}
@@ -3079,8 +3040,9 @@ export default async function JobsPage({
         </>
       )}
 
-      {view === "daily" ? (
+      {(view === "daily" || view === "calendar") ? (
         <>
+      {view === "daily" ? <>
       <div className="ops-card ops-jobs-filter-card" id="jobs-find">
         <form className="ops-jobs-filter-toolbar" method="get">
           <input type="hidden" name="date" value={date} />
@@ -3163,25 +3125,34 @@ export default async function JobsPage({
         <a href="#jobs-map">Map &amp; board</a>
         <a href="#jobs-schedule">Appointment Queue <small>{filterCount}</small></a>
       </nav>
+      </> : null}
 
-      <div className="ops-card" id="jobs-schedule">
+      <div className="ops-card" id={view === "calendar" ? "calendar-day-appointments" : "jobs-schedule"}>
         <div className="ops-card-header compact">
           <div>
-            <div className="ops-section-title">Appointment Queue</div>
+            <div className="ops-section-title">
+              {view === "calendar" ? `${jobActivityDate(selectedCalendarDate)} Appointments` : "Appointment Queue"}
+            </div>
             <div className="ops-muted">
-              {scheduleCopy.possessive} jobs, grouped by territory and ordered by appointment time.
+              {view === "calendar"
+                ? `${selectedCalendarJobs.length} appointment${selectedCalendarJobs.length === 1 ? "" : "s"}, using the dispatch layout and ordered by territory and time.`
+                : `${scheduleCopy.possessive} jobs, grouped by territory and ordered by appointment time.`}
             </div>
           </div>
-          <div className="ops-job-count-pill">{filterCount} appointments</div>
+          {view === "calendar" ? (
+            <Link className="ops-calendar-open-dispatch" href={buildJobsHref({ date: selectedCalendarDate, view: "daily", workspace: "dispatch" })}>
+              Open dispatch
+            </Link>
+          ) : <div className="ops-job-count-pill">{filterCount} appointments</div>}
         </div>
 
-        <OpsPagination
-          label="Appointment queue pages"
-          currentPage={queuePage}
-          totalPages={totalQueuePages}
-          previousHref={queuePage > 1 ? buildJobsHref({ date, view, workspace, ...filters, page: queuePage - 1 }) : undefined}
-          nextHref={queuePage < totalQueuePages ? buildJobsHref({ date, view, workspace, ...filters, page: queuePage + 1 }) : undefined}
-        />
+        {view === "daily" ? <OpsPagination
+            label="Appointment queue pages"
+            currentPage={queuePage}
+            totalPages={totalQueuePages}
+            previousHref={queuePage > 1 ? buildJobsHref({ date, view, workspace, ...filters, page: queuePage - 1 }) : undefined}
+            nextHref={queuePage < totalQueuePages ? buildJobsHref({ date, view, workspace, ...filters, page: queuePage + 1 }) : undefined}
+          /> : null}
 
         <div
           className="ops-selected-appointment-slot"
@@ -3798,23 +3769,25 @@ export default async function JobsPage({
             </section>
           ))}
 
-          {filteredJobs.length === 0 && (
+          {queueJobs.length === 0 && (
             <div className="ops-empty-state">
-              {jobs.length === 0
+              {view === "calendar"
+                ? "No appointments are currently on file for this day."
+                : jobs.length === 0
                 ? "No appointments are currently published for this date. The schedule will appear here automatically when JunkWare has appointments available."
                 : "No appointments match the selected filters."}
             </div>
           )}
 
-          <OpsPagination
+          {view === "daily" ? <OpsPagination
             label="Appointment queue pages"
             currentPage={queuePage}
             totalPages={totalQueuePages}
             previousHref={queuePage > 1 ? buildJobsHref({ date, view, workspace, ...filters, page: queuePage - 1 }) : undefined}
             nextHref={queuePage < totalQueuePages ? buildJobsHref({ date, view, workspace, ...filters, page: queuePage + 1 }) : undefined}
-          />
+          /> : null}
 
-          {jobs.length > 0 && (
+          {view === "daily" && jobs.length > 0 && (
             <div className="ops-job-total-row compact-total">
               <span>Completed Job Revenue</span>
               <strong>{money(collected)}</strong>

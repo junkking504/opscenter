@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { appointmentScheduleHref } from "../lib/job-links";
+import { formatSearchKingsDateHeading, groupSearchKingsLeadsByDate } from "../lib/searchkings-date-groups";
 import {
   buildSearchKingsViewFromData,
   explicitCallValue,
@@ -73,6 +74,14 @@ assert.equal(view.leads.find((lead) => lead.callerName === "Recovered Caller")?.
 assert.equal(view.leads.find((lead) => lead.callerName === "Lost Caller")?.franchiseContacted, false);
 assert.equal(view.territoryRows.find((row) => row.territory === "Baton Rouge")?.lostLeads, 1);
 assert.equal(appointmentScheduleHref("2026-08-02", "JK-101"), "/jobs?date=2026-08-02#job-jk-101");
+
+const callGroups = groupSearchKingsLeadsByDate(view.leads);
+assert.deepEqual(callGroups.map((group) => [group.dateKey, group.leads.length]), [
+  ["2026-08-02", 1],
+  ["2026-08-01", 3],
+]);
+assert.equal(formatSearchKingsDateHeading("2026-08-02"), "Sunday, August 2, 2026");
+assert.equal(formatSearchKingsDateHeading("unknown"), "Unknown date");
 
 assert.equal(explicitCallValue("King-size mattress pickup quoted $128."), 128);
 assert.equal(explicitCallValue("Agent quoted $448, discounted to $388."), 388);

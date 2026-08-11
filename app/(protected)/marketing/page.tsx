@@ -3,6 +3,7 @@ import LostLeadTracker from "@/components/LostLeadTracker";
 import PageHeader from "@/components/PageHeader";
 import { appointmentScheduleHref } from "@/lib/job-links";
 import { money, type AnyRecord } from "@/lib/opsData";
+import { groupSearchKingsLeadsByDate } from "@/lib/searchkings-date-groups";
 import { buildSearchKingsView, searchKingsSetupSummary } from "@/lib/searchkings";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +44,7 @@ export default async function MarketingPage({ searchParams }: { searchParams?: P
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
+  const callGroups = groupSearchKingsLeadsByDate(view.leads);
 
   return (
     <div className="ops-dashboard ops-marketing-page">
@@ -102,9 +104,17 @@ export default async function MarketingPage({ searchParams }: { searchParams?: P
         <div className="ops-table-scroll"><table className="ops-table"><thead><tr><th>Territory</th><th>Spend</th><th>Platform conversions</th><th>Cost / conversion</th><th>Qualified calls</th><th>Matched jobs</th><th>Attributed revenue</th><th>Lost leads</th></tr></thead><tbody>{view.territoryRows.map((row) => <tr key={row.territory}><td><strong>{row.territory}</strong></td><td className="ops-money">{money(row.spend)}</td><td>{row.conversions}</td><td className="ops-money">{money(row.costPerConversion)}</td><td>{row.qualifiedCalls}</td><td>{row.bookedJobs}</td><td className="ops-money">{money(row.attributedRevenue)}</td><td>{row.lostLeads}</td></tr>)}</tbody></table></div>
       </section> : null}
 
-      {view.available && section === "calls" ? <section className="ops-card">
-        <div className="ops-card-header compact"><div><div className="ops-section-title">SearchKings Calls</div><div className="ops-muted">Call metadata and AI summaries only; recordings are not copied into OpsCenter.</div></div></div>
-        <div className="ops-table-scroll"><table className="ops-table"><thead><tr><th>Call</th><th>Territory</th><th>Score</th><th>Status</th><th>Franchise contact</th><th>Summary</th><th>JunkWare match</th></tr></thead><tbody>{view.leads.map((lead) => <tr key={lead.callId}><td><strong>{lead.callerName}</strong><small className="ops-table-subline">{callDate(lead.calledAt)} · {lead.phone}</small></td><td>{lead.territory}</td><td>{lead.score ?? "—"}/5</td><td><span className={`ops-lead-status is-${lead.status}`}>{statusLabel(lead.status)}</span></td><td><span className={`ops-franchise-contact-status ${lead.franchiseContacted ? "is-contacted" : ""}`}>{lead.franchiseContacted ? "Contacted" : "Not contacted"}</span></td><td className="ops-marketing-summary-cell">{lead.summary || "—"}</td><td>{lead.matchedAppointment ? <><Link className="ops-mini-link" href={appointmentScheduleHref(lead.matchedAppointment.date, lead.matchedAppointment.jobId || lead.matchedAppointment.appointmentId)} title={`Open ${lead.matchedAppointment.jobId || "matched job"} on the schedule`}><strong>{lead.matchedAppointment.jobId || "Matched"}</strong></Link><small className="ops-table-subline">{money(lead.matchedAppointment.revenue)}</small></> : "—"}</td></tr>)}</tbody></table></div>
+      {view.available && section === "calls" ? <section>
+        <div className="ops-marketing-section-copy"><div><div className="ops-section-title">SearchKings Calls</div><div className="ops-muted">Calls are grouped by date, newest first. Recordings are not copied into OpsCenter.</div></div></div>
+        <div className="ops-marketing-call-groups">
+          {callGroups.map((group) => <section className="ops-card ops-marketing-call-group" key={group.dateKey}>
+            <div className="ops-marketing-date-heading">
+              <h2>{group.label}</h2>
+              <span>{group.leads.length} {group.leads.length === 1 ? "call" : "calls"}</span>
+            </div>
+            <div className="ops-table-scroll"><table className="ops-table"><thead><tr><th>Call</th><th>Territory</th><th>Score</th><th>Status</th><th>Franchise contact</th><th>Summary</th><th>JunkWare match</th></tr></thead><tbody>{group.leads.map((lead) => <tr key={lead.callId}><td><strong>{lead.callerName}</strong><small className="ops-table-subline">{callDate(lead.calledAt)} · {lead.phone}</small></td><td>{lead.territory}</td><td>{lead.score ?? "—"}/5</td><td><span className={`ops-lead-status is-${lead.status}`}>{statusLabel(lead.status)}</span></td><td><span className={`ops-franchise-contact-status ${lead.franchiseContacted ? "is-contacted" : ""}`}>{lead.franchiseContacted ? "Contacted" : "Not contacted"}</span></td><td className="ops-marketing-summary-cell">{lead.summary || "—"}</td><td>{lead.matchedAppointment ? <><Link className="ops-mini-link" href={appointmentScheduleHref(lead.matchedAppointment.date, lead.matchedAppointment.jobId || lead.matchedAppointment.appointmentId)} title={`Open ${lead.matchedAppointment.jobId || "matched job"} on the schedule`}><strong>{lead.matchedAppointment.jobId || "Matched"}</strong></Link><small className="ops-table-subline">{money(lead.matchedAppointment.revenue)}</small></> : "—"}</td></tr>)}</tbody></table></div>
+          </section>)}
+        </div>
       </section> : null}
 
       {view.available && section === "lost-leads" ? <section>

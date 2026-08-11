@@ -5962,7 +5962,58 @@ a.ops-jobs-map-selection-phone:focus-visible {
 
 .ops-marketing-lead-list {
   display: grid;
+  gap: 24px;
+}
+
+.ops-marketing-call-groups,
+.ops-marketing-date-group,
+.ops-marketing-date-items {
+  display: grid;
   gap: 14px;
+}
+
+.ops-marketing-call-groups {
+  gap: 18px;
+}
+
+.ops-marketing-call-group {
+  padding: 0;
+  overflow: hidden;
+}
+
+.ops-marketing-date-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 0 2px 9px;
+}
+
+.ops-marketing-call-group > .ops-marketing-date-heading {
+  padding: 13px 16px 11px;
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.ops-marketing-date-heading h2 {
+  margin: 0;
+  color: var(--ops-text);
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.ops-marketing-date-heading span {
+  flex: 0 0 auto;
+  border: 1px solid rgba(246, 195, 67, 0.3);
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: rgba(246, 195, 67, 0.08);
+  color: var(--ops-gold);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .ops-marketing-lead {

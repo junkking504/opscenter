@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { appointmentScheduleHref } from "@/lib/job-links";
+import { groupSearchKingsLeadsByDate } from "@/lib/searchkings-date-groups";
 import type {
   LostLeadReason,
   LostLeadStatus,
@@ -66,6 +67,7 @@ export default function LostLeadTracker({ leads }: { leads: SearchKingsLead[] })
     () => leads.filter((lead) => lead.qualified || lead.status !== "unqualified"),
     [leads],
   );
+  const dateGroups = useMemo(() => groupSearchKingsLeadsByDate(actionable), [actionable]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>(() =>
     Object.fromEntries(actionable.map((lead) => [lead.callId, {
       status: lead.status,
@@ -114,10 +116,17 @@ export default function LostLeadTracker({ leads }: { leads: SearchKingsLead[] })
 
   return (
     <div className="ops-marketing-lead-list">
-      {actionable.map((lead) => {
-        const draft = drafts[lead.callId];
-        return (
-          <article className="ops-card ops-marketing-lead" key={lead.callId}>
+      {dateGroups.map((group) => (
+        <section className="ops-marketing-date-group" key={group.dateKey}>
+          <div className="ops-marketing-date-heading">
+            <h2>{group.label}</h2>
+            <span>{group.leads.length} {group.leads.length === 1 ? "lead" : "leads"}</span>
+          </div>
+          <div className="ops-marketing-date-items">
+            {group.leads.map((lead) => {
+              const draft = drafts[lead.callId];
+              return (
+                <article className="ops-card ops-marketing-lead" key={lead.callId}>
             <div className="ops-marketing-lead-heading">
               <div>
                 <div className="ops-marketing-lead-name">
@@ -177,9 +186,12 @@ export default function LostLeadTracker({ leads }: { leads: SearchKingsLead[] })
               <a className="ops-mini-link" href={lead.searchKingsUrl} target="_blank" rel="noreferrer">Open in SearchKings</a>
               {message[lead.callId] ? <span className={message[lead.callId] === "Saved" ? "ops-kpi-good" : "ops-kpi-danger"}>{message[lead.callId]}</span> : null}
             </div>
-          </article>
-        );
-      })}
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

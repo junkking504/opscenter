@@ -17,6 +17,7 @@ export type SlackAlertSeverity = "critical" | "warning";
 export type SlackAlertKind =
   | "add_on"
   | "cancellation"
+  | "job_closed_payment"
   | "unassigned_crew"
   | "late_job"
   | "fleet_down"
@@ -49,7 +50,7 @@ type ActiveSlackAlert = {
 };
 
 type SlackAlertState = {
-  version: 2;
+  version: 3;
   initializedAt: string;
   updatedAt: string;
   active: Record<string, ActiveSlackAlert>;
@@ -60,6 +61,8 @@ type SlackAlertState = {
   deliveredCrewNotificationsByDate: Record<string, string[]>;
   truckArrivalNotificationsInitializedAt: string;
   deliveredTruckArrivalsByDate: Record<string, string[]>;
+  paymentNotificationsInitializedAt: string;
+  deliveredPaymentNotificationsByDate: Record<string, string[]>;
 };
 
 type SlackApiResponse = {
@@ -76,6 +79,7 @@ export type SlackAlertRunResult = {
   bootstrappedAddOns: number;
   bootstrappedCancellations: number;
   bootstrappedIncidents: number;
+  bootstrappedPayments: number;
   posted: SlackOpsAlert[];
   resolved: ActiveSlackAlert[];
   unchanged: number;
@@ -92,6 +96,7 @@ const DEFAULT_CHANNELS = {
   jobsNewOrleans: "C0BPRML654N",
   jobsBatonRouge: "C0BPQ30C8LD",
   jobsNorthshore: "C0BPC9M5GLX",
+  payment: "C0BPS5MS406",
 } as const;
 
 function boolEnv(name: string): boolean {
@@ -105,7 +110,7 @@ function stateFile(): string {
 
 function emptyState(): SlackAlertState {
   return {
-    version: 2,
+    version: 3,
     initializedAt: "",
     updatedAt: "",
     active: {},
@@ -116,6 +121,8 @@ function emptyState(): SlackAlertState {
     deliveredCrewNotificationsByDate: {},
     truckArrivalNotificationsInitializedAt: "",
     deliveredTruckArrivalsByDate: {},
+    paymentNotificationsInitializedAt: "",
+    deliveredPaymentNotificationsByDate: {},
   };
 }
 
@@ -123,7 +130,7 @@ function readState(): SlackAlertState {
   try {
     const payload = JSON.parse(fs.readFileSync(stateFile(), "utf8"));
     return {
-      version: 2,
+      version: 3,
       initializedAt: String(payload?.initializedAt || ""),
       updatedAt: String(payload?.updatedAt || ""),
       active: payload?.active && typeof payload.active === "object" ? payload.active : {},
@@ -147,6 +154,11 @@ function readState(): SlackAlertState {
       deliveredTruckArrivalsByDate:
         payload?.deliveredTruckArrivalsByDate && typeof payload.deliveredTruckArrivalsByDate === "object"
           ? payload.deliveredTruckArrivalsByDate
+          : {},
+      paymentNotificationsInitializedAt: String(payload?.paymentNotificationsInitializedAt || ""),
+      deliveredPaymentNotificationsByDate:
+        payload?.deliveredPaymentNotificationsByDate && typeof payload.deliveredPaymentNotificationsByDate === "object"
+          ? payload.deliveredPaymentNotificationsByDate
           : {},
     };
   } catch {
@@ -175,6 +187,10 @@ function pruneTruckArrivalDates(values: Record<string, string[]>): Record<string
   return Object.fromEntries(Object.entries(values).sort(([left], [right]) => right.localeCompare(left)).slice(0, 8));
 }
 
+function prunePaymentNotificationDates(values: Record<string, string[]>): Record<string, string[]> {
+  return Object.fromEntries(Object.entries(values).sort(([left], [right]) => right.localeCompare(left)).slice(0, 8));
+}
+
 function channel(name: keyof typeof DEFAULT_CHANNELS): string {
   const envNames: Record<keyof typeof DEFAULT_CHANNELS, string> = {
     command: "SLACK_OPS_COMMAND_CHANNEL_ID",
@@ -185,6 +201,7 @@ function channel(name: keyof typeof DEFAULT_CHANNELS): string {
     jobsNewOrleans: "SLACK_JOBS_NO_CHANNEL_ID",
     jobsBatonRouge: "SLACK_JOBS_BR_CHANNEL_ID",
     jobsNorthshore: "SLACK_JOBS_NS_CHANNEL_ID",
+    payment: "SLACK_OPS_PAYMENT_CHANNEL_ID",
   };
   return String(process.env[envNames[name]] || DEFAULT_CHANNELS[name]).trim();
 }
@@ -432,6 +449,106 @@ export function buildCrewSlackNotifications(date: string, rows: AnyRecord[]): Sl
   return notifications;
 }
 
+function readCompletedJunkwareRows(date: string): AnyRecord[] {
+  const configured = String(process.env.OPSCENTER_DATA_DIR || "").trim();
+  const dataDirectories = Array.from(new Set([
+    ...(configured ? [configured] : []),
+    path.join(process.cwd(), "data"),
+    path.join(process.cwd(), "..", "opsbot", "data"),
+    path.join(process.env.HOME || "", ".openclaw", "workspace", "opsbot", "data"),
+  ]));
+
+  for (const dataDirectory of dataDirectories) {
+    const file = path.join(dataDirectory, "history", "junkware", `junkware_${date}_raw.json`);
+    try {
+      const payload = JSON.parse(fs.readFileSync(file, "utf8"));
+      if (Array.isArray(payload?.completed)) return payload.completed;
+    } catch {
+      // Try the next known OpsBot data location.
+    }
+  }
+  return [];
+}
+
+function closeoutPaymentDescription(payment: AnyRecord): string {
+  const method = firstText(payment, ["method", "payment_method", "paymentMethod"]);
+  if (!method) return "";
+
+  const detail = firstText(payment, ["detail", "payment_detail", "paymentDetail"]);
+  const amount = firstFiniteNumber(payment, ["amount", "payment_amount", "paymentAmount"]);
+  const amountText = amount !== null ? ` (${moneyText(amount)})` : "";
+  const normalizedMethod = method.toLowerCase();
+
+  if (normalizedMethod.includes("card")) {
+    const lastFour = detail.match(/(\d{4})(?!.*\d)/)?.[1] || "";
+    return `Card${lastFour ? ` ending ${lastFour}` : " (last four unavailable)"}${amountText}`;
+  }
+  if (normalizedMethod.includes("check")) {
+    const checkNumber = detail.replace(/^\s*#\s*/, "").replace(/\s+/g, " ").trim().slice(0, 32);
+    return `Check${checkNumber ? ` #${checkNumber}` : " (number unavailable)"}${amountText}`;
+  }
+  if (normalizedMethod.includes("cash")) return `Cash${amountText}`;
+  return `${method.replace(/\s+/g, " ").trim().slice(0, 40)}${amountText}`;
+}
+
+function closeoutIdentity(row: AnyRecord): string {
+  const appointmentId = firstText(row, ["appt_id", "appointment_id", "appointmentId"]);
+  if (appointmentId) return `appt-${appointmentId.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
+  const jobNumber = firstText(row, ["job_id", "jk_number", "job_number"]);
+  return jobNumber ? `job-${jobNumber.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}` : "";
+}
+
+export function buildPaymentCloseoutSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
+  const notifications: SlackOpsAlert[] = [];
+  const seen = new Set<string>();
+
+  for (const row of rows) {
+    const identity = closeoutIdentity(row);
+    const jobNumber = firstText(row, ["job_id", "jk_number", "job_number"]);
+    if (!identity || !jobNumber) continue;
+
+    const status = firstText(row, ["final_status", "job_status", "status"]).toLowerCase();
+    if (!status.includes("complete")) continue;
+
+    const closeout = row?.closeout && typeof row.closeout === "object" ? row.closeout as AnyRecord : {};
+    const paymentRows = Array.isArray(closeout.payments) ? closeout.payments : [];
+    const paymentDescriptions = paymentRows
+      .filter((payment): payment is AnyRecord => Boolean(payment) && typeof payment === "object")
+      .map(closeoutPaymentDescription)
+      .filter(Boolean);
+    if (!paymentDescriptions.length) continue;
+
+    const fingerprint = `job_closed_payment:${date}:${identity}`;
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+
+    const tip = firstFiniteNumber(closeout, ["tip"])
+      ?? firstFiniteNumber(row, ["tip", "tips"])
+      ?? 0;
+    const paymentLabel = paymentDescriptions.length === 1 ? "Payment" : "Payments";
+    const plainText = [
+      `${jobNumber} closed out.`,
+      `${paymentLabel}: ${paymentDescriptions.join("; ")}.`,
+      ...(tip > 0 ? [`Tip: ${moneyText(tip)}.`] : []),
+    ].join(" ");
+
+    notifications.push({
+      fingerprint,
+      kind: "job_closed_payment",
+      lifecycle: "notification",
+      severity: "warning",
+      channelId: channel("payment"),
+      title: plainText,
+      detail: "",
+      nextAction: "",
+      href: "",
+      plainText,
+    });
+  }
+
+  return notifications.sort((left, right) => left.fingerprint.localeCompare(right.fingerprint));
+}
+
 function readTruckArrivalVisitRows(date: string): AnyRecord[] {
   const file = path.join(
     process.cwd(),
@@ -609,6 +726,12 @@ export async function runSlackOpsAlerts(options?: {
   const truckArrivalNotifications = truckArrivalNotificationsInitialized
     ? allTruckArrivalNotifications.filter((alert) => !deliveredTruckArrivals.has(alert.fingerprint))
     : [];
+  const allPaymentNotifications = buildPaymentCloseoutSlackNotifications(date, readCompletedJunkwareRows(date));
+  const paymentNotificationsInitialized = Boolean(state.paymentNotificationsInitializedAt);
+  const deliveredPaymentNotifications = new Set(state.deliveredPaymentNotificationsByDate[date] || []);
+  const paymentNotifications = paymentNotificationsInitialized
+    ? allPaymentNotifications.filter((alert) => !deliveredPaymentNotifications.has(alert.fingerprint))
+    : [];
   const hadAppointmentBaseline = Object.prototype.hasOwnProperty.call(state.knownAppointmentsByDate, date);
   const hadCancellationBaseline = Object.prototype.hasOwnProperty.call(state.knownCancellationsByDate, date);
   const knownAppointments = new Set(state.knownAppointmentsByDate[date] || []);
@@ -637,6 +760,7 @@ export async function runSlackOpsAlerts(options?: {
     ...notifications,
     ...(truckArrivalNotificationsInitialized ? truckArrivalNotifications : allTruckArrivalNotifications),
     ...(crewNotificationsInitialized ? crewNotifications : allCrewNotifications),
+    ...(paymentNotificationsInitialized ? paymentNotifications : allPaymentNotifications),
   ];
 
   const result: SlackAlertRunResult = {
@@ -646,6 +770,7 @@ export async function runSlackOpsAlerts(options?: {
     bootstrappedAddOns: hadAppointmentBaseline ? 0 : feed.appointments.length,
     bootstrappedCancellations: hadCancellationBaseline ? 0 : cancellationFeed.appointments.length,
     bootstrappedIncidents: state.initializedAt ? 0 : incidents.length,
+    bootstrappedPayments: paymentNotificationsInitialized ? 0 : allPaymentNotifications.length,
     posted: [],
     resolved: [],
     unchanged: 0,
@@ -672,6 +797,12 @@ export async function runSlackOpsAlerts(options?: {
     state.deliveredTruckArrivalsByDate[date] = allTruckArrivalNotifications.map((alert) => alert.fingerprint);
     for (const alert of allTruckArrivalNotifications) deliveredTruckArrivals.add(alert.fingerprint);
     state.deliveredTruckArrivalsByDate = pruneTruckArrivalDates(state.deliveredTruckArrivalsByDate);
+  }
+  if (!paymentNotificationsInitialized) {
+    state.paymentNotificationsInitializedAt = now;
+    state.deliveredPaymentNotificationsByDate[date] = allPaymentNotifications.map((alert) => alert.fingerprint);
+    for (const alert of allPaymentNotifications) deliveredPaymentNotifications.add(alert.fingerprint);
+    state.deliveredPaymentNotificationsByDate = prunePaymentNotificationDates(state.deliveredPaymentNotificationsByDate);
   }
   for (const [fingerprint, active] of Object.entries(state.active)) {
     if (!slackAlertKindEnabled(active.kind)) delete state.active[fingerprint];
@@ -772,6 +903,16 @@ export async function runSlackOpsAlerts(options?: {
     result.posted.push(alert);
   }
 
+  for (const alert of paymentNotifications) {
+    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
+    if (!response.ok || !response.ts) {
+      result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
+      continue;
+    }
+    deliveredPaymentNotifications.add(alert.fingerprint);
+    result.posted.push(alert);
+  }
+
   if (!hadAppointmentBaseline) {
     state.knownAppointmentsByDate[date] = feed.appointments.map((appointment) => appointment.id);
   } else {
@@ -794,6 +935,8 @@ export async function runSlackOpsAlerts(options?: {
   state.deliveredCrewNotificationsByDate = pruneCrewNotificationDates(state.deliveredCrewNotificationsByDate);
   state.deliveredTruckArrivalsByDate[date] = Array.from(deliveredTruckArrivals);
   state.deliveredTruckArrivalsByDate = pruneTruckArrivalDates(state.deliveredTruckArrivalsByDate);
+  state.deliveredPaymentNotificationsByDate[date] = Array.from(deliveredPaymentNotifications);
+  state.deliveredPaymentNotificationsByDate = prunePaymentNotificationDates(state.deliveredPaymentNotificationsByDate);
   state.updatedAt = now;
   writeState(state);
   return result;

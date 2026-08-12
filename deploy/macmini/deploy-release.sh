@@ -17,6 +17,7 @@ PRODUCTION_LABEL="com.openclaw.opscenter"
 PREVIEW_LABEL="com.openclaw.opscenter.macmini-preview"
 WHATSAPP_PHOTO_LABEL="com.openclaw.opscenter.whatsapp-photos"
 REQUESTED_REF="${1:-}"
+RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"
 
 fail() {
   echo "Mission Control deployment stopped: $*" >&2
@@ -25,6 +26,13 @@ fail() {
 
 service_loaded() {
   launchctl print "gui/$(id -u)/$1" >/dev/null 2>&1
+}
+
+whatsapp_photo_worker_restart_enabled() {
+  [[ "$RESTART_WHATSAPP_PHOTO_WORKER" == "1"
+    || "$RESTART_WHATSAPP_PHOTO_WORKER" == "true"
+    || "$RESTART_WHATSAPP_PHOTO_WORKER" == "yes"
+    || "$RESTART_WHATSAPP_PHOTO_WORKER" == "on" ]]
 }
 
 activate_release() {
@@ -140,7 +148,7 @@ if [[ -n "$active_label" ]]; then
   fi
 fi
 
-if service_loaded "$WHATSAPP_PHOTO_LABEL"; then
+if service_loaded "$WHATSAPP_PHOTO_LABEL" && whatsapp_photo_worker_restart_enabled; then
   launchctl kickstart -k "gui/$(id -u)/$WHATSAPP_PHOTO_LABEL"
 fi
 
@@ -153,7 +161,7 @@ if [[ -n "$active_label" ]]; then
 else
   echo "Service:   no OpsCenter launch service is loaded; release is prepared but not running"
 fi
-if service_loaded "$WHATSAPP_PHOTO_LABEL"; then
+if service_loaded "$WHATSAPP_PHOTO_LABEL" && whatsapp_photo_worker_restart_enabled; then
   echo "Worker:    $WHATSAPP_PHOTO_LABEL restarted on the active release"
 fi
 echo "Rollback:  deploy this previous target's commit again: $previous_target"

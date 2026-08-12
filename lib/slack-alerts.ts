@@ -14,6 +14,7 @@ export type SlackAlertKind =
   | "late_job"
   | "fleet_down"
   | "stale_data"
+  | "truck_arrival"
   | "crew_clock_in"
   | "crew_clock_out"
   | "crew_daily_pay";
@@ -49,6 +50,8 @@ type SlackAlertState = {
   knownAppointmentsByDate: Record<string, string[]>;
   crewNotificationsInitializedAt: string;
   deliveredCrewNotificationsByDate: Record<string, string[]>;
+  truckArrivalNotificationsInitializedAt: string;
+  deliveredTruckArrivalsByDate: Record<string, string[]>;
 };
 
 type SlackApiResponse = {
@@ -101,6 +104,8 @@ function emptyState(): SlackAlertState {
     knownAppointmentsByDate: {},
     crewNotificationsInitializedAt: "",
     deliveredCrewNotificationsByDate: {},
+    truckArrivalNotificationsInitializedAt: "",
+    deliveredTruckArrivalsByDate: {},
   };
 }
 
@@ -124,6 +129,11 @@ function readState(): SlackAlertState {
         payload?.deliveredCrewNotificationsByDate && typeof payload.deliveredCrewNotificationsByDate === "object"
           ? payload.deliveredCrewNotificationsByDate
           : {},
+      truckArrivalNotificationsInitializedAt: String(payload?.truckArrivalNotificationsInitializedAt || ""),
+      deliveredTruckArrivalsByDate:
+        payload?.deliveredTruckArrivalsByDate && typeof payload.deliveredTruckArrivalsByDate === "object"
+          ? payload.deliveredTruckArrivalsByDate
+          : {},
     };
   } catch {
     return emptyState();
@@ -144,6 +154,10 @@ function pruneAppointmentDates(values: Record<string, string[]>): Record<string,
 }
 
 function pruneCrewNotificationDates(values: Record<string, string[]>): Record<string, string[]> {
+  return Object.fromEntries(Object.entries(values).sort(([left], [right]) => right.localeCompare(left)).slice(0, 8));
+}
+
+function pruneTruckArrivalDates(values: Record<string, string[]>): Record<string, string[]> {
   return Object.fromEntries(Object.entries(values).sort(([left], [right]) => right.localeCompare(left)).slice(0, 8));
 }
 
@@ -381,6 +395,77 @@ export function buildCrewSlackNotifications(date: string, rows: AnyRecord[]): Sl
   return notifications;
 }
 
+function readTruckArrivalVisitRows(date: string): AnyRecord[] {
+  const file = path.join(
+    process.cwd(),
+    "data",
+    "history",
+    "linxup",
+    "appointment_visits",
+    `linxup_appointment_visits_${date}.json`,
+  );
+  try {
+    const payload = JSON.parse(fs.readFileSync(file, "utf8"));
+    return Array.isArray(payload?.visits) ? payload.visits : [];
+  } catch {
+    return [];
+  }
+}
+
+function truckArrivalKeyPart(value: string): string {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
+  const notifications: SlackOpsAlert[] = [];
+  const seen = new Set<string>();
+
+  for (const row of rows) {
+    if (String(row?.match_confidence || "").trim().toLowerCase() !== "confirmed") continue;
+    if (Number(row?.visit_count || 0) <= 0) continue;
+
+    const appointmentId = firstText(row, ["appointment_id", "appt_id", "appointmentId"]);
+    const jkNumber = firstText(row, ["jk_number", "job_id", "job_number"]) || appointmentId || "Appointment";
+    const truck = firstText(row, ["truck_number", "truck", "truckNumber"]);
+    if (!appointmentId || !truck) continue;
+
+    const intervalArrivals = (Array.isArray(row?.visit_intervals) ? row.visit_intervals : [])
+      .map((interval: AnyRecord) => firstText(interval, ["arrival"]))
+      .filter(Boolean);
+    const arrivals = intervalArrivals.length
+      ? intervalArrivals
+      : [firstText(row, ["first_arrival", "arrival"])].filter(Boolean);
+
+    for (const arrival of arrivals) {
+      if (!Number.isFinite(Date.parse(arrival))) continue;
+      const fingerprint = [
+        "truck_arrival",
+        date,
+        truckArrivalKeyPart(appointmentId),
+        truckArrivalKeyPart(truck),
+        arrival,
+      ].join(":");
+      if (seen.has(fingerprint)) continue;
+      seen.add(fingerprint);
+      const plainText = `:truck: ${truck} arrived onsite at ${jkNumber}.`;
+      notifications.push({
+        fingerprint,
+        kind: "truck_arrival",
+        lifecycle: "notification",
+        severity: "warning",
+        channelId: channel("dispatch"),
+        title: plainText,
+        detail: "",
+        nextAction: "",
+        href: "",
+        plainText,
+      });
+    }
+  }
+
+  return notifications.sort((left, right) => left.fingerprint.localeCompare(right.fingerprint));
+}
+
 function collectIncidentAlerts(date: string): SlackOpsAlert[] {
   const report = buildOperationalExceptions(date);
   const alerts: SlackOpsAlert[] = [];
@@ -480,13 +565,24 @@ export async function runSlackOpsAlerts(options?: {
   const crewNotifications = crewNotificationsInitialized
     ? allCrewNotifications.filter((alert) => !deliveredCrewNotifications.has(alert.fingerprint))
     : [];
+  const allTruckArrivalNotifications = buildTruckArrivalSlackNotifications(date, readTruckArrivalVisitRows(date));
+  const truckArrivalNotificationsInitialized = Boolean(state.truckArrivalNotificationsInitializedAt);
+  const deliveredTruckArrivals = new Set(state.deliveredTruckArrivalsByDate[date] || []);
+  const truckArrivalNotifications = truckArrivalNotificationsInitialized
+    ? allTruckArrivalNotifications.filter((alert) => !deliveredTruckArrivals.has(alert.fingerprint))
+    : [];
   const hadAppointmentBaseline = Object.prototype.hasOwnProperty.call(state.knownAppointmentsByDate, date);
   const knownAppointments = new Set(state.knownAppointmentsByDate[date] || []);
   const additions = hadAppointmentBaseline
     ? feed.appointments.filter((appointment) => !knownAppointments.has(appointment.id))
     : [];
   const notifications = additions.map((appointment) => addOnAlert(appointment, date));
-  const preview = [...incidents, ...notifications, ...(crewNotificationsInitialized ? crewNotifications : allCrewNotifications)];
+  const preview = [
+    ...incidents,
+    ...notifications,
+    ...(truckArrivalNotificationsInitialized ? truckArrivalNotifications : allTruckArrivalNotifications),
+    ...(crewNotificationsInitialized ? crewNotifications : allCrewNotifications),
+  ];
 
   const result: SlackAlertRunResult = {
     enabled,
@@ -514,6 +610,12 @@ export async function runSlackOpsAlerts(options?: {
     state.deliveredCrewNotificationsByDate[date] = allCrewNotifications.map((alert) => alert.fingerprint);
     for (const alert of allCrewNotifications) deliveredCrewNotifications.add(alert.fingerprint);
     state.deliveredCrewNotificationsByDate = pruneCrewNotificationDates(state.deliveredCrewNotificationsByDate);
+  }
+  if (!truckArrivalNotificationsInitialized) {
+    state.truckArrivalNotificationsInitializedAt = now;
+    state.deliveredTruckArrivalsByDate[date] = allTruckArrivalNotifications.map((alert) => alert.fingerprint);
+    for (const alert of allTruckArrivalNotifications) deliveredTruckArrivals.add(alert.fingerprint);
+    state.deliveredTruckArrivalsByDate = pruneTruckArrivalDates(state.deliveredTruckArrivalsByDate);
   }
   for (const [fingerprint, active] of Object.entries(state.active)) {
     if (!slackAlertKindEnabled(active.kind)) delete state.active[fingerprint];
@@ -599,6 +701,16 @@ export async function runSlackOpsAlerts(options?: {
     result.posted.push(alert);
   }
 
+  for (const alert of truckArrivalNotifications) {
+    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
+    if (!response.ok || !response.ts) {
+      result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
+      continue;
+    }
+    deliveredTruckArrivals.add(alert.fingerprint);
+    result.posted.push(alert);
+  }
+
   if (!hadAppointmentBaseline) {
     state.knownAppointmentsByDate[date] = feed.appointments.map((appointment) => appointment.id);
   } else {
@@ -610,6 +722,8 @@ export async function runSlackOpsAlerts(options?: {
   state.knownAppointmentsByDate = pruneAppointmentDates(state.knownAppointmentsByDate);
   state.deliveredCrewNotificationsByDate[date] = Array.from(deliveredCrewNotifications);
   state.deliveredCrewNotificationsByDate = pruneCrewNotificationDates(state.deliveredCrewNotificationsByDate);
+  state.deliveredTruckArrivalsByDate[date] = Array.from(deliveredTruckArrivals);
+  state.deliveredTruckArrivalsByDate = pruneTruckArrivalDates(state.deliveredTruckArrivalsByDate);
   state.updatedAt = now;
   writeState(state);
   return result;

@@ -68,6 +68,8 @@ const FUEL_TEMPLATE = [
   "212",
 ].join("\n");
 
+const SESSION_MAX_IDLE_MS = 12 * 60 * 60 * 1_000;
+
 function clean(value: unknown): string {
   return String(value || "").replace(/[ \t]+/g, " ").trim();
 }
@@ -106,21 +108,31 @@ function messageFile(messageId: string): string {
 }
 
 function normalizeTruck(value: string): string | null {
-  const match = clean(value).match(/^(?:truck\s*#?\s*)?(\d{1,3})$/i);
+  const match = clean(value).match(/^(?:(?:truck|t)\s*#?\s*)?(\d{1,3})$/i);
   if (!match) return null;
   const number = Number(match[1]);
   return number > 0 ? `Truck# ${number}` : null;
 }
 
 function parseMoney(value: string): number | null {
-  const normalized = clean(value).replace(/^\$\s*/, "").replace(/,/g, "").replace(/\.$/, "");
+  const normalized = clean(value)
+    .replace(/\b(?:usd|dollars?)\b/gi, "")
+    .replace(/\$/g, "")
+    .replace(/,/g, "")
+    .replace(/[.!?]+$/, "")
+    .trim();
   if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return null;
   const amount = Number(normalized);
   return Number.isFinite(amount) && amount > 0 && amount <= 25_000 ? Math.round(amount * 100) / 100 : null;
 }
 
 function parseGallons(value: string): number | null {
-  const normalized = clean(value).replace(/\s*(?:gal(?:lon)?s?)\.?$/i, "");
+  const normalized = clean(value)
+    .replace(/^\s*(?:gal(?:lon)?s?|g)\s*/i, "")
+    .replace(/\s*(?:gal(?:lon)?s?|g)\.?\s*$/i, "")
+    .replace(/[:#-]/g, "")
+    .trim()
+    .replace(/\.$/, "");
   if (!/^\d+(?:\.\d{1,3})?$/.test(normalized)) return null;
   const gallons = Number(normalized);
   return Number.isFinite(gallons) && gallons > 0 && gallons <= 500 ? gallons : null;
@@ -169,9 +181,18 @@ function closestMeridiemHour(hour: number, minute: number, receivedAt: string): 
 }
 
 function parseTime(value: string, receivedAt: string): string | null {
-  const normalized = clean(value).toUpperCase().replace(/\s+/g, " ");
+  const normalized = clean(value).toUpperCase().replace(/\./g, "").replace(/[!,;]+$/, "").replace(/\s+/g, " ");
   const twelveHour = normalized.match(/^(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*([AP]M)$/);
   if (twelveHour) return `${Number(twelveHour[1])}:${twelveHour[2] || "00"} ${twelveHour[3]}`;
+  const compactMeridiem = normalized.match(/^(\d{3,4})\s*([AP]M)$/);
+  if (compactMeridiem) {
+    const digits = compactMeridiem[1];
+    const hour = Number(digits.slice(0, -2));
+    const minute = Number(digits.slice(-2));
+    if (hour < 1 || hour > 12 || minute > 59) return null;
+    const twentyFourHour = compactMeridiem[2] === "PM" && hour !== 12 ? hour + 12 : compactMeridiem[2] === "AM" && hour === 12 ? 0 : hour;
+    return formatTime(twentyFourHour, minute);
+  }
   const twentyFourHour = normalized.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
   if (twentyFourHour) return formatTime(Number(twentyFourHour[1]), Number(twentyFourHour[2]));
   const compact = normalized.match(/^(\d{3,4})$/);
@@ -220,8 +241,12 @@ function fieldsFromMessage(text: string): { fields: CrewExpenseFields; recognize
 }
 
 function freeformKind(text: string): CrewExpenseKind | null {
-  if (/\b\d+(?:\.\d{1,3})?\s*gal(?:lon)?s?\.?\b/i.test(text)) return "fuel";
+  if (/\bdump\b/i.test(text)) return "dump";
+  if (/\b\d+(?:\.\d{1,3})?\s*(?:g|gal(?:lon)?s?)\.?\b/i.test(text)) return "fuel";
+  if (/\bgal(?:lon)?s?\s*[:#-]?\s*\d+(?:\.\d{1,3})?\b/i.test(text)) return "fuel";
+  if (/\b(?:fuel|gas)\b/i.test(text)) return "fuel";
   if (/\b\d+(?:\.\d+)?\s*(?:tons?|lbs?|pounds?|kg|kgs|kilograms?)\.?\b/i.test(text)) return "dump";
+  if (/\b(?:tons?|lbs?|pounds?|kg|kgs|kilograms?)\s*[:#-]?\s*\d+(?:\.\d+)?\b/i.test(text)) return "dump";
   return null;
 }
 
@@ -246,27 +271,42 @@ function freeformFields(
       extractedStrongField = true;
     };
 
-    take("truck", /\btruck\s*#?\s*\d{1,3}\b/i);
+    take("truck", /\b(?:truck|t)\s*#?\s*\d{1,3}\b/i);
     if (kind === "fuel") {
-      take("gallons", /\b\d+(?:\.\d{1,3})?\s*gal(?:lon)?s?\.?\b/i);
+      take("gallons", /\b\d+(?:\.\d{1,3})?\s*(?:g|gal(?:lon)?s?)\.?\b/i);
+      take("gallons", /\bgal(?:lon)?s?\s*[:#-]?\s*\d+(?:\.\d{1,3})?\b/i);
     }
     take("cost", /\$\s*\d[\d,]*(?:\.\d{0,2})?/i);
+    take("cost", /\b\d[\d,]*(?:\.\d{1,2})?\s*\$/i);
+    take("cost", /\b(?:usd|dollars?)\s*[:#-]?\s*\d[\d,]*(?:\.\d{1,2})?\b/i);
+    take("cost", /\b\d[\d,]*(?:\.\d{1,2})?\s*(?:usd|dollars?)\b/i);
     if (kind === "dump") {
       take("weight", /\b\d+(?:\.\d+)?\s*(?:tons?|lbs?|pounds?|kg|kgs|kilograms?)\.?\b/i);
+      take("weight", /\b(?:tons?|lbs?|pounds?|kg|kgs|kilograms?)\s*[:#-]?\s*\d+(?:\.\d+)?\b/i);
     }
 
     if (!existing.time && !fields.time) {
-      const compactTime = remainder.match(/\b\d{3,4}\s*$/)?.[0]?.trim() || "";
-      if (compactTime && (remainder === compactTime || extractedStrongField) && parseTime(compactTime, receivedAt)) {
-        fields.time = compactTime;
-        remainder = clean(remainder.slice(0, remainder.length - compactTime.length));
+      const explicitTime = remainder.match(/\b(?:\d{1,2}:\d{2}|\d{1,4})\s*[ap]\.?m\.?\b/i)?.[0]
+        || remainder.match(/\b(?:[01]?\d|2[0-3]):[0-5]\d\b/)?.[0]
+        || "";
+      const compactTime = [...remainder.matchAll(/\b\d{3,4}\b/g)]
+        .map((match) => match[0])
+        .find((candidate) => parseTime(candidate, receivedAt)) || "";
+      const timeCandidate = explicitTime || compactTime;
+      if (timeCandidate && (remainder === timeCandidate || extractedStrongField) && parseTime(timeCandidate, receivedAt)) {
+        fields.time = timeCandidate;
+        remainder = clean(remainder.replace(timeCandidate, " "));
       } else if (parseTime(remainder, receivedAt)) {
         fields.time = remainder;
         remainder = "";
       }
     }
 
-    remainder = remainder.replace(/^[,;:\-\s]+|[,;:\-\s]+$/g, "");
+    remainder = remainder
+      .replace(/\b(?:fuel|gas|dump|filled|fill|up|got|purchased|bought|paid|cost|time|at|from|for)\b/gi, " ")
+      .replace(/[|/,;:@-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
     if (!existing.location && !fields.location && remainder.length >= 2 && remainder.length <= 120) {
       fields.location = remainder;
     }
@@ -282,8 +322,9 @@ function activeSession(senderPhone: string, receivedAt: string): CrewExpenseSess
   try {
     const payload = JSON.parse(fs.readFileSync(sessionFile(senderPhone), "utf8")) as Partial<CrewExpenseSession>;
     const openedAt = new Date(String(payload.openedAt || "")).getTime();
+    const updatedAt = new Date(String(payload.updatedAt || payload.openedAt || "")).getTime();
     const messageAt = new Date(receivedAt).getTime();
-    if (!Number.isFinite(openedAt) || !Number.isFinite(messageAt) || messageAt < openedAt - 60_000 || messageAt - openedAt > 30 * 60_000) return null;
+    if (!Number.isFinite(openedAt) || !Number.isFinite(updatedAt) || !Number.isFinite(messageAt) || messageAt < openedAt - 60_000 || messageAt - updatedAt > SESSION_MAX_IDLE_MS) return null;
     if (payload.kind !== "dump" && payload.kind !== "fuel") return null;
     return {
       version: 1,

@@ -6,7 +6,7 @@ The same signed webhook accepts structured dump and fuel reports from the crew. 
 
 ## Crew dump and fuel reports
 
-Crew can send `Dump` or `Fuel` by itself and OpsBot replies with an unlabeled example. Each value can then be sent as its own message, or the whole unlabeled list can be sent at once. OpsBot accumulates the values for that sender's active 30-minute expense session.
+Crew can send `Dump` or `Fuel` by itself and OpsBot replies with an unlabeled example. Each value can then be sent as its own message, or the whole unlabeled list can be sent at once. OpsBot accumulates the values for that sender's active expense session, which remains open for up to 12 hours of inactivity or until a new `Dump`/`Fuel` command replaces it.
 
 ```text
 Truck 1
@@ -26,7 +26,7 @@ $100
 212
 ```
 
-All fuel fields are required. Strong shapes identify the values without labels: `Truck 1`, a plain-text location, `$100`, `24 gallons`, and a time. Compact time accepts four-digit 24-hour values such as `1412` and three-digit values such as `212`; three-digit times choose the AM/PM occurrence closest to the message time. Labeled forms remain supported for compatibility. OpsBot validates every field and sends a terse confirmation after writing the durable Truck Records detail. Sender phone numbers are stored only as one-way hashes in expense records and never shown in Finance.
+All fuel fields are required. Strong shapes identify the values without labels: `Truck 1`, a plain-text location, `$100`, `24 gallons`, and a time. Order, spacing, punctuation, line breaks, and capitalization are flexible; common variants such as `T1`, `Truck#1`, `24g`, `24 gal`, `gallons 24`, `100 dollars`, and `2:12pm` are accepted. Compact time accepts four-digit 24-hour values such as `1412` and three-digit values such as `212`; three-digit times choose the AM/PM occurrence closest to the message time. Labeled forms remain supported for compatibility. OpsBot validates every field and sends a terse confirmation after writing the durable Truck Records detail. Sender phone numbers are stored only as one-way hashes in expense records and never shown in Finance.
 
 The desktop WhatsApp linked-device connection is useful for staff visibility, but it does not expose a supported inbound webhook. Production intake therefore requires the Operations number to be registered with a Meta WhatsApp Business Account and subscribed to the OpsCenter webhook.
 

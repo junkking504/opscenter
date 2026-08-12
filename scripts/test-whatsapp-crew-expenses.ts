@@ -135,6 +135,80 @@ assert.equal(singleLineFuel.record?.location, "Shell");
 assert.equal(singleLineFuel.record?.gallons, 24);
 assert.equal(singleLineFuel.record?.cost, 100);
 assert.equal(singleLineFuel.record?.time, "2:12 PM");
-assert.equal(readCrewExpenseRecords("2026-08-12").length, 6);
+
+const shuffledFuel = ingestCrewExpenseText(message(
+  "shuffled-fuel",
+  "212, $100 / Shell | 24 GAL - TRUCK#1",
+  "5045550606",
+  "2026-08-12T19:31:00.000Z",
+));
+assert.equal(shuffledFuel.status, "recorded");
+assert.equal(shuffledFuel.record?.truck, "Truck# 1");
+assert.equal(shuffledFuel.record?.location, "Shell");
+assert.equal(shuffledFuel.record?.time, "2:12 PM");
+
+const naturalFuel = ingestCrewExpenseText(message(
+  "natural-fuel",
+  "Fuel: T1 filled at Shell; gallons 24; paid 100 dollars; time 2:12pm",
+  "5045550707",
+  "2026-08-12T19:31:00.000Z",
+));
+assert.equal(naturalFuel.status, "recorded");
+assert.equal(naturalFuel.record?.truck, "Truck# 1");
+assert.equal(naturalFuel.record?.location, "Shell");
+assert.equal(naturalFuel.record?.cost, 100);
+
+const shuffledDump = ingestCrewExpenseText(message(
+  "shuffled-dump",
+  "10:35am | 75 dollars | lbs 2400 | River Birch | T6 | dump",
+  "5045550808",
+  "2026-08-12T15:36:00.000Z",
+));
+assert.equal(shuffledDump.status, "recorded");
+assert.equal(shuffledDump.record?.truck, "Truck# 6");
+assert.equal(shuffledDump.record?.location, "River Birch");
+assert.equal(shuffledDump.record?.weight, "lbs 2400");
+assert.equal(shuffledDump.record?.time, "10:35 AM");
+
+const shuffledSequencePhone = "5045550909";
+assert.equal(ingestCrewExpenseText(message("shuffled-sequence-prompt", "Fuel", shuffledSequencePhone, "2026-08-12T19:32:00.000Z")).status, "prompted");
+assert.equal(ingestCrewExpenseText(message("shuffled-sequence-time", "212", shuffledSequencePhone, "2026-08-12T19:32:01.000Z")).status, "collecting");
+assert.equal(ingestCrewExpenseText(message("shuffled-sequence-cost", "$100", shuffledSequencePhone, "2026-08-12T19:32:02.000Z")).status, "collecting");
+assert.equal(ingestCrewExpenseText(message("shuffled-sequence-location", "Shell", shuffledSequencePhone, "2026-08-12T19:32:03.000Z")).status, "collecting");
+assert.equal(ingestCrewExpenseText(message("shuffled-sequence-truck", "T1", shuffledSequencePhone, "2026-08-12T19:32:04.000Z")).status, "collecting");
+const shuffledSequence = ingestCrewExpenseText(message("shuffled-sequence-gallons", "gal 24", shuffledSequencePhone, "2026-08-12T19:32:05.000Z"));
+assert.equal(shuffledSequence.status, "recorded");
+assert.equal(shuffledSequence.record?.time, "2:12 PM");
+
+const commaFuel = ingestCrewExpenseText(message(
+  "comma-fuel",
+  "Truck 1, Shell, 24 gallons, $100, 212",
+  "5045551010",
+  "2026-08-12T19:33:00.000Z",
+));
+assert.equal(commaFuel.status, "recorded");
+assert.equal(commaFuel.record?.location, "Shell");
+
+const shortFuel = ingestCrewExpenseText(message(
+  "short-fuel",
+  "T1 Shell 24g $100 1412",
+  "5045551111",
+  "2026-08-12T19:33:00.000Z",
+));
+assert.equal(shortFuel.status, "recorded");
+assert.equal(shortFuel.record?.truck, "Truck# 1");
+assert.equal(shortFuel.record?.gallons, 24);
+assert.equal(shortFuel.record?.time, "2:12 PM");
+
+const delayedSequencePhone = "5045551212";
+assert.equal(ingestCrewExpenseText(message("delayed-sequence-prompt", "Fuel", delayedSequencePhone, "2026-08-12T13:00:00.000Z")).status, "prompted");
+assert.equal(ingestCrewExpenseText(message("delayed-sequence-truck", "Truck 1", delayedSequencePhone, "2026-08-12T13:01:00.000Z")).status, "collecting");
+assert.equal(ingestCrewExpenseText(message("delayed-sequence-location", "Shell", delayedSequencePhone, "2026-08-12T16:00:00.000Z")).status, "collecting");
+assert.equal(ingestCrewExpenseText(message("delayed-sequence-cost", "$100", delayedSequencePhone, "2026-08-12T18:00:00.000Z")).status, "collecting");
+assert.equal(ingestCrewExpenseText(message("delayed-sequence-time", "212", delayedSequencePhone, "2026-08-12T19:00:00.000Z")).status, "collecting");
+const delayedSequence = ingestCrewExpenseText(message("delayed-sequence-gallons", "24g", delayedSequencePhone, "2026-08-12T19:34:00.000Z"));
+assert.equal(delayedSequence.status, "recorded");
+assert.equal(delayedSequence.record?.cost, 100);
+assert.equal(readCrewExpenseRecords("2026-08-12").length, 13);
 
 process.stdout.write(`${JSON.stringify({ ok: true, records: readCrewExpenseRecords().length })}\n`);

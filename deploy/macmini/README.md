@@ -65,6 +65,11 @@ updates.
 
 To roll back manually, deploy the previous commit SHA with the same command.
 
+To deploy OpsCenter while leaving the separately managed WhatsApp photo worker
+untouched, set `OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER=false` for the deployment
+command. The default remains to restart the worker when it is loaded so it uses
+the newly active release.
+
 The WhatsApp job-photo integration has a separate, opt-in worker because it
 performs authenticated JunkWare writes. Follow `docs/whatsapp-job-photos.md`
 to configure Meta credentials and the private truck-phone map, then install

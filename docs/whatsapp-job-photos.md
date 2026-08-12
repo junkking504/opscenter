@@ -99,7 +99,16 @@ cd /Users/missioncontrol/opscenter-v2/opscenter
 
 The worker reads the durable spool at `data/integrations/whatsapp-job-photos` unless `WHATSAPP_JOB_PHOTO_STATE_DIR` overrides it. Queue records and downloaded media are mode `0600`. It uploads through the authenticated JunkWare browser session and verifies that the appointment's media count increased before marking an item complete.
 
-Crew expense records and the outbound reply queue live under `OPSBOT_DATA_DIR/integrations/whatsapp-crew-expenses` unless `WHATSAPP_CREW_EXPENSE_STATE_DIR` overrides it. The existing worker delivers prompts, validation messages, and confirmations through Meta's official messages API. If outbound credentials are unavailable, replies remain queued and retry without losing or duplicating the expense record.
+Crew expense transactions and the outbound reply queue live under `OPSBOT_DATA_DIR/integrations/whatsapp-crew-expenses` unless `WHATSAPP_CREW_EXPENSE_STATE_DIR` overrides it. Every inbound WhatsApp message gets an idempotent `Recorded.` receipt. Complete Fuel and Dump messages enter a durable transaction queue; they are not exposed as OpsCenter Finance records yet.
+
+The expense worker enforces this order:
+
+1. Create a JunkWare Accounting → Truck Records line item with a deterministic OpsBot receipt number.
+2. Re-read that truck ledger and verify the receipt number, category, and exact amount.
+3. Send a terse notification to the truck's Slack channel and require Slack's success timestamp.
+4. Publish the expense record to OpsCenter Finance and send the detailed WhatsApp verification.
+
+Retries resume from the saved stage. A deterministic JunkWare receipt number prevents a retry from inserting the same WhatsApp expense twice, and Slack's `client_msg_id` prevents duplicate alerts. If JunkWare or Slack is unavailable, the transaction stays out of OpsCenter until the missing verification succeeds.
 
 Queue directories are `incoming`, `processing`, `completed`, `review`, and `failed`. A failure before JunkWare submission can retry up to three times. A failure during submission is treated as an uncertain outcome and moved to review to prevent duplicate customer photos.
 

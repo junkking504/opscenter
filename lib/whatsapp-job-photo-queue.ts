@@ -24,6 +24,14 @@ export type WhatsAppTextMessage = {
   text: string;
 };
 
+export type WhatsAppInboundMessage = {
+  messageId: string;
+  senderPhone: string;
+  receivedAt: string;
+  phoneNumberId: string;
+  type: string;
+};
+
 type MetaMessage = {
   id?: unknown;
   from?: unknown;
@@ -105,14 +113,16 @@ function parseText(message: MetaMessage, phoneNumberId: string): WhatsAppTextMes
 }
 
 export function parseWhatsAppWebhook(payload: unknown): {
+  messages: WhatsAppInboundMessage[];
   images: WhatsAppImageMessage[];
   texts: WhatsAppTextMessage[];
   phoneNumberIds: string[];
 } {
+  const inboundMessages: WhatsAppInboundMessage[] = [];
   const images: WhatsAppImageMessage[] = [];
   const texts: WhatsAppTextMessage[] = [];
   const phoneNumberIds = new Set<string>();
-  if (!payload || typeof payload !== "object") return { images, texts, phoneNumberIds: [] };
+  if (!payload || typeof payload !== "object") return { messages: inboundMessages, images, texts, phoneNumberIds: [] };
   const entries = Array.isArray((payload as { entry?: unknown }).entry) ? (payload as { entry: unknown[] }).entry : [];
   for (const entry of entries) {
     if (!entry || typeof entry !== "object") continue;
@@ -125,6 +135,18 @@ export function parseWhatsAppWebhook(payload: unknown): {
       if (phoneNumberId) phoneNumberIds.add(phoneNumberId);
       const messages = Array.isArray((value as { messages?: unknown }).messages) ? (value as { messages: MetaMessage[] }).messages : [];
       for (const message of messages) {
+        const messageId = clean(message.id);
+        const senderPhone = normalizePhone(message.from);
+        const type = clean(message.type);
+        if (messageId && senderPhone && type) {
+          inboundMessages.push({
+            messageId,
+            senderPhone,
+            receivedAt: safeTimestamp(message.timestamp),
+            phoneNumberId,
+            type,
+          });
+        }
         const image = parseImage(message, phoneNumberId);
         if (image) images.push(image);
         const text = parseText(message, phoneNumberId);
@@ -132,7 +154,7 @@ export function parseWhatsAppWebhook(payload: unknown): {
       }
     }
   }
-  return { images, texts, phoneNumberIds: [...phoneNumberIds] };
+  return { messages: inboundMessages, images, texts, phoneNumberIds: [...phoneNumberIds] };
 }
 
 export function verifyMetaSignature(rawBody: string, signatureHeader: string, appSecret: string): boolean {

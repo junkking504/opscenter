@@ -116,6 +116,8 @@ const webhookPayload = {
 const parsed = parseWhatsAppWebhook(webhookPayload);
 assert.equal(parsed.images.length, 1);
 assert.equal(parsed.texts.length, 1);
+assert.equal(parsed.messages.length, 2);
+assert.deepEqual(parsed.messages.map((message) => message.type), ["text", "image"]);
 assert.deepEqual(parsed.phoneNumberIds, ["12345"]);
 
 const rawBody = JSON.stringify(webhookPayload);

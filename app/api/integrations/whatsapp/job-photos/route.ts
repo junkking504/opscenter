@@ -5,7 +5,7 @@ import {
   recordWhatsAppTextContext,
   verifyMetaSignature,
 } from "@/lib/whatsapp-job-photo-queue";
-import { ingestCrewExpenseText } from "@/lib/whatsapp-crew-expenses";
+import { enqueueCrewExpenseReceipt, ingestCrewExpenseText } from "@/lib/whatsapp-crew-expenses";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -55,6 +55,8 @@ export async function POST(request: Request) {
     return noStore({ ok: false, error: "Unexpected WhatsApp phone number." }, 403);
   }
 
+  for (const message of parsed.messages) enqueueCrewExpenseReceipt(message);
+
   const expenseResults = parsed.texts.map((text) => {
     recordWhatsAppTextContext(text);
     return ingestCrewExpenseText(text);
@@ -85,7 +87,7 @@ export async function POST(request: Request) {
     crewExpenses: {
       prompted: expenseResults.filter((result) => result.status === "prompted").length,
       collecting: expenseResults.filter((result) => result.status === "collecting").length,
-      recorded: expenseResults.filter((result) => result.status === "recorded").length,
+      queued: expenseResults.filter((result) => result.status === "queued").length,
       review: expenseResults.filter((result) => result.status === "review").length,
     },
   });

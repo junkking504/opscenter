@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
 import { uploadJunkwareJobPhoto } from "@/lib/junkware-photo-uploader";
+import { uploadJunkwareTruckRecord } from "@/lib/junkware-truck-record-uploader";
 import { readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { matchWhatsAppPhoto, normalizePhone, type FleetLocation } from "@/lib/whatsapp-job-photo-matching";
@@ -22,12 +23,18 @@ import {
   type WhatsAppImageMessage,
 } from "@/lib/whatsapp-job-photo-queue";
 import {
+  claimCrewExpenseTransaction,
   claimCrewExpenseReply,
   crewExpenseQueueCounts,
+  finishCrewExpenseTransaction,
   finishCrewExpenseReply,
+  queuedCrewExpenseTransactions,
   queuedCrewExpenseReplies,
+  requeueCrewExpenseTransaction,
   requeueCrewExpenseReply,
+  updateCrewExpenseTransaction,
 } from "@/lib/whatsapp-crew-expenses";
+import { sendCrewExpenseSlackNotification } from "@/lib/whatsapp-crew-expense-slack";
 
 function clean(value: unknown): string {
   return String(value || "").replace(/\s+/g, " ").trim();
@@ -160,6 +167,39 @@ async function deliverCrewExpenseReplies(): Promise<{ sent: number; retried: num
   return results;
 }
 
+async function processCrewExpenseTransactions(): Promise<{ completed: number; retried: number; failed: number }> {
+  const results = { completed: 0, retried: 0, failed: 0 };
+  for (const incomingFile of queuedCrewExpenseTransactions(10)) {
+    const claim = claimCrewExpenseTransaction(incomingFile);
+    if (!claim) continue;
+    try {
+      let transaction = claim.transaction;
+      if (transaction.stage === "pending_junkware") {
+        const verification = await uploadJunkwareTruckRecord(transaction.record);
+        transaction = updateCrewExpenseTransaction(claim.file, {
+          stage: "junkware_verified",
+          junkware: { ...verification, verifiedAt: new Date().toISOString() },
+        });
+      }
+      if (transaction.stage === "junkware_verified") {
+        const delivery = await sendCrewExpenseSlackNotification(transaction.record);
+        transaction = updateCrewExpenseTransaction(claim.file, {
+          stage: "slack_sent",
+          slack: { ...delivery, sentAt: new Date().toISOString() },
+        });
+      }
+      if (transaction.stage !== "slack_sent") throw new Error("The crew expense transaction did not reach its final stage.");
+      finishCrewExpenseTransaction(claim.file);
+      results.completed += 1;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (requeueCrewExpenseTransaction(claim.file, message)) results.retried += 1;
+      else results.failed += 1;
+    }
+  }
+  return results;
+}
+
 function fleetLocations(date: string): FleetLocation[] {
   const payload = buildFleetMapPayload(date);
   return (payload?.trucks || []).map((truck) => ({
@@ -271,11 +311,12 @@ async function main(): Promise<void> {
     results[result] += 1;
   }
   loadSlackBotToken();
+  const crewExpenseTransactions = await processCrewExpenseTransactions();
   const slack = await deliverWhatsAppPhotoSlackNotifications();
   const expenseReplies = await deliverCrewExpenseReplies();
   const processedCount = Object.values(results).reduce((sum, count) => sum + count, 0);
-  if (processedCount || slack.attempted || Object.values(expenseReplies).some(Boolean)) {
-    process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: whatsappQueueCounts(), slack, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
+  if (processedCount || slack.attempted || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {
+    process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: whatsappQueueCounts(), slack, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
   }
 }
 

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { normalizePhone } from "@/lib/whatsapp-job-photo-matching";
-import type { WhatsAppTextMessage } from "@/lib/whatsapp-job-photo-queue";
+import type { WhatsAppInboundMessage, WhatsAppTextMessage } from "@/lib/whatsapp-job-photo-queue";
 
 export type CrewExpenseKind = "dump" | "fuel";
 
@@ -25,7 +25,7 @@ export type CrewExpenseRecord = {
 };
 
 export type CrewExpenseIngestResult = {
-  status: "ignored" | "duplicate" | "prompted" | "collecting" | "recorded" | "review";
+  status: "ignored" | "duplicate" | "prompted" | "collecting" | "queued" | "review";
   kind?: CrewExpenseKind;
   record?: CrewExpenseRecord;
   missing?: string[];
@@ -39,6 +39,20 @@ type CrewExpenseReply = {
   text: string;
   enqueuedAt: string;
   attempts?: number;
+};
+
+export type CrewExpenseTransaction = {
+  version: 1;
+  record: CrewExpenseRecord;
+  recipient: string;
+  phoneNumberId: string;
+  stage: "pending_junkware" | "junkware_verified" | "slack_sent";
+  enqueuedAt: string;
+  attempts?: number;
+  lastAttemptAt?: string;
+  lastError?: string;
+  junkware?: Record<string, unknown>;
+  slack?: Record<string, unknown>;
 };
 
 type CrewExpenseFields = Partial<Record<"truck" | "location" | "cost" | "weight" | "gallons" | "time", string>>;
@@ -86,12 +100,20 @@ function stateDirectory(): string {
   return path.join(process.cwd(), "data", "integrations", "whatsapp-crew-expenses");
 }
 
-function directory(name: "messages" | "records" | "review" | "sessions" | "outbox-incoming" | "outbox-processing" | "outbox-sent" | "outbox-failed"): string {
+type CrewExpenseDirectory = "messages" | "records" | "review" | "sessions"
+  | "transactions-pending" | "transactions-processing" | "transactions-completed" | "transactions-failed"
+  | "outbox-incoming" | "outbox-processing" | "outbox-sent" | "outbox-failed";
+
+function directory(name: CrewExpenseDirectory): string {
   return path.join(stateDirectory(), name);
 }
 
 function ensureDirectories(): void {
-  for (const name of ["messages", "records", "review", "sessions", "outbox-incoming", "outbox-processing", "outbox-sent", "outbox-failed"] as const) {
+  for (const name of [
+    "messages", "records", "review", "sessions",
+    "transactions-pending", "transactions-processing", "transactions-completed", "transactions-failed",
+    "outbox-incoming", "outbox-processing", "outbox-sent", "outbox-failed",
+  ] as const) {
     fs.mkdirSync(directory(name), { recursive: true, mode: 0o700 });
   }
 }
@@ -366,9 +388,13 @@ function closeSession(senderPhone: string): void {
   try { fs.unlinkSync(sessionFile(senderPhone)); } catch { /* no active session */ }
 }
 
-function enqueueReply(message: WhatsAppTextMessage, text: string): void {
+function enqueueReply(message: Pick<WhatsAppInboundMessage, "messageId" | "senderPhone" | "phoneNumberId">, text: string, purpose = "expense"): void {
   const recipient = normalizePhone(message.senderPhone);
   if (!recipient) return;
+  const fileName = `${recordKey(`${message.messageId}:${purpose}`)}.json`;
+  for (const queue of ["outbox-incoming", "outbox-processing", "outbox-sent", "outbox-failed"] as const) {
+    if (fs.existsSync(path.join(directory(queue), fileName))) return;
+  }
   const reply: CrewExpenseReply = {
     version: 1,
     messageId: message.messageId,
@@ -377,7 +403,12 @@ function enqueueReply(message: WhatsAppTextMessage, text: string): void {
     text: String(text).slice(0, 4_000),
     enqueuedAt: new Date().toISOString(),
   };
-  writeJsonAtomic(path.join(directory("outbox-incoming"), `${recordKey(message.messageId)}.json`), reply);
+  writeJsonAtomic(path.join(directory("outbox-incoming"), fileName), reply);
+}
+
+export function enqueueCrewExpenseReceipt(message: WhatsAppInboundMessage): void {
+  ensureDirectories();
+  enqueueReply(message, "Recorded.", "receipt");
 }
 
 function missingReply(kind: CrewExpenseKind, missing: string[], invalid: string[]): string {
@@ -399,7 +430,7 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
   const command = commandKind(message.text);
   if (command) {
     openSession(message, command);
-    enqueueReply(message, `Send each item separately or all at once — no labels needed:\n\n${command === "dump" ? DUMP_TEMPLATE : FUEL_TEMPLATE}${command === "dump" ? "\n\nWeight is optional." : ""}`);
+    enqueueReply(message, `Send each item separately or all at once — no labels needed:\n\n${command === "dump" ? DUMP_TEMPLATE : FUEL_TEMPLATE}${command === "dump" ? "\n\nWeight is optional." : ""}`, "expense-prompt");
     writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "prompted", kind: command, processedAt: new Date().toISOString() });
     return { status: "prompted", kind: command };
   }
@@ -412,7 +443,7 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
   if (!parsed.recognized && !kind) return { status: "ignored" };
   if (!kind) {
     const detail = "Start with Dump or Fuel so OpsBot knows which expense form you are sending.";
-    enqueueReply(message, `${detail}\n\nSend Dump or Fuel to get the form.`);
+    enqueueReply(message, `${detail}\n\nSend Dump or Fuel to get the form.`, "expense-review");
     writeJsonAtomic(path.join(directory("review"), `${recordKey(message.messageId)}.json`), {
       version: 1, messageId: message.messageId, reason: "expense_type_missing", reportedAt: message.receivedAt,
     });
@@ -450,7 +481,7 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
       return { status: "collecting", kind, missing };
     }
     const reply = missingReply(kind, missing.map((key) => key === "truck" ? "Truck #" : key[0].toUpperCase() + key.slice(1)), invalid);
-    enqueueReply(message, reply);
+    enqueueReply(message, reply, "expense-review");
     writeJsonAtomic(path.join(directory("review"), `${recordKey(message.messageId)}.json`), {
       version: 1, messageId: message.messageId, kind, reason: "invalid_or_incomplete_form", missing, invalid,
       reportedAt: message.receivedAt, senderHash: recordKey(normalizePhone(message.senderPhone)),
@@ -475,14 +506,81 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
     source: "whatsapp_opsbot",
     sourceMessageIds: currentSession?.messageIds,
   };
-  writeJsonAtomic(path.join(directory("records"), `${recordKey(message.messageId)}.json`), record);
-  const detail = kind === "dump"
-    ? `${record.weight ? ` · ${record.weight}` : " · no weight"}`
-    : ` · ${record.gallons} gal`;
-  enqueueReply(message, `${kind === "dump" ? "Dump" : "Fuel"} recorded for Truck Records — ${record.truck} · ${record.location} · $${record.cost.toFixed(2)}${detail} · ${record.time}`);
-  writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "recorded", kind, processedAt: new Date().toISOString() });
+  const transaction: CrewExpenseTransaction = {
+    version: 1,
+    record,
+    recipient: normalizePhone(message.senderPhone),
+    phoneNumberId: clean(message.phoneNumberId),
+    stage: "pending_junkware",
+    enqueuedAt: new Date().toISOString(),
+  };
+  writeJsonAtomic(path.join(directory("transactions-pending"), `${recordKey(message.messageId)}.json`), transaction);
+  writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "queued", kind, processedAt: new Date().toISOString() });
   closeSession(message.senderPhone);
-  return { status: "recorded", kind, record };
+  return { status: "queued", kind, record };
+}
+
+export function queuedCrewExpenseTransactions(limit = 10): string[] {
+  ensureDirectories();
+  return fs.readdirSync(directory("transactions-pending"))
+    .filter((name) => /^[a-f0-9]{64}\.json$/.test(name))
+    .sort()
+    .slice(0, Math.max(0, limit))
+    .map((name) => path.join(directory("transactions-pending"), name));
+}
+
+export function claimCrewExpenseTransaction(incomingFile: string): { file: string; transaction: CrewExpenseTransaction } | null {
+  ensureDirectories();
+  const base = path.basename(incomingFile);
+  if (!/^[a-f0-9]{64}\.json$/.test(base)) return null;
+  const processingFile = path.join(directory("transactions-processing"), base);
+  try {
+    fs.renameSync(incomingFile, processingFile);
+    return { file: processingFile, transaction: JSON.parse(fs.readFileSync(processingFile, "utf8")) as CrewExpenseTransaction };
+  } catch {
+    return null;
+  }
+}
+
+export function updateCrewExpenseTransaction(processingFile: string, update: Partial<CrewExpenseTransaction>): CrewExpenseTransaction {
+  const current = JSON.parse(fs.readFileSync(processingFile, "utf8")) as CrewExpenseTransaction;
+  const next = { ...current, ...update };
+  writeJsonAtomic(processingFile, next);
+  return next;
+}
+
+export function finishCrewExpenseTransaction(processingFile: string): CrewExpenseRecord {
+  const transaction = JSON.parse(fs.readFileSync(processingFile, "utf8")) as CrewExpenseTransaction;
+  if (transaction.stage !== "slack_sent") throw new Error("The crew expense cannot appear in OpsCenter before Slack delivery.");
+  writeJsonAtomic(path.join(directory("records"), `${recordKey(transaction.record.messageId)}.json`), transaction.record);
+  const completedFile = path.join(directory("transactions-completed"), path.basename(processingFile));
+  writeJsonAtomic(completedFile, { ...transaction, completedAt: new Date().toISOString() });
+  const detail = transaction.record.kind === "dump"
+    ? `${transaction.record.weight ? ` · ${transaction.record.weight}` : " · no weight"}`
+    : ` · ${transaction.record.gallons} gal`;
+  enqueueReply({
+    messageId: transaction.record.messageId,
+    senderPhone: transaction.recipient,
+    phoneNumberId: transaction.phoneNumberId,
+  }, `${transaction.record.kind === "dump" ? "Dump" : "Fuel"} verified in JunkWare — ${transaction.record.truck} · ${transaction.record.location} · $${transaction.record.cost.toFixed(2)}${detail} · ${transaction.record.time}`, "expense-verified");
+  fs.unlinkSync(processingFile);
+  return transaction.record;
+}
+
+export function requeueCrewExpenseTransaction(processingFile: string, errorMessage: string, maxAttempts = 1_000): boolean {
+  const current = JSON.parse(fs.readFileSync(processingFile, "utf8")) as CrewExpenseTransaction;
+  const attempts = Math.max(0, Number(current.attempts) || 0) + 1;
+  if (attempts >= maxAttempts) {
+    const target = path.join(directory("transactions-failed"), path.basename(processingFile));
+    writeJsonAtomic(target, { ...current, attempts, failedAt: new Date().toISOString(), lastError: clean(errorMessage).slice(0, 500) });
+    fs.unlinkSync(processingFile);
+    return false;
+  }
+  writeJsonAtomic(path.join(directory("transactions-pending"), path.basename(processingFile)), {
+    ...current, attempts, lastAttemptAt: new Date().toISOString(), lastError: clean(errorMessage).slice(0, 500),
+  });
+  fs.unlinkSync(processingFile);
+  return true;
 }
 
 export function readCrewExpenseRecords(date?: string): CrewExpenseRecord[] {
@@ -543,10 +641,13 @@ export function requeueCrewExpenseReply(processingFile: string, errorMessage: st
   return true;
 }
 
-export function crewExpenseQueueCounts(): { records: number; review: number; replies: number; replyFailures: number } {
+export function crewExpenseQueueCounts(): { records: number; pending: number; processing: number; failed: number; review: number; replies: number; replyFailures: number } {
   ensureDirectories();
   const count = (name: Parameters<typeof directory>[0]) => fs.readdirSync(directory(name)).filter((entry) => entry.endsWith(".json")).length;
-  return { records: count("records"), review: count("review"), replies: count("outbox-incoming"), replyFailures: count("outbox-failed") };
+  return {
+    records: count("records"), pending: count("transactions-pending"), processing: count("transactions-processing"),
+    failed: count("transactions-failed"), review: count("review"), replies: count("outbox-incoming"), replyFailures: count("outbox-failed"),
+  };
 }
 
 export const crewExpenseTemplates = { dump: DUMP_TEMPLATE, fuel: FUEL_TEMPLATE } as const;

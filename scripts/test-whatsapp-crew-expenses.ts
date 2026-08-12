@@ -4,11 +4,16 @@ import os from "node:os";
 import path from "node:path";
 import {
   claimCrewExpenseReply,
+  claimCrewExpenseTransaction,
   crewExpenseTemplates,
+  finishCrewExpenseTransaction,
   ingestCrewExpenseText,
+  queuedCrewExpenseTransactions,
   queuedCrewExpenseReplies,
   readCrewExpenseRecords,
+  updateCrewExpenseTransaction,
 } from "@/lib/whatsapp-crew-expenses";
+import { formatCrewExpenseSlackNotification, sendCrewExpenseSlackNotification } from "@/lib/whatsapp-crew-expense-slack";
 import type { WhatsAppTextMessage } from "@/lib/whatsapp-job-photo-queue";
 
 const state = fs.mkdtempSync(path.join(os.tmpdir(), "opscenter-crew-expenses-"));
@@ -49,7 +54,7 @@ const dump = ingestCrewExpenseText(message("dump-1", [
   "Weight:",
   "Time: 10:35 AM",
 ].join("\n")));
-assert.equal(dump.status, "recorded");
+assert.equal(dump.status, "queued");
 assert.equal(dump.record?.truck, "Truck# 8");
 assert.equal(dump.record?.cost, 86.4);
 assert.equal(dump.record?.weight, null);
@@ -64,7 +69,7 @@ const fuel = ingestCrewExpenseText(message("fuel-1", [
   "Gallons: 31.725 gallons",
   "Time: 14:05",
 ].join("\n")));
-assert.equal(fuel.status, "recorded");
+assert.equal(fuel.status, "queued");
 assert.equal(fuel.record?.truck, "Truck# 2");
 assert.equal(fuel.record?.gallons, 31.725);
 assert.equal(fuel.record?.time, "2:05 PM");
@@ -79,7 +84,7 @@ const incomplete = ingestCrewExpenseText(message("fuel-incomplete", [
 ].join("\n")));
 assert.equal(incomplete.status, "review");
 assert.deepEqual(incomplete.missing, ["gallons"]);
-assert.equal(readCrewExpenseRecords("2026-08-12").length, 2);
+assert.equal(readCrewExpenseRecords("2026-08-12").length, 0);
 assert.equal(ingestCrewExpenseText(message("fuel-1", "Fuel")).status, "duplicate");
 
 const ordinary = ingestCrewExpenseText(message("ordinary", "JK4049525 after photos"));
@@ -93,7 +98,7 @@ assert.equal(ingestCrewExpenseText(message("freeform-fuel-location", "Shell", fr
 assert.equal(ingestCrewExpenseText(message("freeform-fuel-gallons", "24 gallons", freeformFuelPhone, "2026-08-12T19:11:20.000Z")).status, "collecting");
 assert.equal(ingestCrewExpenseText(message("freeform-fuel-cost", "$100.", freeformFuelPhone, "2026-08-12T19:11:30.000Z")).status, "collecting");
 const freeformFuel = ingestCrewExpenseText(message("freeform-fuel-time", "212", freeformFuelPhone, "2026-08-12T19:12:00.000Z"));
-assert.equal(freeformFuel.status, "recorded");
+assert.equal(freeformFuel.status, "queued");
 assert.equal(freeformFuel.record?.truck, "Truck# 1");
 assert.equal(freeformFuel.record?.location, "Shell");
 assert.equal(freeformFuel.record?.gallons, 24);
@@ -108,7 +113,7 @@ assert.equal(ingestCrewExpenseText(message("freeform-dump-location", "River Birc
 assert.equal(ingestCrewExpenseText(message("freeform-dump-cost", "$75", freeformDumpPhone, "2026-08-12T15:31:20.000Z")).status, "collecting");
 assert.equal(ingestCrewExpenseText(message("freeform-dump-weight", "1.2 tons", freeformDumpPhone, "2026-08-12T15:31:30.000Z")).status, "collecting");
 const freeformDump = ingestCrewExpenseText(message("freeform-dump-time", "1035", freeformDumpPhone, "2026-08-12T15:35:00.000Z"));
-assert.equal(freeformDump.status, "recorded");
+assert.equal(freeformDump.status, "queued");
 assert.equal(freeformDump.record?.weight, "1.2 tons");
 assert.equal(freeformDump.record?.time, "10:35 AM");
 
@@ -120,7 +125,7 @@ const compactFuel = ingestCrewExpenseText(message("compact-fuel", [
   "$60",
   "1412",
 ].join("\n"), "5045550404", "2026-08-12T19:13:00.000Z"));
-assert.equal(compactFuel.status, "recorded");
+assert.equal(compactFuel.status, "queued");
 assert.equal(compactFuel.record?.time, "2:12 PM");
 
 const singleLineFuel = ingestCrewExpenseText(message(
@@ -129,7 +134,7 @@ const singleLineFuel = ingestCrewExpenseText(message(
   "5045550505",
   "2026-08-12T19:30:24.000Z",
 ));
-assert.equal(singleLineFuel.status, "recorded");
+assert.equal(singleLineFuel.status, "queued");
 assert.equal(singleLineFuel.record?.truck, "Truck# 1");
 assert.equal(singleLineFuel.record?.location, "Shell");
 assert.equal(singleLineFuel.record?.gallons, 24);
@@ -142,7 +147,7 @@ const shuffledFuel = ingestCrewExpenseText(message(
   "5045550606",
   "2026-08-12T19:31:00.000Z",
 ));
-assert.equal(shuffledFuel.status, "recorded");
+assert.equal(shuffledFuel.status, "queued");
 assert.equal(shuffledFuel.record?.truck, "Truck# 1");
 assert.equal(shuffledFuel.record?.location, "Shell");
 assert.equal(shuffledFuel.record?.time, "2:12 PM");
@@ -153,7 +158,7 @@ const naturalFuel = ingestCrewExpenseText(message(
   "5045550707",
   "2026-08-12T19:31:00.000Z",
 ));
-assert.equal(naturalFuel.status, "recorded");
+assert.equal(naturalFuel.status, "queued");
 assert.equal(naturalFuel.record?.truck, "Truck# 1");
 assert.equal(naturalFuel.record?.location, "Shell");
 assert.equal(naturalFuel.record?.cost, 100);
@@ -164,7 +169,7 @@ const shuffledDump = ingestCrewExpenseText(message(
   "5045550808",
   "2026-08-12T15:36:00.000Z",
 ));
-assert.equal(shuffledDump.status, "recorded");
+assert.equal(shuffledDump.status, "queued");
 assert.equal(shuffledDump.record?.truck, "Truck# 6");
 assert.equal(shuffledDump.record?.location, "River Birch");
 assert.equal(shuffledDump.record?.weight, "lbs 2400");
@@ -177,7 +182,7 @@ assert.equal(ingestCrewExpenseText(message("shuffled-sequence-cost", "$100", shu
 assert.equal(ingestCrewExpenseText(message("shuffled-sequence-location", "Shell", shuffledSequencePhone, "2026-08-12T19:32:03.000Z")).status, "collecting");
 assert.equal(ingestCrewExpenseText(message("shuffled-sequence-truck", "T1", shuffledSequencePhone, "2026-08-12T19:32:04.000Z")).status, "collecting");
 const shuffledSequence = ingestCrewExpenseText(message("shuffled-sequence-gallons", "gal 24", shuffledSequencePhone, "2026-08-12T19:32:05.000Z"));
-assert.equal(shuffledSequence.status, "recorded");
+assert.equal(shuffledSequence.status, "queued");
 assert.equal(shuffledSequence.record?.time, "2:12 PM");
 
 const commaFuel = ingestCrewExpenseText(message(
@@ -186,7 +191,7 @@ const commaFuel = ingestCrewExpenseText(message(
   "5045551010",
   "2026-08-12T19:33:00.000Z",
 ));
-assert.equal(commaFuel.status, "recorded");
+assert.equal(commaFuel.status, "queued");
 assert.equal(commaFuel.record?.location, "Shell");
 
 const shortFuel = ingestCrewExpenseText(message(
@@ -195,7 +200,7 @@ const shortFuel = ingestCrewExpenseText(message(
   "5045551111",
   "2026-08-12T19:33:00.000Z",
 ));
-assert.equal(shortFuel.status, "recorded");
+assert.equal(shortFuel.status, "queued");
 assert.equal(shortFuel.record?.truck, "Truck# 1");
 assert.equal(shortFuel.record?.gallons, 24);
 assert.equal(shortFuel.record?.time, "2:12 PM");
@@ -207,8 +212,32 @@ assert.equal(ingestCrewExpenseText(message("delayed-sequence-location", "Shell",
 assert.equal(ingestCrewExpenseText(message("delayed-sequence-cost", "$100", delayedSequencePhone, "2026-08-12T18:00:00.000Z")).status, "collecting");
 assert.equal(ingestCrewExpenseText(message("delayed-sequence-time", "212", delayedSequencePhone, "2026-08-12T19:00:00.000Z")).status, "collecting");
 const delayedSequence = ingestCrewExpenseText(message("delayed-sequence-gallons", "24g", delayedSequencePhone, "2026-08-12T19:34:00.000Z"));
-assert.equal(delayedSequence.status, "recorded");
+assert.equal(delayedSequence.status, "queued");
 assert.equal(delayedSequence.record?.cost, 100);
-assert.equal(readCrewExpenseRecords("2026-08-12").length, 13);
+assert.equal(readCrewExpenseRecords("2026-08-12").length, 0);
+assert.equal(queuedCrewExpenseTransactions(20).length, 13);
 
-process.stdout.write(`${JSON.stringify({ ok: true, records: readCrewExpenseRecords().length })}\n`);
+const transaction = claimCrewExpenseTransaction(queuedCrewExpenseTransactions()[0]);
+assert.ok(transaction);
+assert.throws(() => finishCrewExpenseTransaction(transaction.file), /before Slack delivery/);
+updateCrewExpenseTransaction(transaction.file, { stage: "slack_sent" });
+finishCrewExpenseTransaction(transaction.file);
+assert.equal(readCrewExpenseRecords("2026-08-12").length, 1);
+
+assert.match(formatCrewExpenseSlackNotification(singleLineFuel.record!), /^Fuel recorded in JunkWare/);
+process.env.SLACK_OPSCENTER_ALERTS_ENABLED = "true";
+process.env.SLACK_BOT_TOKEN = "xoxb-test";
+process.env.SLACK_TRUCK_1_CHANNEL_ID = "C_TRUCK_1";
+let slackRequest: Record<string, unknown> = {};
+sendCrewExpenseSlackNotification(singleLineFuel.record!, async (_input, init) => {
+  slackRequest = JSON.parse(String(init?.body || "{}"));
+  return new Response(JSON.stringify({ ok: true, ts: "123.456" }), { status: 200, headers: { "Content-Type": "application/json" } });
+}).then((slackDelivery) => {
+  assert.equal(slackDelivery.channel, "C_TRUCK_1");
+  assert.equal(slackRequest.channel, "C_TRUCK_1");
+  assert.match(String(slackRequest.text), /Truck# 1 · Shell · \$100\.00/);
+  process.stdout.write(`${JSON.stringify({ ok: true, records: readCrewExpenseRecords().length })}\n`);
+}).catch((error) => {
+  process.stderr.write(`${error instanceof Error ? error.stack : String(error)}\n`);
+  process.exitCode = 1;
+});

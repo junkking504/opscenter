@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { appointmentTerritory } from "@/lib/add-on-notifications";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { appointmentTerritory, buildCancelledAppointmentFeed } from "@/lib/add-on-notifications";
 import { appointmentChannelId, slackAlertKindEnabled } from "@/lib/slack-alerts";
 
 process.env.SLACK_JOBS_NO_CHANNEL_ID = "C_TEST_NO";
@@ -21,6 +24,52 @@ assert.equal(appointmentChannelId("Lafayette"), "C_TEST_DISPATCH");
 assert.equal(appointmentChannelId("Unknown territory"), "C_TEST_DISPATCH");
 assert.equal(slackAlertKindEnabled("late_job"), false);
 assert.equal(slackAlertKindEnabled("add_on"), true);
+assert.equal(slackAlertKindEnabled("cancellation"), true);
 assert.equal(slackAlertKindEnabled("unassigned_crew"), true);
 
-console.log("Slack appointment territory routing tests passed.");
+const temporaryDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "opscenter-slack-alert-test-"));
+process.env.OPSCENTER_DATA_DIR = temporaryDataDir;
+const junkwareDirectory = path.join(temporaryDataDir, "history", "junkware");
+fs.mkdirSync(junkwareDirectory, { recursive: true });
+fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), JSON.stringify({
+  scraped_at: "2026-08-12T13:15:00-05:00",
+  cancelled: [
+    {
+      appt_id: "401",
+      job_id: "JK4025001",
+      normalized_territory: "Jefferson Parish",
+      customer_name: "Test Customer",
+      appointment_time: "1:00 PM - 3:00 PM",
+      address: "123 Test Street",
+      cancelled_by: "Dispatcher",
+      cancellation_reason: "Customer requested",
+    },
+    {
+      appt_id: "401",
+      job_id: "JK4025001",
+      territory: "New Orleans",
+    },
+  ],
+}));
+
+const cancellationFeed = buildCancelledAppointmentFeed("2026-08-12");
+assert.equal(cancellationFeed.generatedAt, "2026-08-12T13:15:00-05:00");
+assert.equal(cancellationFeed.appointments.length, 1);
+assert.deepEqual(cancellationFeed.appointments[0], {
+  id: "appt:401",
+  appointmentId: "401",
+  jobNumber: "JK4025001",
+  territory: "Jefferson Parish",
+  customerName: "Test Customer",
+  address: "123 Test Street",
+  appointmentTime: "1:00 PM - 3:00 PM",
+  appointmentType: "Appointment",
+  assignedTruck: "Unassigned",
+  href: "/jobs?date=2026-08-12#job-jk4025001",
+  cancelledBy: "Dispatcher",
+  cancellationReason: "Customer requested",
+});
+
+fs.rmSync(temporaryDataDir, { recursive: true });
+
+console.log("Slack appointment change routing tests passed.");

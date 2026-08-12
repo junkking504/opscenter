@@ -1,13 +1,18 @@
 import fs from "fs";
 import path from "path";
-import { buildAddOnAppointmentFeed, type AddOnAppointment } from "@/lib/add-on-notifications";
+import {
+  buildAddOnAppointmentFeed,
+  buildCancelledAppointmentFeed,
+  type AddOnAppointment,
+  type CancelledAppointment,
+} from "@/lib/add-on-notifications";
 import { getDataHealthReport, type DataHealthSource } from "@/lib/data-health";
 import { readFleetIssueStore, type FleetIssue } from "@/lib/fleet-issues";
 import { buildOperationalExceptions, type OperationalException } from "@/lib/operational-exceptions";
 import { chicagoDateKey } from "@/lib/report-dates";
 
 export type SlackAlertSeverity = "critical" | "warning";
-export type SlackAlertKind = "add_on" | "unassigned_crew" | "late_job" | "fleet_down" | "stale_data";
+export type SlackAlertKind = "add_on" | "cancellation" | "unassigned_crew" | "late_job" | "fleet_down" | "stale_data";
 
 export type SlackOpsAlert = {
   fingerprint: string;
@@ -31,12 +36,13 @@ type ActiveSlackAlert = {
 };
 
 type SlackAlertState = {
-  version: 1;
+  version: 2;
   initializedAt: string;
   updatedAt: string;
   active: Record<string, ActiveSlackAlert>;
   suppressedIncidentFingerprints: string[];
   knownAppointmentsByDate: Record<string, string[]>;
+  knownCancellationsByDate: Record<string, string[]>;
 };
 
 type SlackApiResponse = {
@@ -51,6 +57,7 @@ export type SlackAlertRunResult = {
   dryRun: boolean;
   date: string;
   bootstrappedAddOns: number;
+  bootstrappedCancellations: number;
   bootstrappedIncidents: number;
   posted: SlackOpsAlert[];
   resolved: ActiveSlackAlert[];
@@ -79,12 +86,13 @@ function stateFile(): string {
 
 function emptyState(): SlackAlertState {
   return {
-    version: 1,
+    version: 2,
     initializedAt: "",
     updatedAt: "",
     active: {},
     suppressedIncidentFingerprints: [],
     knownAppointmentsByDate: {},
+    knownCancellationsByDate: {},
   };
 }
 
@@ -92,7 +100,7 @@ function readState(): SlackAlertState {
   try {
     const payload = JSON.parse(fs.readFileSync(stateFile(), "utf8"));
     return {
-      version: 1,
+      version: 2,
       initializedAt: String(payload?.initializedAt || ""),
       updatedAt: String(payload?.updatedAt || ""),
       active: payload?.active && typeof payload.active === "object" ? payload.active : {},
@@ -102,6 +110,10 @@ function readState(): SlackAlertState {
       knownAppointmentsByDate:
         payload?.knownAppointmentsByDate && typeof payload.knownAppointmentsByDate === "object"
           ? payload.knownAppointmentsByDate
+          : {},
+      knownCancellationsByDate:
+        payload?.knownCancellationsByDate && typeof payload.knownCancellationsByDate === "object"
+          ? payload.knownCancellationsByDate
           : {},
     };
   } catch {
@@ -233,6 +245,29 @@ function addOnAlert(appointment: AddOnAppointment, date: string): SlackOpsAlert 
   };
 }
 
+function cancellationAlert(appointment: CancelledAppointment, date: string): SlackOpsAlert {
+  const cancellationContext = [
+    appointment.cancelledBy ? `Cancelled by ${appointment.cancelledBy}` : "",
+    appointment.cancellationReason ? `Reason: ${appointment.cancellationReason}` : "",
+  ].filter(Boolean).join(" · ");
+  return {
+    fingerprint: `cancellation:${date}:${appointment.id}`,
+    kind: "cancellation",
+    lifecycle: "notification",
+    severity: "warning",
+    channelId: appointmentChannelId(appointment.territory),
+    title: `Appointment cancelled: ${appointment.jobNumber}`,
+    detail: [
+      appointment.customerName,
+      appointment.appointmentTime,
+      appointment.address,
+      cancellationContext,
+    ].filter(Boolean).join(" · "),
+    nextAction: "Confirm the territory schedule and update the crew and truck plan.",
+    href: absoluteOpsHref(appointment.href),
+  };
+}
+
 function collectIncidentAlerts(date: string): SlackOpsAlert[] {
   const report = buildOperationalExceptions(date);
   const alerts: SlackOpsAlert[] = [];
@@ -325,12 +360,30 @@ export async function runSlackOpsAlerts(options?: {
   const state = readState();
   const incidents = collectIncidentAlerts(date);
   const feed = buildAddOnAppointmentFeed(date);
+  const cancellationFeed = buildCancelledAppointmentFeed(date);
   const hadAppointmentBaseline = Object.prototype.hasOwnProperty.call(state.knownAppointmentsByDate, date);
+  const hadCancellationBaseline = Object.prototype.hasOwnProperty.call(state.knownCancellationsByDate, date);
   const knownAppointments = new Set(state.knownAppointmentsByDate[date] || []);
+  const knownCancellations = new Set(state.knownCancellationsByDate[date] || []);
   const additions = hadAppointmentBaseline
     ? feed.appointments.filter((appointment) => !knownAppointments.has(appointment.id))
     : [];
-  const notifications = additions.map((appointment) => addOnAlert(appointment, date));
+  const cancellations = hadCancellationBaseline
+    ? cancellationFeed.appointments.filter((appointment) => !knownCancellations.has(appointment.id))
+    : [];
+  const notificationDeliveries = [
+    ...additions.map((appointment) => ({
+      appointmentId: appointment.id,
+      stateKind: "addition" as const,
+      alert: addOnAlert(appointment, date),
+    })),
+    ...cancellations.map((appointment) => ({
+      appointmentId: appointment.id,
+      stateKind: "cancellation" as const,
+      alert: cancellationAlert(appointment, date),
+    })),
+  ];
+  const notifications = notificationDeliveries.map(({ alert }) => alert);
   const preview = [...incidents, ...notifications];
 
   const result: SlackAlertRunResult = {
@@ -338,6 +391,7 @@ export async function runSlackOpsAlerts(options?: {
     dryRun,
     date,
     bootstrappedAddOns: hadAppointmentBaseline ? 0 : feed.appointments.length,
+    bootstrappedCancellations: hadCancellationBaseline ? 0 : cancellationFeed.appointments.length,
     bootstrappedIncidents: state.initializedAt ? 0 : incidents.length,
     posted: [],
     resolved: [],
@@ -362,7 +416,9 @@ export async function runSlackOpsAlerts(options?: {
     state.updatedAt = now;
     state.suppressedIncidentFingerprints = Array.from(currentFingerprints);
     state.knownAppointmentsByDate[date] = feed.appointments.map((appointment) => appointment.id);
+    state.knownCancellationsByDate[date] = cancellationFeed.appointments.map((appointment) => appointment.id);
     state.knownAppointmentsByDate = pruneAppointmentDates(state.knownAppointmentsByDate);
+    state.knownCancellationsByDate = pruneAppointmentDates(state.knownCancellationsByDate);
     writeState(state);
     return result;
   }
@@ -418,13 +474,16 @@ export async function runSlackOpsAlerts(options?: {
   }
 
   const deliveredAppointmentIds = new Set<string>();
-  for (const alert of notifications) {
+  const deliveredCancellationIds = new Set<string>();
+  for (const delivery of notificationDeliveries) {
+    const { alert } = delivery;
     const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
     if (!response.ok || !response.ts) {
       result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
       continue;
     }
-    deliveredAppointmentIds.add(alert.fingerprint.replace(`add_on:${date}:`, ""));
+    if (delivery.stateKind === "addition") deliveredAppointmentIds.add(delivery.appointmentId);
+    else deliveredCancellationIds.add(delivery.appointmentId);
     result.posted.push(alert);
   }
 
@@ -436,7 +495,16 @@ export async function runSlackOpsAlerts(options?: {
       ...deliveredAppointmentIds,
     ]));
   }
+  if (!hadCancellationBaseline) {
+    state.knownCancellationsByDate[date] = cancellationFeed.appointments.map((appointment) => appointment.id);
+  } else {
+    state.knownCancellationsByDate[date] = Array.from(new Set([
+      ...knownCancellations,
+      ...deliveredCancellationIds,
+    ]));
+  }
   state.knownAppointmentsByDate = pruneAppointmentDates(state.knownAppointmentsByDate);
+  state.knownCancellationsByDate = pruneAppointmentDates(state.knownCancellationsByDate);
   state.updatedAt = now;
   writeState(state);
   return result;

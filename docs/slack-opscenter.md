@@ -4,7 +4,7 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
 
 ## Initial alert set
 
-- New same-day appointment -> `#jobs-no`, `#jobs-br`, or `#jobs-ns` by territory
+- New or cancelled same-day appointment -> `#jobs-no`, `#jobs-br`, or `#jobs-ns` by territory
   - New Orleans and Jefferson Parish -> `#jobs-no`
   - Baton Rouge -> `#jobs-br`
   - Northshore -> `#jobs-ns`
@@ -14,7 +14,7 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
 - Red JunkWare or Linxup data health -> `#ops-data-health`
 - Completed WhatsApp photo batch with an explicit JK number -> one summary in `#ops-dispatch` after every photo is verified (when `SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED=true`)
 
-The first live run records both existing appointments and currently active incidents as its baseline. It does not flood Slack with pre-existing conditions. Once a baseline condition clears, a later recurrence is treated as a new incident. New incident alerts are deduplicated, and recovery messages are posted in the original Slack thread.
+The first live run records existing appointments, existing cancellations, and currently active incidents as its baseline. It does not flood Slack with pre-existing conditions. Later appointment additions and cancellations are each posted once; failed notification deliveries remain eligible for retry. Once a baseline incident clears, a later recurrence is treated as a new incident. New incident alerts are deduplicated, and recovery messages are posted in the original Slack thread.
 
 Appointments that remain open after their scheduled window stay visible in OpsCenter but do not generate Slack alerts or resolution replies.
 

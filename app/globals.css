@@ -5963,17 +5963,23 @@ a.ops-jobs-map-selection-phone:focus-visible {
 
 .ops-marketing-phone {
   width: fit-content;
-  color: #f8fafc;
+  color: #9f1118;
   font-size: 1.05rem;
   font-weight: 900;
   letter-spacing: 0.015em;
-  text-decoration: none;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }
 
 .ops-marketing-phone:hover {
-  color: var(--ops-gold);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: #d71920;
+}
+
+.ops-marketing-phone:focus-visible {
+  border-radius: 3px;
+  outline: 3px solid rgba(215, 25, 32, 0.24);
+  outline-offset: 3px;
 }
 
 .ops-marketing-call-summary {

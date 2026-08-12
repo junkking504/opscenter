@@ -122,6 +122,19 @@ const compactFuel = ingestCrewExpenseText(message("compact-fuel", [
 ].join("\n"), "5045550404", "2026-08-12T19:13:00.000Z"));
 assert.equal(compactFuel.status, "recorded");
 assert.equal(compactFuel.record?.time, "2:12 PM");
-assert.equal(readCrewExpenseRecords("2026-08-12").length, 5);
+
+const singleLineFuel = ingestCrewExpenseText(message(
+  "single-line-fuel",
+  "Truck 1 Shell 24 gallons $100 212",
+  "5045550505",
+  "2026-08-12T19:30:24.000Z",
+));
+assert.equal(singleLineFuel.status, "recorded");
+assert.equal(singleLineFuel.record?.truck, "Truck# 1");
+assert.equal(singleLineFuel.record?.location, "Shell");
+assert.equal(singleLineFuel.record?.gallons, 24);
+assert.equal(singleLineFuel.record?.cost, 100);
+assert.equal(singleLineFuel.record?.time, "2:12 PM");
+assert.equal(readCrewExpenseRecords("2026-08-12").length, 6);
 
 process.stdout.write(`${JSON.stringify({ ok: true, records: readCrewExpenseRecords().length })}\n`);

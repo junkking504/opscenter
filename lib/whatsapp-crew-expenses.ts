@@ -219,6 +219,12 @@ function fieldsFromMessage(text: string): { fields: CrewExpenseFields; recognize
   return { fields, recognized, lines };
 }
 
+function freeformKind(text: string): CrewExpenseKind | null {
+  if (/\b\d+(?:\.\d{1,3})?\s*gal(?:lon)?s?\.?\b/i.test(text)) return "fuel";
+  if (/\b\d+(?:\.\d+)?\s*(?:tons?|lbs?|pounds?|kg|kgs|kilograms?)\.?\b/i.test(text)) return "dump";
+  return null;
+}
+
 function freeformFields(
   lines: string[],
   kind: CrewExpenseKind,
@@ -229,28 +235,40 @@ function freeformFields(
   for (const rawLine of lines) {
     const line = clean(rawLine);
     if (!line || /^(?:fuel|gas|dump)$/i.test(line)) continue;
-    if (!existing.truck && !fields.truck && /^truck\s*#?\s*\d{1,3}$/i.test(line)) {
-      fields.truck = line;
-      continue;
+    let remainder = line;
+    let extractedStrongField = false;
+    const take = (key: keyof CrewExpenseFields, pattern: RegExp): void => {
+      if (existing[key] || fields[key]) return;
+      const match = remainder.match(pattern);
+      if (!match) return;
+      fields[key] = clean(match[0]);
+      remainder = clean(`${remainder.slice(0, match.index)} ${remainder.slice((match.index || 0) + match[0].length)}`);
+      extractedStrongField = true;
+    };
+
+    take("truck", /\btruck\s*#?\s*\d{1,3}\b/i);
+    if (kind === "fuel") {
+      take("gallons", /\b\d+(?:\.\d{1,3})?\s*gal(?:lon)?s?\.?\b/i);
     }
-    if (kind === "fuel" && !existing.gallons && !fields.gallons && /\bgal(?:lon)?s?\.?$/i.test(line)) {
-      fields.gallons = line;
-      continue;
+    take("cost", /\$\s*\d[\d,]*(?:\.\d{0,2})?/i);
+    if (kind === "dump") {
+      take("weight", /\b\d+(?:\.\d+)?\s*(?:tons?|lbs?|pounds?|kg|kgs|kilograms?)\.?\b/i);
     }
-    if (!existing.cost && !fields.cost && /^\$\s*\d/i.test(line)) {
-      fields.cost = line;
-      continue;
+
+    if (!existing.time && !fields.time) {
+      const compactTime = remainder.match(/\b\d{3,4}\s*$/)?.[0]?.trim() || "";
+      if (compactTime && (remainder === compactTime || extractedStrongField) && parseTime(compactTime, receivedAt)) {
+        fields.time = compactTime;
+        remainder = clean(remainder.slice(0, remainder.length - compactTime.length));
+      } else if (parseTime(remainder, receivedAt)) {
+        fields.time = remainder;
+        remainder = "";
+      }
     }
-    if (!existing.time && !fields.time && parseTime(line, receivedAt)) {
-      fields.time = line;
-      continue;
-    }
-    if (kind === "dump" && !existing.weight && !fields.weight && /\b(?:tons?|lbs?|pounds?|kg|kgs|kilograms?)\.?$/i.test(line)) {
-      fields.weight = line;
-      continue;
-    }
-    if (!existing.location && !fields.location && line.length >= 2 && line.length <= 120) {
-      fields.location = line;
+
+    remainder = remainder.replace(/^[,;:\-\s]+|[,;:\-\s]+$/g, "");
+    if (!existing.location && !fields.location && remainder.length >= 2 && remainder.length <= 120) {
+      fields.location = remainder;
     }
   }
   return fields;
@@ -347,7 +365,7 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
 
   const parsed = fieldsFromMessage(message.text);
   const heading = messageHeading(parsed.lines);
-  const inferred = parsed.fields.gallons ? "fuel" : parsed.fields.weight ? "dump" : null;
+  const inferred = parsed.fields.gallons ? "fuel" : parsed.fields.weight ? "dump" : freeformKind(message.text);
   const session = activeSession(message.senderPhone, message.receivedAt);
   const kind = heading || session?.kind || inferred;
   if (!parsed.recognized && !kind) return { status: "ignored" };

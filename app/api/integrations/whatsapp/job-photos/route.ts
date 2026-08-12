@@ -84,6 +84,7 @@ export async function POST(request: Request) {
     textContexts: parsed.texts.length,
     crewExpenses: {
       prompted: expenseResults.filter((result) => result.status === "prompted").length,
+      collecting: expenseResults.filter((result) => result.status === "collecting").length,
       recorded: expenseResults.filter((result) => result.status === "recorded").length,
       review: expenseResults.filter((result) => result.status === "review").length,
     },

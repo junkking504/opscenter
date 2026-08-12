@@ -21,10 +21,11 @@ export type CrewExpenseRecord = {
   reportedAt: string;
   senderHash: string;
   source: "whatsapp_opsbot";
+  sourceMessageIds?: string[];
 };
 
 export type CrewExpenseIngestResult = {
-  status: "ignored" | "duplicate" | "prompted" | "recorded" | "review";
+  status: "ignored" | "duplicate" | "prompted" | "collecting" | "recorded" | "review";
   kind?: CrewExpenseKind;
   record?: CrewExpenseRecord;
   missing?: string[];
@@ -40,22 +41,31 @@ type CrewExpenseReply = {
   attempts?: number;
 };
 
+type CrewExpenseFields = Partial<Record<"truck" | "location" | "cost" | "weight" | "gallons" | "time", string>>;
+
+type CrewExpenseSession = {
+  version: 1;
+  kind: CrewExpenseKind;
+  openedAt: string;
+  updatedAt: string;
+  fields: CrewExpenseFields;
+  messageIds: string[];
+};
+
 const DUMP_TEMPLATE = [
-  "Dump",
-  "Truck #:",
-  "Location:",
-  "Cost:",
-  "Weight:",
-  "Time:",
+  "Truck 1",
+  "Gentilly Landfill",
+  "$86.40",
+  "2 tons",
+  "1035",
 ].join("\n");
 
 const FUEL_TEMPLATE = [
-  "Fuel",
-  "Truck #:",
-  "Location:",
-  "Cost:",
-  "Gallons:",
-  "Time:",
+  "Truck 1",
+  "Shell",
+  "24 gallons",
+  "$100",
+  "212",
 ].join("\n");
 
 function clean(value: unknown): string {
@@ -103,7 +113,7 @@ function normalizeTruck(value: string): string | null {
 }
 
 function parseMoney(value: string): number | null {
-  const normalized = clean(value).replace(/^\$\s*/, "").replace(/,/g, "");
+  const normalized = clean(value).replace(/^\$\s*/, "").replace(/,/g, "").replace(/\.$/, "");
   if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) return null;
   const amount = Number(normalized);
   return Number.isFinite(amount) && amount > 0 && amount <= 25_000 ? Math.round(amount * 100) / 100 : null;
@@ -116,16 +126,63 @@ function parseGallons(value: string): number | null {
   return Number.isFinite(gallons) && gallons > 0 && gallons <= 500 ? gallons : null;
 }
 
-function parseTime(value: string): string | null {
+function formatTime(hour: number, minute: number): string {
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const displayHour = hour % 12 || 12;
+  return `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
+}
+
+function chicagoMinutes(receivedAt: string): number | null {
+  const date = new Date(receivedAt);
+  if (!Number.isFinite(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const hour = Number(parts.find((part) => part.type === "hour")?.value);
+  const minute = Number(parts.find((part) => part.type === "minute")?.value);
+  return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : null;
+}
+
+function closestMeridiemHour(hour: number, minute: number, receivedAt: string): number {
+  if (hour === 12) return 12;
+  const reference = chicagoMinutes(receivedAt);
+  if (reference === null) return hour;
+  const candidates = [hour, hour + 12];
+  return candidates.reduce((closest, candidate) => {
+    const candidateMinutes = candidate * 60 + minute;
+    const distance = Math.min(
+      Math.abs(candidateMinutes - reference),
+      Math.abs(candidateMinutes + 24 * 60 - reference),
+      Math.abs(candidateMinutes - 24 * 60 - reference),
+    );
+    const closestMinutes = closest * 60 + minute;
+    const closestDistance = Math.min(
+      Math.abs(closestMinutes - reference),
+      Math.abs(closestMinutes + 24 * 60 - reference),
+      Math.abs(closestMinutes - 24 * 60 - reference),
+    );
+    return distance < closestDistance ? candidate : closest;
+  });
+}
+
+function parseTime(value: string, receivedAt: string): string | null {
   const normalized = clean(value).toUpperCase().replace(/\s+/g, " ");
   const twelveHour = normalized.match(/^(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*([AP]M)$/);
   if (twelveHour) return `${Number(twelveHour[1])}:${twelveHour[2] || "00"} ${twelveHour[3]}`;
   const twentyFourHour = normalized.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
-  if (!twentyFourHour) return null;
-  const hour = Number(twentyFourHour[1]);
-  const suffix = hour >= 12 ? "PM" : "AM";
-  const displayHour = hour % 12 || 12;
-  return `${displayHour}:${twentyFourHour[2]} ${suffix}`;
+  if (twentyFourHour) return formatTime(Number(twentyFourHour[1]), Number(twentyFourHour[2]));
+  const compact = normalized.match(/^(\d{3,4})$/);
+  if (!compact) return null;
+  const digits = compact[1];
+  const hour = Number(digits.slice(0, -2));
+  const minute = Number(digits.slice(-2));
+  if (minute > 59) return null;
+  if (digits.length === 4) return hour <= 23 ? formatTime(hour, minute) : null;
+  if (hour < 1 || hour > 12) return null;
+  return formatTime(closestMeridiemHour(hour, minute, receivedAt), minute);
 }
 
 function commandKind(text: string): CrewExpenseKind | null {
@@ -143,43 +200,107 @@ function messageHeading(lines: string[]): CrewExpenseKind | null {
   return null;
 }
 
-function fieldsFromMessage(text: string): { fields: Record<string, string>; recognized: boolean; lines: string[] } {
-  const fields: Record<string, string> = {};
+function fieldsFromMessage(text: string): { fields: CrewExpenseFields; recognized: boolean; lines: string[] } {
+  const fields: CrewExpenseFields = {};
   const lines = String(text || "").split(/\r?\n/).map(clean).filter(Boolean);
   let recognized = false;
   for (const line of lines) {
     const match = line.match(/^(truck\s*#?|location|cost|weight|gallons?|time)\s*:\s*(.*)$/i);
     if (!match) continue;
     const rawKey = match[1].toLowerCase().replace(/\s+/g, "");
-    const key = rawKey === "truck#" || rawKey === "truck"
+    const key: keyof CrewExpenseFields = rawKey === "truck#" || rawKey === "truck"
       ? "truck"
       : rawKey.startsWith("gallon")
         ? "gallons"
-        : rawKey;
+        : rawKey as keyof CrewExpenseFields;
     fields[key] = clean(match[2]);
     recognized = true;
   }
   return { fields, recognized, lines };
 }
 
+function freeformFields(
+  lines: string[],
+  kind: CrewExpenseKind,
+  existing: CrewExpenseFields,
+  receivedAt: string,
+): CrewExpenseFields {
+  const fields: CrewExpenseFields = {};
+  for (const rawLine of lines) {
+    const line = clean(rawLine);
+    if (!line || /^(?:fuel|gas|dump)$/i.test(line)) continue;
+    if (!existing.truck && !fields.truck && /^truck\s*#?\s*\d{1,3}$/i.test(line)) {
+      fields.truck = line;
+      continue;
+    }
+    if (kind === "fuel" && !existing.gallons && !fields.gallons && /\bgal(?:lon)?s?\.?$/i.test(line)) {
+      fields.gallons = line;
+      continue;
+    }
+    if (!existing.cost && !fields.cost && /^\$\s*\d/i.test(line)) {
+      fields.cost = line;
+      continue;
+    }
+    if (!existing.time && !fields.time && parseTime(line, receivedAt)) {
+      fields.time = line;
+      continue;
+    }
+    if (kind === "dump" && !existing.weight && !fields.weight && /\b(?:tons?|lbs?|pounds?|kg|kgs|kilograms?)\.?$/i.test(line)) {
+      fields.weight = line;
+      continue;
+    }
+    if (!existing.location && !fields.location && line.length >= 2 && line.length <= 120) {
+      fields.location = line;
+    }
+  }
+  return fields;
+}
+
 function sessionFile(senderPhone: string): string {
   return path.join(directory("sessions"), `${recordKey(normalizePhone(senderPhone))}.json`);
 }
 
-function activeSession(senderPhone: string, receivedAt: string): CrewExpenseKind | null {
+function activeSession(senderPhone: string, receivedAt: string): CrewExpenseSession | null {
   try {
-    const payload = JSON.parse(fs.readFileSync(sessionFile(senderPhone), "utf8")) as { kind?: unknown; openedAt?: unknown };
+    const payload = JSON.parse(fs.readFileSync(sessionFile(senderPhone), "utf8")) as Partial<CrewExpenseSession>;
     const openedAt = new Date(String(payload.openedAt || "")).getTime();
     const messageAt = new Date(receivedAt).getTime();
     if (!Number.isFinite(openedAt) || !Number.isFinite(messageAt) || messageAt < openedAt - 60_000 || messageAt - openedAt > 30 * 60_000) return null;
-    return payload.kind === "dump" || payload.kind === "fuel" ? payload.kind : null;
+    if (payload.kind !== "dump" && payload.kind !== "fuel") return null;
+    return {
+      version: 1,
+      kind: payload.kind,
+      openedAt: String(payload.openedAt),
+      updatedAt: String(payload.updatedAt || payload.openedAt),
+      fields: payload.fields && typeof payload.fields === "object" ? payload.fields : {},
+      messageIds: Array.isArray(payload.messageIds) ? payload.messageIds.map(String) : [],
+    };
   } catch {
     return null;
   }
 }
 
 function openSession(message: WhatsAppTextMessage, kind: CrewExpenseKind): void {
-  writeJsonAtomic(sessionFile(message.senderPhone), { version: 1, kind, openedAt: message.receivedAt });
+  const session: CrewExpenseSession = {
+    version: 1,
+    kind,
+    openedAt: message.receivedAt,
+    updatedAt: message.receivedAt,
+    fields: {},
+    messageIds: [message.messageId],
+  };
+  writeJsonAtomic(sessionFile(message.senderPhone), session);
+}
+
+function updateSession(message: WhatsAppTextMessage, session: CrewExpenseSession, fields: CrewExpenseFields): CrewExpenseSession {
+  const updated = {
+    ...session,
+    updatedAt: message.receivedAt,
+    fields,
+    messageIds: [...new Set([...session.messageIds, message.messageId])],
+  };
+  writeJsonAtomic(sessionFile(message.senderPhone), updated);
+  return updated;
 }
 
 function closeSession(senderPhone: string): void {
@@ -206,8 +327,8 @@ function missingReply(kind: CrewExpenseKind, missing: string[], invalid: string[
     ...(invalid.length ? [`Check: ${invalid.join(", ")}.`] : []),
   ].join(" ");
   const guidance = kind === "dump"
-    ? "Weight is optional. Use AM/PM or 24-hour time."
-    : "Gallons is required. Use AM/PM or 24-hour time.";
+    ? "Weight is optional. Send each value without labels; compact times such as 1035 work."
+    : "Gallons is required. Send each value without labels; compact times such as 1412 or 212 work.";
   return `${problems} ${guidance}\n\n${kind === "dump" ? DUMP_TEMPLATE : FUEL_TEMPLATE}`.trim();
 }
 
@@ -219,16 +340,17 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
   const command = commandKind(message.text);
   if (command) {
     openSession(message, command);
-    enqueueReply(message, `${command === "dump" ? "Dump" : "Fuel"} expense form:\n\n${command === "dump" ? DUMP_TEMPLATE : FUEL_TEMPLATE}${command === "dump" ? "\n\nWeight is optional." : ""}`);
+    enqueueReply(message, `Send each item separately or all at once — no labels needed:\n\n${command === "dump" ? DUMP_TEMPLATE : FUEL_TEMPLATE}${command === "dump" ? "\n\nWeight is optional." : ""}`);
     writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "prompted", kind: command, processedAt: new Date().toISOString() });
     return { status: "prompted", kind: command };
   }
 
   const parsed = fieldsFromMessage(message.text);
-  if (!parsed.recognized) return { status: "ignored" };
   const heading = messageHeading(parsed.lines);
   const inferred = parsed.fields.gallons ? "fuel" : parsed.fields.weight ? "dump" : null;
-  const kind = heading || activeSession(message.senderPhone, message.receivedAt) || inferred;
+  const session = activeSession(message.senderPhone, message.receivedAt);
+  const kind = heading || session?.kind || inferred;
+  if (!parsed.recognized && !kind) return { status: "ignored" };
   if (!kind) {
     const detail = "Start with Dump or Fuel so OpsBot knows which expense form you are sending.";
     enqueueReply(message, `${detail}\n\nSend Dump or Fuel to get the form.`);
@@ -239,21 +361,35 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
     return { status: "review" };
   }
 
+  const previousFields = session?.kind === kind ? session.fields : {};
+  const inferredFields = freeformFields(parsed.lines, kind, { ...previousFields, ...parsed.fields }, message.receivedAt);
+  const fields = { ...previousFields, ...parsed.fields, ...inferredFields };
+  const currentSession = session?.kind === kind
+    ? updateSession(message, session, fields)
+    : null;
+
   const required = kind === "dump" ? ["truck", "location", "cost", "time"] : ["truck", "location", "cost", "gallons", "time"];
-  const missing = required.filter((key) => !parsed.fields[key]);
-  const truck = parsed.fields.truck ? normalizeTruck(parsed.fields.truck) : null;
-  const cost = parsed.fields.cost ? parseMoney(parsed.fields.cost) : null;
-  const gallons = kind === "fuel" && parsed.fields.gallons ? parseGallons(parsed.fields.gallons) : null;
-  const time = parsed.fields.time ? parseTime(parsed.fields.time) : null;
+  const missing = required.filter((key) => !fields[key as keyof CrewExpenseFields]);
+  const truck = fields.truck ? normalizeTruck(fields.truck) : null;
+  const cost = fields.cost ? parseMoney(fields.cost) : null;
+  const gallons = kind === "fuel" && fields.gallons ? parseGallons(fields.gallons) : null;
+  const time = fields.time ? parseTime(fields.time, message.receivedAt) : null;
   const invalid = [
-    ...(parsed.fields.truck && !truck ? ["Truck #"] : []),
-    ...(parsed.fields.location && (parsed.fields.location.length < 2 || parsed.fields.location.length > 120) ? ["Location"] : []),
-    ...(parsed.fields.cost && cost === null ? ["Cost"] : []),
-    ...(kind === "fuel" && parsed.fields.gallons && gallons === null ? ["Gallons"] : []),
-    ...(parsed.fields.time && !time ? ["Time"] : []),
+    ...(fields.truck && !truck ? ["Truck"] : []),
+    ...(fields.location && (fields.location.length < 2 || fields.location.length > 120) ? ["Location"] : []),
+    ...(fields.cost && cost === null ? ["Cost"] : []),
+    ...(kind === "fuel" && fields.gallons && gallons === null ? ["Gallons"] : []),
+    ...(fields.time && !time ? ["Time"] : []),
   ];
 
   if (missing.length || invalid.length || !truck || cost === null || !time || (kind === "fuel" && gallons === null)) {
+    if (currentSession && invalid.length === 0) {
+      writeJsonAtomic(marker, {
+        version: 1, messageId: message.messageId, outcome: "collecting", kind,
+        collected: Object.keys(inferredFields), processedAt: new Date().toISOString(),
+      });
+      return { status: "collecting", kind, missing };
+    }
     const reply = missingReply(kind, missing.map((key) => key === "truck" ? "Truck #" : key[0].toUpperCase() + key.slice(1)), invalid);
     enqueueReply(message, reply);
     writeJsonAtomic(path.join(directory("review"), `${recordKey(message.messageId)}.json`), {
@@ -270,14 +406,15 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
     kind,
     date: chicagoDateKey(new Date(message.receivedAt)),
     truck,
-    location: parsed.fields.location,
+    location: fields.location || "",
     cost,
-    weight: kind === "dump" ? clean(parsed.fields.weight) || null : null,
+    weight: kind === "dump" ? clean(fields.weight) || null : null,
     gallons: kind === "fuel" ? gallons : null,
     time,
     reportedAt: message.receivedAt,
     senderHash: recordKey(normalizePhone(message.senderPhone)),
     source: "whatsapp_opsbot",
+    sourceMessageIds: currentSession?.messageIds,
   };
   writeJsonAtomic(path.join(directory("records"), `${recordKey(message.messageId)}.json`), record);
   const detail = kind === "dump"

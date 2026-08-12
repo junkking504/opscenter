@@ -6,29 +6,27 @@ The same signed webhook accepts structured dump and fuel reports from the crew. 
 
 ## Crew dump and fuel reports
 
-Crew can send `Dump` or `Fuel` by itself and OpsBot replies with the matching form. They can also send the heading and completed form in one message.
+Crew can send `Dump` or `Fuel` by itself and OpsBot replies with an unlabeled example. Each value can then be sent as its own message, or the whole unlabeled list can be sent at once. OpsBot accumulates the values for that sender's active 30-minute expense session.
 
 ```text
-Dump
-Truck #:
-Location:
-Cost:
-Weight:
-Time:
+Truck 1
+Gentilly Landfill
+$86.40
+2 tons
+1035
 ```
 
 `Weight:` is optional, including for locations such as Gentilly Landfill that do not provide net weight.
 
 ```text
-Fuel
-Truck #:
-Location:
-Cost:
-Gallons:
-Time:
+Truck 1
+Shell
+24 gallons
+$100
+212
 ```
 
-All fuel fields are required. Cost accepts dollars with or without `$`; time accepts AM/PM or 24-hour format. OpsBot validates every field, asks for missing or invalid values, and sends a terse confirmation after writing the durable Truck Records detail. Sender phone numbers are stored only as one-way hashes in expense records and never shown in Finance.
+All fuel fields are required. Strong shapes identify the values without labels: `Truck 1`, a plain-text location, `$100`, `24 gallons`, and a time. Compact time accepts four-digit 24-hour values such as `1412` and three-digit values such as `212`; three-digit times choose the AM/PM occurrence closest to the message time. Labeled forms remain supported for compatibility. OpsBot validates every field and sends a terse confirmation after writing the durable Truck Records detail. Sender phone numbers are stored only as one-way hashes in expense records and never shown in Finance.
 
 The desktop WhatsApp linked-device connection is useful for staff visibility, but it does not expose a supported inbound webhook. Production intake therefore requires the Operations number to be registered with a Meta WhatsApp Business Account and subscribed to the OpsCenter webhook.
 

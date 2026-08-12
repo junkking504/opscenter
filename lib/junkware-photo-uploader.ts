@@ -119,10 +119,19 @@ export async function uploadJunkwareJobPhoto(input: {
       throw new Error("The JunkWare photo upload controls are unavailable.");
     }
     await fileInput.setInputFiles(resolvedFile);
-    await page.locator(categorySelector).check();
+    // JunkWare visually hides these radio inputs behind their styled labels,
+    // so a normal Playwright click cannot reach them. Set the native form
+    // state and emit the same change event before submitting the form.
+    const categorySelected = await page.locator(categorySelector).evaluate((element) => {
+      const input = element as HTMLInputElement;
+      input.checked = true;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      return input.checked;
+    });
+    if (!categorySelected) throw new Error("The JunkWare photo category could not be selected.");
     await Promise.all([
       page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
-      uploadButton.click(),
+      uploadButton.evaluate((element) => (element as HTMLInputElement).click()),
     ]);
     if (page.url().toLowerCase().includes(LOGIN)) throw new Error("JunkWare signed out during photo upload.");
     const afterCount = await appointmentMediaCount(page);

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { appointmentScheduleHref } from "../lib/job-links";
 import { formatSearchKingsDateHeading, groupSearchKingsLeadsByDate } from "../lib/searchkings-date-groups";
+import { searchKingsPhoneHref } from "../lib/searchkings-phone";
 import {
   buildSearchKingsViewFromData,
   explicitCallValue,
@@ -86,6 +87,8 @@ assert.equal(formatSearchKingsDateHeading("unknown"), "Unknown date");
 assert.equal(explicitCallValue("King-size mattress pickup quoted $128."), 128);
 assert.equal(explicitCallValue("Agent quoted $448, discounted to $388."), 388);
 assert.equal(explicitCallValue("Agent quoted $128; caller had a $79 offer elsewhere."), 128);
+assert.equal(searchKingsPhoneHref("(504) 555-0101"), "tel:+15045550101");
+assert.equal(searchKingsPhoneHref("Unavailable"), "");
 assert.equal(explicitCallValue("Agent provided $200 starting price."), 200);
 assert.equal(explicitCallValue("Free on-site estimate scheduled between 12 PM and 2 PM."), null);
 assert.equal(explicitCallValue("Quote requested outside the 25-mile service area."), null);

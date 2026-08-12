@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { appointmentScheduleHref } from "@/lib/job-links";
 import { groupSearchKingsLeadsByDate } from "@/lib/searchkings-date-groups";
+import { searchKingsPhoneHref } from "@/lib/searchkings-phone";
 import type {
   LostLeadReason,
   LostLeadStatus,
@@ -55,11 +56,6 @@ function dollars(value: number): string {
     currency: "USD",
     maximumFractionDigits: 0,
   }).format(value || 0);
-}
-
-function phoneHref(value: string): string {
-  const digits = value.replace(/\D/g, "");
-  return digits.length >= 10 ? `tel:+1${digits.slice(-10)}` : "";
 }
 
 export default function LostLeadTracker({ leads }: { leads: SearchKingsLead[] }) {
@@ -144,7 +140,7 @@ export default function LostLeadTracker({ leads }: { leads: SearchKingsLead[] })
             <div className="ops-marketing-lead-context">
               <div>
                 <span>Phone</span>
-                {phoneHref(lead.phone) ? <a className="ops-marketing-phone" href={phoneHref(lead.phone)}>{lead.phone}</a> : <strong>Unavailable</strong>}
+                {searchKingsPhoneHref(lead.phone) ? <a className="ops-marketing-phone" href={searchKingsPhoneHref(lead.phone)}>{lead.phone}</a> : <strong>Unavailable</strong>}
               </div>
               <div><span>Score</span><strong>{lead.score ?? "—"}/5</strong></div>
               <div><span>Source</span><strong>{lead.trackingLabel || lead.source || "SearchKings"}</strong></div>

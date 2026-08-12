@@ -192,6 +192,7 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
         receivedAt: claim.message.receivedAt,
         jobDate: date,
         status: "completed",
+        filePath,
       });
     }
     finishWhatsAppImage(claim.file, "completed", {

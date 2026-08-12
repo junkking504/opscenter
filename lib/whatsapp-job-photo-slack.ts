@@ -11,6 +11,13 @@ export type WhatsAppPhotoSlackBatchPhoto = {
   receivedAt: string;
   status: "pending" | "completed";
   completedAt?: string;
+  mediaFile?: string;
+};
+
+type SlackStagedFile = {
+  messageId: string;
+  fileId: string;
+  title: string;
 };
 
 export type WhatsAppPhotoSlackBatch = {
@@ -21,6 +28,7 @@ export type WhatsAppPhotoSlackBatch = {
   openedAt: string;
   updatedAt: string;
   photos: WhatsAppPhotoSlackBatchPhoto[];
+  slackStagedFiles?: SlackStagedFile[];
   attempts?: number;
   lastAttemptAt?: string;
   lastError?: string;
@@ -39,6 +47,8 @@ type SlackApiResponse = {
   ok?: boolean;
   ts?: string;
   error?: string;
+  upload_url?: string;
+  file_id?: string;
 };
 
 const DEFAULT_DISPATCH_CHANNEL_ID = "C0BNRMD25AS";
@@ -68,6 +78,10 @@ function batchDirectory(name: "pending" | "delivered"): string {
 
 function legacyDeliveredDirectory(): string {
   return path.join(whatsappPhotoStateDirectory(), "slack-notifications", "delivered");
+}
+
+function mediaDirectory(): string {
+  return path.join(whatsappPhotoStateDirectory(), "media");
 }
 
 function ensureDirectories(): void {
@@ -167,6 +181,7 @@ export function recordWhatsAppPhotoSlackUpload(input: {
   receivedAt: string;
   jobDate: string;
   status: "pending" | "completed";
+  filePath?: string;
   now?: Date;
 }): { duplicate: boolean } {
   ensureDirectories();
@@ -193,6 +208,15 @@ export function recordWhatsAppPhotoSlackUpload(input: {
   };
   const index = batch.photos.findIndex((photo) => photo.messageId === messageId);
   const current = index >= 0 ? batch.photos[index] : null;
+  let mediaFile = current?.mediaFile;
+  if (input.status === "completed") {
+    const resolvedFile = path.resolve(clean(input.filePath));
+    const resolvedMediaDirectory = path.resolve(mediaDirectory());
+    if (path.dirname(resolvedFile) !== resolvedMediaDirectory || !/^[a-f0-9]{64}\.(?:jpg|png)$/.test(path.basename(resolvedFile))) {
+      throw new Error("The completed WhatsApp photo is outside the protected media directory.");
+    }
+    mediaFile = path.basename(resolvedFile);
+  }
   const nextPhoto: WhatsAppPhotoSlackBatchPhoto = {
     messageId,
     category: input.category,
@@ -201,6 +225,7 @@ export function recordWhatsAppPhotoSlackUpload(input: {
     ...(input.status === "completed" || current?.status === "completed"
       ? { completedAt: current?.completedAt || nowIso }
       : {}),
+    ...(mediaFile ? { mediaFile } : {}),
   };
   if (index >= 0) batch.photos[index] = nextPhoto;
   else batch.photos.push(nextPhoto);
@@ -215,7 +240,7 @@ function eligibleBatches(limit: number, now: Date): Array<{ file: string; batch:
   return jsonFiles(batchDirectory("pending"))
     .flatMap((file) => {
       const batch = readBatch(file);
-      if (!batch || !batch.photos.length || batch.photos.some((photo) => photo.status !== "completed")) return [];
+      if (!batch || !batch.photos.length || batch.photos.some((photo) => photo.status !== "completed" || !photo.mediaFile)) return [];
       const updatedAt = new Date(batch.updatedAt).getTime();
       if (!Number.isFinite(updatedAt) || now.getTime() - updatedAt < quietMs) return [];
       const nextAttemptAt = new Date(clean(batch.nextAttemptAt)).getTime();
@@ -233,6 +258,113 @@ function clientMessageId(batchId: string): string {
 function retryDelaySeconds(attempts: number, retryAfterSeconds?: number): number {
   const exponential = Math.min(900, 30 * (2 ** Math.min(5, Math.max(0, attempts - 1))));
   return Math.max(exponential, retryAfterSeconds || 0);
+}
+
+async function slackApiRequest(
+  token: string,
+  method: string,
+  body: URLSearchParams | Record<string, unknown>,
+  fetchImpl: typeof fetch,
+): Promise<{ payload: SlackApiResponse; retryAfterSeconds: number }> {
+  try {
+    const formEncoded = body instanceof URLSearchParams;
+    const response = await fetchImpl(`https://slack.com/api/${method}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": formEncoded
+          ? "application/x-www-form-urlencoded; charset=utf-8"
+          : "application/json; charset=utf-8",
+      },
+      body: formEncoded ? body.toString() : JSON.stringify(body),
+      signal: AbortSignal.timeout(15_000),
+    });
+    const payload = await response.json().catch(() => ({ ok: false, error: `http_${response.status}` })) as SlackApiResponse;
+    if (!response.ok && payload.ok) return {
+      payload: { ok: false, error: `http_${response.status}` },
+      retryAfterSeconds: Number(response.headers.get("retry-after")) || 0,
+    };
+    return { payload, retryAfterSeconds: Number(response.headers.get("retry-after")) || 0 };
+  } catch (error) {
+    return {
+      payload: { ok: false, error: error instanceof Error ? error.message : "Slack request failed" },
+      retryAfterSeconds: 0,
+    };
+  }
+}
+
+function photoTitle(batch: WhatsAppPhotoSlackBatch, photo: WhatsAppPhotoSlackBatchPhoto, index: number): string {
+  const label = photo.category === "before" ? "before" : photo.category === "donation" ? "donation-receipt" : "after";
+  return `${batch.jkNumber}-${label}-${index + 1}`;
+}
+
+async function uploadSlackBatch(
+  token: string,
+  channelId: string,
+  file: string,
+  batch: WhatsAppPhotoSlackBatch,
+  fetchImpl: typeof fetch,
+): Promise<{ payload: SlackApiResponse; retryAfterSeconds: number }> {
+  const staged = new Map((batch.slackStagedFiles || []).map((entry) => [entry.messageId, entry]));
+  let retryAfterSeconds = 0;
+  for (const [index, photo] of batch.photos.entries()) {
+    if (staged.has(photo.messageId)) continue;
+    const filePath = path.join(mediaDirectory(), clean(photo.mediaFile));
+    let stats: fs.Stats;
+    try {
+      stats = fs.statSync(filePath);
+    } catch {
+      return { payload: { ok: false, error: "WhatsApp photo file is unavailable" }, retryAfterSeconds };
+    }
+    if (!stats.isFile() || !stats.size || stats.size > 5 * 1024 * 1024) {
+      return { payload: { ok: false, error: "WhatsApp photo file is invalid" }, retryAfterSeconds };
+    }
+    const title = photoTitle(batch, photo, index);
+    const extension = path.extname(filePath).toLowerCase();
+    const ticket = await slackApiRequest(token, "files.getUploadURLExternal", new URLSearchParams({
+      filename: `${title}${extension}`,
+      length: String(stats.size),
+      alt_txt: `${title} job photo`,
+    }), fetchImpl);
+    retryAfterSeconds = Math.max(retryAfterSeconds, ticket.retryAfterSeconds);
+    const uploadUrl = clean(ticket.payload.upload_url);
+    const fileId = clean(ticket.payload.file_id);
+    if (!ticket.payload.ok || !uploadUrl || !fileId) return { payload: ticket.payload, retryAfterSeconds };
+    try {
+      const uploadResponse = await fetchImpl(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": extension === ".png" ? "image/png" : "image/jpeg" },
+        body: fs.readFileSync(filePath),
+        signal: AbortSignal.timeout(30_000),
+      });
+      retryAfterSeconds = Math.max(retryAfterSeconds, Number(uploadResponse.headers.get("retry-after")) || 0);
+      if (!uploadResponse.ok) return {
+        payload: { ok: false, error: `file_upload_http_${uploadResponse.status}` },
+        retryAfterSeconds,
+      };
+    } catch (error) {
+      return {
+        payload: { ok: false, error: error instanceof Error ? error.message : "Slack file upload failed" },
+        retryAfterSeconds,
+      };
+    }
+    staged.set(photo.messageId, { messageId: photo.messageId, fileId, title });
+    batch.slackStagedFiles = [...staged.values()];
+    writeJsonAtomic(file, batch);
+  }
+
+  const completion = await slackApiRequest(token, "files.completeUploadExternal", {
+    files: batch.photos.map((photo) => {
+      const entry = staged.get(photo.messageId);
+      return { id: entry?.fileId, title: entry?.title };
+    }),
+    channel_id: channelId,
+    initial_comment: formatWhatsAppPhotoSlackNotification(batch),
+  }, fetchImpl);
+  return {
+    payload: completion.payload,
+    retryAfterSeconds: Math.max(retryAfterSeconds, completion.retryAfterSeconds),
+  };
 }
 
 export async function deliverWhatsAppPhotoSlackNotifications(options?: {
@@ -258,36 +390,30 @@ export async function deliverWhatsAppPhotoSlackNotifications(options?: {
     || DEFAULT_DISPATCH_CHANNEL_ID;
   const fetchImpl = options?.fetchImpl || fetch;
   const now = options?.now || new Date();
+  const attachmentsEnabled = boolEnv("SLACK_WHATSAPP_PHOTO_ATTACHMENTS_ENABLED");
 
   for (const { file, batch } of eligibleBatches(options?.limit ?? 10, now)) {
     result.attempted += 1;
     let responsePayload: SlackApiResponse = { ok: false, error: "Slack request failed" };
     let retryAfterSeconds = 0;
-    try {
-      const response = await fetchImpl("https://slack.com/api/chat.postMessage", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json; charset=utf-8",
-        },
-        body: JSON.stringify({
-          channel: channelId,
-          text: formatWhatsAppPhotoSlackNotification(batch),
-          mrkdwn: true,
-          unfurl_links: false,
-          unfurl_media: false,
-          client_msg_id: clientMessageId(batch.batchId),
-        }),
-        signal: AbortSignal.timeout(15_000),
-      });
-      retryAfterSeconds = Number(response.headers.get("retry-after")) || 0;
-      responsePayload = await response.json().catch(() => ({ ok: false, error: `http_${response.status}` })) as SlackApiResponse;
-      if (!response.ok && responsePayload.ok) responsePayload = { ok: false, error: `http_${response.status}` };
-    } catch (error) {
-      responsePayload = { ok: false, error: error instanceof Error ? error.message : "Slack request failed" };
+    if (attachmentsEnabled) {
+      const upload = await uploadSlackBatch(token, channelId, file, batch, fetchImpl);
+      responsePayload = upload.payload;
+      retryAfterSeconds = upload.retryAfterSeconds;
+    } else {
+      const message = await slackApiRequest(token, "chat.postMessage", {
+        channel: channelId,
+        text: formatWhatsAppPhotoSlackNotification(batch),
+        mrkdwn: true,
+        unfurl_links: false,
+        unfurl_media: false,
+        client_msg_id: clientMessageId(batch.batchId),
+      }, fetchImpl);
+      responsePayload = message.payload;
+      retryAfterSeconds = message.retryAfterSeconds;
     }
 
-    if (responsePayload.ok && responsePayload.ts) {
+    if (responsePayload.ok && (attachmentsEnabled || responsePayload.ts)) {
       const delivered = deliveredBatchFile(batch.batchId);
       writeJsonAtomic(delivered, {
         ...batch,

@@ -88,7 +88,7 @@ SLACK_WHATSAPP_PHOTO_CHANNEL_ID='C0BNRMD25AS'
 
 The channel defaults to `SLACK_OPS_DISPATCH_CHANNEL_ID` when `SLACK_WHATSAPP_PHOTO_CHANNEL_ID` is omitted.
 
-Slack photo attachments are intentionally disabled. Enabling them would require the broader `files:write` bot scope and would store a second copy of each customer photo in Slack.
+To include the verified photos in the grouped Slack notification, add `files:write` to the Slack app, reinstall it in the workspace, update the protected Keychain bot token if Slack rotates it, and set `SLACK_WHATSAPP_PHOTO_ATTACHMENTS_ENABLED=true`. This uses Slack's external upload flow and stores a second copy of each customer photo in Slack. Keep the flag off until the reinstalled token passes a scope check.
 
 ## Verification
 

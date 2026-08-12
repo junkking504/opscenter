@@ -214,8 +214,48 @@ assert.equal(ingestCrewExpenseText(message("delayed-sequence-time", "212", delay
 const delayedSequence = ingestCrewExpenseText(message("delayed-sequence-gallons", "24g", delayedSequencePhone, "2026-08-12T19:34:00.000Z"));
 assert.equal(delayedSequence.status, "queued");
 assert.equal(delayedSequence.record?.cost, 100);
+
+const weightlessDump = ingestCrewExpenseText(message(
+  "weightless-dump",
+  "T1 Gentilly 44 310",
+  "5045551313",
+  "2026-08-12T20:10:08.000Z",
+));
+assert.equal(weightlessDump.status, "queued");
+assert.equal(weightlessDump.record?.kind, "dump");
+assert.equal(weightlessDump.record?.truck, "Truck# 1");
+assert.equal(weightlessDump.record?.location, "Gentilly");
+assert.equal(weightlessDump.record?.cost, 44);
+assert.equal(weightlessDump.record?.weight, null);
+assert.equal(weightlessDump.record?.time, "3:10 PM");
+
+const shuffledWeightlessDump = ingestCrewExpenseText(message(
+  "shuffled-weightless-dump",
+  "310, 44 / Gentilly | T1",
+  "5045551414",
+  "2026-08-12T20:10:08.000Z",
+));
+assert.equal(shuffledWeightlessDump.status, "queued");
+assert.equal(shuffledWeightlessDump.record?.location, "Gentilly");
+assert.equal(shuffledWeightlessDump.record?.cost, 44);
+
+const multilineWeightlessDump = ingestCrewExpenseText(message(
+  "multiline-weightless-dump",
+  "Truck 1\nGentilly\n44\n310",
+  "5045551515",
+  "2026-08-12T20:10:08.000Z",
+));
+assert.equal(multilineWeightlessDump.status, "queued");
+assert.equal(multilineWeightlessDump.record?.weight, null);
+
+assert.equal(ingestCrewExpenseText(message(
+  "truck-arrival-not-expense",
+  "T1 arrived Gentilly 310",
+  "5045551616",
+  "2026-08-12T20:10:08.000Z",
+)).status, "ignored");
 assert.equal(readCrewExpenseRecords("2026-08-12").length, 0);
-assert.equal(queuedCrewExpenseTransactions(20).length, 13);
+assert.equal(queuedCrewExpenseTransactions(20).length, 16);
 
 const transaction = claimCrewExpenseTransaction(queuedCrewExpenseTransactions()[0]);
 assert.ok(transaction);

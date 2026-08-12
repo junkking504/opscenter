@@ -262,14 +262,37 @@ function fieldsFromMessage(text: string): { fields: CrewExpenseFields; recognize
   return { fields, recognized, lines };
 }
 
-function freeformKind(text: string): CrewExpenseKind | null {
+function freeformKind(text: string, receivedAt: string): CrewExpenseKind | null {
   if (/\bdump\b/i.test(text)) return "dump";
   if (/\b\d+(?:\.\d{1,3})?\s*(?:g|gal(?:lon)?s?)\.?\b/i.test(text)) return "fuel";
   if (/\bgal(?:lon)?s?\s*[:#-]?\s*\d+(?:\.\d{1,3})?\b/i.test(text)) return "fuel";
   if (/\b(?:fuel|gas)\b/i.test(text)) return "fuel";
   if (/\b\d+(?:\.\d+)?\s*(?:tons?|lbs?|pounds?|kg|kgs|kilograms?)\.?\b/i.test(text)) return "dump";
   if (/\b(?:tons?|lbs?|pounds?|kg|kgs|kilograms?)\s*[:#-]?\s*\d+(?:\.\d+)?\b/i.test(text)) return "dump";
-  return null;
+  const truck = text.match(/\b(?:truck|t)\s*#?\s*\d{1,3}\b/i)?.[0] || "";
+  if (!truck) return null;
+  let remainder = clean(text.replace(truck, " "));
+  const explicitTime = remainder.match(/\b(?:\d{1,2}:\d{2}|\d{1,4})\s*[ap]\.?m\.?\b/i)?.[0]
+    || remainder.match(/\b(?:[01]?\d|2[0-3]):[0-5]\d\b/)?.[0]
+    || "";
+  const compactTime = [...remainder.matchAll(/\b\d{3,4}\b/g)]
+    .map((match) => match[0])
+    .find((candidate) => parseTime(candidate, receivedAt)) || "";
+  const time = explicitTime || compactTime;
+  if (!time || !parseTime(time, receivedAt)) return null;
+  remainder = clean(remainder.replace(time, " "));
+  const markedCost = remainder.match(/\$\s*\d[\d,]*(?:\.\d{0,2})?/i)?.[0]
+    || remainder.match(/\b\d[\d,]*(?:\.\d{1,2})?\s*\$/i)?.[0]
+    || remainder.match(/\b(?:usd|dollars?)\s*[:#-]?\s*\d[\d,]*(?:\.\d{1,2})?\b/i)?.[0]
+    || remainder.match(/\b\d[\d,]*(?:\.\d{1,2})?\s*(?:usd|dollars?)\b/i)?.[0]
+    || "";
+  const plainCosts = [...remainder.matchAll(/\b\d[\d,]*(?:\.\d{1,2})?\b/g)]
+    .map((match) => match[0])
+    .filter((candidate) => parseMoney(candidate) !== null);
+  const cost = markedCost || (plainCosts.length === 1 ? plainCosts[0] : "");
+  if (!cost || parseMoney(cost) === null) return null;
+  const location = clean(remainder.replace(cost, " ").replace(/[|/,;:@-]+/g, " "));
+  return /[a-z]{2}/i.test(location) ? "dump" : null;
 }
 
 function freeformFields(
@@ -321,6 +344,16 @@ function freeformFields(
       } else if (parseTime(remainder, receivedAt)) {
         fields.time = remainder;
         remainder = "";
+      }
+    }
+
+    if (kind === "dump" && !existing.cost && !fields.cost) {
+      const plainCosts = [...remainder.matchAll(/\b\d[\d,]*(?:\.\d{1,2})?\b/g)]
+        .map((match) => match[0])
+        .filter((candidate) => parseMoney(candidate) !== null);
+      if (plainCosts.length === 1) {
+        fields.cost = plainCosts[0];
+        remainder = clean(remainder.replace(plainCosts[0], " "));
       }
     }
 
@@ -437,7 +470,7 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
 
   const parsed = fieldsFromMessage(message.text);
   const heading = messageHeading(parsed.lines);
-  const inferred = parsed.fields.gallons ? "fuel" : parsed.fields.weight ? "dump" : freeformKind(message.text);
+  const inferred = parsed.fields.gallons ? "fuel" : parsed.fields.weight ? "dump" : freeformKind(message.text, message.receivedAt);
   const session = activeSession(message.senderPhone, message.receivedAt);
   const kind = heading || session?.kind || inferred;
   if (!parsed.recognized && !kind) return { status: "ignored" };

@@ -20,7 +20,7 @@ import {
 import {
   deliverWhatsAppPhotoSlackNotifications,
   formatWhatsAppPhotoSlackNotification,
-  queueWhatsAppPhotoSlackNotification,
+  recordWhatsAppPhotoSlackUpload,
 } from "@/lib/whatsapp-job-photo-slack";
 
 async function main(): Promise<void> {
@@ -132,42 +132,66 @@ try {
   assert.equal(enqueueWhatsAppImage(parsed.images[0]).duplicate, true);
   assert.equal(queuedWhatsAppImages().length, 1);
 
-  const slackNotification = {
-    version: 1 as const,
+  const slackBatch = {
+    version: 2 as const,
+    batchId: "2026-08-11:JK4025001:image-1",
+    jkNumber: "JK4025001",
+    jobDate: "2026-08-11",
+    openedAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+    photos: [
+      { messageId: "image-1", category: "before" as const, receivedAt: parsed.images[0].receivedAt, status: "completed" as const },
+      { messageId: "image-2", category: "after" as const, receivedAt: parsed.images[0].receivedAt, status: "completed" as const },
+    ],
+  };
+  const formatted = formatWhatsAppPhotoSlackNotification(slackBatch);
+  assert.match(formatted, /OpsBot added 2 photos/);
+  assert.match(formatted, /JK4025001/);
+  assert.match(formatted, /1 before · 1 after/);
+  assert.doesNotMatch(formatted, /15045550101/);
+
+  process.env.SLACK_OPSCENTER_ALERTS_ENABLED = "true";
+  process.env.SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED = "true";
+  process.env.SLACK_WHATSAPP_PHOTO_BATCH_QUIET_SECONDS = "60";
+  process.env.SLACK_BOT_TOKEN = "xoxb-test-token";
+  process.env.SLACK_WHATSAPP_PHOTO_CHANNEL_ID = "C_TEST_DISPATCH";
+  const requests: Array<Record<string, unknown>> = [];
+  const fetchImpl: typeof fetch = async (_input, init) => {
+    requests.push(JSON.parse(String(init?.body || "{}")) as Record<string, unknown>);
+    return new Response(JSON.stringify({ ok: true, ts: "123.456" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+  const firstPhoto = {
     messageId: "image-1",
     jkNumber: "JK4025001",
     category: "before" as const,
     receivedAt: parsed.images[0].receivedAt,
     jobDate: "2026-08-11",
-    queuedAt: now.toISOString(),
   };
-  const formatted = formatWhatsAppPhotoSlackNotification(slackNotification);
-  assert.match(formatted, /OpsBot received a photo/);
-  assert.match(formatted, /JK4025001/);
-  assert.doesNotMatch(formatted, /15045550101/);
-
-  assert.equal(queueWhatsAppPhotoSlackNotification(slackNotification).duplicate, false);
-  assert.equal(queueWhatsAppPhotoSlackNotification(slackNotification).duplicate, true);
-  process.env.SLACK_OPSCENTER_ALERTS_ENABLED = "true";
-  process.env.SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED = "true";
-  process.env.SLACK_BOT_TOKEN = "xoxb-test-token";
-  process.env.SLACK_WHATSAPP_PHOTO_CHANNEL_ID = "C_TEST_DISPATCH";
-  const requests: Array<Record<string, unknown>> = [];
+  const secondPhoto = { ...firstPhoto, messageId: "image-2", category: "after" as const };
+  assert.equal(recordWhatsAppPhotoSlackUpload({ ...firstPhoto, status: "pending", now }).duplicate, false);
+  assert.equal(recordWhatsAppPhotoSlackUpload({ ...secondPhoto, status: "pending", now }).duplicate, false);
+  assert.equal(recordWhatsAppPhotoSlackUpload({ ...firstPhoto, status: "completed", now }).duplicate, false);
+  const incomplete = await deliverWhatsAppPhotoSlackNotifications({ now: new Date(now.getTime() + 120_000), fetchImpl });
+  assert.equal(incomplete.attempted, 0);
+  assert.equal(incomplete.pending, 1);
+  const secondCompletedAt = new Date(now.getTime() + 10_000);
+  assert.equal(recordWhatsAppPhotoSlackUpload({ ...secondPhoto, status: "completed", now: secondCompletedAt }).duplicate, false);
+  const stillOpen = await deliverWhatsAppPhotoSlackNotifications({ now: new Date(now.getTime() + 50_000), fetchImpl });
+  assert.equal(stillOpen.attempted, 0);
   const delivered = await deliverWhatsAppPhotoSlackNotifications({
-    now,
-    fetchImpl: async (_input, init) => {
-      requests.push(JSON.parse(String(init?.body || "{}")) as Record<string, unknown>);
-      return new Response(JSON.stringify({ ok: true, ts: "123.456" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    },
+    now: new Date(now.getTime() + 70_000),
+    fetchImpl,
   });
   assert.equal(delivered.attempted, 1);
   assert.equal(delivered.delivered, 1);
   assert.equal(delivered.pending, 0);
   assert.equal(requests[0].channel, "C_TEST_DISPATCH");
   assert.match(String(requests[0].text), /JK4025001/);
+  assert.match(String(requests[0].text), /added 2 photos/);
+  assert.equal(recordWhatsAppPhotoSlackUpload({ ...firstPhoto, status: "completed", now }).duplicate, true);
   const duplicateDelivery = await deliverWhatsAppPhotoSlackNotifications({ now });
   assert.equal(duplicateDelivery.attempted, 0);
 } finally {
@@ -175,6 +199,7 @@ try {
   delete process.env.WHATSAPP_JOB_PHOTO_STATE_DIR;
   delete process.env.SLACK_OPSCENTER_ALERTS_ENABLED;
   delete process.env.SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED;
+  delete process.env.SLACK_WHATSAPP_PHOTO_BATCH_QUIET_SECONDS;
   delete process.env.SLACK_BOT_TOKEN;
   delete process.env.SLACK_WHATSAPP_PHOTO_CHANNEL_ID;
 }

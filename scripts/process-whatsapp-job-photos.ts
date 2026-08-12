@@ -8,7 +8,7 @@ import { chicagoDateKey } from "@/lib/report-dates";
 import { matchWhatsAppPhoto, normalizePhone, type FleetLocation } from "@/lib/whatsapp-job-photo-matching";
 import {
   deliverWhatsAppPhotoSlackNotifications,
-  queueWhatsAppPhotoSlackNotification,
+  recordWhatsAppPhotoSlackUpload,
   whatsAppPhotoSlackNotificationsEnabled,
 } from "@/lib/whatsapp-job-photo-slack";
 import {
@@ -166,12 +166,13 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
     }
     matchedJob = match;
     if (match.method === "jk_number" && whatsAppPhotoSlackNotificationsEnabled()) {
-      queueWhatsAppPhotoSlackNotification({
+      recordWhatsAppPhotoSlackUpload({
         messageId: claim.message.messageId,
         jkNumber: match.jkNumber,
         category: match.category,
         receivedAt: claim.message.receivedAt,
         jobDate: date,
+        status: "pending",
       });
     }
     stage = "downloading";
@@ -183,6 +184,16 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
       filePath,
       category: match.category,
     });
+    if (match.method === "jk_number" && whatsAppPhotoSlackNotificationsEnabled()) {
+      recordWhatsAppPhotoSlackUpload({
+        messageId: claim.message.messageId,
+        jkNumber: match.jkNumber,
+        category: match.category,
+        receivedAt: claim.message.receivedAt,
+        jobDate: date,
+        status: "completed",
+      });
+    }
     finishWhatsAppImage(claim.file, "completed", {
       match,
       upload: { verified: true, ...verification },

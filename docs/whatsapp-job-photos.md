@@ -73,7 +73,7 @@ Queue directories are `incoming`, `processing`, `completed`, `review`, and `fail
 
 ## Slack receipt notifications
 
-When a sender supplies an explicit JK number in the image caption or in a recent text message, the worker can notify `#ops-dispatch` that OpsBot received and matched each photo. Notifications contain the JK number, photo category, receipt time, and an OpsCenter link; they do not include the sender phone number or customer data.
+When a sender supplies an explicit JK number in the image caption or in a recent text message, the worker can notify `#ops-dispatch` after the full photo batch has been added. Each photo is tracked as pending until JunkWare verifies its upload. Once every photo in the JK batch is verified and no additional photo arrives for 60 seconds, OpsCenter sends one summary containing the JK number, photo count/categories, and an OpsCenter link. It does not include the sender phone number or customer data.
 
 The notification outbox is durable and de-duplicated by WhatsApp message ID. Failed Slack deliveries retry with backoff without delaying or repeating the JunkWare upload. The worker reads the same protected `slack.env` file as the existing OpsCenter alert publisher and loads the bot token from Keychain.
 
@@ -82,10 +82,13 @@ Enable the feature in `/Users/missioncontrol/Library/Application Support/OpsCent
 ```sh
 SLACK_OPSCENTER_ALERTS_ENABLED=true
 SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED=true
+SLACK_WHATSAPP_PHOTO_BATCH_QUIET_SECONDS=60
 SLACK_WHATSAPP_PHOTO_CHANNEL_ID='C0BNRMD25AS'
 ```
 
 The channel defaults to `SLACK_OPS_DISPATCH_CHANNEL_ID` when `SLACK_WHATSAPP_PHOTO_CHANNEL_ID` is omitted.
+
+Slack photo attachments are intentionally disabled. Enabling them would require the broader `files:write` bot scope and would store a second copy of each customer photo in Slack.
 
 ## Verification
 

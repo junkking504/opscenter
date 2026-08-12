@@ -254,8 +254,60 @@ assert.equal(ingestCrewExpenseText(message(
   "5045551616",
   "2026-08-12T20:10:08.000Z",
 )).status, "ignored");
+
+const staleFuelPhone = "5045551717";
+assert.equal(ingestCrewExpenseText(message(
+  "stale-fuel-session",
+  "Fuel",
+  staleFuelPhone,
+  "2026-08-12T19:09:00.000Z",
+)).status, "prompted");
+const explicitDumpOverridesFuel = ingestCrewExpenseText(message(
+  "explicit-dump-overrides-fuel",
+  "T1 Dump Gentility $45 1604",
+  staleFuelPhone,
+  "2026-08-12T21:04:28.000Z",
+));
+assert.equal(explicitDumpOverridesFuel.status, "queued");
+assert.equal(explicitDumpOverridesFuel.record?.kind, "dump");
+assert.equal(explicitDumpOverridesFuel.record?.location, "Gentilly");
+assert.equal(explicitDumpOverridesFuel.record?.cost, 45);
+assert.equal(explicitDumpOverridesFuel.record?.weight, null);
+assert.equal(explicitDumpOverridesFuel.record?.time, "4:04 PM");
+
+const misspelledFuel = ingestCrewExpenseText(message(
+  "misspelled-fuel",
+  "Truk 1 Fule Shele 21 galons $81 405",
+  "5045551818",
+  "2026-08-12T21:05:00.000Z",
+));
+assert.equal(misspelledFuel.status, "queued");
+assert.equal(misspelledFuel.record?.kind, "fuel");
+assert.equal(misspelledFuel.record?.truck, "Truck# 1");
+assert.equal(misspelledFuel.record?.location, "Shell");
+assert.equal(misspelledFuel.record?.gallons, 21);
+assert.equal(misspelledFuel.record?.cost, 81);
+
+const misspelledLabels = ingestCrewExpenseText(message(
+  "misspelled-labels",
+  "Dunp\nTruk: 1\nLocaton: River Brich\nCst: $46\nTme: 4:06 PM",
+  "5045551919",
+  "2026-08-12T21:06:00.000Z",
+));
+assert.equal(misspelledLabels.status, "queued");
+assert.equal(misspelledLabels.record?.kind, "dump");
+assert.equal(misspelledLabels.record?.truck, "Truck# 1");
+assert.equal(misspelledLabels.record?.location, "River Birch");
+assert.equal(misspelledLabels.record?.cost, 46);
+
+assert.equal(ingestCrewExpenseText(message(
+  "ambiguous-typo-chatter",
+  "T1 was near Gentility at 404",
+  "5045552020",
+  "2026-08-12T21:06:00.000Z",
+)).status, "ignored");
 assert.equal(readCrewExpenseRecords("2026-08-12").length, 0);
-assert.equal(queuedCrewExpenseTransactions(20).length, 16);
+assert.equal(queuedCrewExpenseTransactions(30).length, 19);
 
 const transaction = claimCrewExpenseTransaction(queuedCrewExpenseTransactions()[0]);
 assert.ok(transaction);

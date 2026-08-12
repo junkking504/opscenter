@@ -88,6 +88,86 @@ function clean(value: unknown): string {
   return String(value || "").replace(/[ \t]+/g, " ").trim();
 }
 
+function editDistance(left: string, right: string): number {
+  const a = left.toLowerCase();
+  const b = right.toLowerCase();
+  const previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  for (let row = 1; row <= a.length; row += 1) {
+    const current = [row];
+    for (let column = 1; column <= b.length; column += 1) {
+      current[column] = Math.min(
+        current[column - 1] + 1,
+        previous[column] + 1,
+        previous[column - 1] + (a[row - 1] === b[column - 1] ? 0 : 1),
+      );
+    }
+    previous.splice(0, previous.length, ...current);
+  }
+  return previous[b.length];
+}
+
+function nearWord(value: string, expected: string, maximumDistance = 1): boolean {
+  const normalized = value.toLowerCase();
+  if (normalized === expected) return true;
+  if (normalized.length < 4 || expected.length < 4 || normalized[0] !== expected[0]) return false;
+  if (normalized.length === expected.length) {
+    for (let index = 0; index < normalized.length - 1; index += 1) {
+      const swapped = `${normalized.slice(0, index)}${normalized[index + 1]}${normalized[index]}${normalized.slice(index + 2)}`;
+      if (swapped === expected) return true;
+    }
+  }
+  return editDistance(normalized, expected) <= maximumDistance;
+}
+
+function canonicalizeStructuredTerms(text: string): string {
+  return String(text || "")
+    .replace(/\b[a-z]+\b/gi, (word) => {
+      const lower = word.toLowerCase();
+      if (nearWord(lower, "truck")) return "truck";
+      if (nearWord(lower, "dump") || nearWord(lower, "dumps")) return "dump";
+      if (nearWord(lower, "fuel")) return "fuel";
+      if (nearWord(lower, "gallon", 2) || nearWord(lower, "gallons", 2)) return "gallons";
+      if (nearWord(lower, "pound") || nearWord(lower, "pounds")) return "pounds";
+      if (nearWord(lower, "kilogram", 2) || nearWord(lower, "kilograms", 2)) return "kilograms";
+      return word;
+    })
+    .replace(/^(\s*)([a-z]+)(\s*:)/gim, (match, prefix: string, label: string, suffix: string) => {
+      const labels = ["truck", "location", "cost", "weight", "gallons", "time"];
+      const candidates = labels
+        .map((candidate) => ({ candidate, distance: editDistance(label, candidate) }))
+        .filter(({ candidate, distance }) => label[0]?.toLowerCase() === candidate[0] && distance <= (candidate.length >= 7 ? 2 : 1))
+        .sort((left, right) => left.distance - right.distance);
+      return candidates.length && (candidates.length === 1 || candidates[0].distance < candidates[1].distance)
+        ? `${prefix}${candidates[0].candidate}${suffix}`
+        : match;
+    });
+}
+
+const KNOWN_EXPENSE_LOCATIONS: Record<CrewExpenseKind, string[]> = {
+  dump: ["Gentilly", "Gentilly Landfill", "River Birch", "EBR"],
+  fuel: ["Shell", "Exxon", "Chevron", "Circle K", "RaceTrac", "Pilot", "Costco", "Sam's Club"],
+};
+
+function canonicalLocation(value: string, kind: CrewExpenseKind): string {
+  const location = clean(value);
+  const normalized = location.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  if (!normalized) return location;
+  const candidates = KNOWN_EXPENSE_LOCATIONS[kind]
+    .map((candidate) => ({
+      candidate,
+      distance: editDistance(normalized, candidate.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()),
+    }))
+    .filter(({ candidate, distance }) => {
+      const expected = candidate.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      const maximum = expected.length >= 12 ? 3 : expected.length >= 7 ? 2 : 1;
+      return normalized[0] === expected[0] && distance <= maximum;
+    })
+    .sort((left, right) => left.distance - right.distance);
+  return candidates.length && (candidates.length === 1 || candidates[0].distance < candidates[1].distance)
+    ? candidates[0].candidate
+    : location;
+}
+
 function recordKey(value: string): string {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
@@ -262,13 +342,19 @@ function fieldsFromMessage(text: string): { fields: CrewExpenseFields; recognize
   return { fields, recognized, lines };
 }
 
-function freeformKind(text: string, receivedAt: string): CrewExpenseKind | null {
+function explicitKind(text: string): CrewExpenseKind | null {
   if (/\bdump\b/i.test(text)) return "dump";
   if (/\b\d+(?:\.\d{1,3})?\s*(?:g|gal(?:lon)?s?)\.?\b/i.test(text)) return "fuel";
   if (/\bgal(?:lon)?s?\s*[:#-]?\s*\d+(?:\.\d{1,3})?\b/i.test(text)) return "fuel";
   if (/\b(?:fuel|gas)\b/i.test(text)) return "fuel";
   if (/\b\d+(?:\.\d+)?\s*(?:tons?|lbs?|pounds?|kg|kgs|kilograms?)\.?\b/i.test(text)) return "dump";
   if (/\b(?:tons?|lbs?|pounds?|kg|kgs|kilograms?)\s*[:#-]?\s*\d+(?:\.\d+)?\b/i.test(text)) return "dump";
+  return null;
+}
+
+function freeformKind(text: string, receivedAt: string): CrewExpenseKind | null {
+  const explicit = explicitKind(text);
+  if (explicit) return explicit;
   const truck = text.match(/\b(?:truck|t)\s*#?\s*\d{1,3}\b/i)?.[0] || "";
   if (!truck) return null;
   let remainder = clean(text.replace(truck, " "));
@@ -460,19 +546,22 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
   const marker = messageFile(message.messageId);
   if (fs.existsSync(marker)) return { status: "duplicate" };
 
-  const command = commandKind(message.text);
+  const normalizedMessage = { ...message, text: canonicalizeStructuredTerms(message.text) };
+
+  const command = commandKind(normalizedMessage.text);
   if (command) {
-    openSession(message, command);
-    enqueueReply(message, `Send each item separately or all at once — no labels needed:\n\n${command === "dump" ? DUMP_TEMPLATE : FUEL_TEMPLATE}${command === "dump" ? "\n\nWeight is optional." : ""}`, "expense-prompt");
+    openSession(normalizedMessage, command);
+    enqueueReply(normalizedMessage, `Send each item separately or all at once — no labels needed:\n\n${command === "dump" ? DUMP_TEMPLATE : FUEL_TEMPLATE}${command === "dump" ? "\n\nWeight is optional." : ""}`, "expense-prompt");
     writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "prompted", kind: command, processedAt: new Date().toISOString() });
     return { status: "prompted", kind: command };
   }
 
-  const parsed = fieldsFromMessage(message.text);
+  const parsed = fieldsFromMessage(normalizedMessage.text);
   const heading = messageHeading(parsed.lines);
-  const inferred = parsed.fields.gallons ? "fuel" : parsed.fields.weight ? "dump" : freeformKind(message.text, message.receivedAt);
+  const explicit = parsed.fields.gallons ? "fuel" : parsed.fields.weight ? "dump" : explicitKind(normalizedMessage.text);
+  const inferred = explicit || freeformKind(normalizedMessage.text, message.receivedAt);
   const session = activeSession(message.senderPhone, message.receivedAt);
-  const kind = heading || session?.kind || inferred;
+  const kind = heading || explicit || session?.kind || inferred;
   if (!parsed.recognized && !kind) return { status: "ignored" };
   if (!kind) {
     const detail = "Start with Dump or Fuel so OpsBot knows which expense form you are sending.";
@@ -529,7 +618,7 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
     kind,
     date: chicagoDateKey(new Date(message.receivedAt)),
     truck,
-    location: fields.location || "",
+    location: canonicalLocation(fields.location || "", kind),
     cost,
     weight: kind === "dump" ? clean(fields.weight) || null : null,
     gallons: kind === "fuel" ? gallons : null,

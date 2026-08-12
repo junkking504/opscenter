@@ -7,6 +7,11 @@ import { readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { matchWhatsAppPhoto, normalizePhone, type FleetLocation } from "@/lib/whatsapp-job-photo-matching";
 import {
+  deliverWhatsAppPhotoSlackNotifications,
+  queueWhatsAppPhotoSlackNotification,
+  whatsAppPhotoSlackNotificationsEnabled,
+} from "@/lib/whatsapp-job-photo-slack";
+import {
   claimWhatsAppImage,
   finishWhatsAppImage,
   queuedWhatsAppImages,
@@ -21,9 +26,9 @@ function clean(value: unknown): string {
   return String(value || "").replace(/\s+/g, " ").trim();
 }
 
-function keychain(service: string): string {
+function keychain(service: string, account?: string): string {
   try {
-    return execFileSync("security", ["find-generic-password", "-w", "-s", service], {
+    return execFileSync("security", ["find-generic-password", "-w", ...(account ? ["-a", account] : []), "-s", service], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
       timeout: 10_000,
@@ -36,6 +41,12 @@ function keychain(service: string): string {
 function accessToken(): string {
   return String(process.env.WHATSAPP_ACCESS_TOKEN || "").trim()
     || keychain("opscenter-whatsapp-access-token");
+}
+
+function loadSlackBotToken(): void {
+  if (String(process.env.SLACK_BOT_TOKEN || "").trim()) return;
+  const token = keychain("com.opscenter.slack-bot-token", "opscenter");
+  if (token.startsWith("xoxb-")) process.env.SLACK_BOT_TOKEN = token;
 }
 
 export function senderTruckMap(raw = process.env.WHATSAPP_TRUCK_PHONE_MAP): Record<string, string> {
@@ -154,6 +165,15 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
       return "review";
     }
     matchedJob = match;
+    if (match.method === "jk_number" && whatsAppPhotoSlackNotificationsEnabled()) {
+      queueWhatsAppPhotoSlackNotification({
+        messageId: claim.message.messageId,
+        jkNumber: match.jkNumber,
+        category: match.category,
+        receivedAt: claim.message.receivedAt,
+        jobDate: date,
+      });
+    }
     stage = "downloading";
     const filePath = await downloadWhatsAppImage(claim.message);
     stage = "uploading";
@@ -191,8 +211,12 @@ async function main(): Promise<void> {
     const result = await processOne(incomingFile, map);
     results[result] += 1;
   }
+  loadSlackBotToken();
+  const slack = await deliverWhatsAppPhotoSlackNotifications();
   const processedCount = Object.values(results).reduce((sum, count) => sum + count, 0);
-  if (processedCount) process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: whatsappQueueCounts() })}\n`);
+  if (processedCount || slack.attempted) {
+    process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: whatsappQueueCounts(), slack })}\n`);
+  }
 }
 
 main().catch((error) => {

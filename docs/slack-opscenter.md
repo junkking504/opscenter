@@ -9,6 +9,7 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
 - Appointment still open after its scheduled window -> `#ops-dispatch`
 - Open out-of-service fleet issue -> `#ops-fleet`
 - Red JunkWare or Linxup data health -> `#ops-data-health`
+- WhatsApp photo received with an explicit JK number -> `#ops-dispatch` (when `SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED=true`)
 
 The first live run records both existing appointments and currently active incidents as its baseline. It does not flood Slack with pre-existing conditions. Once a baseline condition clears, a later recurrence is treated as a new incident. New incident alerts are deduplicated, and recovery messages are posted in the original Slack thread.
 

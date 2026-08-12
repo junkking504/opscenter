@@ -17,7 +17,13 @@ import {
   recordWhatsAppTextContext,
   verifyMetaSignature,
 } from "@/lib/whatsapp-job-photo-queue";
+import {
+  deliverWhatsAppPhotoSlackNotifications,
+  formatWhatsAppPhotoSlackNotification,
+  queueWhatsAppPhotoSlackNotification,
+} from "@/lib/whatsapp-job-photo-slack";
 
+async function main(): Promise<void> {
 const now = new Date("2026-08-11T15:00:00.000Z");
 const appointments = [
   { appt_id: "401", job_id: "JK4025001", job_status: "Confirmed", lat: 30, lng: -90 },
@@ -125,9 +131,58 @@ try {
   assert.equal(enqueueWhatsAppImage(parsed.images[0]).duplicate, false);
   assert.equal(enqueueWhatsAppImage(parsed.images[0]).duplicate, true);
   assert.equal(queuedWhatsAppImages().length, 1);
+
+  const slackNotification = {
+    version: 1 as const,
+    messageId: "image-1",
+    jkNumber: "JK4025001",
+    category: "before" as const,
+    receivedAt: parsed.images[0].receivedAt,
+    jobDate: "2026-08-11",
+    queuedAt: now.toISOString(),
+  };
+  const formatted = formatWhatsAppPhotoSlackNotification(slackNotification);
+  assert.match(formatted, /OpsBot received a photo/);
+  assert.match(formatted, /JK4025001/);
+  assert.doesNotMatch(formatted, /15045550101/);
+
+  assert.equal(queueWhatsAppPhotoSlackNotification(slackNotification).duplicate, false);
+  assert.equal(queueWhatsAppPhotoSlackNotification(slackNotification).duplicate, true);
+  process.env.SLACK_OPSCENTER_ALERTS_ENABLED = "true";
+  process.env.SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED = "true";
+  process.env.SLACK_BOT_TOKEN = "xoxb-test-token";
+  process.env.SLACK_WHATSAPP_PHOTO_CHANNEL_ID = "C_TEST_DISPATCH";
+  const requests: Array<Record<string, unknown>> = [];
+  const delivered = await deliverWhatsAppPhotoSlackNotifications({
+    now,
+    fetchImpl: async (_input, init) => {
+      requests.push(JSON.parse(String(init?.body || "{}")) as Record<string, unknown>);
+      return new Response(JSON.stringify({ ok: true, ts: "123.456" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    },
+  });
+  assert.equal(delivered.attempted, 1);
+  assert.equal(delivered.delivered, 1);
+  assert.equal(delivered.pending, 0);
+  assert.equal(requests[0].channel, "C_TEST_DISPATCH");
+  assert.match(String(requests[0].text), /JK4025001/);
+  const duplicateDelivery = await deliverWhatsAppPhotoSlackNotifications({ now });
+  assert.equal(duplicateDelivery.attempted, 0);
 } finally {
   fs.rmSync(temporaryState, { recursive: true, force: true });
   delete process.env.WHATSAPP_JOB_PHOTO_STATE_DIR;
+  delete process.env.SLACK_OPSCENTER_ALERTS_ENABLED;
+  delete process.env.SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED;
+  delete process.env.SLACK_BOT_TOKEN;
+  delete process.env.SLACK_WHATSAPP_PHOTO_CHANNEL_ID;
 }
 
 console.log("WhatsApp job photo verification passed.");
+}
+
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : error);
+  process.exitCode = 1;
+});

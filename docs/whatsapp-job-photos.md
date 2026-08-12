@@ -71,6 +71,22 @@ The worker reads the durable spool at `data/integrations/whatsapp-job-photos` un
 
 Queue directories are `incoming`, `processing`, `completed`, `review`, and `failed`. A failure before JunkWare submission can retry up to three times. A failure during submission is treated as an uncertain outcome and moved to review to prevent duplicate customer photos.
 
+## Slack receipt notifications
+
+When a sender supplies an explicit JK number in the image caption or in a recent text message, the worker can notify `#ops-dispatch` that OpsBot received and matched each photo. Notifications contain the JK number, photo category, receipt time, and an OpsCenter link; they do not include the sender phone number or customer data.
+
+The notification outbox is durable and de-duplicated by WhatsApp message ID. Failed Slack deliveries retry with backoff without delaying or repeating the JunkWare upload. The worker reads the same protected `slack.env` file as the existing OpsCenter alert publisher and loads the bot token from Keychain.
+
+Enable the feature in `/Users/missioncontrol/Library/Application Support/OpsCenter/slack.env`:
+
+```sh
+SLACK_OPSCENTER_ALERTS_ENABLED=true
+SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED=true
+SLACK_WHATSAPP_PHOTO_CHANNEL_ID='C0BNRMD25AS'
+```
+
+The channel defaults to `SLACK_OPS_DISPATCH_CHANNEL_ID` when `SLACK_WHATSAPP_PHOTO_CHANNEL_ID` is omitted.
+
 ## Verification
 
 ```sh

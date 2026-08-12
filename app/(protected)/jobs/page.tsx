@@ -9,7 +9,6 @@ import OpsMonthSelector from "@/components/OpsMonthSelector";
 import JobCallAheadCard from "@/components/JobCallAheadCard";
 import JobCloseoutEditor from "@/components/JobCloseoutEditor";
 import { JobsMap, type JobsMapPoint } from "@/components/JobsMap";
-import OpsPagination from "@/components/OpsPagination";
 import { AnyRecord, availableDates, completedJobs, money, readMetrics, resolveDate } from "@/lib/opsData";
 import { buildOperationalExceptions } from "@/lib/operational-exceptions";
 import { buildFleetMapPayload, type FleetTruckMapRecord } from "@/lib/fleet-map";
@@ -126,8 +125,6 @@ type SiteTimeAppointment = {
 type JobStatusBucket = "Open / Scheduled" | "Estimate" | "Completed" | "Canceled" | "Unclosed or Needs Attention";
 type JobsView = "daily" | "calendar" | "monthly";
 type JobsWorkspace = "dispatch";
-
-const JOBS_PER_PAGE = 12;
 
 type JobsFilters = {
   territory: string;
@@ -649,7 +646,6 @@ function buildJobsHref({
   truck,
   q,
   siteTime,
-  page,
 }: {
   date: string;
   view: JobsView;
@@ -660,7 +656,6 @@ function buildJobsHref({
   truck?: string;
   q?: string;
   siteTime?: string;
-  page?: number;
 }) {
   const params = new URLSearchParams();
   params.set("date", date);
@@ -672,7 +667,6 @@ function buildJobsHref({
   if (truck) params.set("truck", truck);
   if (q) params.set("q", q);
   if (siteTime) params.set("siteTime", siteTime);
-  if (page && page > 1) params.set("page", String(page));
   return `/jobs?${params.toString()}`;
 }
 
@@ -2178,7 +2172,7 @@ function JobPhotoDetails({ job }: { job: JobRow }) {
           {previewPhotos.map((photo, index) => photoLink(photo, index, "Before"))}
         </div>
         {remainingEstimatePhotos.length ? (
-          <details className="ops-job-photo-more">
+          <details className="ops-job-photo-more" open>
             <summary>View {remainingEstimatePhotos.length} More Before Photo{remainingEstimatePhotos.length === 1 ? "" : "s"}</summary>
             <div className="ops-job-photo-gallery">
               {remainingEstimatePhotos.map((photo, index) => photoLink(photo, index + previewPhotos.length, "Before"))}
@@ -2186,7 +2180,7 @@ function JobPhotoDetails({ job }: { job: JobRow }) {
           </details>
         ) : null}
         {appointmentPhotos.length ? (
-          <details className="ops-job-photo-more">
+          <details className="ops-job-photo-more" open>
             <summary>View {appointmentPhotos.length} Appointment Photo{appointmentPhotos.length === 1 ? "" : "s"}</summary>
             <div className="ops-job-photo-gallery">
               {appointmentPhotos.map((photo, index) => photoLink(photo, index, photo.category))}
@@ -2198,7 +2192,7 @@ function JobPhotoDetails({ job }: { job: JobRow }) {
   }
 
   return (
-    <details className="ops-job-photo-details">
+    <details className="ops-job-photo-details" open>
       <summary>
         <span>Job photos</span>
         <strong>{job.photos.length} uploaded</strong>
@@ -2571,18 +2565,7 @@ export default async function JobsPage({
   const orderedQueueJobs = view === "calendar"
     ? groupJobsByTerritory(selectedCalendarJobs).flatMap(([, territoryJobs]) => territoryJobs)
     : orderedFilteredJobs;
-  const requestedPage = Number.parseInt(String(params?.page || "1"), 10);
-  const totalQueuePages = view === "daily"
-    ? Math.max(1, Math.ceil(orderedQueueJobs.length / JOBS_PER_PAGE))
-    : 1;
-  const queuePage = Math.min(
-    totalQueuePages,
-    Math.max(1, Number.isFinite(requestedPage) ? requestedPage : 1),
-  );
-  const queueStart = (queuePage - 1) * JOBS_PER_PAGE;
-  const queueJobs = view === "daily"
-    ? orderedQueueJobs.slice(queueStart, queueStart + JOBS_PER_PAGE)
-    : orderedQueueJobs;
+  const queueJobs = orderedQueueJobs;
   const groupedJobs = groupJobsByTerritory(queueJobs);
   const jobsExceptions = buildOperationalExceptions(view === "calendar" ? selectedCalendarDate : date).exceptions
     .filter((exception) => exception.category === "Jobs");
@@ -3145,14 +3128,6 @@ export default async function JobsPage({
             </Link>
           ) : <div className="ops-job-count-pill">{filterCount} appointments</div>}
         </div>
-
-        {view === "daily" ? <OpsPagination
-            label="Appointment queue pages"
-            currentPage={queuePage}
-            totalPages={totalQueuePages}
-            previousHref={queuePage > 1 ? buildJobsHref({ date, view, workspace, ...filters, page: queuePage - 1 }) : undefined}
-            nextHref={queuePage < totalQueuePages ? buildJobsHref({ date, view, workspace, ...filters, page: queuePage + 1 }) : undefined}
-          /> : null}
 
         <div
           className="ops-selected-appointment-slot"
@@ -3778,14 +3753,6 @@ export default async function JobsPage({
                 : "No appointments match the selected filters."}
             </div>
           )}
-
-          {view === "daily" ? <OpsPagination
-            label="Appointment queue pages"
-            currentPage={queuePage}
-            totalPages={totalQueuePages}
-            previousHref={queuePage > 1 ? buildJobsHref({ date, view, workspace, ...filters, page: queuePage - 1 }) : undefined}
-            nextHref={queuePage < totalQueuePages ? buildJobsHref({ date, view, workspace, ...filters, page: queuePage + 1 }) : undefined}
-          /> : null}
 
           {view === "daily" && jobs.length > 0 && (
             <div className="ops-job-total-row compact-total">

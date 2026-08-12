@@ -63,6 +63,9 @@ const DEFAULT_CHANNELS = {
   dispatch: "C0BNRMD25AS",
   fleet: "C0BNQ6J7LER",
   dataHealth: "C0BPN1FVCDN",
+  jobsNewOrleans: "C0BPRML654N",
+  jobsBatonRouge: "C0BPQ30C8LD",
+  jobsNorthshore: "C0BPC9M5GLX",
 } as const;
 
 function boolEnv(name: string): boolean {
@@ -124,8 +127,34 @@ function channel(name: keyof typeof DEFAULT_CHANNELS): string {
     dispatch: "SLACK_OPS_DISPATCH_CHANNEL_ID",
     fleet: "SLACK_OPS_FLEET_CHANNEL_ID",
     dataHealth: "SLACK_OPS_DATA_HEALTH_CHANNEL_ID",
+    jobsNewOrleans: "SLACK_JOBS_NO_CHANNEL_ID",
+    jobsBatonRouge: "SLACK_JOBS_BR_CHANNEL_ID",
+    jobsNorthshore: "SLACK_JOBS_NS_CHANNEL_ID",
   };
   return String(process.env[envNames[name]] || DEFAULT_CHANNELS[name]).trim();
+}
+
+export function appointmentChannelId(territory: string): string {
+  const normalized = String(territory || "").trim().toLowerCase();
+  if (
+    normalized.includes("new orleans")
+    || normalized.includes("jefferson parish")
+    || normalized === "no"
+    || normalized === "jp"
+  ) {
+    return channel("jobsNewOrleans");
+  }
+  if (normalized.includes("baton rouge") || normalized === "br") {
+    return channel("jobsBatonRouge");
+  }
+  if (normalized.includes("northshore") || normalized.includes("north shore") || normalized === "ns") {
+    return channel("jobsNorthshore");
+  }
+  return channel("dispatch");
+}
+
+export function slackAlertKindEnabled(kind: SlackAlertKind): boolean {
+  return kind !== "late_job";
 }
 
 function origin(): string {
@@ -196,7 +225,7 @@ function addOnAlert(appointment: AddOnAppointment, date: string): SlackOpsAlert 
     kind: "add_on",
     lifecycle: "notification",
     severity: "warning",
-    channelId: channel("dispatch"),
+    channelId: appointmentChannelId(appointment.territory),
     title: `New same-day appointment: ${appointment.jobNumber}`,
     detail: `${appointment.customerName} · ${appointment.appointmentTime} · ${appointment.assignedTruck} · ${appointment.address}`,
     nextAction: "Confirm crew and truck coverage, then update the route plan.",
@@ -211,7 +240,10 @@ function collectIncidentAlerts(date: string): SlackOpsAlert[] {
     if (exception.rule === "employee_clocked_in_but_not_assigned_to_truck") {
       alerts.push(exceptionAlert(exception, "unassigned_crew"));
     }
-    if (exception.rule === "open_appointment_past_scheduled_window") {
+    if (
+      exception.rule === "open_appointment_past_scheduled_window"
+      && slackAlertKindEnabled("late_job")
+    ) {
       alerts.push(exceptionAlert(exception, "late_job"));
     }
   }
@@ -322,6 +354,9 @@ export async function runSlackOpsAlerts(options?: {
 
   const now = new Date().toISOString();
   const currentFingerprints = new Set(incidents.map((alert) => alert.fingerprint));
+  for (const [fingerprint, active] of Object.entries(state.active)) {
+    if (!slackAlertKindEnabled(active.kind)) delete state.active[fingerprint];
+  }
   if (!state.initializedAt) {
     state.initializedAt = now;
     state.updatedAt = now;

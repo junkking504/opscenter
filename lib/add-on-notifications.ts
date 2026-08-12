@@ -5,6 +5,7 @@ export type AddOnAppointment = {
   id: string;
   appointmentId: string;
   jobNumber: string;
+  territory: string;
   customerName: string;
   address: string;
   appointmentTime: string;
@@ -52,6 +53,14 @@ function jobAnchor(value: string): string {
   return value.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
 }
 
+export function appointmentTerritory(row: AnyRecord): string {
+  return firstText(
+    row,
+    ["normalized_territory", "territory", "source_territory", "market"],
+    "Unknown territory",
+  );
+}
+
 export function buildAddOnAppointmentFeed(date: string): AddOnAppointmentFeed {
   const metrics = readMetrics(date);
   const sourceRows = Array.isArray(metrics?.appointments) ? metrics.appointments : [];
@@ -72,6 +81,7 @@ export function buildAddOnAppointmentFeed(date: string): AddOnAppointmentFeed {
       id,
       appointmentId,
       jobNumber,
+      territory: appointmentTerritory(row),
       customerName: firstText(row, ["customer_name", "customer", "name"], "Customer name unavailable"),
       address: firstText(row, ["service_address", "address", "job_address"], "Address unavailable"),
       appointmentTime: firstText(row, ["appointment_time", "scheduled_time", "time_window"], "Time unavailable"),

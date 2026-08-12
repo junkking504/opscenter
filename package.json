@@ -22,6 +22,7 @@
     "verify:searchkings": "node --import tsx scripts/test-searchkings.ts",
     "verify:junkware-sms": "node --import tsx scripts/test-junkware-sms.ts",
     "verify:whatsapp-job-photos": "node --import tsx scripts/test-whatsapp-job-photos.ts",
+    "verify:slack-alerts": "node --import tsx scripts/test-slack-alerts.ts",
     "verify:qbo": "node --import tsx scripts/test-qbo-integration.ts",
     "verify:ops-auth": "node --import tsx scripts/test-ops-auth.ts",
     "verify:platform-kernel": "node --import tsx scripts/test-platform-kernel.ts",

@@ -11,6 +11,7 @@ import { readFleetIssueStore, type FleetIssue } from "@/lib/fleet-issues";
 import { buildOperationalExceptions, type OperationalException } from "@/lib/operational-exceptions";
 import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
+import { truckSlackChannelId } from "@/lib/slack-truck-channels";
 
 export type SlackAlertSeverity = "critical" | "warning";
 export type SlackAlertKind =
@@ -287,7 +288,7 @@ function addOnAlert(appointment: AddOnAppointment, date: string): SlackOpsAlert 
     kind: "add_on",
     lifecycle: "notification",
     severity: "warning",
-    channelId: appointmentChannelId(appointment.territory),
+    channelId: truckSlackChannelId(appointment.assignedTruck, appointmentChannelId(appointment.territory)),
     title: `New same-day appointment: ${appointment.jobNumber}`,
     detail: `${appointment.customerName} · ${appointment.appointmentTime} · ${appointment.assignedTruck} · ${appointment.address}`,
     nextAction: "Confirm crew and truck coverage, then update the route plan.",
@@ -305,7 +306,7 @@ function cancellationAlert(appointment: CancelledAppointment, date: string): Sla
     kind: "cancellation",
     lifecycle: "notification",
     severity: "warning",
-    channelId: appointmentChannelId(appointment.territory),
+    channelId: truckSlackChannelId(appointment.assignedTruck, appointmentChannelId(appointment.territory)),
     title: `Appointment cancelled: ${appointment.jobNumber}`,
     detail: [
       appointment.customerName,
@@ -489,7 +490,7 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
         kind: "truck_arrival",
         lifecycle: "notification",
         severity: "warning",
-        channelId: channel("dispatch"),
+        channelId: truckSlackChannelId(truck, channel("dispatch")),
         title: plainText,
         detail: "",
         nextAction: "",

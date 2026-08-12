@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { truckSlackChannelId } from "@/lib/slack-truck-channels";
 import { whatsappPhotoStateDirectory } from "@/lib/whatsapp-job-photo-queue";
 
 type WhatsAppPhotoCategory = "before" | "after" | "donation";
@@ -25,6 +26,7 @@ export type WhatsAppPhotoSlackBatch = {
   batchId: string;
   jkNumber: string;
   jobDate: string;
+  truck?: string;
   openedAt: string;
   updatedAt: string;
   photos: WhatsAppPhotoSlackBatchPhoto[];
@@ -180,6 +182,7 @@ export function recordWhatsAppPhotoSlackUpload(input: {
   category: WhatsAppPhotoCategory;
   receivedAt: string;
   jobDate: string;
+  truck?: string;
   status: "pending" | "completed";
   filePath?: string;
   now?: Date;
@@ -202,10 +205,12 @@ export function recordWhatsAppPhotoSlackUpload(input: {
     batchId: `${jobDate}:${jkNumber}:${messageId}`,
     jkNumber,
     jobDate,
+    ...(clean(input.truck) ? { truck: clean(input.truck) } : {}),
     openedAt: nowIso,
     updatedAt: nowIso,
     photos: [],
   };
+  if (!batch.truck && clean(input.truck)) batch.truck = clean(input.truck);
   const index = batch.photos.findIndex((photo) => photo.messageId === messageId);
   const current = index >= 0 ? batch.photos[index] : null;
   let mediaFile = current?.mediaFile;
@@ -386,13 +391,14 @@ export async function deliverWhatsAppPhotoSlackNotifications(options?: {
 
   const token = clean(process.env.SLACK_BOT_TOKEN);
   if (!token.startsWith("xoxb-")) return { ...result, failed: allPending };
-  const channelId = clean(process.env.SLACK_WHATSAPP_PHOTO_CHANNEL_ID || process.env.SLACK_OPS_DISPATCH_CHANNEL_ID)
+  const fallbackChannelId = clean(process.env.SLACK_WHATSAPP_PHOTO_CHANNEL_ID || process.env.SLACK_OPS_DISPATCH_CHANNEL_ID)
     || DEFAULT_DISPATCH_CHANNEL_ID;
   const fetchImpl = options?.fetchImpl || fetch;
   const now = options?.now || new Date();
   const attachmentsEnabled = boolEnv("SLACK_WHATSAPP_PHOTO_ATTACHMENTS_ENABLED");
 
   for (const { file, batch } of eligibleBatches(options?.limit ?? 10, now)) {
+    const channelId = truckSlackChannelId(batch.truck, fallbackChannelId);
     result.attempted += 1;
     let responsePayload: SlackApiResponse = { ok: false, error: "Slack request failed" };
     let retryAfterSeconds = 0;

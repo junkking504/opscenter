@@ -172,6 +172,7 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
         category: match.category,
         receivedAt: claim.message.receivedAt,
         jobDate: date,
+        truck: match.truck || "",
         status: "pending",
       });
     }
@@ -191,6 +192,7 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
         category: match.category,
         receivedAt: claim.message.receivedAt,
         jobDate: date,
+        truck: match.truck || "",
         status: "completed",
         filePath,
       });

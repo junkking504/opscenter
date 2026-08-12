@@ -10,12 +10,14 @@ import {
   formatSlackAlert,
   slackAlertKindEnabled,
 } from "@/lib/slack-alerts";
+import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 
 process.env.SLACK_JOBS_NO_CHANNEL_ID = "C_TEST_NO";
 process.env.SLACK_JOBS_BR_CHANNEL_ID = "C_TEST_BR";
 process.env.SLACK_JOBS_NS_CHANNEL_ID = "C_TEST_NS";
 process.env.SLACK_OPS_DISPATCH_CHANNEL_ID = "C_TEST_DISPATCH";
 process.env.SLACK_OPS_COMMAND_CHANNEL_ID = "C_TEST_COMMAND";
+process.env.SLACK_TRUCK_4_CHANNEL_ID = "C_TEST_TRUCK_4";
 delete process.env.SLACK_OPS_CREW_CHANNEL_ID;
 
 assert.equal(appointmentTerritory({ normalized_territory: "Jefferson Parish", market: "New Orleans" }), "Jefferson Parish");
@@ -30,6 +32,10 @@ assert.equal(appointmentChannelId("Baton Rouge"), "C_TEST_BR");
 assert.equal(appointmentChannelId("North Shore"), "C_TEST_NS");
 assert.equal(appointmentChannelId("Lafayette"), "C_TEST_DISPATCH");
 assert.equal(appointmentChannelId("Unknown territory"), "C_TEST_DISPATCH");
+assert.equal(normalizeSlackTruckNumber("Truck# 4"), 4);
+assert.equal(normalizeSlackTruckNumber("Virtual Truck"), null);
+assert.equal(truckSlackChannelId("Truck 4", "C_TEST_FALLBACK"), "C_TEST_TRUCK_4");
+assert.equal(truckSlackChannelId("Unassigned", "C_TEST_FALLBACK"), "C_TEST_FALLBACK");
 assert.equal(slackAlertKindEnabled("late_job"), false);
 assert.equal(slackAlertKindEnabled("add_on"), true);
 assert.equal(slackAlertKindEnabled("cancellation"), true);
@@ -73,8 +79,8 @@ assert.equal(truckArrivalAlerts.length, 2);
 assert.deepEqual(
   truckArrivalAlerts.map((alert) => ({ kind: alert.kind, channelId: alert.channelId, text: formatSlackAlert(alert) })),
   [
-    { kind: "truck_arrival", channelId: "C_TEST_DISPATCH", text: ":truck: Truck 4 arrived onsite at JK4050424." },
-    { kind: "truck_arrival", channelId: "C_TEST_DISPATCH", text: ":truck: Truck 4 arrived onsite at JK4050424." },
+    { kind: "truck_arrival", channelId: "C_TEST_TRUCK_4", text: ":truck: Truck 4 arrived onsite at JK4050424." },
+    { kind: "truck_arrival", channelId: "C_TEST_TRUCK_4", text: ":truck: Truck 4 arrived onsite at JK4050424." },
   ],
 );
 
@@ -94,6 +100,7 @@ fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), J
       address: "123 Test Street",
       cancelled_by: "Dispatcher",
       cancellation_reason: "Customer requested",
+      assigned_truck: "Truck 4",
     },
     {
       appt_id: "401",
@@ -115,7 +122,7 @@ assert.deepEqual(cancellationFeed.appointments[0], {
   address: "123 Test Street",
   appointmentTime: "1:00 PM - 3:00 PM",
   appointmentType: "Appointment",
-  assignedTruck: "Unassigned",
+  assignedTruck: "Truck 4",
   href: "/jobs?date=2026-08-12#job-jk4025001",
   cancelledBy: "Dispatcher",
   cancellationReason: "Customer requested",

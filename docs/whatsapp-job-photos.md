@@ -73,7 +73,7 @@ Queue directories are `incoming`, `processing`, `completed`, `review`, and `fail
 
 ## Slack receipt notifications
 
-When a sender supplies an explicit JK number in the image caption or in a recent text message, the worker can notify `#ops-dispatch` after the full photo batch has been added. Each photo is tracked as pending until JunkWare verifies its upload. Once every photo in the JK batch is verified and no additional photo arrives for 60 seconds, OpsCenter sends one summary containing the JK number, photo count/categories, and an OpsCenter link. It does not include the sender phone number or customer data.
+When a sender supplies an explicit JK number in the image caption or in a recent text message, the worker can notify the appointment's assigned `#truck-N` channel after the full photo batch has been added. Each photo is tracked as pending until JunkWare verifies its upload. Once every photo in the JK batch is verified and no additional photo arrives for 60 seconds, OpsCenter sends one summary containing the JK number, photo count/categories, and an OpsCenter link. It does not include the sender phone number or customer data. A batch without a mapped physical truck falls back to `SLACK_WHATSAPP_PHOTO_CHANNEL_ID`, then `#ops-dispatch`.
 
 The notification outbox is durable and de-duplicated by WhatsApp message ID. Failed Slack deliveries retry with backoff without delaying or repeating the JunkWare upload. The worker reads the same protected `slack.env` file as the existing OpsCenter alert publisher and loads the bot token from Keychain.
 
@@ -84,9 +84,10 @@ SLACK_OPSCENTER_ALERTS_ENABLED=true
 SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED=true
 SLACK_WHATSAPP_PHOTO_BATCH_QUIET_SECONDS=60
 SLACK_WHATSAPP_PHOTO_CHANNEL_ID='C0BNRMD25AS'
+SLACK_TRUCK_8_CHANNEL_ID='C0BPMSJ7V43'
 ```
 
-The channel defaults to `SLACK_OPS_DISPATCH_CHANNEL_ID` when `SLACK_WHATSAPP_PHOTO_CHANNEL_ID` is omitted.
+Configure every active `SLACK_TRUCK_N_CHANNEL_ID` as shown in `.env.slack.example`. The fallback channel defaults to `SLACK_OPS_DISPATCH_CHANNEL_ID` when `SLACK_WHATSAPP_PHOTO_CHANNEL_ID` is omitted.
 
 To include the verified photos in the grouped Slack notification, add `files:write` to the Slack app, reinstall it in the workspace, update the protected Keychain bot token if Slack rotates it, and set `SLACK_WHATSAPP_PHOTO_ATTACHMENTS_ENABLED=true`. This uses Slack's external upload flow and stores a second copy of each customer photo in Slack. Keep the flag off until the reinstalled token passes a scope check.
 

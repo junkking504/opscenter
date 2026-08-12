@@ -138,6 +138,7 @@ try {
     batchId: "2026-08-11:JK4025001:image-1",
     jkNumber: "JK4025001",
     jobDate: "2026-08-11",
+    truck: "Truck 8",
     openedAt: now.toISOString(),
     updatedAt: now.toISOString(),
     photos: [
@@ -157,6 +158,7 @@ try {
   process.env.SLACK_WHATSAPP_PHOTO_BATCH_QUIET_SECONDS = "60";
   process.env.SLACK_BOT_TOKEN = "xoxb-test-token";
   process.env.SLACK_WHATSAPP_PHOTO_CHANNEL_ID = "C_TEST_DISPATCH";
+  process.env.SLACK_TRUCK_8_CHANNEL_ID = "C_TEST_TRUCK_8";
   const requests: Array<{ url: string; body: string }> = [];
   let uploadTicket = 0;
   const fetchImpl: typeof fetch = async (input, init) => {
@@ -185,6 +187,7 @@ try {
     category: "before" as const,
     receivedAt: parsed.images[0].receivedAt,
     jobDate: "2026-08-11",
+    truck: "Truck 8",
   };
   const secondPhoto = { ...firstPhoto, messageId: "image-2", category: "after" as const };
   const firstPhotoFile = whatsappMediaFile(firstPhoto.messageId, "image/jpeg");
@@ -213,7 +216,7 @@ try {
   const completionRequest = requests.find((request) => request.url.endsWith("/files.completeUploadExternal"));
   assert.ok(completionRequest);
   const completionBody = JSON.parse(completionRequest.body) as { channel_id?: string; initial_comment?: string; files?: unknown[] };
-  assert.equal(completionBody.channel_id, "C_TEST_DISPATCH");
+  assert.equal(completionBody.channel_id, "C_TEST_TRUCK_8");
   assert.equal(completionBody.files?.length, 2);
   assert.match(String(completionBody.initial_comment), /JK4025001/);
   assert.match(String(completionBody.initial_comment), /added 2 photos/);
@@ -229,6 +232,7 @@ try {
   delete process.env.SLACK_WHATSAPP_PHOTO_BATCH_QUIET_SECONDS;
   delete process.env.SLACK_BOT_TOKEN;
   delete process.env.SLACK_WHATSAPP_PHOTO_CHANNEL_ID;
+  delete process.env.SLACK_TRUCK_8_CHANNEL_ID;
 }
 
 console.log("WhatsApp job photo verification passed.");

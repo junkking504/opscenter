@@ -5,9 +5,11 @@ import path from "node:path";
 import { appointmentTerritory, buildCancelledAppointmentFeed } from "@/lib/add-on-notifications";
 import {
   appointmentChannelId,
+  buildPaymentCloseoutSlackNotifications,
   buildCrewSlackNotifications,
   buildTruckArrivalSlackNotifications,
   formatSlackAlert,
+  runSlackOpsAlerts,
   slackAlertKindEnabled,
 } from "@/lib/slack-alerts";
 
@@ -16,8 +18,10 @@ process.env.SLACK_JOBS_BR_CHANNEL_ID = "C_TEST_BR";
 process.env.SLACK_JOBS_NS_CHANNEL_ID = "C_TEST_NS";
 process.env.SLACK_OPS_DISPATCH_CHANNEL_ID = "C_TEST_DISPATCH";
 process.env.SLACK_OPS_COMMAND_CHANNEL_ID = "C_TEST_COMMAND";
+process.env.SLACK_OPS_PAYMENT_CHANNEL_ID = "C_TEST_PAYMENT";
 delete process.env.SLACK_OPS_CREW_CHANNEL_ID;
 
+async function main() {
 assert.equal(appointmentTerritory({ normalized_territory: "Jefferson Parish", market: "New Orleans" }), "Jefferson Parish");
 assert.equal(appointmentTerritory({ territory: "Northshore" }), "Northshore");
 assert.equal(appointmentTerritory({ market: "Baton Rouge" }), "Baton Rouge");
@@ -35,6 +39,84 @@ assert.equal(slackAlertKindEnabled("add_on"), true);
 assert.equal(slackAlertKindEnabled("cancellation"), true);
 assert.equal(slackAlertKindEnabled("unassigned_crew"), true);
 assert.equal(slackAlertKindEnabled("truck_arrival"), true);
+assert.equal(slackAlertKindEnabled("job_closed_payment"), true);
+
+const paymentCloseoutAlerts = buildPaymentCloseoutSlackNotifications("2026-08-12", [
+  {
+    appt_id: "10",
+    job_id: "JK4051000",
+    final_status: "Completed",
+    tip: "$50.80",
+    closeout: {
+      tip: "$50.80",
+      payments: [{ method: "Credit Card", detail: "***3013", amount: "$558.80" }],
+    },
+  },
+  {
+    appt_id: "11",
+    job_id: "JK4051001",
+    job_status: "Completed Duration: 60 min(s)",
+    closeout: {
+      payments: [{ method: "Check", detail: "#1487", amount: "$198.00" }],
+    },
+  },
+  {
+    appt_id: "12",
+    job_id: "JK4051002",
+    job_status: "Completed",
+    closeout: {
+      payments: [{ method: "Cash", detail: "", amount: "$200.00" }],
+    },
+  },
+  {
+    appt_id: "13",
+    job_id: "JK4051003",
+    job_status: "Completed",
+    closeout: {
+      tip: "$15.00",
+      payments: [
+        { method: "Credit Card", detail: "xxxxxxxxxxxx4242", amount: "$100.00" },
+        { method: "Cash", detail: "", amount: "$50.00" },
+      ],
+    },
+  },
+  {
+    appt_id: "14",
+    job_id: "JK4051004",
+    job_status: "Confirmed",
+    closeout: {
+      payments: [{ method: "Credit Card", detail: "***9999", amount: "$99.00" }],
+    },
+  },
+  {
+    appt_id: "15",
+    job_id: "JK4051005",
+    job_status: "Completed",
+    closeout: { payments: [] },
+  },
+]);
+
+assert.deepEqual(
+  paymentCloseoutAlerts.map((alert) => ({ channelId: alert.channelId, text: formatSlackAlert(alert) })),
+  [
+    {
+      channelId: "C_TEST_PAYMENT",
+      text: "JK4051000 closed out. Payment: Card ending 3013 ($558.80). Tip: $50.80.",
+    },
+    {
+      channelId: "C_TEST_PAYMENT",
+      text: "JK4051001 closed out. Payment: Check #1487 ($198.00).",
+    },
+    {
+      channelId: "C_TEST_PAYMENT",
+      text: "JK4051002 closed out. Payment: Cash ($200.00).",
+    },
+    {
+      channelId: "C_TEST_PAYMENT",
+      text: "JK4051003 closed out. Payments: Card ending 4242 ($100.00); Cash ($50.00). Tip: $15.00.",
+    },
+  ],
+);
 
 const truckArrivalAlerts = buildTruckArrivalSlackNotifications("2026-08-12", [
   {
@@ -121,6 +203,70 @@ assert.deepEqual(cancellationFeed.appointments[0], {
   cancellationReason: "Customer requested",
 });
 
+const paymentStateFile = path.join(temporaryDataDir, "slack-state.json");
+process.env.SLACK_OPSCENTER_STATE_FILE = paymentStateFile;
+process.env.SLACK_OPSCENTER_ALERTS_ENABLED = "true";
+process.env.SLACK_BOT_TOKEN = "xoxb-test-token";
+
+const existingCloseout = {
+  appt_id: "501",
+  job_id: "JK4051501",
+  final_status: "Completed",
+  closeout: {
+    payments: [{ method: "Cash", detail: "", amount: "$100.00" }],
+  },
+};
+const newCloseout = {
+  appt_id: "502",
+  job_id: "JK4051502",
+  final_status: "Completed",
+  closeout: {
+    tip: "$20.00",
+    payments: [{ method: "Check", detail: "#2201", amount: "$220.00" }],
+  },
+};
+fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), JSON.stringify({
+  scraped_at: "2026-08-12T14:00:00-05:00",
+  completed: [existingCloseout],
+}));
+
+const originalFetch = globalThis.fetch;
+const postedMessages: string[] = [];
+globalThis.fetch = (async (_input, init) => {
+  const body = JSON.parse(String(init?.body || "{}"));
+  postedMessages.push(String(body.text || ""));
+  return new Response(JSON.stringify({ ok: true, channel: body.channel, ts: `1000.${postedMessages.length}` }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}) as typeof fetch;
+
+try {
+  const baselineRun = await runSlackOpsAlerts({ date: "2026-08-12" });
+  assert.equal(baselineRun.bootstrappedPayments, 1);
+  assert.equal(baselineRun.posted.length, 0);
+  assert.equal(postedMessages.length, 0);
+
+  fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), JSON.stringify({
+    scraped_at: "2026-08-12T14:05:00-05:00",
+    completed: [existingCloseout, newCloseout],
+  }));
+  const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });
+  assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed_payment"]);
+  assert.deepEqual(postedMessages, [
+    "JK4051502 closed out. Payment: Check #2201 ($220.00). Tip: $20.00.",
+  ]);
+
+  const dedupeRun = await runSlackOpsAlerts({ date: "2026-08-12" });
+  assert.equal(dedupeRun.posted.length, 0);
+  assert.equal(postedMessages.length, 1);
+} finally {
+  globalThis.fetch = originalFetch;
+  delete process.env.SLACK_OPSCENTER_STATE_FILE;
+  delete process.env.SLACK_OPSCENTER_ALERTS_ENABLED;
+  delete process.env.SLACK_BOT_TOKEN;
+}
+
 fs.rmSync(temporaryDataDir, { recursive: true });
 
 const crewAlerts = buildCrewSlackNotifications("2026-08-12", [
@@ -198,4 +344,10 @@ const inconsistentPay = buildCrewSlackNotifications("2026-08-12", [
 ]);
 assert.deepEqual(inconsistentPay.map((alert) => alert.kind), ["crew_clock_in", "crew_clock_out"]);
 
-console.log("Slack appointment change routing and crew notification tests passed.");
+console.log("Slack appointment, payment closeout, and crew notification tests passed.");
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

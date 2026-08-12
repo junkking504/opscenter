@@ -11,6 +11,7 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
   - Unknown or unsupported territories -> `#ops-dispatch`
 - Clocked-in employee without a truck -> `#ops-dispatch`
 - Employee clock-in, clock-out with hours, and finalized daily-pay breakdown -> `#ops-command` (or `SLACK_OPS_CREW_CHANNEL_ID`)
+- Newly closed JunkWare job -> `#payment`, with each payment amount and method, check number for checks, card last four for cards, and any tip
 - Open out-of-service fleet issue -> `#ops-fleet`
 - Red JunkWare or Linxup data health -> `#ops-data-health`
 - Completed WhatsApp photo batch with an explicit JK number -> one summary in `#ops-dispatch` after every photo is verified (when `SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED=true`)
@@ -18,6 +19,8 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
 The first live run records existing appointments, existing cancellations, and currently active incidents as its baseline. It does not flood Slack with pre-existing conditions. Later appointment additions and cancellations are each posted once; failed notification deliveries remain eligible for retry. Once a baseline incident clears, a later recurrence is treated as a new incident. New incident alerts are deduplicated, and recovery messages are posted in the original Slack thread.
 
 Crew lifecycle notifications are also baselined once when the feature is first deployed. After that baseline, each employee receives at most one clock-in, clock-out, and finalized-pay notification per day. The messages are intentionally plain: clock-in states only that the employee clocked in; clock-out adds only hours worked; finalized pay lists total pay, hourly pay, tips, and bonuses.
+
+Payment closeout notifications are baselined once when the feature is first deployed so existing completed jobs do not flood the new channel. After that baseline, each completed appointment is posted at most once. A completed record is held for retry until its closeout includes a payment line, which prevents an incomplete scrape from permanently omitting the requested payment details. Messages contain only the JK number, payment details, and a positive tip amount; they do not include customer data or a full card number.
 
 Appointments that remain open after their scheduled window stay visible in OpsCenter but do not generate Slack alerts or resolution replies.
 

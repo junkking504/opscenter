@@ -16,6 +16,7 @@ import {
 } from "@/lib/payment-reconciliation";
 import { buildSearchKingsView } from "@/lib/searchkings";
 import { readResaleStore } from "@/lib/resale-items";
+import { readCrewExpenseRecords } from "@/lib/whatsapp-crew-expenses";
 
 export const dynamic = "force-dynamic";
 
@@ -387,6 +388,8 @@ export default async function FinancePage({
   const truckRows = Array.isArray(metrics?.truck_record_financial_rows)
     ? metrics.truck_record_financial_rows
     : [];
+  const crewTruckRecords = readCrewExpenseRecords(date);
+  const crewTruckRecordCost = crewTruckRecords.reduce((sum, record) => sum + record.cost, 0);
 
   const sales = toNumber(metrics?.sales ?? financeSummary.sales ?? metrics?.total_revenue ?? metrics?.gross_revenue);
   const tips = toNumber(metrics?.tips ?? financeSummary.tips ?? metrics?.total_tips);
@@ -618,6 +621,49 @@ export default async function FinancePage({
               )}
             </tbody>
           </table>
+          </div>
+
+          <div className="ops-section-spacer" />
+
+          <div className="ops-card-header compact">
+            <div>
+              <div className="ops-section-title">OpsBot Truck Records Detail</div>
+              <div className="ops-muted">
+                Crew-reported dump and fuel activity for Accounting → Truck Records · {money(crewTruckRecordCost)} reported
+              </div>
+            </div>
+          </div>
+
+          <div className="ops-finance-table-scroll">
+            <table className="ops-table ops-finance-truck-table">
+              <thead>
+                <tr>
+                  <th>Truck</th>
+                  <th>Type</th>
+                  <th>Location</th>
+                  <th>Cost</th>
+                  <th>Quantity</th>
+                  <th>Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {crewTruckRecords.map((record) => (
+                  <tr key={record.messageId}>
+                    <td><strong>{record.truck}</strong></td>
+                    <td>{record.kind === "dump" ? "Dump" : "Fuel"}</td>
+                    <td>{record.location}</td>
+                    <td className="ops-money">{money(record.cost)}</td>
+                    <td>{record.kind === "dump" ? record.weight || "No weight" : `${record.gallons} gal`}</td>
+                    <td>{record.time}</td>
+                  </tr>
+                ))}
+                {crewTruckRecords.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="ops-muted">No OpsBot truck expenses reported for this date.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

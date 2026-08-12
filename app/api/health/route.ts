@@ -17,6 +17,7 @@ const OPERATOR_STATE_DIRECTORIES = [
   "job-call-ahead",
   path.join("integrations", "junkware-sms"),
   path.join("integrations", "whatsapp-job-photos"),
+  path.join("integrations", "whatsapp-crew-expenses"),
 ] as const;
 
 function latestMetricsFile(directory: string, throughDate?: string): string | null {

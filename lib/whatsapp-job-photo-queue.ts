@@ -20,6 +20,7 @@ export type WhatsAppTextMessage = {
   messageId: string;
   senderPhone: string;
   receivedAt: string;
+  phoneNumberId: string;
   text: string;
 };
 
@@ -94,13 +95,13 @@ function parseImage(message: MetaMessage, phoneNumberId: string): WhatsAppImageM
   };
 }
 
-function parseText(message: MetaMessage): WhatsAppTextMessage | null {
+function parseText(message: MetaMessage, phoneNumberId: string): WhatsAppTextMessage | null {
   if (clean(message.type) !== "text") return null;
   const messageId = clean(message.id);
   const senderPhone = normalizePhone(message.from);
   const text = clean(message.text?.body).slice(0, 2_000);
   if (!messageId || !senderPhone || !text) return null;
-  return { messageId, senderPhone, receivedAt: safeTimestamp(message.timestamp), text };
+  return { messageId, senderPhone, receivedAt: safeTimestamp(message.timestamp), phoneNumberId, text };
 }
 
 export function parseWhatsAppWebhook(payload: unknown): {
@@ -126,7 +127,7 @@ export function parseWhatsAppWebhook(payload: unknown): {
       for (const message of messages) {
         const image = parseImage(message, phoneNumberId);
         if (image) images.push(image);
-        const text = parseText(message);
+        const text = parseText(message, phoneNumberId);
         if (text) texts.push(text);
       }
     }

@@ -1,6 +1,34 @@
-# WhatsApp job photo intake
+# WhatsApp job photo and crew expense intake
 
 OpsCenter receives truck photos through Meta's official WhatsApp Cloud API and uploads them to the corresponding JunkWare appointment.
+
+The same signed webhook accepts structured dump and fuel reports from the crew. These appear in Finance → Truck breakdown under **OpsBot Truck Records Detail**, corresponding to JunkWare Accounting → Truck Records categories. JunkWare exposes only daily Dumps and Gas dollar totals; OpsCenter retains the additional location, quantity, and time detail with the original WhatsApp message ID for audit and duplicate protection.
+
+## Crew dump and fuel reports
+
+Crew can send `Dump` or `Fuel` by itself and OpsBot replies with the matching form. They can also send the heading and completed form in one message.
+
+```text
+Dump
+Truck #:
+Location:
+Cost:
+Weight:
+Time:
+```
+
+`Weight:` is optional, including for locations such as Gentilly Landfill that do not provide net weight.
+
+```text
+Fuel
+Truck #:
+Location:
+Cost:
+Gallons:
+Time:
+```
+
+All fuel fields are required. Cost accepts dollars with or without `$`; time accepts AM/PM or 24-hour format. OpsBot validates every field, asks for missing or invalid values, and sends a terse confirmation after writing the durable Truck Records detail. Sender phone numbers are stored only as one-way hashes in expense records and never shown in Finance.
 
 The desktop WhatsApp linked-device connection is useful for staff visibility, but it does not expose a supported inbound webhook. Production intake therefore requires the Operations number to be registered with a Meta WhatsApp Business Account and subscribed to the OpsCenter webhook.
 
@@ -42,6 +70,10 @@ WHATSAPP_PHONE_NUMBER_ID='Meta phone number ID'
 WHATSAPP_GRAPH_API_VERSION='current supported Graph API version, for example vNN.0'
 WHATSAPP_TRUCK_PHONE_MAP_BASE64='base64-encoded JSON object mapping E.164 sender phones to Truck numbers'
 
+# Required for OpsBot form prompts and confirmations. Prefer Keychain service
+# opscenter-whatsapp-access-token when this environment value is omitted.
+WHATSAPP_ACCESS_TOKEN_BASE64='base64-encoded Meta system-user access token'
+
 # Optional safety tuning
 WHATSAPP_CONTEXT_MAX_AGE_MINUTES='10'
 WHATSAPP_GPS_MAX_AGE_MINUTES='30'
@@ -69,6 +101,8 @@ cd /Users/missioncontrol/opscenter-v2/opscenter
 
 The worker reads the durable spool at `data/integrations/whatsapp-job-photos` unless `WHATSAPP_JOB_PHOTO_STATE_DIR` overrides it. Queue records and downloaded media are mode `0600`. It uploads through the authenticated JunkWare browser session and verifies that the appointment's media count increased before marking an item complete.
 
+Crew expense records and the outbound reply queue live under `OPSBOT_DATA_DIR/integrations/whatsapp-crew-expenses` unless `WHATSAPP_CREW_EXPENSE_STATE_DIR` overrides it. The existing worker delivers prompts, validation messages, and confirmations through Meta's official messages API. If outbound credentials are unavailable, replies remain queued and retry without losing or duplicating the expense record.
+
 Queue directories are `incoming`, `processing`, `completed`, `review`, and `failed`. A failure before JunkWare submission can retry up to three times. A failure during submission is treated as an uncertain outcome and moved to review to prevent duplicate customer photos.
 
 ## Slack receipt notifications
@@ -95,6 +129,7 @@ To include the verified photos in the grouped Slack notification, add `files:wri
 
 ```sh
 npm run verify:whatsapp-job-photos
+npm run verify:whatsapp-crew-expenses
 npm run lint
 npm run build
 ```

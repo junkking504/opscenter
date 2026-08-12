@@ -4,10 +4,19 @@ import { buildAddOnAppointmentFeed, type AddOnAppointment } from "@/lib/add-on-n
 import { getDataHealthReport, type DataHealthSource } from "@/lib/data-health";
 import { readFleetIssueStore, type FleetIssue } from "@/lib/fleet-issues";
 import { buildOperationalExceptions, type OperationalException } from "@/lib/operational-exceptions";
+import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
 
 export type SlackAlertSeverity = "critical" | "warning";
-export type SlackAlertKind = "add_on" | "unassigned_crew" | "late_job" | "fleet_down" | "stale_data";
+export type SlackAlertKind =
+  | "add_on"
+  | "unassigned_crew"
+  | "late_job"
+  | "fleet_down"
+  | "stale_data"
+  | "crew_clock_in"
+  | "crew_clock_out"
+  | "crew_daily_pay";
 
 export type SlackOpsAlert = {
   fingerprint: string;
@@ -19,6 +28,7 @@ export type SlackOpsAlert = {
   detail: string;
   nextAction: string;
   href: string;
+  plainText?: string;
 };
 
 type ActiveSlackAlert = {
@@ -31,12 +41,14 @@ type ActiveSlackAlert = {
 };
 
 type SlackAlertState = {
-  version: 1;
+  version: 2;
   initializedAt: string;
   updatedAt: string;
   active: Record<string, ActiveSlackAlert>;
   suppressedIncidentFingerprints: string[];
   knownAppointmentsByDate: Record<string, string[]>;
+  crewNotificationsInitializedAt: string;
+  deliveredCrewNotificationsByDate: Record<string, string[]>;
 };
 
 type SlackApiResponse = {
@@ -60,7 +72,9 @@ export type SlackAlertRunResult = {
 };
 
 const DEFAULT_CHANNELS = {
+  command: "C0BNMDJNYV9",
   dispatch: "C0BNRMD25AS",
+  crew: "C0BNMDJNYV9",
   fleet: "C0BNQ6J7LER",
   dataHealth: "C0BPN1FVCDN",
   jobsNewOrleans: "C0BPRML654N",
@@ -79,12 +93,14 @@ function stateFile(): string {
 
 function emptyState(): SlackAlertState {
   return {
-    version: 1,
+    version: 2,
     initializedAt: "",
     updatedAt: "",
     active: {},
     suppressedIncidentFingerprints: [],
     knownAppointmentsByDate: {},
+    crewNotificationsInitializedAt: "",
+    deliveredCrewNotificationsByDate: {},
   };
 }
 
@@ -92,7 +108,7 @@ function readState(): SlackAlertState {
   try {
     const payload = JSON.parse(fs.readFileSync(stateFile(), "utf8"));
     return {
-      version: 1,
+      version: 2,
       initializedAt: String(payload?.initializedAt || ""),
       updatedAt: String(payload?.updatedAt || ""),
       active: payload?.active && typeof payload.active === "object" ? payload.active : {},
@@ -102,6 +118,11 @@ function readState(): SlackAlertState {
       knownAppointmentsByDate:
         payload?.knownAppointmentsByDate && typeof payload.knownAppointmentsByDate === "object"
           ? payload.knownAppointmentsByDate
+          : {},
+      crewNotificationsInitializedAt: String(payload?.crewNotificationsInitializedAt || ""),
+      deliveredCrewNotificationsByDate:
+        payload?.deliveredCrewNotificationsByDate && typeof payload.deliveredCrewNotificationsByDate === "object"
+          ? payload.deliveredCrewNotificationsByDate
           : {},
     };
   } catch {
@@ -122,9 +143,15 @@ function pruneAppointmentDates(values: Record<string, string[]>): Record<string,
   return Object.fromEntries(Object.entries(values).sort(([left], [right]) => right.localeCompare(left)).slice(0, 8));
 }
 
+function pruneCrewNotificationDates(values: Record<string, string[]>): Record<string, string[]> {
+  return Object.fromEntries(Object.entries(values).sort(([left], [right]) => right.localeCompare(left)).slice(0, 8));
+}
+
 function channel(name: keyof typeof DEFAULT_CHANNELS): string {
   const envNames: Record<keyof typeof DEFAULT_CHANNELS, string> = {
+    command: "SLACK_OPS_COMMAND_CHANNEL_ID",
     dispatch: "SLACK_OPS_DISPATCH_CHANNEL_ID",
+    crew: "SLACK_OPS_CREW_CHANNEL_ID",
     fleet: "SLACK_OPS_FLEET_CHANNEL_ID",
     dataHealth: "SLACK_OPS_DATA_HEALTH_CHANNEL_ID",
     jobsNewOrleans: "SLACK_JOBS_NO_CHANNEL_ID",
@@ -132,6 +159,14 @@ function channel(name: keyof typeof DEFAULT_CHANNELS): string {
     jobsNorthshore: "SLACK_JOBS_NS_CHANNEL_ID",
   };
   return String(process.env[envNames[name]] || DEFAULT_CHANNELS[name]).trim();
+}
+
+function crewChannelId(): string {
+  return String(
+    process.env.SLACK_OPS_CREW_CHANNEL_ID
+      || process.env.SLACK_OPS_COMMAND_CHANNEL_ID
+      || DEFAULT_CHANNELS.crew,
+  ).trim();
 }
 
 export function appointmentChannelId(territory: string): string {
@@ -233,6 +268,119 @@ function addOnAlert(appointment: AddOnAppointment, date: string): SlackOpsAlert 
   };
 }
 
+function firstText(row: AnyRecord, keys: string[]): string {
+  for (const key of keys) {
+    const value = String(row?.[key] ?? "").trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+function firstFiniteNumber(row: AnyRecord, keys: string[]): number | null {
+  for (const key of keys) {
+    if (row?.[key] === null || row?.[key] === undefined || row?.[key] === "") continue;
+    const value = Number(String(row[key]).replace(/[$,%\s,]/g, ""));
+    if (Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+function employeeKey(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[,]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean)
+    .sort()
+    .join("-");
+}
+
+function moneyText(value: number): string {
+  return value.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function crewNotification(
+  kind: "crew_clock_in" | "crew_clock_out" | "crew_daily_pay",
+  date: string,
+  name: string,
+  plainText: string,
+): SlackOpsAlert {
+  return {
+    fingerprint: `${kind}:${date}:${employeeKey(name)}`,
+    kind,
+    lifecycle: "notification",
+    severity: "warning",
+    channelId: crewChannelId(),
+    title: plainText,
+    detail: "",
+    nextAction: "",
+    href: "",
+    plainText,
+  };
+}
+
+export function buildCrewSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
+  const notifications: SlackOpsAlert[] = [];
+  const seenEmployees = new Set<string>();
+
+  for (const row of rows) {
+    const name = firstText(row, ["name", "employee", "employee_name", "crew_member"]);
+    const key = employeeKey(name);
+    if (!name || !key || seenEmployees.has(key)) continue;
+    seenEmployees.add(key);
+
+    const clockIn = firstText(row, ["clock_in", "time_in", "clockIn", "timeIn"]);
+    const clockOut = firstText(row, ["clock_out", "time_out", "clockOut", "timeOut"]);
+    if (!clockIn) continue;
+
+    notifications.push(crewNotification("crew_clock_in", date, name, `${name} clocked in.`));
+    if (!clockOut) continue;
+
+    const hoursWorked = firstFiniteNumber(row, ["hours_worked", "hours"]);
+    if (hoursWorked !== null && hoursWorked >= 0) {
+      notifications.push(crewNotification(
+        "crew_clock_out",
+        date,
+        name,
+        `${name} clocked out. Hours worked: ${hoursWorked.toFixed(2)}.`,
+      ));
+    }
+
+    const payIsFinal = row?.pay_is_final === true
+      || String(row?.pay_status || "").trim().toLowerCase() === "final";
+    if (!payIsFinal) continue;
+
+    const hourlyPay = firstFiniteNumber(row, ["hourly_pay", "regular_pay", "base_pay", "pay"]);
+    const tips = firstFiniteNumber(row, ["tip", "tips"]);
+    const bonuses = firstFiniteNumber(row, ["total_bonus", "bonuses", "bonus", "daily_bonus"]);
+    const supplementalPay = firstFiniteNumber(row, ["supplemental_daily_pay"]) ?? 0;
+    const totalPay = firstFiniteNumber(row, ["total_pay", "total_daily_pay", "employee_total_earnings"]);
+    if (hourlyPay === null || tips === null || bonuses === null || totalPay === null) continue;
+    if (Math.abs(totalPay - (hourlyPay + tips + bonuses + supplementalPay)) > 0.01) continue;
+
+    notifications.push(crewNotification(
+      "crew_daily_pay",
+      date,
+      name,
+      [
+        `${name} total pay: ${moneyText(totalPay)}.`,
+        `Hourly pay: ${moneyText(hourlyPay)}.`,
+        `Tips: ${moneyText(tips)}.`,
+        `Bonuses: ${moneyText(bonuses)}.`,
+        ...(supplementalPay ? [`Other pay: ${moneyText(supplementalPay)}.`] : []),
+      ].join(" "),
+    ));
+  }
+
+  return notifications;
+}
+
 function collectIncidentAlerts(date: string): SlackOpsAlert[] {
   const report = buildOperationalExceptions(date);
   const alerts: SlackOpsAlert[] = [];
@@ -268,6 +416,7 @@ function slackEscape(value: string): string {
 }
 
 export function formatSlackAlert(alert: SlackOpsAlert): string {
+  if (alert.plainText) return slackEscape(alert.plainText);
   const icon = alert.severity === "critical" ? ":rotating_light:" : ":warning:";
   return [
     `${icon} *${slackEscape(alert.title)}*`,
@@ -325,13 +474,19 @@ export async function runSlackOpsAlerts(options?: {
   const state = readState();
   const incidents = collectIncidentAlerts(date);
   const feed = buildAddOnAppointmentFeed(date);
+  const allCrewNotifications = buildCrewSlackNotifications(date, crewRows(readMetrics(date)));
+  const crewNotificationsInitialized = Boolean(state.crewNotificationsInitializedAt);
+  const deliveredCrewNotifications = new Set(state.deliveredCrewNotificationsByDate[date] || []);
+  const crewNotifications = crewNotificationsInitialized
+    ? allCrewNotifications.filter((alert) => !deliveredCrewNotifications.has(alert.fingerprint))
+    : [];
   const hadAppointmentBaseline = Object.prototype.hasOwnProperty.call(state.knownAppointmentsByDate, date);
   const knownAppointments = new Set(state.knownAppointmentsByDate[date] || []);
   const additions = hadAppointmentBaseline
     ? feed.appointments.filter((appointment) => !knownAppointments.has(appointment.id))
     : [];
   const notifications = additions.map((appointment) => addOnAlert(appointment, date));
-  const preview = [...incidents, ...notifications];
+  const preview = [...incidents, ...notifications, ...(crewNotificationsInitialized ? crewNotifications : allCrewNotifications)];
 
   const result: SlackAlertRunResult = {
     enabled,
@@ -354,6 +509,12 @@ export async function runSlackOpsAlerts(options?: {
 
   const now = new Date().toISOString();
   const currentFingerprints = new Set(incidents.map((alert) => alert.fingerprint));
+  if (!crewNotificationsInitialized) {
+    state.crewNotificationsInitializedAt = now;
+    state.deliveredCrewNotificationsByDate[date] = allCrewNotifications.map((alert) => alert.fingerprint);
+    for (const alert of allCrewNotifications) deliveredCrewNotifications.add(alert.fingerprint);
+    state.deliveredCrewNotificationsByDate = pruneCrewNotificationDates(state.deliveredCrewNotificationsByDate);
+  }
   for (const [fingerprint, active] of Object.entries(state.active)) {
     if (!slackAlertKindEnabled(active.kind)) delete state.active[fingerprint];
   }
@@ -428,6 +589,16 @@ export async function runSlackOpsAlerts(options?: {
     result.posted.push(alert);
   }
 
+  for (const alert of crewNotifications) {
+    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
+    if (!response.ok || !response.ts) {
+      result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
+      continue;
+    }
+    deliveredCrewNotifications.add(alert.fingerprint);
+    result.posted.push(alert);
+  }
+
   if (!hadAppointmentBaseline) {
     state.knownAppointmentsByDate[date] = feed.appointments.map((appointment) => appointment.id);
   } else {
@@ -437,6 +608,8 @@ export async function runSlackOpsAlerts(options?: {
     ]));
   }
   state.knownAppointmentsByDate = pruneAppointmentDates(state.knownAppointmentsByDate);
+  state.deliveredCrewNotificationsByDate[date] = Array.from(deliveredCrewNotifications);
+  state.deliveredCrewNotificationsByDate = pruneCrewNotificationDates(state.deliveredCrewNotificationsByDate);
   state.updatedAt = now;
   writeState(state);
   return result;

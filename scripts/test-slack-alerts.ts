@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
 import { appointmentTerritory } from "@/lib/add-on-notifications";
-import { appointmentChannelId, slackAlertKindEnabled } from "@/lib/slack-alerts";
+import {
+  appointmentChannelId,
+  buildCrewSlackNotifications,
+  formatSlackAlert,
+  slackAlertKindEnabled,
+} from "@/lib/slack-alerts";
 
 process.env.SLACK_JOBS_NO_CHANNEL_ID = "C_TEST_NO";
 process.env.SLACK_JOBS_BR_CHANNEL_ID = "C_TEST_BR";
 process.env.SLACK_JOBS_NS_CHANNEL_ID = "C_TEST_NS";
 process.env.SLACK_OPS_DISPATCH_CHANNEL_ID = "C_TEST_DISPATCH";
+process.env.SLACK_OPS_COMMAND_CHANNEL_ID = "C_TEST_COMMAND";
+delete process.env.SLACK_OPS_CREW_CHANNEL_ID;
 
 assert.equal(appointmentTerritory({ normalized_territory: "Jefferson Parish", market: "New Orleans" }), "Jefferson Parish");
 assert.equal(appointmentTerritory({ territory: "Northshore" }), "Northshore");
@@ -23,4 +30,79 @@ assert.equal(slackAlertKindEnabled("late_job"), false);
 assert.equal(slackAlertKindEnabled("add_on"), true);
 assert.equal(slackAlertKindEnabled("unassigned_crew"), true);
 
-console.log("Slack appointment territory routing tests passed.");
+const crewAlerts = buildCrewSlackNotifications("2026-08-12", [
+  {
+    name: "Clocked In Employee",
+    clock_in: "07:03 AM",
+    clock_out: null,
+    hours_worked: 6.06,
+    hourly_pay: 97.04,
+    tip: 28.49,
+    total_bonus: 0,
+    total_pay: 125.53,
+    pay_is_final: false,
+  },
+  {
+    name: "Clocked Out Employee",
+    clock_in: "07:15 AM",
+    clock_out: "12:48 PM",
+    hours_worked: 5.55,
+    hourly_pay: 102.67,
+    tip: 20.71,
+    total_bonus: 15,
+    total_pay: 138.38,
+    pay_is_final: true,
+  },
+]);
+
+assert.deepEqual(
+  crewAlerts.map((alert) => ({ kind: alert.kind, channelId: alert.channelId, text: formatSlackAlert(alert) })),
+  [
+    { kind: "crew_clock_in", channelId: "C_TEST_COMMAND", text: "Clocked In Employee clocked in." },
+    { kind: "crew_clock_in", channelId: "C_TEST_COMMAND", text: "Clocked Out Employee clocked in." },
+    { kind: "crew_clock_out", channelId: "C_TEST_COMMAND", text: "Clocked Out Employee clocked out. Hours worked: 5.55." },
+    {
+      kind: "crew_daily_pay",
+      channelId: "C_TEST_COMMAND",
+      text: "Clocked Out Employee total pay: $138.38. Hourly pay: $102.67. Tips: $20.71. Bonuses: $15.00.",
+    },
+  ],
+);
+
+const duplicateRows = buildCrewSlackNotifications("2026-08-12", [
+  { name: "Employee, Example", clock_in: "8:00 AM" },
+  { name: "Example Employee", clock_in: "8:00 AM" },
+]);
+assert.equal(duplicateRows.length, 1);
+
+const nonfinalPay = buildCrewSlackNotifications("2026-08-12", [
+  {
+    name: "Nonfinal Employee",
+    clock_in: "8:00 AM",
+    clock_out: "4:00 PM",
+    hours_worked: 8,
+    hourly_pay: 128,
+    tip: 10,
+    total_bonus: 0,
+    total_pay: 138,
+    pay_is_final: false,
+  },
+]);
+assert.deepEqual(nonfinalPay.map((alert) => alert.kind), ["crew_clock_in", "crew_clock_out"]);
+
+const inconsistentPay = buildCrewSlackNotifications("2026-08-12", [
+  {
+    name: "Inconsistent Employee",
+    clock_in: "8:00 AM",
+    clock_out: "4:00 PM",
+    hours_worked: 8,
+    hourly_pay: 128,
+    tip: 10,
+    total_bonus: 5,
+    total_pay: 999,
+    pay_is_final: true,
+  },
+]);
+assert.deepEqual(inconsistentPay.map((alert) => alert.kind), ["crew_clock_in", "crew_clock_out"]);
+
+console.log("Slack alert routing and crew notification tests passed.");

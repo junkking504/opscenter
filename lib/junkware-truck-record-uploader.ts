@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { chromium, type BrowserContext, type Page } from "@playwright/test";
+import { chromium, type BrowserContext, type Locator, type Page } from "@playwright/test";
 import type { CrewExpenseRecord } from "@/lib/whatsapp-crew-expenses";
 
 const ORIGIN = "https://junkware.junk-king.com";
@@ -113,34 +113,26 @@ async function selectDate(page: Page, date: string): Promise<void> {
 }
 
 async function selectTruck(page: Page, truck: number): Promise<void> {
-  const selectId = await page.locator('[id*="TrucksLV"][id$="ItemRow"]').evaluateAll((rows, number) => {
-    const expected = `Truck# ${number}`.toLowerCase();
-    for (const row of rows) {
-      const cells = Array.from(row.querySelectorAll("td"));
-      if (!cells.some((cell) => (cell.textContent || "").replace(/\s+/g, " ").trim().toLowerCase() === expected)) continue;
-      return row.querySelector<HTMLElement>('[id$="SelectButton"]')?.id || "";
+  const rows = page.locator('[id*="TrucksLV"][id$="ItemRow"]');
+  let selectedRow: Locator | null = null;
+  for (let index = 0; index < await rows.count(); index += 1) {
+    const row = rows.nth(index);
+    const cells = (await row.locator("td").allTextContents()).map(clean);
+    if (cells.includes(`Truck# ${truck}`)) {
+      selectedRow = row;
+      break;
     }
-    return "";
-  }, truck);
-  if (!selectId) throw new Error(`Truck# ${truck} is unavailable in JunkWare for this date.`);
-  await page.locator(`#${selectId}`).evaluate((element) => (element as HTMLElement).click());
+  }
+  if (!selectedRow) throw new Error(`Truck# ${truck} is unavailable in JunkWare for this date.`);
+  await selectedRow.locator('[id$="SelectButton"]').evaluate((element) => (element as HTMLElement).click());
   await page.locator('[id$="AddNewLink"]').waitFor({ state: "visible", timeout: 30_000 });
 }
 
 async function entryEvidence(page: Page, receipt: string): Promise<string> {
-  return page.locator("body").evaluate((body, marker) => {
-    const tidy = (value: string | null | undefined) => String(value || "").replace(/\s+/g, " ").trim();
-    const candidates = Array.from(body.querySelectorAll('[id*="EntriesLV"]'));
-    const exact = candidates.find((element) => tidy(element.textContent) === marker);
-    if (!exact) return "";
-    let current: Element | null = exact;
-    let evidence = tidy(exact.textContent);
-    for (let depth = 0; depth < 7 && current; depth += 1, current = current.parentElement) {
-      const text = tidy(current.textContent);
-      if (text.includes(marker) && text.length >= evidence.length && text.length <= 1_000) evidence = text;
-    }
-    return evidence.slice(0, 1_000);
-  }, receipt);
+  const exact = page.getByText(receipt, { exact: true });
+  if (!(await exact.count())) return "";
+  const row = exact.first().locator("xpath=ancestor::tr[1]");
+  return clean(await (await row.count() ? row.innerText() : exact.first().innerText())).slice(0, 1_000);
 }
 
 async function saveEntry(page: Page, record: CrewExpenseRecord, receipt: string): Promise<void> {

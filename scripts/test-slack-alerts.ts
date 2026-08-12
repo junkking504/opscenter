@@ -6,6 +6,7 @@ import { appointmentTerritory, buildCancelledAppointmentFeed } from "@/lib/add-o
 import {
   appointmentChannelId,
   buildCrewSlackNotifications,
+  buildTruckArrivalSlackNotifications,
   formatSlackAlert,
   slackAlertKindEnabled,
 } from "@/lib/slack-alerts";
@@ -33,6 +34,49 @@ assert.equal(slackAlertKindEnabled("late_job"), false);
 assert.equal(slackAlertKindEnabled("add_on"), true);
 assert.equal(slackAlertKindEnabled("cancellation"), true);
 assert.equal(slackAlertKindEnabled("unassigned_crew"), true);
+assert.equal(slackAlertKindEnabled("truck_arrival"), true);
+
+const truckArrivalAlerts = buildTruckArrivalSlackNotifications("2026-08-12", [
+  {
+    appointment_id: "4037246",
+    jk_number: "JK4050424",
+    truck_number: "Truck 4",
+    visit_count: 2,
+    match_confidence: "confirmed",
+    visit_intervals: [
+      { arrival: "2026-08-12T18:06:15Z", departure: "2026-08-12T18:24:00Z" },
+      { arrival: "2026-08-12T18:41:09Z", departure: null },
+    ],
+  },
+  {
+    appointment_id: "4037246",
+    jk_number: "JK4050424",
+    truck_number: "Truck 4",
+    visit_count: 2,
+    match_confidence: "confirmed",
+    visit_intervals: [
+      { arrival: "2026-08-12T18:06:15Z", departure: "2026-08-12T18:24:00Z" },
+      { arrival: "2026-08-12T18:41:09Z", departure: null },
+    ],
+  },
+  {
+    appointment_id: "4037205",
+    jk_number: "JK4050383",
+    truck_number: "Truck 6",
+    visit_count: 1,
+    match_confidence: "probable",
+    first_arrival: "2026-08-12T18:10:00Z",
+  },
+]);
+
+assert.equal(truckArrivalAlerts.length, 2);
+assert.deepEqual(
+  truckArrivalAlerts.map((alert) => ({ kind: alert.kind, channelId: alert.channelId, text: formatSlackAlert(alert) })),
+  [
+    { kind: "truck_arrival", channelId: "C_TEST_DISPATCH", text: ":truck: Truck 4 arrived onsite at JK4050424." },
+    { kind: "truck_arrival", channelId: "C_TEST_DISPATCH", text: ":truck: Truck 4 arrived onsite at JK4050424." },
+  ],
+);
 
 const temporaryDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "opscenter-slack-alert-test-"));
 process.env.OPSCENTER_DATA_DIR = temporaryDataDir;
@@ -154,4 +198,4 @@ const inconsistentPay = buildCrewSlackNotifications("2026-08-12", [
 ]);
 assert.deepEqual(inconsistentPay.map((alert) => alert.kind), ["crew_clock_in", "crew_clock_out"]);
 
-console.log("Slack appointment change routing and crew notification tests passed.");
+console.log("Slack appointment change, truck arrival, and crew notification tests passed.");

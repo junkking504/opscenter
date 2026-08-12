@@ -21,6 +21,13 @@ import {
   whatsappQueueCounts,
   type WhatsAppImageMessage,
 } from "@/lib/whatsapp-job-photo-queue";
+import {
+  claimCrewExpenseReply,
+  crewExpenseQueueCounts,
+  finishCrewExpenseReply,
+  queuedCrewExpenseReplies,
+  requeueCrewExpenseReply,
+} from "@/lib/whatsapp-crew-expenses";
 
 function clean(value: unknown): string {
   return String(value || "").replace(/\s+/g, " ").trim();
@@ -39,8 +46,11 @@ function keychain(service: string, account?: string): string {
 }
 
 function accessToken(): string {
-  return String(process.env.WHATSAPP_ACCESS_TOKEN || "").trim()
-    || keychain("opscenter-whatsapp-access-token");
+  const encoded = String(process.env.WHATSAPP_ACCESS_TOKEN_BASE64 || "").trim();
+  const environment = encoded
+    ? (() => { try { return Buffer.from(encoded, "base64").toString("utf8").trim(); } catch { return ""; } })()
+    : String(process.env.WHATSAPP_ACCESS_TOKEN || "").trim();
+  return environment || keychain("opscenter-whatsapp-access-token");
 }
 
 function loadSlackBotToken(): void {
@@ -113,6 +123,41 @@ async function downloadWhatsAppImage(message: WhatsAppImageMessage): Promise<str
   fs.writeFileSync(temporary, buffer, { mode: 0o600 });
   fs.renameSync(temporary, target);
   return target;
+}
+
+async function deliverCrewExpenseReplies(): Promise<{ sent: number; retried: number; failed: number }> {
+  const results = { sent: 0, retried: 0, failed: 0 };
+  const token = accessToken();
+  const version = clean(process.env.WHATSAPP_GRAPH_API_VERSION);
+  const configuredPhoneNumberId = clean(process.env.WHATSAPP_PHONE_NUMBER_ID);
+  if (!token || !/^v\d+\.\d+$/.test(version) || !/^\d+$/.test(configuredPhoneNumberId)) return results;
+  for (const incomingFile of queuedCrewExpenseReplies(20)) {
+    const claim = claimCrewExpenseReply(incomingFile);
+    if (!claim) continue;
+    try {
+      const phoneNumberId = configuredPhoneNumberId;
+      if (claim.reply.phoneNumberId && claim.reply.phoneNumberId !== phoneNumberId) {
+        throw new Error("WhatsApp reply phone number ID mismatch.");
+      }
+      const recipient = claim.reply.recipient.length === 10 ? `1${claim.reply.recipient}` : claim.reply.recipient;
+      const response = await fetch(`https://graph.facebook.com/${version}/${encodeURIComponent(phoneNumberId)}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to: recipient, type: "text", text: { preview_url: false, body: claim.reply.text } }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(20_000),
+      });
+      const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+      if (!response.ok || payload.error) throw new Error(`WhatsApp reply failed (${response.status}).`);
+      finishCrewExpenseReply(claim.file, "sent", { metaMessageId: clean((payload.messages as Array<Record<string, unknown>> | undefined)?.[0]?.id) });
+      results.sent += 1;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (requeueCrewExpenseReply(claim.file, message)) results.retried += 1;
+      else results.failed += 1;
+    }
+  }
+  return results;
 }
 
 function fleetLocations(date: string): FleetLocation[] {
@@ -225,9 +270,10 @@ async function main(): Promise<void> {
   }
   loadSlackBotToken();
   const slack = await deliverWhatsAppPhotoSlackNotifications();
+  const expenseReplies = await deliverCrewExpenseReplies();
   const processedCount = Object.values(results).reduce((sum, count) => sum + count, 0);
-  if (processedCount || slack.attempted) {
-    process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: whatsappQueueCounts(), slack })}\n`);
+  if (processedCount || slack.attempted || Object.values(expenseReplies).some(Boolean)) {
+    process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: whatsappQueueCounts(), slack, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
   }
 }
 

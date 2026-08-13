@@ -52,6 +52,7 @@ const paymentCloseoutAlerts = buildPaymentCloseoutSlackNotifications("2026-08-12
     appt_id: "10",
     job_id: "JK4051000",
     final_status: "Completed",
+    truck: "Truck# 2",
     tip: "$50.80",
     closeout: {
       tip: "$50.80",
@@ -62,6 +63,7 @@ const paymentCloseoutAlerts = buildPaymentCloseoutSlackNotifications("2026-08-12
     appt_id: "11",
     job_id: "JK4051001",
     job_status: "Completed Duration: 60 min(s)",
+    assigned_truck: "Truck 6",
     closeout: {
       payments: [{ method: "Check", detail: "#1487", amount: "$198.00" }],
     },
@@ -70,6 +72,7 @@ const paymentCloseoutAlerts = buildPaymentCloseoutSlackNotifications("2026-08-12
     appt_id: "12",
     job_id: "JK4051002",
     job_status: "Completed",
+    truck_number: "T8",
     closeout: {
       payments: [{ method: "Cash", detail: "", amount: "$200.00" }],
     },
@@ -78,6 +81,7 @@ const paymentCloseoutAlerts = buildPaymentCloseoutSlackNotifications("2026-08-12
     appt_id: "13",
     job_id: "JK4051003",
     job_status: "Completed",
+    truck: "Virtual Truck",
     closeout: {
       tip: "$15.00",
       payments: [
@@ -107,19 +111,19 @@ assert.deepEqual(
   [
     {
       channelId: "C_TEST_PAYMENT",
-      text: "JK4051000 closed out. Payment: Card ending 3013 ($558.80). Tip: $50.80.",
+      text: "JK4051000 closed out by Truck 2. Payment: Card ending 3013 ($558.80). Tip: $50.80.",
     },
     {
       channelId: "C_TEST_PAYMENT",
-      text: "JK4051001 closed out. Payment: Check #1487 ($198.00).",
+      text: "JK4051001 closed out by Truck 6. Payment: Check #1487 ($198.00).",
     },
     {
       channelId: "C_TEST_PAYMENT",
-      text: "JK4051002 closed out. Payment: Cash ($200.00).",
+      text: "JK4051002 closed out by Truck 8. Payment: Cash ($200.00).",
     },
     {
       channelId: "C_TEST_PAYMENT",
-      text: "JK4051003 closed out. Payments: Card ending 4242 ($100.00); Cash ($50.00). Tip: $15.00.",
+      text: "JK4051003 closed out by Virtual Truck. Payments: Card ending 4242 ($100.00); Cash ($50.00). Tip: $15.00.",
     },
   ],
 );
@@ -219,6 +223,7 @@ const existingCloseout = {
   appt_id: "501",
   job_id: "JK4051501",
   final_status: "Completed",
+  truck: "Truck# 4",
   closeout: {
     payments: [{ method: "Cash", detail: "", amount: "$100.00" }],
   },
@@ -227,6 +232,7 @@ const newCloseout = {
   appt_id: "502",
   job_id: "JK4051502",
   final_status: "Completed",
+  assigned_truck: "Truck# 7",
   closeout: {
     tip: "$20.00",
     payments: [{ method: "Check", detail: "#2201", amount: "$220.00" }],
@@ -261,7 +267,7 @@ try {
   const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed_payment"]);
   assert.deepEqual(postedMessages, [
-    "JK4051502 closed out. Payment: Check #2201 ($220.00). Tip: $20.00.",
+    "JK4051502 closed out by Truck 7. Payment: Check #2201 ($220.00). Tip: $20.00.",
   ]);
 
   const dedupeRun = await runSlackOpsAlerts({ date: "2026-08-12" });

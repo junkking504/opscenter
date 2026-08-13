@@ -11,7 +11,7 @@ import { readFleetIssueStore, type FleetIssue } from "@/lib/fleet-issues";
 import { buildOperationalExceptions, type OperationalException } from "@/lib/operational-exceptions";
 import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
-import { truckSlackChannelId } from "@/lib/slack-truck-channels";
+import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 
 export type SlackAlertSeverity = "critical" | "warning";
 export type SlackAlertKind =
@@ -498,6 +498,14 @@ function closeoutIdentity(row: AnyRecord): string {
   return jobNumber ? `job-${jobNumber.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}` : "";
 }
 
+function closeoutTruckLabel(row: AnyRecord): string {
+  const sourceLabel = firstText(row, ["truck", "assigned_truck", "truck_number", "truckNumber"]);
+  const truckNumber = normalizeSlackTruckNumber(sourceLabel);
+  if (truckNumber) return `Truck ${truckNumber}`;
+  if (/^virtual\s+truck$/i.test(sourceLabel)) return "Virtual Truck";
+  return "Unknown truck";
+}
+
 export function buildPaymentCloseoutSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   const seen = new Set<string>();
@@ -525,9 +533,10 @@ export function buildPaymentCloseoutSlackNotifications(date: string, rows: AnyRe
     const tip = firstFiniteNumber(closeout, ["tip"])
       ?? firstFiniteNumber(row, ["tip", "tips"])
       ?? 0;
+    const truck = closeoutTruckLabel(row);
     const paymentLabel = paymentDescriptions.length === 1 ? "Payment" : "Payments";
     const plainText = [
-      `${jobNumber} closed out.`,
+      `${jobNumber} closed out by ${truck}.`,
       `${paymentLabel}: ${paymentDescriptions.join("; ")}.`,
       ...(tip > 0 ? [`Tip: ${moneyText(tip)}.`] : []),
     ].join(" ");

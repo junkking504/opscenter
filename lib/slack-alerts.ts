@@ -299,13 +299,13 @@ function staleDataAlert(source: DataHealthSource): SlackOpsAlert {
   };
 }
 
-function addOnAlert(appointment: AddOnAppointment, date: string): SlackOpsAlert {
+export function buildAddOnSlackNotification(appointment: AddOnAppointment, date: string): SlackOpsAlert {
   return {
     fingerprint: `add_on:${date}:${appointment.id}`,
     kind: "add_on",
     lifecycle: "notification",
     severity: "warning",
-    channelId: truckSlackChannelId(appointment.assignedTruck, appointmentChannelId(appointment.territory)),
+    channelId: appointmentChannelId(appointment.territory),
     title: `New same-day appointment: ${appointment.jobNumber}`,
     detail: `${appointment.customerName} · ${appointment.appointmentTime} · ${appointment.assignedTruck} · ${appointment.address}`,
     nextAction: "Confirm crew and truck coverage, then update the route plan.",
@@ -749,7 +749,7 @@ export async function runSlackOpsAlerts(options?: {
     ...additions.map((appointment) => ({
       appointmentId: appointment.id,
       stateKind: "addition" as const,
-      alert: addOnAlert(appointment, date),
+      alert: buildAddOnSlackNotification(appointment, date),
     })),
     ...cancellations.map((appointment) => ({
       appointmentId: appointment.id,

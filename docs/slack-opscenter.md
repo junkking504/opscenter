@@ -4,9 +4,13 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
 
 ## Initial alert set
 
-- New or cancelled same-day appointment -> the assigned `#truck-N` channel
-  - Unassigned or unknown trucks fall back to `#jobs-no`, `#jobs-br`, or `#jobs-ns` by territory
-  - Unknown or unsupported territories fall back to `#ops-dispatch`
+- New same-day appointment -> `#jobs-no`, `#jobs-br`, or `#jobs-ns` by territory
+  - New Orleans and Jefferson Parish -> `#jobs-no`
+  - Baton Rouge -> `#jobs-br`
+  - Northshore -> `#jobs-ns`
+  - Unknown or unsupported territories -> `#ops-dispatch`
+- Cancelled same-day appointment -> the assigned `#truck-N` channel
+  - Unassigned or unknown trucks fall back to the territory jobs channel
 - Confirmed truck arrival -> that truck's `#truck-N` channel
 - Clocked-in employee without a truck -> `#ops-dispatch`
 - Employee clock-in, clock-out with hours, and finalized daily-pay breakdown -> `#ops-command` (or `SLACK_OPS_CREW_CHANNEL_ID`)

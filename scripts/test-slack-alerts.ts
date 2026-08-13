@@ -5,6 +5,7 @@ import path from "node:path";
 import { appointmentTerritory, buildCancelledAppointmentFeed } from "@/lib/add-on-notifications";
 import {
   appointmentChannelId,
+  buildAddOnSlackNotification,
   buildPaymentCloseoutSlackNotifications,
   buildCrewSlackNotifications,
   buildTruckArrivalSlackNotifications,
@@ -36,6 +37,21 @@ assert.equal(appointmentChannelId("Baton Rouge"), "C_TEST_BR");
 assert.equal(appointmentChannelId("North Shore"), "C_TEST_NS");
 assert.equal(appointmentChannelId("Lafayette"), "C_TEST_DISPATCH");
 assert.equal(appointmentChannelId("Unknown territory"), "C_TEST_DISPATCH");
+assert.equal(
+  buildAddOnSlackNotification({
+    id: "appt:4038254",
+    appointmentId: "4038254",
+    jobNumber: "JK4051432",
+    territory: "New Orleans",
+    customerName: "Test Customer",
+    address: "229 Dauphine St, New Orleans, 70112",
+    appointmentTime: "11:00 AM - 12:00 PM",
+    appointmentType: "Job",
+    assignedTruck: "Truck# 1",
+    href: "/jobs?date=2026-08-13#job-jk4051432",
+  }, "2026-08-13").channelId,
+  "C_TEST_NO",
+);
 assert.equal(normalizeSlackTruckNumber("Truck# 4"), 4);
 assert.equal(normalizeSlackTruckNumber("Virtual Truck"), null);
 assert.equal(truckSlackChannelId("Truck 4", "C_TEST_FALLBACK"), "C_TEST_TRUCK_4");

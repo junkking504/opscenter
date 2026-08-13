@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { crewMemberForUsername, normalizeCrewUsername, type CrewRosterEntry } from "./crew-auth";
 import { createPasswordHash, verifyPasswordHash } from "./password-hash";
 
@@ -22,6 +23,45 @@ export type CrewAuthentication = {
 };
 
 const EMPTY_STATE: CrewCredentialState = { version: 1, users: {} };
+const CREW_CREDENTIAL_KEY_PREFIX = "crew-credential-v1:";
+
+type CrewCredentialNamespace = {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string): Promise<void>;
+};
+
+async function cloudflareCredentialNamespace(): Promise<CrewCredentialNamespace | null> {
+  try {
+    const { env } = await getCloudflareContext({ async: true });
+    return (env as unknown as { CREW_CREDENTIALS?: CrewCredentialNamespace }).CREW_CREDENTIALS || null;
+  } catch {
+    return null;
+  }
+}
+
+function validStoredCredential(value: unknown): value is StoredCrewCredential {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  return Boolean(
+    String(row.employee || "").trim()
+    && String(row.passwordHash || "").trim()
+    && String(row.updatedAt || "").trim(),
+  );
+}
+
+async function readCloudflareCredential(
+  namespace: CrewCredentialNamespace,
+  username: string,
+): Promise<StoredCrewCredential | null> {
+  const raw = await namespace.get(`${CREW_CREDENTIAL_KEY_PREFIX}${username}`);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return validStoredCredential(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
 
 export function crewCredentialStatePath(): string {
   return String(process.env.OPS_CREW_CREDENTIALS_PATH || "").trim()
@@ -76,21 +116,28 @@ async function writeState(state: CrewCredentialState): Promise<void> {
   await fs.chmod(statePath, 0o600);
 }
 
+async function storedCredentialForUsername(username: string): Promise<StoredCrewCredential | null> {
+  const namespace = await cloudflareCredentialNamespace();
+  if (namespace) return readCloudflareCredential(namespace, username);
+  return (await readState()).users[username] || null;
+}
+
 export async function authenticateCrewCredentials(usernameValue: unknown, passwordValue: unknown): Promise<CrewAuthentication | null> {
   const member = crewMemberForUsername(usernameValue);
   const password = String(passwordValue || "");
   if (!member || !password) return null;
 
-  const state = await readState();
-  const stored = state.users[member.username];
+  const stored = await storedCredentialForUsername(member.username);
   if (stored?.passwordHash) {
-    return await verifyPasswordHash(password, stored.passwordHash)
+    const verified = await verifyPasswordHash(password, stored.passwordHash);
+    return verified
       ? { member, passwordChangeRequired: false }
       : null;
   }
 
   const temporaryHash = String(process.env.OPS_CREW_TEMP_PASSWORD_HASH || "").trim();
-  return await verifyPasswordHash(password, temporaryHash)
+  const temporaryVerified = await verifyPasswordHash(password, temporaryHash);
+  return temporaryVerified
     ? { member, passwordChangeRequired: true }
     : null;
 }
@@ -117,6 +164,17 @@ export async function setInitialCrewPassword(
     return { ok: false, reason: "temporary-password" };
   }
   const passwordHash = await createPasswordHash(password);
+
+  const namespace = await cloudflareCredentialNamespace();
+  if (namespace) {
+    if (await readCloudflareCredential(namespace, username)) return { ok: false, reason: "already-set" };
+    await namespace.put(`${CREW_CREDENTIAL_KEY_PREFIX}${username}`, JSON.stringify({
+      employee: member.employee,
+      passwordHash,
+      updatedAt: new Date().toISOString(),
+    } satisfies StoredCrewCredential));
+    return { ok: true };
+  }
 
   return withStateLock(async () => {
     const state = await readState();

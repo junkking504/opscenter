@@ -1,30 +1,24 @@
 # Crew My Pay portal
 
-Crew members sign in at `https://crew.junk-king.app` with an approved personal email address. Cloudflare Access sends a single-use email code and remembers the verified browser for 30 days. A verified Access identity is then mapped to exactly one employee in OpsCenter before `/my-pay` can read payroll data.
+Crew members sign in at `https://crew.junk-king.app` with the username already assigned to them in JunkWare. A shared temporary password is used only for the first sign-in. OpsCenter then requires the employee to create a personal password before `/my-pay` can load. The resulting signed Crew session lasts up to 30 days.
 
 The crew hostname exposes only the crew portal, legal pages, and support. Requests for management routes are redirected to crew login. `ops.junk-king.app` remains the management hostname.
 
-## Cloudflare Access application
+## Authentication configuration
 
-Create a self-hosted Access application for `crew.junk-king.app` with:
+If `crew.junk-king.app` remains behind a Cloudflare Access application, its Crew policy must bypass identity-provider verification. OpsCenter performs the Crew authentication itself; an email one-time PIN must not appear before the username/password page.
 
-- Identity provider: One-time PIN
-- Allow policy: only the explicit personal email addresses in the active crew roster
-- Require login method: One-time PIN
-- Application and policy session duration: one month
-- HttpOnly application cookie: enabled
-
-Do not use an email-domain wildcard or `Include Everyone`. The Access allowlist and the OpsCenter roster should contain the same email addresses.
-
-OpsCenter validates the signed `Cf-Access-Jwt-Assertion` again before loading pay information. Set these Worker secrets after creating the Access application:
+Bind a dedicated Worker KV namespace as `CREW_CREDENTIALS`. Store these values as protected production/Worker secrets:
 
 ```text
-OPS_CREW_ACCESS_TEAM_DOMAIN=https://square-credit-167f.cloudflareaccess.com
-OPS_CREW_ACCESS_AUD=<Application Audience AUD tag from the crew Access application>
-OPS_CREW_ROSTER_JSON=[{"employee":"Example Employee","email":"employee@example.com","active":true}]
+OPS_CREW_ROSTER_JSON=[{"employee":"Example Employee","username":"junkware.username","active":true}]
+OPS_CREW_TEMP_PASSWORD_HASH=<one-way hash of the shared temporary password>
+OPS_CREW_SESSION_SECRET=<at least 32 characters of cryptographic random data>
 ```
 
-Employee names must identify the same employee represented in `daily_metrics` payroll records. The roster is private payroll-access configuration; do not put real employee emails in source control or client-side code. Removing an employee from both the Access policy and the roster revokes future payroll access. Cloudflare can also revoke an active Access session immediately.
+Employee names must identify the same employee represented in `daily_metrics` payroll records, and usernames must match JunkWare exactly (comparison is case-insensitive). The roster is private payroll-access configuration; do not put the real roster, temporary password, hashes, or session secret in source control or client-side code. Removing or deactivating an employee in the roster invalidates that employee's existing Crew session as well as future logins.
+
+The shared temporary password is accepted only while that username has no personal credential in `CREW_CREDENTIALS`. Completing password setup stores a salted, server-peppered one-way hash and permanently disables the temporary password for that username. Personal passwords must be 10–128 characters and contain at least one letter and one number.
 
 ## Crew performance views
 
@@ -44,9 +38,9 @@ The anchor must be the Monday that starts Week 1 of a pay period. Overtime is ca
 
 ## Activation sequence
 
-1. Add the employee-to-email roster as a Worker secret.
-2. Create the Cloudflare Access application and explicit email allow policy.
-3. Copy its AUD tag into `OPS_CREW_ACCESS_AUD`.
-4. Set the team domain and 30-day Access session duration.
-5. Deploy OpsCenter with the `crew.junk-king.app` custom domain.
-6. Test with one employee before adding the full roster.
+1. Create and bind the dedicated `CREW_CREDENTIALS` KV namespace.
+2. Add the JunkWare username-to-employee roster and authentication secrets.
+3. Set the Crew Access application to bypass identity-provider verification.
+4. Deploy OpsCenter with the `crew.junk-king.app` custom domain.
+5. Confirm a wrong password is rejected and the shared temporary password redirects to `/set-password`.
+6. Complete a controlled test user's setup and confirm the temporary password no longer works for that username.

@@ -61,6 +61,12 @@ async function main() {
     const temporarySession = await createCrewSessionCookieValue(initial!.member, true);
     assert.equal((await verifyCrewSessionCookie(temporarySession))?.passwordChangeRequired, true);
     assert.equal(await verifyCrewSessionCookie(`${temporarySession}tampered`), null);
+    const activeRoster = process.env.OPS_CREW_ROSTER_JSON;
+    process.env.OPS_CREW_ROSTER_JSON = JSON.stringify([
+      { employee: "Test Crew Member", username: "JunkWare.User", active: false },
+    ]);
+    assert.equal(await verifyCrewSessionCookie(temporarySession), null);
+    process.env.OPS_CREW_ROSTER_JSON = activeRoster;
 
     assert.deepEqual(
       await setInitialCrewPassword("junkware.user", "Test Crew Member", temporaryPassword),

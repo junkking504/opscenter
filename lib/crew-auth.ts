@@ -10,9 +10,8 @@ const encoder = new TextEncoder();
 function validConfiguredPasswordHash(value: unknown): boolean {
   const [algorithm, iterationsRaw, saltRaw, expectedRaw] = String(value || "").trim().split("$");
   const iterations = Number.parseInt(iterationsRaw, 10);
-  return algorithm === "pbkdf2-sha256"
-    && Number.isSafeInteger(iterations)
-    && iterations >= 100_000
+  return algorithm === "hmac-sha256"
+    && iterations === 1
     && Boolean(saltRaw)
     && Boolean(expectedRaw);
 }
@@ -145,6 +144,7 @@ export async function verifyCrewSessionCookie(value: string | null | undefined, 
     const payload = JSON.parse(new TextDecoder().decode(base64UrlDecode(encoded))) as CrewSessionPayload;
     const username = normalizeCrewUsername(payload.username);
     const employee = String(payload.employee || "").trim();
+    const currentMember = crewMemberForUsername(username);
     const issuedAt = new Date(payload.issuedAt).getTime();
     const expiresAt = new Date(payload.expiresAt).getTime();
     if (
@@ -152,6 +152,8 @@ export async function verifyCrewSessionCookie(value: string | null | undefined, 
       || payload.purpose !== "crew"
       || !username
       || !employee
+      || !currentMember
+      || currentMember.employee !== employee
       || !Number.isFinite(issuedAt)
       || !Number.isFinite(expiresAt)
       || issuedAt > now.getTime() + 60_000

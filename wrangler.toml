@@ -16,6 +16,10 @@ binding = "ASSETS"
 binding = "CREW_METRICS"
 id = "d23581743d0f4bad96c5dea3c1c3385a"
 
+[[kv_namespaces]]
+binding = "CREW_CREDENTIALS"
+id = "7b36ab39bbb44a6fb64379cbb9262167"
+
 [[routes]]
 pattern = "crew.junk-king.app/*"
 zone_name = "junk-king.app"

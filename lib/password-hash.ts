@@ -24,52 +24,69 @@ function constantTimeEqual(left: Uint8Array, right: Uint8Array): boolean {
 export function validPasswordHash(value: unknown): boolean {
   const [algorithm, iterationsRaw, saltRaw, expectedRaw] = String(value || "").trim().split("$");
   const iterations = Number.parseInt(iterationsRaw, 10);
-  return algorithm === "pbkdf2-sha256"
-    && Number.isSafeInteger(iterations)
-    && iterations >= 100_000
+  return algorithm === "hmac-sha256"
+    && iterations === 1
     && Boolean(saltRaw)
     && Boolean(expectedRaw);
 }
 
-export async function verifyPasswordHash(passwordValue: unknown, hashValue: unknown): Promise<boolean> {
+function passwordPepper(secretOverride?: string): string {
+  return String(secretOverride || process.env.OPS_CREW_PASSWORD_PEPPER || process.env.OPS_CREW_SESSION_SECRET || "").trim();
+}
+
+async function hmacPasswordDigest(password: string, salt: string, pepper: string): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(pepper),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  return new Uint8Array(await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(`opscenter:crew-password:v1:${salt}:${password}`),
+  ));
+}
+
+export async function verifyPasswordHash(
+  passwordValue: unknown,
+  hashValue: unknown,
+  secretOverride?: string,
+): Promise<boolean> {
   const password = String(passwordValue || "");
   const [algorithm, iterationsRaw, saltRaw, expectedRaw] = String(hashValue || "").trim().split("$");
   const iterations = Number.parseInt(iterationsRaw, 10);
-  if (!password || algorithm !== "pbkdf2-sha256" || !Number.isSafeInteger(iterations) || iterations < 100_000 || !saltRaw || !expectedRaw) {
+  const pepper = passwordPepper(secretOverride);
+  if (!password || algorithm !== "hmac-sha256" || iterations !== 1 || !saltRaw || !expectedRaw || pepper.length < 32) {
     return false;
   }
 
   try {
     const expected = base64UrlDecode(expectedRaw);
     if (expected.length < 16) return false;
-    const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
-    const derived = new Uint8Array(await crypto.subtle.deriveBits(
-      {
-        name: "PBKDF2",
-        hash: "SHA-256",
-        salt: base64UrlDecode(saltRaw).buffer as ArrayBuffer,
-        iterations,
-      },
-      key,
-      expected.length * 8,
-    ));
+    const derived = await hmacPasswordDigest(password, saltRaw, pepper);
     return constantTimeEqual(derived, expected);
-  } catch {
+  } catch (error) {
+    console.warn("[crew-auth] Password verification could not complete.", {
+      error: error instanceof Error ? error.name : "unknown",
+    });
     return false;
   }
 }
 
-export async function createPasswordHash(passwordValue: unknown, iterations = 310_000): Promise<string> {
+export async function createPasswordHash(
+  passwordValue: unknown,
+  _iterations = 1,
+  secretOverride?: string,
+): Promise<string> {
   const password = String(passwordValue || "");
   if (!password) throw new Error("A password is required.");
-  if (!Number.isSafeInteger(iterations) || iterations < 100_000) throw new Error("Password hash iterations are too low.");
+  const pepper = passwordPepper(secretOverride);
+  if (pepper.length < 32) throw new Error("Crew password hashing is not configured.");
 
   const salt = crypto.getRandomValues(new Uint8Array(18));
-  const key = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveBits"]);
-  const derived = new Uint8Array(await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt: salt.buffer as ArrayBuffer, iterations },
-    key,
-    256,
-  ));
-  return `pbkdf2-sha256$${iterations}$${base64UrlEncode(salt)}$${base64UrlEncode(derived)}`;
+  const saltRaw = base64UrlEncode(salt);
+  const derived = await hmacPasswordDigest(password, saltRaw, pepper);
+  return `hmac-sha256$1$${saltRaw}$${base64UrlEncode(derived)}`;
 }

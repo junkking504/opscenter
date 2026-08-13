@@ -642,6 +642,30 @@
     overflow-wrap: anywhere;
   }
 
+  .performanceGrid,
+  .performanceGridSix {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .performanceCard:last-child,
+  .performanceGridSix .performanceCard:last-child {
+    grid-column: auto;
+  }
+
+  .performanceCard:nth-child(2n) { border-right: 1px solid #e1e3e0; }
+  .performanceCard:nth-child(4n) { border-right: 0; }
+
+  .performanceCard span {
+    min-height: 3em;
+    font-size: 0.58rem;
+    letter-spacing: 0.04em;
+  }
+
+  .performanceCard strong {
+    margin-top: 4px;
+    font-size: clamp(0.88rem, 4vw, 1.05rem);
+  }
+
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .metric {
@@ -769,7 +793,12 @@
     overflow-wrap: anywhere;
   }
 
-  .monthSummaryCard { padding: 10px 8px; }
+  .monthSummaryCard {
+    padding: 10px 8px;
+    border-right: 1px solid #e1e3e0;
+    border-bottom: 0;
+  }
+  .monthSummaryCard:last-child { border-right: 0; }
   .monthSummaryCard span { font-size: 0.58rem; letter-spacing: 0.05em; }
   .monthSummaryCard strong { font-size: 1.25rem; }
 
@@ -777,6 +806,55 @@
   .leaderboardTable:not(.rankedTable) .crewCell { grid-column: 1 / -1; }
   .rankedTable .rankCell { grid-column: 1; }
   .rankedTable .crewCell { grid-column: 2 / -1; }
+
+  .dailyMetricsTable { table-layout: fixed; }
+
+  .dailyMetricsTable thead {
+    position: static;
+    width: auto;
+    height: auto;
+    padding: 0;
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+  }
+
+  .dailyMetricsTable tbody { display: table-row-group; padding: 0; }
+  .dailyMetricsTable tr { display: table-row; }
+  .dailyMetricsTable th,
+  .dailyMetricsTable td,
+  .dailyMetricsTable th:first-child,
+  .dailyMetricsTable td:first-child {
+    display: table-cell;
+    padding: 7px 4px;
+    border-right: 0;
+    border-bottom: 1px solid #e3e5e2;
+    text-align: right;
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+
+  .dailyMetricsTable th {
+    font-size: 0.54rem;
+    line-height: 1.1;
+    white-space: normal;
+  }
+
+  .dailyMetricsTable td { font-size: 0.7rem; }
+  .dailyMetricsTable th:first-child,
+  .dailyMetricsTable td:first-child { width: 32%; text-align: left; }
+  .dailyMetricsTable th:nth-child(2),
+  .dailyMetricsTable td:nth-child(2) { width: 14%; }
+  .dailyMetricsTable th:nth-child(3),
+  .dailyMetricsTable td:nth-child(3) { width: 17%; }
+  .dailyMetricsTable th:nth-child(4),
+  .dailyMetricsTable td:nth-child(4) { width: 20%; }
+  .dailyMetricsTable th:nth-child(5),
+  .dailyMetricsTable td:nth-child(5) { width: 17%; }
+  .dailyMetricsTable td::before { display: none; }
+  .dailyMetricsTable .crewCell { grid-column: auto; }
+  .dailyMetricsTable .youBadge { margin-left: 4px; padding: 2px 4px; font-size: 0.54rem; }
 
   .table[aria-label="Daily pay breakdown"] tr {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -828,4 +906,10 @@
 
   .table tbody { padding: 6px; }
   .table td { padding: 7px 6px; }
+}
+
+@media (max-width: 340px) {
+  .performanceGrid,
+  .performanceGridSix { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .performanceCard:nth-child(2n) { border-right: 0; }
 }

@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { crewRoster } from "@/lib/crew-auth";
-import { crewAccessConfigured } from "@/lib/cloudflare-access";
+import { crewAuthConfigured } from "@/lib/crew-auth";
 import styles from "./crew-login.module.css";
 
 export const dynamic = "force-dynamic";
@@ -10,15 +9,15 @@ type Props = {
 };
 
 const errors: Record<string, string> = {
-  "not-authenticated": "Email verification has not been completed. Crew access may still be awaiting setup.",
-  "not-rostered": "Your verified email is not connected to an active crew record. Ask a manager to update the crew roster.",
+  "invalid-credentials": "Invalid username or password.",
+  "session-expired": "Sign in again with the password you created.",
+  "not-authenticated": "Sign in to view your Crew portal.",
 };
 
 export default async function CrewLoginPage({ searchParams }: Props) {
   const params = await searchParams;
   const error = params?.error ? errors[params.error] : "";
-  const rosterReady = crewRoster().some((entry) => entry.active);
-  const accessReady = crewAccessConfigured();
+  const configured = crewAuthConfigured();
 
   return (
     <main className={styles.page}>
@@ -26,22 +25,25 @@ export default async function CrewLoginPage({ searchParams }: Props) {
         <div className={styles.brand}><span className={styles.brandMark} /> OpsCenter Crew</div>
         <h1>Your hours.<br />Your pay.</h1>
         <p className={styles.lead}>
-          Sign in with the personal email approved for your crew account. Once verified, this browser can remember you for up to 30 days.
+          Use your JunkWare username. The first time you sign in, use the temporary crew password and then create your own password.
         </p>
 
         {error ? <div className={styles.error} role="alert">{error}</div> : null}
-        {!accessReady || !rosterReady ? (
-          <div className={styles.error} role="status">Crew email access is awaiting administrator setup.</div>
-        ) : null}
+        {!configured ? <div className={styles.error} role="status">Crew sign-in is awaiting administrator setup.</div> : null}
 
-        <div className={styles.form}>
-          <Link className={styles.button} href="/my-pay">Continue to My Pay</Link>
-          {params?.error === "not-rostered" ? (
-            <a className={styles.secondaryLink} href="/cdn-cgi/access/logout">Sign out and use another email</a>
-          ) : null}
-        </div>
+        <form className={styles.form} action="/api/crew/auth/login" method="post">
+          <label className={styles.label}>
+            <span>JunkWare username</span>
+            <input className={styles.input} name="username" autoComplete="username" required autoFocus />
+          </label>
+          <label className={styles.label}>
+            <span>Password</span>
+            <input className={styles.input} name="password" type="password" autoComplete="current-password" required />
+          </label>
+          <button className={styles.button} type="submit" disabled={!configured}>Sign in</button>
+        </form>
 
-        <p className={styles.finePrint}>Email codes are single-use. On a new device or after the remembered session expires, Cloudflare will ask you to verify again.</p>
+        <p className={styles.finePrint}>Your personal password is stored as a secure one-way hash. Managers cannot view it.</p>
         <Link className={styles.secondaryLink} href="https://ops.junk-king.app/login">Management sign-in →</Link>
       </section>
     </main>

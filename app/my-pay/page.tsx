@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { CREW_IDENTITY_HEADER, crewMemberForEmail } from "@/lib/crew-auth";
+import { CREW_IDENTITY_HEADER } from "@/lib/crew-auth";
 import {
   type CrewPerformanceRange,
   type CrewPerformanceStats,
@@ -368,19 +368,19 @@ function MonthlyLeaderboardView({ data }: { data: Awaited<ReturnType<typeof getC
 
 export default async function MyPayPage({ searchParams }: Props) {
   const requestHeaders = await headers();
-  const crewMember = crewMemberForEmail(requestHeaders.get(CREW_IDENTITY_HEADER) || "");
-  if (!crewMember) redirect("/crew-login?error=not-authenticated");
+  const employee = String(requestHeaders.get(CREW_IDENTITY_HEADER) || "").trim();
+  if (!employee) redirect("/crew-login?error=not-authenticated");
   const params = await searchParams;
   const view = selectedView(params?.view);
-  const data = await getCrewPayPortalData(crewMember.employee, params?.period);
-  const firstName = crewMember.employee.split(/\s+/)[0] || crewMember.employee;
+  const data = await getCrewPayPortalData(employee, params?.period);
+  const firstName = employee.split(/\s+/)[0] || employee;
 
   return (
     <div className={styles.page}>
       <header className={styles.topbar}>
         <div className={styles.topbarInner}>
           <div className={styles.brand}><span className={styles.brandMark} /> OpsCenter Crew Portal</div>
-          <a className={styles.logout} href="/cdn-cgi/access/logout">Sign out</a>
+          <a className={styles.logout} href="/api/crew/auth/logout">Sign out</a>
         </div>
       </header>
 

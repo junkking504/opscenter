@@ -20,11 +20,12 @@ import {
   CREW_IDENTITY_HEADER,
   CREW_LOGIN_PATH,
   CREW_PAY_PATH,
-  crewMemberForEmail,
+  CREW_SESSION_COOKIE,
+  CREW_SET_PASSWORD_PATH,
+  verifyCrewSessionCookie,
 } from "@/lib/crew-auth";
 import {
   opsAccessConfigured,
-  verifyCloudflareAccessJwt,
   verifyOpsAccessJwt,
 } from "@/lib/cloudflare-access";
 import { JUNKWARE_SMS_API_PREFIX } from "@/lib/junkware-sms-constants";
@@ -104,40 +105,57 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(CREW_PAY_PATH, request.url));
   }
 
+  const isCrewAuthApi = pathname === "/api/crew/auth" || pathname.startsWith("/api/crew/auth/");
+  const isCrewPage = pathname === CREW_LOGIN_PATH
+    || pathname.startsWith(`${CREW_LOGIN_PATH}/`)
+    || pathname === CREW_SET_PASSWORD_PATH
+    || pathname.startsWith(`${CREW_SET_PASSWORD_PATH}/`)
+    || pathname === CREW_PAY_PATH
+    || pathname.startsWith(`${CREW_PAY_PATH}/`);
+
   if (
     isCrewHostname &&
-    pathname !== CREW_LOGIN_PATH &&
-    !pathname.startsWith(`${CREW_LOGIN_PATH}/`) &&
-    pathname !== CREW_PAY_PATH &&
-    !pathname.startsWith(`${CREW_PAY_PATH}/`) &&
+    !isCrewPage &&
+    !isCrewAuthApi &&
     !pathname.startsWith("/legal/") &&
     pathname !== "/support"
   ) {
     return NextResponse.redirect(new URL(CREW_LOGIN_PATH, request.url));
   }
 
-  if (!isCrewHostname && (pathname === CREW_LOGIN_PATH || pathname.startsWith(`${CREW_LOGIN_PATH}/`) || pathname === CREW_PAY_PATH || pathname.startsWith(`${CREW_PAY_PATH}/`))) {
+  if (!isCrewHostname && (isCrewPage || isCrewAuthApi)) {
     return NextResponse.redirect(new URL(`https://${crewHostname}${pathname}${request.nextUrl.search}`));
   }
 
-  if (isCrewHostname && (pathname === CREW_LOGIN_PATH || pathname.startsWith(`${CREW_LOGIN_PATH}/`) || pathname === CREW_PAY_PATH || pathname.startsWith(`${CREW_PAY_PATH}/`))) {
-    const email = await verifyCloudflareAccessJwt(request.headers.get("cf-access-jwt-assertion"));
-    const crewMember = email ? crewMemberForEmail(email) : null;
+  if (isCrewHostname && (pathname.startsWith("/legal/") || pathname === "/support")) {
+    return NextResponse.next();
+  }
 
-    if (crewMember && pathname.startsWith(CREW_LOGIN_PATH)) {
-      return NextResponse.redirect(new URL(CREW_PAY_PATH, request.url));
+  if (isCrewHostname && (isCrewPage || isCrewAuthApi)) {
+    if (isCrewAuthApi) return NextResponse.next();
+    const crewSession = await verifyCrewSessionCookie(request.cookies.get(CREW_SESSION_COOKIE)?.value || "");
+
+    if (pathname.startsWith(CREW_LOGIN_PATH) && crewSession) {
+      return NextResponse.redirect(new URL(
+        crewSession.passwordChangeRequired ? CREW_SET_PASSWORD_PATH : CREW_PAY_PATH,
+        request.url,
+      ));
     }
 
-    if (crewMember && pathname.startsWith(CREW_PAY_PATH)) {
+    if (pathname.startsWith(CREW_SET_PASSWORD_PATH)) {
+      if (!crewSession) return NextResponse.redirect(new URL(`${CREW_LOGIN_PATH}?error=not-authenticated`, request.url));
+      if (!crewSession.passwordChangeRequired) return NextResponse.redirect(new URL(CREW_PAY_PATH, request.url));
       const requestHeaders = new Headers(request.headers);
-      requestHeaders.set(CREW_IDENTITY_HEADER, crewMember.email);
+      requestHeaders.set(CREW_IDENTITY_HEADER, crewSession.employee);
       return NextResponse.next({ request: { headers: requestHeaders } });
     }
 
     if (pathname.startsWith(CREW_PAY_PATH)) {
-      const crewLoginUrl = new URL(CREW_LOGIN_PATH, request.url);
-      crewLoginUrl.searchParams.set("error", email ? "not-rostered" : "not-authenticated");
-      return NextResponse.redirect(crewLoginUrl);
+      if (!crewSession) return NextResponse.redirect(new URL(`${CREW_LOGIN_PATH}?error=not-authenticated`, request.url));
+      if (crewSession.passwordChangeRequired) return NextResponse.redirect(new URL(CREW_SET_PASSWORD_PATH, request.url));
+      const requestHeaders = new Headers(request.headers);
+      requestHeaders.set(CREW_IDENTITY_HEADER, crewSession.employee);
+      return NextResponse.next({ request: { headers: requestHeaders } });
     }
 
     return NextResponse.next();

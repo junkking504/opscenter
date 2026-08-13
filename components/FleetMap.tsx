@@ -96,7 +96,7 @@ function statusTone(status: string): string {
 
 function operationalLabel(record: FleetTruckMapRecord): string {
   if (record.freshnessLabel === "Offline") return "Offline";
-  if (record.freshnessLabel === "GPS Stale") return `${record.operationalStatus} · GPS stale`;
+  if (record.freshnessLabel === "GPS Stale") return "GPS Stale — last movement is not current";
   if (record.operationalStatus === "Driving") return "Driving";
   if (record.operationalStatus === "At Job") return "At Job";
   if (record.operationalStatus === "At Dump/Recycling") return "At Dump/Recycling";
@@ -145,8 +145,8 @@ function truckPopup(record: FleetTruckMapRecord): string {
       <div class="ops-fleet-popup-title">${escapeHtml(record.truck)}</div>
       <div class="ops-fleet-popup-line"><span>Status</span><strong>${escapeHtml(operationalLabel(record))}</strong></div>
       <div class="ops-fleet-popup-line"><span>Last GPS</span><strong>${escapeHtml(formatTimestamp(record.lastGpsUpdate))}</strong></div>
-      <div class="ops-fleet-popup-line"><span>Speed</span><strong>${record.speed == null ? "—" : `${formatNumber(record.speed)} mph`}</strong></div>
-      <div class="ops-fleet-popup-line"><span>Ignition</span><strong>${escapeHtml(record.ignition || "—")}</strong></div>
+      <div class="ops-fleet-popup-line"><span>${record.freshnessLabel === "Live GPS" ? "Speed" : "Last reported speed"}</span><strong>${record.speed == null ? "—" : `${formatNumber(record.speed)} mph`}</strong></div>
+      <div class="ops-fleet-popup-line"><span>${record.freshnessLabel === "Live GPS" ? "Ignition" : "Last reported ignition"}</span><strong>${escapeHtml(record.ignition || "—")}</strong></div>
       <div class="ops-fleet-popup-line"><span>Driver</span><strong>${driverState}</strong></div>
       <div class="ops-fleet-popup-line"><span>Navigator</span><strong>${navigatorState}</strong></div>
       <div class="ops-fleet-popup-line"><span>Miles</span><strong>${record.milesDriven == null ? "—" : `${formatNumber(record.milesDriven)} mi`}</strong></div>
@@ -450,11 +450,11 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
               </strong>
             </div>
             <div>
-              <span>Speed</span>
+              <span>{selectedTruckRecord.freshnessLabel === "Live GPS" ? "Speed" : "Last Reported Speed"}</span>
               <strong>{selectedTruckRecord.speed == null ? "—" : `${selectedTruckRecord.speed} mph`}</strong>
             </div>
             <div>
-              <span>Ignition</span>
+              <span>{selectedTruckRecord.freshnessLabel === "Live GPS" ? "Ignition" : "Last Reported Ignition"}</span>
               <strong>{selectedTruckRecord.ignition}</strong>
             </div>
             <div>

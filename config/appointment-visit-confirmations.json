@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "confirmations": [
+    {
+      "date": "2026-08-13",
+      "appointment_id": "4037658",
+      "jk_number": "JK4050836",
+      "truck_number": "Truck 9",
+      "first_arrival": "2026-08-13T17:23:50Z",
+      "final_departure": null,
+      "gps_gap_start": "2026-08-13T17:24:42Z",
+      "gps_gap_end": "2026-08-13T17:56:37Z",
+      "gps_gap_minutes": 31.92,
+      "confirmed_at": "2026-08-13T19:30:00Z",
+      "confirmation_source": "mission_control_user_confirmation",
+      "note": "Operations confirmed Truck 9 visited this appointment; Linxup coverage ended shortly after stationary points inside the appointment geofence."
+    },
+    {
+      "date": "2026-08-13",
+      "appointment_id": "4029093",
+      "jk_number": "JK4042271",
+      "truck_number": "Truck 9",
+      "first_arrival": null,
+      "final_departure": null,
+      "gps_gap_start": "2026-08-13T18:03:01Z",
+      "gps_gap_end": "2026-08-13T18:45:54Z",
+      "gps_gap_minutes": 42.88,
+      "confirmed_at": "2026-08-13T19:30:00Z",
+      "confirmation_source": "mission_control_user_confirmation",
+      "note": "Operations confirmed Truck 9 visited this appointment during a Linxup coverage gap."
+    }
+  ]
+}

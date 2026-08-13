@@ -9,6 +9,7 @@ import OpsMonthSelector from "@/components/OpsMonthSelector";
 import JobCallAheadCard from "@/components/JobCallAheadCard";
 import JobCloseoutEditor from "@/components/JobCloseoutEditor";
 import { JobsMap, type JobsMapPoint } from "@/components/JobsMap";
+import { withAppointmentVisitConfirmations } from "@/lib/appointment-visit-confirmations";
 import { AnyRecord, availableDates, completedJobs, money, readMetrics, resolveDate } from "@/lib/opsData";
 import { buildOperationalExceptions } from "@/lib/operational-exceptions";
 import { buildFleetMapPayload, type FleetTruckMapRecord } from "@/lib/fleet-map";
@@ -113,6 +114,7 @@ type SiteTimeTruck = {
   matchConfidence: string;
   matchReason: string;
   state: string;
+  operationalConfirmation: boolean;
   intervals: Array<{ arrival: string | null; departure: string | null; onsiteMinutes: number }>;
 };
 
@@ -181,6 +183,7 @@ const STATUS_ORDER: JobStatusBucket[] = [
 ];
 
 function siteTimeState(row: Record<string, any>): string {
+  if (row?.operational_confirmation) return "Operations confirmed visit";
   const reason = String(row?.match_reason || "");
   if (reason === "missing_effective_tracker_mapping") return "Truck not mapped to Linxup";
   if (reason === "missing_or_ambiguous_geocode") return "Appointment location could not be matched";
@@ -208,7 +211,11 @@ function readAppointmentSiteTime(date: string): SiteTimeAppointment[] {
   try {
     const payload = JSON.parse(fs.readFileSync(file, "utf8"));
     const groups = new Map<string, Record<string, any>[]>();
-    for (const row of Array.isArray(payload?.visits) ? payload.visits : []) {
+    const visits = withAppointmentVisitConfirmations(
+      Array.isArray(payload?.visits) ? payload.visits : [],
+      date,
+    );
+    for (const row of visits) {
       const appointmentId = String(row?.appointment_id || "").trim();
       if (!appointmentId) continue;
       if (!groups.has(appointmentId)) groups.set(appointmentId, []);
@@ -233,6 +240,7 @@ function readAppointmentSiteTime(date: string): SiteTimeAppointment[] {
           matchConfidence: String(row?.match_confidence || ""),
           matchReason: String(row?.match_reason || ""),
           state: siteTimeState(row),
+          operationalConfirmation: Boolean(row?.operational_confirmation),
           intervals: (Array.isArray(row?.visit_intervals) ? row.visit_intervals : []).map((interval: Record<string, any>) => ({
             arrival: interval?.arrival || null,
             departure: interval?.departure || null,
@@ -270,7 +278,7 @@ function siteDurationLabel(minutes: number | null | undefined): string {
 function siteTimeVisitedTrucks(siteTime: SiteTimeAppointment | undefined): string[] {
   if (!siteTime) return [];
   return Array.from(new Set(siteTime.trucks
-    .filter((truck) => truck.visitCount > 0 && Boolean(truck.arrival || truck.intervals.some((interval) => interval.arrival)))
+    .filter((truck) => truck.operationalConfirmation || (truck.visitCount > 0 && Boolean(truck.arrival || truck.intervals.some((interval) => interval.arrival))))
     .map((truck) => truck.truck)
     .filter(Boolean)));
 }
@@ -578,6 +586,10 @@ function siteTimeQuality(row: Record<string, any>): string {
   const finalDeparture = row?.departure ?? row?.final_departure;
   const visitCount = Number(row?.visitCount ?? row?.visit_count ?? 0);
   const gpsCoverageQuality = String(row?.gpsCoverageQuality ?? row?.gps_coverage_quality ?? "unknown");
+
+  if (row?.operationalConfirmation || row?.operational_confirmation) {
+    return "GPS gap · operations confirmed";
+  }
 
   if (reason === "missing_effective_tracker_mapping" || reason === "no_physical_truck_assignment") {
     return "Truck assignment unavailable";
@@ -3325,19 +3337,23 @@ export default async function JobsPage({
                                     const durationMinutes = siteTimeTruckDurationMinutes(truck);
                                     const durationText = siteDurationLabel(durationMinutes);
                                     const durationClass = siteDurationClass(durationMinutes);
-                                    const isOngoing = Boolean(truck.arrival && !truck.departure);
+                                    const isOngoing = Boolean(!truck.operationalConfirmation && truck.arrival && !truck.departure);
                                     const summaryWindow = isOngoing
                                       ? "On Site"
-                                      : truck.arrival && truck.departure
-                                        ? `${siteTimeClock(truck.arrival)}–${siteTimeClock(truck.departure)}`
-                                        : siteTimeQuality(truck);
+                                      : truck.operationalConfirmation
+                                        ? siteTimeQuality(truck)
+                                        : truck.arrival && truck.departure
+                                          ? `${siteTimeClock(truck.arrival)}–${siteTimeClock(truck.departure)}`
+                                          : siteTimeQuality(truck);
                                     const summaryDuration = durationMinutes != null ? ` · ${durationText}` : "";
                                     const statusText =
-                                      truck.state === "Confirmed visit"
-                                        ? "Verified"
-                                        : truck.state === "Probable visit"
-                                          ? "Probable"
-                                          : truck.state;
+                                      truck.state === "Operations confirmed visit"
+                                        ? "Ops confirmed"
+                                        : truck.state === "Confirmed visit"
+                                          ? "Verified"
+                                          : truck.state === "Probable visit"
+                                            ? "Probable"
+                                            : truck.state;
 
                                     return (
                                       <div className="ops-site-time-truck" key={`${siteTime.appointmentId}-${truck.truck}-${truckIndex}`}>
@@ -3613,19 +3629,23 @@ export default async function JobsPage({
                                   const durationMinutes = siteTimeTruckDurationMinutes(truck);
                                   const durationText = siteDurationLabel(durationMinutes);
                                   const durationClass = siteDurationClass(durationMinutes);
-                                  const isOngoing = Boolean(truck.arrival && !truck.departure);
+                                  const isOngoing = Boolean(!truck.operationalConfirmation && truck.arrival && !truck.departure);
                                   const summaryWindow = isOngoing
                                     ? "On Site"
-                                    : truck.arrival && truck.departure
-                                      ? `${siteTimeClock(truck.arrival)}–${siteTimeClock(truck.departure)}`
-                                      : siteTimeQuality(truck);
+                                    : truck.operationalConfirmation
+                                      ? siteTimeQuality(truck)
+                                      : truck.arrival && truck.departure
+                                        ? `${siteTimeClock(truck.arrival)}–${siteTimeClock(truck.departure)}`
+                                        : siteTimeQuality(truck);
                                   const summaryDuration = durationMinutes != null ? ` · ${durationText}` : "";
                                   const statusText =
-                                    truck.state === "Confirmed visit"
-                                      ? "Verified"
-                                      : truck.state === "Probable visit"
-                                        ? "Probable"
-                                        : truck.state;
+                                    truck.state === "Operations confirmed visit"
+                                      ? "Ops confirmed"
+                                      : truck.state === "Confirmed visit"
+                                        ? "Verified"
+                                        : truck.state === "Probable visit"
+                                          ? "Probable"
+                                          : truck.state;
 
                                   return (
                                     <div className="ops-site-time-truck" key={`${siteTime.appointmentId}-${truck.truck}-${truckIndex}`}>

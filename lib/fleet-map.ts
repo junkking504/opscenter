@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { withAppointmentVisitConfirmations } from "@/lib/appointment-visit-confirmations";
 import { AnyRecord, readMetrics } from "@/lib/opsData";
 import { buildFleetDailyRecord } from "@/lib/fleet-history";
 import { chicagoDateKey } from "@/lib/report-dates";
@@ -217,7 +218,8 @@ function loadLocationPayload(date: string): AnyRecord | null {
 function loadAppointmentVisits(date: string): AnyRecord[] {
   const rel = path.join("data", "history", "linxup", "appointment_visits", `linxup_appointment_visits_${date}.json`);
   const payload = readJsonFile<AnyRecord>(rel);
-  return Array.isArray(payload?.visits) ? payload.visits : [];
+  const visits = Array.isArray(payload?.visits) ? payload.visits : [];
+  return withAppointmentVisitConfirmations(visits, date);
 }
 
 function loadDaily(date: string) {
@@ -313,6 +315,12 @@ function classifyOperationalStatus({
   return "Unknown";
 }
 
+export function operationalStatusForFreshness(status: string, freshness: string): string {
+  if (freshness === "GPS Stale") return "GPS Stale";
+  if (freshness === "Offline") return "Offline";
+  return status;
+}
+
 function freshnessLabel({
   hasPayload,
   latestTimestamp,
@@ -379,6 +387,7 @@ function buildRouteStops({
   }
   for (const visit of visits) {
     if (normalizeTruckLabel(visit.truck_number || visit.truck || visit.truckNumber) !== truck) continue;
+    if (Number(visit.visit_count || 0) <= 0 && !visit.operational_confirmation) continue;
     const appt = appointmentById.get(String(visit.appointment_id || "")) || appointmentByJk.get(String(visit.jk_number || ""));
     if (!appt) continue;
     const geocode = geocodeForAddress(String(appt.service_address || appt.address || ""));
@@ -459,7 +468,7 @@ function buildTruckRecord({
         .filter(Boolean)
     : []) as FleetMapStop[];
   const routeStops = [
-    ...buildRouteStops({ date, truck, appointments: truckAppointments, visits: loadAppointmentVisits(date) }),
+    ...buildRouteStops({ date, truck, appointments: allAppointments, visits: loadAppointmentVisits(date) }),
     ...gpsStops.filter((stop) => stop.kind !== "Unknown"),
   ];
 
@@ -499,12 +508,15 @@ function buildTruckRecord({
     latestTimestamp,
     selectedDate: date,
   });
-  const operationalStatus = classifyOperationalStatus({
+  const lastReportedOperationalStatus = classifyOperationalStatus({
     latest: lastPoint,
     routeStops,
     routePoints: truckPoints,
   });
   const freshnessStatus = freshness === "Historical GPS" ? "GPS Stale" : freshness;
+  const operationalStatus = selectedDateIsToday
+    ? operationalStatusForFreshness(lastReportedOperationalStatus, freshness)
+    : lastReportedOperationalStatus;
 
   const notes = [
     ...(validation?.confidence_status && String(validation.confidence_status).toLowerCase() !== "confirmed"

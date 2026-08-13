@@ -183,7 +183,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
       setPaymentMethod("");
       setPaymentAmount("");
       setPendingOtherCharges([]);
-      setMessage("Saved and verified in Junkware.");
+      setMessage("Saved and verified in JunkWare.");
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Junkware did not save the closeout.");
     } finally {
@@ -194,12 +194,12 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
   const completed = /complete|closed/i.test(live?.status.label || initialStatus);
 
   return (
-    <details className="ops-job-closeout-editor" data-appointment-id={resolvedAppointmentId}>
+    <details className="ops-job-closeout-editor" data-appointment-id={resolvedAppointmentId} aria-busy={loading || saving}>
       <summary>{completed ? "Edit closeout or crew" : "Close out this job"}</summary>
       <div className="ops-job-closeout-editor-body">
         {!live ? (
           <button type="button" className="ops-button" onClick={load} disabled={loading || !resolvedAppointmentId}>
-            {loading ? "Loading from Junkware…" : "Open Junkware closeout"}
+            {loading ? "Loading current JunkWare closeout…" : "Open JunkWare closeout"}
           </button>
         ) : (
           <>
@@ -208,6 +208,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
               <div><span>Current total</span><strong>{live.total || "$0.00"}</strong></div>
               <div><span>Balance</span><strong>{live.balance || "0.00"}</strong></div>
             </div>
+            {saving ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">Saving changes and checking them in JunkWare…</div> : null}
 
             <section className="ops-closeout-editor-section">
               <h4>Crew Assigned to This Job</h4>
@@ -307,8 +308,8 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
             </section>
 
             <div className="ops-closeout-editor-actions">
-              <button type="button" className="ops-button" onClick={save} disabled={saving}>{saving ? "Saving to Junkware…" : completed ? "Save changes in Junkware" : "Save and close job in Junkware"}</button>
-              <button type="button" className="ops-button subtle" onClick={load} disabled={saving || loading}>Reload from Junkware</button>
+              <button type="button" className="ops-button" onClick={save} disabled={saving}>{saving ? "Saving and checking JunkWare…" : completed ? "Save changes in JunkWare" : "Save and close job in JunkWare"}</button>
+              <button type="button" className="ops-button subtle" onClick={load} disabled={saving || loading}>Reload from JunkWare</button>
             </div>
           </>
         )}

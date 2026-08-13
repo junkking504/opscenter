@@ -166,6 +166,18 @@ async function selectWithPostback(page: Page, selector: string, value: string): 
   ]);
 }
 
+async function selectWithoutPostback(page: Page, selector: string, value: string): Promise<void> {
+  const control = page.locator(selector);
+  if (!(await control.count())) throw new Error(`A JunkWare closeout control is unavailable (${selector}).`);
+  const selected = await control.evaluate((node, nextValue) => {
+    const select = node as HTMLSelectElement;
+    if (!Array.from(select.options).some((option) => option.value === nextValue)) return false;
+    select.value = nextValue;
+    return select.value === nextValue;
+  }, value);
+  if (!selected) throw new Error(`A JunkWare closeout option is unavailable (${selector}).`);
+}
+
 async function fill(page: Page, selector: string, value: string): Promise<void> {
   const control = page.locator(selector);
   if (!(await control.count())) throw new Error(`A JunkWare closeout control is unavailable (${selector}).`);
@@ -218,7 +230,10 @@ function parsePayload(): CloseoutInput {
 }
 
 async function applyCloseout(page: Page, input: CloseoutInput): Promise<void> {
-  await selectWithPostback(page, "#ctl00_Content_StatusDD", "8");
+  // JunkWare uses ASP.NET WebForms. Changing these selects with selectOption()
+  // fires AutoPostBack and reloads the full appointment once per field. Set the
+  // selected values directly so the final Save post submits them together.
+  await selectWithoutPostback(page, "#ctl00_Content_StatusDD", "8");
 
   const currentNavigatorCount = await page.locator('select[id*="AppointmentTechniciansLV"][id$="NavigatorDD"]').count();
   if (currentNavigatorCount !== input.navigatorIds.length) {
@@ -231,26 +246,26 @@ async function applyCloseout(page: Page, input: CloseoutInput): Promise<void> {
 
   const driver = page.locator("#ctl00_Content_DriverDD");
   if (!(await driver.count())) throw new Error("The JunkWare driver control is unavailable.");
-  await driver.selectOption(input.driverId);
+  await selectWithoutPostback(page, "#ctl00_Content_DriverDD", input.driverId);
 
   for (let index = 0; index < input.navigatorIds.length; index += 1) {
     const selector = `#ctl00_Content_AppointmentTechniciansLV_ctrl${index}_NavigatorDD`;
-    await selectWithPostback(page, selector, input.navigatorIds[index]);
+    await selectWithoutPostback(page, selector, input.navigatorIds[index]);
   }
 
   await fill(page, "#ctl00_Content_LoadSizeTruckQtyTB", input.loadQuantity);
-  await page.locator("#ctl00_Content_LoadSizeDD").selectOption(input.loadSize);
+  await selectWithoutPostback(page, "#ctl00_Content_LoadSizeDD", input.loadSize);
   await fill(page, "#ctl00_Content_BillingAmountTB", input.loadPrice);
   await fill(page, "#ctl00_Content_BedloadTruckQtyTB", input.bedloadQuantity);
-  await page.locator("#ctl00_Content_BedloadDD").selectOption(input.bedloadSize);
+  await selectWithoutPostback(page, "#ctl00_Content_BedloadDD", input.bedloadSize);
   await fill(page, "#ctl00_Content_BedLoadPriceTB", input.bedloadPrice);
   await fill(page, "#ctl00_Content_DiscountsTB", input.discount);
   await fill(page, "#ctl00_Content_TipsTB", input.tip);
-  await page.locator("#ctl00_Content_JobCategoryDD").selectOption(input.jobCategoryId);
-  await page.locator("#ctl00_Content_ActualStartHourDD").selectOption(input.actualStartHour);
-  await page.locator("#ctl00_Content_ActualStartMinuteDD").selectOption(input.actualStartMinute);
-  await page.locator("#ctl00_Content_ActualEndHourDD").selectOption(input.actualEndHour);
-  await page.locator("#ctl00_Content_ActualEndMinuteDD").selectOption(input.actualEndMinute);
+  await selectWithoutPostback(page, "#ctl00_Content_JobCategoryDD", input.jobCategoryId);
+  await selectWithoutPostback(page, "#ctl00_Content_ActualStartHourDD", input.actualStartHour);
+  await selectWithoutPostback(page, "#ctl00_Content_ActualStartMinuteDD", input.actualStartMinute);
+  await selectWithoutPostback(page, "#ctl00_Content_ActualEndHourDD", input.actualEndHour);
+  await selectWithoutPostback(page, "#ctl00_Content_ActualEndMinuteDD", input.actualEndMinute);
 
   for (const charge of input.otherChargesToAdd) {
     const isPercentage = charge.typeValue.split("|")[2] === "1";
@@ -282,6 +297,20 @@ async function applyCloseout(page: Page, input: CloseoutInput): Promise<void> {
   ]);
 }
 
+function verifyCloseout(closeout: { status: { value: string }; [key: string]: unknown }, input: CloseoutInput): void {
+  if (closeout.status.value !== "8") throw new Error("JunkWare did not retain the completed status.");
+  const driver = closeout.driver && typeof closeout.driver === "object"
+    ? String((closeout.driver as Record<string, unknown>).value || "")
+    : "";
+  const navigators = Array.isArray(closeout.navigators)
+    ? closeout.navigators.map((row) => row && typeof row === "object" ? String((row as Record<string, unknown>).value || "") : "").filter(Boolean)
+    : [];
+  if (driver !== input.driverId) throw new Error("JunkWare did not retain the selected driver.");
+  if (navigators.length !== input.navigatorIds.length || navigators.some((value, index) => value !== input.navigatorIds[index])) {
+    throw new Error("JunkWare did not retain the selected navigators.");
+  }
+}
+
 async function main(): Promise<void> {
   const appointmentId = argument("appointment");
   const mode = argument("mode") || "read";
@@ -298,12 +327,10 @@ async function main(): Promise<void> {
     page.setDefaultTimeout(45_000);
     const targetUrl = `${ORIGIN}/franchise/appointment.aspx?id=${appointmentId}`;
     await ensureAuthenticated(page, targetUrl);
-    if (mode === "write") {
-      await applyCloseout(page, parsePayload());
-      await page.goto(targetUrl, { waitUntil: "domcontentloaded" });
-    }
+    const input = mode === "write" ? parsePayload() : null;
+    if (input) await applyCloseout(page, input);
     const closeout = await capture(page);
-    if (mode === "write" && closeout.status.value !== "8") throw new Error("JunkWare did not retain the completed status.");
+    if (input) verifyCloseout(closeout, input);
     process.stdout.write(`${JSON.stringify({ ok: true, mode, appointmentId, closeout, verifiedAt: new Date().toISOString() })}\n`);
     await context.close();
   } finally {

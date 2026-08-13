@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { parseTruckNumberFromLabel, truckCameraLabel } from "@/lib/linxup-truck-label";
+import styles from "./TruckCameraController.module.css";
 
 type CameraOrientation = "outside" | "inside" | "aux";
 type CameraStream = {
@@ -39,6 +40,7 @@ function cameraElementFromTarget(target: EventTarget | null): { element: HTMLEle
   if (target.closest(".ops-jobs-truck-marker") || leafletMarker?.querySelector(".ops-jobs-truck-marker")) {
     return null;
   }
+  if (target.closest(".ops-jobs-map-board-truck")) return null;
 
   let candidate: HTMLElement | null = target;
   for (let depth = 0; candidate && depth < 4; depth += 1, candidate = candidate.parentElement) {
@@ -86,7 +88,7 @@ function VideoPlayer({ url, onPlaybackError }: { url: string; onPlaybackError: (
     };
   }, [onPlaybackError, url]);
 
-  return <video ref={videoRef} className="ops-truck-camera-video" controls playsInline muted autoPlay />;
+  return <video ref={videoRef} className={styles.video} controls playsInline muted autoPlay />;
 }
 
 export default function TruckCameraController({ children }: { children: ReactNode }) {
@@ -165,7 +167,7 @@ export default function TruckCameraController({ children }: { children: ReactNod
   const handleTruckPointerOver = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const match = cameraElementFromTarget(event.target);
     if (!match) return;
-    match.element.classList.add("ops-truck-camera-target");
+    match.element.classList.add(styles.cameraTarget);
     match.element.title = `Open ${truckCameraLabel(match.truck)} live camera`;
   }, []);
 
@@ -207,39 +209,39 @@ export default function TruckCameraController({ children }: { children: ReactNod
 
   return (
     <div
-      className="ops-app"
+      className={`ops-app ${styles.root}`}
       data-truck-camera-controller="ready"
       onClickCapture={handleTruckClick}
       onPointerOverCapture={handleTruckPointerOver}
     >
       {children}
       {camera.status !== "closed" ? (
-        <div className="ops-truck-camera-backdrop" role="presentation" onMouseDown={(event) => {
+        <div className={styles.backdrop} role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) closeCamera();
         }}>
-          <section className="ops-truck-camera-dialog" role="dialog" aria-modal="true" aria-label={`${truckCameraLabel(truck || 0)} live camera`}>
-        <header className="ops-truck-camera-header">
+          <section className={styles.dialog} role="dialog" aria-modal="true" aria-label={`${truckCameraLabel(truck || 0)} live camera`}>
+        <header className={styles.header}>
           <div>
             <div className="ops-eyebrow">LinxUp live camera</div>
             <h2>{truckCameraLabel(truck || 0)}</h2>
           </div>
-          <button type="button" className="ops-truck-camera-close" onClick={closeCamera} aria-label="Close live camera">×</button>
+          <button type="button" className={styles.close} onClick={closeCamera} aria-label="Close live camera">×</button>
         </header>
 
         {camera.status === "loading" ? (
-          <div className="ops-truck-camera-message" aria-live="polite">
-            <span className="ops-truck-camera-spinner" />
+          <div className={styles.message} aria-live="polite">
+            <span className={styles.spinner} />
             <strong>Connecting to {truckCameraLabel(camera.truck)}…</strong>
             <span>This can take up to 20 seconds.</span>
           </div>
         ) : null}
 
         {camera.status === "error" ? (
-          <div className="ops-truck-camera-message is-error" role="alert">
+          <div className={`${styles.message} ${styles.error}`} role="alert">
             <strong>Live view unavailable</strong>
             <span>{camera.message}</span>
             {camera.code === "NOT_CONFIGURED" || camera.code === "NOT_AUTHENTICATED" ? (
-              <span className="ops-truck-camera-help">The LinxUp sign-in needs to be reconnected on Mission Control.</span>
+              <span className={styles.help}>The LinxUp sign-in needs to be reconnected on Mission Control.</span>
             ) : null}
             <button type="button" className="ops-button" onClick={() => void openCamera(camera.truck)}>Try again</button>
           </div>
@@ -247,7 +249,7 @@ export default function TruckCameraController({ children }: { children: ReactNod
 
         {activeStream ? (
           <>
-            <div className="ops-truck-camera-stage">
+            <div className={styles.stage}>
               {camera.status === "playing" && streamUrl ? (
                 <VideoPlayer
                   key={streamUrl}
@@ -255,20 +257,20 @@ export default function TruckCameraController({ children }: { children: ReactNod
                   onPlaybackError={handlePlaybackError}
                 />
               ) : (
-                <div className="ops-truck-camera-message">
+                <div className={styles.message}>
                   <strong>Live view ended</strong>
                   <span>LinxUp limits each live session to one minute.</span>
                   <button type="button" className="ops-button" onClick={() => void openCamera(activeStream.truck)}>Continue live view</button>
                 </div>
               )}
             </div>
-            <footer className="ops-truck-camera-footer">
-              <div className="ops-truck-camera-channels" aria-label="Camera view">
+            <footer className={styles.footer}>
+              <div className={styles.channels} aria-label="Camera view">
                 {channels.map((channel) => (
                   <button
                     type="button"
                     key={channel}
-                    className={orientation === channel ? "is-active" : ""}
+                    className={orientation === channel ? styles.active : ""}
                     onClick={() => setOrientation(channel)}
                     disabled={camera.status !== "playing"}
                   >
@@ -276,7 +278,7 @@ export default function TruckCameraController({ children }: { children: ReactNod
                   </button>
                 ))}
               </div>
-              <div className="ops-truck-camera-timer" aria-live="off">
+              <div className={styles.timer} aria-live="off">
                 <span className="ops-pulse" />
                 {camera.status === "playing" ? `Live · 0:${String(secondsRemaining).padStart(2, "0")}` : "Session complete"}
               </div>

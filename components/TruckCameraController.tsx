@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import Hls from "hls.js";
 import { parseTruckNumberFromLabel, truckCameraLabel } from "@/lib/linxup-truck-label";
 
 type CameraOrientation = "outside" | "inside" | "aux";
@@ -51,24 +50,32 @@ function VideoPlayer({ url, onPlaybackError }: { url: string; onPlaybackError: (
     const video = videoRef.current;
     if (!video) return;
 
-    let hls: Hls | null = null;
+    let disposed = false;
+    let destroyHls: (() => void) | null = null;
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = url;
       void video.play().catch(() => undefined);
-    } else if (Hls.isSupported()) {
-      hls = new Hls({ liveDurationInfinity: true, enableWorker: true });
-      hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal) onPlaybackError("The LinxUp stream stopped unexpectedly.");
-      });
-      hls.loadSource(url);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => void video.play().catch(() => undefined));
     } else {
-      onPlaybackError("This browser cannot play the LinxUp live stream.");
+      void import("hls.js").then(({ default: Hls }) => {
+        if (disposed) return;
+        if (!Hls.isSupported()) {
+          onPlaybackError("This browser cannot play the LinxUp live stream.");
+          return;
+        }
+        const hls = new Hls({ liveDurationInfinity: true, enableWorker: true });
+        destroyHls = () => hls.destroy();
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (data.fatal) onPlaybackError("The LinxUp stream stopped unexpectedly.");
+        });
+        hls.loadSource(url);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => void video.play().catch(() => undefined));
+      }).catch(() => onPlaybackError("The LinxUp stream could not be loaded."));
     }
 
     return () => {
-      hls?.destroy();
+      disposed = true;
+      destroyHls?.();
       video.removeAttribute("src");
       video.load();
     };

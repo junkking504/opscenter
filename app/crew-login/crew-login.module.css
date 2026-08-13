@@ -155,6 +155,11 @@
   .brand { margin-bottom: 26px; }
   .lead { margin-bottom: 24px; }
   .button { width: 100%; }
+  .secondaryLink {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
 }
 
 /* OpsCenter light-workspace redesign */

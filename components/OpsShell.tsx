@@ -3,6 +3,7 @@ import OpsNav from "@/components/OpsNav";
 import OperationsClock from "@/components/OperationsClock";
 import JunkKingLogo from "@/components/JunkKingLogo";
 import AddOnNotifications from "@/components/AddOnNotifications";
+import TruckCameraController from "@/components/TruckCameraController";
 import { getOpsRuntime } from "@/lib/runtime";
 
 export default function OpsShell({
@@ -39,7 +40,7 @@ export default function OpsShell({
         : null;
 
   return (
-    <div className="ops-app">
+    <TruckCameraController>
       <input
         id="ops-sidebar-toggle"
         className="ops-sidebar-toggle"
@@ -118,6 +119,6 @@ export default function OpsShell({
       </main>
 
       <OpsNav variant="bottom" />
-    </div>
+    </TruckCameraController>
   );
 }

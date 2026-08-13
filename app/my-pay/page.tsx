@@ -291,24 +291,6 @@ function PayPeriodView({ data }: { data: Awaited<ReturnType<typeof getCrewPayPor
 
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div>
-            <div className={styles.eyebrow}>All crewmembers</div>
-            <h2>Crew Pay Period Metrics</h2>
-            <p>{dateRange(data.payPeriodPerformance.start, data.payPeriodPerformance.end)} · Performance, tips, and bonus days.</p>
-          </div>
-          <div className={styles.privacyNote}>Each person’s total pay is private</div>
-        </div>
-        <div className={styles.leaderboardPanel}>
-          <CrewMetricsTable
-            rows={data.payPeriodPerformance.rows}
-            employee={data.employee}
-            emptyMessage="No crew performance has been recorded in this pay period."
-          />
-        </div>
-      </section>
-
-      <section className={styles.section}>
-        <div className={styles.sectionHeader}>
           <div><div className={styles.eyebrow}>Your private pay detail</div><h2>Pay Breakdown</h2></div>
         </div>
         <div className={styles.panel}>

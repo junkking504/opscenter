@@ -20,4 +20,16 @@ for (const retiredLabel of [
   assert.ok(!jobsMapSource.includes(retiredLabel), `Dispatch legend still includes ${retiredLabel}`);
 }
 
+const myPaySource = readFileSync(new URL("../app/my-pay/page.tsx", import.meta.url), "utf8");
+const payPeriodStart = myPaySource.indexOf("function PayPeriodView");
+const payPeriodEnd = myPaySource.indexOf("function MonthlyLeaderboardView");
+assert.ok(payPeriodStart >= 0 && payPeriodEnd > payPeriodStart, "Crew Portal pay-period view is missing.");
+const payPeriodSource = myPaySource.slice(payPeriodStart, payPeriodEnd);
+for (const employeeSection of ["Your Pay Period", "Pay Breakdown", "Pay History"]) {
+  assert.ok(payPeriodSource.includes(employeeSection), `Crew Portal pay-period view is missing ${employeeSection}.`);
+}
+for (const crewComparison of ["CrewMetricsTable", "All crewmembers", "Crew Pay Period Metrics"]) {
+  assert.ok(!payPeriodSource.includes(crewComparison), `Crew Portal pay-period view still includes ${crewComparison}.`);
+}
+
 console.log("OpsCenter UI copy checks passed.");

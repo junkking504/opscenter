@@ -19,6 +19,7 @@ process.env.WHATSAPP_TRUCK_PHONE_MAP = JSON.stringify({
   "5045550102": "Truck 2",
   "5045550103": "Truck 1",
   "5045550104": "Truck 1",
+  "5045550105": "Truck 1",
 });
 
 const date = "2026-08-13";
@@ -58,24 +59,18 @@ assert.deepEqual(JOB_CLOSEOUT_CHARGES.map((charge) => charge.label), [
   "CC Surcharge (Card Present)",
 ]);
 assert.equal(JOB_CLOSEOUT_CHARGES.at(-1)?.percentage, 3);
-for (const charge of JOB_CLOSEOUT_CHARGES) assert.match(jobCloseoutTemplate(), new RegExp(charge.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-const orderedPrompt = jobCloseoutTemplate();
-const promptSections = [
-  "1. JK NUMBER",
-  "2. TRUCK LOAD",
-  "3. BEDLOAD",
-  "4. INDIVIDUALLY PRICED ITEMS",
-  "5. CREDIT CARD FEE",
-  "6. DISCOUNT",
-  "7. TIP",
-  "8. JOB CATEGORY",
-  "9. ACTUAL JOB TIME",
-  "10. PAYMENT",
-];
-for (let index = 1; index < promptSections.length; index += 1) {
-  assert.ok(orderedPrompt.indexOf(promptSections[index - 1]) < orderedPrompt.indexOf(promptSections[index]));
-}
-assert.match(orderedPrompt, /Send the lines separately or all at once, but keep this order/);
+assert.equal(jobCloseoutTemplate(), [
+  "JK Number:",
+  "Truck Load:",
+  "Bedload:",
+  "Items:",
+  "CC Fee:",
+  "Discount:",
+  "Tip:",
+  "Start Time:",
+  "End Time:",
+  "Payment:",
+].join("\n"));
 
 assert.equal(ingestJobCloseoutText(message("ordinary", "JK4051234 after photos")).status, "ignored");
 const prompt = ingestJobCloseoutText(message("prompt", "Closeout"));
@@ -103,7 +98,6 @@ const allItems = [
   "Credit card fee",
   "Discount $27",
   "Tip $49",
-  "Category House Cleanout",
   "8:30 AM - 10:15 AM",
   "Credit Card $1800.00 last4 4242",
 ].join("\n");
@@ -118,6 +112,7 @@ assert.equal(preview.plan.chargesSubtotal, 1700, JSON.stringify(preview.plan.cha
 assert.equal(preview.plan.creditCardFee, 51);
 assert.equal(preview.plan.jobTotal, 1751);
 assert.equal(preview.plan.tip, 49);
+assert.equal(preview.plan.category, "");
 assert.equal(preview.plan.paymentTotal, 1800);
 assert.equal(preview.plan.paymentReconciles, true);
 assert.match(formatJobCloseoutPreview(preview.plan), /CC Surcharge \(Card Present\): 3\.00% — \$51\.00/);
@@ -166,5 +161,21 @@ assert.deepEqual(categoryDoesNotCreateCharge.plan?.charges.map((charge) => charg
 assert.equal(ingestJobCloseoutText(message("fuel-override-start", "Close JK4051234", "5045550104")).status, "collecting");
 assert.equal(ingestJobCloseoutText(message("fuel-override", "Fuel", "5045550104")).status, "ignored");
 assert.equal(ingestJobCloseoutText(message("fuel-after-override", "24 gallons", "5045550104")).status, "ignored");
+
+assert.equal(ingestJobCloseoutText(message("bare-list-prompt", "Closeout", "5045550105")).status, "prompted");
+const bareListFlow = ingestJobCloseoutText(message("bare-list-filled", [
+  "JK Number: JK4051234",
+  "Truck Load: 1 x 1/2 @ $500",
+  "Bedload: None",
+  "Items: Sofa/Couch 1 @ $128",
+  "CC Fee: None",
+  "Discount: $0",
+  "Tip: $0",
+  "Start Time: 8:30 AM",
+  "End Time: 10:15 AM",
+  "Payment: Cash $628",
+].join("\n"), "5045550105", confirmationAt));
+assert.equal(bareListFlow.status, "preview", JSON.stringify(bareListFlow));
+assert.equal(bareListFlow.plan?.category, "");
 
 process.stdout.write(`${JSON.stringify({ ok: true, chargeCount: JOB_CLOSEOUT_CHARGES.length, total: preview.plan.jobTotal })}\n`);

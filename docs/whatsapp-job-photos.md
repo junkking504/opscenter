@@ -103,7 +103,7 @@ Crew expense transactions and the outbound reply queue live under `OPSBOT_DATA_D
 
 ### OpsBot job-closeout shadow mode
 
-Crew can send `Closeout` to receive a numbered, copy-ready closeout guide in the required input order, or start a draft with an exact command such as `Close JK4051234`. The guide orders JK number, truck load, bedload, individually priced items, credit-card fee, discount, tip, category, actual times, then payments. OpsBot only accepts a JK number found exactly once on today’s or yesterday’s schedule, and the sender phone must be mapped to the same truck through `WHATSAPP_TRUCK_PHONE_MAP_BASE64`.
+Crew can send `Closeout` to receive a bare fill-in list containing only JK number, truck load, bedload, items, credit-card fee, discount, tip, start time, end time, and payment. They can also start a draft with an exact command such as `Close JK4051234`. OpsBot only accepts a JK number found exactly once on today’s or yesterday’s schedule, and the sender phone must be mapped to the same truck through `WHATSAPP_TRUCK_PHONE_MAP_BASE64`.
 
 The closeout draft accepts natural, multi-message details but requires one line per priced item. Quantities greater than one must use `@`, `each`, or `per` so OpsBot never guesses whether the amount is a unit price or a line total. The catalog mirrors JunkWare’s current Other Charges list:
 

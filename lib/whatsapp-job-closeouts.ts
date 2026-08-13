@@ -178,59 +178,18 @@ function formatMoney(value: number): string {
   return value.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function chargeCatalogText(): string {
-  return JOB_CLOSEOUT_CHARGES.map((charge) => charge.percentage
-    ? `- ${charge.label}: ${charge.percentage.toFixed(2)}%`
-    : `- ${charge.label}: ${formatMoney(charge.defaultUnitPrice || 0)} default (enter actual unit price)`
-  ).join("\n");
-}
-
 export function jobCloseoutTemplate(): string {
   return [
-    "JOB CLOSEOUT — SEND IN THIS ORDER",
-    "",
-    "1. JK NUMBER",
-    "Close JK4051234",
-    "",
-    "2. TRUCK LOAD",
-    "Truck load 1 x 1/2 @ $500",
-    "Send Truck load: None if there was no truck load.",
-    "",
-    "3. BEDLOAD",
-    "Bedload 1 x 1/4 @ $100",
-    "Send Bedload: None if there was no bedload.",
-    "",
-    "4. INDIVIDUALLY PRICED ITEMS",
-    "Send one item per line: Item name + quantity + @ unit price.",
-    "Example: Mattress/Box Spring 2 @ $30 each",
-    "",
-    "ITEM LIST",
-    chargeCatalogText(),
-    "",
-    "5. CREDIT CARD FEE",
-    "Credit card fee",
-    "Send this only for a card-present Credit Card payment. OpsBot calculates 3.00%.",
-    "",
-    "6. DISCOUNT",
-    "Discount $25 — or Discount $0",
-    "",
-    "7. TIP",
-    "Tip $40 — or Tip $0",
-    "",
-    "8. JOB CATEGORY",
-    "Category Furniture Removal",
-    "",
-    "9. ACTUAL JOB TIME",
-    "8:30 AM - 10:15 AM",
-    "",
-    "10. PAYMENT",
-    "Credit Card $748.64 last4 4242",
-    "Cash $500",
-    "Check $500 check #1234",
-    "Billed $500",
-    "Send one line for each payment method used.",
-    "",
-    "Send the lines separately or all at once, but keep this order. For quantity above 1, include @ or 'each' so the unit price is unambiguous.",
+    "JK Number:",
+    "Truck Load:",
+    "Bedload:",
+    "Items:",
+    "CC Fee:",
+    "Discount:",
+    "Tip:",
+    "Start Time:",
+    "End Time:",
+    "Payment:",
   ].join("\n");
 }
 
@@ -307,7 +266,7 @@ function activeSession(senderPhone: string, receivedAt: string): CloseoutSession
     const updatedAt = new Date(payload.updatedAt).getTime();
     const messageAt = new Date(receivedAt).getTime();
     if (!Number.isFinite(updatedAt) || !Number.isFinite(messageAt) || messageAt < updatedAt - 60_000 || messageAt - updatedAt > SESSION_MAX_IDLE_MS) return null;
-    return payload.version === 1 && Boolean(payload.jkNumber && payload.appointmentId) ? payload : null;
+    return payload.version === 1 && Array.isArray(payload.textBlocks) && Array.isArray(payload.messageIds) ? payload : null;
   } catch {
     return null;
   }
@@ -328,8 +287,8 @@ function parseClock(value: string): string | null {
 }
 
 function parseTimes(text: string): { startTime: string; endTime: string } | null {
-  const labelledStart = text.match(/\b(?:start|started)\s*(?:at|:)?\s*((?:1[0-2]|0?[1-9])(?::[0-5]\d)?\s*[ap]m|(?:[01]?\d|2[0-3]):[0-5]\d)/i)?.[1];
-  const labelledEnd = text.match(/\b(?:end|ended|finish|finished)\s*(?:at|:)?\s*((?:1[0-2]|0?[1-9])(?::[0-5]\d)?\s*[ap]m|(?:[01]?\d|2[0-3]):[0-5]\d)/i)?.[1];
+  const labelledStart = text.match(/\b(?:start|started)(?:\s+time)?\s*(?:at|:)?\s*((?:1[0-2]|0?[1-9])(?::[0-5]\d)?\s*[ap]m|(?:[01]?\d|2[0-3]):[0-5]\d)/i)?.[1];
+  const labelledEnd = text.match(/\b(?:end|ended|finish|finished)(?:\s+time)?\s*(?:at|:)?\s*((?:1[0-2]|0?[1-9])(?::[0-5]\d)?\s*[ap]m|(?:[01]?\d|2[0-3]):[0-5]\d)/i)?.[1];
   if (labelledStart && labelledEnd) {
     const startTime = parseClock(labelledStart);
     const endTime = parseClock(labelledEnd);
@@ -372,6 +331,7 @@ function parseOtherCharges(lines: string[]): { charges: EnteredCharge[]; ambiguo
   const ambiguous: string[] = [];
   for (const line of lines) {
     if (/^category\b/i.test(line)) continue;
+    if (/^\s*(?:items?|cc\s*fee|credit\s*card\s*(?:fee|surcharge))\s*:\s*(?:none|no|n\/a)\s*$/i.test(line)) continue;
     const definition = matchingCharge(line);
     if (!definition) continue;
     if (charges.some((charge) => charge.key === definition.key)) {
@@ -445,7 +405,6 @@ function compilePlan(session: CloseoutSession, senderPhone: string): { plan: Job
   if (!hasCardPayment && ccCharge) ambiguous.push("CC Surcharge (Card Present) requires a Credit Card payment");
   const missing = [
     ...(!load && !bedload && !charges.some((charge) => charge.total !== null) ? ["at least one priced item"] : []),
-    ...(!category ? ["job category"] : []),
     ...(!times ? ["start and finish times"] : []),
     ...(!payments.length ? ["payment method and amount"] : []),
   ];
@@ -506,7 +465,7 @@ export function formatJobCloseoutPreview(plan: JobCloseoutPlan): string {
     `Job total: ${formatMoney(plan.jobTotal)}`,
     ...(plan.tip ? [`Tip: ${formatMoney(plan.tip)}`] : []),
     ...paymentLines,
-    `Category: ${plan.category}`,
+    ...(plan.category ? [`Category: ${plan.category}`] : []),
     `Time: ${plan.startTime}–${plan.endTime}`,
     "",
     `Reply CONFIRM ${plan.jkNumber} to test the final confirmation. Shadow mode cannot change JunkWare.`,
@@ -572,6 +531,17 @@ export function ingestJobCloseoutText(message: WhatsAppTextMessage): JobCloseout
 
   const explicitJk = extractJkNumber(message.text);
   if (intent && !explicitJk) {
+    writeJsonAtomic(senderFile("sessions", message.senderPhone), {
+      version: 1,
+      jkNumber: "",
+      appointmentId: "",
+      date: "",
+      truck: "",
+      openedAt: message.receivedAt,
+      updatedAt: message.receivedAt,
+      textBlocks: [],
+      messageIds: [message.messageId],
+    } satisfies CloseoutSession);
     enqueueOpsBotReply(message, jobCloseoutTemplate(), "job-closeout-prompt");
     mark(message, "prompted");
     return { status: "prompted" };

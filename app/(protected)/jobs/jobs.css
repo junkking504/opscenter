@@ -249,10 +249,16 @@
 }
 
 .ops-jobs-page .ops-job-closeout-editor > summary {
-  padding: 5px 8px;
+  padding: 9px 10px;
   color: #174f7a;
-  font-size: 0.75rem;
-  line-height: 1.25;
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.ops-jobs-page .ops-job-closeout-editor[open] {
+  grid-column: 1 / -1;
+  justify-self: stretch;
+  width: 100%;
 }
 
 .ops-jobs-page .ops-appointment-detail-grid {

@@ -40,7 +40,7 @@ export default function OpsShell({
         : null;
 
   return (
-    <div className="ops-app">
+    <TruckCameraController>
       <input
         id="ops-sidebar-toggle"
         className="ops-sidebar-toggle"
@@ -119,7 +119,6 @@ export default function OpsShell({
       </main>
 
       <OpsNav variant="bottom" />
-      <TruckCameraController />
-    </div>
+    </TruckCameraController>
   );
 }

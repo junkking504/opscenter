@@ -101,6 +101,33 @@ The worker reads the durable spool at `data/integrations/whatsapp-job-photos` un
 
 Crew expense transactions and the outbound reply queue live under `OPSBOT_DATA_DIR/integrations/whatsapp-crew-expenses` unless `WHATSAPP_CREW_EXPENSE_STATE_DIR` overrides it. Every inbound WhatsApp message gets an idempotent `Recorded.` receipt. Complete Fuel and Dump messages enter a durable transaction queue; they are not exposed as OpsCenter Finance records yet.
 
+### OpsBot job-closeout shadow mode
+
+Crew can send `Closeout` to receive the closeout guide, or start a draft with an exact command such as `Close JK4051234`. OpsBot only accepts a JK number found exactly once on today’s or yesterday’s schedule, and the sender phone must be mapped to the same truck through `WHATSAPP_TRUCK_PHONE_MAP_BASE64`.
+
+The closeout draft accepts natural, multi-message details but requires one line per priced item. Quantities greater than one must use `@`, `each`, or `per` so OpsBot never guesses whether the amount is a unit price or a line total. The catalog mirrors JunkWare’s current Other Charges list:
+
+- Labor
+- Refrigerator
+- Mattress/Box Spring
+- Tire
+- E-Waste
+- Misc
+- Sofa/Couch
+- Sleeper Sofa/Couch
+- Commercial Refrigerator
+- Hot Tub
+- Piano
+- Freon Appliance
+- Microwave
+- TVs/Electronics
+- Gas Surcharge
+- CC Surcharge (Card Present), 3.00%
+
+Truck load, bedload, discounts, tips, category, actual start/end time, and each payment are itemized separately. A Credit Card payment requires the card-present surcharge line; the surcharge is rejected without a Credit Card payment. Payments must reconcile exactly to the computed job total, or to the job total plus the entered tip.
+
+When the draft reconciles, OpsBot returns an itemized `SHADOW CLOSEOUT` preview and accepts the exact confirmation `CONFIRM JK…`. Both the preview and confirmation are deliberately non-writing: this first release cannot modify JunkWare. Durable drafts live under `OPSBOT_DATA_DIR/integrations/whatsapp-job-closeouts` unless `WHATSAPP_JOB_CLOSEOUT_STATE_DIR` overrides it. The shadow-confirmed records provide the evidence needed to validate real crew wording before a separately reviewed write path is enabled.
+
 The expense worker enforces this order:
 
 1. Create a JunkWare Accounting → Truck Records line item with a deterministic OpsBot receipt number.
@@ -137,6 +164,7 @@ To include the verified photos in the grouped Slack notification, add `files:wri
 ```sh
 npm run verify:whatsapp-job-photos
 npm run verify:whatsapp-crew-expenses
+npm run verify:whatsapp-job-closeouts
 npm run lint
 npm run build
 ```

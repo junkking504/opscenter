@@ -6,6 +6,7 @@ import {
   verifyMetaSignature,
 } from "@/lib/whatsapp-job-photo-queue";
 import { enqueueCrewExpenseReceipt, ingestCrewExpenseText } from "@/lib/whatsapp-crew-expenses";
+import { ingestJobCloseoutText } from "@/lib/whatsapp-job-closeouts";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -55,11 +56,18 @@ export async function POST(request: Request) {
     return noStore({ ok: false, error: "Unexpected WhatsApp phone number." }, 403);
   }
 
-  for (const message of parsed.messages) enqueueCrewExpenseReceipt(message);
+  const closeoutResults = parsed.texts.map((text) => ingestJobCloseoutText(text));
+  const closeoutByMessage = new Map(parsed.texts.map((text, index) => [text.messageId, closeoutResults[index]]));
+  for (const message of parsed.messages) {
+    if (closeoutByMessage.get(message.messageId)?.status === "ignored") enqueueCrewExpenseReceipt(message);
+    else if (!closeoutByMessage.has(message.messageId)) enqueueCrewExpenseReceipt(message);
+  }
 
-  const expenseResults = parsed.texts.map((text) => {
+  const expenseResults = parsed.texts.map((text, index) => {
     recordWhatsAppTextContext(text);
-    return ingestCrewExpenseText(text);
+    return closeoutResults[index].status === "ignored"
+      ? ingestCrewExpenseText(text)
+      : { status: "ignored" as const };
   });
   for (const image of parsed.images) {
     if (!image.caption) continue;
@@ -89,6 +97,13 @@ export async function POST(request: Request) {
       collecting: expenseResults.filter((result) => result.status === "collecting").length,
       queued: expenseResults.filter((result) => result.status === "queued").length,
       review: expenseResults.filter((result) => result.status === "review").length,
+    },
+    jobCloseouts: {
+      prompted: closeoutResults.filter((result) => result.status === "prompted").length,
+      collecting: closeoutResults.filter((result) => result.status === "collecting").length,
+      preview: closeoutResults.filter((result) => result.status === "preview").length,
+      confirmed: closeoutResults.filter((result) => result.status === "shadow_confirmed").length,
+      review: closeoutResults.filter((result) => result.status === "review").length,
     },
   });
 }

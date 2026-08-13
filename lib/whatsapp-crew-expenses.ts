@@ -525,6 +525,15 @@ function enqueueReply(message: Pick<WhatsAppInboundMessage, "messageId" | "sende
   writeJsonAtomic(path.join(directory("outbox-incoming"), fileName), reply);
 }
 
+export function enqueueOpsBotReply(
+  message: Pick<WhatsAppInboundMessage, "messageId" | "senderPhone" | "phoneNumberId">,
+  text: string,
+  purpose: string,
+): void {
+  ensureDirectories();
+  enqueueReply(message, text, purpose);
+}
+
 export function enqueueCrewExpenseReceipt(message: WhatsAppInboundMessage): void {
   ensureDirectories();
   enqueueReply(message, "Recorded.", "receipt");

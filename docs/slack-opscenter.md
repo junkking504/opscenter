@@ -12,10 +12,14 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
 - Employee clock-in, clock-out with hours, and finalized daily-pay breakdown -> `#ops-command` (or `SLACK_OPS_CREW_CHANNEL_ID`)
 - Newly closed JunkWare job -> `#payment`, with each payment amount and method, check number for checks, card last four for cards, and any tip
 - Open out-of-service fleet issue -> `#ops-fleet`
+- New Linxup driving-safety event -> the corresponding `#truck-N` channel
+  - Severe speeding, harsh braking, hard acceleration, harsh cornering, seatbelt warnings, tailgating, and collisions post as individual alerts
+  - Ordinary speeding is grouped into one summary per truck after the local hour closes
+  - Events without a supported physical-truck mapping fall back to `#ops-fleet`
 - Red JunkWare or Linxup data health -> `#ops-data-health`
 - Completed WhatsApp photo batch with an explicit JK number -> one summary with attachments in the assigned `#truck-N` channel after every photo is verified (when `SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED=true`); batches without a mapped truck fall back to `#ops-dispatch`
 
-The first live run records existing appointments, existing cancellations, and currently active incidents as its baseline. It does not flood Slack with pre-existing conditions. Later appointment additions and cancellations are each posted once; failed notification deliveries remain eligible for retry. Once a baseline incident clears, a later recurrence is treated as a new incident. New incident alerts are deduplicated, and recovery messages are posted in the original Slack thread.
+The first live run records existing appointments, existing cancellations, existing driving-safety events, and currently active incidents as its baseline. It does not flood Slack with pre-existing conditions. Later appointment additions, cancellations, and driving-safety notifications are each posted once; failed notification deliveries remain eligible for retry. Once a baseline incident clears, a later recurrence is treated as a new incident. New incident alerts are deduplicated, and recovery messages are posted in the original Slack thread.
 
 Crew lifecycle notifications are also baselined once when the feature is first deployed. After that baseline, each employee receives at most one clock-in, clock-out, and finalized-pay notification per day. The messages are intentionally plain: clock-in states only that the employee clocked in; clock-out adds only hours worked; finalized pay lists total pay, hourly pay, tips, and bonuses.
 

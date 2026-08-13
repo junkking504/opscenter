@@ -11,7 +11,7 @@ import { readFleetIssueStore, type FleetIssue } from "@/lib/fleet-issues";
 import { buildOperationalExceptions, type OperationalException } from "@/lib/operational-exceptions";
 import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
-import { truckSlackChannelId } from "@/lib/slack-truck-channels";
+import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 
 export type SlackAlertSeverity = "critical" | "warning";
 export type SlackAlertKind =
@@ -22,6 +22,7 @@ export type SlackAlertKind =
   | "late_job"
   | "fleet_down"
   | "stale_data"
+  | "driving_safety"
   | "truck_arrival"
   | "crew_clock_in"
   | "crew_clock_out"
@@ -50,7 +51,7 @@ type ActiveSlackAlert = {
 };
 
 type SlackAlertState = {
-  version: 3;
+  version: 4;
   initializedAt: string;
   updatedAt: string;
   active: Record<string, ActiveSlackAlert>;
@@ -61,6 +62,8 @@ type SlackAlertState = {
   deliveredCrewNotificationsByDate: Record<string, string[]>;
   truckArrivalNotificationsInitializedAt: string;
   deliveredTruckArrivalsByDate: Record<string, string[]>;
+  drivingSafetyNotificationsInitializedAt: string;
+  deliveredDrivingSafetyNotificationsByDate: Record<string, string[]>;
   paymentNotificationsInitializedAt: string;
   deliveredPaymentNotificationsByDate: Record<string, string[]>;
 };
@@ -79,6 +82,7 @@ export type SlackAlertRunResult = {
   bootstrappedAddOns: number;
   bootstrappedCancellations: number;
   bootstrappedIncidents: number;
+  bootstrappedDrivingSafety: number;
   bootstrappedPayments: number;
   posted: SlackOpsAlert[];
   resolved: ActiveSlackAlert[];
@@ -110,7 +114,7 @@ function stateFile(): string {
 
 function emptyState(): SlackAlertState {
   return {
-    version: 3,
+    version: 4,
     initializedAt: "",
     updatedAt: "",
     active: {},
@@ -121,6 +125,8 @@ function emptyState(): SlackAlertState {
     deliveredCrewNotificationsByDate: {},
     truckArrivalNotificationsInitializedAt: "",
     deliveredTruckArrivalsByDate: {},
+    drivingSafetyNotificationsInitializedAt: "",
+    deliveredDrivingSafetyNotificationsByDate: {},
     paymentNotificationsInitializedAt: "",
     deliveredPaymentNotificationsByDate: {},
   };
@@ -130,7 +136,7 @@ function readState(): SlackAlertState {
   try {
     const payload = JSON.parse(fs.readFileSync(stateFile(), "utf8"));
     return {
-      version: 3,
+      version: 4,
       initializedAt: String(payload?.initializedAt || ""),
       updatedAt: String(payload?.updatedAt || ""),
       active: payload?.active && typeof payload.active === "object" ? payload.active : {},
@@ -154,6 +160,12 @@ function readState(): SlackAlertState {
       deliveredTruckArrivalsByDate:
         payload?.deliveredTruckArrivalsByDate && typeof payload.deliveredTruckArrivalsByDate === "object"
           ? payload.deliveredTruckArrivalsByDate
+          : {},
+      drivingSafetyNotificationsInitializedAt: String(payload?.drivingSafetyNotificationsInitializedAt || ""),
+      deliveredDrivingSafetyNotificationsByDate:
+        payload?.deliveredDrivingSafetyNotificationsByDate
+          && typeof payload.deliveredDrivingSafetyNotificationsByDate === "object"
+          ? payload.deliveredDrivingSafetyNotificationsByDate
           : {},
       paymentNotificationsInitializedAt: String(payload?.paymentNotificationsInitializedAt || ""),
       deliveredPaymentNotificationsByDate:
@@ -184,6 +196,10 @@ function pruneCrewNotificationDates(values: Record<string, string[]>): Record<st
 }
 
 function pruneTruckArrivalDates(values: Record<string, string[]>): Record<string, string[]> {
+  return Object.fromEntries(Object.entries(values).sort(([left], [right]) => right.localeCompare(left)).slice(0, 8));
+}
+
+function pruneDrivingSafetyDates(values: Record<string, string[]>): Record<string, string[]> {
   return Object.fromEntries(Object.entries(values).sort(([left], [right]) => right.localeCompare(left)).slice(0, 8));
 }
 
@@ -620,6 +636,204 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
   return notifications.sort((left, right) => left.fingerprint.localeCompare(right.fingerprint));
 }
 
+const DRIVING_SAFETY_LABELS: Record<string, string> = {
+  severe_speeding: "Severe speeding",
+  harsh_braking: "Harsh braking",
+  hard_braking: "Harsh braking",
+  hard_acceleration: "Hard acceleration",
+  harsh_acceleration: "Hard acceleration",
+  harsh_cornering: "Harsh cornering",
+  seatbelt_warning: "Seatbelt warning",
+  no_seatbelt: "Seatbelt warning",
+  tailgating: "Tailgating",
+  collision: "Collision",
+  crash: "Collision",
+};
+
+function normalizedSafetyType(value: unknown): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_|_$/g, "");
+}
+
+function safetyType(event: AnyRecord): string {
+  const normalized = normalizedSafetyType(event?.alert_type_normalized);
+  const raw = normalizedSafetyType(event?.alert_type);
+  const value = normalized && normalized !== "unknown" ? normalized : raw;
+  if (value.includes("severe_speed") || value.includes("high_speed")) return "severe_speeding";
+  if (value === "speeding" || value.includes("posted_speed")) return "speeding";
+  if (value.includes("tailgat")) return "tailgating";
+  if (value.includes("seatbelt") || value.includes("seat_belt")) return "seatbelt_warning";
+  if (value.includes("braking") || value.includes("brake")) return "harsh_braking";
+  if (value.includes("acceleration") || value.includes("accelerat")) return "hard_acceleration";
+  if (value.includes("cornering") || value.includes("corner")) return "harsh_cornering";
+  if (value.includes("collision") || value.includes("crash")) return "collision";
+  return value;
+}
+
+function chicagoEventParts(value: string): { date: string; hour: string } | null {
+  const instant = new Date(value);
+  if (!Number.isFinite(instant.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(instant);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    date: `${values.year}-${values.month}-${values.day}`,
+    hour: `${values.year}-${values.month}-${values.day}T${values.hour}`,
+  };
+}
+
+function chicagoEventTime(value: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function safetyEventId(event: AnyRecord, type: string, truck: string, occurredAt: string): string {
+  const sourceId = firstText(event, ["alert_id", "event_id", "id"]);
+  const value = sourceId || `${type}-${truck}-${occurredAt}`;
+  return value.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function safetyTruck(row: AnyRecord, event: AnyRecord): string {
+  return firstText(event, ["truck_number", "truck", "vehicle_name"])
+    || firstText(row, ["truck_number", "truck", "vehicle_name"]);
+}
+
+function safetyDriver(event: AnyRecord): string {
+  const driver = firstText(event, ["driver_name", "driver", "driver_normalized_name"]);
+  const attribution = firstText(event, ["attribution_status"]).toLowerCase();
+  if (!driver || /no driver|unassigned|unknown/i.test(driver) || attribution !== "confirmed") {
+    return "Driver unassigned";
+  }
+  return driver;
+}
+
+function safetyEventDetail(event: AnyRecord): string[] {
+  const details: string[] = [];
+  const speed = firstFiniteNumber(event, ["speed", "vehicle_speed"]);
+  const postedSpeed = firstFiniteNumber(event, ["posted_speed", "speed_limit"]);
+  if (speed !== null && postedSpeed !== null) details.push(`${Math.round(speed)} mph in a ${Math.round(postedSpeed)} mph zone`);
+  else if (speed !== null) details.push(`${Math.round(speed)} mph`);
+  const location = firstText(event, ["address", "geofence_name", "location"]);
+  if (location) details.push(location.replace(/\s+/g, " ").slice(0, 100));
+  if (event?.video_available === true) details.push("Video available");
+  return details;
+}
+
+function metricsTruckDriverRows(metrics: AnyRecord | null): AnyRecord[] {
+  if (Array.isArray(metrics?.truck_driver_scores)) return metrics.truck_driver_scores;
+  if (metrics?.driver_score_by_truck && typeof metrics.driver_score_by_truck === "object") {
+    return Object.entries(metrics.driver_score_by_truck).map(([truck, row]) => ({
+      ...(row && typeof row === "object" ? row : {}),
+      truck,
+    }));
+  }
+  return [];
+}
+
+export function buildDrivingSafetySlackNotifications(
+  date: string,
+  metrics: AnyRecord | null,
+  options?: { now?: Date },
+): SlackOpsAlert[] {
+  const notifications: SlackOpsAlert[] = [];
+  const seenEventIds = new Set<string>();
+  const speedingBuckets = new Map<string, { truck: string; hour: string; events: AnyRecord[] }>();
+  const nowHour = chicagoEventParts((options?.now || new Date()).toISOString())?.hour || "";
+  const href = absoluteOpsHref(`/fleet?date=${encodeURIComponent(date)}&section=scores`);
+
+  for (const row of metricsTruckDriverRows(metrics)) {
+    const events = Array.isArray(row?.alert_events) ? row.alert_events : [];
+    for (const event of events) {
+      if (!event || typeof event !== "object") continue;
+      const type = safetyType(event);
+      if (type !== "speeding" && !DRIVING_SAFETY_LABELS[type]) continue;
+      const occurredAt = firstText(event, ["occurred_at", "event_time", "timestamp"]);
+      const local = chicagoEventParts(occurredAt);
+      if (!local || local.date !== date) continue;
+      const truck = safetyTruck(row, event);
+      const eventId = safetyEventId(event, type, truck, occurredAt);
+      if (!eventId || seenEventIds.has(eventId)) continue;
+      seenEventIds.add(eventId);
+
+      if (type === "speeding") {
+        const normalizedTruck = normalizeSlackTruckNumber(truck);
+        const truckKey = normalizedTruck ? `truck-${normalizedTruck}` : truckArrivalKeyPart(truck) || "unmapped";
+        const bucketKey = `${local.hour}:${truckKey}`;
+        const bucket = speedingBuckets.get(bucketKey) || { truck, hour: local.hour, events: [] };
+        bucket.events.push(event);
+        speedingBuckets.set(bucketKey, bucket);
+        continue;
+      }
+
+      const label = DRIVING_SAFETY_LABELS[type];
+      const normalizedTruck = normalizeSlackTruckNumber(truck);
+      const truckLabel = normalizedTruck ? `Truck ${normalizedTruck}` : "Unmapped truck";
+      const critical = type === "severe_speeding" || type === "collision" || type === "crash";
+      const detail = [
+        `${chicagoEventTime(occurredAt)}`,
+        safetyDriver(event),
+        ...safetyEventDetail(event),
+      ].join(" · ");
+      const plainText = `${critical ? ":rotating_light:" : ":warning:"} ${truckLabel} safety: ${label} · ${detail} · Review: ${href}`;
+      notifications.push({
+        fingerprint: `driving_safety:${eventId}`,
+        kind: "driving_safety",
+        lifecycle: "notification",
+        severity: critical ? "critical" : "warning",
+        channelId: truckSlackChannelId(truck, channel("fleet")),
+        title: plainText,
+        detail: "",
+        nextAction: "",
+        href: "",
+        plainText,
+      });
+    }
+  }
+
+  for (const { truck, hour, events } of speedingBuckets.values()) {
+    // Ordinary speeding is summarized only after the local hour closes so a burst
+    // produces one truck-channel message instead of one message per source event.
+    if (!nowHour || hour >= nowHour) continue;
+    const normalizedTruck = normalizeSlackTruckNumber(truck);
+    const truckKey = normalizedTruck ? `truck-${normalizedTruck}` : truckArrivalKeyPart(truck) || "unmapped";
+    const truckLabel = normalizedTruck ? `Truck ${normalizedTruck}` : "Unmapped truck";
+    const verifiedDrivers = Array.from(new Set(events.map(safetyDriver).filter((driver) => driver !== "Driver unassigned")));
+    const driverText = verifiedDrivers.length === 1
+      ? verifiedDrivers[0]
+      : verifiedDrivers.length > 1
+        ? "Multiple verified drivers"
+        : "Driver unassigned";
+    const firstEventTime = firstText(events[0], ["occurred_at", "event_time", "timestamp"]);
+    const plainText = `:warning: ${truckLabel} safety: ${events.length} speeding alert${events.length === 1 ? "" : "s"} during the ${chicagoEventTime(firstEventTime).replace(/:\d{2}/, ":00")} hour · ${driverText} · Review: ${href}`;
+    notifications.push({
+      fingerprint: `driving_safety_speeding:${date}:${truckKey}:${hour}`,
+      kind: "driving_safety",
+      lifecycle: "notification",
+      severity: "warning",
+      channelId: truckSlackChannelId(truck, channel("fleet")),
+      title: plainText,
+      detail: "",
+      nextAction: "",
+      href: "",
+      plainText,
+    });
+  }
+
+  return notifications.sort((left, right) => left.fingerprint.localeCompare(right.fingerprint));
+}
+
 function collectIncidentAlerts(date: string): SlackOpsAlert[] {
   const report = buildOperationalExceptions(date);
   const alerts: SlackOpsAlert[] = [];
@@ -729,6 +943,12 @@ export async function runSlackOpsAlerts(options?: {
   const truckArrivalNotifications = truckArrivalNotificationsInitialized
     ? allTruckArrivalNotifications.filter((alert) => !deliveredTruckArrivals.has(alert.fingerprint))
     : [];
+  const allDrivingSafetyNotifications = buildDrivingSafetySlackNotifications(date, readMetrics(date));
+  const drivingSafetyNotificationsInitialized = Boolean(state.drivingSafetyNotificationsInitializedAt);
+  const deliveredDrivingSafetyNotifications = new Set(state.deliveredDrivingSafetyNotificationsByDate[date] || []);
+  const drivingSafetyNotifications = drivingSafetyNotificationsInitialized
+    ? allDrivingSafetyNotifications.filter((alert) => !deliveredDrivingSafetyNotifications.has(alert.fingerprint))
+    : [];
   const allPaymentNotifications = buildPaymentCloseoutSlackNotifications(date, readCompletedJunkwareRows(date));
   const paymentNotificationsInitialized = Boolean(state.paymentNotificationsInitializedAt);
   const deliveredPaymentNotifications = new Set(state.deliveredPaymentNotificationsByDate[date] || []);
@@ -762,6 +982,7 @@ export async function runSlackOpsAlerts(options?: {
     ...incidents,
     ...notifications,
     ...(truckArrivalNotificationsInitialized ? truckArrivalNotifications : allTruckArrivalNotifications),
+    ...(drivingSafetyNotificationsInitialized ? drivingSafetyNotifications : allDrivingSafetyNotifications),
     ...(crewNotificationsInitialized ? crewNotifications : allCrewNotifications),
     ...(paymentNotificationsInitialized ? paymentNotifications : allPaymentNotifications),
   ];
@@ -773,6 +994,7 @@ export async function runSlackOpsAlerts(options?: {
     bootstrappedAddOns: hadAppointmentBaseline ? 0 : feed.appointments.length,
     bootstrappedCancellations: hadCancellationBaseline ? 0 : cancellationFeed.appointments.length,
     bootstrappedIncidents: state.initializedAt ? 0 : incidents.length,
+    bootstrappedDrivingSafety: drivingSafetyNotificationsInitialized ? 0 : allDrivingSafetyNotifications.length,
     bootstrappedPayments: paymentNotificationsInitialized ? 0 : allPaymentNotifications.length,
     posted: [],
     resolved: [],
@@ -800,6 +1022,12 @@ export async function runSlackOpsAlerts(options?: {
     state.deliveredTruckArrivalsByDate[date] = allTruckArrivalNotifications.map((alert) => alert.fingerprint);
     for (const alert of allTruckArrivalNotifications) deliveredTruckArrivals.add(alert.fingerprint);
     state.deliveredTruckArrivalsByDate = pruneTruckArrivalDates(state.deliveredTruckArrivalsByDate);
+  }
+  if (!drivingSafetyNotificationsInitialized) {
+    state.drivingSafetyNotificationsInitializedAt = now;
+    state.deliveredDrivingSafetyNotificationsByDate[date] = allDrivingSafetyNotifications.map((alert) => alert.fingerprint);
+    for (const alert of allDrivingSafetyNotifications) deliveredDrivingSafetyNotifications.add(alert.fingerprint);
+    state.deliveredDrivingSafetyNotificationsByDate = pruneDrivingSafetyDates(state.deliveredDrivingSafetyNotificationsByDate);
   }
   if (!paymentNotificationsInitialized) {
     state.paymentNotificationsInitializedAt = now;
@@ -906,6 +1134,16 @@ export async function runSlackOpsAlerts(options?: {
     result.posted.push(alert);
   }
 
+  for (const alert of drivingSafetyNotifications) {
+    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
+    if (!response.ok || !response.ts) {
+      result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
+      continue;
+    }
+    deliveredDrivingSafetyNotifications.add(alert.fingerprint);
+    result.posted.push(alert);
+  }
+
   for (const alert of paymentNotifications) {
     const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
     if (!response.ok || !response.ts) {
@@ -938,6 +1176,8 @@ export async function runSlackOpsAlerts(options?: {
   state.deliveredCrewNotificationsByDate = pruneCrewNotificationDates(state.deliveredCrewNotificationsByDate);
   state.deliveredTruckArrivalsByDate[date] = Array.from(deliveredTruckArrivals);
   state.deliveredTruckArrivalsByDate = pruneTruckArrivalDates(state.deliveredTruckArrivalsByDate);
+  state.deliveredDrivingSafetyNotificationsByDate[date] = Array.from(deliveredDrivingSafetyNotifications);
+  state.deliveredDrivingSafetyNotificationsByDate = pruneDrivingSafetyDates(state.deliveredDrivingSafetyNotificationsByDate);
   state.deliveredPaymentNotificationsByDate[date] = Array.from(deliveredPaymentNotifications);
   state.deliveredPaymentNotificationsByDate = prunePaymentNotificationDates(state.deliveredPaymentNotificationsByDate);
   state.updatedAt = now;

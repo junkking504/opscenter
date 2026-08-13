@@ -5,6 +5,7 @@ import path from "node:path";
 import { appointmentTerritory, buildCancelledAppointmentFeed } from "@/lib/add-on-notifications";
 import {
   appointmentChannelId,
+  buildDrivingSafetySlackNotifications,
   buildPaymentCloseoutSlackNotifications,
   buildCrewSlackNotifications,
   buildTruckArrivalSlackNotifications,
@@ -20,6 +21,8 @@ process.env.SLACK_JOBS_NS_CHANNEL_ID = "C_TEST_NS";
 process.env.SLACK_OPS_DISPATCH_CHANNEL_ID = "C_TEST_DISPATCH";
 process.env.SLACK_OPS_COMMAND_CHANNEL_ID = "C_TEST_COMMAND";
 process.env.SLACK_TRUCK_4_CHANNEL_ID = "C_TEST_TRUCK_4";
+process.env.SLACK_TRUCK_6_CHANNEL_ID = "C_TEST_TRUCK_6";
+process.env.SLACK_OPS_FLEET_CHANNEL_ID = "C_TEST_FLEET";
 process.env.SLACK_OPS_PAYMENT_CHANNEL_ID = "C_TEST_PAYMENT";
 delete process.env.SLACK_OPS_CREW_CHANNEL_ID;
 
@@ -46,6 +49,121 @@ assert.equal(slackAlertKindEnabled("cancellation"), true);
 assert.equal(slackAlertKindEnabled("unassigned_crew"), false);
 assert.equal(slackAlertKindEnabled("truck_arrival"), true);
 assert.equal(slackAlertKindEnabled("job_closed_payment"), true);
+assert.equal(slackAlertKindEnabled("driving_safety"), true);
+
+const drivingSafetyAlerts = buildDrivingSafetySlackNotifications("2026-08-12", {
+  truck_driver_scores: [
+    {
+      truck: "Truck# 4",
+      alert_events: [
+        {
+          alert_id: "tailgating-1",
+          alert_type_normalized: "unknown",
+          alert_type: "Tailgating Alert",
+          occurred_at: "2026-08-12T14:30:00Z",
+          truck_number: "Truck# 4",
+          driver_name: "Driver Example",
+          attribution_status: "confirmed",
+          geofence_name: "I-10 East",
+          video_available: true,
+        },
+        {
+          alert_id: "speeding-1",
+          alert_type_normalized: "speeding",
+          occurred_at: "2026-08-12T14:10:00Z",
+          truck_number: "Truck# 4",
+          driver_name: "Driver Example",
+          attribution_status: "confirmed",
+        },
+        {
+          alert_id: "speeding-2",
+          alert_type_normalized: "speeding",
+          occurred_at: "2026-08-12T14:20:00Z",
+          truck_number: "Truck# 4",
+          driver_name: "Driver Example",
+          attribution_status: "confirmed",
+        },
+        {
+          alert_id: "speeding-current-hour",
+          alert_type_normalized: "speeding",
+          occurred_at: "2026-08-12T16:02:00Z",
+          truck_number: "Truck# 4",
+          driver_name: "Driver Example",
+          attribution_status: "confirmed",
+        },
+      ],
+    },
+    {
+      truck: "Truck# 6",
+      alert_events: [
+        {
+          alert_id: "severe-speeding-1",
+          alert_type_normalized: "severe_speeding",
+          occurred_at: "2026-08-12T14:31:00Z",
+          truck_number: "Truck# 6",
+          driver_name: "No Driver Assigned",
+          attribution_status: "unassigned",
+          speed: 72,
+          posted_speed: 55,
+        },
+        {
+          alert_id: "tailgating-1",
+          alert_type_normalized: "tailgating",
+          occurred_at: "2026-08-12T14:30:00Z",
+          truck_number: "Truck# 4",
+          driver_name: "Driver Example",
+          attribution_status: "confirmed",
+        },
+      ],
+    },
+    {
+      truck: "Truck# 5",
+      alert_events: [
+        {
+          alert_id: "seatbelt-1",
+          alert_type_normalized: "seatbelt_warning",
+          occurred_at: "2026-08-12T14:32:00Z",
+          truck_number: "Truck# 5",
+          driver_name: "Unknown",
+          attribution_status: "unknown",
+          video_available: true,
+        },
+        {
+          alert_id: "ignition-1",
+          alert_type_normalized: "ignition_started",
+          occurred_at: "2026-08-12T14:33:00Z",
+          truck_number: "Truck# 5",
+        },
+      ],
+    },
+  ],
+}, { now: new Date("2026-08-12T16:05:00Z") });
+
+assert.deepEqual(
+  drivingSafetyAlerts.map((alert) => ({ fingerprint: alert.fingerprint, channelId: alert.channelId, text: formatSlackAlert(alert) })),
+  [
+    {
+      fingerprint: "driving_safety_speeding:2026-08-12:truck-4:2026-08-12T09",
+      channelId: "C_TEST_TRUCK_4",
+      text: ":warning: Truck 4 safety: 2 speeding alerts during the 9:00 AM hour · Driver Example · Review: https://ops.junk-king.app/fleet?date=2026-08-12&amp;section=scores",
+    },
+    {
+      fingerprint: "driving_safety:seatbelt-1",
+      channelId: "C_TEST_FLEET",
+      text: ":warning: Unmapped truck safety: Seatbelt warning · 9:32 AM · Driver unassigned · Video available · Review: https://ops.junk-king.app/fleet?date=2026-08-12&amp;section=scores",
+    },
+    {
+      fingerprint: "driving_safety:severe-speeding-1",
+      channelId: "C_TEST_TRUCK_6",
+      text: ":rotating_light: Truck 6 safety: Severe speeding · 9:31 AM · Driver unassigned · 72 mph in a 55 mph zone · Review: https://ops.junk-king.app/fleet?date=2026-08-12&amp;section=scores",
+    },
+    {
+      fingerprint: "driving_safety:tailgating-1",
+      channelId: "C_TEST_TRUCK_4",
+      text: ":warning: Truck 4 safety: Tailgating · 9:30 AM · Driver Example · I-10 East · Video available · Review: https://ops.junk-king.app/fleet?date=2026-08-12&amp;section=scores",
+    },
+  ],
+);
 
 const paymentCloseoutAlerts = buildPaymentCloseoutSlackNotifications("2026-08-12", [
   {
@@ -169,7 +287,9 @@ assert.deepEqual(
 const temporaryDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "opscenter-slack-alert-test-"));
 process.env.OPSCENTER_DATA_DIR = temporaryDataDir;
 const junkwareDirectory = path.join(temporaryDataDir, "history", "junkware");
+const dailyMetricsDirectory = path.join(temporaryDataDir, "history", "daily_metrics");
 fs.mkdirSync(junkwareDirectory, { recursive: true });
+fs.mkdirSync(dailyMetricsDirectory, { recursive: true });
 fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), JSON.stringify({
   scraped_at: "2026-08-12T13:15:00-05:00",
   cancelled: [
@@ -232,9 +352,29 @@ const newCloseout = {
     payments: [{ method: "Check", detail: "#2201", amount: "$220.00" }],
   },
 };
+const existingSafetyEvent = {
+  alert_id: "existing-tailgating",
+  alert_type_normalized: "tailgating",
+  occurred_at: "2026-08-12T14:30:00Z",
+  truck_number: "Truck# 4",
+  driver_name: "Driver Example",
+  attribution_status: "confirmed",
+  video_available: true,
+};
+const newSafetyEvent = {
+  alert_id: "new-severe-speeding",
+  alert_type_normalized: "severe_speeding",
+  occurred_at: "2026-08-12T15:30:00Z",
+  truck_number: "Truck# 6",
+  driver_name: "No Driver Assigned",
+  attribution_status: "unassigned",
+};
 fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), JSON.stringify({
   scraped_at: "2026-08-12T14:00:00-05:00",
   completed: [existingCloseout],
+}));
+fs.writeFileSync(path.join(dailyMetricsDirectory, "daily_metrics_2026-08-12.json"), JSON.stringify({
+  truck_driver_scores: [{ truck: "Truck# 4", alert_events: [existingSafetyEvent] }],
 }));
 
 const originalFetch = globalThis.fetch;
@@ -251,6 +391,7 @@ globalThis.fetch = (async (_input, init) => {
 try {
   const baselineRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.equal(baselineRun.bootstrappedPayments, 1);
+  assert.equal(baselineRun.bootstrappedDrivingSafety, 1);
   assert.equal(baselineRun.posted.length, 0);
   assert.equal(postedMessages.length, 0);
 
@@ -258,15 +399,22 @@ try {
     scraped_at: "2026-08-12T14:05:00-05:00",
     completed: [existingCloseout, newCloseout],
   }));
+  fs.writeFileSync(path.join(dailyMetricsDirectory, "daily_metrics_2026-08-12.json"), JSON.stringify({
+    truck_driver_scores: [
+      { truck: "Truck# 4", alert_events: [existingSafetyEvent] },
+      { truck: "Truck# 6", alert_events: [newSafetyEvent] },
+    ],
+  }));
   const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });
-  assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed_payment"]);
+  assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["driving_safety", "job_closed_payment"]);
   assert.deepEqual(postedMessages, [
+    ":rotating_light: Truck 6 safety: Severe speeding · 10:30 AM · Driver unassigned · Review: https://ops.junk-king.app/fleet?date=2026-08-12&amp;section=scores",
     "JK4051502 closed out. Payment: Check #2201 ($220.00). Tip: $20.00.",
   ]);
 
   const dedupeRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.equal(dedupeRun.posted.length, 0);
-  assert.equal(postedMessages.length, 1);
+  assert.equal(postedMessages.length, 2);
 } finally {
   globalThis.fetch = originalFetch;
   delete process.env.SLACK_OPSCENTER_STATE_FILE;

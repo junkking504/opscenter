@@ -24,7 +24,9 @@ export function todayIso(): string {
 }
 
 export function metricsDirs(): string[] {
-  return [
+  const configured = String(process.env.OPSCENTER_DATA_DIR || "").trim();
+  return Array.from(new Set([
+    ...(configured ? [path.join(configured, "history", "daily_metrics")] : []),
     path.join(process.cwd(), "data", "history", "daily_metrics"),
     path.join(process.cwd(), "..", "opsbot", "data", "history", "daily_metrics"),
     path.join(
@@ -36,7 +38,7 @@ export function metricsDirs(): string[] {
       "history",
       "daily_metrics"
     ),
-  ];
+  ]));
 }
 
 export function availableDates(): string[] {

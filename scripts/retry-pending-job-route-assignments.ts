@@ -2,7 +2,7 @@ import {
   readJobRouteAssignmentOverrides,
   readPendingJobRouteAssignments,
   saveJobRouteAssignment,
-  withJobRouteAssignmentSyncLock,
+  withJunkwareAppointmentSyncLock,
   type JobRouteAssignment,
 } from "../lib/job-route-assignments";
 import { syncJunkwareTruckAssignment } from "../lib/junkware-truck-assignment";
@@ -19,7 +19,7 @@ async function retry(entry: JobRouteAssignment): Promise<void> {
   const appointmentId = String(entry.appointmentId || "").trim();
   if (!appointmentId) return;
 
-  await withJobRouteAssignmentSyncLock(async () => {
+  await withJunkwareAppointmentSyncLock(appointmentId, async () => {
     // The operator may have moved the appointment again while this retry was
     // waiting. Never send an older truck decision after a newer one.
     const current = readJobRouteAssignmentOverrides(entry.date).get(entry.jobKey);

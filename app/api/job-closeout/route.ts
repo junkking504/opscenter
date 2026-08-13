@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
-import { withJobRouteAssignmentSyncLock } from "@/lib/job-route-assignments";
+import { withJunkwareAppointmentSyncLock } from "@/lib/job-route-assignments";
 import { junkwareJobCloseout } from "@/lib/junkware-job-closeout";
 
 async function authenticated() {
@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   const id = appointmentId(request);
   if (!/^\d{1,12}$/.test(id)) return NextResponse.json({ error: "The appointment is unavailable." }, { status: 400 });
   try {
-    const result = await withJobRouteAssignmentSyncLock(() => junkwareJobCloseout(id));
+    const result = await withJunkwareAppointmentSyncLock(id, () => junkwareJobCloseout(id));
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "JunkWare could not load the closeout." }, { status: 502 });
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   if (!/^\d{1,12}$/.test(id)) return NextResponse.json({ error: "The appointment is unavailable." }, { status: 400 });
   try {
     const { appointmentId: _ignored, ...payload } = body;
-    const result = await withJobRouteAssignmentSyncLock(() => junkwareJobCloseout(id, payload));
+    const result = await withJunkwareAppointmentSyncLock(id, () => junkwareJobCloseout(id, payload));
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "JunkWare could not save the closeout." }, { status: 502 });

@@ -25,6 +25,7 @@ const STORE_FILE = String(process.env.JOB_ROUTE_ASSIGNMENTS_FILE || "").trim()
   || path.join(process.cwd(), "data", "job-route-assignments", "assignments.json");
 const STORE_LOCK_DIRECTORY = `${STORE_FILE}.lock`;
 const SYNC_LOCK_DIRECTORY = path.join(path.dirname(STORE_FILE), ".junkware-assignment-sync.lock");
+const APPOINTMENT_SYNC_LOCKS_DIRECTORY = path.join(path.dirname(STORE_FILE), ".junkware-appointment-sync-locks");
 
 function sleepSync(milliseconds: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
@@ -61,18 +62,46 @@ function withStoreLock<T>(callback: () => T): T {
   }
 }
 
-export async function withJobRouteAssignmentSyncLock<T>(callback: () => Promise<T>): Promise<T> {
-  await fs.promises.mkdir(path.dirname(STORE_FILE), { recursive: true });
+async function lockOwnerIsGone(lockDirectory: string): Promise<boolean> {
+  try {
+    const owner = JSON.parse(await fs.promises.readFile(path.join(lockDirectory, "owner.json"), "utf8"));
+    const ownerPid = Number(owner?.pid);
+    if (!Number.isInteger(ownerPid) || ownerPid <= 0) return false;
+    try {
+      process.kill(ownerPid, 0);
+      return false;
+    } catch (error) {
+      return error instanceof Error && "code" in error && error.code === "ESRCH";
+    }
+  } catch {
+    return false;
+  }
+}
+
+async function withJunkwareSyncLock<T>(lockDirectory: string, callback: () => Promise<T>): Promise<T> {
+  await fs.promises.mkdir(path.dirname(lockDirectory), { recursive: true });
   const deadline = Date.now() + 5 * 60_000;
   while (true) {
     try {
-      await fs.promises.mkdir(SYNC_LOCK_DIRECTORY, { mode: 0o770 });
+      await fs.promises.mkdir(lockDirectory, { mode: 0o770 });
+      try {
+        await fs.promises.writeFile(
+          path.join(lockDirectory, "owner.json"),
+          JSON.stringify({ pid: process.pid, acquiredAt: new Date().toISOString() }),
+          { encoding: "utf8", mode: 0o660 },
+        );
+      } catch (error) {
+        await fs.promises.rm(lockDirectory, { force: true, recursive: true }).catch(() => undefined);
+        throw error;
+      }
       break;
     } catch (error) {
       if (!(error instanceof Error) || !("code" in error) || error.code !== "EEXIST") throw error;
       try {
-        const age = Date.now() - (await fs.promises.stat(SYNC_LOCK_DIRECTORY)).mtimeMs;
-        if (age > 10 * 60_000) await fs.promises.rmdir(SYNC_LOCK_DIRECTORY);
+        const age = Date.now() - (await fs.promises.stat(lockDirectory)).mtimeMs;
+        if (age > 10 * 60_000 || await lockOwnerIsGone(lockDirectory)) {
+          await fs.promises.rm(lockDirectory, { force: true, recursive: true });
+        }
       } catch {
         // Another synchronizer may have released the lock between checks.
       }
@@ -85,11 +114,20 @@ export async function withJobRouteAssignmentSyncLock<T>(callback: () => Promise<
     return await callback();
   } finally {
     try {
-      await fs.promises.rmdir(SYNC_LOCK_DIRECTORY);
+      await fs.promises.rm(lockDirectory, { force: true, recursive: true });
     } catch {
       // A stale-lock cleanup is safe on the next synchronization attempt.
     }
   }
+}
+
+export async function withJobRouteAssignmentSyncLock<T>(callback: () => Promise<T>): Promise<T> {
+  return withJunkwareSyncLock(SYNC_LOCK_DIRECTORY, callback);
+}
+
+export async function withJunkwareAppointmentSyncLock<T>(appointmentId: string, callback: () => Promise<T>): Promise<T> {
+  if (!/^\d{1,12}$/.test(appointmentId)) throw new Error("The JunkWare appointment ID is unavailable.");
+  return withJunkwareSyncLock(path.join(APPOINTMENT_SYNC_LOCKS_DIRECTORY, `${appointmentId}.lock`), callback);
 }
 
 function emptyStore(): JobRouteAssignmentStore {

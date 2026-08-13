@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
-import { saveJobRouteAssignment, withJobRouteAssignmentSyncLock } from "@/lib/job-route-assignments";
+import { saveJobRouteAssignment, withJunkwareAppointmentSyncLock } from "@/lib/job-route-assignments";
 import { syncJunkwareTruckAssignment } from "@/lib/junkware-truck-assignment";
 
 function formatClock(minutes: number): string {
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
 
   let junkware;
   try {
-    junkware = await withJobRouteAssignmentSyncLock(() => syncJunkwareTruckAssignment({
+    junkware = await withJunkwareAppointmentSyncLock(appointmentId, () => syncJunkwareTruckAssignment({
       appointmentId,
       truck,
       appointmentStartMinutes,

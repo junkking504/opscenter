@@ -32,4 +32,12 @@ for (const crewComparison of ["CrewMetricsTable", "All crewmembers", "Crew Pay P
   assert.ok(!payPeriodSource.includes(crewComparison), `Crew Portal pay-period view still includes ${crewComparison}.`);
 }
 
+const dailyViewStart = myPaySource.indexOf("function DailyPerformanceView");
+const dailyViewEnd = myPaySource.indexOf("function DailyRows");
+assert.ok(dailyViewStart >= 0 && dailyViewEnd > dailyViewStart, "Crew Portal daily view is missing.");
+const dailyViewSource = myPaySource.slice(dailyViewStart, dailyViewEnd);
+assert.ok(dailyViewSource.includes("daily\n"), "Daily crew metrics must use the compact daily column set.");
+assert.ok(dailyViewSource.includes("Today’s jobs, average job size, credited revenue, and tips."), "Daily crew metrics copy must describe the visible columns.");
+assert.ok(!dailyViewSource.includes("estimate close rate, tips, and bonus days"), "Daily crew metrics still describe retired columns.");
+
 console.log("OpsCenter UI copy checks passed.");

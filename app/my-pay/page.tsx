@@ -156,11 +156,13 @@ function PerformanceCards({ stats, totalPay }: { stats: CrewPerformanceStats; to
 function CrewMetricsTable({
   rows,
   employee,
+  daily = false,
   ranked = false,
   emptyMessage,
 }: {
   rows: CrewPerformanceStats[];
   employee: string;
+  daily?: boolean;
   ranked?: boolean;
   emptyMessage: string;
 }) {
@@ -169,7 +171,7 @@ function CrewMetricsTable({
   return (
     <div className={styles.tableWrap}>
       <table
-        className={`${styles.table} ${styles.leaderboardTable} ${ranked ? styles.rankedTable : ""}`}
+        className={`${styles.table} ${styles.leaderboardTable} ${daily ? styles.dailyMetricsTable : ""} ${ranked ? styles.rankedTable : ""}`}
         aria-label={ranked ? "Monthly crew leaderboard" : "Crew performance metrics"}
       >
         <thead>
@@ -177,9 +179,10 @@ function CrewMetricsTable({
             {ranked ? <th>Rank</th> : null}
             <th>Crew member</th>
             <th>Jobs completed</th>
-            <th>Estimates closed</th>
+            {daily ? <th>AJS</th> : <th>Estimates closed</th>}
+            {daily ? <th>Revenue</th> : null}
             <th>Tips</th>
-            <th>Bonus days</th>
+            {daily ? null : <th>Bonus days</th>}
           </tr>
         </thead>
         <tbody>
@@ -190,9 +193,10 @@ function CrewMetricsTable({
                 {ranked ? <td className={styles.rankCell} data-label="Rank"><span className={styles.rank}>{index + 1}</span></td> : null}
                 <td className={styles.crewCell} data-label="Crew member"><span className={styles.crewName}>{row.name}</span>{isYou ? <span className={styles.youBadge}>You</span> : null}</td>
                 <td data-label="Jobs completed">{wholeNumber.format(row.jobsCompleted)}</td>
-                <td data-label="Estimates closed">{row.estimateCloseRate === null ? "—" : `${percent.format(row.estimateCloseRate)}%`}</td>
+                {daily ? <td data-label="AJS">{money.format(row.averageJobSize)}</td> : <td data-label="Estimates closed">{row.estimateCloseRate === null ? "—" : `${percent.format(row.estimateCloseRate)}%`}</td>}
+                {daily ? <td data-label="Revenue">{money.format(row.creditedRevenue)}</td> : null}
                 <td data-label="Tips">{money.format(row.tips)}</td>
-                <td data-label="Bonus days">{wholeNumber.format(row.bonusDays)}</td>
+                {daily ? null : <td data-label="Bonus days">{wholeNumber.format(row.bonusDays)}</td>}
               </tr>
             );
           })}
@@ -222,7 +226,7 @@ function DailyPerformanceView({ data }: { data: Awaited<ReturnType<typeof getCre
           <div>
             <div className={styles.eyebrow}>All crewmembers</div>
             <h2>Everyone’s Daily Metrics</h2>
-            <p>Today’s jobs, estimate close rate, tips, and bonus days.</p>
+            <p>Today’s jobs, average job size, credited revenue, and tips.</p>
           </div>
           <div className={styles.privacyNote}>Crew-visible · Total pay hidden</div>
         </div>
@@ -230,6 +234,7 @@ function DailyPerformanceView({ data }: { data: Awaited<ReturnType<typeof getCre
           <CrewMetricsTable
             rows={data.dailyPerformance.rows}
             employee={data.employee}
+            daily
             emptyMessage="No crew performance has been recorded yet today."
           />
         </div>

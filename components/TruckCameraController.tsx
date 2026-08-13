@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import Hls from "hls.js";
 import { parseTruckNumberFromLabel, truckCameraLabel } from "@/lib/linxup-truck-label";
 
@@ -77,7 +77,7 @@ function VideoPlayer({ url, onPlaybackError }: { url: string; onPlaybackError: (
   return <video ref={videoRef} className="ops-truck-camera-video" controls playsInline muted autoPlay />;
 }
 
-export default function TruckCameraController() {
+export default function TruckCameraController({ children }: { children: ReactNode }) {
   const [camera, setCamera] = useState<CameraState>({ status: "closed" });
   const [orientation, setOrientation] = useState<CameraOrientation>("outside");
   const [secondsRemaining, setSecondsRemaining] = useState(60);
@@ -141,30 +141,21 @@ export default function TruckCameraController() {
     setCamera({ status: "error", truck: current.stream.truck, message });
   }, [stopStream]);
 
-  useEffect(() => {
-    function handleClick(event: MouseEvent) {
-      if (event.button !== 0) return;
-      const match = cameraElementFromTarget(event.target);
-      if (!match) return;
-      event.preventDefault();
-      event.stopPropagation();
-      void openCamera(match.truck);
-    }
-
-    function handlePointerOver(event: PointerEvent) {
-      const match = cameraElementFromTarget(event.target);
-      if (!match) return;
-      match.element.classList.add("ops-truck-camera-target");
-      match.element.title = `Open ${truckCameraLabel(match.truck)} live camera`;
-    }
-
-    document.addEventListener("click", handleClick, true);
-    document.addEventListener("pointerover", handlePointerOver, true);
-    return () => {
-      document.removeEventListener("click", handleClick, true);
-      document.removeEventListener("pointerover", handlePointerOver, true);
-    };
+  const handleTruckClick = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    const match = cameraElementFromTarget(event.target);
+    if (!match) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void openCamera(match.truck);
   }, [openCamera]);
+
+  const handleTruckPointerOver = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
+    const match = cameraElementFromTarget(event.target);
+    if (!match) return;
+    match.element.classList.add("ops-truck-camera-target");
+    match.element.title = `Open ${truckCameraLabel(match.truck)} live camera`;
+  }, []);
 
   useEffect(() => {
     if (camera.status !== "playing") return;
@@ -202,13 +193,19 @@ export default function TruckCameraController() {
     : camera.status === "playing" || camera.status === "ended" ? camera.stream.truck
       : camera.truck;
 
-  if (camera.status === "closed") return null;
-
   return (
-    <div className="ops-truck-camera-backdrop" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) closeCamera();
-    }}>
-      <section className="ops-truck-camera-dialog" role="dialog" aria-modal="true" aria-label={`${truckCameraLabel(truck || 0)} live camera`}>
+    <div
+      className="ops-app"
+      data-truck-camera-controller="ready"
+      onClickCapture={handleTruckClick}
+      onPointerOverCapture={handleTruckPointerOver}
+    >
+      {children}
+      {camera.status !== "closed" ? (
+        <div className="ops-truck-camera-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) closeCamera();
+        }}>
+          <section className="ops-truck-camera-dialog" role="dialog" aria-modal="true" aria-label={`${truckCameraLabel(truck || 0)} live camera`}>
         <header className="ops-truck-camera-header">
           <div>
             <div className="ops-eyebrow">LinxUp live camera</div>
@@ -274,7 +271,9 @@ export default function TruckCameraController() {
             </footer>
           </>
         ) : null}
-      </section>
+          </section>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -59,6 +59,23 @@ assert.deepEqual(JOB_CLOSEOUT_CHARGES.map((charge) => charge.label), [
 ]);
 assert.equal(JOB_CLOSEOUT_CHARGES.at(-1)?.percentage, 3);
 for (const charge of JOB_CLOSEOUT_CHARGES) assert.match(jobCloseoutTemplate(), new RegExp(charge.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+const orderedPrompt = jobCloseoutTemplate();
+const promptSections = [
+  "1. JK NUMBER",
+  "2. TRUCK LOAD",
+  "3. BEDLOAD",
+  "4. INDIVIDUALLY PRICED ITEMS",
+  "5. CREDIT CARD FEE",
+  "6. DISCOUNT",
+  "7. TIP",
+  "8. JOB CATEGORY",
+  "9. ACTUAL JOB TIME",
+  "10. PAYMENT",
+];
+for (let index = 1; index < promptSections.length; index += 1) {
+  assert.ok(orderedPrompt.indexOf(promptSections[index - 1]) < orderedPrompt.indexOf(promptSections[index]));
+}
+assert.match(orderedPrompt, /Send the lines separately or all at once, but keep this order/);
 
 assert.equal(ingestJobCloseoutText(message("ordinary", "JK4051234 after photos")).status, "ignored");
 const prompt = ingestJobCloseoutText(message("prompt", "Closeout"));

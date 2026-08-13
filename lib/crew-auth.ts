@@ -66,7 +66,7 @@ async function signPayload(payload: string): Promise<Uint8Array> {
 
 export function normalizeCrewUsername(value: unknown): string {
   const username = String(value || "").trim().toLocaleLowerCase();
-  return /^[a-z0-9][a-z0-9._@+\-]{0,127}$/.test(username) ? username : "";
+  return /^[a-z0-9][a-z0-9._@+!\-]{0,127}$/.test(username) ? username : "";
 }
 
 export function crewRoster(): CrewRosterEntry[] {

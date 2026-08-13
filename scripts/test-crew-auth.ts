@@ -35,6 +35,7 @@ async function main() {
 
   try {
     assert.equal(normalizeCrewUsername(" JunkWare.User "), "junkware.user");
+    assert.equal(normalizeCrewUsername(" Carlos1! "), "carlos1!");
     assert.equal(normalizeCrewUsername("not a username"), "");
     assert.equal(crewRoster().length, 2);
     assert.equal(crewMemberForUsername("JUNKWARE.USER")?.employee, "Test Crew Member");

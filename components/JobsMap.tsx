@@ -1074,20 +1074,16 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         <span><i className="is-jefferson" />Jefferson Parish</span>
         <span><i className="is-northshore" />Northshore</span>
         <span><i className="is-baton-rouge" />Baton Rouge</span>
-        <span><i className="is-unassigned" />Unassigned · muted territory color</span>
+        <span><i className="is-unassigned" />Unassigned</span>
         <span><i className="is-truck" />Truck GPS</span>
-        {scheduleView ? <span><i className="is-visited-unclosed">?</i>Visited · not closed out</span> : null}
+        {scheduleView ? <span><i className="is-visited-unclosed">?</i>Visited</span> : null}
         {scheduleView ? <span><i className="is-canceled">×</i>Canceled</span> : null}
         {scheduleView && chicagoScheduleClock().date === date ? (
           <span
             className={linxupUpdateDelayed || !linxupUpdatedAt ? "is-delayed" : ""}
             title={linxupUpdatedAt ? `Latest Linxup GPS: ${linxupUpdatedAt}` : "Waiting for current Linxup GPS"}
           >
-            <i className="is-on-site" />Truck at job · {linxupUpdateDelayed
-              ? "Linxup update delayed"
-              : linxupUpdatedAt
-                ? "Linxup confirmed"
-                : "Waiting for Linxup GPS"}
+            <i className="is-on-site" />On Site
           </span>
         ) : null}
       </div>

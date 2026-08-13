@@ -4582,6 +4582,27 @@ a {
   white-space: nowrap;
 }
 
+.ops-jobs-map-board-truck.is-clickable {
+  width: 100%;
+  border-top: 0;
+  border-left: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ops-jobs-map-board-truck.is-clickable:hover,
+.ops-jobs-map-board-truck.is-clickable:focus-visible,
+.ops-jobs-map-board-truck.is-selected {
+  background: #252b43;
+  color: #fff;
+}
+
+.ops-jobs-map-board-truck.is-clickable:focus-visible {
+  outline: 2px solid var(--ops-gold);
+  outline-offset: -3px;
+}
+
 .ops-jobs-map-board-truck.is-virtual {
   color: #c9c4ff;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { JobRouteProximityPayload, JobTruckProximity } from "@/lib/job-route-proximity";
 
@@ -472,6 +472,13 @@ function routeTruck(value: string): string {
   return match ? `Truck ${match[1]}` : "";
 }
 
+function sameTruck(left: string, right: string): boolean {
+  const normalizedLeft = routeTruck(left);
+  const normalizedRight = routeTruck(right);
+  if (normalizedLeft && normalizedRight) return normalizedLeft === normalizedRight;
+  return left.trim().toLowerCase() === right.trim().toLowerCase();
+}
+
 export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: JobsMapProps) {
   const router = useRouter();
   const mapNodeRef = useRef<HTMLDivElement | null>(null);
@@ -506,6 +513,12 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const pendingKeySetRef = useRef<Set<string>>(new Set());
   const [assignmentMessage, setAssignmentMessage] = useState("");
   const [currentScheduleTime, setCurrentScheduleTime] = useState<ReturnType<typeof chicagoScheduleClock> | null>(null);
+
+  const selectLiveTruck = useCallback((truckName: string) => {
+    setSelectedKey("");
+    setSelectedTruckName(truckName);
+    window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
+  }, []);
 
   useEffect(() => {
     setAssignments(serverAssignments);
@@ -1033,10 +1046,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         direction: "top",
         offset: [0, -22],
       });
-      marker.on("click", () => {
-        setSelectedKey("");
-        setSelectedTruckName(truck.truck);
-      });
+      marker.on("click", () => selectLiveTruck(truck.truck));
       marker.addTo(markers);
     }
 
@@ -1051,7 +1061,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         map.fitBounds(bounds.pad(0.12), { padding: [28, 28], maxZoom: 14 });
       }
     }
-  }, [bounds, leaflet, liveTruckLocations, locatedJobs, selectedJob, selectedKey, selectedTruck, selectedTruckName]);
+  }, [bounds, leaflet, liveTruckLocations, locatedJobs, selectLiveTruck, selectedJob, selectedKey, selectedTruck, selectedTruckName]);
 
   return (
     <section className="ops-card ops-jobs-map-card" id="jobs-map" aria-labelledby="jobs-map-title">
@@ -1223,15 +1233,35 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
               ))}
               {scheduleBoard.untimed ? <div className="ops-jobs-map-board-time">No time</div> : null}
 
-              {scheduleTruckRows.map((column) => (
-                <div className="ops-jobs-map-board-row" key={column.key}>
-                  <div
-                    className={`ops-jobs-map-board-truck is-row-label${column.virtual ? " is-virtual" : ""}${dropTarget.startsWith(`${column.key}|`) ? " is-drop-target" : ""}`}
-                    data-schedule-drop-key={scheduleDropTargetKey(column)}
-                    {...scheduleDropHandlers(column)}
-                  >
-                    {column.label}
-                  </div>
+              {scheduleTruckRows.map((column) => {
+                const liveTruck = column.virtual
+                  ? null
+                  : liveTruckLocations.find((truck) => sameTruck(truck.truck, column.assignment)) || null;
+                const rowClassName = `ops-jobs-map-board-truck is-row-label${column.virtual ? " is-virtual" : ""}${liveTruck ? " is-clickable" : ""}${liveTruck?.truck === selectedTruckName ? " is-selected" : ""}${dropTarget.startsWith(`${column.key}|`) ? " is-drop-target" : ""}`;
+                const dropHandlers = scheduleDropHandlers(column);
+
+                return <div className="ops-jobs-map-board-row" key={column.key}>
+                  {liveTruck ? (
+                    <button
+                      type="button"
+                      className={rowClassName}
+                      data-schedule-drop-key={scheduleDropTargetKey(column)}
+                      aria-label={`Show ${liveTruck.truck} on map`}
+                      title={`Show ${liveTruck.truck} on map`}
+                      onClick={() => selectLiveTruck(liveTruck.truck)}
+                      {...dropHandlers}
+                    >
+                      {column.label}
+                    </button>
+                  ) : (
+                    <div
+                      className={rowClassName}
+                      data-schedule-drop-key={scheduleDropTargetKey(column)}
+                      {...dropHandlers}
+                    >
+                      {column.label}
+                    </div>
+                  )}
                   {scheduleBoard.rows.map((hour) => {
                     const appointments = scheduledJobs.filter((job) =>
                       scheduleBoard.jobColumns.get(job.key) === column.key
@@ -1293,8 +1323,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                       </div>
                     );
                   })() : null}
-                </div>
-              ))}
+                </div>;
+              })}
             </div>
           </aside>
         ) : null}

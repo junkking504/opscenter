@@ -6,6 +6,7 @@ export const metadata = {
   title: "Support | OpsCenter",
   description: "Support and contact information for OpsCenter.",
 };
+export const dynamic = "force-dynamic";
 
 export default function SupportPage() {
   const status = getQboSetupStatus();

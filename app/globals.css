@@ -5356,6 +5356,141 @@ a.ops-jobs-map-selection-phone:focus-visible {
   }
 }
 
+/* Global truck-number live camera affordance */
+.ops-truck-camera-target {
+  cursor: pointer !important;
+  text-decoration: underline;
+  text-decoration-color: rgba(235, 0, 40, 0.45);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.ops-truck-camera-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10020;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(7, 13, 20, 0.78);
+  backdrop-filter: blur(8px);
+}
+
+.ops-truck-camera-dialog {
+  width: min(920px, 100%);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  background: #101820;
+  color: #fff;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.45);
+}
+
+.ops-truck-camera-header,
+.ops-truck-camera-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+}
+
+.ops-truck-camera-header { border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+.ops-truck-camera-header h2 {
+  margin: 2px 0 0;
+  color: #fff;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+}
+.ops-truck-camera-header .ops-eyebrow { color: #ffb6c2; }
+
+.ops-truck-camera-close {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ops-truck-camera-stage {
+  display: grid;
+  min-height: min(58vw, 520px);
+  place-items: center;
+  background: #000;
+}
+
+.ops-truck-camera-video {
+  display: block;
+  width: 100%;
+  height: min(58vw, 520px);
+  object-fit: contain;
+  background: #000;
+}
+
+.ops-truck-camera-message {
+  display: flex;
+  min-height: 360px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 24px;
+  color: #b9c2ca;
+  text-align: center;
+}
+.ops-truck-camera-message strong { color: #fff; font-size: 1.15rem; }
+.ops-truck-camera-message.is-error strong { color: #ff7b91; }
+.ops-truck-camera-help { max-width: 620px; font-size: 0.86rem; }
+
+.ops-truck-camera-spinner {
+  width: 38px;
+  height: 38px;
+  border: 3px solid rgba(255, 255, 255, 0.18);
+  border-top-color: #eb0028;
+  border-radius: 50%;
+  animation: ops-truck-camera-spin 0.85s linear infinite;
+}
+
+.ops-truck-camera-footer { border-top: 1px solid rgba(255, 255, 255, 0.1); }
+.ops-truck-camera-channels { display: flex; flex-wrap: wrap; gap: 8px; }
+.ops-truck-camera-channels button {
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #dce2e7;
+  cursor: pointer;
+}
+.ops-truck-camera-channels button.is-active { border-color: #eb0028; background: #eb0028; color: #fff; }
+.ops-truck-camera-close:focus-visible,
+.ops-truck-camera-channels button:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+.ops-truck-camera-timer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #dce2e7;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@keyframes ops-truck-camera-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 640px) {
+  .ops-truck-camera-backdrop { padding: 0; }
+  .ops-truck-camera-dialog { width: 100%; height: 100%; border: 0; border-radius: 0; }
+  .ops-truck-camera-stage,
+  .ops-truck-camera-video { height: min(62vw, 420px); min-height: 240px; }
+  .ops-truck-camera-footer { align-items: flex-start; flex-direction: column; }
+}
+
 /* Junkware closeout editor */
 .ops-job-closeout-editor {
   margin-top: 10px;

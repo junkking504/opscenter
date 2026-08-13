@@ -32,6 +32,9 @@
     "verify:ui-copy": "node --import tsx scripts/test-ui-copy.ts",
     "verify:css-architecture": "node --import tsx scripts/test-css-architecture.ts",
     "verify:accessibility": "node scripts/test-accessibility.mjs",
+    "verify:linxup-camera": "node --import tsx scripts/test-linxup-camera.ts",
+    "verify:linxup-camera:live": "node --import tsx scripts/test-linxup-camera-live.ts",
+    "setup:linxup-camera": "node --import tsx scripts/setup-linxup-camera.ts",
     "alerts:slack": "node --import tsx scripts/publish-slack-alerts.ts"
   },
   "dependencies": {
@@ -40,9 +43,11 @@
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.19",
     "chart.js": "^4.4.3",
+    "hls.js": "^1.6.15",
     "leaflet": "^1.9.4",
     "next": "^16.3.0",
     "pg": "^8.23.0",
+    "playwright": "^1.61.1",
     "postcss": "^8.5.26",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

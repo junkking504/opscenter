@@ -481,7 +481,7 @@ function closeoutPaymentDescription(payment: AnyRecord): string {
 
   if (normalizedMethod.includes("card")) {
     const lastFour = detail.match(/(\d{4})(?!.*\d)/)?.[1] || "";
-    return `Card${lastFour ? ` ending ${lastFour}` : " (last four unavailable)"}${amountText}`;
+    return `Card Ending${lastFour ? ` ${lastFour}` : " Unavailable"}${amountText}`;
   }
   if (normalizedMethod.includes("check")) {
     const checkNumber = detail.replace(/^\s*#\s*/, "").replace(/\s+/g, " ").trim().slice(0, 32);
@@ -534,10 +534,10 @@ export function buildPaymentCloseoutSlackNotifications(date: string, rows: AnyRe
       ?? firstFiniteNumber(row, ["tip", "tips"])
       ?? 0;
     const truck = closeoutTruckLabel(row);
-    const paymentLabel = paymentDescriptions.length === 1 ? "Payment" : "Payments";
     const plainText = [
-      `${jobNumber} closed out by ${truck}.`,
-      `${paymentLabel}: ${paymentDescriptions.join("; ")}.`,
+      `${jobNumber}: complete.`,
+      `${truck}.`,
+      `Payment: ${paymentDescriptions.join("; ")}.`,
       ...(tip > 0 ? [`Tip: ${moneyText(tip)}.`] : []),
     ].join(" ");
 

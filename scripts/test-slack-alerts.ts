@@ -111,19 +111,19 @@ assert.deepEqual(
   [
     {
       channelId: "C_TEST_PAYMENT",
-      text: "JK4051000 closed out by Truck 2. Payment: Card ending 3013 ($558.80). Tip: $50.80.",
+      text: "JK4051000: complete. Truck 2. Payment: Card Ending 3013 ($558.80). Tip: $50.80.",
     },
     {
       channelId: "C_TEST_PAYMENT",
-      text: "JK4051001 closed out by Truck 6. Payment: Check #1487 ($198.00).",
+      text: "JK4051001: complete. Truck 6. Payment: Check #1487 ($198.00).",
     },
     {
       channelId: "C_TEST_PAYMENT",
-      text: "JK4051002 closed out by Truck 8. Payment: Cash ($200.00).",
+      text: "JK4051002: complete. Truck 8. Payment: Cash ($200.00).",
     },
     {
       channelId: "C_TEST_PAYMENT",
-      text: "JK4051003 closed out by Virtual Truck. Payments: Card ending 4242 ($100.00); Cash ($50.00). Tip: $15.00.",
+      text: "JK4051003: complete. Virtual Truck. Payment: Card Ending 4242 ($100.00); Cash ($50.00). Tip: $15.00.",
     },
   ],
 );
@@ -267,7 +267,7 @@ try {
   const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed_payment"]);
   assert.deepEqual(postedMessages, [
-    "JK4051502 closed out by Truck 7. Payment: Check #2201 ($220.00). Tip: $20.00.",
+    "JK4051502: complete. Truck 7. Payment: Check #2201 ($220.00). Tip: $20.00.",
   ]);
 
   const dedupeRun = await runSlackOpsAlerts({ date: "2026-08-12" });

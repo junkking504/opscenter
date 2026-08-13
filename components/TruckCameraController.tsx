@@ -35,6 +35,11 @@ function cameraElementFromTarget(target: EventTarget | null): { element: HTMLEle
     return { element: explicit, truck: explicitTruck };
   }
 
+  const leafletMarker = target.closest<HTMLElement>(".leaflet-marker-icon");
+  if (target.closest(".ops-jobs-truck-marker") || leafletMarker?.querySelector(".ops-jobs-truck-marker")) {
+    return null;
+  }
+
   let candidate: HTMLElement | null = target;
   for (let depth = 0; candidate && depth < 4; depth += 1, candidate = candidate.parentElement) {
     const truck = parseTruckNumberFromLabel(candidate.textContent);

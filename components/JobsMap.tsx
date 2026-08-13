@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { JobRouteProximityPayload, JobTruckProximity } from "@/lib/job-route-proximity";
+import { parseTruckNumberFromLabel } from "@/lib/linxup-truck-label";
 
 export type JobsMapPoint = {
   key: string;
@@ -563,6 +564,9 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     () => liveTruckLocations.find((truck) => truck.truck === selectedTruckName) || null,
     [liveTruckLocations, selectedTruckName],
   );
+  const selectedTruckCameraNumber = selectedTruck
+    ? parseTruckNumberFromLabel(selectedTruck.truck)
+    : null;
   const closestTruck = selectedJob ? nearestTruck(selectedJob.key, proximity) : null;
   const currentTimeLine = useMemo(() => {
     if (!currentScheduleTime || currentScheduleTime.date !== date || !scheduleBoard.rows.length) return null;
@@ -1327,6 +1331,17 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
               <div><span>Truck status</span><strong>{selectedTruck.status}</strong></div>
               <div><span>GPS freshness</span><strong>{selectedTruck.freshness}</strong></div>
             </div>
+            {selectedTruckCameraNumber ? (
+              <button
+                type="button"
+                className="ops-jobs-map-truck-live-camera"
+                data-truck-camera={selectedTruckCameraNumber}
+                aria-label={`View live video for ${selectedTruck.truck}`}
+              >
+                <span aria-hidden="true">▶</span>
+                View live video
+              </button>
+            ) : null}
           </article>
         ) : null}
       </div>

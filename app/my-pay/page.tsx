@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import type { Viewport } from "next";
 import { CREW_IDENTITY_HEADER } from "@/lib/crew-auth";
 import {
   type CrewPerformanceRange,
@@ -12,6 +13,14 @@ import {
 import styles from "./my-pay.module.css";
 
 export const dynamic = "force-dynamic";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#eceeeb",
+  colorScheme: "light",
+};
 
 type PortalView = "daily" | "pay-period" | "leaderboard";
 
@@ -159,7 +168,10 @@ function CrewMetricsTable({
 
   return (
     <div className={styles.tableWrap}>
-      <table className={`${styles.table} ${styles.leaderboardTable} ${ranked ? styles.rankedTable : ""}`}>
+      <table
+        className={`${styles.table} ${styles.leaderboardTable} ${ranked ? styles.rankedTable : ""}`}
+        aria-label={ranked ? "Monthly crew leaderboard" : "Crew performance metrics"}
+      >
         <thead>
           <tr>
             {ranked ? <th>Rank</th> : null}
@@ -175,12 +187,12 @@ function CrewMetricsTable({
             const isYou = row.name.toLocaleLowerCase() === employee.toLocaleLowerCase();
             return (
               <tr key={row.name} className={isYou ? styles.youRow : undefined}>
-                {ranked ? <td><span className={styles.rank}>{index + 1}</span></td> : null}
-                <td><span className={styles.crewName}>{row.name}</span>{isYou ? <span className={styles.youBadge}>You</span> : null}</td>
-                <td>{wholeNumber.format(row.jobsCompleted)}</td>
-                <td>{row.estimateCloseRate === null ? "—" : `${percent.format(row.estimateCloseRate)}%`}</td>
-                <td>{money.format(row.tips)}</td>
-                <td>{wholeNumber.format(row.bonusDays)}</td>
+                {ranked ? <td className={styles.rankCell} data-label="Rank"><span className={styles.rank}>{index + 1}</span></td> : null}
+                <td className={styles.crewCell} data-label="Crew member"><span className={styles.crewName}>{row.name}</span>{isYou ? <span className={styles.youBadge}>You</span> : null}</td>
+                <td data-label="Jobs completed">{wholeNumber.format(row.jobsCompleted)}</td>
+                <td data-label="Estimates closed">{row.estimateCloseRate === null ? "—" : `${percent.format(row.estimateCloseRate)}%`}</td>
+                <td data-label="Tips">{money.format(row.tips)}</td>
+                <td data-label="Bonus days">{wholeNumber.format(row.bonusDays)}</td>
               </tr>
             );
           })}
@@ -230,20 +242,20 @@ function DailyRows({ days }: { days: CrewPayDay[] }) {
   if (!days.length) return <div className={styles.empty}>No recorded hours or pay in this period.</div>;
   return (
     <div className={styles.tableWrap}>
-      <table className={styles.table}>
+      <table className={styles.table} aria-label="Daily pay breakdown">
         <thead>
           <tr><th>Date</th><th>Clock</th><th>Regular</th><th>Overtime</th><th>Tips</th><th>Bonuses</th><th>Total pay</th></tr>
         </thead>
         <tbody>
           {[...days].reverse().map((day) => (
             <tr key={day.date}>
-              <td><div className={styles.datePrimary}>{dateLabel(day.date, { weekday: "short", month: "short", day: "numeric" })}</div><div className={styles.dateSecondary}>{day.needsReview ? "Needs review" : day.isFinal ? "Final" : day.isLive ? "Live estimate" : "Estimated"}</div></td>
-              <td>{day.clockIn || "—"} – {day.clockOut || (day.isLive ? "Now" : "—")}</td>
-              <td>{hours.format(day.regularHours)}h<br /><span className={styles.dateSecondary}>{money.format(day.regularPay)}</span></td>
-              <td>{hours.format(day.overtimeHours)}h<br /><span className={styles.dateSecondary}>{money.format(overtimePremium(day.overtimeHours, day.hourlyRate))}</span></td>
-              <td>{money.format(day.tips)}</td>
-              <td>{money.format(day.bonuses + day.supplementalPay)}</td>
-              <td className={styles.pay}>{money.format(day.totalPay)}</td>
+              <td className={styles.dateCell} data-label="Date"><div className={styles.datePrimary}>{dateLabel(day.date, { weekday: "short", month: "short", day: "numeric" })}</div><div className={styles.dateSecondary}>{day.needsReview ? "Needs review" : day.isFinal ? "Final" : day.isLive ? "Live estimate" : "Estimated"}</div></td>
+              <td data-label="Clock">{day.clockIn || "—"} – {day.clockOut || (day.isLive ? "Now" : "—")}</td>
+              <td data-label="Regular">{hours.format(day.regularHours)}h<br /><span className={styles.dateSecondary}>{money.format(day.regularPay)}</span></td>
+              <td data-label="Overtime">{hours.format(day.overtimeHours)}h<br /><span className={styles.dateSecondary}>{money.format(overtimePremium(day.overtimeHours, day.hourlyRate))}</span></td>
+              <td data-label="Tips">{money.format(day.tips)}</td>
+              <td data-label="Bonuses">{money.format(day.bonuses + day.supplementalPay)}</td>
+              <td className={styles.pay} data-label="Total pay">{money.format(day.totalPay)}</td>
             </tr>
           ))}
         </tbody>

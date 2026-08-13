@@ -1,8 +1,17 @@
 import Link from "next/link";
+import type { Viewport } from "next";
 import { crewAuthConfigured } from "@/lib/crew-auth";
 import styles from "./crew-login.module.css";
 
 export const dynamic = "force-dynamic";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#eceeeb",
+  colorScheme: "light",
+};
 
 type Props = {
   searchParams?: Promise<{ error?: string }>;

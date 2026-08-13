@@ -1,9 +1,18 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import type { Viewport } from "next";
 import { CREW_IDENTITY_HEADER } from "@/lib/crew-auth";
 import styles from "../crew-login/crew-login.module.css";
 
 export const dynamic = "force-dynamic";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#eceeeb",
+  colorScheme: "light",
+};
 
 type Props = { searchParams?: Promise<{ error?: string }> };
 

@@ -1,5 +1,6 @@
 .page {
   min-height: 100vh;
+  min-height: 100dvh;
   background: #080a0e;
   color: #f4f6f8;
 }
@@ -553,3 +554,244 @@
 .youBadge { background: #fee8e8; color: #bd2027; }
 .historyItem:hover { border-color: #aeb4bd; }
 .notice { background: rgba(255,255,255,.6); }
+
+@media (max-width: 760px) {
+  .page { overflow-x: clip; }
+
+  .topbar {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .topbarInner {
+    min-height: 60px;
+    gap: 12px;
+  }
+
+  .brand {
+    min-width: 0;
+    gap: 8px;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+  }
+
+  .brandMark { flex: 0 0 auto; }
+
+  .logout {
+    flex: 0 0 auto;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .main {
+    padding-top: 28px;
+    padding-bottom: max(48px, calc(28px + env(safe-area-inset-bottom)));
+  }
+
+  .hero { margin-bottom: 24px; }
+
+  .hero h1 {
+    font-size: clamp(2.3rem, 13vw, 3.25rem);
+    overflow-wrap: anywhere;
+  }
+
+  .updated { max-width: none; }
+
+  .viewToggle {
+    position: sticky;
+    top: calc(60px + env(safe-area-inset-top));
+    z-index: 8;
+  }
+
+  .viewOption {
+    min-width: 0;
+    min-height: 52px;
+    padding-inline: 8px;
+    line-height: 1.15;
+  }
+
+  .section { margin-top: 28px; }
+
+  .sectionHeader {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .sectionHeader > * { min-width: 0; }
+
+  .sectionHeader p,
+  .privacyNote {
+    overflow-wrap: anywhere;
+  }
+
+  .privacyNote {
+    width: fit-content;
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .performanceCard {
+    min-width: 0;
+    padding: 18px 14px;
+  }
+
+  .performanceCard strong {
+    font-size: clamp(1.15rem, 6vw, 1.5rem);
+    overflow-wrap: anywhere;
+  }
+
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .metric {
+    min-width: 0;
+    padding: 16px 14px;
+  }
+
+  .metric:nth-child(2n) { border-right: 0; }
+
+  .metricValue {
+    font-size: clamp(1.05rem, 5.5vw, 1.3rem);
+    overflow-wrap: anywhere;
+  }
+
+  .tableWrap { overflow: visible; }
+
+  .table,
+  .leaderboardTable {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .table tbody {
+    display: grid;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .table tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: hidden;
+    border: 1px solid #e1e3e0;
+    border-radius: 14px;
+    background: #fff;
+  }
+
+  .table th,
+  .table td,
+  .table th:first-child,
+  .table td:first-child,
+  .rankedTable th:nth-child(2),
+  .rankedTable td:nth-child(2) {
+    min-width: 0;
+    padding: 12px;
+    border-bottom: 1px solid #e7e9e6;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .table td {
+    display: block;
+    border-right: 1px solid #e7e9e6;
+    font-size: 0.88rem;
+  }
+
+  .table td:nth-child(2n),
+  .rankedTable td:nth-child(2n + 1) {
+    border-right: 0;
+  }
+
+  .table td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 6px;
+    color: #777f89;
+    font-size: 0.62rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    line-height: 1.15;
+    text-transform: uppercase;
+  }
+
+  .table td:nth-last-child(-n + 2) { border-bottom: 0; }
+
+  .table .dateCell,
+  .leaderboardTable:not(.rankedTable) .crewCell {
+    grid-column: 1 / -1;
+    border-right: 0;
+  }
+
+  .table .dateCell { border-bottom: 1px solid #e7e9e6; }
+
+  .rankedTable .rankCell,
+  .rankedTable .crewCell {
+    border-bottom: 1px solid #e7e9e6;
+  }
+
+  .rankedTable .crewCell { border-right: 0; }
+
+  .leaderboardTable tbody tr,
+  .leaderboardTable tbody tr:hover { background: #fff; }
+
+  .leaderboardTable .youRow,
+  .leaderboardTable .youRow:hover {
+    border-color: #efc5c7;
+    background: #fff7f7;
+  }
+
+  .historyItem {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 18px;
+    padding: 16px;
+  }
+
+  .historyItem > div:first-child { grid-column: 1 / -1; }
+  .historyStat { text-align: left; }
+  .historyStat:last-child { display: block; }
+
+  .notice {
+    padding: 14px 14px;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (max-width: 380px) {
+  .topbarInner,
+  .main {
+    width: min(100% - 20px, 1160px);
+  }
+
+  .brand { max-width: 205px; }
+
+  .viewToggle { gap: 3px; padding: 4px; }
+
+  .viewOption {
+    min-height: 50px;
+    padding-inline: 5px;
+    font-size: 0.64rem;
+    letter-spacing: 0;
+  }
+
+  .performanceCard,
+  .metric { padding-inline: 12px; }
+
+  .performanceCard span,
+  .metricLabel { letter-spacing: 0.06em; }
+
+  .table tbody { padding: 8px; }
+  .table td { padding: 11px 10px; }
+}

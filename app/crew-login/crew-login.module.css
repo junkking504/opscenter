@@ -1,5 +1,6 @@
 .page {
   min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   place-items: center;
   padding: 24px;
@@ -138,7 +139,22 @@
 
 @media (max-width: 520px) {
   .page { padding: 0; align-items: stretch; }
-  .card { width: 100%; min-height: 100vh; border: 0; border-radius: 0; padding: 34px 22px; }
+  .card {
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    padding:
+      max(28px, env(safe-area-inset-top))
+      max(20px, env(safe-area-inset-right))
+      max(28px, env(safe-area-inset-bottom))
+      max(20px, env(safe-area-inset-left));
+  }
+
+  .brand { margin-bottom: 26px; }
+  .lead { margin-bottom: 24px; }
+  .button { width: 100%; }
 }
 
 /* OpsCenter light-workspace redesign */

@@ -234,7 +234,7 @@ export function appointmentChannelId(territory: string): string {
 }
 
 export function slackAlertKindEnabled(kind: SlackAlertKind): boolean {
-  return kind !== "late_job";
+  return kind !== "late_job" && kind !== "unassigned_crew";
 }
 
 function origin(): string {
@@ -624,7 +624,10 @@ function collectIncidentAlerts(date: string): SlackOpsAlert[] {
   const report = buildOperationalExceptions(date);
   const alerts: SlackOpsAlert[] = [];
   for (const exception of report.exceptions) {
-    if (exception.rule === "employee_clocked_in_but_not_assigned_to_truck") {
+    if (
+      exception.rule === "employee_clocked_in_but_not_assigned_to_truck"
+      && slackAlertKindEnabled("unassigned_crew")
+    ) {
       alerts.push(exceptionAlert(exception, "unassigned_crew"));
     }
     if (

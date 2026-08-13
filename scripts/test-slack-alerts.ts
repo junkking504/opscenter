@@ -43,7 +43,7 @@ assert.equal(truckSlackChannelId("Unassigned", "C_TEST_FALLBACK"), "C_TEST_FALLB
 assert.equal(slackAlertKindEnabled("late_job"), false);
 assert.equal(slackAlertKindEnabled("add_on"), true);
 assert.equal(slackAlertKindEnabled("cancellation"), true);
-assert.equal(slackAlertKindEnabled("unassigned_crew"), true);
+assert.equal(slackAlertKindEnabled("unassigned_crew"), false);
 assert.equal(slackAlertKindEnabled("truck_arrival"), true);
 assert.equal(slackAlertKindEnabled("job_closed_payment"), true);
 

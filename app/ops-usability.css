@@ -345,6 +345,21 @@ body {
   font-size: 0.9375rem;
 }
 
+.ops-command-clock time { color: #20242b; }
+.ops-sidebar .ops-nav-item { color: #aeb7c4; }
+.ops-sidebar .ops-nav-icon { color: #8f9baa; }
+.ops-sidebar .ops-nav-item.active { color: #fff; }
+
+.ops-main .ops-refresh-button {
+  border-color: #53687b;
+  background: #202a36;
+  color: #fff !important;
+}
+
+.ops-main .ops-page-subnav a.needs-attention:not(.active) { color: #a1262c; }
+.ops-main .ops-page-subnav small { background: #dce6ef; color: #263849; }
+.ops-main .ops-page-subnav a.needs-attention small { background: #a1262c; color: #fff; }
+
 /* Tables are operational reading surfaces, not decorative micro-copy. */
 .ops-main .ops-table {
   color: #303741;

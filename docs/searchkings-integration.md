@@ -30,7 +30,19 @@ Run a first verified refresh:
 npm run collect:searchkings -- --force
 ```
 
-The live refresh loop then refreshes SearchKings at most once every 15 minutes and retains the last verified snapshot on any authentication or network failure.
+Install the dedicated production collector on Mission Control:
+
+```sh
+./deploy/macmini/install-searchkings-collector.sh
+```
+
+The LaunchAgent starts at login, checks every five minutes, and refreshes
+SearchKings at most once every 15 minutes. It runs independently of JunkWare,
+QBO, Crew Portal, and VPS synchronization, so a failure in those integrations
+does not make Marketing data stale. The general live refresh loop also retains
+its SearchKings call as a redundant fallback. Both paths use the same lock and
+freshness gate, and retain the last verified snapshot on authentication or
+network failure.
 
 ## Files and retention
 

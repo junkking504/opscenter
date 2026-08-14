@@ -2,24 +2,32 @@
 
 OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. The normal interval is five minutes, with faster retries while a source is unavailable. Slack is the action and escalation layer; OpsCenter remains the source of truth.
 
-## Initial alert set
+## Routing policy
 
-- New or cancelled same-day appointment -> the assigned `#truck-N` channel
-  - Unassigned or unknown trucks fall back to `#jobs-no`, `#jobs-br`, or `#jobs-ns` by territory
-  - Unknown or unsupported territories fall back to `#ops-dispatch`
+- New or cancelled same-day appointment -> `#jobs-no`, `#jobs-br`, or `#jobs-ns` by territory, regardless of truck assignment
+  - New Orleans and Jefferson Parish -> `#jobs-no`
+  - Baton Rouge -> `#jobs-br`
+  - Northshore -> `#jobs-ns`
+  - Unknown or unsupported territories -> `#dispatch`
 - Confirmed truck arrival -> that truck's `#truck-N` channel
-- Clocked-in employee without a truck -> `#ops-dispatch`
+- Newly closed job -> a short operational completion notice in that truck's `#truck-N` channel
+- Fuel and dump receipts -> that truck's `#truck-N` channel
+- Verified WhatsApp job-photo batch -> that truck's `#truck-N` channel
+- LinxUp driving-safety events -> that truck's `#truck-N` channel
+- Clocked-in employee without a truck -> retained in OpsCenter without a Slack alert because assignment normally follows closeout
 - Employee clock-in, clock-out with hours, and finalized daily-pay breakdown -> `#ops-command` (or `SLACK_OPS_CREW_CHANNEL_ID`)
-- Newly closed JunkWare job -> `#payment`, with each payment amount and method, check number for checks, card last four for cards, and any tip
+- Newly closed JunkWare job -> a separate finance detail in `#payment`, with each payment amount and method, check number for checks, card last four for cards, and any tip
 - Open out-of-service fleet issue -> `#ops-fleet`
 - Red JunkWare or Linxup data health -> `#ops-data-health`
-- Completed WhatsApp photo batch with an explicit JK number -> one summary with attachments in the assigned `#truck-N` channel after every photo is verified (when `SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED=true`); batches without a mapped truck fall back to `#ops-dispatch`
+- Cross-territory or unmapped operational exceptions -> `#dispatch`
+
+Truck channels intentionally contain field execution events, not bookings or schedule changes. The territory jobs channels own appointment intake and cancellations so dispatch can see route-plan changes in one place. `#payment` keeps the finance detail while the truck channel receives only the operational closeout fact.
 
 The first live run records existing appointments, existing cancellations, and currently active incidents as its baseline. It does not flood Slack with pre-existing conditions. Later appointment additions and cancellations are each posted once; failed notification deliveries remain eligible for retry. Once a baseline incident clears, a later recurrence is treated as a new incident. New incident alerts are deduplicated, and recovery messages are posted in the original Slack thread.
 
 Crew lifecycle notifications are also baselined once when the feature is first deployed. After that baseline, each employee receives at most one clock-in, clock-out, and finalized-pay notification per day. The messages are intentionally plain: clock-in states only that the employee clocked in; clock-out adds only hours worked; finalized pay lists total pay, hourly pay, tips, and bonuses.
 
-Payment closeout notifications are baselined once when the feature is first deployed so existing completed jobs do not flood the new channel. After that baseline, each completed appointment is posted at most once. A completed record is held for retry until its closeout includes a payment line, which prevents an incomplete scrape from permanently omitting the requested payment details. Messages contain only the JK number, payment details, and a positive tip amount; they do not include customer data or a full card number.
+Truck closeout and payment-detail notifications are baselined independently when each feature is first deployed so existing completed jobs do not flood either channel. After that baseline, each completed appointment is posted at most once per destination. A payment detail is held for retry until its closeout includes a payment line, which prevents an incomplete scrape from permanently omitting the requested payment details. Messages contain only the JK number, payment details, and a positive tip amount; they do not include customer data or a full card number.
 
 Appointments that remain open after their scheduled window stay visible in OpsCenter but do not generate Slack alerts or resolution replies.
 

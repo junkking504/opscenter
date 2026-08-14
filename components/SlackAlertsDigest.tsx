@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { SlackDailyDigest } from "@/lib/slack-digest";
 import styles from "./CommandBrief.module.css";
@@ -90,8 +91,40 @@ export default function SlackAlertsDigest({
             <article className={styles.digestMessage} key={message.id}>
               <time dateTime={message.timestamp}>{messageTime(message.timestamp)}</time>
               <div>
-                <strong>{message.author}{message.threadReply ? " · Reply" : ""}</strong>
-                <p>{message.text}</p>
+                <strong className={styles.digestChannel}>
+                  {message.channel}{message.threadReply ? " · Reply" : ""}
+                </strong>
+                {message.appointment ? (
+                  <div className={styles.digestAppointment}>
+                    <p className={styles.digestAppointmentTitle}>
+                      <span aria-hidden="true">⚠️</span>{" "}
+                      {message.appointment.title}:{" "}
+                      <Link href={message.appointment.href}>{message.appointment.jobNumber}</Link>
+                    </p>
+                    <p>
+                      {message.appointment.customerName} · {message.appointment.phone} · {message.appointment.appointmentTime}
+                    </p>
+                    <p>{message.appointment.address}</p>
+                    {message.appointment.items.length ? (
+                      <p>Items: {message.appointment.items.join("; ")}</p>
+                    ) : null}
+                    {message.appointment.nextAction ? (
+                      <p className={styles.digestNext}>Next: {message.appointment.nextAction}</p>
+                    ) : null}
+                    <Link className={styles.digestOpenLink} href={message.appointment.href}>
+                      Open in OpsCenter
+                    </Link>
+                  </div>
+                ) : (
+                  <>
+                    <p>{message.text}</p>
+                    {message.opsCenterHref ? (
+                      <Link className={styles.digestOpenLink} href={message.opsCenterHref}>
+                        Open in OpsCenter
+                      </Link>
+                    ) : null}
+                  </>
+                )}
               </div>
             </article>
           ))}

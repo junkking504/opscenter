@@ -1,30 +1,35 @@
 import { execFileSync } from "node:child_process";
+import {
+  buildAddOnAppointmentFeed,
+  buildCancelledAppointmentFeed,
+  type AddOnAppointment,
+} from "@/lib/add-on-notifications";
 
 const CHICAGO_TIME_ZONE = "America/Chicago";
 // The client checks more frequently, while this shared cache keeps aggregate
 // Slack history reads safely below the workspace method limits.
 const CACHE_TTL_MS = 30_000;
 
-const DEFAULT_CHANNEL_IDS = [
-  "C0BNMDJNYV9", // ops-command
-  "C0BNRMD25AS", // ops-dispatch
-  "C0BNQ6J7LER", // ops-fleet
-  "C0BNVJR6HMX", // ops-finance
-  "C0BNXBK8GTW", // ops-growth
-  "C0BPN1FVCDN", // ops-data-health
-  "C0BPS5MS406", // payments
-  "C0BPRML654N", // jobs-no
-  "C0BPQ30C8LD", // jobs-br
-  "C0BPC9M5GLX", // jobs-ns
-  "C0BPU3XUANN", // truck-1
-  "C0BPQGBD4N9", // truck-2
-  "C0BPQGARS1K", // truck-3
-  "C0BQNEV0GFJ", // truck-4
-  "C0BPXQJACS0", // truck-6
-  "C0BPXQK9ESG", // truck-7
-  "C0BPMSJ7V43", // truck-8
-  "C0BPCP2B6BH", // truck-9
-] as const;
+const DEFAULT_CHANNEL_NAMES: Record<string, string> = {
+  C0BNMDJNYV9: "#ops-command",
+  C0BNRMD25AS: "#ops-dispatch",
+  C0BNQ6J7LER: "#ops-fleet",
+  C0BNVJR6HMX: "#ops-finance",
+  C0BNXBK8GTW: "#ops-growth",
+  C0BPN1FVCDN: "#ops-data-health",
+  C0BPS5MS406: "#payments",
+  C0BPRML654N: "#jobs-no",
+  C0BPQ30C8LD: "#jobs-br",
+  C0BPC9M5GLX: "#jobs-ns",
+  C0BPU3XUANN: "#truck-1",
+  C0BPQGBD4N9: "#truck-2",
+  C0BPQGARS1K: "#truck-3",
+  C0BQNEV0GFJ: "#truck-4",
+  C0BPXQJACS0: "#truck-6",
+  C0BPXQK9ESG: "#truck-7",
+  C0BPMSJ7V43: "#truck-8",
+  C0BPCP2B6BH: "#truck-9",
+};
 
 type SlackMessagePayload = {
   ts?: string;
@@ -48,9 +53,21 @@ type SlackHistoryResponse = {
 export type SlackDigestMessage = {
   id: string;
   timestamp: string;
-  author: string;
+  channel: string;
   text: string;
   threadReply: boolean;
+  opsCenterHref?: string;
+  appointment?: {
+    title: string;
+    jobNumber: string;
+    customerName: string;
+    phone: string;
+    appointmentTime: string;
+    address: string;
+    items: string[];
+    href: string;
+    nextAction: string;
+  };
 };
 
 export type SlackDailyDigest = {
@@ -131,7 +148,35 @@ export function slackDigestChannelIds(): string[] {
   const configured = Object.entries(process.env)
     .filter(([name, value]) => /^SLACK_.*_CHANNEL_ID$/.test(name) && /^C[A-Z0-9]+$/.test(String(value || "").trim()))
     .map(([, value]) => String(value).trim());
-  return Array.from(new Set([...DEFAULT_CHANNEL_IDS, ...configured]));
+  return Array.from(new Set([...Object.keys(DEFAULT_CHANNEL_NAMES), ...configured]));
+}
+
+function configuredChannelName(channelId: string): string {
+  const entry = Object.entries(process.env).find(
+    ([name, value]) => /^SLACK_.*_CHANNEL_ID$/.test(name) && String(value || "").trim() === channelId,
+  );
+  if (!entry) return "";
+  const envName = entry[0];
+  const truck = envName.match(/^SLACK_TRUCK_(\d+)_CHANNEL_ID$/);
+  if (truck) return `#truck-${truck[1]}`;
+  const known: Record<string, string> = {
+    SLACK_OPS_COMMAND_CHANNEL_ID: "#ops-command",
+    SLACK_OPS_DISPATCH_CHANNEL_ID: "#ops-dispatch",
+    SLACK_OPS_CREW_CHANNEL_ID: "#ops-command",
+    SLACK_OPS_FLEET_CHANNEL_ID: "#ops-fleet",
+    SLACK_OPS_FINANCE_CHANNEL_ID: "#ops-finance",
+    SLACK_OPS_GROWTH_CHANNEL_ID: "#ops-growth",
+    SLACK_OPS_DATA_HEALTH_CHANNEL_ID: "#ops-data-health",
+    SLACK_OPS_PAYMENT_CHANNEL_ID: "#payments",
+    SLACK_JOBS_NO_CHANNEL_ID: "#jobs-no",
+    SLACK_JOBS_BR_CHANNEL_ID: "#jobs-br",
+    SLACK_JOBS_NS_CHANNEL_ID: "#jobs-ns",
+  };
+  return known[envName] || "";
+}
+
+export function slackDigestChannelName(channelId: string): string {
+  return configuredChannelName(channelId) || DEFAULT_CHANNEL_NAMES[channelId] || "#slack";
 }
 
 export function slackTextToPlainText(value: string): string {
@@ -147,6 +192,8 @@ export function slackTextToPlainText(value: string): string {
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
+    .replace(/^\s*_?Alert ID:.*_?\s*$/gim, "")
+    .replace(/^\s*<https?:\/\/[^>|]+\|Open in OpsCenter>\s*$/gim, "")
     .replace(/<(https?:\/\/[^>|]+)\|([^>]+)>/g, "$2")
     .replace(/<(https?:\/\/[^>]+)>/g, "$1")
     .replace(/<@[^>]+>/g, "@Slack member")
@@ -160,22 +207,88 @@ export function slackTextToPlainText(value: string): string {
     .trim();
 }
 
-function authorName(message: SlackMessagePayload): string {
-  return String(message.bot_profile?.name || message.username || (message.user ? "Slack member" : "Slack")).trim();
+function opsCenterHref(value: string): string | undefined {
+  const match = String(value || "").match(/<(https?:\/\/[^>|]+)\|Open in OpsCenter>/i);
+  if (!match) return undefined;
+  try {
+    const url = new URL(match[1]);
+    if (url.pathname !== "/jobs") return undefined;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return undefined;
+  }
 }
 
-function digestMessage(channelId: string, message: SlackMessagePayload): SlackDigestMessage | null {
+function appointmentLookup(appointments: AddOnAppointment[]): Map<string, AddOnAppointment> {
+  const lookup = new Map<string, AddOnAppointment>();
+  for (const appointment of appointments) {
+    if (appointment.id) lookup.set(appointment.id.toLowerCase(), appointment);
+    if (appointment.appointmentId) lookup.set(`appt:${appointment.appointmentId}`.toLowerCase(), appointment);
+    if (appointment.jobNumber) lookup.set(`job:${appointment.jobNumber}`.toLowerCase(), appointment);
+  }
+  return lookup;
+}
+
+function appointmentForSlackAlert(
+  rawText: string,
+  lookup: Map<string, AddOnAppointment>,
+): SlackDigestMessage["appointment"] | undefined {
+  const plainText = slackTextToPlainText(rawText);
+  const titleMatch = plainText.match(/(?:⚠️\s*)?(New same-day appointment|Appointment cancelled):\s*(JK\d+)/i);
+  if (!titleMatch) return undefined;
+
+  const fingerprintMatch = rawText.match(/Alert ID:\s*(?:add_on|cancellation):\d{4}-\d{2}-\d{2}:(appt:[^\s_*]+)/i);
+  const appointment = (
+    (fingerprintMatch ? lookup.get(fingerprintMatch[1].toLowerCase()) : undefined)
+    || lookup.get(`job:${titleMatch[2]}`.toLowerCase())
+  );
+  if (!appointment) return undefined;
+
+  const nextAction = plainText
+    .split("\n")
+    .find((line) => /^Next:\s*/i.test(line))
+    ?.replace(/^Next:\s*/i, "")
+    .trim() || "";
+  return {
+    title: titleMatch[1].replace(/^./, (value) => value.toUpperCase()),
+    jobNumber: appointment.jobNumber,
+    customerName: appointment.customerName,
+    phone: appointment.phone,
+    appointmentTime: appointment.appointmentTime,
+    address: appointment.address,
+    items: appointment.items,
+    href: appointment.href,
+    nextAction,
+  };
+}
+
+function digestMessage(
+  channelId: string,
+  message: SlackMessagePayload,
+  appointments: Map<string, AddOnAppointment>,
+): SlackDigestMessage | null {
   const ts = String(message.ts || "").trim();
-  const text = slackTextToPlainText(String(message.text || ""));
+  const rawText = String(message.text || "");
+  const plainText = slackTextToPlainText(rawText);
+  const appointment = appointmentForSlackAlert(rawText, appointments);
+  const text = appointment ? [
+    `⚠️ ${appointment.title}: ${appointment.jobNumber}`,
+    `${appointment.customerName} · ${appointment.phone} · ${appointment.appointmentTime}`,
+    appointment.address,
+    appointment.items.length ? `Items: ${appointment.items.join("; ")}` : "",
+    appointment.nextAction ? `Next: ${appointment.nextAction}` : "",
+  ].filter(Boolean).join("\n") : plainText;
   const epochMs = Number(ts) * 1_000;
   if (!ts || !text || !Number.isFinite(epochMs)) return null;
 
   return {
     id: `${channelId}:${ts}`,
     timestamp: new Date(epochMs).toISOString(),
-    author: authorName(message),
+    channel: slackDigestChannelName(channelId),
     text,
     threadReply: Boolean(message.thread_ts && message.thread_ts !== ts),
+    opsCenterHref: opsCenterHref(rawText),
+    appointment,
   };
 }
 
@@ -207,6 +320,7 @@ async function channelMessages(
   latest: string,
   token: string,
   fetchImpl: typeof fetch,
+  appointments: Map<string, AddOnAppointment>,
 ): Promise<{ ok: boolean; messages: SlackDigestMessage[]; rateLimited: boolean }> {
   const roots: SlackMessagePayload[] = [];
   let cursor = "";
@@ -226,7 +340,7 @@ async function channelMessages(
   } while (cursor);
 
   const messages = roots.flatMap((message) => {
-    const item = digestMessage(channelId, message);
+    const item = digestMessage(channelId, message, appointments);
     return item ? [item] : [];
   });
 
@@ -246,7 +360,7 @@ async function channelMessages(
       if (!response.ok) break;
       for (const reply of response.messages || []) {
         if (reply.ts === root.ts) continue;
-        const item = digestMessage(channelId, reply);
+        const item = digestMessage(channelId, reply, appointments);
         if (item) messages.push(item);
       }
       replyCursor = String(response.response_metadata?.next_cursor || "").trim();
@@ -262,6 +376,7 @@ export async function fetchSlackDailyDigest(
     token: string;
     channelIds: string[];
     fetchImpl?: typeof fetch;
+    appointments?: AddOnAppointment[];
   },
 ): Promise<SlackDailyDigest> {
   const refreshedAt = new Date().toISOString();
@@ -275,12 +390,24 @@ export async function fetchSlackDailyDigest(
   const oldest = String(zonedMidnightSeconds(date));
   const latest = String(zonedMidnightSeconds(nextDate(date)) - 0.001);
   const fetchImpl = options.fetchImpl || fetch;
+  let appointmentRows = options.appointments;
+  if (!appointmentRows) {
+    try {
+      appointmentRows = [
+        ...buildAddOnAppointmentFeed(date).appointments,
+        ...buildCancelledAppointmentFeed(date).appointments,
+      ];
+    } catch {
+      appointmentRows = [];
+    }
+  }
+  const appointments = appointmentLookup(appointmentRows);
   const messages: SlackDigestMessage[] = [];
   let readableChannels = 0;
   let rateLimited = false;
 
   for (const channelId of Array.from(new Set(options.channelIds))) {
-    const result = await channelMessages(channelId, oldest, latest, options.token, fetchImpl);
+    const result = await channelMessages(channelId, oldest, latest, options.token, fetchImpl, appointments);
     if (result.ok) readableChannels += 1;
     if (result.rateLimited) rateLimited = true;
     messages.push(...result.messages);

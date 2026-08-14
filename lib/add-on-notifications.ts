@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { appointmentNotes } from "@/lib/junkware-job-details";
 import { AnyRecord, readMetrics } from "@/lib/opsData";
 
 export type AddOnAppointment = {
@@ -9,10 +10,12 @@ export type AddOnAppointment = {
   jobNumber: string;
   territory: string;
   customerName: string;
+  phone: string;
   address: string;
   appointmentTime: string;
   appointmentType: string;
   assignedTruck: string;
+  items: string[];
   href: string;
 };
 
@@ -66,6 +69,26 @@ function jobAnchor(value: string): string {
   return value.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
 }
 
+function itemDescription(value: string): string {
+  return String(value || "")
+    .replace(/^Online request:\s*/i, "")
+    .replace(/\s*,\s*(?:Business Name|Service Type|How did you hear about us)\s*:.*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function appointmentItemDescriptions(row: AnyRecord): string[] {
+  const descriptions = [
+    firstText(row, ["job_description", "items", "item_description"]),
+    ...appointmentNotes(row)
+      .filter((note) => /^Online request:/i.test(note))
+      .map(itemDescription),
+  ]
+    .map(itemDescription)
+    .filter((description) => description && !/^new item$/i.test(description));
+  return Array.from(new Set(descriptions));
+}
+
 function appointmentFromRow(row: AnyRecord, date: string): AddOnAppointment {
   const appointmentId = firstText(row, ["appt_id", "appointment_id", "appointmentId"]);
   const jobNumber = firstText(row, ["job_id", "jk_number", "job_number"], appointmentId || "Appointment");
@@ -77,10 +100,16 @@ function appointmentFromRow(row: AnyRecord, date: string): AddOnAppointment {
     jobNumber,
     territory: appointmentTerritory(row),
     customerName: firstText(row, ["customer_name", "customer", "name"], "Customer name unavailable"),
+    phone: firstText(
+      row,
+      ["customer_phone", "phone", "phone_number", "mobile_phone", "mobile"],
+      "Phone unavailable",
+    ),
     address: firstText(row, ["service_address", "address", "job_address"], "Address unavailable"),
     appointmentTime: firstText(row, ["appointment_time", "scheduled_time", "time_window"], "Time unavailable"),
     appointmentType: firstText(row, ["appointment_type", "type"], "Appointment"),
     assignedTruck: firstText(row, ["assigned_truck", "truck", "truck_number"], "Unassigned"),
+    items: appointmentItemDescriptions(row),
     href: `/jobs?date=${encodeURIComponent(date)}${anchorValue ? `#job-${jobAnchor(anchorValue)}` : ""}`,
   };
 }
@@ -119,12 +148,28 @@ export function appointmentTerritory(row: AnyRecord): string {
 export function buildAddOnAppointmentFeed(date: string): AddOnAppointmentFeed {
   const metrics = readMetrics(date);
   const sourceRows = Array.isArray(metrics?.appointments) ? metrics.appointments : [];
+  const rawPayload = readRawJunkwareDay(date);
+  const rawRows = [
+    ...(Array.isArray(rawPayload?.appointments) ? rawPayload.appointments : []),
+    ...(Array.isArray(rawPayload?.completed) ? rawPayload.completed : []),
+  ];
   const seen = new Set<string>();
   const appointments: AddOnAppointment[] = [];
 
   for (const row of sourceRows) {
     if (!row || typeof row !== "object" || isCanceled(row)) continue;
-    const appointment = appointmentFromRow(row, date);
+    const rowAppointmentId = firstText(row, ["appt_id", "appointment_id", "appointmentId"]);
+    const rowJobNumber = firstText(row, ["job_id", "jk_number", "job_number"]).toLowerCase();
+    const rawRow = rawRows.find((candidate) => {
+      if (!candidate || typeof candidate !== "object") return false;
+      const candidateAppointmentId = firstText(candidate, ["appt_id", "appointment_id", "appointmentId"]);
+      const candidateJobNumber = firstText(candidate, ["job_id", "jk_number", "job_number"]).toLowerCase();
+      return Boolean(
+        (rowAppointmentId && candidateAppointmentId === rowAppointmentId)
+        || (rowJobNumber && candidateJobNumber === rowJobNumber),
+      );
+    });
+    const appointment = appointmentFromRow(rawRow ? { ...rawRow, ...row } : row, date);
     if (seen.has(appointment.id)) continue;
     seen.add(appointment.id);
     appointments.push(appointment);

@@ -2,9 +2,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { appointmentTerritory, buildCancelledAppointmentFeed } from "@/lib/add-on-notifications";
+import {
+  appointmentItemDescriptions,
+  appointmentTerritory,
+  buildCancelledAppointmentFeed,
+} from "@/lib/add-on-notifications";
 import {
   appointmentChannelId,
+  buildAddOnSlackAlert,
   buildPaymentCloseoutSlackNotifications,
   buildCrewSlackNotifications,
   buildTruckArrivalSlackNotifications,
@@ -46,6 +51,37 @@ assert.equal(slackAlertKindEnabled("cancellation"), true);
 assert.equal(slackAlertKindEnabled("unassigned_crew"), true);
 assert.equal(slackAlertKindEnabled("truck_arrival"), true);
 assert.equal(slackAlertKindEnabled("job_closed_payment"), true);
+
+assert.deepEqual(appointmentItemDescriptions({
+  appointment_notes: [
+    "Additional Lead Note Label: What will be picking up?: Miscellaneous toys and household items, Business Name: Example, Service Type: Full Service",
+  ],
+}), ["Miscellaneous toys and household items"]);
+
+const addOnSlackAlert = buildAddOnSlackAlert({
+  id: "appt:400",
+  appointmentId: "400",
+  jobNumber: "JK4025000",
+  territory: "New Orleans",
+  customerName: "Test Customer",
+  phone: "(504) 555-0100",
+  address: "123 Test Street",
+  appointmentTime: "1:00 PM - 3:00 PM",
+  appointmentType: "Appointment",
+  assignedTruck: "Truck# 4",
+  items: ["Sofa", "Desk"],
+  href: "/jobs?date=2026-08-12#job-jk4025000",
+}, "2026-08-12");
+assert.equal(addOnSlackAlert.channelId, "C_TEST_NO");
+assert.equal(formatSlackAlert(addOnSlackAlert), [
+  ":warning: *New same-day appointment: JK4025000*",
+  "Test Customer · (504) 555-0100 · 1:00 PM - 3:00 PM",
+  "123 Test Street",
+  "Items: Sofa; Desk",
+  "*Next:* Confirm crew and truck coverage, then update the route plan.",
+  "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4025000|Open in OpsCenter>",
+].join("\n"));
+assert.doesNotMatch(formatSlackAlert(addOnSlackAlert), /Truck# 4|Alert ID/);
 
 const paymentCloseoutAlerts = buildPaymentCloseoutSlackNotifications("2026-08-12", [
   {
@@ -201,10 +237,12 @@ assert.deepEqual(cancellationFeed.appointments[0], {
   jobNumber: "JK4025001",
   territory: "Jefferson Parish",
   customerName: "Test Customer",
+  phone: "Phone unavailable",
   address: "123 Test Street",
   appointmentTime: "1:00 PM - 3:00 PM",
   appointmentType: "Appointment",
   assignedTruck: "Truck 4",
+  items: [],
   href: "/jobs?date=2026-08-12#job-jk4025001",
   cancelledBy: "Dispatcher",
   cancellationReason: "Customer requested",

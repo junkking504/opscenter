@@ -10,8 +10,8 @@ async function main() {
   assert.match(clientSource, /document\.addEventListener\("visibilitychange", refreshWhenVisible\)/);
 
   assert.equal(
-    slackTextToPlainText(":warning: *New alert*\n<https://ops.junk-king.app/jobs|Open in OpsCenter>"),
-    "⚠️ New alert\nOpen in OpsCenter",
+    slackTextToPlainText(":warning: *New alert*\n<https://ops.junk-king.app/jobs|Open in OpsCenter>\n_Alert ID: test:123_"),
+    "⚠️ New alert",
   );
 
   const requests: URL[] = [];
@@ -34,6 +34,11 @@ async function main() {
           text: ":truck: *Truck 3 arrived onsite.*",
           bot_profile: { name: "OpsCenter Alerts" },
           reply_count: 1,
+        },
+        {
+          ts: "1786718500.000003",
+          text: ":warning: *New same-day appointment: JK4052608*\nTest Customer · 12:00 PM - 01:00 PM · Truck# 1 · 123 Test Street\n*Next:* Confirm coverage.\n<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052608|Open in OpsCenter>\n_Alert ID: add_on:2026-08-14:appt:4039430_",
+          bot_profile: { name: "OpsCenter Alerts" },
         },
         {
           ts: "1786710000.000001",
@@ -62,16 +67,36 @@ async function main() {
 
   const digest = await fetchSlackDailyDigest("2026-08-14", {
     token: "xoxb-test-token",
-    channelIds: ["C_READABLE", "C_READABLE", "C_UNREADABLE"],
+    channelIds: ["C0BPRML654N", "C0BPRML654N", "C_UNREADABLE"],
     fetchImpl,
+    appointments: [{
+      id: "appt:4039430",
+      appointmentId: "4039430",
+      jobNumber: "JK4052608",
+      territory: "New Orleans",
+      customerName: "Test Customer",
+      phone: "(504) 555-0100",
+      address: "123 Test Street",
+      appointmentTime: "12:00 PM - 01:00 PM",
+      appointmentType: "Appointment",
+      assignedTruck: "Truck# 1",
+      items: ["Sofa", "Desk"],
+      href: "/jobs?date=2026-08-14#job-jk4052608",
+    }],
   });
 
   assert.equal(digest.status, "ready");
-  assert.equal(digest.messages.length, 3);
+  assert.equal(digest.messages.length, 4);
   assert.equal(digest.messages[0].text, "✅ Resolved");
   assert.equal(digest.messages[0].threadReply, true);
-  assert.equal(digest.messages[1].text, "🚚 Truck 3 arrived onsite.");
-  assert.equal(digest.messages[2].text, "Older alert");
+  assert.equal(digest.messages[1].channel, "#jobs-no");
+  assert.equal(digest.messages[1].appointment?.jobNumber, "JK4052608");
+  assert.equal(digest.messages[1].appointment?.phone, "(504) 555-0100");
+  assert.deepEqual(digest.messages[1].appointment?.items, ["Sofa", "Desk"]);
+  assert.equal(digest.messages[1].appointment?.href, "/jobs?date=2026-08-14#job-jk4052608");
+  assert.doesNotMatch(digest.messages[1].text, /Alert ID|Truck# 1|Open in OpsCenter/);
+  assert.equal(digest.messages[2].text, "🚚 Truck 3 arrived onsite.");
+  assert.equal(digest.messages[3].text, "Older alert");
   assert.equal(requests.filter((request) => request.pathname.endsWith("conversations.history")).length, 2);
   assert.ok(requests.every((request) => request.searchParams.get("oldest") === "1786683600"));
   assert.ok(requests.every((request) => request.searchParams.has("latest")));

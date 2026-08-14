@@ -65,6 +65,22 @@ updates.
 
 To roll back manually, deploy the previous commit SHA with the same command.
 
+### Dedicated LinxUp freshness collector
+
+Production GPS and appointment-visit matching run independently of the slower
+JunkWare, QBO, Crew Portal, and VPS publishing cycle. After deploying a release
+that includes the collector, install or refresh its LaunchAgent with:
+
+```sh
+cd /Users/missioncontrol/opscenter-v2/opscenter
+./deploy/macmini/install-linxup-collector.sh
+```
+
+The LaunchAgent runs once per minute and uses the LinxUp API token stored in
+Keychain. `/api/health` reports `stale-linxup-data` when today's normalized GPS
+snapshot is more than three minutes old, and current OpsCenter pages refresh
+when a newer LinxUp snapshot arrives.
+
 To deploy OpsCenter while leaving the separately managed WhatsApp photo worker
 untouched, set `OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER=false` for the deployment
 command. The default remains to restart the worker when it is loaded so it uses

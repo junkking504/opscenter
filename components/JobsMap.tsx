@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppointmentCancelDialog, { type AppointmentCancelTarget } from "@/components/AppointmentCancelDialog";
 import type { JobRouteProximityPayload, JobTruckProximity } from "@/lib/job-route-proximity";
+import { buildJobRouteHistory } from "@/lib/job-route-history";
 import { parseTruckNumberFromLabel } from "@/lib/linxup-truck-label";
 
 export type JobsMapPoint = {
@@ -46,6 +47,18 @@ export type JobsMapTruck = {
     latitude: number;
     longitude: number;
     continuousUntil?: string | null;
+  }>;
+  routePoints: Array<{
+    timestamp: string;
+    latitude: number;
+    longitude: number;
+  }>;
+  jobStops: Array<{
+    label: string;
+    latitude: number;
+    longitude: number;
+    begin: string;
+    end: string;
   }>;
   recentStops: Array<{
     latitude: number;
@@ -201,6 +214,16 @@ function proximityText(proximity: JobTruckProximity): string {
   const prefix = proximity.source === "google_live_traffic" ? "" : "~";
   const timing = proximity.source === "google_live_traffic" ? "with traffic" : "estimated";
   return `${prefix}${Number(proximity.miles || 0).toFixed(1)} mi · ${formatTravelTime(proximity.travelMinutes)} ${timing}${stale ? " · stale GPS" : ""}`;
+}
+
+function routeTime(value: string): string {
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())) return "Time unavailable";
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(parsed);
 }
 
 function nearestTruck(
@@ -492,6 +515,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const mapNodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any>(null);
+  const routesRef = useRef<any>(null);
   const [leaflet, setLeaflet] = useState<LeafletModule | null>(null);
   const [selectedKey, setSelectedKey] = useState("");
   const [selectedTruckName, setSelectedTruckName] = useState("");
@@ -591,6 +615,10 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const selectedTruck = useMemo(
     () => liveTruckLocations.find((truck) => truck.truck === selectedTruckName) || null,
     [liveTruckLocations, selectedTruckName],
+  );
+  const selectedTruckRoutes = useMemo(
+    () => selectedTruck ? buildJobRouteHistory(selectedTruck.routePoints, selectedTruck.jobStops) : [],
+    [selectedTruck],
   );
   const selectedTruckCameraNumber = selectedTruck
     ? parseTruckNumberFromLabel(selectedTruck.truck)
@@ -1021,6 +1049,14 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     return leaflet.latLngBounds(locatedJobs.map((job) => [job.latitude, job.longitude]));
   }, [leaflet, locatedJobs]);
 
+  const selectedRouteBounds = useMemo(() => {
+    if (!leaflet || !selectedTruck) return null;
+    const points = selectedTruck.routePoints
+      .filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude))
+      .map((point) => [point.latitude, point.longitude] as [number, number]);
+    return points.length ? leaflet.latLngBounds(points) : null;
+  }, [leaflet, selectedTruck]);
+
   useEffect(() => {
     if (!leaflet || !mapNodeRef.current || mapRef.current) return;
 
@@ -1036,6 +1072,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
 
     mapRef.current = map;
     markersRef.current = leaflet.layerGroup().addTo(map);
+    routesRef.current = leaflet.layerGroup().addTo(map);
 
     const resizeObserver = typeof ResizeObserver === "undefined"
       ? null
@@ -1048,15 +1085,51 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       map.remove();
       mapRef.current = null;
       markersRef.current = null;
+      routesRef.current = null;
     };
   }, [leaflet]);
 
   useEffect(() => {
     const map = mapRef.current;
     const markers = markersRef.current;
-    if (!leaflet || !map || !markers) return;
+    const routes = routesRef.current;
+    if (!leaflet || !map || !markers || !routes) return;
 
     markers.clearLayers();
+    routes.clearLayers();
+
+    selectedTruckRoutes.forEach((segment, index) => {
+      const linePoints = segment.points.map((point) => [point.latitude, point.longitude] as [number, number]);
+      if (linePoints.length < 2) return;
+      leaflet.polyline(linePoints, {
+        color: segment.color,
+        weight: segment.kind === "current" ? 4 : 5,
+        opacity: segment.kind === "current" ? 0.78 : 0.96,
+        dashArray: segment.kind === "current" ? "8 8" : undefined,
+        lineJoin: "round",
+        lineCap: "round",
+      })
+        .bindTooltip(
+          `${segment.kind === "job" ? `Route ${index + 1} · ` : ""}${segment.label} · ${routeTime(segment.points[0].timestamp)}–${routeTime(segment.points.at(-1)?.timestamp || "")}`,
+          { sticky: true },
+        )
+        .addTo(routes);
+
+      if (!segment.stop) return;
+      leaflet.circleMarker([segment.stop.latitude, segment.stop.longitude], {
+        radius: 7,
+        color: segment.color,
+        weight: 3,
+        fillColor: "#081018",
+        fillOpacity: 1,
+      })
+        .bindTooltip(`Job ${index + 1} · ${segment.stop.label} · arrived ${routeTime(segment.stop.begin)}`, {
+          direction: "top",
+          offset: [0, -5],
+        })
+        .addTo(routes);
+    });
+
     for (const job of locatedJobs) {
       const markerLabel = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber}`;
       const marker = leaflet.marker([job.latitude, job.longitude], {
@@ -1096,7 +1169,13 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       marker.addTo(markers);
     }
 
-    if (selectedTruck) {
+    if (selectedTruck && selectedRouteBounds?.isValid()) {
+      if (selectedRouteBounds.getNorthEast().equals(selectedRouteBounds.getSouthWest())) {
+        map.setView(selectedRouteBounds.getCenter(), 14, { animate: true });
+      } else {
+        map.fitBounds(selectedRouteBounds.pad(0.1), { padding: [28, 28], maxZoom: 15, animate: true });
+      }
+    } else if (selectedTruck) {
       map.setView([selectedTruck.latitude, selectedTruck.longitude], Math.max(map.getZoom(), 14), { animate: true });
     } else if (selectedJob && isLocated(selectedJob)) {
       map.setView([selectedJob.latitude, selectedJob.longitude], Math.max(map.getZoom(), 12), { animate: true });
@@ -1107,7 +1186,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         map.fitBounds(bounds.pad(0.12), { padding: [28, 28], maxZoom: 14 });
       }
     }
-  }, [bounds, leaflet, liveTruckLocations, locatedJobs, selectLiveTruck, selectedJob, selectedKey, selectedTruck, selectedTruckName]);
+  }, [bounds, leaflet, liveTruckLocations, locatedJobs, selectLiveTruck, selectedJob, selectedKey, selectedRouteBounds, selectedTruck, selectedTruckName, selectedTruckRoutes]);
 
   return (
     <section className="ops-card ops-jobs-map-card" id="jobs-map" aria-labelledby="jobs-map-title">
@@ -1408,6 +1487,20 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
               </div>
               <div><span>Truck status</span><strong>{selectedTruck.status}</strong></div>
               <div><span>GPS freshness</span><strong>{selectedTruck.freshness}</strong></div>
+            </div>
+            <div className="ops-jobs-map-route-history" aria-label={`${selectedTruck.truck} route taken today`}>
+              <span className="ops-jobs-map-route-history-title">Route taken today</span>
+              {selectedTruckRoutes.length ? (
+                <ol>
+                  {selectedTruckRoutes.map((segment, index) => (
+                    <li key={segment.key}>
+                      <i style={{ backgroundColor: segment.color }} aria-hidden="true" />
+                      <strong>{segment.kind === "job" ? `${index + 1}. ${segment.label}` : segment.label}</strong>
+                      <span>{routeTime(segment.points[0].timestamp)}–{routeTime(segment.points.at(-1)?.timestamp || "")}</span>
+                    </li>
+                  ))}
+                </ol>
+              ) : <span className="ops-jobs-map-route-history-empty">No driven GPS trail is available yet.</span>}
             </div>
             {selectedTruckCameraNumber ? (
               <button

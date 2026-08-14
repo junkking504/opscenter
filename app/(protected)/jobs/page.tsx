@@ -2728,6 +2728,18 @@ export default async function JobsPage({
         longitude: point.longitude,
         continuousUntil: point.continuousUntil,
       })),
+      routePoints: truck.routePoints.map((point) => ({
+        timestamp: point.timestamp,
+        latitude: point.latitude,
+        longitude: point.longitude,
+      })),
+      jobStops: truck.routeStops.filter((stop) => stop.kind === "At Job").map((stop) => ({
+        label: stop.label,
+        latitude: stop.latitude,
+        longitude: stop.longitude,
+        begin: stop.begin,
+        end: stop.end,
+      })),
       recentStops: truck.gpsStops.filter((stop) => {
         const begin = Date.parse(stop.begin);
         const end = Date.parse(stop.end);

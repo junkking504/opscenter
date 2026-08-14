@@ -4951,6 +4951,64 @@ a {
   line-height: 1.3;
 }
 
+.ops-jobs-map-route-history {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding-top: 3px;
+}
+
+.ops-jobs-map-route-history-title {
+  flex: 0 0 auto;
+  color: #f8fafc;
+  font-size: .69rem;
+  font-weight: 900;
+}
+
+.ops-jobs-map-route-history ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ops-jobs-map-route-history li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 3px 7px;
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .045);
+  font-size: .64rem;
+  line-height: 1.2;
+}
+
+.ops-jobs-map-route-history li i {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 4px;
+  border-radius: 999px;
+}
+
+.ops-jobs-map-route-history li strong {
+  color: #f8fafc;
+  font-size: inherit;
+}
+
+.ops-jobs-map-route-history li span,
+.ops-jobs-map-route-history-empty {
+  color: var(--ops-muted);
+  font-size: .62rem;
+  font-weight: 700;
+}
+
 .ops-jobs-map-truck-live-camera {
   grid-column: 1 / -1;
   display: inline-flex;
@@ -5003,6 +5061,12 @@ a {
 
   .ops-jobs-map-truck-selection .ops-jobs-map-truck-details > div:nth-last-child(-n + 2) {
     border-bottom: 0;
+  }
+
+  .ops-jobs-map-route-history {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
   }
 }
 

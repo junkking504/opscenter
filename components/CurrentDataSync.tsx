@@ -64,7 +64,7 @@ export default function CurrentDataSync({
       }
 
       if (metricsDate !== selectedDate) return;
-      const remoteUpdatedAt = Date.parse(String(health?.updatedAt || ""));
+      const remoteUpdatedAt = Date.parse(String(health?.dataUpdatedAt || health?.updatedAt || ""));
       if (!Number.isFinite(remoteUpdatedAt)) return;
 
       // With no timestamp on the current view, establish a baseline first to

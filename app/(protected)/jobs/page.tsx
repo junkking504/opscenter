@@ -256,6 +256,29 @@ function readAppointmentSiteTime(date: string): SiteTimeAppointment[] {
   }
 }
 
+function appointmentSiteTimeUpdatedAt(date: string): string | null {
+  const file = path.join(
+    OPSBOT_DATA_DIR,
+    "history",
+    "linxup",
+    "appointment_visits",
+    `linxup_appointment_visits_${date}.json`,
+  );
+  try {
+    return fs.statSync(file).mtime.toISOString();
+  } catch {
+    return null;
+  }
+}
+
+function latestUpdatedAt(...values: Array<string | null | undefined>): string | null {
+  const valid = values
+    .map((value) => ({ value, timestamp: Date.parse(String(value || "")) }))
+    .filter((entry): entry is { value: string; timestamp: number } => Boolean(entry.value) && Number.isFinite(entry.timestamp))
+    .sort((left, right) => right.timestamp - left.timestamp);
+  return valid[0]?.value || null;
+}
+
 function siteTimeClock(value: string | null): string {
   if (!value) return "—";
   const stamp = new Date(value);
@@ -2710,7 +2733,10 @@ export default async function JobsPage({
         dates={scheduleDates}
         showDateSelector={!isMonthView}
         dateLabel={isMonthView ? "Month" : "Date"}
-        lastUpdated={monthlyAuthority?.verifiedAt || metrics?.generated_at}
+        lastUpdated={monthlyAuthority?.verifiedAt || latestUpdatedAt(
+          metrics?.generated_at,
+          view === "daily" ? appointmentSiteTimeUpdatedAt(date) : null,
+        )}
         controls={
           <>
             {isMonthView ? (

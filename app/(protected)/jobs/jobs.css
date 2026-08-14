@@ -151,6 +151,18 @@
 .ops-jobs-page .ops-appointment-card-topline { gap: 12px; }
 .ops-jobs-page .ops-appointment-card-reference { gap: 1px; margin-bottom: 0; }
 
+.ops-jobs-page .ops-appointment-booked-date {
+  padding: 2px 6px;
+  border: 1px solid #d8dee5;
+  border-radius: 999px;
+  background: #f3f5f7;
+  color: #4c5865;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 .ops-jobs-page .ops-appointment-card-crew {
   gap: 3px 10px;
   margin-top: 2px;

@@ -84,16 +84,21 @@ export default function JobCallAheadCard({
 
   useEffect(() => {
     if (!menu) return;
-    const close = () => setMenu(null);
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
+    const closeOnPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(".ops-call-ahead-menu")) return;
+      setMenu(null);
     };
-    window.addEventListener("click", close);
-    window.addEventListener("scroll", close, true);
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenu(null);
+    };
+    const closeOnScroll = () => setMenu(null);
+    window.addEventListener("pointerdown", closeOnPointerDown);
+    window.addEventListener("scroll", closeOnScroll, true);
     window.addEventListener("keydown", closeOnEscape);
     return () => {
-      window.removeEventListener("click", close);
-      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("pointerdown", closeOnPointerDown);
+      window.removeEventListener("scroll", closeOnScroll, true);
       window.removeEventListener("keydown", closeOnEscape);
     };
   }, [menu]);

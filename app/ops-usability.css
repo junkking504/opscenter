@@ -781,3 +781,164 @@ body {
     padding-inline: 9px;
   }
 }
+
+/* Semantic colors must be chosen for the surface they sit on. The legacy
+ * palette used luminous green and gold everywhere, which made status text
+ * disappear on the light workspace. Keep separate light- and dark-surface
+ * tokens instead of relying on one color to do both jobs. */
+:root {
+  --oc-success-text: #075f3b;
+  --oc-warning-text: #684800;
+  --oc-success-on-dark: #a7f3d0;
+  --oc-warning-on-dark: #fde68a;
+  --oc-interaction-ring: #ed1c24;
+}
+
+.ops-main {
+  --ops-green: var(--oc-success-text);
+  --ops-gold: var(--oc-warning-text);
+}
+
+.ops-main :where(
+  .ops-jobs-map-card,
+  .ops-operating-pulse,
+  .ops-command-center-v2,
+  .ops-daily-dashboard .ops-page-header.has-subnav,
+  .ops-finance-page > .ops-finance-brief,
+  .ops-notification-panel,
+  .ops-call-ahead-menu
+) {
+  --ops-green: var(--oc-success-on-dark);
+  --ops-gold: var(--oc-warning-on-dark);
+}
+
+/* High-contrast semantic text on white and soft-gray workspace surfaces. */
+.ops-main .ops-runtime-status.is-mission-control > strong,
+.ops-main .ops-section-badge-live,
+.ops-main .ops-crew-status-green,
+.ops-main .ops-crew-detail-row-good .ops-crew-detail-value,
+.ops-main .ops-crew-summary-field-good .ops-crew-summary-value,
+.ops-main .ops-crew-metric-good .ops-crew-metric-value,
+.ops-main .ops-territory-total,
+.ops-main .ops-punctuality-badge.on-time,
+.ops-main .ops-job-photo-badge.complete,
+.ops-main .ops-appointment-card-outcome .ops-status-tag.completed,
+.ops-main .ops-appointment-card-outcome .ops-payment-badge.cash,
+.ops-main .ops-reconciliation-status.is-balanced,
+.ops-main .ops-resale-status.is-sold,
+.ops-main .ops-lead-status.is-booked,
+.ops-main .ops-lead-status.is-recovered,
+.ops-main .ops-marketing-lead-form .ops-franchise-contact.is-contacted,
+.ops-main .ops-franchise-contact-status.is-contacted,
+.ops-main .ops-route-plan-heading small,
+.ops-main .ops-route-assignment-actions > button,
+.ops-main .ops-route-save-status {
+  color: var(--oc-success-text) !important;
+}
+
+.ops-main .ops-section-badge-period,
+.ops-main .ops-crew-status-yellow,
+.ops-main .ops-crew-detail-row-warning .ops-crew-detail-value,
+.ops-main .ops-crew-metric-warning .ops-crew-metric-value,
+.ops-main .ops-manual-bonus-add,
+.ops-main .ops-job-activity-view-label,
+.ops-main .ops-job-count-pill,
+.ops-main .ops-jk-number,
+.ops-main .ops-job-photo-badge.missing,
+.ops-main .ops-appointment-card-outcome .ops-status-tag.scheduled,
+.ops-main .ops-appointment-card-outcome .ops-payment-badge.check,
+.ops-main .ops-appointment-card-outcome .ops-job-exception-badge,
+.ops-main .ops-reconciliation-status.needs-review,
+.ops-main .ops-resale-status.is-listed,
+.ops-main .ops-lead-status.is-needs_follow_up,
+.ops-main .ops-route-stop-body > em {
+  color: var(--oc-warning-text) !important;
+}
+
+/* Preserve the luminous variants only where the surface is deliberately dark. */
+.ops-main .ops-jobs-map-card :where(.ops-job-count-pill, .ops-jk-number),
+.ops-main .ops-operating-pulse :where(.ops-kpi-good, .ops-readiness-state.is-on-track),
+.ops-main .ops-command-center-v2 :where(.is-on-track > strong, .is-on-track > small, .ops-health-card-v2 small),
+.ops-main .ops-call-ahead-menu .ops-call-ahead-menu-check {
+  color: var(--oc-success-on-dark) !important;
+}
+
+.ops-main .ops-jobs-map-card :where(.ops-status-group-count, .ops-job-count-pill),
+.ops-main .ops-operating-pulse :where(.ops-kpi-accent, .ops-readiness-state.is-watch),
+.ops-main .ops-command-center-v2 :where(.is-watch > strong, .is-watch > small),
+.ops-main .ops-crew-section-period > .ops-card-header .ops-crew-period-badge {
+  color: var(--oc-warning-on-dark) !important;
+}
+
+/* The closeout breakdown intentionally uses a dark inset. Make that surface
+ * fully dark so its bright paid/due values do not land on translucent gray. */
+.ops-main .ops-jobs-page .ops-job-closeout-body {
+  background: #18202c;
+  color: #e8edf4;
+}
+
+.ops-main .ops-jobs-page .ops-job-closeout-body :where(
+  .ops-job-closeout-line.adjustment b,
+  .ops-job-closeout-balance.due strong
+) {
+  color: var(--oc-warning-on-dark) !important;
+}
+
+.ops-main .ops-jobs-page .ops-job-closeout-body .ops-job-closeout-balance.paid strong {
+  color: var(--oc-success-on-dark) !important;
+}
+
+/* Every clickable selection gets the same unmistakable red halo. This is
+ * additive, so route-specific hover colors can still communicate state. */
+:where(.ops-sidebar, .ops-main) :where(
+  a[href],
+  button:not(:disabled),
+  summary,
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"])
+) {
+  cursor: pointer;
+  transition:
+    outline-color 120ms ease,
+    box-shadow 120ms ease,
+    filter 120ms ease,
+    transform 120ms ease;
+}
+
+@media (hover: hover) {
+  :where(.ops-sidebar, .ops-main) :where(
+    a[href],
+    button:not(:disabled),
+    summary,
+    select:not(:disabled),
+    input[type="checkbox"]:not(:disabled),
+    input[type="radio"]:not(:disabled),
+    [role="button"]:not([aria-disabled="true"]),
+    [role="tab"]:not([aria-disabled="true"])
+  ):hover {
+    outline: 3px solid var(--oc-interaction-ring) !important;
+    outline-offset: 2px;
+    box-shadow:
+      0 0 0 5px rgba(237, 28, 36, 0.18),
+      0 8px 18px rgba(25, 28, 35, 0.16) !important;
+    filter: brightness(1.06) saturate(1.04);
+  }
+}
+
+:where(.ops-sidebar, .ops-main) :where(
+  a[href],
+  button:not(:disabled),
+  summary,
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"])
+):focus-visible {
+  outline: 3px solid var(--oc-interaction-ring) !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 5px rgba(237, 28, 36, 0.2) !important;
+}

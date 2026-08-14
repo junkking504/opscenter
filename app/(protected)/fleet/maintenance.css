@@ -1207,3 +1207,36 @@ body.ops-fleet-driver-mode .ops-checklist-status-buttons button { min-height: 44
     padding: 16px 14px;
   }
 }
+
+/* Maintenance now sits on the shared light workspace. Use the light-surface
+ * semantic colors here instead of the legacy luminous dark-theme palette. */
+.ops-maintenance-layout :where(
+  .ops-linxup-coverage,
+  .ops-maintenance-status.completed,
+  .ops-checklist-truck.complete .ops-checklist-truck-top em,
+  .ops-checklist-count.complete strong,
+  .ops-checklist-status-buttons button.active.pass,
+  .ops-checklist-history-status.complete,
+  .ops-driver-mode-banner strong,
+  .ops-readiness-summary .ready strong,
+  .ops-readiness-truck.state-ready > div span,
+  .ops-service-status.current
+) {
+  color: var(--oc-success-text) !important;
+}
+
+.ops-maintenance-layout :where(
+  .ops-linxup-coverage.has-gaps,
+  .ops-linxup-missing,
+  .ops-maintenance-row-actions button:not(.danger),
+  .ops-checklist-cadence button.active,
+  .ops-checklist-load,
+  .ops-checklist-item-copy > span,
+  .ops-readiness-summary .missing strong,
+  .ops-readiness-truck button,
+  .ops-readiness-truck.state-missing > div span,
+  .ops-service-status.soon,
+  .ops-photo-add
+) {
+  color: var(--oc-warning-text) !important;
+}

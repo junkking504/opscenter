@@ -866,6 +866,7 @@ body {
 .ops-main .ops-jobs-map-card :where(.ops-status-group-count, .ops-job-count-pill),
 .ops-main .ops-operating-pulse :where(.ops-kpi-accent, .ops-readiness-state.is-watch),
 .ops-main .ops-command-center-v2 :where(.is-watch > strong, .is-watch > small),
+.ops-main .ops-crew-section-period > .ops-card-header .ops-section-badge-period,
 .ops-main .ops-crew-section-period > .ops-card-header .ops-crew-period-badge {
   color: var(--oc-warning-on-dark) !important;
 }

@@ -1,3 +1,409 @@
+/* SearchKings marketing and lead recovery */
+.ops-marketing-page {
+  gap: 18px;
+}
+
+.ops-command-marketing-alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-color: rgba(246, 195, 67, 0.34);
+  background: linear-gradient(135deg, rgba(246, 195, 67, 0.10), rgba(248, 113, 113, 0.04));
+}
+
+.ops-marketing-kpis {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ops-marketing-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.ops-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.ops-table-subline {
+  display: block;
+  margin-top: 4px;
+  color: var(--ops-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.ops-marketing-summary-cell {
+  min-width: 260px;
+  max-width: 520px;
+  white-space: normal;
+  line-height: 1.45;
+}
+
+.ops-marketing-section-copy {
+  margin: 0 2px 12px;
+}
+
+.ops-marketing-lead-list {
+  display: grid;
+  gap: 18px;
+}
+
+.ops-marketing-call-groups,
+.ops-marketing-date-group,
+.ops-marketing-date-items {
+  display: grid;
+  gap: 12px;
+}
+
+.ops-marketing-call-groups {
+  gap: 18px;
+}
+
+.ops-marketing-call-group {
+  padding: 0;
+  overflow: hidden;
+}
+
+.ops-marketing-date-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 0 2px 9px;
+}
+
+.ops-marketing-call-group > .ops-marketing-date-heading {
+  padding: 13px 16px 11px;
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.ops-marketing-date-heading h2 {
+  margin: 0;
+  color: var(--ops-text);
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.ops-marketing-date-heading span {
+  flex: 0 0 auto;
+  border: 1px solid rgba(246, 195, 67, 0.3);
+  border-radius: 999px;
+  padding: 4px 9px;
+  background: rgba(246, 195, 67, 0.08);
+  color: #6f5008;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ops-marketing-lead {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.ops-marketing-lead.is-editing {
+  border-color: #9aa9b7 !important;
+  box-shadow: 0 0 0 3px rgba(79, 127, 168, 0.12), 0 9px 24px rgba(25, 40, 55, 0.08) !important;
+}
+
+.ops-marketing-lead-heading,
+.ops-marketing-lead-name,
+.ops-marketing-lead-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ops-marketing-lead-name {
+  justify-content: flex-start;
+  margin-bottom: 4px;
+  font-size: 1rem;
+}
+
+.ops-marketing-lead-value {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.ops-marketing-lead-value small,
+.ops-marketing-lead-context span {
+  color: #59636f;
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.ops-marketing-lead-value strong {
+  color: #684a00;
+  font-size: 1.2rem;
+}
+
+.ops-marketing-lead-context {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(90px, 0.45fr) minmax(220px, 1.4fr) minmax(140px, 0.75fr);
+  gap: 10px;
+}
+
+.ops-marketing-lead-context > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ops-marketing-phone {
+  width: fit-content;
+  color: #9f1118;
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.015em;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.ops-marketing-phone:hover {
+  color: #d71920;
+}
+
+.ops-marketing-phone:focus-visible {
+  border-radius: 3px;
+  outline: 3px solid rgba(215, 25, 32, 0.24);
+  outline-offset: 3px;
+}
+
+.ops-marketing-call-summary {
+  margin: 0;
+  padding: 12px 14px;
+  border-left: 3px solid rgba(246, 195, 67, 0.55);
+  border-radius: 0 10px 10px 0;
+  background: rgba(246, 195, 67, 0.06);
+  line-height: 1.5;
+}
+
+.ops-marketing-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ops-marketing-tags span,
+.ops-lead-status {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: rgba(148, 163, 184, 0.08);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.ops-lead-status.is-needs_follow_up {
+  border-color: #d8b65c;
+  background: #fff4d3;
+  color: #694b00;
+}
+
+.ops-lead-status.is-lost {
+  border-color: #e1a8ac;
+  background: #fff0f1;
+  color: #9f1f28;
+}
+
+.ops-lead-status.is-booked,
+.ops-lead-status.is-recovered {
+  border-color: #9ccdb6;
+  background: #edf9f2;
+  color: #087849;
+}
+
+.ops-marketing-lead-actions,
+.ops-marketing-lead-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ops-marketing-lead-actions .ops-mini-link,
+.ops-marketing-review-button,
+.ops-marketing-show-older {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+}
+
+.ops-marketing-review-button {
+  margin-left: auto;
+}
+
+.ops-marketing-lead-review {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #d8dcd8;
+}
+
+.ops-marketing-lead-form {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) minmax(150px, 0.75fr) minmax(170px, 0.9fr) minmax(260px, 2fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.ops-marketing-lead-form label {
+  display: grid;
+  gap: 5px;
+  color: #4f5965;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ops-marketing-lead-form :is(select, input) {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #aeb6bf;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #20242b;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.ops-marketing-lead-form input::placeholder {
+  color: #66707c;
+  opacity: 1;
+}
+
+.ops-marketing-lead-form :is(select, input):focus-visible {
+  border-color: #4f7fa8;
+  outline: 3px solid rgba(79, 127, 168, 0.22);
+  outline-offset: 1px;
+}
+
+.ops-marketing-lead-form .ops-franchise-contact {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  min-height: 58px;
+  border: 1px solid #e1a8ac;
+  border-radius: 8px;
+  padding: 9px 11px;
+  background: #fff4f4;
+  color: #9f1f28;
+  cursor: pointer;
+}
+
+.ops-marketing-lead-form .ops-franchise-contact.is-contacted {
+  border-color: #91c8ad;
+  background: #edf9f2;
+  color: #087849;
+}
+
+.ops-marketing-lead-form .ops-franchise-contact input {
+  width: 22px;
+  min-height: 22px;
+  margin: 0;
+  padding: 0;
+  accent-color: #22c55e;
+}
+
+.ops-franchise-contact small {
+  grid-column: 2;
+  color: #606873;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.ops-franchise-contact-status {
+  color: #9f1f28;
+  font-size: 0.875rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.ops-franchise-contact-status.is-contacted {
+  color: #087849;
+}
+
+.ops-marketing-show-older {
+  width: min(100%, 420px);
+  margin: 2px auto 0;
+}
+
+@media (max-width: 900px) {
+  .ops-marketing-kpis,
+  .ops-marketing-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-marketing-lead-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-marketing-note {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .ops-marketing-kpis,
+  .ops-marketing-overview-grid,
+  .ops-marketing-lead-context,
+  .ops-marketing-lead-form {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-marketing-note {
+    grid-column: auto;
+  }
+
+  .ops-marketing-lead-heading {
+    align-items: flex-start;
+  }
+
+  .ops-marketing-lead {
+    padding: 14px;
+  }
+
+  .ops-marketing-lead-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .ops-marketing-review-button,
+  .ops-marketing-lead-actions .ops-mini-link {
+    width: 100%;
+  }
+
+  .ops-command-marketing-alert {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+
 .ops-marketing-page .ops-page-header-status {
   max-width: 100%;
   white-space: normal;

@@ -74,6 +74,13 @@ export default function LostLeadTracker({ leads }: { leads: SearchKingsLead[] })
   );
   const [saving, setSaving] = useState("");
   const [message, setMessage] = useState<Record<string, string>>({});
+  const [expandedLeadId, setExpandedLeadId] = useState("");
+  const [visibleGroupCount, setVisibleGroupCount] = useState(1);
+
+  const visibleDateGroups = dateGroups.slice(0, visibleGroupCount);
+  const hiddenLeadCount = dateGroups
+    .slice(visibleGroupCount)
+    .reduce((total, group) => total + group.leads.length, 0);
 
   function update(callId: string, next: Partial<Draft>) {
     setDrafts((current) => ({
@@ -112,7 +119,7 @@ export default function LostLeadTracker({ leads }: { leads: SearchKingsLead[] })
 
   return (
     <div className="ops-marketing-lead-list">
-      {dateGroups.map((group) => (
+      {visibleDateGroups.map((group) => (
         <section className="ops-marketing-date-group" key={group.dateKey}>
           <div className="ops-marketing-date-heading">
             <h2>{group.label}</h2>
@@ -121,8 +128,10 @@ export default function LostLeadTracker({ leads }: { leads: SearchKingsLead[] })
           <div className="ops-marketing-date-items">
             {group.leads.map((lead) => {
               const draft = drafts[lead.callId];
+              const expanded = expandedLeadId === lead.callId;
+              const reviewId = `lead-review-${lead.callId}`;
               return (
-                <article className="ops-card ops-marketing-lead" key={lead.callId}>
+                <article className={`ops-card ops-marketing-lead${expanded ? " is-editing" : ""}`} key={lead.callId}>
             <div className="ops-marketing-lead-heading">
               <div>
                 <div className="ops-marketing-lead-name">
@@ -163,31 +172,54 @@ export default function LostLeadTracker({ leads }: { leads: SearchKingsLead[] })
             {lead.summary ? <p className="ops-marketing-call-summary">{lead.summary}</p> : null}
             {lead.tags.length ? <div className="ops-marketing-tags">{lead.tags.map((tag) => <span key={tag}>{tag}</span>)}</div> : null}
 
-            <div className="ops-marketing-lead-form">
-              <label className={`ops-franchise-contact ${draft.franchiseContacted ? "is-contacted" : ""}`}>
-                <input
-                  type="checkbox"
-                  checked={draft.franchiseContacted}
-                  onChange={(event) => update(lead.callId, { franchiseContacted: event.target.checked })}
-                />
-                <span>{draft.franchiseContacted ? "Franchise contacted" : "Franchise not contacted"}</span>
-                <small>Separate from call center</small>
-              </label>
-              <label>Status<select value={draft.status} onChange={(event) => update(lead.callId, { status: event.target.value as LostLeadStatus })}>{STATUS_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
-              <label>Reason<select value={draft.reason} onChange={(event) => update(lead.callId, { reason: event.target.value as LostLeadReason })}>{REASON_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
-              <label className="ops-marketing-note">Follow-up note<input value={draft.note} maxLength={1000} placeholder="What happened, and what is the next action?" onChange={(event) => update(lead.callId, { note: event.target.value })} /></label>
-              <button className="ops-refresh-button" type="button" disabled={saving === lead.callId} onClick={() => save(lead.callId)}>{saving === lead.callId ? "Saving…" : "Save"}</button>
-            </div>
-            <div className="ops-marketing-lead-footer">
+            <div className="ops-marketing-lead-actions">
               <a className="ops-mini-link" href={lead.searchKingsUrl} target="_blank" rel="noreferrer">Open in SearchKings</a>
-              {message[lead.callId] ? <span className={message[lead.callId] === "Saved" ? "ops-kpi-good" : "ops-kpi-danger"}>{message[lead.callId]}</span> : null}
+              <button
+                className="ops-button ops-marketing-review-button"
+                type="button"
+                aria-expanded={expanded}
+                aria-controls={reviewId}
+                onClick={() => setExpandedLeadId(expanded ? "" : lead.callId)}
+              >
+                {expanded ? "Close review" : "Review lead"}
+              </button>
             </div>
+
+            {expanded ? (
+              <div className="ops-marketing-lead-review" id={reviewId}>
+                <div className="ops-marketing-lead-form">
+                  <label className={`ops-franchise-contact ${draft.franchiseContacted ? "is-contacted" : ""}`}>
+                    <input
+                      type="checkbox"
+                      checked={draft.franchiseContacted}
+                      onChange={(event) => update(lead.callId, { franchiseContacted: event.target.checked })}
+                    />
+                    <span>{draft.franchiseContacted ? "Franchise contacted" : "Franchise not contacted"}</span>
+                    <small>Separate from call center</small>
+                  </label>
+                  <label>Status<select value={draft.status} onChange={(event) => update(lead.callId, { status: event.target.value as LostLeadStatus })}>{STATUS_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
+                  <label>Reason<select value={draft.reason} onChange={(event) => update(lead.callId, { reason: event.target.value as LostLeadReason })}>{REASON_OPTIONS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
+                  <label className="ops-marketing-note">Follow-up note<input value={draft.note} maxLength={1000} placeholder="What happened, and what is the next action?" onChange={(event) => update(lead.callId, { note: event.target.value })} /></label>
+                  <button className="ops-refresh-button" type="button" disabled={saving === lead.callId} onClick={() => save(lead.callId)}>{saving === lead.callId ? "Saving…" : "Save"}</button>
+                </div>
+                {message[lead.callId] ? <div className="ops-marketing-lead-footer"><span className={message[lead.callId] === "Saved" ? "ops-kpi-good" : "ops-kpi-danger"}>{message[lead.callId]}</span></div> : null}
+              </div>
+            ) : null}
                 </article>
               );
             })}
           </div>
         </section>
       ))}
+      {hiddenLeadCount > 0 ? (
+        <button
+          className="ops-button ops-marketing-show-older"
+          type="button"
+          onClick={() => setVisibleGroupCount((count) => Math.min(dateGroups.length, count + 2))}
+        >
+          Show older dates · {hiddenLeadCount} more {hiddenLeadCount === 1 ? "lead" : "leads"}
+        </button>
+      ) : null}
     </div>
   );
 }

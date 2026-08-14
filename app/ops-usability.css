@@ -11,6 +11,10 @@
   --oc-text-muted: #606873;
   --oc-line: #d6d9d5;
   --oc-line-strong: #bfc4bf;
+  --oc-control-height: 44px;
+  --oc-font-body: 0.9375rem;
+  --oc-font-dense: 0.875rem;
+  --oc-font-label: 0.8125rem;
 }
 
 html {
@@ -283,6 +287,9 @@ body {
   font-size: 0.9375rem;
 }
 
+.ops-main .ops-eyebrow { color: #4f5965; }
+.ops-sidebar .ops-status-pill { font-size: var(--oc-font-label); }
+
 .ops-page-subnav a,
 .ops-refresh-button,
 .ops-button,
@@ -291,7 +298,7 @@ body {
 .ops-date-selector,
 .ops-jobs-search-button,
 .ops-jobs-filter-menu > summary {
-  min-height: 44px;
+  min-height: var(--oc-control-height) !important;
 }
 
 .ops-page-subnav a {
@@ -311,7 +318,23 @@ body {
 .ops-date-selector,
 .ops-page-header input,
 .ops-page-header select {
-  font-size: 0.9375rem;
+  font-size: var(--oc-font-body);
+}
+
+.ops-main .ops-mini-link {
+  color: #3f4b58;
+  font-size: var(--oc-font-label);
+  line-height: 1.35;
+}
+
+.ops-sidebar-footer .ops-mini-link,
+.ops-card-header > .ops-mini-link,
+.ops-card-header.compact .ops-mini-link {
+  display: inline-flex;
+  min-height: var(--oc-control-height);
+  align-items: center;
+  justify-content: center;
+  font-size: var(--oc-font-dense);
 }
 
 /* Make the light top bar legible; older badge rules assumed a dark surface. */
@@ -319,7 +342,7 @@ body {
 .ops-command-clock,
 .ops-live-chip,
 .ops-runtime-status {
-  min-height: 38px;
+  min-height: var(--oc-control-height);
   border-color: #cfd4d0;
   background: rgba(255, 255, 255, 0.78);
   color: #3f4752;
@@ -356,6 +379,14 @@ body {
   color: #fff !important;
 }
 
+.ops-main .ops-marketing-page .ops-kpi-sub,
+.ops-main .ops-finance-page .ops-finance-brief :where(.ops-finance-brief-kicker, .ops-finance-brief-status, span, small) {
+  font-size: var(--oc-font-label);
+  line-height: 1.4;
+}
+
+.ops-main .ops-finance-page .ops-finance-brief a { min-height: 112px; }
+
 .ops-main .ops-page-subnav a.needs-attention:not(.active) { color: #a1262c; }
 .ops-main .ops-page-subnav small { background: #dce6ef; color: #263849; }
 .ops-main .ops-page-subnav a.needs-attention small { background: #a1262c; color: #fff; }
@@ -385,7 +416,7 @@ body {
 }
 
 .ops-fleet-truck-link {
-  min-height: 32px;
+  min-height: var(--oc-control-height);
   color: #20242b;
   font-weight: 750;
 }
@@ -452,6 +483,29 @@ body {
 .ops-crew-dashboard .ops-manual-bonus-field > span,
 .ops-crew-dashboard .ops-daily-leaderboard-person > small {
   font-size: inherit !important;
+}
+
+.ops-crew-dashboard :where(
+  .ops-crew-employee-summary,
+  .ops-crew-period-day-summary,
+  .ops-crew-period-week-head
+) {
+  min-height: var(--oc-control-height);
+}
+
+.ops-crew-dashboard :where(
+  .ops-crew-summary-value,
+  .ops-crew-summary-subvalue,
+  .ops-crew-employee-name,
+  .ops-crew-employee-subtitle
+) {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.ops-crew-dashboard .ops-live-pay-note {
+  color: #79560e !important;
 }
 
 /* Crew cards and leaderboard rows originated on dark surfaces. Keep their
@@ -655,11 +709,19 @@ body {
   }
 
   .ops-bottom-nav {
+    left: 4px;
+    right: 4px;
+    bottom: 6px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 2px;
     min-height: 66px;
+    padding: 4px;
   }
 
   .ops-bottom-nav-item {
-    min-height: 54px;
+    min-width: 0;
+    min-height: 56px;
+    padding-inline: 2px;
   }
 
   .ops-bottom-nav-item span {
@@ -668,9 +730,14 @@ body {
   }
 
   .ops-bottom-nav-item small {
+    width: 100%;
     color: #c9ced6;
-    font-size: 0.8125rem;
-    letter-spacing: -0.025em;
+    font-size: 0.75rem;
+    letter-spacing: -0.035em;
+    overflow: visible;
+    text-align: center;
+    text-overflow: clip;
+    white-space: nowrap;
   }
 
   .ops-bottom-nav-item.active span {

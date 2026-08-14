@@ -508,3 +508,66 @@
     grid-column: 2;
   }
 }
+
+/* Route-level readability contract. The Dispatch Board blocks remain a dense
+ * timeline visualization; every conventional action around it uses the shared
+ * 44px target and every operational value stays at 13px or larger. */
+.ops-jobs-page .ops-appointment-card :where(
+  .ops-appointment-booked-date,
+  .ops-appointment-card-driver,
+  .ops-appointment-card-navigator,
+  .ops-call-ahead-badge,
+  .ops-status-tag,
+  .ops-job-photo-badge,
+  .ops-payment-badge,
+  .ops-outcome-unavailable,
+  .ops-job-exception-badge,
+  .ops-appointment-junk-summary > span,
+  .ops-appointment-note-details > summary > span,
+  .ops-appointment-detail-grid span
+) {
+  font-size: 0.8125rem !important;
+  line-height: 1.35;
+}
+
+.ops-jobs-page .ops-appointment-card :where(
+  .ops-appointment-card-crew,
+  .ops-appointment-junk-summary strong,
+  .ops-appointment-note-details > summary > strong,
+  .ops-appointment-note-details li,
+  .ops-appointment-detail-grid strong
+) {
+  font-size: 0.875rem !important;
+  line-height: 1.4;
+}
+
+.ops-jobs-page .ops-appointment-card :where(
+  .ops-job-closeout-editor > summary,
+  .ops-appointment-note-details > summary,
+  .ops-appointment-gps-details > summary,
+  .ops-appointment-more-details > summary,
+  .ops-job-closeout-details > summary
+),
+.ops-jobs-page .ops-call-ahead-menu button,
+.ops-jobs-page .ops-appointment-cancel-actions button {
+  min-height: 44px;
+  font-size: 0.875rem;
+}
+
+.ops-jobs-page .ops-appointment-card :where(
+  .ops-appointment-card-tip-label,
+  .ops-appointment-site-time-label
+) {
+  color: #4f5965;
+  font-size: 0.8125rem !important;
+}
+
+.ops-jobs-page .ops-appointment-card .ops-appointment-card-tip-value {
+  color: #20242b;
+  font-size: 0.9375rem;
+}
+
+.ops-jobs-page .ops-jobs-map-board-time,
+.ops-jobs-page .ops-jobs-map-current-time span {
+  font-size: 0.75rem !important;
+}

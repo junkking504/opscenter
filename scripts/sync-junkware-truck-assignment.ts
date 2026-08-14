@@ -3,11 +3,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { chromium, type Browser, type Page } from "@playwright/test";
+import { clickWithWebFormsCompletion, selectWithWebFormsPostback } from "./junkware-webforms";
 
 const JUNKWARE_ORIGIN = "https://junkware.junk-king.com";
 const LOGIN_FRAGMENT = "/account/login.aspx";
-const ASSIGNMENT_LOCK = String(process.env.JUNKWARE_ASSIGNMENT_LOCK_FILE || "").trim()
-  || path.join(os.tmpdir(), "opscenter-junkware-truck-assignment.lock");
+const ASSIGNMENT_LOCK_OVERRIDE = String(process.env.JUNKWARE_ASSIGNMENT_LOCK_FILE || "").trim();
 const STORAGE_STATE = path.join(
   process.env.OPSBOT_DATA_DIR || path.join(
     process.env.HOME || "",
@@ -83,16 +83,20 @@ async function ensureAuthenticated(page: Page, targetUrl: string): Promise<void>
   }
 }
 
-function acquireLock(): number {
+function assignmentLockPath(appointmentId: string): string {
+  return ASSIGNMENT_LOCK_OVERRIDE || path.join(os.tmpdir(), `opscenter-junkware-truck-assignment-${appointmentId}.lock`);
+}
+
+function acquireLock(lockPath: string): number {
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
-      return fs.openSync(ASSIGNMENT_LOCK, "wx", 0o600);
+      return fs.openSync(lockPath, "wx", 0o600);
     } catch (error) {
       const code = error && typeof error === "object" && "code" in error ? String(error.code) : "";
       if (code !== "EEXIST") throw error;
-      const age = Date.now() - fs.statSync(ASSIGNMENT_LOCK).mtimeMs;
+      const age = Date.now() - fs.statSync(lockPath).mtimeMs;
       if (age < 5 * 60_000 || attempt) throw new Error("Another JunkWare assignment is already being saved.");
-      fs.unlinkSync(ASSIGNMENT_LOCK);
+      fs.unlinkSync(lockPath);
     }
   }
   throw new Error("Could not reserve the JunkWare assignment session.");
@@ -212,7 +216,8 @@ async function main(): Promise<void> {
     throw new Error("A valid appointment duration is required.");
   }
 
-  const lock = inspect ? null : acquireLock();
+  const lockPath = assignmentLockPath(appointmentId);
+  const lock = inspect ? null : acquireLock(lockPath);
   let browser: Browser | null = null;
   try {
     browser = await chromium.launch({ headless: true });
@@ -323,12 +328,9 @@ async function main(): Promise<void> {
         if (!(await targetOption.count())) throw new Error(`${requestedTruck} is not available for this JunkWare appointment.`);
         const targetValue = await targetOption.getAttribute("value") || "";
 
-        // JunkWare's truck dropdown is an ASP.NET AutoPostBack action. Selecting
-        // a physical truck replaces the current assignment on the postback.
-        await Promise.all([
-          page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
-          truckSelect.selectOption(targetValue),
-        ]);
+        // JunkWare refreshes dependent scheduling controls through an ASP.NET
+        // postback, then expects the truck value again on the final Update.
+        await selectWithWebFormsPostback(page, "#ctl00_Content_TruckDD", targetValue, "the truck selection");
       } else {
         if (beforeAppointmentStartMinutes == null) throw new Error("The JunkWare appointment time is unavailable.");
         const dailyScheduleUrl = `${JUNKWARE_ORIGIN}/franchise/daily-schedule.aspx?d=${appointmentDate}`;
@@ -373,15 +375,22 @@ async function main(): Promise<void> {
         throw new Error("The JunkWare truck assignment controls changed after selection.");
       }
 
-      if (await assignedTruck(page) !== requestedTruck) {
-        throw new Error("JunkWare did not retain the selected truck before the appointment update.");
-      }
-
       if (!savedByScheduleMove) {
-        await Promise.all([
-          page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
-          updateButton.click(),
-        ]);
+        if (requestedTruck && await assignedTruck(page) !== requestedTruck) {
+          const number = requestedTruck.match(/\d+/)?.[0] || "";
+          const targetOption = truckSelect.locator("option", { hasText: new RegExp(`^Truck#\\s*${number}$`, "i") }).first();
+          if (!(await targetOption.count())) throw new Error(`${requestedTruck} is not available after the JunkWare form refresh.`);
+          const targetValue = await targetOption.getAttribute("value") || "";
+          const selected = await truckSelect.evaluate((node, value) => {
+            const select = node as HTMLSelectElement;
+            select.value = String(value);
+            return select.value;
+          }, targetValue);
+          if (!selected || selected !== targetValue) {
+            throw new Error("The JunkWare truck selection could not be restored before the appointment update.");
+          }
+        }
+        await clickWithWebFormsCompletion(page, "#ctl00_Content_SaveAppointmentBtn", "the truck assignment");
       }
       changed = true;
     }
@@ -390,10 +399,12 @@ async function main(): Promise<void> {
       let durationSelect = page.locator("#ctl00_Content_DurationDD").first();
       if (!(await durationSelect.count())) throw new Error("The JunkWare appointment duration control has changed.");
       if (await durationSelect.inputValue() !== String(durationHours)) {
-        await Promise.all([
-          page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
-          durationSelect.selectOption(String(durationHours)),
-        ]);
+        await selectWithWebFormsPostback(
+          page,
+          "#ctl00_Content_DurationDD",
+          String(durationHours),
+          "the appointment-duration selection",
+        );
         if (page.url().toLowerCase().includes(LOGIN_FRAGMENT)) await logIn(page, targetUrl);
       }
 
@@ -403,10 +414,12 @@ async function main(): Promise<void> {
       if (!(await availableTimes.locator(`option[value="${targetValue}"]`).count())) {
         throw new Error(`${clockLabel(requestedStartMinutes)} is not available for this JunkWare appointment.`);
       }
-      await Promise.all([
-        page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
-        availableTimes.selectOption(targetValue),
-      ]);
+      await selectWithWebFormsPostback(
+        page,
+        "#ctl00_Content_AvailableTimesDD",
+        targetValue,
+        "the appointment-time selection",
+      );
       if (page.url().toLowerCase().includes(LOGIN_FRAGMENT)) await logIn(page, targetUrl);
 
       const selectedStart = clockMinutes(await page.locator("#ctl00_Content_StartTimeTB").inputValue());
@@ -415,10 +428,7 @@ async function main(): Promise<void> {
       }
       updateButton = page.locator("#ctl00_Content_SaveAppointmentBtn").first();
       if (!(await updateButton.count())) throw new Error("The JunkWare appointment update control has changed.");
-      await Promise.all([
-        page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
-        updateButton.click(),
-      ]);
+      await clickWithWebFormsCompletion(page, "#ctl00_Content_SaveAppointmentBtn", "the appointment-time update");
       changed = true;
     }
 
@@ -449,7 +459,7 @@ async function main(): Promise<void> {
     if (browser) await browser.close();
     if (lock != null) {
       fs.closeSync(lock);
-      if (fs.existsSync(ASSIGNMENT_LOCK)) fs.unlinkSync(ASSIGNMENT_LOCK);
+      if (fs.existsSync(lockPath)) fs.unlinkSync(lockPath);
     }
   }
 }

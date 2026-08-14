@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { chromium, type Browser, type Page } from "@playwright/test";
+import { clickWithWebFormsCompletion, selectWithWebFormsPostback } from "./junkware-webforms";
 
 const ORIGIN = "https://junkware.junk-king.com";
 const LOGIN = "/account/login.aspx";
@@ -71,7 +72,11 @@ async function appointmentStatus(page: Page): Promise<{ value: string; label: st
 
 async function main(): Promise<void> {
   const appointmentId = argument("appointment");
+  const encodedReason = argument("reason-base64");
+  let cancellationReason = "";
+  try { cancellationReason = Buffer.from(encodedReason, "base64url").toString("utf8").trim().slice(0, 500); } catch { cancellationReason = ""; }
   if (!/^\d{1,12}$/.test(appointmentId)) throw new Error("A valid JunkWare appointment ID is required.");
+  if (!cancellationReason) throw new Error("A cancellation reason is required by JunkWare.");
   let browser: Browser | null = null;
   try {
     browser = await chromium.launch({ headless: true });
@@ -95,19 +100,22 @@ async function main(): Promise<void> {
       const cancellationOption = status.locator("option", { hasText: /^Cancelled$/i }).first();
       if (!(await cancellationOption.count())) throw new Error("The JunkWare cancellation option is unavailable.");
       const cancellationValue = await cancellationOption.getAttribute("value") || "";
-      const selected = await status.evaluate((node, value) => {
-        const select = node as HTMLSelectElement;
-        select.value = String(value);
-        return select.value;
-      }, cancellationValue);
-      if (!selected || selected !== cancellationValue) throw new Error("The JunkWare cancellation option could not be selected.");
+      await selectWithWebFormsPostback(
+        page,
+        "#ctl00_Content_StatusDD",
+        cancellationValue,
+        "the cancellation-status update",
+      );
+      if (page.url().toLowerCase().includes(LOGIN)) await logIn(page, targetUrl);
 
-      const update = page.locator("#ctl00_Content_SaveAppointmentBtn");
-      if ((await update.count()) !== 1) throw new Error("The JunkWare appointment update control has changed.");
-      await Promise.all([
-        page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
-        update.click(),
-      ]);
+      const reason = page.locator("#ctl00_Content_CancelReasonTB").first();
+      if (!(await reason.count())) throw new Error("The JunkWare cancellation reason control is unavailable.");
+      await reason.fill(cancellationReason);
+      await clickWithWebFormsCompletion(
+        page,
+        "#ctl00_Content_SaveAppointmentBtn",
+        "the appointment cancellation",
+      );
       changed = true;
     }
 

@@ -24,9 +24,11 @@ export async function POST(request: Request) {
   const jobKey = String(values.jobKey || "").trim();
   const jkNumber = String(values.jkNumber || "").trim().slice(0, 40);
   const customerName = String(values.customerName || "").trim().slice(0, 200);
+  const cancellationReason = String(values.cancellationReason || "").trim().slice(0, 500);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)
       || !/^\d{1,12}$/.test(appointmentId)
-      || jobKey !== `appt:${appointmentId}`) {
+      || jobKey !== `appt:${appointmentId}`
+      || !cancellationReason) {
     return NextResponse.json(
       { ok: false, error: "The appointment cancellation was not valid." },
       { status: 400, headers: NO_STORE },
@@ -36,7 +38,7 @@ export async function POST(request: Request) {
   try {
     const junkware = await withJunkwareAppointmentSyncLock(
       appointmentId,
-      () => cancelJunkwareAppointment(appointmentId),
+      () => cancelJunkwareAppointment(appointmentId, cancellationReason),
     );
     const cancellation = saveVerifiedJobCancellation({
       date,
@@ -44,6 +46,7 @@ export async function POST(request: Request) {
       jobKey,
       jkNumber,
       customerName,
+      cancellationReason,
       canceledAt: new Date().toISOString(),
       junkwareVerifiedAt: junkware.verifiedAt,
     });

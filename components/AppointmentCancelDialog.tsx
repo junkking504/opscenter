@@ -22,14 +22,17 @@ export default function AppointmentCancelDialog({
   onCanceled: (target: AppointmentCancelTarget) => void;
 }) {
   const keepButton = useRef<HTMLButtonElement>(null);
+  const reasonField = useRef<HTMLTextAreaElement>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [cancellationReason, setCancellationReason] = useState("");
 
   useEffect(() => {
     if (!target) return;
     setError("");
     setSaving(false);
-    const frame = window.requestAnimationFrame(() => keepButton.current?.focus());
+    setCancellationReason("");
+    const frame = window.requestAnimationFrame(() => reasonField.current?.focus());
     return () => window.cancelAnimationFrame(frame);
   }, [target]);
 
@@ -47,13 +50,19 @@ export default function AppointmentCancelDialog({
   async function cancelAppointment() {
     const appointment = target;
     if (saving || !appointment) return;
+    const reason = cancellationReason.trim();
+    if (!reason) {
+      setError("A cancellation reason is required by JunkWare.");
+      reasonField.current?.focus();
+      return;
+    }
     setSaving(true);
     setError("");
     try {
       const response = await fetch("/api/job-cancellation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(appointment),
+        body: JSON.stringify({ ...appointment, cancellationReason: reason }),
       });
       const payload = await response.json().catch(() => null);
       if (!response.ok || !payload?.ok || !payload?.junkwareSynced) {
@@ -91,13 +100,25 @@ export default function AppointmentCancelDialog({
           </p>
           <strong>This changes the appointment to Cancelled in JunkWare.</strong>
         </div>
+        <label className="ops-appointment-cancel-reason">
+          <span>Cancellation reason</span>
+          <textarea
+            ref={reasonField}
+            value={cancellationReason}
+            maxLength={500}
+            rows={3}
+            disabled={saving}
+            placeholder="Why is the customer canceling?"
+            onChange={(event) => setCancellationReason(event.target.value)}
+          />
+        </label>
         {error ? <div className="ops-appointment-cancel-error" role="alert">{error}</div> : null}
         <div className="ops-appointment-cancel-actions">
           <button ref={keepButton} type="button" disabled={saving} onClick={onClose}>Keep appointment</button>
           <button
             type="button"
             className="is-destructive"
-            disabled={saving}
+            disabled={saving || !cancellationReason.trim()}
             onClick={() => void cancelAppointment()}
           >
             {saving ? "Canceling in JunkWare…" : "Cancel appointment"}

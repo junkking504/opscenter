@@ -7,6 +7,7 @@ export type VerifiedJobCancellation = {
   jobKey: string;
   jkNumber: string;
   customerName: string;
+  cancellationReason: string;
   canceledAt: string;
   junkwareVerifiedAt: string;
 };
@@ -67,6 +68,7 @@ function normalizedEntry(value: unknown): VerifiedJobCancellation | null {
     jobKey: `appt:${appointmentId}`,
     jkNumber: String(row.jkNumber || "").trim().slice(0, 40),
     customerName: String(row.customerName || "").trim().slice(0, 200),
+    cancellationReason: String(row.cancellationReason || "").trim().slice(0, 500),
     canceledAt: String(row.canceledAt || "").trim(),
     junkwareVerifiedAt: String(row.junkwareVerifiedAt || "").trim(),
   };

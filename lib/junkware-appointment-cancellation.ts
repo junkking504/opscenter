@@ -12,9 +12,14 @@ export type JunkwareAppointmentCancellationResult = {
   verifiedAt: string;
 };
 
-export async function cancelJunkwareAppointment(appointmentIdValue: string): Promise<JunkwareAppointmentCancellationResult> {
+export async function cancelJunkwareAppointment(
+  appointmentIdValue: string,
+  cancellationReasonValue: string,
+): Promise<JunkwareAppointmentCancellationResult> {
   const appointmentId = String(appointmentIdValue || "").trim();
+  const cancellationReason = String(cancellationReasonValue || "").trim().slice(0, 500);
   if (!/^\d{1,12}$/.test(appointmentId)) throw new Error("The JunkWare appointment ID is unavailable.");
+  if (!cancellationReason) throw new Error("A cancellation reason is required by JunkWare.");
 
   if (process.env.JUNKWARE_APPOINTMENT_CANCELLATION_STUB === "1") {
     return {
@@ -33,6 +38,8 @@ export async function cancelJunkwareAppointment(appointmentIdValue: string): Pro
       path.join(process.cwd(), "scripts", "cancel-junkware-appointment.ts"),
       "--appointment",
       appointmentId,
+      "--reason-base64",
+      Buffer.from(cancellationReason, "utf8").toString("base64url"),
     ], {
       cwd: process.cwd(),
       encoding: "utf8",

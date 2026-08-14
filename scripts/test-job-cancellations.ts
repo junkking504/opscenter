@@ -12,7 +12,11 @@ async function main() {
     const { readVerifiedJobCancellations, saveVerifiedJobCancellation } = await import("@/lib/job-cancellations");
     const { cancelJunkwareAppointment } = await import("@/lib/junkware-appointment-cancellation");
 
-    const junkware = await cancelJunkwareAppointment("4038882");
+    await assert.rejects(
+      () => cancelJunkwareAppointment("4038882", ""),
+      /reason is required/i,
+    );
+    const junkware = await cancelJunkwareAppointment("4038882", "Customer requested cancellation");
     assert.equal(junkware.status, "Canceled");
     assert.equal(junkware.changed, true);
 
@@ -22,10 +26,12 @@ async function main() {
       jobKey: "appt:4038882",
       jkNumber: "JK4052060",
       customerName: "Test Customer",
+      cancellationReason: "Customer requested cancellation",
       canceledAt: "2026-08-14T15:00:00.000Z",
       junkwareVerifiedAt: junkware.verifiedAt,
     });
     assert.equal(saved.jobKey, "appt:4038882");
+    assert.equal(saved.cancellationReason, "Customer requested cancellation");
     assert.equal(readVerifiedJobCancellations("2026-08-14").length, 1);
 
     saveVerifiedJobCancellation({ ...saved, customerName: "Updated Customer" });

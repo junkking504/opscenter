@@ -174,6 +174,7 @@ function territoryTone(job: JobsMapPoint): string {
   else if (territory.includes("jefferson")) tone = "is-jefferson";
   else if (territory.includes("northshore")) tone = "is-northshore";
   else if (territory.includes("baton rouge")) tone = "is-baton-rouge";
+  else if (territory.includes("lafayette")) tone = "is-lafayette";
   const completed = isClosedScheduleJob(job);
   const canceled = job.statusBucket === "Canceled";
   const assignmentState = canceled
@@ -438,6 +439,11 @@ function buildScheduleBoard(jobs: JobsMapPoint[], trucks: string[]) {
 function compactHourLabel(hour: number): string {
   const normalized = ((hour % 24) + 24) % 24;
   return `${normalized % 12 || 12} ${normalized >= 12 ? "PM" : "AM"}`;
+}
+
+function timelineHourLabel(hour: number): string {
+  const normalized = ((hour % 24) + 24) % 24;
+  return `${normalized % 12 || 12}${normalized >= 12 ? "p" : "a"}`;
 }
 
 function scheduleDropTargetKey(column: ScheduleColumn, startMinutes?: number): string {
@@ -1120,10 +1126,11 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       </div>
 
       <div className="ops-jobs-map-legend" aria-label="Appointment type legend">
-        <span><i className="is-new-orleans" />New Orleans</span>
-        <span><i className="is-jefferson" />Jefferson Parish</span>
-        <span><i className="is-northshore" />Northshore</span>
-        <span><i className="is-baton-rouge" />Baton Rouge</span>
+        <span title="New Orleans"><i className="is-new-orleans" />NO</span>
+        <span title="Baton Rouge"><i className="is-baton-rouge" />BR</span>
+        <span title="Northshore"><i className="is-northshore" />NS</span>
+        <span title="Jefferson Parish"><i className="is-jefferson" />JP</span>
+        <span title="Lafayette"><i className="is-lafayette" />LF</span>
         <span><i className="is-unassigned" />Unassigned</span>
         <span><i className="is-truck" />Truck GPS</span>
         {scheduleView ? <span><i className="is-visited-unclosed">?</i>Visited</span> : null}
@@ -1264,12 +1271,19 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                   title={`Current time · ${currentTimeLine.label}`}
                   aria-label={`Current time ${currentTimeLine.label}`}
                 >
-                  <span>{currentTimeLine.label}</span>
+                  <span aria-hidden="true">{currentTimeLine.label.replace(/\s+[AP]M$/, "")}</span>
                 </div>
               ) : null}
               <div className="ops-jobs-map-board-corner">Truck</div>
               {scheduleBoard.rows.map((hour) => (
-                <div className="ops-jobs-map-board-time" key={`time-${hour}`}>{compactHourLabel(hour)}</div>
+                <div
+                  className="ops-jobs-map-board-time"
+                  key={`time-${hour}`}
+                  title={compactHourLabel(hour)}
+                  aria-label={compactHourLabel(hour)}
+                >
+                  {timelineHourLabel(hour)}
+                </div>
               ))}
               {scheduleBoard.untimed ? <div className="ops-jobs-map-board-time">No time</div> : null}
 

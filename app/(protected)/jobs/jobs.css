@@ -415,3 +415,34 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+.ops-jobs-page :is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette {
+  background: #a78bfa;
+}
+
+.ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette.is-assigned-unfinished {
+  background: #986df8;
+}
+
+.ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette.is-unassigned {
+  background: rgba(167, 139, 250, .5);
+}
+
+.ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette.is-completed {
+  background: #ad9bd7;
+}
+
+/* The split dispatch workspace can leave each hour with roughly 30px. Full
+ * hour labels remain available in the title and aria-label. */
+.ops-jobs-page .ops-jobs-map-board-time {
+  padding-inline: 2px;
+  overflow: hidden;
+  font-size: 0.68rem !important;
+  letter-spacing: -0.02em;
+  line-height: 1 !important;
+}
+
+.ops-jobs-page .ops-jobs-map-current-time span {
+  padding-inline: 3px;
+  font-size: 0.54rem;
+  letter-spacing: -0.03em;
+}

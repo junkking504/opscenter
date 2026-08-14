@@ -1986,6 +1986,11 @@ function territoryAnchorId(territory: string): string {
   return `territory-${territory.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
 }
 
+function territoryAbbreviation(territory: string): string {
+  const normalized = normalizeTerritory(territory);
+  return CALENDAR_TERRITORIES.find((item) => item.territory === normalized)?.abbreviation || "UNK";
+}
+
 function territoryToneClass(territory: string): string {
   const normalized = territory.toLowerCase();
   if (normalized.includes("new orleans")) return "is-new-orleans";
@@ -2771,6 +2776,7 @@ export default async function JobsPage({
           { label: "Calendar", href: buildJobsHref({ date, view: "calendar", ...filters }), active: view === "calendar" },
           { label: "Monthly Summary", href: buildJobsHref({ date, view: "monthly", ...filters }), active: view === "monthly" },
         ]}
+        compact
       />
 
       {view === "daily" ? (
@@ -3214,8 +3220,13 @@ export default async function JobsPage({
           <nav className="ops-territory-jump" aria-label="Jump to territory">
             <span>Jump to</span>
             {groupedJobs.map(([territory, territoryJobs]) => (
-              <a href={`#${territoryAnchorId(territory)}`} key={territory}>
-                {territory} <small>{territoryJobs.length}</small>
+              <a
+                href={`#${territoryAnchorId(territory)}`}
+                key={territory}
+                title={territory}
+                aria-label={`Jump to ${territory}, ${territoryJobs.length} appointments`}
+              >
+                {territoryAbbreviation(territory)} <small>{territoryJobs.length}</small>
               </a>
             ))}
           </nav>

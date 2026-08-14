@@ -4348,7 +4348,7 @@ a {
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-unknown-territory.is-unassigned { background: rgba(139, 146, 157, .5); }
 
 .ops-jobs-map-legend i.is-unassigned {
-  background: linear-gradient(90deg, rgba(96, 165, 250, .5) 0 25%, rgba(45, 212, 191, .5) 25% 50%, rgba(251, 146, 60, .5) 50% 75%, rgba(248, 113, 113, .5) 75%);
+  background: linear-gradient(90deg, rgba(96, 165, 250, .5) 0 20%, rgba(248, 113, 113, .5) 20% 40%, rgba(251, 146, 60, .5) 40% 60%, rgba(45, 212, 191, .5) 60% 80%, rgba(167, 139, 250, .5) 80%);
 }
 
 :is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-unknown-territory {

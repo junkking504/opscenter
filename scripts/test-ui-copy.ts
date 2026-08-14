@@ -9,7 +9,7 @@ assert.equal(titleCaseLabel("QBO connection status"), "QBO Connection Status");
 assert.equal(titleCaseLabel("Expenses & earnings"), "Expenses & Earnings");
 
 const jobsMapSource = readFileSync(new URL("../components/JobsMap.tsx", import.meta.url), "utf8");
-for (const label of [">Unassigned</span>", ">Visited</span>", ">On Site"]) {
+for (const label of [">Unassigned</span>", ">Visited</span>", ">On Site", ">NO</span>", ">BR</span>", ">NS</span>", ">JP</span>", ">LF</span>"]) {
   assert.ok(jobsMapSource.includes(label), `Dispatch legend is missing ${label}`);
 }
 for (const retiredLabel of [
@@ -19,6 +19,11 @@ for (const retiredLabel of [
 ]) {
   assert.ok(!jobsMapSource.includes(retiredLabel), `Dispatch legend still includes ${retiredLabel}`);
 }
+assert.ok(jobsMapSource.includes("timelineHourLabel(hour)"), "Dispatch timeline must use compact hour labels.");
+
+const jobsPageSource = readFileSync(new URL("../app/(protected)/jobs/page.tsx", import.meta.url), "utf8");
+assert.ok(jobsPageSource.includes("territoryAbbreviation(territory)"), "Territory jump controls must use compact territory labels.");
+assert.ok(jobsPageSource.includes("compact\n      />"), "Schedule header must use the compact non-overlapping layout.");
 
 const myPaySource = readFileSync(new URL("../app/my-pay/page.tsx", import.meta.url), "utf8");
 const payPeriodStart = myPaySource.indexOf("function PayPeriodView");

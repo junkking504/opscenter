@@ -676,12 +676,9 @@ export default async function DashboardPage({
           slackDigest={slackDigest!}
         />
 
-        <OperatingInbox
-          date={date}
-          variant="command"
-          enabled={kernelDatabase.status === "ready"}
-          disabledReason={kernelDatabase.status === "ready" ? undefined : kernelDatabase.reason}
-        />
+        {kernelDatabase.status === "ready" ? (
+          <OperatingInbox date={date} variant="command" />
+        ) : null}
 
         {!metrics && (
         <div className="ops-card ops-alert-card">

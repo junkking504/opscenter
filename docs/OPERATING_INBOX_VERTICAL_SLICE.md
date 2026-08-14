@@ -15,6 +15,11 @@ detect -> own -> decide -> authorize -> execute -> verify -> resolve -> audit
 
 ## Initial scope
 
+The expanded preview MVP also supports operator-created work items, unresolved cross-day carryover,
+rule-specific due times and recommended actions, and an **Act now** queue. Production continues to
+hide the Inbox while its kernel is disabled rather than presenting an operator-facing configuration
+warning.
+
 ### Detectors
 
 The first slice ingests the existing Jobs exception rules:
@@ -25,6 +30,15 @@ The first slice ingests the existing Jobs exception rules:
 - `job_with_revenue_but_no_credited_crew`
 - `payment_amount_present_but_payment_type_missing`
 - `completed_job_with_no_closeout_photos`
+- `whatsapp_job_photo_needs_review`
+- `employee_clocked_in_but_not_assigned_to_truck`
+- `missing_clock_out`
+- `open_appointment_past_scheduled_window`
+- `missing_customer_information`
+- `truck_assigned_to_jobs_but_missing_gps_data`
+- `active_truck_with_no_linxup_location`
+- `gps_timestamp_older_than_20_minutes`
+- `missing_or_stale_expense_source_data`
 
 Other existing Crew, Fleet, Finance, and Jobs rules can be displayed after the reconciler is stable, but they do not block this slice.
 

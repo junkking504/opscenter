@@ -6,8 +6,28 @@ import type { WorkItemStatus } from "@/lib/platform/contracts";
 import type { InboxEvent, InboxPayload, InboxWorkItem } from "@/lib/platform/inbox";
 import styles from "./OperatingInbox.module.css";
 
-type ScopeFilter = "all" | "mine" | "unassigned";
+type ScopeFilter = "all" | "act_now" | "mine" | "unassigned";
 type LifecycleFilter = "open" | "snoozed" | "resolved";
+
+type CreateDraft = {
+  title: string;
+  description: string;
+  category: "Jobs" | "Crew" | "Fleet" | "Finance";
+  severity: "critical" | "warning" | "info";
+  relatedRecord: string;
+  dueMinutes: "30" | "120" | "480" | "1440";
+  assignToSelf: boolean;
+};
+
+const EMPTY_DRAFT: CreateDraft = {
+  title: "",
+  description: "",
+  category: "Jobs",
+  severity: "warning",
+  relatedRecord: "",
+  dueMinutes: "120",
+  assignToSelf: true,
+};
 
 function formatAge(value: string): string {
   const ms = Date.now() - new Date(value).getTime();
@@ -39,6 +59,7 @@ function statusLabel(status: WorkItemStatus): string {
 function eventLabel(eventType: string): string {
   const labels: Record<string, string> = {
     "work.detected.v1": "Condition detected",
+    "work.created.v1": "Work item created",
     "work.reopened.v1": "Condition detected again",
     "work.acknowledged.v1": "Acknowledged",
     "work.assigned.v1": "Ownership changed",
@@ -78,6 +99,8 @@ export default function OperatingInbox({
   const [loading, setLoading] = useState(enabled);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [draft, setDraft] = useState<CreateDraft>(EMPTY_DRAFT);
 
   const load = useCallback(async () => {
     if (!enabled) return;
@@ -108,6 +131,7 @@ export default function OperatingInbox({
     return payload.items.filter((item) => {
       if (scope === "mine" && item.ownerActorId !== payload.actor.id) return false;
       if (scope === "unassigned" && item.ownerActorId) return false;
+      if (scope === "act_now" && item.attentionBucket !== "act_now") return false;
       if (lifecycle === "open" && !["open", "acknowledged", "in_progress"].includes(item.status)) return false;
       if (lifecycle === "snoozed" && item.status !== "snoozed") return false;
       if (lifecycle === "resolved" && !["resolved", "dismissed"].includes(item.status)) return false;
@@ -168,6 +192,39 @@ export default function OperatingInbox({
     }
   }
 
+  async function createWorkItem(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const dueAt = new Date(Date.now() + Number(draft.dueMinutes) * 60_000).toISOString();
+      const result = await responseJson<InboxPayload & { createdId: string }>(await fetch("/api/inbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          operatingDate: date,
+          title: draft.title,
+          description: draft.description,
+          category: draft.category,
+          severity: draft.severity,
+          relatedRecord: draft.relatedRecord,
+          dueAt,
+          assignToSelf: draft.assignToSelf,
+        }),
+      }));
+      setPayload(result);
+      setSelectedId(result.createdId);
+      setDraft(EMPTY_DRAFT);
+      setShowCreate(false);
+      setLifecycle("open");
+      setScope("all");
+    } catch (createError) {
+      setError(createError instanceof Error ? createError.message : "The work item could not be created.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function askReason(label: string): string | null {
     const value = window.prompt(`${label}. Add the reason that should appear in the audit history:`);
     return value && value.trim().length >= 3 ? value.trim() : null;
@@ -203,21 +260,77 @@ export default function OperatingInbox({
             <h2>Work requiring a decision</h2>
             <p>Signals become assigned work, controlled actions, and auditable outcomes.</p>
           </div>
-          <Link className={styles.focusLink} href={`/inbox?date=${encodeURIComponent(date)}`}>Open focused view →</Link>
+          <div className={styles.headActions}>
+            <button className={styles.createButton} type="button" onClick={() => setShowCreate((current) => !current)}>
+              {showCreate ? "Cancel" : "+ New work item"}
+            </button>
+            <Link className={styles.focusLink} href={`/inbox?date=${encodeURIComponent(date)}`}>Open focused view →</Link>
+          </div>
         </div>
+      ) : (
+        <div className={styles.standaloneActions}>
+          <button className={styles.createButton} type="button" onClick={() => setShowCreate((current) => !current)}>
+            {showCreate ? "Cancel" : "+ New work item"}
+          </button>
+        </div>
+      )}
+
+      {showCreate ? (
+        <form className={styles.createPanel} onSubmit={(event) => void createWorkItem(event)}>
+          <div className={styles.createHead}>
+            <div><strong>Create work item</strong><span>Assign a clear follow-up with an owner, deadline, and linked record.</span></div>
+          </div>
+          <div className={styles.createGrid}>
+            <label className={`${styles.field} ${styles.wide}`}>
+              <span>Title</span>
+              <input required minLength={3} maxLength={160} value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="What needs to be done?" />
+            </label>
+            <label className={styles.field}>
+              <span>Category</span>
+              <select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value as CreateDraft["category"] })}>
+                <option>Jobs</option><option>Crew</option><option>Fleet</option><option>Finance</option>
+              </select>
+            </label>
+            <label className={styles.field}>
+              <span>Severity</span>
+              <select value={draft.severity} onChange={(event) => setDraft({ ...draft, severity: event.target.value as CreateDraft["severity"] })}>
+                <option value="critical">Critical</option><option value="warning">Warning</option><option value="info">Info</option>
+              </select>
+            </label>
+            <label className={styles.field}>
+              <span>Related record</span>
+              <input maxLength={160} value={draft.relatedRecord} onChange={(event) => setDraft({ ...draft, relatedRecord: event.target.value })} placeholder="JK#, employee, truck…" />
+            </label>
+            <label className={styles.field}>
+              <span>Due</span>
+              <select value={draft.dueMinutes} onChange={(event) => setDraft({ ...draft, dueMinutes: event.target.value as CreateDraft["dueMinutes"] })}>
+                <option value="30">30 minutes</option><option value="120">2 hours</option><option value="480">8 hours</option><option value="1440">Tomorrow</option>
+              </select>
+            </label>
+            <label className={`${styles.field} ${styles.wide}`}>
+              <span>Description and expected outcome</span>
+              <textarea required minLength={3} maxLength={1000} rows={3} value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} placeholder="Add the context needed to complete and verify this work." />
+            </label>
+          </div>
+          <div className={styles.formActions}>
+            <label className={styles.checkbox}><input type="checkbox" checked={draft.assignToSelf} onChange={(event) => setDraft({ ...draft, assignToSelf: event.target.checked })} /><span>Assign to me</span></label>
+            <button className={styles.createButton} type="submit" disabled={busy}>{busy ? "Creating…" : "Create work item"}</button>
+          </div>
+        </form>
       ) : null}
+
       <div className={styles.metrics}>
-        <div className={styles.metric}><span>Active work</span><strong>{payload.counts.active}</strong></div>
+        <div className={styles.metric} data-alert={payload.counts.actNow > 0}><span>Act now</span><strong>{payload.counts.actNow}</strong></div>
         <div className={styles.metric}><span>Assigned to me</span><strong>{payload.counts.mine}</strong></div>
         <div className={styles.metric}><span>Unassigned</span><strong>{payload.counts.unassigned}</strong></div>
-        <div className={styles.metric}><span>Resolved work</span><strong>{payload.counts.resolved}</strong></div>
+        <div className={styles.metric}><span>Waiting</span><strong>{payload.counts.waiting}</strong></div>
       </div>
 
       <div className={styles.toolbar}>
         <div className={styles.scope} aria-label="Ownership filter">
-          {(["all", "mine", "unassigned"] as ScopeFilter[]).map((value) => (
+          {(["all", "act_now", "mine", "unassigned"] as ScopeFilter[]).map((value) => (
             <button key={value} type="button" className={scope === value ? styles.active : ""} onClick={() => setScope(value)}>
-              {value === "all" ? "All work" : value === "mine" ? "Mine" : "Unassigned"}
+              {value === "all" ? "All work" : value === "act_now" ? "Act now" : value === "mine" ? "Mine" : "Unassigned"}
             </button>
           ))}
         </div>
@@ -255,7 +368,7 @@ export default function OperatingInbox({
                 </div>
                 <div className={styles.itemMeta}>
                   <span>{item.ownerDisplayName || "Unassigned"}</span>
-                  <span>{statusLabel(item.status)} · {formatAge(item.firstDetectedAt)}</span>
+                  <span className={item.overdue ? styles.overdue : undefined}>{item.overdue ? "Overdue" : item.dueAt ? `Due ${formatTime(item.dueAt)}` : statusLabel(item.status)} · {formatAge(item.firstDetectedAt)}</span>
                 </div>
               </button>
             )) : <div className={styles.empty}>No work matches these filters.</div>}
@@ -270,11 +383,13 @@ export default function OperatingInbox({
                 <span className={styles.pill}>{statusLabel(selected.status)}</span>
               </div>
               <p className={styles.reason}>{selected.description}</p>
+              <div className={styles.recommended}><span>Recommended next action</span><strong>{selected.recommendedAction}</strong></div>
               <div className={styles.facts}>
                 <div className={styles.fact}><span>Owner</span><strong>{selected.ownerDisplayName || "Unassigned"}</strong></div>
                 <div className={styles.fact}><span>Category</span><strong>{selected.category} · {selected.severity}</strong></div>
                 <div className={styles.fact}><span>First detected</span><strong>{formatTime(selected.firstDetectedAt)}</strong></div>
                 <div className={styles.fact}><span>Source observed</span><strong>{formatTime(selected.sourceObservedAt)}</strong></div>
+                <div className={styles.fact}><span>Due</span><strong className={selected.overdue ? styles.overdue : undefined}>{selected.overdue ? `Overdue · ${formatTime(selected.dueAt)}` : formatTime(selected.dueAt)}</strong></div>
                 <div className={styles.fact}><span>Rule</span><strong>{selected.rule}</strong></div>
                 <div className={styles.fact}><span>Source</span><strong>{selected.source}</strong></div>
               </div>

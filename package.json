@@ -36,7 +36,9 @@
     "verify:css-architecture": "node --import tsx scripts/test-css-architecture.ts",
     "verify:accessibility": "node scripts/test-accessibility.mjs",
     "verify:linxup-camera": "node --import tsx scripts/test-linxup-camera.ts",
+    "verify:job-cancellations": "node --import tsx scripts/test-job-cancellations.ts",
     "verify:fleet-gps": "node --import tsx scripts/test-fleet-gps.ts",
+    "verify:linxup-freshness": "node --import tsx scripts/test-linxup-live-freshness.ts",
     "verify:linxup-camera:live": "node --import tsx scripts/test-linxup-camera-live.ts",
     "setup:linxup-camera": "node --import tsx scripts/setup-linxup-camera.ts",
     "alerts:slack": "node --import tsx scripts/publish-slack-alerts.ts"

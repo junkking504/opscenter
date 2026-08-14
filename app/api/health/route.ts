@@ -49,6 +49,13 @@ export async function GET(request: Request) {
   const targetDate = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) ? requestedDate : expectedMetricsDate;
   const targetFile = path.join(metricsDirectory, `daily_metrics_${targetDate}.json`);
   const metricsFile = fs.existsSync(targetFile) ? targetFile : null;
+  const linxupFile = path.join(
+    process.cwd(),
+    "data",
+    "history",
+    "linxup",
+    `linxup_location_${targetDate}.json`,
+  );
   const latestFile = latestMetricsFile(metricsDirectory, expectedMetricsDate);
   const latestMetricsDate = latestFile
     ? path.basename(latestFile).slice("daily_metrics_".length, -".json".length)
@@ -100,12 +107,25 @@ export async function GET(request: Request) {
     const metricsDate = path.basename(metricsFile).slice("daily_metrics_".length, -".json".length);
     const monitorsCurrentDate = metricsDate === expectedMetricsDate;
     const stale = monitorsCurrentDate && ageSeconds > maxAgeSeconds;
-    const healthy = !stale && assignmentStoreWritable && operatorStateWritable && platformKernel.healthy;
+    const linxupStats = fs.existsSync(linxupFile) ? fs.statSync(linxupFile) : null;
+    const linxupAgeSeconds = linxupStats
+      ? Math.max(0, Math.floor((Date.now() - linxupStats.mtimeMs) / 1000))
+      : null;
+    const linxupMaxAgeSeconds = Math.max(
+      60,
+      Number(process.env.OPSCENTER_LINXUP_MAX_AGE_SECONDS || 180),
+    );
+    const linxupStale = monitorsCurrentDate
+      && (linxupAgeSeconds === null || linxupAgeSeconds > linxupMaxAgeSeconds);
+    const dataUpdatedAt = new Date(Math.max(stats.mtimeMs, linxupStats?.mtimeMs || 0)).toISOString();
+    const healthy = !stale && !linxupStale && assignmentStoreWritable && operatorStateWritable && platformKernel.healthy;
     return NextResponse.json(
       {
         ok: healthy,
         status: stale
           ? "stale-data"
+          : linxupStale
+            ? "stale-linxup-data"
           : !assignmentStoreWritable
             ? "assignment-storage-unwritable"
             : !operatorStateWritable
@@ -118,7 +138,11 @@ export async function GET(request: Request) {
         latestMetricsDate,
         expectedMetricsDate,
         updatedAt: stats.mtime.toISOString(),
+        dataUpdatedAt,
         ageSeconds,
+        linxupUpdatedAt: linxupStats?.mtime.toISOString() || null,
+        linxupAgeSeconds,
+        linxupStale,
         ...assignmentHealth,
       },
       { status: healthy ? 200 : 503, headers: { "Cache-Control": "no-store" } },

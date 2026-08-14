@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { fetchSlackDailyDigest, slackTextToPlainText } from "@/lib/slack-digest";
 
 async function main() {
+  const clientSource = fs.readFileSync(new URL("../components/SlackAlertsDigest.tsx", import.meta.url), "utf8");
+  assert.match(clientSource, /const POLL_INTERVAL_MS = 15_000/);
+  assert.match(clientSource, /void refresh\(\);/);
+  assert.match(clientSource, /window\.addEventListener\("focus", refreshWhenVisible\)/);
+  assert.match(clientSource, /document\.addEventListener\("visibilitychange", refreshWhenVisible\)/);
+
   assert.equal(
     slackTextToPlainText(":warning: *New alert*\n<https://ops.junk-king.app/jobs|Open in OpsCenter>"),
     "⚠️ New alert\nOpen in OpsCenter",

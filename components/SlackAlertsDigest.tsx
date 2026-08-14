@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import type { SlackDailyDigest } from "@/lib/slack-digest";
 import styles from "./CommandBrief.module.css";
 
+const POLL_INTERVAL_MS = 15_000;
+
 function messageTime(timestamp: string): string {
   return new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Chicago",
@@ -27,7 +29,10 @@ export default function SlackAlertsDigest({
 
   useEffect(() => {
     let active = true;
+    let refreshInFlight = false;
     const refresh = async () => {
+      if (refreshInFlight) return;
+      refreshInFlight = true;
       try {
         const response = await fetch(`/api/slack/digest?date=${encodeURIComponent(date)}`, {
           cache: "no-store",
@@ -38,12 +43,24 @@ export default function SlackAlertsDigest({
         if (active) setDigest(next);
       } catch {
         // Keep the last successful digest visible during a transient refresh failure.
+      } finally {
+        refreshInFlight = false;
       }
     };
-    const interval = window.setInterval(refresh, 60_000);
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+
+    void refresh();
+    const interval = window.setInterval(() => void refresh(), POLL_INTERVAL_MS);
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+
     return () => {
       active = false;
       window.clearInterval(interval);
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
   }, [date]);
 
@@ -68,7 +85,7 @@ export default function SlackAlertsDigest({
           <span>New messages for this day will appear here automatically.</span>
         </div>
       ) : (
-        <div className={styles.digestList} aria-label="Slack messages, newest first">
+        <div className={styles.digestList} aria-label="Slack messages, newest first" aria-live="polite">
           {digest.messages.map((message) => (
             <article className={styles.digestMessage} key={message.id}>
               <time dateTime={message.timestamp}>{messageTime(message.timestamp)}</time>

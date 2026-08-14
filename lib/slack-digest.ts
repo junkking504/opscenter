@@ -1,7 +1,9 @@
 import { execFileSync } from "node:child_process";
 
 const CHICAGO_TIME_ZONE = "America/Chicago";
-const CACHE_TTL_MS = 45_000;
+// The client checks more frequently, while this shared cache keeps aggregate
+// Slack history reads safely below the workspace method limits.
+const CACHE_TTL_MS = 30_000;
 
 const DEFAULT_CHANNEL_IDS = [
   "C0BNMDJNYV9", // ops-command

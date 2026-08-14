@@ -32,7 +32,8 @@
     font-size: 0.75rem;
   }
 
-  .compact :global(.ops-page-subnav) {
+  /* The legacy parity layer repeats this row assignment at higher specificity. */
+  .compact.compact.compact :global(.ops-page-subnav) {
     grid-column: 2;
     grid-row: 2;
     align-self: stretch;

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { parseTruckNumberFromLabel, truckCameraLabel } from "../lib/linxup-truck-label";
 
 const accepted = new Map<string, number>([
@@ -18,4 +19,12 @@ for (const label of ["Truck", "Truck at job", "T", "Route T2", "Truck 2 mileage"
 }
 
 assert.equal(truckCameraLabel(9), "Truck 9");
+
+const cameraControllerSource = readFileSync(new URL("../components/TruckCameraController.tsx", import.meta.url), "utf8");
+const jobsMapSource = readFileSync(new URL("../components/JobsMap.tsx", import.meta.url), "utf8");
+
+assert.match(cameraControllerSource, /closest<HTMLElement>\("\[data-truck-camera\]"\)/);
+assert.doesNotMatch(cameraControllerSource, /parseTruckNumberFromLabel|candidate\.textContent/);
+assert.match(jobsMapSource, /data-truck-camera=\{selectedTruckCameraNumber\}/);
+assert.match(jobsMapSource, />\s*View live video\s*</);
 console.log("LinxUp camera label tests passed.");

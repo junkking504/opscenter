@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { parseTruckNumberFromLabel, truckCameraLabel } from "@/lib/linxup-truck-label";
+import { truckCameraLabel } from "@/lib/linxup-truck-label";
 import styles from "./TruckCameraController.module.css";
 
 type CameraOrientation = "outside" | "inside" | "aux";
@@ -28,24 +28,11 @@ const ORIENTATION_LABELS: Record<CameraOrientation, string> = {
 function cameraElementFromTarget(target: EventTarget | null): { element: HTMLElement; truck: number } | null {
   if (!(target instanceof HTMLElement)) return null;
   if (target.closest(".ops-truck-camera-dialog")) return null;
-  if (target.closest("input, select, textarea, option, [contenteditable='true']")) return null;
 
   const explicit = target.closest<HTMLElement>("[data-truck-camera]");
   const explicitTruck = explicit ? Number(explicit.dataset.truckCamera) : NaN;
   if (explicit && Number.isInteger(explicitTruck) && explicitTruck > 0) {
     return { element: explicit, truck: explicitTruck };
-  }
-
-  const leafletMarker = target.closest<HTMLElement>(".leaflet-marker-icon");
-  if (target.closest(".ops-jobs-truck-marker") || leafletMarker?.querySelector(".ops-jobs-truck-marker")) {
-    return null;
-  }
-  if (target.closest(".ops-jobs-map-board-truck")) return null;
-
-  let candidate: HTMLElement | null = target;
-  for (let depth = 0; candidate && depth < 4; depth += 1, candidate = candidate.parentElement) {
-    const truck = parseTruckNumberFromLabel(candidate.textContent);
-    if (truck) return { element: candidate, truck };
   }
   return null;
 }

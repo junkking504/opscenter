@@ -267,6 +267,15 @@
   border-top-color: #e0e3e7;
 }
 
+.ops-jobs-page .ops-appointment-detail-grid > div {
+  min-width: 0;
+}
+
+.ops-jobs-page .ops-appointment-detail-grid strong,
+.ops-jobs-page .ops-appointment-detail-grid a {
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 720px) {
   .ops-job-photo-gallery.compact {
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -11,12 +11,13 @@ import { readFleetIssueStore, type FleetIssue } from "@/lib/fleet-issues";
 import { buildOperationalExceptions, type OperationalException } from "@/lib/operational-exceptions";
 import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
-import { truckSlackChannelId } from "@/lib/slack-truck-channels";
+import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 
 export type SlackAlertSeverity = "critical" | "warning";
 export type SlackAlertKind =
   | "add_on"
   | "cancellation"
+  | "job_closed"
   | "job_closed_payment"
   | "unassigned_crew"
   | "late_job"
@@ -50,7 +51,7 @@ type ActiveSlackAlert = {
 };
 
 type SlackAlertState = {
-  version: 3;
+  version: 4;
   initializedAt: string;
   updatedAt: string;
   active: Record<string, ActiveSlackAlert>;
@@ -61,6 +62,8 @@ type SlackAlertState = {
   deliveredCrewNotificationsByDate: Record<string, string[]>;
   truckArrivalNotificationsInitializedAt: string;
   deliveredTruckArrivalsByDate: Record<string, string[]>;
+  truckCloseoutNotificationsInitializedAt: string;
+  deliveredTruckCloseoutsByDate: Record<string, string[]>;
   paymentNotificationsInitializedAt: string;
   deliveredPaymentNotificationsByDate: Record<string, string[]>;
 };
@@ -79,6 +82,7 @@ export type SlackAlertRunResult = {
   bootstrappedAddOns: number;
   bootstrappedCancellations: number;
   bootstrappedIncidents: number;
+  bootstrappedTruckCloseouts: number;
   bootstrappedPayments: number;
   posted: SlackOpsAlert[];
   resolved: ActiveSlackAlert[];
@@ -110,7 +114,7 @@ function stateFile(): string {
 
 function emptyState(): SlackAlertState {
   return {
-    version: 3,
+    version: 4,
     initializedAt: "",
     updatedAt: "",
     active: {},
@@ -121,6 +125,8 @@ function emptyState(): SlackAlertState {
     deliveredCrewNotificationsByDate: {},
     truckArrivalNotificationsInitializedAt: "",
     deliveredTruckArrivalsByDate: {},
+    truckCloseoutNotificationsInitializedAt: "",
+    deliveredTruckCloseoutsByDate: {},
     paymentNotificationsInitializedAt: "",
     deliveredPaymentNotificationsByDate: {},
   };
@@ -130,7 +136,7 @@ function readState(): SlackAlertState {
   try {
     const payload = JSON.parse(fs.readFileSync(stateFile(), "utf8"));
     return {
-      version: 3,
+      version: 4,
       initializedAt: String(payload?.initializedAt || ""),
       updatedAt: String(payload?.updatedAt || ""),
       active: payload?.active && typeof payload.active === "object" ? payload.active : {},
@@ -154,6 +160,11 @@ function readState(): SlackAlertState {
       deliveredTruckArrivalsByDate:
         payload?.deliveredTruckArrivalsByDate && typeof payload.deliveredTruckArrivalsByDate === "object"
           ? payload.deliveredTruckArrivalsByDate
+          : {},
+      truckCloseoutNotificationsInitializedAt: String(payload?.truckCloseoutNotificationsInitializedAt || ""),
+      deliveredTruckCloseoutsByDate:
+        payload?.deliveredTruckCloseoutsByDate && typeof payload.deliveredTruckCloseoutsByDate === "object"
+          ? payload.deliveredTruckCloseoutsByDate
           : {},
       paymentNotificationsInitializedAt: String(payload?.paymentNotificationsInitializedAt || ""),
       deliveredPaymentNotificationsByDate:
@@ -184,6 +195,10 @@ function pruneCrewNotificationDates(values: Record<string, string[]>): Record<st
 }
 
 function pruneTruckArrivalDates(values: Record<string, string[]>): Record<string, string[]> {
+  return Object.fromEntries(Object.entries(values).sort(([left], [right]) => right.localeCompare(left)).slice(0, 8));
+}
+
+function pruneTruckCloseoutDates(values: Record<string, string[]>): Record<string, string[]> {
   return Object.fromEntries(Object.entries(values).sort(([left], [right]) => right.localeCompare(left)).slice(0, 8));
 }
 
@@ -234,7 +249,7 @@ export function appointmentChannelId(territory: string): string {
 }
 
 export function slackAlertKindEnabled(kind: SlackAlertKind): boolean {
-  return kind !== "late_job";
+  return kind !== "late_job" && kind !== "unassigned_crew";
 }
 
 function origin(): string {
@@ -299,13 +314,13 @@ function staleDataAlert(source: DataHealthSource): SlackOpsAlert {
   };
 }
 
-function addOnAlert(appointment: AddOnAppointment, date: string): SlackOpsAlert {
+export function buildAddOnSlackNotification(appointment: AddOnAppointment, date: string): SlackOpsAlert {
   return {
     fingerprint: `add_on:${date}:${appointment.id}`,
     kind: "add_on",
     lifecycle: "notification",
     severity: "warning",
-    channelId: truckSlackChannelId(appointment.assignedTruck, appointmentChannelId(appointment.territory)),
+    channelId: appointmentChannelId(appointment.territory),
     title: `New same-day appointment: ${appointment.jobNumber}`,
     detail: `${appointment.customerName} · ${appointment.appointmentTime} · ${appointment.assignedTruck} · ${appointment.address}`,
     nextAction: "Confirm crew and truck coverage, then update the route plan.",
@@ -313,7 +328,7 @@ function addOnAlert(appointment: AddOnAppointment, date: string): SlackOpsAlert 
   };
 }
 
-function cancellationAlert(appointment: CancelledAppointment, date: string): SlackOpsAlert {
+export function buildCancellationSlackNotification(appointment: CancelledAppointment, date: string): SlackOpsAlert {
   const cancellationContext = [
     appointment.cancelledBy ? `Cancelled by ${appointment.cancelledBy}` : "",
     appointment.cancellationReason ? `Reason: ${appointment.cancellationReason}` : "",
@@ -323,7 +338,7 @@ function cancellationAlert(appointment: CancelledAppointment, date: string): Sla
     kind: "cancellation",
     lifecycle: "notification",
     severity: "warning",
-    channelId: truckSlackChannelId(appointment.assignedTruck, appointmentChannelId(appointment.territory)),
+    channelId: appointmentChannelId(appointment.territory),
     title: `Appointment cancelled: ${appointment.jobNumber}`,
     detail: [
       appointment.customerName,
@@ -498,6 +513,46 @@ function closeoutIdentity(row: AnyRecord): string {
   return jobNumber ? `job-${jobNumber.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}` : "";
 }
 
+function closeoutTruck(row: AnyRecord): string {
+  return firstText(row, ["truck", "assigned_truck", "truck_number", "truckNumber"]);
+}
+
+export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
+  const notifications: SlackOpsAlert[] = [];
+  const seen = new Set<string>();
+
+  for (const row of rows) {
+    const identity = closeoutIdentity(row);
+    const jobNumber = firstText(row, ["job_id", "jk_number", "job_number"]);
+    const truck = closeoutTruck(row);
+    const truckNumber = normalizeSlackTruckNumber(truck);
+    if (!identity || !jobNumber || !truckNumber) continue;
+
+    const status = firstText(row, ["final_status", "job_status", "status"]).toLowerCase();
+    if (!status.includes("complete")) continue;
+
+    const fingerprint = `job_closed:${date}:${identity}`;
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+
+    const plainText = `:white_check_mark: ${jobNumber} closed out.`;
+    notifications.push({
+      fingerprint,
+      kind: "job_closed",
+      lifecycle: "notification",
+      severity: "warning",
+      channelId: truckSlackChannelId(truck, ""),
+      title: plainText,
+      detail: "",
+      nextAction: "",
+      href: "",
+      plainText,
+    });
+  }
+
+  return notifications.sort((left, right) => left.fingerprint.localeCompare(right.fingerprint));
+}
+
 export function buildPaymentCloseoutSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   const seen = new Set<string>();
@@ -624,7 +679,10 @@ function collectIncidentAlerts(date: string): SlackOpsAlert[] {
   const report = buildOperationalExceptions(date);
   const alerts: SlackOpsAlert[] = [];
   for (const exception of report.exceptions) {
-    if (exception.rule === "employee_clocked_in_but_not_assigned_to_truck") {
+    if (
+      exception.rule === "employee_clocked_in_but_not_assigned_to_truck"
+      && slackAlertKindEnabled("unassigned_crew")
+    ) {
       alerts.push(exceptionAlert(exception, "unassigned_crew"));
     }
     if (
@@ -726,7 +784,14 @@ export async function runSlackOpsAlerts(options?: {
   const truckArrivalNotifications = truckArrivalNotificationsInitialized
     ? allTruckArrivalNotifications.filter((alert) => !deliveredTruckArrivals.has(alert.fingerprint))
     : [];
-  const allPaymentNotifications = buildPaymentCloseoutSlackNotifications(date, readCompletedJunkwareRows(date));
+  const completedRows = readCompletedJunkwareRows(date);
+  const allTruckCloseoutNotifications = buildTruckCloseoutSlackNotifications(date, completedRows);
+  const truckCloseoutNotificationsInitialized = Boolean(state.truckCloseoutNotificationsInitializedAt);
+  const deliveredTruckCloseouts = new Set(state.deliveredTruckCloseoutsByDate[date] || []);
+  const truckCloseoutNotifications = truckCloseoutNotificationsInitialized
+    ? allTruckCloseoutNotifications.filter((alert) => !deliveredTruckCloseouts.has(alert.fingerprint))
+    : [];
+  const allPaymentNotifications = buildPaymentCloseoutSlackNotifications(date, completedRows);
   const paymentNotificationsInitialized = Boolean(state.paymentNotificationsInitializedAt);
   const deliveredPaymentNotifications = new Set(state.deliveredPaymentNotificationsByDate[date] || []);
   const paymentNotifications = paymentNotificationsInitialized
@@ -746,12 +811,12 @@ export async function runSlackOpsAlerts(options?: {
     ...additions.map((appointment) => ({
       appointmentId: appointment.id,
       stateKind: "addition" as const,
-      alert: addOnAlert(appointment, date),
+      alert: buildAddOnSlackNotification(appointment, date),
     })),
     ...cancellations.map((appointment) => ({
       appointmentId: appointment.id,
       stateKind: "cancellation" as const,
-      alert: cancellationAlert(appointment, date),
+      alert: buildCancellationSlackNotification(appointment, date),
     })),
   ];
   const notifications = notificationDeliveries.map(({ alert }) => alert);
@@ -759,6 +824,7 @@ export async function runSlackOpsAlerts(options?: {
     ...incidents,
     ...notifications,
     ...(truckArrivalNotificationsInitialized ? truckArrivalNotifications : allTruckArrivalNotifications),
+    ...(truckCloseoutNotificationsInitialized ? truckCloseoutNotifications : allTruckCloseoutNotifications),
     ...(crewNotificationsInitialized ? crewNotifications : allCrewNotifications),
     ...(paymentNotificationsInitialized ? paymentNotifications : allPaymentNotifications),
   ];
@@ -770,6 +836,7 @@ export async function runSlackOpsAlerts(options?: {
     bootstrappedAddOns: hadAppointmentBaseline ? 0 : feed.appointments.length,
     bootstrappedCancellations: hadCancellationBaseline ? 0 : cancellationFeed.appointments.length,
     bootstrappedIncidents: state.initializedAt ? 0 : incidents.length,
+    bootstrappedTruckCloseouts: truckCloseoutNotificationsInitialized ? 0 : allTruckCloseoutNotifications.length,
     bootstrappedPayments: paymentNotificationsInitialized ? 0 : allPaymentNotifications.length,
     posted: [],
     resolved: [],
@@ -797,6 +864,12 @@ export async function runSlackOpsAlerts(options?: {
     state.deliveredTruckArrivalsByDate[date] = allTruckArrivalNotifications.map((alert) => alert.fingerprint);
     for (const alert of allTruckArrivalNotifications) deliveredTruckArrivals.add(alert.fingerprint);
     state.deliveredTruckArrivalsByDate = pruneTruckArrivalDates(state.deliveredTruckArrivalsByDate);
+  }
+  if (!truckCloseoutNotificationsInitialized) {
+    state.truckCloseoutNotificationsInitializedAt = now;
+    state.deliveredTruckCloseoutsByDate[date] = allTruckCloseoutNotifications.map((alert) => alert.fingerprint);
+    for (const alert of allTruckCloseoutNotifications) deliveredTruckCloseouts.add(alert.fingerprint);
+    state.deliveredTruckCloseoutsByDate = pruneTruckCloseoutDates(state.deliveredTruckCloseoutsByDate);
   }
   if (!paymentNotificationsInitialized) {
     state.paymentNotificationsInitializedAt = now;
@@ -903,6 +976,16 @@ export async function runSlackOpsAlerts(options?: {
     result.posted.push(alert);
   }
 
+  for (const alert of truckCloseoutNotifications) {
+    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
+    if (!response.ok || !response.ts) {
+      result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
+      continue;
+    }
+    deliveredTruckCloseouts.add(alert.fingerprint);
+    result.posted.push(alert);
+  }
+
   for (const alert of paymentNotifications) {
     const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
     if (!response.ok || !response.ts) {
@@ -935,6 +1018,8 @@ export async function runSlackOpsAlerts(options?: {
   state.deliveredCrewNotificationsByDate = pruneCrewNotificationDates(state.deliveredCrewNotificationsByDate);
   state.deliveredTruckArrivalsByDate[date] = Array.from(deliveredTruckArrivals);
   state.deliveredTruckArrivalsByDate = pruneTruckArrivalDates(state.deliveredTruckArrivalsByDate);
+  state.deliveredTruckCloseoutsByDate[date] = Array.from(deliveredTruckCloseouts);
+  state.deliveredTruckCloseoutsByDate = pruneTruckCloseoutDates(state.deliveredTruckCloseoutsByDate);
   state.deliveredPaymentNotificationsByDate[date] = Array.from(deliveredPaymentNotifications);
   state.deliveredPaymentNotificationsByDate = prunePaymentNotificationDates(state.deliveredPaymentNotificationsByDate);
   state.updatedAt = now;

@@ -26,6 +26,7 @@
     "verify:whatsapp-crew-expenses": "node --import tsx scripts/test-whatsapp-crew-expenses.ts",
     "verify:whatsapp-job-closeouts": "node --import tsx scripts/test-whatsapp-job-closeouts.ts",
     "verify:slack-alerts": "node --import tsx scripts/test-slack-alerts.ts",
+    "verify:slack-digest": "node --import tsx scripts/test-slack-digest.ts",
     "verify:qbo": "node --import tsx scripts/test-qbo-integration.ts",
     "verify:ops-auth": "node --import tsx scripts/test-ops-auth.ts",
     "verify:crew-auth": "node --import tsx scripts/test-crew-auth.ts",

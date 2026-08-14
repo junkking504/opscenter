@@ -29,6 +29,7 @@ import {
   monthlyRevenueTarget,
   operatingTargets,
 } from "@/lib/operating-targets";
+import { readSlackDailyDigest } from "@/lib/slack-digest";
 
 // This dashboard reads metrics directly from files that are refreshed
 // throughout the day. Never reuse a rendered snapshot across requests.
@@ -501,6 +502,7 @@ export default async function DashboardPage({
     : "overview";
   const metrics = readMetrics(date);
   const marketing = buildSearchKingsView();
+  const slackDigest = section === "overview" ? await readSlackDailyDigest(date) : null;
 
   const crew = crewRows(metrics);
   const trucks = truckRows(metrics);
@@ -569,33 +571,6 @@ export default async function DashboardPage({
       status: dailyAverageJobGoal == null ? "watch" : minimumStatus(dailyAverageJob, dailyAverageJobGoal),
     },
   ];
-  const dailyActions: OperatingAction[] = [];
-  if (grossRevenue < dailyRevenuePlan) dailyActions.push({
-    title: configuredDailyTarget > 0 ? "Recover today's revenue target" : "Recover today's recent revenue pace",
-    detail: `${money(dailyRevenuePlan - grossRevenue)} below ${configuredDailyTarget > 0 ? "the configured target" : "the recent daily baseline"}.`,
-    status: minimumStatus(grossRevenue, dailyRevenuePlan),
-    href: `/jobs?date=${date}`,
-  });
-  if (dailyPayrollPercentage > operatingTargets.maxPayrollPercent) dailyActions.push({
-    title: "Rebalance labor deployment",
-    detail: `${dailyPayrollPercentage.toFixed(1)}% payroll load is ${(dailyPayrollPercentage - operatingTargets.maxPayrollPercent).toFixed(1)} points above target.`,
-    status: maximumStatus(dailyPayrollPercentage, operatingTargets.maxPayrollPercent),
-    href: `/crew?date=${date}`,
-  });
-  if (dailyOperatingMargin < operatingTargets.minOperatingMarginPercent) dailyActions.push({
-    title: "Protect operating margin",
-    detail: `${dailyOperatingMargin.toFixed(1)}% current margin versus ${operatingTargets.minOperatingMarginPercent.toFixed(0)}% minimum.`,
-    status: minimumStatus(dailyOperatingMargin, operatingTargets.minOperatingMarginPercent),
-    href: `/finance?date=${date}`,
-  });
-  if (dailyActions.length < 3) dailyActions.push({
-    title: "Raise average job value",
-    detail: dailyAverageJobGoal == null
-      ? "The dynamic AJS goal will be available after the first completed job."
-      : `${money(dailyAverageJob)} current average versus ${money(dailyAverageJobGoal)} needed for today's revenue goal.`,
-    status: dailyAverageJobGoal == null ? "watch" : minimumStatus(dailyAverageJob, dailyAverageJobGoal),
-    href: `/jobs?date=${date}`,
-  });
   const dailyRevenueStatus = dailyPulseItems[0].status;
   const dailyRevenueRemaining = Math.max(0, dailyRevenuePlan - grossRevenue);
   const commandBriefMetrics: CommandBriefMetric[] = [
@@ -696,7 +671,8 @@ export default async function DashboardPage({
         <CommandBrief
           metrics={commandBriefMetrics}
           signals={commandBriefSignals}
-          actions={dailyActions}
+          date={date}
+          slackDigest={slackDigest!}
         />
 
         <OperatingInbox

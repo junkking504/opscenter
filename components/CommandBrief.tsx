@@ -1,5 +1,7 @@
 import Link from "next/link";
-import type { OperatingAction, OperatingStatus } from "@/components/OperatingPulse";
+import type { OperatingStatus } from "@/components/OperatingPulse";
+import SlackAlertsDigest from "@/components/SlackAlertsDigest";
+import type { SlackDailyDigest } from "@/lib/slack-digest";
 import styles from "./CommandBrief.module.css";
 
 export type CommandBriefMetric = {
@@ -32,11 +34,13 @@ function toneClass(status: OperatingStatus): string {
 export default function CommandBrief({
   metrics,
   signals,
-  actions,
+  date,
+  slackDigest,
 }: {
   metrics: CommandBriefMetric[];
   signals: CommandBriefSignal[];
-  actions: OperatingAction[];
+  date: string;
+  slackDigest: SlackDailyDigest;
 }) {
   return (
     <section className={styles.brief} id="command-overview" aria-label="Command Overview">
@@ -55,38 +59,7 @@ export default function CommandBrief({
       </div>
 
       <div className={styles.body}>
-        <section className={styles.queue} aria-labelledby="manager-queue-title">
-          <div className={styles.sectionHeader}>
-            <div>
-              <span>Priority Actions</span>
-              <h2 id="manager-queue-title">Manager Queue</h2>
-            </div>
-            <small>{String(actions.slice(0, 3).length).padStart(2, "0")} actions</small>
-          </div>
-
-          <div className={styles.actionList}>
-            {actions.slice(0, 3).map((action, index) => {
-              const content = (
-                <>
-                  <span>{String(index + 1).padStart(2, "0")}</span>
-                  <span>
-                    <strong>{action.title}</strong>
-                    <small>{action.detail}</small>
-                  </span>
-                  <b aria-hidden="true">↗</b>
-                </>
-              );
-
-              return action.href ? (
-                <Link className={`${styles.action} ${toneClass(action.status)}`} href={action.href} key={`${action.title}-${action.href}`}>
-                  {content}
-                </Link>
-              ) : (
-                <div className={`${styles.action} ${toneClass(action.status)}`} key={action.title}>{content}</div>
-              );
-            })}
-          </div>
-        </section>
+        <SlackAlertsDigest date={date} initialDigest={slackDigest} />
 
         <section className={styles.signals} aria-labelledby="operating-brief-title">
           <div className={styles.sectionHeader}>

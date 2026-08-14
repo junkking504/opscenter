@@ -13,6 +13,7 @@ const routes = [
   "/fleet?view=maintenance&section=service",
   "/finance",
   "/marketing",
+  "/marketing?section=lost-leads",
   "/inbox",
 ];
 const viewports = [
@@ -65,6 +66,28 @@ async function auditPage(page) {
     document.querySelectorAll("button, a[href], input, select, textarea, [role='button'], [role='tab']").forEach((element) => {
       if (visible(element) && !labelText(element)) {
         issues.push({ rule: "accessible-name", detail: element.outerHTML.slice(0, 180) });
+      }
+    });
+
+    document.querySelectorAll([
+      ".ops-button",
+      ".ops-refresh-button",
+      ".ops-date-selector",
+      ".ops-page-subnav a",
+      ".ops-notification-trigger",
+      ".ops-fleet-truck-link",
+      ".ops-jobs-search-button",
+      ".ops-jobs-filter-menu > summary",
+    ].join(",")).forEach((element) => {
+      if (!visible(element)) return;
+      const height = element.getBoundingClientRect().height;
+      if (height < 43.5) issues.push({ rule: "control-height", detail: `${element.className}: ${height.toFixed(1)}px` });
+    });
+
+    document.querySelectorAll(".ops-bottom-nav-item small").forEach((element) => {
+      if (!visible(element)) return;
+      if (element.scrollWidth > element.clientWidth + 1 || element.scrollHeight > element.clientHeight + 1) {
+        issues.push({ rule: "bottom-nav-clipping", detail: `${element.textContent?.trim()}: ${element.clientWidth}x${element.clientHeight} / ${element.scrollWidth}x${element.scrollHeight}` });
       }
     });
 
@@ -239,6 +262,70 @@ async function main() {
             `${routeLabel} Dispatch Board must expand without vertical scrolling (${dispatch.scheduleScrollHeight}px content in ${dispatch.scheduleClientHeight}px).`,
           );
           assert.equal(dispatch.scheduleOverflow, "visible", `${routeLabel} Dispatch Board must expose the complete schedule.`);
+        }
+        if (route === "/marketing?section=lost-leads") {
+          const lostLeads = await page.evaluate(() => {
+            function rgb(value) {
+              const match = value.match(/rgba?\((\d+)[, ]+(\d+)[, ]+(\d+)/);
+              return match ? match.slice(1).map(Number) : null;
+            }
+            function luminance(color) {
+              return color
+                .map((channel) => channel / 255)
+                .map((channel) => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+                .reduce((sum, channel, index) => sum + channel * [0.2126, 0.7152, 0.0722][index], 0);
+            }
+            function contrast(element) {
+              const foreground = rgb(getComputedStyle(element).color) || [0, 0, 0];
+              let background = [255, 255, 255];
+              for (let current = element; current instanceof HTMLElement; current = current.parentElement) {
+                const value = getComputedStyle(current).backgroundColor;
+                const alpha = value.match(/rgba\([^)]*,\s*([\d.]+)\)/)?.[1];
+                if (alpha === undefined || Number(alpha) >= 0.95) {
+                  background = rgb(value) || background;
+                  break;
+                }
+              }
+              const [bright, dark] = [luminance(foreground), luminance(background)].sort((left, right) => right - left);
+              return (bright + 0.05) / (dark + 0.05);
+            }
+            const text = Array.from(document.querySelectorAll([
+              ".ops-marketing-lead-value small",
+              ".ops-marketing-lead-context span",
+              ".ops-lead-status",
+              ".ops-marketing-lead-actions .ops-mini-link",
+            ].join(","))).map((element) => ({
+              text: element.textContent?.trim() || "",
+              fontSize: Number.parseFloat(getComputedStyle(element).fontSize),
+              contrast: contrast(element),
+            }));
+            return {
+              cardCount: document.querySelectorAll(".ops-marketing-lead").length,
+              reviewFormCount: document.querySelectorAll(".ops-marketing-lead-review").length,
+              text,
+            };
+          });
+          assert.ok(lostLeads.cardCount > 0 && lostLeads.cardCount <= 25, `${routeLabel} must initially render one bounded date group: ${JSON.stringify(lostLeads)}.`);
+          assert.equal(lostLeads.reviewFormCount, 0, `${routeLabel} must keep lead editors collapsed until requested.`);
+          const failures = lostLeads.text.filter((item) => item.fontSize < 13 || item.contrast < 4.5);
+          assert.deepEqual(failures, [], `${routeLabel} lead scanner text must remain readable: ${JSON.stringify(failures)}.`);
+
+          await page.getByRole("button", { name: "Review lead" }).first().click();
+          const editor = page.locator(".ops-marketing-lead-review").first();
+          await editor.waitFor({ state: "visible" });
+          const editorContract = await editor.evaluate((element) => {
+            const fields = Array.from(element.querySelectorAll("select, input[type='text'], button"));
+            const checkbox = element.querySelector("input[type='checkbox']");
+            const label = checkbox?.closest("label");
+            return {
+              fieldHeights: fields.map((field) => field.getBoundingClientRect().height),
+              checkboxSize: checkbox ? Math.min(checkbox.getBoundingClientRect().width, checkbox.getBoundingClientRect().height) : 0,
+              checkboxLabelHeight: label ? label.getBoundingClientRect().height : 0,
+            };
+          });
+          assert.ok(editorContract.fieldHeights.every((height) => height >= 43.5), `${routeLabel} review controls must be 44px: ${JSON.stringify(editorContract)}.`);
+          assert.ok(editorContract.checkboxSize >= 22, `${routeLabel} checkbox must be visibly sized: ${JSON.stringify(editorContract)}.`);
+          assert.ok(editorContract.checkboxLabelHeight >= 44, `${routeLabel} checkbox label must provide a 44px target: ${JSON.stringify(editorContract)}.`);
         }
         if (route === "/crew?date=2026-08-10&section=pay-period") {
           const period = await page.evaluate(() => ({

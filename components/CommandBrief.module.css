@@ -76,13 +76,11 @@
 
 .metric > strong {
   margin-top: 10px;
-  overflow: hidden;
   color: #171a1f;
   font-size: clamp(1.75rem, 2.6vw, 2.4rem);
-  line-height: 0.95;
+  line-height: 1.05;
   letter-spacing: -0.065em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .metric > p {
@@ -177,7 +175,7 @@
 .signalDot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .signal > span:nth-child(2) { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .signal strong { color: #24282f; font-size: 1rem; }
-.signal small { overflow: hidden; color: #666f7b; font-size: 0.9375rem; text-overflow: ellipsis; white-space: nowrap; }
+.signal small { color: #666f7b; font-size: 0.9375rem; line-height: 1.4; white-space: normal; }
 .signal em { color: currentColor; font-size: 0.9375rem; font-style: normal; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
 .signal > b { color: #a4a9b1; font-size: 0.9375rem; }
 
@@ -245,7 +243,7 @@
   .metric > div > small { display: none; }
   .signals, .queue { border-radius: 14px; }
   .signal { grid-template-columns: 9px minmax(0, 1fr) 14px; min-height: 70px; padding: 11px 14px; }
-  .signal small { display: -webkit-box; overflow: hidden; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .signal small { white-space: normal; }
   .signal em { display: none; }
   .digestMessage { grid-template-columns: 62px minmax(0, 1fr); gap: 9px; padding: 12px 14px; }
 }

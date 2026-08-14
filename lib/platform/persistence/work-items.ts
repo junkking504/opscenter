@@ -21,6 +21,18 @@ export type DetectedWorkItemInput = {
   description: string;
   source: string;
   sourceObservedAt: string;
+  dueAt?: string;
+};
+
+export type ManualWorkItemInput = {
+  operatingDate: string;
+  title: string;
+  description: string;
+  category: WorkItem["category"];
+  severity: WorkItemSeverity;
+  relatedRecord: string;
+  dueAt?: string;
+  assignToSelf: boolean;
 };
 
 export type WorkItemReconciliationContext = {
@@ -32,7 +44,7 @@ export type WorkItemReconciliationContext = {
 type WorkItemRow = {
   id: string;
   dedupe_key: string;
-  operating_date: string;
+  operating_date: Date | string;
   rule: string;
   category: WorkItem["category"];
   severity: WorkItemSeverity;
@@ -65,11 +77,23 @@ function optionalIso(value: Date | string | null): string | undefined {
   return value === null ? undefined : iso(value);
 }
 
+function operatingDate(value: Date | string): string {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) throw new Error("Platform operating date is invalid.");
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(parsed);
+}
+
 function workItemFromRow(row: WorkItemRow): WorkItem {
   return {
     id: row.id,
     dedupeKey: row.dedupe_key,
-    operatingDate: String(row.operating_date),
+    operatingDate: operatingDate(row.operating_date),
     rule: row.rule,
     category: row.category,
     severity: row.severity,
@@ -127,11 +151,11 @@ export async function reconcileDetectedWorkItem(
           INSERT INTO opscenter_kernel.work_items (
             id, dedupe_key, operating_date, rule, category, severity,
             entity_type, entity_id, entity_label, title, description, source,
-            source_observed_at, status, first_detected_at, last_detected_at
+            source_observed_at, status, owner_actor_id, due_at, first_detected_at, last_detected_at
           ) VALUES (
             $1, $2, $3, $4, $5, $6,
             $7, $8, $9, $10, $11, $12,
-            $13, 'open', $14, $14
+            $13, 'open', NULL, $14, $15, $15
           )
           RETURNING *
         `,
@@ -139,7 +163,7 @@ export async function reconcileDetectedWorkItem(
           createPlatformId("work"), dedupeKey, input.operatingDate, input.rule,
           input.category, input.severity, input.entity.type, input.entity.id,
           input.entity.label || null, input.title, input.description, input.source,
-          input.sourceObservedAt, detectedAt,
+          input.sourceObservedAt, input.dueAt || null, detectedAt,
         ],
       );
     } else {
@@ -152,11 +176,15 @@ export async function reconcileDetectedWorkItem(
               description = $5,
               source = $6,
               source_observed_at = $7,
+              due_at = CASE
+                WHEN status IN ('resolved', 'dismissed') THEN $8::timestamptz
+                ELSE COALESCE(due_at, $8::timestamptz)
+              END,
               status = CASE WHEN status IN ('resolved', 'dismissed') THEN 'open' ELSE status END,
               resolution_code = CASE WHEN status IN ('resolved', 'dismissed') THEN NULL ELSE resolution_code END,
               resolution_note = CASE WHEN status IN ('resolved', 'dismissed') THEN NULL ELSE resolution_note END,
               resolved_at = CASE WHEN status IN ('resolved', 'dismissed') THEN NULL ELSE resolved_at END,
-              last_detected_at = $8,
+              last_detected_at = $9,
               last_absent_at = NULL,
               consecutive_fresh_absences = 0,
               version = version + CASE
@@ -166,6 +194,7 @@ export async function reconcileDetectedWorkItem(
                   OR title IS DISTINCT FROM $4
                   OR description IS DISTINCT FROM $5
                   OR source IS DISTINCT FROM $6
+                  OR (due_at IS NULL AND $8::timestamptz IS NOT NULL)
                   OR status IN ('resolved', 'dismissed')
                 THEN 1 ELSE 0 END,
               updated_at = now()
@@ -174,7 +203,7 @@ export async function reconcileDetectedWorkItem(
         `,
         [
           existing.id, input.severity, input.entity.label || null, input.title,
-          input.description, input.source, input.sourceObservedAt, detectedAt,
+          input.description, input.source, input.sourceObservedAt, input.dueAt || null, detectedAt,
         ],
       );
     }
@@ -207,6 +236,74 @@ export async function reconcileDetectedWorkItem(
   });
 }
 
+function entityTypeForCategory(category: WorkItem["category"]): EntityReference["type"] {
+  if (category === "Jobs") return "job";
+  if (category === "Crew") return "employee";
+  if (category === "Fleet") return "truck";
+  return "finance";
+}
+
+export async function createManualWorkItem(input: ManualWorkItemInput, context: {
+  actorId: string;
+  correlationId: string;
+}): Promise<WorkItem> {
+  const id = createPlatformId("work");
+  const now = new Date().toISOString();
+  const entityType = entityTypeForCategory(input.category);
+  const entityId = input.relatedRecord || id;
+  const rule = `manual_follow_up.${id}`;
+  const dedupeKey = workItemDedupeKey({
+    operatingDate: input.operatingDate,
+    category: input.category,
+    rule,
+    entityType,
+    entityId,
+  });
+
+  return withKernelTransaction(async (client) => {
+    const result = await client.query<WorkItemRow>(
+      `
+        INSERT INTO opscenter_kernel.work_items (
+          id, dedupe_key, operating_date, rule, category, severity,
+          entity_type, entity_id, entity_label, title, description, source,
+          source_observed_at, status, owner_actor_id, due_at, first_detected_at, last_detected_at
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6,
+          $7, $8, $9, $10, $11, 'Manual entry',
+          $12, 'open', $13, $14, $12, $12
+        )
+        RETURNING *
+      `,
+      [
+        id, dedupeKey, input.operatingDate, rule, input.category, input.severity,
+        entityType, entityId, input.relatedRecord || input.title, input.title, input.description,
+        now, input.assignToSelf ? context.actorId : null, input.dueAt || null,
+      ],
+    );
+    const workItem = workItemFromRow(result.rows[0]);
+    await appendPlatformEvent(client, {
+      eventType: "work.created.v1",
+      eventVersion: 1,
+      aggregateType: "work_item",
+      aggregateId: workItem.id,
+      actorId: context.actorId,
+      occurredAt: now,
+      correlationId: context.correlationId,
+      payload: {
+        operatingDate: workItem.operatingDate,
+        category: workItem.category,
+        severity: workItem.severity,
+        entityType: workItem.entity.type,
+        entityId: workItem.entity.id,
+        ownerActorId: workItem.ownerActorId || null,
+        dueAt: workItem.dueAt || null,
+        source: workItem.source,
+      },
+    });
+    return workItem;
+  });
+}
+
 export async function getWorkItem(id: string): Promise<WorkItem | null> {
   const result = await getKernelPool().query<WorkItemRow>(
     "SELECT * FROM opscenter_kernel.work_items WHERE id = $1",
@@ -217,6 +314,7 @@ export async function getWorkItem(id: string): Promise<WorkItem | null> {
 
 export async function listWorkItems(input: {
   operatingDate?: string;
+  carryActiveThroughDate?: string;
   statuses?: WorkItemStatus[];
   category?: WorkItem["category"];
   ownerActorId?: string;
@@ -229,6 +327,10 @@ export async function listWorkItems(input: {
   if (input.operatingDate) {
     values.push(input.operatingDate);
     conditions.push(`operating_date = $${values.length}`);
+  }
+  if (input.carryActiveThroughDate) {
+    values.push(input.carryActiveThroughDate);
+    conditions.push(`(operating_date = $${values.length} OR (operating_date < $${values.length} AND status NOT IN ('resolved', 'dismissed')))`);
   }
   if (input.statuses?.length) {
     values.push(input.statuses);
@@ -256,8 +358,15 @@ export async function listWorkItems(input: {
       FROM opscenter_kernel.work_items
       ${conditions.length ? `WHERE ${conditions.join(" AND ")}` : ""}
       ORDER BY
+        CASE
+          WHEN status IN ('resolved', 'dismissed') THEN 3
+          WHEN status = 'snoozed' THEN 2
+          ELSE 0
+        END,
+        CASE WHEN due_at IS NOT NULL AND due_at <= now() THEN 0 ELSE 1 END,
         CASE severity WHEN 'critical' THEN 0 WHEN 'warning' THEN 1 ELSE 2 END,
-        last_detected_at DESC,
+        due_at ASC NULLS LAST,
+        first_detected_at ASC,
         id
       LIMIT $${values.length}
     `,

@@ -8,6 +8,13 @@ import {
 import { createCorrelationId, createPlatformId, workItemDedupeKey } from "../lib/platform/identifiers";
 import { redactOperationalValue } from "../lib/platform/redaction";
 import { resolveKernelDatabaseConfig } from "../lib/platform/persistence/config";
+import {
+  attentionBucketForWorkItem,
+  dueAtForRule,
+  inboxRulePolicy,
+  INBOX_RULES,
+  parseManualWorkItemRequest,
+} from "../lib/platform/work-policy";
 
 assert.equal(canTransitionWorkItem("open", "acknowledged"), true);
 assert.equal(canTransitionWorkItem("resolved", "open"), true);
@@ -118,5 +125,53 @@ const previewDatabase = resolveKernelDatabaseConfig(
 assert.equal(previewDatabase.status, "ready");
 assert.equal(previewDatabase.status === "ready" && previewDatabase.databaseName, "opscenter_preview");
 assert.equal(previewDatabase.status === "ready" && previewDatabase.maxConnections, 20);
+
+assert.equal(INBOX_RULES.size, 15);
+assert.equal(INBOX_RULES.has("employee_clocked_in_but_not_assigned_to_truck"), true);
+assert.equal(INBOX_RULES.has("missing_clock_out"), false);
+assert.equal(INBOX_RULES.has("gps_timestamp_older_than_20_minutes"), true);
+assert.match(inboxRulePolicy("payment_amount_present_but_payment_type_missing").recommendedAction, /payment method/i);
+assert.equal(
+  dueAtForRule("open_appointment_past_scheduled_window", new Date("2026-08-14T20:00:00.000Z")),
+  "2026-08-14T20:15:00.000Z",
+);
+assert.equal(attentionBucketForWorkItem({ operatingDate: "2026-08-14", status: "open", severity: "critical" }), "act_now");
+assert.equal(attentionBucketForWorkItem({ operatingDate: "2026-08-14", status: "snoozed", severity: "critical" }), "waiting");
+assert.equal(attentionBucketForWorkItem({ operatingDate: "2026-08-14", status: "resolved", severity: "critical" }), "resolved");
+assert.equal(attentionBucketForWorkItem({
+  operatingDate: "2026-08-14",
+  status: "open",
+  severity: "warning",
+  dueAt: "2026-08-14T19:00:00.000Z",
+}, undefined, new Date("2026-08-14T20:00:00.000Z")), "act_now");
+assert.equal(attentionBucketForWorkItem({
+  operatingDate: "2026-08-13",
+  status: "open",
+  severity: "warning",
+}, "2026-08-14", new Date("2026-08-14T20:00:00.000Z")), "act_now");
+
+assert.deepEqual(parseManualWorkItemRequest({
+  title: "Call customer about access",
+  description: "Confirm gate access before the truck arrives.",
+  category: "Jobs",
+  severity: "warning",
+  relatedRecord: "JK4052118",
+  dueAt: "2026-08-14T22:00:00.000Z",
+  assignToSelf: true,
+}, new Date("2026-08-14T20:00:00.000Z")), {
+  title: "Call customer about access",
+  description: "Confirm gate access before the truck arrives.",
+  category: "Jobs",
+  severity: "warning",
+  relatedRecord: "JK4052118",
+  dueAt: "2026-08-14T22:00:00.000Z",
+  assignToSelf: true,
+});
+assert.throws(() => parseManualWorkItemRequest({
+  title: "No",
+  description: "Valid description",
+  category: "Jobs",
+  severity: "warning",
+}, new Date("2026-08-14T20:00:00.000Z")), /Title must be at least 3 characters/);
 
 console.log("Platform kernel contracts verified.");

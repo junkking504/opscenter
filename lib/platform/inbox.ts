@@ -7,20 +7,23 @@ import { appendPlatformEvent, listPlatformEvents } from "@/lib/platform/persiste
 import { getKernelPool } from "@/lib/platform/persistence/pool";
 import { withKernelTransaction } from "@/lib/platform/persistence/transaction";
 import { listWorkItems, reconcileDetectedWorkItem } from "@/lib/platform/persistence/work-items";
+import {
+  attentionBucketForWorkItem,
+  dueAtForRule,
+  inboxRulePolicy,
+  INBOX_RULES,
+  type InboxAttentionBucket,
+} from "@/lib/platform/work-policy";
 
-export const INBOX_RULES = new Set([
-  "completed_job_with_no_driver",
-  "completed_job_with_no_navigator",
-  "completed_job_assigned_to_virtual_truck",
-  "job_with_revenue_but_no_credited_crew",
-  "payment_amount_present_but_payment_type_missing",
-  "completed_job_with_no_closeout_photos",
-  "whatsapp_job_photo_needs_review",
-]);
+export { INBOX_RULES } from "@/lib/platform/work-policy";
 
 export type InboxWorkItem = WorkItem & {
   ownerDisplayName?: string;
   href?: string;
+  recommendedAction: string;
+  attentionBucket: InboxAttentionBucket;
+  overdue: boolean;
+  carryover: boolean;
 };
 
 export type InboxEvent = PlatformEvent & {
@@ -33,8 +36,10 @@ export type InboxPayload = {
   items: InboxWorkItem[];
   counts: {
     active: number;
+    actNow: number;
     mine: number;
     unassigned: number;
+    waiting: number;
     resolved: number;
   };
 };
@@ -87,6 +92,7 @@ function detectedInput(exception: OperationalException, report: OperationalExcep
     description: exception.reason,
     source: exception.source,
     sourceObservedAt: safeIso(exception.timestamp, safeIso(report.asOf, new Date().toISOString())),
+    dueAt: dueAtForRule(exception.rule),
   };
 }
 
@@ -244,13 +250,25 @@ export async function reconcileOperatingInbox(date: string, actorId: string): Pr
 }
 
 export async function buildInboxPayload(date: string, actor: PlatformActor): Promise<InboxPayload> {
-  const items = await listWorkItems({ operatingDate: date, limit: 200 });
+  const storedItems = await listWorkItems({ carryActiveThroughDate: date, limit: 200 });
+  const items = storedItems.filter((item) => item.source === "Manual entry" || INBOX_RULES.has(item.rule));
   const names = await actorDisplayNames(items.flatMap((item) => item.ownerActorId ? [item.ownerActorId] : []));
-  const enriched = items.map((item) => ({
-    ...item,
-    ownerDisplayName: item.ownerActorId ? names.get(item.ownerActorId) : undefined,
-    href: workItemHref(item),
-  }));
+  const now = new Date();
+  const enriched = items.map((item) => {
+    const carryover = item.operatingDate < date && !["resolved", "dismissed"].includes(item.status);
+    return {
+      ...item,
+      ownerDisplayName: item.ownerActorId ? names.get(item.ownerActorId) : undefined,
+      href: workItemHref(item),
+      recommendedAction: item.source === "Manual entry"
+        ? "Complete the requested follow-up, then record the result and its verification."
+        : inboxRulePolicy(item.rule).recommendedAction,
+      attentionBucket: attentionBucketForWorkItem(item, date, now),
+      overdue: Boolean(item.dueAt && new Date(item.dueAt).getTime() <= now.getTime()
+        && !["resolved", "dismissed", "snoozed"].includes(item.status)),
+      carryover,
+    };
+  });
   const activeStatuses: WorkItemStatus[] = ["open", "acknowledged", "in_progress", "snoozed"];
   return {
     date,
@@ -258,8 +276,10 @@ export async function buildInboxPayload(date: string, actor: PlatformActor): Pro
     items: enriched,
     counts: {
       active: enriched.filter((item) => activeStatuses.includes(item.status)).length,
+      actNow: enriched.filter((item) => item.attentionBucket === "act_now").length,
       mine: enriched.filter((item) => activeStatuses.includes(item.status) && item.ownerActorId === actor.id).length,
       unassigned: enriched.filter((item) => activeStatuses.includes(item.status) && !item.ownerActorId).length,
+      waiting: enriched.filter((item) => item.attentionBucket === "waiting").length,
       resolved: enriched.filter((item) => item.status === "resolved" || item.status === "dismissed").length,
     },
   };

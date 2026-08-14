@@ -638,6 +638,10 @@ export default function CrewPayPeriodCards({
                                           <span className="ops-crew-period-day-summary-value">{day.jobRevenueWorked == null ? "Unavailable" : money(day.jobRevenueWorked)}</span>
                                         </div>
                                         <div className="ops-crew-period-day-summary-cell">
+                                          <span className="ops-crew-period-day-summary-label">Hourly Pay</span>
+                                          <span className="ops-crew-period-day-summary-value">{money(day.hourlyLaborCostDisplay)}</span>
+                                        </div>
+                                        <div className="ops-crew-period-day-summary-cell">
                                           <span className="ops-crew-period-day-summary-label">Tips</span>
                                           <span className="ops-crew-period-day-summary-value">{day.tips == null ? "Unavailable" : money(day.tips)}</span>
                                         </div>

@@ -40,4 +40,15 @@ assert.ok(dailyViewSource.includes("daily\n"), "Daily crew metrics must use the 
 assert.ok(dailyViewSource.includes("Today’s jobs, average job size, credited revenue, and tips."), "Daily crew metrics copy must describe the visible columns.");
 assert.ok(!dailyViewSource.includes("estimate close rate, tips, and bonus days"), "Daily crew metrics still describe retired columns.");
 
+const crewPayPeriodCardsSource = readFileSync(new URL("../components/CrewPayPeriodCards.tsx", import.meta.url), "utf8");
+const dailySummaryStart = crewPayPeriodCardsSource.indexOf('<summary className="ops-crew-period-day-summary">');
+const dailySummaryEnd = crewPayPeriodCardsSource.indexOf('<div className="ops-crew-period-day-card-body">', dailySummaryStart);
+assert.ok(dailySummaryStart >= 0 && dailySummaryEnd > dailySummaryStart, "Crew pay-period daily summary is missing.");
+const dailySummarySource = crewPayPeriodCardsSource.slice(dailySummaryStart, dailySummaryEnd);
+assert.ok(dailySummarySource.includes(">Hourly Pay</span>"), "Crew daily summary is missing Hourly Pay.");
+assert.ok(
+  dailySummarySource.includes("money(day.hourlyLaborCostDisplay)"),
+  "Crew daily summary Hourly Pay must use the overtime-aware hourly-pay total.",
+);
+
 console.log("OpsCenter UI copy checks passed.");

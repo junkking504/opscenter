@@ -52,6 +52,9 @@ activate_preview_release() {
 load_preview_service() {
   local attempt=1
   launchctl bootout "gui/$(id -u)/$PREVIEW_LABEL" >/dev/null 2>&1 || true
+  # launchd may keep the prior label reserved briefly after bootout. Give the
+  # unload time to settle before beginning bounded bootstrap retries.
+  sleep 2
   while (( attempt <= 5 )); do
     if launchctl bootstrap "gui/$(id -u)" "$INSTALLED_PREVIEW_PLIST" >/dev/null 2>&1; then
       return 0

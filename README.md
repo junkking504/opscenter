@@ -4,6 +4,9 @@ OpsCenter is evolving from an operations dashboard into the operating control
 plane for Junk King Operations: one place to understand current state, own
 work, execute policy-controlled actions, and verify outcomes.
 
+Start at **[OpsCenter Home](docs/Home.md)** for the complete source,
+documentation, integration, runtime, editing, and sharing map.
+
 The current application includes dashboard, Jobs, Crew, Fleet, Marketing, and
 Finance surfaces plus selected operational write workflows. The original daily
 metrics file remains the primary read projection while the platform kernel is
@@ -11,6 +14,10 @@ built underneath the existing application.
 
 ## Product direction
 
+- [OpsCenter Home](docs/Home.md)
+- [Asset Register](docs/ASSET_REGISTER.md)
+- [Editing and Releases](docs/EDITING_AND_RELEASES.md)
+- [Sharing and Access](docs/SHARING_AND_ACCESS.md)
 - [OpsCenter OS Constitution](docs/OPSCENTER_OS_CONSTITUTION.md)
 - [Platform Kernel Architecture](docs/PLATFORM_KERNEL_ARCHITECTURE.md)
 - [Operating Inbox: First Vertical Slice](docs/OPERATING_INBOX_VERTICAL_SLICE.md)

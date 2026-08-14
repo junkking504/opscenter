@@ -32,7 +32,7 @@ The first slice ingests the existing Jobs exception rules:
 - `completed_job_with_no_closeout_photos`
 - `whatsapp_job_photo_needs_review`
 - `employee_clocked_in_but_not_assigned_to_truck`
-- `missing_clock_out`
+- `employee_assigned_to_job_but_missing_from_attendance`
 - `open_appointment_past_scheduled_window`
 - `missing_customer_information`
 - `truck_assigned_to_jobs_but_missing_gps_data`

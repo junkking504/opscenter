@@ -368,7 +368,7 @@ export default function OperatingInbox({
                 </div>
                 <div className={styles.itemMeta}>
                   <span>{item.ownerDisplayName || "Unassigned"}</span>
-                  <span className={item.overdue ? styles.overdue : undefined}>{item.overdue ? "Overdue" : item.dueAt ? `Due ${formatTime(item.dueAt)}` : statusLabel(item.status)} · {formatAge(item.firstDetectedAt)}</span>
+                  <span className={item.overdue || item.carryover ? styles.overdue : undefined}>{item.overdue ? "Overdue" : item.carryover ? "Carryover" : item.dueAt ? `Due ${formatTime(item.dueAt)}` : statusLabel(item.status)} · {formatAge(item.firstDetectedAt)}</span>
                 </div>
               </button>
             )) : <div className={styles.empty}>No work matches these filters.</div>}
@@ -389,7 +389,7 @@ export default function OperatingInbox({
                 <div className={styles.fact}><span>Category</span><strong>{selected.category} · {selected.severity}</strong></div>
                 <div className={styles.fact}><span>First detected</span><strong>{formatTime(selected.firstDetectedAt)}</strong></div>
                 <div className={styles.fact}><span>Source observed</span><strong>{formatTime(selected.sourceObservedAt)}</strong></div>
-                <div className={styles.fact}><span>Due</span><strong className={selected.overdue ? styles.overdue : undefined}>{selected.overdue ? `Overdue · ${formatTime(selected.dueAt)}` : formatTime(selected.dueAt)}</strong></div>
+                <div className={styles.fact}><span>Due</span><strong className={selected.overdue || selected.carryover ? styles.overdue : undefined}>{selected.overdue ? `Overdue · ${formatTime(selected.dueAt)}` : selected.carryover && !selected.dueAt ? `Carryover from ${selected.operatingDate}` : formatTime(selected.dueAt)}</strong></div>
                 <div className={styles.fact}><span>Rule</span><strong>{selected.rule}</strong></div>
                 <div className={styles.fact}><span>Source</span><strong>{selected.source}</strong></div>
               </div>

@@ -134,14 +134,20 @@ assert.equal(
   dueAtForRule("open_appointment_past_scheduled_window", new Date("2026-08-14T20:00:00.000Z")),
   "2026-08-14T20:15:00.000Z",
 );
-assert.equal(attentionBucketForWorkItem({ status: "open", severity: "critical" }), "act_now");
-assert.equal(attentionBucketForWorkItem({ status: "snoozed", severity: "critical" }), "waiting");
-assert.equal(attentionBucketForWorkItem({ status: "resolved", severity: "critical" }), "resolved");
+assert.equal(attentionBucketForWorkItem({ operatingDate: "2026-08-14", status: "open", severity: "critical" }), "act_now");
+assert.equal(attentionBucketForWorkItem({ operatingDate: "2026-08-14", status: "snoozed", severity: "critical" }), "waiting");
+assert.equal(attentionBucketForWorkItem({ operatingDate: "2026-08-14", status: "resolved", severity: "critical" }), "resolved");
 assert.equal(attentionBucketForWorkItem({
+  operatingDate: "2026-08-14",
   status: "open",
   severity: "warning",
   dueAt: "2026-08-14T19:00:00.000Z",
-}, new Date("2026-08-14T20:00:00.000Z")), "act_now");
+}, undefined, new Date("2026-08-14T20:00:00.000Z")), "act_now");
+assert.equal(attentionBucketForWorkItem({
+  operatingDate: "2026-08-13",
+  status: "open",
+  severity: "warning",
+}, "2026-08-14", new Date("2026-08-14T20:00:00.000Z")), "act_now");
 
 assert.deepEqual(parseManualWorkItemRequest({
   title: "Call customer about access",

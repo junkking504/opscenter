@@ -40,9 +40,9 @@ export const INBOX_RULE_POLICIES: Readonly<Record<string, InboxRulePolicy>> = Ob
     dueMinutes: 30,
     recommendedAction: "Assign the employee to the correct physical truck or correct the clock status.",
   },
-  missing_clock_out: {
-    dueMinutes: 120,
-    recommendedAction: "Confirm the employee's shift end and correct the attendance record with manager review.",
+  employee_assigned_to_job_but_missing_from_attendance: {
+    dueMinutes: 60,
+    recommendedAction: "Reconcile the verified job crew with attendance before relying on crew credit or payroll.",
   },
   open_appointment_past_scheduled_window: {
     dueMinutes: 15,
@@ -84,11 +84,13 @@ export function dueAtForRule(rule: string, now: Date = new Date()): string {
 }
 
 export function attentionBucketForWorkItem(
-  item: Pick<WorkItem, "status" | "severity" | "dueAt">,
+  item: Pick<WorkItem, "status" | "severity" | "dueAt" | "operatingDate">,
+  selectedOperatingDate?: string,
   now: Date = new Date(),
 ): InboxAttentionBucket {
   if (item.status === "resolved" || item.status === "dismissed") return "resolved";
   if (item.status === "snoozed") return "waiting";
+  if (selectedOperatingDate && item.operatingDate < selectedOperatingDate) return "act_now";
   const due = item.dueAt ? new Date(item.dueAt) : null;
   const overdue = Boolean(due && !Number.isNaN(due.getTime()) && due.getTime() <= now.getTime());
   return overdue || item.severity === "critical" ? "act_now" : "today";

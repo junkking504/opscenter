@@ -23,6 +23,7 @@ export type InboxWorkItem = WorkItem & {
   recommendedAction: string;
   attentionBucket: InboxAttentionBucket;
   overdue: boolean;
+  carryover: boolean;
 };
 
 export type InboxEvent = PlatformEvent & {
@@ -252,17 +253,21 @@ export async function buildInboxPayload(date: string, actor: PlatformActor): Pro
   const items = await listWorkItems({ carryActiveThroughDate: date, limit: 200 });
   const names = await actorDisplayNames(items.flatMap((item) => item.ownerActorId ? [item.ownerActorId] : []));
   const now = new Date();
-  const enriched = items.map((item) => ({
-    ...item,
-    ownerDisplayName: item.ownerActorId ? names.get(item.ownerActorId) : undefined,
-    href: workItemHref(item),
-    recommendedAction: item.source === "Manual entry"
-      ? "Complete the requested follow-up, then record the result and its verification."
-      : inboxRulePolicy(item.rule).recommendedAction,
-    attentionBucket: attentionBucketForWorkItem(item, now),
-    overdue: Boolean(item.dueAt && new Date(item.dueAt).getTime() <= now.getTime()
-      && !["resolved", "dismissed", "snoozed"].includes(item.status)),
-  }));
+  const enriched = items.map((item) => {
+    const carryover = item.operatingDate < date && !["resolved", "dismissed"].includes(item.status);
+    return {
+      ...item,
+      ownerDisplayName: item.ownerActorId ? names.get(item.ownerActorId) : undefined,
+      href: workItemHref(item),
+      recommendedAction: item.source === "Manual entry"
+        ? "Complete the requested follow-up, then record the result and its verification."
+        : inboxRulePolicy(item.rule).recommendedAction,
+      attentionBucket: attentionBucketForWorkItem(item, date, now),
+      overdue: Boolean(item.dueAt && new Date(item.dueAt).getTime() <= now.getTime()
+        && !["resolved", "dismissed", "snoozed"].includes(item.status)),
+      carryover,
+    };
+  });
   const activeStatuses: WorkItemStatus[] = ["open", "acknowledged", "in_progress", "snoozed"];
   return {
     date,

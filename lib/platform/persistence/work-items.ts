@@ -44,7 +44,7 @@ export type WorkItemReconciliationContext = {
 type WorkItemRow = {
   id: string;
   dedupe_key: string;
-  operating_date: string;
+  operating_date: Date | string;
   rule: string;
   category: WorkItem["category"];
   severity: WorkItemSeverity;
@@ -77,11 +77,23 @@ function optionalIso(value: Date | string | null): string | undefined {
   return value === null ? undefined : iso(value);
 }
 
+function operatingDate(value: Date | string): string {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) throw new Error("Platform operating date is invalid.");
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(parsed);
+}
+
 function workItemFromRow(row: WorkItemRow): WorkItem {
   return {
     id: row.id,
     dedupeKey: row.dedupe_key,
-    operatingDate: String(row.operating_date),
+    operatingDate: operatingDate(row.operating_date),
     rule: row.rule,
     category: row.category,
     severity: row.severity,

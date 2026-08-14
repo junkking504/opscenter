@@ -27,6 +27,7 @@ import {
   type JunkwareJobPhoto,
 } from "@/lib/junkware-job-details";
 import { missingPaymentTypeLabel, shouldFlagMissingPhotos } from "@/lib/job-audit-rules";
+import { junkwareBookedAt, junkwareBookedDateLabel } from "@/lib/junkware-booking-date";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
 import "./jobs.css";
 
@@ -41,6 +42,7 @@ type JobRow = {
   jkNumber: string;
   appointmentUrl: string;
   appointmentTime: string;
+  bookedAt: string;
   appointmentStartMinutes: number | null;
   appointmentEndMinutes: number | null;
   hasScheduledTime: boolean;
@@ -1443,6 +1445,7 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
     jkNumber,
     appointmentUrl,
     appointmentTime,
+    bookedAt: junkwareBookedAt(row),
     appointmentStartMinutes: parsedTime.startMinutes,
     appointmentEndMinutes: parsedTime.endMinutes,
     hasScheduledTime: parsedTime.hasScheduledTime,
@@ -1705,6 +1708,7 @@ function readJobRows(date: string): JobRow[] {
         jkNumber,
         appointmentUrl: buildJunkwareAppointmentUrl({ ...row, ...sourceRow }),
         appointmentTime: parsedTime.display,
+        bookedAt: junkwareBookedAt(sourceRow, row),
         appointmentStartMinutes: parsedTime.startMinutes,
         appointmentEndMinutes: parsedTime.endMinutes,
         hasScheduledTime: parsedTime.hasScheduledTime,
@@ -1965,6 +1969,17 @@ function statusBadgeClass(bucket: JobStatusBucket): string {
 function safeText(value: string): string {
   const text = String(value || "").trim();
   return text && text !== "—" ? text : "Unavailable";
+}
+
+function AppointmentBookedDate({ bookedAt }: { bookedAt: string }) {
+  const label = junkwareBookedDateLabel(bookedAt);
+  if (!label) return null;
+
+  return (
+    <span className="ops-appointment-booked-date" title={`Booked in JunkWare: ${bookedAt}`}>
+      Booked {label}
+    </span>
+  );
 }
 
 function closeoutQuantity(value: number): string {
@@ -3240,6 +3255,7 @@ export default async function JobsPage({
                                     ) : (
                                       <span className="ops-jk-number">{safeText(job.jkNumber)}</span>
                                     )}
+                                    <AppointmentBookedDate bookedAt={job.bookedAt} />
                                   </div>
                                   {job.appointmentUrl ? (
                                     <a
@@ -3532,6 +3548,7 @@ export default async function JobsPage({
                                   ) : (
                                     <span className="ops-jk-number">{safeText(job.jkNumber)}</span>
                                   )}
+                                  <AppointmentBookedDate bookedAt={job.bookedAt} />
                                 </div>
                                 {job.appointmentUrl ? (
                                   <a

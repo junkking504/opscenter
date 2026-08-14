@@ -149,20 +149,17 @@
   font-weight: 850;
 }
 
-.signalList,
-.actionList {
+.signalList {
   display: grid;
 }
 
-.signal,
-.action {
+.signal {
   color: #20242b;
   text-decoration: none;
   transition: background 140ms ease;
 }
 
-.signal:hover,
-.action:hover {
+.signal:hover {
   background: #f8f8f7;
 }
 
@@ -176,8 +173,7 @@
   border-bottom: 1px solid #ececef;
 }
 
-.signal:last-child,
-.action:last-child { border-bottom: 0; }
+.signal:last-child { border-bottom: 0; }
 .signalDot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .signal > span:nth-child(2) { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .signal strong { color: #24282f; font-size: 1rem; }
@@ -185,31 +181,37 @@
 .signal em { color: currentColor; font-size: 0.9375rem; font-style: normal; font-weight: 900; letter-spacing: 0.06em; text-transform: uppercase; }
 .signal > b { color: #a4a9b1; font-size: 0.9375rem; }
 
-.action {
+.digestList {
+  max-height: 356px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.digestMessage {
   display: grid;
-  grid-template-columns: 31px minmax(0, 1fr) auto;
-  min-height: 86px;
-  align-items: center;
+  grid-template-columns: 72px minmax(0, 1fr);
   gap: 12px;
-  padding: 15px 18px;
+  padding: 13px 18px;
   border-bottom: 1px solid #ececef;
 }
 
-.action > span:first-child {
+.digestMessage:last-child { border-bottom: 0; }
+.digestMessage time { padding-top: 1px; color: #727a86; font-size: 0.9375rem; font-weight: 800; }
+.digestMessage > div { display: grid; min-width: 0; gap: 4px; }
+.digestMessage strong { color: #24282f; font-size: 0.9375rem; line-height: 1.3; }
+.digestMessage p { margin: 0; color: #535c68; font-size: 0.9375rem; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.digestState {
   display: grid;
-  width: 31px;
-  height: 31px;
-  place-items: center;
-  border-radius: 9px;
-  background: color-mix(in srgb, currentColor 10%, #fff);
-  color: currentColor;
-  font-size: 0.9375rem;
-  font-weight: 900;
+  min-height: 132px;
+  place-content: center;
+  gap: 6px;
+  padding: 22px;
+  text-align: center;
 }
-.action > span:nth-child(2) { display: flex; min-width: 0; flex-direction: column; gap: 5px; }
-.action strong { color: #24282f; font-size: 1rem; line-height: 1.3; }
-.action small { color: #666f7b; font-size: 0.9375rem; line-height: 1.45; }
-.action > b { color: #a4a9b1; font-size: 0.9375rem; }
+
+.digestState strong { color: #24282f; font-size: 1rem; }
+.digestState span { color: #6c7480; font-size: 0.9375rem; }
 
 .onTrack { color: #178653; }
 .watch { color: #a46a00; }
@@ -217,17 +219,12 @@
 
 @media (max-width: 1120px) {
   .body { grid-template-columns: 1fr; }
-  .actionList { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .action { align-items: start; border-right: 1px solid #ececef; }
-  .action:last-child { border-right: 0; }
 }
 
 @media (max-width: 760px) {
   .metricStrip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
   .metric { min-height: 142px; padding: 16px; }
   .metric > b { right: 16px; bottom: 16px; }
-  .actionList { grid-template-columns: 1fr; }
-  .action { border-right: 0; }
 }
 
 @media (max-width: 490px) {
@@ -241,4 +238,5 @@
   .signal { grid-template-columns: 9px minmax(0, 1fr) 14px; min-height: 70px; padding: 11px 14px; }
   .signal small { display: -webkit-box; overflow: hidden; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
   .signal em { display: none; }
+  .digestMessage { grid-template-columns: 62px minmax(0, 1fr); gap: 9px; padding: 12px 14px; }
 }

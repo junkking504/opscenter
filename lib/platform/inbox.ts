@@ -250,7 +250,8 @@ export async function reconcileOperatingInbox(date: string, actorId: string): Pr
 }
 
 export async function buildInboxPayload(date: string, actor: PlatformActor): Promise<InboxPayload> {
-  const items = await listWorkItems({ carryActiveThroughDate: date, limit: 200 });
+  const storedItems = await listWorkItems({ carryActiveThroughDate: date, limit: 200 });
+  const items = storedItems.filter((item) => item.source === "Manual entry" || INBOX_RULES.has(item.rule));
   const names = await actorDisplayNames(items.flatMap((item) => item.ownerActorId ? [item.ownerActorId] : []));
   const now = new Date();
   const enriched = items.map((item) => {

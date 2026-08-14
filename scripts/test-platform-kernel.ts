@@ -128,6 +128,7 @@ assert.equal(previewDatabase.status === "ready" && previewDatabase.maxConnection
 
 assert.equal(INBOX_RULES.size, 15);
 assert.equal(INBOX_RULES.has("employee_clocked_in_but_not_assigned_to_truck"), true);
+assert.equal(INBOX_RULES.has("missing_clock_out"), false);
 assert.equal(INBOX_RULES.has("gps_timestamp_older_than_20_minutes"), true);
 assert.match(inboxRulePolicy("payment_amount_present_but_payment_type_missing").recommendedAction, /payment method/i);
 assert.equal(

@@ -6,6 +6,10 @@ const root = process.cwd();
 const layout = fs.readFileSync(path.join(root, "app/layout.tsx"), "utf8");
 const entry = fs.readFileSync(path.join(root, "app/ops-styles.css"), "utf8");
 const usability = fs.readFileSync(path.join(root, "app/ops-usability.css"), "utf8");
+const jobsCss = fs.readFileSync(path.join(root, "app/(protected)/jobs/jobs.css"), "utf8");
+const jobsPage = fs.readFileSync(path.join(root, "app/(protected)/jobs/page.tsx"), "utf8");
+const crewPage = fs.readFileSync(path.join(root, "app/(protected)/crew/page.tsx"), "utf8");
+const crewPayPeriodCards = fs.readFileSync(path.join(root, "components/CrewPayPeriodCards.tsx"), "utf8");
 const styleFiles = [
   "globals.css",
   "ops-redesign.css",
@@ -59,6 +63,21 @@ assert.ok(contrast(semanticColors["success-text"], "#ffffff") >= 7, "Light-surfa
 assert.ok(contrast(semanticColors["warning-text"], "#ffffff") >= 7, "Light-surface warning text must meet AAA contrast.");
 assert.ok(contrast(semanticColors["success-on-dark"], "#10151b") >= 7, "Dark-surface success text must meet AAA contrast.");
 assert.ok(contrast(semanticColors["warning-on-dark"], "#10151b") >= 7, "Dark-surface warning text must meet AAA contrast.");
-assert.match(usability, /@media \(hover: hover\)[\s\S]*--oc-interaction-ring/, "Clickable controls must retain the shared hover halo.");
+assert.match(usability, /@media \(hover: hover\)[\s\S]*--oc-interaction-ring/, "Clickable controls must retain shared hover feedback.");
+assert.match(
+  usability,
+  /\.ops-main :where\(\.ops-crew-employee-summary, \.ops-crew-period-day-summary\):is\(:hover, :active\)/,
+  "Every employee summary card must use the shared interaction treatment.",
+);
+assert.match(crewPage, /className="ops-crew-employee-summary"/, "Today employee cards must use the shared summary class.");
+assert.match(crewPayPeriodCards, /className="ops-crew-employee-summary"/, "Pay-period employee cards must use the shared summary class.");
+assert.match(jobsCss, /\.ops-jobs-page \.ops-appointment-detail-grid > div\s*\{\s*min-width: 0;/, "Every job detail cell must be allowed to shrink.");
+assert.match(jobsCss, /\.ops-jobs-page \.ops-appointment-detail-grid strong,[\s\S]*?overflow-wrap: anywhere;/, "Every long job detail value must wrap inside its column.");
+assert.equal(
+  Array.from(jobsPage.matchAll(/className="ops-appointment-detail-grid"/g)).length,
+  2,
+  "Both appointment-card render paths must use the shared detail grid.",
+);
+assert.doesNotMatch(`${usability}\n${jobsCss}`, /Anthony Dozier|Regina Marshall|JK4047670/i, "Card styling must never target a specific person or job.");
 
 console.log(`CSS architecture verification passed (${totalLines.toLocaleString()} ordered shared lines).`);

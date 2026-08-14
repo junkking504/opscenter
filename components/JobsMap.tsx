@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import AppointmentCancelDialog, { type AppointmentCancelTarget } from "@/components/AppointmentCancelDialog";
 import type { JobRouteProximityPayload, JobTruckProximity } from "@/lib/job-route-proximity";
 import { parseTruckNumberFromLabel } from "@/lib/linxup-truck-label";
 
@@ -513,6 +514,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const [pendingKeys, setPendingKeys] = useState<string[]>([]);
   const pendingKeySetRef = useRef<Set<string>>(new Set());
   const [assignmentMessage, setAssignmentMessage] = useState("");
+  const [cancelTarget, setCancelTarget] = useState<AppointmentCancelTarget | null>(null);
+  const [canceledKeys, setCanceledKeys] = useState<string[]>([]);
   const [currentScheduleTime, setCurrentScheduleTime] = useState<ReturnType<typeof chicagoScheduleClock> | null>(null);
 
   const selectLiveTruck = useCallback((truckName: string) => {
@@ -552,7 +555,13 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     () => jobs.map((job) => {
       const timeOverride = timeOverrides[job.key];
       const assignedTruck = assignments[job.key] || "Virtual Truck";
-      const liveJob = { ...job, ...(timeOverride || {}), truck: assignedTruck };
+      const canceled = canceledKeys.includes(job.key);
+      const liveJob = {
+        ...job,
+        ...(timeOverride || {}),
+        truck: assignedTruck,
+        ...(canceled ? { status: "Canceled", statusBucket: "Canceled" } : {}),
+      };
       const scheduleClock = chicagoScheduleClock();
       const isCurrentDate = scheduleClock.date === date;
       const now = currentScheduleTime?.timestamp ?? Date.now();
@@ -563,7 +572,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         visitedTrucks: Array.from(new Set([...liveJob.visitedTrucks, ...liveVisitedTrucks])),
       };
     }),
-    [assignments, currentScheduleTime?.timestamp, date, jobs, liveTruckLocations, timeOverrides],
+    [assignments, canceledKeys, currentScheduleTime?.timestamp, date, jobs, liveTruckLocations, timeOverrides],
   );
 
   const locatedJobs = useMemo(() => displayJobs.filter(isLocated), [displayJobs]);
@@ -869,6 +878,33 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, {
       detail: { articleId: job.detailId },
     }));
+  }
+
+  function handleAppointmentContextMenu(event: React.MouseEvent<HTMLButtonElement>, job: JobsMapPoint) {
+    event.preventDefault();
+    clearDragGesture();
+    if (job.statusBucket === "Canceled") {
+      setAssignmentMessage(`${job.jkNumber} is already canceled.`);
+      return;
+    }
+    if (isClosedScheduleJob(job)) {
+      setAssignmentMessage(`${job.jkNumber} is already closed and cannot be canceled from the Schedule board.`);
+      return;
+    }
+    if (!/^\d{1,12}$/.test(job.appointmentId) || job.assignmentKey !== `appt:${job.appointmentId}`) {
+      setAssignmentMessage("This appointment cannot be canceled because its JunkWare appointment ID is unavailable.");
+      return;
+    }
+    setSelectedTruckName("");
+    setSelectedKey(job.key);
+    setCancelTarget({
+      date,
+      appointmentId: job.appointmentId,
+      jobKey: job.assignmentKey,
+      jkNumber: job.jkNumber,
+      customerName: job.customerName,
+      appointmentTime: job.appointmentTime,
+    });
   }
 
   function handleAppointmentDragStart(event: React.DragEvent<HTMLButtonElement>, job: JobsMapPoint) {
@@ -1285,6 +1321,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                             draggable={job.statusBucket !== "Canceled" && !pendingKeys.includes(job.key)}
                             className={`ops-jobs-map-board-block ${territoryTone(job)}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
                             onClick={() => handleAppointmentClick(job.key)}
+                            onContextMenu={(event) => handleAppointmentContextMenu(event, job)}
                             onPointerDown={(event) => handleAppointmentPointerDown(event, job)}
                             onDragStart={(event) => handleAppointmentDragStart(event, job)}
                             onDragEnd={() => clearDragGesture()}
@@ -1314,6 +1351,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                             draggable={job.statusBucket !== "Canceled" && !pendingKeys.includes(job.key)}
                             className={`ops-jobs-map-board-block ${territoryTone(job)}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
                             onClick={() => handleAppointmentClick(job.key)}
+                            onContextMenu={(event) => handleAppointmentContextMenu(event, job)}
                             onPointerDown={(event) => handleAppointmentPointerDown(event, job)}
                             onDragStart={(event) => handleAppointmentDragStart(event, job)}
                             onDragEnd={() => clearDragGesture()}
@@ -1372,6 +1410,17 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         ) : null}
       </div>
 
+      <AppointmentCancelDialog
+        target={cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        onCanceled={(target) => {
+          const canceledJob = displayJobs.find((job) => job.appointmentId === target.appointmentId);
+          if (canceledJob) setCanceledKeys((current) => Array.from(new Set([...current, canceledJob.key])));
+          setAssignmentMessage(`${target.jkNumber} was canceled and verified in JunkWare.`);
+          router.refresh();
+        }}
+      />
+
       {dragGesture?.active ? (
         <div
           className="ops-jobs-map-drag-ghost"
@@ -1389,7 +1438,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
 
       {scheduleView ? (
         <div className="ops-jobs-map-assignment-status" aria-live="polite">
-          {assignmentMessage || "Drag an appointment block to any truck and time slot. Every change is saved and verified in JunkWare."}
+          {assignmentMessage || "Drag a block to change its truck or time. Right-click a block to cancel it in JunkWare."}
         </div>
       ) : null}
 

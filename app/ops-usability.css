@@ -789,10 +789,10 @@ body {
   }
 
   .ops-jobs-page > .ops-page-header .ops-page-header-meta {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 2;
     align-self: center;
-    justify-content: flex-end;
+    justify-content: flex-start;
     width: auto;
     margin: 0;
     white-space: nowrap;

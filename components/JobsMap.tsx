@@ -1126,13 +1126,13 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       </div>
 
       <div className="ops-jobs-map-legend" aria-label="Appointment type legend">
-        <span title="New Orleans"><i className="is-new-orleans" />NO</span>
-        <span title="Baton Rouge"><i className="is-baton-rouge" />BR</span>
-        <span title="Northshore"><i className="is-northshore" />NS</span>
-        <span title="Jefferson Parish"><i className="is-jefferson" />JP</span>
-        <span title="Lafayette"><i className="is-lafayette" />LF</span>
-        <span><i className="is-unassigned" />Unassigned</span>
-        <span><i className="is-truck" />Truck GPS</span>
+        <span title="New Orleans" aria-label="New Orleans"><i className="is-new-orleans" />NO</span>
+        <span title="Baton Rouge" aria-label="Baton Rouge"><i className="is-baton-rouge" />BR</span>
+        <span title="Northshore" aria-label="Northshore"><i className="is-northshore" />NS</span>
+        <span title="Jefferson Parish" aria-label="Jefferson Parish"><i className="is-jefferson" />JP</span>
+        <span title="Lafayette" aria-label="Lafayette"><i className="is-lafayette" />LF</span>
+        <span title="Unassigned" aria-label="Unassigned"><i className="is-unassigned" />U/A</span>
+        <span title="Truck GPS" aria-label="Truck GPS"><i className="is-truck" />GPS</span>
         {scheduleView ? <span><i className="is-visited-unclosed">?</i>Visited</span> : null}
         {scheduleView ? <span><i className="is-canceled">×</i>Canceled</span> : null}
         {scheduleView && chicagoScheduleClock().date === date ? (

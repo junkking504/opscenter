@@ -9,7 +9,7 @@ assert.equal(titleCaseLabel("QBO connection status"), "QBO Connection Status");
 assert.equal(titleCaseLabel("Expenses & earnings"), "Expenses & Earnings");
 
 const jobsMapSource = readFileSync(new URL("../components/JobsMap.tsx", import.meta.url), "utf8");
-for (const label of [">Unassigned</span>", ">Visited</span>", ">On Site", ">NO</span>", ">BR</span>", ">NS</span>", ">JP</span>", ">LF</span>"]) {
+for (const label of [">U/A</span>", ">GPS</span>", ">Visited</span>", ">On Site", ">NO</span>", ">BR</span>", ">NS</span>", ">JP</span>", ">LF</span>"]) {
   assert.ok(jobsMapSource.includes(label), `Dispatch legend is missing ${label}`);
 }
 for (const retiredLabel of [

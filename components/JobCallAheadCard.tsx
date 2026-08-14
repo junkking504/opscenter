@@ -92,13 +92,10 @@ export default function JobCallAheadCard({
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") setMenu(null);
     };
-    const closeOnScroll = () => setMenu(null);
     window.addEventListener("pointerdown", closeOnPointerDown);
-    window.addEventListener("scroll", closeOnScroll, true);
     window.addEventListener("keydown", closeOnEscape);
     return () => {
       window.removeEventListener("pointerdown", closeOnPointerDown);
-      window.removeEventListener("scroll", closeOnScroll, true);
       window.removeEventListener("keydown", closeOnEscape);
     };
   }, [menu]);

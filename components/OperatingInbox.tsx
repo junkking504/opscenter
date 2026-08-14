@@ -218,6 +218,8 @@ export default function OperatingInbox({
       setShowCreate(false);
       setLifecycle("open");
       setScope("all");
+      setSeverity("all");
+      setCategory("all");
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "The work item could not be created.");
     } finally {
@@ -287,13 +289,13 @@ export default function OperatingInbox({
             </label>
             <label className={styles.field}>
               <span>Category</span>
-              <select value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value as CreateDraft["category"] })}>
+              <select aria-label="Work item category" value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value as CreateDraft["category"] })}>
                 <option>Jobs</option><option>Crew</option><option>Fleet</option><option>Finance</option>
               </select>
             </label>
             <label className={styles.field}>
               <span>Severity</span>
-              <select value={draft.severity} onChange={(event) => setDraft({ ...draft, severity: event.target.value as CreateDraft["severity"] })}>
+              <select aria-label="Work item severity" value={draft.severity} onChange={(event) => setDraft({ ...draft, severity: event.target.value as CreateDraft["severity"] })}>
                 <option value="critical">Critical</option><option value="warning">Warning</option><option value="info">Info</option>
               </select>
             </label>
@@ -303,7 +305,7 @@ export default function OperatingInbox({
             </label>
             <label className={styles.field}>
               <span>Due</span>
-              <select value={draft.dueMinutes} onChange={(event) => setDraft({ ...draft, dueMinutes: event.target.value as CreateDraft["dueMinutes"] })}>
+              <select aria-label="Work item due time" value={draft.dueMinutes} onChange={(event) => setDraft({ ...draft, dueMinutes: event.target.value as CreateDraft["dueMinutes"] })}>
                 <option value="30">30 minutes</option><option value="120">2 hours</option><option value="480">8 hours</option><option value="1440">Tomorrow</option>
               </select>
             </label>
@@ -335,13 +337,13 @@ export default function OperatingInbox({
           ))}
         </div>
         <div className={styles.filters}>
-          <select className={styles.filter} value={lifecycle} onChange={(event) => setLifecycle(event.target.value as LifecycleFilter)} aria-label="Work status">
+          <select className={styles.filter} value={lifecycle} onChange={(event) => setLifecycle(event.target.value as LifecycleFilter)} aria-label="Filter by status">
             <option value="open">Open</option><option value="snoozed">Snoozed</option><option value="resolved">Resolved</option>
           </select>
-          <select className={styles.filter} value={severity} onChange={(event) => setSeverity(event.target.value)} aria-label="Severity">
+          <select className={styles.filter} value={severity} onChange={(event) => setSeverity(event.target.value)} aria-label="Filter by severity">
             <option value="all">All severity</option><option value="critical">Critical</option><option value="warning">Warning</option><option value="info">Info</option>
           </select>
-          <select className={styles.filter} value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Category">
+          <select className={styles.filter} value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Filter by category">
             <option value="all">All categories</option><option value="Jobs">Jobs</option><option value="Crew">Crew</option><option value="Fleet">Fleet</option><option value="Finance">Finance</option>
           </select>
           <button className={styles.refresh} type="button" onClick={() => void load()} disabled={loading || busy}>{loading ? "Refreshing…" : "Refresh signals"}</button>

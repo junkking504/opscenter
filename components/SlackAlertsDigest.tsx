@@ -115,6 +115,17 @@ export default function SlackAlertsDigest({
                       Open in OpsCenter
                     </Link>
                   </div>
+                ) : message.closeout ? (
+                  <div className={styles.digestAppointment}>
+                    <p className={styles.digestAppointmentTitle}>
+                      <span aria-hidden="true">✅</span>{" "}
+                      <Link href={message.closeout.href}>{message.closeout.jobNumber}</Link> closed out.
+                    </p>
+                    {message.closeout.lines.map((line) => <p key={line}>{line}</p>)}
+                    <Link className={styles.digestOpenLink} href={message.closeout.href}>
+                      Open in OpsCenter
+                    </Link>
+                  </div>
                 ) : (
                   <>
                     <p>{message.text}</p>

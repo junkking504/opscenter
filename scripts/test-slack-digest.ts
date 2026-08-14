@@ -8,6 +8,8 @@ async function main() {
   assert.match(clientSource, /void refresh\(\);/);
   assert.match(clientSource, /window\.addEventListener\("focus", refreshWhenVisible\)/);
   assert.match(clientSource, /document\.addEventListener\("visibilitychange", refreshWhenVisible\)/);
+  assert.match(clientSource, /message\.closeout/);
+  assert.match(clientSource, /Open in OpsCenter/);
 
   assert.equal(
     slackTextToPlainText(":warning: *New alert*\n<https://ops.junk-king.app/jobs|Open in OpsCenter>\n_Alert ID: test:123_"),
@@ -38,6 +40,11 @@ async function main() {
         {
           ts: "1786718500.000003",
           text: ":warning: *New same-day appointment: JK4052608*\nTest Customer · 12:00 PM - 01:00 PM · Truck# 1 · 123 Test Street\n*Next:* Confirm coverage.\n<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052608|Open in OpsCenter>\n_Alert ID: add_on:2026-08-14:appt:4039430_",
+          bot_profile: { name: "OpsCenter Alerts" },
+        },
+        {
+          ts: "1786718750.000004",
+          text: ":white_check_mark: JK4052579 closed out.",
           bot_profile: { name: "OpsCenter Alerts" },
         },
         {
@@ -83,20 +90,45 @@ async function main() {
       items: ["Sofa", "Desk"],
       href: "/jobs?date=2026-08-14#job-jk4052608",
     }],
+    completedRows: [{
+      appt_id: "4039401",
+      job_id: "JK4052579",
+      truck: "Truck# 8",
+      revenue: "$358.00",
+      tip: "$71.60",
+      final_status: "Completed",
+      closeout: {
+        loadSize: "2 (1/3)",
+        loadPrice: "$388.00",
+        discount: "$30.00",
+        tip: "$71.60",
+        total: "$429.60",
+        payments: [{ method: "Credit Card", detail: "***9896", amount: "$429.60" }],
+      },
+    }],
   });
 
   assert.equal(digest.status, "ready");
-  assert.equal(digest.messages.length, 4);
+  assert.equal(digest.messages.length, 5);
   assert.equal(digest.messages[0].text, "✅ Resolved");
   assert.equal(digest.messages[0].threadReply, true);
-  assert.equal(digest.messages[1].channel, "#jobs-no");
-  assert.equal(digest.messages[1].appointment?.jobNumber, "JK4052608");
-  assert.equal(digest.messages[1].appointment?.phone, "(504) 555-0100");
-  assert.deepEqual(digest.messages[1].appointment?.items, ["Sofa", "Desk"]);
-  assert.equal(digest.messages[1].appointment?.href, "/jobs?date=2026-08-14#job-jk4052608");
-  assert.doesNotMatch(digest.messages[1].text, /Alert ID|Truck# 1|Open in OpsCenter/);
-  assert.equal(digest.messages[2].text, "🚚 Truck 3 arrived onsite.");
-  assert.equal(digest.messages[3].text, "Older alert");
+  assert.equal(digest.messages[1].closeout?.jobNumber, "JK4052579");
+  assert.deepEqual(digest.messages[1].closeout?.lines, [
+    "Load: 1/3 ($388.00).",
+    "Discount: $30.00.",
+    "Job total: $358.00.",
+    "Tip: $71.60.",
+    "Charged: Card ending 9896 ($429.60).",
+  ]);
+  assert.equal(digest.messages[1].closeout?.href, "/jobs?date=2026-08-14#job-jk4052579");
+  assert.equal(digest.messages[2].channel, "#jobs-no");
+  assert.equal(digest.messages[2].appointment?.jobNumber, "JK4052608");
+  assert.equal(digest.messages[2].appointment?.phone, "(504) 555-0100");
+  assert.deepEqual(digest.messages[2].appointment?.items, ["Sofa", "Desk"]);
+  assert.equal(digest.messages[2].appointment?.href, "/jobs?date=2026-08-14#job-jk4052608");
+  assert.doesNotMatch(digest.messages[2].text, /Alert ID|Truck# 1|Open in OpsCenter/);
+  assert.equal(digest.messages[3].text, "🚚 Truck 3 arrived onsite.");
+  assert.equal(digest.messages[4].text, "Older alert");
   assert.equal(requests.filter((request) => request.pathname.endsWith("conversations.history")).length, 2);
   assert.ok(requests.every((request) => request.searchParams.get("oldest") === "1786683600"));
   assert.ok(requests.every((request) => request.searchParams.has("latest")));

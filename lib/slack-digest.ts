@@ -4,6 +4,8 @@ import {
   buildCancelledAppointmentFeed,
   type AddOnAppointment,
 } from "@/lib/add-on-notifications";
+import type { AnyRecord } from "@/lib/opsData";
+import { readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
 
 const CHICAGO_TIME_ZONE = "America/Chicago";
 // The client checks more frequently, while this shared cache keeps aggregate
@@ -67,6 +69,11 @@ export type SlackDigestMessage = {
     items: string[];
     href: string;
     nextAction: string;
+  };
+  closeout?: {
+    jobNumber: string;
+    lines: string[];
+    href: string;
   };
 };
 
@@ -262,22 +269,53 @@ function appointmentForSlackAlert(
   };
 }
 
+function closeoutLookup(rows: AnyRecord[]): Map<string, AnyRecord> {
+  const lookup = new Map<string, AnyRecord>();
+  for (const row of rows) {
+    const jobNumber = String(row?.job_id || row?.jk_number || row?.job_number || "").trim().toLowerCase();
+    if (jobNumber) lookup.set(jobNumber, row);
+  }
+  return lookup;
+}
+
+function closeoutForSlackAlert(
+  rawText: string,
+  lookup: Map<string, AnyRecord>,
+  date: string,
+): SlackDigestMessage["closeout"] | undefined {
+  const match = slackTextToPlainText(rawText).match(/^✅\s*(JK\d+)\s+closed out\./i);
+  if (!match) return undefined;
+  const details = truckCloseoutDetails(lookup.get(match[1].toLowerCase()) || {});
+  if (!details) return undefined;
+  return {
+    jobNumber: details.jobNumber,
+    lines: details.lines,
+    href: `/jobs?date=${encodeURIComponent(date)}#job-${details.jobNumber.toLowerCase()}`,
+  };
+}
+
 function digestMessage(
   channelId: string,
   message: SlackMessagePayload,
   appointments: Map<string, AddOnAppointment>,
+  closeouts: Map<string, AnyRecord>,
+  date: string,
 ): SlackDigestMessage | null {
   const ts = String(message.ts || "").trim();
   const rawText = String(message.text || "");
   const plainText = slackTextToPlainText(rawText);
   const appointment = appointmentForSlackAlert(rawText, appointments);
+  const closeout = closeoutForSlackAlert(rawText, closeouts, date);
   const text = appointment ? [
     `⚠️ ${appointment.title}: ${appointment.jobNumber}`,
     `${appointment.customerName} · ${appointment.phone} · ${appointment.appointmentTime}`,
     appointment.address,
     appointment.items.length ? `Items: ${appointment.items.join("; ")}` : "",
     appointment.nextAction ? `Next: ${appointment.nextAction}` : "",
-  ].filter(Boolean).join("\n") : plainText;
+  ].filter(Boolean).join("\n") : closeout ? [
+    `✅ ${closeout.jobNumber} closed out.`,
+    ...closeout.lines,
+  ].join("\n") : plainText;
   const epochMs = Number(ts) * 1_000;
   if (!ts || !text || !Number.isFinite(epochMs)) return null;
 
@@ -289,6 +327,7 @@ function digestMessage(
     threadReply: Boolean(message.thread_ts && message.thread_ts !== ts),
     opsCenterHref: opsCenterHref(rawText),
     appointment,
+    closeout,
   };
 }
 
@@ -321,6 +360,8 @@ async function channelMessages(
   token: string,
   fetchImpl: typeof fetch,
   appointments: Map<string, AddOnAppointment>,
+  closeouts: Map<string, AnyRecord>,
+  date: string,
 ): Promise<{ ok: boolean; messages: SlackDigestMessage[]; rateLimited: boolean }> {
   const roots: SlackMessagePayload[] = [];
   let cursor = "";
@@ -340,7 +381,7 @@ async function channelMessages(
   } while (cursor);
 
   const messages = roots.flatMap((message) => {
-    const item = digestMessage(channelId, message, appointments);
+    const item = digestMessage(channelId, message, appointments, closeouts, date);
     return item ? [item] : [];
   });
 
@@ -360,7 +401,7 @@ async function channelMessages(
       if (!response.ok) break;
       for (const reply of response.messages || []) {
         if (reply.ts === root.ts) continue;
-        const item = digestMessage(channelId, reply, appointments);
+        const item = digestMessage(channelId, reply, appointments, closeouts, date);
         if (item) messages.push(item);
       }
       replyCursor = String(response.response_metadata?.next_cursor || "").trim();
@@ -377,6 +418,7 @@ export async function fetchSlackDailyDigest(
     channelIds: string[];
     fetchImpl?: typeof fetch;
     appointments?: AddOnAppointment[];
+    completedRows?: AnyRecord[];
   },
 ): Promise<SlackDailyDigest> {
   const refreshedAt = new Date().toISOString();
@@ -402,12 +444,22 @@ export async function fetchSlackDailyDigest(
     }
   }
   const appointments = appointmentLookup(appointmentRows);
+  const closeouts = closeoutLookup(options.completedRows || readCompletedJunkwareRows(date));
   const messages: SlackDigestMessage[] = [];
   let readableChannels = 0;
   let rateLimited = false;
 
   for (const channelId of Array.from(new Set(options.channelIds))) {
-    const result = await channelMessages(channelId, oldest, latest, options.token, fetchImpl, appointments);
+    const result = await channelMessages(
+      channelId,
+      oldest,
+      latest,
+      options.token,
+      fetchImpl,
+      appointments,
+      closeouts,
+      date,
+    );
     if (result.ok) readableChannels += 1;
     if (result.rateLimited) rateLimited = true;
     messages.push(...result.messages);

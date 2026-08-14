@@ -130,9 +130,14 @@ const completedCloseoutRows = [
     job_id: "JK4051000",
     final_status: "Completed",
     truck: "Truck# 1",
+    revenue: "$508.00",
     tip: "$50.80",
     closeout: {
+      loadSize: "4 (1/2)",
+      loadPrice: "$538.00",
+      discount: "$30.00",
       tip: "$50.80",
+      total: "$558.80",
       payments: [{ method: "Credit Card", detail: "***3013", amount: "$558.80" }],
     },
   },
@@ -213,10 +218,26 @@ assert.deepEqual(
   buildTruckCloseoutSlackNotifications("2026-08-12", completedCloseoutRows)
     .map((alert) => ({ kind: alert.kind, channelId: alert.channelId, text: formatSlackAlert(alert) })),
   [
-    { kind: "job_closed", channelId: "C_TEST_TRUCK_1", text: ":white_check_mark: JK4051000 closed out." },
-    { kind: "job_closed", channelId: "C_TEST_TRUCK_6", text: ":white_check_mark: JK4051001 closed out." },
-    { kind: "job_closed", channelId: "C_TEST_TRUCK_1", text: ":white_check_mark: JK4051003 closed out." },
-    { kind: "job_closed", channelId: "C_TEST_TRUCK_4", text: ":white_check_mark: JK4051005 closed out." },
+    {
+      kind: "job_closed",
+      channelId: "C_TEST_TRUCK_1",
+      text: ":white_check_mark: JK4051000 closed out. Load: 1/2 ($538.00). Discount: $30.00. Job total: $508.00. Tip: $50.80. Charged: Card ending 3013 ($558.80).",
+    },
+    {
+      kind: "job_closed",
+      channelId: "C_TEST_TRUCK_6",
+      text: ":white_check_mark: JK4051001 closed out. Tip: $0.00. Charged: Check #1487 ($198.00).",
+    },
+    {
+      kind: "job_closed",
+      channelId: "C_TEST_TRUCK_1",
+      text: ":white_check_mark: JK4051003 closed out. Tip: $15.00. Charged: Card ending 4242 ($100.00); Cash ($50.00).",
+    },
+    {
+      kind: "job_closed",
+      channelId: "C_TEST_TRUCK_4",
+      text: ":white_check_mark: JK4051005 closed out. Tip: $0.00.",
+    },
   ],
 );
 
@@ -362,7 +383,7 @@ try {
   const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed", "job_closed_payment"]);
   assert.deepEqual(postedMessages, [
-    ":white_check_mark: JK4051502 closed out.",
+    ":white_check_mark: JK4051502 closed out. Tip: $20.00. Charged: Check #2201 ($220.00).",
     "JK4051502 closed out. Payment: Check #2201 ($220.00). Tip: $20.00.",
   ]);
 

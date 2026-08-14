@@ -11,6 +11,7 @@ import { readFleetIssueStore, type FleetIssue } from "@/lib/fleet-issues";
 import { buildOperationalExceptions, type OperationalException } from "@/lib/operational-exceptions";
 import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
+import { readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 
 export type SlackAlertSeverity = "critical" | "warning";
@@ -469,27 +470,6 @@ export function buildCrewSlackNotifications(date: string, rows: AnyRecord[]): Sl
   return notifications;
 }
 
-function readCompletedJunkwareRows(date: string): AnyRecord[] {
-  const configured = String(process.env.OPSCENTER_DATA_DIR || "").trim();
-  const dataDirectories = Array.from(new Set([
-    ...(configured ? [configured] : []),
-    path.join(process.cwd(), "data"),
-    path.join(process.cwd(), "..", "opsbot", "data"),
-    path.join(process.env.HOME || "", ".openclaw", "workspace", "opsbot", "data"),
-  ]));
-
-  for (const dataDirectory of dataDirectories) {
-    const file = path.join(dataDirectory, "history", "junkware", `junkware_${date}_raw.json`);
-    try {
-      const payload = JSON.parse(fs.readFileSync(file, "utf8"));
-      if (Array.isArray(payload?.completed)) return payload.completed;
-    } catch {
-      // Try the next known OpsBot data location.
-    }
-  }
-  return [];
-}
-
 function closeoutPaymentDescription(payment: AnyRecord): string {
   const method = firstText(payment, ["method", "payment_method", "paymentMethod"]);
   if (!method) return "";
@@ -540,7 +520,7 @@ export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyReco
     if (seen.has(fingerprint)) continue;
     seen.add(fingerprint);
 
-    const plainText = `:white_check_mark: ${jobNumber} closed out.`;
+    const plainText = truckCloseoutDetails(row)?.slackText || `:white_check_mark: ${jobNumber} closed out.`;
     notifications.push({
       fingerprint,
       kind: "job_closed",

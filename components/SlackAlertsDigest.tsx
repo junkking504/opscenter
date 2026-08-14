@@ -68,7 +68,7 @@ export default function SlackAlertsDigest({
     <section className={styles.queue} aria-labelledby="slack-alerts-title">
       <div className={styles.sectionHeader}>
         <div>
-          <span>Daily Digest</span>
+          <span>Command Awareness</span>
           <h2 id="slack-alerts-title">Slack Alerts</h2>
         </div>
         <small>{String(digest.messages.length).padStart(2, "0")} messages</small>

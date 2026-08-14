@@ -1,0 +1,55 @@
+/* The compact variant is for high-signal dashboards with only a date and
+ * refresh action. It keeps those controls beside the title and uses the second
+ * row for freshness plus section navigation. Mobile retains the shared touch
+ * layout. */
+@media (min-width: 721px) {
+  .compact:global(.ops-page-header.has-subnav) {
+    grid-template-columns: minmax(260px, 1fr) auto;
+    grid-template-rows: auto 40px;
+    gap: 4px 16px;
+    min-height: 0;
+    padding: 9px 12px 0;
+  }
+
+  .compact :global(.ops-page-header-copy) {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .compact :global(.ops-page-header-controls) {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    justify-content: flex-end;
+  }
+
+  .compact :global(.ops-page-header-meta) {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: center;
+    margin: 0;
+    font-size: 0.75rem;
+  }
+
+  .compact :global(.ops-page-subnav) {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: stretch;
+    width: auto;
+    margin: 0;
+    padding: 0;
+    border-top: 0;
+  }
+
+  .compact :global(.ops-page-subnav a),
+  .compact :global(.ops-refresh-button),
+  .compact :global(.ops-date-selector) {
+    min-height: 38px;
+  }
+
+  .compact :global(.ops-date-label),
+  .compact :global(label) {
+    font-size: 0.75rem;
+  }
+}

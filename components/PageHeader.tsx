@@ -5,6 +5,7 @@ import { availableDates } from "@/lib/opsData";
 import { stableUpdatedAt } from "@/lib/stable-date";
 import { titleCaseLabel } from "@/lib/title-case";
 import { Suspense, type ReactNode } from "react";
+import styles from "./PageHeader.module.css";
 
 export default function PageHeader({
   title,
@@ -18,6 +19,7 @@ export default function PageHeader({
   dateLabel = "Date",
   dates,
   sections,
+  compact = false,
 }: {
   title: string;
   subtitle?: string;
@@ -36,11 +38,12 @@ export default function PageHeader({
     badge?: string | number;
     attention?: boolean;
   }>;
+  compact?: boolean;
 }) {
   const updated = lastUpdated ? stableUpdatedAt(lastUpdated) : "";
 
   return (
-    <section className={`ops-control-strip ops-page-header${sections?.length ? " has-subnav" : ""}`}>
+    <section className={`ops-control-strip ops-page-header${sections?.length ? " has-subnav" : ""}${compact ? ` ${styles.compact}` : ""}`}>
       <Suspense fallback={null}>
         <CurrentDataSync selectedDate={date} initialUpdatedAt={lastUpdated} />
       </Suspense>

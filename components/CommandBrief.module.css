@@ -27,9 +27,9 @@
   position: relative;
   display: grid;
   min-width: 0;
-  min-height: 158px;
+  min-height: 142px;
   align-content: space-between;
-  padding: 19px 20px;
+  padding: 15px 17px;
   overflow: hidden;
   border: 1px solid #dcdee2;
   border-radius: 16px;
@@ -75,10 +75,10 @@
 }
 
 .metric > strong {
-  margin-top: 16px;
+  margin-top: 10px;
   overflow: hidden;
   color: #171a1f;
-  font-size: clamp(1.8rem, 3vw, 2.75rem);
+  font-size: clamp(1.75rem, 2.6vw, 2.4rem);
   line-height: 0.95;
   letter-spacing: -0.065em;
   text-overflow: ellipsis;
@@ -86,7 +86,7 @@
 }
 
 .metric > p {
-  margin: 9px 24px 0 0;
+  margin: 7px 22px 0 0;
   color: #737b87;
   font-size: 0.9375rem;
   line-height: 1.4;
@@ -94,8 +94,8 @@
 
 .metric > b {
   position: absolute;
-  right: 20px;
-  bottom: 19px;
+  right: 17px;
+  bottom: 15px;
   color: #a0a6af;
   font-size: 0.9375rem;
 }

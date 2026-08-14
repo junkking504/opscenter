@@ -656,6 +656,7 @@ export default async function DashboardPage({
     <div className="ops-dashboard ops-daily-dashboard">
       <PageHeader
         title="Daily Command"
+        compact
         subtitle={`${shortMonthDay(date)} · ${jobs} completed job${jobs === 1 ? "" : "s"} · ${activeTruckCount} active truck${activeTruckCount === 1 ? "" : "s"}`}
         date={date}
         lastUpdated={metrics?.generated_at}

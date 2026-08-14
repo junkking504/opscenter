@@ -4366,7 +4366,7 @@ a {
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-baton-rouge.is-completed { background: #d39096; }
 
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-canceled {
-  background: repeating-linear-gradient(-45deg, #4b5563 0 6px, #303846 6px 12px);
+  /* Cancellation is an overlay state; keep the territory background visible. */
   box-shadow: inset 0 0 0 2px rgba(251, 113, 133, .7);
   filter: none;
 }
@@ -4680,7 +4680,15 @@ a {
   color: #dcfce7;
 }
 
-.ops-jobs-map-board-state.is-canceled,
+.ops-jobs-map-board-state.is-canceled {
+  border-color: rgba(255, 255, 255, .94);
+  background: rgba(255, 255, 255, .94);
+  color: #dc2626;
+  font-size: 1rem;
+  text-shadow: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+}
+
 .ops-jobs-map-legend i.is-canceled {
   border-color: rgba(251, 113, 133, .92);
   background: rgba(127, 29, 29, .94);

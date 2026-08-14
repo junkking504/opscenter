@@ -1,0 +1,29 @@
+.ops-marketing-page .ops-page-header-status {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: 721px) {
+  .ops-marketing-page > .ops-page-header.has-subnav {
+    grid-template-rows: auto auto auto;
+    align-items: start;
+  }
+
+  .ops-marketing-page > .ops-page-header .ops-page-header-controls {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    align-items: flex-start;
+  }
+
+  .ops-marketing-page > .ops-page-header .ops-page-header-meta {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .ops-marketing-page > .ops-page-header .ops-page-subnav {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+}

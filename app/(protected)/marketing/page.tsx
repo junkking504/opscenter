@@ -1,4 +1,5 @@
 import Link from "next/link";
+import "./marketing.css";
 import LostLeadTracker from "@/components/LostLeadTracker";
 import PageHeader from "@/components/PageHeader";
 import { appointmentScheduleHref } from "@/lib/job-links";

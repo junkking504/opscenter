@@ -516,6 +516,22 @@ body {
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 1.2fr);
 }
 
+.ops-crew-section-period .ops-period-summary-compact > div {
+  background: #f7f8f6;
+}
+
+.ops-crew-section-period .ops-period-summary-compact > div > span {
+  color: #5f6975;
+}
+
+.ops-crew-section-period .ops-period-summary-compact strong {
+  color: #20242b !important;
+}
+
+.ops-crew-section-period .ops-period-summary-compact > div > small {
+  color: #606873;
+}
+
 .ops-crew-section-period .ops-period-summary strong > span {
   display: inline;
   margin: 0;
@@ -791,7 +807,9 @@ body {
   --oc-warning-text: #684800;
   --oc-success-on-dark: #a7f3d0;
   --oc-warning-on-dark: #fde68a;
-  --oc-interaction-ring: #ed1c24;
+  --oc-interaction-ring: #4f7fa8;
+  --oc-interaction-border: #6f92b2;
+  --oc-interaction-tint: rgba(79, 127, 168, 0.1);
 }
 
 .ops-main {
@@ -889,8 +907,8 @@ body {
   color: var(--oc-success-on-dark) !important;
 }
 
-/* Every clickable selection gets the same unmistakable red halo. This is
- * additive, so route-specific hover colors can still communicate state. */
+/* Keep pointer feedback stable and predictable. Hover never changes geometry,
+ * filters the content, or overrides text with a low-contrast semantic color. */
 :where(.ops-sidebar, .ops-main) :where(
   a[href],
   button:not(:disabled),
@@ -903,10 +921,10 @@ body {
 ) {
   cursor: pointer;
   transition:
-    outline-color 120ms ease,
-    box-shadow 120ms ease,
-    filter 120ms ease,
-    transform 120ms ease;
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease,
+    box-shadow 140ms ease;
 }
 
 @media (hover: hover) {
@@ -914,18 +932,41 @@ body {
     a[href],
     button:not(:disabled),
     summary,
-    select:not(:disabled),
-    input[type="checkbox"]:not(:disabled),
-    input[type="radio"]:not(:disabled),
     [role="button"]:not([aria-disabled="true"]),
     [role="tab"]:not([aria-disabled="true"])
   ):hover {
-    outline: 3px solid var(--oc-interaction-ring) !important;
-    outline-offset: 2px;
+    filter: none !important;
+    transform: none !important;
+  }
+
+  .ops-main :where(
+    button:not(:disabled),
+    summary,
+    select:not(:disabled),
+    [role="button"]:not([aria-disabled="true"]),
+    [role="tab"]:not([aria-disabled="true"])
+  ):hover {
+    border-color: var(--oc-interaction-border) !important;
     box-shadow:
-      0 0 0 5px rgba(237, 28, 36, 0.18),
-      0 8px 18px rgba(25, 28, 35, 0.16) !important;
-    filter: brightness(1.06) saturate(1.04);
+      0 0 0 1px rgba(79, 127, 168, 0.22),
+      0 7px 18px rgba(25, 40, 55, 0.13) !important;
+  }
+
+  .ops-main :where(.ops-button, .ops-refresh-button, .ops-page-subnav a):is(:hover, :active) {
+    border-color: var(--oc-interaction-border) !important;
+    background: #202a36;
+    color: #fff !important;
+  }
+
+  .ops-sidebar .ops-nav-item:hover {
+    border-color: rgba(126, 168, 209, 0.34);
+    background: rgba(126, 168, 209, 0.13);
+    color: #fff;
+  }
+
+  .ops-main :where(.ops-crew-employee-summary, .ops-crew-period-day-summary):is(:hover, :active) {
+    background: var(--oc-interaction-tint);
+    box-shadow: inset 4px 0 0 var(--oc-interaction-ring) !important;
   }
 }
 
@@ -941,5 +982,5 @@ body {
 ):focus-visible {
   outline: 3px solid var(--oc-interaction-ring) !important;
   outline-offset: 3px !important;
-  box-shadow: 0 0 0 5px rgba(237, 28, 36, 0.2) !important;
+  box-shadow: 0 0 0 5px rgba(79, 127, 168, 0.2) !important;
 }

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import AppointmentCancelDialog, { type AppointmentCancelTarget } from "@/components/AppointmentCancelDialog";
 import type { JobCallAheadStatus } from "@/lib/job-call-ahead";
 
 type MenuPosition = { left: number; top: number };
@@ -17,6 +18,11 @@ export default function JobCallAheadCard({
   initialStatus,
   articleId,
   isCanceled = false,
+  canCancel = false,
+  appointmentId,
+  jkNumber,
+  customerName,
+  appointmentTime,
   truckOnSite = false,
 }: {
   children: ReactNode;
@@ -25,6 +31,11 @@ export default function JobCallAheadCard({
   initialStatus?: JobCallAheadStatus;
   articleId: string;
   isCanceled?: boolean;
+  canCancel?: boolean;
+  appointmentId: string;
+  jkNumber: string;
+  customerName: string;
+  appointmentTime: string;
   truckOnSite?: boolean;
 }) {
   const router = useRouter();
@@ -35,6 +46,8 @@ export default function JobCallAheadCard({
   const [promoted, setPromoted] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<HTMLElement | null>(null);
   const [canceledDetailsOpen, setCanceledDetailsOpen] = useState(false);
+  const [canceledLocally, setCanceledLocally] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<AppointmentCancelTarget | null>(null);
   const [onSite, setOnSite] = useState(truckOnSite);
 
   useEffect(() => setOnSite(truckOnSite), [truckOnSite]);
@@ -60,14 +73,14 @@ export default function JobCallAheadCard({
 
   useEffect(() => {
     if (!promoted) return;
-    if (isCanceled) setCanceledDetailsOpen(true);
+    if (isCanceled || canceledLocally) setCanceledDetailsOpen(true);
     const frame = window.requestAnimationFrame(() => {
       document.getElementById(articleId)?.querySelectorAll<HTMLDetailsElement>("details").forEach((details) => {
         details.open = true;
       });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [articleId, isCanceled, promoted]);
+  }, [articleId, canceledLocally, isCanceled, promoted]);
 
   useEffect(() => {
     if (!menu) return;
@@ -120,20 +133,22 @@ export default function JobCallAheadCard({
       ? "Not called yet"
       : "Call-ahead not set";
 
-  const canceledCollapsed = isCanceled && !canceledDetailsOpen;
+  const effectiveCanceled = isCanceled || canceledLocally;
+  const cancellationAvailable = canCancel && !effectiveCanceled && /^\d{1,12}$/.test(appointmentId);
+  const canceledCollapsed = effectiveCanceled && !canceledDetailsOpen;
 
   const card = (
     <article
-      className={`ops-appointment-card${onSite ? " is-on-site" : ""}${promoted ? " is-map-selected" : ""}${isCanceled ? " is-canceled" : ""}${canceledCollapsed ? " is-canceled-collapsed" : ""}`}
+      className={`ops-appointment-card${onSite ? " is-on-site" : ""}${promoted ? " is-map-selected" : ""}${effectiveCanceled ? " is-canceled" : ""}${canceledCollapsed ? " is-canceled-collapsed" : ""}`}
       id={articleId}
       tabIndex={-1}
-      title={isCanceled ? "Canceled appointment — right-click to update the office call-ahead" : "Right-click to update the office call-ahead"}
+      title={effectiveCanceled ? "Canceled appointment — right-click for appointment actions" : "Right-click for appointment actions"}
       onContextMenu={(event) => {
         event.preventDefault();
         setError("");
         setMenu({
           left: Math.max(8, Math.min(event.clientX, window.innerWidth - 230)),
-          top: Math.max(8, Math.min(event.clientY, window.innerHeight - 132)),
+          top: Math.max(8, Math.min(event.clientY, window.innerHeight - (cancellationAvailable ? 210 : 132))),
         });
       }}
     >
@@ -150,7 +165,7 @@ export default function JobCallAheadCard({
         {error ? <span className="ops-call-ahead-error" role="alert">{error}</span> : null}
       </div>
       {children}
-      {isCanceled ? (
+      {effectiveCanceled ? (
         <button
           type="button"
           className="ops-canceled-card-toggle"
@@ -165,11 +180,11 @@ export default function JobCallAheadCard({
         <div
           className="ops-call-ahead-menu"
           role="menu"
-          aria-label="Office call-ahead status"
+          aria-label="Appointment actions"
           style={{ left: menu.left, top: menu.top }}
           onClick={(event) => event.stopPropagation()}
         >
-          <div className="ops-call-ahead-menu-title">Office call-ahead</div>
+          <div className="ops-call-ahead-menu-title">Appointment actions</div>
           <button type="button" role="menuitemradio" aria-checked={status === "called"} onClick={() => void save("called")}>
             <span className="ops-call-ahead-menu-check">{status === "called" ? "✓" : ""}</span>
             Office called
@@ -178,8 +193,31 @@ export default function JobCallAheadCard({
             <span className="ops-call-ahead-menu-check">{status === "not_called" ? "✓" : ""}</span>
             Not called yet
           </button>
+          {cancellationAvailable ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="ops-call-ahead-menu-cancel"
+              onClick={() => {
+                setMenu(null);
+                setCancelTarget({ date, appointmentId, jobKey, jkNumber, customerName, appointmentTime });
+              }}
+            >
+              <span className="ops-call-ahead-menu-cancel-icon" aria-hidden="true">×</span>
+              Cancel appointment…
+            </button>
+          ) : null}
         </div>
       ) : null}
+      <AppointmentCancelDialog
+        target={cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        onCanceled={() => {
+          setCanceledLocally(true);
+          setCanceledDetailsOpen(false);
+          router.refresh();
+        }}
+      />
     </article>
   );
 

@@ -17,6 +17,7 @@ import { buildMonthlyRange, monthOptions, readMonthlyAuthority } from "@/lib/mon
 import { readJobRouteAssignmentOverrides } from "@/lib/job-route-assignments";
 import { jobRouteAssignmentKey } from "@/lib/job-route-key";
 import { jobCallAheadLookupKey, readJobCallAheadStatuses } from "@/lib/job-call-ahead";
+import { readVerifiedJobCancellations } from "@/lib/job-cancellations";
 import {
   appointmentNotes,
   junkItemKeywords,
@@ -1803,7 +1804,20 @@ function readJobRows(date: string): JobRow[] {
     }
   }
 
-  return jobs.sort((a, b) => {
+  // Bridge the short collector delay after a verified JunkWare write. After
+  // thirty minutes the collected schedule becomes authoritative again, so a
+  // later manual reactivation in JunkWare cannot be masked forever.
+  const recentCancellationCutoff = Date.now() - 30 * 60_000;
+  const verifiedCancellationIds = new Set(
+    readVerifiedJobCancellations(date)
+      .filter((entry) => Date.parse(entry.canceledAt) >= recentCancellationCutoff)
+      .map((entry) => entry.appointmentId),
+  );
+  const resolvedJobs = verifiedCancellationIds.size
+    ? jobs.map((job) => verifiedCancellationIds.has(job.appointmentId) ? { ...job, status: "Canceled" } : job)
+    : jobs;
+
+  return resolvedJobs.sort((a, b) => {
     const territoryCompare = a.territory.localeCompare(b.territory);
     if (territoryCompare !== 0) return territoryCompare;
     return compareJobSchedule(a, b);
@@ -1906,6 +1920,14 @@ function statusBucket(job: JobRow): JobStatusBucket {
   if (isClosedOut) return "Completed";
   if (status.includes("confirmed") || status.includes("open") || status.includes("schedule")) return "Open / Scheduled";
   return "Unclosed or Needs Attention";
+}
+
+function canCancelAppointment(job: JobRow): boolean {
+  const bucket = statusBucket(job);
+  return /^\d{1,12}$/.test(job.appointmentId)
+    && bucket !== "Canceled"
+    && bucket !== "Completed"
+    && bucket !== "Estimate";
 }
 
 function jobMissingPhotos(job: JobRow): boolean {
@@ -3232,6 +3254,11 @@ export default async function JobsPage({
                             initialStatus={callAheadStatus}
                             articleId={appointmentCardId(job)}
                             isCanceled={statusBucket(job) === "Canceled"}
+                            canCancel={canCancelAppointment(job)}
+                            appointmentId={job.appointmentId}
+                            jkNumber={safeText(job.jkNumber)}
+                            customerName={safeText(job.customerName)}
+                            appointmentTime={safeText(job.appointmentTime)}
                             truckOnSite={date === chicagoDateKey() && Boolean(mapPoints.find((point) => point.detailId === appointmentCardId(job))?.truckOnSite)}
                             key={`${territory}-${scheduleGroup}-${job.jkNumber}-${index}`}
                           >
@@ -3525,6 +3552,11 @@ export default async function JobsPage({
                           initialStatus={callAheadStatus}
                           articleId={appointmentCardId(job)}
                           isCanceled={statusBucket(job) === "Canceled"}
+                          canCancel={canCancelAppointment(job)}
+                          appointmentId={job.appointmentId}
+                          jkNumber={safeText(job.jkNumber)}
+                          customerName={safeText(job.customerName)}
+                          appointmentTime={safeText(job.appointmentTime)}
                           truckOnSite={date === chicagoDateKey() && Boolean(mapPoints.find((point) => point.detailId === appointmentCardId(job))?.truckOnSite)}
                           key={`${territory}-unscheduled-${job.jkNumber}-${index}`}
                         >

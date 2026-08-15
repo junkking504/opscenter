@@ -59,4 +59,7 @@ const networkStatus = readFileSync(new URL("../components/NetworkStatus.tsx", im
 assert.ok(networkStatus.includes('window.addEventListener("offline"'), "Installed app must react when the device goes offline.");
 assert.ok(networkStatus.includes("Live operational data is unavailable"), "Offline state must not imply that stale data is current.");
 
+const nextConfig = readFileSync(new URL("../next.config.mjs", import.meta.url), "utf8");
+assert.ok(nextConfig.includes('{ key: "Cloudflare-CDN-Cache-Control", value: "no-store" }'), "Cloudflare must not retain an old service worker.");
+
 console.log("OpsCenter installable-app checks passed.");

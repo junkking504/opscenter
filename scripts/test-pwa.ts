@@ -62,4 +62,14 @@ assert.ok(networkStatus.includes("Live operational data is unavailable"), "Offli
 const nextConfig = readFileSync(new URL("../next.config.mjs", import.meta.url), "utf8");
 assert.ok(nextConfig.includes('{ key: "Cloudflare-CDN-Cache-Control", value: "no-store" }'), "Cloudflare must not retain an old service worker.");
 
+const installControl = readFileSync(new URL("../components/InstallOpsCenter.tsx", import.meta.url), "utf8");
+assert.ok(installControl.includes("Add to Home Screen"), "Safari install guidance must always be available.");
+assert.ok(installControl.includes("Install page as app"), "Desktop install guidance must not depend on an automatic prompt.");
+
+const opsShell = readFileSync(new URL("../components/OpsShell.tsx", import.meta.url), "utf8");
+assert.ok(
+  opsShell.indexOf('className="ops-sidebar-install"') < opsShell.indexOf('className="ops-sidebar-footer"'),
+  "Install App must appear above the low sidebar footer on phone-sized screens.",
+);
+
 console.log("OpsCenter installable-app checks passed.");

@@ -12,8 +12,8 @@ Open `https://ops.junk-king.app` and sign in before installing.
   **Share > Add to Home Screen** action.
 - Mac Safari: open the sidebar, choose **Install App**, then use
   **File > Add to Dock**.
-- Chrome or Edge: choose **Install App** in the OpsCenter sidebar and accept the
-  browser prompt. The browser may also show an install icon in the address bar.
+- Chrome or Edge: choose **Install App** in the OpsCenter sidebar. If the native
+  prompt is unavailable, use **⋮ > Cast, save, and share > Install page as app**.
 
 The installed app keeps the normal OpsCenter authentication boundary. If a
 session expires, the app returns to the standard login screen.

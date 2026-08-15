@@ -17,7 +17,7 @@ function isStandalone() {
   return window.matchMedia("(display-mode: standalone)").matches || navigatorWithStandalone.standalone === true;
 }
 
-function manualInstallInstructions() {
+function manualInstallInstructions(): string {
   const userAgent = navigator.userAgent;
   const isTouchAppleDevice = /iPhone|iPad|iPod/i.test(userAgent)
     || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -32,7 +32,12 @@ function manualInstallInstructions() {
     return "In Safari, choose File, then Add to Dock.";
   }
 
-  return null;
+  const isChromiumDesktop = /Chrome|Chromium|Edg/i.test(userAgent) && !/CriOS|EdgiOS/i.test(userAgent);
+  if (isChromiumDesktop) {
+    return "Open Chrome’s ⋮ menu, choose Cast, save, and share, then Install page as app.";
+  }
+
+  return "Open your browser menu and choose Install page as app or Add to Home Screen.";
 }
 
 export default function InstallOpsCenter() {

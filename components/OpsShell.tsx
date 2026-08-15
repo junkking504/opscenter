@@ -63,6 +63,10 @@ export default function OpsShell({
           <OpsNav variant="sidebar" />
         </Suspense>
 
+        <div className="ops-sidebar-install">
+          <InstallOpsCenter />
+        </div>
+
         <div className="ops-sidebar-footer">
           <div className="ops-sidebar-footer-top">
             <NetworkStatus />
@@ -72,7 +76,6 @@ export default function OpsShell({
           <a href="/api/auth/logout" className="ops-mini-link">
             Logout
           </a>
-          <InstallOpsCenter />
         </div>
       </aside>
 

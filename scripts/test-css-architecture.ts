@@ -73,6 +73,11 @@ assert.match(crewPage, /className="ops-crew-employee-summary"/, "Today employee 
 assert.match(crewPayPeriodCards, /className="ops-crew-employee-summary"/, "Pay-period employee cards must use the shared summary class.");
 assert.match(jobsCss, /\.ops-jobs-page \.ops-appointment-detail-grid > div\s*\{\s*min-width: 0;/, "Every job detail cell must be allowed to shrink.");
 assert.match(jobsCss, /\.ops-jobs-page \.ops-appointment-detail-grid strong,[\s\S]*?overflow-wrap: anywhere;/, "Every long job detail value must wrap inside its column.");
+assert.match(usability, /\.ops-sidebar-toggle:checked ~ \.ops-bottom-nav\s*\{[\s\S]*?visibility: hidden;/, "The open mobile drawer must hide the duplicate bottom navigation.");
+assert.match(usability, /\.ops-sidebar-toggle:checked ~ \.ops-main \.ops-topbar-right\s*\{[\s\S]*?visibility: hidden;/, "Header actions must not float above the open mobile drawer.");
+assert.match(usability, /\.ops-sidebar-footer \.ops-small-muted\s*\{[\s\S]*?overflow-wrap: anywhere;/, "Long signed-in account labels must wrap inside the drawer.");
+assert.match(jobsCss, /\.ops-appointment-note-details > summary > strong\s*\{[\s\S]*?grid-column: 1 \/ -1;/, "Appointment note previews must receive a full summary row.");
+assert.match(jobsCss, /\.ops-closeout-editor-section input:not\(\[type="checkbox"\]\),[\s\S]*?background: #fff;[\s\S]*?color: #20242b;/, "Closeout fields must use the readable light-surface control contract.");
 assert.equal(
   Array.from(jobsPage.matchAll(/className="ops-appointment-detail-grid"/g)).length,
   2,

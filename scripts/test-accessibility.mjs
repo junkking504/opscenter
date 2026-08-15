@@ -5,6 +5,10 @@ const baseUrl = String(process.env.OPS_A11Y_BASE_URL || "http://127.0.0.1:3100")
 const username = String(process.env.OPS_A11Y_USERNAME || "");
 const password = String(process.env.OPS_A11Y_PASSWORD || "");
 const sessionCookie = String(process.env.OPS_A11Y_SESSION_COOKIE || "");
+const ignored503Paths = new Set(String(process.env.OPS_A11Y_IGNORE_HTTP_503_PATHS || "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean));
 const routes = [
   "/",
   "/?section=crew",
@@ -19,6 +23,8 @@ const routes = [
 ];
 const viewports = [
   { name: "desktop", width: 1440, height: 900 },
+  { name: "laptop", width: 1024, height: 768 },
+  { name: "tablet", width: 768, height: 1024 },
   { name: "mobile", width: 390, height: 844 },
 ];
 
@@ -75,6 +81,9 @@ async function auditPage(page) {
       ".ops-refresh-button",
       ".ops-date-selector",
       ".ops-page-subnav a",
+      ".ops-sidebar-toggle-button",
+      ".ops-job-closeout-editor > summary",
+      ".ops-appointment-note-details > summary",
       ".ops-notification-trigger",
       ".ops-fleet-truck-link",
       ".ops-jobs-search-button",
@@ -138,7 +147,12 @@ async function main() {
   const page = await context.newPage();
   const runtimeErrors = [];
   page.on("console", (message) => {
-    if (message.type() === "error") runtimeErrors.push(message.text());
+    if (message.type() === "error") {
+      const location = message.location();
+      const locationPath = location.url ? new URL(location.url).pathname : "";
+      if (message.text().includes("503") && ignored503Paths.has(locationPath)) return;
+      runtimeErrors.push(`${message.text()}${location.url ? ` (${location.url})` : ""}`);
+    }
   });
   page.on("pageerror", (error) => runtimeErrors.push(error.message));
 
@@ -267,6 +281,70 @@ async function main() {
             `${routeLabel} Dispatch Board must expand without vertical scrolling (${dispatch.scheduleScrollHeight}px content in ${dispatch.scheduleClientHeight}px).`,
           );
           assert.equal(dispatch.scheduleOverflow, "visible", `${routeLabel} Dispatch Board must expose the complete schedule.`);
+
+          const appointmentReadability = await page.evaluate(() => Array.from(document.querySelectorAll(".ops-appointment-context")).map((context) => {
+            const noteSummary = context.querySelector(".ops-appointment-note-details > summary");
+            const notePreview = noteSummary?.querySelector("strong");
+            const closeoutSummary = context.closest(".ops-appointment-card")?.querySelector(".ops-job-closeout-editor > summary");
+            const labels = Array.from(context.querySelectorAll(":scope .ops-appointment-junk-summary > span, :scope .ops-appointment-note-details > summary > span"));
+            return {
+              contextWidth: context.getBoundingClientRect().width,
+              noteSummaryWidth: noteSummary?.getBoundingClientRect().width || 0,
+              notePreviewWidth: notePreview?.getBoundingClientRect().width || 0,
+              noteScrolls: noteSummary ? noteSummary.scrollWidth > noteSummary.clientWidth + 1 : false,
+              labelSizes: labels.map((label) => Number.parseFloat(getComputedStyle(label).fontSize)),
+              closeoutHeight: closeoutSummary?.getBoundingClientRect().height || 0,
+              closeoutClips: closeoutSummary ? closeoutSummary.scrollWidth > closeoutSummary.clientWidth + 1 : false,
+            };
+          }));
+          for (const card of appointmentReadability) {
+            assert.ok(card.labelSizes.every((size) => size >= 13), `${routeLabel} appointment labels must be at least 13px: ${JSON.stringify(card)}.`);
+            assert.equal(card.noteScrolls, false, `${routeLabel} appointment notes must not overflow their summary: ${JSON.stringify(card)}.`);
+            assert.equal(card.closeoutClips, false, `${routeLabel} closeout action must not clip: ${JSON.stringify(card)}.`);
+            if (card.closeoutHeight) assert.ok(card.closeoutHeight >= 43.5, `${routeLabel} closeout action must provide a 44px target: ${JSON.stringify(card)}.`);
+            if (viewport.width <= 768 && card.noteSummaryWidth) {
+              assert.ok(card.notePreviewWidth >= card.noteSummaryWidth * 0.8, `${routeLabel} note preview must use the card width: ${JSON.stringify(card)}.`);
+            }
+          }
+
+          if (viewport.width <= 1050) {
+            const drawerToggle = page.locator("#ops-sidebar-toggle");
+            await drawerToggle.evaluate((element) => {
+              element.checked = true;
+              element.dispatchEvent(new Event("change", { bubbles: true }));
+            });
+            await page.waitForTimeout(200);
+            const drawer = await page.evaluate(() => {
+              const sidebar = document.querySelector(".ops-sidebar");
+              const footer = document.querySelector(".ops-sidebar-footer");
+              const bottomNav = document.querySelector(".ops-bottom-nav");
+              const topbarActions = document.querySelector(".ops-topbar-right");
+              if (!(sidebar instanceof HTMLElement) || !(footer instanceof HTMLElement) || !(bottomNav instanceof HTMLElement)) return null;
+              const sidebarBox = sidebar.getBoundingClientRect();
+              const footerBox = footer.getBoundingClientRect();
+              const navStyle = getComputedStyle(bottomNav);
+              return {
+                sidebar: { left: sidebarBox.left, top: sidebarBox.top, right: sidebarBox.right, bottom: sidebarBox.bottom },
+                footerBottom: footerBox.bottom,
+                bottomNavVisibility: navStyle.visibility,
+                bottomNavOpacity: Number(navStyle.opacity),
+                topbarActionsVisibility: topbarActions ? getComputedStyle(topbarActions).visibility : "missing",
+                navTargetHeights: Array.from(sidebar.querySelectorAll(".ops-nav-item")).map((item) => item.getBoundingClientRect().height),
+                navFontSizes: Array.from(sidebar.querySelectorAll(".ops-nav-item")).map((item) => Number.parseFloat(getComputedStyle(item).fontSize)),
+              };
+            });
+            assert.ok(drawer, `${routeLabel} must render the responsive navigation drawer.`);
+            assert.ok(drawer.sidebar.left >= 0 && drawer.sidebar.top >= 0 && drawer.sidebar.right <= viewport.width && drawer.sidebar.bottom <= viewport.height, `${routeLabel} drawer must stay within the viewport: ${JSON.stringify(drawer)}.`);
+            assert.ok(drawer.footerBottom <= drawer.sidebar.bottom + 1, `${routeLabel} drawer account controls must remain inside the drawer: ${JSON.stringify(drawer)}.`);
+            assert.ok(drawer.bottomNavVisibility === "hidden" || drawer.bottomNavOpacity === 0, `${routeLabel} bottom navigation must hide behind the open drawer: ${JSON.stringify(drawer)}.`);
+            assert.equal(drawer.topbarActionsVisibility, "hidden", `${routeLabel} header actions must not float above the open drawer: ${JSON.stringify(drawer)}.`);
+            assert.ok(drawer.navTargetHeights.every((height) => height >= 43.5), `${routeLabel} drawer navigation must provide 44px targets: ${JSON.stringify(drawer)}.`);
+            assert.ok(drawer.navFontSizes.every((size) => size >= 14), `${routeLabel} drawer navigation labels must be at least 14px: ${JSON.stringify(drawer)}.`);
+            await drawerToggle.evaluate((element) => {
+              element.checked = false;
+              element.dispatchEvent(new Event("change", { bubbles: true }));
+            });
+          }
         }
         if (route === "/marketing?section=lost-leads") {
           const lostLeads = await page.evaluate(() => {
@@ -352,7 +430,7 @@ async function main() {
     await browser.close();
   }
 
-  console.log(`Accessibility verification passed for login and ${routes.length} protected routes at desktop and mobile widths.`);
+  console.log(`Accessibility verification passed for login and ${routes.length} protected routes at desktop, laptop, tablet, and mobile widths.`);
 }
 
 main().catch((error) => {

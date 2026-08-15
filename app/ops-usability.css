@@ -26,6 +26,19 @@ body {
   line-height: 1.5;
 }
 
+.ops-main input[type="checkbox"],
+.ops-main input[type="radio"] {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
+  accent-color: #b71f29;
+}
+
+.ops-main label:has(> input[type="checkbox"]),
+.ops-main label:has(> input[type="radio"]) {
+  min-height: var(--oc-control-height);
+}
+
 .ops-pagination {
   display: flex;
   align-items: center;
@@ -578,6 +591,16 @@ body {
 }
 .ops-daily-leaderboard :where(.ops-daily-leaderboard-state, .ops-mini-link, .ops-daily-leaderboard-rank) { font-size: max(1rem, 12px) !important; }
 .ops-daily-leaderboard :where(.ops-daily-leaderboard-state, .ops-mini-link) { color: #3f4650; }
+.ops-main .ops-daily-leaderboard .ops-daily-leaderboard-state.is-pending {
+  border-color: #d9b85b;
+  background: #fff5d6;
+  color: #664700;
+}
+.ops-main .ops-daily-leaderboard .ops-daily-leaderboard-state.is-live {
+  border-color: #82c9a6;
+  background: #e7f6ee;
+  color: #08683f;
+}
 
 /* Pay-period totals use direct-child labels; reset the live value nested span
  * so it remains a value instead of inheriting the compact label treatment. */
@@ -714,6 +737,50 @@ body {
     bottom: calc(78px + env(safe-area-inset-bottom));
   }
 
+  .ops-sidebar-toggle:checked ~ .ops-sidebar {
+    bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .ops-sidebar-toggle:checked ~ .ops-bottom-nav {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(calc(100% + 16px));
+  }
+
+  .ops-sidebar-toggle:checked ~ .ops-main .ops-topbar-right {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .ops-topbar-right > .ops-sidebar-toggle-button {
+    min-height: var(--oc-control-height);
+    padding-inline: 16px;
+    color: #20242b;
+    font-size: 0.875rem;
+  }
+
+  .ops-sidebar .ops-nav-item {
+    min-height: var(--oc-control-height);
+    color: #d2d8e1;
+    font-size: 1rem;
+  }
+
+  .ops-sidebar .ops-nav-item.active {
+    color: #fff;
+  }
+
+  .ops-sidebar-footer {
+    flex: 0 0 auto;
+  }
+
+  .ops-sidebar-footer .ops-small-muted {
+    color: #c5cbd4;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
   .ops-bottom-nav {
     left: 4px;
     right: 4px;
@@ -722,6 +789,10 @@ body {
     gap: 2px;
     min-height: 66px;
     padding: 4px;
+    transition:
+      opacity 160ms ease,
+      transform 160ms ease,
+      visibility 160ms ease;
   }
 
   .ops-bottom-nav-item {
@@ -738,8 +809,10 @@ body {
   .ops-bottom-nav-item small {
     width: 100%;
     color: #c9ced6;
-    font-size: 0.75rem;
-    letter-spacing: -0.035em;
+    font-family: var(--ops-font-display);
+    font-size: 0.8125rem;
+    font-weight: 750;
+    letter-spacing: -0.025em;
     overflow: visible;
     text-align: center;
     text-overflow: clip;
@@ -774,7 +847,9 @@ body {
   }
 
   .ops-page-subnav {
+    padding-bottom: 4px;
     scroll-snap-type: x proximity;
+    scrollbar-width: thin;
   }
 
   .ops-page-subnav a {
@@ -806,6 +881,13 @@ body {
   .ops-jobs-map-workspace.has-schedule .ops-jobs-map-shell {
     order: 2;
     height: 19rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .ops-sidebar {
+    right: auto;
+    width: min(360px, calc(100vw - 20px));
   }
 }
 

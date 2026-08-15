@@ -571,3 +571,155 @@
 .ops-jobs-page .ops-jobs-map-current-time span {
   font-size: 0.75rem !important;
 }
+
+/* Appointment context is scanned under time pressure. Keep the field label
+ * above its value so long items and notes always receive the card's full
+ * width instead of collapsing into narrow side-by-side columns. */
+.ops-jobs-page .ops-appointment-junk-summary {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: 4px;
+}
+
+.ops-jobs-page .ops-appointment-junk-summary > span,
+.ops-jobs-page .ops-appointment-note-details > summary > span {
+  color: #4f5965;
+  white-space: normal;
+}
+
+.ops-jobs-page .ops-appointment-junk-summary > div,
+.ops-jobs-page .ops-appointment-junk-summary strong,
+.ops-jobs-page .ops-appointment-junk-summary em {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ops-jobs-page .ops-appointment-note-details > summary {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+  padding-block: 6px;
+}
+
+.ops-jobs-page .ops-appointment-note-details > summary > strong {
+  grid-column: 1 / -1;
+  min-width: 0;
+  color: #343b45;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 3;
+}
+
+.ops-jobs-page .ops-job-closeout-editor > summary {
+  min-width: min(100%, 180px);
+  white-space: nowrap;
+}
+
+/* The appointment card is a light surface. The editor follows that same
+ * surface contract so labels, values, and focus states remain legible. */
+.ops-jobs-page .ops-job-closeout-editor[open] {
+  border-color: #b9c9d9;
+  background: #f5f8fb;
+}
+
+.ops-jobs-page .ops-job-closeout-editor-body {
+  gap: 14px;
+}
+
+.ops-jobs-page .ops-closeout-editor-heading > div {
+  border: 1px solid #d5dee7;
+  background: #eaf1f7;
+}
+
+.ops-jobs-page .ops-closeout-editor-heading span,
+.ops-jobs-page .ops-closeout-editor-section label > span {
+  color: #3f4b58;
+  font-size: 0.875rem;
+}
+
+.ops-jobs-page .ops-closeout-editor-heading strong,
+.ops-jobs-page .ops-closeout-editor-section :where(h4, h5),
+.ops-jobs-page .ops-closeout-editor-section p,
+.ops-jobs-page .ops-closeout-time-grid > span,
+.ops-jobs-page .ops-closeout-payments > div,
+.ops-jobs-page .ops-closeout-payment-toggle {
+  color: #20242b;
+}
+
+.ops-jobs-page .ops-closeout-payment-toggle {
+  min-height: 44px;
+}
+
+.ops-jobs-page .ops-closeout-editor-section {
+  border-top-color: #d6dee6;
+}
+
+.ops-jobs-page .ops-closeout-editor-section input:not([type="checkbox"]),
+.ops-jobs-page .ops-closeout-editor-section select {
+  min-height: 44px;
+  border-color: #aeb9c5;
+  background: #fff;
+  color: #20242b;
+  font-size: 1rem;
+}
+
+.ops-jobs-page .ops-job-closeout-editor .ops-button {
+  min-height: 44px;
+}
+
+.ops-jobs-page .ops-closeout-charge-list > div {
+  border: 1px solid #d7e0e8;
+  background: #fff;
+  color: #28323d;
+}
+
+.ops-jobs-page .ops-closeout-charge-list > div > strong {
+  color: #20242b;
+}
+
+.ops-jobs-page .ops-closeout-editor-actions {
+  border-color: #c8d2dc;
+  background: rgba(245, 248, 251, 0.96);
+  box-shadow: 0 -8px 20px rgba(31, 41, 55, 0.12);
+}
+
+@media (max-width: 720px) {
+  .ops-jobs-page .ops-appointment-context {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .ops-jobs-page .ops-appointment-note-details {
+    padding: 8px 0 0;
+  }
+
+  .ops-jobs-page .ops-job-closeout-editor {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .ops-jobs-page .ops-job-closeout-editor > summary {
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .ops-jobs-page .ops-closeout-charge-entry,
+  .ops-jobs-page .ops-closeout-payment-entry,
+  .ops-jobs-page .ops-closeout-crew-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-jobs-page .ops-closeout-charge-entry > .ops-button {
+    grid-column: auto;
+  }
+
+  .ops-jobs-page .ops-closeout-charge-list > div {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .ops-jobs-page .ops-closeout-charge-list > div > :nth-child(2) {
+    grid-column: 1 / -1;
+  }
+}

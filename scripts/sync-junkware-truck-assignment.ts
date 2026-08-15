@@ -195,6 +195,57 @@ async function externalBookingMetadata(page: Page): Promise<ExternalBookingMetad
   return { bookedAt, channel: online ? "online" : callCenter ? "call_center" : "" };
 }
 
+async function moveAppointmentOnDailySchedule(
+  page: Page,
+  appointmentId: string,
+  appointmentDate: string,
+  requestedTruck: string,
+  startMinutes: number,
+): Promise<boolean> {
+  const dailyScheduleUrl = `${JUNKWARE_ORIGIN}/franchise/daily-schedule.aspx?d=${appointmentDate}`;
+  await page.goto(dailyScheduleUrl, { waitUntil: "domcontentloaded" });
+  if (page.url().toLowerCase().includes(LOGIN_FRAGMENT)) await logIn(page, dailyScheduleUrl);
+
+  const requestedTruckNumber = requestedTruck.match(/\d+/)?.[0] || "";
+  const lane = await page.evaluate((truckNumber) => {
+    const userId = (document.querySelector<HTMLInputElement>("[id$='UserIDHF']")?.value || "").trim();
+    for (const header of Array.from(document.querySelectorAll<HTMLTableCellElement>("table.schedule-table th"))) {
+      const label = (header.innerText || header.textContent || "").replace(/\s+/g, " ").trim();
+      const laneNumber = label.match(/^Truck#?\s*(\d+)\b/i)?.[1] || "";
+      const matches = truckNumber ? laneNumber === truckNumber : /^Virtual Truck\b/i.test(label);
+      if (!matches) continue;
+      const truckId = header.querySelector<HTMLInputElement>(".truck-id")?.value || "";
+      return { truckId: truckId.trim(), userId };
+    }
+    return { truckId: "", userId };
+  }, requestedTruckNumber);
+
+  // A real truck can occasionally be selectable on the appointment form but
+  // absent from the daily board. Let that case use the verified WebForms
+  // fallback; Virtual Truck has no equivalent safe fallback.
+  if (!/^\d+$/.test(lane.truckId) || !/^\d+$/.test(lane.userId)) {
+    if (requestedTruck) return false;
+    throw new Error("The JunkWare Virtual Truck lane is unavailable.");
+  }
+
+  const moveResult = await page.evaluate(async ({ appointmentId: id, truckId, startTime, userId }) => {
+    const response = await fetch("/franchise/daily-schedule.aspx/MoveAppointment", {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ appointmentId: id, truckId, startTime, userId }),
+    });
+    return { ok: response.ok, status: response.status };
+  }, {
+    appointmentId,
+    truckId: lane.truckId,
+    startTime: clockValue(startMinutes),
+    userId: lane.userId,
+  });
+  if (!moveResult.ok) throw new Error(`JunkWare rejected the schedule move (${moveResult.status}).`);
+  return true;
+}
+
 async function main(): Promise<void> {
   const appointmentId = argument("appointment");
   const inspect = process.argv.includes("--inspect");
@@ -319,86 +370,82 @@ async function main(): Promise<void> {
     const beforeTruck = await assignedTruck(page);
     const beforeAppointmentStartMinutes = clockMinutes(await page.locator("#ctl00_Content_StartTimeTB").inputValue());
     const appointmentDate = junkwareDateKey(await page.locator("#ctl00_Content_AppointmentDateTB").inputValue());
+    const durationSelect = page.locator("#ctl00_Content_DurationDD").first();
+    const beforeDurationHours = await durationSelect.count() ? Number(await durationSelect.inputValue()) : null;
+    const truckChanged = beforeTruck !== requestedTruck;
+    const appointmentTimeChanged = requestedStartMinutes != null
+      && beforeAppointmentStartMinutes !== requestedStartMinutes;
+    const durationChanged = appointmentTimeChanged && beforeDurationHours !== durationHours;
     let changed = false;
-    if (beforeTruck !== requestedTruck) {
-      let savedByScheduleMove = false;
+    let savedByScheduleMove = false;
+
+    // JunkWare's daily-board endpoint applies a truck and time together in one
+    // request. Use it whenever duration is unchanged, then reload the detail
+    // page below for authoritative verification. This avoids two sequential
+    // ASP.NET postbacks for the normal Dispatch drag/drop path.
+    if ((truckChanged || appointmentTimeChanged) && !durationChanged) {
+      if (beforeAppointmentStartMinutes == null) throw new Error("The JunkWare appointment time is unavailable.");
       if (requestedTruck) {
         const number = requestedTruck.match(/\d+/)?.[0] || "";
         const targetOption = truckSelect.locator("option", { hasText: new RegExp(`^Truck#\\s*${number}$`, "i") }).first();
         if (!(await targetOption.count())) throw new Error(`${requestedTruck} is not available for this JunkWare appointment.`);
-        const targetValue = await targetOption.getAttribute("value") || "";
-
-        // JunkWare refreshes dependent scheduling controls through an ASP.NET
-        // postback, then expects the truck value again on the final Update.
-        await selectWithWebFormsPostback(page, "#ctl00_Content_TruckDD", targetValue, "the truck selection");
-      } else {
-        if (beforeAppointmentStartMinutes == null) throw new Error("The JunkWare appointment time is unavailable.");
-        const dailyScheduleUrl = `${JUNKWARE_ORIGIN}/franchise/daily-schedule.aspx?d=${appointmentDate}`;
-        await page.goto(dailyScheduleUrl, { waitUntil: "domcontentloaded" });
-        if (page.url().toLowerCase().includes(LOGIN_FRAGMENT)) await logIn(page, dailyScheduleUrl);
-        const virtualLane = await page.evaluate(() => {
-          for (const header of Array.from(document.querySelectorAll<HTMLTableCellElement>("table.schedule-table th"))) {
-            const label = (header.innerText || header.textContent || "").replace(/\s+/g, " ").trim();
-            if (label !== "Virtual Truck") continue;
-            const truckId = header.querySelector<HTMLInputElement>(".truck-id")?.value || "";
-            const userId = (document.querySelector<HTMLInputElement>("[id$='UserIDHF']")?.value || "").trim();
-            return { truckId: truckId.trim(), userId };
-          }
-          return { truckId: "", userId: "" };
-        });
-        if (!/^\d+$/.test(virtualLane.truckId) || !/^\d+$/.test(virtualLane.userId)) {
-          throw new Error("The JunkWare Virtual Truck lane is unavailable.");
-        }
-        const moveResult = await page.evaluate(async ({ appointmentId: id, truckId, startTime, userId }) => {
-          const response = await fetch("/franchise/daily-schedule.aspx/MoveAppointment", {
-            method: "POST",
-            cache: "no-store",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ appointmentId: id, truckId, startTime, userId }),
-          });
-          return { ok: response.ok, status: response.status };
-        }, {
-          appointmentId,
-          truckId: virtualLane.truckId,
-          startTime: clockValue(beforeAppointmentStartMinutes),
-          userId: virtualLane.userId,
-        });
-        if (!moveResult.ok) throw new Error(`JunkWare rejected the Virtual Truck move (${moveResult.status}).`);
-        savedByScheduleMove = true;
-        await page.goto(targetUrl, { waitUntil: "domcontentloaded" });
       }
+      savedByScheduleMove = await moveAppointmentOnDailySchedule(
+        page,
+        appointmentId,
+        appointmentDate,
+        requestedTruck,
+        requestedStartMinutes ?? beforeAppointmentStartMinutes,
+      );
+      if (savedByScheduleMove) {
+        changed = true;
+        await page.goto(targetUrl, { waitUntil: "domcontentloaded" });
+        if (page.url().toLowerCase().includes(LOGIN_FRAGMENT)) await logIn(page, targetUrl);
+        truckSelect = page.locator("#ctl00_Content_TruckDD").first();
+        updateButton = page.locator("#ctl00_Content_SaveAppointmentBtn").first();
+        if (!(await truckSelect.count()) || !(await updateButton.count())) {
+          throw new Error("The JunkWare truck assignment controls changed after the schedule move.");
+        }
+      }
+    }
 
+    if (truckChanged && !savedByScheduleMove) {
+      if (!requestedTruck) throw new Error("The JunkWare Virtual Truck lane is unavailable.");
+      const number = requestedTruck.match(/\d+/)?.[0] || "";
+      const targetOption = truckSelect.locator("option", { hasText: new RegExp(`^Truck#\\s*${number}$`, "i") }).first();
+      if (!(await targetOption.count())) throw new Error(`${requestedTruck} is not available for this JunkWare appointment.`);
+      const targetValue = await targetOption.getAttribute("value") || "";
+
+      // Fallback for a real truck that is selectable on the appointment but is
+      // temporarily absent from the daily schedule board.
+      await selectWithWebFormsPostback(page, "#ctl00_Content_TruckDD", targetValue, "the truck selection");
       if (page.url().toLowerCase().includes(LOGIN_FRAGMENT)) await logIn(page, targetUrl);
       truckSelect = page.locator("#ctl00_Content_TruckDD").first();
       updateButton = page.locator("#ctl00_Content_SaveAppointmentBtn").first();
       if (!(await truckSelect.count()) || !(await updateButton.count())) {
         throw new Error("The JunkWare truck assignment controls changed after selection.");
       }
-
-      if (!savedByScheduleMove) {
-        if (requestedTruck && await assignedTruck(page) !== requestedTruck) {
-          const number = requestedTruck.match(/\d+/)?.[0] || "";
-          const targetOption = truckSelect.locator("option", { hasText: new RegExp(`^Truck#\\s*${number}$`, "i") }).first();
-          if (!(await targetOption.count())) throw new Error(`${requestedTruck} is not available after the JunkWare form refresh.`);
-          const targetValue = await targetOption.getAttribute("value") || "";
-          const selected = await truckSelect.evaluate((node, value) => {
-            const select = node as HTMLSelectElement;
-            select.value = String(value);
-            return select.value;
-          }, targetValue);
-          if (!selected || selected !== targetValue) {
-            throw new Error("The JunkWare truck selection could not be restored before the appointment update.");
-          }
+      if (await assignedTruck(page) !== requestedTruck) {
+        const refreshedOption = truckSelect.locator("option", { hasText: new RegExp(`^Truck#\\s*${number}$`, "i") }).first();
+        if (!(await refreshedOption.count())) throw new Error(`${requestedTruck} is not available after the JunkWare form refresh.`);
+        const refreshedValue = await refreshedOption.getAttribute("value") || "";
+        const selected = await truckSelect.evaluate((node, value) => {
+          const select = node as HTMLSelectElement;
+          select.value = String(value);
+          return select.value;
+        }, refreshedValue);
+        if (!selected || selected !== refreshedValue) {
+          throw new Error("The JunkWare truck selection could not be restored before the appointment update.");
         }
-        await clickWithWebFormsCompletion(page, "#ctl00_Content_SaveAppointmentBtn", "the truck assignment");
       }
+      await clickWithWebFormsCompletion(page, "#ctl00_Content_SaveAppointmentBtn", "the truck assignment");
       changed = true;
     }
 
-    if (requestedStartMinutes != null && beforeAppointmentStartMinutes !== requestedStartMinutes) {
-      let durationSelect = page.locator("#ctl00_Content_DurationDD").first();
-      if (!(await durationSelect.count())) throw new Error("The JunkWare appointment duration control has changed.");
-      if (await durationSelect.inputValue() !== String(durationHours)) {
+    if (requestedStartMinutes != null && appointmentTimeChanged && !savedByScheduleMove) {
+      const currentDurationSelect = page.locator("#ctl00_Content_DurationDD").first();
+      if (!(await currentDurationSelect.count())) throw new Error("The JunkWare appointment duration control has changed.");
+      if (await currentDurationSelect.inputValue() !== String(durationHours)) {
         await selectWithWebFormsPostback(
           page,
           "#ctl00_Content_DurationDD",
@@ -408,7 +455,7 @@ async function main(): Promise<void> {
         if (page.url().toLowerCase().includes(LOGIN_FRAGMENT)) await logIn(page, targetUrl);
       }
 
-      let availableTimes = page.locator("#ctl00_Content_AvailableTimesDD").first();
+      const availableTimes = page.locator("#ctl00_Content_AvailableTimesDD").first();
       const targetValue = clockValue(requestedStartMinutes);
       if (!(await availableTimes.count())) throw new Error("The JunkWare available-times control has changed.");
       if (!(await availableTimes.locator(`option[value="${targetValue}"]`).count())) {

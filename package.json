@@ -21,6 +21,7 @@
     "verify:job-audits": "node --import tsx scripts/test-job-audit-rules.ts",
     "verify:searchkings": "node --import tsx scripts/test-searchkings.ts",
     "verify:junkware-sms": "node --import tsx scripts/test-junkware-sms.ts",
+    "verify:junkware-sync-latency": "node --import tsx scripts/test-junkware-sync-latency.ts",
     "verify:junkware-booking-date": "node --import tsx scripts/test-junkware-booking-date.ts",
     "verify:whatsapp-job-photos": "node --import tsx scripts/test-whatsapp-job-photos.ts",
     "verify:whatsapp-crew-expenses": "node --import tsx scripts/test-whatsapp-crew-expenses.ts",

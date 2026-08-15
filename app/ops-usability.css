@@ -1097,6 +1097,47 @@ body {
   line-height: 1.4;
 }
 
+.ops-mobile-install {
+  display: none;
+}
+
+@media (max-width: 1050px) {
+  .ops-mobile-install {
+    display: block;
+  }
+
+  .ops-mobile-brand .ops-install-app {
+    position: relative;
+  }
+
+  .ops-mobile-brand .ops-install-app-button {
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #f7f8fa;
+    font-size: 0.8rem;
+    font-weight: 800;
+    text-decoration: none;
+  }
+
+  .ops-mobile-brand .ops-install-app-help {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 55;
+    width: min(250px, calc(100vw - 32px));
+    max-width: none;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 8px;
+    background: #11151b;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
+    color: #f2f4f7;
+  }
+}
+
 .ops-status-pill.is-offline {
   color: #ffd9da;
 }

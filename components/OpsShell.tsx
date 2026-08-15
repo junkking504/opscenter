@@ -80,7 +80,9 @@ export default function OpsShell({
         <div className="ops-main-frame">
           <div className="ops-mobile-brand" aria-label="Junk King OpsCenter">
             <JunkKingLogo className="ops-mobile-junk-king-logo" />
-            <span>OpsCenter</span>
+            <div className="ops-mobile-install">
+              <InstallOpsCenter />
+            </div>
           </div>
           <header className="ops-topbar">
             <div className="ops-topbar-identity">

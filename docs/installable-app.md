@@ -8,7 +8,7 @@ launches from the device home screen or dock in its own app window.
 
 Open `https://ops.junk-king.app` and sign in before installing.
 
-- iPhone or iPad: choose **Install App** in the mobile header, then use Safari's
+- iPhone or iPad: tap **Menu**, choose **Install App**, then use Safari's
   **Share > Add to Home Screen** action.
 - Mac Safari: open the sidebar, choose **Install App**, then use
   **File > Add to Dock**.

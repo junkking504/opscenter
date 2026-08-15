@@ -154,6 +154,7 @@ do
   echo ==================================================
   echo "LIVE REFRESH: $TODAY $(TZ=America/Chicago date)"
   PUBLISH_SUCCEEDED=false
+  CURRENT_DATA_REFRESH_SUCCEEDED=false
   CYCLE_COMPLETE=true
 
   if ! network_available; then
@@ -170,6 +171,7 @@ do
       queue_sms_refresh_date "$SMS_DATE"
     done
   else
+    CURRENT_DATA_REFRESH_SUCCEEDED=true
     auto_virtualize_external_bookings "$TODAY" \
       || echo "WARNING: new external-booking Virtual Truck assignment is pending retry."
     python3 "$OPSCENTER_DIR/scripts/reconcile-junkware-monthly.py" \
@@ -251,7 +253,11 @@ do
 
   CYCLE_FINISHED=$(date +%s)
   CYCLE_ELAPSED=$((CYCLE_FINISHED - CYCLE_STARTED))
-  if [ "$PUBLISH_SUCCEEDED" = true ]; then
+  # JunkWare's authoritative refresh cadence must not inherit failures from
+  # downstream publishing or optional integrations. Those systems retain their
+  # last verified snapshots, while the current schedule continues polling on
+  # its normal start-to-start interval.
+  if [ "$CURRENT_DATA_REFRESH_SUCCEEDED" = true ]; then
     CONSECUTIVE_FAILED_CYCLES=0
     SLEEP_SECONDS=$((REFRESH_INTERVAL_SECONDS - CYCLE_ELAPSED))
   else

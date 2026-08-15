@@ -86,6 +86,29 @@ untouched, set `OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER=false` for the deploymen
 command. The default remains to restart the worker when it is loaded so it uses
 the newly active release.
 
+### JunkWare refresh and Dispatch edit latency
+
+The production JunkWare collector targets a three-minute start-to-start cadence
+after the authoritative current-data refresh succeeds. Failures in downstream
+VPS publishing, QBO, Crew Portal, SearchKings, or Slack work retain those
+systems' last verified snapshots but do not put JunkWare polling into backoff.
+During the wait, an authenticated JunkWare notification signal can wake the
+collector within five seconds.
+
+Dispatch truck/time moves use JunkWare's daily-schedule move endpoint when the
+appointment duration is unchanged, then reload the appointment detail page and
+verify both fields. Duration changes and trucks missing from the daily board use
+the slower WebForms fallback and receive the same final verification.
+
+The JunkWare collector is a separately managed process. After deploying a
+release that changes its loop, restart only that LaunchAgent and confirm the
+next successful cycle reports the normal cadence rather than failure backoff:
+
+```sh
+launchctl kickstart -k "gui/$(id -u)/com.openclaw.opsbot.junkware-collector"
+tail -f /Users/missioncontrol/.openclaw/workspace/opsbot/logs/opscenter_safe_background_refresh.log
+```
+
 The WhatsApp job-photo integration has a separate, opt-in worker because it
 performs authenticated JunkWare writes. Follow `docs/whatsapp-job-photos.md`
 to configure Meta credentials and the private truck-phone map, then install

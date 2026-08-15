@@ -14,6 +14,7 @@ built underneath the existing application.
 - [OpsCenter OS Constitution](docs/OPSCENTER_OS_CONSTITUTION.md)
 - [Platform Kernel Architecture](docs/PLATFORM_KERNEL_ARCHITECTURE.md)
 - [Operating Inbox: First Vertical Slice](docs/OPERATING_INBOX_VERTICAL_SLICE.md)
+- [Installable OpsCenter App](docs/installable-app.md)
 
 ## Data Source
 

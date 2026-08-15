@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">OpsCenter</title>
+  <desc id="desc">Junk King Louisiana OpsCenter app icon</desc>
+  <rect width="512" height="512" fill="#07090d"/>
+  <path d="M0 104C0 46.6 46.6 0 104 0h304c57.4 0 104 46.6 104 104v16H0v-16Z" fill="#ed1c24"/>
+  <path d="M0 392h512v16c0 57.4-46.6 104-104 104H104C46.6 512 0 465.4 0 408v-16Z" fill="#00af4c"/>
+  <circle cx="256" cy="256" r="142" fill="#111318" stroke="#e2c675" stroke-width="18"/>
+  <text x="256" y="248" fill="#f7f8fa" font-family="Arial, Helvetica, sans-serif" font-size="126" font-weight="900" letter-spacing="-10" text-anchor="middle">OC</text>
+  <text x="256" y="326" fill="#e2c675" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="800" letter-spacing="9" text-anchor="middle">JKLA</text>
+</svg>

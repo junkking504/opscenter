@@ -3,6 +3,8 @@ import OpsNav from "@/components/OpsNav";
 import OperationsClock from "@/components/OperationsClock";
 import JunkKingLogo from "@/components/JunkKingLogo";
 import AddOnNotifications from "@/components/AddOnNotifications";
+import InstallOpsCenter from "@/components/InstallOpsCenter";
+import NetworkStatus from "@/components/NetworkStatus";
 import TruckCameraController from "@/components/TruckCameraController";
 import { getOpsRuntime } from "@/lib/runtime";
 
@@ -63,17 +65,14 @@ export default function OpsShell({
 
         <div className="ops-sidebar-footer">
           <div className="ops-sidebar-footer-top">
-            <div className="ops-status-pill">
-              <span className="ops-pulse" />
-              Network online
-            </div>
+            <NetworkStatus />
             <span className="ops-sidebar-footer-code">JKLA</span>
           </div>
           {sessionLabel ? <div className="ops-small-muted">Signed In As {sessionLabel}</div> : null}
           <a href="/api/auth/logout" className="ops-mini-link">
             Logout
           </a>
-          <div className="ops-small-muted">Ready for live refresh</div>
+          <InstallOpsCenter />
         </div>
       </aside>
 
@@ -81,7 +80,9 @@ export default function OpsShell({
         <div className="ops-main-frame">
           <div className="ops-mobile-brand" aria-label="Junk King OpsCenter">
             <JunkKingLogo className="ops-mobile-junk-king-logo" />
-            <span>OpsCenter</span>
+            <div className="ops-mobile-install">
+              <InstallOpsCenter />
+            </div>
           </div>
           <header className="ops-topbar">
             <div className="ops-topbar-identity">

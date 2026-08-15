@@ -33,6 +33,7 @@
     "verify:platform-kernel": "node --import tsx scripts/test-platform-kernel.ts",
     "platform:migrate": "node --import tsx scripts/migrate-platform-kernel.ts",
     "verify:ui-copy": "node --import tsx scripts/test-ui-copy.ts",
+    "verify:pwa": "node --import tsx scripts/test-pwa.ts",
     "verify:css-architecture": "node --import tsx scripts/test-css-architecture.ts",
     "verify:accessibility": "node scripts/test-accessibility.mjs",
     "verify:linxup-camera": "node --import tsx scripts/test-linxup-camera.ts",

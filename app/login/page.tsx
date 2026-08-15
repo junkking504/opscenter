@@ -49,6 +49,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
       <section className="ops-login-access-panel">
         <div className="ops-login-access-card">
+          <div className="ops-login-access-brand">
+            <JunkKingLogo className="ops-login-access-logo" />
+            <span>OpsCenter</span>
+          </div>
           <div className="ops-login-access-index">Secure Sign In</div>
           <h2>Enter OpsCenter</h2>
           <p>Enter the shared OpsCenter credentials to continue.</p>

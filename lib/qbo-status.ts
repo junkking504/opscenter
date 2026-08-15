@@ -1,4 +1,5 @@
 import { getQboConfig, qboCurrentConfigSummary } from "@/lib/qbo-config";
+import { getQboPaymentsStatus } from "@/lib/qbo-payments";
 import { getQboTokenStoreStatus } from "@/lib/qbo-token-store";
 
 export function getQboSetupStatus() {
@@ -21,5 +22,6 @@ export function getQboSetupStatus() {
     tokenStore,
     urls: summary.urls,
     publicOrigin: summary.publicOrigin,
+    payments: getQboPaymentsStatus(),
   };
 }

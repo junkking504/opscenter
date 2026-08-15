@@ -21,7 +21,7 @@ export default function QboPage() {
       <PageHeader
         title="QBO Connection"
         subtitle="Connect OpsCenter directly to QuickBooks Online without browser-session scraping."
-        date="2026-07-16"
+        date="2026-08-15"
         showDateSelector={false}
         showRefresh={false}
         status={statusLabel(status.ready, status.connected)}
@@ -70,6 +70,10 @@ export default function QboPage() {
           <div>
             <span>Token storage</span>
             <strong>Encrypted local store</strong>
+          </div>
+          <div>
+            <span>Card payments</span>
+            <strong>{status.payments.canCharge ? "Available in job closeout" : status.payments.enabled ? "Setup incomplete" : "Disabled"}</strong>
           </div>
         </div>
 

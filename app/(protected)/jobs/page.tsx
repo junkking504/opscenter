@@ -3424,7 +3424,7 @@ export default async function JobsPage({
 
                             <JobCloseoutDetails job={job} />
 
-                            <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
+                            <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} jkNumber={job.jkNumber} />
 
                             <details className="ops-appointment-gps-details">
                               <summary>GPS and site time</summary>
@@ -3722,7 +3722,7 @@ export default async function JobsPage({
 
                           <JobCloseoutDetails job={job} />
 
-                          <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
+                          <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} jkNumber={job.jkNumber} />
 
                           <details className="ops-appointment-gps-details">
                             <summary>GPS and site time</summary>

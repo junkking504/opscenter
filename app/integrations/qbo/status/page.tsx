@@ -16,7 +16,7 @@ export default function QboStatusPage() {
       <PageHeader
         title="QBO Connection Status"
         subtitle="Live OAuth configuration and encrypted token status for QuickBooks Online collection."
-        date="2026-07-16"
+        date="2026-08-15"
         showDateSelector={false}
         showRefresh={false}
         status={status.connected ? "Connected" : status.ready ? "Ready to connect" : "Setup incomplete"}
@@ -64,11 +64,23 @@ export default function QboStatusPage() {
             <span>Access token expires</span>
             <strong>{status.tokenStore.masked.expiresAt || "Not connected"}</strong>
           </div>
+          <div>
+            <span>OpsCenter card payments</span>
+            <strong>{status.payments.canCharge ? "Ready" : status.payments.enabled ? "Setup incomplete" : "Disabled"}</strong>
+          </div>
+          <div>
+            <span>Payments environment</span>
+            <strong>{status.payments.environment}{status.payments.environment === "production" && !status.payments.liveChargesAllowed ? " · live charges locked" : ""}</strong>
+          </div>
         </div>
 
         <div className="ops-muted" style={{ marginTop: 16 }}>
           {status.missingConfig.length ? `Missing configuration: ${status.missingConfig.join(", ")}` : "All required setup inputs are present."}
         </div>
+
+        {status.payments.blockers.length ? <div className="ops-alert ops-alert-warning">
+          <strong>Payments setup:</strong> {status.payments.blockers.join(" ")}
+        </div> : null}
 
         <div className="ops-compact-links">
           <Link href="/integrations/qbo">Back to QBO Connection</Link>

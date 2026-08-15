@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import QuickBooksPaymentForm, { type QuickBooksChargeResult } from "@/components/QuickBooksPaymentForm";
 
 type Option = { value: string; label: string };
 type OtherCharge = { label: string; quantity: string; price: string; total: string };
@@ -36,7 +37,7 @@ function inputMoney(value: string): string {
   return String(value || "").replace(/[^0-9.-]/g, "");
 }
 
-export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initialStatus }: { appointmentId: string; appointmentUrl: string; initialStatus: string }) {
+export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initialStatus, jkNumber }: { appointmentId: string; appointmentUrl: string; initialStatus: string; jkNumber: string }) {
   const resolvedAppointmentId = appointmentId || String(appointmentUrl || "").match(/[?&]id=(\d{1,12})(?:&|$)/i)?.[1] || "";
   const [live, setLive] = useState<LiveCloseout | null>(null);
   const [loading, setLoading] = useState(false);
@@ -127,6 +128,20 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
 
   function removePendingOtherCharge(clientId: string) {
     setPendingOtherCharges((current) => current.filter((charge) => charge.clientId !== clientId));
+  }
+
+  function prepareCapturedQuickBooksPayment(charge: QuickBooksChargeResult) {
+    if (!live) return;
+    const creditCardMethod = live.paymentMethods.find((option) => /credit\s*card/i.test(option.label));
+    if (!creditCardMethod?.value) {
+      setError(`QuickBooks captured $${charge.amount}, but JunkWare does not currently offer a Credit Card payment method. Record the charge ${charge.chargeId} manually before closing this job.`);
+      return;
+    }
+    setAddPayment(true);
+    setPaymentMethod(creditCardMethod.value);
+    setPaymentAmount(charge.amount);
+    setError("");
+    setMessage(`QuickBooks captured $${charge.amount}${charge.cardLastFour ? ` ending ${charge.cardLastFour}` : ""}. Credit Card is prepared below; save the closeout to verify it in JunkWare.`);
   }
 
   async function save() {
@@ -300,6 +315,12 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
             <section className="ops-closeout-editor-section">
               <h4>Payments</h4>
               {live.payments.length ? <div className="ops-closeout-payments">{live.payments.map((payment, index) => <div key={`payment-${index}`}><span>{payment.description}</span><strong>{payment.amount}</strong></div>)}</div> : <p>No payment has been entered in Junkware.</p>}
+              <QuickBooksPaymentForm
+                appointmentId={resolvedAppointmentId}
+                jkNumber={jkNumber}
+                suggestedAmount={inputMoney(live.balance) || inputMoney(live.total)}
+                onCharged={prepareCapturedQuickBooksPayment}
+              />
               <label className="ops-closeout-payment-toggle"><input type="checkbox" checked={addPayment} onChange={(event) => setAddPayment(event.target.checked)} /> <span>Add a payment</span></label>
               {addPayment ? <div className="ops-closeout-payment-entry">
                 <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>{live.paymentMethods.map((option) => <option key={`payment-method-${option.value}`} value={option.value}>{option.label || "Choose method"}</option>)}</select>

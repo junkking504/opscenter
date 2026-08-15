@@ -34,8 +34,14 @@ Matching is one-to-one and intentionally conservative:
 
 ## Security and safety
 
-- The collector uses read-only GET queries and never creates, changes, deletes, refunds, or posts a QBO transaction.
+- The reconciliation collector uses read-only GET queries and never creates, changes, deletes, refunds, or posts a QBO transaction.
 - OAuth tokens are encrypted with AES-256-GCM and stored outside Git with mode 0600.
 - The encryption key and Intuit application credentials are loaded from macOS Keychain and are never logged.
 - A failed refresh retains the last verified reconciliation and reports the API error; it never labels stale totals as current.
 - Disconnect revokes the Intuit refresh token before clearing the encrypted local token file.
+
+## Optional OpsCenter card collection
+
+The job-closeout payment form is a separate, feature-gated write path. It is disabled by default and does not change the read-only reconciliation collector. When enabled, the browser tokenizes card data directly with Intuit and the server submits the opaque token with a stable request ID. Runtime audit records link the resulting charge reference to the appointment and JK number without retaining the card number, security code, billing address, or Intuit card token.
+
+A captured charge only prepares the corresponding Credit Card entry in the open JunkWare closeout. The operator must still save and verify the closeout in JunkWare. Until that verified save occurs, QuickBooks is authoritative for the captured charge and OpsCenter must not imply that JunkWare was updated.

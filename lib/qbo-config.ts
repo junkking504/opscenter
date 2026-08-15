@@ -15,7 +15,7 @@ export const QBO_ROUTE_PATHS = {
 } as const;
 
 export const QBO_ACCOUNTING_SCOPE = "com.intuit.quickbooks.accounting";
-export const QBO_SCOPES = [QBO_ACCOUNTING_SCOPE] as const;
+export const QBO_PAYMENT_SCOPE = "com.intuit.quickbooks.payment";
 export const QBO_STATE_COOKIE = "opscenter_qbo_oauth_state";
 
 export type IntuitEnvironment = "sandbox" | "production";
@@ -32,7 +32,12 @@ export type QboConfig = {
   tokenStoreDir: string;
   encryptionKey: string;
   scopes: readonly string[];
+  paymentsEnabled: boolean;
 };
+
+function enabled(value: string | undefined): boolean {
+  return /^(1|true|yes|on)$/i.test(String(value || "").trim());
+}
 
 function normalizeEnvironment(value: string | undefined): IntuitEnvironment {
   return String(value || "").toLowerCase() === "sandbox" ? "sandbox" : "production";
@@ -50,6 +55,10 @@ export function getQboConfig(): QboConfig {
   const supportEmail = String(process.env.QBO_SUPPORT_EMAIL || "").trim() || null;
   const expectedCompanyName = String(process.env.QBO_EXPECTED_COMPANY_NAME || "").trim() || null;
   const encryptionKey = String(process.env.QBO_TOKEN_ENCRYPTION_KEY || "").trim();
+  const paymentsEnabled = enabled(process.env.QBO_PAYMENTS_ENABLED);
+  const scopes = paymentsEnabled
+    ? [QBO_ACCOUNTING_SCOPE, QBO_PAYMENT_SCOPE]
+    : [QBO_ACCOUNTING_SCOPE];
   const missing = [
     clientId ? "" : "INTUIT_CLIENT_ID",
     clientSecret ? "" : "INTUIT_CLIENT_SECRET",
@@ -68,7 +77,8 @@ export function getQboConfig(): QboConfig {
     expectedCompanyName,
     tokenStoreDir: QBO_TOKEN_STORE_DIR,
     encryptionKey,
-    scopes: QBO_SCOPES,
+    scopes,
+    paymentsEnabled,
   };
 }
 
@@ -105,6 +115,7 @@ export function qboCurrentConfigSummary() {
     },
     environment: config.environment,
     scopes: config.scopes,
+    paymentsEnabled: config.paymentsEnabled,
     ready: config.ready,
     missing: config.missing,
     redirectUri: config.redirectUri,

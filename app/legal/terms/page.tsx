@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 export const metadata = {
   title: "Terms of Use | OpsCenter",
-  description: "Terms of use for the internal OpsCenter reporting tool.",
+  description: "Terms of use for the internal OpsCenter operations and payments tool.",
 };
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
@@ -20,8 +20,8 @@ export default function TermsPage() {
     <div className="ops-dashboard">
       <PageHeader
         title="Terms of Use / EULA"
-        subtitle="OpsCenter is an internal business tool for operations and financial reporting."
-        date="2026-07-16"
+        subtitle="OpsCenter is an internal business tool for operations, reporting, and authorized payments."
+        date="2026-08-15"
         showDateSelector={false}
         showRefresh={false}
       />
@@ -44,6 +44,14 @@ export default function TermsPage() {
         <p>
           The application is provided on an as-available basis. Operational decisions remain the responsibility of the business owner and
           authorized users.
+        </p>
+      </Section>
+
+      <Section title="Payment authorization">
+        <p>
+          Only authorized internal operators may submit a payment. Before charging a card, the operator must verify the selected job, amount,
+          customer authorization, and payment result. An uncertain result must be reviewed in QuickBooks before another charge is attempted.
+          Refunds, voids, and payment adjustments are not authorized by this payment form.
         </p>
       </Section>
 

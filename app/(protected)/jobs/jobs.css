@@ -273,6 +273,22 @@
   width: 100%;
 }
 
+.ops-jobs-page .ops-qbo-payment-form {
+  border-color: #9ac8b7;
+  background: #f1fbf7;
+}
+
+.ops-jobs-page .ops-qbo-payment-form > summary { color: #145c45; }
+.ops-jobs-page .ops-qbo-payment-body :where(label > span, p, .ops-qbo-payment-unavailable) { color: #44505d !important; }
+.ops-jobs-page .ops-qbo-payment-body :where(input:not([type="checkbox"]), select) {
+  border-color: #aeb9c5;
+  background: #fff;
+  color: #17212b;
+}
+.ops-jobs-page .ops-qbo-confirmation > span { color: #263441 !important; }
+.ops-jobs-page .ops-qbo-payment-unavailable strong { color: #17212b; }
+.ops-jobs-page .ops-qbo-payment-unavailable a { color: #174f7a; }
+
 .ops-jobs-page .ops-appointment-detail-grid {
   gap: 5px 12px;
   padding: 6px 0 0;

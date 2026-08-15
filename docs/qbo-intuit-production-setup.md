@@ -1,6 +1,6 @@
 # OpsCenter QuickBooks Online production setup worksheet
 
-This worksheet covers the Intuit Developer app that connects QuickBooks Online Accounting to OpsCenter. Merchant Center and the QuickBooks Payments API are not used.
+This worksheet covers the Intuit Developer app that connects QuickBooks Online Accounting to OpsCenter. Merchant Center is not used. QuickBooks Payments is an optional, feature-gated extension that must be verified in sandbox before live charging is separately unlocked.
 
 ## Proposed app identity
 
@@ -12,7 +12,7 @@ This worksheet covers the Intuit Developer app that connects QuickBooks Online A
 | Industry / category | Accounting (recommended) | Codex-derived recommendation | Use the closest available Intuit category for accounting / financial software. If Intuit presents a different list, choose the closest equivalent and note the final choice. |
 | Intended users | Internal employees and authorized business owners only | Codex-derived | OpsCenter is not intended for external customer access. |
 | Distribution | Private / unlisted internal-use application | Codex-derived | This is an internal tool, not a public consumer app. |
-| QuickBooks scopes | Accounting | OpsCenter requirement | OpsCenter reads QBO payments and sales receipts; Merchant Center is not used. |
+| QuickBooks scopes | Accounting; Payments only when the payment feature is enabled | OpsCenter requirement | Enabling Payments changes OAuth consent and requires the company to reconnect. |
 | Intuit sign-in / OpenID | Not required for this setup phase | Codex-derived | Only add if Intuit later requires it. |
 
 ## Public URLs
@@ -43,15 +43,23 @@ These variables are used by the server-side QBO scaffold. No real values are sto
 | `QBO_SUPPORT_EMAIL` | Recommended | User unless already present in deployment config | Support/contact email displayed on the support page and setup pages. |
 | `QBO_EXPECTED_COMPANY_NAME` | Recommended after first authorization | User confirms | Pins scheduled collection to the intended QBO company name. |
 | `QBO_TOKEN_STORE_DIR` | Optional | User or deployment config | Overrides the default local Mac-hosted token storage directory. |
+| `QBO_PAYMENTS_ENABLED` | No; defaults off | User after sandbox verification | Adds the Payments OAuth scope and exposes the card-payment workflow. |
+| `QBO_PAYMENTS_ALLOW_LIVE_CHARGES` | No; defaults off | User after production approval | Required in addition to `QBO_PAYMENTS_ENABLED` when `INTUIT_ENVIRONMENT=production`. |
+| `QBO_PAYMENTS_RECAPTCHA_SITE_KEY` | Required for payments | User | Public reCAPTCHA site key shown by the payment form. |
+| `QBO_PAYMENTS_RECAPTCHA_SECRET` | Required for payments | Mission Control Keychain | Server-side reCAPTCHA verification secret; never returned to the browser. |
+| `QBO_PAYMENTS_MAX_AMOUNT` | Optional | User | Per-charge ceiling; defaults to `$10,000.00`. |
+| `QBO_PAYMENTS_AUDIT_DIR` | Optional | Deployment config | Runtime-only payment request/audit records; defaults under OpsBot data outside Git. |
 
 ## Data access explanation
 
-OpsCenter uses QuickBooks Online data only for internal reporting:
+OpsCenter uses QuickBooks Online data for internal reporting and, when separately enabled, authorized payment processing:
 
 - sales and collections reconciliation
 - finance summaries
 - payroll-support calculations
 - historical audit views
+
+When the optional Payments feature is enabled, authorized internal operators can also submit a tokenized card charge for a specific JunkWare appointment. Card details go from the operator's browser directly to Intuit's token endpoint. OpsCenter receives a short-lived token and retains only the request ID, charge reference, amount, status, card last four, operator identity, and linked appointment/JK number.
 
 The app does not expose the data to third-party customers and is not designed as a resale product.
 
@@ -61,6 +69,8 @@ The app does not expose the data to third-party customers and is not designed as
 - The token store is designed to live outside the Git repository.
 - Token writes should use atomic replacement and restrictive file permissions.
 - The token store is encrypted with AES-256-GCM and uses atomic writes with restrictive permissions.
+- Payment audit records remain outside Git under the protected OpsBot data tree with mode 0600 files.
+- Card numbers, security codes, billing details, and Intuit card tokens are not written to the payment audit store.
 
 ## Revocation / disconnect
 
@@ -79,6 +89,10 @@ The disconnect flow should:
 - AES-256-GCM encryption for the token store, with the encryption key in macOS Keychain
 - no secrets logged by setup, status, collector, or refresh paths
 - public access limited to the Intuit-required connect, callback, legal, support, and disconnect landing routes
+- stable per-attempt Intuit request IDs for duplicate-charge prevention
+- reCAPTCHA verification before the server submits a charge
+- sandbox-first and separate live-charge feature gates
+- successful charges prefill the JunkWare closeout but require an explicit verified JunkWare save
 
 ## Remaining unanswered questions
 
@@ -88,7 +102,9 @@ The disconnect flow should:
 | Support email to publish publicly | User must supply unless already configured in the environment |
 | Final Intuit category selection | User must confirm |
 | Whether the final production token store should use encryption in addition to file permissions | Resolved: AES-256-GCM plus mode 0600 |
-| Whether the app will need QuickBooks Payments | Resolved: no; this workflow uses QBO Accounting only |
+| Whether the app will need QuickBooks Payments | Resolved: optional; sandbox-first and disabled by default |
+| Intuit production approval for Payments scope | User must confirm before live charging is unlocked |
+| Production reCAPTCHA site and secret keys | User must supply before payments are enabled |
 
 ## User-only checklist
 
@@ -102,3 +118,6 @@ The following actions require the business owner:
 6. Answer any ownership or security review questions from Intuit.
 7. Store the Client ID, Client Secret, and generated token-encryption key in the Mission Control login Keychain.
 8. Approve the one-time QBO connection with the Accounting scope and select the intended company.
+9. For Payments, enable the scope in Intuit, complete any additional compliance review, configure reCAPTCHA, and reconnect the company.
+10. Verify tokenization, duplicate prevention, declined-card handling, uncertain-result recovery, and audit records in sandbox.
+11. Set `QBO_PAYMENTS_ALLOW_LIVE_CHARGES=1` only after the production Payments scope and merchant account are confirmed.

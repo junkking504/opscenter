@@ -5558,6 +5558,49 @@ a.ops-jobs-map-selection-phone:focus-visible {
 .ops-closeout-editor-message.success { background: rgba(16, 185, 129, .14); color: #6ee7b7; }
 .ops-closeout-editor-message.error { background: rgba(239, 68, 68, .14); color: #fca5a5; }
 
+.ops-qbo-payment-form {
+  border: 1px solid rgba(16, 185, 129, .34);
+  border-radius: 9px;
+  background: rgba(6, 78, 59, .14);
+}
+.ops-qbo-payment-form > summary {
+  min-height: 44px;
+  padding: 11px 12px;
+  cursor: pointer;
+  list-style: none;
+  color: #a7f3d0;
+  font-size: 14px;
+  line-height: 1.4;
+  font-weight: 850;
+}
+.ops-qbo-payment-form > summary::-webkit-details-marker { display: none; }
+.ops-qbo-payment-form > summary::before { content: "+"; display: inline-block; width: 18px; }
+.ops-qbo-payment-form[open] > summary::before { content: "−"; }
+.ops-qbo-payment-body { display: grid; gap: 10px; padding: 0 12px 12px; }
+.ops-qbo-payment-body form { display: grid; gap: 10px; }
+.ops-qbo-environment {
+  width: fit-content;
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: rgba(220, 38, 38, .2);
+  color: #fecaca;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .045em;
+}
+.ops-qbo-environment.sandbox { background: rgba(245, 158, 11, .18); color: #fde68a; }
+.ops-qbo-payment-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ops-qbo-payment-grid .wide { grid-column: span 2; }
+.ops-qbo-confirmation { display: grid !important; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px; }
+.ops-qbo-confirmation > input { margin-top: 3px; }
+.ops-qbo-confirmation > span { margin: 0 !important; color: #e2e8f0 !important; }
+.ops-qbo-recaptcha { min-height: 78px; }
+.ops-qbo-payment-note { color: #a7b4c5 !important; font-size: 12px !important; }
+.ops-qbo-payment-unavailable { display: grid; gap: 7px; color: #cbd5e1; font-size: 13px; line-height: 1.45; }
+.ops-qbo-payment-unavailable strong { color: #f8fafc; }
+.ops-qbo-payment-unavailable ul { margin: 0; padding-left: 19px; }
+.ops-qbo-payment-unavailable a { color: #93c5fd; font-weight: 800; }
+
 @media (max-width: 720px) {
   .ops-closeout-editor-heading,
   .ops-closeout-editor-grid { grid-template-columns: 1fr; }
@@ -5565,6 +5608,8 @@ a.ops-jobs-map-selection-phone:focus-visible {
   .ops-closeout-charge-entry > .ops-button { grid-column: 1 / -1; }
   .ops-closeout-time-grid { grid-template-columns: 1fr 1fr; }
   .ops-closeout-time-grid > span { grid-column: 1 / -1; }
+  .ops-qbo-payment-grid { grid-template-columns: 1fr 1fr; }
+  .ops-qbo-payment-grid .wide { grid-column: 1 / -1; }
 }
 
 /* Daily overview: a fuller scorecard without turning the operating brief into a wall of cards. */

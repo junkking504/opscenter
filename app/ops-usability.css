@@ -1160,3 +1160,42 @@ body {
   outline-offset: 3px !important;
   box-shadow: 0 0 0 5px rgba(79, 127, 168, 0.2) !important;
 }
+
+/* At tablet widths, a fixed six-item dock obscures the lower portion of maps,
+ * tables, and cards. The Menu control remains available at the top of every
+ * page, so let the primary navigation occupy its own document space here.
+ * Keep the persistent dock for actual phone widths, where it is the practical
+ * way to switch workspaces without opening the drawer. */
+@media (min-width: 721px) and (max-width: 1050px) {
+  .ops-main {
+    padding-bottom: 18px;
+  }
+
+  .ops-bottom-nav {
+    position: static;
+    width: auto;
+    margin: 0 12px calc(12px + env(safe-area-inset-bottom));
+  }
+}
+
+/* Secondary navigation must expose every section on a phone. A wrapped grid
+ * is more legible than a hidden horizontal rail, especially when a badge is
+ * present on the active Crew, Dispatch, or Marketing section. */
+@media (max-width: 720px) {
+  .ops-page-subnav {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+
+  .ops-page-subnav a {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    justify-content: center;
+    padding: 8px;
+    text-align: center;
+    white-space: normal;
+  }
+}

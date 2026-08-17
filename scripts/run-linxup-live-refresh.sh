@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 USER_HOME="${HOME:?HOME must be set}"
 OPSBOT_DIR="${OPSBOT_DIR:-$USER_HOME/.openclaw/workspace/opsbot}"
+OPSCENTER_DIR="${OPSCENTER_DIR:-$USER_HOME/opscenter-v2/opscenter}"
 TARGET_DATE="${1:-$(TZ=America/Chicago date +%F)}"
 LOCK_DIR="$OPSBOT_DIR/tmp/linxup_live_refresh.lock"
 MAP_FILE="$OPSBOT_DIR/data/config/linxup_vehicle_map.json"
@@ -45,5 +46,16 @@ python3 scripts/collect_linxup_location_history.py --date "$TARGET_DATE"
 python3 scripts/seed_local_appointment_geocodes.py --date "$TARGET_DATE"
 python3 scripts/match_linxup_appointment_visits.py --date "$TARGET_DATE"
 python3 scripts/validate_linxup_appointment_visits.py --date "$TARGET_DATE"
+
+if [ -f "$OPSCENTER_DIR/.env.slack.local" ]; then
+  set -a
+  . "$OPSCENTER_DIR/.env.slack.local"
+  set +a
+fi
+if [[ "${SLACK_OPSCENTER_ALERTS_ENABLED:-false}" =~ ^(1|true|yes|on)$ ]]; then
+  node --import tsx "$OPSCENTER_DIR/scripts/publish-slack-alerts.ts" \
+    --date "$TARGET_DATE" \
+    --only truck_arrival
+fi
 
 echo "LinxUp live refresh completed at $(TZ=America/Chicago date '+%Y-%m-%d %H:%M:%S %Z')."

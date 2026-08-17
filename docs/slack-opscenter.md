@@ -1,6 +1,6 @@
 # OpsCenter Slack alerts
 
-OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. The normal interval is five minutes, with faster retries while a source is unavailable. Slack is the action and escalation layer; OpsCenter remains the source of truth.
+OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. The normal interval is five minutes, with faster retries while a source is unavailable. Confirmed LinxUp truck-arrival alerts are published separately by the one-minute LinxUp collector, immediately after visit matching; they do not wait for JunkWare, QBO, Crew Portal, or VPS work. Slack is the action and escalation layer; OpsCenter remains the source of truth.
 
 ## Routing policy
 

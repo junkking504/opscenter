@@ -1,8 +1,10 @@
 import { cookies } from "next/headers";
+import { execFileSync } from "node:child_process";
 import { NextResponse } from "next/server";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
 import { withJunkwareAppointmentSyncLock } from "@/lib/job-route-assignments";
 import { junkwareJobCloseout } from "@/lib/junkware-job-closeout";
+import { publishVerifiedTruckCloseout } from "@/lib/slack-alerts";
 
 async function authenticated() {
   const cookieStore = await cookies();
@@ -10,6 +12,39 @@ async function authenticated() {
 }
 function appointmentId(request: Request, body?: Record<string, unknown>) {
   return String(body?.appointmentId || new URL(request.url).searchParams.get("appointmentId") || "").trim();
+}
+
+function loadSlackBotTokenFromKeychain(): void {
+  if (String(process.env.SLACK_BOT_TOKEN || "").trim() || process.platform !== "darwin") return;
+  try {
+    const token = execFileSync(
+      "/usr/bin/security",
+      ["find-generic-password", "-a", "opscenter", "-s", "com.opscenter.slack-bot-token", "-w"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+    ).trim();
+    if (token.startsWith("xoxb-")) process.env.SLACK_BOT_TOKEN = token;
+  } catch {
+    // The regular collector will retry a closeout alert when the credential is unavailable.
+  }
+}
+
+async function publishVerifiedCloseout(result: Record<string, unknown>, id: string) {
+  const closeout = result.closeout && typeof result.closeout === "object"
+    ? result.closeout as Record<string, unknown>
+    : null;
+  if (!closeout) return null;
+  loadSlackBotTokenFromKeychain();
+  try {
+    return await publishVerifiedTruckCloseout({
+      appointmentId: id,
+      jobNumber: String(closeout.jobNumber || ""),
+      truck: String(closeout.truck || ""),
+      closeout,
+    });
+  } catch {
+    // Slack delivery is never allowed to turn a verified JunkWare closeout into a failed save.
+    return null;
+  }
 }
 
 export async function GET(request: Request) {
@@ -33,7 +68,8 @@ export async function POST(request: Request) {
   try {
     const { appointmentId: _ignored, ...payload } = body;
     const result = await withJunkwareAppointmentSyncLock(id, () => junkwareJobCloseout(id, payload));
-    return NextResponse.json(result, { headers: { "Cache-Control": "no-store, max-age=0" } });
+    const slackNotification = await publishVerifiedCloseout(result as Record<string, unknown>, id);
+    return NextResponse.json({ ...result, slackNotification }, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "JunkWare could not save the closeout." }, { status: 502 });
   }

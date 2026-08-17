@@ -1,6 +1,6 @@
 # OpsCenter Slack alerts
 
-OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. The normal interval is five minutes, with faster retries while a source is unavailable. Confirmed LinxUp truck-arrival alerts are published separately by the one-minute LinxUp collector, immediately after visit matching; they do not wait for JunkWare, QBO, Crew Portal, or VPS work. Slack is the action and escalation layer; OpsCenter remains the source of truth.
+OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. Confirmed LinxUp truck-arrival alerts are published separately by the one-minute LinxUp collector, immediately after visit matching. New appointments, reschedules, cancellations, and closeouts are also checked by a separate one-minute verified JunkWare schedule detector; it reads schedule pages only and does not wait for detail pages, GPS, payroll, QBO, Crew Portal, marketing, or VPS work. Slack is the action and escalation layer; OpsCenter remains the source of truth.
 
 ## Routing policy
 
@@ -27,7 +27,7 @@ The first live run records existing appointments, existing cancellations, and cu
 
 Crew lifecycle notifications are also baselined once when the feature is first deployed. After that baseline, each employee receives at most one clock-in, clock-out, and finalized-pay notification per day. The messages are intentionally plain: clock-in states only that the employee clocked in; clock-out adds only hours worked; finalized pay lists total pay, hourly pay, tips, and bonuses.
 
-Truck closeout and payment-detail notifications are baselined independently when each feature is first deployed so existing completed jobs do not flood either channel. After that baseline, each completed appointment is posted at most once per destination. A payment detail is held for retry until its closeout includes a payment line, which prevents an incomplete scrape from permanently omitting the requested payment details. Messages contain only the JK number, payment details, and a positive tip amount; they do not include customer data or a full card number.
+The first schedule-detector run also baselines silently, then posts each new appointment, reschedule, cancellation, and closeout once. It considers a scrape valid only after JunkWare has confirmed the requested date and all four markets, preventing partial results from creating false operational alerts. Truck closeout and payment-detail notifications are baselined independently when each feature is first deployed so existing completed jobs do not flood either channel. A payment detail is held for retry until its closeout includes a payment line, which prevents an incomplete scrape from permanently omitting the requested payment details. Messages contain only the JK number, payment details, and a positive tip amount; they do not include customer data or a full card number.
 
 Appointments that remain open after their scheduled window stay visible in OpsCenter but do not generate Slack alerts or resolution replies.
 

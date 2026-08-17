@@ -92,6 +92,21 @@ export type SlackAlertRunResult = {
   preview: SlackOpsAlert[];
 };
 
+export type VerifiedTruckCloseout = {
+  appointmentId: string;
+  jobNumber: string;
+  truck: string;
+  closeout: AnyRecord;
+  date?: string;
+};
+
+export type VerifiedTruckCloseoutPublishResult = {
+  attempted: boolean;
+  posted: boolean;
+  duplicate: boolean;
+  reason?: string;
+};
+
 const DEFAULT_CHANNELS = {
   command: "C0BNMDJNYV9",
   dispatch: "C0BNRMD25AS",
@@ -760,6 +775,63 @@ async function postSlackMessage(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+/**
+ * Publish the truck-channel closeout as part of a verified OpsCenter write.
+ *
+ * The regular collector remains the authoritative retry path. This fast path
+ * exists so a successfully verified closeout is not delayed behind unrelated
+ * GPS, payroll, accounting, marketing, and VPS refresh work.
+ */
+export async function publishVerifiedTruckCloseout(
+  input: VerifiedTruckCloseout,
+): Promise<VerifiedTruckCloseoutPublishResult> {
+  if (!boolEnv("SLACK_OPSCENTER_ALERTS_ENABLED")) {
+    return { attempted: false, posted: false, duplicate: false, reason: "Slack alerts are disabled." };
+  }
+
+  const appointmentId = String(input.appointmentId || "").trim();
+  const jobNumber = String(input.jobNumber || "").trim();
+  const truck = String(input.truck || "").trim();
+  const truckNumber = normalizeSlackTruckNumber(truck);
+  if (!appointmentId || !jobNumber || !truckNumber) {
+    return { attempted: false, posted: false, duplicate: false, reason: "Verified closeout has no mapped truck or job number." };
+  }
+
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(input.date || ""))
+    ? String(input.date)
+    : chicagoDateKey();
+  const fingerprint = `job_closed:${date}:appt-${appointmentId.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
+  const state = readState();
+  const delivered = new Set(state.deliveredTruckCloseoutsByDate[date] || []);
+  if (delivered.has(fingerprint)) return { attempted: false, posted: false, duplicate: true };
+
+  const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
+  if (!token) return { attempted: false, posted: false, duplicate: false, reason: "Slack bot token is unavailable." };
+
+  const row: AnyRecord = {
+    appt_id: appointmentId,
+    job_id: jobNumber,
+    truck,
+    job_status: "Complete",
+    closeout: input.closeout,
+  };
+  const [alert] = buildTruckCloseoutSlackNotifications(date, [row]);
+  if (!alert) return { attempted: false, posted: false, duplicate: false, reason: "Verified closeout could not be formatted." };
+
+  const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
+  if (!response.ok || !response.ts) {
+    return { attempted: true, posted: false, duplicate: false, reason: response.error || "Slack did not return a message timestamp." };
+  }
+
+  delivered.add(fingerprint);
+  state.truckCloseoutNotificationsInitializedAt ||= new Date().toISOString();
+  state.deliveredTruckCloseoutsByDate[date] = Array.from(delivered);
+  state.deliveredTruckCloseoutsByDate = pruneTruckCloseoutDates(state.deliveredTruckCloseoutsByDate);
+  state.updatedAt = new Date().toISOString();
+  writeState(state);
+  return { attempted: true, posted: true, duplicate: false };
 }
 
 async function runTruckArrivalSlackAlerts(options: {

@@ -1199,3 +1199,82 @@ body {
     white-space: normal;
   }
 }
+
+/* A page header has four distinct jobs: identify the page, hold its controls,
+ * report freshness, and switch sections. Keep those jobs in fixed grid rows
+ * instead of allowing the legacy header variants to auto-place them together.
+ * This prevents the freshness line from sitting beneath tabs on Crew and
+ * prevents Dispatch controls from looking detached from their page. */
+@media (min-width: 901px) {
+  .ops-main .ops-page-header.has-subnav {
+    grid-template-columns: minmax(260px, 1fr) auto;
+    grid-template-rows: auto auto auto;
+    align-items: center;
+    min-height: 0;
+    height: auto;
+    overflow: visible;
+    gap: 8px 16px;
+  }
+
+  .ops-main .ops-page-header.has-subnav .ops-page-header-copy {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  .ops-main .ops-page-header.has-subnav .ops-page-header-controls {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .ops-main .ops-page-header.has-subnav .ops-page-header-meta {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    align-self: center;
+    margin: 0;
+  }
+
+  .ops-main .ops-page-header.has-subnav .ops-page-subnav {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    align-self: stretch;
+    margin: 0;
+    padding: 8px 0 0;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 900px) {
+  .ops-main .ops-page-header.has-subnav {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto;
+    min-height: 0;
+    height: auto;
+    overflow: visible;
+    gap: 10px;
+  }
+
+  .ops-main .ops-page-header.has-subnav :is(
+    .ops-page-header-copy,
+    .ops-page-header-controls,
+    .ops-page-header-meta,
+    .ops-page-subnav
+  ) {
+    grid-column: 1;
+    margin: 0;
+  }
+
+  .ops-main .ops-page-header.has-subnav .ops-page-header-copy { grid-row: 1; }
+  .ops-main .ops-page-header.has-subnav .ops-page-header-controls {
+    grid-row: 2;
+    justify-content: flex-start;
+  }
+  .ops-main .ops-page-header.has-subnav .ops-page-header-meta { grid-row: 3; }
+  .ops-main .ops-page-header.has-subnav .ops-page-subnav {
+    grid-row: 4;
+    padding: 8px 0 0;
+  }
+}

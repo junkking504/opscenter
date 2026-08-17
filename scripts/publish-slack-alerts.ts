@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
-import { runSlackOpsAlerts } from "@/lib/slack-alerts";
+import fs from "node:fs";
+import path from "node:path";
+import { runSlackOpsAlerts, type SlackAlertKind } from "@/lib/slack-alerts";
 
 function argumentValue(name: string): string | undefined {
   const index = process.argv.indexOf(name);
@@ -20,13 +22,45 @@ function loadSlackBotTokenFromKeychain(): void {
   }
 }
 
+function selectedKinds(): SlackAlertKind[] | undefined {
+  const value = argumentValue("--only");
+  if (!value) return undefined;
+  const kinds = value.split(",").map((kind) => kind.trim()).filter(Boolean);
+  if (kinds.length !== 1 || kinds[0] !== "truck_arrival") {
+    throw new Error("--only supports truck_arrival only.");
+  }
+  return ["truck_arrival"];
+}
+
+function withPublishLock<T>(callback: () => Promise<T>): Promise<T | undefined> {
+  const stateFile = String(process.env.SLACK_OPSCENTER_STATE_FILE || "").trim()
+    || path.join(process.cwd(), "data", "slack", "ops_alert_state.json");
+  const lockDirectory = path.join(path.dirname(stateFile), ".ops_alert_publish.lock");
+  fs.mkdirSync(path.dirname(lockDirectory), { recursive: true });
+  try {
+    fs.mkdirSync(lockDirectory);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+      console.log("Slack alert publish skipped because another publisher is active.");
+      return Promise.resolve(undefined);
+    }
+    throw error;
+  }
+
+  return callback().finally(() => {
+    fs.rmSync(lockDirectory, { recursive: true, force: true });
+  });
+}
+
 async function main() {
   loadSlackBotTokenFromKeychain();
   const dryRun = process.argv.includes("--dry-run");
-  const result = await runSlackOpsAlerts({
+  const result = await withPublishLock(() => runSlackOpsAlerts({
     date: argumentValue("--date"),
     dryRun,
-  });
+    onlyKinds: selectedKinds(),
+  }));
+  if (!result) return;
 
   if (dryRun) {
     console.log(JSON.stringify(result, null, 2));

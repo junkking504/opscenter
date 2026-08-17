@@ -590,9 +590,10 @@ export function buildPaymentCloseoutSlackNotifications(date: string, rows: AnyRe
 }
 
 function readTruckArrivalVisitRows(date: string): AnyRecord[] {
+  const dataDirectory = String(process.env.OPSCENTER_DATA_DIR || "").trim()
+    || path.join(process.cwd(), "data");
   const file = path.join(
-    process.cwd(),
-    "data",
+    dataDirectory,
     "history",
     "linxup",
     "appointment_visits",
@@ -708,6 +709,24 @@ export function formatSlackAlert(alert: SlackOpsAlert): string {
   ].join("\n");
 }
 
+function slackAlertRunResult(date: string, dryRun: boolean, enabled: boolean, preview: SlackOpsAlert[]): SlackAlertRunResult {
+  return {
+    enabled,
+    dryRun,
+    date,
+    bootstrappedAddOns: 0,
+    bootstrappedCancellations: 0,
+    bootstrappedIncidents: 0,
+    bootstrappedTruckCloseouts: 0,
+    bootstrappedPayments: 0,
+    posted: [],
+    resolved: [],
+    unchanged: 0,
+    failures: [],
+    preview,
+  };
+}
+
 async function postSlackMessage(
   token: string,
   channelId: string,
@@ -743,15 +762,75 @@ async function postSlackMessage(
   }
 }
 
+async function runTruckArrivalSlackAlerts(options: {
+  date: string;
+  dryRun: boolean;
+  enabled: boolean;
+}): Promise<SlackAlertRunResult> {
+  const { date, dryRun, enabled } = options;
+  const state = readState();
+  const allNotifications = buildTruckArrivalSlackNotifications(date, readTruckArrivalVisitRows(date));
+  const initialized = Boolean(state.truckArrivalNotificationsInitializedAt);
+  const delivered = new Set(state.deliveredTruckArrivalsByDate[date] || []);
+  const pending = initialized
+    ? allNotifications.filter((alert) => !delivered.has(alert.fingerprint))
+    : [];
+  const result = slackAlertRunResult(
+    date,
+    dryRun,
+    enabled,
+    initialized ? pending : allNotifications,
+  );
+
+  if (dryRun || !enabled) return result;
+
+  const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
+  if (!token) throw new Error("SLACK_BOT_TOKEN is required when Slack OpsCenter alerts are enabled.");
+
+  const now = new Date().toISOString();
+  if (!initialized) {
+    state.truckArrivalNotificationsInitializedAt = now;
+    state.deliveredTruckArrivalsByDate[date] = allNotifications.map((alert) => alert.fingerprint);
+    state.deliveredTruckArrivalsByDate = pruneTruckArrivalDates(state.deliveredTruckArrivalsByDate);
+    state.updatedAt = now;
+    writeState(state);
+    return result;
+  }
+
+  for (const alert of pending) {
+    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
+    if (!response.ok || !response.ts) {
+      result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
+      continue;
+    }
+    delivered.add(alert.fingerprint);
+    result.posted.push(alert);
+  }
+
+  state.deliveredTruckArrivalsByDate[date] = Array.from(delivered);
+  state.deliveredTruckArrivalsByDate = pruneTruckArrivalDates(state.deliveredTruckArrivalsByDate);
+  state.updatedAt = now;
+  writeState(state);
+  return result;
+}
+
 export async function runSlackOpsAlerts(options?: {
   date?: string;
   dryRun?: boolean;
+  onlyKinds?: SlackAlertKind[];
 }): Promise<SlackAlertRunResult> {
   const date = /^\d{4}-\d{2}-\d{2}$/.test(String(options?.date || ""))
     ? String(options?.date)
     : chicagoDateKey();
   const dryRun = Boolean(options?.dryRun);
   const enabled = boolEnv("SLACK_OPSCENTER_ALERTS_ENABLED");
+  const onlyKinds = new Set(options?.onlyKinds || []);
+  if (onlyKinds.size) {
+    if (onlyKinds.size !== 1 || !onlyKinds.has("truck_arrival")) {
+      throw new Error("Only truck_arrival can be published independently.");
+    }
+    return runTruckArrivalSlackAlerts({ date, dryRun, enabled });
+  }
   const state = readState();
   const incidents = collectIncidentAlerts(date);
   const feed = buildAddOnAppointmentFeed(date);

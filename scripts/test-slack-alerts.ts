@@ -370,6 +370,35 @@ globalThis.fetch = (async (_input, init) => {
 }) as typeof fetch;
 
 try {
+  const arrivalVisitsFile = path.join(
+    temporaryDataDir,
+    "history",
+    "linxup",
+    "appointment_visits",
+    "linxup_appointment_visits_2026-08-12.json",
+  );
+  fs.mkdirSync(path.dirname(arrivalVisitsFile), { recursive: true });
+  fs.writeFileSync(arrivalVisitsFile, JSON.stringify({ visits: [] }));
+
+  const arrivalBaseline = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["truck_arrival"] });
+  assert.equal(arrivalBaseline.posted.length, 0);
+  assert.equal(JSON.parse(fs.readFileSync(paymentStateFile, "utf8")).initializedAt, "");
+
+  fs.writeFileSync(arrivalVisitsFile, JSON.stringify({
+    visits: [{
+      appointment_id: "503",
+      jk_number: "JK4051503",
+      truck_number: "Truck 6",
+      visit_count: 1,
+      match_confidence: "confirmed",
+      first_arrival: "2026-08-12T18:47:43Z",
+    }],
+  }));
+  const arrivalRun = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["truck_arrival"] });
+  assert.deepEqual(arrivalRun.posted.map((alert) => alert.kind), ["truck_arrival"]);
+  assert.deepEqual(postedMessages, [":truck: Truck 6 arrived onsite at JK4051503."]);
+  postedMessages.length = 0;
+
   const baselineRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.equal(baselineRun.bootstrappedTruckCloseouts, 1);
   assert.equal(baselineRun.bootstrappedPayments, 1);

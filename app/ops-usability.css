@@ -872,8 +872,42 @@ body {
     width: 100%;
   }
 
+  .ops-jobs-page > .ops-page-header .ops-page-subnav {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 3px;
+    overflow: visible;
+  }
+
+  .ops-jobs-page > .ops-page-header .ops-page-subnav a {
+    min-width: 0;
+    min-height: 48px;
+    justify-content: center;
+    padding-inline: 6px;
+    text-align: center;
+    white-space: normal;
+    line-height: 1.1;
+  }
+
+  .ops-jobs-page > .ops-page-header .ops-page-subnav a span {
+    min-width: 0;
+  }
+
   .ops-supporting-metrics-heading p {
     font-size: 0.9375rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .ops-bottom-nav-item {
+    padding-inline: 1px;
+  }
+
+  .ops-bottom-nav-item small {
+    overflow: hidden;
+    font-size: 0.68rem;
+    letter-spacing: -0.05em;
+    text-overflow: ellipsis;
   }
 }
 

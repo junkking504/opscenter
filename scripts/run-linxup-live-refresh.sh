@@ -53,9 +53,12 @@ if [ -f "$OPSCENTER_DIR/.env.slack.local" ]; then
   set +a
 fi
 if [[ "${SLACK_OPSCENTER_ALERTS_ENABLED:-false}" =~ ^(1|true|yes|on)$ ]]; then
-  node --import tsx "$OPSCENTER_DIR/scripts/publish-slack-alerts.ts" \
-    --date "$TARGET_DATE" \
-    --only truck_arrival
+  (
+    cd "$OPSCENTER_DIR"
+    node --import tsx scripts/publish-slack-alerts.ts \
+      --date "$TARGET_DATE" \
+      --only truck_arrival
+  )
 fi
 
 echo "LinxUp live refresh completed at $(TZ=America/Chicago date '+%Y-%m-%d %H:%M:%S %Z')."

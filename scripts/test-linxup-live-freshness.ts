@@ -26,6 +26,8 @@ for (const command of [
 ]) {
   expect(runner.includes(command), `Live refresh must run ${command}`);
 }
+expect(runner.includes("--only truck_arrival"), "LinxUp collector must publish confirmed arrivals directly");
+expect(runner.includes('cd "$OPSCENTER_DIR"'), "LinxUp collector must run the publisher from the active release");
 expect(plist.includes("<integer>60</integer>"), "LinxUp collector must run every minute");
 expect(plist.includes("run-linxup-live-refresh.sh"), "LaunchAgent must use the dedicated LinxUp refresh");
 expect(installer.includes("opsbot-linxup-api-token-v2"), "Installer must verify the LinxUp Keychain item");

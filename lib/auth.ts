@@ -17,7 +17,7 @@ export const LEGACY_AUTH_COOKIE_NAMES = [
 ] as const;
 export const AUTH_PUBLIC_PREFIXES = ["/legal/", "/support"] as const;
 export const AUTH_PUBLIC_ROUTES = ["/integrations/qbo", "/integrations/qbo/disconnected"] as const;
-export const AUTH_PUBLIC_API_PREFIXES = ["/api/auth/", "/api/health", "/api/integrations/junkware/sms", "/api/integrations/whatsapp/job-photos"] as const;
+export const AUTH_PUBLIC_API_PREFIXES = ["/api/auth/", "/api/health", "/api/integrations/junkware/sms", "/api/integrations/whatsapp/job-photos", "/api/integrations/linxup/push"] as const;
 export const AUTH_PUBLIC_API_ROUTES = [
   "/api/integrations/qbo/connect",
   "/api/integrations/qbo/callback",

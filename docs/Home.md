@@ -32,6 +32,7 @@ without mixing live runtime data or secrets into Git.
 - [SearchKings integration](searchkings-integration.md)
 - [Slack and OpsCenter](slack-opscenter.md)
 - [WhatsApp job photos](whatsapp-job-photos.md)
+- [LinxUp live GPS push](linxup-push.md)
 
 ## Canonical topology
 

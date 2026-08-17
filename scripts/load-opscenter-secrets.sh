@@ -19,6 +19,7 @@ load_opscenter_keychain_secret() {
 load_opscenter_keychain_secret INTUIT_CLIENT_ID com.opscenter.intuit-client-id
 load_opscenter_keychain_secret INTUIT_CLIENT_SECRET com.opscenter.intuit-client-secret
 load_opscenter_keychain_secret QBO_TOKEN_ENCRYPTION_KEY com.opscenter.qbo-token-encryption-key
+load_opscenter_keychain_secret LINXUP_PUSH_BEARER_TOKEN com.opscenter.linxup-push-bearer-token
 
 unset current_value variable_name service_name
 unset -f load_opscenter_keychain_secret 2>/dev/null || true

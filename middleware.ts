@@ -30,7 +30,7 @@ import {
 } from "@/lib/cloudflare-access";
 import { JUNKWARE_SMS_API_PREFIX } from "@/lib/junkware-sms-constants";
 import { WHATSAPP_JOB_PHOTO_API_PREFIX } from "@/lib/whatsapp-job-photo-constants";
-import { LINXUP_PUSH_API_PREFIX } from "@/lib/linxup-push";
+import { LINXUP_PUSH_API_PREFIX } from "@/lib/linxup-push-constants";
 
 const authDebug = process.env.OPS_AUTH_DEBUG === "1";
 

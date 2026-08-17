@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
+import { LINXUP_PUSH_API_PREFIX } from "@/lib/linxup-push-constants";
 
-export const LINXUP_PUSH_API_PREFIX = "/api/integrations/linxup/push";
+export { LINXUP_PUSH_API_PREFIX };
 
 export function linxupBearerToken(request: Request): string {
   const authorization = String(request.headers.get("authorization") || "");

@@ -30,7 +30,13 @@ async function main() {
   const token = loadToken();
   if (!token.startsWith("xoxb-")) throw new Error("Slack bot token is unavailable.");
   const file = path.join(dataDir, "history", "junkware", `junkware_schedule_fast_${date}.json`);
-  const snapshot = JSON.parse(fs.readFileSync(file, "utf8"));
+  const rawSnapshot = JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, unknown>;
+  const snapshot = {
+    date: String(rawSnapshot.date || date),
+    scrapedAt: String(rawSnapshot.scraped_at || rawSnapshot.scrapedAt || ""),
+    appointments: Array.isArray(rawSnapshot.appointments) ? rawSnapshot.appointments : [],
+    cancelled: Array.isArray(rawSnapshot.cancelled) ? rawSnapshot.cancelled : [],
+  };
   const result = await publishScheduleChanges(dataDir, snapshot, token);
   console.log(`JunkWare schedule detector: ${result.baselined ? "baselined" : "checked"}; ${result.posted.length} posted, ${result.failed.length} failed.`);
   if (result.failed.length) process.exitCode = 1;

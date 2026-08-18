@@ -31,6 +31,7 @@ import { payPeriodForDate } from "@/lib/pay-period";
 import CrewCallInPlan from "@/components/CrewCallInPlan";
 import OpsPagination from "@/components/OpsPagination";
 import { buildCrewCallInPlan } from "@/lib/crew-call-in-recommendations";
+import { hasClockedInToday } from "@/lib/crew-attendance";
 
 export const dynamic = "force-dynamic";
 
@@ -1458,9 +1459,14 @@ export default async function CrewPage({
     : "crew";
 
   const callInPlan = buildCrewCallInPlan(date);
+  // The daily crew tab is attendance-based. Keep roster and inferred rows for
+  // pay-period reconciliation, but never present them as people who worked.
+  const todayCrew = crew.filter((row) =>
+    hasClockedInToday(row, clockRowForEmployee(employeeName(row), clockRows)),
+  );
 
   const livePayrollByEmployee = new Map<string, LivePayrollRecord>();
-  for (const row of crew) {
+  for (const row of todayCrew) {
     const name = employeeName(row);
     const employeeClockRow = clockRowForEmployee(name, clockRows);
     const clockIn = employeeClockRow?.timeIn || row.clock_in || row.time_in || "";
@@ -1482,7 +1488,7 @@ export default async function CrewPage({
     });
   }
   const livePayrollRecords = Array.from(livePayrollByEmployee.values());
-  const rankedCrew = [...crew].sort((a, b) =>
+  const rankedCrew = [...todayCrew].sort((a, b) =>
     employeeRevenue(b) - employeeRevenue(a) ||
     employeeJobs(b, metrics) - employeeJobs(a, metrics) ||
     employeeRph(b) - employeeRph(a) ||
@@ -1492,24 +1498,21 @@ export default async function CrewPage({
     (row) => employeeRevenue(row) > 0 || employeeJobs(row, metrics) > 0,
   );
   const requestedCrewPage = Number.parseInt(String(params?.page || "1"), 10);
-  const totalCrewPages = Math.max(1, Math.ceil(crew.length / CREW_PER_PAGE));
+  const totalCrewPages = Math.max(1, Math.ceil(todayCrew.length / CREW_PER_PAGE));
   const crewPage = Math.min(
     totalCrewPages,
     Math.max(1, Number.isFinite(requestedCrewPage) ? requestedCrewPage : 1),
   );
-  const visibleCrew = crew.slice((crewPage - 1) * CREW_PER_PAGE, crewPage * CREW_PER_PAGE);
+  const visibleCrew = todayCrew.slice((crewPage - 1) * CREW_PER_PAGE, crewPage * CREW_PER_PAGE);
 
-  const totalTips = crew.reduce((sum, row) => sum + tipPay(row), 0);
-  const totalBonus = crew.reduce((sum, row) => sum + bonusPay(row), 0);
-  const allocatedCrewRevenue = crew.reduce((sum, row) => sum + employeeRevenue(row), 0);
-  const hasAuthoritativeRevenue = metrics?.total_revenue !== undefined && metrics?.total_revenue !== null;
-  const totalRevenue = hasAuthoritativeRevenue
-    ? Number(metrics?.total_revenue || 0)
-    : allocatedCrewRevenue;
-  const revenueAllocationVariance = Math.round((totalRevenue - allocatedCrewRevenue) * 100) / 100;
+  const totalTips = todayCrew.reduce((sum, row) => sum + tipPay(row), 0);
+  const totalBonus = todayCrew.reduce((sum, row) => sum + bonusPay(row), 0);
+  const allocatedCrewRevenue = todayCrew.reduce((sum, row) => sum + employeeRevenue(row), 0);
+  const totalRevenue = allocatedCrewRevenue;
+  const revenueAllocationVariance = 0;
   const avgRph =
-    crew.length > 0
-      ? crew.reduce((sum, row) => sum + employeeRph(row), 0) / crew.length
+    todayCrew.length > 0
+      ? todayCrew.reduce((sum, row) => sum + employeeRph(row), 0) / todayCrew.length
       : 0;
 
   const currentPeriod = payPeriodForDate(date);
@@ -1565,7 +1568,7 @@ export default async function CrewPage({
         lastUpdated={metrics?.payroll_as_of || metrics?.generated_at}
         sections={[
           { label: "Call-in plan", href: `/crew?date=${date}&section=call-in`, active: section === "call-in" },
-          { label: "Today’s crew", href: `/crew?date=${date}&section=crew`, active: section === "crew", badge: crew.length || undefined },
+          { label: "Today’s crew", href: `/crew?date=${date}&section=crew`, active: section === "crew", badge: todayCrew.length || undefined },
           { label: "Pay period", href: `/crew?date=${date}&section=pay-period`, active: section === "pay-period" },
           { label: "Monthly", href: `/crew?date=${date}&view=monthly` },
         ]}
@@ -1574,7 +1577,7 @@ export default async function CrewPage({
       {section === "crew" ? <div className="ops-crew-kpi-row" id="crew-summary">
         <div className="ops-card ops-kpi-card ops-crew-kpi-card">
           <div className="ops-card-title">Crew Count</div>
-          <div className="ops-kpi-value">{crew.length}</div>
+          <div className="ops-kpi-value">{todayCrew.length}</div>
         </div>
 
         <div className="ops-card ops-kpi-card ops-crew-kpi-card">

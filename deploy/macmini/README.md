@@ -81,28 +81,27 @@ Keychain. `/api/health` reports `stale-linxup-data` when today's normalized GPS
 snapshot is more than three minutes old, and current OpsCenter pages refresh
 when a newer LinxUp snapshot arrives.
 
-### Dedicated JunkWare schedule watchers
+### Dedicated JunkWare schedule detector
 
-New appointment, reschedule, cancellation, and closeout alerts are collected by
-four independent market-scoped watchers. They use the protected OpsBot browser
-state, verify the requested date and their selected JunkWare market, and publish
-through a shared atomic Slack state file. The aggregate schedule detector must
-not run alongside them because it would duplicate alerts.
+New appointment, reschedule, cancellation, and closeout alerts use a persistent,
+schedule-only JunkWare browser worker. Collection and Slack publishing are
+separate atomic steps: the worker first verifies the requested date and every
+selected JunkWare market, then the publisher compares the resulting snapshot and
+posts only new changes. Running several independent browser logins proved less
+reliable because JunkWare serialized subsequent sessions.
 
 After deploying a release that includes this path, install or refresh only
 these watchers:
 
 ```sh
 cd /Users/missioncontrol/opscenter-v2/opscenter
-./deploy/macmini/install-junkware-schedule-watchers.sh
+./deploy/macmini/install-junkware-schedule-detector.sh
 ```
 
-The installer retires `com.openclaw.opsbot.junkware-schedule-detector`, then
-starts New Orleans (352), Northshore (477), Baton Rouge (399), and Jefferson
-Parish (484) persistent watchers. Each begins its next verified sweep 10
-seconds after the previous sweep completes, rather than letting launchd
-terminate an in-flight browser check. Their successful and failed heartbeats are written under
-`/Users/missioncontrol/.openclaw/workspace/opsbot/data/slack/junkware_schedule_watchers/`.
+The detector begins its next verified sweep 10 seconds after the previous sweep
+completes, rather than letting launchd terminate an in-flight browser check. Its
+successful and failed heartbeat is written to
+`/Users/missioncontrol/.openclaw/workspace/opsbot/data/slack/junkware_schedule_watchers/detector.json`.
 
 To deploy OpsCenter while leaving the separately managed WhatsApp photo worker
 untouched, set `OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER=false` for the deployment

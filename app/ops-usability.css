@@ -1172,6 +1172,50 @@ body {
   .ops-page-subnav a { width: 100%; min-width: 0; min-height: 44px; justify-content: center; padding: 8px; text-align: center; white-space: normal; }
 }
 
+/* Daily crew cards must retain enough room for the shift-status chip on phones. */
+@media (max-width: 560px) {
+  .ops-crew-today-employee-card .ops-crew-employee-summary {
+    gap: 6px;
+    padding: 9px 10px;
+  }
+
+  .ops-crew-today-employee-card .ops-crew-employee-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+  }
+
+  .ops-crew-today-employee-card .ops-crew-summary-label {
+    font-size: 0.54rem;
+  }
+
+  .ops-crew-today-employee-card .ops-crew-summary-value,
+  .ops-crew-today-employee-card .ops-crew-employee-name {
+    font-size: 0.82rem;
+  }
+
+  .ops-crew-today-employee-card .ops-crew-summary-subvalue,
+  .ops-crew-today-employee-card .ops-crew-employee-subtitle {
+    font-size: 0.62rem;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .ops-crew-today-employee-card .ops-crew-status-chip {
+    min-height: 21px;
+    max-width: 100%;
+    padding: 2px 6px;
+    font-size: 0.56rem;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 340px) {
+  .ops-crew-today-employee-card .ops-crew-employee-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Header order is always title, controls, freshness, then section tabs. */
 @media (min-width: 901px) {
   .ops-main .ops-page-header.has-subnav {

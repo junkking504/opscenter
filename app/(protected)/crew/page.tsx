@@ -31,7 +31,13 @@ import { payPeriodForDate } from "@/lib/pay-period";
 import CrewCallInPlan from "@/components/CrewCallInPlan";
 import OpsPagination from "@/components/OpsPagination";
 import { buildCrewCallInPlan } from "@/lib/crew-call-in-recommendations";
-import { workedOrAttributedToJobToday } from "@/lib/crew-attendance";
+import {
+  crewClockRowForEmployee,
+  normalizeCrewEmployeeKey,
+  readCrewClockRows,
+  type CrewClockRecord,
+  workedOrAttributedToJobToday,
+} from "@/lib/crew-attendance";
 
 export const dynamic = "force-dynamic";
 
@@ -1163,15 +1169,7 @@ function renderMonthlyCrewPage({
 }
 
 
-type ClockRow = {
-  name: string;
-  timeIn: string;
-  timeOut: string;
-  trucks: string;
-  hours: string;
-  missingPunch: string;
-  pay: string;
-};
+type ClockRow = CrewClockRecord;
 
 
 function moneyNumber(value: unknown): number {
@@ -1260,63 +1258,12 @@ function timesheetRateForEmployee(name: string, rateRows: TimesheetRateRow[]): n
   return found ? found.hourlyRate : 0;
 }
 
-function readEmployeeClockRows(date: string): ClockRow[] {
-  const filePath = path.join(
-    process.cwd(),
-    "data",
-    "history",
-    "junkware",
-    `junkware_employees_${date}_summary.csv`
-  );
-
-  if (!fs.existsSync(filePath)) return [];
-
-  const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/).filter(Boolean);
-  if (lines.length < 2) return [];
-
-  const headers = splitCsvLine(lines[0]).map((x) => x.trim());
-
-  return lines.slice(1).map((line) => {
-    const values = splitCsvLine(line);
-    const row: AnyRecord = {};
-
-    headers.forEach((header, index) => {
-      row[header] = values[index] || "";
-    });
-
-    return {
-      name: String(row.name || row.employee || row.employee_name || "Unknown"),
-      timeIn: String(row.time_in || row.clock_in || row.timeIn || ""),
-      timeOut: String(row.time_out || row.clock_out || row.timeOut || ""),
-      trucks: String(row.trucks || row.truck || ""),
-      hours: String(row.hours || ""),
-      missingPunch: String(row.missing_punch || ""),
-      pay: String(row.pay || ""),
-    };
-  });
-}
-
-
 function normalizeEmployeeKey(name: string): string {
-  const raw = String(name || "").trim().toLowerCase();
-
-  if (!raw.includes(",")) return raw;
-
-  const parts = raw.split(",").map((x) => x.trim()).filter(Boolean);
-  if (parts.length === 2) return `${parts[1]} ${parts[0]}`.toLowerCase();
-
-  return raw;
+  return normalizeCrewEmployeeKey(name);
 }
 
 function clockRowForEmployee(name: string, clockRows: ClockRow[]): ClockRow | undefined {
-  const key = normalizeEmployeeKey(name);
-
-  return clockRows.find((row) => {
-    const rowKey = normalizeEmployeeKey(row.name);
-    const directKey = String(row.name || "").trim().toLowerCase();
-
-    return rowKey === key || directKey === key;
-  });
+  return crewClockRowForEmployee(name, clockRows);
 }
 
 const SALARIED_EMPLOYEES = new Set([
@@ -1435,7 +1382,7 @@ export default async function CrewPage({
     const sharedScore = sharedScores.get(normalizeEmployeeKey(employeeName(row)));
     return sharedScore ? { ...row, ...sharedScore, employee_name: employeeName(row) } : row;
   }).sort((a, b) => employeeName(a).localeCompare(employeeName(b), "en", { sensitivity: "base" }));
-  const clockRows = readEmployeeClockRows(date);
+  const clockRows = readCrewClockRows(date);
   const timesheetRateRows = readTimesheetRateRows(date);
   const priorWeeklyHours = weeklyHoursBeforeDate(date);
 

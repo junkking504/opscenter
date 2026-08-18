@@ -31,6 +31,7 @@ import {
   operatingTargets,
 } from "@/lib/operating-targets";
 import { readSlackDailyDigest } from "@/lib/slack-digest";
+import { crewClockRowForEmployee, readCrewClockRows, workedOrAttributedToJobToday } from "@/lib/crew-attendance";
 
 // This dashboard reads metrics directly from files that are refreshed
 // throughout the day. Never reuse a rendered snapshot across requests.
@@ -58,7 +59,9 @@ function employeeName(row: AnyRecord): string {
 }
 
 function employeeTruck(row: AnyRecord): string {
-  return row.truck || row.trucks || row.assigned_truck || row.truck_name || "—";
+  const truck = row.truck || row.trucks || row.assigned_truck || row.truck_name;
+  if (Array.isArray(truck)) return truck.filter(Boolean).join(", ") || "Unassigned";
+  return String(truck || "").trim() || "Unassigned";
 }
 
 function employeeRevenue(row: AnyRecord): number {
@@ -498,7 +501,10 @@ export default async function DashboardPage({
   const marketing = buildSearchKingsView();
   const slackDigest = section === "overview" ? await readSlackDailyDigest(date) : null;
 
-  const crew = crewRows(metrics);
+  const clockRows = readCrewClockRows(date);
+  const crew = crewRows(metrics).filter((row) =>
+    workedOrAttributedToJobToday(row, crewClockRowForEmployee(employeeName(row), clockRows)),
+  );
   const trucks = truckRows(metrics);
 
   const grossRevenue = Number(metrics?.total_revenue || metrics?.gross_revenue || 0);

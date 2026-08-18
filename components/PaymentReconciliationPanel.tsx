@@ -33,6 +33,18 @@ function appointmentHref(date: string, jkNumber: string): string {
   return `/jobs?date=${encodeURIComponent(date)}#${appointmentAnchor(jkNumber)}`;
 }
 
+function nextMerchantRefreshLabel(collectedAt: string | null): string | null {
+  if (!collectedAt) return null;
+  const collected = new Date(collectedAt);
+  if (Number.isNaN(collected.getTime())) return null;
+  const next = new Date(collected.getTime() + 3 * 60 * 60 * 1000);
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(next);
+}
+
 export default function PaymentReconciliationPanel({
   view,
   periodLabel,
@@ -49,6 +61,7 @@ export default function PaymentReconciliationPanel({
   const merchantRefreshLabel = view.merchantCenterCollectedAt
     ? stableUpdatedAt(view.merchantCenterCollectedAt)
     : "unknown";
+  const nextRefreshLabel = !isQboAccounting ? nextMerchantRefreshLabel(view.merchantCenterCollectedAt) : null;
 
   return (
     <div className="ops-card ops-payment-reconciliation-card">
@@ -86,7 +99,9 @@ export default function PaymentReconciliationPanel({
           <div>
             <strong>{merchantLabel} data is refreshing.</strong>
             <span>
-              The last transaction snapshot was collected {merchantRefreshLabel}. Differences and exceptions are hidden until a current snapshot is available.
+              The last transaction snapshot was collected {merchantRefreshLabel}. {nextRefreshLabel
+                ? `Merchant Center updates about every three hours; the next refresh is expected around ${nextRefreshLabel} CT.`
+                : "Merchant Center updates about every three hours."} Differences and exceptions are hidden until a current snapshot is available.
             </span>
           </div>
         </div>

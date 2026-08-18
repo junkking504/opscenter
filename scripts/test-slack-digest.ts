@@ -15,6 +15,10 @@ async function main() {
     slackTextToPlainText(":warning: *New alert*\n<https://ops.junk-king.app/jobs|Open in OpsCenter>\n_Alert ID: test:123_"),
     "⚠️ New alert",
   );
+  assert.equal(
+    slackTextToPlainText("Latest data: 2026-08-18T203045.432Z"),
+    "Latest data: 3:30 PM CT",
+  );
 
   const requests: URL[] = [];
   const fetchImpl: typeof fetch = async (input) => {

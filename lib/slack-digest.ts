@@ -186,6 +186,19 @@ export function slackDigestChannelName(channelId: string): string {
   return configuredChannelName(channelId) || DEFAULT_CHANNEL_NAMES[channelId] || "#slack";
 }
 
+function formatEmbeddedTimestamp(value: string): string {
+  return value.replace(/\b(\d{4}-\d{2}-\d{2})T(\d{2})(?::?(\d{2}))(?::?(\d{2}))?(\.\d+)?Z\b/g, (match, day, hour, minute = "00", second = "00", fraction = "") => {
+    const parsed = new Date(`${day}T${hour}:${minute}:${second}${fraction}Z`);
+    if (Number.isNaN(parsed.getTime())) return match;
+    const time = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/Chicago",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(parsed);
+    return `${time} CT`;
+  });
+}
+
 export function slackTextToPlainText(value: string): string {
   const emoji: Record<string, string> = {
     rotating_light: "🚨",
@@ -209,6 +222,7 @@ export function slackTextToPlainText(value: string): string {
     .replace(/<!here>/g, "@here")
     .replace(/:([a-z0-9_+-]+):/gi, (match, name: string) => emoji[name] || name.replace(/_/g, " "))
     .replace(/[*_~`]/g, "")
+    .replace(/\b\d{4}-\d{2}-\d{2}T\d{2}(?::?\d{2})(?::?\d{2})?(?:\.\d+)?Z\b/g, (timestamp) => formatEmbeddedTimestamp(timestamp))
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

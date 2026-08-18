@@ -1206,12 +1206,12 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       </div>
 
       <div className="ops-jobs-map-legend" aria-label="Appointment type legend">
-        <span title="New Orleans" aria-label="New Orleans"><i className="is-new-orleans" />NO</span>
-        <span title="Baton Rouge" aria-label="Baton Rouge"><i className="is-baton-rouge" />BR</span>
-        <span title="Northshore" aria-label="Northshore"><i className="is-northshore" />NS</span>
-        <span title="Jefferson Parish" aria-label="Jefferson Parish"><i className="is-jefferson" />JP</span>
-        <span title="Lafayette" aria-label="Lafayette"><i className="is-lafayette" />LF</span>
-        <span title="Unassigned" aria-label="Unassigned"><i className="is-unassigned" />U/A</span>
+        <span><i className="is-new-orleans" />New Orleans</span>
+        <span><i className="is-baton-rouge" />Baton Rouge</span>
+        <span><i className="is-northshore" />Northshore</span>
+        <span><i className="is-jefferson" />Jefferson Parish</span>
+        <span><i className="is-lafayette" />Lafayette</span>
+        <span><i className="is-unassigned" />Unassigned</span>
         <span title="Truck GPS" aria-label="Truck GPS"><i className="is-truck" />GPS</span>
         {scheduleView ? <span><i className="is-visited-unclosed">?</i>Visited</span> : null}
         {scheduleView ? <span><i className="is-canceled">×</i>Canceled</span> : null}
@@ -1338,6 +1338,30 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
 
         {scheduleView ? (
           <aside className="ops-jobs-map-schedule" aria-label="Truck by time appointment schedule">
+            <div className="ops-jobs-mobile-agenda" aria-label="Truck appointment agenda">
+              {scheduleTruckRows.map((column) => {
+                const appointments = scheduledJobs.filter((job) => scheduleBoard.jobColumns.get(job.key) === column.key);
+                return (
+                  <section className="ops-jobs-mobile-agenda-truck" key={`agenda-${column.key}`}>
+                    <h3>{column.label}</h3>
+                    {appointments.length ? appointments.map((job) => (
+                      <button
+                        type="button"
+                        className={`ops-jobs-mobile-agenda-card ${territoryTone(job)}${selectedKey === job.key ? " is-selected" : ""}`}
+                        onClick={() => handleAppointmentClick(job.key)}
+                        aria-label={`${job.appointmentTime || "Unscheduled"}, ${job.customerName}, ${scheduleJobState(job).label}`}
+                        key={job.key}
+                      >
+                        <ScheduleJobStateIcon job={job} />
+                        <span>{job.appointmentTime || "Unscheduled"}</span>
+                        <strong>{job.customerName}</strong>
+                        <small>{scheduleJobState(job).label}</small>
+                      </button>
+                    )) : <p>No appointments assigned.</p>}
+                  </section>
+                );
+              })}
+            </div>
             <div
               className="ops-jobs-map-board"
               style={{

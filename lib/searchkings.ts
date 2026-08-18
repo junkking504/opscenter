@@ -781,12 +781,7 @@ export function buildSearchKingsView(monthKey?: string): SearchKingsView {
 }
 
 export function searchKingsSetupSummary(): string {
-  return [
-    `Customer ${CUSTOMER_ID || "not configured"}`,
-    `qualified score ${QUALIFIED_SCORE}+`,
-    `lost after ${LOST_AFTER_HOURS} hours`,
-    DEFAULT_TIMEZONE,
-  ].join(" · ");
+  return `Showing qualified leads (score ${QUALIFIED_SCORE}+), marked lost after ${LOST_AFTER_HOURS} hours · Central Time`;
 }
 
 export function formatSearchKingsMoney(value: number): string {

@@ -78,7 +78,7 @@ export default async function MarketingPage({ searchParams }: { searchParams?: P
           <div className="ops-card ops-kpi-card"><div className="ops-card-title">Platform Conversions</div><div className="ops-kpi-value">{view.platformConversions}</div><div className="ops-kpi-sub">{money(view.costPerConversion)} each</div></div>
           <div className="ops-card ops-kpi-card"><div className="ops-card-title">Qualified Calls</div><div className="ops-kpi-value">{view.qualifiedCalls}</div><div className="ops-kpi-sub">{percent(view.qualifiedRate)} of calls</div></div>
           <div className="ops-card ops-kpi-card"><div className="ops-card-title">Matched Bookings</div><div className="ops-kpi-value ops-kpi-good">{view.bookedJobs}</div><div className="ops-kpi-sub">{money(view.costPerBookedJob)} ad cost each</div></div>
-          <div className="ops-card ops-kpi-card"><div className="ops-card-title">Attributed Completed Revenue</div><div className="ops-kpi-value ops-kpi-good">{money(view.attributedRevenue)}</div><div className="ops-kpi-sub">Verified JunkWare jobs · {ratio(view.roas)} ROAS</div></div>
+          <div className="ops-card ops-kpi-card"><div className="ops-card-title">Attributed Completed Revenue</div><div className="ops-kpi-value ops-kpi-good">{money(view.attributedRevenue)}</div><div className="ops-kpi-sub">{ratio(view.roas)} ROAS</div></div>
           <div className="ops-card ops-kpi-card"><div className="ops-card-title">Quoted Lost Value</div><div className="ops-kpi-value ops-kpi-danger">{view.valuedLostLeads ? money(view.estimatedLostRevenue) : "Unknown"}</div><div className="ops-kpi-sub">{view.valuedLostLeads} of {view.lostLeads} lost leads state a value</div></div>
         </div>
 

@@ -1,7 +1,15 @@
+import fs from "fs";
+import path from "path";
 import type { AnyRecord } from "@/lib/opsData";
 
-type ClockRecord = {
-  timeIn?: unknown;
+export type CrewClockRecord = {
+  name: string;
+  timeIn: string;
+  timeOut?: string;
+  trucks?: string;
+  hours?: string;
+  missingPunch?: string;
+  pay?: string;
 };
 
 function hasValue(value: unknown): boolean {
@@ -31,7 +39,7 @@ function hasAttributedJob(row: AnyRecord): boolean {
  * employee worked; job IDs/counts do, including for salaried crew with no
  * hourly-pay record.
  */
-export function workedOrAttributedToJobToday(row: AnyRecord, attendance?: ClockRecord): boolean {
+export function workedOrAttributedToJobToday(row: AnyRecord, attendance?: { timeIn?: unknown }): boolean {
   const hasClockIn = [
     attendance?.timeIn,
     row?.clock_in,
@@ -42,4 +50,77 @@ export function workedOrAttributedToJobToday(row: AnyRecord, attendance?: ClockR
   ].some(hasValue);
 
   return hasClockIn || hasAttributedJob(row);
+}
+
+export function normalizeCrewEmployeeKey(name: string): string {
+  const raw = String(name || "").trim().toLowerCase();
+  if (!raw.includes(",")) return raw;
+
+  const parts = raw.split(",").map((part) => part.trim()).filter(Boolean);
+  return parts.length === 2 ? `${parts[1]} ${parts[0]}`.toLowerCase() : raw;
+}
+
+function splitCsvLine(line: string): string[] {
+  const values: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    const next = line[index + 1];
+    if (char === '"' && inQuotes && next === '"') {
+      current += '"';
+      index += 1;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === "," && !inQuotes) {
+      values.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+
+  values.push(current);
+  return values.map((value) => value.trim());
+}
+
+/** Read the one JunkWare clock source used to decide who belongs in daily Crew. */
+export function readCrewClockRows(date: string): CrewClockRecord[] {
+  const filePath = path.join(
+    process.cwd(),
+    "data",
+    "history",
+    "junkware",
+    `junkware_employees_${date}_summary.csv`,
+  );
+  if (!fs.existsSync(filePath)) return [];
+
+  const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) return [];
+  const headers = splitCsvLine(lines[0]).map((header) => header.trim());
+
+  return lines.slice(1).map((line) => {
+    const values = splitCsvLine(line);
+    const row: AnyRecord = {};
+    headers.forEach((header, index) => { row[header] = values[index] || ""; });
+    return {
+      name: String(row.name || row.employee || row.employee_name || "Unknown"),
+      timeIn: String(row.time_in || row.clock_in || row.timeIn || ""),
+      timeOut: String(row.time_out || row.clock_out || row.timeOut || ""),
+      trucks: String(row.trucks || row.truck || ""),
+      hours: String(row.hours || ""),
+      missingPunch: String(row.missing_punch || ""),
+      pay: String(row.pay || ""),
+    };
+  });
+}
+
+export function crewClockRowForEmployee(name: string, rows: CrewClockRecord[]): CrewClockRecord | undefined {
+  const key = normalizeCrewEmployeeKey(name);
+  return rows.find((row) => {
+    const rowKey = normalizeCrewEmployeeKey(row.name);
+    const directKey = String(row.name || "").trim().toLowerCase();
+    return rowKey === key || directKey === key;
+  });
 }

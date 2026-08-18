@@ -814,6 +814,19 @@ body {
     scroll-snap-align: start;
   }
 
+  /* Command's compact header has a refresh button beside this control. Keep
+   * the date selector wide enough to expose its actual selected date. */
+  .ops-daily-dashboard > .ops-page-header .ops-date-selector-wrap {
+    flex: 1 1 160px;
+    width: auto;
+    min-width: 140px;
+  }
+
+  .ops-daily-dashboard > .ops-page-header .ops-date-selector {
+    width: 100%;
+    min-width: 0;
+  }
+
   /* Put the dispatch schedule before the map on small screens. */
   .ops-jobs-map-workspace.has-schedule {
     display: flex;

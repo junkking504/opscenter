@@ -1,8 +1,9 @@
 "use client";
+/* eslint-disable @next/next/no-img-element -- authenticated local photo endpoints are not compatible with the Next image optimizer */
 
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { FleetMaintenanceRecord, MaintenanceStatus } from "@/lib/fleet-maintenance";
+import type { FleetMaintenancePhoto, FleetMaintenanceRecord, MaintenanceStatus } from "@/lib/fleet-maintenance";
 import type { LinxupVehicleInventory, LinxupVehicleProfile } from "@/lib/linxup-vehicle-inventory";
 
 const SERVICE_TYPES = [
@@ -121,6 +122,7 @@ export default function FleetMaintenanceRecords({
   const [formOpen, setFormOpen] = useState(initialRecords.length === 0);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
   const [truckFilter, setTruckFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const vehiclesByTruck = useMemo(() => new Map(linxupInventory.vehicles.map((vehicle) => [vehicle.truck, vehicle])), [linxupInventory.vehicles]);
@@ -158,13 +160,56 @@ export default function FleetMaintenanceRecords({
     setDraft(blankDraft(today, allTruckOptions, linxupInventory.vehicles));
     setFormOpen(true);
     setMessage("");
+    setPendingPhotos([]);
   }
 
   function startEdit(record: FleetMaintenanceRecord) {
     setDraft(draftFromRecord(record));
     setFormOpen(true);
     setMessage("");
+    setPendingPhotos([]);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function addPhotos(files: FileList | null) {
+    if (!files) return;
+    const available = Math.max(0, 6 - (draft.recordId ? records.find((record) => record.recordId === draft.recordId)?.photos.length || 0 : 0) - pendingPhotos.length);
+    const accepted = Array.from(files).filter((file) => ["image/jpeg", "image/png", "image/webp"].includes(file.type) && file.size <= 5 * 1024 * 1024).slice(0, available);
+    setPendingPhotos((current) => [...current, ...accepted]);
+    if (accepted.length !== files.length) setMessage("Use up to six JPEG, PNG, or WebP photos smaller than 5 MB.");
+  }
+
+  async function uploadPhotos(recordId: string): Promise<number> {
+    let uploaded = 0;
+    for (const file of pendingPhotos) {
+      const form = new FormData();
+      form.set("recordId", recordId);
+      form.set("photo", file);
+      const response = await fetch("/api/fleet-maintenance-photos", { method: "POST", body: form });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(String(payload?.error || `Unable to upload ${file.name}.`));
+      uploaded += 1;
+    }
+    return uploaded;
+  }
+
+  async function removePhoto(photo: FleetMaintenancePhoto) {
+    if (!window.confirm(`Remove ${photo.fileName}?`)) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/fleet-maintenance-photos?photoId=${encodeURIComponent(photo.photoId)}`, { method: "DELETE" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(String(payload?.error || "Unable to remove this photo."));
+      const refresh = await fetch("/api/fleet-maintenance", { cache: "no-store" });
+      const refreshed = await refresh.json().catch(() => ({}));
+      if (Array.isArray(refreshed?.store?.records)) setRecords(sortRecords(refreshed.store.records));
+      setMessage("Maintenance photo removed.");
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to remove this photo.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function saveRecord(event: FormEvent) {
@@ -189,11 +234,18 @@ export default function FleetMaintenanceRecords({
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(String(payload?.error || "Unable to save this record."));
-      const nextRecords = Array.isArray(payload?.store?.records) ? payload.store.records : records;
+      let nextRecords = Array.isArray(payload?.store?.records) ? payload.store.records : records;
+      const uploaded = await uploadPhotos(String(payload?.record?.recordId || ""));
+      if (uploaded) {
+        const refresh = await fetch("/api/fleet-maintenance", { cache: "no-store" });
+        const refreshed = await refresh.json().catch(() => ({}));
+        if (Array.isArray(refreshed?.store?.records)) nextRecords = refreshed.store.records;
+      }
       setRecords(sortRecords(nextRecords));
       setDraft(blankDraft(today, allTruckOptions, linxupInventory.vehicles));
       setFormOpen(false);
-      setMessage(draft.recordId ? "Maintenance record updated." : "Maintenance record added.");
+      setPendingPhotos([]);
+      setMessage(`${draft.recordId ? "Maintenance record updated" : "Maintenance record added"}${uploaded ? ` · ${uploaded} photo${uploaded === 1 ? "" : "s"} added` : ""}.`);
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to save this record.");
@@ -291,7 +343,12 @@ export default function FleetMaintenanceRecords({
             </div>
             <div className="ops-maintenance-form-actions">
               <button type="submit" className="ops-refresh-button" disabled={saving}>{saving ? "Saving…" : draft.recordId ? "Save changes" : "Add record"}</button>
-              <button type="button" className="ops-button" onClick={() => { setFormOpen(false); setDraft(blankDraft(today, allTruckOptions, linxupInventory.vehicles)); }} disabled={saving}>Cancel</button>
+              <button type="button" className="ops-button" onClick={() => { setFormOpen(false); setDraft(blankDraft(today, allTruckOptions, linxupInventory.vehicles)); setPendingPhotos([]); }} disabled={saving}>Cancel</button>
+            </div>
+            <div className="ops-repair-photos">
+              <label className="ops-photo-add"><span>Add repair, damage, or invoice photos</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple capture="environment" onChange={(event) => { addPhotos(event.target.files); event.target.value = ""; }} /></label>
+              {(records.find((record) => record.recordId === draft.recordId)?.photos || []).map((photo) => <div className="ops-photo-thumb" key={photo.photoId}><img src={`/api/fleet-maintenance-photos?photoId=${encodeURIComponent(photo.photoId)}`} alt={photo.fileName} /><button type="button" onClick={() => removePhoto(photo)} disabled={saving}>Remove</button></div>)}
+              {pendingPhotos.map((file, index) => <div className="ops-photo-queued" key={`${file.name}-${file.size}-${index}`}><span>{file.name}</span><button type="button" onClick={() => setPendingPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index))} disabled={saving}>Remove</button></div>)}
             </div>
           </form>
         )}
@@ -312,7 +369,7 @@ export default function FleetMaintenanceRecords({
                   <td><strong>{dateLabel(record.serviceDate)}</strong></td>
                   <td><strong>{record.truck}</strong>{vehiclesByTruck.get(record.truck)?.licensePlate ? <small>{vehiclesByTruck.get(record.truck)?.licensePlate}</small> : null}</td>
                   <td><span className={`ops-maintenance-status ${record.status} ${overdue ? "overdue" : ""}`}>{overdue ? "Overdue" : record.status === "completed" ? "Completed" : "Scheduled"}</span></td>
-                  <td><strong>{record.serviceType}</strong>{record.description ? <small>{record.description}</small> : null}{record.notes ? <small>{record.notes}</small> : null}</td>
+                  <td><strong>{record.serviceType}</strong>{record.description ? <small>{record.description}</small> : null}{record.notes ? <small>{record.notes}</small> : null}{record.photos.length ? <small>{record.photos.length} photo{record.photos.length === 1 ? "" : "s"} attached</small> : null}</td>
                   <td>{mileage(record.odometer)}</td>
                   <td>{money(record.cost)}</td>
                   <td>{record.vendor || "—"}</td>

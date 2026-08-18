@@ -7,6 +7,7 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
 - New or cancelled same-day appointment -> `#jobs-no`, `#jobs-br`, or `#jobs-ns` by territory, regardless of truck assignment
   - New Orleans and Jefferson Parish -> `#jobs-no`
   - Baton Rouge -> `#jobs-br`
+  - Denham Springs -> Baton Rouge / `#jobs-br`, even when an upstream record says Northshore
   - Northshore -> `#jobs-ns`
   - Unknown or unsupported territories -> `#dispatch`
 - Confirmed truck arrival -> that truck's `#truck-N` channel

@@ -10,6 +10,7 @@ import JobCallAheadCard from "@/components/JobCallAheadCard";
 import JobCloseoutEditor from "@/components/JobCloseoutEditor";
 import { JobsMap, type JobsMapPoint } from "@/components/JobsMap";
 import { withAppointmentVisitConfirmations } from "@/lib/appointment-visit-confirmations";
+import { appointmentTerritoryForLocation } from "@/lib/appointment-territory";
 import { AnyRecord, availableDates, completedJobs, money, readMetrics, resolveDate } from "@/lib/opsData";
 import { buildOperationalExceptions } from "@/lib/operational-exceptions";
 import { buildFleetMapPayload, type FleetTruckMapRecord } from "@/lib/fleet-map";
@@ -1403,7 +1404,7 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
 
   const address = normalizeAddressLine(row);
 
-  const territory =
+  const territory = appointmentTerritoryForLocation(
     firstValue(row, [
       "territory",
       "market",
@@ -1411,7 +1412,9 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
       "location",
       "Territory",
       "Market",
-    ]) || "—";
+    ]) || "—",
+    address,
+  );
 
   const appointmentType =
     firstValue(row, [
@@ -1727,6 +1730,8 @@ function readJobRows(date: string): JobRow[] {
           "Sales",
         ]) || "0";
 
+      const address = normalizeAddressLine({ ...row, ...sourceRow });
+
       jobs.push({
         appointmentId: apptId || "",
         sourceEstimateAppointmentId: sourceValue(["source_estimate_appointment_id", "sourceEstimateAppointmentId"]),
@@ -1748,8 +1753,8 @@ function readJobRows(date: string): JobRow[] {
             "Phone",
             "Customer Phone",
           ])) || "—",
-        address: normalizeAddressLine({ ...row, ...sourceRow }),
-        territory:
+        address,
+        territory: appointmentTerritoryForLocation(
           sourceValue([
             "normalized_territory",
             "territory",
@@ -1759,6 +1764,8 @@ function readJobRows(date: string): JobRow[] {
             "Market",
             "Franchise",
           ]) || "—",
+          address,
+        ),
         appointmentType:
           firstValue(row, [
             "appointment_type",

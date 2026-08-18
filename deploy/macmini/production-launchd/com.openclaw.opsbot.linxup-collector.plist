@@ -4,6 +4,11 @@
 <dict>
   <key>Label</key>
   <string>com.openclaw.opsbot.linxup-collector</string>
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
   <key>ProgramArguments</key>
   <array>
     <string>/Users/missioncontrol/opscenter-v2/opscenter/scripts/run-linxup-live-refresh.sh</string>
@@ -12,6 +17,8 @@
   <true/>
   <key>StartInterval</key>
   <integer>60</integer>
+  <key>ThrottleInterval</key>
+  <integer>15</integer>
   <key>ProcessType</key>
   <string>Background</string>
   <key>WorkingDirectory</key>

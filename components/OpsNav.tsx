@@ -59,8 +59,8 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
     const section = ["crew", "fleet"].includes(requestedSection) ? requestedSection : "overview";
     return [
       { label: "Overview", href: sidebarHref("/", searchParams, { section: "overview" }), active: section === "overview" },
-      { label: "Crew", href: sidebarHref("/", searchParams, { section: "crew" }), active: section === "crew" },
-      { label: "Fleet", href: sidebarHref("/", searchParams, { section: "fleet" }), active: section === "fleet" },
+      { label: "Crew Snapshot", href: sidebarHref("/", searchParams, { section: "crew" }), active: section === "crew" },
+      { label: "Fleet Snapshot", href: sidebarHref("/", searchParams, { section: "fleet" }), active: section === "fleet" },
       { label: "Monthly", href: sidebarHref("/", searchParams, { view: "monthly" }), active: false },
     ];
   }

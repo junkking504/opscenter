@@ -661,8 +661,8 @@ export default async function DashboardPage({
         lastUpdated={metrics?.generated_at}
         sections={[
           { label: "Overview", href: `/?date=${date}&section=overview`, active: section === "overview" },
-          { label: "Crew", href: `/?date=${date}&section=crew`, active: section === "crew" },
-          { label: "Fleet", href: `/?date=${date}&section=fleet`, active: section === "fleet" },
+          { label: "Crew Snapshot", href: `/?date=${date}&section=crew`, active: section === "crew" },
+          { label: "Fleet Snapshot", href: `/?date=${date}&section=fleet`, active: section === "fleet" },
           { label: "Monthly", href: `/?date=${date}&view=monthly` },
         ]}
       />
@@ -739,7 +739,7 @@ export default async function DashboardPage({
                 ? `${dailyCrew.rankedCount} ranked${rankedCrew.length < dailyCrew.rankedCount ? ` · top ${rankedCrew.length} shown` : ""}`
                 : "Awaiting results"}
             </span>
-            <a className="ops-mini-link" href={`/crew?date=${date}`}>Full crew view</a>
+            <a className="ops-mini-link" href={`/crew?date=${date}`}>Full Crew View</a>
           </div>
         </div>
 
@@ -804,7 +804,7 @@ export default async function DashboardPage({
               Truck revenue, jobs, average job size, expenses, and net.
             </div>
           </div>
-          <a className="ops-mini-link" href={`/fleet?date=${date}`}>View all</a>
+          <a className="ops-mini-link" href={`/fleet?date=${date}`}>Full Fleet View</a>
         </div>
 
         <table className="ops-table">

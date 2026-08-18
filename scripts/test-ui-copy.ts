@@ -37,6 +37,11 @@ const jobsPageSource = readFileSync(new URL("../app/(protected)/jobs/page.tsx", 
 assert.ok(jobsPageSource.includes("territoryAbbreviation(territory)"), "Territory jump controls must use compact territory labels.");
 assert.ok(jobsPageSource.includes("compact\n      />"), "Schedule header must use the compact non-overlapping layout.");
 
+const commandPageSource = readFileSync(new URL("../app/(protected)/page.tsx", import.meta.url), "utf8");
+assert.ok(commandPageSource.includes('{ label: "Crew Snapshot", href: `/?date=${date}&section=crew`'), "Command must distinguish its Crew Snapshot from the full Crew page.");
+assert.ok(commandPageSource.includes('{ label: "Fleet Snapshot", href: `/?date=${date}&section=fleet`'), "Command must distinguish its Fleet Snapshot from the full Fleet page.");
+assert.ok(commandPageSource.includes('>Full Fleet View</a>'), "Command Fleet Snapshot must link to the full Fleet view.");
+
 const myPaySource = readFileSync(new URL("../app/my-pay/page.tsx", import.meta.url), "utf8");
 const payPeriodStart = myPaySource.indexOf("function PayPeriodView");
 const payPeriodEnd = myPaySource.indexOf("function MonthlyLeaderboardView");

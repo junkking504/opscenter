@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { DRIVING_SCORE_ALERT_RULES } from "@/lib/driving-score-policy";
 import { AnyRecord, availableDates, readMetrics } from "@/lib/opsData";
 
 export type FleetSourceFlags = {
@@ -201,15 +202,6 @@ type DriverScoreDetail = {
 };
 
 const AI_CAMERA_TRUCKS = new Set(["Truck# 3", "Truck# 4", "Truck# 8"]);
-const ALERT_DEDUCTION_RULES: Record<string, { perEvent: number; dailyCap: number }> = {
-  highSpeed: { perEvent: 8, dailyCap: 24 },
-  rapidAcceleration: { perEvent: 1, dailyCap: 5 },
-  harshBraking: { perEvent: 2, dailyCap: 10 },
-  postedSpeed: { perEvent: 4, dailyCap: 20 },
-  phoneUse: { perEvent: 10, dailyCap: 30 },
-  tailgating: { perEvent: 5, dailyCap: 15 },
-};
-
 function alertTypeCounts(metrics: AnyRecord): Map<string, number> {
   const counts = new Map<string, number>();
   const alerts = Array.isArray(metrics?.alert_events)
@@ -321,7 +313,8 @@ function computeWeightedAlertSafetyScore(metrics: AnyRecord): {
 
   const deductions: Record<string, number> = {};
   let totalDeduction = 0;
-  for (const [key, rule] of Object.entries(ALERT_DEDUCTION_RULES)) {
+  for (const rule of DRIVING_SCORE_ALERT_RULES) {
+    const key = rule.key;
     const deduction = availability[key]
       ? Math.min(rule.dailyCap, (counts[key] || 0) * rule.perEvent)
       : 0;
@@ -348,10 +341,12 @@ function computeIdleScore(driveMinutes: number, idleMinutes: number): {
 
   const percentage = (idleMinutes / totalEngineActivityMinutes) * 100;
   let score = 0;
-  if (percentage <= 7) score = 100;
-  else if (percentage <= 10) score = 90;
-  else if (percentage <= 15) score = 75;
-  else if (percentage <= 20) score = 50;
+  if (percentage <= 10) score = 100;
+  else if (percentage <= 15) score = 90;
+  else if (percentage <= 20) score = 80;
+  else if (percentage <= 30) score = 65;
+  else if (percentage <= 40) score = 50;
+  else score = 35;
 
   return {
     score,

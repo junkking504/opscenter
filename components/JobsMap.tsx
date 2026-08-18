@@ -88,6 +88,7 @@ const STREET_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyri
 const LINXUP_POLL_INTERVAL_MS = 30_000;
 const LINXUP_SITE_RADIUS_METERS = 125;
 const LINXUP_MINIMUM_DWELL_MS = 2 * 60_000;
+const LINXUP_DISPLAY_DWELL_MS = 5 * 60_000;
 const LINXUP_MAX_POINT_GAP_MS = 5 * 60_000;
 const LINXUP_FRESHNESS_MS = 10 * 60_000;
 const APPOINTMENT_SELECTION_EVENT = "ops:select-appointment";
@@ -111,6 +112,89 @@ function distanceMeters(
   const a = Math.sin(latitudeDelta / 2) ** 2
     + Math.cos(radians(from.latitude)) * Math.cos(radians(to.latitude)) * Math.sin(longitudeDelta / 2) ** 2;
   return 6_371_000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export type TruckLocationDwell = {
+  kind: "job_site" | "location";
+  beganAt: string;
+  elapsedMs: number;
+};
+
+function parsedTime(value: string | null | undefined): number | null {
+  const parsed = Date.parse(String(value || ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function displayDwell(startedAt: number, now: number, kind: TruckLocationDwell["kind"]): TruckLocationDwell | null {
+  const elapsedMs = now - startedAt;
+  if (elapsedMs < LINXUP_DISPLAY_DWELL_MS) return null;
+  return { kind, beganAt: new Date(startedAt).toISOString(), elapsedMs };
+}
+
+/**
+ * Returns a current, GPS-backed dwell only when the truck has held its present
+ * location for at least five minutes. An open appointment visit takes priority
+ * so the Dispatch panel can say that the truck is at a job site.
+ */
+export function currentTruckLocationDwell(truck: JobsMapTruck, now = Date.now()): TruckLocationDwell | null {
+  const latestGpsAt = parsedTime(truck.lastGpsUpdate);
+  if (!latestGpsAt || latestGpsAt > now + 2 * 60_000 || now - latestGpsAt > LINXUP_FRESHNESS_MS) return null;
+  if (/driving/i.test(truck.status)) return null;
+
+  const atCurrentPosition = (stop: { latitude: number; longitude: number }) =>
+    Number.isFinite(stop.latitude)
+    && Number.isFinite(stop.longitude)
+    && distanceMeters(truck, stop) <= LINXUP_SITE_RADIUS_METERS;
+  const remainsCurrent = (begin: number, end: number | null) =>
+    begin <= latestGpsAt && (end == null || end >= latestGpsAt - LINXUP_MAX_POINT_GAP_MS);
+
+  const jobSiteDwell = truck.jobStops
+    .map((stop) => ({ stop, begin: parsedTime(stop.begin), end: parsedTime(stop.end) }))
+    .filter((candidate): candidate is { stop: JobsMapTruck["jobStops"][number]; begin: number; end: number | null } =>
+      candidate.begin != null && atCurrentPosition(candidate.stop) && remainsCurrent(candidate.begin, candidate.end),
+    )
+    .sort((left, right) => right.begin - left.begin)[0];
+  if (jobSiteDwell) return displayDwell(jobSiteDwell.begin, now, "job_site");
+
+  const stopDwell = truck.recentStops
+    .map((stop) => ({ stop, begin: parsedTime(stop.begin), end: parsedTime(stop.end) }))
+    .filter((candidate): candidate is { stop: JobsMapTruck["recentStops"][number]; begin: number; end: number | null } =>
+      candidate.begin != null && atCurrentPosition(candidate.stop) && remainsCurrent(candidate.begin, candidate.end),
+    )
+    .sort((left, right) => right.begin - left.begin)[0];
+  if (stopDwell) return displayDwell(stopDwell.begin, now, "location");
+
+  const points = truck.recentPoints
+    .map((point) => ({
+      ...point,
+      time: parsedTime(point.timestamp),
+      continuousUntil: parsedTime(point.continuousUntil),
+    }))
+    .filter((point): point is JobsMapTruck["recentPoints"][number] & { time: number; continuousUntil: number | null } =>
+      point.time != null && Number.isFinite(point.latitude) && Number.isFinite(point.longitude),
+    )
+    .sort((left, right) => left.time - right.time);
+  if (!points.length) return null;
+
+  let beganAt = latestGpsAt;
+  let nextPointAt = latestGpsAt;
+  for (let index = points.length - 1; index >= 0; index -= 1) {
+    const point = points[index];
+    if (distanceMeters(truck, point) > LINXUP_SITE_RADIUS_METERS) break;
+    const coverageUntil = Math.max(point.time, point.continuousUntil || point.time);
+    if (nextPointAt - coverageUntil > LINXUP_MAX_POINT_GAP_MS) break;
+    beganAt = point.time;
+    nextPointAt = point.time;
+  }
+  return displayDwell(beganAt, now, "location");
+}
+
+function formatDwellDuration(elapsedMs: number): string {
+  const totalMinutes = Math.max(5, Math.floor(elapsedMs / 60_000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (!hours) return `${minutes} min`;
+  return minutes ? `${hours} hr ${minutes} min` : `${hours} hr`;
 }
 
 function truckHasConfirmedDwellAtJob(
@@ -619,6 +703,10 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   );
   const selectedTruckRoutes = useMemo(
     () => selectedTruck ? buildJobRouteHistory(selectedTruck.routePoints, selectedTruck.jobStops) : [],
+    [selectedTruck],
+  );
+  const selectedTruckDwell = useMemo(
+    () => selectedTruck ? currentTruckLocationDwell(selectedTruck) : null,
     [selectedTruck],
   );
   const selectedTruckCameraNumber = selectedTruck
@@ -1486,7 +1574,14 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                       : `${selectedTruckAddress.error || "Address unavailable"} · GPS ${selectedTruck.latitude.toFixed(5)}, ${selectedTruck.longitude.toFixed(5)}`}
                 </strong>
               </div>
-              <div><span>Truck status</span><strong>{selectedTruck.status}</strong></div>
+              <div>
+                <span>Truck status</span>
+                <strong>
+                  {selectedTruckDwell
+                    ? `${selectedTruckDwell.kind === "job_site" ? "At job site" : "At current location"} · sitting ${formatDwellDuration(selectedTruckDwell.elapsedMs)}`
+                    : selectedTruck.status}
+                </strong>
+              </div>
               <div><span>GPS freshness</span><strong>{selectedTruck.freshness}</strong></div>
             </div>
             <div className="ops-jobs-map-route-history" aria-label={`${selectedTruck.truck} route taken today`}>

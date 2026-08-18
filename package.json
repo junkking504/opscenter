@@ -41,6 +41,7 @@
     "verify:accessibility": "node scripts/test-accessibility.mjs",
     "verify:linxup-camera": "node --import tsx scripts/test-linxup-camera.ts",
     "verify:job-route-history": "node --import tsx scripts/test-job-route-history.ts",
+    "verify:truck-location-dwell": "node --import tsx scripts/test-truck-location-dwell.ts",
     "verify:job-cancellations": "node --import tsx scripts/test-job-cancellations.ts",
     "verify:fleet-gps": "node --import tsx scripts/test-fleet-gps.ts",
     "verify:linxup-freshness": "node --import tsx scripts/test-linxup-live-freshness.ts",

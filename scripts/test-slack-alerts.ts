@@ -7,6 +7,7 @@ import {
   appointmentTerritory,
   buildCancelledAppointmentFeed,
 } from "@/lib/add-on-notifications";
+import { appointmentTerritoryForLocation } from "@/lib/appointment-territory";
 import {
   appointmentChannelId,
   buildAddOnSlackNotification,
@@ -36,12 +37,34 @@ async function main() {
 assert.equal(appointmentTerritory({ normalized_territory: "Jefferson Parish", market: "New Orleans" }), "Jefferson Parish");
 assert.equal(appointmentTerritory({ territory: "Northshore" }), "Northshore");
 assert.equal(appointmentTerritory({ market: "Baton Rouge" }), "Baton Rouge");
+assert.equal(
+  appointmentTerritory({
+    normalized_territory: "Northshore",
+    service_address: "8416 Quiet Creek Dr, Denham Springs, LA 70726",
+  }),
+  "Baton Rouge",
+);
 assert.equal(appointmentTerritory({}), "Unknown territory");
+assert.equal(
+  appointmentTerritoryForLocation("Northshore", "Denham Springs", "LA 70726"),
+  "Baton Rouge",
+);
+assert.equal(
+  appointmentTerritoryForLocation("Northshore", "Hammond, LA 70403"),
+  "Northshore",
+);
 
 assert.equal(appointmentChannelId("New Orleans"), "C_TEST_NO");
 assert.equal(appointmentChannelId("Jefferson Parish"), "C_TEST_NO");
 assert.equal(appointmentChannelId("JP"), "C_TEST_NO");
 assert.equal(appointmentChannelId("Baton Rouge"), "C_TEST_BR");
+assert.equal(
+  appointmentChannelId(appointmentTerritory({
+    territory: "Northshore",
+    city: "Denham Springs",
+  })),
+  "C_TEST_BR",
+);
 assert.equal(appointmentChannelId("North Shore"), "C_TEST_NS");
 assert.equal(appointmentChannelId("Lafayette"), "C_TEST_DISPATCH");
 assert.equal(appointmentChannelId("Unknown territory"), "C_TEST_DISPATCH");

@@ -66,6 +66,12 @@ type CrewExpenseSession = {
   messageIds: string[];
 };
 
+type CrewExpenseEditSession = {
+  version: 1;
+  original: CrewExpenseRecord;
+  openedAt: string;
+};
+
 const DUMP_TEMPLATE = [
   "Truck 1",
   "Gentilly Landfill",
@@ -178,7 +184,7 @@ function stateDirectory(): string {
   return path.join(process.cwd(), "data", "integrations", "whatsapp-crew-expenses");
 }
 
-type CrewExpenseDirectory = "messages" | "records" | "review" | "sessions"
+type CrewExpenseDirectory = "messages" | "records" | "review" | "sessions" | "edit-sessions"
   | "transactions-pending" | "transactions-processing" | "transactions-completed" | "transactions-failed"
   | "outbox-incoming" | "outbox-processing" | "outbox-sent" | "outbox-failed";
 
@@ -188,7 +194,7 @@ function directory(name: CrewExpenseDirectory): string {
 
 function ensureDirectories(): void {
   for (const name of [
-    "messages", "records", "review", "sessions",
+    "messages", "records", "review", "sessions", "edit-sessions",
     "transactions-pending", "transactions-processing", "transactions-completed", "transactions-failed",
     "outbox-incoming", "outbox-processing", "outbox-sent", "outbox-failed",
   ] as const) {
@@ -407,6 +413,10 @@ function sessionFile(senderPhone: string): string {
   return path.join(directory("sessions"), `${recordKey(normalizePhone(senderPhone))}.json`);
 }
 
+function editSessionFile(senderPhone: string): string {
+  return path.join(directory("edit-sessions"), `${recordKey(normalizePhone(senderPhone))}.json`);
+}
+
 function activeSession(senderPhone: string, receivedAt: string): CrewExpenseSession | null {
   try {
     const payload = JSON.parse(fs.readFileSync(sessionFile(senderPhone), "utf8")) as Partial<CrewExpenseSession>;
@@ -453,6 +463,42 @@ function updateSession(message: WhatsAppTextMessage, session: CrewExpenseSession
 
 function closeSession(senderPhone: string): void {
   try { fs.unlinkSync(sessionFile(senderPhone)); } catch { /* no active session */ }
+}
+
+function mostRecentRecordedExpense(senderPhone: string): CrewExpenseRecord | null {
+  const senderHash = recordKey(normalizePhone(senderPhone));
+  return fs.readdirSync(directory("records"))
+    .filter((name) => /^[a-f0-9]{64}\.json$/.test(name))
+    .flatMap((name) => {
+      try {
+        const record = JSON.parse(fs.readFileSync(path.join(directory("records"), name), "utf8")) as CrewExpenseRecord;
+        return record.senderHash === senderHash ? [record] : [];
+      } catch {
+        return [];
+      }
+    })
+    .sort((left, right) => right.reportedAt.localeCompare(left.reportedAt))[0] || null;
+}
+
+function activeEditSession(senderPhone: string, receivedAt: string): CrewExpenseEditSession | null {
+  try {
+    const payload = JSON.parse(fs.readFileSync(editSessionFile(senderPhone), "utf8")) as Partial<CrewExpenseEditSession>;
+    const openedAt = new Date(String(payload.openedAt || "")).getTime();
+    const messageAt = new Date(receivedAt).getTime();
+    if (!Number.isFinite(openedAt) || !Number.isFinite(messageAt) || messageAt < openedAt - 60_000 || messageAt - openedAt > SESSION_MAX_IDLE_MS) return null;
+    if (!payload.original || typeof payload.original !== "object" || !clean(payload.original.messageId)) return null;
+    return { version: 1, original: payload.original as CrewExpenseRecord, openedAt: String(payload.openedAt) };
+  } catch {
+    return null;
+  }
+}
+
+function openEditSession(message: WhatsAppTextMessage, original: CrewExpenseRecord): void {
+  writeJsonAtomic(editSessionFile(message.senderPhone), { version: 1, original, openedAt: message.receivedAt } satisfies CrewExpenseEditSession);
+}
+
+function closeEditSession(senderPhone: string): void {
+  try { fs.unlinkSync(editSessionFile(senderPhone)); } catch { /* no active edit */ }
 }
 
 function enqueueReply(message: Pick<WhatsAppInboundMessage, "messageId" | "senderPhone" | "phoneNumberId">, text: string, purpose = "expense"): void {
@@ -504,6 +550,37 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
   if (fs.existsSync(marker)) return { status: "duplicate" };
 
   const normalizedMessage = { ...message, text: canonicalizeStructuredTerms(message.text) };
+
+  if (clean(normalizedMessage.text).toLowerCase() === "edit") {
+    const original = mostRecentRecordedExpense(message.senderPhone);
+    if (!original) {
+      enqueueReply(normalizedMessage, "I don't have a verified expense to edit yet. Wait for the verification message, then reply EDIT.", "expense-edit-missing");
+      writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "review", reason: "no_verified_expense_to_edit", processedAt: new Date().toISOString() });
+      return { status: "review" };
+    }
+    openEditSession(normalizedMessage, original);
+    enqueueReply(normalizedMessage, `What needs to change on your ${original.kind} expense for ${original.truck}? Send just the correction (example: $${original.cost.toFixed(2)} should be $91.41). I will send it for review instead of creating a duplicate.`, "expense-edit-prompt");
+    writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "collecting", kind: original.kind, processedAt: new Date().toISOString() });
+    return { status: "collecting", kind: original.kind };
+  }
+
+  const editSession = activeEditSession(message.senderPhone, message.receivedAt);
+  if (editSession) {
+    const correction = clean(normalizedMessage.text);
+    writeJsonAtomic(path.join(directory("review"), `${recordKey(`edit:${editSession.original.messageId}:${message.messageId}`)}.json`), {
+      version: 1,
+      type: "expense_correction",
+      original: editSession.original,
+      correction,
+      messageId: message.messageId,
+      reportedAt: message.receivedAt,
+      senderHash: recordKey(normalizePhone(message.senderPhone)),
+    });
+    closeEditSession(message.senderPhone);
+    enqueueReply(normalizedMessage, "Correction received and sent for review. Do not re-enter the expense — we will correct the original entry.", "expense-edit-received");
+    writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "review", reason: "expense_correction", processedAt: new Date().toISOString() });
+    return { status: "review", kind: editSession.original.kind };
+  }
 
   const command = commandKind(normalizedMessage.text);
   if (command) {

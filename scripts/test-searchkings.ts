@@ -39,9 +39,10 @@ const snapshot: SearchKingsSnapshot = {
 };
 
 const appointments: SearchKingsAppointmentMatch[] = [
-  { date: "2026-08-02", appointmentId: "appt-1", jobId: "JK-101", customerName: "Booked Caller", phone: "5045550101", territory: "New Orleans", revenue: 600, status: "Completed" },
-  { date: "2026-08-03", appointmentId: "appt-2", jobId: "JK-102", customerName: "Recovered Caller", phone: "2255550104", territory: "Baton Rouge", revenue: 400, status: "Scheduled" },
-  { date: "2026-08-02", appointmentId: "average", jobId: "JK-103", customerName: "Other Customer", phone: "2255559999", territory: "Baton Rouge", revenue: 800, status: "Completed" },
+  { date: "2026-08-02", appointmentId: "appt-1", jobId: "JK-101", customerName: "Booked Caller", phone: "5045550101", territory: "New Orleans", revenue: 600, completed: true, status: "Completed" },
+  { date: "2026-08-03", appointmentId: "appt-1", jobId: "JK-101", customerName: "Booked Caller", phone: "5045550101", territory: "New Orleans", revenue: 99999, completed: true, status: "Completed" },
+  { date: "2026-08-03", appointmentId: "appt-2", jobId: "JK-102", customerName: "Recovered Caller", phone: "2255550104", territory: "Baton Rouge", revenue: null, completed: false, status: "Scheduled" },
+  { date: "2026-08-02", appointmentId: "average", jobId: "JK-103", customerName: "Other Customer", phone: "2255559999", territory: "Baton Rouge", revenue: 800, completed: true, status: "Completed" },
 ];
 
 const overrides: LostLeadOverride[] = [{
@@ -60,7 +61,7 @@ assert.equal(view.spend, 500);
 assert.equal(view.platformConversions, 15);
 assert.equal(view.qualifiedCalls, 3);
 assert.equal(view.bookedJobs, 2);
-assert.equal(view.attributedRevenue, 1000);
+assert.equal(view.attributedRevenue, 600);
 assert.equal(view.lostLeads, 1);
 assert.equal(view.valuedLostLeads, 1);
 assert.equal(view.estimatedLostRevenue, 250);
@@ -74,6 +75,21 @@ assert.equal(view.leads.find((lead) => lead.callerName === "Recovered Caller")?.
 assert.equal(view.leads.find((lead) => lead.callerName === "Recovered Caller")?.franchiseContacted, true);
 assert.equal(view.leads.find((lead) => lead.callerName === "Lost Caller")?.franchiseContacted, false);
 assert.equal(view.territoryRows.find((row) => row.territory === "Baton Rouge")?.lostLeads, 1);
+
+const duplicateBookingSnapshot: SearchKingsSnapshot = {
+  ...snapshot,
+  calls: {
+    ...snapshot.calls,
+    total: { currentCalls: 2, currentScoredCalls: 2 },
+    calls: [
+      snapshot.calls.calls[0],
+      { ...snapshot.calls.calls[0], id: "booked-again", calledAtTime: "10:30 AM" },
+    ],
+  },
+};
+const duplicateBookingView = buildSearchKingsViewFromData(duplicateBookingSnapshot, appointments, [], new Date("2026-08-01T20:00:00.000Z"));
+assert.equal(duplicateBookingView.bookedJobs, 1);
+assert.equal(duplicateBookingView.attributedRevenue, 600);
 assert.equal(appointmentScheduleHref("2026-08-02", "JK-101"), "/jobs?date=2026-08-02#job-jk-101");
 
 const callGroups = groupSearchKingsLeadsByDate(view.leads);

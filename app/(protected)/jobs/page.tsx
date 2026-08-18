@@ -57,6 +57,8 @@ type JobRow = {
   status: string;
   truck: string;
   assignedTruck?: string;
+  junkwareSyncStatus?: "pending" | "verified";
+  junkwareSyncError?: string;
   driver: string;
   driverName?: string;
   driverNormalizedName?: string;
@@ -2338,6 +2340,8 @@ function applyJobRouteAssignmentOverrides(jobs: JobRow[], date: string): JobRow[
       ...job,
       truck,
       assignedTruck: truck,
+      junkwareSyncStatus: override.junkwareSyncStatus,
+      junkwareSyncError: override.junkwareSyncError,
       ...(override.appointmentTime ? { appointmentTime: override.appointmentTime } : {}),
       ...(override.appointmentStartMinutes !== undefined
         ? { appointmentStartMinutes: override.appointmentStartMinutes, hasScheduledTime: true }
@@ -2563,6 +2567,8 @@ function buildJobsMapPoints(
       appointmentUrl: job.appointmentUrl,
       junkItems: job.junkItems,
       appointmentNotes: job.appointmentNotes.filter((note) => !/^Appointment moved from\b/i.test(note)),
+      junkwareSyncStatus: job.junkwareSyncStatus,
+      junkwareSyncError: job.junkwareSyncError,
     };
   });
 }

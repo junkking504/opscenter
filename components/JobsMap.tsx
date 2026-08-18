@@ -32,6 +32,8 @@ export type JobsMapPoint = {
   appointmentUrl: string;
   junkItems: string[];
   appointmentNotes: string[];
+  junkwareSyncStatus?: "pending" | "verified";
+  junkwareSyncError?: string;
 };
 
 export type JobsMapTruck = {
@@ -367,6 +369,16 @@ function ScheduleJobStateIcon({ job }: { job: JobsMapPoint }) {
       ✓
     </span>
   );
+}
+
+function hasJunkwareSyncFailure(job: JobsMapPoint): boolean {
+  return job.junkwareSyncStatus === "pending";
+}
+
+function junkwareSyncLabel(job: JobsMapPoint): string {
+  return job.junkwareSyncError
+    ? "JunkWare sync failed — retry pending"
+    : "JunkWare sync pending";
 }
 
 function chicagoScheduleClock(now = new Date()): { date: string; minutes: number; label: string; timestamp: number } {
@@ -1263,6 +1275,15 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                   <span><strong>Canceled</strong>{selectedJob.status}</span>
                 </div>
               ) : null}
+              {hasJunkwareSyncFailure(selectedJob) ? (
+                <div className="ops-jobs-map-selection-sync-failed" role="status">
+                  <b aria-hidden="true">!</b>
+                  <span>
+                    <strong>{junkwareSyncLabel(selectedJob)}</strong>
+                    {selectedJob.junkwareSyncError || "Saved in OpsCenter. It will be retried before it is treated as verified."}
+                  </span>
+                </div>
+              ) : null}
               {isVisitedUnclosedScheduleJob(selectedJob) ? (
                 <div className="ops-jobs-map-selection-visited-unclosed" role="status">
                   <b aria-hidden="true">?</b>
@@ -1435,17 +1456,18 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                           <button
                             type="button"
                             draggable={job.statusBucket !== "Canceled" && !pendingKeys.includes(job.key)}
-                            className={`ops-jobs-map-board-block ${territoryTone(job)}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
+                            className={`ops-jobs-map-board-block ${territoryTone(job)}${hasJunkwareSyncFailure(job) ? " has-junkware-sync-failure" : ""}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
                             onClick={() => handleAppointmentClick(job.key)}
                             onContextMenu={(event) => handleAppointmentContextMenu(event, job)}
                             onPointerDown={(event) => handleAppointmentPointerDown(event, job)}
                             onDragStart={(event) => handleAppointmentDragStart(event, job)}
                             onDragEnd={() => clearDragGesture()}
-                            aria-label={`${job.appointmentTime}, ${job.customerName}, ${job.truck}, ${scheduleJobState(job).label}, ${job.junkItems.length ? `items: ${job.junkItems.join(", ")}` : "items not listed"}`}
-                            title={`${job.appointmentTime} · ${job.customerName} · ${scheduleJobState(job).label} · ${job.junkItems.length ? job.junkItems.join(", ") : "Items not listed"}`}
+                            aria-label={`${job.appointmentTime}, ${job.customerName}, ${job.truck}, ${scheduleJobState(job).label}${hasJunkwareSyncFailure(job) ? `, ${junkwareSyncLabel(job)}` : ""}, ${job.junkItems.length ? `items: ${job.junkItems.join(", ")}` : "items not listed"}`}
+                            title={`${job.appointmentTime} · ${job.customerName} · ${scheduleJobState(job).label}${hasJunkwareSyncFailure(job) ? ` · ${junkwareSyncLabel(job)}` : ""} · ${job.junkItems.length ? job.junkItems.join(", ") : "Items not listed"}`}
                             key={job.key}
                           >
                             <ScheduleJobStateIcon job={job} />
+                            {hasJunkwareSyncFailure(job) ? <span className="ops-jobs-map-board-sync-failed" aria-hidden="true">!</span> : null}
                           </button>
                         ))}
                       </div>
@@ -1465,17 +1487,18 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                           <button
                             type="button"
                             draggable={job.statusBucket !== "Canceled" && !pendingKeys.includes(job.key)}
-                            className={`ops-jobs-map-board-block ${territoryTone(job)}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
+                            className={`ops-jobs-map-board-block ${territoryTone(job)}${hasJunkwareSyncFailure(job) ? " has-junkware-sync-failure" : ""}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
                             onClick={() => handleAppointmentClick(job.key)}
                             onContextMenu={(event) => handleAppointmentContextMenu(event, job)}
                             onPointerDown={(event) => handleAppointmentPointerDown(event, job)}
                             onDragStart={(event) => handleAppointmentDragStart(event, job)}
                             onDragEnd={() => clearDragGesture()}
-                            aria-label={`Unscheduled, ${job.customerName}, ${job.truck}, ${scheduleJobState(job).label}, ${job.junkItems.length ? `items: ${job.junkItems.join(", ")}` : "items not listed"}`}
-                            title={`Unscheduled · ${job.customerName} · ${scheduleJobState(job).label} · ${job.junkItems.length ? job.junkItems.join(", ") : "Items not listed"}`}
+                            aria-label={`Unscheduled, ${job.customerName}, ${job.truck}, ${scheduleJobState(job).label}${hasJunkwareSyncFailure(job) ? `, ${junkwareSyncLabel(job)}` : ""}, ${job.junkItems.length ? `items: ${job.junkItems.join(", ")}` : "items not listed"}`}
+                            title={`Unscheduled · ${job.customerName} · ${scheduleJobState(job).label}${hasJunkwareSyncFailure(job) ? ` · ${junkwareSyncLabel(job)}` : ""} · ${job.junkItems.length ? job.junkItems.join(", ") : "Items not listed"}`}
                             key={job.key}
                           >
                             <ScheduleJobStateIcon job={job} />
+                            {hasJunkwareSyncFailure(job) ? <span className="ops-jobs-map-board-sync-failed" aria-hidden="true">!</span> : null}
                           </button>
                         ))}
                       </div>

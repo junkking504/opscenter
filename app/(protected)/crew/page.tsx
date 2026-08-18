@@ -33,10 +33,10 @@ import OpsPagination from "@/components/OpsPagination";
 import { buildCrewCallInPlan } from "@/lib/crew-call-in-recommendations";
 import {
   crewClockRowForEmployee,
+  dailyCrewSnapshot,
   normalizeCrewEmployeeKey,
   readCrewClockRows,
   type CrewClockRecord,
-  workedOrAttributedToJobToday,
 } from "@/lib/crew-attendance";
 
 export const dynamic = "force-dynamic";
@@ -1402,9 +1402,8 @@ export default async function CrewPage({
   // The daily crew tab is based on direct work evidence: a clock-in or an
   // explicit job attribution. Keep roster-only rows for pay-period
   // reconciliation, but never present them as people who worked.
-  const todayCrew = crew.filter((row) =>
-    workedOrAttributedToJobToday(row, clockRowForEmployee(employeeName(row), clockRows)),
-  );
+  const dailyCrew = dailyCrewSnapshot(crew, clockRows);
+  const todayCrew = dailyCrew.crew;
 
   const livePayrollByEmployee = new Map<string, LivePayrollRecord>();
   for (const row of todayCrew) {
@@ -1509,7 +1508,7 @@ export default async function CrewPage({
         lastUpdated={metrics?.payroll_as_of || metrics?.generated_at}
         sections={[
           { label: "Call-in plan", href: `/crew?date=${date}&section=call-in`, active: section === "call-in" },
-          { label: "Today’s crew", href: `/crew?date=${date}&section=crew`, active: section === "crew", badge: todayCrew.length || undefined },
+          { label: "Today’s crew", href: `/crew?date=${date}&section=crew`, active: section === "crew", badge: dailyCrew.crewCount || undefined },
           { label: "Pay period", href: `/crew?date=${date}&section=pay-period`, active: section === "pay-period" },
           { label: "Monthly", href: `/crew?date=${date}&view=monthly` },
         ]}
@@ -1518,7 +1517,7 @@ export default async function CrewPage({
       {section === "crew" ? <div className="ops-crew-kpi-row" id="crew-summary">
         <div className="ops-card ops-kpi-card ops-crew-kpi-card">
           <div className="ops-card-title">Crew Count</div>
-          <div className="ops-kpi-value">{todayCrew.length}</div>
+          <div className="ops-kpi-value">{dailyCrew.crewCount}</div>
         </div>
 
         <div className="ops-card ops-kpi-card ops-crew-kpi-card">
@@ -1556,7 +1555,7 @@ export default async function CrewPage({
           </div>
           <div className="ops-daily-leaderboard-actions">
             <span className={`ops-daily-leaderboard-state ${hasLeaderboardResults ? "is-live" : "is-pending"}`}>
-              {hasLeaderboardResults ? `${rankedCrew.length} ranked` : "Awaiting results"}
+              {hasLeaderboardResults ? `${dailyCrew.rankedCount} ranked` : "Awaiting results"}
             </span>
           </div>
         </div>

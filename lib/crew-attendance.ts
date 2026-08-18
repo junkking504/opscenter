@@ -12,6 +12,12 @@ export type CrewClockRecord = {
   pay?: string;
 };
 
+export type DailyCrewSnapshot = {
+  crew: AnyRecord[];
+  crewCount: number;
+  rankedCount: number;
+};
+
 function hasValue(value: unknown): boolean {
   return String(value || "").trim().length > 0;
 }
@@ -50,6 +56,22 @@ export function workedOrAttributedToJobToday(row: AnyRecord, attendance?: { time
   ].some(hasValue);
 
   return hasClockIn || hasAttributedJob(row);
+}
+
+/**
+ * The one daily-Crew contract shared by Command and the Crew workspace.
+ * A person belongs only when JunkWare records a clock-in or the day's source
+ * data explicitly attributes a job to them. `rankedCount` deliberately uses
+ * the same eligible set, even when a compact view displays only the top rows.
+ */
+export function dailyCrewSnapshot(rows: AnyRecord[], clockRows: CrewClockRecord[]): DailyCrewSnapshot {
+  const crew = rows.filter((row) =>
+    workedOrAttributedToJobToday(
+      row,
+      crewClockRowForEmployee(String(row.name || row.employee || row.employee_name || ""), clockRows),
+    ),
+  );
+  return { crew, crewCount: crew.length, rankedCount: crew.length };
 }
 
 export function normalizeCrewEmployeeKey(name: string): string {

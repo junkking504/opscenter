@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { crewClockRowForEmployee, workedOrAttributedToJobToday } from "@/lib/crew-attendance";
+import { crewClockRowForEmployee, dailyCrewSnapshot, workedOrAttributedToJobToday } from "@/lib/crew-attendance";
 
 assert.equal(workedOrAttributedToJobToday({ roster_only: true, hours_worked: 0 }), false);
 assert.equal(workedOrAttributedToJobToday({ hours_basis: "inferred", revenue_generated: 900 }), false);
@@ -14,5 +14,21 @@ assert.equal(
   ),
   true,
 );
+
+const sameDayRows = [
+  { name: "Clocked In", roster_only: true },
+  { name: "Credited Job", completed_jobs: 1 },
+  { name: "Roster Only", roster_only: true, revenue_generated: 900 },
+];
+const sameDayClockRows = [{ name: "In, Clocked", timeIn: "07:15 AM" }];
+const commandSnapshot = dailyCrewSnapshot(sameDayRows, sameDayClockRows);
+const crewWorkspaceSnapshot = dailyCrewSnapshot(sameDayRows, sameDayClockRows);
+assert.deepEqual(
+  commandSnapshot.crew.map((row) => row.name),
+  ["Clocked In", "Credited Job"],
+);
+assert.equal(commandSnapshot.crewCount, 2);
+assert.equal(commandSnapshot.rankedCount, 2);
+assert.deepEqual(commandSnapshot, crewWorkspaceSnapshot);
 
 console.log("Crew attendance filter checks passed.");

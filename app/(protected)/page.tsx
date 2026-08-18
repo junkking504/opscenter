@@ -31,7 +31,7 @@ import {
   operatingTargets,
 } from "@/lib/operating-targets";
 import { readSlackDailyDigest } from "@/lib/slack-digest";
-import { crewClockRowForEmployee, readCrewClockRows, workedOrAttributedToJobToday } from "@/lib/crew-attendance";
+import { dailyCrewSnapshot, readCrewClockRows } from "@/lib/crew-attendance";
 
 // This dashboard reads metrics directly from files that are refreshed
 // throughout the day. Never reuse a rendered snapshot across requests.
@@ -502,9 +502,8 @@ export default async function DashboardPage({
   const slackDigest = section === "overview" ? await readSlackDailyDigest(date) : null;
 
   const clockRows = readCrewClockRows(date);
-  const crew = crewRows(metrics).filter((row) =>
-    workedOrAttributedToJobToday(row, crewClockRowForEmployee(employeeName(row), clockRows)),
-  );
+  const dailyCrew = dailyCrewSnapshot(crewRows(metrics), clockRows);
+  const crew = dailyCrew.crew;
   const trucks = truckRows(metrics);
 
   const grossRevenue = Number(metrics?.total_revenue || metrics?.gross_revenue || 0);
@@ -736,7 +735,9 @@ export default async function DashboardPage({
           </div>
           <div className="ops-daily-leaderboard-actions">
             <span className={`ops-daily-leaderboard-state ${hasLeaderboardResults ? "is-live" : "is-pending"}`}>
-              {hasLeaderboardResults ? `${rankedCrew.length} ranked` : "Awaiting results"}
+              {hasLeaderboardResults
+                ? `${dailyCrew.rankedCount} ranked${rankedCrew.length < dailyCrew.rankedCount ? ` · top ${rankedCrew.length} shown` : ""}`
+                : "Awaiting results"}
             </span>
             <a className="ops-mini-link" href={`/crew?date=${date}`}>Full crew view</a>
           </div>

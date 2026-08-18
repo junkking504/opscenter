@@ -7,6 +7,7 @@ const layout = fs.readFileSync(path.join(root, "app/layout.tsx"), "utf8");
 const entry = fs.readFileSync(path.join(root, "app/ops-styles.css"), "utf8");
 const usability = fs.readFileSync(path.join(root, "app/ops-usability.css"), "utf8");
 const jobsCss = fs.readFileSync(path.join(root, "app/(protected)/jobs/jobs.css"), "utf8");
+const maintenanceCss = fs.readFileSync(path.join(root, "app/(protected)/fleet/maintenance.css"), "utf8");
 const jobsPage = fs.readFileSync(path.join(root, "app/(protected)/jobs/page.tsx"), "utf8");
 const crewPage = fs.readFileSync(path.join(root, "app/(protected)/crew/page.tsx"), "utf8");
 const crewPayPeriodCards = fs.readFileSync(path.join(root, "components/CrewPayPeriodCards.tsx"), "utf8");
@@ -79,5 +80,7 @@ assert.equal(
   "Both appointment-card render paths must use the shared detail grid.",
 );
 assert.doesNotMatch(`${usability}\n${jobsCss}`, /Anthony Dozier|Regina Marshall|JK4047670/i, "Card styling must never target a specific person or job.");
+assert.match(maintenanceCss, /\.ops-maintenance-page \.ops-repair-table td,\s*\.ops-maintenance-page \.ops-repair-table td strong/, "Repair queue text must override the old dark-surface palette on the rendered maintenance page.");
+assert.doesNotMatch(maintenanceCss, /\.ops-maintenance-layout\s+:where\(/, "Maintenance contrast rules must target the rendered maintenance page class.");
 
 console.log(`CSS architecture verification passed (${totalLines.toLocaleString()} ordered shared lines).`);

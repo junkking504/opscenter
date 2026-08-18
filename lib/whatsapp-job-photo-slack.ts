@@ -172,7 +172,7 @@ export function formatWhatsAppPhotoSlackNotification(batch: WhatsAppPhotoSlackBa
   return [
     `:camera_with_flash: *OpsBot added ${count} ${noun} to <${jobHref(batch)}|${slackEscape(batch.jkNumber)}>*`,
     `*Photos:* ${categorySummary(batch.photos)}`,
-    "All photos in this WhatsApp batch were verified in JunkWare.",
+    "JunkWare: verified",
   ].join("\n");
 }
 

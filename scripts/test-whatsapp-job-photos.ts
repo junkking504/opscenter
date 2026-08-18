@@ -152,6 +152,8 @@ try {
   assert.match(formatted, /OpsBot added 2 photos/);
   assert.match(formatted, /JK4025001/);
   assert.match(formatted, /1 before · 1 after/);
+  assert.match(formatted, /JunkWare: verified/);
+  assert.doesNotMatch(formatted, /All photos in this batch were verified in JunkWare/);
   assert.doesNotMatch(formatted, /15045550101/);
 
   process.env.SLACK_OPSCENTER_ALERTS_ENABLED = "true";

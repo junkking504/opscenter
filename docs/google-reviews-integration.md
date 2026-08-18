@@ -10,6 +10,11 @@ snapshot for the same Google place. A count change means the public total
 changed between collections; it does not claim every new review is present in
 Google's limited latest-review response.
 
+The Reviews tab is a daily operational view: it shows only reviews whose
+Google publish timestamp falls on the current Central-time day, grouped by
+territory and sorted newest first. Older review details remain in the private
+snapshots for change tracking, but are not rendered on that page.
+
 ## Setup
 
 Enable the **Places API (New)** for the Google Cloud project that owns the

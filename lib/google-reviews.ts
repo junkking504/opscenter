@@ -1,10 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
+import { chicagoDateKey } from "@/lib/report-dates";
 
 export type GoogleReviewsLocation = { key: string; label: string; placeId: string };
 export type GoogleReview = { name: string; authorName: string; authorUri: string; rating: number; text: string; publishTime: string; relativePublishTimeDescription: string; googleMapsUri: string };
 export type GoogleReviewsSnapshot = { version: 1; source: "google_places_api"; fetchedAt: string; placeId: string; placeName: string; locationKey?: string; locationLabel?: string; rating: number | null; userRatingCount: number | null; googleMapsUri: string; reviews: GoogleReview[] };
 export type GoogleReviewsView = { location: GoogleReviewsLocation; available: boolean; error?: string; snapshot: GoogleReviewsSnapshot | null; previousSnapshot: GoogleReviewsSnapshot | null; rating: number | null; userRatingCount: number | null; ratingChange: number | null; reviewCountChange: number | null; reviews: Array<GoogleReview & { isNew: boolean }> };
+
+const LOCATION_ORDER = ["new-orleans", "jefferson-parish", "northshore", "baton-rouge"];
 
 function dataRoots(): string[] {
   const configured = String(process.env.OPSBOT_DATA_DIR || "").trim();
@@ -25,7 +28,15 @@ export function googleReviewsLocations(): GoogleReviewsLocation[] {
     const configured = JSON.parse(String(process.env.GOOGLE_REVIEWS_LOCATIONS || ""));
     if (Array.isArray(configured)) {
       const locations = configured.map(configuredLocation).filter((location): location is GoogleReviewsLocation => Boolean(location));
-      if (locations.length && new Set(locations.map((location) => location.key)).size === locations.length) return locations;
+      if (locations.length && new Set(locations.map((location) => location.key)).size === locations.length) {
+        return locations.sort((left, right) => {
+          const leftRank = LOCATION_ORDER.indexOf(left.key);
+          const rightRank = LOCATION_ORDER.indexOf(right.key);
+          const resolvedLeftRank = leftRank < 0 ? LOCATION_ORDER.length : leftRank;
+          const resolvedRightRank = rightRank < 0 ? LOCATION_ORDER.length : rightRank;
+          return resolvedLeftRank - resolvedRightRank || left.label.localeCompare(right.label);
+        });
+      }
     }
   } catch { /* Preserve the legacy single-location setup. */ }
   const placeId = String(process.env.GOOGLE_REVIEWS_PLACE_ID || "").trim().replace(/^places\//i, "");
@@ -78,6 +89,18 @@ export function readGoogleReviewsHistory(location: GoogleReviewsLocation): Googl
 }
 
 function numeric(value: unknown): number | null { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : null; }
+
+export function reviewsPublishedOn(
+  reviews: Array<GoogleReview & { isNew: boolean }>,
+  date = chicagoDateKey(),
+): Array<GoogleReview & { isNew: boolean }> {
+  return reviews
+    .filter((review) => {
+      const publishedAt = new Date(review.publishTime);
+      return Number.isFinite(publishedAt.getTime()) && chicagoDateKey(publishedAt) === date;
+    })
+    .sort((left, right) => new Date(right.publishTime).getTime() - new Date(left.publishTime).getTime());
+}
 
 export function buildGoogleReviewsViewFromData(location: GoogleReviewsLocation, snapshot: GoogleReviewsSnapshot | null, history: GoogleReviewsSnapshot[] = []): GoogleReviewsView {
   if (!snapshot) return { location, available: false, error: `No Google Reviews snapshot has been collected yet for ${location.label}.`, snapshot: null, previousSnapshot: null, rating: null, userRatingCount: null, ratingChange: null, reviewCountChange: null, reviews: [] };

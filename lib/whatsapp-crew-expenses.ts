@@ -55,7 +55,7 @@ export type CrewExpenseTransaction = {
   slack?: Record<string, unknown>;
 };
 
-type CrewExpenseFields = Partial<Record<"truck" | "location" | "cost" | "weight" | "gallons" | "time", string>>;
+type CrewExpenseFields = Partial<Record<"truck" | "location" | "cost" | "weight" | "gallons", string>>;
 
 type CrewExpenseSession = {
   version: 1;
@@ -71,7 +71,6 @@ const DUMP_TEMPLATE = [
   "Gentilly Landfill",
   "$86.40",
   "2 tons",
-  "1035",
 ].join("\n");
 
 const FUEL_TEMPLATE = [
@@ -79,7 +78,6 @@ const FUEL_TEMPLATE = [
   "Shell",
   "24 gallons",
   "$100",
-  "212",
 ].join("\n");
 
 const SESSION_MAX_IDLE_MS = 12 * 60 * 60 * 1_000;
@@ -132,7 +130,7 @@ function canonicalizeStructuredTerms(text: string): string {
       return word;
     })
     .replace(/^(\s*)([a-z]+)(\s*:)/gim, (match, prefix: string, label: string, suffix: string) => {
-      const labels = ["truck", "location", "cost", "weight", "gallons", "time"];
+      const labels = ["truck", "location", "cost", "weight", "gallons"];
       const candidates = labels
         .map((candidate) => ({ candidate, distance: editDistance(label, candidate) }))
         .filter(({ candidate, distance }) => label[0]?.toLowerCase() === candidate[0] && distance <= (candidate.length >= 7 ? 2 : 1))
@@ -246,7 +244,7 @@ function formatTime(hour: number, minute: number): string {
   return `${displayHour}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
-function chicagoMinutes(receivedAt: string): number | null {
+function chicagoTime(receivedAt: string): string | null {
   const date = new Date(receivedAt);
   if (!Number.isFinite(date.getTime())) return null;
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -257,55 +255,7 @@ function chicagoMinutes(receivedAt: string): number | null {
   }).formatToParts(date);
   const hour = Number(parts.find((part) => part.type === "hour")?.value);
   const minute = Number(parts.find((part) => part.type === "minute")?.value);
-  return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : null;
-}
-
-function closestMeridiemHour(hour: number, minute: number, receivedAt: string): number {
-  if (hour === 12) return 12;
-  const reference = chicagoMinutes(receivedAt);
-  if (reference === null) return hour;
-  const candidates = [hour, hour + 12];
-  return candidates.reduce((closest, candidate) => {
-    const candidateMinutes = candidate * 60 + minute;
-    const distance = Math.min(
-      Math.abs(candidateMinutes - reference),
-      Math.abs(candidateMinutes + 24 * 60 - reference),
-      Math.abs(candidateMinutes - 24 * 60 - reference),
-    );
-    const closestMinutes = closest * 60 + minute;
-    const closestDistance = Math.min(
-      Math.abs(closestMinutes - reference),
-      Math.abs(closestMinutes + 24 * 60 - reference),
-      Math.abs(closestMinutes - 24 * 60 - reference),
-    );
-    return distance < closestDistance ? candidate : closest;
-  });
-}
-
-function parseTime(value: string, receivedAt: string): string | null {
-  const normalized = clean(value).toUpperCase().replace(/\./g, "").replace(/[!,;]+$/, "").replace(/\s+/g, " ");
-  const twelveHour = normalized.match(/^(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*([AP]M)$/);
-  if (twelveHour) return `${Number(twelveHour[1])}:${twelveHour[2] || "00"} ${twelveHour[3]}`;
-  const compactMeridiem = normalized.match(/^(\d{3,4})\s*([AP]M)$/);
-  if (compactMeridiem) {
-    const digits = compactMeridiem[1];
-    const hour = Number(digits.slice(0, -2));
-    const minute = Number(digits.slice(-2));
-    if (hour < 1 || hour > 12 || minute > 59) return null;
-    const twentyFourHour = compactMeridiem[2] === "PM" && hour !== 12 ? hour + 12 : compactMeridiem[2] === "AM" && hour === 12 ? 0 : hour;
-    return formatTime(twentyFourHour, minute);
-  }
-  const twentyFourHour = normalized.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
-  if (twentyFourHour) return formatTime(Number(twentyFourHour[1]), Number(twentyFourHour[2]));
-  const compact = normalized.match(/^(\d{3,4})$/);
-  if (!compact) return null;
-  const digits = compact[1];
-  const hour = Number(digits.slice(0, -2));
-  const minute = Number(digits.slice(-2));
-  if (minute > 59) return null;
-  if (digits.length === 4) return hour <= 23 ? formatTime(hour, minute) : null;
-  if (hour < 1 || hour > 12) return null;
-  return formatTime(closestMeridiemHour(hour, minute, receivedAt), minute);
+  return Number.isFinite(hour) && Number.isFinite(minute) ? formatTime(hour, minute) : null;
 }
 
 function commandKind(text: string): CrewExpenseKind | null {
@@ -313,6 +263,14 @@ function commandKind(text: string): CrewExpenseKind | null {
   if (/^dump(?:\s+(?:run|expense))?$/.test(command)) return "dump";
   if (/^(?:fuel|gas)(?:\s+(?:fill-?up|expense))?$/.test(command)) return "fuel";
   return null;
+}
+
+function stripReportedTime(value: string): string {
+  return clean(value.replace(/\b(?:[01]?\d|2[0-3]):[0-5]\d\s*(?:[ap]\.?m\.?)?\b|\b\d{3,4}\s*[ap]\.?m\.?\b/gi, " "));
+}
+
+function stripCompactTimeTokens(value: string): string {
+  return clean(value.replace(/\b\d{3,4}\b/g, " "));
 }
 
 function messageHeading(lines: string[]): CrewExpenseKind | null {
@@ -328,7 +286,7 @@ function fieldsFromMessage(text: string): { fields: CrewExpenseFields; recognize
   const lines = String(text || "").split(/\r?\n/).map(clean).filter(Boolean);
   let recognized = false;
   for (const line of lines) {
-    const match = line.match(/^(truck\s*#?|location|cost|weight|gallons?|time)\s*:\s*(.*)$/i);
+    const match = line.match(/^(truck\s*#?|location|cost|weight|gallons?)\s*:\s*(.*)$/i);
     if (!match) continue;
     const rawKey = match[1].toLowerCase().replace(/\s+/g, "");
     const key: keyof CrewExpenseFields = rawKey === "truck#" || rawKey === "truck"
@@ -352,54 +310,51 @@ function explicitKind(text: string): CrewExpenseKind | null {
   return null;
 }
 
-function freeformKind(text: string, receivedAt: string): CrewExpenseKind | null {
+function freeformKind(text: string): CrewExpenseKind | null {
   const explicit = explicitKind(text);
   if (explicit) return explicit;
   const truck = text.match(/\b(?:truck|t)\s*#?\s*\d{1,3}\b/i)?.[0] || "";
   if (!truck) return null;
-  let remainder = clean(text.replace(truck, " "));
-  const explicitTime = remainder.match(/\b(?:\d{1,2}:\d{2}|\d{1,4})\s*[ap]\.?m\.?\b/i)?.[0]
-    || remainder.match(/\b(?:[01]?\d|2[0-3]):[0-5]\d\b/)?.[0]
-    || "";
-  const compactTime = [...remainder.matchAll(/\b\d{3,4}\b/g)]
-    .map((match) => match[0])
-    .find((candidate) => parseTime(candidate, receivedAt)) || "";
-  const time = explicitTime || compactTime;
-  if (!time || !parseTime(time, receivedAt)) return null;
-  remainder = clean(remainder.replace(time, " "));
+  let remainder = stripReportedTime(text.replace(truck, " "));
   const markedCost = remainder.match(/\$\s*\d[\d,]*(?:\.\d{0,2})?/i)?.[0]
     || remainder.match(/\b\d[\d,]*(?:\.\d{1,2})?\s*\$/i)?.[0]
     || remainder.match(/\b(?:usd|dollars?)\s*[:#-]?\s*\d[\d,]*(?:\.\d{1,2})?\b/i)?.[0]
     || remainder.match(/\b\d[\d,]*(?:\.\d{1,2})?\s*(?:usd|dollars?)\b/i)?.[0]
     || "";
-  const plainCosts = [...remainder.matchAll(/\b\d[\d,]*(?:\.\d{1,2})?\b/g)]
+  let plainCosts = [...remainder.matchAll(/\b\d[\d,]*(?:\.\d{1,2})?\b/g)]
     .map((match) => match[0])
     .filter((candidate) => parseMoney(candidate) !== null);
+  const compactTime = plainCosts.length === 2 ? plainCosts.find((candidate) => /^\d{3,4}$/.test(candidate)) : undefined;
+  if (!markedCost && compactTime) {
+    remainder = clean(remainder.replace(new RegExp(`\\b${compactTime}\\b`), " "));
+    plainCosts = plainCosts.filter((candidate) => candidate !== compactTime);
+  }
   const cost = markedCost || (plainCosts.length === 1 ? plainCosts[0] : "");
   if (!cost || parseMoney(cost) === null) return null;
   const location = clean(remainder.replace(cost, " ").replace(/[|/,;:@-]+/g, " "));
-  return /[a-z]{2}/i.test(location) ? "dump" : null;
+  const canonical = canonicalLocation(location, "dump");
+  return canonical !== location || KNOWN_EXPENSE_LOCATIONS.dump.some((candidate) => candidate.toLowerCase() === location.toLowerCase())
+    ? "dump"
+    : null;
 }
 
 function freeformFields(
   lines: string[],
   kind: CrewExpenseKind,
   existing: CrewExpenseFields,
-  receivedAt: string,
 ): CrewExpenseFields {
   const fields: CrewExpenseFields = {};
   for (const rawLine of lines) {
     const line = clean(rawLine);
     if (!line || /^(?:fuel|gas|dump)$/i.test(line)) continue;
+    if (/^time\s*:/i.test(line)) continue;
     let remainder = line;
-    let extractedStrongField = false;
     const take = (key: keyof CrewExpenseFields, pattern: RegExp): void => {
       if (existing[key] || fields[key]) return;
       const match = remainder.match(pattern);
       if (!match) return;
       fields[key] = clean(match[0]);
       remainder = clean(`${remainder.slice(0, match.index)} ${remainder.slice((match.index || 0) + match[0].length)}`);
-      extractedStrongField = true;
     };
 
     take("truck", /\b(?:truck|t)\s*#?\s*\d{1,3}\b/i);
@@ -416,27 +371,20 @@ function freeformFields(
       take("weight", /\b(?:tons?|lbs?|pounds?|kg|kgs|kilograms?)\s*[:#-]?\s*\d+(?:\.\d+)?\b/i);
     }
 
-    if (!existing.time && !fields.time) {
-      const explicitTime = remainder.match(/\b(?:\d{1,2}:\d{2}|\d{1,4})\s*[ap]\.?m\.?\b/i)?.[0]
-        || remainder.match(/\b(?:[01]?\d|2[0-3]):[0-5]\d\b/)?.[0]
-        || "";
-      const compactTime = [...remainder.matchAll(/\b\d{3,4}\b/g)]
-        .map((match) => match[0])
-        .find((candidate) => parseTime(candidate, receivedAt)) || "";
-      const timeCandidate = explicitTime || compactTime;
-      if (timeCandidate && (remainder === timeCandidate || extractedStrongField) && parseTime(timeCandidate, receivedAt)) {
-        fields.time = timeCandidate;
-        remainder = clean(remainder.replace(timeCandidate, " "));
-      } else if (parseTime(remainder, receivedAt)) {
-        fields.time = remainder;
-        remainder = "";
-      }
-    }
+    // A formerly supported, user-entered time may still appear in a message.
+    // It is deliberately ignored: the inbound WhatsApp timestamp is authoritative.
+    remainder = stripReportedTime(remainder);
+    if (existing.cost || fields.cost) remainder = stripCompactTimeTokens(remainder);
 
     if (kind === "dump" && !existing.cost && !fields.cost) {
-      const plainCosts = [...remainder.matchAll(/\b\d[\d,]*(?:\.\d{1,2})?\b/g)]
+      let plainCosts = [...remainder.matchAll(/\b\d[\d,]*(?:\.\d{1,2})?\b/g)]
         .map((match) => match[0])
         .filter((candidate) => parseMoney(candidate) !== null);
+      const compactTime = plainCosts.length === 2 ? plainCosts.find((candidate) => /^\d{3,4}$/.test(candidate)) : undefined;
+      if (compactTime) {
+        remainder = clean(remainder.replace(new RegExp(`\\b${compactTime}\\b`), " "));
+        plainCosts = plainCosts.filter((candidate) => candidate !== compactTime);
+      }
       if (plainCosts.length === 1) {
         fields.cost = plainCosts[0];
         remainder = clean(remainder.replace(plainCosts[0], " "));
@@ -545,8 +493,8 @@ function missingReply(kind: CrewExpenseKind, missing: string[], invalid: string[
     ...(invalid.length ? [`Check: ${invalid.join(", ")}.`] : []),
   ].join(" ");
   const guidance = kind === "dump"
-    ? "Weight is optional. Send each value without labels; compact times such as 1035 work."
-    : "Gallons is required. Send each value without labels; compact times such as 1412 or 212 work.";
+    ? "Weight is optional. The transaction time is the time you send this message to OpsBot."
+    : "Gallons is required. The transaction time is the time you send this message to OpsBot.";
   return `${problems} ${guidance}\n\n${kind === "dump" ? DUMP_TEMPLATE : FUEL_TEMPLATE}`.trim();
 }
 
@@ -560,7 +508,7 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
   const command = commandKind(normalizedMessage.text);
   if (command) {
     openSession(normalizedMessage, command);
-    enqueueReply(normalizedMessage, `Send each item separately or all at once — no labels needed:\n\n${command === "dump" ? DUMP_TEMPLATE : FUEL_TEMPLATE}${command === "dump" ? "\n\nWeight is optional." : ""}`, "expense-prompt");
+    enqueueReply(normalizedMessage, `Send each item separately or all at once — no labels needed. OpsBot uses the time you send the completed expense as its transaction time:\n\n${command === "dump" ? DUMP_TEMPLATE : FUEL_TEMPLATE}${command === "dump" ? "\n\nWeight is optional." : ""}`, "expense-prompt");
     writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "prompted", kind: command, processedAt: new Date().toISOString() });
     return { status: "prompted", kind: command };
   }
@@ -568,7 +516,7 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
   const parsed = fieldsFromMessage(normalizedMessage.text);
   const heading = messageHeading(parsed.lines);
   const explicit = parsed.fields.gallons ? "fuel" : parsed.fields.weight ? "dump" : explicitKind(normalizedMessage.text);
-  const inferred = explicit || freeformKind(normalizedMessage.text, message.receivedAt);
+  const inferred = explicit || freeformKind(normalizedMessage.text);
   const session = activeSession(message.senderPhone, message.receivedAt);
   const kind = heading || explicit || session?.kind || inferred;
   if (!parsed.recognized && !kind) return { status: "ignored" };
@@ -583,24 +531,24 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
   }
 
   const previousFields = session?.kind === kind ? session.fields : {};
-  const inferredFields = freeformFields(parsed.lines, kind, { ...previousFields, ...parsed.fields }, message.receivedAt);
+  const inferredFields = freeformFields(parsed.lines, kind, { ...previousFields, ...parsed.fields });
   const fields = { ...previousFields, ...parsed.fields, ...inferredFields };
   const currentSession = session?.kind === kind
     ? updateSession(message, session, fields)
     : null;
 
-  const required = kind === "dump" ? ["truck", "location", "cost", "time"] : ["truck", "location", "cost", "gallons", "time"];
+  const required = kind === "dump" ? ["truck", "location", "cost"] : ["truck", "location", "cost", "gallons"];
   const missing = required.filter((key) => !fields[key as keyof CrewExpenseFields]);
   const truck = fields.truck ? normalizeTruck(fields.truck) : null;
   const cost = fields.cost ? parseMoney(fields.cost) : null;
   const gallons = kind === "fuel" && fields.gallons ? parseGallons(fields.gallons) : null;
-  const time = fields.time ? parseTime(fields.time, message.receivedAt) : null;
+  const time = chicagoTime(message.receivedAt);
   const invalid = [
     ...(fields.truck && !truck ? ["Truck"] : []),
     ...(fields.location && (fields.location.length < 2 || fields.location.length > 120) ? ["Location"] : []),
     ...(fields.cost && cost === null ? ["Cost"] : []),
     ...(kind === "fuel" && fields.gallons && gallons === null ? ["Gallons"] : []),
-    ...(fields.time && !time ? ["Time"] : []),
+    ...(time === null ? ["Message timestamp"] : []),
   ];
 
   if (missing.length || invalid.length || !truck || cost === null || !time || (kind === "fuel" && gallons === null)) {
@@ -693,7 +641,7 @@ export function finishCrewExpenseTransaction(processingFile: string): CrewExpens
     messageId: transaction.record.messageId,
     senderPhone: transaction.recipient,
     phoneNumberId: transaction.phoneNumberId,
-  }, `${transaction.record.kind === "dump" ? "Dump" : "Fuel"} verified in JunkWare — ${transaction.record.truck} · ${transaction.record.location} · $${transaction.record.cost.toFixed(2)}${detail} · ${transaction.record.time}`, "expense-verified");
+  }, `${transaction.record.kind === "dump" ? "Dump" : "Fuel"} verified in JunkWare — ${transaction.record.truck} · ${transaction.record.location} · $${transaction.record.cost.toFixed(2)}${detail} · ${transaction.record.time}\n\nNeed to fix something? Reply EDIT.`, "expense-verified");
   fs.unlinkSync(processingFile);
   return transaction.record;
 }

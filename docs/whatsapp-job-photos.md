@@ -13,7 +13,6 @@ Truck 1
 Gentilly Landfill
 $86.40
 2 tons
-1035
 ```
 
 `Weight:` is optional, including for locations such as Gentilly Landfill that do not provide net weight.
@@ -23,10 +22,9 @@ Truck 1
 Shell
 24 gallons
 $100
-212
 ```
 
-All fuel fields are required. Strong shapes identify the values without labels: `Truck 1`, a plain-text location, `$100`, `24 gallons`, and a time. Order, spacing, punctuation, line breaks, and capitalization are flexible; common variants such as `T1`, `Truck#1`, `24g`, `24 gal`, `gallons 24`, `100 dollars`, and `2:12pm` are accepted. Compact time accepts four-digit 24-hour values such as `1412` and three-digit values such as `212`; three-digit times choose the AM/PM occurrence closest to the message time. Labeled forms remain supported for compatibility. OpsBot validates every field and sends a terse confirmation after writing the durable Truck Records detail. Sender phone numbers are stored only as one-way hashes in expense records and never shown in Finance.
+All fuel fields except time are required. Strong shapes identify the values without labels: `Truck 1`, a plain-text location, `$100`, and `24 gallons`. Order, spacing, punctuation, line breaks, and capitalization are flexible; common variants such as `T1`, `Truck#1`, `24g`, `24 gal`, `gallons 24`, and `100 dollars` are accepted. OpsBot ignores any typed time and records the WhatsApp receipt time in Central Time as the expense time. Labeled forms remain supported for compatibility. OpsBot validates every field and sends a terse confirmation after writing the durable Truck Records detail, with an `EDIT` option for a correction request. Sender phone numbers are stored only as one-way hashes in expense records and never shown in Finance.
 
 The desktop WhatsApp linked-device connection is useful for staff visibility, but it does not expose a supported inbound webhook. Production intake therefore requires the Operations number to be registered with a Meta WhatsApp Business Account and subscribed to the OpsCenter webhook.
 
@@ -133,7 +131,7 @@ The expense worker enforces this order:
 1. Create a JunkWare Accounting → Truck Records line item with a deterministic OpsBot receipt number.
 2. Re-read that truck ledger and verify the receipt number, category, and exact amount.
 3. Send a terse notification to the truck's Slack channel and require Slack's success timestamp.
-4. Publish the expense record to OpsCenter Finance and send the detailed WhatsApp verification.
+4. Publish the expense record to OpsCenter Finance and send the detailed WhatsApp verification, including a simple `EDIT` option for a correction request.
 
 Retries resume from the saved stage. A deterministic JunkWare receipt number prevents a retry from inserting the same WhatsApp expense twice, and Slack's `client_msg_id` prevents duplicate alerts. If JunkWare or Slack is unavailable, the transaction stays out of OpsCenter until the missing verification succeeds.
 

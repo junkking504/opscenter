@@ -44,6 +44,8 @@ export default function PaymentReconciliationPanel({
   const coverageComplete = coverage.expectedDays > 0 && coverage.merchantDays === coverage.expectedDays;
   const merchantReady = view.merchantCenterAvailable && view.merchantCenterFresh;
   const showExceptions = merchantReady && view.exceptions.length > 0;
+  const isQboAccounting = view.merchantCollector === "qbo-accounting-api";
+  const merchantLabel = isQboAccounting ? "QuickBooks Online" : "Merchant Center";
   const merchantRefreshLabel = view.merchantCenterCollectedAt
     ? stableUpdatedAt(view.merchantCenterCollectedAt)
     : "unknown";
@@ -65,13 +67,15 @@ export default function PaymentReconciliationPanel({
       {view.status === "not_collected" || view.status === "merchant_data_missing" ? (
         <div className="ops-reconciliation-callout">
           <div>
-            <strong>QuickBooks Online transactions have not been collected for this period.</strong>
+            <strong>{merchantLabel} transactions have not been collected for this period.</strong>
             <span>
-              OpsCenter will retry the API automatically. Check the encrypted OAuth connection if this message persists.
+              {isQboAccounting
+                ? "OpsCenter will retry the API automatically. Check the encrypted OAuth connection if this message persists."
+                : "Import a current Merchant Center transaction export before relying on this reconciliation."}
             </span>
           </div>
           <div className="ops-reconciliation-links">
-            <Link href={QBO_STATUS_URL}>Check QBO connection</Link>
+            {isQboAccounting ? <Link href={QBO_STATUS_URL}>Check QBO connection</Link> : null}
             <Link href={JUNKWARE_URL} target="_blank" rel="noreferrer">Open JunkWare ledger</Link>
           </div>
         </div>
@@ -80,7 +84,7 @@ export default function PaymentReconciliationPanel({
       {view.status === "merchant_data_stale" ? (
         <div className="ops-reconciliation-callout">
           <div>
-            <strong>QuickBooks Online is refreshing.</strong>
+            <strong>{merchantLabel} data is refreshing.</strong>
             <span>
               The last transaction snapshot was collected {merchantRefreshLabel}. Differences and exceptions are hidden until a current snapshot is available.
             </span>
@@ -90,18 +94,18 @@ export default function PaymentReconciliationPanel({
 
       {coverage.expectedDays > 1 && !coverageComplete ? (
         <div className="ops-reconciliation-coverage">
-          QBO coverage: {coverage.merchantDays} of {coverage.expectedDays} published days. Totals below include collected days only.
+          {merchantLabel} coverage: {coverage.merchantDays} of {coverage.expectedDays} published days. Totals below include collected days only.
         </div>
       ) : null}
 
       <div className="ops-reconciliation-summary">
         <div><span>JunkWare card payments</span><strong>{money(summary.junkware_total)}</strong><small>{summary.junkware_count} paid totals</small></div>
-        <div><span>QuickBooks Online</span><strong>{merchantReady ? money(summary.merchant_center_total) : "—"}</strong><small>{merchantReady ? `${summary.merchant_center_count} card transactions` : view.merchantCenterAvailable ? "Refreshing transactions" : "Awaiting API"}</small></div>
+        <div><span>{merchantLabel}</span><strong>{merchantReady ? money(summary.merchant_center_total) : "—"}</strong><small>{merchantReady ? `${summary.merchant_center_count} card transactions` : view.merchantCenterAvailable ? "Refreshing transactions" : isQboAccounting ? "Awaiting API" : "Awaiting export"}</small></div>
         <div><span>Matched</span><strong>{merchantReady ? money(summary.matched_total) : "—"}</strong><small>{merchantReady ? `${summary.matched_count} one-to-one matches` : "Not current"}</small></div>
         <div><span>Tips</span><strong>{merchantReady ? money(summary.tip_total) : "—"}</strong><small>Paid total minus job revenue</small></div>
-        <div><span>Difference</span><strong className={merchantReady && Math.abs(summary.net_difference) > 0.01 ? "ops-reconciliation-difference" : ""}>{merchantReady ? money(summary.net_difference) : "—"}</strong><small>{merchantReady ? "QuickBooks Online minus JunkWare" : "Waiting for current feed"}</small></div>
+        <div><span>Difference</span><strong className={merchantReady && Math.abs(summary.net_difference) > 0.01 ? "ops-reconciliation-difference" : ""}>{merchantReady ? money(summary.net_difference) : "—"}</strong><small>{merchantReady ? `${merchantLabel} minus JunkWare` : "Waiting for current feed"}</small></div>
         <div><span>Exceptions</span><strong>{merchantReady ? summary.exception_count : "—"}</strong><small>{merchantReady ? "Require review" : "Waiting for current feed"}</small></div>
-        <div><span>Processing fees</span><strong>—</strong><small>Not included in QBO transaction queries</small></div>
+        <div><span>Processing fees</span><strong>{merchantReady ? money(summary.processing_fees) : "—"}</strong><small>{isQboAccounting ? "Not included in QBO transaction queries" : "From Merchant Center transactions"}</small></div>
       </div>
 
       {showExceptions ? (
@@ -122,7 +126,7 @@ export default function PaymentReconciliationPanel({
                   <th>Customer</th>
                   <th>Card</th>
                   <th>JunkWare</th>
-                  <th>QuickBooks Online</th>
+                  <th>{merchantLabel}</th>
                 </tr>
               </thead>
               <tbody>

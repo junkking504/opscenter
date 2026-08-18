@@ -90,7 +90,7 @@ export type PaymentReconciliation = {
 
 export type PaymentExceptionRow = {
   date: string;
-  type: "Missing in QBO" | "QBO only" | "Ambiguous match" | "Amount mismatch";
+  type: string;
   reference: string;
   customer: string;
   cardLastFour: string;
@@ -227,9 +227,12 @@ export function readPaymentReconciliation(date: string): PaymentReconciliation |
 }
 
 function exceptionRows(payload: PaymentReconciliation): PaymentExceptionRow[] {
+  const sourceLabel = payload.sources?.merchant_center?.collector === "qbo-accounting-api"
+    ? "QBO"
+    : "Merchant Center";
   const missing = (payload.exceptions?.missing_in_merchant_center || []).map((row) => ({
     date: payload.date,
-    type: "Missing in QBO" as const,
+    type: `Missing in ${sourceLabel}`,
     reference: row.jk_number || "—",
     customer: row.customer_name || "—",
     cardLastFour: row.card_last_four || "",
@@ -238,7 +241,7 @@ function exceptionRows(payload: PaymentReconciliation): PaymentExceptionRow[] {
   }));
   const merchantOnly = (payload.exceptions?.merchant_center_only || []).map((row) => ({
     date: payload.date,
-    type: "QBO only" as const,
+    type: `${sourceLabel} only`,
     reference: row.transaction_id || "—",
     customer: row.customer_name || "—",
     cardLastFour: row.card_last_four || "",

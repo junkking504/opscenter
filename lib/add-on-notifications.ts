@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
+import { appointmentTerritoryForLocation } from "@/lib/appointment-territory";
 import { appointmentNotes } from "@/lib/junkware-job-details";
 import { AnyRecord, readMetrics } from "@/lib/opsData";
 
@@ -138,10 +139,14 @@ function readRawJunkwareDay(date: string): AnyRecord | null {
 }
 
 export function appointmentTerritory(row: AnyRecord): string {
-  return firstText(
-    row,
-    ["normalized_territory", "territory", "source_territory", "market"],
-    "Unknown territory",
+  return appointmentTerritoryForLocation(
+    firstText(
+      row,
+      ["normalized_territory", "territory", "source_territory", "market"],
+      "Unknown territory",
+    ),
+    firstText(row, ["service_address", "address", "job_address"]),
+    firstText(row, ["service_city", "city", "City"]),
   );
 }
 

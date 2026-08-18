@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { effectiveFleetChecklistDefinitions, type FleetChecklistCustomization } from "@/lib/fleet-checklist-definitions";
 import type { FleetChecklistEntry } from "@/lib/fleet-checklists";
-import type { FleetIssue, FleetIssuePhoto, FleetIssueSeverity, FleetIssueStatus } from "@/lib/fleet-issues";
+import type { FleetIssue, FleetIssueAttachment, FleetIssuePhoto, FleetIssueSeverity, FleetIssueStatus } from "@/lib/fleet-issues";
 
 type IssueDraft = {
   issueId: string;
@@ -76,6 +76,7 @@ export default function FleetControlCenter({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [pendingPhotos, setPendingPhotos] = useState<File[]>([]);
+  const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
 
   useEffect(() => setIssues(initialIssues), [initialIssues]);
   useEffect(() => setEntries(initialEntries), [initialEntries]);
@@ -105,6 +106,7 @@ export default function FleetControlCenter({
     setFormOpen(true);
     setMessage("");
     setPendingPhotos([]);
+    setPendingAttachments([]);
   }
 
   function addPhotos(files: FileList | null) {
@@ -128,6 +130,33 @@ export default function FleetControlCenter({
     return uploaded;
   }
 
+  function addAttachments(files: FileList | null) {
+    if (!files) return;
+    const accepted = Array.from(files).filter((file) => [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ].includes(file.type) && file.size <= 10 * 1024 * 1024);
+    setPendingAttachments((current) => [...current, ...accepted].slice(0, 6));
+    if (accepted.length !== files.length) setMessage("Use PDF, Word, or Excel files smaller than 10 MB.");
+  }
+
+  async function uploadAttachments(issueId: string): Promise<number> {
+    let uploaded = 0;
+    for (const file of pendingAttachments) {
+      const form = new FormData();
+      form.set("issueId", issueId);
+      form.set("attachment", file);
+      const response = await fetch("/api/fleet-issue-attachments", { method: "POST", body: form });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(String(payload?.error || `Unable to upload ${file.name}.`));
+      uploaded += 1;
+    }
+    return uploaded;
+  }
+
   async function removePhoto(photo: FleetIssuePhoto) {
     if (!window.confirm(`Remove ${photo.fileName}?`)) return;
     setSaving(true);
@@ -142,6 +171,25 @@ export default function FleetControlCenter({
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to remove this photo.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeAttachment(attachment: FleetIssueAttachment) {
+    if (!window.confirm(`Remove ${attachment.fileName}?`)) return;
+    setSaving(true);
+    try {
+      const response = await fetch(`/api/fleet-issue-attachments?attachmentId=${encodeURIComponent(attachment.attachmentId)}`, { method: "DELETE" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(String(payload?.error || "Unable to remove this file."));
+      const refresh = await fetch("/api/fleet-issues", { cache: "no-store" });
+      const refreshed = await refresh.json().catch(() => ({}));
+      if (Array.isArray(refreshed?.store?.issues)) setIssues(refreshed.store.issues);
+      setMessage("Repair file removed.");
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to remove this file.");
     } finally {
       setSaving(false);
     }
@@ -171,8 +219,10 @@ export default function FleetControlCenter({
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(String(payload?.error || "Unable to save this repair."));
       let nextIssues = Array.isArray(payload?.store?.issues) ? payload.store.issues : issues;
-      const uploaded = await uploadPhotos(String(payload?.issue?.issueId || ""));
-      if (uploaded) {
+      const issueId = String(payload?.issue?.issueId || "");
+      const uploadedPhotos = await uploadPhotos(issueId);
+      const uploadedAttachments = await uploadAttachments(issueId);
+      if (uploadedPhotos || uploadedAttachments) {
         const refresh = await fetch("/api/fleet-issues", { cache: "no-store" });
         const refreshed = await refresh.json().catch(() => ({}));
         if (Array.isArray(refreshed?.store?.issues)) nextIssues = refreshed.store.issues;
@@ -181,7 +231,12 @@ export default function FleetControlCenter({
       setFormOpen(false);
       setDraft(issueDraft(undefined, truckOptions[0]));
       setPendingPhotos([]);
-      setMessage(`${draft.issueId ? "Repair updated" : "Repair issue added"}${uploaded ? ` · ${uploaded} photo${uploaded === 1 ? "" : "s"} added` : ""}.`);
+      setPendingAttachments([]);
+      const uploads = [
+        uploadedPhotos ? `${uploadedPhotos} photo${uploadedPhotos === 1 ? "" : "s"}` : "",
+        uploadedAttachments ? `${uploadedAttachments} file${uploadedAttachments === 1 ? "" : "s"}` : "",
+      ].filter(Boolean).join(" and ");
+      setMessage(`${draft.issueId ? "Repair updated" : "Repair issue added"}${uploads ? ` · ${uploads} added` : ""}.`);
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to save this repair.");
@@ -239,6 +294,11 @@ export default function FleetControlCenter({
             <label className="ops-photo-add"><span>Add damage or completed-repair photos</span><input type="file" accept="image/jpeg,image/png,image/webp" multiple capture="environment" onChange={(event) => { addPhotos(event.target.files); event.target.value = ""; }} /></label>
             {(editingIssue?.photos || []).map((photo) => <div className="ops-photo-thumb" key={photo.photoId}><img src={`/api/fleet-issue-photos?photoId=${encodeURIComponent(photo.photoId)}`} alt={photo.fileName} /><button type="button" onClick={() => removePhoto(photo)}>Remove</button></div>)}
             {pendingPhotos.map((file, index) => <div className="ops-photo-queued" key={`${file.name}-${file.size}-${index}`}><span>{file.name}</span><button type="button" onClick={() => setPendingPhotos((current) => current.filter((_, photoIndex) => photoIndex !== index))}>Remove</button></div>)}
+          </div>
+          <div className="ops-repair-attachments">
+            <label className="ops-photo-add"><span>Add invoice, estimate, or other file</span><input type="file" accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.pdf,.doc,.docx,.xls,.xlsx" multiple onChange={(event) => { addAttachments(event.target.files); event.target.value = ""; }} /></label>
+            {(editingIssue?.attachments || []).map((attachment) => <div className="ops-repair-attachment" key={attachment.attachmentId}><a href={`/api/fleet-issue-attachments?attachmentId=${encodeURIComponent(attachment.attachmentId)}`} target="_blank" rel="noreferrer">{attachment.fileName}</a><button type="button" onClick={() => removeAttachment(attachment)}>Remove</button></div>)}
+            {pendingAttachments.map((file, index) => <div className="ops-photo-queued" key={`${file.name}-${file.size}-${index}`}><span>{file.name}</span><button type="button" onClick={() => setPendingAttachments((current) => current.filter((_, attachmentIndex) => attachmentIndex !== index))}>Remove</button></div>)}
           </div>
           <div className="ops-maintenance-form-actions"><button type="button" className="ops-refresh-button" onClick={saveIssue} disabled={saving}>{saving ? "Saving…" : "Save repair"}</button><button type="button" className="ops-button" onClick={() => setFormOpen(false)} disabled={saving}>Cancel</button></div>
         </div>

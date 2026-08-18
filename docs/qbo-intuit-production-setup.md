@@ -24,6 +24,7 @@ All URLs below are stable HTTPS routes on the current production host.
 | Host domain | `https://ops.junk-king.app` | Codex-derived | Current production hostname from the deployed OpsCenter route. |
 | Launch / connect URL | `https://ops.junk-king.app/integrations/qbo` | Codex-derived | Human-facing start page for the connection flow. |
 | OAuth redirect URI | `https://ops.junk-king.app/api/integrations/qbo/callback` | Codex-derived | Must match Intuit exactly, including path and trailing slash behavior. |
+| Post-authorization landing page | `https://ops.junk-king.app/integrations/qbo/status?connected=1` | OpsCenter route | The callback must use this fixed public origin, never an internal reverse-proxy hostname. |
 | Disconnect URL | `https://ops.junk-king.app/integrations/qbo/disconnected` | Codex-derived | Confirmation page after revocation. |
 | Privacy Policy URL | `https://ops.junk-king.app/legal/privacy` | Codex-derived | Public page for Intuit review. |
 | EULA / Terms URL | `https://ops.junk-king.app/legal/terms` | Codex-derived | Public page for Intuit review. |

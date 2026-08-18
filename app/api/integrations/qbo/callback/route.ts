@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getQboConfig, QBO_STATE_COOKIE, QBO_ROUTE_PATHS } from "@/lib/qbo-config";
+import { getQboConfig, qboUrl, QBO_STATE_COOKIE, QBO_ROUTE_PATHS } from "@/lib/qbo-config";
 import { exchangeQboAuthorizationCode } from "@/lib/qbo-oauth";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 
   try {
     await exchangeQboAuthorizationCode(code, realmId);
-    const response = NextResponse.redirect(new URL(`${QBO_ROUTE_PATHS.statusPage}?connected=1`, request.url));
+    const response = NextResponse.redirect(qboUrl(`${QBO_ROUTE_PATHS.statusPage}?connected=1`));
     response.cookies.set(QBO_STATE_COOKIE, "", {
       httpOnly: true,
       sameSite: "lax",

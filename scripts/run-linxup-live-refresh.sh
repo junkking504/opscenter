@@ -33,6 +33,14 @@ fi
 cd "$OPSBOT_DIR"
 export PYTHONPYCACHEPREFIX="/private/tmp/opscenter-linxup-pycache"
 
+for ENV_FILE in "$OPSBOT_DIR/.env" "$OPSBOT_DIR/.env.local" "$USER_HOME/.openclaw/.env"; do
+  if [ -f "$ENV_FILE" ]; then
+    set -a
+    . "$ENV_FILE"
+    set +a
+  fi
+done
+
 now_epoch=$(date +%s)
 map_mtime=0
 if [ -f "$MAP_FILE" ]; then

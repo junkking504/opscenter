@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { chicagoDateKey } from "../lib/report-dates";
-import type { GoogleReview, GoogleReviewsSnapshot } from "../lib/google-reviews";
+import { googleReviewsLocations, type GoogleReview, type GoogleReviewsLocation, type GoogleReviewsSnapshot } from "../lib/google-reviews";
 
 function argument(name: string): string {
   const index = process.argv.indexOf(`--${name}`);
@@ -51,13 +51,8 @@ function writeJson(file: string, value: unknown): void {
   fs.renameSync(temporary, file);
 }
 
-async function main(): Promise<void> {
-  const requestedPlaceId = required("GOOGLE_REVIEWS_PLACE_ID", argument("place-id") || String(process.env.GOOGLE_REVIEWS_PLACE_ID || "").trim());
-  const placeId = requestedPlaceId.replace(/^places\//i, "");
-  const apiKey = required(
-    "GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_ROUTES_API_KEY",
-    String(process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_ROUTES_API_KEY || "").trim(),
-  );
+async function collectLocation(location: GoogleReviewsLocation, apiKey: string, root: string): Promise<GoogleReviewsSnapshot> {
+  const placeId = location.placeId;
   const response = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`, {
     headers: {
       "X-Goog-Api-Key": apiKey,
@@ -75,15 +70,28 @@ async function main(): Promise<void> {
     fetchedAt,
     placeId,
     placeName: text(payload.displayName) || "Google Business Profile",
+    locationKey: location.key,
+    locationLabel: location.label,
     rating: numberOrNull(payload.rating),
     userRatingCount: numberOrNull(payload.userRatingCount),
     googleMapsUri: String(payload.googleMapsUri || "").trim(),
     reviews: Array.isArray(payload.reviews) ? payload.reviews.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object")).map(review) : [],
   };
+  writeJson(path.join(root, "google-reviews", location.key, "current.json"), snapshot);
+  writeJson(path.join(root, "history", "google-reviews", location.key, `google-reviews_${chicagoDateKey()}.json`), snapshot);
+  return snapshot;
+}
+
+async function main(): Promise<void> {
+  const requestedPlaceId = argument("place-id");
+  const locations = requestedPlaceId
+    ? [{ key: argument("location") || "manual", label: argument("label") || "Google Reviews", placeId: requestedPlaceId.replace(/^places\//i, "") }]
+    : googleReviewsLocations();
+  if (!locations.length) throw new Error("GOOGLE_REVIEWS_LOCATIONS or GOOGLE_REVIEWS_PLACE_ID is required. Configure it in the protected OpsCenter environment.");
+  const apiKey = required("GOOGLE_MAPS_API_KEY or GOOGLE_MAPS_ROUTES_API_KEY", String(process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_ROUTES_API_KEY || "").trim());
   const root = dataDirectory();
-  writeJson(path.join(root, "google-reviews", "current.json"), snapshot);
-  writeJson(path.join(root, "history", "google-reviews", `google-reviews_${chicagoDateKey()}.json`), snapshot);
-  console.log(JSON.stringify({ status: "ok", fetchedAt, placeId: snapshot.placeId, rating: snapshot.rating, userRatingCount: snapshot.userRatingCount, reviews: snapshot.reviews.length }));
+  const snapshots = await Promise.all(locations.map((location) => collectLocation(location, apiKey, root)));
+  console.log(JSON.stringify({ status: "ok", locations: snapshots.map((snapshot) => ({ location: snapshot.locationLabel, placeId: snapshot.placeId, rating: snapshot.rating, userRatingCount: snapshot.userRatingCount, reviews: snapshot.reviews.length })) }));
 }
 
 main().catch((error) => {

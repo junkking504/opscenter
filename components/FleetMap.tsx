@@ -110,16 +110,53 @@ function markerIcon(leaflet: LeafletModule, record: FleetTruckMapRecord, selecte
   const html = `
     <div class="ops-fleet-marker ${selected ? "is-selected" : ""} ${status}">
       <span class="ops-fleet-marker-dot"></span>
-      <span class="ops-fleet-marker-text">${escapeHtml(record.truck)}</span>
+      <span class="ops-fleet-marker-text">T${escapeHtml(truckNumber(record.truck))}</span>
     </div>
   `;
   return leaflet.divIcon({
     className: "",
     html,
-    iconSize: [140, 28],
-    iconAnchor: [18, 14],
+    iconSize: [62, 28],
+    iconAnchor: [31, 14],
     popupAnchor: [0, -12],
   });
+}
+
+type FleetMarkerCluster = {
+  latitude: number;
+  longitude: number;
+  trucks: FleetTruckMapRecord[];
+};
+
+function clusterVisibleTrucks(map: any, trucks: FleetTruckMapRecord[], minimumPixelDistance = 42): FleetMarkerCluster[] {
+  const clusters: FleetMarkerCluster[] = [];
+  for (const truck of trucks) {
+    const point = map.latLngToLayerPoint([truck.latitude as number, truck.longitude as number]);
+    const match = clusters.find((cluster) => {
+      const clusterPoint = map.latLngToLayerPoint([cluster.latitude, cluster.longitude]);
+      return point.distanceTo(clusterPoint) < minimumPixelDistance;
+    });
+    if (match) {
+      match.trucks.push(truck);
+    } else {
+      clusters.push({ latitude: truck.latitude as number, longitude: truck.longitude as number, trucks: [truck] });
+    }
+  }
+  return clusters;
+}
+
+function fleetClusterIcon(leaflet: LeafletModule, count: number) {
+  return leaflet.divIcon({
+    className: "",
+    html: `<span class="ops-map-cluster is-trucks"><b>${count}</b><small>trucks</small></span>`,
+    iconSize: [46, 46],
+    iconAnchor: [23, 23],
+    popupAnchor: [0, -22],
+  });
+}
+
+function fleetClusterPopup(trucks: FleetTruckMapRecord[]) {
+  return `<div class="ops-map-cluster-popup"><strong>${trucks.length} trucks here</strong><span>Select a truck to review its route and details.</span><div>${trucks.map((truck) => `<button type="button" data-fleet-truck="${escapeHtml(truck.truck)}">${escapeHtml(truck.truck)} · ${escapeHtml(operationalLabel(truck))}</button>`).join("")}</div></div>`;
 }
 
 function stopColor(kind: FleetMapStop["kind"]): string {
@@ -165,6 +202,8 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any>(null);
   const routeRef = useRef<any>(null);
+  const lastAutoFitDateRef = useRef("");
+  const lastFocusedTruckRef = useRef("");
   const selectedTruckParam = searchParams.get("truck");
   const selectedTruck = selectedTruckParam ? normalizeTruckLabel(selectedTruckParam) : "";
   const fleetMode = !selectedTruckParam;
@@ -260,86 +299,120 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
     const routes = routeRef.current;
     if (!map || !markers || !routes || !leaflet) return;
 
-    markers.clearLayers();
-    routes.clearLayers();
-
     const visibleTrucks = payload.trucks.filter(
       (truck) => truck.hasCoordinates && Number.isFinite(truck.latitude) && Number.isFinite(truck.longitude),
     );
 
-    for (const truck of visibleTrucks) {
-      const isSelected = selectedTruck === truck.truck;
-      const marker = leaflet.marker([truck.latitude as number, truck.longitude as number], {
-        icon: markerIcon(leaflet, truck, isSelected),
-        keyboard: true,
-        zIndexOffset: isSelected ? 1000 : 0,
-      });
+    const openTruck = (truck: FleetTruckMapRecord) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("date", payload.date);
+      params.set("truck", truckNumber(truck.truck));
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    };
 
-      marker.bindPopup(truckPopup(truck), {
-        className: "ops-fleet-popup-frame",
-        maxWidth: 340,
-      });
+    const drawMapItems = () => {
+      markers.clearLayers();
+      routes.clearLayers();
 
-      marker.on("click", () => {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("date", payload.date);
-        params.set("truck", truckNumber(truck.truck));
-        router.push(`${pathname}?${params.toString()}`, { scroll: false });
-      });
-
-      marker.addTo(markers);
-    }
-
-    if (!fleetMode && selectedRouteBounds) {
-      const routePoints = selectedTruckRecord?.routePoints || [];
-      const linePoints = routePoints
-        .filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude))
-        .map((point) => [point.latitude, point.longitude] as [number, number]);
-
-      if (linePoints.length > 1) {
-        leaflet.polyline(linePoints, {
-          color: "#60a5fa",
-          weight: 4,
-          opacity: 0.95,
-          lineJoin: "round",
-          lineCap: "round",
-        }).addTo(routes);
+      const selectedTruckItem = visibleTrucks.find((truck) => truck.truck === selectedTruck);
+      const clusters = clusterVisibleTrucks(
+        map,
+        visibleTrucks.filter((truck) => truck.truck !== selectedTruck),
+      );
+      for (const cluster of clusters) {
+        if (cluster.trucks.length === 1) {
+          const truck = cluster.trucks[0];
+          const marker = leaflet.marker([truck.latitude as number, truck.longitude as number], {
+            icon: markerIcon(leaflet, truck, false), keyboard: true, title: truck.truck,
+          });
+          marker.bindPopup(truckPopup(truck), { className: "ops-fleet-popup-frame", maxWidth: 340 });
+          marker.on("click", () => openTruck(truck));
+          marker.addTo(markers);
+          continue;
+        }
+        const marker = leaflet.marker([cluster.latitude, cluster.longitude], {
+          icon: fleetClusterIcon(leaflet, cluster.trucks.length), keyboard: true,
+          title: `${cluster.trucks.length} trucks in this area`, zIndexOffset: 900,
+        });
+        marker.bindPopup(fleetClusterPopup(cluster.trucks), { className: "ops-fleet-popup-frame", maxWidth: 300 });
+        marker.on("popupopen", () => {
+          const popup = marker.getPopup()?.getElement();
+          popup?.querySelectorAll<HTMLButtonElement>("[data-fleet-truck]").forEach((button) => {
+            const truck = cluster.trucks.find((item) => item.truck === button.dataset.fleetTruck);
+            button.onclick = () => { if (truck) openTruck(truck); };
+          });
+        });
+        marker.addTo(markers);
+      }
+      if (selectedTruckItem) {
+        const marker = leaflet.marker([selectedTruckItem.latitude as number, selectedTruckItem.longitude as number], {
+          icon: markerIcon(leaflet, selectedTruckItem, true), keyboard: true, title: selectedTruckItem.truck, zIndexOffset: 1200,
+        });
+        marker.bindPopup(truckPopup(selectedTruckItem), { className: "ops-fleet-popup-frame", maxWidth: 340 });
+        marker.on("click", () => openTruck(selectedTruckItem));
+        marker.addTo(markers);
       }
 
-      selectedTruckRecord?.routeStops.forEach((stop) => {
-        if (!Number.isFinite(stop.latitude) || !Number.isFinite(stop.longitude)) return;
-        leaflet.circleMarker([stop.latitude, stop.longitude], {
-          radius: 7,
-          color: stopColor(stop.kind),
-          weight: 3,
-          fillColor: "#ffffff",
-          fillOpacity: 0.9,
-        })
-          .bindPopup(
-            `<div class="ops-fleet-popup">
-              <div class="ops-fleet-popup-title">${escapeHtml(stop.label)}</div>
-              <div class="ops-fleet-popup-line"><span>Type</span><strong>${escapeHtml(stop.kind)}</strong></div>
-              <div class="ops-fleet-popup-line"><span>Begin</span><strong>${escapeHtml(formatTimestamp(stop.begin))}</strong></div>
-              <div class="ops-fleet-popup-line"><span>End</span><strong>${escapeHtml(formatTimestamp(stop.end))}</strong></div>
-            </div>`,
-            { className: "ops-fleet-popup-frame", maxWidth: 300 },
-          )
-          .addTo(routes);
-      });
-    }
+      if (!fleetMode && selectedRouteBounds) {
+        const routePoints = selectedTruckRecord?.routePoints || [];
+        const linePoints = routePoints
+          .filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude))
+          .map((point) => [point.latitude, point.longitude] as [number, number]);
 
-    const targetBounds = !fleetMode && selectedRouteBounds ? selectedRouteBounds : allTruckBounds;
-    if (targetBounds && targetBounds.isValid()) {
-      if (targetBounds.getNorthEast().equals(targetBounds.getSouthWest())) {
-        map.setView(targetBounds.getCenter(), visibleTrucks.length === 1 ? 12 : 10);
-      } else {
-        map.fitBounds(targetBounds.pad(0.15), {
-          padding: [24, 24],
-          maxZoom: visibleTrucks.length === 1 ? 13 : 15,
+        if (linePoints.length > 1) {
+          leaflet.polyline(linePoints, {
+            color: "#60a5fa", weight: 4, opacity: 0.95, lineJoin: "round", lineCap: "round",
+          }).addTo(routes);
+        }
+
+        selectedTruckRecord?.routeStops.forEach((stop) => {
+          if (!Number.isFinite(stop.latitude) || !Number.isFinite(stop.longitude)) return;
+          leaflet.circleMarker([stop.latitude, stop.longitude], {
+            radius: 7, color: stopColor(stop.kind), weight: 3, fillColor: "#ffffff", fillOpacity: 0.9,
+          })
+            .bindPopup(
+              `<div class="ops-fleet-popup"><div class="ops-fleet-popup-title">${escapeHtml(stop.label)}</div><div class="ops-fleet-popup-line"><span>Type</span><strong>${escapeHtml(stop.kind)}</strong></div><div class="ops-fleet-popup-line"><span>Begin</span><strong>${escapeHtml(formatTimestamp(stop.begin))}</strong></div><div class="ops-fleet-popup-line"><span>End</span><strong>${escapeHtml(formatTimestamp(stop.end))}</strong></div></div>`,
+              { className: "ops-fleet-popup-frame", maxWidth: 300 },
+            )
+            .addTo(routes);
         });
       }
-    }
+    };
+
+    drawMapItems();
+    map.on("zoomend", drawMapItems);
+    return () => map.off("zoomend", drawMapItems);
   }, [allTruckBounds, fleetMode, leaflet, payload.date, payload.trucks, router, searchParams, pathname, selectedRouteBounds, selectedTruck, selectedTruckRecord]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!fleetMode && selectedTruckRecord) {
+      const focusKey = `${payload.date}:${selectedTruckRecord.truck}`;
+      if (lastFocusedTruckRef.current === focusKey) return;
+      lastFocusedTruckRef.current = focusKey;
+      if (selectedRouteBounds?.isValid()) {
+        if (selectedRouteBounds.getNorthEast().equals(selectedRouteBounds.getSouthWest())) {
+          map.setView(selectedRouteBounds.getCenter(), 12, { animate: true });
+        } else {
+          map.fitBounds(selectedRouteBounds.pad(0.15), { padding: [24, 24], maxZoom: 15, animate: true });
+        }
+      } else if (selectedTruckRecord.hasCoordinates) {
+        map.setView([selectedTruckRecord.latitude as number, selectedTruckRecord.longitude as number], 12, { animate: true });
+      }
+      return;
+    }
+
+    lastFocusedTruckRef.current = "";
+    if (lastAutoFitDateRef.current === payload.date || !allTruckBounds?.isValid()) return;
+    lastAutoFitDateRef.current = payload.date;
+    if (allTruckBounds.getNorthEast().equals(allTruckBounds.getSouthWest())) {
+      map.setView(allTruckBounds.getCenter(), payload.trucksWithCoordinates === 1 ? 12 : 10);
+    } else {
+      map.fitBounds(allTruckBounds.pad(0.15), { padding: [24, 24], maxZoom: payload.trucksWithCoordinates === 1 ? 13 : 15 });
+    }
+  }, [allTruckBounds, fleetMode, payload.date, payload.trucksWithCoordinates, selectedRouteBounds, selectedTruckRecord]);
 
   useEffect(() => {
     const map = mapRef.current;

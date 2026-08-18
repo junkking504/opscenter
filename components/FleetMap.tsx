@@ -254,6 +254,8 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
       preferCanvas: false,
       attributionControl: true,
     });
+    // Clustering converts coordinates to screen points, which requires an initial view.
+    map.setView([30.45, -91.15], 7, { animate: false });
 
     leaflet.tileLayer(STREET_TILES, {
       attribution: STREET_ATTRIBUTION,

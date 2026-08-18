@@ -1113,6 +1113,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       scrollWheelZoom: true,
       attributionControl: true,
     });
+    // Clustering converts coordinates to screen points, which requires an initial view.
+    map.setView([30.45, -91.15], 7, { animate: false });
     leaflet.tileLayer(STREET_TILES, {
       attribution: STREET_ATTRIBUTION,
       maxZoom: 20,

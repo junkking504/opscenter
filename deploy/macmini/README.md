@@ -81,6 +81,28 @@ Keychain. `/api/health` reports `stale-linxup-data` when today's normalized GPS
 snapshot is more than three minutes old, and current OpsCenter pages refresh
 when a newer LinxUp snapshot arrives.
 
+### Dedicated JunkWare schedule watchers
+
+New appointment, reschedule, cancellation, and closeout alerts are collected by
+four independent market-scoped watchers. They use the protected OpsBot browser
+state, verify the requested date and their selected JunkWare market, and publish
+through a shared atomic Slack state file. The aggregate schedule detector must
+not run alongside them because it would duplicate alerts.
+
+After deploying a release that includes this path, install or refresh only
+these watchers:
+
+```sh
+cd /Users/missioncontrol/opscenter-v2/opscenter
+./deploy/macmini/install-junkware-schedule-watchers.sh
+```
+
+The installer retires `com.openclaw.opsbot.junkware-schedule-detector`, then
+starts New Orleans (352), Northshore (477), Baton Rouge (399), and Jefferson
+Parish (484) watchers at a 20-second launch interval. Their successful and
+failed heartbeats are written under
+`/Users/missioncontrol/.openclaw/workspace/opsbot/data/slack/junkware_schedule_watchers/`.
+
 To deploy OpsCenter while leaving the separately managed WhatsApp photo worker
 untouched, set `OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER=false` for the deployment
 command. The default remains to restart the worker when it is loaded so it uses

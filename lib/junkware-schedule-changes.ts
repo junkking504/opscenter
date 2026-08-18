@@ -12,8 +12,8 @@ type Snapshot = {
 };
 
 type DetectorState = {
-  version: 1;
-  snapshot: Snapshot | null;
+  version: 2;
+  snapshots: Record<string, Snapshot | null>;
   delivered: string[];
 };
 
@@ -177,13 +177,20 @@ function stateFile(dataDir: string): string {
 function readState(dataDir: string): DetectorState {
   try {
     const value = JSON.parse(fs.readFileSync(stateFile(dataDir), "utf8"));
+    if (value?.version === 2 && value?.snapshots && typeof value.snapshots === "object") {
+      return {
+        version: 2,
+        snapshots: value.snapshots,
+        delivered: Array.isArray(value?.delivered) ? value.delivered.map(String).slice(-2_000) : [],
+      };
+    }
     return {
-      version: 1,
-      snapshot: value?.snapshot || null,
+      version: 2,
+      snapshots: { legacy: value?.snapshot || null },
       delivered: Array.isArray(value?.delivered) ? value.delivered.map(String).slice(-2_000) : [],
     };
   } catch {
-    return { version: 1, snapshot: null, delivered: [] };
+    return { version: 2, snapshots: {}, delivered: [] };
   }
 }
 
@@ -204,24 +211,75 @@ async function post(token: string, alert: SlackOpsAlert): Promise<boolean> {
   return Boolean(response.ok && payload.ok);
 }
 
-export async function publishScheduleChanges(dataDir: string, snapshot: Snapshot, token: string): Promise<{ baselined: boolean; posted: ScheduleChange[]; failed: ScheduleChange[] }> {
-  const state = readState(dataDir);
-  if (!state.snapshot) {
-    writeState(dataDir, { ...state, snapshot });
-    return { baselined: true, posted: [], failed: [] };
-  }
-  const delivered = new Set(state.delivered);
-  const posted: ScheduleChange[] = [];
-  const failed: ScheduleChange[] = [];
-  for (const event of detectScheduleChanges(state.snapshot, snapshot)) {
-    if (delivered.has(event.fingerprint)) continue;
-    if (await post(token, event.alert)) {
-      delivered.add(event.fingerprint);
-      posted.push(event);
-    } else {
-      failed.push(event);
+function normalizedScope(value: string | undefined): string {
+  const scope = clean(value || "legacy").toLowerCase();
+  if (!/^[a-z0-9_-]{1,80}$/.test(scope)) throw new Error("Invalid schedule detector scope.");
+  return scope;
+}
+
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function withStateLock<T>(dataDir: string, callback: () => Promise<T>): Promise<T> {
+  const lock = `${stateFile(dataDir)}.lock`;
+  const deadline = Date.now() + 20_000;
+  fs.mkdirSync(path.dirname(lock), { recursive: true });
+
+  while (true) {
+    try {
+      fs.mkdirSync(lock);
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      try {
+        const age = Date.now() - fs.statSync(lock).mtimeMs;
+        if (age > 120_000) fs.rmSync(lock, { recursive: true, force: true });
+      } catch {
+        // Another publisher may have released the lock between stat and removal.
+      }
+      if (Date.now() >= deadline) throw new Error("Timed out waiting for the schedule alert state lock.");
+      await sleep(50);
     }
   }
-  writeState(dataDir, { version: 1, snapshot, delivered: Array.from(delivered).slice(-2_000) });
-  return { baselined: false, posted, failed };
+  try {
+    return await callback();
+  } finally {
+    fs.rmSync(lock, { recursive: true, force: true });
+  }
+}
+
+export async function publishScheduleChanges(
+  dataDir: string,
+  snapshot: Snapshot,
+  token: string,
+  options: { scope?: string } = {},
+): Promise<{ baselined: boolean; posted: ScheduleChange[]; failed: ScheduleChange[] }> {
+  const scope = normalizedScope(options.scope);
+  return withStateLock(dataDir, async () => {
+    const state = readState(dataDir);
+    const previous = state.snapshots[scope] || null;
+    if (!previous) {
+      writeState(dataDir, { ...state, snapshots: { ...state.snapshots, [scope]: snapshot } });
+      return { baselined: true, posted: [], failed: [] };
+    }
+    const delivered = new Set(state.delivered);
+    const posted: ScheduleChange[] = [];
+    const failed: ScheduleChange[] = [];
+    for (const event of detectScheduleChanges(previous, snapshot)) {
+      if (delivered.has(event.fingerprint)) continue;
+      if (await post(token, event.alert)) {
+        delivered.add(event.fingerprint);
+        posted.push(event);
+      } else {
+        failed.push(event);
+      }
+    }
+    writeState(dataDir, {
+      version: 2,
+      snapshots: { ...state.snapshots, [scope]: snapshot },
+      delivered: Array.from(delivered).slice(-2_000),
+    });
+    return { baselined: false, posted, failed };
+  });
 }

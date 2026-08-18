@@ -1205,7 +1205,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       <div className="ops-jobs-map-legend" aria-label="Appointment type legend">
         <span title="New Orleans" aria-label="New Orleans"><i className="is-new-orleans" />NO</span>
         <span title="Baton Rouge" aria-label="Baton Rouge"><i className="is-baton-rouge" />BR</span>
-        <span title="New Orleans East" aria-label="New Orleans East"><i className="is-nola-east" />NE</span>
         <span title="Northshore" aria-label="Northshore"><i className="is-northshore" />NS</span>
         <span title="Jefferson Parish" aria-label="Jefferson Parish"><i className="is-jefferson" />JP</span>
         <span title="Westbank" aria-label="Westbank"><i className="is-westbank" />WB</span>

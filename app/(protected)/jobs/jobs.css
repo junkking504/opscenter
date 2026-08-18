@@ -473,7 +473,7 @@
 }
 
 .ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette.is-unassigned {
-  background: #8b929d;
+  background: #00e13c;
 }
 
 .ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette.is-completed {

@@ -1,5 +1,5 @@
 const WESTBANK_LOCATION = /\b(?:algiers|gretna|harvey|marrero|terrytown|timberlane|woodmere|estelle|westwego|avondale|bridge\s+city|waggaman|belle\s+chasse|crown\s+point)\b/i;
-const NOLA_EAST_LOCATION = /\b(?:arabi|chalmette|meraux|violet|st\.?\s*bernard|new\s+orleans\s+east|70032|70043|70044|70075|70092|70126|70127|70128|70129)\b/i;
+const JEFFERSON_CORE_LOCATION = /\b(?:metairie|kenner)\b/i;
 const LAFAYETTE = { latitude: 30.2241, longitude: -92.0198 };
 const LAFAYETTE_SERVICE_RADIUS_MILES = 30;
 
@@ -17,8 +17,8 @@ export function isWestbankLocation(...locationValues: unknown[]): boolean {
   );
 }
 
-export function isNolaEastLocation(...locationValues: unknown[]): boolean {
-  return NOLA_EAST_LOCATION.test(
+export function isJeffersonCoreLocation(...locationValues: unknown[]): boolean {
+  return JEFFERSON_CORE_LOCATION.test(
     locationValues
       .map((value) => String(value || "").trim())
       .filter(Boolean)
@@ -42,7 +42,7 @@ export function isWithinLafayetteServiceRadius(latitude: unknown, longitude: unk
 
 export function appointmentTerritoryTone(territory: unknown, ...locationValues: unknown[]): string {
   if (isWestbankLocation(...locationValues)) return "is-westbank";
-  if (isNolaEastLocation(...locationValues)) return "is-nola-east";
+  if (isJeffersonCoreLocation(...locationValues)) return "is-jefferson";
 
   const normalized = String(territory || "").toLowerCase();
   if (normalized.includes("new orleans")) return "is-new-orleans";

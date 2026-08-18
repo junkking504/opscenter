@@ -252,9 +252,10 @@ function unavailableProximityText(jobKey: string, proximity: JobRouteProximityPa
 
 function markerIcon(leaflet: LeafletModule, job: JobsMapPoint, selected: boolean) {
   const tone = territoryTone(job);
+  const canceled = job.statusBucket === "Canceled";
   return leaflet.divIcon({
     className: "",
-    html: `<span class="ops-jobs-map-pin ${tone}${selected ? " is-selected" : ""}"><i></i></span>`,
+    html: `<span class="ops-jobs-map-pin ${tone}${selected ? " is-selected" : ""}"><i${canceled ? ' class="is-canceled"' : ""}>${canceled ? "×" : ""}</i></span>`,
     iconSize: [24, 30],
     iconAnchor: [12, 28],
     tooltipAnchor: [0, -28],

@@ -20,6 +20,18 @@ for (const retiredLabel of [
   assert.ok(!jobsMapSource.includes(retiredLabel), `Dispatch legend still includes ${retiredLabel}`);
 }
 assert.ok(jobsMapSource.includes("timelineHourLabel(hour)"), "Dispatch timeline must use compact hour labels.");
+assert.ok(jobsMapSource.includes('canceled ? "×" : ""'), "Canceled map pins must use a cancellation marker instead of a territory color.");
+
+const jobsMapCss = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+for (const selector of [
+  ".ops-jobs-map-pin.is-new-orleans.is-completed",
+  ".ops-jobs-map-pin.is-jefferson.is-completed",
+  ".ops-jobs-map-pin.is-northshore.is-completed",
+  ".ops-jobs-map-pin.is-baton-rouge.is-completed",
+]) {
+  assert.ok(!jobsMapCss.includes(selector), `${selector} must not override the map territory color.`);
+}
+assert.ok(jobsMapCss.includes(".ops-jobs-map-pin i.is-canceled"), "Canceled map pins must preserve the territory color with a red X badge.");
 
 const jobsPageSource = readFileSync(new URL("../app/(protected)/jobs/page.tsx", import.meta.url), "utf8");
 assert.ok(jobsPageSource.includes("territoryAbbreviation(territory)"), "Territory jump controls must use compact territory labels.");

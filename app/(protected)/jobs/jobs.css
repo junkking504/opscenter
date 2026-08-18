@@ -465,19 +465,19 @@
   }
 }
 .ops-jobs-page :is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette {
-  background: #a78bfa;
+  background: #a3e635;
 }
 
 .ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette.is-assigned-unfinished {
-  background: #986df8;
+  background: #84cc16;
 }
 
 .ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette.is-unassigned {
-  background: rgba(167, 139, 250, .5);
+  background: rgba(163, 230, 53, .5);
 }
 
 .ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette.is-completed {
-  background: #ad9bd7;
+  background: #b1c37b;
 }
 
 /* The split dispatch workspace can leave each hour with roughly 30px. Full

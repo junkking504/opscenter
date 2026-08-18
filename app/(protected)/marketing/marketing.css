@@ -254,6 +254,12 @@
   gap: 14px;
 }
 
+.ops-marketing-review-locations,
+.ops-marketing-review-location {
+  display: grid;
+  gap: 18px;
+}
+
 .ops-marketing-reviews-list {
   display: grid;
   gap: 10px;

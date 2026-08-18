@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
-import { buildGoogleReviewsViewFromData, type GoogleReviewsSnapshot } from "../lib/google-reviews";
+import { buildGoogleReviewsViewFromData, googleReviewsLocations, type GoogleReviewsLocation, type GoogleReviewsSnapshot } from "../lib/google-reviews";
+
+const newOrleans: GoogleReviewsLocation = { key: "new-orleans", label: "New Orleans", placeId: "ChIJneworleans01" };
 
 const earlier: GoogleReviewsSnapshot = {
   version: 1,
   source: "google_places_api",
   fetchedAt: "2026-08-15T16:00:00.000Z",
-  placeId: "places/example",
+  placeId: newOrleans.placeId,
   placeName: "Junk King Louisiana",
   rating: 4.8,
   userRatingCount: 121,
@@ -24,13 +26,25 @@ const current: GoogleReviewsSnapshot = {
   ],
 };
 
-const view = buildGoogleReviewsViewFromData(current, [earlier]);
+const view = buildGoogleReviewsViewFromData(newOrleans, current, [earlier]);
 assert.equal(view.available, true);
 assert.equal(view.rating, 4.9);
 assert.equal(view.reviewCountChange, 2);
 assert.ok(Math.abs((view.ratingChange || 0) - 0.1) < 0.000001);
 assert.equal(view.reviews[0].isNew, true);
 assert.equal(view.reviews[1].isNew, false);
-assert.equal(buildGoogleReviewsViewFromData(null).available, false);
+assert.equal(buildGoogleReviewsViewFromData(newOrleans, null).available, false);
+
+const originalLocations = process.env.GOOGLE_REVIEWS_LOCATIONS;
+process.env.GOOGLE_REVIEWS_LOCATIONS = JSON.stringify([
+  newOrleans,
+  { key: "northshore", label: "Northshore", placeId: "ChIJnorthshore" },
+]);
+assert.deepEqual(googleReviewsLocations().map(({ key, label }) => ({ key, label })), [
+  { key: "new-orleans", label: "New Orleans" },
+  { key: "northshore", label: "Northshore" },
+]);
+if (originalLocations === undefined) delete process.env.GOOGLE_REVIEWS_LOCATIONS;
+else process.env.GOOGLE_REVIEWS_LOCATIONS = originalLocations;
 
 console.log("Google Reviews snapshot and change-tracking checks passed.");

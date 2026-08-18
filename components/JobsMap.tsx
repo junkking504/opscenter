@@ -249,11 +249,7 @@ function unavailableProximityText(jobKey: string, proximity: JobRouteProximityPa
 
 function markerIcon(leaflet: LeafletModule, job: JobsMapPoint, selected: boolean) {
   const tone = territoryTone(job);
-  const coreLabel = !tone.includes("is-unassigned") && tone.includes("is-new-orleans")
-    ? "NO"
-    : !tone.includes("is-unassigned") && tone.includes("is-baton-rouge")
-      ? "BR"
-      : "";
+  const coreLabel = !tone.includes("is-unassigned") && tone.includes("is-new-orleans") ? "NO" : "";
   return leaflet.divIcon({
     className: "",
     html: `<span class="ops-jobs-map-pin ${tone}${selected ? " is-selected" : ""}">${coreLabel ? `<b>${escapeHtml(coreLabel)}</b>` : "<i></i>"}</span>`,

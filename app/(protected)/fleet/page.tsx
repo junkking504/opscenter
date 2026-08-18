@@ -20,6 +20,7 @@ import { readFleetChecklistTemplateStore } from "@/lib/fleet-checklist-templates
 import { readFleetIssueStore } from "@/lib/fleet-issues";
 import { readLatestLinxupVehicleInventory } from "@/lib/linxup-vehicle-inventory";
 import { monthOptions } from "@/lib/monthly-summary";
+import { DRIVING_SCORE_ALERT_RULES, DRIVING_SCORE_COMPENSATION_COPY, drivingScoreCompensationLabel } from "@/lib/driving-score-policy";
 
 function truckDriverScoreRows(metrics: AnyRecord | null): AnyRecord[] {
   const rows = metrics?.truck_driver_scores || metrics?.truck_driver_scores_by_truck || [];
@@ -667,22 +668,14 @@ function alertEntries(row: AnyRecord): AlertEntry[] {
     const counts = row.weighted_alert_counts;
     const available = row.weighted_alert_availability;
     const deductions = row.alert_deductions || {};
-    const definitions = [
-      ["High Speed", "highSpeed", 8, 24],
-      ["Rapid Acceleration", "rapidAcceleration", 1, 5],
-      ["Harsh Braking", "harshBraking", 2, 10],
-      ["Posted Speed", "postedSpeed", 4, 20],
-      ["Phone Use", "phoneUse", 10, 30],
-      ["Tailgating", "tailgating", 5, 15],
-    ] as const;
     return [
-      ...definitions.map(([label, key, perEvent, dailyCap]) => ({
-        label,
-        value: counts[key],
-        available: available[key] !== false,
-        safetyDeduction: Number(deductions[key] || 0),
-        overallDeduction: Number(deductions[key] || 0) * 0.9,
-        deductionRule: `${perEvent} points per alert, maximum ${dailyCap} per day`,
+      ...DRIVING_SCORE_ALERT_RULES.map((rule) => ({
+        label: rule.label,
+        value: counts[rule.key],
+        available: available[rule.key] !== false,
+        safetyDeduction: Number(deductions[rule.key] || 0),
+        overallDeduction: Number(deductions[rule.key] || 0) * 0.9,
+        deductionRule: `${rule.perEvent} points per alert, maximum ${rule.dailyCap} per day`,
       })),
     ];
   }
@@ -851,7 +844,7 @@ export default async function FleetPage({
             <div className="ops-section-title">Truck Driving Scores</div>
             <div className="ops-muted">Every truck is scored from its own GPS activity. Driver attribution is supplemental and never suppresses a truck score.</div>
             <div className="ops-driver-scoring-rules">
-              High Speed over 70 mph: 8 points each, maximum 24 · Rapid Acceleration: 1 each, maximum 5 · Harsh Braking: 2 each, maximum 10 · Posted Speed: 4 each, maximum 20 · Phone Use: 10 each, maximum 30 · Tailgating: 5 each, maximum 15. Unsupported alerts are excluded.
+              {DRIVING_SCORE_ALERT_RULES.map((rule) => `${rule.label}: ${rule.perEvent} points each, maximum ${rule.dailyCap}`).join(" · ")}. Unsupported alerts are excluded. {DRIVING_SCORE_COMPENSATION_COPY}
             </div>
           </div>
         </div>
@@ -919,7 +912,7 @@ export default async function FleetPage({
                               <strong>{truckLabel}</strong>
                             </div>
                             <div className={`ops-driver-score-status ${hasScore ? scoreTone : "ops-score-neutral"}`}>
-                              {hasScore ? numericScore >= 80 ? "On target" : numericScore >= 60 ? "Needs attention" : "Critical" : "No score"}
+                              {hasScore ? drivingScoreCompensationLabel(numericScore) : "No score"}
                             </div>
                           </div>
 

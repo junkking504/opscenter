@@ -4,6 +4,7 @@ import { getCrewPayPeriodMetrics } from "@/lib/crew-pay-period";
 import { money, number } from "@/lib/metrics";
 import { resolveReportDate } from "@/lib/report-dates";
 import { buildFleetDailyRecord } from "@/lib/fleet-history";
+import { DRIVING_SCORE_ALERT_RULES, DRIVING_SCORE_COMPENSATION_COPY, drivingScoreCompensationLabel } from "@/lib/driving-score-policy";
 
 type PageProps = {
   params: Promise<{
@@ -71,15 +72,6 @@ export default async function CrewMemberPage({ params, searchParams }: PageProps
     : null;
   const alertCounts = driverTelemetry?.weighted_alert_counts || {};
   const alertAvailability = driverTelemetry?.weighted_alert_availability || {};
-  const driverAlertRows = [
-    ["High Speed", 20, "highSpeed"],
-    ["Rapid Acceleration", 3, "rapidAcceleration"],
-    ["Harsh Braking", 7, "harshBraking"],
-    ["Posted Speed Violation", 25, "postedSpeed"],
-    ["Phone Use", 30, "phoneUse"],
-    ["Tailgating", 15, "tailgating"],
-  ] as const;
-
   const cards = [
     ["Total Earnings", money(t.totalPay), "Base pay + tips + bonuses"],
     ["Base Pay", money(t.basePay), ""],
@@ -110,7 +102,7 @@ export default async function CrewMemberPage({ params, searchParams }: PageProps
         <div className="ops-card-header compact">
           <div>
             <div className="ops-section-title">Driver Score for {selectedDate}</div>
-            <div className="ops-muted">Daily GPS and camera performance attributed to this driver.</div>
+            <div className="ops-muted">Daily GPS and camera performance attributed to this driver. {DRIVING_SCORE_COMPENSATION_COPY}</div>
           </div>
         </div>
 
@@ -118,7 +110,7 @@ export default async function CrewMemberPage({ params, searchParams }: PageProps
           <div>
             <div className="ops-employee-score-grid">
               <div><div className="ops-card-title">Overall Score</div><div className="ops-kpi-value">{overallDriverScore.toFixed(1)}</div></div>
-              <div><div className="ops-card-title">Grade</div><div className="ops-kpi-value ops-kpi-accent">{driverGrade(overallDriverScore)}</div></div>
+              <div><div className="ops-card-title">Bonus status</div><div className="ops-kpi-value ops-kpi-accent">{drivingScoreCompensationLabel(overallDriverScore)}</div><div className="ops-kpi-sub">Grade {driverGrade(overallDriverScore)}</div></div>
               <div><div className="ops-card-title">Safety Score</div><div className="ops-employee-stat-value">{safetyScore?.toFixed(1) ?? "Unavailable"}</div><div className="ops-kpi-sub">90% of overall score</div></div>
               <div><div className="ops-card-title">Idling Score</div><div className="ops-employee-stat-value">{idleScore?.toFixed(0) ?? "Unavailable"}</div><div className="ops-kpi-sub">10% of overall score</div></div>
               <div><div className="ops-card-title">Miles</div><div className="ops-employee-stat-value">{Number(driverTelemetry.miles_driven || 0).toFixed(2)}</div></div>
@@ -136,19 +128,19 @@ export default async function CrewMemberPage({ params, searchParams }: PageProps
                 <thead>
                   <tr>
                     <th className="px-4 py-3">Safety alert</th>
-                    <th className="px-4 py-3 text-right">Weight</th>
+                    <th className="px-4 py-3 text-right">Deduction</th>
                     <th className="px-4 py-3 text-right">Alerts</th>
                     <th className="px-4 py-3">Coverage</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {driverAlertRows.map(([label, weight, key]) => {
-                    const available = alertAvailability[key] !== false;
+                  {DRIVING_SCORE_ALERT_RULES.map((rule) => {
+                    const available = alertAvailability[rule.key] !== false;
                     return (
-                      <tr key={key}>
-                        <td>{label}</td>
-                        <td className="ops-money">{weight}%</td>
-                        <td className="ops-money">{available ? Math.round(Number(alertCounts[key] || 0)) : "Unavailable"}</td>
+                      <tr key={rule.key}>
+                        <td>{rule.label}</td>
+                        <td className="ops-money">{rule.perEvent} each · max {rule.dailyCap}</td>
+                        <td className="ops-money">{available ? Math.round(Number(alertCounts[rule.key] || 0)) : "Unavailable"}</td>
                         <td>{available ? "Tracked" : "Camera does not support this alert"}</td>
                       </tr>
                     );

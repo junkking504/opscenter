@@ -5,6 +5,8 @@ OpsCenter treats SearchKings as the paid-marketing source and JunkWare as the bo
 - Platform conversions are reported exactly as SearchKings provides them.
 - Qualified calls are SearchKings calls scored 3–5 by default.
 - Matched bookings are qualified calls whose normalized phone number appears on a JunkWare appointment from the call date through seven days later.
+- A completed JunkWare appointment is credited to its earliest qualifying matching call only, so duplicate calls cannot inflate bookings or revenue.
+- Attributed revenue is limited to those matched appointments that JunkWare also identifies as completed. An estimate or scheduled match remains a booking signal, but its quoted amount is excluded from revenue and ROAS.
 - A qualified call starts in **Needs follow-up** and becomes **Lost** after 72 hours without a match. Both thresholds are configurable.
 - If a lost call later matches a JunkWare appointment, it is shown as **Recovered**.
 

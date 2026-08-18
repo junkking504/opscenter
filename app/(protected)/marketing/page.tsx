@@ -3,6 +3,7 @@ import "./marketing.css";
 import LostLeadTracker from "@/components/LostLeadTracker";
 import PageHeader from "@/components/PageHeader";
 import { appointmentScheduleHref } from "@/lib/job-links";
+import { buildGoogleReviewsView, googleReviewsSetupSummary } from "@/lib/google-reviews";
 import { money, type AnyRecord } from "@/lib/opsData";
 import { groupSearchKingsLeadsByDate } from "@/lib/searchkings-date-groups";
 import { buildSearchKingsView, searchKingsSetupSummary } from "@/lib/searchkings";
@@ -33,13 +34,19 @@ function statusLabel(value: string): string {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function signedNumber(value: number | null, digits = 0): string {
+  if (value === null) return "No prior record";
+  return `${value > 0 ? "+" : ""}${value.toFixed(digits)}`;
+}
+
 export default async function MarketingPage({ searchParams }: { searchParams?: Promise<AnyRecord> }) {
   const params = searchParams ? await searchParams : undefined;
   const requestedSection = String(params?.section || "overview").toLowerCase();
-  const section = ["overview", "territory", "calls", "lost-leads"].includes(requestedSection)
+  const section = ["overview", "territory", "calls", "lost-leads", "reviews"].includes(requestedSection)
     ? requestedSection
     : "overview";
   const view = buildSearchKingsView();
+  const reviews = buildGoogleReviewsView();
   const date = view.snapshot?.range.endDate || new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Chicago",
     year: "numeric",
@@ -52,16 +59,17 @@ export default async function MarketingPage({ searchParams }: { searchParams?: P
     <div className="ops-dashboard ops-marketing-page">
       <PageHeader
         title="Marketing"
-        subtitle={view.available ? `SearchKings performance · ${view.rangeLabel}` : "SearchKings performance and lead recovery"}
+        subtitle={view.available ? `SearchKings performance · ${view.rangeLabel}` : "Marketing performance, lead recovery, and Google Reviews"}
         date={date}
         showDateSelector={false}
-        lastUpdated={view.snapshot?.fetchedAt}
-        status={searchKingsSetupSummary()}
+        lastUpdated={section === "reviews" ? reviews.snapshot?.fetchedAt : view.snapshot?.fetchedAt}
+        status={`${searchKingsSetupSummary()} · ${googleReviewsSetupSummary(reviews)}`}
         sections={[
           { label: "Overview", href: "/marketing?section=overview", active: section === "overview" },
           { label: "Territory", href: "/marketing?section=territory", active: section === "territory" },
           { label: "Calls", href: "/marketing?section=calls", active: section === "calls", badge: view.totalCalls },
           { label: "Lost Leads", href: "/marketing?section=lost-leads", active: section === "lost-leads", badge: view.lostLeads + view.needsFollowUp, attention: view.lostLeads + view.needsFollowUp > 0 },
+          { label: "Reviews", href: "/marketing?section=reviews", active: section === "reviews", badge: reviews.userRatingCount ?? undefined },
         ]}
       />
 
@@ -98,6 +106,14 @@ export default async function MarketingPage({ searchParams }: { searchParams?: P
               <div><span>Quoted Lost Value</span><strong>{view.valuedLostLeads ? money(view.estimatedLostRevenue) : "Unknown"}</strong></div>
             </div>
           </section>
+          {reviews.available ? <section className="ops-card">
+            <div className="ops-card-header compact"><div><div className="ops-section-title">Google Reviews</div><div className="ops-muted">Public rating and review-count changes are tracked between collections.</div></div><a className="ops-mini-link" href="/marketing?section=reviews">View reviews</a></div>
+            <div className="ops-summary-list">
+              <div><span>Rating</span><strong>{reviews.rating === null ? "Unknown" : `${reviews.rating.toFixed(1)} / 5`}</strong></div>
+              <div><span>Ratings</span><strong>{reviews.userRatingCount ?? "Unknown"}</strong></div>
+              <div><span>Since last record</span><strong>{reviews.reviewCountChange === null ? "No prior record" : `${signedNumber(reviews.reviewCountChange)} ratings`}</strong></div>
+            </div>
+          </section> : null}
         </div>
       </> : null}
 
@@ -122,6 +138,31 @@ export default async function MarketingPage({ searchParams }: { searchParams?: P
       {view.available && section === "lost-leads" ? <section>
         <div className="ops-marketing-section-copy"><div><div className="ops-section-title">Lost Lead Tracker</div><div className="ops-muted">Review qualified calls, record whether the franchise contacted the customer, and preserve the next follow-up action.</div></div></div>
         <LostLeadTracker leads={view.leads} />
+      </section> : null}
+
+      {section === "reviews" ? <section>
+        {!reviews.available ? <div className="ops-card ops-alert-card">
+          <div className="ops-section-title">Waiting for the First Google Reviews Collection</div>
+          <div className="ops-muted">{reviews.error} Configure the protected Google Place ID and API key, then run the documented collector.</div>
+        </div> : <>
+          <div className="ops-marketing-section-copy"><div><div className="ops-section-title">Google Reviews</div><div className="ops-muted">Public Google Places data only. Review-count change is measured against the prior collected snapshot.</div></div></div>
+          <div className="ops-kpi-row ops-marketing-reviews-kpis">
+            <div className="ops-card ops-kpi-card"><div className="ops-card-title">Google Rating</div><div className="ops-kpi-value ops-kpi-good">{reviews.rating === null ? "Unknown" : `${reviews.rating.toFixed(1)} / 5`}</div><div className="ops-kpi-sub">{reviews.snapshot?.placeName}</div></div>
+            <div className="ops-card ops-kpi-card"><div className="ops-card-title">Total Ratings</div><div className="ops-kpi-value">{reviews.userRatingCount ?? "Unknown"}</div><div className="ops-kpi-sub">Current public count</div></div>
+            <div className="ops-card ops-kpi-card"><div className="ops-card-title">Rating Change</div><div className="ops-kpi-value">{signedNumber(reviews.ratingChange, 1)}</div><div className="ops-kpi-sub">Since prior record</div></div>
+            <div className="ops-card ops-kpi-card"><div className="ops-card-title">Count Change</div><div className="ops-kpi-value">{signedNumber(reviews.reviewCountChange)}</div><div className="ops-kpi-sub">Ratings since prior record</div></div>
+          </div>
+          <section className="ops-card ops-marketing-reviews-card">
+            <div className="ops-card-header compact"><div><div className="ops-section-title">Latest Google Reviews</div><div className="ops-muted">Google returns a limited recent-review set; new labels compare only that set with the prior snapshot.</div></div>{reviews.snapshot?.googleMapsUri ? <a className="ops-mini-link" href={reviews.snapshot.googleMapsUri} target="_blank" rel="noopener noreferrer">Open on Google Maps</a> : null}</div>
+            {reviews.reviews.length ? <div className="ops-marketing-reviews-list">
+              {reviews.reviews.map((review) => <article className="ops-marketing-review" key={review.name || `${review.authorName}-${review.publishTime}`}>
+                <div className="ops-marketing-review-header"><div><strong>{review.authorName}</strong><div className="ops-marketing-review-meta"><span aria-label={`${review.rating} out of 5 stars`}>{"★".repeat(Math.max(0, Math.min(5, Math.round(review.rating))))}{"☆".repeat(Math.max(0, 5 - Math.round(review.rating)))}</span><span>{review.relativePublishTimeDescription || callDate(review.publishTime)}</span></div></div>{review.isNew ? <span className="ops-marketing-new-review">New since last record</span> : null}</div>
+                {review.text ? <p>{review.text}</p> : <p className="ops-muted">No review text provided.</p>}
+                {review.googleMapsUri ? <a className="ops-mini-link" href={review.googleMapsUri} target="_blank" rel="noopener noreferrer">Open review</a> : null}
+              </article>) }
+            </div> : <div className="ops-muted ops-marketing-empty-reviews">Google returned no review details with this snapshot.</div>}
+          </section>
+        </>}
       </section> : null}
     </div>
   );

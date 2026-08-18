@@ -16,6 +16,10 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.ops-marketing-reviews-kpis {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .ops-marketing-overview-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -245,6 +249,69 @@
   font-size: 0.875rem;
 }
 
+.ops-marketing-reviews-card {
+  display: grid;
+  gap: 14px;
+}
+
+.ops-marketing-reviews-list {
+  display: grid;
+  gap: 10px;
+}
+
+.ops-marketing-review {
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px;
+  padding: 14px;
+  background: rgba(248, 250, 252, 0.64);
+}
+
+.ops-marketing-review-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ops-marketing-review-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+  color: #5a6470;
+  font-size: 0.8125rem;
+}
+
+.ops-marketing-review-meta span:first-child {
+  color: #8a6200;
+  letter-spacing: 0.04em;
+}
+
+.ops-marketing-review p {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.ops-marketing-new-review {
+  flex: 0 0 auto;
+  border: 1px solid #9ccdb6;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #edf9f2;
+  color: #087849;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ops-marketing-empty-reviews {
+  padding: 2px 0;
+}
+
 .ops-marketing-review-button {
   margin-left: auto;
 }
@@ -354,6 +421,7 @@
 
 @media (max-width: 900px) {
   .ops-marketing-kpis,
+  .ops-marketing-reviews-kpis,
   .ops-marketing-overview-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -369,6 +437,7 @@
 
 @media (max-width: 620px) {
   .ops-marketing-kpis,
+  .ops-marketing-reviews-kpis,
   .ops-marketing-overview-grid,
   .ops-marketing-lead-context,
   .ops-marketing-lead-form {
@@ -399,6 +468,10 @@
 
   .ops-command-marketing-alert {
     align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ops-marketing-review-header {
     flex-direction: column;
   }
 }

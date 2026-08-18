@@ -61,10 +61,13 @@
 
 .ops-marketing-call-player {
   display: block;
-  width: 180px;
-  max-width: 100%;
+  width: 200px;
   height: 36px;
   margin-top: 8px;
+}
+
+.ops-marketing-call-group .ops-table :is(th, td):first-child {
+  min-width: 220px;
 }
 
 .ops-marketing-section-copy {

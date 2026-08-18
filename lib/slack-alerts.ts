@@ -607,6 +607,52 @@ function readTruckArrivalVisitRows(date: string): AnyRecord[] {
   }
 }
 
+type TruckArrivalAppointmentDetails = {
+  customerName: string;
+  address: string;
+};
+
+function readTruckArrivalAppointmentDetails(date: string): Map<string, TruckArrivalAppointmentDetails> {
+  const configured = String(process.env.OPSCENTER_DATA_DIR || "").trim();
+  const dataDirectories = Array.from(new Set([
+    ...(configured ? [configured] : []),
+    path.join(process.cwd(), "data"),
+    path.join(process.cwd(), "..", "opsbot", "data"),
+    path.join(process.env.HOME || "", ".openclaw", "workspace", "opsbot", "data"),
+  ]));
+
+  for (const dataDirectory of dataDirectories) {
+    const file = path.join(dataDirectory, "history", "junkware", `junkware_${date}_raw.json`);
+    try {
+      const payload = JSON.parse(fs.readFileSync(file, "utf8"));
+      const rows = [payload?.appointments, payload?.completed, payload?.cancelled]
+        .flatMap((group) => Array.isArray(group) ? group : [])
+        .filter((row): row is AnyRecord => Boolean(row) && typeof row === "object");
+      const detailsByAppointment = new Map<string, TruckArrivalAppointmentDetails>();
+
+      for (const row of rows) {
+        const details = {
+          customerName: firstText(row, ["customer_name", "customerName", "service_contact_name"]),
+          address: firstText(row, ["service_address", "address", "serviceAddress"]),
+        };
+        if (!details.customerName && !details.address) continue;
+
+        for (const key of [
+          firstText(row, ["appt_id", "appointment_id", "appointmentId"]),
+          firstText(row, ["job_id", "jk_number", "job_number"]),
+        ]) {
+          if (key) detailsByAppointment.set(key, details);
+        }
+      }
+      return detailsByAppointment;
+    } catch {
+      // Try the next known OpsBot data location.
+    }
+  }
+
+  return new Map();
+}
+
 function truckArrivalKeyPart(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
@@ -614,6 +660,7 @@ function truckArrivalKeyPart(value: string): string {
 export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   const seen = new Set<string>();
+  const appointmentDetails = readTruckArrivalAppointmentDetails(date);
 
   for (const row of rows) {
     if (String(row?.match_confidence || "").trim().toLowerCase() !== "confirmed") continue;
@@ -623,6 +670,13 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
     const jkNumber = firstText(row, ["jk_number", "job_id", "job_number"]) || appointmentId || "Appointment";
     const truck = firstText(row, ["truck_number", "truck", "truckNumber"]);
     if (!appointmentId || !truck) continue;
+    const details = appointmentDetails.get(appointmentId) || appointmentDetails.get(jkNumber);
+    const customerName = firstText(row, ["customer_name", "customerName", "service_contact_name"])
+      || details?.customerName
+      || "Unknown";
+    const address = firstText(row, ["service_address", "address", "serviceAddress"])
+      || details?.address
+      || "Unknown";
 
     const intervalArrivals = (Array.isArray(row?.visit_intervals) ? row.visit_intervals : [])
       .map((interval: AnyRecord) => firstText(interval, ["arrival"]))
@@ -642,7 +696,12 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
       ].join(":");
       if (seen.has(fingerprint)) continue;
       seen.add(fingerprint);
-      const plainText = `:truck: ${truck} arrived onsite at ${jkNumber}.`;
+      const plainText = [
+        `:truck: ${truck} arrived onsite.`,
+        `Job: ${jkNumber}`,
+        `Customer: ${customerName}`,
+        `Address: ${address}`,
+      ].join("\n");
       notifications.push({
         fingerprint,
         kind: "truck_arrival",

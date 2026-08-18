@@ -268,6 +268,8 @@ const truckArrivalAlerts = buildTruckArrivalSlackNotifications("2026-08-12", [
   {
     appointment_id: "4037246",
     jk_number: "JK4050424",
+    customer_name: "Test Customer",
+    address: "123 Test Street, New Orleans, LA 70115",
     truck_number: "Truck 4",
     visit_count: 2,
     match_confidence: "confirmed",
@@ -279,6 +281,8 @@ const truckArrivalAlerts = buildTruckArrivalSlackNotifications("2026-08-12", [
   {
     appointment_id: "4037246",
     jk_number: "JK4050424",
+    customer_name: "Test Customer",
+    address: "123 Test Street, New Orleans, LA 70115",
     truck_number: "Truck 4",
     visit_count: 2,
     match_confidence: "confirmed",
@@ -301,8 +305,16 @@ assert.equal(truckArrivalAlerts.length, 2);
 assert.deepEqual(
   truckArrivalAlerts.map((alert) => ({ kind: alert.kind, channelId: alert.channelId, text: formatSlackAlert(alert) })),
   [
-    { kind: "truck_arrival", channelId: "C_TEST_TRUCK_4", text: ":truck: Truck 4 arrived onsite at JK4050424." },
-    { kind: "truck_arrival", channelId: "C_TEST_TRUCK_4", text: ":truck: Truck 4 arrived onsite at JK4050424." },
+    {
+      kind: "truck_arrival",
+      channelId: "C_TEST_TRUCK_4",
+      text: ":truck: Truck 4 arrived onsite.\nJob: JK4050424\nCustomer: Test Customer\nAddress: 123 Test Street, New Orleans, LA 70115",
+    },
+    {
+      kind: "truck_arrival",
+      channelId: "C_TEST_TRUCK_4",
+      text: ":truck: Truck 4 arrived onsite.\nJob: JK4050424\nCustomer: Test Customer\nAddress: 123 Test Street, New Orleans, LA 70115",
+    },
   ],
 );
 
@@ -378,6 +390,12 @@ const newCloseout = {
 };
 fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), JSON.stringify({
   scraped_at: "2026-08-12T14:00:00-05:00",
+  appointments: [{
+    appt_id: "503",
+    job_id: "JK4051503",
+    customer_name: "Arrival Customer",
+    address: "503 Arrival Street, New Orleans, LA 70115",
+  }],
   completed: [existingCloseout],
 }));
 
@@ -419,7 +437,9 @@ try {
   }));
   const arrivalRun = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["truck_arrival"] });
   assert.deepEqual(arrivalRun.posted.map((alert) => alert.kind), ["truck_arrival"]);
-  assert.deepEqual(postedMessages, [":truck: Truck 6 arrived onsite at JK4051503."]);
+  assert.deepEqual(postedMessages, [
+    ":truck: Truck 6 arrived onsite.\nJob: JK4051503\nCustomer: Arrival Customer\nAddress: 503 Arrival Street, New Orleans, LA 70115",
+  ]);
   postedMessages.length = 0;
 
   const baselineRun = await runSlackOpsAlerts({ date: "2026-08-12" });

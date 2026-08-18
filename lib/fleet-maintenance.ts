@@ -31,8 +31,18 @@ export type FleetMaintenanceRecord = {
   nextServiceDate: string;
   nextServiceOdometer: number | null;
   notes: string;
+  photos: FleetMaintenancePhoto[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type FleetMaintenancePhoto = {
+  photoId: string;
+  fileName: string;
+  storageName: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
 };
 
 export type FleetMaintenanceStore = {
@@ -97,6 +107,26 @@ function sortRecords(records: FleetMaintenanceRecord[]): FleetMaintenanceRecord[
   });
 }
 
+function parsePhotos(value: unknown): FleetMaintenancePhoto[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw) => {
+    if (!raw || typeof raw !== "object") return [];
+    const photo = raw as Record<string, unknown>;
+    const photoId = String(photo.photoId || "").trim();
+    const storageName = path.basename(String(photo.storageName || "").trim());
+    const mimeType = String(photo.mimeType || "").trim().toLowerCase();
+    if (!photoId || !storageName || !["image/jpeg", "image/png", "image/webp"].includes(mimeType)) return [];
+    return [{
+      photoId,
+      fileName: path.basename(String(photo.fileName || "photo")).slice(0, 160),
+      storageName,
+      mimeType,
+      size: Math.max(0, Number(photo.size) || 0),
+      uploadedAt: String(photo.uploadedAt || "").trim(),
+    }];
+  });
+}
+
 function parseRecord(value: Record<string, unknown>): FleetMaintenanceRecord | null {
   const truck = normalizeTruck(value.truck);
   const serviceDate = String(value.serviceDate || "").trim();
@@ -117,6 +147,7 @@ function parseRecord(value: Record<string, unknown>): FleetMaintenanceRecord | n
     nextServiceDate: validDate(nextServiceDate, true) ? nextServiceDate : "",
     nextServiceOdometer: nullableNonNegativeNumber(value.nextServiceOdometer),
     notes: String(value.notes || "").trim(),
+    photos: parsePhotos(value.photos),
     createdAt: String(value.createdAt || "").trim(),
     updatedAt: String(value.updatedAt || "").trim(),
   };
@@ -189,6 +220,7 @@ export function upsertFleetMaintenanceRecord(input: FleetMaintenanceInput): Flee
     nextServiceDate,
     nextServiceOdometer: nullableNonNegativeNumber(rawNextOdometer),
     notes: String(input.notes || "").trim(),
+    photos: existing?.photos || [],
     createdAt: existing?.createdAt || now,
     updatedAt: now,
   };
@@ -207,6 +239,55 @@ export function deleteFleetMaintenanceRecord(recordId: string): boolean {
   if (records.length === store.records.length) return false;
   writeFleetMaintenanceStore({ version: 1, updatedAt: new Date().toISOString(), records });
   return true;
+}
+
+export function fleetMaintenancePhotoDirectory(): string {
+  return path.join(storeDir(), "maintenance_photos");
+}
+
+export function fleetMaintenancePhotoFilePath(photo: FleetMaintenancePhoto): string {
+  return path.join(fleetMaintenancePhotoDirectory(), path.basename(photo.storageName));
+}
+
+export function attachFleetMaintenancePhoto(recordId: string, input: Omit<FleetMaintenancePhoto, "photoId" | "uploadedAt">): FleetMaintenancePhoto | null {
+  const store = readFleetMaintenanceStore();
+  const index = store.records.findIndex((record) => record.recordId === recordId);
+  if (index < 0 || store.records[index].photos.length >= 6) return null;
+  const now = new Date().toISOString();
+  const photo: FleetMaintenancePhoto = {
+    photoId: randomUUID(),
+    fileName: path.basename(input.fileName).slice(0, 160),
+    storageName: path.basename(input.storageName),
+    mimeType: input.mimeType,
+    size: Math.max(0, input.size),
+    uploadedAt: now,
+  };
+  store.records[index].photos.push(photo);
+  store.records[index].updatedAt = now;
+  writeFleetMaintenanceStore({ version: 1, updatedAt: now, records: store.records });
+  return photo;
+}
+
+export function findFleetMaintenancePhoto(photoId: string): { record: FleetMaintenanceRecord; photo: FleetMaintenancePhoto } | null {
+  for (const record of readFleetMaintenanceStore().records) {
+    const photo = record.photos.find((candidate) => candidate.photoId === photoId);
+    if (photo) return { record, photo };
+  }
+  return null;
+}
+
+export function detachFleetMaintenancePhoto(photoId: string): FleetMaintenancePhoto | null {
+  const store = readFleetMaintenanceStore();
+  for (let recordIndex = 0; recordIndex < store.records.length; recordIndex += 1) {
+    const photoIndex = store.records[recordIndex].photos.findIndex((photo) => photo.photoId === photoId);
+    if (photoIndex < 0) continue;
+    const [photo] = store.records[recordIndex].photos.splice(photoIndex, 1);
+    const now = new Date().toISOString();
+    store.records[recordIndex].updatedAt = now;
+    writeFleetMaintenanceStore({ version: 1, updatedAt: now, records: store.records });
+    return photo;
+  }
+  return null;
 }
 
 export function fleetMaintenanceSummary(records: FleetMaintenanceRecord[], today: string) {

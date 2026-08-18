@@ -1,8 +1,10 @@
 import { cookies } from "next/headers";
+import fs from "fs";
 import { NextResponse } from "next/server";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
 import {
   deleteFleetMaintenanceRecord,
+  fleetMaintenancePhotoFilePath,
   readFleetMaintenanceStore,
   upsertFleetMaintenanceRecord,
 } from "@/lib/fleet-maintenance";
@@ -52,6 +54,13 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   if (!(await authenticated())) return response({ error: "Authentication required." }, 401);
   const recordId = new URL(request.url).searchParams.get("recordId") || "";
+  const record = readFleetMaintenanceStore().records.find((candidate) => candidate.recordId === recordId);
   const deleted = deleteFleetMaintenanceRecord(recordId);
+  if (deleted) {
+    for (const photo of record?.photos || []) {
+      const filePath = fleetMaintenancePhotoFilePath(photo);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+  }
   return response({ ok: deleted, store: readFleetMaintenanceStore() }, deleted ? 200 : 404);
 }

@@ -68,4 +68,14 @@ assert.ok(
   "Crew daily summary Hourly Pay must use the overtime-aware hourly-pay total.",
 );
 
+const fleetPageSource = readFileSync(new URL("../app/(protected)/fleet/page.tsx", import.meta.url), "utf8");
+assert.ok(
+  fleetPageSource.includes('const mapPayload = section === "map" ? buildFleetMapPayload(date, selectedTruck) : null;'),
+  "Fleet map data must only be built for the active Map section.",
+);
+assert.ok(
+  fleetPageSource.includes('{section === "map" && mapPayload ? <div id="fleet-map"><FleetMapClient payload={mapPayload} /></div> : null}'),
+  "Fleet map polling must not remain mounted in hidden Fleet sections.",
+);
+
 console.log("OpsCenter UI copy checks passed.");

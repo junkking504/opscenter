@@ -791,12 +791,14 @@ export default async function FleetPage({
   const totalExpenses = trucks.reduce((sum, t) => sum + Number(t.expenses || 0), 0);
   const selectedTruck = params?.truck ? normalizeTruckLabel(params.truck) : "";
   const selectedDriverRow = driverMap.get(selectedTruck);
-  const mapPayload = buildFleetMapPayload(date, selectedTruck);
   const section = requestedSection === "performance"
     ? "overview"
     : ["overview", "map", "scores"].includes(requestedSection)
       ? requestedSection
       : "overview";
+  // FleetMapClient owns a live 30-second poll. Do not mount it (or construct
+  // its data payload) while the operator is using another Fleet section.
+  const mapPayload = section === "map" ? buildFleetMapPayload(date, selectedTruck) : null;
 
   return (
     <div className="ops-dashboard">
@@ -836,7 +838,7 @@ export default async function FleetPage({
         </div>
       </div>
 
-      {mapPayload && <div id="fleet-map" className={section === "map" ? "" : "ops-section-hidden"}><FleetMapClient payload={mapPayload} /></div>}
+      {section === "map" && mapPayload ? <div id="fleet-map"><FleetMapClient payload={mapPayload} /></div> : null}
 
       <div className={section === "scores" ? "ops-card" : "ops-section-hidden"} id="fleet-driving-scores">
         <div className="ops-card-header compact">

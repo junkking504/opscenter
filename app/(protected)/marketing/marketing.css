@@ -16,6 +16,23 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+/* Shared dashboard KPIs intentionally use a fixed desktop height for quick
+ * scanning. Marketing has explanatory subtext that can be two lines long, so
+ * let only these cards grow instead of cutting the operating context off. */
+.ops-marketing-kpis > .ops-kpi-card {
+  height: auto;
+  min-height: 74px;
+}
+
+.ops-marketing-kpis .ops-kpi-sub {
+  height: auto;
+  overflow: hidden;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .ops-marketing-overview-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -78,4 +78,16 @@ assert.ok(
   "Fleet map polling must not remain mounted in hidden Fleet sections.",
 );
 
+const marketingCss = readFileSync(new URL("../app/(protected)/marketing/marketing.css", import.meta.url), "utf8");
+assert.match(
+  marketingCss,
+  /\.ops-marketing-kpis > \.ops-kpi-card\s*\{\s*height: auto;\s*min-height: 74px;/,
+  "Marketing KPI cards must grow for explanatory subtext.",
+);
+assert.match(
+  marketingCss,
+  /\.ops-marketing-kpis \.ops-kpi-sub\s*\{[\s\S]*?-webkit-line-clamp: 2;/,
+  "Marketing KPI subtext must wrap cleanly and clamp to two lines.",
+);
+
 console.log("OpsCenter UI copy checks passed.");

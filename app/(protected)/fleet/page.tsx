@@ -20,7 +20,7 @@ import { readFleetChecklistTemplateStore } from "@/lib/fleet-checklist-templates
 import { readFleetIssueStore } from "@/lib/fleet-issues";
 import { readLatestLinxupVehicleInventory } from "@/lib/linxup-vehicle-inventory";
 import { monthOptions } from "@/lib/monthly-summary";
-import { DRIVING_SCORE_ALERT_RULES, DRIVING_SCORE_COMPENSATION_COPY, drivingScoreCompensationLabel } from "@/lib/driving-score-policy";
+import { DRIVING_SCORE_ALERT_RULES, DRIVING_SCORE_COMPENSATION_COPY, drivingScoreCompensationBand, drivingScoreCompensationLabel } from "@/lib/driving-score-policy";
 
 function truckDriverScoreRows(metrics: AnyRecord | null): AnyRecord[] {
   const rows = metrics?.truck_driver_scores || metrics?.truck_driver_scores_by_truck || [];
@@ -882,7 +882,7 @@ export default async function FleetPage({
               const hasScore = Number.isFinite(numericScore);
               const hasDriving = Number(telemetry?.miles_driven || 0) > 0 || Number(driveMinutes || 0) > 0;
               const scoreTone = Number.isFinite(numericScore)
-                ? numericScore >= 80 ? "ops-score-good" : numericScore >= 60 ? "ops-score-warning" : "ops-score-bad"
+                ? drivingScoreCompensationBand(numericScore) === "reward" ? "ops-score-good" : numericScore >= 60 ? "ops-score-warning" : "ops-score-bad"
                 : "";
               const driverDetailId = `truck-score-detail-${encodeURIComponent(truckLabel)}`;
               const scoreDisplay = hasScore ? numericScore.toFixed(1) : hasDriving ? "Score unavailable" : "No GPS driving";

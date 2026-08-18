@@ -30,7 +30,7 @@ const snapshot: SearchKingsSnapshot = {
     total: { currentCalls: 4, currentScoredCalls: 4 },
     callsQuality: [],
     calls: [
-      { id: "booked", name: "Booked Caller", callerNumberComplete: "+1 504 555 0101", city: "New Orleans", score: 4, tagList: [], reportingTag: "Asked about a same-day pickup.", trackingLabel: "NOLA", duration: "03:20", calledAtDate: "2026-08-01", calledAtTime: "10:00 AM" },
+      { id: "booked", name: "Booked Caller", callerNumberComplete: "+1 504 555 0101", city: "New Orleans", score: 4, tagList: [], reportingTag: "Asked about a same-day pickup.", trackingLabel: "NOLA", duration: "03:20", calledAtDate: "2026-08-01", calledAtTime: "10:00 AM", audio: "https://calls.searchkings.com/recordings/booked.wav" },
       { id: "lost", name: "Lost Caller", callerNumberComplete: "+1 225 555 0102", city: "Baton Rouge", score: 5, tagList: ["Availability objection"], reportingTag: "Agent quoted $250; customer declined.", trackingLabel: "Baton Rouge LSA", duration: "02:00", calledAtDate: "2026-08-01", calledAtTime: "9:00 AM" },
       { id: "unqualified", name: "Bad Caller", callerNumberComplete: "+1 504 555 0103", city: "New Orleans", score: 1, tagList: [], duration: "00:30", calledAtDate: "2026-08-02", calledAtTime: "9:00 AM" },
       { id: "recovered", name: "Recovered Caller", callerNumberComplete: "+1 225 555 0104", city: "Baton Rouge", score: 4, tagList: [], duration: "01:30", calledAtDate: "2026-08-01", calledAtTime: "8:00 AM" },
@@ -70,6 +70,9 @@ assert.equal(view.leads.find((lead) => lead.callerName === "Lost Caller")?.statu
 assert.equal(view.leads.find((lead) => lead.callerName === "Lost Caller")?.reason, "availability");
 assert.equal(view.leads.find((lead) => lead.callerName === "Lost Caller")?.potentialRevenue, 250);
 assert.equal(view.leads.find((lead) => lead.callerName === "Booked Caller")?.potentialRevenue, null);
+assert.equal(view.leads.find((lead) => lead.callerName === "Booked Caller")?.duration, "03:20");
+assert.equal(view.leads.find((lead) => lead.callerName === "Booked Caller")?.recordingUrl, "https://calls.searchkings.com/recordings/booked.wav");
+assert.equal(view.leads.find((lead) => lead.callerName === "Lost Caller")?.recordingUrl, "");
 assert.equal(view.leads.find((lead) => lead.callerName === "Bad Caller")?.status, "unqualified");
 assert.equal(view.leads.find((lead) => lead.callerName === "Recovered Caller")?.status, "recovered");
 assert.equal(view.leads.find((lead) => lead.callerName === "Recovered Caller")?.franchiseContacted, true);

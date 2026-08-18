@@ -10,7 +10,7 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
   - Denham Springs -> Baton Rouge / `#jobs-br`, even when an upstream record says Northshore
   - Northshore -> `#jobs-ns`
   - Unknown or unsupported territories -> `#dispatch`
-- Confirmed truck arrival -> that truck's `#truck-N` channel
+- Confirmed truck arrival -> that truck's `#truck-N` channel, with JK number, customer name, and service address
 - Newly closed job -> a short operational completion notice in that truck's `#truck-N` channel
 - Fuel and dump receipts -> that truck's `#truck-N` channel
 - Verified WhatsApp job-photo batch -> that truck's `#truck-N` channel

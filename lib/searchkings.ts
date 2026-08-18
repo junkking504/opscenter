@@ -127,7 +127,11 @@ export type SearchKingsAppointmentMatch = {
   customerName: string;
   phone: string;
   territory: string;
-  revenue: number;
+  // A phone match means the lead reached the schedule. It does not mean the
+  // job's quoted amount became revenue. Only JunkWare's completed-job evidence
+  // may supply attributed revenue.
+  revenue: number | null;
+  completed: boolean;
   status: string;
 };
 
@@ -495,43 +499,106 @@ function dateKeys(start: string, end: string): string[] {
   return keys;
 }
 
+function completedAppointmentIds(metrics: AnyRecord | null): Set<string> {
+  const ids = new Set<string>();
+  const visit = (value: unknown): void => {
+    if (!value || typeof value !== "object") return;
+    if (Array.isArray(value)) {
+      for (const entry of value) visit(entry);
+      return;
+    }
+    const record = value as AnyRecord;
+    const completed = record.completed_appointment_ids;
+    if (Array.isArray(completed)) {
+      for (const entry of completed) {
+        const id = String(entry || "").replace(/^appt:/i, "").trim();
+        if (id) ids.add(id);
+      }
+    }
+    for (const child of Object.values(record)) visit(child);
+  };
+  visit(metrics);
+  return ids;
+}
+
 function appointmentRows(start: string, end: string): SearchKingsAppointmentMatch[] {
   const rows: SearchKingsAppointmentMatch[] = [];
   for (const date of dateKeys(start, addDays(end, 7))) {
     const metrics = readMetrics(date);
     const appointments = Array.isArray(metrics?.appointments) ? metrics.appointments : [];
+    const completedIds = completedAppointmentIds(metrics);
     for (const appointment of appointments) {
       const phone = normalizedPhone(
         appointment?.customer_phone || appointment?.phone || appointment?.phone_number,
       );
       if (!phone) continue;
+      const appointmentId = String(appointment?.appt_id || appointment?.appointment_id || "");
+      const completed = completedIds.has(appointmentId);
       rows.push({
         date,
-        appointmentId: String(appointment?.appt_id || appointment?.appointment_id || ""),
+        appointmentId,
         jobId: String(appointment?.job_id || appointment?.jk_number || ""),
         customerName: String(appointment?.customer_name || appointment?.customer || ""),
         phone,
         territory: normalizeSearchKingsTerritory(
           appointment?.normalized_territory || appointment?.territory || appointment?.market,
         ),
-        revenue: roundMoney(moneyNumber(appointment?.revenue || appointment?.amount)),
+        revenue: completed ? roundMoney(moneyNumber(appointment?.revenue || appointment?.amount)) : null,
+        completed,
         status: String(appointment?.job_status || appointment?.status || ""),
       });
     }
   }
-  return rows;
+  return consolidateAppointments(rows);
 }
 
-function matchAppointment(
-  call: SearchKingsCall,
+function appointmentKey(appointment: SearchKingsAppointmentMatch): string {
+  return appointment.appointmentId || appointment.jobId || `${appointment.date}|${appointment.phone}`;
+}
+
+function consolidateAppointments(
   appointments: SearchKingsAppointmentMatch[],
-): SearchKingsAppointmentMatch | null {
-  const phone = normalizedPhone(call.callerNumberComplete || call.callerNumberFormat);
-  const calledDate = parseCalledDate(call);
-  if (!phone || !calledDate) return null;
-  return appointments
-    .filter((appointment) => appointment.phone === phone && appointment.date >= calledDate && appointment.date <= addDays(calledDate, 7))
-    .sort((left, right) => left.date.localeCompare(right.date))[0] || null;
+): SearchKingsAppointmentMatch[] {
+  const appointmentsById = new Map<string, SearchKingsAppointmentMatch>();
+  for (const appointment of appointments) {
+    const key = appointmentKey(appointment);
+    const existing = appointmentsById.get(key);
+    if (!existing) {
+      appointmentsById.set(key, { ...appointment });
+      continue;
+    }
+    // The appointment roster can first record a confirmed estimate and later
+    // record the completed job. Keep the original booking date, then enrich it
+    // exactly once with the completed amount; never add the same job twice.
+    if (!existing.completed && appointment.completed) {
+      existing.completed = true;
+      existing.revenue = appointment.revenue;
+      existing.status = appointment.status;
+    }
+  }
+  return Array.from(appointmentsById.values());
+}
+
+function matchAppointments(
+  calls: SearchKingsCall[],
+  appointments: SearchKingsAppointmentMatch[],
+): Map<SearchKingsCall, SearchKingsAppointmentMatch> {
+  const matches = new Map<SearchKingsCall, SearchKingsAppointmentMatch>();
+  const claimed = new Set<string>();
+  const eligibleCalls = calls
+    .map((call) => ({ call, phone: normalizedPhone(call.callerNumberComplete || call.callerNumberFormat), calledDate: parseCalledDate(call), calledAt: parseCalledAt(call) }))
+    .filter((entry) => entry.phone && entry.calledDate && finiteNumber(entry.call.score) >= QUALIFIED_SCORE)
+    .sort((left, right) => left.calledAt.localeCompare(right.calledAt));
+
+  for (const entry of eligibleCalls) {
+    const appointment = appointments
+      .filter((candidate) => !claimed.has(appointmentKey(candidate)) && candidate.phone === entry.phone && candidate.date >= entry.calledDate && candidate.date <= addDays(entry.calledDate, 7))
+      .sort((left, right) => left.date.localeCompare(right.date))[0];
+    if (!appointment) continue;
+    matches.set(entry.call, appointment);
+    claimed.add(appointmentKey(appointment));
+  }
+  return matches;
 }
 
 function formatRange(snapshot: SearchKingsSnapshot): string {
@@ -585,16 +652,17 @@ export function buildSearchKingsViewFromData(
   now = new Date(),
 ): SearchKingsView {
   const overrideByCall = new Map(overrides.map((entry) => [entry.callId, entry]));
+  const matchedAppointmentByCall = matchAppointments(snapshot.calls.calls, consolidateAppointments(appointments));
   const leads = snapshot.calls.calls.map((call): SearchKingsLead => {
     const calledAt = parseCalledAt(call);
     const calledDate = parseCalledDate(call);
-    const matchedAppointment = matchAppointment(call, appointments);
+    const matchedAppointment = matchedAppointmentByCall.get(call) || null;
     const qualified = finiteNumber(call.score) >= QUALIFIED_SCORE;
     const callId = canonicalSearchKingsCallId(call);
     const override = overrideByCall.get(callId) || overrideByCall.get(String(call.id));
     const callAgeHours = calledAt ? Math.max(0, (now.getTime() - new Date(calledAt).getTime()) / 3_600_000) : 0;
     let status: LostLeadStatus = qualified ? "needs_follow_up" : "unqualified";
-    if (matchedAppointment) status = override?.status === "lost" ? "recovered" : "booked";
+    if (matchedAppointment && qualified) status = override?.status === "lost" ? "recovered" : "booked";
     else if (qualified && callAgeHours >= LOST_AFTER_HOURS) status = "lost";
     if (override && !matchedAppointment) status = override.status;
     const territory = territoryForCall(call);

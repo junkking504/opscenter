@@ -16,6 +16,7 @@ import {
   availableDates,
   completedJobs,
   crewRows,
+  employeeJobRevenueWorked,
   money,
   readMetrics,
   resolveDate,
@@ -87,16 +88,9 @@ function employeeJobs(row: AnyRecord): number {
   ]);
 }
 
-function employeeAverageJob(row: AnyRecord): number {
-  const reportedAverage = firstNumber(row, [
-    "average_job_size",
-    "average_job",
-    "avg_job_size",
-  ]);
-  if (reportedAverage > 0) return reportedAverage;
-
+function employeeAverageJob(row: AnyRecord, metrics?: AnyRecord | null): number {
   const jobs = employeeJobs(row);
-  return jobs > 0 ? employeeRevenue(row) / jobs : 0;
+  return jobs > 0 ? employeeJobRevenueWorked(row, metrics) / jobs : 0;
 }
 
 function hourlyPay(row: AnyRecord): number {
@@ -779,7 +773,7 @@ export default async function DashboardPage({
                     <td className="ops-daily-leaderboard-jobs">{employeeJobs(row)}</td>
                     <td className="ops-money ops-daily-leaderboard-revenue">{money(employeeRevenue(row))}</td>
                     <td className="ops-money">{money(employeeRph(row))}</td>
-                    <td className="ops-money">{money(employeeAverageJob(row))}</td>
+                    <td className="ops-money">{money(employeeAverageJob(row, metrics))}</td>
                     <td className="ops-money ops-pay-total">{money(totalPay(row))}</td>
                   </tr>
                 );

@@ -252,9 +252,9 @@ export function employeeJobRevenueWorked(row: AnyRecord, metrics?: AnyRecord | n
     return Math.round(total * 100) / 100;
   }
 
-  return Number(
-    row?.individual_revenue ?? row?.revenue_generated ?? row?.credited_revenue ?? row?.revenue ?? 0,
-  ) || 0;
+  // Credited revenue is often intentionally split between the driver and
+  // navigator. It is not the value of a job and must never stand in for it.
+  return 0;
 }
 
 export function truckRows(metrics: AnyRecord | null): AnyRecord[] {

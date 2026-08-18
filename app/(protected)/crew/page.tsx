@@ -221,15 +221,8 @@ function employeeRph(row: AnyRecord): number {
 }
 
 function employeeAverageJob(row: AnyRecord, metrics?: AnyRecord | null): number {
-  const reportedAverage = firstNumber(row, [
-    "average_job_size",
-    "average_job",
-    "avg_job_size",
-  ]);
-  if (reportedAverage > 0) return reportedAverage;
-
   const jobs = employeeJobs(row, metrics);
-  return jobs > 0 ? employeeRevenue(row) / jobs : 0;
+  return jobs > 0 ? employeeJobRevenueWorked(row, metrics) / jobs : 0;
 }
 
 function hourlyPay(row: AnyRecord): number {

@@ -244,6 +244,11 @@ do
     if ! (cd "$OPSBOT_DIR" && python3 scripts/collect_junkware_daily.py --date "$TOMORROW"); then
       echo "WARNING: tomorrow's schedule refresh failed; retaining the last verified preview."
     else
+      # The Schedule map reads this shared geocode cache. Resolve new preview
+      # addresses immediately so tomorrow's appointments receive map markers.
+      if ! (cd "$OPSBOT_DIR" && python3 scripts/geocode_junkware_appointments.py --date "$TOMORROW"); then
+        echo "WARNING: tomorrow's schedule geocodes could not be refreshed; jobs without confirmed coordinates will remain off the map."
+      fi
       auto_virtualize_external_bookings "$TOMORROW" \
         || echo "WARNING: tomorrow's external-booking Virtual Truck assignment is pending retry."
     fi

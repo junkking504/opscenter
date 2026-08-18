@@ -22,6 +22,7 @@
     "verify:job-audits": "node --import tsx scripts/test-job-audit-rules.ts",
     "verify:searchkings": "node --import tsx scripts/test-searchkings.ts",
     "verify:google-reviews": "node --import tsx scripts/test-google-reviews.ts",
+    "verify:google-business-profile": "node --import tsx scripts/test-google-business-profile.ts",
     "verify:junkware-sms": "node --import tsx scripts/test-junkware-sms.ts",
     "verify:junkware-booking-date": "node --import tsx scripts/test-junkware-booking-date.ts",
     "verify:whatsapp-job-photos": "node --import tsx scripts/test-whatsapp-job-photos.ts",

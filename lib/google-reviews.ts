@@ -3,7 +3,7 @@ import path from "node:path";
 
 export type GoogleReviewsLocation = { key: string; label: string; placeId: string };
 export type GoogleReview = { name: string; authorName: string; authorUri: string; rating: number; text: string; publishTime: string; relativePublishTimeDescription: string; googleMapsUri: string };
-export type GoogleReviewsSnapshot = { version: 1; source: "google_places_api"; fetchedAt: string; placeId: string; placeName: string; locationKey?: string; locationLabel?: string; rating: number | null; userRatingCount: number | null; googleMapsUri: string; reviews: GoogleReview[] };
+export type GoogleReviewsSnapshot = { version: 1; source: "google_places_api" | "google_business_profile_api"; fetchedAt: string; placeId: string; placeName: string; locationKey?: string; locationLabel?: string; rating: number | null; userRatingCount: number | null; googleMapsUri: string; reviews: GoogleReview[] };
 export type GoogleReviewsView = { location: GoogleReviewsLocation; available: boolean; error?: string; snapshot: GoogleReviewsSnapshot | null; previousSnapshot: GoogleReviewsSnapshot | null; rating: number | null; userRatingCount: number | null; ratingChange: number | null; reviewCountChange: number | null; reviews: Array<GoogleReview & { isNew: boolean }> };
 
 const LOCATION_ORDER = ["new-orleans", "jefferson-parish", "northshore", "baton-rouge"];
@@ -44,7 +44,7 @@ export function googleReviewsLocations(): GoogleReviewsLocation[] {
 
 function isSnapshot(value: unknown): value is GoogleReviewsSnapshot {
   const snapshot = value as Partial<GoogleReviewsSnapshot> | null;
-  return snapshot?.version === 1 && snapshot.source === "google_places_api" && typeof snapshot.fetchedAt === "string" && typeof snapshot.placeId === "string" && Array.isArray(snapshot.reviews);
+  return snapshot?.version === 1 && (snapshot.source === "google_places_api" || snapshot.source === "google_business_profile_api") && typeof snapshot.fetchedAt === "string" && typeof snapshot.placeId === "string" && Array.isArray(snapshot.reviews);
 }
 
 function readSnapshot(file: string): GoogleReviewsSnapshot | null {
@@ -107,7 +107,12 @@ export function buildGoogleReviewsViewFromData(location: GoogleReviewsLocation, 
 export function buildGoogleReviewsViews(): GoogleReviewsView[] { return googleReviewsLocations().map((location) => buildGoogleReviewsViewFromData(location, readGoogleReviewsSnapshot(location), readGoogleReviewsHistory(location))); }
 
 export function googleReviewsSetupSummary(views = buildGoogleReviewsViews()): string {
-  if (views.length && views.every((view) => view.available)) return `Google Reviews · ${views.length} ${views.length === 1 ? "location" : "locations"} tracking`;
+  if (views.length && views.every((view) => view.available)) {
+    const businessProfileLocations = views.filter((view) => view.snapshot?.source === "google_business_profile_api").length;
+    return businessProfileLocations === views.length
+      ? `Google Reviews · ${views.length} ${views.length === 1 ? "location" : "locations"} via Business Profile`
+      : `Google Reviews · ${views.length} ${views.length === 1 ? "location" : "locations"} tracking (limited Maps sample until Business Profile connects)`;
+  }
   if (!googleReviewsLocations().length) return "Google Reviews setup incomplete: GOOGLE_REVIEWS_LOCATIONS is missing.";
   if (!String(process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_ROUTES_API_KEY || "").trim()) return "Google Reviews setup incomplete: a Google Maps API key is missing.";
   return "Google Reviews is configured; awaiting its first collection.";

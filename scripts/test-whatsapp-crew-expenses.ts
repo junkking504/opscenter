@@ -339,6 +339,31 @@ const verificationReply = queuedCrewExpenseReplies()
 assert.ok(verificationReply);
 assert.match(verificationReply.text, /Need to fix something\? Reply EDIT\./);
 
+const edit = ingestCrewExpenseText(message(
+  "edit-request",
+  "EDIT",
+  transaction.transaction.recipient,
+  "2026-08-12T21:10:00.000Z",
+));
+assert.equal(edit.status, "collecting");
+const editPrompt = queuedCrewExpenseReplies()
+  .map((file) => claimCrewExpenseReply(file)?.reply)
+  .find((reply) => reply?.messageId === "edit-request");
+assert.ok(editPrompt);
+assert.match(editPrompt.text, /instead of creating a duplicate/);
+const correction = ingestCrewExpenseText(message(
+  "edit-correction",
+  "$86.40 should be $88.40",
+  transaction.transaction.recipient,
+  "2026-08-12T21:11:00.000Z",
+));
+assert.equal(correction.status, "review");
+assert.equal(queuedCrewExpenseTransactions(30).length, 20);
+assert.equal(fs.readdirSync(path.join(state, "review")).some((name) => {
+  const value = JSON.parse(fs.readFileSync(path.join(state, "review", name), "utf8"));
+  return value.type === "expense_correction" && value.correction === "$86.40 should be $88.40";
+}), true);
+
 assert.match(formatCrewExpenseSlackNotification(singleLineFuel.record!), /^Fuel recorded in JunkWare/);
 process.env.SLACK_OPSCENTER_ALERTS_ENABLED = "true";
 process.env.SLACK_BOT_TOKEN = "xoxb-test";

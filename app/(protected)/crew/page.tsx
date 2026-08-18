@@ -31,7 +31,7 @@ import { payPeriodForDate } from "@/lib/pay-period";
 import CrewCallInPlan from "@/components/CrewCallInPlan";
 import OpsPagination from "@/components/OpsPagination";
 import { buildCrewCallInPlan } from "@/lib/crew-call-in-recommendations";
-import { hasClockedInToday } from "@/lib/crew-attendance";
+import { workedOrAttributedToJobToday } from "@/lib/crew-attendance";
 
 export const dynamic = "force-dynamic";
 
@@ -1459,10 +1459,11 @@ export default async function CrewPage({
     : "crew";
 
   const callInPlan = buildCrewCallInPlan(date);
-  // The daily crew tab is attendance-based. Keep roster and inferred rows for
-  // pay-period reconciliation, but never present them as people who worked.
+  // The daily crew tab is based on direct work evidence: a clock-in or an
+  // explicit job attribution. Keep roster-only rows for pay-period
+  // reconciliation, but never present them as people who worked.
   const todayCrew = crew.filter((row) =>
-    hasClockedInToday(row, clockRowForEmployee(employeeName(row), clockRows)),
+    workedOrAttributedToJobToday(row, clockRowForEmployee(employeeName(row), clockRows)),
   );
 
   const livePayrollByEmployee = new Map<string, LivePayrollRecord>();

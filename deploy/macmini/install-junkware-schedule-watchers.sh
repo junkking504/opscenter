@@ -38,7 +38,6 @@ for MARKET_ID in 352 477 399 484; do
   launchctl bootout "gui/$USER_ID/$LABEL" >/dev/null 2>&1 || true
   launchctl bootstrap "gui/$USER_ID" "$INSTALLED_PLIST"
   launchctl enable "gui/$USER_ID/$LABEL"
-  launchctl kickstart -k "gui/$USER_ID/$LABEL"
 done
 
 for attempt in {1..12}; do

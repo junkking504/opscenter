@@ -1174,6 +1174,12 @@ body {
 
 /* Daily crew cards must retain enough room for the shift-status chip on phones. */
 @media (max-width: 560px) {
+  .ops-sidebar-backdrop {
+    inset: 0 auto auto 0;
+    width: 100dvw;
+    height: 100dvh;
+  }
+
   .ops-crew-today-employee-card .ops-crew-employee-summary {
     gap: 6px;
     padding: 9px 10px;

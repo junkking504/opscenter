@@ -45,9 +45,19 @@ run_once() {
   started_at="$(TZ=America/Chicago date -Iseconds)"
 
   if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-    echo "JunkWare schedule watcher [$MARKET_ID] skipped: prior run is still active."
-    return 0
+    local prior_pid=""
+    if [ -f "$LOCK_DIR/pid" ]; then
+      prior_pid="$(tr -dc '0-9' < "$LOCK_DIR/pid")"
+    fi
+    if [ -n "$prior_pid" ] && kill -0 "$prior_pid" 2>/dev/null; then
+      echo "JunkWare schedule watcher [$MARKET_ID] skipped: prior run is still active."
+      return 0
+    fi
+    rm -f "$LOCK_DIR/pid"
+    rmdir "$LOCK_DIR"
+    mkdir "$LOCK_DIR"
   fi
+  printf '%s\n' "$$" > "$LOCK_DIR/pid"
 
   set +e
   (
@@ -66,7 +76,8 @@ run_once() {
   exit_code=$?
   set -e
 
-  rmdir "$LOCK_DIR" 2>/dev/null || true
+  rm -f "$LOCK_DIR/pid"
+  rmdir "$LOCK_DIR"
   if [ "$exit_code" -eq 0 ]; then
     write_health "ok" 0 "$started_at"
   else

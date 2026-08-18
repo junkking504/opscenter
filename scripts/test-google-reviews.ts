@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildGoogleReviewsViewFromData, googleReviewsLocations, reviewsPublishedOn, type GoogleReviewsLocation, type GoogleReviewsSnapshot } from "../lib/google-reviews";
+import { buildGoogleReviewsViewFromData, googleReviewsLocations, reviewsSortedNewestFirst, type GoogleReviewsLocation, type GoogleReviewsSnapshot } from "../lib/google-reviews";
 
 const newOrleans: GoogleReviewsLocation = { key: "new-orleans", label: "New Orleans", placeId: "ChIJneworleans01" };
 
@@ -35,7 +35,7 @@ assert.ok(Math.abs((view.ratingChange || 0) - 0.1) < 0.000001);
 assert.equal(view.reviews[0].isNew, true);
 assert.equal(view.reviews[2].isNew, false);
 assert.equal(buildGoogleReviewsViewFromData(newOrleans, null).available, false);
-assert.deepEqual(reviewsPublishedOn(view.reviews, "2026-08-17").map((review) => review.name), ["reviews/newest", "reviews/new"]);
+assert.deepEqual(reviewsSortedNewestFirst(view.reviews).map((review) => review.name), ["reviews/newest", "reviews/new", "reviews/old"]);
 
 const originalLocations = process.env.GOOGLE_REVIEWS_LOCATIONS;
 process.env.GOOGLE_REVIEWS_LOCATIONS = JSON.stringify([

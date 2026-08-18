@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { chicagoDateKey } from "@/lib/report-dates";
 
 export type GoogleReviewsLocation = { key: string; label: string; placeId: string };
 export type GoogleReview = { name: string; authorName: string; authorUri: string; rating: number; text: string; publishTime: string; relativePublishTimeDescription: string; googleMapsUri: string };
@@ -90,15 +89,10 @@ export function readGoogleReviewsHistory(location: GoogleReviewsLocation): Googl
 
 function numeric(value: unknown): number | null { const parsed = Number(value); return Number.isFinite(parsed) ? parsed : null; }
 
-export function reviewsPublishedOn(
+export function reviewsSortedNewestFirst(
   reviews: Array<GoogleReview & { isNew: boolean }>,
-  date = chicagoDateKey(),
 ): Array<GoogleReview & { isNew: boolean }> {
-  return reviews
-    .filter((review) => {
-      const publishedAt = new Date(review.publishTime);
-      return Number.isFinite(publishedAt.getTime()) && chicagoDateKey(publishedAt) === date;
-    })
+  return [...reviews]
     .sort((left, right) => new Date(right.publishTime).getTime() - new Date(left.publishTime).getTime());
 }
 

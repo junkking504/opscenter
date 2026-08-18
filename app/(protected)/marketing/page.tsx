@@ -3,9 +3,8 @@ import "./marketing.css";
 import LostLeadTracker from "@/components/LostLeadTracker";
 import PageHeader from "@/components/PageHeader";
 import { appointmentScheduleHref } from "@/lib/job-links";
-import { buildGoogleReviewsViews, googleReviewsSetupSummary, reviewsPublishedOn, type GoogleReviewsView } from "@/lib/google-reviews";
+import { buildGoogleReviewsViews, googleReviewsSetupSummary, reviewsSortedNewestFirst, type GoogleReviewsView } from "@/lib/google-reviews";
 import { money, type AnyRecord } from "@/lib/opsData";
-import { chicagoDateKey } from "@/lib/report-dates";
 import { groupSearchKingsLeadsByDate } from "@/lib/searchkings-date-groups";
 import { buildSearchKingsView, searchKingsSetupSummary } from "@/lib/searchkings";
 import { searchKingsPhoneHref } from "@/lib/searchkings-phone";
@@ -40,13 +39,13 @@ function signedNumber(value: number | null, digits = 0): string {
   return `${value > 0 ? "+" : ""}${value.toFixed(digits)}`;
 }
 
-function GoogleReviewsLocationSection({ reviews, reviewDate }: { reviews: GoogleReviewsView; reviewDate: string }) {
+function GoogleReviewsLocationSection({ reviews }: { reviews: GoogleReviewsView }) {
   if (!reviews.available) return <div className="ops-card ops-alert-card"><div className="ops-section-title">Waiting for {reviews.location.label} Reviews</div><div className="ops-muted">{reviews.error}</div></div>;
-  const dailyReviews = reviewsPublishedOn(reviews.reviews, reviewDate);
+  const currentReviews = reviewsSortedNewestFirst(reviews.reviews);
   return <section className="ops-marketing-review-location" aria-label={`${reviews.location.label} Google Reviews`}>
     <section className="ops-card ops-marketing-reviews-card">
-      <div className="ops-card-header compact"><div><div className="ops-section-title">{reviews.location.label}</div><div className="ops-muted">{dailyReviews.length} {dailyReviews.length === 1 ? "review" : "reviews"} published {reviewDate} · newest first</div></div>{reviews.snapshot?.googleMapsUri ? <a className="ops-mini-link" href={reviews.snapshot.googleMapsUri} target="_blank" rel="noopener noreferrer">Open on Google Maps</a> : null}</div>
-      {dailyReviews.length ? <div className="ops-marketing-reviews-list">{dailyReviews.map((review) => <article className="ops-marketing-review" key={review.name || `${review.authorName}-${review.publishTime}`}><div className="ops-marketing-review-header"><div><strong>{review.authorName}</strong><div className="ops-marketing-review-meta"><span aria-label={`${review.rating} out of 5 stars`}>{"★".repeat(Math.max(0, Math.min(5, Math.round(review.rating))))}{"☆".repeat(Math.max(0, 5 - Math.round(review.rating)))}</span><span>{callDate(review.publishTime)}</span></div></div></div>{review.text ? <p>{review.text}</p> : <p className="ops-muted">No review text provided.</p>}{review.googleMapsUri ? <a className="ops-mini-link" href={review.googleMapsUri} target="_blank" rel="noopener noreferrer">Open review</a> : null}</article>)}</div> : <div className="ops-muted ops-marketing-empty-reviews">No reviews published today. Last checked {callDate(reviews.snapshot?.fetchedAt || "")}.</div>}
+      <div className="ops-card-header compact"><div><div className="ops-section-title">{reviews.location.label}</div><div className="ops-muted">{currentReviews.length} {currentReviews.length === 1 ? "review" : "reviews"} returned in today&apos;s check · newest first</div></div>{reviews.snapshot?.googleMapsUri ? <a className="ops-mini-link" href={reviews.snapshot.googleMapsUri} target="_blank" rel="noopener noreferrer">Open on Google Maps</a> : null}</div>
+      {currentReviews.length ? <div className="ops-marketing-reviews-list">{currentReviews.map((review) => <article className="ops-marketing-review" key={review.name || `${review.authorName}-${review.publishTime}`}><div className="ops-marketing-review-header"><div><strong>{review.authorName}</strong><div className="ops-marketing-review-meta"><span aria-label={`${review.rating} out of 5 stars`}>{"★".repeat(Math.max(0, Math.min(5, Math.round(review.rating))))}{"☆".repeat(Math.max(0, 5 - Math.round(review.rating)))}</span><span>{callDate(review.publishTime)}</span></div></div></div>{review.text ? <p>{review.text}</p> : <p className="ops-muted">No review text provided.</p>}{review.googleMapsUri ? <a className="ops-mini-link" href={review.googleMapsUri} target="_blank" rel="noopener noreferrer">Open review</a> : null}</article>)}</div> : <div className="ops-muted ops-marketing-empty-reviews">Google returned no review details in today&apos;s check. Last checked {callDate(reviews.snapshot?.fetchedAt || "")}.</div>}
     </section>
   </section>;
 }
@@ -59,9 +58,12 @@ export default async function MarketingPage({ searchParams }: { searchParams?: P
     : "overview";
   const view = buildSearchKingsView();
   const reviewViews = buildGoogleReviewsViews();
-  const today = chicagoDateKey();
-  const date = view.snapshot?.range.endDate || today;
-  const todayReviewCount = reviewViews.reduce((total, reviews) => total + reviewsPublishedOn(reviews.reviews, today).length, 0);
+  const date = view.snapshot?.range.endDate || new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
   const callGroups = groupSearchKingsLeadsByDate(view.leads);
 
   return (
@@ -78,7 +80,7 @@ export default async function MarketingPage({ searchParams }: { searchParams?: P
           { label: "Territory", href: "/marketing?section=territory", active: section === "territory" },
           { label: "Calls", href: "/marketing?section=calls", active: section === "calls", badge: view.totalCalls },
           { label: "Lost Leads", href: "/marketing?section=lost-leads", active: section === "lost-leads", badge: view.lostLeads + view.needsFollowUp, attention: view.lostLeads + view.needsFollowUp > 0 },
-          { label: "Reviews", href: "/marketing?section=reviews", active: section === "reviews", badge: todayReviewCount || undefined },
+          { label: "Reviews", href: "/marketing?section=reviews", active: section === "reviews", badge: reviewViews.length || undefined },
         ]}
       />
 
@@ -145,7 +147,7 @@ export default async function MarketingPage({ searchParams }: { searchParams?: P
         <LostLeadTracker leads={view.leads} />
       </section> : null}
 
-      {section === "reviews" ? <section className="ops-marketing-review-locations"><div className="ops-marketing-section-copy"><div><div className="ops-section-title">Today&apos;s Google Reviews</div><div className="ops-muted">Only reviews published today in Central time, organized by territory and newest first.</div></div></div>{reviewViews.length ? reviewViews.map((reviews) => <GoogleReviewsLocationSection key={reviews.location.key} reviews={reviews} reviewDate={today} />) : <div className="ops-card ops-alert-card"><div className="ops-section-title">Google Reviews setup incomplete</div><div className="ops-muted">Configure at least one Google Reviews location, then run the documented collector.</div></div>}</section> : null}
+      {section === "reviews" ? <section className="ops-marketing-review-locations"><div className="ops-marketing-section-copy"><div><div className="ops-section-title">Today&apos;s Google Review Check</div><div className="ops-muted">The current collection for each territory, sorted by Google publish time from newest to oldest.</div></div></div>{reviewViews.length ? reviewViews.map((reviews) => <GoogleReviewsLocationSection key={reviews.location.key} reviews={reviews} />) : <div className="ops-card ops-alert-card"><div className="ops-section-title">Google Reviews setup incomplete</div><div className="ops-muted">Configure at least one Google Reviews location, then run the documented collector.</div></div>}</section> : null}
     </div>
   );
 }

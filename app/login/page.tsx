@@ -93,7 +93,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </button>
           </form>
 
-          <div className="ops-login-footnote">Authorized personnel only · This browser stays trusted for one year</div>
+          <div className="ops-login-footnote">Authorized personnel only · This browser stays trusted for 30 days</div>
         </div>
       </section>
     </main>

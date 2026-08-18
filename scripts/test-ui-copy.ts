@@ -42,6 +42,10 @@ assert.ok(commandPageSource.includes('{ label: "Crew Snapshot", href: `/?date=${
 assert.ok(commandPageSource.includes('{ label: "Fleet Snapshot", href: `/?date=${date}&section=fleet`'), "Command must distinguish its Fleet Snapshot from the full Fleet page.");
 assert.ok(commandPageSource.includes('>Full Fleet View</a>'), "Command Fleet Snapshot must link to the full Fleet view.");
 
+const loginPageSource = readFileSync(new URL("../app/login/page.tsx", import.meta.url), "utf8");
+assert.ok(loginPageSource.includes("This browser stays trusted for 30 days"), "Login must state the current trusted-device duration.");
+assert.ok(!loginPageSource.includes("trusted for one year"), "Login must not advertise the retired one-year device trust.");
+
 const myPaySource = readFileSync(new URL("../app/my-pay/page.tsx", import.meta.url), "utf8");
 const payPeriodStart = myPaySource.indexOf("function PayPeriodView");
 const payPeriodEnd = myPaySource.indexOf("function MonthlyLeaderboardView");

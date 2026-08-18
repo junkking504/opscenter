@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Viewport } from "next";
 import { CREW_IDENTITY_HEADER } from "@/lib/crew-auth";
+import { readCrewJobNotesForEmployee, type CrewJobNote } from "@/lib/job-crew-notes";
+import { chicagoDateKey } from "@/lib/report-dates";
 import {
   type CrewPerformanceRange,
   type CrewPerformanceStats,
@@ -365,6 +367,14 @@ function MonthlyLeaderboardView({ data }: { data: Awaited<ReturnType<typeof getC
   );
 }
 
+function TodayCrewNotes({ notes }: { notes: CrewJobNote[] }) {
+  if (!notes.length) return null;
+  return <section className={styles.section} aria-label="Today's crew notes">
+    <div className={styles.sectionHeader}><div><div className={styles.eyebrow}>Today</div><h2>Crew Notes</h2><p>Instructions from dispatch for jobs assigned to you.</p></div><div className={styles.privacyNote}>Assigned jobs only</div></div>
+    <div className={styles.crewNotes}>{notes.map((note) => <article className={styles.crewNote} key={note.jobKey}><div className={styles.crewNoteTime}>{note.appointmentTime}</div><div className={styles.crewNoteDetails}><strong>{note.customerName}</strong><span>{note.address} · {note.truck}</span></div><p>{note.body}</p></article>)}</div>
+  </section>;
+}
+
 export default async function MyPayPage({ searchParams }: Props) {
   const requestHeaders = await headers();
   const employee = String(requestHeaders.get(CREW_IDENTITY_HEADER) || "").trim();
@@ -372,6 +382,7 @@ export default async function MyPayPage({ searchParams }: Props) {
   const params = await searchParams;
   const view = selectedView(params?.view);
   const data = await getCrewPayPortalData(employee, params?.period);
+  const crewNotes = view === "daily" ? readCrewJobNotesForEmployee(employee, chicagoDateKey()) : [];
   const firstName = employee.split(/\s+/)[0] || employee;
 
   return (
@@ -391,6 +402,7 @@ export default async function MyPayPage({ searchParams }: Props) {
 
         <ViewToggle view={view} />
 
+        {view === "daily" ? <TodayCrewNotes notes={crewNotes} /> : null}
         {view === "daily" ? <DailyPerformanceView data={data} /> : null}
         {view === "pay-period" ? <PayPeriodView data={data} /> : null}
         {view === "leaderboard" ? <MonthlyLeaderboardView data={data} /> : null}

@@ -43,6 +43,7 @@ if [ $((now_epoch - map_mtime)) -ge "$MAP_REFRESH_SECONDS" ]; then
 fi
 
 python3 scripts/collect_linxup_location_history.py --date "$TARGET_DATE"
+python3 scripts/collect_linxup_alerts.py --date "$TARGET_DATE"
 python3 scripts/seed_local_appointment_geocodes.py --date "$TARGET_DATE"
 python3 scripts/match_linxup_appointment_visits.py --date "$TARGET_DATE"
 python3 scripts/validate_linxup_appointment_visits.py --date "$TARGET_DATE"
@@ -57,7 +58,7 @@ if [[ "${SLACK_OPSCENTER_ALERTS_ENABLED:-false}" =~ ^(1|true|yes|on)$ ]]; then
     cd "$OPSCENTER_DIR"
     node --import tsx scripts/publish-slack-alerts.ts \
       --date "$TARGET_DATE" \
-      --only truck_arrival
+      --only truck_arrival,linxup_event
   )
 fi
 

@@ -13,6 +13,7 @@ import {
   buildCancellationSlackNotification,
   buildPaymentCloseoutSlackNotifications,
   buildCrewSlackNotifications,
+  buildLinxupEventSlackNotifications,
   buildTruckArrivalSlackNotifications,
   buildTruckCloseoutSlackNotifications,
   formatSlackAlert,
@@ -294,6 +295,34 @@ assert.deepEqual(
       text: ":truck: Truck 4 arrived onsite.\nJob: JK4050424\nCustomer: Test Customer\nAddress: 123 Test Street, New Orleans, LA 70115",
     },
   ],
+);
+
+const linxupEventAlerts = buildLinxupEventSlackNotifications("2026-08-12", [
+  {
+    alert_id: "low-battery-1",
+    alert_type: "VEHICLE_LOW_BATTERY",
+    alert_type_normalized: "unknown",
+    alert_short_desc: "Low battery",
+    alert_desc: "Tracking device battery is below the configured threshold.",
+    truck_number: "Truck# 4",
+    driver_name: "Driver Example",
+    occurred_at: "2026-08-12T14:13:00Z",
+    address: "123 Test Street",
+  },
+  {
+    alert_id: "unmapped-1",
+    alert_type: "IGNITION",
+    truck_number: "Virtual Truck",
+    occurred_at: "2026-08-12T14:14:00Z",
+  },
+]);
+assert.deepEqual(
+  linxupEventAlerts.map((alert) => ({ kind: alert.kind, channelId: alert.channelId, text: formatSlackAlert(alert) })),
+  [{
+    kind: "linxup_event",
+    channelId: "C_TEST_TRUCK_4",
+    text: ":satellite: Truck 4 · Low battery\nTracking device battery is below the configured threshold.\nOccurred: 9:13 AM\nDriver: Driver Example\nLocation: 123 Test Street",
+  }],
 );
 
 const temporaryDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "opscenter-slack-alert-test-"));

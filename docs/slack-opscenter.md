@@ -13,7 +13,7 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
 - Newly closed job -> a short operational completion notice in that truck's `#truck-N` channel
 - Fuel and dump receipts -> that truck's `#truck-N` channel
 - Verified WhatsApp job-photo batch -> that truck's `#truck-N` channel
-- LinxUp driving-safety events -> that truck's `#truck-N` channel
+- Every new LinxUp event for a mapped truck -> that truck's `#truck-N` channel (including vehicle, ignition, idle, geofence, speed, camera, and safety events)
 - Clocked-in employee without a truck -> retained in OpsCenter without a Slack alert because assignment normally follows closeout
 - Employee clock-in, clock-out with hours, and finalized daily-pay breakdown -> `#ops-command` (or `SLACK_OPS_CREW_CHANNEL_ID`)
 - Newly closed JunkWare job -> a separate finance detail in `#payment`, with each payment amount and method, check number for checks, card last four for cards, and any tip

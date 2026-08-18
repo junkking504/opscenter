@@ -24,6 +24,7 @@ export type SlackAlertKind =
   | "late_job"
   | "fleet_down"
   | "stale_data"
+  | "linxup_event"
   | "truck_arrival"
   | "crew_clock_in"
   | "crew_clock_out"
@@ -63,6 +64,8 @@ type SlackAlertState = {
   deliveredCrewNotificationsByDate: Record<string, string[]>;
   truckArrivalNotificationsInitializedAt: string;
   deliveredTruckArrivalsByDate: Record<string, string[]>;
+  linxupEventNotificationsInitializedAt: string;
+  deliveredLinxupEventsByDate: Record<string, string[]>;
   truckCloseoutNotificationsInitializedAt: string;
   deliveredTruckCloseoutsByDate: Record<string, string[]>;
   paymentNotificationsInitializedAt: string;
@@ -83,6 +86,7 @@ export type SlackAlertRunResult = {
   bootstrappedAddOns: number;
   bootstrappedCancellations: number;
   bootstrappedIncidents: number;
+  bootstrappedLinxupEvents: number;
   bootstrappedTruckCloseouts: number;
   bootstrappedPayments: number;
   posted: SlackOpsAlert[];
@@ -141,6 +145,8 @@ function emptyState(): SlackAlertState {
     deliveredCrewNotificationsByDate: {},
     truckArrivalNotificationsInitializedAt: "",
     deliveredTruckArrivalsByDate: {},
+    linxupEventNotificationsInitializedAt: "",
+    deliveredLinxupEventsByDate: {},
     truckCloseoutNotificationsInitializedAt: "",
     deliveredTruckCloseoutsByDate: {},
     paymentNotificationsInitializedAt: "",
@@ -177,6 +183,11 @@ function readState(): SlackAlertState {
         payload?.deliveredTruckArrivalsByDate && typeof payload.deliveredTruckArrivalsByDate === "object"
           ? payload.deliveredTruckArrivalsByDate
           : {},
+      linxupEventNotificationsInitializedAt: String(payload?.linxupEventNotificationsInitializedAt || ""),
+      deliveredLinxupEventsByDate:
+        payload?.deliveredLinxupEventsByDate && typeof payload.deliveredLinxupEventsByDate === "object"
+          ? payload.deliveredLinxupEventsByDate
+          : {},
       truckCloseoutNotificationsInitializedAt: String(payload?.truckCloseoutNotificationsInitializedAt || ""),
       deliveredTruckCloseoutsByDate:
         payload?.deliveredTruckCloseoutsByDate && typeof payload.deliveredTruckCloseoutsByDate === "object"
@@ -211,6 +222,10 @@ function pruneCrewNotificationDates(values: Record<string, string[]>): Record<st
 }
 
 function pruneTruckArrivalDates(values: Record<string, string[]>): Record<string, string[]> {
+  return Object.fromEntries(Object.entries(values).sort(([left], [right]) => right.localeCompare(left)).slice(0, 8));
+}
+
+function pruneLinxupEventDates(values: Record<string, string[]>): Record<string, string[]> {
   return Object.fromEntries(Object.entries(values).sort(([left], [right]) => right.localeCompare(left)).slice(0, 8));
 }
 
@@ -735,6 +750,107 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
   return notifications.sort((left, right) => left.fingerprint.localeCompare(right.fingerprint));
 }
 
+function readLinxupAlertRows(date: string): AnyRecord[] {
+  const configured = String(process.env.OPSCENTER_DATA_DIR || "").trim();
+  const dataDirectories = Array.from(new Set([
+    ...(configured ? [configured] : []),
+    path.join(process.cwd(), "data"),
+    path.join(process.cwd(), "..", "opsbot", "data"),
+    path.join(process.env.HOME || "", ".openclaw", "workspace", "opsbot", "data"),
+  ]));
+
+  for (const dataDirectory of dataDirectories) {
+    const file = path.join(dataDirectory, "history", "linxup", "alerts", `linxup_alerts_${date}.json`);
+    try {
+      const payload = JSON.parse(fs.readFileSync(file, "utf8"));
+      if (Array.isArray(payload?.alerts)) return payload.alerts;
+    } catch {
+      // Try the next known OpsBot data location.
+    }
+  }
+  return [];
+}
+
+function linxupEventLabel(event: AnyRecord): string {
+  const supplied = firstText(event, ["alert_short_desc", "alertShortDesc"]);
+  if (supplied) return supplied;
+  const raw = firstText(event, ["alert_type", "alert_type_normalized"]);
+  return raw
+    ? raw.toLowerCase().split(/[_\s-]+/).filter(Boolean).map((word) => `${word[0].toUpperCase()}${word.slice(1)}`).join(" ")
+    : "LinxUp alert";
+}
+
+function linxupEventTime(value: string): string {
+  const instant = new Date(value);
+  if (!Number.isFinite(instant.getTime())) return "Time unavailable";
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(instant);
+}
+
+function linxupEventKey(event: AnyRecord, truck: string, occurredAt: string): string {
+  const sourceId = firstText(event, ["alert_id", "event_id", "id"]);
+  const raw = sourceId || `${truck}:${firstText(event, ["alert_type", "alert_type_normalized"])}:${occurredAt}`;
+  return raw.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+export function buildLinxupEventSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
+  const notifications: SlackOpsAlert[] = [];
+  const seen = new Set<string>();
+
+  for (const event of rows) {
+    const truck = firstText(event, ["truck_number", "truck", "vehicle_name"]);
+    const truckNumber = normalizeSlackTruckNumber(truck);
+    if (!truckNumber) continue;
+
+    const occurredAt = firstText(event, ["occurred_at", "occurred_at_local", "event_time", "timestamp"]);
+    const eventKey = linxupEventKey(event, truck, occurredAt);
+    if (!eventKey || seen.has(eventKey)) continue;
+    seen.add(eventKey);
+
+    const label = linxupEventLabel(event);
+    const description = firstText(event, ["alert_desc", "alert_description", "description"]);
+    const driver = firstText(event, ["driver_name", "driver"]);
+    const location = firstText(event, ["address", "geofence_name", "location"]);
+    const speed = firstFiniteNumber(event, ["speed", "vehicle_speed"]);
+    const postedSpeed = firstFiniteNumber(event, ["posted_speed", "speed_limit"]);
+    const speedDetail = speed !== null && postedSpeed !== null
+      ? `${Math.round(speed)} mph in a ${Math.round(postedSpeed)} mph zone`
+      : speed !== null
+        ? `${Math.round(speed)} mph`
+        : "";
+    const details = [
+      `Occurred: ${linxupEventTime(occurredAt)}`,
+      driver ? `Driver: ${driver}` : "",
+      location ? `Location: ${location}` : "",
+      speedDetail,
+    ].filter(Boolean);
+    const critical = /collision|crash|severe|high.speed/i.test(`${label} ${description}`);
+    const plainText = [
+      `${critical ? ":rotating_light:" : ":satellite:"} Truck ${truckNumber} · ${label}`,
+      description || "LinxUp event recorded.",
+      ...details,
+    ].join("\n");
+
+    notifications.push({
+      fingerprint: `linxup_event:${eventKey}`,
+      kind: "linxup_event",
+      lifecycle: "notification",
+      severity: critical ? "critical" : "warning",
+      channelId: truckSlackChannelId(truck, ""),
+      title: plainText,
+      detail: "",
+      nextAction: "",
+      href: "",
+      plainText,
+    });
+  }
+
+  return notifications.sort((left, right) => left.fingerprint.localeCompare(right.fingerprint));
+}
+
 function collectIncidentAlerts(date: string): SlackOpsAlert[] {
   const report = buildOperationalExceptions(date);
   const alerts: SlackOpsAlert[] = [];
@@ -791,6 +907,7 @@ function slackAlertRunResult(date: string, dryRun: boolean, enabled: boolean, pr
     bootstrappedAddOns: 0,
     bootstrappedCancellations: 0,
     bootstrappedIncidents: 0,
+    bootstrappedLinxupEvents: 0,
     bootstrappedTruckCloseouts: 0,
     bootstrappedPayments: 0,
     posted: [],
@@ -945,6 +1062,54 @@ async function runTruckArrivalSlackAlerts(options: {
   return result;
 }
 
+async function runLinxupEventSlackAlerts(options: {
+  date: string;
+  dryRun: boolean;
+  enabled: boolean;
+}): Promise<SlackAlertRunResult> {
+  const { date, dryRun, enabled } = options;
+  const state = readState();
+  const allNotifications = buildLinxupEventSlackNotifications(date, readLinxupAlertRows(date));
+  const initialized = Boolean(state.linxupEventNotificationsInitializedAt);
+  const delivered = new Set(state.deliveredLinxupEventsByDate[date] || []);
+  const pending = initialized
+    ? allNotifications.filter((alert) => !delivered.has(alert.fingerprint))
+    : [];
+  const result = slackAlertRunResult(date, dryRun, enabled, initialized ? pending : allNotifications);
+  result.bootstrappedLinxupEvents = initialized ? 0 : allNotifications.length;
+
+  if (dryRun || !enabled) return result;
+
+  const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
+  if (!token) throw new Error("SLACK_BOT_TOKEN is required when Slack OpsCenter alerts are enabled.");
+
+  const now = new Date().toISOString();
+  if (!initialized) {
+    state.linxupEventNotificationsInitializedAt = now;
+    state.deliveredLinxupEventsByDate[date] = allNotifications.map((alert) => alert.fingerprint);
+    state.deliveredLinxupEventsByDate = pruneLinxupEventDates(state.deliveredLinxupEventsByDate);
+    state.updatedAt = now;
+    writeState(state);
+    return result;
+  }
+
+  for (const alert of pending) {
+    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
+    if (!response.ok || !response.ts) {
+      result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
+      continue;
+    }
+    delivered.add(alert.fingerprint);
+    result.posted.push(alert);
+  }
+
+  state.deliveredLinxupEventsByDate[date] = Array.from(delivered);
+  state.deliveredLinxupEventsByDate = pruneLinxupEventDates(state.deliveredLinxupEventsByDate);
+  state.updatedAt = now;
+  writeState(state);
+  return result;
+}
+
 export async function runSlackOpsAlerts(options?: {
   date?: string;
   dryRun?: boolean;
@@ -957,10 +1122,22 @@ export async function runSlackOpsAlerts(options?: {
   const enabled = boolEnv("SLACK_OPSCENTER_ALERTS_ENABLED");
   const onlyKinds = new Set(options?.onlyKinds || []);
   if (onlyKinds.size) {
-    if (onlyKinds.size !== 1 || !onlyKinds.has("truck_arrival")) {
-      throw new Error("Only truck_arrival can be published independently.");
+    const result = slackAlertRunResult(date, dryRun, enabled, []);
+    for (const kind of onlyKinds) {
+      const partial = kind === "truck_arrival"
+        ? await runTruckArrivalSlackAlerts({ date, dryRun, enabled })
+        : kind === "linxup_event"
+          ? await runLinxupEventSlackAlerts({ date, dryRun, enabled })
+          : null;
+      if (!partial) throw new Error("Only truck_arrival and linxup_event can be published independently.");
+      result.bootstrappedLinxupEvents += partial.bootstrappedLinxupEvents;
+      result.posted.push(...partial.posted);
+      result.resolved.push(...partial.resolved);
+      result.unchanged += partial.unchanged;
+      result.failures.push(...partial.failures);
+      result.preview.push(...partial.preview);
     }
-    return runTruckArrivalSlackAlerts({ date, dryRun, enabled });
+    return result;
   }
   const state = readState();
   const incidents = collectIncidentAlerts(date);
@@ -977,6 +1154,12 @@ export async function runSlackOpsAlerts(options?: {
   const deliveredTruckArrivals = new Set(state.deliveredTruckArrivalsByDate[date] || []);
   const truckArrivalNotifications = truckArrivalNotificationsInitialized
     ? allTruckArrivalNotifications.filter((alert) => !deliveredTruckArrivals.has(alert.fingerprint))
+    : [];
+  const allLinxupEventNotifications = buildLinxupEventSlackNotifications(date, readLinxupAlertRows(date));
+  const linxupEventNotificationsInitialized = Boolean(state.linxupEventNotificationsInitializedAt);
+  const deliveredLinxupEvents = new Set(state.deliveredLinxupEventsByDate[date] || []);
+  const linxupEventNotifications = linxupEventNotificationsInitialized
+    ? allLinxupEventNotifications.filter((alert) => !deliveredLinxupEvents.has(alert.fingerprint))
     : [];
   const completedRows = readCompletedJunkwareRows(date);
   const allTruckCloseoutNotifications = buildTruckCloseoutSlackNotifications(date, completedRows);
@@ -1018,6 +1201,7 @@ export async function runSlackOpsAlerts(options?: {
     ...incidents,
     ...notifications,
     ...(truckArrivalNotificationsInitialized ? truckArrivalNotifications : allTruckArrivalNotifications),
+    ...(linxupEventNotificationsInitialized ? linxupEventNotifications : allLinxupEventNotifications),
     ...(truckCloseoutNotificationsInitialized ? truckCloseoutNotifications : allTruckCloseoutNotifications),
     ...(crewNotificationsInitialized ? crewNotifications : allCrewNotifications),
     ...(paymentNotificationsInitialized ? paymentNotifications : allPaymentNotifications),
@@ -1030,6 +1214,7 @@ export async function runSlackOpsAlerts(options?: {
     bootstrappedAddOns: hadAppointmentBaseline ? 0 : feed.appointments.length,
     bootstrappedCancellations: hadCancellationBaseline ? 0 : cancellationFeed.appointments.length,
     bootstrappedIncidents: state.initializedAt ? 0 : incidents.length,
+    bootstrappedLinxupEvents: linxupEventNotificationsInitialized ? 0 : allLinxupEventNotifications.length,
     bootstrappedTruckCloseouts: truckCloseoutNotificationsInitialized ? 0 : allTruckCloseoutNotifications.length,
     bootstrappedPayments: paymentNotificationsInitialized ? 0 : allPaymentNotifications.length,
     posted: [],
@@ -1058,6 +1243,12 @@ export async function runSlackOpsAlerts(options?: {
     state.deliveredTruckArrivalsByDate[date] = allTruckArrivalNotifications.map((alert) => alert.fingerprint);
     for (const alert of allTruckArrivalNotifications) deliveredTruckArrivals.add(alert.fingerprint);
     state.deliveredTruckArrivalsByDate = pruneTruckArrivalDates(state.deliveredTruckArrivalsByDate);
+  }
+  if (!linxupEventNotificationsInitialized) {
+    state.linxupEventNotificationsInitializedAt = now;
+    state.deliveredLinxupEventsByDate[date] = allLinxupEventNotifications.map((alert) => alert.fingerprint);
+    for (const alert of allLinxupEventNotifications) deliveredLinxupEvents.add(alert.fingerprint);
+    state.deliveredLinxupEventsByDate = pruneLinxupEventDates(state.deliveredLinxupEventsByDate);
   }
   if (!truckCloseoutNotificationsInitialized) {
     state.truckCloseoutNotificationsInitializedAt = now;
@@ -1170,6 +1361,16 @@ export async function runSlackOpsAlerts(options?: {
     result.posted.push(alert);
   }
 
+  for (const alert of linxupEventNotifications) {
+    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
+    if (!response.ok || !response.ts) {
+      result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
+      continue;
+    }
+    deliveredLinxupEvents.add(alert.fingerprint);
+    result.posted.push(alert);
+  }
+
   for (const alert of truckCloseoutNotifications) {
     const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
     if (!response.ok || !response.ts) {
@@ -1212,6 +1413,8 @@ export async function runSlackOpsAlerts(options?: {
   state.deliveredCrewNotificationsByDate = pruneCrewNotificationDates(state.deliveredCrewNotificationsByDate);
   state.deliveredTruckArrivalsByDate[date] = Array.from(deliveredTruckArrivals);
   state.deliveredTruckArrivalsByDate = pruneTruckArrivalDates(state.deliveredTruckArrivalsByDate);
+  state.deliveredLinxupEventsByDate[date] = Array.from(deliveredLinxupEvents);
+  state.deliveredLinxupEventsByDate = pruneLinxupEventDates(state.deliveredLinxupEventsByDate);
   state.deliveredTruckCloseoutsByDate[date] = Array.from(deliveredTruckCloseouts);
   state.deliveredTruckCloseoutsByDate = pruneTruckCloseoutDates(state.deliveredTruckCloseoutsByDate);
   state.deliveredPaymentNotificationsByDate[date] = Array.from(deliveredPaymentNotifications);

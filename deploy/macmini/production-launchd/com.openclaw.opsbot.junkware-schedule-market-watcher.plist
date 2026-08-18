@@ -11,10 +11,12 @@
   </array>
   <key>WorkingDirectory</key>
   <string>/Users/missioncontrol/.openclaw/workspace/opsbot</string>
-  <key>StartInterval</key>
-  <integer>20</integer>
   <key>RunAtLoad</key>
   <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>5</integer>
   <key>ProcessType</key>
   <string>Background</string>
   <key>EnvironmentVariables</key>

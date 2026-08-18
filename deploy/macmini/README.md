@@ -99,8 +99,9 @@ cd /Users/missioncontrol/opscenter-v2/opscenter
 
 The installer retires `com.openclaw.opsbot.junkware-schedule-detector`, then
 starts New Orleans (352), Northshore (477), Baton Rouge (399), and Jefferson
-Parish (484) watchers at a 20-second launch interval. Their successful and
-failed heartbeats are written under
+Parish (484) persistent watchers. Each begins its next verified sweep 10
+seconds after the previous sweep completes, rather than letting launchd
+terminate an in-flight browser check. Their successful and failed heartbeats are written under
 `/Users/missioncontrol/.openclaw/workspace/opsbot/data/slack/junkware_schedule_watchers/`.
 
 To deploy OpsCenter while leaving the separately managed WhatsApp photo worker

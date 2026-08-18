@@ -17,16 +17,21 @@ USER_ID="$(id -u)"
   echo "JunkWare schedule watcher files are missing from the active release." >&2
   exit 1
 }
+for command in jq launchctl plutil; do
+  command -v "$command" >/dev/null 2>&1 || {
+    echo "Required command is missing: $command" >&2
+    exit 1
+  }
+done
 
 mkdir -p "$LAUNCH_AGENTS_DIR" "$EXPECTED_HOME/.openclaw/workspace/opsbot/logs"
-
-# The legacy aggregate detector would duplicate messages with the scoped
-# watchers, so retire it before bootstrapping the independent workers.
-launchctl bootout "gui/$USER_ID/$LEGACY_LABEL" >/dev/null 2>&1 || true
+HEALTH_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/data/slack/junkware_schedule_watchers"
+mkdir -p "$HEALTH_DIR"
 
 for MARKET_ID in 352 477 399 484; do
   LABEL="$LABEL_PREFIX-$MARKET_ID"
   INSTALLED_PLIST="$LAUNCH_AGENTS_DIR/$LABEL.plist"
+  rm -f "$HEALTH_DIR/$MARKET_ID.json"
   sed -e "s/__LABEL__/$LABEL/g" -e "s/__MARKET_ID__/$MARKET_ID/g" "$SOURCE_PLIST" > "$INSTALLED_PLIST"
   chmod 600 "$INSTALLED_PLIST"
   plutil -lint "$INSTALLED_PLIST" >/dev/null
@@ -36,6 +41,23 @@ for MARKET_ID in 352 477 399 484; do
   launchctl kickstart -k "gui/$USER_ID/$LABEL"
 done
 
-for MARKET_ID in 352 477 399 484; do
-  launchctl print "gui/$USER_ID/$LABEL_PREFIX-$MARKET_ID" >/dev/null
+for attempt in {1..12}; do
+  healthy=true
+  for MARKET_ID in 352 477 399 484; do
+    launchctl print "gui/$USER_ID/$LABEL_PREFIX-$MARKET_ID" >/dev/null || healthy=false
+    jq -e '.status == "ok"' "$HEALTH_DIR/$MARKET_ID.json" >/dev/null 2>&1 || healthy=false
+  done
+  if $healthy; then
+    # Retire the aggregate detector only after every scoped worker has
+    # successfully completed a verified baseline sweep.
+    launchctl bootout "gui/$USER_ID/$LEGACY_LABEL" >/dev/null 2>&1 || true
+    exit 0
+  fi
+  sleep 10
 done
+
+for MARKET_ID in 352 477 399 484; do
+  launchctl bootout "gui/$USER_ID/$LABEL_PREFIX-$MARKET_ID" >/dev/null 2>&1 || true
+done
+echo "JunkWare schedule watchers did not establish all four healthy heartbeats; legacy detector was left running." >&2
+exit 1

@@ -11,7 +11,7 @@ SNAPSHOT_FILE="$MARKET_DIR/junkware_schedule_fast_${DATE}.json"
 LOCK_DIR="$OPSBOT_DIR/tmp/junkware_schedule_market_${MARKET_ID}.lock"
 HEALTH_DIR="$OPSBOT_DIR/data/slack/junkware_schedule_watchers"
 HEALTH_FILE="$HEALTH_DIR/$MARKET_ID.json"
-STARTED_AT="$(TZ=America/Chicago date -Iseconds)"
+WATCH_INTERVAL_SECONDS="${JUNKWARE_SCHEDULE_WATCHER_INTERVAL_SECONDS:-10}"
 
 case "$MARKET_ID" in
   352|477|399|484) ;;
@@ -27,30 +27,60 @@ for ENV_FILE in "$OPSBOT_DIR/.env" "$OPSBOT_DIR/.env.local" "$USER_HOME/.opencla
 done
 
 mkdir -p "$MARKET_DIR" "$OPSBOT_DIR/tmp" "$OPSBOT_DIR/logs" "$HEALTH_DIR"
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  echo "JunkWare schedule watcher [$MARKET_ID] skipped: prior run is still active."
-  exit 0
-fi
 write_health() {
   local status="$1"
   local exit_code="$2"
+  local started_at="$3"
   local completed_at
   completed_at="$(TZ=America/Chicago date -Iseconds)"
   local temp_file="$HEALTH_FILE.tmp"
   printf '{"market_id":"%s","status":"%s","started_at":"%s","completed_at":"%s","exit_code":%s}\n' \
-    "$MARKET_ID" "$status" "$STARTED_AT" "$completed_at" "$exit_code" > "$temp_file"
+    "$MARKET_ID" "$status" "$started_at" "$completed_at" "$exit_code" > "$temp_file"
   mv "$temp_file" "$HEALTH_FILE"
 }
-trap 'exit_code=$?; if [ "$exit_code" -eq 0 ]; then write_health "ok" 0; else write_health "failed" "$exit_code"; fi; rmdir "$LOCK_DIR" 2>/dev/null || true; exit "$exit_code"' EXIT
 
-cd "$OPSCENTER_DIR"
-python3 scripts/collect-junkware-schedule-market.py \
-  --date "$DATE" \
-  --market-id "$MARKET_ID" \
-  --output-dir "$MARKET_DIR"
+run_once() {
+  local started_at
+  local exit_code=0
+  started_at="$(TZ=America/Chicago date -Iseconds)"
 
-OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" ./node_modules/.bin/tsx scripts/publish-junkware-schedule-changes.ts \
-  --data-dir "$OPSBOT_DIR/data" \
-  --date "$DATE" \
-  --snapshot-file "$SNAPSHOT_FILE" \
-  --scope "market-$MARKET_ID"
+  if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+    echo "JunkWare schedule watcher [$MARKET_ID] skipped: prior run is still active."
+    return 0
+  fi
+
+  set +e
+  (
+    cd "$OPSCENTER_DIR" || exit 1
+    python3 scripts/collect-junkware-schedule-market.py \
+      --date "$DATE" \
+      --market-id "$MARKET_ID" \
+      --output-dir "$MARKET_DIR" || exit $?
+
+    OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" ./node_modules/.bin/tsx scripts/publish-junkware-schedule-changes.ts \
+      --data-dir "$OPSBOT_DIR/data" \
+      --date "$DATE" \
+      --snapshot-file "$SNAPSHOT_FILE" \
+      --scope "market-$MARKET_ID"
+  )
+  exit_code=$?
+  set -e
+
+  rmdir "$LOCK_DIR" 2>/dev/null || true
+  if [ "$exit_code" -eq 0 ]; then
+    write_health "ok" 0 "$started_at"
+  else
+    write_health "failed" "$exit_code" "$started_at"
+  fi
+  return "$exit_code"
+}
+
+if [ "${JUNKWARE_SCHEDULE_WATCHER_ONCE:-false}" = "true" ]; then
+  run_once
+  exit $?
+fi
+
+while true; do
+  run_once || true
+  sleep "$WATCH_INTERVAL_SECONDS"
+done

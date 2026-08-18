@@ -48,6 +48,10 @@ export type SearchKingsCall = {
   calledAtTime: string;
   conversionValueFormat?: string | null;
   lsaLeadId?: number | null;
+  // SearchKings supplies a recording URL with the call metadata. OpsCenter
+  // keeps the URL in its protected runtime snapshot; it never copies the
+  // recording file into application storage.
+  audio?: string | null;
 };
 
 export type SearchKingsCallQuality = {
@@ -141,6 +145,7 @@ export type SearchKingsLead = {
   calledDate: string;
   callerName: string;
   phone: string;
+  duration: string;
   city: string;
   territory: string;
   source: string;
@@ -156,6 +161,7 @@ export type SearchKingsLead = {
   potentialRevenue: number | null;
   matchedAppointment: SearchKingsAppointmentMatch | null;
   searchKingsUrl: string;
+  recordingUrl: string;
   updatedAt: string;
 };
 
@@ -374,6 +380,17 @@ function parseCalledAt(call: SearchKingsCall): string {
   const raw = `${date} ${String(call.calledAtTime || "").trim()}`.trim();
   const parsed = new Date(raw);
   return Number.isNaN(parsed.getTime()) ? `${date}T12:00:00.000Z` : parsed.toISOString();
+}
+
+function recordingUrl(value: unknown): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" && url.hostname === "calls.searchkings.com" ? url.toString() : "";
+  } catch {
+    return "";
+  }
 }
 
 function inferredReason(call: SearchKingsCall): LostLeadReason {
@@ -672,6 +689,7 @@ export function buildSearchKingsViewFromData(
       calledDate,
       callerName: String(call.name || "Unknown caller"),
       phone: String(call.callerNumberFormat || call.callerNumberComplete || ""),
+      duration: String(call.duration || "").trim(),
       city: [call.city, call.state].filter(Boolean).join(", "),
       territory,
       source: String(call.source || ""),
@@ -689,6 +707,7 @@ export function buildSearchKingsViewFromData(
       searchKingsUrl: String(call.id).startsWith("browser-")
         ? `https://searchkings.app/customers/${encodeURIComponent(snapshot.customerId)}/calls?dateRange=${snapshot.range.startDate},${snapshot.range.endDate}`
         : `https://searchkings.app/customers/${encodeURIComponent(snapshot.customerId)}/calls/${encodeURIComponent(String(call.id))}/detail`,
+      recordingUrl: recordingUrl(call.audio),
       updatedAt: override?.updatedAt || snapshot.fetchedAt,
     };
   }).sort((left, right) => right.calledAt.localeCompare(left.calledAt));

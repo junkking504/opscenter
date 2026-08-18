@@ -6,6 +6,7 @@ import AppointmentCancelDialog, { type AppointmentCancelTarget } from "@/compone
 import type { JobRouteProximityPayload, JobTruckProximity } from "@/lib/job-route-proximity";
 import { buildJobRouteHistory } from "@/lib/job-route-history";
 import { parseTruckNumberFromLabel } from "@/lib/linxup-truck-label";
+import { appointmentTerritoryTone, isWithinLafayetteServiceRadius } from "@/lib/territory-presentation";
 
 export type JobsMapPoint = {
   key: string;
@@ -181,13 +182,9 @@ export function isClosedScheduleJob(job: Pick<JobsMapPoint, "statusBucket">): bo
 }
 
 function territoryTone(job: JobsMapPoint): string {
-  const territory = String(job.territory || "").toLowerCase();
-  let tone = "is-unknown-territory";
-  if (territory.includes("new orleans")) tone = "is-new-orleans";
-  else if (territory.includes("jefferson")) tone = "is-jefferson";
-  else if (territory.includes("northshore")) tone = "is-northshore";
-  else if (territory.includes("baton rouge")) tone = "is-baton-rouge";
-  else if (territory.includes("lafayette")) tone = "is-lafayette";
+  const tone = isWithinLafayetteServiceRadius(job.latitude, job.longitude)
+    ? "is-lafayette"
+    : appointmentTerritoryTone(job.territory, job.address);
   const completed = isClosedScheduleJob(job);
   const canceled = job.statusBucket === "Canceled";
   const assignmentState = canceled
@@ -1210,6 +1207,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         <span><i className="is-baton-rouge" />Baton Rouge</span>
         <span><i className="is-northshore" />Northshore</span>
         <span><i className="is-jefferson" />Jefferson Parish</span>
+        <span><i className="is-westbank" />Westbank</span>
         <span><i className="is-lafayette" />Lafayette</span>
         <span><i className="is-unassigned" />Unassigned</span>
         <span title="Truck GPS" aria-label="Truck GPS"><i className="is-truck" />GPS</span>

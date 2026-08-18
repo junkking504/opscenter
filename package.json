@@ -36,6 +36,7 @@
     "verify:platform-kernel": "node --import tsx scripts/test-platform-kernel.ts",
     "platform:migrate": "node --import tsx scripts/migrate-platform-kernel.ts",
     "verify:ui-copy": "node --import tsx scripts/test-ui-copy.ts",
+    "verify:territory-presentation": "node --import tsx scripts/test-territory-presentation.ts",
     "verify:css-architecture": "node --import tsx scripts/test-css-architecture.ts",
     "verify:driving-score-policy": "node --import tsx scripts/test-driving-score-policy.ts",
     "verify:accessibility": "node scripts/test-accessibility.mjs",

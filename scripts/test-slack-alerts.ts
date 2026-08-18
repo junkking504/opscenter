@@ -16,6 +16,7 @@ import {
   buildTruckArrivalSlackNotifications,
   buildTruckCloseoutSlackNotifications,
   formatSlackAlert,
+  publishVerifiedTruckCloseout,
   runSlackOpsAlerts,
   slackAlertKindEnabled,
 } from "@/lib/slack-alerts";
@@ -419,6 +420,26 @@ try {
   const dedupeRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.equal(dedupeRun.posted.length, 0);
   assert.equal(postedMessages.length, 2);
+
+  const directCloseout = await publishVerifiedTruckCloseout({
+    appointmentId: "503",
+    jobNumber: "JK4051503",
+    truck: "Truck 6",
+    date: "2026-08-12",
+    closeout: { tip: "$10.00" },
+  });
+  assert.deepEqual(directCloseout, { attempted: true, posted: true, duplicate: false });
+  assert.equal(postedMessages.at(-1), ":white_check_mark: JK4051503 closed out. Tip: $10.00.");
+
+  const duplicateDirectCloseout = await publishVerifiedTruckCloseout({
+    appointmentId: "503",
+    jobNumber: "JK4051503",
+    truck: "Truck 6",
+    date: "2026-08-12",
+    closeout: { tip: "$10.00" },
+  });
+  assert.deepEqual(duplicateDirectCloseout, { attempted: false, posted: false, duplicate: true });
+  assert.equal(postedMessages.filter((message) => message.includes("JK4051503 closed out")).length, 1);
 } finally {
   globalThis.fetch = originalFetch;
   delete process.env.SLACK_OPSCENTER_STATE_FILE;

@@ -111,7 +111,16 @@ async function capture(page: Page): Promise<{ status: { value: string }; [key: s
         total: clean(document.getElementById(prefix + "MCTotalLbl")?.textContent),
       };
     });
+    const pageText = clean(document.body?.innerText || document.body?.textContent);
+    const jobNumber = pageText.match(/\bJK\d+\b/i)?.[0]?.toUpperCase() || "";
+    const truckSelect =
+      document.getElementById("ctl00_Content_TruckDD") ||
+      document.querySelector('select[id$="TruckDD"], select[id*="Truck"][id$="DD"]');
     return {
+      jobNumber,
+      truck: truckSelect instanceof HTMLSelectElement
+        ? clean(truckSelect.options[truckSelect.selectedIndex]?.textContent)
+        : "",
       status: selectData("ctl00_Content_StatusDD"),
       driver: { value: driver.value, label: driver.label },
       drivers: driver.options,

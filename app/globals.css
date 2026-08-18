@@ -4319,7 +4319,7 @@ a {
 }
 
 :is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-new-orleans {
-  background: #60a5fa;
+  background: #fff;
 }
 
 :is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-jefferson {
@@ -4331,7 +4331,7 @@ a {
 }
 
 :is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-baton-rouge {
-  background: #b91c1c;
+  background: #fff;
 }
 
 :is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-westbank {
@@ -4343,18 +4343,18 @@ a {
 }
 
 /* Assigned, unfinished jobs are the board's strongest visual state. */
-:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-new-orleans.is-assigned-unfinished { background: #1687ff; }
+:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-new-orleans.is-assigned-unfinished { background: #fff; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-jefferson.is-assigned-unfinished { background: #00d8bd; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-northshore.is-assigned-unfinished { background: #a21caf; }
-:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-baton-rouge.is-assigned-unfinished { background: #991b1b; }
+:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-baton-rouge.is-assigned-unfinished { background: #fff; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-westbank.is-assigned-unfinished { background: #d97706; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-lafayette.is-assigned-unfinished { background: #84cc16; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-unknown-territory.is-assigned-unfinished { background: #b6c1d1; }
 
-:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-new-orleans.is-unassigned { background: rgba(96, 165, 250, .5); }
+:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-new-orleans.is-unassigned { background: #fff; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-jefferson.is-unassigned { background: rgba(45, 212, 191, .5); }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-northshore.is-unassigned { background: rgba(217, 70, 239, .5); }
-:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-baton-rouge.is-unassigned { background: rgba(185, 28, 28, .5); }
+:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-baton-rouge.is-unassigned { background: #fff; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-westbank.is-unassigned { background: rgba(251, 191, 36, .5); }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-lafayette.is-unassigned { background: rgba(163, 230, 53, .5); }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-unknown-territory.is-unassigned { background: rgba(139, 146, 157, .5); }
@@ -4372,10 +4372,10 @@ a {
 }
 
 /* Keep completed jobs visibly muted without erasing their territory. */
-:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-new-orleans.is-completed { background: #87acdb; }
+:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-new-orleans.is-completed { background: #fff; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-jefferson.is-completed { background: #6ebfb9; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-northshore.is-completed { background: #c89fd0; }
-:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-baton-rouge.is-completed { background: #bd8787; }
+:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-baton-rouge.is-completed { background: #fff; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-westbank.is-completed { background: #d2b879; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-lafayette.is-completed { background: #b1c37b; }
 
@@ -4444,38 +4444,45 @@ a {
   background: #8b929d;
 }
 
-.ops-jobs-map-pin.is-new-orleans { background: #60a5fa; }
+.ops-jobs-map-pin.is-new-orleans { background: #fff; }
 .ops-jobs-map-pin.is-jefferson { background: #2dd4bf; }
 .ops-jobs-map-pin.is-northshore { background: #d946ef; }
-.ops-jobs-map-pin.is-baton-rouge { background: #b91c1c; }
+.ops-jobs-map-pin.is-baton-rouge { background: #fff; }
 .ops-jobs-map-pin.is-westbank { background: #fbbf24; }
 .ops-jobs-map-pin.is-lafayette { background: #a3e635; }
-.ops-jobs-map-pin.is-new-orleans.is-assigned-unfinished { background: #1687ff; }
+.ops-jobs-map-pin.is-new-orleans.is-assigned-unfinished { background: #fff; }
 .ops-jobs-map-pin.is-jefferson.is-assigned-unfinished { background: #00d8bd; }
 .ops-jobs-map-pin.is-northshore.is-assigned-unfinished { background: #a21caf; }
-.ops-jobs-map-pin.is-baton-rouge.is-assigned-unfinished { background: #991b1b; }
+.ops-jobs-map-pin.is-baton-rouge.is-assigned-unfinished { background: #fff; }
 .ops-jobs-map-pin.is-westbank.is-assigned-unfinished { background: #d97706; }
 .ops-jobs-map-pin.is-lafayette.is-assigned-unfinished { background: #84cc16; }
 .ops-jobs-map-pin.is-unknown-territory.is-assigned-unfinished { background: #b6c1d1; }
-.ops-jobs-map-pin.is-new-orleans.is-unassigned { background: rgba(96, 165, 250, .5); }
+.ops-jobs-map-pin.is-new-orleans.is-unassigned { background: #fff; }
 .ops-jobs-map-pin.is-jefferson.is-unassigned { background: rgba(45, 212, 191, .5); }
 .ops-jobs-map-pin.is-northshore.is-unassigned { background: rgba(217, 70, 239, .5); }
-.ops-jobs-map-pin.is-baton-rouge.is-unassigned { background: rgba(185, 28, 28, .5); }
+.ops-jobs-map-pin.is-baton-rouge.is-unassigned { background: #fff; }
 .ops-jobs-map-pin.is-westbank.is-unassigned { background: rgba(251, 191, 36, .5); }
 .ops-jobs-map-pin.is-lafayette.is-unassigned { background: rgba(163, 230, 53, .5); }
 .ops-jobs-map-pin.is-unknown-territory.is-unassigned { background: rgba(139, 146, 157, .5); }
 .ops-jobs-map-pin.is-unknown-territory { background: #8b929d; }
 .ops-jobs-map-pin.is-completed { background: #aeb3bb; }
-.ops-jobs-map-pin.is-new-orleans.is-completed { background: #87acdb; }
+.ops-jobs-map-pin.is-new-orleans.is-completed { background: #fff; }
 .ops-jobs-map-pin.is-jefferson.is-completed { background: #6ebfb9; }
 .ops-jobs-map-pin.is-northshore.is-completed { background: #c89fd0; }
-.ops-jobs-map-pin.is-baton-rouge.is-completed { background: #bd8787; }
+.ops-jobs-map-pin.is-baton-rouge.is-completed { background: #fff; }
 .ops-jobs-map-pin.is-westbank.is-completed { background: #d2b879; }
 .ops-jobs-map-pin.is-lafayette.is-completed { background: #b1c37b; }
 .ops-jobs-map-pin.is-canceled {
-  background: #4b5563;
   border-color: #fb7185;
   opacity: .82;
+}
+
+.ops-jobs-map-pin b {
+  color: #111827;
+  font-size: .48rem;
+  font-weight: 950;
+  line-height: 1;
+  transform: rotate(45deg);
 }
 
 .ops-jobs-truck-marker {

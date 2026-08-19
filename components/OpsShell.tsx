@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import OpsNav from "@/components/OpsNav";
 import OperationsClock from "@/components/OperationsClock";
-import JunkKingLogo from "@/components/JunkKingLogo";
+import OpsCenterLogo from "@/components/OpsCenterLogo";
 import AddOnNotifications from "@/components/AddOnNotifications";
 import TruckCameraController from "@/components/TruckCameraController";
 import { getOpsRuntime } from "@/lib/runtime";
@@ -50,7 +50,7 @@ export default function OpsShell({
       <label htmlFor="ops-sidebar-toggle" className="ops-sidebar-backdrop" aria-hidden="true" />
       <aside className="ops-sidebar">
         <div className="ops-brand">
-          <JunkKingLogo className="ops-junk-king-logo" />
+          <OpsCenterLogo />
           <div className="ops-brand-product">
             <div className="ops-brand-title">OpsCenter</div>
             <div className="ops-brand-subtitle">Junk King | Louisiana</div>
@@ -80,7 +80,7 @@ export default function OpsShell({
       <main className="ops-main">
         <div className="ops-main-frame">
           <div className="ops-mobile-brand" aria-label="Junk King OpsCenter">
-            <JunkKingLogo className="ops-mobile-junk-king-logo" />
+            <OpsCenterLogo variant="mobile" />
             <span>OpsCenter</span>
           </div>
           <header className="ops-topbar">

@@ -3269,6 +3269,15 @@ body {
   }
 }
 
+/* Compact product lockup for the route-and-dispatch OpsCenter mark. */
+.ops-brand { grid-template-columns: 56px minmax(0, 1fr); align-items: center; min-height: 78px; padding: 7px 5px 13px; }
+.ops-brand-product { grid-column: 2; grid-row: 1; display: grid; justify-content: start; gap: 3px; padding-top: 0; border-top: 0; }
+.ops-brand-subtitle { max-width: none; text-align: left; }
+@media (max-width: 1050px) {
+  .ops-mobile-brand { justify-content: flex-start; gap: 10px; }
+  .ops-mobile-brand span { color: #f1f3f5; font-size: 0.86rem; font-weight: 830; letter-spacing: -0.025em; }
+}
+
 /* Final driver-detail sizing and empty-data treatment. */
 .ops-driver-panel {
   margin: 10px 8px 8px;

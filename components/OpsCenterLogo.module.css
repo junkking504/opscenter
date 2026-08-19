@@ -1,0 +1,21 @@
+.logo {
+  display: block;
+  flex: 0 0 auto;
+}
+
+.sidebar {
+  width: 56px;
+  height: 56px;
+  filter: drop-shadow(0 10px 16px rgba(237, 28, 36, 0.24));
+}
+
+.login {
+  width: min(96px, 24vw);
+  height: auto;
+  filter: drop-shadow(0 16px 30px rgba(237, 28, 36, 0.3));
+}
+
+.mobile {
+  width: 38px;
+  height: 38px;
+}

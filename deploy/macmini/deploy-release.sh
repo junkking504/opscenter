@@ -18,6 +18,7 @@ PREVIEW_LABEL="com.openclaw.opscenter.macmini-preview"
 WHATSAPP_PHOTO_LABEL="com.openclaw.opscenter.whatsapp-photos"
 REQUESTED_REF="${1:-}"
 RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"
+RELEASE_RETENTION="${OPSCENTER_RELEASE_RETENTION:-8}"
 
 fail() {
   echo "Mission Control deployment stopped: $*" >&2
@@ -43,6 +44,26 @@ activate_release() {
   /bin/mv -fh "$next_link" "$APP_LINK"
 }
 
+prune_superseded_releases() {
+  local protected_current="$1"
+  local protected_previous="$2"
+  local -a releases
+  local candidate
+  local retained=0
+
+  # Directories are named by commit SHA and are only ever created by this script.
+  # Keep a compact rollback window while ensuring the live and immediate prior
+  # release can never be pruned by this deployment.
+  releases=("${(@f)$(/bin/ls -1dt "$RELEASES_DIR"/*(N/))}")
+  for candidate in "${releases[@]}"; do
+    if [[ "$candidate" == "$protected_current" || "$candidate" == "$protected_previous" || "$retained" -lt "$RELEASE_RETENTION" ]]; then
+      retained=$((retained + 1))
+      continue
+    fi
+    git -C "$REPOSITORY" worktree remove --force "$candidate"
+  done
+}
+
 wait_for_login() {
   local port="$1"
   local attempt=1
@@ -60,6 +81,7 @@ wait_for_login() {
 [[ -n "$REQUESTED_REF" ]] || fail "usage: $0 <pushed-git-ref-or-commit>"
 [[ "$(id -un)" == "$EXPECTED_USER" ]] || fail "run this while logged in as $EXPECTED_USER"
 [[ "$HOME" == "$EXPECTED_HOME" ]] || fail "HOME must be $EXPECTED_HOME"
+[[ "$RELEASE_RETENTION" == <-> && "$RELEASE_RETENTION" -ge 3 ]] || fail "OPSCENTER_RELEASE_RETENTION must be an integer of at least 3"
 [[ -d "$REPOSITORY/.git" ]] || fail "run deploy/macmini/bootstrap-git-deployment.sh first"
 [[ -d "$DATA_DIR" ]] || fail "missing authoritative OpsBot data: $DATA_DIR"
 [[ -L "$APP_LINK" ]] || fail "$APP_LINK must be a symbolic link; run the Git bootstrap first"
@@ -69,6 +91,12 @@ for command in git node npm curl launchctl; do
 done
 
 mkdir -p "$RELEASES_DIR" "$SHARED_LOGS" "$SHARED_CONFIG"
+# Reclaim old immutable releases before installing a new dependency tree. This
+# keeps a failed or oversized prior deployment from consuming the space needed
+# for the next recovery deployment.
+active_release="$(readlink "$APP_LINK")"
+[[ -d "$active_release" ]] || fail "active OpsCenter target is missing: $active_release"
+prune_superseded_releases "$active_release" "$active_release"
 git -C "$REPOSITORY" fetch --prune origin
 
 commit="$(git -C "$REPOSITORY" rev-parse --verify "${REQUESTED_REF}^{commit}" 2>/dev/null || true)"
@@ -147,6 +175,8 @@ if [[ -n "$active_label" ]]; then
     fail "release $commit failed its login health check and was rolled back"
   fi
 fi
+
+prune_superseded_releases "$release" "$previous_target"
 
 if service_loaded "$WHATSAPP_PHOTO_LABEL" && whatsapp_photo_worker_restart_enabled; then
   launchctl kickstart -k "gui/$(id -u)/$WHATSAPP_PHOTO_LABEL"

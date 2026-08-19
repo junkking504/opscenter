@@ -1,6 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
-import { appointmentChannelId, buildAddOnSlackNotification, buildCancellationSlackNotification, formatSlackAlert, type SlackOpsAlert } from "@/lib/slack-alerts";
+import {
+  appointmentChannelId,
+  buildAddOnSlackNotification,
+  buildCancellationSlackNotification,
+  formatSlackAlert,
+  isTruckCloseoutDelivered,
+  recordDeliveredTruckCloseout,
+  type SlackOpsAlert,
+} from "@/lib/slack-alerts";
 import { truckSlackChannelId } from "@/lib/slack-truck-channels";
 import type { AnyRecord } from "@/lib/opsData";
 
@@ -268,8 +276,13 @@ export async function publishScheduleChanges(
     const failed: ScheduleChange[] = [];
     for (const event of detectScheduleChanges(previous, snapshot)) {
       if (delivered.has(event.fingerprint)) continue;
+      if (event.kind === "job_closed" && isTruckCloseoutDelivered(snapshot.date, event.fingerprint)) {
+        delivered.add(event.fingerprint);
+        continue;
+      }
       if (await post(token, event.alert)) {
         delivered.add(event.fingerprint);
+        if (event.kind === "job_closed") recordDeliveredTruckCloseout(snapshot.date, event.fingerprint);
         posted.push(event);
       } else {
         failed.push(event);

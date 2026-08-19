@@ -202,6 +202,26 @@ function writeState(state: SlackAlertState): void {
   fs.renameSync(temporary, file);
 }
 
+/**
+ * Closeout alerts can be discovered by the normal refresh, a verified closeout
+ * save, or the schedule-only detector. All paths use this durable record so a
+ * faster publisher suppresses the later one.
+ */
+export function isTruckCloseoutDelivered(date: string, fingerprint: string): boolean {
+  return new Set(readState().deliveredTruckCloseoutsByDate[date] || []).has(fingerprint);
+}
+
+export function recordDeliveredTruckCloseout(date: string, fingerprint: string): void {
+  const state = readState();
+  const delivered = new Set(state.deliveredTruckCloseoutsByDate[date] || []);
+  delivered.add(fingerprint);
+  state.truckCloseoutNotificationsInitializedAt ||= new Date().toISOString();
+  state.deliveredTruckCloseoutsByDate[date] = Array.from(delivered);
+  state.deliveredTruckCloseoutsByDate = pruneTruckCloseoutDates(state.deliveredTruckCloseoutsByDate);
+  state.updatedAt = new Date().toISOString();
+  writeState(state);
+}
+
 function pruneAppointmentDates(values: Record<string, string[]>): Record<string, string[]> {
   return Object.fromEntries(Object.entries(values).sort(([left], [right]) => right.localeCompare(left)).slice(0, 8));
 }
@@ -862,9 +882,7 @@ export async function publishVerifiedTruckCloseout(
     ? String(input.date)
     : chicagoDateKey();
   const fingerprint = `job_closed:${date}:appt-${appointmentId.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
-  const state = readState();
-  const delivered = new Set(state.deliveredTruckCloseoutsByDate[date] || []);
-  if (delivered.has(fingerprint)) return { attempted: false, posted: false, duplicate: true };
+  if (isTruckCloseoutDelivered(date, fingerprint)) return { attempted: false, posted: false, duplicate: true };
 
   const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
   if (!token) return { attempted: false, posted: false, duplicate: false, reason: "Slack bot token is unavailable." };
@@ -884,12 +902,7 @@ export async function publishVerifiedTruckCloseout(
     return { attempted: true, posted: false, duplicate: false, reason: response.error || "Slack did not return a message timestamp." };
   }
 
-  delivered.add(fingerprint);
-  state.truckCloseoutNotificationsInitializedAt ||= new Date().toISOString();
-  state.deliveredTruckCloseoutsByDate[date] = Array.from(delivered);
-  state.deliveredTruckCloseoutsByDate = pruneTruckCloseoutDates(state.deliveredTruckCloseoutsByDate);
-  state.updatedAt = new Date().toISOString();
-  writeState(state);
+  recordDeliveredTruckCloseout(date, fingerprint);
   return { attempted: true, posted: true, duplicate: false };
 }
 

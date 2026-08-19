@@ -18,6 +18,7 @@ import {
   buildTruckCloseoutSlackNotifications,
   formatSlackAlert,
   publishVerifiedTruckCloseout,
+  recordDeliveredTruckCloseout,
   runSlackOpsAlerts,
   slackAlertKindEnabled,
 } from "@/lib/slack-alerts";
@@ -453,16 +454,16 @@ try {
     scraped_at: "2026-08-12T14:05:00-05:00",
     completed: [existingCloseout, newCloseout],
   }));
+  recordDeliveredTruckCloseout("2026-08-12", "job_closed:2026-08-12:appt-502");
   const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });
-  assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed", "job_closed_payment"]);
+  assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed_payment"]);
   assert.deepEqual(postedMessages, [
-    ":white_check_mark: JK4051502 closed out. Tip: $20.00. Charged: Check #2201 ($220.00).",
     "JK4051502 closed out. Payment: Check #2201 ($220.00). Tip: $20.00.",
   ]);
 
   const dedupeRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.equal(dedupeRun.posted.length, 0);
-  assert.equal(postedMessages.length, 2);
+  assert.equal(postedMessages.length, 1);
 
   const directCloseout = await publishVerifiedTruckCloseout({
     appointmentId: "503",

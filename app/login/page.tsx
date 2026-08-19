@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
-import JunkKingLogo from "@/components/JunkKingLogo";
+import OpsCenterLogo from "@/components/OpsCenterLogo";
 
 type LoginPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
@@ -29,7 +29,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <div className="ops-login-grid" aria-hidden="true" />
       <section className="ops-login-brand-panel">
         <div className="ops-login-brand">
-          <JunkKingLogo className="ops-login-junk-king-logo" />
+          <OpsCenterLogo variant="login" />
           <div>
             <div className="ops-login-wordmark">OPSCENTER</div>
             <div className="ops-login-designation">JUNK KING LOUISIANA</div>

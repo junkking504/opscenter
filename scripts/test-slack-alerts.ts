@@ -12,7 +12,6 @@ import {
   appointmentChannelId,
   buildAddOnSlackNotification,
   buildCancellationSlackNotification,
-  buildPaymentCloseoutSlackNotifications,
   buildCrewSlackNotifications,
   buildTruckArrivalSlackNotifications,
   buildTruckCloseoutSlackNotifications,
@@ -116,7 +115,6 @@ assert.equal(slackAlertKindEnabled("cancellation"), true);
 assert.equal(slackAlertKindEnabled("unassigned_crew"), false);
 assert.equal(slackAlertKindEnabled("truck_arrival"), true);
 assert.equal(slackAlertKindEnabled("job_closed"), true);
-assert.equal(slackAlertKindEnabled("job_closed_payment"), true);
 
 assert.deepEqual(appointmentItemDescriptions({
   appointment_notes: [
@@ -214,30 +212,6 @@ const completedCloseoutRows = [
     closeout: { payments: [] },
   },
 ];
-
-const paymentCloseoutAlerts = buildPaymentCloseoutSlackNotifications("2026-08-12", completedCloseoutRows);
-
-assert.deepEqual(
-  paymentCloseoutAlerts.map((alert) => ({ channelId: alert.channelId, text: formatSlackAlert(alert) })),
-  [
-    {
-      channelId: "C_TEST_PAYMENT",
-      text: "JK4051000 closed out. Payment: Card ending 3013 ($558.80). Tip: $50.80.",
-    },
-    {
-      channelId: "C_TEST_PAYMENT",
-      text: "JK4051001 closed out. Payment: Check #1487 ($198.00).",
-    },
-    {
-      channelId: "C_TEST_PAYMENT",
-      text: "JK4051002 closed out. Payment: Cash ($200.00).",
-    },
-    {
-      channelId: "C_TEST_PAYMENT",
-      text: "JK4051003 closed out. Payments: Card ending 4242 ($100.00); Cash ($50.00). Tip: $15.00.",
-    },
-  ],
-);
 
 assert.deepEqual(
   buildTruckCloseoutSlackNotifications("2026-08-12", completedCloseoutRows)
@@ -446,7 +420,6 @@ try {
 
   const baselineRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.equal(baselineRun.bootstrappedTruckCloseouts, 1);
-  assert.equal(baselineRun.bootstrappedPayments, 1);
   assert.equal(baselineRun.posted.length, 0);
   assert.equal(postedMessages.length, 0);
 
@@ -454,11 +427,10 @@ try {
     scraped_at: "2026-08-12T14:05:00-05:00",
     completed: [existingCloseout, newCloseout],
   }));
-  recordDeliveredTruckCloseout("2026-08-12", "job_closed:2026-08-12:appt-502");
   const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });
-  assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed_payment"]);
+  assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed"]);
   assert.deepEqual(postedMessages, [
-    "JK4051502 closed out. Payment: Check #2201 ($220.00). Tip: $20.00.",
+    ":white_check_mark: JK4051502 closed out. Tip: $20.00. Charged: Check #2201 ($220.00).",
   ]);
 
   const dedupeRun = await runSlackOpsAlerts({ date: "2026-08-12" });
@@ -568,7 +540,7 @@ const inconsistentPay = buildCrewSlackNotifications("2026-08-12", [
 ]);
 assert.deepEqual(inconsistentPay.map((alert) => alert.kind), ["crew_clock_in", "crew_clock_out"]);
 
-console.log("Slack appointment, truck arrival, payment closeout, and crew notification tests passed.");
+console.log("Slack appointment, truck arrival, unified closeout, and crew notification tests passed.");
 }
 
 main().catch((error) => {

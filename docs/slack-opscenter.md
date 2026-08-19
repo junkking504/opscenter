@@ -11,24 +11,23 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
   - Northshore -> `#jobs-ns`
   - Unknown or unsupported territories -> `#dispatch`
 - Confirmed truck arrival -> that truck's `#truck-N` channel, with JK number, customer name, and service address
-- Newly closed job -> a short operational completion notice in that truck's `#truck-N` channel
+- Newly closed job -> one closeout alert in that truck's `#truck-N` channel, including the payment method, amount, and any tip
 - Fuel and dump receipts -> that truck's `#truck-N` channel
 - Verified WhatsApp job-photo batch -> that truck's `#truck-N` channel
 - LinxUp driving-safety events -> that truck's `#truck-N` channel
 - Clocked-in employee without a truck -> retained in OpsCenter without a Slack alert because assignment normally follows closeout
 - Employee clock-in, clock-out with hours, and finalized daily-pay breakdown -> `#ops-command` (or `SLACK_OPS_CREW_CHANNEL_ID`)
-- Newly closed JunkWare job -> a separate finance detail in `#payment`, with each payment amount and method, check number for checks, card last four for cards, and any tip
 - Open out-of-service fleet issue -> `#ops-fleet`
 - Red JunkWare or Linxup data health -> `#ops-data-health`
 - Cross-territory or unmapped operational exceptions -> `#dispatch`
 
-Truck channels intentionally contain field execution events, not bookings or schedule changes. The territory jobs channels own appointment intake and cancellations so dispatch can see route-plan changes in one place. `#payment` keeps the finance detail while the truck channel receives only the operational closeout fact.
+Truck channels intentionally contain field execution events, not bookings or schedule changes. The territory jobs channels own appointment intake and cancellations so dispatch can see route-plan changes in one place. A closeout and its payment are one operational event, so both are sent together to the assigned truck channel.
 
 The first live run records existing appointments, existing cancellations, and currently active incidents as its baseline. It does not flood Slack with pre-existing conditions. Later appointment additions and cancellations are each posted once; failed notification deliveries remain eligible for retry. Once a baseline incident clears, a later recurrence is treated as a new incident. New incident alerts are deduplicated, and recovery messages are posted in the original Slack thread.
 
 Crew lifecycle notifications are also baselined once when the feature is first deployed. After that baseline, each employee receives at most one clock-in, clock-out, and finalized-pay notification per day. The messages are intentionally plain: clock-in states only that the employee clocked in; clock-out adds only hours worked; finalized pay lists total pay, hourly pay, tips, and bonuses.
 
-The detector baselines silently on its first run, then posts each new appointment, reschedule, cancellation, and closeout once. It publishes only after JunkWare has confirmed the requested date and every selected market. Schedule-detector closeouts also consult and update the normal closeout-delivery record, so a closeout posted by either path suppresses the other. The detector writes its latest completion status to `data/slack/junkware_schedule_watchers/detector.json`; a missing or failed heartbeat is a data-health incident. Truck closeout and payment-detail notifications are baselined independently when each feature is first deployed so existing completed jobs do not flood either channel. A payment detail is held for retry until its closeout includes a payment line, which prevents an incomplete scrape from permanently omitting the requested payment details. Messages contain only the JK number, payment details, and a positive tip amount; they do not include customer data or a full card number.
+The detector baselines silently on its first run, then posts each new appointment, reschedule, cancellation, and closeout once. It publishes only after JunkWare has confirmed the requested date and every selected market. Schedule-detector closeouts also consult and update the normal closeout-delivery record, so a closeout posted by either path suppresses the other. The detector writes its latest completion status to `data/slack/junkware_schedule_watchers/detector.json`; a missing or failed heartbeat is a data-health incident. Truck closeouts are baselined when the feature is first deployed so existing completed jobs do not flood Slack. The one-minute schedule detector includes the available payment type and total; a full closeout includes the payment method, amount, check number where applicable, card last four, and any tip. Messages contain only the JK number, payment details, and a positive tip amount; they do not include customer data or a full card number.
 
 Appointments that remain open after their scheduled window stay visible in OpsCenter but do not generate Slack alerts or resolution replies.
 

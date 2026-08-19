@@ -111,8 +111,17 @@ export function truckCloseoutDetails(row: AnyRecord): TruckCloseoutDetails | nul
   if (payments.length) {
     lines.push(`Charged: ${payments.join("; ")}.`);
   } else {
-    const chargedTotal = firstFiniteNumber(closeout, ["total"]);
-    if (chargedTotal !== null) lines.push(`Total charged: ${moneyText(chargedTotal)}.`);
+    // The one-minute schedule detector has the payment method and sale total
+    // before it has loaded the full closeout payment rows. Keep that payment
+    // in the single truck closeout alert instead of waiting for a second alert.
+    const paymentMethod = firstText(row, ["payment_type", "paymentType", "payment_method"]);
+    const chargedTotal = firstFiniteNumber(closeout, ["total"])
+      ?? firstFiniteNumber(row, ["revenue", "job_total", "jobTotal"]);
+    if (paymentMethod) {
+      lines.push(`Charged: ${paymentMethod}${chargedTotal !== null ? ` (${moneyText(chargedTotal)})` : ""}.`);
+    } else if (chargedTotal !== null) {
+      lines.push(`Total charged: ${moneyText(chargedTotal)}.`);
+    }
   }
 
   return {

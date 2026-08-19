@@ -21,7 +21,7 @@ const current = {
   date: "2026-08-17",
   scrapedAt: "2026-08-17T16:01:00-05:00",
   appointments: [
-    { appt_id: "1", job_id: "JK4051001", job_status: "Completed", appointment_time: "9:00 AM", truck: "Truck 6", market: "Baton Rouge" },
+    { appt_id: "1", job_id: "JK4051001", job_status: "Completed", appointment_time: "9:00 AM", truck: "Truck 6", market: "Baton Rouge", revenue: "$225.00", payment_type: "Cash" },
     { appt_id: "2", job_id: "JK4051002", job_status: "Scheduled", appointment_time: "11:00 AM", truck: "Truck 1", market: "New Orleans" },
     { appt_id: "3", job_id: "JK4051003", job_status: "Scheduled", appointment_time: "1:00 PM", truck: "Truck 4", market: "Northshore" },
   ],
@@ -33,6 +33,7 @@ const current = {
 const events = detectScheduleChanges(previous, current);
 assert.deepEqual(events.map((event) => event.kind).sort(), ["cancelled", "job_closed", "new_appointment", "rescheduled"]);
 assert.equal(events.find((event) => event.kind === "job_closed")?.alert.channelId, "C_TEST_TRUCK_6");
+assert.equal(events.find((event) => event.kind === "job_closed")?.alert.plainText, ":white_check_mark: JK4051001 closed out. Job total: $225.00. Tip: $0.00. Charged: Cash ($225.00).");
 assert.match(String(events.find((event) => event.kind === "rescheduled")?.alert.detail), /Previous: 10:00 AM/);
 assert.deepEqual(detectScheduleChanges(null, current), []);
 

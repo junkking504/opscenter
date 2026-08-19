@@ -9,6 +9,7 @@ import {
   recordDeliveredTruckCloseout,
   type SlackOpsAlert,
 } from "@/lib/slack-alerts";
+import { truckCloseoutDetails } from "@/lib/slack-closeout-details";
 import { truckSlackChannelId } from "@/lib/slack-truck-channels";
 import type { AnyRecord } from "@/lib/opsData";
 
@@ -95,6 +96,7 @@ function rescheduleAlert(date: string, previous: AnyRecord, current: AnyRecord):
 
 function closeoutAlert(date: string, row: AnyRecord): SlackOpsAlert {
   const truck = first(row, ["truck", "assigned_truck", "truck_number"]);
+  const details = truckCloseoutDetails(row);
   return {
     fingerprint: "",
     kind: "job_closed",
@@ -105,7 +107,7 @@ function closeoutAlert(date: string, row: AnyRecord): SlackOpsAlert {
     detail: "",
     nextAction: "",
     href: "",
-    plainText: `:white_check_mark: ${jobNumber(row)} closed out.`,
+    plainText: details?.slackText || `:white_check_mark: ${jobNumber(row)} closed out.`,
   };
 }
 

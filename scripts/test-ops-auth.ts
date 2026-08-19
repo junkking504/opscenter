@@ -31,6 +31,9 @@ async function main() {
   assert.equal(opsAuthDisplayName(opsAuthIdentity()), username);
   assert.equal(opsAuthDisplayName("manager@junk-king.com"), "manager@junk-king.com");
   assert.equal(publicAuthRoute("/junk-king-logo.svg"), true);
+  assert.equal(publicAuthRoute("/icon"), true);
+  assert.equal(publicAuthRoute("/apple-icon"), true);
+  assert.equal(publicAuthRoute("/manifest.webmanifest"), true);
   assert.equal(publicAuthRoute("/fleet"), false);
   assert.equal(AUTH_TRUSTED_DEVICE_MAX_AGE_SECONDS, 60 * 60 * 24 * 30);
   assert.equal(

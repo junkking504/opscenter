@@ -5,12 +5,8 @@ import {
   buildAddOnSlackNotification,
   buildCancellationSlackNotification,
   formatSlackAlert,
-  isTruckCloseoutDelivered,
-  recordDeliveredTruckCloseout,
   type SlackOpsAlert,
 } from "@/lib/slack-alerts";
-import { truckCloseoutDetails } from "@/lib/slack-closeout-details";
-import { truckSlackChannelId } from "@/lib/slack-truck-channels";
 import type { AnyRecord } from "@/lib/opsData";
 
 type Snapshot = {
@@ -21,15 +17,21 @@ type Snapshot = {
 };
 
 type DetectorState = {
-  version: 2;
+  version: 3;
   snapshots: Record<string, Snapshot | null>;
   delivered: string[];
+  pendingCloseouts: Record<string, { date: string; row: AnyRecord }>;
 };
 
 export type ScheduleChange = {
   fingerprint: string;
-  kind: "new_appointment" | "cancelled" | "rescheduled" | "job_closed";
+  kind: "new_appointment" | "cancelled" | "rescheduled";
   alert: SlackOpsAlert;
+};
+
+export type PendingScheduleCloseout = {
+  date: string;
+  row: AnyRecord;
 };
 
 function clean(value: unknown): string {
@@ -57,6 +59,16 @@ function jobNumber(row: AnyRecord): string {
 
 function complete(row: AnyRecord): boolean {
   return first(row, ["final_status", "job_status", "status"]).toLowerCase().includes("complete");
+}
+
+function newlyCompletedRows(previous: Snapshot | null, current: Snapshot): AnyRecord[] {
+  if (!previous) return [];
+  const priorAppointments = rowMap(previous.appointments);
+  return current.appointments.filter((row) => {
+    const id = identifier(row);
+    const prior = id ? priorAppointments.get(id) : null;
+    return Boolean(id && prior && !complete(prior) && complete(row));
+  });
 }
 
 function cancelled(row: AnyRecord): boolean {
@@ -91,23 +103,6 @@ function rescheduleAlert(date: string, previous: AnyRecord, current: AnyRecord):
     detail: [`Previous: ${oldTime}`, `New: ${newTime}`, truck ? `Truck: ${truck}` : ""].filter(Boolean).join("\n"),
     nextAction: "Update the route plan.",
     href: href(date, current),
-  };
-}
-
-function closeoutAlert(date: string, row: AnyRecord): SlackOpsAlert {
-  const truck = first(row, ["truck", "assigned_truck", "truck_number"]);
-  const details = truckCloseoutDetails(row);
-  return {
-    fingerprint: "",
-    kind: "job_closed",
-    lifecycle: "notification",
-    severity: "warning",
-    channelId: truckSlackChannelId(truck, appointmentChannelId(first(row, ["normalized_territory", "territory", "source_territory", "market"]))),
-    title: "",
-    detail: "",
-    nextAction: "",
-    href: "",
-    plainText: details?.slackText || `:white_check_mark: ${jobNumber(row)} closed out.`,
   };
 }
 
@@ -149,9 +144,7 @@ export function detectScheduleChanges(previous: Snapshot | null, current: Snapsh
       events.push({ fingerprint: `new_appointment:${current.date}:${id}`, kind: "new_appointment", alert });
       continue;
     }
-    if (!complete(previousRow) && complete(row)) {
-      events.push({ fingerprint: `job_closed:${current.date}:${id}`, kind: "job_closed", alert: closeoutAlert(current.date, row) });
-    } else if (!complete(row) && scheduleShape(previousRow) !== scheduleShape(row)) {
+    if (!complete(row) && scheduleShape(previousRow) !== scheduleShape(row)) {
       events.push({ fingerprint: `rescheduled:${current.date}:${id}:${scheduleShape(row)}`, kind: "rescheduled", alert: rescheduleAlert(current.date, previousRow, row) });
     }
   }
@@ -187,20 +180,22 @@ function stateFile(dataDir: string): string {
 function readState(dataDir: string): DetectorState {
   try {
     const value = JSON.parse(fs.readFileSync(stateFile(dataDir), "utf8"));
-    if (value?.version === 2 && value?.snapshots && typeof value.snapshots === "object") {
+    if ((value?.version === 2 || value?.version === 3) && value?.snapshots && typeof value.snapshots === "object") {
       return {
-        version: 2,
+        version: 3,
         snapshots: value.snapshots,
         delivered: Array.isArray(value?.delivered) ? value.delivered.map(String).slice(-2_000) : [],
+        pendingCloseouts: value?.pendingCloseouts && typeof value.pendingCloseouts === "object" ? value.pendingCloseouts : {},
       };
     }
     return {
-      version: 2,
+      version: 3,
       snapshots: { legacy: value?.snapshot || null },
       delivered: Array.isArray(value?.delivered) ? value.delivered.map(String).slice(-2_000) : [],
+      pendingCloseouts: {},
     };
   } catch {
-    return { version: 2, snapshots: {}, delivered: [] };
+    return { version: 3, snapshots: {}, delivered: [], pendingCloseouts: {} };
   }
 }
 
@@ -263,38 +258,63 @@ export async function publishScheduleChanges(
   dataDir: string,
   snapshot: Snapshot,
   token: string,
-  options: { scope?: string } = {},
-): Promise<{ baselined: boolean; posted: ScheduleChange[]; failed: ScheduleChange[] }> {
+  options: {
+    scope?: string;
+    resolveCloseout?: (closeout: PendingScheduleCloseout) => Promise<boolean>;
+  } = {},
+): Promise<{
+  baselined: boolean;
+  posted: ScheduleChange[];
+  failed: ScheduleChange[];
+  closeoutsResolved: number;
+  closeoutFailures: string[];
+}> {
   const scope = normalizedScope(options.scope);
   return withStateLock(dataDir, async () => {
     const state = readState(dataDir);
     const previous = state.snapshots[scope] || null;
     if (!previous) {
       writeState(dataDir, { ...state, snapshots: { ...state.snapshots, [scope]: snapshot } });
-      return { baselined: true, posted: [], failed: [] };
+      return { baselined: true, posted: [], failed: [], closeoutsResolved: 0, closeoutFailures: [] };
     }
     const delivered = new Set(state.delivered);
     const posted: ScheduleChange[] = [];
     const failed: ScheduleChange[] = [];
     for (const event of detectScheduleChanges(previous, snapshot)) {
       if (delivered.has(event.fingerprint)) continue;
-      if (event.kind === "job_closed" && isTruckCloseoutDelivered(snapshot.date, event.fingerprint)) {
-        delivered.add(event.fingerprint);
-        continue;
-      }
       if (await post(token, event.alert)) {
         delivered.add(event.fingerprint);
-        if (event.kind === "job_closed") recordDeliveredTruckCloseout(snapshot.date, event.fingerprint);
         posted.push(event);
       } else {
         failed.push(event);
       }
     }
+    const pendingCloseouts = { ...state.pendingCloseouts };
+    for (const row of newlyCompletedRows(previous, snapshot)) {
+      const id = identifier(row);
+      if (id) pendingCloseouts[`${scope}:${snapshot.date}:${id}`] = { date: snapshot.date, row };
+    }
+    let closeoutsResolved = 0;
+    const closeoutFailures: string[] = [];
+    if (options.resolveCloseout) {
+      for (const [key, pending] of Object.entries(pendingCloseouts)) {
+        if (!key.startsWith(`${scope}:`) || pending.date !== snapshot.date) continue;
+        try {
+          if (await options.resolveCloseout(pending)) {
+            delete pendingCloseouts[key];
+            closeoutsResolved += 1;
+          }
+        } catch (error) {
+          closeoutFailures.push(error instanceof Error ? error.message : "The fast closeout check failed.");
+        }
+      }
+    }
     writeState(dataDir, {
-      version: 2,
+      version: 3,
       snapshots: { ...state.snapshots, [scope]: snapshot },
       delivered: Array.from(delivered).slice(-2_000),
+      pendingCloseouts,
     });
-    return { baselined: false, posted, failed };
+    return { baselined: false, posted, failed, closeoutsResolved, closeoutFailures };
   });
 }

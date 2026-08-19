@@ -11,7 +11,7 @@ import { readFleetIssueStore, type FleetIssue } from "@/lib/fleet-issues";
 import { buildOperationalExceptions, type OperationalException } from "@/lib/operational-exceptions";
 import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
-import { readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
+import { hasFullCloseoutPayment, readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 
 export type SlackAlertSeverity = "critical" | "warning";
@@ -512,6 +512,7 @@ export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyReco
 
     const status = firstText(row, ["final_status", "job_status", "status"]).toLowerCase();
     if (!status.includes("complete")) continue;
+    if (!hasFullCloseoutPayment(row)) continue;
 
     const fingerprint = `job_closed:${date}:${identity}`;
     if (seen.has(fingerprint)) continue;
@@ -805,7 +806,7 @@ export async function publishVerifiedTruckCloseout(
     closeout: input.closeout,
   };
   const [alert] = buildTruckCloseoutSlackNotifications(date, [row]);
-  if (!alert) return { attempted: false, posted: false, duplicate: false, reason: "Verified closeout could not be formatted." };
+  if (!alert) return { attempted: false, posted: false, duplicate: false, reason: "Verified closeout does not include full payment details." };
 
   const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
   if (!response.ok || !response.ts) {

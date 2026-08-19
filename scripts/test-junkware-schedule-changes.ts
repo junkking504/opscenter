@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { isTruckCloseoutDelivered, recordDeliveredTruckCloseout } from "@/lib/slack-alerts";
 import { detectScheduleChanges, publishScheduleChanges } from "@/lib/junkware-schedule-changes";
 
 process.env.SLACK_TRUCK_6_CHANNEL_ID = "C_TEST_TRUCK_6";
@@ -31,9 +30,7 @@ const current = {
 };
 
 const events = detectScheduleChanges(previous, current);
-assert.deepEqual(events.map((event) => event.kind).sort(), ["cancelled", "job_closed", "new_appointment", "rescheduled"]);
-assert.equal(events.find((event) => event.kind === "job_closed")?.alert.channelId, "C_TEST_TRUCK_6");
-assert.equal(events.find((event) => event.kind === "job_closed")?.alert.plainText, ":white_check_mark: JK4051001 closed out. Job total: $225.00. Tip: $0.00. Charged: Cash ($225.00).");
+assert.deepEqual(events.map((event) => event.kind).sort(), ["cancelled", "new_appointment", "rescheduled"]);
 assert.match(String(events.find((event) => event.kind === "rescheduled")?.alert.detail), /Previous: 10:00 AM/);
 assert.deepEqual(detectScheduleChanges(null, current), []);
 
@@ -58,14 +55,34 @@ async function verifyScopedPublishing() {
 
     const market352Change = await publishScheduleChanges(tempDir, current, "xoxb-test", { scope: "market-352" });
     assert.equal(market352Change.baselined, false);
-    assert.deepEqual(market352Change.posted.map((event) => event.kind).sort(), ["cancelled", "job_closed", "new_appointment", "rescheduled"]);
+    assert.deepEqual(market352Change.posted.map((event) => event.kind).sort(), ["cancelled", "new_appointment", "rescheduled"]);
+
+    await publishScheduleChanges(tempDir, previous, "xoxb-test", { scope: "fast-closeout" });
+    let fastChecks = 0;
+    const pendingCloseout = await publishScheduleChanges(tempDir, current, "xoxb-test", {
+      scope: "fast-closeout",
+      resolveCloseout: async ({ row }) => {
+        fastChecks += 1;
+        assert.equal(row.appt_id, "1");
+        return false;
+      },
+    });
+    assert.equal(fastChecks, 1);
+    assert.equal(pendingCloseout.closeoutsResolved, 0);
+
+    const resolvedCloseout = await publishScheduleChanges(tempDir, current, "xoxb-test", {
+      scope: "fast-closeout",
+      resolveCloseout: async () => true,
+    });
+    assert.equal(resolvedCloseout.closeoutsResolved, 1);
 
     const state = JSON.parse(fs.readFileSync(path.join(tempDir, "slack", "junkware_schedule_change_state.json"), "utf8"));
-    assert.equal(state.version, 2);
+    assert.equal(state.version, 3);
     assert.ok(state.snapshots.legacy);
     assert.ok(state.snapshots["market-352"]);
     assert.ok(state.snapshots["market-477"]);
-    assert.ok(isTruckCloseoutDelivered("2026-08-17", "job_closed:2026-08-17:appt-1"));
+    assert.ok(state.pendingCloseouts["market-352:2026-08-17:appt-1"]);
+    assert.equal(state.pendingCloseouts["fast-closeout:2026-08-17:appt-1"], undefined);
   } finally {
     globalThis.fetch = originalFetch;
     if (originalStateFile === undefined) delete process.env.SLACK_OPSCENTER_STATE_FILE;
@@ -74,32 +91,6 @@ async function verifyScopedPublishing() {
   }
 }
 
-async function verifyNormalCloseoutSuppressesDetector() {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "opscenter-schedule-shared-dedupe-"));
-  const originalFetch = globalThis.fetch;
-  const originalStateFile = process.env.SLACK_OPSCENTER_STATE_FILE;
-  try {
-    process.env.SLACK_OPSCENTER_STATE_FILE = path.join(tempDir, "slack", "ops_alert_state.json");
-    recordDeliveredTruckCloseout("2026-08-17", "job_closed:2026-08-17:appt-1");
-    let posts = 0;
-    globalThis.fetch = async () => {
-      posts += 1;
-      return new Response(JSON.stringify({ ok: true }), { status: 200 });
-    };
-    await publishScheduleChanges(tempDir, previous, "xoxb-test", { scope: "normal-closeout" });
-    const result = await publishScheduleChanges(tempDir, current, "xoxb-test", { scope: "normal-closeout" });
-    assert.deepEqual(result.posted.map((event) => event.kind).sort(), ["cancelled", "new_appointment", "rescheduled"]);
-    assert.equal(posts, 3);
-    const state = JSON.parse(fs.readFileSync(path.join(tempDir, "slack", "junkware_schedule_change_state.json"), "utf8"));
-    assert.ok(state.delivered.includes("job_closed:2026-08-17:appt-1"));
-  } finally {
-    globalThis.fetch = originalFetch;
-    if (originalStateFile === undefined) delete process.env.SLACK_OPSCENTER_STATE_FILE;
-    else process.env.SLACK_OPSCENTER_STATE_FILE = originalStateFile;
-    fs.rmSync(tempDir, { recursive: true, force: true });
-  }
-}
-
-verifyScopedPublishing().then(verifyNormalCloseoutSuppressesDetector).then(() => {
+verifyScopedPublishing().then(() => {
   console.log("JunkWare schedule change detector tests passed.");
 });

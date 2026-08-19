@@ -232,11 +232,6 @@ assert.deepEqual(
       channelId: "C_TEST_TRUCK_1",
       text: ":white_check_mark: JK4051003 closed out. Tip: $15.00. Charged: Card ending 4242 ($100.00); Cash ($50.00).",
     },
-    {
-      kind: "job_closed",
-      channelId: "C_TEST_TRUCK_4",
-      text: ":white_check_mark: JK4051005 closed out. Tip: $0.00.",
-    },
   ],
 );
 
@@ -437,22 +432,37 @@ try {
   assert.equal(dedupeRun.posted.length, 0);
   assert.equal(postedMessages.length, 1);
 
-  const directCloseout = await publishVerifiedTruckCloseout({
+  const incompleteCloseout = await publishVerifiedTruckCloseout({
     appointmentId: "503",
     jobNumber: "JK4051503",
     truck: "Truck 6",
     date: "2026-08-12",
     closeout: { tip: "$10.00" },
   });
+  assert.deepEqual(incompleteCloseout, {
+    attempted: false,
+    posted: false,
+    duplicate: false,
+    reason: "Verified closeout does not include full payment details.",
+  });
+  assert.equal(postedMessages.filter((message) => message.includes("JK4051503 closed out")).length, 0);
+
+  const directCloseout = await publishVerifiedTruckCloseout({
+    appointmentId: "503",
+    jobNumber: "JK4051503",
+    truck: "Truck 6",
+    date: "2026-08-12",
+    closeout: { tip: "$10.00", payments: [{ method: "Cash", amount: "$110.00" }] },
+  });
   assert.deepEqual(directCloseout, { attempted: true, posted: true, duplicate: false });
-  assert.equal(postedMessages.at(-1), ":white_check_mark: JK4051503 closed out. Tip: $10.00.");
+  assert.equal(postedMessages.at(-1), ":white_check_mark: JK4051503 closed out. Tip: $10.00. Charged: Cash ($110.00).");
 
   const duplicateDirectCloseout = await publishVerifiedTruckCloseout({
     appointmentId: "503",
     jobNumber: "JK4051503",
     truck: "Truck 6",
     date: "2026-08-12",
-    closeout: { tip: "$10.00" },
+    closeout: { tip: "$10.00", payments: [{ method: "Cash", amount: "$110.00" }] },
   });
   assert.deepEqual(duplicateDirectCloseout, { attempted: false, posted: false, duplicate: true });
   assert.equal(postedMessages.filter((message) => message.includes("JK4051503 closed out")).length, 1);
@@ -540,7 +550,7 @@ const inconsistentPay = buildCrewSlackNotifications("2026-08-12", [
 ]);
 assert.deepEqual(inconsistentPay.map((alert) => alert.kind), ["crew_clock_in", "crew_clock_out"]);
 
-console.log("Slack appointment, truck arrival, unified closeout, and crew notification tests passed.");
+console.log("Slack appointment, truck arrival, full closeout, and crew notification tests passed.");
 }
 
 main().catch((error) => {

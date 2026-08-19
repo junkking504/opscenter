@@ -66,6 +66,17 @@ function paymentDescription(payment: AnyRecord): string {
   return `${method}${amountText}`;
 }
 
+export function hasFullCloseoutPayment(row: AnyRecord): boolean {
+  const closeout = row?.closeout && typeof row.closeout === "object" ? row.closeout as AnyRecord : null;
+  const payments = Array.isArray(closeout?.payments) ? closeout.payments : [];
+  return payments.length > 0 && payments.every((payment) =>
+    Boolean(payment)
+    && typeof payment === "object"
+    && Boolean(firstText(payment as AnyRecord, ["method", "payment_method", "paymentMethod"]))
+    && firstFiniteNumber(payment as AnyRecord, ["amount", "payment_amount", "paymentAmount"]) !== null,
+  );
+}
+
 export function truckCloseoutDetails(row: AnyRecord): TruckCloseoutDetails | null {
   const jobNumber = firstText(row, ["job_id", "jk_number", "job_number"]);
   if (!jobNumber) return null;
@@ -111,17 +122,8 @@ export function truckCloseoutDetails(row: AnyRecord): TruckCloseoutDetails | nul
   if (payments.length) {
     lines.push(`Charged: ${payments.join("; ")}.`);
   } else {
-    // The one-minute schedule detector has the payment method and sale total
-    // before it has loaded the full closeout payment rows. Keep that payment
-    // in the single truck closeout alert instead of waiting for a second alert.
-    const paymentMethod = firstText(row, ["payment_type", "paymentType", "payment_method"]);
-    const chargedTotal = firstFiniteNumber(closeout, ["total"])
-      ?? firstFiniteNumber(row, ["revenue", "job_total", "jobTotal"]);
-    if (paymentMethod) {
-      lines.push(`Charged: ${paymentMethod}${chargedTotal !== null ? ` (${moneyText(chargedTotal)})` : ""}.`);
-    } else if (chargedTotal !== null) {
-      lines.push(`Total charged: ${moneyText(chargedTotal)}.`);
-    }
+    const chargedTotal = firstFiniteNumber(closeout, ["total"]);
+    if (chargedTotal !== null) lines.push(`Total charged: ${moneyText(chargedTotal)}.`);
   }
 
   return {

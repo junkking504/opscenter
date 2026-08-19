@@ -97,7 +97,7 @@ async function capture(page: Page): Promise<{ status: { value: string }; [key: s
     const navigators = Array.from(document.querySelectorAll('select[id*="AppointmentTechniciansLV"][id$="NavigatorDD"]'));
     const payments = Array.from(document.querySelectorAll('[id*="PaymentsLV"][id$="ItemRow"]')).map((row) => {
       const cells = Array.from(row.querySelectorAll("td")).map((cell) => clean(cell.innerText || cell.textContent));
-      return { description: cells[0] || "Payment", amount: cells[1] || "" };
+      return { method: cells[0] || "", description: cells[0] || "Payment", amount: cells[1] || "" };
     });
     const driver = selectData("ctl00_Content_DriverDD");
     const firstNavigator = navigators[0];

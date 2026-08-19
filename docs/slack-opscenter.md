@@ -1,6 +1,6 @@
 # OpsCenter Slack alerts
 
-OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. Confirmed LinxUp truck-arrival alerts are published separately by the one-minute LinxUp collector, immediately after visit matching. New appointments, reschedules, cancellations, and closeouts are checked by a dedicated verified JunkWare schedule detector. It reads schedule pages only and does not wait for detail pages, GPS, payroll, QBO, Crew Portal, marketing, or VPS work. Slack is the action and escalation layer; OpsCenter remains the source of truth.
+OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. Confirmed LinxUp truck-arrival alerts are published separately by the one-minute LinxUp collector, immediately after visit matching. New appointments, reschedules, and cancellations are checked by a dedicated verified JunkWare schedule detector. When that fast detector sees a job complete, it immediately reads that one JunkWare closeout record before alerting. Slack is the action and escalation layer; OpsCenter remains the source of truth.
 
 ## Routing policy
 
@@ -11,7 +11,7 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
   - Northshore -> `#jobs-ns`
   - Unknown or unsupported territories -> `#dispatch`
 - Confirmed truck arrival -> that truck's `#truck-N` channel, with JK number, customer name, and service address
-- Newly closed job -> one closeout alert in that truck's `#truck-N` channel, including the payment method, amount, and any tip
+- Newly closed job -> one full closeout alert in that truck's `#truck-N` channel, including the payment method, amount, and any tip; no alert is sent until those details are available
 - Fuel and dump receipts -> that truck's `#truck-N` channel
 - Verified WhatsApp job-photo batch -> that truck's `#truck-N` channel
 - LinxUp driving-safety events -> that truck's `#truck-N` channel
@@ -27,7 +27,7 @@ The first live run records existing appointments, existing cancellations, and cu
 
 Crew lifecycle notifications are also baselined once when the feature is first deployed. After that baseline, each employee receives at most one clock-in, clock-out, and finalized-pay notification per day. The messages are intentionally plain: clock-in states only that the employee clocked in; clock-out adds only hours worked; finalized pay lists total pay, hourly pay, tips, and bonuses.
 
-The detector baselines silently on its first run, then posts each new appointment, reschedule, cancellation, and closeout once. It publishes only after JunkWare has confirmed the requested date and every selected market. Schedule-detector closeouts also consult and update the normal closeout-delivery record, so a closeout posted by either path suppresses the other. The detector writes its latest completion status to `data/slack/junkware_schedule_watchers/detector.json`; a missing or failed heartbeat is a data-health incident. Truck closeouts are baselined when the feature is first deployed so existing completed jobs do not flood Slack. The one-minute schedule detector includes the available payment type and total; a full closeout includes the payment method, amount, check number where applicable, card last four, and any tip. Messages contain only the JK number, payment details, and a positive tip amount; they do not include customer data or a full card number.
+The detector baselines silently on its first run, then posts each new appointment, reschedule, and cancellation once. It publishes only after JunkWare has confirmed the requested date and every selected market. It never posts a schedule-only closeout. Instead, a newly completed job remains in its fast retry queue until the targeted closeout read contains a method and amount for every payment; it then posts the one full truck-channel alert and clears the item. Existing completed jobs are baselined so they do not flood Slack. Full closeouts include the payment method, amount, check number where applicable, card last four, and any tip. Messages contain only the JK number, payment details, and a positive tip amount; they do not include customer data or a full card number.
 
 Appointments that remain open after their scheduled window stay visible in OpsCenter but do not generate Slack alerts or resolution replies.
 

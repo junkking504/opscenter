@@ -31,6 +31,7 @@ async function main() {
   assert.equal(opsAuthDisplayName(opsAuthIdentity()), username);
   assert.equal(opsAuthDisplayName("manager@junk-king.com"), "manager@junk-king.com");
   assert.equal(publicAuthRoute("/junk-king-logo.svg"), true);
+  assert.equal(publicAuthRoute("/favicon.ico"), true);
   assert.equal(publicAuthRoute("/icon"), true);
   assert.equal(publicAuthRoute("/apple-icon"), true);
   assert.equal(publicAuthRoute("/manifest.webmanifest"), true);

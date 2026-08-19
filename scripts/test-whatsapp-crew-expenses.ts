@@ -350,19 +350,32 @@ const editPrompt = queuedCrewExpenseReplies()
   .map((file) => claimCrewExpenseReply(file)?.reply)
   .find((reply) => reply?.messageId === "edit-request");
 assert.ok(editPrompt);
-assert.match(editPrompt.text, /instead of creating a duplicate/);
+assert.match(editPrompt.text, /update the original JunkWare entry/);
 const correction = ingestCrewExpenseText(message(
   "edit-correction",
   "$86.40 should be $88.40",
   transaction.transaction.recipient,
   "2026-08-12T21:11:00.000Z",
 ));
-assert.equal(correction.status, "review");
+assert.equal(correction.status, "queued");
+assert.equal(correction.record?.cost, 88.4);
+assert.equal(correction.record?.time, transaction.transaction.record.time);
+const correctionFile = queuedCrewExpenseTransactions(30).find((file) => {
+  const value = JSON.parse(fs.readFileSync(file, "utf8"));
+  return value.operation === "edit" && value.correctionMessageId === "edit-correction";
+});
+assert.ok(correctionFile);
+const correctionTransaction = claimCrewExpenseTransaction(correctionFile!);
+assert.ok(correctionTransaction);
+assert.equal(correctionTransaction.transaction.operation, "edit");
+assert.equal(correctionTransaction.transaction.originalRecord?.cost, transaction.transaction.record.cost);
+updateCrewExpenseTransaction(correctionTransaction.file, { stage: "slack_sent" });
+finishCrewExpenseTransaction(correctionTransaction.file);
+const correctedRecords = readCrewExpenseRecords("2026-08-12");
+assert.equal(correctedRecords.length, 1);
+assert.equal(correctedRecords[0]?.cost, 88.4);
+assert.equal(correctedRecords[0]?.edits?.[0]?.messageId, "edit-correction");
 assert.equal(queuedCrewExpenseTransactions(30).length, 20);
-assert.equal(fs.readdirSync(path.join(state, "review")).some((name) => {
-  const value = JSON.parse(fs.readFileSync(path.join(state, "review", name), "utf8"));
-  return value.type === "expense_correction" && value.correction === "$86.40 should be $88.40";
-}), true);
 
 assert.match(formatCrewExpenseSlackNotification(singleLineFuel.record!), /^Fuel recorded in JunkWare/);
 process.env.SLACK_OPSCENTER_ALERTS_ENABLED = "true";

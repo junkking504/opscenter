@@ -22,6 +22,14 @@ export type CrewExpenseRecord = {
   senderHash: string;
   source: "whatsapp_opsbot";
   sourceMessageIds?: string[];
+  edits?: CrewExpenseEditAudit[];
+};
+
+export type CrewExpenseEditAudit = {
+  messageId: string;
+  receivedAt: string;
+  fields: Array<"location" | "cost" | "weight" | "gallons">;
+  previous: Pick<CrewExpenseRecord, "location" | "cost" | "weight" | "gallons">;
 };
 
 export type CrewExpenseIngestResult = {
@@ -53,6 +61,9 @@ export type CrewExpenseTransaction = {
   lastError?: string;
   junkware?: Record<string, unknown>;
   slack?: Record<string, unknown>;
+  operation?: "create" | "edit";
+  originalRecord?: CrewExpenseRecord;
+  correctionMessageId?: string;
 };
 
 type CrewExpenseFields = Partial<Record<"truck" | "location" | "cost" | "weight" | "gallons", string>>;
@@ -501,6 +512,50 @@ function closeEditSession(senderPhone: string): void {
   try { fs.unlinkSync(editSessionFile(senderPhone)); } catch { /* no active edit */ }
 }
 
+function correctionFromMessage(original: CrewExpenseRecord, message: WhatsAppTextMessage): { record: CrewExpenseRecord; fields: CrewExpenseEditAudit["fields"] } | null {
+  const text = clean(message.text);
+  const lines = String(message.text || "").split(/\r?\n/).map(clean).filter(Boolean);
+  const next: CrewExpenseRecord = { ...original };
+  const fields: CrewExpenseEditAudit["fields"] = [];
+  const set = <T extends "location" | "cost" | "weight" | "gallons">(field: T, value: CrewExpenseRecord[T]): void => {
+    if (next[field] === value) return;
+    next[field] = value;
+    fields.push(field);
+  };
+
+  for (const line of lines) {
+    const match = line.match(/^(location|cost|amount|weight|gallons?)\s*:\s*(.+)$/i);
+    if (!match) continue;
+    const label = match[1].toLowerCase();
+    const value = clean(match[2]);
+    if (label === "location") {
+      if (value.length >= 2 && value.length <= 120) set("location", canonicalLocation(value, original.kind));
+    } else if (label === "cost" || label === "amount") {
+      const cost = parseMoney(value);
+      if (cost !== null) set("cost", cost);
+    } else if (label === "weight" && original.kind === "dump") {
+      if (/^\d+(?:\.\d+)?\s*(?:tons?|lbs?|pounds?|kg|kgs|kilograms?)\.?$/i.test(value)
+        || /^(?:tons?|lbs?|pounds?|kg|kgs|kilograms?)\s*[:#-]?\s*\d+(?:\.\d+)?\.?$/i.test(value)) set("weight", value);
+    } else if (label.startsWith("gallon") && original.kind === "fuel") {
+      const gallons = parseGallons(value);
+      if (gallons !== null) set("gallons", gallons);
+    }
+  }
+
+  // Keep the original conversational edit example useful without guessing at
+  // arbitrary prose: `$86.40 should be $91.41` means the final stated amount.
+  if (!fields.includes("cost")) {
+    const money = [...text.matchAll(/\$\s*\d[\d,]*(?:\.\d{1,2})?/g)].map((match) => parseMoney(match[0]));
+    if (/\b(?:should\s+be|change(?:d)?\s+to|to)\b/i.test(text) && money.length >= 2) {
+      const cost = money[money.length - 1];
+      if (cost !== null) set("cost", cost);
+    }
+  }
+
+  if (!fields.length) return null;
+  return { record: next, fields };
+}
+
 function enqueueReply(message: Pick<WhatsAppInboundMessage, "messageId" | "senderPhone" | "phoneNumberId">, text: string, purpose = "expense"): void {
   const recipient = normalizePhone(message.senderPhone);
   if (!recipient) return;
@@ -559,27 +614,53 @@ export function ingestCrewExpenseText(message: WhatsAppTextMessage): CrewExpense
       return { status: "review" };
     }
     openEditSession(normalizedMessage, original);
-    enqueueReply(normalizedMessage, `What needs to change on your ${original.kind} expense for ${original.truck}? Send just the correction (example: $${original.cost.toFixed(2)} should be $91.41). I will send it for review instead of creating a duplicate.`, "expense-edit-prompt");
+    const examples = original.kind === "fuel"
+      ? "Cost: $91.41 or Gallons: 24"
+      : "Cost: $91.41, Location: River Birch, or Weight: 2 tons";
+    enqueueReply(normalizedMessage, `What needs to change on your ${original.kind} expense for ${original.truck}? Send the corrected value (example: ${examples}). OpsBot will update the original JunkWare entry; the original receipt time stays the same.`, "expense-edit-prompt");
     writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "collecting", kind: original.kind, processedAt: new Date().toISOString() });
     return { status: "collecting", kind: original.kind };
   }
 
   const editSession = activeEditSession(message.senderPhone, message.receivedAt);
   if (editSession) {
-    const correction = clean(normalizedMessage.text);
-    writeJsonAtomic(path.join(directory("review"), `${recordKey(`edit:${editSession.original.messageId}:${message.messageId}`)}.json`), {
-      version: 1,
-      type: "expense_correction",
-      original: editSession.original,
-      correction,
+    const correction = correctionFromMessage(editSession.original, normalizedMessage);
+    if (!correction) {
+      enqueueReply(normalizedMessage, "I need a corrected value, for example Cost: $91.41. The original expense has not changed.", "expense-edit-invalid");
+      writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "collecting", kind: editSession.original.kind, processedAt: new Date().toISOString() });
+      return { status: "collecting", kind: editSession.original.kind };
+    }
+    const audit: CrewExpenseEditAudit = {
       messageId: message.messageId,
-      reportedAt: message.receivedAt,
-      senderHash: recordKey(normalizePhone(message.senderPhone)),
-    });
+      receivedAt: message.receivedAt,
+      fields: correction.fields,
+      previous: {
+        location: editSession.original.location,
+        cost: editSession.original.cost,
+        weight: editSession.original.weight,
+        gallons: editSession.original.gallons,
+      },
+    };
+    const correctedRecord: CrewExpenseRecord = {
+      ...correction.record,
+      edits: [...(editSession.original.edits || []), audit],
+    };
+    const transaction: CrewExpenseTransaction = {
+      version: 1,
+      record: correctedRecord,
+      originalRecord: editSession.original,
+      operation: "edit",
+      correctionMessageId: message.messageId,
+      recipient: normalizePhone(message.senderPhone),
+      phoneNumberId: clean(message.phoneNumberId),
+      stage: "pending_junkware",
+      enqueuedAt: new Date().toISOString(),
+    };
+    writeJsonAtomic(path.join(directory("transactions-pending"), `${recordKey(`edit:${editSession.original.messageId}:${message.messageId}`)}.json`), transaction);
     closeEditSession(message.senderPhone);
-    enqueueReply(normalizedMessage, "Correction received and sent for review. Do not re-enter the expense — we will correct the original entry.", "expense-edit-received");
-    writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "review", reason: "expense_correction", processedAt: new Date().toISOString() });
-    return { status: "review", kind: editSession.original.kind };
+    enqueueReply(normalizedMessage, "Correction received. Updating the original JunkWare entry now — do not re-enter the expense.", "expense-edit-received");
+    writeJsonAtomic(marker, { version: 1, messageId: message.messageId, outcome: "queued", kind: editSession.original.kind, operation: "edit", processedAt: new Date().toISOString() });
+    return { status: "queued", kind: editSession.original.kind, record: correctedRecord };
   }
 
   const command = commandKind(normalizedMessage.text);
@@ -718,7 +799,7 @@ export function finishCrewExpenseTransaction(processingFile: string): CrewExpens
     messageId: transaction.record.messageId,
     senderPhone: transaction.recipient,
     phoneNumberId: transaction.phoneNumberId,
-  }, `${transaction.record.kind === "dump" ? "Dump" : "Fuel"} verified in JunkWare — ${transaction.record.truck} · ${transaction.record.location} · $${transaction.record.cost.toFixed(2)}${detail} · ${transaction.record.time}\n\nNeed to fix something? Reply EDIT.`, "expense-verified");
+  }, `${transaction.record.kind === "dump" ? "Dump" : "Fuel"} ${transaction.operation === "edit" ? "corrected" : "verified"} in JunkWare — ${transaction.record.truck} · ${transaction.record.location} · $${transaction.record.cost.toFixed(2)}${detail} · ${transaction.record.time}\n\nNeed to fix something? Reply EDIT.`, transaction.operation === "edit" ? "expense-corrected" : "expense-verified");
   fs.unlinkSync(processingFile);
   return transaction.record;
 }

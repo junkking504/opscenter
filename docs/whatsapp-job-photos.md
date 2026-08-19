@@ -97,7 +97,7 @@ cd /Users/missioncontrol/opscenter-v2/opscenter
 
 The worker reads the durable spool at `data/integrations/whatsapp-job-photos` unless `WHATSAPP_JOB_PHOTO_STATE_DIR` overrides it. Queue records and downloaded media are mode `0600`. It uploads through the authenticated JunkWare browser session and verifies that the appointment's media count increased before marking an item complete.
 
-Crew expense transactions and the outbound reply queue live under `OPSBOT_DATA_DIR/integrations/whatsapp-crew-expenses` unless `WHATSAPP_CREW_EXPENSE_STATE_DIR` overrides it. Every inbound WhatsApp message gets an idempotent `Recorded.` receipt. Complete Fuel and Dump messages enter a durable transaction queue; they are not exposed as OpsCenter Finance records yet.
+Crew expense transactions and the outbound reply queue live under `OPSBOT_DATA_DIR/integrations/whatsapp-crew-expenses` unless `WHATSAPP_CREW_EXPENSE_STATE_DIR` overrides it. Every inbound WhatsApp message gets an idempotent `Recorded.` receipt. Complete Fuel and Dump messages enter a durable transaction queue; they are not exposed as OpsCenter Finance records yet. After JunkWare verification, the sender can reply `EDIT` and submit corrected `Cost`, `Location`, `Gallons`, or `Weight` values. OpsBot updates the same JunkWare Truck Records line using its durable `OB-…` receipt number, preserves the original receipt time, and writes the before-value plus correction message to the local audit trail; it never creates a second expense for an edit.
 
 ### OpsBot job-closeout shadow mode
 

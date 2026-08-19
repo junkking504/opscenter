@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
 import { uploadJunkwareJobPhoto } from "@/lib/junkware-photo-uploader";
-import { uploadJunkwareTruckRecord } from "@/lib/junkware-truck-record-uploader";
+import { updateJunkwareTruckRecord, uploadJunkwareTruckRecord } from "@/lib/junkware-truck-record-uploader";
 import { readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { matchWhatsAppPhoto, normalizePhone, type FleetLocation } from "@/lib/whatsapp-job-photo-matching";
@@ -34,7 +34,7 @@ import {
   requeueCrewExpenseReply,
   updateCrewExpenseTransaction,
 } from "@/lib/whatsapp-crew-expenses";
-import { sendCrewExpenseSlackNotification } from "@/lib/whatsapp-crew-expense-slack";
+import { sendCrewExpenseSlackCorrectionNotification, sendCrewExpenseSlackNotification } from "@/lib/whatsapp-crew-expense-slack";
 
 function clean(value: unknown): string {
   return String(value || "").replace(/\s+/g, " ").trim();
@@ -175,14 +175,18 @@ async function processCrewExpenseTransactions(): Promise<{ completed: number; re
     try {
       let transaction = claim.transaction;
       if (transaction.stage === "pending_junkware") {
-        const verification = await uploadJunkwareTruckRecord(transaction.record);
+        const verification = transaction.operation === "edit"
+          ? await updateJunkwareTruckRecord(transaction.originalRecord || transaction.record, transaction.record)
+          : await uploadJunkwareTruckRecord(transaction.record);
         transaction = updateCrewExpenseTransaction(claim.file, {
           stage: "junkware_verified",
           junkware: { ...verification, verifiedAt: new Date().toISOString() },
         });
       }
       if (transaction.stage === "junkware_verified") {
-        const delivery = await sendCrewExpenseSlackNotification(transaction.record);
+        const delivery = transaction.operation === "edit"
+          ? await sendCrewExpenseSlackCorrectionNotification(transaction.record, transaction.correctionMessageId || transaction.record.messageId)
+          : await sendCrewExpenseSlackNotification(transaction.record);
         transaction = updateCrewExpenseTransaction(claim.file, {
           stage: "slack_sent",
           slack: { ...delivery, sentAt: new Date().toISOString() },

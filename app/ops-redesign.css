@@ -385,12 +385,30 @@ textarea {
 
 /* A narrow highlight travels around interactive surfaces instead of flashing
    the whole border. The ring is visual-only and never covers card content. */
-:is(.ops-nav-item, .ops-bottom-nav-item, .ops-card, .ops-appointment-card) {
+:is(
+  .ops-nav-item,
+  .ops-bottom-nav-item,
+  .ops-card,
+  .ops-appointment-card,
+  .ops-page-subnav a,
+  .ops-jobs-search-button,
+  .ops-territory-jump a
+),
+.ops-jobs-filter-menu > summary {
   position: relative;
   isolation: isolate;
 }
 
-:is(.ops-nav-item, .ops-bottom-nav-item, .ops-card, .ops-appointment-card)::after {
+:is(
+  .ops-nav-item,
+  .ops-bottom-nav-item,
+  .ops-card,
+  .ops-appointment-card,
+  .ops-page-subnav a,
+  .ops-jobs-search-button,
+  .ops-territory-jump a
+)::after,
+.ops-jobs-filter-menu > summary::before {
   content: "";
   position: absolute;
   inset: -1px;
@@ -417,17 +435,25 @@ textarea {
   transition: opacity 160ms ease;
 }
 
-:is(.ops-nav-item, .ops-bottom-nav-item)::after {
+:is(
+  .ops-nav-item,
+  .ops-bottom-nav-item,
+  .ops-page-subnav a,
+  .ops-jobs-search-button,
+  .ops-territory-jump a
+)::after,
+.ops-jobs-filter-menu > summary::before {
   background: conic-gradient(
     from var(--oc-border-light-angle),
     transparent 0deg,
-    transparent 302deg,
-    rgba(237, 28, 36, 0.08) 316deg,
-    rgba(237, 28, 36, 0.92) 338deg,
-    rgba(255, 236, 237, 1) 347deg,
-    rgba(237, 28, 36, 0.3) 356deg,
+    transparent 288deg,
+    rgba(237, 28, 36, 0.12) 306deg,
+    rgba(237, 28, 36, 1) 334deg,
+    #fff 346deg,
+    rgba(237, 28, 36, 0.48) 357deg,
     transparent 360deg
   );
+  filter: drop-shadow(0 0 3px rgba(237, 28, 36, 0.62));
 }
 
 @keyframes oc-border-light-orbit {
@@ -437,22 +463,86 @@ textarea {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  :is(.ops-nav-item, .ops-bottom-nav-item, .ops-card, .ops-appointment-card):hover::after {
+  :is(
+    .ops-nav-item,
+    .ops-bottom-nav-item,
+    .ops-card,
+    .ops-appointment-card,
+    .ops-page-subnav a,
+    .ops-jobs-search-button,
+    .ops-territory-jump a
+  ):hover::after,
+  .ops-jobs-filter-menu > summary:hover::before {
     opacity: 1;
-    animation: oc-border-light-orbit 1.8s linear infinite;
+    animation: oc-border-light-orbit 1.5s linear infinite;
   }
 }
 
-:is(.ops-nav-item, .ops-bottom-nav-item, .ops-card, .ops-appointment-card):focus-visible::after {
+:is(
+  .ops-nav-item,
+  .ops-bottom-nav-item,
+  .ops-card,
+  .ops-appointment-card,
+  .ops-page-subnav a,
+  .ops-jobs-search-button,
+  .ops-territory-jump a
+):focus-visible::after,
+.ops-jobs-filter-menu > summary:focus-visible::before {
   opacity: 1;
-  animation: oc-border-light-orbit 1.8s linear infinite;
+  animation: oc-border-light-orbit 1.5s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :is(.ops-nav-item, .ops-bottom-nav-item, .ops-card, .ops-appointment-card):is(:hover, :focus-visible)::after {
+  :is(
+    .ops-nav-item,
+    .ops-bottom-nav-item,
+    .ops-card,
+    .ops-appointment-card,
+    .ops-page-subnav a,
+    .ops-jobs-search-button,
+    .ops-territory-jump a
+  ):is(:hover, :focus-visible)::after,
+  .ops-jobs-filter-menu > summary:is(:hover, :focus-visible)::before {
     --oc-border-light-angle: 110deg;
     animation: none;
   }
+}
+
+/* Keep labels readable when older, more-specific hover rules are also active. */
+.ops-main .ops-page-subnav a:not(.active):is(:hover, :focus-visible) {
+  border-color: #9da6b2;
+  background: #f3f4f2;
+  color: #20242b;
+}
+
+.ops-main .ops-page-subnav a.active:is(:hover, :focus-visible) {
+  border-color: #20242b;
+  background: #20242b;
+  color: #fff;
+}
+
+.ops-main .ops-jobs-search-button:is(:hover, :focus-visible),
+.ops-main .ops-jobs-filter-menu > summary:is(:hover, :focus-visible),
+.ops-main .ops-jobs-filter-menu[open] > summary {
+  border-color: #4d5662;
+  background: #20242b;
+  color: #fff;
+}
+
+.ops-main .ops-jobs-filter-menu > summary::after,
+.ops-main .ops-territory-jump small {
+  color: #ffd166;
+}
+
+.ops-main .ops-territory-jump a {
+  border-color: rgba(255, 255, 255, 0.42);
+  color: #f7f8fb;
+}
+
+.ops-main .ops-territory-jump a:is(:hover, :focus-visible) {
+  border-color: rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
 }
 
 .ops-card-header,

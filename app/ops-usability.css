@@ -1065,7 +1065,6 @@ body {
 .ops-main .ops-route-stop-body > em {
   color: var(--oc-warning-text) !important;
 }
-
 /* Preserve the luminous variants only where the surface is deliberately dark. */
 .ops-main .ops-jobs-map-card :where(.ops-job-count-pill, .ops-jk-number),
 .ops-main .ops-operating-pulse :where(.ops-kpi-good, .ops-readiness-state.is-on-track),
@@ -1073,7 +1072,6 @@ body {
 .ops-main .ops-call-ahead-menu .ops-call-ahead-menu-check {
   color: var(--oc-success-on-dark) !important;
 }
-
 .ops-main .ops-jobs-map-card :where(.ops-status-group-count, .ops-job-count-pill),
 .ops-main .ops-operating-pulse :where(.ops-kpi-accent, .ops-readiness-state.is-watch),
 .ops-main .ops-command-center-v2 :where(.is-watch > strong, .is-watch > small),
@@ -1081,27 +1079,29 @@ body {
 .ops-main .ops-crew-section-period > .ops-card-header .ops-crew-period-badge {
   color: var(--oc-warning-on-dark) !important;
 }
-
 /* The closeout breakdown intentionally uses a dark inset. Make that surface
  * fully dark so its bright paid/due values do not land on translucent gray. */
 .ops-main .ops-jobs-page .ops-job-closeout-body {
   background: #18202c;
   color: #e8edf4;
 }
-
 .ops-main .ops-jobs-page .ops-job-closeout-body :where(
   .ops-job-closeout-line.adjustment b,
   .ops-job-closeout-balance.due strong
 ) {
   color: var(--oc-warning-on-dark) !important;
 }
-
-.ops-main .ops-jobs-page .ops-job-closeout-body .ops-job-closeout-balance.paid strong {
-  color: var(--oc-success-on-dark) !important;
-}
-
-/* Keep pointer feedback stable and predictable. Hover never changes geometry,
- * filters the content, or overrides text with a low-contrast semantic color. */
+.ops-main .ops-jobs-page .ops-job-closeout-body .ops-job-closeout-balance.paid strong { color: var(--oc-success-on-dark) !important; }
+@property --oc-border-orbit { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.ops-main :is(.ops-page-subnav a, .ops-jobs-search-button, .ops-territory-jump a), .ops-main .ops-jobs-filter-menu > summary { position: relative; isolation: isolate; }
+.ops-main :is(.ops-page-subnav a, .ops-jobs-search-button, .ops-territory-jump a)::after, .ops-main .ops-jobs-filter-menu > summary::before { content: ""; position: absolute; inset: -2px; display: block; padding: 2px; border-radius: inherit; background: conic-gradient(from var(--oc-border-orbit), transparent 0deg 286deg, rgba(237, 28, 36, 0.18) 305deg, #ed1c24 332deg, #fff 346deg, rgba(237, 28, 36, 0.55) 358deg, transparent 360deg); opacity: 0; pointer-events: none; filter: drop-shadow(0 0 4px rgba(237, 28, 36, 0.72)); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+@keyframes oc-border-orbit { to { --oc-border-orbit: 1turn; } }
+@media (hover: hover) and (pointer: fine) { .ops-main :is(.ops-page-subnav a, .ops-jobs-search-button, .ops-territory-jump a):hover::after, .ops-main .ops-jobs-filter-menu > summary:hover::before { opacity: 1; animation: oc-border-orbit 1.5s linear infinite; } }
+.ops-main :is(.ops-page-subnav a, .ops-jobs-search-button, .ops-territory-jump a):focus-visible::after, .ops-main .ops-jobs-filter-menu > summary:focus-visible::before { opacity: 1; animation: oc-border-orbit 1.5s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .ops-main :is(.ops-page-subnav a, .ops-jobs-search-button, .ops-territory-jump a):is(:hover, :focus-visible)::after, .ops-main .ops-jobs-filter-menu > summary:is(:hover, :focus-visible)::before { --oc-border-orbit: 110deg; animation: none; } }
+.ops-main .ops-page-subnav a:is(:hover, :focus-visible), .ops-main .ops-jobs-filter-menu > summary:is(:hover, :focus-visible), .ops-main .ops-jobs-filter-menu[open] > summary { background: #202a36 !important; color: #fff !important; }
+.ops-main .ops-jobs-filter-menu > summary::after, .ops-main .ops-territory-jump small { color: #ffd166 !important; }
+/* Hover never changes geometry, filters content, or lowers text contrast. */
 :where(.ops-sidebar, .ops-main) :where(
   a[href],
   button:not(:disabled),

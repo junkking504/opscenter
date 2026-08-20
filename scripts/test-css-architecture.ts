@@ -72,11 +72,17 @@ assert.match(
 );
 assert.match(crewPage, /className="ops-crew-employee-summary"/, "Today employee cards must use the shared summary class.");
 assert.match(crewPayPeriodCards, /className="ops-crew-employee-summary"/, "Pay-period employee cards must use the shared summary class.");
-assert.match(usability, /\.ops-main \.ops-page-header-updated \{ font-size: 0\.6875rem;/, "Last Updated must remain secondary header metadata.");
+assert.match(usability, /\.ops-main \.ops-page-header-updated \{ font-size: 0\.625rem;/, "Last Updated must remain secondary header metadata.");
 assert.match(usability, /\.ops-topbar \{ min-height: 44px; margin-bottom: 8px;/, "Desktop utility header must remain compact.");
 assert.match(usability, /\.ops-command-clock \{ display: flex;[\s\S]*?white-space: nowrap;/, "Operations clock must remain on one line.");
+assert.match(usability, /\.ops-daily-leaderboard-table \{ width: auto; min-width: 720px;/, "Daily leaderboard columns must remain compact.");
 assert.match(pageHeaderModule, /\.compact :global\(\.ops-refresh-button\),[\s\S]*?min-height: 36px !important;/, "Compact header controls must share one 36px height.");
 assert.match(pageHeaderModule, /\.compact :global\(\.ops-view-toggle\) \{[\s\S]*?margin: 0;/, "Compact view toggles must align with adjacent controls.");
+assert.match(jobsCss, /\.ops-jobs-page \.ops-territory-jump \{[\s\S]*?position: static;[\s\S]*?padding: 6px 8px;/, "Desktop territory jump controls must stay compact and in document flow.");
+assert.match(jobsCss, /\.ops-jobs-page \.ops-job-photo-gallery,[\s\S]*?minmax\(96px, 1fr\)/, "Desktop appointment photos must use the compact evidence grid.");
+assert.match(jobsCss, /\.ops-jobs-page \.ops-job-closeout-editor > summary \{[\s\S]*?min-height: 32px;/, "Desktop closeout actions must not inflate appointment cards.");
+assert.match(jobsCss, /\.ops-jobs-page \.ops-appointment-card:hover \{\s*transform: none;/, "Desktop appointment cards must remain stationary on hover.");
+assert.match(jobsCss, /\.ops-jobs-page \.ops-appointment-card:not\(\.is-map-selected\):not\(\.is-canceled\):not\(:target\):hover \{[\s\S]*?border-color: #657586;/, "Desktop appointment hover must use a strong highlight without replacing selected or canceled states.");
 assert.match(jobsCss, /\.ops-jobs-page \.ops-appointment-detail-grid > div\s*\{\s*min-width: 0;/, "Every job detail cell must be allowed to shrink.");
 assert.match(jobsCss, /\.ops-jobs-page \.ops-appointment-detail-grid strong,[\s\S]*?overflow-wrap: anywhere;/, "Every long job detail value must wrap inside its column.");
 assert.equal(

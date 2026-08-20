@@ -38,7 +38,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <div className="ops-login-hero">
           <div className="ops-login-kicker"><span /> Louisiana Operations</div>
           <h1>Run the Day.<br />Know the Numbers.<br /><em>Keep Moving.</em></h1>
-          <p>One clear workspace for jobs, crews, trucks, marketing, and financial performance.</p>
+          <p>One clear workspace for jobs, krewes, trucks, marketing, and financial performance.</p>
         </div>
         <div className="ops-login-system-line">
           <span><i /> System Operational</span>

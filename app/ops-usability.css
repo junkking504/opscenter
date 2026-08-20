@@ -179,7 +179,7 @@ body {
   font-size: 0.9375rem;
   line-height: 1.4;
 }
-.ops-main .ops-page-header-updated { font-size: 0.6875rem; font-weight: 650; letter-spacing: 0.04em; opacity: 0.78; }
+.ops-main .ops-page-header-updated { font-size: 0.625rem; font-weight: 600; letter-spacing: 0.035em; opacity: 0.68; }
 
 /* The current design-system bundle still contains a late legacy rule that
  * paints every card dark. Re-establish the light workspace contract here and
@@ -545,7 +545,8 @@ body {
 .ops-daily-leaderboard-table .ops-daily-leaderboard-person small {
   color: #606873;
 }
-
+.ops-daily-leaderboard-table { width: auto; min-width: 720px; max-width: 100%; }
+.ops-daily-leaderboard-table :is(th, td) { padding-inline: 7px; }
 .ops-daily-leaderboard-table .ops-daily-leaderboard-jobs,
 .ops-daily-leaderboard-table .ops-daily-leaderboard-revenue {
   color: #303741 !important;
@@ -554,7 +555,6 @@ body {
 .ops-daily-leaderboard-table .is-rank-1 .ops-daily-leaderboard-revenue {
   color: #79560e !important;
 }
-
 .ops-daily-leaderboard-table .ops-daily-leaderboard-rank {
   border-color: #d8dcd8;
   background: #f4f5f3;

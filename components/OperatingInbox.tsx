@@ -56,6 +56,10 @@ function statusLabel(status: WorkItemStatus): string {
   return status.replaceAll("_", " ");
 }
 
+function categoryLabel(category: string): string {
+  return category === "Crew" ? "Krewe" : category;
+}
+
 function eventLabel(eventType: string): string {
   const labels: Record<string, string> = {
     "work.detected.v1": "Condition detected",
@@ -290,7 +294,7 @@ export default function OperatingInbox({
             <label className={styles.field}>
               <span>Category</span>
               <select aria-label="Work item category" value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value as CreateDraft["category"] })}>
-                <option>Jobs</option><option>Crew</option><option>Fleet</option><option>Finance</option>
+                <option>Jobs</option><option value="Crew">Krewe</option><option>Fleet</option><option>Finance</option>
               </select>
             </label>
             <label className={styles.field}>
@@ -344,7 +348,7 @@ export default function OperatingInbox({
             <option value="all">All severity</option><option value="critical">Critical</option><option value="warning">Warning</option><option value="info">Info</option>
           </select>
           <select className={styles.filter} value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Filter by category">
-            <option value="all">All categories</option><option value="Jobs">Jobs</option><option value="Crew">Crew</option><option value="Fleet">Fleet</option><option value="Finance">Finance</option>
+            <option value="all">All categories</option><option value="Jobs">Jobs</option><option value="Crew">Krewe</option><option value="Fleet">Fleet</option><option value="Finance">Finance</option>
           </select>
           <button className={styles.refresh} type="button" onClick={() => void load()} disabled={loading || busy}>{loading ? "Refreshing…" : "Refresh signals"}</button>
         </div>
@@ -388,7 +392,7 @@ export default function OperatingInbox({
               <div className={styles.recommended}><span>Recommended next action</span><strong>{selected.recommendedAction}</strong></div>
               <div className={styles.facts}>
                 <div className={styles.fact}><span>Owner</span><strong>{selected.ownerDisplayName || "Unassigned"}</strong></div>
-                <div className={styles.fact}><span>Category</span><strong>{selected.category} · {selected.severity}</strong></div>
+                <div className={styles.fact}><span>Category</span><strong>{categoryLabel(selected.category)} · {selected.severity}</strong></div>
                 <div className={styles.fact}><span>First detected</span><strong>{formatTime(selected.firstDetectedAt)}</strong></div>
                 <div className={styles.fact}><span>Source observed</span><strong>{formatTime(selected.sourceObservedAt)}</strong></div>
                 <div className={styles.fact}><span>Due</span><strong className={selected.overdue || selected.carryover ? styles.overdue : undefined}>{selected.overdue ? `Overdue · ${formatTime(selected.dueAt)}` : selected.carryover && !selected.dueAt ? `Carryover from ${selected.operatingDate}` : formatTime(selected.dueAt)}</strong></div>

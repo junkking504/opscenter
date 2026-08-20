@@ -27,9 +27,9 @@
   position: relative;
   display: grid;
   min-width: 0;
-  min-height: 104px;
+  min-height: 88px;
   align-content: space-between;
-  padding: 13px 15px;
+  padding: 10px 12px;
   overflow: hidden;
   border: 1px solid #dcdee2;
   border-radius: 16px;
@@ -67,15 +67,8 @@
   color: #69717e;
 }
 
-.metric > div > small {
-  color: currentColor;
-  font-size: 0.9375rem;
-  font-weight: 900;
-  text-transform: uppercase;
-}
-
 .metric > strong {
-  margin-top: 8px;
+  margin-top: 4px;
   overflow: hidden;
   color: #171a1f;
   font-size: clamp(1.75rem, 2.6vw, 2.4rem);
@@ -85,7 +78,7 @@
 }
 
 .metric > p {
-  margin: 6px 24px 0 0;
+  margin: 3px 24px 0 0;
   overflow: hidden;
   color: #737b87;
   font-size: 0.9375rem;
@@ -242,7 +235,6 @@
   .metric { min-height: 94px; padding: 11px; }
   .metric > strong { font-size: 1.65rem; }
   .metric > p { white-space: normal; }
-  .metric > div > small { display: none; }
   .signals, .queue { border-radius: 14px; }
   .signal { grid-template-columns: 9px minmax(0, 1fr) 14px; min-height: 70px; padding: 11px 14px; }
   .signal small { white-space: normal; }

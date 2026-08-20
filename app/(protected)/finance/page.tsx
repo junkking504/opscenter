@@ -629,7 +629,7 @@ export default async function FinancePage({
             <div>
               <div className="ops-section-title">OpsBot Truck Records Detail</div>
               <div className="ops-muted">
-                Crew-reported dump and fuel activity for Accounting → Truck Records · {money(crewTruckRecordCost)} reported
+                Krewe-reported dump and fuel activity for Accounting → Truck Records · {money(crewTruckRecordCost)} reported
               </div>
             </div>
           </div>

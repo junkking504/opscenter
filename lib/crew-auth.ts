@@ -117,7 +117,7 @@ export async function createCrewSessionCookieValue(
   passwordChangeRequired: boolean,
   now = new Date(),
 ): Promise<string> {
-  if (sessionSecret().length < 32) throw new Error("Crew session authentication is not configured.");
+  if (sessionSecret().length < 32) throw new Error("Krewe session authentication is not configured.");
   const payload: CrewSessionPayload = {
     version: 1,
     purpose: "crew",
@@ -127,7 +127,7 @@ export async function createCrewSessionCookieValue(
     issuedAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + CREW_SESSION_MAX_AGE_SECONDS * 1000).toISOString(),
   };
-  if (!payload.username || !payload.employee) throw new Error("A valid crew identity is required.");
+  if (!payload.username || !payload.employee) throw new Error("A valid krewe identity is required.");
   const encoded = base64UrlEncode(encoder.encode(JSON.stringify(payload)));
   return `${encoded}.${base64UrlEncode(await signPayload(encoded))}`;
 }

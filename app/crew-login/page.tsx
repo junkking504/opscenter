@@ -20,7 +20,7 @@ type Props = {
 const errors: Record<string, string> = {
   "invalid-credentials": "Invalid username or password.",
   "session-expired": "Sign in again with the password you created.",
-  "not-authenticated": "Sign in to view your Crew portal.",
+  "not-authenticated": "Sign in to view your Krewe portal.",
 };
 
 export default async function CrewLoginPage({ searchParams }: Props) {
@@ -31,14 +31,14 @@ export default async function CrewLoginPage({ searchParams }: Props) {
   return (
     <main className={styles.page}>
       <section className={styles.card}>
-        <div className={styles.brand}><span className={styles.brandMark} /> OpsCenter Crew</div>
+        <div className={styles.brand}><span className={styles.brandMark} /> OpsCenter Krewe</div>
         <h1>Your hours.<br />Your pay.</h1>
         <p className={styles.lead}>
-          Use your JunkWare username. The first time you sign in, use the temporary crew password and then create your own password.
+          Use your JunkWare username. The first time you sign in, use the temporary krewe password and then create your own password.
         </p>
 
         {error ? <div className={styles.error} role="alert">{error}</div> : null}
-        {!configured ? <div className={styles.error} role="status">Crew sign-in is awaiting administrator setup.</div> : null}
+        {!configured ? <div className={styles.error} role="status">Krewe sign-in is awaiting administrator setup.</div> : null}
 
         <form className={styles.form} action="/api/crew/auth/login" method="post">
           <label className={styles.label}>

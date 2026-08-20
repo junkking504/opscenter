@@ -10,11 +10,11 @@ export type InboxRulePolicy = {
 export const INBOX_RULE_POLICIES: Readonly<Record<string, InboxRulePolicy>> = Object.freeze({
   completed_job_with_no_driver: {
     dueMinutes: 30,
-    recommendedAction: "Confirm the crew and assign the verified driver in JunkWare.",
+    recommendedAction: "Confirm the krewe and assign the verified driver in JunkWare.",
   },
   completed_job_with_no_navigator: {
     dueMinutes: 60,
-    recommendedAction: "Confirm the crew assignment or document that this was a one-person job.",
+    recommendedAction: "Confirm the krewe assignment or document that this was a one-person job.",
   },
   completed_job_assigned_to_virtual_truck: {
     dueMinutes: 30,
@@ -22,7 +22,7 @@ export const INBOX_RULE_POLICIES: Readonly<Record<string, InboxRulePolicy>> = Ob
   },
   job_with_revenue_but_no_credited_crew: {
     dueMinutes: 60,
-    recommendedAction: "Verify the working crew and correct the job credit before payroll review.",
+    recommendedAction: "Verify the working krewe and correct the job credit before payroll review.",
   },
   payment_amount_present_but_payment_type_missing: {
     dueMinutes: 30,
@@ -42,11 +42,11 @@ export const INBOX_RULE_POLICIES: Readonly<Record<string, InboxRulePolicy>> = Ob
   },
   employee_assigned_to_job_but_missing_from_attendance: {
     dueMinutes: 60,
-    recommendedAction: "Reconcile the verified job crew with attendance before relying on crew credit or payroll.",
+    recommendedAction: "Reconcile the verified job krewe with attendance before relying on krewe credit or payroll.",
   },
   open_appointment_past_scheduled_window: {
     dueMinutes: 15,
-    recommendedAction: "Contact the assigned crew and update the appointment status or operating plan.",
+    recommendedAction: "Contact the assigned krewe and update the appointment status or operating plan.",
   },
   missing_customer_information: {
     dueMinutes: 60,

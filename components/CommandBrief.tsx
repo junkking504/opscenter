@@ -49,7 +49,6 @@ export default function CommandBrief({
           <Link className={`${styles.metric} ${toneClass(metric.status)}`} href={metric.href} key={metric.label}>
             <div>
               <span>{metric.label}</span>
-              <small>{statusLabel[metric.status]}</small>
             </div>
             <strong>{metric.value}</strong>
             <p>{metric.detail}</p>

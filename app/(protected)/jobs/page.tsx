@@ -752,7 +752,7 @@ function scheduleDayCopy(date: string) {
   if (date === addDays(today, 1)) {
     return {
       possessive: "Tomorrow’s",
-      subtitle: "Tomorrow’s schedule preview. Review appointments, crew assignments, and dispatch routes ahead of time.",
+      subtitle: "Tomorrow’s schedule preview. Review appointments, krewe assignments, and dispatch routes ahead of time.",
     };
   }
 
@@ -3395,7 +3395,7 @@ export default async function JobsPage({
                                 {visitedButNotClosed ? (
                                   <span
                                     className="ops-visited-unclosed-badge"
-                                    title="Linxup shows a crew visit, but this appointment is not closed out in JunkWare."
+                                    title="Linxup shows a krewe visit, but this appointment is not closed out in JunkWare."
                                   >
                                     <b aria-hidden="true">?</b>
                                     Visited · not closed
@@ -3538,7 +3538,7 @@ export default async function JobsPage({
                                   <strong>{safeText(job.navigatorName || job.navigator)}</strong>
                                 </div>
                                 <div>
-                                  <span>Additional crew</span>
+                                  <span>Additional krewe</span>
                                   <strong>
                                     {job.additionalCrew && job.additionalCrew.length > 0
                                       ? job.additionalCrew.join(", ")
@@ -3546,11 +3546,11 @@ export default async function JobsPage({
                                   </strong>
                                 </div>
                                 <div>
-                                  <span>Crew source</span>
+                                  <span>Krewe source</span>
                                   <strong>{safeText(job.crewAssignmentSource || "Unavailable")}</strong>
                                 </div>
                                 <div>
-                                  <span>Crew status</span>
+                                  <span>Krewe status</span>
                                   <strong>{safeText(job.crewAssignmentStatus || "Unavailable")}</strong>
                                 </div>
                                 <div>
@@ -3693,7 +3693,7 @@ export default async function JobsPage({
                               {visitedButNotClosed ? (
                                 <span
                                   className="ops-visited-unclosed-badge"
-                                  title="Linxup shows a crew visit, but this appointment is not closed out in JunkWare."
+                                  title="Linxup shows a krewe visit, but this appointment is not closed out in JunkWare."
                                 >
                                   <b aria-hidden="true">?</b>
                                   Visited · not closed
@@ -3836,7 +3836,7 @@ export default async function JobsPage({
                                 <strong>{safeText(job.navigatorName || job.navigator)}</strong>
                               </div>
                               <div>
-                                <span>Additional crew</span>
+                                <span>Additional krewe</span>
                                 <strong>
                                   {job.additionalCrew && job.additionalCrew.length > 0
                                     ? job.additionalCrew.join(", ")
@@ -3844,11 +3844,11 @@ export default async function JobsPage({
                                 </strong>
                               </div>
                               <div>
-                                <span>Crew source</span>
+                                <span>Krewe source</span>
                                 <strong>{safeText(job.crewAssignmentSource || "Unavailable")}</strong>
                               </div>
                               <div>
-                                <span>Crew status</span>
+                                <span>Krewe status</span>
                                 <strong>{safeText(job.crewAssignmentStatus || "Unavailable")}</strong>
                               </div>
                               <div>

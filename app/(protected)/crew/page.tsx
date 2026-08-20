@@ -1031,7 +1031,7 @@ function renderMonthlyCrewPage({
   return (
     <div className="ops-dashboard ops-crew-dashboard">
       <PageHeader
-        title="Crew"
+        title="Krewe"
         subtitle={`Monthly summary for ${month.monthDisplay} · ${month.warningLabel} · Data through ${month.dataThroughLabel}`}
         date={date}
         showDateSelector={false}
@@ -1041,22 +1041,22 @@ function renderMonthlyCrewPage({
           <OpsMonthSelector months={monthOptions()} selectedMonthKey={month.monthKey} />
         }
         sections={[
-          { label: "Daily crew", href: `/crew?date=${date}` },
+          { label: "Daily krewe", href: `/crew?date=${date}` },
           { label: "Monthly overview", href: `/crew?date=${date}&view=monthly&section=overview`, active: section === "overview" },
-          { label: "Crew breakdown", href: `/crew?date=${date}&view=monthly&section=breakdown`, active: section === "breakdown" },
+          { label: "Krewe breakdown", href: `/crew?date=${date}&view=monthly&section=breakdown`, active: section === "breakdown" },
         ]}
       />
 
       {section === "overview" ? <div className="ops-crew-kpi-row" id="crew-overview">
         <div className="ops-card ops-kpi-card ops-crew-kpi-card">
-          <div className="ops-card-title">Crew Revenue</div>
+          <div className="ops-card-title">Krewe Revenue</div>
           <div className="ops-kpi-value">{money(totalRevenue)}</div>
           <div className={`ops-kpi-sub ${Math.abs(revenueAllocationVariance) > 0.01 ? "ops-kpi-sub-warn" : ""}`}>
             {revenueAllocationVariance > 0.01
               ? `${money(allocatedCrewRevenue)} allocated · ${money(revenueAllocationVariance)} unassigned`
               : revenueAllocationVariance < -0.01
                 ? `${money(allocatedCrewRevenue)} allocated · ${money(Math.abs(revenueAllocationVariance))} overallocated`
-                : "Fully allocated to crew"}
+                : "Fully allocated to krewe"}
           </div>
         </div>
         <div className="ops-card ops-kpi-card ops-crew-kpi-card">
@@ -1133,7 +1133,7 @@ function renderMonthlyCrewPage({
         <div className="ops-card-header compact">
           <div>
             <div className="ops-section-title-row">
-              <div className="ops-section-title">Monthly Crew Breakdown</div>
+              <div className="ops-section-title">Monthly Krewe Breakdown</div>
               <span className="ops-section-badge ops-section-badge-period">
                 {month.monthDisplay}
               </span>
@@ -1502,13 +1502,13 @@ export default async function CrewPage({
     <div className="ops-dashboard ops-crew-dashboard">
       {isCurrentDay ? <CrewDataRefresh enabled /> : null}
       <PageHeader
-        title="Crew"
+        title="Krewe"
         subtitle="Individual revenue, assignment clarity, hourly pay, tips, bonuses, and total earnings"
         date={date}
         lastUpdated={metrics?.payroll_as_of || metrics?.generated_at}
         sections={[
           { label: "Call-in plan", href: `/crew?date=${date}&section=call-in`, active: section === "call-in" },
-          { label: "Today’s crew", href: `/crew?date=${date}&section=crew`, active: section === "crew", badge: dailyCrew.crewCount || undefined },
+          { label: "Today’s krewe", href: `/crew?date=${date}&section=crew`, active: section === "crew", badge: dailyCrew.crewCount || undefined },
           { label: "Pay period", href: `/crew?date=${date}&section=pay-period`, active: section === "pay-period" },
           { label: "Monthly", href: `/crew?date=${date}&view=monthly` },
         ]}
@@ -1516,19 +1516,19 @@ export default async function CrewPage({
 
       {section === "crew" ? <div className="ops-crew-kpi-row" id="crew-summary">
         <div className="ops-card ops-kpi-card ops-crew-kpi-card">
-          <div className="ops-card-title">Crew Count</div>
+          <div className="ops-card-title">Krewe Count</div>
           <div className="ops-kpi-value">{dailyCrew.crewCount}</div>
         </div>
 
         <div className="ops-card ops-kpi-card ops-crew-kpi-card">
-          <div className="ops-card-title">Crew Revenue</div>
+          <div className="ops-card-title">Krewe Revenue</div>
           <div className="ops-kpi-value">{money(totalRevenue)}</div>
           <div className={`ops-kpi-sub ${Math.abs(revenueAllocationVariance) > 0.01 ? "ops-kpi-sub-warn" : ""}`}>
             {revenueAllocationVariance > 0.01
               ? `${money(allocatedCrewRevenue)} allocated · ${money(revenueAllocationVariance)} unassigned`
               : revenueAllocationVariance < -0.01
                 ? `${money(allocatedCrewRevenue)} allocated · ${money(Math.abs(revenueAllocationVariance))} overallocated`
-                : "Fully allocated to crew"}
+                : "Fully allocated to krewe"}
           </div>
         </div>
 
@@ -1548,7 +1548,7 @@ export default async function CrewPage({
       {section === "crew" ? <section className="ops-card ops-daily-leaderboard" id="crew-leaderboard">
         <div className="ops-card-header compact">
           <div>
-            <div className="ops-section-title">Daily Crew Leaderboard</div>
+            <div className="ops-section-title">Daily Krewe Leaderboard</div>
             <div className="ops-muted">
               Ranked by credited revenue, with completed jobs and revenue per hour breaking ties.
             </div>
@@ -1565,7 +1565,7 @@ export default async function CrewPage({
             <thead>
               <tr>
                 <th aria-label="Rank">Rank</th>
-                <th>Crew member</th>
+                <th>Krewe</th>
                 <th>Truck</th>
                 <th>Jobs</th>
                 <th>Revenue</th>
@@ -1593,7 +1593,7 @@ export default async function CrewPage({
                     </td>
                     <td className="ops-daily-leaderboard-person">
                       <strong>{name}</strong>
-                      <small>{String(row.shift_status || row.clock_out_display || "Daily crew")}</small>
+                      <small>{String(row.shift_status || row.clock_out_display || "Daily krewe")}</small>
                     </td>
                     <td>{employeeTruck(row)}</td>
                     <td className="ops-daily-leaderboard-jobs">{employeeJobs(row, metrics)}</td>
@@ -1613,7 +1613,7 @@ export default async function CrewPage({
 
               {rankedCrew.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="ops-muted">No crew data available for this date.</td>
+                  <td colSpan={8} className="ops-muted">No krewe data available for this date.</td>
                 </tr>
               ) : null}
             </tbody>
@@ -1627,7 +1627,7 @@ export default async function CrewPage({
         <div className="ops-card-header compact">
           <div>
             <div className="ops-section-title-row">
-              <div className="ops-section-title">Today’s Crew Performance</div>
+              <div className="ops-section-title">Today’s Krewe Performance</div>
               <span className="ops-section-badge ops-section-badge-live">LIVE</span>
             </div>
             <div className="ops-muted">
@@ -1640,7 +1640,7 @@ export default async function CrewPage({
         </div>
 
         <OpsPagination
-          label="Crew performance pages"
+          label="Krewe performance pages"
           currentPage={crewPage}
           totalPages={totalCrewPages}
           previousHref={crewPage > 1 ? crewPageHref(date, crewPage - 1) : undefined}
@@ -1881,12 +1881,12 @@ export default async function CrewPage({
               );
             })
           ) : (
-            <div className="ops-muted">No crew data available.</div>
+            <div className="ops-muted">No krewe data available.</div>
           )}
         </div>
 
         <OpsPagination
-          label="Crew performance pages"
+          label="Krewe performance pages"
           currentPage={crewPage}
           totalPages={totalCrewPages}
           previousHref={crewPage > 1 ? crewPageHref(date, crewPage - 1) : undefined}

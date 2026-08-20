@@ -788,7 +788,7 @@ export function updateCrewExpenseTransaction(processingFile: string, update: Par
 
 export function finishCrewExpenseTransaction(processingFile: string): CrewExpenseRecord {
   const transaction = JSON.parse(fs.readFileSync(processingFile, "utf8")) as CrewExpenseTransaction;
-  if (transaction.stage !== "slack_sent") throw new Error("The crew expense cannot appear in OpsCenter before Slack delivery.");
+  if (transaction.stage !== "slack_sent") throw new Error("The krewe expense cannot appear in OpsCenter before Slack delivery.");
   writeJsonAtomic(path.join(directory("records"), `${recordKey(transaction.record.messageId)}.json`), transaction.record);
   const completedFile = path.join(directory("transactions-completed"), path.basename(processingFile));
   writeJsonAtomic(completedFile, { ...transaction, completedAt: new Date().toISOString() });

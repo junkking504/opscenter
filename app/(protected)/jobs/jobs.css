@@ -661,6 +661,137 @@
   font-size: 0.9375rem;
 }
 
+/* Desktop dispatch is a scan-heavy workspace. Keep the queue controls and
+ * appointment evidence compact enough that the next job remains visible. */
+@media (min-width: 721px) {
+  .ops-jobs-page #jobs-schedule {
+    padding: 10px;
+  }
+
+  .ops-jobs-page #jobs-schedule > .ops-card-header.compact {
+    min-height: 0;
+    margin: 0 0 7px;
+    padding: 2px 4px 8px;
+  }
+
+  .ops-jobs-page .ops-territory-jump {
+    position: static;
+    gap: 6px;
+    margin: 0 0 8px;
+    padding: 6px 8px;
+    border-radius: 10px;
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.18);
+  }
+
+  .ops-jobs-page .ops-territory-jump > span {
+    font-size: 0.625rem;
+  }
+
+  .ops-jobs-page .ops-territory-jump a {
+    min-height: 30px;
+    padding: 5px 10px;
+    font-size: 0.75rem;
+    line-height: 1.2;
+  }
+
+  .ops-jobs-page .ops-territory-jobs {
+    gap: 10px;
+  }
+
+  .ops-jobs-page .ops-territory-section {
+    gap: 6px;
+  }
+
+  .ops-jobs-page .ops-territory-header,
+  .ops-jobs-page .ops-territory-header.is-new-orleans,
+  .ops-jobs-page .ops-territory-header.is-jefferson,
+  .ops-jobs-page .ops-territory-header.is-northshore,
+  .ops-jobs-page .ops-territory-header.is-baton-rouge {
+    padding: 8px 11px 8px 15px;
+  }
+
+  .ops-jobs-page .ops-territory-header::before {
+    top: 8px;
+    bottom: 8px;
+  }
+
+  .ops-jobs-page .ops-status-group-header {
+    min-height: 32px;
+    padding: 5px 10px;
+  }
+
+  .ops-jobs-page .ops-appointment-card-list {
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .ops-jobs-page .ops-appointment-card {
+    row-gap: 3px;
+    padding: 6px 8px;
+    background: #f4f6f7;
+  }
+
+  .ops-jobs-page .ops-appointment-card:hover {
+    transform: none;
+  }
+
+  .ops-jobs-page .ops-appointment-card:not(.is-map-selected):not(.is-canceled):not(:target):hover {
+    border-color: #657586;
+    background: #e8edf1;
+    box-shadow: 0 0 0 2px rgba(83, 104, 123, 0.3), 0 8px 20px rgba(25, 28, 35, 0.1);
+  }
+
+  .ops-jobs-page .ops-job-closeout-editor > summary {
+    min-height: 32px;
+    padding: 5px 8px;
+    font-size: 0.75rem;
+  }
+
+  .ops-jobs-page .ops-appointment-context {
+    gap: 3px 10px;
+    padding: 4px 6px;
+  }
+
+  .ops-jobs-page .ops-appointment-note-details {
+    padding-left: 9px;
+  }
+
+  .ops-jobs-page .ops-appointment-note-details > summary > strong {
+    -webkit-line-clamp: 1;
+  }
+
+  .ops-jobs-page .ops-job-photo-details > summary {
+    min-height: 28px;
+    padding: 4px 7px;
+  }
+
+  .ops-jobs-page .ops-job-photo-gallery,
+  .ops-jobs-page .ops-job-photo-gallery.compact {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .ops-jobs-page .ops-job-photo {
+    border-radius: 5px;
+  }
+
+  .ops-jobs-page .ops-job-photo span {
+    right: 4px;
+    bottom: 4px;
+    padding: 2px 5px;
+  }
+
+  .ops-jobs-page .ops-appointment-card :where(
+    .ops-appointment-gps-details > summary,
+    .ops-appointment-more-details > summary,
+    .ops-job-closeout-details > summary
+  ) {
+    min-height: 30px;
+    font-size: 0.75rem;
+  }
+}
+
 .ops-jobs-page .ops-jobs-map-board-time,
 .ops-jobs-page .ops-jobs-map-current-time span {
   font-size: 0.75rem !important;

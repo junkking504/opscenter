@@ -4,7 +4,7 @@ import { titleCaseLabel } from "../lib/title-case";
 
 assert.equal(titleCaseLabel("Daily command"), "Daily Command");
 assert.equal(titleCaseLabel("Preventive-service planner"), "Preventive-Service Planner");
-assert.equal(titleCaseLabel("Today’s crew"), "Today’s Crew");
+assert.equal(titleCaseLabel("Today’s crew"), "Today’s Krewe");
 assert.equal(titleCaseLabel("QBO connection status"), "QBO Connection Status");
 assert.equal(titleCaseLabel("Expenses & earnings"), "Expenses & Earnings");
 
@@ -38,9 +38,23 @@ assert.ok(jobsPageSource.includes("territoryAbbreviation(territory)"), "Territor
 assert.ok(jobsPageSource.includes("compact\n      />"), "Schedule header must use the compact non-overlapping layout.");
 
 const commandPageSource = readFileSync(new URL("../app/(protected)/page.tsx", import.meta.url), "utf8");
-assert.ok(commandPageSource.includes('{ label: "Crew Snapshot", href: `/?date=${date}&section=crew`'), "Command must distinguish its Crew Snapshot from the full Crew page.");
+assert.ok(commandPageSource.includes('{ label: "Krewe Snapshot", href: `/?date=${date}&section=crew`'), "Command must distinguish its Krewe Snapshot from the full Krewe page.");
 assert.ok(commandPageSource.includes('{ label: "Fleet Snapshot", href: `/?date=${date}&section=fleet`'), "Command must distinguish its Fleet Snapshot from the full Fleet page.");
 assert.ok(commandPageSource.includes('>Full Fleet View</a>'), "Command Fleet Snapshot must link to the full Fleet view.");
+assert.ok(commandPageSource.includes("<th>Krewe</th>"), "Command leaderboard must use the Krewe product name.");
+assert.ok(commandPageSource.includes("<th>RPH</th>") && commandPageSource.includes("<th>AJS</th>"), "Command leaderboard must use compact RPH and AJS headings.");
+
+const crewPageSource = readFileSync(new URL("../app/(protected)/crew/page.tsx", import.meta.url), "utf8");
+const navItemsSource = readFileSync(new URL("../components/navItems.ts", import.meta.url), "utf8");
+const crewLoginSource = readFileSync(new URL("../app/crew-login/page.tsx", import.meta.url), "utf8");
+const myPaySourceCopy = readFileSync(new URL("../app/my-pay/page.tsx", import.meta.url), "utf8");
+for (const retiredCopy of ["Crew Snapshot", "Crew member", "Daily Crew Leaderboard", "OpsCenter Crew"]) {
+  assert.ok(!`${commandPageSource}\n${crewPageSource}\n${navItemsSource}\n${crewLoginSource}\n${myPaySourceCopy}`.includes(retiredCopy), `Visible product copy still includes ${retiredCopy}.`);
+}
+
+const commandBriefSource = readFileSync(new URL("../components/CommandBrief.tsx", import.meta.url), "utf8");
+const metricStripSource = commandBriefSource.slice(commandBriefSource.indexOf("styles.metricStrip"), commandBriefSource.indexOf("styles.body"));
+assert.ok(!metricStripSource.includes("statusLabel[metric.status]"), "Command metric cards must not repeat their color status in text.");
 
 const loginPageSource = readFileSync(new URL("../app/login/page.tsx", import.meta.url), "utf8");
 assert.ok(loginPageSource.includes("This browser stays trusted for 30 days"), "Login must state the current trusted-device duration.");

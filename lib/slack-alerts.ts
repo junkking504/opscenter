@@ -295,7 +295,7 @@ function exceptionAlert(
     detail: exception.reason,
     nextAction: isUnassigned
       ? "Assign the employee to the correct truck or confirm that the shift should be ended."
-      : "Confirm the crew status and close, reschedule, or update the appointment.",
+      : "Confirm the krewe status and close, reschedule, or update the appointment.",
     href: absoluteOpsHref(exception.href || `/jobs?date=${encodeURIComponent(exception.timestamp.slice(0, 10))}`),
   };
 }
@@ -342,7 +342,7 @@ export function buildAddOnSlackNotification(appointment: AddOnAppointment, date:
     channelId: appointmentChannelId(appointment.territory),
     title: `Add-On: ${appointment.jobNumber}`,
     detail: `${appointment.customerName}\n${appointment.address}`,
-    nextAction: "Confirm crew and truck coverage, then update the route plan.",
+    nextAction: "Confirm krewe and truck coverage, then update the route plan.",
     href: absoluteOpsHref(appointment.href),
   };
 }
@@ -365,7 +365,7 @@ export function buildCancellationSlackNotification(appointment: CancelledAppoint
       appointment.address,
       cancellationContext,
     ].filter(Boolean).join(" · "),
-    nextAction: "Confirm the territory schedule and update the crew and truck plan.",
+    nextAction: "Confirm the territory schedule and update the krewe and truck plan.",
     href: absoluteOpsHref(appointment.href),
   };
 }

@@ -661,7 +661,7 @@ export default async function DashboardPage({
         lastUpdated={metrics?.generated_at}
         sections={[
           { label: "Overview", href: `/?date=${date}&section=overview`, active: section === "overview" },
-          { label: "Crew Snapshot", href: `/?date=${date}&section=crew`, active: section === "crew" },
+          { label: "Krewe Snapshot", href: `/?date=${date}&section=crew`, active: section === "crew" },
           { label: "Fleet Snapshot", href: `/?date=${date}&section=fleet`, active: section === "fleet" },
           { label: "Monthly", href: `/?date=${date}&view=monthly` },
         ]}
@@ -728,7 +728,7 @@ export default async function DashboardPage({
       {section === "crew" ? <section className="ops-card ops-daily-leaderboard" id="command-crew">
         <div className="ops-card-header compact">
           <div>
-            <div className="ops-section-title">Daily Crew Leaderboard</div>
+            <div className="ops-section-title">Daily Krewe Leaderboard</div>
             <div className="ops-muted">
               Ranked by revenue, with completed jobs and revenue per hour breaking ties. Daily earnings includes hourly pay, tips, and bonus.
             </div>
@@ -739,7 +739,7 @@ export default async function DashboardPage({
                 ? `${dailyCrew.rankedCount} ranked${rankedCrew.length < dailyCrew.rankedCount ? ` · top ${rankedCrew.length} shown` : ""}`
                 : "Awaiting results"}
             </span>
-            <a className="ops-mini-link" href={`/crew?date=${date}`}>Full Crew View</a>
+            <a className="ops-mini-link" href={`/crew?date=${date}`}>Full Krewe View</a>
           </div>
         </div>
 
@@ -748,12 +748,12 @@ export default async function DashboardPage({
             <thead>
               <tr>
                 <th aria-label="Rank">Rank</th>
-                <th>Crew member</th>
+                <th>Krewe</th>
                 <th>Truck</th>
                 <th>Jobs</th>
                 <th>Revenue</th>
-                <th>Revenue / hr</th>
-                <th>Average job</th>
+                <th>RPH</th>
+                <th>AJS</th>
                 <th>Daily earnings</th>
               </tr>
             </thead>
@@ -774,7 +774,7 @@ export default async function DashboardPage({
                     </td>
                     <td className="ops-daily-leaderboard-person">
                       <strong>{employeeName(row)}</strong>
-                      <small>{String(row.shift_status || row.clock_out_display || "Daily crew")}</small>
+                      <small>{String(row.shift_status || row.clock_out_display || "Daily krewe")}</small>
                     </td>
                     <td>{employeeTruck(row)}</td>
                     <td className="ops-daily-leaderboard-jobs">{employeeJobs(row)}</td>
@@ -788,7 +788,7 @@ export default async function DashboardPage({
 
               {rankedCrew.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="ops-muted">No crew data available for this date.</td>
+                  <td colSpan={8} className="ops-muted">No krewe data available for this date.</td>
                 </tr>
               )}
             </tbody>

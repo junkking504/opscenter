@@ -73,6 +73,9 @@ export function truckMapMarkerIcon(
         class="ops-truck-map-marker${selected ? " is-selected" : ""}${atJob ? " is-at-job" : ""}"
         style="transform:translateY(${labelOffset}px)"
         title="${escapeHtml(label)}"
+        role="button"
+        tabindex="0"
+        aria-label="Select ${escapeHtml(label)}"
       >
         <svg viewBox="0 0 28 18" aria-hidden="true">
           <path d="M2 3h14v10H2zM16 7h5l4 4v2h-9z"/>

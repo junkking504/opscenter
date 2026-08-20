@@ -64,17 +64,6 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function operationalLabel(record: FleetTruckMapRecord): string {
-  if (record.freshnessLabel === "Offline") return "Offline";
-  if (record.freshnessLabel === "GPS Stale") return "GPS Stale — last movement is not current";
-  if (record.operationalStatus === "Driving") return "Driving";
-  if (record.operationalStatus === "At Job") return "At Job";
-  if (record.operationalStatus === "At Dump/Recycling") return "At Dump/Recycling";
-  if (record.operationalStatus === "At Yard") return "At Yard";
-  if (record.operationalStatus === "Idle") return "Idle";
-  return record.operationalStatus || "Stopped";
-}
-
 function stopColor(kind: FleetMapStop["kind"]): string {
   switch (kind) {
     case "At Job":
@@ -88,25 +77,6 @@ function stopColor(kind: FleetMapStop["kind"]): string {
     default:
       return "#94a3b8";
   }
-}
-
-function truckPopup(record: FleetTruckMapRecord): string {
-  const driverState = record.driver && record.driver !== "—" ? escapeHtml(record.driver) : "Unassigned";
-  const navigatorState = record.navigator && record.navigator !== "—" ? escapeHtml(record.navigator) : "Unassigned";
-  return `
-    <div class="ops-fleet-popup">
-      <div class="ops-fleet-popup-title">${escapeHtml(record.truck)}</div>
-      <div class="ops-fleet-popup-line"><span>Status</span><strong>${escapeHtml(operationalLabel(record))}</strong></div>
-      <div class="ops-fleet-popup-line"><span>Last GPS</span><strong>${escapeHtml(formatTimestamp(record.lastGpsUpdate))}</strong></div>
-      <div class="ops-fleet-popup-line"><span>${record.freshnessLabel === "Live GPS" ? "Speed" : "Last reported speed"}</span><strong>${record.speed == null ? "—" : `${formatNumber(record.speed)} mph`}</strong></div>
-      <div class="ops-fleet-popup-line"><span>${record.freshnessLabel === "Live GPS" ? "Ignition" : "Last reported ignition"}</span><strong>${escapeHtml(record.ignition || "—")}</strong></div>
-      <div class="ops-fleet-popup-line"><span>Driver</span><strong>${driverState}</strong></div>
-      <div class="ops-fleet-popup-line"><span>Navigator</span><strong>${navigatorState}</strong></div>
-      <div class="ops-fleet-popup-line"><span>Miles</span><strong>${record.milesDriven == null ? "—" : `${formatNumber(record.milesDriven)} mi`}</strong></div>
-      <div class="ops-fleet-popup-line"><span>Driver score</span><strong>${formatScore(record)}</strong></div>
-      <div class="ops-fleet-popup-line"><span>Service status</span><strong>${escapeHtml(record.serviceStatus || "Unavailable")}</strong></div>
-    </div>
-  `;
 }
 
 export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
@@ -256,20 +226,25 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
         zIndexOffset: isSelected ? 1000 : 0,
       });
 
-      marker.bindPopup(truckPopup(truck), {
-        className: "ops-fleet-popup-frame",
-        maxWidth: 340,
-      });
-
-      marker.on("click", () => {
+      marker.addTo(markers);
+      const markerButton = marker.getElement()?.querySelector<HTMLElement>(".ops-truck-map-marker");
+      const selectTruck = () => {
         if (isSelected) return;
         const params = new URLSearchParams(searchParams.toString());
         params.set("date", payload.date);
         params.set("truck", truckNumber(truck.truck));
         router.push(`${pathname}?${params.toString()}`, { scroll: false });
+      };
+      markerButton?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        selectTruck();
       });
-
-      marker.addTo(markers);
+      markerButton?.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        event.stopPropagation();
+        selectTruck();
+      });
     }
 
     if (!fleetMode && selectedRouteBounds) {

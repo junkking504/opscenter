@@ -1173,13 +1173,19 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         alt: markerLabel,
         zIndexOffset: 1800,
       });
-      const driver = truck.driver && truck.driver !== "—" ? ` · ${truck.driver}` : "";
-      marker.bindTooltip(`${truck.truck} · ${truck.status}${driver} · ${truck.freshness}`, {
-        direction: "top",
-        offset: [0, -22],
-      });
-      marker.on("click", () => selectLiveTruck(truck.truck));
       marker.addTo(markers);
+      const markerButton = marker.getElement()?.querySelector<HTMLElement>(".ops-truck-map-marker");
+      const selectTruck = () => selectLiveTruck(truck.truck);
+      markerButton?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        selectTruck();
+      });
+      markerButton?.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        event.stopPropagation();
+        selectTruck();
+      });
     }
 
     if (selectedTruck && selectedRouteBounds?.isValid()) {

@@ -545,8 +545,9 @@ body {
 .ops-daily-leaderboard-table .ops-daily-leaderboard-person small {
   color: #606873;
 }
-.ops-daily-leaderboard-table { width: auto; min-width: 720px; max-width: 100%; }
+.ops-daily-leaderboard-table { width: 100%; min-width: 720px; max-width: 100%; }
 .ops-daily-leaderboard-table :is(th, td) { padding-inline: 7px; }
+.ops-daily-leaderboard-table thead th { text-align: center !important; }
 .ops-daily-leaderboard-table .ops-daily-leaderboard-jobs,
 .ops-daily-leaderboard-table .ops-daily-leaderboard-revenue {
   color: #303741 !important;

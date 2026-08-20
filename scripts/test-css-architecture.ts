@@ -75,7 +75,8 @@ assert.match(crewPayPeriodCards, /className="ops-crew-employee-summary"/, "Pay-p
 assert.match(usability, /\.ops-main \.ops-page-header-updated \{ font-size: 0\.625rem;/, "Last Updated must remain secondary header metadata.");
 assert.match(usability, /\.ops-topbar \{ min-height: 44px; margin-bottom: 8px;/, "Desktop utility header must remain compact.");
 assert.match(usability, /\.ops-command-clock \{ display: flex;[\s\S]*?white-space: nowrap;/, "Operations clock must remain on one line.");
-assert.match(usability, /\.ops-daily-leaderboard-table \{ width: auto; min-width: 720px;/, "Daily leaderboard columns must remain compact.");
+assert.match(usability, /\.ops-daily-leaderboard-table \{ width: 100%; min-width: 720px;/, "Daily leaderboard must use the full card width.");
+assert.match(usability, /\.ops-daily-leaderboard-table thead th \{ text-align: center !important; \}/, "Daily leaderboard headings must be centered over their columns.");
 assert.match(pageHeaderModule, /\.compact :global\(\.ops-refresh-button\),[\s\S]*?min-height: 36px !important;/, "Compact header controls must share one 36px height.");
 assert.match(pageHeaderModule, /\.compact :global\(\.ops-view-toggle\) \{[\s\S]*?margin: 0;/, "Compact view toggles must align with adjacent controls.");
 assert.match(jobsCss, /\.ops-jobs-page \.ops-territory-jump \{[\s\S]*?position: static;[\s\S]*?padding: 6px 8px;/, "Desktop territory jump controls must stay compact and in document flow.");

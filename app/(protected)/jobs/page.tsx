@@ -2088,7 +2088,7 @@ function JobContextDetails({ job }: { job: JobRow }) {
       {notes.length ? (
         <details className="ops-appointment-note-details">
           <summary>
-            <span>Franchise / call-center notes</span>
+            <span>Notes</span>
             <strong title={notesPreview}>{notesPreview}</strong>
             {notes.length > 1 ? <small>{notes.length}</small> : null}
           </summary>

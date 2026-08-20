@@ -60,6 +60,8 @@ export type SlackAlertRunResult = {
 };
 
 const DEFAULT_CHANNELS = {
+  crew: "C0BNSDSK89M",
+  appointments: "C0BQ294DYHW",
   dispatch: "C0BNRMD25AS",
   fleet: "C0BNQ6J7LER",
   dataHealth: "C0BPN1FVCDN",
@@ -121,6 +123,8 @@ function pruneAppointmentDates(values: Record<string, string[]>): Record<string,
 
 function channel(name: keyof typeof DEFAULT_CHANNELS): string {
   const envNames: Record<keyof typeof DEFAULT_CHANNELS, string> = {
+    crew: "SLACK_CREW_CHANNEL_ID",
+    appointments: "SLACK_APPOINTMENTS_CHANNEL_ID",
     dispatch: "SLACK_OPS_DISPATCH_CHANNEL_ID",
     fleet: "SLACK_OPS_FLEET_CHANNEL_ID",
     dataHealth: "SLACK_OPS_DATA_HEALTH_CHANNEL_ID",
@@ -147,7 +151,7 @@ function exceptionAlert(
     kind,
     lifecycle: "incident",
     severity: isUnassigned ? "critical" : "warning",
-    channelId: channel("dispatch"),
+    channelId: channel(isUnassigned ? "crew" : "appointments"),
     title: exception.title,
     detail: exception.reason,
     nextAction: isUnassigned
@@ -196,9 +200,9 @@ function addOnAlert(appointment: AddOnAppointment, date: string): SlackOpsAlert 
     kind: "add_on",
     lifecycle: "notification",
     severity: "warning",
-    channelId: channel("dispatch"),
-    title: `New same-day appointment: ${appointment.jobNumber}`,
-    detail: `${appointment.customerName} · ${appointment.appointmentTime} · ${appointment.assignedTruck} · ${appointment.address}`,
+    channelId: channel("appointments"),
+    title: `New Appointment: ${appointment.jobNumber}`,
+    detail: `${appointment.customerName}\n${appointment.address}`,
     nextAction: "Confirm crew and truck coverage, then update the route plan.",
     href: absoluteOpsHref(appointment.href),
   };
@@ -237,10 +241,10 @@ function slackEscape(value: string): string {
 
 export function formatSlackAlert(alert: SlackOpsAlert): string {
   const icon = alert.severity === "critical" ? ":rotating_light:" : ":warning:";
+  const iconTitleSeparator = alert.kind === "add_on" ? "" : " ";
   return [
-    `${icon} *${slackEscape(alert.title)}*`,
+    `${icon}${iconTitleSeparator}*${slackEscape(alert.title)}*`,
     slackEscape(alert.detail),
-    `*Next:* ${slackEscape(alert.nextAction)}`,
     `<${alert.href}|Open in OpsCenter>`,
     `_Alert ID: ${slackEscape(alert.fingerprint)}_`,
   ].join("\n");

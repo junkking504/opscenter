@@ -1610,9 +1610,9 @@ export default async function CrewPage({
                 <th>Truck</th>
                 <th>Jobs</th>
                 <th>Revenue</th>
-                <th>Revenue / hr</th>
-                <th>Average job</th>
-                <th>Daily earnings</th>
+                <th>RPH</th>
+                <th>AJS</th>
+                <th>Earnings</th>
               </tr>
             </thead>
             <tbody>

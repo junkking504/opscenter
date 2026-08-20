@@ -799,11 +799,7 @@ export default async function FleetPage({
   const selectedTruck = params?.truck ? normalizeTruckLabel(params.truck) : "";
   const selectedDriverRow = driverMap.get(selectedTruck);
   const mapPayload = buildFleetMapPayload(date, selectedTruck);
-  const section = requestedSection === "performance"
-    ? "overview"
-    : ["overview", "map", "scores"].includes(requestedSection)
-      ? requestedSection
-      : "overview";
+  const section = requestedSection === "scores" ? "scores" : "overview";
 
   return (
     <div className="ops-dashboard">
@@ -814,7 +810,6 @@ export default async function FleetPage({
         lastUpdated={metrics?.generated_at}
         sections={[
           { label: "Overview", href: `/fleet?date=${date}&section=overview`, active: section === "overview" },
-          { label: "Live map", href: `/fleet?date=${date}&section=map`, active: section === "map" },
           { label: "Driving scores", href: `/fleet?date=${date}&section=scores`, active: section === "scores" },
           { label: "Maintenance", href: buildFleetHref({ view: "maintenance", date }) },
           { label: "Monthly", href: buildFleetHref({ view: "monthly", date, sort: sortKey, dir: sortDirection }) },
@@ -843,7 +838,7 @@ export default async function FleetPage({
         </div>
       </div>
 
-      {mapPayload && <div id="fleet-map" className={section === "map" ? "" : "ops-section-hidden"}><FleetMapClient payload={mapPayload} /></div>}
+      {mapPayload && <div id="fleet-map" className={section === "overview" ? "" : "ops-section-hidden"}><FleetMapClient payload={mapPayload} /></div>}
 
       <div className={section === "scores" ? "ops-card" : "ops-section-hidden"} id="fleet-driving-scores">
         <div className="ops-card-header compact">

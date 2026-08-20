@@ -1302,7 +1302,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
               </div>
               {selectedJob.appointmentNotes.length ? (
                 <details className="ops-jobs-map-selection-notes">
-                  <summary>Franchise / call-center notes <small>{selectedJob.appointmentNotes.length}</small></summary>
+                  <summary>Notes <small>{selectedJob.appointmentNotes.length}</small></summary>
                   <ul>{selectedJob.appointmentNotes.map((note, index) => <li key={`${selectedJob.key}-note-${index}`}>{note}</li>)}</ul>
                 </details>
               ) : null}

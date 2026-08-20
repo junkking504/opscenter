@@ -791,14 +791,10 @@ export default async function FleetPage({
   const totalExpenses = trucks.reduce((sum, t) => sum + Number(t.expenses || 0), 0);
   const selectedTruck = params?.truck ? normalizeTruckLabel(params.truck) : "";
   const selectedDriverRow = driverMap.get(selectedTruck);
-  const section = requestedSection === "performance"
-    ? "overview"
-    : ["overview", "map", "scores"].includes(requestedSection)
-      ? requestedSection
-      : "overview";
-  // FleetMapClient owns a live 30-second poll. Do not mount it (or construct
-  // its data payload) while the operator is using another Fleet section.
-  const mapPayload = section === "map" ? buildFleetMapPayload(date, selectedTruck) : null;
+  const section = requestedSection === "scores" ? "scores" : "overview";
+  // FleetMapClient owns a live 30-second poll. The map now lives in Overview,
+  // so keep the newer lazy-mount behavior while avoiding work on other tabs.
+  const mapPayload = section === "overview" ? buildFleetMapPayload(date, selectedTruck) : null;
 
   return (
     <div className="ops-dashboard">
@@ -809,7 +805,6 @@ export default async function FleetPage({
         lastUpdated={metrics?.generated_at}
         sections={[
           { label: "Overview", href: `/fleet?date=${date}&section=overview`, active: section === "overview" },
-          { label: "Live map", href: `/fleet?date=${date}&section=map`, active: section === "map" },
           { label: "Driving scores", href: `/fleet?date=${date}&section=scores`, active: section === "scores" },
           { label: "Maintenance", href: buildFleetHref({ view: "maintenance", date }) },
           { label: "Monthly", href: buildFleetHref({ view: "monthly", date, sort: sortKey, dir: sortDirection }) },
@@ -838,7 +833,7 @@ export default async function FleetPage({
         </div>
       </div>
 
-      {section === "map" && mapPayload ? <div id="fleet-map"><FleetMapClient payload={mapPayload} /></div> : null}
+      {section === "overview" && mapPayload ? <div id="fleet-map"><FleetMapClient payload={mapPayload} /></div> : null}
 
       <div className={section === "scores" ? "ops-card" : "ops-section-hidden"} id="fleet-driving-scores">
         <div className="ops-card-header compact">

@@ -334,19 +334,14 @@ function staleDataAlert(source: DataHealthSource): SlackOpsAlert {
 }
 
 export function buildAddOnSlackNotification(appointment: AddOnAppointment, date: string): SlackOpsAlert {
-  const detail = [
-    `${appointment.customerName} · ${appointment.phone} · ${appointment.appointmentTime}`,
-    appointment.address,
-    appointment.items.length ? `Items: ${appointment.items.join("; ")}` : "",
-  ].filter(Boolean).join("\n");
   return {
     fingerprint: `add_on:${date}:${appointment.id}`,
     kind: "add_on",
     lifecycle: "notification",
     severity: "warning",
     channelId: appointmentChannelId(appointment.territory),
-    title: `New same-day appointment: ${appointment.jobNumber}`,
-    detail,
+    title: `New Appointment: ${appointment.jobNumber}`,
+    detail: `${appointment.customerName}\n${appointment.address}`,
     nextAction: "Confirm crew and truck coverage, then update the route plan.",
     href: absoluteOpsHref(appointment.href),
   };
@@ -707,10 +702,10 @@ function slackEscape(value: string): string {
 export function formatSlackAlert(alert: SlackOpsAlert): string {
   if (alert.plainText) return slackEscape(alert.plainText);
   const icon = alert.severity === "critical" ? ":rotating_light:" : ":warning:";
+  const iconTitleSeparator = alert.kind === "add_on" ? "" : " ";
   return [
-    `${icon} *${slackEscape(alert.title)}*`,
+    `${icon}${iconTitleSeparator}*${slackEscape(alert.title)}*`,
     slackEscape(alert.detail),
-    `*Next:* ${slackEscape(alert.nextAction)}`,
     `<${alert.href}|Open in OpsCenter>`,
   ].join("\n");
 }

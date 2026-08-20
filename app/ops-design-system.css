@@ -3667,7 +3667,23 @@ body {
 
 .ops-notification-list {
   max-height: min(520px, calc(100vh - 150px));
-  overflow-y: auto;
+  overflow-y: scroll;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(246, 195, 67, 0.72) rgba(255, 255, 255, 0.08);
+}
+
+.ops-notification-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ops-notification-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ops-notification-list::-webkit-scrollbar-thumb {
+  border: 2px solid #11161d;
+  border-radius: 999px;
+  background: rgba(246, 195, 67, 0.72);
 }
 
 .ops-notification-item {

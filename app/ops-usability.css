@@ -174,12 +174,12 @@ body {
 }
 
 .ops-main .ops-page-header-meta,
-.ops-main .ops-page-header-updated,
 .ops-main .ops-page-header-status {
   color: #646c76;
   font-size: 0.9375rem;
   line-height: 1.4;
 }
+.ops-main .ops-page-header-updated { font-size: 0.6875rem; font-weight: 650; letter-spacing: 0.04em; opacity: 0.78; }
 
 /* The current design-system bundle still contains a late legacy rule that
  * paints every card dark. Re-establish the light workspace contract here and
@@ -342,7 +342,7 @@ body {
 .ops-command-clock,
 .ops-live-chip,
 .ops-runtime-status {
-  min-height: var(--oc-control-height);
+  min-height: 36px;
   border-color: #cfd4d0;
   background: rgba(255, 255, 255, 0.78);
   color: #3f4752;
@@ -360,15 +360,18 @@ body {
 .ops-live-chip,
 .ops-runtime-status > span {
   color: #4f5864;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
 }
 
-.ops-runtime-status > strong {
-  color: #24599b;
-  font-size: 0.9375rem;
-}
+.ops-runtime-status > strong { color: #24599b; font-size: 0.8125rem; }
 
-.ops-command-clock time { color: #20242b; }
+.ops-topbar { min-height: 44px; margin-bottom: 8px; padding: 4px 2px 8px; }
+.ops-topbar-identity { display: flex; flex: 0 0 auto; align-items: baseline; gap: 10px; white-space: nowrap; }
+.ops-topbar-title-row { margin-top: 0; }
+.ops-topbar-right { min-width: 0; gap: 8px; }
+.ops-command-clock { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; padding: 6px 10px; white-space: nowrap; }
+.ops-command-clock-date { margin: 0; }
+.ops-command-clock time { color: #20242b; font-size: 0.8125rem; }
 .ops-sidebar .ops-nav-item { color: #aeb7c4; }
 .ops-sidebar .ops-nav-icon { color: #8f9baa; }
 .ops-sidebar .ops-nav-item.active { color: #fff; }

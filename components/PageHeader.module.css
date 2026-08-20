@@ -21,7 +21,10 @@
     grid-column: 2;
     grid-row: 1;
     align-self: center;
+    align-items: center;
     justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 8px;
   }
 
   .compact :global(.ops-page-header-meta) {
@@ -43,13 +46,51 @@
     border-top: 0;
   }
 
-  .compact :global(.ops-page-subnav a),
-  .compact :global(.ops-refresh-button),
-  .compact :global(.ops-date-selector) {
-    min-height: 38px;
+  .compact :global(.ops-page-subnav a) {
+    min-height: 36px;
   }
 
-  .compact :global(.ops-date-label),
+  .compact :global(.ops-refresh-button),
+  .compact :global(.ops-date-selector) {
+    height: 36px;
+    min-height: 36px !important;
+    padding: 0 12px;
+    border-radius: 9px;
+    font-size: 0.75rem;
+    line-height: 1;
+  }
+
+  .compact :global(.ops-date-selector-wrap) {
+    width: 190px;
+    min-width: 0;
+    gap: 0;
+  }
+
+  .compact :global(.ops-date-label) {
+    display: none;
+  }
+
+  .compact :global(.ops-view-toggle) {
+    height: 36px;
+    min-height: 36px;
+    gap: 2px;
+    margin: 0;
+    padding: 3px;
+    border-radius: 9px;
+  }
+
+  .compact :global(.ops-view-toggle a) {
+    display: inline-flex;
+    height: 30px;
+    min-height: 30px !important;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    border-radius: 7px;
+    font-size: 0.75rem;
+    line-height: 1;
+  }
+
   .compact :global(label) {
     font-size: 0.75rem;
   }

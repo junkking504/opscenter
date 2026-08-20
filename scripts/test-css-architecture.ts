@@ -10,6 +10,7 @@ const jobsCss = fs.readFileSync(path.join(root, "app/(protected)/jobs/jobs.css")
 const jobsPage = fs.readFileSync(path.join(root, "app/(protected)/jobs/page.tsx"), "utf8");
 const crewPage = fs.readFileSync(path.join(root, "app/(protected)/crew/page.tsx"), "utf8");
 const crewPayPeriodCards = fs.readFileSync(path.join(root, "components/CrewPayPeriodCards.tsx"), "utf8");
+const pageHeaderModule = fs.readFileSync(path.join(root, "components/PageHeader.module.css"), "utf8");
 const styleFiles = [
   "globals.css",
   "ops-redesign.css",
@@ -71,6 +72,11 @@ assert.match(
 );
 assert.match(crewPage, /className="ops-crew-employee-summary"/, "Today employee cards must use the shared summary class.");
 assert.match(crewPayPeriodCards, /className="ops-crew-employee-summary"/, "Pay-period employee cards must use the shared summary class.");
+assert.match(usability, /\.ops-main \.ops-page-header-updated \{ font-size: 0\.6875rem;/, "Last Updated must remain secondary header metadata.");
+assert.match(usability, /\.ops-topbar \{ min-height: 44px; margin-bottom: 8px;/, "Desktop utility header must remain compact.");
+assert.match(usability, /\.ops-command-clock \{ display: flex;[\s\S]*?white-space: nowrap;/, "Operations clock must remain on one line.");
+assert.match(pageHeaderModule, /\.compact :global\(\.ops-refresh-button\),[\s\S]*?min-height: 36px !important;/, "Compact header controls must share one 36px height.");
+assert.match(pageHeaderModule, /\.compact :global\(\.ops-view-toggle\) \{[\s\S]*?margin: 0;/, "Compact view toggles must align with adjacent controls.");
 assert.match(jobsCss, /\.ops-jobs-page \.ops-appointment-detail-grid > div\s*\{\s*min-width: 0;/, "Every job detail cell must be allowed to shrink.");
 assert.match(jobsCss, /\.ops-jobs-page \.ops-appointment-detail-grid strong,[\s\S]*?overflow-wrap: anywhere;/, "Every long job detail value must wrap inside its column.");
 assert.equal(

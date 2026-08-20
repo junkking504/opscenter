@@ -1100,6 +1100,26 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
 
     markers.clearLayers();
     routes.clearLayers();
+    map.stop();
+    map.invalidateSize({ pan: false });
+
+    if (selectedTruck && selectedRouteBounds?.isValid()) {
+      if (selectedRouteBounds.getNorthEast().equals(selectedRouteBounds.getSouthWest())) {
+        map.setView(selectedRouteBounds.getCenter(), 14, { animate: false });
+      } else {
+        map.fitBounds(selectedRouteBounds.pad(0.1), { padding: [28, 28], maxZoom: 15, animate: false });
+      }
+    } else if (selectedTruck) {
+      map.setView([selectedTruck.latitude, selectedTruck.longitude], Math.max(map.getZoom(), 14), { animate: false });
+    } else if (selectedJob && isLocated(selectedJob)) {
+      map.setView([selectedJob.latitude, selectedJob.longitude], Math.max(map.getZoom(), 12), { animate: false });
+    } else if (bounds?.isValid()) {
+      if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
+        map.setView(bounds.getCenter(), 13);
+      } else {
+        map.fitBounds(bounds.pad(0.12), { padding: [28, 28], maxZoom: 14 });
+      }
+    }
 
     selectedTruckRoutes.forEach((segment, index) => {
       const linePoints = segment.points.map((point) => [point.latitude, point.longitude] as [number, number]);
@@ -1188,23 +1208,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       });
     }
 
-    if (selectedTruck && selectedRouteBounds?.isValid()) {
-      if (selectedRouteBounds.getNorthEast().equals(selectedRouteBounds.getSouthWest())) {
-        map.setView(selectedRouteBounds.getCenter(), 14, { animate: true });
-      } else {
-        map.fitBounds(selectedRouteBounds.pad(0.1), { padding: [28, 28], maxZoom: 15, animate: true });
-      }
-    } else if (selectedTruck) {
-      map.setView([selectedTruck.latitude, selectedTruck.longitude], Math.max(map.getZoom(), 14), { animate: true });
-    } else if (selectedJob && isLocated(selectedJob)) {
-      map.setView([selectedJob.latitude, selectedJob.longitude], Math.max(map.getZoom(), 12), { animate: true });
-    } else if (bounds?.isValid()) {
-      if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
-        map.setView(bounds.getCenter(), 13);
-      } else {
-        map.fitBounds(bounds.pad(0.12), { padding: [28, 28], maxZoom: 14 });
-      }
-    }
   }, [bounds, leaflet, liveTruckLocations, locatedJobs, selectLiveTruck, selectedJob, selectedKey, selectedRouteBounds, selectedTruck, selectedTruckName, selectedTruckRoutes]);
 
   return (

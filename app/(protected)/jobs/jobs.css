@@ -850,6 +850,205 @@
   font-size: .9rem;
 }
 
+/* Territory identity is the primary visual grouping for the appointment queue.
+ * Keep these rules last so the page-level density pass cannot shrink or flatten
+ * the territory cues inherited by each appointment card. */
+.ops-jobs-page :is(.ops-territory-section, .ops-territory-jump a) {
+  --ops-territory-accent: #8b929d;
+  --ops-territory-banner: #cbd0d7;
+  --ops-territory-card: #eef0f3;
+  --ops-territory-card-hover: #e1e5ea;
+  --ops-territory-card-border: #8b929d;
+}
+
+.ops-jobs-page :is(.ops-territory-section, .ops-territory-jump a).is-new-orleans {
+  --ops-territory-accent: #60a5fa;
+  --ops-territory-banner: #93c5fd;
+  --ops-territory-card: #e1effe;
+  --ops-territory-card-hover: #cfe4fd;
+  --ops-territory-card-border: #60a5fa;
+}
+
+.ops-jobs-page :is(.ops-territory-section, .ops-territory-jump a).is-jefferson {
+  --ops-territory-accent: #2dd4bf;
+  --ops-territory-banner: #5eead4;
+  --ops-territory-card: #dcf8f3;
+  --ops-territory-card-hover: #c8f2ea;
+  --ops-territory-card-border: #2bbba9;
+}
+
+.ops-jobs-page :is(.ops-territory-section, .ops-territory-jump a).is-northshore {
+  --ops-territory-accent: #fb923c;
+  --ops-territory-banner: #fdba74;
+  --ops-territory-card: #fff0df;
+  --ops-territory-card-hover: #ffe3c4;
+  --ops-territory-card-border: #ee7f28;
+}
+
+.ops-jobs-page :is(.ops-territory-section, .ops-territory-jump a).is-baton-rouge {
+  --ops-territory-accent: #f87171;
+  --ops-territory-banner: #fca5a5;
+  --ops-territory-card: #fee7e7;
+  --ops-territory-card-hover: #fdd3d3;
+  --ops-territory-card-border: #e96363;
+}
+
+.ops-jobs-page :is(.ops-territory-section, .ops-territory-jump a).is-lafayette {
+  --ops-territory-accent: #a78bfa;
+  --ops-territory-banner: #c4b5fd;
+  --ops-territory-card: #eee9ff;
+  --ops-territory-card-hover: #e1d8ff;
+  --ops-territory-card-border: #9275e8;
+}
+
+.ops-jobs-page .ops-territory-jump {
+  gap: 9px;
+  padding: 9px 10px;
+}
+
+.ops-jobs-page .ops-territory-jump > span {
+  font-size: .7rem;
+}
+
+.ops-jobs-page .ops-territory-jump a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 10px 8px 14px;
+  border: 2px solid var(--ops-territory-card-border);
+  background: var(--ops-territory-card);
+  color: #1f2937;
+  font-size: .875rem;
+  font-weight: 900;
+}
+
+.ops-jobs-page .ops-territory-jump a:hover,
+.ops-jobs-page .ops-territory-jump a:focus-visible {
+  border-color: var(--ops-territory-accent);
+  background: var(--ops-territory-card-hover);
+  color: #111827;
+}
+
+.ops-jobs-page .ops-territory-jump small {
+  display: inline-grid;
+  place-items: center;
+  min-width: 25px;
+  height: 25px;
+  margin-left: 8px;
+  padding-inline: 6px;
+  border-radius: 999px;
+  background: var(--ops-territory-accent);
+  color: #101820;
+  font-size: .72rem;
+  font-weight: 950;
+}
+
+.ops-jobs-page .ops-territory-section {
+  gap: 12px;
+  border-top: 0;
+}
+
+.ops-jobs-page .ops-territory-header {
+  min-height: 108px;
+  margin: 0;
+  padding: 18px 22px 18px 30px;
+  border: 2px solid var(--ops-territory-card-border);
+  border-radius: 16px;
+  background: linear-gradient(110deg, var(--ops-territory-banner), var(--ops-territory-card));
+  box-shadow: 0 9px 22px rgba(31, 41, 55, .12);
+}
+
+.ops-jobs-page .ops-territory-header::before {
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  background: var(--ops-territory-accent);
+  box-shadow: 4px 0 14px rgba(31, 41, 55, .14);
+}
+
+.ops-jobs-page .ops-territory-label {
+  margin-bottom: 5px;
+  color: #2f3a46;
+  font-size: .72rem;
+  letter-spacing: .18em;
+}
+
+.ops-jobs-page .ops-territory-title {
+  color: #111827;
+  font-size: clamp(1.75rem, 2.4vw, 2.15rem);
+  line-height: 1.05;
+}
+
+.ops-jobs-page .ops-territory-header .ops-muted {
+  margin-top: 4px;
+  color: #354150;
+  font-size: .8rem;
+  font-weight: 700;
+}
+
+.ops-jobs-page .ops-territory-total {
+  color: #145c42;
+  font-size: 1.2rem;
+}
+
+.ops-jobs-page .ops-territory-total small {
+  color: #354150;
+}
+
+.ops-jobs-page .ops-appointment-card {
+  border-color: var(--ops-territory-card-border);
+  background: var(--ops-territory-card);
+  box-shadow:
+    inset 6px 0 0 var(--ops-territory-accent),
+    0 3px 12px rgba(25, 28, 35, .06);
+}
+
+.ops-jobs-page .ops-appointment-card:not(.is-canceled):hover,
+.ops-jobs-page .ops-appointment-card.is-map-selected,
+.ops-jobs-page .ops-appointment-card.is-map-selected:focus,
+.ops-jobs-page .ops-appointment-card:target {
+  border-color: var(--ops-territory-accent);
+  background: var(--ops-territory-card-hover);
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--ops-territory-accent) 28%, transparent),
+    inset 6px 0 0 var(--ops-territory-accent),
+    0 9px 22px rgba(25, 28, 35, .11);
+}
+
+.ops-jobs-page .ops-appointment-card.is-on-site {
+  border-color: #ef4444;
+  box-shadow:
+    0 0 0 2px rgba(239, 68, 68, .14),
+    inset 6px 0 0 var(--ops-territory-accent),
+    0 5px 14px rgba(25, 28, 35, .08);
+}
+
+.ops-jobs-page .ops-appointment-card.is-canceled,
+.ops-jobs-page .ops-appointment-card.is-canceled:hover {
+  border-color: #e66a70;
+  background:
+    linear-gradient(rgba(255, 246, 246, .58), rgba(255, 246, 246, .58)),
+    var(--ops-territory-card);
+  box-shadow:
+    inset 6px 0 0 var(--ops-territory-accent),
+    0 3px 12px rgba(25, 28, 35, .06);
+}
+
+@media (max-width: 560px) {
+  .ops-jobs-page .ops-territory-header {
+    min-height: 94px;
+    padding: 15px 14px 15px 24px;
+  }
+
+  .ops-jobs-page .ops-territory-title {
+    font-size: 1.55rem;
+  }
+
+  .ops-jobs-page .ops-territory-total {
+    display: none;
+  }
+}
+
 .ops-jobs-page .ops-jobs-map-selection-sync-failed span {
   display: grid;
   gap: 2px;

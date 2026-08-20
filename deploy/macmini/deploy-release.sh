@@ -16,11 +16,52 @@ DATA_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/data"
 PRODUCTION_LABEL="com.openclaw.opscenter"
 PREVIEW_LABEL="com.openclaw.opscenter.macmini-preview"
 REQUESTED_REF="${1:-}"
+ALLOW_NON_FORWARD="${2:-0}"
+DEPLOY_LOCK_DIR="$DEPLOY_ROOT/.deploy-lock"
+DEPLOY_LOCK_HELD=false
 
 fail() {
   echo "Mission Control deployment stopped: $*" >&2
   exit 1
 }
+
+release_deploy_lock() {
+  $DEPLOY_LOCK_HELD || return 0
+  rm -f "$DEPLOY_LOCK_DIR/owner"
+  rmdir "$DEPLOY_LOCK_DIR" 2>/dev/null || true
+  DEPLOY_LOCK_HELD=false
+}
+
+acquire_deploy_lock() {
+  if ! mkdir "$DEPLOY_LOCK_DIR" 2>/dev/null; then
+    lock_owner="$(cat "$DEPLOY_LOCK_DIR/owner" 2>/dev/null || true)"
+    [[ -n "$lock_owner" ]] || lock_owner="owner unavailable"
+    fail "another deployment is already running ($lock_owner); refusing to race it"
+  fi
+  DEPLOY_LOCK_HELD=true
+  {
+    echo "pid=$$"
+    echo "started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "requested_ref=$REQUESTED_REF"
+  } > "$DEPLOY_LOCK_DIR/owner"
+}
+
+require_forward_deploy() {
+  local active_commit="$1"
+  local requested_commit="$2"
+  local check_context="$3"
+
+  if [[ "$requested_commit" == "$active_commit" ]] \
+    || git -C "$REPOSITORY" merge-base --is-ancestor "$active_commit" "$requested_commit"; then
+    return 0
+  fi
+  if [[ "$ALLOW_NON_FORWARD" != "1" ]]; then
+    fail "$check_context: requested commit $requested_commit does not contain active commit $active_commit; rebase or merge the active release first (intentional rollback requires --allow-non-forward)"
+  fi
+  echo "WARNING: allowing an explicitly authorized non-forward deployment: $active_commit -> $requested_commit" >&2
+}
+
+trap release_deploy_lock EXIT
 
 service_loaded() {
   launchctl print "gui/$(id -u)/$1" >/dev/null 2>&1
@@ -48,7 +89,8 @@ wait_for_login() {
   return 1
 }
 
-[[ -n "$REQUESTED_REF" ]] || fail "usage: $0 <pushed-git-ref-or-commit>"
+[[ -n "$REQUESTED_REF" ]] || fail "usage: $0 <pushed-git-ref-or-commit> [allow-non-forward: 0|1]"
+[[ "$ALLOW_NON_FORWARD" == "0" || "$ALLOW_NON_FORWARD" == "1" ]] || fail "allow-non-forward must be 0 or 1"
 [[ "$(id -un)" == "$EXPECTED_USER" ]] || fail "run this while logged in as $EXPECTED_USER"
 [[ "$HOME" == "$EXPECTED_HOME" ]] || fail "HOME must be $EXPECTED_HOME"
 [[ -d "$REPOSITORY/.git" ]] || fail "run deploy/macmini/bootstrap-git-deployment.sh first"
@@ -60,6 +102,7 @@ for command in git node npm curl launchctl; do
 done
 
 mkdir -p "$RELEASES_DIR" "$SHARED_LOGS" "$SHARED_CONFIG"
+acquire_deploy_lock
 git -C "$REPOSITORY" fetch --prune origin
 
 commit="$(git -C "$REPOSITORY" rev-parse --verify "${REQUESTED_REF}^{commit}" 2>/dev/null || true)"
@@ -67,6 +110,12 @@ commit="$(git -C "$REPOSITORY" rev-parse --verify "${REQUESTED_REF}^{commit}" 2>
 
 remote_containers="$(git -C "$REPOSITORY" for-each-ref --format='%(refname)' --contains "$commit" refs/remotes/origin)"
 [[ -n "$remote_containers" ]] || fail "commit $commit is not contained in a pushed origin branch"
+
+active_release="$(readlink "$APP_LINK")"
+[[ -n "$active_release" ]] || fail "cannot resolve the active OpsCenter release"
+active_commit="$(git -C "$active_release" rev-parse --verify HEAD 2>/dev/null || true)"
+[[ -n "$active_commit" ]] || fail "cannot resolve the active release commit from $active_release"
+require_forward_deploy "$active_commit" "$commit" "initial ancestry check"
 
 release="$RELEASES_DIR/$commit"
 if [[ -d "$release" ]]; then
@@ -123,6 +172,12 @@ fi
   echo "commit=$commit"
   echo "deployed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } > "$release/.opscenter-release"
+
+latest_active_release="$(readlink "$APP_LINK")"
+[[ -n "$latest_active_release" ]] || fail "cannot recheck the active OpsCenter release"
+latest_active_commit="$(git -C "$latest_active_release" rev-parse --verify HEAD 2>/dev/null || true)"
+[[ -n "$latest_active_commit" ]] || fail "cannot resolve the active commit during the final deployment check"
+require_forward_deploy "$latest_active_commit" "$commit" "active release changed during build"
 
 previous_target="$(readlink "$APP_LINK")"
 activate_release "$release"

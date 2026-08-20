@@ -50,6 +50,28 @@ private environment and run:
 OPSCENTER_MC_HOST=<mc-host> ./deploy/macmini/deploy-from-macbook.sh HEAD
 ```
 
+## Deployment safety
+
+Mission Control deployments are serialized with a host-side lock. A second
+deployment exits before fetching, building, restarting, or changing the active
+release.
+
+Deployments are also forward-only by default: the requested commit must contain
+the currently active production commit. If another branch was deployed while a
+change was in progress, merge or rebase that active commit into the change
+before deploying it. This prevents an older or sibling branch from silently
+reverting production.
+
+An intentional rollback requires explicit authorization and the visible
+override flag:
+
+```bash
+./deploy/macmini/deploy-from-macbook.sh --allow-non-forward <mc-host> <git-ref>
+```
+
+The automatic health-check rollback remains available and does not require this
+flag.
+
 The controller uses `~/.ssh/id_ed25519_opscenter` by default. Set
 `OPSCENTER_MC_SSH_KEY` when the approved Mission Control key is stored at a
 different private path.
@@ -60,7 +82,8 @@ OpsCenter preview or production LaunchAgent is already loaded, it restarts that
 service and requires the login page to return HTTP 200. A failed startup
 automatically restores the previous live link and restarts the prior release.
 
-To roll back manually, deploy the previous commit SHA with the same command.
+To roll back manually, deploy the previous commit SHA with the explicit
+`--allow-non-forward` flag shown above.
 
 ## Initial isolated preview transfer
 

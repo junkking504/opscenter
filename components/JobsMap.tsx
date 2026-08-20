@@ -22,6 +22,7 @@ export type JobsMapPoint = {
   status: string;
   statusBucket: string;
   truckOnSite: boolean;
+  trucksOnSite: string[];
   visitedTrucks: string[];
   truck: string;
   jkNumber: string;
@@ -131,9 +132,16 @@ function truckHasConfirmedDwellAtJob(
 }
 
 export function anyTruckIsCurrentlyAtJob(job: JobsMapPoint, trucks: JobsMapTruck[], now = Date.now()): boolean {
-  if (!isLocated(job)) return false;
-  return trucks.some((truck) => truckHasConfirmedDwellAtJob(job, truck, now)
-    || (truck.status === "At Job" && distanceMeters(truck, job) <= LINXUP_SITE_RADIUS_METERS));
+  return trucksCurrentlyAtJob(job, trucks, now).length > 0;
+}
+
+export function trucksCurrentlyAtJob(job: JobsMapPoint, trucks: JobsMapTruck[], now = Date.now()): string[] {
+  if (!isLocated(job)) return [];
+  return Array.from(new Set(trucks
+    .filter((truck) => truckHasConfirmedDwellAtJob(job, truck, now)
+      || (truck.status === "At Job" && distanceMeters(truck, job) <= LINXUP_SITE_RADIUS_METERS))
+    .map((truck) => truck.truck.trim())
+    .filter(Boolean)));
 }
 
 function truckHasConfirmedVisitAtJob(
@@ -310,7 +318,7 @@ function scheduleJobState(job: JobsMapPoint): { state: ScheduleJobState; label: 
   if (isClosedScheduleJob(job)) {
     return { state: "completed", label: job.statusBucket === "Estimate" ? "Closed estimate" : "Completed" };
   }
-  if (job.truckOnSite) return { state: "on-site", label: "Truck on location" };
+  if (job.truckOnSite) return { state: "on-site", label: `${job.trucksOnSite.join(", ")} on site` };
   if (isVisitedUnclosedScheduleJob(job)) {
     return { state: "visited-unclosed", label: "Crew visited · appointment not closed out" };
   }
@@ -544,9 +552,11 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       const isCurrentDate = scheduleClock.date === date;
       const now = currentScheduleTime?.timestamp ?? Date.now();
       const liveVisitedTrucks = isCurrentDate ? trucksThatVisitedJob(liveJob, liveTruckLocations, now) : [];
+      const liveTrucksOnSite = isCurrentDate ? trucksCurrentlyAtJob(liveJob, liveTruckLocations, now) : [];
       return {
         ...liveJob,
-        truckOnSite: isCurrentDate && anyTruckIsCurrentlyAtJob(liveJob, liveTruckLocations, now),
+        truckOnSite: liveTrucksOnSite.length > 0,
+        trucksOnSite: liveTrucksOnSite,
         visitedTrucks: Array.from(new Set([...liveJob.visitedTrucks, ...liveVisitedTrucks])),
       };
     }),
@@ -585,7 +595,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   useEffect(() => {
     window.dispatchEvent(new CustomEvent(APPOINTMENT_ON_SITE_EVENT, {
       detail: {
-        statuses: Object.fromEntries(displayJobs.map((job) => [job.detailId, job.truckOnSite])),
+        statuses: Object.fromEntries(displayJobs.map((job) => [job.detailId, job.trucksOnSite])),
       },
     }));
   }, [displayJobs]);

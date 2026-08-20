@@ -9,6 +9,7 @@ import type { JobCallAheadStatus } from "@/lib/job-call-ahead";
 type MenuPosition = { left: number; top: number };
 const APPOINTMENT_SELECTION_EVENT = "ops:select-appointment";
 const APPOINTMENT_ON_SITE_EVENT = "ops:appointment-on-site";
+const NO_TRUCKS_ON_SITE: string[] = [];
 
 export default function JobCallAheadCard({
   children,
@@ -17,7 +18,7 @@ export default function JobCallAheadCard({
   initialStatus,
   articleId,
   isCanceled = false,
-  truckOnSite = false,
+  trucksOnSite = NO_TRUCKS_ON_SITE,
 }: {
   children: ReactNode;
   date: string;
@@ -25,7 +26,7 @@ export default function JobCallAheadCard({
   initialStatus?: JobCallAheadStatus;
   articleId: string;
   isCanceled?: boolean;
-  truckOnSite?: boolean;
+  trucksOnSite?: string[];
 }) {
   const router = useRouter();
   const [status, setStatus] = useState<JobCallAheadStatus | undefined>(initialStatus);
@@ -35,9 +36,10 @@ export default function JobCallAheadCard({
   const [promoted, setPromoted] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<HTMLElement | null>(null);
   const [canceledDetailsOpen, setCanceledDetailsOpen] = useState(false);
-  const [onSite, setOnSite] = useState(truckOnSite);
+  const [onSiteTrucks, setOnSiteTrucks] = useState(trucksOnSite);
+  const onSite = onSiteTrucks.length > 0;
 
-  useEffect(() => setOnSite(truckOnSite), [truckOnSite]);
+  useEffect(() => setOnSiteTrucks(trucksOnSite), [trucksOnSite]);
 
   useEffect(() => {
     setSelectedSlot(document.getElementById("jobs-selected-appointment-slot"));
@@ -51,8 +53,8 @@ export default function JobCallAheadCard({
 
   useEffect(() => {
     const handleOnSiteStatus = (event: Event) => {
-      const statuses = (event as CustomEvent<{ statuses?: Record<string, boolean> }>).detail?.statuses;
-      if (statuses && articleId in statuses) setOnSite(Boolean(statuses[articleId]));
+      const statuses = (event as CustomEvent<{ statuses?: Record<string, string[]> }>).detail?.statuses;
+      if (statuses && articleId in statuses) setOnSiteTrucks(statuses[articleId] || NO_TRUCKS_ON_SITE);
     };
     window.addEventListener(APPOINTMENT_ON_SITE_EVENT, handleOnSiteStatus);
     return () => window.removeEventListener(APPOINTMENT_ON_SITE_EVENT, handleOnSiteStatus);
@@ -139,9 +141,12 @@ export default function JobCallAheadCard({
     >
       <div className="ops-call-ahead-row">
         {onSite ? (
-          <span className="ops-appointment-on-site" title="GPS confirms a truck is currently at this appointment">
+          <span
+            className="ops-appointment-on-site"
+            title={`GPS confirms ${onSiteTrucks.join(", ")} ${onSiteTrucks.length === 1 ? "is" : "are"} currently at this appointment`}
+          >
             <i aria-hidden="true" />
-            Truck on site
+            {onSiteTrucks.join(", ")} on site
           </span>
         ) : null}
         <span className={`ops-call-ahead-badge ${status || "unset"}${saving ? " saving" : ""}`}>

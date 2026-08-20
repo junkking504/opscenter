@@ -2390,9 +2390,12 @@ function buildJobsMapPoints(
     const siteTime = siteTimeLookupKeys(job)
       .map((key) => siteTimeByKey.get(key))
       .find(Boolean);
-    const truckOnSite = Boolean(siteTime?.trucks?.some((truck) =>
-      (truck.arrival && !truck.departure) || truck.intervals.some((interval) => interval.arrival && !interval.departure)
-    ));
+    const trucksOnSite = Array.from(new Set((siteTime?.trucks || [])
+      .filter((truck) =>
+        (truck.arrival && !truck.departure) || truck.intervals.some((interval) => interval.arrival && !interval.departure)
+      )
+      .map((truck) => truck.truck)
+      .filter(Boolean)));
     const visitedTrucks = Array.from(new Set([
       ...siteTimeVisitedTrucks(siteTime),
       ...(gpsVisitedTrucksByJobKey.get(jobKey(job)) || []),
@@ -2414,7 +2417,8 @@ function buildJobsMapPoints(
       phone: job.phone,
       status: job.status,
       statusBucket: statusBucket(job),
-      truckOnSite,
+      truckOnSite: trucksOnSite.length > 0,
+      trucksOnSite,
       visitedTrucks,
       truck: safeText(job.assignedTruck || job.truck),
       jkNumber: job.jkNumber,
@@ -3174,7 +3178,9 @@ export default async function JobsPage({
                             initialStatus={callAheadStatus}
                             articleId={appointmentCardId(job)}
                             isCanceled={statusBucket(job) === "Canceled"}
-                            truckOnSite={date === chicagoDateKey() && Boolean(mapPoints.find((point) => point.detailId === appointmentCardId(job))?.truckOnSite)}
+                            trucksOnSite={date === chicagoDateKey()
+                              ? mapPoints.find((point) => point.detailId === appointmentCardId(job))?.trucksOnSite || []
+                              : []}
                             key={`${territory}-${scheduleGroup}-${job.jkNumber}-${index}`}
                           >
                             <div className="ops-appointment-card-topline">
@@ -3462,7 +3468,9 @@ export default async function JobsPage({
                           initialStatus={callAheadStatus}
                           articleId={appointmentCardId(job)}
                           isCanceled={statusBucket(job) === "Canceled"}
-                          truckOnSite={date === chicagoDateKey() && Boolean(mapPoints.find((point) => point.detailId === appointmentCardId(job))?.truckOnSite)}
+                          trucksOnSite={date === chicagoDateKey()
+                            ? mapPoints.find((point) => point.detailId === appointmentCardId(job))?.trucksOnSite || []
+                            : []}
                           key={`${territory}-unscheduled-${job.jkNumber}-${index}`}
                         >
                           <div className="ops-appointment-card-topline">

@@ -1999,7 +1999,7 @@ a {
   height: 8px;
   border: 2px solid #fff;
   border-radius: 999px;
-  background: var(--ops-red);
+  background: var(--ops-gold);
   box-shadow: 0 2px 8px rgba(0,0,0,.45);
   pointer-events: none;
 }
@@ -2009,7 +2009,7 @@ a {
   z-index: 0;
   left: 21.5px;
   width: 2px;
-  background: rgba(215, 25, 32, .82);
+  background: rgba(246, 195, 67, .82);
   pointer-events: none;
 }
 
@@ -2027,7 +2027,7 @@ a {
   padding: 0;
   border: 3px solid #111827;
   border-radius: 8px;
-  background: var(--ops-red);
+  background: var(--ops-gold);
   box-shadow: 0 4px 12px rgba(0,0,0,.5);
   color: #111827;
   font-size: .67rem;
@@ -2059,14 +2059,14 @@ a {
   height: 7px;
   border-right: 3px solid #111827;
   border-bottom: 3px solid #111827;
-  background: var(--ops-red);
+  background: var(--ops-gold);
   content: "";
   transform: rotate(45deg);
 }
 
 .ops-truck-map-marker.is-selected {
   border-color: #fff;
-  box-shadow: 0 0 0 3px rgba(215, 25, 32, .38), 0 7px 18px rgba(0,0,0,.58);
+  box-shadow: 0 0 0 3px rgba(246, 195, 67, .38), 0 7px 18px rgba(0,0,0,.58);
 }
 
 .ops-truck-map-marker.is-at-job::before {
@@ -4506,7 +4506,7 @@ a {
   height: 9px;
   border-color: #0b1018;
   border-radius: 2px;
-  background: #f6c343;
+  background: var(--ops-gold);
 }
 
 .ops-jobs-map-workspace {
@@ -5255,7 +5255,7 @@ a {
 }
 
 .ops-jobs-map-selection.is-truck {
-  border-color: rgba(246, 195, 67, .34);
+  border-color: rgba(246, 195, 67, .42);
 }
 
 .ops-jobs-map-selection-truck-icon {

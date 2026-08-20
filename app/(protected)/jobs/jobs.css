@@ -894,11 +894,11 @@
 }
 
 .ops-jobs-page :is(.ops-territory-section, .ops-territory-jump a).is-lafayette {
-  --ops-territory-accent: #a78bfa;
-  --ops-territory-banner: #c4b5fd;
-  --ops-territory-card: #eee9ff;
-  --ops-territory-card-hover: #e1d8ff;
-  --ops-territory-card-border: #9275e8;
+  --ops-territory-accent: #00e13c;
+  --ops-territory-banner: #86efac;
+  --ops-territory-card: #e1fbe8;
+  --ops-territory-card-hover: #cbf7d7;
+  --ops-territory-card-border: #18b947;
 }
 
 .ops-jobs-page .ops-territory-jump {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppointmentCancelDialog, { type AppointmentCancelTarget } from "@/components/AppointmentCancelDialog";
+import { truckMapMarkerIcon, truckMapMarkerOffsets } from "@/components/TruckMapMarker";
 import type { JobRouteProximityPayload, JobTruckProximity } from "@/lib/job-route-proximity";
 import { buildJobRouteHistory } from "@/lib/job-route-history";
 import { parseTruckNumberFromLabel } from "@/lib/linxup-truck-label";
@@ -272,30 +273,6 @@ function markerIcon(leaflet: LeafletModule, job: JobsMapPoint, selected: boolean
     iconSize: [24, 30],
     iconAnchor: [12, 28],
     tooltipAnchor: [0, -28],
-  });
-}
-
-function escapeHtml(value: string): string {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function truckIcon(leaflet: LeafletModule, truck: JobsMapTruck, selected: boolean) {
-  const number = truck.truck.match(/(\d+)/)?.[1] || truck.truck;
-  const atJob = truck.status === "At Job";
-  return leaflet.divIcon({
-    className: "",
-    html: `<span class="ops-jobs-truck-marker${atJob ? " is-at-job" : ""}${selected ? " is-selected" : ""}">
-      <svg viewBox="0 0 28 18" aria-hidden="true"><path d="M2 3h14v10H2zM16 7h5l4 4v2h-9z"/><circle cx="7" cy="14" r="2.5"/><circle cx="21" cy="14" r="2.5"/></svg>
-      <b>T${escapeHtml(number)}</b>
-    </span>`,
-    iconSize: [44, 26],
-    iconAnchor: [22, 21],
-    tooltipAnchor: [0, -21],
   });
 }
 
@@ -1177,10 +1154,20 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       marker.addTo(markers);
     }
 
+    const truckLabelOffsets = truckMapMarkerOffsets(
+      liveTruckLocations,
+      (truck) => truck.truck,
+      (truck) => map.latLngToLayerPoint([truck.latitude, truck.longitude]),
+    );
+
     for (const truck of liveTruckLocations) {
       const markerLabel = `${truck.truck} · ${truck.status} · ${truck.freshness}`;
       const marker = leaflet.marker([truck.latitude, truck.longitude], {
-        icon: truckIcon(leaflet, truck, selectedTruckName === truck.truck),
+        icon: truckMapMarkerIcon(leaflet, truck.truck, {
+          atJob: truck.status === "At Job",
+          labelOffset: truckLabelOffsets.get(truck.truck) || 0,
+          selected: selectedTruckName === truck.truck,
+        }),
         keyboard: true,
         title: markerLabel,
         alt: markerLabel,

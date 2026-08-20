@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FleetMapPayload, FleetMapStop, FleetTruckMapRecord } from "@/lib/fleet-map";
+import { truckMapMarkerIcon, truckMapMarkerOffsets } from "@/components/TruckMapMarker";
 
 type LeafletModule = typeof import("leaflet");
 
@@ -63,37 +64,6 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function statusTone(status: string): string {
-  switch (status) {
-    case "Driving":
-      return "driving";
-    case "At Job":
-      return "job";
-    case "At Dump/Recycling":
-      return "dump";
-    case "At Yard":
-      return "yard";
-    case "NOHQ":
-    case "BRHQ":
-      return "yard";
-    case "GL":
-    case "RBL":
-    case "BRL":
-    case "STS":
-    case "GMTS":
-    case "EMR":
-      return "dump";
-    case "Idle":
-      return "idle";
-    case "Offline":
-      return "offline";
-    case "GPS Stale":
-      return "stale";
-    default:
-      return "unknown";
-  }
-}
-
 function operationalLabel(record: FleetTruckMapRecord): string {
   if (record.freshnessLabel === "Offline") return "Offline";
   if (record.freshnessLabel === "GPS Stale") return "GPS Stale — last movement is not current";
@@ -103,23 +73,6 @@ function operationalLabel(record: FleetTruckMapRecord): string {
   if (record.operationalStatus === "At Yard") return "At Yard";
   if (record.operationalStatus === "Idle") return "Idle";
   return record.operationalStatus || "Stopped";
-}
-
-function markerIcon(leaflet: LeafletModule, record: FleetTruckMapRecord, selected: boolean) {
-  const status = statusTone(record.freshnessLabel === "Offline" ? "Offline" : record.operationalStatus);
-  const html = `
-    <div class="ops-fleet-marker ${selected ? "is-selected" : ""} ${status}">
-      <span class="ops-fleet-marker-dot"></span>
-      <span class="ops-fleet-marker-text">${escapeHtml(record.truck)}</span>
-    </div>
-  `;
-  return leaflet.divIcon({
-    className: "",
-    html,
-    iconSize: [140, 28],
-    iconAnchor: [18, 14],
-    popupAnchor: [0, -12],
-  });
 }
 
 function stopColor(kind: FleetMapStop["kind"]): string {
@@ -264,13 +217,41 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
     routes.clearLayers();
 
     const visibleTrucks = payload.trucks.filter(
-      (truck) => truck.hasCoordinates && Number.isFinite(truck.latitude) && Number.isFinite(truck.longitude),
+      (truck) =>
+        truck.hasCoordinates
+        && Number.isFinite(truck.latitude)
+        && Number.isFinite(truck.longitude)
+        && (fleetMode || truck.truck === selectedTruck),
+    );
+    const selectedTruckBounds = selectedTruckRecord?.hasCoordinates
+      && Number.isFinite(selectedTruckRecord.latitude)
+      && Number.isFinite(selectedTruckRecord.longitude)
+      ? leaflet.latLngBounds([[selectedTruckRecord.latitude as number, selectedTruckRecord.longitude as number]])
+      : null;
+    const targetBounds = fleetMode ? allTruckBounds : selectedRouteBounds || selectedTruckBounds;
+    if (targetBounds && targetBounds.isValid()) {
+      if (targetBounds.getNorthEast().equals(targetBounds.getSouthWest())) {
+        map.setView(targetBounds.getCenter(), visibleTrucks.length === 1 ? 12 : 10);
+      } else {
+        map.fitBounds(targetBounds.pad(0.15), {
+          padding: [24, 24],
+          maxZoom: visibleTrucks.length === 1 ? 13 : 15,
+        });
+      }
+    }
+    const labelOffsets = truckMapMarkerOffsets(visibleTrucks, (truck) => truck.truck, (truck) =>
+      map.latLngToLayerPoint([truck.latitude as number, truck.longitude as number])
     );
 
     for (const truck of visibleTrucks) {
       const isSelected = selectedTruck === truck.truck;
       const marker = leaflet.marker([truck.latitude as number, truck.longitude as number], {
-        icon: markerIcon(leaflet, truck, isSelected),
+        icon: truckMapMarkerIcon(leaflet, truck.truck, {
+          atJob: truck.operationalStatus === "At Job",
+          labelOffset: labelOffsets.get(truck.truck) || 0,
+          selected: isSelected,
+        }),
+        alt: truck.truck,
         keyboard: true,
         zIndexOffset: isSelected ? 1000 : 0,
       });
@@ -281,6 +262,7 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
       });
 
       marker.on("click", () => {
+        if (isSelected) return;
         const params = new URLSearchParams(searchParams.toString());
         params.set("date", payload.date);
         params.set("truck", truckNumber(truck.truck));
@@ -328,17 +310,6 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
       });
     }
 
-    const targetBounds = !fleetMode && selectedRouteBounds ? selectedRouteBounds : allTruckBounds;
-    if (targetBounds && targetBounds.isValid()) {
-      if (targetBounds.getNorthEast().equals(targetBounds.getSouthWest())) {
-        map.setView(targetBounds.getCenter(), visibleTrucks.length === 1 ? 12 : 10);
-      } else {
-        map.fitBounds(targetBounds.pad(0.15), {
-          padding: [24, 24],
-          maxZoom: visibleTrucks.length === 1 ? 13 : 15,
-        });
-      }
-    }
   }, [allTruckBounds, fleetMode, leaflet, payload.date, payload.trucks, router, searchParams, pathname, selectedRouteBounds, selectedTruck, selectedTruckRecord]);
 
   useEffect(() => {

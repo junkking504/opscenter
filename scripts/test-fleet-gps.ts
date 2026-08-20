@@ -5,6 +5,7 @@ import {
   type AppointmentVisitConfirmation,
 } from "@/lib/appointment-visit-confirmations";
 import { operationalStatusForFreshness } from "@/lib/fleet-map";
+import { truckMapLabel, truckMapMarkerOffsets } from "@/components/TruckMapMarker";
 
 const confirmations: AppointmentVisitConfirmation[] = [
   {
@@ -76,5 +77,19 @@ assert.equal(visits.find((row) => row.appointment_id === "untouched-appt")?.truc
 assert.equal(operationalStatusForFreshness("Driving", "Live GPS"), "Driving");
 assert.equal(operationalStatusForFreshness("Driving", "GPS Stale"), "GPS Stale");
 assert.equal(operationalStatusForFreshness("Idle", "Offline"), "Offline");
+
+assert.equal(truckMapLabel("Truck# 4"), "Truck #4");
+const markerOffsets = truckMapMarkerOffsets(
+  [
+    { truck: "Truck# 4", x: 100, y: 100 },
+    { truck: "Truck# 3", x: 101, y: 101 },
+    { truck: "Truck# 8", x: 300, y: 300 },
+  ],
+  (truck) => truck.truck,
+  (truck) => ({ x: truck.x, y: truck.y }),
+);
+assert.equal(markerOffsets.get("Truck# 3"), -15);
+assert.equal(markerOffsets.get("Truck# 4"), 15);
+assert.equal(markerOffsets.get("Truck# 8"), 0);
 
 console.log("Fleet GPS status and appointment confirmation tests passed.");

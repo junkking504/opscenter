@@ -27,9 +27,9 @@
   position: relative;
   display: grid;
   min-width: 0;
-  min-height: 142px;
+  min-height: 104px;
   align-content: space-between;
-  padding: 15px 17px;
+  padding: 13px 15px;
   overflow: hidden;
   border: 1px solid #dcdee2;
   border-radius: 16px;
@@ -75,7 +75,8 @@
 }
 
 .metric > strong {
-  margin-top: 10px;
+  margin-top: 8px;
+  overflow: hidden;
   color: #171a1f;
   font-size: clamp(1.75rem, 2.6vw, 2.4rem);
   line-height: 1.05;
@@ -84,7 +85,8 @@
 }
 
 .metric > p {
-  margin: 7px 22px 0 0;
+  margin: 6px 24px 0 0;
+  overflow: hidden;
   color: #737b87;
   font-size: 0.9375rem;
   line-height: 1.4;
@@ -230,14 +232,14 @@
 
 @media (max-width: 760px) {
   .metricStrip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
-  .metric { min-height: 142px; padding: 16px; }
+  .metric { min-height: 100px; padding: 12px; }
   .metric > b { right: 16px; bottom: 16px; }
 }
 
 @media (max-width: 490px) {
   .brief { gap: 10px; }
   .metricStrip { gap: 8px; }
-  .metric { min-height: 134px; padding: 14px; }
+  .metric { min-height: 94px; padding: 11px; }
   .metric > strong { font-size: 1.65rem; }
   .metric > p { white-space: normal; }
   .metric > div > small { display: none; }

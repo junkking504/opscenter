@@ -8,10 +8,10 @@
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  min-height: 228px;
+  min-height: 124px;
   align-items: end;
   gap: 32px;
-  padding: clamp(24px, 3.2vw, 46px);
+  padding: clamp(14px, 1.8vw, 22px);
   overflow: hidden;
   border-radius: 24px;
   background:
@@ -49,15 +49,15 @@
 
 .header h2 {
   max-width: 620px;
-  margin-top: 13px;
+  margin-top: 9px;
   color: #fff;
-  font-size: clamp(2.15rem, 4.7vw, 4.65rem);
+  font-size: clamp(1.8rem, 3.2vw, 3rem);
   font-weight: 780;
   line-height: 0.94;
 }
 
 .header p {
-  margin: 17px 0 0;
+  margin: 10px 0 0;
   color: #aeb4bf;
   font-size: 0.82rem;
 }
@@ -89,8 +89,8 @@
   position: relative;
   z-index: 1;
   display: grid;
-  width: 164px;
-  min-height: 164px;
+  width: 100px;
+  min-height: 100px;
   align-content: center;
   justify-items: center;
   gap: 7px;
@@ -143,7 +143,7 @@
   display: flex;
   align-items: baseline;
   color: #fff;
-  font-size: 2.65rem;
+  font-size: 2rem;
   line-height: 0.9;
   letter-spacing: -0.08em;
 }
@@ -165,9 +165,9 @@
   position: relative;
   display: grid;
   min-width: 0;
-  min-height: 158px;
+  min-height: 104px;
   align-content: space-between;
-  padding: 19px 20px;
+  padding: 13px 15px;
   overflow: hidden;
   border: 1px solid #dcdee2;
   border-radius: 16px;
@@ -213,7 +213,7 @@
 }
 
 .metric > strong {
-  margin-top: 16px;
+  margin-top: 8px;
   overflow: hidden;
   color: #171a1f;
   font-size: clamp(1.8rem, 3vw, 2.75rem);
@@ -224,7 +224,7 @@
 }
 
 .metric > p {
-  margin: 9px 24px 0 0;
+  margin: 6px 24px 0 0;
   overflow: hidden;
   color: #737b87;
   font-size: 0.69rem;
@@ -363,12 +363,12 @@
 }
 
 @media (max-width: 760px) {
-  .header { min-height: 195px; align-items: center; padding: 25px 22px; border-radius: 18px; }
-  .header h2 { font-size: clamp(2rem, 10vw, 3rem); }
-  .readiness { width: 128px; min-height: 128px; padding: 13px; }
+  .header { min-height: 118px; align-items: center; padding: 14px; border-radius: 14px; }
+  .header h2 { font-size: clamp(1.7rem, 8vw, 2.35rem); }
+  .readiness { width: 88px; min-height: 88px; padding: 8px; }
   .readiness > strong { font-size: 2.1rem; }
   .metricStrip { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
-  .metric { min-height: 142px; padding: 16px; }
+  .metric { min-height: 100px; padding: 12px; }
   .metric > b { right: 16px; bottom: 16px; }
   .actionList { grid-template-columns: 1fr; }
   .action { border-right: 0; }
@@ -376,14 +376,14 @@
 
 @media (max-width: 490px) {
   .brief { gap: 10px; }
-  .header { grid-template-columns: 1fr; min-height: 330px; align-content: space-between; gap: 22px; }
+  .header { grid-template-columns: 1fr; min-height: 150px; align-content: space-between; gap: 10px; }
   .header h2 { max-width: 310px; }
   .header p { font-size: 0.7rem; }
-  .readiness { width: 112px; min-height: 112px; justify-self: end; }
+  .readiness { width: 82px; min-height: 82px; justify-self: end; }
   .readiness > strong { font-size: 1.8rem; }
   .readiness > div > small { display: none; }
   .metricStrip { gap: 8px; }
-  .metric { min-height: 134px; padding: 14px; }
+  .metric { min-height: 94px; padding: 11px; }
   .metric > strong { font-size: 1.65rem; }
   .metric > p { white-space: normal; }
   .metric > div > small { display: none; }

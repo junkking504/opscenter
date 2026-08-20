@@ -111,8 +111,8 @@ export default function CommandBrief({
         <section className={styles.signals} aria-labelledby="operating-brief-title">
           <div className={styles.sectionHeader}>
             <div>
-              <span>Operating status</span>
-              <h3 id="operating-brief-title">Current conditions</h3>
+              <span>Slack alerts</span>
+              <h3 id="operating-brief-title">Alerts</h3>
             </div>
             <small>{String(signals.length).padStart(2, "0")} signals</small>
           </div>

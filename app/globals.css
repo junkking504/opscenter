@@ -4579,7 +4579,7 @@ a {
   height: 9px;
   border-color: #0b1018;
   border-radius: 2px;
-  background: #f6c343;
+  background: var(--ops-red);
 }
 
 .ops-jobs-map-workspace {
@@ -5191,7 +5191,7 @@ a {
 }
 
 .ops-jobs-map-selection.is-truck {
-  border-color: rgba(246, 195, 67, .34);
+  border-color: rgba(215, 25, 32, .42);
 }
 
 .ops-jobs-map-selection-truck-icon {

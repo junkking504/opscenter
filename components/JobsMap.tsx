@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { truckMapMarkerIcon, truckMapMarkerOffsets } from "@/components/TruckMapMarker";
 import type { JobRouteProximityPayload, JobTruckProximity } from "@/lib/job-route-proximity";
 
 export type JobsMapPoint = {
@@ -250,21 +251,6 @@ function escapeHtml(value: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
-}
-
-function truckIcon(leaflet: LeafletModule, truck: JobsMapTruck, selected: boolean) {
-  const number = truck.truck.match(/(\d+)/)?.[1] || truck.truck;
-  const atJob = truck.status === "At Job";
-  return leaflet.divIcon({
-    className: "",
-    html: `<span class="ops-jobs-truck-marker${atJob ? " is-at-job" : ""}${selected ? " is-selected" : ""}">
-      <svg viewBox="0 0 28 18" aria-hidden="true"><path d="M2 3h14v10H2zM16 7h5l4 4v2h-9z"/><circle cx="7" cy="14" r="2.5"/><circle cx="21" cy="14" r="2.5"/></svg>
-      <b>T${escapeHtml(number)}</b>
-    </span>`,
-    iconSize: [44, 26],
-    iconAnchor: [22, 21],
-    tooltipAnchor: [0, -21],
-  });
 }
 
 function scheduleSort(a: JobsMapPoint, b: JobsMapPoint): number {
@@ -1009,6 +995,20 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     if (!leaflet || !map || !markers) return;
 
     markers.clearLayers();
+    map.stop();
+    map.invalidateSize({ pan: false });
+    if (selectedTruck) {
+      map.setView([selectedTruck.latitude, selectedTruck.longitude], Math.max(map.getZoom(), 14), { animate: false });
+    } else if (selectedJob && isLocated(selectedJob)) {
+      map.setView([selectedJob.latitude, selectedJob.longitude], Math.max(map.getZoom(), 12), { animate: false });
+    } else if (bounds?.isValid()) {
+      if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
+        map.setView(bounds.getCenter(), 13);
+      } else {
+        map.fitBounds(bounds.pad(0.12), { padding: [28, 28], maxZoom: 14 });
+      }
+    }
+
     for (const job of locatedJobs) {
       const marker = leaflet.marker([job.latitude, job.longitude], {
         icon: markerIcon(leaflet, job, selectedKey === job.key),
@@ -1027,35 +1027,30 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       marker.addTo(markers);
     }
 
+    const truckLabelOffsets = truckMapMarkerOffsets(
+      liveTruckLocations,
+      (truck) => truck.truck,
+      (truck) => map.latLngToLayerPoint([truck.latitude, truck.longitude]),
+    );
+
     for (const truck of liveTruckLocations) {
       const marker = leaflet.marker([truck.latitude, truck.longitude], {
-        icon: truckIcon(leaflet, truck, selectedTruckName === truck.truck),
+        icon: truckMapMarkerIcon(leaflet, truck.truck, {
+          atJob: truck.status === "At Job",
+          labelOffset: truckLabelOffsets.get(truck.truck) || 0,
+          selected: selectedTruckName === truck.truck,
+        }),
+        alt: truck.truck,
         keyboard: true,
         zIndexOffset: 1800,
       });
-      const driver = truck.driver && truck.driver !== "—" ? ` · ${truck.driver}` : "";
-      marker.bindTooltip(`${truck.truck} · ${truck.status}${driver} · ${truck.freshness}`, {
-        direction: "top",
-        offset: [0, -22],
-      });
       marker.on("click", () => {
         setSelectedKey("");
-        setSelectedTruckName(truck.truck);
+        setSelectedTruckName((current) => current === truck.truck ? current : truck.truck);
       });
       marker.addTo(markers);
     }
 
-    if (selectedTruck) {
-      map.setView([selectedTruck.latitude, selectedTruck.longitude], Math.max(map.getZoom(), 14), { animate: true });
-    } else if (selectedJob && isLocated(selectedJob)) {
-      map.setView([selectedJob.latitude, selectedJob.longitude], Math.max(map.getZoom(), 12), { animate: true });
-    } else if (bounds?.isValid()) {
-      if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
-        map.setView(bounds.getCenter(), 13);
-      } else {
-        map.fitBounds(bounds.pad(0.12), { padding: [28, 28], maxZoom: 14 });
-      }
-    }
   }, [bounds, leaflet, liveTruckLocations, locatedJobs, selectedJob, selectedKey, selectedTruck, selectedTruckName]);
 
   return (

@@ -340,7 +340,7 @@ export function buildAddOnSlackNotification(appointment: AddOnAppointment, date:
     lifecycle: "notification",
     severity: "warning",
     channelId: appointmentChannelId(appointment.territory),
-    title: `New Appointment: ${appointment.jobNumber}`,
+    title: `Add-On: ${appointment.jobNumber}`,
     detail: `${appointment.customerName}\n${appointment.address}`,
     nextAction: "Confirm crew and truck coverage, then update the route plan.",
     href: absoluteOpsHref(appointment.href),
@@ -706,6 +706,7 @@ export function formatSlackAlert(alert: SlackOpsAlert): string {
   return [
     `${icon}${iconTitleSeparator}*${slackEscape(alert.title)}*`,
     slackEscape(alert.detail),
+    slackEscape(alert.nextAction),
     `<${alert.href}|Open in OpsCenter>`,
   ].join("\n");
 }

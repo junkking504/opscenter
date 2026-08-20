@@ -3,7 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="${0:A:h}"
 REPOSITORY_ROOT="${SCRIPT_DIR:h:h}"
+PROGRAM_NAME="${0:t}"
 BOOTSTRAP=false
+ALLOW_NON_FORWARD=false
 MC_HOST="${OPSCENTER_MC_HOST:-}"
 MC_SSH_KEY="${OPSCENTER_MC_SSH_KEY:-$HOME/.ssh/id_ed25519_opscenter}"
 REQUESTED_REF="HEAD"
@@ -14,15 +16,25 @@ fail() {
 }
 
 usage() {
-  echo "usage: $0 [--bootstrap] <mc-host-or-address> [git-ref]" >&2
-  echo "   or: OPSCENTER_MC_HOST=<host> $0 [--bootstrap] [git-ref]" >&2
+  echo "usage: $PROGRAM_NAME [--bootstrap] [--allow-non-forward] <mc-host-or-address> [git-ref]" >&2
+  echo "   or: OPSCENTER_MC_HOST=<host> $PROGRAM_NAME [--bootstrap] [--allow-non-forward] [git-ref]" >&2
   exit 64
 }
 
-if [[ "${1:-}" == "--bootstrap" ]]; then
-  BOOTSTRAP=true
+while [[ "${1:-}" == --* ]]; do
+  case "$1" in
+    --bootstrap)
+      BOOTSTRAP=true
+      ;;
+    --allow-non-forward)
+      ALLOW_NON_FORWARD=true
+      ;;
+    *)
+      usage
+      ;;
+  esac
   shift
-fi
+done
 
 if [[ -z "$MC_HOST" ]]; then
   [[ $# -ge 1 ]] || usage
@@ -70,5 +82,10 @@ if $BOOTSTRAP; then
 fi
 
 echo "Deploying pushed commit $commit to Mission Control..."
+allow_non_forward_arg=0
+if $ALLOW_NON_FORWARD; then
+  allow_non_forward_arg=1
+fi
 ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$commit" \
+  "$allow_non_forward_arg" \
   < "$SCRIPT_DIR/deploy-release.sh"

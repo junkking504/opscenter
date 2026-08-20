@@ -165,6 +165,20 @@ export function isClosedScheduleJob(job: Pick<JobsMapPoint, "statusBucket">): bo
   return job.statusBucket === "Completed" || job.statusBucket === "Estimate";
 }
 
+export function recordedVisitTrucks(
+  job: Pick<JobsMapPoint, "statusBucket" | "visitedTrucks" | "truck">,
+): string[] {
+  const verifiedVisits = Array.from(new Set(job.visitedTrucks.map((truck) => truck.trim()).filter((truck) => !isVirtualTruck(truck))));
+  if (verifiedVisits.length || !isClosedScheduleJob(job) || isVirtualTruck(job.truck)) return verifiedVisits;
+  return [job.truck.trim()];
+}
+
+function canChangeSchedule(job: Pick<JobsMapPoint, "statusBucket" | "visitedTrucks">): boolean {
+  return job.statusBucket !== "Canceled"
+    && !isClosedScheduleJob(job)
+    && job.visitedTrucks.length === 0;
+}
+
 function territoryTone(job: JobsMapPoint): string {
   const territory = String(job.territory || "").toLowerCase();
   let tone = "is-unknown-territory";
@@ -564,7 +578,9 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     () => liveTruckLocations.find((truck) => truck.truck === selectedTruckName) || null,
     [liveTruckLocations, selectedTruckName],
   );
-  const closestTruck = selectedJob ? nearestTruck(selectedJob.key, proximity) : null;
+  const visitTrucks = selectedJob ? recordedVisitTrucks(selectedJob) : [];
+  const hasRecordedVisit = Boolean(selectedJob && (selectedJob.visitedTrucks.length || isClosedScheduleJob(selectedJob)));
+  const closestTruck = selectedJob && !hasRecordedVisit ? nearestTruck(selectedJob.key, proximity) : null;
   const currentTimeLine = useMemo(() => {
     if (!currentScheduleTime || currentScheduleTime.date !== date || !scheduleBoard.rows.length) return null;
     const firstHour = scheduleBoard.rows[0];
@@ -778,7 +794,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   }
 
   function handleAppointmentPointerDown(event: React.PointerEvent<HTMLButtonElement>, job: JobsMapPoint) {
-    if (event.button !== 0 || job.statusBucket === "Canceled" || pendingKeySetRef.current.has(job.key)) return;
+    if (event.button !== 0 || !canChangeSchedule(job) || pendingKeySetRef.current.has(job.key)) return;
     dragCleanupRef.current?.();
     const gesture: ScheduleDragGesture = {
       key: job.key,
@@ -856,7 +872,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   }
 
   function handleAppointmentDragStart(event: React.DragEvent<HTMLButtonElement>, job: JobsMapPoint) {
-    if (job.statusBucket === "Canceled" || pendingKeySetRef.current.has(job.key)) {
+    if (!canChangeSchedule(job) || pendingKeySetRef.current.has(job.key)) {
       event.preventDefault();
       return;
     }
@@ -1056,7 +1072,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           <div className="ops-muted">
             {scheduleView
               ? "Select a job for details. Drag it to change the truck or appointment window."
-              : "Select a job to review the customer, service address, and closest truck."}
+              : "Select a job to review the customer, service address, and truck activity."}
           </div>
         </div>
         <div className="ops-jobs-map-counts" aria-label="Map coverage">
@@ -1150,9 +1166,13 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                 </details>
               ) : null}
               {selectedJob.statusBucket !== "Canceled" ? <div className="ops-jobs-map-selection-truck">
-                <span>Closest truck</span>
+                <span>{hasRecordedVisit ? (visitTrucks.length === 1 ? "Truck at job" : "Trucks at job") : "Closest truck"}</span>
                 <strong>
-                  {!scheduleView
+                  {hasRecordedVisit
+                    ? visitTrucks.length
+                      ? visitTrucks.join(", ")
+                      : "Truck not recorded"
+                    : !scheduleView
                     ? "Open the daily schedule for live proximity"
                     : proximityLoading
                       ? "Checking current truck locations…"
@@ -1163,7 +1183,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                           : unavailableProximityText(selectedJob.key, proximity)}
                 </strong>
               </div> : null}
-              {scheduleView && selectedJob.statusBucket !== "Canceled" ? (
+              {scheduleView && canChangeSchedule(selectedJob) ? (
                 <div className="ops-jobs-map-selection-schedule-controls">
                   <label className="ops-jobs-map-selection-assign">
                     <span>Truck assignment</span>
@@ -1194,7 +1214,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
               ) : null}
             </article>
           ) : (
-            <div className="ops-jobs-map-prompt">Select an appointment square for details and the closest truck.</div>
+            <div className="ops-jobs-map-prompt">Select an appointment square for job and truck details.</div>
           )}
         </div>
 
@@ -1248,7 +1268,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                         {appointments.map((job) => (
                           <button
                             type="button"
-                            draggable={job.statusBucket !== "Canceled" && !pendingKeys.includes(job.key)}
+                            draggable={canChangeSchedule(job) && !pendingKeys.includes(job.key)}
                             className={`ops-jobs-map-board-block ${territoryTone(job)}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
                             onClick={() => handleAppointmentClick(job.key)}
                             onPointerDown={(event) => handleAppointmentPointerDown(event, job)}
@@ -1277,7 +1297,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                         {appointments.map((job) => (
                           <button
                             type="button"
-                            draggable={job.statusBucket !== "Canceled" && !pendingKeys.includes(job.key)}
+                            draggable={canChangeSchedule(job) && !pendingKeys.includes(job.key)}
                             className={`ops-jobs-map-board-block ${territoryTone(job)}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
                             onClick={() => handleAppointmentClick(job.key)}
                             onPointerDown={(event) => handleAppointmentPointerDown(event, job)}

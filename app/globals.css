@@ -1981,6 +1981,7 @@ a {
   overflow: visible;
   border: 0;
   background: transparent;
+  pointer-events: none !important;
 }
 
 .ops-truck-map-marker-locator {
@@ -2035,6 +2036,7 @@ a {
   white-space: nowrap;
   cursor: pointer;
   box-sizing: border-box;
+  pointer-events: auto;
 }
 
 .ops-truck-map-marker svg {

@@ -134,6 +134,41 @@ function normalizeTruckLabel(value: unknown): string {
   return match ? `Truck# ${match[1]}` : raw.replace(/\s+/g, " ");
 }
 
+function normalizeCrewName(value: unknown): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const commaParts = raw.split(",").map((part) => part.trim()).filter(Boolean);
+  return commaParts.length === 2 ? `${commaParts[1]} ${commaParts[0]}` : raw;
+}
+
+function crewNamesByTruck(appointments: AnyRecord[]): Map<string, { drivers: string[]; navigators: string[] }> {
+  const namesByTruck = new Map<string, { drivers: Set<string>; navigators: Set<string> }>();
+
+  for (const appointment of appointments) {
+    if (appointment?.driver_assignment_excluded) continue;
+    const truck = normalizeTruckLabel(appointment?.assigned_truck || appointment?.truck || appointment?.truck_number);
+    if (!truck) continue;
+
+    const names = namesByTruck.get(truck) || { drivers: new Set<string>(), navigators: new Set<string>() };
+    const driver = normalizeCrewName(
+      appointment?.driver_normalized_name || appointment?.driver_name || appointment?.driver
+    );
+    const navigator = normalizeCrewName(
+      appointment?.navigator_normalized_name || appointment?.navigator_name || appointment?.navigator
+    );
+    if (driver) names.drivers.add(driver);
+    if (navigator) names.navigators.add(navigator);
+    namesByTruck.set(truck, names);
+  }
+
+  return new Map(
+    Array.from(namesByTruck.entries()).map(([truck, names]) => [
+      truck,
+      { drivers: Array.from(names.drivers), navigators: Array.from(names.navigators) },
+    ])
+  );
+}
+
 function truckParam(value: unknown): string {
   const raw = String(value || "").trim();
   const match = raw.match(/(\d+)/);
@@ -790,6 +825,7 @@ export default async function FleetPage({
   for (const row of truckScoreRows) {
     driverMap.set(String(row.truck || "").trim(), row);
   }
+  const appointmentCrewByTruck = crewNamesByTruck(dailyRecord?.appointments || []);
   const activeTrucks = trucks.filter(
     (truck) => truck.hasGpsActivity || Number(truck.revenue || 0) > 0 || Number(truck.jobs || 0) > 0
   ).length;
@@ -1034,23 +1070,46 @@ export default async function FleetPage({
             </tr>
           </thead>
           <tbody>
-            {trucks.map((row) => (
-              <tr key={row.truck} className={normalizeTruckLabel(row.truck) === selectedTruck ? "ops-row-selected" : ""}>
-                <td>
-                  <FleetTruckLink href={buildFleetHref({ view: "daily", date, sort: sortKey, dir: sortDirection }) + `&truck=${encodeURIComponent(truckParam(row.truck))}`} className="ops-fleet-truck-link">
-                    <strong>{row.truck}</strong>
-                  </FleetTruckLink>
-                </td>
-                <td>{row.jobs}</td>
-                <td className="ops-money">{money(row.revenue)}</td>
-                <td className="ops-money">{money(row.averageJobSize)}</td>
-                <td className="ops-money">{money(row.expenses)}</td>
-                <td className="ops-money">{money(row.net)}</td>
-                <td>{formatMileage(row.milesDriven)}</td>
-                <td>{row.driveMinutes == null ? "Unavailable" : formatMinutes(row.driveMinutes)}</td>
-                <td>{row.hasGpsActivity ? "GPS activity" : Number(row.jobs || 0) > 0 ? "Completed work" : "No activity recorded"}</td>
-              </tr>
-            ))}
+            {trucks.map((row) => {
+              const truckLabel = normalizeTruckLabel(row.truck);
+              const telemetry = driverMap.get(truckLabel) || row;
+              const appointmentCrew = appointmentCrewByTruck.get(truckLabel);
+              const assignedDriverList = Array.isArray(telemetry?.assigned_drivers)
+                ? telemetry.assigned_drivers.map(normalizeCrewName).filter(Boolean)
+                : [];
+              const singleAssignedDriver = normalizeCrewName(telemetry?.assigned_driver);
+              const attributedDrivers = assignedDriverList.length > 0
+                ? assignedDriverList
+                : singleAssignedDriver && singleAssignedDriver.toLowerCase() !== "multiple"
+                  ? [singleAssignedDriver]
+                  : [];
+              const drivers = attributedDrivers.length > 0
+                ? attributedDrivers
+                : appointmentCrew?.drivers || [];
+              const navigators = appointmentCrew?.navigators || [];
+              const driverNames = drivers.length > 0 ? Array.from(new Set(drivers)).join(", ") : "Unassigned";
+              const navigatorNames = navigators.length > 0 ? navigators.join(", ") : "Unassigned";
+
+              return (
+                <tr key={row.truck} className={truckLabel === selectedTruck ? "ops-row-selected" : ""}>
+                  <td>
+                    <FleetTruckLink href={buildFleetHref({ view: "daily", date, sort: sortKey, dir: sortDirection }) + `&truck=${encodeURIComponent(truckParam(row.truck))}`} className="ops-fleet-truck-link">
+                      <strong>{row.truck}</strong>
+                      <span className="ops-fleet-truck-crew">{driverNames}/{navigatorNames}</span>
+                      <span className="ops-fleet-truck-score">Driving score: {driverScoreDisplay(telemetry)}</span>
+                    </FleetTruckLink>
+                  </td>
+                  <td>{row.jobs}</td>
+                  <td className="ops-money">{money(row.revenue)}</td>
+                  <td className="ops-money">{money(row.averageJobSize)}</td>
+                  <td className="ops-money">{money(row.expenses)}</td>
+                  <td className="ops-money">{money(row.net)}</td>
+                  <td>{formatMileage(row.milesDriven)}</td>
+                  <td>{row.driveMinutes == null ? "Unavailable" : formatMinutes(row.driveMinutes)}</td>
+                  <td>{row.hasGpsActivity ? "GPS activity" : Number(row.jobs || 0) > 0 ? "Completed work" : "No activity recorded"}</td>
+                </tr>
+              );
+            })}
 
             {trucks.length === 0 && (
               <tr>

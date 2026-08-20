@@ -1831,7 +1831,10 @@ a {
 }
 
 .ops-fleet-truck-link {
-  display: inline-block;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1843,6 +1846,17 @@ a {
 
 .ops-fleet-truck-link:hover {
   color: var(--ops-blue);
+}
+
+.ops-fleet-truck-crew,
+.ops-fleet-truck-score {
+  color: var(--ops-muted);
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.ops-fleet-truck-score {
+  color: var(--ops-muted-2);
 }
 
 .ops-fleet-map-card {
@@ -2048,44 +2062,109 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
-.ops-fleet-marker {
+.ops-truck-map-div-icon {
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+
+.ops-truck-map-marker-locator {
+  position: relative;
+  width: 46px;
+  height: 28px;
+}
+
+.ops-truck-map-marker-origin {
+  position: absolute;
+  z-index: 1;
+  top: 17px;
+  left: 18px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: var(--ops-red);
+  box-shadow: 0 2px 8px rgba(0,0,0,.45);
+  pointer-events: none;
+}
+
+.ops-truck-map-marker-leader {
+  position: absolute;
+  z-index: 0;
+  left: 21.5px;
+  width: 2px;
+  background: rgba(215, 25, 32, .82);
+  pointer-events: none;
+}
+
+.ops-truck-map-marker {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 9px 4px 7px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,.14);
-  background: rgba(11, 15, 20, .85);
-  box-shadow: 0 8px 24px rgba(0,0,0,.24);
-  color: #e2e8f0;
-  font-size: .72rem;
-  font-weight: 800;
+  justify-content: center;
+  gap: 2px;
+  width: 46px;
+  height: 25px;
+  padding: 0;
+  border-radius: 8px;
+  border: 3px solid #111827;
+  background: var(--ops-red);
+  box-shadow: 0 4px 12px rgba(0,0,0,.5);
+  color: #111827;
+  font-size: .67rem;
+  font-weight: 950;
+  line-height: 1;
   white-space: nowrap;
+  cursor: pointer;
+  box-sizing: border-box;
 }
 
-.ops-fleet-marker.is-selected {
-  background: rgba(15, 23, 42, .95);
-  border-color: rgba(255,255,255,.5);
-  box-shadow: 0 0 0 2px rgba(255,255,255,.08), 0 12px 28px rgba(0,0,0,.32);
-}
-
-.ops-fleet-marker-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: #94a3b8;
-  box-shadow: 0 0 0 3px rgba(255,255,255,.08);
+.ops-truck-map-marker svg {
+  width: 20px;
+  height: 14px;
+  fill: #111827;
   flex: 0 0 auto;
 }
 
-.ops-fleet-marker.driving .ops-fleet-marker-dot { background: #22c55e; }
-.ops-fleet-marker.job .ops-fleet-marker-dot { background: #60a5fa; }
-.ops-fleet-marker.dump .ops-fleet-marker-dot { background: #ef4444; }
-.ops-fleet-marker.yard .ops-fleet-marker-dot { background: #38bdf8; }
-.ops-fleet-marker.idle .ops-fleet-marker-dot { background: #94a3b8; }
-.ops-fleet-marker.offline .ops-fleet-marker-dot { background: #f97316; }
-.ops-fleet-marker.stale .ops-fleet-marker-dot { background: #eab308; }
-.ops-fleet-marker.unknown .ops-fleet-marker-dot { background: #64748b; }
+.ops-truck-map-marker b {
+  font-size: .67rem;
+  font-weight: 950;
+}
+
+.ops-truck-map-marker::after {
+  position: absolute;
+  bottom: -5px;
+  left: 17px;
+  width: 7px;
+  height: 7px;
+  border-right: 3px solid #111827;
+  border-bottom: 3px solid #111827;
+  background: var(--ops-red);
+  content: "";
+  transform: rotate(45deg);
+}
+
+.ops-truck-map-marker.is-selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgba(215, 25, 32, .38), 0 7px 18px rgba(0,0,0,.58);
+}
+
+.ops-truck-map-marker.is-at-job::before {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: var(--ops-red);
+  box-shadow: 0 0 0 3px rgba(215, 25, 32, .25), 0 0 11px rgba(215, 25, 32, .9);
+  content: "";
+  animation: ops-jobs-on-site-blink 1.15s ease-in-out infinite;
+}
 
 .ops-view-toggle {
   display: inline-flex;
@@ -4881,6 +4960,7 @@ a {
 @media (prefers-reduced-motion: reduce) {
   .ops-appointment-on-site i,
   .ops-jobs-truck-marker.is-at-job::before,
+  .ops-truck-map-marker.is-at-job::before,
   .ops-jobs-map-board-state.is-on-site,
   .ops-jobs-map-legend i.is-on-site {
     animation: none;

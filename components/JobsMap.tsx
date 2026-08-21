@@ -680,18 +680,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   }, [jobs, selectedKey]);
 
   useEffect(() => {
-    if (!selectedKey && !selectedTruckName) return;
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      setSelectedKey("");
-      setSelectedTruckName("");
-      window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
-    };
-    window.addEventListener("keydown", handleEscape);
-    return () => window.removeEventListener("keydown", handleEscape);
-  }, [selectedKey, selectedTruckName]);
-
-  useEffect(() => {
     if (selectedTruckName && !liveTruckLocations.some((truck) => truck.truck === selectedTruckName)) setSelectedTruckName("");
   }, [liveTruckLocations, selectedTruckName]);
 
@@ -1086,6 +1074,42 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       .map((point) => [point.latitude, point.longitude] as [number, number]);
     return points.length ? leaflet.latLngBounds(points) : null;
   }, [leaflet, selectedTruck]);
+
+  useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      const target = event.target instanceof Element ? event.target : null;
+      const mapFocused = Boolean(target?.closest(".ops-jobs-leaflet-map"));
+      if (!mapFocused && !selectedKey && !selectedTruckName) return;
+
+      event.preventDefault();
+      viewportFocusRef.current = "none";
+      const viewportSignature = locatedJobs
+        .map((job) => `${job.key}:${job.latitude}:${job.longitude}`)
+        .sort()
+        .join("|");
+      const map = mapRef.current;
+
+      if (map && bounds?.isValid()) {
+        map.stop();
+        map.invalidateSize({ pan: false });
+        if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
+          map.setView(bounds.getCenter(), 13, { animate: false });
+        } else {
+          map.fitBounds(bounds.pad(0.12), { padding: [28, 28], maxZoom: 14, animate: false });
+        }
+        fittedViewportRef.current = viewportSignature;
+      } else {
+        fittedViewportRef.current = "";
+      }
+
+      setSelectedKey("");
+      setSelectedTruckName("");
+      window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => window.removeEventListener("keydown", handleEscape);
+  }, [bounds, locatedJobs, selectedKey, selectedTruckName]);
 
   useEffect(() => {
     if (!leaflet || !mapNodeRef.current || mapRef.current) return;

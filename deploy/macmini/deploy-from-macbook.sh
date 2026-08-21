@@ -75,6 +75,13 @@ fi
 ssh_options=(-i "$MC_SSH_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=10)
 ssh "${ssh_options[@]}" "$ssh_target" /usr/bin/true
 
+# Preserve an explicit request to leave the separately managed photo worker
+# running when the remote release script is invoked over SSH.
+remote_environment=()
+if [[ -n "${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER+x}" ]]; then
+  remote_environment=(env "OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER=$OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER")
+fi
+
 if $BOOTSTRAP; then
   echo "Preparing the Mission Control Git release layout..."
   ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$repository_url" \
@@ -86,6 +93,6 @@ allow_non_forward_arg=0
 if $ALLOW_NON_FORWARD; then
   allow_non_forward_arg=1
 fi
-ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$commit" \
+ssh "${ssh_options[@]}" "$ssh_target" "${remote_environment[@]}" /bin/zsh -s -- "$commit" \
   "$allow_non_forward_arg" \
   < "$SCRIPT_DIR/deploy-release.sh"

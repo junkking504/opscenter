@@ -8,6 +8,7 @@ import PageHeader from "@/components/PageHeader";
 import OpsMonthSelector from "@/components/OpsMonthSelector";
 import JobCallAheadCard from "@/components/JobCallAheadCard";
 import JobCloseoutEditor from "@/components/JobCloseoutEditor";
+import JobCrewNote from "@/components/JobCrewNote";
 import { JobsMap, type JobsMapPoint } from "@/components/JobsMap";
 import { withAppointmentVisitConfirmations } from "@/lib/appointment-visit-confirmations";
 import { appointmentTerritoryForLocation } from "@/lib/appointment-territory";
@@ -19,6 +20,7 @@ import { readJobRouteAssignmentOverrides } from "@/lib/job-route-assignments";
 import { jobRouteAssignmentKey } from "@/lib/job-route-key";
 import { jobCallAheadLookupKey, readJobCallAheadStatuses } from "@/lib/job-call-ahead";
 import { readVerifiedJobCancellations } from "@/lib/job-cancellations";
+import { jobCrewNoteLookupKey, readJobCrewNotes, type JobCrewNote as JobCrewNoteRecord } from "@/lib/job-crew-notes";
 import {
   appointmentNotes,
   junkItemKeywords,
@@ -2181,7 +2183,15 @@ function jobActivityDate(date: string): string {
   });
 }
 
-function JobContextDetails({ job }: { job: JobRow }) {
+function JobContextDetails({
+  job,
+  date,
+  crewNote,
+}: {
+  job: JobRow;
+  date: string;
+  crewNote?: JobCrewNoteRecord;
+}) {
   const notes = job.appointmentNotes.filter((note) => !/^Appointment moved from\b/i.test(note));
   const notesPreview = notes.join(" • ");
   return (
@@ -2202,6 +2212,12 @@ function JobContextDetails({ job }: { job: JobRow }) {
           <ul>{notes.map((note, index) => <li key={`${job.appointmentId || job.jkNumber}-note-${index}`}>{note}</li>)}</ul>
         </details>
       ) : null}
+      <JobCrewNote
+        date={date}
+        jobKey={jobRouteAssignmentKey(job)}
+        appointmentId={job.appointmentId}
+        initialNote={crewNote}
+      />
     </div>
   );
 }
@@ -2619,6 +2635,7 @@ export default async function JobsPage({
   const callAheadStatuses = readJobCallAheadStatuses();
   const filters: JobsFilters = {
     territory: readFilterValue(params?.territory),
+  const crewNotes = readJobCrewNotes();
     status: readFilterValue(params?.status),
     paymentType: readFilterValue(params?.paymentType),
     truck: readFilterValue(params?.truck),
@@ -3413,7 +3430,11 @@ export default async function JobsPage({
                               </div>
                             </div>
 
-                            <JobContextDetails job={job} />
+                            <JobContextDetails
+                              job={job}
+                              date={jobDate}
+                              crewNote={crewNotes.get(jobCrewNoteLookupKey(jobDate, jobRouteAssignmentKey(job)))}
+                            />
 
                             <JobPhotoDetails job={job} />
 
@@ -3711,7 +3732,11 @@ export default async function JobsPage({
                             </div>
                           </div>
 
-                          <JobContextDetails job={job} />
+                          <JobContextDetails
+                            job={job}
+                            date={job.sourceDate || date}
+                            crewNote={crewNotes.get(jobCrewNoteLookupKey(job.sourceDate || date, jobRouteAssignmentKey(job)))}
+                          />
 
                           <JobPhotoDetails job={job} />
 

@@ -2316,6 +2316,12 @@ a {
 }
 
 @media (max-width: 1050px) {
+  html,
+  body {
+    /* The closed fixed drawer translates just beyond the left viewport edge. */
+    overflow-x: clip;
+  }
+
   .ops-app {
     grid-template-columns: 1fr;
   }

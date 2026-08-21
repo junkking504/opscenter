@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { chicagoDateKey } from "@/lib/chicago-date";
 
 export type PaymentSource = {
   name: string;
@@ -135,17 +136,6 @@ const EMPTY_SUMMARY: PaymentReconciliationSummary = {
 const EXPECTED_MERCHANT_ACCOUNT = "junk krewe";
 const EXPECTED_MERCHANT_ACCOUNT_LAST_FOUR = "4618";
 const CURRENT_DAY_FRESHNESS_MS = 15 * 60 * 1000;
-
-function chicagoDateKey(value: Date): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(value);
-  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${byType.year}-${byType.month}-${byType.day}`;
-}
 
 function merchantCollectedAt(payload: PaymentReconciliation): string | null {
   const declared = payload.sources?.merchant_center?.collected_at;

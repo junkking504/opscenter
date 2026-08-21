@@ -4,9 +4,7 @@ import type { FleetChecklistEntry } from "@/lib/fleet-checklists";
 import type { FleetIssue } from "@/lib/fleet-issues";
 import type { FleetMaintenanceRecord } from "@/lib/fleet-maintenance";
 
-function money(value: number): string {
-  return value.toLocaleString("en-US", { style: "currency", currency: "USD" });
-}
+import { money } from "@/lib/money";
 
 function csvCell(value: unknown): string {
   return `"${String(value ?? "").replace(/"/g, '""')}"`;

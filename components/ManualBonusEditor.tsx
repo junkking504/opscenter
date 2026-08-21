@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ManualBonusEntry } from "@/lib/manual-bonuses";
+import { money } from "@/lib/money";
 
 type BonusDraft = {
   clientId: string;
@@ -12,15 +13,6 @@ type BonusDraft = {
   createdAt?: string;
   updatedAt?: string;
 };
-
-function money(value: number): string {
-  return value.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
 
 function normalizeAmount(value: string): string {
   const cleaned = String(value || "").replace(/[^0-9.-]/g, "");

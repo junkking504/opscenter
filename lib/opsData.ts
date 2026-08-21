@@ -2,18 +2,14 @@ import fs from "fs";
 import path from "path";
 import { applyManualBonusesToMetrics } from "@/lib/manual-bonuses";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
+import { money } from "@/lib/money";
 
 export type AnyRecord = Record<string, any>;
 
-export function money(value: unknown): string {
-  const n = Number(value || 0);
-  return n.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
+// Re-exported so the existing `@/lib/opsData` importers of `money` keep
+// working unchanged. The actual implementation lives in the dependency-free
+// `@/lib/money`, which is also safe to import from client components.
+export { money };
 
 export function num(value: unknown): string {
   return Number(value || 0).toLocaleString("en-US");

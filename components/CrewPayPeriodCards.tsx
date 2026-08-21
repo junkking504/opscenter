@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { calculateWeeklyOvertime } from "@/lib/overtime";
+import { money } from "@/lib/money";
 
 export type CrewPayPeriodSummaryRow = {
   name: string;
@@ -108,15 +109,6 @@ type CrewPayPeriodWorkWeek = {
     totalPay: number;
   };
 };
-
-function money(value: number): string {
-  return value.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
 
 function classNames(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(" ");

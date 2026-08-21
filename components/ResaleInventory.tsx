@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ResaleItem, ResaleStatus } from "@/lib/resale-items";
+import { money } from "@/lib/money";
 
 type ResaleDraft = {
   itemId: string;
@@ -61,15 +62,6 @@ function draftFromItem(item: ResaleItem): ResaleDraft {
     marketplace: item.marketplace,
     notes: item.notes,
   };
-}
-
-function money(value: number): string {
-  return value.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
 }
 
 function numericValue(value: string): number {

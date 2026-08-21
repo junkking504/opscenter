@@ -10,6 +10,7 @@ import { getDataHealthReport, type DataHealthSource } from "@/lib/data-health";
 import { readFleetIssueStore, type FleetIssue } from "@/lib/fleet-issues";
 import { buildOperationalExceptions, type OperationalException } from "@/lib/operational-exceptions";
 import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
+import { money as moneyText } from "@/lib/money";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { hasFullCloseoutPayment, readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
 import { formatOpsCenterSlackMessage, type SlackMessageField } from "@/lib/slack-message-format";
@@ -477,15 +478,6 @@ function employeeKey(name: string): string {
     .filter(Boolean)
     .sort()
     .join("-");
-}
-
-function moneyText(value: number): string {
-  return value.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
 }
 
 function crewNotification(

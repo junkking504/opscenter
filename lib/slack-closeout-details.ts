@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { money as moneyText } from "@/lib/money";
 import type { AnyRecord } from "@/lib/opsData";
 
 export type TruckCloseoutDetails = {
@@ -23,15 +24,6 @@ function firstFiniteNumber(row: AnyRecord, keys: string[]): number | null {
     if (Number.isFinite(value)) return value;
   }
   return null;
-}
-
-function moneyText(value: number): string {
-  return value.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
 }
 
 function loadSize(value: string): string {

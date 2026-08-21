@@ -4,6 +4,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoClockToDate } from "@/lib/live-pay";
 import { isClosedAppointment, isEstimateAppointment, shouldFlagMissingPaymentType } from "@/lib/job-audit-rules";
+import { money } from "@/lib/money";
 
 export type ExceptionSeverity = "critical" | "warning" | "info";
 export type ExceptionCategory = "Crew" | "Jobs" | "Fleet" | "Finance";
@@ -154,13 +155,12 @@ function normalizeEmployeeKey(value: unknown): string {
   return normalizeEmployeeName(value).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+// Delegates to the one canonical formatter (`@/lib/money`) instead of
+// reimplementing it — see the 2026-08-21 data-consistency audit. Keeps the
+// local `num()` normalization (handles strings like "$1,234.56") since that
+// behavior is specific to this file's inputs, not part of the formatter.
 function formatMoney(value: unknown): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(num(value));
+  return money(num(value));
 }
 
 function parseAppointmentWindow(date: string, value: unknown): { start: Date | null; end: Date | null } | null {

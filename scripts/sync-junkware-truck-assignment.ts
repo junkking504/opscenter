@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { chromium, type Browser, type Page } from "@playwright/test";
+import { resolveJunkwareAssignedTruck } from "@/lib/junkware-truck-label";
 import { clickWithWebFormsCompletion, selectWithWebFormsPostback } from "./junkware-webforms";
 
 const JUNKWARE_ORIGIN = "https://junkware.junk-king.com";
@@ -109,20 +110,19 @@ function normalizedTruck(value: string): string {
   return `Truck ${match[1]}`;
 }
 
-function outputTruck(label: string): string {
-  const match = label.match(/truck\s*#?\s*(\d+)/i);
-  return match ? `Truck ${match[1]}` : "";
-}
-
 async function assignedTruck(page: Page): Promise<string> {
   const truckSelect = page.locator("#ctl00_Content_TruckDD");
   if ((await truckSelect.count()) !== 1) throw new Error("The JunkWare truck assignment control has changed.");
-  const label = await truckSelect.evaluate((select) => {
-    const containerText = select.parentElement?.innerText || select.parentElement?.textContent || "";
+  const assignment = await truckSelect.evaluate((select) => {
+    const control = select as HTMLSelectElement;
+    const selectedOption = control.options[control.selectedIndex]?.textContent || "";
+    const containerText = control.parentElement?.innerText || control.parentElement?.textContent || "";
     const match = containerText.match(/Assigned:\s*(Truck#?\s*\d+)/i);
-    return match?.[1] || "";
+    return { selectedOption, assignedLabel: match?.[1] || "" };
   });
-  return outputTruck(label);
+  // Completed appointments keep the current truck selected in the dropdown
+  // but omit the separate "Assigned:" label rendered by open appointments.
+  return resolveJunkwareAssignedTruck(assignment);
 }
 
 function clockMinutes(value: string): number | null {

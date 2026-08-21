@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { resolveJunkwareAssignedTruck } from "@/lib/junkware-truck-label";
 import { canDragScheduleAppointment, scheduleDragScrollDelta } from "@/lib/schedule-drag";
 
 assert.equal(canDragScheduleAppointment({ statusBucket: "Open" }), true);
@@ -13,6 +14,15 @@ assert.equal(scheduleDragScrollDelta(764, 0, 800), 9);
 assert.equal(scheduleDragScrollDelta(80, 100, 700), -18);
 assert.equal(scheduleDragScrollDelta(720, 100, 700), 18);
 assert.equal(scheduleDragScrollDelta(10, 10, 10), 0);
+
+assert.equal(resolveJunkwareAssignedTruck({
+  selectedOption: "Truck# 3",
+  assignedLabel: "",
+}), "Truck 3");
+assert.equal(resolveJunkwareAssignedTruck({
+  selectedOption: "",
+  assignedLabel: "Truck# 4",
+}), "Truck 4");
 
 const jobsMapSource = readFileSync(new URL("../components/JobsMap.tsx", import.meta.url), "utf8");
 assert.ok(!jobsMapSource.includes("draggable={"), "Schedule blocks must not mix native drag events with pointer dragging.");

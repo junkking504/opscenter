@@ -3318,10 +3318,12 @@ export default async function JobsPage({
                             articleId={appointmentCardId(job)}
                             isCanceled={statusBucket(job) === "Canceled"}
                             canCancel={canCancelAppointment(job)}
+                            canReschedule={canCancelAppointment(job) && job.hasScheduledTime && job.appointmentStartMinutes != null}
                             appointmentId={job.appointmentId}
                             jkNumber={safeText(job.jkNumber)}
                             customerName={safeText(job.customerName)}
                             appointmentTime={safeText(job.appointmentTime)}
+                            appointmentStartMinutes={job.appointmentStartMinutes}
                             truckOnSite={date === chicagoDateKey() && Boolean(mapPoints.find((point) => point.detailId === appointmentCardId(job))?.truckOnSite)}
                             key={`${territory}-${scheduleGroup}-${job.jkNumber}-${index}`}
                           >
@@ -3616,10 +3618,12 @@ export default async function JobsPage({
                           articleId={appointmentCardId(job)}
                           isCanceled={statusBucket(job) === "Canceled"}
                           canCancel={canCancelAppointment(job)}
+                          canReschedule={canCancelAppointment(job) && job.hasScheduledTime && job.appointmentStartMinutes != null}
                           appointmentId={job.appointmentId}
                           jkNumber={safeText(job.jkNumber)}
                           customerName={safeText(job.customerName)}
                           appointmentTime={safeText(job.appointmentTime)}
+                          appointmentStartMinutes={job.appointmentStartMinutes}
                           truckOnSite={date === chicagoDateKey() && Boolean(mapPoints.find((point) => point.detailId === appointmentCardId(job))?.truckOnSite)}
                           key={`${territory}-unscheduled-${job.jkNumber}-${index}`}
                         >

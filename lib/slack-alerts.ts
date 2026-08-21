@@ -504,8 +504,8 @@ function crewNotification(
     subject: name,
     detail: "",
     nextAction: "",
-    href: "",
-    fields,
+    href: absoluteOpsHref(`/crew/${encodeURIComponent(name)}?date=${encodeURIComponent(date)}`),
+    fields: kind === "crew_clock_in" ? [{ label: "Status", value: "Clocked in" }] : fields,
   };
 }
 
@@ -600,7 +600,7 @@ export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyReco
       subject: jobNumber,
       detail: "",
       nextAction: "",
-      href: "",
+      href: absoluteOpsHref(`/jobs?date=${encodeURIComponent(date)}#job-${jobNumber.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`),
       fields,
     });
   }
@@ -725,7 +725,7 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
         subject: truck,
         detail: "",
         nextAction: "",
-        href: "",
+        href: absoluteOpsHref(`/jobs?date=${encodeURIComponent(date)}#job-${jkNumber.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`),
         fields: [
           { label: "Job", value: jkNumber },
           { label: "Customer", value: customerName },

@@ -231,6 +231,7 @@ assert.deepEqual(
         "Tip:        $50.80",
         "Charged:    Card ending 3013 ($558.80)",
         "```",
+        "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051000|Open in OpsCenter>",
       ].join("\n"),
     },
     {
@@ -243,6 +244,7 @@ assert.deepEqual(
         "Tip:      $0.00",
         "Charged:  Check #1487 ($198.00)",
         "```",
+        "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051001|Open in OpsCenter>",
       ].join("\n"),
     },
     {
@@ -255,6 +257,7 @@ assert.deepEqual(
         "Tip:      $15.00",
         "Charged:  Card ending 4242 ($100.00); Cash ($50.00)",
         "```",
+        "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051003|Open in OpsCenter>",
       ].join("\n"),
     },
   ],
@@ -312,6 +315,7 @@ assert.deepEqual(
         "Customer:  Test Customer",
         "Address:   123 Test Street, New Orleans, LA 70115",
         "```",
+        "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4050424|Open in OpsCenter>",
       ].join("\n"),
     },
     {
@@ -325,6 +329,7 @@ assert.deepEqual(
         "Customer:  Test Customer",
         "Address:   123 Test Street, New Orleans, LA 70115",
         "```",
+        "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4050424|Open in OpsCenter>",
       ].join("\n"),
     },
   ],
@@ -458,6 +463,7 @@ try {
       "Customer:  Arrival Customer",
       "Address:   503 Arrival Street, New Orleans, LA 70115",
       "```",
+      "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|Open in OpsCenter>",
     ].join("\n"),
   ]);
   postedMessages.length = 0;
@@ -481,6 +487,7 @@ try {
       "Tip:      $20.00",
       "Charged:  Check #2201 ($220.00)",
       "```",
+      "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|Open in OpsCenter>",
     ].join("\n"),
   ]);
 
@@ -518,6 +525,7 @@ try {
     "Tip:      $10.00",
     "Charged:  Cash ($110.00)",
     "```",
+    "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|Open in OpsCenter>",
   ].join("\n"));
 
   const duplicateDirectCloseout = await publishVerifiedTruckCloseout({
@@ -566,8 +574,16 @@ const crewAlerts = buildCrewSlackNotifications("2026-08-12", [
 assert.deepEqual(
   crewAlerts.map((alert) => ({ kind: alert.kind, channelId: alert.channelId, text: formatSlackAlert(alert) })),
   [
-    { kind: "crew_clock_in", channelId: "C_TEST_COMMAND", text: "*[Clock In]*\nClocked In Employee" },
-    { kind: "crew_clock_in", channelId: "C_TEST_COMMAND", text: "*[Clock In]*\nClocked Out Employee" },
+    {
+      kind: "crew_clock_in",
+      channelId: "C_TEST_COMMAND",
+      text: "*[Clock In]*\nClocked In Employee\n```\nStatus:  Clocked in\n```\n<https://ops.junk-king.app/crew/Clocked%20In%20Employee?date=2026-08-12|Open in OpsCenter>",
+    },
+    {
+      kind: "crew_clock_in",
+      channelId: "C_TEST_COMMAND",
+      text: "*[Clock In]*\nClocked Out Employee\n```\nStatus:  Clocked in\n```\n<https://ops.junk-king.app/crew/Clocked%20Out%20Employee?date=2026-08-12|Open in OpsCenter>",
+    },
     {
       kind: "crew_clock_out",
       channelId: "C_TEST_COMMAND",
@@ -581,6 +597,7 @@ assert.deepEqual(
         "Bonus:   $15.00",
         "Total:   $138.38",
         "```",
+        "<https://ops.junk-king.app/crew/Clocked%20Out%20Employee?date=2026-08-12|Open in OpsCenter>",
       ].join("\n"),
     },
   ],
@@ -621,6 +638,7 @@ assert.equal(formatSlackAlert(separateClockOuts[0]), [
   "Bonus:   $0.00",
   "Total:   $84.27",
   "```",
+  "<https://ops.junk-king.app/crew/Ivory%20Grace?date=2026-08-12|Open in OpsCenter>",
 ].join("\n"));
 assert.doesNotMatch(formatSlackAlert(separateClockOuts[0]), /Steven Miles/);
 assert.match(formatSlackAlert(separateClockOuts[1]), /^\*\[Clock Out\]\*\nSteven Miles\n/);

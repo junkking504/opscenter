@@ -110,7 +110,7 @@ const formatted = formatSlackAlert({
   ],
 });
 assert.equal(formatted, [
-  "*EOD Report*",
+  "*[EOD Report]*",
   "```",
   "Jobs:       13",
   "Estimates:  2",

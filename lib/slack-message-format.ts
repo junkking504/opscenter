@@ -11,6 +11,12 @@ function cleanInline(value: string | number): string {
   return String(value ?? "").replace(/\s+/g, " ").trim();
 }
 
+function alertTitle(value: string): string {
+  const title = cleanInline(value);
+  if (!title) return "[OpsCenter]";
+  return /^\[[^\[\]]+\]$/.test(title) ? title : `[${title.replace(/[\[\]]/g, "").trim()}]`;
+}
+
 export function formatSlackAlignedFields(fields: SlackMessageField[]): string {
   const normalized = fields
     .map((field) => ({ label: cleanInline(field.label).replace(/:+$/, ""), value: cleanInline(field.value) }))
@@ -29,7 +35,7 @@ export function formatOpsCenterSlackMessage(input: {
   href?: string;
   linkLabel?: string;
 }): string {
-  const output = [`*${escapeSlackText(cleanInline(input.title))}*`];
+  const output = [`*${escapeSlackText(alertTitle(input.title))}*`];
   const subject = cleanInline(input.subject || "");
   if (subject) output.push(escapeSlackText(subject));
 

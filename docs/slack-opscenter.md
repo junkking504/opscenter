@@ -29,7 +29,7 @@ Crew lifecycle notifications are also baselined once when the feature is first d
 
 All OpsCenter Slack alerts use the same compact presentation: a bracketed event heading, the job, truck, or employee on its own line, and aligned label/value rows in a monospace block. The `EOD Report` keeps its exact title and uses the same aligned rows.
 
-The detector baselines silently on its first run, then posts each new appointment, reschedule, and cancellation once. It publishes only after JunkWare has confirmed the requested date and every selected market. It never posts a schedule-only closeout. Instead, a newly completed job remains in its fast retry queue until the targeted closeout read contains a method and amount for every payment; it then posts the one full truck-channel alert and clears the item. Existing completed jobs are baselined so they do not flood Slack. Full closeouts include the payment method, amount, check number where applicable, card last four, and any tip. Messages contain only the JK number, payment details, and a positive tip amount; they do not include customer data or a full card number.
+The detector baselines silently on its first run and on the first verified snapshot of each new business date, then posts each new appointment, reschedule, and cancellation once. It publishes only after JunkWare has confirmed the requested date and every selected market. It never posts a schedule-only closeout. Instead, a newly completed job remains in its fast retry queue until the targeted closeout read contains a method and amount for every payment; it then posts the one full truck-channel alert and clears the item. Existing completed jobs are baselined so they do not flood Slack. Full closeouts include the payment method, amount, check number where applicable, card last four, and any tip. Messages contain only the JK number, payment details, and a positive tip amount; they do not include customer data or a full card number.
 
 Appointments that remain open after their scheduled window stay visible in OpsCenter but do not generate Slack alerts or resolution replies.
 
@@ -56,4 +56,4 @@ set +a
 npm run alerts:slack
 ```
 
-The live refresh loop runs the same publisher automatically after each successful data publish. Runtime state is stored at `data/slack/ops_alert_state.json` and is intentionally excluded from git.
+The live refresh loop runs the same publisher automatically after each successful data publish. Before each authoritative JunkWare pull it requires a real DNS answer for `junkware.junk-king.com`, rather than only a generic network-route signal. A failed pull retries after 10, 20, and 40 seconds, then every 60 seconds until it succeeds; a successful cycle resets that backoff. Runtime state is stored at `data/slack/ops_alert_state.json` and is intentionally excluded from git.

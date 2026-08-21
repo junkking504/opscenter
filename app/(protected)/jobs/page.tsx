@@ -8,6 +8,7 @@ import PageHeader from "@/components/PageHeader";
 import OpsMonthSelector from "@/components/OpsMonthSelector";
 import JobCallAheadCard from "@/components/JobCallAheadCard";
 import JobCloseoutEditor from "@/components/JobCloseoutEditor";
+import JobAppointmentNote from "@/components/JobAppointmentNote";
 import { JobsMap, type JobsMapPoint } from "@/components/JobsMap";
 import { withAppointmentVisitConfirmations } from "@/lib/appointment-visit-confirmations";
 import { appointmentTerritoryForLocation } from "@/lib/appointment-territory";
@@ -2199,6 +2200,7 @@ function JobContextDetails({ job }: { job: JobRow }) {
           <ul>{notes.map((note, index) => <li key={`${job.appointmentId || job.jkNumber}-note-${index}`}>{note}</li>)}</ul>
         </details>
       ) : null}
+      <JobAppointmentNote appointmentId={job.appointmentId} />
     </div>
   );
 }
@@ -3316,10 +3318,12 @@ export default async function JobsPage({
                             articleId={appointmentCardId(job)}
                             isCanceled={statusBucket(job) === "Canceled"}
                             canCancel={canCancelAppointment(job)}
+                            canReschedule={canCancelAppointment(job) && job.hasScheduledTime && job.appointmentStartMinutes != null}
                             appointmentId={job.appointmentId}
                             jkNumber={safeText(job.jkNumber)}
                             customerName={safeText(job.customerName)}
                             appointmentTime={safeText(job.appointmentTime)}
+                            appointmentStartMinutes={job.appointmentStartMinutes}
                             truckOnSite={date === chicagoDateKey() && Boolean(mapPoints.find((point) => point.detailId === appointmentCardId(job))?.truckOnSite)}
                             key={`${territory}-${scheduleGroup}-${job.jkNumber}-${index}`}
                           >
@@ -3614,10 +3618,12 @@ export default async function JobsPage({
                           articleId={appointmentCardId(job)}
                           isCanceled={statusBucket(job) === "Canceled"}
                           canCancel={canCancelAppointment(job)}
+                          canReschedule={canCancelAppointment(job) && job.hasScheduledTime && job.appointmentStartMinutes != null}
                           appointmentId={job.appointmentId}
                           jkNumber={safeText(job.jkNumber)}
                           customerName={safeText(job.customerName)}
                           appointmentTime={safeText(job.appointmentTime)}
+                          appointmentStartMinutes={job.appointmentStartMinutes}
                           truckOnSite={date === chicagoDateKey() && Boolean(mapPoints.find((point) => point.detailId === appointmentCardId(job))?.truckOnSite)}
                           key={`${territory}-unscheduled-${job.jkNumber}-${index}`}
                         >

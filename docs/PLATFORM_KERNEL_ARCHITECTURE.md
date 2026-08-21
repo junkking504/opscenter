@@ -44,7 +44,7 @@ The existing code already contains useful early versions of kernel behavior:
 - `app/api/exceptions/route.ts` exposes those signals to authenticated users.
 - `app/api/job-route-assignments/route.ts` persists local intent before calling JunkWare, distinguishes pending verification from verified state, and tolerates external failure.
 - `lib/job-route-assignments.ts` uses atomic replacement, concurrency guards, explicit pending state, and retryable records.
-- `app/api/job-closeout/route.ts` and the JunkWare adapter provide an existing external action path that can be moved behind the action registry.
+- `app/api/job-closeout/route.ts`, `app/api/job-cancellation/route.ts`, and `app/api/job-reschedule/route.ts` keep external appointment writes authenticated, serialized per appointment, and read-back verified. The reschedule card shows a verified write immediately, while the authoritative schedule collector moves the card on its next refresh.
 - `lib/auth.ts` supplies an authenticated actor identity, but does not yet provide roles or action-level authorization.
 
 The kernel should extract and generalize these patterns, not discard them.

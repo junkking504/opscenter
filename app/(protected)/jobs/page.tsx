@@ -112,6 +112,8 @@ type SiteTimeTruck = {
   truck: string;
   arrival: string | null;
   departure: string | null;
+  nearbyArrival: string | null;
+  nearbyDeparture: string | null;
   onsiteMinutes: number;
   totalTruckMinutes?: number;
   elapsedSiteCoverageMinutes?: number;
@@ -192,6 +194,7 @@ const STATUS_ORDER: JobStatusBucket[] = [
 function siteTimeState(row: Record<string, any>): string {
   if (row?.operational_confirmation) return "Operations confirmed visit";
   const reason = String(row?.match_reason || "");
+  if (reason === "nearby_stop_outside_verified_geofence") return "Nearby GPS stop — review required";
   if (reason === "missing_effective_tracker_mapping") return "Truck not mapped to Linxup";
   if (reason === "missing_or_ambiguous_geocode") return "Appointment location could not be matched";
   if (reason === "no_physical_truck_assignment") return "Truck tracker unavailable";
@@ -238,6 +241,8 @@ function readAppointmentSiteTime(date: string): SiteTimeAppointment[] {
           truck: String(row?.truck_number || "Unassigned truck"),
           arrival: row?.first_arrival || null,
           departure: row?.final_departure || null,
+          nearbyArrival: Array.isArray(row?.nearby_stop_intervals) ? row.nearby_stop_intervals[0]?.arrival || null : null,
+          nearbyDeparture: Array.isArray(row?.nearby_stop_intervals) ? row.nearby_stop_intervals.at(-1)?.departure || null : null,
           onsiteMinutes: Number(row?.onsite_minutes || 0),
           totalTruckMinutes: Number(row?.total_truck_minutes || 0),
           elapsedSiteCoverageMinutes: Number(row?.elapsed_site_coverage_minutes || 0),
@@ -627,6 +632,9 @@ function siteTimeQuality(row: Record<string, any>): string {
   if (reason === "missing_or_ambiguous_geocode") {
     return "Address could not be geocoded";
   }
+  if (reason === "nearby_stop_outside_verified_geofence") {
+    return "Nearby GPS stop — review required";
+  }
   if (firstArrival && !finalDeparture) {
     return "Arrival detected; departure unavailable";
   }
@@ -648,6 +656,13 @@ function siteTimeVisitLabel(row: Record<string, any>): string {
   }
   if (row?.first_arrival && !row?.final_departure) {
     return `On Site`;
+  }
+  if (String(row?.matchReason ?? row?.match_reason ?? "").trim() === "nearby_stop_outside_verified_geofence") {
+    const arrival = row?.nearbyArrival ?? row?.nearby_arrival;
+    const departure = row?.nearbyDeparture ?? row?.nearby_departure;
+    return arrival && departure
+      ? `Nearby stop ${siteTimeClock(String(arrival))}–${siteTimeClock(String(departure))} · review required`
+      : "Nearby GPS stop — review required";
   }
   return siteTimeQuality(row);
 }

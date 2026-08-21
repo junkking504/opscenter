@@ -11,14 +11,12 @@ function cleanInline(value: string | number): string {
   return String(value ?? "").replace(/\s+/g, " ").trim();
 }
 
-export function formatSlackAlignedFields(fields: SlackMessageField[]): string {
-  const normalized = fields
-    .map((field) => ({ label: cleanInline(field.label).replace(/:+$/, ""), value: cleanInline(field.value) }))
-    .filter((field) => field.label && field.value);
-  const width = Math.max(0, ...normalized.map((field) => `${field.label}:`.length)) + 2;
-  return normalized
-    .map((field) => `${`${field.label}:`.padEnd(width)}${field.value}`)
-    .join("\n");
+function formatSlackFieldLines(fields: SlackMessageField[]): string[] {
+  return fields.flatMap((field) => {
+    const label = cleanInline(field.label).replace(/:+$/, "");
+    const value = cleanInline(field.value);
+    return label && value ? [`*${escapeSlackText(label)}:* ${escapeSlackText(value)}`] : [];
+  });
 }
 
 export function formatOpsCenterSlackMessage(input: {
@@ -33,10 +31,10 @@ export function formatOpsCenterSlackMessage(input: {
   const subject = cleanInline(input.subject || "");
   if (subject) output.push(escapeSlackText(subject));
 
-  const alignedFields = formatSlackAlignedFields(input.fields || []);
-  const lines = (input.lines || []).map(cleanInline).filter(Boolean).join("\n");
-  const codeBlock = alignedFields || lines;
-  if (codeBlock) output.push("```", escapeSlackText(codeBlock).replace(/```/g, "'''"), "```");
+  // Slack wraps plain text naturally on narrow screens. Avoid code blocks here:
+  // their fixed-width columns cause long addresses to wrap out of alignment.
+  output.push(...formatSlackFieldLines(input.fields || []));
+  output.push(...(input.lines || []).map(cleanInline).filter(Boolean).map(escapeSlackText));
 
   const href = cleanInline(input.href || "");
   if (href) output.push(`<${href}|${escapeSlackText(cleanInline(input.linkLabel || "Open in OpsCenter"))}>`);

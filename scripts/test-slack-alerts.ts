@@ -140,10 +140,8 @@ assert.equal(addOnSlackAlert.channelId, "C_TEST_NO");
 assert.equal(formatSlackAlert(addOnSlackAlert), [
   "*[Add-On]*",
   "JK4025000",
-  "```",
-  "Customer:  Test Customer",
-  "Address:   123 Test Street",
-  "```",
+  "*Customer:* Test Customer",
+  "*Address:* 123 Test Street",
   "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4025000|Open in OpsCenter>",
 ].join("\n"));
 assert.doesNotMatch(formatSlackAlert(addOnSlackAlert), /Truck# 4|Alert ID|\*Next:\*/);
@@ -224,13 +222,11 @@ assert.deepEqual(
       text: [
         "*[Job Closed]*",
         "JK4051000",
-        "```",
-        "Load:       1/2 ($538.00)",
-        "Discount:   $30.00",
-        "Job total:  $508.00",
-        "Tip:        $50.80",
-        "Charged:    Card ending 3013 ($558.80)",
-        "```",
+        "*Load:* 1/2 ($538.00)",
+        "*Discount:* $30.00",
+        "*Job total:* $508.00",
+        "*Tip:* $50.80",
+        "*Charged:* Card ending 3013 ($558.80)",
       ].join("\n"),
     },
     {
@@ -239,10 +235,8 @@ assert.deepEqual(
       text: [
         "*[Job Closed]*",
         "JK4051001",
-        "```",
-        "Tip:      $0.00",
-        "Charged:  Check #1487 ($198.00)",
-        "```",
+        "*Tip:* $0.00",
+        "*Charged:* Check #1487 ($198.00)",
       ].join("\n"),
     },
     {
@@ -251,10 +245,8 @@ assert.deepEqual(
       text: [
         "*[Job Closed]*",
         "JK4051003",
-        "```",
-        "Tip:      $15.00",
-        "Charged:  Card ending 4242 ($100.00); Cash ($50.00)",
-        "```",
+        "*Tip:* $15.00",
+        "*Charged:* Card ending 4242 ($100.00); Cash ($50.00)",
       ].join("\n"),
     },
   ],
@@ -307,11 +299,9 @@ assert.deepEqual(
       text: [
         "*[Truck Arrival]*",
         "Truck 4",
-        "```",
-        "Job:       JK4050424",
-        "Customer:  Test Customer",
-        "Address:   123 Test Street, New Orleans, LA 70115",
-        "```",
+        "*Job:* JK4050424",
+        "*Customer:* Test Customer",
+        "*Address:* 123 Test Street, New Orleans, LA 70115",
       ].join("\n"),
     },
     {
@@ -320,11 +310,9 @@ assert.deepEqual(
       text: [
         "*[Truck Arrival]*",
         "Truck 4",
-        "```",
-        "Job:       JK4050424",
-        "Customer:  Test Customer",
-        "Address:   123 Test Street, New Orleans, LA 70115",
-        "```",
+        "*Job:* JK4050424",
+        "*Customer:* Test Customer",
+        "*Address:* 123 Test Street, New Orleans, LA 70115",
       ].join("\n"),
     },
   ],
@@ -341,11 +329,12 @@ fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), J
       appt_id: "401",
       job_id: "JK4025001",
       normalized_territory: "Jefferson Parish",
-      customer_name: "Test Customer",
+      customer_name: "Terese Teilmann",
+      phone: "(713) 870-4410",
       appointment_time: "1:00 PM - 3:00 PM",
-      address: "123 Test Street",
+      address: "16236 Cody Ln, Covington, 70435",
       cancelled_by: "Dispatcher",
-      cancellation_reason: "Customer requested",
+      cancellation_reason: "Terese Teilmann 7138704410 16236 Cody Ln Covington, LA 70435 No show Followup",
       assigned_truck: "Truck 4",
     },
     {
@@ -364,16 +353,16 @@ assert.deepEqual(cancellationFeed.appointments[0], {
   appointmentId: "401",
   jobNumber: "JK4025001",
   territory: "Jefferson Parish",
-  customerName: "Test Customer",
-  phone: "Phone unavailable",
-  address: "123 Test Street",
+  customerName: "Terese Teilmann",
+  phone: "(713) 870-4410",
+  address: "16236 Cody Ln, Covington, 70435",
   appointmentTime: "1:00 PM - 3:00 PM",
   appointmentType: "Appointment",
   assignedTruck: "Truck 4",
   items: [],
   href: "/jobs?date=2026-08-12#job-jk4025001",
   cancelledBy: "Dispatcher",
-  cancellationReason: "Customer requested",
+  cancellationReason: "No show Followup",
 });
 
 const paymentStateFile = path.join(temporaryDataDir, "slack-state.json");
@@ -453,11 +442,9 @@ try {
     [
       "*[Truck Arrival]*",
       "Truck 6",
-      "```",
-      "Job:       JK4051503",
-      "Customer:  Arrival Customer",
-      "Address:   503 Arrival Street, New Orleans, LA 70115",
-      "```",
+      "*Job:* JK4051503",
+      "*Customer:* Arrival Customer",
+      "*Address:* 503 Arrival Street, New Orleans, LA 70115",
     ].join("\n"),
   ]);
   postedMessages.length = 0;
@@ -477,10 +464,8 @@ try {
     [
       "*[Job Closed]*",
       "JK4051502",
-      "```",
-      "Tip:      $20.00",
-      "Charged:  Check #2201 ($220.00)",
-      "```",
+      "*Tip:* $20.00",
+      "*Charged:* Check #2201 ($220.00)",
     ].join("\n"),
   ]);
 
@@ -514,10 +499,8 @@ try {
   assert.equal(postedMessages.at(-1), [
     "*[Job Closed]*",
     "JK4051503",
-    "```",
-    "Tip:      $10.00",
-    "Charged:  Cash ($110.00)",
-    "```",
+    "*Tip:* $10.00",
+    "*Charged:* Cash ($110.00)",
   ].join("\n"));
 
   const duplicateDirectCloseout = await publishVerifiedTruckCloseout({
@@ -574,13 +557,11 @@ assert.deepEqual(
       text: [
         "*[Clock Out]*",
         "Clocked Out Employee",
-        "```",
-        "Hours:   5.55",
-        "Hourly:  $102.67",
-        "Tips:    $20.71",
-        "Bonus:   $15.00",
-        "Total:   $138.38",
-        "```",
+        "*Hours:* 5.55",
+        "*Hourly:* $102.67",
+        "*Tips:* $20.71",
+        "*Bonus:* $15.00",
+        "*Total:* $138.38",
       ].join("\n"),
     },
   ],
@@ -614,13 +595,11 @@ assert.equal(separateClockOuts.length, 2);
 assert.equal(formatSlackAlert(separateClockOuts[0]), [
   "*[Clock Out]*",
   "Ivory Grace",
-  "```",
-  "Hours:   5.27",
-  "Hourly:  $84.27",
-  "Tips:    $0.00",
-  "Bonus:   $0.00",
-  "Total:   $84.27",
-  "```",
+  "*Hours:* 5.27",
+  "*Hourly:* $84.27",
+  "*Tips:* $0.00",
+  "*Bonus:* $0.00",
+  "*Total:* $84.27",
 ].join("\n"));
 assert.doesNotMatch(formatSlackAlert(separateClockOuts[0]), /Steven Miles/);
 assert.match(formatSlackAlert(separateClockOuts[1]), /^\*\[Clock Out\]\*\nSteven Miles\n/);

@@ -3,6 +3,7 @@ type LeafletModule = typeof import("leaflet");
 type TruckMapMarkerOptions = {
   atJob?: boolean;
   labelOffset?: number;
+  scale?: number;
   selected?: boolean;
 };
 
@@ -25,6 +26,14 @@ function truckMapShortLabel(value: string): string {
   const raw = String(value || "").trim();
   const number = raw.match(/(\d+)/)?.[1];
   return number ? `T${number}` : raw;
+}
+
+export function truckMapMarkerScale(zoom: number): number {
+  if (!Number.isFinite(zoom) || zoom >= 12) return 1;
+  if (zoom <= 8) return 0.62;
+  if (zoom === 9) return 0.72;
+  if (zoom === 10) return 0.84;
+  return 0.92;
 }
 
 export function truckMapMarkerOffsets<T>(
@@ -58,14 +67,15 @@ export function truckMapMarkerOffsets<T>(
 export function truckMapMarkerIcon(
   leaflet: LeafletModule,
   truck: string,
-  { atJob = false, labelOffset = 0, selected = false }: TruckMapMarkerOptions = {},
+  { atJob = false, labelOffset = 0, scale = 1, selected = false }: TruckMapMarkerOptions = {},
 ) {
+  const markerScale = Math.min(1, Math.max(0.5, Number.isFinite(scale) ? scale : 1));
   const iconAnchorY = 21 - labelOffset;
   const leaderTop = Math.min(21, iconAnchorY);
   const label = truckMapLabel(truck);
   const shortLabel = truckMapShortLabel(truck);
   const html = `
-    <div class="ops-truck-map-marker-locator">
+    <div class="ops-truck-map-marker-locator" style="transform:scale(${markerScale});transform-origin:top left">
       ${labelOffset === 0 ? "" : `
         <span class="ops-truck-map-marker-origin" style="top:${17 - labelOffset}px"></span>
         <span class="ops-truck-map-marker-leader" style="top:${leaderTop}px;height:${Math.abs(labelOffset)}px"></span>
@@ -90,9 +100,9 @@ export function truckMapMarkerIcon(
   return leaflet.divIcon({
     className: "ops-truck-map-div-icon",
     html,
-    iconSize: [46, 28],
-    iconAnchor: [22, iconAnchorY],
-    popupAnchor: [0, -22],
-    tooltipAnchor: [0, -22],
+    iconSize: [46 * markerScale, 28 * markerScale],
+    iconAnchor: [22 * markerScale, iconAnchorY * markerScale],
+    popupAnchor: [0, -22 * markerScale],
+    tooltipAnchor: [0, -22 * markerScale],
   });
 }

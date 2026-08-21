@@ -5,7 +5,7 @@ import {
   type AppointmentVisitConfirmation,
 } from "@/lib/appointment-visit-confirmations";
 import { operationalStatusForFreshness } from "@/lib/fleet-map";
-import { truckMapLabel, truckMapMarkerOffsets } from "@/components/TruckMapMarker";
+import { truckMapLabel, truckMapMarkerOffsets, truckMapMarkerScale } from "@/components/TruckMapMarker";
 
 const confirmations: AppointmentVisitConfirmation[] = [
   {
@@ -79,6 +79,11 @@ assert.equal(operationalStatusForFreshness("Driving", "GPS Stale"), "GPS Stale")
 assert.equal(operationalStatusForFreshness("Idle", "Offline"), "Offline");
 
 assert.equal(truckMapLabel("Truck# 4"), "Truck #4");
+assert.equal(truckMapMarkerScale(7), 0.62);
+assert.equal(truckMapMarkerScale(9), 0.72);
+assert.equal(truckMapMarkerScale(10), 0.84);
+assert.equal(truckMapMarkerScale(11), 0.92);
+assert.equal(truckMapMarkerScale(12), 1);
 const markerOffsets = truckMapMarkerOffsets(
   [
     { truck: "Truck# 4", x: 100, y: 100 },

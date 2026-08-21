@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FleetMapPayload, FleetMapStop, FleetTruckMapRecord } from "@/lib/fleet-map";
-import { truckMapMarkerIcon, truckMapMarkerOffsets } from "@/components/TruckMapMarker";
+import { truckMapMarkerIcon, truckMapMarkerOffsets, truckMapMarkerScale } from "@/components/TruckMapMarker";
 
 type LeafletModule = typeof import("leaflet");
 
@@ -88,6 +88,8 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any>(null);
   const routeRef = useRef<any>(null);
+  const fittedViewportRef = useRef("");
+  const [mapZoom, setMapZoom] = useState(12);
   const selectedTruckParam = searchParams.get("truck");
   const selectedTruck = selectedTruckParam ? normalizeTruckLabel(selectedTruckParam) : "";
   const fleetMode = !selectedTruckParam;
@@ -150,6 +152,8 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
     mapRef.current = map;
     markersRef.current = markers;
     routeRef.current = routes;
+    const handleZoomEnd = () => setMapZoom(map.getZoom());
+    map.on("zoomend", handleZoomEnd);
 
     let resizeFrame: number | null = null;
     const invalidateMapSize = () => {
@@ -169,6 +173,7 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
     return () => {
       resizeObserver?.disconnect();
       window.removeEventListener("resize", invalidateMapSize);
+      map.off("zoomend", handleZoomEnd);
       if (resizeFrame != null) window.cancelAnimationFrame(resizeFrame);
       map.remove();
       mapRef.current = null;
@@ -199,7 +204,12 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
       ? leaflet.latLngBounds([[selectedTruckRecord.latitude as number, selectedTruckRecord.longitude as number]])
       : null;
     const targetBounds = fleetMode ? allTruckBounds : selectedRouteBounds || selectedTruckBounds;
-    if (targetBounds && targetBounds.isValid()) {
+    const viewportSignature = visibleTrucks
+      .map((truck) => `${truck.truck}:${truck.latitude}:${truck.longitude}`)
+      .sort()
+      .join("|");
+    const targetSignature = `${fleetMode ? "fleet" : selectedTruck}:${viewportSignature}`;
+    if (targetBounds && targetBounds.isValid() && fittedViewportRef.current !== targetSignature) {
       if (targetBounds.getNorthEast().equals(targetBounds.getSouthWest())) {
         map.setView(targetBounds.getCenter(), visibleTrucks.length === 1 ? 12 : 10);
       } else {
@@ -208,6 +218,9 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
           maxZoom: visibleTrucks.length === 1 ? 13 : 15,
         });
       }
+      fittedViewportRef.current = targetSignature;
+    } else if (!targetBounds?.isValid()) {
+      fittedViewportRef.current = "";
     }
     const labelOffsets = truckMapMarkerOffsets(visibleTrucks, (truck) => truck.truck, (truck) =>
       map.latLngToLayerPoint([truck.latitude as number, truck.longitude as number])
@@ -219,6 +232,7 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
         icon: truckMapMarkerIcon(leaflet, truck.truck, {
           atJob: truck.operationalStatus === "At Job",
           labelOffset: labelOffsets.get(truck.truck) || 0,
+          scale: truckMapMarkerScale(mapZoom),
           selected: isSelected,
         }),
         alt: truck.truck,
@@ -293,7 +307,7 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
       });
     }
 
-  }, [allTruckBounds, fleetMode, leaflet, payload.date, payload.trucks, router, searchParams, pathname, selectedRouteBounds, selectedTruck, selectedTruckRecord]);
+  }, [allTruckBounds, fleetMode, leaflet, mapZoom, payload.date, payload.trucks, router, searchParams, pathname, selectedRouteBounds, selectedTruck, selectedTruckRecord]);
 
   useEffect(() => {
     const map = mapRef.current;

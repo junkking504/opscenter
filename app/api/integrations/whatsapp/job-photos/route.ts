@@ -59,6 +59,7 @@ export async function POST(request: Request) {
   const closeoutResults = parsed.texts.map((text) => ingestJobCloseoutText(text));
   const closeoutByMessage = new Map(parsed.texts.map((text, index) => [text.messageId, closeoutResults[index]]));
   for (const message of parsed.messages) {
+    if (message.type === "image") continue;
     if (closeoutByMessage.get(message.messageId)?.status === "ignored") enqueueCrewExpenseReceipt(message);
     else if (!closeoutByMessage.has(message.messageId)) enqueueCrewExpenseReceipt(message);
   }

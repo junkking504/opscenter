@@ -282,7 +282,10 @@ export async function publishScheduleChanges(
   return withStateLock(dataDir, async () => {
     const state = readState(dataDir);
     const previous = state.snapshots[scope] || null;
-    if (!previous) {
+    // A schedule is date-scoped. The first complete snapshot for a new business
+    // date establishes that day's baseline; comparing it to yesterday would
+    // incorrectly announce every carried-over appointment as a new add-on.
+    if (!previous || previous.date !== snapshot.date) {
       writeState(dataDir, { ...state, snapshots: { ...state.snapshots, [scope]: snapshot } });
       return { baselined: true, posted: [], failed: [], closeoutsResolved: 0, closeoutFailures: [] };
     }

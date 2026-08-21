@@ -8,9 +8,10 @@ OPSCENTER_VPS="${OPSCENTER_VPS:-opscenter@104.248.63.228}"
 OPSCENTER_SSH_KEY="${OPSCENTER_SSH_KEY:-$USER_HOME/.ssh/id_ed25519_opscenter}"
 # Target start-to-start cadence; the loop subtracts each completed cycle's runtime.
 REFRESH_INTERVAL_SECONDS=180
-FAILED_REFRESH_RETRY_SECONDS=15
-MAX_FAILED_REFRESH_RETRY_SECONDS=300
+FAILED_REFRESH_RETRY_SECONDS=10
+MAX_FAILED_REFRESH_RETRY_SECONDS=60
 NETWORK_POLL_SECONDS=5
+JUNKWARE_DNS_HOST="junkware.junk-king.com"
 SLACK_ALERT_MIN_INTERVAL_SECONDS=60
 TOMORROW_REFRESH_INTERVAL_SECONDS=3600
 JUNKWARE_SMS_SIGNAL_URL="${JUNKWARE_SMS_SIGNAL_URL:-https://hooks.junk-king.app/api/integrations/junkware/sms/status}"
@@ -25,9 +26,11 @@ if [ -f "$OPSCENTER_DIR/scripts/load-opscenter-secrets.sh" ]; then
 fi
 
 network_available() {
-  local reachability
-  reachability=$(/usr/sbin/scutil -r junkware.junk-king.com 2>/dev/null) || return 1
-  [[ "$reachability" == Reachable* ]]
+  # scutil only verifies that a route could be used; it can report reachable
+  # while the hostname that Playwright needs still fails to resolve. Require a
+  # concrete DNS answer from the same macOS resolver used by the collector.
+  /usr/bin/dscacheutil -q host -a name "$JUNKWARE_DNS_HOST" 2>/dev/null \
+    | /usr/bin/awk '/^ip_address: / { found = 1 } END { exit !found }'
 }
 
 failed_refresh_retry_seconds() {
@@ -157,7 +160,7 @@ do
   CYCLE_COMPLETE=true
 
   if ! network_available; then
-    echo "Network is offline; current-data refresh will retry as soon as connectivity returns."
+    echo "JunkWare DNS is unavailable; current-data refresh will retry as soon as it recovers."
     for SMS_DATE in "${CYCLE_SMS_DATES[@]:-}"
     do
       queue_sms_refresh_date "$SMS_DATE"
@@ -286,7 +289,7 @@ do
 
     if network_available; then
       if [ "$NETWORK_WAS_AVAILABLE" = false ]; then
-        echo "Network connectivity restored; starting an immediate current-data refresh."
+        echo "JunkWare DNS recovered; starting an immediate current-data refresh."
         break
       fi
       NETWORK_WAS_AVAILABLE=true

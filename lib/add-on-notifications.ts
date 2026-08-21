@@ -115,6 +115,32 @@ function appointmentFromRow(row: AnyRecord, date: string): AddOnAppointment {
   };
 }
 
+function normalizedCancellationReason(row: AnyRecord, appointment: AddOnAppointment): string {
+  let reason = firstText(row, ["cancellation_reason", "cancel_reason"]);
+  if (!reason) return "";
+
+  // JunkWare sometimes mirrors the customer/contact/address before the actual
+  // reason. Remove only the known appointment facts, leaving the source reason.
+  const name = appointment.customerName.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  const phoneDigits = appointment.phone.replace(/\D/g, "");
+  if (!name || !phoneDigits || !new RegExp(`^${name}\\s+`, "i").test(reason)) return reason;
+
+  reason = reason.replace(new RegExp(`^${name}\\s+`, "i"), "");
+  const phonePattern = phoneDigits.split("").map((digit) => `${digit}\\D*`).join("");
+  reason = reason.replace(new RegExp(`^${phonePattern}\\s*`, "i"), "");
+
+  const address = appointment.address.match(/^(.+?),\s*([^,]+?)(?:,\s*(?:[A-Z]{2}\s*)?)?(\d{5}(?:-\d{4})?)$/i);
+  if (address) {
+    const [, street, city, zip] = address;
+    const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+    reason = reason.replace(
+      new RegExp(`^${escape(street)}\\s*,?\\s*${escape(city)}\\s*,?\\s*(?:[A-Z]{2}\\s*,?\\s*)?${escape(zip)}\\s*`, "i"),
+      "",
+    );
+  }
+  return reason.replace(/^[-,:;\s]+/, "").trim();
+}
+
 function opsbotDataDirs(): string[] {
   const configured = String(process.env.OPSCENTER_DATA_DIR || "").trim();
   return Array.from(new Set([
@@ -201,7 +227,7 @@ export function buildCancelledAppointmentFeed(date: string): CancelledAppointmen
     appointments.push({
       ...appointment,
       cancelledBy: firstText(row, ["cancelled_by", "canceled_by"]),
-      cancellationReason: firstText(row, ["cancellation_reason", "cancel_reason"]),
+      cancellationReason: normalizedCancellationReason(row, appointment),
     });
   }
 

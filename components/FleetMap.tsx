@@ -233,6 +233,7 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
         params.set("truck", truckNumber(truck.truck));
         router.push(`${pathname}?${params.toString()}`, { scroll: false });
       };
+      marker.on("click", selectTruck);
       const bindTruckMarker = () => {
         const markerButton = marker.getElement()?.querySelector<HTMLElement>(".ops-truck-map-marker");
         if (!markerButton || markerButton.dataset.clickBound === "true") return;

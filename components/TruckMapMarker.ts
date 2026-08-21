@@ -73,6 +73,7 @@ export function truckMapMarkerIcon(
       <button
         type="button"
         class="ops-truck-map-marker${selected ? " is-selected" : ""}${atJob ? " is-at-job" : ""}"
+        data-truck="${escapeHtml(truck)}"
         aria-label="Show ${escapeHtml(label)} details"
         title="${escapeHtml(label)}"
       >

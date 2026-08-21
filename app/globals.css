@@ -1981,13 +1981,15 @@ a {
   overflow: visible;
   border: 0;
   background: transparent;
-  pointer-events: none !important;
+  pointer-events: auto !important;
 }
 
 .ops-truck-map-marker-locator {
+  --ops-truck-marker-gold: #f6c343;
   position: relative;
   width: 46px;
   height: 28px;
+  pointer-events: auto;
 }
 
 .ops-truck-map-marker-origin {
@@ -1999,7 +2001,7 @@ a {
   height: 8px;
   border: 2px solid #fff;
   border-radius: 999px;
-  background: var(--ops-gold);
+  background: var(--ops-truck-marker-gold);
   box-shadow: 0 2px 8px rgba(0,0,0,.45);
   pointer-events: none;
 }
@@ -2014,6 +2016,7 @@ a {
 }
 
 .ops-truck-map-marker {
+  appearance: none;
   position: absolute;
   z-index: 2;
   top: 0;
@@ -2027,9 +2030,10 @@ a {
   padding: 0;
   border: 3px solid #111827;
   border-radius: 8px;
-  background: var(--ops-gold);
+  background: var(--ops-truck-marker-gold);
   box-shadow: 0 4px 12px rgba(0,0,0,.5);
   color: #111827;
+  font-family: inherit;
   font-size: .67rem;
   font-weight: 950;
   line-height: 1;
@@ -2059,7 +2063,7 @@ a {
   height: 7px;
   border-right: 3px solid #111827;
   border-bottom: 3px solid #111827;
-  background: var(--ops-gold);
+  background: var(--ops-truck-marker-gold);
   content: "";
   transform: rotate(45deg);
 }
@@ -4533,16 +4537,20 @@ a {
 }
 
 .ops-jobs-map-pin {
+  appearance: none;
   position: relative;
   display: grid;
   place-items: center;
   width: 20px;
   height: 20px;
   border: 3px solid #111827;
+  padding: 0;
   border-radius: 50% 50% 50% 0;
   box-shadow: 0 3px 9px rgba(0, 0, 0, .45);
   transform: rotate(-45deg);
   transition: transform 120ms ease, box-shadow 120ms ease;
+  cursor: pointer;
+  box-sizing: border-box;
 }
 
 .ops-jobs-map-pin i {

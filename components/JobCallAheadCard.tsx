@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import AppointmentCancelDialog, { type AppointmentCancelTarget } from "@/components/AppointmentCancelDialog";
+import AppointmentRescheduleDialog, { type AppointmentRescheduleTarget } from "@/components/AppointmentRescheduleDialog";
 import type { JobCallAheadStatus } from "@/lib/job-call-ahead";
 
 type MenuPosition = { left: number; top: number };
@@ -19,10 +20,12 @@ export default function JobCallAheadCard({
   articleId,
   isCanceled = false,
   canCancel = false,
+  canReschedule = false,
   appointmentId,
   jkNumber,
   customerName,
   appointmentTime,
+  appointmentStartMinutes,
   truckOnSite = false,
 }: {
   children: ReactNode;
@@ -32,10 +35,12 @@ export default function JobCallAheadCard({
   articleId: string;
   isCanceled?: boolean;
   canCancel?: boolean;
+  canReschedule?: boolean;
   appointmentId: string;
   jkNumber: string;
   customerName: string;
   appointmentTime: string;
+  appointmentStartMinutes: number | null;
   truckOnSite?: boolean;
 }) {
   const router = useRouter();
@@ -47,6 +52,8 @@ export default function JobCallAheadCard({
   const [selectedSlot, setSelectedSlot] = useState<HTMLElement | null>(null);
   const [canceledLocally, setCanceledLocally] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<AppointmentCancelTarget | null>(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState<AppointmentRescheduleTarget | null>(null);
+  const [rescheduleConfirmation, setRescheduleConfirmation] = useState("");
   const [onSite, setOnSite] = useState(truckOnSite);
 
   useEffect(() => setOnSite(truckOnSite), [truckOnSite]);
@@ -132,6 +139,7 @@ export default function JobCallAheadCard({
 
   const effectiveCanceled = isCanceled || canceledLocally;
   const cancellationAvailable = canCancel && !effectiveCanceled && /^\d{1,12}$/.test(appointmentId);
+  const rescheduleAvailable = canReschedule && !effectiveCanceled && /^\d{1,12}$/.test(appointmentId) && Number.isInteger(appointmentStartMinutes);
 
   const card = (
     <article
@@ -180,7 +188,21 @@ export default function JobCallAheadCard({
             </button>
           </>}
         </span>
+        {rescheduleAvailable ? (
+          <button
+            type="button"
+            className="ops-appointment-reschedule-trigger"
+            onClick={() => {
+              setError("");
+              setRescheduleConfirmation("");
+              setRescheduleTarget({ date, appointmentId, jobKey, jkNumber, customerName, appointmentTime, appointmentStartMinutes: Number(appointmentStartMinutes) });
+            }}
+          >
+            Reschedule
+          </button>
+        ) : null}
         {error ? <span className="ops-call-ahead-error" role="alert">{error}</span> : null}
+        {rescheduleConfirmation ? <span className="ops-appointment-reschedule-confirmation" role="status">{rescheduleConfirmation}</span> : null}
       </div>
       {children}
       {menu ? (
@@ -222,6 +244,15 @@ export default function JobCallAheadCard({
         onCanceled={() => {
           setCanceledLocally(true);
           router.refresh();
+        }}
+      />
+      <AppointmentRescheduleDialog
+        target={rescheduleTarget}
+        onClose={() => setRescheduleTarget(null)}
+        onRescheduled={({ date: nextDate, appointmentStartMinutes: nextStart }) => {
+          const time = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" })
+            .format(new Date(Date.UTC(2026, 0, 1, Math.floor(nextStart / 60), nextStart % 60)));
+          setRescheduleConfirmation(`Verified in JunkWare: ${nextDate} · ${time}. The card moves after the next schedule refresh.`);
         }}
       />
     </article>

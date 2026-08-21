@@ -222,12 +222,10 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
           selected: isSelected,
         }),
         alt: truck.truck,
-        keyboard: true,
+        keyboard: false,
         zIndexOffset: isSelected ? 1000 : 0,
       });
 
-      marker.addTo(markers);
-      const markerButton = marker.getElement()?.querySelector<HTMLElement>(".ops-truck-map-marker");
       const selectTruck = () => {
         if (isSelected) return;
         const params = new URLSearchParams(searchParams.toString());
@@ -235,16 +233,19 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
         params.set("truck", truckNumber(truck.truck));
         router.push(`${pathname}?${params.toString()}`, { scroll: false });
       };
-      markerButton?.addEventListener("click", (event) => {
-        event.stopPropagation();
-        selectTruck();
-      });
-      markerButton?.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        event.stopPropagation();
-        selectTruck();
-      });
+      marker.on("click", selectTruck);
+      const bindTruckMarker = () => {
+        const markerButton = marker.getElement()?.querySelector<HTMLElement>(".ops-truck-map-marker");
+        if (!markerButton) return;
+        markerButton.onclick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          selectTruck();
+        };
+      };
+      marker.once("add", () => window.requestAnimationFrame(bindTruckMarker));
+      marker.addTo(markers);
+      bindTruckMarker();
     }
 
     if (!fleetMode && selectedRouteBounds) {

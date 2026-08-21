@@ -281,11 +281,11 @@ function markerIcon(leaflet: LeafletModule, job: JobsMapPoint, selected: boolean
   const canceled = job.statusBucket === "Canceled";
   const label = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber}`;
   return leaflet.divIcon({
-    className: "",
+    className: "ops-jobs-map-div-icon",
     html: `<button type="button" class="ops-jobs-map-pin ${tone}${selected ? " is-selected" : ""}" aria-label="${escapeMarkerHtml(label)}"><i${canceled ? ' class="is-canceled"' : ""}>${canceled ? "×" : ""}</i></button>`,
-    iconSize: [24, 30],
-    iconAnchor: [12, 28],
-    tooltipAnchor: [0, -28],
+    iconSize: [30, 30],
+    iconAnchor: [15, 29],
+    tooltipAnchor: [0, -29],
   });
 }
 

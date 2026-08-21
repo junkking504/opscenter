@@ -28,6 +28,9 @@ authenticated behavior relevant to the question.
 - OpsCenter is an operating control plane, not only a dashboard.
 - JunkWare remains the scheduling/appointment source; OpsCenter is an
   authenticated operational surface.
+- Appointment notes created in OpsCenter are append-only JunkWare **Other
+  Notes** entries. The write path serializes with other appointment changes,
+  reloads the appointment, and confirms the new note before it reports success.
 - Financial, payroll, lead, GPS, and appointment values must remain
   evidence-backed and preserve provenance.
 - Map/appointment selection displays detail; live camera access requires the

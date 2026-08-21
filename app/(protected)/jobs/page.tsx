@@ -8,6 +8,7 @@ import PageHeader from "@/components/PageHeader";
 import OpsMonthSelector from "@/components/OpsMonthSelector";
 import JobCallAheadCard from "@/components/JobCallAheadCard";
 import JobCloseoutEditor from "@/components/JobCloseoutEditor";
+import JobAppointmentNote from "@/components/JobAppointmentNote";
 import { JobsMap, type JobsMapPoint } from "@/components/JobsMap";
 import { withAppointmentVisitConfirmations } from "@/lib/appointment-visit-confirmations";
 import { appointmentTerritoryForLocation } from "@/lib/appointment-territory";
@@ -2199,6 +2200,7 @@ function JobContextDetails({ job }: { job: JobRow }) {
           <ul>{notes.map((note, index) => <li key={`${job.appointmentId || job.jkNumber}-note-${index}`}>{note}</li>)}</ul>
         </details>
       ) : null}
+      <JobAppointmentNote appointmentId={job.appointmentId} />
     </div>
   );
 }

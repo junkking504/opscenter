@@ -861,19 +861,21 @@ body {
 @media (max-width: 460px) {
   .ops-page-header-controls {
     display: flex;
-    flex-direction: column;
+    flex-flow: row wrap;
     align-items: stretch;
     gap: 8px;
   }
 
   .ops-page-header-controls > .ops-date-selector-wrap {
-    width: 100%;
-    flex: 1 1 auto;
+    width: auto;
+    flex: 1 1 160px;
     min-width: 0;
   }
 
-  .ops-page-header-controls > *:not(.ops-date-selector-wrap) {
-    width: 100%;
+  .ops-page-header-controls > .ops-refresh-button {
+    width: auto;
+    flex: 0 0 auto;
+    align-self: flex-end;
   }
 
   .ops-jobs-page > .ops-page-header .ops-view-toggle {

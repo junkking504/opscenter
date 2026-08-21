@@ -38,6 +38,7 @@ import {
   readCrewClockRows,
   type CrewClockRecord,
 } from "@/lib/crew-attendance";
+import "./crew.css";
 
 export const dynamic = "force-dynamic";
 

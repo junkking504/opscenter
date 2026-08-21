@@ -381,6 +381,46 @@ function siteDurationClass(minutes: number | null | undefined): string {
   return minutes != null && Number(minutes) > 60 ? " over-hour" : "";
 }
 
+function appointmentCardSiteTime(siteTime: SiteTimeAppointment | undefined): {
+  label: string;
+  title: string;
+  tone: string;
+} {
+  const truck = siteTime?.trucks?.[0];
+  if (!truck) {
+    return {
+      label: "Site time unavailable",
+      title: "GPS data unavailable",
+      tone: " unavailable",
+    };
+  }
+
+  const durationMinutes = siteTimeTruckDurationMinutes(truck);
+  if (truck.arrival && !truck.departure) {
+    return {
+      label: durationMinutes != null
+        ? `Site time · ${siteDurationLabel(durationMinutes)} so far`
+        : "Site time · On site",
+      title: `${truck.truck}: arrival detected at ${siteTimeClock(truck.arrival)}; departure unavailable`,
+      tone: " ongoing",
+    };
+  }
+
+  if (durationMinutes != null) {
+    return {
+      label: `Site time · ${siteDurationLabel(durationMinutes)}`,
+      title: `${truck.truck}: ${siteTimeClock(truck.arrival)}–${siteTimeClock(truck.departure)}`,
+      tone: siteDurationClass(durationMinutes),
+    };
+  }
+
+  return {
+    label: "Site time unavailable",
+    title: `${truck.truck}: ${siteTimeQuality(truck)}`,
+    tone: " unavailable",
+  };
+}
+
 function parseClockMinutes(value: string): number | null {
   const raw = String(value || "").trim();
   if (!raw) return null;
@@ -3289,6 +3329,7 @@ export default async function JobsPage({
                         const siteTime = siteTimeLookupKeys(job)
                           .map((key) => siteTimeByKey.get(key))
                           .find(Boolean);
+                        const cardSiteTime = appointmentCardSiteTime(siteTime);
                         const punctuality = appointmentPunctuality(job, siteTime);
                         const visitedTrucks = Array.from(new Set([
                           ...siteTimeVisitedTrucks(siteTime),
@@ -3373,6 +3414,9 @@ export default async function JobsPage({
                                     <span className="ops-physical-truck-badge">
                                       {siteTime?.trucks?.[0]?.truck || (job.truck !== "—" ? job.truck : "Unassigned truck")}
                                     </span>
+                                    <span className={`ops-appointment-card-site-time${cardSiteTime.tone}`} title={cardSiteTime.title}>
+                                      {cardSiteTime.label}
+                                    </span>
                                     <span className="ops-appointment-card-driver">{safeText(job.driverName || job.driver)}</span>
                                     <span className="ops-appointment-card-navigator">{safeText(job.navigatorName || job.navigator)}</span>
                                   </div>
@@ -3432,7 +3476,7 @@ export default async function JobsPage({
                             <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
 
                             <details className="ops-appointment-gps-details">
-                              <summary>GPS and site time</summary>
+                              <summary>GPS details</summary>
                               <div className="ops-appointment-site-time">
                               <div className="ops-appointment-site-time-label">TRUCK SITE TIME</div>
                               {siteTime?.trucks?.length ? (
@@ -3587,6 +3631,7 @@ export default async function JobsPage({
                       const siteTime = siteTimeLookupKeys(job)
                         .map((key) => siteTimeByKey.get(key))
                         .find(Boolean);
+                      const cardSiteTime = appointmentCardSiteTime(siteTime);
                       const punctuality = appointmentPunctuality(job, siteTime);
                       const visitedTrucks = Array.from(new Set([
                         ...siteTimeVisitedTrucks(siteTime),
@@ -3671,6 +3716,9 @@ export default async function JobsPage({
                                   <span className="ops-physical-truck-badge">
                                     {siteTime?.trucks?.[0]?.truck || (job.truck !== "—" ? job.truck : "Unassigned truck")}
                                   </span>
+                                  <span className={`ops-appointment-card-site-time${cardSiteTime.tone}`} title={cardSiteTime.title}>
+                                    {cardSiteTime.label}
+                                  </span>
                                   <span className="ops-appointment-card-driver">{safeText(job.driverName || job.driver)}</span>
                                   <span className="ops-appointment-card-navigator">{safeText(job.navigatorName || job.navigator)}</span>
                                 </div>
@@ -3730,7 +3778,7 @@ export default async function JobsPage({
                           <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
 
                           <details className="ops-appointment-gps-details">
-                            <summary>GPS and site time</summary>
+                            <summary>GPS details</summary>
                             <div className="ops-appointment-site-time">
                             <div className="ops-appointment-site-time-label">TRUCK SITE TIME</div>
                             {siteTime?.trucks?.length ? (

@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { detectScheduleChanges, publishScheduleChanges } from "@/lib/junkware-schedule-changes";
+import { formatSlackAlert } from "@/lib/slack-alerts";
 
 process.env.SLACK_TRUCK_6_CHANNEL_ID = "C_TEST_TRUCK_6";
 
@@ -31,7 +32,14 @@ const current = {
 
 const events = detectScheduleChanges(previous, current);
 assert.deepEqual(events.map((event) => event.kind).sort(), ["cancelled", "new_appointment", "rescheduled"]);
-assert.match(String(events.find((event) => event.kind === "rescheduled")?.alert.detail), /Previous: 10:00 AM/);
+const rescheduledAlert = events.find((event) => event.kind === "rescheduled")?.alert;
+assert.match(String(rescheduledAlert?.detail), /Previous: 10:00 AM/);
+assert.equal(rescheduledAlert?.nextAction, "");
+assert.match(
+  formatSlackAlert(rescheduledAlert!),
+  /<https:\/\/ops\.junk-king\.app\/jobs\?date=2026-08-17#job-jk4051002\|View in OpsCenter>$/,
+);
+assert.doesNotMatch(formatSlackAlert(rescheduledAlert!), /Update the route plan/);
 assert.deepEqual(detectScheduleChanges(null, current), []);
 
 async function verifyScopedPublishing() {

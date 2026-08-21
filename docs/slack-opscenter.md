@@ -10,7 +10,7 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
   - Denham Springs -> Baton Rouge / `#jobs-br`, even when an upstream record says Northshore
   - Northshore -> `#jobs-ns`
   - Unknown or unsupported territories -> `#dispatch`
-- Confirmed truck arrival -> that truck's `#truck-N` channel, with JK number, customer name, and service address
+- Confirmed truck arrival -> that truck's `#truck-N` channel, with JK number, customer name, customer phone, and service address
 - Newly closed job -> one full closeout alert in that truck's `#truck-N` channel, including the payment method, amount, and any tip; no alert is sent until those details are available
 - Fuel and dump receipts -> that truck's `#truck-N` channel
 - Verified WhatsApp job-photo batch -> that truck's `#truck-N` channel
@@ -22,6 +22,8 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
 - Cross-territory or unmapped operational exceptions -> `#dispatch`
 
 Truck channels intentionally contain field execution events, not bookings or schedule changes. The territory jobs channels own appointment intake and cancellations so dispatch can see route-plan changes in one place. A closeout and its payment are one operational event, so both are sent together to the assigned truck channel.
+
+Truck-arrival messages render as four lines: `Truck N: On-Site`, JK number, customer and phone, then address. Their mobile-notification fallback uses visible bullet separators because Slack mobile notifications use the top-level message text and may collapse line breaks in compact system previews.
 
 The first live run records existing appointments, existing cancellations, and currently active incidents as its baseline. It does not flood Slack with pre-existing conditions. Later appointment additions and cancellations are each posted once; failed notification deliveries remain eligible for retry. Once a baseline incident clears, a later recurrence is treated as a new incident. New incident alerts are deduplicated, and recovery messages are posted in the original Slack thread.
 

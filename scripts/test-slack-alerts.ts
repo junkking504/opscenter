@@ -20,6 +20,7 @@ import {
   recordDeliveredTruckCloseout,
   runSlackOpsAlerts,
   slackAlertKindEnabled,
+  slackAlertPostPayload,
 } from "@/lib/slack-alerts";
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 
@@ -142,7 +143,7 @@ assert.equal(formatSlackAlert(addOnSlackAlert), [
   "Test Customer",
   "123 Test Street",
   "Confirm krewe and truck coverage, then update the route plan.",
-  "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4025000|Open in OpsCenter>",
+  "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4025000|View in OpsCenter>",
 ].join("\n"));
 assert.doesNotMatch(formatSlackAlert(addOnSlackAlert), /Truck# 4|Alert ID|\*Next:\*/);
 
@@ -239,6 +240,7 @@ const truckArrivalAlerts = buildTruckArrivalSlackNotifications("2026-08-12", [
     appointment_id: "4037246",
     jk_number: "JK4050424",
     customer_name: "Test Customer",
+    phone: "(504) 555-0199",
     address: "123 Test Street, New Orleans, LA 70115",
     truck_number: "Truck 4",
     visit_count: 2,
@@ -252,6 +254,7 @@ const truckArrivalAlerts = buildTruckArrivalSlackNotifications("2026-08-12", [
     appointment_id: "4037246",
     jk_number: "JK4050424",
     customer_name: "Test Customer",
+    phone: "(504) 555-0199",
     address: "123 Test Street, New Orleans, LA 70115",
     truck_number: "Truck 4",
     visit_count: 2,
@@ -278,15 +281,25 @@ assert.deepEqual(
     {
       kind: "truck_arrival",
       channelId: "C_TEST_TRUCK_4",
-      text: ":truck: Truck 4 arrived onsite.\nJob: JK4050424\nCustomer: Test Customer\nAddress: 123 Test Street, New Orleans, LA 70115",
+      text: "Truck 4: On-Site\nJK4050424\nTest Customer - (504) 555-0199\n123 Test Street, New Orleans, LA 70115",
     },
     {
       kind: "truck_arrival",
       channelId: "C_TEST_TRUCK_4",
-      text: ":truck: Truck 4 arrived onsite.\nJob: JK4050424\nCustomer: Test Customer\nAddress: 123 Test Street, New Orleans, LA 70115",
+      text: "Truck 4: On-Site\nJK4050424\nTest Customer - (504) 555-0199\n123 Test Street, New Orleans, LA 70115",
     },
   ],
 );
+assert.deepEqual(slackAlertPostPayload(truckArrivalAlerts[0]), {
+  text: "Truck 4: On-Site • JK4050424 • Test Customer - (504) 555-0199 • 123 Test Street, New Orleans, LA 70115",
+  blocks: [{
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: "*Truck 4: On-Site*\nJK4050424\nTest Customer - (504) 555-0199\n123 Test Street, New Orleans, LA 70115",
+    },
+  }],
+});
 
 const temporaryDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "opscenter-slack-alert-test-"));
 process.env.OPSCENTER_DATA_DIR = temporaryDataDir;
@@ -364,6 +377,7 @@ fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), J
     appt_id: "503",
     job_id: "JK4051503",
     customer_name: "Arrival Customer",
+    phone: "(504) 555-0153",
     address: "503 Arrival Street, New Orleans, LA 70115",
   }],
   completed: [existingCloseout],
@@ -408,7 +422,7 @@ try {
   const arrivalRun = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["truck_arrival"] });
   assert.deepEqual(arrivalRun.posted.map((alert) => alert.kind), ["truck_arrival"]);
   assert.deepEqual(postedMessages, [
-    ":truck: Truck 6 arrived onsite.\nJob: JK4051503\nCustomer: Arrival Customer\nAddress: 503 Arrival Street, New Orleans, LA 70115",
+    "Truck 6: On-Site • JK4051503 • Arrival Customer - (504) 555-0153 • 503 Arrival Street, New Orleans, LA 70115",
   ]);
   postedMessages.length = 0;
 

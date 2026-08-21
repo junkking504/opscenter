@@ -34,8 +34,10 @@ for (const selector of [
 assert.ok(jobsMapCss.includes(".ops-jobs-map-pin i.is-canceled"), "Canceled map pins must preserve the territory color with a red X badge.");
 
 const jobsPageSource = readFileSync(new URL("../app/(protected)/jobs/page.tsx", import.meta.url), "utf8");
-assert.ok(jobsPageSource.includes("territoryAbbreviation(territory)"), "Territory jump controls must use compact territory labels.");
+assert.ok(jobsPageSource.includes('className={territoryToneClass(territory)}'), "Territory jump controls must preserve their full-name territory color.");
 assert.ok(jobsPageSource.includes("compact\n      />"), "Schedule header must use the compact non-overlapping layout.");
+assert.equal(Array.from(jobsPageSource.matchAll(/<summary>GPS details<\/summary>/g)).length, 2, "Both appointment-card paths must use the concise GPS details label.");
+assert.equal(Array.from(jobsPageSource.matchAll(/ops-appointment-card-site-time/g)).length, 2, "Both appointment-card paths must show site time beside the truck.");
 
 const commandPageSource = readFileSync(new URL("../app/(protected)/page.tsx", import.meta.url), "utf8");
 assert.ok(commandPageSource.includes('{ label: "Krewe Snapshot", href: `/?date=${date}&section=crew`'), "Command must distinguish its Krewe Snapshot from the full Krewe page.");

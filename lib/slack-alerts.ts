@@ -39,6 +39,16 @@ export type SlackOpsAlert = {
   nextAction: string;
   href: string;
   plainText?: string;
+  notificationText?: string;
+  blocks?: SlackMessageBlock[];
+};
+
+type SlackMessageBlock = {
+  type: "section";
+  text: {
+    type: "mrkdwn";
+    text: string;
+  };
 };
 
 type ActiveSlackAlert = {
@@ -551,6 +561,7 @@ function readTruckArrivalVisitRows(date: string): AnyRecord[] {
 
 type TruckArrivalAppointmentDetails = {
   customerName: string;
+  phone: string;
   address: string;
 };
 
@@ -575,9 +586,17 @@ function readTruckArrivalAppointmentDetails(date: string): Map<string, TruckArri
       for (const row of rows) {
         const details = {
           customerName: firstText(row, ["customer_name", "customerName", "service_contact_name"]),
+          phone: firstText(row, [
+            "phone",
+            "customer_phone",
+            "customerPhone",
+            "service_contact_phone",
+            "service_phone",
+            "phone_number",
+          ]),
           address: firstText(row, ["service_address", "address", "serviceAddress"]),
         };
-        if (!details.customerName && !details.address) continue;
+        if (!details.customerName && !details.phone && !details.address) continue;
 
         for (const key of [
           firstText(row, ["appt_id", "appointment_id", "appointmentId"]),
@@ -616,6 +635,14 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
     const customerName = firstText(row, ["customer_name", "customerName", "service_contact_name"])
       || details?.customerName
       || "Unknown";
+    const phone = firstText(row, [
+      "phone",
+      "customer_phone",
+      "customerPhone",
+      "service_contact_phone",
+      "service_phone",
+      "phone_number",
+    ]) || details?.phone || "Phone unavailable";
     const address = firstText(row, ["service_address", "address", "serviceAddress"])
       || details?.address
       || "Unknown";
@@ -638,11 +665,18 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
       ].join(":");
       if (seen.has(fingerprint)) continue;
       seen.add(fingerprint);
-      const plainText = [
-        `:truck: ${truck} arrived onsite.`,
-        `Job: ${jkNumber}`,
-        `Customer: ${customerName}`,
-        `Address: ${address}`,
+      const truckNumber = normalizeSlackTruckNumber(truck);
+      const messageLines = [
+        `${truckNumber ? `Truck ${truckNumber}` : truck}: On-Site`,
+        jkNumber,
+        `${customerName} - ${phone}`,
+        address,
+      ];
+      const plainText = messageLines.join("\n");
+      const notificationText = messageLines.join(" • ");
+      const blockText = [
+        `*${slackEscape(messageLines[0])}*`,
+        ...messageLines.slice(1).map(slackEscape),
       ].join("\n");
       notifications.push({
         fingerprint,
@@ -655,6 +689,8 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
         nextAction: "",
         href: "",
         plainText,
+        notificationText,
+        blocks: [{ type: "section", text: { type: "mrkdwn", text: blockText } }],
       });
     }
   }
@@ -707,8 +743,18 @@ export function formatSlackAlert(alert: SlackOpsAlert): string {
     `${icon}${iconTitleSeparator}*${slackEscape(alert.title)}*`,
     slackEscape(alert.detail),
     slackEscape(alert.nextAction),
-    `<${alert.href}|Open in OpsCenter>`,
-  ].join("\n");
+    `<${absoluteOpsHref(alert.href)}|View in OpsCenter>`,
+  ].filter(Boolean).join("\n");
+}
+
+export function slackAlertPostPayload(alert: SlackOpsAlert): {
+  text: string;
+  blocks?: SlackMessageBlock[];
+} {
+  const text = alert.notificationText
+    ? slackEscape(alert.notificationText)
+    : formatSlackAlert(alert);
+  return alert.blocks?.length ? { text, blocks: alert.blocks } : { text };
 }
 
 function slackAlertRunResult(date: string, dryRun: boolean, enabled: boolean, preview: SlackOpsAlert[]): SlackAlertRunResult {
@@ -733,6 +779,7 @@ async function postSlackMessage(
   channelId: string,
   text: string,
   threadTs?: string,
+  blocks?: SlackMessageBlock[],
 ): Promise<SlackApiResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
@@ -749,6 +796,7 @@ async function postSlackMessage(
         mrkdwn: true,
         unfurl_links: false,
         unfurl_media: false,
+        ...(blocks?.length ? { blocks } : {}),
         ...(threadTs ? { thread_ts: threadTs } : {}),
       }),
       signal: controller.signal,
@@ -761,6 +809,11 @@ async function postSlackMessage(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function postSlackAlertMessage(token: string, alert: SlackOpsAlert): Promise<SlackApiResponse> {
+  const payload = slackAlertPostPayload(alert);
+  return postSlackMessage(token, alert.channelId, payload.text, undefined, payload.blocks);
 }
 
 /**
@@ -849,7 +902,7 @@ async function runTruckArrivalSlackAlerts(options: {
   }
 
   for (const alert of pending) {
-    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
+    const response = await postSlackAlertMessage(token, alert);
     if (!response.ok || !response.ts) {
       result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
       continue;
@@ -1006,7 +1059,7 @@ export async function runSlackOpsAlerts(options?: {
       continue;
     }
 
-    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
+    const response = await postSlackAlertMessage(token, alert);
     if (!response.ok || !response.ts) {
       result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
       continue;

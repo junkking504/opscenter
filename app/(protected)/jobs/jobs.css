@@ -1053,3 +1053,391 @@
   display: grid;
   gap: 2px;
 }
+
+/* Job cards use light surfaces; keep expanded operational details on the same
+   contrast system instead of inheriting the legacy dark-card palette. */
+.ops-jobs-page .ops-appointment-card {
+  --ops-text: #20242b;
+  --ops-muted: #4f5b68;
+  --ops-muted-2: #66717e;
+  --ops-border: #d8dde4;
+}
+
+.ops-jobs-page .ops-appointment-gps-details,
+.ops-jobs-page .ops-job-closeout-details,
+.ops-jobs-page .ops-appointment-more-details,
+.ops-jobs-page .ops-call-ahead-row {
+  opacity: 1;
+}
+
+.ops-jobs-page .ops-appointment-gps-details > summary,
+.ops-jobs-page .ops-job-closeout-details > summary,
+.ops-jobs-page .ops-job-closeout-details > summary::before,
+.ops-jobs-page .ops-appointment-more-details > summary {
+  color: #566270;
+}
+
+.ops-jobs-page .ops-appointment-gps-details[open] > summary {
+  color: #315f91;
+}
+
+.ops-jobs-page .ops-appointment-more-details[open] > summary {
+  color: #765100;
+}
+
+.ops-jobs-page .ops-appointment-site-time-label {
+  color: #566270;
+}
+
+.ops-jobs-page .ops-site-time-truck {
+  border-color: #d8dee6;
+  background: #edf1f5;
+}
+
+.ops-jobs-page .ops-site-time-truck-name {
+  color: #28313c;
+}
+
+.ops-jobs-page .ops-site-time-truck-window,
+.ops-jobs-page .ops-site-time-truck-duration,
+.ops-jobs-page .ops-site-time-truck-status,
+.ops-jobs-page .ops-site-time-unavailable {
+  color: #3f4a57;
+}
+
+.ops-jobs-page .ops-site-time-truck-duration.over-hour,
+.ops-jobs-page .ops-site-time-visit em.over-hour {
+  color: #b4232d;
+}
+
+.ops-jobs-page .ops-site-time-visits > summary,
+.ops-jobs-page .ops-site-time-visit,
+.ops-jobs-page .ops-site-time-visit strong,
+.ops-jobs-page .ops-site-time-visit em {
+  color: #465260;
+}
+
+.ops-jobs-page .ops-appointment-detail-grid span {
+  color: #5d6875;
+}
+
+.ops-jobs-page .ops-appointment-detail-grid strong {
+  color: #303945;
+  overflow-wrap: anywhere;
+}
+
+/* Keep the appointment-card action row on one visual system. */
+.ops-jobs-page .ops-call-ahead-row,
+.ops-jobs-page .ops-appointment-gps-details,
+.ops-jobs-page .ops-job-closeout-details,
+.ops-jobs-page .ops-appointment-more-details {
+  align-self: start;
+  min-height: 20px;
+  margin: 0;
+}
+
+.ops-jobs-page :is(
+  .ops-appointment-gps-details,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+) > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: fit-content;
+  gap: 6px;
+  margin-top: 0;
+  padding: 0;
+  color: #566270;
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 20px;
+  list-style: none;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.ops-jobs-page :is(
+  .ops-appointment-gps-details,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+) > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ops-jobs-page :is(
+  .ops-appointment-gps-details,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+) > summary::before {
+  display: inline-grid;
+  width: 10px;
+  flex: 0 0 10px;
+  place-items: center;
+  color: #75808c;
+  content: "+";
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.ops-jobs-page :is(
+  .ops-appointment-gps-details,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+)[open] > summary::before {
+  content: "−";
+}
+
+.ops-jobs-page .ops-call-ahead-row {
+  gap: 6px;
+  line-height: 20px;
+}
+
+.ops-jobs-page .ops-call-ahead-badge {
+  gap: 7px;
+  color: #566270;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 20px;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.ops-jobs-page .ops-call-ahead-badge::before {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+.ops-jobs-page .ops-appointment-card-site-time {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  color: #41566d;
+  font-size: 0.7rem;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.ops-jobs-page .ops-appointment-card-site-time.over-hour {
+  color: #b4232d;
+}
+
+.ops-jobs-page .ops-appointment-card-site-time.ongoing {
+  color: #9a4f00;
+}
+
+.ops-jobs-page .ops-appointment-card-site-time.unavailable {
+  color: #7a8591;
+  font-weight: 750;
+}
+
+.ops-jobs-page .ops-appointment-context {
+  border-color: #d8dee6;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.ops-jobs-page .ops-appointment-junk-summary strong,
+.ops-jobs-page .ops-appointment-note-details > summary > strong {
+  color: #303945;
+}
+
+.ops-jobs-page .ops-appointment-note-details {
+  border-left-color: #d8dee6;
+}
+
+.ops-jobs-page .ops-appointment-note-details > summary small {
+  background: #e9edf2;
+  color: #4f5b68;
+}
+
+.ops-jobs-page .ops-appointment-note-details ul {
+  border-left-color: #a9c7e3;
+  color: #3f4a57;
+}
+
+.ops-jobs-page .ops-job-photo-alert {
+  border-color: #e2c372;
+  background: #fff8e4;
+}
+
+.ops-jobs-page .ops-job-photo-alert > span {
+  background: #f7e6ad;
+  color: #765100;
+}
+
+.ops-jobs-page .ops-job-photo-alert strong {
+  color: #694900;
+}
+
+.ops-jobs-page .ops-job-photo-alert small {
+  color: #705d32;
+}
+
+.ops-jobs-page .ops-job-photo-details {
+  border-color: #bdd9ca;
+  background: #f5faf7;
+}
+
+.ops-jobs-page .ops-job-photo-details > summary {
+  color: #303945;
+}
+
+.ops-jobs-page .ops-job-photo-details > summary strong {
+  color: #18784f;
+}
+
+.ops-jobs-page .ops-job-photo-gallery {
+  border-top-color: #d7e7df;
+}
+
+.ops-jobs-page .ops-job-photo {
+  border-color: #b9c2cd;
+}
+
+.ops-jobs-page .ops-job-closeout-editor {
+  border-color: #bfd2e7;
+  background: #eef5fc;
+}
+
+.ops-jobs-page .ops-job-closeout-editor > summary {
+  color: #204f7a;
+}
+
+.ops-jobs-page .ops-job-closeout-editor > summary::before {
+  color: #2d73ad;
+}
+
+.ops-jobs-page .ops-closeout-editor-heading > div {
+  background: #e2ebf5;
+}
+
+.ops-jobs-page :is(.ops-closeout-editor-heading span, .ops-closeout-editor-section label > span) {
+  color: #596675;
+}
+
+.ops-jobs-page .ops-closeout-editor-heading strong,
+.ops-jobs-page .ops-closeout-editor-section h4 {
+  color: #27323e;
+}
+
+.ops-jobs-page .ops-closeout-editor-section {
+  border-top-color: #cbd6e2;
+}
+
+.ops-jobs-page .ops-closeout-editor-section h5,
+.ops-jobs-page .ops-closeout-editor-section p,
+.ops-jobs-page .ops-closeout-time-grid > span,
+.ops-jobs-page .ops-closeout-payments > div,
+.ops-jobs-page .ops-closeout-payment-toggle {
+  color: #465260;
+}
+
+.ops-jobs-page :is(.ops-closeout-editor-section input:not([type="checkbox"]), .ops-closeout-editor-section select) {
+  border-color: #bfc9d4;
+  background: #fff;
+  color: #27323e;
+}
+
+.ops-jobs-page .ops-closeout-charge-list > div {
+  background: #f6f8fa;
+  color: #465260;
+}
+
+.ops-jobs-page .ops-closeout-charge-list > div > strong {
+  color: #27323e;
+}
+
+.ops-jobs-page .ops-closeout-text-button,
+.ops-jobs-page .ops-closeout-charge-list small {
+  color: #765100;
+}
+
+.ops-jobs-page .ops-closeout-editor-message.success {
+  background: #e8f6ee;
+  color: #176a48;
+}
+
+.ops-jobs-page .ops-closeout-editor-message.error {
+  background: #fdecec;
+  color: #a51d27;
+}
+
+.ops-jobs-page .ops-job-closeout-details[open] {
+  border-color: #bdd9ca;
+  background: #f5faf7;
+}
+
+.ops-jobs-page .ops-job-closeout-details[open] > summary {
+  color: #176a48;
+}
+
+.ops-jobs-page .ops-job-closeout-body {
+  border-top-color: #d7e7df;
+  background: #fff;
+}
+
+.ops-jobs-page .ops-job-closeout-heading {
+  color: #596675;
+}
+
+.ops-jobs-page :is(.ops-job-closeout-line, .ops-job-closeout-total, .ops-job-closeout-balance) {
+  background: #f2f5f7;
+}
+
+.ops-jobs-page :is(.ops-job-closeout-line strong, .ops-job-closeout-total span, .ops-job-closeout-balance span) {
+  color: #27323e;
+}
+
+.ops-jobs-page .ops-job-closeout-line span,
+.ops-jobs-page .ops-job-closeout-line .ops-job-payment-detail {
+  color: #52606e;
+}
+
+.ops-jobs-page .ops-job-closeout-line .ops-job-payment-last-four {
+  border-color: #a9cbd8;
+  background: #e9f4f7;
+  color: #204f62;
+}
+
+.ops-jobs-page :is(.ops-job-closeout-line b, .ops-job-closeout-total strong, .ops-job-closeout-balance strong) {
+  color: #20242b;
+}
+
+.ops-jobs-page :is(.ops-job-closeout-total, .ops-job-closeout-balance) {
+  border-color: #bdd9ca;
+  background: #ebf6f0;
+}
+
+.ops-jobs-page .ops-job-closeout-balance.paid strong {
+  color: #176a48;
+}
+
+.ops-jobs-page .ops-job-closeout-balance.due {
+  border-color: #e2c372;
+  background: #fff8e4;
+}
+
+.ops-jobs-page :is(.ops-job-closeout-balance.due strong, .ops-job-closeout-line.adjustment b) {
+  color: #765100;
+}
+
+.ops-jobs-page .ops-call-ahead-badge.called {
+  color: #176a48;
+}
+
+.ops-jobs-page .ops-call-ahead-badge.not_called {
+  color: #694900;
+}
+
+.ops-jobs-page .ops-appointment-on-site,
+.ops-jobs-page .ops-call-ahead-error {
+  color: #a51d27;
+}

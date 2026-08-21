@@ -5083,6 +5083,69 @@ a {
   padding: 11px 14px 13px;
 }
 
+.ops-jobs-map-workspace .ops-jobs-map-appointment-selection {
+  position: relative;
+  right: auto;
+  bottom: auto;
+  grid-column: 1 / -1;
+  grid-row: auto;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  align-items: start;
+  width: 100%;
+  max-height: none;
+  gap: 8px 12px;
+  overflow: visible;
+  padding: 11px 14px 13px;
+}
+
+.ops-jobs-map-appointment-selection .ops-jobs-map-selection-kicker {
+  grid-column: span 2;
+  padding-right: 0;
+}
+
+.ops-jobs-map-appointment-selection .ops-jobs-map-selection-customer {
+  grid-column: span 2;
+}
+
+.ops-jobs-map-appointment-selection .ops-jobs-map-selection-phone {
+  grid-column: span 2;
+}
+
+.ops-jobs-map-appointment-selection .ops-jobs-map-selection-address {
+  grid-column: span 6;
+}
+
+.ops-jobs-map-appointment-selection :is(
+  .ops-jobs-map-selection-canceled,
+  .ops-jobs-map-selection-sync-failed,
+  .ops-jobs-map-selection-visited-unclosed
+) {
+  grid-column: 1 / -1;
+}
+
+.ops-jobs-map-appointment-selection .ops-jobs-map-selection-truck {
+  grid-column: span 3;
+  margin-top: 0;
+}
+
+.ops-jobs-map-appointment-selection .ops-jobs-map-selection-items {
+  grid-column: span 4;
+  height: 100%;
+}
+
+.ops-jobs-map-appointment-selection .ops-jobs-map-selection-notes {
+  grid-column: span 2;
+  padding: 7px 8px;
+}
+
+.ops-jobs-map-appointment-selection .ops-jobs-map-selection-schedule-controls {
+  grid-column: span 3;
+}
+
+.ops-jobs-map-appointment-selection > a {
+  grid-column: 1 / -1;
+}
+
 .ops-jobs-map-truck-selection .ops-jobs-map-selection-kicker {
   padding-right: 0;
 }
@@ -5206,6 +5269,31 @@ a {
 }
 
 @media (max-width: 860px) {
+  .ops-jobs-map-workspace .ops-jobs-map-appointment-selection {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ops-jobs-map-appointment-selection :is(
+    .ops-jobs-map-selection-kicker,
+    .ops-jobs-map-selection-customer,
+    .ops-jobs-map-selection-phone,
+    .ops-jobs-map-selection-address,
+    .ops-jobs-map-selection-truck,
+    .ops-jobs-map-selection-items,
+    .ops-jobs-map-selection-notes
+  ) {
+    grid-column: span 1;
+  }
+
+  .ops-jobs-map-appointment-selection :is(
+    .ops-jobs-map-selection-canceled,
+    .ops-jobs-map-selection-sync-failed,
+    .ops-jobs-map-selection-visited-unclosed,
+    .ops-jobs-map-selection-schedule-controls
+  ) {
+    grid-column: 1 / -1;
+  }
+
   .ops-jobs-map-truck-selection .ops-jobs-map-truck-details {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -5592,9 +5680,37 @@ a.ops-jobs-map-selection-phone:focus-visible {
     max-height: none;
     overflow: visible;
   }
+
+  .ops-jobs-map-workspace .ops-jobs-map-appointment-selection {
+    right: auto;
+    bottom: auto;
+    width: 100%;
+    max-height: none;
+    overflow: visible;
+  }
 }
 
 @media (max-width: 520px) {
+  .ops-jobs-map-workspace .ops-jobs-map-appointment-selection {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ops-jobs-map-appointment-selection :is(
+    .ops-jobs-map-selection-kicker,
+    .ops-jobs-map-selection-customer,
+    .ops-jobs-map-selection-phone,
+    .ops-jobs-map-selection-address,
+    .ops-jobs-map-selection-canceled,
+    .ops-jobs-map-selection-sync-failed,
+    .ops-jobs-map-selection-visited-unclosed,
+    .ops-jobs-map-selection-truck,
+    .ops-jobs-map-selection-items,
+    .ops-jobs-map-selection-notes,
+    .ops-jobs-map-selection-schedule-controls
+  ) {
+    grid-column: auto;
+  }
+
   .ops-jobs-map-truck-selection .ops-jobs-map-truck-details {
     grid-template-columns: minmax(0, 1fr);
   }

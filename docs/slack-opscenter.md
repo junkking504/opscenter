@@ -16,7 +16,7 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
 - Verified WhatsApp job-photo batch -> that truck's `#truck-N` channel
 - LinxUp driving-safety events -> that truck's `#truck-N` channel
 - Clocked-in employee without a truck -> retained in OpsCenter without a Slack alert because assignment normally follows closeout
-- Employee clock-in, clock-out with hours, and finalized daily-pay breakdown -> `#ops-command` (or `SLACK_OPS_CREW_CHANNEL_ID`)
+- Employee clock-in and one finalized clock-out breakdown per employee -> `#ops-command` (or `SLACK_OPS_CREW_CHANNEL_ID`)
 - Open out-of-service fleet issue -> `#ops-fleet`
 - Red JunkWare or Linxup data health -> `#ops-data-health`
 - Cross-territory or unmapped operational exceptions -> `#dispatch`
@@ -25,7 +25,9 @@ Truck channels intentionally contain field execution events, not bookings or sch
 
 The first live run records existing appointments, existing cancellations, and currently active incidents as its baseline. It does not flood Slack with pre-existing conditions. Later appointment additions and cancellations are each posted once; failed notification deliveries remain eligible for retry. Once a baseline incident clears, a later recurrence is treated as a new incident. New incident alerts are deduplicated, and recovery messages are posted in the original Slack thread.
 
-Crew lifecycle notifications are also baselined once when the feature is first deployed. After that baseline, each employee receives at most one clock-in, clock-out, and finalized-pay notification per day. The messages are intentionally plain: clock-in states only that the employee clocked in; clock-out adds only hours worked; finalized pay lists total pay, hourly pay, tips, and bonuses.
+Crew lifecycle notifications are also baselined once when the feature is first deployed. After that baseline, each employee receives at most one clock-in and one finalized clock-out notification per day. A clock-out waits for verified daily pay, then sends the employee's hours, hourly pay, tips, bonus, and total together in one standalone message.
+
+All OpsCenter Slack alerts use the same compact presentation: a bracketed event heading, the job, truck, or employee on its own line, and aligned label/value rows in a monospace block. The `EOD Report` keeps its exact title and uses the same aligned rows.
 
 The detector baselines silently on its first run, then posts each new appointment, reschedule, and cancellation once. It publishes only after JunkWare has confirmed the requested date and every selected market. It never posts a schedule-only closeout. Instead, a newly completed job remains in its fast retry queue until the targeted closeout read contains a method and amount for every payment; it then posts the one full truck-channel alert and clears the item. Existing completed jobs are baselined so they do not flood Slack. Full closeouts include the payment method, amount, check number where applicable, card last four, and any tip. Messages contain only the JK number, payment details, and a positive tip amount; they do not include customer data or a full card number.
 

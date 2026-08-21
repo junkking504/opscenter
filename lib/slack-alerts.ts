@@ -12,6 +12,8 @@ import { buildOperationalExceptions, type OperationalException } from "@/lib/ope
 import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { hasFullCloseoutPayment, readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
+import { formatOpsCenterSlackMessage, type SlackMessageField } from "@/lib/slack-message-format";
+import { evaluateFinalNumbers, readJunkwareCancelCount, type FinalNumbersEvaluation, type FinalNumbersSummary } from "@/lib/slack-final-numbers";
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 
 export type SlackAlertSeverity = "critical" | "warning";
@@ -26,7 +28,8 @@ export type SlackAlertKind =
   | "truck_arrival"
   | "crew_clock_in"
   | "crew_clock_out"
-  | "crew_daily_pay";
+  | "crew_daily_pay"
+  | "final_numbers";
 
 export type SlackOpsAlert = {
   fingerprint: string;
@@ -38,7 +41,8 @@ export type SlackOpsAlert = {
   detail: string;
   nextAction: string;
   href: string;
-  plainText?: string;
+  subject?: string;
+  fields?: SlackMessageField[];
 };
 
 type ActiveSlackAlert = {
@@ -64,6 +68,8 @@ type SlackAlertState = {
   deliveredTruckArrivalsByDate: Record<string, string[]>;
   truckCloseoutNotificationsInitializedAt: string;
   deliveredTruckCloseoutsByDate: Record<string, string[]>;
+  addOnAppointmentIdsByDate: Record<string, string[]>;
+  finalNumbersDates: string[];
 };
 
 type SlackApiResponse = {
@@ -86,6 +92,10 @@ export type SlackAlertRunResult = {
   unchanged: number;
   failures: Array<{ fingerprint: string; error: string }>;
   preview: SlackOpsAlert[];
+  finalNumbers: {
+    status: "ready" | "waiting" | "sent";
+    reasons: string[];
+  };
 };
 
 export type VerifiedTruckCloseout = {
@@ -138,6 +148,8 @@ function emptyState(): SlackAlertState {
     deliveredTruckArrivalsByDate: {},
     truckCloseoutNotificationsInitializedAt: "",
     deliveredTruckCloseoutsByDate: {},
+    addOnAppointmentIdsByDate: {},
+    finalNumbersDates: [],
   };
 }
 
@@ -175,6 +187,13 @@ function readState(): SlackAlertState {
         payload?.deliveredTruckCloseoutsByDate && typeof payload.deliveredTruckCloseoutsByDate === "object"
           ? payload.deliveredTruckCloseoutsByDate
           : {},
+      addOnAppointmentIdsByDate:
+        payload?.addOnAppointmentIdsByDate && typeof payload.addOnAppointmentIdsByDate === "object"
+          ? payload.addOnAppointmentIdsByDate
+          : {},
+      finalNumbersDates: Array.isArray(payload?.finalNumbersDates)
+        ? payload.finalNumbersDates.map(String)
+        : [],
     };
   } catch {
     return emptyState();
@@ -291,12 +310,22 @@ function exceptionAlert(
     lifecycle: "incident",
     severity: isUnassigned ? "critical" : "warning",
     channelId: channel("dispatch"),
-    title: exception.title,
-    detail: exception.reason,
+    title: isUnassigned ? "[Crew Assignment]" : "[Late Job]",
+    subject: exception.title,
+    detail: "",
     nextAction: isUnassigned
       ? "Assign the employee to the correct truck or confirm that the shift should be ended."
       : "Confirm the krewe status and close, reschedule, or update the appointment.",
     href: absoluteOpsHref(exception.href || `/jobs?date=${encodeURIComponent(exception.timestamp.slice(0, 10))}`),
+    fields: [
+      { label: "Reason", value: exception.reason },
+      {
+        label: "Action",
+        value: isUnassigned
+          ? "Assign the employee to the correct truck or confirm that the shift should be ended."
+          : "Confirm the krewe status and close, reschedule, or update the appointment.",
+      },
+    ],
   };
 }
 
@@ -307,12 +336,22 @@ function fleetDownAlert(issue: FleetIssue): SlackOpsAlert {
     lifecycle: "incident",
     severity: "critical",
     channelId: channel("fleet"),
-    title: `${issue.truck} is out of service`,
-    detail: `${issue.title}${issue.description ? ` — ${issue.description}` : ""}`,
+    title: "[Fleet Down]",
+    subject: issue.truck,
+    detail: "",
     nextAction: issue.owner
       ? `${issue.owner} owns the repair. Confirm the operating plan and update the issue status.`
       : "Assign a repair owner, confirm the replacement-truck plan, and update the issue status.",
     href: absoluteOpsHref("/fleet"),
+    fields: [
+      { label: "Issue", value: `${issue.title}${issue.description ? ` — ${issue.description}` : ""}` },
+      {
+        label: "Action",
+        value: issue.owner
+          ? `${issue.owner} owns the repair. Confirm the operating plan and update the issue status.`
+          : "Assign a repair owner, confirm the replacement-truck plan, and update the issue status.",
+      },
+    ],
   };
 }
 
@@ -324,12 +363,20 @@ function staleDataAlert(source: DataHealthSource): SlackOpsAlert {
     lifecycle: "incident",
     severity: "critical",
     channelId: channel("dataHealth"),
-    title: `${source.label} data needs attention`,
-    detail: source.missingToday
-      ? `${source.label} has no current-day files available to OpsCenter.`
-      : `${source.label} has not refreshed for ${age}. ${source.details}`,
+    title: "[Data Alert]",
+    subject: source.label,
+    detail: "",
     nextAction: "Check the collector and source login, then verify that a current file reaches OpsCenter.",
     href: absoluteOpsHref("/"),
+    fields: [
+      {
+        label: "Status",
+        value: source.missingToday
+          ? `${source.label} has no current-day files available to OpsCenter.`
+          : `${source.label} has not refreshed for ${age}. ${source.details}`,
+      },
+      { label: "Action", value: "Check the collector and source login, then verify that a current file reaches OpsCenter." },
+    ],
   };
 }
 
@@ -340,34 +387,68 @@ export function buildAddOnSlackNotification(appointment: AddOnAppointment, date:
     lifecycle: "notification",
     severity: "warning",
     channelId: appointmentChannelId(appointment.territory),
-    title: `Add-On: ${appointment.jobNumber}`,
-    detail: `${appointment.customerName}\n${appointment.address}`,
+    title: "[Add-On]",
+    subject: appointment.jobNumber,
+    detail: "",
     nextAction: "Confirm krewe and truck coverage, then update the route plan.",
     href: absoluteOpsHref(appointment.href),
+    fields: [
+      { label: "Customer", value: appointment.customerName },
+      { label: "Address", value: appointment.address },
+    ],
   };
 }
 
 export function buildCancellationSlackNotification(appointment: CancelledAppointment, date: string): SlackOpsAlert {
-  const cancellationContext = [
-    appointment.cancelledBy ? `Cancelled by ${appointment.cancelledBy}` : "",
-    appointment.cancellationReason ? `Reason: ${appointment.cancellationReason}` : "",
-  ].filter(Boolean).join(" · ");
   return {
     fingerprint: `cancellation:${date}:${appointment.id}`,
     kind: "cancellation",
     lifecycle: "notification",
     severity: "warning",
     channelId: appointmentChannelId(appointment.territory),
-    title: `Appointment cancelled: ${appointment.jobNumber}`,
-    detail: [
-      appointment.customerName,
-      appointment.appointmentTime,
-      appointment.address,
-      cancellationContext,
-    ].filter(Boolean).join(" · "),
+    title: "[Cancellation]",
+    subject: appointment.jobNumber,
+    detail: "",
     nextAction: "Confirm the territory schedule and update the krewe and truck plan.",
     href: absoluteOpsHref(appointment.href),
+    fields: [
+      { label: "Customer", value: appointment.customerName },
+      { label: "Time", value: appointment.appointmentTime },
+      { label: "Address", value: appointment.address },
+      ...(appointment.cancelledBy ? [{ label: "Cancelled By", value: appointment.cancelledBy }] : []),
+      ...(appointment.cancellationReason ? [{ label: "Reason", value: appointment.cancellationReason }] : []),
+    ],
   };
+}
+
+function finalNumbersAlert(summary: FinalNumbersSummary): SlackOpsAlert {
+  return {
+    fingerprint: `final_numbers:${summary.date}`,
+    kind: "final_numbers",
+    lifecycle: "notification",
+    severity: "warning",
+    channelId: channel("command"),
+    title: "EOD Report",
+    detail: "",
+    nextAction: "",
+    href: "",
+    fields: [
+      { label: "Jobs", value: summary.completedJobCount },
+      { label: "Estimates", value: summary.estimateCount },
+      { label: "Add-Ons", value: summary.addOnCount },
+      { label: "Cancels", value: summary.cancelCount },
+      { label: "Unclosed", value: summary.unclosedCount },
+      { label: "Revenue", value: moneyText(summary.revenue) },
+      { label: "AJS", value: moneyText(summary.averageJob) },
+      { label: "RPH", value: moneyText(summary.revenuePerCrewHour) },
+      { label: "Labor", value: `${summary.laborPercent.toFixed(1)}%` },
+    ],
+  };
+}
+
+function finalNumbersMaxAgeMinutes(): number {
+  const configured = Number(process.env.SLACK_FINAL_NUMBERS_MAX_AGE_MINUTES || 20);
+  return Number.isFinite(configured) && configured > 0 ? configured : 20;
 }
 
 function firstText(row: AnyRecord, keys: string[]): string {
@@ -408,10 +489,10 @@ function moneyText(value: number): string {
 }
 
 function crewNotification(
-  kind: "crew_clock_in" | "crew_clock_out" | "crew_daily_pay",
+  kind: "crew_clock_in" | "crew_clock_out",
   date: string,
   name: string,
-  plainText: string,
+  fields: SlackMessageField[] = [],
 ): SlackOpsAlert {
   return {
     fingerprint: `${kind}:${date}:${employeeKey(name)}`,
@@ -419,11 +500,12 @@ function crewNotification(
     lifecycle: "notification",
     severity: "warning",
     channelId: crewChannelId(),
-    title: plainText,
+    title: kind === "crew_clock_in" ? "[Clock In]" : "[Clock Out]",
+    subject: name,
     detail: "",
     nextAction: "",
     href: "",
-    plainText,
+    fields,
   };
 }
 
@@ -441,22 +523,13 @@ export function buildCrewSlackNotifications(date: string, rows: AnyRecord[]): Sl
     const clockOut = firstText(row, ["clock_out", "time_out", "clockOut", "timeOut"]);
     if (!clockIn) continue;
 
-    notifications.push(crewNotification("crew_clock_in", date, name, `${name} clocked in.`));
+    notifications.push(crewNotification("crew_clock_in", date, name));
     if (!clockOut) continue;
 
     const hoursWorked = firstFiniteNumber(row, ["hours_worked", "hours"]);
-    if (hoursWorked !== null && hoursWorked >= 0) {
-      notifications.push(crewNotification(
-        "crew_clock_out",
-        date,
-        name,
-        `${name} clocked out. Hours worked: ${hoursWorked.toFixed(2)}.`,
-      ));
-    }
-
     const payIsFinal = row?.pay_is_final === true
       || String(row?.pay_status || "").trim().toLowerCase() === "final";
-    if (!payIsFinal) continue;
+    if (hoursWorked === null || hoursWorked < 0 || !payIsFinal) continue;
 
     const hourlyPay = firstFiniteNumber(row, ["hourly_pay", "regular_pay", "base_pay", "pay"]);
     const tips = firstFiniteNumber(row, ["tip", "tips"]);
@@ -466,18 +539,13 @@ export function buildCrewSlackNotifications(date: string, rows: AnyRecord[]): Sl
     if (hourlyPay === null || tips === null || bonuses === null || totalPay === null) continue;
     if (Math.abs(totalPay - (hourlyPay + tips + bonuses + supplementalPay)) > 0.01) continue;
 
-    notifications.push(crewNotification(
-      "crew_daily_pay",
-      date,
-      name,
-      [
-        `${name} total pay: ${moneyText(totalPay)}.`,
-        `Hourly pay: ${moneyText(hourlyPay)}.`,
-        `Tips: ${moneyText(tips)}.`,
-        `Bonuses: ${moneyText(bonuses)}.`,
-        ...(supplementalPay ? [`Other pay: ${moneyText(supplementalPay)}.`] : []),
-      ].join(" "),
-    ));
+    notifications.push(crewNotification("crew_clock_out", date, name, [
+      { label: "Hours", value: hoursWorked.toFixed(2) },
+      { label: "Hourly", value: moneyText(hourlyPay) },
+      { label: "Tips", value: moneyText(tips) },
+      { label: "Bonus", value: moneyText(bonuses) },
+      { label: "Total", value: moneyText(totalPay) },
+    ]));
   }
 
   return notifications;
@@ -513,18 +581,27 @@ export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyReco
     if (seen.has(fingerprint)) continue;
     seen.add(fingerprint);
 
-    const plainText = truckCloseoutDetails(row)?.slackText || `:white_check_mark: ${jobNumber} closed out.`;
+    const details = truckCloseoutDetails(row);
+    const fields = (details?.lines || []).flatMap((line) => {
+      const separator = line.indexOf(":");
+      if (separator < 1) return [];
+      return [{
+        label: line.slice(0, separator),
+        value: line.slice(separator + 1).trim().replace(/\.$/, ""),
+      }];
+    });
     notifications.push({
       fingerprint,
       kind: "job_closed",
       lifecycle: "notification",
       severity: "warning",
       channelId: truckSlackChannelId(truck, ""),
-      title: plainText,
+      title: "[Job Closed]",
+      subject: jobNumber,
       detail: "",
       nextAction: "",
       href: "",
-      plainText,
+      fields,
     });
   }
 
@@ -638,23 +715,22 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
       ].join(":");
       if (seen.has(fingerprint)) continue;
       seen.add(fingerprint);
-      const plainText = [
-        `:truck: ${truck} arrived onsite.`,
-        `Job: ${jkNumber}`,
-        `Customer: ${customerName}`,
-        `Address: ${address}`,
-      ].join("\n");
       notifications.push({
         fingerprint,
         kind: "truck_arrival",
         lifecycle: "notification",
         severity: "warning",
         channelId: truckSlackChannelId(truck, channel("dispatch")),
-        title: plainText,
+        title: "[Truck Arrival]",
+        subject: truck,
         detail: "",
         nextAction: "",
         href: "",
-        plainText,
+        fields: [
+          { label: "Job", value: jkNumber },
+          { label: "Customer", value: customerName },
+          { label: "Address", value: address },
+        ],
       });
     }
   }
@@ -695,20 +771,17 @@ function collectIncidentAlerts(date: string): SlackOpsAlert[] {
   return alerts;
 }
 
-function slackEscape(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 export function formatSlackAlert(alert: SlackOpsAlert): string {
-  if (alert.plainText) return slackEscape(alert.plainText);
-  const icon = alert.severity === "critical" ? ":rotating_light:" : ":warning:";
-  const iconTitleSeparator = alert.kind === "add_on" ? "" : " ";
-  return [
-    `${icon}${iconTitleSeparator}*${slackEscape(alert.title)}*`,
-    slackEscape(alert.detail),
-    slackEscape(alert.nextAction),
-    `<${alert.href}|Open in OpsCenter>`,
-  ].join("\n");
+  const fallbackLines = alert.fields?.length
+    ? []
+    : [alert.detail, alert.nextAction].flatMap((value) => value.split("\n")).filter(Boolean);
+  return formatOpsCenterSlackMessage({
+    title: alert.title,
+    subject: alert.subject,
+    fields: alert.fields,
+    lines: fallbackLines,
+    href: alert.kind === "final_numbers" ? "" : alert.href,
+  });
 }
 
 function slackAlertRunResult(date: string, dryRun: boolean, enabled: boolean, preview: SlackOpsAlert[]): SlackAlertRunResult {
@@ -725,6 +798,7 @@ function slackAlertRunResult(date: string, dryRun: boolean, enabled: boolean, pr
     unchanged: 0,
     failures: [],
     preview,
+    finalNumbers: { status: "waiting", reasons: [] },
   };
 }
 
@@ -886,7 +960,8 @@ export async function runSlackOpsAlerts(options?: {
   const incidents = collectIncidentAlerts(date);
   const feed = buildAddOnAppointmentFeed(date);
   const cancellationFeed = buildCancelledAppointmentFeed(date);
-  const allCrewNotifications = buildCrewSlackNotifications(date, crewRows(readMetrics(date)));
+  const metrics = readMetrics(date);
+  const allCrewNotifications = buildCrewSlackNotifications(date, crewRows(metrics));
   const crewNotificationsInitialized = Boolean(state.crewNotificationsInitializedAt);
   const deliveredCrewNotifications = new Set(state.deliveredCrewNotificationsByDate[date] || []);
   const crewNotifications = crewNotificationsInitialized
@@ -928,12 +1003,28 @@ export async function runSlackOpsAlerts(options?: {
     })),
   ];
   const notifications = notificationDeliveries.map(({ alert }) => alert);
+  const addOnAppointmentIds = new Set([
+    ...(state.addOnAppointmentIdsByDate[date] || []),
+    ...additions.map((appointment) => appointment.id),
+  ]);
+  const finalNumbersEvaluation: FinalNumbersEvaluation = evaluateFinalNumbers(metrics, date, {
+    maxAgeMinutes: finalNumbersMaxAgeMinutes(),
+    addOnCount: addOnAppointmentIds.size,
+    cancelCount: readJunkwareCancelCount(metrics),
+  });
+  const finalNumbersWasSent = state.finalNumbersDates.includes(date);
+  const finalNumbersNotification = finalNumbersEvaluation.ready
+    && finalNumbersEvaluation.summary
+    && !finalNumbersWasSent
+      ? finalNumbersAlert(finalNumbersEvaluation.summary)
+      : null;
   const preview = [
     ...incidents,
     ...notifications,
     ...(truckArrivalNotificationsInitialized ? truckArrivalNotifications : allTruckArrivalNotifications),
     ...(truckCloseoutNotificationsInitialized ? truckCloseoutNotifications : allTruckCloseoutNotifications),
     ...(crewNotificationsInitialized ? crewNotifications : allCrewNotifications),
+    ...(finalNumbersNotification ? [finalNumbersNotification] : []),
   ];
 
   const result: SlackAlertRunResult = {
@@ -949,6 +1040,10 @@ export async function runSlackOpsAlerts(options?: {
     unchanged: 0,
     failures: [],
     preview,
+    finalNumbers: {
+      status: finalNumbersWasSent ? "sent" : finalNumbersEvaluation.ready ? "ready" : "waiting",
+      reasons: finalNumbersEvaluation.reasons,
+    },
   };
 
   if (dryRun) return result;
@@ -1031,7 +1126,14 @@ export async function runSlackOpsAlerts(options?: {
     const response = await postSlackMessage(
       token,
       active.channelId,
-      `:white_check_mark: *Resolved in OpsCenter*\n_${now}_`,
+      formatOpsCenterSlackMessage({
+        title: "[Resolved]",
+        subject: "OpsCenter",
+        fields: [
+          { label: "Alert", value: active.kind.replace(/_/g, " ") },
+          { label: "Time", value: now },
+        ],
+      }),
       active.threadTs,
     );
     if (!response.ok) {
@@ -1086,6 +1188,24 @@ export async function runSlackOpsAlerts(options?: {
     result.posted.push(alert);
   }
 
+  if (finalNumbersNotification) {
+    const response = await postSlackMessage(
+      token,
+      finalNumbersNotification.channelId,
+      formatSlackAlert(finalNumbersNotification),
+    );
+    if (!response.ok || !response.ts) {
+      result.failures.push({
+        fingerprint: finalNumbersNotification.fingerprint,
+        error: response.error || "Slack did not return a message timestamp",
+      });
+    } else {
+      state.finalNumbersDates = Array.from(new Set([...state.finalNumbersDates, date])).sort().slice(-32);
+      result.posted.push(finalNumbersNotification);
+      result.finalNumbers.status = "sent";
+    }
+  }
+
   if (!hadAppointmentBaseline) {
     state.knownAppointmentsByDate[date] = feed.appointments.map((appointment) => appointment.id);
   } else {
@@ -1104,6 +1224,8 @@ export async function runSlackOpsAlerts(options?: {
   }
   state.knownAppointmentsByDate = pruneAppointmentDates(state.knownAppointmentsByDate);
   state.knownCancellationsByDate = pruneAppointmentDates(state.knownCancellationsByDate);
+  state.addOnAppointmentIdsByDate[date] = Array.from(addOnAppointmentIds);
+  state.addOnAppointmentIdsByDate = pruneAppointmentDates(state.addOnAppointmentIdsByDate);
   state.deliveredCrewNotificationsByDate[date] = Array.from(deliveredCrewNotifications);
   state.deliveredCrewNotificationsByDate = pruneCrewNotificationDates(state.deliveredCrewNotificationsByDate);
   state.deliveredTruckArrivalsByDate[date] = Array.from(deliveredTruckArrivals);

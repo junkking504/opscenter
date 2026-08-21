@@ -255,13 +255,17 @@ function appointmentForSlackAlert(
   lookup: Map<string, AddOnAppointment>,
 ): SlackDigestMessage["appointment"] | undefined {
   const plainText = slackTextToPlainText(rawText);
-  const titleMatch = plainText.match(/(?:⚠️\s*)?(New same-day appointment|Appointment cancelled):\s*(JK\d+)/i);
-  if (!titleMatch) return undefined;
+  const legacyTitleMatch = plainText.match(/(?:⚠️\s*)?(New same-day appointment|Appointment cancelled):\s*(JK\d+)/i);
+  const alignedTitleMatch = plainText.match(/^\[(Add-On|Cancellation)\]\s*\n\s*(JK\d+)/i);
+  if (!legacyTitleMatch && !alignedTitleMatch) return undefined;
+  const jobNumber = legacyTitleMatch?.[2] || alignedTitleMatch?.[2] || "";
+  const title = legacyTitleMatch?.[1]
+    || (alignedTitleMatch?.[1].toLowerCase() === "cancellation" ? "Appointment cancelled" : "New same-day appointment");
 
   const fingerprintMatch = rawText.match(/Alert ID:\s*(?:add_on|cancellation):\d{4}-\d{2}-\d{2}:(appt:[^\s_*]+)/i);
   const appointment = (
     (fingerprintMatch ? lookup.get(fingerprintMatch[1].toLowerCase()) : undefined)
-    || lookup.get(`job:${titleMatch[2]}`.toLowerCase())
+    || lookup.get(`job:${jobNumber}`.toLowerCase())
   );
   if (!appointment) return undefined;
 
@@ -271,7 +275,7 @@ function appointmentForSlackAlert(
     ?.replace(/^Next:\s*/i, "")
     .trim() || "";
   return {
-    title: titleMatch[1].replace(/^./, (value) => value.toUpperCase()),
+    title: title.replace(/^./, (value) => value.toUpperCase()),
     jobNumber: appointment.jobNumber,
     customerName: appointment.customerName,
     phone: appointment.phone,
@@ -297,7 +301,9 @@ function closeoutForSlackAlert(
   lookup: Map<string, AnyRecord>,
   date: string,
 ): SlackDigestMessage["closeout"] | undefined {
-  const match = slackTextToPlainText(rawText).match(/^✅\s*(JK\d+)\s+closed out\./i);
+  const plainText = slackTextToPlainText(rawText);
+  const match = plainText.match(/^✅\s*(JK\d+)\s+closed out\./i)
+    || plainText.match(/^\[Job Closed\]\s*\n\s*(JK\d+)/i);
   if (!match) return undefined;
   const details = truckCloseoutDetails(lookup.get(match[1].toLowerCase()) || {});
   if (!details) return undefined;

@@ -149,9 +149,15 @@ try {
     ],
   };
   const formatted = formatWhatsAppPhotoSlackNotification(slackBatch);
-  assert.match(formatted, /OpsBot added 2 photos/);
-  assert.match(formatted, /JK4025001/);
-  assert.match(formatted, /1 before · 1 after/);
+  assert.equal(formatted, [
+    "*[Job Photos]*",
+    "JK4025001",
+    "```",
+    "Photos:  2 photos — 1 before · 1 after",
+    "Status:  Verified in JunkWare",
+    "```",
+    "<https://ops.junk-king.app/jobs?date=2026-08-11#job-jk4025001|Open in OpsCenter>",
+  ].join("\n"));
   assert.doesNotMatch(formatted, /15045550101/);
 
   process.env.SLACK_OPSCENTER_ALERTS_ENABLED = "true";
@@ -221,7 +227,8 @@ try {
   assert.equal(completionBody.channel_id, "C_TEST_TRUCK_8");
   assert.equal(completionBody.files?.length, 2);
   assert.match(String(completionBody.initial_comment), /JK4025001/);
-  assert.match(String(completionBody.initial_comment), /added 2 photos/);
+  assert.match(String(completionBody.initial_comment), /\*\[Job Photos\]\*/);
+  assert.match(String(completionBody.initial_comment), /Photos:\s+2 photos/);
   assert.equal(recordWhatsAppPhotoSlackUpload({ ...firstPhoto, status: "completed", filePath: firstPhotoFile, now }).duplicate, true);
   const duplicateDelivery = await deliverWhatsAppPhotoSlackNotifications({ now });
   assert.equal(duplicateDelivery.attempted, 0);

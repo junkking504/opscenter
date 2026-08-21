@@ -2,15 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-
-function chicagoDateKey(reference = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(reference);
-}
+import { chicagoDateKey } from "@/lib/chicago-date";
 
 export default function CurrentDataSync({
   selectedDate,

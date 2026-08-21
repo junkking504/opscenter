@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { calculateLivePay } from "@/lib/live-pay";
+import { money } from "@/lib/money";
 
 export type LivePayrollRecord = {
   clockIn: string;
@@ -13,15 +14,6 @@ export type LivePayrollRecord = {
   isSalary: boolean;
   weeklyHoursBeforeShift?: number;
 };
-
-function money(value: number): string {
-  return value.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
 
 export default function LivePayrollValue({
   date,

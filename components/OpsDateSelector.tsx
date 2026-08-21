@@ -1,21 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-
-function chicagoDateKey(reference = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(reference);
-}
-
-function addDays(dateKey: string, days: number) {
-  const date = new Date(`${dateKey}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
+import { chicagoDateKey, addDays } from "@/lib/chicago-date";
 
 function optionLabel(date: string) {
   const today = chicagoDateKey();

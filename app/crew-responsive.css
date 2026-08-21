@@ -1,0 +1,86 @@
+/* Today's Crew cards respond to their available content width, not only the
+   browser viewport. This also covers sidebar changes and browser zoom. */
+.ops-crew-card-grid {
+  container-name: crew-summary-grid;
+  container-type: inline-size;
+}
+
+.ops-crew-today-employee-card .ops-crew-employee-summary-grid {
+  grid-template-columns:
+    minmax(210px, 1.4fr)
+    minmax(130px, 0.82fr)
+    minmax(160px, 1fr)
+    minmax(175px, 1.08fr)
+    repeat(3, minmax(100px, 0.72fr));
+  gap: 10px 14px;
+  align-items: start;
+}
+
+.ops-crew-today-employee-card .ops-crew-summary-field {
+  align-self: start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.ops-crew-today-employee-card .ops-crew-summary-label,
+.ops-crew-today-employee-card .ops-crew-summary-subvalue,
+.ops-crew-today-employee-card .ops-crew-employee-subtitle {
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+@container crew-summary-grid (max-width: 1120px) {
+  .ops-crew-today-employee-card .ops-crew-employee-summary-grid {
+    grid-template-columns: minmax(210px, 1.35fr) repeat(3, minmax(0, 1fr));
+    grid-template-areas:
+      "employee time production labor"
+      "employee tips bonuses total";
+    gap: 16px 20px;
+  }
+
+  .ops-crew-today-employee-card .ops-crew-summary-field:nth-child(1) { grid-area: employee; }
+  .ops-crew-today-employee-card .ops-crew-summary-field:nth-child(2) { grid-area: time; }
+  .ops-crew-today-employee-card .ops-crew-summary-field:nth-child(3) { grid-area: production; }
+  .ops-crew-today-employee-card .ops-crew-summary-field:nth-child(4) { grid-area: labor; }
+  .ops-crew-today-employee-card .ops-crew-summary-field:nth-child(5) { grid-area: tips; }
+  .ops-crew-today-employee-card .ops-crew-summary-field:nth-child(6) { grid-area: bonuses; }
+  .ops-crew-today-employee-card .ops-crew-summary-field:nth-child(7) { grid-area: total; }
+
+  .ops-crew-today-employee-card .ops-crew-summary-subvalue {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+  }
+}
+
+@container crew-summary-grid (max-width: 740px) {
+  .ops-crew-today-employee-card .ops-crew-employee-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "employee employee"
+      "time production"
+      "labor total"
+      "tips bonuses";
+    gap: 14px 18px;
+  }
+}
+
+@container crew-summary-grid (max-width: 460px) {
+  .ops-crew-today-employee-card .ops-crew-employee-summary {
+    padding: 12px;
+  }
+
+  .ops-crew-today-employee-card .ops-crew-employee-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "employee"
+      "time"
+      "production"
+      "labor"
+      "tips"
+      "bonuses"
+      "total";
+    gap: 12px;
+  }
+}

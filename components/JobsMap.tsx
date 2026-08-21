@@ -1327,119 +1327,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
             <div className="ops-jobs-map-empty">No verified job locations are available for this view.</div>
           ) : null}
 
-          {selectedTruck ? null : selectedJob ? (
-            <article className="ops-jobs-map-selection" aria-live="polite">
-              <button
-                type="button"
-                className="ops-jobs-map-selection-close"
-                onClick={() => {
-                  setSelectedKey("");
-                  window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
-                }}
-                aria-label="Close appointment details"
-              >×</button>
-              <div className="ops-jobs-map-selection-kicker">
-                <i className={territoryTone(selectedJob)} aria-hidden="true" />
-                {selectedJob.appointmentTime} · {selectedJob.jkNumber}
-              </div>
-              <strong className="ops-jobs-map-selection-customer">{selectedJob.customerName}</strong>
-              {selectedJob.phone && selectedJob.phone !== "—" ? (
-                <a
-                  className="ops-jobs-map-selection-phone"
-                  href={`tel:${selectedJob.phone.replace(/[^\d+]/g, "")}`}
-                >
-                  {selectedJob.phone}
-                </a>
-              ) : (
-                <span className="ops-jobs-map-selection-phone is-unavailable">Phone unavailable</span>
-              )}
-              <span className="ops-jobs-map-selection-address">{selectedJob.address}</span>
-              {selectedJob.statusBucket === "Canceled" ? (
-                <div className="ops-jobs-map-selection-canceled" role="status">
-                  <b aria-hidden="true">×</b>
-                  <span><strong>Canceled</strong>{selectedJob.status}</span>
-                </div>
-              ) : null}
-              {hasJunkwareSyncFailure(selectedJob) ? (
-                <div className="ops-jobs-map-selection-sync-failed" role="status">
-                  <b aria-hidden="true">!</b>
-                  <span>
-                    <strong>{junkwareSyncLabel(selectedJob)}</strong>
-                    {selectedJob.junkwareSyncError || "Saved in OpsCenter. It will be retried before it is treated as verified."}
-                  </span>
-                </div>
-              ) : null}
-              {isVisitedUnclosedScheduleJob(selectedJob) ? (
-                <div className="ops-jobs-map-selection-visited-unclosed" role="status">
-                  <b aria-hidden="true">?</b>
-                  <span>
-                    <strong>Krewe visited this address</strong>
-                    Appointment is not closed out in JunkWare
-                    {selectedJob.visitedTrucks.length ? <small>{selectedJob.visitedTrucks.join(", ")}</small> : null}
-                  </span>
-                </div>
-              ) : null}
-              {selectedJob.statusBucket !== "Canceled" ? <div className="ops-jobs-map-selection-truck">
-                <span>{hasRecordedVisit ? (visitTrucks.length === 1 ? "Truck at job" : "Trucks at job") : "Closest truck"}</span>
-                <strong>
-                  {hasRecordedVisit
-                    ? visitTrucks.length
-                      ? visitTrucks.join(", ")
-                      : "Truck not recorded"
-                    : !scheduleView
-                    ? "Open the daily schedule for live proximity"
-                    : proximityLoading
-                      ? "Checking current truck locations…"
-                      : proximityError
-                        ? "Truck locations unavailable"
-                        : closestTruck
-                          ? `${closestTruck.truck} · ${proximityText(closestTruck.proximity)}`
-                          : unavailableProximityText(selectedJob.key, proximity)}
-                </strong>
-              </div> : null}
-              <div className="ops-jobs-map-selection-items">
-                <span>Items to remove</span>
-                {selectedJob.junkItems.length ? (
-                  <div>{selectedJob.junkItems.map((item) => <strong key={item}>{item}</strong>)}</div>
-                ) : <em>Not listed in JunkWare</em>}
-              </div>
-              {selectedJob.appointmentNotes.length ? (
-                <details className="ops-jobs-map-selection-notes">
-                  <summary>Notes <small>{selectedJob.appointmentNotes.length}</small></summary>
-                  <ul>{selectedJob.appointmentNotes.map((note, index) => <li key={`${selectedJob.key}-note-${index}`}>{note}</li>)}</ul>
-                </details>
-              ) : null}
-              {scheduleView && canChangeSchedule(selectedJob) ? (
-                <div className="ops-jobs-map-selection-schedule-controls">
-                  <label className="ops-jobs-map-selection-assign">
-                    <span>Truck assignment</span>
-                    <select
-                      value={assignments[selectedJob.key] || ""}
-                      disabled={pendingKeys.includes(selectedJob.key)}
-                      onChange={(event) => void assignJob(selectedJob, event.target.value)}
-                    >
-                      <option value="">Virtual / unassigned</option>
-                      {trucks.map((truck) => <option value={truck} key={truck}>{truck}</option>)}
-                    </select>
-                  </label>
-                  <label className="ops-jobs-map-selection-assign">
-                    <span>Time slot</span>
-                    <select
-                      value={selectedJob.appointmentStartMinutes ?? ""}
-                      disabled={pendingKeys.includes(selectedJob.key)}
-                      onChange={(event) => void assignJob(selectedJob, assignments[selectedJob.key] || "", Number(event.target.value))}
-                    >
-                      {selectedJob.appointmentStartMinutes == null ? <option value="">Choose a time…</option> : null}
-                      {scheduleBoard.rows.map((hour) => <option value={hour * 60} key={hour}>{compactHourLabel(hour)}</option>)}
-                    </select>
-                  </label>
-                </div>
-              ) : null}
-              {selectedJob.appointmentUrl ? (
-                <a href={selectedJob.appointmentUrl} target="_blank" rel="noreferrer">Open in JunkWare</a>
-              ) : null}
-            </article>
-          ) : (
+          {selectedTruck || selectedJob ? null : (
             <div className="ops-jobs-map-prompt">Select an appointment square for job and truck details.</div>
           )}
         </div>
@@ -1587,6 +1475,120 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
               })}
             </div>
           </aside>
+        ) : null}
+
+        {!selectedTruck && selectedJob ? (
+          <article className="ops-jobs-map-selection ops-jobs-map-appointment-selection" aria-live="polite">
+            <button
+              type="button"
+              className="ops-jobs-map-selection-close"
+              onClick={() => {
+                setSelectedKey("");
+                window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
+              }}
+              aria-label="Close appointment details"
+            >×</button>
+            <div className="ops-jobs-map-selection-kicker">
+              <i className={territoryTone(selectedJob)} aria-hidden="true" />
+              {selectedJob.appointmentTime} · {selectedJob.jkNumber}
+            </div>
+            <strong className="ops-jobs-map-selection-customer">{selectedJob.customerName}</strong>
+            {selectedJob.phone && selectedJob.phone !== "—" ? (
+              <a
+                className="ops-jobs-map-selection-phone"
+                href={`tel:${selectedJob.phone.replace(/[^\d+]/g, "")}`}
+              >
+                {selectedJob.phone}
+              </a>
+            ) : (
+              <span className="ops-jobs-map-selection-phone is-unavailable">Phone unavailable</span>
+            )}
+            <span className="ops-jobs-map-selection-address">{selectedJob.address}</span>
+            {selectedJob.statusBucket === "Canceled" ? (
+              <div className="ops-jobs-map-selection-canceled" role="status">
+                <b aria-hidden="true">×</b>
+                <span><strong>Canceled</strong>{selectedJob.status}</span>
+              </div>
+            ) : null}
+            {hasJunkwareSyncFailure(selectedJob) ? (
+              <div className="ops-jobs-map-selection-sync-failed" role="status">
+                <b aria-hidden="true">!</b>
+                <span>
+                  <strong>{junkwareSyncLabel(selectedJob)}</strong>
+                  {selectedJob.junkwareSyncError || "Saved in OpsCenter. It will be retried before it is treated as verified."}
+                </span>
+              </div>
+            ) : null}
+            {isVisitedUnclosedScheduleJob(selectedJob) ? (
+              <div className="ops-jobs-map-selection-visited-unclosed" role="status">
+                <b aria-hidden="true">?</b>
+                <span>
+                  <strong>Krewe visited this address</strong>
+                  Appointment is not closed out in JunkWare
+                  {selectedJob.visitedTrucks.length ? <small>{selectedJob.visitedTrucks.join(", ")}</small> : null}
+                </span>
+              </div>
+            ) : null}
+            {selectedJob.statusBucket !== "Canceled" ? <div className="ops-jobs-map-selection-truck">
+              <span>{hasRecordedVisit ? (visitTrucks.length === 1 ? "Truck at job" : "Trucks at job") : "Closest truck"}</span>
+              <strong>
+                {hasRecordedVisit
+                  ? visitTrucks.length
+                    ? visitTrucks.join(", ")
+                    : "Truck not recorded"
+                  : !scheduleView
+                  ? "Open the daily schedule for live proximity"
+                  : proximityLoading
+                    ? "Checking current truck locations…"
+                    : proximityError
+                      ? "Truck locations unavailable"
+                      : closestTruck
+                        ? `${closestTruck.truck} · ${proximityText(closestTruck.proximity)}`
+                        : unavailableProximityText(selectedJob.key, proximity)}
+              </strong>
+            </div> : null}
+            <div className="ops-jobs-map-selection-items">
+              <span>Items to remove</span>
+              {selectedJob.junkItems.length ? (
+                <div>{selectedJob.junkItems.map((item) => <strong key={item}>{item}</strong>)}</div>
+              ) : <em>Not listed in JunkWare</em>}
+            </div>
+            {selectedJob.appointmentNotes.length ? (
+              <details className="ops-jobs-map-selection-notes">
+                <summary>Notes <small>{selectedJob.appointmentNotes.length}</small></summary>
+                <ul>{selectedJob.appointmentNotes.map((note, index) => <li key={`${selectedJob.key}-note-${index}`}>{note}</li>)}</ul>
+              </details>
+            ) : null}
+            {scheduleView && canChangeSchedule(selectedJob) ? (
+              <div className="ops-jobs-map-selection-schedule-controls">
+                <label className="ops-jobs-map-selection-assign">
+                  <span>Truck assignment</span>
+                  <select
+                    value={assignments[selectedJob.key] || ""}
+                    disabled={pendingKeys.includes(selectedJob.key)}
+                    onChange={(event) => void assignJob(selectedJob, event.target.value)}
+                  >
+                    <option value="">Virtual / unassigned</option>
+                    {trucks.map((truck) => <option value={truck} key={truck}>{truck}</option>)}
+                  </select>
+                </label>
+                <label className="ops-jobs-map-selection-assign">
+                  <span>Time slot</span>
+                  <select
+                    value={selectedJob.appointmentStartMinutes ?? ""}
+                    disabled={pendingKeys.includes(selectedJob.key)}
+                    onChange={(event) => void assignJob(selectedJob, assignments[selectedJob.key] || "", Number(event.target.value))}
+                  >
+                    {selectedJob.appointmentStartMinutes == null ? <option value="">Choose a time…</option> : null}
+                    {scheduleBoard.rows.map((hour) => <option value={hour * 60} key={hour}>{compactHourLabel(hour)}</option>)}
+                  </select>
+                </label>
+              </div>
+            ) : null}
+            {selectedJob.appointmentUrl ? (
+              <a href={selectedJob.appointmentUrl} target="_blank" rel="noreferrer">Open in JunkWare</a>
+            ) : null}
+          </article>
         ) : null}
 
         {selectedTruck ? (

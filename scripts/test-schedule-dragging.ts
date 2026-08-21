@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { scheduleDragScrollDelta } from "@/lib/schedule-drag";
+import { canDragScheduleAppointment, scheduleDragScrollDelta } from "@/lib/schedule-drag";
+
+assert.equal(canDragScheduleAppointment({ statusBucket: "Open" }), true);
+assert.equal(canDragScheduleAppointment({ statusBucket: "Completed" }), true);
+assert.equal(canDragScheduleAppointment({ statusBucket: "Estimate" }), true);
+assert.equal(canDragScheduleAppointment({ statusBucket: "Canceled" }), false);
 
 assert.equal(scheduleDragScrollDelta(36, 0, 800), -9);
 assert.equal(scheduleDragScrollDelta(400, 0, 800), 0);

@@ -7,7 +7,7 @@ import { truckMapMarkerIcon, truckMapMarkerOffsets } from "@/components/TruckMap
 import type { JobRouteProximityPayload, JobTruckProximity } from "@/lib/job-route-proximity";
 import { buildJobRouteHistory } from "@/lib/job-route-history";
 import { parseTruckNumberFromLabel } from "@/lib/linxup-truck-label";
-import { scheduleDragScrollDelta } from "@/lib/schedule-drag";
+import { canDragScheduleAppointment, scheduleDragScrollDelta } from "@/lib/schedule-drag";
 import { appointmentTerritoryTone, isWithinLafayetteServiceRadius } from "@/lib/territory-presentation";
 
 export type JobsMapPoint = {
@@ -194,12 +194,6 @@ export function recordedVisitTrucks(
     .map((truck) => routeTruck(truck) || truck)));
   if (verifiedVisits.length || !isClosedScheduleJob(job) || isVirtualTruck(job.truck)) return verifiedVisits;
   return [routeTruck(job.truck) || job.truck.trim()];
-}
-
-function canChangeSchedule(job: Pick<JobsMapPoint, "statusBucket" | "visitedTrucks">): boolean {
-  return job.statusBucket !== "Canceled"
-    && !isClosedScheduleJob(job)
-    && job.visitedTrucks.length === 0;
 }
 
 function territoryTone(job: JobsMapPoint): string {
@@ -870,7 +864,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   }
 
   function handleAppointmentPointerDown(event: React.PointerEvent<HTMLButtonElement>, job: JobsMapPoint) {
-    if (event.button !== 0 || !canChangeSchedule(job) || pendingKeySetRef.current.has(job.key)) return;
+    if (event.button !== 0 || !canDragScheduleAppointment(job) || pendingKeySetRef.current.has(job.key)) return;
     dragCleanupRef.current?.();
     if (dragAutoScrollFrameRef.current !== null) {
       window.cancelAnimationFrame(dragAutoScrollFrameRef.current);
@@ -1428,7 +1422,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                         {appointments.map((job) => (
                           <button
                             type="button"
-                            className={`ops-jobs-map-board-block ${territoryTone(job)}${canChangeSchedule(job) && !pendingKeys.includes(job.key) ? " is-draggable" : ""}${hasJunkwareSyncFailure(job) ? " has-junkware-sync-failure" : ""}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
+                            className={`ops-jobs-map-board-block ${territoryTone(job)}${canDragScheduleAppointment(job) && !pendingKeys.includes(job.key) ? " is-draggable" : ""}${hasJunkwareSyncFailure(job) ? " has-junkware-sync-failure" : ""}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
                             onClick={() => handleAppointmentClick(job.key)}
                             onContextMenu={(event) => handleAppointmentContextMenu(event, job)}
                             onPointerDown={(event) => handleAppointmentPointerDown(event, job)}
@@ -1456,7 +1450,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                         {appointments.map((job) => (
                           <button
                             type="button"
-                            className={`ops-jobs-map-board-block ${territoryTone(job)}${canChangeSchedule(job) && !pendingKeys.includes(job.key) ? " is-draggable" : ""}${hasJunkwareSyncFailure(job) ? " has-junkware-sync-failure" : ""}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
+                            className={`ops-jobs-map-board-block ${territoryTone(job)}${canDragScheduleAppointment(job) && !pendingKeys.includes(job.key) ? " is-draggable" : ""}${hasJunkwareSyncFailure(job) ? " has-junkware-sync-failure" : ""}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
                             onClick={() => handleAppointmentClick(job.key)}
                             onContextMenu={(event) => handleAppointmentContextMenu(event, job)}
                             onPointerDown={(event) => handleAppointmentPointerDown(event, job)}
@@ -1559,7 +1553,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                 <ul>{selectedJob.appointmentNotes.map((note, index) => <li key={`${selectedJob.key}-note-${index}`}>{note}</li>)}</ul>
               </details>
             ) : null}
-            {scheduleView && canChangeSchedule(selectedJob) ? (
+            {scheduleView && canDragScheduleAppointment(selectedJob) ? (
               <div className="ops-jobs-map-selection-schedule-controls">
                 <label className="ops-jobs-map-selection-assign">
                   <span>Truck assignment</span>

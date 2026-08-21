@@ -1,6 +1,10 @@
 const SCHEDULE_DRAG_SCROLL_EDGE_PX = 72;
 const SCHEDULE_DRAG_SCROLL_MAX_PX = 18;
 
+export function canDragScheduleAppointment(job: { statusBucket: string }): boolean {
+  return job.statusBucket !== "Canceled";
+}
+
 export function scheduleDragScrollDelta(pointer: number, start: number, end: number): number {
   if (end <= start) return 0;
   if (pointer < start + SCHEDULE_DRAG_SCROLL_EDGE_PX) {

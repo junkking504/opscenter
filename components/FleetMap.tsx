@@ -88,6 +88,7 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any>(null);
   const routeRef = useRef<any>(null);
+  const focusSelectedTruckRef = useRef(false);
   const selectedTruckParam = searchParams.get("truck");
   const selectedTruck = selectedTruckParam ? normalizeTruckLabel(selectedTruckParam) : "";
   const fleetMode = !selectedTruckParam;
@@ -198,7 +199,13 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
       && Number.isFinite(selectedTruckRecord.longitude)
       ? leaflet.latLngBounds([[selectedTruckRecord.latitude as number, selectedTruckRecord.longitude as number]])
       : null;
-    const targetBounds = fleetMode ? allTruckBounds : selectedRouteBounds || selectedTruckBounds;
+    const focusSelectedTruck = focusSelectedTruckRef.current;
+    focusSelectedTruckRef.current = false;
+    const targetBounds = fleetMode
+      ? allTruckBounds
+      : focusSelectedTruck
+        ? selectedTruckBounds
+        : selectedRouteBounds || selectedTruckBounds;
     if (targetBounds && targetBounds.isValid()) {
       if (targetBounds.getNorthEast().equals(targetBounds.getSouthWest())) {
         map.setView(targetBounds.getCenter(), visibleTrucks.length === 1 ? 12 : 10);
@@ -228,6 +235,7 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
 
       const selectTruck = () => {
         if (isSelected) return;
+        focusSelectedTruckRef.current = true;
         const params = new URLSearchParams(searchParams.toString());
         params.set("date", payload.date);
         params.set("truck", truckNumber(truck.truck));

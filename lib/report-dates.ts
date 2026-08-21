@@ -1,4 +1,5 @@
 import { historyIndex } from "@/lib/history-data";
+import { chicagoDateKey, addDays } from "@/lib/chicago-date";
 
 export const EARLIEST_REPORT_DATE = "2026-06-15";
 
@@ -8,24 +9,10 @@ export type ReportDateOption = {
   date: string;
 };
 
-function pad(value: number) {
-  return String(value).padStart(2, "0");
-}
-
-export function chicagoDateKey(reference = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(reference);
-}
-
-export function addDays(dateKey: string, days: number) {
-  const date = new Date(`${dateKey}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
-}
+// Re-exported so the many existing `@/lib/report-dates` importers keep
+// working unchanged. The actual implementation lives in the dependency-free
+// `@/lib/chicago-date`, which is also safe to import from client components.
+export { chicagoDateKey, addDays };
 
 export function isValidDateKey(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);

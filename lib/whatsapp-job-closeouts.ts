@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { money as formatMoney } from "@/lib/money";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
 import { readMetrics, type AnyRecord } from "@/lib/opsData";
 import { enqueueOpsBotReply } from "@/lib/whatsapp-crew-expenses";
@@ -172,10 +173,6 @@ function parseAmount(value: string): number | null {
   if (!match) return null;
   const amount = Number(match[1].replace(/,/g, ""));
   return Number.isFinite(amount) && amount >= 0 && amount <= 1_000_000 ? money(amount) : null;
-}
-
-function formatMoney(value: number): string {
-  return value.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export function jobCloseoutTemplate(): string {

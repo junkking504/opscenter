@@ -2,15 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { calculateLivePay, durationLabel } from "@/lib/live-pay";
-
-function money(value: number): string {
-  return value.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
+import { money } from "@/lib/money";
 
 type LiveClockProps = {
   date: string;

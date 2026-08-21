@@ -5,6 +5,7 @@ import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FleetMaintenancePhoto, FleetMaintenanceRecord, MaintenanceStatus } from "@/lib/fleet-maintenance";
 import type { LinxupVehicleInventory, LinxupVehicleProfile } from "@/lib/linxup-vehicle-inventory";
+import { money as formatMoneyValue } from "@/lib/money";
 
 const SERVICE_TYPES = [
   "Oil change",
@@ -74,9 +75,14 @@ function draftFromRecord(record: FleetMaintenanceRecord): MaintenanceDraft {
   };
 }
 
+// Delegates to the one canonical formatter (`@/lib/money`) instead of
+// reimplementing it — see the 2026-08-21 data-consistency audit. This also
+// fixes the missing explicit minimumFractionDigits/maximumFractionDigits
+// the audit flagged here. The null → "—" display stays local since it's
+// specific to this page, not part of the shared formatter.
 function money(value: number | null): string {
   if (value == null) return "—";
-  return value.toLocaleString("en-US", { style: "currency", currency: "USD" });
+  return formatMoneyValue(value);
 }
 
 function mileage(value: number | null): string {

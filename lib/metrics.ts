@@ -1,5 +1,7 @@
 import fs from "fs";
 import path from "path";
+import { chicagoDateKey } from "@/lib/chicago-date";
+import { money } from "@/lib/money";
 
 export type DailyMetrics = Record<string, any>;
 
@@ -9,15 +11,6 @@ export type MetricsResult = {
   lastUpdated?: string;
   error?: string;
 };
-
-function chicagoDateKey(): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
 
 function metricsDir(): string {
   return path.join(process.cwd(), "data", "history", "daily_metrics");
@@ -108,14 +101,10 @@ export function numericEntries(data?: Record<string, number>): Array<[string, nu
   return Object.entries(data ?? {}).filter(([, value]) => Number.isFinite(Number(value)));
 }
 
-export function money(value?: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number(value ?? 0));
-}
+// Re-exported so the existing `@/lib/metrics` importer of `money` keeps
+// working unchanged. The actual implementation lives in the dependency-free
+// `@/lib/money`.
+export { money };
 
 export function number(value?: number): string {
   return new Intl.NumberFormat("en-US", {

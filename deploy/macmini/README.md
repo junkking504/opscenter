@@ -108,10 +108,11 @@ when a newer LinxUp snapshot arrives.
 
 New appointment, reschedule, cancellation, and closeout alerts use a persistent,
 schedule-only JunkWare browser worker. Collection and Slack publishing are
-separate atomic steps: the worker first verifies the requested date and every
-selected JunkWare market, then the publisher compares the resulting snapshot and
-posts only new changes. Running several independent browser logins proved less
-reliable because JunkWare serialized subsequent sessions.
+separate atomic steps: the worker resolves the current America/Chicago business
+date for every sweep (unless a one-off date is explicitly supplied), verifies that
+date and every selected JunkWare market, then the publisher compares the resulting
+snapshot and posts only new changes. Running several independent browser logins
+proved less reliable because JunkWare serialized subsequent sessions.
 
 After deploying a release that includes this path, install or refresh only
 these watchers:

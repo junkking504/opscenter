@@ -379,7 +379,6 @@ assert.equal(queuedCrewExpenseTransactions(30).length, 20);
 
 assert.equal(formatCrewExpenseSlackNotification(singleLineFuel.record!), [
   "*[Fuel Recorded]*",
-  "Truck# 1",
   "```",
   "Location:  Shell",
   "Cost:      $100.00",
@@ -397,7 +396,8 @@ sendCrewExpenseSlackNotification(singleLineFuel.record!, async (_input, init) =>
 }).then((slackDelivery) => {
   assert.equal(slackDelivery.channel, "C_TRUCK_1");
   assert.equal(slackRequest.channel, "C_TRUCK_1");
-  assert.match(String(slackRequest.text), /\*\[Fuel Recorded\]\*\nTruck# 1/);
+  assert.match(String(slackRequest.text), /\*\[Fuel Recorded\]\*\n```/);
+  assert.doesNotMatch(String(slackRequest.text), /Truck# 1/);
   assert.match(String(slackRequest.text), /Location:\s+Shell\nCost:\s+\$100\.00/);
   process.stdout.write(`${JSON.stringify({ ok: true, records: readCrewExpenseRecords().length })}\n`);
 }).catch((error) => {

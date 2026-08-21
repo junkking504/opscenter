@@ -301,6 +301,7 @@ const truckArrivalAlerts = buildTruckArrivalSlackNotifications("2026-08-12", [
 ]);
 
 assert.equal(truckArrivalAlerts.length, 2);
+assert.doesNotMatch(formatSlackAlert(truckArrivalAlerts[0]), /Truck 4/);
 assert.deepEqual(
   truckArrivalAlerts.map((alert) => ({ kind: alert.kind, channelId: alert.channelId, text: formatSlackAlert(alert) })),
   [
@@ -309,7 +310,6 @@ assert.deepEqual(
       channelId: "C_TEST_TRUCK_4",
       text: [
         "*[Truck Arrival]*",
-        "Truck 4",
         "```",
         "Job:       JK4050424",
         "Customer:  Test Customer",
@@ -323,7 +323,6 @@ assert.deepEqual(
       channelId: "C_TEST_TRUCK_4",
       text: [
         "*[Truck Arrival]*",
-        "Truck 4",
         "```",
         "Job:       JK4050424",
         "Customer:  Test Customer",
@@ -457,7 +456,6 @@ try {
   assert.deepEqual(postedMessages, [
     [
       "*[Truck Arrival]*",
-      "Truck 6",
       "```",
       "Job:       JK4051503",
       "Customer:  Arrival Customer",

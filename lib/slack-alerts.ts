@@ -722,7 +722,8 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
         severity: "warning",
         channelId: truckSlackChannelId(truck, channel("dispatch")),
         title: "[Truck Arrival]",
-        subject: truck,
+        // Truck-specific channels already establish the truck context.
+        subject: "",
         detail: "",
         nextAction: "",
         href: absoluteOpsHref(`/jobs?date=${encodeURIComponent(date)}#job-${jkNumber.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`),

@@ -20,7 +20,6 @@ export function formatCrewExpenseSlackNotification(record: CrewExpenseRecord): s
     : record.weight || "no weight";
   return formatOpsCenterSlackMessage({
     title: `[${record.kind === "fuel" ? "Fuel" : "Dump"} Recorded]`,
-    subject: record.truck,
     fields: [
       { label: "Location", value: record.location },
       { label: "Cost", value: `$${record.cost.toFixed(2)}` },
@@ -36,7 +35,6 @@ export function formatCrewExpenseSlackCorrectionNotification(record: CrewExpense
     : record.weight || "no weight";
   return formatOpsCenterSlackMessage({
     title: `[${record.kind === "fuel" ? "Fuel" : "Dump"} Corrected]`,
-    subject: record.truck,
     fields: [
       { label: "Location", value: record.location },
       { label: "Cost", value: `$${record.cost.toFixed(2)}` },

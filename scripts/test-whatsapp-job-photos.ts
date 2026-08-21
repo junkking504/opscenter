@@ -149,9 +149,11 @@ try {
     ],
   };
   const formatted = formatWhatsAppPhotoSlackNotification(slackBatch);
-  assert.match(formatted, /OpsBot added 2 photos/);
+  assert.match(formatted, /Job photos verified/);
   assert.match(formatted, /JK4025001/);
-  assert.match(formatted, /1 before · 1 after/);
+  assert.match(formatted, /2 photos · 1 before · 1 after/);
+  assert.match(formatted, /Verified in JunkWare/);
+  assert.doesNotMatch(formatted, /All photos in this WhatsApp batch/);
   assert.doesNotMatch(formatted, /15045550101/);
 
   process.env.SLACK_OPSCENTER_ALERTS_ENABLED = "true";
@@ -221,7 +223,7 @@ try {
   assert.equal(completionBody.channel_id, "C_TEST_TRUCK_8");
   assert.equal(completionBody.files?.length, 2);
   assert.match(String(completionBody.initial_comment), /JK4025001/);
-  assert.match(String(completionBody.initial_comment), /added 2 photos/);
+  assert.match(String(completionBody.initial_comment), /Job photos verified/);
   assert.equal(recordWhatsAppPhotoSlackUpload({ ...firstPhoto, status: "completed", filePath: firstPhotoFile, now }).duplicate, true);
   const duplicateDelivery = await deliverWhatsAppPhotoSlackNotifications({ now });
   assert.equal(duplicateDelivery.attempted, 0);

@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { formatSlackMessage } from "@/lib/slack-message-format";
 import { truckSlackChannelId } from "@/lib/slack-truck-channels";
 import { whatsappPhotoStateDirectory } from "@/lib/whatsapp-job-photo-queue";
 
@@ -139,10 +140,6 @@ function messageWasDelivered(messageId: string): boolean {
   );
 }
 
-function slackEscape(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 function opsCenterOrigin(): string {
   return clean(process.env.SLACK_OPSCENTER_BASE_URL || "https://ops.junk-king.app").replace(/\/$/, "");
 }
@@ -169,11 +166,16 @@ function categorySummary(photos: WhatsAppPhotoSlackBatchPhoto[]): string {
 export function formatWhatsAppPhotoSlackNotification(batch: WhatsAppPhotoSlackBatch): string {
   const count = batch.photos.length;
   const noun = count === 1 ? "photo" : "photos";
-  return [
-    `:camera_with_flash: *OpsBot added ${count} ${noun} to <${jobHref(batch)}|${slackEscape(batch.jkNumber)}>*`,
-    `*Photos:* ${categorySummary(batch.photos)}`,
-    "All photos in this WhatsApp batch were verified in JunkWare.",
-  ].join("\n");
+  return formatSlackMessage({
+    icon: ":camera_with_flash:",
+    title: "Job photos verified",
+    fields: [
+      { label: "Job", value: batch.jkNumber },
+      { label: "Photos", value: `${count} ${noun} · ${categorySummary(batch.photos)}` },
+    ],
+    body: "Verified in JunkWare",
+    href: jobHref(batch),
+  });
 }
 
 export function recordWhatsAppPhotoSlackUpload(input: {

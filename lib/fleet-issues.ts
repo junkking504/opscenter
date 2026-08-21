@@ -23,6 +23,7 @@ export type FleetIssue = {
   cost: number | null;
   downtimeHours: number | null;
   photos: FleetIssuePhoto[];
+  attachments: FleetIssueAttachment[];
   sourceChecklistEntryId: string;
   sourceChecklistItemId: string;
   sourceInspectionDate: string;
@@ -34,6 +35,15 @@ export type FleetIssue = {
 
 export type FleetIssuePhoto = {
   photoId: string;
+  fileName: string;
+  storageName: string;
+  mimeType: string;
+  size: number;
+  uploadedAt: string;
+};
+
+export type FleetIssueAttachment = {
+  attachmentId: string;
   fileName: string;
   storageName: string;
   mimeType: string;
@@ -91,6 +101,27 @@ function parsePhotos(value: unknown): FleetIssuePhoto[] {
   });
 }
 
+const ISSUE_ATTACHMENT_TYPES = new Set([
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
+
+function parseAttachments(value: unknown): FleetIssueAttachment[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((raw) => {
+    if (!raw || typeof raw !== "object") return [];
+    const row = raw as Record<string, unknown>;
+    const attachmentId = String(row.attachmentId || "").trim();
+    const storageName = path.basename(String(row.storageName || "").trim());
+    const mimeType = String(row.mimeType || "").trim().toLowerCase();
+    if (!attachmentId || !storageName || !ISSUE_ATTACHMENT_TYPES.has(mimeType)) return [];
+    return [{ attachmentId, fileName: path.basename(String(row.fileName || "attachment")).slice(0, 160), storageName, mimeType, size: Math.max(0, Number(row.size) || 0), uploadedAt: String(row.uploadedAt || "").trim() }];
+  });
+}
+
 function parseIssue(value: unknown): FleetIssue | null {
   if (!value || typeof value !== "object") return null;
   const row = value as Record<string, unknown>;
@@ -111,6 +142,7 @@ function parseIssue(value: unknown): FleetIssue | null {
     cost: nullableNonNegative(row.cost),
     downtimeHours: nullableNonNegative(row.downtimeHours),
     photos: parsePhotos(row.photos),
+    attachments: parseAttachments(row.attachments),
     sourceChecklistEntryId: String(row.sourceChecklistEntryId || "").trim(),
     sourceChecklistItemId: String(row.sourceChecklistItemId || "").trim(),
     sourceInspectionDate: String(row.sourceInspectionDate || "").trim(),
@@ -182,6 +214,7 @@ export function syncFleetIssuesFromChecklist(entry: FleetChecklistEntry): FleetI
       cost: existing?.cost ?? null,
       downtimeHours: existing?.downtimeHours ?? null,
       photos: existing?.photos || [],
+      attachments: existing?.attachments || [],
       sourceChecklistEntryId: entry.entryId,
       sourceChecklistItemId: answer.itemId,
       sourceInspectionDate: entry.inspectionDate,
@@ -229,6 +262,7 @@ export function upsertFleetIssue(input: Record<string, unknown>): FleetIssue | n
     cost: nullableNonNegative(rawCost),
     downtimeHours: nullableNonNegative(rawDowntime),
     photos: existing?.photos || [],
+    attachments: existing?.attachments || [],
     sourceChecklistEntryId: existing?.sourceChecklistEntryId || "",
     sourceChecklistItemId: existing?.sourceChecklistItemId || "",
     sourceInspectionDate: existing?.sourceInspectionDate || String(input.sourceInspectionDate || "").trim(),
@@ -249,6 +283,14 @@ export function fleetIssuePhotoDirectory(): string {
 
 export function fleetIssuePhotoFilePath(photo: FleetIssuePhoto): string {
   return path.join(fleetIssuePhotoDirectory(), path.basename(photo.storageName));
+}
+
+export function fleetIssueAttachmentDirectory(): string {
+  return path.join(process.cwd(), "data", "fleet", "issue_attachments");
+}
+
+export function fleetIssueAttachmentFilePath(attachment: FleetIssueAttachment): string {
+  return path.join(fleetIssueAttachmentDirectory(), path.basename(attachment.storageName));
 }
 
 export function attachFleetIssuePhoto(issueId: string, input: Omit<FleetIssuePhoto, "photoId" | "uploadedAt">): FleetIssuePhoto | null {
@@ -281,6 +323,40 @@ export function detachFleetIssuePhoto(photoId: string): FleetIssuePhoto | null {
     store.issues[index].updatedAt = now;
     writeStore({ version: 1, updatedAt: now, issues: store.issues });
     return photo;
+  }
+  return null;
+}
+
+export function attachFleetIssueAttachment(issueId: string, input: Omit<FleetIssueAttachment, "attachmentId" | "uploadedAt">): FleetIssueAttachment | null {
+  const store = readFleetIssueStore();
+  const index = store.issues.findIndex((issue) => issue.issueId === issueId);
+  if (index < 0 || !ISSUE_ATTACHMENT_TYPES.has(input.mimeType)) return null;
+  const now = new Date().toISOString();
+  const attachment: FleetIssueAttachment = { attachmentId: randomUUID(), fileName: path.basename(input.fileName).slice(0, 160), storageName: path.basename(input.storageName), mimeType: input.mimeType, size: Math.max(0, input.size), uploadedAt: now };
+  store.issues[index].attachments.push(attachment);
+  store.issues[index].updatedAt = now;
+  writeStore({ version: 1, updatedAt: now, issues: store.issues });
+  return attachment;
+}
+
+export function findFleetIssueAttachment(attachmentId: string): { issue: FleetIssue; attachment: FleetIssueAttachment } | null {
+  for (const issue of readFleetIssueStore().issues) {
+    const attachment = issue.attachments.find((candidate) => candidate.attachmentId === attachmentId);
+    if (attachment) return { issue, attachment };
+  }
+  return null;
+}
+
+export function detachFleetIssueAttachment(attachmentId: string): FleetIssueAttachment | null {
+  const store = readFleetIssueStore();
+  for (let index = 0; index < store.issues.length; index += 1) {
+    const attachmentIndex = store.issues[index].attachments.findIndex((attachment) => attachment.attachmentId === attachmentId);
+    if (attachmentIndex < 0) continue;
+    const [attachment] = store.issues[index].attachments.splice(attachmentIndex, 1);
+    const now = new Date().toISOString();
+    store.issues[index].updatedAt = now;
+    writeStore({ version: 1, updatedAt: now, issues: store.issues });
+    return attachment;
   }
   return null;
 }

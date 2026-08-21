@@ -29,6 +29,12 @@ const current = {
   ],
 };
 
+const nextBusinessDay = {
+  ...current,
+  date: "2026-08-18",
+  scrapedAt: "2026-08-18T08:00:00-05:00",
+};
+
 const events = detectScheduleChanges(previous, current);
 assert.deepEqual(events.map((event) => event.kind).sort(), ["cancelled", "new_appointment", "rescheduled"]);
 assert.deepEqual(events.find((event) => event.kind === "rescheduled")?.alert.fields, [
@@ -61,6 +67,10 @@ async function verifyScopedPublishing() {
     assert.equal(market352Change.baselined, false);
     assert.deepEqual(market352Change.posted.map((event) => event.kind).sort(), ["cancelled", "new_appointment", "rescheduled"]);
 
+    const dateRollover = await publishScheduleChanges(tempDir, nextBusinessDay, "xoxb-test", { scope: "market-352" });
+    assert.equal(dateRollover.baselined, true);
+    assert.deepEqual(dateRollover.posted, []);
+
     await publishScheduleChanges(tempDir, previous, "xoxb-test", { scope: "fast-closeout" });
     let fastChecks = 0;
     const pendingCloseout = await publishScheduleChanges(tempDir, current, "xoxb-test", {
@@ -85,6 +95,7 @@ async function verifyScopedPublishing() {
     assert.ok(state.snapshots.legacy);
     assert.ok(state.snapshots["market-352"]);
     assert.ok(state.snapshots["market-477"]);
+    assert.equal(state.snapshots["market-352"]?.date, "2026-08-18");
     assert.ok(state.pendingCloseouts["market-352:2026-08-17:appt-1"]);
     assert.equal(state.pendingCloseouts["fast-closeout:2026-08-17:appt-1"], undefined);
   } finally {

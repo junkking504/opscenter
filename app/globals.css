@@ -1985,7 +1985,7 @@ a {
 }
 
 .ops-truck-map-marker-locator {
-  --ops-truck-marker-red: var(--ops-red);
+  --ops-truck-marker-gold: var(--ops-gold);
   position: relative;
   width: 46px;
   height: 28px;
@@ -2001,7 +2001,7 @@ a {
   height: 8px;
   border: 2px solid #fff;
   border-radius: 999px;
-  background: var(--ops-truck-marker-red);
+  background: var(--ops-truck-marker-gold);
   box-shadow: 0 2px 8px rgba(0,0,0,.45);
   pointer-events: none;
 }
@@ -2011,7 +2011,7 @@ a {
   z-index: 0;
   left: 21.5px;
   width: 2px;
-  background: color-mix(in srgb, var(--ops-truck-marker-red) 82%, transparent);
+  background: color-mix(in srgb, var(--ops-truck-marker-gold) 82%, transparent);
   pointer-events: none;
 }
 
@@ -2030,7 +2030,7 @@ a {
   padding: 0;
   border: 3px solid #111827;
   border-radius: 8px;
-  background: var(--ops-truck-marker-red);
+  background: var(--ops-truck-marker-gold);
   box-shadow: 0 4px 12px rgba(0,0,0,.5);
   color: #111827;
   font-family: inherit;
@@ -2063,14 +2063,14 @@ a {
   height: 7px;
   border-right: 3px solid #111827;
   border-bottom: 3px solid #111827;
-  background: var(--ops-truck-marker-red);
+  background: var(--ops-truck-marker-gold);
   content: "";
   transform: rotate(45deg);
 }
 
 .ops-truck-map-marker.is-selected {
   border-color: #fff;
-  box-shadow: 0 0 0 3px rgba(215, 25, 32, .38), 0 7px 18px rgba(0,0,0,.58);
+  box-shadow: 0 0 0 3px rgba(246, 195, 67, .38), 0 7px 18px rgba(0,0,0,.58);
 }
 
 .ops-truck-map-marker.is-at-job::before {

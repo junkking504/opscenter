@@ -51,7 +51,8 @@ for command in git ssh; do
   command -v "$command" >/dev/null 2>&1 || fail "required command is missing: $command"
 done
 
-[[ -d "$REPOSITORY_ROOT/.git" ]] || fail "$REPOSITORY_ROOT is not a Git checkout"
+[[ "$(git -C "$REPOSITORY_ROOT" rev-parse --is-inside-work-tree 2>/dev/null || true)" == "true" ]] \
+  || fail "$REPOSITORY_ROOT is not a Git checkout"
 [[ -f "$MC_SSH_KEY" ]] || fail "missing Mission Control SSH key: $MC_SSH_KEY"
 commit="$(git -C "$REPOSITORY_ROOT" rev-parse --verify "${REQUESTED_REF}^{commit}" 2>/dev/null || true)"
 [[ -n "$commit" ]] || fail "cannot resolve local Git ref: $REQUESTED_REF"
@@ -75,6 +76,13 @@ fi
 ssh_options=(-i "$MC_SSH_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=10)
 ssh "${ssh_options[@]}" "$ssh_target" /usr/bin/true
 
+# Preserve an explicit request to leave the separately managed photo worker
+# running when the remote release script is invoked over SSH.
+remote_environment=()
+if [[ -n "${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER+x}" ]]; then
+  remote_environment=(env "OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER=$OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER")
+fi
+
 if $BOOTSTRAP; then
   echo "Preparing the Mission Control Git release layout..."
   ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$repository_url" \
@@ -86,6 +94,6 @@ allow_non_forward_arg=0
 if $ALLOW_NON_FORWARD; then
   allow_non_forward_arg=1
 fi
-ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$commit" \
+ssh "${ssh_options[@]}" "$ssh_target" "${remote_environment[@]}" /bin/zsh -s -- "$commit" \
   "$allow_non_forward_arg" \
   < "$SCRIPT_DIR/deploy-release.sh"

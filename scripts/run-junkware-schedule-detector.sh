@@ -4,7 +4,10 @@ set -Eeuo pipefail
 USER_HOME="${HOME:?HOME must be set}"
 OPSBOT_DIR="${OPSBOT_DIR:-$USER_HOME/.openclaw/workspace/opsbot}"
 OPSCENTER_DIR="${OPSCENTER_DIR:-$USER_HOME/opscenter-v2/opscenter}"
-DATE="${1:-$(TZ=America/Chicago date +%F)}"
+# An explicit date is useful for one-off recovery runs. The persistent detector
+# must resolve the business date inside each sweep so it rolls over at midnight
+# without requiring a LaunchAgent restart.
+DATE_OVERRIDE="${1:-}"
 LOCK_DIR="$OPSBOT_DIR/tmp/junkware_schedule_detector.lock"
 HEALTH_DIR="$OPSBOT_DIR/data/slack/junkware_schedule_watchers"
 HEALTH_FILE="$HEALTH_DIR/detector.json"
@@ -45,18 +48,20 @@ write_health() {
 }
 
 run_once() {
+  local run_date
   local started_at
   local exit_code=0
+  run_date="${DATE_OVERRIDE:-$(TZ=America/Chicago date +%F)}"
   started_at="$(TZ=America/Chicago date -Iseconds)"
 
   set +e
   (
     cd "$OPSBOT_DIR" || exit 1
-    python3 scripts/collect_junkware_daily.py --date "$DATE" --schedule-only || exit $?
+    python3 scripts/collect_junkware_daily.py --date "$run_date" --schedule-only || exit $?
     cd "$OPSCENTER_DIR" || exit 1
     OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" ./node_modules/.bin/tsx scripts/publish-junkware-schedule-changes.ts \
       --data-dir "$OPSBOT_DIR/data" \
-      --date "$DATE" \
+      --date "$run_date" \
       --scope "all-markets"
   )
   exit_code=$?

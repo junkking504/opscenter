@@ -23,6 +23,10 @@ import {
   formatWhatsAppPhotoSlackNotification,
   recordWhatsAppPhotoSlackUpload,
 } from "@/lib/whatsapp-job-photo-slack";
+import {
+  deliverWhatsAppPhotoReceipts,
+  recordWhatsAppPhotoReceipt,
+} from "@/lib/whatsapp-job-photo-receipts";
 
 async function main(): Promise<void> {
 const now = new Date("2026-08-11T15:00:00.000Z");
@@ -135,6 +139,35 @@ try {
   assert.equal(enqueueWhatsAppImage(parsed.images[0]).duplicate, true);
   assert.equal(queuedWhatsAppImages().length, 1);
 
+  const receiptPhoto = {
+    senderPhone: parsed.images[0].senderPhone,
+    phoneNumberId: parsed.images[0].phoneNumberId,
+    jkNumber: "JK4025001",
+    jobDate: "2026-08-11",
+  };
+  assert.equal(recordWhatsAppPhotoReceipt({ ...receiptPhoto, messageId: "receipt-photo-1", status: "pending", now }).duplicate, false);
+  assert.equal(recordWhatsAppPhotoReceipt({ ...receiptPhoto, messageId: "receipt-photo-2", status: "pending", now }).duplicate, false);
+  assert.equal(recordWhatsAppPhotoReceipt({ ...receiptPhoto, messageId: "receipt-photo-1", status: "completed", now }).duplicate, false);
+  assert.equal(recordWhatsAppPhotoReceipt({ ...receiptPhoto, messageId: "receipt-photo-2", status: "completed", now: new Date(now.getTime() + 10_000) }).duplicate, false);
+  const photoReceipts: Array<{ recipient: string; phoneNumberId: string; text: string }> = [];
+  const receiptStillOpen = await deliverWhatsAppPhotoReceipts(async (receipt) => { photoReceipts.push(receipt); }, {
+    now: new Date(now.getTime() + 50_000),
+  });
+  assert.equal(receiptStillOpen.attempted, 0);
+  const receiptDelivered = await deliverWhatsAppPhotoReceipts(async (receipt) => { photoReceipts.push(receipt); }, {
+    now: new Date(now.getTime() + 70_000),
+  });
+  assert.deepEqual(receiptDelivered, { pending: 0, attempted: 1, delivered: 1, failed: 0 });
+  assert.deepEqual(photoReceipts, [{
+    recipient: "5045550101",
+    phoneNumberId: "12345",
+    text: "Recorded 2 photos for JK4025001.",
+  }]);
+  const duplicateReceiptDelivery = await deliverWhatsAppPhotoReceipts(async (receipt) => { photoReceipts.push(receipt); }, {
+    now: new Date(now.getTime() + 130_000),
+  });
+  assert.deepEqual(duplicateReceiptDelivery, { pending: 0, attempted: 0, delivered: 0, failed: 0 });
+
   const slackBatch = {
     version: 2 as const,
     batchId: "2026-08-11:JK4025001:image-1",
@@ -152,10 +185,8 @@ try {
   assert.equal(formatted, [
     "*[Job Photos]*",
     "JK4025001",
-    "```",
-    "Photos:  2 photos — 1 before · 1 after",
-    "Status:  Verified in JunkWare",
-    "```",
+    "*Photos:* 2 photos — 1 before · 1 after",
+    "*Status:* Verified in JunkWare",
     "<https://ops.junk-king.app/jobs?date=2026-08-11#job-jk4025001|Open in OpsCenter>",
   ].join("\n"));
   assert.doesNotMatch(formatted, /15045550101/);
@@ -228,7 +259,7 @@ try {
   assert.equal(completionBody.files?.length, 2);
   assert.match(String(completionBody.initial_comment), /JK4025001/);
   assert.match(String(completionBody.initial_comment), /\*\[Job Photos\]\*/);
-  assert.match(String(completionBody.initial_comment), /Photos:\s+2 photos/);
+  assert.match(String(completionBody.initial_comment), /\*Photos:\* 2 photos/);
   assert.equal(recordWhatsAppPhotoSlackUpload({ ...firstPhoto, status: "completed", filePath: firstPhotoFile, now }).duplicate, true);
   const duplicateDelivery = await deliverWhatsAppPhotoSlackNotifications({ now });
   assert.equal(duplicateDelivery.attempted, 0);
@@ -239,6 +270,7 @@ try {
   delete process.env.SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED;
   delete process.env.SLACK_WHATSAPP_PHOTO_ATTACHMENTS_ENABLED;
   delete process.env.SLACK_WHATSAPP_PHOTO_BATCH_QUIET_SECONDS;
+  delete process.env.WHATSAPP_PHOTO_RECEIPT_BATCH_QUIET_SECONDS;
   delete process.env.SLACK_BOT_TOKEN;
   delete process.env.SLACK_WHATSAPP_PHOTO_CHANNEL_ID;
   delete process.env.SLACK_TRUCK_8_CHANNEL_ID;

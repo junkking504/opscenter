@@ -56,4 +56,4 @@ set +a
 npm run alerts:slack
 ```
 
-The live refresh loop runs the same publisher automatically after each successful data publish. Runtime state is stored at `data/slack/ops_alert_state.json` and is intentionally excluded from git.
+The live refresh loop runs the same publisher automatically after each successful data publish. Before each authoritative JunkWare pull it requires a real DNS answer for `junkware.junk-king.com`, rather than only a generic network-route signal. A failed pull retries after 10, 20, and 40 seconds, then every 60 seconds until it succeeds; a successful cycle resets that backoff. Runtime state is stored at `data/slack/ops_alert_state.json` and is intentionally excluded from git.

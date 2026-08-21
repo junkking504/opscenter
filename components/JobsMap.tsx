@@ -1208,13 +1208,31 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           labelOffset: truckLabelOffsets.get(truck.truck) || 0,
           selected: selectedTruckName === truck.truck,
         }),
-        keyboard: true,
+        keyboard: false,
         title: markerLabel,
         alt: markerLabel,
         zIndexOffset: 1800,
       });
-      marker.on("click", () => selectLiveTruck(truck.truck, false));
+      const selectTruck = () => selectLiveTruck(truck.truck, false);
+      const bindTruckMarker = () => {
+        const markerButton = marker.getElement()?.querySelector<HTMLElement>(".ops-truck-map-marker");
+        if (!markerButton || markerButton.dataset.clickBound === "true") return;
+        markerButton.dataset.clickBound = "true";
+        markerButton.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          selectTruck();
+        });
+        markerButton.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          event.stopPropagation();
+          selectTruck();
+        });
+      };
+      marker.once("add", () => window.requestAnimationFrame(bindTruckMarker));
       marker.addTo(markers);
+      bindTruckMarker();
     }
 
   }, [bounds, leaflet, liveTruckLocations, locatedJobs, selectLiveTruck, selectedJob, selectedKey, selectedRouteBounds, selectedTruck, selectedTruckName, selectedTruckRoutes]);

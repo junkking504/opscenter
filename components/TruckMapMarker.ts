@@ -70,9 +70,10 @@ export function truckMapMarkerIcon(
         <span class="ops-truck-map-marker-origin" style="top:${17 - labelOffset}px"></span>
         <span class="ops-truck-map-marker-leader" style="top:${leaderTop}px;height:${Math.abs(labelOffset)}px"></span>
       `}
-      <div
+      <button
+        type="button"
         class="ops-truck-map-marker${selected ? " is-selected" : ""}${atJob ? " is-at-job" : ""}"
-        aria-hidden="true"
+        aria-label="Show ${escapeHtml(label)} details"
         title="${escapeHtml(label)}"
       >
         <svg viewBox="0 0 28 18" aria-hidden="true">
@@ -81,7 +82,7 @@ export function truckMapMarkerIcon(
           <circle cx="21" cy="14" r="2.5"/>
         </svg>
         <b>${escapeHtml(shortLabel)}</b>
-      </div>
+      </button>
     </div>
   `;
 

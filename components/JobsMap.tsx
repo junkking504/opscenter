@@ -7,6 +7,7 @@ import { truckMapMarkerIcon, truckMapMarkerOffsets } from "@/components/TruckMap
 import type { JobRouteProximityPayload, JobTruckProximity } from "@/lib/job-route-proximity";
 import { buildJobRouteHistory } from "@/lib/job-route-history";
 import { parseTruckNumberFromLabel } from "@/lib/linxup-truck-label";
+import { scheduleDragScrollDelta } from "@/lib/schedule-drag";
 import { appointmentTerritoryTone, isWithinLafayetteServiceRadius } from "@/lib/territory-presentation";
 
 export type JobsMapPoint = {
@@ -555,6 +556,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const [dropTarget, setDropTarget] = useState("");
   const dragGestureRef = useRef<ScheduleDragGesture | null>(null);
   const dragCleanupRef = useRef<(() => void) | null>(null);
+  const dragAutoScrollFrameRef = useRef<number | null>(null);
   const suppressNextClickRef = useRef(false);
   const [dragGesture, setDragGesture] = useState<ScheduleDragGesture | null>(null);
   const [pendingKeys, setPendingKeys] = useState<string[]>([]);
@@ -585,7 +587,13 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     }
   }, [truckLocations]);
 
-  useEffect(() => () => dragCleanupRef.current?.(), []);
+  useEffect(() => () => {
+    dragCleanupRef.current?.();
+    if (dragAutoScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(dragAutoScrollFrameRef.current);
+      dragAutoScrollFrameRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (!scheduleView) {
@@ -849,6 +857,10 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   }
 
   function clearDragGesture() {
+    if (dragAutoScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(dragAutoScrollFrameRef.current);
+      dragAutoScrollFrameRef.current = null;
+    }
     dragGestureRef.current = null;
     setDragGesture(null);
     setDraggedKey("");
@@ -858,6 +870,13 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   function handleAppointmentPointerDown(event: React.PointerEvent<HTMLButtonElement>, job: JobsMapPoint) {
     if (event.button !== 0 || !canChangeSchedule(job) || pendingKeySetRef.current.has(job.key)) return;
     dragCleanupRef.current?.();
+    if (dragAutoScrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(dragAutoScrollFrameRef.current);
+      dragAutoScrollFrameRef.current = null;
+    }
+    const source = event.currentTarget;
+    const scheduleScroller = source.closest<HTMLElement>(".ops-jobs-map-schedule");
+    source.setPointerCapture?.(event.pointerId);
     const gesture: ScheduleDragGesture = {
       key: job.key,
       pointerId: event.pointerId,
@@ -877,7 +896,41 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       window.removeEventListener("pointermove", handlePointerMove);
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerCancel);
+      if (source.hasPointerCapture?.(gesture.pointerId)) source.releasePointerCapture(gesture.pointerId);
       if (dragCleanupRef.current === cleanup) dragCleanupRef.current = null;
+    };
+    const refreshDropTarget = (x: number, y: number) => {
+      const target = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-schedule-drop-key]");
+      setDropTarget(target?.dataset.scheduleDropKey || "");
+    };
+    const startAutoScroll = () => {
+      if (dragAutoScrollFrameRef.current !== null) return;
+      const scroll = () => {
+        dragAutoScrollFrameRef.current = null;
+        const current = dragGestureRef.current;
+        if (!current?.active) return;
+        const scrollerRect = scheduleScroller?.getBoundingClientRect();
+        const scrollScheduleY = Boolean(scheduleScroller && scrollerRect && scheduleScroller.scrollHeight > scheduleScroller.clientHeight);
+        const scrollScheduleX = Boolean(scheduleScroller && scrollerRect && scheduleScroller.scrollWidth > scheduleScroller.clientWidth);
+        const deltaY = scheduleDragScrollDelta(
+          current.y,
+          scrollScheduleY && scrollerRect ? scrollerRect.top : 0,
+          scrollScheduleY && scrollerRect ? scrollerRect.bottom : window.innerHeight,
+        );
+        const deltaX = scrollScheduleX && scrollerRect
+          ? scheduleDragScrollDelta(current.x, scrollerRect.left, scrollerRect.right)
+          : 0;
+        if (!deltaX && !deltaY) return;
+        if (scrollScheduleX || scrollScheduleY) scheduleScroller?.scrollBy({
+          left: scrollScheduleX ? deltaX : 0,
+          top: scrollScheduleY ? deltaY : 0,
+          behavior: "auto",
+        });
+        if (!scrollScheduleY && deltaY) window.scrollBy({ top: deltaY, behavior: "auto" });
+        refreshDropTarget(current.x, current.y);
+        dragAutoScrollFrameRef.current = window.requestAnimationFrame(scroll);
+      };
+      dragAutoScrollFrameRef.current = window.requestAnimationFrame(scroll);
     };
     const handlePointerMove = (pointerEvent: PointerEvent) => {
       const current = dragGestureRef.current;
@@ -889,8 +942,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       if (!active) return;
 
       pointerEvent.preventDefault();
-      const target = document.elementFromPoint(pointerEvent.clientX, pointerEvent.clientY)?.closest<HTMLElement>("[data-schedule-drop-key]");
-      setDropTarget(target?.dataset.scheduleDropKey || "");
+      refreshDropTarget(pointerEvent.clientX, pointerEvent.clientY);
+      startAutoScroll();
     };
     const handlePointerUp = (pointerEvent: PointerEvent) => {
       const current = dragGestureRef.current;
@@ -959,45 +1012,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       customerName: job.customerName,
       appointmentTime: job.appointmentTime,
     });
-  }
-
-  function handleAppointmentDragStart(event: React.DragEvent<HTMLButtonElement>, job: JobsMapPoint) {
-    if (!canChangeSchedule(job) || pendingKeySetRef.current.has(job.key)) {
-      event.preventDefault();
-      return;
-    }
-    event.dataTransfer.setData("text/plain", job.key);
-    event.dataTransfer.effectAllowed = "move";
-    setDraggedKey(job.key);
-    setSelectedTruckName("");
-    setSelectedKey(job.key);
-  }
-
-  function handleScheduleDrop(event: React.DragEvent<HTMLElement>, column: ScheduleColumn, appointmentStartMinutes?: number) {
-    event.preventDefault();
-    const jobKey = event.dataTransfer.getData("text/plain") || draggedKey;
-    const job = displayJobs.find((candidate) => candidate.key === jobKey);
-    clearDragGesture();
-    if (job) void assignJob(job, column.assignment, appointmentStartMinutes);
-  }
-
-  function scheduleDropHandlers(column: ScheduleColumn, appointmentStartMinutes?: number) {
-    const targetKey = scheduleDropTargetKey(column, appointmentStartMinutes);
-    return {
-      onDragEnter: (event: React.DragEvent<HTMLElement>) => {
-        event.preventDefault();
-        setDropTarget(targetKey);
-      },
-      onDragOver: (event: React.DragEvent<HTMLElement>) => {
-        event.preventDefault();
-        event.dataTransfer.dropEffect = "move";
-        if (dropTarget !== targetKey) setDropTarget(targetKey);
-      },
-      onDragLeave: (event: React.DragEvent<HTMLElement>) => {
-        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTarget("");
-      },
-      onDrop: (event: React.DragEvent<HTMLElement>) => handleScheduleDrop(event, column, appointmentStartMinutes),
-    };
   }
 
   useEffect(() => {
@@ -1484,7 +1498,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                   ? null
                   : liveTruckLocations.find((truck) => sameTruck(truck.truck, column.assignment)) || null;
                 const rowClassName = `ops-jobs-map-board-truck is-row-label${column.virtual ? " is-virtual" : ""}${liveTruck ? " is-clickable" : ""}${liveTruck?.truck === selectedTruckName ? " is-selected" : ""}${dropTarget.startsWith(`${column.key}|`) ? " is-drop-target" : ""}`;
-                const dropHandlers = scheduleDropHandlers(column);
 
                 return <div className="ops-jobs-map-board-row" key={column.key}>
                   {liveTruck ? (
@@ -1495,7 +1508,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                       aria-label={`Show ${liveTruck.truck} on map`}
                       title={`Show ${liveTruck.truck} on map`}
                       onClick={() => selectLiveTruck(liveTruck.truck)}
-                      {...dropHandlers}
                     >
                       {column.label}
                     </button>
@@ -1503,7 +1515,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                     <div
                       className={rowClassName}
                       data-schedule-drop-key={scheduleDropTargetKey(column)}
-                      {...dropHandlers}
                     >
                       {column.label}
                     </div>
@@ -1519,18 +1530,14 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                         className={`ops-jobs-map-board-cell${dropTarget === scheduleDropTargetKey(column, hour * 60) ? " is-drop-target" : ""}`}
                         data-schedule-drop-key={scheduleDropTargetKey(column, hour * 60)}
                         key={`${column.key}-${hour}`}
-                        {...scheduleDropHandlers(column, hour * 60)}
                       >
                         {appointments.map((job) => (
                           <button
                             type="button"
-                            draggable={canChangeSchedule(job) && !pendingKeys.includes(job.key)}
-                            className={`ops-jobs-map-board-block ${territoryTone(job)}${hasJunkwareSyncFailure(job) ? " has-junkware-sync-failure" : ""}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
+                            className={`ops-jobs-map-board-block ${territoryTone(job)}${canChangeSchedule(job) && !pendingKeys.includes(job.key) ? " is-draggable" : ""}${hasJunkwareSyncFailure(job) ? " has-junkware-sync-failure" : ""}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
                             onClick={() => handleAppointmentClick(job.key)}
                             onContextMenu={(event) => handleAppointmentContextMenu(event, job)}
                             onPointerDown={(event) => handleAppointmentPointerDown(event, job)}
-                            onDragStart={(event) => handleAppointmentDragStart(event, job)}
-                            onDragEnd={() => clearDragGesture()}
                             aria-label={`${job.appointmentTime}, ${job.customerName}, ${job.truck}, ${scheduleJobState(job).label}${hasJunkwareSyncFailure(job) ? `, ${junkwareSyncLabel(job)}` : ""}, ${job.junkItems.length ? `items: ${job.junkItems.join(", ")}` : "items not listed"}`}
                             title={`${job.appointmentTime} · ${job.customerName} · ${scheduleJobState(job).label}${hasJunkwareSyncFailure(job) ? ` · ${junkwareSyncLabel(job)}` : ""} · ${job.junkItems.length ? job.junkItems.join(", ") : "Items not listed"}`}
                             key={job.key}
@@ -1555,13 +1562,10 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                         {appointments.map((job) => (
                           <button
                             type="button"
-                            draggable={canChangeSchedule(job) && !pendingKeys.includes(job.key)}
-                            className={`ops-jobs-map-board-block ${territoryTone(job)}${hasJunkwareSyncFailure(job) ? " has-junkware-sync-failure" : ""}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
+                            className={`ops-jobs-map-board-block ${territoryTone(job)}${canChangeSchedule(job) && !pendingKeys.includes(job.key) ? " is-draggable" : ""}${hasJunkwareSyncFailure(job) ? " has-junkware-sync-failure" : ""}${selectedKey === job.key ? " is-selected" : ""}${pendingKeys.includes(job.key) ? " is-saving" : ""}${draggedKey === job.key && dragGesture?.active ? " is-dragging" : ""}`}
                             onClick={() => handleAppointmentClick(job.key)}
                             onContextMenu={(event) => handleAppointmentContextMenu(event, job)}
                             onPointerDown={(event) => handleAppointmentPointerDown(event, job)}
-                            onDragStart={(event) => handleAppointmentDragStart(event, job)}
-                            onDragEnd={() => clearDragGesture()}
                             aria-label={`Unscheduled, ${job.customerName}, ${job.truck}, ${scheduleJobState(job).label}${hasJunkwareSyncFailure(job) ? `, ${junkwareSyncLabel(job)}` : ""}, ${job.junkItems.length ? `items: ${job.junkItems.join(", ")}` : "items not listed"}`}
                             title={`Unscheduled · ${job.customerName} · ${scheduleJobState(job).label}${hasJunkwareSyncFailure(job) ? ` · ${junkwareSyncLabel(job)}` : ""} · ${job.junkItems.length ? job.junkItems.join(", ") : "Items not listed"}`}
                             key={job.key}

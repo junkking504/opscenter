@@ -16,6 +16,7 @@ DATA_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/data"
 PRODUCTION_LABEL="com.openclaw.opscenter"
 PREVIEW_LABEL="com.openclaw.opscenter.macmini-preview"
 WHATSAPP_PHOTO_LABEL="com.openclaw.opscenter.whatsapp-photos"
+LINXUP_COLLECTOR_LABEL="com.openclaw.opsbot.linxup-collector"
 REQUESTED_REF="${1:-}"
 RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"
 RELEASE_RETENTION="${OPSCENTER_RELEASE_RETENTION:-8}"
@@ -237,6 +238,14 @@ if service_loaded "$WHATSAPP_PHOTO_LABEL" && whatsapp_photo_worker_restart_enabl
   launchctl kickstart -k "gui/$(id -u)/$WHATSAPP_PHOTO_LABEL"
 fi
 
+# The collector's executable path is the stable active-release symlink, but its
+# launchd policy is an installed copy. Refresh that copy on every deployment
+# when the dedicated collector is already enabled so retry/KeepAlive changes in
+# the new release take effect instead of silently leaving an older policy live.
+if service_loaded "$LINXUP_COLLECTOR_LABEL"; then
+  "$release/deploy/macmini/install-linxup-collector.sh"
+fi
+
 echo
 echo "Deployed OpsCenter commit $commit"
 echo "Live path: $APP_LINK -> $release"
@@ -248,5 +257,8 @@ else
 fi
 if service_loaded "$WHATSAPP_PHOTO_LABEL" && whatsapp_photo_worker_restart_enabled; then
   echo "Worker:    $WHATSAPP_PHOTO_LABEL restarted on the active release"
+fi
+if service_loaded "$LINXUP_COLLECTOR_LABEL"; then
+  echo "Collector: $LINXUP_COLLECTOR_LABEL reinstalled on the active release"
 fi
 echo "Rollback:  deploy this previous target's commit again: $previous_target"

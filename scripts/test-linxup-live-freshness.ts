@@ -10,6 +10,7 @@ const health = fs.readFileSync(path.join(root, "app/api/health/route.ts"), "utf8
 const sync = fs.readFileSync(path.join(root, "components/CurrentDataSync.tsx"), "utf8");
 const runner = fs.readFileSync(path.join(root, "scripts/run-linxup-live-refresh.sh"), "utf8");
 const installer = fs.readFileSync(path.join(root, "deploy/macmini/install-linxup-collector.sh"), "utf8");
+const deployer = fs.readFileSync(path.join(root, "deploy/macmini/deploy-release.sh"), "utf8");
 const pushRoute = fs.readFileSync(path.join(root, "app/api/integrations/linxup/push/route.ts"), "utf8");
 const pushRunner = fs.readFileSync(path.join(root, "scripts/run-linxup-push.sh"), "utf8");
 const pushLibrary = fs.readFileSync(path.join(root, "lib/linxup-push.ts"), "utf8");
@@ -37,6 +38,8 @@ expect(plist.includes("<key>KeepAlive</key>"), "LinxUp collector must restart af
 expect(plist.includes("<key>SuccessfulExit</key>\n    <false/>"), "LinxUp collector must only self-restart after failure");
 expect(plist.includes("<key>ThrottleInterval</key>\n  <integer>15</integer>"), "LinxUp retries must be throttled");
 expect(installer.includes("opsbot-linxup-api-token-v2"), "Installer must verify the LinxUp Keychain item");
+expect(deployer.includes('LINXUP_COLLECTOR_LABEL="com.openclaw.opsbot.linxup-collector"'), "Deployment must track the dedicated LinxUp collector");
+expect(deployer.includes('"$release/deploy/macmini/install-linxup-collector.sh"'), "Deployment must reinstall the enabled LinxUp collector from the active release");
 expect(runner.includes("LinxUp refresh attempt"), "LinxUp collector must retry a failed refresh before giving up");
 expect(pushLibrary.includes("LINXUP_PUSH_BEARER_TOKEN"), "LinxUp push must require its independent bearer token");
 expect(pushRunner.includes("collect_linxup_location_history.py") === false, "LinxUp push must not poll the V2 collector");

@@ -104,6 +104,11 @@ Keychain. `/api/health` reports `stale-linxup-data` when today's normalized GPS
 snapshot is more than three minutes old, and current OpsCenter pages refresh
 when a newer LinxUp snapshot arrives.
 
+When the dedicated collector is already loaded, each immutable production
+deployment reinstalls its LaunchAgent from the newly active release. This keeps
+the installed retry, `KeepAlive`, and throttle policy synchronized with the
+release rather than leaving an older plist in place.
+
 ### Dedicated JunkWare schedule detector
 
 New appointment, reschedule, cancellation, and closeout alerts use a persistent,

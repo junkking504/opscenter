@@ -75,18 +75,21 @@ function cancelled(row: AnyRecord): boolean {
   return first(row, ["final_status", "job_status", "status"]).toLowerCase().includes("cancel");
 }
 
-function scheduleShape(row: AnyRecord): string {
+/**
+ * A reschedule is a date or time-slot change. Reassigning a truck, correcting
+ * an address, or updating territory metadata does not change when the job is
+ * scheduled and must not create a Slack reschedule alert.
+ */
+function scheduleSlot(row: AnyRecord): string {
   return [
     first(row, ["appointment_time", "scheduled_time", "time_window"]),
     first(row, ["appointment_date", "date"]),
-    first(row, ["truck", "assigned_truck", "truck_number"]),
-    first(row, ["address", "service_address"]),
-    first(row, ["market", "territory", "normalized_territory"]),
   ].join("|").toLowerCase();
 }
 
 function href(date: string, row: AnyRecord): string {
-  return `/jobs?date=${encodeURIComponent(date)}#job-${jobNumber(row).replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
+  const origin = String(process.env.SLACK_OPSCENTER_BASE_URL || "https://ops.junk-king.app").replace(/\/$/, "");
+  return `${origin}/jobs?date=${encodeURIComponent(date)}#job-${jobNumber(row).replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
 }
 
 function rescheduleAlert(date: string, previous: AnyRecord, current: AnyRecord): SlackOpsAlert {
@@ -150,8 +153,8 @@ export function detectScheduleChanges(previous: Snapshot | null, current: Snapsh
       events.push({ fingerprint: `new_appointment:${current.date}:${id}`, kind: "new_appointment", alert });
       continue;
     }
-    if (!complete(row) && scheduleShape(previousRow) !== scheduleShape(row)) {
-      events.push({ fingerprint: `rescheduled:${current.date}:${id}:${scheduleShape(row)}`, kind: "rescheduled", alert: rescheduleAlert(current.date, previousRow, row) });
+    if (!complete(row) && scheduleSlot(previousRow) !== scheduleSlot(row)) {
+      events.push({ fingerprint: `rescheduled:${current.date}:${id}:${scheduleSlot(row)}`, kind: "rescheduled", alert: rescheduleAlert(current.date, previousRow, row) });
     }
   }
 

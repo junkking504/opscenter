@@ -36,6 +36,18 @@ assert.deepEqual(events.find((event) => event.kind === "rescheduled")?.alert.fie
   { label: "New", value: "11:00 AM" },
   { label: "Truck", value: "Truck 1" },
 ]);
+assert.equal(
+  events.find((event) => event.kind === "rescheduled")?.alert.href,
+  "https://ops.junk-king.app/jobs?date=2026-08-17#job-jk4051002",
+);
+
+const truckOnlyMove = {
+  ...previous,
+  appointments: previous.appointments.map((appointment) =>
+    appointment.appt_id === "2" ? { ...appointment, truck: "Truck 3" } : appointment,
+  ),
+};
+assert.deepEqual(detectScheduleChanges(previous, truckOnlyMove), []);
 assert.deepEqual(detectScheduleChanges(null, current), []);
 
 async function verifyScopedPublishing() {

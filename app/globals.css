@@ -2016,6 +2016,7 @@ a {
 }
 
 .ops-truck-map-marker {
+  appearance: none;
   position: absolute;
   z-index: 2;
   top: 0;
@@ -2032,6 +2033,7 @@ a {
   background: var(--ops-truck-marker-red);
   box-shadow: 0 4px 12px rgba(0,0,0,.5);
   color: #111827;
+  font-family: inherit;
   font-size: .67rem;
   font-weight: 950;
   line-height: 1;
@@ -4541,6 +4543,7 @@ a {
 }
 
 .ops-jobs-map-pin {
+  appearance: none;
   position: absolute;
   top: 5px;
   left: 5px;
@@ -4549,6 +4552,7 @@ a {
   width: 20px;
   height: 20px;
   border: 3px solid #111827;
+  padding: 0;
   border-radius: 50% 50% 50% 0;
   box-shadow: 0 3px 9px rgba(0, 0, 0, .45);
   transform: rotate(-45deg);

@@ -222,7 +222,7 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
           selected: isSelected,
         }),
         alt: truck.truck,
-        keyboard: true,
+        keyboard: false,
         zIndexOffset: isSelected ? 1000 : 0,
       });
 
@@ -234,7 +234,25 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
         router.push(`${pathname}?${params.toString()}`, { scroll: false });
       };
       marker.on("click", selectTruck);
+      const bindTruckMarker = () => {
+        const markerButton = marker.getElement()?.querySelector<HTMLElement>(".ops-truck-map-marker");
+        if (!markerButton || markerButton.dataset.clickBound === "true") return;
+        markerButton.dataset.clickBound = "true";
+        markerButton.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          selectTruck();
+        });
+        markerButton.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          event.stopPropagation();
+          selectTruck();
+        });
+      };
+      marker.once("add", () => window.requestAnimationFrame(bindTruckMarker));
       marker.addTo(markers);
+      bindTruckMarker();
     }
 
     if (!fleetMode && selectedRouteBounds) {

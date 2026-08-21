@@ -187,9 +187,12 @@ export function isClosedScheduleJob(job: Pick<JobsMapPoint, "statusBucket">): bo
 export function recordedVisitTrucks(
   job: Pick<JobsMapPoint, "statusBucket" | "visitedTrucks" | "truck">,
 ): string[] {
-  const verifiedVisits = Array.from(new Set(job.visitedTrucks.map((truck) => truck.trim()).filter((truck) => !isVirtualTruck(truck))));
+  const verifiedVisits = Array.from(new Set(job.visitedTrucks
+    .map((truck) => truck.trim())
+    .filter((truck) => !isVirtualTruck(truck))
+    .map((truck) => routeTruck(truck) || truck)));
   if (verifiedVisits.length || !isClosedScheduleJob(job) || isVirtualTruck(job.truck)) return verifiedVisits;
-  return [job.truck.trim()];
+  return [routeTruck(job.truck) || job.truck.trim()];
 }
 
 function canChangeSchedule(job: Pick<JobsMapPoint, "statusBucket" | "visitedTrucks">): boolean {
@@ -264,12 +267,22 @@ function unavailableProximityText(jobKey: string, proximity: JobRouteProximityPa
   return "No current truck route is available";
 }
 
+function escapeMarkerHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function markerIcon(leaflet: LeafletModule, job: JobsMapPoint, selected: boolean) {
   const tone = territoryTone(job);
   const canceled = job.statusBucket === "Canceled";
+  const label = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber}`;
   return leaflet.divIcon({
     className: "ops-jobs-map-div-icon",
-    html: `<span class="ops-jobs-map-pin ${tone}${selected ? " is-selected" : ""}" aria-hidden="true"><i${canceled ? ' class="is-canceled"' : ""}>${canceled ? "×" : ""}</i></span>`,
+    html: `<button type="button" class="ops-jobs-map-pin ${tone}${selected ? " is-selected" : ""}" aria-label="${escapeMarkerHtml(label)}"><i${canceled ? ' class="is-canceled"' : ""}>${canceled ? "×" : ""}</i></button>`,
     iconSize: [30, 30],
     iconAnchor: [15, 29],
     tooltipAnchor: [0, -29],
@@ -1176,7 +1189,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       const markerLabel = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber}`;
       const marker = leaflet.marker([job.latitude, job.longitude], {
         icon: markerIcon(leaflet, job, selectedKey === job.key),
-        keyboard: true,
+        keyboard: false,
         title: markerLabel,
         alt: markerLabel,
         zIndexOffset: selectedKey === job.key ? 3000 : 2400,
@@ -1186,12 +1199,24 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         direction: "top",
         offset: [0, -10],
       });
-      marker.on("click", () => {
+      const selectJob = () => {
         focusViewportOnSelectionRef.current = false;
         setSelectedTruckName("");
         setSelectedKey(job.key);
-      });
+      };
+      marker.on("click", selectJob);
+      const bindAppointmentMarker = () => {
+        const markerButton = marker.getElement()?.querySelector<HTMLElement>(".ops-jobs-map-pin");
+        if (!markerButton) return;
+        markerButton.onclick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          selectJob();
+        };
+      };
+      marker.once("add", () => window.requestAnimationFrame(bindAppointmentMarker));
       marker.addTo(markers);
+      bindAppointmentMarker();
     }
 
     const truckLabelOffsets = truckMapMarkerOffsets(
@@ -1208,13 +1233,32 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           labelOffset: truckLabelOffsets.get(truck.truck) || 0,
           selected: selectedTruckName === truck.truck,
         }),
-        keyboard: true,
+        keyboard: false,
         title: markerLabel,
         alt: markerLabel,
         zIndexOffset: 1800,
       });
-      marker.on("click", () => selectLiveTruck(truck.truck, false));
+      const selectTruck = () => selectLiveTruck(truck.truck, false);
+      marker.on("click", selectTruck);
+      const bindTruckMarker = () => {
+        const markerButton = marker.getElement()?.querySelector<HTMLElement>(".ops-truck-map-marker");
+        if (!markerButton || markerButton.dataset.clickBound === "true") return;
+        markerButton.dataset.clickBound = "true";
+        markerButton.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          selectTruck();
+        });
+        markerButton.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          event.stopPropagation();
+          selectTruck();
+        });
+      };
+      marker.once("add", () => window.requestAnimationFrame(bindTruckMarker));
       marker.addTo(markers);
+      bindTruckMarker();
     }
 
   }, [bounds, leaflet, liveTruckLocations, locatedJobs, selectLiveTruck, selectedJob, selectedKey, selectedRouteBounds, selectedTruck, selectedTruckName, selectedTruckRoutes]);
@@ -1315,18 +1359,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                   </span>
                 </div>
               ) : null}
-              <div className="ops-jobs-map-selection-items">
-                <span>Items to remove</span>
-                {selectedJob.junkItems.length ? (
-                  <div>{selectedJob.junkItems.map((item) => <strong key={item}>{item}</strong>)}</div>
-                ) : <em>Not listed in JunkWare</em>}
-              </div>
-              {selectedJob.appointmentNotes.length ? (
-                <details className="ops-jobs-map-selection-notes">
-                  <summary>Notes <small>{selectedJob.appointmentNotes.length}</small></summary>
-                  <ul>{selectedJob.appointmentNotes.map((note, index) => <li key={`${selectedJob.key}-note-${index}`}>{note}</li>)}</ul>
-                </details>
-              ) : null}
               {selectedJob.statusBucket !== "Canceled" ? <div className="ops-jobs-map-selection-truck">
                 <span>{hasRecordedVisit ? (visitTrucks.length === 1 ? "Truck at job" : "Trucks at job") : "Closest truck"}</span>
                 <strong>
@@ -1345,6 +1377,18 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                           : unavailableProximityText(selectedJob.key, proximity)}
                 </strong>
               </div> : null}
+              <div className="ops-jobs-map-selection-items">
+                <span>Items to remove</span>
+                {selectedJob.junkItems.length ? (
+                  <div>{selectedJob.junkItems.map((item) => <strong key={item}>{item}</strong>)}</div>
+                ) : <em>Not listed in JunkWare</em>}
+              </div>
+              {selectedJob.appointmentNotes.length ? (
+                <details className="ops-jobs-map-selection-notes">
+                  <summary>Notes <small>{selectedJob.appointmentNotes.length}</small></summary>
+                  <ul>{selectedJob.appointmentNotes.map((note, index) => <li key={`${selectedJob.key}-note-${index}`}>{note}</li>)}</ul>
+                </details>
+              ) : null}
               {scheduleView && canChangeSchedule(selectedJob) ? (
                 <div className="ops-jobs-map-selection-schedule-controls">
                   <label className="ops-jobs-map-selection-assign">

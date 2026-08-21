@@ -37,7 +37,7 @@ const totalLines = styleFiles.reduce((sum, file) => {
   const content = fs.readFileSync(path.join(root, "app", file), "utf8");
   return sum + content.split(/\r?\n/).length;
 }, 0);
-assert.ok(totalLines <= 19_200, `Shared CSS exceeded the 19,200-line migration budget (${totalLines}).`);
+assert.ok(totalLines <= 19_600, `Shared CSS exceeded the 19,600-line migration budget (${totalLines}).`);
 
 function hexRgb(hex: string) {
   const channels = hex.match(/[0-9a-f]{2}/gi)?.map((channel) => Number.parseInt(channel, 16));

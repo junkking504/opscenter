@@ -1985,7 +1985,7 @@ a {
 }
 
 .ops-truck-map-marker-locator {
-  --ops-truck-marker-gold: var(--ops-gold);
+  --ops-truck-marker-gold: #f6c343;
   position: relative;
   width: 46px;
   height: 28px;

@@ -3,6 +3,8 @@ type LeafletModule = typeof import("leaflet");
 type TruckMapMarkerOptions = {
   atJob?: boolean;
   labelOffset?: number;
+  labelOffsetX?: number;
+  labelOffsetY?: number;
   selected?: boolean;
 };
 
@@ -58,23 +60,32 @@ export function truckMapMarkerOffsets<T>(
 export function truckMapMarkerIcon(
   leaflet: LeafletModule,
   truck: string,
-  { atJob = false, labelOffset = 0, selected = false }: TruckMapMarkerOptions = {},
+  {
+    atJob = false,
+    labelOffset = 0,
+    labelOffsetX = 0,
+    labelOffsetY,
+    selected = false,
+  }: TruckMapMarkerOptions = {},
 ) {
-  const iconAnchorY = 21 - labelOffset;
-  const leaderTop = Math.min(21, iconAnchorY);
+  const offsetX = Math.round(labelOffsetX);
+  const offsetY = Math.round(labelOffsetY ?? labelOffset);
+  const leaderLength = Math.round(Math.hypot(offsetX, offsetY));
+  const leaderAngle = Math.round(Math.atan2(offsetY, offsetX) * 180 / Math.PI);
   const label = truckMapLabel(truck);
   const shortLabel = truckMapShortLabel(truck);
   const html = `
     <div class="ops-truck-map-marker-locator">
-      ${labelOffset === 0 ? "" : `
-        <span class="ops-truck-map-marker-origin" style="top:${17 - labelOffset}px"></span>
-        <span class="ops-truck-map-marker-leader" style="top:${leaderTop}px;height:${Math.abs(labelOffset)}px"></span>
+      ${leaderLength === 0 ? "" : `
+        <span class="ops-truck-map-marker-origin"></span>
+        <span class="ops-truck-map-marker-leader" style="width:${leaderLength}px;transform:rotate(${leaderAngle}deg)"></span>
       `}
       <button
         type="button"
         class="ops-truck-map-marker${selected ? " is-selected" : ""}${atJob ? " is-at-job" : ""}"
         data-truck="${escapeHtml(truck)}"
         aria-label="Show ${escapeHtml(label)} details"
+        style="transform:translate(${offsetX}px, ${offsetY}px)${selected ? " scale(1.08)" : ""}"
         title="${escapeHtml(label)}"
       >
         <svg viewBox="0 0 28 18" aria-hidden="true">
@@ -91,7 +102,7 @@ export function truckMapMarkerIcon(
     className: "ops-truck-map-div-icon",
     html,
     iconSize: [46, 28],
-    iconAnchor: [22, iconAnchorY],
+    iconAnchor: [22, 21],
     popupAnchor: [0, -22],
     tooltipAnchor: [0, -22],
   });

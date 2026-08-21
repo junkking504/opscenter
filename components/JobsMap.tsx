@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppointmentCancelDialog, { type AppointmentCancelTarget } from "@/components/AppointmentCancelDialog";
-import { truckMapMarkerIcon, truckMapMarkerOffsets } from "@/components/TruckMapMarker";
+import { truckMapMarkerIcon } from "@/components/TruckMapMarker";
 import type { JobRouteProximityPayload, JobTruckProximity } from "@/lib/job-route-proximity";
 import { buildJobRouteHistory } from "@/lib/job-route-history";
 import { parseTruckNumberFromLabel } from "@/lib/linxup-truck-label";
+import { mapMarkerCollisionOffsets, type MapMarkerOffset } from "@/lib/map-marker-layout";
 import { appointmentTerritoryTone, isWithinLafayetteServiceRadius } from "@/lib/territory-presentation";
 
 export type JobsMapPoint = {
@@ -268,7 +269,7 @@ function unavailableProximityText(jobKey: string, proximity: JobRouteProximityPa
 }
 
 function escapeMarkerHtml(value: string): string {
-  return value
+  return String(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -276,13 +277,35 @@ function escapeMarkerHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function markerIcon(leaflet: LeafletModule, job: JobsMapPoint, selected: boolean) {
+function markerIcon(
+  leaflet: LeafletModule,
+  job: JobsMapPoint,
+  selected: boolean,
+  { x, y }: MapMarkerOffset,
+  label: string,
+) {
   const tone = territoryTone(job);
   const canceled = job.statusBucket === "Canceled";
-  const label = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber}`;
+  const leaderLength = Math.round(Math.hypot(x, y));
+  const leaderAngle = Math.round(Math.atan2(y, x) * 180 / Math.PI);
   return leaflet.divIcon({
     className: "ops-jobs-map-div-icon",
-    html: `<button type="button" class="ops-jobs-map-pin ${tone}${selected ? " is-selected" : ""}" aria-label="${escapeMarkerHtml(label)}"><i${canceled ? ' class="is-canceled"' : ""}>${canceled ? "×" : ""}</i></button>`,
+    html: `
+      <span class="ops-jobs-map-marker-locator">
+        ${leaderLength === 0 ? "" : `
+          <span class="ops-jobs-map-marker-origin"></span>
+          <span class="ops-jobs-map-marker-leader" style="width:${leaderLength}px;transform:rotate(${leaderAngle}deg)"></span>
+        `}
+        <button
+          type="button"
+          class="ops-jobs-map-marker-button"
+          style="transform:translate(${Math.round(x)}px, ${Math.round(y)}px)"
+          title="${escapeMarkerHtml(label)}"
+          aria-label="Select appointment ${escapeMarkerHtml(job.jkNumber || job.customerName)}"
+        >
+          <span class="ops-jobs-map-pin ${tone}${selected ? " is-selected" : ""}"><i${canceled ? ' class="is-canceled"' : ""}>${canceled ? "×" : ""}</i></span>
+        </button>
+      </span>`,
     iconSize: [30, 30],
     iconAnchor: [15, 29],
     tooltipAnchor: [0, -29],
@@ -1144,9 +1167,9 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       map.stop();
       map.invalidateSize({ pan: false });
       if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
-        map.setView(bounds.getCenter(), 13);
+        map.setView(bounds.getCenter(), 13, { animate: false });
       } else {
-        map.fitBounds(bounds.pad(0.12), { padding: [28, 28], maxZoom: 14 });
+        map.fitBounds(bounds.pad(0.12), { padding: [72, 72], maxZoom: 14, animate: false });
       }
       fittedViewportRef.current = viewportSignature;
     } else if (!bounds?.isValid()) {
@@ -1185,10 +1208,21 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         .addTo(routes);
     });
 
+    const collisionRecords = [
+      ...locatedJobs.map((job) => ({ key: `job:${job.key}`, latitude: job.latitude, longitude: job.longitude })),
+      ...liveTruckLocations.map((truck) => ({ key: `truck:${truck.truck}`, latitude: truck.latitude, longitude: truck.longitude })),
+    ];
+    const collisionOffsets = mapMarkerCollisionOffsets(
+      collisionRecords,
+      (record) => record.key,
+      (record) => map.latLngToLayerPoint([record.latitude, record.longitude]),
+    );
+
     for (const job of locatedJobs) {
       const markerLabel = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber}`;
+      const markerOffset = collisionOffsets.get(`job:${job.key}`) || { x: 0, y: 0 };
       const marker = leaflet.marker([job.latitude, job.longitude], {
-        icon: markerIcon(leaflet, job, selectedKey === job.key),
+        icon: markerIcon(leaflet, job, selectedKey === job.key, markerOffset, markerLabel),
         keyboard: false,
         title: markerLabel,
         alt: markerLabel,
@@ -1197,7 +1231,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       const itemSummary = job.junkItems.length ? ` · ${job.junkItems.join(", ")}` : " · Items not listed";
       marker.bindTooltip(`${job.appointmentTime} · ${job.customerName}${itemSummary}`, {
         direction: "top",
-        offset: [0, -10],
+        offset: [markerOffset.x, markerOffset.y - 10],
       });
       const selectJob = () => {
         focusViewportOnSelectionRef.current = false;
@@ -1206,7 +1240,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       };
       marker.on("click", selectJob);
       const bindAppointmentMarker = () => {
-        const markerButton = marker.getElement()?.querySelector<HTMLElement>(".ops-jobs-map-pin");
+        const markerButton = marker.getElement()?.querySelector<HTMLElement>(".ops-jobs-map-marker-button");
         if (!markerButton) return;
         markerButton.onclick = (event) => {
           event.preventDefault();
@@ -1219,18 +1253,14 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       bindAppointmentMarker();
     }
 
-    const truckLabelOffsets = truckMapMarkerOffsets(
-      liveTruckLocations,
-      (truck) => truck.truck,
-      (truck) => map.latLngToLayerPoint([truck.latitude, truck.longitude]),
-    );
-
     for (const truck of liveTruckLocations) {
       const markerLabel = `${truck.truck} · ${truck.status} · ${truck.freshness}`;
+      const markerOffset = collisionOffsets.get(`truck:${truck.truck}`) || { x: 0, y: 0 };
       const marker = leaflet.marker([truck.latitude, truck.longitude], {
         icon: truckMapMarkerIcon(leaflet, truck.truck, {
           atJob: truck.status === "At Job",
-          labelOffset: truckLabelOffsets.get(truck.truck) || 0,
+          labelOffsetX: markerOffset.x,
+          labelOffsetY: markerOffset.y,
           selected: selectedTruckName === truck.truck,
         }),
         keyboard: false,

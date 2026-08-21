@@ -259,8 +259,9 @@ function appointmentForSlackAlert(
   const alignedTitleMatch = plainText.match(/^\[(Add-On|Cancellation)\]\s*\n\s*(JK\d+)/i);
   if (!legacyTitleMatch && !alignedTitleMatch) return undefined;
   const jobNumber = legacyTitleMatch?.[2] || alignedTitleMatch?.[2] || "";
-  const title = legacyTitleMatch?.[1]
-    || (alignedTitleMatch?.[1].toLowerCase() === "cancellation" ? "Appointment cancelled" : "New same-day appointment");
+  const legacyTitle = legacyTitleMatch?.[1] || "";
+  const title = alignedTitleMatch?.[1]
+    || (/appointment cancelled/i.test(legacyTitle) ? "Cancellation" : legacyTitle || "Add-On");
 
   const fingerprintMatch = rawText.match(/Alert ID:\s*(?:add_on|cancellation):\d{4}-\d{2}-\d{2}:(appt:[^\s_*]+)/i);
   const appointment = (

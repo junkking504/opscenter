@@ -688,7 +688,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   useEffect(() => {
     if (!selectedKey && !selectedTruckName) return;
     const handleEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (event.target instanceof Element && event.target.closest(".ops-jobs-leaflet-map")) return;
       setSelectedKey("");
       setSelectedTruckName("");
       window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));

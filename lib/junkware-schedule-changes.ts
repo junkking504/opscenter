@@ -99,10 +99,16 @@ function rescheduleAlert(date: string, previous: AnyRecord, current: AnyRecord):
     lifecycle: "notification",
     severity: "warning",
     channelId: appointmentChannelId(first(current, ["normalized_territory", "territory", "source_territory", "market"])),
-    title: `${jobNumber(current)} rescheduled`,
-    detail: [`Previous: ${oldTime}`, `New: ${newTime}`, truck ? `Truck: ${truck}` : ""].filter(Boolean).join("\n"),
+    title: "[Rescheduled]",
+    subject: jobNumber(current),
+    detail: "",
     nextAction: "Update the route plan.",
     href: href(date, current),
+    fields: [
+      { label: "Previous", value: oldTime },
+      { label: "New", value: newTime },
+      ...(truck ? [{ label: "Truck", value: truck }] : []),
+    ],
   };
 }
 

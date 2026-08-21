@@ -138,10 +138,12 @@ const addOnSlackAlert = buildAddOnSlackNotification({
 }, "2026-08-12");
 assert.equal(addOnSlackAlert.channelId, "C_TEST_NO");
 assert.equal(formatSlackAlert(addOnSlackAlert), [
-  ":warning:*Add-On: JK4025000*",
-  "Test Customer",
-  "123 Test Street",
-  "Confirm krewe and truck coverage, then update the route plan.",
+  "*[Add-On]*",
+  "JK4025000",
+  "```",
+  "Customer:  Test Customer",
+  "Address:   123 Test Street",
+  "```",
   "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4025000|Open in OpsCenter>",
 ].join("\n"));
 assert.doesNotMatch(formatSlackAlert(addOnSlackAlert), /Truck# 4|Alert ID|\*Next:\*/);
@@ -219,17 +221,41 @@ assert.deepEqual(
     {
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
-      text: ":white_check_mark: JK4051000 closed out. Load: 1/2 ($538.00). Discount: $30.00. Job total: $508.00. Tip: $50.80. Charged: Card ending 3013 ($558.80).",
+      text: [
+        "*[Job Closed]*",
+        "JK4051000",
+        "```",
+        "Load:       1/2 ($538.00)",
+        "Discount:   $30.00",
+        "Job total:  $508.00",
+        "Tip:        $50.80",
+        "Charged:    Card ending 3013 ($558.80)",
+        "```",
+      ].join("\n"),
     },
     {
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_6",
-      text: ":white_check_mark: JK4051001 closed out. Tip: $0.00. Charged: Check #1487 ($198.00).",
+      text: [
+        "*[Job Closed]*",
+        "JK4051001",
+        "```",
+        "Tip:      $0.00",
+        "Charged:  Check #1487 ($198.00)",
+        "```",
+      ].join("\n"),
     },
     {
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
-      text: ":white_check_mark: JK4051003 closed out. Tip: $15.00. Charged: Card ending 4242 ($100.00); Cash ($50.00).",
+      text: [
+        "*[Job Closed]*",
+        "JK4051003",
+        "```",
+        "Tip:      $15.00",
+        "Charged:  Card ending 4242 ($100.00); Cash ($50.00)",
+        "```",
+      ].join("\n"),
     },
   ],
 );
@@ -278,12 +304,28 @@ assert.deepEqual(
     {
       kind: "truck_arrival",
       channelId: "C_TEST_TRUCK_4",
-      text: ":truck: Truck 4 arrived onsite.\nJob: JK4050424\nCustomer: Test Customer\nAddress: 123 Test Street, New Orleans, LA 70115",
+      text: [
+        "*[Truck Arrival]*",
+        "Truck 4",
+        "```",
+        "Job:       JK4050424",
+        "Customer:  Test Customer",
+        "Address:   123 Test Street, New Orleans, LA 70115",
+        "```",
+      ].join("\n"),
     },
     {
       kind: "truck_arrival",
       channelId: "C_TEST_TRUCK_4",
-      text: ":truck: Truck 4 arrived onsite.\nJob: JK4050424\nCustomer: Test Customer\nAddress: 123 Test Street, New Orleans, LA 70115",
+      text: [
+        "*[Truck Arrival]*",
+        "Truck 4",
+        "```",
+        "Job:       JK4050424",
+        "Customer:  Test Customer",
+        "Address:   123 Test Street, New Orleans, LA 70115",
+        "```",
+      ].join("\n"),
     },
   ],
 );
@@ -408,7 +450,15 @@ try {
   const arrivalRun = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["truck_arrival"] });
   assert.deepEqual(arrivalRun.posted.map((alert) => alert.kind), ["truck_arrival"]);
   assert.deepEqual(postedMessages, [
-    ":truck: Truck 6 arrived onsite.\nJob: JK4051503\nCustomer: Arrival Customer\nAddress: 503 Arrival Street, New Orleans, LA 70115",
+    [
+      "*[Truck Arrival]*",
+      "Truck 6",
+      "```",
+      "Job:       JK4051503",
+      "Customer:  Arrival Customer",
+      "Address:   503 Arrival Street, New Orleans, LA 70115",
+      "```",
+    ].join("\n"),
   ]);
   postedMessages.length = 0;
 
@@ -424,7 +474,14 @@ try {
   const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed"]);
   assert.deepEqual(postedMessages, [
-    ":white_check_mark: JK4051502 closed out. Tip: $20.00. Charged: Check #2201 ($220.00).",
+    [
+      "*[Job Closed]*",
+      "JK4051502",
+      "```",
+      "Tip:      $20.00",
+      "Charged:  Check #2201 ($220.00)",
+      "```",
+    ].join("\n"),
   ]);
 
   const dedupeRun = await runSlackOpsAlerts({ date: "2026-08-12" });
@@ -444,7 +501,7 @@ try {
     duplicate: false,
     reason: "Verified closeout does not include full payment details.",
   });
-  assert.equal(postedMessages.filter((message) => message.includes("JK4051503 closed out")).length, 0);
+  assert.equal(postedMessages.filter((message) => message.includes("JK4051503")).length, 0);
 
   const directCloseout = await publishVerifiedTruckCloseout({
     appointmentId: "503",
@@ -454,7 +511,14 @@ try {
     closeout: { tip: "$10.00", payments: [{ method: "Cash", amount: "$110.00" }] },
   });
   assert.deepEqual(directCloseout, { attempted: true, posted: true, duplicate: false });
-  assert.equal(postedMessages.at(-1), ":white_check_mark: JK4051503 closed out. Tip: $10.00. Charged: Cash ($110.00).");
+  assert.equal(postedMessages.at(-1), [
+    "*[Job Closed]*",
+    "JK4051503",
+    "```",
+    "Tip:      $10.00",
+    "Charged:  Cash ($110.00)",
+    "```",
+  ].join("\n"));
 
   const duplicateDirectCloseout = await publishVerifiedTruckCloseout({
     appointmentId: "503",
@@ -464,7 +528,7 @@ try {
     closeout: { tip: "$10.00", payments: [{ method: "Cash", amount: "$110.00" }] },
   });
   assert.deepEqual(duplicateDirectCloseout, { attempted: false, posted: false, duplicate: true });
-  assert.equal(postedMessages.filter((message) => message.includes("JK4051503 closed out")).length, 1);
+  assert.equal(postedMessages.filter((message) => message.includes("JK4051503")).length, 1);
 } finally {
   globalThis.fetch = originalFetch;
   delete process.env.SLACK_OPSCENTER_STATE_FILE;
@@ -502,16 +566,64 @@ const crewAlerts = buildCrewSlackNotifications("2026-08-12", [
 assert.deepEqual(
   crewAlerts.map((alert) => ({ kind: alert.kind, channelId: alert.channelId, text: formatSlackAlert(alert) })),
   [
-    { kind: "crew_clock_in", channelId: "C_TEST_COMMAND", text: "Clocked In Employee clocked in." },
-    { kind: "crew_clock_in", channelId: "C_TEST_COMMAND", text: "Clocked Out Employee clocked in." },
-    { kind: "crew_clock_out", channelId: "C_TEST_COMMAND", text: "Clocked Out Employee clocked out. Hours worked: 5.55." },
+    { kind: "crew_clock_in", channelId: "C_TEST_COMMAND", text: "*[Clock In]*\nClocked In Employee" },
+    { kind: "crew_clock_in", channelId: "C_TEST_COMMAND", text: "*[Clock In]*\nClocked Out Employee" },
     {
-      kind: "crew_daily_pay",
+      kind: "crew_clock_out",
       channelId: "C_TEST_COMMAND",
-      text: "Clocked Out Employee total pay: $138.38. Hourly pay: $102.67. Tips: $20.71. Bonuses: $15.00.",
+      text: [
+        "*[Clock Out]*",
+        "Clocked Out Employee",
+        "```",
+        "Hours:   5.55",
+        "Hourly:  $102.67",
+        "Tips:    $20.71",
+        "Bonus:   $15.00",
+        "Total:   $138.38",
+        "```",
+      ].join("\n"),
     },
   ],
 );
+
+const separateClockOuts = buildCrewSlackNotifications("2026-08-12", [
+  {
+    name: "Ivory Grace",
+    clock_in: "9:00 AM",
+    clock_out: "2:16 PM",
+    hours_worked: 5.27,
+    hourly_pay: 84.27,
+    tip: 0,
+    total_bonus: 0,
+    total_pay: 84.27,
+    pay_is_final: true,
+  },
+  {
+    name: "Steven Miles",
+    clock_in: "9:00 AM",
+    clock_out: "2:31 PM",
+    hours_worked: 5.52,
+    hourly_pay: 88.27,
+    tip: 0,
+    total_bonus: 0,
+    total_pay: 88.27,
+    pay_is_final: true,
+  },
+]).filter((alert) => alert.kind === "crew_clock_out");
+assert.equal(separateClockOuts.length, 2);
+assert.equal(formatSlackAlert(separateClockOuts[0]), [
+  "*[Clock Out]*",
+  "Ivory Grace",
+  "```",
+  "Hours:   5.27",
+  "Hourly:  $84.27",
+  "Tips:    $0.00",
+  "Bonus:   $0.00",
+  "Total:   $84.27",
+  "```",
+].join("\n"));
+assert.doesNotMatch(formatSlackAlert(separateClockOuts[0]), /Steven Miles/);
+assert.match(formatSlackAlert(separateClockOuts[1]), /^\*\[Clock Out\]\*\nSteven Miles\n/);
 
 const duplicateRows = buildCrewSlackNotifications("2026-08-12", [
   { name: "Employee, Example", clock_in: "8:00 AM" },
@@ -532,7 +644,7 @@ const nonfinalPay = buildCrewSlackNotifications("2026-08-12", [
     pay_is_final: false,
   },
 ]);
-assert.deepEqual(nonfinalPay.map((alert) => alert.kind), ["crew_clock_in", "crew_clock_out"]);
+assert.deepEqual(nonfinalPay.map((alert) => alert.kind), ["crew_clock_in"]);
 
 const inconsistentPay = buildCrewSlackNotifications("2026-08-12", [
   {
@@ -547,7 +659,7 @@ const inconsistentPay = buildCrewSlackNotifications("2026-08-12", [
     pay_is_final: true,
   },
 ]);
-assert.deepEqual(inconsistentPay.map((alert) => alert.kind), ["crew_clock_in", "crew_clock_out"]);
+assert.deepEqual(inconsistentPay.map((alert) => alert.kind), ["crew_clock_in"]);
 
 console.log("Slack appointment, truck arrival, full closeout, and crew notification tests passed.");
 }

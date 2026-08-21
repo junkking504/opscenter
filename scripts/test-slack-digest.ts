@@ -43,12 +43,12 @@ async function main() {
         },
         {
           ts: "1786718500.000003",
-          text: ":warning: *New same-day appointment: JK4052608*\nTest Customer · 12:00 PM - 01:00 PM · Truck# 1 · 123 Test Street\n*Next:* Confirm coverage.\n<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052608|Open in OpsCenter>\n_Alert ID: add_on:2026-08-14:appt:4039430_",
+          text: "*[Add-On]*\nJK4052608\n```\nCustomer:  Test Customer\nAddress:   123 Test Street\n```\n<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052608|Open in OpsCenter>",
           bot_profile: { name: "OpsCenter Alerts" },
         },
         {
           ts: "1786718750.000004",
-          text: ":white_check_mark: JK4052579 closed out.",
+          text: "*[Job Closed]*\nJK4052579\n```\nTip:      $71.60\nCharged:  Card ending 9896 ($429.60)\n```",
           bot_profile: { name: "OpsCenter Alerts" },
         },
         {

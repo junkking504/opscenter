@@ -31,7 +31,11 @@ const current = {
 
 const events = detectScheduleChanges(previous, current);
 assert.deepEqual(events.map((event) => event.kind).sort(), ["cancelled", "new_appointment", "rescheduled"]);
-assert.match(String(events.find((event) => event.kind === "rescheduled")?.alert.detail), /Previous: 10:00 AM/);
+assert.deepEqual(events.find((event) => event.kind === "rescheduled")?.alert.fields, [
+  { label: "Previous", value: "10:00 AM" },
+  { label: "New", value: "11:00 AM" },
+  { label: "Truck", value: "Truck 1" },
+]);
 assert.deepEqual(detectScheduleChanges(null, current), []);
 
 async function verifyScopedPublishing() {

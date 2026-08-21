@@ -377,7 +377,16 @@ assert.equal(correctedRecords[0]?.cost, 88.4);
 assert.equal(correctedRecords[0]?.edits?.[0]?.messageId, "edit-correction");
 assert.equal(queuedCrewExpenseTransactions(30).length, 20);
 
-assert.match(formatCrewExpenseSlackNotification(singleLineFuel.record!), /^Fuel recorded in JunkWare/);
+assert.equal(formatCrewExpenseSlackNotification(singleLineFuel.record!), [
+  "*[Fuel Recorded]*",
+  "Truck# 1",
+  "```",
+  "Location:  Shell",
+  "Cost:      $100.00",
+  "Gallons:   24 gal",
+  "Time:      2:30 PM",
+  "```",
+].join("\n"));
 process.env.SLACK_OPSCENTER_ALERTS_ENABLED = "true";
 process.env.SLACK_BOT_TOKEN = "xoxb-test";
 process.env.SLACK_TRUCK_1_CHANNEL_ID = "C_TRUCK_1";
@@ -388,7 +397,8 @@ sendCrewExpenseSlackNotification(singleLineFuel.record!, async (_input, init) =>
 }).then((slackDelivery) => {
   assert.equal(slackDelivery.channel, "C_TRUCK_1");
   assert.equal(slackRequest.channel, "C_TRUCK_1");
-  assert.match(String(slackRequest.text), /Truck# 1 · Shell · \$100\.00/);
+  assert.match(String(slackRequest.text), /\*\[Fuel Recorded\]\*\nTruck# 1/);
+  assert.match(String(slackRequest.text), /Location:\s+Shell\nCost:\s+\$100\.00/);
   process.stdout.write(`${JSON.stringify({ ok: true, records: readCrewExpenseRecords().length })}\n`);
 }).catch((error) => {
   process.stderr.write(`${error instanceof Error ? error.stack : String(error)}\n`);

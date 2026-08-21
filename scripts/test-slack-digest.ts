@@ -37,7 +37,7 @@ async function main() {
       messages: [
         {
           ts: "1786718241.171329",
-          text: ":truck: *Truck 3 arrived onsite.*",
+          text: ":truck: *Truck arrived onsite*\n```\nTruck:    Truck 3\nJob:      JK4052666\nCustomer: Arrival Customer\nAddress:  123 Arrival Street\n```",
           bot_profile: { name: "OpsCenter Alerts" },
           reply_count: 1,
         },
@@ -151,7 +151,13 @@ async function main() {
   assert.deepEqual(digest.messages[3].appointment?.items, ["Sofa", "Desk"]);
   assert.equal(digest.messages[3].appointment?.href, "/jobs?date=2026-08-14#job-jk4052608");
   assert.doesNotMatch(digest.messages[3].text, /Alert ID|Truck# 1|Open in OpsCenter/);
-  assert.equal(digest.messages[4].text, "🚚 Truck 3 arrived onsite.");
+  assert.deepEqual(digest.messages[4].truckArrival, {
+    truck: "Truck 3",
+    jobNumber: "JK4052666",
+    customerName: "Arrival Customer",
+    address: "123 Arrival Street",
+  });
+  assert.equal(digest.messages[4].text, "🚚 Truck 3 arrived\nJob: JK4052666\nCustomer: Arrival Customer\nAddress: 123 Arrival Street");
   assert.equal(digest.messages[5].text, "Older alert");
   assert.equal(requests.filter((request) => request.pathname.endsWith("conversations.history")).length, 2);
   assert.ok(requests.every((request) => request.searchParams.get("oldest") === "1786683600"));

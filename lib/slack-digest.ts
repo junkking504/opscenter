@@ -75,6 +75,12 @@ export type SlackDigestMessage = {
     lines: string[];
     href: string;
   };
+  truckArrival?: {
+    truck: string;
+    jobNumber: string;
+    customerName: string;
+    address: string;
+  };
 };
 
 export type SlackDailyDigest = {
@@ -315,6 +321,27 @@ function closeoutForSlackAlert(
   };
 }
 
+function labeledSlackField(text: string, label: string): string {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => new RegExp(`^${label}:\\s*`, "i").test(line))
+    ?.replace(new RegExp(`^${label}:\\s*`, "i"), "")
+    .trim() || "";
+}
+
+function truckArrivalForSlackAlert(rawText: string): SlackDigestMessage["truckArrival"] | undefined {
+  const plainText = slackTextToPlainText(rawText);
+  if (!/^(?:🚚\s*)?Truck arrived onsite\.?\s*(?:\n|$)/i.test(plainText)) return undefined;
+
+  const truck = labeledSlackField(plainText, "Truck");
+  const jobNumber = labeledSlackField(plainText, "Job");
+  const customerName = labeledSlackField(plainText, "Customer");
+  const address = labeledSlackField(plainText, "Address");
+  if (!truck || !jobNumber || !customerName || !address) return undefined;
+  return { truck, jobNumber, customerName, address };
+}
+
 function digestMessage(
   channelId: string,
   message: SlackMessagePayload,
@@ -327,6 +354,7 @@ function digestMessage(
   const plainText = slackTextToPlainText(rawText);
   const appointment = appointmentForSlackAlert(rawText, appointments);
   const closeout = closeoutForSlackAlert(rawText, closeouts, date);
+  const truckArrival = truckArrivalForSlackAlert(rawText);
   const text = appointment ? [
     `⚠️ ${appointment.title}: ${appointment.jobNumber}`,
     `${appointment.customerName} · ${appointment.phone} · ${appointment.appointmentTime}`,
@@ -336,6 +364,11 @@ function digestMessage(
   ].filter(Boolean).join("\n") : closeout ? [
     `✅ ${closeout.jobNumber} closed out.`,
     ...closeout.lines,
+  ].join("\n") : truckArrival ? [
+    `🚚 ${truckArrival.truck} arrived`,
+    `Job: ${truckArrival.jobNumber}`,
+    `Customer: ${truckArrival.customerName}`,
+    `Address: ${truckArrival.address}`,
   ].join("\n") : plainText;
   const epochMs = Number(ts) * 1_000;
   if (!ts || !text || !Number.isFinite(epochMs)) return null;
@@ -349,6 +382,7 @@ function digestMessage(
     opsCenterHref: opsCenterHref(rawText),
     appointment,
     closeout,
+    truckArrival,
   };
 }
 

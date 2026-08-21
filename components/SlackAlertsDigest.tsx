@@ -126,6 +126,15 @@ export default function SlackAlertsDigest({
                       Open in OpsCenter
                     </Link>
                   </div>
+                ) : message.truckArrival ? (
+                  <div className={styles.digestAppointment}>
+                    <p className={styles.digestAppointmentTitle}>
+                      <span aria-hidden="true">🚚</span> {message.truckArrival.truck} arrived
+                    </p>
+                    <p>Job: {message.truckArrival.jobNumber}</p>
+                    <p>Customer: {message.truckArrival.customerName}</p>
+                    <p>Address: {message.truckArrival.address}</p>
+                  </div>
                 ) : (
                   <>
                     <p>{message.text}</p>

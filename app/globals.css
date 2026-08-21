@@ -11474,10 +11474,33 @@ a.ops-appointment-card-address:hover {
   }
 }
 
-/* Keep pay-period daily summaries fully visible without horizontal scrolling. */
+/* Keep pay-period daily summaries legible without horizontal scrolling. */
 .ops-crew-period-week-days { overflow-x: visible; }
 .ops-crew-period-week-days .ops-crew-period-day-list { width: 100%; min-width: 0; }
-.ops-crew-period-day-summary-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px 16px; }
+.ops-crew-period-day-card {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+.ops-crew-period-day-summary { padding: 14px 16px; }
+.ops-crew-period-day-summary-grid {
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 14px 18px;
+}
+.ops-crew-period-day-summary-label {
+  color: #475569;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  line-height: 1.15;
+}
+.ops-crew-period-day-summary-value {
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+.ops-crew-period-day-summary-subvalue {
+  color: #64748b;
+  font-size: 0.73rem;
+  line-height: 1.25;
+}
 .ops-crew-period-day-summary-value,
 .ops-crew-period-day-summary-subvalue { white-space: normal; overflow: visible; text-overflow: clip; }
 .ops-crew-period-day-more { display: none; }

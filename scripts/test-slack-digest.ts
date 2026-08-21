@@ -37,7 +37,7 @@ async function main() {
       messages: [
         {
           ts: "1786718241.171329",
-          text: ":truck: *Truck arrived onsite*\n```\nTruck:    Truck 3\nJob:      JK4052666\nCustomer: Arrival Customer\nAddress:  123 Arrival Street\n```",
+          text: "*[Truck Arrival]*\nTruck 3\n```\nJob:      JK4052666\nCustomer: Arrival Customer\nAddress:  123 Arrival Street\n```",
           bot_profile: { name: "OpsCenter Alerts" },
           reply_count: 1,
         },

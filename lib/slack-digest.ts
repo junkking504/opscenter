@@ -330,11 +330,15 @@ function labeledSlackField(text: string, label: string): string {
     .trim() || "";
 }
 
-function truckArrivalForSlackAlert(rawText: string): SlackDigestMessage["truckArrival"] | undefined {
+function truckArrivalForSlackAlert(channelId: string, rawText: string): SlackDigestMessage["truckArrival"] | undefined {
   const plainText = slackTextToPlainText(rawText);
-  if (!/^(?:🚚\s*)?Truck arrived onsite\.?\s*(?:\n|$)/i.test(plainText)) return undefined;
+  const isCurrentFormat = /^\[Truck Arrival\]\s*(?:\n|$)/i.test(plainText);
+  const isAlternateFormat = /^(?:🚚\s*)?Truck arrived onsite\.?\s*(?:\n|$)/i.test(plainText);
+  if (!isCurrentFormat && !isAlternateFormat) return undefined;
 
-  const truck = labeledSlackField(plainText, "Truck");
+  const subjectTruck = plainText.match(/^\[Truck Arrival\]\s*\n\s*(Truck\s*#?\s*\d+)\s*(?:\n|$)/i)?.[1] || "";
+  const channelTruck = slackDigestChannelName(channelId).match(/^#truck-(\d+)$/i)?.[1] || "";
+  const truck = labeledSlackField(plainText, "Truck") || subjectTruck || (channelTruck ? `Truck ${channelTruck}` : "");
   const jobNumber = labeledSlackField(plainText, "Job");
   const customerName = labeledSlackField(plainText, "Customer");
   const address = labeledSlackField(plainText, "Address");
@@ -354,7 +358,7 @@ function digestMessage(
   const plainText = slackTextToPlainText(rawText);
   const appointment = appointmentForSlackAlert(rawText, appointments);
   const closeout = closeoutForSlackAlert(rawText, closeouts, date);
-  const truckArrival = truckArrivalForSlackAlert(rawText);
+  const truckArrival = truckArrivalForSlackAlert(channelId, rawText);
   const text = appointment ? [
     `⚠️ ${appointment.title}: ${appointment.jobNumber}`,
     `${appointment.customerName} · ${appointment.phone} · ${appointment.appointmentTime}`,

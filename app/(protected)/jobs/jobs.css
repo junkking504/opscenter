@@ -213,6 +213,70 @@
   background: #f8fafb;
 }
 
+.ops-jobs-page .ops-job-crew-note {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 7px;
+  padding: 8px 9px;
+  border: 1px dashed #c9d2dc;
+  border-radius: 7px;
+  background: #fffdf5;
+}
+
+.ops-jobs-page .ops-job-crew-note.has-note {
+  border-style: solid;
+  border-color: #e3c978;
+  background: #fff8da;
+}
+
+.ops-jobs-page .ops-job-crew-note-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ops-jobs-page .ops-job-crew-note-heading > div { display: grid; gap: 1px; }
+.ops-jobs-page .ops-job-crew-note-heading span {
+  color: #7b620f;
+  font-size: 0.625rem;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+}
+.ops-jobs-page .ops-job-crew-note-heading strong { color: #4e4527; font-size: 0.78rem; }
+.ops-jobs-page .ops-job-crew-note p { margin: 0; color: #383722; font-size: 0.84rem; line-height: 1.4; white-space: pre-wrap; }
+.ops-jobs-page .ops-job-crew-note button {
+  min-height: 32px;
+  padding: 6px 9px;
+  border: 1px solid #a87800;
+  border-radius: 6px;
+  background: #a87800;
+  color: #fff;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+.ops-jobs-page .ops-job-crew-note button.secondary { border-color: #c7cbd0; background: #fff; color: #46505a; }
+.ops-jobs-page .ops-job-crew-note button.danger { border-color: #d67b75; color: #9b2d27; }
+.ops-jobs-page .ops-job-crew-note button:disabled { cursor: wait; opacity: 0.65; }
+.ops-jobs-page .ops-job-crew-note-editor { display: grid; gap: 7px; }
+.ops-jobs-page .ops-job-crew-note-editor textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 7px 8px;
+  border: 1px solid #bfc7d0;
+  border-radius: 6px;
+  background: #fff;
+  color: #27313b;
+  font: inherit;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.ops-jobs-page .ops-job-crew-note-editor > div { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
+.ops-jobs-page .ops-job-crew-note-editor small { color: #ad3028; font-size: 0.72rem; }
+
 .ops-jobs-page .ops-appointment-junk-summary { align-items: center; gap: 6px; }
 .ops-jobs-page .ops-appointment-note-details { padding-left: 12px; border-left-color: #e1e5e9; }
 .ops-jobs-page .ops-appointment-note-details > summary { gap: 6px; }

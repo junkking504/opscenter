@@ -226,8 +226,6 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
         zIndexOffset: isSelected ? 1000 : 0,
       });
 
-      marker.addTo(markers);
-      const markerButton = marker.getElement()?.querySelector<HTMLElement>(".ops-truck-map-marker");
       const selectTruck = () => {
         if (isSelected) return;
         const params = new URLSearchParams(searchParams.toString());
@@ -235,16 +233,8 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
         params.set("truck", truckNumber(truck.truck));
         router.push(`${pathname}?${params.toString()}`, { scroll: false });
       };
-      markerButton?.addEventListener("click", (event) => {
-        event.stopPropagation();
-        selectTruck();
-      });
-      markerButton?.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        event.stopPropagation();
-        selectTruck();
-      });
+      marker.on("click", selectTruck);
+      marker.addTo(markers);
     }
 
     if (!fleetMode && selectedRouteBounds) {

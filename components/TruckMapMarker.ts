@@ -60,22 +60,20 @@ export function truckMapMarkerIcon(
   truck: string,
   { atJob = false, labelOffset = 0, selected = false }: TruckMapMarkerOptions = {},
 ) {
-  const leaderTop = Math.min(21, 21 + labelOffset);
+  const iconAnchorY = 21 - labelOffset;
+  const leaderTop = Math.min(21, iconAnchorY);
   const label = truckMapLabel(truck);
   const shortLabel = truckMapShortLabel(truck);
   const html = `
     <div class="ops-truck-map-marker-locator">
       ${labelOffset === 0 ? "" : `
-        <span class="ops-truck-map-marker-origin"></span>
+        <span class="ops-truck-map-marker-origin" style="top:${17 - labelOffset}px"></span>
         <span class="ops-truck-map-marker-leader" style="top:${leaderTop}px;height:${Math.abs(labelOffset)}px"></span>
       `}
       <div
         class="ops-truck-map-marker${selected ? " is-selected" : ""}${atJob ? " is-at-job" : ""}"
-        style="transform:translateY(${labelOffset}px)"
+        aria-hidden="true"
         title="${escapeHtml(label)}"
-        role="button"
-        tabindex="0"
-        aria-label="Select ${escapeHtml(label)}"
       >
         <svg viewBox="0 0 28 18" aria-hidden="true">
           <path d="M2 3h14v10H2zM16 7h5l4 4v2h-9z"/>
@@ -91,7 +89,7 @@ export function truckMapMarkerIcon(
     className: "ops-truck-map-div-icon",
     html,
     iconSize: [46, 28],
-    iconAnchor: [22, 21],
+    iconAnchor: [22, iconAnchorY],
     popupAnchor: [0, -22],
     tooltipAnchor: [0, -22],
   });

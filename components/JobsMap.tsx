@@ -268,11 +268,11 @@ function markerIcon(leaflet: LeafletModule, job: JobsMapPoint, selected: boolean
   const tone = territoryTone(job);
   const canceled = job.statusBucket === "Canceled";
   return leaflet.divIcon({
-    className: "",
-    html: `<span class="ops-jobs-map-pin ${tone}${selected ? " is-selected" : ""}"><i${canceled ? ' class="is-canceled"' : ""}>${canceled ? "×" : ""}</i></span>`,
-    iconSize: [24, 30],
-    iconAnchor: [12, 28],
-    tooltipAnchor: [0, -28],
+    className: "ops-jobs-map-div-icon",
+    html: `<span class="ops-jobs-map-pin ${tone}${selected ? " is-selected" : ""}" aria-hidden="true"><i${canceled ? ' class="is-canceled"' : ""}>${canceled ? "×" : ""}</i></span>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 29],
+    tooltipAnchor: [0, -29],
   });
 }
 
@@ -517,6 +517,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any>(null);
   const routesRef = useRef<any>(null);
+  const fittedViewportRef = useRef("");
+  const focusViewportOnSelectionRef = useRef(false);
   const [leaflet, setLeaflet] = useState<LeafletModule | null>(null);
   const [selectedKey, setSelectedKey] = useState("");
   const [selectedTruckName, setSelectedTruckName] = useState("");
@@ -549,7 +551,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const [canceledKeys, setCanceledKeys] = useState<string[]>([]);
   const [currentScheduleTime, setCurrentScheduleTime] = useState<ReturnType<typeof chicagoScheduleClock> | null>(null);
 
-  const selectLiveTruck = useCallback((truckName: string) => {
+  const selectLiveTruck = useCallback((truckName: string, focusViewport = true) => {
+    focusViewportOnSelectionRef.current = focusViewport;
     setSelectedKey("");
     setSelectedTruckName(truckName);
     window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
@@ -907,6 +910,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       suppressNextClickRef.current = false;
       return;
     }
+    focusViewportOnSelectionRef.current = true;
     setSelectedTruckName("");
     setSelectedKey(jobKey);
 
@@ -1100,25 +1104,40 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
 
     markers.clearLayers();
     routes.clearLayers();
-    map.stop();
-    map.invalidateSize({ pan: false });
+    const viewportSignature = locatedJobs
+      .map((job) => `${job.key}:${job.latitude}:${job.longitude}`)
+      .sort()
+      .join("|");
+    const shouldFocusSelection = focusViewportOnSelectionRef.current;
+    focusViewportOnSelectionRef.current = false;
 
-    if (selectedTruck && selectedRouteBounds?.isValid()) {
+    if (shouldFocusSelection && selectedTruck && selectedRouteBounds?.isValid()) {
+      map.stop();
+      map.invalidateSize({ pan: false });
       if (selectedRouteBounds.getNorthEast().equals(selectedRouteBounds.getSouthWest())) {
         map.setView(selectedRouteBounds.getCenter(), 14, { animate: false });
       } else {
         map.fitBounds(selectedRouteBounds.pad(0.1), { padding: [28, 28], maxZoom: 15, animate: false });
       }
-    } else if (selectedTruck) {
+    } else if (shouldFocusSelection && selectedTruck) {
+      map.stop();
+      map.invalidateSize({ pan: false });
       map.setView([selectedTruck.latitude, selectedTruck.longitude], Math.max(map.getZoom(), 14), { animate: false });
-    } else if (selectedJob && isLocated(selectedJob)) {
+    } else if (shouldFocusSelection && selectedJob && isLocated(selectedJob)) {
+      map.stop();
+      map.invalidateSize({ pan: false });
       map.setView([selectedJob.latitude, selectedJob.longitude], Math.max(map.getZoom(), 12), { animate: false });
-    } else if (bounds?.isValid()) {
+    } else if (bounds?.isValid() && fittedViewportRef.current !== viewportSignature) {
+      map.stop();
+      map.invalidateSize({ pan: false });
       if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
         map.setView(bounds.getCenter(), 13);
       } else {
         map.fitBounds(bounds.pad(0.12), { padding: [28, 28], maxZoom: 14 });
       }
+      fittedViewportRef.current = viewportSignature;
+    } else if (!bounds?.isValid()) {
+      fittedViewportRef.current = "";
     }
 
     selectedTruckRoutes.forEach((segment, index) => {
@@ -1160,7 +1179,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         keyboard: true,
         title: markerLabel,
         alt: markerLabel,
-        zIndexOffset: selectedKey === job.key ? 1000 : 0,
+        zIndexOffset: selectedKey === job.key ? 3000 : 2400,
       });
       const itemSummary = job.junkItems.length ? ` · ${job.junkItems.join(", ")}` : " · Items not listed";
       marker.bindTooltip(`${job.appointmentTime} · ${job.customerName}${itemSummary}`, {
@@ -1168,6 +1187,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         offset: [0, -10],
       });
       marker.on("click", () => {
+        focusViewportOnSelectionRef.current = false;
         setSelectedTruckName("");
         setSelectedKey(job.key);
       });
@@ -1193,19 +1213,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         alt: markerLabel,
         zIndexOffset: 1800,
       });
+      marker.on("click", () => selectLiveTruck(truck.truck, false));
       marker.addTo(markers);
-      const markerButton = marker.getElement()?.querySelector<HTMLElement>(".ops-truck-map-marker");
-      const selectTruck = () => selectLiveTruck(truck.truck);
-      markerButton?.addEventListener("click", (event) => {
-        event.stopPropagation();
-        selectTruck();
-      });
-      markerButton?.addEventListener("keydown", (event) => {
-        if (event.key !== "Enter" && event.key !== " ") return;
-        event.preventDefault();
-        event.stopPropagation();
-        selectTruck();
-      });
     }
 
   }, [bounds, leaflet, liveTruckLocations, locatedJobs, selectLiveTruck, selectedJob, selectedKey, selectedRouteBounds, selectedTruck, selectedTruckName, selectedTruckRoutes]);

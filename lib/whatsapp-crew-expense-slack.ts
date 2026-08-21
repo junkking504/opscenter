@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { formatSlackMessage } from "@/lib/slack-message-format";
 import { truckSlackChannelId } from "@/lib/slack-truck-channels";
 import type { CrewExpenseRecord } from "@/lib/whatsapp-crew-expenses";
 
@@ -14,10 +15,18 @@ function clientMessageId(messageId: string): string {
 }
 
 export function formatCrewExpenseSlackNotification(record: CrewExpenseRecord): string {
-  const detail = record.kind === "fuel"
-    ? `${record.gallons} gal`
-    : record.weight || "no weight";
-  return `${record.kind === "fuel" ? "Fuel" : "Dump"} recorded in JunkWare — ${record.truck} · ${record.location} · $${record.cost.toFixed(2)} · ${detail} · ${record.time}`;
+  const isFuel = record.kind === "fuel";
+  return formatSlackMessage({
+    icon: isFuel ? ":fuelpump:" : ":wastebasket:",
+    title: `${isFuel ? "Fuel" : "Dump"} receipt recorded`,
+    fields: [
+      { label: "Truck", value: record.truck },
+      { label: "Location", value: record.location },
+      { label: "Amount", value: `$${record.cost.toFixed(2)}` },
+      { label: isFuel ? "Gallons" : "Weight", value: isFuel ? `${record.gallons} gal` : record.weight || "Not recorded" },
+      { label: "Time", value: record.time },
+    ],
+  });
 }
 
 export async function sendCrewExpenseSlackNotification(

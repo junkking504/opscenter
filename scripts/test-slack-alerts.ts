@@ -139,12 +139,14 @@ const addOnSlackAlert = buildAddOnSlackNotification({
 assert.equal(addOnSlackAlert.channelId, "C_TEST_NO");
 assert.equal(formatSlackAlert(addOnSlackAlert), [
   ":warning: *New same-day appointment: JK4025000*",
-  "Test Customer · (504) 555-0100 · 1:00 PM - 3:00 PM",
-  "123 Test Street",
-  "Items: Sofa; Desk",
-  "*Next:* Confirm crew and truck coverage, then update the route plan.",
+  "*Customer:* Test Customer",
+  "*Phone:* (504) 555-0100",
+  "*Time:* 1:00 PM - 3:00 PM",
+  "*Address:* 123 Test Street",
+  "*Items:* Sofa; Desk",
   "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4025000|Open in OpsCenter>",
 ].join("\n"));
+assert.doesNotMatch(formatSlackAlert(addOnSlackAlert), /\*Next:\*/);
 assert.doesNotMatch(formatSlackAlert(addOnSlackAlert), /Truck# 4|Alert ID/);
 
 const completedCloseoutRows = [
@@ -220,19 +222,37 @@ assert.deepEqual(
   [
     {
       channelId: "C_TEST_PAYMENT",
-      text: "JK4051000 closed out. Payment: Card ending 3013 ($558.80). Tip: $50.80.",
+      text: [
+        ":credit_card: *Payment recorded*",
+        "*Job:* JK4051000",
+        "*Payment:* Card ending 3013 ($558.80)",
+        "*Tip:* $50.80",
+      ].join("\n"),
     },
     {
       channelId: "C_TEST_PAYMENT",
-      text: "JK4051001 closed out. Payment: Check #1487 ($198.00).",
+      text: [
+        ":credit_card: *Payment recorded*",
+        "*Job:* JK4051001",
+        "*Payment:* Check #1487 ($198.00)",
+      ].join("\n"),
     },
     {
       channelId: "C_TEST_PAYMENT",
-      text: "JK4051002 closed out. Payment: Cash ($200.00).",
+      text: [
+        ":credit_card: *Payment recorded*",
+        "*Job:* JK4051002",
+        "*Payment:* Cash ($200.00)",
+      ].join("\n"),
     },
     {
       channelId: "C_TEST_PAYMENT",
-      text: "JK4051003 closed out. Payments: Card ending 4242 ($100.00); Cash ($50.00). Tip: $15.00.",
+      text: [
+        ":credit_card: *Payment recorded*",
+        "*Job:* JK4051003",
+        "*Payments:* Card ending 4242 ($100.00); Cash ($50.00)",
+        "*Tip:* $15.00",
+      ].join("\n"),
     },
   ],
 );
@@ -244,22 +264,44 @@ assert.deepEqual(
     {
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
-      text: ":white_check_mark: JK4051000 closed out. Load: 1/2 ($538.00). Discount: $30.00. Job total: $508.00. Tip: $50.80. Charged: Card ending 3013 ($558.80).",
+      text: [
+        ":white_check_mark: *JK4051000 closed out*",
+        "*Job:* JK4051000",
+        "*Load:* 1/2 ($538.00)",
+        "*Discount:* $30.00",
+        "*Job total:* $508.00",
+        "*Tip:* $50.80",
+        "*Charged:* Card ending 3013 ($558.80)",
+      ].join("\n"),
     },
     {
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_6",
-      text: ":white_check_mark: JK4051001 closed out. Tip: $0.00. Charged: Check #1487 ($198.00).",
+      text: [
+        ":white_check_mark: *JK4051001 closed out*",
+        "*Job:* JK4051001",
+        "*Tip:* $0.00",
+        "*Charged:* Check #1487 ($198.00)",
+      ].join("\n"),
     },
     {
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
-      text: ":white_check_mark: JK4051003 closed out. Tip: $15.00. Charged: Card ending 4242 ($100.00); Cash ($50.00).",
+      text: [
+        ":white_check_mark: *JK4051003 closed out*",
+        "*Job:* JK4051003",
+        "*Tip:* $15.00",
+        "*Charged:* Card ending 4242 ($100.00); Cash ($50.00)",
+      ].join("\n"),
     },
     {
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_4",
-      text: ":white_check_mark: JK4051005 closed out. Tip: $0.00.",
+      text: [
+        ":white_check_mark: *JK4051005 closed out*",
+        "*Job:* JK4051005",
+        "*Tip:* $0.00",
+      ].join("\n"),
     },
   ],
 );
@@ -308,12 +350,24 @@ assert.deepEqual(
     {
       kind: "truck_arrival",
       channelId: "C_TEST_TRUCK_4",
-      text: ":truck: Truck 4 arrived onsite.\nJob: JK4050424\nCustomer: Test Customer\nAddress: 123 Test Street, New Orleans, LA 70115",
+      text: [
+        ":truck: *Truck arrived onsite*",
+        "*Truck:* Truck 4",
+        "*Job:* JK4050424",
+        "*Customer:* Test Customer",
+        "*Address:* 123 Test Street, New Orleans, LA 70115",
+      ].join("\n"),
     },
     {
       kind: "truck_arrival",
       channelId: "C_TEST_TRUCK_4",
-      text: ":truck: Truck 4 arrived onsite.\nJob: JK4050424\nCustomer: Test Customer\nAddress: 123 Test Street, New Orleans, LA 70115",
+      text: [
+        ":truck: *Truck arrived onsite*",
+        "*Truck:* Truck 4",
+        "*Job:* JK4050424",
+        "*Customer:* Test Customer",
+        "*Address:* 123 Test Street, New Orleans, LA 70115",
+      ].join("\n"),
     },
   ],
 );
@@ -438,7 +492,13 @@ try {
   const arrivalRun = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["truck_arrival"] });
   assert.deepEqual(arrivalRun.posted.map((alert) => alert.kind), ["truck_arrival"]);
   assert.deepEqual(postedMessages, [
-    ":truck: Truck 6 arrived onsite.\nJob: JK4051503\nCustomer: Arrival Customer\nAddress: 503 Arrival Street, New Orleans, LA 70115",
+    [
+      ":truck: *Truck arrived onsite*",
+      "*Truck:* Truck 6",
+      "*Job:* JK4051503",
+      "*Customer:* Arrival Customer",
+      "*Address:* 503 Arrival Street, New Orleans, LA 70115",
+    ].join("\n"),
   ]);
   postedMessages.length = 0;
 
@@ -455,8 +515,18 @@ try {
   const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed", "job_closed_payment"]);
   assert.deepEqual(postedMessages, [
-    ":white_check_mark: JK4051502 closed out. Tip: $20.00. Charged: Check #2201 ($220.00).",
-    "JK4051502 closed out. Payment: Check #2201 ($220.00). Tip: $20.00.",
+    [
+      ":white_check_mark: *JK4051502 closed out*",
+      "*Job:* JK4051502",
+      "*Tip:* $20.00",
+      "*Charged:* Check #2201 ($220.00)",
+    ].join("\n"),
+    [
+      ":credit_card: *Payment recorded*",
+      "*Job:* JK4051502",
+      "*Payment:* Check #2201 ($220.00)",
+      "*Tip:* $20.00",
+    ].join("\n"),
   ]);
 
   const dedupeRun = await runSlackOpsAlerts({ date: "2026-08-12" });
@@ -499,13 +569,32 @@ const crewAlerts = buildCrewSlackNotifications("2026-08-12", [
 assert.deepEqual(
   crewAlerts.map((alert) => ({ kind: alert.kind, channelId: alert.channelId, text: formatSlackAlert(alert) })),
   [
-    { kind: "crew_clock_in", channelId: "C_TEST_COMMAND", text: "Clocked In Employee clocked in." },
-    { kind: "crew_clock_in", channelId: "C_TEST_COMMAND", text: "Clocked Out Employee clocked in." },
-    { kind: "crew_clock_out", channelId: "C_TEST_COMMAND", text: "Clocked Out Employee clocked out. Hours worked: 5.55." },
+    {
+      kind: "crew_clock_in",
+      channelId: "C_TEST_COMMAND",
+      text: ":bust_in_silhouette: *Crew clocked in*\n*Crew member:* Clocked In Employee\n*Clock in:* 07:03 AM",
+    },
+    {
+      kind: "crew_clock_in",
+      channelId: "C_TEST_COMMAND",
+      text: ":bust_in_silhouette: *Crew clocked in*\n*Crew member:* Clocked Out Employee\n*Clock in:* 07:15 AM",
+    },
+    {
+      kind: "crew_clock_out",
+      channelId: "C_TEST_COMMAND",
+      text: ":bust_in_silhouette: *Crew clocked out*\n*Crew member:* Clocked Out Employee\n*Clock out:* 12:48 PM\n*Hours:* 5.55",
+    },
     {
       kind: "crew_daily_pay",
       channelId: "C_TEST_COMMAND",
-      text: "Clocked Out Employee total pay: $138.38. Hourly pay: $102.67. Tips: $20.71. Bonuses: $15.00.",
+      text: [
+        ":bust_in_silhouette: *Final daily pay*",
+        "*Crew member:* Clocked Out Employee",
+        "*Total pay:* $138.38",
+        "*Hourly pay:* $102.67",
+        "*Tips:* $20.71",
+        "*Bonuses:* $15.00",
+      ].join("\n"),
     },
   ],
 );

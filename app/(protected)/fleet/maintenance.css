@@ -811,7 +811,8 @@
 }
 
 .ops-checklist-item-media,
-.ops-repair-photos {
+.ops-repair-photos,
+.ops-repair-attachments {
   grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
@@ -822,6 +823,10 @@
 
 .ops-repair-photos {
   margin-top: 10px;
+}
+
+.ops-repair-attachments {
+  margin-top: 8px;
 }
 
 .ops-photo-add {
@@ -846,7 +851,8 @@
 }
 
 .ops-photo-thumb,
-.ops-photo-queued {
+.ops-photo-queued,
+.ops-repair-attachment {
   display: flex;
   gap: 7px;
   align-items: center;
@@ -869,6 +875,17 @@
   overflow: hidden;
   color: var(--ops-muted);
   font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-repair-attachment a {
+  max-width: 220px;
+  overflow: hidden;
+  color: var(--ops-gold);
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-decoration: underline;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1210,7 +1227,7 @@ body.ops-fleet-driver-mode .ops-checklist-status-buttons button { min-height: 44
 
 /* Maintenance now sits on the shared light workspace. Use the light-surface
  * semantic colors here instead of the legacy luminous dark-theme palette. */
-.ops-maintenance-layout :where(
+.ops-maintenance-page :where(
   .ops-linxup-coverage,
   .ops-maintenance-status.completed,
   .ops-checklist-truck.complete .ops-checklist-truck-top em,
@@ -1225,7 +1242,7 @@ body.ops-fleet-driver-mode .ops-checklist-status-buttons button { min-height: 44
   color: var(--oc-success-text) !important;
 }
 
-.ops-maintenance-layout :where(
+.ops-maintenance-page :where(
   .ops-linxup-coverage.has-gaps,
   .ops-linxup-missing,
   .ops-maintenance-row-actions button:not(.danger),
@@ -1239,4 +1256,43 @@ body.ops-fleet-driver-mode .ops-checklist-status-buttons button { min-height: 44
   .ops-photo-add
 ) {
   color: var(--oc-warning-text) !important;
+}
+
+/* The repair queue is a light reading surface. Its component styles predate
+ * the shared workspace and otherwise leave strong copy and severity chips on
+ * the dark-theme palette. Keep the operational details and their hierarchy
+ * readable without weakening the severity signal. */
+.ops-maintenance-page .ops-repair-table td,
+.ops-maintenance-page .ops-repair-table td strong {
+  color: var(--oc-text);
+}
+
+.ops-maintenance-page .ops-repair-table td small {
+  color: var(--oc-text-muted);
+}
+
+.ops-maintenance-page .ops-repair-attachments .ops-photo-queued,
+.ops-maintenance-page .ops-repair-attachments .ops-repair-attachment {
+  border-color: var(--oc-line);
+  background: var(--oc-surface-raised);
+}
+
+.ops-maintenance-page .ops-issue-severity.monitor {
+  color: #3f4650;
+  background: #e8ebee;
+}
+
+.ops-maintenance-page .ops-issue-severity.repair_soon {
+  color: var(--oc-warning-text);
+  background: #fff0d2;
+}
+
+.ops-maintenance-page .ops-issue-severity.out_of_service {
+  color: #9e1c24;
+  background: #ffe1e3;
+}
+
+.ops-maintenance-page .ops-maintenance-status.scheduled {
+  color: #195b9b;
+  background: #e0edff;
 }

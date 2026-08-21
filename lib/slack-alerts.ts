@@ -13,6 +13,7 @@ import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
 import { money as moneyText } from "@/lib/money";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
+import { formatSlackMessage, slackEscape, type SlackMessageField } from "@/lib/slack-message-format";
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 
 export type SlackAlertSeverity = "critical" | "warning";
@@ -40,6 +41,7 @@ export type SlackOpsAlert = {
   detail: string;
   nextAction: string;
   href: string;
+  fields?: SlackMessageField[];
   plainText?: string;
 };
 
@@ -317,11 +319,6 @@ function staleDataAlert(source: DataHealthSource): SlackOpsAlert {
 }
 
 export function buildAddOnSlackNotification(appointment: AddOnAppointment, date: string): SlackOpsAlert {
-  const detail = [
-    `${appointment.customerName} · ${appointment.phone} · ${appointment.appointmentTime}`,
-    appointment.address,
-    appointment.items.length ? `Items: ${appointment.items.join("; ")}` : "",
-  ].filter(Boolean).join("\n");
   return {
     fingerprint: `add_on:${date}:${appointment.id}`,
     kind: "add_on",
@@ -329,17 +326,20 @@ export function buildAddOnSlackNotification(appointment: AddOnAppointment, date:
     severity: "warning",
     channelId: appointmentChannelId(appointment.territory),
     title: `New same-day appointment: ${appointment.jobNumber}`,
-    detail,
-    nextAction: "Confirm crew and truck coverage, then update the route plan.",
+    detail: "",
+    fields: [
+      { label: "Customer", value: appointment.customerName },
+      { label: "Phone", value: appointment.phone },
+      { label: "Time", value: appointment.appointmentTime },
+      { label: "Address", value: appointment.address },
+      ...(appointment.items.length ? [{ label: "Items", value: appointment.items.join("; ") }] : []),
+    ],
+    nextAction: "",
     href: absoluteOpsHref(appointment.href),
   };
 }
 
 export function buildCancellationSlackNotification(appointment: CancelledAppointment, date: string): SlackOpsAlert {
-  const cancellationContext = [
-    appointment.cancelledBy ? `Cancelled by ${appointment.cancelledBy}` : "",
-    appointment.cancellationReason ? `Reason: ${appointment.cancellationReason}` : "",
-  ].filter(Boolean).join(" · ");
   return {
     fingerprint: `cancellation:${date}:${appointment.id}`,
     kind: "cancellation",
@@ -347,12 +347,14 @@ export function buildCancellationSlackNotification(appointment: CancelledAppoint
     severity: "warning",
     channelId: appointmentChannelId(appointment.territory),
     title: `Appointment cancelled: ${appointment.jobNumber}`,
-    detail: [
-      appointment.customerName,
-      appointment.appointmentTime,
-      appointment.address,
-      cancellationContext,
-    ].filter(Boolean).join(" · "),
+    detail: "",
+    fields: [
+      { label: "Customer", value: appointment.customerName },
+      { label: "Time", value: appointment.appointmentTime },
+      { label: "Address", value: appointment.address },
+      ...(appointment.cancelledBy ? [{ label: "Cancelled by", value: appointment.cancelledBy }] : []),
+      ...(appointment.cancellationReason ? [{ label: "Reason", value: appointment.cancellationReason }] : []),
+    ],
     nextAction: "Confirm the territory schedule and update the crew and truck plan.",
     href: absoluteOpsHref(appointment.href),
   };
@@ -390,19 +392,24 @@ function crewNotification(
   kind: "crew_clock_in" | "crew_clock_out" | "crew_daily_pay",
   date: string,
   name: string,
-  plainText: string,
+  fields: SlackMessageField[],
 ): SlackOpsAlert {
+  const title = kind === "crew_clock_in"
+    ? "Crew clocked in"
+    : kind === "crew_clock_out"
+      ? "Crew clocked out"
+      : "Final daily pay";
   return {
     fingerprint: `${kind}:${date}:${employeeKey(name)}`,
     kind,
     lifecycle: "notification",
     severity: "warning",
     channelId: crewChannelId(),
-    title: plainText,
+    title,
     detail: "",
     nextAction: "",
     href: "",
-    plainText,
+    plainText: formatSlackMessage({ icon: ":bust_in_silhouette:", title, fields }),
   };
 }
 
@@ -420,7 +427,10 @@ export function buildCrewSlackNotifications(date: string, rows: AnyRecord[]): Sl
     const clockOut = firstText(row, ["clock_out", "time_out", "clockOut", "timeOut"]);
     if (!clockIn) continue;
 
-    notifications.push(crewNotification("crew_clock_in", date, name, `${name} clocked in.`));
+    notifications.push(crewNotification("crew_clock_in", date, name, [
+      { label: "Crew member", value: name },
+      { label: "Clock in", value: clockIn },
+    ]));
     if (!clockOut) continue;
 
     const hoursWorked = firstFiniteNumber(row, ["hours_worked", "hours"]);
@@ -429,7 +439,11 @@ export function buildCrewSlackNotifications(date: string, rows: AnyRecord[]): Sl
         "crew_clock_out",
         date,
         name,
-        `${name} clocked out. Hours worked: ${hoursWorked.toFixed(2)}.`,
+        [
+          { label: "Crew member", value: name },
+          { label: "Clock out", value: clockOut },
+          { label: "Hours", value: hoursWorked.toFixed(2) },
+        ],
       ));
     }
 
@@ -445,17 +459,18 @@ export function buildCrewSlackNotifications(date: string, rows: AnyRecord[]): Sl
     if (hourlyPay === null || tips === null || bonuses === null || totalPay === null) continue;
     if (Math.abs(totalPay - (hourlyPay + tips + bonuses + supplementalPay)) > 0.01) continue;
 
-    notifications.push(crewNotification(
-      "crew_daily_pay",
-      date,
-      name,
-      [
-        `${name} total pay: ${moneyText(totalPay)}.`,
-        `Hourly pay: ${moneyText(hourlyPay)}.`,
-        `Tips: ${moneyText(tips)}.`,
-        `Bonuses: ${moneyText(bonuses)}.`,
-        ...(supplementalPay ? [`Other pay: ${moneyText(supplementalPay)}.`] : []),
-      ].join(" "),
+      notifications.push(crewNotification(
+        "crew_daily_pay",
+        date,
+        name,
+        [
+          { label: "Crew member", value: name },
+          { label: "Total pay", value: moneyText(totalPay) },
+          { label: "Hourly pay", value: moneyText(hourlyPay) },
+          { label: "Tips", value: moneyText(tips) },
+          { label: "Bonuses", value: moneyText(bonuses) },
+          ...(supplementalPay ? [{ label: "Other pay", value: moneyText(supplementalPay) }] : []),
+        ],
     ));
   }
 
@@ -512,7 +527,15 @@ export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyReco
     if (seen.has(fingerprint)) continue;
     seen.add(fingerprint);
 
-    const plainText = truckCloseoutDetails(row)?.slackText || `:white_check_mark: ${jobNumber} closed out.`;
+    const closeout = truckCloseoutDetails(row);
+    const plainText = formatSlackMessage({
+      icon: ":white_check_mark:",
+      title: `${jobNumber} closed out`,
+      fields: [
+        { label: "Job", value: jobNumber },
+        ...parseSlackDetailLines(closeout?.lines || []),
+      ],
+    });
     notifications.push({
       fingerprint,
       kind: "job_closed",
@@ -558,11 +581,15 @@ export function buildPaymentCloseoutSlackNotifications(date: string, rows: AnyRe
       ?? firstFiniteNumber(row, ["tip", "tips"])
       ?? 0;
     const paymentLabel = paymentDescriptions.length === 1 ? "Payment" : "Payments";
-    const plainText = [
-      `${jobNumber} closed out.`,
-      `${paymentLabel}: ${paymentDescriptions.join("; ")}.`,
-      ...(tip > 0 ? [`Tip: ${moneyText(tip)}.`] : []),
-    ].join(" ");
+    const plainText = formatSlackMessage({
+      icon: ":credit_card:",
+      title: "Payment recorded",
+      fields: [
+        { label: "Job", value: jobNumber },
+        { label: paymentLabel, value: paymentDescriptions.join("; ") },
+        ...(tip > 0 ? [{ label: "Tip", value: moneyText(tip) }] : []),
+      ],
+    });
 
     notifications.push({
       fingerprint,
@@ -688,12 +715,16 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
       ].join(":");
       if (seen.has(fingerprint)) continue;
       seen.add(fingerprint);
-      const plainText = [
-        `:truck: ${truck} arrived onsite.`,
-        `Job: ${jkNumber}`,
-        `Customer: ${customerName}`,
-        `Address: ${address}`,
-      ].join("\n");
+      const plainText = formatSlackMessage({
+        icon: ":truck:",
+        title: "Truck arrived onsite",
+        fields: [
+          { label: "Truck", value: truck },
+          { label: "Job", value: jkNumber },
+          { label: "Customer", value: customerName },
+          { label: "Address", value: address },
+        ],
+      });
       notifications.push({
         fingerprint,
         kind: "truck_arrival",
@@ -745,19 +776,24 @@ function collectIncidentAlerts(date: string): SlackOpsAlert[] {
   return alerts;
 }
 
-function slackEscape(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function parseSlackDetailLines(lines: string[]): Array<{ label: string; value: string }> {
+  return lines.flatMap((line) => {
+    const match = line.match(/^([^:]+):\s*(.*?)\.?$/);
+    return match ? [{ label: match[1], value: match[2] }] : [];
+  });
 }
 
 export function formatSlackAlert(alert: SlackOpsAlert): string {
   if (alert.plainText) return slackEscape(alert.plainText);
   const icon = alert.severity === "critical" ? ":rotating_light:" : ":warning:";
-  return [
-    `${icon} *${slackEscape(alert.title)}*`,
-    slackEscape(alert.detail),
-    `*Next:* ${slackEscape(alert.nextAction)}`,
-    `<${alert.href}|Open in OpsCenter>`,
-  ].join("\n");
+  return formatSlackMessage({
+    icon,
+    title: alert.title,
+    fields: alert.fields,
+    body: alert.detail,
+    nextAction: alert.nextAction,
+    href: alert.href,
+  });
 }
 
 function slackAlertRunResult(date: string, dryRun: boolean, enabled: boolean, preview: SlackOpsAlert[]): SlackAlertRunResult {

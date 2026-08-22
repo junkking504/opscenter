@@ -9,7 +9,7 @@ import json
 import os
 import subprocess
 import time
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -58,6 +58,20 @@ def needs_reconciliation(job_delta: int, revenue_delta: float) -> bool:
     return abs(job_delta) > 0 or abs(revenue_delta) > 0.01
 
 
+def candidate_dates(month: str, days: int, today: date) -> list[str]:
+    """Return recent dates in the requested month, even after it has closed."""
+    year, month_number = (int(part) for part in month.split("-"))
+    first_of_next_month = date(year + (month_number == 12), month_number % 12 + 1, 1)
+    last_day = first_of_next_month - timedelta(days=1)
+    anchor = min(today, last_day)
+    count = max(1, min(days, 7))
+    return [
+        (anchor - timedelta(days=offset)).isoformat()
+        for offset in range(count - 1, -1, -1)
+        if (anchor - timedelta(days=offset)).strftime("%Y-%m") == month
+    ]
+
+
 def wait_for_refresh_lock(timeout_seconds: int = 600) -> None:
     deadline = time.monotonic() + timeout_seconds
     while REFRESH_LOCK.exists():
@@ -96,9 +110,7 @@ def main() -> int:
     if args.dates:
         dates = list(dict.fromkeys(args.dates))
     else:
-        count = max(1, min(args.days, 7))
-        dates = [(today - timedelta(days=offset)).isoformat() for offset in range(1, count + 1)]
-        dates.append(today.isoformat())
+        dates = candidate_dates(month, args.days, today)
 
     attempts = []
     for date in dates:

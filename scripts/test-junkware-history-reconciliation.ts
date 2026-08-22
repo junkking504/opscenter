@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 
 const historyScript = readFileSync(new URL("./run-junkware-history-reconciliation.sh", import.meta.url), "utf8");
 assert.match(historyScript, /abs\(float\(payload\.get\("unreconciled_gross_revenue"\)/, "History reconciliation must retry both positive and negative revenue drift.");
+assert.match(historyScript, /reconcile-junkware-lookback\.py --month "\$LOOKBACK_MONTH" --days 7/, "History reconciliation must repair each recently reconciled month.");
 
 const result = spawnSync("python3", ["-c", [
   "import importlib.util",
@@ -14,6 +15,9 @@ const result = spawnSync("python3", ["-c", [
   "assert module.needs_reconciliation(0, -195.0)",
   "assert module.needs_reconciliation(1, 0)",
   "assert not module.needs_reconciliation(0, 0.01)",
+  "from datetime import date",
+  "assert module.candidate_dates('2026-08', 3, date(2026, 8, 22)) == ['2026-08-20', '2026-08-21', '2026-08-22']",
+  "assert module.candidate_dates('2026-07', 3, date(2026, 8, 22)) == ['2026-07-29', '2026-07-30', '2026-07-31']",
 ].join("; ")], { encoding: "utf8" });
 
 assert.equal(result.status, 0, result.stderr || result.stdout);

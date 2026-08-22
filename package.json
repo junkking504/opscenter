@@ -50,6 +50,7 @@
     "verify:job-reschedules": "node --import tsx scripts/test-job-reschedules.ts",
     "verify:job-crew-notes": "node --import tsx scripts/test-job-crew-notes.ts",
     "verify:fleet-gps": "node --import tsx scripts/test-fleet-gps.ts",
+    "verify:fast-schedule": "node --import tsx scripts/test-junkware-fast-schedule.ts",
     "verify:linxup-freshness": "node --import tsx scripts/test-linxup-live-freshness.ts",
     "verify:linxup-camera:live": "node --import tsx scripts/test-linxup-camera-live.ts",
     "setup:linxup-camera": "node --import tsx scripts/setup-linxup-camera.ts",

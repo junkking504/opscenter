@@ -21,6 +21,7 @@ import { readJobRouteAssignmentOverrides } from "@/lib/job-route-assignments";
 import { jobRouteAssignmentKey } from "@/lib/job-route-key";
 import { jobCallAheadLookupKey, readJobCallAheadStatuses } from "@/lib/job-call-ahead";
 import { readVerifiedJobCancellations } from "@/lib/job-cancellations";
+import { readJunkwareFastSchedule } from "@/lib/junkware-fast-schedule";
 import { jobCrewNoteLookupKey, readJobCrewNotes, type JobCrewNote as JobCrewNoteRecord } from "@/lib/job-crew-notes";
 import {
   appointmentNotes,
@@ -1324,29 +1325,33 @@ function rawJunkwareFile(date: string): string {
 
 function readRawCancelledRows(date: string): Record<string, string>[] {
   const file = rawJunkwareFile(date);
-  if (!fs.existsSync(file)) return [];
+  const fastSchedule = readJunkwareFastSchedule(OPSBOT_DATA_DIR, date);
+  const rows: Record<string, string>[] = [
+    ...fastSchedule.cancelled.filter((row) => row && typeof row === "object") as Record<string, string>[],
+  ];
 
   try {
-    const payload = JSON.parse(fs.readFileSync(file, "utf8"));
-    return (Array.isArray(payload?.cancelled) ? payload.cancelled : [])
-      .filter((row: unknown) => row && typeof row === "object") as Record<string, string>[];
+    if (fs.existsSync(file)) {
+      const payload = JSON.parse(fs.readFileSync(file, "utf8"));
+      rows.push(...(Array.isArray(payload?.cancelled) ? payload.cancelled : [])
+        .filter((row: unknown) => row && typeof row === "object") as Record<string, string>[]);
+    }
   } catch {
-    return [];
+    // The full collector may atomically replace its file while the page is reading it.
   }
+
+  const unique = new Map<string, Record<string, string>>();
+  for (const row of rows) {
+    const key = firstValue(row, ["appt_id", "appointment_id"]) || firstValue(row, ["job_id", "jk_number"]);
+    if (key && !unique.has(key)) unique.set(key, row);
+  }
+  return Array.from(unique.values());
 }
 
 function readRawAppointmentLookup(date: string): Map<string, Record<string, any>> {
   const file = rawJunkwareFile(date);
   const lookup = new Map<string, Record<string, any>>();
-  if (!fs.existsSync(file)) return lookup;
-
-  try {
-    const payload = JSON.parse(fs.readFileSync(file, "utf8"));
-    const rows = [
-      ...(Array.isArray(payload?.appointments) ? payload.appointments : []),
-      ...(Array.isArray(payload?.completed) ? payload.completed : []),
-      ...(Array.isArray(payload?.cancelled) ? payload.cancelled : []),
-    ];
+  const addRows = (rows: unknown[]) => {
     for (const source of rows) {
       const row = source && typeof source === "object" ? source as Record<string, any> : {};
       const apptId = firstValue(row, ["appt_id", "appointment_id"]);
@@ -1354,9 +1359,22 @@ function readRawAppointmentLookup(date: string): Map<string, Record<string, any>
       if (apptId) lookup.set(`appt:${apptId}`, row);
       if (jobId) lookup.set(`job:${jobId.toLowerCase()}`, row);
     }
+  };
+
+  try {
+    if (fs.existsSync(file)) {
+      const payload = JSON.parse(fs.readFileSync(file, "utf8"));
+      addRows([
+        ...(Array.isArray(payload?.appointments) ? payload.appointments : []),
+        ...(Array.isArray(payload?.completed) ? payload.completed : []),
+        ...(Array.isArray(payload?.cancelled) ? payload.cancelled : []),
+      ]);
+    }
   } catch {
-    return lookup;
+    // Keep the fast watcher rows below when the slower collector is unavailable.
   }
+  const fastSchedule = readJunkwareFastSchedule(OPSBOT_DATA_DIR, date);
+  addRows([...fastSchedule.appointments, ...fastSchedule.cancelled]);
   return lookup;
 }
 
@@ -2628,6 +2646,7 @@ export default async function JobsPage({
     ? params.date
     : null;
   const date = requestedDate || resolveDate(params, { allowTomorrow: true });
+  const fastSchedule = readJunkwareFastSchedule(OPSBOT_DATA_DIR, date);
   const view = normalizeJobsView(params?.view);
   const workspace = normalizeJobsWorkspace(params?.workspace);
   const requestedMonthlySection = String(params?.section || "overview").toLowerCase();
@@ -2837,7 +2856,7 @@ export default async function JobsPage({
       />
 
       {view === "daily" ? (
-        <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} />
+        <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} scheduleUpdatedAt={fastSchedule.updatedAt} />
       ) : null}
 
       {monthlySummary && view === "calendar" ? (

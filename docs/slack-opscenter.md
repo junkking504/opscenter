@@ -1,6 +1,6 @@
 # OpsCenter Slack alerts
 
-OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. Confirmed LinxUp truck-arrival alerts are published separately by the one-minute LinxUp collector, immediately after visit matching. New appointments, reschedules, and cancellations are checked by a dedicated verified JunkWare schedule detector. When that fast detector sees a job complete, it immediately reads that one JunkWare closeout record before alerting. Slack is the action and escalation layer; OpsCenter remains the source of truth.
+OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. Confirmed LinxUp truck-arrival alerts are published separately by the one-minute LinxUp collector, immediately after visit matching. New appointments, reschedules, and cancellations are checked by a dedicated verified JunkWare schedule detector. The Dispatch schedule consumes the detector's per-market snapshots directly for current-day cancellations and refreshes an open current-day view when a newer snapshot arrives, so it does not wait for the slower full refresh cycle. When that fast detector sees a job complete, it immediately reads that one JunkWare closeout record before alerting. Slack is the action and escalation layer; OpsCenter remains the source of truth.
 
 ## Routing policy
 

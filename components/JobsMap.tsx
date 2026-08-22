@@ -79,6 +79,7 @@ type JobsMapProps = {
   scheduleView: boolean;
   trucks: string[];
   truckLocations: JobsMapTruck[];
+  scheduleUpdatedAt: string | null;
 };
 
 type LeafletModule = typeof import("leaflet");
@@ -90,7 +91,10 @@ type FleetLiveStatusPayload = {
 
 const STREET_TILES = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const STREET_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+const LOUISIANA_MAP_CENTER: [number, number] = [30.9843, -91.9623];
+const LOUISIANA_MAP_ZOOM = 7;
 const LINXUP_POLL_INTERVAL_MS = 30_000;
+const SCHEDULE_POLL_INTERVAL_MS = 15_000;
 const LINXUP_SITE_RADIUS_METERS = 125;
 const LINXUP_MINIMUM_DWELL_MS = 2 * 60_000;
 const LINXUP_MAX_POINT_GAP_MS = 5 * 60_000;
@@ -522,7 +526,7 @@ function sameTruck(left: string, right: string): boolean {
   return left.trim().toLowerCase() === right.trim().toLowerCase();
 }
 
-export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: JobsMapProps) {
+export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations, scheduleUpdatedAt }: JobsMapProps) {
   const router = useRouter();
   const mapNodeRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
@@ -543,6 +547,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     truckLocations.map((truck) => truck.lastGpsUpdate).filter(Boolean).sort().at(-1) || null,
   );
   const linxupUpdatedAtRef = useRef(linxupUpdatedAt);
+  const scheduleUpdatedAtRef = useRef(scheduleUpdatedAt);
   const [linxupUpdateDelayed, setLinxupUpdateDelayed] = useState(false);
   const serverAssignments = useMemo(
     () => Object.fromEntries(jobs.map((job) => [job.key, routeTruck(job.truck)])),
@@ -584,6 +589,10 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       setLinxupUpdatedAt(latest);
     }
   }, [truckLocations]);
+
+  useEffect(() => {
+    scheduleUpdatedAtRef.current = scheduleUpdatedAt;
+  }, [scheduleUpdatedAt]);
 
   useEffect(() => () => {
     dragCleanupRef.current?.();
@@ -733,6 +742,45 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       window.removeEventListener("online", handleOnline);
     };
   }, [date, scheduleView]);
+
+  useEffect(() => {
+    if (!scheduleView || chicagoScheduleClock().date !== date) return;
+
+    let active = true;
+    let requestInFlight = false;
+    const controller = new AbortController();
+
+    async function refreshWhenScheduleChanges() {
+      if (!active || requestInFlight || document.visibilityState === "hidden") return;
+      requestInFlight = true;
+      try {
+        const response = await fetch(`/api/schedule-live-status?date=${encodeURIComponent(date)}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const payload = await response.json().catch(() => null) as { lastUpdatedAt?: string | null } | null;
+        const updatedAt = payload?.lastUpdatedAt || null;
+        if (active && response.ok && updatedAt && updatedAt !== scheduleUpdatedAtRef.current) {
+          scheduleUpdatedAtRef.current = updatedAt;
+          router.refresh();
+        }
+      } finally {
+        requestInFlight = false;
+      }
+    }
+
+    const timer = window.setInterval(() => void refreshWhenScheduleChanges(), SCHEDULE_POLL_INTERVAL_MS);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") void refreshWhenScheduleChanges();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [date, router, scheduleView]);
 
   useEffect(() => {
     if (!selectedTruck) {
@@ -1120,7 +1168,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       zoomControl: true,
       scrollWheelZoom: true,
       attributionControl: true,
-    });
+    }).setView(LOUISIANA_MAP_CENTER, LOUISIANA_MAP_ZOOM);
     leaflet.tileLayer(STREET_TILES, {
       attribution: STREET_ATTRIBUTION,
       maxZoom: 20,
@@ -1352,9 +1400,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
             <div className="ops-jobs-map-empty">No verified job locations are available for this view.</div>
           ) : null}
 
-          {selectedTruck || selectedJob ? null : (
-            <div className="ops-jobs-map-prompt">Select an appointment square for job and truck details.</div>
-          )}
         </div>
 
         {scheduleView ? (
@@ -1695,15 +1740,9 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         </div>
       ) : null}
 
-      {scheduleView ? (
+      {scheduleView && assignmentMessage ? (
         <div className="ops-jobs-map-assignment-status" aria-live="polite">
-          {assignmentMessage || "Drag a block to change its truck or time. Right-click a block to cancel it in JunkWare."}
-        </div>
-      ) : null}
-
-      {jobs.length > locatedJobs.length ? (
-        <div className="ops-jobs-map-foot">
-          {jobs.length - locatedJobs.length} {jobs.length - locatedJobs.length === 1 ? "job is" : "jobs are"} still listed in the schedule but cannot be placed until the service address is verified.
+          {assignmentMessage}
         </div>
       ) : null}
     </section>

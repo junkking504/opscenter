@@ -1,5 +1,4 @@
 /* eslint-disable @next/next/no-img-element -- JunkWare job photos are public closeout media URLs. */
-import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import Link from "next/link";
@@ -21,6 +20,7 @@ import { readJobRouteAssignmentOverrides } from "@/lib/job-route-assignments";
 import { jobRouteAssignmentKey } from "@/lib/job-route-key";
 import { jobCallAheadLookupKey, readJobCallAheadStatuses } from "@/lib/job-call-ahead";
 import { readVerifiedJobCancellations } from "@/lib/job-cancellations";
+import { junkwareScheduleRowKey, readJunkwareFastSchedule } from "@/lib/junkware-fast-schedule";
 import { jobCrewNoteLookupKey, readJobCrewNotes, type JobCrewNote as JobCrewNoteRecord } from "@/lib/job-crew-notes";
 import {
   appointmentNotes,
@@ -34,6 +34,7 @@ import {
 import { missingPaymentTypeLabel, shouldFlagMissingPhotos } from "@/lib/job-audit-rules";
 import { junkwareBookedAt, junkwareBookedDateLabel } from "@/lib/junkware-booking-date";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
+import { planningLocation, type PlanningLocation } from "@/lib/planning-geocodes";
 import "./jobs.css";
 
 const OPSBOT_DATA_DIR =
@@ -148,10 +149,7 @@ type JobsFilters = {
   siteTime: string;
 };
 
-type RouteLocation = {
-  latitude: number;
-  longitude: number;
-};
+type RouteLocation = PlanningLocation;
 
 type RoutePlanStop = {
   job: JobRow;
@@ -1324,29 +1322,42 @@ function rawJunkwareFile(date: string): string {
 
 function readRawCancelledRows(date: string): Record<string, string>[] {
   const file = rawJunkwareFile(date);
-  if (!fs.existsSync(file)) return [];
+  const fastSchedule = readJunkwareFastSchedule(OPSBOT_DATA_DIR, date);
+  const rows: Record<string, string>[] = [
+    ...fastSchedule.cancelled.filter((row) => row && typeof row === "object") as Record<string, string>[],
+  ];
+  const currentFastKeys = new Set(fastSchedule.appointments.map(junkwareScheduleRowKey));
+  const currentFastCancellationKeys = new Set(fastSchedule.cancelled.map(junkwareScheduleRowKey));
 
   try {
-    const payload = JSON.parse(fs.readFileSync(file, "utf8"));
-    return (Array.isArray(payload?.cancelled) ? payload.cancelled : [])
-      .filter((row: unknown) => row && typeof row === "object") as Record<string, string>[];
+    if (fs.existsSync(file)) {
+      const payload = JSON.parse(fs.readFileSync(file, "utf8"));
+      const rawCancellations = (Array.isArray(payload?.cancelled) ? payload.cancelled : [])
+        .filter((row: unknown) => row && typeof row === "object") as Record<string, string>[];
+      // The fast watcher is the current source. A later confirmed row means
+      // JunkWare reactivated the appointment, so an older full-refresh
+      // cancellation must not keep it falsely canceled in Dispatch.
+      rows.push(...rawCancellations.filter((row) => {
+        const key = junkwareScheduleRowKey(row);
+        return !currentFastKeys.has(key) && !currentFastCancellationKeys.has(key);
+      }));
+    }
   } catch {
-    return [];
+    // The full collector may atomically replace its file while the page is reading it.
   }
+
+  const unique = new Map<string, Record<string, string>>();
+  for (const row of rows) {
+    const key = firstValue(row, ["appt_id", "appointment_id"]) || firstValue(row, ["job_id", "jk_number"]);
+    if (key && !unique.has(key)) unique.set(key, row);
+  }
+  return Array.from(unique.values());
 }
 
 function readRawAppointmentLookup(date: string): Map<string, Record<string, any>> {
   const file = rawJunkwareFile(date);
   const lookup = new Map<string, Record<string, any>>();
-  if (!fs.existsSync(file)) return lookup;
-
-  try {
-    const payload = JSON.parse(fs.readFileSync(file, "utf8"));
-    const rows = [
-      ...(Array.isArray(payload?.appointments) ? payload.appointments : []),
-      ...(Array.isArray(payload?.completed) ? payload.completed : []),
-      ...(Array.isArray(payload?.cancelled) ? payload.cancelled : []),
-    ];
+  const addRows = (rows: unknown[]) => {
     for (const source of rows) {
       const row = source && typeof source === "object" ? source as Record<string, any> : {};
       const apptId = firstValue(row, ["appt_id", "appointment_id"]);
@@ -1354,9 +1365,22 @@ function readRawAppointmentLookup(date: string): Map<string, Record<string, any>
       if (apptId) lookup.set(`appt:${apptId}`, row);
       if (jobId) lookup.set(`job:${jobId.toLowerCase()}`, row);
     }
+  };
+
+  try {
+    if (fs.existsSync(file)) {
+      const payload = JSON.parse(fs.readFileSync(file, "utf8"));
+      addRows([
+        ...(Array.isArray(payload?.appointments) ? payload.appointments : []),
+        ...(Array.isArray(payload?.completed) ? payload.completed : []),
+        ...(Array.isArray(payload?.cancelled) ? payload.cancelled : []),
+      ]);
+    }
   } catch {
-    return lookup;
+    // Keep the fast watcher rows below when the slower collector is unavailable.
   }
+  const fastSchedule = readJunkwareFastSchedule(OPSBOT_DATA_DIR, date);
+  addRows([...fastSchedule.appointments, ...fastSchedule.cancelled]);
   return lookup;
 }
 
@@ -2013,6 +2037,11 @@ function territoryAnchorId(territory: string): string {
   return `territory-${territory.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
 }
 
+function territoryAbbreviation(territory: string): string {
+  const normalized = normalizeTerritory(territory);
+  return CALENDAR_TERRITORIES.find((item) => item.territory === normalized)?.abbreviation || "UNK";
+}
+
 function territoryToneClass(territory: string): string {
   const normalized = territory.toLowerCase();
   if (normalized.includes("new orleans")) return "is-new-orleans";
@@ -2413,15 +2442,6 @@ function planningTruckOptions(jobs: JobRow[]): string[] {
   return Array.from(trucks).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 }
 
-function planningAddressHash(address: string): string {
-  const normalized = String(address || "")
-    .replace(/\s+/g, " ")
-    .replace(/\s*,\s*/g, ", ")
-    .trim()
-    .toUpperCase();
-  return crypto.createHash("sha256").update(normalized).digest("hex");
-}
-
 function readPlanningGeocodes(): Record<string, Record<string, unknown>> {
   const file = path.join(OPSBOT_DATA_DIR, "cache", "appointment_geocodes.json");
   if (!fs.existsSync(file)) return {};
@@ -2431,21 +2451,6 @@ function readPlanningGeocodes(): Record<string, Record<string, unknown>> {
   } catch {
     return {};
   }
-}
-
-function planningLocation(
-  address: string,
-  geocodes: Record<string, Record<string, unknown>>,
-): RouteLocation | null {
-  if (!address || address === "—") return null;
-  const match = geocodes[planningAddressHash(address)];
-  // Number(null) is 0, which Leaflet renders off the Louisiana map at 0,0.
-  // Only use an address after the geocoder supplied both coordinate values.
-  if (match?.latitude == null || match?.longitude == null) return null;
-  const latitude = Number(match?.latitude);
-  const longitude = Number(match?.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude === 0 || longitude === 0) return null;
-  return { latitude, longitude };
 }
 
 function routeDistanceMiles(from: RouteLocation, to: RouteLocation): number {
@@ -2628,6 +2633,7 @@ export default async function JobsPage({
     ? params.date
     : null;
   const date = requestedDate || resolveDate(params, { allowTomorrow: true });
+  const fastSchedule = readJunkwareFastSchedule(OPSBOT_DATA_DIR, date);
   const view = normalizeJobsView(params?.view);
   const workspace = normalizeJobsWorkspace(params?.workspace);
   const requestedMonthlySection = String(params?.section || "overview").toLowerCase();
@@ -2837,7 +2843,7 @@ export default async function JobsPage({
       />
 
       {view === "daily" ? (
-        <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} />
+        <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} scheduleUpdatedAt={fastSchedule.updatedAt} />
       ) : null}
 
       {monthlySummary && view === "calendar" ? (
@@ -3284,7 +3290,7 @@ export default async function JobsPage({
                 title={territory}
                 aria-label={`Jump to ${territory}, ${territoryJobs.length} appointments`}
               >
-                {territory} <small>{territoryJobs.length}</small>
+                {territoryAbbreviation(territory)} <small>{territoryJobs.length}</small>
               </a>
             ))}
           </nav>

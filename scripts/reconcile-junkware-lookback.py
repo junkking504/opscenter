@@ -9,7 +9,7 @@ import json
 import os
 import subprocess
 import time
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -53,6 +53,25 @@ def read_month(month: str) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def needs_reconciliation(job_delta: int, revenue_delta: float) -> bool:
+    """Return true when either direction differs from JunkWare authority."""
+    return abs(job_delta) > 0 or abs(revenue_delta) > 0.01
+
+
+def candidate_dates(month: str, days: int, today: date) -> list[str]:
+    """Return recent dates in the requested month, even after it has closed."""
+    year, month_number = (int(part) for part in month.split("-"))
+    first_of_next_month = date(year + (month_number == 12), month_number % 12 + 1, 1)
+    last_day = first_of_next_month - timedelta(days=1)
+    anchor = min(today, last_day)
+    count = max(1, min(days, 7))
+    return [
+        (anchor - timedelta(days=offset)).isoformat()
+        for offset in range(count - 1, -1, -1)
+        if (anchor - timedelta(days=offset)).strftime("%Y-%m") == month
+    ]
+
+
 def wait_for_refresh_lock(timeout_seconds: int = 600) -> None:
     deadline = time.monotonic() + timeout_seconds
     while REFRESH_LOCK.exists():
@@ -84,21 +103,32 @@ def main() -> int:
     before_job_delta = authoritative_jobs - before_jobs
     before_revenue_delta = round(authoritative_revenue - before_revenue, 2)
 
-    if before_job_delta <= 0 and before_revenue_delta <= 0.01:
+    if not needs_reconciliation(before_job_delta, before_revenue_delta):
         print(json.dumps({"status": "not_needed", "month": month}))
         return 0
 
     if args.dates:
         dates = list(dict.fromkeys(args.dates))
     else:
-        count = max(1, min(args.days, 7))
-        dates = [(today - timedelta(days=offset)).isoformat() for offset in range(1, count + 1)]
-        dates.append(today.isoformat())
+        dates = candidate_dates(month, args.days, today)
 
     attempts = []
     for date in dates:
         wait_for_refresh_lock()
-        result = subprocess.run([str(REFRESH_SCRIPT), date], cwd=OPSBOT_ROOT, check=False)
+        # A historical repair updates JunkWare source snapshots. It must neither
+        # replay operational truck-arrival alerts nor compete with the dedicated
+        # live GPS collector for the LinxUp refresh lock.
+        refresh_environment = {
+            **os.environ,
+            "LINXUP_PUBLISH_SLACK_ALERTS": "false",
+            "LINXUP_SKIP_REFRESH": "true",
+        }
+        result = subprocess.run(
+            [str(REFRESH_SCRIPT), date],
+            cwd=OPSBOT_ROOT,
+            env=refresh_environment,
+            check=False,
+        )
         jobs, revenue = completed_totals(month)
         attempts.append({
             "date": date,
@@ -108,7 +138,7 @@ def main() -> int:
             "remaining_jobs": authoritative_jobs - jobs,
             "remaining_revenue": round(authoritative_revenue - revenue, 2),
         })
-        if authoritative_jobs - jobs <= 0 and authoritative_revenue - revenue <= 0.01:
+        if not needs_reconciliation(authoritative_jobs - jobs, authoritative_revenue - revenue):
             break
 
     after_jobs, after_revenue = completed_totals(month)

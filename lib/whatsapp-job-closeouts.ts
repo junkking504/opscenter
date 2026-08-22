@@ -438,7 +438,10 @@ function compilePlan(session: CloseoutSession, senderPhone: string): { plan: Job
       paymentReconciles,
       sourceMessageIds: session.messageIds,
       senderHash: recordKey(normalizePhone(senderPhone)),
-      createdAt: new Date().toISOString(),
+      // Confirmation validity is based on the inbound-message timeline. Using
+      // processing time can reject a valid confirmation when queue recovery
+      // processes the original closeout after the confirmation arrived.
+      createdAt: session.updatedAt,
       mode: "shadow",
     },
     missing,

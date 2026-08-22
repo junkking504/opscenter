@@ -8,7 +8,12 @@ function cacheKey(address: string): string {
 }
 
 const confirmed = {
-  [cacheKey("4026 Juno Drive, Chalmette, 70043")]: { latitude: 29.9601984, longitude: -89.966716 },
+  [cacheKey("4026 Juno Drive, Chalmette, 70043")]: {
+    latitude: 29.9601984,
+    longitude: -89.966716,
+    match_confidence: "confirmed",
+    normalized_address: "4026 Juno Drive, Chalmette, 70043",
+  },
 };
 
 assert.deepEqual(
@@ -16,9 +21,22 @@ assert.deepEqual(
   { latitude: 29.9601984, longitude: -89.966716 },
   "A separate Louisiana state column must resolve to the confirmed JunkWare geocode.",
 );
+assert.deepEqual(
+  planningLocation("4026 Juno Drive Chalmette, LA 70043", confirmed),
+  { latitude: 29.9601984, longitude: -89.966716 },
+  "JunkWare's fast-schedule punctuation must resolve to the same confirmed service address.",
+);
 assert.equal(planningLocation("4026 Juno Drive, Chalmette, LA 70043", {}), null);
 assert.equal(planningLocation("4026 Juno Drive, Chalmette, LA 70043", {
   [cacheKey("4026 Juno Drive, Chalmette, 70043")]: { latitude: null, longitude: -89.966716 },
+}), null);
+assert.equal(planningLocation("4026 Juno Drive Chalmette, LA 70043", {
+  [cacheKey("4026 Juno Drive, Chalmette, 70043")]: {
+    latitude: 29.9601984,
+    longitude: -89.966716,
+    match_confidence: "ambiguous",
+    normalized_address: "4026 Juno Drive, Chalmette, 70043",
+  },
 }), null);
 assert.equal(planningLocation("—", confirmed), null);
 console.log("Planning geocode checks passed.");

@@ -32,19 +32,38 @@ function planningAddressHashes(address: string): string[] {
   return Array.from(new Set([normalized, withoutLouisianaState])).map(addressHash);
 }
 
+function planningAddressIdentity(address: string): string {
+  return normalizeAddress(address)
+    .replace(/(?:,|\s)(?:LA|LOUISIANA) (?=\d{5}(?:-\d{4})?$)/, " ")
+    .replace(/[^A-Z0-9]+/g, " ")
+    .trim();
+}
+
+function confirmedCoordinates(candidate: Record<string, unknown> | undefined): PlanningLocation | null {
+  if (candidate?.match_confidence !== "confirmed") return null;
+  const latitude = Number(candidate.latitude);
+  const longitude = Number(candidate.longitude);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude === 0 || longitude === 0) return null;
+  return { latitude, longitude };
+}
+
 export function planningLocation(
   address: string,
   geocodes: Record<string, Record<string, unknown>>,
 ): PlanningLocation | null {
   if (!address || address === "—") return null;
-  const match = planningAddressHashes(address)
+  const directMatch = planningAddressHashes(address)
     .map((hash) => geocodes[hash])
-    .find((candidate) => candidate?.latitude != null && candidate?.longitude != null);
+    .map(confirmedCoordinates)
+    .find(Boolean);
+  if (directMatch) return directMatch;
+
+  const identity = planningAddressIdentity(address);
+  const compatibleMatch = Object.values(geocodes)
+    .filter((candidate) => planningAddressIdentity(String(candidate.normalized_address || "")) === identity)
+    .map(confirmedCoordinates)
+    .find(Boolean);
   // Number(null) is 0, which Leaflet renders off the Louisiana map at 0,0.
   // Only use an address after the confirmed geocoder supplied both values.
-  if (!match) return null;
-  const latitude = Number(match.latitude);
-  const longitude = Number(match.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude === 0 || longitude === 0) return null;
-  return { latitude, longitude };
+  return compatibleMatch || null;
 }

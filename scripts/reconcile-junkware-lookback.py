@@ -53,6 +53,11 @@ def read_month(month: str) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def needs_reconciliation(job_delta: int, revenue_delta: float) -> bool:
+    """Return true when either direction differs from JunkWare authority."""
+    return abs(job_delta) > 0 or abs(revenue_delta) > 0.01
+
+
 def wait_for_refresh_lock(timeout_seconds: int = 600) -> None:
     deadline = time.monotonic() + timeout_seconds
     while REFRESH_LOCK.exists():
@@ -84,7 +89,7 @@ def main() -> int:
     before_job_delta = authoritative_jobs - before_jobs
     before_revenue_delta = round(authoritative_revenue - before_revenue, 2)
 
-    if before_job_delta <= 0 and before_revenue_delta <= 0.01:
+    if not needs_reconciliation(before_job_delta, before_revenue_delta):
         print(json.dumps({"status": "not_needed", "month": month}))
         return 0
 
@@ -108,7 +113,7 @@ def main() -> int:
             "remaining_jobs": authoritative_jobs - jobs,
             "remaining_revenue": round(authoritative_revenue - revenue, 2),
         })
-        if authoritative_jobs - jobs <= 0 and authoritative_revenue - revenue <= 0.01:
+        if not needs_reconciliation(authoritative_jobs - jobs, authoritative_revenue - revenue):
             break
 
     after_jobs, after_revenue = completed_totals(month)

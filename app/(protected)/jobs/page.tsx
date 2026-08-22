@@ -2040,6 +2040,11 @@ function territoryAnchorId(territory: string): string {
   return `territory-${territory.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}`;
 }
 
+function territoryAbbreviation(territory: string): string {
+  const normalized = normalizeTerritory(territory);
+  return CALENDAR_TERRITORIES.find((item) => item.territory === normalized)?.abbreviation || "UNK";
+}
+
 function territoryToneClass(territory: string): string {
   const normalized = territory.toLowerCase();
   if (normalized.includes("new orleans")) return "is-new-orleans";
@@ -3312,7 +3317,7 @@ export default async function JobsPage({
                 title={territory}
                 aria-label={`Jump to ${territory}, ${territoryJobs.length} appointments`}
               >
-                {territory} <small>{territoryJobs.length}</small>
+                {territoryAbbreviation(territory)} <small>{territoryJobs.length}</small>
               </a>
             ))}
           </nav>

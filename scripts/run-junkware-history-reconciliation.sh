@@ -18,7 +18,10 @@ done
 
 python3 scripts/reconcile-junkware-monthly.py --previous-months 1 --lock-wait-seconds 600
 
-LOOKBACK_NEEDED=$(python3 -c 'import json; from datetime import datetime; from pathlib import Path; month=datetime.now().strftime("%Y-%m"); path=Path("data/history/monthly_metrics")/f"monthly_metrics_{month}.json"; payload=json.loads(path.read_text()) if path.exists() else {}; print("1" if int(payload.get("unreconciled_completed_jobs") or 0)>0 or float(payload.get("unreconciled_gross_revenue") or 0)>0.01 else "0")')
+# JunkWare may correct a prior closeout up or down. Either non-trivial
+# direction requires a lookback refresh; only checking positive deltas lets a
+# stale overstatement persist indefinitely.
+LOOKBACK_NEEDED=$(python3 -c 'import json; from datetime import datetime; from pathlib import Path; month=datetime.now().strftime("%Y-%m"); path=Path("data/history/monthly_metrics")/f"monthly_metrics_{month}.json"; payload=json.loads(path.read_text()) if path.exists() else {}; print("1" if abs(int(payload.get("unreconciled_completed_jobs") or 0)) > 0 or abs(float(payload.get("unreconciled_gross_revenue") or 0)) > 0.01 else "0")')
 
 if [ "$LOOKBACK_NEEDED" = "1" ]; then
   python3 scripts/reconcile-junkware-lookback.py --days 7

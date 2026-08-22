@@ -23,8 +23,10 @@ process.env.WHATSAPP_TRUCK_PHONE_MAP = JSON.stringify({
 });
 
 const date = "2026-08-13";
-const receivedAt = new Date().toISOString();
-const confirmationAt = new Date(new Date(receivedAt).getTime() + 60_000).toISOString();
+// Keep the message clock aligned with the dated JunkWare fixture. Using the
+// wall clock made this test look for today’s schedule after August 13 passed.
+const receivedAt = "2026-08-13T14:00:00.000-05:00";
+const confirmationAt = "2026-08-13T14:01:00.000-05:00";
 const metricsDirectory = path.join(testRoot, "data", "history", "daily_metrics");
 fs.mkdirSync(metricsDirectory, { recursive: true });
 fs.writeFileSync(path.join(metricsDirectory, `daily_metrics_${date}.json`), JSON.stringify({

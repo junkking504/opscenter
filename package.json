@@ -22,6 +22,7 @@
     "verify:searchkings": "node --import tsx scripts/test-searchkings.ts",
     "verify:junkware-sms": "node --import tsx scripts/test-junkware-sms.ts",
     "verify:junkware-schedule-map": "node --import tsx scripts/test-junkware-live-refresh-loop.ts",
+    "verify:junkware-history-reconciliation": "node --import tsx scripts/test-junkware-history-reconciliation.ts",
     "verify:schedule-map-geocodes": "node --import tsx scripts/test-schedule-map-geocodes.ts",
     "verify:junkware-booking-date": "node --import tsx scripts/test-junkware-booking-date.ts",
     "verify:whatsapp-job-photos": "node --import tsx scripts/test-whatsapp-job-photos.ts",

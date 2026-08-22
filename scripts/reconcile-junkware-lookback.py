@@ -115,7 +115,15 @@ def main() -> int:
     attempts = []
     for date in dates:
         wait_for_refresh_lock()
-        result = subprocess.run([str(REFRESH_SCRIPT), date], cwd=OPSBOT_ROOT, check=False)
+        # A historical repair updates source snapshots; it must never replay
+        # operational truck-arrival alerts for an old calendar date.
+        refresh_environment = {**os.environ, "LINXUP_PUBLISH_SLACK_ALERTS": "false"}
+        result = subprocess.run(
+            [str(REFRESH_SCRIPT), date],
+            cwd=OPSBOT_ROOT,
+            env=refresh_environment,
+            check=False,
+        )
         jobs, revenue = completed_totals(month)
         attempts.append({
             "date": date,

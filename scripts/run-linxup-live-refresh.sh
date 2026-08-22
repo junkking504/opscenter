@@ -6,9 +6,12 @@ OPSBOT_DIR="${OPSBOT_DIR:-$USER_HOME/.openclaw/workspace/opsbot}"
 OPSCENTER_DIR="${OPSCENTER_DIR:-$USER_HOME/opscenter-v2/opscenter}"
 TARGET_DATE="${1:-$(TZ=America/Chicago date +%F)}"
 LOCK_DIR="$OPSBOT_DIR/tmp/linxup_live_refresh.lock"
+LOCK_HELPER="$OPSCENTER_DIR/scripts/linxup-lock.sh"
+RETRY_HELPER="$OPSCENTER_DIR/scripts/linxup-retry.sh"
 MAP_FILE="$OPSBOT_DIR/data/config/linxup_vehicle_map.json"
 MAP_REFRESH_SECONDS="${LINXUP_MAP_REFRESH_SECONDS:-900}"
 MAX_ATTEMPTS="${LINXUP_MAX_ATTEMPTS:-2}"
+RETRY_DELAY_SECONDS="${LINXUP_RETRY_DELAY_SECONDS:-10}"
 PUBLISH_SLACK_ALERTS="${LINXUP_PUBLISH_SLACK_ALERTS:-true}"
 SKIP_REFRESH="${LINXUP_SKIP_REFRESH:-false}"
 
@@ -24,14 +27,28 @@ fi
 
 mkdir -p "$OPSBOT_DIR/tmp" "$OPSBOT_DIR/logs"
 
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  echo "LinxUp refresh skipped because another LinxUp refresh is active."
-  exit 0
-fi
-cleanup() {
-  rmdir "$LOCK_DIR" 2>/dev/null || true
+[[ -r "$LOCK_HELPER" ]] || {
+  echo "LinxUp lock helper is unavailable: $LOCK_HELPER" >&2
+  exit 70
 }
-trap cleanup EXIT
+[[ -r "$RETRY_HELPER" ]] || {
+  echo "LinxUp retry helper is unavailable: $RETRY_HELPER" >&2
+  exit 70
+}
+LINXUP_LOCK_DIR="$LOCK_DIR"
+LINXUP_LOCK_OWNER_KIND="poll"
+. "$LOCK_HELPER"
+. "$RETRY_HELPER"
+if linxup_lock_acquire; then
+  trap linxup_lock_release EXIT
+else
+  lock_status=$?
+  if (( lock_status == LINXUP_LOCK_ACTIVE )); then
+    echo "LinxUp refresh skipped because another LinxUp processor is genuinely active."
+    exit 0
+  fi
+  exit "$lock_status"
+fi
 
 if ! /usr/sbin/scutil -r www.awaregps.com 2>/dev/null | /usr/bin/grep -q '^Reachable'; then
   echo "LinxUp refresh deferred until network connectivity returns."
@@ -62,24 +79,10 @@ refresh_once() {
   python3 scripts/validate_linxup_appointment_visits.py --date "$TARGET_DATE" || return $?
 }
 
-attempt=1
-refresh_status=1
-while (( attempt <= MAX_ATTEMPTS )); do
-  if refresh_once; then
-    refresh_status=0
-    break
-  else
-    refresh_status=$?
-  fi
-
-  if (( attempt < MAX_ATTEMPTS )); then
-    echo "LinxUp refresh attempt $attempt/$MAX_ATTEMPTS failed (exit $refresh_status); retrying in 10 seconds." >&2
-    sleep 10
-  fi
-  attempt=$((attempt + 1))
-done
-
-if (( refresh_status != 0 )); then
+if linxup_retry "$MAX_ATTEMPTS" "$RETRY_DELAY_SECONDS" refresh_once; then
+  refresh_status=0
+else
+  refresh_status=$?
   echo "LinxUp refresh failed after $MAX_ATTEMPTS attempt(s) (exit $refresh_status)." >&2
   exit "$refresh_status"
 fi

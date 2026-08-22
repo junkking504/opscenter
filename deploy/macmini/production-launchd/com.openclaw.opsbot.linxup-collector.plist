@@ -33,6 +33,8 @@
     <string>/Users/missioncontrol</string>
     <key>OPSBOT_DIR</key>
     <string>/Users/missioncontrol/.openclaw/workspace/opsbot</string>
+    <key>LINXUP_LOCK_MAX_AGE_SECONDS</key>
+    <string>900</string>
     <key>PATH</key>
     <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
     <key>PYTHONUNBUFFERED</key>

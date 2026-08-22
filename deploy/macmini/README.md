@@ -104,6 +104,37 @@ Keychain. `/api/health` reports `stale-linxup-data` when today's normalized GPS
 snapshot is more than three minutes old, and current OpsCenter pages refresh
 when a newer LinxUp snapshot arrives.
 
+This is a per-user LaunchAgent in the `missioncontrol` Aqua login domain, and
+its API token is in that user's login Keychain. Locking the display is safe, but
+logging the user out unloads the LaunchAgent; after a reboot, the console session
+and login Keychain must be restored before collection can resume. Treat the
+logged-in console session as a known availability dependency until the collector
+and its credential move to a headless service domain and non-interactive secret
+store.
+
+The V2 poller and V3 push processor share an atomic lock directory. Its `owner`
+file records the process ID, UTC start time, and a unique ownership token. A
+second process exits normally only while that owner is alive and the lock is no
+more than `LINXUP_LOCK_MAX_AGE_SECONDS` old (15 minutes by default). A dead,
+missing, malformed, or over-age owner is quarantined and replaced automatically;
+an unrecoverable lock error exits non-zero so launchd `KeepAlive` and monitoring
+can observe the failure. Ownership tokens prevent an old process from deleting
+a replacement lock during cleanup.
+
+The location collector validates every normalized point against the collection
+timestamp and rejects a future-dated point before replacing the normalized Fleet
+file. The retry helper then invokes the complete refresh callback again, causing
+a fresh API request rather than reprocessing the rejected response. The focused
+collector-safeguard verification tests both the deployed Python rejection and the
+two-attempt callback behavior.
+
+The legacy `linxup_YYYY-MM-DD_raw.json` and summary feed exists for daily metrics
+and is intentionally separate from `linxup_location_YYYY-MM-DD.json`, which is
+the normalized GPS source consumed by Fleet. A fresh legacy response therefore
+does not prove that the Fleet map is current. Both `/api/health` and Slack data
+health use the normalized location-history modification time as their LinxUp
+freshness signal.
+
 When the dedicated collector is already loaded, each immutable production
 deployment reinstalls its LaunchAgent from the newly active release. This keeps
 the installed retry, `KeepAlive`, and throttle policy synchronized with the

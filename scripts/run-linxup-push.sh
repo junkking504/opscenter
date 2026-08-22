@@ -6,14 +6,21 @@ USER_HOME="${HOME:?HOME must be set}"
 OPSBOT_DIR="${OPSBOT_DIR:-$USER_HOME/.openclaw/workspace/opsbot}"
 OPSCENTER_DIR="${OPSCENTER_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 LOCK_DIR="$OPSBOT_DIR/tmp/linxup_live_refresh.lock"
+LOCK_HELPER="$OPSCENTER_DIR/scripts/linxup-lock.sh"
 
 mkdir -p "$OPSBOT_DIR/tmp"
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  echo "LinxUp push deferred because another LinxUp processor is active." >&2
-  exit 75
+[[ -r "$LOCK_HELPER" ]] || {
+  echo "LinxUp lock helper is unavailable: $LOCK_HELPER" >&2
+  exit 70
+}
+LINXUP_LOCK_DIR="$LOCK_DIR"
+LINXUP_LOCK_OWNER_KIND="push"
+. "$LOCK_HELPER"
+if linxup_lock_acquire; then
+  trap linxup_lock_release EXIT
+else
+  exit $?
 fi
-cleanup() { rmdir "$LOCK_DIR" 2>/dev/null || true; }
-trap cleanup EXIT
 
 cd "$OPSCENTER_DIR"
 node --import tsx scripts/ingest-linxup-push.ts --payload-file "$PAYLOAD_FILE"

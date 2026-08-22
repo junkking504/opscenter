@@ -22,3 +22,15 @@ then disable `com.openclaw.opsbot.linxup-collector`.
 This removes OpsCenter's polling delay. The timestamp remains the tracker’s
 reported `positionDate`, and confirmed job arrivals still require the existing
 two-point, two-minute, 125-meter dwell evidence rule.
+
+Push processing and the V2 fallback poller use the same self-healing lock. The
+lock records its PID and start time, ignores only a live owner within the
+configured maximum runtime, and automatically replaces an abandoned or over-age
+lock. The owner token also prevents a timed-out process from removing a newer
+processor's lock when it eventually exits.
+
+Mission Control currently runs the fallback poller as a per-user LaunchAgent and
+reads its V2 token from the `missioncontrol` login Keychain. The console may be
+locked, but that user must remain logged in; logging out removes the GUI launchd
+domain and its collector. This is an accepted single point of failure until the
+collector and secret are migrated to a headless service context.

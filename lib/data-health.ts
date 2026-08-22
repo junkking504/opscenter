@@ -168,13 +168,15 @@ function buildSource(
     partialNotes?: string[];
     unavailableLabel?: string;
     overrideLevel?: DataHealthLevel | null;
+    freshnessFiles?: TimedFile[];
   },
 ): DataHealthSource {
   const now = chicagoNow();
   const today = chicagoDateKey(now);
-  const todayFiles = files.filter((file) => file.file.includes(today));
-  const latestFile = latest(options?.todayOnly === false ? files : todayFiles);
-  const fallbackLatest = latest(files);
+  const freshnessFiles = options?.freshnessFiles ?? files;
+  const todayFiles = freshnessFiles.filter((file) => file.file.includes(today));
+  const latestFile = latest(options?.todayOnly === false ? freshnessFiles : todayFiles);
+  const fallbackLatest = latest(freshnessFiles);
   const chosen = latestFile || fallbackLatest;
   const missingToday = options?.todayOnly !== false && todayFiles.length === 0;
   const ageMinutes = minutesSince(chosen?.mtime ?? null, now);
@@ -233,6 +235,7 @@ export function getDataHealthReport(): DataHealthReport {
     ...listFiles(dataDir("history", "linxup"), new RegExp(today, "i")),
     ...listFiles(dataDir("history", "linxup", "appointment_visits"), new RegExp(today, "i")),
   ];
+  const linxupLocationFiles = linxupFiles.filter((file) => /^linxup_location_\d{4}-\d{2}-\d{2}\.json$/i.test(file.file));
   const qboFiles = listFiles(dataDir("history", "qbo"), /^qbo_(\d{4}-\d{2}-\d{2}).*\.(csv|json)$/i);
 
   const junkwarePartialNotes = [
@@ -258,6 +261,9 @@ export function getDataHealthReport(): DataHealthReport {
   const linxup = buildSource("linxup", "Linxup", linxupFiles, {
     unavailableLabel: "Today's Linxup files are missing",
     partialNotes: linxupPartialNotes.length ? linxupPartialNotes : [],
+    // The Fleet map consumes normalized location history. Legacy daily raw,
+    // summary, and appointment-visit files must not mask a stalled map feed.
+    freshnessFiles: linxupLocationFiles,
   });
 
   const qboLatest = latest(qboFiles);

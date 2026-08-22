@@ -615,12 +615,13 @@
 }
 
 @media (max-width: 700px) {
-  /* The agenda is the phone-first Schedule view. Put it ahead of the map so
-   * appointments are visible immediately instead of after a 27rem map. */
+  /* Preserve the desktop Dispatch board on phones. The time grid stays a
+   * usable desktop-scale canvas inside its own horizontal scroller instead of
+   * changing into a separate appointment-card interface. */
   .ops-jobs-map-schedule {
-    order: -1;
-    border-top: 0;
-    border-bottom: 1px solid var(--ops-border);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   .ops-jobs-page > .ops-page-header .ops-page-header-controls {
@@ -648,86 +649,14 @@
   }
 
   .ops-jobs-map-schedule .ops-jobs-map-board {
-    display: none;
+    display: grid;
+    min-width: 780px;
   }
 
+  /* This markup remains available for a future explicitly selected agenda,
+   * but the default phone view is the same board used on desktop. */
   .ops-jobs-mobile-agenda {
-    display: grid;
-    gap: 12px;
-    padding: 12px;
-  }
-
-  .ops-jobs-mobile-agenda-truck {
-    display: grid;
-    gap: 7px;
-  }
-
-  .ops-jobs-mobile-agenda-truck h3,
-  .ops-jobs-mobile-agenda-truck p {
-    margin: 0;
-  }
-
-  .ops-jobs-mobile-agenda-truck h3 {
-    color: #f8fafc;
-    font-size: 0.9rem;
-  }
-
-  .ops-jobs-mobile-agenda-truck p {
-    color: #aeb7c2;
-    font-size: 0.82rem;
-  }
-
-  .ops-jobs-mobile-agenda-card {
-    display: grid;
-    grid-template-columns: auto auto minmax(0, 1fr);
-    align-items: center;
-    column-gap: 9px;
-    min-height: 48px;
-    width: 100%;
-    padding: 9px 10px;
-    border: 1px solid rgba(255, 255, 255, .2);
-    border-left: 5px solid currentColor;
-    border-radius: 8px;
-    background: #202633;
-    color: #f8fafc;
-    font: inherit;
-    text-align: left;
-  }
-
-  .ops-jobs-mobile-agenda-card.is-new-orleans { color: #60a5fa; }
-  .ops-jobs-mobile-agenda-card.is-baton-rouge { color: #f87171; }
-  .ops-jobs-mobile-agenda-card.is-northshore { color: #fb923c; }
-  .ops-jobs-mobile-agenda-card.is-jefferson { color: #2dd4bf; }
-  .ops-jobs-mobile-agenda-card.is-lafayette { color: #a78bfa; }
-  .ops-jobs-mobile-agenda-card.is-unknown-territory { color: #b6c1d1; }
-
-  .ops-jobs-mobile-agenda-card > span {
-    color: #e2e8f0;
-    font-size: 0.78rem;
-    font-weight: 850;
-    white-space: nowrap;
-  }
-
-  .ops-jobs-mobile-agenda-card > strong {
-    overflow: hidden;
-    color: #fff;
-    font-size: 0.88rem;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .ops-jobs-mobile-agenda-card > small {
-    grid-column: 2 / -1;
-    color: #c2c9d2;
-    font-size: 0.72rem;
-  }
-
-  .ops-jobs-mobile-agenda-card .ops-jobs-map-board-state {
-    grid-row: 1 / span 2;
-  }
-
-  .ops-jobs-mobile-agenda-card.is-selected {
-    box-shadow: 0 0 0 2px #f6c343;
+    display: none;
   }
 }
 

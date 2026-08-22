@@ -53,6 +53,7 @@
     "verify:fleet-gps": "node --import tsx scripts/test-fleet-gps.ts",
     "verify:fast-schedule": "node --import tsx scripts/test-junkware-fast-schedule.ts",
     "verify:linxup-freshness": "node --import tsx scripts/test-linxup-live-freshness.ts",
+    "verify:map-initialization": "node --import tsx scripts/test-map-initialization.ts",
     "verify:linxup-camera:live": "node --import tsx scripts/test-linxup-camera-live.ts",
     "setup:linxup-camera": "node --import tsx scripts/setup-linxup-camera.ts",
     "alerts:slack": "node --import tsx scripts/publish-slack-alerts.ts"

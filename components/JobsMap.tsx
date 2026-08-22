@@ -91,6 +91,8 @@ type FleetLiveStatusPayload = {
 
 const STREET_TILES = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 const STREET_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+const LOUISIANA_MAP_CENTER: [number, number] = [30.9843, -91.9623];
+const LOUISIANA_MAP_ZOOM = 7;
 const LINXUP_POLL_INTERVAL_MS = 30_000;
 const SCHEDULE_POLL_INTERVAL_MS = 15_000;
 const LINXUP_SITE_RADIUS_METERS = 125;
@@ -1164,7 +1166,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations, sche
       zoomControl: true,
       scrollWheelZoom: true,
       attributionControl: true,
-    });
+    }).setView(LOUISIANA_MAP_CENTER, LOUISIANA_MAP_ZOOM);
     leaflet.tileLayer(STREET_TILES, {
       attribution: STREET_ATTRIBUTION,
       maxZoom: 20,

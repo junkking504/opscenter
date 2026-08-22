@@ -354,14 +354,15 @@
 .ops-jobs-page .ops-job-closeout-editor {
   justify-self: start;
   margin-top: 2px;
-  border-color: #cbd9e8;
+  border-color: #334155;
   border-radius: 7px;
-  background: #edf4fb;
+  background: #0f172a;
+  color: #f8fafc;
 }
 
 .ops-jobs-page .ops-job-closeout-editor > summary {
   padding: 9px 10px;
-  color: #174f7a;
+  color: #dbeafe;
   font-size: 0.875rem;
   line-height: 1.35;
 }

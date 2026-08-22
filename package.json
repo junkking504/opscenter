@@ -21,6 +21,7 @@
     "verify:job-audits": "node --import tsx scripts/test-job-audit-rules.ts",
     "verify:searchkings": "node --import tsx scripts/test-searchkings.ts",
     "verify:junkware-sms": "node --import tsx scripts/test-junkware-sms.ts",
+    "verify:closeout-label-contrast": "node scripts/test-closeout-label-contrast.mjs",
     "verify:junkware-schedule-map": "node --import tsx scripts/test-junkware-live-refresh-loop.ts",
     "verify:junkware-history-reconciliation": "node --import tsx scripts/test-junkware-history-reconciliation.ts",
     "verify:schedule-map-geocodes": "node --import tsx scripts/test-schedule-map-geocodes.ts",

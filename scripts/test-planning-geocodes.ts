@@ -26,6 +26,11 @@ assert.deepEqual(
   { latitude: 29.9601984, longitude: -89.966716 },
   "JunkWare's fast-schedule punctuation must resolve to the same confirmed service address.",
 );
+assert.deepEqual(
+  planningLocation("4026 Juno Drive Chalmette, LA 70043 Followup", confirmed),
+  { latitude: 29.9601984, longitude: -89.966716 },
+  "JunkWare's trailing Followup label must not change a confirmed service address.",
+);
 assert.equal(planningLocation("4026 Juno Drive, Chalmette, LA 70043", {}), null);
 assert.equal(planningLocation("4026 Juno Drive, Chalmette, LA 70043", {
   [cacheKey("4026 Juno Drive, Chalmette, 70043")]: { latitude: null, longitude: -89.966716 },

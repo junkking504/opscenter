@@ -34,6 +34,8 @@ function planningAddressHashes(address: string): string[] {
 
 function planningAddressIdentity(address: string): string {
   return normalizeAddress(address)
+    // JunkWare's fast schedule appends this UI label to some service addresses.
+    .replace(/\s+FOLLOWUP$/, "")
     .replace(/(?:,|\s)(?:LA|LOUISIANA) (?=\d{5}(?:-\d{4})?$)/, " ")
     .replace(/[^A-Z0-9]+/g, " ")
     .trim();

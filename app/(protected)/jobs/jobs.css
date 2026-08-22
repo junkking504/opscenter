@@ -626,7 +626,9 @@
 
   .ops-jobs-map-schedule .ops-jobs-map-board {
     min-width: 100% !important;
-    --ops-jobs-map-time-cell-min: 0px;
+    /* This variable is also set inline for the desktop board, so the mobile
+     * fit rule must win the cascade explicitly. */
+    --ops-jobs-map-time-cell-min: 0px !important;
   }
 
   /* Keep tightly packed same-hour appointments inside their slot. */

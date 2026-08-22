@@ -24,7 +24,7 @@ function snapshotFiles(dataDir: string, date: string): string[] {
   ];
 }
 
-function rowKey(row: JunkwareScheduleRow): string {
+export function junkwareScheduleRowKey(row: JunkwareScheduleRow): string {
   const appointmentId = String(row.appt_id || row.appointment_id || row.appointmentId || "").trim();
   if (appointmentId) return `appt:${appointmentId}`;
   const jobId = String(row.job_id || row.jk_number || row.jobNumber || "").trim();
@@ -36,7 +36,7 @@ function mergeRows(rows: JunkwareScheduleRow[]): JunkwareScheduleRow[] {
   const unique = new Map<string, JunkwareScheduleRow>();
   for (const row of rows) {
     if (!row || typeof row !== "object") continue;
-    const key = rowKey(row);
+    const key = junkwareScheduleRowKey(row);
     if (!unique.has(key)) unique.set(key, row);
   }
   return Array.from(unique.values());

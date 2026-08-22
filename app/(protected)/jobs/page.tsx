@@ -21,7 +21,7 @@ import { readJobRouteAssignmentOverrides } from "@/lib/job-route-assignments";
 import { jobRouteAssignmentKey } from "@/lib/job-route-key";
 import { jobCallAheadLookupKey, readJobCallAheadStatuses } from "@/lib/job-call-ahead";
 import { readVerifiedJobCancellations } from "@/lib/job-cancellations";
-import { readJunkwareFastSchedule } from "@/lib/junkware-fast-schedule";
+import { junkwareScheduleRowKey, readJunkwareFastSchedule } from "@/lib/junkware-fast-schedule";
 import { jobCrewNoteLookupKey, readJobCrewNotes, type JobCrewNote as JobCrewNoteRecord } from "@/lib/job-crew-notes";
 import {
   appointmentNotes,
@@ -1329,12 +1329,21 @@ function readRawCancelledRows(date: string): Record<string, string>[] {
   const rows: Record<string, string>[] = [
     ...fastSchedule.cancelled.filter((row) => row && typeof row === "object") as Record<string, string>[],
   ];
+  const currentFastKeys = new Set(fastSchedule.appointments.map(junkwareScheduleRowKey));
+  const currentFastCancellationKeys = new Set(fastSchedule.cancelled.map(junkwareScheduleRowKey));
 
   try {
     if (fs.existsSync(file)) {
       const payload = JSON.parse(fs.readFileSync(file, "utf8"));
-      rows.push(...(Array.isArray(payload?.cancelled) ? payload.cancelled : [])
-        .filter((row: unknown) => row && typeof row === "object") as Record<string, string>[]);
+      const rawCancellations = (Array.isArray(payload?.cancelled) ? payload.cancelled : [])
+        .filter((row: unknown) => row && typeof row === "object") as Record<string, string>[];
+      // The fast watcher is the current source. A later confirmed row means
+      // JunkWare reactivated the appointment, so an older full-refresh
+      // cancellation must not keep it falsely canceled in Dispatch.
+      rows.push(...rawCancellations.filter((row) => {
+        const key = junkwareScheduleRowKey(row);
+        return !currentFastKeys.has(key) && !currentFastCancellationKeys.has(key);
+      }));
     }
   } catch {
     // The full collector may atomically replace its file while the page is reading it.

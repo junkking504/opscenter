@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { readJunkwareFastSchedule } from "@/lib/junkware-fast-schedule";
+import { junkwareScheduleRowKey, readJunkwareFastSchedule } from "@/lib/junkware-fast-schedule";
 
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "opscenter-fast-schedule-"));
 const date = "2026-08-22";
@@ -23,6 +23,7 @@ const snapshot = readJunkwareFastSchedule(dataDir, date);
 assert.equal(snapshot.appointments.length, 1);
 assert.deepEqual(snapshot.cancelled.map((row) => row.appt_id), ["4048675"]);
 assert.ok(snapshot.updatedAt);
+assert.equal(junkwareScheduleRowKey(snapshot.cancelled[0]), "appt:4048675");
 
 fs.rmSync(dataDir, { recursive: true, force: true });
 console.log("JunkWare fast schedule aggregation tests passed.");

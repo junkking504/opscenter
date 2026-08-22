@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 
 const historyScript = readFileSync(new URL("./run-junkware-history-reconciliation.sh", import.meta.url), "utf8");
 assert.match(historyScript, /abs\(float\(payload\.get\("unreconciled_gross_revenue"\)/, "History reconciliation must retry both positive and negative revenue drift.");
+assert.match(historyScript, /while IFS= read -r LOOKBACK_MONTH/, "History reconciliation must use Bash-compatible month iteration.");
 assert.match(historyScript, /reconcile-junkware-lookback\.py --month "\$LOOKBACK_MONTH" --days 7/, "History reconciliation must repair each recently reconciled month.");
 
 const lookbackScript = readFileSync(new URL("./reconcile-junkware-lookback.py", import.meta.url), "utf8");

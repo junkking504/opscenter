@@ -5566,6 +5566,21 @@ a.ops-jobs-map-selection-phone:focus-visible {
   line-height: 1.3;
 }
 
+.ops-closeout-editor-section :is(input:not([type="checkbox"]), select):disabled {
+  border-style: dashed;
+  border-color: rgba(148, 163, 184, .52);
+  background: #1e293b;
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.ops-closeout-editor-section label.is-disabled > span {
+  color: #94a3b8;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .ops-closeout-editor-section :is(input:not([type="checkbox"]), select):focus-visible {
   border-color: #93c5fd;
   outline: 3px solid rgba(96, 165, 250, .28);

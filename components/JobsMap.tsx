@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import AppointmentCancelDialog, { type AppointmentCancelTarget } from "@/components/AppointmentCancelDialog";
-import { truckMapMarkerIcon, truckMapMarkerOffsets } from "@/components/TruckMapMarker";
+import { mapLocatorScale, truckMapMarkerIcon, truckMapMarkerOffsets } from "@/components/TruckMapMarker";
 import type { JobRouteProximityPayload, JobTruckProximity } from "@/lib/job-route-proximity";
 import { buildJobRouteHistory } from "@/lib/job-route-history";
 import { parseTruckNumberFromLabel } from "@/lib/linxup-truck-label";
@@ -271,16 +271,17 @@ function escapeMarkerHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function markerIcon(leaflet: LeafletModule, job: JobsMapPoint, selected: boolean) {
+function markerIcon(leaflet: LeafletModule, job: JobsMapPoint, selected: boolean, scale: number) {
   const tone = territoryTone(job);
   const canceled = job.statusBucket === "Canceled";
   const label = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber}`;
+  const markerScale = Math.min(1, Math.max(0.42, Number.isFinite(scale) ? scale : 1));
   return leaflet.divIcon({
     className: "ops-jobs-map-div-icon",
-    html: `<button type="button" class="ops-jobs-map-pin ${tone}${selected ? " is-selected" : ""}" aria-label="${escapeMarkerHtml(label)}"><i${canceled ? ' class="is-canceled"' : ""}>${canceled ? "×" : ""}</i></button>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 29],
-    tooltipAnchor: [0, -29],
+    html: `<span style="display:block;width:30px;height:30px;transform:scale(${markerScale});transform-origin:top left"><button type="button" class="ops-jobs-map-pin ${tone}${selected ? " is-selected" : ""}" aria-label="${escapeMarkerHtml(label)}"><i${canceled ? ' class="is-canceled"' : ""}>${canceled ? "×" : ""}</i></button></span>`,
+    iconSize: [30 * markerScale, 30 * markerScale],
+    iconAnchor: [15 * markerScale, 29 * markerScale],
+    tooltipAnchor: [0, -29 * markerScale],
   });
 }
 
@@ -530,6 +531,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const fittedViewportRef = useRef("");
   const viewportFocusRef = useRef<MapViewportFocus>("none");
   const [leaflet, setLeaflet] = useState<LeafletModule | null>(null);
+  const [mapZoom, setMapZoom] = useState(12);
   const [selectedKey, setSelectedKey] = useState("");
   const [selectedTruckName, setSelectedTruckName] = useState("");
   const [selectedTruckAddress, setSelectedTruckAddress] = useState({ key: "", address: "", loading: false, error: "" });
@@ -1127,6 +1129,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     mapRef.current = map;
     markersRef.current = leaflet.layerGroup().addTo(map);
     routesRef.current = leaflet.layerGroup().addTo(map);
+    const handleZoomEnd = () => setMapZoom(map.getZoom());
+    map.on("zoomend", handleZoomEnd);
 
     const resizeObserver = typeof ResizeObserver === "undefined"
       ? null
@@ -1136,6 +1140,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
 
     return () => {
       resizeObserver?.disconnect();
+      map.off("zoomend", handleZoomEnd);
       map.remove();
       mapRef.current = null;
       markersRef.current = null;
@@ -1157,6 +1162,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       .join("|");
     const viewportFocus = viewportFocusRef.current;
     viewportFocusRef.current = "none";
+    const locatorScale = mapLocatorScale(mapZoom);
 
     if (viewportFocus === "truck" && selectedTruck) {
       map.stop();
@@ -1226,7 +1232,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     for (const job of locatedJobs) {
       const markerLabel = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber}`;
       const marker = leaflet.marker([job.latitude, job.longitude], {
-        icon: markerIcon(leaflet, job, selectedKey === job.key),
+        icon: markerIcon(leaflet, job, selectedKey === job.key, locatorScale),
         keyboard: false,
         title: markerLabel,
         alt: markerLabel,
@@ -1269,6 +1275,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         icon: truckMapMarkerIcon(leaflet, truck.truck, {
           atJob: truck.status === "At Job",
           labelOffset: truckLabelOffsets.get(truck.truck) || 0,
+          scale: locatorScale,
           selected: selectedTruckName === truck.truck,
         }),
         keyboard: false,
@@ -1299,7 +1306,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       bindTruckMarker();
     }
 
-  }, [bounds, leaflet, liveTruckLocations, locatedJobs, selectLiveTruck, selectedJob, selectedKey, selectedRouteBounds, selectedTruck, selectedTruckName, selectedTruckRoutes]);
+  }, [bounds, leaflet, liveTruckLocations, locatedJobs, mapZoom, selectLiveTruck, selectedJob, selectedKey, selectedRouteBounds, selectedTruck, selectedTruckName, selectedTruckRoutes]);
 
   return (
     <section className="ops-card ops-jobs-map-card" id="jobs-map" aria-labelledby="jobs-map-title">

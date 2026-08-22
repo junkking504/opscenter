@@ -115,9 +115,14 @@ def main() -> int:
     attempts = []
     for date in dates:
         wait_for_refresh_lock()
-        # A historical repair updates source snapshots; it must never replay
-        # operational truck-arrival alerts for an old calendar date.
-        refresh_environment = {**os.environ, "LINXUP_PUBLISH_SLACK_ALERTS": "false"}
+        # A historical repair updates JunkWare source snapshots. It must neither
+        # replay operational truck-arrival alerts nor compete with the dedicated
+        # live GPS collector for the LinxUp refresh lock.
+        refresh_environment = {
+            **os.environ,
+            "LINXUP_PUBLISH_SLACK_ALERTS": "false",
+            "LINXUP_SKIP_REFRESH": "true",
+        }
         result = subprocess.run(
             [str(REFRESH_SCRIPT), date],
             cwd=OPSBOT_ROOT,

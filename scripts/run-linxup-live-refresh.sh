@@ -10,11 +10,17 @@ MAP_FILE="$OPSBOT_DIR/data/config/linxup_vehicle_map.json"
 MAP_REFRESH_SECONDS="${LINXUP_MAP_REFRESH_SECONDS:-900}"
 MAX_ATTEMPTS="${LINXUP_MAX_ATTEMPTS:-2}"
 PUBLISH_SLACK_ALERTS="${LINXUP_PUBLISH_SLACK_ALERTS:-true}"
+SKIP_REFRESH="${LINXUP_SKIP_REFRESH:-false}"
 
 [[ "$TARGET_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || {
   echo "Invalid LinxUp refresh date: $TARGET_DATE" >&2
   exit 64
 }
+
+if [[ "$SKIP_REFRESH" =~ ^(1|true|yes|on)$ ]]; then
+  echo "LinxUp refresh skipped for a non-operational historical reconciliation."
+  exit 0
+fi
 
 mkdir -p "$OPSBOT_DIR/tmp" "$OPSBOT_DIR/logs"
 

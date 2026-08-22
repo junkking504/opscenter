@@ -10,7 +10,9 @@ assert.match(historyScript, /reconcile-junkware-lookback\.py --month "\$LOOKBACK
 const lookbackScript = readFileSync(new URL("./reconcile-junkware-lookback.py", import.meta.url), "utf8");
 const linxupRefreshScript = readFileSync(new URL("./run-linxup-live-refresh.sh", import.meta.url), "utf8");
 assert.match(lookbackScript, /LINXUP_PUBLISH_SLACK_ALERTS": "false"/, "Historical lookbacks must suppress live Slack alerts.");
+assert.match(lookbackScript, /LINXUP_SKIP_REFRESH": "true"/, "Historical lookbacks must leave the live GPS collector unblocked.");
 assert.match(linxupRefreshScript, /LINXUP_PUBLISH_SLACK_ALERTS/, "LinxUp refreshes must honor the alert-publishing mode.");
+assert.match(linxupRefreshScript, /LINXUP_SKIP_REFRESH/, "LinxUp refreshes must allow historical reconciliation to skip GPS collection.");
 
 const result = spawnSync("python3", ["-c", [
   "import importlib.util",

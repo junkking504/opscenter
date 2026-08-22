@@ -254,7 +254,10 @@ async function main() {
                 })),
               scheduleClientHeight: schedule.clientHeight,
               scheduleScrollHeight: schedule.scrollHeight,
-              scheduleOverflow: getComputedStyle(schedule).overflow,
+              scheduleClientWidth: schedule.clientWidth,
+              scheduleScrollWidth: schedule.scrollWidth,
+              scheduleOverflowX: getComputedStyle(schedule).overflowX,
+              scheduleOverflowY: getComputedStyle(schedule).overflowY,
             };
           });
           assert.ok(dispatch, `${routeLabel} must render the Dispatch Board.`);
@@ -263,10 +266,10 @@ async function main() {
           assert.ok(dispatch.boardGridWidth <= dispatch.boardClientWidth + 1, `${routeLabel} Dispatch Board grid must fit its container: ${JSON.stringify(dispatch)}.`);
           assert.deepEqual(dispatch.boardOverflowers, [], `${routeLabel} Dispatch Board content must not extend beyond the fitted grid.`);
           assert.ok(
-            dispatch.scheduleScrollHeight <= dispatch.scheduleClientHeight + 1,
-            `${routeLabel} Dispatch Board must expand without vertical scrolling (${dispatch.scheduleScrollHeight}px content in ${dispatch.scheduleClientHeight}px).`,
+            dispatch.scheduleScrollWidth > dispatch.scheduleClientWidth + 1,
+            `${routeLabel} Dispatch Board must keep time slots horizontally scrollable: ${JSON.stringify(dispatch)}.`,
           );
-          assert.equal(dispatch.scheduleOverflow, "visible", `${routeLabel} Dispatch Board must expose the complete schedule.`);
+          assert.equal(dispatch.scheduleOverflowX, "auto", `${routeLabel} Dispatch Board must own its horizontal scroll.`);
         }
         if (route === "/marketing?section=lost-leads") {
           const lostLeads = await page.evaluate(() => {

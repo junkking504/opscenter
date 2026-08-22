@@ -4689,8 +4689,12 @@ a {
 }
 
 .ops-jobs-map-schedule {
+  height: 22.5rem;
   min-width: 0;
-  overflow: visible;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
   border-left: 1px solid var(--ops-border);
   background: #0b0e14;
 }

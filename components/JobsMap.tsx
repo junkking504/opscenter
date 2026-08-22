@@ -1431,7 +1431,11 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations, sche
             <div
               className="ops-jobs-map-board"
               style={{
-                gridTemplateColumns: `${SCHEDULE_TRUCK_COLUMN_WIDTH}px repeat(${Math.max(scheduleTimeColumnCount, 1)}, minmax(0, 1fr))`,
+                // A time cell stays large enough to identify and target. The
+                // schedule aside owns the resulting horizontal scroll instead
+                // of shrinking every hour into an unusable sliver.
+                minWidth: SCHEDULE_TRUCK_COLUMN_WIDTH + (Math.max(scheduleTimeColumnCount, 1) * 60),
+                gridTemplateColumns: `${SCHEDULE_TRUCK_COLUMN_WIDTH}px repeat(${Math.max(scheduleTimeColumnCount, 1)}, minmax(60px, 1fr))`,
               }}
             >
               {currentTimeLine ? (

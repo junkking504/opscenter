@@ -621,7 +621,14 @@
   .ops-jobs-map-schedule {
     overflow-x: auto;
     overscroll-behavior-x: contain;
+    touch-action: pan-x pan-y;
     -webkit-overflow-scrolling: touch;
+  }
+
+  /* A desktop drag handle previously captured every phone swipe. Preserve
+   * desktop dragging, but let touch gestures pan the board or the page. */
+  .ops-jobs-map-board-block.is-draggable {
+    touch-action: pan-x pan-y;
   }
 
   .ops-jobs-page > .ops-page-header .ops-page-header-controls {

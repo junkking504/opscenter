@@ -1393,9 +1393,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations, sche
             <div className="ops-jobs-map-empty">No verified job locations are available for this view.</div>
           ) : null}
 
-          {selectedTruck || selectedJob ? null : (
-            <div className="ops-jobs-map-prompt">Select an appointment square for job and truck details.</div>
-          )}
         </div>
 
         {scheduleView ? (
@@ -1736,15 +1733,9 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations, sche
         </div>
       ) : null}
 
-      {scheduleView ? (
+      {scheduleView && assignmentMessage ? (
         <div className="ops-jobs-map-assignment-status" aria-live="polite">
-          {assignmentMessage || "Drag a block to change its truck or time. Right-click a block to cancel it in JunkWare."}
-        </div>
-      ) : null}
-
-      {jobs.length > locatedJobs.length ? (
-        <div className="ops-jobs-map-foot">
-          {jobs.length - locatedJobs.length} {jobs.length - locatedJobs.length === 1 ? "job is" : "jobs are"} still listed in the schedule but cannot be placed until the service address is verified.
+          {assignmentMessage}
         </div>
       ) : null}
     </section>

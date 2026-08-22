@@ -615,6 +615,14 @@
 }
 
 @media (max-width: 700px) {
+  /* The agenda is the phone-first Schedule view. Put it ahead of the map so
+   * appointments are visible immediately instead of after a 27rem map. */
+  .ops-jobs-map-schedule {
+    order: -1;
+    border-top: 0;
+    border-bottom: 1px solid var(--ops-border);
+  }
+
   .ops-jobs-page > .ops-page-header .ops-page-header-controls {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;

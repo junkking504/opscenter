@@ -18,6 +18,7 @@ export default function JobCallAheadCard({
   initialStatus,
   articleId,
   isCanceled = false,
+  isCompleted = false,
   trucksOnSite = NO_TRUCKS_ON_SITE,
 }: {
   children: ReactNode;
@@ -26,6 +27,7 @@ export default function JobCallAheadCard({
   initialStatus?: JobCallAheadStatus;
   articleId: string;
   isCanceled?: boolean;
+  isCompleted?: boolean;
   trucksOnSite?: string[];
 }) {
   const router = useRouter();
@@ -126,10 +128,14 @@ export default function JobCallAheadCard({
 
   const card = (
     <article
-      className={`ops-appointment-card${onSite ? " is-on-site" : ""}${promoted ? " is-map-selected" : ""}${isCanceled ? " is-canceled" : ""}${canceledCollapsed ? " is-canceled-collapsed" : ""}`}
+      className={`ops-appointment-card${onSite ? " is-on-site" : ""}${promoted ? " is-map-selected" : ""}${isCanceled ? " is-canceled" : ""}${isCompleted ? " is-completed" : ""}${canceledCollapsed ? " is-canceled-collapsed" : ""}`}
       id={articleId}
       tabIndex={-1}
-      title={isCanceled ? "Canceled appointment — right-click to update the office call-ahead" : "Right-click to update the office call-ahead"}
+      title={isCanceled
+        ? "Canceled appointment — right-click to update the office call-ahead"
+        : isCompleted
+          ? "Closed-out appointment — right-click to update the office call-ahead"
+          : "Right-click to update the office call-ahead"}
       onContextMenu={(event) => {
         event.preventDefault();
         setError("");

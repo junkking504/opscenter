@@ -1887,7 +1887,7 @@ function jobMissingPhotos(job: JobRow): boolean {
 function cardStatusLabel(job: JobRow): string {
   switch (statusBucket(job)) {
     case "Completed":
-      return "Completed";
+      return "Closed out";
     case "Estimate":
       return "Estimate";
     case "Open / Scheduled":
@@ -3178,6 +3178,7 @@ export default async function JobsPage({
                             initialStatus={callAheadStatus}
                             articleId={appointmentCardId(job)}
                             isCanceled={statusBucket(job) === "Canceled"}
+                            isCompleted={statusBucket(job) === "Completed"}
                             trucksOnSite={date === chicagoDateKey()
                               ? mapPoints.find((point) => point.detailId === appointmentCardId(job))?.trucksOnSite || []
                               : []}
@@ -3468,6 +3469,7 @@ export default async function JobsPage({
                           initialStatus={callAheadStatus}
                           articleId={appointmentCardId(job)}
                           isCanceled={statusBucket(job) === "Canceled"}
+                          isCompleted={statusBucket(job) === "Completed"}
                           trucksOnSite={date === chicagoDateKey()
                             ? mapPoints.find((point) => point.detailId === appointmentCardId(job))?.trucksOnSite || []
                             : []}

@@ -20,7 +20,11 @@ import { readJobRouteAssignmentOverrides } from "@/lib/job-route-assignments";
 import { jobRouteAssignmentKey } from "@/lib/job-route-key";
 import { jobCallAheadLookupKey, readJobCallAheadStatuses } from "@/lib/job-call-ahead";
 import { readVerifiedJobCancellations } from "@/lib/job-cancellations";
-import { junkwareScheduleRowKey, readJunkwareFastSchedule } from "@/lib/junkware-fast-schedule";
+import {
+  junkwareScheduleRowKey,
+  overlayJunkwareScheduleRow,
+  readJunkwareFastSchedule,
+} from "@/lib/junkware-fast-schedule";
 import { jobCrewNoteLookupKey, readJobCrewNotes, type JobCrewNote as JobCrewNoteRecord } from "@/lib/job-crew-notes";
 import {
   appointmentNotes,
@@ -1362,8 +1366,14 @@ function readRawAppointmentLookup(date: string): Map<string, Record<string, any>
       const row = source && typeof source === "object" ? source as Record<string, any> : {};
       const apptId = firstValue(row, ["appt_id", "appointment_id"]);
       const jobId = firstValue(row, ["job_id", "jk_number"]);
-      if (apptId) lookup.set(`appt:${apptId}`, row);
-      if (jobId) lookup.set(`job:${jobId.toLowerCase()}`, row);
+      if (apptId) {
+        const key = `appt:${apptId}`;
+        lookup.set(key, overlayJunkwareScheduleRow(lookup.get(key), row));
+      }
+      if (jobId) {
+        const key = `job:${jobId.toLowerCase()}`;
+        lookup.set(key, overlayJunkwareScheduleRow(lookup.get(key), row));
+      }
     }
   };
 

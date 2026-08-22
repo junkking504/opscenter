@@ -32,6 +32,13 @@ export function junkwareScheduleRowKey(row: JunkwareScheduleRow): string {
   return JSON.stringify(row);
 }
 
+export function overlayJunkwareScheduleRow(
+  enrichedRow: JunkwareScheduleRow | undefined,
+  currentRow: JunkwareScheduleRow,
+): JunkwareScheduleRow {
+  return enrichedRow ? { ...enrichedRow, ...currentRow } : { ...currentRow };
+}
+
 function mergeRows(rows: JunkwareScheduleRow[]): JunkwareScheduleRow[] {
   const unique = new Map<string, JunkwareScheduleRow>();
   for (const row of rows) {

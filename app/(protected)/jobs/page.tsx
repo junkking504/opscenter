@@ -1,5 +1,4 @@
 /* eslint-disable @next/next/no-img-element -- JunkWare job photos are public closeout media URLs. */
-import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import Link from "next/link";
@@ -35,6 +34,7 @@ import {
 import { missingPaymentTypeLabel, shouldFlagMissingPhotos } from "@/lib/job-audit-rules";
 import { junkwareBookedAt, junkwareBookedDateLabel } from "@/lib/junkware-booking-date";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
+import { planningLocation, type PlanningLocation } from "@/lib/planning-geocodes";
 import "./jobs.css";
 
 const OPSBOT_DATA_DIR =
@@ -149,10 +149,7 @@ type JobsFilters = {
   siteTime: string;
 };
 
-type RouteLocation = {
-  latitude: number;
-  longitude: number;
-};
+type RouteLocation = PlanningLocation;
 
 type RoutePlanStop = {
   job: JobRow;
@@ -2445,15 +2442,6 @@ function planningTruckOptions(jobs: JobRow[]): string[] {
   return Array.from(trucks).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 }
 
-function planningAddressHash(address: string): string {
-  const normalized = String(address || "")
-    .replace(/\s+/g, " ")
-    .replace(/\s*,\s*/g, ", ")
-    .trim()
-    .toUpperCase();
-  return crypto.createHash("sha256").update(normalized).digest("hex");
-}
-
 function readPlanningGeocodes(): Record<string, Record<string, unknown>> {
   const file = path.join(OPSBOT_DATA_DIR, "cache", "appointment_geocodes.json");
   if (!fs.existsSync(file)) return {};
@@ -2463,21 +2451,6 @@ function readPlanningGeocodes(): Record<string, Record<string, unknown>> {
   } catch {
     return {};
   }
-}
-
-function planningLocation(
-  address: string,
-  geocodes: Record<string, Record<string, unknown>>,
-): RouteLocation | null {
-  if (!address || address === "—") return null;
-  const match = geocodes[planningAddressHash(address)];
-  // Number(null) is 0, which Leaflet renders off the Louisiana map at 0,0.
-  // Only use an address after the geocoder supplied both coordinate values.
-  if (match?.latitude == null || match?.longitude == null) return null;
-  const latitude = Number(match?.latitude);
-  const longitude = Number(match?.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude === 0 || longitude === 0) return null;
-  return { latitude, longitude };
 }
 
 function routeDistanceMiles(from: RouteLocation, to: RouteLocation): number {

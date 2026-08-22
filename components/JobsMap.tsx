@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import AppointmentCancelDialog, { type AppointmentCancelTarget } from "@/components/AppointmentCancelDialog";
 import { mapLocatorScale, truckMapMarkerIcon, truckMapMarkerOffsets } from "@/components/TruckMapMarker";
@@ -1431,12 +1431,13 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations, sche
             <div
               className="ops-jobs-map-board"
               style={{
-                // A time cell stays large enough to identify and target. The
-                // schedule aside owns the resulting horizontal scroll instead
-                // of shrinking every hour into an unusable sliver.
+                // Desktop keeps comfortably sized time cells. On phones the
+                // CSS variable drops to zero so every time slot fits in the
+                // viewport instead of hiding the afternoon behind a scroller.
+                "--ops-jobs-map-time-cell-min": "60px",
                 minWidth: SCHEDULE_TRUCK_COLUMN_WIDTH + (Math.max(scheduleTimeColumnCount, 1) * 60),
-                gridTemplateColumns: `${SCHEDULE_TRUCK_COLUMN_WIDTH}px repeat(${Math.max(scheduleTimeColumnCount, 1)}, minmax(60px, 1fr))`,
-              }}
+                gridTemplateColumns: `${SCHEDULE_TRUCK_COLUMN_WIDTH}px repeat(${Math.max(scheduleTimeColumnCount, 1)}, minmax(var(--ops-jobs-map-time-cell-min), 1fr))`,
+              } as CSSProperties}
             >
               {currentTimeLine ? (
                 <div

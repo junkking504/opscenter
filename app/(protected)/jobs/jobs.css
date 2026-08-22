@@ -615,20 +615,31 @@
 }
 
 @media (max-width: 700px) {
-  /* Preserve the desktop Dispatch board on phones. The time grid stays a
-   * usable desktop-scale canvas inside its own horizontal scroller instead of
-   * changing into a separate appointment-card interface. */
+  /* Keep the entire appointment timeline in view on a phone. The previous
+   * 780px canvas made afternoon slots inaccessible whenever swipe scrolling
+   * was intercepted by the card or page. */
   .ops-jobs-map-schedule {
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    touch-action: pan-x pan-y;
-    -webkit-overflow-scrolling: touch;
+    height: auto;
+    overflow: visible;
+    touch-action: auto;
   }
 
-  /* A desktop drag handle previously captured every phone swipe. Preserve
-   * desktop dragging, but let touch gestures pan the board or the page. */
-  .ops-jobs-map-board-block.is-draggable {
-    touch-action: pan-x pan-y;
+  .ops-jobs-map-schedule .ops-jobs-map-board {
+    min-width: 100% !important;
+    --ops-jobs-map-time-cell-min: 0px;
+  }
+
+  /* Keep tightly packed same-hour appointments inside their slot. */
+  .ops-jobs-map-board-block {
+    min-width: 0;
+  }
+
+  .ops-jobs-map-board-block.is-draggable { touch-action: pan-x pan-y; }
+
+  .ops-jobs-map-board-state {
+    width: 14px;
+    height: 14px;
+    font-size: .72rem;
   }
 
   .ops-jobs-page > .ops-page-header .ops-page-header-controls {
@@ -653,11 +664,6 @@
 
   .ops-jobs-page .ops-jobs-map-legend span {
     font-size: 0.75rem;
-  }
-
-  .ops-jobs-map-schedule .ops-jobs-map-board {
-    display: grid;
-    min-width: 780px;
   }
 
   /* This markup remains available for a future explicitly selected agenda,

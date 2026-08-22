@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import type { JunkwareAssignmentSyncStatus } from "@/lib/junkware-assignment-failure";
 
 export type JobRouteAssignment = {
   date: string;
@@ -11,7 +12,7 @@ export type JobRouteAssignment = {
   appointmentStartMinutes?: number;
   appointmentEndMinutes?: number;
   junkwareVerifiedAt?: string;
-  junkwareSyncStatus?: "pending" | "verified";
+  junkwareSyncStatus?: JunkwareAssignmentSyncStatus;
   junkwareSyncError?: string;
 };
 
@@ -158,7 +159,9 @@ function readStore(): JobRouteAssignmentStore {
             ? Number(entry.appointmentEndMinutes)
             : undefined,
           junkwareVerifiedAt: String(entry.junkwareVerifiedAt || "") || undefined,
-          junkwareSyncStatus: entry.junkwareSyncStatus === "pending" ? "pending" : "verified",
+          junkwareSyncStatus: entry.junkwareSyncStatus === "pending" || entry.junkwareSyncStatus === "manual_correction"
+            ? entry.junkwareSyncStatus
+            : "verified",
           junkwareSyncError: String(entry.junkwareSyncError || "") || undefined,
         };
       })
@@ -226,7 +229,7 @@ export function saveJobRouteAssignment(input: {
   appointmentStartMinutes?: number;
   appointmentEndMinutes?: number;
   junkwareVerifiedAt?: string;
-  junkwareSyncStatus?: "pending" | "verified";
+  junkwareSyncStatus?: JunkwareAssignmentSyncStatus;
   junkwareSyncError?: string;
   expectedUpdatedAt?: string;
 }): JobRouteAssignment | null {
@@ -256,7 +259,9 @@ export function saveJobRouteAssignment(input: {
       || (appointmentStartMinutes !== undefined && appointmentEndMinutes !== undefined && appointmentEndMinutes <= appointmentStartMinutes)
     ) return null;
     const junkwareVerifiedAt = String(input.junkwareVerifiedAt || "").trim();
-    const junkwareSyncStatus = input.junkwareSyncStatus === "pending" ? "pending" : "verified";
+    const junkwareSyncStatus = input.junkwareSyncStatus === "pending" || input.junkwareSyncStatus === "manual_correction"
+      ? input.junkwareSyncStatus
+      : "verified";
     const junkwareSyncError = String(input.junkwareSyncError || "").trim().slice(0, 500);
     const saved: JobRouteAssignment = {
       date,

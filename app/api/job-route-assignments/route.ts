@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
+import { classifyJunkwareAssignmentFailure } from "@/lib/junkware-assignment-failure";
 import { saveJobRouteAssignment, withJunkwareAppointmentSyncLock } from "@/lib/job-route-assignments";
 import { syncJunkwareTruckAssignment } from "@/lib/junkware-truck-assignment";
 
@@ -88,6 +89,7 @@ export async function POST(request: Request) {
     }));
   } catch (error) {
     const detail = error instanceof Error ? error.message : "JunkWare could not verify the assignment.";
+    const junkwareSyncStatus = classifyJunkwareAssignmentFailure(error);
     const assignment = saveJobRouteAssignment({
       date,
       jobKey,
@@ -96,10 +98,10 @@ export async function POST(request: Request) {
       appointmentTime,
       appointmentStartMinutes,
       appointmentEndMinutes,
-      junkwareSyncStatus: "pending",
+      junkwareSyncStatus,
       junkwareSyncError: detail,
     }) || pendingRecord;
-    console.warn("[job-route-assignment] JunkWare verification pending", {
+    console.warn(`[job-route-assignment] JunkWare ${junkwareSyncStatus === "manual_correction" ? "needs manual correction" : "verification pending"}`, {
       date,
       jobKey,
       appointmentId,
@@ -112,7 +114,9 @@ export async function POST(request: Request) {
         persisted: true,
         junkwareSynced: false,
         assignment,
-        warning: `Saved in OpsCenter. JunkWare verification is pending: ${detail}`,
+        warning: junkwareSyncStatus === "manual_correction"
+          ? `Saved in OpsCenter. JunkWare rejected this assignment and needs manual correction: ${detail}`
+          : `Saved in OpsCenter. JunkWare verification is pending: ${detail}`,
       },
       { status: 202, headers: { "Cache-Control": "no-store, max-age=0" } },
     );

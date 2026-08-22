@@ -3,7 +3,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { chromium, type Browser, type Page } from "@playwright/test";
-import { clickWithWebFormsCompletion, selectWithWebFormsPostback } from "./junkware-webforms";
+import { resolveJunkwareAssignedTruck } from "@/lib/junkware-truck-label";
+import { clickWithWebFormsCompletion, sanitizeJunkwareCustomerEmail, selectWithWebFormsPostback } from "./junkware-webforms";
 
 const JUNKWARE_ORIGIN = "https://junkware.junk-king.com";
 const LOGIN_FRAGMENT = "/account/login.aspx";
@@ -390,6 +391,7 @@ async function main(): Promise<void> {
             throw new Error("The JunkWare truck selection could not be restored before the appointment update.");
           }
         }
+        await sanitizeJunkwareCustomerEmail(page);
         await clickWithWebFormsCompletion(page, "#ctl00_Content_SaveAppointmentBtn", "the truck assignment");
       }
       changed = true;
@@ -428,6 +430,7 @@ async function main(): Promise<void> {
       }
       updateButton = page.locator("#ctl00_Content_SaveAppointmentBtn").first();
       if (!(await updateButton.count())) throw new Error("The JunkWare appointment update control has changed.");
+      await sanitizeJunkwareCustomerEmail(page);
       await clickWithWebFormsCompletion(page, "#ctl00_Content_SaveAppointmentBtn", "the appointment-time update");
       changed = true;
     }

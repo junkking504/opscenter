@@ -60,6 +60,8 @@ type JobRow = {
   status: string;
   truck: string;
   assignedTruck?: string;
+  junkwareSyncStatus?: "pending" | "verified" | "manual_correction";
+  junkwareSyncError?: string;
   driver: string;
   driverName?: string;
   driverNormalizedName?: string;
@@ -2869,6 +2871,8 @@ function buildJobsMapPoints(
       appointmentUrl: job.appointmentUrl,
       junkItems: job.junkItems,
       appointmentNotes: job.appointmentNotes.filter((note) => !/^Appointment moved from\b/i.test(note)),
+      junkwareSyncStatus: job.junkwareSyncStatus,
+      junkwareSyncError: job.junkwareSyncError,
     };
   });
 }

@@ -31,6 +31,8 @@ export type JobsMapPoint = {
   appointmentUrl: string;
   junkItems: string[];
   appointmentNotes: string[];
+  junkwareSyncStatus?: "pending" | "verified" | "manual_correction";
+  junkwareSyncError?: string;
 };
 
 export type JobsMapTruck = {
@@ -449,6 +451,17 @@ function ScheduleJobStateIcon({ job }: { job: JobsMapPoint }) {
       ✓
     </span>
   );
+}
+
+function hasJunkwareSyncFailure(job: JobsMapPoint): boolean {
+  return job.junkwareSyncStatus === "pending" || job.junkwareSyncStatus === "manual_correction";
+}
+
+function junkwareSyncLabel(job: JobsMapPoint): string {
+  if (job.junkwareSyncStatus === "manual_correction") return "JunkWare sync needs manual correction";
+  return job.junkwareSyncError
+    ? "JunkWare sync failed — retry pending"
+    : "JunkWare sync pending";
 }
 
 function chicagoScheduleClock(now = new Date()): { date: string; minutes: number; label: string; timestamp: number } {
@@ -1415,6 +1428,17 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                 <div className="ops-jobs-map-selection-canceled" role="status">
                   <b aria-hidden="true">×</b>
                   <span><strong>Canceled</strong>{selectedJob.status}</span>
+                </div>
+              ) : null}
+              {hasJunkwareSyncFailure(selectedJob) ? (
+                <div className="ops-jobs-map-selection-sync-failed" role="status">
+                  <b aria-hidden="true">!</b>
+                  <span>
+                    <strong>{junkwareSyncLabel(selectedJob)}</strong>
+                    {selectedJob.junkwareSyncError || (selectedJob.junkwareSyncStatus === "manual_correction"
+                      ? "Saved in OpsCenter. Correct the JunkWare validation error, then submit the assignment again."
+                      : "Saved in OpsCenter. It will be retried before it is treated as verified.")}
+                  </span>
                 </div>
               ) : null}
               {isVisitedUnclosedScheduleJob(selectedJob) ? (

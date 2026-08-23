@@ -151,18 +151,6 @@
 .ops-jobs-page .ops-appointment-card-topline { gap: 12px; }
 .ops-jobs-page .ops-appointment-card-reference { gap: 1px; margin-bottom: 0; }
 
-.ops-jobs-page .ops-appointment-booked-date {
-  padding: 2px 6px;
-  border: 1px solid #d8dee5;
-  border-radius: 999px;
-  background: #f3f5f7;
-  color: #4c5865;
-  font-size: 0.6875rem;
-  font-weight: 800;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
 .ops-jobs-page .ops-appointment-card-crew {
   gap: 3px 10px;
   margin-top: 2px;
@@ -645,6 +633,136 @@
 
 .ops-jobs-page .ops-appointment-context-body .ops-job-crew-note { grid-column: auto; }
 
+/* Appointment-card disclosures use one compact, consistent treatment. */
+.ops-jobs-page details:is(
+  .ops-appointment-context,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+) {
+  display: block;
+  grid-column: 1 / -1;
+  justify-self: stretch;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid #e1e5e9;
+  border-radius: 7px;
+  background: #f8fafb;
+  opacity: 1;
+}
+
+.ops-jobs-page details:is(
+  .ops-appointment-context,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+) > summary {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 8px 9px;
+  color: #56616d;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 850;
+  line-height: 1.25;
+  list-style: none;
+}
+
+.ops-jobs-page details:is(
+  .ops-appointment-context,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+) > summary::-webkit-details-marker { display: none; }
+
+.ops-jobs-page details:is(
+  .ops-appointment-context,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+) > summary::before {
+  content: "+";
+  display: inline-block;
+  width: 1.2em;
+  color: #174f7a;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.ops-jobs-page details:is(
+  .ops-appointment-context,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+)[open] > summary::before { content: "−"; }
+
+.ops-jobs-page details.ops-job-closeout-details > summary > strong { display: none; }
+
+.ops-jobs-page details.ops-job-closeout-details[open],
+.ops-jobs-page details.ops-appointment-more-details[open] {
+  border-color: #d6dee6;
+  background: #f8fafb;
+}
+
+.ops-jobs-page details.ops-job-closeout-details[open] > summary,
+.ops-jobs-page details.ops-appointment-more-details[open] > summary {
+  margin-bottom: 0;
+  color: #174f7a;
+}
+
+.ops-jobs-page details.ops-appointment-more-details .ops-appointment-detail-grid {
+  padding: 8px 9px;
+  border-top: 1px solid #e1e5e9;
+}
+
+.ops-jobs-page details.ops-appointment-more-details .ops-appointment-site-time,
+.ops-jobs-page .ops-appointment-site-time-unavailable {
+  margin: 0 9px 9px;
+}
+
+.ops-jobs-page .ops-appointment-site-time-unavailable {
+  color: #687381;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.ops-jobs-page .ops-call-ahead-row {
+  grid-column: 1 / -1;
+  min-height: 24px;
+  gap: 8px;
+}
+
+.ops-jobs-page .ops-call-ahead-badge {
+  gap: 8px;
+  color: #56616d;
+  font-size: 0.75rem !important;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ops-jobs-page .ops-call-ahead-label { margin-right: 2px; }
+
+.ops-jobs-page .ops-call-ahead-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #687381;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-jobs-page .ops-call-ahead-choice > i {
+  display: inline-grid;
+  width: 12px;
+  height: 12px;
+  place-items: center;
+  border: 1px solid #aab5c1;
+  border-radius: 2px;
+  color: #fff;
+  font-size: 0.625rem;
+  font-style: normal;
+  line-height: 1;
+}
+
+.ops-jobs-page .ops-call-ahead-choice.selected { color: #174f7a; }
+.ops-jobs-page .ops-call-ahead-choice.selected > i { border-color: #174f7a; background: #174f7a; }
+
 @media (max-width: 720px) {
   .ops-jobs-page .ops-appointment-card {
     row-gap: 5px;
@@ -682,11 +800,6 @@
   .ops-jobs-page .ops-appointment-card-reference .ops-jk-number {
     font-size: 0.8125rem !important;
     font-weight: 900;
-    line-height: 1.2;
-  }
-
-  .ops-jobs-page .ops-appointment-booked-date {
-    font-size: 0.75rem;
     line-height: 1.2;
   }
 
@@ -782,7 +895,6 @@
  * timeline visualization; every conventional action around it uses the shared
  * 44px target and every operational value stays at 13px or larger. */
 .ops-jobs-page .ops-appointment-card :where(
-  .ops-appointment-booked-date,
   .ops-appointment-card-driver,
   .ops-appointment-card-navigator,
   .ops-call-ahead-badge,

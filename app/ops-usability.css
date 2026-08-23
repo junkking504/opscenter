@@ -1410,6 +1410,14 @@ body {
     gap: 0;
   }
 
+  /* This page previously reserved 160px for a side-by-side desktop control.
+   * On the phone's vertical control stack it must be a single control row. */
+  .ops-daily-dashboard > .ops-page-header .ops-date-selector-wrap {
+    flex: 0 0 var(--oc-control-height);
+    width: 100%;
+    min-width: 0;
+  }
+
   .ops-page-header .ops-date-label {
     position: absolute;
     width: 1px;

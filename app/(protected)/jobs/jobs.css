@@ -659,6 +659,9 @@
 ) > summary {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  gap: 6px;
   min-height: 36px;
   padding: 8px 9px;
   color: #56616d;
@@ -674,6 +677,12 @@
   .ops-job-closeout-details,
   .ops-appointment-more-details
 ) > summary::-webkit-details-marker { display: none; }
+
+.ops-jobs-page details:is(
+  .ops-appointment-context,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+) > summary::marker { content: ""; font-size: 0; }
 
 .ops-jobs-page details:is(
   .ops-appointment-context,
@@ -725,10 +734,16 @@
 }
 
 .ops-jobs-page .ops-call-ahead-row {
+  order: 1;
   grid-column: 1 / -1;
   min-height: 24px;
   gap: 8px;
 }
+
+.ops-jobs-page .ops-appointment-card-outcome { order: 2; grid-column: 1 / -1; }
+.ops-jobs-page .ops-job-closeout-editor { order: 3; }
+.ops-jobs-page .ops-appointment-context { order: 4; }
+.ops-jobs-page :is(.ops-job-closeout-details, .ops-appointment-more-details) { order: 5; }
 
 .ops-jobs-page .ops-call-ahead-badge {
   gap: 8px;

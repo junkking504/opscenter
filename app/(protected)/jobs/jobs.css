@@ -571,3 +571,60 @@
 .ops-jobs-page .ops-jobs-map-current-time span {
   font-size: 0.75rem !important;
 }
+
+/* Keep the territory shortcuts in a single compact phone row. The territory
+ * banner remains in normal flow immediately below it. */
+.ops-jobs-page .ops-territory-jump {
+  position: static;
+  top: auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 9px 10px;
+  overflow: visible;
+}
+
+.ops-jobs-page .ops-territory-jump a {
+  --ops-territory-jump-border: #8b929d;
+  --ops-territory-jump-fill: #eef0f3;
+  --ops-territory-jump-accent: #8b929d;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 40px;
+  padding: 7px 4px;
+  border: 2px solid var(--ops-territory-jump-border);
+  border-radius: 10px;
+  background: var(--ops-territory-jump-fill);
+  color: #1f2937;
+  font-size: .78rem;
+  font-weight: 900;
+}
+
+.ops-jobs-page .ops-territory-jump a.is-new-orleans { --ops-territory-jump-border: #60a5fa; --ops-territory-jump-fill: #e1effe; --ops-territory-jump-accent: #60a5fa; }
+.ops-jobs-page .ops-territory-jump a.is-jefferson { --ops-territory-jump-border: #2bbba9; --ops-territory-jump-fill: #dcf8f3; --ops-territory-jump-accent: #2dd4bf; }
+.ops-jobs-page .ops-territory-jump a.is-northshore { --ops-territory-jump-border: #d946ef; --ops-territory-jump-fill: #fdf4ff; --ops-territory-jump-accent: #d946ef; }
+.ops-jobs-page .ops-territory-jump a.is-baton-rouge { --ops-territory-jump-border: #e96363; --ops-territory-jump-fill: #fee7e7; --ops-territory-jump-accent: #f87171; }
+.ops-jobs-page .ops-territory-jump a.is-lafayette { --ops-territory-jump-border: #18b947; --ops-territory-jump-fill: #e1fbe8; --ops-territory-jump-accent: #00e13c; }
+
+.ops-jobs-page .ops-territory-jump a:hover,
+.ops-jobs-page .ops-territory-jump a:focus-visible {
+  border-color: var(--ops-territory-jump-accent);
+  color: #111827;
+  outline: none;
+}
+
+.ops-jobs-page .ops-territory-jump small {
+  display: inline-grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  margin-left: 4px;
+  padding-inline: 2px;
+  border-radius: 6px;
+  background: var(--ops-territory-jump-accent);
+  color: #101820;
+  font-size: .68rem;
+  font-weight: 950;
+}

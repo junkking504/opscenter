@@ -86,6 +86,7 @@ type JobRow = {
   photoAuditAvailable: boolean;
   junkItems: string[];
   appointmentNotes: string[];
+  cancellationReason: string;
 };
 
 type JobCloseoutCharge = {
@@ -590,6 +591,41 @@ function normalizeAddressLine(row: Record<string, string>): string {
 
   if (!parts.length) return "Address unavailable";
   return parts.join(", ");
+}
+
+function addressFromCancellationText(value: string): string {
+  const match = String(value || "").match(
+    /\b(\d{1,6}\s+(?:[\w.'’-]+\s+){0,6}(?:st(?:reet)?|rd|road|dr(?:ive)?|ave(?:nue)?|blvd|boulevard|ln|lane|ct|court|hwy|highway|way|pkwy|parkway|pl|place|cir|circle|loop)\.?)\s+([A-Za-z.'’ -]+?),\s*([A-Z]{2})\s*(\d{5}(?:-\d{4})?)\b/i,
+  );
+  if (!match) return "Address unavailable";
+  const [, street, city, state, zip] = match;
+  return `${street.replace(/\s+/g, " ").trim()}, ${city.replace(/\s+/g, " ").trim()}, ${state.toUpperCase()} ${zip}`;
+}
+
+function cancellationReasonText(value: string, customerName: string, phone: string, address: string): string {
+  let reason = String(value || "").replace(/\s+/g, " ").trim();
+  if (!reason) return "Cancellation reason unavailable";
+
+  const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  const name = String(customerName || "").trim();
+  const phoneDigits = String(phone || "").replace(/\D/g, "");
+  if (name && new RegExp(`^${escape(name)}\\s+`, "i").test(reason)) {
+    reason = reason.replace(new RegExp(`^${escape(name)}\\s+`, "i"), "");
+  }
+  if (phoneDigits) {
+    const phonePattern = phoneDigits.split("").map((digit) => `${digit}\\D*`).join("");
+    reason = reason.replace(new RegExp(`^${phonePattern}\\s*`, "i"), "");
+  }
+
+  const addressMatch = String(address || "").match(/^(.+?),\s*([^,]+?)(?:,\s*([A-Z]{2}))?\s*,?\s*(\d{5}(?:-\d{4})?)$/i);
+  if (addressMatch) {
+    const [, street, city, state, zip] = addressMatch;
+    reason = reason.replace(
+      new RegExp(`^${escape(street)}\\s*,?\\s*${escape(city)}\\s*,?\\s*${state ? `${escape(state)}\\s*,?\\s*` : "(?:[A-Z]{2}\\s*,?\\s*)?"}${escape(zip)}\\s*`, "i"),
+      "",
+    );
+  }
+  return reason.replace(/^[-,:;\s]+/, "").replace(/\s+Followup\.?$/i, "").trim() || "Cancellation reason unavailable";
 }
 
 function siteTimeTruckDurationMinutes(truck: Record<string, any>): number | null {
@@ -1564,6 +1600,12 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
     photoAuditAvailable: junkwarePhotoAuditAvailable(row),
     junkItems: junkItemKeywords(row),
     appointmentNotes: appointmentNotes(row),
+    cancellationReason: cancellationReasonText(
+      firstValue(row, ["cancellation_reason", "cancel_reason", "Cancellation Reason", "Cancel Reason"]),
+      customerName,
+      phone,
+      address,
+    ),
   };
 }
 
@@ -1762,7 +1804,17 @@ function readJobRows(date: string): JobRow[] {
           "Sales",
         ]) || "0";
 
-      const address = normalizeAddressLine({ ...row, ...sourceRow });
+      const cancellationReasonRaw = sourceValue(["cancellation_reason", "cancel_reason", "Cancellation Reason", "Cancel Reason"]);
+      const sourceAddress = normalizeAddressLine({ ...row, ...sourceRow });
+      const address = sourceAddress !== "Address unavailable"
+        ? sourceAddress
+        : addressFromCancellationText(cancellationReasonRaw);
+      const phone = formatPhone(sourceValue([
+        "phone",
+        "customer_phone",
+        "Phone",
+        "Customer Phone",
+      ])) || "—";
 
       jobs.push({
         appointmentId: apptId || "",
@@ -1778,13 +1830,7 @@ function readJobRows(date: string): JobRow[] {
         customerName,
         customerEmail: firstCustomerEmail(sourceRow, row) || "—",
         customerEmailCollected: hasCustomerEmailField(sourceRow, row),
-        phone:
-          formatPhone(sourceValue([
-            "phone",
-            "customer_phone",
-            "Phone",
-            "Customer Phone",
-          ])) || "—",
+        phone,
         address,
         territory: appointmentTerritoryForLocation(
           sourceValue([
@@ -1865,6 +1911,7 @@ function readJobRows(date: string): JobRow[] {
         photoAuditAvailable: junkwarePhotoAuditAvailable(sourceRow),
         junkItems: junkItemKeywords(sourceRow),
         appointmentNotes: appointmentNotes(sourceRow),
+        cancellationReason: cancellationReasonText(cancellationReasonRaw, customerName, phone, address),
       });
     }
   }
@@ -2426,6 +2473,12 @@ function AppointmentCardScanSummary({ job, siteTime }: { job: JobRow; siteTime: 
         </div>
       ) : null}
       <span className="ops-appointment-items-summary" title={job.junkItems.join(", ")}>{appointmentItemsSummary(job)}</span>
+      {statusBucket(job) === "Canceled" ? (
+        <div className="ops-appointment-cancellation-reason">
+          <span>Cancellation reason</span>
+          <strong>{job.cancellationReason}</strong>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -2503,6 +2556,7 @@ function AppointmentMoreDetails({
   siteTime: SiteTimeAppointment | undefined;
   detailGridClassName: string;
 }) {
+  if (statusBucket(job) === "Canceled") return null;
   const primaryVisit = siteTimeVisitEvidence(siteTime)[0];
 
   return (

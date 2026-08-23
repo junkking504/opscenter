@@ -36,7 +36,35 @@ export function overlayJunkwareScheduleRow(
   enrichedRow: JunkwareScheduleRow | undefined,
   currentRow: JunkwareScheduleRow,
 ): JunkwareScheduleRow {
-  return enrichedRow ? { ...enrichedRow, ...currentRow } : { ...currentRow };
+  if (!enrichedRow) return { ...currentRow };
+
+  // The fast watcher is authoritative for current schedule state, but it can
+  // omit (or pack cancellation copy into) customer/contact fields. Keep a
+  // fuller JunkWare detail record for those fields while applying watcher
+  // schedule state and other operational changes.
+  const detailFields = new Set([
+    "customer_name",
+    "customer",
+    "name",
+    "phone",
+    "customer_phone",
+    "address",
+    "service_address",
+    "customerEmail",
+    "customer_email",
+    "email",
+    "appointment_notes",
+    "job_description",
+  ]);
+  const populatedCurrentValues = Object.fromEntries(
+    Object.entries(currentRow).filter(([key, value]) => (
+      value !== null
+      && value !== undefined
+      && (typeof value !== "string" || value.trim() !== "")
+      && !(detailFields.has(key) && enrichedRow[key] !== null && enrichedRow[key] !== undefined && String(enrichedRow[key]).trim() !== "")
+    )),
+  );
+  return { ...enrichedRow, ...populatedCurrentValues };
 }
 
 function mergeRows(rows: JunkwareScheduleRow[]): JunkwareScheduleRow[] {

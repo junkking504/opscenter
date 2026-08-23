@@ -33,6 +33,8 @@ const enrichedAppointment = {
   appt_id: "4048030",
   job_id: "JK4061208",
   job_status: "Completed Duration: 60 min(s)",
+  customer_name: "Dwayne Thomas",
+  address: "8020 River Road, New Orleans, LA 70124",
   photos: [{ url: "https://junkware.junk-king.com/system/aspnet/local/media/2026-08/example-after.jpg" }],
   closeout: { total: "$788.00" },
 };
@@ -41,12 +43,16 @@ const fastAppointment = {
   job_id: "JK4061208",
   appointment_time: "11:00 AM - 12:00 PM",
   truck: "Truck# 4",
+  customer_name: "Packed schedule-only cancellation text",
+  address: "",
 };
 assert.deepEqual(
   overlayJunkwareScheduleRow(enrichedAppointment, fastAppointment),
   {
     ...enrichedAppointment,
     ...fastAppointment,
+    customer_name: enrichedAppointment.customer_name,
+    address: enrichedAppointment.address,
   },
 );
 

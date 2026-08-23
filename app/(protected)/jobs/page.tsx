@@ -3553,7 +3553,6 @@ export default async function JobsPage({
 
         {groupedJobs.length > 1 ? (
           <nav className="ops-territory-jump" aria-label="Jump to territory">
-            <span>Jump to</span>
             {groupedJobs.map(([territory, territoryJobs]) => (
               <a
                 className={territoryToneClass(territory)}

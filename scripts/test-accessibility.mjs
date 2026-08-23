@@ -265,22 +265,11 @@ async function main() {
           assert.ok(dispatch.mapTop < dispatch.kpiTop, `${routeLabel} must place the Dispatch Board before the KPI and filter controls.`);
           assert.ok(dispatch.boardGridWidth <= dispatch.boardClientWidth + 1, `${routeLabel} Dispatch Board grid must fit its container: ${JSON.stringify(dispatch)}.`);
           assert.deepEqual(dispatch.boardOverflowers, [], `${routeLabel} Dispatch Board content must not extend beyond the fitted grid.`);
-          if (viewport.name === "mobile") {
-            assert.ok(
-              dispatch.scheduleScrollWidth <= dispatch.scheduleClientWidth + 1,
-              `${routeLabel} must show every Dispatch time slot without horizontal scrolling: ${JSON.stringify(dispatch)}.`,
-            );
-            assert.ok(
-              dispatch.boardGridWidth <= dispatch.scheduleClientWidth + 1,
-              `${routeLabel} mobile Dispatch timeline must fit the schedule: ${JSON.stringify(dispatch)}.`,
-            );
-          } else {
-            assert.ok(
-              dispatch.scheduleScrollWidth > dispatch.scheduleClientWidth + 1,
-              `${routeLabel} Dispatch Board must keep time slots horizontally scrollable: ${JSON.stringify(dispatch)}.`,
-            );
-            assert.equal(dispatch.scheduleOverflowX, "auto", `${routeLabel} Dispatch Board must own its horizontal scroll.`);
-          }
+          assert.ok(
+            dispatch.scheduleScrollWidth > dispatch.scheduleClientWidth + 1,
+            `${routeLabel} Dispatch Board must keep time slots horizontally scrollable: ${JSON.stringify(dispatch)}.`,
+          );
+          assert.equal(dispatch.scheduleOverflowX, "auto", `${routeLabel} Dispatch Board must own its horizontal scroll.`);
         }
         if (route === "/marketing?section=lost-leads") {
           const lostLeads = await page.evaluate(() => {

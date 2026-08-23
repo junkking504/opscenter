@@ -576,6 +576,16 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations, sche
     window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
   }, []);
 
+  const selectAppointment = useCallback((job: JobsMapPoint) => {
+    viewportFocusRef.current = "appointment";
+    setSelectedTruckName("");
+    setSelectedKey(job.key);
+    if (!job.detailId) return;
+    window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, {
+      detail: { articleId: job.detailId },
+    }));
+  }, []);
+
   useEffect(() => {
     setAssignments(serverAssignments);
     setTimeOverrides({});
@@ -923,8 +933,9 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations, sche
     dragGestureRef.current = gesture;
     setDragGesture(gesture);
     setDraggedKey(job.key);
-    setSelectedTruckName("");
-    setSelectedKey(job.key);
+    // A small pointer movement can promote this interaction to a drag and
+    // suppress the subsequent click, so synchronize its detail card now.
+    selectAppointment(job);
 
     const cleanup = () => {
       window.removeEventListener("pointermove", handlePointerMove);
@@ -1010,15 +1021,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations, sche
       suppressNextClickRef.current = false;
       return;
     }
-    viewportFocusRef.current = "appointment";
-    setSelectedTruckName("");
-    setSelectedKey(jobKey);
-
     const job = displayJobs.find((candidate) => candidate.key === jobKey);
-    if (!job?.detailId) return;
-    window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, {
-      detail: { articleId: job.detailId },
-    }));
+    if (job) selectAppointment(job);
   }
 
   function handleAppointmentContextMenu(event: React.MouseEvent<HTMLButtonElement>, job: JobsMapPoint) {
@@ -1428,16 +1432,14 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations, sche
                 );
               })}
             </div>
-            <div
-              className="ops-jobs-map-board"
-              style={{
-                // Desktop keeps comfortably sized time cells. On phones the
-                // CSS variable drops to zero so every time slot fits in the
-                // viewport instead of hiding the afternoon behind a scroller.
-                "--ops-jobs-map-time-cell-min": "60px",
+              <div
+                className="ops-jobs-map-board"
+                style={{
+                // Time cells stay large enough to identify and target. The
+                // schedule aside owns the resulting horizontal scroll.
                 minWidth: SCHEDULE_TRUCK_COLUMN_WIDTH + (Math.max(scheduleTimeColumnCount, 1) * 60),
-                gridTemplateColumns: `${SCHEDULE_TRUCK_COLUMN_WIDTH}px repeat(${Math.max(scheduleTimeColumnCount, 1)}, minmax(var(--ops-jobs-map-time-cell-min), 1fr))`,
-              } as CSSProperties}
+                gridTemplateColumns: `${SCHEDULE_TRUCK_COLUMN_WIDTH}px repeat(${Math.max(scheduleTimeColumnCount, 1)}, minmax(60px, 1fr))`,
+              }}
             >
               {currentTimeLine ? (
                 <div

@@ -66,6 +66,17 @@
   margin-top: 8px;
 }
 
+.ops-marketing-recording-cell {
+  min-width: 188px;
+}
+
+.ops-marketing-recording-cell audio {
+  display: block;
+  width: 180px;
+  max-width: 100%;
+  height: 36px;
+}
+
 .ops-marketing-call-group .ops-table :is(th, td):first-child {
   min-width: 220px;
 }

@@ -1472,13 +1472,42 @@
 
 .ops-jobs-page .ops-appointment-card.is-canceled,
 .ops-jobs-page .ops-appointment-card.is-canceled:hover {
-  border-color: #e66a70;
+  padding-top: 8px;
+  border-color: #ca8a04;
   background:
-    linear-gradient(rgba(255, 246, 246, .58), rgba(255, 246, 246, .58)),
+    linear-gradient(rgba(255, 251, 235, .66), rgba(255, 251, 235, .66)),
     var(--ops-territory-card);
   box-shadow:
     inset 6px 0 0 var(--ops-territory-accent),
     0 3px 12px rgba(25, 28, 35, .06);
+}
+
+/* Cancellation caution tape belongs behind the identifying appointment facts,
+ * not above the card. Light content panels preserve readable text over it. */
+.ops-jobs-page .ops-appointment-card.is-canceled::before {
+  display: none;
+}
+
+.ops-jobs-page .ops-appointment-card.is-canceled .ops-appointment-card-topline {
+  padding: 8px;
+  border: 1px solid #facc15;
+  border-radius: 9px;
+  background: repeating-linear-gradient(
+    135deg,
+    #facc15 0 12px,
+    #facc15 12px 15px,
+    #111827 15px 27px,
+    #111827 27px 30px
+  );
+}
+
+.ops-jobs-page .ops-appointment-card.is-canceled :is(
+  .ops-appointment-card-identity,
+  .ops-appointment-card-outcome
+) {
+  padding: 5px 7px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .94);
 }
 
 @media (max-width: 560px) {

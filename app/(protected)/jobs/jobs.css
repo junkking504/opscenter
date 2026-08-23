@@ -337,6 +337,29 @@
   width: 100%;
 }
 
+/* Keep both closeout actions compact and legible. The closed disclosure still
+ * owns a full grid row, but its control is only as wide as its one-line label. */
+.ops-jobs-page .ops-job-closeout-editor:not([open]) {
+  grid-column: 1 / -1;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.ops-jobs-page .ops-job-closeout-editor:not([open]) > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 9px;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.ops-jobs-page .ops-job-closeout-editor:not([open]) > summary::before {
+  width: auto;
+  margin-right: 6px;
+}
+
 .ops-jobs-page .ops-appointment-detail-grid {
   gap: 5px 12px;
   padding: 6px 0 0;

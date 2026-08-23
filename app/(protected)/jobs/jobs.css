@@ -650,6 +650,8 @@
   opacity: 1;
 }
 
+.ops-jobs-page details[hidden] { display: none !important; }
+
 .ops-jobs-page details:is(
   .ops-appointment-context,
   .ops-job-closeout-details,

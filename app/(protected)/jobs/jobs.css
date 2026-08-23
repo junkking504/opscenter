@@ -582,6 +582,151 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* The card's scan area contains only source-backed operational facts. Crew and
+ * site-time data appear after a recorded visit, never merely from an assignment. */
+.ops-jobs-page .ops-appointment-card-scan-summary {
+  display: grid;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.ops-jobs-page .ops-appointment-visit-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  padding: 5px 7px;
+  border-left: 3px solid #24865b;
+  background: #edf8f1;
+  color: #245d42;
+  font-size: 0.8125rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.ops-jobs-page .ops-appointment-visit-time {
+  color: #176b47;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-jobs-page .ops-appointment-visit-crew {
+  color: #3d5145;
+}
+
+.ops-jobs-page .ops-appointment-visit-crew strong {
+  color: #263b30;
+  font-weight: 900;
+}
+
+.ops-jobs-page .ops-appointment-visit-extra,
+.ops-jobs-page .ops-appointment-photo-summary {
+  color: #4d5b52;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.ops-jobs-page .ops-appointment-photo-summary::before {
+  content: "•";
+  margin-right: 5px;
+  color: #24865b;
+}
+
+.ops-jobs-page .ops-appointment-photo-summary.missing {
+  color: #8a5a00;
+}
+
+.ops-jobs-page .ops-appointment-photo-summary.missing::before { color: #bb7b00; }
+
+.ops-jobs-page .ops-appointment-items-summary {
+  display: block;
+  overflow: hidden;
+  color: #4e5965;
+  font-size: 0.8125rem;
+  font-weight: 750;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-jobs-page details.ops-appointment-context {
+  display: block;
+  padding: 0;
+  border: 1px solid #e1e5e9;
+  border-radius: 7px;
+  background: #f8fafb;
+}
+
+.ops-jobs-page details.ops-appointment-context > summary {
+  min-height: 36px;
+  padding: 8px 9px;
+  color: #56616d;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 850;
+  line-height: 1.25;
+  list-style: none;
+}
+
+.ops-jobs-page details.ops-appointment-context > summary::-webkit-details-marker { display: none; }
+
+.ops-jobs-page details.ops-appointment-context > summary::before {
+  content: "+";
+  display: inline-block;
+  width: 1.2em;
+  color: #174f7a;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.ops-jobs-page details.ops-appointment-context[open] > summary::before { content: "−"; }
+
+.ops-jobs-page .ops-appointment-context-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px 12px;
+  padding: 8px 9px 9px;
+  border-top: 1px solid #e1e5e9;
+}
+
+.ops-jobs-page .ops-appointment-context-body .ops-appointment-note-details {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.ops-jobs-page .ops-appointment-context-body .ops-job-crew-note { grid-column: auto; }
+
+@media (max-width: 720px) {
+  .ops-jobs-page .ops-appointment-card {
+    row-gap: 5px;
+    padding: 9px 10px;
+  }
+
+  .ops-jobs-page .ops-appointment-card-topline { gap: 6px; }
+
+  .ops-jobs-page .ops-appointment-card-reference-row { gap: 3px 7px; }
+
+  .ops-jobs-page .ops-appointment-card-time { font-size: 0.9375rem; }
+
+  .ops-jobs-page .ops-appointment-card-customer { font-size: 1rem; }
+
+  .ops-jobs-page .ops-appointment-card-address {
+    font-size: 0.8125rem;
+    line-height: 1.3;
+  }
+
+  .ops-jobs-page .ops-appointment-card-outcome {
+    gap: 3px 7px;
+    padding-top: 5px;
+  }
+
+  .ops-jobs-page .ops-appointment-visit-summary { padding: 5px 7px; }
+
+  .ops-jobs-page .ops-appointment-context-body { grid-template-columns: 1fr; }
+
+  .ops-jobs-page .ops-appointment-context-body .ops-job-crew-note { grid-column: 1; }
+}
 .ops-jobs-page :is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette {
   background: #00e13c;
 }

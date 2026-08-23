@@ -1239,3 +1239,108 @@ body {
   .ops-main .ops-jobs-page > .ops-page-header.has-subnav .ops-page-header-meta { grid-column: 1 / -1; grid-row: 2; align-self: center; margin: 0; }
   .ops-main .ops-jobs-page > .ops-page-header.has-subnav .ops-page-subnav { grid-column: 1 / -1; grid-row: 3; align-self: stretch; height: auto; margin: 0; padding: 8px 0 0; border-top: 1px solid var(--ops-border); }
 }
+
+/* Phone shell: preserve the operating controls while getting the page work
+ * above the fold. The compact brand repeated the desktop identity immediately
+ * before the workspace bar, and the visual Date label consumed a full control
+ * row even though the select already has an accessible name. */
+@media (max-width: 720px) {
+  :root {
+    --oc-control-height: 40px;
+  }
+
+  .ops-main {
+    padding-top: 8px;
+  }
+
+  .ops-mobile-brand {
+    display: none;
+  }
+
+  .ops-topbar {
+    min-height: 40px;
+    margin-bottom: 8px;
+    padding: 0;
+  }
+
+  .ops-topbar-identity {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .ops-topbar .ops-eyebrow,
+  .ops-topbar .ops-workspace-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .ops-topbar .ops-eyebrow {
+    flex: 0 1 auto;
+    font-size: 0.67rem;
+  }
+
+  .ops-topbar .ops-workspace-title {
+    font-size: 0.78rem;
+  }
+
+  .ops-topbar-right > .ops-sidebar-toggle-button {
+    min-height: 36px;
+    padding-inline: 11px;
+    font-size: 0.8rem;
+  }
+
+  .ops-page-header {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .ops-page-header .ops-date-selector-wrap {
+    gap: 0;
+  }
+
+  .ops-page-header .ops-date-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .ops-page-header :is(.ops-refresh-button, .ops-button, .ops-date-selector, input, select) {
+    min-height: var(--oc-control-height) !important;
+    padding-block: 7px;
+  }
+
+  .ops-page-header .ops-refresh-button {
+    align-self: end;
+  }
+
+  .ops-view-toggle {
+    height: 44px;
+    margin-bottom: 0;
+    padding: 2px;
+  }
+
+  .ops-view-toggle a,
+  .ops-page-subnav a {
+    min-height: var(--oc-control-height);
+  }
+
+  .ops-page-header.has-subnav .ops-page-subnav {
+    margin: 0 -12px -10px;
+    padding: 6px 12px;
+  }
+
+  .ops-page-subnav a {
+    padding-block: 6px;
+  }
+
+  .ops-jobs-page > .ops-page-header .ops-page-header-controls {
+    align-items: end;
+  }
+}

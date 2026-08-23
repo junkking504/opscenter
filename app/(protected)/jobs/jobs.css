@@ -680,7 +680,7 @@
  * compact payment/status line that can be scanned without competing weights. */
 @media (max-width: 720px) {
   .ops-jobs-page .ops-appointment-card-reference .ops-jk-number {
-    font-size: 0.8125rem;
+    font-size: 0.8125rem !important;
     font-weight: 900;
     line-height: 1.2;
   }

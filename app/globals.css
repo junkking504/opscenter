@@ -5659,11 +5659,11 @@ a.ops-jobs-map-selection-phone:focus-visible {
 
   .ops-jobs-map-board-truck.is-row-label,
   .ops-jobs-map-board-cell {
-    min-height: 44px;
+    min-height: 26px;
   }
 
   .ops-jobs-map-board-block {
-    min-height: 38px;
+    min-height: 20px;
   }
 
   .ops-jobs-map-current-time::after {

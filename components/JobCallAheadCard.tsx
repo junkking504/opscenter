@@ -50,7 +50,6 @@ export default function JobCallAheadCard({
   const [error, setError] = useState("");
   const [promoted, setPromoted] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<HTMLElement | null>(null);
-  const [canceledDetailsOpen, setCanceledDetailsOpen] = useState(false);
   const [canceledLocally, setCanceledLocally] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<AppointmentCancelTarget | null>(null);
   const [rescheduleTarget, setRescheduleTarget] = useState<AppointmentRescheduleTarget | null>(null);
@@ -80,14 +79,13 @@ export default function JobCallAheadCard({
 
   useEffect(() => {
     if (!promoted) return;
-    if (isCanceled || canceledLocally) setCanceledDetailsOpen(true);
     const frame = window.requestAnimationFrame(() => {
       document.getElementById(articleId)?.querySelectorAll<HTMLDetailsElement>("details").forEach((details) => {
         details.open = true;
       });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [articleId, canceledLocally, isCanceled, promoted]);
+  }, [articleId, promoted]);
 
   useEffect(() => {
     if (!menu) return;
@@ -142,11 +140,10 @@ export default function JobCallAheadCard({
   const effectiveCanceled = isCanceled || canceledLocally;
   const cancellationAvailable = canCancel && !effectiveCanceled && /^\d{1,12}$/.test(appointmentId);
   const rescheduleAvailable = canReschedule && !effectiveCanceled && /^\d{1,12}$/.test(appointmentId) && Number.isInteger(appointmentStartMinutes);
-  const canceledCollapsed = effectiveCanceled && !canceledDetailsOpen;
 
   const card = (
     <article
-      className={`ops-appointment-card${onSite ? " is-on-site" : ""}${promoted ? " is-map-selected" : ""}${effectiveCanceled ? " is-canceled" : ""}${canceledCollapsed ? " is-canceled-collapsed" : ""}`}
+      className={`ops-appointment-card${onSite ? " is-on-site" : ""}${promoted ? " is-map-selected" : ""}${effectiveCanceled ? " is-canceled" : ""}`}
       id={articleId}
       tabIndex={-1}
       title={effectiveCanceled ? "Canceled appointment — right-click for appointment actions" : "Right-click for appointment actions"}
@@ -197,17 +194,6 @@ export default function JobCallAheadCard({
         {rescheduleConfirmation ? <span className="ops-appointment-reschedule-confirmation" role="status">{rescheduleConfirmation}</span> : null}
       </div>
       {children}
-      {effectiveCanceled ? (
-        <button
-          type="button"
-          className="ops-canceled-card-toggle"
-          aria-expanded={canceledDetailsOpen}
-          onClick={() => setCanceledDetailsOpen((open) => !open)}
-        >
-          <span>{canceledDetailsOpen ? "Hide details" : "View details"}</span>
-          <i aria-hidden="true">{canceledDetailsOpen ? "−" : "+"}</i>
-        </button>
-      ) : null}
       {menu ? (
         <div
           className="ops-call-ahead-menu"
@@ -246,7 +232,6 @@ export default function JobCallAheadCard({
         onClose={() => setCancelTarget(null)}
         onCanceled={() => {
           setCanceledLocally(true);
-          setCanceledDetailsOpen(false);
           router.refresh();
         }}
       />

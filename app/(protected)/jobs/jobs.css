@@ -1325,11 +1325,11 @@
 }
 
 .ops-jobs-page :is(.ops-territory-section, .ops-territory-jump a).is-northshore {
-  --ops-territory-accent: #fb923c;
-  --ops-territory-banner: #fdba74;
-  --ops-territory-card: #fff0df;
-  --ops-territory-card-hover: #ffe3c4;
-  --ops-territory-card-border: #ee7f28;
+  --ops-territory-accent: #d946ef;
+  --ops-territory-banner: #f0abfc;
+  --ops-territory-card: #fdf4ff;
+  --ops-territory-card-hover: #fae8ff;
+  --ops-territory-card-border: #d946ef;
 }
 
 .ops-jobs-page :is(.ops-territory-section, .ops-territory-jump a).is-baton-rouge {

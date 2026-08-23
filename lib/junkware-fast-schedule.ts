@@ -36,7 +36,19 @@ export function overlayJunkwareScheduleRow(
   enrichedRow: JunkwareScheduleRow | undefined,
   currentRow: JunkwareScheduleRow,
 ): JunkwareScheduleRow {
-  return enrichedRow ? { ...enrichedRow, ...currentRow } : { ...currentRow };
+  if (!enrichedRow) return { ...currentRow };
+
+  // The fast watcher is authoritative for current schedule state, but it can
+  // intentionally omit customer contact and service-address fields. Do not
+  // let those blanks erase a fuller JunkWare read.
+  const populatedCurrentValues = Object.fromEntries(
+    Object.entries(currentRow).filter(([, value]) => (
+      value !== null
+      && value !== undefined
+      && (typeof value !== "string" || value.trim() !== "")
+    )),
+  );
+  return { ...enrichedRow, ...populatedCurrentValues };
 }
 
 function mergeRows(rows: JunkwareScheduleRow[]): JunkwareScheduleRow[] {

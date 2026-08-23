@@ -110,8 +110,8 @@ assert.equal(normalizeSlackTruckNumber("Virtual Truck"), null);
 assert.equal(truckSlackChannelId("Truck 4", "C_TEST_FALLBACK"), "C_TEST_TRUCK_4");
 assert.equal(truckSlackChannelId("Unassigned", "C_TEST_FALLBACK"), "C_TEST_FALLBACK");
 assert.equal(slackAlertKindEnabled("late_job"), false);
-assert.equal(slackAlertKindEnabled("add_on"), true);
-assert.equal(slackAlertKindEnabled("cancellation"), true);
+assert.equal(slackAlertKindEnabled("add_on"), false);
+assert.equal(slackAlertKindEnabled("cancellation"), false);
 assert.equal(slackAlertKindEnabled("unassigned_crew"), false);
 assert.equal(slackAlertKindEnabled("truck_arrival"), true);
 assert.equal(slackAlertKindEnabled("job_closed"), true);
@@ -474,6 +474,17 @@ try {
   fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), JSON.stringify({
     scraped_at: "2026-08-12T14:05:00-05:00",
     completed: [existingCloseout, newCloseout],
+    // This cancellation is deliberately new after the legacy publisher's
+    // baseline. It must remain owned by the fast schedule detector rather
+    // than becoming a second notification from the full refresh.
+    cancelled: [{
+      appt_id: "504",
+      job_id: "JK4051504",
+      customer_name: "Schedule Change Customer",
+      appointment_time: "3:00 PM - 4:00 PM",
+      address: "504 Schedule Change Street, New Orleans, LA 70115",
+      territory: "New Orleans",
+    }],
   }));
   const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed"]);

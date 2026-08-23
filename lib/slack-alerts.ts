@@ -288,7 +288,11 @@ export function appointmentChannelId(territory: string): string {
 }
 
 export function slackAlertKindEnabled(kind: SlackAlertKind): boolean {
-  return kind !== "late_job" && kind !== "unassigned_crew";
+  // Same-day appointment and cancellation events are owned by the fast
+  // JunkWare schedule detector. The full refresh also sees those rows, but
+  // must never publish them: its independent state would otherwise create a
+  // second Slack alert for the same appointment.
+  return !["late_job", "unassigned_crew", "add_on", "cancellation"].includes(kind);
 }
 
 function origin(): string {
@@ -977,10 +981,10 @@ export async function runSlackOpsAlerts(options?: {
   const hadCancellationBaseline = Object.prototype.hasOwnProperty.call(state.knownCancellationsByDate, date);
   const knownAppointments = new Set(state.knownAppointmentsByDate[date] || []);
   const knownCancellations = new Set(state.knownCancellationsByDate[date] || []);
-  const additions = hadAppointmentBaseline
+  const additions = hadAppointmentBaseline && slackAlertKindEnabled("add_on")
     ? feed.appointments.filter((appointment) => !knownAppointments.has(appointment.id))
     : [];
-  const cancellations = hadCancellationBaseline
+  const cancellations = hadCancellationBaseline && slackAlertKindEnabled("cancellation")
     ? cancellationFeed.appointments.filter((appointment) => !knownCancellations.has(appointment.id))
     : [];
   const notificationDeliveries = [

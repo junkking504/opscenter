@@ -1372,6 +1372,8 @@
 }
 
 .ops-jobs-page .ops-territory-jump {
+  position: static;
+  top: auto;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 96px), 1fr));
   gap: 9px;
@@ -1387,7 +1389,7 @@
   min-height: 44px;
   padding: 8px 10px 8px 14px;
   border: 2px solid #aeb7c2;
-  border-radius: 999px;
+  border-radius: 10px;
   background: #eef1f4;
   color: #4f5965;
   font-size: .7rem;
@@ -1401,6 +1403,7 @@
   min-height: 44px;
   padding: 8px 10px 8px 14px;
   border: 2px solid var(--ops-territory-card-border);
+  border-radius: 10px;
   background: var(--ops-territory-card);
   color: #1f2937;
   font-size: .875rem;
@@ -1421,7 +1424,7 @@
   height: 25px;
   margin-left: 8px;
   padding-inline: 6px;
-  border-radius: 999px;
+  border-radius: 6px;
   background: var(--ops-territory-accent);
   color: #101820;
   font-size: .72rem;

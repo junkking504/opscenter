@@ -1298,6 +1298,8 @@ body {
   }
 
   .ops-page-header .ops-date-selector-wrap {
+    flex: 0 0 var(--oc-control-height);
+    height: var(--oc-control-height);
     gap: 0;
   }
 
@@ -1314,6 +1316,10 @@ body {
   .ops-page-header :is(.ops-refresh-button, .ops-button, .ops-date-selector, input, select) {
     min-height: var(--oc-control-height) !important;
     padding-block: 7px;
+  }
+
+  .ops-page-header .ops-date-selector {
+    height: var(--oc-control-height);
   }
 
   .ops-page-header .ops-refresh-button {

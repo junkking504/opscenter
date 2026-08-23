@@ -5,7 +5,6 @@
  * redesign. This file is imported last and establishes the readable, shared
  * contract while those older screens are migrated incrementally.
  */
-
 :root {
   --oc-text-secondary: #3f4650;
   --oc-text-muted: #606873;
@@ -16,16 +15,13 @@
   --oc-font-dense: 0.875rem;
   --oc-font-label: 0.8125rem;
 }
-
 html {
   scroll-padding-bottom: 7.5rem;
   text-size-adjust: 100%;
 }
-
 body {
   line-height: 1.5;
 }
-
 .ops-pagination {
   display: flex;
   align-items: center;
@@ -33,7 +29,6 @@ body {
   gap: 0.75rem;
   margin: 1rem 0;
 }
-
 .ops-pagination-link,
 .ops-pagination-status {
   display: inline-flex;
@@ -44,7 +39,6 @@ body {
   font-size: 0.9375rem;
   font-weight: 750;
 }
-
 .ops-pagination-link {
   min-width: 6.5rem;
   border: 1px solid var(--oc-line-strong);
@@ -52,24 +46,20 @@ body {
   color: #252a31;
   text-decoration: none;
 }
-
 .ops-pagination-link:hover,
 .ops-pagination-link:focus-visible {
   border-color: #8e969f;
   outline: 3px solid rgba(20, 93, 160, 0.25);
   outline-offset: 2px;
 }
-
 .ops-pagination-link.is-disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
-
 .ops-pagination-status {
   min-width: 8rem;
   color: var(--oc-text-secondary);
 }
-
 /* Grid children must be allowed to shrink instead of widening the page. */
 .ops-dashboard > *,
 .ops-page-header,
@@ -77,37 +67,31 @@ body {
   min-width: 0;
   max-width: 100%;
 }
-
 .ops-page-subnav,
 .ops-wide-table-wrap {
   min-width: 0;
   max-width: 100%;
   overflow-x: auto;
 }
-
 .ops-login-access-card > p,
 .ops-login-hero > p {
   font-size: 0.9375rem;
   line-height: 1.55;
 }
-
 .ops-login-form label > span,
 .ops-login-access-index {
   font-size: 0.875rem;
 }
-
 .ops-login-form .ops-field,
 .ops-login-button {
   min-height: 52px;
   font-size: 0.9375rem;
 }
-
 .ops-login-footnote,
 .ops-login-system-line {
   font-size: 0.875rem;
   line-height: 1.45;
 }
-
 /* Titles, section headers, navigation, and tabs follow one Title Case rule. */
 .ops-main :where(
   h1,
@@ -153,7 +137,6 @@ body {
 .ops-refresh-button {
   text-transform: capitalize;
 }
-
 /* Restore a clear page hierarchy where compact legacy selectors won. */
 .ops-main .ops-page-title,
 .ops-finance-page .ops-page-title {
@@ -162,7 +145,6 @@ body {
   line-height: 1.05;
   letter-spacing: -0.045em;
 }
-
 .ops-main .ops-page-header-subtitle,
 .ops-main .ops-card-header .ops-muted,
 .ops-main .ops-table-note,
@@ -172,7 +154,6 @@ body {
   font-size: 0.875rem;
   line-height: 1.45;
 }
-
 .ops-main .ops-page-header-meta,
 .ops-main .ops-page-header-status {
   color: #646c76;
@@ -180,7 +161,6 @@ body {
   line-height: 1.4;
 }
 .ops-main .ops-page-header-updated { font-size: 0.625rem; font-weight: 600; letter-spacing: 0.035em; opacity: 0.68; }
-
 /* The current design-system bundle still contains a late legacy rule that
  * paints every card dark. Re-establish the light workspace contract here and
  * opt the few deliberate dark canvases back in below. */
@@ -190,77 +170,60 @@ body {
   color: #20242b;
   box-shadow: 0 7px 22px rgba(25, 28, 35, 0.045);
 }
-
 .ops-main .ops-dashboard > .ops-kpi-row > .ops-card,
 .ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card {
   border-color: #d8dcd8; background: #fff; color: #20242b;
 }
-
 .ops-main .ops-dashboard > .ops-kpi-row > .ops-card .ops-card-title,
 .ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-card-title {
   color: #626b77;
 }
-
 .ops-main .ops-dashboard > .ops-kpi-row > .ops-card .ops-kpi-value,
 .ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-value { color: #171a1f; }
-
 .ops-main .ops-dashboard > .ops-kpi-row > .ops-card .ops-kpi-accent,
 .ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-accent { color: #91620b; }
-
 .ops-main .ops-dashboard > .ops-kpi-row > .ops-card .ops-kpi-good,
 .ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-good { color: #087849; }
-
 .ops-main .ops-dashboard > .ops-kpi-row > .ops-card .ops-kpi-danger,
 .ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-danger { color: #c32f3a; }
-
 .ops-main .ops-dashboard > .ops-kpi-row > .ops-card .ops-kpi-sub,
 .ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-sub,
 .ops-main .ops-card-header .ops-muted { color: #606873; }
-
 .ops-main .ops-jobs-map-card,
 .ops-main .ops-crew-section-period,
 .ops-main .ops-finance-page > .ops-finance-brief {
   border-color: rgba(255, 255, 255, 0.1) !important; background: #10151b !important;
   color: #f8fafc; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
 }
-
 .ops-main .ops-finance-page > .ops-finance-brief :where(h2, strong) { color: #f8fafc; }
-
 .ops-main .ops-finance-page > .ops-finance-brief :where(p, small, span) { color: #aeb7c3; }
-
 /* Daily Command intentionally uses a dark control strip; keep its copy and
  * tabs readable after the shared light-surface typography rules above. */
 .ops-main .ops-daily-dashboard .ops-page-title {
   color: #f8fafc;
 }
-
 .ops-main .ops-daily-dashboard .ops-page-header-subtitle,
 .ops-main .ops-daily-dashboard .ops-page-header-meta,
 .ops-main .ops-daily-dashboard .ops-page-header-updated,
 .ops-main .ops-daily-dashboard .ops-page-header-status {
   color: #b8c1cc;
 }
-
 .ops-main .ops-daily-dashboard .ops-date-label,
 .ops-main .ops-daily-dashboard .ops-page-header label {
   color: #d7dde5;
 }
-
 .ops-main .ops-daily-dashboard .ops-page-subnav a {
   color: #c3cad4;
 }
-
 .ops-main .ops-daily-dashboard .ops-page-subnav a:hover,
 .ops-main .ops-daily-dashboard .ops-page-subnav a:focus-visible {
   color: #fff;
 }
-
 .ops-main .ops-section-title {
   color: #20242b;
   font-size: 1.0625rem;
   line-height: 1.25;
 }
-
 .ops-main .ops-card-title,
 .ops-dashboard > .ops-kpi-row > .ops-card .ops-card-title,
 .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-card-title {
@@ -269,27 +232,22 @@ body {
   line-height: 1.3;
   letter-spacing: 0.075em;
 }
-
 /* Navigation and controls meet comfortable reading and touch dimensions. */
 .ops-nav-item {
   min-height: 46px;
   font-size: 0.9375rem;
 }
-
 .ops-nav-icon,
 .ops-nav-item.active .ops-nav-icon {
   font-size: 0.9375rem;
 }
-
 .ops-brand-subtitle,
 .ops-sidebar-footer-code,
 .ops-main .ops-eyebrow {
   font-size: 0.9375rem;
 }
-
 .ops-main .ops-eyebrow { color: #4f5965; }
 .ops-sidebar .ops-status-pill { font-size: var(--oc-font-label); }
-
 .ops-page-subnav a,
 .ops-refresh-button,
 .ops-button,
@@ -300,19 +258,16 @@ body {
 .ops-jobs-filter-menu > summary {
   min-height: var(--oc-control-height) !important;
 }
-
 .ops-page-subnav a {
   padding-inline: 15px;
   color: #555e69;
   font-size: 0.9375rem;
 }
-
 .ops-date-label,
 .ops-page-header label {
   color: #59616c;
   font-size: 0.9375rem;
 }
-
 .ops-refresh-button,
 .ops-button,
 .ops-date-selector,
@@ -320,13 +275,11 @@ body {
 .ops-page-header select {
   font-size: var(--oc-font-body);
 }
-
 .ops-main .ops-mini-link {
   color: #3f4b58;
   font-size: var(--oc-font-label);
   line-height: 1.35;
 }
-
 .ops-sidebar-footer .ops-mini-link,
 .ops-card-header > .ops-mini-link,
 .ops-card-header.compact .ops-mini-link {
@@ -336,7 +289,6 @@ body {
   justify-content: center;
   font-size: var(--oc-font-dense);
 }
-
 /* Make the light top bar legible; older badge rules assumed a dark surface. */
 .ops-notification-trigger,
 .ops-command-clock,
@@ -348,12 +300,10 @@ body {
   color: #3f4752;
   box-shadow: 0 2px 8px rgba(25, 28, 35, 0.05);
 }
-
 .ops-notification-trigger.is-offline {
   border-color: #e8b8bb;
   color: #a1262c;
 }
-
 .ops-notification-trigger-label,
 .ops-command-clock-date,
 .ops-command-clock-zone,
@@ -362,9 +312,7 @@ body {
   color: #4f5864;
   font-size: 0.75rem;
 }
-
 .ops-runtime-status > strong { color: #24599b; font-size: 0.8125rem; }
-
 .ops-topbar { min-height: 44px; margin-bottom: 8px; padding: 4px 2px 8px; }
 .ops-topbar-identity { display: flex; flex: 0 0 auto; align-items: baseline; gap: 10px; white-space: nowrap; }
 .ops-topbar-title-row { margin-top: 0; }
@@ -375,57 +323,46 @@ body {
 .ops-sidebar .ops-nav-item { color: #aeb7c4; }
 .ops-sidebar .ops-nav-icon { color: #8f9baa; }
 .ops-sidebar .ops-nav-item.active { color: #fff; }
-
 .ops-main .ops-refresh-button {
   border-color: #53687b;
   background: #202a36;
   color: #fff !important;
 }
-
 .ops-main .ops-marketing-page .ops-kpi-sub,
 .ops-main .ops-finance-page .ops-finance-brief :where(.ops-finance-brief-kicker, .ops-finance-brief-status, span, small) {
   font-size: var(--oc-font-label);
   line-height: 1.4;
 }
-
 .ops-main .ops-finance-page .ops-finance-brief a { min-height: 112px; }
-
 .ops-main .ops-page-subnav a.needs-attention:not(.active) { color: #a1262c; }
 .ops-main .ops-page-subnav small { background: #dce6ef; color: #263849; }
 .ops-main .ops-page-subnav a.needs-attention small { background: #a1262c; color: #fff; }
-
 /* Tables are operational reading surfaces, not decorative micro-copy. */
 .ops-main .ops-table {
   color: #303741;
   font-size: 0.875rem;
   line-height: 1.45;
 }
-
 .ops-main .ops-table th {
   color: #59616c;
   font-size: 0.9375rem;
   line-height: 1.3;
 }
-
 .ops-main .ops-table td {
   color: #303741;
   font-size: 0.875rem;
   line-height: 1.45;
 }
-
 .ops-main .ops-table td,
 .ops-main .ops-table th {
   padding-block: 12px;
 }
-
 .ops-fleet-truck-link {
   min-height: var(--oc-control-height);
   color: #20242b;
   font-weight: 750;
 }
-
 .ops-main :where(.ops-fleet-truck-link, .ops-fleet-truck-link strong) { color: #20242b !important; }
-
 /* Supporting dashboard cards inherited dark text onto a dark background. */
 .ops-supporting-metrics .ops-daily-kpi-card {
   border-color: #d8dcd8;
@@ -433,13 +370,11 @@ body {
   color: #20242b;
   box-shadow: 0 7px 20px rgba(25, 28, 35, 0.05);
 }
-
 .ops-supporting-metrics .ops-daily-kpi-card:hover,
 .ops-supporting-metrics .ops-daily-kpi-card:focus-visible {
   border-color: #aeb8c5;
   background: #f8fafb;
 }
-
 .ops-supporting-metrics .ops-daily-kpi-card .ops-card-title { color: #626b77; }
 
 .ops-supporting-metrics .ops-daily-kpi-card .ops-kpi-value { color: #171a1f; }

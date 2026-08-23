@@ -51,6 +51,8 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
   const [otherChargePrice, setOtherChargePrice] = useState("");
   const [pendingOtherCharges, setPendingOtherCharges] = useState<PendingOtherCharge[]>([]);
 
+  if (/cancel(?:ed|led)/i.test(initialStatus)) return null;
+
   async function load() {
     if (!resolvedAppointmentId) {
       setError("This job does not have a Junkware appointment link yet.");

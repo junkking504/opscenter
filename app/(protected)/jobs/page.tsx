@@ -1568,33 +1568,6 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
 }
 
 
-function paymentClass(paymentType: string): string {
-  const normalized = paymentType.toLowerCase();
-
-  if (normalized.includes("credit") || normalized.includes("card")) {
-    return "ops-payment-badge credit-card";
-  }
-
-  if (normalized.includes("cash")) {
-    return "ops-payment-badge cash";
-  }
-
-  if (normalized.includes("check") || normalized.includes("cheque")) {
-    return "ops-payment-badge check";
-  }
-
-  if (
-    normalized.includes("bill") ||
-    normalized.includes("invoice") ||
-    normalized.includes("open")
-  ) {
-    return "ops-payment-badge billed";
-  }
-
-  return "ops-payment-badge unknown";
-}
-
-
 function parseCsvLine(line: string): string[] {
   const values: string[] = [];
   let current = "";
@@ -2056,6 +2029,63 @@ function appointmentPaymentTypeLabel(job: JobRow, compact = false): string {
   if (payment) return paymentReferenceLabel(payment.method, payment.detail);
   if (job.paymentType !== "—") return paymentReferenceLabel(job.paymentType);
   return missingPaymentTypeLabel(job.appointmentType, compact);
+}
+
+function paymentIsCard(job: JobRow): boolean {
+  const payment = job.closeout?.payments.find((entry) => entry.amount > 0) || job.closeout?.payments[0];
+  return /credit|card|visa|mastercard|amex|american express|discover/i.test(
+    `${payment?.method || ""} ${payment?.detail || ""} ${job.paymentType || ""}`,
+  );
+}
+
+function recordedPaymentAmount(job: JobRow): number {
+  if (job.paymentAmount > 0) return job.paymentAmount;
+  return job.closeout?.payments.find((entry) => entry.amount > 0)?.amount || 0;
+}
+
+function AppointmentCardPaymentSummary({ job }: { job: JobRow }) {
+  const bucket = statusBucket(job);
+  const paymentAmount = recordedPaymentAmount(job);
+  const hasRecordedPayment = bucket === "Completed" && paymentAmount > 0;
+
+  if (hasRecordedPayment) {
+    return (
+      <div className="ops-appointment-card-payment-summary">
+        <div className="ops-appointment-card-payment-line">
+          <strong className="ops-appointment-card-revenue">{money(paymentAmount)}</strong>
+          <span className="ops-appointment-card-payment-reference">{appointmentPaymentTypeLabel(job, true)}</span>
+        </div>
+        {paymentIsCard(job) ? (
+          <a
+            className="ops-appointment-card-address ops-appointment-card-merchant-link"
+            href="https://merchantcenter.intuit.com/msc/portal/home"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View in Merchant Center
+          </a>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <span className={`ops-status-tag compact ${statusBadgeClass(bucket)}`}>{cardStatusLabel(job)}</span>
+      {bucket === "Canceled" ? null : (
+        <>
+          <div className="ops-appointment-card-amount">
+            <strong className={`ops-appointment-card-revenue${bucket === "Open / Scheduled" && job.paymentAmount > 0 ? " quoted" : ""}${job.paymentAmount > 0 || bucket === "Completed" || bucket === "Estimate" ? "" : " unavailable"}`}>
+              {job.paymentAmount > 0 || bucket === "Completed" || bucket === "Estimate" ? money(job.paymentAmount) : "$--.--"}
+            </strong>
+          </div>
+          <span className={job.paymentType !== "—" || job.closeout?.payments.length ? "ops-appointment-card-payment-reference" : "ops-outcome-unavailable"}>
+            {appointmentPaymentTypeLabel(job, true)}
+          </span>
+        </>
+      )}
+    </>
+  );
 }
 
 function cardStatusLabel(job: JobRow): string {
@@ -3607,7 +3637,7 @@ export default async function JobsPage({
                               </div>
 
                               <div className="ops-appointment-card-outcome">
-                                <span className={`ops-status-tag compact ${statusBadgeClass(statusBucket(job))}`}>{cardStatusLabel(job)}</span>
+                                <AppointmentCardPaymentSummary job={job} />
                                 {visitedButNotClosed ? (
                                   <span
                                     className="ops-visited-unclosed-badge"
@@ -3617,14 +3647,6 @@ export default async function JobsPage({
                                     Visited · not closed
                                   </span>
                                 ) : null}
-                                <div className="ops-appointment-card-amount">
-                                  <strong className={`ops-appointment-card-revenue${statusBucket(job) === "Open / Scheduled" && job.paymentAmount > 0 ? " quoted" : ""}${job.paymentAmount > 0 || statusBucket(job) === "Completed" || statusBucket(job) === "Estimate" ? "" : " unavailable"}`}>
-                                    {job.paymentAmount > 0 || statusBucket(job) === "Completed" || statusBucket(job) === "Estimate" ? money(job.paymentAmount) : "$--.--"}
-                                  </strong>
-                                </div>
-                                <span className={job.paymentType !== "—" || job.closeout?.payments.length ? paymentClass(appointmentPaymentTypeLabel(job, true)) : "ops-outcome-unavailable"}>
-                                  {appointmentPaymentTypeLabel(job, true)}
-                                </span>
                                 {jobExceptionsForCard.length > 0 && (
                                   <a
                                     className={`ops-job-exception-badge ${exceptionSeverity}`}
@@ -3900,7 +3922,7 @@ export default async function JobsPage({
                             </div>
 
                             <div className="ops-appointment-card-outcome">
-                              <span className={`ops-status-tag compact ${statusBadgeClass(statusBucket(job))}`}>{cardStatusLabel(job)}</span>
+                              <AppointmentCardPaymentSummary job={job} />
                               {visitedButNotClosed ? (
                                 <span
                                   className="ops-visited-unclosed-badge"
@@ -3910,14 +3932,6 @@ export default async function JobsPage({
                                   Visited · not closed
                                 </span>
                               ) : null}
-                              <div className="ops-appointment-card-amount">
-                                <strong className={`ops-appointment-card-revenue${statusBucket(job) === "Open / Scheduled" && job.paymentAmount > 0 ? " quoted" : ""}${job.paymentAmount > 0 || statusBucket(job) === "Completed" || statusBucket(job) === "Estimate" ? "" : " unavailable"}`}>
-                                  {job.paymentAmount > 0 || statusBucket(job) === "Completed" || statusBucket(job) === "Estimate" ? money(job.paymentAmount) : "$--.--"}
-                                </strong>
-                              </div>
-                              <span className={job.paymentType !== "—" || job.closeout?.payments.length ? paymentClass(appointmentPaymentTypeLabel(job, true)) : "ops-outcome-unavailable"}>
-                                {appointmentPaymentTypeLabel(job, true)}
-                              </span>
                               {jobExceptionsForCard.length > 0 && (
                                 <a
                                   className={`ops-job-exception-badge ${exceptionSeverity}`}

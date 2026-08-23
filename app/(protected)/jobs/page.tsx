@@ -305,11 +305,16 @@ function siteDurationLabel(minutes: number | null | undefined): string {
 }
 
 function siteTimeVisitedTrucks(siteTime: SiteTimeAppointment | undefined): string[] {
-  if (!siteTime) return [];
-  return Array.from(new Set(siteTime.trucks
-    .filter((truck) => truck.operationalConfirmation || (truck.visitCount > 0 && Boolean(truck.arrival || truck.intervals.some((interval) => interval.arrival))))
+  return Array.from(new Set(siteTimeVisitEvidence(siteTime)
     .map((truck) => truck.truck)
     .filter(Boolean)));
+}
+
+function siteTimeVisitEvidence(siteTime: SiteTimeAppointment | undefined): SiteTimeTruck[] {
+  if (!siteTime) return [];
+  return siteTime.trucks.filter((truck) => (
+    truck.operationalConfirmation || (truck.visitCount > 0 && Boolean(truck.arrival || truck.intervals.some((interval) => interval.arrival)))
+  ));
 }
 
 function appointmentVisitedButNotClosed(job: JobRow, visitedTrucks: string[]): boolean {
@@ -2195,45 +2200,32 @@ function JobContextDetails({
   const notes = job.appointmentNotes.filter((note) => !/^Appointment moved from\b/i.test(note));
   const notesPreview = notes.join(" • ");
   return (
-    <div className="ops-appointment-context">
-      <div className="ops-appointment-junk-summary">
-        <span>Items to remove</span>
-        {job.junkItems.length ? (
-          <div>{job.junkItems.map((item) => <strong key={item}>{item}</strong>)}</div>
-        ) : <em>Not listed in JunkWare</em>}
+    <details className="ops-appointment-context">
+      <summary>Notes and crew instructions</summary>
+      <div className="ops-appointment-context-body">
+        {notes.length ? (
+          <details className="ops-appointment-note-details">
+            <summary>
+              <span>Franchise / call-center notes</span>
+              <strong title={notesPreview}>{notesPreview}</strong>
+              {notes.length > 1 ? <small>{notes.length}</small> : null}
+            </summary>
+            <ul>{notes.map((note, index) => <li key={`${job.appointmentId || job.jkNumber}-note-${index}`}>{note}</li>)}</ul>
+          </details>
+        ) : null}
+        <JobCrewNote
+          date={date}
+          jobKey={jobRouteAssignmentKey(job)}
+          appointmentId={job.appointmentId}
+          initialNote={crewNote}
+        />
       </div>
-      {notes.length ? (
-        <details className="ops-appointment-note-details">
-          <summary>
-            <span>Franchise / call-center notes</span>
-            <strong title={notesPreview}>{notesPreview}</strong>
-            {notes.length > 1 ? <small>{notes.length}</small> : null}
-          </summary>
-          <ul>{notes.map((note, index) => <li key={`${job.appointmentId || job.jkNumber}-note-${index}`}>{note}</li>)}</ul>
-        </details>
-      ) : null}
-      <JobCrewNote
-        date={date}
-        jobKey={jobRouteAssignmentKey(job)}
-        appointmentId={job.appointmentId}
-        initialNote={crewNote}
-      />
-    </div>
+    </details>
   );
 }
 
 function JobPhotoDetails({ job }: { job: JobRow }) {
-  if (jobMissingPhotos(job)) {
-    return (
-      <div className="ops-job-photo-alert" role="status">
-        <span aria-hidden="true">!</span>
-        <div>
-          <strong>Appointment Photos Missing</strong>
-          <small>JunkWare was checked and no appointment photos were uploaded.</small>
-        </div>
-      </div>
-    );
-  }
+  if (jobMissingPhotos(job)) return null;
 
   if (!job.photos.length) return null;
 
@@ -2272,7 +2264,7 @@ function JobPhotoDetails({ job }: { job: JobRow }) {
           {previewPhotos.map((photo, index) => photoLink(photo, index, "Before"))}
         </div>
         {remainingEstimatePhotos.length ? (
-          <details className="ops-job-photo-more" open>
+          <details className="ops-job-photo-more">
             <summary>View {remainingEstimatePhotos.length} More Before Photo{remainingEstimatePhotos.length === 1 ? "" : "s"}</summary>
             <div className="ops-job-photo-gallery">
               {remainingEstimatePhotos.map((photo, index) => photoLink(photo, index + previewPhotos.length, "Before"))}
@@ -2280,7 +2272,7 @@ function JobPhotoDetails({ job }: { job: JobRow }) {
           </details>
         ) : null}
         {appointmentPhotos.length ? (
-          <details className="ops-job-photo-more" open>
+          <details className="ops-job-photo-more">
             <summary>View {appointmentPhotos.length} Appointment Photo{appointmentPhotos.length === 1 ? "" : "s"}</summary>
             <div className="ops-job-photo-gallery">
               {appointmentPhotos.map((photo, index) => photoLink(photo, index, photo.category))}
@@ -2292,7 +2284,7 @@ function JobPhotoDetails({ job }: { job: JobRow }) {
   }
 
   return (
-    <details className="ops-job-photo-details" open>
+    <details className="ops-job-photo-details">
       <summary>
         <span>Job photos</span>
         <strong>{job.photos.length} uploaded</strong>
@@ -2301,6 +2293,54 @@ function JobPhotoDetails({ job }: { job: JobRow }) {
         {job.photos.map((photo, index) => photoLink(photo, index, photo.category))}
       </div>
     </details>
+  );
+}
+
+function appointmentPhotoSummary(job: JobRow): string {
+  if (job.photos.length) return `Photos · ${job.photos.length} added`;
+  if (jobMissingPhotos(job)) return "Photos · none added";
+  return "Photos · not verified";
+}
+
+function appointmentItemsSummary(job: JobRow): string {
+  if (!job.junkItems.length) return "Remove · Not listed";
+  const visibleItems = job.junkItems.slice(0, 2).join(", ");
+  const remaining = job.junkItems.length - 2;
+  return `Remove · ${visibleItems}${remaining > 0 ? ` +${remaining} more` : ""}`;
+}
+
+function AppointmentCardScanSummary({ job, siteTime }: { job: JobRow; siteTime: SiteTimeAppointment | undefined }) {
+  const visitTrucks = siteTimeVisitEvidence(siteTime);
+  const primaryVisit = visitTrucks[0];
+  const crew = [
+    job.driverName || job.driver,
+    job.navigatorName || job.navigator,
+    ...(job.additionalCrew || []),
+  ]
+    .map((member) => String(member || "").trim())
+    .filter((member) => member && member !== "—" && !/^unavailable$/i.test(member));
+  const siteWindow = primaryVisit?.arrival
+    ? primaryVisit.departure
+      ? `On site ${siteTimeClock(primaryVisit.arrival)}–${siteTimeClock(primaryVisit.departure)}`
+      : `On site since ${siteTimeClock(primaryVisit.arrival)}`
+    : "On site time unavailable";
+  const duration = primaryVisit ? siteDurationLabel(siteTimeTruckDurationMinutes(primaryVisit)) : "";
+
+  return (
+    <div className="ops-appointment-card-scan-summary">
+      {primaryVisit ? (
+        <div className="ops-appointment-visit-summary" title={primaryVisit.state}>
+          <span className="ops-appointment-visit-time">{siteWindow}{duration !== "—" ? ` · ${duration}` : ""}</span>
+          <span className="ops-appointment-visit-crew">
+            <strong>{primaryVisit.truck}</strong>
+            {crew.length ? <>{" · "}{crew.join(" · ")}</> : " · Crew not recorded"}
+          </span>
+          {visitTrucks.length > 1 ? <span className="ops-appointment-visit-extra">+{visitTrucks.length - 1} truck</span> : null}
+          <span className={`ops-appointment-photo-summary${jobMissingPhotos(job) ? " missing" : ""}`}>{appointmentPhotoSummary(job)}</span>
+        </div>
+      ) : null}
+      <span className="ops-appointment-items-summary" title={job.junkItems.join(", ")}>{appointmentItemsSummary(job)}</span>
+    </div>
   );
 }
 
@@ -2632,10 +2672,10 @@ export default async function JobsPage({
   const jobs = view === "daily"
     ? applyJobRouteAssignmentOverrides(readJobRows(date), date)
     : monthlySummary?.jobs || readJobRows(date);
+  const crewNotes = readJobCrewNotes();
   const callAheadStatuses = readJobCallAheadStatuses();
   const filters: JobsFilters = {
     territory: readFilterValue(params?.territory),
-  const crewNotes = readJobCrewNotes();
     status: readFilterValue(params?.status),
     paymentType: readFilterValue(params?.paymentType),
     truck: readFilterValue(params?.truck),
@@ -3381,25 +3421,12 @@ export default async function JobsPage({
                                   ) : (
                                     <div className="ops-appointment-card-address">Address unavailable</div>
                                   )}
-                                  <div className="ops-appointment-card-crew">
-                                    <span className="ops-physical-truck-badge">
-                                      {siteTime?.trucks?.[0]?.truck || (job.truck !== "—" ? job.truck : "Unassigned truck")}
-                                    </span>
-                                    <span className="ops-appointment-card-driver">{safeText(job.driverName || job.driver)}</span>
-                                    <span className="ops-appointment-card-navigator">{safeText(job.navigatorName || job.navigator)}</span>
-                                  </div>
+                                  <AppointmentCardScanSummary job={job} siteTime={siteTime} />
                                 </div>
                               </div>
 
                               <div className="ops-appointment-card-outcome">
                                 <span className={`ops-status-tag compact ${statusBadgeClass(statusBucket(job))}`}>{cardStatusLabel(job)}</span>
-                                {jobMissingPhotos(job) ? (
-                                  <span className="ops-job-photo-badge missing" title="JunkWare was checked and no appointment photos were found.">
-                                    Photos Missing
-                                  </span>
-                                ) : job.photos.length ? (
-                                  <span className="ops-job-photo-badge complete">{job.photos.length} photo{job.photos.length === 1 ? "" : "s"}</span>
-                                ) : null}
                                 {visitedButNotClosed ? (
                                   <span
                                     className="ops-visited-unclosed-badge"
@@ -3683,25 +3710,12 @@ export default async function JobsPage({
                                 ) : (
                                   <div className="ops-appointment-card-address">Address unavailable</div>
                                 )}
-                                <div className="ops-appointment-card-crew">
-                                  <span className="ops-physical-truck-badge">
-                                    {siteTime?.trucks?.[0]?.truck || (job.truck !== "—" ? job.truck : "Unassigned truck")}
-                                  </span>
-                                  <span className="ops-appointment-card-driver">{safeText(job.driverName || job.driver)}</span>
-                                  <span className="ops-appointment-card-navigator">{safeText(job.navigatorName || job.navigator)}</span>
-                                </div>
+                                <AppointmentCardScanSummary job={job} siteTime={siteTime} />
                               </div>
                             </div>
 
                             <div className="ops-appointment-card-outcome">
                               <span className={`ops-status-tag compact ${statusBadgeClass(statusBucket(job))}`}>{cardStatusLabel(job)}</span>
-                              {jobMissingPhotos(job) ? (
-                                <span className="ops-job-photo-badge missing" title="JunkWare was checked and no appointment photos were found.">
-                                  Photos Missing
-                                </span>
-                              ) : job.photos.length ? (
-                                <span className="ops-job-photo-badge complete">{job.photos.length} photo{job.photos.length === 1 ? "" : "s"}</span>
-                              ) : null}
                               {visitedButNotClosed ? (
                                 <span
                                   className="ops-visited-unclosed-badge"

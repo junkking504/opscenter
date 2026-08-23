@@ -1156,10 +1156,7 @@
     box-shadow: 0 5px 14px rgba(0, 0, 0, 0.18);
   }
 
-  .ops-jobs-page .ops-territory-jump > span {
-    font-size: 0.625rem;
-  }
-
+  .ops-jobs-page .ops-territory-jump > span,
   .ops-jobs-page .ops-territory-jump a {
     min-height: 30px;
     padding: 5px 10px;
@@ -1375,17 +1372,32 @@
 }
 
 .ops-jobs-page .ops-territory-jump {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 96px), 1fr));
   gap: 9px;
   padding: 9px 10px;
+  overflow: visible;
 }
 
 .ops-jobs-page .ops-territory-jump > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 10px 8px 14px;
+  border: 2px solid #aeb7c2;
+  border-radius: 999px;
+  background: #eef1f4;
+  color: #4f5965;
   font-size: .7rem;
 }
 
 .ops-jobs-page .ops-territory-jump a {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: 0;
   min-height: 44px;
   padding: 8px 10px 8px 14px;
   border: 2px solid var(--ops-territory-card-border);

@@ -3531,23 +3531,19 @@ export default async function JobsPage({
       </> : null}
 
       <div className="ops-card" id={view === "calendar" ? "calendar-day-appointments" : "jobs-schedule"}>
-        <div className="ops-card-header compact">
-          <div>
-            <div className="ops-section-title">
-              {view === "calendar" ? `${jobActivityDate(selectedCalendarDate)} Appointments` : "Appointment Queue"}
+        {view === "calendar" ? (
+          <div className="ops-card-header compact">
+            <div>
+              <div className="ops-section-title">{jobActivityDate(selectedCalendarDate)} Appointments</div>
+              <div className="ops-muted">
+                {selectedCalendarJobs.length} appointment{selectedCalendarJobs.length === 1 ? "" : "s"}, using the dispatch layout and ordered by territory and time.
+              </div>
             </div>
-            <div className="ops-muted">
-              {view === "calendar"
-                ? `${selectedCalendarJobs.length} appointment${selectedCalendarJobs.length === 1 ? "" : "s"}, using the dispatch layout and ordered by territory and time.`
-                : `${scheduleCopy.possessive} jobs, grouped by territory and ordered by appointment time.`}
-            </div>
-          </div>
-          {view === "calendar" ? (
             <Link className="ops-calendar-open-dispatch" href={buildJobsHref({ date: selectedCalendarDate, view: "daily", workspace: "dispatch" })}>
               Open dispatch
             </Link>
-          ) : <div className="ops-job-count-pill">{filterCount} appointments</div>}
-        </div>
+          </div>
+        ) : null}
 
         <div
           className="ops-selected-appointment-slot"

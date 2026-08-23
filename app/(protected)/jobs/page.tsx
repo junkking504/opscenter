@@ -2028,8 +2028,30 @@ function jobMissingPhotos(job: JobRow): boolean {
   });
 }
 
+function paymentReferenceLabel(method: string, detail = ""): string {
+  const normalizedMethod = String(method || "").trim();
+  const normalizedDetail = String(detail || "").trim();
+  const source = `${normalizedMethod} ${normalizedDetail}`.trim();
+
+  if (/credit|card|visa|mastercard|amex|american express|discover/i.test(source)) {
+    const cardLastFour = Array.from(source.matchAll(/(?<!\d)(\d{4})(?!\d)/g)).at(-1)?.[1];
+    return cardLastFour ? `Card Ending ${cardLastFour}` : "Card ending unavailable";
+  }
+
+  if (/check|cheque/i.test(source)) {
+    const checkReference = normalizedDetail.match(/(?:check|cheque)(?:\s*(?:number|no\.?|#))?\s*[:#-]?\s*([a-z0-9-]+)/i)?.[1]
+      || normalizedDetail.match(/(?<!\d)(\d{1,12})(?!\d)/)?.[1];
+    return checkReference ? `Check #${checkReference}` : "Check number unavailable";
+  }
+
+  if (/cash/i.test(source)) return "Cash";
+  return normalizedMethod || normalizedDetail;
+}
+
 function appointmentPaymentTypeLabel(job: JobRow, compact = false): string {
-  if (job.paymentType !== "—") return job.paymentType;
+  const payment = job.closeout?.payments.find((entry) => entry.amount > 0) || job.closeout?.payments[0];
+  if (payment) return paymentReferenceLabel(payment.method, payment.detail);
+  if (job.paymentType !== "—") return paymentReferenceLabel(job.paymentType);
   return missingPaymentTypeLabel(job.appointmentType, compact);
 }
 
@@ -2103,19 +2125,8 @@ function closeoutQuantity(value: number): string {
 }
 
 function paymentDetail(payment: JobCloseoutPayment) {
-  const cardLastFour = /card/i.test(payment.method)
-    ? payment.detail.match(/(\d{4})$/)?.[1]
-    : undefined;
-
-  if (cardLastFour) {
-    return (
-      <span className="ops-job-payment-detail">
-        Card ending in <span className="ops-job-payment-last-four">{cardLastFour}</span>
-      </span>
-    );
-  }
-
-  return payment.detail ? <span className="ops-job-payment-detail">{payment.detail}</span> : null;
+  const label = paymentReferenceLabel(payment.method, payment.detail);
+  return label ? <span className="ops-job-payment-detail">{label}</span> : null;
 }
 
 function JobCloseoutDetails({ job }: { job: JobRow }) {
@@ -3481,7 +3492,7 @@ export default async function JobsPage({
                                     {job.paymentAmount > 0 || statusBucket(job) === "Completed" || statusBucket(job) === "Estimate" ? money(job.paymentAmount) : "$--.--"}
                                   </strong>
                                 </div>
-                                <span className={job.paymentType !== "—" ? paymentClass(job.paymentType) : "ops-outcome-unavailable"}>
+                                <span className={job.paymentType !== "—" || job.closeout?.payments.length ? paymentClass(appointmentPaymentTypeLabel(job, true)) : "ops-outcome-unavailable"}>
                                   {appointmentPaymentTypeLabel(job, true)}
                                 </span>
                                 {jobExceptionsForCard.length > 0 && (
@@ -3772,7 +3783,7 @@ export default async function JobsPage({
                                   {job.paymentAmount > 0 || statusBucket(job) === "Completed" || statusBucket(job) === "Estimate" ? money(job.paymentAmount) : "$--.--"}
                                 </strong>
                               </div>
-                              <span className={job.paymentType !== "—" ? paymentClass(job.paymentType) : "ops-outcome-unavailable"}>
+                              <span className={job.paymentType !== "—" || job.closeout?.payments.length ? paymentClass(appointmentPaymentTypeLabel(job, true)) : "ops-outcome-unavailable"}>
                                 {appointmentPaymentTypeLabel(job, true)}
                               </span>
                               {jobExceptionsForCard.length > 0 && (

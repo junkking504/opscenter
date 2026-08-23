@@ -1375,24 +1375,10 @@
   position: static;
   top: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 96px), 1fr));
-  gap: 9px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
   padding: 9px 10px;
   overflow: visible;
-}
-
-.ops-jobs-page .ops-territory-jump > span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 0;
-  min-height: 44px;
-  padding: 8px 10px 8px 14px;
-  border: 2px solid #aeb7c2;
-  border-radius: 10px;
-  background: #eef1f4;
-  color: #4f5965;
-  font-size: .7rem;
 }
 
 .ops-jobs-page .ops-territory-jump a {
@@ -1400,13 +1386,13 @@
   align-items: center;
   justify-content: center;
   min-width: 0;
-  min-height: 44px;
-  padding: 8px 10px 8px 14px;
+  min-height: 40px;
+  padding: 7px 4px;
   border: 2px solid var(--ops-territory-card-border);
   border-radius: 10px;
   background: var(--ops-territory-card);
   color: #1f2937;
-  font-size: .875rem;
+  font-size: .78rem;
   font-weight: 900;
 }
 
@@ -1420,14 +1406,14 @@
 .ops-jobs-page .ops-territory-jump small {
   display: inline-grid;
   place-items: center;
-  min-width: 25px;
-  height: 25px;
-  margin-left: 8px;
-  padding-inline: 6px;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 4px;
+  padding-inline: 2px;
   border-radius: 6px;
   background: var(--ops-territory-accent);
   color: #101820;
-  font-size: .72rem;
+  font-size: .68rem;
   font-weight: 950;
 }
 

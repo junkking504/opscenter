@@ -136,11 +136,8 @@ export default function JobCallAheadCard({
     }
   }
 
-  const label = status === "called"
-    ? "Office called"
-    : status === "not_called"
-      ? "Not called yet"
-      : "Call-ahead not set";
+  const called = status === "called";
+  const notCalled = status === "not_called";
 
   const effectiveCanceled = isCanceled || canceledLocally;
   const cancellationAvailable = canCancel && !effectiveCanceled && /^\d{1,12}$/.test(appointmentId);
@@ -169,8 +166,19 @@ export default function JobCallAheadCard({
             Truck on site
           </span>
         ) : null}
-        <span className={`ops-call-ahead-badge ${status || "unset"}${saving ? " saving" : ""}`}>
-          {saving ? "Saving…" : label}
+        <span
+          className={`ops-call-ahead-badge ${status || "unset"}${saving ? " saving" : ""}`}
+          title="Right-click the appointment to update call-ahead status"
+        >
+          {saving ? "Saving…" : <>
+            <span className="ops-call-ahead-label">Call Ahead</span>
+            <span className={`ops-call-ahead-choice${called ? " selected" : ""}`} aria-label={`Call ahead: yes${called ? ", selected" : ""}`}>
+              <i aria-hidden="true">{called ? "✓" : ""}</i>Y
+            </span>
+            <span className={`ops-call-ahead-choice${notCalled ? " selected" : ""}`} aria-label={`Call ahead: no${notCalled ? ", selected" : ""}`}>
+              <i aria-hidden="true">{notCalled ? "✓" : ""}</i>N
+            </span>
+          </>}
         </span>
         {rescheduleAvailable ? (
           <button

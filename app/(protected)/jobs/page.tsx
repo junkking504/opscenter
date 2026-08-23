@@ -36,7 +36,7 @@ import {
   type JunkwareJobPhoto,
 } from "@/lib/junkware-job-details";
 import { missingPaymentTypeLabel, shouldFlagMissingPhotos } from "@/lib/job-audit-rules";
-import { junkwareBookedAt, junkwareBookedDateLabel } from "@/lib/junkware-booking-date";
+import { junkwareBookedAt } from "@/lib/junkware-booking-date";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
 import { planningLocation, type PlanningLocation } from "@/lib/planning-geocodes";
 import "./jobs.css";
@@ -80,6 +80,7 @@ type JobRow = {
   paymentType: string;
   paymentAmount: number;
   tipAmount: number;
+  completedAt: string;
   closeout: JobCloseout | null;
   photos: JunkwareJobPhoto[];
   photoAuditAvailable: boolean;
@@ -1557,6 +1558,7 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
     paymentType,
     paymentAmount,
     tipAmount: moneyNumber(firstValue(row, ["tip", "Tip", "customer_tip", "Customer Tip"]) || "0"),
+    completedAt: firstValue(row, ["completed_at", "closed_at", "closeout_at", "checkout_at"]),
     closeout: null,
     photos: junkwareJobPhotos(row),
     photoAuditAvailable: junkwarePhotoAuditAvailable(row),
@@ -1884,6 +1886,7 @@ function readJobRows(date: string): JobRow[] {
           cleanMoneyValue(firstValue(sourceRow, ["tip", "Tip", "customer_tip", "Customer Tip"]) || firstValue(row, ["tip", "Tip", "customer_tip", "Customer Tip"]) || "0")
             .replace(/[^0-9.-]/g, "")
         ) || 0,
+        completedAt: sourceValue(["completed_at", "closed_at", "closeout_at", "checkout_at"]) || firstValue(row, ["completed_at", "closed_at", "closeout_at", "checkout_at"]),
         closeout: parseJobCloseout(sourceRow),
         photos: junkwareJobPhotos(sourceRow),
         photoAuditAvailable: junkwarePhotoAuditAvailable(sourceRow),
@@ -2109,17 +2112,6 @@ function safeText(value: string): string {
   return text && text !== "—" ? text : "Unavailable";
 }
 
-function AppointmentBookedDate({ bookedAt }: { bookedAt: string }) {
-  const label = junkwareBookedDateLabel(bookedAt);
-  if (!label) return null;
-
-  return (
-    <span className="ops-appointment-booked-date" title={`Booked in JunkWare: ${bookedAt}`}>
-      Booked {label}
-    </span>
-  );
-}
-
 function closeoutQuantity(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
 }
@@ -2264,7 +2256,7 @@ function JobContextDetails({
   const notesPreview = notes.join(" • ");
   return (
     <details className="ops-appointment-context">
-      <summary>Notes and crew instructions</summary>
+      <summary>Notes</summary>
       <div className="ops-appointment-context-body">
         {notes.length ? (
           <details className="ops-appointment-note-details">
@@ -2367,10 +2359,10 @@ function appointmentPhotoSummary(job: JobRow): string {
 }
 
 function appointmentItemsSummary(job: JobRow): string {
-  if (!job.junkItems.length) return "Remove · Not listed";
+  if (!job.junkItems.length) return "Items not listed";
   const visibleItems = job.junkItems.slice(0, 2).join(", ");
   const remaining = job.junkItems.length - 2;
-  return `Remove · ${visibleItems}${remaining > 0 ? ` +${remaining} more` : ""}`;
+  return `${visibleItems}${remaining > 0 ? ` +${remaining} more` : ""}`;
 }
 
 function AppointmentCardScanSummary({ job, siteTime }: { job: JobRow; siteTime: SiteTimeAppointment | undefined }) {
@@ -2405,6 +2397,145 @@ function AppointmentCardScanSummary({ job, siteTime }: { job: JobRow; siteTime: 
       ) : null}
       <span className="ops-appointment-items-summary" title={job.junkItems.join(", ")}>{appointmentItemsSummary(job)}</span>
     </div>
+  );
+}
+
+function detailClock(value: string | null | undefined): string {
+  const formatted = siteTimeClock(value || null);
+  return formatted === "—" ? "Unavailable" : formatted;
+}
+
+function AppointmentSiteTimeDetails({ siteTime }: { siteTime: SiteTimeAppointment | undefined }) {
+  if (!siteTime?.trucks?.length) {
+    return <div className="ops-appointment-site-time-unavailable">GPS and site time unavailable</div>;
+  }
+
+  return (
+    <section className="ops-appointment-site-time" aria-label="GPS and site time">
+      <div className="ops-appointment-site-time-label">GPS and site time</div>
+      <div className="ops-appointment-site-time-list">
+        {siteTime.trucks.map((truck, truckIndex) => {
+          const durationMinutes = siteTimeTruckDurationMinutes(truck);
+          const durationText = siteDurationLabel(durationMinutes);
+          const durationClass = siteDurationClass(durationMinutes);
+          const isOngoing = Boolean(!truck.operationalConfirmation && truck.arrival && !truck.departure);
+          const summaryWindow = isOngoing
+            ? "On Site"
+            : truck.operationalConfirmation
+              ? siteTimeQuality(truck)
+              : truck.arrival && truck.departure
+                ? `${siteTimeClock(truck.arrival)}–${siteTimeClock(truck.departure)}`
+                : siteTimeQuality(truck);
+          const statusText = truck.state === "Operations confirmed visit"
+            ? "Ops confirmed"
+            : truck.state === "Confirmed visit"
+              ? "Verified"
+              : truck.state === "Probable visit"
+                ? "Probable"
+                : truck.state;
+
+          return (
+            <div className="ops-site-time-truck" key={`${siteTime.appointmentId}-${truck.truck}-${truckIndex}`}>
+              <div className="ops-site-time-truck-summary">
+                <span className="ops-site-time-truck-name">{truck.truck}</span>
+                <span className="ops-site-time-truck-window">{summaryWindow}</span>
+                {durationMinutes != null ? <span className={`ops-site-time-truck-duration${durationClass}`}>{durationText}</span> : null}
+                <span className="ops-site-time-truck-status">{statusText}</span>
+              </div>
+              {truck.visitCount > 1 || truck.intervals.length > 1 ? (
+                <div className="ops-site-time-visit-list">
+                  {truck.intervals.map((interval, intervalIndex) => {
+                    const intervalDuration = siteTimeTruckDurationMinutes(interval);
+                    return (
+                      <div className="ops-site-time-visit" key={`${siteTime.appointmentId}-${truck.truck}-visit-${intervalIndex}`}>
+                        <span>Visit {intervalIndex + 1}</span>
+                        <strong>{siteTimeClock(interval.arrival)}–{siteTimeClock(interval.departure)}</strong>
+                        <em className={siteDurationClass(intervalDuration)}>{siteDurationLabel(intervalDuration)}</em>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function AppointmentMoreDetails({
+  job,
+  siteTime,
+  detailGridClassName,
+}: {
+  job: JobRow;
+  siteTime: SiteTimeAppointment | undefined;
+  detailGridClassName: string;
+}) {
+  const primaryVisit = siteTimeVisitEvidence(siteTime)[0];
+
+  return (
+    <details className="ops-appointment-more-details">
+      <summary>More details</summary>
+      <div className={detailGridClassName}>
+        <div>
+          <span>Phone</span>
+          <strong>{safeText(job.phone)}</strong>
+        </div>
+        <div>
+          <span>Email</span>
+          <strong>{job.customerEmail === "—" ? "Unavailable" : <a href={`mailto:${job.customerEmail}`}>{job.customerEmail}</a>}</strong>
+        </div>
+        <div>
+          <span>Truck</span>
+          <strong>{safeText(job.assignedTruck || job.truck)}</strong>
+        </div>
+        <div>
+          <span>Driver</span>
+          <strong>{safeText(job.driverName || job.driver)}</strong>
+        </div>
+        <div>
+          <span>Navigator</span>
+          <strong>{safeText(job.navigatorName || job.navigator)}</strong>
+        </div>
+        {job.additionalCrew?.length ? (
+          <div>
+            <span>Additional krewe</span>
+            <strong>{job.additionalCrew.join(", ")}</strong>
+          </div>
+        ) : null}
+        <div>
+          <span>Krewe status</span>
+          <strong>{safeText(job.crewAssignmentStatus || "Unavailable")}</strong>
+        </div>
+        <div>
+          <span>Arrival</span>
+          <strong>{detailClock(primaryVisit?.arrival)}</strong>
+        </div>
+        <div>
+          <span>Checkout</span>
+          <strong>{detailClock(job.completedAt)}</strong>
+        </div>
+        <div>
+          <span>Payment method</span>
+          <strong>{appointmentPaymentTypeLabel(job)}</strong>
+        </div>
+        <div>
+          <span>{appointmentAmountLabel(job)}</span>
+          <strong>{money(job.paymentAmount)}</strong>
+        </div>
+        <div>
+          <span>Appointment type</span>
+          <strong>{safeText(job.appointmentType)}</strong>
+        </div>
+        <div>
+          <span>Status</span>
+          <strong>{safeText(job.status)}</strong>
+        </div>
+      </div>
+      <AppointmentSiteTimeDetails siteTime={siteTime} />
+    </details>
   );
 }
 
@@ -3446,7 +3577,6 @@ export default async function JobsPage({
                                     ) : (
                                       <span className="ops-jk-number">{safeText(job.jkNumber)}</span>
                                     )}
-                                    <AppointmentBookedDate bookedAt={job.bookedAt} />
                                   </div>
                                   {job.appointmentUrl ? (
                                     <a
@@ -3501,7 +3631,9 @@ export default async function JobsPage({
                                     href={topException?.href || `#${appointmentCardId(job)}`}
                                     title={jobExceptionsForCard.map((exception) => `${exception.title}: ${exception.reason}`).join(" · ")}
                                   >
-                                    {topException?.title || (exceptionSeverity === "critical" ? "Critical exception" : exceptionSeverity === "warning" ? "Warning" : "Info")}
+                                    {topException?.title === "Closed Appointment Missing Photos"
+                                      ? "Missing Photos"
+                                      : topException?.title || (exceptionSeverity === "critical" ? "Critical exception" : exceptionSeverity === "warning" ? "Warning" : "Info")}
                                     {jobExceptionsForCard.length > 1 ? ` +${jobExceptionsForCard.length - 1}` : ""}
                                   </a>
                                 )}
@@ -3525,7 +3657,7 @@ export default async function JobsPage({
 
                             <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
 
-                            <details className="ops-appointment-gps-details">
+                            <details hidden className="ops-appointment-gps-details">
                               <summary>GPS and site time</summary>
                               <div className="ops-appointment-site-time">
                               <div className="ops-appointment-site-time-label">TRUCK SITE TIME</div>
@@ -3600,7 +3732,7 @@ export default async function JobsPage({
                               </div>
                             </details>
 
-                            <details className="ops-appointment-more-details">
+                            <details hidden className="ops-appointment-more-details">
                               <summary>More details</summary>
                               <div className="ops-appointment-detail-grid">
                                 <div>
@@ -3661,6 +3793,7 @@ export default async function JobsPage({
                                 </div>
                               </div>
                             </details>
+                            <AppointmentMoreDetails job={job} siteTime={siteTime} detailGridClassName="ops-appointment-detail-grid" />
                           </JobCallAheadCard>
                         );
                       })}
@@ -3737,7 +3870,6 @@ export default async function JobsPage({
                                   ) : (
                                     <span className="ops-jk-number">{safeText(job.jkNumber)}</span>
                                   )}
-                                  <AppointmentBookedDate bookedAt={job.bookedAt} />
                                 </div>
                                 {job.appointmentUrl ? (
                                   <a
@@ -3792,7 +3924,9 @@ export default async function JobsPage({
                                   href={topException?.href || `#${appointmentCardId(job)}`}
                                   title={jobExceptionsForCard.map((exception) => `${exception.title}: ${exception.reason}`).join(" · ")}
                                 >
-                                  {topException?.title || (exceptionSeverity === "critical" ? "Critical exception" : exceptionSeverity === "warning" ? "Warning" : "Info")}
+                                  {topException?.title === "Closed Appointment Missing Photos"
+                                    ? "Missing Photos"
+                                    : topException?.title || (exceptionSeverity === "critical" ? "Critical exception" : exceptionSeverity === "warning" ? "Warning" : "Info")}
                                   {jobExceptionsForCard.length > 1 ? ` +${jobExceptionsForCard.length - 1}` : ""}
                                 </a>
                               )}
@@ -3816,7 +3950,7 @@ export default async function JobsPage({
 
                           <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
 
-                          <details className="ops-appointment-gps-details">
+                          <details hidden className="ops-appointment-gps-details">
                             <summary>GPS and site time</summary>
                             <div className="ops-appointment-site-time">
                             <div className="ops-appointment-site-time-label">TRUCK SITE TIME</div>
@@ -3891,7 +4025,7 @@ export default async function JobsPage({
                             </div>
                           </details>
 
-                          <details className="ops-appointment-more-details">
+                          <details hidden className="ops-appointment-more-details">
                             <summary>More details</summary>
                             <div className="ops-appointment-detail-grid">
                               <div>
@@ -3952,6 +4086,7 @@ export default async function JobsPage({
                               </div>
                             </div>
                           </details>
+                          <AppointmentMoreDetails job={job} siteTime={siteTime} detailGridClassName="ops-appointment-detail-grid" />
                         </JobCallAheadCard>
                       );
                     })}

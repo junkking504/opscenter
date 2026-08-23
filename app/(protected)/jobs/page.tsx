@@ -2201,6 +2201,7 @@ function paymentDetail(payment: JobCloseoutPayment) {
 function JobCloseoutDetails({ job }: { job: JobRow }) {
   const closeout = job.closeout;
   if (!closeout || statusBucket(job) !== "Completed") return null;
+  const tipAmount = closeout.tip || job.tipAmount;
 
   return (
     <details className="ops-job-closeout-details">
@@ -2249,10 +2250,10 @@ function JobCloseoutDetails({ job }: { job: JobRow }) {
                 <b>−{money(closeout.discount)}</b>
               </div>
             ) : null}
-            {closeout.tip > 0 ? (
+            {tipAmount > 0 ? (
               <div className="ops-job-closeout-line adjustment">
                 <div><strong>Tip</strong></div>
-                <b>{money(closeout.tip)}</b>
+                <b>{money(tipAmount)}</b>
               </div>
             ) : null}
             <div className="ops-job-closeout-total">
@@ -3719,11 +3720,6 @@ export default async function JobsPage({
 
                             <JobPhotoDetails job={job} />
 
-                            {job.tipAmount > 0 ? <div className="ops-appointment-card-tip">
-                              <span className="ops-appointment-card-tip-label">TIPS</span>
-                              <strong className="ops-appointment-card-tip-value">{money(job.tipAmount || 0)}</strong>
-                            </div> : null}
-
                             <JobCloseoutDetails job={job} />
 
                             <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
@@ -4003,11 +3999,6 @@ export default async function JobsPage({
                           />
 
                           <JobPhotoDetails job={job} />
-
-                          {job.tipAmount > 0 ? <div className="ops-appointment-card-tip">
-                            <span className="ops-appointment-card-tip-label">TIPS</span>
-                            <strong className="ops-appointment-card-tip-value">{money(job.tipAmount || 0)}</strong>
-                          </div> : null}
 
                           <JobCloseoutDetails job={job} />
 

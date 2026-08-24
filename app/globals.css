@@ -4425,20 +4425,20 @@ a {
 }
 
 .ops-jobs-map-workspace.has-schedule {
+  align-items: start;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .ops-jobs-map-workspace .ops-jobs-map-shell {
   display: grid;
-  height: 22.5rem;
+  height: auto;
   min-width: 0;
   border-top: 0;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: 22.5rem auto;
 }
 
 .ops-jobs-map-workspace .ops-jobs-leaflet-map {
-  min-height: 0;
-  height: auto;
+  height: 22.5rem;
 }
 
 .ops-jobs-map-pin {
@@ -4912,21 +4912,21 @@ a {
 }
 
 .ops-jobs-map-selection {
-  position: absolute;
-  z-index: 700;
-  right: 12px;
-  bottom: 12px;
+  position: relative;
+  z-index: 1;
+  right: auto;
+  bottom: auto;
   display: grid;
-  width: min(300px, calc(100% - 24px));
-  max-height: min(320px, calc(100% - 24px));
+  width: 100%;
+  max-height: none;
   gap: 5px;
-  overflow-y: auto;
+  overflow: visible;
   padding: 11px 12px;
-  border: 1px solid rgba(255, 255, 255, .16);
-  border-radius: 14px;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 0;
   background: rgba(8, 11, 16, .96);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, .58);
-  backdrop-filter: blur(14px);
+  box-shadow: none;
 }
 
 .ops-jobs-map-workspace .ops-jobs-map-truck-selection {
@@ -5429,11 +5429,12 @@ a.ops-jobs-map-selection-phone:focus-visible {
 
 @media (max-width: 700px) {
   .ops-jobs-map-workspace .ops-jobs-map-shell {
-    height: 27rem;
+    height: auto;
+    grid-template-rows: 27rem auto;
   }
 
   .ops-jobs-map-workspace .ops-jobs-leaflet-map {
-    height: auto;
+    height: 27rem;
   }
 
   .ops-jobs-map-workspace .ops-jobs-map-truck-selection {

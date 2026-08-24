@@ -898,7 +898,8 @@ body {
 
   .ops-jobs-map-workspace.has-schedule .ops-jobs-map-shell {
     order: 2;
-    height: 19rem;
+    height: auto;
+    grid-template-rows: 19rem auto;
   }
 }
 

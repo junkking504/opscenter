@@ -1300,6 +1300,8 @@ body {
 }
 
 .ops-map-cluster.is-trucks { background: #a87800; }
+.ops-map-cluster.is-appointments { background: #8c3aa6; }
+.ops-map-cluster.is-locations { background: #285b9d; }
 
 .ops-map-cluster b {
   font-size: .86rem;

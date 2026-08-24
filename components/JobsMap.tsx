@@ -331,25 +331,6 @@ function clusterVisibleMapItems<T>(
   return clusters;
 }
 
-// Keep a truck hit target beside, rather than on top of, a job pin at the
-// same location. A stacked truck marker intercepts the job's hover/click
-// target and makes both controls appear to flicker as their layers compete.
-function separateTruckHitTarget(
-  map: any,
-  position: { latitude: number; longitude: number },
-  jobHitTargets: Array<{ latitude: number; longitude: number }>,
-): { latitude: number; longitude: number } {
-  const source = map.latLngToLayerPoint([position.latitude, position.longitude]);
-  const overlapsJob = jobHitTargets.some((job) => {
-    const jobPoint = map.latLngToLayerPoint([job.latitude, job.longitude]);
-    return source.distanceTo(jobPoint) < 36;
-  });
-  if (!overlapsJob) return position;
-
-  const target = map.layerPointToLatLng(source.add([34, -30]));
-  return { latitude: target.lat, longitude: target.lng };
-}
-
 function truckClusterIcon(leaflet: LeafletModule, count: number) {
   return leaflet.divIcon({
     className: "",
@@ -365,6 +346,43 @@ function truckClusterPopup(trucks: JobsMapTruck[]) {
     .map((truck) => `<button type="button" data-map-truck="${escapeHtml(truck.truck)}">${escapeHtml(`${truck.truck} · ${truck.status}`)}</button>`)
     .join("");
   return `<div class="ops-map-cluster-popup"><strong>${trucks.length} trucks here</strong><span>Select a truck to focus its live location and route.</span><div>${buttons}</div></div>`;
+}
+
+function appointmentClusterIcon(leaflet: LeafletModule, count: number) {
+  return leaflet.divIcon({
+    className: "",
+    html: `<span class="ops-map-cluster is-appointments"><b>${count}</b><small>jobs</small></span>`,
+    iconSize: [46, 46],
+    iconAnchor: [23, 23],
+    popupAnchor: [0, -22],
+  });
+}
+
+function locationClusterIcon(leaflet: LeafletModule, jobs: number, trucks: number) {
+  return leaflet.divIcon({
+    className: "",
+    html: `<span class="ops-map-cluster is-locations"><b>${jobs + trucks}</b><small>at location</small></span>`,
+    iconSize: [52, 52],
+    iconAnchor: [26, 26],
+    popupAnchor: [0, -24],
+  });
+}
+
+function appointmentClusterPopup(jobs: JobsMapPoint[]) {
+  const buttons = jobs
+    .map((job) => `<button type="button" data-map-job="${escapeHtml(job.key)}">${escapeHtml(`${job.appointmentTime} · ${job.customerName}`)}</button>`)
+    .join("");
+  return `<div class="ops-map-cluster-popup"><strong>${jobs.length} appointments here</strong><span>Select an appointment to view its details.</span><div>${buttons}</div></div>`;
+}
+
+function locationClusterPopup(jobs: JobsMapPoint[], trucks: JobsMapTruck[]) {
+  const jobButtons = jobs
+    .map((job) => `<button type="button" data-map-job="${escapeHtml(job.key)}">${escapeHtml(`${job.appointmentTime} · ${job.customerName}`)}</button>`)
+    .join("");
+  const truckButtons = trucks
+    .map((truck) => `<button type="button" data-map-truck="${escapeHtml(truck.truck)}">${escapeHtml(`${truck.truck} · ${truck.status}`)}</button>`)
+    .join("");
+  return `<div class="ops-map-cluster-popup"><strong>${jobs.length + trucks.length} map items here</strong><span>Select the appointment or truck at this exact map location.</span><div>${jobButtons}${truckButtons}</div></div>`;
 }
 
 function scheduleSort(a: JobsMapPoint, b: JobsMapPoint): number {
@@ -1241,65 +1259,134 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         .addTo(routes);
     });
 
-    // Separate appointment markers that land at the same or adjacent map
-    // pixels. Leaflet otherwise places them directly on top of one another,
-    // making the top pin the only hoverable or clickable appointment.
-    const jobMarkerOffsets = [
-      [0, 0], [30, 0], [-30, 0], [0, -34], [0, 34],
-      [30, -34], [30, 34], [-30, -34], [-30, 34],
-      [60, 0], [-60, 0], [0, -68], [0, 68],
-    ] as const;
-    const placedJobMarkerPoints: any[] = [];
-    const jobHitTargets: Array<{ latitude: number; longitude: number }> = [];
+    // Never alter a job or truck's geographic coordinate. When map items share
+    // a hit area, render one selector at that true location instead of fanning
+    // pins across the map. This keeps the label, the marker, and the source
+    // record anchored to the same place.
+    const jobClusters = clusterVisibleMapItems(map, locatedJobs, (job) => job, 44);
+    const truckClusters = clusterVisibleMapItems(map, liveTruckLocations, (truck) => truck, 48);
+    const usedJobClusters = new Set<MapCluster<JobsMapPoint & { latitude: number; longitude: number }>>();
+    const usedTruckClusters = new Set<MapCluster<JobsMapTruck>>();
 
-    for (const job of locatedJobs) {
-      const sourcePoint = map.latLngToLayerPoint([job.latitude, job.longitude]);
-      const markerPoint = jobMarkerOffsets
-        .map(([x, y]) => sourcePoint.add([x, y]))
-        .find((candidate) => placedJobMarkerPoints.every((placed) => (
-          Math.abs(candidate.x - placed.x) >= 28 || Math.abs(candidate.y - placed.y) >= 34
-        ))) || sourcePoint;
-      const markerPosition = map.layerPointToLatLng(markerPoint);
-      placedJobMarkerPoints.push(markerPoint);
-      jobHitTargets.push({ latitude: markerPosition.lat, longitude: markerPosition.lng });
+    const selectMapJob = (key: string) => {
+      setFocusSelectedTruck(false);
+      setSelectedTruckName("");
+      setSelectedKey(key);
+    };
+    const addLocationPicker = (
+      latitude: number,
+      longitude: number,
+      jobsAtLocation: JobsMapPoint[],
+      trucksAtLocation: JobsMapTruck[],
+    ) => {
+      const marker = leaflet.marker([latitude, longitude], {
+        icon: locationClusterIcon(leaflet, jobsAtLocation.length, trucksAtLocation.length),
+        keyboard: true,
+        title: `${jobsAtLocation.length + trucksAtLocation.length} map items at this location`,
+        alt: `${jobsAtLocation.length + trucksAtLocation.length} map items at this location`,
+        zIndexOffset: 2100,
+      });
+      marker.bindPopup(locationClusterPopup(jobsAtLocation, trucksAtLocation), {
+        className: "ops-jobs-map-popup-frame",
+        closeOnClick: false,
+        maxWidth: 300,
+      });
+      marker.on("click", (event) => {
+        leaflet.DomEvent.stopPropagation(event.originalEvent);
+        marker.openPopup();
+      });
+      marker.on("popupopen", () => {
+        const popup = marker.getPopup()?.getElement();
+        popup?.querySelectorAll<HTMLButtonElement>("[data-map-job]").forEach((button) => {
+          button.onclick = () => {
+            selectMapJob(button.dataset.mapJob || "");
+            marker.closePopup();
+          };
+        });
+        popup?.querySelectorAll<HTMLButtonElement>("[data-map-truck]").forEach((button) => {
+          button.onclick = () => {
+            selectLiveTruck(button.dataset.mapTruck || "");
+            marker.closePopup();
+          };
+        });
+      });
+      marker.addTo(markers);
+    };
+
+    for (const jobCluster of jobClusters) {
+      const nearbyTruckCluster = truckClusters.find((truckCluster) => {
+        if (usedTruckClusters.has(truckCluster)) return false;
+        const jobPoint = map.latLngToLayerPoint([jobCluster.latitude, jobCluster.longitude]);
+        const truckPoint = map.latLngToLayerPoint([truckCluster.latitude, truckCluster.longitude]);
+        return jobPoint.distanceTo(truckPoint) < 48;
+      });
+      if (!nearbyTruckCluster) continue;
+      usedJobClusters.add(jobCluster);
+      usedTruckClusters.add(nearbyTruckCluster);
+      addLocationPicker(jobCluster.latitude, jobCluster.longitude, jobCluster.items, nearbyTruckCluster.items);
+    }
+
+    for (const cluster of jobClusters) {
+      if (usedJobClusters.has(cluster)) continue;
+      if (cluster.items.length > 1) {
+        const marker = leaflet.marker([cluster.latitude, cluster.longitude], {
+          icon: appointmentClusterIcon(leaflet, cluster.items.length),
+          keyboard: true,
+          title: `${cluster.items.length} appointments in this area`,
+          alt: `${cluster.items.length} appointments in this area`,
+          zIndexOffset: 1000,
+        });
+        marker.bindPopup(appointmentClusterPopup(cluster.items), {
+          className: "ops-jobs-map-popup-frame",
+          closeOnClick: false,
+          maxWidth: 300,
+        });
+        marker.on("click", (event) => {
+          leaflet.DomEvent.stopPropagation(event.originalEvent);
+          marker.openPopup();
+        });
+        marker.on("popupopen", () => {
+          const popup = marker.getPopup()?.getElement();
+          popup?.querySelectorAll<HTMLButtonElement>("[data-map-job]").forEach((button) => {
+            button.onclick = () => {
+              selectMapJob(button.dataset.mapJob || "");
+              marker.closePopup();
+            };
+          });
+        });
+        marker.addTo(markers);
+        continue;
+      }
+
+      const job = cluster.items[0];
       const markerLabel = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber}`;
-      const marker = leaflet.marker([markerPosition.lat, markerPosition.lng], {
+      const marker = leaflet.marker([job.latitude, job.longitude], {
         icon: markerIcon(leaflet, job, selectedKey === job.key),
         keyboard: true,
         title: markerLabel,
         alt: markerLabel,
-        zIndexOffset: selectedKey === job.key ? 1000 : 0,
+        zIndexOffset: selectedKey === job.key ? 1100 : 1000,
       });
       const itemSummary = job.junkItems.length ? ` · ${job.junkItems.join(", ")}` : " · Items not listed";
       marker.bindTooltip(`${job.appointmentTime} · ${job.customerName}${itemSummary}`, {
         direction: "top",
         offset: [0, -10],
       });
-      marker.on("click", () => {
-        setFocusSelectedTruck(false);
-        setSelectedTruckName("");
-        setSelectedKey(job.key);
-      });
+      marker.on("click", () => selectMapJob(job.key));
       marker.addTo(markers);
     }
 
-    const selectedTruckItem = liveTruckLocations.find((truck) => truck.truck === selectedTruckName);
-    const truckClusters = clusterVisibleMapItems(
-      map,
-      liveTruckLocations.filter((truck) => truck.truck !== selectedTruckName),
-      (truck) => truck,
-    );
     for (const cluster of truckClusters) {
+      if (usedTruckClusters.has(cluster)) continue;
       if (cluster.items.length === 1) {
         const truck = cluster.items[0];
-        const markerPosition = separateTruckHitTarget(map, truck, jobHitTargets);
         const markerLabel = `${truck.truck} · ${truck.status} · ${truck.freshness}`;
-        const marker = leaflet.marker([markerPosition.latitude, markerPosition.longitude], {
-          icon: truckIcon(leaflet, truck, false),
+        const marker = leaflet.marker([truck.latitude, truck.longitude], {
+          icon: truckIcon(leaflet, truck, truck.truck === selectedTruckName),
           keyboard: true,
           title: markerLabel,
           alt: markerLabel,
-          zIndexOffset: 1800,
+          zIndexOffset: truck.truck === selectedTruckName ? 900 : 800,
         });
         const driver = truck.driver && truck.driver !== "—" ? ` · ${truck.driver}` : "";
         marker.bindTooltip(`${truck.truck} · ${truck.status}${driver} · ${truck.freshness}`, {
@@ -1311,13 +1398,12 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         continue;
       }
 
-      const markerPosition = separateTruckHitTarget(map, cluster, jobHitTargets);
-      const marker = leaflet.marker([markerPosition.latitude, markerPosition.longitude], {
+      const marker = leaflet.marker([cluster.latitude, cluster.longitude], {
         icon: truckClusterIcon(leaflet, cluster.items.length),
         keyboard: true,
         title: `${cluster.items.length} trucks in this area`,
         alt: `${cluster.items.length} trucks in this area`,
-        zIndexOffset: 1900,
+        zIndexOffset: 800,
       });
       marker.bindPopup(truckClusterPopup(cluster.items), {
         className: "ops-jobs-map-popup-frame",
@@ -1325,8 +1411,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         maxWidth: 300,
       });
       marker.on("click", (event) => {
-        // Without stopping propagation, Leaflet's map-level click listener
-        // immediately closes the popup that this marker just opened.
         leaflet.DomEvent.stopPropagation(event.originalEvent);
         marker.openPopup();
       });
@@ -1339,20 +1423,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           };
         });
       });
-      marker.addTo(markers);
-    }
-
-    if (selectedTruckItem) {
-      const markerLabel = `${selectedTruckItem.truck} · ${selectedTruckItem.status} · ${selectedTruckItem.freshness}`;
-      const markerPosition = separateTruckHitTarget(map, selectedTruckItem, jobHitTargets);
-      const marker = leaflet.marker([markerPosition.latitude, markerPosition.longitude], {
-        icon: truckIcon(leaflet, selectedTruckItem, true),
-        keyboard: true,
-        title: markerLabel,
-        alt: markerLabel,
-        zIndexOffset: 2000,
-      });
-      marker.on("click", () => selectMapTruck(selectedTruckItem.truck));
       marker.addTo(markers);
     }
 

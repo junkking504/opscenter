@@ -940,6 +940,26 @@
 }
 
 @media (max-width: 700px) {
+  /* Keep every appointment block in the phone viewport. The desktop board
+   * remains unchanged; only its mobile time cells compact into square slots. */
+  .ops-jobs-map-workspace.has-schedule .ops-jobs-map-schedule {
+    height: auto;
+    overflow: visible !important;
+    touch-action: auto;
+  }
+
+  .ops-jobs-map-schedule .ops-jobs-map-board {
+    min-width: 100% !important;
+    --ops-jobs-map-time-cell-min: 0px !important;
+  }
+
+  .ops-jobs-map-board-block { min-width: 0; }
+
+  .ops-jobs-map-board-state {
+    width: 14px;
+    height: 14px;
+    font-size: .72rem;
+  }
   .ops-jobs-page > .ops-page-header .ops-page-header-controls {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;

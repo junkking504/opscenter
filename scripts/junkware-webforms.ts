@@ -1,6 +1,15 @@
 import type { Page } from "@playwright/test";
+import { prepareJunkwareEmailSubmission } from "@/lib/junkware-email";
 
 const POSTBACK_TIMEOUT_MS = 30_000;
+
+export async function sanitizeJunkwareCustomerEmail(page: Page): Promise<void> {
+  const email = page.locator("#ctl00_Content_EmailTB").first();
+  if (!(await email.count())) throw new Error("The JunkWare customer email control has changed.");
+  const current = await email.inputValue();
+  const submission = prepareJunkwareEmailSubmission(current);
+  if (current !== submission.controlValue) await email.fill(submission.controlValue);
+}
 
 async function waitForWebFormsNavigation(
   page: Page,

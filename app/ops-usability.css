@@ -743,7 +743,6 @@ body {
   .ops-reschedule-path,
   .ops-cancellation-summary,
   .ops-appointment-gps-details,
-  .ops-appointment-more-details,
   .ops-appointment-junk-summary,
   .ops-job-closeout-line,
   .ops-job-closeout-total,
@@ -898,7 +897,8 @@ body {
 
   .ops-jobs-map-workspace.has-schedule .ops-jobs-map-shell {
     order: 2;
-    height: 19rem;
+    height: auto;
+    grid-template-rows: 19rem auto;
   }
 }
 
@@ -1153,7 +1153,7 @@ body {
   select:not(:disabled),
   input[type="checkbox"]:not(:disabled),
   input[type="radio"]:not(:disabled),
-  [role="button"]:not([aria-disabled="true"]),
+  [role="button"]:not([aria-disabled="true"]):not(.leaflet-marker-icon),
   [role="tab"]:not([aria-disabled="true"])
 ) {
   cursor: pointer;
@@ -1169,7 +1169,7 @@ body {
     a[href],
     button:not(:disabled),
     summary,
-    [role="button"]:not([aria-disabled="true"]),
+    [role="button"]:not([aria-disabled="true"]):not(.leaflet-marker-icon),
     [role="tab"]:not([aria-disabled="true"])
   ):hover {
     filter: none !important;
@@ -1180,7 +1180,7 @@ body {
     button:not(:disabled),
     summary,
     select:not(:disabled),
-    [role="button"]:not([aria-disabled="true"]),
+    [role="button"]:not([aria-disabled="true"]):not(.leaflet-marker-icon),
     [role="tab"]:not([aria-disabled="true"])
   ):hover {
     border-color: var(--oc-interaction-border) !important;
@@ -1214,7 +1214,7 @@ body {
   select:not(:disabled),
   input[type="checkbox"]:not(:disabled),
   input[type="radio"]:not(:disabled),
-  [role="button"]:not([aria-disabled="true"]),
+  [role="button"]:not([aria-disabled="true"]):not(.leaflet-marker-icon),
   [role="tab"]:not([aria-disabled="true"])
 ):focus-visible {
   outline: 3px solid var(--oc-interaction-ring) !important;
@@ -1300,6 +1300,8 @@ body {
 }
 
 .ops-map-cluster.is-trucks { background: #a87800; }
+.ops-map-cluster.is-appointments { background: #8c3aa6; }
+.ops-map-cluster.is-locations { background: #285b9d; }
 
 .ops-map-cluster b {
   font-size: .86rem;
@@ -1344,4 +1346,154 @@ body {
   border-color: var(--ops-gold);
   background: rgba(246, 195, 67, .14);
   outline: none;
+}
+
+/* Phone shell: preserve the operating controls while getting the page work
+ * above the fold. The compact brand repeated the desktop identity immediately
+ * before the workspace bar, and the visual Date label consumed a full control
+ * row even though the select already has an accessible name. */
+@media (max-width: 720px) {
+  :root {
+    --oc-control-height: 40px;
+  }
+  .ops-main {
+    padding-top: 8px;
+  }
+  .ops-mobile-brand {
+    display: none;
+  }
+  .ops-topbar {
+    min-height: 40px;
+    margin-bottom: 8px;
+    padding: 0;
+  }
+  .ops-topbar-identity {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    min-width: 0;
+  }
+  .ops-topbar .ops-eyebrow,
+  .ops-topbar .ops-workspace-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ops-topbar .ops-eyebrow {
+    flex: 0 1 auto;
+    font-size: 0.67rem;
+  }
+  .ops-topbar .ops-workspace-title {
+    font-size: 0.78rem;
+  }
+  .ops-topbar-right > .ops-sidebar-toggle-button {
+    min-height: 36px;
+    padding-inline: 11px;
+    font-size: 0.8rem;
+  }
+  .ops-page-header {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .ops-page-header .ops-date-selector-wrap {
+    flex: 0 0 var(--oc-control-height);
+    height: var(--oc-control-height);
+    gap: 0;
+  }
+  /* This page previously reserved 160px for a side-by-side desktop control.
+   * On the phone's vertical control stack it must be a single control row. */
+  .ops-daily-dashboard > .ops-page-header .ops-date-selector-wrap {
+    flex: 0 0 var(--oc-control-height);
+    width: 100%;
+    min-width: 0;
+  }
+  .ops-page-header .ops-date-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .ops-page-header :is(.ops-refresh-button, .ops-button, .ops-date-selector, input, select) {
+    min-height: var(--oc-control-height) !important;
+    padding-block: 7px;
+  }
+  .ops-page-header .ops-date-selector {
+    height: var(--oc-control-height);
+  }
+  .ops-page-header .ops-refresh-button {
+    align-self: end;
+  }
+  .ops-view-toggle {
+    height: 44px;
+    margin-bottom: 0;
+    padding: 2px;
+  }
+  .ops-view-toggle a,
+  .ops-page-subnav a {
+    min-height: var(--oc-control-height);
+  }
+  .ops-page-header.has-subnav .ops-page-subnav {
+    margin: 0 -12px -10px;
+    padding: 6px 12px;
+  }
+  .ops-page-subnav a {
+    padding-block: 6px;
+  }
+  .ops-jobs-page > .ops-page-header .ops-page-header-controls {
+    align-items: end;
+  }
+}
+
+/* Compact mobile type scale: preserve a clear title and KPI hierarchy while
+ * letting the operating detail fit comfortably above the bottom navigation. */
+@media (max-width: 720px) {
+  :root {
+    --oc-font-body: 0.875rem;
+    --oc-font-dense: 0.8125rem;
+    --oc-font-label: 0.75rem;
+  }
+
+  .ops-main .ops-page-title,
+  .ops-finance-page .ops-page-title {
+    font-size: clamp(1.55rem, 7vw, 1.85rem);
+  }
+
+  .ops-main .ops-page-header-subtitle {
+    font-size: 0.8125rem;
+  }
+
+  .ops-main :is(.ops-page-header-meta, .ops-page-header-updated, .ops-page-header-status) {
+    font-size: 0.75rem;
+  }
+
+  .ops-main :is(.ops-date-selector, .ops-refresh-button, .ops-button, .ops-page-subnav a, .ops-jobs-search-button, .ops-jobs-filter-menu > summary) {
+    font-size: 0.8125rem !important;
+  }
+
+  .ops-main :is(.ops-section-title, .ops-card-title) {
+    font-size: 0.8125rem !important;
+  }
+
+  .ops-main :is(.ops-muted, .ops-small-muted, .ops-kpi-sub, .ops-table, .ops-table th, .ops-table td, .ops-card p, .ops-card li) {
+    font-size: 0.8125rem;
+  }
+
+  .ops-main .ops-kpi-value {
+    font-size: clamp(1.05rem, 4.5vw, 1.25rem) !important;
+  }
+
+  .ops-jobs-map-legend {
+    font-size: 0.75rem;
+  }
+
+  .ops-bottom-nav-item span {
+    font-size: 0.75rem;
+  }
+
+  .ops-bottom-nav-item small {
+    font-size: 0.6875rem;
+  }
 }

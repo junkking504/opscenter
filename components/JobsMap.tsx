@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import AppointmentCancelDialog, { type AppointmentCancelTarget } from "@/components/AppointmentCancelDialog";
 import type { JobRouteProximityPayload, JobTruckProximity } from "@/lib/job-route-proximity";
@@ -31,6 +31,8 @@ export type JobsMapPoint = {
   appointmentUrl: string;
   junkItems: string[];
   appointmentNotes: string[];
+  junkwareSyncStatus?: "pending" | "verified" | "manual_correction";
+  junkwareSyncError?: string;
 };
 
 export type JobsMapTruck = {
@@ -339,11 +341,24 @@ function truckClusterIcon(leaflet: LeafletModule, count: number) {
   });
 }
 
-function truckClusterPopup(trucks: JobsMapTruck[]) {
-  const buttons = trucks
-    .map((truck) => `<button type="button" data-map-truck="${escapeHtml(truck.truck)}">${escapeHtml(`${truck.truck} · ${truck.status}`)}</button>`)
-    .join("");
-  return `<div class="ops-map-cluster-popup"><strong>${trucks.length} trucks here</strong><span>Select a truck to focus its live location and route.</span><div>${buttons}</div></div>`;
+function appointmentClusterIcon(leaflet: LeafletModule, count: number) {
+  return leaflet.divIcon({
+    className: "",
+    html: `<span class="ops-map-cluster is-appointments"><b>${count}</b><small>jobs</small></span>`,
+    iconSize: [46, 46],
+    iconAnchor: [23, 23],
+    popupAnchor: [0, -22],
+  });
+}
+
+function locationClusterIcon(leaflet: LeafletModule, jobs: number, trucks: number) {
+  return leaflet.divIcon({
+    className: "",
+    html: `<span class="ops-map-cluster is-locations"><b>${jobs + trucks}</b><small>at location</small></span>`,
+    iconSize: [52, 52],
+    iconAnchor: [26, 26],
+    popupAnchor: [0, -24],
+  });
 }
 
 function scheduleSort(a: JobsMapPoint, b: JobsMapPoint): number {
@@ -430,6 +445,17 @@ function ScheduleJobStateIcon({ job }: { job: JobsMapPoint }) {
       ✓
     </span>
   );
+}
+
+function hasJunkwareSyncFailure(job: JobsMapPoint): boolean {
+  return job.junkwareSyncStatus === "pending" || job.junkwareSyncStatus === "manual_correction";
+}
+
+function junkwareSyncLabel(job: JobsMapPoint): string {
+  if (job.junkwareSyncStatus === "manual_correction") return "JunkWare sync needs manual correction";
+  return job.junkwareSyncError
+    ? "JunkWare sync failed — retry pending"
+    : "JunkWare sync pending";
 }
 
 function chicagoScheduleClock(now = new Date()): { date: string; minutes: number; label: string; timestamp: number } {
@@ -574,6 +600,7 @@ function sameTruck(left: string, right: string): boolean {
 export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: JobsMapProps) {
   const router = useRouter();
   const mapNodeRef = useRef<HTMLDivElement | null>(null);
+  const mapSelectionRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any>(null);
   const routesRef = useRef<any>(null);
@@ -581,6 +608,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const [mapZoom, setMapZoom] = useState(DEFAULT_DISPATCH_MAP_ZOOM);
   const [selectedKey, setSelectedKey] = useState("");
   const [selectedTruckName, setSelectedTruckName] = useState("");
+  const [focusSelectedTruck, setFocusSelectedTruck] = useState(false);
   const [selectedTruckAddress, setSelectedTruckAddress] = useState({ key: "", address: "", loading: false, error: "" });
   const [proximity, setProximity] = useState<JobRouteProximityPayload | null>(null);
   const [proximityLoading, setProximityLoading] = useState(scheduleView);
@@ -612,12 +640,21 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
 
   const selectLiveTruck = useCallback((truckName: string) => {
     setSelectedKey("");
+    setFocusSelectedTruck(true);
+    setSelectedTruckName(truckName);
+    window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
+  }, []);
+
+  const selectMapTruck = useCallback((truckName: string) => {
+    setSelectedKey("");
+    setFocusSelectedTruck(false);
     setSelectedTruckName(truckName);
     window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
   }, []);
 
   const focusTerritory = useCallback((territory: typeof DISPATCH_TERRITORY_SHORTCUTS[number]) => {
     setSelectedKey("");
+    setFocusSelectedTruck(false);
     setSelectedTruckName("");
     window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
     mapRef.current?.setView(territory.center, DISPATCH_TERRITORY_ZOOM, { animate: true });
@@ -692,6 +729,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const selectedTruckCameraNumber = selectedTruck
     ? parseTruckNumberFromLabel(selectedTruck.truck)
     : null;
+  const selectedJobKey = selectedJob?.key || "";
   const closestTruck = selectedJob ? nearestTruck(selectedJob.key, proximity) : null;
   const currentTimeLine = useMemo(() => {
     if (!currentScheduleTime || currentScheduleTime.date !== date || !scheduleBoard.rows.length) return null;
@@ -705,6 +743,14 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       left: `min(calc(${SCHEDULE_TRUCK_COLUMN_WIDTH}px + (100% - ${SCHEDULE_TRUCK_COLUMN_WIDTH}px) * ${elapsedHours / Math.max(timeColumnCount, 1)}), calc(100% - 6px))`,
     };
   }, [currentScheduleTime, date, scheduleBoard.rows, scheduleBoard.untimed]);
+
+  useEffect(() => {
+    if (!selectedJobKey) return;
+    const frame = window.requestAnimationFrame(() => {
+      mapSelectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedJobKey]);
   const scheduleTruckRows: ScheduleColumn[] = scheduleBoard.columns.length
     ? scheduleBoard.columns
     : [{ key: "empty", label: "—", virtual: false, assignment: "" }];
@@ -726,16 +772,18 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   }, [jobs, selectedKey]);
 
   useEffect(() => {
-    if (!selectedKey && !selectedTruckName) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setSelectedKey("");
       setSelectedTruckName("");
+      setFocusSelectedTruck(false);
+      mapRef.current?.closePopup();
+      mapRef.current?.setView(DEFAULT_DISPATCH_MAP_CENTER, DEFAULT_DISPATCH_MAP_ZOOM, { animate: true });
       window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, [selectedKey, selectedTruckName]);
+  }, []);
 
   useEffect(() => {
     if (selectedTruckName && !liveTruckLocations.some((truck) => truck.truck === selectedTruckName)) setSelectedTruckName("");
@@ -1199,51 +1247,128 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         .addTo(routes);
     });
 
-    for (const job of locatedJobs) {
+    // Never alter a job or truck's geographic coordinate. When map items share
+    // a hit area, render one selector at that true location instead of fanning
+    // pins across the map. This keeps the label, the marker, and the source
+    // record anchored to the same place.
+    const jobClusters = clusterVisibleMapItems(map, locatedJobs, (job) => job, 44);
+    const truckClusters = clusterVisibleMapItems(map, liveTruckLocations, (truck) => truck, 48);
+    const usedJobClusters = new Set<MapCluster<JobsMapPoint & { latitude: number; longitude: number }>>();
+    const usedTruckClusters = new Set<MapCluster<JobsMapTruck>>();
+
+    const selectMapJob = (key: string) => {
+      setFocusSelectedTruck(false);
+      setSelectedTruckName("");
+      setSelectedKey(key);
+    };
+    const focusMapArea = (items: Array<{ latitude: number | null; longitude: number | null }>) => {
+      const points = items
+        .filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude))
+        .map((item) => [item.latitude, item.longitude] as [number, number]);
+      if (!points.length) return;
+      const bounds = leaflet.latLngBounds(points);
+      if (points.length > 1 && !bounds.getNorthEast().equals(bounds.getSouthWest())) {
+        map.fitBounds(bounds.pad(0.32), { padding: [28, 28], maxZoom: 15, animate: true });
+        return;
+      }
+      map.setView(points[0], Math.max(map.getZoom(), 14), { animate: true });
+    };
+    // Leaflet renders div-icon markers as DOM buttons, but its delegated map
+    // click bridge can lose the marker target after a React layer refresh.
+    // Bind activation to the rendered marker itself so mouse and keyboard
+    // selection remain dependable without moving the marker off its location.
+    const addInteractiveMarker = (marker: any, activate: () => void) => {
+      marker.addTo(markers);
+      const element = marker.getElement();
+      if (!element) return;
+      const handleActivation = (event: MouseEvent | KeyboardEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        activate();
+      };
+      element.addEventListener("click", handleActivation);
+      element.addEventListener("keydown", (event: KeyboardEvent) => {
+        if (event.key === "Enter" || event.key === " ") handleActivation(event);
+      });
+    };
+    const addLocationCluster = (
+      latitude: number,
+      longitude: number,
+      jobsAtLocation: JobsMapPoint[],
+      trucksAtLocation: JobsMapTruck[],
+    ) => {
+      const marker = leaflet.marker([latitude, longitude], {
+        icon: locationClusterIcon(leaflet, jobsAtLocation.length, trucksAtLocation.length),
+        keyboard: true,
+        title: `${jobsAtLocation.length + trucksAtLocation.length} map items at this location`,
+        alt: `${jobsAtLocation.length + trucksAtLocation.length} map items at this location`,
+        zIndexOffset: 2100,
+      });
+      addInteractiveMarker(marker, () => focusMapArea([...jobsAtLocation, ...trucksAtLocation]));
+    };
+
+    for (const jobCluster of jobClusters) {
+      const nearbyTruckCluster = truckClusters.find((truckCluster) => {
+        if (usedTruckClusters.has(truckCluster)) return false;
+        const jobPoint = map.latLngToLayerPoint([jobCluster.latitude, jobCluster.longitude]);
+        const truckPoint = map.latLngToLayerPoint([truckCluster.latitude, truckCluster.longitude]);
+        return jobPoint.distanceTo(truckPoint) < 48;
+      });
+      if (!nearbyTruckCluster) continue;
+      usedJobClusters.add(jobCluster);
+      usedTruckClusters.add(nearbyTruckCluster);
+      addLocationCluster(jobCluster.latitude, jobCluster.longitude, jobCluster.items, nearbyTruckCluster.items);
+    }
+
+    for (const cluster of jobClusters) {
+      if (usedJobClusters.has(cluster)) continue;
+      if (cluster.items.length > 1) {
+        const marker = leaflet.marker([cluster.latitude, cluster.longitude], {
+          icon: appointmentClusterIcon(leaflet, cluster.items.length),
+          keyboard: true,
+          title: `${cluster.items.length} appointments in this area`,
+          alt: `${cluster.items.length} appointments in this area`,
+          zIndexOffset: 1000,
+        });
+        addInteractiveMarker(marker, () => focusMapArea(cluster.items));
+        continue;
+      }
+
+      const job = cluster.items[0];
       const markerLabel = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber}`;
       const marker = leaflet.marker([job.latitude, job.longitude], {
         icon: markerIcon(leaflet, job, selectedKey === job.key),
         keyboard: true,
         title: markerLabel,
         alt: markerLabel,
-        zIndexOffset: selectedKey === job.key ? 1000 : 0,
+        zIndexOffset: selectedKey === job.key ? 1100 : 1000,
       });
       const itemSummary = job.junkItems.length ? ` · ${job.junkItems.join(", ")}` : " · Items not listed";
       marker.bindTooltip(`${job.appointmentTime} · ${job.customerName}${itemSummary}`, {
         direction: "top",
         offset: [0, -10],
       });
-      marker.on("click", () => {
-        setSelectedTruckName("");
-        setSelectedKey(job.key);
-      });
-      marker.addTo(markers);
+      addInteractiveMarker(marker, () => selectMapJob(job.key));
     }
 
-    const selectedTruckItem = liveTruckLocations.find((truck) => truck.truck === selectedTruckName);
-    const truckClusters = clusterVisibleMapItems(
-      map,
-      liveTruckLocations.filter((truck) => truck.truck !== selectedTruckName),
-      (truck) => truck,
-    );
     for (const cluster of truckClusters) {
+      if (usedTruckClusters.has(cluster)) continue;
       if (cluster.items.length === 1) {
         const truck = cluster.items[0];
         const markerLabel = `${truck.truck} · ${truck.status} · ${truck.freshness}`;
         const marker = leaflet.marker([truck.latitude, truck.longitude], {
-          icon: truckIcon(leaflet, truck, false),
+          icon: truckIcon(leaflet, truck, truck.truck === selectedTruckName),
           keyboard: true,
           title: markerLabel,
           alt: markerLabel,
-          zIndexOffset: 1800,
+          zIndexOffset: truck.truck === selectedTruckName ? 900 : 800,
         });
         const driver = truck.driver && truck.driver !== "—" ? ` · ${truck.driver}` : "";
         marker.bindTooltip(`${truck.truck} · ${truck.status}${driver} · ${truck.freshness}`, {
           direction: "top",
           offset: [0, -22],
         });
-        marker.on("click", () => selectLiveTruck(truck.truck));
-        marker.addTo(markers);
+        addInteractiveMarker(marker, () => selectMapTruck(truck.truck));
         continue;
       }
 
@@ -1252,56 +1377,21 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         keyboard: true,
         title: `${cluster.items.length} trucks in this area`,
         alt: `${cluster.items.length} trucks in this area`,
-        zIndexOffset: 1900,
+        zIndexOffset: 800,
       });
-      marker.bindPopup(truckClusterPopup(cluster.items), {
-        className: "ops-jobs-map-popup-frame",
-        closeOnClick: false,
-        maxWidth: 300,
-      });
-      marker.on("click", (event) => {
-        // Without stopping propagation, Leaflet's map-level click listener
-        // immediately closes the popup that this marker just opened.
-        leaflet.DomEvent.stopPropagation(event.originalEvent);
-        marker.openPopup();
-      });
-      marker.on("popupopen", () => {
-        const popup = marker.getPopup()?.getElement();
-        popup?.querySelectorAll<HTMLButtonElement>("[data-map-truck]").forEach((button) => {
-          button.onclick = () => {
-            selectLiveTruck(button.dataset.mapTruck || "");
-            marker.closePopup();
-          };
-        });
-      });
-      marker.addTo(markers);
+      addInteractiveMarker(marker, () => focusMapArea(cluster.items));
     }
 
-    if (selectedTruckItem) {
-      const markerLabel = `${selectedTruckItem.truck} · ${selectedTruckItem.status} · ${selectedTruckItem.freshness}`;
-      const marker = leaflet.marker([selectedTruckItem.latitude, selectedTruckItem.longitude], {
-        icon: truckIcon(leaflet, selectedTruckItem, true),
-        keyboard: true,
-        title: markerLabel,
-        alt: markerLabel,
-        zIndexOffset: 2000,
-      });
-      marker.on("click", () => selectLiveTruck(selectedTruckItem.truck));
-      marker.addTo(markers);
-    }
-
-    if (selectedTruck && selectedRouteBounds?.isValid()) {
+    if (focusSelectedTruck && selectedTruck && selectedRouteBounds?.isValid()) {
       if (selectedRouteBounds.getNorthEast().equals(selectedRouteBounds.getSouthWest())) {
         map.setView(selectedRouteBounds.getCenter(), 14, { animate: true });
       } else {
         map.fitBounds(selectedRouteBounds.pad(0.1), { padding: [28, 28], maxZoom: 15, animate: true });
       }
-    } else if (selectedTruck) {
+    } else if (focusSelectedTruck && selectedTruck) {
       map.setView([selectedTruck.latitude, selectedTruck.longitude], Math.max(map.getZoom(), 14), { animate: true });
-    } else if (selectedJob && isLocated(selectedJob)) {
-      map.setView([selectedJob.latitude, selectedJob.longitude], Math.max(map.getZoom(), 12), { animate: true });
     }
-  }, [leaflet, liveTruckLocations, locatedJobs, mapZoom, selectLiveTruck, selectedJob, selectedKey, selectedRouteBounds, selectedTruck, selectedTruckName, selectedTruckRoutes]);
+  }, [focusSelectedTruck, leaflet, liveTruckLocations, locatedJobs, mapZoom, selectLiveTruck, selectMapTruck, selectedKey, selectedRouteBounds, selectedTruck, selectedTruckName, selectedTruckRoutes]);
 
   return (
     <section className="ops-card ops-jobs-map-card" id="jobs-map" aria-labelledby="jobs-map-title">
@@ -1354,7 +1444,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           ) : null}
 
           {selectedTruck ? null : selectedJob ? (
-            <article className="ops-jobs-map-selection" aria-live="polite">
+            <article ref={mapSelectionRef} className="ops-jobs-map-selection" aria-live="polite">
               <button
                 type="button"
                 className="ops-jobs-map-selection-close"
@@ -1384,6 +1474,17 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                 <div className="ops-jobs-map-selection-canceled" role="status">
                   <b aria-hidden="true">×</b>
                   <span><strong>Canceled</strong>{selectedJob.status}</span>
+                </div>
+              ) : null}
+              {hasJunkwareSyncFailure(selectedJob) ? (
+                <div className="ops-jobs-map-selection-sync-failed" role="status">
+                  <b aria-hidden="true">!</b>
+                  <span>
+                    <strong>{junkwareSyncLabel(selectedJob)}</strong>
+                    {selectedJob.junkwareSyncError || (selectedJob.junkwareSyncStatus === "manual_correction"
+                      ? "Saved in OpsCenter. Correct the JunkWare validation error, then submit the assignment again."
+                      : "Saved in OpsCenter. It will be retried before it is treated as verified.")}
+                  </span>
                 </div>
               ) : null}
               {isVisitedUnclosedScheduleJob(selectedJob) ? (
@@ -1460,8 +1561,12 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
             <div
               className="ops-jobs-map-board"
               style={{
-                gridTemplateColumns: `${SCHEDULE_TRUCK_COLUMN_WIDTH}px repeat(${Math.max(scheduleTimeColumnCount, 1)}, minmax(0, 1fr))`,
-              }}
+                // Desktop retains readable hour columns. The phone layout
+                // overrides this variable so the entire appointment board
+                // remains visible as compact square blocks.
+                "--ops-jobs-map-time-cell-min": "60px",
+                gridTemplateColumns: `${SCHEDULE_TRUCK_COLUMN_WIDTH}px repeat(${Math.max(scheduleTimeColumnCount, 1)}, minmax(var(--ops-jobs-map-time-cell-min), 1fr))`,
+              } as CSSProperties}
             >
               {currentTimeLine ? (
                 <div

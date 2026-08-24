@@ -46,7 +46,7 @@ assert.ok(dailyViewSource.includes("Today’s clocked-in crew: jobs, average job
 assert.ok(!dailyViewSource.includes("estimate close rate, tips, and bonus days"), "Daily crew metrics still describe retired columns.");
 
 const monthlyViewStart = myPaySource.indexOf("function MonthlyLeaderboardView");
-const monthlyViewEnd = myPaySource.indexOf("function TodayCrewNotes", monthlyViewStart);
+const monthlyViewEnd = myPaySource.indexOf("export default async function MyPayPage", monthlyViewStart);
 assert.ok(monthlyViewStart >= 0 && monthlyViewEnd > monthlyViewStart, "Crew Portal monthly leaderboard view is missing.");
 const monthlyViewSource = myPaySource.slice(monthlyViewStart, monthlyViewEnd);
 assert.ok(monthlyViewSource.includes("ranked\n"), "Monthly leaderboard must use the leaderboard metric column set.");

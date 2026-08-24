@@ -1291,10 +1291,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         closeOnClick: false,
         maxWidth: 300,
       });
-      marker.on("click", (event) => {
-        leaflet.DomEvent.stopPropagation(event.originalEvent);
-        marker.openPopup();
-      });
       marker.on("popupopen", () => {
         const popup = marker.getPopup()?.getElement();
         popup?.querySelectorAll<HTMLButtonElement>("[data-map-job]").forEach((button) => {
@@ -1340,10 +1336,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           className: "ops-jobs-map-popup-frame",
           closeOnClick: false,
           maxWidth: 300,
-        });
-        marker.on("click", (event) => {
-          leaflet.DomEvent.stopPropagation(event.originalEvent);
-          marker.openPopup();
         });
         marker.on("popupopen", () => {
           const popup = marker.getPopup()?.getElement();
@@ -1409,10 +1401,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         className: "ops-jobs-map-popup-frame",
         closeOnClick: false,
         maxWidth: 300,
-      });
-      marker.on("click", (event) => {
-        leaflet.DomEvent.stopPropagation(event.originalEvent);
-        marker.openPopup();
       });
       marker.on("popupopen", () => {
         const popup = marker.getPopup()?.getElement();

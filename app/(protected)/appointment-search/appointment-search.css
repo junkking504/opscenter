@@ -1,0 +1,101 @@
+.ops-appointment-search {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ops-appointment-search-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ops-appointment-search-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.ops-appointment-search-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--ops-muted);
+}
+
+.ops-appointment-search-grid input,
+.ops-appointment-search-grid select {
+  background: var(--ops-panel-soft);
+  border: 1px solid var(--ops-border);
+  border-radius: 8px;
+  color: var(--ops-text);
+  font-size: 0.9rem;
+  padding: 9px 12px;
+  font-family: inherit;
+}
+
+.ops-appointment-search-grid input:focus-visible,
+.ops-appointment-search-grid select:focus-visible {
+  outline: 2px solid var(--ops-blue);
+  outline-offset: 1px;
+}
+
+.ops-appointment-search-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ops-appointment-search-actions button[type="submit"] {
+  border-radius: 8px;
+  border: 1px solid var(--ops-red);
+  background: var(--ops-red);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 9px 18px;
+  cursor: pointer;
+}
+
+.ops-appointment-search-actions button[type="button"] {
+  border-radius: 8px;
+  border: 1px solid var(--ops-border);
+  background: var(--ops-panel-soft);
+  color: var(--ops-text);
+  font-size: 0.9rem;
+  padding: 9px 18px;
+  cursor: pointer;
+}
+
+.ops-appointment-search-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.ops-appointment-search-error {
+  color: var(--ops-red);
+  font-size: 0.9rem;
+}
+
+.ops-appointment-search-empty {
+  color: var(--ops-muted);
+  font-size: 0.9rem;
+}
+
+.ops-appointment-search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ops-appointment-search-timestamp {
+  color: var(--ops-muted-2);
+  font-size: 0.8rem;
+}
+
+.ops-appointment-search-address {
+  color: var(--ops-muted-2);
+  font-size: 0.8rem;
+  margin-top: 2px;
+}

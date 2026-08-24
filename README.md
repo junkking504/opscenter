@@ -53,6 +53,7 @@ http://localhost:3000
 - Fleet
 - Finance
 - Jobs
+- Appointment Search
 
 ## Notes
 

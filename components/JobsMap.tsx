@@ -1046,6 +1046,17 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     }));
   }
 
+  function showAppointmentInQueue(job: JobsMapPoint) {
+    if (!job.detailId) return;
+    window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, {
+      detail: { articleId: job.detailId },
+    }));
+    document.getElementById("jobs-schedule")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.requestAnimationFrame(() => {
+      document.getElementById(job.detailId)?.focus({ preventScroll: true });
+    });
+  }
+
   function handleAppointmentContextMenu(event: React.MouseEvent<HTMLButtonElement>, job: JobsMapPoint) {
     event.preventDefault();
     clearDragGesture();
@@ -1517,9 +1528,15 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
             </label>
           </div>
         ) : null}
-        {selectedJob.appointmentUrl ? (
-          <a href={selectedJob.appointmentUrl} target="_blank" rel="noreferrer">Open in JunkWare</a>
-        ) : null}
+        <div className="ops-jobs-map-selection-actions">
+          <button type="button" onClick={() => showAppointmentInQueue(selectedJob)}>
+            <span>Show in Appointments</span>
+            <small>Open closeout controls</small>
+          </button>
+          {selectedJob.appointmentUrl ? (
+            <a href={selectedJob.appointmentUrl} target="_blank" rel="noreferrer">Open in JunkWare</a>
+          ) : null}
+        </div>
       </article>
     );
   };

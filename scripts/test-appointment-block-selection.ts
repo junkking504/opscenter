@@ -17,6 +17,16 @@ assert.match(
 );
 assert.match(
   jobsMapSource,
+  /function showAppointmentInQueue[\s\S]*?articleId: job\.detailId[\s\S]*?getElementById\("jobs-schedule"\)\?\.scrollIntoView[\s\S]*?getElementById\(job\.detailId\)\?\.focus/,
+  "The selected map appointment must provide a route to its closeout card in the Appointment Queue.",
+);
+assert.match(
+  jobsMapSource,
+  /Show in Appointments[\s\S]*?Open closeout controls/,
+  "The map appointment card must expose the Appointment Queue closeout action clearly.",
+);
+assert.match(
+  jobsMapSource,
   /"--ops-jobs-map-time-cell-min": "0px"[\s\S]*?minmax\(var\(--ops-jobs-map-time-cell-min\), 1fr\)/,
   "The board must keep all time columns inside the Dispatch pane.",
 );

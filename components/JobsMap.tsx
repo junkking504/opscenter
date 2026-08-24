@@ -1435,12 +1435,13 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations, sche
               <div
                 className="ops-jobs-map-board"
                 style={{
-                // Time cells stay large enough to identify and target. The
-                // schedule aside owns the resulting horizontal scroll.
-                minWidth: SCHEDULE_TRUCK_COLUMN_WIDTH + (Math.max(scheduleTimeColumnCount, 1) * 60),
-                gridTemplateColumns: `${SCHEDULE_TRUCK_COLUMN_WIDTH}px repeat(${Math.max(scheduleTimeColumnCount, 1)}, minmax(60px, 1fr))`,
-              }}
-            >
+                  // Desktop retains readable hour columns. The phone layout
+                  // overrides this variable so the entire appointment board
+                  // remains visible as compact square blocks.
+                  "--ops-jobs-map-time-cell-min": "60px",
+                  gridTemplateColumns: `${SCHEDULE_TRUCK_COLUMN_WIDTH}px repeat(${Math.max(scheduleTimeColumnCount, 1)}, minmax(var(--ops-jobs-map-time-cell-min), 1fr))`,
+                } as CSSProperties}
+              >
               {currentTimeLine ? (
                 <div
                   className="ops-jobs-map-current-time"

@@ -1015,17 +1015,20 @@
 }
 
 @media (max-width: 700px) {
-  /* Retain the desktop truck-by-time board on phones. The schedule owns the
-   * horizontal scroll, so later appointment slots remain reachable. */
+  /* Keep every appointment block in the phone viewport. The desktop board
+   * remains unchanged; only its mobile time cells compact into square slots. */
   .ops-jobs-map-workspace.has-schedule .ops-jobs-map-schedule {
-    height: 22.5rem;
-    overflow: auto !important;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-    touch-action: pan-x pan-y;
+    height: auto;
+    overflow: visible !important;
+    touch-action: auto;
   }
 
-  .ops-jobs-map-board-block.is-draggable { touch-action: pan-x pan-y; }
+  .ops-jobs-map-schedule .ops-jobs-map-board {
+    min-width: 100% !important;
+    --ops-jobs-map-time-cell-min: 0px !important;
+  }
+
+  .ops-jobs-map-board-block { min-width: 0; }
 
   .ops-jobs-map-board-state {
     width: 14px;

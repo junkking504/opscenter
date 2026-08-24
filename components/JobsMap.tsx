@@ -1258,6 +1258,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         className: "ops-jobs-map-popup-frame",
         maxWidth: 300,
       });
+      marker.on("click", () => marker.openPopup());
       marker.on("popupopen", () => {
         const popup = marker.getPopup()?.getElement();
         popup?.querySelectorAll<HTMLButtonElement>("[data-map-truck]").forEach((button) => {

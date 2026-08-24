@@ -296,7 +296,7 @@
 
 .monthSummary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   overflow: hidden;
   border: 1px solid rgba(255, 116, 31, 0.28);
   border-radius: 14px;
@@ -499,9 +499,10 @@
   .performanceCard:nth-child(2n) { border-right: 0; }
   .performanceCard:last-child { grid-column: 1 / -1; border-bottom: 0; }
   .performanceGridSix .performanceCard:last-child { grid-column: auto; }
-  .monthSummary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .monthSummaryCard { border-right: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
-  .monthSummaryCard:last-child { border-bottom: 0; }
+  .monthSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .monthSummaryCard { border-right: 1px solid rgba(255, 255, 255, 0.08); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+  .monthSummaryCard:nth-child(2n) { border-right: 0; }
+  .monthSummaryCard:last-child { grid-column: 1 / -1; border-bottom: 0; }
   .rangeToggle { width: 100%; }
   .rangeOption { flex: 1; }
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }

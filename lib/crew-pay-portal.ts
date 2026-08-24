@@ -92,6 +92,8 @@ export type CrewPerformanceRange = {
   rows: CrewPerformanceStats[];
   totalRevenue: number;
   totalJobs: number;
+  totalHours: number;
+  totalTips: number;
   estimateCloseRate: number | null;
 };
 
@@ -308,6 +310,21 @@ function businessJobTotal(metrics: AnyRecord): number {
   return byMarket > 0 ? byMarket : objectNumberTotal(metrics.jobs_by_truck);
 }
 
+function rphEligibleHours(row: AnyRecord): number {
+  if (row.is_rph_eligible === false) return 0;
+  return firstNumber(row, ["hours_for_rph", "hours_worked", "hours"]);
+}
+
+export function monthlyLeaderboardSummary(range: CrewPerformanceRange): {
+  averageJobSize: number | null;
+  revenuePerHour: number | null;
+} {
+  return {
+    averageJobSize: range.totalJobs > 0 ? roundMoney(range.totalRevenue / range.totalJobs) : null,
+    revenuePerHour: range.totalHours > 0 ? roundMoney(range.totalRevenue / range.totalHours) : null,
+  };
+}
+
 function crewPerformanceRange(
   start: string,
   end: string,
@@ -326,6 +343,8 @@ function crewPerformanceRange(
   }>();
   let totalRevenue = 0;
   let totalJobs = 0;
+  let totalHours = 0;
+  let totalTips = 0;
   let estimatesAttended = 0;
   let closedEstimates = 0;
 
@@ -333,9 +352,11 @@ function crewPerformanceRange(
     if (date < start || date > end) continue;
     totalRevenue += firstNumber(metrics, ["total_revenue", "net_revenue"]);
     totalJobs += businessJobTotal(metrics);
+    totalTips += firstNumber(metrics, ["total_tips", "tips"]);
 
     for (const row of performanceRows(metrics)) {
       if (options.requireClockIn && !hasClockIn(row)) continue;
+      totalHours += rphEligibleHours(row);
       const name = rowName(row);
       if (!name) continue;
       const key = normalizedName(name);
@@ -389,6 +410,8 @@ function crewPerformanceRange(
     rows,
     totalRevenue: roundMoney(totalRevenue),
     totalJobs,
+    totalHours: roundHours(totalHours),
+    totalTips: roundMoney(totalTips),
     estimateCloseRate: estimatesAttended > 0
       ? roundHours((closedEstimates / estimatesAttended) * 100)
       : null,

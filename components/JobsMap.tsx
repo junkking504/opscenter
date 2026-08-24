@@ -94,11 +94,10 @@ const LINXUP_MAX_POINT_GAP_MS = 5 * 60_000;
 const LINXUP_FRESHNESS_MS = 10 * 60_000;
 const APPOINTMENT_SELECTION_EVENT = "ops:select-appointment";
 const APPOINTMENT_ON_SITE_EVENT = "ops:appointment-on-site";
-// Keep the Dispatch landing view focused on the Louisiana operating area. A
-// single incorrect or out-of-market geocode must not make every local job too
-// small to use; selecting a job or truck still centers on that exact record.
-const DEFAULT_DISPATCH_MAP_CENTER: [number, number] = [30.16, -90.95];
-const DEFAULT_DISPATCH_MAP_ZOOM = 8;
+// Dispatch opens on the New Orleans territory, with Jefferson Parish visible
+// as its teal sub-area. A selected job or truck still centers on that record.
+const DEFAULT_DISPATCH_MAP_CENTER: [number, number] = [29.95, -90.08];
+const DEFAULT_DISPATCH_MAP_ZOOM = 10;
 const DISPATCH_TERRITORY_SHORTCUTS = [
   { label: "New Orleans", abbreviation: "NO", tone: "is-new-orleans", center: [29.95, -90.08] as [number, number] },
   { label: "Baton Rouge", abbreviation: "BR", tone: "is-baton-rouge", center: [30.45, -91.15] as [number, number] },
@@ -213,6 +212,19 @@ function territoryTone(job: JobsMapPoint): string {
       ? ""
       : " is-assigned-unfinished";
   return `${tone}${assignmentState}${completed ? " is-completed" : ""}`;
+}
+
+function clusterTerritoryTone(jobs: JobsMapPoint[]): string {
+  const counts = new Map<string, number>();
+  for (const job of jobs) {
+    const tone = territoryTone(job).split(" ")[0];
+    counts.set(tone, (counts.get(tone) || 0) + 1);
+  }
+  const territoryPriority = ["is-new-orleans", "is-jefferson", "is-northshore", "is-baton-rouge", "is-lafayette", "is-unknown-territory"];
+  return [...counts.entries()].sort(([firstTone, firstCount], [secondTone, secondCount]) =>
+    secondCount - firstCount || territoryPriority.indexOf(firstTone) - territoryPriority.indexOf(secondTone),
+  )[0]?.[0]
+    || "is-unknown-territory";
 }
 
 function formatTravelTime(minutes: number | null | undefined): string {
@@ -1297,7 +1309,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       jobsAtLocation: JobsMapPoint[],
       trucksAtLocation: JobsMapTruck[],
     ) => {
-      const tone = jobsAtLocation[0] ? territoryTone(jobsAtLocation[0]) : "is-unknown-territory";
+      const tone = clusterTerritoryTone(jobsAtLocation);
       const marker = leaflet.marker([latitude, longitude], {
         icon: locationClusterIcon(leaflet, jobsAtLocation.length, trucksAtLocation.length, tone),
         keyboard: true,
@@ -1325,7 +1337,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       if (usedJobClusters.has(cluster)) continue;
       if (cluster.items.length > 1) {
         const marker = leaflet.marker([cluster.latitude, cluster.longitude], {
-          icon: appointmentClusterIcon(leaflet, cluster.items.length, territoryTone(cluster.items[0])),
+          icon: appointmentClusterIcon(leaflet, cluster.items.length, clusterTerritoryTone(cluster.items)),
           keyboard: true,
           title: `${cluster.items.length} appointments in this area`,
           alt: `${cluster.items.length} appointments in this area`,

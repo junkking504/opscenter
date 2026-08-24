@@ -1243,7 +1243,9 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       const sourcePoint = map.latLngToLayerPoint([job.latitude, job.longitude]);
       const markerPoint = jobMarkerOffsets
         .map(([x, y]) => sourcePoint.add([x, y]))
-        .find((candidate) => placedJobMarkerPoints.every((placed) => candidate.distanceTo(placed) >= 28)) || sourcePoint;
+        .find((candidate) => placedJobMarkerPoints.every((placed) => (
+          Math.abs(candidate.x - placed.x) >= 28 || Math.abs(candidate.y - placed.y) >= 34
+        ))) || sourcePoint;
       const markerPosition = map.layerPointToLatLng(markerPoint);
       placedJobMarkerPoints.push(markerPoint);
       jobHitTargets.push({ latitude: markerPosition.lat, longitude: markerPosition.lng });

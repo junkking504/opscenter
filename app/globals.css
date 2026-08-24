@@ -4929,22 +4929,6 @@ a {
   backdrop-filter: blur(14px);
 }
 
-.ops-jobs-map-workspace .ops-jobs-map-selection {
-  position: relative;
-  z-index: 700;
-  right: auto;
-  bottom: auto;
-  grid-row: 2;
-  width: 100%;
-  max-height: 13.5rem;
-  padding: 12px 14px;
-  border-width: 1px 0 0;
-  border-radius: 0;
-  background: rgba(8, 11, 16, .985);
-  box-shadow: 0 -12px 30px rgba(0, 0, 0, .34);
-  scrollbar-gutter: stable;
-}
-
 .ops-jobs-map-workspace .ops-jobs-map-truck-selection {
   grid-column: 1 / -1;
   grid-row: auto;
@@ -5450,13 +5434,6 @@ a.ops-jobs-map-selection-phone:focus-visible {
 
   .ops-jobs-map-workspace .ops-jobs-leaflet-map {
     height: auto;
-  }
-
-  .ops-jobs-map-workspace .ops-jobs-map-selection {
-    right: auto;
-    bottom: auto;
-    width: 100%;
-    max-height: 11.5rem;
   }
 
   .ops-jobs-map-workspace .ops-jobs-map-truck-selection {

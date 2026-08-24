@@ -275,6 +275,39 @@
 .ops-jobs-page .ops-job-crew-note-editor > div { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
 .ops-jobs-page .ops-job-crew-note-editor small { color: #ad3028; font-size: 0.72rem; }
 
+.ops-jobs-page .ops-job-appointment-note {
+  display: grid;
+  gap: 7px;
+  margin-top: 2px;
+  padding: 8px;
+  border: 1px solid #d8dee5;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.ops-jobs-page .ops-job-appointment-note-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ops-jobs-page .ops-job-appointment-note-heading > div { display: grid; gap: 1px; }
+.ops-jobs-page .ops-job-appointment-note-heading span { color: #5d6672; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.05em; }
+.ops-jobs-page .ops-job-appointment-note-heading strong { color: #343b45; font-size: 0.78rem; }
+.ops-jobs-page .ops-job-appointment-note-heading button,
+.ops-jobs-page .ops-job-appointment-note-editor button {
+  border: 1px solid #9db2c7;
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: #edf4fb;
+  color: #174f7a;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+.ops-jobs-page .ops-job-appointment-note p { margin: 0; color: #18794e; font-size: 0.78rem; }
+.ops-jobs-page .ops-job-appointment-note-editor { display: grid; gap: 7px; }
+.ops-jobs-page .ops-job-appointment-note-editor textarea { width: 100%; min-height: 70px; resize: vertical; border: 1px solid #c7cdd4; border-radius: 6px; padding: 7px; font: inherit; font-size: 0.8rem; }
+.ops-jobs-page .ops-job-appointment-note-editor > div { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
+.ops-jobs-page .ops-job-appointment-note-editor button.secondary { border-color: #c7cbd0; background: #fff; color: #46505a; }
+.ops-jobs-page .ops-job-appointment-note-editor button:disabled { cursor: wait; opacity: 0.65; }
+.ops-jobs-page .ops-job-appointment-note-editor small { color: #ad3028; font-size: 0.72rem; }
+
 .ops-jobs-page .ops-appointment-junk-summary { align-items: center; gap: 6px; }
 .ops-jobs-page .ops-appointment-note-details { padding-left: 12px; border-left-color: #e1e5e9; }
 .ops-jobs-page .ops-appointment-note-details > summary { gap: 6px; }

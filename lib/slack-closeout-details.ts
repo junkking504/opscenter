@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { money as moneyText } from "@/lib/money";
 import type { AnyRecord } from "@/lib/opsData";
+import { formatSlackMessage, type SlackMessageField } from "@/lib/slack-message-format";
 
 export type TruckCloseoutDetails = {
   jobNumber: string;
@@ -58,6 +59,13 @@ function paymentDescription(payment: AnyRecord): string {
   return `${method}${amountText}`;
 }
 
+function slackFields(lines: string[]): SlackMessageField[] {
+  return lines.flatMap((line) => {
+    const match = line.match(/^([^:]+):\s*(.*?)\.?$/);
+    return match ? [{ label: match[1], value: match[2] }] : [];
+  });
+}
+
 export function truckCloseoutDetails(row: AnyRecord): TruckCloseoutDetails | null {
   const jobNumber = firstText(row, ["job_id", "jk_number", "job_number"]);
   if (!jobNumber) return null;
@@ -110,7 +118,11 @@ export function truckCloseoutDetails(row: AnyRecord): TruckCloseoutDetails | nul
   return {
     jobNumber,
     lines,
-    slackText: [`:white_check_mark: ${jobNumber} closed out.`, ...lines].join(" "),
+    slackText: formatSlackMessage({
+      icon: ":white_check_mark:",
+      title: "Job closed",
+      fields: [{ label: "Job", value: jobNumber }, ...slackFields(lines)],
+    }),
   };
 }
 

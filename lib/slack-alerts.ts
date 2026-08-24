@@ -340,9 +340,10 @@ export function buildAddOnSlackNotification(appointment: AddOnAppointment, date:
     lifecycle: "notification",
     severity: "warning",
     channelId: appointmentChannelId(appointment.territory),
-    title: `New same-day appointment: ${appointment.jobNumber}`,
+    title: "New same-day appointment",
     detail: "",
     fields: [
+      { label: "Job", value: appointment.jobNumber },
       { label: "Customer", value: appointment.customerName },
       { label: "Phone", value: appointment.phone },
       { label: "Time", value: appointment.appointmentTime },
@@ -361,9 +362,10 @@ export function buildCancellationSlackNotification(appointment: CancelledAppoint
     lifecycle: "notification",
     severity: "warning",
     channelId: appointmentChannelId(appointment.territory),
-    title: `Appointment cancelled: ${appointment.jobNumber}`,
+    title: "Appointment cancelled",
     detail: "",
     fields: [
+      { label: "Job", value: appointment.jobNumber },
       { label: "Customer", value: appointment.customerName },
       { label: "Time", value: appointment.appointmentTime },
       { label: "Address", value: appointment.address },
@@ -545,7 +547,7 @@ export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyReco
     const closeout = truckCloseoutDetails(row);
     const plainText = formatSlackMessage({
       icon: ":white_check_mark:",
-      title: `${jobNumber} closed out`,
+      title: "Job closed",
       fields: [
         { label: "Job", value: jobNumber },
         ...parseSlackDetailLines(closeout?.lines || []),
@@ -799,7 +801,7 @@ function parseSlackDetailLines(lines: string[]): Array<{ label: string; value: s
 }
 
 export function formatSlackAlert(alert: SlackOpsAlert): string {
-  if (alert.plainText) return slackEscape(alert.plainText);
+  if (alert.plainText) return alert.plainText;
   const icon = alert.severity === "critical" ? ":rotating_light:" : ":warning:";
   return formatSlackMessage({
     icon,
@@ -1153,7 +1155,11 @@ export async function runSlackOpsAlerts(options?: {
     const response = await postSlackMessage(
       token,
       active.channelId,
-      `:white_check_mark: *Resolved in OpsCenter*\n_${now}_`,
+      formatSlackMessage({
+        icon: ":white_check_mark:",
+        title: "Alert resolved",
+        fields: [{ label: "Resolved at", value: now }],
+      }),
       active.threadTs,
     );
     if (!response.ok) {

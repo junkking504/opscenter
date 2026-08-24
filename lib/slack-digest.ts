@@ -241,20 +241,22 @@ function appointmentForSlackAlert(
   lookup: Map<string, AddOnAppointment>,
 ): SlackDigestMessage["appointment"] | undefined {
   const plainText = slackTextToPlainText(rawText);
-  const titleMatch = plainText.match(/(?:⚠️\s*)?(New same-day appointment|Appointment cancelled):\s*(JK\d+)/i);
+  const titleMatch = plainText.match(/(?:⚠️\s*)?(New same-day appointment|Appointment cancelled)(?::\s*(JK\d+))?/i);
   if (!titleMatch) return undefined;
+  const jobNumber = titleMatch[2] || plainText.match(/^Job:\s*(JK\d+)/im)?.[1] || "";
+  if (!jobNumber) return undefined;
 
   const fingerprintMatch = rawText.match(/Alert ID:\s*(?:add_on|cancellation):\d{4}-\d{2}-\d{2}:(appt:[^\s_*]+)/i);
   const appointment = (
     (fingerprintMatch ? lookup.get(fingerprintMatch[1].toLowerCase()) : undefined)
-    || lookup.get(`job:${titleMatch[2]}`.toLowerCase())
+    || lookup.get(`job:${jobNumber}`.toLowerCase())
   );
   if (!appointment) return undefined;
 
   const nextAction = plainText
     .split("\n")
-    .find((line) => /^Next:\s*/i.test(line))
-    ?.replace(/^Next:\s*/i, "")
+    .find((line) => /^(?:Action|Next):\s*/i.test(line))
+    ?.replace(/^(?:Action|Next):\s*/i, "")
     .trim() || "";
   return {
     title: titleMatch[1].replace(/^./, (value) => value.toUpperCase()),
@@ -283,9 +285,11 @@ function closeoutForSlackAlert(
   lookup: Map<string, AnyRecord>,
   date: string,
 ): SlackDigestMessage["closeout"] | undefined {
-  const match = slackTextToPlainText(rawText).match(/^✅\s*(JK\d+)\s+closed out\./i);
-  if (!match) return undefined;
-  const details = truckCloseoutDetails(lookup.get(match[1].toLowerCase()) || {});
+  const plainText = slackTextToPlainText(rawText);
+  const jobNumber = plainText.match(/^Job:\s*(JK\d+)/im)?.[1]
+    || plainText.match(/^✅\s*(JK\d+)\s+closed out\./i)?.[1];
+  if (!jobNumber || !/(?:job closed|closed out)/i.test(plainText)) return undefined;
+  const details = truckCloseoutDetails(lookup.get(jobNumber.toLowerCase()) || {});
   if (!details) return undefined;
   return {
     jobNumber: details.jobNumber,
@@ -311,7 +315,7 @@ function digestMessage(
     `${appointment.customerName} · ${appointment.phone} · ${appointment.appointmentTime}`,
     appointment.address,
     appointment.items.length ? `Items: ${appointment.items.join("; ")}` : "",
-    appointment.nextAction ? `Next: ${appointment.nextAction}` : "",
+    appointment.nextAction ? `Action: ${appointment.nextAction}` : "",
   ].filter(Boolean).join("\n") : closeout ? [
     `✅ ${closeout.jobNumber} closed out.`,
     ...closeout.lines,

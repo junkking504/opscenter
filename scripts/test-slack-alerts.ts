@@ -21,6 +21,7 @@ import {
   runSlackOpsAlerts,
   slackAlertKindEnabled,
 } from "@/lib/slack-alerts";
+import { formatSlackMessage } from "@/lib/slack-message-format";
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 
 process.env.SLACK_JOBS_NO_CHANNEL_ID = "C_TEST_NO";
@@ -35,6 +36,21 @@ process.env.SLACK_OPS_PAYMENT_CHANNEL_ID = "C_TEST_PAYMENT";
 delete process.env.SLACK_OPS_CREW_CHANNEL_ID;
 
 async function main() {
+assert.equal(formatSlackMessage({
+  icon: ":warning:",
+  title: "Format contract",
+  fields: [{ label: "Job", value: "JK4050000" }],
+  body: "Verified in JunkWare",
+  nextAction: "Review the schedule.",
+  href: "https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4050000",
+}), [
+  ":warning: *Format contract*",
+  "*Job:* JK4050000",
+  "_Verified in JunkWare_",
+  "*Action:* Review the schedule.",
+  "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4050000|Open in OpsCenter>",
+].join("\n"));
+
 assert.equal(appointmentTerritory({ normalized_territory: "Jefferson Parish", market: "New Orleans" }), "Jefferson Parish");
 assert.equal(appointmentTerritory({ territory: "Northshore" }), "Northshore");
 assert.equal(appointmentTerritory({ market: "Baton Rouge" }), "Baton Rouge");
@@ -139,7 +155,8 @@ const addOnSlackAlert = buildAddOnSlackNotification({
 }, "2026-08-12");
 assert.equal(addOnSlackAlert.channelId, "C_TEST_NO");
 assert.equal(formatSlackAlert(addOnSlackAlert), [
-  ":warning: *New same-day appointment: JK4025000*",
+  ":warning: *New same-day appointment*",
+  "*Job:* JK4025000",
   "*Customer:* Test Customer",
   "*Phone:* (504) 555-0100",
   "*Time:* 1:00 PM - 3:00 PM",
@@ -148,6 +165,7 @@ assert.equal(formatSlackAlert(addOnSlackAlert), [
   "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4025000|Open in OpsCenter>",
 ].join("\n"));
 assert.doesNotMatch(formatSlackAlert(addOnSlackAlert), /\*Next:\*/);
+assert.doesNotMatch(formatSlackAlert(addOnSlackAlert), /Alert ID|```/);
 assert.doesNotMatch(formatSlackAlert(addOnSlackAlert), /Truck# 4|Alert ID/);
 
 const completedCloseoutRows = [
@@ -266,7 +284,7 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
       text: [
-        ":white_check_mark: *JK4051000 closed out*",
+        ":white_check_mark: *Job closed*",
         "*Job:* JK4051000",
         "*Load:* 1/2 ($538.00)",
         "*Discount:* $30.00",
@@ -279,7 +297,7 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_6",
       text: [
-        ":white_check_mark: *JK4051001 closed out*",
+        ":white_check_mark: *Job closed*",
         "*Job:* JK4051001",
         "*Tip:* $0.00",
         "*Charged:* Check #1487 ($198.00)",
@@ -289,7 +307,7 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
       text: [
-        ":white_check_mark: *JK4051003 closed out*",
+        ":white_check_mark: *Job closed*",
         "*Job:* JK4051003",
         "*Tip:* $15.00",
         "*Charged:* Card ending 4242 ($100.00); Cash ($50.00)",
@@ -299,7 +317,7 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_4",
       text: [
-        ":white_check_mark: *JK4051005 closed out*",
+        ":white_check_mark: *Job closed*",
         "*Job:* JK4051005",
         "*Tip:* $0.00",
       ].join("\n"),
@@ -517,7 +535,7 @@ try {
   assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed", "job_closed_payment"]);
   assert.deepEqual(postedMessages, [
     [
-      ":white_check_mark: *JK4051502 closed out*",
+      ":white_check_mark: *Job closed*",
       "*Job:* JK4051502",
       "*Tip:* $20.00",
       "*Charged:* Check #2201 ($220.00)",
@@ -542,7 +560,11 @@ try {
     closeout: { tip: "$10.00" },
   });
   assert.deepEqual(directCloseout, { attempted: true, posted: true, duplicate: false });
-  assert.equal(postedMessages.at(-1), ":white_check_mark: JK4051503 closed out. Tip: $10.00.");
+  assert.equal(postedMessages.at(-1), [
+    ":white_check_mark: *Job closed*",
+    "*Job:* JK4051503",
+    "*Tip:* $10.00",
+  ].join("\n"));
 
   const duplicateDirectCloseout = await publishVerifiedTruckCloseout({
     appointmentId: "503",
@@ -552,7 +574,7 @@ try {
     closeout: { tip: "$10.00" },
   });
   assert.deepEqual(duplicateDirectCloseout, { attempted: false, posted: false, duplicate: true });
-  assert.equal(postedMessages.filter((message) => message.includes("JK4051503 closed out")).length, 1);
+  assert.equal(postedMessages.filter((message) => message.includes("JK4051503")).length, 1);
 } finally {
   globalThis.fetch = originalFetch;
   delete process.env.SLACK_OPSCENTER_STATE_FILE;

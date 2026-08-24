@@ -3706,6 +3706,8 @@ export default async function JobsPage({
                               </div>
                             </div>
 
+                            <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
+
                             <JobContextDetails job={job} />
 
                             <JobPhotoDetails job={job} />
@@ -3716,8 +3718,6 @@ export default async function JobsPage({
                             </div> : null}
 
                             <JobCloseoutDetails job={job} />
-
-                            <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
 
                             <details hidden className="ops-appointment-gps-details">
                               <summary>GPS and site time</summary>
@@ -3986,6 +3986,8 @@ export default async function JobsPage({
                             </div>
                           </div>
 
+                          <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
+
                           <JobContextDetails job={job} />
 
                           <JobPhotoDetails job={job} />
@@ -3996,8 +3998,6 @@ export default async function JobsPage({
                           </div> : null}
 
                           <JobCloseoutDetails job={job} />
-
-                          <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
 
                           <details hidden className="ops-appointment-gps-details">
                             <summary>GPS and site time</summary>

@@ -210,7 +210,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
 
   return (
     <details className="ops-job-closeout-editor" data-appointment-id={resolvedAppointmentId} aria-busy={loading || saving}>
-      <summary>{completed ? "Edit closeout or crew" : "Close out this job"}</summary>
+      <summary>{completed ? "Edit completed job" : "Close job in OpsCenter"}</summary>
       <div className="ops-job-closeout-editor-body">
         {!live ? (
           <button type="button" className="ops-button" onClick={load} disabled={loading || !resolvedAppointmentId}>

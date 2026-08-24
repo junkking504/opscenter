@@ -329,6 +329,25 @@ function clusterVisibleMapItems<T>(
   return clusters;
 }
 
+// Keep a truck hit target beside, rather than on top of, a job pin at the
+// same location. A stacked truck marker intercepts the job's hover/click
+// target and makes both controls appear to flicker as their layers compete.
+function separateTruckHitTarget(
+  map: any,
+  position: { latitude: number; longitude: number },
+  jobs: JobsMapPoint[],
+): { latitude: number; longitude: number } {
+  const source = map.latLngToLayerPoint([position.latitude, position.longitude]);
+  const overlapsJob = jobs.some((job) => {
+    const jobPoint = map.latLngToLayerPoint([job.latitude, job.longitude]);
+    return source.distanceTo(jobPoint) < 36;
+  });
+  if (!overlapsJob) return position;
+
+  const target = map.layerPointToLatLng(source.add([34, -30]));
+  return { latitude: target.lat, longitude: target.lng };
+}
+
 function truckClusterIcon(leaflet: LeafletModule, count: number) {
   return leaflet.divIcon({
     className: "",
@@ -581,6 +600,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const [mapZoom, setMapZoom] = useState(DEFAULT_DISPATCH_MAP_ZOOM);
   const [selectedKey, setSelectedKey] = useState("");
   const [selectedTruckName, setSelectedTruckName] = useState("");
+  const [focusSelectedTruck, setFocusSelectedTruck] = useState(false);
   const [selectedTruckAddress, setSelectedTruckAddress] = useState({ key: "", address: "", loading: false, error: "" });
   const [proximity, setProximity] = useState<JobRouteProximityPayload | null>(null);
   const [proximityLoading, setProximityLoading] = useState(scheduleView);
@@ -612,12 +632,21 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
 
   const selectLiveTruck = useCallback((truckName: string) => {
     setSelectedKey("");
+    setFocusSelectedTruck(true);
+    setSelectedTruckName(truckName);
+    window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
+  }, []);
+
+  const selectMapTruck = useCallback((truckName: string) => {
+    setSelectedKey("");
+    setFocusSelectedTruck(false);
     setSelectedTruckName(truckName);
     window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
   }, []);
 
   const focusTerritory = useCallback((territory: typeof DISPATCH_TERRITORY_SHORTCUTS[number]) => {
     setSelectedKey("");
+    setFocusSelectedTruck(false);
     setSelectedTruckName("");
     window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
     mapRef.current?.setView(territory.center, DISPATCH_TERRITORY_ZOOM, { animate: true });
@@ -1214,6 +1243,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         offset: [0, -10],
       });
       marker.on("click", () => {
+        setFocusSelectedTruck(false);
         setSelectedTruckName("");
         setSelectedKey(job.key);
       });
@@ -1229,8 +1259,9 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     for (const cluster of truckClusters) {
       if (cluster.items.length === 1) {
         const truck = cluster.items[0];
+        const markerPosition = separateTruckHitTarget(map, truck, locatedJobs);
         const markerLabel = `${truck.truck} · ${truck.status} · ${truck.freshness}`;
-        const marker = leaflet.marker([truck.latitude, truck.longitude], {
+        const marker = leaflet.marker([markerPosition.latitude, markerPosition.longitude], {
           icon: truckIcon(leaflet, truck, false),
           keyboard: true,
           title: markerLabel,
@@ -1242,12 +1273,13 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           direction: "top",
           offset: [0, -22],
         });
-        marker.on("click", () => selectLiveTruck(truck.truck));
+        marker.on("click", () => selectMapTruck(truck.truck));
         marker.addTo(markers);
         continue;
       }
 
-      const marker = leaflet.marker([cluster.latitude, cluster.longitude], {
+      const markerPosition = separateTruckHitTarget(map, cluster, locatedJobs);
+      const marker = leaflet.marker([markerPosition.latitude, markerPosition.longitude], {
         icon: truckClusterIcon(leaflet, cluster.items.length),
         keyboard: true,
         title: `${cluster.items.length} trucks in this area`,
@@ -1273,29 +1305,28 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
 
     if (selectedTruckItem) {
       const markerLabel = `${selectedTruckItem.truck} · ${selectedTruckItem.status} · ${selectedTruckItem.freshness}`;
-      const marker = leaflet.marker([selectedTruckItem.latitude, selectedTruckItem.longitude], {
+      const markerPosition = separateTruckHitTarget(map, selectedTruckItem, locatedJobs);
+      const marker = leaflet.marker([markerPosition.latitude, markerPosition.longitude], {
         icon: truckIcon(leaflet, selectedTruckItem, true),
         keyboard: true,
         title: markerLabel,
         alt: markerLabel,
         zIndexOffset: 2000,
       });
-      marker.on("click", () => selectLiveTruck(selectedTruckItem.truck));
+      marker.on("click", () => selectMapTruck(selectedTruckItem.truck));
       marker.addTo(markers);
     }
 
-    if (selectedTruck && selectedRouteBounds?.isValid()) {
+    if (focusSelectedTruck && selectedTruck && selectedRouteBounds?.isValid()) {
       if (selectedRouteBounds.getNorthEast().equals(selectedRouteBounds.getSouthWest())) {
         map.setView(selectedRouteBounds.getCenter(), 14, { animate: true });
       } else {
         map.fitBounds(selectedRouteBounds.pad(0.1), { padding: [28, 28], maxZoom: 15, animate: true });
       }
-    } else if (selectedTruck) {
+    } else if (focusSelectedTruck && selectedTruck) {
       map.setView([selectedTruck.latitude, selectedTruck.longitude], Math.max(map.getZoom(), 14), { animate: true });
-    } else if (selectedJob && isLocated(selectedJob)) {
-      map.setView([selectedJob.latitude, selectedJob.longitude], Math.max(map.getZoom(), 12), { animate: true });
     }
-  }, [leaflet, liveTruckLocations, locatedJobs, mapZoom, selectLiveTruck, selectedJob, selectedKey, selectedRouteBounds, selectedTruck, selectedTruckName, selectedTruckRoutes]);
+  }, [focusSelectedTruck, leaflet, liveTruckLocations, locatedJobs, mapZoom, selectLiveTruck, selectMapTruck, selectedKey, selectedRouteBounds, selectedTruck, selectedTruckName, selectedTruckRoutes]);
 
   return (
     <section className="ops-card ops-jobs-map-card" id="jobs-map" aria-labelledby="jobs-map-title">
@@ -1446,9 +1477,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                 <a href={selectedJob.appointmentUrl} target="_blank" rel="noreferrer">Open in JunkWare</a>
               ) : null}
             </article>
-          ) : (
-            <div className="ops-jobs-map-prompt">Select an appointment square for details and the closest truck.</div>
-          )}
+          ) : null}
         </div>
 
         {scheduleView ? (

@@ -1273,6 +1273,24 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       setSelectedTruckName("");
       setSelectedKey(key);
     };
+    // Leaflet renders div-icon markers as DOM buttons, but its delegated map
+    // click bridge can lose the marker target after a React layer refresh.
+    // Bind activation to the rendered marker itself so mouse and keyboard
+    // selection remain dependable without moving the marker off its location.
+    const addInteractiveMarker = (marker: any, activate: () => void) => {
+      marker.addTo(markers);
+      const element = marker.getElement();
+      if (!element) return;
+      const handleActivation = (event: MouseEvent | KeyboardEvent) => {
+        event.preventDefault();
+        event.stopPropagation();
+        activate();
+      };
+      element.addEventListener("click", handleActivation);
+      element.addEventListener("keydown", (event: KeyboardEvent) => {
+        if (event.key === "Enter" || event.key === " ") handleActivation(event);
+      });
+    };
     const addLocationPicker = (
       latitude: number,
       longitude: number,
@@ -1306,7 +1324,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           };
         });
       });
-      marker.addTo(markers);
+      addInteractiveMarker(marker, () => marker.openPopup());
     };
 
     for (const jobCluster of jobClusters) {
@@ -1346,7 +1364,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
             };
           });
         });
-        marker.addTo(markers);
+        addInteractiveMarker(marker, () => marker.openPopup());
         continue;
       }
 
@@ -1364,8 +1382,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         direction: "top",
         offset: [0, -10],
       });
-      marker.on("click", () => selectMapJob(job.key));
-      marker.addTo(markers);
+      addInteractiveMarker(marker, () => selectMapJob(job.key));
     }
 
     for (const cluster of truckClusters) {
@@ -1385,8 +1402,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           direction: "top",
           offset: [0, -22],
         });
-        marker.on("click", () => selectMapTruck(truck.truck));
-        marker.addTo(markers);
+        addInteractiveMarker(marker, () => selectMapTruck(truck.truck));
         continue;
       }
 
@@ -1411,7 +1427,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           };
         });
       });
-      marker.addTo(markers);
+      addInteractiveMarker(marker, () => marker.openPopup());
     }
 
     if (focusSelectedTruck && selectedTruck && selectedRouteBounds?.isValid()) {

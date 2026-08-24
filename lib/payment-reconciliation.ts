@@ -99,10 +99,26 @@ export type PaymentExceptionRow = {
   merchantAmount: number | null;
 };
 
+export type PaymentByJobRow = {
+  date: string;
+  jkNumber: string;
+  customer: string;
+  paymentMethod: string;
+  cardLastFour: string;
+  paidAmount: number;
+  revenueAmount: number | null;
+  tipAmount: number | null;
+  qboTransactionId: string | null;
+  qboTransactionType: string | null;
+  qboStatus: string | null;
+  reconciliation: "Matched" | "Needs review" | "Missing in QBO";
+};
+
 export type PaymentReconciliationView = {
   status: "balanced" | "needs_review" | "merchant_data_missing" | "merchant_data_stale" | "not_collected";
   summary: PaymentReconciliationSummary;
   exceptions: PaymentExceptionRow[];
+  paymentsByJob: PaymentByJobRow[];
   generatedAt: string | null;
   merchantCenterAvailable: boolean;
   merchantCenterFresh: boolean;
@@ -256,6 +272,43 @@ function exceptionRows(payload: PaymentReconciliation): PaymentExceptionRow[] {
   return [...missing, ...merchantOnly, ...ambiguous, ...amountMismatch];
 }
 
+function paymentByJobRows(payload: PaymentReconciliation): PaymentByJobRow[] {
+  const paymentRow = (
+    junkware: JunkwarePayment,
+    reconciliation: PaymentByJobRow["reconciliation"],
+    merchant?: MerchantCenterPayment | null,
+  ): PaymentByJobRow => ({
+    date: junkware.date || payload.date,
+    jkNumber: junkware.jk_number || "—",
+    customer: junkware.customer_name || "—",
+    paymentMethod: junkware.payment_method || "Card payment",
+    cardLastFour: junkware.card_last_four || "",
+    paidAmount: Number(junkware.paid_amount ?? junkware.amount ?? 0),
+    revenueAmount: Number.isFinite(Number(junkware.revenue_amount)) ? Number(junkware.revenue_amount) : null,
+    tipAmount: Number.isFinite(Number(junkware.tip_amount)) ? Number(junkware.tip_amount) : null,
+    qboTransactionId: merchant?.transaction_id || null,
+    qboTransactionType: merchant?.transaction_type || null,
+    qboStatus: merchant?.status || null,
+    reconciliation,
+  });
+
+  const matched = (payload.matches || []).map((match) =>
+    paymentRow(match.junkware, "Matched", match.merchant_center),
+  );
+  const missing = (payload.exceptions?.missing_in_merchant_center || []).map((junkware) =>
+    paymentRow(junkware, "Missing in QBO"),
+  );
+  const ambiguous = (payload.exceptions?.ambiguous || []).map((row) =>
+    paymentRow(row.junkware, "Needs review", row.candidates?.[0] || null),
+  );
+  const amountMismatch = (payload.exceptions?.amount_mismatch || []).map((row) =>
+    paymentRow(row.junkware, "Needs review", row.merchant_center),
+  );
+
+  return [...matched, ...missing, ...ambiguous, ...amountMismatch]
+    .sort((a, b) => a.jkNumber.localeCompare(b.jkNumber));
+}
+
 export function buildDailyPaymentReconciliation(date: string): PaymentReconciliationView {
   const payload = readPaymentReconciliation(date);
   if (!payload) {
@@ -263,6 +316,7 @@ export function buildDailyPaymentReconciliation(date: string): PaymentReconcilia
       status: "not_collected",
       summary: { ...EMPTY_SUMMARY },
       exceptions: [],
+      paymentsByJob: [],
       generatedAt: null,
       merchantCenterAvailable: false,
       merchantCenterFresh: false,
@@ -279,6 +333,7 @@ export function buildDailyPaymentReconciliation(date: string): PaymentReconcilia
     status: merchantCenterAvailable && !merchantCenterFresh ? "merchant_data_stale" : payload.status,
     summary,
     exceptions: exceptionRows(payload),
+    paymentsByJob: paymentByJobRows(payload),
     generatedAt: payload.generated_at || null,
     merchantCenterAvailable,
     merchantCenterFresh,
@@ -302,6 +357,7 @@ export function buildMonthlyPaymentReconciliation(dates: string[]): PaymentRecon
       status: "not_collected",
       summary: { ...EMPTY_SUMMARY },
       exceptions: [],
+      paymentsByJob: [],
       generatedAt: null,
       merchantCenterAvailable: false,
       merchantCenterFresh: false,
@@ -340,6 +396,9 @@ export function buildMonthlyPaymentReconciliation(dates: string[]): PaymentRecon
           : "merchant_data_missing",
     summary,
     exceptions: payloads.flatMap(exceptionRows),
+    paymentsByJob: payloads.flatMap(paymentByJobRows).sort((a, b) =>
+      a.date.localeCompare(b.date) || a.jkNumber.localeCompare(b.jkNumber),
+    ),
     generatedAt: payloads.map((payload) => payload.generated_at).filter(Boolean).sort().at(-1) || null,
     merchantCenterAvailable: merchantPayloads.length > 0,
     merchantCenterFresh: merchantPayloads.length > 0 && merchantPayloads.length === merchantDays,

@@ -341,20 +341,20 @@ function truckClusterIcon(leaflet: LeafletModule, count: number) {
   });
 }
 
-function appointmentClusterIcon(leaflet: LeafletModule, count: number) {
+function appointmentClusterIcon(leaflet: LeafletModule, count: number, tone: string) {
   return leaflet.divIcon({
     className: "",
-    html: `<span class="ops-map-cluster is-appointments"><b>${count}</b><small>jobs</small></span>`,
+    html: `<span class="ops-map-cluster is-appointments ${tone}"><b>${count}</b><small>jobs</small></span>`,
     iconSize: [46, 46],
     iconAnchor: [23, 23],
     popupAnchor: [0, -22],
   });
 }
 
-function locationClusterIcon(leaflet: LeafletModule, jobs: number, trucks: number) {
+function locationClusterIcon(leaflet: LeafletModule, jobs: number, trucks: number, tone: string) {
   return leaflet.divIcon({
     className: "",
-    html: `<span class="ops-map-cluster is-locations"><b>${jobs + trucks}</b><small>at location</small></span>`,
+    html: `<span class="ops-map-cluster is-locations ${tone}"><b>${jobs + trucks}</b><small>at location</small></span>`,
     iconSize: [52, 52],
     iconAnchor: [26, 26],
     popupAnchor: [0, -24],
@@ -1297,8 +1297,9 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       jobsAtLocation: JobsMapPoint[],
       trucksAtLocation: JobsMapTruck[],
     ) => {
+      const tone = jobsAtLocation[0] ? territoryTone(jobsAtLocation[0]) : "is-unknown-territory";
       const marker = leaflet.marker([latitude, longitude], {
-        icon: locationClusterIcon(leaflet, jobsAtLocation.length, trucksAtLocation.length),
+        icon: locationClusterIcon(leaflet, jobsAtLocation.length, trucksAtLocation.length, tone),
         keyboard: true,
         title: `${jobsAtLocation.length + trucksAtLocation.length} map items at this location`,
         alt: `${jobsAtLocation.length + trucksAtLocation.length} map items at this location`,
@@ -1324,7 +1325,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       if (usedJobClusters.has(cluster)) continue;
       if (cluster.items.length > 1) {
         const marker = leaflet.marker([cluster.latitude, cluster.longitude], {
-          icon: appointmentClusterIcon(leaflet, cluster.items.length),
+          icon: appointmentClusterIcon(leaflet, cluster.items.length, territoryTone(cluster.items[0])),
           keyboard: true,
           title: `${cluster.items.length} appointments in this area`,
           alt: `${cluster.items.length} appointments in this area`,

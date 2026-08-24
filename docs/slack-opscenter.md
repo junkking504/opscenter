@@ -26,11 +26,14 @@ Truck channels intentionally contain field execution events, not bookings or sch
 
 ## Message format
 
-OpsCenter-generated alert messages use the same compact scan pattern: an event icon and bold heading,
-followed by one fact per labelled line. Alerts with a follow-up include `Next`
-and an `Open in OpsCenter` link at the end. This keeps arrival, closeout,
-payment, crew, receipt, and verified-photo alerts equally readable without
-changing their routing, delivery cadence, or deduplication.
+OpsCenter-generated alerts use one compact scan pattern: an event icon and bold
+event heading, followed by one fact per labelled line. Job-specific alerts put
+the JK number on a `Job` line rather than varying the heading. Optional context
+is italic, follow-up uses the `Action` label, and the final line is the single
+`Open in OpsCenter` link. No alert includes raw delivery IDs or Slack code
+blocks. This keeps arrival, closeout, payment, crew, receipt, photo, schedule,
+incident, and recovery alerts equally readable without changing routing,
+delivery cadence, or deduplication.
 
 The first live run records existing appointments, existing cancellations, and currently active incidents as its baseline. It does not flood Slack with pre-existing conditions. Later appointment additions and cancellations are each posted once; failed notification deliveries remain eligible for retry. Once a baseline incident clears, a later recurrence is treated as a new incident. New incident alerts are deduplicated, and recovery messages are posted in the original Slack thread.
 

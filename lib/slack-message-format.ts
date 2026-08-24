@@ -17,8 +17,9 @@ export function slackEscape(value: string): string {
 }
 
 /**
- * Keep every OpsCenter alert scannable in Slack: event first, then labelled
- * facts, then the optional action and OpsCenter deep link.
+ * Every OpsCenter alert uses this one presentation contract: event first,
+ * labelled facts, optional italic context, an explicit action, then one deep
+ * link. Keep Slack-specific layout decisions here rather than in publishers.
  */
 export function formatSlackMessage({
   icon,
@@ -32,17 +33,17 @@ export function formatSlackMessage({
     const text = String(value ?? "").trim();
     return text ? [`*${slackEscape(label)}:* ${slackEscape(text)}`] : [];
   });
-  const bodyLines = String(body || "")
+  const contextLines = String(body || "")
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
-    .map(slackEscape);
+    .map((line) => `_${slackEscape(line)}_`);
 
   return [
     `${icon} *${slackEscape(title)}*`,
     ...fieldLines,
-    ...bodyLines,
-    nextAction ? `*Next:* ${slackEscape(nextAction)}` : "",
+    ...contextLines,
+    nextAction ? `*Action:* ${slackEscape(nextAction)}` : "",
     href ? `<${href}|Open in OpsCenter>` : "",
   ].filter(Boolean).join("\n");
 }

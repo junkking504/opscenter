@@ -94,10 +94,10 @@ const LINXUP_MAX_POINT_GAP_MS = 5 * 60_000;
 const LINXUP_FRESHNESS_MS = 10 * 60_000;
 const APPOINTMENT_SELECTION_EVENT = "ops:select-appointment";
 const APPOINTMENT_ON_SITE_EVENT = "ops:appointment-on-site";
-// Dispatch opens on the New Orleans territory, with Jefferson Parish visible
-// as its teal sub-area. A selected job or truck still centers on that record.
-const DEFAULT_DISPATCH_MAP_CENTER: [number, number] = [29.95, -90.08];
-const DEFAULT_DISPATCH_MAP_ZOOM = 10;
+// Dispatch opens on the full operating footprint. Territory shortcuts still
+// focus an individual area, and a selected job or truck centers on that record.
+const DEFAULT_DISPATCH_MAP_CENTER: [number, number] = [30.16, -90.95];
+const DEFAULT_DISPATCH_MAP_ZOOM = 8;
 const DISPATCH_TERRITORY_SHORTCUTS = [
   { label: "New Orleans", abbreviation: "NO", tone: "is-new-orleans", center: [29.95, -90.08] as [number, number] },
   { label: "Baton Rouge", abbreviation: "BR", tone: "is-baton-rouge", center: [30.45, -91.15] as [number, number] },

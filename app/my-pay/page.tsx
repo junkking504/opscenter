@@ -11,6 +11,7 @@ import {
   type CrewPayDay,
   type CrewPayTotals,
   getCrewPayPortalData,
+  monthlyLeaderboardSummary,
 } from "@/lib/crew-pay-portal";
 import styles from "./my-pay.module.css";
 
@@ -329,6 +330,7 @@ function PayPeriodView({ data }: { data: Awaited<ReturnType<typeof getCrewPayPor
 
 function MonthlyLeaderboardView({ data }: { data: Awaited<ReturnType<typeof getCrewPayPortalData>> }) {
   const leaderboard = data.monthlyLeaderboard;
+  const summary = monthlyLeaderboardSummary(leaderboard);
   return (
     <>
       <section className={styles.section}>
@@ -343,6 +345,9 @@ function MonthlyLeaderboardView({ data }: { data: Awaited<ReturnType<typeof getC
         <div className={styles.monthSummary}>
           <div className={styles.monthSummaryCard}><span>Total jobs</span><strong>{wholeNumber.format(leaderboard.totalJobs)}</strong></div>
           <div className={styles.monthSummaryCard}><span>Total revenue</span><strong>{money.format(leaderboard.totalRevenue)}</strong></div>
+          <div className={styles.monthSummaryCard}><span>Average job size</span><strong>{summary.averageJobSize === null ? "—" : money.format(summary.averageJobSize)}</strong></div>
+          <div className={styles.monthSummaryCard}><span>Revenue per hour</span><strong>{summary.revenuePerHour === null ? "—" : money.format(summary.revenuePerHour)}</strong></div>
+          <div className={styles.monthSummaryCard}><span>Total tips</span><strong>{money.format(leaderboard.totalTips)}</strong></div>
         </div>
       </section>
 

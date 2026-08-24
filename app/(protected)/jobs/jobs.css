@@ -635,3 +635,97 @@
 .ops-jobs-page .ops-jobs-map-current-time span {
   font-size: 0.75rem !important;
 }
+
+/* Keep the main JunkWare lookup above the Dispatch Board, so the day's
+ * schedule can be narrowed before an operator begins scanning the timeline. */
+.ops-jobs-page .ops-junkware-search {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(246, 195, 67, 0.34);
+  border-radius: 13px;
+  background: linear-gradient(100deg, rgba(246, 195, 67, 0.12), rgba(16, 20, 28, 0.9) 42%);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.ops-jobs-page .ops-junkware-search-field {
+  display: grid;
+  flex: 1 1 340px;
+  gap: 4px;
+  min-width: 0;
+  color: #fde68a;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ops-jobs-page .ops-junkware-search-field input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 9px;
+  background: rgba(3, 7, 13, 0.72);
+  color: #f8fafc;
+  font: inherit;
+  font-size: 0.9rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ops-jobs-page .ops-junkware-search-field input::placeholder { color: #9aa4b2; }
+
+.ops-jobs-page .ops-junkware-search-field input:focus-visible {
+  border-color: #f6c343;
+  outline: 3px solid rgba(246, 195, 67, 0.22);
+  outline-offset: 1px;
+}
+
+.ops-jobs-page .ops-junkware-search-button,
+.ops-jobs-page .ops-junkware-search-clear {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 14px;
+  border: 1px solid rgba(246, 195, 67, 0.55);
+  border-radius: 9px;
+  background: #f6c343;
+  color: #1c2027;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.ops-jobs-page .ops-junkware-search-button:hover,
+.ops-jobs-page .ops-junkware-search-button:focus-visible {
+  border-color: #fff4c7;
+  background: #ffd35c;
+  outline: none;
+}
+
+.ops-jobs-page .ops-junkware-search-clear {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.07);
+  color: #f8fafc;
+}
+
+.ops-jobs-page .ops-jobs-filter-toolbar-advanced {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 560px) {
+  .ops-jobs-page .ops-junkware-search {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+  }
+
+  .ops-jobs-page .ops-junkware-search-field { grid-column: 1 / -1; }
+  .ops-jobs-page .ops-junkware-search-clear { justify-self: end; }
+}

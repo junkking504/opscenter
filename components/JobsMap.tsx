@@ -1512,40 +1512,16 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
 
         {scheduleView ? (
           <aside className="ops-jobs-map-schedule" aria-label="Truck by time appointment schedule">
-            <div className="ops-jobs-mobile-agenda" aria-label="Truck appointment agenda">
-              {scheduleTruckRows.map((column) => {
-                const appointments = scheduledJobs.filter((job) => scheduleBoard.jobColumns.get(job.key) === column.key);
-                return (
-                  <section className="ops-jobs-mobile-agenda-truck" key={`agenda-${column.key}`}>
-                    <h3>{column.label}</h3>
-                    {appointments.length ? appointments.map((job) => (
-                      <button
-                        type="button"
-                        className={`ops-jobs-mobile-agenda-card ${territoryTone(job)}${selectedKey === job.key ? " is-selected" : ""}`}
-                        onClick={() => handleAppointmentClick(job.key)}
-                        aria-label={`${job.appointmentTime || "Unscheduled"}, ${job.customerName}, ${scheduleJobState(job).label}`}
-                        key={job.key}
-                      >
-                        <ScheduleJobStateIcon job={job} />
-                        <span>{job.appointmentTime || "Unscheduled"}</span>
-                        <strong>{job.customerName}</strong>
-                        <small>{scheduleJobState(job).label}</small>
-                      </button>
-                    )) : <p>No appointments assigned.</p>}
-                  </section>
-                );
-              })}
-            </div>
-              <div
-                className="ops-jobs-map-board"
-                style={{
-                  // Desktop retains readable hour columns. The phone layout
-                  // overrides this variable so the entire appointment board
-                  // remains visible as compact square blocks.
-                  "--ops-jobs-map-time-cell-min": "60px",
-                  gridTemplateColumns: `${SCHEDULE_TRUCK_COLUMN_WIDTH}px repeat(${Math.max(scheduleTimeColumnCount, 1)}, minmax(var(--ops-jobs-map-time-cell-min), 1fr))`,
-                } as CSSProperties}
-              >
+            <div
+              className="ops-jobs-map-board"
+              style={{
+                // Desktop retains readable hour columns. The phone layout
+                // overrides this variable so the entire appointment board
+                // remains visible as compact square blocks.
+                "--ops-jobs-map-time-cell-min": "60px",
+                gridTemplateColumns: `${SCHEDULE_TRUCK_COLUMN_WIDTH}px repeat(${Math.max(scheduleTimeColumnCount, 1)}, minmax(var(--ops-jobs-map-time-cell-min), 1fr))`,
+              } as CSSProperties}
+            >
               {currentTimeLine ? (
                 <div
                   className="ops-jobs-map-current-time"

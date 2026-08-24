@@ -70,9 +70,17 @@ assert.equal(
   appointmentTerritoryForLocation("Northshore", "Hammond, LA 70403"),
   "Northshore",
 );
+assert.equal(
+  appointmentTerritory({
+    normalized_territory: "Jefferson Parish",
+    service_address: "149 Deweese St, Westwego, LA 70094",
+  }),
+  "Westbank",
+);
 
 assert.equal(appointmentChannelId("New Orleans"), "C_TEST_NO");
 assert.equal(appointmentChannelId("Jefferson Parish"), "C_TEST_NO");
+assert.equal(appointmentChannelId("Westbank"), "C_TEST_NO");
 assert.equal(appointmentChannelId("JP"), "C_TEST_NO");
 assert.equal(appointmentChannelId("Baton Rouge"), "C_TEST_BR");
 assert.equal(

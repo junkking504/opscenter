@@ -151,24 +151,28 @@
 .ops-jobs-page .ops-appointment-card-topline { gap: 12px; }
 .ops-jobs-page .ops-appointment-card-reference { gap: 1px; margin-bottom: 0; }
 
-.ops-jobs-page .ops-appointment-booked-date {
-  padding: 2px 6px;
-  border: 1px solid #d8dee5;
-  border-radius: 999px;
-  background: #f3f5f7;
-  color: #4c5865;
-  font-size: 0.6875rem;
-  font-weight: 800;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
 .ops-jobs-page .ops-appointment-card-crew {
   gap: 3px 10px;
   margin-top: 2px;
   color: #4d5865;
   font-size: 0.8125rem;
   line-height: 1.3;
+}
+
+.ops-jobs-page .ops-appointment-card-completed-crew {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 9px;
+  margin-top: 3px;
+  color: #4d5865;
+  font-size: 0.8125rem;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.ops-jobs-page .ops-appointment-card-completed-crew > span + span {
+  border-left: 1px solid #c4cdd6;
+  padding-left: 9px;
 }
 
 .ops-jobs-page .ops-appointment-card :where(
@@ -198,6 +202,28 @@
 
 .ops-jobs-page .ops-appointment-card-revenue { color: #18794e; }
 .ops-jobs-page .ops-appointment-card-revenue.quoted { color: #6d3cc7; }
+.ops-jobs-page .ops-appointment-card-payment-summary {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.ops-jobs-page .ops-appointment-card-payment-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+.ops-jobs-page .ops-appointment-card-payment-reference {
+  color: #66707c;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.ops-jobs-page .ops-appointment-card-merchant-link { margin-left: auto; }
 .ops-jobs-page .ops-appointment-card-outcome .ops-status-tag.scheduled { color: #8a5a00; }
 .ops-jobs-page .ops-appointment-card-outcome .ops-status-tag.completed,
 .ops-jobs-page .ops-job-photo-badge.complete { color: #18794e; }
@@ -275,6 +301,39 @@
 .ops-jobs-page .ops-job-crew-note-editor > div { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
 .ops-jobs-page .ops-job-crew-note-editor small { color: #ad3028; font-size: 0.72rem; }
 
+.ops-jobs-page .ops-job-appointment-note {
+  display: grid;
+  gap: 7px;
+  margin-top: 2px;
+  padding: 8px;
+  border: 1px solid #d8dee5;
+  border-radius: 7px;
+  background: #fff;
+}
+
+.ops-jobs-page .ops-job-appointment-note-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ops-jobs-page .ops-job-appointment-note-heading > div { display: grid; gap: 1px; }
+.ops-jobs-page .ops-job-appointment-note-heading span { color: #5d6672; font-size: 0.66rem; font-weight: 800; letter-spacing: 0.05em; }
+.ops-jobs-page .ops-job-appointment-note-heading strong { color: #343b45; font-size: 0.78rem; }
+.ops-jobs-page .ops-job-appointment-note-heading button,
+.ops-jobs-page .ops-job-appointment-note-editor button {
+  border: 1px solid #9db2c7;
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: #edf4fb;
+  color: #174f7a;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+.ops-jobs-page .ops-job-appointment-note p { margin: 0; color: #18794e; font-size: 0.78rem; }
+.ops-jobs-page .ops-job-appointment-note-editor { display: grid; gap: 7px; }
+.ops-jobs-page .ops-job-appointment-note-editor textarea { width: 100%; min-height: 70px; resize: vertical; border: 1px solid #c7cdd4; border-radius: 6px; padding: 7px; font: inherit; font-size: 0.8rem; }
+.ops-jobs-page .ops-job-appointment-note-editor > div { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
+.ops-jobs-page .ops-job-appointment-note-editor button.secondary { border-color: #c7cbd0; background: #fff; color: #46505a; }
+.ops-jobs-page .ops-job-appointment-note-editor button:disabled { cursor: wait; opacity: 0.65; }
+.ops-jobs-page .ops-job-appointment-note-editor small { color: #ad3028; font-size: 0.72rem; }
+
 .ops-jobs-page .ops-appointment-junk-summary { align-items: center; gap: 6px; }
 .ops-jobs-page .ops-appointment-note-details { padding-left: 12px; border-left-color: #e1e5e9; }
 .ops-jobs-page .ops-appointment-note-details > summary { gap: 6px; }
@@ -319,14 +378,15 @@
 .ops-jobs-page .ops-job-closeout-editor {
   justify-self: start;
   margin-top: 2px;
-  border-color: #cbd9e8;
+  border-color: #334155;
   border-radius: 7px;
-  background: #edf4fb;
+  background: #0f172a;
+  color: #f8fafc;
 }
 
 .ops-jobs-page .ops-job-closeout-editor > summary {
   padding: 9px 10px;
-  color: #174f7a;
+  color: #dbeafe;
   font-size: 0.875rem;
   line-height: 1.35;
 }
@@ -335,6 +395,29 @@
   grid-column: 1 / -1;
   justify-self: stretch;
   width: 100%;
+}
+
+/* Keep both closeout actions compact and legible. The closed disclosure still
+ * owns a full grid row, but its control is only as wide as its one-line label. */
+.ops-jobs-page .ops-job-closeout-editor:not([open]) {
+  grid-column: 1 / -1;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.ops-jobs-page .ops-job-closeout-editor:not([open]) > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 9px;
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.ops-jobs-page .ops-job-closeout-editor:not([open]) > summary::before {
+  width: auto;
+  margin-right: 6px;
 }
 
 .ops-jobs-page .ops-appointment-detail-grid {
@@ -507,6 +590,357 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* The card's scan area contains only source-backed operational facts. Crew and
+ * site-time data appear after a recorded visit, never merely from an assignment. */
+.ops-jobs-page .ops-appointment-card-scan-summary {
+  display: grid;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.ops-jobs-page .ops-appointment-visit-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  padding: 5px 7px;
+  border-left: 3px solid #24865b;
+  background: #edf8f1;
+  color: #245d42;
+  font-size: 0.8125rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.ops-jobs-page .ops-appointment-visit-time {
+  color: #176b47;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-jobs-page .ops-appointment-visit-crew {
+  color: #3d5145;
+}
+
+.ops-jobs-page .ops-appointment-visit-crew strong {
+  color: #263b30;
+  font-weight: 900;
+}
+
+.ops-jobs-page .ops-appointment-visit-extra,
+.ops-jobs-page .ops-appointment-photo-summary {
+  color: #4d5b52;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.ops-jobs-page .ops-appointment-photo-summary::before {
+  content: "•";
+  margin-right: 5px;
+  color: #24865b;
+}
+
+.ops-jobs-page .ops-appointment-photo-summary.missing {
+  color: #8a5a00;
+}
+
+.ops-jobs-page .ops-appointment-photo-summary.missing::before { color: #bb7b00; }
+
+.ops-jobs-page .ops-appointment-items-summary {
+  display: block;
+  overflow: hidden;
+  color: #4e5965;
+  font-size: 0.8125rem;
+  font-weight: 750;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-jobs-page .ops-appointment-cancellation-reason {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border-left: 3px solid #dc2626;
+  background: #fff1f2;
+  color: #7f1d1d;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.ops-jobs-page .ops-appointment-cancellation-reason > span {
+  color: #b91c1c;
+  font-size: 0.6875rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ops-jobs-page .ops-appointment-cancellation-reason > strong {
+  font-weight: 800;
+}
+
+.ops-jobs-page details.ops-appointment-context {
+  display: block;
+  padding: 0;
+  border: 1px solid #e1e5e9;
+  border-radius: 7px;
+  background: #f8fafb;
+}
+
+.ops-jobs-page details.ops-appointment-context > summary {
+  min-height: 36px;
+  padding: 8px 9px;
+  color: #56616d;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 850;
+  line-height: 1.25;
+  list-style: none;
+}
+
+.ops-jobs-page details.ops-appointment-context > summary::-webkit-details-marker { display: none; }
+
+.ops-jobs-page details.ops-appointment-context > summary::before {
+  content: "+";
+  display: inline-block;
+  width: 1.2em;
+  color: #174f7a;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.ops-jobs-page details.ops-appointment-context[open] > summary::before { content: "−"; }
+
+.ops-jobs-page .ops-appointment-context-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px 12px;
+  padding: 8px 9px 9px;
+  border-top: 1px solid #e1e5e9;
+}
+
+.ops-jobs-page .ops-appointment-context-body .ops-appointment-note-details {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.ops-jobs-page .ops-appointment-context-body .ops-job-crew-note { grid-column: auto; }
+
+/* Appointment-card disclosures use one compact, consistent treatment. */
+.ops-jobs-page details:is(
+  .ops-appointment-context,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+) {
+  display: block;
+  grid-column: 1 / -1;
+  justify-self: stretch;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid #e1e5e9;
+  border-radius: 7px;
+  background: #f8fafb;
+  opacity: 1;
+}
+
+.ops-jobs-page details[hidden] { display: none !important; }
+
+.ops-jobs-page details:is(
+  .ops-appointment-context,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+) > summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px 9px;
+  color: #56616d;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 850;
+  line-height: 1.25;
+  list-style: none;
+}
+
+.ops-jobs-page details:is(
+  .ops-appointment-context,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+) > summary::-webkit-details-marker { display: none; }
+
+.ops-jobs-page details:is(
+  .ops-appointment-context,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+) > summary::marker { content: ""; font-size: 0; }
+
+.ops-jobs-page details:is(
+  .ops-appointment-context,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+) > summary::before {
+  content: "+";
+  display: inline-block;
+  width: 1.2em;
+  color: #174f7a;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.ops-jobs-page details:is(
+  .ops-appointment-context,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details
+)[open] > summary::before { content: "−"; }
+
+.ops-jobs-page details.ops-job-closeout-details > summary > strong { display: none; }
+
+.ops-jobs-page details.ops-job-closeout-details[open],
+.ops-jobs-page details.ops-appointment-more-details[open] {
+  border-color: #d6dee6;
+  background: #f8fafb;
+}
+
+.ops-jobs-page details.ops-job-closeout-details[open] > summary,
+.ops-jobs-page details.ops-appointment-more-details[open] > summary {
+  margin-bottom: 0;
+  color: #174f7a;
+}
+
+.ops-jobs-page details.ops-appointment-more-details .ops-appointment-detail-grid {
+  padding: 8px 9px;
+  border-top: 1px solid #e1e5e9;
+}
+
+.ops-jobs-page details.ops-appointment-more-details .ops-appointment-site-time,
+.ops-jobs-page .ops-appointment-site-time-unavailable {
+  margin: 0 9px 9px;
+}
+
+.ops-jobs-page .ops-appointment-site-time-unavailable {
+  color: #687381;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.ops-jobs-page .ops-call-ahead-row {
+  order: 1;
+  grid-column: 1 / -1;
+  min-height: 24px;
+  gap: 8px;
+}
+
+.ops-jobs-page .ops-appointment-card-outcome { order: 2; grid-column: 1 / -1; }
+.ops-jobs-page .ops-job-closeout-editor { order: 3; }
+.ops-jobs-page .ops-appointment-context { order: 4; }
+.ops-jobs-page :is(.ops-job-closeout-details, .ops-appointment-more-details) { order: 5; }
+
+.ops-jobs-page .ops-call-ahead-badge {
+  gap: 8px;
+  color: #56616d;
+  font-size: 0.75rem !important;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ops-jobs-page .ops-call-ahead-label { margin-right: 2px; }
+
+.ops-jobs-page .ops-call-ahead-choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #687381;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-jobs-page .ops-call-ahead-choice > i {
+  display: inline-grid;
+  width: 12px;
+  height: 12px;
+  place-items: center;
+  border: 1px solid #aab5c1;
+  border-radius: 2px;
+  color: #fff;
+  font-size: 0.625rem;
+  font-style: normal;
+  line-height: 1;
+}
+
+.ops-jobs-page .ops-call-ahead-choice.selected { color: #174f7a; }
+.ops-jobs-page .ops-call-ahead-choice.selected > i { border-color: #174f7a; background: #174f7a; }
+
+@media (max-width: 720px) {
+  .ops-jobs-page .ops-appointment-card {
+    row-gap: 5px;
+    padding: 9px 10px;
+  }
+
+  .ops-jobs-page .ops-appointment-card-topline { gap: 6px; }
+
+  .ops-jobs-page .ops-appointment-card-reference-row { gap: 3px 7px; }
+
+  .ops-jobs-page .ops-appointment-card-time { font-size: 0.9375rem; }
+
+  .ops-jobs-page .ops-appointment-card-customer { font-size: 1rem; }
+
+  .ops-jobs-page .ops-appointment-card-address {
+    font-size: 0.8125rem;
+    line-height: 1.3;
+  }
+
+  .ops-jobs-page .ops-appointment-card-outcome {
+    gap: 3px 7px;
+    padding-top: 5px;
+  }
+
+  .ops-jobs-page .ops-appointment-card-payment-summary { justify-items: start; }
+  .ops-jobs-page .ops-appointment-card-payment-line { justify-content: flex-start; }
+  .ops-jobs-page .ops-appointment-card-merchant-link { margin-left: 0; }
+
+  .ops-jobs-page .ops-appointment-visit-summary { padding: 5px 7px; }
+
+  .ops-jobs-page .ops-appointment-context-body { grid-template-columns: 1fr; }
+
+  .ops-jobs-page .ops-appointment-context-body .ops-job-crew-note { grid-column: 1; }
+}
+
+/* Mobile card type scale: one clear title tier, one metadata tier, and a
+ * compact payment/status line that can be scanned without competing weights. */
+@media (max-width: 720px) {
+  .ops-jobs-page .ops-appointment-card-reference .ops-jk-number {
+    font-size: 0.8125rem !important;
+    font-weight: 900;
+    line-height: 1.2;
+  }
+
+  .ops-jobs-page .ops-appointment-card-time { font-size: 1rem; }
+
+  .ops-jobs-page .ops-appointment-card-customer {
+    font-size: 1.0625rem;
+    line-height: 1.2;
+  }
+
+  .ops-jobs-page .ops-appointment-card :where(
+    .ops-appointment-items-summary,
+    .ops-status-tag,
+    .ops-payment-badge,
+    .ops-job-exception-badge
+  ) {
+    font-size: 0.8125rem !important;
+    line-height: 1.3;
+  }
+
+  .ops-jobs-page .ops-appointment-card-revenue {
+    font-size: 0.9375rem;
+    line-height: 1.2;
+  }
+}
 .ops-jobs-page :is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette {
   background: #a78bfa;
 }
@@ -521,6 +955,22 @@
 
 .ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette.is-completed {
   background: #ad9bd7;
+}
+
+.ops-jobs-page :is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-westbank {
+  background: #fbbf24;
+}
+
+.ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-westbank.is-assigned-unfinished {
+  background: #f59e0b;
+}
+
+.ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-westbank.is-unassigned {
+  background: rgba(251, 191, 36, .5);
+}
+
+.ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-westbank.is-completed {
+  background: #e6c56d;
 }
 
 /* The split dispatch workspace can leave each hour with roughly 30px. Full
@@ -540,6 +990,26 @@
 }
 
 @media (max-width: 700px) {
+  /* Keep every appointment block in the phone viewport. The desktop board
+   * remains unchanged; only its mobile time cells compact into square slots. */
+  .ops-jobs-map-workspace.has-schedule .ops-jobs-map-schedule {
+    height: auto;
+    overflow: visible !important;
+    touch-action: auto;
+  }
+
+  .ops-jobs-map-schedule .ops-jobs-map-board {
+    min-width: 100% !important;
+    --ops-jobs-map-time-cell-min: 0px !important;
+  }
+
+  .ops-jobs-map-board-block { min-width: 0; }
+
+  .ops-jobs-map-board-state {
+    width: 14px;
+    height: 14px;
+    font-size: .72rem;
+  }
   .ops-jobs-page > .ops-page-header .ops-page-header-controls {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
@@ -577,7 +1047,6 @@
  * timeline visualization; every conventional action around it uses the shared
  * 44px target and every operational value stays at 13px or larger. */
 .ops-jobs-page .ops-appointment-card :where(
-  .ops-appointment-booked-date,
   .ops-appointment-card-driver,
   .ops-appointment-card-navigator,
   .ops-call-ahead-badge,
@@ -634,4 +1103,196 @@
 .ops-jobs-page .ops-jobs-map-board-time,
 .ops-jobs-page .ops-jobs-map-current-time span {
   font-size: 0.75rem !important;
+}
+
+/* Use the same compact territory controls on Dispatch at every viewport.
+ * The accessible nav label remains, while the redundant visible label and
+ * desktop-only pills are removed. */
+.ops-jobs-page .ops-territory-jump {
+  position: static;
+  top: auto;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 9px 10px;
+  overflow: visible;
+}
+
+.ops-jobs-page .ops-territory-jump a {
+  --ops-territory-jump-border: #8b929d;
+  --ops-territory-jump-fill: #eef0f3;
+  --ops-territory-jump-accent: #8b929d;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 40px;
+  padding: 7px 4px;
+  border: 2px solid var(--ops-territory-jump-border);
+  border-radius: 10px;
+  background: var(--ops-territory-jump-fill);
+  color: #1f2937;
+  font-size: .78rem;
+  font-weight: 900;
+}
+
+.ops-jobs-page .ops-territory-jump a.is-new-orleans { --ops-territory-jump-border: #60a5fa; --ops-territory-jump-fill: #e1effe; --ops-territory-jump-accent: #60a5fa; }
+.ops-jobs-page .ops-territory-jump a.is-jefferson { --ops-territory-jump-border: #2bbba9; --ops-territory-jump-fill: #dcf8f3; --ops-territory-jump-accent: #2dd4bf; }
+.ops-jobs-page .ops-territory-jump a.is-westbank { --ops-territory-jump-border: #fbbf24; --ops-territory-jump-fill: #fff8db; --ops-territory-jump-accent: #f59e0b; }
+.ops-jobs-page .ops-territory-jump a.is-northshore { --ops-territory-jump-border: #d946ef; --ops-territory-jump-fill: #fdf4ff; --ops-territory-jump-accent: #d946ef; }
+.ops-jobs-page .ops-territory-jump a.is-baton-rouge { --ops-territory-jump-border: #e96363; --ops-territory-jump-fill: #fee7e7; --ops-territory-jump-accent: #f87171; }
+.ops-jobs-page .ops-territory-jump a.is-lafayette { --ops-territory-jump-border: #18b947; --ops-territory-jump-fill: #e1fbe8; --ops-territory-jump-accent: #00e13c; }
+
+.ops-jobs-page .ops-territory-jump a:hover,
+.ops-jobs-page .ops-territory-jump a:focus-visible {
+  border-color: var(--ops-territory-jump-accent);
+  color: #111827;
+  outline: none;
+}
+
+.ops-jobs-page .ops-territory-jump small {
+  display: inline-grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  margin-left: 4px;
+  padding-inline: 2px;
+  border-radius: 6px;
+  background: var(--ops-territory-jump-accent);
+  color: #101820;
+  font-size: .68rem;
+  font-weight: 950;
+}
+
+/* Keep the main JunkWare lookup above the Dispatch Board, so the day's
+ * schedule can be narrowed before an operator begins scanning the timeline. */
+.ops-jobs-page .ops-junkware-search {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(246, 195, 67, 0.34);
+  border-radius: 13px;
+  background: linear-gradient(100deg, rgba(246, 195, 67, 0.12), rgba(16, 20, 28, 0.9) 42%);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.ops-jobs-page .ops-junkware-search-field {
+  display: grid;
+  flex: 1 1 340px;
+  gap: 4px;
+  min-width: 0;
+  color: #fde68a;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ops-jobs-page .ops-junkware-search-field input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 9px;
+  background: rgba(3, 7, 13, 0.72);
+  color: #f8fafc;
+  font: inherit;
+  font-size: 0.9rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ops-jobs-page .ops-junkware-search-field input::placeholder { color: #9aa4b2; }
+
+.ops-jobs-page .ops-junkware-search-field input:focus-visible {
+  border-color: #f6c343;
+  outline: 3px solid rgba(246, 195, 67, 0.22);
+  outline-offset: 1px;
+}
+
+.ops-jobs-page .ops-junkware-search-button,
+.ops-jobs-page .ops-junkware-search-clear {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 14px;
+  border: 1px solid rgba(246, 195, 67, 0.55);
+  border-radius: 9px;
+  background: #f6c343;
+  color: #1c2027;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.ops-jobs-page .ops-junkware-search-button:hover,
+.ops-jobs-page .ops-junkware-search-button:focus-visible {
+  border-color: #fff4c7;
+  background: #ffd35c;
+  outline: none;
+}
+
+.ops-jobs-page .ops-junkware-search-clear {
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.07);
+  color: #f8fafc;
+}
+
+.ops-jobs-page .ops-jobs-filter-toolbar-advanced {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ops-jobs-page .ops-call-ahead-choice {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.ops-jobs-page .ops-call-ahead-choice:hover,
+.ops-jobs-page .ops-call-ahead-choice:focus-visible {
+  color: #174f7a;
+  outline: none;
+}
+
+.ops-jobs-page .ops-call-ahead-choice:focus-visible > i {
+  outline: 2px solid #174f7a;
+  outline-offset: 2px;
+}
+
+.ops-jobs-page .ops-call-ahead-choice:disabled {
+  cursor: wait;
+}
+
+/* Cancellation is a caution state, not a red-alert state. Keep the dark card
+ * treatment from the active Dispatch release, but restore its yellow-and-black
+ * tape so it stays visually distinct from urgent/on-site work. */
+.ops-jobs-page .ops-appointment-card.is-canceled::before {
+  background: repeating-linear-gradient(
+    135deg,
+    #facc15 0 11px,
+    #facc15 11px 14px,
+    #111827 14px 25px,
+    #111827 25px 28px
+  );
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 8px rgba(161, 98, 7, 0.42);
+}
+
+@media (max-width: 560px) {
+  .ops-jobs-page .ops-junkware-search {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+  }
+
+  .ops-jobs-page .ops-junkware-search-field { grid-column: 1 / -1; }
+  .ops-jobs-page .ops-junkware-search-clear { justify-self: end; }
 }

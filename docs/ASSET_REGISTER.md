@@ -33,7 +33,6 @@ the repository remains the canonical home for the OpsCenter application.
 | Asset | Location | Why it remains local |
 | --- | --- | --- |
 | Authoritative OpsBot data | `/Users/missioncontrol/.openclaw/workspace/opsbot/data` | Customer, employee, payroll, finance, appointment, GPS, and integration state |
-| Dispatch crew notes | `/Users/missioncontrol/.openclaw/workspace/opsbot/data/job-crew-notes/notes.json` | Dispatch-authored appointment instructions and their audit metadata; retain as protected operational state |
 | Production environment | `/Users/missioncontrol/Library/Application Support/OpsCenter/production.env` | Protected configuration and credential references |
 | Slack runtime configuration | `/Users/missioncontrol/Library/Application Support/OpsCenter/slack.env` | Channel/configuration state; token remains outside Git |
 | Logs | `/Users/missioncontrol/Library/Logs/OpsCenter` | May contain operational identifiers and error context |

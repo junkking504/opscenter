@@ -253,6 +253,7 @@ export function appointmentChannelId(territory: string): string {
   if (
     normalized.includes("new orleans")
     || normalized.includes("jefferson parish")
+    || normalized.includes("westbank")
     || normalized === "no"
     || normalized === "jp"
   ) {

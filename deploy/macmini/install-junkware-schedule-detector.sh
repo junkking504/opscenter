@@ -24,3 +24,15 @@ launchctl bootstrap "gui/$(id -u)" "$INSTALLED_PLIST"
 launchctl enable "gui/$(id -u)/$LABEL"
 launchctl kickstart -k "gui/$(id -u)/$LABEL"
 launchctl print "gui/$(id -u)/$LABEL" >/dev/null
+
+# The all-market detector replaced these release-pinned watchers. Leaving them
+# loaded after their source release is pruned creates a constant failed state
+# and can mask a real detector failure.
+for LEGACY_LABEL in \
+  com.openclaw.opsbot.junkware-schedule-watcher-352 \
+  com.openclaw.opsbot.junkware-schedule-watcher-399 \
+  com.openclaw.opsbot.junkware-schedule-watcher-477 \
+  com.openclaw.opsbot.junkware-schedule-watcher-484; do
+  launchctl bootout "gui/$(id -u)/$LEGACY_LABEL" >/dev/null 2>&1 || true
+  rm -f "$EXPECTED_HOME/Library/LaunchAgents/$LEGACY_LABEL.plist"
+done

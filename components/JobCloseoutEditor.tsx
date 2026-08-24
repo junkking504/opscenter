@@ -55,6 +55,9 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
   const [otherChargeQuantity, setOtherChargeQuantity] = useState("1");
   const [otherChargePrice, setOtherChargePrice] = useState("");
   const [pendingOtherCharges, setPendingOtherCharges] = useState<PendingOtherCharge[]>([]);
+  const otherChargePriceIsAutomatic = otherChargeType.split("|")[2] === "1";
+
+  if (/cancel(?:ed|led)/i.test(initialStatus)) return null;
 
   async function load() {
     if (!resolvedAppointmentId) {
@@ -301,7 +304,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
                     </select>
                   </label>
                   <label><span>Qty</span><input value={otherChargeQuantity} inputMode="decimal" onChange={(event) => setOtherChargeQuantity(event.target.value)} /></label>
-                  <label><span>Price / amount</span><input value={otherChargePrice} inputMode="decimal" placeholder={otherChargeType.split("|")[2] === "1" ? `${otherChargeType.split("|")[1]}% auto` : ""} disabled={otherChargeType.split("|")[2] === "1"} onChange={(event) => setOtherChargePrice(event.target.value)} /></label>
+                  <label className={otherChargePriceIsAutomatic ? "is-disabled" : ""}><span>Price / amount</span><input value={otherChargePrice} inputMode="decimal" placeholder={otherChargePriceIsAutomatic ? `${otherChargeType.split("|")[1]}% auto` : ""} disabled={otherChargePriceIsAutomatic} onChange={(event) => setOtherChargePrice(event.target.value)} /></label>
                   <button type="button" className="ops-button subtle" onClick={addOtherCharge}>+ Add charge</button>
                 </div>
               </div>

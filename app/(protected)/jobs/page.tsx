@@ -8,7 +8,7 @@ import PageHeader from "@/components/PageHeader";
 import OpsMonthSelector from "@/components/OpsMonthSelector";
 import JobCallAheadCard from "@/components/JobCallAheadCard";
 import JobCloseoutEditor from "@/components/JobCloseoutEditor";
-import JobCrewNote from "@/components/JobCrewNote";
+import JobAppointmentNote from "@/components/JobAppointmentNote";
 import { JobsMap, type JobsMapPoint } from "@/components/JobsMap";
 import { withAppointmentVisitConfirmations } from "@/lib/appointment-visit-confirmations";
 import { appointmentTerritoryForLocation } from "@/lib/appointment-territory";
@@ -20,7 +20,6 @@ import { readJobRouteAssignmentOverrides } from "@/lib/job-route-assignments";
 import { jobRouteAssignmentKey } from "@/lib/job-route-key";
 import { jobCallAheadLookupKey, readJobCallAheadStatuses } from "@/lib/job-call-ahead";
 import { readVerifiedJobCancellations } from "@/lib/job-cancellations";
-import { jobCrewNoteLookupKey, readJobCrewNotes, type JobCrewNote as JobCrewNoteRecord } from "@/lib/job-crew-notes";
 import {
   appointmentNotes,
   junkItemKeywords,
@@ -31,7 +30,7 @@ import {
   type JunkwareJobPhoto,
 } from "@/lib/junkware-job-details";
 import { missingPaymentTypeLabel, shouldFlagMissingPhotos } from "@/lib/job-audit-rules";
-import { junkwareBookedAt, junkwareBookedDateLabel } from "@/lib/junkware-booking-date";
+import { junkwareBookedAt } from "@/lib/junkware-booking-date";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
 import "./jobs.css";
 
@@ -60,6 +59,8 @@ type JobRow = {
   status: string;
   truck: string;
   assignedTruck?: string;
+  junkwareSyncStatus?: "pending" | "verified" | "manual_correction";
+  junkwareSyncError?: string;
   driver: string;
   driverName?: string;
   driverNormalizedName?: string;
@@ -72,11 +73,13 @@ type JobRow = {
   paymentType: string;
   paymentAmount: number;
   tipAmount: number;
+  completedAt: string;
   closeout: JobCloseout | null;
   photos: JunkwareJobPhoto[];
   photoAuditAvailable: boolean;
   junkItems: string[];
   appointmentNotes: string[];
+  cancellationReason: string;
 };
 
 type JobCloseoutCharge = {
@@ -172,12 +175,13 @@ type JobsRoutePlan = {
   routes: TruckRoutePlan[];
 };
 
-const TERRITORY_ORDER = ["New Orleans", "Jefferson Parish", "Northshore", "Baton Rouge", "Lafayette", "Unknown territory"];
+const TERRITORY_ORDER = ["New Orleans", "Jefferson Parish", "Westbank", "Northshore", "Baton Rouge", "Lafayette", "Unknown territory"];
 const CALENDAR_TERRITORIES = [
   { abbreviation: "NO", territory: "New Orleans" },
   { abbreviation: "BR", territory: "Baton Rouge" },
   { abbreviation: "NS", territory: "Northshore" },
   { abbreviation: "JP", territory: "Jefferson Parish" },
+  { abbreviation: "WB", territory: "Westbank" },
   { abbreviation: "LF", territory: "Lafayette" },
 ] as const;
 const STATUS_ORDER: JobStatusBucket[] = [
@@ -305,11 +309,16 @@ function siteDurationLabel(minutes: number | null | undefined): string {
 }
 
 function siteTimeVisitedTrucks(siteTime: SiteTimeAppointment | undefined): string[] {
-  if (!siteTime) return [];
-  return Array.from(new Set(siteTime.trucks
-    .filter((truck) => truck.operationalConfirmation || (truck.visitCount > 0 && Boolean(truck.arrival || truck.intervals.some((interval) => interval.arrival))))
+  return Array.from(new Set(siteTimeVisitEvidence(siteTime)
     .map((truck) => truck.truck)
     .filter(Boolean)));
+}
+
+function siteTimeVisitEvidence(siteTime: SiteTimeAppointment | undefined): SiteTimeTruck[] {
+  if (!siteTime) return [];
+  return siteTime.trucks.filter((truck) => (
+    truck.operationalConfirmation || (truck.visitCount > 0 && Boolean(truck.arrival || truck.intervals.some((interval) => interval.arrival)))
+  ));
 }
 
 function appointmentVisitedButNotClosed(job: JobRow, visitedTrucks: string[]): boolean {
@@ -574,6 +583,41 @@ function normalizeAddressLine(row: Record<string, string>): string {
 
   if (!parts.length) return "Address unavailable";
   return parts.join(", ");
+}
+
+function addressFromCancellationText(value: string): string {
+  const match = String(value || "").match(
+    /\b(\d{1,6}\s+(?:[\w.'’-]+\s+){0,6}(?:st(?:reet)?|rd|road|dr(?:ive)?|ave(?:nue)?|blvd|boulevard|ln|lane|ct|court|hwy|highway|way|pkwy|parkway|pl|place|cir|circle|loop)\.?)\s+([A-Za-z.'’ -]+?),\s*([A-Z]{2})\s*(\d{5}(?:-\d{4})?)\b/i,
+  );
+  if (!match) return "Address unavailable";
+  const [, street, city, state, zip] = match;
+  return `${street.replace(/\s+/g, " ").trim()}, ${city.replace(/\s+/g, " ").trim()}, ${state.toUpperCase()} ${zip}`;
+}
+
+function cancellationReasonText(value: string, customerName: string, phone: string, address: string): string {
+  let reason = String(value || "").replace(/\s+/g, " ").trim();
+  if (!reason) return "Cancellation reason unavailable";
+
+  const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  const name = String(customerName || "").trim();
+  const phoneDigits = String(phone || "").replace(/\D/g, "");
+  if (name && new RegExp(`^${escape(name)}\\s+`, "i").test(reason)) {
+    reason = reason.replace(new RegExp(`^${escape(name)}\\s+`, "i"), "");
+  }
+  if (phoneDigits) {
+    const phonePattern = phoneDigits.split("").map((digit) => `${digit}\\D*`).join("");
+    reason = reason.replace(new RegExp(`^${phonePattern}\\s*`, "i"), "");
+  }
+
+  const addressMatch = String(address || "").match(/^(.+?),\s*([^,]+?)(?:,\s*([A-Z]{2}))?\s*,?\s*(\d{5}(?:-\d{4})?)$/i);
+  if (addressMatch) {
+    const [, street, city, state, zip] = addressMatch;
+    reason = reason.replace(
+      new RegExp(`^${escape(street)}\\s*,?\\s*${escape(city)}\\s*,?\\s*${state ? `${escape(state)}\\s*,?\\s*` : "(?:[A-Z]{2}\\s*,?\\s*)?"}${escape(zip)}\\s*`, "i"),
+      "",
+    );
+  }
+  return reason.replace(/^[-,:;\s]+/, "").replace(/\s+Followup\.?$/i, "").trim() || "Cancellation reason unavailable";
 }
 
 function siteTimeTruckDurationMinutes(truck: Record<string, any>): number | null {
@@ -1500,39 +1544,19 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
     paymentType,
     paymentAmount,
     tipAmount: moneyNumber(firstValue(row, ["tip", "Tip", "customer_tip", "Customer Tip"]) || "0"),
+    completedAt: firstValue(row, ["completed_at", "closed_at", "closeout_at", "checkout_at"]),
     closeout: null,
     photos: junkwareJobPhotos(row),
     photoAuditAvailable: junkwarePhotoAuditAvailable(row),
     junkItems: junkItemKeywords(row),
     appointmentNotes: appointmentNotes(row),
+    cancellationReason: cancellationReasonText(
+      firstValue(row, ["cancellation_reason", "cancel_reason", "Cancellation Reason", "Cancel Reason"]),
+      customerName,
+      phone,
+      address,
+    ),
   };
-}
-
-
-function paymentClass(paymentType: string): string {
-  const normalized = paymentType.toLowerCase();
-
-  if (normalized.includes("credit") || normalized.includes("card")) {
-    return "ops-payment-badge credit-card";
-  }
-
-  if (normalized.includes("cash")) {
-    return "ops-payment-badge cash";
-  }
-
-  if (normalized.includes("check") || normalized.includes("cheque")) {
-    return "ops-payment-badge check";
-  }
-
-  if (
-    normalized.includes("bill") ||
-    normalized.includes("invoice") ||
-    normalized.includes("open")
-  ) {
-    return "ops-payment-badge billed";
-  }
-
-  return "ops-payment-badge unknown";
 }
 
 
@@ -1730,7 +1754,17 @@ function readJobRows(date: string): JobRow[] {
           "Sales",
         ]) || "0";
 
-      const address = normalizeAddressLine({ ...row, ...sourceRow });
+      const cancellationReasonRaw = sourceValue(["cancellation_reason", "cancel_reason", "Cancellation Reason", "Cancel Reason"]);
+      const sourceAddress = normalizeAddressLine({ ...row, ...sourceRow });
+      const address = sourceAddress !== "Address unavailable"
+        ? sourceAddress
+        : addressFromCancellationText(cancellationReasonRaw);
+      const phone = formatPhone(sourceValue([
+        "phone",
+        "customer_phone",
+        "Phone",
+        "Customer Phone",
+      ])) || "—";
 
       jobs.push({
         appointmentId: apptId || "",
@@ -1746,13 +1780,7 @@ function readJobRows(date: string): JobRow[] {
         customerName,
         customerEmail: firstCustomerEmail(sourceRow, row) || "—",
         customerEmailCollected: hasCustomerEmailField(sourceRow, row),
-        phone:
-          formatPhone(sourceValue([
-            "phone",
-            "customer_phone",
-            "Phone",
-            "Customer Phone",
-          ])) || "—",
+        phone,
         address,
         territory: appointmentTerritoryForLocation(
           sourceValue([
@@ -1827,11 +1855,13 @@ function readJobRows(date: string): JobRow[] {
           cleanMoneyValue(firstValue(sourceRow, ["tip", "Tip", "customer_tip", "Customer Tip"]) || firstValue(row, ["tip", "Tip", "customer_tip", "Customer Tip"]) || "0")
             .replace(/[^0-9.-]/g, "")
         ) || 0,
+        completedAt: sourceValue(["completed_at", "closed_at", "closeout_at", "checkout_at"]) || firstValue(row, ["completed_at", "closed_at", "closeout_at", "checkout_at"]),
         closeout: parseJobCloseout(sourceRow),
         photos: junkwareJobPhotos(sourceRow),
         photoAuditAvailable: junkwarePhotoAuditAvailable(sourceRow),
         junkItems: junkItemKeywords(sourceRow),
         appointmentNotes: appointmentNotes(sourceRow),
+        cancellationReason: cancellationReasonText(cancellationReasonRaw, customerName, phone, address),
       });
     }
   }
@@ -1971,9 +2001,88 @@ function jobMissingPhotos(job: JobRow): boolean {
   });
 }
 
+function paymentReferenceLabel(method: string, detail = ""): string {
+  const normalizedMethod = String(method || "").trim();
+  const normalizedDetail = String(detail || "").trim();
+  const source = `${normalizedMethod} ${normalizedDetail}`.trim();
+
+  if (/credit|card|visa|mastercard|amex|american express|discover/i.test(source)) {
+    const cardLastFour = Array.from(source.matchAll(/(?<!\d)(\d{4})(?!\d)/g)).at(-1)?.[1];
+    return cardLastFour ? `Card Ending ${cardLastFour}` : "Card ending unavailable";
+  }
+
+  if (/check|cheque/i.test(source)) {
+    const checkReference = normalizedDetail.match(/(?:check|cheque)(?:\s*(?:number|no\.?|#))?\s*[:#-]?\s*([a-z0-9-]+)/i)?.[1]
+      || normalizedDetail.match(/(?<!\d)(\d{1,12})(?!\d)/)?.[1];
+    return checkReference ? `Check #${checkReference}` : "Check number unavailable";
+  }
+
+  if (/cash/i.test(source)) return "Cash";
+  return normalizedMethod || normalizedDetail;
+}
+
 function appointmentPaymentTypeLabel(job: JobRow, compact = false): string {
-  if (job.paymentType !== "—") return job.paymentType;
+  const payment = job.closeout?.payments.find((entry) => entry.amount > 0) || job.closeout?.payments[0];
+  if (payment) return paymentReferenceLabel(payment.method, payment.detail);
+  if (job.paymentType !== "—") return paymentReferenceLabel(job.paymentType);
   return missingPaymentTypeLabel(job.appointmentType, compact);
+}
+
+function paymentIsCard(job: JobRow): boolean {
+  const payment = job.closeout?.payments.find((entry) => entry.amount > 0) || job.closeout?.payments[0];
+  return /credit|card|visa|mastercard|amex|american express|discover/i.test(
+    `${payment?.method || ""} ${payment?.detail || ""} ${job.paymentType || ""}`,
+  );
+}
+
+function recordedPaymentAmount(job: JobRow): number {
+  if (job.paymentAmount > 0) return job.paymentAmount;
+  return job.closeout?.payments.find((entry) => entry.amount > 0)?.amount || 0;
+}
+
+function AppointmentCardPaymentSummary({ job }: { job: JobRow }) {
+  const bucket = statusBucket(job);
+  const paymentAmount = recordedPaymentAmount(job);
+  const hasRecordedPayment = bucket === "Completed" && paymentAmount > 0;
+
+  if (hasRecordedPayment) {
+    return (
+      <div className="ops-appointment-card-payment-summary">
+        <div className="ops-appointment-card-payment-line">
+          <strong className="ops-appointment-card-revenue">{money(paymentAmount)}</strong>
+          <span className="ops-appointment-card-payment-reference">{appointmentPaymentTypeLabel(job, true)}</span>
+        </div>
+        {paymentIsCard(job) ? (
+          <a
+            className="ops-appointment-card-address ops-appointment-card-merchant-link"
+            href="https://merchantcenter.intuit.com/msc/portal/home"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View in Merchant Center
+          </a>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <span className={`ops-status-tag compact ${statusBadgeClass(bucket)}`}>{cardStatusLabel(job)}</span>
+      {bucket === "Canceled" ? null : (
+        <>
+          <div className="ops-appointment-card-amount">
+            <strong className={`ops-appointment-card-revenue${bucket === "Open / Scheduled" && job.paymentAmount > 0 ? " quoted" : ""}${job.paymentAmount > 0 || bucket === "Completed" || bucket === "Estimate" ? "" : " unavailable"}`}>
+              {job.paymentAmount > 0 || bucket === "Completed" || bucket === "Estimate" ? money(job.paymentAmount) : "$--.--"}
+            </strong>
+          </div>
+          <span className={job.paymentType !== "—" || job.closeout?.payments.length ? "ops-appointment-card-payment-reference" : "ops-outcome-unavailable"}>
+            {appointmentPaymentTypeLabel(job, true)}
+          </span>
+        </>
+      )}
+    </>
+  );
 }
 
 function cardStatusLabel(job: JobRow): string {
@@ -2004,6 +2113,7 @@ function territoryToneClass(territory: string): string {
   const normalized = territory.toLowerCase();
   if (normalized.includes("new orleans")) return "is-new-orleans";
   if (normalized.includes("jefferson")) return "is-jefferson";
+  if (normalized.includes("westbank")) return "is-westbank";
   if (normalized.includes("northshore")) return "is-northshore";
   if (normalized.includes("baton rouge")) return "is-baton-rouge";
   if (normalized.includes("lafayette")) return "is-lafayette";
@@ -2030,35 +2140,13 @@ function safeText(value: string): string {
   return text && text !== "—" ? text : "Unavailable";
 }
 
-function AppointmentBookedDate({ bookedAt }: { bookedAt: string }) {
-  const label = junkwareBookedDateLabel(bookedAt);
-  if (!label) return null;
-
-  return (
-    <span className="ops-appointment-booked-date" title={`Booked in JunkWare: ${bookedAt}`}>
-      Booked {label}
-    </span>
-  );
-}
-
 function closeoutQuantity(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 function paymentDetail(payment: JobCloseoutPayment) {
-  const cardLastFour = /card/i.test(payment.method)
-    ? payment.detail.match(/(\d{4})$/)?.[1]
-    : undefined;
-
-  if (cardLastFour) {
-    return (
-      <span className="ops-job-payment-detail">
-        Card ending in <span className="ops-job-payment-last-four">{cardLastFour}</span>
-      </span>
-    );
-  }
-
-  return payment.detail ? <span className="ops-job-payment-detail">{payment.detail}</span> : null;
+  const label = paymentReferenceLabel(payment.method, payment.detail);
+  return label ? <span className="ops-job-payment-detail">{label}</span> : null;
 }
 
 function JobCloseoutDetails({ job }: { job: JobRow }) {
@@ -2183,57 +2271,31 @@ function jobActivityDate(date: string): string {
   });
 }
 
-function JobContextDetails({
-  job,
-  date,
-  crewNote,
-}: {
-  job: JobRow;
-  date: string;
-  crewNote?: JobCrewNoteRecord;
-}) {
+function JobContextDetails({ job }: { job: JobRow }) {
   const notes = job.appointmentNotes.filter((note) => !/^Appointment moved from\b/i.test(note));
   const notesPreview = notes.join(" • ");
   return (
-    <div className="ops-appointment-context">
-      <div className="ops-appointment-junk-summary">
-        <span>Items to remove</span>
-        {job.junkItems.length ? (
-          <div>{job.junkItems.map((item) => <strong key={item}>{item}</strong>)}</div>
-        ) : <em>Not listed in JunkWare</em>}
+    <details className="ops-appointment-context">
+      <summary>Notes</summary>
+      <div className="ops-appointment-context-body">
+        {notes.length ? (
+          <details className="ops-appointment-note-details">
+            <summary>
+              <span>Franchise / call-center notes</span>
+              <strong title={notesPreview}>{notesPreview}</strong>
+              {notes.length > 1 ? <small>{notes.length}</small> : null}
+            </summary>
+            <ul>{notes.map((note, index) => <li key={`${job.appointmentId || job.jkNumber}-note-${index}`}>{note}</li>)}</ul>
+          </details>
+        ) : null}
+        <JobAppointmentNote appointmentId={job.appointmentId} />
       </div>
-      {notes.length ? (
-        <details className="ops-appointment-note-details">
-          <summary>
-            <span>Franchise / call-center notes</span>
-            <strong title={notesPreview}>{notesPreview}</strong>
-            {notes.length > 1 ? <small>{notes.length}</small> : null}
-          </summary>
-          <ul>{notes.map((note, index) => <li key={`${job.appointmentId || job.jkNumber}-note-${index}`}>{note}</li>)}</ul>
-        </details>
-      ) : null}
-      <JobCrewNote
-        date={date}
-        jobKey={jobRouteAssignmentKey(job)}
-        appointmentId={job.appointmentId}
-        initialNote={crewNote}
-      />
-    </div>
+    </details>
   );
 }
 
 function JobPhotoDetails({ job }: { job: JobRow }) {
-  if (jobMissingPhotos(job)) {
-    return (
-      <div className="ops-job-photo-alert" role="status">
-        <span aria-hidden="true">!</span>
-        <div>
-          <strong>Appointment Photos Missing</strong>
-          <small>JunkWare was checked and no appointment photos were uploaded.</small>
-        </div>
-      </div>
-    );
-  }
+  if (jobMissingPhotos(job)) return null;
 
   if (!job.photos.length) return null;
 
@@ -2272,7 +2334,7 @@ function JobPhotoDetails({ job }: { job: JobRow }) {
           {previewPhotos.map((photo, index) => photoLink(photo, index, "Before"))}
         </div>
         {remainingEstimatePhotos.length ? (
-          <details className="ops-job-photo-more" open>
+          <details className="ops-job-photo-more">
             <summary>View {remainingEstimatePhotos.length} More Before Photo{remainingEstimatePhotos.length === 1 ? "" : "s"}</summary>
             <div className="ops-job-photo-gallery">
               {remainingEstimatePhotos.map((photo, index) => photoLink(photo, index + previewPhotos.length, "Before"))}
@@ -2280,7 +2342,7 @@ function JobPhotoDetails({ job }: { job: JobRow }) {
           </details>
         ) : null}
         {appointmentPhotos.length ? (
-          <details className="ops-job-photo-more" open>
+          <details className="ops-job-photo-more">
             <summary>View {appointmentPhotos.length} Appointment Photo{appointmentPhotos.length === 1 ? "" : "s"}</summary>
             <div className="ops-job-photo-gallery">
               {appointmentPhotos.map((photo, index) => photoLink(photo, index, photo.category))}
@@ -2292,7 +2354,7 @@ function JobPhotoDetails({ job }: { job: JobRow }) {
   }
 
   return (
-    <details className="ops-job-photo-details" open>
+    <details className="ops-job-photo-details">
       <summary>
         <span>Job photos</span>
         <strong>{job.photos.length} uploaded</strong>
@@ -2300,6 +2362,216 @@ function JobPhotoDetails({ job }: { job: JobRow }) {
       <div className="ops-job-photo-gallery">
         {job.photos.map((photo, index) => photoLink(photo, index, photo.category))}
       </div>
+    </details>
+  );
+}
+
+function appointmentPhotoSummary(job: JobRow): string {
+  if (job.photos.length) return `Photos · ${job.photos.length} added`;
+  if (jobMissingPhotos(job)) return "Photos · none added";
+  return "Photos · not verified";
+}
+
+function appointmentItemsSummary(job: JobRow): string {
+  if (!job.junkItems.length) return "Items not listed";
+  const visibleItems = job.junkItems.slice(0, 2).join(", ");
+  const remaining = job.junkItems.length - 2;
+  return `${visibleItems}${remaining > 0 ? ` +${remaining} more` : ""}`;
+}
+
+function AppointmentCardScanSummary({ job, siteTime }: { job: JobRow; siteTime: SiteTimeAppointment | undefined }) {
+  const visitTrucks = siteTimeVisitEvidence(siteTime);
+  const primaryVisit = visitTrucks[0];
+  const crew = [
+    job.driverName || job.driver,
+    job.navigatorName || job.navigator,
+    ...(job.additionalCrew || []),
+  ]
+    .map((member) => String(member || "").trim())
+    .filter((member) => member && member !== "—" && !/^unavailable$/i.test(member));
+  const siteWindow = primaryVisit?.arrival
+    ? primaryVisit.departure
+      ? `On site ${siteTimeClock(primaryVisit.arrival)}–${siteTimeClock(primaryVisit.departure)}`
+      : `On site since ${siteTimeClock(primaryVisit.arrival)}`
+    : "On site time unavailable";
+  const duration = primaryVisit ? siteDurationLabel(siteTimeTruckDurationMinutes(primaryVisit)) : "";
+
+  return (
+    <div className="ops-appointment-card-scan-summary">
+      {primaryVisit ? (
+        <div className="ops-appointment-visit-summary" title={primaryVisit.state}>
+          <span className="ops-appointment-visit-time">{siteWindow}{duration !== "—" ? ` · ${duration}` : ""}</span>
+          <span className="ops-appointment-visit-crew">
+            <strong>{primaryVisit.truck}</strong>
+            {crew.length ? <>{" · "}{crew.join(" · ")}</> : " · Crew not recorded"}
+          </span>
+          {visitTrucks.length > 1 ? <span className="ops-appointment-visit-extra">+{visitTrucks.length - 1} truck</span> : null}
+          <span className={`ops-appointment-photo-summary${jobMissingPhotos(job) ? " missing" : ""}`}>{appointmentPhotoSummary(job)}</span>
+        </div>
+      ) : null}
+      <span className="ops-appointment-items-summary" title={job.junkItems.join(", ")}>{appointmentItemsSummary(job)}</span>
+      {statusBucket(job) === "Canceled" ? (
+        <div className="ops-appointment-cancellation-reason">
+          <span>Cancellation reason</span>
+          <strong>{job.cancellationReason}</strong>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function AppointmentCardCompletedCrew({ job }: { job: JobRow }) {
+  if (statusBucket(job) !== "Completed") return null;
+
+  const truck = safeText(job.assignedTruck || job.truck);
+  const driver = safeText(job.driverName || job.driver);
+  const navigator = safeText(job.navigatorName || job.navigator);
+
+  return (
+    <div className="ops-appointment-card-completed-crew" aria-label={`Completed crew: ${truck}, driver ${driver}, navigator ${navigator}`}>
+      <span>{truck}</span>
+      <span>D: {driver}</span>
+      <span>N: {navigator}</span>
+    </div>
+  );
+}
+
+function detailClock(value: string | null | undefined): string {
+  const formatted = siteTimeClock(value || null);
+  return formatted === "—" ? "Unavailable" : formatted;
+}
+
+function AppointmentSiteTimeDetails({ siteTime }: { siteTime: SiteTimeAppointment | undefined }) {
+  if (!siteTime?.trucks?.length) {
+    return <div className="ops-appointment-site-time-unavailable">GPS and site time unavailable</div>;
+  }
+
+  return (
+    <section className="ops-appointment-site-time" aria-label="GPS and site time">
+      <div className="ops-appointment-site-time-label">GPS and site time</div>
+      <div className="ops-appointment-site-time-list">
+        {siteTime.trucks.map((truck, truckIndex) => {
+          const durationMinutes = siteTimeTruckDurationMinutes(truck);
+          const durationText = siteDurationLabel(durationMinutes);
+          const durationClass = siteDurationClass(durationMinutes);
+          const isOngoing = Boolean(!truck.operationalConfirmation && truck.arrival && !truck.departure);
+          const summaryWindow = isOngoing
+            ? "On Site"
+            : truck.operationalConfirmation
+              ? siteTimeQuality(truck)
+              : truck.arrival && truck.departure
+                ? `${siteTimeClock(truck.arrival)}–${siteTimeClock(truck.departure)}`
+                : siteTimeQuality(truck);
+          const statusText = truck.state === "Operations confirmed visit"
+            ? "Ops confirmed"
+            : truck.state === "Confirmed visit"
+              ? "Verified"
+              : truck.state === "Probable visit"
+                ? "Probable"
+                : truck.state;
+
+          return (
+            <div className="ops-site-time-truck" key={`${siteTime.appointmentId}-${truck.truck}-${truckIndex}`}>
+              <div className="ops-site-time-truck-summary">
+                <span className="ops-site-time-truck-name">{truck.truck}</span>
+                <span className="ops-site-time-truck-window">{summaryWindow}</span>
+                {durationMinutes != null ? <span className={`ops-site-time-truck-duration${durationClass}`}>{durationText}</span> : null}
+                <span className="ops-site-time-truck-status">{statusText}</span>
+              </div>
+              {truck.visitCount > 1 || truck.intervals.length > 1 ? (
+                <div className="ops-site-time-visit-list">
+                  {truck.intervals.map((interval, intervalIndex) => {
+                    const intervalDuration = siteTimeTruckDurationMinutes(interval);
+                    return (
+                      <div className="ops-site-time-visit" key={`${siteTime.appointmentId}-${truck.truck}-visit-${intervalIndex}`}>
+                        <span>Visit {intervalIndex + 1}</span>
+                        <strong>{siteTimeClock(interval.arrival)}–{siteTimeClock(interval.departure)}</strong>
+                        <em className={siteDurationClass(intervalDuration)}>{siteDurationLabel(intervalDuration)}</em>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function AppointmentMoreDetails({
+  job,
+  siteTime,
+  detailGridClassName,
+}: {
+  job: JobRow;
+  siteTime: SiteTimeAppointment | undefined;
+  detailGridClassName: string;
+}) {
+  if (statusBucket(job) === "Canceled") return null;
+  const primaryVisit = siteTimeVisitEvidence(siteTime)[0];
+
+  return (
+    <details className="ops-appointment-more-details">
+      <summary>More details</summary>
+      <div className={detailGridClassName}>
+        <div>
+          <span>Phone</span>
+          <strong>{safeText(job.phone)}</strong>
+        </div>
+        <div>
+          <span>Email</span>
+          <strong>{job.customerEmail === "—" ? "Unavailable" : <a href={`mailto:${job.customerEmail}`}>{job.customerEmail}</a>}</strong>
+        </div>
+        <div>
+          <span>Truck</span>
+          <strong>{safeText(job.assignedTruck || job.truck)}</strong>
+        </div>
+        <div>
+          <span>Driver</span>
+          <strong>{safeText(job.driverName || job.driver)}</strong>
+        </div>
+        <div>
+          <span>Navigator</span>
+          <strong>{safeText(job.navigatorName || job.navigator)}</strong>
+        </div>
+        {job.additionalCrew?.length ? (
+          <div>
+            <span>Additional krewe</span>
+            <strong>{job.additionalCrew.join(", ")}</strong>
+          </div>
+        ) : null}
+        <div>
+          <span>Krewe status</span>
+          <strong>{safeText(job.crewAssignmentStatus || "Unavailable")}</strong>
+        </div>
+        <div>
+          <span>Arrival</span>
+          <strong>{detailClock(primaryVisit?.arrival)}</strong>
+        </div>
+        <div>
+          <span>Checkout</span>
+          <strong>{detailClock(job.completedAt)}</strong>
+        </div>
+        <div>
+          <span>Payment method</span>
+          <strong>{appointmentPaymentTypeLabel(job)}</strong>
+        </div>
+        <div>
+          <span>{appointmentAmountLabel(job)}</span>
+          <strong>{money(job.paymentAmount)}</strong>
+        </div>
+        <div>
+          <span>Appointment type</span>
+          <strong>{safeText(job.appointmentType)}</strong>
+        </div>
+        <div>
+          <span>Status</span>
+          <strong>{safeText(job.status)}</strong>
+        </div>
+      </div>
+      <AppointmentSiteTimeDetails siteTime={siteTime} />
     </details>
   );
 }
@@ -2586,6 +2858,8 @@ function buildJobsMapPoints(
       appointmentUrl: job.appointmentUrl,
       junkItems: job.junkItems,
       appointmentNotes: job.appointmentNotes.filter((note) => !/^Appointment moved from\b/i.test(note)),
+      junkwareSyncStatus: job.junkwareSyncStatus,
+      junkwareSyncError: job.junkwareSyncError,
     };
   });
 }
@@ -2632,7 +2906,6 @@ export default async function JobsPage({
   const jobs = view === "daily"
     ? applyJobRouteAssignmentOverrides(readJobRows(date), date)
     : monthlySummary?.jobs || readJobRows(date);
-  const crewNotes = readJobCrewNotes();
   const callAheadStatuses = readJobCallAheadStatuses();
   const filters: JobsFilters = {
     territory: readFilterValue(params?.territory),
@@ -2814,6 +3087,32 @@ export default async function JobsPage({
         ]}
         compact
       />
+
+      {view === "daily" ? (
+        <form className="ops-junkware-search" method="get" role="search">
+          <input type="hidden" name="date" value={date} />
+          {filters.territory ? <input type="hidden" name="territory" value={filters.territory} /> : null}
+          {filters.status ? <input type="hidden" name="status" value={filters.status} /> : null}
+          {filters.paymentType ? <input type="hidden" name="paymentType" value={filters.paymentType} /> : null}
+          {filters.truck ? <input type="hidden" name="truck" value={filters.truck} /> : null}
+          {filters.siteTime ? <input type="hidden" name="siteTime" value={filters.siteTime} /> : null}
+          <label className="ops-junkware-search-field" htmlFor="junkware-search">
+            <span>JunkWare search</span>
+            <input
+              id="junkware-search"
+              name="q"
+              defaultValue={filters.q}
+              placeholder="Search JK #, customer, phone, or address"
+            />
+          </label>
+          <button type="submit" className="ops-junkware-search-button">Search</button>
+          {filters.q ? (
+            <a className="ops-junkware-search-clear" href={buildJobsHref({ date, view, workspace, ...filters, q: "" })}>
+              Clear
+            </a>
+          ) : null}
+        </form>
+      ) : null}
 
       {view === "daily" ? (
         <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} />
@@ -3144,14 +3443,10 @@ export default async function JobsPage({
         <>
       {view === "daily" ? <>
       <div className="ops-card ops-jobs-filter-card" id="jobs-find">
-        <form className="ops-jobs-filter-toolbar" method="get">
+        <form className="ops-jobs-filter-toolbar ops-jobs-filter-toolbar-advanced" method="get">
           <input type="hidden" name="date" value={date} />
           {view !== "daily" ? <input type="hidden" name="view" value={view} /> : null}
-          <label className="ops-jobs-search-field" htmlFor="jobs-search">
-            <span className="ops-visually-hidden">Find a job</span>
-            <input id="jobs-search" name="q" defaultValue={filters.q} placeholder="Find a job, customer, phone, or address" />
-          </label>
-          <button type="submit" className="ops-jobs-search-button">Search</button>
+          {filters.q ? <input type="hidden" name="q" value={filters.q} /> : null}
           <details className="ops-jobs-filter-menu" open={hasActiveFilters && activeFilterCount > (filters.q ? 1 : 0)}>
             <summary>
               Filters
@@ -3254,9 +3549,9 @@ export default async function JobsPage({
 
         {groupedJobs.length > 1 ? (
           <nav className="ops-territory-jump" aria-label="Jump to territory">
-            <span>Jump to</span>
             {groupedJobs.map(([territory, territoryJobs]) => (
               <a
+                className={territoryToneClass(territory)}
                 href={`#${territoryAnchorId(territory)}`}
                 key={territory}
                 title={territory}
@@ -3355,7 +3650,6 @@ export default async function JobsPage({
                                     ) : (
                                       <span className="ops-jk-number">{safeText(job.jkNumber)}</span>
                                     )}
-                                    <AppointmentBookedDate bookedAt={job.bookedAt} />
                                   </div>
                                   {job.appointmentUrl ? (
                                     <a
@@ -3381,25 +3675,13 @@ export default async function JobsPage({
                                   ) : (
                                     <div className="ops-appointment-card-address">Address unavailable</div>
                                   )}
-                                  <div className="ops-appointment-card-crew">
-                                    <span className="ops-physical-truck-badge">
-                                      {siteTime?.trucks?.[0]?.truck || (job.truck !== "—" ? job.truck : "Unassigned truck")}
-                                    </span>
-                                    <span className="ops-appointment-card-driver">{safeText(job.driverName || job.driver)}</span>
-                                    <span className="ops-appointment-card-navigator">{safeText(job.navigatorName || job.navigator)}</span>
-                                  </div>
+                                  <AppointmentCardScanSummary job={job} siteTime={siteTime} />
+                                  <AppointmentCardCompletedCrew job={job} />
                                 </div>
                               </div>
 
                               <div className="ops-appointment-card-outcome">
-                                <span className={`ops-status-tag compact ${statusBadgeClass(statusBucket(job))}`}>{cardStatusLabel(job)}</span>
-                                {jobMissingPhotos(job) ? (
-                                  <span className="ops-job-photo-badge missing" title="JunkWare was checked and no appointment photos were found.">
-                                    Photos Missing
-                                  </span>
-                                ) : job.photos.length ? (
-                                  <span className="ops-job-photo-badge complete">{job.photos.length} photo{job.photos.length === 1 ? "" : "s"}</span>
-                                ) : null}
+                                <AppointmentCardPaymentSummary job={job} />
                                 {visitedButNotClosed ? (
                                   <span
                                     className="ops-visited-unclosed-badge"
@@ -3409,32 +3691,22 @@ export default async function JobsPage({
                                     Visited · not closed
                                   </span>
                                 ) : null}
-                                <div className="ops-appointment-card-amount">
-                                  <strong className={`ops-appointment-card-revenue${statusBucket(job) === "Open / Scheduled" && job.paymentAmount > 0 ? " quoted" : ""}${job.paymentAmount > 0 || statusBucket(job) === "Completed" || statusBucket(job) === "Estimate" ? "" : " unavailable"}`}>
-                                    {job.paymentAmount > 0 || statusBucket(job) === "Completed" || statusBucket(job) === "Estimate" ? money(job.paymentAmount) : "$--.--"}
-                                  </strong>
-                                </div>
-                                <span className={job.paymentType !== "—" ? paymentClass(job.paymentType) : "ops-outcome-unavailable"}>
-                                  {appointmentPaymentTypeLabel(job, true)}
-                                </span>
                                 {jobExceptionsForCard.length > 0 && (
                                   <a
                                     className={`ops-job-exception-badge ${exceptionSeverity}`}
                                     href={topException?.href || `#${appointmentCardId(job)}`}
                                     title={jobExceptionsForCard.map((exception) => `${exception.title}: ${exception.reason}`).join(" · ")}
                                   >
-                                    {topException?.title || (exceptionSeverity === "critical" ? "Critical exception" : exceptionSeverity === "warning" ? "Warning" : "Info")}
+                                    {topException?.title === "Closed Appointment Missing Photos"
+                                      ? "Missing Photos"
+                                      : topException?.title || (exceptionSeverity === "critical" ? "Critical exception" : exceptionSeverity === "warning" ? "Warning" : "Info")}
                                     {jobExceptionsForCard.length > 1 ? ` +${jobExceptionsForCard.length - 1}` : ""}
                                   </a>
                                 )}
                               </div>
                             </div>
 
-                            <JobContextDetails
-                              job={job}
-                              date={jobDate}
-                              crewNote={crewNotes.get(jobCrewNoteLookupKey(jobDate, jobRouteAssignmentKey(job)))}
-                            />
+                            <JobContextDetails job={job} />
 
                             <JobPhotoDetails job={job} />
 
@@ -3447,7 +3719,7 @@ export default async function JobsPage({
 
                             <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
 
-                            <details className="ops-appointment-gps-details">
+                            <details hidden className="ops-appointment-gps-details">
                               <summary>GPS and site time</summary>
                               <div className="ops-appointment-site-time">
                               <div className="ops-appointment-site-time-label">TRUCK SITE TIME</div>
@@ -3522,7 +3794,7 @@ export default async function JobsPage({
                               </div>
                             </details>
 
-                            <details className="ops-appointment-more-details">
+                            <details hidden className="ops-appointment-more-details">
                               <summary>More details</summary>
                               <div className="ops-appointment-detail-grid">
                                 <div>
@@ -3583,6 +3855,7 @@ export default async function JobsPage({
                                 </div>
                               </div>
                             </details>
+                            <AppointmentMoreDetails job={job} siteTime={siteTime} detailGridClassName="ops-appointment-detail-grid" />
                           </JobCallAheadCard>
                         );
                       })}
@@ -3657,7 +3930,6 @@ export default async function JobsPage({
                                   ) : (
                                     <span className="ops-jk-number">{safeText(job.jkNumber)}</span>
                                   )}
-                                  <AppointmentBookedDate bookedAt={job.bookedAt} />
                                 </div>
                                 {job.appointmentUrl ? (
                                   <a
@@ -3683,25 +3955,13 @@ export default async function JobsPage({
                                 ) : (
                                   <div className="ops-appointment-card-address">Address unavailable</div>
                                 )}
-                                <div className="ops-appointment-card-crew">
-                                  <span className="ops-physical-truck-badge">
-                                    {siteTime?.trucks?.[0]?.truck || (job.truck !== "—" ? job.truck : "Unassigned truck")}
-                                  </span>
-                                  <span className="ops-appointment-card-driver">{safeText(job.driverName || job.driver)}</span>
-                                  <span className="ops-appointment-card-navigator">{safeText(job.navigatorName || job.navigator)}</span>
-                                </div>
+                                <AppointmentCardScanSummary job={job} siteTime={siteTime} />
+                                <AppointmentCardCompletedCrew job={job} />
                               </div>
                             </div>
 
                             <div className="ops-appointment-card-outcome">
-                              <span className={`ops-status-tag compact ${statusBadgeClass(statusBucket(job))}`}>{cardStatusLabel(job)}</span>
-                              {jobMissingPhotos(job) ? (
-                                <span className="ops-job-photo-badge missing" title="JunkWare was checked and no appointment photos were found.">
-                                  Photos Missing
-                                </span>
-                              ) : job.photos.length ? (
-                                <span className="ops-job-photo-badge complete">{job.photos.length} photo{job.photos.length === 1 ? "" : "s"}</span>
-                              ) : null}
+                              <AppointmentCardPaymentSummary job={job} />
                               {visitedButNotClosed ? (
                                 <span
                                   className="ops-visited-unclosed-badge"
@@ -3711,32 +3971,22 @@ export default async function JobsPage({
                                   Visited · not closed
                                 </span>
                               ) : null}
-                              <div className="ops-appointment-card-amount">
-                                <strong className={`ops-appointment-card-revenue${statusBucket(job) === "Open / Scheduled" && job.paymentAmount > 0 ? " quoted" : ""}${job.paymentAmount > 0 || statusBucket(job) === "Completed" || statusBucket(job) === "Estimate" ? "" : " unavailable"}`}>
-                                  {job.paymentAmount > 0 || statusBucket(job) === "Completed" || statusBucket(job) === "Estimate" ? money(job.paymentAmount) : "$--.--"}
-                                </strong>
-                              </div>
-                              <span className={job.paymentType !== "—" ? paymentClass(job.paymentType) : "ops-outcome-unavailable"}>
-                                {appointmentPaymentTypeLabel(job, true)}
-                              </span>
                               {jobExceptionsForCard.length > 0 && (
                                 <a
                                   className={`ops-job-exception-badge ${exceptionSeverity}`}
                                   href={topException?.href || `#${appointmentCardId(job)}`}
                                   title={jobExceptionsForCard.map((exception) => `${exception.title}: ${exception.reason}`).join(" · ")}
                                 >
-                                  {topException?.title || (exceptionSeverity === "critical" ? "Critical exception" : exceptionSeverity === "warning" ? "Warning" : "Info")}
+                                  {topException?.title === "Closed Appointment Missing Photos"
+                                    ? "Missing Photos"
+                                    : topException?.title || (exceptionSeverity === "critical" ? "Critical exception" : exceptionSeverity === "warning" ? "Warning" : "Info")}
                                   {jobExceptionsForCard.length > 1 ? ` +${jobExceptionsForCard.length - 1}` : ""}
                                 </a>
                               )}
                             </div>
                           </div>
 
-                          <JobContextDetails
-                            job={job}
-                            date={job.sourceDate || date}
-                            crewNote={crewNotes.get(jobCrewNoteLookupKey(job.sourceDate || date, jobRouteAssignmentKey(job)))}
-                          />
+                          <JobContextDetails job={job} />
 
                           <JobPhotoDetails job={job} />
 
@@ -3749,7 +3999,7 @@ export default async function JobsPage({
 
                           <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
 
-                          <details className="ops-appointment-gps-details">
+                          <details hidden className="ops-appointment-gps-details">
                             <summary>GPS and site time</summary>
                             <div className="ops-appointment-site-time">
                             <div className="ops-appointment-site-time-label">TRUCK SITE TIME</div>
@@ -3824,7 +4074,7 @@ export default async function JobsPage({
                             </div>
                           </details>
 
-                          <details className="ops-appointment-more-details">
+                          <details hidden className="ops-appointment-more-details">
                             <summary>More details</summary>
                             <div className="ops-appointment-detail-grid">
                               <div>
@@ -3885,6 +4135,7 @@ export default async function JobsPage({
                               </div>
                             </div>
                           </details>
+                          <AppointmentMoreDetails job={job} siteTime={siteTime} detailGridClassName="ops-appointment-detail-grid" />
                         </JobCallAheadCard>
                       );
                     })}

@@ -2632,10 +2632,10 @@ export default async function JobsPage({
   const jobs = view === "daily"
     ? applyJobRouteAssignmentOverrides(readJobRows(date), date)
     : monthlySummary?.jobs || readJobRows(date);
+  const crewNotes = readJobCrewNotes();
   const callAheadStatuses = readJobCallAheadStatuses();
   const filters: JobsFilters = {
     territory: readFilterValue(params?.territory),
-  const crewNotes = readJobCrewNotes();
     status: readFilterValue(params?.status),
     paymentType: readFilterValue(params?.paymentType),
     truck: readFilterValue(params?.truck),

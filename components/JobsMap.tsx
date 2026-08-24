@@ -729,6 +729,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const selectedTruckCameraNumber = selectedTruck
     ? parseTruckNumberFromLabel(selectedTruck.truck)
     : null;
+  const selectedJobKey = selectedJob?.key || "";
   const closestTruck = selectedJob ? nearestTruck(selectedJob.key, proximity) : null;
   const currentTimeLine = useMemo(() => {
     if (!currentScheduleTime || currentScheduleTime.date !== date || !scheduleBoard.rows.length) return null;
@@ -744,12 +745,12 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   }, [currentScheduleTime, date, scheduleBoard.rows, scheduleBoard.untimed]);
 
   useEffect(() => {
-    if (!selectedJob) return;
+    if (!selectedJobKey) return;
     const frame = window.requestAnimationFrame(() => {
       mapSelectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [selectedJob?.key]);
+  }, [selectedJobKey]);
   const scheduleTruckRows: ScheduleColumn[] = scheduleBoard.columns.length
     ? scheduleBoard.columns
     : [{ key: "empty", label: "—", virtual: false, assignment: "" }];

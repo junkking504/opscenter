@@ -94,10 +94,16 @@ const LINXUP_MAX_POINT_GAP_MS = 5 * 60_000;
 const LINXUP_FRESHNESS_MS = 10 * 60_000;
 const APPOINTMENT_SELECTION_EVENT = "ops:select-appointment";
 const APPOINTMENT_ON_SITE_EVENT = "ops:appointment-on-site";
-// Dispatch opens on the New Orleans territory, with Jefferson Parish visible
-// as its teal sub-area. A selected job or truck still centers on that record.
-const DEFAULT_DISPATCH_MAP_CENTER: [number, number] = [29.95, -90.08];
-const DEFAULT_DISPATCH_MAP_ZOOM = 10;
+// Dispatch must reset to the entire operating footprint, including Lafayette.
+// Use fixed territory bounds rather than appointment geocodes so one malformed
+// address cannot push every valid marker out of view.
+const DEFAULT_DISPATCH_MAP_CENTER: [number, number] = [30.2, -91.05];
+const DEFAULT_DISPATCH_MAP_ZOOM = 8;
+const DEFAULT_DISPATCH_MAP_BOUNDS: [[number, number], [number, number]] = [
+  [29.75, -92.35],
+  [30.7, -89.75],
+];
+const DEFAULT_DISPATCH_MAP_PADDING: [number, number] = [48, 48];
 const DISPATCH_TERRITORY_SHORTCUTS = [
   { label: "New Orleans", abbreviation: "NO", tone: "is-new-orleans", center: [29.95, -90.08] as [number, number] },
   { label: "Baton Rouge", abbreviation: "BR", tone: "is-baton-rouge", center: [30.45, -91.15] as [number, number] },
@@ -675,6 +681,14 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     mapRef.current?.setView(territory.center, DISPATCH_TERRITORY_ZOOM, { animate: true });
   }, []);
 
+  const resetMapToOperatingFootprint = useCallback((animate: boolean) => {
+    mapRef.current?.fitBounds(DEFAULT_DISPATCH_MAP_BOUNDS, {
+      padding: DEFAULT_DISPATCH_MAP_PADDING,
+      maxZoom: DEFAULT_DISPATCH_MAP_ZOOM,
+      animate,
+    });
+  }, []);
+
   useEffect(() => {
     setAssignments(serverAssignments);
     setTimeOverrides({});
@@ -793,12 +807,12 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       setSelectedTruckName("");
       setFocusSelectedTruck(false);
       mapRef.current?.closePopup();
-      mapRef.current?.setView(DEFAULT_DISPATCH_MAP_CENTER, DEFAULT_DISPATCH_MAP_ZOOM, { animate: true });
+      resetMapToOperatingFootprint(true);
       window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, []);
+  }, [resetMapToOperatingFootprint]);
 
   useEffect(() => {
     if (selectedTruckName && !liveTruckLocations.some((truck) => truck.truck === selectedTruckName)) setSelectedTruckName("");
@@ -1211,6 +1225,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     }).addTo(map);
 
     mapRef.current = map;
+    resetMapToOperatingFootprint(false);
     markersRef.current = leaflet.layerGroup().addTo(map);
     routesRef.current = leaflet.layerGroup().addTo(map);
     const updateMarkerClusters = () => setMapZoom(map.getZoom());
@@ -1230,7 +1245,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       markersRef.current = null;
       routesRef.current = null;
     };
-  }, [leaflet]);
+  }, [leaflet, resetMapToOperatingFootprint]);
 
   useEffect(() => {
     const map = mapRef.current;

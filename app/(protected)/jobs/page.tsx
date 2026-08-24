@@ -2816,6 +2816,32 @@ export default async function JobsPage({
       />
 
       {view === "daily" ? (
+        <form className="ops-junkware-search" method="get" role="search">
+          <input type="hidden" name="date" value={date} />
+          {filters.territory ? <input type="hidden" name="territory" value={filters.territory} /> : null}
+          {filters.status ? <input type="hidden" name="status" value={filters.status} /> : null}
+          {filters.paymentType ? <input type="hidden" name="paymentType" value={filters.paymentType} /> : null}
+          {filters.truck ? <input type="hidden" name="truck" value={filters.truck} /> : null}
+          {filters.siteTime ? <input type="hidden" name="siteTime" value={filters.siteTime} /> : null}
+          <label className="ops-junkware-search-field" htmlFor="junkware-search">
+            <span>JunkWare search</span>
+            <input
+              id="junkware-search"
+              name="q"
+              defaultValue={filters.q}
+              placeholder="Search JK #, customer, phone, or address"
+            />
+          </label>
+          <button type="submit" className="ops-junkware-search-button">Search</button>
+          {filters.q ? (
+            <a className="ops-junkware-search-clear" href={buildJobsHref({ date, view, workspace, ...filters, q: "" })}>
+              Clear
+            </a>
+          ) : null}
+        </form>
+      ) : null}
+
+      {view === "daily" ? (
         <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} />
       ) : null}
 
@@ -3144,14 +3170,10 @@ export default async function JobsPage({
         <>
       {view === "daily" ? <>
       <div className="ops-card ops-jobs-filter-card" id="jobs-find">
-        <form className="ops-jobs-filter-toolbar" method="get">
+        <form className="ops-jobs-filter-toolbar ops-jobs-filter-toolbar-advanced" method="get">
           <input type="hidden" name="date" value={date} />
           {view !== "daily" ? <input type="hidden" name="view" value={view} /> : null}
-          <label className="ops-jobs-search-field" htmlFor="jobs-search">
-            <span className="ops-visually-hidden">Find a job</span>
-            <input id="jobs-search" name="q" defaultValue={filters.q} placeholder="Find a job, customer, phone, or address" />
-          </label>
-          <button type="submit" className="ops-jobs-search-button">Search</button>
+          {filters.q ? <input type="hidden" name="q" value={filters.q} /> : null}
           <details className="ops-jobs-filter-menu" open={hasActiveFilters && activeFilterCount > (filters.q ? 1 : 0)}>
             <summary>
               Filters

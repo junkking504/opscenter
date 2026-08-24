@@ -22,7 +22,7 @@ The shared temporary password is accepted only while that username has no person
 
 ## Crew performance views
 
-The signed-in crew portal includes daily metrics for everyone recorded on the crew that day. It shares only jobs completed, average job size, credited revenue, and tips. Total pay, hourly rates, hours, bonus amounts, and other payroll details remain visible only to the signed-in employee in their private pay sections.
+The signed-in crew portal includes daily metrics for crew members with a recorded clock-in that day and a month-to-date crew leaderboard. Both share only jobs completed, revenue, average job size, and tips. Total pay, hourly rates, hours, bonus amounts, bonus-day counts, and other payroll details remain visible only to the signed-in employee in their private pay sections.
 
 Each employee also has a personal performance summary with Day, Week, and Month views. Week means Monday through the current day, and Month means calendar month-to-date. Longer-range average job size and estimate close percentage are recalculated from the combined underlying jobs and estimates rather than averaged from daily percentages.
 

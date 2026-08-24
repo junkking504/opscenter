@@ -189,15 +189,14 @@ async function selectWithoutPostback(page: Page, selector: string, value: string
   if (!selected) throw new Error(`A JunkWare closeout option is unavailable (${selector}).`);
 }
 
-async function selectJobAppointmentType(page: Page, value: string): Promise<void> {
+async function selectAppointmentType(page: Page, value: string): Promise<void> {
   const control = page.locator("#ctl00_Content_AppointmentTypeDD");
   if (!(await control.count())) throw new Error("The JunkWare appointment type control is unavailable.");
-  const isJob = await control.evaluate((node, nextValue) => {
+  const exists = await control.evaluate((node, nextValue) => {
     const select = node as HTMLSelectElement;
-    const option = Array.from(select.options).find((candidate) => candidate.value === nextValue);
-    return Boolean(option && /\bjob\b/i.test(option.text));
+    return Array.from(select.options).some((candidate) => candidate.value === nextValue && candidate.value);
   }, value);
-  if (!isJob) throw new Error("JunkWare does not offer a valid Job appointment type for this closeout.");
+  if (!exists) throw new Error("JunkWare does not offer the selected appointment type for this closeout.");
   await selectWithoutPostback(page, "#ctl00_Content_AppointmentTypeDD", value);
 }
 
@@ -215,7 +214,7 @@ function parsePayload(): CloseoutInput {
   if (!payload || typeof payload !== "object") throw new Error("The closeout details are not valid.");
   const row = payload as Record<string, unknown>;
   const appointmentTypeId = String(row.appointmentTypeId || "").trim();
-  if (!appointmentTypeId) throw new Error("A Job appointment type is required to close out this job.");
+  if (!appointmentTypeId) throw new Error("An appointment type is required to close out this appointment.");
   const navigatorIds = Array.isArray(row.navigatorIds) ? row.navigatorIds.map(String).map((value) => value.trim()).filter(Boolean) : [];
   if (navigatorIds.length > 50 || new Set(navigatorIds).size !== navigatorIds.length) throw new Error("The crew assignment contains duplicates or too many people.");
   const rawOtherCharges = Array.isArray(row.otherChargesToAdd) ? row.otherChargesToAdd : [];
@@ -259,7 +258,7 @@ async function applyCloseout(page: Page, input: CloseoutInput): Promise<void> {
   // JunkWare uses ASP.NET WebForms. Changing these selects with selectOption()
   // fires AutoPostBack and reloads the full appointment once per field. Set the
   // selected values directly so the final Save post submits them together.
-  await selectJobAppointmentType(page, input.appointmentTypeId);
+  await selectAppointmentType(page, input.appointmentTypeId);
   await selectWithoutPostback(page, "#ctl00_Content_StatusDD", "8");
 
   const currentNavigatorCount = await page.locator('select[id*="AppointmentTechniciansLV"][id$="NavigatorDD"]').count();
@@ -329,11 +328,7 @@ function verifyCloseout(closeout: { status: { value: string }; [key: string]: un
   const appointmentType = closeout.appointmentType && typeof closeout.appointmentType === "object"
     ? String((closeout.appointmentType as Record<string, unknown>).value || "")
     : "";
-  if (appointmentType !== input.appointmentTypeId) throw new Error("JunkWare did not retain the Job appointment type.");
-  const appointmentTypeLabel = closeout.appointmentType && typeof closeout.appointmentType === "object"
-    ? String((closeout.appointmentType as Record<string, unknown>).label || "")
-    : "";
-  if (!/\bjob\b/i.test(appointmentTypeLabel)) throw new Error("JunkWare did not retain the Job appointment type.");
+  if (appointmentType !== input.appointmentTypeId) throw new Error("JunkWare did not retain the selected appointment type.");
   const driver = closeout.driver && typeof closeout.driver === "object"
     ? String((closeout.driver as Record<string, unknown>).value || "")
     : "";

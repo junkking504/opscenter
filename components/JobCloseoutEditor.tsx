@@ -37,10 +37,6 @@ function inputMoney(value: string): string {
   return String(value || "").replace(/[^0-9.-]/g, "");
 }
 
-function jobAppointmentType(live: LiveCloseout): Option | null {
-  return live.appointmentType.options.find((option) => /\bjob\b/i.test(option.label)) || null;
-}
-
 export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initialStatus }: { appointmentId: string; appointmentUrl: string; initialStatus: string }) {
   const resolvedAppointmentId = appointmentId || String(appointmentUrl || "").match(/[?&]id=(\d{1,12})(?:&|$)/i)?.[1] || "";
   const [live, setLive] = useState<LiveCloseout | null>(null);
@@ -86,6 +82,10 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
 
   function updateSelect(key: "loadSize" | "bedloadSize" | "jobCategory" | "actualStartHour" | "actualStartMinute" | "actualEndHour" | "actualEndMinute", value: string) {
     setLive((current) => current ? { ...current, [key]: { ...current[key], value } } : current);
+  }
+
+  function updateAppointmentType(value: string) {
+    setLive((current) => current ? { ...current, appointmentType: { ...current.appointmentType, value } } : current);
   }
 
   function setNavigator(index: number, value: string) {
@@ -139,9 +139,8 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
 
   async function save() {
     if (!live) return;
-    const jobType = jobAppointmentType(live);
-    if (!jobType?.value) {
-      setError("JunkWare does not offer a Job appointment type for this closeout.");
+    if (!live.appointmentType.value) {
+      setError("Choose whether this completed appointment remains an Estimate or becomes a Job.");
       return;
     }
     const navigatorIds = live.navigators.map((row) => row.value).filter(Boolean);
@@ -166,7 +165,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           appointmentId: resolvedAppointmentId,
-          appointmentTypeId: jobType.value,
+          appointmentTypeId: live.appointmentType.value,
           driverId: live.driver.value,
           navigatorIds,
           loadQuantity: live.loadQuantity,
@@ -197,7 +196,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
       setPaymentMethod("");
       setPaymentAmount("");
       setPendingOtherCharges([]);
-      setMessage("Saved and verified in JunkWare as a completed Job.");
+      setMessage("Saved and verified in JunkWare.");
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Junkware did not save the closeout.");
     } finally {
@@ -228,9 +227,15 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
 
             <section className="ops-closeout-editor-section">
               <h4>Closeout result</h4>
+              <label>
+                <span>Appointment type after closeout</span>
+                <select value={live.appointmentType.value} onChange={(event) => updateAppointmentType(event.target.value)}>
+                  {live.appointmentType.options.map((option) => <option key={`appointment-type-${option.value}`} value={option.value}>{option.label || "Choose appointment type"}</option>)}
+                </select>
+              </label>
               <p>
                 {isEstimate
-                  ? "Saving this closeout will convert this Estimate into a Job and mark it Completed in JunkWare."
+                  ? "Saving this closeout will mark this Estimate Completed in JunkWare. Choose Job only when the estimate was sold as a job."
                   : "Saving this closeout will mark this Job Completed in JunkWare."}
               </p>
             </section>

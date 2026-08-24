@@ -1153,7 +1153,7 @@ body {
   select:not(:disabled),
   input[type="checkbox"]:not(:disabled),
   input[type="radio"]:not(:disabled),
-  [role="button"]:not([aria-disabled="true"]),
+  [role="button"]:not([aria-disabled="true"]):not(.leaflet-marker-icon),
   [role="tab"]:not([aria-disabled="true"])
 ) {
   cursor: pointer;
@@ -1169,7 +1169,7 @@ body {
     a[href],
     button:not(:disabled),
     summary,
-    [role="button"]:not([aria-disabled="true"]),
+    [role="button"]:not([aria-disabled="true"]):not(.leaflet-marker-icon),
     [role="tab"]:not([aria-disabled="true"])
   ):hover {
     filter: none !important;
@@ -1180,7 +1180,7 @@ body {
     button:not(:disabled),
     summary,
     select:not(:disabled),
-    [role="button"]:not([aria-disabled="true"]),
+    [role="button"]:not([aria-disabled="true"]):not(.leaflet-marker-icon),
     [role="tab"]:not([aria-disabled="true"])
   ):hover {
     border-color: var(--oc-interaction-border) !important;
@@ -1214,7 +1214,7 @@ body {
   select:not(:disabled),
   input[type="checkbox"]:not(:disabled),
   input[type="radio"]:not(:disabled),
-  [role="button"]:not([aria-disabled="true"]),
+  [role="button"]:not([aria-disabled="true"]):not(.leaflet-marker-icon),
   [role="tab"]:not([aria-disabled="true"])
 ):focus-visible {
   outline: 3px solid var(--oc-interaction-ring) !important;

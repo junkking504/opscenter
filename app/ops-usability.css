@@ -1286,6 +1286,7 @@ body {
 /* Co-located live trucks collapse into one selectable marker instead of
  * competing for the same Leaflet hit target. */
 .ops-map-cluster {
+  position: relative;
   display: grid;
   width: 42px;
   height: 42px;
@@ -1297,6 +1298,20 @@ body {
   color: #fff;
   line-height: 1;
   text-align: center;
+}
+
+.ops-map-cluster.is-at-job::after {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #ef233c;
+  box-shadow: 0 0 0 3px rgba(239, 35, 60, .24), 0 0 11px rgba(239, 35, 60, .95);
+  content: "";
+  animation: ops-jobs-on-site-blink 1.15s ease-in-out infinite;
 }
 
 .ops-map-cluster.is-trucks { background: #a87800; }

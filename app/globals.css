@@ -4243,6 +4243,8 @@ a {
 .ops-jobs-leaflet-map {
   width: 100%;
   height: clamp(24rem, 50vw, 36rem);
+  touch-action: none;
+  overscroll-behavior: contain;
 }
 
 .ops-jobs-map-empty {

@@ -14,12 +14,14 @@ without mixing live runtime data or secrets into Git.
 | Share with the Business workspace | [Sharing and Access](SHARING_AND_ACCESS.md) |
 | Understand prior decisions | [Context and History](CONTEXT_AND_HISTORY.md) |
 | Review architecture | [Platform Kernel Architecture](PLATFORM_KERNEL_ARCHITECTURE.md) |
+| Check a collector's cadence or alert routing | [Data Collection Hierarchy](DATA_COLLECTION_HIERARCHY.md) |
 | Work with an integration | Use the integration index below |
 
 ## Product and architecture
 
 - [OpsCenter OS Constitution](OPSCENTER_OS_CONSTITUTION.md)
 - [Platform Kernel Architecture](PLATFORM_KERNEL_ARCHITECTURE.md)
+- [Data Collection Hierarchy](DATA_COLLECTION_HIERARCHY.md)
 - [Operating Inbox vertical slice](OPERATING_INBOX_VERTICAL_SLICE.md)
 - [Platform store ADR](adr/0001-platform-store-postgresql.md)
 - [Original OpsCenter V2 specification](../OPSCENTER_V2_SPEC.md)

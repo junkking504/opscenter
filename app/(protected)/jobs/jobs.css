@@ -719,6 +719,31 @@
   justify-content: flex-end;
 }
 
+.ops-jobs-page .ops-call-ahead-choice {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.ops-jobs-page .ops-call-ahead-choice:hover,
+.ops-jobs-page .ops-call-ahead-choice:focus-visible {
+  color: #174f7a;
+  outline: none;
+}
+
+.ops-jobs-page .ops-call-ahead-choice:focus-visible > i {
+  outline: 2px solid #174f7a;
+  outline-offset: 2px;
+}
+
+.ops-jobs-page .ops-call-ahead-choice:disabled {
+  cursor: wait;
+}
+
 /* Cancellation is a caution state, not a red-alert state. Keep the dark card
  * treatment from the active Dispatch release, but restore its yellow-and-black
  * tape so it stays visually distinct from urgent/on-site work. */

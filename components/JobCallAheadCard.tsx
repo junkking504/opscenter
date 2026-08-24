@@ -129,11 +129,8 @@ export default function JobCallAheadCard({
     }
   }
 
-  const label = status === "called"
-    ? "Office called"
-    : status === "not_called"
-      ? "Not called yet"
-      : "Call-ahead not set";
+  const called = status === "called";
+  const notCalled = status === "not_called";
 
   const effectiveCanceled = isCanceled || canceledLocally;
   const cancellationAvailable = canCancel && !effectiveCanceled && /^\d{1,12}$/.test(appointmentId);
@@ -162,7 +159,29 @@ export default function JobCallAheadCard({
           </span>
         ) : null}
         <span className={`ops-call-ahead-badge ${status || "unset"}${saving ? " saving" : ""}`}>
-          {saving ? "Saving…" : label}
+          {saving ? "Saving…" : <>
+            <span className="ops-call-ahead-label">Call Ahead</span>
+            <button
+              type="button"
+              className={`ops-call-ahead-choice${called ? " selected" : ""}`}
+              aria-pressed={called}
+              aria-label="Mark call ahead complete"
+              disabled={saving}
+              onClick={() => void save("called")}
+            >
+              <i aria-hidden="true">{called ? "✓" : ""}</i>Y
+            </button>
+            <button
+              type="button"
+              className={`ops-call-ahead-choice${notCalled ? " selected" : ""}`}
+              aria-pressed={notCalled}
+              aria-label="Mark call ahead not called"
+              disabled={saving}
+              onClick={() => void save("not_called")}
+            >
+              <i aria-hidden="true">{notCalled ? "✓" : ""}</i>N
+            </button>
+          </>}
         </span>
         {error ? <span className="ops-call-ahead-error" role="alert">{error}</span> : null}
       </div>

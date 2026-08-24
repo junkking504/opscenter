@@ -97,6 +97,14 @@ const APPOINTMENT_ON_SITE_EVENT = "ops:appointment-on-site";
 // small to use; selecting a job or truck still centers on that exact record.
 const DEFAULT_DISPATCH_MAP_CENTER: [number, number] = [30.16, -90.95];
 const DEFAULT_DISPATCH_MAP_ZOOM = 8;
+const DISPATCH_TERRITORY_SHORTCUTS = [
+  { label: "New Orleans", abbreviation: "NO", tone: "is-new-orleans", center: [29.95, -90.08] as [number, number] },
+  { label: "Baton Rouge", abbreviation: "BR", tone: "is-baton-rouge", center: [30.45, -91.15] as [number, number] },
+  { label: "Northshore", abbreviation: "NS", tone: "is-northshore", center: [30.45, -90.04] as [number, number] },
+  { label: "Jefferson Parish", abbreviation: "JP", tone: "is-jefferson", center: [29.95, -90.18] as [number, number] },
+  { label: "Lafayette", abbreviation: "LF", tone: "is-lafayette", center: [30.22, -92.02] as [number, number] },
+] as const;
+const DISPATCH_TERRITORY_ZOOM = 11;
 
 function isLocated(job: JobsMapPoint): job is JobsMapPoint & { latitude: number; longitude: number } {
   return Number.isFinite(job.latitude) && Number.isFinite(job.longitude);
@@ -557,6 +565,13 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     setSelectedKey("");
     setSelectedTruckName(truckName);
     window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
+  }, []);
+
+  const focusTerritory = useCallback((territory: typeof DISPATCH_TERRITORY_SHORTCUTS[number]) => {
+    setSelectedKey("");
+    setSelectedTruckName("");
+    window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
+    mapRef.current?.setView(territory.center, DISPATCH_TERRITORY_ZOOM, { animate: true });
   }, []);
 
   useEffect(() => {
@@ -1200,24 +1215,31 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         </div>
       </div>
 
-      <div className="ops-jobs-map-legend" aria-label="Appointment type legend">
-        <span title="New Orleans" aria-label="New Orleans"><i className="is-new-orleans" />NO</span>
-        <span title="Baton Rouge" aria-label="Baton Rouge"><i className="is-baton-rouge" />BR</span>
-        <span title="Northshore" aria-label="Northshore"><i className="is-northshore" />NS</span>
-        <span title="Jefferson Parish" aria-label="Jefferson Parish"><i className="is-jefferson" />JP</span>
-        <span title="Lafayette" aria-label="Lafayette"><i className="is-lafayette" />LF</span>
-        <span title="Unassigned" aria-label="Unassigned"><i className="is-unassigned" />U/A</span>
-        <span title="Truck GPS" aria-label="Truck GPS"><i className="is-truck" />GPS</span>
-        {scheduleView ? <span><i className="is-visited-unclosed">?</i>Visited</span> : null}
-        {scheduleView ? <span><i className="is-canceled">×</i>Canceled</span> : null}
-        {scheduleView && chicagoScheduleClock().date === date ? (
+      <div className="ops-jobs-map-legend" aria-label="Map legend">
+        <div className="ops-jobs-map-legend-row ops-jobs-map-legend-territories" aria-label="Focus map on territory">
+          {DISPATCH_TERRITORY_SHORTCUTS.map((territory) => (
+            <button
+              type="button"
+              className="ops-jobs-map-legend-territory"
+              key={territory.label}
+              onClick={() => focusTerritory(territory)}
+              title={`Focus map on ${territory.label}`}
+              aria-label={`Focus map on ${territory.label}`}
+            ><i className={territory.tone} />{territory.abbreviation}</button>
+          ))}
+        </div>
+        <div className="ops-jobs-map-legend-row ops-jobs-map-legend-status" aria-label="Appointment status">
+          <span title="Truck GPS"><i className="is-truck" />GPS</span>
+          <span><i className="is-visited-unclosed">?</i>Visited</span>
+          <span><i className="is-completed">✓</i>Completed</span>
+          <span><i className="is-canceled">×</i>Cancelled</span>
           <span
             className={linxupUpdateDelayed || !linxupUpdatedAt ? "is-delayed" : ""}
             title={linxupUpdatedAt ? `Latest Linxup GPS: ${linxupUpdatedAt}` : "Waiting for current Linxup GPS"}
           >
             <i className="is-on-site" />On Site
           </span>
-        ) : null}
+        </div>
       </div>
 
       <div className={`ops-jobs-map-workspace${scheduleView ? " has-schedule" : ""}`}>

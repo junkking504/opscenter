@@ -461,6 +461,68 @@ body {
   line-height: 1.35;
 }
 
+/* Keep territory navigation and appointment status meanings distinct. */
+.ops-jobs-map-legend {
+  display: grid;
+  gap: 6px;
+}
+
+.ops-jobs-map-legend-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px 14px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ops-jobs-map-legend-row::-webkit-scrollbar {
+  display: none;
+}
+
+.ops-jobs-map-legend :is(span, .ops-jobs-map-legend-territory) {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+.ops-jobs-map-legend-territory {
+  appearance: none;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ops-jobs-map-legend-territory:hover {
+  background: rgba(255, 255, 255, .08);
+  color: #f8fafc;
+}
+
+.ops-jobs-map-legend-territory:focus-visible {
+  outline: 2px solid var(--ops-gold, #f6c343);
+  outline-offset: 1px;
+}
+
+.ops-jobs-map-legend i.is-completed {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-color: rgba(134, 239, 172, .88);
+  background: rgba(16, 90, 52, .9);
+  color: #dcfce7;
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+}
+
 /* Dense operational screens previously rendered important details at 8–11px. */
 .ops-crew-dashboard :where(
   .ops-crew-detail-label,

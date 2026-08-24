@@ -15,6 +15,7 @@ import { chicagoDateKey } from "@/lib/report-dates";
 import { readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
 import { formatSlackMessage, slackEscape, type SlackMessageField } from "@/lib/slack-message-format";
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
+import { readCollectorFailures } from "@/lib/collector-health";
 
 export type SlackAlertSeverity = "critical" | "warning";
 export type SlackAlertKind =
@@ -26,6 +27,7 @@ export type SlackAlertKind =
   | "late_job"
   | "fleet_down"
   | "stale_data"
+  | "collector_failure"
   | "truck_arrival"
   | "crew_clock_in"
   | "crew_clock_out"
@@ -43,6 +45,7 @@ export type SlackOpsAlert = {
   href: string;
   fields?: SlackMessageField[];
   plainText?: string;
+  mentionHere?: boolean;
 };
 
 type ActiveSlackAlert = {
@@ -331,6 +334,41 @@ function staleDataAlert(source: DataHealthSource): SlackOpsAlert {
     nextAction: "Check the collector and source login, then verify that a current file reaches OpsCenter.",
     href: absoluteOpsHref("/"),
   };
+}
+
+function collectorFailureAlerts(date: string): SlackOpsAlert[] {
+  return readCollectorFailures().flatMap((failure) => {
+    const fields: SlackMessageField[] = [
+      { label: "Consecutive failures", value: failure.consecutiveFailures },
+      ...(failure.failedAt ? [{ label: "Latest failure", value: failure.failedAt }] : []),
+    ];
+    const primary: SlackOpsAlert = {
+      fingerprint: `collector_failure:${failure.id}`,
+      kind: "collector_failure",
+      lifecycle: "incident",
+      severity: "critical",
+      channelId: channel("dataHealth"),
+      title: `${failure.source} refresh failed`,
+      detail: failure.error || "The source refresh failed before its data was complete.",
+      nextAction: "OpsCenter will retry with bounded backoff; investigate before data becomes stale.",
+      href: absoluteOpsHref(`/jobs?date=${encodeURIComponent(date)}`),
+      fields,
+    };
+    if (!failure.escalated) return [primary];
+    return [primary, {
+      fingerprint: `collector_failure_escalation:${failure.id}:${failure.firstFailedAt || failure.failedAt}`,
+      kind: "collector_failure",
+      lifecycle: "incident",
+      severity: "critical",
+      channelId: channel("dataHealth"),
+      title: `${failure.source} refresh is still failing`,
+      detail: `${failure.consecutiveFailures} consecutive failed refresh cycles. ${failure.error || "No successful source refresh has been recorded."}`,
+      nextAction: "Treat this as a sustained data-health incident: inspect the collector now and verify a successful refresh.",
+      href: absoluteOpsHref(`/jobs?date=${encodeURIComponent(date)}`),
+      fields,
+      mentionHere: true,
+    }];
+  });
 }
 
 export function buildAddOnSlackNotification(appointment: AddOnAppointment, date: string): SlackOpsAlert {
@@ -788,6 +826,8 @@ function collectIncidentAlerts(date: string): SlackOpsAlert[] {
     if (source.status === "red") alerts.push(staleDataAlert(source));
   }
 
+  alerts.push(...collectorFailureAlerts(date));
+
   return alerts;
 }
 
@@ -801,7 +841,7 @@ function parseSlackDetailLines(lines: string[]): Array<{ label: string; value: s
 export function formatSlackAlert(alert: SlackOpsAlert): string {
   if (alert.plainText) return slackEscape(alert.plainText);
   const icon = alert.severity === "critical" ? ":rotating_light:" : ":warning:";
-  return formatSlackMessage({
+  const message = formatSlackMessage({
     icon,
     title: alert.title,
     fields: alert.fields,
@@ -809,6 +849,7 @@ export function formatSlackAlert(alert: SlackOpsAlert): string {
     nextAction: alert.nextAction,
     href: alert.href,
   });
+  return alert.mentionHere ? `<!here>\n${message}` : message;
 }
 
 function slackAlertRunResult(date: string, dryRun: boolean, enabled: boolean, preview: SlackOpsAlert[]): SlackAlertRunResult {
@@ -973,6 +1014,65 @@ async function runTruckArrivalSlackAlerts(options: {
   return result;
 }
 
+async function runCollectorFailureSlackAlerts(options: {
+  date: string;
+  dryRun: boolean;
+  enabled: boolean;
+}): Promise<SlackAlertRunResult> {
+  const { date, dryRun, enabled } = options;
+  const state = readState();
+  const incidents = collectorFailureAlerts(date);
+  const result = slackAlertRunResult(date, dryRun, enabled, incidents);
+  if (dryRun || !enabled) return result;
+
+  const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
+  if (!token) throw new Error("SLACK_BOT_TOKEN is required when Slack OpsCenter alerts are enabled.");
+
+  const now = new Date().toISOString();
+  const current = new Set(incidents.map((alert) => alert.fingerprint));
+  for (const alert of incidents) {
+    const active = state.active[alert.fingerprint];
+    if (active) {
+      state.active[alert.fingerprint] = { ...active, lastSeenAt: now };
+      result.unchanged += 1;
+      continue;
+    }
+    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
+    if (!response.ok || !response.ts) {
+      result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
+      continue;
+    }
+    state.active[alert.fingerprint] = {
+      fingerprint: alert.fingerprint,
+      kind: alert.kind,
+      channelId: alert.channelId,
+      threadTs: response.ts,
+      openedAt: now,
+      lastSeenAt: now,
+    };
+    result.posted.push(alert);
+  }
+
+  for (const [fingerprint, active] of Object.entries(state.active)) {
+    if (active.kind !== "collector_failure" || current.has(fingerprint)) continue;
+    const response = await postSlackMessage(
+      token,
+      active.channelId,
+      `:white_check_mark: *Collector refresh recovered*\n*Resolved at:* ${now}`,
+      active.threadTs,
+    );
+    if (!response.ok) {
+      result.failures.push({ fingerprint, error: response.error || "Unable to post recovery notice" });
+      continue;
+    }
+    delete state.active[fingerprint];
+    result.resolved.push(active);
+  }
+  state.updatedAt = now;
+  writeState(state);
+  return result;
+}
+
 export async function runSlackOpsAlerts(options?: {
   date?: string;
   dryRun?: boolean;
@@ -985,10 +1085,10 @@ export async function runSlackOpsAlerts(options?: {
   const enabled = boolEnv("SLACK_OPSCENTER_ALERTS_ENABLED");
   const onlyKinds = new Set(options?.onlyKinds || []);
   if (onlyKinds.size) {
-    if (onlyKinds.size !== 1 || !onlyKinds.has("truck_arrival")) {
-      throw new Error("Only truck_arrival can be published independently.");
-    }
-    return runTruckArrivalSlackAlerts({ date, dryRun, enabled });
+    if (onlyKinds.size !== 1) throw new Error("Only one Slack alert kind can be published independently.");
+    if (onlyKinds.has("truck_arrival")) return runTruckArrivalSlackAlerts({ date, dryRun, enabled });
+    if (onlyKinds.has("collector_failure")) return runCollectorFailureSlackAlerts({ date, dryRun, enabled });
+    throw new Error("Only truck_arrival or collector_failure can be published independently.");
   }
   const state = readState();
   const incidents = collectIncidentAlerts(date);
@@ -1111,6 +1211,15 @@ export async function runSlackOpsAlerts(options?: {
     state.knownAppointmentsByDate = pruneAppointmentDates(state.knownAppointmentsByDate);
     state.knownCancellationsByDate = pruneAppointmentDates(state.knownCancellationsByDate);
     writeState(state);
+    // Collector failures are operational incidents, not baseline data. A
+    // first-run baseline must not hide a broken refresh loop.
+    if (incidents.some((alert) => alert.kind === "collector_failure")) {
+      const collectorResult = await runCollectorFailureSlackAlerts({ date, dryRun, enabled });
+      result.posted.push(...collectorResult.posted);
+      result.resolved.push(...collectorResult.resolved);
+      result.unchanged += collectorResult.unchanged;
+      result.failures.push(...collectorResult.failures);
+    }
     return result;
   }
 

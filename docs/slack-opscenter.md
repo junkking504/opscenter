@@ -24,6 +24,22 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
 
 Truck channels intentionally contain field execution events, not bookings or schedule changes. The territory jobs channels own appointment intake and cancellations so dispatch can see route-plan changes in one place. `#payment` keeps the finance detail while the truck channel receives only the operational closeout fact.
 
+## Collector data-health incidents
+
+Every failed collector attempt—network/DNS, missing release helper, source login,
+unexpected response, or another non-zero refresh exit—writes a sanitized durable
+condition before the next Slack publish. These incidents go to `#ops-data-health`
+instead of waiting for the last successful snapshot to age out. The first failed
+cycle opens one data-health incident and retries with the existing bounded
+backoff. At five consecutive failed cycles (normally within a few minutes of
+the 15/30/60/120-second retry cadence), OpsCenter sends a distinct `@here`
+escalation in the same channel. A successful cycle clears the condition and
+posts a recovery in the incident thread.
+
+Collector failure records contain only a source name, timestamps, count, and a
+sanitized first-line error; they must never include credentials, cookies,
+customer data, or full response bodies.
+
 ## Message format
 
 OpsCenter-generated alert messages use the same compact scan pattern: an event icon and bold heading,

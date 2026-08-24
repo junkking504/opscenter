@@ -19,15 +19,23 @@ SMS_PENDING_DATES=()
 CONSECUTIVE_FAILED_CYCLES=0
 LAST_SLACK_ALERT_RUN=0
 export PYTHONPYCACHEPREFIX="/private/tmp/opscenter-live-pycache"
+export OPSBOT_DATA_DIR="$OPSBOT_DIR/data"
+export OPSCENTER_COLLECTOR_HEALTH_FILE="$OPSBOT_DIR/data/health/collector_failures.json"
+
+HARDENING_SCRIPT="$OPSCENTER_DIR/scripts/data-collection-hardening.sh"
+if [ ! -r "$HARDENING_SCRIPT" ]; then
+  echo "Required collector hardening helper is unavailable: $HARDENING_SCRIPT" >&2
+  exit 1
+fi
+# shellcheck source=/dev/null
+. "$HARDENING_SCRIPT"
 
 if [ -f "$OPSCENTER_DIR/scripts/load-opscenter-secrets.sh" ]; then
   . "$OPSCENTER_DIR/scripts/load-opscenter-secrets.sh"
 fi
 
 network_available() {
-  local reachability
-  reachability=$(/usr/sbin/scutil -r junkware.junk-king.com 2>/dev/null) || return 1
-  [[ "$reachability" == Reachable* ]]
+  assert_dns_answer junkware.junk-king.com
 }
 
 failed_refresh_retry_seconds() {
@@ -157,12 +165,16 @@ do
   CYCLE_COMPLETE=true
 
   if ! network_available; then
-    echo "Network is offline; current-data refresh will retry as soon as connectivity returns."
+    update_collector_health junkware failed "DNS did not return an address for junkware.junk-king.com."
+    echo "JunkWare DNS is unavailable; current-data refresh will retry as soon as it resolves."
     for SMS_DATE in "${CYCLE_SMS_DATES[@]:-}"
     do
       queue_sms_refresh_date "$SMS_DATE"
     done
   elif ! "$OPSBOT_DIR/scripts/run_opscenter_refresh.sh" "$TODAY"; then
+    if ! collector_failure_recorded_since "$CYCLE_STARTED"; then
+      update_collector_health junkware_refresh failed "JunkWare refresh exited before completing its data publish."
+    fi
     echo "WARNING: full OpsCenter refresh failed."
     CYCLE_COMPLETE=false
     for SMS_DATE in "${CYCLE_SMS_DATES[@]:-}"
@@ -170,6 +182,7 @@ do
       queue_sms_refresh_date "$SMS_DATE"
     done
   else
+    update_collector_health junkware_refresh succeeded
     auto_virtualize_external_bookings "$TODAY" \
       || echo "WARNING: new external-booking Virtual Truck assignment is pending retry."
     python3 "$OPSCENTER_DIR/scripts/reconcile-junkware-monthly.py" \
@@ -180,9 +193,11 @@ do
       [ -n "$SMS_DATE" ] || continue
       [ "$SMS_DATE" = "$TODAY" ] && continue
       if refresh_junkware_signal_date "$SMS_DATE"; then
+        update_collector_health junkware_sms succeeded
         auto_virtualize_external_bookings "$SMS_DATE" \
           || echo "WARNING: SMS-triggered external-booking assignment is pending retry for $SMS_DATE."
       else
+        update_collector_health junkware_sms failed "SMS-triggered JunkWare refresh did not complete."
         echo "WARNING: SMS-triggered JunkWare refresh failed for $SMS_DATE."
         queue_sms_refresh_date "$SMS_DATE"
         CYCLE_COMPLETE=false
@@ -191,27 +206,41 @@ do
 
     for PAYMENT_DATE in "$TODAY" "$YESTERDAY"
     do
-      if npm --prefix "$OPSCENTER_DIR" run collect:qbo -- --date "$PAYMENT_DATE"; then
-        python3 "$OPSCENTER_DIR/scripts/collect-payment-reconciliation.py" --date "$PAYMENT_DATE" \
-          || echo "WARNING: payment reconciliation failed for $PAYMENT_DATE."
+      if run_hardened_source qbo quickbooks.api.intuit.com npm --prefix "$OPSCENTER_DIR" run collect:qbo -- --date "$PAYMENT_DATE"; then
+        if python3 "$OPSCENTER_DIR/scripts/collect-payment-reconciliation.py" --date "$PAYMENT_DATE"; then
+          update_collector_health payment_reconciliation succeeded
+        else
+          update_collector_health payment_reconciliation failed "Payment reconciliation did not complete."
+          echo "WARNING: payment reconciliation failed for $PAYMENT_DATE."
+          CYCLE_COMPLETE=false
+        fi
       else
-        echo "WARNING: QBO Accounting API refresh failed for $PAYMENT_DATE; retaining the last verified reconciliation."
+        echo "WARNING: QBO Accounting API refresh failed for $PAYMENT_DATE; current refresh will retry."
+        CYCLE_COMPLETE=false
       fi
     done
 
-    npm --prefix "$OPSCENTER_DIR" run sync:crew-portal \
-      || echo "WARNING: Crew Portal data sync failed."
-    (
-      cd "$OPSCENTER_DIR" || exit 1
-      ./node_modules/.bin/tsx scripts/collect-searchkings.ts --data-dir "$OPSBOT_DIR/data"
-    ) || echo "WARNING: SearchKings refresh failed; retaining the last verified marketing snapshot."
+    if ! run_hardened_source crew_portal api.cloudflare.com npm --prefix "$OPSCENTER_DIR" run sync:crew-portal; then
+      echo "WARNING: Crew Portal data sync failed; current refresh will retry."
+      CYCLE_COMPLETE=false
+    fi
+    if ! run_hardened_source searchkings reports-api.searchkings.ca \
+      "$OPSCENTER_DIR/node_modules/.bin/tsx" "$OPSCENTER_DIR/scripts/collect-searchkings.ts" --data-dir "$OPSBOT_DIR/data"; then
+      echo "WARNING: SearchKings refresh failed; current refresh will retry."
+      CYCLE_COMPLETE=false
+    fi
     if ! env \
       OPSCENTER_VPS="$OPSCENTER_VPS" \
       OPSCENTER_SSH_KEY="$OPSCENTER_SSH_KEY" \
       "$OPSCENTER_DIR/deploy/vps/sync-data.sh" incremental; then
+      update_collector_health vps_sync failed "VPS data sync did not complete."
       echo "WARNING: VPS data sync failed; the VPS will retain its last verified snapshot."
-    elif [ "$CYCLE_COMPLETE" = true ]; then
-      PUBLISH_SUCCEEDED=true
+      CYCLE_COMPLETE=false
+    else
+      update_collector_health vps_sync succeeded
+      if [ "$CYCLE_COMPLETE" = true ]; then
+        PUBLISH_SUCCEEDED=true
+      fi
     fi
   fi
 
@@ -225,10 +254,17 @@ do
         -w 2>/dev/null || true)
       export SLACK_BOT_TOKEN
     fi
-    (
-      cd "$OPSCENTER_DIR" || exit 1
-      node --import tsx scripts/publish-slack-alerts.ts --date "$TODAY"
-    ) || echo "WARNING: OpsCenter Slack alert publish failed."
+    if [ "$PUBLISH_SUCCEEDED" = true ]; then
+      (
+        cd "$OPSCENTER_DIR" || exit 1
+        node --import tsx scripts/publish-slack-alerts.ts --date "$TODAY"
+      ) || echo "WARNING: OpsCenter Slack alert publish failed."
+    else
+      (
+        cd "$OPSCENTER_DIR" || exit 1
+        node --import tsx scripts/publish-slack-alerts.ts --date "$TODAY" --only collector_failure
+      ) || echo "WARNING: OpsCenter collector-health Slack alert publish failed."
+    fi
     LAST_SLACK_ALERT_RUN=$(date +%s)
   fi
 

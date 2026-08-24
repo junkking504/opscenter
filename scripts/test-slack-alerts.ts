@@ -32,6 +32,7 @@ process.env.SLACK_TRUCK_1_CHANNEL_ID = "C_TEST_TRUCK_1";
 process.env.SLACK_TRUCK_4_CHANNEL_ID = "C_TEST_TRUCK_4";
 process.env.SLACK_TRUCK_6_CHANNEL_ID = "C_TEST_TRUCK_6";
 process.env.SLACK_OPS_PAYMENT_CHANNEL_ID = "C_TEST_PAYMENT";
+process.env.SLACK_OPS_DATA_HEALTH_CHANNEL_ID = "C_TEST_DATA_HEALTH";
 delete process.env.SLACK_OPS_CREW_CHANNEL_ID;
 
 async function main() {
@@ -420,7 +421,11 @@ assert.deepEqual(cancellationFeed.appointments[0], {
 });
 
 const paymentStateFile = path.join(temporaryDataDir, "slack-state.json");
+const collectorHealthFile = path.join(temporaryDataDir, "health", "collector_failures.json");
+fs.mkdirSync(path.dirname(collectorHealthFile), { recursive: true });
+fs.writeFileSync(collectorHealthFile, JSON.stringify({ version: 2, conditions: [] }));
 process.env.SLACK_OPSCENTER_STATE_FILE = paymentStateFile;
+process.env.OPSCENTER_COLLECTOR_HEALTH_FILE = collectorHealthFile;
 process.env.SLACK_OPSCENTER_ALERTS_ENABLED = "true";
 process.env.SLACK_BOT_TOKEN = "xoxb-test-token";
 
@@ -503,6 +508,43 @@ try {
   ]);
   postedMessages.length = 0;
 
+  fs.writeFileSync(collectorHealthFile, JSON.stringify({
+    version: 2,
+    conditions: [{
+      id: "junkware_refresh",
+      source: "Junkware Refresh",
+      failed_at: "2026-08-12T19:00:00Z",
+      first_failed_at: "2026-08-12T19:00:00Z",
+      consecutive_failures: 1,
+      error: "Required collector helper is unavailable.",
+    }],
+  }));
+  const firstFailure = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["collector_failure"] });
+  assert.deepEqual(firstFailure.posted.map((alert) => alert.kind), ["collector_failure"]);
+  assert.match(postedMessages.at(-1) || "", /Junkware Refresh refresh failed/);
+  assert.doesNotMatch(postedMessages.at(-1) || "", /<!here>/);
+
+  fs.writeFileSync(collectorHealthFile, JSON.stringify({
+    version: 2,
+    conditions: [{
+      id: "junkware_refresh",
+      source: "Junkware Refresh",
+      failed_at: "2026-08-12T19:05:00Z",
+      first_failed_at: "2026-08-12T19:00:00Z",
+      consecutive_failures: 5,
+      error: "Required collector helper is unavailable.",
+    }],
+  }));
+  const escalation = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["collector_failure"] });
+  assert.deepEqual(escalation.posted.map((alert) => alert.kind), ["collector_failure"]);
+  assert.match(postedMessages.at(-1) || "", /^<!here>/);
+  assert.match(postedMessages.at(-1) || "", /5 consecutive failed refresh cycles/);
+
+  fs.writeFileSync(collectorHealthFile, JSON.stringify({ version: 2, conditions: [] }));
+  const recovery = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["collector_failure"] });
+  assert.equal(recovery.resolved.length, 2);
+  postedMessages.length = 0;
+
   const baselineRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.equal(baselineRun.bootstrappedTruckCloseouts, 1);
   assert.equal(baselineRun.bootstrappedPayments, 1);
@@ -556,6 +598,7 @@ try {
 } finally {
   globalThis.fetch = originalFetch;
   delete process.env.SLACK_OPSCENTER_STATE_FILE;
+  delete process.env.OPSCENTER_COLLECTOR_HEALTH_FILE;
   delete process.env.SLACK_OPSCENTER_ALERTS_ENABLED;
   delete process.env.SLACK_BOT_TOKEN;
 }

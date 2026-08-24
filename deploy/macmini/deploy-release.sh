@@ -16,6 +16,7 @@ DATA_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/data"
 PRODUCTION_LABEL="com.openclaw.opscenter"
 PREVIEW_LABEL="com.openclaw.opscenter.macmini-preview"
 WHATSAPP_PHOTO_LABEL="com.openclaw.opscenter.whatsapp-photos"
+JUNKWARE_COLLECTOR_LABEL="com.openclaw.opsbot.junkware-collector"
 REQUESTED_REF="${1:-}"
 RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"
 
@@ -55,6 +56,18 @@ wait_for_login() {
     attempt=$((attempt + 1))
   done
   return 1
+}
+
+rollback_release() {
+  local previous_target="$1"
+  local active_label="$2"
+  local active_port="$3"
+  local reason="$4"
+  echo "New release did not become healthy ($reason); restoring $previous_target" >&2
+  activate_release "$previous_target"
+  launchctl kickstart -k "gui/$(id -u)/$active_label"
+  wait_for_login "$active_port" || true
+  fail "release $commit failed its health checks and was rolled back: $reason"
 }
 
 [[ -n "$REQUESTED_REF" ]] || fail "usage: $0 <pushed-git-ref-or-commit>"
@@ -111,6 +124,10 @@ if [[ -f "$SLACK_ENV" ]]; then
   [[ -L "$release/.env.slack.local" ]] || ln -s "$SLACK_ENV" "$release/.env.slack.local"
 fi
 
+"$release/deploy/macmini/verify-collector-reference-integrity.sh" \
+  --release "$release" \
+  --collector-source "$EXPECTED_HOME/.openclaw/workspace/opsbot/scripts/run_opscenter_refresh.sh"
+
 cd "$release"
 npm ci
 npx playwright install chromium
@@ -140,11 +157,12 @@ activate_release "$release"
 if [[ -n "$active_label" ]]; then
   launchctl kickstart -k "gui/$(id -u)/$active_label"
   if ! wait_for_login "$active_port"; then
-    echo "New release did not become healthy; restoring $previous_target" >&2
-    activate_release "$previous_target"
-    launchctl kickstart -k "gui/$(id -u)/$active_label"
-    wait_for_login "$active_port" || true
-    fail "release $commit failed its login health check and was rolled back"
+    rollback_release "$previous_target" "$active_label" "$active_port" "login endpoint did not return HTTP 200"
+  fi
+  if [[ "$active_label" == "$PRODUCTION_LABEL" ]] && service_loaded "$JUNKWARE_COLLECTOR_LABEL"; then
+    if ! "$release/deploy/macmini/verify-junkware-refresh-health.sh" --release "$release"; then
+      rollback_release "$previous_target" "$active_label" "$active_port" "JunkWare refresh did not complete on the new release"
+    fi
   fi
 fi
 
@@ -157,7 +175,7 @@ echo "Deployed OpsCenter commit $commit"
 echo "Live path: $APP_LINK -> $release"
 if [[ -n "$active_label" ]]; then
   echo "Service:   $active_label"
-  echo "Health:    http://127.0.0.1:$active_port/login returned HTTP 200"
+  echo "Health:    login returned HTTP 200; production also recorded a successful JunkWare refresh on this release"
 else
   echo "Service:   no OpsCenter launch service is loaded; release is prepared but not running"
 fi

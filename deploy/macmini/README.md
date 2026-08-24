@@ -55,10 +55,15 @@ The controller uses `~/.ssh/id_ed25519_opscenter` by default. Set
 different private path.
 
 The remote deployment refuses commits that are not contained in a pushed
-origin branch. It builds the release before changing the live link. If an
-OpsCenter preview or production LaunchAgent is already loaded, it restarts that
-service and requires the login page to return HTTP 200. A failed startup
-automatically restores the previous live link and restarts the prior release.
+origin branch. It builds the release before changing the live link and
+mechanically verifies every collector script path that resolves inside the
+release, including paths referenced by the live OpsBot refresh entrypoint. If
+an OpsCenter preview or production LaunchAgent is already loaded, it restarts
+that service and requires the login page to return HTTP 200. Production also
+waits for the independent JunkWare collector to record one full successful
+cycle that loaded the new immutable release. A failed startup, missing
+collector helper, or unsuccessful collector-health gate automatically restores
+the previous live link and restarts the prior release.
 Each release also installs the Chromium revision pinned by Playwright so
 JunkWare closeout and truck-assignment actions remain available after dependency
 updates.

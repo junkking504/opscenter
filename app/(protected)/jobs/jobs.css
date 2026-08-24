@@ -719,6 +719,20 @@
   justify-content: flex-end;
 }
 
+/* Cancellation is a caution state, not a red-alert state. Keep the dark card
+ * treatment from the active Dispatch release, but restore its yellow-and-black
+ * tape so it stays visually distinct from urgent/on-site work. */
+.ops-jobs-page .ops-appointment-card.is-canceled::before {
+  background: repeating-linear-gradient(
+    135deg,
+    #facc15 0 11px,
+    #facc15 11px 14px,
+    #111827 14px 25px,
+    #111827 25px 28px
+  );
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 8px rgba(161, 98, 7, 0.42);
+}
+
 @media (max-width: 560px) {
   .ops-jobs-page .ops-junkware-search {
     display: grid;

@@ -1452,9 +1452,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                 <a href={selectedJob.appointmentUrl} target="_blank" rel="noreferrer">Open in JunkWare</a>
               ) : null}
             </article>
-          ) : (
-            <div className="ops-jobs-map-prompt">Select an appointment square for details and the closest truck.</div>
-          )}
+          ) : null}
         </div>
 
         {scheduleView ? (

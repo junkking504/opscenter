@@ -5388,21 +5388,6 @@ a.ops-jobs-map-selection-phone:focus-visible {
   text-decoration: none;
 }
 
-.ops-jobs-map-prompt {
-  position: absolute;
-  z-index: 500;
-  right: 14px;
-  bottom: 14px;
-  max-width: calc(100% - 28px);
-  padding: 8px 11px;
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 999px;
-  background: rgba(8, 11, 16, .88);
-  color: var(--ops-muted);
-  font-size: .7rem;
-  backdrop-filter: blur(10px);
-}
-
 .ops-jobs-map-assignment-status {
   min-height: 32px;
   padding: 7px 12px;

@@ -718,7 +718,6 @@ body {
 .ops-jobs-page :where(
   .ops-view-toggle a,
   .ops-kpi-sub,
-  .ops-jobs-map-prompt,
   .ops-jobs-map-board-time,
   .ops-jobs-map-board-truck,
   .ops-job-activity-view-label,

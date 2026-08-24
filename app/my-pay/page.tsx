@@ -126,7 +126,6 @@ function emptyPerformance(name: string): CrewPerformanceStats {
     estimateCloseRate: null,
     tips: 0,
     bonuses: 0,
-    bonusDays: 0,
   };
 }
 
@@ -169,6 +168,7 @@ function CrewMetricsTable({
   emptyMessage: string;
 }) {
   if (!rows.length) return <div className={styles.empty}>{emptyMessage}</div>;
+  const leaderboardMetrics = daily || ranked;
 
   return (
     <div className={styles.tableWrap}>
@@ -181,10 +181,9 @@ function CrewMetricsTable({
             {ranked ? <th>Rank</th> : null}
             <th>Crew member</th>
             <th>Jobs completed</th>
-            {daily ? <th>AJS</th> : <th>Estimates closed</th>}
-            {daily ? <th>Revenue</th> : null}
+            {leaderboardMetrics ? <th>Average job size</th> : <th>Estimates closed</th>}
+            {leaderboardMetrics ? <th>Revenue</th> : null}
             <th>Tips</th>
-            {daily ? null : <th>Bonus days</th>}
           </tr>
         </thead>
         <tbody>
@@ -195,10 +194,9 @@ function CrewMetricsTable({
                 {ranked ? <td className={styles.rankCell} data-label="Rank"><span className={styles.rank}>{index + 1}</span></td> : null}
                 <td className={styles.crewCell} data-label="Crew member"><span className={styles.crewName}>{row.name}</span>{isYou ? <span className={styles.youBadge}>You</span> : null}</td>
                 <td data-label="Jobs completed">{wholeNumber.format(row.jobsCompleted)}</td>
-                {daily ? <td data-label="AJS">{money.format(row.averageJobSize)}</td> : <td data-label="Estimates closed">{row.estimateCloseRate === null ? "—" : `${percent.format(row.estimateCloseRate)}%`}</td>}
-                {daily ? <td data-label="Revenue">{money.format(row.creditedRevenue)}</td> : null}
+                {leaderboardMetrics ? <td data-label="Average job size">{money.format(row.averageJobSize)}</td> : <td data-label="Estimates closed">{row.estimateCloseRate === null ? "—" : `${percent.format(row.estimateCloseRate)}%`}</td>}
+                {leaderboardMetrics ? <td data-label="Revenue">{money.format(row.creditedRevenue)}</td> : null}
                 <td data-label="Tips">{money.format(row.tips)}</td>
-                {daily ? null : <td data-label="Bonus days">{wholeNumber.format(row.bonusDays)}</td>}
               </tr>
             );
           })}
@@ -228,7 +226,7 @@ function DailyPerformanceView({ data }: { data: Awaited<ReturnType<typeof getCre
           <div>
             <div className={styles.eyebrow}>All crewmembers</div>
             <h2>Everyone’s Daily Metrics</h2>
-            <p>Today’s jobs, average job size, credited revenue, and tips.</p>
+            <p>Today’s clocked-in crew: jobs, average job size, credited revenue, and tips.</p>
           </div>
           <div className={styles.privacyNote}>Crew-visible · Total pay hidden</div>
         </div>
@@ -331,7 +329,6 @@ function PayPeriodView({ data }: { data: Awaited<ReturnType<typeof getCrewPayPor
 
 function MonthlyLeaderboardView({ data }: { data: Awaited<ReturnType<typeof getCrewPayPortalData>> }) {
   const leaderboard = data.monthlyLeaderboard;
-  const totalBonusDays = leaderboard.rows.reduce((sum, row) => sum + row.bonusDays, 0);
   return (
     <>
       <section className={styles.section}>
@@ -339,20 +336,19 @@ function MonthlyLeaderboardView({ data }: { data: Awaited<ReturnType<typeof getC
           <div>
             <div className={styles.eyebrow}>Month to date</div>
             <h2>Monthly Leaderboard</h2>
-            <p>{dateLabel(leaderboard.start, { month: "long", year: "numeric" })} · Ranked by jobs completed, then estimate close rate.</p>
+            <p>{dateLabel(leaderboard.start, { month: "long", year: "numeric" })} · Ranked by jobs completed, then revenue.</p>
           </div>
           <div className={styles.privacyNote}>Crew-visible · Total pay hidden</div>
         </div>
         <div className={styles.monthSummary}>
           <div className={styles.monthSummaryCard}><span>Total jobs</span><strong>{wholeNumber.format(leaderboard.totalJobs)}</strong></div>
-          <div className={styles.monthSummaryCard}><span>Estimates closed</span><strong>{leaderboard.estimateCloseRate === null ? "—" : `${percent.format(leaderboard.estimateCloseRate)}%`}</strong></div>
-          <div className={styles.monthSummaryCard}><span>Bonus days</span><strong>{wholeNumber.format(totalBonusDays)}</strong></div>
+          <div className={styles.monthSummaryCard}><span>Total revenue</span><strong>{money.format(leaderboard.totalRevenue)}</strong></div>
         </div>
       </section>
 
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div><div className={styles.eyebrow}>All crewmembers</div><h2>Month-to-Date Metrics</h2><p>Jobs, estimate close rate, tips, and days bonuses were received.</p></div>
+          <div><div className={styles.eyebrow}>All crewmembers</div><h2>Month-to-Date Metrics</h2><p>Jobs completed, revenue, average job size, and tips.</p></div>
         </div>
         <div className={styles.leaderboardPanel}>
           <CrewMetricsTable

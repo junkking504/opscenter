@@ -42,8 +42,28 @@ const dailyViewEnd = myPaySource.indexOf("function DailyRows");
 assert.ok(dailyViewStart >= 0 && dailyViewEnd > dailyViewStart, "Crew Portal daily view is missing.");
 const dailyViewSource = myPaySource.slice(dailyViewStart, dailyViewEnd);
 assert.ok(dailyViewSource.includes("daily\n"), "Daily crew metrics must use the compact daily column set.");
-assert.ok(dailyViewSource.includes("Today’s jobs, average job size, credited revenue, and tips."), "Daily crew metrics copy must describe the visible columns.");
+assert.ok(dailyViewSource.includes("Today’s clocked-in crew: jobs, average job size, credited revenue, and tips."), "Daily crew metrics copy must describe the clocked-in crew and visible columns.");
 assert.ok(!dailyViewSource.includes("estimate close rate, tips, and bonus days"), "Daily crew metrics still describe retired columns.");
+
+const monthlyViewStart = myPaySource.indexOf("function MonthlyLeaderboardView");
+const monthlyViewEnd = myPaySource.indexOf("function TodayCrewNotes", monthlyViewStart);
+assert.ok(monthlyViewStart >= 0 && monthlyViewEnd > monthlyViewStart, "Crew Portal monthly leaderboard view is missing.");
+const monthlyViewSource = myPaySource.slice(monthlyViewStart, monthlyViewEnd);
+assert.ok(monthlyViewSource.includes("ranked\n"), "Monthly leaderboard must use the leaderboard metric column set.");
+for (const retiredMetric of ["Estimates closed", "Bonus days", "days bonuses were received"]) {
+  assert.ok(!monthlyViewSource.includes(retiredMetric), `Monthly leaderboard still includes ${retiredMetric}.`);
+}
+
+const metricsTableStart = myPaySource.indexOf("function CrewMetricsTable");
+const metricsTableEnd = myPaySource.indexOf("function DailyPerformanceView", metricsTableStart);
+assert.ok(metricsTableStart >= 0 && metricsTableEnd > metricsTableStart, "Crew metrics table is missing.");
+const metricsTableSource = myPaySource.slice(metricsTableStart, metricsTableEnd);
+for (const leaderboardMetric of ["Jobs completed", "Revenue", "Average job size", "Tips"]) {
+  assert.ok(metricsTableSource.includes(leaderboardMetric), `Leaderboard metric table is missing ${leaderboardMetric}.`);
+}
+
+const crewPortalDataSource = readFileSync(new URL("../lib/crew-pay-portal.ts", import.meta.url), "utf8");
+assert.ok(crewPortalDataSource.includes("{ requireClockIn: true }"), "Daily crew metrics must require a recorded clock-in.");
 
 const crewPayPeriodCardsSource = readFileSync(new URL("../components/CrewPayPeriodCards.tsx", import.meta.url), "utf8");
 const dailySummaryStart = crewPayPeriodCardsSource.indexOf('<summary className="ops-crew-period-day-summary">');

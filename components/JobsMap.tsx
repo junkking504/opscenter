@@ -92,6 +92,11 @@ const LINXUP_MAX_POINT_GAP_MS = 5 * 60_000;
 const LINXUP_FRESHNESS_MS = 10 * 60_000;
 const APPOINTMENT_SELECTION_EVENT = "ops:select-appointment";
 const APPOINTMENT_ON_SITE_EVENT = "ops:appointment-on-site";
+// Keep the Dispatch landing view focused on the Louisiana operating area. A
+// single incorrect or out-of-market geocode must not make every local job too
+// small to use; selecting a job or truck still centers on that exact record.
+const DEFAULT_DISPATCH_MAP_CENTER: [number, number] = [30.16, -90.95];
+const DEFAULT_DISPATCH_MAP_ZOOM = 8;
 
 function isLocated(job: JobsMapPoint): job is JobsMapPoint & { latitude: number; longitude: number } {
   return Number.isFinite(job.latitude) && Number.isFinite(job.longitude);
@@ -1044,11 +1049,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     };
   }, [date, jobs, scheduleView, linxupUpdatedAt]);
 
-  const bounds = useMemo(() => {
-    if (!leaflet || !locatedJobs.length) return null;
-    return leaflet.latLngBounds(locatedJobs.map((job) => [job.latitude, job.longitude]));
-  }, [leaflet, locatedJobs]);
-
   const selectedRouteBounds = useMemo(() => {
     if (!leaflet || !selectedTruck) return null;
     const points = selectedTruck.routePoints
@@ -1061,6 +1061,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     if (!leaflet || !mapNodeRef.current || mapRef.current) return;
 
     const map = leaflet.map(mapNodeRef.current, {
+      center: DEFAULT_DISPATCH_MAP_CENTER,
+      zoom: DEFAULT_DISPATCH_MAP_ZOOM,
       zoomControl: true,
       scrollWheelZoom: true,
       attributionControl: true,
@@ -1179,14 +1181,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       map.setView([selectedTruck.latitude, selectedTruck.longitude], Math.max(map.getZoom(), 14), { animate: true });
     } else if (selectedJob && isLocated(selectedJob)) {
       map.setView([selectedJob.latitude, selectedJob.longitude], Math.max(map.getZoom(), 12), { animate: true });
-    } else if (bounds?.isValid()) {
-      if (bounds.getNorthEast().equals(bounds.getSouthWest())) {
-        map.setView(bounds.getCenter(), 13);
-      } else {
-        map.fitBounds(bounds.pad(0.12), { padding: [28, 28], maxZoom: 14 });
-      }
     }
-  }, [bounds, leaflet, liveTruckLocations, locatedJobs, selectLiveTruck, selectedJob, selectedKey, selectedRouteBounds, selectedTruck, selectedTruckName, selectedTruckRoutes]);
+  }, [leaflet, liveTruckLocations, locatedJobs, selectLiveTruck, selectedJob, selectedKey, selectedRouteBounds, selectedTruck, selectedTruckName, selectedTruckRoutes]);
 
   return (
     <section className="ops-card ops-jobs-map-card" id="jobs-map" aria-labelledby="jobs-map-title">

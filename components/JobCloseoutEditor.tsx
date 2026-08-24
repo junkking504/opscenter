@@ -7,6 +7,7 @@ type OtherCharge = { label: string; quantity: string; price: string; total: stri
 type PendingOtherCharge = OtherCharge & { clientId: string; typeValue: string };
 type LiveCloseout = {
   status: { value: string; label: string };
+  appointmentType: { value: string; label: string; options: Option[] };
   driver: Option;
   drivers: Option[];
   navigators: Option[];
@@ -34,6 +35,10 @@ type LiveCloseout = {
 
 function inputMoney(value: string): string {
   return String(value || "").replace(/[^0-9.-]/g, "");
+}
+
+function jobAppointmentType(live: LiveCloseout): Option | null {
+  return live.appointmentType.options.find((option) => /\bjob\b/i.test(option.label)) || null;
 }
 
 export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initialStatus }: { appointmentId: string; appointmentUrl: string; initialStatus: string }) {
@@ -131,6 +136,11 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
 
   async function save() {
     if (!live) return;
+    const jobType = jobAppointmentType(live);
+    if (!jobType?.value) {
+      setError("JunkWare does not offer a Job appointment type for this closeout.");
+      return;
+    }
     const navigatorIds = live.navigators.map((row) => row.value).filter(Boolean);
     if (!live.driver.value) {
       setError("Choose a driver before saving the closeout.");
@@ -153,6 +163,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           appointmentId: resolvedAppointmentId,
+          appointmentTypeId: jobType.value,
           driverId: live.driver.value,
           navigatorIds,
           loadQuantity: live.loadQuantity,
@@ -183,7 +194,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
       setPaymentMethod("");
       setPaymentAmount("");
       setPendingOtherCharges([]);
-      setMessage("Saved and verified in JunkWare.");
+      setMessage("Saved and verified in JunkWare as a completed Job.");
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Junkware did not save the closeout.");
     } finally {
@@ -192,6 +203,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
   }
 
   const completed = /complete|closed/i.test(live?.status.label || initialStatus);
+  const isEstimate = /estimate/i.test(live?.appointmentType.label || "");
 
   return (
     <details className="ops-job-closeout-editor" data-appointment-id={resolvedAppointmentId} aria-busy={loading || saving}>
@@ -205,10 +217,20 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
           <>
             <div className="ops-closeout-editor-heading">
               <div><span>Junkware status</span><strong>{live.status.label || "Unavailable"}</strong></div>
+              <div><span>Appointment type</span><strong>{live.appointmentType.label || "Unavailable"}</strong></div>
               <div><span>Current total</span><strong>{live.total || "$0.00"}</strong></div>
               <div><span>Balance</span><strong>{live.balance || "0.00"}</strong></div>
             </div>
             {saving ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">Saving changes and checking them in JunkWare…</div> : null}
+
+            <section className="ops-closeout-editor-section">
+              <h4>Closeout result</h4>
+              <p>
+                {isEstimate
+                  ? "Saving this closeout will convert this Estimate into a Job and mark it Completed in JunkWare."
+                  : "Saving this closeout will mark this Job Completed in JunkWare."}
+              </p>
+            </section>
 
             <section className="ops-closeout-editor-section">
               <h4>Crew Assigned to This Job</h4>
@@ -308,7 +330,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
             </section>
 
             <div className="ops-closeout-editor-actions">
-              <button type="button" className="ops-button" onClick={save} disabled={saving}>{saving ? "Saving and checking JunkWare…" : completed ? "Save changes in JunkWare" : "Save and close job in JunkWare"}</button>
+              <button type="button" className="ops-button" onClick={save} disabled={saving}>{saving ? "Saving and checking JunkWare…" : completed ? "Save completed job" : "Save and fully close job"}</button>
               <button type="button" className="ops-button subtle" onClick={load} disabled={saving || loading}>Reload from JunkWare</button>
             </div>
           </>

@@ -30,4 +30,7 @@ assert.ok(monthSummaryStyles.includes("grid-template-columns: repeat(5, minmax(0
 assert.ok(monthSummaryStyles.includes("container-type: inline-size"), "Monthly summary must scale to its container.");
 assert.ok(monthSummaryStyles.includes("white-space: nowrap"), "Monthly summary labels and values must stay on one line.");
 
+const portalSource = readFileSync(new URL("../lib/crew-pay-portal.ts", import.meta.url), "utf8");
+assert.ok(portalSource.includes("reportedTips > 0 ? reportedTips : crewTips"), "Monthly tips must fall back to the Crew leaderboard total when a snapshot lacks a top-level tips total.");
+
 console.log("Crew portal monthly summary checks passed.");

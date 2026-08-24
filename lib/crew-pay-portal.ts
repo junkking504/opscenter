@@ -352,9 +352,12 @@ function crewPerformanceRange(
     if (date < start || date > end) continue;
     totalRevenue += firstNumber(metrics, ["total_revenue", "net_revenue"]);
     totalJobs += businessJobTotal(metrics);
-    totalTips += firstNumber(metrics, ["total_tips", "tips"]);
+    const rowsForDate = performanceRows(metrics);
+    const reportedTips = firstNumber(metrics, ["total_tips", "tips"]);
+    const crewTips = rowsForDate.reduce((sum, row) => sum + performanceValues(row, metrics).tips, 0);
+    totalTips += reportedTips > 0 ? reportedTips : crewTips;
 
-    for (const row of performanceRows(metrics)) {
+    for (const row of rowsForDate) {
       if (options.requireClockIn && !hasClockIn(row)) continue;
       totalHours += rphEligibleHours(row);
       const name = rowName(row);

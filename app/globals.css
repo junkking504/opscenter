@@ -5397,6 +5397,12 @@ a.ops-jobs-map-selection-phone:focus-visible {
   line-height: 1.4;
 }
 
+.ops-jobs-map-assignment-status .ops-jobs-map-selection {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
 /* Keep the map and appointment board in a 50/50 split at half-screen desktop widths. */
 @media (max-width: 760px) {
   .ops-jobs-map-workspace.has-schedule {

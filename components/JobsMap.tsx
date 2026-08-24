@@ -341,20 +341,20 @@ function truckClusterIcon(leaflet: LeafletModule, count: number) {
   });
 }
 
-function appointmentClusterIcon(leaflet: LeafletModule, count: number) {
+function appointmentClusterIcon(leaflet: LeafletModule, count: number, tone: string) {
   return leaflet.divIcon({
     className: "",
-    html: `<span class="ops-map-cluster is-appointments"><b>${count}</b><small>jobs</small></span>`,
+    html: `<span class="ops-map-cluster is-appointments ${tone}"><b>${count}</b><small>jobs</small></span>`,
     iconSize: [46, 46],
     iconAnchor: [23, 23],
     popupAnchor: [0, -22],
   });
 }
 
-function locationClusterIcon(leaflet: LeafletModule, jobs: number, trucks: number) {
+function locationClusterIcon(leaflet: LeafletModule, jobs: number, trucks: number, tone: string) {
   return leaflet.divIcon({
     className: "",
-    html: `<span class="ops-map-cluster is-locations"><b>${jobs + trucks}</b><small>at location</small></span>`,
+    html: `<span class="ops-map-cluster is-locations ${tone}"><b>${jobs + trucks}</b><small>at location</small></span>`,
     iconSize: [52, 52],
     iconAnchor: [26, 26],
     popupAnchor: [0, -24],
@@ -1297,8 +1297,9 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       jobsAtLocation: JobsMapPoint[],
       trucksAtLocation: JobsMapTruck[],
     ) => {
+      const tone = jobsAtLocation[0] ? territoryTone(jobsAtLocation[0]) : "is-unknown-territory";
       const marker = leaflet.marker([latitude, longitude], {
-        icon: locationClusterIcon(leaflet, jobsAtLocation.length, trucksAtLocation.length),
+        icon: locationClusterIcon(leaflet, jobsAtLocation.length, trucksAtLocation.length, tone),
         keyboard: true,
         title: `${jobsAtLocation.length + trucksAtLocation.length} map items at this location`,
         alt: `${jobsAtLocation.length + trucksAtLocation.length} map items at this location`,
@@ -1324,7 +1325,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       if (usedJobClusters.has(cluster)) continue;
       if (cluster.items.length > 1) {
         const marker = leaflet.marker([cluster.latitude, cluster.longitude], {
-          icon: appointmentClusterIcon(leaflet, cluster.items.length),
+          icon: appointmentClusterIcon(leaflet, cluster.items.length, territoryTone(cluster.items[0])),
           keyboard: true,
           title: `${cluster.items.length} appointments in this area`,
           alt: `${cluster.items.length} appointments in this area`,
@@ -1393,6 +1394,121 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     }
   }, [focusSelectedTruck, leaflet, liveTruckLocations, locatedJobs, mapZoom, selectLiveTruck, selectMapTruck, selectedKey, selectedRouteBounds, selectedTruck, selectedTruckName, selectedTruckRoutes]);
 
+  const renderAppointmentDetails = () => {
+    if (selectedTruck || !selectedJob) return null;
+    return (
+      <article ref={mapSelectionRef} className="ops-jobs-map-selection" aria-live="polite">
+        <button
+          type="button"
+          className="ops-jobs-map-selection-close"
+          onClick={() => {
+            setSelectedKey("");
+            window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
+          }}
+          aria-label="Close appointment details"
+        >×</button>
+        <div className="ops-jobs-map-selection-kicker">
+          <i className={territoryTone(selectedJob)} aria-hidden="true" />
+          {selectedJob.appointmentTime} · {selectedJob.jkNumber}
+        </div>
+        <strong className="ops-jobs-map-selection-customer">{selectedJob.customerName}</strong>
+        {selectedJob.phone && selectedJob.phone !== "—" ? (
+          <a
+            className="ops-jobs-map-selection-phone"
+            href={`tel:${selectedJob.phone.replace(/[^\d+]/g, "")}`}
+          >
+            {selectedJob.phone}
+          </a>
+        ) : (
+          <span className="ops-jobs-map-selection-phone is-unavailable">Phone unavailable</span>
+        )}
+        <span className="ops-jobs-map-selection-address">{selectedJob.address}</span>
+        {selectedJob.statusBucket === "Canceled" ? (
+          <div className="ops-jobs-map-selection-canceled" role="status">
+            <b aria-hidden="true">×</b>
+            <span><strong>Canceled</strong>{selectedJob.status}</span>
+          </div>
+        ) : null}
+        {hasJunkwareSyncFailure(selectedJob) ? (
+          <div className="ops-jobs-map-selection-sync-failed" role="status">
+            <b aria-hidden="true">!</b>
+            <span>
+              <strong>{junkwareSyncLabel(selectedJob)}</strong>
+              {selectedJob.junkwareSyncError || (selectedJob.junkwareSyncStatus === "manual_correction"
+                ? "Saved in OpsCenter. Correct the JunkWare validation error, then submit the assignment again."
+                : "Saved in OpsCenter. It will be retried before it is treated as verified.")}
+            </span>
+          </div>
+        ) : null}
+        {isVisitedUnclosedScheduleJob(selectedJob) ? (
+          <div className="ops-jobs-map-selection-visited-unclosed" role="status">
+            <b aria-hidden="true">?</b>
+            <span>
+              <strong>Crew visited this address</strong>
+              Appointment is not closed out in JunkWare
+              {selectedJob.visitedTrucks.length ? <small>{selectedJob.visitedTrucks.join(", ")}</small> : null}
+            </span>
+          </div>
+        ) : null}
+        <div className="ops-jobs-map-selection-items">
+          <span>Items to remove</span>
+          {selectedJob.junkItems.length ? (
+            <div>{selectedJob.junkItems.map((item) => <strong key={item}>{item}</strong>)}</div>
+          ) : <em>Not listed in JunkWare</em>}
+        </div>
+        {selectedJob.appointmentNotes.length ? (
+          <details className="ops-jobs-map-selection-notes">
+            <summary>Franchise / call-center notes <small>{selectedJob.appointmentNotes.length}</small></summary>
+            <ul>{selectedJob.appointmentNotes.map((note, index) => <li key={`${selectedJob.key}-note-${index}`}>{note}</li>)}</ul>
+          </details>
+        ) : null}
+        {selectedJob.statusBucket !== "Canceled" ? <div className="ops-jobs-map-selection-truck">
+          <span>Closest truck</span>
+          <strong>
+            {!scheduleView
+              ? "Open the daily schedule for live proximity"
+              : proximityLoading
+                ? "Checking current truck locations…"
+                : proximityError
+                  ? "Truck locations unavailable"
+                  : closestTruck
+                    ? `${closestTruck.truck} · ${proximityText(closestTruck.proximity)}`
+                    : unavailableProximityText(selectedJob.key, proximity)}
+          </strong>
+        </div> : null}
+        {scheduleView && selectedJob.statusBucket !== "Canceled" ? (
+          <div className="ops-jobs-map-selection-schedule-controls">
+            <label className="ops-jobs-map-selection-assign">
+              <span>Truck assignment</span>
+              <select
+                value={assignments[selectedJob.key] || ""}
+                disabled={pendingKeys.includes(selectedJob.key)}
+                onChange={(event) => void assignJob(selectedJob, event.target.value)}
+              >
+                <option value="">Virtual / unassigned</option>
+                {trucks.map((truck) => <option value={truck} key={truck}>{truck}</option>)}
+              </select>
+            </label>
+            <label className="ops-jobs-map-selection-assign">
+              <span>Time slot</span>
+              <select
+                value={selectedJob.appointmentStartMinutes ?? ""}
+                disabled={pendingKeys.includes(selectedJob.key)}
+                onChange={(event) => void assignJob(selectedJob, assignments[selectedJob.key] || "", Number(event.target.value))}
+              >
+                {selectedJob.appointmentStartMinutes == null ? <option value="">Choose a time…</option> : null}
+                {scheduleBoard.rows.map((hour) => <option value={hour * 60} key={hour}>{compactHourLabel(hour)}</option>)}
+              </select>
+            </label>
+          </div>
+        ) : null}
+        {selectedJob.appointmentUrl ? (
+          <a href={selectedJob.appointmentUrl} target="_blank" rel="noreferrer">Open in JunkWare</a>
+        ) : null}
+      </article>
+    );
+  };
+
   return (
     <section className="ops-card ops-jobs-map-card" id="jobs-map" aria-labelledby="jobs-map-title">
       <div className="ops-card-header compact ops-jobs-map-header">
@@ -1443,117 +1559,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
             <div className="ops-jobs-map-empty">No verified job locations are available for this view.</div>
           ) : null}
 
-          {selectedTruck ? null : selectedJob ? (
-            <article ref={mapSelectionRef} className="ops-jobs-map-selection" aria-live="polite">
-              <button
-                type="button"
-                className="ops-jobs-map-selection-close"
-                onClick={() => {
-                  setSelectedKey("");
-                  window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
-                }}
-                aria-label="Close appointment details"
-              >×</button>
-              <div className="ops-jobs-map-selection-kicker">
-                <i className={territoryTone(selectedJob)} aria-hidden="true" />
-                {selectedJob.appointmentTime} · {selectedJob.jkNumber}
-              </div>
-              <strong className="ops-jobs-map-selection-customer">{selectedJob.customerName}</strong>
-              {selectedJob.phone && selectedJob.phone !== "—" ? (
-                <a
-                  className="ops-jobs-map-selection-phone"
-                  href={`tel:${selectedJob.phone.replace(/[^\d+]/g, "")}`}
-                >
-                  {selectedJob.phone}
-                </a>
-              ) : (
-                <span className="ops-jobs-map-selection-phone is-unavailable">Phone unavailable</span>
-              )}
-              <span className="ops-jobs-map-selection-address">{selectedJob.address}</span>
-              {selectedJob.statusBucket === "Canceled" ? (
-                <div className="ops-jobs-map-selection-canceled" role="status">
-                  <b aria-hidden="true">×</b>
-                  <span><strong>Canceled</strong>{selectedJob.status}</span>
-                </div>
-              ) : null}
-              {hasJunkwareSyncFailure(selectedJob) ? (
-                <div className="ops-jobs-map-selection-sync-failed" role="status">
-                  <b aria-hidden="true">!</b>
-                  <span>
-                    <strong>{junkwareSyncLabel(selectedJob)}</strong>
-                    {selectedJob.junkwareSyncError || (selectedJob.junkwareSyncStatus === "manual_correction"
-                      ? "Saved in OpsCenter. Correct the JunkWare validation error, then submit the assignment again."
-                      : "Saved in OpsCenter. It will be retried before it is treated as verified.")}
-                  </span>
-                </div>
-              ) : null}
-              {isVisitedUnclosedScheduleJob(selectedJob) ? (
-                <div className="ops-jobs-map-selection-visited-unclosed" role="status">
-                  <b aria-hidden="true">?</b>
-                  <span>
-                    <strong>Crew visited this address</strong>
-                    Appointment is not closed out in JunkWare
-                    {selectedJob.visitedTrucks.length ? <small>{selectedJob.visitedTrucks.join(", ")}</small> : null}
-                  </span>
-                </div>
-              ) : null}
-              <div className="ops-jobs-map-selection-items">
-                <span>Items to remove</span>
-                {selectedJob.junkItems.length ? (
-                  <div>{selectedJob.junkItems.map((item) => <strong key={item}>{item}</strong>)}</div>
-                ) : <em>Not listed in JunkWare</em>}
-              </div>
-              {selectedJob.appointmentNotes.length ? (
-                <details className="ops-jobs-map-selection-notes">
-                  <summary>Franchise / call-center notes <small>{selectedJob.appointmentNotes.length}</small></summary>
-                  <ul>{selectedJob.appointmentNotes.map((note, index) => <li key={`${selectedJob.key}-note-${index}`}>{note}</li>)}</ul>
-                </details>
-              ) : null}
-              {selectedJob.statusBucket !== "Canceled" ? <div className="ops-jobs-map-selection-truck">
-                <span>Closest truck</span>
-                <strong>
-                  {!scheduleView
-                    ? "Open the daily schedule for live proximity"
-                    : proximityLoading
-                      ? "Checking current truck locations…"
-                      : proximityError
-                        ? "Truck locations unavailable"
-                        : closestTruck
-                          ? `${closestTruck.truck} · ${proximityText(closestTruck.proximity)}`
-                          : unavailableProximityText(selectedJob.key, proximity)}
-                </strong>
-              </div> : null}
-              {scheduleView && selectedJob.statusBucket !== "Canceled" ? (
-                <div className="ops-jobs-map-selection-schedule-controls">
-                  <label className="ops-jobs-map-selection-assign">
-                    <span>Truck assignment</span>
-                    <select
-                      value={assignments[selectedJob.key] || ""}
-                      disabled={pendingKeys.includes(selectedJob.key)}
-                      onChange={(event) => void assignJob(selectedJob, event.target.value)}
-                    >
-                      <option value="">Virtual / unassigned</option>
-                      {trucks.map((truck) => <option value={truck} key={truck}>{truck}</option>)}
-                    </select>
-                  </label>
-                  <label className="ops-jobs-map-selection-assign">
-                    <span>Time slot</span>
-                    <select
-                      value={selectedJob.appointmentStartMinutes ?? ""}
-                      disabled={pendingKeys.includes(selectedJob.key)}
-                      onChange={(event) => void assignJob(selectedJob, assignments[selectedJob.key] || "", Number(event.target.value))}
-                    >
-                      {selectedJob.appointmentStartMinutes == null ? <option value="">Choose a time…</option> : null}
-                      {scheduleBoard.rows.map((hour) => <option value={hour * 60} key={hour}>{compactHourLabel(hour)}</option>)}
-                    </select>
-                  </label>
-                </div>
-              ) : null}
-              {selectedJob.appointmentUrl ? (
-                <a href={selectedJob.appointmentUrl} target="_blank" rel="noreferrer">Open in JunkWare</a>
-              ) : null}
-            </article>
-          ) : null}
+          {!scheduleView ? renderAppointmentDetails() : null}
         </div>
 
         {scheduleView ? (
@@ -1769,7 +1775,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
 
       {scheduleView ? (
         <div className="ops-jobs-map-assignment-status" aria-live="polite">
-          {assignmentMessage || "Drag a block to change its truck or time. Right-click a block to cancel it in JunkWare."}
+          {renderAppointmentDetails() || assignmentMessage || "Drag a block to change its truck or time. Right-click a block to cancel it in JunkWare."}
         </div>
       ) : null}
 

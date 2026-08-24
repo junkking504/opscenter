@@ -2295,7 +2295,6 @@ function JobContextDetails({
             <ul>{notes.map((note, index) => <li key={`${job.appointmentId || job.jkNumber}-note-${index}`}>{note}</li>)}</ul>
           </details>
         ) : null}
-        <JobAppointmentNote appointmentId={job.appointmentId} />
         <JobCrewNote
           date={date}
           jobKey={jobRouteAssignmentKey(job)}

@@ -3,7 +3,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { chromium, type Browser, type Page } from "@playwright/test";
-import { resolveJunkwareAssignedTruck } from "@/lib/junkware-truck-label";
 import { clickWithWebFormsCompletion, sanitizeJunkwareCustomerEmail, selectWithWebFormsPostback } from "./junkware-webforms";
 
 const JUNKWARE_ORIGIN = "https://junkware.junk-king.com";

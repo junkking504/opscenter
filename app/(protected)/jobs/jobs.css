@@ -958,19 +958,19 @@
 }
 
 .ops-jobs-page :is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-westbank {
-  background: #fb923c;
+  background: #fbbf24;
 }
 
 .ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-westbank.is-assigned-unfinished {
-  background: #ea580c;
+  background: #f59e0b;
 }
 
 .ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-westbank.is-unassigned {
-  background: rgba(251, 146, 60, .5);
+  background: rgba(251, 191, 36, .5);
 }
 
 .ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-westbank.is-completed {
-  background: #e5ac82;
+  background: #e6c56d;
 }
 
 /* The split dispatch workspace can leave each hour with roughly 30px. Full
@@ -1138,7 +1138,7 @@
 
 .ops-jobs-page .ops-territory-jump a.is-new-orleans { --ops-territory-jump-border: #60a5fa; --ops-territory-jump-fill: #e1effe; --ops-territory-jump-accent: #60a5fa; }
 .ops-jobs-page .ops-territory-jump a.is-jefferson { --ops-territory-jump-border: #2bbba9; --ops-territory-jump-fill: #dcf8f3; --ops-territory-jump-accent: #2dd4bf; }
-.ops-jobs-page .ops-territory-jump a.is-westbank { --ops-territory-jump-border: #fb923c; --ops-territory-jump-fill: #fff1e6; --ops-territory-jump-accent: #ea580c; }
+.ops-jobs-page .ops-territory-jump a.is-westbank { --ops-territory-jump-border: #fbbf24; --ops-territory-jump-fill: #fff8db; --ops-territory-jump-accent: #f59e0b; }
 .ops-jobs-page .ops-territory-jump a.is-northshore { --ops-territory-jump-border: #d946ef; --ops-territory-jump-fill: #fdf4ff; --ops-territory-jump-accent: #d946ef; }
 .ops-jobs-page .ops-territory-jump a.is-baton-rouge { --ops-territory-jump-border: #e96363; --ops-territory-jump-fill: #fee7e7; --ops-territory-jump-accent: #f87171; }
 .ops-jobs-page .ops-territory-jump a.is-lafayette { --ops-territory-jump-border: #18b947; --ops-territory-jump-fill: #e1fbe8; --ops-territory-jump-accent: #00e13c; }

@@ -337,10 +337,10 @@ function clusterVisibleMapItems<T>(
 function separateTruckHitTarget(
   map: any,
   position: { latitude: number; longitude: number },
-  jobs: JobsMapPoint[],
+  jobHitTargets: Array<{ latitude: number; longitude: number }>,
 ): { latitude: number; longitude: number } {
   const source = map.latLngToLayerPoint([position.latitude, position.longitude]);
-  const overlapsJob = jobs.some((job) => {
+  const overlapsJob = jobHitTargets.some((job) => {
     const jobPoint = map.latLngToLayerPoint([job.latitude, job.longitude]);
     return source.distanceTo(jobPoint) < 36;
   });
@@ -1241,9 +1241,27 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         .addTo(routes);
     });
 
+    // Separate appointment markers that land at the same or adjacent map
+    // pixels. Leaflet otherwise places them directly on top of one another,
+    // making the top pin the only hoverable or clickable appointment.
+    const jobMarkerOffsets = [
+      [0, 0], [30, 0], [-30, 0], [0, -34], [0, 34],
+      [30, -34], [30, 34], [-30, -34], [-30, 34],
+      [60, 0], [-60, 0], [0, -68], [0, 68],
+    ] as const;
+    const placedJobMarkerPoints: any[] = [];
+    const jobHitTargets: Array<{ latitude: number; longitude: number }> = [];
+
     for (const job of locatedJobs) {
+      const sourcePoint = map.latLngToLayerPoint([job.latitude, job.longitude]);
+      const markerPoint = jobMarkerOffsets
+        .map(([x, y]) => sourcePoint.add([x, y]))
+        .find((candidate) => placedJobMarkerPoints.every((placed) => candidate.distanceTo(placed) >= 28)) || sourcePoint;
+      const markerPosition = map.layerPointToLatLng(markerPoint);
+      placedJobMarkerPoints.push(markerPoint);
+      jobHitTargets.push({ latitude: markerPosition.lat, longitude: markerPosition.lng });
       const markerLabel = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber}`;
-      const marker = leaflet.marker([job.latitude, job.longitude], {
+      const marker = leaflet.marker([markerPosition.lat, markerPosition.lng], {
         icon: markerIcon(leaflet, job, selectedKey === job.key),
         keyboard: true,
         title: markerLabel,
@@ -1272,7 +1290,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     for (const cluster of truckClusters) {
       if (cluster.items.length === 1) {
         const truck = cluster.items[0];
-        const markerPosition = separateTruckHitTarget(map, truck, locatedJobs);
+        const markerPosition = separateTruckHitTarget(map, truck, jobHitTargets);
         const markerLabel = `${truck.truck} · ${truck.status} · ${truck.freshness}`;
         const marker = leaflet.marker([markerPosition.latitude, markerPosition.longitude], {
           icon: truckIcon(leaflet, truck, false),
@@ -1291,7 +1309,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         continue;
       }
 
-      const markerPosition = separateTruckHitTarget(map, cluster, locatedJobs);
+      const markerPosition = separateTruckHitTarget(map, cluster, jobHitTargets);
       const marker = leaflet.marker([markerPosition.latitude, markerPosition.longitude], {
         icon: truckClusterIcon(leaflet, cluster.items.length),
         keyboard: true,
@@ -1324,7 +1342,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
 
     if (selectedTruckItem) {
       const markerLabel = `${selectedTruckItem.truck} · ${selectedTruckItem.status} · ${selectedTruckItem.freshness}`;
-      const markerPosition = separateTruckHitTarget(map, selectedTruckItem, locatedJobs);
+      const markerPosition = separateTruckHitTarget(map, selectedTruckItem, jobHitTargets);
       const marker = leaflet.marker([markerPosition.latitude, markerPosition.longitude], {
         icon: truckIcon(leaflet, selectedTruckItem, true),
         keyboard: true,

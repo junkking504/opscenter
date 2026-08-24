@@ -94,10 +94,15 @@ const LINXUP_MAX_POINT_GAP_MS = 5 * 60_000;
 const LINXUP_FRESHNESS_MS = 10 * 60_000;
 const APPOINTMENT_SELECTION_EVENT = "ops:select-appointment";
 const APPOINTMENT_ON_SITE_EVENT = "ops:appointment-on-site";
-// Dispatch opens on the full operating footprint. Territory shortcuts still
-// focus an individual area, and a selected job or truck centers on that record.
-const DEFAULT_DISPATCH_MAP_CENTER: [number, number] = [30.16, -90.95];
-const DEFAULT_DISPATCH_MAP_ZOOM = 8;
+// Dispatch opens with every operating territory comfortably inside the narrow
+// map pane. Territory shortcuts still focus an individual area.
+const DEFAULT_DISPATCH_MAP_CENTER: [number, number] = [30.2, -91.05];
+const DEFAULT_DISPATCH_MAP_ZOOM = 7;
+const DEFAULT_DISPATCH_MAP_BOUNDS: [[number, number], [number, number]] = [
+  [29.75, -92.35],
+  [30.7, -89.75],
+];
+const DEFAULT_DISPATCH_MAP_PADDING: [number, number] = [48, 48];
 const DISPATCH_TERRITORY_SHORTCUTS = [
   { label: "New Orleans", abbreviation: "NO", tone: "is-new-orleans", center: [29.95, -90.08] as [number, number] },
   { label: "Baton Rouge", abbreviation: "BR", tone: "is-baton-rouge", center: [30.45, -91.15] as [number, number] },
@@ -801,7 +806,11 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       setSelectedTruckName("");
       setFocusSelectedTruck(false);
       mapRef.current?.closePopup();
-      mapRef.current?.setView(DEFAULT_DISPATCH_MAP_CENTER, DEFAULT_DISPATCH_MAP_ZOOM, { animate: true });
+      mapRef.current?.fitBounds(DEFAULT_DISPATCH_MAP_BOUNDS, {
+        padding: DEFAULT_DISPATCH_MAP_PADDING,
+        maxZoom: DEFAULT_DISPATCH_MAP_ZOOM,
+        animate: true,
+      });
       window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
     };
     window.addEventListener("keydown", handleEscape);
@@ -1209,6 +1218,11 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       attribution: STREET_ATTRIBUTION,
       maxZoom: 20,
     }).addTo(map);
+    map.fitBounds(DEFAULT_DISPATCH_MAP_BOUNDS, {
+      padding: DEFAULT_DISPATCH_MAP_PADDING,
+      maxZoom: DEFAULT_DISPATCH_MAP_ZOOM,
+      animate: false,
+    });
 
     mapRef.current = map;
     map.scrollWheelZoom.enable();

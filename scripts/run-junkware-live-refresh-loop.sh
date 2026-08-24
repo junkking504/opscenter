@@ -21,6 +21,9 @@ CONSECUTIVE_FAILED_CYCLES=0
 LAST_SLACK_ALERT_RUN=0
 export PYTHONPYCACHEPREFIX="/private/tmp/opscenter-live-pycache"
 
+# shellcheck source=opscenter-refresh-lock.sh
+. "$OPSCENTER_DIR/scripts/opscenter-refresh-lock.sh"
+
 if [ -f "$OPSCENTER_DIR/scripts/load-opscenter-secrets.sh" ]; then
   . "$OPSCENTER_DIR/scripts/load-opscenter-secrets.sh"
 fi
@@ -156,6 +159,7 @@ do
 
   echo ==================================================
   echo "LIVE REFRESH: $TODAY $(TZ=America/Chicago date)"
+  recover_abandoned_opscenter_refresh_lock || echo "WARNING: unable to inspect the OpsCenter refresh lock."
   PUBLISH_SUCCEEDED=false
   CYCLE_COMPLETE=true
 

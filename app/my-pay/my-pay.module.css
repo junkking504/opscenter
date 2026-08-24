@@ -297,6 +297,7 @@
 .monthSummary {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  container-type: inline-size;
   overflow: hidden;
   border: 1px solid rgba(255, 116, 31, 0.28);
   border-radius: 14px;
@@ -304,7 +305,8 @@
 }
 
 .monthSummaryCard {
-  padding: 14px 16px;
+  min-width: 0;
+  padding: clamp(2px, 1.4cqi, 14px) clamp(3px, 1.6cqi, 16px);
   border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
@@ -313,17 +315,24 @@
 .monthSummaryCard span {
   display: block;
   color: #8993a1;
-  font-size: 0.68rem;
+  overflow: hidden;
+  font-size: clamp(0.28rem, 1.25cqi, 0.68rem);
   font-weight: 900;
-  letter-spacing: 0.1em;
+  letter-spacing: clamp(0, 0.08cqi, 0.1em);
+  text-overflow: clip;
   text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .monthSummaryCard strong {
   display: block;
-  margin-top: 5px;
-  font-size: clamp(1.35rem, 3vw, 1.8rem);
+  margin-top: clamp(1px, 0.45cqi, 5px);
+  overflow: hidden;
+  font-size: clamp(0.5rem, 2.25cqi, 1.8rem);
   letter-spacing: -0.05em;
+  line-height: 1.1;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .performanceCard {
@@ -519,10 +528,8 @@
   .performanceCard:nth-child(2n) { border-right: 0; }
   .performanceCard:last-child { grid-column: 1 / -1; border-bottom: 0; }
   .performanceGridSix .performanceCard:last-child { grid-column: auto; }
-  .monthSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .monthSummaryCard { border-right: 1px solid rgba(255, 255, 255, 0.08); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
-  .monthSummaryCard:nth-child(2n) { border-right: 0; }
-  .monthSummaryCard:last-child { grid-column: 1 / -1; border-bottom: 0; }
+  .monthSummary { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .monthSummaryCard { border-bottom: 0; }
   .rangeToggle { width: 100%; }
   .rangeOption { flex: 1; }
   .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -814,15 +821,6 @@
     padding: 10px 12px;
     overflow-wrap: anywhere;
   }
-
-  .monthSummaryCard {
-    padding: 10px 8px;
-    border-right: 1px solid #e1e3e0;
-    border-bottom: 0;
-  }
-  .monthSummaryCard:last-child { border-right: 0; }
-  .monthSummaryCard span { font-size: 0.58rem; letter-spacing: 0.05em; }
-  .monthSummaryCard strong { font-size: 1.25rem; }
 
   .leaderboardTable tr { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .leaderboardTable:not(.rankedTable) .crewCell { grid-column: 1 / -1; }

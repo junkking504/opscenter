@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { monthlyLeaderboardSummary, type CrewPerformanceRange } from "../lib/crew-pay-portal";
 
 const range: CrewPerformanceRange = {
@@ -20,5 +21,13 @@ assert.deepEqual(monthlyLeaderboardSummary({ ...range, totalJobs: 0, totalHours:
   averageJobSize: null,
   revenuePerHour: null,
 });
+
+const styles = readFileSync(new URL("../app/my-pay/my-pay.module.css", import.meta.url), "utf8");
+const monthSummaryStart = styles.indexOf(".monthSummary {");
+const monthSummaryEnd = styles.indexOf(".performanceCard", monthSummaryStart);
+const monthSummaryStyles = styles.slice(monthSummaryStart, monthSummaryEnd);
+assert.ok(monthSummaryStyles.includes("grid-template-columns: repeat(5, minmax(0, 1fr))"), "Monthly summary must retain five columns.");
+assert.ok(monthSummaryStyles.includes("container-type: inline-size"), "Monthly summary must scale to its container.");
+assert.ok(monthSummaryStyles.includes("white-space: nowrap"), "Monthly summary labels and values must stay on one line.");
 
 console.log("Crew portal monthly summary checks passed.");

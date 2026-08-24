@@ -1306,6 +1306,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       });
       marker.bindPopup(locationClusterPopup(jobsAtLocation, trucksAtLocation), {
         className: "ops-jobs-map-popup-frame",
+        autoPan: false,
         closeOnClick: false,
         maxWidth: 300,
       });
@@ -1352,6 +1353,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         });
         marker.bindPopup(appointmentClusterPopup(cluster.items), {
           className: "ops-jobs-map-popup-frame",
+          autoPan: false,
           closeOnClick: false,
           maxWidth: 300,
         });
@@ -1415,6 +1417,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       });
       marker.bindPopup(truckClusterPopup(cluster.items), {
         className: "ops-jobs-map-popup-frame",
+        autoPan: false,
         closeOnClick: false,
         maxWidth: 300,
       });

@@ -17,8 +17,8 @@ assert.match(
 );
 assert.match(
   jobsMapSource,
-  /"--ops-jobs-map-time-cell-min": "60px"[\s\S]*?minmax\(var\(--ops-jobs-map-time-cell-min\), 1fr\)/,
-  "The board must expose a desktop cell-size variable for the mobile fit override.",
+  /"--ops-jobs-map-time-cell-min": "0px"[\s\S]*?minmax\(var\(--ops-jobs-map-time-cell-min\), 1fr\)/,
+  "The board must keep all time columns inside the Dispatch pane.",
 );
 assert.match(
   jobsCss,

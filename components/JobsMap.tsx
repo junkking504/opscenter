@@ -104,6 +104,7 @@ const DISPATCH_TERRITORY_SHORTCUTS = [
   { label: "Baton Rouge", abbreviation: "BR", tone: "is-baton-rouge", center: [30.45, -91.15] as [number, number] },
   { label: "Northshore", abbreviation: "NS", tone: "is-northshore", center: [30.45, -90.04] as [number, number] },
   { label: "Jefferson Parish", abbreviation: "JP", tone: "is-jefferson", center: [29.95, -90.18] as [number, number] },
+  { label: "Westbank", abbreviation: "WB", tone: "is-westbank", center: [29.90, -90.17] as [number, number] },
   { label: "Lafayette", abbreviation: "LF", tone: "is-lafayette", center: [30.22, -92.02] as [number, number] },
 ] as const;
 const DISPATCH_TERRITORY_ZOOM = 11;
@@ -200,6 +201,7 @@ function territoryTone(job: JobsMapPoint): string {
   let tone = "is-unknown-territory";
   if (territory.includes("new orleans")) tone = "is-new-orleans";
   else if (territory.includes("jefferson")) tone = "is-jefferson";
+  else if (territory.includes("westbank")) tone = "is-westbank";
   else if (territory.includes("northshore")) tone = "is-northshore";
   else if (territory.includes("baton rouge")) tone = "is-baton-rouge";
   else if (territory.includes("lafayette")) tone = "is-lafayette";

@@ -1284,3 +1284,65 @@ body {
   .ops-main .ops-jobs-page > .ops-page-header.has-subnav .ops-page-header-meta { grid-column: 1 / -1; grid-row: 2; align-self: center; margin: 0; }
   .ops-main .ops-jobs-page > .ops-page-header.has-subnav .ops-page-subnav { grid-column: 1 / -1; grid-row: 3; align-self: stretch; height: auto; margin: 0; padding: 8px 0 0; border-top: 1px solid var(--ops-border); }
 }
+/* Co-located live trucks collapse into one selectable marker instead of
+ * competing for the same Leaflet hit target. */
+.ops-map-cluster {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  align-content: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .52);
+  color: #fff;
+  line-height: 1;
+  text-align: center;
+}
+
+.ops-map-cluster.is-trucks { background: #a87800; }
+
+.ops-map-cluster b {
+  font-size: .86rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-map-cluster small {
+  margin-top: 1px;
+  font-size: .5rem;
+  font-weight: 900;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.ops-map-cluster-popup {
+  display: grid;
+  gap: 8px;
+  min-width: min(230px, 68vw);
+}
+
+.ops-map-cluster-popup > strong { color: var(--ops-text); font-size: .86rem; }
+.ops-map-cluster-popup > span { color: var(--ops-muted); font-size: .7rem; line-height: 1.35; }
+.ops-map-cluster-popup > div { display: grid; gap: 5px; max-height: 176px; overflow-y: auto; }
+
+.ops-map-cluster-popup button {
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid rgba(148, 163, 184, .34);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .055);
+  color: var(--ops-text);
+  cursor: pointer;
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 800;
+  line-height: 1.3;
+  text-align: left;
+}
+
+.ops-map-cluster-popup button:hover,
+.ops-map-cluster-popup button:focus-visible {
+  border-color: var(--ops-gold);
+  background: rgba(246, 195, 67, .14);
+  outline: none;
+}

@@ -600,6 +600,7 @@ function sameTruck(left: string, right: string): boolean {
 export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: JobsMapProps) {
   const router = useRouter();
   const mapNodeRef = useRef<HTMLDivElement | null>(null);
+  const mapSelectionRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any>(null);
   const routesRef = useRef<any>(null);
@@ -741,6 +742,14 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       left: `min(calc(${SCHEDULE_TRUCK_COLUMN_WIDTH}px + (100% - ${SCHEDULE_TRUCK_COLUMN_WIDTH}px) * ${elapsedHours / Math.max(timeColumnCount, 1)}), calc(100% - 6px))`,
     };
   }, [currentScheduleTime, date, scheduleBoard.rows, scheduleBoard.untimed]);
+
+  useEffect(() => {
+    if (!selectedJob) return;
+    const frame = window.requestAnimationFrame(() => {
+      mapSelectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedJob?.key]);
   const scheduleTruckRows: ScheduleColumn[] = scheduleBoard.columns.length
     ? scheduleBoard.columns
     : [{ key: "empty", label: "—", virtual: false, assignment: "" }];
@@ -1434,7 +1443,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           ) : null}
 
           {selectedTruck ? null : selectedJob ? (
-            <article className="ops-jobs-map-selection" aria-live="polite">
+            <article ref={mapSelectionRef} className="ops-jobs-map-selection" aria-live="polite">
               <button
                 type="button"
                 className="ops-jobs-map-selection-close"

@@ -1288,9 +1288,15 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       });
       marker.bindPopup(truckClusterPopup(cluster.items), {
         className: "ops-jobs-map-popup-frame",
+        closeOnClick: false,
         maxWidth: 300,
       });
-      marker.on("click", () => marker.openPopup());
+      marker.on("click", (event) => {
+        // Without stopping propagation, Leaflet's map-level click listener
+        // immediately closes the popup that this marker just opened.
+        leaflet.DomEvent.stopPropagation(event.originalEvent);
+        marker.openPopup();
+      });
       marker.on("popupopen", () => {
         const popup = marker.getPopup()?.getElement();
         popup?.querySelectorAll<HTMLButtonElement>("[data-map-truck]").forEach((button) => {

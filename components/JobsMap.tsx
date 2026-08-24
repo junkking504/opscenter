@@ -1435,10 +1435,11 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations, sche
               <div
                 className="ops-jobs-map-board"
                 style={{
-                  // Desktop retains readable hour columns. The phone layout
-                  // overrides this variable so the entire appointment board
-                  // remains visible as compact square blocks.
-                  "--ops-jobs-map-time-cell-min": "60px",
+                  // The board must fit every daily time slot into its actual
+                  // panel width. A fixed 60px minimum clipped afternoon
+                  // appointment blocks whenever a desktop Dispatch panel was
+                  // narrower than the complete timeline.
+                  "--ops-jobs-map-time-cell-min": "0px",
                   gridTemplateColumns: `${SCHEDULE_TRUCK_COLUMN_WIDTH}px repeat(${Math.max(scheduleTimeColumnCount, 1)}, minmax(var(--ops-jobs-map-time-cell-min), 1fr))`,
                 } as CSSProperties}
               >

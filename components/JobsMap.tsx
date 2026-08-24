@@ -341,13 +341,6 @@ function truckClusterIcon(leaflet: LeafletModule, count: number) {
   });
 }
 
-function truckClusterPopup(trucks: JobsMapTruck[]) {
-  const buttons = trucks
-    .map((truck) => `<button type="button" data-map-truck="${escapeHtml(truck.truck)}">${escapeHtml(`${truck.truck} · ${truck.status}`)}</button>`)
-    .join("");
-  return `<div class="ops-map-cluster-popup"><strong>${trucks.length} trucks here</strong><span>Select a truck to focus its live location and route.</span><div>${buttons}</div></div>`;
-}
-
 function appointmentClusterIcon(leaflet: LeafletModule, count: number) {
   return leaflet.divIcon({
     className: "",
@@ -366,23 +359,6 @@ function locationClusterIcon(leaflet: LeafletModule, jobs: number, trucks: numbe
     iconAnchor: [26, 26],
     popupAnchor: [0, -24],
   });
-}
-
-function appointmentClusterPopup(jobs: JobsMapPoint[]) {
-  const buttons = jobs
-    .map((job) => `<button type="button" data-map-job="${escapeHtml(job.key)}">${escapeHtml(`${job.appointmentTime} · ${job.customerName}`)}</button>`)
-    .join("");
-  return `<div class="ops-map-cluster-popup"><strong>${jobs.length} appointments here</strong><span>Select an appointment to view its details.</span><div>${buttons}</div></div>`;
-}
-
-function locationClusterPopup(jobs: JobsMapPoint[], trucks: JobsMapTruck[]) {
-  const jobButtons = jobs
-    .map((job) => `<button type="button" data-map-job="${escapeHtml(job.key)}">${escapeHtml(`${job.appointmentTime} · ${job.customerName}`)}</button>`)
-    .join("");
-  const truckButtons = trucks
-    .map((truck) => `<button type="button" data-map-truck="${escapeHtml(truck.truck)}">${escapeHtml(`${truck.truck} · ${truck.status}`)}</button>`)
-    .join("");
-  return `<div class="ops-map-cluster-popup"><strong>${jobs.length + trucks.length} map items here</strong><span>Select the appointment or truck at this exact map location.</span><div>${jobButtons}${truckButtons}</div></div>`;
 }
 
 function scheduleSort(a: JobsMapPoint, b: JobsMapPoint): number {
@@ -786,16 +762,18 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   }, [jobs, selectedKey]);
 
   useEffect(() => {
-    if (!selectedKey && !selectedTruckName) return;
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setSelectedKey("");
       setSelectedTruckName("");
+      setFocusSelectedTruck(false);
+      mapRef.current?.closePopup();
+      mapRef.current?.setView(DEFAULT_DISPATCH_MAP_CENTER, DEFAULT_DISPATCH_MAP_ZOOM, { animate: true });
       window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, [selectedKey, selectedTruckName]);
+  }, []);
 
   useEffect(() => {
     if (selectedTruckName && !liveTruckLocations.some((truck) => truck.truck === selectedTruckName)) setSelectedTruckName("");
@@ -1273,6 +1251,18 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       setSelectedTruckName("");
       setSelectedKey(key);
     };
+    const focusMapArea = (items: Array<{ latitude: number | null; longitude: number | null }>) => {
+      const points = items
+        .filter((item) => Number.isFinite(item.latitude) && Number.isFinite(item.longitude))
+        .map((item) => [item.latitude, item.longitude] as [number, number]);
+      if (!points.length) return;
+      const bounds = leaflet.latLngBounds(points);
+      if (points.length > 1 && !bounds.getNorthEast().equals(bounds.getSouthWest())) {
+        map.fitBounds(bounds.pad(0.32), { padding: [28, 28], maxZoom: 15, animate: true });
+        return;
+      }
+      map.setView(points[0], Math.max(map.getZoom(), 14), { animate: true });
+    };
     // Leaflet renders div-icon markers as DOM buttons, but its delegated map
     // click bridge can lose the marker target after a React layer refresh.
     // Bind activation to the rendered marker itself so mouse and keyboard
@@ -1291,7 +1281,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         if (event.key === "Enter" || event.key === " ") handleActivation(event);
       });
     };
-    const addLocationPicker = (
+    const addLocationCluster = (
       latitude: number,
       longitude: number,
       jobsAtLocation: JobsMapPoint[],
@@ -1304,28 +1294,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         alt: `${jobsAtLocation.length + trucksAtLocation.length} map items at this location`,
         zIndexOffset: 2100,
       });
-      marker.bindPopup(locationClusterPopup(jobsAtLocation, trucksAtLocation), {
-        className: "ops-jobs-map-popup-frame",
-        autoPan: false,
-        closeOnClick: false,
-        maxWidth: 300,
-      });
-      marker.on("popupopen", () => {
-        const popup = marker.getPopup()?.getElement();
-        popup?.querySelectorAll<HTMLButtonElement>("[data-map-job]").forEach((button) => {
-          button.onclick = () => {
-            selectMapJob(button.dataset.mapJob || "");
-            marker.closePopup();
-          };
-        });
-        popup?.querySelectorAll<HTMLButtonElement>("[data-map-truck]").forEach((button) => {
-          button.onclick = () => {
-            selectLiveTruck(button.dataset.mapTruck || "");
-            marker.closePopup();
-          };
-        });
-      });
-      addInteractiveMarker(marker, () => marker.openPopup());
+      addInteractiveMarker(marker, () => focusMapArea([...jobsAtLocation, ...trucksAtLocation]));
     };
 
     for (const jobCluster of jobClusters) {
@@ -1338,7 +1307,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       if (!nearbyTruckCluster) continue;
       usedJobClusters.add(jobCluster);
       usedTruckClusters.add(nearbyTruckCluster);
-      addLocationPicker(jobCluster.latitude, jobCluster.longitude, jobCluster.items, nearbyTruckCluster.items);
+      addLocationCluster(jobCluster.latitude, jobCluster.longitude, jobCluster.items, nearbyTruckCluster.items);
     }
 
     for (const cluster of jobClusters) {
@@ -1351,22 +1320,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           alt: `${cluster.items.length} appointments in this area`,
           zIndexOffset: 1000,
         });
-        marker.bindPopup(appointmentClusterPopup(cluster.items), {
-          className: "ops-jobs-map-popup-frame",
-          autoPan: false,
-          closeOnClick: false,
-          maxWidth: 300,
-        });
-        marker.on("popupopen", () => {
-          const popup = marker.getPopup()?.getElement();
-          popup?.querySelectorAll<HTMLButtonElement>("[data-map-job]").forEach((button) => {
-            button.onclick = () => {
-              selectMapJob(button.dataset.mapJob || "");
-              marker.closePopup();
-            };
-          });
-        });
-        addInteractiveMarker(marker, () => marker.openPopup());
+        addInteractiveMarker(marker, () => focusMapArea(cluster.items));
         continue;
       }
 
@@ -1415,22 +1369,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         alt: `${cluster.items.length} trucks in this area`,
         zIndexOffset: 800,
       });
-      marker.bindPopup(truckClusterPopup(cluster.items), {
-        className: "ops-jobs-map-popup-frame",
-        autoPan: false,
-        closeOnClick: false,
-        maxWidth: 300,
-      });
-      marker.on("popupopen", () => {
-        const popup = marker.getPopup()?.getElement();
-        popup?.querySelectorAll<HTMLButtonElement>("[data-map-truck]").forEach((button) => {
-          button.onclick = () => {
-            selectLiveTruck(button.dataset.mapTruck || "");
-            marker.closePopup();
-          };
-        });
-      });
-      addInteractiveMarker(marker, () => marker.openPopup());
+      addInteractiveMarker(marker, () => focusMapArea(cluster.items));
     }
 
     if (focusSelectedTruck && selectedTruck && selectedRouteBounds?.isValid()) {

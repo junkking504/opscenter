@@ -2484,6 +2484,22 @@ function AppointmentCardScanSummary({ job, siteTime }: { job: JobRow; siteTime: 
   );
 }
 
+function AppointmentCardCompletedCrew({ job }: { job: JobRow }) {
+  if (statusBucket(job) !== "Completed") return null;
+
+  const truck = safeText(job.assignedTruck || job.truck);
+  const driver = safeText(job.driverName || job.driver);
+  const navigator = safeText(job.navigatorName || job.navigator);
+
+  return (
+    <div className="ops-appointment-card-completed-crew" aria-label={`Completed crew: ${truck}, driver ${driver}, navigator ${navigator}`}>
+      <span>{truck}</span>
+      <span>D: {driver}</span>
+      <span>N: {navigator}</span>
+    </div>
+  );
+}
+
 function detailClock(value: string | null | undefined): string {
   const formatted = siteTimeClock(value || null);
   return formatted === "—" ? "Unavailable" : formatted;
@@ -3683,6 +3699,7 @@ export default async function JobsPage({
                                     <div className="ops-appointment-card-address">Address unavailable</div>
                                   )}
                                   <AppointmentCardScanSummary job={job} siteTime={siteTime} />
+                                  <AppointmentCardCompletedCrew job={job} />
                                 </div>
                               </div>
 
@@ -3963,6 +3980,7 @@ export default async function JobsPage({
                                   <div className="ops-appointment-card-address">Address unavailable</div>
                                 )}
                                 <AppointmentCardScanSummary job={job} siteTime={siteTime} />
+                                <AppointmentCardCompletedCrew job={job} />
                               </div>
                             </div>
 

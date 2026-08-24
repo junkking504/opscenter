@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 const jobsMapSource = readFileSync(new URL("../components/JobsMap.tsx", import.meta.url), "utf8");
 const jobsCss = readFileSync(new URL("../app/(protected)/jobs/jobs.css", import.meta.url), "utf8");
 const globalCss = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+const territorySource = readFileSync(new URL("../lib/appointment-territory.ts", import.meta.url), "utf8");
 
 assert.match(
   jobsMapSource,
@@ -44,6 +45,21 @@ assert.match(
   globalCss,
   /\.ops-jobs-map-pin \.ops-jobs-map-pin-check[\s\S]*?color: #16803c/,
   "The completed map-marker checkmark must remain green.",
+);
+assert.match(
+  territorySource,
+  /WESTWEGO[\s\S]*?if \(WESTWEGO\.test\(location\)\) return "Westbank"/,
+  "Westwego appointments must be classified as Westbank.",
+);
+assert.match(
+  jobsMapSource,
+  /territory\.includes\("westbank"\)\) tone = "is-westbank"/,
+  "Westbank appointments must retain their Dispatch indicator class.",
+);
+assert.match(
+  globalCss,
+  /\.is-westbank\.is-assigned-unfinished \{ background: #f59e0b; \}/,
+  "Assigned Westbank appointments must display with the amber-orange indicator.",
 );
 
 console.log("Appointment block selection checks passed.");

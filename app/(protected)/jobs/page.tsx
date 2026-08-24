@@ -1361,6 +1361,37 @@ function readRawCancelledRows(date: string): Record<string, string>[] {
   }
 }
 
+function readFreshScheduleCancellationIds(date: string): Set<string> {
+  const file = path.join(
+    OPSBOT_DATA_DIR,
+    "history",
+    "junkware",
+    `junkware_schedule_fast_${date}.json`,
+  );
+  if (!fs.existsSync(file)) return new Set();
+
+  try {
+    const payload = JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, unknown>;
+    const scrapedAt = Date.parse(String(payload.scraped_at || payload.scrapedAt || ""));
+
+    // The fast schedule scan is also the source that sends cancellation alerts.
+    // Only trust it while the detector is healthy, so a stale scan cannot hide a
+    // later reactivation before the full JunkWare collection catches up.
+    if (!Number.isFinite(scrapedAt) || Date.now() - scrapedAt > 5 * 60_000) {
+      return new Set();
+    }
+
+    return new Set(
+      (Array.isArray(payload.cancelled) ? payload.cancelled : [])
+        .filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object")
+        .map((row) => firstValue(row as Record<string, string>, ["appt_id", "appointment_id", "Appointment ID", "Appt ID"]))
+        .filter(Boolean),
+    );
+  } catch {
+    return new Set();
+  }
+}
+
 function readRawAppointmentLookup(date: string): Map<string, Record<string, any>> {
   const file = rawJunkwareFile(date);
   const lookup = new Map<string, Record<string, any>>();
@@ -1875,8 +1906,13 @@ function readJobRows(date: string): JobRow[] {
       .filter((entry) => Date.parse(entry.canceledAt) >= recentCancellationCutoff)
       .map((entry) => entry.appointmentId),
   );
-  const resolvedJobs = verifiedCancellationIds.size
-    ? jobs.map((job) => verifiedCancellationIds.has(job.appointmentId) ? { ...job, status: "Canceled" } : job)
+  const fastScheduleCancellationIds = readFreshScheduleCancellationIds(date);
+  const cancellationIds = new Set([
+    ...verifiedCancellationIds,
+    ...fastScheduleCancellationIds,
+  ]);
+  const resolvedJobs = cancellationIds.size
+    ? jobs.map((job) => cancellationIds.has(job.appointmentId) ? { ...job, status: "Canceled" } : job)
     : jobs;
 
   return resolvedJobs.sort((a, b) => {

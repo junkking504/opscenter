@@ -17,12 +17,20 @@ PRODUCTION_LABEL="com.openclaw.opscenter"
 PREVIEW_LABEL="com.openclaw.opscenter.macmini-preview"
 WHATSAPP_PHOTO_LABEL="com.openclaw.opscenter.whatsapp-photos"
 LINXUP_COLLECTOR_LABEL="com.openclaw.opsbot.linxup-collector"
+JUNKWARE_COLLECTOR_LABEL="com.openclaw.opsbot.junkware-collector"
+JUNKWARE_SCHEDULE_DETECTOR_LABEL="com.openclaw.opsbot.junkware-schedule-detector"
+JUNKWARE_HISTORY_RECONCILIATION_LABEL="com.openclaw.opsbot.junkware-history-reconciliation"
+SEARCHKINGS_COLLECTOR_LABEL="com.openclaw.opsbot.searchkings-collector"
+BROWSER_KEEPALIVE_LABEL="com.openclaw.opsbot.browser-keepalive"
+JUNKWARE_MARKET_WATCHER_LABEL_PREFIX="com.openclaw.opsbot.junkware-schedule-watcher-"
 REQUESTED_REF="${1:-}"
 RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"
 RELEASE_RETENTION="${OPSCENTER_RELEASE_RETENTION:-8}"
+RELEASE_LSOF_TIMEOUT_SECONDS="${OPSCENTER_RELEASE_LSOF_TIMEOUT_SECONDS:-5}"
 ALLOW_NON_FORWARD="${2:-0}"
 DEPLOY_LOCK_DIR="$DEPLOY_ROOT/.deploy-lock"
 DEPLOY_LOCK_HELD=false
+RESTARTED_SERVICE_LABELS=()
 
 fail() {
   echo "Mission Control deployment stopped: $*" >&2
@@ -71,6 +79,116 @@ service_loaded() {
   launchctl print "gui/$(id -u)/$1" >/dev/null 2>&1
 }
 
+restart_loaded_service() {
+  local label="$1"
+  service_loaded "$label" || return 0
+
+  echo "Restarting loaded service: $label"
+  launchctl kickstart -k "gui/$(id -u)/$label" || {
+    echo "Failed to restart loaded service: $label" >&2
+    return 1
+  }
+  service_loaded "$label" || {
+    echo "Service disappeared after restart: $label" >&2
+    return 1
+  }
+  RESTARTED_SERVICE_LABELS+=("$label")
+}
+
+loaded_market_watcher_labels() {
+  launchctl list | awk -v prefix="$JUNKWARE_MARKET_WATCHER_LABEL_PREFIX" '$3 ~ ("^" prefix) { print $3 }'
+}
+
+restart_release_bound_collectors() {
+  local release="$1"
+  local watcher_label
+  local -a market_watchers
+
+  # Browser keepalive is infrastructure rather than a data stream, but every
+  # authenticated JunkWare scraper depends on its browser session.
+  restart_loaded_service "$BROWSER_KEEPALIVE_LABEL" || return 1
+  restart_loaded_service "$JUNKWARE_COLLECTOR_LABEL" || return 1
+  restart_loaded_service "$JUNKWARE_SCHEDULE_DETECTOR_LABEL" || return 1
+  restart_loaded_service "$JUNKWARE_HISTORY_RECONCILIATION_LABEL" || return 1
+  restart_loaded_service "$SEARCHKINGS_COLLECTOR_LABEL" || return 1
+
+  market_watchers=("${(@f)$(loaded_market_watcher_labels)}") || return 1
+  for watcher_label in "${market_watchers[@]}"; do
+    restart_loaded_service "$watcher_label" || return 1
+  done
+
+  # LinxUp also refreshes its installed plist so policy changes travel with the
+  # immutable release; its installer ends by kickstarting the loaded service.
+  if service_loaded "$LINXUP_COLLECTOR_LABEL"; then
+    "$release/deploy/macmini/install-linxup-collector.sh" || return 1
+    RESTARTED_SERVICE_LABELS+=("$LINXUP_COLLECTOR_LABEL")
+  fi
+}
+
+restart_release_bound_services() {
+  local release="$1"
+
+  if service_loaded "$WHATSAPP_PHOTO_LABEL" && whatsapp_photo_worker_restart_enabled; then
+    restart_loaded_service "$WHATSAPP_PHOTO_LABEL" || return 1
+  fi
+  restart_release_bound_collectors "$release"
+}
+
+release_has_live_process_reference() {
+  local candidate="$1"
+  local scan_output scan_error scan_pid scan_status=0 remaining referenced_pids
+
+  candidate="$(cd "$candidate" && pwd -P)" || {
+    echo "Skipping prune: unable to resolve the candidate release path safely." >&2
+    return 0
+  }
+
+  scan_output="$(mktemp "${TMPDIR:-/tmp}/opscenter-release-lsof.XXXXXX")" || {
+    echo "Skipping prune for $candidate: unable to create a bounded lsof scan." >&2
+    return 0
+  }
+  scan_error="$(mktemp "${TMPDIR:-/tmp}/opscenter-release-lsof-error.XXXXXX")" || {
+    rm -f "$scan_output"
+    echo "Skipping prune for $candidate: unable to create a bounded lsof scan." >&2
+    return 0
+  }
+
+  # +D sees cwd, executable text, and open files below the candidate release.
+  # Limit output to PIDs so deployment logs never print runtime file paths.
+  # The explicit timeout below makes a large dependency tree fail safe by
+  # keeping the release instead of delaying deployment indefinitely.
+  /usr/sbin/lsof -n -P -F p +D "$candidate" >"$scan_output" 2>"$scan_error" &
+  scan_pid=$!
+  remaining="$RELEASE_LSOF_TIMEOUT_SECONDS"
+  while kill -0 "$scan_pid" 2>/dev/null; do
+    if (( remaining == 0 )); then
+      kill "$scan_pid" 2>/dev/null || true
+      wait "$scan_pid" 2>/dev/null || true
+      rm -f "$scan_output" "$scan_error"
+      echo "Skipping prune for $candidate: lsof process-reference scan exceeded ${RELEASE_LSOF_TIMEOUT_SECONDS}s." >&2
+      return 0
+    fi
+    sleep 1
+    remaining=$((remaining - 1))
+  done
+  wait "$scan_pid" || scan_status=$?
+
+  if [[ -s "$scan_error" || ( "$scan_status" != "0" && "$scan_status" != "1" ) ]]; then
+    rm -f "$scan_output" "$scan_error"
+    echo "Skipping prune for $candidate: lsof process-reference scan could not complete safely." >&2
+    return 0
+  fi
+  referenced_pids="$(sed -n 's/^p//p' "$scan_output" | paste -sd, -)"
+  if [[ -n "$referenced_pids" ]]; then
+    rm -f "$scan_output" "$scan_error"
+    echo "Skipping prune for $candidate: it is still referenced by running process PID $referenced_pids." >&2
+    return 0
+  fi
+
+  rm -f "$scan_output" "$scan_error"
+  return 1
+}
+
 whatsapp_photo_worker_restart_enabled() {
   [[ "$RESTART_WHATSAPP_PHOTO_WORKER" == "1"
     || "$RESTART_WHATSAPP_PHOTO_WORKER" == "true"
@@ -102,6 +220,7 @@ prune_superseded_releases() {
       retained=$((retained + 1))
       continue
     fi
+    release_has_live_process_reference "$candidate" && continue
     git -C "$REPOSITORY" worktree remove --force "$candidate"
   done
 }
@@ -120,16 +239,29 @@ wait_for_login() {
   return 1
 }
 
+restore_previous_release() {
+  local previous_target="$1"
+  local active_label="$2"
+  local active_port="$3"
+
+  activate_release "$previous_target"
+  if [[ -n "$active_label" ]]; then
+    launchctl kickstart -k "gui/$(id -u)/$active_label" || true
+    wait_for_login "$active_port" || true
+  fi
+}
+
 [[ -n "$REQUESTED_REF" ]] || fail "usage: $0 <pushed-git-ref-or-commit> [allow-non-forward: 0|1]"
 [[ "$ALLOW_NON_FORWARD" == "0" || "$ALLOW_NON_FORWARD" == "1" ]] || fail "allow-non-forward must be 0 or 1"
 [[ "$(id -un)" == "$EXPECTED_USER" ]] || fail "run this while logged in as $EXPECTED_USER"
 [[ "$HOME" == "$EXPECTED_HOME" ]] || fail "HOME must be $EXPECTED_HOME"
 [[ "$RELEASE_RETENTION" == <-> && "$RELEASE_RETENTION" -ge 3 ]] || fail "OPSCENTER_RELEASE_RETENTION must be an integer of at least 3"
+[[ "$RELEASE_LSOF_TIMEOUT_SECONDS" == <-> && "$RELEASE_LSOF_TIMEOUT_SECONDS" -ge 1 ]] || fail "OPSCENTER_RELEASE_LSOF_TIMEOUT_SECONDS must be a positive integer"
 [[ -d "$REPOSITORY/.git" ]] || fail "run deploy/macmini/bootstrap-git-deployment.sh first"
 [[ -d "$DATA_DIR" ]] || fail "missing authoritative OpsBot data: $DATA_DIR"
 [[ -L "$APP_LINK" ]] || fail "$APP_LINK must be a symbolic link; run the Git bootstrap first"
 
-for command in git node npm curl launchctl; do
+for command in git node npm curl launchctl lsof; do
   command -v "$command" >/dev/null 2>&1 || fail "required command is missing: $command"
 done
 
@@ -225,26 +357,24 @@ if [[ -n "$active_label" ]]; then
   launchctl kickstart -k "gui/$(id -u)/$active_label"
   if ! wait_for_login "$active_port"; then
     echo "New release did not become healthy; restoring $previous_target" >&2
-    activate_release "$previous_target"
-    launchctl kickstart -k "gui/$(id -u)/$active_label"
-    wait_for_login "$active_port" || true
+    restore_previous_release "$previous_target" "$active_label" "$active_port"
     fail "release $commit failed its login health check and was rolled back"
   fi
 fi
 
+# All release-bound collector entrypoints use the stable active-release
+# symlink. Restart every loaded collector before pruning so none can retain an
+# executable, module, or working-directory reference to an obsolete release.
+if ! restart_release_bound_services "$release"; then
+  echo "A release-bound service could not restart; restoring $previous_target" >&2
+  restore_previous_release "$previous_target" "$active_label" "$active_port"
+  RESTARTED_SERVICE_LABELS=()
+  restart_release_bound_services "$previous_target" || \
+    echo "WARNING: one or more services also failed to restart on the restored release." >&2
+  fail "release $commit failed collector restart health and was rolled back"
+fi
+
 prune_superseded_releases "$release" "$previous_target"
-
-if service_loaded "$WHATSAPP_PHOTO_LABEL" && whatsapp_photo_worker_restart_enabled; then
-  launchctl kickstart -k "gui/$(id -u)/$WHATSAPP_PHOTO_LABEL"
-fi
-
-# The collector's executable path is the stable active-release symlink, but its
-# launchd policy is an installed copy. Refresh that copy on every deployment
-# when the dedicated collector is already enabled so retry/KeepAlive changes in
-# the new release take effect instead of silently leaving an older policy live.
-if service_loaded "$LINXUP_COLLECTOR_LABEL"; then
-  "$release/deploy/macmini/install-linxup-collector.sh"
-fi
 
 echo
 echo "Deployed OpsCenter commit $commit"
@@ -255,10 +385,7 @@ if [[ -n "$active_label" ]]; then
 else
   echo "Service:   no OpsCenter launch service is loaded; release is prepared but not running"
 fi
-if service_loaded "$WHATSAPP_PHOTO_LABEL" && whatsapp_photo_worker_restart_enabled; then
-  echo "Worker:    $WHATSAPP_PHOTO_LABEL restarted on the active release"
-fi
-if service_loaded "$LINXUP_COLLECTOR_LABEL"; then
-  echo "Collector: $LINXUP_COLLECTOR_LABEL reinstalled on the active release"
+if (( ${#RESTARTED_SERVICE_LABELS[@]} > 0 )); then
+  echo "Restarted: ${RESTARTED_SERVICE_LABELS[*]}"
 fi
 echo "Rollback:  deploy this previous target's commit again: $previous_target"

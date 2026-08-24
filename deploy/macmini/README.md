@@ -85,6 +85,19 @@ Each release also installs the Chromium revision pinned by Playwright so
 JunkWare closeout and truck-assignment actions remain available after dependency
 updates.
 
+After a successful app health check, production also restarts every loaded
+release-bound OpsBot service: JunkWare's live collector, schedule detector,
+history reconciliation, SearchKings collector, all installed per-market
+schedule watchers, the LinxUp collector, and browser-session keepalive. The
+WhatsApp worker retains its existing opt-out setting. A restart failure stops
+the deployment and restores the prior release rather than being ignored.
+Before pruning an old release, the deployer runs a bounded five-second
+PID-only `lsof +D` scan for that candidate. It catches process working
+directories, executable text, and open files beneath the release. A process
+reference, scan error, or timeout keeps that release instead of removing it;
+the timeout prevents a large dependency tree from becoming an unbounded deploy
+delay.
+
 To roll back manually, deploy the previous commit SHA with the explicit
 `--allow-non-forward` flag shown above.
 

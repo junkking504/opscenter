@@ -97,6 +97,14 @@ export type CrewPerformanceRange = {
   estimateCloseRate: number | null;
 };
 
+export function sortCrewPerformanceByRevenue(rows: CrewPerformanceStats[]): CrewPerformanceStats[] {
+  return [...rows].sort((a, b) => (
+    b.creditedRevenue - a.creditedRevenue
+    || b.jobsCompleted - a.jobsCompleted
+    || a.name.localeCompare(b.name)
+  ));
+}
+
 export type CrewPersonalPerformance = {
   window: CrewPerformanceWindow;
   start: string;
@@ -329,7 +337,7 @@ function crewPerformanceRange(
   start: string,
   end: string,
   metricsByDate: Map<string, AnyRecord>,
-  options: { requireClockIn?: boolean } = {},
+  options: { requireClockIn?: boolean; rankByRevenue?: boolean } = {},
 ): CrewPerformanceRange {
   const crew = new Map<string, {
     name: string;
@@ -385,7 +393,7 @@ function crewPerformanceRange(
     }
   }
 
-  const rows = [...crew.values()]
+  const performanceStats = [...crew.values()]
     .map((row): CrewPerformanceStats => ({
       name: row.name,
       creditedRevenue: roundMoney(row.creditedRevenue),
@@ -397,8 +405,10 @@ function crewPerformanceRange(
         : null,
       tips: roundMoney(row.tips),
       bonuses: roundMoney(row.bonuses),
-    }))
-    .sort((a, b) => (
+    }));
+  const rows = options.rankByRevenue
+    ? sortCrewPerformanceByRevenue(performanceStats)
+    : performanceStats.sort((a, b) => (
       b.jobsCompleted - a.jobsCompleted
       || b.creditedRevenue - a.creditedRevenue
       || a.name.localeCompare(b.name)
@@ -419,14 +429,9 @@ function crewPerformanceRange(
 }
 
 function dailyPerformanceLeaderboard(metrics: AnyRecord | null): CrewPerformanceStats[] {
-  return performanceRows(metrics)
+  return sortCrewPerformanceByRevenue(performanceRows(metrics)
     .filter((row) => rowName(row))
-    .map((row) => performanceStats(row, metrics))
-    .sort((a, b) => (
-      b.jobsCompleted - a.jobsCompleted
-      || b.creditedRevenue - a.creditedRevenue
-      || a.name.localeCompare(b.name)
-    ));
+    .map((row) => performanceStats(row, metrics)));
 }
 
 function performanceWindow(value: unknown): CrewPerformanceWindow {
@@ -688,7 +693,10 @@ export async function getCrewPayPortalData(
     : periodFromMetrics(employee, currentPeriod.start, metricsByDate, todayKey);
   const today = current.days.find((day) => day.date === todayKey) || null;
   const currentWeek = current.weeks.find((week) => todayKey >= week.start && todayKey <= week.end) || current.weeks[0];
-  const dailyPerformance = crewPerformanceRange(todayKey, todayKey, metricsByDate, { requireClockIn: true });
+  const dailyPerformance = crewPerformanceRange(todayKey, todayKey, metricsByDate, {
+    requireClockIn: true,
+    rankByRevenue: true,
+  });
   const payPeriodPerformance = crewPerformanceRange(
     selectedPeriod.start,
     selectedPeriod.end < todayKey ? selectedPeriod.end : todayKey,

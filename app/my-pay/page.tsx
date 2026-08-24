@@ -225,7 +225,7 @@ function DailyPerformanceView({ data }: { data: Awaited<ReturnType<typeof getCre
           <div>
             <div className={styles.eyebrow}>All crewmembers</div>
             <h2>Everyone’s Daily Metrics</h2>
-            <p>Today’s clocked-in crew: jobs, average job size, credited revenue, and tips.</p>
+            <p>Today’s clocked-in crew, ranked by credited revenue: jobs, average job size, revenue, and tips.</p>
           </div>
           <div className={styles.privacyNote}>Crew-visible · Total pay hidden</div>
         </div>

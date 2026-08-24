@@ -42,7 +42,7 @@ const dailyViewEnd = myPaySource.indexOf("function DailyRows");
 assert.ok(dailyViewStart >= 0 && dailyViewEnd > dailyViewStart, "Crew Portal daily view is missing.");
 const dailyViewSource = myPaySource.slice(dailyViewStart, dailyViewEnd);
 assert.ok(dailyViewSource.includes("daily\n"), "Daily crew metrics must use the compact daily column set.");
-assert.ok(dailyViewSource.includes("Today’s clocked-in crew: jobs, average job size, credited revenue, and tips."), "Daily crew metrics copy must describe the clocked-in crew and visible columns.");
+assert.ok(dailyViewSource.includes("ranked by credited revenue"), "Daily crew metrics must state that the highest credited revenue ranks first.");
 assert.ok(!dailyViewSource.includes("estimate close rate, tips, and bonus days"), "Daily crew metrics still describe retired columns.");
 
 const monthlyViewStart = myPaySource.indexOf("function MonthlyLeaderboardView");
@@ -63,7 +63,8 @@ for (const leaderboardMetric of ["Jobs completed", "Revenue", "Average job size"
 }
 
 const crewPortalDataSource = readFileSync(new URL("../lib/crew-pay-portal.ts", import.meta.url), "utf8");
-assert.ok(crewPortalDataSource.includes("{ requireClockIn: true }"), "Daily crew metrics must require a recorded clock-in.");
+assert.ok(crewPortalDataSource.includes("requireClockIn: true"), "Daily crew metrics must require a recorded clock-in.");
+assert.ok(crewPortalDataSource.includes("rankByRevenue: true"), "Daily crew metrics must rank the highest credited revenue first.");
 
 const crewPayPeriodCardsSource = readFileSync(new URL("../components/CrewPayPeriodCards.tsx", import.meta.url), "utf8");
 const dailySummaryStart = crewPayPeriodCardsSource.indexOf('<summary className="ops-crew-period-day-summary">');

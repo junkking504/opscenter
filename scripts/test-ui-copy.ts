@@ -53,9 +53,15 @@ const metricsTableStart = myPaySource.indexOf("function CrewMetricsTable");
 const metricsTableEnd = myPaySource.indexOf("function DailyPerformanceView", metricsTableStart);
 assert.ok(metricsTableStart >= 0 && metricsTableEnd > metricsTableStart, "Crew metrics table is missing.");
 const metricsTableSource = myPaySource.slice(metricsTableStart, metricsTableEnd);
-for (const leaderboardMetric of ["Jobs completed", "Revenue", "Average job size", "Tips"]) {
+const leaderboardMetrics = ["Jobs completed", "Revenue", "Average job size", "Tips"];
+for (const leaderboardMetric of leaderboardMetrics) {
   assert.ok(metricsTableSource.includes(leaderboardMetric), `Leaderboard metric table is missing ${leaderboardMetric}.`);
 }
+assert.deepEqual(
+  leaderboardMetrics.map((metric) => metricsTableSource.indexOf(`<th>${metric}</th>`)),
+  [...leaderboardMetrics.map((metric) => metricsTableSource.indexOf(`<th>${metric}</th>`))].sort((a, b) => a - b),
+  "Leaderboard metrics must be ordered as Jobs completed, Revenue, Average job size, and Tips.",
+);
 
 const crewPortalDataSource = readFileSync(new URL("../lib/crew-pay-portal.ts", import.meta.url), "utf8");
 assert.ok(crewPortalDataSource.includes("{ requireClockIn: true }"), "Daily crew metrics must require a recorded clock-in.");

@@ -179,8 +179,8 @@ function CrewMetricsTable({
             {ranked ? <th>Rank</th> : null}
             <th>Crew member</th>
             <th>Jobs completed</th>
-            {leaderboardMetrics ? <th>Average job size</th> : <th>Estimates closed</th>}
             {leaderboardMetrics ? <th>Revenue</th> : null}
+            {leaderboardMetrics ? <th>Average job size</th> : <th>Estimates closed</th>}
             <th>Tips</th>
           </tr>
         </thead>
@@ -192,8 +192,8 @@ function CrewMetricsTable({
                 {ranked ? <td className={styles.rankCell} data-label="Rank"><span className={styles.rank}>{index + 1}</span></td> : null}
                 <td className={styles.crewCell} data-label="Crew member"><span className={styles.crewName}>{row.name}</span>{isYou ? <span className={styles.youBadge}>You</span> : null}</td>
                 <td data-label="Jobs completed">{wholeNumber.format(row.jobsCompleted)}</td>
-                {leaderboardMetrics ? <td data-label="Average job size">{money.format(row.averageJobSize)}</td> : <td data-label="Estimates closed">{row.estimateCloseRate === null ? "—" : `${percent.format(row.estimateCloseRate)}%`}</td>}
                 {leaderboardMetrics ? <td data-label="Revenue">{money.format(row.creditedRevenue)}</td> : null}
+                {leaderboardMetrics ? <td data-label="Average job size">{money.format(row.averageJobSize)}</td> : <td data-label="Estimates closed">{row.estimateCloseRate === null ? "—" : `${percent.format(row.estimateCloseRate)}%`}</td>}
                 <td data-label="Tips">{money.format(row.tips)}</td>
               </tr>
             );

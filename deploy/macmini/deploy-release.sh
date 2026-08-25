@@ -162,7 +162,9 @@ if service_loaded "$LINXUP_COLLECTOR_LABEL"; then
 fi
 
 if service_loaded "$JUNKWARE_SCHEDULE_DETECTOR_LABEL"; then
-  launchctl kickstart -k "gui/$(id -u)/$JUNKWARE_SCHEDULE_DETECTOR_LABEL"
+  # A schedule scrape can take longer than the web cutover. Ask launchd to
+  # restart it without making an otherwise healthy deployment wait for it.
+  launchctl kickstart -k "gui/$(id -u)/$JUNKWARE_SCHEDULE_DETECTOR_LABEL" >/dev/null 2>&1 &
 fi
 
 echo

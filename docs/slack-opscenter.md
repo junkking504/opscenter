@@ -38,18 +38,18 @@ equally readable without changing their routing, delivery cadence, or deduplicat
 
 Same-day appointments deliberately use a field-layout exception for dispatch
 scanning: `New Appointment`, a linked JK number, appointment time, bold customer
-name, phone number, then address (with items following when present). The linked
-JK number replaces the otherwise redundant `Open in OpsCenter` footer.
+name, a tap-to-call phone number, then address (with items following when present).
+The linked JK number replaces the otherwise redundant `Open in OpsCenter` footer.
 
 Cancellations use `Cancellation`, a bold linked JK number, appointment time,
-customer, phone, address, then a bold `Reason` label. Known customer/contact/
+customer, a tap-to-call phone number, address, then a bold `Reason` label. Known customer/contact/
 address prefixes are removed from the supplied reason so the actionable
 cancellation text is not repeated.
 
 Truck arrivals use the matching field layout in their truck channel: `Truck N
-On-site`, bold linked JK number, Chicago-local arrival time, customer, phone, then
-address. Incoming Slack-style telephone links are converted to a readable phone
-number. This uses the confirmed LinxUp arrival time while enriching customer
+On-site`, bold linked JK number, Chicago-local arrival time, customer, a tap-to-call
+phone number, then address. Incoming Slack-style telephone links are converted to a
+readable call link. This uses the confirmed LinxUp arrival time while enriching customer
 contact information from the matching JunkWare appointment.
 
 Verified WhatsApp photo batches use `Photos Uploaded`, a bold linked JK number,

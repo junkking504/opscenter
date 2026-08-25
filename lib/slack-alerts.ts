@@ -346,7 +346,7 @@ export function buildAddOnSlackNotification(appointment: AddOnAppointment, date:
     `<${href}|${slackEscape(appointment.jobNumber)}>`,
     slackEscape(appointment.appointmentTime),
     `*${slackEscape(appointment.customerName)}*`,
-    slackEscape(appointment.phone),
+    slackPhoneLink(appointment.phone),
     slackEscape(appointment.address),
     ...(appointment.items.length ? [`*Items:* ${slackEscape(appointment.items.join("; "))}`] : []),
   ].filter(Boolean).join("\n");
@@ -407,7 +407,7 @@ export function buildCancellationSlackNotification(appointment: CancelledAppoint
     `*<${href}|${slackEscape(appointment.jobNumber)}>*`,
     slackEscape(appointment.appointmentTime),
     slackEscape(appointment.customerName),
-    slackEscape(appointment.phone),
+    slackPhoneLink(appointment.phone),
     slackEscape(appointment.address),
     ...(reason ? [`*Reason:* ${slackEscape(reason)}`] : []),
   ].filter(Boolean).join("\n");
@@ -761,6 +761,14 @@ function displayPhone(value: string): string {
   return digits.length === 10 ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}` : unwrapped;
 }
 
+function slackPhoneLink(value: string): string {
+  const label = displayPhone(value);
+  const digits = label.replace(/\D/g, "");
+  if (!label || digits.length < 7) return slackEscape(label);
+  const phoneNumber = digits.length === 10 ? `+1${digits}` : `+${digits}`;
+  return `<tel:${phoneNumber}|${slackEscape(label)}>`;
+}
+
 export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   const seen = new Set<string>();
@@ -811,7 +819,7 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
         `*<${href}|${slackEscape(jkNumber)}>*`,
         formatTruckArrivalTime(arrival),
         slackEscape(customerName),
-        slackEscape(displayPhone(phone)),
+        slackPhoneLink(phone),
         slackEscape(address),
       ].filter(Boolean).join("\n");
       notifications.push({

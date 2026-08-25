@@ -213,6 +213,16 @@ function writeState(dataDir: string, state: DetectorState): void {
   fs.renameSync(`${file}.tmp`, file);
 }
 
+function deliveredMainCloseouts(dataDir: string, date: string): Set<string> {
+  try {
+    const payload = JSON.parse(fs.readFileSync(path.join(dataDir, "slack", "ops_alert_state.json"), "utf8"));
+    const delivered = payload?.deliveredTruckCloseoutsByDate?.[date];
+    return new Set(Array.isArray(delivered) ? delivered.map(String) : []);
+  } catch {
+    return new Set();
+  }
+}
+
 async function post(token: string, alert: SlackOpsAlert): Promise<boolean> {
   const response = await fetch("https://slack.com/api/chat.postMessage", {
     method: "POST",
@@ -297,10 +307,15 @@ export async function publishScheduleChanges(
       return { baselined: true, posted: [], failed: [] };
     }
     const delivered = new Set(state.delivered);
+    const mainCloseouts = deliveredMainCloseouts(dataDir, snapshot.date);
     const posted: ScheduleChange[] = [];
     const failed: ScheduleChange[] = [];
     for (const event of detectScheduleChanges(previous, snapshot)) {
       if (delivered.has(event.fingerprint)) continue;
+      if (event.kind === "job_closed" && mainCloseouts.has(event.fingerprint)) {
+        delivered.add(event.fingerprint);
+        continue;
+      }
       if (await post(token, event.alert)) {
         delivered.add(event.fingerprint);
         posted.push(event);

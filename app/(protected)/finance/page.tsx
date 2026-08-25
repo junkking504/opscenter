@@ -1,3 +1,4 @@
+import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import CrewDataRefresh from "@/components/CrewDataRefresh";
 import OpsMonthSelector from "@/components/OpsMonthSelector";
@@ -30,6 +31,14 @@ function toNumber(value: unknown): number {
 
 function percent(value: number): string {
   return `${value.toFixed(2)}%`;
+}
+
+function appointmentAnchor(jkNumber: string): string {
+  return `job-${jkNumber.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`;
+}
+
+function appointmentHref(date: string, jkNumber: string): string {
+  return `/jobs?date=${encodeURIComponent(date)}#${appointmentAnchor(jkNumber)}`;
 }
 
 const FINANCE_TERRITORY_ORDER = [
@@ -494,6 +503,72 @@ export default async function FinancePage({
       </section>
 
       <div className="ops-dashboard-main ops-finance-layout">
+        <div className={section === "overview" ? "ops-card ops-finance-payments-card" : "ops-section-hidden"} id="finance-payments">
+          <div className="ops-card-header compact">
+            <div>
+              <div className="ops-section-title">Payments by Job</div>
+              <div className="ops-muted">
+                Every paid job in JunkWare&apos;s card-payment ledger for {date}. QBO references are shown for verification and unresolved rows remain open.
+              </div>
+            </div>
+          </div>
+          <div className="ops-finance-table-scroll">
+            <table className="ops-table ops-finance-payments-table">
+              <thead>
+                <tr>
+                  <th>JunkWare</th>
+                  <th>Customer</th>
+                  <th>Payment</th>
+                  <th>Paid</th>
+                  <th>Job revenue</th>
+                  <th>Tip</th>
+                  <th>QuickBooks Online</th>
+                  <th>Reconciliation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paymentReconciliation.paymentsByJob.map((payment) => (
+                  <tr key={`${payment.jkNumber}-${payment.paidAmount}`}>
+                    <td>
+                      <Link
+                        className="ops-reconciliation-job-link"
+                        href={appointmentHref(date, payment.jkNumber)}
+                        title={`Open ${payment.jkNumber} on the OpsCenter schedule`}
+                      >
+                        {payment.jkNumber}
+                      </Link>
+                    </td>
+                    <td><strong>{payment.customer}</strong></td>
+                    <td>
+                      <strong>{payment.paymentMethod}</strong>
+                      {payment.cardLastFour ? <small className="ops-table-subline">•••• {payment.cardLastFour}</small> : null}
+                    </td>
+                    <td className="ops-money">{money(payment.paidAmount)}</td>
+                    <td className="ops-money">{payment.revenueAmount === null ? "—" : money(payment.revenueAmount)}</td>
+                    <td className="ops-money">{payment.tipAmount === null ? "—" : money(payment.tipAmount)}</td>
+                    <td>
+                      {payment.qboTransactionId ? (
+                        <>
+                          <strong>{payment.qboTransactionId}</strong>
+                          <small className="ops-table-subline">{[payment.qboTransactionType, payment.qboStatus].filter(Boolean).join(" · ")}</small>
+                        </>
+                      ) : "—"}
+                    </td>
+                    <td>
+                      <span className={`ops-payment-reconciliation-state ${payment.reconciliation === "Matched" ? "is-matched" : "needs-review"}`}>
+                        {payment.reconciliation}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {paymentReconciliation.paymentsByJob.length === 0 ? (
+                  <tr><td colSpan={8} className="ops-muted">No paid jobs are available in the JunkWare card-payment ledger for this date.</td></tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div className={section === "resale" ? "" : "ops-section-hidden"} id="finance-resale">
           <ResaleInventory initialItems={readResaleStore().items} />
         </div>

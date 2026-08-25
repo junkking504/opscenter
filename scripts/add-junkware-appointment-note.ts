@@ -18,11 +18,7 @@ function argument(name: string): string {
 
 function keychain(service: string): string {
   try {
-    return execFileSync("security", ["find-generic-password", "-w", "-s", service], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      timeout: 10_000,
-    }).trim();
+    return execFileSync("security", ["find-generic-password", "-w", "-s", service], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 10_000 }).trim();
   } catch {
     return "";
   }
@@ -31,21 +27,13 @@ function keychain(service: string): string {
 function environmentSecret(name: string): string {
   const encoded = String(process.env[`${name}_BASE64`] || "").trim();
   if (encoded) {
-    try {
-      return Buffer.from(encoded, "base64").toString("utf8");
-    } catch {
-      return "";
-    }
+    try { return Buffer.from(encoded, "base64").toString("utf8"); } catch { return ""; }
   }
   return String(process.env[name] || "");
 }
 
 function decodeNote(value: string): string {
-  try {
-    return Buffer.from(value, "base64url").toString("utf8").trim();
-  } catch {
-    return "";
-  }
+  try { return Buffer.from(value, "base64url").toString("utf8").trim(); } catch { return ""; }
 }
 
 function clean(value: string): string {
@@ -71,9 +59,7 @@ async function logIn(page: Page, targetUrl: string): Promise<void> {
 async function ensureAuthenticated(page: Page, targetUrl: string): Promise<void> {
   await page.goto(targetUrl, { waitUntil: "domcontentloaded" });
   if (page.url().toLowerCase().includes(LOGIN_FRAGMENT)) await logIn(page, targetUrl);
-  if (!page.url().startsWith(ORIGIN) || page.url().toLowerCase().includes(LOGIN_FRAGMENT)) {
-    throw new Error("The authenticated JunkWare appointment did not load.");
-  }
+  if (!page.url().startsWith(ORIGIN) || page.url().toLowerCase().includes(LOGIN_FRAGMENT)) throw new Error("The authenticated JunkWare appointment did not load.");
 }
 
 async function appointmentNoteCount(page: Page, note: string): Promise<number> {
@@ -88,19 +74,15 @@ async function openNoteEditor(page: Page): Promise<void> {
   if (!(await edit.count())) throw new Error("The JunkWare appointment-notes control has changed.");
   await edit.click();
   await page.locator("#other-notes-dialog.in").waitFor({ state: "visible", timeout: 15_000 });
-
   const newItem = page.locator("#ctl00_Content_NotesLV_AddNewLink");
   if (!(await newItem.count())) throw new Error("JunkWare could not open appointment notes.");
   await newItem.click();
-  const editor = page.locator("#other-notes-cont textarea");
-  await editor.waitFor({ state: "visible", timeout: 30_000 });
+  await page.locator("#other-notes-cont textarea").waitFor({ state: "visible", timeout: 30_000 });
 }
 
 async function addNote(page: Page, note: string): Promise<void> {
   await openNoteEditor(page);
-  const editor = page.locator("#other-notes-cont textarea");
-  await editor.fill(note);
-
+  await page.locator("#other-notes-cont textarea").fill(note);
   const save = page.locator("#other-notes-cont [id$='InsertButton']");
   if (!(await save.count())) throw new Error("The JunkWare appointment-note save control has changed.");
   const completion = Promise.race([
@@ -122,10 +104,7 @@ async function main(): Promise<void> {
   let browser: Browser | null = null;
   try {
     browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext({
-      viewport: { width: 1440, height: 1000 },
-      ...(fs.existsSync(STORAGE_STATE) ? { storageState: STORAGE_STATE } : {}),
-    });
+    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, ...(fs.existsSync(STORAGE_STATE) ? { storageState: STORAGE_STATE } : {}) });
     const page = await context.newPage();
     page.setDefaultTimeout(45_000);
     await ensureAuthenticated(page, targetUrl);

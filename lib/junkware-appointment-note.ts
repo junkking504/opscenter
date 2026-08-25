@@ -49,16 +49,11 @@ export async function addJunkwareAppointmentNote(input: {
     if (!payload?.ok || payload?.mode !== "add-note" || String(payload?.appointmentId || "") !== appointmentId) {
       throw new Error("JunkWare did not verify the appointment note.");
     }
-    return {
-      appointmentId,
-      note,
-      verifiedAt: String(payload.verifiedAt || new Date().toISOString()),
-    };
+    return { appointmentId, note, verifiedAt: String(payload.verifiedAt || new Date().toISOString()) };
   } catch (error) {
     const detail = error && typeof error === "object" && "stderr" in error
       ? String(error.stderr || "").trim()
       : error instanceof Error ? error.message : "";
-    const safeDetail = detail.split("\n")[0].slice(0, 300);
-    throw new Error(safeDetail || "JunkWare could not save the appointment note.");
+    throw new Error(detail.split("\n")[0].slice(0, 300) || "JunkWare could not save the appointment note.");
   }
 }

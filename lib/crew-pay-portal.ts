@@ -84,7 +84,6 @@ export type CrewPerformanceStats = {
   estimateCloseRate: number | null;
   tips: number;
   bonuses: number;
-  bonusDays: number;
 };
 
 export type CrewPerformanceRange = {
@@ -93,6 +92,8 @@ export type CrewPerformanceRange = {
   rows: CrewPerformanceStats[];
   totalRevenue: number;
   totalJobs: number;
+  totalHours: number;
+  totalTips: number;
   estimateCloseRate: number | null;
 };
 
@@ -240,6 +241,10 @@ function rowName(row: AnyRecord): string {
   return String(row.name || row.employee || row.employee_name || "").trim();
 }
 
+function hasClockIn(row: AnyRecord): boolean {
+  return Boolean(String(row.clock_in || row.time_in || row.clockIn || row.timeIn || "").trim());
+}
+
 function performanceRows(metrics: AnyRecord | null | undefined): AnyRecord[] {
   if (!metrics) return [];
   if (Array.isArray(metrics.employee_leaderboard) && metrics.employee_leaderboard.length) {
@@ -292,7 +297,6 @@ function performanceStats(row: AnyRecord, metrics?: AnyRecord | null): CrewPerfo
       : null,
     tips: roundMoney(values.tips),
     bonuses: roundMoney(values.bonuses),
-    bonusDays: values.bonuses > 0 ? 1 : 0,
   };
 }
 
@@ -306,10 +310,26 @@ function businessJobTotal(metrics: AnyRecord): number {
   return byMarket > 0 ? byMarket : objectNumberTotal(metrics.jobs_by_truck);
 }
 
+function rphEligibleHours(row: AnyRecord): number {
+  if (row.is_rph_eligible === false) return 0;
+  return firstNumber(row, ["hours_for_rph", "hours_worked", "hours"]);
+}
+
+export function monthlyLeaderboardSummary(range: CrewPerformanceRange): {
+  averageJobSize: number | null;
+  revenuePerHour: number | null;
+} {
+  return {
+    averageJobSize: range.totalJobs > 0 ? roundMoney(range.totalRevenue / range.totalJobs) : null,
+    revenuePerHour: range.totalHours > 0 ? roundMoney(range.totalRevenue / range.totalHours) : null,
+  };
+}
+
 function crewPerformanceRange(
   start: string,
   end: string,
   metricsByDate: Map<string, AnyRecord>,
+  options: { requireClockIn?: boolean } = {},
 ): CrewPerformanceRange {
   const crew = new Map<string, {
     name: string;
@@ -320,10 +340,11 @@ function crewPerformanceRange(
     closedEstimates: number;
     tips: number;
     bonuses: number;
-    bonusDates: Set<string>;
   }>();
   let totalRevenue = 0;
   let totalJobs = 0;
+  let totalHours = 0;
+  let totalTips = 0;
   let estimatesAttended = 0;
   let closedEstimates = 0;
 
@@ -331,8 +352,11 @@ function crewPerformanceRange(
     if (date < start || date > end) continue;
     totalRevenue += firstNumber(metrics, ["total_revenue", "net_revenue"]);
     totalJobs += businessJobTotal(metrics);
+    totalTips += firstNumber(metrics, ["total_tips", "tips"]);
 
     for (const row of performanceRows(metrics)) {
+      if (options.requireClockIn && !hasClockIn(row)) continue;
+      totalHours += rphEligibleHours(row);
       const name = rowName(row);
       if (!name) continue;
       const key = normalizedName(name);
@@ -346,7 +370,6 @@ function crewPerformanceRange(
         closedEstimates: 0,
         tips: 0,
         bonuses: 0,
-        bonusDates: new Set<string>(),
       };
       current.name = name;
       current.jobsCompleted += values.jobsCompleted;
@@ -356,7 +379,6 @@ function crewPerformanceRange(
       current.closedEstimates += values.closedEstimates;
       current.tips += values.tips;
       current.bonuses += values.bonuses;
-      if (values.bonuses > 0) current.bonusDates.add(date);
       estimatesAttended += values.estimatesAttended;
       closedEstimates += values.closedEstimates;
       crew.set(key, current);
@@ -375,11 +397,10 @@ function crewPerformanceRange(
         : null,
       tips: roundMoney(row.tips),
       bonuses: roundMoney(row.bonuses),
-      bonusDays: row.bonusDates.size,
     }))
     .sort((a, b) => (
       b.jobsCompleted - a.jobsCompleted
-      || (b.estimateCloseRate ?? -1) - (a.estimateCloseRate ?? -1)
+      || b.creditedRevenue - a.creditedRevenue
       || a.name.localeCompare(b.name)
     ));
 
@@ -389,6 +410,8 @@ function crewPerformanceRange(
     rows,
     totalRevenue: roundMoney(totalRevenue),
     totalJobs,
+    totalHours: roundHours(totalHours),
+    totalTips: roundMoney(totalTips),
     estimateCloseRate: estimatesAttended > 0
       ? roundHours((closedEstimates / estimatesAttended) * 100)
       : null,
@@ -401,7 +424,7 @@ function dailyPerformanceLeaderboard(metrics: AnyRecord | null): CrewPerformance
     .map((row) => performanceStats(row, metrics))
     .sort((a, b) => (
       b.jobsCompleted - a.jobsCompleted
-      || (b.estimateCloseRate ?? -1) - (a.estimateCloseRate ?? -1)
+      || b.creditedRevenue - a.creditedRevenue
       || a.name.localeCompare(b.name)
     ));
 }
@@ -437,7 +460,6 @@ function personalPerformance(
     closedEstimates: 0,
     tips: 0,
     bonuses: 0,
-    bonusDays: 0,
   };
 
   for (const [date, metrics] of metricsByDate.entries()) {
@@ -452,7 +474,6 @@ function personalPerformance(
     totals.closedEstimates += values.closedEstimates;
     totals.tips += values.tips;
     totals.bonuses += values.bonuses;
-    if (values.bonuses > 0) totals.bonusDays += 1;
   }
 
   return {
@@ -472,7 +493,6 @@ function personalPerformance(
         : null,
       tips: roundMoney(totals.tips),
       bonuses: roundMoney(totals.bonuses),
-      bonusDays: totals.bonusDays,
     },
   };
 }
@@ -668,7 +688,7 @@ export async function getCrewPayPortalData(
     : periodFromMetrics(employee, currentPeriod.start, metricsByDate, todayKey);
   const today = current.days.find((day) => day.date === todayKey) || null;
   const currentWeek = current.weeks.find((week) => todayKey >= week.start && todayKey <= week.end) || current.weeks[0];
-  const dailyPerformance = crewPerformanceRange(todayKey, todayKey, metricsByDate);
+  const dailyPerformance = crewPerformanceRange(todayKey, todayKey, metricsByDate, { requireClockIn: true });
   const payPeriodPerformance = crewPerformanceRange(
     selectedPeriod.start,
     selectedPeriod.end < todayKey ? selectedPeriod.end : todayKey,

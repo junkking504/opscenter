@@ -4,14 +4,9 @@ set -Eeuo pipefail
 USER_HOME="${HOME:?HOME must be set}"
 OPSBOT_DIR="${OPSBOT_DIR:-$USER_HOME/.openclaw/workspace/opsbot}"
 OPSCENTER_DIR="${OPSCENTER_DIR:-$USER_HOME/opscenter-v2/opscenter}"
-# An explicit date is useful for one-off recovery runs. The persistent detector
-# must resolve the business date inside each sweep so it rolls over at midnight
-# without requiring a LaunchAgent restart.
-DATE_OVERRIDE="${1:-}"
+DATE="${1:-$(TZ=America/Chicago date +%F)}"
 LOCK_DIR="$OPSBOT_DIR/tmp/junkware_schedule_detector.lock"
-HEALTH_DIR="$OPSBOT_DIR/data/slack/junkware_schedule_watchers"
-HEALTH_FILE="$HEALTH_DIR/detector.json"
-WATCH_INTERVAL_SECONDS="${JUNKWARE_SCHEDULE_DETECTOR_INTERVAL_SECONDS:-10}"
+LOCK_PID_FILE="$LOCK_DIR/pid"
 
 for ENV_FILE in "$OPSBOT_DIR/.env" "$OPSBOT_DIR/.env.local" "$USER_HOME/.openclaw/.env" "$OPSCENTER_DIR/.env.slack.local"; do
   if [ -f "$ENV_FILE" ]; then
@@ -21,66 +16,29 @@ for ENV_FILE in "$OPSBOT_DIR/.env" "$OPSBOT_DIR/.env.local" "$USER_HOME/.opencla
   fi
 done
 
-mkdir -p "$OPSBOT_DIR/tmp" "$OPSBOT_DIR/logs" "$HEALTH_DIR"
+mkdir -p "$OPSBOT_DIR/tmp" "$OPSBOT_DIR/logs"
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  prior_pid="$(tr -dc '0-9' < "$LOCK_DIR/pid" 2>/dev/null || true)"
-  if [ -n "$prior_pid" ] && kill -0 "$prior_pid" 2>/dev/null; then
-    echo "JunkWare schedule detector refused duplicate start: pid $prior_pid is active."
+  prior_pid="$(cat "$LOCK_PID_FILE" 2>/dev/null || true)"
+  prior_command=""
+  if [[ "$prior_pid" =~ ^[0-9]+$ ]]; then
+    prior_command="$(ps -p "$prior_pid" -o command= 2>/dev/null || true)"
+  fi
+  if [[ "$prior_command" == *"run-junkware-schedule-detector.sh"* ]]; then
+    echo "JunkWare schedule detector skipped: prior run is still active."
     exit 0
   fi
-  rm -f "$LOCK_DIR/pid"
-  rmdir "$LOCK_DIR" 2>/dev/null || true
+  echo "JunkWare schedule detector recovered a stale lock."
+  rm -f "$LOCK_PID_FILE"
+  rmdir "$LOCK_DIR" 2>/dev/null || {
+    echo "JunkWare schedule detector could not recover its stale lock." >&2
+    exit 1
+  }
   mkdir "$LOCK_DIR"
 fi
-printf '%s\n' "$$" > "$LOCK_DIR/pid"
-trap 'rm -f "$LOCK_DIR/pid"; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+printf '%s\n' "$$" > "$LOCK_PID_FILE"
+trap 'rm -f "$LOCK_PID_FILE"; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
 
-write_health() {
-  local status="$1"
-  local exit_code="$2"
-  local started_at="$3"
-  local completed_at
-  completed_at="$(TZ=America/Chicago date -Iseconds)"
-  local temp_file="$HEALTH_FILE.tmp"
-  printf '{"status":"%s","started_at":"%s","completed_at":"%s","exit_code":%s}\n' \
-    "$status" "$started_at" "$completed_at" "$exit_code" > "$temp_file"
-  mv "$temp_file" "$HEALTH_FILE"
-}
-
-run_once() {
-  local run_date
-  local started_at
-  local exit_code=0
-  run_date="${DATE_OVERRIDE:-$(TZ=America/Chicago date +%F)}"
-  started_at="$(TZ=America/Chicago date -Iseconds)"
-
-  set +e
-  (
-    cd "$OPSBOT_DIR" || exit 1
-    python3 scripts/collect_junkware_daily.py --date "$run_date" --schedule-only || exit $?
-    cd "$OPSCENTER_DIR" || exit 1
-    OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" ./node_modules/.bin/tsx scripts/publish-junkware-schedule-changes.ts \
-      --data-dir "$OPSBOT_DIR/data" \
-      --date "$run_date" \
-      --scope "all-markets"
-  )
-  exit_code=$?
-  set -e
-
-  if [ "$exit_code" -eq 0 ]; then
-    write_health "ok" 0 "$started_at"
-  else
-    write_health "failed" "$exit_code" "$started_at"
-  fi
-  return "$exit_code"
-}
-
-if [ "${JUNKWARE_SCHEDULE_DETECTOR_ONCE:-false}" = "true" ]; then
-  run_once
-  exit $?
-fi
-
-while true; do
-  run_once || true
-  sleep "$WATCH_INTERVAL_SECONDS"
-done
+cd "$OPSBOT_DIR"
+python3 scripts/collect_junkware_daily.py --date "$DATE" --schedule-only
+cd "$OPSCENTER_DIR"
+OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" ./node_modules/.bin/tsx scripts/publish-junkware-schedule-changes.ts --data-dir "$OPSBOT_DIR/data" --date "$DATE"

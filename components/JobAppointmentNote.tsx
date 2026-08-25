@@ -34,7 +34,7 @@ export default function JobAppointmentNote({ appointmentId }: { appointmentId: s
   if (!/^\d{1,12}$/.test(appointmentId)) return null;
 
   return (
-    <section className="ops-job-appointment-note" aria-label="Add appointment note">
+    <section className="ops-job-appointment-note" aria-label="Add appointment note in JunkWare">
       <div className="ops-job-appointment-note-heading">
         <div><span>APPOINTMENT NOTE</span><strong>Saved as a note in JunkWare</strong></div>
         {!editing ? <button type="button" onClick={() => setEditing(true)}>Add note</button> : null}

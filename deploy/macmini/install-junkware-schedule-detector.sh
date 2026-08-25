@@ -6,8 +6,6 @@ APP_DIR="$EXPECTED_HOME/opscenter-v2/opscenter"
 LABEL="com.openclaw.opsbot.junkware-schedule-detector"
 SOURCE_PLIST="$APP_DIR/deploy/macmini/production-launchd/$LABEL.plist"
 INSTALLED_PLIST="$EXPECTED_HOME/Library/LaunchAgents/$LABEL.plist"
-USER_ID="$(id -u)"
-HEALTH_FILE="$EXPECTED_HOME/.openclaw/workspace/opsbot/data/slack/junkware_schedule_watchers/detector.json"
 
 [[ "$(id -un)" == "missioncontrol" && "$HOME" == "$EXPECTED_HOME" ]] || {
   echo "Run this while logged in as missioncontrol." >&2
@@ -18,20 +16,23 @@ HEALTH_FILE="$EXPECTED_HOME/.openclaw/workspace/opsbot/data/slack/junkware_sched
   exit 1
 }
 
-mkdir -p "$(dirname "$INSTALLED_PLIST")" "$(dirname "$HEALTH_FILE")"
+mkdir -p "$EXPECTED_HOME/.openclaw/workspace/opsbot/logs"
 cp "$SOURCE_PLIST" "$INSTALLED_PLIST"
 chmod 600 "$INSTALLED_PLIST"
-plutil -lint "$INSTALLED_PLIST" >/dev/null
-rm -f "$HEALTH_FILE"
-launchctl bootout "gui/$USER_ID/$LABEL" >/dev/null 2>&1 || true
-launchctl bootstrap "gui/$USER_ID" "$INSTALLED_PLIST"
-launchctl enable "gui/$USER_ID/$LABEL"
+launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || true
+launchctl bootstrap "gui/$(id -u)" "$INSTALLED_PLIST"
+launchctl enable "gui/$(id -u)/$LABEL"
+launchctl kickstart -k "gui/$(id -u)/$LABEL"
+launchctl print "gui/$(id -u)/$LABEL" >/dev/null
 
-for attempt in {1..18}; do
-  launchctl print "gui/$USER_ID/$LABEL" >/dev/null && \
-    jq -e '.status == "ok"' "$HEALTH_FILE" >/dev/null 2>&1 && exit 0
-  sleep 10
+# The all-market detector replaced these release-pinned watchers. Leaving them
+# loaded after their source release is pruned creates a constant failed state
+# and can mask a real detector failure.
+for LEGACY_LABEL in \
+  com.openclaw.opsbot.junkware-schedule-watcher-352 \
+  com.openclaw.opsbot.junkware-schedule-watcher-399 \
+  com.openclaw.opsbot.junkware-schedule-watcher-477 \
+  com.openclaw.opsbot.junkware-schedule-watcher-484; do
+  launchctl bootout "gui/$(id -u)/$LEGACY_LABEL" >/dev/null 2>&1 || true
+  rm -f "$EXPECTED_HOME/Library/LaunchAgents/$LEGACY_LABEL.plist"
 done
-
-echo "JunkWare schedule detector did not establish a healthy heartbeat." >&2
-exit 1

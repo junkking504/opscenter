@@ -50,7 +50,7 @@ export default function OpsShell({
       <label htmlFor="ops-sidebar-toggle" className="ops-sidebar-backdrop" aria-hidden="true" />
       <aside className="ops-sidebar">
         <div className="ops-brand">
-          <OpsCenterLogo />
+          <OpsCenterLogo className="opscenter-logo" />
           <div className="ops-brand-product">
             <div className="ops-brand-title">OpsCenter</div>
             <div className="ops-brand-subtitle">Junk King | Louisiana</div>
@@ -80,7 +80,7 @@ export default function OpsShell({
       <main className="ops-main">
         <div className="ops-main-frame">
           <div className="ops-mobile-brand" aria-label="Junk King OpsCenter">
-            <OpsCenterLogo variant="mobile" />
+            <OpsCenterLogo className="opscenter-logo ops-mobile-opscenter-logo" />
             <span>OpsCenter</span>
           </div>
           <header className="ops-topbar">

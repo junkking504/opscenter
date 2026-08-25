@@ -20,7 +20,7 @@ import { readFleetChecklistTemplateStore } from "@/lib/fleet-checklist-templates
 import { readFleetIssueStore } from "@/lib/fleet-issues";
 import { readLatestLinxupVehicleInventory } from "@/lib/linxup-vehicle-inventory";
 import { monthOptions } from "@/lib/monthly-summary";
-import { DRIVING_SCORE_ALERT_RULES, DRIVING_SCORE_COMPENSATION_COPY, drivingScoreCompensationBand, drivingScoreCompensationLabel } from "@/lib/driving-score-policy";
+import { DRIVING_SCORE_ALERT_RULES, DRIVING_SCORE_COMPENSATION_COPY, drivingScoreCompensationLabel } from "@/lib/driving-score-policy";
 
 function truckDriverScoreRows(metrics: AnyRecord | null): AnyRecord[] {
   const rows = metrics?.truck_driver_scores || metrics?.truck_driver_scores_by_truck || [];
@@ -133,41 +133,6 @@ function normalizeTruckLabel(value: unknown): string {
   if (!raw) return "";
   const match = raw.match(/(\d+)/);
   return match ? `Truck# ${match[1]}` : raw.replace(/\s+/g, " ");
-}
-
-function normalizeCrewName(value: unknown): string {
-  const raw = String(value || "").trim();
-  if (!raw) return "";
-  const commaParts = raw.split(",").map((part) => part.trim()).filter(Boolean);
-  return commaParts.length === 2 ? `${commaParts[1]} ${commaParts[0]}` : raw;
-}
-
-function crewNamesByTruck(appointments: AnyRecord[]): Map<string, { drivers: string[]; navigators: string[] }> {
-  const namesByTruck = new Map<string, { drivers: Set<string>; navigators: Set<string> }>();
-
-  for (const appointment of appointments) {
-    if (appointment?.driver_assignment_excluded) continue;
-    const truck = normalizeTruckLabel(appointment?.assigned_truck || appointment?.truck || appointment?.truck_number);
-    if (!truck) continue;
-
-    const names = namesByTruck.get(truck) || { drivers: new Set<string>(), navigators: new Set<string>() };
-    const driver = normalizeCrewName(
-      appointment?.driver_normalized_name || appointment?.driver_name || appointment?.driver
-    );
-    const navigator = normalizeCrewName(
-      appointment?.navigator_normalized_name || appointment?.navigator_name || appointment?.navigator
-    );
-    if (driver) names.drivers.add(driver);
-    if (navigator) names.navigators.add(navigator);
-    namesByTruck.set(truck, names);
-  }
-
-  return new Map(
-    Array.from(namesByTruck.entries()).map(([truck, names]) => [
-      truck,
-      { drivers: Array.from(names.drivers), navigators: Array.from(names.navigators) },
-    ])
-  );
 }
 
 function truckParam(value: unknown): string {
@@ -638,7 +603,7 @@ function renderJulySummaryPage({
                 <th>Appointments</th>
                 <th>Completed Jobs</th>
                 <th>Revenue</th>
-                <th>Krewe Assignments</th>
+                <th>Crew Assignments</th>
                 <th>Driver Assignments</th>
                 <th>Linxup Trips</th>
                 <th>Linxup Mileage</th>
@@ -818,7 +783,6 @@ export default async function FleetPage({
   for (const row of truckScoreRows) {
     driverMap.set(String(row.truck || "").trim(), row);
   }
-  const appointmentCrewByTruck = crewNamesByTruck(dailyRecord?.appointments || []);
   const activeTrucks = trucks.filter(
     (truck) => truck.hasGpsActivity || Number(truck.revenue || 0) > 0 || Number(truck.jobs || 0) > 0
   ).length;
@@ -827,10 +791,12 @@ export default async function FleetPage({
   const totalExpenses = trucks.reduce((sum, t) => sum + Number(t.expenses || 0), 0);
   const selectedTruck = params?.truck ? normalizeTruckLabel(params.truck) : "";
   const selectedDriverRow = driverMap.get(selectedTruck);
-  const section = requestedSection === "scores" ? "scores" : "overview";
-  // FleetMapClient owns a live 30-second poll. The map now lives in Overview,
-  // so keep the newer lazy-mount behavior while avoiding work on other tabs.
-  const mapPayload = section === "overview" ? buildFleetMapPayload(date, selectedTruck) : null;
+  const mapPayload = buildFleetMapPayload(date, selectedTruck);
+  const section = requestedSection === "performance"
+    ? "overview"
+    : ["overview", "map", "scores"].includes(requestedSection)
+      ? requestedSection
+      : "overview";
 
   return (
     <div className="ops-dashboard">
@@ -841,6 +807,7 @@ export default async function FleetPage({
         lastUpdated={metrics?.generated_at}
         sections={[
           { label: "Overview", href: `/fleet?date=${date}&section=overview`, active: section === "overview" },
+          { label: "Live map", href: `/fleet?date=${date}&section=map`, active: section === "map" },
           { label: "Driving scores", href: `/fleet?date=${date}&section=scores`, active: section === "scores" },
           { label: "Maintenance", href: buildFleetHref({ view: "maintenance", date }) },
           { label: "Monthly", href: buildFleetHref({ view: "monthly", date, sort: sortKey, dir: sortDirection }) },
@@ -869,7 +836,7 @@ export default async function FleetPage({
         </div>
       </div>
 
-      {section === "overview" && mapPayload ? <div id="fleet-map"><FleetMapClient payload={mapPayload} /></div> : null}
+      {mapPayload && <div id="fleet-map" className={section === "map" ? "" : "ops-section-hidden"}><FleetMapClient payload={mapPayload} /></div>}
 
       <div className={section === "scores" ? "ops-card" : "ops-section-hidden"} id="fleet-driving-scores">
         <div className="ops-card-header compact">
@@ -915,7 +882,7 @@ export default async function FleetPage({
               const hasScore = Number.isFinite(numericScore);
               const hasDriving = Number(telemetry?.miles_driven || 0) > 0 || Number(driveMinutes || 0) > 0;
               const scoreTone = Number.isFinite(numericScore)
-                ? drivingScoreCompensationBand(numericScore) === "reward" ? "ops-score-good" : numericScore >= 60 ? "ops-score-warning" : "ops-score-bad"
+                ? numericScore >= 80 ? "ops-score-good" : numericScore >= 60 ? "ops-score-warning" : "ops-score-bad"
                 : "";
               const driverDetailId = `truck-score-detail-${encodeURIComponent(truckLabel)}`;
               const scoreDisplay = hasScore ? numericScore.toFixed(1) : hasDriving ? "Score unavailable" : "No GPS driving";
@@ -1046,7 +1013,7 @@ export default async function FleetPage({
         <div className="ops-card-header compact">
           <div>
             <div className="ops-section-title">Truck Activity</div>
-            <div className="ops-muted">All trucks with financial or GPS activity are shown. Employee revenue stays on Krewe.</div>
+            <div className="ops-muted">All trucks with financial or GPS activity are shown. Employee revenue stays on Crew.</div>
           </div>
         </div>
 
@@ -1065,46 +1032,23 @@ export default async function FleetPage({
             </tr>
           </thead>
           <tbody>
-            {trucks.map((row) => {
-              const truckLabel = normalizeTruckLabel(row.truck);
-              const telemetry = driverMap.get(truckLabel) || row;
-              const appointmentCrew = appointmentCrewByTruck.get(truckLabel);
-              const assignedDriverList = Array.isArray(telemetry?.assigned_drivers)
-                ? telemetry.assigned_drivers.map(normalizeCrewName).filter(Boolean)
-                : [];
-              const singleAssignedDriver = normalizeCrewName(telemetry?.assigned_driver);
-              const attributedDrivers = assignedDriverList.length > 0
-                ? assignedDriverList
-                : singleAssignedDriver && singleAssignedDriver.toLowerCase() !== "multiple"
-                  ? [singleAssignedDriver]
-                  : [];
-              const drivers = attributedDrivers.length > 0
-                ? attributedDrivers
-                : appointmentCrew?.drivers || [];
-              const navigators = appointmentCrew?.navigators || [];
-              const driverNames = drivers.length > 0 ? Array.from(new Set(drivers)).join(", ") : "Unassigned";
-              const navigatorNames = navigators.length > 0 ? navigators.join(", ") : "Unassigned";
-
-              return (
-                <tr key={row.truck} className={truckLabel === selectedTruck ? "ops-row-selected" : ""}>
-                  <td>
-                    <FleetTruckLink href={buildFleetHref({ view: "daily", date, sort: sortKey, dir: sortDirection }) + `&truck=${encodeURIComponent(truckParam(row.truck))}`} className="ops-fleet-truck-link">
-                      <strong>{row.truck}</strong>
-                      <span className="ops-fleet-truck-crew">{driverNames}/{navigatorNames}</span>
-                      <span className="ops-fleet-truck-score">Driving score: {driverScoreDisplay(telemetry)}</span>
-                    </FleetTruckLink>
-                  </td>
-                  <td>{row.jobs}</td>
-                  <td className="ops-money">{money(row.revenue)}</td>
-                  <td className="ops-money">{money(row.averageJobSize)}</td>
-                  <td className="ops-money">{money(row.expenses)}</td>
-                  <td className="ops-money">{money(row.net)}</td>
-                  <td>{formatMileage(row.milesDriven)}</td>
-                  <td>{row.driveMinutes == null ? "Unavailable" : formatMinutes(row.driveMinutes)}</td>
-                  <td>{row.hasGpsActivity ? "GPS activity" : Number(row.jobs || 0) > 0 ? "Completed work" : "No activity recorded"}</td>
-                </tr>
-              );
-            })}
+            {trucks.map((row) => (
+              <tr key={row.truck} className={normalizeTruckLabel(row.truck) === selectedTruck ? "ops-row-selected" : ""}>
+                <td>
+                  <FleetTruckLink href={buildFleetHref({ view: "daily", date, sort: sortKey, dir: sortDirection }) + `&truck=${encodeURIComponent(truckParam(row.truck))}`} className="ops-fleet-truck-link">
+                    <strong>{row.truck}</strong>
+                  </FleetTruckLink>
+                </td>
+                <td>{row.jobs}</td>
+                <td className="ops-money">{money(row.revenue)}</td>
+                <td className="ops-money">{money(row.averageJobSize)}</td>
+                <td className="ops-money">{money(row.expenses)}</td>
+                <td className="ops-money">{money(row.net)}</td>
+                <td>{formatMileage(row.milesDriven)}</td>
+                <td>{row.driveMinutes == null ? "Unavailable" : formatMinutes(row.driveMinutes)}</td>
+                <td>{row.hasGpsActivity ? "GPS activity" : Number(row.jobs || 0) > 0 ? "Completed work" : "No activity recorded"}</td>
+              </tr>
+            ))}
 
             {trucks.length === 0 && (
               <tr>

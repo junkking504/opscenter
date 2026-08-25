@@ -1,14 +1,12 @@
-import styles from "./OpsCenterLogo.module.css";
-
 type OpsCenterLogoProps = {
-  variant?: "sidebar" | "login" | "mobile";
+  className?: string;
 };
 
 /** The product mark: route nodes converge on the dispatch point at its center. */
-export default function OpsCenterLogo({ variant = "sidebar" }: OpsCenterLogoProps) {
+export default function OpsCenterLogo({ className = "" }: OpsCenterLogoProps) {
   return (
     <svg
-      className={`${styles.logo} ${styles[variant]}`}
+      className={className}
       viewBox="0 0 64 64"
       role="img"
       aria-label="OpsCenter"

@@ -36,6 +36,16 @@ assert.ok(jobsMapCss.includes(".ops-jobs-map-pin i.is-canceled"), "Canceled map 
 const jobsPageSource = readFileSync(new URL("../app/(protected)/jobs/page.tsx", import.meta.url), "utf8");
 assert.ok(jobsPageSource.includes("territoryAbbreviation(territory)"), "Territory jump controls must use compact territory labels.");
 assert.ok(jobsPageSource.includes("compact\n      />"), "Schedule header must use the compact non-overlapping layout.");
+assert.ok(jobsPageSource.includes('"followup"'), "Schedule must retain the open-estimates and unclosed-jobs page.");
+assert.ok(jobsPageSource.includes("Open estimates & unclosed"), "Schedule must expose the open-estimates and unclosed-jobs page at the top.");
+assert.ok(
+  jobsPageSource.includes('bucket === "Estimate" || bucket === "Unclosed or Needs Attention"'),
+  "The follow-up page must contain both open estimates and unclosed jobs.",
+);
+assert.ok(
+  jobsPageSource.includes(".sort((a, b) => followupRecency(b) - followupRecency(a)"),
+  "The follow-up page must order jobs from newest to oldest.",
+);
 
 const commandPageSource = readFileSync(new URL("../app/(protected)/page.tsx", import.meta.url), "utf8");
 assert.ok(commandPageSource.includes('{ label: "Krewe Snapshot", href: `/?date=${date}&section=crew`'), "Command must distinguish its Krewe Snapshot from the full Krewe page.");
@@ -77,8 +87,28 @@ const dailyViewEnd = myPaySource.indexOf("function DailyRows");
 assert.ok(dailyViewStart >= 0 && dailyViewEnd > dailyViewStart, "Crew Portal daily view is missing.");
 const dailyViewSource = myPaySource.slice(dailyViewStart, dailyViewEnd);
 assert.ok(dailyViewSource.includes("daily\n"), "Daily crew metrics must use the compact daily column set.");
-assert.ok(dailyViewSource.includes("Today’s jobs, average job size, credited revenue, and tips."), "Daily crew metrics copy must describe the visible columns.");
+assert.ok(dailyViewSource.includes("Today’s clocked-in crew: jobs, average job size, credited revenue, and tips."), "Daily crew metrics copy must describe the clocked-in crew and visible columns.");
 assert.ok(!dailyViewSource.includes("estimate close rate, tips, and bonus days"), "Daily crew metrics still describe retired columns.");
+
+const monthlyViewStart = myPaySource.indexOf("function MonthlyLeaderboardView");
+const monthlyViewEnd = myPaySource.indexOf("export default async function MyPayPage", monthlyViewStart);
+assert.ok(monthlyViewStart >= 0 && monthlyViewEnd > monthlyViewStart, "Crew Portal monthly leaderboard view is missing.");
+const monthlyViewSource = myPaySource.slice(monthlyViewStart, monthlyViewEnd);
+assert.ok(monthlyViewSource.includes("ranked\n"), "Monthly leaderboard must use the leaderboard metric column set.");
+for (const retiredMetric of ["Estimates closed", "Bonus days", "days bonuses were received"]) {
+  assert.ok(!monthlyViewSource.includes(retiredMetric), `Monthly leaderboard still includes ${retiredMetric}.`);
+}
+
+const metricsTableStart = myPaySource.indexOf("function CrewMetricsTable");
+const metricsTableEnd = myPaySource.indexOf("function DailyPerformanceView", metricsTableStart);
+assert.ok(metricsTableStart >= 0 && metricsTableEnd > metricsTableStart, "Crew metrics table is missing.");
+const metricsTableSource = myPaySource.slice(metricsTableStart, metricsTableEnd);
+for (const leaderboardMetric of ["Jobs completed", "Revenue", "Average job size", "Tips"]) {
+  assert.ok(metricsTableSource.includes(leaderboardMetric), `Leaderboard metric table is missing ${leaderboardMetric}.`);
+}
+
+const crewPortalDataSource = readFileSync(new URL("../lib/crew-pay-portal.ts", import.meta.url), "utf8");
+assert.ok(crewPortalDataSource.includes("{ requireClockIn: true }"), "Daily crew metrics must require a recorded clock-in.");
 
 const crewPayPeriodCardsSource = readFileSync(new URL("../components/CrewPayPeriodCards.tsx", import.meta.url), "utf8");
 const dailySummaryStart = crewPayPeriodCardsSource.indexOf('<summary className="ops-crew-period-day-summary">');

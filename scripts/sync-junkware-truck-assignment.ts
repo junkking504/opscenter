@@ -3,8 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { chromium, type Browser, type Page } from "@playwright/test";
-import { resolveJunkwareAssignedTruck } from "@/lib/junkware-truck-label";
-import { clickWithWebFormsCompletion, selectWithWebFormsPostback } from "./junkware-webforms";
+import { clickWithWebFormsCompletion, sanitizeJunkwareCustomerEmail, selectWithWebFormsPostback } from "./junkware-webforms";
 
 const JUNKWARE_ORIGIN = "https://junkware.junk-king.com";
 const LOGIN_FRAGMENT = "/account/login.aspx";
@@ -110,19 +109,20 @@ function normalizedTruck(value: string): string {
   return `Truck ${match[1]}`;
 }
 
+function outputTruck(label: string): string {
+  const match = label.match(/truck\s*#?\s*(\d+)/i);
+  return match ? `Truck ${match[1]}` : "";
+}
+
 async function assignedTruck(page: Page): Promise<string> {
   const truckSelect = page.locator("#ctl00_Content_TruckDD");
   if ((await truckSelect.count()) !== 1) throw new Error("The JunkWare truck assignment control has changed.");
-  const assignment = await truckSelect.evaluate((select) => {
-    const control = select as HTMLSelectElement;
-    const selectedOption = control.options[control.selectedIndex]?.textContent || "";
-    const containerText = control.parentElement?.innerText || control.parentElement?.textContent || "";
+  const label = await truckSelect.evaluate((select) => {
+    const containerText = select.parentElement?.innerText || select.parentElement?.textContent || "";
     const match = containerText.match(/Assigned:\s*(Truck#?\s*\d+)/i);
-    return { selectedOption, assignedLabel: match?.[1] || "" };
+    return match?.[1] || "";
   });
-  // Completed appointments keep the current truck selected in the dropdown
-  // but omit the separate "Assigned:" label rendered by open appointments.
-  return resolveJunkwareAssignedTruck(assignment);
+  return outputTruck(label);
 }
 
 function clockMinutes(value: string): number | null {
@@ -390,6 +390,7 @@ async function main(): Promise<void> {
             throw new Error("The JunkWare truck selection could not be restored before the appointment update.");
           }
         }
+        await sanitizeJunkwareCustomerEmail(page);
         await clickWithWebFormsCompletion(page, "#ctl00_Content_SaveAppointmentBtn", "the truck assignment");
       }
       changed = true;
@@ -428,6 +429,7 @@ async function main(): Promise<void> {
       }
       updateButton = page.locator("#ctl00_Content_SaveAppointmentBtn").first();
       if (!(await updateButton.count())) throw new Error("The JunkWare appointment update control has changed.");
+      await sanitizeJunkwareCustomerEmail(page);
       await clickWithWebFormsCompletion(page, "#ctl00_Content_SaveAppointmentBtn", "the appointment-time update");
       changed = true;
     }

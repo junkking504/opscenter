@@ -29,7 +29,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <div className="ops-login-grid" aria-hidden="true" />
       <section className="ops-login-brand-panel">
         <div className="ops-login-brand">
-          <OpsCenterLogo variant="login" />
+          <OpsCenterLogo className="opscenter-logo ops-login-opscenter-logo" />
           <div>
             <div className="ops-login-wordmark">OPSCENTER</div>
             <div className="ops-login-designation">JUNK KING LOUISIANA</div>
@@ -38,7 +38,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <div className="ops-login-hero">
           <div className="ops-login-kicker"><span /> Louisiana Operations</div>
           <h1>Run the Day.<br />Know the Numbers.<br /><em>Keep Moving.</em></h1>
-          <p>One clear workspace for jobs, krewes, trucks, marketing, and financial performance.</p>
+          <p>One clear workspace for jobs, crews, trucks, marketing, and financial performance.</p>
         </div>
         <div className="ops-login-system-line">
           <span><i /> System Operational</span>
@@ -93,7 +93,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </button>
           </form>
 
-          <div className="ops-login-footnote">Authorized personnel only · This browser stays trusted for 30 days</div>
+          <div className="ops-login-footnote">Authorized personnel only · This browser stays trusted for one year</div>
         </div>
       </section>
     </main>

@@ -22,7 +22,9 @@ The shared temporary password is accepted only while that username has no person
 
 ## Crew performance views
 
-The signed-in crew portal includes daily metrics for everyone recorded on the crew that day. It shares only jobs completed, average job size, credited revenue, and tips. Total pay, hourly rates, hours, bonus amounts, and other payroll details remain visible only to the signed-in employee in their private pay sections.
+The signed-in crew portal includes daily metrics for crew members with a recorded clock-in that day and a month-to-date crew leaderboard. Both share only jobs completed, revenue, average job size, and tips. Total pay, hourly rates, hours, bonus amounts, bonus-day counts, and other payroll details remain visible only to the signed-in employee in their private pay sections.
+
+Dispatch appointment notes in OpsCenter Jobs are appended to the appointment's **Other Notes** in JunkWare and are read back before the UI confirms success. The Crew Portal does not provide job or appointment notes.
 
 Dispatch can add a **Crew Note** to an appointment in OpsCenter Jobs. The note is stored in the protected runtime data directory and appears in the signed-in employee's daily portal only when that employee is assigned to that appointment through the authoritative driver, navigator, crew, or additional-crew fields. Notes are not written back to JunkWare and must not be used as a substitute for franchise or call-center notes.
 

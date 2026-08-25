@@ -5,6 +5,7 @@ import {
   withJunkwareAppointmentSyncLock,
   type JobRouteAssignment,
 } from "../lib/job-route-assignments";
+import { classifyJunkwareAssignmentFailure } from "../lib/junkware-assignment-failure";
 import { syncJunkwareTruckAssignment } from "../lib/junkware-truck-assignment";
 
 const maxAttempts = Math.max(1, Math.min(20, Number(process.env.JOB_ROUTE_RETRY_BATCH_SIZE || 5)));
@@ -50,13 +51,14 @@ async function retry(entry: JobRouteAssignment): Promise<void> {
       }
     } catch (error) {
       const detail = error instanceof Error ? error.message : "JunkWare could not verify the assignment.";
+      const junkwareSyncStatus = classifyJunkwareAssignmentFailure(error);
       saveJobRouteAssignment({
         ...current,
         expectedUpdatedAt: current.updatedAt,
-        junkwareSyncStatus: "pending",
+        junkwareSyncStatus,
         junkwareSyncError: detail,
       });
-      console.warn("[job-route-retry] verification still pending", {
+      console.warn(`[job-route-retry] ${junkwareSyncStatus === "manual_correction" ? "needs manual correction" : "verification still pending"}`, {
         date: current.date,
         jobKey: current.jobKey,
         appointmentId,

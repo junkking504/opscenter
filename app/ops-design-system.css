@@ -3269,13 +3269,61 @@ body {
   }
 }
 
-/* Compact product lockup for the route-and-dispatch OpsCenter mark. */
-.ops-brand { grid-template-columns: 56px minmax(0, 1fr); align-items: center; min-height: 78px; padding: 7px 5px 13px; }
-.ops-brand-product { grid-column: 2; grid-row: 1; display: grid; justify-content: start; gap: 3px; padding-top: 0; border-top: 0; }
-.ops-brand-subtitle { max-width: none; text-align: left; }
+/* OpsCenter identity: a dispatch point with four active routes, not a generic
+   wordmark. The same mark scales into a clear, intentional mobile lockup. */
+.opscenter-logo {
+  display: block;
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  filter: drop-shadow(0 10px 16px rgba(237, 28, 36, 0.24));
+}
+
+.ops-brand {
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: center;
+  min-height: 78px;
+  padding: 7px 5px 13px;
+}
+
+.ops-brand-product {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  justify-content: start;
+  gap: 3px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.ops-brand-subtitle {
+  max-width: none;
+  text-align: left;
+}
+
+.ops-login-opscenter-logo {
+  width: min(96px, 24vw);
+  height: auto;
+  filter: drop-shadow(0 16px 30px rgba(237, 28, 36, 0.3));
+}
+
 @media (max-width: 1050px) {
-  .ops-mobile-brand { justify-content: flex-start; gap: 10px; }
-  .ops-mobile-brand span { color: #f1f3f5; font-size: 0.86rem; font-weight: 830; letter-spacing: -0.025em; }
+  .ops-mobile-brand {
+    justify-content: flex-start;
+    gap: 10px;
+  }
+
+  .ops-mobile-opscenter-logo {
+    width: 38px;
+    height: 38px;
+  }
+
+  .ops-mobile-brand span {
+    color: #f1f3f5;
+    font-size: 0.86rem;
+    font-weight: 830;
+    letter-spacing: -0.025em;
+  }
 }
 
 /* Final driver-detail sizing and empty-data treatment. */
@@ -3667,14 +3715,8 @@ body {
 
 .ops-notification-list {
   max-height: min(520px, calc(100vh - 150px));
-  overflow-y: scroll;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(246, 195, 67, 0.72) rgba(255, 255, 255, 0.08);
+  overflow-y: auto;
 }
-
-.ops-notification-list::-webkit-scrollbar { width: 8px; }
-.ops-notification-list::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.06); }
-.ops-notification-list::-webkit-scrollbar-thumb { border: 2px solid #11161d; border-radius: 999px; background: rgba(246, 195, 67, 0.72); }
 
 .ops-notification-item {
   position: relative;

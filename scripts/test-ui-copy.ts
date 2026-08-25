@@ -24,6 +24,16 @@ assert.ok(jobsMapSource.includes("timelineHourLabel(hour)"), "Dispatch timeline 
 const jobsPageSource = readFileSync(new URL("../app/(protected)/jobs/page.tsx", import.meta.url), "utf8");
 assert.ok(jobsPageSource.includes("territoryAbbreviation(territory)"), "Territory jump controls must use compact territory labels.");
 assert.ok(jobsPageSource.includes("compact\n      />"), "Schedule header must use the compact non-overlapping layout.");
+assert.ok(jobsPageSource.includes('"followup"'), "Schedule must retain the open-estimates and unclosed-jobs page.");
+assert.ok(jobsPageSource.includes("Open estimates & unclosed"), "Schedule must expose the open-estimates and unclosed-jobs page at the top.");
+assert.ok(
+  jobsPageSource.includes('bucket === "Estimate" || bucket === "Unclosed or Needs Attention"'),
+  "The follow-up page must contain both open estimates and unclosed jobs.",
+);
+assert.ok(
+  jobsPageSource.includes(".sort((a, b) => followupRecency(b) - followupRecency(a)"),
+  "The follow-up page must order jobs from newest to oldest.",
+);
 
 const myPaySource = readFileSync(new URL("../app/my-pay/page.tsx", import.meta.url), "utf8");
 const payPeriodStart = myPaySource.indexOf("function PayPeriodView");

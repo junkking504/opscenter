@@ -135,7 +135,7 @@ type SiteTimeAppointment = {
 
 type JobStatusBucket = "Open / Scheduled" | "Estimate" | "Completed" | "Canceled" | "Unclosed or Needs Attention";
 type JobsView = "daily" | "calendar" | "monthly";
-type JobsWorkspace = "dispatch";
+type JobsWorkspace = "dispatch" | "followup";
 
 type JobsFilters = {
   territory: string;
@@ -715,10 +715,7 @@ function normalizeJobsView(value: unknown): JobsView {
 }
 
 function normalizeJobsWorkspace(value: unknown): JobsWorkspace {
-  // Schedule, map, and the former route-planning view now share one Dispatch workspace.
-  // Keep accepting legacy workspace values so saved links land in the combined view.
-  void value;
-  return "dispatch";
+  return String(value || "").toLowerCase() === "followup" ? "followup" : "dispatch";
 }
 
 function buildJobsHref({
@@ -1886,6 +1883,34 @@ function readJobRows(date: string): JobRow[] {
   });
 }
 
+function followupRecency(job: JobRow): number {
+  const bookedAt = Date.parse(job.bookedAt);
+  if (Number.isFinite(bookedAt)) return bookedAt;
+  const sourceDate = Date.parse(`${job.sourceDate || "1970-01-01"}T00:00:00`);
+  return Number.isFinite(sourceDate) ? sourceDate : 0;
+}
+
+function readOpenEstimateAndUnclosedJobs(date: string): JobRow[] {
+  const latestByAppointment = new Map<string, JobRow>();
+  const dates = Array.from(new Set([date, ...availableDates(), ...availableJobDates()]))
+    .sort((a, b) => b.localeCompare(a));
+
+  for (const sourceDate of dates) {
+    for (const job of readJobRows(sourceDate)) {
+      const identity = job.appointmentId || job.jkNumber || `${job.customerName}|${job.address}`;
+      if (!identity || latestByAppointment.has(identity)) continue;
+      latestByAppointment.set(identity, { ...job, sourceDate });
+    }
+  }
+
+  return Array.from(latestByAppointment.values())
+    .filter((job) => {
+      const bucket = statusBucket(job);
+      return bucket === "Estimate" || bucket === "Unclosed or Needs Attention";
+    })
+    .sort((a, b) => followupRecency(b) - followupRecency(a) || b.sourceDate.localeCompare(a.sourceDate));
+}
+
 
 function groupJobsByTerritory(jobs: JobRow[]): [string, JobRow[]][] {
   const groups = new Map<string, JobRow[]>();
@@ -2883,6 +2908,8 @@ export default async function JobsPage({
   const date = requestedDate || resolveDate(params, { allowTomorrow: true });
   const view = normalizeJobsView(params?.view);
   const workspace = normalizeJobsWorkspace(params?.workspace);
+  const isFollowupWorkspace = view === "daily" && workspace === "followup";
+  const isDispatchWorkspace = view === "daily" && workspace === "dispatch";
   const requestedMonthlySection = String(params?.section || "overview").toLowerCase();
   const monthlySection = ["overview", "breakdown", "trend"].includes(requestedMonthlySection)
     ? requestedMonthlySection
@@ -2906,6 +2933,7 @@ export default async function JobsPage({
   const jobs = view === "daily"
     ? applyJobRouteAssignmentOverrides(readJobRows(date), date)
     : monthlySummary?.jobs || readJobRows(date);
+  const followupJobs = isFollowupWorkspace ? readOpenEstimateAndUnclosedJobs(date) : [];
   const callAheadStatuses = readJobCallAheadStatuses();
   const filters: JobsFilters = {
     territory: readFilterValue(params?.territory),
@@ -3059,15 +3087,17 @@ export default async function JobsPage({
   return (
     <div className="ops-dashboard ops-jobs-page">
       <PageHeader
-        title={view === "daily" ? "Dispatch board" : "Schedule"}
-        subtitle={isMonthView
+        title={isFollowupWorkspace ? "Open estimates & unclosed jobs" : view === "daily" ? "Dispatch board" : "Schedule"}
+        subtitle={isFollowupWorkspace
+          ? `${followupJobs.length} current items · newest to oldest by booked time.`
+          : isMonthView
           ? view === "calendar"
             ? `${month?.monthDisplay || monthlySummary?.monthDisplay || date.slice(0, 7)} schedule · ${calendarScheduledCount} appointment${calendarScheduledCount === 1 ? "" : "s"} on file`
             : `Monthly summary for ${month?.monthDisplay || monthlySummary?.monthDisplay || date.slice(0, 7)} · ${month?.warningLabel || "Monthly data"} · Data through ${month?.dataThroughLabel || date}`
           : `${scheduleCopy.possessive} route plan · ${scheduledOpen} open · ${needsAttention} need attention`}
         date={date}
         dates={scheduleDates}
-        showDateSelector={!isMonthView}
+        showDateSelector={!isMonthView && !isFollowupWorkspace}
         dateLabel={isMonthView ? "Month" : "Date"}
         lastUpdated={monthlyAuthority?.verifiedAt || latestUpdatedAt(
           metrics?.generated_at,
@@ -3077,18 +3107,19 @@ export default async function JobsPage({
           <>
             {isMonthView ? (
               <OpsMonthSelector months={jobsMonthOptions()} selectedMonthKey={date.slice(0, 7)} currentMonthKey={today.slice(0, 7)} />
-            ) : <ScheduleDayToggle date={date} workspace={workspace} filters={filters} />}
+            ) : isDispatchWorkspace ? <ScheduleDayToggle date={date} workspace={workspace} filters={filters} /> : null}
           </>
         }
         sections={[
-          { label: "Dispatch", href: buildJobsHref({ date, view: "daily", workspace: "dispatch", ...filters }), active: view === "daily", badge: view === "daily" ? mapPoints.length || undefined : undefined },
+          { label: "Dispatch", href: buildJobsHref({ date, view: "daily", workspace: "dispatch", ...filters }), active: isDispatchWorkspace, badge: isDispatchWorkspace ? mapPoints.length || undefined : undefined },
+          { label: "Open estimates & unclosed", href: buildJobsHref({ date, view: "daily", workspace: "followup" }), active: isFollowupWorkspace, badge: followupJobs.length || undefined },
           { label: "Calendar", href: buildJobsHref({ date, view: "calendar", ...filters }), active: view === "calendar" },
           { label: "Monthly Summary", href: buildJobsHref({ date, view: "monthly", ...filters }), active: view === "monthly" },
         ]}
         compact
       />
 
-      {view === "daily" ? (
+      {isDispatchWorkspace ? (
         <form className="ops-junkware-search" method="get" role="search">
           <input type="hidden" name="date" value={date} />
           {filters.territory ? <input type="hidden" name="territory" value={filters.territory} /> : null}
@@ -3114,8 +3145,56 @@ export default async function JobsPage({
         </form>
       ) : null}
 
-      {view === "daily" ? (
+      {isDispatchWorkspace ? (
         <JobsMap date={date} jobs={mapPoints} scheduleView trucks={routeTrucks} truckLocations={mapTrucks} />
+      ) : null}
+
+      {isFollowupWorkspace ? (
+        <section className="ops-card ops-jobs-followup-page" id="jobs-open-followups" aria-label="Open estimates and unclosed jobs">
+          <div className="ops-card-header compact">
+            <div>
+              <div className="ops-section-title">Open estimates &amp; unclosed jobs</div>
+              <div className="ops-muted">Current JunkWare state, ordered newest to oldest by booked time.</div>
+            </div>
+            <div className="ops-job-count-pill">{followupJobs.length} items</div>
+          </div>
+          {followupJobs.length ? (
+            <div className="ops-wide-table-wrap">
+              <table className="ops-table ops-jobs-followup-table">
+                <thead>
+                  <tr>
+                    <th>Booked</th>
+                    <th>Status</th>
+                    <th>Appointment</th>
+                    <th>Customer</th>
+                    <th>Location</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {followupJobs.map((job) => {
+                    const bucket = statusBucket(job);
+                    const booked = safeText(job.bookedAt);
+                    return (
+                      <tr key={`${job.appointmentId || job.jkNumber}-${job.sourceDate}`}>
+                        <td>{booked === "—" ? `Seen ${job.sourceDate}` : booked}</td>
+                        <td><span className={`ops-status-tag compact ${statusBadgeClass(bucket)}`}>{appointmentStatusLabel(job)}</span></td>
+                        <td>
+                          {job.appointmentUrl ? (
+                            <a className="ops-jk-number clickable" href={job.appointmentUrl} target="_blank" rel="noopener noreferrer">{safeText(job.jkNumber)}</a>
+                          ) : safeText(job.jkNumber)}
+                        </td>
+                        <td>{safeText(job.customerName)}</td>
+                        <td>{safeText(job.address)} <small>{normalizeTerritory(job.territory)}</small></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="ops-empty-state">No open estimates or unclosed jobs are present in the latest JunkWare records.</div>
+          )}
+        </section>
       ) : null}
 
       {monthlySummary && view === "calendar" ? (
@@ -3167,7 +3246,7 @@ export default async function JobsPage({
         </section>
       ) : null}
 
-      {(view === "daily" || (view === "monthly" && monthlySection === "overview")) ? <div className="ops-kpi-row ops-jobs-kpi-strip" id="jobs-overview">
+      {(isDispatchWorkspace || (view === "monthly" && monthlySection === "overview")) ? <div className="ops-kpi-row ops-jobs-kpi-strip" id="jobs-overview">
         <div className={`ops-card ops-kpi-card ops-jobs-priority-card${needsAttention > 0 ? " has-attention" : ""}`}>
           <div className="ops-card-title">Needs attention</div>
           <div className="ops-kpi-value">{needsAttention}</div>
@@ -3205,7 +3284,7 @@ export default async function JobsPage({
         </div>
       </div> : null}
 
-      {view === "daily" && (dayActivity.rescheduled.length || dayActivity.cancelled.length) ? (
+      {isDispatchWorkspace && (dayActivity.rescheduled.length || dayActivity.cancelled.length) ? (
         <section className="ops-job-activity" id="jobs-changes" aria-label="Schedule changes">
           <details className="ops-card ops-job-activity-card ops-job-activity-combined">
             <summary className="ops-job-activity-summary">
@@ -3439,7 +3518,7 @@ export default async function JobsPage({
         </>
       )}
 
-      {(view === "daily" || view === "calendar") ? (
+      {(isDispatchWorkspace || view === "calendar") ? (
         <>
       {view === "daily" ? <>
       <div className="ops-card ops-jobs-filter-card" id="jobs-find">

@@ -668,24 +668,24 @@ assert.deepEqual(
     {
       kind: "crew_clock_in",
       channelId: "C_TEST_COMMAND",
-      text: ":bust_in_silhouette: *Crew clocked in*\n*Crew member:* Clocked In Employee\n*Clock in:* 07:03 AM",
+      text: ":bust_in_silhouette: *Krewe clocked in*\n*Krewe member:* Clocked In Employee\n*Clock in:* 07:03 AM",
     },
     {
       kind: "crew_clock_in",
       channelId: "C_TEST_COMMAND",
-      text: ":bust_in_silhouette: *Crew clocked in*\n*Crew member:* Clocked Out Employee\n*Clock in:* 07:15 AM",
+      text: ":bust_in_silhouette: *Krewe clocked in*\n*Krewe member:* Clocked Out Employee\n*Clock in:* 07:15 AM",
     },
     {
       kind: "crew_clock_out",
       channelId: "C_TEST_COMMAND",
-      text: ":bust_in_silhouette: *Crew clocked out*\n*Crew member:* Clocked Out Employee\n*Clock out:* 12:48 PM\n*Hours:* 5.55",
+      text: ":bust_in_silhouette: *Krewe clocked out*\n*Krewe member:* Clocked Out Employee\n*Clock out:* 12:48 PM\n*Hours:* 5.55",
     },
     {
       kind: "crew_daily_pay",
       channelId: "C_TEST_COMMAND",
       text: [
         ":bust_in_silhouette: *Final daily pay*",
-        "*Crew member:* Clocked Out Employee",
+        "*Krewe member:* Clocked Out Employee",
         "*Total pay:* $138.38",
         "*Hourly pay:* $102.67",
         "*Tips:* $20.71",

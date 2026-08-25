@@ -5,6 +5,13 @@ import { useState } from "react";
 type Option = { value: string; label: string };
 type OtherCharge = { label: string; quantity: string; price: string; total: string };
 type PendingOtherCharge = OtherCharge & { clientId: string; typeValue: string };
+type PriceSchedule = {
+  loadPrices: number[];
+  bedloadPrices: number[];
+  truckDiscounts: number[];
+  bagDiscounts: number[];
+  dryRunFee: string;
+};
 type LiveCloseout = {
   status: { value: string; label: string };
   appointmentType: { value: string; label: string; options: Option[] };
@@ -31,10 +38,56 @@ type LiveCloseout = {
   payments: Array<{ description: string; amount: string }>;
   balance: string;
   total: string;
+  pricing?: PriceSchedule;
 };
 
 function inputMoney(value: string): string {
   return String(value || "").replace(/[^0-9.-]/g, "");
+}
+
+function formatCalculatedPrice(value: number): string {
+  return `$${value.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+}
+
+function quantityValue(value: string): number | null {
+  const quantity = Number.parseInt(String(value || ""), 10);
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : null;
+}
+
+function recalculateLoadPrice(closeout: LiveCloseout, loadSize: string, loadQuantity = closeout.loadQuantity): Pick<LiveCloseout, "loadPrice" | "discount"> {
+  const prices = closeout.pricing?.loadPrices || [];
+  const selectedIndex = closeout.loadSize.options.findIndex((option) => option.value === loadSize);
+  const selectedLabel = closeout.loadSize.options[selectedIndex]?.label || loadSize;
+  const quantity = quantityValue(loadQuantity);
+  if (!loadSize || !quantity || selectedIndex < 1 || !prices.length) return { loadPrice: "", discount: "" };
+
+  const isBag = /^bag\(s\)$/i.test(selectedLabel);
+  const isDryRun = /^dry run$/i.test(selectedLabel);
+  let price = quantity * prices.at(-1)!;
+  if (isBag) price = quantity * (prices[0] || 0);
+  let priceIndex = selectedIndex;
+  if (closeout.loadSize.options.some((option) => /^dry run$/i.test(option.label)) && priceIndex > 1) priceIndex -= 1;
+  if (!isBag && !isDryRun && priceIndex > 0) price += prices[priceIndex - 1] || 0;
+  if (isDryRun) {
+    const dryRunFee = Number(inputMoney(closeout.pricing?.dryRunFee || ""));
+    price = Number.isFinite(dryRunFee) ? dryRunFee : 0;
+  }
+  if (!price) return { loadPrice: "", discount: "" };
+
+  const discounts = isBag ? closeout.pricing?.bagDiscounts || [] : closeout.pricing?.truckDiscounts || [];
+  const discountValue = discounts[Math.min(quantity - 1, isBag ? 4 : 10)] || 0;
+  const discount = isBag
+    ? discountValue
+    : (discountValue / 100) * price;
+  return { loadPrice: formatCalculatedPrice(price), discount: discount ? `$${discount.toFixed(2)}` : "" };
+}
+
+function recalculateBedloadPrice(closeout: LiveCloseout, bedloadSize: string, bedloadQuantity = closeout.bedloadQuantity): string {
+  const prices = closeout.pricing?.bedloadPrices || [];
+  const selectedIndex = closeout.bedloadSize.options.findIndex((option) => option.value === bedloadSize);
+  const quantity = quantityValue(bedloadQuantity);
+  if (!bedloadSize || !quantity || selectedIndex < 1 || !prices.length) return "";
+  return formatCalculatedPrice((quantity * prices.at(-1)!) + (prices[selectedIndex - 1] || 0));
 }
 
 export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initialStatus }: { appointmentId: string; appointmentUrl: string; initialStatus: string }) {
@@ -81,7 +134,22 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
   }
 
   function updateSelect(key: "loadSize" | "bedloadSize" | "jobCategory" | "actualStartHour" | "actualStartMinute" | "actualEndHour" | "actualEndMinute", value: string) {
-    setLive((current) => current ? { ...current, [key]: { ...current[key], value } } : current);
+    setLive((current) => {
+      if (!current) return current;
+      const next = { ...current, [key]: { ...current[key], value } };
+      if (key === "loadSize") return { ...next, ...recalculateLoadPrice(next, value) };
+      if (key === "bedloadSize") return { ...next, bedloadPrice: recalculateBedloadPrice(next, value) };
+      return next;
+    });
+  }
+
+  function updateQuantity(key: "loadQuantity" | "bedloadQuantity", value: string) {
+    setLive((current) => {
+      if (!current) return current;
+      const next = { ...current, [key]: value };
+      if (key === "loadQuantity") return { ...next, ...recalculateLoadPrice(next, next.loadSize.value, value) };
+      return { ...next, bedloadPrice: recalculateBedloadPrice(next, next.bedloadSize.value, value) };
+    });
   }
 
   function updateAppointmentType(value: string) {
@@ -267,11 +335,11 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
             <section className="ops-closeout-editor-section">
               <h4>Job Charges</h4>
               <div className="ops-closeout-editor-grid">
-                <label><span>Truck quantity</span><input value={live.loadQuantity} inputMode="decimal" onChange={(event) => update("loadQuantity", event.target.value)} /></label>
-                <label><span>Load size</span><select value={live.loadSize.value} onChange={(event) => updateSelect("loadSize", event.target.value)}>{live.loadSize.options.map((option) => <option key={`load-${option.value}`} value={option.value}>{option.label || "Full truck / none"}</option>)}</select></label>
+                <label><span>Truck quantity</span><input value={live.loadQuantity} inputMode="decimal" onChange={(event) => updateQuantity("loadQuantity", event.target.value)} /></label>
+                <label><span>Load size</span><select value={live.loadSize.value} onChange={(event) => updateSelect("loadSize", event.target.value)}>{live.loadSize.options.map((option) => <option key={`load-${option.value}`} value={option.value}>{option.label || "Choose load size"}</option>)}</select></label>
                 <label><span>Load price</span><input value={live.loadPrice} inputMode="decimal" onChange={(event) => update("loadPrice", event.target.value)} /></label>
-                <label><span>Bedload quantity</span><input value={live.bedloadQuantity} inputMode="decimal" onChange={(event) => update("bedloadQuantity", event.target.value)} /></label>
-                <label><span>Bedload size</span><select value={live.bedloadSize.value} onChange={(event) => updateSelect("bedloadSize", event.target.value)}>{live.bedloadSize.options.map((option) => <option key={`bed-${option.value}`} value={option.value}>{option.label || "None"}</option>)}</select></label>
+                <label><span>Bedload quantity</span><input value={live.bedloadQuantity} inputMode="decimal" onChange={(event) => updateQuantity("bedloadQuantity", event.target.value)} /></label>
+                <label><span>Bedload size</span><select value={live.bedloadSize.value} onChange={(event) => updateSelect("bedloadSize", event.target.value)}>{live.bedloadSize.options.map((option) => <option key={`bed-${option.value}`} value={option.value}>{option.label || "Choose bedload size"}</option>)}</select></label>
                 <label><span>Bedload price</span><input value={live.bedloadPrice} inputMode="decimal" onChange={(event) => update("bedloadPrice", event.target.value)} /></label>
                 <label><span>Discount</span><input value={live.discount} inputMode="decimal" onChange={(event) => update("discount", event.target.value)} /></label>
                 <label><span>Tip</span><input value={live.tip} inputMode="decimal" onChange={(event) => update("tip", event.target.value)} /></label>

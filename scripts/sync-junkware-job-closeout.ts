@@ -95,6 +95,9 @@ async function capture(page: Page): Promise<{ status: { value: string }; [key: s
       };
     };
     const input = (id) => document.getElementById(id)?.value || "";
+    const numbers = (name) => Array.isArray(globalThis[name])
+      ? globalThis[name].map(Number).filter((value) => Number.isFinite(value) && value >= 0)
+      : [];
     const navigators = Array.from(document.querySelectorAll('select[id*="AppointmentTechniciansLV"][id$="NavigatorDD"]'));
     const payments = Array.from(document.querySelectorAll('[id*="PaymentsLV"][id$="ItemRow"]')).map((row) => {
       const cells = Array.from(row.querySelectorAll("td")).map((cell) => clean(cell.innerText || cell.textContent));
@@ -147,6 +150,13 @@ async function capture(page: Page): Promise<{ status: { value: string }; [key: s
       payments,
       balance: input("ctl00_Content_BalanceOwedHF"),
       total: clean(document.getElementById("ctl00_Content_TotalLbl")?.textContent),
+      pricing: {
+        loadPrices: numbers("Prices"),
+        bedloadPrices: numbers("BedloadPrices"),
+        truckDiscounts: numbers("TruckDiscounts"),
+        bagDiscounts: numbers("BagDiscounts"),
+        dryRunFee: input("ctl00_Content_DryRunFeeHF"),
+      },
     };
   })()`) as Promise<{ status: { value: string }; [key: string]: unknown }>;
 }

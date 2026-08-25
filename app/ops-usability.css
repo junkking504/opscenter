@@ -1308,6 +1308,7 @@ body {
 .ops-map-cluster:is(.is-appointments, .is-locations).is-baton-rouge { background: #f87171; }
 .ops-map-cluster:is(.is-appointments, .is-locations).is-lafayette { background: #a78bfa; }
 .ops-map-cluster:is(.is-appointments, .is-locations).is-unknown-territory { background: #8b929d; }
+.ops-map-cluster:is(.is-appointments, .is-locations).is-east-yellow { background: #f6c343; }
 .ops-map-cluster:is(.is-appointments, .is-locations) { color: #111827; }
 
 .ops-map-cluster b {

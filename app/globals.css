@@ -4519,6 +4519,14 @@ a {
   opacity: .82;
 }
 
+/* Chalmette and New Orleans East stay operationally in New Orleans while
+   retaining a distinct, immediately recognizable Dispatch locator. */
+.ops-jobs-map-pin.is-east-yellow,
+.ops-jobs-map-pin.is-east-yellow.is-assigned-unfinished,
+.ops-jobs-map-pin.is-east-yellow.is-unassigned,
+.ops-jobs-map-pin.is-east-yellow.is-completed,
+.ops-jobs-map-pin.is-east-yellow.is-canceled { background: #f6c343; }
+
 .ops-jobs-truck-marker {
   position: relative;
   display: flex;

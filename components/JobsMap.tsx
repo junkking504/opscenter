@@ -222,6 +222,16 @@ function territoryTone(job: JobsMapPoint): string {
   return `${tone}${assignmentState}${completed ? " is-completed" : ""}`;
 }
 
+function hasYellowLocator(job: Pick<JobsMapPoint, "address">): boolean {
+  const address = String(job.address || "").toLowerCase();
+  return /\bchalmette\b|\bnew\s+orleans\s+east\b|\b7012[6-9]\b/.test(address);
+}
+
+function locatorTone(job: JobsMapPoint): string {
+  if (!hasYellowLocator(job)) return territoryTone(job);
+  return territoryTone(job).replace(/^\S+/, "is-east-yellow");
+}
+
 function clusterTerritoryTone(jobs: JobsMapPoint[]): string {
   const counts = new Map<string, number>();
   for (const job of jobs) {
@@ -233,6 +243,12 @@ function clusterTerritoryTone(jobs: JobsMapPoint[]): string {
     secondCount - firstCount || territoryPriority.indexOf(firstTone) - territoryPriority.indexOf(secondTone),
   )[0]?.[0]
     || "is-unknown-territory";
+}
+
+function clusterLocatorTone(jobs: JobsMapPoint[]): string {
+  return jobs.length && jobs.every(hasYellowLocator)
+    ? "is-east-yellow"
+    : clusterTerritoryTone(jobs);
 }
 
 function formatTravelTime(minutes: number | null | undefined): string {
@@ -286,7 +302,7 @@ function unavailableProximityText(jobKey: string, proximity: JobRouteProximityPa
 }
 
 function markerIcon(leaflet: LeafletModule, job: JobsMapPoint, selected: boolean) {
-  const tone = territoryTone(job);
+  const tone = locatorTone(job);
   const completed = job.statusBucket === "Completed";
   return leaflet.divIcon({
     className: "",
@@ -1338,7 +1354,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       jobsAtLocation: JobsMapPoint[],
       trucksAtLocation: JobsMapTruck[],
     ) => {
-      const tone = clusterTerritoryTone(jobsAtLocation);
+      const tone = clusterLocatorTone(jobsAtLocation);
       const marker = leaflet.marker([latitude, longitude], {
         icon: locationClusterIcon(leaflet, jobsAtLocation.length, trucksAtLocation.length, tone),
         keyboard: true,
@@ -1366,7 +1382,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       if (usedJobClusters.has(cluster)) continue;
       if (cluster.items.length > 1) {
         const marker = leaflet.marker([cluster.latitude, cluster.longitude], {
-          icon: appointmentClusterIcon(leaflet, cluster.items.length, clusterTerritoryTone(cluster.items)),
+          icon: appointmentClusterIcon(leaflet, cluster.items.length, clusterLocatorTone(cluster.items)),
           keyboard: true,
           title: `${cluster.items.length} appointments in this area`,
           alt: `${cluster.items.length} appointments in this area`,

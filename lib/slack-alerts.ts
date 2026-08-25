@@ -281,6 +281,11 @@ function absoluteOpsHref(href: string): string {
   return `${origin()}${href.startsWith("/") ? href : `/${href}`}`;
 }
 
+function closeoutOpsHref(date: string, jobNumber: string): string {
+  const jobAnchor = jobNumber.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  return absoluteOpsHref(`/jobs?date=${encodeURIComponent(date)}#job-${jobAnchor}`);
+}
+
 function exceptionAlert(
   exception: OperationalException,
   kind: "unassigned_crew" | "late_job",
@@ -335,44 +340,89 @@ function staleDataAlert(source: DataHealthSource): SlackOpsAlert {
 }
 
 export function buildAddOnSlackNotification(appointment: AddOnAppointment, date: string): SlackOpsAlert {
+  const href = absoluteOpsHref(appointment.href);
+  const plainText = [
+    ":warning: *New Appointment*",
+    `<${href}|${slackEscape(appointment.jobNumber)}>`,
+    slackEscape(appointment.appointmentTime),
+    `*${slackEscape(appointment.customerName)}*`,
+    slackPhoneLink(appointment.phone),
+    slackEscape(appointment.address),
+    ...(appointment.items.length ? [`*Items:* ${slackEscape(appointment.items.join("; "))}`] : []),
+  ].filter(Boolean).join("\n");
+
   return {
     fingerprint: `add_on:${date}:${appointment.id}`,
     kind: "add_on",
     lifecycle: "notification",
     severity: "warning",
     channelId: appointmentChannelId(appointment.territory),
-    title: `New same-day appointment: ${appointment.jobNumber}`,
+    title: "New Appointment",
     detail: "",
-    fields: [
-      { label: "Customer", value: appointment.customerName },
-      { label: "Phone", value: appointment.phone },
-      { label: "Time", value: appointment.appointmentTime },
-      { label: "Address", value: appointment.address },
-      ...(appointment.items.length ? [{ label: "Items", value: appointment.items.join("; ") }] : []),
-    ],
     nextAction: "",
-    href: absoluteOpsHref(appointment.href),
+    href: "",
+    plainText,
   };
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizedCancellationReason(appointment: CancelledAppointment): string {
+  const original = String(appointment.cancellationReason || "").replace(/\s+/g, " ").trim();
+  if (!original) return "";
+
+  let reason = original;
+  let strippedContact = false;
+  const customerName = String(appointment.customerName || "").replace(/\s+/g, " ").trim();
+  if (customerName && reason.toLowerCase().startsWith(customerName.toLowerCase())) {
+    reason = reason.slice(customerName.length).replace(/^[\s,;:-]+/, "");
+    strippedContact = true;
+  }
+
+  const phoneDigits = String(appointment.phone || "").replace(/\D/g, "");
+  if (phoneDigits.length >= 7) {
+    const phonePattern = phoneDigits.split("").map(escapeRegExp).join("\\D*");
+    const phonePrefix = new RegExp(`^\\D*${phonePattern}(?:\\D+|$)`, "i");
+    if (phonePrefix.test(reason)) {
+      reason = reason.replace(phonePrefix, "").trim();
+      strippedContact = true;
+    }
+  }
+
+  if (strippedContact && /^\d{1,6}\s+/.test(reason)) {
+    const addressPrefix = reason.match(/^.*?\b\d{5}(?:-\d{4})?\b[\s,;:-]*/);
+    if (addressPrefix) reason = reason.slice(addressPrefix[0].length).trim();
+  }
+
+  return reason || original;
+}
+
 export function buildCancellationSlackNotification(appointment: CancelledAppointment, date: string): SlackOpsAlert {
+  const href = absoluteOpsHref(appointment.href);
+  const reason = normalizedCancellationReason(appointment);
+  const plainText = [
+    ":x: *Cancellation*",
+    `*<${href}|${slackEscape(appointment.jobNumber)}>*`,
+    slackEscape(appointment.appointmentTime),
+    slackEscape(appointment.customerName),
+    slackPhoneLink(appointment.phone),
+    slackEscape(appointment.address),
+    ...(reason ? [`*Reason:* ${slackEscape(reason)}`] : []),
+  ].filter(Boolean).join("\n");
+
   return {
     fingerprint: `cancellation:${date}:${appointment.id}`,
     kind: "cancellation",
     lifecycle: "notification",
     severity: "warning",
     channelId: appointmentChannelId(appointment.territory),
-    title: `Appointment cancelled: ${appointment.jobNumber}`,
+    title: "Cancellation",
     detail: "",
-    fields: [
-      { label: "Customer", value: appointment.customerName },
-      { label: "Time", value: appointment.appointmentTime },
-      { label: "Address", value: appointment.address },
-      ...(appointment.cancelledBy ? [{ label: "Cancelled by", value: appointment.cancelledBy }] : []),
-      ...(appointment.cancellationReason ? [{ label: "Reason", value: appointment.cancellationReason }] : []),
-    ],
-    nextAction: "Confirm the territory schedule and update the crew and truck plan.",
-    href: absoluteOpsHref(appointment.href),
+    nextAction: "",
+    href: "",
+    plainText,
   };
 }
 
@@ -544,14 +594,15 @@ export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyReco
     seen.add(fingerprint);
 
     const closeout = truckCloseoutDetails(row);
-    const plainText = formatSlackMessage({
-      icon: ":white_check_mark:",
-      title: `${jobNumber} closed out`,
-      fields: [
-        { label: "Job", value: jobNumber },
-        ...parseSlackDetailLines(closeout?.lines || []),
-      ],
-    });
+    const href = closeoutOpsHref(date, jobNumber);
+    const detailLines = parseSlackDetailLines(closeout?.lines || []).map(({ label, value }) => (
+      label === "Tips" && !value ? "*Tips:*" : `*${slackEscape(label)}:* ${slackEscape(value)}`
+    ));
+    const plainText = [
+      ":white_check_mark: *Job Closed*",
+      `*<${href}|${slackEscape(jobNumber)}>*`,
+      ...detailLines,
+    ].join("\n");
     notifications.push({
       fingerprint,
       kind: "job_closed",
@@ -644,6 +695,7 @@ function readTruckArrivalVisitRows(date: string): AnyRecord[] {
 
 type TruckArrivalAppointmentDetails = {
   customerName: string;
+  phone: string;
   address: string;
 };
 
@@ -668,9 +720,10 @@ function readTruckArrivalAppointmentDetails(date: string): Map<string, TruckArri
       for (const row of rows) {
         const details = {
           customerName: firstText(row, ["customer_name", "customerName", "service_contact_name"]),
+          phone: firstText(row, ["phone", "customer_phone", "customerPhone", "service_contact_phone"]),
           address: firstText(row, ["service_address", "address", "serviceAddress"]),
         };
-        if (!details.customerName && !details.address) continue;
+        if (!details.customerName && !details.phone && !details.address) continue;
 
         for (const key of [
           firstText(row, ["appt_id", "appointment_id", "appointmentId"]),
@@ -692,6 +745,30 @@ function truckArrivalKeyPart(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+function formatTruckArrivalTime(value: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function displayPhone(value: string): string {
+  const raw = String(value || "").trim();
+  const slackTelLabel = raw.match(/^<tel:[^|>]*\|([^>]+)>$/i)?.[1]?.trim();
+  const unwrapped = slackTelLabel || raw;
+  const digits = unwrapped.replace(/\D/g, "");
+  return digits.length === 10 ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}` : unwrapped;
+}
+
+function slackPhoneLink(value: string): string {
+  const label = displayPhone(value);
+  const digits = label.replace(/\D/g, "");
+  if (!label || digits.length < 7) return slackEscape(label);
+  const phoneNumber = digits.length === 10 ? `+1${digits}` : `+${digits}`;
+  return `<tel:${phoneNumber}|${slackEscape(label)}>`;
+}
+
 export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   const seen = new Set<string>();
@@ -709,6 +786,9 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
     const customerName = firstText(row, ["customer_name", "customerName", "service_contact_name"])
       || details?.customerName
       || "Unknown";
+    const phone = firstText(row, ["phone", "customer_phone", "customerPhone", "service_contact_phone"])
+      || details?.phone
+      || "";
     const address = firstText(row, ["service_address", "address", "serviceAddress"])
       || details?.address
       || "Unknown";
@@ -731,16 +811,17 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
       ].join(":");
       if (seen.has(fingerprint)) continue;
       seen.add(fingerprint);
-      const plainText = formatSlackMessage({
-        icon: ":truck:",
-        title: "Truck arrived onsite",
-        fields: [
-          { label: "Truck", value: truck },
-          { label: "Job", value: jkNumber },
-          { label: "Customer", value: customerName },
-          { label: "Address", value: address },
-        ],
-      });
+      const truckNumber = normalizeSlackTruckNumber(truck);
+      const title = `${truckNumber ? `Truck ${truckNumber}` : truck} On-site`;
+      const href = closeoutOpsHref(date, jkNumber);
+      const plainText = [
+        `:truck: *${slackEscape(title)}*`,
+        `*<${href}|${slackEscape(jkNumber)}>*`,
+        formatTruckArrivalTime(arrival),
+        slackEscape(customerName),
+        slackPhoneLink(phone),
+        slackEscape(address),
+      ].filter(Boolean).join("\n");
       notifications.push({
         fingerprint,
         kind: "truck_arrival",
@@ -800,7 +881,7 @@ function parseSlackDetailLines(lines: string[]): Array<{ label: string; value: s
 }
 
 export function formatSlackAlert(alert: SlackOpsAlert): string {
-  if (alert.plainText) return slackEscape(alert.plainText);
+  if (alert.plainText) return alert.plainText;
   const icon = alert.severity === "critical" ? ":rotating_light:" : ":warning:";
   return formatSlackMessage({
     icon,

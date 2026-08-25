@@ -39,12 +39,17 @@ async function main() {
         },
         {
           ts: "1786718500.000003",
-          text: ":warning: *New same-day appointment: JK4052608*\nTest Customer · 12:00 PM - 01:00 PM · Truck# 1 · 123 Test Street\n*Next:* Confirm coverage.\n<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052608|Open in OpsCenter>\n_Alert ID: add_on:2026-08-14:appt:4039430_",
+          text: ":warning: *New Appointment*\n<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052608|JK4052608>\n12:00 PM - 01:00 PM\n*Test Customer*\n(504) 555-0100\n123 Test Street",
           bot_profile: { name: "OpsCenter Alerts" },
         },
         {
           ts: "1786718750.000004",
-          text: ":white_check_mark: JK4052579 closed out.",
+          text: ":white_check_mark: *Job Closed*\n*Job:* <https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052579|JK4052579>",
+          bot_profile: { name: "OpsCenter Alerts" },
+        },
+        {
+          ts: "1786718800.000005",
+          text: ":x: *Cancellation*\n*<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052608|JK4052608>*\n12:00 PM - 01:00 PM\n*Test Customer*\n(504) 555-0100\n123 Test Street\n*Reason:* Customer cancelled",
           bot_profile: { name: "OpsCenter Alerts" },
         },
         {
@@ -109,26 +114,28 @@ async function main() {
   });
 
   assert.equal(digest.status, "ready");
-  assert.equal(digest.messages.length, 5);
+  assert.equal(digest.messages.length, 6);
   assert.equal(digest.messages[0].text, "✅ Resolved");
   assert.equal(digest.messages[0].threadReply, true);
-  assert.equal(digest.messages[1].closeout?.jobNumber, "JK4052579");
-  assert.deepEqual(digest.messages[1].closeout?.lines, [
-    "Load: 1/3 ($388.00).",
+  assert.equal(digest.messages[1].appointment?.title, "Cancellation");
+  assert.equal(digest.messages[1].appointment?.jobNumber, "JK4052608");
+  assert.equal(digest.messages[2].closeout?.jobNumber, "JK4052579");
+  assert.deepEqual(digest.messages[2].closeout?.lines, [
+    "Load: $388.00 (1/3).",
     "Discount: $30.00.",
-    "Job total: $358.00.",
-    "Tip: $71.60.",
-    "Charged: Card ending 9896 ($429.60).",
+    "Tips: $71.60.",
+    "Total: $358.00.",
+    "Card Ending: 9896.",
   ]);
-  assert.equal(digest.messages[1].closeout?.href, "/jobs?date=2026-08-14#job-jk4052579");
-  assert.equal(digest.messages[2].channel, "#jobs-no");
-  assert.equal(digest.messages[2].appointment?.jobNumber, "JK4052608");
-  assert.equal(digest.messages[2].appointment?.phone, "(504) 555-0100");
-  assert.deepEqual(digest.messages[2].appointment?.items, ["Sofa", "Desk"]);
-  assert.equal(digest.messages[2].appointment?.href, "/jobs?date=2026-08-14#job-jk4052608");
-  assert.doesNotMatch(digest.messages[2].text, /Alert ID|Truck# 1|Open in OpsCenter/);
-  assert.equal(digest.messages[3].text, "🚚 Truck 3 arrived onsite.");
-  assert.equal(digest.messages[4].text, "Older alert");
+  assert.equal(digest.messages[2].closeout?.href, "/jobs?date=2026-08-14#job-jk4052579");
+  assert.equal(digest.messages[3].channel, "#jobs-no");
+  assert.equal(digest.messages[3].appointment?.jobNumber, "JK4052608");
+  assert.equal(digest.messages[3].appointment?.phone, "(504) 555-0100");
+  assert.deepEqual(digest.messages[3].appointment?.items, ["Sofa", "Desk"]);
+  assert.equal(digest.messages[3].appointment?.href, "/jobs?date=2026-08-14#job-jk4052608");
+  assert.doesNotMatch(digest.messages[3].text, /Alert ID|Truck# 1|Open in OpsCenter/);
+  assert.equal(digest.messages[4].text, "🚚 Truck 3 arrived onsite.");
+  assert.equal(digest.messages[5].text, "Older alert");
   assert.equal(requests.filter((request) => request.pathname.endsWith("conversations.history")).length, 2);
   assert.ok(requests.every((request) => request.searchParams.get("oldest") === "1786683600"));
   assert.ok(requests.every((request) => request.searchParams.has("latest")));

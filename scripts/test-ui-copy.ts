@@ -9,8 +9,11 @@ assert.equal(titleCaseLabel("QBO connection status"), "QBO Connection Status");
 assert.equal(titleCaseLabel("Expenses & earnings"), "Expenses & Earnings");
 
 const jobsMapSource = readFileSync(new URL("../components/JobsMap.tsx", import.meta.url), "utf8");
-for (const label of [">U/A</span>", ">GPS</span>", ">Visited</span>", ">On Site", ">NO</span>", ">BR</span>", ">NS</span>", ">JP</span>", ">LF</span>"]) {
+for (const label of [">GPS</span>", ">Visited</span>", ">On Site"]) {
   assert.ok(jobsMapSource.includes(label), `Dispatch legend is missing ${label}`);
+}
+for (const abbreviation of ["NO", "BR", "NS", "JP", "LF"]) {
+  assert.ok(jobsMapSource.includes(`abbreviation: "${abbreviation}"`), `Dispatch territory shortcut is missing ${abbreviation}`);
 }
 for (const retiredLabel of [
   "Unassigned · muted territory color",

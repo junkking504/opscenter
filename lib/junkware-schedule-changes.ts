@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { appointmentChannelId, buildAddOnSlackNotification, buildCancellationSlackNotification, formatSlackAlert, type SlackOpsAlert } from "@/lib/slack-alerts";
+import { formatSlackMessage } from "@/lib/slack-message-format";
 import { truckSlackChannelId } from "@/lib/slack-truck-channels";
 import type { AnyRecord } from "@/lib/opsData";
 
@@ -65,7 +66,8 @@ function scheduleShape(row: AnyRecord): string {
 }
 
 function href(date: string, row: AnyRecord): string {
-  return `/jobs?date=${encodeURIComponent(date)}#job-${jobNumber(row).replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
+  const origin = String(process.env.SLACK_OPSCENTER_BASE_URL || "https://ops.junk-king.app").replace(/\/$/, "");
+  return `${origin}/jobs?date=${encodeURIComponent(date)}#job-${jobNumber(row).replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
 }
 
 function rescheduleAlert(date: string, previous: AnyRecord, current: AnyRecord): SlackOpsAlert {
@@ -87,17 +89,22 @@ function rescheduleAlert(date: string, previous: AnyRecord, current: AnyRecord):
 
 function closeoutAlert(date: string, row: AnyRecord): SlackOpsAlert {
   const truck = first(row, ["truck", "assigned_truck", "truck_number"]);
+  const number = jobNumber(row);
   return {
     fingerprint: "",
     kind: "job_closed",
     lifecycle: "notification",
     severity: "warning",
     channelId: truckSlackChannelId(truck, appointmentChannelId(first(row, ["normalized_territory", "territory", "source_territory", "market"]))),
-    title: "",
+    title: "Job Closed",
     detail: "",
     nextAction: "",
     href: "",
-    plainText: `:white_check_mark: ${jobNumber(row)} closed out.`,
+    plainText: formatSlackMessage({
+      icon: ":white_check_mark:",
+      title: "Job Closed",
+      fields: [{ label: "Job", value: number, href: href(date, row) }],
+    }),
   };
 }
 

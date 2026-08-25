@@ -5583,7 +5583,7 @@ a.ops-jobs-map-selection-phone:focus-visible {
 .ops-job-closeout-editor[open] > summary::before { content: "−"; }
 
 .ops-job-closeout-editor-body { display: grid; gap: 12px; padding: 0 12px 12px; }
-.ops-closeout-editor-heading { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ops-closeout-editor-heading { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .ops-closeout-editor-heading > div { padding: 9px 10px; border-radius: 8px; background: rgba(30, 41, 59, .92); }
 .ops-closeout-editor-heading span,
 .ops-closeout-editor-section label > span { display: block; margin-bottom: 4px; color: #cbd5e1; font-size: 13px; line-height: 1.3; font-weight: 750; letter-spacing: .005em; }

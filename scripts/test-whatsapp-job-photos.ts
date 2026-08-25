@@ -23,6 +23,10 @@ import {
   formatWhatsAppPhotoSlackNotification,
   recordWhatsAppPhotoSlackUpload,
 } from "@/lib/whatsapp-job-photo-slack";
+import {
+  queueVerifiedWhatsAppJobPhotoBatchConfirmations,
+  recordVerifiedWhatsAppJobPhoto,
+} from "@/lib/whatsapp-job-photo-confirmations";
 
 async function main(): Promise<void> {
 const now = new Date("2026-08-11T15:00:00.000Z");
@@ -135,6 +139,26 @@ try {
   assert.equal(enqueueWhatsAppImage(parsed.images[0]).duplicate, true);
   assert.equal(queuedWhatsAppImages().length, 1);
 
+  process.env.WHATSAPP_CREW_EXPENSE_STATE_DIR = temporaryState;
+  process.env.WHATSAPP_JOB_PHOTO_BATCH_QUIET_SECONDS = "60";
+  const confirmationPhoto = {
+    messageId: "batch-image-1",
+    jkNumber: "JK4025001",
+    jobDate: "2026-08-11",
+    senderPhone: "15045550101",
+    phoneNumberId: "12345",
+    receivedAt: now.toISOString(),
+  };
+  assert.equal(recordVerifiedWhatsAppJobPhoto({ ...confirmationPhoto, now }).duplicate, false);
+  assert.equal(recordVerifiedWhatsAppJobPhoto({ ...confirmationPhoto, messageId: "batch-image-2", now: new Date(now.getTime() + 10_000) }).duplicate, false);
+  assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 50_000)).queued, 0);
+  assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 70_000)).queued, 1);
+  const confirmationOutbox = path.join(temporaryState, "outbox-incoming");
+  const confirmationFiles = fs.readdirSync(confirmationOutbox);
+  assert.equal(confirmationFiles.length, 1);
+  const confirmation = JSON.parse(fs.readFileSync(path.join(confirmationOutbox, confirmationFiles[0]), "utf8")) as { text?: string };
+  assert.equal(confirmation.text, "2 photos for JK4025001 uploaded and verified in JunkWare.");
+
   const slackBatch = {
     version: 2 as const,
     batchId: "2026-08-11:JK4025001:image-1",
@@ -149,10 +173,12 @@ try {
     ],
   };
   const formatted = formatWhatsAppPhotoSlackNotification(slackBatch);
-  assert.match(formatted, /Job photos verified/);
-  assert.match(formatted, /JK4025001/);
-  assert.match(formatted, /2 photos · 1 before · 1 after/);
-  assert.match(formatted, /Verified in JunkWare/);
+  assert.equal(formatted, [
+    ":camera_with_flash: *Photos Uploaded*",
+    "*<https://ops.junk-king.app/jobs?date=2026-08-11#job-jk4025001|JK4025001>*",
+    "2 photos",
+    "Verified",
+  ].join("\n"));
   assert.doesNotMatch(formatted, /All photos in this WhatsApp batch/);
   assert.doesNotMatch(formatted, /15045550101/);
 
@@ -223,13 +249,15 @@ try {
   assert.equal(completionBody.channel_id, "C_TEST_TRUCK_8");
   assert.equal(completionBody.files?.length, 2);
   assert.match(String(completionBody.initial_comment), /JK4025001/);
-  assert.match(String(completionBody.initial_comment), /Job photos verified/);
+  assert.match(String(completionBody.initial_comment), /Photos Uploaded/);
   assert.equal(recordWhatsAppPhotoSlackUpload({ ...firstPhoto, status: "completed", filePath: firstPhotoFile, now }).duplicate, true);
   const duplicateDelivery = await deliverWhatsAppPhotoSlackNotifications({ now });
   assert.equal(duplicateDelivery.attempted, 0);
 } finally {
   fs.rmSync(temporaryState, { recursive: true, force: true });
   delete process.env.WHATSAPP_JOB_PHOTO_STATE_DIR;
+  delete process.env.WHATSAPP_CREW_EXPENSE_STATE_DIR;
+  delete process.env.WHATSAPP_JOB_PHOTO_BATCH_QUIET_SECONDS;
   delete process.env.SLACK_OPSCENTER_ALERTS_ENABLED;
   delete process.env.SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED;
   delete process.env.SLACK_WHATSAPP_PHOTO_ATTACHMENTS_ENABLED;

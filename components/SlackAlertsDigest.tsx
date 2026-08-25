@@ -97,13 +97,12 @@ export default function SlackAlertsDigest({
                 {message.appointment ? (
                   <div className={styles.digestAppointment}>
                     <p className={styles.digestAppointmentTitle}>
-                      <span aria-hidden="true">⚠️</span>{" "}
-                      {message.appointment.title}:{" "}
-                      <Link href={message.appointment.href}>{message.appointment.jobNumber}</Link>
+                      <span aria-hidden="true">⚠️</span>{" "}{message.appointment.title}
                     </p>
-                    <p>
-                      {message.appointment.customerName} · {message.appointment.phone} · {message.appointment.appointmentTime}
-                    </p>
+                    <Link className={styles.digestAppointmentJob} href={message.appointment.href}>{message.appointment.jobNumber}</Link>
+                    <p>{message.appointment.appointmentTime}</p>
+                    <p className={styles.digestAppointmentCustomer}>{message.appointment.customerName}</p>
+                    {message.appointment.phone ? <a className={styles.digestAppointmentPhone} href={`tel:${message.appointment.phone.replace(/[^\d+]/g, "")}`}>{message.appointment.phone}</a> : null}
                     <p>{message.appointment.address}</p>
                     {message.appointment.items.length ? (
                       <p>Items: {message.appointment.items.join("; ")}</p>

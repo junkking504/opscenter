@@ -42,12 +42,14 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-cd "$APP_DIR"
 export NODE_ENV=production
 export OPSBOT_DATA_DIR="${OPSBOT_DATA_DIR:-$USER_HOME/.openclaw/workspace/opsbot/data}"
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 while true; do
+  # APP_DIR is the immutable-release symlink. Re-enter it every cycle so this
+  # long-running worker adopts the active formatter after a release switch.
+  cd "$APP_DIR"
   if ! ./node_modules/.bin/tsx scripts/process-whatsapp-job-photos.ts; then
     echo "$LOG_PREFIX processing cycle failed; retrying in 30 seconds" >&2
     sleep 30

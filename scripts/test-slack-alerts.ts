@@ -84,7 +84,7 @@ assert.equal(
     jobNumber: "JK4052608",
     territory: "New Orleans",
     customerName: "Test Customer",
-    phone: "(504) 555-0100",
+    phone: "<tel:(504)555-0100|(504) 555-0100>",
     address: "4034 Tchoupitoulas St, New Orleans, 70115",
     appointmentTime: "12:00 PM - 01:00 PM",
     appointmentType: "Job",
@@ -113,6 +113,31 @@ assert.equal(
   }, "2026-08-14").channelId,
   "C_TEST_BR",
 );
+const cancellationSlackAlert = buildCancellationSlackNotification({
+  id: "appt:4037405",
+  appointmentId: "4037405",
+  jobNumber: "JK4050583",
+  territory: "Baton Rouge",
+  customerName: "Test Customer",
+  phone: "(225) 555-0100",
+  address: "175 Burgin Ave, Baton Rouge, 70808",
+  appointmentTime: "08:00 AM - 09:00 AM",
+  appointmentType: "Job",
+  assignedTruck: "Truck# 6",
+  items: [],
+  href: "/jobs?date=2026-08-14#job-jk4050583",
+  cancelledBy: "Dispatcher",
+  cancellationReason: "Test Customer 2255550100 175 Burgin Ave Baton Rouge LA 70808 Customer cancelled",
+}, "2026-08-14");
+assert.equal(formatSlackAlert(cancellationSlackAlert), [
+  ":x: *Cancellation*",
+  "*<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4050583|JK4050583>*",
+  "08:00 AM - 09:00 AM",
+  "Test Customer",
+  "<tel:+12255550100|(225) 555-0100>",
+  "175 Burgin Ave, Baton Rouge, 70808",
+  "*Reason:* Customer cancelled",
+].join("\n"));
 assert.equal(normalizeSlackTruckNumber("Truck# 4"), 4);
 assert.equal(normalizeSlackTruckNumber("Virtual Truck"), null);
 assert.equal(truckSlackChannelId("Truck 4", "C_TEST_FALLBACK"), "C_TEST_TRUCK_4");
@@ -147,13 +172,13 @@ const addOnSlackAlert = buildAddOnSlackNotification({
 }, "2026-08-12");
 assert.equal(addOnSlackAlert.channelId, "C_TEST_NO");
 assert.equal(formatSlackAlert(addOnSlackAlert), [
-  ":warning: *New same-day appointment: JK4025000*",
-  "*Customer:* Test Customer",
-  "*Phone:* (504) 555-0100",
-  "*Time:* 1:00 PM - 3:00 PM",
-  "*Address:* 123 Test Street",
+  ":warning: *New Appointment*",
+  "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4025000|JK4025000>",
+  "1:00 PM - 3:00 PM",
+  "*Test Customer*",
+  "<tel:+15045550100|(504) 555-0100>",
+  "123 Test Street",
   "*Items:* Sofa; Desk",
-  "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4025000|Open in OpsCenter>",
 ].join("\n"));
 assert.doesNotMatch(formatSlackAlert(addOnSlackAlert), /\*Next:\*/);
 assert.doesNotMatch(formatSlackAlert(addOnSlackAlert), /Truck# 4|Alert ID/);
@@ -169,6 +194,10 @@ const completedCloseoutRows = [
     closeout: {
       loadSize: "4 (1/2)",
       loadPrice: "$538.00",
+      otherCharges: [
+        { name: "Labor", amount: "$225.00" },
+        { name: "CC Surcharge (Card Present)", amount: "$24.69" },
+      ],
       discount: "$30.00",
       tip: "$50.80",
       total: "$558.80",
@@ -274,42 +303,45 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
       text: [
-        ":white_check_mark: *JK4051000 closed out*",
-        "*Job:* JK4051000",
-        "*Load:* 1/2 ($538.00)",
+        ":white_check_mark: *Job Closed*",
+        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051000|JK4051000>*",
+        "*Load:* $538.00 (1/2)",
+        "*Labor:* $225.00",
+        "*CC 3%:* $24.69",
         "*Discount:* $30.00",
-        "*Job total:* $508.00",
-        "*Tip:* $50.80",
-        "*Charged:* Card ending 3013 ($558.80)",
+        "*Tips:* $50.80",
+        "*Total:* $508.00",
+        "*Card Ending:* 3013",
       ].join("\n"),
     },
     {
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_6",
       text: [
-        ":white_check_mark: *JK4051001 closed out*",
-        "*Job:* JK4051001",
-        "*Tip:* $0.00",
-        "*Charged:* Check #1487 ($198.00)",
+        ":white_check_mark: *Job Closed*",
+        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051001|JK4051001>*",
+        "*Tips:*",
+        "*Check:* #1487 ($198.00)",
       ].join("\n"),
     },
     {
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
       text: [
-        ":white_check_mark: *JK4051003 closed out*",
-        "*Job:* JK4051003",
-        "*Tip:* $15.00",
-        "*Charged:* Card ending 4242 ($100.00); Cash ($50.00)",
+        ":white_check_mark: *Job Closed*",
+        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051003|JK4051003>*",
+        "*Tips:* $15.00",
+        "*Card Ending:* 4242",
+        "*Cash:* ($50.00)",
       ].join("\n"),
     },
     {
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_4",
       text: [
-        ":white_check_mark: *JK4051005 closed out*",
-        "*Job:* JK4051005",
-        "*Tip:* $0.00",
+        ":white_check_mark: *Job Closed*",
+        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051005|JK4051005>*",
+        "*Tips:*",
       ].join("\n"),
     },
   ],
@@ -320,6 +352,7 @@ const truckArrivalAlerts = buildTruckArrivalSlackNotifications("2026-08-12", [
     appointment_id: "4037246",
     jk_number: "JK4050424",
     customer_name: "Test Customer",
+    phone: "(504) 555-0100",
     address: "123 Test Street, New Orleans, LA 70115",
     truck_number: "Truck 4",
     visit_count: 2,
@@ -333,6 +366,7 @@ const truckArrivalAlerts = buildTruckArrivalSlackNotifications("2026-08-12", [
     appointment_id: "4037246",
     jk_number: "JK4050424",
     customer_name: "Test Customer",
+    phone: "(504) 555-0100",
     address: "123 Test Street, New Orleans, LA 70115",
     truck_number: "Truck 4",
     visit_count: 2,
@@ -360,22 +394,24 @@ assert.deepEqual(
       kind: "truck_arrival",
       channelId: "C_TEST_TRUCK_4",
       text: [
-        ":truck: *Truck arrived onsite*",
-        "*Truck:* Truck 4",
-        "*Job:* JK4050424",
-        "*Customer:* Test Customer",
-        "*Address:* 123 Test Street, New Orleans, LA 70115",
+        ":truck: *Truck 4 On-site*",
+        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4050424|JK4050424>*",
+        "1:06 PM",
+        "Test Customer",
+        "<tel:+15045550100|(504) 555-0100>",
+        "123 Test Street, New Orleans, LA 70115",
       ].join("\n"),
     },
     {
       kind: "truck_arrival",
       channelId: "C_TEST_TRUCK_4",
       text: [
-        ":truck: *Truck arrived onsite*",
-        "*Truck:* Truck 4",
-        "*Job:* JK4050424",
-        "*Customer:* Test Customer",
-        "*Address:* 123 Test Street, New Orleans, LA 70115",
+        ":truck: *Truck 4 On-site*",
+        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4050424|JK4050424>*",
+        "1:41 PM",
+        "Test Customer",
+        "<tel:+15045550100|(504) 555-0100>",
+        "123 Test Street, New Orleans, LA 70115",
       ].join("\n"),
     },
   ],
@@ -457,6 +493,7 @@ fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), J
     appt_id: "503",
     job_id: "JK4051503",
     customer_name: "Arrival Customer",
+    phone: "(504) 555-0123",
     address: "503 Arrival Street, New Orleans, LA 70115",
   }],
   completed: [existingCloseout],
@@ -502,11 +539,12 @@ try {
   assert.deepEqual(arrivalRun.posted.map((alert) => alert.kind), ["truck_arrival"]);
   assert.deepEqual(postedMessages, [
     [
-      ":truck: *Truck arrived onsite*",
-      "*Truck:* Truck 6",
-      "*Job:* JK4051503",
-      "*Customer:* Arrival Customer",
-      "*Address:* 503 Arrival Street, New Orleans, LA 70115",
+      ":truck: *Truck 6 On-site*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|JK4051503>*",
+      "1:47 PM",
+      "Arrival Customer",
+      "<tel:+15045550123|(504) 555-0123>",
+      "503 Arrival Street, New Orleans, LA 70115",
     ].join("\n"),
   ]);
   postedMessages.length = 0;
@@ -525,10 +563,10 @@ try {
   assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed", "job_closed_payment"]);
   assert.deepEqual(postedMessages, [
     [
-      ":white_check_mark: *JK4051502 closed out*",
-      "*Job:* JK4051502",
-      "*Tip:* $20.00",
-      "*Charged:* Check #2201 ($220.00)",
+      ":white_check_mark: *Job Closed*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|JK4051502>*",
+      "*Tips:* $20.00",
+      "*Check:* #2201 ($220.00)",
     ].join("\n"),
     [
       ":credit_card: *Payment recorded*",
@@ -550,7 +588,11 @@ try {
     closeout: { tip: "$10.00" },
   });
   assert.deepEqual(directCloseout, { attempted: true, posted: true, duplicate: false });
-  assert.equal(postedMessages.at(-1), ":white_check_mark: JK4051503 closed out. Tip: $10.00.");
+  assert.equal(postedMessages.at(-1), [
+    ":white_check_mark: *Job Closed*",
+    "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|JK4051503>*",
+    "*Tips:* $10.00",
+  ].join("\n"));
 
   const duplicateDirectCloseout = await publishVerifiedTruckCloseout({
     appointmentId: "503",
@@ -560,7 +602,7 @@ try {
     closeout: { tip: "$10.00" },
   });
   assert.deepEqual(duplicateDirectCloseout, { attempted: false, posted: false, duplicate: true });
-  assert.equal(postedMessages.filter((message) => message.includes("JK4051503 closed out")).length, 1);
+  assert.equal(postedMessages.filter((message) => message.includes("|JK4051503>")).length, 1);
 } finally {
   globalThis.fetch = originalFetch;
   delete process.env.SLACK_OPSCENTER_STATE_FILE;

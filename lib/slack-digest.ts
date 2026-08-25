@@ -190,6 +190,7 @@ export function slackTextToPlainText(value: string): string {
   const emoji: Record<string, string> = {
     rotating_light: "🚨",
     warning: "⚠️",
+    x: "❌",
     white_check_mark: "✅",
     truck: "🚚",
     camera_with_flash: "📸",
@@ -241,13 +242,17 @@ function appointmentForSlackAlert(
   lookup: Map<string, AddOnAppointment>,
 ): SlackDigestMessage["appointment"] | undefined {
   const plainText = slackTextToPlainText(rawText);
-  const titleMatch = plainText.match(/(?:⚠️\s*)?(New same-day appointment|Appointment cancelled):\s*(JK\d+)/i);
-  if (!titleMatch) return undefined;
+  const legacyTitleMatch = plainText.match(/(?:⚠️\s*)?(New same-day appointment|Appointment cancelled):\s*(JK\d+)/i);
+  const addOnTitleMatch = plainText.match(/(?:⚠️\s*)?(New Appointment)\s*\n\s*(JK\d+)/i);
+  const cancellationTitleMatch = plainText.match(/(?:❌\s*)?(Cancellation)\s*\n\s*(JK\d+)/i);
+  const title = legacyTitleMatch?.[1] || addOnTitleMatch?.[1] || cancellationTitleMatch?.[1];
+  const jobNumber = legacyTitleMatch?.[2] || addOnTitleMatch?.[2] || cancellationTitleMatch?.[2];
+  if (!title || !jobNumber) return undefined;
 
   const fingerprintMatch = rawText.match(/Alert ID:\s*(?:add_on|cancellation):\d{4}-\d{2}-\d{2}:(appt:[^\s_*]+)/i);
   const appointment = (
     (fingerprintMatch ? lookup.get(fingerprintMatch[1].toLowerCase()) : undefined)
-    || lookup.get(`job:${titleMatch[2]}`.toLowerCase())
+    || lookup.get(`job:${jobNumber}`.toLowerCase())
   );
   if (!appointment) return undefined;
 
@@ -257,7 +262,7 @@ function appointmentForSlackAlert(
     ?.replace(/^Next:\s*/i, "")
     .trim() || "";
   return {
-    title: titleMatch[1].replace(/^./, (value) => value.toUpperCase()),
+    title: title.replace(/^./, (value) => value.toUpperCase()),
     jobNumber: appointment.jobNumber,
     customerName: appointment.customerName,
     phone: appointment.phone,
@@ -283,7 +288,9 @@ function closeoutForSlackAlert(
   lookup: Map<string, AnyRecord>,
   date: string,
 ): SlackDigestMessage["closeout"] | undefined {
-  const match = slackTextToPlainText(rawText).match(/^✅\s*(JK\d+)\s+closed out\./i);
+  const plainText = slackTextToPlainText(rawText);
+  const match = plainText.match(/^✅\s*Job Closed\s*\nJob:\s*(JK\d+)/i)
+    || plainText.match(/^✅\s*(JK\d+)\s+closed out\./i);
   if (!match) return undefined;
   const details = truckCloseoutDetails(lookup.get(match[1].toLowerCase()) || {});
   if (!details) return undefined;
@@ -313,7 +320,8 @@ function digestMessage(
     appointment.items.length ? `Items: ${appointment.items.join("; ")}` : "",
     appointment.nextAction ? `Next: ${appointment.nextAction}` : "",
   ].filter(Boolean).join("\n") : closeout ? [
-    `✅ ${closeout.jobNumber} closed out.`,
+    "✅ Job Closed",
+    `Job: ${closeout.jobNumber}`,
     ...closeout.lines,
   ].join("\n") : plainText;
   const epochMs = Number(ts) * 1_000;

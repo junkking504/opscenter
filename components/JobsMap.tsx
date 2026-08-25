@@ -458,7 +458,7 @@ function scheduleJobState(job: JobsMapPoint): { state: ScheduleJobState; label: 
     return { state: "canceled", label: job.status || "Canceled" };
   }
   if (isClosedScheduleJob(job)) {
-    return { state: "completed", label: job.statusBucket === "Estimate" ? "Closed estimate" : "Completed" };
+    return { state: "completed", label: job.statusBucket === "Estimate" ? "Completed estimate" : "Completed job" };
   }
   if (job.truckOnSite) return { state: "on-site", label: "Truck on location" };
   if (isVisitedUnclosedScheduleJob(job)) {

@@ -27,6 +27,7 @@ REQUESTED_REF="${1:-}"
 RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"
 RELEASE_RETENTION="${OPSCENTER_RELEASE_RETENTION:-8}"
 RELEASE_LSOF_TIMEOUT_SECONDS="${OPSCENTER_RELEASE_LSOF_TIMEOUT_SECONDS:-5}"
+RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS="${OPSCENTER_SERVICE_RESTART_TIMEOUT_SECONDS:-20}"
 ALLOW_NON_FORWARD="${2:-0}"
 DEPLOY_LOCK_DIR="$DEPLOY_ROOT/.deploy-lock"
 DEPLOY_LOCK_HELD=false
@@ -79,12 +80,33 @@ service_loaded() {
   launchctl print "gui/$(id -u)/$1" >/dev/null 2>&1
 }
 
+restart_loaded_service_with_timeout() {
+  local label="$1"
+  local restart_pid restart_status=0 remaining
+
+  launchctl kickstart -k "gui/$(id -u)/$label" &
+  restart_pid=$!
+  remaining="$RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS"
+  while kill -0 "$restart_pid" 2>/dev/null; do
+    if (( remaining == 0 )); then
+      kill "$restart_pid" 2>/dev/null || true
+      wait "$restart_pid" 2>/dev/null || true
+      echo "Timed out restarting loaded service after ${RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS}s: $label" >&2
+      return 1
+    fi
+    sleep 1
+    remaining=$((remaining - 1))
+  done
+  wait "$restart_pid" || restart_status=$?
+  return "$restart_status"
+}
+
 restart_loaded_service() {
   local label="$1"
   service_loaded "$label" || return 0
 
   echo "Restarting loaded service: $label"
-  launchctl kickstart -k "gui/$(id -u)/$label" || {
+  restart_loaded_service_with_timeout "$label" || {
     echo "Failed to restart loaded service: $label" >&2
     return 1
   }

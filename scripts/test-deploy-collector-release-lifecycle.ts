@@ -39,6 +39,16 @@ assert.match(
 );
 assert.match(
   deployer,
+  /RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS="\$\{OPSCENTER_SERVICE_RESTART_TIMEOUT_SECONDS:-20\}"/,
+  "release-bound collector restarts must have a bounded timeout",
+);
+assert.match(
+  deployer,
+  /restart_loaded_service_with_timeout\(\)[\s\S]*?launchctl kickstart -k[\s\S]*?Timed out restarting loaded service/,
+  "a hung collector restart must fail deployment health instead of holding the deploy lock",
+);
+assert.match(
+  deployer,
   /\/usr\/sbin\/lsof -n -P -F p \+D "\$candidate"/,
   "pruning must inspect candidate cwd and open-file records without emitting paths",
 );

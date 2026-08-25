@@ -91,6 +91,9 @@ history reconciliation, SearchKings collector, all installed per-market
 schedule watchers, the LinxUp collector, and browser-session keepalive. The
 WhatsApp worker retains its existing opt-out setting. A restart failure stops
 the deployment and restores the prior release rather than being ignored.
+Each release-bound service restart is also bounded to 20 seconds by default
+(`OPSCENTER_SERVICE_RESTART_TIMEOUT_SECONDS`); a hung `launchctl kickstart`
+is treated as that same deployment-health failure and rolls back cleanly.
 Before pruning an old release, the deployer runs a bounded five-second
 PID-only `lsof +D` scan for that candidate. It catches process working
 directories, executable text, and open files beneath the release. A process

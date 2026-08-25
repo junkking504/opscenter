@@ -1918,6 +1918,23 @@ function readScheduleFollowups(date: string, kind: "estimates" | "unclosed"): Jo
     .sort((a, b) => followupRecency(b) - followupRecency(a) || b.sourceDate.localeCompare(a.sourceDate));
 }
 
+function readAllAppointmentSearchRows(date: string): JobRow[] {
+  const latestByAppointment = new Map<string, JobRow>();
+  const dates = Array.from(new Set([date, ...availableDates(), ...availableJobDates()]))
+    .sort((a, b) => b.localeCompare(a));
+
+  for (const sourceDate of dates) {
+    for (const job of readJobRows(sourceDate)) {
+      const identity = job.appointmentId || job.jkNumber || `${job.customerName}|${job.address}`;
+      if (!identity || latestByAppointment.has(identity)) continue;
+      latestByAppointment.set(identity, { ...job, sourceDate });
+    }
+  }
+
+  return Array.from(latestByAppointment.values())
+    .sort((a, b) => b.sourceDate.localeCompare(a.sourceDate) || compareJobSchedule(a, b));
+}
+
 
 function groupJobsByTerritory(jobs: JobRow[]): [string, JobRow[]][] {
   const groups = new Map<string, JobRow[]>();
@@ -2947,13 +2964,6 @@ export default async function JobsPage({
     : monthCalendarDays.find((day) => day?.jobs.length)?.date || `${date.slice(0, 7)}-01`;
   const selectedCalendarDate = requestedCalendarDay || defaultCalendarDay;
   const selectedCalendarDay = monthCalendarDays.find((day) => day?.date === selectedCalendarDate) || null;
-  const jobs = view === "daily"
-    ? applyJobRouteAssignmentOverrides(readJobRows(date), date)
-    : monthlySummary?.jobs || readJobRows(date);
-  const followupJobs = isFollowupWorkspace
-    ? readScheduleFollowups(date, isOpenEstimatesWorkspace ? "estimates" : "unclosed")
-    : [];
-  const callAheadStatuses = readJobCallAheadStatuses();
   const filters: JobsFilters = {
     territory: readFilterValue(params?.territory),
     status: readFilterValue(params?.status),
@@ -2962,6 +2972,16 @@ export default async function JobsPage({
     q: readFilterValue(params?.q),
     siteTime: readFilterValue(params?.siteTime),
   };
+  const isGlobalAppointmentSearch = isDispatchWorkspace && Boolean(filters.q.trim());
+  const jobs = view === "daily"
+    ? isGlobalAppointmentSearch
+      ? readAllAppointmentSearchRows(date)
+      : applyJobRouteAssignmentOverrides(readJobRows(date), date)
+    : monthlySummary?.jobs || readJobRows(date);
+  const followupJobs = isFollowupWorkspace
+    ? readScheduleFollowups(date, isOpenEstimatesWorkspace ? "estimates" : "unclosed")
+    : [];
+  const callAheadStatuses = readJobCallAheadStatuses();
   let filteredJobs = filterJobs(jobs, filters);
   const siteTimePreview = monthlySummary ? Array.from(monthlySummary.siteTimeByKey.values()) : readAppointmentSiteTime(date);
   const siteTimeByKey = new Map<string, SiteTimeAppointment>();
@@ -3604,7 +3624,7 @@ export default async function JobsPage({
         </form>
         {hasActiveFilters ? (
           <div className="ops-jobs-active-filters" aria-label="Active filters">
-            <span>Showing {filterCount} of {jobs.length}</span>
+            <span>{isGlobalAppointmentSearch ? "Searching all appointment dates · " : ""}Showing {filterCount} of {jobs.length}</span>
             {filters.q ? <a href={buildJobsHref({ date, view, workspace, ...filters, q: "" })}>Search: {filters.q} ×</a> : null}
             {filters.territory ? <a href={buildJobsHref({ date, view, workspace, ...filters, territory: "" })}>{filters.territory} ×</a> : null}
             {filters.status ? <a href={buildJobsHref({ date, view, workspace, ...filters, status: "" })}>{filters.status} ×</a> : null}
@@ -3733,7 +3753,7 @@ export default async function JobsPage({
                               <div className="ops-appointment-card-identity">
                                 <div className="ops-appointment-card-reference">
                                   <div className="ops-appointment-card-reference-row">
-                                    <span className="ops-appointment-card-time">{safeText(job.appointmentTime)}</span>
+                                    <span className="ops-appointment-card-time">{isGlobalAppointmentSearch ? `${jobActivityDate(job.sourceDate)} · ` : ""}{safeText(job.appointmentTime)}</span>
                                     {punctuality ? (
                                       <span className={`ops-punctuality-badge ${punctuality.tone}`}>{punctuality.label}</span>
                                     ) : null}
@@ -4013,7 +4033,7 @@ export default async function JobsPage({
                             <div className="ops-appointment-card-identity">
                               <div className="ops-appointment-card-reference">
                                 <div className="ops-appointment-card-reference-row">
-                                  <span className="ops-appointment-card-time">{safeText(job.appointmentTime)}</span>
+                                  <span className="ops-appointment-card-time">{isGlobalAppointmentSearch ? `${jobActivityDate(job.sourceDate)} · ` : ""}{safeText(job.appointmentTime)}</span>
                                   {punctuality ? (
                                     <span className={`ops-punctuality-badge ${punctuality.tone}`}>{punctuality.label}</span>
                                   ) : null}

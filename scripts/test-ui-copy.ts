@@ -34,6 +34,8 @@ assert.ok(
   jobsPageSource.includes(".sort((a, b) => followupRecency(b) - followupRecency(a)"),
   "The follow-up page must order jobs from newest to oldest.",
 );
+assert.ok(jobsPageSource.includes("function readAllAppointmentSearchRows"), "Appointment search must be able to read records across dates.");
+assert.ok(jobsPageSource.includes("isGlobalAppointmentSearch\n      ? readAllAppointmentSearchRows(date)"), "Appointment search must not be limited to the current Schedule date.");
 
 const myPaySource = readFileSync(new URL("../app/my-pay/page.tsx", import.meta.url), "utf8");
 const payPeriodStart = myPaySource.indexOf("function PayPeriodView");

@@ -32,7 +32,8 @@ assert.deepEqual(events.map((event) => event.kind).sort(), ["cancelled", "job_cl
 assert.equal(events.find((event) => event.kind === "job_closed")?.alert.channelId, "C_TEST_TRUCK_6");
 assert.equal(formatSlackAlert(events.find((event) => event.kind === "job_closed")!.alert), [
   ":white_check_mark: *Job Closed*",
-  "*Job:* <https://ops.junk-king.app/jobs?date=2026-08-17#job-jk4051001|JK4051001>",
+  "*<https://ops.junk-king.app/jobs?date=2026-08-17#job-jk4051001|JK4051001>*",
+  "*Tips:*",
 ].join("\n"));
 assert.match(String(events.find((event) => event.kind === "rescheduled")?.alert.detail), /Previous: 10:00 AM/);
 assert.deepEqual(detectScheduleChanges(null, current), []);

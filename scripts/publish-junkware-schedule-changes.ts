@@ -25,11 +25,13 @@ function loadToken(): string {
 async function main() {
   const dataDir = argument("--data-dir") || String(process.env.OPSCENTER_DATA_DIR || "").trim();
   const date = argument("--date");
+  const snapshotFile = argument("--snapshot-file");
+  const scope = argument("--scope") || "all-markets";
   if (!dataDir || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("--data-dir and --date are required.");
   if (!/^(1|true|yes|on)$/i.test(String(process.env.SLACK_OPSCENTER_ALERTS_ENABLED || ""))) return;
   const token = loadToken();
   if (!token.startsWith("xoxb-")) throw new Error("Slack bot token is unavailable.");
-  const file = path.join(dataDir, "history", "junkware", `junkware_schedule_fast_${date}.json`);
+  const file = snapshotFile || path.join(dataDir, "history", "junkware", `junkware_schedule_fast_${date}.json`);
   const rawSnapshot = JSON.parse(fs.readFileSync(file, "utf8")) as Record<string, unknown>;
   const snapshot = {
     date: String(rawSnapshot.date || date),
@@ -37,8 +39,8 @@ async function main() {
     appointments: Array.isArray(rawSnapshot.appointments) ? rawSnapshot.appointments : [],
     cancelled: Array.isArray(rawSnapshot.cancelled) ? rawSnapshot.cancelled : [],
   };
-  const result = await publishScheduleChanges(dataDir, snapshot, token);
-  console.log(`JunkWare schedule detector: ${result.baselined ? "baselined" : "checked"}; ${result.posted.length} posted, ${result.failed.length} failed.`);
+  const result = await publishScheduleChanges(dataDir, snapshot, token, { scope });
+  console.log(`JunkWare schedule detector [${scope}]: ${result.baselined ? "baselined" : "checked"}; ${result.posted.length} posted, ${result.failed.length} failed.`);
   if (result.failed.length) process.exitCode = 1;
 }
 

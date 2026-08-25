@@ -161,13 +161,10 @@ if service_loaded "$LINXUP_COLLECTOR_LABEL"; then
   launchctl kickstart -k "gui/$(id -u)/$LINXUP_COLLECTOR_LABEL"
 fi
 
-if service_loaded "$JUNKWARE_SCHEDULE_DETECTOR_LABEL"; then
-  # Reload the launchd job, rather than only kickstarting it. launchd can cache
-  # the release target and leave a prior schedule-detector failure penalized.
-  schedule_detector_plist="$EXPECTED_HOME/Library/LaunchAgents/$JUNKWARE_SCHEDULE_DETECTOR_LABEL.plist"
-  launchctl bootout "gui/$(id -u)/$JUNKWARE_SCHEDULE_DETECTOR_LABEL" >/dev/null 2>&1 || true
-  launchctl bootstrap "gui/$(id -u)" "$schedule_detector_plist"
-  launchctl enable "gui/$(id -u)/$JUNKWARE_SCHEDULE_DETECTOR_LABEL"
+if [[ "$active_label" == "$PRODUCTION_LABEL" ]]; then
+  # Production deploys own this low-latency source path. Reinstall it even when
+  # it is missing so an unloaded or failed detector cannot remain invisible.
+  "$APP_LINK/deploy/macmini/install-junkware-schedule-detector.sh"
 fi
 
 echo

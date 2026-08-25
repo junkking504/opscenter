@@ -196,6 +196,28 @@ function readState(): SlackAlertState {
   }
 }
 
+function deliveredFastScheduleCloseouts(date: string): string[] {
+  const configured = String(process.env.OPSCENTER_DATA_DIR || "").trim();
+  const candidates = Array.from(new Set([
+    ...(configured ? [configured] : []),
+    path.join(process.cwd(), "data"),
+    path.join(process.env.HOME || "", ".openclaw", "workspace", "opsbot", "data"),
+  ]));
+  for (const dataDirectory of candidates) {
+    try {
+      const payload = JSON.parse(fs.readFileSync(
+        path.join(dataDirectory, "slack", "junkware_schedule_change_state.json"),
+        "utf8",
+      ));
+      return (Array.isArray(payload?.delivered) ? payload.delivered.map(String) : [])
+        .filter((fingerprint: string) => fingerprint.startsWith(`job_closed:${date}:`));
+    } catch {
+      // Try the next known runtime data location.
+    }
+  }
+  return [];
+}
+
 function writeState(state: SlackAlertState): void {
   const file = stateFile();
   const directory = path.dirname(file);
@@ -1150,7 +1172,10 @@ export async function runSlackOpsAlerts(options?: {
   const completedRows = readCompletedJunkwareRows(date);
   const allTruckCloseoutNotifications = buildTruckCloseoutSlackNotifications(date, completedRows);
   const truckCloseoutNotificationsInitialized = Boolean(state.truckCloseoutNotificationsInitializedAt);
-  const deliveredTruckCloseouts = new Set(state.deliveredTruckCloseoutsByDate[date] || []);
+  const deliveredTruckCloseouts = new Set([
+    ...(state.deliveredTruckCloseoutsByDate[date] || []),
+    ...deliveredFastScheduleCloseouts(date),
+  ]);
   const truckCloseoutNotifications = truckCloseoutNotificationsInitialized
     ? allTruckCloseoutNotifications.filter((alert) => !deliveredTruckCloseouts.has(alert.fingerprint))
     : [];

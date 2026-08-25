@@ -8,8 +8,10 @@ async function main() {
   assert.match(clientSource, /void refresh\(\);/);
   assert.match(clientSource, /window\.addEventListener\("focus", refreshWhenVisible\)/);
   assert.match(clientSource, /document\.addEventListener\("visibilitychange", refreshWhenVisible\)/);
-  assert.match(clientSource, /message\.closeout/);
-  assert.match(clientSource, /Open in OpsCenter/);
+  assert.match(clientSource, /function renderSlackInline/);
+  assert.match(clientSource, /message\.rawText/);
+  assert.match(clientSource, /tel:/);
+  assert.doesNotMatch(clientSource, /message\.closeout/);
 
   assert.equal(
     slackTextToPlainText(":warning: *New alert*\n<https://ops.junk-king.app/jobs|Open in OpsCenter>\n_Alert ID: test:123_"),
@@ -119,6 +121,7 @@ async function main() {
   assert.equal(digest.messages[0].threadReply, true);
   assert.equal(digest.messages[1].appointment?.title, "Cancellation");
   assert.equal(digest.messages[1].appointment?.jobNumber, "JK4052608");
+  assert.match(digest.messages[1].rawText, /^:x: \*Cancellation\*/);
   assert.equal(digest.messages[2].closeout?.jobNumber, "JK4052579");
   assert.deepEqual(digest.messages[2].closeout?.lines, [
     "Load: $388.00 (1/3).",
@@ -133,6 +136,7 @@ async function main() {
   assert.equal(digest.messages[3].appointment?.phone, "(504) 555-0100");
   assert.deepEqual(digest.messages[3].appointment?.items, ["Sofa", "Desk"]);
   assert.equal(digest.messages[3].appointment?.href, "/jobs?date=2026-08-14#job-jk4052608");
+  assert.match(digest.messages[3].rawText, /^:warning: \*New Appointment\*/);
   assert.doesNotMatch(digest.messages[3].text, /Alert ID|Truck# 1|Open in OpsCenter/);
   assert.equal(digest.messages[4].text, "🚚 Truck 3 arrived onsite.");
   assert.equal(digest.messages[5].text, "Older alert");

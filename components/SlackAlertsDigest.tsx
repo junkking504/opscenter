@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import type { SlackDailyDigest } from "@/lib/slack-digest";
 import styles from "./CommandBrief.module.css";
 
@@ -13,6 +13,75 @@ function messageTime(timestamp: string): string {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(timestamp));
+}
+
+const SLACK_EMOJI: Record<string, string> = {
+  rotating_light: "🚨",
+  warning: "⚠️",
+  x: "❌",
+  white_check_mark: "✅",
+  truck: "🚚",
+  camera_with_flash: "📸",
+};
+
+function decodeSlackText(value: string): string {
+  return String(value || "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/:([a-z0-9_+-]+):/gi, (match, name: string) => SLACK_EMOJI[name] || match);
+}
+
+function hrefForOpsCenter(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === "ops.junk-king.app"
+      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function renderSlackLink(url: string, label: string, key: string): ReactNode {
+  const internalHref = hrefForOpsCenter(url);
+  if (internalHref) return <Link href={internalHref} key={key}>{label}</Link>;
+  return <a href={url} key={key} target={url.startsWith("http") ? "_blank" : undefined} rel={url.startsWith("http") ? "noreferrer" : undefined}>{label}</a>;
+}
+
+function renderSlackInline(value: string): ReactNode[] {
+  const source = decodeSlackText(value);
+  const tokens: ReactNode[] = [];
+  const pattern = /\*<(https?:\/\/[^>|]+|tel:[^>|]+)\|([^>]+)>\*|<(https?:\/\/[^>|]+|tel:[^>|]+)\|([^>]+)>|<(https?:\/\/[^>]+)>|\*([^*\n]+)\*|_([^_\n]+)_/g;
+  let offset = 0;
+  let match: RegExpExecArray | null;
+  let index = 0;
+
+  while ((match = pattern.exec(source))) {
+    if (match.index > offset) tokens.push(source.slice(offset, match.index));
+    const key = `token-${index++}`;
+    if (match[1]) {
+      tokens.push(<strong key={key}>{renderSlackLink(match[1], match[2], `${key}-link`)}</strong>);
+    } else if (match[3]) {
+      tokens.push(renderSlackLink(match[3], match[4], key));
+    } else if (match[5]) {
+      tokens.push(renderSlackLink(match[5], match[5], key));
+    } else if (match[6]) {
+      tokens.push(<strong key={key}>{match[6]}</strong>);
+    } else if (match[7]) {
+      tokens.push(<em key={key}>{match[7]}</em>);
+    }
+    offset = pattern.lastIndex;
+  }
+  if (offset < source.length) tokens.push(source.slice(offset));
+  return tokens;
+}
+
+function slackDisplayLines(rawText: string): string[] {
+  return String(rawText || "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line && !/^_?Alert ID:/i.test(line));
 }
 
 export default function SlackAlertsDigest({
@@ -94,48 +163,11 @@ export default function SlackAlertsDigest({
                 <strong className={styles.digestChannel}>
                   {message.channel}{message.threadReply ? " · Reply" : ""}
                 </strong>
-                {message.appointment ? (
-                  <div className={styles.digestAppointment}>
-                    <p className={styles.digestAppointmentTitle}>
-                      <span aria-hidden="true">⚠️</span>{" "}
-                      {message.appointment.title}:{" "}
-                      <Link href={message.appointment.href}>{message.appointment.jobNumber}</Link>
-                    </p>
-                    <p>
-                      {message.appointment.customerName} · {message.appointment.phone} · {message.appointment.appointmentTime}
-                    </p>
-                    <p>{message.appointment.address}</p>
-                    {message.appointment.items.length ? (
-                      <p>Items: {message.appointment.items.join("; ")}</p>
-                    ) : null}
-                    {message.appointment.nextAction ? (
-                      <p className={styles.digestNext}>Next: {message.appointment.nextAction}</p>
-                    ) : null}
-                    <Link className={styles.digestOpenLink} href={message.appointment.href}>
-                      Open in OpsCenter
-                    </Link>
-                  </div>
-                ) : message.closeout ? (
-                  <div className={styles.digestAppointment}>
-                    <p className={styles.digestAppointmentTitle}>
-                      <span aria-hidden="true">✅</span>{" "}
-                      <Link href={message.closeout.href}>{message.closeout.jobNumber}</Link> closed out.
-                    </p>
-                    {message.closeout.lines.map((line) => <p key={line}>{line}</p>)}
-                    <Link className={styles.digestOpenLink} href={message.closeout.href}>
-                      Open in OpsCenter
-                    </Link>
-                  </div>
-                ) : (
-                  <>
-                    <p>{message.text}</p>
-                    {message.opsCenterHref ? (
-                      <Link className={styles.digestOpenLink} href={message.opsCenterHref}>
-                        Open in OpsCenter
-                      </Link>
-                    ) : null}
-                  </>
-                )}
+                <div className={styles.digestSlackMessage}>
+                  {slackDisplayLines(message.rawText).map((line, index) => (
+                    <p key={`${message.id}-${index}`}>{renderSlackInline(line)}</p>
+                  ))}
+                </div>
               </div>
             </article>
           ))}

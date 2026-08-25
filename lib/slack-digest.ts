@@ -56,6 +56,7 @@ export type SlackDigestMessage = {
   id: string;
   timestamp: string;
   channel: string;
+  rawText: string;
   text: string;
   threadReply: boolean;
   opsCenterHref?: string;
@@ -331,6 +332,7 @@ function digestMessage(
     id: `${channelId}:${ts}`,
     timestamp: new Date(epochMs).toISOString(),
     channel: slackDigestChannelName(channelId),
+    rawText,
     text,
     threadReply: Boolean(message.thread_ts && message.thread_ts !== ts),
     opsCenterHref: opsCenterHref(rawText),

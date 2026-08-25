@@ -199,14 +199,11 @@
 .digestMessage strong { color: #24282f; font-size: 0.9375rem; line-height: 1.3; }
 .digestMessage p { margin: 0; color: #535c68; font-size: 0.9375rem; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; }
 .digestChannel { color: #4a5360; }
-.digestAppointment { display: grid; min-width: 0; gap: 2px; }
-.digestAppointmentTitle { color: #24282f !important; font-weight: 800; }
-.digestAppointmentTitle a,
-.digestOpenLink { color: #075fbd; font-weight: 800; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
-.digestAppointmentTitle a:hover,
-.digestOpenLink:hover { color: #034b98; }
-.digestNext { margin-top: 3px !important; }
-.digestOpenLink { width: fit-content; margin-top: 2px; font-size: 0.9375rem; line-height: 1.4; }
+.digestSlackMessage { display: grid; min-width: 0; gap: 2px; }
+.digestSlackMessage a { color: #075fbd; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.digestSlackMessage a:hover { color: #034b98; }
+.digestSlackMessage strong { color: #24282f; font-weight: 800; }
+.digestSlackMessage em { font-style: italic; }
 
 .digestState {
   display: grid;

@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   const note = String(values.note || "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{1,12}$/.test(appointmentId) || jobKey !== `appt:${appointmentId}` || note.length > 2_000) {
     return NextResponse.json(
-      { ok: false, error: "The crew note was not valid." },
+      { ok: false, error: "The Krewe note was not valid." },
       { status: 400, headers: { "Cache-Control": "no-store, max-age=0" } },
     );
   }
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
   const crewNote = saveJobCrewNote({ date, jobKey, appointmentId, body: note, updatedBy: auth.email });
   if (!crewNote) {
     return NextResponse.json(
-      { ok: false, error: "The crew note could not be saved." },
+      { ok: false, error: "The Krewe note could not be saved." },
       { status: 500, headers: { "Cache-Control": "no-store, max-age=0" } },
     );
   }

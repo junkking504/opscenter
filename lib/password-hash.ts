@@ -83,7 +83,7 @@ export async function createPasswordHash(
   const password = String(passwordValue || "");
   if (!password) throw new Error("A password is required.");
   const pepper = passwordPepper(secretOverride);
-  if (pepper.length < 32) throw new Error("Crew password hashing is not configured.");
+  if (pepper.length < 32) throw new Error("Krewe password hashing is not configured.");
 
   const salt = crypto.getRandomValues(new Uint8Array(18));
   const saltRaw = base64UrlEncode(salt);

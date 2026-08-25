@@ -55,7 +55,7 @@ export default function CrewCallInPlan({ plan, id }: { plan: CrewCallInPlanData;
             </div>
             <div>
               <span>Coverage target</span>
-              <strong>{plan.requiredCrews} crews</strong>
+              <strong>{plan.requiredCrews} Krewes</strong>
               <small>{plan.requiredHeadcount} people</small>
             </div>
             <div>
@@ -74,7 +74,7 @@ export default function CrewCallInPlan({ plan, id }: { plan: CrewCallInPlanData;
               {plan.territoryDemand.map((territory) => (
                 <span key={territory.territory}>
                   <strong>{territory.territory}</strong>
-                  {territory.appointments} appointment{territory.appointments === 1 ? "" : "s"} · {territory.crews} crew{territory.crews === 1 ? "" : "s"}
+                  {territory.appointments} appointment{territory.appointments === 1 ? "" : "s"} · {territory.crews} Krewe{territory.crews === 1 ? "" : "s"}
                 </span>
               ))}
             </div>

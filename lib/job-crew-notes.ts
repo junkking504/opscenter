@@ -50,7 +50,7 @@ function withStoreLock<T>(callback: () => T): T {
       } catch {
         // Another writer may have released the lock between checks.
       }
-      if (Date.now() >= deadline) throw new Error("Timed out waiting to save the crew note.");
+      if (Date.now() >= deadline) throw new Error("Timed out waiting to save the Krewe note.");
       sleepSync(25);
     }
   }

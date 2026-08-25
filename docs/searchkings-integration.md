@@ -40,7 +40,7 @@ Install the dedicated production collector on Mission Control:
 
 The LaunchAgent starts at login, checks every five minutes, and refreshes
 SearchKings at most once every 15 minutes. It runs independently of JunkWare,
-QBO, Crew Portal, and VPS synchronization, so a failure in those integrations
+QBO, Krewe Portal, and VPS synchronization, so a failure in those integrations
 does not make Marketing data stale. The general live refresh loop also retains
 its SearchKings call as a redundant fallback. Both paths use the same lock and
 freshness gate, and retain the last verified snapshot on authentication or

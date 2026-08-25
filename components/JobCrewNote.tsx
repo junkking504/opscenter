@@ -33,12 +33,12 @@ export default function JobCrewNote({
         body: JSON.stringify({ date, jobKey, appointmentId, note: nextNote }),
       });
       const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.ok) throw new Error(payload?.error || "The crew note could not be saved.");
+      if (!response.ok || !payload?.ok) throw new Error(payload?.error || "The Krewe note could not be saved.");
       setSavedNote(nextNote.trim());
       setEditing(false);
       router.refresh();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "The crew note could not be saved.");
+      setError(saveError instanceof Error ? saveError.message : "The Krewe note could not be saved.");
     } finally {
       setSaving(false);
     }
@@ -47,9 +47,9 @@ export default function JobCrewNote({
   if (!/^\d{1,12}$/.test(appointmentId)) return null;
 
   return (
-    <section className={`ops-job-crew-note${savedNote ? " has-note" : ""}`} aria-label="Crew note">
+    <section className={`ops-job-crew-note${savedNote ? " has-note" : ""}`} aria-label="Krewe note">
       <div className="ops-job-crew-note-heading">
-        <div><span>CREW NOTE</span><strong>{savedNote ? "Visible in the Crew Portal" : "Add instructions the assigned crew can see"}</strong></div>
+        <div><span>KREWE NOTE</span><strong>{savedNote ? "Visible in the Krewe Portal" : "Add instructions the assigned Krewe can see"}</strong></div>
         {!editing ? (
           <button type="button" onClick={() => setEditing(true)}>{savedNote ? "Edit" : "Add note"}</button>
         ) : null}
@@ -60,14 +60,14 @@ export default function JobCrewNote({
           <textarea
             value={note}
             onChange={(event) => setNote(event.target.value.slice(0, 2_000))}
-            placeholder="Access instructions, special handling, gate code, or what the crew needs to know…"
+            placeholder="Access instructions, special handling, gate code, or what the Krewe needs to know…"
             rows={3}
             autoFocus
           />
           <div>
             <button type="button" className="secondary" disabled={saving} onClick={() => { setNote(savedNote); setEditing(false); setError(""); }}>Cancel</button>
             {savedNote ? <button type="button" className="secondary danger" disabled={saving} onClick={() => { setNote(""); void save(""); }}>Remove</button> : null}
-            <button type="button" disabled={saving || !note.trim()} onClick={() => void save()}>{saving ? "Saving…" : "Save for crew"}</button>
+            <button type="button" disabled={saving || !note.trim()} onClick={() => void save()}>{saving ? "Saving…" : "Save for Krewe"}</button>
           </div>
           {error ? <small role="alert">{error}</small> : null}
         </div>

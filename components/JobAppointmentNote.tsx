@@ -45,7 +45,7 @@ export default function JobAppointmentNote({ appointmentId }: { appointmentId: s
           <textarea
             value={note}
             onChange={(event) => setNote(event.target.value.slice(0, 500))}
-            placeholder="Add an appointment note for dispatch, the customer, or the crew…"
+            placeholder="Add an appointment note for dispatch, the customer, or the Krewe…"
             rows={3}
             maxLength={500}
             autoFocus

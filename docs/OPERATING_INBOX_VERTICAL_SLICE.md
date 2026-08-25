@@ -40,7 +40,7 @@ The first slice ingests the existing Jobs exception rules:
 - `gps_timestamp_older_than_20_minutes`
 - `missing_or_stale_expense_source_data`
 
-Other existing Crew, Fleet, Finance, and Jobs rules can be displayed after the reconciler is stable, but they do not block this slice.
+Other existing Krewe, Fleet, Finance, and Jobs rules can be displayed after the reconciler is stable, but they do not block this slice.
 
 ### Registered actions
 

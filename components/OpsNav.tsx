@@ -59,8 +59,8 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
     const section = ["crew", "fleet"].includes(requestedSection) ? requestedSection : "overview";
     return [
       { label: "Overview", href: sidebarHref("/", searchParams, { section: "overview" }), active: section === "overview" },
-      { label: "Crew", href: sidebarHref("/", searchParams, { section: "crew" }), active: section === "crew" },
-      { label: "Fleet", href: sidebarHref("/", searchParams, { section: "fleet" }), active: section === "fleet" },
+      { label: "Krewe Snapshot", href: sidebarHref("/", searchParams, { section: "crew" }), active: section === "crew" },
+      { label: "Fleet Snapshot", href: sidebarHref("/", searchParams, { section: "fleet" }), active: section === "fleet" },
       { label: "Monthly", href: sidebarHref("/", searchParams, { view: "monthly" }), active: false },
     ];
   }
@@ -99,16 +99,16 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
     if (view === "monthly") {
       const section = requestedSection === "breakdown" ? "breakdown" : "overview";
       return [
-        { label: "Daily crew", href: sidebarHref("/crew", searchParams, {}), active: false },
+        { label: "Daily Krewe", href: sidebarHref("/crew", searchParams, {}), active: false },
         { label: "Monthly overview", href: sidebarHref("/crew", searchParams, { view: "monthly", section: "overview" }), active: section === "overview" },
-        { label: "Crew breakdown", href: sidebarHref("/crew", searchParams, { view: "monthly", section: "breakdown" }), active: section === "breakdown" },
+        { label: "Krewe breakdown", href: sidebarHref("/crew", searchParams, { view: "monthly", section: "breakdown" }), active: section === "breakdown" },
       ];
     }
 
     const section = ["call-in", "pay-period"].includes(requestedSection) ? requestedSection : "crew";
     return [
       { label: "Call-in plan", href: sidebarHref("/crew", searchParams, { section: "call-in" }), active: section === "call-in" },
-      { label: "Today’s crew", href: sidebarHref("/crew", searchParams, { section: "crew" }), active: section === "crew" },
+      { label: "Today’s Krewe", href: sidebarHref("/crew", searchParams, { section: "crew" }), active: section === "crew" },
       { label: "Pay period", href: sidebarHref("/crew", searchParams, { section: "pay-period" }), active: section === "pay-period" },
       { label: "Monthly", href: sidebarHref("/crew", searchParams, { view: "monthly" }), active: false },
     ];

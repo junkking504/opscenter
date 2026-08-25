@@ -802,7 +802,7 @@ function scheduleDayCopy(date: string) {
   if (date === addDays(today, 1)) {
     return {
       possessive: "Tomorrow’s",
-      subtitle: "Tomorrow’s schedule preview. Review appointments, crew assignments, and dispatch routes ahead of time.",
+      subtitle: "Tomorrow’s schedule preview. Review appointments, Krewe assignments, and dispatch routes ahead of time.",
     };
   }
 
@@ -2516,7 +2516,7 @@ function AppointmentCardScanSummary({ job, siteTime }: { job: JobRow; siteTime: 
           <span className="ops-appointment-visit-time">{siteWindow}{duration !== "—" ? ` · ${duration}` : ""}</span>
           <span className="ops-appointment-visit-crew">
             <strong>{primaryVisit.truck}</strong>
-            {crew.length ? <>{" · "}{crew.join(" · ")}</> : " · Crew not recorded"}
+            {crew.length ? <>{" · "}{crew.join(" · ")}</> : " · Krewe not recorded"}
           </span>
           {visitTrucks.length > 1 ? <span className="ops-appointment-visit-extra">+{visitTrucks.length - 1} truck</span> : null}
           <span className={`ops-appointment-photo-summary${jobMissingPhotos(job) ? " missing" : ""}`}>{appointmentPhotoSummary(job)}</span>
@@ -2541,7 +2541,7 @@ function AppointmentCardCompletedCrew({ job }: { job: JobRow }) {
   const navigator = safeText(job.navigatorName || job.navigator);
 
   return (
-    <div className="ops-appointment-card-completed-crew" aria-label={`Completed crew: ${truck}, driver ${driver}, navigator ${navigator}`}>
+    <div className="ops-appointment-card-completed-crew" aria-label={`Completed Krewe: ${truck}, driver ${driver}, navigator ${navigator}`}>
       <span>{truck}</span>
       <span>D: {driver}</span>
       <span>N: {navigator}</span>
@@ -3866,7 +3866,7 @@ export default async function JobsPage({
                                 {visitedButNotClosed ? (
                                   <span
                                     className="ops-visited-unclosed-badge"
-                                    title="Linxup shows a crew visit, but this appointment is not closed out in JunkWare."
+                                    title="Linxup shows a Krewe visit, but this appointment is not closed out in JunkWare."
                                   >
                                     <b aria-hidden="true">?</b>
                                     Visited · not closed
@@ -4003,7 +4003,7 @@ export default async function JobsPage({
                                   <strong>{safeText(job.navigatorName || job.navigator)}</strong>
                                 </div>
                                 <div>
-                                  <span>Additional crew</span>
+                                  <span>Additional Krewe</span>
                                   <strong>
                                     {job.additionalCrew && job.additionalCrew.length > 0
                                       ? job.additionalCrew.join(", ")
@@ -4011,11 +4011,11 @@ export default async function JobsPage({
                                   </strong>
                                 </div>
                                 <div>
-                                  <span>Crew source</span>
+                                  <span>Krewe source</span>
                                   <strong>{safeText(job.crewAssignmentSource || "Unavailable")}</strong>
                                 </div>
                                 <div>
-                                  <span>Crew status</span>
+                                  <span>Krewe status</span>
                                   <strong>{safeText(job.crewAssignmentStatus || "Unavailable")}</strong>
                                 </div>
                                 <div>
@@ -4146,7 +4146,7 @@ export default async function JobsPage({
                               {visitedButNotClosed ? (
                                 <span
                                   className="ops-visited-unclosed-badge"
-                                  title="Linxup shows a crew visit, but this appointment is not closed out in JunkWare."
+                                  title="Linxup shows a Krewe visit, but this appointment is not closed out in JunkWare."
                                 >
                                   <b aria-hidden="true">?</b>
                                   Visited · not closed
@@ -4283,7 +4283,7 @@ export default async function JobsPage({
                                 <strong>{safeText(job.navigatorName || job.navigator)}</strong>
                               </div>
                               <div>
-                                <span>Additional crew</span>
+                                <span>Additional Krewe</span>
                                 <strong>
                                   {job.additionalCrew && job.additionalCrew.length > 0
                                     ? job.additionalCrew.join(", ")
@@ -4291,11 +4291,11 @@ export default async function JobsPage({
                                 </strong>
                               </div>
                               <div>
-                                <span>Crew source</span>
+                                <span>Krewe source</span>
                                 <strong>{safeText(job.crewAssignmentSource || "Unavailable")}</strong>
                               </div>
                               <div>
-                                <span>Crew status</span>
+                                <span>Krewe status</span>
                                 <strong>{safeText(job.crewAssignmentStatus || "Unavailable")}</strong>
                               </div>
                               <div>

@@ -198,7 +198,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
 
   return (
     <details className="ops-job-closeout-editor" data-appointment-id={resolvedAppointmentId} aria-busy={loading || saving}>
-      <summary>{completed ? "Edit closeout or crew" : "Close out this job"}</summary>
+      <summary>{completed ? "Edit closeout or Krewe" : "Close out this job"}</summary>
       <div className="ops-job-closeout-editor-body">
         {!live ? (
           <button type="button" className="ops-button" onClick={load} disabled={loading || !resolvedAppointmentId}>
@@ -214,7 +214,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
             {saving ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">Saving changes and checking them in JunkWare…</div> : null}
 
             <section className="ops-closeout-editor-section">
-              <h4>Crew Assigned to This Job</h4>
+              <h4>Krewe Assigned to This Job</h4>
               <label>
                 <span>Driver</span>
                 <select value={live.driver.value} onChange={(event) => update("driver", { value: event.target.value, label: event.target.selectedOptions[0]?.text || "" })}>

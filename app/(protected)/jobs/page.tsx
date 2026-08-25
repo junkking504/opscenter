@@ -2727,9 +2727,17 @@ function planningLocation(
 ): RouteLocation | null {
   if (!address || address === "—") return null;
   const match = geocodes[planningAddressHash(address)];
+  if (match?.match_confidence !== "confirmed") return null;
   const latitude = Number(match?.latitude);
   const longitude = Number(match?.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (
+    !Number.isFinite(latitude)
+    || !Number.isFinite(longitude)
+    || latitude < 29
+    || latitude > 31.3
+    || longitude < -93
+    || longitude > -89.4
+  ) return null;
   return { latitude, longitude };
 }
 

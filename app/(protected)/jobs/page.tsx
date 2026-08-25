@@ -31,6 +31,7 @@ import {
 } from "@/lib/junkware-job-details";
 import { isClosedAppointment, isEstimateAppointment, missingPaymentTypeLabel, shouldFlagMissingPhotos } from "@/lib/job-audit-rules";
 import { junkwareBookedAt } from "@/lib/junkware-booking-date";
+import { currentJunkwareScheduleSnapshot, readVerifiedJunkwareScheduleSnapshot } from "@/lib/junkware-fast-schedule";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
 import "./jobs.css";
 
@@ -277,6 +278,10 @@ function appointmentSiteTimeUpdatedAt(date: string): string | null {
   } catch {
     return null;
   }
+}
+
+function junkwareScheduleUpdatedAt(date: string): string | null {
+  return readVerifiedJunkwareScheduleSnapshot(OPSBOT_DATA_DIR, date)?.updatedAt || null;
 }
 
 function latestUpdatedAt(...values: Array<string | null | undefined>): string | null {
@@ -797,7 +802,7 @@ function scheduleDayCopy(date: string) {
   if (date === addDays(today, 1)) {
     return {
       possessive: "Tomorrow’s",
-      subtitle: "Tomorrow’s schedule preview. Review appointments, crew assignments, and dispatch routes ahead of time.",
+      subtitle: "Tomorrow’s schedule preview. Review appointments, Krewe assignments, and dispatch routes ahead of time.",
     };
   }
 
@@ -1880,10 +1885,86 @@ function readJobRows(date: string): JobRow[] {
     ? jobs.map((job) => verifiedCancellationIds.has(job.appointmentId) ? { ...job, status: "Canceled" } : job)
     : jobs;
 
-  return resolvedJobs.sort((a, b) => {
+  const fastSnapshot = currentJunkwareScheduleSnapshot(OPSBOT_DATA_DIR, date);
+  const currentJobs = fastSnapshot
+    ? mergeFastScheduleRows(resolvedJobs, fastSnapshot.appointments, fastSnapshot.cancelled, date)
+    : resolvedJobs;
+
+  return currentJobs.sort((a, b) => {
     const territoryCompare = a.territory.localeCompare(b.territory);
     if (territoryCompare !== 0) return territoryCompare;
     return compareJobSchedule(a, b);
+  });
+}
+
+function fastScheduleIdentity(row: Record<string, any>): string {
+  const appointmentId = firstValue(row, ["appt_id", "appointment_id", "appointmentId"]);
+  if (appointmentId) return `appt:${appointmentId}`;
+  const jobNumber = firstValue(row, ["job_id", "jk_number", "job_number"]);
+  return jobNumber ? `job:${jobNumber.toLowerCase()}` : "";
+}
+
+function jobRowIdentity(job: JobRow): string {
+  if (job.appointmentId) return `appt:${job.appointmentId}`;
+  return job.jkNumber && job.jkNumber !== "—" ? `job:${job.jkNumber.toLowerCase()}` : "";
+}
+
+function present(value: unknown): boolean {
+  const normalized = String(value ?? "").trim();
+  return Boolean(normalized && normalized !== "—");
+}
+
+function mergeFastScheduleRows(
+  canonicalJobs: JobRow[],
+  appointmentRows: Record<string, any>[],
+  cancelledRows: Record<string, any>[],
+  date: string,
+): JobRow[] {
+  const canonicalByIdentity = new Map<string, JobRow>();
+  for (const job of canonicalJobs) {
+    const identity = jobRowIdentity(job);
+    if (identity) canonicalByIdentity.set(identity, job);
+  }
+
+  return [...cancelledRows, ...appointmentRows].flatMap((row) => {
+    const identity = fastScheduleIdentity(row);
+    if (!identity) return [];
+    const existing = canonicalByIdentity.get(identity);
+    const fresh = normalizeJobRow(row);
+    fresh.sourceDate = date;
+    fresh.appointmentId = firstValue(row, ["appt_id", "appointment_id", "appointmentId"]) || fresh.appointmentId;
+    if (!existing) return [fresh];
+
+    return [{
+      ...existing,
+      appointmentId: fresh.appointmentId || existing.appointmentId,
+      jkNumber: present(fresh.jkNumber) ? fresh.jkNumber : existing.jkNumber,
+      appointmentUrl: fresh.appointmentUrl || existing.appointmentUrl,
+      appointmentTime: present(fresh.appointmentTime) ? fresh.appointmentTime : existing.appointmentTime,
+      appointmentStartMinutes: fresh.hasScheduledTime ? fresh.appointmentStartMinutes : existing.appointmentStartMinutes,
+      appointmentEndMinutes: fresh.hasScheduledTime ? fresh.appointmentEndMinutes : existing.appointmentEndMinutes,
+      hasScheduledTime: fresh.hasScheduledTime || existing.hasScheduledTime,
+      customerName: present(fresh.customerName) ? fresh.customerName : existing.customerName,
+      customerEmail: present(fresh.customerEmail) ? fresh.customerEmail : existing.customerEmail,
+      customerEmailCollected: fresh.customerEmailCollected || existing.customerEmailCollected,
+      phone: present(fresh.phone) ? fresh.phone : existing.phone,
+      address: present(fresh.address) && fresh.address !== "Address unavailable" ? fresh.address : existing.address,
+      territory: present(fresh.territory) ? fresh.territory : existing.territory,
+      appointmentType: present(fresh.appointmentType) ? fresh.appointmentType : existing.appointmentType,
+      status: present(fresh.status) ? fresh.status : existing.status,
+      truck: present(fresh.truck) ? fresh.truck : existing.truck,
+      assignedTruck: present(fresh.assignedTruck) ? fresh.assignedTruck : existing.assignedTruck,
+      driver: present(fresh.driver) ? fresh.driver : existing.driver,
+      driverName: present(fresh.driverName) ? fresh.driverName : existing.driverName,
+      driverNormalizedName: present(fresh.driverNormalizedName) ? fresh.driverNormalizedName : existing.driverNormalizedName,
+      navigator: present(fresh.navigator) ? fresh.navigator : existing.navigator,
+      navigatorName: present(fresh.navigatorName) ? fresh.navigatorName : existing.navigatorName,
+      navigatorNormalizedName: present(fresh.navigatorNormalizedName) ? fresh.navigatorNormalizedName : existing.navigatorNormalizedName,
+      paymentType: present(fresh.paymentType) ? fresh.paymentType : existing.paymentType,
+      paymentAmount: fresh.paymentAmount || existing.paymentAmount,
+      tipAmount: fresh.tipAmount || existing.tipAmount,
+      cancellationReason: fresh.cancellationReason || existing.cancellationReason,
+    }];
   });
 }
 
@@ -2435,7 +2516,7 @@ function AppointmentCardScanSummary({ job, siteTime }: { job: JobRow; siteTime: 
           <span className="ops-appointment-visit-time">{siteWindow}{duration !== "—" ? ` · ${duration}` : ""}</span>
           <span className="ops-appointment-visit-crew">
             <strong>{primaryVisit.truck}</strong>
-            {crew.length ? <>{" · "}{crew.join(" · ")}</> : " · Crew not recorded"}
+            {crew.length ? <>{" · "}{crew.join(" · ")}</> : " · Krewe not recorded"}
           </span>
           {visitTrucks.length > 1 ? <span className="ops-appointment-visit-extra">+{visitTrucks.length - 1} truck</span> : null}
           <span className={`ops-appointment-photo-summary${jobMissingPhotos(job) ? " missing" : ""}`}>{appointmentPhotoSummary(job)}</span>
@@ -2460,7 +2541,7 @@ function AppointmentCardCompletedCrew({ job }: { job: JobRow }) {
   const navigator = safeText(job.navigatorName || job.navigator);
 
   return (
-    <div className="ops-appointment-card-completed-crew" aria-label={`Completed crew: ${truck}, driver ${driver}, navigator ${navigator}`}>
+    <div className="ops-appointment-card-completed-crew" aria-label={`Completed Krewe: ${truck}, driver ${driver}, navigator ${navigator}`}>
       <span>{truck}</span>
       <span>D: {driver}</span>
       <span>N: {navigator}</span>
@@ -3121,6 +3202,7 @@ export default async function JobsPage({
         lastUpdated={monthlyAuthority?.verifiedAt || latestUpdatedAt(
           metrics?.generated_at,
           view === "daily" ? appointmentSiteTimeUpdatedAt(date) : null,
+          view === "daily" ? junkwareScheduleUpdatedAt(date) : null,
         )}
         controls={
           <>
@@ -3784,7 +3866,7 @@ export default async function JobsPage({
                                 {visitedButNotClosed ? (
                                   <span
                                     className="ops-visited-unclosed-badge"
-                                    title="Linxup shows a crew visit, but this appointment is not closed out in JunkWare."
+                                    title="Linxup shows a Krewe visit, but this appointment is not closed out in JunkWare."
                                   >
                                     <b aria-hidden="true">?</b>
                                     Visited · not closed
@@ -3921,7 +4003,7 @@ export default async function JobsPage({
                                   <strong>{safeText(job.navigatorName || job.navigator)}</strong>
                                 </div>
                                 <div>
-                                  <span>Additional crew</span>
+                                  <span>Additional Krewe</span>
                                   <strong>
                                     {job.additionalCrew && job.additionalCrew.length > 0
                                       ? job.additionalCrew.join(", ")
@@ -3929,11 +4011,11 @@ export default async function JobsPage({
                                   </strong>
                                 </div>
                                 <div>
-                                  <span>Crew source</span>
+                                  <span>Krewe source</span>
                                   <strong>{safeText(job.crewAssignmentSource || "Unavailable")}</strong>
                                 </div>
                                 <div>
-                                  <span>Crew status</span>
+                                  <span>Krewe status</span>
                                   <strong>{safeText(job.crewAssignmentStatus || "Unavailable")}</strong>
                                 </div>
                                 <div>
@@ -4064,7 +4146,7 @@ export default async function JobsPage({
                               {visitedButNotClosed ? (
                                 <span
                                   className="ops-visited-unclosed-badge"
-                                  title="Linxup shows a crew visit, but this appointment is not closed out in JunkWare."
+                                  title="Linxup shows a Krewe visit, but this appointment is not closed out in JunkWare."
                                 >
                                   <b aria-hidden="true">?</b>
                                   Visited · not closed
@@ -4201,7 +4283,7 @@ export default async function JobsPage({
                                 <strong>{safeText(job.navigatorName || job.navigator)}</strong>
                               </div>
                               <div>
-                                <span>Additional crew</span>
+                                <span>Additional Krewe</span>
                                 <strong>
                                   {job.additionalCrew && job.additionalCrew.length > 0
                                     ? job.additionalCrew.join(", ")
@@ -4209,11 +4291,11 @@ export default async function JobsPage({
                                 </strong>
                               </div>
                               <div>
-                                <span>Crew source</span>
+                                <span>Krewe source</span>
                                 <strong>{safeText(job.crewAssignmentSource || "Unavailable")}</strong>
                               </div>
                               <div>
-                                <span>Crew status</span>
+                                <span>Krewe status</span>
                                 <strong>{safeText(job.crewAssignmentStatus || "Unavailable")}</strong>
                               </div>
                               <div>

@@ -55,7 +55,7 @@ export default function CrewCallInPlan({ plan, id }: { plan: CrewCallInPlanData;
             </div>
             <div>
               <span>Coverage target</span>
-              <strong>{plan.requiredCrews} crews</strong>
+              <strong>{plan.requiredCrews} Krewes</strong>
               <small>{plan.requiredHeadcount} people</small>
             </div>
             <div>
@@ -74,7 +74,7 @@ export default function CrewCallInPlan({ plan, id }: { plan: CrewCallInPlanData;
               {plan.territoryDemand.map((territory) => (
                 <span key={territory.territory}>
                   <strong>{territory.territory}</strong>
-                  {territory.appointments} appointment{territory.appointments === 1 ? "" : "s"} · {territory.crews} crew{territory.crews === 1 ? "" : "s"}
+                  {territory.appointments} appointment{territory.appointments === 1 ? "" : "s"} · {territory.crews} Krewe{territory.crews === 1 ? "" : "s"}
                 </span>
               ))}
             </div>
@@ -89,7 +89,7 @@ export default function CrewCallInPlan({ plan, id }: { plan: CrewCallInPlanData;
                     <div className="ops-call-in-name-row">
                       <strong>{candidate.name}</strong>
                       <span className={`ops-call-in-role ${candidate.suggestedRole === "Driver" ? "driver" : "crew"}`}>
-                        {candidate.suggestedRole}
+                        {candidate.suggestedRole === "Crew" ? "Krewe" : candidate.suggestedRole}
                       </span>
                       {candidate.overtimeRisk ? <span className="ops-call-in-warning">Overtime risk</span> : null}
                     </div>
@@ -117,7 +117,7 @@ export default function CrewCallInPlan({ plan, id }: { plan: CrewCallInPlanData;
                 {plan.alternates.map((candidate) => (
                   <span key={candidate.name}>
                     <strong>{candidate.name}</strong>
-                    {candidate.suggestedRole} · {candidate.weeklyHours.toFixed(1)} hrs this week · ${Math.round(candidate.recentRph)} RPH
+                    {candidate.suggestedRole === "Crew" ? "Krewe" : candidate.suggestedRole} · {candidate.weeklyHours.toFixed(1)} hrs this week · ${Math.round(candidate.recentRph)} RPH
                   </span>
                 ))}
               </div>

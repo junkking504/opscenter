@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { appointmentChannelId, buildAddOnSlackNotification, buildCancellationSlackNotification, formatSlackAlert, slackPhoneLink, type SlackOpsAlert } from "@/lib/slack-alerts";
+import { appointmentChannelId, buildAddOnSlackNotification, buildCancellationSlackNotification, buildTruckCloseoutSlackNotifications, formatSlackAlert, slackPhoneLink, type SlackOpsAlert } from "@/lib/slack-alerts";
 import { formatSlackMessage, slackEscape } from "@/lib/slack-message-format";
 import { truckSlackChannelId } from "@/lib/slack-truck-channels";
 import type { AnyRecord } from "@/lib/opsData";
@@ -13,8 +13,8 @@ type Snapshot = {
 };
 
 type DetectorState = {
-  version: 1;
-  snapshot: Snapshot | null;
+  version: 2;
+  snapshots: Record<string, Snapshot | null>;
   delivered: string[];
 };
 
@@ -100,23 +100,16 @@ function rescheduleAlert(date: string, previous: AnyRecord, current: AnyRecord):
 }
 
 function closeoutAlert(date: string, row: AnyRecord): SlackOpsAlert {
-  const truck = first(row, ["truck", "assigned_truck", "truck_number"]);
-  const number = jobNumber(row);
-  return {
+  return buildTruckCloseoutSlackNotifications(date, [row])[0] || {
     fingerprint: "",
     kind: "job_closed",
     lifecycle: "notification",
     severity: "warning",
-    channelId: truckSlackChannelId(truck, appointmentChannelId(first(row, ["normalized_territory", "territory", "source_territory", "market"]))),
+    channelId: truckSlackChannelId(first(row, ["truck", "assigned_truck", "truck_number"]), appointmentChannelId(first(row, ["normalized_territory", "territory", "source_territory", "market"]))),
     title: "Job Closed",
     detail: "",
     nextAction: "",
     href: "",
-    plainText: formatSlackMessage({
-      icon: ":white_check_mark:",
-      title: "Job Closed",
-      fields: [{ label: "Job", value: number, href: href(date, row) }],
-    }),
   };
 }
 
@@ -196,13 +189,20 @@ function stateFile(dataDir: string): string {
 function readState(dataDir: string): DetectorState {
   try {
     const value = JSON.parse(fs.readFileSync(stateFile(dataDir), "utf8"));
+    if (value?.version === 2 && value?.snapshots && typeof value.snapshots === "object") {
+      return {
+        version: 2,
+        snapshots: value.snapshots,
+        delivered: Array.isArray(value?.delivered) ? value.delivered.map(String).slice(-2_000) : [],
+      };
+    }
     return {
-      version: 1,
-      snapshot: value?.snapshot || null,
+      version: 2,
+      snapshots: { "all-markets": value?.snapshot || null },
       delivered: Array.isArray(value?.delivered) ? value.delivered.map(String).slice(-2_000) : [],
     };
   } catch {
-    return { version: 1, snapshot: null, delivered: [] };
+    return { version: 2, snapshots: {}, delivered: [] };
   }
 }
 
@@ -223,24 +223,96 @@ async function post(token: string, alert: SlackOpsAlert): Promise<boolean> {
   return Boolean(response.ok && payload.ok);
 }
 
-export async function publishScheduleChanges(dataDir: string, snapshot: Snapshot, token: string): Promise<{ baselined: boolean; posted: ScheduleChange[]; failed: ScheduleChange[] }> {
-  const state = readState(dataDir);
-  if (!state.snapshot) {
-    writeState(dataDir, { ...state, snapshot });
-    return { baselined: true, posted: [], failed: [] };
-  }
-  const delivered = new Set(state.delivered);
-  const posted: ScheduleChange[] = [];
-  const failed: ScheduleChange[] = [];
-  for (const event of detectScheduleChanges(state.snapshot, snapshot)) {
-    if (delivered.has(event.fingerprint)) continue;
-    if (await post(token, event.alert)) {
-      delivered.add(event.fingerprint);
-      posted.push(event);
-    } else {
-      failed.push(event);
+function normalizedScope(value: string | undefined): string {
+  const scope = clean(value || "all-markets").toLowerCase();
+  if (!/^[a-z0-9_-]{1,80}$/.test(scope)) throw new Error("Invalid schedule detector scope.");
+  return scope;
+}
+
+const MARKET_BY_SCOPE: Record<string, string> = {
+  "market-352": "junk king new orleans",
+  "market-477": "junk king northshore",
+  "market-399": "junk king baton rouge",
+  "market-484": "junk king jefferson parish",
+};
+
+function scopeBaseline(state: DetectorState, scope: string): Snapshot | null {
+  if (state.snapshots[scope]) return state.snapshots[scope];
+  const aggregate = state.snapshots["all-markets"];
+  const market = MARKET_BY_SCOPE[scope];
+  if (!aggregate || !market) return null;
+  const belongsToMarket = (row: AnyRecord) => first(
+    row,
+    ["market", "source_territory", "territory", "normalized_territory"],
+  ).toLowerCase() === market;
+  return {
+    ...aggregate,
+    appointments: aggregate.appointments.filter(belongsToMarket),
+    cancelled: aggregate.cancelled.filter(belongsToMarket),
+  };
+}
+
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function withStateLock<T>(dataDir: string, callback: () => Promise<T>): Promise<T> {
+  const lock = `${stateFile(dataDir)}.lock`;
+  const deadline = Date.now() + 20_000;
+  fs.mkdirSync(path.dirname(lock), { recursive: true });
+  while (true) {
+    try {
+      fs.mkdirSync(lock);
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      try {
+        if (Date.now() - fs.statSync(lock).mtimeMs > 120_000) fs.rmSync(lock, { recursive: true, force: true });
+      } catch {
+        // Another publisher may have released the lock between checks.
+      }
+      if (Date.now() >= deadline) throw new Error("Timed out waiting for the schedule alert state lock.");
+      await sleep(50);
     }
   }
-  writeState(dataDir, { version: 1, snapshot, delivered: Array.from(delivered).slice(-2_000) });
-  return { baselined: false, posted, failed };
+  try {
+    return await callback();
+  } finally {
+    fs.rmSync(lock, { recursive: true, force: true });
+  }
+}
+
+export async function publishScheduleChanges(
+  dataDir: string,
+  snapshot: Snapshot,
+  token: string,
+  options: { scope?: string } = {},
+): Promise<{ baselined: boolean; posted: ScheduleChange[]; failed: ScheduleChange[] }> {
+  const scope = normalizedScope(options.scope);
+  return withStateLock(dataDir, async () => {
+    const state = readState(dataDir);
+    const previous = scopeBaseline(state, scope);
+    if (!previous) {
+      writeState(dataDir, { ...state, snapshots: { ...state.snapshots, [scope]: snapshot } });
+      return { baselined: true, posted: [], failed: [] };
+    }
+    const delivered = new Set(state.delivered);
+    const posted: ScheduleChange[] = [];
+    const failed: ScheduleChange[] = [];
+    for (const event of detectScheduleChanges(previous, snapshot)) {
+      if (delivered.has(event.fingerprint)) continue;
+      if (await post(token, event.alert)) {
+        delivered.add(event.fingerprint);
+        posted.push(event);
+      } else {
+        failed.push(event);
+      }
+    }
+    writeState(dataDir, {
+      version: 2,
+      snapshots: { ...state.snapshots, [scope]: snapshot },
+      delivered: Array.from(delivered).slice(-2_000),
+    });
+    return { baselined: false, posted, failed };
+  });
 }

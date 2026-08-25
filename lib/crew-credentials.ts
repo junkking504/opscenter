@@ -72,7 +72,7 @@ async function readState(): Promise<CrewCredentialState> {
   try {
     const payload = JSON.parse(await fs.readFile(crewCredentialStatePath(), "utf8")) as CrewCredentialState;
     if (payload?.version !== 1 || !payload.users || typeof payload.users !== "object" || Array.isArray(payload.users)) {
-      throw new Error("Crew credential storage has an unsupported format.");
+      throw new Error("Krewe credential storage has an unsupported format.");
     }
     return payload;
   } catch (error) {
@@ -97,7 +97,7 @@ async function withStateLock<T>(work: () => Promise<T>): Promise<T> {
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
   }
-  if (!handle) throw new Error("Crew credential storage is busy. Try again.");
+  if (!handle) throw new Error("Krewe credential storage is busy. Try again.");
 
   try {
     return await work();

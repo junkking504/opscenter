@@ -78,7 +78,7 @@ export default async function CrewMemberPage({ params, searchParams }: PageProps
     ["Tips", money(t.tips), ""],
     ["Bonuses", money(t.bonuses), ""],
     ["Job Revenue Worked", money(t.jobRevenueWorked), "Full value of completed jobs worked"],
-    ["Credited Revenue", money(t.revenue), "Split crew allocation used for RPH and bonuses"],
+    ["Credited Revenue", money(t.revenue), "Split Krewe allocation used for RPH and bonuses"],
     ["Jobs Completed", number(t.jobsCompleted), ""],
     ["Average Job Size", money(t.averageJobSize), ""],
     ["RPH", money(t.rph), "Revenue per hour"],
@@ -95,7 +95,7 @@ export default async function CrewMemberPage({ params, searchParams }: PageProps
         subtitle={`Current pay period: ${detail.periodStart} through ${detail.periodEnd}`}
         date={selectedDate}
         status="Provisional"
-        controls={<Link className="ops-refresh-button" href={`/crew?date=${selectedDate}`}>Back to Crew</Link>}
+        controls={<Link className="ops-refresh-button" href={`/crew?date=${selectedDate}`}>Back to Krewe</Link>}
       />
 
       <section className="ops-card">
@@ -213,7 +213,7 @@ export default async function CrewMemberPage({ params, searchParams }: PageProps
               ) : (
                 <tr>
                   <td className="ops-muted" colSpan={12}>
-                    No activity found for this crew member in this pay period.
+                    No activity found for this Krewe member in this pay period.
                   </td>
                 </tr>
               )}

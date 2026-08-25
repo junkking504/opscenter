@@ -295,7 +295,7 @@ function candidateReason(candidate: Omit<CrewCallInCandidate, "rank" | "reason">
   const hours = `${candidate.weeklyHours.toFixed(1)} hrs this week; ${candidate.projectedWeeklyHours.toFixed(1)} projected`;
   const driver = candidate.suggestedRole === "Driver"
     ? `driver on ${candidate.recentDriverShifts} recent shift${candidate.recentDriverShifts === 1 ? "" : "s"}`
-    : "crew role balances hours and production";
+    : "Krewe role balances hours and production";
   return `${hours} · ${performance} · ${driver}`;
 }
 
@@ -442,7 +442,7 @@ export function buildCrewCallInPlan(baseDate: string): CrewCallInPlan {
   const note = schedule.rows.length === 0
     ? "No active appointments are on tomorrow’s schedule, so no call-ins are suggested."
     : uncovered > 0
-      ? `${uncovered} additional person${uncovered === 1 ? "" : "s"} may be needed; there is not enough recent crew history to make a confident suggestion.`
+      ? `${uncovered} additional person${uncovered === 1 ? "" : "s"} may be needed; there is not enough recent Krewe history to make a confident suggestion.`
       : "Recommendations balance recent RPH, current-week hours, recent activity, and driver coverage. Confirm availability before scheduling.";
 
   return {

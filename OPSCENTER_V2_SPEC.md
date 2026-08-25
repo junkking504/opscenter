@@ -10,15 +10,15 @@ Data:
 * Jobs Completed
 * Jobs Remaining
 * Active Trucks
-* Active Crew
+* Active Krewe
 * Average Truck RPH
-* Average Crew RPH
+* Average Krewe RPH
 * Attention Required
 
 Actions:
 
 * View Jobs
-* View Crew
+* View Krewe
 * View Fleet
 
 ⸻
@@ -34,7 +34,7 @@ Data:
 * Customer
 * Status
 * Truck
-* Crew
+* Krewe
 * Revenue
 * Payment Method
 * Paid
@@ -49,7 +49,7 @@ Actions:
 
 ⸻
 
-Crew
+Krewe
 
 Question:
 Who is working and what are they earning?
@@ -82,7 +82,7 @@ How are the trucks performing?
 Data:
 
 * Truck
-* Crew
+* Krewe
 * Jobs Completed
 * Revenue
 * RPH

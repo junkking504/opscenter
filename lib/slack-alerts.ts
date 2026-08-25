@@ -196,6 +196,28 @@ function readState(): SlackAlertState {
   }
 }
 
+function deliveredFastScheduleCloseouts(date: string): string[] {
+  const configured = String(process.env.OPSCENTER_DATA_DIR || "").trim();
+  const candidates = Array.from(new Set([
+    ...(configured ? [configured] : []),
+    path.join(process.cwd(), "data"),
+    path.join(process.env.HOME || "", ".openclaw", "workspace", "opsbot", "data"),
+  ]));
+  for (const dataDirectory of candidates) {
+    try {
+      const payload = JSON.parse(fs.readFileSync(
+        path.join(dataDirectory, "slack", "junkware_schedule_change_state.json"),
+        "utf8",
+      ));
+      return (Array.isArray(payload?.delivered) ? payload.delivered.map(String) : [])
+        .filter((fingerprint: string) => fingerprint.startsWith(`job_closed:${date}:`));
+    } catch {
+      // Try the next known runtime data location.
+    }
+  }
+  return [];
+}
+
 function writeState(state: SlackAlertState): void {
   const file = stateFile();
   const directory = path.dirname(file);
@@ -301,7 +323,7 @@ function exceptionAlert(
     detail: exception.reason,
     nextAction: isUnassigned
       ? "Assign the employee to the correct truck or confirm that the shift should be ended."
-      : "Confirm the crew status and close, reschedule, or update the appointment.",
+      : "Confirm the Krewe status and close, reschedule, or update the appointment.",
     href: absoluteOpsHref(exception.href || `/jobs?date=${encodeURIComponent(exception.timestamp.slice(0, 10))}`),
   };
 }
@@ -510,9 +532,9 @@ function crewNotification(
   fields: SlackMessageField[],
 ): SlackOpsAlert {
   const title = kind === "crew_clock_in"
-    ? "Crew clocked in"
+    ? "Krewe clocked in"
     : kind === "crew_clock_out"
-      ? "Crew clocked out"
+      ? "Krewe clocked out"
       : "Final daily pay";
   return {
     fingerprint: `${kind}:${date}:${employeeKey(name)}`,
@@ -543,7 +565,7 @@ export function buildCrewSlackNotifications(date: string, rows: AnyRecord[]): Sl
     if (!clockIn) continue;
 
     notifications.push(crewNotification("crew_clock_in", date, name, [
-      { label: "Crew member", value: name },
+      { label: "Krewe member", value: name },
       { label: "Clock in", value: clockIn },
     ]));
     if (!clockOut) continue;
@@ -555,7 +577,7 @@ export function buildCrewSlackNotifications(date: string, rows: AnyRecord[]): Sl
         date,
         name,
         [
-          { label: "Crew member", value: name },
+          { label: "Krewe member", value: name },
           { label: "Clock out", value: clockOut },
           { label: "Hours", value: hoursWorked.toFixed(2) },
         ],
@@ -579,7 +601,7 @@ export function buildCrewSlackNotifications(date: string, rows: AnyRecord[]): Sl
         date,
         name,
         [
-          { label: "Crew member", value: name },
+          { label: "Krewe member", value: name },
           { label: "Total pay", value: moneyText(totalPay) },
           { label: "Hourly pay", value: moneyText(hourlyPay) },
           { label: "Tips", value: moneyText(tips) },
@@ -1150,7 +1172,10 @@ export async function runSlackOpsAlerts(options?: {
   const completedRows = readCompletedJunkwareRows(date);
   const allTruckCloseoutNotifications = buildTruckCloseoutSlackNotifications(date, completedRows);
   const truckCloseoutNotificationsInitialized = Boolean(state.truckCloseoutNotificationsInitializedAt);
-  const deliveredTruckCloseouts = new Set(state.deliveredTruckCloseoutsByDate[date] || []);
+  const deliveredTruckCloseouts = new Set([
+    ...(state.deliveredTruckCloseoutsByDate[date] || []),
+    ...deliveredFastScheduleCloseouts(date),
+  ]);
   const truckCloseoutNotifications = truckCloseoutNotificationsInitialized
     ? allTruckCloseoutNotifications.filter((alert) => !deliveredTruckCloseouts.has(alert.fingerprint))
     : [];

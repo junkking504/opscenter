@@ -1,6 +1,6 @@
 # OpsCenter Slack alerts
 
-OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. Confirmed LinxUp truck-arrival alerts are published separately by the one-minute LinxUp collector, immediately after visit matching. New appointments, reschedules, cancellations, and closeouts are also checked by a separate one-minute verified JunkWare schedule detector; it reads schedule pages only and does not wait for detail pages, GPS, payroll, QBO, Crew Portal, marketing, or VPS work. Slack is the action and escalation layer; OpsCenter remains the source of truth.
+OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. Confirmed LinxUp truck-arrival alerts are published separately by the one-minute LinxUp collector, immediately after visit matching. New appointments, reschedules, cancellations, and closeouts are checked by a persistent verified JunkWare schedule detector; it reads schedule pages only and does not wait for detail pages, GPS, payroll, QBO, Krewe Portal, marketing, or VPS work. It uses one browser because JunkWare serializes concurrent logins, but publishes each market immediately after that market is verified instead of waiting for the other three. A sweep starts five seconds after the preceding sweep completes. The production in-session sweep measured 17.2 seconds total and about 4.3 seconds per market, producing a roughly 22-second same-market read cadence before the five-second OpsCenter browser check. This targets about 30 seconds and keeps the operating requirement below 60 seconds. Slack is the action and escalation layer; OpsCenter remains the source of truth.
 
 ## Routing policy
 
@@ -33,7 +33,7 @@ heading; the bold linked JK number follows directly, then `Load`, `Labor`, `CC 3
 `Tips`, `Total`, and payment facts as available. Load shows the price before its
 size, a zero-value Tips line remains visibly labelled, and `Card Ending` contains
 only the unbolded last four digits. This
-keeps arrival, closeout, payment, crew, receipt, and verified-photo alerts
+keeps arrival, closeout, payment, Krewe, receipt, and verified-photo alerts
 equally readable without changing their routing, delivery cadence, or deduplication.
 
 Same-day appointments deliberately use a field-layout exception for dispatch
@@ -58,9 +58,11 @@ regular Slack posts and for the attachment upload comment.
 
 The first live run records existing appointments, existing cancellations, and currently active incidents as its baseline. It does not flood Slack with pre-existing conditions. Later appointment additions and cancellations are each posted once; failed notification deliveries remain eligible for retry. Once a baseline incident clears, a later recurrence is treated as a new incident. New incident alerts are deduplicated, and recovery messages are posted in the original Slack thread.
 
-Crew lifecycle notifications are also baselined once when the feature is first deployed. After that baseline, each employee receives at most one clock-in, clock-out, and finalized-pay notification per day. Clock-in identifies the crew member and time; clock-out adds hours worked; finalized pay lists total pay, hourly pay, tips, bonuses, and any other pay.
+Krewe lifecycle notifications are also baselined once when the feature is first deployed. After that baseline, each employee receives at most one clock-in, clock-out, and finalized-pay notification per day. Clock-in identifies the Krewe member and time; clock-out adds hours worked; finalized pay lists total pay, hourly pay, tips, bonuses, and any other pay.
 
 The first schedule-detector run also baselines silently, then posts each new appointment, reschedule, cancellation, and closeout once. It considers a scrape valid only after JunkWare has confirmed the requested date and all four markets, preventing partial results from creating false operational alerts. Truck closeout and payment-detail notifications are baselined independently when each feature is first deployed so existing completed jobs do not flood either channel. A payment detail is held for retry until its closeout includes a payment line, which prevents an incomplete scrape from permanently omitting the requested payment details. Messages contain only the JK number, payment details, and a positive tip amount; they do not include customer data or a full card number.
+
+The same verified fast snapshot overlays the current OpsCenter Schedule roster when it is newer than the full collector output. The browser checks the combined freshness signal every five seconds, so status, type, total, payment method, truck, appointment additions, and cancellations do not wait for the multi-integration reconciliation cycle. The full collector remains authoritative for enriched closeout, crew, payment reconciliation, and historical details.
 
 Appointments that remain open after their scheduled window stay visible in OpsCenter but do not generate Slack alerts or resolution replies.
 

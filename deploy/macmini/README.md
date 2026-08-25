@@ -81,6 +81,33 @@ Keychain. `/api/health` reports `stale-linxup-data` when today's normalized GPS
 snapshot is more than three minutes old, and current OpsCenter pages refresh
 when a newer LinxUp snapshot arrives.
 
+### Dedicated JunkWare schedule detector
+
+Current appointments and Slack schedule events use a persistent, verified
+JunkWare schedule detector. JunkWare serializes concurrent browser logins, so
+one browser checks the four markets in sequence and publishes each market as
+soon as it is verified. Each sweep begins five seconds after the previous sweep
+completes. The production in-session sweep measured 17.2 seconds total and about
+4.3 seconds per market, yielding a roughly 22-second same-market read cadence
+before the five-second OpsCenter browser check. This targets about 30 seconds and
+keeps the operating requirement below 60 seconds. The full multi-integration
+collector remains the reconciliation and enrichment path.
+
+Production deployments reinstall this detector even if its LaunchAgent has
+become unloaded. To repair or verify it independently, run:
+
+```sh
+cd /Users/missioncontrol/opscenter-v2/opscenter
+./deploy/macmini/install-junkware-schedule-detector.sh
+```
+
+The detector writes verified market snapshots below
+`data/history/junkware/schedule-watchers/` and a heartbeat to
+`data/slack/junkware_schedule_watchers/detector.json`. `/api/health` reports
+`stale-junkware-schedule` when the current-day verified snapshot is older than
+two minutes. Current OpsCenter pages poll the combined freshness signal every
+five seconds and refresh when a newer verified schedule arrives.
+
 To deploy OpsCenter while leaving the separately managed WhatsApp photo worker
 untouched, set `OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER=false` for the deployment
 command. The default remains to restart the worker when it is loaded so it uses

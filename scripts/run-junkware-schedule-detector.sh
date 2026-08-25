@@ -4,9 +4,14 @@ set -Eeuo pipefail
 USER_HOME="${HOME:?HOME must be set}"
 OPSBOT_DIR="${OPSBOT_DIR:-$USER_HOME/.openclaw/workspace/opsbot}"
 OPSCENTER_DIR="${OPSCENTER_DIR:-$USER_HOME/opscenter-v2/opscenter}"
-DATE="${1:-$(TZ=America/Chicago date +%F)}"
+DATE_OVERRIDE="${1:-}"
 LOCK_DIR="$OPSBOT_DIR/tmp/junkware_schedule_detector.lock"
 LOCK_PID_FILE="$LOCK_DIR/pid"
+HEALTH_DIR="$OPSBOT_DIR/data/slack/junkware_schedule_watchers"
+# The persistent in-session sweep measured about 17 seconds across all four
+# markets. Five seconds between sweeps targets a roughly 22-second same-market
+# read cadence without overlapping JunkWare sessions.
+WATCH_INTERVAL_SECONDS="${JUNKWARE_SCHEDULE_DETECTOR_INTERVAL_SECONDS:-5}"
 
 for ENV_FILE in "$OPSBOT_DIR/.env" "$OPSBOT_DIR/.env.local" "$USER_HOME/.openclaw/.env" "$OPSCENTER_DIR/.env.slack.local"; do
   if [ -f "$ENV_FILE" ]; then
@@ -16,15 +21,11 @@ for ENV_FILE in "$OPSBOT_DIR/.env" "$OPSBOT_DIR/.env.local" "$USER_HOME/.opencla
   fi
 done
 
-mkdir -p "$OPSBOT_DIR/tmp" "$OPSBOT_DIR/logs"
+mkdir -p "$OPSBOT_DIR/tmp" "$OPSBOT_DIR/logs" "$HEALTH_DIR"
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  prior_pid="$(cat "$LOCK_PID_FILE" 2>/dev/null || true)"
-  prior_command=""
-  if [[ "$prior_pid" =~ ^[0-9]+$ ]]; then
-    prior_command="$(ps -p "$prior_pid" -o command= 2>/dev/null || true)"
-  fi
-  if [[ "$prior_command" == *"run-junkware-schedule-detector.sh"* ]]; then
-    echo "JunkWare schedule detector skipped: prior run is still active."
+  prior_pid="$(tr -dc '0-9' < "$LOCK_PID_FILE" 2>/dev/null || true)"
+  if [ -n "$prior_pid" ] && kill -0 "$prior_pid" 2>/dev/null; then
+    echo "JunkWare schedule detector refused duplicate start: pid $prior_pid is active."
     exit 0
   fi
   echo "JunkWare schedule detector recovered a stale lock."
@@ -38,7 +39,12 @@ fi
 printf '%s\n' "$$" > "$LOCK_PID_FILE"
 trap 'rm -f "$LOCK_PID_FILE"; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
 
-cd "$OPSBOT_DIR"
-python3 scripts/collect_junkware_daily.py --date "$DATE" --schedule-only
 cd "$OPSCENTER_DIR"
-OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" ./node_modules/.bin/tsx scripts/publish-junkware-schedule-changes.ts --data-dir "$OPSBOT_DIR/data" --date "$DATE"
+ARGS=(
+  --opscenter-dir "$OPSCENTER_DIR"
+  --data-dir "$OPSBOT_DIR/data"
+  --watch-interval "$WATCH_INTERVAL_SECONDS"
+)
+[ -n "$DATE_OVERRIDE" ] && ARGS+=(--date "$DATE_OVERRIDE")
+[ "${JUNKWARE_SCHEDULE_DETECTOR_ONCE:-false}" = "true" ] && ARGS+=(--once)
+python3 scripts/collect-junkware-schedule-stream.py "${ARGS[@]}"

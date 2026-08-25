@@ -241,13 +241,16 @@ function appointmentForSlackAlert(
   lookup: Map<string, AddOnAppointment>,
 ): SlackDigestMessage["appointment"] | undefined {
   const plainText = slackTextToPlainText(rawText);
-  const titleMatch = plainText.match(/(?:⚠️\s*)?(New same-day appointment|Appointment cancelled):\s*(JK\d+)/i);
-  if (!titleMatch) return undefined;
+  const legacyTitleMatch = plainText.match(/(?:⚠️\s*)?(New same-day appointment|Appointment cancelled):\s*(JK\d+)/i);
+  const addOnTitleMatch = plainText.match(/(?:⚠️\s*)?(New Appointment)\s*\n\s*(JK\d+)/i);
+  const title = legacyTitleMatch?.[1] || addOnTitleMatch?.[1];
+  const jobNumber = legacyTitleMatch?.[2] || addOnTitleMatch?.[2];
+  if (!title || !jobNumber) return undefined;
 
   const fingerprintMatch = rawText.match(/Alert ID:\s*(?:add_on|cancellation):\d{4}-\d{2}-\d{2}:(appt:[^\s_*]+)/i);
   const appointment = (
     (fingerprintMatch ? lookup.get(fingerprintMatch[1].toLowerCase()) : undefined)
-    || lookup.get(`job:${titleMatch[2]}`.toLowerCase())
+    || lookup.get(`job:${jobNumber}`.toLowerCase())
   );
   if (!appointment) return undefined;
 
@@ -257,7 +260,7 @@ function appointmentForSlackAlert(
     ?.replace(/^Next:\s*/i, "")
     .trim() || "";
   return {
-    title: titleMatch[1].replace(/^./, (value) => value.toUpperCase()),
+    title: title.replace(/^./, (value) => value.toUpperCase()),
     jobNumber: appointment.jobNumber,
     customerName: appointment.customerName,
     phone: appointment.phone,

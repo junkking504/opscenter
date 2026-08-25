@@ -13,7 +13,7 @@ import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
 import { money as moneyText } from "@/lib/money";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
-import { formatSlackMessage, type SlackMessageField } from "@/lib/slack-message-format";
+import { formatSlackMessage, slackEscape, type SlackMessageField } from "@/lib/slack-message-format";
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 
 export type SlackAlertSeverity = "critical" | "warning";
@@ -340,23 +340,28 @@ function staleDataAlert(source: DataHealthSource): SlackOpsAlert {
 }
 
 export function buildAddOnSlackNotification(appointment: AddOnAppointment, date: string): SlackOpsAlert {
+  const href = absoluteOpsHref(appointment.href);
+  const plainText = [
+    ":warning: *New Appointment*",
+    `<${href}|${slackEscape(appointment.jobNumber)}>`,
+    slackEscape(appointment.appointmentTime),
+    `*${slackEscape(appointment.customerName)}*`,
+    slackEscape(appointment.phone),
+    slackEscape(appointment.address),
+    ...(appointment.items.length ? [`*Items:* ${slackEscape(appointment.items.join("; "))}`] : []),
+  ].filter(Boolean).join("\n");
+
   return {
     fingerprint: `add_on:${date}:${appointment.id}`,
     kind: "add_on",
     lifecycle: "notification",
     severity: "warning",
     channelId: appointmentChannelId(appointment.territory),
-    title: `New same-day appointment: ${appointment.jobNumber}`,
+    title: "New Appointment",
     detail: "",
-    fields: [
-      { label: "Customer", value: appointment.customerName },
-      { label: "Phone", value: appointment.phone },
-      { label: "Time", value: appointment.appointmentTime },
-      { label: "Address", value: appointment.address },
-      ...(appointment.items.length ? [{ label: "Items", value: appointment.items.join("; ") }] : []),
-    ],
     nextAction: "",
-    href: absoluteOpsHref(appointment.href),
+    href: "",
+    plainText,
   };
 }
 

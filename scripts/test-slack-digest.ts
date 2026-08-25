@@ -39,7 +39,7 @@ async function main() {
         },
         {
           ts: "1786718500.000003",
-          text: ":warning: *New same-day appointment: JK4052608*\nTest Customer · 12:00 PM - 01:00 PM · Truck# 1 · 123 Test Street\n*Next:* Confirm coverage.\n<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052608|Open in OpsCenter>\n_Alert ID: add_on:2026-08-14:appt:4039430_",
+          text: ":warning: *New Appointment*\n<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052608|JK4052608>\n12:00 PM - 01:00 PM\n*Test Customer*\n(504) 555-0100\n123 Test Street",
           bot_profile: { name: "OpsCenter Alerts" },
         },
         {

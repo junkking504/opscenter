@@ -147,13 +147,13 @@ const addOnSlackAlert = buildAddOnSlackNotification({
 }, "2026-08-12");
 assert.equal(addOnSlackAlert.channelId, "C_TEST_NO");
 assert.equal(formatSlackAlert(addOnSlackAlert), [
-  ":warning: *New same-day appointment: JK4025000*",
-  "*Customer:* Test Customer",
-  "*Phone:* (504) 555-0100",
-  "*Time:* 1:00 PM - 3:00 PM",
-  "*Address:* 123 Test Street",
+  ":warning: *New Appointment*",
+  "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4025000|JK4025000>",
+  "1:00 PM - 3:00 PM",
+  "*Test Customer*",
+  "(504) 555-0100",
+  "123 Test Street",
   "*Items:* Sofa; Desk",
-  "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4025000|Open in OpsCenter>",
 ].join("\n"));
 assert.doesNotMatch(formatSlackAlert(addOnSlackAlert), /\*Next:\*/);
 assert.doesNotMatch(formatSlackAlert(addOnSlackAlert), /Truck# 4|Alert ID/);

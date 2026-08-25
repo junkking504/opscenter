@@ -202,9 +202,14 @@
 .digestAppointment { display: grid; min-width: 0; gap: 2px; }
 .digestAppointmentTitle { color: #24282f !important; font-weight: 800; }
 .digestAppointmentTitle a,
+.digestAppointmentJob,
+.digestAppointmentPhone,
 .digestOpenLink { color: #075fbd; font-weight: 800; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
 .digestAppointmentTitle a:hover,
+.digestAppointmentJob:hover,
+.digestAppointmentPhone:hover,
 .digestOpenLink:hover { color: #034b98; }
+.digestAppointmentCustomer { color: #24282f !important; font-weight: 800; }
 .digestNext { margin-top: 3px !important; }
 .digestOpenLink { width: fit-content; margin-top: 2px; font-size: 0.9375rem; line-height: 1.4; }
 

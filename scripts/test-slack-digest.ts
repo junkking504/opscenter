@@ -44,7 +44,7 @@ async function main() {
         },
         {
           ts: "1786718750.000004",
-          text: ":white_check_mark: JK4052579 closed out.",
+          text: ":white_check_mark: *Job Closed*\n*Job:* <https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052579|JK4052579>",
           bot_profile: { name: "OpsCenter Alerts" },
         },
         {
@@ -116,9 +116,9 @@ async function main() {
   assert.deepEqual(digest.messages[1].closeout?.lines, [
     "Load: 1/3 ($388.00).",
     "Discount: $30.00.",
-    "Job total: $358.00.",
-    "Tip: $71.60.",
-    "Charged: Card ending 9896 ($429.60).",
+    "Total: $358.00.",
+    "Tips: $71.60.",
+    "Card Ending: 9896 ($429.60).",
   ]);
   assert.equal(digest.messages[1].closeout?.href, "/jobs?date=2026-08-14#job-jk4052579");
   assert.equal(digest.messages[2].channel, "#jobs-no");

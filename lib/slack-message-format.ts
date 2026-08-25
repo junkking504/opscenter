@@ -1,6 +1,7 @@
 export type SlackMessageField = {
   label: string;
   value: string | number | null | undefined;
+  href?: string;
 };
 
 export type SlackMessageOptions = {
@@ -28,9 +29,12 @@ export function formatSlackMessage({
   nextAction = "",
   href = "",
 }: SlackMessageOptions): string {
-  const fieldLines = fields.flatMap(({ label, value }) => {
+  const fieldLines = fields.flatMap(({ label, value, href: fieldHref }) => {
     const text = String(value ?? "").trim();
-    return text ? [`*${slackEscape(label)}:* ${slackEscape(text)}`] : [];
+    if (!text) return [];
+    const href = String(fieldHref || "").trim();
+    const renderedValue = href ? `<${href}|${slackEscape(text)}>` : slackEscape(text);
+    return [`*${slackEscape(label)}:* ${renderedValue}`];
   });
   const bodyLines = String(body || "")
     .split("\n")

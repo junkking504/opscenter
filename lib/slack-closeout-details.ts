@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { money as moneyText } from "@/lib/money";
 import type { AnyRecord } from "@/lib/opsData";
+import { formatSlackMessage, type SlackMessageField } from "@/lib/slack-message-format";
 
 export type TruckCloseoutDetails = {
   jobNumber: string;
@@ -39,7 +40,7 @@ function pricedLoadLine(label: string, size: string, price: number | null, quant
   return `${label}: ${description}${price !== null ? ` (${moneyText(price)})` : ""}.`;
 }
 
-function paymentDescription(payment: AnyRecord): string {
+function paymentLine(payment: AnyRecord): string {
   const method = firstText(payment, ["method", "payment_method", "paymentMethod"]);
   if (!method) return "";
   const detail = firstText(payment, ["detail", "payment_detail", "paymentDetail"]);
@@ -48,14 +49,27 @@ function paymentDescription(payment: AnyRecord): string {
   const normalizedMethod = method.toLowerCase();
   if (normalizedMethod.includes("card")) {
     const lastFour = detail.match(/(\d{4})(?!.*\d)/)?.[1] || "";
-    return `Card${lastFour ? ` ending ${lastFour}` : ""}${amountText}`;
+    return `Card Ending: ${lastFour || "Unavailable"}${amountText}.`;
   }
   if (normalizedMethod.includes("check")) {
     const checkNumber = detail.replace(/^\s*#\s*/, "").trim();
-    return `Check${checkNumber ? ` #${checkNumber}` : ""}${amountText}`;
+    return `Check: ${checkNumber ? `#${checkNumber}` : "Number unavailable"}${amountText}.`;
   }
-  if (normalizedMethod.includes("cash")) return `Cash${amountText}`;
-  return `${method}${amountText}`;
+  if (normalizedMethod.includes("cash")) return `Cash: ${amountText.trim() || "Amount unavailable"}.`;
+  return `${method}: ${amountText.trim() || "Amount unavailable"}.`;
+}
+
+function closeoutChargeLabel(name: string): string {
+  const normalized = name.toLowerCase().replace(/\s+/g, " ").trim();
+  if (normalized.includes("surcharge") && normalized.includes("card present")) return "CC 3%";
+  return name;
+}
+
+function slackFields(lines: string[]): SlackMessageField[] {
+  return lines.flatMap((line) => {
+    const match = line.match(/^([^:]+):\s*(.*?)\.?$/);
+    return match ? [{ label: match[1], value: match[2] }] : [];
+  });
 }
 
 export function truckCloseoutDetails(row: AnyRecord): TruckCloseoutDetails | null {
@@ -82,26 +96,26 @@ export function truckCloseoutDetails(row: AnyRecord): TruckCloseoutDetails | nul
     if (!charge || typeof charge !== "object") continue;
     const name = firstText(charge, ["name", "label", "description"]);
     const amount = firstFiniteNumber(charge, ["total", "amount", "unitPrice"]);
-    if (name && amount !== null) lines.push(`${name}: ${moneyText(amount)}.`);
+    if (name && amount !== null) lines.push(`${closeoutChargeLabel(name)}: ${moneyText(amount)}.`);
   }
 
   const discount = firstFiniteNumber(closeout, ["discount"]);
   if (discount !== null && discount > 0) lines.push(`Discount: ${moneyText(discount)}.`);
 
   const jobTotal = firstFiniteNumber(row, ["revenue", "job_total", "jobTotal"]);
-  if (jobTotal !== null) lines.push(`Job total: ${moneyText(jobTotal)}.`);
+  if (jobTotal !== null) lines.push(`Total: ${moneyText(jobTotal)}.`);
 
   const tip = firstFiniteNumber(closeout, ["tip"])
     ?? firstFiniteNumber(row, ["tip", "tips"])
     ?? 0;
-  lines.push(`Tip: ${moneyText(tip)}.`);
+  lines.push(`Tips: ${moneyText(tip)}.`);
 
   const payments = (Array.isArray(closeout.payments) ? closeout.payments : [])
     .filter((payment): payment is AnyRecord => Boolean(payment) && typeof payment === "object")
-    .map(paymentDescription)
+    .map(paymentLine)
     .filter(Boolean);
   if (payments.length) {
-    lines.push(`Charged: ${payments.join("; ")}.`);
+    lines.push(...payments);
   } else {
     const chargedTotal = firstFiniteNumber(closeout, ["total"]);
     if (chargedTotal !== null) lines.push(`Total charged: ${moneyText(chargedTotal)}.`);
@@ -110,7 +124,11 @@ export function truckCloseoutDetails(row: AnyRecord): TruckCloseoutDetails | nul
   return {
     jobNumber,
     lines,
-    slackText: [`:white_check_mark: ${jobNumber} closed out.`, ...lines].join(" "),
+    slackText: formatSlackMessage({
+      icon: ":white_check_mark:",
+      title: "Job Closed",
+      fields: [{ label: "Job", value: jobNumber }, ...slackFields(lines)],
+    }),
   };
 }
 

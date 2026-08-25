@@ -283,7 +283,9 @@ function closeoutForSlackAlert(
   lookup: Map<string, AnyRecord>,
   date: string,
 ): SlackDigestMessage["closeout"] | undefined {
-  const match = slackTextToPlainText(rawText).match(/^✅\s*(JK\d+)\s+closed out\./i);
+  const plainText = slackTextToPlainText(rawText);
+  const match = plainText.match(/^✅\s*Job Closed\s*\nJob:\s*(JK\d+)/i)
+    || plainText.match(/^✅\s*(JK\d+)\s+closed out\./i);
   if (!match) return undefined;
   const details = truckCloseoutDetails(lookup.get(match[1].toLowerCase()) || {});
   if (!details) return undefined;
@@ -313,7 +315,8 @@ function digestMessage(
     appointment.items.length ? `Items: ${appointment.items.join("; ")}` : "",
     appointment.nextAction ? `Next: ${appointment.nextAction}` : "",
   ].filter(Boolean).join("\n") : closeout ? [
-    `✅ ${closeout.jobNumber} closed out.`,
+    "✅ Job Closed",
+    `Job: ${closeout.jobNumber}`,
     ...closeout.lines,
   ].join("\n") : plainText;
   const epochMs = Number(ts) * 1_000;

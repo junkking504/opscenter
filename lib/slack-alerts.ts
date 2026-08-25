@@ -13,7 +13,7 @@ import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
 import { money as moneyText } from "@/lib/money";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
-import { formatSlackMessage, slackEscape, type SlackMessageField } from "@/lib/slack-message-format";
+import { formatSlackMessage, type SlackMessageField } from "@/lib/slack-message-format";
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 
 export type SlackAlertSeverity = "critical" | "warning";
@@ -281,6 +281,11 @@ function absoluteOpsHref(href: string): string {
   return `${origin()}${href.startsWith("/") ? href : `/${href}`}`;
 }
 
+function closeoutOpsHref(date: string, jobNumber: string): string {
+  const jobAnchor = jobNumber.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+  return absoluteOpsHref(`/jobs?date=${encodeURIComponent(date)}#job-${jobAnchor}`);
+}
+
 function exceptionAlert(
   exception: OperationalException,
   kind: "unassigned_crew" | "late_job",
@@ -544,11 +549,12 @@ export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyReco
     seen.add(fingerprint);
 
     const closeout = truckCloseoutDetails(row);
+    const href = closeoutOpsHref(date, jobNumber);
     const plainText = formatSlackMessage({
       icon: ":white_check_mark:",
-      title: `${jobNumber} closed out`,
+      title: "Job Closed",
       fields: [
-        { label: "Job", value: jobNumber },
+        { label: "Job", value: jobNumber, href },
         ...parseSlackDetailLines(closeout?.lines || []),
       ],
     });
@@ -800,7 +806,7 @@ function parseSlackDetailLines(lines: string[]): Array<{ label: string; value: s
 }
 
 export function formatSlackAlert(alert: SlackOpsAlert): string {
-  if (alert.plainText) return slackEscape(alert.plainText);
+  if (alert.plainText) return alert.plainText;
   const icon = alert.severity === "critical" ? ":rotating_light:" : ":warning:";
   return formatSlackMessage({
     icon,

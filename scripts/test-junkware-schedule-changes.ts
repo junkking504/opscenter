@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { detectScheduleChanges } from "@/lib/junkware-schedule-changes";
+import { formatSlackAlert } from "@/lib/slack-alerts";
 
 process.env.SLACK_TRUCK_6_CHANNEL_ID = "C_TEST_TRUCK_6";
 
@@ -29,6 +30,10 @@ const current = {
 const events = detectScheduleChanges(previous, current);
 assert.deepEqual(events.map((event) => event.kind).sort(), ["cancelled", "job_closed", "new_appointment", "rescheduled"]);
 assert.equal(events.find((event) => event.kind === "job_closed")?.alert.channelId, "C_TEST_TRUCK_6");
+assert.equal(formatSlackAlert(events.find((event) => event.kind === "job_closed")!.alert), [
+  ":white_check_mark: *Job Closed*",
+  "*Job:* <https://ops.junk-king.app/jobs?date=2026-08-17#job-jk4051001|JK4051001>",
+].join("\n"));
 assert.match(String(events.find((event) => event.kind === "rescheduled")?.alert.detail), /Previous: 10:00 AM/);
 assert.deepEqual(detectScheduleChanges(null, current), []);
 console.log("JunkWare schedule change detector tests passed.");

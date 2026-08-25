@@ -19,7 +19,7 @@ type Props = { searchParams?: Promise<{ error?: string }> };
 const errors: Record<string, string> = {
   "password-mismatch": "The passwords do not match.",
   "password-policy": "Use 10–128 characters with at least one letter and one number.",
-  "temporary-password": "Choose a password different from the temporary crew password.",
+  "temporary-password": "Choose a password different from the temporary Krewe password.",
 };
 
 export default async function SetPasswordPage({ searchParams }: Props) {
@@ -32,7 +32,7 @@ export default async function SetPasswordPage({ searchParams }: Props) {
   return (
     <main className={styles.page}>
       <section className={styles.card}>
-        <div className={styles.brand}><span className={styles.brandMark} /> OpsCenter Crew</div>
+        <div className={styles.brand}><span className={styles.brandMark} /> OpsCenter Krewe</div>
         <h1>Create your<br />password.</h1>
         <p className={styles.lead}>Welcome, {employee}. The temporary password works only until you complete this step.</p>
         {error ? <div className={styles.error} role="alert">{error}</div> : null}

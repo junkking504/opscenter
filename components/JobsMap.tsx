@@ -450,7 +450,7 @@ function scheduleJobState(job: JobsMapPoint): { state: ScheduleJobState; label: 
   }
   if (job.truckOnSite) return { state: "on-site", label: "Truck on location" };
   if (isVisitedUnclosedScheduleJob(job)) {
-    return { state: "visited-unclosed", label: "Crew visited · appointment not closed out" };
+    return { state: "visited-unclosed", label: "Krewe visited · appointment not closed out" };
   }
   return { state: "waiting", label: "Not completed · truck not on location" };
 }
@@ -1501,7 +1501,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           <div className="ops-jobs-map-selection-visited-unclosed" role="status">
             <b aria-hidden="true">?</b>
             <span>
-              <strong>Crew visited this address</strong>
+              <strong>Krewe visited this address</strong>
               Appointment is not closed out in JunkWare
               {selectedJob.visitedTrucks.length ? <small>{selectedJob.visitedTrucks.join(", ")}</small> : null}
             </span>

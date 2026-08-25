@@ -241,7 +241,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
             </section>
 
             <section className="ops-closeout-editor-section">
-              <h4>Crew Assigned to This Job</h4>
+              <h4>Krewe Assigned to This Job</h4>
               <label>
                 <span>Driver</span>
                 <select value={live.driver.value} onChange={(event) => update("driver", { value: event.target.value, label: event.target.selectedOptions[0]?.text || "" })}>

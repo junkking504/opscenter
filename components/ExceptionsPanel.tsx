@@ -13,6 +13,10 @@ const severityLabels: Record<ExceptionSeverity, string> = {
 
 const categoryOrder: ExceptionCategory[] = ["Crew", "Jobs", "Fleet", "Finance"];
 
+function categoryLabel(category: ExceptionCategory): string {
+  return category === "Crew" ? "Krewe" : category;
+}
+
 function todayIsoChicago(): string {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Chicago",
@@ -108,7 +112,7 @@ export default function ExceptionsPanel({ compact = false }: ExceptionsPanelProp
             <div className="ops-exceptions-category-counts">
               {categoryOrder.map((category) => (
                 <span key={category} className="ops-exception-chip ops-exception-category-chip">
-                  {category} {categoryCounts[category]}
+                  {categoryLabel(category)} {categoryCounts[category]}
                 </span>
               ))}
             </div>
@@ -167,7 +171,7 @@ export default function ExceptionsPanel({ compact = false }: ExceptionsPanelProp
             {categoryOrder.map((category) => (
               <div key={category} className="ops-exceptions-category-card">
                 <div className="ops-exceptions-category-head">
-                  <strong>{category}</strong>
+                  <strong>{categoryLabel(category)}</strong>
                   <div className="ops-exceptions-category-head-right">
                     <span>{categoryCounts[category]}</span>
                     {categoryCounts[category] > 5 ? (
@@ -197,7 +201,7 @@ export default function ExceptionsPanel({ compact = false }: ExceptionsPanelProp
                   {(() => {
                     const items = exceptionsByCategory.get(category) || [];
                     if (!items.length) {
-                      return <div className="ops-exceptions-empty-line">No {category} exceptions</div>;
+                      return <div className="ops-exceptions-empty-line">No {categoryLabel(category)} exceptions</div>;
                     }
 
                     const visible = expandedCategories.has(category) ? items : items.slice(0, 5);

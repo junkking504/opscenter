@@ -603,7 +603,7 @@ function renderJulySummaryPage({
                 <th>Appointments</th>
                 <th>Completed Jobs</th>
                 <th>Revenue</th>
-                <th>Crew Assignments</th>
+                <th>Krewe Assignments</th>
                 <th>Driver Assignments</th>
                 <th>Linxup Trips</th>
                 <th>Linxup Mileage</th>
@@ -1013,7 +1013,7 @@ export default async function FleetPage({
         <div className="ops-card-header compact">
           <div>
             <div className="ops-section-title">Truck Activity</div>
-            <div className="ops-muted">All trucks with financial or GPS activity are shown. Employee revenue stays on Crew.</div>
+            <div className="ops-muted">All trucks with financial or GPS activity are shown. Employee revenue stays on Krewe.</div>
           </div>
         </div>
 

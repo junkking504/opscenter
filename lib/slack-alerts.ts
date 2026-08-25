@@ -296,7 +296,7 @@ function exceptionAlert(
     detail: exception.reason,
     nextAction: isUnassigned
       ? "Assign the employee to the correct truck or confirm that the shift should be ended."
-      : "Confirm the crew status and close, reschedule, or update the appointment.",
+      : "Confirm the Krewe status and close, reschedule, or update the appointment.",
     href: absoluteOpsHref(exception.href || `/jobs?date=${encodeURIComponent(exception.timestamp.slice(0, 10))}`),
   };
 }
@@ -373,7 +373,7 @@ export function buildCancellationSlackNotification(appointment: CancelledAppoint
       ...(appointment.cancelledBy ? [{ label: "Cancelled by", value: appointment.cancelledBy }] : []),
       ...(appointment.cancellationReason ? [{ label: "Reason", value: appointment.cancellationReason }] : []),
     ],
-    nextAction: "Confirm the territory schedule and update the crew and truck plan.",
+    nextAction: "Confirm the territory schedule and update the Krewe and truck plan.",
     href: absoluteOpsHref(appointment.href),
   };
 }
@@ -413,9 +413,9 @@ function crewNotification(
   fields: SlackMessageField[],
 ): SlackOpsAlert {
   const title = kind === "crew_clock_in"
-    ? "Crew clocked in"
+    ? "Krewe clocked in"
     : kind === "crew_clock_out"
-      ? "Crew clocked out"
+      ? "Krewe clocked out"
       : "Final daily pay";
   return {
     fingerprint: `${kind}:${date}:${employeeKey(name)}`,
@@ -446,7 +446,7 @@ export function buildCrewSlackNotifications(date: string, rows: AnyRecord[]): Sl
     if (!clockIn) continue;
 
     notifications.push(crewNotification("crew_clock_in", date, name, [
-      { label: "Crew member", value: name },
+      { label: "Krewe member", value: name },
       { label: "Clock in", value: clockIn },
     ]));
     if (!clockOut) continue;
@@ -458,7 +458,7 @@ export function buildCrewSlackNotifications(date: string, rows: AnyRecord[]): Sl
         date,
         name,
         [
-          { label: "Crew member", value: name },
+          { label: "Krewe member", value: name },
           { label: "Clock out", value: clockOut },
           { label: "Hours", value: hoursWorked.toFixed(2) },
         ],

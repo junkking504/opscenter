@@ -16,6 +16,7 @@ DATA_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/data"
 PRODUCTION_LABEL="com.openclaw.opscenter"
 PREVIEW_LABEL="com.openclaw.opscenter.macmini-preview"
 WHATSAPP_PHOTO_LABEL="com.openclaw.opscenter.whatsapp-photos"
+LINXUP_COLLECTOR_LABEL="com.openclaw.opsbot.linxup-collector"
 REQUESTED_REF="${1:-}"
 RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"
 
@@ -152,6 +153,13 @@ if service_loaded "$WHATSAPP_PHOTO_LABEL" && whatsapp_photo_worker_restart_enabl
   launchctl kickstart -k "gui/$(id -u)/$WHATSAPP_PHOTO_LABEL"
 fi
 
+# Launchd can retain the resolved release target for this one-minute publisher.
+# Refresh it after the symlink switch so the next truck-arrival alert uses the
+# newly activated formatter.
+if service_loaded "$LINXUP_COLLECTOR_LABEL"; then
+  launchctl kickstart -k "gui/$(id -u)/$LINXUP_COLLECTOR_LABEL"
+fi
+
 echo
 echo "Deployed OpsCenter commit $commit"
 echo "Live path: $APP_LINK -> $release"
@@ -163,5 +171,8 @@ else
 fi
 if service_loaded "$WHATSAPP_PHOTO_LABEL" && whatsapp_photo_worker_restart_enabled; then
   echo "Worker:    $WHATSAPP_PHOTO_LABEL restarted on the active release"
+fi
+if service_loaded "$LINXUP_COLLECTOR_LABEL"; then
+  echo "Collector: $LINXUP_COLLECTOR_LABEL restarted on the active release"
 fi
 echo "Rollback:  deploy this previous target's commit again: $previous_target"

@@ -26,7 +26,8 @@ INSTALL_STARTED_EPOCH="$(date +%s)"
 launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || true
 LOCK_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/tmp/junkware_schedule_detector.lock"
 LOCK_PID_FILE="$LOCK_DIR/pid"
-LOCK_PID="$(tr -dc '0-9' < "$LOCK_PID_FILE" 2>/dev/null || true)"
+LOCK_PID=""
+[ ! -f "$LOCK_PID_FILE" ] || LOCK_PID="$(tr -dc '0-9' < "$LOCK_PID_FILE" || true)"
 if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
   LOCK_COMMAND="$(ps -p "$LOCK_PID" -o command= 2>/dev/null || true)"
   if [[ "$LOCK_COMMAND" != *"run-junkware-schedule-detector.sh"* ]]; then
@@ -41,8 +42,10 @@ if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
       exit 1
     fi
   done
-  [ -z "$LOCK_CHILD_PIDS" ] || kill -TERM $LOCK_CHILD_PIDS
-  kill -TERM "$LOCK_PID"
+  # A validated detector may finish its current sweep after the checks above.
+  # Treat an already-exited process as a successful stop, not an install error.
+  [ -z "$LOCK_CHILD_PIDS" ] || kill -TERM $LOCK_CHILD_PIDS 2>/dev/null || true
+  kill -TERM "$LOCK_PID" 2>/dev/null || true
   for attempt in {1..10}; do
     detector_active=false
     kill -0 "$LOCK_PID" 2>/dev/null && detector_active=true

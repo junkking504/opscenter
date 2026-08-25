@@ -821,7 +821,7 @@ function displayPhone(value: string): string {
   return phoneDisplayParts(value).label;
 }
 
-function slackPhoneLink(value: string): string {
+export function slackPhoneLink(value: string): string {
   const { label, digits, extension } = phoneDisplayParts(value);
   if (!label || digits.length < 7) return slackEscape(label);
   const phoneNumber = digits.length === 10 ? `+1${digits}` : `+${digits}`;

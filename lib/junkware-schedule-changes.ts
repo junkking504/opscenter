@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { appointmentChannelId, buildAddOnSlackNotification, buildCancellationSlackNotification, formatSlackAlert, type SlackOpsAlert } from "@/lib/slack-alerts";
-import { formatSlackMessage } from "@/lib/slack-message-format";
+import { appointmentChannelId, buildAddOnSlackNotification, buildCancellationSlackNotification, formatSlackAlert, slackPhoneLink, type SlackOpsAlert } from "@/lib/slack-alerts";
+import { formatSlackMessage, slackEscape } from "@/lib/slack-message-format";
 import { truckSlackChannelId } from "@/lib/slack-truck-channels";
 import type { AnyRecord } from "@/lib/opsData";
 
@@ -73,17 +73,29 @@ function href(date: string, row: AnyRecord): string {
 function rescheduleAlert(date: string, previous: AnyRecord, current: AnyRecord): SlackOpsAlert {
   const oldTime = first(previous, ["appointment_time", "scheduled_time", "time_window"]) || "Unavailable";
   const newTime = first(current, ["appointment_time", "scheduled_time", "time_window"]) || "Unavailable";
-  const truck = first(current, ["truck", "assigned_truck", "truck_number"]);
+  const number = jobNumber(current);
+  const customerName = first(current, ["customer_name", "customer", "name"]);
+  const phone = first(current, ["phone", "customer_phone", "phone_number", "mobile_phone", "mobile"]);
+  const address = first(current, ["address", "service_address", "job_address"]);
   return {
     fingerprint: "",
     kind: "add_on",
     lifecycle: "notification",
     severity: "warning",
     channelId: appointmentChannelId(first(current, ["normalized_territory", "territory", "source_territory", "market"])),
-    title: `${jobNumber(current)} rescheduled`,
-    detail: [`Previous: ${oldTime}`, `New: ${newTime}`, truck ? `Truck: ${truck}` : ""].filter(Boolean).join("\n"),
-    nextAction: "Update the route plan.",
-    href: href(date, current),
+    title: "Rescheduled",
+    detail: "",
+    nextAction: "",
+    href: "",
+    plainText: [
+      ":warning: *Rescheduled*",
+      `*<${href(date, current)}|${slackEscape(number)}>*`,
+      `Previous: ${slackEscape(oldTime)}`,
+      `New: ${slackEscape(newTime)}`,
+      customerName ? `*${slackEscape(customerName)}*` : "",
+      slackPhoneLink(phone),
+      slackEscape(address),
+    ].filter(Boolean).join("\n"),
   };
 }
 

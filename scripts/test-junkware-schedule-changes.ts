@@ -34,6 +34,11 @@ assert.equal(formatSlackAlert(events.find((event) => event.kind === "job_closed"
   ":white_check_mark: *Job Closed*",
   "*Job:* <https://ops.junk-king.app/jobs?date=2026-08-17#job-jk4051001|JK4051001>",
 ].join("\n"));
-assert.match(String(events.find((event) => event.kind === "rescheduled")?.alert.detail), /Previous: 10:00 AM/);
+assert.equal(formatSlackAlert(events.find((event) => event.kind === "rescheduled")!.alert), [
+  ":warning: *Rescheduled*",
+  "*<https://ops.junk-king.app/jobs?date=2026-08-17#job-jk4051002|JK4051002>*",
+  "Previous: 10:00 AM",
+  "New: 11:00 AM",
+].join("\n"));
 assert.deepEqual(detectScheduleChanges(null, current), []);
 console.log("JunkWare schedule change detector tests passed.");

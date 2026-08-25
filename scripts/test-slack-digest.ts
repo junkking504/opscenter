@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { fetchSlackDailyDigest, normalizedCancellationDigestText, slackTextToPlainText } from "@/lib/slack-digest";
+import { fetchSlackDailyDigest, normalizedCancellationDigestText, normalizedRescheduleDigestText, slackTextToPlainText } from "@/lib/slack-digest";
 
 async function main() {
   const clientSource = fs.readFileSync(new URL("../components/SlackAlertsDigest.tsx", import.meta.url), "utf8");
@@ -30,6 +30,38 @@ async function main() {
       "<tel:+18004215354;ext=2071|(800) 421-5354 x2071>",
       "400 Russell Ave New Orleans, LA 70143",
       "*Reason:* Cancelled via email per accounts request Followup",
+    ].join("\n"),
+  );
+  const rescheduleAppointments = new Map([[
+    "job:jk4065604",
+    {
+      id: "appt:4052426",
+      appointmentId: "4052426",
+      jobNumber: "JK4065604",
+      territory: "Baton Rouge",
+      customerName: "Reinel Benitez",
+      phone: "(504) 372-9604",
+      address: "321 Burgess Pl Baton Rouge, LA 70815",
+      appointmentTime: "12:00 PM - 01:00 PM",
+      appointmentType: "Job",
+      assignedTruck: "Truck# 6",
+      items: [],
+      href: "/jobs?date=2026-08-25#job-jk4065604",
+    },
+  ]]);
+  assert.equal(
+    normalizedRescheduleDigestText(
+      ":warning: *JK4065604 rescheduled*\nPrevious: 12:00 PM - 01:00 PM\nNew: 12:00 PM - 01:00 PM\nTruck: Truck# 6\n*Next:* Update the route plan.\n<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4065604|Open in OpsCenter>",
+      rescheduleAppointments,
+    ),
+    [
+      ":warning: *Rescheduled*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4065604|JK4065604>*",
+      "Previous: 12:00 PM - 01:00 PM",
+      "New: 12:00 PM - 01:00 PM",
+      "*Reinel Benitez*",
+      "<tel:+15043729604|(504) 372-9604>",
+      "321 Burgess Pl Baton Rouge, LA 70815",
     ].join("\n"),
   );
 

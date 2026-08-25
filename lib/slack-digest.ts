@@ -4,8 +4,9 @@ import {
   buildCancelledAppointmentFeed,
   type AddOnAppointment,
 } from "@/lib/add-on-notifications";
-import { buildCancellationSlackNotification, formatSlackAlert } from "@/lib/slack-alerts";
+import { buildCancellationSlackNotification, formatSlackAlert, slackPhoneLink } from "@/lib/slack-alerts";
 import type { AnyRecord } from "@/lib/opsData";
+import { slackEscape } from "@/lib/slack-message-format";
 import { readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
 
 const CHICAGO_TIME_ZONE = "America/Chicago";
@@ -334,6 +335,31 @@ export function normalizedCancellationDigestText(rawText: string, date: string):
   }, date));
 }
 
+/** Preserve the approved reschedule layout for historical detector alerts too. */
+export function normalizedRescheduleDigestText(
+  rawText: string,
+  appointments: Map<string, AddOnAppointment>,
+): string {
+  const source = String(rawText || "");
+  const titleMatch = source.match(/^:warning:\s*\*(JK\d+)\s+rescheduled\*\s*$/im);
+  const jobNumber = titleMatch?.[1];
+  const previous = source.match(/^Previous:\s*(.+)$/im)?.[1]?.trim();
+  const next = source.match(/^New:\s*(.+)$/im)?.[1]?.trim();
+  const href = source.match(/<(https?:\/\/[^>|]+)\|Open in OpsCenter>/i)?.[1];
+  const appointment = jobNumber ? appointments.get(`job:${jobNumber}`.toLowerCase()) : undefined;
+  if (!jobNumber || !previous || !next || !href || !appointment) return rawText;
+
+  return [
+    ":warning: *Rescheduled*",
+    `*<${href}|${slackEscape(jobNumber)}>*`,
+    `Previous: ${slackEscape(previous)}`,
+    `New: ${slackEscape(next)}`,
+    appointment.customerName ? `*${slackEscape(appointment.customerName)}*` : "",
+    slackPhoneLink(appointment.phone),
+    slackEscape(appointment.address),
+  ].filter(Boolean).join("\n");
+}
+
 function digestMessage(
   channelId: string,
   message: SlackMessagePayload,
@@ -342,7 +368,10 @@ function digestMessage(
   date: string,
 ): SlackDigestMessage | null {
   const ts = String(message.ts || "").trim();
-  const rawText = normalizedCancellationDigestText(String(message.text || ""), date);
+  const rawText = normalizedRescheduleDigestText(
+    normalizedCancellationDigestText(String(message.text || ""), date),
+    appointments,
+  );
   const plainText = slackTextToPlainText(rawText);
   const appointment = appointmentForSlackAlert(rawText, appointments);
   const closeout = closeoutForSlackAlert(rawText, closeouts, date);

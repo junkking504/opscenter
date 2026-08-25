@@ -29,20 +29,39 @@ LOCK_PID_FILE="$LOCK_DIR/pid"
 LOCK_PID="$(tr -dc '0-9' < "$LOCK_PID_FILE" 2>/dev/null || true)"
 if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
   LOCK_COMMAND="$(ps -p "$LOCK_PID" -o command= 2>/dev/null || true)"
-  LOCK_PGID="$(ps -p "$LOCK_PID" -o pgid= 2>/dev/null | tr -dc '0-9' || true)"
-  if [[ "$LOCK_COMMAND" != *"run-junkware-schedule-detector.sh"* || "$LOCK_PGID" != "$LOCK_PID" ]]; then
+  if [[ "$LOCK_COMMAND" != *"run-junkware-schedule-detector.sh"* ]]; then
     echo "JunkWare detector lock belongs to an unexpected active process; refusing to terminate it." >&2
     exit 1
   fi
-  kill -TERM "-$LOCK_PGID"
+  LOCK_CHILD_PIDS="$(pgrep -P "$LOCK_PID" || true)"
+  for child_pid in $LOCK_CHILD_PIDS; do
+    child_command="$(ps -p "$child_pid" -o command= 2>/dev/null || true)"
+    if [[ "$child_command" != *"collect-junkware-schedule-stream.py"* ]]; then
+      echo "JunkWare detector has an unexpected child process; refusing to terminate it." >&2
+      exit 1
+    fi
+  done
+  [ -z "$LOCK_CHILD_PIDS" ] || kill -TERM $LOCK_CHILD_PIDS
+  kill -TERM "$LOCK_PID"
   for attempt in {1..10}; do
-    kill -0 "$LOCK_PID" 2>/dev/null || break
+    detector_active=false
+    kill -0 "$LOCK_PID" 2>/dev/null && detector_active=true
+    for child_pid in $LOCK_CHILD_PIDS; do
+      kill -0 "$child_pid" 2>/dev/null && detector_active=true
+    done
+    [ "$detector_active" = false ] && break
     sleep 1
   done
   if kill -0 "$LOCK_PID" 2>/dev/null; then
     echo "Orphaned JunkWare detector did not stop after SIGTERM." >&2
     exit 1
   fi
+  for child_pid in $LOCK_CHILD_PIDS; do
+    if kill -0 "$child_pid" 2>/dev/null; then
+      echo "Orphaned JunkWare detector child did not stop after SIGTERM." >&2
+      exit 1
+    fi
+  done
 fi
 if [ -d "$LOCK_DIR" ]; then
   rm -f "$LOCK_PID_FILE"

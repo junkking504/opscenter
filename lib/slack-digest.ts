@@ -4,7 +4,12 @@ import {
   buildCancelledAppointmentFeed,
   type AddOnAppointment,
 } from "@/lib/add-on-notifications";
-import { buildCancellationSlackNotification, formatSlackAlert, slackPhoneLink } from "@/lib/slack-alerts";
+import {
+  buildAddOnSlackNotification,
+  buildCancellationSlackNotification,
+  formatSlackAlert,
+  slackPhoneLink,
+} from "@/lib/slack-alerts";
 import type { AnyRecord } from "@/lib/opsData";
 import { slackEscape } from "@/lib/slack-message-format";
 import { readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
@@ -197,6 +202,8 @@ export function slackTextToPlainText(value: string): string {
     white_check_mark: "✅",
     truck: "🚚",
     camera_with_flash: "📸",
+    wastebasket: "🗑️",
+    fuelpump: "⛽",
   };
 
   return String(value || "")
@@ -293,6 +300,7 @@ function closeoutForSlackAlert(
 ): SlackDigestMessage["closeout"] | undefined {
   const plainText = slackTextToPlainText(rawText);
   const match = plainText.match(/^✅\s*Job Closed\s*\nJob:\s*(JK\d+)/i)
+    || plainText.match(/^✅\s*Job Closed\s*\n(JK\d+)/i)
     || plainText.match(/^✅\s*(JK\d+)\s+closed out\./i);
   if (!match) return undefined;
   const details = truckCloseoutDetails(lookup.get(match[1].toLowerCase()) || {});
@@ -360,6 +368,105 @@ export function normalizedRescheduleDigestText(
   ].filter(Boolean).join("\n");
 }
 
+function legacyJobNumber(rawText: string): string {
+  const source = String(rawText || "");
+  return source.match(/\|(JK\d+)>/i)?.[1]
+    || slackTextToPlainText(source).match(/\b(JK\d+)\b/i)?.[1]
+    || "";
+}
+
+function legacyJobHref(rawText: string, jobNumber: string, date: string): string {
+  const matches = String(rawText || "").matchAll(/<(https?:\/\/[^>|]+)\|[^>]+>/gi);
+  for (const match of matches) {
+    try {
+      const url = new URL(match[1]);
+      if (url.hostname === "ops.junk-king.app" && url.pathname === "/jobs") return url.toString();
+    } catch {
+      // Fall through to the current-day OpsCenter job link below.
+    }
+  }
+  return `https://ops.junk-king.app/jobs?date=${encodeURIComponent(date)}#job-${jobNumber.toLowerCase()}`;
+}
+
+/** Keep historical same-day notices aligned with the current appointment layout. */
+export function normalizedLegacyAppointmentDigestText(
+  rawText: string,
+  appointments: Map<string, AddOnAppointment>,
+  date: string,
+): string {
+  const plainText = slackTextToPlainText(rawText);
+  if (!/^(?:⚠️\s*)?New same-day appointment:/i.test(plainText)) return rawText;
+
+  const jobNumber = legacyJobNumber(rawText);
+  const appointment = jobNumber ? appointments.get(`job:${jobNumber}`.toLowerCase()) : undefined;
+  return appointment ? formatSlackAlert(buildAddOnSlackNotification(appointment, date)) : rawText;
+}
+
+/** Keep historical cancellation notices in the approved compact cancellation layout. */
+export function normalizedLegacyCancellationDigestText(
+  rawText: string,
+  appointments: Map<string, AddOnAppointment>,
+  date: string,
+): string {
+  const plainText = slackTextToPlainText(rawText);
+  if (!/^(?:⚠️\s*)?Appointment cancelled/i.test(plainText)) return rawText;
+
+  const jobNumber = legacyJobNumber(rawText);
+  const appointment = jobNumber ? appointments.get(`job:${jobNumber}`.toLowerCase()) : undefined;
+  if (!appointment) return rawText;
+
+  const sourceReason = plainText.match(/^Reason:\s*(.+)$/im)?.[1]?.trim() || "";
+  return formatSlackAlert(buildCancellationSlackNotification({
+    ...appointment,
+    cancelledBy: "",
+    cancellationReason: sourceReason,
+  }, date));
+}
+
+/** Restore the approved closeout shape when the original alert predates it. */
+export function normalizedLegacyCloseoutDigestText(
+  rawText: string,
+  closeouts: Map<string, AnyRecord>,
+  date: string,
+): string {
+  const plainText = slackTextToPlainText(rawText);
+  const legacyMatch = plainText.match(/^✅\s*Job Closed\s*\nJob:\s*(JK\d+)/i)
+    || plainText.match(/^✅\s*(JK\d+)\s+closed out\.?/i);
+  if (!legacyMatch) return rawText;
+
+  const details = truckCloseoutDetails(closeouts.get(legacyMatch[1].toLowerCase()) || {});
+  if (!details) return rawText;
+
+  const lines = details.lines.flatMap((line) => {
+    const match = line.match(/^([^:]+):\s*(.*?)\.?$/);
+    if (!match) return [];
+    return [match[1] === "Tips" && !match[2] ? "*Tips:*" : `*${slackEscape(match[1])}:* ${slackEscape(match[2])}`];
+  });
+  return [
+    ":white_check_mark: *Job Closed*",
+    `*<${legacyJobHref(rawText, details.jobNumber, date)}|${slackEscape(details.jobNumber)}>*`,
+    ...lines,
+  ].join("\n");
+}
+
+/** Reformat old verification copy without changing the already-delivered Slack message. */
+export function normalizedLegacyPhotoDigestText(rawText: string, date: string): string {
+  const plainText = slackTextToPlainText(rawText);
+  if (!/^(?:📸\s*)?Job photos verified/i.test(plainText)) return rawText;
+
+  const jobNumber = legacyJobNumber(rawText);
+  const count = plainText.match(/(?:^|\n)Photos:\s*(\d+)\s+photos?\b/i)?.[1];
+  if (!jobNumber || !count) return rawText;
+
+  const noun = count === "1" ? "photo" : "photos";
+  return [
+    ":camera_with_flash: *Photos Uploaded*",
+    `*<${legacyJobHref(rawText, jobNumber, date)}|${slackEscape(jobNumber)}>*`,
+    `${count} ${noun}`,
+    "Verified",
+  ].join("\n");
+}
+
 function digestMessage(
   channelId: string,
   message: SlackMessagePayload,
@@ -368,9 +475,24 @@ function digestMessage(
   date: string,
 ): SlackDigestMessage | null {
   const ts = String(message.ts || "").trim();
-  const rawText = normalizedRescheduleDigestText(
-    normalizedCancellationDigestText(String(message.text || ""), date),
-    appointments,
+  const rawText = normalizedLegacyPhotoDigestText(
+    normalizedLegacyCloseoutDigestText(
+      normalizedLegacyCancellationDigestText(
+        normalizedLegacyAppointmentDigestText(
+          normalizedRescheduleDigestText(
+            normalizedCancellationDigestText(String(message.text || ""), date),
+            appointments,
+          ),
+          appointments,
+          date,
+        ),
+        appointments,
+        date,
+      ),
+      closeouts,
+      date,
+    ),
+    date,
   );
   const plainText = slackTextToPlainText(rawText);
   const appointment = appointmentForSlackAlert(rawText, appointments);

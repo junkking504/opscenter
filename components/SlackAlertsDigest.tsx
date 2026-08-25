@@ -22,6 +22,8 @@ const SLACK_EMOJI: Record<string, string> = {
   white_check_mark: "✅",
   truck: "🚚",
   camera_with_flash: "📸",
+  wastebasket: "🗑️",
+  fuelpump: "⛽",
 };
 
 function decodeSlackText(value: string): string {

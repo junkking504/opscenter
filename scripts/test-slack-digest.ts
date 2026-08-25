@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { fetchSlackDailyDigest, normalizedCancellationDigestText, normalizedRescheduleDigestText, slackTextToPlainText } from "@/lib/slack-digest";
+import {
+  fetchSlackDailyDigest,
+  normalizedCancellationDigestText,
+  normalizedLegacyAppointmentDigestText,
+  normalizedLegacyCancellationDigestText,
+  normalizedLegacyCloseoutDigestText,
+  normalizedLegacyPhotoDigestText,
+  normalizedRescheduleDigestText,
+  slackTextToPlainText,
+} from "@/lib/slack-digest";
 
 async function main() {
   const clientSource = fs.readFileSync(new URL("../components/SlackAlertsDigest.tsx", import.meta.url), "utf8");
@@ -17,6 +26,7 @@ async function main() {
     slackTextToPlainText(":warning: *New alert*\n<https://ops.junk-king.app/jobs|Open in OpsCenter>\n_Alert ID: test:123_"),
     "⚠️ New alert",
   );
+  assert.equal(slackTextToPlainText(":wastebasket: *Dump receipt recorded*"), "🗑️ Dump receipt recorded");
   assert.equal(
     normalizedCancellationDigestText(
       ":x: *Cancellation*\n*<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4058562|JK4058562>*\n02:00 PM - 03:00 PM\nDaniela Ortiz 8004215354x2071 400 Russell Ave New Orleans, LA 70143 Cancelled via email per accounts request Followup\n*Reason:* Daniela Ortiz 8004215354x2071 400 Russell Ave New Orleans, LA 70143 Cancelled via email per accounts request Followup",
@@ -62,6 +72,77 @@ async function main() {
       "*Reinel Benitez*",
       "<tel:+15043729604|(504) 372-9604>",
       "321 Burgess Pl Baton Rouge, LA 70815",
+    ].join("\n"),
+  );
+  assert.equal(
+    normalizedLegacyAppointmentDigestText(
+      ":warning: *New same-day appointment:*\n<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4065604|JK4065604>\nLegacy appointment",
+      rescheduleAppointments,
+      "2026-08-25",
+    ),
+    [
+      ":warning: *New Appointment*",
+      "<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4065604|JK4065604>",
+      "12:00 PM - 01:00 PM",
+      "*Reinel Benitez*",
+      "<tel:+15043729604|(504) 372-9604>",
+      "321 Burgess Pl Baton Rouge, LA 70815",
+    ].join("\n"),
+  );
+  assert.equal(
+    normalizedLegacyCancellationDigestText(
+      ":warning: *Appointment cancelled:*\nJob: JK4065604\nReason: Customer changed plans",
+      rescheduleAppointments,
+      "2026-08-25",
+    ),
+    [
+      ":x: *Cancellation*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4065604|JK4065604>*",
+      "12:00 PM - 01:00 PM",
+      "Reinel Benitez",
+      "<tel:+15043729604|(504) 372-9604>",
+      "321 Burgess Pl Baton Rouge, LA 70815",
+      "*Reason:* Customer changed plans",
+    ].join("\n"),
+  );
+  assert.equal(
+    normalizedLegacyPhotoDigestText(
+      ":camera_with_flash: *Job photos verified*\nJob: JK4065604\nPhotos: 3 photos · 3 after\nVerified in JunkWare",
+      "2026-08-25",
+    ),
+    [
+      ":camera_with_flash: *Photos Uploaded*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4065604|JK4065604>*",
+      "3 photos",
+      "Verified",
+    ].join("\n"),
+  );
+  assert.equal(
+    normalizedLegacyCloseoutDigestText(
+      ":white_check_mark: *JK4052579 closed out.*",
+      new Map([["jk4052579", {
+        appt_id: "4039401",
+        job_id: "JK4052579",
+        revenue: "$358.00",
+        tip: "$71.60",
+        closeout: {
+          loadSize: "2 (1/3)",
+          loadPrice: "$388.00",
+          discount: "$30.00",
+          tip: "$71.60",
+          payments: [{ method: "Credit Card", detail: "***9896", amount: "$429.60" }],
+        },
+      }]]),
+      "2026-08-14",
+    ),
+    [
+      ":white_check_mark: *Job Closed*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052579|JK4052579>*",
+      "*Load:* $388.00 (1/3)",
+      "*Discount:* $30.00",
+      "*Tips:* $71.60",
+      "*Total:* $358.00",
+      "*Card Ending:* 9896",
     ].join("\n"),
   );
 

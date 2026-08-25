@@ -4371,6 +4371,12 @@ a {
   background: #fbbf24;
 }
 
+/* New Orleans East and Chalmette are a visual Dispatch zone, retained under
+ * their normal operating territories while remaining easy to spot on the board. */
+:is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-east-metro {
+  background: #fde047;
+}
+
 :is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-northshore {
   background: #d946ef;
 }
@@ -4383,6 +4389,7 @@ a {
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-new-orleans.is-assigned-unfinished { background: #1687ff; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-jefferson.is-assigned-unfinished { background: #00d8bd; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-westbank.is-assigned-unfinished { background: #f59e0b; }
+:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-east-metro.is-assigned-unfinished { background: #facc15; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-northshore.is-assigned-unfinished { background: #a21caf; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-baton-rouge.is-assigned-unfinished { background: #ff3d50; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-unknown-territory.is-assigned-unfinished { background: #b6c1d1; }
@@ -4390,6 +4397,7 @@ a {
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-new-orleans.is-unassigned { background: rgba(96, 165, 250, .5); }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-jefferson.is-unassigned { background: rgba(45, 212, 191, .5); }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-westbank.is-unassigned { background: rgba(251, 191, 36, .5); }
+:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-east-metro.is-unassigned { background: rgba(250, 204, 21, .5); }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-northshore.is-unassigned { background: rgba(217, 70, 239, .5); }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-baton-rouge.is-unassigned { background: rgba(248, 113, 113, .5); }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-unknown-territory.is-unassigned { background: rgba(139, 146, 157, .5); }
@@ -4410,6 +4418,7 @@ a {
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-new-orleans.is-completed { background: #87acdb; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-jefferson.is-completed { background: #6ebfb9; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-westbank.is-completed { background: #e6c56d; }
+:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-east-metro.is-completed { background: #d9ca76; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-northshore.is-completed { background: #c084fc; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-baton-rouge.is-completed { background: #d39096; }
 

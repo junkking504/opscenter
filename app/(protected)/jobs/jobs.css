@@ -961,16 +961,32 @@
   background: #fbbf24;
 }
 
+.ops-jobs-page :is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-east-metro {
+  background: #fde047;
+}
+
 .ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-westbank.is-assigned-unfinished {
   background: #f59e0b;
+}
+
+.ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-east-metro.is-assigned-unfinished {
+  background: #facc15;
 }
 
 .ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-westbank.is-unassigned {
   background: rgba(251, 191, 36, .5);
 }
 
+.ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-east-metro.is-unassigned {
+  background: rgba(250, 204, 21, .5);
+}
+
 .ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-westbank.is-completed {
   background: #e6c56d;
+}
+
+.ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-east-metro.is-completed {
+  background: #d9ca76;
 }
 
 /* The split dispatch workspace can leave each hour with roughly 30px. Full

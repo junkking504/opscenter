@@ -61,5 +61,15 @@ assert.match(
   /\.is-westbank\.is-assigned-unfinished \{ background: #f59e0b; \}/,
   "Assigned Westbank appointments must display with the amber-orange indicator.",
 );
+assert.match(
+  jobsMapSource,
+  /function isEastMetroJob[\s\S]*?new\\s\+orleans\\s\+east[\s\S]*?chalmette[\s\S]*?701\(\?:26\|27\|28\|29\)[\s\S]*?70043/,
+  "New Orleans East and Chalmette must retain their yellow Dispatch presentation zone.",
+);
+assert.match(
+  globalCss,
+  /\.is-east-metro\.is-assigned-unfinished \{ background: #facc15; \}/,
+  "Assigned New Orleans East and Chalmette appointments must display yellow on the board.",
+);
 
 console.log("Appointment block selection checks passed.");

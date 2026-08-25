@@ -121,6 +121,14 @@ function isVirtualTruck(value: string): boolean {
   return !value || /virtual|unassigned|unavailable|needs assignment|^—$/i.test(value);
 }
 
+function isEastMetroJob(job: JobsMapPoint): boolean {
+  // This is a Dispatch presentation zone, not a change to the appointment's
+  // operating territory. New Orleans East and Chalmette are yellow on the
+  // schedule so they are quickly distinguishable from central New Orleans.
+  return /\b(?:new\s+orleans\s+east|chalmette)\b|\b701(?:26|27|28|29)\b|\b70043\b/i
+    .test(`${job.address} ${job.territory}`);
+}
+
 function distanceMeters(
   from: { latitude: number; longitude: number },
   to: { latitude: number; longitude: number },
@@ -223,6 +231,7 @@ function territoryTone(job: JobsMapPoint): string {
   else if (territory.includes("lafayette")) tone = "is-lafayette";
   const completed = isClosedScheduleJob(job);
   const canceled = job.statusBucket === "Canceled";
+  const eastMetro = isEastMetroJob(job);
   const assignmentState = canceled
     ? " is-canceled"
     : isVirtualTruck(job.truck)
@@ -230,7 +239,7 @@ function territoryTone(job: JobsMapPoint): string {
     : completed
       ? ""
       : " is-assigned-unfinished";
-  return `${tone}${assignmentState}${completed ? " is-completed" : ""}`;
+  return `${tone}${eastMetro ? " is-east-metro" : ""}${assignmentState}${completed ? " is-completed" : ""}`;
 }
 
 function clusterTerritoryTone(jobs: JobsMapPoint[]): string {

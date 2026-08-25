@@ -17,6 +17,7 @@ PRODUCTION_LABEL="com.openclaw.opscenter"
 PREVIEW_LABEL="com.openclaw.opscenter.macmini-preview"
 WHATSAPP_PHOTO_LABEL="com.openclaw.opscenter.whatsapp-photos"
 LINXUP_COLLECTOR_LABEL="com.openclaw.opsbot.linxup-collector"
+JUNKWARE_SCHEDULE_DETECTOR_LABEL="com.openclaw.opsbot.junkware-schedule-detector"
 REQUESTED_REF="${1:-}"
 RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"
 
@@ -160,6 +161,10 @@ if service_loaded "$LINXUP_COLLECTOR_LABEL"; then
   launchctl kickstart -k "gui/$(id -u)/$LINXUP_COLLECTOR_LABEL"
 fi
 
+if service_loaded "$JUNKWARE_SCHEDULE_DETECTOR_LABEL"; then
+  launchctl kickstart -k "gui/$(id -u)/$JUNKWARE_SCHEDULE_DETECTOR_LABEL"
+fi
+
 echo
 echo "Deployed OpsCenter commit $commit"
 echo "Live path: $APP_LINK -> $release"
@@ -174,5 +179,8 @@ if service_loaded "$WHATSAPP_PHOTO_LABEL" && whatsapp_photo_worker_restart_enabl
 fi
 if service_loaded "$LINXUP_COLLECTOR_LABEL"; then
   echo "Collector: $LINXUP_COLLECTOR_LABEL restarted on the active release"
+fi
+if service_loaded "$JUNKWARE_SCHEDULE_DETECTOR_LABEL"; then
+  echo "Detector:  $JUNKWARE_SCHEDULE_DETECTOR_LABEL restarted on the active release"
 fi
 echo "Rollback:  deploy this previous target's commit again: $previous_target"

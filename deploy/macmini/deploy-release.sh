@@ -162,9 +162,12 @@ if service_loaded "$LINXUP_COLLECTOR_LABEL"; then
 fi
 
 if service_loaded "$JUNKWARE_SCHEDULE_DETECTOR_LABEL"; then
-  # A schedule scrape can take longer than the web cutover. Ask launchd to
-  # restart it without making an otherwise healthy deployment wait for it.
-  launchctl kickstart -k "gui/$(id -u)/$JUNKWARE_SCHEDULE_DETECTOR_LABEL" >/dev/null 2>&1 &
+  # Reload the launchd job, rather than only kickstarting it. launchd can cache
+  # the release target and leave a prior schedule-detector failure penalized.
+  schedule_detector_plist="$EXPECTED_HOME/Library/LaunchAgents/$JUNKWARE_SCHEDULE_DETECTOR_LABEL.plist"
+  launchctl bootout "gui/$(id -u)/$JUNKWARE_SCHEDULE_DETECTOR_LABEL" >/dev/null 2>&1 || true
+  launchctl bootstrap "gui/$(id -u)" "$schedule_detector_plist"
+  launchctl enable "gui/$(id -u)/$JUNKWARE_SCHEDULE_DETECTOR_LABEL"
 fi
 
 echo

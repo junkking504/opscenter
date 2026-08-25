@@ -34,5 +34,6 @@ expect(health.includes("junkwareSchedule?.updatedAtMs"), "Combined freshness mus
 expect(sync.includes("5_000"), "Current pages must check source freshness every five seconds");
 expect(jobs.includes("currentJunkwareScheduleSnapshot"), "Schedule must consume the verified fast snapshot");
 expect(alerts.includes("deliveredFastScheduleCloseouts(date)"), "The enriched collector must not duplicate a fast closeout alert");
+expect(fs.readFileSync(path.join(root, "lib/junkware-schedule-changes.ts"), "utf8").includes("deliveredMainCloseouts(dataDir, snapshot.date)"), "The fast detector must not duplicate an enriched closeout alert");
 
 console.log("JunkWare under-60-second path checks passed.");

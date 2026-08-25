@@ -7,6 +7,7 @@ import {
   normalizedLegacyCancellationDigestText,
   normalizedLegacyCloseoutDigestText,
   normalizedLegacyPhotoDigestText,
+  normalizedLegacyTruckArrivalDigestText,
   normalizedRescheduleDigestText,
   slackTextToPlainText,
 } from "@/lib/slack-digest";
@@ -103,6 +104,21 @@ async function main() {
       "<tel:+15043729604|(504) 372-9604>",
       "321 Burgess Pl Baton Rouge, LA 70815",
       "*Reason:* Customer changed plans",
+    ].join("\n"),
+  );
+  assert.equal(
+    normalizedLegacyTruckArrivalDigestText(
+      ":truck: Truck 6 On-site\n<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4065604|JK4065604>\n11:05 AM\nTakiya Bennett\n<tel:(225)436-5071|(225) 436-5071>\n19414 Creekround Ave, Baton Rouge, 70817",
+      rescheduleAppointments,
+      "2026-08-25",
+    ),
+    [
+      ":truck: *Truck 6 On-site*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4065604|JK4065604>*",
+      "11:05 AM",
+      "Reinel Benitez",
+      "<tel:+15043729604|(504) 372-9604>",
+      "321 Burgess Pl Baton Rouge, LA 70815",
     ].join("\n"),
   );
   assert.equal(

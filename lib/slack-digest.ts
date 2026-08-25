@@ -402,6 +402,34 @@ export function normalizedLegacyAppointmentDigestText(
   return appointment ? formatSlackAlert(buildAddOnSlackNotification(appointment, date)) : rawText;
 }
 
+/** Upgrade prior on-site cards only when the original alert contains an arrival time. */
+export function normalizedLegacyTruckArrivalDigestText(
+  rawText: string,
+  appointments: Map<string, AddOnAppointment>,
+  date: string,
+): string {
+  const source = String(rawText || "");
+  if (/^:truck:\s*\*Truck\s+\d+\s+On-site\*/im.test(source) && /\*<https?:\/\/[^>|]+\|JK\d+>\*/i.test(source)) {
+    return rawText;
+  }
+
+  const plainText = slackTextToPlainText(source);
+  const titleMatch = plainText.match(/^🚚\s*(Truck\s+\d+)\s+On-site/i);
+  const jobNumber = legacyJobNumber(source);
+  const appointment = jobNumber ? appointments.get(`job:${jobNumber}`.toLowerCase()) : undefined;
+  const arrivalTime = plainText.split("\n").find((line) => /^\d{1,2}:\d{2}\s+[AP]M$/i.test(line.trim()))?.trim();
+  if (!titleMatch || !jobNumber || !appointment || !arrivalTime) return rawText;
+
+  return [
+    `:truck: *${slackEscape(titleMatch[1])} On-site*`,
+    `*<${legacyJobHref(source, jobNumber, date)}|${slackEscape(jobNumber)}>*`,
+    arrivalTime,
+    slackEscape(appointment.customerName),
+    slackPhoneLink(appointment.phone),
+    slackEscape(appointment.address),
+  ].filter(Boolean).join("\n");
+}
+
 /** Keep historical cancellation notices in the approved compact cancellation layout. */
 export function normalizedLegacyCancellationDigestText(
   rawText: string,
@@ -477,10 +505,14 @@ function digestMessage(
   const rawText = normalizedLegacyPhotoDigestText(
     normalizedLegacyCloseoutDigestText(
       normalizedLegacyCancellationDigestText(
-        normalizedLegacyAppointmentDigestText(
-          normalizedRescheduleDigestText(
-            normalizedCancellationDigestText(String(message.text || ""), date),
+        normalizedLegacyTruckArrivalDigestText(
+          normalizedLegacyAppointmentDigestText(
+            normalizedRescheduleDigestText(
+              normalizedCancellationDigestText(String(message.text || ""), date),
+              appointments,
+            ),
             appointments,
+            date,
           ),
           appointments,
           date,

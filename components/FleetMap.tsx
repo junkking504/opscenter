@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FleetMapPayload, FleetMapStop, FleetTruckMapRecord } from "@/lib/fleet-map";
+import { splitPlausibleRouteRuns } from "@/lib/job-route-history";
 
 type LeafletModule = typeof import("leaflet");
 
@@ -292,11 +293,10 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
 
     if (!fleetMode && selectedRouteBounds) {
       const routePoints = selectedTruckRecord?.routePoints || [];
-      const linePoints = routePoints
-        .filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude))
-        .map((point) => [point.latitude, point.longitude] as [number, number]);
+      const routeRuns = splitPlausibleRouteRuns(routePoints);
 
-      if (linePoints.length > 1) {
+      routeRuns.filter((run) => run.length > 1).forEach((run) => {
+        const linePoints = run.map((point) => [point.latitude, point.longitude] as [number, number]);
         leaflet.polyline(linePoints, {
           color: "#60a5fa",
           weight: 4,
@@ -304,7 +304,7 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
           lineJoin: "round",
           lineCap: "round",
         }).addTo(routes);
-      }
+      });
 
       selectedTruckRecord?.routeStops.forEach((stop) => {
         if (!Number.isFinite(stop.latitude) || !Number.isFinite(stop.longitude)) return;

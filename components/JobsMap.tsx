@@ -1298,21 +1298,22 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     routes.clearLayers();
 
     selectedTruckRoutes.forEach((segment, index) => {
-      const linePoints = segment.points.map((point) => [point.latitude, point.longitude] as [number, number]);
-      if (linePoints.length < 2) return;
-      leaflet.polyline(linePoints, {
-        color: segment.color,
-        weight: segment.kind === "current" ? 4 : 5,
-        opacity: segment.kind === "current" ? 0.78 : 0.96,
-        dashArray: segment.kind === "current" ? "8 8" : undefined,
-        lineJoin: "round",
-        lineCap: "round",
-      })
-        .bindTooltip(
-          `${segment.kind === "job" ? `Route ${index + 1} · ` : ""}${segment.label} · ${routeTime(segment.points[0].timestamp)}–${routeTime(segment.points.at(-1)?.timestamp || "")}`,
-          { sticky: true },
-        )
-        .addTo(routes);
+      segment.paths.forEach((path) => {
+        const linePoints = path.map((point) => [point.latitude, point.longitude] as [number, number]);
+        leaflet.polyline(linePoints, {
+          color: segment.color,
+          weight: segment.kind === "current" ? 4 : 5,
+          opacity: segment.kind === "current" ? 0.78 : 0.96,
+          dashArray: segment.kind === "current" ? "8 8" : undefined,
+          lineJoin: "round",
+          lineCap: "round",
+        })
+          .bindTooltip(
+            `${segment.kind === "job" ? `Route ${index + 1} · ` : ""}${segment.label} · ${routeTime(path[0].timestamp)}–${routeTime(path.at(-1)?.timestamp || "")}`,
+            { sticky: true },
+          )
+          .addTo(routes);
+      });
 
       if (!segment.stop) return;
       leaflet.circleMarker([segment.stop.latitude, segment.stop.longitude], {

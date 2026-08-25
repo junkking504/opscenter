@@ -22,10 +22,20 @@ mkdir -p "$EXPECTED_HOME/.openclaw/workspace/opsbot/logs"
 mkdir -p "$EXPECTED_HOME/.openclaw/workspace/opsbot/data/slack/junkware_schedule_watchers"
 cp "$SOURCE_PLIST" "$INSTALLED_PLIST"
 chmod 600 "$INSTALLED_PLIST"
+INSTALL_STARTED_EPOCH="$(date +%s)"
 launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || true
-launchctl bootstrap "gui/$(id -u)" "$INSTALLED_PLIST"
+for attempt in {1..5}; do
+  if launchctl bootstrap "gui/$(id -u)" "$INSTALLED_PLIST"; then
+    break
+  fi
+  [ "$attempt" -lt 5 ] || {
+    echo "JunkWare schedule detector could not be bootstrapped after five attempts." >&2
+    exit 1
+  }
+  # launchd can briefly retain the prior persistent process after bootout.
+  sleep 2
+done
 launchctl enable "gui/$(id -u)/$LABEL"
-launchctl kickstart -k "gui/$(id -u)/$LABEL"
 launchctl print "gui/$(id -u)/$LABEL" >/dev/null
 
 HEALTH_FILE="$EXPECTED_HOME/.openclaw/workspace/opsbot/data/slack/junkware_schedule_watchers/detector.json"
@@ -36,8 +46,8 @@ for attempt in {1..18}; do
 from datetime import datetime
 import sys
 stamp = datetime.fromisoformat(sys.argv[1])
-raise SystemExit(0 if (datetime.now(stamp.tzinfo) - stamp).total_seconds() <= 90 else 1)
-' "$completed_at"; then
+raise SystemExit(0 if stamp.timestamp() >= int(sys.argv[2]) else 1)
+' "$completed_at" "$INSTALL_STARTED_EPOCH"; then
       break
     fi
   fi

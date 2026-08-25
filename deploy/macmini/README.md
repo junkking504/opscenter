@@ -87,10 +87,11 @@ Current appointments and Slack schedule events use a persistent, verified
 JunkWare schedule detector. JunkWare serializes concurrent browser logins, so
 one browser checks the four markets in sequence and publishes each market as
 soon as it is verified. Each sweep begins five seconds after the previous sweep
-completes; the normal all-market cycle is about 45 seconds. This targets roughly
-30 seconds average and less than 60 seconds maximum latency from a JunkWare
-schedule change to OpsCenter and Slack. The full multi-integration collector
-remains the reconciliation and enrichment path.
+completes. The production in-session sweep measured 17.2 seconds total and about
+4.3 seconds per market, yielding a roughly 22-second same-market read cadence
+before the five-second OpsCenter browser check. This targets about 30 seconds and
+keeps the operating requirement below 60 seconds. The full multi-integration
+collector remains the reconciliation and enrichment path.
 
 Production deployments reinstall this detector even if its LaunchAgent has
 become unloaded. To repair or verify it independently, run:

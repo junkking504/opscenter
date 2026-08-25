@@ -369,6 +369,54 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+type CancellationDisplayDetails = Pick<CancelledAppointment, "customerName" | "phone" | "address">;
+
+function missingCancellationField(value: string, unavailableLabel: string): boolean {
+  const normalized = String(value || "").replace(/\s+/g, " ").trim();
+  return !normalized || normalized.toLowerCase() === unavailableLabel.toLowerCase();
+}
+
+/**
+ * The JunkWare cancelled schedule table can collapse customer, phone, address,
+ * and reason into one cell. Recover the individual facts before the shared
+ * formatter turns them into an alert.
+ */
+function cancellationDisplayDetails(appointment: CancelledAppointment): CancellationDisplayDetails {
+  const fallback = {
+    customerName: String(appointment.customerName || "").replace(/\s+/g, " ").trim(),
+    phone: String(appointment.phone || "").replace(/\s+/g, " ").trim(),
+    address: String(appointment.address || "").replace(/\s+/g, " ").trim(),
+  };
+  const needsContactRecovery = missingCancellationField(fallback.phone, "Phone unavailable")
+    || missingCancellationField(fallback.address, "Address unavailable");
+  if (!needsContactRecovery) return fallback;
+
+  const sources = [appointment.cancellationReason, appointment.customerName]
+    .map((value) => String(value || "").replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  for (const source of sources) {
+    const phoneMatch = /(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})(?:\s*(?:x|ext\.?)\s*\d{1,6})?/i.exec(source);
+    if (!phoneMatch || phoneMatch.index == null) continue;
+
+    const afterPhone = source.slice(phoneMatch.index + phoneMatch[0].length).replace(/^[\s,;:-]+/, "");
+    const zipMatch = /\b\d{5}(?:-\d{4})?\b/.exec(afterPhone);
+    if (!zipMatch || zipMatch.index == null) continue;
+
+    const customerName = source.slice(0, phoneMatch.index).replace(/[\s,;:-]+$/, "").trim();
+    const address = afterPhone.slice(0, zipMatch.index + zipMatch[0].length).replace(/[\s,;:-]+$/, "").trim();
+    if (!customerName || !address) continue;
+
+    return {
+      customerName,
+      phone: fallback.phone || phoneMatch[0].trim(),
+      address: fallback.address || address,
+    };
+  }
+
+  return fallback;
+}
+
 function normalizedCancellationReason(appointment: CancelledAppointment): string {
   const original = String(appointment.cancellationReason || "").replace(/\s+/g, " ").trim();
   if (!original) return "";
@@ -401,14 +449,15 @@ function normalizedCancellationReason(appointment: CancelledAppointment): string
 
 export function buildCancellationSlackNotification(appointment: CancelledAppointment, date: string): SlackOpsAlert {
   const href = absoluteOpsHref(appointment.href);
-  const reason = normalizedCancellationReason(appointment);
+  const display = cancellationDisplayDetails(appointment);
+  const reason = normalizedCancellationReason({ ...appointment, ...display });
   const plainText = [
     ":x: *Cancellation*",
     `*<${href}|${slackEscape(appointment.jobNumber)}>*`,
     slackEscape(appointment.appointmentTime),
-    slackEscape(appointment.customerName),
-    slackPhoneLink(appointment.phone),
-    slackEscape(appointment.address),
+    slackEscape(display.customerName),
+    slackPhoneLink(display.phone),
+    slackEscape(display.address),
     ...(reason ? [`*Reason:* ${slackEscape(reason)}`] : []),
   ].filter(Boolean).join("\n");
 
@@ -753,20 +802,30 @@ function formatTruckArrivalTime(value: string): string {
   }).format(new Date(value));
 }
 
-function displayPhone(value: string): string {
+function phoneDisplayParts(value: string): { label: string; digits: string; extension: string } {
   const raw = String(value || "").trim();
   const slackTelLabel = raw.match(/^<tel:[^|>]*\|([^>]+)>$/i)?.[1]?.trim();
   const unwrapped = slackTelLabel || raw;
-  const digits = unwrapped.replace(/\D/g, "");
-  return digits.length === 10 ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}` : unwrapped;
+  const extensionMatch = /(?:\bext\.?|x)\s*(\d{1,6})\b/i.exec(unwrapped);
+  const phoneText = extensionMatch ? unwrapped.slice(0, extensionMatch.index).trim() : unwrapped;
+  let digits = phoneText.replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
+  const extension = extensionMatch?.[1] || "";
+  const label = digits.length === 10
+    ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}${extension ? ` x${extension}` : ""}`
+    : unwrapped;
+  return { label, digits, extension };
+}
+
+function displayPhone(value: string): string {
+  return phoneDisplayParts(value).label;
 }
 
 function slackPhoneLink(value: string): string {
-  const label = displayPhone(value);
-  const digits = label.replace(/\D/g, "");
+  const { label, digits, extension } = phoneDisplayParts(value);
   if (!label || digits.length < 7) return slackEscape(label);
   const phoneNumber = digits.length === 10 ? `+1${digits}` : `+${digits}`;
-  return `<tel:${phoneNumber}|${slackEscape(label)}>`;
+  return `<tel:${phoneNumber}${extension ? `;ext=${extension}` : ""}|${slackEscape(label)}>`;
 }
 
 export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { fetchSlackDailyDigest, slackTextToPlainText } from "@/lib/slack-digest";
+import { fetchSlackDailyDigest, normalizedCancellationDigestText, slackTextToPlainText } from "@/lib/slack-digest";
 
 async function main() {
   const clientSource = fs.readFileSync(new URL("../components/SlackAlertsDigest.tsx", import.meta.url), "utf8");
@@ -16,6 +16,21 @@ async function main() {
   assert.equal(
     slackTextToPlainText(":warning: *New alert*\n<https://ops.junk-king.app/jobs|Open in OpsCenter>\n_Alert ID: test:123_"),
     "⚠️ New alert",
+  );
+  assert.equal(
+    normalizedCancellationDigestText(
+      ":x: *Cancellation*\n*<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4058562|JK4058562>*\n02:00 PM - 03:00 PM\nDaniela Ortiz 8004215354x2071 400 Russell Ave New Orleans, LA 70143 Cancelled via email per accounts request Followup\n*Reason:* Daniela Ortiz 8004215354x2071 400 Russell Ave New Orleans, LA 70143 Cancelled via email per accounts request Followup",
+      "2026-08-25",
+    ),
+    [
+      ":x: *Cancellation*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4058562|JK4058562>*",
+      "02:00 PM - 03:00 PM",
+      "Daniela Ortiz",
+      "<tel:+18004215354;ext=2071|(800) 421-5354 x2071>",
+      "400 Russell Ave New Orleans, LA 70143",
+      "*Reason:* Cancelled via email per accounts request Followup",
+    ].join("\n"),
   );
 
   const requests: URL[] = [];

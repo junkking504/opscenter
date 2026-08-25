@@ -4,6 +4,7 @@ import {
   buildCancelledAppointmentFeed,
   type AddOnAppointment,
 } from "@/lib/add-on-notifications";
+import { buildCancellationSlackNotification, formatSlackAlert } from "@/lib/slack-alerts";
 import type { AnyRecord } from "@/lib/opsData";
 import { readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
 
@@ -302,6 +303,37 @@ function closeoutForSlackAlert(
   };
 }
 
+/**
+ * Repair already-delivered cancellation alerts whose schedule source supplied
+ * customer, phone, address, and reason as one combined line. New alerts are
+ * normalized by the publisher; this keeps the Command Awareness history in
+ * the same layout immediately as well.
+ */
+export function normalizedCancellationDigestText(rawText: string, date: string): string {
+  const match = String(rawText || "").match(
+    /^:x:\s*\*Cancellation\*\s*\n\*<(https?:\/\/[^>|]+)\|(JK\d+)>\*\s*\n([^\n]+)\n([^\n]+)\n\*Reason:\*\s*(.+)$/i,
+  );
+  if (!match) return rawText;
+
+  const [, href, jobNumber, appointmentTime, combinedContact, combinedReason] = match;
+  return formatSlackAlert(buildCancellationSlackNotification({
+    id: `digest:${jobNumber.toLowerCase()}`,
+    appointmentId: "",
+    jobNumber,
+    territory: "",
+    customerName: combinedContact.trim(),
+    phone: "",
+    address: "",
+    appointmentTime: appointmentTime.trim(),
+    appointmentType: "",
+    assignedTruck: "",
+    items: [],
+    href,
+    cancelledBy: "",
+    cancellationReason: combinedReason.trim(),
+  }, date));
+}
+
 function digestMessage(
   channelId: string,
   message: SlackMessagePayload,
@@ -310,7 +342,7 @@ function digestMessage(
   date: string,
 ): SlackDigestMessage | null {
   const ts = String(message.ts || "").trim();
-  const rawText = String(message.text || "");
+  const rawText = normalizedCancellationDigestText(String(message.text || ""), date);
   const plainText = slackTextToPlainText(rawText);
   const appointment = appointmentForSlackAlert(rawText, appointments);
   const closeout = closeoutForSlackAlert(rawText, closeouts, date);

@@ -29,7 +29,7 @@ import {
   readJunkwareDayActivity,
   type JunkwareJobPhoto,
 } from "@/lib/junkware-job-details";
-import { missingPaymentTypeLabel, shouldFlagMissingPhotos } from "@/lib/job-audit-rules";
+import { isClosedAppointment, isEstimateAppointment, missingPaymentTypeLabel, shouldFlagMissingPhotos } from "@/lib/job-audit-rules";
 import { junkwareBookedAt } from "@/lib/junkware-booking-date";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
 import "./jobs.css";
@@ -1906,7 +1906,10 @@ function readOpenEstimateAndUnclosedJobs(date: string): JobRow[] {
   return Array.from(latestByAppointment.values())
     .filter((job) => {
       const bucket = statusBucket(job);
-      return bucket === "Estimate" || bucket === "Unclosed or Needs Attention";
+      const openEstimate = isEstimateAppointment(job.appointmentType)
+        && !isClosedAppointment(job.status)
+        && bucket !== "Canceled";
+      return openEstimate || bucket === "Unclosed or Needs Attention";
     })
     .sort((a, b) => followupRecency(b) - followupRecency(a) || b.sourceDate.localeCompare(a.sourceDate));
 }

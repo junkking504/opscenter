@@ -304,14 +304,14 @@ assert.deepEqual(
       channelId: "C_TEST_TRUCK_1",
       text: [
         ":white_check_mark: *Job Closed*",
-        "*Job:* <https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051000|JK4051000>",
-        "*Load:* 1/2 ($538.00)",
+        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051000|JK4051000>*",
+        "*Load:* $538.00 (1/2)",
         "*Labor:* $225.00",
         "*CC 3%:* $24.69",
         "*Discount:* $30.00",
-        "*Total:* $508.00",
         "*Tips:* $50.80",
-        "*Card Ending:* 3013 ($558.80)",
+        "*Total:* $508.00",
+        "*Card Ending:* 3013",
       ].join("\n"),
     },
     {
@@ -319,8 +319,8 @@ assert.deepEqual(
       channelId: "C_TEST_TRUCK_6",
       text: [
         ":white_check_mark: *Job Closed*",
-        "*Job:* <https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051001|JK4051001>",
-        "*Tips:* $0.00",
+        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051001|JK4051001>*",
+        "*Tips:*",
         "*Check:* #1487 ($198.00)",
       ].join("\n"),
     },
@@ -329,9 +329,9 @@ assert.deepEqual(
       channelId: "C_TEST_TRUCK_1",
       text: [
         ":white_check_mark: *Job Closed*",
-        "*Job:* <https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051003|JK4051003>",
+        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051003|JK4051003>*",
         "*Tips:* $15.00",
-        "*Card Ending:* 4242 ($100.00)",
+        "*Card Ending:* 4242",
         "*Cash:* ($50.00)",
       ].join("\n"),
     },
@@ -340,8 +340,8 @@ assert.deepEqual(
       channelId: "C_TEST_TRUCK_4",
       text: [
         ":white_check_mark: *Job Closed*",
-        "*Job:* <https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051005|JK4051005>",
-        "*Tips:* $0.00",
+        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051005|JK4051005>*",
+        "*Tips:*",
       ].join("\n"),
     },
   ],
@@ -564,7 +564,7 @@ try {
   assert.deepEqual(postedMessages, [
     [
       ":white_check_mark: *Job Closed*",
-      "*Job:* <https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|JK4051502>",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|JK4051502>*",
       "*Tips:* $20.00",
       "*Check:* #2201 ($220.00)",
     ].join("\n"),
@@ -590,7 +590,7 @@ try {
   assert.deepEqual(directCloseout, { attempted: true, posted: true, duplicate: false });
   assert.equal(postedMessages.at(-1), [
     ":white_check_mark: *Job Closed*",
-    "*Job:* <https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|JK4051503>",
+    "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|JK4051503>*",
     "*Tips:* $10.00",
   ].join("\n"));
 

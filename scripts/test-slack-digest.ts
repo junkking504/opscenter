@@ -121,11 +121,11 @@ async function main() {
   assert.equal(digest.messages[1].appointment?.jobNumber, "JK4052608");
   assert.equal(digest.messages[2].closeout?.jobNumber, "JK4052579");
   assert.deepEqual(digest.messages[2].closeout?.lines, [
-    "Load: 1/3 ($388.00).",
+    "Load: $388.00 (1/3).",
     "Discount: $30.00.",
-    "Total: $358.00.",
     "Tips: $71.60.",
-    "Card Ending: 9896 ($429.60).",
+    "Total: $358.00.",
+    "Card Ending: 9896.",
   ]);
   assert.equal(digest.messages[2].closeout?.href, "/jobs?date=2026-08-14#job-jk4052579");
   assert.equal(digest.messages[3].channel, "#jobs-no");

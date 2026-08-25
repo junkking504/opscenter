@@ -29,8 +29,10 @@ Truck channels intentionally contain field execution events, not bookings or sch
 OpsCenter-generated alert messages use the same compact scan pattern: an event icon and bold heading,
 followed by one fact per labelled line. Alerts with a follow-up include `Next`
 and an `Open in OpsCenter` link at the end. Closeouts use the fixed `Job Closed`
-heading; their bold `Job` label contains the linked JK number, followed by
-`Load`, `Labor`, `CC 3%`, `Total`, `Tips`, and payment facts as available. This
+heading; the bold linked JK number follows directly, then `Load`, `Labor`, `CC 3%`,
+`Tips`, `Total`, and payment facts as available. Load shows the price before its
+size, a zero-value Tips line remains visibly labelled, and `Card Ending` contains
+only the unbolded last four digits. This
 keeps arrival, closeout, payment, crew, receipt, and verified-photo alerts
 equally readable without changing their routing, delivery cadence, or deduplication.
 

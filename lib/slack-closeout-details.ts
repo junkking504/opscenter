@@ -37,7 +37,7 @@ function pricedLoadLine(label: string, size: string, price: number | null, quant
   const normalizedSize = loadSize(size);
   const quantityPrefix = quantity && quantity !== "1" ? `${quantity} × ` : "";
   const description = `${quantityPrefix}${normalizedSize || "Size unavailable"}`;
-  return `${label}: ${description}${price !== null ? ` (${moneyText(price)})` : ""}.`;
+  return `${label}: ${price !== null ? moneyText(price) : "Amount unavailable"}${description ? ` (${description})` : ""}.`;
 }
 
 function paymentLine(payment: AnyRecord): string {
@@ -49,7 +49,7 @@ function paymentLine(payment: AnyRecord): string {
   const normalizedMethod = method.toLowerCase();
   if (normalizedMethod.includes("card")) {
     const lastFour = detail.match(/(\d{4})(?!.*\d)/)?.[1] || "";
-    return `Card Ending: ${lastFour || "Unavailable"}${amountText}.`;
+    return `Card Ending: ${lastFour || "Unavailable"}.`;
   }
   if (normalizedMethod.includes("check")) {
     const checkNumber = detail.replace(/^\s*#\s*/, "").trim();
@@ -102,13 +102,13 @@ export function truckCloseoutDetails(row: AnyRecord): TruckCloseoutDetails | nul
   const discount = firstFiniteNumber(closeout, ["discount"]);
   if (discount !== null && discount > 0) lines.push(`Discount: ${moneyText(discount)}.`);
 
-  const jobTotal = firstFiniteNumber(row, ["revenue", "job_total", "jobTotal"]);
-  if (jobTotal !== null) lines.push(`Total: ${moneyText(jobTotal)}.`);
-
   const tip = firstFiniteNumber(closeout, ["tip"])
     ?? firstFiniteNumber(row, ["tip", "tips"])
     ?? 0;
-  lines.push(`Tips: ${moneyText(tip)}.`);
+  lines.push(`Tips: ${tip > 0 ? moneyText(tip) : ""}.`);
+
+  const jobTotal = firstFiniteNumber(row, ["revenue", "job_total", "jobTotal"]);
+  if (jobTotal !== null) lines.push(`Total: ${moneyText(jobTotal)}.`);
 
   const payments = (Array.isArray(closeout.payments) ? closeout.payments : [])
     .filter((payment): payment is AnyRecord => Boolean(payment) && typeof payment === "object")

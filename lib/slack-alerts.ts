@@ -595,14 +595,14 @@ export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyReco
 
     const closeout = truckCloseoutDetails(row);
     const href = closeoutOpsHref(date, jobNumber);
-    const plainText = formatSlackMessage({
-      icon: ":white_check_mark:",
-      title: "Job Closed",
-      fields: [
-        { label: "Job", value: jobNumber, href },
-        ...parseSlackDetailLines(closeout?.lines || []),
-      ],
-    });
+    const detailLines = parseSlackDetailLines(closeout?.lines || []).map(({ label, value }) => (
+      label === "Tips" && !value ? "*Tips:*" : `*${slackEscape(label)}:* ${slackEscape(value)}`
+    ));
+    const plainText = [
+      ":white_check_mark: *Job Closed*",
+      `*<${href}|${slackEscape(jobNumber)}>*`,
+      ...detailLines,
+    ].join("\n");
     notifications.push({
       fingerprint,
       kind: "job_closed",

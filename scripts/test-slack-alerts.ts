@@ -84,7 +84,7 @@ assert.equal(
     jobNumber: "JK4052608",
     territory: "New Orleans",
     customerName: "Test Customer",
-    phone: "(504) 555-0100",
+    phone: "<tel:(504)555-0100|(504) 555-0100>",
     address: "4034 Tchoupitoulas St, New Orleans, 70115",
     appointmentTime: "12:00 PM - 01:00 PM",
     appointmentType: "Job",
@@ -395,7 +395,7 @@ assert.deepEqual(
       channelId: "C_TEST_TRUCK_4",
       text: [
         ":truck: *Truck 4 On-site*",
-        "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4050424|JK4050424>",
+        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4050424|JK4050424>*",
         "1:06 PM",
         "Test Customer",
         "(504) 555-0100",
@@ -407,7 +407,7 @@ assert.deepEqual(
       channelId: "C_TEST_TRUCK_4",
       text: [
         ":truck: *Truck 4 On-site*",
-        "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4050424|JK4050424>",
+        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4050424|JK4050424>*",
         "1:41 PM",
         "Test Customer",
         "(504) 555-0100",
@@ -540,7 +540,7 @@ try {
   assert.deepEqual(postedMessages, [
     [
       ":truck: *Truck 6 On-site*",
-      "<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|JK4051503>",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|JK4051503>*",
       "1:47 PM",
       "Arrival Customer",
       "(504) 555-0123",

@@ -753,6 +753,14 @@ function formatTruckArrivalTime(value: string): string {
   }).format(new Date(value));
 }
 
+function displayPhone(value: string): string {
+  const raw = String(value || "").trim();
+  const slackTelLabel = raw.match(/^<tel:[^|>]*\|([^>]+)>$/i)?.[1]?.trim();
+  const unwrapped = slackTelLabel || raw;
+  const digits = unwrapped.replace(/\D/g, "");
+  return digits.length === 10 ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}` : unwrapped;
+}
+
 export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   const seen = new Set<string>();
@@ -800,10 +808,10 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
       const href = closeoutOpsHref(date, jkNumber);
       const plainText = [
         `:truck: *${slackEscape(title)}*`,
-        `<${href}|${slackEscape(jkNumber)}>`,
+        `*<${href}|${slackEscape(jkNumber)}>*`,
         formatTruckArrivalTime(arrival),
         slackEscape(customerName),
-        slackEscape(phone),
+        slackEscape(displayPhone(phone)),
         slackEscape(address),
       ].filter(Boolean).join("\n");
       notifications.push({

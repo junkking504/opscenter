@@ -47,8 +47,9 @@ address prefixes are removed from the supplied reason so the actionable
 cancellation text is not repeated.
 
 Truck arrivals use the matching field layout in their truck channel: `Truck N
-On-site`, linked JK number, Chicago-local arrival time, customer, phone, then
-address. This uses the confirmed LinxUp arrival time while enriching customer
+On-site`, bold linked JK number, Chicago-local arrival time, customer, phone, then
+address. Incoming Slack-style telephone links are converted to a readable phone
+number. This uses the confirmed LinxUp arrival time while enriching customer
 contact information from the matching JunkWare appointment.
 
 Verified WhatsApp photo batches use `Photos Uploaded`, a bold linked JK number,

@@ -113,6 +113,31 @@ assert.equal(
   }, "2026-08-14").channelId,
   "C_TEST_BR",
 );
+const cancellationSlackAlert = buildCancellationSlackNotification({
+  id: "appt:4037405",
+  appointmentId: "4037405",
+  jobNumber: "JK4050583",
+  territory: "Baton Rouge",
+  customerName: "Test Customer",
+  phone: "(225) 555-0100",
+  address: "175 Burgin Ave, Baton Rouge, 70808",
+  appointmentTime: "08:00 AM - 09:00 AM",
+  appointmentType: "Job",
+  assignedTruck: "Truck# 6",
+  items: [],
+  href: "/jobs?date=2026-08-14#job-jk4050583",
+  cancelledBy: "Dispatcher",
+  cancellationReason: "Test Customer 2255550100 175 Burgin Ave Baton Rouge LA 70808 Customer cancelled",
+}, "2026-08-14");
+assert.equal(formatSlackAlert(cancellationSlackAlert), [
+  ":x: *Cancellation*",
+  "*<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4050583|JK4050583>*",
+  "08:00 AM - 09:00 AM",
+  "Test Customer",
+  "(225) 555-0100",
+  "175 Burgin Ave, Baton Rouge, 70808",
+  "*Reason:* Customer cancelled",
+].join("\n"));
 assert.equal(normalizeSlackTruckNumber("Truck# 4"), 4);
 assert.equal(normalizeSlackTruckNumber("Virtual Truck"), null);
 assert.equal(truckSlackChannelId("Truck 4", "C_TEST_FALLBACK"), "C_TEST_TRUCK_4");

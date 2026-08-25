@@ -190,6 +190,7 @@ export function slackTextToPlainText(value: string): string {
   const emoji: Record<string, string> = {
     rotating_light: "🚨",
     warning: "⚠️",
+    x: "❌",
     white_check_mark: "✅",
     truck: "🚚",
     camera_with_flash: "📸",
@@ -243,8 +244,9 @@ function appointmentForSlackAlert(
   const plainText = slackTextToPlainText(rawText);
   const legacyTitleMatch = plainText.match(/(?:⚠️\s*)?(New same-day appointment|Appointment cancelled):\s*(JK\d+)/i);
   const addOnTitleMatch = plainText.match(/(?:⚠️\s*)?(New Appointment)\s*\n\s*(JK\d+)/i);
-  const title = legacyTitleMatch?.[1] || addOnTitleMatch?.[1];
-  const jobNumber = legacyTitleMatch?.[2] || addOnTitleMatch?.[2];
+  const cancellationTitleMatch = plainText.match(/(?:❌\s*)?(Cancellation)\s*\n\s*(JK\d+)/i);
+  const title = legacyTitleMatch?.[1] || addOnTitleMatch?.[1] || cancellationTitleMatch?.[1];
+  const jobNumber = legacyTitleMatch?.[2] || addOnTitleMatch?.[2] || cancellationTitleMatch?.[2];
   if (!title || !jobNumber) return undefined;
 
   const fingerprintMatch = rawText.match(/Alert ID:\s*(?:add_on|cancellation):\d{4}-\d{2}-\d{2}:(appt:[^\s_*]+)/i);

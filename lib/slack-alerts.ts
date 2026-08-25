@@ -365,24 +365,64 @@ export function buildAddOnSlackNotification(appointment: AddOnAppointment, date:
   };
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function normalizedCancellationReason(appointment: CancelledAppointment): string {
+  const original = String(appointment.cancellationReason || "").replace(/\s+/g, " ").trim();
+  if (!original) return "";
+
+  let reason = original;
+  let strippedContact = false;
+  const customerName = String(appointment.customerName || "").replace(/\s+/g, " ").trim();
+  if (customerName && reason.toLowerCase().startsWith(customerName.toLowerCase())) {
+    reason = reason.slice(customerName.length).replace(/^[\s,;:-]+/, "");
+    strippedContact = true;
+  }
+
+  const phoneDigits = String(appointment.phone || "").replace(/\D/g, "");
+  if (phoneDigits.length >= 7) {
+    const phonePattern = phoneDigits.split("").map(escapeRegExp).join("\\D*");
+    const phonePrefix = new RegExp(`^\\D*${phonePattern}(?:\\D+|$)`, "i");
+    if (phonePrefix.test(reason)) {
+      reason = reason.replace(phonePrefix, "").trim();
+      strippedContact = true;
+    }
+  }
+
+  if (strippedContact && /^\d{1,6}\s+/.test(reason)) {
+    const addressPrefix = reason.match(/^.*?\b\d{5}(?:-\d{4})?\b[\s,;:-]*/);
+    if (addressPrefix) reason = reason.slice(addressPrefix[0].length).trim();
+  }
+
+  return reason || original;
+}
+
 export function buildCancellationSlackNotification(appointment: CancelledAppointment, date: string): SlackOpsAlert {
+  const href = absoluteOpsHref(appointment.href);
+  const reason = normalizedCancellationReason(appointment);
+  const plainText = [
+    ":x: *Cancellation*",
+    `*<${href}|${slackEscape(appointment.jobNumber)}>*`,
+    slackEscape(appointment.appointmentTime),
+    slackEscape(appointment.customerName),
+    slackEscape(appointment.phone),
+    slackEscape(appointment.address),
+    ...(reason ? [`*Reason:* ${slackEscape(reason)}`] : []),
+  ].filter(Boolean).join("\n");
+
   return {
     fingerprint: `cancellation:${date}:${appointment.id}`,
     kind: "cancellation",
     lifecycle: "notification",
     severity: "warning",
     channelId: appointmentChannelId(appointment.territory),
-    title: `Appointment cancelled: ${appointment.jobNumber}`,
+    title: "Cancellation",
     detail: "",
-    fields: [
-      { label: "Customer", value: appointment.customerName },
-      { label: "Time", value: appointment.appointmentTime },
-      { label: "Address", value: appointment.address },
-      ...(appointment.cancelledBy ? [{ label: "Cancelled by", value: appointment.cancelledBy }] : []),
-      ...(appointment.cancellationReason ? [{ label: "Reason", value: appointment.cancellationReason }] : []),
-    ],
-    nextAction: "Confirm the territory schedule and update the crew and truck plan.",
-    href: absoluteOpsHref(appointment.href),
+    nextAction: "",
+    href: "",
+    plainText,
   };
 }
 

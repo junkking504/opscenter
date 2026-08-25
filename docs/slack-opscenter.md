@@ -39,6 +39,11 @@ scanning: `New Appointment`, a linked JK number, appointment time, bold customer
 name, phone number, then address (with items following when present). The linked
 JK number replaces the otherwise redundant `Open in OpsCenter` footer.
 
+Cancellations use `Cancellation`, a bold linked JK number, appointment time,
+customer, phone, address, then a bold `Reason` label. Known customer/contact/
+address prefixes are removed from the supplied reason so the actionable
+cancellation text is not repeated.
+
 Truck arrivals use the matching field layout in their truck channel: `Truck N
 On-site`, linked JK number, Chicago-local arrival time, customer, phone, then
 address. This uses the confirmed LinxUp arrival time while enriching customer

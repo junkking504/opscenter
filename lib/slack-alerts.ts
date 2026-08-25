@@ -655,6 +655,7 @@ function readTruckArrivalVisitRows(date: string): AnyRecord[] {
 
 type TruckArrivalAppointmentDetails = {
   customerName: string;
+  phone: string;
   address: string;
 };
 
@@ -679,9 +680,10 @@ function readTruckArrivalAppointmentDetails(date: string): Map<string, TruckArri
       for (const row of rows) {
         const details = {
           customerName: firstText(row, ["customer_name", "customerName", "service_contact_name"]),
+          phone: firstText(row, ["phone", "customer_phone", "customerPhone", "service_contact_phone"]),
           address: firstText(row, ["service_address", "address", "serviceAddress"]),
         };
-        if (!details.customerName && !details.address) continue;
+        if (!details.customerName && !details.phone && !details.address) continue;
 
         for (const key of [
           firstText(row, ["appt_id", "appointment_id", "appointmentId"]),
@@ -703,6 +705,14 @@ function truckArrivalKeyPart(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+function formatTruckArrivalTime(value: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
 export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   const seen = new Set<string>();
@@ -720,6 +730,9 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
     const customerName = firstText(row, ["customer_name", "customerName", "service_contact_name"])
       || details?.customerName
       || "Unknown";
+    const phone = firstText(row, ["phone", "customer_phone", "customerPhone", "service_contact_phone"])
+      || details?.phone
+      || "";
     const address = firstText(row, ["service_address", "address", "serviceAddress"])
       || details?.address
       || "Unknown";
@@ -742,16 +755,17 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
       ].join(":");
       if (seen.has(fingerprint)) continue;
       seen.add(fingerprint);
-      const plainText = formatSlackMessage({
-        icon: ":truck:",
-        title: "Truck arrived onsite",
-        fields: [
-          { label: "Truck", value: truck },
-          { label: "Job", value: jkNumber },
-          { label: "Customer", value: customerName },
-          { label: "Address", value: address },
-        ],
-      });
+      const truckNumber = normalizeSlackTruckNumber(truck);
+      const title = `${truckNumber ? `Truck ${truckNumber}` : truck} On-site`;
+      const href = closeoutOpsHref(date, jkNumber);
+      const plainText = [
+        `:truck: *${slackEscape(title)}*`,
+        `<${href}|${slackEscape(jkNumber)}>`,
+        formatTruckArrivalTime(arrival),
+        slackEscape(customerName),
+        slackEscape(phone),
+        slackEscape(address),
+      ].filter(Boolean).join("\n");
       notifications.push({
         fingerprint,
         kind: "truck_arrival",

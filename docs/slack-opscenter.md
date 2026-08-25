@@ -39,6 +39,11 @@ scanning: `New Appointment`, a linked JK number, appointment time, bold customer
 name, phone number, then address (with items following when present). The linked
 JK number replaces the otherwise redundant `Open in OpsCenter` footer.
 
+Truck arrivals use the matching field layout in their truck channel: `Truck N
+On-site`, linked JK number, Chicago-local arrival time, customer, phone, then
+address. This uses the confirmed LinxUp arrival time while enriching customer
+contact information from the matching JunkWare appointment.
+
 The first live run records existing appointments, existing cancellations, and currently active incidents as its baseline. It does not flood Slack with pre-existing conditions. Later appointment additions and cancellations are each posted once; failed notification deliveries remain eligible for retry. Once a baseline incident clears, a later recurrence is treated as a new incident. New incident alerts are deduplicated, and recovery messages are posted in the original Slack thread.
 
 Crew lifecycle notifications are also baselined once when the feature is first deployed. After that baseline, each employee receives at most one clock-in, clock-out, and finalized-pay notification per day. Clock-in identifies the crew member and time; clock-out adds hours worked; finalized pay lists total pay, hourly pay, tips, bonuses, and any other pay.

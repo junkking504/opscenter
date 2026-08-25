@@ -462,7 +462,9 @@ function normalizedCancellationReason(appointment: CancelledAppointment): string
   }
 
   if (strippedContact && /^\d{1,6}\s+/.test(reason)) {
-    const addressPrefix = reason.match(/^.*?\b\d{5}(?:-\d{4})?\b[\s,;:-]*/);
+    // Street numbers can also be five digits. Use the final ZIP-code match so
+    // we remove the whole repeated address, not just its street number.
+    const addressPrefix = reason.match(/^.*\b\d{5}(?:-\d{4})?\b[\s,;:-]*/);
     if (addressPrefix) reason = reason.slice(addressPrefix[0].length).trim();
   }
 

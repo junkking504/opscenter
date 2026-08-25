@@ -395,7 +395,7 @@ export function normalizedLegacyAppointmentDigestText(
   date: string,
 ): string {
   const plainText = slackTextToPlainText(rawText);
-  if (!/^(?:⚠️\s*)?New same-day appointment:/i.test(plainText)) return rawText;
+  if (!/^(?:⚠️\s*)?New same-day appointment:?/i.test(plainText)) return rawText;
 
   const jobNumber = legacyJobNumber(rawText);
   const appointment = jobNumber ? appointments.get(`job:${jobNumber}`.toLowerCase()) : undefined;
@@ -434,17 +434,16 @@ export function normalizedLegacyCloseoutDigestText(
     || plainText.match(/^✅\s*(JK\d+)\s+closed out\.?/i);
   if (!legacyMatch) return rawText;
 
-  const details = truckCloseoutDetails(closeouts.get(legacyMatch[1].toLowerCase()) || {});
-  if (!details) return rawText;
-
-  const lines = details.lines.flatMap((line) => {
+  const jobNumber = legacyMatch[1];
+  const details = truckCloseoutDetails(closeouts.get(jobNumber.toLowerCase()) || {});
+  const lines = (details?.lines || []).flatMap((line) => {
     const match = line.match(/^([^:]+):\s*(.*?)\.?$/);
     if (!match) return [];
     return [match[1] === "Tips" && !match[2] ? "*Tips:*" : `*${slackEscape(match[1])}:* ${slackEscape(match[2])}`];
   });
   return [
     ":white_check_mark: *Job Closed*",
-    `*<${legacyJobHref(rawText, details.jobNumber, date)}|${slackEscape(details.jobNumber)}>*`,
+    `*<${legacyJobHref(rawText, details?.jobNumber || jobNumber, date)}|${slackEscape(details?.jobNumber || jobNumber)}>*`,
     ...lines,
   ].join("\n");
 }

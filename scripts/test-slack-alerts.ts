@@ -163,6 +163,31 @@ assert.equal(formatSlackAlert(collapsedCancellationSlackAlert), [
   "400 Russell Ave New Orleans, LA 70143",
   "*Reason:* Cancelled via email per accounts request Followup",
 ].join("\n"));
+const repeatedAddressCancellationSlackAlert = buildCancellationSlackNotification({
+  id: "appt:4049973",
+  appointmentId: "4049973",
+  jobNumber: "JK4063151",
+  territory: "Northshore",
+  customerName: "Destiny Sanders",
+  phone: "(832) 506-4186",
+  address: "21115 Gardenia St, Covington, 70435",
+  appointmentTime: "02:00 PM - 03:00 PM",
+  appointmentType: "Job",
+  assignedTruck: "",
+  items: [],
+  href: "/jobs?date=2026-08-25#job-jk4063151",
+  cancelledBy: "Henriquez, Luis",
+  cancellationReason: "Destiny Sanders 8325064186 21115 Gardenia St Covington, LA 70435 Husband came on the line and decided to cancel Followup",
+}, "2026-08-25");
+assert.equal(formatSlackAlert(repeatedAddressCancellationSlackAlert), [
+  ":x: *Cancellation*",
+  "*<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4063151|JK4063151>*",
+  "02:00 PM - 03:00 PM",
+  "Destiny Sanders",
+  "<tel:+18325064186|(832) 506-4186>",
+  "21115 Gardenia St, Covington, 70435",
+  "*Reason:* Husband came on the line and decided to cancel Followup",
+].join("\n"));
 assert.equal(normalizeSlackTruckNumber("Truck# 4"), 4);
 assert.equal(normalizeSlackTruckNumber("Virtual Truck"), null);
 assert.equal(truckSlackChannelId("Truck 4", "C_TEST_FALLBACK"), "C_TEST_TRUCK_4");

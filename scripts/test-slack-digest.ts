@@ -76,7 +76,7 @@ async function main() {
   );
   assert.equal(
     normalizedLegacyAppointmentDigestText(
-      ":warning: *New same-day appointment:*\n<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4065604|JK4065604>\nLegacy appointment",
+      ":warning: *New same-day appointment*\n<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4065604|JK4065604>\nLegacy appointment",
       rescheduleAppointments,
       "2026-08-25",
     ),
@@ -143,6 +143,17 @@ async function main() {
       "*Tips:* $71.60",
       "*Total:* $358.00",
       "*Card Ending:* 9896",
+    ].join("\n"),
+  );
+  assert.equal(
+    normalizedLegacyCloseoutDigestText(
+      ":white_check_mark: *Job Closed*\n*Job:* <https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052999|JK4052999>",
+      new Map(),
+      "2026-08-14",
+    ),
+    [
+      ":white_check_mark: *Job Closed*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052999|JK4052999>*",
     ].join("\n"),
   );
 

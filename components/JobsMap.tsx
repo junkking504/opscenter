@@ -114,7 +114,16 @@ const DISPATCH_TERRITORY_SHORTCUTS = [
 const DISPATCH_TERRITORY_ZOOM = 11;
 
 function isLocated(job: JobsMapPoint): job is JobsMapPoint & { latitude: number; longitude: number } {
-  return Number.isFinite(job.latitude) && Number.isFinite(job.longitude);
+  const latitude = job.latitude;
+  const longitude = job.longitude;
+  return typeof latitude === "number"
+    && typeof longitude === "number"
+    && Number.isFinite(latitude)
+    && Number.isFinite(longitude)
+    && latitude >= 29
+    && latitude <= 31.3
+    && longitude >= -93
+    && longitude <= -89.4;
 }
 
 function isVirtualTruck(value: string): boolean {
@@ -753,10 +762,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   );
 
   const locatedJobs = useMemo(() => displayJobs.filter(isLocated), [displayJobs]);
-  const appointmentCoordinates = useMemo(
-    () => locatedJobs.map((job) => [job.latitude, job.longitude] as [number, number]),
-    [locatedJobs],
-  );
   const scheduledJobs = useMemo(() => [...displayJobs].sort(scheduleSort), [displayJobs]);
   const scheduleBoard = useMemo(() => buildScheduleBoard(displayJobs, trucks), [displayJobs, trucks]);
   const selectedJob = useMemo(
@@ -775,27 +780,13 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     ? parseTruckNumberFromLabel(selectedTruck.truck)
     : null;
   const selectedJobKey = selectedJob?.key || "";
-  const fitMapToAppointments = useCallback((animate: boolean) => {
-    const map = mapRef.current;
-    if (!map) return;
-    if (appointmentCoordinates.length > 1) {
-      map.fitBounds(appointmentCoordinates, {
-        padding: DEFAULT_DISPATCH_MAP_PADDING,
-        maxZoom: 13,
-        animate,
-      });
-      return;
-    }
-    if (appointmentCoordinates.length === 1) {
-      map.setView(appointmentCoordinates[0], 13, { animate });
-      return;
-    }
-    map.fitBounds(DEFAULT_DISPATCH_MAP_BOUNDS, {
+  const resetMapToOperatingFootprint = useCallback((animate: boolean) => {
+    mapRef.current?.fitBounds(DEFAULT_DISPATCH_MAP_BOUNDS, {
       padding: DEFAULT_DISPATCH_MAP_PADDING,
       maxZoom: DEFAULT_DISPATCH_MAP_ZOOM,
       animate,
     });
-  }, [appointmentCoordinates]);
+  }, []);
   const closestTruck = selectedJob ? nearestTruck(selectedJob.key, proximity) : null;
   const currentTimeLine = useMemo(() => {
     if (!currentScheduleTime || currentScheduleTime.date !== date || !scheduleBoard.rows.length) return null;
@@ -844,12 +835,12 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       setSelectedTruckName("");
       setFocusSelectedTruck(false);
       mapRef.current?.closePopup();
-      fitMapToAppointments(true);
+      resetMapToOperatingFootprint(true);
       window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
     };
     window.addEventListener("keydown", handleEscape);
     return () => window.removeEventListener("keydown", handleEscape);
-  }, [fitMapToAppointments]);
+  }, [resetMapToOperatingFootprint]);
 
   useEffect(() => {
     if (selectedTruckName && !liveTruckLocations.some((truck) => truck.truck === selectedTruckName)) setSelectedTruckName("");
@@ -1264,6 +1255,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       maxZoom: 20,
     }).addTo(map);
     mapRef.current = map;
+    resetMapToOperatingFootprint(false);
     map.scrollWheelZoom.enable();
     map.touchZoom.enable();
     map.doubleClickZoom.enable();
@@ -1287,14 +1279,14 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       markersRef.current = null;
       routesRef.current = null;
     };
-  }, [leaflet]);
+  }, [leaflet, resetMapToOperatingFootprint]);
 
   useEffect(() => {
     if (!mapRef.current || defaultMapDateRef.current === date) return;
     defaultMapDateRef.current = date;
-    const frame = window.requestAnimationFrame(() => fitMapToAppointments(false));
+    const frame = window.requestAnimationFrame(() => resetMapToOperatingFootprint(false));
     return () => window.cancelAnimationFrame(frame);
-  }, [date, fitMapToAppointments]);
+  }, [date, resetMapToOperatingFootprint]);
 
   useEffect(() => {
     const map = mapRef.current;

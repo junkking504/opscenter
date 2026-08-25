@@ -49,6 +49,16 @@ assert.match(
 );
 assert.match(
   deployer,
+  /service_run_count\(\)[\s\S]*?runs = \[0-9\]\+;/,
+  "a timed-out launchctl client may proceed only with launchd evidence of a new run",
+);
+assert.match(
+  deployer,
+  /runs_after.*-gt.*runs_before[\s\S]*?Restart began but launchctl did not return within/,
+  "a timed-out restart must distinguish a confirmed launchd start from a real restart failure",
+);
+assert.match(
+  deployer,
   /\/usr\/sbin\/lsof -n -P -F p \+D "\$candidate"/,
   "pruning must inspect candidate cwd and open-file records without emitting paths",
 );

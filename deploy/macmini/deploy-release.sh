@@ -80,17 +80,27 @@ service_loaded() {
   launchctl print "gui/$(id -u)/$1" >/dev/null 2>&1
 }
 
+service_run_count() {
+  launchctl print "gui/$(id -u)/$1" 2>/dev/null | awk '/^[[:space:]]*runs = [0-9]+;$/ { gsub(/[^0-9]/, "", $0); print; exit }'
+}
+
 restart_loaded_service_with_timeout() {
   local label="$1"
-  local restart_pid restart_status=0 remaining
+  local restart_pid restart_status=0 remaining runs_before runs_after
 
+  runs_before="$(service_run_count "$label")"
   launchctl kickstart -k "gui/$(id -u)/$label" &
   restart_pid=$!
   remaining="$RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS"
   while kill -0 "$restart_pid" 2>/dev/null; do
     if (( remaining == 0 )); then
+      runs_after="$(service_run_count "$label")"
       kill "$restart_pid" 2>/dev/null || true
       wait "$restart_pid" 2>/dev/null || true
+      if [[ "$runs_before" =~ ^[0-9]+$ && "$runs_after" =~ ^[0-9]+$ && "$runs_after" -gt "$runs_before" ]]; then
+        echo "Restart began but launchctl did not return within ${RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS}s: $label" >&2
+        return 0
+      fi
       echo "Timed out restarting loaded service after ${RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS}s: $label" >&2
       return 1
     fi

@@ -2118,17 +2118,24 @@ function AppointmentCardPaymentSummary({ job }: { job: JobRow }) {
 }
 
 function cardStatusLabel(job: JobRow): string {
+  const appointmentType = /estimate/i.test(job.appointmentType)
+    ? "Estimate"
+    : /job/i.test(job.appointmentType)
+      ? "Job"
+      : "";
+  const withAppointmentType = (status: string) => appointmentType ? `${status} ${appointmentType}` : status;
+
   switch (statusBucket(job)) {
     case "Completed":
-      return "Completed";
+      return withAppointmentType("Completed");
     case "Estimate":
       return "Completed Estimate";
     case "Open / Scheduled":
-      return "Confirmed";
+      return withAppointmentType("Confirmed");
     case "Canceled":
-      return "Canceled";
+      return withAppointmentType("Canceled");
     case "Unclosed or Needs Attention":
-      return "Needs attention";
+      return withAppointmentType("Needs attention");
   }
 }
 

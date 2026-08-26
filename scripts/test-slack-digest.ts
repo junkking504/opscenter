@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import {
   fetchSlackDailyDigest,
+  isOperationalSlackDigestMessage,
   normalizedCancellationDigestText,
   normalizedLegacyAppointmentDigestText,
   normalizedLegacyCancellationDigestText,
@@ -28,6 +29,9 @@ async function main() {
     "⚠️ New alert",
   );
   assert.equal(slackTextToPlainText(":wastebasket: *Dump receipt recorded*"), "🗑️ Dump receipt recorded");
+  assert.equal(isOperationalSlackDigestMessage({ subtype: "channel_name", text: "renamed a channel" }), false);
+  assert.equal(isOperationalSlackDigestMessage({ text: "Taylor renamed the channel" }), false);
+  assert.equal(isOperationalSlackDigestMessage({ text: ":warning: Route needs attention" }), true);
   assert.equal(
     normalizedCancellationDigestText(
       ":x: *Cancellation*\n*<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4058562|JK4058562>*\n02:00 PM - 03:00 PM\nDaniela Ortiz 8004215354x2071 400 Russell Ave New Orleans, LA 70143 Cancelled via email per accounts request Followup\n*Reason:* Daniela Ortiz 8004215354x2071 400 Russell Ave New Orleans, LA 70143 Cancelled via email per accounts request Followup",
@@ -222,6 +226,11 @@ async function main() {
           text: "Older alert",
           bot_profile: { name: "OpsCenter Alerts" },
         },
+        {
+          ts: "1786719100.000006",
+          subtype: "channel_name",
+          text: "Taylor renamed the channel from ops to command",
+        },
       ],
       response_metadata: { next_cursor: "" },
     });
@@ -283,6 +292,7 @@ async function main() {
 
   assert.equal(digest.status, "ready");
   assert.equal(digest.messages.length, 6);
+  assert.equal(digest.filteredSystemMessages, 1);
   assert.equal(digest.messages[0].text, "✅ Resolved");
   assert.equal(digest.messages[0].threadReply, true);
   assert.equal(digest.messages[1].appointment?.title, "Cancellation");

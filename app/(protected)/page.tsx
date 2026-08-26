@@ -1,4 +1,5 @@
 import PageHeader from "@/components/PageHeader";
+import DataHealth from "@/components/DataHealth";
 import OperatingInbox from "@/components/OperatingInbox";
 import { resolveKernelDatabaseConfig } from "@/lib/platform/persistence/config";
 import CommandBrief, {
@@ -31,6 +32,7 @@ import {
   operatingTargets,
 } from "@/lib/operating-targets";
 import { readSlackDailyDigest } from "@/lib/slack-digest";
+import { chicagoDateKey } from "@/lib/report-dates";
 
 // This dashboard reads metrics directly from files that are refreshed
 // throughout the day. Never reuse a rendered snapshot across requests.
@@ -663,6 +665,7 @@ export default async function DashboardPage({
       />
 
       {section === "overview" ? <>
+        {date === chicagoDateKey() ? <DataHealth compact /> : null}
         <CommandBrief
           metrics={commandBriefMetrics}
           signals={commandBriefSignals}

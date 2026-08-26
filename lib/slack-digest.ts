@@ -52,6 +52,32 @@ type SlackMessagePayload = {
   reply_count?: number;
 };
 
+const IGNORED_SYSTEM_SUBTYPES = new Set([
+  "channel_archive",
+  "channel_join",
+  "channel_leave",
+  "channel_name",
+  "channel_purpose",
+  "channel_topic",
+  "channel_unarchive",
+  "group_archive",
+  "group_join",
+  "group_leave",
+  "group_name",
+  "group_purpose",
+  "group_topic",
+  "group_unarchive",
+  "message_deleted",
+]);
+
+export function isOperationalSlackDigestMessage(message: SlackMessagePayload): boolean {
+  const subtype = String(message.subtype || "").trim().toLowerCase();
+  if (IGNORED_SYSTEM_SUBTYPES.has(subtype)) return false;
+  const text = String(message.text || "").trim();
+  if (!text) return false;
+  return !/^(?:<@[^>]+>|\S+)\s+(?:renamed|joined|left|archived|unarchived)\s+(?:the\s+)?channel\b/i.test(text);
+}
+
 type SlackHistoryResponse = {
   ok?: boolean;
   error?: string;
@@ -92,6 +118,7 @@ export type SlackDailyDigest = {
   status: "ready" | "unavailable";
   detail?: string;
   refreshedAt: string;
+  filteredSystemMessages?: number;
 };
 
 type DigestCacheEntry = {
@@ -499,6 +526,7 @@ function digestMessage(
   closeouts: Map<string, AnyRecord>,
   date: string,
 ): SlackDigestMessage | null {
+  if (!isOperationalSlackDigestMessage(message)) return null;
   const ts = String(message.ts || "").trim();
   const rawText = normalizedLegacyPhotoDigestText(
     normalizedLegacyCloseoutDigestText(
@@ -584,7 +612,7 @@ async function channelMessages(
   appointments: Map<string, AddOnAppointment>,
   closeouts: Map<string, AnyRecord>,
   date: string,
-): Promise<{ ok: boolean; messages: SlackDigestMessage[]; rateLimited: boolean }> {
+): Promise<{ ok: boolean; messages: SlackDigestMessage[]; rateLimited: boolean; filteredSystemMessages: number }> {
   const roots: SlackMessagePayload[] = [];
   let cursor = "";
 
@@ -597,12 +625,17 @@ async function channelMessages(
       limit: "200",
       cursor,
     }, token, fetchImpl);
-    if (!response.ok) return { ok: false, messages: [], rateLimited: response.error === "ratelimited" };
+    if (!response.ok) return { ok: false, messages: [], rateLimited: response.error === "ratelimited", filteredSystemMessages: 0 };
     roots.push(...(response.messages || []));
     cursor = String(response.response_metadata?.next_cursor || "").trim();
   } while (cursor);
 
+  let filteredSystemMessages = 0;
   const messages = roots.flatMap((message) => {
+    if (!isOperationalSlackDigestMessage(message)) {
+      filteredSystemMessages += 1;
+      return [];
+    }
     const item = digestMessage(channelId, message, appointments, closeouts, date);
     return item ? [item] : [];
   });
@@ -623,6 +656,10 @@ async function channelMessages(
       if (!response.ok) break;
       for (const reply of response.messages || []) {
         if (reply.ts === root.ts) continue;
+        if (!isOperationalSlackDigestMessage(reply)) {
+          filteredSystemMessages += 1;
+          continue;
+        }
         const item = digestMessage(channelId, reply, appointments, closeouts, date);
         if (item) messages.push(item);
       }
@@ -630,7 +667,7 @@ async function channelMessages(
     } while (replyCursor);
   }
 
-  return { ok: true, messages, rateLimited: false };
+  return { ok: true, messages, rateLimited: false, filteredSystemMessages };
 }
 
 export async function fetchSlackDailyDigest(
@@ -670,6 +707,7 @@ export async function fetchSlackDailyDigest(
   const messages: SlackDigestMessage[] = [];
   let readableChannels = 0;
   let rateLimited = false;
+  let filteredSystemMessages = 0;
 
   for (const channelId of Array.from(new Set(options.channelIds))) {
     const result = await channelMessages(
@@ -684,6 +722,7 @@ export async function fetchSlackDailyDigest(
     );
     if (result.ok) readableChannels += 1;
     if (result.rateLimited) rateLimited = true;
+    filteredSystemMessages += result.filteredSystemMessages;
     messages.push(...result.messages);
   }
 
@@ -700,7 +739,7 @@ export async function fetchSlackDailyDigest(
     };
   }
 
-  return { date, messages: unique, status: "ready", refreshedAt };
+  return { date, messages: unique, status: "ready", refreshedAt, filteredSystemMessages };
 }
 
 export function readSlackDailyDigest(date: string): Promise<SlackDailyDigest> {

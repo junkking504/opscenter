@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { OperationalExceptionsReport, ExceptionCategory, ExceptionSeverity } from "@/lib/operational-exceptions";
+import { operationalCategoryLabel } from "@/lib/ops-labels";
 
 const severityLabels: Record<ExceptionSeverity, string> = {
   critical: "Critical",
@@ -14,7 +15,7 @@ const severityLabels: Record<ExceptionSeverity, string> = {
 const categoryOrder: ExceptionCategory[] = ["Crew", "Jobs", "Fleet", "Finance"];
 
 function categoryLabel(category: ExceptionCategory): string {
-  return category === "Crew" ? "Krewe" : category;
+  return operationalCategoryLabel(category);
 }
 
 function todayIsoChicago(): string {

@@ -1288,6 +1288,147 @@
   cursor: wait;
 }
 
+.ops-jobs-page .ops-jobs-map-counts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px 8px;
+}
+
+.ops-jobs-page .ops-jobs-map-counts > span,
+.ops-jobs-page .ops-jobs-map-counts > em {
+  color: #727985;
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 750;
+}
+
+.ops-jobs-page .ops-jobs-map-counts > em {
+  color: #178653;
+}
+
+.ops-jobs-page .ops-jobs-map-verify-toggle {
+  min-height: 32px;
+  padding: 0 11px;
+  border: 1px solid #dfb84f;
+  border-radius: 9px;
+  background: #fff5d9;
+  color: #7c5700;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.ops-jobs-page .ops-jobs-map-verify-toggle:hover,
+.ops-jobs-page .ops-jobs-map-verify-toggle:focus-visible,
+.ops-jobs-page .ops-jobs-map-verify-toggle[aria-expanded="true"] {
+  border-color: #c69212;
+  background: #f4c45c;
+  color: #20242b;
+  outline: none;
+}
+
+.ops-jobs-page .ops-jobs-map-verification {
+  display: grid;
+  gap: 10px;
+  margin: 0 14px 12px;
+  padding: 13px;
+  border: 1px solid #ead39a;
+  border-radius: 13px;
+  background: #fffaf0;
+}
+
+.ops-jobs-page .ops-jobs-map-verification-heading,
+.ops-jobs-page .ops-jobs-map-verification-heading > div,
+.ops-jobs-page .ops-jobs-map-verification-list,
+.ops-jobs-page .ops-jobs-map-verification-list article > div:first-child {
+  display: grid;
+}
+
+.ops-jobs-page .ops-jobs-map-verification-heading {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.ops-jobs-page .ops-jobs-map-verification-heading > div { gap: 2px; }
+.ops-jobs-page .ops-jobs-map-verification-heading span {
+  color: #9a6811;
+  font-size: 0.69rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.ops-jobs-page .ops-jobs-map-verification-heading strong { font-size: 0.94rem; }
+.ops-jobs-page .ops-jobs-map-verification-heading small {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #f4c45c;
+  color: #20242b;
+  font-size: 0.71rem;
+  font-weight: 900;
+}
+
+.ops-jobs-page .ops-jobs-map-verification-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ops-jobs-page .ops-jobs-map-verification-list article {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 11px;
+  border: 1px solid #e9dcc0;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.ops-jobs-page .ops-jobs-map-verification-list article > div:first-child { min-width: 0; gap: 2px; }
+.ops-jobs-page .ops-jobs-map-verification-list article strong { font-size: 0.82rem; }
+.ops-jobs-page .ops-jobs-map-verification-list article span {
+  overflow: hidden;
+  color: #545c68;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ops-jobs-page .ops-jobs-map-verification-list article small { color: #9a6811; font-size: 0.7rem; }
+
+.ops-jobs-page .ops-jobs-map-verification-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ops-jobs-page .ops-jobs-map-verification-actions button,
+.ops-jobs-page .ops-jobs-map-verification-actions a {
+  min-height: 28px;
+  padding: 0 8px;
+  border: 1px solid #d9dde2;
+  border-radius: 8px;
+  background: #f7f8f6;
+  color: #20242b;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.69rem;
+  font-weight: 850;
+  line-height: 26px;
+  text-align: center;
+  text-decoration: none;
+}
+
+.ops-jobs-page .ops-jobs-map-verification-actions a {
+  border-color: #ed1c24;
+  background: #ed1c24;
+  color: #fff;
+}
+
 /* Cancellation is a caution state, not a red-alert state. Keep the dark card
  * treatment from the active Dispatch release, but restore its yellow-and-black
  * tape so it stays visually distinct from urgent/on-site work. */
@@ -1311,4 +1452,8 @@
 
   .ops-jobs-page .ops-junkware-search-field { grid-column: 1 / -1; }
   .ops-jobs-page .ops-junkware-search-clear { justify-self: end; }
+  .ops-jobs-page .ops-jobs-map-counts { justify-content: flex-start; }
+  .ops-jobs-page .ops-jobs-map-verification { margin: 0 9px 10px; padding: 10px; }
+  .ops-jobs-page .ops-jobs-map-verification-list { grid-template-columns: 1fr; }
+  .ops-jobs-page .ops-jobs-map-verification-list article { align-items: flex-start; }
 }

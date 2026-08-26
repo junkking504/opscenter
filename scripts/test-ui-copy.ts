@@ -1,12 +1,16 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { titleCaseLabel } from "../lib/title-case";
+import { operationalCategoryLabel } from "../lib/ops-labels";
 
 assert.equal(titleCaseLabel("Daily command"), "Daily Command");
 assert.equal(titleCaseLabel("Preventive-service planner"), "Preventive-Service Planner");
 assert.equal(titleCaseLabel("Today’s krewe"), "Today’s Krewe");
 assert.equal(titleCaseLabel("QBO connection status"), "QBO Connection Status");
 assert.equal(titleCaseLabel("Expenses & earnings"), "Expenses & Earnings");
+assert.equal(operationalCategoryLabel("Jobs"), "Schedule");
+assert.equal(operationalCategoryLabel("Crew"), "Krewe");
+assert.equal(operationalCategoryLabel("Fleet"), "Fleet");
 
 const jobsMapSource = readFileSync(new URL("../components/JobsMap.tsx", import.meta.url), "utf8");
 for (const label of [">GPS</span>", ">Visited</span>", ">On Site"]) {

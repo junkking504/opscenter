@@ -144,7 +144,10 @@ export default function SlackAlertsDigest({
           <span>Command Awareness</span>
           <h2 id="slack-alerts-title">Slack Alerts</h2>
         </div>
-        <small>{String(digest.messages.length).padStart(2, "0")} messages</small>
+        <small>
+          {String(digest.messages.length).padStart(2, "0")} alerts
+          {digest.filteredSystemMessages ? ` · ${digest.filteredSystemMessages} system hidden` : ""}
+        </small>
       </div>
 
       {digest.status === "unavailable" ? (

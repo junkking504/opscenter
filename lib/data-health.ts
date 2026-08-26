@@ -42,9 +42,12 @@ type TimedFile = {
 
 const AGE_GREEN = 10;
 const AGE_YELLOW = 20;
+const OPSBOT_DATA_DIR =
+  process.env.OPSBOT_DATA_DIR ||
+  path.join(process.env.HOME || "", ".openclaw", "workspace", "opsbot", "data");
 
 function dataDir(...parts: string[]): string {
-  return path.join(process.cwd(), "data", ...parts);
+  return path.join(OPSBOT_DATA_DIR, ...parts);
 }
 
 function chicagoNow(): Date {

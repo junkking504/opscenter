@@ -6,6 +6,11 @@ import AppointmentCancelDialog, { type AppointmentCancelTarget } from "@/compone
 import type { JobRouteProximityPayload, JobTruckProximity } from "@/lib/job-route-proximity";
 import { buildJobRouteHistory } from "@/lib/job-route-history";
 import { parseTruckNumberFromLabel } from "@/lib/linxup-truck-label";
+import {
+  dispatchMapCoverage,
+  dispatchMapVerificationReason,
+  hasVerifiedDispatchLocation,
+} from "@/lib/dispatch-map-quality";
 
 export type JobsMapPoint = {
   key: string;
@@ -114,16 +119,7 @@ const DISPATCH_TERRITORY_SHORTCUTS = [
 const DISPATCH_TERRITORY_ZOOM = 11;
 
 function isLocated(job: JobsMapPoint): job is JobsMapPoint & { latitude: number; longitude: number } {
-  const latitude = job.latitude;
-  const longitude = job.longitude;
-  return typeof latitude === "number"
-    && typeof longitude === "number"
-    && Number.isFinite(latitude)
-    && Number.isFinite(longitude)
-    && latitude >= 29
-    && latitude <= 31.3
-    && longitude >= -93
-    && longitude <= -89.4;
+  return hasVerifiedDispatchLocation(job);
 }
 
 function isVirtualTruck(value: string): boolean {
@@ -669,6 +665,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   );
   const linxupUpdatedAtRef = useRef(linxupUpdatedAt);
   const [linxupUpdateDelayed, setLinxupUpdateDelayed] = useState(false);
+  const [showAddressVerification, setShowAddressVerification] = useState(false);
   const serverAssignments = useMemo(
     () => Object.fromEntries(jobs.map((job) => [job.key, routeTruck(job.truck)])),
     [jobs],
@@ -762,6 +759,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   );
 
   const locatedJobs = useMemo(() => displayJobs.filter(isLocated), [displayJobs]);
+  const unlocatedJobs = useMemo(() => displayJobs.filter((job) => !isLocated(job)), [displayJobs]);
+  const mapCoverage = useMemo(() => dispatchMapCoverage(displayJobs), [displayJobs]);
   const scheduledJobs = useMemo(() => [...displayJobs].sort(scheduleSort), [displayJobs]);
   const scheduleBoard = useMemo(() => buildScheduleBoard(displayJobs, trucks), [displayJobs, trucks]);
   const selectedJob = useMemo(
@@ -1613,9 +1612,48 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           </div>
         </div>
         <div className="ops-jobs-map-counts" aria-label="Map coverage">
-          <strong>{locatedJobs.length}</strong> mapped <span>of {jobs.length} jobs</span>
+          <strong>{mapCoverage.mapped}</strong> of {mapCoverage.total} mapped
+          <span>{mapCoverage.percent}% coverage</span>
+          {mapCoverage.needsVerification > 0 ? (
+            <button
+              type="button"
+              className="ops-jobs-map-verify-toggle"
+              aria-expanded={showAddressVerification}
+              aria-controls="dispatch-address-verification"
+              onClick={() => setShowAddressVerification((current) => !current)}
+            >
+              Verify {mapCoverage.needsVerification}
+            </button>
+          ) : <em>All verified</em>}
         </div>
       </div>
+
+      {showAddressVerification && unlocatedJobs.length ? (
+        <section className="ops-jobs-map-verification" id="dispatch-address-verification" aria-labelledby="dispatch-address-verification-title">
+          <div className="ops-jobs-map-verification-heading">
+            <div>
+              <span>Map blocked</span>
+              <strong id="dispatch-address-verification-title">Address verification queue</strong>
+            </div>
+            <small>{unlocatedJobs.length} job{unlocatedJobs.length === 1 ? "" : "s"}</small>
+          </div>
+          <div className="ops-jobs-map-verification-list">
+            {unlocatedJobs.map((job) => (
+              <article key={job.key}>
+                <div>
+                  <strong>{job.jkNumber && job.jkNumber !== "—" ? job.jkNumber : job.customerName}</strong>
+                  <span>{job.address && job.address !== "—" ? job.address : "No service address recorded"}</span>
+                  <small>{dispatchMapVerificationReason(job)}</small>
+                </div>
+                <div className="ops-jobs-map-verification-actions">
+                  <button type="button" onClick={() => showAppointmentInQueue(job)}>Show card</button>
+                  {job.appointmentUrl ? <a href={job.appointmentUrl} target="_blank" rel="noreferrer">Verify in JunkWare</a> : null}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className="ops-jobs-map-legend" aria-label="Map legend">
         <div className="ops-jobs-map-legend-row ops-jobs-map-legend-territories" aria-label="Focus map on territory">

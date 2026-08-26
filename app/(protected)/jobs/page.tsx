@@ -4,6 +4,7 @@ import path from "path";
 import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
 import PageHeader from "@/components/PageHeader";
+import DataHealth from "@/components/DataHealth";
 import OpsMonthSelector from "@/components/OpsMonthSelector";
 import JobCallAheadCard from "@/components/JobCallAheadCard";
 import JobCloseoutEditor from "@/components/JobCloseoutEditor";
@@ -3188,6 +3189,8 @@ export default async function JobsPage({
         ]}
         compact
       />
+
+      {isDispatchWorkspace && date === today ? <DataHealth compact /> : null}
 
       {isDispatchWorkspace ? (
         <form className="ops-junkware-search" method="get" role="search">

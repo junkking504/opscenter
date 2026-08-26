@@ -49,6 +49,7 @@
     "verify:job-route-history": "node --import tsx scripts/test-job-route-history.ts",
     "verify:job-cancellations": "node --import tsx scripts/test-job-cancellations.ts",
     "verify:planning-geocodes": "node --import tsx scripts/test-planning-geocodes.ts",
+    "verify:dispatch-map-quality": "node --import tsx scripts/test-dispatch-map-quality.ts",
     "verify:production-release-gate": "zsh scripts/test-production-release-gate.sh",
     "verify:collector-release-lifecycle": "node --import tsx scripts/test-deploy-collector-release-lifecycle.ts",
     "verify:junkware-appointment-note": "node --import tsx scripts/test-junkware-appointment-note.ts",

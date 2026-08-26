@@ -106,6 +106,45 @@
 .ops-daily-dashboard .ops-daily-kpi-progress.is-watch > i { background: #e0a000; }
 .ops-daily-dashboard .ops-daily-kpi-progress.is-off-track > i { background: #d8222a; }
 
+.ops-command-operations-map .ops-jobs-map-card {
+  height: 100%;
+  min-height: 0;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.ops-command-operations-map .ops-jobs-map-header {
+  min-height: 58px;
+  padding: 9px 12px;
+}
+
+.ops-command-operations-map .ops-jobs-map-header .ops-muted { font-size: 0.67rem; }
+.ops-command-operations-map .ops-jobs-map-counts { font-size: 0.68rem; }
+.ops-command-operations-map .ops-jobs-map-counts strong { font-size: 1.08rem; }
+
+.ops-command-operations-map .ops-jobs-map-legend {
+  gap: 5px 10px;
+  padding: 7px 11px 9px;
+}
+
+.ops-command-operations-map .ops-jobs-map-workspace .ops-jobs-map-shell {
+  height: 430px;
+  grid-template-rows: 430px auto;
+}
+
+.ops-command-operations-map .ops-jobs-map-workspace .ops-jobs-leaflet-map {
+  height: 430px;
+}
+
+@media (max-width: 1120px) {
+  .ops-command-operations-map .ops-jobs-map-workspace .ops-jobs-map-shell {
+    height: 390px;
+    grid-template-rows: 390px auto;
+  }
+
+  .ops-command-operations-map .ops-jobs-map-workspace .ops-jobs-leaflet-map { height: 390px; }
+}
+
 @media (min-width: 721px) {
   .ops-main .ops-daily-dashboard > .ops-page-header.has-subnav {
     grid-template-columns: minmax(0, 1fr) auto !important;

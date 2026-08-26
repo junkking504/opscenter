@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { OperatingStatus } from "@/components/OperatingPulse";
 import SlackAlertsDigest from "@/components/SlackAlertsDigest";
 import type { SlackDailyDigest } from "@/lib/slack-digest";
@@ -12,13 +13,6 @@ export type CommandBriefMetric = {
   href: string;
   progress?: number;
   progressLabel?: string;
-};
-
-export type CommandBriefSignal = {
-  title: string;
-  detail: string;
-  status: OperatingStatus;
-  href: string;
 };
 
 const statusLabel: Record<OperatingStatus, string> = {
@@ -35,14 +29,14 @@ function toneClass(status: OperatingStatus): string {
 
 export default function CommandBrief({
   metrics,
-  signals,
   date,
   slackDigest,
+  map,
 }: {
   metrics: CommandBriefMetric[];
-  signals: CommandBriefSignal[];
   date: string;
   slackDigest: SlackDailyDigest;
+  map: ReactNode;
 }) {
   return (
     <section className={styles.brief} id="command-overview" aria-label="Command Overview">
@@ -71,34 +65,9 @@ export default function CommandBrief({
         ))}
       </div>
 
-      <div className={styles.body}>
-        <section className={styles.signals} aria-labelledby="operating-brief-title">
-          <div className={styles.sectionHeader}>
-            <div>
-              <span>Needs action</span>
-              <h2 id="operating-brief-title">Priority Queue</h2>
-            </div>
-            <small>{String(signals.length).padStart(2, "0")} items</small>
-          </div>
-
-          <div className={styles.signalList}>
-            {signals.slice(0, 3).map((signal) => (
-              <Link className={`${styles.signal} ${toneClass(signal.status)}`} href={signal.href} key={`${signal.title}-${signal.href}`}>
-                <span className={styles.signalDot} />
-                <span>
-                  <strong>{signal.title}</strong>
-                  <small>{signal.detail}</small>
-                </span>
-                <em>{statusLabel[signal.status]}</em>
-                <b aria-hidden="true">→</b>
-              </Link>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      <div className={styles.lower}>
+      <div className={styles.workspace}>
         <SlackAlertsDigest date={date} initialDigest={slackDigest} title="Operations Feed" kicker="Today's alerts" />
+        <div className={`${styles.map} ops-jobs-page ops-command-operations-map`}>{map}</div>
       </div>
     </section>
   );

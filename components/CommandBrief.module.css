@@ -465,9 +465,25 @@
 
 .digestList { max-height: 640px; }
 
+.workspace {
+  display: grid;
+  min-width: 0;
+  align-items: stretch;
+  grid-template-columns: minmax(340px, 0.82fr) minmax(520px, 1.18fr);
+  gap: 10px;
+}
+
+.workspace > * { min-width: 0; }
+
+.map {
+  min-width: 0;
+  height: 100%;
+}
+
 @media (max-width: 1120px) {
   .metricStrip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .body { grid-template-columns: minmax(0, 1fr); }
+  .workspace { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 760px) {

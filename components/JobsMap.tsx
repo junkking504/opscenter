@@ -846,7 +846,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   }, [liveTruckLocations, selectedTruckName]);
 
   useEffect(() => {
-    if (!scheduleView || chicagoScheduleClock().date !== date) return;
+    if (chicagoScheduleClock().date !== date) return;
 
     let active = true;
     let requestInFlight = false;
@@ -892,7 +892,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("online", handleOnline);
     };
-  }, [date, scheduleView]);
+  }, [date]);
 
   useEffect(() => {
     if (!selectedTruck) {

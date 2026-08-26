@@ -4,8 +4,8 @@ import OperatingInbox from "@/components/OperatingInbox";
 import { resolveKernelDatabaseConfig } from "@/lib/platform/persistence/config";
 import CommandBrief, {
   type CommandBriefMetric,
-  type CommandBriefSignal,
 } from "@/components/CommandBrief";
+import { JobsMap } from "@/components/JobsMap";
 import OpsMonthSelector from "@/components/OpsMonthSelector";
 import OperatingPulse, {
   type OperatingAction,
@@ -25,7 +25,7 @@ import {
 } from "@/lib/opsData";
 import { buildMonthlySummary, monthOptions } from "@/lib/monthly-summary";
 import { buildFleetDailyRecord } from "@/lib/fleet-history";
-import { buildSearchKingsView } from "@/lib/searchkings";
+import { buildCommandMapData } from "@/lib/command-map-data";
 import {
   dailyRevenueTarget,
   monthlyRevenueTarget,
@@ -35,6 +35,7 @@ import { readSlackDailyDigest } from "@/lib/slack-digest";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { workedOrAttributedToJobToday } from "@/lib/crew-attendance";
 import "./command.css";
+import "./jobs/jobs.css";
 
 // This dashboard reads metrics directly from files that are refreshed
 // throughout the day. Never reuse a rendered snapshot across requests.
@@ -505,8 +506,8 @@ export default async function DashboardPage({
     ? requestedSection
     : "overview";
   const metrics = readMetrics(date);
-  const marketing = buildSearchKingsView();
   const slackDigest = section === "overview" ? await readSlackDailyDigest(date) : null;
+  const commandMap = section === "overview" ? buildCommandMapData(date) : null;
 
   const crew = crewRows(metrics);
   const activeCrew = crew.filter((row) => workedOrAttributedToJobToday(row));
@@ -531,11 +532,8 @@ export default async function DashboardPage({
     : 0;
   const dailyRevenuePlan = configuredDailyTarget > 0 ? configuredDailyTarget : recentRevenueBaseline;
   const dailyOperatingProfit = toNumber(metrics?.net_profit);
-  const dailyOperatingMargin = grossRevenue > 0 ? (dailyOperatingProfit / grossRevenue) * 100 : 0;
   const dailyAverageJob = jobs > 0 ? grossRevenue / jobs : 0;
-  const dailyAverageJobGoal = jobs > 0 && dailyRevenuePlan > 0 ? dailyRevenuePlan / jobs : null;
   const dailyJobsAtPlan = dailyRevenuePlan > 0 ? dailyRevenuePlan / operatingTargets.averageJobSize : 0;
-  const dailyPayrollBudgetAtPlan = dailyRevenuePlan * (operatingTargets.maxPayrollPercent / 100);
   const dailyOperatingProfitAtPlan = dailyRevenuePlan * (operatingTargets.minOperatingMarginPercent / 100);
   const activeTruckCount = trucks.filter((truck) => Number(truck.revenue || 0) > 0).length;
   const dailyAppointmentCount = Array.isArray(metrics?.appointments) ? metrics.appointments.length : jobs;
@@ -550,7 +548,6 @@ export default async function DashboardPage({
     : maximumStatus(projectedLaborCostPercent, operatingTargets.maxPayrollPercent);
   const dailyRevenuePerTruck = activeTruckCount > 0 ? grossRevenue / activeTruckCount : 0;
   const dailyProfitPerJob = jobs > 0 ? dailyOperatingProfit / jobs : 0;
-  const dailyRevenueVariance = dailyRevenuePlan > 0 ? ((grossRevenue - dailyRevenuePlan) / dailyRevenuePlan) * 100 : 0;
   const completedJobsStatus: OperatingStatus = dailyJobsAtPlan > 0
     ? minimumStatus(jobs, dailyJobsAtPlan)
     : "watch";
@@ -565,43 +562,7 @@ export default async function DashboardPage({
   const profitPerJobStatus: OperatingStatus = jobs > 0 && profitPerJobTarget > 0
     ? minimumStatus(dailyProfitPerJob, profitPerJobTarget)
     : "watch";
-  const dailyPulseItems: OperatingPulseItem[] = [
-    {
-      label: "Revenue performance",
-      value: money(grossRevenue),
-      target: configuredDailyTarget > 0 ? money(dailyRevenuePlan) : `${money(dailyRevenuePlan)} recent average`,
-      detail: `${signedPercent(dailyRevenueVariance)} versus ${configuredDailyTarget > 0 ? "the configured daily target" : "the recent 28-day published baseline"}.`,
-      status: minimumStatus(grossRevenue, dailyRevenuePlan),
-    },
-    {
-      label: "Projected labor cost",
-      value: projectedLaborCostPercent == null ? "Waiting" : `${projectedLaborCostPercent.toFixed(1)}%`,
-      target: `< ${operatingTargets.maxPayrollPercent.toFixed(0)}% · ${money(dailyPayrollBudgetAtPlan)} at daily goal`,
-      detail: projectedLaborCostPercent == null
-        ? "Waiting for completed-job revenue before projecting the full day."
-        : `${money(totalPayroll)} payroll against ${money(projectedDayRevenue)} projected revenue.`,
-      status: projectedLaborCostStatus,
-    },
-    {
-      label: "Operating margin",
-      value: `${dailyOperatingMargin.toFixed(1)}%`,
-      target: `≥ ${operatingTargets.minOperatingMarginPercent.toFixed(0)}% · ${money(dailyOperatingProfitAtPlan)} at daily goal`,
-      detail: `${money(dailyOperatingProfit)} estimated operating profit for today.`,
-      status: minimumStatus(dailyOperatingMargin, operatingTargets.minOperatingMarginPercent),
-    },
-    {
-      label: "Average job size",
-      value: money(dailyAverageJob),
-      target: dailyAverageJobGoal == null
-        ? "Waiting for completed jobs"
-        : `≥ ${money(dailyAverageJobGoal)} for ${jobs} completed job${jobs === 1 ? "" : "s"}`,
-      detail: dailyAverageJobGoal == null
-        ? "The AJS goal will be calculated after the first completed job."
-        : `${money(dailyRevenuePlan)} daily revenue goal divided by ${jobs} completed job${jobs === 1 ? "" : "s"}.`,
-      status: dailyAverageJobGoal == null ? "watch" : minimumStatus(dailyAverageJob, dailyAverageJobGoal),
-    },
-  ];
-  const dailyRevenueStatus = dailyPulseItems[0].status;
+  const dailyRevenueStatus = minimumStatus(grossRevenue, dailyRevenuePlan);
   const commandBriefMetrics: CommandBriefMetric[] = [
     {
       label: "Today's jobs",
@@ -644,41 +605,6 @@ export default async function DashboardPage({
       href: `/crew?date=${date}`,
     },
   ];
-  const commandBriefSignals: CommandBriefSignal[] = [
-    {
-      title: "Revenue performance",
-      detail: dailyPulseItems[0].detail,
-      status: dailyPulseItems[0].status,
-      href: `/jobs?date=${date}`,
-    },
-    {
-      title: "Projected labor cost",
-      detail: dailyPulseItems[1].detail,
-      status: dailyPulseItems[1].status,
-      href: `/crew?date=${date}`,
-    },
-    {
-      title: "Operating margin",
-      detail: dailyPulseItems[2].detail,
-      status: dailyPulseItems[2].status,
-      href: `/finance?date=${date}`,
-    },
-    {
-      title: "Average job size",
-      detail: dailyPulseItems[3].detail,
-      status: dailyPulseItems[3].status,
-      href: `/jobs?date=${date}`,
-    },
-  ];
-  if (marketing.available && marketing.lostLeads + marketing.needsFollowUp > 0) {
-    commandBriefSignals.push({
-      title: "Lost-lead recovery",
-      detail: `${marketing.needsFollowUp} qualified call${marketing.needsFollowUp === 1 ? "" : "s"} need follow-up · ${marketing.lostLeads} lost · ${money(marketing.estimatedLostRevenue)} potential revenue`,
-      status: marketing.lostLeads > 0 ? "off-track" : "watch",
-      href: "/marketing?section=lost-leads",
-    });
-  }
-
   const rankedCrew = [...crew]
     .sort((a, b) =>
       employeeRevenue(b) - employeeRevenue(a) ||
@@ -703,8 +629,8 @@ export default async function DashboardPage({
         lastUpdated={metrics?.generated_at}
         sections={section === "overview" ? [
           { label: "Overview", href: `/?date=${date}&section=overview#command-overview`, active: true },
-          { label: "Queue", href: `/?date=${date}&section=overview#operating-brief-title` },
-          { label: "Performance", href: `/?date=${date}&section=overview#command-performance-title` },
+          { label: "Operations", href: `/?date=${date}&section=overview#slack-alerts-title` },
+          { label: "Live Map", href: `/?date=${date}&section=overview#jobs-map` },
         ] : [
           { label: "Overview", href: `/?date=${date}&section=overview`, active: false },
           { label: "Krewe Snapshot", href: `/?date=${date}&section=crew`, active: section === "crew" },
@@ -775,9 +701,17 @@ export default async function DashboardPage({
 
         <CommandBrief
           metrics={commandBriefMetrics}
-          signals={commandBriefSignals}
           date={date}
           slackDigest={slackDigest!}
+          map={commandMap ? (
+            <JobsMap
+              date={date}
+              jobs={commandMap.jobs}
+              scheduleView={false}
+              trucks={commandMap.trucks}
+              truckLocations={commandMap.truckLocations}
+            />
+          ) : null}
         />
 
         {kernelDatabase.status === "ready" ? (

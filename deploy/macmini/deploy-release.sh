@@ -154,6 +154,7 @@ restart_release_bound_collectors() {
 
   market_watchers=("${(@f)$(loaded_market_watcher_labels)}") || return 1
   for watcher_label in "${market_watchers[@]}"; do
+    [[ -n "$watcher_label" ]] || continue
     restart_loaded_service "$watcher_label" || return 1
   done
 

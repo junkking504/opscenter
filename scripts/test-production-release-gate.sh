@@ -14,6 +14,7 @@ grep -F 'require_production_head "$commit"' "$deployer" >/dev/null
 grep -F 'require_forward_deploy "$active_commit" "$commit" "initial ancestry check"' "$deployer" >/dev/null
 grep -F 'require_forward_deploy "$latest_active_commit" "$commit" "active release changed during build"' "$deployer" >/dev/null
 grep -F 'acquire_deploy_lock' "$deployer" >/dev/null
+grep -F '[[ -n "$watcher_label" ]] || continue' "$deployer" >/dev/null
 grep -F 'REMOTE_CONTROLLER="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh"' "$wrapper" >/dev/null
 grep -F 'ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$commit"' "$wrapper" >/dev/null
 grep -F 'controller="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh"' "$wrapper" >/dev/null

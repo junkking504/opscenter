@@ -101,6 +101,9 @@ export default function SlackAlertsDigest({
   limit?: number;
 }) {
   const [digest, setDigest] = useState(initialDigest);
+  const visibleMessages = typeof limit === "number"
+    ? digest.messages.slice(0, limit)
+    : digest.messages;
 
   useEffect(() => {
     setDigest(initialDigest);
@@ -168,7 +171,7 @@ export default function SlackAlertsDigest({
         </div>
       ) : (
         <div className={styles.digestList} aria-label="Slack messages, newest first" aria-live="polite">
-          {digest.messages.slice(0, limit).map((message) => (
+          {visibleMessages.map((message) => (
             <article className={styles.digestMessage} key={message.id}>
               <time dateTime={message.timestamp}>{messageTime(message.timestamp)}</time>
               <div>

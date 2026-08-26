@@ -19,7 +19,7 @@
 
 .metricStrip {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -68,6 +68,12 @@
 }
 
 .metric > div > small {
+  display: inline-grid;
+  min-height: 22px;
+  place-items: center;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
   color: currentColor;
   font-size: 0.9375rem;
   font-weight: 900;
@@ -237,7 +243,7 @@
   .metric { min-height: 134px; padding: 14px; }
   .metric > strong { font-size: 1.65rem; }
   .metric > p { white-space: normal; }
-  .metric > div > small { display: none; }
+  .metric > div > small { min-height: 20px; padding: 2px 5px; font-size: 0.58rem; }
   .signals, .queue { border-radius: 14px; }
   .signal { grid-template-columns: 9px minmax(0, 1fr) 14px; min-height: 70px; padding: 11px 14px; }
   .signal small { white-space: normal; }
@@ -348,7 +354,7 @@
 
 .lower {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(260px, 0.7fr) minmax(0, 1.3fr);
   gap: 14px;
 }
 
@@ -370,13 +376,14 @@
 .performanceBody strong { color: #20242b; font-size: 1.2rem; }
 .performanceTrack { grid-column: 1 / -1; background: #e6e8ea; }
 
-.digestList { max-height: 224px; }
+.digestList { max-height: 520px; }
 .digestMessage { grid-template-columns: 52px minmax(0, 1fr); gap: 9px; padding: 9px 14px; }
 .digestMessage time,
 .digestMessage strong,
 .digestMessage p { font-size: 0.7rem; }
 
 @media (max-width: 1120px) {
+  .metricStrip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .body { grid-template-columns: minmax(0, 1.4fr) minmax(250px, 0.75fr); }
 }
 
@@ -392,7 +399,6 @@
   }
   .metric:first-child :is(strong) { color: #fff; }
   .metric:first-child :is(p, div > span) { color: #aeb4bd; }
-  .metric:nth-child(4) { display: none; }
   .body,
   .lower { grid-template-columns: 1fr; }
   .progress { background: #fff; color: #20242b; }

@@ -225,9 +225,15 @@ function minimumStatus(value: number, target: number): OperatingStatus {
 }
 
 function maximumStatus(value: number, target: number): OperatingStatus {
-  if (value <= target) return "on-track";
-  if (value <= target * 1.15) return "watch";
+  if (value < target) return "on-track";
+  if (value < target * 1.15) return "watch";
   return "off-track";
+}
+
+function operatingStatusLabel(status: OperatingStatus): string {
+  if (status === "on-track") return "On Track";
+  if (status === "watch") return "Watch";
+  return "Act Now";
 }
 
 function signedPercent(value: number): string {
@@ -522,7 +528,6 @@ export default async function DashboardPage({
     ? recentDailyMetrics.reduce((sum, row) => sum + toNumber(row.total_revenue ?? row.gross_revenue), 0) / recentDailyMetrics.length
     : 0;
   const dailyRevenuePlan = configuredDailyTarget > 0 ? configuredDailyTarget : recentRevenueBaseline;
-  const dailyPayrollPercentage = grossRevenue > 0 ? (totalPayroll / grossRevenue) * 100 : 0;
   const dailyOperatingProfit = toNumber(metrics?.net_profit);
   const dailyOperatingMargin = grossRevenue > 0 ? (dailyOperatingProfit / grossRevenue) * 100 : 0;
   const dailyAverageJob = jobs > 0 ? grossRevenue / jobs : 0;
@@ -532,9 +537,32 @@ export default async function DashboardPage({
   const dailyOperatingProfitAtPlan = dailyRevenuePlan * (operatingTargets.minOperatingMarginPercent / 100);
   const activeTruckCount = trucks.filter((truck) => Number(truck.revenue || 0) > 0).length;
   const dailyAppointmentCount = Array.isArray(metrics?.appointments) ? metrics.appointments.length : jobs;
+  const projectedDayRevenue = jobs > 0 && dailyAppointmentCount > 0
+    ? Math.max(grossRevenue, dailyAverageJob * dailyAppointmentCount)
+    : grossRevenue;
+  const projectedLaborCostPercent = projectedDayRevenue > 0
+    ? (totalPayroll / projectedDayRevenue) * 100
+    : null;
+  const projectedLaborCostStatus: OperatingStatus = projectedLaborCostPercent == null
+    ? "watch"
+    : maximumStatus(projectedLaborCostPercent, operatingTargets.maxPayrollPercent);
   const dailyRevenuePerTruck = activeTruckCount > 0 ? grossRevenue / activeTruckCount : 0;
   const dailyProfitPerJob = jobs > 0 ? dailyOperatingProfit / jobs : 0;
   const dailyRevenueVariance = dailyRevenuePlan > 0 ? ((grossRevenue - dailyRevenuePlan) / dailyRevenuePlan) * 100 : 0;
+  const completedJobsStatus: OperatingStatus = dailyJobsAtPlan > 0
+    ? minimumStatus(jobs, dailyJobsAtPlan)
+    : "watch";
+  const fleetReadyStatus: OperatingStatus = activeTruckCount >= Math.max(1, trucks.length - 1)
+    ? "on-track"
+    : activeTruckCount > 0 ? "watch" : "off-track";
+  const revenuePerTruckTarget = activeTruckCount > 0 ? dailyRevenuePlan / activeTruckCount : 0;
+  const revenuePerTruckStatus: OperatingStatus = revenuePerTruckTarget > 0
+    ? minimumStatus(dailyRevenuePerTruck, revenuePerTruckTarget)
+    : "watch";
+  const profitPerJobTarget = dailyJobsAtPlan > 0 ? dailyOperatingProfitAtPlan / dailyJobsAtPlan : 0;
+  const profitPerJobStatus: OperatingStatus = jobs > 0 && profitPerJobTarget > 0
+    ? minimumStatus(dailyProfitPerJob, profitPerJobTarget)
+    : "watch";
   const dailyPulseItems: OperatingPulseItem[] = [
     {
       label: "Revenue performance",
@@ -544,11 +572,13 @@ export default async function DashboardPage({
       status: minimumStatus(grossRevenue, dailyRevenuePlan),
     },
     {
-      label: "Payroll efficiency",
-      value: `${dailyPayrollPercentage.toFixed(1)}%`,
-      target: `≤ ${operatingTargets.maxPayrollPercent.toFixed(0)}% · ${money(dailyPayrollBudgetAtPlan)} at daily goal`,
-      detail: `${money(totalPayroll)} payroll deployed against today's revenue.`,
-      status: maximumStatus(dailyPayrollPercentage, operatingTargets.maxPayrollPercent),
+      label: "Projected labor cost",
+      value: projectedLaborCostPercent == null ? "Waiting" : `${projectedLaborCostPercent.toFixed(1)}%`,
+      target: `< ${operatingTargets.maxPayrollPercent.toFixed(0)}% · ${money(dailyPayrollBudgetAtPlan)} at daily goal`,
+      detail: projectedLaborCostPercent == null
+        ? "Waiting for completed-job revenue before projecting the full day."
+        : `${money(totalPayroll)} payroll against ${money(projectedDayRevenue)} projected revenue.`,
+      status: projectedLaborCostStatus,
     },
     {
       label: "Operating margin",
@@ -586,10 +616,19 @@ export default async function DashboardPage({
       href: `/jobs?date=${date}`,
     },
     {
+      label: "Projected labor",
+      value: projectedLaborCostPercent == null ? "Waiting" : `${projectedLaborCostPercent.toFixed(1)}%`,
+      detail: projectedLaborCostPercent == null
+        ? `Goal < ${operatingTargets.maxPayrollPercent.toFixed(0)}% once revenue is available`
+        : `${money(totalPayroll)} payroll ÷ ${money(projectedDayRevenue)} projected revenue · goal < ${operatingTargets.maxPayrollPercent.toFixed(0)}%`,
+      status: projectedLaborCostStatus,
+      href: `/crew?date=${date}`,
+    },
+    {
       label: "Fleet ready",
       value: `${activeTruckCount} / ${trucks.length}`,
       detail: `${activeTruckCount} revenue-producing today`,
-      status: activeTruckCount >= Math.max(1, trucks.length - 1) ? "on-track" : "watch",
+      status: fleetReadyStatus,
       href: `/fleet?date=${date}`,
     },
     {
@@ -608,7 +647,7 @@ export default async function DashboardPage({
       href: `/jobs?date=${date}`,
     },
     {
-      title: "Payroll efficiency",
+      title: "Projected labor cost",
       detail: dailyPulseItems[1].detail,
       status: dailyPulseItems[1].status,
       href: `/crew?date=${date}`,
@@ -671,6 +710,55 @@ export default async function DashboardPage({
 
       {section === "overview" ? <>
         {date === chicagoDateKey() ? <DataHealth compact strip /> : null}
+
+        <section className="ops-supporting-metrics" aria-labelledby="supporting-metrics-title">
+          <div className="ops-supporting-metrics-heading">
+            <div>
+              <div className="ops-operating-kicker"><span /> Daily output</div>
+              <h2 id="supporting-metrics-title">Supporting Metrics</h2>
+            </div>
+            <p>Live output and capacity with status against today&apos;s operating targets.</p>
+          </div>
+
+          <div className="ops-daily-kpi-grid" aria-label="Supporting daily metrics">
+            <a className="ops-card ops-daily-kpi-card" href={`/jobs?date=${date}`}>
+              <div className="ops-daily-kpi-heading">
+                <div className="ops-card-title">Completed jobs</div>
+                <span className={`ops-daily-kpi-status is-${completedJobsStatus}`}>{operatingStatusLabel(completedJobsStatus)}</span>
+              </div>
+              <div className="ops-kpi-value">{jobs}</div>
+              <div className="ops-kpi-sub">Goal {dailyJobsAtPlan.toFixed(1)}/day at {money(operatingTargets.averageJobSize)} average <span aria-hidden="true">→</span></div>
+            </a>
+
+            <a className="ops-card ops-daily-kpi-card" href={`/fleet?date=${date}`}>
+              <div className="ops-daily-kpi-heading">
+                <div className="ops-card-title">Active trucks</div>
+                <span className={`ops-daily-kpi-status is-${fleetReadyStatus}`}>{operatingStatusLabel(fleetReadyStatus)}</span>
+              </div>
+              <div className="ops-kpi-value">{activeTruckCount}</div>
+              <div className="ops-kpi-sub">Producing revenue today <span aria-hidden="true">→</span></div>
+            </a>
+
+            <a className="ops-card ops-daily-kpi-card" href={`/fleet?date=${date}`}>
+              <div className="ops-daily-kpi-heading">
+                <div className="ops-card-title">Revenue / active truck</div>
+                <span className={`ops-daily-kpi-status is-${revenuePerTruckStatus}`}>{operatingStatusLabel(revenuePerTruckStatus)}</span>
+              </div>
+              <div className="ops-kpi-value">{money(dailyRevenuePerTruck)}</div>
+              <div className="ops-kpi-sub">Goal {money(revenuePerTruckTarget)} per active truck <span aria-hidden="true">→</span></div>
+            </a>
+
+            <a className="ops-card ops-daily-kpi-card" href={`/finance?date=${date}`}>
+              <div className="ops-daily-kpi-heading">
+                <div className="ops-card-title">Profit / completed job</div>
+                <span className={`ops-daily-kpi-status is-${profitPerJobStatus}`}>{operatingStatusLabel(profitPerJobStatus)}</span>
+              </div>
+              <div className="ops-kpi-value">{money(dailyProfitPerJob)}</div>
+              <div className="ops-kpi-sub">Goal {money(profitPerJobTarget)} after operating costs <span aria-hidden="true">→</span></div>
+            </a>
+          </div>
+        </section>
+
         <CommandBrief
           metrics={commandBriefMetrics}
           signals={commandBriefSignals}
@@ -695,41 +783,6 @@ export default async function DashboardPage({
         </div>
         )}
 
-        <section className="ops-supporting-metrics" aria-labelledby="supporting-metrics-title">
-          <div className="ops-supporting-metrics-heading">
-            <div>
-              <div className="ops-operating-kicker"><span /> Daily output</div>
-              <h2 id="supporting-metrics-title">Supporting Metrics</h2>
-            </div>
-            <p>The command view owns the headline numbers; these measures explain throughput and capacity.</p>
-          </div>
-
-          <div className="ops-daily-kpi-grid" aria-label="Supporting daily metrics">
-            <a className="ops-card ops-daily-kpi-card" href={`/jobs?date=${date}`}>
-              <div className="ops-card-title">Completed jobs</div>
-              <div className="ops-kpi-value">{jobs}</div>
-              <div className="ops-kpi-sub">Goal {dailyJobsAtPlan.toFixed(1)}/day at {money(operatingTargets.averageJobSize)} average <span aria-hidden="true">→</span></div>
-            </a>
-
-            <a className="ops-card ops-daily-kpi-card" href={`/fleet?date=${date}`}>
-              <div className="ops-card-title">Active trucks</div>
-              <div className="ops-kpi-value">{activeTruckCount}</div>
-              <div className="ops-kpi-sub">Producing revenue today <span aria-hidden="true">→</span></div>
-            </a>
-
-            <a className="ops-card ops-daily-kpi-card" href={`/fleet?date=${date}`}>
-              <div className="ops-card-title">Revenue / active truck</div>
-              <div className="ops-kpi-value">{money(dailyRevenuePerTruck)}</div>
-              <div className="ops-kpi-sub">Across {activeTruckCount} producing truck{activeTruckCount === 1 ? "" : "s"} <span aria-hidden="true">→</span></div>
-            </a>
-
-            <a className="ops-card ops-daily-kpi-card" href={`/finance?date=${date}`}>
-              <div className="ops-card-title">Profit / completed job</div>
-              <div className="ops-kpi-value ops-kpi-good">{money(dailyProfitPerJob)}</div>
-              <div className="ops-kpi-sub">Estimated after operating costs <span aria-hidden="true">→</span></div>
-            </a>
-          </div>
-        </section>
       </> : null}
 
       {section === "crew" ? <section className="ops-card ops-daily-leaderboard" id="command-crew">

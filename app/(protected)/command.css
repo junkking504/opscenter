@@ -38,6 +38,57 @@
 
 .ops-daily-dashboard > .ops-supporting-metrics { margin-top: 2px; }
 
+.ops-daily-dashboard .ops-daily-kpi-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ops-daily-dashboard .ops-daily-kpi-heading .ops-card-title { margin: 0; }
+
+.ops-daily-dashboard .ops-daily-kpi-status {
+  display: inline-grid;
+  min-height: 22px;
+  place-items: center;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ops-daily-dashboard .ops-daily-kpi-status.is-on-track { background: #dcf8e9; color: #087849; }
+.ops-daily-dashboard .ops-daily-kpi-status.is-watch { background: #fff2cf; color: #8a5a00; }
+.ops-daily-dashboard .ops-daily-kpi-status.is-off-track { background: #ffe3e5; color: #b71825; }
+
+@media (min-width: 721px) {
+  .ops-main .ops-daily-dashboard > .ops-page-header.has-subnav {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-rows: auto !important;
+    min-height: 60px !important;
+    height: auto !important;
+    align-items: center;
+    gap: 8px 12px !important;
+    padding: 6px 2px !important;
+  }
+
+  .ops-main .ops-daily-dashboard > .ops-page-header .ops-page-header-copy {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .ops-main .ops-daily-dashboard > .ops-page-header .ops-page-header-controls {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .ops-main .ops-daily-dashboard > .ops-page-header .ops-page-header-meta {
+    display: none !important;
+  }
+}
+
 @media (max-width: 720px) {
   .ops-main:has(.ops-daily-dashboard) .ops-topbar { display: none; }
   .ops-daily-dashboard { gap: 12px; }
@@ -90,5 +141,6 @@
     color: #505762;
   }
 
-  .ops-daily-dashboard > .ops-supporting-metrics { display: none; }
+  .ops-daily-dashboard > .ops-supporting-metrics { margin-inline: 4px; }
+  .ops-daily-dashboard .ops-supporting-metrics-heading { display: none; }
 }

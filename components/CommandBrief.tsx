@@ -125,7 +125,7 @@ export default function CommandBrief({
           </div>
         </section>
 
-        <SlackAlertsDigest date={date} initialDigest={slackDigest} title="Recent Activity" kicker="Operations feed" limit={3} />
+        <SlackAlertsDigest date={date} initialDigest={slackDigest} title="Operations Feed" kicker="Today's alerts" />
       </div>
     </section>
   );

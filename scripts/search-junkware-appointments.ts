@@ -163,35 +163,55 @@ async function readCurrentPageRows(page: Page): Promise<JunkwareAppointmentSearc
       total: total.trim(),
       status: status.trim(),
     });
-    if (results.length >= MAX_RESULTS) break;
   }
   return results;
 }
 
 async function hasNextPage(page: Page): Promise<boolean> {
-  const nextButton = page.locator("#ctl00_Content_ListView1_DataPager1_ctl00_NextPageBtn");
+  const nextButton = page.locator("#ctl00_Content_ListView1_DataPager1_ctl00_NextPageBtn").first();
   if (!(await nextButton.count())) return false;
-  const disabled = await nextButton.getAttribute("disabled");
-  return disabled === null;
+  const currentPage = Number(await page.locator("#ctl00_Content_ListView1_DataPager1_ctl00_CurrentPageLbl").textContent());
+  const totalPages = Number(await page.locator("#ctl00_Content_ListView1_DataPager1_ctl00_TotalPagesLbl").textContent());
+  return Number.isInteger(currentPage) && Number.isInteger(totalPages) && currentPage < totalPages;
+}
+
+async function currentPageSignature(page: Page): Promise<string> {
+  return page.locator("table.list tr.list-item").evaluateAll((rows) => rows.map((row) =>
+    `${row.getAttribute("onclick") || ""}|${row.textContent || ""}`,
+  ).join("\n"));
 }
 
 async function goToNextPage(page: Page): Promise<void> {
-  const nextButton = page.locator("#ctl00_Content_ListView1_DataPager1_ctl00_NextPageBtn");
+  const nextButton = page.locator("#ctl00_Content_ListView1_DataPager1_ctl00_NextPageBtn").first();
+  const previousSignature = await currentPageSignature(page);
+  const previousPage = Number(await page.locator("#ctl00_Content_ListView1_DataPager1_ctl00_CurrentPageLbl").textContent());
   await Promise.all([
-    page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 45_000 }).catch(() => null),
+    page.waitForFunction((pageNumber) => Number(document.querySelector("#ctl00_Content_ListView1_DataPager1_ctl00_CurrentPageLbl")?.textContent) > pageNumber, previousPage, { timeout: 45_000 }),
     nextButton.click(),
   ]);
   if (page.url().toLowerCase().includes(LOGIN)) throw new Error("JunkWare session expired while paginating search results.");
+  if (await currentPageSignature(page) === previousSignature) throw new Error("JunkWare did not advance to the next result page.");
 }
 
 async function readAllPages(page: Page): Promise<{ results: JunkwareAppointmentSearchResult[]; hasMorePages: boolean }> {
   const all: JunkwareAppointmentSearchResult[] = [];
+  const seen = new Set<string>();
   let pageIndex = 0;
   let truncated = false;
   for (;;) {
-    all.push(...(await readCurrentPageRows(page)));
+    const rows = await readCurrentPageRows(page);
+    let scannedRows = 0;
+    for (const result of rows) {
+      scannedRows += 1;
+      const key = result.appointmentId || `${result.jkNumber}|${result.date}|${result.time}|${result.customerName}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        all.push(result);
+      }
+      if (all.length >= MAX_RESULTS) break;
+    }
     pageIndex += 1;
-    if (all.length >= MAX_RESULTS) { truncated = await hasNextPage(page); break; }
+    if (all.length >= MAX_RESULTS) { truncated = scannedRows < rows.length || await hasNextPage(page); break; }
     if (pageIndex >= MAX_PAGES) { truncated = await hasNextPage(page); break; }
     if (!(await hasNextPage(page))) break;
     await goToNextPage(page);

@@ -60,7 +60,7 @@ function phoneHref(phone: string): string | null {
 }
 
 function appointmentHref(appointmentId: string | null): string | null {
-  return appointmentId ? `https://junkware.junk-king.com/franchise/callcenter/appointment.aspx?id=${appointmentId}` : null;
+  return appointmentId ? `https://junkware.junk-king.com/franchise/appointment.aspx?id=${appointmentId}` : null;
 }
 
 export default function AppointmentSearchPanel() {

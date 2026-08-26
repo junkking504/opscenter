@@ -4,6 +4,14 @@
   gap: 16px;
 }
 
+.ops-main .ops-appointment-search-page .ops-page-title {
+  color: #f8fafc;
+}
+
+.ops-main .ops-appointment-search-page .ops-page-header-subtitle {
+  color: #b8c1cc;
+}
+
 .ops-appointment-search-form {
   display: flex;
   flex-direction: column;

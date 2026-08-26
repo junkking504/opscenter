@@ -15,6 +15,13 @@ export type CommandBriefMetric = {
   progressLabel?: string;
 };
 
+export type CommandBriefException = {
+  label: string;
+  detail: string;
+  status: Exclude<OperatingStatus, "on-track">;
+  href: string;
+};
+
 const statusLabel: Record<OperatingStatus, string> = {
   "on-track": "On Track",
   watch: "Watch",
@@ -29,11 +36,13 @@ function toneClass(status: OperatingStatus): string {
 
 export default function CommandBrief({
   metrics,
+  exceptions,
   date,
   slackDigest,
   map,
 }: {
   metrics: CommandBriefMetric[];
+  exceptions: CommandBriefException[];
   date: string;
   slackDigest: SlackDailyDigest;
   map: ReactNode;
@@ -64,6 +73,32 @@ export default function CommandBrief({
           </Link>
         ))}
       </div>
+
+      {exceptions.length ? (
+        <section className={styles.exceptionStrip} aria-labelledby="command-exceptions-title">
+          <div className={styles.exceptionHeading}>
+            <i aria-hidden="true" />
+            <strong id="command-exceptions-title">Needs attention</strong>
+            <span>{exceptions.length}</span>
+          </div>
+          <div className={styles.exceptionList}>
+            {exceptions.map((exception) => (
+              <Link
+                className={`${styles.exception} ${toneClass(exception.status)}`}
+                href={exception.href}
+                key={`${exception.label}-${exception.detail}`}
+              >
+                <i aria-hidden="true" />
+                <span>
+                  <strong>{exception.label}</strong>
+                  <small>{exception.detail}</small>
+                </span>
+                <b aria-hidden="true">→</b>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className={styles.workspace}>
         <SlackAlertsDigest date={date} initialDigest={slackDigest} title="Operations Feed" kicker="Today's alerts" />

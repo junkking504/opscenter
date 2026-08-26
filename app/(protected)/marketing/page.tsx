@@ -4,7 +4,7 @@ import LostLeadTracker from "@/components/LostLeadTracker";
 import PageHeader from "@/components/PageHeader";
 import { appointmentScheduleHref } from "@/lib/job-links";
 import { money, type AnyRecord } from "@/lib/opsData";
-import { groupSearchKingsLeadsByDate } from "@/lib/searchkings-date-groups";
+import { buildSearchKingsCallBrowser, type SearchKingsCallRange } from "@/lib/searchkings-call-browser";
 import { buildSearchKingsView, searchKingsSetupSummary } from "@/lib/searchkings";
 import { searchKingsPhoneHref } from "@/lib/searchkings-phone";
 
@@ -33,6 +33,13 @@ function statusLabel(value: string): string {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function callsHref(range: SearchKingsCallRange, query: string, page: number): string {
+  const params = new URLSearchParams({ section: "calls", range });
+  if (query) params.set("q", query);
+  if (page > 1) params.set("page", String(page));
+  return `/marketing?${params.toString()}`;
+}
+
 export default async function MarketingPage({ searchParams }: { searchParams?: Promise<AnyRecord> }) {
   const params = searchParams ? await searchParams : undefined;
   const requestedSection = String(params?.section || "overview").toLowerCase();
@@ -46,7 +53,11 @@ export default async function MarketingPage({ searchParams }: { searchParams?: P
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
-  const callGroups = groupSearchKingsLeadsByDate(view.leads);
+  const calls = buildSearchKingsCallBrowser(view.leads, {
+    range: params?.range,
+    query: params?.q,
+    page: params?.page,
+  });
 
   return (
     <div className="ops-dashboard ops-marketing-page">
@@ -107,16 +118,57 @@ export default async function MarketingPage({ searchParams }: { searchParams?: P
       </section> : null}
 
       {view.available && section === "calls" ? <section>
-        <div className="ops-marketing-section-copy"><div><div className="ops-section-title">SearchKings Calls</div><div className="ops-muted">Calls are grouped by date, newest first. Recordings are not copied into OpsCenter.</div></div></div>
+        <div className="ops-marketing-section-copy"><div><div className="ops-section-title">SearchKings Calls</div><div className="ops-muted">Newest calls appear first. Search or expand the date range when reviewing history.</div></div></div>
+        <form className="ops-card ops-marketing-call-toolbar" method="get">
+          <input type="hidden" name="section" value="calls" />
+          <label>
+            <span>Find calls</span>
+            <input name="q" type="search" defaultValue={calls.query} placeholder="Name, phone, territory, summary, or JK #" />
+          </label>
+          <label>
+            <span>Date range</span>
+            <select name="range" defaultValue={calls.range}>
+              <option value="latest">Latest day</option>
+              <option value="7">Last 7 active days</option>
+              <option value="all">All dates</option>
+            </select>
+          </label>
+          <button className="ops-refresh-button" type="submit">Search</button>
+          {calls.query || calls.range !== "latest" ? <Link className="ops-button ops-marketing-call-clear" href="/marketing?section=calls">Clear</Link> : null}
+          <div className="ops-marketing-call-count" aria-live="polite">
+            <strong>{calls.firstResult}–{calls.lastResult}</strong> of {calls.matchCount} calls
+            {calls.matchCount !== calls.totalInRange ? ` · ${calls.totalInRange} in range` : ""}
+          </div>
+        </form>
         <div className="ops-marketing-call-groups">
-          {callGroups.map((group) => <section className="ops-card ops-marketing-call-group" key={group.dateKey}>
+          {calls.groups.map((group) => <section className="ops-card ops-marketing-call-group" key={group.dateKey}>
             <div className="ops-marketing-date-heading">
               <h2>{group.label}</h2>
               <span>{group.leads.length} {group.leads.length === 1 ? "call" : "calls"}</span>
             </div>
-            <div className="ops-table-scroll"><table className="ops-table"><thead><tr><th>Call</th><th>Phone</th><th>Territory</th><th>Score</th><th>Status</th><th>Franchise contact</th><th>Summary</th><th>JunkWare match</th></tr></thead><tbody>{group.leads.map((lead) => <tr key={lead.callId}><td><strong>{lead.callerName}</strong><small className="ops-table-subline">{callDate(lead.calledAt)}</small></td><td>{searchKingsPhoneHref(lead.phone) ? <a className="ops-marketing-phone" href={searchKingsPhoneHref(lead.phone)}>{lead.phone}</a> : "Unavailable"}</td><td>{lead.territory}</td><td>{lead.score ?? "—"}/5</td><td><span className={`ops-lead-status is-${lead.status}`}>{statusLabel(lead.status)}</span></td><td><span className={`ops-franchise-contact-status ${lead.franchiseContacted ? "is-contacted" : ""}`}>{lead.franchiseContacted ? "Contacted" : "Not contacted"}</span></td><td className="ops-marketing-summary-cell">{lead.summary || "—"}</td><td>{lead.matchedAppointment ? <><Link className="ops-mini-link" href={appointmentScheduleHref(lead.matchedAppointment.date, lead.matchedAppointment.jobId || lead.matchedAppointment.appointmentId)} title={`Open ${lead.matchedAppointment.jobId || "matched job"} on the schedule`}><strong>{lead.matchedAppointment.jobId || "Matched"}</strong></Link><small className="ops-table-subline">{lead.matchedAppointment.completed ? money(lead.matchedAppointment.revenue) : "Not completed — excluded from revenue"}</small></> : "—"}</td></tr>)}</tbody></table></div>
+            <div className="ops-table-scroll ops-marketing-call-table"><table className="ops-table"><thead><tr><th>Call</th><th>Phone</th><th>Territory</th><th>Score</th><th>Status</th><th>Franchise contact</th><th>Summary</th><th>JunkWare match</th></tr></thead><tbody>{group.leads.map((lead) => <tr key={lead.callId}><td><strong>{lead.callerName}</strong><small className="ops-table-subline">{callDate(lead.calledAt)}</small></td><td>{searchKingsPhoneHref(lead.phone) ? <a className="ops-marketing-phone" href={searchKingsPhoneHref(lead.phone)}>{lead.phone}</a> : "Unavailable"}</td><td>{lead.territory}</td><td>{lead.score ?? "—"}/5</td><td><span className={`ops-lead-status is-${lead.status}`}>{statusLabel(lead.status)}</span></td><td><span className={`ops-franchise-contact-status ${lead.franchiseContacted ? "is-contacted" : ""}`}>{lead.franchiseContacted ? "Contacted" : "Not contacted"}</span></td><td className="ops-marketing-summary-cell">{lead.summary || "—"}</td><td>{lead.matchedAppointment ? <><Link className="ops-mini-link" href={appointmentScheduleHref(lead.matchedAppointment.date, lead.matchedAppointment.jobId || lead.matchedAppointment.appointmentId)} title={`Open ${lead.matchedAppointment.jobId || "matched job"} on the schedule`}><strong>{lead.matchedAppointment.jobId || "Matched"}</strong></Link><small className="ops-table-subline">{lead.matchedAppointment.completed ? money(lead.matchedAppointment.revenue) : "Not completed — excluded from revenue"}</small></> : "—"}</td></tr>)}</tbody></table></div>
+            <div className="ops-marketing-call-cards">
+              {group.leads.map((lead) => <article className="ops-marketing-call-card" key={`mobile-${lead.callId}`}>
+                <header>
+                  <div><strong>{lead.callerName}</strong><small>{callDate(lead.calledAt)} · {lead.territory}</small></div>
+                  <span className={`ops-lead-status is-${lead.status}`}>{statusLabel(lead.status)}</span>
+                </header>
+                <p>{lead.summary || "No call summary available."}</p>
+                <footer>
+                  {searchKingsPhoneHref(lead.phone) ? <a className="ops-marketing-phone" href={searchKingsPhoneHref(lead.phone)}>{lead.phone}</a> : <span>Phone unavailable</span>}
+                  <span>{lead.franchiseContacted ? "Contacted" : "Not contacted"}</span>
+                  {lead.matchedAppointment ? <Link className="ops-mini-link" href={appointmentScheduleHref(lead.matchedAppointment.date, lead.matchedAppointment.jobId || lead.matchedAppointment.appointmentId)}>{lead.matchedAppointment.jobId || "Matched job"}</Link> : null}
+                </footer>
+              </article>)}
+            </div>
           </section>)}
+          {calls.groups.length === 0 ? <div className="ops-card ops-marketing-call-empty"><strong>No matching calls</strong><span>Adjust the search or date range.</span></div> : null}
         </div>
+        {calls.totalPages > 1 ? <nav className="ops-marketing-call-pagination" aria-label="Call results pages">
+          {calls.page > 1 ? <Link className="ops-button" href={callsHref(calls.range, calls.query, calls.page - 1)}>Previous</Link> : <span />}
+          <span>Page {calls.page} of {calls.totalPages}</span>
+          {calls.page < calls.totalPages ? <Link className="ops-button" href={callsHref(calls.range, calls.query, calls.page + 1)}>Next</Link> : <span />}
+        </nav> : null}
       </section> : null}
 
       {view.available && section === "lost-leads" ? <section>

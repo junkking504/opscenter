@@ -229,7 +229,26 @@
 
 @media (max-width: 520px) {
   .ops-daily-dashboard .ops-daily-kpi-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(146px, 42vw);
     gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-bottom: 3px;
+    scroll-snap-type: x proximity;
   }
+
+  .ops-daily-dashboard .ops-daily-kpi-card { scroll-snap-align: start; }
+}
+
+@media (min-width: 721px) {
+  .ops-daily-dashboard > .ops-page-header .ops-page-title { font-size: 2rem; }
+}
+
+.ops-daily-dashboard .ops-daily-kpi-card .ops-card-title { font-size: 0.6875rem; }
+.ops-daily-dashboard .ops-daily-kpi-card .ops-kpi-sub { font-size: 0.75rem; line-height: 1.2; }
+
+@media (max-width: 720px) {
+  .ops-daily-dashboard > .ops-page-header .ops-page-subnav a { min-height: 44px; }
 }

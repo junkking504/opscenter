@@ -66,8 +66,8 @@
 @media (max-width: 760px) {
   .strip {
     grid-template-columns: auto minmax(0, 1fr) auto;
-    min-height: 0;
-    padding: 7px 8px;
+    min-height: 44px;
+    padding: 5px 8px;
   }
 
   .strip :global(.ops-data-health-asof) {
@@ -80,10 +80,8 @@
   .strip :global(.ops-data-health-details) { grid-column: 3; }
 
   .strip :global(.ops-data-health-source-strip) {
-    grid-column: 1 / -1;
-    grid-row: 2;
+    display: none;
   }
 
-  .strip :global(.ops-data-health-source-state) { display: none; }
-  .strip :global(.ops-data-health-details[open]) { grid-row: 3; }
+  .strip :global(.ops-data-health-details[open]) { grid-row: 2; }
 }

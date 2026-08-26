@@ -33,6 +33,7 @@ import {
 } from "@/lib/operating-targets";
 import { readSlackDailyDigest } from "@/lib/slack-digest";
 import { chicagoDateKey } from "@/lib/report-dates";
+import "./command.css";
 
 // This dashboard reads metrics directly from files that are refreshed
 // throughout the day. Never reuse a rendered snapshot across requests.
@@ -530,6 +531,7 @@ export default async function DashboardPage({
   const dailyPayrollBudgetAtPlan = dailyRevenuePlan * (operatingTargets.maxPayrollPercent / 100);
   const dailyOperatingProfitAtPlan = dailyRevenuePlan * (operatingTargets.minOperatingMarginPercent / 100);
   const activeTruckCount = trucks.filter((truck) => Number(truck.revenue || 0) > 0).length;
+  const dailyAppointmentCount = Array.isArray(metrics?.appointments) ? metrics.appointments.length : jobs;
   const dailyRevenuePerTruck = activeTruckCount > 0 ? grossRevenue / activeTruckCount : 0;
   const dailyProfitPerJob = jobs > 0 ? dailyOperatingProfit / jobs : 0;
   const dailyRevenueVariance = dailyRevenuePlan > 0 ? ((grossRevenue - dailyRevenuePlan) / dailyRevenuePlan) * 100 : 0;
@@ -568,35 +570,34 @@ export default async function DashboardPage({
     },
   ];
   const dailyRevenueStatus = dailyPulseItems[0].status;
-  const dailyRevenueRemaining = Math.max(0, dailyRevenuePlan - grossRevenue);
   const commandBriefMetrics: CommandBriefMetric[] = [
     {
-      label: "Revenue pace",
-      value: money(grossRevenue),
-      detail: `${money(dailyRevenueRemaining)} remaining to plan`,
+      label: "Today's jobs",
+      value: String(dailyAppointmentCount),
+      detail: `${jobs} completed · ${Math.max(0, dailyAppointmentCount - jobs)} remaining`,
+      status: jobs >= dailyAppointmentCount && dailyAppointmentCount > 0 ? "on-track" : "watch",
+      href: `/jobs?date=${date}`,
+    },
+    {
+      label: "Revenue plan",
+      value: money(dailyRevenuePlan),
+      detail: `${money(grossRevenue)} recorded so far`,
       status: dailyRevenueStatus,
       href: `/jobs?date=${date}`,
     },
     {
-      label: "Payroll load",
-      value: `${dailyPayrollPercentage.toFixed(1)}%`,
-      detail: `${money(totalPayroll)} deployed · target ≤ ${operatingTargets.maxPayrollPercent.toFixed(0)}%`,
-      status: dailyPulseItems[1].status,
-      href: `/crew?date=${date}`,
-    },
-    {
-      label: "Operating margin",
-      value: `${dailyOperatingMargin.toFixed(1)}%`,
-      detail: `${money(dailyOperatingProfit)} estimated profit`,
-      status: dailyPulseItems[2].status,
-      href: `/finance?date=${date}`,
-    },
-    {
-      label: "Active trucks",
-      value: String(activeTruckCount),
-      detail: `${money(dailyRevenuePerTruck)} revenue per active truck`,
-      status: activeTruckCount > 0 ? "on-track" : "watch",
+      label: "Fleet ready",
+      value: `${activeTruckCount} / ${trucks.length}`,
+      detail: `${activeTruckCount} revenue-producing today`,
+      status: activeTruckCount >= Math.max(1, trucks.length - 1) ? "on-track" : "watch",
       href: `/fleet?date=${date}`,
+    },
+    {
+      label: "Crew coverage",
+      value: String(crew.length),
+      detail: `${crew.length} employees reporting today`,
+      status: crew.length > 0 ? "on-track" : "off-track",
+      href: `/crew?date=${date}`,
     },
   ];
   const commandBriefSignals: CommandBriefSignal[] = [
@@ -651,13 +652,17 @@ export default async function DashboardPage({
   return (
     <div className="ops-dashboard ops-daily-dashboard">
       <PageHeader
-        title="Daily Command"
+        title="Command"
         compact
         subtitle={`${shortMonthDay(date)} · ${jobs} completed job${jobs === 1 ? "" : "s"} · ${activeTruckCount} active truck${activeTruckCount === 1 ? "" : "s"}`}
         date={date}
         lastUpdated={metrics?.generated_at}
-        sections={[
-          { label: "Overview", href: `/?date=${date}&section=overview`, active: section === "overview" },
+        sections={section === "overview" ? [
+          { label: "Overview", href: `/?date=${date}&section=overview#command-overview`, active: true },
+          { label: "Queue", href: `/?date=${date}&section=overview#operating-brief-title` },
+          { label: "Performance", href: `/?date=${date}&section=overview#command-performance-title` },
+        ] : [
+          { label: "Overview", href: `/?date=${date}&section=overview`, active: false },
           { label: "Krewe Snapshot", href: `/?date=${date}&section=crew`, active: section === "crew" },
           { label: "Fleet Snapshot", href: `/?date=${date}&section=fleet`, active: section === "fleet" },
           { label: "Monthly", href: `/?date=${date}&view=monthly` },
@@ -671,6 +676,10 @@ export default async function DashboardPage({
           signals={commandBriefSignals}
           date={date}
           slackDigest={slackDigest!}
+          completedJobs={jobs}
+          totalJobs={dailyAppointmentCount}
+          revenue={grossRevenue}
+          revenuePlan={dailyRevenuePlan}
         />
 
         {kernelDatabase.status === "ready" ? (

@@ -2627,6 +2627,10 @@ function AppointmentMoreDetails({
     <details className="ops-appointment-more-details">
       <summary>More details</summary>
       <div className={detailGridClassName}>
+        <div className="ops-appointment-detail-full">
+          <span>Address</span>
+          <strong>{job.address && job.address !== "—" ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`} target="_blank" rel="noopener noreferrer">{job.address}</a> : "Unavailable"}</strong>
+        </div>
         <div>
           <span>Phone</span>
           <strong>{safeText(job.phone)}</strong>
@@ -3179,9 +3183,9 @@ export default async function JobsPage({
     ? Array.from(monthlySummary.jobsByDate.values()).flat().filter((job) => statusBucket(job) !== "Canceled").length
     : 0;
   return (
-    <div className="ops-dashboard ops-jobs-page">
+    <div className={`ops-dashboard ops-jobs-page${isDispatchWorkspace ? " is-dispatch" : ""}`}>
       <PageHeader
-        title={isOpenEstimatesWorkspace ? "Open estimates" : isUnclosedWorkspace ? "Unclosed jobs" : view === "daily" ? "Dispatch board" : "Schedule"}
+        title={isOpenEstimatesWorkspace ? "Open estimates" : isUnclosedWorkspace ? "Unclosed jobs" : view === "daily" ? "Dispatch" : "Schedule"}
         subtitle={isFollowupWorkspace
           ? `${followupJobs.length} current items · newest to oldest by booked time.`
           : isMonthView
@@ -3703,12 +3707,12 @@ export default async function JobsPage({
         <div className="ops-card-header compact">
           <div>
             <div className="ops-section-title">
-              {view === "calendar" ? `${jobActivityDate(selectedCalendarDate)} Appointments` : "Appointment Queue"}
+              {view === "calendar" ? `${jobActivityDate(selectedCalendarDate)} Appointments` : "Next Jobs"}
             </div>
             <div className="ops-muted">
               {view === "calendar"
                 ? `${selectedCalendarJobs.length} appointment${selectedCalendarJobs.length === 1 ? "" : "s"}, using the dispatch layout and ordered by territory and time.`
-                : `${scheduleCopy.possessive} jobs, grouped by territory and ordered by appointment time.`}
+                : `${scheduleCopy.possessive} jobs, ordered by appointment time.`}
             </div>
           </div>
           {view === "calendar" ? (

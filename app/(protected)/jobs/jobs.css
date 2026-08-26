@@ -582,6 +582,8 @@
 .ops-appointment-cancel-actions button:disabled { opacity: .62; cursor: wait; }
 
 @media (max-width: 720px) {
+  .ops-main:has(.ops-jobs-page.is-dispatch) .ops-topbar { display: none; }
+
   .ops-appointment-cancel-dialog { grid-template-columns: 1fr; }
   .ops-appointment-cancel-actions { display: grid; }
   .ops-appointment-cancel-actions button { width: 100%; }
@@ -1583,4 +1585,191 @@
   .ops-jobs-page .ops-junkware-search-field input,
   .ops-jobs-page .ops-junkware-search-button,
   .ops-jobs-page .ops-junkware-search-clear { min-height: 44px; }
+}
+
+.ops-jobs-page .ops-jobs-map-view-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #d9dde2;
+  border-radius: 9px;
+  background: #f1f3f2;
+}
+
+.ops-jobs-page .ops-jobs-map-view-toggle button {
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #535b66;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+.ops-jobs-page .ops-jobs-map-view-toggle button.active {
+  background: #11141a;
+  color: #fff;
+}
+
+.ops-jobs-page .ops-jobs-map-workspace.has-schedule { grid-template-columns: minmax(0, 1fr); }
+.ops-jobs-page .ops-jobs-map-workspace.has-schedule.is-map-mode .ops-jobs-map-schedule { display: none; }
+.ops-jobs-page .ops-jobs-map-workspace.has-schedule.is-board-mode .ops-jobs-map-shell { display: none; }
+.ops-jobs-page .ops-jobs-map-workspace.has-schedule.is-board-mode .ops-jobs-map-schedule { display: block; }
+
+@media (min-width: 1100px) {
+  .ops-jobs-page.is-dispatch {
+    width: 100%;
+    max-width: none;
+    display: grid;
+    grid-template-columns: minmax(330px, 0.78fr) minmax(0, 1.42fr);
+    grid-template-rows: auto auto auto minmax(620px, auto);
+    align-items: start;
+    gap: 10px 12px;
+  }
+
+  .ops-jobs-page.is-dispatch > .ops-page-header {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    min-height: 72px;
+    height: auto;
+    padding: 4px 2px 8px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: #20242b;
+  }
+
+  .ops-jobs-page.is-dispatch > .ops-page-header::before,
+  .ops-jobs-page.is-dispatch > .ops-page-header::after { display: none; }
+  .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-title { color: #20242b; }
+  .ops-jobs-page.is-dispatch > .ops-page-header :is(.ops-page-header-subtitle, .ops-page-header-meta) { color: #68717d; }
+
+  .ops-jobs-page.is-dispatch > .ops-data-health { grid-column: 1 / -1; grid-row: 2; }
+  .ops-jobs-page.is-dispatch > .ops-junkware-search { grid-column: 1; grid-row: 3; }
+  .ops-jobs-page.is-dispatch > .ops-jobs-filter-card {
+    grid-column: 2;
+    grid-row: 3;
+    justify-self: end;
+    width: fit-content;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .ops-jobs-page.is-dispatch > .ops-jobs-map-card {
+    grid-column: 2;
+    grid-row: 4;
+    align-self: stretch;
+    min-height: 620px;
+    height: 620px;
+    padding: 0;
+    border-color: #dfe2e5;
+    background: #fff;
+    box-shadow: none;
+  }
+
+  .ops-jobs-page.is-dispatch > #jobs-schedule {
+    grid-column: 1;
+    grid-row: 4;
+    align-self: stretch;
+    height: 620px;
+    padding: 0;
+    overflow: hidden;
+    border-color: #dfe2e5;
+    box-shadow: none;
+  }
+
+  .ops-jobs-page.is-dispatch > #jobs-schedule > .ops-card-header { padding: 12px 13px 9px; }
+  .ops-jobs-page.is-dispatch > #jobs-schedule > .ops-selected-appointment-slot { margin-inline: 10px; }
+  .ops-jobs-page.is-dispatch > #jobs-schedule > .ops-territory-jump { margin-inline: 10px; }
+  .ops-jobs-page.is-dispatch > #jobs-schedule > .ops-territory-jobs {
+    max-height: 505px;
+    padding: 0 10px 12px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .ops-jobs-page.is-dispatch > :is(.ops-jobs-kpi-strip, .ops-job-activity, .ops-jobs-workspace-jump) { display: none; }
+  .ops-jobs-page.is-dispatch .ops-jobs-map-header { min-height: 68px; padding: 11px 13px; }
+  .ops-jobs-page.is-dispatch .ops-jobs-map-legend { padding: 7px 12px; }
+  .ops-jobs-page.is-dispatch .ops-jobs-map-workspace { min-height: 456px; }
+  .ops-jobs-page.is-dispatch .ops-jobs-map-shell,
+  .ops-jobs-page.is-dispatch .ops-jobs-leaflet-map { min-height: 456px; height: 100%; }
+  .ops-jobs-page.is-dispatch .ops-jobs-map-schedule { min-height: 456px; overflow: auto; }
+  .ops-jobs-page.is-dispatch .ops-jobs-map-assignment-status { min-height: 58px; margin: 9px 12px; }
+
+  .ops-jobs-page.is-dispatch #jobs-schedule .ops-territory-header {
+    padding: 8px 10px 8px 13px;
+    border-radius: 9px;
+  }
+
+  .ops-jobs-page.is-dispatch #jobs-schedule .ops-territory-title { font-size: 0.9rem; }
+  .ops-jobs-page.is-dispatch #jobs-schedule .ops-territory-total { display: none; }
+  .ops-jobs-page.is-dispatch #jobs-schedule .ops-status-group-header { padding: 6px 8px; }
+  .ops-jobs-page.is-dispatch #jobs-schedule .ops-appointment-card { padding: 7px 8px; }
+  .ops-jobs-page.is-dispatch #jobs-schedule .ops-appointment-card-address { font-size: 0.7rem; }
+}
+
+@media (max-width: 720px) {
+  .ops-jobs-page.is-dispatch > .ops-page-header.has-subnav {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    min-height: 96px;
+    padding: 14px 12px 0;
+    border-radius: 0 0 18px 18px;
+    background: #11141a;
+  }
+
+  .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-header-copy { grid-column: 1; grid-row: 1; }
+  .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-title { color: #fff; font-size: 1rem; }
+  .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-header-subtitle,
+  .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-header-meta,
+  .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-header-controls { display: none; }
+  .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-subnav {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    width: 100%;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    background: #fff;
+  }
+  .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-subnav a {
+    width: auto;
+    min-width: 0;
+    min-height: 42px;
+    justify-content: center;
+    padding: 12px 4px 10px;
+    color: #505762;
+  }
+  .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-subnav a.active { color: #b0121a; box-shadow: inset 0 -2px #ef233c; }
+  .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-subnav a:nth-child(n + 4) { display: none; }
+
+  .ops-jobs-page.is-dispatch > :is(.ops-jobs-kpi-strip, .ops-job-activity, .ops-jobs-filter-card, .ops-jobs-workspace-jump) { display: none; }
+  .ops-jobs-page.is-dispatch > .ops-jobs-map-card { padding: 0; border-radius: 16px; }
+  .ops-jobs-page.is-dispatch .ops-jobs-map-header { padding: 10px 11px; }
+  .ops-jobs-page.is-dispatch .ops-jobs-map-header > div:first-child { display: none; }
+  .ops-jobs-page.is-dispatch .ops-jobs-map-counts { width: 100%; justify-content: space-between; }
+  .ops-jobs-page.is-dispatch .ops-jobs-map-legend { display: none; }
+  .ops-jobs-page.is-dispatch .ops-jobs-map-workspace,
+  .ops-jobs-page.is-dispatch .ops-jobs-map-shell,
+  .ops-jobs-page.is-dispatch .ops-jobs-leaflet-map { min-height: 290px; }
+  .ops-jobs-page.is-dispatch .ops-jobs-map-assignment-status { margin: 8px 10px; }
+  .ops-jobs-page.is-dispatch .ops-jobs-map-assignment-status.is-idle { display: none; }
+  .ops-jobs-page.is-dispatch .ops-jobs-map-foot { margin: 0 10px 10px; }
+  .ops-jobs-page.is-dispatch > #jobs-schedule { padding: 0; border: 0; background: transparent; box-shadow: none; }
+  .ops-jobs-page.is-dispatch > #jobs-schedule > .ops-card-header { padding: 6px 4px 8px; border: 0; }
+  .ops-jobs-page.is-dispatch > #jobs-schedule > .ops-territory-jump { display: none; }
+  .ops-jobs-page.is-dispatch #jobs-schedule .ops-territory-header { padding: 8px 10px; }
+  .ops-jobs-page.is-dispatch #jobs-schedule .ops-territory-total { display: none; }
+  .ops-jobs-page.is-dispatch #jobs-schedule .ops-status-group-header { padding: 7px 9px; }
 }

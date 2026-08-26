@@ -666,6 +666,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const linxupUpdatedAtRef = useRef(linxupUpdatedAt);
   const [linxupUpdateDelayed, setLinxupUpdateDelayed] = useState(false);
   const [showAddressVerification, setShowAddressVerification] = useState(false);
+  const [dispatchView, setDispatchView] = useState<"map" | "board">("map");
   const serverAssignments = useMemo(
     () => Object.fromEntries(jobs.map((job) => [job.key, routeTruck(job.truck)])),
     [jobs],
@@ -706,6 +707,12 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
     mapRef.current?.setView(territory.center, DISPATCH_TERRITORY_ZOOM, { animate: true });
   }, []);
+
+  useEffect(() => {
+    if (dispatchView !== "map") return;
+    const frame = window.requestAnimationFrame(() => mapRef.current?.invalidateSize({ pan: false }));
+    return () => window.cancelAnimationFrame(frame);
+  }, [dispatchView]);
 
   useEffect(() => {
     setAssignments(serverAssignments);
@@ -1612,6 +1619,12 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           </div>
         </div>
         <div className="ops-jobs-map-counts" aria-label="Map coverage">
+          {scheduleView ? (
+            <div className="ops-jobs-map-view-toggle" aria-label="Dispatch workspace view">
+              <button type="button" className={dispatchView === "map" ? "active" : ""} aria-pressed={dispatchView === "map"} onClick={() => setDispatchView("map")}>Map</button>
+              <button type="button" className={dispatchView === "board" ? "active" : ""} aria-pressed={dispatchView === "board"} onClick={() => setDispatchView("board")}>Truck board</button>
+            </div>
+          ) : null}
           <strong>{mapCoverage.mapped}</strong> of {mapCoverage.total} mapped
           <span>{mapCoverage.percent}% coverage</span>
           {mapCoverage.needsVerification > 0 ? (
@@ -1682,7 +1695,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         </div>
       </div>
 
-      <div className={`ops-jobs-map-workspace${scheduleView ? " has-schedule" : ""}`}>
+      <div className={`ops-jobs-map-workspace${scheduleView ? ` has-schedule is-${dispatchView}-mode` : ""}`}>
         <div className="ops-jobs-map-shell">
           <div ref={mapNodeRef} className="ops-jobs-leaflet-map" aria-label="Map of job locations" />
           {locatedJobs.length === 0 ? (
@@ -1904,7 +1917,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       ) : null}
 
       {scheduleView ? (
-        <div className="ops-jobs-map-assignment-status" aria-live="polite">
+        <div className={`ops-jobs-map-assignment-status${!selectedKey && !assignmentMessage ? " is-idle" : ""}`} aria-live="polite">
           {renderAppointmentDetails() || assignmentMessage || "Drag a block to change its truck or time. Right-click a block to cancel it in JunkWare."}
         </div>
       ) : null}

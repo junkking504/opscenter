@@ -90,9 +90,15 @@ function slackDisplayLines(rawText: string): string[] {
 export default function SlackAlertsDigest({
   date,
   initialDigest,
+  title = "Slack Alerts",
+  kicker = "Command Awareness",
+  limit,
 }: {
   date: string;
   initialDigest: SlackDailyDigest;
+  title?: string;
+  kicker?: string;
+  limit?: number;
 }) {
   const [digest, setDigest] = useState(initialDigest);
 
@@ -141,8 +147,8 @@ export default function SlackAlertsDigest({
     <section className={styles.queue} aria-labelledby="slack-alerts-title">
       <div className={styles.sectionHeader}>
         <div>
-          <span>Command Awareness</span>
-          <h2 id="slack-alerts-title">Slack Alerts</h2>
+          <span>{kicker}</span>
+          <h2 id="slack-alerts-title">{title}</h2>
         </div>
         <small>
           {String(digest.messages.length).padStart(2, "0")} alerts
@@ -162,7 +168,7 @@ export default function SlackAlertsDigest({
         </div>
       ) : (
         <div className={styles.digestList} aria-label="Slack messages, newest first" aria-live="polite">
-          {digest.messages.map((message) => (
+          {digest.messages.slice(0, limit).map((message) => (
             <article className={styles.digestMessage} key={message.id}>
               <time dateTime={message.timestamp}>{messageTime(message.timestamp)}</time>
               <div>

@@ -51,6 +51,8 @@ if [[ "$MODE" == "incremental" ]]; then
     --include '/job-call-ahead/***' \
     --include '/integrations/' \
     --include '/integrations/junkware-sms/***' \
+    --include '/integrations/whatsapp-job-photos/***' \
+    --include '/integrations/whatsapp-crew-expenses/***' \
     --exclude '*' \
     "$REMOTE:$REMOTE_DATA_DIR/" "$LOCAL_DATA_DIR/"
 elif [[ "$MODE" != "initial" ]]; then
@@ -86,6 +88,10 @@ if [[ "$MODE" == "initial" ]]; then
     --include '/fleet/***' \
     --include '/finance/***' \
     --include '/job-call-ahead/***' \
+    --include '/integrations/' \
+    --include '/integrations/junkware-sms/***' \
+    --include '/integrations/whatsapp-job-photos/***' \
+    --include '/integrations/whatsapp-crew-expenses/***' \
     --exclude '*' \
     "$LOCAL_DATA_DIR/" "$REMOTE:$REMOTE_DATA_DIR/"
 fi

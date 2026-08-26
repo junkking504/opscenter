@@ -53,7 +53,7 @@ rsync -az -e "$RSYNC_RSH" --delete-delay --delay-updates \
 ssh "${SSH_ARGS[@]}" "$REMOTE" "docker run --rm --user 0 \
   -v '$REMOTE_ROOT/data:/data' \
   --entrypoint /bin/sh node:22-bookworm-slim \
-  -c 'state_dirs=\"/data/manual_bonuses /data/job-route-assignments /data/job-route-geocodes /data/searchkings-overrides /data/fleet /data/finance /data/job-call-ahead /data/integrations/junkware-sms\" && mkdir -p \$state_dirs && chown -R 1001:1000 \$state_dirs && find \$state_dirs -type d -exec chmod 2770 {} \; && find \$state_dirs -type f -exec chmod 0660 {} \;'"
+  -c 'state_dirs=\"/data/manual_bonuses /data/job-route-assignments /data/job-route-geocodes /data/searchkings-overrides /data/fleet /data/finance /data/job-call-ahead /data/integrations/junkware-sms /data/integrations/whatsapp-job-photos /data/integrations/whatsapp-crew-expenses\" && mkdir -p \$state_dirs && chown -R 1001:1000 \$state_dirs && find \$state_dirs -type d -exec chmod 2770 {} \; && find \$state_dirs -type f -exec chmod 0660 {} \;'"
 
 ssh "${SSH_ARGS[@]}" "$REMOTE" "cd '$REMOTE_ROOT/source' && docker compose -f deploy/vps/compose.yaml up -d --build --remove-orphans"
 ssh "${SSH_ARGS[@]}" "$REMOTE" "cd '$REMOTE_ROOT/source' && \

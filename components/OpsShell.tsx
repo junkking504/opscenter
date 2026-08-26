@@ -99,7 +99,7 @@ export default function OpsShell({
               <OperationsClock />
               <div className="ops-live-chip" aria-label="Live operations data connected">
                 <span className="ops-pulse" />
-                Live feed
+                Live
               </div>
               {runtimeBadge ? (
                 <div

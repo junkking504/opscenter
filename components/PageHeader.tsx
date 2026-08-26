@@ -19,7 +19,7 @@ export default function PageHeader({
   dateLabel = "Date",
   dates,
   sections,
-  compact = false,
+  compact = true,
 }: {
   title: string;
   subtitle?: string;

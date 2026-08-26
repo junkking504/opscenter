@@ -77,9 +77,9 @@ if $BOOTSTRAP; then
 fi
 
 echo "Deploying pushed commit $commit to Mission Control..."
-ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$REMOTE_CONTROLLER" "$commit" <<'REMOTE'
-controller="$1"
-commit="$2"
+ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$commit" <<'REMOTE'
+controller="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh"
+commit="$1"
 if [[ ! -x "$controller" ]]; then
   echo "Mission Control deployment stopped: installed production controller is missing: $controller" >&2
   exit 1

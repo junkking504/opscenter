@@ -15,6 +15,8 @@ grep -F 'require_forward_deploy "$active_commit" "$commit" "initial ancestry che
 grep -F 'require_forward_deploy "$latest_active_commit" "$commit" "active release changed during build"' "$deployer" >/dev/null
 grep -F 'acquire_deploy_lock' "$deployer" >/dev/null
 grep -F 'REMOTE_CONTROLLER="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh"' "$wrapper" >/dev/null
+grep -F 'ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$commit"' "$wrapper" >/dev/null
+grep -F 'controller="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh"' "$wrapper" >/dev/null
 grep -F 'exec /bin/zsh "$controller" "$commit"' "$wrapper" >/dev/null
 grep -F 'requested controller commit $commit is not the current origin/production commit $production_commit' "$installer" >/dev/null
 if grep -F '< "$SCRIPT_DIR/deploy-release.sh"' "$wrapper" >/dev/null; then

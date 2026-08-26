@@ -666,7 +666,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const linxupUpdatedAtRef = useRef(linxupUpdatedAt);
   const [linxupUpdateDelayed, setLinxupUpdateDelayed] = useState(false);
   const [showAddressVerification, setShowAddressVerification] = useState(false);
-  const [dispatchView, setDispatchView] = useState<"map" | "board">("map");
   const serverAssignments = useMemo(
     () => Object.fromEntries(jobs.map((job) => [job.key, routeTruck(job.truck)])),
     [jobs],
@@ -707,12 +706,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, { detail: { articleId: "" } }));
     mapRef.current?.setView(territory.center, DISPATCH_TERRITORY_ZOOM, { animate: true });
   }, []);
-
-  useEffect(() => {
-    if (dispatchView !== "map") return;
-    const frame = window.requestAnimationFrame(() => mapRef.current?.invalidateSize({ pan: false }));
-    return () => window.cancelAnimationFrame(frame);
-  }, [dispatchView]);
 
   useEffect(() => {
     setAssignments(serverAssignments);
@@ -1614,17 +1607,11 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           <div className="ops-section-title" id="jobs-map-title">Dispatch Workspace</div>
           <div className="ops-muted">
             {scheduleView
-              ? "Select a job for details. Drag it to change the truck or appointment window."
+              ? "Select a job for details. Use the Route assignment board below to change its truck or time."
               : "Select a job to review the customer, service address, and closest truck."}
           </div>
         </div>
         <div className="ops-jobs-map-counts" aria-label="Map coverage">
-          {scheduleView ? (
-            <div className="ops-jobs-map-view-toggle" aria-label="Dispatch workspace view">
-              <button type="button" className={dispatchView === "map" ? "active" : ""} aria-pressed={dispatchView === "map"} onClick={() => setDispatchView("map")}>Map</button>
-              <button type="button" className={dispatchView === "board" ? "active" : ""} aria-pressed={dispatchView === "board"} onClick={() => setDispatchView("board")}>Truck board</button>
-            </div>
-          ) : null}
           <strong>{mapCoverage.mapped}</strong> of {mapCoverage.total} mapped
           <span>{mapCoverage.percent}% coverage</span>
           {mapCoverage.needsVerification > 0 ? (
@@ -1695,7 +1682,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         </div>
       </div>
 
-      <div className={`ops-jobs-map-workspace${scheduleView ? ` has-schedule is-${dispatchView}-mode` : ""}`}>
+      <div className={`ops-jobs-map-workspace${scheduleView ? " has-schedule" : ""}`}>
         <div className="ops-jobs-map-shell">
           <div ref={mapNodeRef} className="ops-jobs-leaflet-map" aria-label="Map of job locations" />
           {locatedJobs.length === 0 ? (
@@ -1706,7 +1693,14 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         </div>
 
         {scheduleView ? (
-          <aside className="ops-jobs-map-schedule" aria-label="Truck by time appointment schedule">
+          <section className="ops-jobs-route-board" aria-labelledby="route-assignment-board-title">
+            <div className="ops-jobs-route-board-header">
+              <span>
+                <strong id="route-assignment-board-title">Route assignment board</strong>
+                <small>Drag appointments to change truck or time</small>
+              </span>
+            </div>
+            <aside className="ops-jobs-map-schedule" aria-label="Truck by time appointment schedule">
             <div
               className="ops-jobs-map-board"
               style={{
@@ -1834,7 +1828,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                 </div>;
               })}
             </div>
-          </aside>
+            </aside>
+          </section>
         ) : null}
 
         {selectedTruck ? (

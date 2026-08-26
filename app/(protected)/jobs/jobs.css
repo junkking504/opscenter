@@ -1910,3 +1910,104 @@
   .ops-jobs-page.is-dispatch #jobs-schedule .ops-territory-total { display: none; }
   .ops-jobs-page.is-dispatch #jobs-schedule .ops-status-group-header { padding: 7px 9px; }
 }
+
+/* Keep the complete Dispatch map and every truck row inside the desktop
+ * viewport. The canvas receives the height left after the app and page chrome,
+ * then distributes that height across every truck row without inner scrolling. */
+@media (min-width: 721px) {
+  .ops-jobs-page.is-dispatch {
+    --ops-dispatch-canvas-height: clamp(300px, calc(100vh - 430px), 420px);
+    --ops-dispatch-canvas-height: clamp(300px, calc(100dvh - 430px), 420px);
+    gap: 6px 8px;
+  }
+
+  .ops-main .ops-jobs-page.is-dispatch > .ops-page-header.has-subnav {
+    grid-template-rows: 34px 30px !important;
+    gap: 2px 10px !important;
+    padding-block: 2px 0 !important;
+  }
+
+  .ops-main .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-header-controls,
+  .ops-main .ops-jobs-page.is-dispatch > .ops-page-header .ops-view-toggle {
+    height: 34px;
+    min-height: 34px;
+  }
+
+  .ops-main .ops-jobs-page.is-dispatch > .ops-page-header .ops-view-toggle a {
+    min-height: 28px;
+    padding-block: 3px;
+  }
+
+  .ops-main .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-subnav {
+    min-height: 30px;
+    height: 30px;
+  }
+
+  .ops-main .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-subnav a {
+    min-height: 30px !important;
+    padding-block: 3px;
+  }
+
+  .ops-jobs-page.is-dispatch > .ops-junkware-search {
+    min-height: 42px;
+    padding: 4px 6px;
+  }
+
+  .ops-jobs-page.is-dispatch .ops-junkware-search-field input,
+  .ops-jobs-page.is-dispatch .ops-junkware-search-button,
+  .ops-jobs-page.is-dispatch .ops-junkware-search-clear {
+    min-height: 34px;
+  }
+
+  .ops-jobs-page.is-dispatch > .ops-jobs-map-card {
+    min-height: 0;
+  }
+
+  .ops-jobs-page.is-dispatch .ops-jobs-map-header {
+    min-height: 48px;
+    padding: 7px 10px;
+  }
+
+  .ops-jobs-page.is-dispatch .ops-jobs-map-legend {
+    display: flex;
+    min-height: 34px;
+    align-items: center;
+    gap: 8px 14px;
+    padding: 4px 10px;
+  }
+
+  .ops-jobs-page.is-dispatch .ops-jobs-map-legend-row {
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .ops-jobs-page.is-dispatch .ops-jobs-map-workspace.has-schedule,
+  .ops-jobs-page.is-dispatch .ops-jobs-map-shell,
+  .ops-jobs-page.is-dispatch .ops-jobs-leaflet-map {
+    min-height: var(--ops-dispatch-canvas-height);
+    height: var(--ops-dispatch-canvas-height);
+  }
+
+  .ops-jobs-page.is-dispatch .ops-jobs-route-board {
+    height: var(--ops-dispatch-canvas-height);
+  }
+
+  .ops-jobs-page.is-dispatch .ops-jobs-route-board-header {
+    min-height: 38px;
+    padding: 5px 10px;
+  }
+
+  .ops-jobs-page.is-dispatch .ops-jobs-route-board .ops-jobs-map-board {
+    height: 100%;
+    grid-template-rows: 30px;
+    grid-auto-rows: minmax(0, 1fr);
+  }
+
+  .ops-jobs-page.is-dispatch .ops-jobs-route-board :is(.ops-jobs-map-board-corner, .ops-jobs-map-board-time) {
+    height: 30px;
+  }
+
+  .ops-jobs-page.is-dispatch .ops-jobs-route-board :is(.ops-jobs-map-board-truck.is-row-label, .ops-jobs-map-board-cell) {
+    min-height: 0;
+  }
+}

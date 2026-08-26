@@ -10,6 +10,8 @@ export type CommandBriefMetric = {
   detail: string;
   status: OperatingStatus;
   href: string;
+  progress?: number;
+  progressLabel?: string;
 };
 
 export type CommandBriefSignal = {
@@ -36,24 +38,12 @@ export default function CommandBrief({
   signals,
   date,
   slackDigest,
-  completedJobs,
-  totalJobs,
-  revenue,
-  revenuePlan,
 }: {
   metrics: CommandBriefMetric[];
   signals: CommandBriefSignal[];
   date: string;
   slackDigest: SlackDailyDigest;
-  completedJobs: number;
-  totalJobs: number;
-  revenue: number;
-  revenuePlan: number;
 }) {
-  const completionPercent = totalJobs > 0 ? Math.min(100, Math.round((completedJobs / totalJobs) * 100)) : 0;
-  const revenuePercent = revenuePlan > 0 ? Math.min(100, Math.round((revenue / revenuePlan) * 100)) : 0;
-  const remainingJobs = Math.max(0, totalJobs - completedJobs);
-
   return (
     <section className={styles.brief} id="command-overview" aria-label="Command Overview">
       <div className={styles.metricStrip} aria-label="Headline operating metrics">
@@ -61,11 +51,22 @@ export default function CommandBrief({
           <Link className={`${styles.metric} ${toneClass(metric.status)}`} href={metric.href} key={metric.label}>
             <div>
               <span>{metric.label}</span>
-              <small>{statusLabel[metric.status]}</small>
+              <i className={styles.metricStatus} aria-label={statusLabel[metric.status]} title={statusLabel[metric.status]} />
             </div>
             <strong>{metric.value}</strong>
             <p>{metric.detail}</p>
-            <b aria-hidden="true">→</b>
+            {metric.progress == null ? null : (
+              <div
+                className={styles.metricProgress}
+                role="progressbar"
+                aria-label={metric.progressLabel || `${metric.label} progress`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.min(100, Math.max(0, Math.round(metric.progress)))}
+              >
+                <i style={{ width: `${Math.min(100, Math.max(0, metric.progress))}%` }} />
+              </div>
+            )}
           </Link>
         ))}
       </div>
@@ -94,37 +95,9 @@ export default function CommandBrief({
             ))}
           </div>
         </section>
-
-        <aside className={styles.progress} aria-labelledby="day-progress-title">
-          <span id="day-progress-title">Day progress</span>
-          <small>Live operational pace</small>
-          <strong>{completionPercent}%</strong>
-          <p>{completedJobs} of {totalJobs} jobs completed</p>
-          <div className={styles.progressTrack}><i style={{ width: `${completionPercent}%` }} /></div>
-          <div className={styles.milestone}>
-            <span>Next milestone</span>
-            <strong>{remainingJobs ? `${remainingJobs} job${remainingJobs === 1 ? "" : "s"} remaining` : "Schedule complete"}</strong>
-          </div>
-          <div className={styles.progressState}><i /> Revenue and staffing signals remain visible in the queue</div>
-        </aside>
       </div>
 
       <div className={styles.lower}>
-        <section className={styles.performance} aria-labelledby="command-performance-title">
-          <div className={styles.sectionHeader}>
-            <div>
-              <span>Performance</span>
-              <h2 id="command-performance-title">Revenue Pace</h2>
-            </div>
-            <small>{revenuePercent}% of plan</small>
-          </div>
-          <div className={styles.performanceBody}>
-            <div><span>Actual</span><strong>${Math.round(revenue).toLocaleString("en-US")}</strong></div>
-            <div><span>Plan</span><strong>${Math.round(revenuePlan).toLocaleString("en-US")}</strong></div>
-            <div className={styles.performanceTrack}><i style={{ width: `${revenuePercent}%` }} /></div>
-          </div>
-        </section>
-
         <SlackAlertsDigest date={date} initialDigest={slackDigest} title="Operations Feed" kicker="Today's alerts" />
       </div>
     </section>

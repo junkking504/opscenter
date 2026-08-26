@@ -49,19 +49,62 @@
 
 .ops-daily-dashboard .ops-daily-kpi-status {
   display: inline-grid;
-  min-height: 22px;
+  width: 9px;
+  height: 9px;
+  min-height: 9px;
+  flex: 0 0 auto;
   place-items: center;
-  padding: 3px 7px;
+  padding: 0;
   border-radius: 999px;
-  font-size: 0.62rem;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
 }
 
-.ops-daily-dashboard .ops-daily-kpi-status.is-on-track { background: #dcf8e9; color: #087849; }
-.ops-daily-dashboard .ops-daily-kpi-status.is-watch { background: #fff2cf; color: #8a5a00; }
-.ops-daily-dashboard .ops-daily-kpi-status.is-off-track { background: #ffe3e5; color: #b71825; }
+.ops-daily-dashboard .ops-daily-kpi-status.is-on-track { background: #178653; }
+.ops-daily-dashboard .ops-daily-kpi-status.is-watch { background: #e0a000; }
+.ops-daily-dashboard .ops-daily-kpi-status.is-off-track { background: #d8222a; }
+
+.ops-daily-dashboard .ops-supporting-metrics { gap: 6px; }
+.ops-daily-dashboard .ops-supporting-metrics-heading { display: none; }
+
+.ops-daily-dashboard .ops-daily-kpi-grid { gap: 7px; }
+
+.ops-daily-dashboard .ops-supporting-metrics .ops-daily-kpi-card {
+  min-height: 74px;
+  padding: 8px 10px;
+  grid-template-rows: auto auto auto auto;
+  gap: 3px;
+  border-radius: 11px;
+}
+
+.ops-daily-dashboard .ops-daily-kpi-card .ops-card-title {
+  margin: 0;
+  font-size: 0.62rem;
+}
+
+.ops-daily-dashboard .ops-daily-kpi-card .ops-kpi-value {
+  font-size: clamp(1.08rem, 1.45vw, 1.35rem);
+}
+
+.ops-daily-dashboard .ops-daily-kpi-card .ops-kpi-sub {
+  margin-top: 1px;
+  font-size: 0.61rem;
+}
+
+.ops-daily-dashboard .ops-daily-kpi-progress {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e7e9ec;
+}
+
+.ops-daily-dashboard .ops-daily-kpi-progress > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.ops-daily-dashboard .ops-daily-kpi-progress.is-on-track > i { background: #178653; }
+.ops-daily-dashboard .ops-daily-kpi-progress.is-watch > i { background: #e0a000; }
+.ops-daily-dashboard .ops-daily-kpi-progress.is-off-track > i { background: #d8222a; }
 
 @media (min-width: 721px) {
   .ops-main .ops-daily-dashboard > .ops-page-header.has-subnav {
@@ -143,4 +186,11 @@
 
   .ops-daily-dashboard > .ops-supporting-metrics { margin-inline: 4px; }
   .ops-daily-dashboard .ops-supporting-metrics-heading { display: none; }
+}
+
+@media (max-width: 520px) {
+  .ops-daily-dashboard .ops-daily-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
 }

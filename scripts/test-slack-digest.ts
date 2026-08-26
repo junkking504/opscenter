@@ -10,6 +10,7 @@ import {
   normalizedLegacyPhotoDigestText,
   normalizedLegacyTruckArrivalDigestText,
   normalizedRescheduleDigestText,
+  slackDigestChannelName,
   slackTextToPlainText,
 } from "@/lib/slack-digest";
 
@@ -32,6 +33,13 @@ async function main() {
   assert.equal(isOperationalSlackDigestMessage({ subtype: "channel_name", text: "renamed a channel" }), false);
   assert.equal(isOperationalSlackDigestMessage({ text: "Taylor renamed the channel" }), false);
   assert.equal(isOperationalSlackDigestMessage({ text: ":warning: Route needs attention" }), true);
+  assert.equal(slackDigestChannelName("C0BNMDJNYV9"), "#command");
+  assert.equal(slackDigestChannelName("C0BNRMD25AS"), "#dispatch");
+  assert.equal(slackDigestChannelName("C0BNVJR6HMX"), "#finance");
+  assert.equal(slackDigestChannelName("C0BPN1FVCDN"), "#data");
+  assert.equal(slackDigestChannelName("C0BPRML654N"), "#new-orleans");
+  assert.equal(slackDigestChannelName("C0BPQ30C8LD"), "#baton-rouge");
+  assert.equal(slackDigestChannelName("C0BPC9M5GLX"), "#northshore");
   assert.equal(
     normalizedCancellationDigestText(
       ":x: *Cancellation*\n*<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4058562|JK4058562>*\n02:00 PM - 03:00 PM\nDaniela Ortiz 8004215354x2071 400 Russell Ave New Orleans, LA 70143 Cancelled via email per accounts request Followup\n*Reason:* Daniela Ortiz 8004215354x2071 400 Russell Ave New Orleans, LA 70143 Cancelled via email per accounts request Followup",
@@ -307,7 +315,7 @@ async function main() {
     "Card Ending: 9896.",
   ]);
   assert.equal(digest.messages[2].closeout?.href, "/jobs?date=2026-08-14#job-jk4052579");
-  assert.equal(digest.messages[3].channel, "#jobs-no");
+  assert.equal(digest.messages[3].channel, "#new-orleans");
   assert.equal(digest.messages[3].appointment?.jobNumber, "JK4052608");
   assert.equal(digest.messages[3].appointment?.phone, "(504) 555-0100");
   assert.deepEqual(digest.messages[3].appointment?.items, ["Sofa", "Desk"]);

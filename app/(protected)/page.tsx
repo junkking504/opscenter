@@ -33,6 +33,7 @@ import {
 } from "@/lib/operating-targets";
 import { readSlackDailyDigest } from "@/lib/slack-digest";
 import { chicagoDateKey } from "@/lib/report-dates";
+import { workedOrAttributedToJobToday } from "@/lib/crew-attendance";
 import "./command.css";
 
 // This dashboard reads metrics directly from files that are refreshed
@@ -508,6 +509,7 @@ export default async function DashboardPage({
   const slackDigest = section === "overview" ? await readSlackDailyDigest(date) : null;
 
   const crew = crewRows(metrics);
+  const activeCrew = crew.filter((row) => workedOrAttributedToJobToday(row));
   const trucks = truckRows(metrics);
 
   const grossRevenue = Number(metrics?.total_revenue || metrics?.gross_revenue || 0);
@@ -606,13 +608,17 @@ export default async function DashboardPage({
       value: String(dailyAppointmentCount),
       detail: `${jobs} completed · ${Math.max(0, dailyAppointmentCount - jobs)} remaining`,
       status: jobs >= dailyAppointmentCount && dailyAppointmentCount > 0 ? "on-track" : "watch",
+      progress: dailyAppointmentCount > 0 ? (jobs / dailyAppointmentCount) * 100 : 0,
+      progressLabel: `${jobs} of ${dailyAppointmentCount} jobs completed`,
       href: `/jobs?date=${date}`,
     },
     {
       label: "Revenue plan",
-      value: money(dailyRevenuePlan),
-      detail: `${money(grossRevenue)} recorded so far`,
+      value: money(grossRevenue),
+      detail: `Goal ${money(dailyRevenuePlan)}`,
       status: dailyRevenueStatus,
+      progress: dailyRevenuePlan > 0 ? (grossRevenue / dailyRevenuePlan) * 100 : 0,
+      progressLabel: `${money(grossRevenue)} of ${money(dailyRevenuePlan)} revenue goal`,
       href: `/jobs?date=${date}`,
     },
     {
@@ -620,22 +626,21 @@ export default async function DashboardPage({
       value: projectedLaborCostPercent == null ? "Waiting" : `${projectedLaborCostPercent.toFixed(1)}%`,
       detail: projectedLaborCostPercent == null
         ? `Goal < ${operatingTargets.maxPayrollPercent.toFixed(0)}% once revenue is available`
-        : `${money(totalPayroll)} payroll ÷ ${money(projectedDayRevenue)} projected revenue · goal < ${operatingTargets.maxPayrollPercent.toFixed(0)}%`,
+        : `Goal < ${operatingTargets.maxPayrollPercent.toFixed(0)}% · ${money(projectedDayRevenue)} projected revenue`,
       status: projectedLaborCostStatus,
+      progress: projectedLaborCostPercent == null
+        ? 0
+        : (projectedLaborCostPercent / operatingTargets.maxPayrollPercent) * 100,
+      progressLabel: projectedLaborCostPercent == null
+        ? "Waiting for projected labor cost"
+        : `${projectedLaborCostPercent.toFixed(1)}% projected labor against a ${operatingTargets.maxPayrollPercent.toFixed(0)}% ceiling`,
       href: `/crew?date=${date}`,
     },
     {
-      label: "Fleet ready",
-      value: `${activeTruckCount} / ${trucks.length}`,
-      detail: `${activeTruckCount} revenue-producing today`,
-      status: fleetReadyStatus,
-      href: `/fleet?date=${date}`,
-    },
-    {
       label: "Crew coverage",
-      value: String(crew.length),
-      detail: `${crew.length} employees reporting today`,
-      status: crew.length > 0 ? "on-track" : "off-track",
+      value: String(activeCrew.length),
+      detail: "Clocked in or attributed to jobs",
+      status: activeCrew.length > 0 ? "on-track" : "off-track",
       href: `/crew?date=${date}`,
     },
   ];
@@ -724,37 +729,46 @@ export default async function DashboardPage({
             <a className="ops-card ops-daily-kpi-card" href={`/jobs?date=${date}`}>
               <div className="ops-daily-kpi-heading">
                 <div className="ops-card-title">Completed jobs</div>
-                <span className={`ops-daily-kpi-status is-${completedJobsStatus}`}>{operatingStatusLabel(completedJobsStatus)}</span>
+                <span className={`ops-daily-kpi-status is-${completedJobsStatus}`} aria-label={operatingStatusLabel(completedJobsStatus)} title={operatingStatusLabel(completedJobsStatus)} />
               </div>
               <div className="ops-kpi-value">{jobs}</div>
-              <div className="ops-kpi-sub">Goal {dailyJobsAtPlan.toFixed(1)}/day at {money(operatingTargets.averageJobSize)} average <span aria-hidden="true">→</span></div>
+              <div className={`ops-daily-kpi-progress is-${completedJobsStatus}`} role="progressbar" aria-label="Completed jobs progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.round(dailyJobsAtPlan > 0 ? (jobs / dailyJobsAtPlan) * 100 : 0))}>
+                <i style={{ width: `${Math.min(100, dailyJobsAtPlan > 0 ? (jobs / dailyJobsAtPlan) * 100 : 0)}%` }} />
+              </div>
+              <div className="ops-kpi-sub">Goal {dailyJobsAtPlan.toFixed(1)} jobs</div>
             </a>
 
             <a className="ops-card ops-daily-kpi-card" href={`/fleet?date=${date}`}>
               <div className="ops-daily-kpi-heading">
                 <div className="ops-card-title">Active trucks</div>
-                <span className={`ops-daily-kpi-status is-${fleetReadyStatus}`}>{operatingStatusLabel(fleetReadyStatus)}</span>
+                <span className={`ops-daily-kpi-status is-${fleetReadyStatus}`} aria-label={operatingStatusLabel(fleetReadyStatus)} title={operatingStatusLabel(fleetReadyStatus)} />
               </div>
               <div className="ops-kpi-value">{activeTruckCount}</div>
-              <div className="ops-kpi-sub">Producing revenue today <span aria-hidden="true">→</span></div>
+              <div className="ops-kpi-sub">Producing revenue today</div>
             </a>
 
             <a className="ops-card ops-daily-kpi-card" href={`/fleet?date=${date}`}>
               <div className="ops-daily-kpi-heading">
-                <div className="ops-card-title">Revenue / active truck</div>
-                <span className={`ops-daily-kpi-status is-${revenuePerTruckStatus}`}>{operatingStatusLabel(revenuePerTruckStatus)}</span>
+                <div className="ops-card-title">Revenue / Truck</div>
+                <span className={`ops-daily-kpi-status is-${revenuePerTruckStatus}`} aria-label={operatingStatusLabel(revenuePerTruckStatus)} title={operatingStatusLabel(revenuePerTruckStatus)} />
               </div>
               <div className="ops-kpi-value">{money(dailyRevenuePerTruck)}</div>
-              <div className="ops-kpi-sub">Goal {money(revenuePerTruckTarget)} per active truck <span aria-hidden="true">→</span></div>
+              <div className={`ops-daily-kpi-progress is-${revenuePerTruckStatus}`} role="progressbar" aria-label="Revenue per truck progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.round(revenuePerTruckTarget > 0 ? (dailyRevenuePerTruck / revenuePerTruckTarget) * 100 : 0))}>
+                <i style={{ width: `${Math.min(100, revenuePerTruckTarget > 0 ? (dailyRevenuePerTruck / revenuePerTruckTarget) * 100 : 0)}%` }} />
+              </div>
+              <div className="ops-kpi-sub">Goal {money(revenuePerTruckTarget)}</div>
             </a>
 
             <a className="ops-card ops-daily-kpi-card" href={`/finance?date=${date}`}>
               <div className="ops-daily-kpi-heading">
-                <div className="ops-card-title">Profit / completed job</div>
-                <span className={`ops-daily-kpi-status is-${profitPerJobStatus}`}>{operatingStatusLabel(profitPerJobStatus)}</span>
+                <div className="ops-card-title">Profit / Job</div>
+                <span className={`ops-daily-kpi-status is-${profitPerJobStatus}`} aria-label={operatingStatusLabel(profitPerJobStatus)} title={operatingStatusLabel(profitPerJobStatus)} />
               </div>
               <div className="ops-kpi-value">{money(dailyProfitPerJob)}</div>
-              <div className="ops-kpi-sub">Goal {money(profitPerJobTarget)} after operating costs <span aria-hidden="true">→</span></div>
+              <div className={`ops-daily-kpi-progress is-${profitPerJobStatus}`} role="progressbar" aria-label="Profit per job progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.round(profitPerJobTarget > 0 ? (dailyProfitPerJob / profitPerJobTarget) * 100 : 0))}>
+                <i style={{ width: `${Math.min(100, profitPerJobTarget > 0 ? (dailyProfitPerJob / profitPerJobTarget) * 100 : 0)}%` }} />
+              </div>
+              <div className="ops-kpi-sub">Goal {money(profitPerJobTarget)}</div>
             </a>
           </div>
         </section>
@@ -764,10 +778,6 @@ export default async function DashboardPage({
           signals={commandBriefSignals}
           date={date}
           slackDigest={slackDigest!}
-          completedJobs={jobs}
-          totalJobs={dailyAppointmentCount}
-          revenue={grossRevenue}
-          revenuePlan={dailyRevenuePlan}
         />
 
         {kernelDatabase.status === "ready" ? (

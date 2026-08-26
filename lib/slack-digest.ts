@@ -21,16 +21,16 @@ const CHICAGO_TIME_ZONE = "America/Chicago";
 const CACHE_TTL_MS = 30_000;
 
 const DEFAULT_CHANNEL_NAMES: Record<string, string> = {
-  C0BNMDJNYV9: "#ops-command",
-  C0BNRMD25AS: "#ops-dispatch",
+  C0BNMDJNYV9: "#command",
+  C0BNRMD25AS: "#dispatch",
   C0BNQ6J7LER: "#ops-fleet",
-  C0BNVJR6HMX: "#ops-finance",
+  C0BNVJR6HMX: "#finance",
   C0BNXBK8GTW: "#ops-growth",
-  C0BPN1FVCDN: "#ops-data-health",
-  C0BPS5MS406: "#payments",
-  C0BPRML654N: "#jobs-no",
-  C0BPQ30C8LD: "#jobs-br",
-  C0BPC9M5GLX: "#jobs-ns",
+  C0BPN1FVCDN: "#data",
+  C0BPS5MS406: "#payment",
+  C0BPRML654N: "#new-orleans",
+  C0BPQ30C8LD: "#baton-rouge",
+  C0BPC9M5GLX: "#northshore",
   C0BPU3XUANN: "#truck-1",
   C0BPQGBD4N9: "#truck-2",
   C0BPQGARS1K: "#truck-3",
@@ -203,17 +203,17 @@ function configuredChannelName(channelId: string): string {
   const truck = envName.match(/^SLACK_TRUCK_(\d+)_CHANNEL_ID$/);
   if (truck) return `#truck-${truck[1]}`;
   const known: Record<string, string> = {
-    SLACK_OPS_COMMAND_CHANNEL_ID: "#ops-command",
-    SLACK_OPS_DISPATCH_CHANNEL_ID: "#ops-dispatch",
-    SLACK_OPS_CREW_CHANNEL_ID: "#ops-command",
+    SLACK_OPS_COMMAND_CHANNEL_ID: "#command",
+    SLACK_OPS_DISPATCH_CHANNEL_ID: "#dispatch",
+    SLACK_OPS_CREW_CHANNEL_ID: "#command",
     SLACK_OPS_FLEET_CHANNEL_ID: "#ops-fleet",
-    SLACK_OPS_FINANCE_CHANNEL_ID: "#ops-finance",
+    SLACK_OPS_FINANCE_CHANNEL_ID: "#finance",
     SLACK_OPS_GROWTH_CHANNEL_ID: "#ops-growth",
-    SLACK_OPS_DATA_HEALTH_CHANNEL_ID: "#ops-data-health",
-    SLACK_OPS_PAYMENT_CHANNEL_ID: "#payments",
-    SLACK_JOBS_NO_CHANNEL_ID: "#jobs-no",
-    SLACK_JOBS_BR_CHANNEL_ID: "#jobs-br",
-    SLACK_JOBS_NS_CHANNEL_ID: "#jobs-ns",
+    SLACK_OPS_DATA_HEALTH_CHANNEL_ID: "#data",
+    SLACK_OPS_PAYMENT_CHANNEL_ID: "#payment",
+    SLACK_JOBS_NO_CHANNEL_ID: "#new-orleans",
+    SLACK_JOBS_BR_CHANNEL_ID: "#baton-rouge",
+    SLACK_JOBS_NS_CHANNEL_ID: "#northshore",
   };
   return known[envName] || "";
 }

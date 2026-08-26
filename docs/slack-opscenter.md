@@ -89,4 +89,4 @@ set +a
 npm run alerts:slack
 ```
 
-The live refresh loop runs the same publisher automatically after each successful data publish. Runtime state is stored at `data/slack/ops_alert_state.json` and is intentionally excluded from git.
+The live refresh loop runs a focused closeout publisher immediately after the verified JunkWare snapshot succeeds, before optional QBO, Krewe Portal, marketing, or VPS work. It then runs the full publisher after the broader refresh. Both use the same durable closeout fingerprints, so the focused fallback, the fast schedule detector, and the full pass cannot duplicate a closeout. Runtime state is stored at `data/slack/ops_alert_state.json` and is intentionally excluded from git.

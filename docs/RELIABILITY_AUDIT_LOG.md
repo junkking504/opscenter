@@ -1,5 +1,13 @@
 # Reliability Audit Log
 
+## 2026-08-26 — JunkWare closeout alert latency fallback
+
+- Severity: high (a confirmed JunkWare closeout could wait behind unrelated downstream collection work before reaching OpsCenter/Slack).
+- Root cause: the full refresh did not invoke its Slack publisher until QBO, payment reconciliation, Krewe Portal, SearchKings, and VPS work had completed. The fast schedule detector is the normal under-60-second path, but it was unavailable during the observed incident, leaving the slow full loop as the only path.
+- Fix: after a verified full JunkWare snapshot, the live loop now publishes only new `job_closed` notices immediately, before optional downstream work. This focused mode shares the durable closeout delivery state with the fast detector and the later full publisher, so it is a fallback rather than a second notification source.
+- Regression coverage: `verify:closeout-alert-latency` asserts the focused publisher exists, reads verified completed rows, uses the shared runtime state, and is ordered before optional integrations; `verify:slack-alerts` covers baseline, focused delivery, and deduplication.
+- Verification: shell syntax, TypeScript, lint, production build, `verify:closeout-alert-latency`, and `verify:slack-alerts` passed. The full verifier suite still reports five unrelated findings: August monthly reconciliation is unavailable; WhatsApp job-closeouts returns `review` where its test expects `preview`; shared CSS is 19,509 lines against a 19,200-line budget; isolated accessibility credentials/session are absent; and Truck 9 camera is offline.
+
 ## 2026-08-22 — JunkWare truck-assignment email validation
 
 - Severity: high (a permanent JunkWare validation rejection was retried as though transient).

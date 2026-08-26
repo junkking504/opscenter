@@ -29,6 +29,7 @@
     "verify:whatsapp-crew-expenses": "node --import tsx scripts/test-whatsapp-crew-expenses.ts",
     "verify:whatsapp-job-closeouts": "node --import tsx scripts/test-whatsapp-job-closeouts.ts",
     "verify:slack-alerts": "node --import tsx scripts/test-slack-alerts.ts",
+    "verify:closeout-alert-latency": "node --import tsx scripts/test-closeout-alert-latency.ts",
     "verify:junkware-schedule-changes": "node --import tsx scripts/test-junkware-schedule-changes.ts",
     "verify:junkware-fast-schedule": "node --import tsx scripts/test-junkware-fast-schedule.ts && node --import tsx scripts/test-junkware-under-60s.ts",
     "verify:slack-digest": "node --import tsx scripts/test-slack-digest.ts",

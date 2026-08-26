@@ -647,8 +647,23 @@ try {
     scraped_at: "2026-08-12T14:05:00-05:00",
     completed: [existingCloseout, newCloseout],
   }));
+  const focusedCloseoutRun = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["job_closed"] });
+  assert.deepEqual(focusedCloseoutRun.posted.map((alert) => alert.kind), ["job_closed"]);
+  assert.deepEqual(postedMessages, [
+    [
+      ":moneybag: *Job Closed*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|JK4051502>*",
+      "*New Closeout Customer*",
+      "*Driver:* New Driver",
+      "*Navigator:* New Navigator",
+      "*Tips:* $20.00",
+      "*Total:* $220.00",
+      "*Check:* #2201 ($220.00)",
+    ].join("\n"),
+  ]);
+
   const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });
-  assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed", "job_closed_payment"]);
+  assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed_payment"]);
   assert.deepEqual(postedMessages, [
     [
       ":moneybag: *Job Closed*",

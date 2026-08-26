@@ -1189,6 +1189,58 @@ async function runTruckArrivalSlackAlerts(options: {
   return result;
 }
 
+async function runTruckCloseoutSlackAlerts(options: {
+  date: string;
+  dryRun: boolean;
+  enabled: boolean;
+}): Promise<SlackAlertRunResult> {
+  const { date, dryRun, enabled } = options;
+  const state = readState();
+  const allNotifications = buildTruckCloseoutSlackNotifications(date, readCompletedJunkwareRows(date));
+  const initialized = Boolean(state.truckCloseoutNotificationsInitializedAt);
+  const delivered = new Set(state.deliveredTruckCloseoutsByDate[date] || []);
+  const pending = initialized
+    ? allNotifications.filter((alert) => !delivered.has(alert.fingerprint))
+    : [];
+  const result = slackAlertRunResult(
+    date,
+    dryRun,
+    enabled,
+    initialized ? pending : allNotifications,
+  );
+
+  if (dryRun || !enabled) return result;
+
+  const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
+  if (!token) throw new Error("SLACK_BOT_TOKEN is required when Slack OpsCenter alerts are enabled.");
+
+  const now = new Date().toISOString();
+  if (!initialized) {
+    state.truckCloseoutNotificationsInitializedAt = now;
+    state.deliveredTruckCloseoutsByDate[date] = allNotifications.map((alert) => alert.fingerprint);
+    state.deliveredTruckCloseoutsByDate = pruneTruckCloseoutDates(state.deliveredTruckCloseoutsByDate);
+    state.updatedAt = now;
+    writeState(state);
+    return result;
+  }
+
+  for (const alert of pending) {
+    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
+    if (!response.ok || !response.ts) {
+      result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
+      continue;
+    }
+    delivered.add(alert.fingerprint);
+    result.posted.push(alert);
+  }
+
+  state.deliveredTruckCloseoutsByDate[date] = Array.from(delivered);
+  state.deliveredTruckCloseoutsByDate = pruneTruckCloseoutDates(state.deliveredTruckCloseoutsByDate);
+  state.updatedAt = now;
+  writeState(state);
+  return result;
+}
+
 export async function runSlackOpsAlerts(options?: {
   date?: string;
   dryRun?: boolean;
@@ -1201,10 +1253,12 @@ export async function runSlackOpsAlerts(options?: {
   const enabled = boolEnv("SLACK_OPSCENTER_ALERTS_ENABLED");
   const onlyKinds = new Set(options?.onlyKinds || []);
   if (onlyKinds.size) {
-    if (onlyKinds.size !== 1 || !onlyKinds.has("truck_arrival")) {
-      throw new Error("Only truck_arrival can be published independently.");
+    if (onlyKinds.size !== 1 || (!onlyKinds.has("truck_arrival") && !onlyKinds.has("job_closed"))) {
+      throw new Error("Only truck_arrival or job_closed can be published independently.");
     }
-    return runTruckArrivalSlackAlerts({ date, dryRun, enabled });
+    return onlyKinds.has("truck_arrival")
+      ? runTruckArrivalSlackAlerts({ date, dryRun, enabled })
+      : runTruckCloseoutSlackAlerts({ date, dryRun, enabled });
   }
   const state = readState();
   const incidents = collectIncidentAlerts(date);

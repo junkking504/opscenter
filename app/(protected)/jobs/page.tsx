@@ -1,5 +1,4 @@
 /* eslint-disable @next/next/no-img-element -- JunkWare job photos are public closeout media URLs. */
-import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import Link from "next/link";
@@ -32,6 +31,7 @@ import {
 import { isClosedAppointment, isEstimateAppointment, missingPaymentTypeLabel, shouldFlagMissingPhotos } from "@/lib/job-audit-rules";
 import { junkwareBookedAt } from "@/lib/junkware-booking-date";
 import { currentJunkwareScheduleSnapshot, readVerifiedJunkwareScheduleSnapshot } from "@/lib/junkware-fast-schedule";
+import { planningLocation, type PlanningLocation } from "@/lib/planning-geocodes";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
 import "./jobs.css";
 
@@ -147,10 +147,7 @@ type JobsFilters = {
   siteTime: string;
 };
 
-type RouteLocation = {
-  latitude: number;
-  longitude: number;
-};
+type RouteLocation = PlanningLocation;
 
 type RoutePlanStop = {
   job: JobRow;
@@ -2782,15 +2779,6 @@ function planningTruckOptions(jobs: JobRow[]): string[] {
   return Array.from(trucks).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 }
 
-function planningAddressHash(address: string): string {
-  const normalized = String(address || "")
-    .replace(/\s+/g, " ")
-    .replace(/\s*,\s*/g, ", ")
-    .trim()
-    .toUpperCase();
-  return crypto.createHash("sha256").update(normalized).digest("hex");
-}
-
 function readPlanningGeocodes(): Record<string, Record<string, unknown>> {
   const file = path.join(OPSBOT_DATA_DIR, "cache", "appointment_geocodes.json");
   if (!fs.existsSync(file)) return {};
@@ -2800,26 +2788,6 @@ function readPlanningGeocodes(): Record<string, Record<string, unknown>> {
   } catch {
     return {};
   }
-}
-
-function planningLocation(
-  address: string,
-  geocodes: Record<string, Record<string, unknown>>,
-): RouteLocation | null {
-  if (!address || address === "—") return null;
-  const match = geocodes[planningAddressHash(address)];
-  if (match?.match_confidence !== "confirmed") return null;
-  const latitude = Number(match?.latitude);
-  const longitude = Number(match?.longitude);
-  if (
-    !Number.isFinite(latitude)
-    || !Number.isFinite(longitude)
-    || latitude < 29
-    || latitude > 31.3
-    || longitude < -93
-    || longitude > -89.4
-  ) return null;
-  return { latitude, longitude };
 }
 
 function routeDistanceMiles(from: RouteLocation, to: RouteLocation): number {

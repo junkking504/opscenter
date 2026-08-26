@@ -665,7 +665,7 @@ export default async function DashboardPage({
       />
 
       {section === "overview" ? <>
-        {date === chicagoDateKey() ? <DataHealth compact /> : null}
+        {date === chicagoDateKey() ? <DataHealth compact strip /> : null}
         <CommandBrief
           metrics={commandBriefMetrics}
           signals={commandBriefSignals}

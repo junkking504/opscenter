@@ -2687,6 +2687,31 @@ function AppointmentMoreDetails({
   );
 }
 
+function AppointmentDetails({ job, siteTime }: { job: JobRow; siteTime: SiteTimeAppointment | undefined }) {
+  const noteCount = job.appointmentNotes.filter((note) => !/^Appointment moved from\b/i.test(note)).length;
+  const summary = [
+    noteCount ? `${noteCount} note${noteCount === 1 ? "" : "s"}` : null,
+    job.photos.length ? `${job.photos.length} photo${job.photos.length === 1 ? "" : "s"}` : null,
+    job.closeout ? "Payment" : "Job info",
+  ].filter(Boolean).join(" · ");
+
+  return (
+    <details className="ops-appointment-details">
+      <summary>
+        <span>Details</span>
+        <small>{summary}</small>
+      </summary>
+      <div className="ops-appointment-details-body">
+        <JobContextDetails job={job} />
+        <JobPhotoDetails job={job} />
+        <JobCloseoutDetails job={job} />
+        <AppointmentMoreDetails job={job} siteTime={siteTime} detailGridClassName="ops-appointment-detail-grid" />
+        <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
+      </div>
+    </details>
+  );
+}
+
 function filterJobs(jobs: JobRow[], filters: JobsFilters): JobRow[] {
   const query = filters.q.trim().toLowerCase();
   const territory = filters.territory.trim().toLowerCase();
@@ -3190,7 +3215,7 @@ export default async function JobsPage({
         compact
       />
 
-      {isDispatchWorkspace && date === today ? <DataHealth compact /> : null}
+      {isDispatchWorkspace && date === today ? <DataHealth compact strip /> : null}
 
       {isDispatchWorkspace ? (
         <form className="ops-junkware-search" method="get" role="search">
@@ -3858,18 +3883,12 @@ export default async function JobsPage({
                               </div>
                             </div>
 
-                            <JobContextDetails job={job} />
-
-                            <JobPhotoDetails job={job} />
-
                             {job.tipAmount > 0 ? <div className="ops-appointment-card-tip">
                               <span className="ops-appointment-card-tip-label">TIPS</span>
                               <strong className="ops-appointment-card-tip-value">{money(job.tipAmount || 0)}</strong>
                             </div> : null}
 
-                            <JobCloseoutDetails job={job} />
-
-                            <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
+                            <AppointmentDetails job={job} siteTime={siteTime} />
 
                             <details hidden className="ops-appointment-gps-details">
                               <summary>GPS and site time</summary>
@@ -4007,7 +4026,6 @@ export default async function JobsPage({
                                 </div>
                               </div>
                             </details>
-                            <AppointmentMoreDetails job={job} siteTime={siteTime} detailGridClassName="ops-appointment-detail-grid" />
                           </JobCallAheadCard>
                         );
                       })}
@@ -4138,18 +4156,12 @@ export default async function JobsPage({
                             </div>
                           </div>
 
-                          <JobContextDetails job={job} />
-
-                          <JobPhotoDetails job={job} />
-
                           {job.tipAmount > 0 ? <div className="ops-appointment-card-tip">
                             <span className="ops-appointment-card-tip-label">TIPS</span>
                             <strong className="ops-appointment-card-tip-value">{money(job.tipAmount || 0)}</strong>
                           </div> : null}
 
-                          <JobCloseoutDetails job={job} />
-
-                          <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
+                          <AppointmentDetails job={job} siteTime={siteTime} />
 
                           <details hidden className="ops-appointment-gps-details">
                             <summary>GPS and site time</summary>
@@ -4287,7 +4299,6 @@ export default async function JobsPage({
                               </div>
                             </div>
                           </details>
-                          <AppointmentMoreDetails job={job} siteTime={siteTime} detailGridClassName="ops-appointment-detail-grid" />
                         </JobCallAheadCard>
                       );
                     })}

@@ -1,5 +1,6 @@
 import PageRefreshButton from "@/components/PageRefreshButton";
 import { getDataHealthReport, type DataHealthLevel } from "@/lib/data-health";
+import styles from "./DataHealth.module.css";
 
 const levelClass: Record<DataHealthLevel, string> = {
   green: "ops-health-green",
@@ -18,6 +19,7 @@ function formatAge(minutes: number | null): string {
 
 type DataHealthProps = {
   compact?: boolean;
+  strip?: boolean;
 };
 
 function shortTimestamp(value: string): string {
@@ -25,13 +27,13 @@ function shortTimestamp(value: string): string {
   return value.replace("T", " ").replace(/:\d{2}\.\d{3}Z$/, "Z").replace(/:\d{2}Z$/, "Z");
 }
 
-export default function DataHealth({ compact = false }: DataHealthProps) {
+export default function DataHealth({ compact = false, strip = false }: DataHealthProps) {
   const report = getDataHealthReport();
   const overallLevel: DataHealthLevel =
     report.overall === "Healthy" ? "green" : report.overall === "Partial" ? "yellow" : "red";
 
   return (
-    <section className={compact ? "ops-data-health ops-data-health-compact" : "ops-data-health"}>
+    <section className={`ops-data-health${compact ? " ops-data-health-compact" : ""}${strip ? ` ops-data-health-strip ${styles.strip}` : ""}`}>
       <div className="ops-data-health-top">
         <div className={`ops-health-overall ${levelClass[overallLevel]}`}>
           {report.overall}

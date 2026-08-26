@@ -1457,3 +1457,130 @@
   .ops-jobs-page .ops-jobs-map-verification-list { grid-template-columns: 1fr; }
   .ops-jobs-page .ops-jobs-map-verification-list article { align-items: flex-start; }
 }
+
+/* Density correction: the primary scan stays visible and all secondary card
+ * functions live behind one disclosure. This follows the compact Dispatch
+ * layout without dropping notes, photos, closeout, GPS, or job information. */
+.ops-jobs-page .ops-appointment-card-list { gap: 8px; }
+
+.ops-jobs-page .ops-appointment-card {
+  row-gap: 3px;
+  padding: 7px 9px;
+}
+
+.ops-jobs-page .ops-appointment-card-topline { gap: 8px; }
+.ops-jobs-page .ops-appointment-card-reference { gap: 0; }
+.ops-jobs-page .ops-appointment-card-scan-summary { gap: 2px; margin-top: 3px; }
+.ops-jobs-page .ops-appointment-visit-summary { padding: 3px 6px; }
+.ops-jobs-page .ops-call-ahead-row { min-height: 20px; }
+
+.ops-jobs-page .ops-appointment-details {
+  order: 4;
+  grid-column: 1 / -1;
+  overflow: hidden;
+  border-top: 1px solid #e1e5e9;
+}
+
+.ops-jobs-page .ops-appointment-details > summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 4px 1px;
+  color: #46515e;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 850;
+  line-height: 1.2;
+  list-style: none;
+}
+
+.ops-jobs-page .ops-appointment-details > summary::-webkit-details-marker { display: none; }
+.ops-jobs-page .ops-appointment-details > summary::marker { content: ""; font-size: 0; }
+
+.ops-jobs-page .ops-appointment-details > summary::before {
+  content: "+";
+  width: 13px;
+  color: #174f7a;
+  font-size: 0.9rem;
+  font-weight: 950;
+  text-align: center;
+}
+
+.ops-jobs-page .ops-appointment-details[open] > summary::before { content: "−"; }
+
+.ops-jobs-page .ops-appointment-details > summary small {
+  overflow: hidden;
+  color: #687381;
+  font-size: 0.7rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-jobs-page .ops-appointment-details-body {
+  display: grid;
+  gap: 6px;
+  padding: 5px 0 2px;
+}
+
+.ops-jobs-page .ops-appointment-details-body > :where(
+  .ops-appointment-context,
+  .ops-job-photo-details,
+  .ops-job-photo-evidence,
+  .ops-job-closeout-details,
+  .ops-appointment-more-details,
+  .ops-job-closeout-editor
+) {
+  grid-column: 1 / -1;
+  order: initial;
+  margin: 0;
+}
+
+/* JunkWare lookup is a toolbar action. Its visible label was consuming an
+ * entire extra line even though the input already explains the search scope. */
+.ops-jobs-page .ops-junkware-search {
+  align-items: center;
+  gap: 6px;
+  min-height: 50px;
+  padding: 6px 8px;
+  border-radius: 10px;
+}
+
+.ops-jobs-page .ops-junkware-search-field {
+  display: block;
+  flex-basis: 280px;
+}
+
+.ops-jobs-page .ops-junkware-search-field > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.ops-jobs-page .ops-junkware-search-field input,
+.ops-jobs-page .ops-junkware-search-button,
+.ops-jobs-page .ops-junkware-search-clear {
+  min-height: 38px;
+  padding-block: 6px;
+}
+
+@media (max-width: 720px) {
+  .ops-jobs-page .ops-appointment-card { padding: 8px 9px; }
+  .ops-jobs-page .ops-appointment-details > summary { min-height: 44px; }
+
+  .ops-jobs-page .ops-junkware-search {
+    display: flex;
+    min-height: 56px;
+  }
+
+  .ops-jobs-page .ops-junkware-search-field { grid-column: auto; }
+
+  .ops-jobs-page .ops-junkware-search-field input,
+  .ops-jobs-page .ops-junkware-search-button,
+  .ops-jobs-page .ops-junkware-search-clear { min-height: 44px; }
+}

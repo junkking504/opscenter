@@ -46,6 +46,16 @@ function canonicalAddress(address: string): string {
     .trim();
 }
 
+function canonicalStreetAddress(address: string): string {
+  const canonical = canonicalAddress(address);
+  // The fast schedule may include a business name before the service street
+  // (for example, a storage facility name). A street address must begin at its
+  // first street-number token, so use that stable portion for the final exact
+  // comparison below.
+  const streetStart = canonical.search(/\b\d{2,6}[A-Z]?\b/);
+  return streetStart >= 0 ? canonical.slice(streetStart) : canonical;
+}
+
 function serviceAreaLocation(candidate: Record<string, unknown> | undefined): PlanningLocation | null {
   if (candidate?.match_confidence !== "confirmed") return null;
   const latitude = Number(candidate.latitude);
@@ -69,9 +79,9 @@ export function planningLocation(
   // The fast schedule sometimes omits the comma between the street and city.
   // Use an exact punctuation/state-insensitive form only when it identifies one
   // confirmed point; otherwise retain the appointment without a locator.
-  const target = canonicalAddress(address);
+  const target = canonicalStreetAddress(address);
   const locations = Object.values(geocodes)
-    .filter((candidate) => canonicalAddress(String(candidate.normalized_address || "")) === target)
+    .filter((candidate) => canonicalStreetAddress(String(candidate.normalized_address || "")) === target)
     .map(serviceAreaLocation)
     .filter((location): location is PlanningLocation => location !== null);
   const uniqueLocations = Array.from(new Map(

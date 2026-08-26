@@ -27,6 +27,11 @@ assert.deepEqual(
   { latitude: 29.9601984, longitude: -89.966716 },
   "A punctuation-only schedule difference must resolve to the confirmed cache record.",
 );
+assert.deepEqual(
+  planningLocation("Example Storage 4026 Juno Drive Chalmette, LA 70043", confirmed),
+  { latitude: 29.9601984, longitude: -89.966716 },
+  "A fast-schedule business prefix must not hide a confirmed street location.",
+);
 assert.equal(planningLocation("4026 Juno Drive, Chalmette, LA 70043", {}), null);
 assert.equal(planningLocation("4026 Juno Drive, Chalmette, LA 70043", {
   [cacheKey(chalmetteAddress)]: { latitude: 29.9601984, longitude: -89.966716, match_confidence: "ambiguous" },

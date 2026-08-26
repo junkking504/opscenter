@@ -107,7 +107,8 @@ export function truckCloseoutDetails(row: AnyRecord): TruckCloseoutDetails | nul
     ?? 0;
   lines.push(`Tips: ${tip > 0 ? moneyText(tip) : ""}.`);
 
-  const jobTotal = firstFiniteNumber(row, ["revenue", "job_total", "jobTotal"]);
+  const jobTotal = firstFiniteNumber(row, ["revenue", "job_total", "jobTotal"])
+    ?? firstFiniteNumber(closeout, ["total"]);
   if (jobTotal !== null) lines.push(`Total: ${moneyText(jobTotal)}.`);
 
   const payments = (Array.isArray(closeout.payments) ? closeout.payments : [])
@@ -116,9 +117,6 @@ export function truckCloseoutDetails(row: AnyRecord): TruckCloseoutDetails | nul
     .filter(Boolean);
   if (payments.length) {
     lines.push(...payments);
-  } else {
-    const chargedTotal = firstFiniteNumber(closeout, ["total"]);
-    if (chargedTotal !== null) lines.push(`Total charged: ${moneyText(chargedTotal)}.`);
   }
 
   return {

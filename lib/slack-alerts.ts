@@ -648,6 +648,43 @@ function closeoutTruck(row: AnyRecord): string {
   return firstText(row, ["truck", "assigned_truck", "truck_number", "truckNumber"]);
 }
 
+function closeoutCustomer(row: AnyRecord): string {
+  return firstText(row, ["customer_name", "customerName", "customer", "name"]);
+}
+
+function closeoutCrewMember(row: AnyRecord, role: "driver" | "navigator"): string {
+  return role === "driver"
+    ? firstText(row, ["driver_normalized_name", "driver_name", "driver"])
+    : firstText(row, ["navigator_normalized_name", "navigator_name", "navigator"]);
+}
+
+/**
+ * The single approved truck-closeout presentation.  Keep the job link and
+ * customer/crew facts with the financial detail so every publisher (the
+ * collector, direct verified writes, and digest repair) renders identically.
+ */
+export function formatTruckCloseoutSlackNotification(date: string, row: AnyRecord): string | null {
+  const jobNumber = firstText(row, ["job_id", "jk_number", "job_number"]);
+  if (!jobNumber) return null;
+
+  const closeout = truckCloseoutDetails(row);
+  const detailLines = parseSlackDetailLines(closeout?.lines || []).map(({ label, value }) => (
+    label === "Tips" && !value ? "*Tips:*" : `*${slackEscape(label)}:* ${slackEscape(value)}`
+  ));
+  const customer = closeoutCustomer(row);
+  const driver = closeoutCrewMember(row, "driver");
+  const navigator = closeoutCrewMember(row, "navigator");
+
+  return [
+    ":moneybag: *Job Closed*",
+    `*<${closeoutOpsHref(date, jobNumber)}|${slackEscape(jobNumber)}>*`,
+    customer ? `*${slackEscape(customer)}*` : "",
+    `*Driver:*${driver ? ` ${slackEscape(driver)}` : ""}`,
+    `*Navigator:*${navigator ? ` ${slackEscape(navigator)}` : ""}`,
+    ...detailLines,
+  ].filter(Boolean).join("\n");
+}
+
 export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   const seen = new Set<string>();
@@ -666,16 +703,8 @@ export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyReco
     if (seen.has(fingerprint)) continue;
     seen.add(fingerprint);
 
-    const closeout = truckCloseoutDetails(row);
-    const href = closeoutOpsHref(date, jobNumber);
-    const detailLines = parseSlackDetailLines(closeout?.lines || []).map(({ label, value }) => (
-      label === "Tips" && !value ? "*Tips:*" : `*${slackEscape(label)}:* ${slackEscape(value)}`
-    ));
-    const plainText = [
-      ":white_check_mark: *Job Closed*",
-      `*<${href}|${slackEscape(jobNumber)}>*`,
-      ...detailLines,
-    ].join("\n");
+    const plainText = formatTruckCloseoutSlackNotification(date, row);
+    if (!plainText) continue;
     notifications.push({
       fingerprint,
       kind: "job_closed",
@@ -1062,7 +1091,29 @@ export async function publishVerifiedTruckCloseout(
   const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
   if (!token) return { attempted: false, posted: false, duplicate: false, reason: "Slack bot token is unavailable." };
 
+  const sourceRow = readCompletedJunkwareRows(date).find((candidate) => (
+    firstText(candidate, ["appt_id", "appointment_id", "appointmentId"]) === appointmentId
+    || firstText(candidate, ["job_id", "jk_number", "job_number"]).toLowerCase() === jobNumber.toLowerCase()
+  ));
+  if (!sourceRow) {
+    return {
+      attempted: false,
+      posted: false,
+      duplicate: false,
+      reason: "Closeout details are awaiting the verified JunkWare record.",
+    };
+  }
+  if (!closeoutCustomer(sourceRow) || (!closeoutCrewMember(sourceRow, "driver") && !closeoutCrewMember(sourceRow, "navigator"))) {
+    return {
+      attempted: false,
+      posted: false,
+      duplicate: false,
+      reason: "Closeout customer and crew details are awaiting the verified JunkWare record.",
+    };
+  }
+
   const row: AnyRecord = {
+    ...sourceRow,
     appt_id: appointmentId,
     job_id: jobNumber,
     truck,

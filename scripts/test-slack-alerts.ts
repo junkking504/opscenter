@@ -239,6 +239,9 @@ const completedCloseoutRows = [
     job_id: "JK4051000",
     final_status: "Completed",
     truck: "Truck# 1",
+    customer_name: "Closeout Customer",
+    driver_normalized_name: "Driver One",
+    navigator_normalized_name: "Navigator One",
     revenue: "$508.00",
     tip: "$50.80",
     closeout: {
@@ -259,6 +262,9 @@ const completedCloseoutRows = [
     job_id: "JK4051001",
     job_status: "Completed Duration: 60 min(s)",
     assigned_truck: "Truck 6",
+    customer_name: "Check Customer",
+    driver_normalized_name: "Driver Six",
+    navigator_normalized_name: "Navigator Six",
     closeout: {
       payments: [{ method: "Check", detail: "#1487", amount: "$198.00" }],
     },
@@ -277,6 +283,9 @@ const completedCloseoutRows = [
     job_id: "JK4051003",
     job_status: "Completed",
     truck: "Truck 1",
+    customer_name: "Payment Customer",
+    driver_normalized_name: "Driver Payment",
+    navigator_normalized_name: "Navigator Payment",
     closeout: {
       tip: "$15.00",
       payments: [
@@ -299,6 +308,9 @@ const completedCloseoutRows = [
     job_id: "JK4051005",
     job_status: "Completed",
     truck: "Truck 4",
+    customer_name: "No Payment Customer",
+    driver_normalized_name: "Driver Four",
+    navigator_normalized_name: "Navigator Four",
     closeout: { payments: [] },
   },
 ];
@@ -353,8 +365,11 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
       text: [
-        ":white_check_mark: *Job Closed*",
+        ":moneybag: *Job Closed*",
         "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051000|JK4051000>*",
+        "*Closeout Customer*",
+        "*Driver:* Driver One",
+        "*Navigator:* Navigator One",
         "*Load:* $538.00 (1/2)",
         "*Labor:* $225.00",
         "*CC 3%:* $24.69",
@@ -368,8 +383,11 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_6",
       text: [
-        ":white_check_mark: *Job Closed*",
+        ":moneybag: *Job Closed*",
         "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051001|JK4051001>*",
+        "*Check Customer*",
+        "*Driver:* Driver Six",
+        "*Navigator:* Navigator Six",
         "*Tips:*",
         "*Check:* #1487 ($198.00)",
       ].join("\n"),
@@ -378,8 +396,11 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
       text: [
-        ":white_check_mark: *Job Closed*",
+        ":moneybag: *Job Closed*",
         "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051003|JK4051003>*",
+        "*Payment Customer*",
+        "*Driver:* Driver Payment",
+        "*Navigator:* Navigator Payment",
         "*Tips:* $15.00",
         "*Card Ending:* 4242",
         "*Cash:* ($50.00)",
@@ -389,8 +410,11 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_4",
       text: [
-        ":white_check_mark: *Job Closed*",
+        ":moneybag: *Job Closed*",
         "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051005|JK4051005>*",
+        "*No Payment Customer*",
+        "*Driver:* Driver Four",
+        "*Navigator:* Navigator Four",
         "*Tips:*",
       ].join("\n"),
     },
@@ -532,10 +556,24 @@ const newCloseout = {
   job_id: "JK4051502",
   final_status: "Completed",
   assigned_truck: "Truck# 6",
+  customer_name: "New Closeout Customer",
+  driver_normalized_name: "New Driver",
+  navigator_normalized_name: "New Navigator",
   closeout: {
     tip: "$20.00",
+    total: "$220.00",
     payments: [{ method: "Check", detail: "#2201", amount: "$220.00" }],
   },
+};
+const directCloseoutSource = {
+  appt_id: "503",
+  job_id: "JK4051503",
+  final_status: "Completed",
+  truck: "Truck# 6",
+  customer_name: "Direct Closeout Customer",
+  driver_normalized_name: "Direct Driver",
+  navigator_normalized_name: "Direct Navigator",
+  closeout: {},
 };
 fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), JSON.stringify({
   scraped_at: "2026-08-12T14:00:00-05:00",
@@ -613,9 +651,13 @@ try {
   assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed", "job_closed_payment"]);
   assert.deepEqual(postedMessages, [
     [
-      ":white_check_mark: *Job Closed*",
+      ":moneybag: *Job Closed*",
       "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|JK4051502>*",
+      "*New Closeout Customer*",
+      "*Driver:* New Driver",
+      "*Navigator:* New Navigator",
       "*Tips:* $20.00",
+      "*Total:* $220.00",
       "*Check:* #2201 ($220.00)",
     ].join("\n"),
     [
@@ -630,18 +672,35 @@ try {
   assert.equal(dedupeRun.posted.length, 0);
   assert.equal(postedMessages.length, 2);
 
+  fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), JSON.stringify({
+    scraped_at: "2026-08-12T14:06:00-05:00",
+    completed: [existingCloseout, newCloseout, directCloseoutSource],
+  }));
+
   const directCloseout = await publishVerifiedTruckCloseout({
     appointmentId: "503",
     jobNumber: "JK4051503",
     truck: "Truck 6",
     date: "2026-08-12",
-    closeout: { tip: "$10.00" },
+    closeout: {
+      loadSize: "1 (1/6)",
+      loadPrice: "$100.00",
+      tip: "$10.00",
+      total: "$110.00",
+      payments: [{ method: "Credit Card", detail: "***1503", amount: "$110.00" }],
+    },
   });
   assert.deepEqual(directCloseout, { attempted: true, posted: true, duplicate: false });
   assert.equal(postedMessages.at(-1), [
-    ":white_check_mark: *Job Closed*",
+    ":moneybag: *Job Closed*",
     "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|JK4051503>*",
+    "*Direct Closeout Customer*",
+    "*Driver:* Direct Driver",
+    "*Navigator:* Direct Navigator",
+    "*Load:* $100.00 (1/6)",
     "*Tips:* $10.00",
+    "*Total:* $110.00",
+    "*Card Ending:* 1503",
   ].join("\n"));
 
   const duplicateDirectCloseout = await publishVerifiedTruckCloseout({
@@ -649,7 +708,13 @@ try {
     jobNumber: "JK4051503",
     truck: "Truck 6",
     date: "2026-08-12",
-    closeout: { tip: "$10.00" },
+    closeout: {
+      loadSize: "1 (1/6)",
+      loadPrice: "$100.00",
+      tip: "$10.00",
+      total: "$110.00",
+      payments: [{ method: "Credit Card", detail: "***1503", amount: "$110.00" }],
+    },
   });
   assert.deepEqual(duplicateDirectCloseout, { attempted: false, posted: false, duplicate: true });
   assert.equal(postedMessages.filter((message) => message.includes("|JK4051503>")).length, 1);

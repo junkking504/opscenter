@@ -139,6 +139,9 @@ async function main() {
       new Map([["jk4052579", {
         appt_id: "4039401",
         job_id: "JK4052579",
+        customer_name: "Legacy Customer",
+        driver_normalized_name: "Legacy Driver",
+        navigator_normalized_name: "Legacy Navigator",
         revenue: "$358.00",
         tip: "$71.60",
         closeout: {
@@ -152,8 +155,11 @@ async function main() {
       "2026-08-14",
     ),
     [
-      ":white_check_mark: *Job Closed*",
+      ":moneybag: *Job Closed*",
       "*<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052579|JK4052579>*",
+      "*Legacy Customer*",
+      "*Driver:* Legacy Driver",
+      "*Navigator:* Legacy Navigator",
       "*Load:* $388.00 (1/3)",
       "*Discount:* $30.00",
       "*Tips:* $71.60",
@@ -168,8 +174,10 @@ async function main() {
       "2026-08-14",
     ),
     [
-      ":white_check_mark: *Job Closed*",
+      ":moneybag: *Job Closed*",
       "*<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052999|JK4052999>*",
+      "*Driver:*",
+      "*Navigator:*",
     ].join("\n"),
   );
 
@@ -256,6 +264,9 @@ async function main() {
       appt_id: "4039401",
       job_id: "JK4052579",
       truck: "Truck# 8",
+      customer_name: "Legacy Customer",
+      driver_normalized_name: "Legacy Driver",
+      navigator_normalized_name: "Legacy Navigator",
       revenue: "$358.00",
       tip: "$71.60",
       final_status: "Completed",

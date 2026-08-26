@@ -1,8 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { appointmentChannelId, buildAddOnSlackNotification, buildCancellationSlackNotification, buildTruckCloseoutSlackNotifications, formatSlackAlert, slackPhoneLink, type SlackOpsAlert } from "@/lib/slack-alerts";
-import { formatSlackMessage, slackEscape } from "@/lib/slack-message-format";
-import { truckSlackChannelId } from "@/lib/slack-truck-channels";
+import { slackEscape } from "@/lib/slack-message-format";
 import type { AnyRecord } from "@/lib/opsData";
 
 type Snapshot = {
@@ -59,9 +58,6 @@ function scheduleShape(row: AnyRecord): string {
   return [
     first(row, ["appointment_time", "scheduled_time", "time_window"]),
     first(row, ["appointment_date", "date"]),
-    first(row, ["truck", "assigned_truck", "truck_number"]),
-    first(row, ["address", "service_address"]),
-    first(row, ["market", "territory", "normalized_territory"]),
   ].join("|").toLowerCase();
 }
 
@@ -99,18 +95,15 @@ function rescheduleAlert(date: string, previous: AnyRecord, current: AnyRecord):
   };
 }
 
-function closeoutAlert(date: string, row: AnyRecord): SlackOpsAlert {
-  return buildTruckCloseoutSlackNotifications(date, [row])[0] || {
-    fingerprint: "",
-    kind: "job_closed",
-    lifecycle: "notification",
-    severity: "warning",
-    channelId: truckSlackChannelId(first(row, ["truck", "assigned_truck", "truck_number"]), appointmentChannelId(first(row, ["normalized_territory", "territory", "source_territory", "market"]))),
-    title: "Job Closed",
-    detail: "",
-    nextAction: "",
-    href: "",
-  };
+function closeoutAlert(date: string, row: AnyRecord): SlackOpsAlert | null {
+  const closeout = row?.closeout;
+  if (!closeout || typeof closeout !== "object" || Array.isArray(closeout) || !Object.keys(closeout).length) return null;
+  // Fast schedule snapshots are often populated before the completed-job
+  // record.  Do not consume the closeout delivery slot until the alert can
+  // carry the customer and crew context required by the truck-channel format.
+  if (!first(row, ["customer_name", "customerName", "customer", "name"])) return null;
+  if (!first(row, ["driver_normalized_name", "driver_name", "driver", "navigator_normalized_name", "navigator_name", "navigator"])) return null;
+  return buildTruckCloseoutSlackNotifications(date, [row])[0] || null;
 }
 
 function rowMap(rows: AnyRecord[]): Map<string, AnyRecord> {
@@ -152,7 +145,8 @@ export function detectScheduleChanges(previous: Snapshot | null, current: Snapsh
       continue;
     }
     if (!complete(previousRow) && complete(row)) {
-      events.push({ fingerprint: `job_closed:${current.date}:${id}`, kind: "job_closed", alert: closeoutAlert(current.date, row) });
+      const alert = closeoutAlert(current.date, row);
+      if (alert) events.push({ fingerprint: `job_closed:${current.date}:${id}`, kind: "job_closed", alert });
     } else if (!complete(row) && scheduleShape(previousRow) !== scheduleShape(row)) {
       events.push({ fingerprint: `rescheduled:${current.date}:${id}:${scheduleShape(row)}`, kind: "rescheduled", alert: rescheduleAlert(current.date, previousRow, row) });
     }

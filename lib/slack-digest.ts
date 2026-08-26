@@ -7,6 +7,7 @@ import {
 import {
   buildAddOnSlackNotification,
   buildCancellationSlackNotification,
+  formatTruckCloseoutSlackNotification,
   formatSlackAlert,
   slackPhoneLink,
 } from "@/lib/slack-alerts";
@@ -200,6 +201,7 @@ export function slackTextToPlainText(value: string): string {
     warning: "⚠️",
     x: "❌",
     white_check_mark: "✅",
+    moneybag: "💰",
     truck: "🚚",
     camera_with_flash: "📸",
     wastebasket: "🗑️",
@@ -299,8 +301,7 @@ function closeoutForSlackAlert(
   date: string,
 ): SlackDigestMessage["closeout"] | undefined {
   const plainText = slackTextToPlainText(rawText);
-  const match = plainText.match(/^✅\s*Job Closed\s*\nJob:\s*(JK\d+)/i)
-    || plainText.match(/^✅\s*Job Closed\s*\n(JK\d+)/i)
+  const match = plainText.match(/^(?:✅|💰)\s*Job Closed\s*\n(?:Job:\s*)?(JK\d+)/i)
     || plainText.match(/^✅\s*(JK\d+)\s+closed out\./i);
   if (!match) return undefined;
   const details = truckCloseoutDetails(lookup.get(match[1].toLowerCase()) || {});
@@ -458,21 +459,18 @@ export function normalizedLegacyCloseoutDigestText(
   date: string,
 ): string {
   const plainText = slackTextToPlainText(rawText);
-  const legacyMatch = plainText.match(/^✅\s*Job Closed\s*\nJob:\s*(JK\d+)/i)
+  const legacyMatch = plainText.match(/^(?:✅|💰)\s*Job Closed\s*\n(?:Job:\s*)?(JK\d+)/i)
     || plainText.match(/^✅\s*(JK\d+)\s+closed out\.?/i);
   if (!legacyMatch) return rawText;
 
   const jobNumber = legacyMatch[1];
-  const details = truckCloseoutDetails(closeouts.get(jobNumber.toLowerCase()) || {});
-  const lines = (details?.lines || []).flatMap((line) => {
-    const match = line.match(/^([^:]+):\s*(.*?)\.?$/);
-    if (!match) return [];
-    return [match[1] === "Tips" && !match[2] ? "*Tips:*" : `*${slackEscape(match[1])}:* ${slackEscape(match[2])}`];
-  });
+  const row = closeouts.get(jobNumber.toLowerCase());
+  if (row) return formatTruckCloseoutSlackNotification(date, row) || rawText;
   return [
-    ":white_check_mark: *Job Closed*",
-    `*<${legacyJobHref(rawText, details?.jobNumber || jobNumber, date)}|${slackEscape(details?.jobNumber || jobNumber)}>*`,
-    ...lines,
+    ":moneybag: *Job Closed*",
+    `*<${legacyJobHref(rawText, jobNumber, date)}|${slackEscape(jobNumber)}>*`,
+    "*Driver:*",
+    "*Navigator:*",
   ].join("\n");
 }
 

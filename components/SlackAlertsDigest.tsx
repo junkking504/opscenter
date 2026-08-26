@@ -20,6 +20,7 @@ const SLACK_EMOJI: Record<string, string> = {
   warning: "⚠️",
   x: "❌",
   white_check_mark: "✅",
+  moneybag: "💰",
   truck: "🚚",
   camera_with_flash: "📸",
   wastebasket: "🗑️",

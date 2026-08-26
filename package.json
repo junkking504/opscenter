@@ -47,6 +47,7 @@
     "verify:linxup-camera": "node --import tsx scripts/test-linxup-camera.ts",
     "verify:job-route-history": "node --import tsx scripts/test-job-route-history.ts",
     "verify:job-cancellations": "node --import tsx scripts/test-job-cancellations.ts",
+    "verify:planning-geocodes": "node --import tsx scripts/test-planning-geocodes.ts",
     "verify:junkware-appointment-note": "node --import tsx scripts/test-junkware-appointment-note.ts",
     "verify:fleet-gps": "node --import tsx scripts/test-fleet-gps.ts",
     "verify:linxup-freshness": "node --import tsx scripts/test-linxup-live-freshness.ts",

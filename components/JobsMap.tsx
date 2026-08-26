@@ -1607,7 +1607,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
           <div className="ops-section-title" id="jobs-map-title">Dispatch Workspace</div>
           <div className="ops-muted">
             {scheduleView
-              ? "Select a job for details. Use the Route assignment board below to change its truck or time."
+              ? "Select a job for details. Use the Route assignment board to change its truck or time."
               : "Select a job to review the customer, service address, and closest truck."}
           </div>
         </div>

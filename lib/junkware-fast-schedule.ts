@@ -86,6 +86,17 @@ export function readVerifiedJunkwareScheduleSnapshot(
   return scopedCombined.updatedAtMs > aggregate.updatedAtMs ? scopedCombined : aggregate;
 }
 
+export function readVerifiedJunkwareReconciliationSnapshot(
+  dataDir: string,
+  date: string,
+): VerifiedJunkwareScheduleSnapshot | null {
+  return readVerifiedSnapshotFile(
+    path.join(dataDir, "history", "junkware", `junkware_${date}_raw.json`),
+    date,
+    [...REQUIRED_MARKETS],
+  );
+}
+
 function readVerifiedSnapshotFile(
   file: string,
   date: string,

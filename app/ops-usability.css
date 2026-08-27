@@ -848,14 +848,6 @@ body {
 }
 
 @media (max-width: 720px) {
-  .ops-main .ops-page-title,
-  .ops-finance-page .ops-page-title {
-    font-size: clamp(1.7rem, 8vw, 2.15rem);
-  }
-
-  .ops-main .ops-page-header-subtitle {
-    font-size: 0.875rem;
-  }
 
   .ops-crew-section-period .ops-period-summary-compact {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -865,12 +857,7 @@ body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .ops-page-subnav {
-    scroll-snap-type: x proximity;
-  }
-
   .ops-page-subnav a {
-    min-height: 44px;
     scroll-snap-align: start;
   }
 

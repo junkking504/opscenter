@@ -3197,6 +3197,31 @@ a {
   color: var(--ops-green);
 }
 
+.ops-payroll-review-trigger.is-time-action {
+  min-height: 34px;
+  border: 1px solid rgba(246, 195, 67, 0.24);
+  border-radius: 10px;
+  background: rgba(246, 195, 67, 0.07);
+  padding: 7px 11px;
+  color: var(--ops-gold);
+  font-size: 0.74rem;
+  text-decoration: none;
+}
+
+.ops-payroll-review-trigger.is-time-action:hover,
+.ops-payroll-review-trigger.is-time-action:focus-visible {
+  border-color: rgba(246, 195, 67, 0.42);
+  background: rgba(246, 195, 67, 0.11);
+  color: var(--ops-text);
+  text-decoration: none;
+}
+
+.ops-crew-time-edit-action {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
 .ops-payroll-review-dialog {
   --ops-text: #f7f8fa;
   --ops-muted: #aab4c3;

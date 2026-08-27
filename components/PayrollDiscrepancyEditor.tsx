@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { calculateLivePay } from "@/lib/live-pay";
 import type { PayrollCorrection } from "@/lib/payroll-corrections";
@@ -57,12 +57,14 @@ export default function PayrollDiscrepancyEditor({
   record,
   source,
   correction,
+  display = "earnings",
 }: {
   date: string;
   employeeName: string;
   record: LivePayrollRecord;
   source: SourcePayrollValues;
   correction: PayrollCorrection | null;
+  display?: "earnings" | "time";
 }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -72,6 +74,23 @@ export default function PayrollDiscrepancyEditor({
   const [note, setNote] = useState(() => correction?.note || "");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    setClockIn(clockToInput(correction?.clockIn || source.clockIn));
+    setClockOut(clockToInput(correction?.clockOut || source.clockOut));
+    setHourlyRate(String(correction?.hourlyRate ?? source.hourlyRate ?? ""));
+    setNote(correction?.note || "");
+    setMessage("");
+  }, [
+    correction?.clockIn,
+    correction?.clockOut,
+    correction?.hourlyRate,
+    correction?.note,
+    correction?.updatedAt,
+    source.clockIn,
+    source.clockOut,
+    source.hourlyRate,
+  ]);
 
   const pay = useMemo(() => calculateLivePay({
     date,
@@ -84,8 +103,8 @@ export default function PayrollDiscrepancyEditor({
   }), [date, record]);
 
   const triggerLabel = correction
-    ? pay.valid ? "Corrected · Review" : `${pay.message} · Review`
-    : pay.valid ? "Review pay" : `${pay.message || "Pay unavailable"} · Review`;
+    ? "Corrected time · Edit"
+    : pay.valid ? "Edit time" : `${pay.message || "Time unavailable"} · Edit time`;
 
   async function saveCorrection() {
     const rate = Number(hourlyRate);
@@ -141,10 +160,12 @@ export default function PayrollDiscrepancyEditor({
 
   return (
     <div className="ops-payroll-review">
-      <LivePayrollValue date={date} records={[record]} field="earnings" showIncompleteNote={false} />
+      {display === "earnings" ? (
+        <LivePayrollValue date={date} records={[record]} field="earnings" showIncompleteNote={false} />
+      ) : null}
       <button
         type="button"
-        className={`ops-payroll-review-trigger ${pay.valid ? "is-corrected" : "is-warning"}`}
+        className={`ops-payroll-review-trigger ${display === "time" ? "is-time-action" : ""} ${correction ? "is-corrected" : pay.valid ? "" : "is-warning"}`}
         onClick={() => dialogRef.current?.showModal()}
       >
         {triggerLabel}
@@ -153,7 +174,7 @@ export default function PayrollDiscrepancyEditor({
       <dialog ref={dialogRef} className="ops-payroll-review-dialog">
         <div className="ops-payroll-review-dialog-header">
           <div>
-            <div className="ops-payroll-review-eyebrow">Pay discrepancy</div>
+            <div className="ops-payroll-review-eyebrow">Krewe time</div>
             <h2>{employeeName}</h2>
             <p>{date}</p>
           </div>
@@ -163,13 +184,13 @@ export default function PayrollDiscrepancyEditor({
         </div>
 
         <div className={`ops-payroll-review-status ${pay.valid ? "is-corrected" : "is-warning"}`}>
-          <strong>{correction ? "Correction applied" : pay.valid ? "Source pay available" : pay.message}</strong>
+          <strong>{correction ? "Time correction applied" : pay.valid ? "JunkWare time available" : pay.message}</strong>
           <span>
             {correction
-              ? "The corrected values below are being used for this employee’s pay calculation."
+              ? "The corrected clock times below are being used for this employee’s attendance and pay calculations."
               : pay.valid
-                ? "OpsCenter is calculating pay from the current JunkWare source values shown below."
-              : "OpsCenter cannot calculate hourly earnings until the missing or invalid shift value is corrected."}
+                ? "OpsCenter is using the current JunkWare clock times shown below. You can override them when a punch is missed or incorrect."
+                : "OpsCenter cannot calculate attendance or hourly earnings until the missing or invalid shift value is corrected."}
           </span>
         </div>
 
@@ -245,7 +266,7 @@ export default function PayrollDiscrepancyEditor({
 
         <div className="ops-payroll-review-actions">
           <button type="button" className="ops-refresh-button" disabled={saving} onClick={saveCorrection}>
-            {saving ? "Saving…" : "Save correction"}
+            {saving ? "Saving…" : "Save time"}
           </button>
           {correction ? (
             <button type="button" className="ops-button ops-payroll-correction-remove" disabled={saving} onClick={removeCorrection}>

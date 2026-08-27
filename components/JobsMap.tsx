@@ -1286,6 +1286,26 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     return () => window.cancelAnimationFrame(frame);
   }, [date, resetMapToOperatingFootprint]);
 
+  // Schedule-board truck selection earns one initial focus. Do not keep that
+  // focus armed: mapZoom changes whenever Dispatch redraws marker clusters, and
+  // a persistent focus would undo a dispatcher’s manual pan or zoom.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !focusSelectedTruck || !selectedTruck) return;
+
+    if (selectedRouteBounds?.isValid()) {
+      if (selectedRouteBounds.getNorthEast().equals(selectedRouteBounds.getSouthWest())) {
+        map.setView(selectedRouteBounds.getCenter(), 14, { animate: true });
+      } else {
+        map.fitBounds(selectedRouteBounds.pad(0.1), { padding: [28, 28], maxZoom: 15, animate: true });
+      }
+    } else {
+      map.setView([selectedTruck.latitude, selectedTruck.longitude], Math.max(map.getZoom(), 14), { animate: true });
+    }
+
+    setFocusSelectedTruck(false);
+  }, [focusSelectedTruck, selectedRouteBounds, selectedTruck]);
+
   useEffect(() => {
     const map = mapRef.current;
     const markers = markersRef.current;
@@ -1436,16 +1456,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       addInteractiveMarker(marker, () => focusMapArea(cluster.items));
     }
 
-    if (focusSelectedTruck && selectedTruck && selectedRouteBounds?.isValid()) {
-      if (selectedRouteBounds.getNorthEast().equals(selectedRouteBounds.getSouthWest())) {
-        map.setView(selectedRouteBounds.getCenter(), 14, { animate: true });
-      } else {
-        map.fitBounds(selectedRouteBounds.pad(0.1), { padding: [28, 28], maxZoom: 15, animate: true });
-      }
-    } else if (focusSelectedTruck && selectedTruck) {
-      map.setView([selectedTruck.latitude, selectedTruck.longitude], Math.max(map.getZoom(), 14), { animate: true });
-    }
-  }, [currentScheduleTime?.timestamp, focusSelectedTruck, leaflet, liveTruckLocations, locatedJobs, mapZoom, selectLiveTruck, selectMapTruck, selectedKey, selectedRouteBounds, selectedTruck, selectedTruckName, selectedTruckRoutes]);
+  }, [currentScheduleTime?.timestamp, leaflet, liveTruckLocations, locatedJobs, mapZoom, selectLiveTruck, selectMapTruck, selectedKey, selectedTruckName, selectedTruckRoutes]);
 
   const renderAppointmentDetails = () => {
     if (selectedTruck || !selectedJob) return null;

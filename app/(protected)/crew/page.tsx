@@ -1886,6 +1886,18 @@ export default async function CrewPage({
                           value={String(row.assignment_confidence || row.assignmentConfidence || "Unavailable").trim() || "Unavailable"}
                         />
                       </div>
+                      {payrollReview ? (
+                        <div className="ops-crew-time-edit-action">
+                          <PayrollDiscrepancyEditor
+                            date={date}
+                            employeeName={name}
+                            record={livePayrollRecord}
+                            source={payrollReview.source}
+                            correction={payrollReview.correction}
+                            display="time"
+                          />
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="ops-crew-detail-section">

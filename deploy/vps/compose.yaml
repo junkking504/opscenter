@@ -15,6 +15,11 @@ services:
       HOSTNAME: 0.0.0.0
       PORT: 3000
       OPSCENTER_RUNTIME: VPS
+      # The Mac collector publishes to the VPS every five minutes. Keep the
+      # failover health window above that cadence while still detecting a
+      # genuinely stalled sync.
+      OPSCENTER_LINXUP_MAX_AGE_SECONDS: "900"
+      OPSCENTER_JUNKWARE_SCHEDULE_MAX_AGE_SECONDS: "900"
       OPSBOT_DATA_DIR: /app/data
       QBO_TOKEN_STORE_DIR: /var/lib/opscenter/qbo
     volumes:
@@ -22,6 +27,10 @@ services:
       - /srv/opscenter/qbo:/var/lib/opscenter/qbo
     ports:
       - "127.0.0.1:3000:3000"
+    command:
+      - /bin/sh
+      - -lc
+      - umask 0007 && exec npm run start -- -H 0.0.0.0 -p 3000
     healthcheck:
       test:
         - CMD
@@ -50,6 +59,8 @@ services:
       NODE_ENV: production
       PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
       OPSCENTER_RUNTIME: VPS
+      OPSCENTER_LINXUP_MAX_AGE_SECONDS: "900"
+      OPSCENTER_JUNKWARE_SCHEDULE_MAX_AGE_SECONDS: "900"
       OPSBOT_DATA_DIR: /app/data
       QBO_TOKEN_STORE_DIR: /var/lib/opscenter/qbo
     volumes:
@@ -58,7 +69,7 @@ services:
     command:
       - /bin/sh
       - -lc
-      - while true; do node --import tsx scripts/retry-pending-job-route-assignments.ts; sleep 60; done
+      - umask 0007; while true; do node --import tsx scripts/retry-pending-job-route-assignments.ts; sleep 60; done
     logging:
       driver: json-file
       options:

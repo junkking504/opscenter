@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   currentJunkwareScheduleSnapshot,
+  readVerifiedJunkwareReconciliationSnapshot,
   readVerifiedJunkwareScheduleSnapshot,
 } from "@/lib/junkware-fast-schedule";
 
@@ -27,7 +28,11 @@ const payload = {
   appointments: [{ appt_id: "4052090", job_id: "JK4065268", job_status: "Completed", revenue: "$1,808.68" }],
   cancelled: [{ appt_id: "4059999", job_id: "JK4069999", job_status: "Cancelled" }],
 };
+fs.writeFileSync(canonical, `${JSON.stringify(payload)}\n`);
 fs.writeFileSync(fast, `${JSON.stringify(payload)}\n`);
+
+const reconciliation = readVerifiedJunkwareReconciliationSnapshot(temporary, date);
+assert.equal(reconciliation?.appointments.length, 1, "Verified reconciliation data must support failover health");
 
 const base = new Date("2026-08-25T21:45:00.000Z");
 fs.utimesSync(canonical, base, base);

@@ -17,6 +17,7 @@ const styleFiles = [
   "ops-design-system.css",
   "dashboard-v2.css",
   "ops-usability.css",
+  "ops-visual-system.css",
 ];
 
 assert.match(layout, /import "\.\/ops-styles\.css";/, "The root layout must load the single OpsCenter style entry.");
@@ -36,7 +37,12 @@ const totalLines = styleFiles.reduce((sum, file) => {
   const content = fs.readFileSync(path.join(root, "app", file), "utf8");
   return sum + content.split(/\r?\n/).length;
 }, 0);
-assert.ok(totalLines <= 19_200, `Shared CSS exceeded the 19,200-line migration budget (${totalLines}).`);
+assert.ok(totalLines <= 18_000, `Shared CSS exceeded the 18,000-line migration budget (${totalLines}).`);
+for (const file of styleFiles) {
+  const content = fs.readFileSync(path.join(root, "app", file), "utf8");
+  assert.doesNotMatch(content, /^@media\s*$/m, `${file} must not contain orphaned media queries.`);
+}
+assert.match(entry, /@import "\.\/ops-visual-system\.css";/, "The visual system must remain the final shared cascade layer.");
 
 function hexRgb(hex: string) {
   const channels = hex.match(/[0-9a-f]{2}/gi)?.map((channel) => Number.parseInt(channel, 16));

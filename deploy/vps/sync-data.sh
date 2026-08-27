@@ -39,6 +39,13 @@ REMOTE_DATA_DIR="$REMOTE_ROOT/data"
 ssh "${SSH_ARGS[@]}" "$REMOTE" "test -d '$REMOTE_DATA_DIR'"
 
 if [[ "$MODE" == "incremental" ]]; then
+  # Atomic writes from the container can replace a shared file with a private
+  # mode. Normalize the bounded shared-state paths before the host pulls them.
+  ssh "${SSH_ARGS[@]}" "$REMOTE" "docker run --rm --user 0 \
+    -v '$REMOTE_DATA_DIR:/data' \
+    --entrypoint /bin/sh node:22-bookworm-slim \
+    -c 'state_dirs=\"/data/manual_bonuses /data/job-route-assignments /data/job-route-geocodes /data/searchkings-overrides /data/fleet /data/finance /data/job-call-ahead /data/integrations/junkware-sms /data/integrations/whatsapp-job-photos /data/integrations/whatsapp-crew-expenses\" && mkdir -p \$state_dirs && chown -R 1001:1000 \$state_dirs && find \$state_dirs -type d -exec chmod 2770 {} \; && find \$state_dirs -type f -exec chmod 0660 {} \;'"
+
   # These folders are written by the VPS app. Pull them back first so the Mac
   # collector sees manual changes before it produces the next metrics file.
   rsync -az -e "$RSYNC_RSH" --delay-updates \
@@ -51,6 +58,8 @@ if [[ "$MODE" == "incremental" ]]; then
     --include '/job-call-ahead/***' \
     --include '/integrations/' \
     --include '/integrations/junkware-sms/***' \
+    --include '/integrations/whatsapp-job-photos/***' \
+    --include '/integrations/whatsapp-crew-expenses/***' \
     --exclude '*' \
     "$REMOTE:$REMOTE_DATA_DIR/" "$LOCAL_DATA_DIR/"
 elif [[ "$MODE" != "initial" ]]; then
@@ -86,6 +95,10 @@ if [[ "$MODE" == "initial" ]]; then
     --include '/fleet/***' \
     --include '/finance/***' \
     --include '/job-call-ahead/***' \
+    --include '/integrations/' \
+    --include '/integrations/junkware-sms/***' \
+    --include '/integrations/whatsapp-job-photos/***' \
+    --include '/integrations/whatsapp-crew-expenses/***' \
     --exclude '*' \
     "$LOCAL_DATA_DIR/" "$REMOTE:$REMOTE_DATA_DIR/"
 fi

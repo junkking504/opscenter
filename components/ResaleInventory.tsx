@@ -254,7 +254,7 @@ export default function ResaleInventory({ initialItems }: { initialItems: Resale
           <div className="ops-muted">{visibleItems.length} {visibleItems.length === 1 ? "item" : "items"}</div>
         </div>
 
-        <div className="ops-finance-table-scroll">
+        <div className="ops-finance-table-scroll ops-resale-table-scroll" tabIndex={0} aria-label="Resale inventory table. Scroll horizontally to see all columns.">
           <table className="ops-table ops-resale-table">
             <thead>
               <tr>

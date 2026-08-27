@@ -3,6 +3,7 @@ import DataHealth from "@/components/DataHealth";
 import OperatingInbox from "@/components/OperatingInbox";
 import { resolveKernelDatabaseConfig } from "@/lib/platform/persistence/config";
 import CommandBrief, {
+  type CommandBriefException,
   type CommandBriefMetric,
 } from "@/components/CommandBrief";
 import { JobsMap } from "@/components/JobsMap";
@@ -26,6 +27,7 @@ import {
 import { buildMonthlySummary, monthOptions } from "@/lib/monthly-summary";
 import { buildFleetDailyRecord } from "@/lib/fleet-history";
 import { buildCommandMapData } from "@/lib/command-map-data";
+import { dispatchMapCoverage } from "@/lib/dispatch-map-quality";
 import {
   dailyRevenueTarget,
   monthlyRevenueTarget,
@@ -605,6 +607,41 @@ export default async function DashboardPage({
       href: `/crew?date=${date}`,
     },
   ];
+  const commandMapCoverage = commandMap ? dispatchMapCoverage(commandMap.jobs) : null;
+  const unclosedCommandJobs = commandMap?.jobs.filter((job) => job.statusBucket === "Unclosed or Needs Attention").length || 0;
+  const staleCommandTrucks = commandMap?.truckLocations.filter((truck) => /stale|offline|historical/i.test(truck.freshness)).length || 0;
+  const commandExceptions: CommandBriefException[] = [
+    ...(commandMapCoverage?.needsVerification ? [{
+      label: "Verify addresses",
+      detail: `${commandMapCoverage.needsVerification} appointment${commandMapCoverage.needsVerification === 1 ? "" : "s"} not mapped`,
+      status: "off-track" as const,
+      href: `/jobs?date=${date}#jobs-map`,
+    }] : []),
+    ...(unclosedCommandJobs ? [{
+      label: "Unclosed jobs",
+      detail: `${unclosedCommandJobs} need follow-up`,
+      status: "watch" as const,
+      href: `/jobs?date=${date}&workspace=unclosed`,
+    }] : []),
+    ...(staleCommandTrucks ? [{
+      label: "GPS attention",
+      detail: `${staleCommandTrucks} truck${staleCommandTrucks === 1 ? "" : "s"} reporting stale`,
+      status: "watch" as const,
+      href: `/fleet?date=${date}&section=map`,
+    }] : []),
+    ...(dailyRevenueStatus === "off-track" ? [{
+      label: "Revenue below plan",
+      detail: `${money(grossRevenue)} of ${money(dailyRevenuePlan)}`,
+      status: "off-track" as const,
+      href: `/finance?date=${date}`,
+    }] : []),
+    ...(projectedLaborCostStatus === "off-track" && projectedLaborCostPercent != null ? [{
+      label: "Labor above goal",
+      detail: `${projectedLaborCostPercent.toFixed(1)}% projected · goal under ${operatingTargets.maxPayrollPercent.toFixed(0)}%`,
+      status: "off-track" as const,
+      href: `/crew?date=${date}`,
+    }] : []),
+  ].slice(0, 4);
   const rankedCrew = [...crew]
     .sort((a, b) =>
       employeeRevenue(b) - employeeRevenue(a) ||
@@ -701,6 +738,7 @@ export default async function DashboardPage({
 
         <CommandBrief
           metrics={commandBriefMetrics}
+          exceptions={commandExceptions}
           date={date}
           slackDigest={slackDigest!}
           map={commandMap ? (

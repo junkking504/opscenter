@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { appointmentScheduleHref } from "../lib/job-links";
 import { formatSearchKingsDateHeading, groupSearchKingsLeadsByDate } from "../lib/searchkings-date-groups";
+import { buildSearchKingsCallBrowser, normalizeSearchKingsCallRange } from "../lib/searchkings-call-browser";
 import { searchKingsPhoneHref } from "../lib/searchkings-phone";
 import {
   buildSearchKingsViewFromData,
@@ -99,6 +100,22 @@ assert.deepEqual(callGroups.map((group) => [group.dateKey, group.leads.length]),
 ]);
 assert.equal(formatSearchKingsDateHeading("2026-08-02"), "Sunday, August 2, 2026");
 assert.equal(formatSearchKingsDateHeading("unknown"), "Unknown date");
+
+const latestCalls = buildSearchKingsCallBrowser(view.leads);
+assert.equal(latestCalls.range, "latest");
+assert.deepEqual(latestCalls.groups.map((group) => group.dateKey), ["2026-08-02"]);
+assert.equal(latestCalls.totalInRange, 1);
+
+const searchedCalls = buildSearchKingsCallBrowser(view.leads, { range: "all", query: "Baton Rouge" });
+assert.equal(searchedCalls.matchCount, 2);
+assert.ok(searchedCalls.groups.every((group) => group.leads.every((lead) => lead.territory === "Baton Rouge")));
+
+const pagedCalls = buildSearchKingsCallBrowser(view.leads, { range: "all", page: 2, pageSize: 2 });
+assert.equal(pagedCalls.page, 2);
+assert.equal(pagedCalls.firstResult, 3);
+assert.equal(pagedCalls.lastResult, 4);
+assert.equal(pagedCalls.groups.flatMap((group) => group.leads).length, 2);
+assert.equal(normalizeSearchKingsCallRange("unexpected"), "latest");
 
 assert.equal(explicitCallValue("King-size mattress pickup quoted $128."), 128);
 assert.equal(explicitCallValue("Agent quoted $448, discounted to $388."), 388);

@@ -3,7 +3,11 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { getOpsRuntime } from "@/lib/runtime";
 import { chicagoDateKey } from "@/lib/report-dates";
-import { readVerifiedJunkwareScheduleSnapshot } from "@/lib/junkware-fast-schedule";
+import {
+  readVerifiedJunkwareReconciliationSnapshot,
+  readVerifiedJunkwareScheduleSnapshot,
+  type VerifiedJunkwareScheduleSnapshot,
+} from "@/lib/junkware-fast-schedule";
 import { getKernelDatabaseHealth } from "@/lib/platform/persistence/health";
 
 export const dynamic = "force-dynamic";
@@ -118,7 +122,13 @@ export async function GET(request: Request) {
     );
     const linxupStale = monitorsCurrentDate
       && (linxupAgeSeconds === null || linxupAgeSeconds > linxupMaxAgeSeconds);
-    const junkwareSchedule = readVerifiedJunkwareScheduleSnapshot(path.join(process.cwd(), "data"), targetDate);
+    const dataDirectory = path.join(process.cwd(), "data");
+    const junkwareSchedule = [
+      readVerifiedJunkwareScheduleSnapshot(dataDirectory, targetDate),
+      readVerifiedJunkwareReconciliationSnapshot(dataDirectory, targetDate),
+    ]
+      .filter((snapshot): snapshot is VerifiedJunkwareScheduleSnapshot => snapshot !== null)
+      .sort((left, right) => right.freshnessAtMs - left.freshnessAtMs)[0] || null;
     const junkwareScheduleAgeSeconds = junkwareSchedule
       ? Math.max(0, Math.floor((Date.now() - junkwareSchedule.freshnessAtMs) / 1000))
       : null;

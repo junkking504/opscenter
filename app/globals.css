@@ -668,18 +668,6 @@
     grid-template-columns: 1fr;
   }
 
-  .ops-jobs-filter-toolbar {
-    grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .ops-jobs-filter-menu {
-    grid-column: 1 / -1;
-  }
-
-  .ops-jobs-filter-menu > summary {
-    width: 100%;
-  }
-
   .ops-jobs-filter-menu .ops-jobs-filters {
     position: static;
     width: 100%;
@@ -793,11 +781,6 @@
   line-height: 0.85;
 }
 
-.ops-readiness-value span {
-  color: #56606e;
-  font-size: 0.6rem;
-}
-
 .ops-readiness-track {
   height: 4px;
   margin-top: 13px;
@@ -813,7 +796,6 @@
   background: var(--ops-green);
 }
 
-.ops-readiness-score.is-watch .ops-readiness-track span { background: var(--ops-gold); }
 .ops-readiness-score.is-off-track .ops-readiness-track span { background: var(--ops-red); }
 
 .ops-readiness-state {
@@ -835,13 +817,7 @@
   background: currentColor;
 }
 
-.ops-readiness-score.is-watch .ops-readiness-state { color: var(--ops-gold); }
 .ops-readiness-score.is-off-track .ops-readiness-state { color: var(--ops-red); }
-
-.ops-operating-score-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
 
 .ops-operating-score {
   min-width: 0;
@@ -852,15 +828,6 @@
   background: #11161d;
 }
 
-.ops-operating-score:nth-child(2n) { border-right: 0; }
-
-.ops-operating-score-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
 .ops-operating-status {
   flex: 0 0 auto;
   padding: 3px 6px;
@@ -868,16 +835,6 @@
   background: rgba(55, 214, 122, 0.09);
   color: var(--ops-green);
   font-size: 0.46rem;
-}
-
-.is-watch .ops-operating-status {
-  background: rgba(246, 195, 67, 0.09);
-  color: var(--ops-gold);
-}
-
-.is-off-track .ops-operating-status {
-  background: rgba(255, 100, 107, 0.09);
-  color: #ff858a;
 }
 
 .ops-operating-score-content > strong {
@@ -894,48 +851,6 @@
   color: #6d7682;
   font-size: 0.52rem;
   font-weight: 650;
-}
-
-.ops-operating-value-label {
-  letter-spacing: 0.055em;
-  text-transform: uppercase;
-}
-
-.ops-operating-value-label + strong { margin-top: 3px; }
-
-.ops-operating-supporting-values {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
-  margin-top: 8px;
-}
-
-.ops-operating-supporting-values > div {
-  min-width: 0;
-  padding-left: 7px;
-  border-left: 1px solid rgba(255, 255, 255, 0.09);
-}
-
-.ops-operating-supporting-values span,
-.ops-operating-supporting-values strong { display: block; }
-
-.ops-operating-supporting-values span {
-  overflow: hidden;
-  color: #6d7682;
-  font-size: 0.46rem;
-  font-weight: 700;
-  text-overflow: ellipsis;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.ops-operating-supporting-values strong {
-  margin-top: 3px;
-  overflow: hidden;
-  color: #cfd5dc;
-  font-size: 0.72rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .ops-action-brief {
@@ -975,15 +890,6 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
-.ops-action-item strong,
-.ops-action-item small { display: block; }
-
-.ops-action-item strong {
-  color: #edf2f7;
-  font-size: 0.7rem;
-  line-height: 1.25;
-}
-
 .ops-action-item small {
   margin-top: 2px;
   color: #6d7682;
@@ -991,15 +897,6 @@
   line-height: 1.35;
 }
 
-.ops-action-dot {
-  width: 7px;
-  height: 7px;
-  margin-top: 4px;
-  border-radius: 999px;
-  background: var(--ops-green);
-}
-
-.ops-action-dot.is-watch { background: var(--ops-gold); }
 .ops-action-dot.is-off-track { background: var(--ops-red); }
 
 @media (min-width: 1451px) {
@@ -1017,14 +914,11 @@
 }
 
 @media (max-width: 700px) {
-  .ops-operating-pulse-head { display: grid; }
+
   .ops-target-summary { max-width: none; text-align: left; }
-  .ops-operating-pulse-body { grid-template-columns: 1fr; }
-  .ops-readiness-score { border-right: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.09); }
-  .ops-operating-score-grid { grid-template-columns: 1fr; }
+
   .ops-operating-score { border-right: 0; }
-  .ops-action-brief { grid-column: auto; }
-  .ops-action-list { grid-template-columns: 1fr; }
+
 }
 
 * {
@@ -1659,14 +1553,6 @@ a {
   font-weight: 850;
 }
 
-.ops-kpi-accent {
-  color: var(--ops-gold);
-}
-
-.ops-kpi-good {
-  color: var(--ops-green);
-}
-
 .ops-kpi-danger {
   color: var(--ops-red);
 }
@@ -2187,21 +2073,10 @@ a {
   color: var(--ops-muted);
 }
 
-.ops-bottom-nav {
-  display: none;
-}
-
 @media (max-width: 1050px) {
-  .ops-app {
-    grid-template-columns: 1fr;
-  }
 
   .ops-sidebar {
     display: none;
-  }
-
-  .ops-main {
-    padding: 18px 14px 92px;
   }
 
   .ops-grid-4,
@@ -2219,41 +2094,6 @@ a {
     align-items: flex-end;
   }
 
-  .ops-bottom-nav {
-    position: fixed;
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
-    z-index: 40;
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 4px;
-    padding: 8px;
-    border-radius: 24px;
-    background: rgba(10, 13, 18, 0.9);
-    border: 1px solid var(--ops-border-strong);
-    backdrop-filter: blur(18px);
-    box-shadow: var(--ops-shadow);
-  }
-
-  .ops-bottom-nav-item {
-    display: grid;
-    justify-items: center;
-    gap: 3px;
-    color: var(--ops-muted);
-    font-size: 1rem;
-    padding: 8px 4px;
-    border-radius: 16px;
-  }
-
-  .ops-bottom-nav-item small {
-    font-size: 0.62rem;
-  }
-
-  .ops-bottom-nav-item:hover {
-    color: var(--ops-text);
-    background: var(--ops-panel-soft);
-  }
 }
 
 /* ==================================================
@@ -2275,11 +2115,6 @@ a {
   letter-spacing: -0.05em;
 }
 
-.ops-dashboard {
-  display: grid;
-  gap: 14px;
-}
-
 .ops-control-strip,
 .ops-page-header {
   display: grid;
@@ -2290,10 +2125,6 @@ a {
   border-radius: 20px;
   padding: 14px 16px;
   align-items: start;
-}
-
-.ops-page-header-copy {
-  min-width: 0;
 }
 
 .ops-page-header-subtitle {
@@ -3943,13 +3774,6 @@ a {
   min-width: 0;
 }
 
-.ops-crew-period-day-card {
-  border: 1px solid var(--ops-border);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.02);
-  overflow: hidden;
-}
-
 .ops-crew-period-day-card.is-selected {
   border-color: rgba(246, 195, 67, 0.28);
 }
@@ -3986,10 +3810,6 @@ a {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.ops-crew-period-day-card-body {
-  padding: 0 12px 12px;
 }
 
 .ops-crew-card-subsection {
@@ -4147,19 +3967,6 @@ a {
   letter-spacing: .12em;
 }
 
-.ops-crew-period-week-list {
-  gap: 18px;
-  padding-left: 18px;
-  border-left: 2px solid rgba(246, 195, 67, .22);
-}
-
-.ops-crew-period-week-card {
-  padding: 16px;
-  border: 2px solid rgba(246, 195, 67, .30);
-  border-left-width: 7px;
-  background: linear-gradient(135deg, rgba(246, 195, 67, .10), rgba(255,255,255,.018));
-}
-
 .ops-crew-period-week-card[open] {
   border-color: rgba(246, 195, 67, .5);
 }
@@ -4167,14 +3974,6 @@ a {
 .ops-crew-period-week-title {
   color: var(--ops-gold);
   font-size: .9rem;
-}
-
-.ops-crew-period-week-days {
-  margin: 16px 0 0 18px;
-  padding: 12px;
-  border-left: 3px solid rgba(148, 163, 184, .28);
-  border-radius: 0 12px 12px 0;
-  background: rgba(3, 7, 12, .28);
 }
 
 /* Jobs map */
@@ -5525,40 +5324,7 @@ a.ops-jobs-map-selection-phone:focus-visible {
 }
 
 /* Final parity layer: no page-specific KPI or header geometry. */
-@media (min-width: 721px) {
-  .ops-dashboard .ops-page-header {
-    height: 104px;
-    min-height: 104px;
-    overflow: hidden;
-  }
-
-  :is(.ops-daily-dashboard, .ops-monthly-dashboard) > .ops-kpi-row > :is(.ops-kpi-card, .ops-mini-kpi) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
-    align-content: center;
-    align-items: center;
-    column-gap: 10px;
-    height: 68px;
-    min-height: 68px;
-    padding: 9px 11px;
-    border-radius: 14px;
-  }
-
-  .ops-daily-dashboard > .ops-kpi-row > .ops-mini-kpi {
-    display: grid;
-    height: 68px;
-    min-height: 68px;
-    padding: 9px 11px;
-  }
-
-  .ops-daily-dashboard > .ops-kpi-row:first-of-type > .ops-kpi-card {
-    display: grid;
-    height: 68px;
-    min-height: 68px;
-    padding: 9px 11px;
-  }
-}
+@media
 
 /* Junkware closeout editor */
 .ops-job-closeout-editor {
@@ -5738,14 +5504,7 @@ a.ops-jobs-map-selection-phone:focus-visible {
 }
 
 /* Keep the shared section row visible after the legacy fixed-height parity rules. */
-@media (min-width: 721px) {
-  .ops-dashboard .ops-page-header.has-subnav {
-    grid-template-rows: auto auto auto;
-    height: auto;
-    min-height: 148px;
-    overflow: visible;
-  }
-}
+@media
 
 /* Finance resale inventory */
 .ops-resale-section {
@@ -6051,10 +5810,6 @@ a.ops-jobs-map-selection-phone:focus-visible {
   scrollbar-width: none;
 }
 
-.ops-page-subnav::-webkit-scrollbar {
-  display: none;
-}
-
 .ops-page-subnav a {
   display: inline-flex;
   flex: 0 0 auto;
@@ -6113,12 +5868,6 @@ a.ops-jobs-map-selection-phone:focus-visible {
 }
 
 @media (min-width: 721px) {
-  .ops-dashboard .ops-page-header.has-subnav {
-    grid-template-rows: auto auto auto;
-    height: auto;
-    min-height: 148px;
-    overflow: visible;
-  }
 
   .ops-page-header.has-subnav .ops-page-subnav {
     grid-row: 3;
@@ -6401,43 +6150,9 @@ a.ops-jobs-map-selection-phone:focus-visible {
   }
 }
 
-.ops-crew-period-week-days {
-  overflow-x: visible;
-}
+@media
 
-.ops-crew-period-week-days .ops-crew-period-day-list {
-  width: 100%;
-  min-width: 0;
-}
-
-.ops-crew-period-day-summary-grid {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 10px 16px;
-}
-
-.ops-crew-period-day-summary-value,
-.ops-crew-period-day-summary-subvalue {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-}
-
-.ops-crew-period-day-more {
-  display: none;
-}
-
-@media (max-width: 1100px) {
-  .ops-crew-period-day-summary-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 700px) {
-  .ops-crew-period-week-days { margin-left: 0; padding: 8px; }
-  .ops-crew-period-day-summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
+@media
 
 .ops-crew-period-day-card {
   border-color: rgba(148, 163, 184, .22);
@@ -10821,9 +10536,6 @@ a.ops-appointment-card-address:hover {
 }
 
 @media (max-width: 1050px) {
-  .ops-app {
-    grid-template-columns: 1fr;
-  }
 
   .ops-sidebar {
     display: flex;
@@ -10903,9 +10615,6 @@ a.ops-appointment-card-address:hover {
     background: var(--ops-panel-soft);
   }
 
-  .ops-topbar {
-    display: none;
-  }
 }
 
 @media (max-width: 560px) {

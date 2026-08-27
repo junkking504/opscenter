@@ -163,10 +163,6 @@ textarea {
   box-shadow: none;
 }
 
-.ops-sidebar-footer::before {
-  display: none;
-}
-
 .ops-status-pill {
   color: #b9bec6;
   font-size: 0.62rem;
@@ -275,10 +271,6 @@ textarea {
   width: 3px;
   border-radius: 0 4px 4px 0;
   background: var(--oc-brand);
-}
-
-.ops-page-header::after {
-  display: none;
 }
 
 .ops-page-header-copy {
@@ -1276,9 +1268,6 @@ textarea {
     color: var(--oc-text);
   }
 
-  .ops-bottom-nav-item.active span {
-    color: #ff858a;
-  }
 }
 
 @media (max-width: 720px) {

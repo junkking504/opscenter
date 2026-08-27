@@ -1306,6 +1306,7 @@ body {
 .ops-map-cluster.is-locations { background: #285b9d; }
 .ops-map-cluster:is(.is-appointments, .is-locations).is-new-orleans { background: #60a5fa; }
 .ops-map-cluster:is(.is-appointments, .is-locations).is-jefferson { background: #2dd4bf; }
+.ops-map-cluster:is(.is-appointments, .is-locations).is-westbank { background: #f59e0b; }
 .ops-map-cluster:is(.is-appointments, .is-locations).is-northshore { background: #d946ef; }
 .ops-map-cluster:is(.is-appointments, .is-locations).is-baton-rouge { background: #f87171; }
 .ops-map-cluster:is(.is-appointments, .is-locations).is-lafayette { background: #a78bfa; }

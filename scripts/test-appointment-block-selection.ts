@@ -48,8 +48,8 @@ assert.match(
 );
 assert.match(
   territorySource,
-  /WESTWEGO[\s\S]*?if \(WESTWEGO\.test\(location\)\) return "Westbank"/,
-  "Westwego appointments must be classified as Westbank.",
+  /WESTBANK_LOCATION[\s\S]*?if \(WESTBANK_LOCATION\.test\(location\)\) return "Westbank"/,
+  "South Bank appointments must be classified as Westbank.",
 );
 assert.match(
   jobsMapSource,
@@ -60,6 +60,11 @@ assert.match(
   globalCss,
   /\.is-westbank\.is-assigned-unfinished \{ background: #f59e0b; \}/,
   "Assigned Westbank appointments must display with the amber-orange indicator.",
+);
+assert.match(
+  readFileSync(new URL("../app/ops-usability.css", import.meta.url), "utf8"),
+  /\.ops-map-cluster:is\(\.is-appointments, \.is-locations\)\.is-westbank \{ background: #f59e0b; \}/,
+  "Westbank appointment clusters must display orange.",
 );
 assert.match(
   jobsMapSource,

@@ -253,7 +253,7 @@ function clusterTerritoryTone(jobs: JobsMapPoint[]): string {
     const tone = territoryTone(job).split(" ")[0];
     counts.set(tone, (counts.get(tone) || 0) + 1);
   }
-  const territoryPriority = ["is-new-orleans", "is-jefferson", "is-northshore", "is-baton-rouge", "is-lafayette", "is-unknown-territory"];
+  const territoryPriority = ["is-new-orleans", "is-jefferson", "is-westbank", "is-northshore", "is-baton-rouge", "is-lafayette", "is-unknown-territory"];
   return [...counts.entries()].sort(([firstTone, firstCount], [secondTone, secondCount]) =>
     secondCount - firstCount || territoryPriority.indexOf(firstTone) - territoryPriority.indexOf(secondTone),
   )[0]?.[0]

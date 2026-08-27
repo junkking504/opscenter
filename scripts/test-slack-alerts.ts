@@ -61,6 +61,31 @@ assert.equal(
   }),
   "Westbank",
 );
+for (const address of [
+  "Waggaman, LA 70094",
+  "Westwego, LA 70094",
+  "Marrero, LA 70072",
+  "Gretna, LA 70053",
+  "Belle Chasse, LA 70037",
+  "Harvey, LA 70058",
+  "Algiers, New Orleans, LA 70114",
+]) {
+  assert.equal(
+    appointmentTerritoryForLocation("Jefferson Parish", address),
+    "Westbank",
+    `${address} must be classified as Westbank`,
+  );
+}
+assert.equal(
+  appointmentTerritoryForLocation("New Orleans", "Chalmette, LA 70043"),
+  "New Orleans",
+  "Chalmette must retain its source territory so its yellow locator rule remains intact.",
+);
+assert.equal(
+  appointmentTerritoryForLocation("New Orleans", "New Orleans East, LA 70128"),
+  "New Orleans",
+  "New Orleans East must retain its source territory so its yellow locator rule remains intact.",
+);
 
 assert.equal(appointmentChannelId("New Orleans"), "C_TEST_NO");
 assert.equal(appointmentChannelId("Jefferson Parish"), "C_TEST_NO");

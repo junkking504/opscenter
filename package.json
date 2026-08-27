@@ -48,6 +48,7 @@
     "verify:accessibility": "node scripts/test-accessibility.mjs",
     "verify:linxup-camera": "node --import tsx scripts/test-linxup-camera.ts",
     "verify:job-route-history": "node --import tsx scripts/test-job-route-history.ts",
+    "verify:dispatch-map-marker-separation": "node --import tsx scripts/test-dispatch-map-marker-separation.ts",
     "verify:job-cancellations": "node --import tsx scripts/test-job-cancellations.ts",
     "verify:planning-geocodes": "node --import tsx scripts/test-planning-geocodes.ts",
     "verify:dispatch-map-quality": "node --import tsx scripts/test-dispatch-map-quality.ts",

@@ -7,16 +7,12 @@ import type { PayrollCorrection } from "@/lib/payroll-corrections";
 import LivePayrollValue, { type LivePayrollRecord } from "@/components/LivePayrollValue";
 import styles from "./PayrollDiscrepancyEditor.module.css";
 
-type SourcePayrollValues = {
+export type SourcePayrollValues = {
   clockIn: string;
   clockOut: string;
   hourlyRate: number | null;
   rateStatus?: string;
 };
-
-function clockToInput(value: string): string {
-  return String(value || "").trim();
-}
 
 function inputToClock(value: string): string {
   const raw = String(value || "").trim().toUpperCase().replace(/\s+/g, " ");
@@ -36,6 +32,23 @@ function inputToClock(value: string): string {
   const suffix = hour24 >= 12 ? "PM" : "AM";
   const hour12 = hour24 % 12 || 12;
   return `${String(hour12).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${suffix}`;
+}
+
+function clockToTimeInput(value: string): string {
+  const normalized = inputToClock(value);
+  const match = normalized.match(/^(\d{2}):(\d{2}) (AM|PM)$/);
+  if (!match) return "";
+
+  let hour = Number(match[1]);
+  if (match[3] === "PM" && hour !== 12) hour += 12;
+  if (match[3] === "AM" && hour === 12) hour = 0;
+  return `${String(hour).padStart(2, "0")}:${match[2]}`;
+}
+
+function defaultCorrectionReason(clockIn: string): string {
+  return clockIn
+    ? "Clock time confirmed with employee."
+    : "Missing clock-in confirmed with employee.";
 }
 
 function money(value: number | null): string {
@@ -69,18 +82,18 @@ export default function PayrollDiscrepancyEditor({
 }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [clockIn, setClockIn] = useState(() => clockToInput(correction?.clockIn || source.clockIn));
-  const [clockOut, setClockOut] = useState(() => clockToInput(correction?.clockOut || source.clockOut));
+  const [clockIn, setClockIn] = useState(() => clockToTimeInput(correction?.clockIn || source.clockIn));
+  const [clockOut, setClockOut] = useState(() => clockToTimeInput(correction?.clockOut || source.clockOut));
   const [hourlyRate, setHourlyRate] = useState(() => String(correction?.hourlyRate ?? source.hourlyRate ?? ""));
-  const [note, setNote] = useState(() => correction?.note || "");
+  const [note, setNote] = useState(() => correction?.note || defaultCorrectionReason(source.clockIn));
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    setClockIn(clockToInput(correction?.clockIn || source.clockIn));
-    setClockOut(clockToInput(correction?.clockOut || source.clockOut));
+    setClockIn(clockToTimeInput(correction?.clockIn || source.clockIn));
+    setClockOut(clockToTimeInput(correction?.clockOut || source.clockOut));
     setHourlyRate(String(correction?.hourlyRate ?? source.hourlyRate ?? ""));
-    setNote(correction?.note || "");
+    setNote(correction?.note || defaultCorrectionReason(source.clockIn));
     setMessage("");
   }, [
     correction?.clockIn,
@@ -111,8 +124,14 @@ export default function PayrollDiscrepancyEditor({
     const rate = Number(hourlyRate);
     const normalizedClockIn = inputToClock(clockIn);
     const normalizedClockOut = inputToClock(clockOut);
-    if (!normalizedClockIn || (clockOut && !normalizedClockOut) || !Number.isFinite(rate) || rate <= 0 || !note.trim()) {
-      setMessage("Use a valid time such as 7:30 AM, plus an hourly rate and correction reason.");
+    const errors = [
+      !normalizedClockIn ? "Choose a clock-in time." : "",
+      clockOut && !normalizedClockOut ? "Choose a valid clock-out time or clear it." : "",
+      !Number.isFinite(rate) || rate <= 0 ? "Enter a positive hourly rate." : "",
+      !note.trim() ? "Enter a correction reason." : "",
+    ].filter(Boolean);
+    if (errors.length) {
+      setMessage(errors.join(" "));
       return;
     }
 
@@ -219,21 +238,22 @@ export default function PayrollDiscrepancyEditor({
             <label>
               <span>Clock in</span>
               <input
-                type="text"
-                inputMode="text"
+                type="time"
+                step="60"
                 value={clockIn}
                 onChange={(event) => setClockIn(event.target.value)}
-                placeholder="7:30 AM"
+                aria-describedby="time-entry-help"
+                required
               />
             </label>
             <label>
               <span>Clock out</span>
               <input
-                type="text"
-                inputMode="text"
+                type="time"
+                step="60"
                 value={clockOut}
                 onChange={(event) => setClockOut(event.target.value)}
-                placeholder="Optional"
+                aria-describedby="time-entry-help"
               />
               <small>Leave blank if still on shift.</small>
             </label>
@@ -249,15 +269,19 @@ export default function PayrollDiscrepancyEditor({
               />
             </label>
             <label className={styles.reason}>
-              <span>Correction reason</span>
+              <span>Correction reason (required)</span>
               <input
                 type="text"
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
-                placeholder="Missing punch confirmed with employee..."
+                required
               />
+              <small>A starter reason is included. Replace it with the details if needed.</small>
             </label>
           </div>
+          <p id="time-entry-help" className={styles.timeEntryHelp}>
+            Select the time from the picker—no AM/PM typing or special format is needed.
+          </p>
           {correction ? (
             <p className={styles.correctionAudit}>
               Last edited {new Date(correction.updatedAt).toLocaleString()} by {correction.updatedBy || "OpsCenter user"}.

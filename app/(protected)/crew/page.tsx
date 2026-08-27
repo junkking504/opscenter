@@ -682,9 +682,20 @@ function buildPeriodEmployeeViews(
       );
       const dayRecord = dayRow || {};
       const salary = worked ? isSalaryEmployee(dayRecord, employeeName(dayRecord)) : false;
-      const clockIn = dailyClockInDisplay(worked ? dayRow : null);
-      const clockOut = dailyClockOutDisplay(worked ? dayRow : null);
-      const hours = worked ? firstNumber(dayRecord, ["hours_worked", "hours", "labor_hours", "worked_hours"]) : null;
+      const sourceClockIn = worked
+        ? String(dayRecord.clock_in || dayRecord.time_in || dayRecord.clock_in_display || dayRecord.timeIn || "").trim()
+        : "";
+      const sourceClockOut = worked
+        ? String(dayRecord.clock_out || dayRecord.time_out || dayRecord.clock_out_display || dayRecord.timeOut || "").trim()
+        : "";
+      const sourceHourlyRate = worked ? dailyNumber(dayRecord, ["hourly_rate"]) : null;
+      const correction = worked ? payrollCorrectionsForDate(date)[normalizePayrollEmployeeKey(row.name)] || null : null;
+      const clockIn = correction?.clockIn || dailyClockInDisplay(worked ? dayRow : null);
+      const clockOut = correction
+        ? correction.clockOut || "On Shift"
+        : dailyClockOutDisplay(worked ? dayRow : null);
+      const correctedHours = correction ? liveClockHours(date, correction.clockIn, correction.clockOut) : null;
+      const hours = correctedHours ?? (worked ? firstNumber(dayRecord, ["hours_worked", "hours", "labor_hours", "worked_hours"]) : null);
       const role = worked ? dailyRoleDisplay(dayRecord, "Unassigned") : "Not Worked";
       const truck = worked ? textOrUnavailable(employeeTruck(dayRecord)) : "Not Worked";
       const jobs = worked ? dailyNumber(dayRecord, ["jobs_completed", "completed_jobs", "credited_jobs", "jobs", "job_count"]) : null;
@@ -701,8 +712,10 @@ function buildPeriodEmployeeViews(
       const bonus = worked ? totalBonuses(dayRecord) : null;
       const averageJobSize = worked && jobs && jobs > 0 && jobRevenueWorked != null ? jobRevenueWorked / jobs : null;
       const rph = worked && hours && hours > 0 && revenue != null ? revenue / hours : null;
-      const hourlyRate = worked ? dailyNumber(dayRecord, ["hourly_rate"]) : null;
-      const regularPay = worked ? dailyNumber(dayRecord, ["hourly_pay", "base_pay", "regular_pay", "wage_pay"]) : null;
+      const hourlyRate = correction?.hourlyRate || sourceHourlyRate;
+      const regularPay = correction && hours != null && hourlyRate != null
+        ? hours * hourlyRate
+        : worked ? dailyNumber(dayRecord, ["hourly_pay", "base_pay", "regular_pay", "wage_pay"]) : null;
       const supplementalPay = worked ? dailyNumber(dayRecord, ["supplemental_daily_pay", "supplemental_pay"]) : null;
       const totalPay = worked ? dailyNumber(dayRecord, ["total_pay", "total_daily_pay", "employee_total_earnings"]) : null;
       const firstVisitCloseRate = worked ? firstVisitCloseRateDisplay(dayRecord) : "Not Worked";
@@ -715,6 +728,24 @@ function buildPeriodEmployeeViews(
       const driverScoreStatusValue = worked ? driverScoreStatus(dayRecord) : "";
       const speedingEvents = worked ? dailyNumber(dayRecord, ["driver_speeding_events", "speeding_events", "speeding"]) : null;
       const harshBrakingEvents = worked ? dailyNumber(dayRecord, ["driver_hard_braking_events", "driver_harsh_braking_events", "harsh_braking_events"]) : null;
+      const timeCard = worked ? {
+        record: {
+          clockIn: correction?.clockIn || sourceClockIn,
+          clockOut: correction?.clockOut || sourceClockOut,
+          hourlyRate,
+          totalBonus: bonus || 0,
+          tips: tips || 0,
+          supplementalPay: supplementalPay || 0,
+          isSalary: salary,
+          weeklyHoursBeforeShift: 0,
+        },
+        source: {
+          clockIn: sourceClockIn,
+          clockOut: sourceClockOut,
+          hourlyRate: sourceHourlyRate,
+        },
+        correction,
+      } : null;
 
       return {
         date,
@@ -725,7 +756,7 @@ function buildPeriodEmployeeViews(
         hoursWorked: hours,
         clockInDisplay: clockIn,
         clockOutDisplay: clockOut,
-        hoursDisplay: dailyHoursDisplay(worked ? dayRecord : null),
+        hoursDisplay: correction && hours != null ? `${hours.toFixed(2)} hrs` : dailyHoursDisplay(worked ? dayRecord : null),
         roleDisplay: role,
         truckDisplay: truck,
         jobs,
@@ -752,6 +783,7 @@ function buildPeriodEmployeeViews(
         driverScoreStatus: driverScoreStatusValue,
         speedingEvents,
         harshBrakingEvents,
+        timeCard,
         isOpenShift: Boolean(
           worked && !salary && clockIn !== "Not Worked" && clockOut === "On Shift",
         ),

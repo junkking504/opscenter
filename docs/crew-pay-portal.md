@@ -42,10 +42,17 @@ The anchor must be the Monday that starts Week 1 of a pay period. Overtime is ca
 
 In **Krewe**, select the work date and open the employee's attendance details.
 **Edit time** can record a missed or incorrect clock-in or clock-out for the
-OpsCenter attendance and pay calculations. A correction requires the corrected
+OpsCenter attendance and pay calculations. It is available beside every
+manager-facing employee/day hour entry: the daily Krewe view, pay-period and
+monthly attendance details, and the employee detail view. Time fields use the
+device's time picker, a usable correction reason is prefilled, and any missing
+required value is called out directly. A correction requires the corrected
 clock-in, the employee's hourly rate, and a reason; it records the signed-in
 OpsCenter user and time of each save or removal. The original JunkWare values
 remain visible in the editor and are never overwritten by this feature.
+
+The employee-facing **My Pay** portal remains read-only. Managers make payroll
+corrections in Krewe, where the source value and correction audit are visible.
 
 Corrections are durable operational state at
 `OPSBOT_DATA_DIR/payroll_corrections/payroll_corrections.json`. The Mac/VPS

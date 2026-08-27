@@ -5,6 +5,7 @@ import { money, number } from "@/lib/metrics";
 import { resolveReportDate } from "@/lib/report-dates";
 import { buildFleetDailyRecord } from "@/lib/fleet-history";
 import { DRIVING_SCORE_ALERT_RULES, DRIVING_SCORE_COMPENSATION_COPY, drivingScoreCompensationLabel } from "@/lib/driving-score-policy";
+import PayrollDiscrepancyEditor from "@/components/PayrollDiscrepancyEditor";
 
 type PageProps = {
   params: Promise<{
@@ -202,7 +203,29 @@ export default async function CrewMemberPage({ params, searchParams }: PageProps
                     <td className="ops-money">{money(day.revenue)}</td>
                     <td className="ops-money">{number(day.jobsCompleted)}</td>
                     <td className="ops-money">{money(day.averageJobSize)}</td>
-                    <td className="ops-money">{number(day.hours)}</td>
+                    <td className="ops-money">
+                      <PayrollDiscrepancyEditor
+                        date={day.date}
+                        employeeName={employee}
+                        record={{
+                          clockIn: day.clockIn,
+                          clockOut: day.clockOut,
+                          hourlyRate: day.hourlyRate,
+                          totalBonus: day.bonuses,
+                          tips: day.tips,
+                          isSalary: false,
+                          weeklyHoursBeforeShift: 0,
+                        }}
+                        source={{
+                          clockIn: day.sourceClockIn,
+                          clockOut: day.sourceClockOut,
+                          hourlyRate: day.sourceHourlyRate,
+                        }}
+                        correction={day.correction}
+                        display="time"
+                      />
+                      <span>{number(day.hours)}</span>
+                    </td>
                     <td className="ops-money">{money(day.rph)}</td>
                     <td className="ops-money">
                       {number(day.firstVisitClosed)} / {number(day.firstVisitOpportunities)}

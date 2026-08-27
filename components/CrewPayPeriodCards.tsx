@@ -1,8 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { calculateWeeklyOvertime } from "@/lib/overtime";
 import { money } from "@/lib/money";
+import type { SourcePayrollValues } from "@/components/PayrollDiscrepancyEditor";
+import type { LivePayrollRecord } from "@/components/LivePayrollValue";
+import type { PayrollCorrection } from "@/lib/payroll-corrections";
+
+const PayrollDiscrepancyEditor = dynamic(() => import("@/components/PayrollDiscrepancyEditor"), {
+  ssr: false,
+});
 
 export type CrewPayPeriodSummaryRow = {
   name: string;
@@ -61,6 +69,11 @@ export type CrewPayPeriodDayRow = {
   speedingEvents: number | null;
   harshBrakingEvents: number | null;
   isOpenShift: boolean;
+  timeCard?: {
+    record: LivePayrollRecord;
+    source: SourcePayrollValues;
+    correction: PayrollCorrection | null;
+  } | null;
 };
 
 export type CrewPayPeriodEmployeeView = {
@@ -660,6 +673,16 @@ export default function CrewPayPeriodCards({
                                           <DetailRow label="Role" value={day.roleDisplay} />
                                           <DetailRow label="Truck" value={day.truckDisplay} />
                                         </div>
+                                        {day.timeCard ? (
+                                          <PayrollDiscrepancyEditor
+                                            date={day.date}
+                                            employeeName={employee.name}
+                                            record={day.timeCard.record}
+                                            source={day.timeCard.source}
+                                            correction={day.timeCard.correction}
+                                            display="time"
+                                          />
+                                        ) : null}
                                       </div>
 
                                       <div className="ops-crew-detail-section">

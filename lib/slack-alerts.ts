@@ -12,7 +12,12 @@ import { buildOperationalExceptions, type OperationalException } from "@/lib/ope
 import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
 import { money as moneyText } from "@/lib/money";
 import { chicagoDateKey } from "@/lib/report-dates";
-import { readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
+import {
+  isEstimateCloseoutRow,
+  readClosedEstimateJunkwareRows,
+  readCompletedJunkwareRows,
+  truckCloseoutDetails,
+} from "@/lib/slack-closeout-details";
 import { formatSlackMessage, slackEscape, type SlackMessageField } from "@/lib/slack-message-format";
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 
@@ -21,6 +26,7 @@ export type SlackAlertKind =
   | "add_on"
   | "cancellation"
   | "job_closed"
+  | "estimate_closed"
   | "job_closed_payment"
   | "unassigned_crew"
   | "late_job"
@@ -210,7 +216,8 @@ function deliveredFastScheduleCloseouts(date: string): string[] {
         "utf8",
       ));
       return (Array.isArray(payload?.delivered) ? payload.delivered.map(String) : [])
-        .filter((fingerprint: string) => fingerprint.startsWith(`job_closed:${date}:`));
+        .filter((fingerprint: string) => /^(?:job_closed|estimate_closed):/.test(fingerprint))
+        .filter((fingerprint: string) => fingerprint.includes(`:${date}:`));
     } catch {
       // Try the next known runtime data location.
     }
@@ -663,7 +670,17 @@ function closeoutCrewMember(row: AnyRecord, role: "driver" | "navigator"): strin
  * customer/crew facts with the financial detail so every publisher (the
  * collector, direct verified writes, and digest repair) renders identically.
  */
-export function formatTruckCloseoutSlackNotification(date: string, row: AnyRecord): string | null {
+type TruckCloseoutAlertKind = "job_closed" | "estimate_closed";
+
+function closeoutAlertTitle(kind: TruckCloseoutAlertKind): string {
+  return kind === "estimate_closed" ? "Estimate Closed" : "Job Closed";
+}
+
+export function formatTruckCloseoutSlackNotification(
+  date: string,
+  row: AnyRecord,
+  kind: TruckCloseoutAlertKind = isEstimateCloseoutRow(row) ? "estimate_closed" : "job_closed",
+): string | null {
   const jobNumber = firstText(row, ["job_id", "jk_number", "job_number"]);
   if (!jobNumber) return null;
 
@@ -676,7 +693,7 @@ export function formatTruckCloseoutSlackNotification(date: string, row: AnyRecor
   const navigator = closeoutCrewMember(row, "navigator");
 
   return [
-    ":moneybag: *Job Closed*",
+    `:moneybag: *${closeoutAlertTitle(kind)}*`,
     `*<${closeoutOpsHref(date, jobNumber)}|${slackEscape(jobNumber)}>*`,
     customer ? `*${slackEscape(customer)}*` : "",
     `*Driver:*${driver ? ` ${slackEscape(driver)}` : ""}`,
@@ -685,7 +702,11 @@ export function formatTruckCloseoutSlackNotification(date: string, row: AnyRecor
   ].filter(Boolean).join("\n");
 }
 
-export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
+function buildTruckCloseoutSlackNotificationsForKind(
+  date: string,
+  rows: AnyRecord[],
+  kind: TruckCloseoutAlertKind,
+): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   const seen = new Set<string>();
 
@@ -695,19 +716,20 @@ export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyReco
     const truck = closeoutTruck(row);
     const truckNumber = normalizeSlackTruckNumber(truck);
     if (!identity || !jobNumber || !truckNumber) continue;
+    if (isEstimateCloseoutRow(row) !== (kind === "estimate_closed")) continue;
 
     const status = firstText(row, ["final_status", "job_status", "status"]).toLowerCase();
     if (!status.includes("complete")) continue;
 
-    const fingerprint = `job_closed:${date}:${identity}`;
+    const fingerprint = `${kind}:${date}:${identity}`;
     if (seen.has(fingerprint)) continue;
     seen.add(fingerprint);
 
-    const plainText = formatTruckCloseoutSlackNotification(date, row);
+    const plainText = formatTruckCloseoutSlackNotification(date, row, kind);
     if (!plainText) continue;
     notifications.push({
       fingerprint,
-      kind: "job_closed",
+      kind,
       lifecycle: "notification",
       severity: "warning",
       channelId: truckSlackChannelId(truck, ""),
@@ -720,6 +742,21 @@ export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyReco
   }
 
   return notifications.sort((left, right) => left.fingerprint.localeCompare(right.fingerprint));
+}
+
+export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
+  return buildTruckCloseoutSlackNotificationsForKind(date, rows, "job_closed");
+}
+
+export function buildTruckEstimateCloseoutSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
+  return buildTruckCloseoutSlackNotificationsForKind(date, rows, "estimate_closed");
+}
+
+function buildAllTruckCloseoutSlackNotifications(date: string): SlackOpsAlert[] {
+  return [
+    ...buildTruckCloseoutSlackNotifications(date, readCompletedJunkwareRows(date)),
+    ...buildTruckEstimateCloseoutSlackNotifications(date, readClosedEstimateJunkwareRows(date)),
+  ].sort((left, right) => left.fingerprint.localeCompare(right.fingerprint));
 }
 
 export function buildPaymentCloseoutSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
@@ -1083,15 +1120,10 @@ export async function publishVerifiedTruckCloseout(
   const date = /^\d{4}-\d{2}-\d{2}$/.test(String(input.date || ""))
     ? String(input.date)
     : chicagoDateKey();
-  const fingerprint = `job_closed:${date}:appt-${appointmentId.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
-  const state = readState();
-  const delivered = new Set(state.deliveredTruckCloseoutsByDate[date] || []);
-  if (delivered.has(fingerprint)) return { attempted: false, posted: false, duplicate: true };
-
-  const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
-  if (!token) return { attempted: false, posted: false, duplicate: false, reason: "Slack bot token is unavailable." };
-
-  const sourceRow = readCompletedJunkwareRows(date).find((candidate) => (
+  const sourceRow = [
+    ...readCompletedJunkwareRows(date),
+    ...readClosedEstimateJunkwareRows(date),
+  ].find((candidate) => (
     firstText(candidate, ["appt_id", "appointment_id", "appointmentId"]) === appointmentId
     || firstText(candidate, ["job_id", "jk_number", "job_number"]).toLowerCase() === jobNumber.toLowerCase()
   ));
@@ -1103,6 +1135,15 @@ export async function publishVerifiedTruckCloseout(
       reason: "Closeout details are awaiting the verified JunkWare record.",
     };
   }
+  const kind: TruckCloseoutAlertKind = isEstimateCloseoutRow(sourceRow) ? "estimate_closed" : "job_closed";
+  const fingerprint = `${kind}:${date}:appt-${appointmentId.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
+  const state = readState();
+  const delivered = new Set(state.deliveredTruckCloseoutsByDate[date] || []);
+  if (delivered.has(fingerprint)) return { attempted: false, posted: false, duplicate: true };
+
+  const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
+  if (!token) return { attempted: false, posted: false, duplicate: false, reason: "Slack bot token is unavailable." };
+
   if (!closeoutCustomer(sourceRow) || (!closeoutCrewMember(sourceRow, "driver") && !closeoutCrewMember(sourceRow, "navigator"))) {
     return {
       attempted: false,
@@ -1120,7 +1161,9 @@ export async function publishVerifiedTruckCloseout(
     job_status: "Complete",
     closeout: input.closeout,
   };
-  const [alert] = buildTruckCloseoutSlackNotifications(date, [row]);
+  const [alert] = kind === "estimate_closed"
+    ? buildTruckEstimateCloseoutSlackNotifications(date, [row])
+    : buildTruckCloseoutSlackNotifications(date, [row]);
   if (!alert) return { attempted: false, posted: false, duplicate: false, reason: "Verified closeout could not be formatted." };
 
   const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
@@ -1193,14 +1236,18 @@ async function runTruckCloseoutSlackAlerts(options: {
   date: string;
   dryRun: boolean;
   enabled: boolean;
+  kinds?: ReadonlySet<TruckCloseoutAlertKind>;
 }): Promise<SlackAlertRunResult> {
-  const { date, dryRun, enabled } = options;
+  const { date, dryRun, enabled, kinds } = options;
   const state = readState();
-  const allNotifications = buildTruckCloseoutSlackNotifications(date, readCompletedJunkwareRows(date));
+  const allNotifications = buildAllTruckCloseoutSlackNotifications(date);
+  const selectedNotifications = kinds?.size
+    ? allNotifications.filter((alert) => kinds.has(alert.kind as TruckCloseoutAlertKind))
+    : allNotifications;
   const initialized = Boolean(state.truckCloseoutNotificationsInitializedAt);
   const delivered = new Set(state.deliveredTruckCloseoutsByDate[date] || []);
   const pending = initialized
-    ? allNotifications.filter((alert) => !delivered.has(alert.fingerprint))
+    ? selectedNotifications.filter((alert) => !delivered.has(alert.fingerprint))
     : [];
   const result = slackAlertRunResult(
     date,
@@ -1253,12 +1300,18 @@ export async function runSlackOpsAlerts(options?: {
   const enabled = boolEnv("SLACK_OPSCENTER_ALERTS_ENABLED");
   const onlyKinds = new Set(options?.onlyKinds || []);
   if (onlyKinds.size) {
-    if (onlyKinds.size !== 1 || (!onlyKinds.has("truck_arrival") && !onlyKinds.has("job_closed"))) {
-      throw new Error("Only truck_arrival or job_closed can be published independently.");
+    if (onlyKinds.size === 1 && onlyKinds.has("truck_arrival")) {
+      return runTruckArrivalSlackAlerts({ date, dryRun, enabled });
     }
-    return onlyKinds.has("truck_arrival")
-      ? runTruckArrivalSlackAlerts({ date, dryRun, enabled })
-      : runTruckCloseoutSlackAlerts({ date, dryRun, enabled });
+    const closeoutKinds = new Set(
+      Array.from(onlyKinds).filter((kind): kind is TruckCloseoutAlertKind => (
+        kind === "job_closed" || kind === "estimate_closed"
+      )),
+    );
+    if (closeoutKinds.size !== onlyKinds.size) {
+      throw new Error("Only truck_arrival, job_closed, or estimate_closed can be published independently.");
+    }
+    return runTruckCloseoutSlackAlerts({ date, dryRun, enabled, kinds: closeoutKinds });
   }
   const state = readState();
   const incidents = collectIncidentAlerts(date);
@@ -1277,7 +1330,7 @@ export async function runSlackOpsAlerts(options?: {
     ? allTruckArrivalNotifications.filter((alert) => !deliveredTruckArrivals.has(alert.fingerprint))
     : [];
   const completedRows = readCompletedJunkwareRows(date);
-  const allTruckCloseoutNotifications = buildTruckCloseoutSlackNotifications(date, completedRows);
+  const allTruckCloseoutNotifications = buildAllTruckCloseoutSlackNotifications(date);
   const truckCloseoutNotificationsInitialized = Boolean(state.truckCloseoutNotificationsInitializedAt);
   const deliveredTruckCloseouts = new Set([
     ...(state.deliveredTruckCloseoutsByDate[date] || []),

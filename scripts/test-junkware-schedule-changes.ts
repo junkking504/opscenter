@@ -11,6 +11,7 @@ const previous = {
     { appt_id: "1", job_id: "JK4051001", job_status: "Scheduled", appointment_time: "9:00 AM", truck: "Truck 6", market: "Baton Rouge" },
     { appt_id: "2", job_id: "JK4051002", job_status: "Scheduled", appointment_time: "10:00 AM", truck: "Truck 1", market: "New Orleans" },
     { appt_id: "5", job_id: "JK4051005", job_status: "Scheduled", appointment_time: "3:00 PM", appointment_date: "2026-08-17", truck: "Truck 1", market: "New Orleans" },
+    { appt_id: "6", job_id: "JK4051006", appointment_type: "Estimate", job_status: "Scheduled", appointment_time: "4:00 PM", truck: "Truck 6", market: "Baton Rouge" },
   ],
   cancelled: [],
 };
@@ -41,6 +42,26 @@ const current = {
     { appt_id: "2", job_id: "JK4051002", job_status: "Scheduled", appointment_time: "11:00 AM", truck: "Truck 1", market: "New Orleans" },
     { appt_id: "3", job_id: "JK4051003", job_status: "Scheduled", appointment_time: "1:00 PM", truck: "Truck 4", market: "Northshore" },
     { appt_id: "5", job_id: "JK4051005", job_status: "Scheduled", appointment_time: "3:00 PM", appointment_date: "2026-08-17", truck: "Truck 9", market: "Baton Rouge" },
+    {
+      appt_id: "6",
+      job_id: "JK4051006",
+      appointment_type: "Estimate",
+      job_status: "Completed",
+      appointment_time: "4:00 PM",
+      truck: "Truck 6",
+      market: "Baton Rouge",
+      customer_name: "Estimate Customer",
+      driver_normalized_name: "Estimate Driver",
+      navigator_normalized_name: "Estimate Navigator",
+      revenue: "$180.00",
+      closeout: {
+        loadSize: "1 (1/4)",
+        loadPrice: "$180.00",
+        tip: "",
+        total: "$180.00",
+        payments: [],
+      },
+    },
   ],
   cancelled: [
     { appt_id: "4", job_id: "JK4051004", job_status: "Cancelled", appointment_time: "2:00 PM", market: "Baton Rouge" },
@@ -48,7 +69,7 @@ const current = {
 };
 
 const events = detectScheduleChanges(previous, current);
-assert.deepEqual(events.map((event) => event.kind).sort(), ["cancelled", "job_closed", "new_appointment", "rescheduled"]);
+assert.deepEqual(events.map((event) => event.kind).sort(), ["cancelled", "estimate_closed", "job_closed", "new_appointment", "rescheduled"]);
 assert.equal(events.find((event) => event.kind === "job_closed")?.alert.channelId, "C_TEST_TRUCK_6");
 assert.equal(formatSlackAlert(events.find((event) => event.kind === "job_closed")!.alert), [
   ":moneybag: *Job Closed*",
@@ -60,6 +81,17 @@ assert.equal(formatSlackAlert(events.find((event) => event.kind === "job_closed"
   "*Tips:*",
   "*Total:* $500.00",
   "*Card Ending:* 1234",
+].join("\n"));
+assert.equal(events.find((event) => event.kind === "estimate_closed")?.alert.channelId, "C_TEST_TRUCK_6");
+assert.equal(formatSlackAlert(events.find((event) => event.kind === "estimate_closed")!.alert), [
+  ":moneybag: *Estimate Closed*",
+  "*<https://ops.junk-king.app/jobs?date=2026-08-17#job-jk4051006|JK4051006>*",
+  "*Estimate Customer*",
+  "*Driver:* Estimate Driver",
+  "*Navigator:* Estimate Navigator",
+  "*Load:* $180.00 (1/4)",
+  "*Tips:*",
+  "*Total:* $180.00",
 ].join("\n"));
 assert.equal(formatSlackAlert(events.find((event) => event.kind === "rescheduled")!.alert), [
   ":warning: *Rescheduled*",

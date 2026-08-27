@@ -16,6 +16,7 @@ import {
   buildCrewSlackNotifications,
   buildTruckArrivalSlackNotifications,
   buildTruckCloseoutSlackNotifications,
+  buildTruckEstimateCloseoutSlackNotifications,
   formatSlackAlert,
   publishVerifiedTruckCloseout,
   runSlackOpsAlerts,
@@ -223,6 +224,7 @@ assert.equal(slackAlertKindEnabled("cancellation"), true);
 assert.equal(slackAlertKindEnabled("unassigned_crew"), false);
 assert.equal(slackAlertKindEnabled("truck_arrival"), true);
 assert.equal(slackAlertKindEnabled("job_closed"), true);
+assert.equal(slackAlertKindEnabled("estimate_closed"), true);
 assert.equal(slackAlertKindEnabled("job_closed_payment"), true);
 
 assert.deepEqual(appointmentItemDescriptions({
@@ -446,6 +448,49 @@ assert.deepEqual(
   ],
 );
 
+const completedEstimateRows = [{
+  appt_id: "16",
+  job_id: "JK4051006",
+  appointment_type: "Estimate",
+  final_status: "Completed",
+  truck: "Truck# 6",
+  customer_name: "Estimate Customer",
+  driver_normalized_name: "Estimate Driver",
+  navigator_normalized_name: "Estimate Navigator",
+  revenue: "$358.00",
+  closeout: {
+    loadSize: "1.5 (1/4)",
+    loadPrice: "$328.00",
+    otherCharges: [{ name: "Mattress/Box Spring", total: "$60.00" }],
+    discount: "$30.00",
+    tip: "",
+    total: "$358.00",
+    payments: [],
+  },
+}];
+
+assert.deepEqual(
+  buildTruckEstimateCloseoutSlackNotifications("2026-08-12", completedEstimateRows)
+    .map((alert) => ({ kind: alert.kind, channelId: alert.channelId, text: formatSlackAlert(alert) })),
+  [{
+    kind: "estimate_closed",
+    channelId: "C_TEST_TRUCK_6",
+    text: [
+      ":moneybag: *Estimate Closed*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051006|JK4051006>*",
+      "*Estimate Customer*",
+      "*Driver:* Estimate Driver",
+      "*Navigator:* Estimate Navigator",
+      "*Load:* $328.00 (1/4)",
+      "*Mattress/Box Spring:* $60.00",
+      "*Discount:* $30.00",
+      "*Tips:*",
+      "*Total:* $358.00",
+    ].join("\n"),
+  }],
+);
+assert.equal(buildTruckCloseoutSlackNotifications("2026-08-12", completedEstimateRows).length, 0);
+
 const truckArrivalAlerts = buildTruckArrivalSlackNotifications("2026-08-12", [
   {
     appointment_id: "4037246",
@@ -590,6 +635,23 @@ const newCloseout = {
     payments: [{ method: "Check", detail: "#2201", amount: "$220.00" }],
   },
 };
+const newEstimateCloseout = {
+  appt_id: "504",
+  job_id: "JK4051504",
+  appointment_type: "Estimate",
+  final_status: "Completed",
+  truck: "Truck# 6",
+  customer_name: "New Estimate Customer",
+  driver_normalized_name: "Estimate Driver",
+  navigator_normalized_name: "Estimate Navigator",
+  closeout: {
+    loadSize: "1 (1/4)",
+    loadPrice: "$180.00",
+    tip: "",
+    total: "$180.00",
+    payments: [],
+  },
+};
 const directCloseoutSource = {
   appt_id: "503",
   job_id: "JK4051503",
@@ -670,6 +732,7 @@ try {
 
   fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), JSON.stringify({
     scraped_at: "2026-08-12T14:05:00-05:00",
+    appointments: [newEstimateCloseout],
     completed: [existingCloseout, newCloseout],
   }));
   const focusedCloseoutRun = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["job_closed"] });
@@ -687,6 +750,31 @@ try {
     ].join("\n"),
   ]);
 
+  const focusedEstimateCloseoutRun = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["estimate_closed"] });
+  assert.deepEqual(focusedEstimateCloseoutRun.posted.map((alert) => alert.kind), ["estimate_closed"]);
+  assert.deepEqual(postedMessages, [
+    [
+      ":moneybag: *Job Closed*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|JK4051502>*",
+      "*New Closeout Customer*",
+      "*Driver:* New Driver",
+      "*Navigator:* New Navigator",
+      "*Tips:* $20.00",
+      "*Total:* $220.00",
+      "*Check:* #2201 ($220.00)",
+    ].join("\n"),
+    [
+      ":moneybag: *Estimate Closed*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051504|JK4051504>*",
+      "*New Estimate Customer*",
+      "*Driver:* Estimate Driver",
+      "*Navigator:* Estimate Navigator",
+      "*Load:* $180.00 (1/4)",
+      "*Tips:*",
+      "*Total:* $180.00",
+    ].join("\n"),
+  ]);
+
   const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed_payment"]);
   assert.deepEqual(postedMessages, [
@@ -701,6 +789,16 @@ try {
       "*Check:* #2201 ($220.00)",
     ].join("\n"),
     [
+      ":moneybag: *Estimate Closed*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051504|JK4051504>*",
+      "*New Estimate Customer*",
+      "*Driver:* Estimate Driver",
+      "*Navigator:* Estimate Navigator",
+      "*Load:* $180.00 (1/4)",
+      "*Tips:*",
+      "*Total:* $180.00",
+    ].join("\n"),
+    [
       ":credit_card: *Payment recorded*",
       "*Job:* JK4051502",
       "*Payment:* Check #2201 ($220.00)",
@@ -710,10 +808,11 @@ try {
 
   const dedupeRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.equal(dedupeRun.posted.length, 0);
-  assert.equal(postedMessages.length, 2);
+  assert.equal(postedMessages.length, 3);
 
   fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), JSON.stringify({
     scraped_at: "2026-08-12T14:06:00-05:00",
+    appointments: [newEstimateCloseout],
     completed: [existingCloseout, newCloseout, directCloseoutSource],
   }));
 

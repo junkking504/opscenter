@@ -7,18 +7,18 @@ const alerts = fs.readFileSync("lib/slack-alerts.ts", "utf8");
 
 assert.match(
   publisher,
-  /--only supports truck_arrival or job_closed\./,
-  "The command-line publisher must expose an isolated job-closed mode.",
+  /--only supports truck_arrival, job_closed, or estimate_closed\./,
+  "The command-line publisher must expose isolated job and estimate closeout modes.",
 );
 assert.match(
   alerts,
-  /async function runTruckCloseoutSlackAlerts[\s\S]*?readCompletedJunkwareRows\(date\)/,
-  "The focused publisher must use the verified completed JunkWare rows.",
+  /async function runTruckCloseoutSlackAlerts[\s\S]*?buildAllTruckCloseoutSlackNotifications\(date\)/,
+  "The focused publisher must use the verified job and estimate closeout rows.",
 );
 assert.match(
   alerts,
-  /runTruckCloseoutSlackAlerts\(\{ date, dryRun, enabled \}\)/,
-  "The job-closed mode must not fall through to the broad alert pass.",
+  /runTruckCloseoutSlackAlerts\(\{ date, dryRun, enabled, kinds: closeoutKinds \}\)/,
+  "The closeout modes must not fall through to the broad alert pass.",
 );
 
 const successBlock = loop.slice(
@@ -27,8 +27,8 @@ const successBlock = loop.slice(
 );
 assert.match(
   loop,
-  /publish_verified_closeout_alerts\(\)[\s\S]*?--only job_closed/,
-  "A verified full JunkWare refresh must invoke the focused closeout publisher.",
+  /publish_verified_closeout_alerts\(\)[\s\S]*?--only job_closed,estimate_closed/,
+  "A verified full JunkWare refresh must invoke the focused job and estimate closeout publisher.",
 );
 assert.match(
   successBlock,

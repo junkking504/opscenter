@@ -192,6 +192,38 @@ async function main() {
       "*Navigator:*",
     ].join("\n"),
   );
+  assert.equal(
+    normalizedLegacyCloseoutDigestText(
+      ":moneybag: *Estimate Closed*\n*<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4053000|JK4053000>*",
+      new Map([["jk4053000", {
+        appt_id: "4039402",
+        job_id: "JK4053000",
+        appointment_type: "Estimate",
+        customer_name: "Closed Estimate Customer",
+        driver_normalized_name: "Estimate Driver",
+        navigator_normalized_name: "Estimate Navigator",
+        revenue: "$180.00",
+        closeout: {
+          loadSize: "1 (1/4)",
+          loadPrice: "$180.00",
+          tip: "",
+          total: "$180.00",
+          payments: [],
+        },
+      }]]),
+      "2026-08-14",
+    ),
+    [
+      ":moneybag: *Estimate Closed*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4053000|JK4053000>*",
+      "*Closed Estimate Customer*",
+      "*Driver:* Estimate Driver",
+      "*Navigator:* Estimate Navigator",
+      "*Load:* $180.00 (1/4)",
+      "*Tips:*",
+      "*Total:* $180.00",
+    ].join("\n"),
+  );
 
   const requests: URL[] = [];
   const fetchImpl: typeof fetch = async (input) => {

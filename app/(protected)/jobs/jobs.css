@@ -1933,8 +1933,17 @@
     min-height: 34px;
   }
 
+  .ops-main .ops-jobs-page.is-dispatch > .ops-page-header :is(
+    .ops-date-selector,
+    .ops-refresh-button
+  ) {
+    height: 34px !important;
+    min-height: 34px !important;
+  }
+
   .ops-main .ops-jobs-page.is-dispatch > .ops-page-header .ops-view-toggle a {
-    min-height: 28px;
+    height: 34px;
+    min-height: 34px;
     padding-block: 3px;
   }
 
@@ -2009,5 +2018,31 @@
 
   .ops-jobs-page.is-dispatch .ops-jobs-route-board :is(.ops-jobs-map-board-truck.is-row-label, .ops-jobs-map-board-cell) {
     min-height: 0;
+  }
+}
+
+@media (min-width: 1100px) {
+  /* Search and Filters are one toolbar row. Match their outer boxes and their
+   * inner controls so neither action floats above or below the other. */
+  .ops-jobs-page.is-dispatch > .ops-junkware-search,
+  .ops-main .ops-jobs-page.is-dispatch > .ops-jobs-filter-card {
+    min-height: 50px;
+    height: 50px;
+    padding: 6px;
+    align-self: start;
+  }
+
+  .ops-main .ops-jobs-page.is-dispatch > .ops-jobs-filter-card {
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .ops-jobs-page.is-dispatch .ops-junkware-search-field input,
+  .ops-jobs-page.is-dispatch .ops-junkware-search-button,
+  .ops-jobs-page.is-dispatch .ops-junkware-search-clear,
+  .ops-main .ops-jobs-page.is-dispatch .ops-jobs-filter-menu > summary {
+    min-height: 38px !important;
+    height: 38px !important;
   }
 }

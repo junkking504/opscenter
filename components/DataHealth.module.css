@@ -17,6 +17,15 @@
   grid-row: 1;
 }
 
+/* Keep the action on the same 32px control line as the source chips and
+ * details trigger. The shared button treatment is intentionally larger in
+ * page headers, so this strip needs an explicit compact override. */
+.strip :global(.ops-data-health-actions .ops-refresh-button) {
+  min-height: 32px !important;
+  height: 32px !important;
+  padding-inline: 10px;
+}
+
 .strip :global(.ops-data-health-source-strip) {
   display: grid;
   grid-column: 3;

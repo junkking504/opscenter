@@ -1,8 +1,8 @@
 .ops-daily-dashboard {
-  --command-red: #ef233c;
-  --command-ink: #20242b;
-  --command-muted: #68717d;
-  --command-line: #dfe2e5;
+  --command-red: var(--oc-critical);
+  --command-ink: var(--oc-text);
+  --command-muted: var(--oc-text-muted);
+  --command-line: var(--oc-line);
   gap: 14px;
 }
 
@@ -58,9 +58,9 @@
   border-radius: 999px;
 }
 
-.ops-daily-dashboard .ops-daily-kpi-status.is-on-track { background: #178653; }
-.ops-daily-dashboard .ops-daily-kpi-status.is-watch { background: #e0a000; }
-.ops-daily-dashboard .ops-daily-kpi-status.is-off-track { background: #d8222a; }
+.ops-daily-dashboard .ops-daily-kpi-status.is-on-track { background: var(--oc-positive); }
+.ops-daily-dashboard .ops-daily-kpi-status.is-watch { background: var(--oc-warning); }
+.ops-daily-dashboard .ops-daily-kpi-status.is-off-track { background: var(--oc-critical); }
 
 .ops-daily-dashboard .ops-supporting-metrics { gap: 6px; }
 .ops-daily-dashboard .ops-supporting-metrics-heading { display: none; }
@@ -72,7 +72,7 @@
   padding: 8px 10px;
   grid-template-rows: auto auto auto auto;
   gap: 3px;
-  border-radius: 11px;
+  border-radius: var(--oc-radius-md);
 }
 
 .ops-daily-dashboard .ops-daily-kpi-card .ops-card-title {
@@ -93,7 +93,7 @@
   height: 5px;
   overflow: hidden;
   border-radius: 999px;
-  background: #e7e9ec;
+  background: var(--oc-surface-soft);
 }
 
 .ops-daily-dashboard .ops-daily-kpi-progress > i {
@@ -102,14 +102,14 @@
   border-radius: inherit;
 }
 
-.ops-daily-dashboard .ops-daily-kpi-progress.is-on-track > i { background: #178653; }
-.ops-daily-dashboard .ops-daily-kpi-progress.is-watch > i { background: #e0a000; }
-.ops-daily-dashboard .ops-daily-kpi-progress.is-off-track > i { background: #d8222a; }
+.ops-daily-dashboard .ops-daily-kpi-progress.is-on-track > i { background: var(--oc-positive); }
+.ops-daily-dashboard .ops-daily-kpi-progress.is-watch > i { background: var(--oc-warning); }
+.ops-daily-dashboard .ops-daily-kpi-progress.is-off-track > i { background: var(--oc-critical); }
 
 .ops-command-operations-map .ops-jobs-map-card {
   height: 100%;
   min-height: 0;
-  border-radius: 14px;
+  border-radius: var(--oc-radius-md);
   box-shadow: none;
 }
 

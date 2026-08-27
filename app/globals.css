@@ -4805,7 +4805,6 @@ a.ops-jobs-map-selection-phone:focus-visible {
 }
 
 /* Final parity layer: no page-specific KPI or header geometry. */
-@media
 
 /* Junkware closeout editor */
 .ops-job-closeout-editor {
@@ -4984,7 +4983,6 @@ a.ops-jobs-map-selection-phone:focus-visible {
 }
 
 /* Keep the shared section row visible after the legacy fixed-height parity rules. */
-@media
 
 /* Finance resale inventory */
 .ops-resale-section {
@@ -5574,10 +5572,6 @@ a.ops-jobs-map-selection-phone:focus-visible {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
-
-@media
-
-@media
 
 .ops-crew-period-day-card {
   border-color: rgba(148, 163, 184, .22);

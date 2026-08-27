@@ -17,9 +17,10 @@
   min-width: 0;
   min-height: 82px;
   align-content: space-between;
-  padding: 9px 11px;
+  padding: 7px 11px 9px;
   overflow: hidden;
   border: 1px solid var(--oc-line);
+  border-top-width: 3px;
   border-radius: var(--oc-radius-md);
   background: var(--oc-surface);
   color: var(--oc-text);
@@ -109,7 +110,8 @@
   gap: 7px;
   padding: 7px 11px;
   border-right: 1px solid var(--oc-line);
-  background: var(--oc-surface-raised);
+  background: #20242b;
+  color: #fff;
   white-space: nowrap;
 }
 
@@ -121,6 +123,7 @@
 }
 
 .exceptionHeading > strong {
+  color: #fff;
   font-size: 0.75rem;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -187,7 +190,7 @@
 .queue {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid var(--oc-line);
+  border: 1px solid #353b45;
   border-radius: var(--oc-radius-md);
   background: var(--oc-surface);
 }
@@ -199,19 +202,20 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
-  border-bottom: 1px solid var(--oc-line);
+  border-bottom: 1px solid #353b45;
+  background: #20242b;
 }
 
 .sectionHeader h2 {
   margin: 2px 0 0;
-  color: var(--oc-text);
+  color: #fff;
   font-size: 1.125rem;
   line-height: 1.1;
   letter-spacing: -0.025em;
 }
 
 .sectionHeader > small {
-  color: var(--oc-text-muted);
+  color: #b8bec9;
   font-size: 0.6875rem;
   font-weight: 800;
   text-align: right;
@@ -255,6 +259,9 @@
 .digestState strong { color: var(--oc-text); font-size: 0.875rem; }
 .digestState span { color: var(--oc-text-muted); font-size: 0.75rem; }
 
+.metric.onTrack { border-top-color: var(--oc-positive); }
+.metric.watch { border-top-color: var(--oc-warning); }
+.metric.offTrack { border-top-color: var(--oc-critical); }
 .onTrack { color: var(--oc-positive); }
 .watch { color: var(--oc-warning); }
 .offTrack { color: var(--oc-critical); }

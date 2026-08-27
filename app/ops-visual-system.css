@@ -80,10 +80,10 @@ body {
   color: #ffffff;
 }
 .ops-nav-item.active {
-  border-color: rgba(237, 28, 36, 0.45);
-  background: var(--oc-brand-soft);
+  border-color: var(--oc-brand);
+  background: #2a171b;
   color: #ffffff;
-  box-shadow: inset 2px 0 var(--oc-brand);
+  box-shadow: inset 3px 0 var(--oc-brand);
 }
 .ops-nav-item.active .ops-nav-icon {
   color: #ff8b90;
@@ -129,16 +129,56 @@ body {
   background: transparent;
   box-shadow: none;
 }
+.ops-main .ops-page-header.ops-control-strip {
+  border: 1px solid #353b45 !important; border-radius: var(--oc-radius-lg) !important;
+  background: linear-gradient(135deg, #111318 0%, #20242b 72%, #292e37 100%) !important;
+  box-shadow: 0 12px 34px rgba(25, 28, 35, 0.12) !important; color: #ffffff !important;
+}
 .ops-main .ops-page-title,
 .ops-finance-page .ops-page-title {
-  color: var(--oc-text);
+  color: #ffffff;
   font-weight: 800;
+}
+.ops-main .ops-page-header .ops-page-title {
+  color: #ffffff !important;
 }
 .ops-page-header-subtitle,
 .ops-page-header-meta,
-.ops-page-header-updated,
+.ops-page-header-updated {
+  color: #b8bec9;
+}
+.ops-main .ops-page-header :is(
+  .ops-page-header-subtitle,
+  .ops-page-header-meta,
+  .ops-page-header-updated,
+  .ops-page-header-status
+) {
+  color: #b8bec9 !important;
+}
 .ops-workspace-title {
   color: var(--oc-text-muted);
+}
+.ops-page-header :where(.ops-date-label, label) {
+  color: #c5cad2;
+}
+.ops-main .ops-page-header .ops-date-selector {
+  border-color: #ffffff; background: #ffffff;
+}
+.ops-main .ops-page-header .ops-refresh-button {
+  border-color: #ffffff; background: #ffffff; color: var(--oc-text) !important;
+}
+.ops-main .ops-page-header .ops-refresh-button:is(:hover, :active) {
+  border-color: var(--oc-warning); background: var(--oc-warning); color: var(--oc-text);
+}
+.ops-page-header .ops-page-subnav a {
+  color: #b8bec9 !important;
+}
+.ops-page-header .ops-page-subnav a:hover {
+  border-color: #4a505a; background: #2b3038; color: #ffffff;
+}
+.ops-page-header .ops-page-subnav a.active {
+  border-color: var(--oc-brand) !important; background: var(--oc-brand) !important;
+  color: #ffffff !important; box-shadow: none !important;
 }
 .ops-page-subnav a,
 .ops-view-toggle a,
@@ -178,6 +218,15 @@ body {
   background: var(--oc-surface);
   color: var(--oc-text);
   box-shadow: none;
+}
+.ops-main .ops-card:not(.ops-jobs-map-card):not(.ops-finance-brief),
+.ops-main .ops-mini-kpi,
+.ops-main .ops-supporting-metric,
+.ops-main .ops-crew-section,
+.ops-data-health-strip,
+.ops-data-health-compact,
+.ops-data-health-top {
+  box-shadow: 0 1px 0 rgba(17, 19, 24, 0.04);
 }
 .ops-main .ops-card:not(.ops-jobs-map-card):not(.ops-finance-brief):hover {
   border-color: var(--oc-line-strong);

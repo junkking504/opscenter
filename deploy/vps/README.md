@@ -43,6 +43,8 @@ OpsCenter uses an iPhone Shortcuts message automation as a free low-latency feed
 
 Run `deploy/vps/sync-data.sh incremental` on the Mac immediately after each successful collector cycle. It first pulls VPS-authored state such as manual bonuses and route assignments, then pushes current operational data. It intentionally excludes large backups, audits, and quarantine folders.
 
+VPS-authored shared-state files, including route geocodes, must remain readable by the VPS deployment user so the pull phase can complete. Atomic writers use the shared group mode on VPS only; Mission Control retains its private file mode.
+
 Do not automate the sync until an initial run and a manual incremental run both succeed. The existing Mac service remains the rollback path until at least one full operating day has been verified on the VPS.
 
 ## Verification

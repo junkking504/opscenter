@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 
 const OPERATOR_STATE_DIRECTORIES = [
   "manual_bonuses",
+  "payroll_corrections",
   "job-route-assignments",
   "job-route-geocodes",
   "searchkings-overrides",

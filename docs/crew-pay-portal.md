@@ -38,6 +38,22 @@ OPS_PAY_PERIOD_ANCHOR=YYYY-MM-DD
 
 The anchor must be the Monday that starts Week 1 of a pay period. Overtime is calculated independently in each Monday-through-Sunday workweek after 40 hours, at 1.5× the recorded hourly rate.
 
+## Management time-card corrections
+
+In **Krewe**, select the work date and open the employee's attendance details.
+**Edit time** can record a missed or incorrect clock-in or clock-out for the
+OpsCenter attendance and pay calculations. A correction requires the corrected
+clock-in, the employee's hourly rate, and a reason; it records the signed-in
+OpsCenter user and time of each save or removal. The original JunkWare values
+remain visible in the editor and are never overwritten by this feature.
+
+Corrections are durable operational state at
+`OPSBOT_DATA_DIR/payroll_corrections/payroll_corrections.json`. The Mac/VPS
+state sync treats this directory like the other operator-managed state, so a
+correction made in either served runtime is read back by the other. This is an
+OpsCenter payroll correction—not a write to JunkWare—so it should be used for
+confirmed exceptions and retained with its stated reason.
+
 ## Activation sequence
 
 1. Create and bind the dedicated `CREW_CREDENTIALS` KV namespace.

@@ -31,13 +31,16 @@ ssh "${SSH_ARGS[@]}" "$REMOTE" "mkdir -p '$REMOTE_ROOT/source'"
 
 rsync -az -e "$RSYNC_RSH" --delete-delay --delay-updates \
   --exclude '.git/' \
+  --exclude '.auth/' \
   --exclude '.next*/' \
   --exclude '.open-next/' \
   --exclude '.wrangler/' \
   --exclude 'node_modules/' \
   --exclude '.env' \
   --exclude '.env.*' \
+  --exclude 'artifacts/' \
   --exclude 'data' \
+  --exclude 'junkware-*.png' \
   --exclude 'logs/' \
   --exclude 'tmp/' \
   --exclude 'playwright-report/' \

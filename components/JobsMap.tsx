@@ -108,6 +108,7 @@ const DEFAULT_DISPATCH_MAP_BOUNDS: [[number, number], [number, number]] = [
   [30.7, -89.75],
 ];
 const DEFAULT_DISPATCH_MAP_PADDING: [number, number] = [48, 48];
+const ALL_JOBS_MAP_MAX_ZOOM = 12;
 const TRUCK_MARKER_PANE = "ops-truck-marker-pane";
 const DISPATCH_TERRITORY_SHORTCUTS = [
   { label: "New Orleans", abbreviation: "NO", tone: "is-new-orleans", center: [29.95, -90.08] as [number, number] },
@@ -775,6 +776,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   );
 
   const locatedJobs = useMemo(() => displayJobs.filter(isLocated), [displayJobs]);
+  const locatedJobsRef = useRef(locatedJobs);
   const unlocatedJobs = useMemo(() => displayJobs.filter((job) => !isLocated(job)), [displayJobs]);
   const mapCoverage = useMemo(() => dispatchMapCoverage(displayJobs), [displayJobs]);
   const scheduledJobs = useMemo(() => [...displayJobs].sort(scheduleSort), [displayJobs]);
@@ -795,8 +797,30 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     ? parseTruckNumberFromLabel(selectedTruck.truck)
     : null;
   const selectedJobKey = selectedJob?.key || "";
+
+  useEffect(() => {
+    locatedJobsRef.current = locatedJobs;
+  }, [locatedJobs]);
+
   const resetMapToOperatingFootprint = useCallback((animate: boolean) => {
-    mapRef.current?.fitBounds(DEFAULT_DISPATCH_MAP_BOUNDS, {
+    const map = mapRef.current;
+    if (!map) return;
+    const jobPoints = locatedJobsRef.current.map((job) => [job.latitude, job.longitude] as [number, number]);
+    if (jobPoints.length === 1) {
+      map.setView(jobPoints[0], ALL_JOBS_MAP_MAX_ZOOM, { animate });
+      return;
+    }
+    if (jobPoints.length > 1) {
+      map.fitBounds(jobPoints, {
+        padding: DEFAULT_DISPATCH_MAP_PADDING,
+        maxZoom: ALL_JOBS_MAP_MAX_ZOOM,
+        animate,
+      });
+      return;
+    }
+    // A selected day can genuinely have no verified coordinates. Keep the
+    // service footprint available in that case rather than showing a world map.
+    map.fitBounds(DEFAULT_DISPATCH_MAP_BOUNDS, {
       padding: DEFAULT_DISPATCH_MAP_PADDING,
       maxZoom: DEFAULT_DISPATCH_MAP_ZOOM,
       animate,

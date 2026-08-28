@@ -896,6 +896,32 @@
   overflow: hidden;
 }
 
+.ops-fleet-work-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.ops-fleet-work-tabs button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ops-muted);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.ops-fleet-work-tabs button.active { border-bottom-color: var(--ops-gold); color: var(--ops-text); }
+.ops-fleet-work-tabs span { color: var(--ops-gold); font-variant-numeric: tabular-nums; }
+
 .ops-fleet-action-center {
   display: grid;
   gap: 10px;

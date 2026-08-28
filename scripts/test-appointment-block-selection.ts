@@ -13,8 +13,13 @@ assert.match(
 );
 assert.match(
   jobsMapSource,
-  /function handleAppointmentClick[\s\S]*?setSelectedKey\(jobKey\);[\s\S]*?const job = displayJobs\.find[\s\S]*?articleId: job\.detailId/,
-  "Normal clicks must select the appointment and publish its matching card ID.",
+  /function handleAppointmentClick[\s\S]*?setSelectedKey\(jobKey\);[\s\S]*?const job = displayJobs\.find[\s\S]*?map\.setView\(\[job\.latitude, job\.longitude\][\s\S]*?articleId: job\.detailId/,
+  "Normal appointment-block clicks must center the matching location and publish its matching card ID.",
+);
+assert.match(
+  jobsMapSource,
+  /const selectMapJob = \(job: JobsMapPoint & \{ latitude: number; longitude: number \}\) => \{[\s\S]*?focusMapArea\(\[job\]\);[\s\S]*?addInteractiveMarker\(marker, \(\) => selectMapJob\(job\)\);/,
+  "A direct appointment marker click must focus that appointment's map location.",
 );
 assert.match(
   jobsMapSource,

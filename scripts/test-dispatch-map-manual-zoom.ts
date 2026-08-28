@@ -9,6 +9,11 @@ assert.match(
   /if \(!map \|\| !focusSelectedTruck \|\| !selectedTruck\) return;[\s\S]*?setFocusSelectedTruck\(false\);/,
   "A schedule-board truck focus must be consumed after its initial map center.",
 );
+assert.match(
+  source,
+  /const selectMapTruck = useCallback\([\s\S]*?setFocusSelectedTruck\(true\);[\s\S]*?map\.setView\(\[selectedTruck\.latitude, selectedTruck\.longitude\], Math\.max\(map\.getZoom\(\), 14\), \{ animate: true \}\);/,
+  "Truck icons and truck-block rows must focus the truck's current GPS location, not its route extent.",
+);
 assert.doesNotMatch(
   markerRendering,
   /focusSelectedTruck[\s\S]*?(?:fitBounds|setView)/,

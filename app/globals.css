@@ -4231,6 +4231,7 @@ a {
 .ops-jobs-map-selection {
   position: relative;
   z-index: 1;
+  overflow-anchor: none;
   right: auto;
   bottom: auto;
   display: grid;
@@ -4728,6 +4729,7 @@ a.ops-jobs-map-selection-phone:focus-visible {
 
 .ops-jobs-map-assignment-status {
   min-height: 32px;
+  overflow-anchor: none;
   padding: 7px 12px;
   border-top: 1px solid var(--ops-border);
   background: rgba(101, 167, 255, .045);

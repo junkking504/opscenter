@@ -26,6 +26,16 @@ assert.match(
   /function showAppointmentInQueue[\s\S]*?articleId: job\.detailId[\s\S]*?getElementById\("jobs-schedule"\)\?\.scrollIntoView[\s\S]*?getElementById\(job\.detailId\)\?\.focus/,
   "The selected map appointment must provide a route to its closeout card in the Appointment Queue.",
 );
+assert.doesNotMatch(
+  jobsMapSource,
+  /mapSelectionRef|selectedJobKey[\s\S]*?scrollIntoView/,
+  "Selecting an appointment or truck must not scroll the page away from the Dispatch map and truck board.",
+);
+assert.match(
+  globalCss,
+  /\.ops-jobs-map-selection \{[\s\S]*?overflow-anchor: none;[\s\S]*?\.ops-jobs-map-assignment-status \{[\s\S]*?overflow-anchor: none;/,
+  "Changing appointment or truck details must not trigger browser scroll anchoring.",
+);
 assert.match(
   jobsMapSource,
   /Show in Appointments[\s\S]*?Open closeout controls/,

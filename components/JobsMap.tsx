@@ -659,7 +659,6 @@ function sameTruck(left: string, right: string): boolean {
 export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: JobsMapProps) {
   const router = useRouter();
   const mapNodeRef = useRef<HTMLDivElement | null>(null);
-  const mapSelectionRef = useRef<HTMLElement | null>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any>(null);
   const routesRef = useRef<any>(null);
@@ -796,8 +795,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const selectedTruckCameraNumber = selectedTruck
     ? parseTruckNumberFromLabel(selectedTruck.truck)
     : null;
-  const selectedJobKey = selectedJob?.key || "";
-
   useEffect(() => {
     locatedJobsRef.current = locatedJobs;
   }, [locatedJobs]);
@@ -840,13 +837,6 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     };
   }, [currentScheduleTime, date, scheduleBoard.rows, scheduleBoard.untimed]);
 
-  useEffect(() => {
-    if (!selectedJobKey && !selectedTruckName) return;
-    const frame = window.requestAnimationFrame(() => {
-      mapSelectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [selectedJobKey, selectedTruckName]);
   const scheduleTruckRows: ScheduleColumn[] = scheduleBoard.columns.length
     ? scheduleBoard.columns
     : [{ key: "empty", label: "—", virtual: false, assignment: "" }];
@@ -1465,7 +1455,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const renderAppointmentDetails = () => {
     if (selectedTruck || !selectedJob) return null;
     return (
-      <article ref={mapSelectionRef} className="ops-jobs-map-selection" aria-live="polite">
+      <article className="ops-jobs-map-selection" aria-live="polite">
         <button
           type="button"
           className="ops-jobs-map-selection-close"
@@ -1816,7 +1806,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         ) : null}
 
         {selectedTruck ? (
-          <article ref={mapSelectionRef} className="ops-jobs-map-selection ops-jobs-map-truck-selection is-truck" aria-live="polite">
+          <article className="ops-jobs-map-selection ops-jobs-map-truck-selection is-truck" aria-live="polite">
             <button type="button" className="ops-jobs-map-selection-close" onClick={() => setSelectedTruckName("")} aria-label="Close truck details">×</button>
             <div className="ops-jobs-map-selection-kicker">
               <span className="ops-jobs-map-selection-truck-icon" aria-hidden="true">🚚</span>

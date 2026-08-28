@@ -27,6 +27,5 @@ assert.match(cameraControllerSource, /closest<HTMLElement>\("\[data-truck-camera
 assert.doesNotMatch(cameraControllerSource, /parseTruckNumberFromLabel|candidate\.textContent/);
 assert.match(jobsMapSource, /data-truck-camera=\{selectedTruckCameraNumber\}/);
 assert.match(jobsMapSource, />\s*View live video\s*</);
-assert.match(jobsMapSource, /if \(!selectedJobKey && !selectedTruckName\) return;/);
-assert.match(jobsMapSource, /<article ref=\{mapSelectionRef\} className="ops-jobs-map-selection ops-jobs-map-truck-selection is-truck"/);
+assert.match(jobsMapSource, /<article className="ops-jobs-map-selection ops-jobs-map-truck-selection is-truck"/);
 console.log("LinxUp camera label tests passed.");

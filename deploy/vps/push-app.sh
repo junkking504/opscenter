@@ -41,7 +41,7 @@ rsync -az -e "$RSYNC_RSH" --delete-delay --delay-updates \
   --exclude 'artifacts/' \
   --exclude 'data' \
   --exclude 'junkware-*.png' \
-  --exclude 'logs/' \
+  --exclude 'logs' \
   --exclude 'tmp/' \
   --exclude 'playwright-report/' \
   --exclude 'test-results/' \

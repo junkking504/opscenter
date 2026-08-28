@@ -2,11 +2,15 @@ import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
-import { uploadJunkwareJobPhoto } from "@/lib/junkware-photo-uploader";
+import { findJunkwareAppointmentIdByJkNumber, uploadJunkwareJobPhoto } from "@/lib/junkware-photo-uploader";
 import { uploadJunkwareTruckRecord } from "@/lib/junkware-truck-record-uploader";
 import { readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { matchWhatsAppPhoto, normalizePhone, type FleetLocation } from "@/lib/whatsapp-job-photo-matching";
+import {
+  queueVerifiedWhatsAppJobPhotoBatchConfirmations,
+  recordVerifiedWhatsAppJobPhoto,
+} from "@/lib/whatsapp-job-photo-confirmations";
 import {
   deliverWhatsAppPhotoSlackNotifications,
   recordWhatsAppPhotoSlackUpload,
@@ -249,7 +253,18 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
       finishWhatsAppImage(claim.file, "review", { review: match });
       return "review";
     }
-    matchedJob = match;
+    const appointmentId = match.appointmentId || await findJunkwareAppointmentIdByJkNumber(match.jkNumber);
+    if (!appointmentId) {
+      finishWhatsAppImage(claim.file, "review", {
+        review: {
+          reason: "jk_not_found_in_junkware",
+          detail: `${match.jkNumber} did not resolve to the exact JunkWare appointment.`,
+          category: match.category,
+        },
+      });
+      return "review";
+    }
+    matchedJob = { ...match, appointmentId };
     if (match.method === "jk_number" && whatsAppPhotoSlackNotificationsEnabled()) {
       recordWhatsAppPhotoSlackUpload({
         messageId: claim.message.messageId,
@@ -265,11 +280,21 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
     const filePath = await downloadWhatsAppImage(claim.message);
     stage = "uploading";
     const verification = await uploadJunkwareJobPhoto({
-      appointmentId: match.appointmentId,
+      appointmentId,
       jkNumber: match.jkNumber,
       filePath,
       category: match.category,
     });
+    if (match.method === "jk_number") {
+      recordVerifiedWhatsAppJobPhoto({
+        messageId: claim.message.messageId,
+        jkNumber: match.jkNumber,
+        jobDate: date,
+        senderPhone: claim.message.senderPhone,
+        phoneNumberId: claim.message.phoneNumberId,
+        receivedAt: claim.message.receivedAt,
+      });
+    }
     if (match.method === "jk_number" && whatsAppPhotoSlackNotificationsEnabled()) {
       recordWhatsAppPhotoSlackUpload({
         messageId: claim.message.messageId,
@@ -313,10 +338,11 @@ async function main(): Promise<void> {
   loadSlackBotToken();
   const crewExpenseTransactions = await processCrewExpenseTransactions();
   const slack = await deliverWhatsAppPhotoSlackNotifications();
+  const photoConfirmations = queueVerifiedWhatsAppJobPhotoBatchConfirmations();
   const expenseReplies = await deliverCrewExpenseReplies();
   const processedCount = Object.values(results).reduce((sum, count) => sum + count, 0);
-  if (processedCount || slack.attempted || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {
-    process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: whatsappQueueCounts(), slack, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
+  if (processedCount || slack.attempted || photoConfirmations.queued || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {
+    process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: whatsappQueueCounts(), slack, photoConfirmations, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
   }
 }
 

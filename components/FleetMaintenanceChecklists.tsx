@@ -55,19 +55,23 @@ export default function FleetMaintenanceChecklists({
   today,
   linxupInventory,
   initialCustomizations,
+  initialSelectedTruck = "",
 }: {
   initialEntries: FleetChecklistEntry[];
   truckOptions: string[];
   today: string;
   linxupInventory: LinxupVehicleInventory;
   initialCustomizations: FleetChecklistCustomization[];
+  initialSelectedTruck?: string;
 }) {
   const router = useRouter();
   const [entries, setEntries] = useState(initialEntries);
   const [customizations, setCustomizations] = useState(initialCustomizations);
   const [cadence, setCadence] = useState<FleetChecklistCadence>("daily");
   const [inspectionDate, setInspectionDate] = useState(today);
-  const [selectedTruck, setSelectedTruck] = useState(truckOptions[0] || "");
+  const [selectedTruck, setSelectedTruck] = useState(() =>
+    initialSelectedTruck && truckOptions.includes(initialSelectedTruck) ? initialSelectedTruck : truckOptions[0] || "",
+  );
   const [answers, setAnswers] = useState<DraftAnswers>(() => draftFor(undefined, FLEET_CHECKLIST_DEFINITIONS.daily));
   const [inspector, setInspector] = useState("");
   const [odometer, setOdometer] = useState("");
@@ -88,6 +92,9 @@ export default function FleetMaintenanceChecklists({
 
   useEffect(() => setEntries(initialEntries), [initialEntries]);
   useEffect(() => setCustomizations(initialCustomizations), [initialCustomizations]);
+  useEffect(() => {
+    if (initialSelectedTruck && truckOptions.includes(initialSelectedTruck)) setSelectedTruck(initialSelectedTruck);
+  }, [initialSelectedTruck, truckOptions]);
 
   useEffect(() => {
     const entry = entries.find((row) => row.truck === selectedTruck && row.cadence === cadence && row.periodKey === periodKey);

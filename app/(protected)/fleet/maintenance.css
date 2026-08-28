@@ -896,6 +896,128 @@
   overflow: hidden;
 }
 
+.ops-fleet-work-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.ops-fleet-work-tabs button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ops-muted);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.ops-fleet-work-tabs button.active { border-bottom-color: var(--ops-gold); color: var(--ops-text); }
+.ops-fleet-work-tabs span { color: var(--ops-gold); font-variant-numeric: tabular-nums; }
+
+.ops-fleet-action-center {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 14px;
+  border: 1px solid rgba(246, 195, 67, 0.24);
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(246, 195, 67, 0.08), rgba(15, 23, 42, 0.28));
+}
+
+.ops-fleet-action-center-head,
+.ops-fleet-action-row,
+.ops-fleet-action-counts {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.ops-fleet-action-center-head { justify-content: space-between; }
+
+.ops-fleet-action-counts {
+  flex: 0 0 auto;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.ops-fleet-action-counts span,
+.ops-fleet-action-priority {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border-radius: 999px;
+  color: var(--ops-muted);
+  background: rgba(148, 163, 184, 0.12);
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.ops-fleet-action-counts .stop,
+.ops-fleet-action-row.priority-stop .ops-fleet-action-priority { color: #fecaca; background: rgba(239, 68, 68, 0.18); }
+.ops-fleet-action-counts .urgent,
+.ops-fleet-action-row.priority-urgent .ops-fleet-action-priority { color: #fed7aa; background: rgba(249, 115, 22, 0.18); }
+.ops-fleet-action-row.priority-next .ops-fleet-action-priority { color: #fde68a; background: rgba(245, 158, 11, 0.16); }
+.ops-fleet-action-row.priority-watch .ops-fleet-action-priority { color: #bfdbfe; background: rgba(59, 130, 246, 0.15); }
+
+.ops-fleet-action-list { display: grid; gap: 7px; }
+
+.ops-fleet-work-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ops-fleet-work-summary > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.ops-fleet-work-summary span {
+  color: var(--ops-muted-2);
+  font-size: 0.61rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.ops-fleet-work-summary strong {
+  color: var(--ops-text);
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-fleet-work-summary .missing strong { color: #fcd34d; }
+.ops-fleet-work-summary .attention strong { color: #fdba74; }
+.ops-fleet-work-summary .out strong { color: #fca5a5; }
+
+.ops-fleet-action-row {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.34);
+}
+
+.ops-fleet-action-detail { display: grid; flex: 1 1 auto; min-width: 0; gap: 2px; }
+.ops-fleet-action-detail strong { color: var(--ops-text); font-size: 0.78rem; }
+.ops-fleet-action-detail small { color: var(--ops-muted); font-size: 0.7rem; }
+.ops-fleet-action-row button { flex: 0 0 auto; }
+.ops-fleet-action-more { color: var(--ops-muted-2); font-size: 0.68rem; text-align: right; }
+
 .ops-readiness-summary,
 .ops-report-kpis {
   display: grid;
@@ -1120,6 +1242,7 @@ body.ops-fleet-driver-mode .ops-checklist-status-buttons button { min-height: 44
   }
 
   .ops-template-standard-items,
+  .ops-fleet-work-summary,
   .ops-readiness-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1133,6 +1256,20 @@ body.ops-fleet-driver-mode .ops-checklist-status-buttons button { min-height: 44
 }
 
 @media (max-width: 620px) {
+  .ops-fleet-action-center-head,
+  .ops-fleet-action-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ops-fleet-action-counts {
+    justify-content: flex-start;
+  }
+
+  .ops-fleet-action-row button {
+    width: 100%;
+  }
+
   .ops-maintenance-header {
     align-items: flex-start;
   }

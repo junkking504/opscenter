@@ -58,6 +58,7 @@
     "verify:collector-release-lifecycle": "node --import tsx scripts/test-deploy-collector-release-lifecycle.ts",
     "verify:junkware-appointment-note": "node --import tsx scripts/test-junkware-appointment-note.ts",
     "verify:fleet-gps": "node --import tsx scripts/test-fleet-gps.ts",
+    "verify:fleet-actions": "node --import tsx scripts/test-fleet-maintenance-actions.ts",
     "verify:linxup-freshness": "node --import tsx scripts/test-linxup-live-freshness.ts",
     "verify:linxup-camera:live": "node --import tsx scripts/test-linxup-camera-live.ts",
     "setup:linxup-camera": "node --import tsx scripts/setup-linxup-camera.ts",

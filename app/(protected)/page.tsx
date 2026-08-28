@@ -590,8 +590,11 @@ export default async function DashboardPage({
       href: `/jobs?date=${date}`,
     },
     {
-      label: "Projected labor",
-      value: projectedLaborCostPercent == null ? "Waiting" : `${projectedLaborCostPercent.toFixed(1)}%`,
+      label: "Labor",
+      value: money(totalPayroll),
+      secondaryValue: projectedLaborCostPercent == null
+        ? "Projected percentage waiting for revenue"
+        : `Projected ${projectedLaborCostPercent.toFixed(1)}%`,
       detail: projectedLaborCostPercent == null
         ? `Goal < ${operatingTargets.maxPayrollPercent.toFixed(0)}% once revenue is available`
         : `Goal < ${operatingTargets.maxPayrollPercent.toFixed(0)}% · ${money(projectedDayRevenue)} projected revenue`,

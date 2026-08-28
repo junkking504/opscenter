@@ -23,6 +23,10 @@ import {
   formatWhatsAppPhotoSlackNotification,
   recordWhatsAppPhotoSlackUpload,
 } from "@/lib/whatsapp-job-photo-slack";
+import {
+  queueVerifiedWhatsAppJobPhotoBatchConfirmations,
+  recordVerifiedWhatsAppJobPhoto,
+} from "@/lib/whatsapp-job-photo-confirmations";
 
 async function main(): Promise<void> {
 const now = new Date("2026-08-11T15:00:00.000Z");
@@ -53,6 +57,21 @@ if (explicit.status === "matched") {
   assert.equal(explicit.method, "jk_number");
   assert.equal(explicit.appointmentId, "401");
   assert.equal(explicit.category, "before");
+}
+
+const explicitOutsideSchedule = matchWhatsAppPhoto({
+  senderPhone: "5045550101",
+  caption: "After JK4025999",
+  receivedAt: now,
+  appointments,
+  fleet: [],
+  senderTruckMap: {},
+});
+assert.equal(explicitOutsideSchedule.status, "matched");
+if (explicitOutsideSchedule.status === "matched") {
+  assert.equal(explicitOutsideSchedule.method, "jk_number");
+  assert.equal(explicitOutsideSchedule.jkNumber, "JK4025999");
+  assert.equal(explicitOutsideSchedule.appointmentId, null);
 }
 
 const nearest = matchWhatsAppPhoto({
@@ -134,6 +153,26 @@ try {
   assert.equal(enqueueWhatsAppImage(parsed.images[0]).duplicate, false);
   assert.equal(enqueueWhatsAppImage(parsed.images[0]).duplicate, true);
   assert.equal(queuedWhatsAppImages().length, 1);
+
+  process.env.WHATSAPP_CREW_EXPENSE_STATE_DIR = temporaryState;
+  process.env.WHATSAPP_JOB_PHOTO_BATCH_QUIET_SECONDS = "60";
+  const confirmationPhoto = {
+    messageId: "batch-image-1",
+    jkNumber: "JK4025001",
+    jobDate: "2026-08-11",
+    senderPhone: "15045550101",
+    phoneNumberId: "12345",
+    receivedAt: now.toISOString(),
+  };
+  assert.equal(recordVerifiedWhatsAppJobPhoto({ ...confirmationPhoto, now }).duplicate, false);
+  assert.equal(recordVerifiedWhatsAppJobPhoto({ ...confirmationPhoto, messageId: "batch-image-2", now: new Date(now.getTime() + 10_000) }).duplicate, false);
+  assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 50_000)).queued, 0);
+  assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 70_000)).queued, 1);
+  const confirmationOutbox = path.join(temporaryState, "outbox-incoming");
+  const confirmationFiles = fs.readdirSync(confirmationOutbox);
+  assert.equal(confirmationFiles.length, 1);
+  const confirmation = JSON.parse(fs.readFileSync(path.join(confirmationOutbox, confirmationFiles[0]), "utf8")) as { text?: string };
+  assert.equal(confirmation.text, "2 photos for JK4025001 uploaded and verified in JunkWare.");
 
   const slackBatch = {
     version: 2 as const,
@@ -232,6 +271,8 @@ try {
 } finally {
   fs.rmSync(temporaryState, { recursive: true, force: true });
   delete process.env.WHATSAPP_JOB_PHOTO_STATE_DIR;
+  delete process.env.WHATSAPP_CREW_EXPENSE_STATE_DIR;
+  delete process.env.WHATSAPP_JOB_PHOTO_BATCH_QUIET_SECONDS;
   delete process.env.SLACK_OPSCENTER_ALERTS_ENABLED;
   delete process.env.SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED;
   delete process.env.SLACK_WHATSAPP_PHOTO_ATTACHMENTS_ENABLED;

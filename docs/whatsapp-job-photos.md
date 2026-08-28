@@ -75,6 +75,9 @@ WHATSAPP_CONTEXT_MAX_AGE_MINUTES='10'
 WHATSAPP_GPS_MAX_AGE_MINUTES='30'
 WHATSAPP_MAX_JOB_DISTANCE_MILES='0.5'
 WHATSAPP_MINIMUM_JOB_MARGIN_MILES='0.15'
+
+# Wait for a quiet period before confirming a verified explicit-JK photo batch.
+WHATSAPP_JOB_PHOTO_BATCH_QUIET_SECONDS='60'
 ```
 
 Example decoded truck map shape (use real values only in the private environment, never Git):
@@ -95,9 +98,9 @@ cd /Users/missioncontrol/opscenter-v2/opscenter
 ./deploy/macmini/install-whatsapp-photo-worker.sh
 ```
 
-The worker reads the durable spool at `data/integrations/whatsapp-job-photos` unless `WHATSAPP_JOB_PHOTO_STATE_DIR` overrides it. Queue records and downloaded media are mode `0600`. It uploads through the authenticated JunkWare browser session and verifies that the appointment's media count increased before marking an item complete.
+The worker reads the durable spool at `data/integrations/whatsapp-job-photos` unless `WHATSAPP_JOB_PHOTO_STATE_DIR` overrides it. Queue records and downloaded media are mode `0600`. An explicit JK number is resolved and validated on its own JunkWare appointment page, so it does not need to be on the message day's schedule. The worker then uploads through the authenticated JunkWare browser session and verifies that the exact appointment's media count increased before marking an item complete.
 
-Krewe expense transactions and the outbound reply queue live under `OPSBOT_DATA_DIR/integrations/whatsapp-crew-expenses` unless `WHATSAPP_CREW_EXPENSE_STATE_DIR` overrides it. Every inbound WhatsApp message gets an idempotent `Recorded.` receipt. Complete Fuel and Dump messages enter a durable transaction queue; they are not exposed as OpsCenter Finance records yet.
+Krewe expense transactions and the outbound reply queue live under `OPSBOT_DATA_DIR/integrations/whatsapp-crew-expenses` unless `WHATSAPP_CREW_EXPENSE_STATE_DIR` overrides it. Text messages can receive an idempotent `Recorded.` receipt. Image messages never receive an individual receipt: after every explicitly matched photo for a job has uploaded and been verified in JunkWare, OpsBot waits for the configured quiet period and sends exactly one batch confirmation to the sender. Complete Fuel and Dump messages enter a durable transaction queue; they are not exposed as OpsCenter Finance records yet.
 
 ### OpsBot job-closeout shadow mode
 

@@ -11,6 +11,7 @@ export type CommandBriefMetric = {
   detail: string;
   status: OperatingStatus;
   href: string;
+  secondaryValue?: string;
   progress?: number;
   progressLabel?: string;
   segments?: Array<{
@@ -66,6 +67,7 @@ export default function CommandBrief({
               <i className={styles.metricStatus} aria-label={statusLabel[metric.status]} title={statusLabel[metric.status]} />
             </div>
             <strong>{metric.value}</strong>
+            {metric.secondaryValue ? <small className={styles.metricSecondaryValue}>{metric.secondaryValue}</small> : null}
             {metric.segments?.length ? (
               <>
                 <ul className={styles.metricBreakdown} aria-label={metric.detail}>

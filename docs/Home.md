@@ -33,6 +33,7 @@ without mixing live runtime data or secrets into Git.
 - [Slack and OpsCenter](slack-opscenter.md)
 - [WhatsApp job photos](whatsapp-job-photos.md)
 - [LinxUp live GPS push](linxup-push.md)
+- [Fleet Action Center](fleet-action-center.md)
 
 ## Canonical topology
 

@@ -78,11 +78,13 @@ async function main() {
   const middlewareSource = readFileSync(new URL("../middleware.ts", import.meta.url), "utf8");
   const navSource = readFileSync(new URL("../components/OpsNav.tsx", import.meta.url), "utf8");
   const layoutSource = readFileSync(new URL("../app/(protected)/layout.tsx", import.meta.url), "utf8");
+  const shellSource = readFileSync(new URL("../components/OpsShell.tsx", import.meta.url), "utf8");
   const crewPageSource = readFileSync(new URL("../app/(protected)/crew/page.tsx", import.meta.url), "utf8");
   assert.ok(middlewareSource.includes("authorizeOpsRequest"), "Middleware must enforce role decisions server-side.");
   assert.ok(middlewareSource.includes('code: "role_forbidden"'), "Denied APIs must expose a stable forbidden code.");
   assert.ok(navSource.includes('item.href !== "/finance" || opsRoleCan(role, "finance.read")'), "Finance navigation must follow the role matrix.");
   assert.ok(layoutSource.includes("sessionRole={session.role}"), "The authenticated role must reach the visible shell.");
+  assert.ok(shellSource.includes("JKLA · {opsRoleLabel(sessionRole)}"), "The active role must remain visible in the compact sidebar.");
   assert.ok(crewPageSource.includes("canViewPayroll ? <th>Daily earnings</th> : null"), "Operator Krewe tables must omit daily earnings.");
   assert.ok(crewPageSource.includes("canViewPayroll && payrollReview"), "Payroll correction controls must follow the manager permission.");
 

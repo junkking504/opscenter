@@ -74,10 +74,9 @@ export default function OpsShell({
               <span className="ops-pulse" />
               Network online
             </div>
-            <span className="ops-sidebar-footer-code">JKLA</span>
+            <span className="ops-sidebar-footer-code">JKLA · {opsRoleLabel(sessionRole)}</span>
           </div>
           {sessionLabel ? <div className="ops-small-muted">Signed In As {sessionLabel}</div> : null}
-          <div className="ops-small-muted">{opsRoleLabel(sessionRole)} access</div>
           <a href="/api/auth/logout" className="ops-mini-link">
             Logout
           </a>

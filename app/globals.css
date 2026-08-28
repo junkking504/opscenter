@@ -3744,9 +3744,9 @@ a {
   position: relative;
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
-  border: 3px solid #111827;
+  width: 15px;
+  height: 15px;
+  border: 2px solid #111827;
   border-radius: 50% 50% 50% 0;
   box-shadow: 0 3px 9px rgba(0, 0, 0, .45);
   transform: rotate(-45deg);
@@ -3755,8 +3755,8 @@ a {
 
 .ops-jobs-map-pin i {
   display: grid;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   place-items: center;
   border-radius: 50%;
   background: rgba(255, 255, 255, .92);
@@ -3764,11 +3764,11 @@ a {
 }
 
 .ops-jobs-map-pin .ops-jobs-map-pin-check {
-  width: 13px;
-  height: 13px;
+  width: 11px;
+  height: 11px;
   color: #16803c;
   background: #f7fff9;
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 950;
   line-height: 1;
 }
@@ -3816,11 +3816,11 @@ a {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2px;
-  width: 34px;
-  height: 20px;
+  gap: 1px;
+  width: 26px;
+  height: 16px;
   border: 2px solid #111827;
-  border-radius: 8px;
+  border-radius: 6px;
   background: #f6c343;
   color: #111827;
   box-shadow: 0 4px 12px rgba(0, 0, 0, .5);
@@ -3828,14 +3828,14 @@ a {
 
 .ops-jobs-truck-marker.is-at-job::before {
   position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 10px;
-  height: 10px;
-  border: 2px solid #fff;
+  top: -5px;
+  right: -5px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid #fff;
   border-radius: 50%;
   background: #ef233c;
-  box-shadow: 0 0 0 3px rgba(239, 35, 60, .24), 0 0 11px rgba(239, 35, 60, .95);
+  box-shadow: 0 0 0 2px rgba(239, 35, 60, .24), 0 0 8px rgba(239, 35, 60, .95);
   content: "";
   animation: ops-jobs-on-site-blink 1.15s ease-in-out infinite;
 }
@@ -3843,24 +3843,24 @@ a {
 .ops-jobs-truck-marker::after {
   position: absolute;
   bottom: -3px;
-  left: 14px;
-  width: 6px;
-  height: 6px;
-  border-right: 2px solid #111827;
-  border-bottom: 2px solid #111827;
+  left: 10px;
+  width: 5px;
+  height: 5px;
+  border-right: 1px solid #111827;
+  border-bottom: 1px solid #111827;
   background: #f6c343;
   content: "";
   transform: rotate(45deg);
 }
 
 .ops-jobs-truck-marker svg {
-  width: 16px;
-  height: 11px;
+  width: 12px;
+  height: 9px;
   fill: #111827;
 }
 
 .ops-jobs-truck-marker b {
-  font-size: .5rem;
+  font-size: .42rem;
   font-weight: 950;
 }
 

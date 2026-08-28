@@ -306,9 +306,9 @@ function markerIcon(leaflet: LeafletModule, job: JobsMapPoint, selected: boolean
   return leaflet.divIcon({
     className: "",
     html: `<span class="ops-jobs-map-pin ${tone}${selected ? " is-selected" : ""}"><i${completed ? ' class="ops-jobs-map-pin-check"' : ""}>${completed ? "✓" : ""}</i></span>`,
-    iconSize: [24, 30],
-    iconAnchor: [12, 28],
-    tooltipAnchor: [0, -28],
+    iconSize: [20, 24],
+    iconAnchor: [10, 22],
+    tooltipAnchor: [0, -22],
   });
 }
 
@@ -329,9 +329,9 @@ function truckIcon(leaflet: LeafletModule, truck: JobsMapTruck, selected: boolea
       <svg viewBox="0 0 28 18" aria-hidden="true"><path d="M2 3h14v10H2zM16 7h5l4 4v2h-9z"/><circle cx="7" cy="14" r="2.5"/><circle cx="21" cy="14" r="2.5"/></svg>
       <b>T${escapeHtml(number)}</b>
     </span>`,
-    iconSize: [36, 22],
-    iconAnchor: [18, 18],
-    tooltipAnchor: [0, -18],
+    iconSize: [30, 20],
+    iconAnchor: [15, 16],
+    tooltipAnchor: [0, -16],
   });
 }
 
@@ -343,6 +343,12 @@ type MapCluster<T> = {
 
 type VisibleTruckMarker = {
   truck: JobsMapTruck;
+  latitude: number;
+  longitude: number;
+};
+
+type VisibleJobMarker = {
+  job: JobsMapPoint & { latitude: number; longitude: number };
   latitude: number;
   longitude: number;
 };
@@ -390,6 +396,26 @@ function spreadLiveTruckMarkers(map: any, trucks: JobsMapTruck[]): VisibleTruckM
         latitude: visiblePosition.lat,
         longitude: visiblePosition.lng,
       };
+    }));
+}
+
+function spreadLocatedJobMarkers(
+  map: any,
+  jobs: Array<JobsMapPoint & { latitude: number; longitude: number }>,
+): VisibleJobMarker[] {
+  return clusterVisibleMapItems(map, jobs, (job) => job, 22)
+    .flatMap((group) => group.items.map((job, index) => {
+      if (group.items.length === 1) {
+        return { job, latitude: job.latitude, longitude: job.longitude };
+      }
+
+      const point = map.latLngToLayerPoint([job.latitude, job.longitude]);
+      const angle = -Math.PI / 2 + (index * 2 * Math.PI / group.items.length);
+      const visiblePosition = map.layerPointToLatLng([
+        point.x + Math.cos(angle) * 16,
+        point.y + Math.sin(angle) * 16,
+      ]);
+      return { job, latitude: visiblePosition.lat, longitude: visiblePosition.lng };
     }));
 }
 
@@ -1334,8 +1360,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     });
 
     // Every verified appointment and every live truck is rendered individually.
-    // Trucks are only fanned apart when GPS coordinates overlap, so no area
-    // count circle ever hides a location marker.
+    // Overlapping coordinates fan into compact pins instead of a count circle.
+    const jobMarkers = spreadLocatedJobMarkers(map, locatedJobs);
     const truckMarkers = spreadLiveTruckMarkers(map, liveTruckLocations);
 
     const focusMapArea = (items: Array<{ latitude: number | null; longitude: number | null }>) => {
@@ -1374,9 +1400,9 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         if (event.key === "Enter" || event.key === " ") handleActivation(event);
       });
     };
-    for (const job of locatedJobs) {
+    for (const { job, latitude, longitude } of jobMarkers) {
       const markerLabel = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber}`;
-      const marker = leaflet.marker([job.latitude, job.longitude], {
+      const marker = leaflet.marker([latitude, longitude], {
         icon: markerIcon(leaflet, job, selectedKey === job.key),
         keyboard: true,
         title: markerLabel,

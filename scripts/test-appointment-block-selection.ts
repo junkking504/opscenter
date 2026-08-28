@@ -18,7 +18,7 @@ assert.match(
 );
 assert.match(
   jobsMapSource,
-  /const selectMapJob = \(job: JobsMapPoint & \{ latitude: number; longitude: number \}\) => \{[\s\S]*?focusMapArea\(\[job\]\);[\s\S]*?addInteractiveMarker\(marker, \(\) => selectMapJob\(job\)\);/,
+  /const selectMapJob = \(job: JobsMapPoint & \{ latitude: number; longitude: number \}\) => \{[\s\S]*?focusMapArea\(\[job\]\);[\s\S]*?for \(const \{ job, latitude, longitude \} of jobMarkers\) \{[\s\S]*?addInteractiveMarker\(marker, \(\) => selectMapJob\(job\)\);/,
   "A direct appointment marker click must focus that appointment's map location.",
 );
 assert.match(

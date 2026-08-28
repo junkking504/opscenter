@@ -7,14 +7,14 @@ assert.match(source, /function appointmentClusterArea\(job: JobsMapPoint\): stri
 assert.match(source, /territory === "new orleans" \|\| territory === "jefferson parish"/);
 assert.match(source, /const jobsByClusterArea = new Map<string, Array<JobsMapPoint & \{ latitude: number; longitude: number \}>>\(\)/);
 assert.match(source, /clusterVisibleMapItems\(map, areaJobs, \(job\) => job, 44\)/);
-assert.match(source, /const truckClusters = clusterVisibleMapItems\(map, liveTruckLocations/);
 assert.match(
   source,
-  /for \(const cluster of truckClusters\) \{[\s\S]*?if \(cluster\.items\.length === 1\) \{[\s\S]*?icon: truckIcon\([\s\S]*?continue;[\s\S]*?icon: truckClusterIcon\(leaflet, cluster\.items\.length\)/,
-  "A single truck must remain a truck icon; only overlapping trucks may display a count.",
+  /for \(const truck of liveTruckLocations\) \{[\s\S]*?icon: truckIcon\(leaflet, truck, truck\.truck === selectedTruckName, atJob\)/,
+  "Every live truck must render as its own truck icon.",
 );
 assert.match(source, /title: `\$\{cluster\.items\.length\} appointments in this area`/);
-assert.match(source, /title: `\$\{cluster\.items\.length\} trucks in this area`/);
 assert.doesNotMatch(source, /locationClusterIcon/);
 assert.doesNotMatch(source, /map items at this location/);
+assert.doesNotMatch(source, /truckClusterIcon/);
+assert.doesNotMatch(source, /truckClusters = clusterVisibleMapItems/);
 console.log("Dispatch truck and appointment markers are separated.");

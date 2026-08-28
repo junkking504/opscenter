@@ -124,7 +124,7 @@ export function buildGlobalSearchIndex(date: string): GlobalSearchResult[] {
     title: truck.truck,
     subtitle: [truck.freshnessLabel, truck.driver, truck.navigator].filter((value) => text(value)).join(" · "),
     source: "Linxup fleet",
-    href: `/fleet?date=${encodeURIComponent(date)}&section=map&truck=${encodeURIComponent(truck.truck.replace(/\D/g, ""))}`,
+    href: `/fleet?date=${encodeURIComponent(date)}&view=daily&section=map&truck=${encodeURIComponent(truck.truck.replace(/\D/g, ""))}`,
     searchText: [truck.truck, truck.driver, truck.navigator, truck.yearMakeModel].join(" "),
   }));
 

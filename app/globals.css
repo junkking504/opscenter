@@ -3817,8 +3817,8 @@ a {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  width: 42px;
-  height: 23px;
+  width: 34px;
+  height: 20px;
   border: 2px solid #111827;
   border-radius: 8px;
   background: #f6c343;
@@ -3842,10 +3842,10 @@ a {
 
 .ops-jobs-truck-marker::after {
   position: absolute;
-  bottom: -4px;
-  left: 18px;
-  width: 7px;
-  height: 7px;
+  bottom: -3px;
+  left: 14px;
+  width: 6px;
+  height: 6px;
   border-right: 2px solid #111827;
   border-bottom: 2px solid #111827;
   background: #f6c343;
@@ -3854,13 +3854,13 @@ a {
 }
 
 .ops-jobs-truck-marker svg {
-  width: 20px;
-  height: 14px;
+  width: 16px;
+  height: 11px;
   fill: #111827;
 }
 
 .ops-jobs-truck-marker b {
-  font-size: .57rem;
+  font-size: .5rem;
   font-weight: 950;
 }
 

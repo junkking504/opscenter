@@ -349,9 +349,9 @@ function truckIcon(leaflet: LeafletModule, truck: JobsMapTruck, selected: boolea
       <svg viewBox="0 0 28 18" aria-hidden="true"><path d="M2 3h14v10H2zM16 7h5l4 4v2h-9z"/><circle cx="7" cy="14" r="2.5"/><circle cx="21" cy="14" r="2.5"/></svg>
       <b>T${escapeHtml(number)}</b>
     </span>`,
-    iconSize: [44, 26],
-    iconAnchor: [22, 21],
-    tooltipAnchor: [0, -21],
+    iconSize: [36, 22],
+    iconAnchor: [18, 18],
+    tooltipAnchor: [0, -18],
   });
 }
 

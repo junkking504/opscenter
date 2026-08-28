@@ -10,6 +10,7 @@ assert.match(source, /clusterVisibleMapItems\(map, areaJobs, \(job\) => job, 44\
 assert.match(source, /function spreadLiveTruckMarkers\(map: any, trucks: JobsMapTruck\[\]\): VisibleTruckMarker\[\]/);
 assert.match(source, /const truckMarkers = spreadLiveTruckMarkers\(map, liveTruckLocations\);/);
 assert.match(source, /const TRUCK_MARKER_PANE = "ops-truck-marker-pane"/);
+assert.match(source, /iconSize: \[36, 22\]/, "Truck locator footprint must remain compact.");
 assert.match(source, /map\.createPane\(TRUCK_MARKER_PANE\)/);
 assert.match(source, /truckMarkerPane\.style\.zIndex = "675"/);
 assert.match(

@@ -1506,3 +1506,85 @@ body {
     font-size: 0.6875rem;
   }
 }
+
+/* Finance trends are a primary decision surface, not a dense report buried
+ * behind a tab. Keep each measure and its change together. */
+.ops-finance-page .ops-finance-trend-card {
+  grid-column: 1 / -1;
+}
+
+.ops-finance-trend-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 18px;
+}
+
+.ops-finance-trend-summary > div {
+  display: flex;
+  min-width: 0;
+  min-height: 104px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid var(--oc-line);
+  border-radius: 12px;
+  background: var(--oc-surface-soft);
+}
+
+.ops-finance-trend-summary span {
+  color: var(--oc-text-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.045em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.ops-finance-trend-summary strong {
+  color: var(--oc-text);
+  font-size: clamp(1.05rem, 1.65vw, 1.4rem);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.ops-finance-trend-card .ops-table {
+  min-width: 760px;
+}
+
+.ops-finance-trend-card .ops-table th,
+.ops-finance-trend-card .ops-table td {
+  vertical-align: top;
+}
+
+.ops-finance-trend-card .ops-table td .ops-table-subline {
+  margin-top: 4px;
+  color: var(--oc-text-muted);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1100px) {
+  .ops-finance-trend-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .ops-finance-trend-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .ops-finance-trend-summary > div {
+    min-height: 96px;
+    padding: 10px;
+  }
+
+  .ops-finance-trend-summary > div:last-child {
+    grid-column: 1 / -1;
+  }
+}

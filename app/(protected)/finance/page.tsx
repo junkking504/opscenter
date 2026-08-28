@@ -22,7 +22,7 @@ import { readCrewExpenseRecords } from "@/lib/whatsapp-crew-expenses";
 export const dynamic = "force-dynamic";
 
 function normalizeView(value: unknown): "daily" | "monthly" {
-  return String(value || "").toLowerCase() === "monthly" ? "monthly" : "daily";
+  return String(value || "").toLowerCase() === "daily" ? "daily" : "monthly";
 }
 
 function toNumber(value: unknown): number {
@@ -176,6 +176,7 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
   const ytdMargin = financeTrend.yearToDate.grossRevenue > 0
     ? (financeTrend.yearToDate.estimatedOperatingProfit / financeTrend.yearToDate.grossRevenue) * 100
     : 0;
+  const showTrend = section === "overview" || section === "trend";
 
   const revenueByTerritory = new Map<string, number>();
   const expenseByCategory = new Map<string, number>();
@@ -217,7 +218,7 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
           <OpsMonthSelector months={monthOptions()} selectedMonthKey={range.monthKey} />
         }
         sections={[
-          { label: "Daily finance", href: `/finance?date=${date}` },
+          { label: "Daily finance", href: `/finance?date=${date}&view=daily` },
           { label: "Overview", href: `/finance?date=${date}&view=monthly&section=overview`, active: section === "overview" },
           { label: "Reconciliation", href: `/finance?date=${date}&view=monthly&section=reconciliation`, active: section === "reconciliation" },
           { label: "Expenses", href: `/finance?date=${date}&view=monthly&section=expenses`, active: section === "expenses" },
@@ -360,17 +361,18 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
           </table>
         </div>
 
-        <div className={section === "trend" ? "ops-card" : "ops-section-hidden"} id="finance-trend">
+        <div className={showTrend ? "ops-card ops-finance-trend-card" : "ops-section-hidden"} id="finance-trend">
           <div className="ops-card-header compact">
             <div>
-              <div className="ops-section-title">Month-to-Month and Year-to-Date Trend</div>
+              <div className="ops-section-title">Financial Trend</div>
               <div className="ops-muted">
-                Revenue uses the reconciled JunkWare monthly total when available. Expenses and operating profit are summed from published daily finance records.
+                Month-to-month performance and year-to-date totals. Revenue uses the reconciled JunkWare monthly total when available.
               </div>
             </div>
+            {section === "overview" ? <Link className="ops-mini-link" href={`/finance?date=${date}&view=monthly&section=trend`}>Daily detail</Link> : null}
           </div>
 
-          <div className="ops-summary-list">
+          <div className="ops-finance-trend-summary">
             <div>
               <span>{range.monthDisplay} revenue</span>
               <strong>{money(sales)}</strong>
@@ -424,17 +426,7 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
           <div className="ops-finance-table-scroll">
             <table className="ops-table">
               <thead>
-                <tr>
-                  <th>Month</th>
-                  <th>Revenue</th>
-                  <th>MoM Revenue</th>
-                  <th>Expenses</th>
-                  <th>MoM Expenses</th>
-                  <th>Operating Profit</th>
-                  <th>MoM Operating Profit</th>
-                  <th>Jobs</th>
-                  <th>MoM Jobs</th>
-                </tr>
+                <tr><th>Month</th><th>Revenue</th><th>Expenses</th><th>Operating Profit</th><th>Jobs</th></tr>
               </thead>
               <tbody>
                 {financeTrend.months.slice().reverse().map((month) => {
@@ -449,25 +441,21 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
                         <strong>{month.monthDisplay}</strong>
                         {!month.complete ? <div className="ops-table-subline">Data through {month.dataThroughDate}</div> : null}
                       </td>
-                      <td className="ops-money">{money(month.grossRevenue)}</td>
                       <td className="ops-money">
-                        {revenueChange === null ? "—" : signedMoney(revenueChange)}
-                        {previous ? <div className="ops-table-subline">{changePercent(month.grossRevenue, previous.grossRevenue)}</div> : null}
+                        {money(month.grossRevenue)}
+                        <div className="ops-table-subline">{revenueChange === null ? "No prior month" : `${signedMoney(revenueChange)} · ${changePercent(month.grossRevenue, previous!.grossRevenue)}`}</div>
                       </td>
-                      <td className="ops-money">{money(month.totalOperatingExpenses)}</td>
                       <td className="ops-money">
-                        {expenseChange === null ? "—" : signedMoney(expenseChange)}
-                        {previous ? <div className="ops-table-subline">{changePercent(month.totalOperatingExpenses, previous.totalOperatingExpenses)}</div> : null}
+                        {money(month.totalOperatingExpenses)}
+                        <div className="ops-table-subline">{expenseChange === null ? "No prior month" : `${signedMoney(expenseChange)} · ${changePercent(month.totalOperatingExpenses, previous!.totalOperatingExpenses)}`}</div>
                       </td>
-                      <td className="ops-money">{money(month.estimatedOperatingProfit)}</td>
                       <td className="ops-money">
-                        {profitChange === null ? "—" : signedMoney(profitChange)}
-                        {previous ? <div className="ops-table-subline">{changePercent(month.estimatedOperatingProfit, previous.estimatedOperatingProfit)}</div> : null}
+                        {money(month.estimatedOperatingProfit)}
+                        <div className="ops-table-subline">{profitChange === null ? "No prior month" : `${signedMoney(profitChange)} · ${changePercent(month.estimatedOperatingProfit, previous!.estimatedOperatingProfit)}`}</div>
                       </td>
-                      <td>{month.completedJobs.toLocaleString("en-US")}</td>
                       <td>
-                        {jobsChange === null ? "—" : `${jobsChange > 0 ? "+" : ""}${jobsChange.toLocaleString("en-US")}`}
-                        {previous ? <div className="ops-table-subline">{changePercent(month.completedJobs, previous.completedJobs)}</div> : null}
+                        {month.completedJobs.toLocaleString("en-US")}
+                        <div className="ops-table-subline">{jobsChange === null ? "No prior month" : `${jobsChange > 0 ? "+" : ""}${jobsChange.toLocaleString("en-US")} · ${changePercent(month.completedJobs, previous!.completedJobs)}`}</div>
                       </td>
                     </tr>
                   );
@@ -476,47 +464,43 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
             </table>
           </div>
 
-          <div className="ops-section-spacer" />
+          <div className={section === "trend" ? "" : "ops-section-hidden"}>
+            <div className="ops-section-spacer" />
 
-          <div className="ops-card-header compact">
-            <div>
-              <div className="ops-section-title">Daily Revenue and Expense Trend</div>
-              <div className="ops-muted">Daily detail for {range.monthDisplay}.</div>
+            <div className="ops-card-header compact">
+              <div>
+                <div className="ops-section-title">Daily Revenue and Expense Trend</div>
+                <div className="ops-muted">Daily detail for {range.monthDisplay}; changes are against the prior published day.</div>
+              </div>
+            </div>
+            <div className="ops-finance-table-scroll">
+              <table className="ops-table">
+                <thead>
+                  <tr><th>Date</th><th>Revenue</th><th>Expenses</th></tr>
+                </thead>
+                <tbody>
+                  {dailyTrend.map((row, index) => {
+                    const previous = index > 0 ? dailyTrend[index - 1] : null;
+                    const revenueChange = previous ? row.revenue - previous.revenue : null;
+                    const expenseChange = previous ? row.expenses - previous.expenses : null;
+                    return (
+                      <tr key={row.date}>
+                        <td>{row.date}</td>
+                        <td className="ops-money">
+                          {money(row.revenue)}
+                          <div className="ops-table-subline">{revenueChange === null ? "No prior day" : `${signedMoney(revenueChange)} · ${changePercent(row.revenue, previous!.revenue)}`}</div>
+                        </td>
+                        <td className="ops-money">
+                          {money(row.expenses)}
+                          <div className="ops-table-subline">{expenseChange === null ? "No prior day" : `${signedMoney(expenseChange)} · ${changePercent(row.expenses, previous!.expenses)}`}</div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
-          <table className="ops-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Revenue</th>
-                <th>Prior Day Revenue</th>
-                <th>Expenses</th>
-                <th>Prior Day Expenses</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dailyTrend.map((row, index) => {
-                const previous = index > 0 ? dailyTrend[index - 1] : null;
-                const revenueChange = previous ? row.revenue - previous.revenue : null;
-                const expenseChange = previous ? row.expenses - previous.expenses : null;
-                return (
-                  <tr key={row.date}>
-                    <td>{row.date}</td>
-                    <td className="ops-money">{money(row.revenue)}</td>
-                    <td className="ops-money">
-                      {revenueChange === null ? "—" : signedMoney(revenueChange)}
-                      {previous ? <div className="ops-table-subline">{changePercent(row.revenue, previous.revenue)}</div> : null}
-                    </td>
-                    <td className="ops-money">{money(row.expenses)}</td>
-                    <td className="ops-money">
-                      {expenseChange === null ? "—" : signedMoney(expenseChange)}
-                      {previous ? <div className="ops-table-subline">{changePercent(row.expenses, previous.expenses)}</div> : null}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
@@ -595,11 +579,11 @@ export default async function FinancePage({
         date={date}
         lastUpdated={metrics?.generated_at}
         sections={[
-          { label: "Overview", href: `/finance?date=${date}&section=overview`, active: section === "overview" },
-          { label: "Reconciliation", href: `/finance?date=${date}&section=reconciliation`, active: section === "reconciliation" },
-          { label: "Expenses & earnings", href: `/finance?date=${date}&section=expenses`, active: section === "expenses" },
-          { label: "Truck breakdown", href: `/finance?date=${date}&section=trucks`, active: section === "trucks" },
-          { label: "Resale", href: `/finance?date=${date}&section=resale`, active: section === "resale" },
+          { label: "Overview", href: `/finance?date=${date}&view=daily&section=overview`, active: section === "overview" },
+          { label: "Reconciliation", href: `/finance?date=${date}&view=daily&section=reconciliation`, active: section === "reconciliation" },
+          { label: "Expenses & earnings", href: `/finance?date=${date}&view=daily&section=expenses`, active: section === "expenses" },
+          { label: "Truck breakdown", href: `/finance?date=${date}&view=daily&section=trucks`, active: section === "trucks" },
+          { label: "Resale", href: `/finance?date=${date}&view=daily&section=resale`, active: section === "resale" },
           { label: "Monthly", href: `/finance?date=${date}&view=monthly` },
         ]}
       />

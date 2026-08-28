@@ -84,7 +84,7 @@ async function main() {
   assert.ok(middlewareSource.includes('code: "role_forbidden"'), "Denied APIs must expose a stable forbidden code.");
   assert.ok(navSource.includes('item.href !== "/finance" || opsRoleCan(role, "finance.read")'), "Finance navigation must follow the role matrix.");
   assert.ok(layoutSource.includes("sessionRole={session.role}"), "The authenticated role must reach the visible shell.");
-  assert.ok(shellSource.includes("JKLA · {opsRoleLabel(sessionRole)}"), "The active role must remain visible in the compact sidebar.");
+  assert.ok(shellSource.includes("JKLA · {sessionRole.toUpperCase()}"), "The active role must remain visible in the compact sidebar.");
   assert.ok(crewPageSource.includes("canViewPayroll ? <th>Daily earnings</th> : null"), "Operator Krewe tables must omit daily earnings.");
   assert.ok(crewPageSource.includes("canViewPayroll && payrollReview"), "Payroll correction controls must follow the manager permission.");
 

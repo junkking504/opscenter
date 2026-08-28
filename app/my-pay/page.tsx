@@ -213,7 +213,7 @@ function DailyPerformanceView({ data }: { data: Awaited<ReturnType<typeof getCre
   return (
     <>
       <section className={styles.section}>
-        <div className={styles.sectionHeader}>
+        <div className={`${styles.sectionHeader} ${styles.sectionHeaderCentered}`}>
           <div>
             <div className={styles.eyebrow}>Private crew access</div>
             <h2>Your Daily Performance</h2>
@@ -224,7 +224,7 @@ function DailyPerformanceView({ data }: { data: Awaited<ReturnType<typeof getCre
       </section>
 
       <section className={styles.section}>
-        <div className={styles.sectionHeader}>
+        <div className={`${styles.sectionHeader} ${styles.sectionHeaderCentered}`}>
           <div>
             <div className={styles.eyebrow}>All crewmembers</div>
             <h2>Everyone’s Daily Metrics</h2>

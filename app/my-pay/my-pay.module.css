@@ -218,6 +218,16 @@
   font-size: 0.82rem;
 }
 
+.sectionHeaderCentered {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  text-align: center;
+}
+
+.sectionHeaderCentered > div:first-child { min-width: 0; }
+.sectionHeaderCentered .privacyNote { justify-self: center; }
+
 .currentLink {
   color: #ff8a3e;
   font-size: 0.8rem;

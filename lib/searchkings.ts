@@ -170,6 +170,13 @@ export type SearchKingsTerritoryRow = {
   lostLeads: number;
 };
 
+export type SearchKingsJobCountChange = {
+  current: number;
+  previous: number;
+  percentage: number | null;
+  comparisonAvailable: boolean;
+};
+
 export type SearchKingsView = {
   available: boolean;
   error?: string;
@@ -183,6 +190,7 @@ export type SearchKingsView = {
   qualifiedCalls: number;
   qualifiedRate: number;
   bookedJobs: number;
+  bookedJobsChange: SearchKingsJobCountChange;
   attributedRevenue: number;
   costPerBookedJob: number;
   roas: number;
@@ -630,6 +638,12 @@ function emptyView(error: string): SearchKingsView {
     qualifiedCalls: 0,
     qualifiedRate: 0,
     bookedJobs: 0,
+    bookedJobsChange: {
+      current: 0,
+      previous: 0,
+      percentage: null,
+      comparisonAvailable: false,
+    },
     attributedRevenue: 0,
     costPerBookedJob: 0,
     roas: 0,
@@ -710,6 +724,23 @@ export function buildSearchKingsViewFromData(
   const platformConversions = accountRows.reduce((sum, row) => sum + row.conversions, 0);
   const qualifiedLeads = leads.filter((lead) => lead.qualified);
   const bookedLeads = leads.filter((lead) => lead.status === "booked" || lead.status === "recovered");
+  const recentPeriodStart = addDays(snapshot.range.endDate, -6);
+  const priorPeriodStart = addDays(recentPeriodStart, -7);
+  const priorPeriodEnd = addDays(recentPeriodStart, -1);
+  const countBookedJobs = (start: string, end: string): number => bookedLeads.filter(
+    (lead) => lead.calledDate >= start && lead.calledDate <= end,
+  ).length;
+  const recentBookedJobs = countBookedJobs(recentPeriodStart, snapshot.range.endDate);
+  const priorBookedJobs = countBookedJobs(priorPeriodStart, priorPeriodEnd);
+  const jobCountComparisonAvailable = snapshot.range.startDate <= priorPeriodStart;
+  const bookedJobsChange: SearchKingsJobCountChange = {
+    current: recentBookedJobs,
+    previous: priorBookedJobs,
+    percentage: jobCountComparisonAvailable && priorBookedJobs > 0
+      ? ((recentBookedJobs - priorBookedJobs) / priorBookedJobs) * 100
+      : null,
+    comparisonAvailable: jobCountComparisonAvailable,
+  };
   const lostLeads = leads.filter((lead) => lead.status === "lost");
   const valuedLostLeads = lostLeads.filter((lead) => lead.potentialRevenue != null);
   const attributedRevenue = roundMoney(
@@ -752,6 +783,7 @@ export function buildSearchKingsViewFromData(
     qualifiedCalls: qualifiedLeads.length,
     qualifiedRate: leads.length ? (qualifiedLeads.length / leads.length) * 100 : 0,
     bookedJobs: bookedLeads.length,
+    bookedJobsChange,
     attributedRevenue,
     costPerBookedJob: bookedLeads.length ? roundMoney(spend / bookedLeads.length) : 0,
     roas: spend ? attributedRevenue / spend : 0,

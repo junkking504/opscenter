@@ -66,6 +66,7 @@ assert.equal(view.spend, 500);
 assert.equal(view.platformConversions, 15);
 assert.equal(view.qualifiedCalls, 3);
 assert.equal(view.bookedJobs, 2);
+assert.equal(view.bookedJobsChange.comparisonAvailable, false);
 assert.equal(view.attributedRevenue, 600);
 assert.equal(view.lostLeads, 1);
 assert.equal(view.valuedLostLeads, 1);
@@ -95,6 +96,55 @@ const duplicateBookingSnapshot: SearchKingsSnapshot = {
 const duplicateBookingView = buildSearchKingsViewFromData(duplicateBookingSnapshot, appointments, [], new Date("2026-08-01T20:00:00.000Z"));
 assert.equal(duplicateBookingView.bookedJobs, 1);
 assert.equal(duplicateBookingView.attributedRevenue, 600);
+
+const bookingTrendSnapshot: SearchKingsSnapshot = {
+  ...snapshot,
+  range: { startDate: "2026-08-01", endDate: "2026-08-14", timezone: "America/Chicago" },
+  calls: {
+    ...snapshot.calls,
+    total: { currentCalls: 5, currentScoredCalls: 5 },
+    calls: [
+      ...snapshot.calls.calls,
+      {
+        id: "booked-recent",
+        name: "Recent Booked Caller",
+        callerNumberComplete: "+1 985 555 0105",
+        city: "New Orleans",
+        score: 4,
+        tagList: [],
+        reportingTag: "Scheduled pickup.",
+        trackingLabel: "NOLA",
+        duration: "02:15",
+        calledAtDate: "2026-08-14",
+        calledAtTime: "10:00 AM",
+      },
+    ],
+  },
+};
+const bookingTrendAppointments: SearchKingsAppointmentMatch[] = [
+  ...appointments,
+  {
+    date: "2026-08-14",
+    appointmentId: "appt-recent",
+    jobId: "JK-104",
+    customerName: "Recent Booked Caller",
+    phone: "9855550105",
+    territory: "New Orleans",
+    revenue: 300,
+    completed: false,
+    status: "Scheduled",
+  },
+];
+const bookingTrendView = buildSearchKingsViewFromData(
+  bookingTrendSnapshot,
+  bookingTrendAppointments,
+  overrides,
+  new Date("2026-08-15T18:00:00.000Z"),
+);
+assert.equal(bookingTrendView.bookedJobsChange.comparisonAvailable, true);
+assert.equal(bookingTrendView.bookedJobsChange.current, 1);
+assert.equal(bookingTrendView.bookedJobsChange.previous, 2);
+assert.equal(bookingTrendView.bookedJobsChange.percentage, -50);
 assert.equal(appointmentScheduleHref("2026-08-02", "JK-101"), "/jobs?date=2026-08-02#job-jk-101");
 
 const callGroups = groupSearchKingsLeadsByDate(view.leads);

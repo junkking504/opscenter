@@ -25,6 +25,22 @@ function ratio(value: number): string {
   return `${value.toFixed(2)}×`;
 }
 
+function jobCountChangeLabel(change: {
+  current: number;
+  previous: number;
+  percentage: number | null;
+  comparisonAvailable: boolean;
+}): string {
+  if (!change.comparisonAvailable) return "Prior 7-day comparison unavailable";
+  if (change.percentage == null) {
+    return change.current === 0
+      ? "No matched jobs in either 7-day window"
+      : `${change.current} new vs prior 7 days`;
+  }
+  const direction = change.percentage > 0 ? "↑" : change.percentage < 0 ? "↓" : "→";
+  return `${direction} ${Math.abs(change.percentage).toFixed(1)}% vs prior 7 days`;
+}
+
 function callDate(value: string): string {
   if (!value) return "—";
   return new Date(value).toLocaleString("en-US", {
@@ -205,6 +221,9 @@ export default async function MarketingPage({
               </div>
               <div className="ops-kpi-sub">
                 Phone matches · {money(view.costPerBookedJob)} ad cost each
+              </div>
+              <div className="ops-kpi-sub ops-marketing-job-count-change">
+                Last 7 days: {view.bookedJobsChange.current} · {jobCountChangeLabel(view.bookedJobsChange)}
               </div>
             </Link>
             <Link

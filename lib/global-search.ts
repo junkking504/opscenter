@@ -36,11 +36,14 @@ function normalized(value: string): string {
 function resultScore(result: GlobalSearchResult, query: string): number {
   const title = normalized(result.title);
   const haystack = normalized(result.searchText);
-  const tokens = normalized(query).split(/\s+/).filter(Boolean);
+  const normalizedQuery = normalized(query);
+  const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
+  const truckNumberQuery = normalizedQuery.match(/^truck\s+(\d+)$/);
+  if (truckNumberQuery && !haystack.includes(`truck ${truckNumberQuery[1]}`)) return -1;
   if (!tokens.length || !tokens.every((token) => haystack.includes(token))) return -1;
-  if (title === normalized(query)) return 100;
-  if (title.startsWith(normalized(query))) return 80;
-  if (title.includes(normalized(query))) return 60;
+  if (title === normalizedQuery) return 100;
+  if (title.startsWith(normalizedQuery)) return 80;
+  if (title.includes(normalizedQuery)) return 60;
   return 20 + tokens.reduce((sum, token) => sum + (title.includes(token) ? 4 : 0), 0);
 }
 

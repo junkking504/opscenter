@@ -80,7 +80,8 @@ export default function GlobalSearch() {
     router.push(destination);
   }
 
-  const grouped = (["job", "crew", "truck"] as GlobalSearchResultType[])
+  const rankedTypes = Array.from(new Set(results.map((result) => result.type)));
+  const grouped = rankedTypes
     .map((type) => ({ type, results: results.filter((result) => result.type === type) }))
     .filter((group) => group.results.length > 0);
 

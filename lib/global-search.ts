@@ -1,5 +1,6 @@
 import { buildFleetMapPayload } from "@/lib/fleet-map";
 import { availableDates, crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
+import { crewMemberHref, fleetTruckHref, jobScheduleHref } from "@/lib/related-record-links";
 
 export type GlobalSearchResultType = "job" | "crew" | "truck";
 
@@ -86,7 +87,7 @@ function jobResult(row: AnyRecord, date: string): GlobalSearchResult | null {
     title,
     subtitle: detail,
     source: "JunkWare appointment",
-    href: `/jobs?date=${encodeURIComponent(date)}&q=${encodeURIComponent(routeQuery)}#jobs-schedule`,
+    href: jobScheduleHref(date, routeQuery),
     searchText: [title, phone, address, status, truck, driver, navigator, appointmentId].join(" "),
   };
 }
@@ -102,7 +103,7 @@ function crewResult(row: AnyRecord, date: string): GlobalSearchResult | null {
     title: name,
     subtitle: [shift, truck].filter(Boolean).join(" · ") || "Today’s Krewe",
     source: "OpsCenter Krewe snapshot",
-    href: `/crew?date=${encodeURIComponent(date)}&section=crew#crew-today`,
+    href: crewMemberHref(date, name),
     searchText: [name, truck, shift].join(" "),
   };
 }
@@ -124,7 +125,7 @@ export function buildGlobalSearchIndex(date: string): GlobalSearchResult[] {
     title: truck.truck,
     subtitle: [truck.freshnessLabel, truck.driver, truck.navigator].filter((value) => text(value)).join(" · "),
     source: "Linxup fleet",
-    href: `/fleet?date=${encodeURIComponent(date)}&view=daily&section=map&truck=${encodeURIComponent(truck.truck.replace(/\D/g, ""))}`,
+    href: fleetTruckHref(date, truck.truck),
     searchText: [truck.truck, truck.driver, truck.navigator, truck.yearMakeModel].join(" "),
   }));
 

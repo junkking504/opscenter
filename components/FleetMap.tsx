@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FleetMapPayload, FleetMapStop, FleetTruckMapRecord } from "@/lib/fleet-map";
 import { splitPlausibleRouteRuns } from "@/lib/job-route-history";
+import { crewMemberHref, jobScheduleHref } from "@/lib/related-record-links";
+import relatedStyles from "@/components/RelatedRecords.module.css";
 
 type LeafletModule = typeof import("leaflet");
 
@@ -53,6 +56,15 @@ function formatScore(record: FleetTruckMapRecord): string {
 function formatNumber(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return "—";
   return Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
+function CrewMemberLink({ date, name }: { date: string; name: string }) {
+  if (!name || name === "—" || name === "Multiple") return <>{name || "—"}</>;
+  return (
+    <Link className={relatedStyles.relatedLink} href={crewMemberHref(date, name)} title={`Open ${name} in Today’s Krewe`}>
+      {name}
+    </Link>
+  );
 }
 
 function escapeHtml(value: string): string {
@@ -467,11 +479,11 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
             </div>
             <div>
               <span>Driver</span>
-              <strong>{selectedTruckRecord.driver}</strong>
+              <strong><CrewMemberLink date={payload.date} name={selectedTruckRecord.driver} /></strong>
             </div>
             <div>
               <span>Navigator</span>
-              <strong>{selectedTruckRecord.navigator}</strong>
+              <strong><CrewMemberLink date={payload.date} name={selectedTruckRecord.navigator} /></strong>
             </div>
             <div>
               <span>Driver Score</span>
@@ -534,6 +546,48 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
               <strong>{selectedTruckRecord.daysUntilNextService}</strong>
             </div>
           </div>
+
+          {(selectedTruckRecord.relatedAppointments.length > 0 || selectedTruckRecord.crewMembers.length > 0) && (
+            <div className={relatedStyles.records} aria-label={`Related records for ${selectedTruckRecord.truck}`}>
+              <div className="ops-driver-panel-title">Related operations</div>
+              {selectedTruckRecord.relatedAppointments.length > 0 ? (
+                <div className={relatedStyles.group}>
+                  <span className={relatedStyles.groupLabel}>Schedule</span>
+                  <div className={relatedStyles.list}>
+                    {selectedTruckRecord.relatedAppointments.map((appointment) => (
+                      <Link
+                        key={appointment.jkNumber}
+                        className={relatedStyles.card}
+                        href={jobScheduleHref(payload.date, appointment.jkNumber)}
+                        title={`Open ${appointment.jkNumber} on the Schedule`}
+                      >
+                        <strong>{appointment.jkNumber}</strong>
+                        <small>{appointment.customer} · {appointment.time} · {appointment.status}</small>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {selectedTruckRecord.crewMembers.length > 0 ? (
+                <div className={relatedStyles.group}>
+                  <span className={relatedStyles.groupLabel}>Krewe</span>
+                  <div className={`${relatedStyles.list} ${relatedStyles.compact}`}>
+                    {selectedTruckRecord.crewMembers.map((name) => (
+                      <Link
+                        key={name}
+                        className={relatedStyles.card}
+                        href={crewMemberHref(payload.date, name)}
+                        title={`Open ${name} in Today’s Krewe`}
+                      >
+                        <strong>{name}</strong>
+                        <small>{selectedTruckRecord.truck}</small>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
 
           <div className="ops-driver-alerts">
             <div className="ops-driver-panel-title">Safety Alerts</div>

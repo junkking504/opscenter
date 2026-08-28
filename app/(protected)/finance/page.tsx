@@ -18,6 +18,7 @@ import {
 import { buildSearchKingsView } from "@/lib/searchkings";
 import { readResaleStore } from "@/lib/resale-items";
 import { readCrewExpenseRecords } from "@/lib/whatsapp-crew-expenses";
+import { jobScheduleHref } from "@/lib/related-record-links";
 
 export const dynamic = "force-dynamic";
 
@@ -65,14 +66,6 @@ function previousMonthKey(value: string): string {
   const date = new Date(`${value}-01T12:00:00Z`);
   date.setUTCMonth(date.getUTCMonth() - 1);
   return date.toISOString().slice(0, 7);
-}
-
-function appointmentAnchor(jkNumber: string): string {
-  return `job-${jkNumber.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase()}`;
-}
-
-function appointmentHref(date: string, jkNumber: string): string {
-  return `/jobs?date=${encodeURIComponent(date)}#${appointmentAnchor(jkNumber)}`;
 }
 
 const FINANCE_TERRITORY_ORDER = [
@@ -685,7 +678,7 @@ export default async function FinancePage({
                     <td>
                       <Link
                         className="ops-reconciliation-job-link"
-                        href={appointmentHref(date, payment.jkNumber)}
+                        href={jobScheduleHref(date, payment.jkNumber)}
                         title={`Open ${payment.jkNumber} on the OpsCenter schedule`}
                       >
                         {payment.jkNumber}

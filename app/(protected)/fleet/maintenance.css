@@ -946,6 +946,38 @@
 
 .ops-fleet-action-list { display: grid; gap: 7px; }
 
+.ops-fleet-work-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ops-fleet-work-summary > div {
+  display: grid;
+  gap: 2px;
+  padding: 10px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.ops-fleet-work-summary span {
+  color: var(--ops-muted-2);
+  font-size: 0.61rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.ops-fleet-work-summary strong {
+  color: var(--ops-text);
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-fleet-work-summary .missing strong { color: #fcd34d; }
+.ops-fleet-work-summary .attention strong { color: #fdba74; }
+.ops-fleet-work-summary .out strong { color: #fca5a5; }
+
 .ops-fleet-action-row {
   min-width: 0;
   padding: 9px;
@@ -1184,6 +1216,7 @@ body.ops-fleet-driver-mode .ops-checklist-status-buttons button { min-height: 44
   }
 
   .ops-template-standard-items,
+  .ops-fleet-work-summary,
   .ops-readiness-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

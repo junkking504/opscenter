@@ -1788,6 +1788,20 @@
   gap: 14px;
 }
 
+.ops-jobs-page .ops-estimate-followup-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 12px;
+}
+
+.ops-jobs-page .ops-estimate-followup-heading.open-estimates {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 2px solid #d6e2ea;
+}
+
 .ops-jobs-page .ops-closed-estimate-card {
   overflow: hidden;
   border: 1px solid #d5dee6;

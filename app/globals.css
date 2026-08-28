@@ -1768,7 +1768,7 @@ a {
   position: relative;
 }
 
-.ops-date-selector-wrap:after {
+.ops-date-selector-wrap:not(.is-calendar):after {
   content: "⌄";
   position: absolute;
   right: 13px;

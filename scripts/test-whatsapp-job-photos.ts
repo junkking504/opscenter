@@ -59,6 +59,21 @@ if (explicit.status === "matched") {
   assert.equal(explicit.category, "before");
 }
 
+const explicitOutsideSchedule = matchWhatsAppPhoto({
+  senderPhone: "5045550101",
+  caption: "After JK4025999",
+  receivedAt: now,
+  appointments,
+  fleet: [],
+  senderTruckMap: {},
+});
+assert.equal(explicitOutsideSchedule.status, "matched");
+if (explicitOutsideSchedule.status === "matched") {
+  assert.equal(explicitOutsideSchedule.method, "jk_number");
+  assert.equal(explicitOutsideSchedule.jkNumber, "JK4025999");
+  assert.equal(explicitOutsideSchedule.appointmentId, null);
+}
+
 const nearest = matchWhatsAppPhoto({
   senderPhone: "+1 504-555-0101",
   caption: "After photos",

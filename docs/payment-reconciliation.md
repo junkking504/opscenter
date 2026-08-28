@@ -2,6 +2,12 @@
 
 OpsCenter compares the credit-card ledger in JunkWare **Accounting → Update QuickBooks** with card transactions already present in the connected **QuickBooks Online** company. The Finance page shows the result in daily and monthly views. Merchant Center is not part of this workflow.
 
+## Finance navigation
+
+Finance starts in **Daily close** for the selected operating date. Its sections separate the operational questions: Daily summary, Payments & recon, Company costs, Truck records, and Resale inventory. **Month to date** is a separate scope for P&L summary, payment reconciliation, costs, territory, and trend review.
+
+Truck Records remain authoritative for the selected day’s operating totals. JunkWare is authoritative for its card-payment ledger and payment types; QuickBooks Online is the comparison source for card-payment reconciliation. Krewe-reported cost detail is supporting audit evidence, not a replacement for Truck Records totals.
+
 ## Automated workflow
 
 The five-minute production collector runs these steps for today and yesterday:

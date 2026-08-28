@@ -43,7 +43,7 @@ function sidebarHref(
 function sidebarSubItems(pathname: string, searchParams: SearchParamReader): SidebarSubItem[] {
   const rawView = searchParams.get("view")?.toLowerCase();
   const view = pathname.startsWith("/finance")
-    ? rawView === "daily" ? "daily" : "monthly"
+    ? rawView === "monthly" ? "monthly" : "daily"
     : rawView === "monthly" || rawView === "maintenance" ? rawView : "daily";
   const requestedSection = searchParams.get("section")?.toLowerCase() || "";
 
@@ -156,24 +156,25 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
     if (view === "monthly") {
       const section = ["reconciliation", "expenses", "territory", "trend", "resale"].includes(requestedSection) ? requestedSection : "overview";
       return [
-        { label: "Daily finance", href: sidebarHref("/finance", searchParams, { view: "daily" }), active: false },
-        { label: "Overview", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "overview" }), active: section === "overview" },
-        { label: "Reconciliation", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "reconciliation" }), active: section === "reconciliation" },
-        { label: "Expenses", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "expenses" }), active: section === "expenses" },
+        { label: "Daily close", href: sidebarHref("/finance", searchParams, { view: "daily" }), active: false },
+        { label: "P&L summary", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "overview" }), active: section === "overview" },
+        { label: "Payments & recon", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "reconciliation" }), active: section === "reconciliation" },
+        { label: "Costs", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "expenses" }), active: section === "expenses" },
         { label: "Territory", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "territory" }), active: section === "territory" },
         { label: "Trend", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "trend" }), active: section === "trend" },
-        { label: "Resale", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "resale" }), active: section === "resale" },
+        { label: "Resale inventory", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "resale" }), active: section === "resale" },
       ];
     }
 
-    const section = ["reconciliation", "expenses", "trucks", "resale"].includes(requestedSection) ? requestedSection : "overview";
+    const dailySection = requestedSection === "reconciliation" ? "payments" : requestedSection;
+    const section = ["payments", "expenses", "trucks", "resale"].includes(dailySection) ? dailySection : "overview";
     return [
-      { label: "Overview", href: sidebarHref("/finance", searchParams, { view: "daily", section: "overview" }), active: section === "overview" },
-      { label: "Reconciliation", href: sidebarHref("/finance", searchParams, { view: "daily", section: "reconciliation" }), active: section === "reconciliation" },
-      { label: "Expenses & earnings", href: sidebarHref("/finance", searchParams, { view: "daily", section: "expenses" }), active: section === "expenses" },
-      { label: "Truck breakdown", href: sidebarHref("/finance", searchParams, { view: "daily", section: "trucks" }), active: section === "trucks" },
-      { label: "Resale", href: sidebarHref("/finance", searchParams, { view: "daily", section: "resale" }), active: section === "resale" },
-      { label: "Monthly", href: sidebarHref("/finance", searchParams, { view: "monthly" }), active: false },
+      { label: "Daily summary", href: sidebarHref("/finance", searchParams, { view: "daily", section: "overview" }), active: section === "overview" },
+      { label: "Payments & recon", href: sidebarHref("/finance", searchParams, { view: "daily", section: "payments" }), active: section === "payments" },
+      { label: "Company costs", href: sidebarHref("/finance", searchParams, { view: "daily", section: "expenses" }), active: section === "expenses" },
+      { label: "Truck records", href: sidebarHref("/finance", searchParams, { view: "daily", section: "trucks" }), active: section === "trucks" },
+      { label: "Resale inventory", href: sidebarHref("/finance", searchParams, { view: "daily", section: "resale" }), active: section === "resale" },
+      { label: "Month to date", href: sidebarHref("/finance", searchParams, { view: "monthly" }), active: false },
     ];
   }
 

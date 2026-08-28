@@ -22,7 +22,24 @@ import { readCrewExpenseRecords } from "@/lib/whatsapp-crew-expenses";
 export const dynamic = "force-dynamic";
 
 function normalizeView(value: unknown): "daily" | "monthly" {
-  return String(value || "").toLowerCase() === "daily" ? "daily" : "monthly";
+  return String(value || "").toLowerCase() === "monthly" ? "monthly" : "daily";
+}
+
+function financeHref(date: string, view: "daily" | "monthly", section = "overview"): string {
+  return `/finance?date=${encodeURIComponent(date)}&view=${view}&section=${section}`;
+}
+
+function FinanceModeSwitch({ date, view }: { date: string; view: "daily" | "monthly" }) {
+  return (
+    <nav className="ops-view-toggle ops-finance-mode-switch" aria-label="Finance time scope">
+      <Link href={financeHref(date, "daily")} className={view === "daily" ? "active" : ""} aria-current={view === "daily" ? "page" : undefined}>
+        Daily close
+      </Link>
+      <Link href={financeHref(date, "monthly")} className={view === "monthly" ? "active" : ""} aria-current={view === "monthly" ? "page" : undefined}>
+        Month to date
+      </Link>
+    </nav>
+  );
 }
 
 function toNumber(value: unknown): number {
@@ -147,7 +164,6 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
   const { range, entries, authority: monthlyAuthority } = monthlySummary;
   const summaryMetrics = readMetrics(range.dataThroughDate);
   const sales = monthlySummary.grossRevenue;
-  const tips = sumValues(entries.map((entry) => entry.metrics), ["tips", "total_tips"]);
   const bonuses = sumValues(entries.map((entry) => entry.metrics), ["bonuses", "daily_bonus_payroll"]);
   const regularPay = sumValues(entries.map((entry) => entry.metrics), ["regular_payroll"]);
   const payroll = sumValues(entries.map((entry) => entry.metrics), ["total_payroll", "payroll"]) || regularPay + bonuses;
@@ -158,11 +174,8 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
   const junkKingRoyalties = sumValues(entries.map((entry) => entry.metrics), ["junk_king_royalties"]);
   const callCenterRoyalties = sumValues(entries.map((entry) => entry.metrics), ["call_center_royalties"]);
   const totalOperatingExpenses = sumValues(entries.map((entry) => entry.metrics), ["total_expenses"]);
-  const netRevenue = sumValues(entries.map((entry) => entry.metrics), ["net_revenue"]);
   const estimatedOperatingProfit = sumValues(entries.map((entry) => entry.metrics), ["net_profit"]);
   const operatingMargin = sales > 0 ? (estimatedOperatingProfit / sales) * 100 : 0;
-  const payrollPercent = sales > 0 ? (payroll / sales) * 100 : 0;
-  const expensePercent = sales > 0 ? (totalOperatingExpenses / sales) * 100 : 0;
   const paymentTotals = appointmentPaymentTotals(entries.map((entry) => entry.metrics));
   const paymentReconciliation = buildMonthlyPaymentReconciliation(range.dates);
   const marketing = buildSearchKingsView(range.monthKey);
@@ -176,7 +189,7 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
   const ytdMargin = financeTrend.yearToDate.grossRevenue > 0
     ? (financeTrend.yearToDate.estimatedOperatingProfit / financeTrend.yearToDate.grossRevenue) * 100
     : 0;
-  const showTrend = section === "overview" || section === "trend";
+  const showTrend = section === "trend";
 
   const revenueByTerritory = new Map<string, number>();
   const expenseByCategory = new Map<string, number>();
@@ -215,16 +228,18 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
         dateLabel="Month"
         lastUpdated={monthlyAuthority?.verifiedAt || summaryMetrics?.generated_at || metrics?.generated_at}
         controls={
-          <OpsMonthSelector months={monthOptions()} selectedMonthKey={range.monthKey} />
+          <>
+            <FinanceModeSwitch date={date} view="monthly" />
+            <OpsMonthSelector months={monthOptions()} selectedMonthKey={range.monthKey} />
+          </>
         }
         sections={[
-          { label: "Daily finance", href: `/finance?date=${date}&view=daily` },
-          { label: "Overview", href: `/finance?date=${date}&view=monthly&section=overview`, active: section === "overview" },
-          { label: "Reconciliation", href: `/finance?date=${date}&view=monthly&section=reconciliation`, active: section === "reconciliation" },
-          { label: "Expenses", href: `/finance?date=${date}&view=monthly&section=expenses`, active: section === "expenses" },
-          { label: "Territory", href: `/finance?date=${date}&view=monthly&section=territory`, active: section === "territory" },
-          { label: "Trend", href: `/finance?date=${date}&view=monthly&section=trend`, active: section === "trend" },
-          { label: "Resale", href: `/finance?date=${date}&view=monthly&section=resale`, active: section === "resale" },
+          { label: "P&L summary", href: financeHref(date, "monthly"), active: section === "overview" },
+          { label: "Payments & recon", href: financeHref(date, "monthly", "reconciliation"), active: section === "reconciliation" },
+          { label: "Costs", href: financeHref(date, "monthly", "expenses"), active: section === "expenses" },
+          { label: "Territory", href: financeHref(date, "monthly", "territory"), active: section === "territory" },
+          { label: "Trend", href: financeHref(date, "monthly", "trend"), active: section === "trend" },
+          { label: "Resale inventory", href: financeHref(date, "monthly", "resale"), active: section === "resale" },
         ]}
       />
 
@@ -240,14 +255,9 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
             </div>
           )}
         </div>
-        <div className="ops-card ops-kpi-card"><div className="ops-card-title">Net Revenue</div><div className="ops-kpi-value ops-kpi-good">{money(netRevenue)}</div></div>
         <div className="ops-card ops-kpi-card"><div className="ops-card-title">Estimated Operating Profit</div><div className="ops-kpi-value ops-kpi-good">{money(estimatedOperatingProfit)}</div></div>
         <div className="ops-card ops-kpi-card"><div className="ops-card-title">Operating Margin</div><div className="ops-kpi-value">{percent(operatingMargin)}</div></div>
-        <div className="ops-card ops-kpi-card"><div className="ops-card-title">Payroll % of Revenue</div><div className="ops-kpi-value">{percent(payrollPercent)}</div></div>
-        <div className="ops-card ops-kpi-card"><div className="ops-card-title">Expense % of Revenue</div><div className="ops-kpi-value">{percent(expensePercent)}</div></div>
-        <div className="ops-card ops-kpi-card"><div className="ops-card-title">Payroll</div><div className="ops-kpi-value">{money(payroll)}</div></div>
-        <div className="ops-card ops-kpi-card"><div className="ops-card-title">Tips</div><div className="ops-kpi-value">{money(tips)}</div></div>
-        <div className="ops-card ops-kpi-card"><div className="ops-card-title">Bonuses</div><div className="ops-kpi-value">{money(bonuses)}</div></div>
+        <div className="ops-card ops-kpi-card"><div className="ops-card-title">Operating Expenses</div><div className="ops-kpi-value">{money(totalOperatingExpenses)}</div></div>
       </div>
 
       <div className="ops-dashboard-main ops-finance-layout">
@@ -369,7 +379,6 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
                 Month-to-month performance and year-to-date totals. Revenue uses the reconciled JunkWare monthly total when available.
               </div>
             </div>
-            {section === "overview" ? <Link className="ops-mini-link" href={`/finance?date=${date}&view=monthly&section=trend`}>Daily detail</Link> : null}
           </div>
 
           <div className="ops-finance-trend-summary">
@@ -566,8 +575,9 @@ export default async function FinancePage({
   if (view === "monthly") {
     return renderMonthlyFinancePage(date, metrics, requestedSection);
   }
-  const section = ["overview", "reconciliation", "expenses", "trucks", "resale"].includes(requestedSection)
-    ? requestedSection
+  const dailySection = requestedSection === "reconciliation" ? "payments" : requestedSection;
+  const section = ["overview", "payments", "expenses", "trucks", "resale"].includes(dailySection)
+    ? dailySection
     : "overview";
 
   return (
@@ -575,16 +585,16 @@ export default async function FinancePage({
       <CrewDataRefresh enabled={isLivePaymentWindow} />
       <PageHeader
         title="Finance"
-        subtitle="Truck Records are the authoritative daily financial source"
+        subtitle="Daily close from Truck Records, JunkWare payments, and QuickBooks Online"
         date={date}
         lastUpdated={metrics?.generated_at}
+        controls={<FinanceModeSwitch date={date} view="daily" />}
         sections={[
-          { label: "Overview", href: `/finance?date=${date}&view=daily&section=overview`, active: section === "overview" },
-          { label: "Reconciliation", href: `/finance?date=${date}&view=daily&section=reconciliation`, active: section === "reconciliation" },
-          { label: "Expenses & earnings", href: `/finance?date=${date}&view=daily&section=expenses`, active: section === "expenses" },
-          { label: "Truck breakdown", href: `/finance?date=${date}&view=daily&section=trucks`, active: section === "trucks" },
-          { label: "Resale", href: `/finance?date=${date}&view=daily&section=resale`, active: section === "resale" },
-          { label: "Monthly", href: `/finance?date=${date}&view=monthly` },
+          { label: "Daily summary", href: financeHref(date, "daily"), active: section === "overview" },
+          { label: "Payments & recon", href: financeHref(date, "daily", "payments"), active: section === "payments" },
+          { label: "Company costs", href: financeHref(date, "daily", "expenses"), active: section === "expenses" },
+          { label: "Truck records", href: financeHref(date, "daily", "trucks"), active: section === "trucks" },
+          { label: "Resale inventory", href: financeHref(date, "daily", "resale"), active: section === "resale" },
         ]}
       />
 
@@ -622,31 +632,31 @@ export default async function FinancePage({
           </span>
         </div>
         <div className="ops-finance-brief-grid">
-          <a href={`/finance?date=${date}&section=expenses`}>
+          <Link href={financeHref(date, "daily", "expenses")}>
             <span>Payroll load</span>
             <strong>{percent(sales > 0 ? payroll / sales * 100 : 0)}</strong>
             <small>{money(payroll)} excluding tips</small>
-          </a>
-          <a href={`/finance?date=${date}&section=expenses`}>
+          </Link>
+          <Link href={financeHref(date, "daily", "expenses")}>
             <span>Royalty load</span>
             <strong>{percent(sales > 0 ? (junkKingRoyalties + callCenterRoyalties) / sales * 100 : 0)}</strong>
             <small>{money(junkKingRoyalties + callCenterRoyalties)} combined</small>
-          </a>
-          <a href={`/finance?date=${date}&section=trucks`}>
+          </Link>
+          <Link href={financeHref(date, "daily", "trucks")}>
             <span>Truck operating cost</span>
             <strong>{money(dumpExpense + fuelExpense + otherExpense)}</strong>
             <small>Dump, fuel, and other costs</small>
-          </a>
-          <a href={`/finance?date=${date}&section=reconciliation`}>
+          </Link>
+          <Link href={financeHref(date, "daily", "payments")}>
             <span>Payment control</span>
             <strong>Reconcile</strong>
             <small>Compare card payments and exceptions</small>
-          </a>
+          </Link>
         </div>
       </section>
 
       <div className="ops-dashboard-main ops-finance-layout">
-        <div className={section === "overview" ? "ops-card ops-finance-payments-card" : "ops-section-hidden"} id="finance-payments">
+        <div className={section === "payments" ? "ops-card ops-finance-payments-card" : "ops-section-hidden"} id="finance-payments">
           <div className="ops-card-header compact">
             <div>
               <div className="ops-section-title">Payments by Job</div>
@@ -716,7 +726,7 @@ export default async function FinancePage({
           <ResaleInventory initialItems={readResaleStore().items} />
         </div>
 
-        <div id="finance-reconciliation" className={section === "reconciliation" ? "" : "ops-section-hidden"}><PaymentReconciliationPanel
+        <div id="finance-reconciliation" className={section === "payments" ? "" : "ops-section-hidden"}><PaymentReconciliationPanel
             view={paymentReconciliation}
             periodLabel={date}
           /></div>
@@ -724,7 +734,7 @@ export default async function FinancePage({
         <div className={section === "expenses" ? "ops-card" : "ops-section-hidden"} id="finance-expenses">
           <div className="ops-card-header compact">
             <div>
-              <div className="ops-section-title">Expenses by Category</div>
+              <div className="ops-section-title">Company Costs</div>
               <div className="ops-muted">
                 Payroll Expense excludes tips. Royalties are computed from Sales.
               </div>
@@ -766,7 +776,7 @@ export default async function FinancePage({
 
           <div className="ops-card-header compact">
             <div>
-              <div className="ops-section-title">Employee Earnings Information</div>
+              <div className="ops-section-title">Krewe Earnings</div>
               <div className="ops-muted">
                 Tips are part of employee earnings but not company payroll expense.
               </div>
@@ -796,9 +806,9 @@ export default async function FinancePage({
         <div className={section === "trucks" ? "ops-card ops-finance-truck-card" : "ops-section-hidden"} id="finance-trucks">
           <div className="ops-card-header compact">
             <div>
-              <div className="ops-section-title">Truck Breakdown</div>
+              <div className="ops-section-title">Truck Financial Records</div>
               <div className="ops-muted">
-                Each row is sourced from the selected day’s Truck Records page.
+                These are the authoritative selected-day financial totals from Truck Records.
               </div>
             </div>
           </div>
@@ -845,9 +855,9 @@ export default async function FinancePage({
 
           <div className="ops-card-header compact">
             <div>
-              <div className="ops-section-title">OpsBot Truck Records Detail</div>
+              <div className="ops-section-title">Krewe-reported cost detail</div>
               <div className="ops-muted">
-                Krewe-reported dump and fuel activity for Accounting → Truck Records · {money(crewTruckRecordCost)} reported
+                Supporting dump and fuel activity reported to OpsBot · {money(crewTruckRecordCost)} reported
               </div>
             </div>
           </div>

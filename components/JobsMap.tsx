@@ -360,9 +360,15 @@ type MapCluster<T> = {
   items: T[];
 };
 
-// Appointment locations can share a count marker at low zoom. Live trucks are
-// intentionally not passed through this helper: Dispatch must keep every truck
-// visible as its own locator at its reported GPS position.
+type VisibleTruckMarker = {
+  truck: JobsMapTruck;
+  latitude: number;
+  longitude: number;
+};
+
+// Appointment locations can share a count marker at low zoom. The same screen
+// proximity calculation lets individual truck icons fan apart without turning
+// them into a truck-area circle.
 function clusterVisibleMapItems<T>(
   map: any,
   items: T[],
@@ -383,6 +389,28 @@ function clusterVisibleMapItems<T>(
   }
 
   return clusters;
+}
+
+function spreadLiveTruckMarkers(map: any, trucks: JobsMapTruck[]): VisibleTruckMarker[] {
+  return clusterVisibleMapItems(map, trucks, (truck) => truck, 48)
+    .flatMap((group) => group.items.map((truck, index) => {
+      if (group.items.length === 1) {
+        return { truck, latitude: truck.latitude, longitude: truck.longitude };
+      }
+
+      const point = map.latLngToLayerPoint([truck.latitude, truck.longitude]);
+      const angle = -Math.PI / 2 + (index * 2 * Math.PI / group.items.length);
+      const radius = 30;
+      const visiblePosition = map.layerPointToLatLng([
+        point.x + Math.cos(angle) * radius,
+        point.y + Math.sin(angle) * radius,
+      ]);
+      return {
+        truck,
+        latitude: visiblePosition.lat,
+        longitude: visiblePosition.lng,
+      };
+    }));
 }
 
 function appointmentClusterIcon(leaflet: LeafletModule, count: number, tone: string) {
@@ -1339,7 +1367,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     });
 
     // Appointment counts and truck locators are independent. Area circles are
-    // appointments only; every live truck keeps its own GPS marker.
+    // appointments only; every live truck keeps its own visible GPS locator.
     const jobsByClusterArea = new Map<string, Array<JobsMapPoint & { latitude: number; longitude: number }>>();
     for (const job of locatedJobs) {
       const area = appointmentClusterArea(job);
@@ -1347,6 +1375,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     }
     const jobClusters = Array.from(jobsByClusterArea.values())
       .flatMap((areaJobs) => clusterVisibleMapItems(map, areaJobs, (job) => job, 44));
+    const truckMarkers = spreadLiveTruckMarkers(map, liveTruckLocations);
 
     const selectMapJob = (key: string) => {
       setFocusSelectedTruck(false);
@@ -1413,15 +1442,15 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       addInteractiveMarker(marker, () => selectMapJob(job.key));
     }
 
-    for (const truck of liveTruckLocations) {
+    for (const { truck, latitude, longitude } of truckMarkers) {
       const markerLabel = `${truck.truck} · ${truck.status} · ${truck.freshness}`;
       const atJob = truckIsCurrentlyAtAnyJob(truck, locatedJobs, currentScheduleTime?.timestamp ?? Date.now());
-      const marker = leaflet.marker([truck.latitude, truck.longitude], {
+      const marker = leaflet.marker([latitude, longitude], {
         icon: truckIcon(leaflet, truck, truck.truck === selectedTruckName, atJob),
         keyboard: true,
         title: markerLabel,
         alt: markerLabel,
-        zIndexOffset: truck.truck === selectedTruckName ? 900 : 800,
+        zIndexOffset: truck.truck === selectedTruckName ? 1500 : 1400,
       });
       const driver = truck.driver && truck.driver !== "—" ? ` · ${truck.driver}` : "";
       marker.bindTooltip(`${truck.truck} · ${truck.status}${driver} · ${truck.freshness}`, {

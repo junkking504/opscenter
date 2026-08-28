@@ -7,11 +7,14 @@ assert.match(source, /function appointmentClusterArea\(job: JobsMapPoint\): stri
 assert.match(source, /territory === "new orleans" \|\| territory === "jefferson parish"/);
 assert.match(source, /const jobsByClusterArea = new Map<string, Array<JobsMapPoint & \{ latitude: number; longitude: number \}>>\(\)/);
 assert.match(source, /clusterVisibleMapItems\(map, areaJobs, \(job\) => job, 44\)/);
+assert.match(source, /function spreadLiveTruckMarkers\(map: any, trucks: JobsMapTruck\[\]\): VisibleTruckMarker\[\]/);
+assert.match(source, /const truckMarkers = spreadLiveTruckMarkers\(map, liveTruckLocations\);/);
 assert.match(
   source,
-  /for \(const truck of liveTruckLocations\) \{[\s\S]*?icon: truckIcon\(leaflet, truck, truck\.truck === selectedTruckName, atJob\)/,
+  /for \(const \{ truck, latitude, longitude \} of truckMarkers\) \{[\s\S]*?leaflet\.marker\(\[latitude, longitude\][\s\S]*?icon: truckIcon\(leaflet, truck, truck\.truck === selectedTruckName, atJob\)/,
   "Every live truck must render as its own truck icon.",
 );
+assert.match(source, /zIndexOffset: truck\.truck === selectedTruckName \? 1500 : 1400/);
 assert.match(source, /title: `\$\{cluster\.items\.length\} appointments in this area`/);
 assert.doesNotMatch(source, /locationClusterIcon/);
 assert.doesNotMatch(source, /map items at this location/);

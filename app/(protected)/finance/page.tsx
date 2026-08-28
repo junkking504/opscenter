@@ -38,9 +38,10 @@ function signedMoney(value: number): string {
   return `${sign}${money(Math.abs(value))}`;
 }
 
-function changePercent(current: number, previous: number): string | null {
-  if (previous === 0) return null;
-  return percent(((current - previous) / Math.abs(previous)) * 100);
+function changePercent(current: number, previous: number): string {
+  if (previous === 0) return "—";
+  const value = ((current - previous) / Math.abs(previous)) * 100;
+  return `${value > 0 ? "+" : ""}${percent(value)}`;
 }
 
 function previousMonthKey(value: string): string {
@@ -376,7 +377,7 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
               {previousMonth ? (
                 <small className="ops-table-subline">
                   {signedMoney(monthRevenueChange ?? 0)} vs {previousMonth.monthDisplay}
-                  {changePercent(sales, previousMonth.grossRevenue) ? ` · ${changePercent(sales, previousMonth.grossRevenue)}` : ""}
+                  {` · ${changePercent(sales, previousMonth.grossRevenue)}`}
                 </small>
               ) : <small className="ops-table-subline">No prior published month to compare.</small>}
             </div>
@@ -386,9 +387,7 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
               {previousMonth ? (
                 <small className="ops-table-subline">
                   {signedMoney(monthProfitChange ?? 0)} vs {previousMonth.monthDisplay}
-                  {changePercent(estimatedOperatingProfit, previousMonth.estimatedOperatingProfit)
-                    ? ` · ${changePercent(estimatedOperatingProfit, previousMonth.estimatedOperatingProfit)}`
-                    : ""}
+                  {` · ${changePercent(estimatedOperatingProfit, previousMonth.estimatedOperatingProfit)}`}
                 </small>
               ) : <small className="ops-table-subline">No prior published month to compare.</small>}
             </div>
@@ -398,6 +397,7 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
               {previousMonth ? (
                 <small className="ops-table-subline">
                   {monthJobsChange && monthJobsChange > 0 ? "+" : ""}{monthJobsChange ?? 0} vs {previousMonth.monthDisplay}
+                  {` · ${changePercent(monthlySummary.completedJobs, previousMonth.completedJobs)}`}
                 </small>
               ) : <small className="ops-table-subline">No prior published month to compare.</small>}
             </div>
@@ -429,14 +429,20 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
                   <th>Revenue</th>
                   <th>MoM Revenue</th>
                   <th>Expenses</th>
+                  <th>MoM Expenses</th>
                   <th>Operating Profit</th>
+                  <th>MoM Operating Profit</th>
                   <th>Jobs</th>
+                  <th>MoM Jobs</th>
                 </tr>
               </thead>
               <tbody>
                 {financeTrend.months.slice().reverse().map((month) => {
                   const previous = financeTrend.months.find((item) => item.monthKey === previousMonthKey(month.monthKey)) ?? null;
                   const revenueChange = previous ? month.grossRevenue - previous.grossRevenue : null;
+                  const expenseChange = previous ? month.totalOperatingExpenses - previous.totalOperatingExpenses : null;
+                  const profitChange = previous ? month.estimatedOperatingProfit - previous.estimatedOperatingProfit : null;
+                  const jobsChange = previous ? month.completedJobs - previous.completedJobs : null;
                   return (
                     <tr key={month.monthKey}>
                       <td>
@@ -446,13 +452,23 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
                       <td className="ops-money">{money(month.grossRevenue)}</td>
                       <td className="ops-money">
                         {revenueChange === null ? "—" : signedMoney(revenueChange)}
-                        {previous && changePercent(month.grossRevenue, previous.grossRevenue)
-                          ? <div className="ops-table-subline">{changePercent(month.grossRevenue, previous.grossRevenue)}</div>
-                          : null}
+                        {previous ? <div className="ops-table-subline">{changePercent(month.grossRevenue, previous.grossRevenue)}</div> : null}
                       </td>
                       <td className="ops-money">{money(month.totalOperatingExpenses)}</td>
+                      <td className="ops-money">
+                        {expenseChange === null ? "—" : signedMoney(expenseChange)}
+                        {previous ? <div className="ops-table-subline">{changePercent(month.totalOperatingExpenses, previous.totalOperatingExpenses)}</div> : null}
+                      </td>
                       <td className="ops-money">{money(month.estimatedOperatingProfit)}</td>
+                      <td className="ops-money">
+                        {profitChange === null ? "—" : signedMoney(profitChange)}
+                        {previous ? <div className="ops-table-subline">{changePercent(month.estimatedOperatingProfit, previous.estimatedOperatingProfit)}</div> : null}
+                      </td>
                       <td>{month.completedJobs.toLocaleString("en-US")}</td>
+                      <td>
+                        {jobsChange === null ? "—" : `${jobsChange > 0 ? "+" : ""}${jobsChange.toLocaleString("en-US")}`}
+                        {previous ? <div className="ops-table-subline">{changePercent(month.completedJobs, previous.completedJobs)}</div> : null}
+                      </td>
                     </tr>
                   );
                 })}
@@ -473,17 +489,32 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
               <tr>
                 <th>Date</th>
                 <th>Revenue</th>
+                <th>Prior Day Revenue</th>
                 <th>Expenses</th>
+                <th>Prior Day Expenses</th>
               </tr>
             </thead>
             <tbody>
-              {dailyTrend.map((row) => (
-                <tr key={row.date}>
-                  <td>{row.date}</td>
-                  <td className="ops-money">{money(row.revenue)}</td>
-                  <td className="ops-money">{money(row.expenses)}</td>
-                </tr>
-              ))}
+              {dailyTrend.map((row, index) => {
+                const previous = index > 0 ? dailyTrend[index - 1] : null;
+                const revenueChange = previous ? row.revenue - previous.revenue : null;
+                const expenseChange = previous ? row.expenses - previous.expenses : null;
+                return (
+                  <tr key={row.date}>
+                    <td>{row.date}</td>
+                    <td className="ops-money">{money(row.revenue)}</td>
+                    <td className="ops-money">
+                      {revenueChange === null ? "—" : signedMoney(revenueChange)}
+                      {previous ? <div className="ops-table-subline">{changePercent(row.revenue, previous.revenue)}</div> : null}
+                    </td>
+                    <td className="ops-money">{money(row.expenses)}</td>
+                    <td className="ops-money">
+                      {expenseChange === null ? "—" : signedMoney(expenseChange)}
+                      {previous ? <div className="ops-table-subline">{changePercent(row.expenses, previous.expenses)}</div> : null}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

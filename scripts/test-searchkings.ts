@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { appointmentScheduleHref } from "../lib/job-links";
 import { formatSearchKingsDateHeading, groupSearchKingsLeadsByDate } from "../lib/searchkings-date-groups";
-import { buildSearchKingsCallBrowser, normalizeSearchKingsCallRange } from "../lib/searchkings-call-browser";
+import {
+  buildSearchKingsCallBrowser,
+  normalizeSearchKingsCallFilter,
+  normalizeSearchKingsCallRange,
+} from "../lib/searchkings-call-browser";
 import { searchKingsPhoneHref } from "../lib/searchkings-phone";
 import {
   buildSearchKingsViewFromData,
@@ -110,12 +114,27 @@ const searchedCalls = buildSearchKingsCallBrowser(view.leads, { range: "all", qu
 assert.equal(searchedCalls.matchCount, 2);
 assert.ok(searchedCalls.groups.every((group) => group.leads.every((lead) => lead.territory === "Baton Rouge")));
 
+const quotedLostCalls = buildSearchKingsCallBrowser(view.leads, { range: "all", filter: "quoted_lost" });
+assert.equal(quotedLostCalls.matchCount, 1);
+assert.equal(quotedLostCalls.groups[0]?.leads[0]?.callerName, "Lost Caller");
+
+const completedRevenueCalls = buildSearchKingsCallBrowser(view.leads, { range: "all", filter: "completed_revenue" });
+assert.equal(completedRevenueCalls.matchCount, 1);
+assert.equal(completedRevenueCalls.groups[0]?.leads[0]?.callerName, "Booked Caller");
+
+const matchedBookingCalls = buildSearchKingsCallBrowser(view.leads, { range: "all", filter: "matched_booking" });
+assert.equal(matchedBookingCalls.matchCount, 2);
+
+const qualifiedCalls = buildSearchKingsCallBrowser(view.leads, { range: "all", filter: "qualified" });
+assert.equal(qualifiedCalls.matchCount, 3);
+
 const pagedCalls = buildSearchKingsCallBrowser(view.leads, { range: "all", page: 2, pageSize: 2 });
 assert.equal(pagedCalls.page, 2);
 assert.equal(pagedCalls.firstResult, 3);
 assert.equal(pagedCalls.lastResult, 4);
 assert.equal(pagedCalls.groups.flatMap((group) => group.leads).length, 2);
 assert.equal(normalizeSearchKingsCallRange("unexpected"), "latest");
+assert.equal(normalizeSearchKingsCallFilter("unexpected"), "all");
 
 assert.equal(explicitCallValue("King-size mattress pickup quoted $128."), 128);
 assert.equal(explicitCallValue("Agent quoted $448, discounted to $388."), 388);

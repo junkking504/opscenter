@@ -3,9 +3,17 @@ import type { SearchKingsLead } from "@/lib/searchkings";
 
 export type SearchKingsCallRange = "latest" | "7" | "all";
 
+export type SearchKingsCallFilter =
+  | "all"
+  | "quoted_lost"
+  | "completed_revenue"
+  | "matched_booking"
+  | "qualified";
+
 export type SearchKingsCallBrowser = {
   groups: SearchKingsDateGroup[];
   range: SearchKingsCallRange;
+  filter: SearchKingsCallFilter;
   query: string;
   page: number;
   pageSize: number;
@@ -18,6 +26,13 @@ export type SearchKingsCallBrowser = {
 
 export function normalizeSearchKingsCallRange(value: unknown): SearchKingsCallRange {
   return value === "7" || value === "all" ? value : "latest";
+}
+
+export function normalizeSearchKingsCallFilter(value: unknown): SearchKingsCallFilter {
+  return value === "quoted_lost" || value === "completed_revenue" ||
+    value === "matched_booking" || value === "qualified"
+    ? value
+    : "all";
 }
 
 function searchableLeadText(lead: SearchKingsLead): string {
@@ -36,9 +51,30 @@ function searchableLeadText(lead: SearchKingsLead): string {
   ].filter(Boolean).join(" ").toLocaleLowerCase("en-US");
 }
 
+function matchesCallFilter(lead: SearchKingsLead, filter: SearchKingsCallFilter): boolean {
+  switch (filter) {
+    case "quoted_lost":
+      return lead.status === "lost" && lead.potentialRevenue != null;
+    case "completed_revenue":
+      return lead.matchedAppointment?.completed === true;
+    case "matched_booking":
+      return lead.status === "booked" || lead.status === "recovered";
+    case "qualified":
+      return lead.qualified;
+    default:
+      return true;
+  }
+}
+
 export function buildSearchKingsCallBrowser(
   leads: SearchKingsLead[],
-  options: { range?: unknown; query?: unknown; page?: unknown; pageSize?: number } = {},
+  options: {
+    range?: unknown;
+    filter?: unknown;
+    query?: unknown;
+    page?: unknown;
+    pageSize?: number;
+  } = {},
 ): SearchKingsCallBrowser {
   const allGroups = groupSearchKingsLeadsByDate(leads);
   const range = normalizeSearchKingsCallRange(options.range);
@@ -46,11 +82,13 @@ export function buildSearchKingsCallBrowser(
     ? allGroups.slice(0, 1)
     : range === "7" ? allGroups.slice(0, 7) : allGroups;
   const leadsInRange = rangeGroups.flatMap((group) => group.leads);
+  const filter = normalizeSearchKingsCallFilter(options.filter);
+  const filteredLeads = leadsInRange.filter((lead) => matchesCallFilter(lead, filter));
   const query = String(options.query || "").trim();
   const normalizedQuery = query.toLocaleLowerCase("en-US");
   const matches = normalizedQuery
-    ? leadsInRange.filter((lead) => searchableLeadText(lead).includes(normalizedQuery))
-    : leadsInRange;
+    ? filteredLeads.filter((lead) => searchableLeadText(lead).includes(normalizedQuery))
+    : filteredLeads;
   const pageSize = Math.max(1, Math.min(100, Math.floor(options.pageSize || 50)));
   const totalPages = Math.max(1, Math.ceil(matches.length / pageSize));
   const requestedPage = Math.floor(Number(options.page || 1));
@@ -61,6 +99,7 @@ export function buildSearchKingsCallBrowser(
   return {
     groups: groupSearchKingsLeadsByDate(pageLeads),
     range,
+    filter,
     query,
     page,
     pageSize,

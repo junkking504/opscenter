@@ -6,6 +6,7 @@ import { appointmentScheduleHref } from "@/lib/job-links";
 import { money, type AnyRecord } from "@/lib/opsData";
 import {
   buildSearchKingsCallBrowser,
+  type SearchKingsCallFilter,
   type SearchKingsCallRange,
 } from "@/lib/searchkings-call-browser";
 import {
@@ -43,10 +44,12 @@ function statusLabel(value: string): string {
 
 function callsHref(
   range: SearchKingsCallRange,
+  filter: SearchKingsCallFilter,
   query: string,
   page: number,
 ): string {
   const params = new URLSearchParams({ section: "calls", range });
+  if (filter !== "all") params.set("filter", filter);
   if (query) params.set("q", query);
   if (page > 1) params.set("page", String(page));
   return `/marketing?${params.toString()}`;
@@ -75,6 +78,7 @@ export default async function MarketingPage({
     }).format(new Date());
   const calls = buildSearchKingsCallBrowser(view.leads, {
     range: params?.range,
+    filter: params?.filter,
     query: params?.q,
     page: params?.page,
   });
@@ -164,7 +168,10 @@ export default async function MarketingPage({
                 {view.lostLeads} lost · {view.needsFollowUp} need follow-up
               </div>
             </Link>
-            <div className="ops-card ops-kpi-card">
+            <Link
+              className="ops-card ops-kpi-card ops-marketing-action-kpi"
+              href="/marketing?section=calls&range=all&filter=quoted_lost"
+            >
               <div className="ops-card-title">Quoted Value at Risk</div>
               <div className="ops-kpi-value ops-kpi-danger">
                 {view.valuedLostLeads
@@ -175,8 +182,11 @@ export default async function MarketingPage({
                 Explicit quotes in {view.valuedLostLeads} of {view.lostLeads}{" "}
                 lost-call summaries
               </div>
-            </div>
-            <div className="ops-card ops-kpi-card">
+            </Link>
+            <Link
+              className="ops-card ops-kpi-card ops-marketing-action-kpi"
+              href="/marketing?section=calls&range=all&filter=completed_revenue"
+            >
               <div className="ops-card-title">Verified Completed Revenue</div>
               <div className="ops-kpi-value ops-kpi-good">
                 {money(view.attributedRevenue)}
@@ -184,8 +194,11 @@ export default async function MarketingPage({
               <div className="ops-kpi-sub">
                 JunkWare completed jobs · {ratio(view.roas)} ROAS
               </div>
-            </div>
-            <div className="ops-card ops-kpi-card">
+            </Link>
+            <Link
+              className="ops-card ops-kpi-card ops-marketing-action-kpi"
+              href="/marketing?section=calls&range=all&filter=matched_booking"
+            >
               <div className="ops-card-title">Matched JunkWare Bookings</div>
               <div className="ops-kpi-value ops-kpi-good">
                 {view.bookedJobs}
@@ -193,15 +206,21 @@ export default async function MarketingPage({
               <div className="ops-kpi-sub">
                 Phone matches · {money(view.costPerBookedJob)} ad cost each
               </div>
-            </div>
-            <div className="ops-card ops-kpi-card">
+            </Link>
+            <Link
+              className="ops-card ops-kpi-card ops-marketing-action-kpi"
+              href="/marketing?section=calls&range=all&filter=qualified"
+            >
               <div className="ops-card-title">Qualified SearchKings Calls</div>
               <div className="ops-kpi-value">{view.qualifiedCalls}</div>
               <div className="ops-kpi-sub">
                 Score 3–5 · {percent(view.qualifiedRate)} of calls
               </div>
-            </div>
-            <div className="ops-card ops-kpi-card">
+            </Link>
+            <Link
+              className="ops-card ops-kpi-card ops-marketing-action-kpi"
+              href="/marketing?section=territory"
+            >
               <div className="ops-card-title">SearchKings Reporting</div>
               <div className="ops-kpi-value ops-kpi-accent">
                 {money(view.spend)}
@@ -210,7 +229,7 @@ export default async function MarketingPage({
                 {view.platformConversions} platform conversions ·{" "}
                 {money(view.costPerConversion)} each
               </div>
-            </div>
+            </Link>
           </div>
 
           <div className="ops-marketing-overview-grid">
@@ -360,10 +379,20 @@ export default async function MarketingPage({
                 <option value="all">All dates</option>
               </select>
             </label>
+            <label>
+              <span>Call type</span>
+              <select name="filter" defaultValue={calls.filter}>
+                <option value="all">All calls</option>
+                <option value="quoted_lost">Quoted, not booked</option>
+                <option value="completed_revenue">Completed matched jobs</option>
+                <option value="matched_booking">Matched JunkWare bookings</option>
+                <option value="qualified">Qualified calls (score 3–5)</option>
+              </select>
+            </label>
             <button className="ops-refresh-button" type="submit">
               Search
             </button>
-            {calls.query || calls.range !== "latest" ? (
+            {calls.query || calls.range !== "latest" || calls.filter !== "all" ? (
               <Link
                 className="ops-button ops-marketing-call-clear"
                 href="/marketing?section=calls"
@@ -548,7 +577,7 @@ export default async function MarketingPage({
               {calls.page > 1 ? (
                 <Link
                   className="ops-button"
-                  href={callsHref(calls.range, calls.query, calls.page - 1)}
+                  href={callsHref(calls.range, calls.filter, calls.query, calls.page - 1)}
                 >
                   Previous
                 </Link>
@@ -561,7 +590,7 @@ export default async function MarketingPage({
               {calls.page < calls.totalPages ? (
                 <Link
                   className="ops-button"
-                  href={callsHref(calls.range, calls.query, calls.page + 1)}
+                  href={callsHref(calls.range, calls.filter, calls.query, calls.page + 1)}
                 >
                   Next
                 </Link>

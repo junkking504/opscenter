@@ -45,6 +45,13 @@ export type FleetTruckMapRecord = {
   operationalStatus: string;
   driver: string;
   navigator: string;
+  crewMembers: string[];
+  relatedAppointments: Array<{
+    jkNumber: string;
+    customer: string;
+    time: string;
+    status: string;
+  }>;
   driverScore: number | null;
   driverScoreDisplay: string;
   driverScoreStatus: string;
@@ -354,9 +361,26 @@ function supportedStopKind(stop: AnyRecord): FleetMapStop["kind"] | null {
   return null;
 }
 
-function truckAppointmentSummary(appointments: AnyRecord[]): { driver: string; navigator: string; summary: string } {
+function truckAppointmentSummary(appointments: AnyRecord[]): {
+  driver: string;
+  navigator: string;
+  crewMembers: string[];
+  relatedAppointments: FleetTruckMapRecord["relatedAppointments"];
+  summary: string;
+} {
   const drivers = Array.from(new Set(appointments.map((row) => normalizePersonName(row.driver)).filter(Boolean)));
   const navigators = Array.from(new Set(appointments.map((row) => normalizePersonName(row.navigator || row.crew)).filter(Boolean)));
+  const crewMembers = Array.from(new Set([...drivers, ...navigators]));
+  const relatedAppointments = appointments.flatMap((row) => {
+    const jkNumber = String(row.job_id || row.jk_number || "").trim();
+    if (!jkNumber) return [];
+    return [{
+      jkNumber,
+      customer: String(row.customer_name || row.customer || "Customer unavailable").trim(),
+      time: String(row.appointment_time || row.time || "Time unavailable").trim(),
+      status: String(row.job_status || row.appointment_status || row.status || "Status unavailable").trim(),
+    }];
+  });
   const first = appointments[0] || null;
   const summary =
     appointments.length === 0
@@ -367,6 +391,8 @@ function truckAppointmentSummary(appointments: AnyRecord[]): { driver: string; n
   return {
     driver: drivers.length === 0 ? "—" : drivers.length === 1 ? drivers[0] : "Multiple",
     navigator: navigators.length === 0 ? "—" : navigators.length === 1 ? navigators[0] : "Multiple",
+    crewMembers,
+    relatedAppointments,
     summary,
   };
 }
@@ -553,6 +579,8 @@ function buildTruckRecord({
     operationalStatus,
     driver: selectedAppointmentSummary.driver || normalizePersonName(scoreRow?.assigned_driver || validation?.assigned_driver || ""),
     navigator: selectedAppointmentSummary.navigator || "—",
+    crewMembers: selectedAppointmentSummary.crewMembers,
+    relatedAppointments: selectedAppointmentSummary.relatedAppointments,
     driverScore: rawDriverScore,
     driverScoreDisplay:
       String(scoreRow?.driver_score_display || validation?.driver_score_display || "").trim()

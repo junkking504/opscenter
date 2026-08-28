@@ -813,6 +813,20 @@ body {
   box-shadow: 0 0 8px rgba(236, 32, 39, 0.6);
 }
 
+.ops-sidebar > .ops-nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-right: 2px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  scrollbar-width: thin;
+}
+
+.ops-sidebar > .ops-sidebar-footer {
+  flex: 0 0 auto;
+}
+
 .ops-sidebar-status-stack {
   gap: 7px;
 }

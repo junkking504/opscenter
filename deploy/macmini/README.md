@@ -279,6 +279,12 @@ Use the shared username and password on the local login screen. Configure
 `OPS_AUTH_USERNAME` and a salted `OPS_AUTH_PASSWORD_HASH` in the protected
 runtime environment; never store the password in the repository.
 
+The configured primary identity defaults to `admin`. Use `OPS_AUTH_ROLE`,
+`OPS_AUTH_DEFAULT_ROLE`, and `OPS_AUTH_ROLE_BINDINGS` to assign interactive
+`admin`, `manager`, or `operator` access without storing role data in source.
+See [the OpsCenter role model](../../docs/OPSCENTER_ROLE_MODEL.md) for the
+permission matrix and binding formats.
+
 ## 5. Verify isolation
 
 Run:

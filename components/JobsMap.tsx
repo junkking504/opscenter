@@ -1577,7 +1577,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     <section className="ops-card ops-jobs-map-card" id="jobs-map" aria-labelledby="jobs-map-title">
       <div className="ops-card-header compact ops-jobs-map-header">
         <div>
-          <div className="ops-section-title" id="jobs-map-title">Dispatch Workspace</div>
+          <div className="ops-section-title" id="jobs-map-title">Schedule Workspace</div>
           <div className="ops-muted">
             {scheduleView
               ? "Select a job for details. Use the Route assignment board to change its truck or time."
@@ -1670,7 +1670,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
             <div className="ops-jobs-route-board-header">
               <span>
                 <strong id="route-assignment-board-title">Route assignment board</strong>
-                <small>Drag appointments to change truck or time</small>
+                <small className="ops-route-board-desktop-help">Drag appointments to change truck or time</small>
+                <small className="ops-route-board-mobile-help">Swipe for later times · tap an appointment to edit truck or time</small>
               </span>
             </div>
             <aside className="ops-jobs-map-schedule" aria-label="Truck by time appointment schedule">

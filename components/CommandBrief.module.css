@@ -296,6 +296,129 @@
   text-align: right;
 }
 
+.changeDigest {
+  display: grid;
+  gap: 9px;
+  padding: 11px 14px 12px;
+  border-bottom: 1px solid var(--oc-line);
+  background: #f7f8f6;
+}
+
+.changeDigestHeading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.changeDigestHeading > div {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.changeDigestHeading span {
+  color: var(--oc-text-muted);
+  font-size: 0.625rem;
+  font-weight: 850;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.changeDigestHeading strong {
+  overflow: hidden;
+  color: var(--oc-text);
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.changeDigestHeading button,
+.showAllChanges {
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--oc-line-strong);
+  border-radius: 6px;
+  background: var(--oc-surface);
+  color: var(--oc-text-secondary);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.changeDigestHeading button:hover,
+.changeDigestHeading button:focus-visible,
+.showAllChanges:hover,
+.showAllChanges:focus-visible {
+  border-color: #20242b;
+  color: var(--oc-text);
+}
+
+.changeMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.changeMetrics > button {
+  display: grid;
+  min-width: 0;
+  min-height: 68px;
+  align-content: center;
+  gap: 1px;
+  padding: 7px 9px;
+  border: 1px solid var(--oc-line);
+  border-radius: 7px;
+  background: var(--oc-surface);
+  color: var(--oc-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.changeMetrics > button:hover:not(:disabled),
+.changeMetrics > button:focus-visible:not(:disabled),
+.changeMetrics > button.activeChangeMetric {
+  border-color: #20242b;
+  box-shadow: inset 0 0 0 1px #20242b;
+}
+
+.changeMetrics > button:disabled {
+  cursor: default;
+  opacity: 0.56;
+}
+
+.changeMetrics strong {
+  color: var(--oc-text);
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.changeMetrics span {
+  overflow: hidden;
+  color: var(--oc-text);
+  font-size: 0.75rem;
+  font-weight: 850;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.changeMetrics small {
+  overflow: hidden;
+  color: var(--oc-text-muted);
+  font-size: 0.625rem;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.showAllChanges {
+  justify-self: start;
+}
+
 .digestList {
   max-height: 640px;
   overflow-y: auto;
@@ -360,4 +483,7 @@
   .metric > strong { font-size: 1.28rem; }
   .metric > p { font-size: 0.6875rem; }
   .digestMessage { grid-template-columns: 52px minmax(0, 1fr); padding: 10px 11px; }
+  .changeDigest { padding-inline: 11px; }
+  .changeMetrics > button { min-height: 62px; padding-inline: 7px; }
+  .changeMetrics small { display: none; }
 }

@@ -1,8 +1,7 @@
-import PageHeader from "@/components/PageHeader";
 import OperatingInbox from "@/components/OperatingInbox";
-import { availableDates } from "@/lib/opsData";
 import { validOperatingDate } from "@/lib/platform/request-actor";
 import { resolveKernelDatabaseConfig } from "@/lib/platform/persistence/config";
+import "./inbox.css";
 
 export const dynamic = "force-dynamic";
 
@@ -18,14 +17,6 @@ export default async function InboxPage({
 
   return (
     <div className="ops-dashboard ops-inbox-page">
-      <PageHeader
-        title="Operating Inbox"
-        subtitle="Every important signal becomes owned work, a controlled action, and a verifiable outcome."
-        date={date}
-        dates={availableDates()}
-        showRefresh={false}
-        status="Durable work queue"
-      />
       <OperatingInbox
         date={date}
         enabled={kernelDatabase.status === "ready"}

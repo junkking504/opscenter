@@ -131,4 +131,4 @@ A workflow is complete only when:
 
 ## Near-term product boundary
 
-The first release of OpsCenter OS focuses on daily operations across Jobs, Krewe, Fleet, and Finance. It does not attempt to replace accounting, payroll processing, telematics, CRM, or communications infrastructure. Those systems remain connected authorities while OpsCenter becomes the common operating and decision layer above them.
+The first release of OpsCenter OS focuses on daily operations across Schedule, Krewe, Fleet, and Finance. It does not attempt to replace accounting, payroll processing, telematics, CRM, or communications infrastructure. Those systems remain connected authorities while OpsCenter becomes the common operating and decision layer above them.

@@ -6,3 +6,10 @@ export const primaryNavItems = [
   { href: "/marketing", label: "Marketing", mobileLabel: "Mktg", icon: "05" },
   { href: "/finance", label: "Finance", mobileLabel: "Finance", icon: "06" },
 ] as const;
+
+export const inboxNavItem = {
+  href: "/inbox",
+  label: "Inbox",
+  mobileLabel: "Inbox",
+  icon: "07",
+} as const;

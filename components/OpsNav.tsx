@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { primaryNavItems } from "@/components/navItems";
+import { inboxNavItem, primaryNavItems } from "@/components/navItems";
 import { titleCaseLabel } from "@/lib/title-case";
+import { authorizeOpsRequest, opsRoleCan, type InteractiveOpsRole } from "@/lib/ops-roles";
+import styles from "./OpsNav.module.css";
 
 type SidebarSubItem = {
   label: string;
@@ -74,7 +76,7 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
     if (view === "monthly") {
       const section = ["breakdown", "trend"].includes(requestedSection) ? requestedSection : "overview";
       return [
-        { label: "Dispatch", href: href({}), active: false },
+        { label: "Schedule", href: href({}), active: false },
         { label: "Monthly overview", href: href({ view: "monthly", section: "overview" }), active: section === "overview" },
         { label: "Breakdown", href: href({ view: "monthly", section: "breakdown" }), active: section === "breakdown" },
         { label: "Trend", href: href({ view: "monthly", section: "trend" }), active: section === "trend" },
@@ -82,7 +84,7 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
     }
 
     return [
-      { label: "Dispatch", href: href({}), active: true },
+      { label: "Schedule", href: href({}), active: true },
       { label: "Monthly", href: href({ view: "monthly" }), active: false },
     ];
   }
@@ -181,9 +183,26 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
   return [];
 }
 
-export default function OpsNav({ variant = "tabs" }: { variant?: "tabs" | "sidebar" | "bottom" }) {
+function roleVisibleSubItems(items: SidebarSubItem[], role: InteractiveOpsRole): SidebarSubItem[] {
+  return items.filter((item) => {
+    const target = new URL(item.href, "http://opscenter.local");
+    return authorizeOpsRequest(role, target.pathname, "GET", target.searchParams).allowed;
+  });
+}
+
+export default function OpsNav({
+  variant = "tabs",
+  inboxEnabled = false,
+  role = "admin",
+}: {
+  variant?: "tabs" | "sidebar" | "bottom";
+  inboxEnabled?: boolean;
+  role?: InteractiveOpsRole;
+}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const allNavigationItems = inboxEnabled ? [...primaryNavItems, inboxNavItem] : [...primaryNavItems];
+  const navigationItems = allNavigationItems.filter((item) => item.href !== "/finance" || opsRoleCan(role, "finance.read"));
 
   const date = searchParams.get("date");
   const mode = searchParams.get("mode");
@@ -210,9 +229,16 @@ export default function OpsNav({ variant = "tabs" }: { variant?: "tabs" | "sideb
   }
 
   if (variant === "bottom") {
+    const mobileItems = inboxEnabled
+      ? [
+          { ...primaryNavItems[0], mobileLabel: "Today" },
+          inboxNavItem,
+          primaryNavItems[1],
+        ]
+      : navigationItems;
     return (
-      <nav className="ops-bottom-nav" aria-label="Primary navigation">
-        {primaryNavItems.map((item) => {
+      <nav className={`ops-bottom-nav${inboxEnabled ? ` ${styles.fourItems}` : ""}`} aria-label="Primary navigation">
+        {mobileItems.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (
             <Link
@@ -227,13 +253,27 @@ export default function OpsNav({ variant = "tabs" }: { variant?: "tabs" | "sideb
             </Link>
           );
         })}
+        {inboxEnabled ? (
+          <button
+            type="button"
+            className={`ops-bottom-nav-item ops-bottom-nav-more ${styles.moreButton}`}
+            aria-label="Open navigation menu"
+            onClick={() => {
+              const toggle = document.getElementById("ops-sidebar-toggle") as HTMLInputElement | null;
+              if (toggle) toggle.checked = true;
+            }}
+          >
+            <span>•••</span>
+            <small>More</small>
+          </button>
+        ) : null}
       </nav>
     );
   }
 
   return (
     <nav className={variant === "sidebar" ? "ops-nav" : "ops-tabs"}>
-      {primaryNavItems.map((item) => {
+      {navigationItems.map((item) => {
         const active =
           item.href === "/"
             ? pathname === "/"
@@ -253,6 +293,7 @@ export default function OpsNav({ variant = "tabs" }: { variant?: "tabs" | "sideb
           );
         }
 
+        const subItems = active ? roleVisibleSubItems(sidebarSubItems(pathname, searchParams), role) : [];
         return (
           <div key={item.href} className={`ops-nav-group${active ? " active" : ""}`}>
             <Link
@@ -264,6 +305,21 @@ export default function OpsNav({ variant = "tabs" }: { variant?: "tabs" | "sideb
               <span className="ops-nav-icon">{item.icon}</span>
               <span>{titleCaseLabel(item.label)}</span>
             </Link>
+            {subItems.length ? (
+              <div className="ops-nav-subitems" role="group" aria-label={`${titleCaseLabel(item.label)} views`}>
+                {subItems.map((subItem) => (
+                  <Link
+                    key={subItem.href}
+                    href={subItem.href}
+                    prefetch={false}
+                    className={`ops-nav-subitem${subItem.active ? " active" : ""}`}
+                    aria-current={subItem.active ? "page" : undefined}
+                  >
+                    {titleCaseLabel(subItem.label)}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
           </div>
         );
       })}

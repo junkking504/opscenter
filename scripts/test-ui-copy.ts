@@ -14,27 +14,29 @@ assert.equal(operationalCategoryLabel("Fleet"), "Fleet");
 
 const jobsMapSource = readFileSync(new URL("../components/JobsMap.tsx", import.meta.url), "utf8");
 for (const label of [">GPS</span>", ">Visited</span>", ">On Site"]) {
-  assert.ok(jobsMapSource.includes(label), `Dispatch legend is missing ${label}`);
+  assert.ok(jobsMapSource.includes(label), `Schedule legend is missing ${label}`);
 }
 for (const abbreviation of ["NO", "BR", "NS", "JP", "LF"]) {
-  assert.ok(jobsMapSource.includes(`abbreviation: "${abbreviation}"`), `Dispatch territory shortcut is missing ${abbreviation}`);
+  assert.ok(jobsMapSource.includes(`abbreviation: "${abbreviation}"`), `Schedule territory shortcut is missing ${abbreviation}`);
 }
 for (const retiredLabel of [
   "Unassigned · muted territory color",
   "Visited · not closed out",
   "Truck at job ·",
 ]) {
-  assert.ok(!jobsMapSource.includes(retiredLabel), `Dispatch legend still includes ${retiredLabel}`);
+  assert.ok(!jobsMapSource.includes(retiredLabel), `Schedule legend still includes ${retiredLabel}`);
 }
-assert.ok(jobsMapSource.includes("timelineHourLabel(hour)"), "Dispatch timeline must use compact hour labels.");
+assert.ok(jobsMapSource.includes("timelineHourLabel(hour)"), "Schedule timeline must use compact hour labels.");
 
 const jobsPageSource = readFileSync(new URL("../app/(protected)/jobs/page.tsx", import.meta.url), "utf8");
 assert.ok(jobsPageSource.includes("territoryAbbreviation(territory)"), "Territory jump controls must use compact territory labels.");
 assert.ok(jobsPageSource.includes("compact\n      />"), "Schedule header must use the compact non-overlapping layout.");
 assert.ok(jobsPageSource.includes('"estimates"') && jobsPageSource.includes('"unclosed"'), "Schedule must retain separate open-estimates and unclosed-jobs pages.");
-assert.ok(jobsPageSource.includes('label: "Open estimates"') && jobsPageSource.includes('label: "Unclosed jobs"'), "Schedule must expose separate open-estimates and unclosed-jobs tabs at the top.");
+assert.ok(jobsPageSource.includes('label: "Estimates"') && jobsPageSource.includes('label: "Unclosed jobs"'), "Schedule must expose separate estimates and unclosed-jobs tabs at the top.");
 assert.ok(
-  jobsPageSource.includes('kind === "estimates" ? openEstimate : bucket === "Unclosed or Needs Attention"'),
+  jobsPageSource.includes('if (kind === "estimates") return openEstimate;')
+    && jobsPageSource.includes('if (kind === "closed-estimates") return bucket === "Estimate";')
+    && jobsPageSource.includes('return bucket === "Unclosed or Needs Attention";'),
   "Each follow-up page must use its correct JunkWare status filter.",
 );
 assert.ok(

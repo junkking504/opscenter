@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import PageHeader from "@/components/PageHeader";
 import CrewPayPeriodCards, {
@@ -38,6 +39,11 @@ import {
   payrollCorrectionsForDate,
   type PayrollCorrection,
 } from "@/lib/payroll-corrections";
+import { crewMemberAnchor, fleetTruckHref } from "@/lib/related-record-links";
+import relatedStyles from "@/components/RelatedRecords.module.css";
+import { cookies } from "next/headers";
+import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
+import { opsRoleCan } from "@/lib/ops-roles";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +103,27 @@ function employeeTruck(row: AnyRecord): string {
 
   const text = String(truckValue || "").trim();
   return text || "Unassigned";
+}
+
+function employeeTruckLabels(row: AnyRecord): string[] {
+  const matches = employeeTruck(row).match(/Truck#?\s*\d+/gi) || [];
+  return Array.from(new Set(matches.map((truck) => {
+    const number = truck.match(/\d+/)?.[0];
+    return number ? `Truck# ${number}` : "";
+  }).filter(Boolean)));
+}
+
+function CrewTruckLinks({ date, row }: { date: string; row: AnyRecord }) {
+  const trucks = employeeTruckLabels(row);
+  if (!trucks.length) return <>{employeeTruck(row)}</>;
+  return <>{trucks.map((truck, index) => (
+    <span key={truck}>
+      {index > 0 ? ", " : null}
+      <Link className={relatedStyles.relatedLink} href={fleetTruckHref(date, truck)} title={`Open ${truck} on the live Fleet map`}>
+        {truck}
+      </Link>
+    </span>
+  ))}</>;
 }
 
 function employeeRevenue(row: AnyRecord): number {
@@ -1464,6 +1491,9 @@ export default async function CrewPage({
   searchParams?: Promise<AnyRecord>;
 }) {
   const params = searchParams ? await searchParams : undefined;
+  const cookieStore = await cookies();
+  const authSession = await verifyAuthSessionCookie(cookieStore.get(AUTH_SESSION_COOKIE)?.value || "");
+  const canViewPayroll = Boolean(authSession && opsRoleCan(authSession.role, "finance.read"));
   const date = resolveDate(params);
   const view = normalizeView(params?.view);
   const requestedSection = String(params?.section || "crew").toLowerCase();
@@ -1554,10 +1584,16 @@ export default async function CrewPage({
   );
   const requestedCrewPage = Number.parseInt(String(params?.page || "1"), 10);
   const totalCrewPages = Math.max(1, Math.ceil(todayCrew.length / CREW_PER_PAGE));
-  const crewPage = Math.min(
-    totalCrewPages,
-    Math.max(1, Number.isFinite(requestedCrewPage) ? requestedCrewPage : 1),
-  );
+  const requestedMember = String(params?.member || "").trim().toLocaleLowerCase();
+  const requestedMemberIndex = requestedMember
+    ? todayCrew.findIndex((row) => employeeName(row).trim().toLocaleLowerCase() === requestedMember)
+    : -1;
+  const crewPage = requestedMemberIndex >= 0
+    ? Math.floor(requestedMemberIndex / CREW_PER_PAGE) + 1
+    : Math.min(
+        totalCrewPages,
+        Math.max(1, Number.isFinite(requestedCrewPage) ? requestedCrewPage : 1),
+      );
   const visibleCrew = todayCrew.slice((crewPage - 1) * CREW_PER_PAGE, crewPage * CREW_PER_PAGE);
 
   const totalTips = todayCrew.reduce((sum, row) => sum + tipPay(row), 0);
@@ -1619,14 +1655,18 @@ export default async function CrewPage({
       {isCurrentDay ? <CrewDataRefresh enabled /> : null}
       <PageHeader
         title="Krewe"
-        subtitle="Individual revenue, assignment clarity, hourly pay, tips, bonuses, and total earnings"
+        subtitle={canViewPayroll
+          ? "Individual revenue, assignment clarity, hourly pay, tips, bonuses, and total earnings"
+          : "Daily assignments, production, attendance, and driving details"}
         date={date}
         lastUpdated={metrics?.payroll_as_of || metrics?.generated_at}
         sections={[
           { label: "Call-in plan", href: `/crew?date=${date}&section=call-in`, active: section === "call-in" },
           { label: "Today’s Krewe", href: `/crew?date=${date}&section=crew`, active: section === "crew", badge: todayCrew.length || undefined },
-          { label: "Pay period", href: `/crew?date=${date}&section=pay-period`, active: section === "pay-period" },
-          { label: "Monthly", href: `/crew?date=${date}&view=monthly` },
+          ...(canViewPayroll ? [
+            { label: "Pay period", href: `/crew?date=${date}&section=pay-period`, active: section === "pay-period" },
+            { label: "Monthly", href: `/crew?date=${date}&view=monthly` },
+          ] : []),
         ]}
       />
 
@@ -1653,12 +1693,12 @@ export default async function CrewPage({
           <div className="ops-kpi-value">{money(avgRph)}</div>
         </div>
 
-        <div className="ops-card ops-kpi-card ops-crew-kpi-card">
+        {canViewPayroll ? <div className="ops-card ops-kpi-card ops-crew-kpi-card">
           <div className="ops-card-title">Employee Total Earnings</div>
           <div className="ops-kpi-value">
             <LivePayrollValue date={date} records={livePayrollRecords} field="earnings" />
           </div>
-        </div>
+        </div> : null}
       </div> : null}
 
       {section === "crew" ? <section className="ops-card ops-daily-leaderboard" id="crew-leaderboard">
@@ -1687,7 +1727,7 @@ export default async function CrewPage({
                 <th>Revenue</th>
                 <th>Revenue / hr</th>
                 <th>Average job</th>
-                <th>Daily earnings</th>
+                {canViewPayroll ? <th>Daily earnings</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -1712,12 +1752,12 @@ export default async function CrewPage({
                       <strong>{name}</strong>
                       <small>{String(row.shift_status || row.clock_out_display || "Daily Krewe")}</small>
                     </td>
-                    <td>{employeeTruck(row)}</td>
+                    <td><CrewTruckLinks date={date} row={row} /></td>
                     <td className="ops-daily-leaderboard-jobs">{employeeJobs(row, metrics)}</td>
                     <td className="ops-money ops-daily-leaderboard-revenue">{money(employeeRevenue(row))}</td>
                     <td className="ops-money">{money(employeeRph(row))}</td>
                     <td className="ops-money">{money(employeeAverageJob(row, metrics))}</td>
-                    <td className="ops-money ops-pay-total">
+                    {canViewPayroll ? <td className="ops-money ops-pay-total">
                       {payrollRecord && payrollReview ? (
                         <PayrollDiscrepancyEditor
                           date={date}
@@ -1729,14 +1769,14 @@ export default async function CrewPage({
                       ) : (
                         money(totalPayWithBonuses(row, firstNumber(row, ["supplemental_daily_pay", "supplemental_pay"])))
                       )}
-                    </td>
+                    </td> : null}
                   </tr>
                 );
               })}
 
               {rankedCrew.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="ops-muted">No Krewe data available for this date.</td>
+                  <td colSpan={canViewPayroll ? 8 : 7} className="ops-muted">No Krewe data available for this date.</td>
                 </tr>
               ) : null}
             </tbody>
@@ -1806,9 +1846,15 @@ export default async function CrewPage({
                 isSalary,
                 weeklyHoursBeforeShift: priorWeeklyHours.get(normalizeEmployeeKey(name)) || 0,
               };
+              const isRequestedMember = requestedMember === name.trim().toLocaleLowerCase();
 
               return (
-                <details key={`${name}-${idx}`} className="ops-card ops-crew-employee-card ops-crew-today-employee-card">
+                <details
+                  key={`${name}-${idx}`}
+                  id={crewMemberAnchor(name)}
+                  className={`ops-card ops-crew-employee-card ops-crew-today-employee-card${isRequestedMember ? ` ${relatedStyles.target}` : ""}`}
+                  open={isRequestedMember || undefined}
+                >
                   <summary className="ops-crew-employee-summary">
                     <div className="ops-crew-employee-summary-grid">
                       <div className="ops-crew-summary-field ops-crew-summary-field-employee">
@@ -1845,7 +1891,7 @@ export default async function CrewPage({
                         </div>
                       </div>
 
-                      <div className="ops-crew-summary-field">
+                      {canViewPayroll ? <div className="ops-crew-summary-field">
                         <span className="ops-crew-summary-label">Hourly Labor Cost</span>
                         <div className="ops-crew-summary-main">
                           <div className="ops-crew-summary-value">
@@ -1856,23 +1902,23 @@ export default async function CrewPage({
                             <LivePayrollValue date={date} records={[livePayrollRecord]} field="overtime" showIncompleteNote={false} /> OT additional
                           </div>
                         </div>
-                      </div>
+                      </div> : null}
 
-                      <div className="ops-crew-summary-field">
+                      {canViewPayroll ? <div className="ops-crew-summary-field">
                         <span className="ops-crew-summary-label">Tips</span>
                         <div className="ops-crew-summary-main">
                           <div className="ops-crew-summary-value ops-nowrap">{money(tipPay(row))}</div>
                         </div>
-                      </div>
+                      </div> : null}
 
-                      <div className="ops-crew-summary-field">
+                      {canViewPayroll ? <div className="ops-crew-summary-field">
                         <span className="ops-crew-summary-label">Bonuses</span>
                         <div className="ops-crew-summary-main">
                           <div className="ops-crew-summary-value ops-nowrap">{money(bonusPay(row))}</div>
                         </div>
-                      </div>
+                      </div> : null}
 
-                      <div className="ops-crew-summary-field ops-crew-summary-field-good">
+                      {canViewPayroll ? <div className="ops-crew-summary-field ops-crew-summary-field-good">
                         <span className="ops-crew-summary-label">Total Pay</span>
                         <div className="ops-crew-summary-main">
                           <div className="ops-crew-summary-value">
@@ -1883,7 +1929,7 @@ export default async function CrewPage({
                             />
                           </div>
                         </div>
-                      </div>
+                      </div> : null}
                     </div>
                     <span className="ops-crew-chevron" aria-hidden="true">▸</span>
                   </summary>
@@ -1918,7 +1964,7 @@ export default async function CrewPage({
                           value={String(row.assignment_confidence || row.assignmentConfidence || "Unavailable").trim() || "Unavailable"}
                         />
                       </div>
-                      {payrollReview ? (
+                      {canViewPayroll && payrollReview ? (
                         <PayrollDiscrepancyEditor
                           date={date}
                           employeeName={name}
@@ -1952,7 +1998,7 @@ export default async function CrewPage({
                       </div>
                     </div>
 
-                      <div className="ops-crew-detail-section">
+                      {canViewPayroll ? <div className="ops-crew-detail-section">
                         <div className="ops-crew-detail-section-title">Earnings</div>
                         <div className="ops-crew-detail-rows ops-crew-detail-rows-2">
                           <CrewDetailField label="Revenue Bonus" value={money(revenueBonus(row))} />
@@ -1993,11 +2039,15 @@ export default async function CrewPage({
                             totalAmount={manualBonusTotal}
                           />
                         </div>
-                      </div>
+                      </div> : null}
 
                     <div className="ops-crew-detail-section">
                       <div className="ops-crew-detail-section-title">Driving</div>
                       <div className="ops-crew-detail-rows ops-crew-detail-rows-2">
+                        <CrewDetailField
+                          label="Current Truck"
+                          value={<CrewTruckLinks date={date} row={row} />}
+                        />
                         <CrewDetailField
                           label="Driver Score"
                           value={driverScoreDisplay(row)}

@@ -340,7 +340,7 @@ function MonthlyLeaderboardView({ data }: { data: Awaited<ReturnType<typeof getC
           <div>
             <div className={styles.eyebrow}>Month to date</div>
             <h2>Monthly Leaderboard</h2>
-            <p>{dateLabel(leaderboard.start, { month: "long", year: "numeric" })} · Ranked by jobs completed, then revenue.</p>
+            <p>{dateLabel(leaderboard.start, { month: "long", year: "numeric" })} · Ranked by revenue, then jobs completed.</p>
           </div>
           <div className={styles.privacyNote}>Crew-visible · Total pay hidden</div>
         </div>

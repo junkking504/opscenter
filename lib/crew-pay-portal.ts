@@ -325,11 +325,19 @@ export function monthlyLeaderboardSummary(range: CrewPerformanceRange): {
   };
 }
 
+export function sortCrewPerformanceByRevenue(rows: CrewPerformanceStats[]): CrewPerformanceStats[] {
+  return [...rows].sort((a, b) => (
+    b.creditedRevenue - a.creditedRevenue
+    || b.jobsCompleted - a.jobsCompleted
+    || a.name.localeCompare(b.name)
+  ));
+}
+
 function crewPerformanceRange(
   start: string,
   end: string,
   metricsByDate: Map<string, AnyRecord>,
-  options: { requireClockIn?: boolean } = {},
+  options: { requireClockIn?: boolean; rankByRevenue?: boolean } = {},
 ): CrewPerformanceRange {
   const crew = new Map<string, {
     name: string;
@@ -388,7 +396,7 @@ function crewPerformanceRange(
     }
   }
 
-  const rows = [...crew.values()]
+  const unsortedRows = [...crew.values()]
     .map((row): CrewPerformanceStats => ({
       name: row.name,
       creditedRevenue: roundMoney(row.creditedRevenue),
@@ -400,8 +408,10 @@ function crewPerformanceRange(
         : null,
       tips: roundMoney(row.tips),
       bonuses: roundMoney(row.bonuses),
-    }))
-    .sort((a, b) => (
+    }));
+  const rows = options.rankByRevenue
+    ? sortCrewPerformanceByRevenue(unsortedRows)
+    : unsortedRows.sort((a, b) => (
       b.jobsCompleted - a.jobsCompleted
       || b.creditedRevenue - a.creditedRevenue
       || a.name.localeCompare(b.name)
@@ -697,7 +707,7 @@ export async function getCrewPayPortalData(
     selectedPeriod.end < todayKey ? selectedPeriod.end : todayKey,
     metricsByDate,
   );
-  const monthlyLeaderboard = crewPerformanceRange(`${todayKey.slice(0, 7)}-01`, todayKey, metricsByDate);
+  const monthlyLeaderboard = crewPerformanceRange(`${todayKey.slice(0, 7)}-01`, todayKey, metricsByDate, { rankByRevenue: true });
 
   const history: CrewPayHistoryItem[] = [];
   if (loadedDates.length) {

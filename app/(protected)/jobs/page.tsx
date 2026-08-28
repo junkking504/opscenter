@@ -2000,6 +2000,25 @@ function readScheduleFollowups(date: string, kind: "estimates" | "closed-estimat
     .sort((a, b) => followupRecency(b) - followupRecency(a) || b.sourceDate.localeCompare(a.sourceDate));
 }
 
+function readBookedJobsBySourceEstimate(date: string): Map<string, JobRow> {
+  const bookedJobsByEstimate = new Map<string, JobRow>();
+  const dates = Array.from(new Set([date, ...availableDates(), ...availableJobDates()]))
+    .sort((a, b) => b.localeCompare(a));
+
+  for (const sourceDate of dates) {
+    for (const job of readJobRows(sourceDate)) {
+      const estimateId = job.sourceEstimateAppointmentId.trim();
+      if (!estimateId || job.appointmentId === estimateId || /estimate/i.test(job.appointmentType)) continue;
+      const existing = bookedJobsByEstimate.get(estimateId);
+      if (!existing || followupRecency(job) > followupRecency(existing)) {
+        bookedJobsByEstimate.set(estimateId, { ...job, sourceDate });
+      }
+    }
+  }
+
+  return bookedJobsByEstimate;
+}
+
 
 function groupJobsByTerritory(jobs: JobRow[]): [string, JobRow[]][] {
   const groups = new Map<string, JobRow[]>();
@@ -2725,10 +2744,13 @@ function customerPhoneHref(phone: string): string {
   return digits.length >= 7 ? `tel:${digits}` : "";
 }
 
-function ClosedEstimateFollowupCard({ job }: { job: JobRow }) {
+function ClosedEstimateFollowupCard({ job, bookedJob }: { job: JobRow; bookedJob?: JobRow }) {
   const phoneHref = customerPhoneHref(job.phone);
   const hasEmail = job.customerEmail !== "—";
   const hasAddress = job.address && job.address !== "—" && job.address !== "Address unavailable";
+  const bookedJobHref = bookedJob
+    ? buildJobsHref({ date: bookedJob.sourceDate, view: "daily", workspace: "dispatch", q: bookedJob.jkNumber })
+    : "";
   const noteCount = job.appointmentNotes.filter((note) => !/^Appointment moved from\b/i.test(note)).length;
   const pricingSummary = job.closeout
     ? "Itemized pricing available"
@@ -2754,6 +2776,13 @@ function ClosedEstimateFollowupCard({ job }: { job: JobRow }) {
           <strong>{job.paymentAmount > 0 ? money(job.paymentAmount) : "Not recorded"}</strong>
         </div>
       </header>
+
+      {bookedJob ? (
+        <div className="ops-estimate-booked-job">
+          <span>Job booked after this estimate</span>
+          <Link href={bookedJobHref}>View {safeText(bookedJob.jkNumber)} · {jobActivityDate(bookedJob.sourceDate)}</Link>
+        </div>
+      ) : null}
 
       <div className="ops-closed-estimate-actions" aria-label={`Contact ${safeText(job.customerName)}`}>
         {phoneHref ? <a href={phoneHref}>Call {safeText(job.phone)}</a> : <span>Phone unavailable</span>}
@@ -3102,6 +3131,9 @@ export default async function JobsPage({
   const closedEstimateJobs = (isOpenEstimatesWorkspace || isClosedEstimatesWorkspace)
     ? readScheduleFollowups(date, "closed-estimates")
     : [];
+  const bookedJobsByEstimate = (isOpenEstimatesWorkspace || isClosedEstimatesWorkspace)
+    ? readBookedJobsBySourceEstimate(date)
+    : new Map<string, JobRow>();
   const followupJobs = isOpenEstimatesWorkspace
     ? openEstimateJobs
     : isClosedEstimatesWorkspace
@@ -3352,7 +3384,7 @@ export default async function JobsPage({
               </div>
               {closedEstimateJobs.length ? (
                 <div className="ops-closed-estimate-list">
-                  {closedEstimateJobs.map((job) => <ClosedEstimateFollowupCard key={`${job.appointmentId || job.jkNumber}-${job.sourceDate}`} job={job} />)}
+                  {closedEstimateJobs.map((job) => <ClosedEstimateFollowupCard key={`${job.appointmentId || job.jkNumber}-${job.sourceDate}`} job={job} bookedJob={bookedJobsByEstimate.get(job.appointmentId)} />)}
                 </div>
               ) : <div className="ops-empty-state">No closed estimates are present in the latest JunkWare records.</div>}
               <div className="ops-estimate-followup-heading open-estimates">
@@ -3378,7 +3410,7 @@ export default async function JobsPage({
           ) : followupJobs.length ? (
             isClosedEstimatesWorkspace ? (
               <div className="ops-closed-estimate-list">
-                {followupJobs.map((job) => <ClosedEstimateFollowupCard key={`${job.appointmentId || job.jkNumber}-${job.sourceDate}`} job={job} />)}
+                {followupJobs.map((job) => <ClosedEstimateFollowupCard key={`${job.appointmentId || job.jkNumber}-${job.sourceDate}`} job={job} bookedJob={bookedJobsByEstimate.get(job.appointmentId)} />)}
               </div>
             ) : <div className="ops-wide-table-wrap">
               <table className="ops-table ops-jobs-followup-table">

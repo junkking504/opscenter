@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import { pbkdf2Sync } from "node:crypto";
-import { opsAuthDisplayName, opsAuthIdentity, publicAuthRoute, verifyOpsCredentials } from "../lib/auth";
+import {
+  createAuthSessionCookieValue,
+  getOpsAuthReadiness,
+  inspectAuthSessionCookie,
+  opsAuthDisplayName,
+  opsAuthIdentity,
+  publicAuthRoute,
+  verifyOpsCredentials,
+} from "../lib/auth";
 
 const base64Url = (value: Buffer) => value.toString("base64url");
 const username = "test-operator";
@@ -12,6 +20,7 @@ const derived = pbkdf2Sync(password, salt, iterations, 32, "sha256");
 async function main() {
   process.env.OPS_AUTH_USERNAME = username;
   process.env.OPS_AUTH_PASSWORD_HASH = `pbkdf2-sha256$${iterations}$${base64Url(salt)}$${base64Url(derived)}`;
+  process.env.OPS_AUTH_SESSION_SECRET = "ops-auth-test-session-secret";
 
   assert.equal(await verifyOpsCredentials(username, password), true);
   assert.equal(await verifyOpsCredentials(username.toUpperCase(), password), true);
@@ -22,6 +31,12 @@ async function main() {
   assert.equal(opsAuthDisplayName("manager@junk-king.com"), "manager@junk-king.com");
   assert.equal(publicAuthRoute("/junk-king-logo.svg"), true);
   assert.equal(publicAuthRoute("/fleet"), false);
+  assert.equal(getOpsAuthReadiness().ok, true);
+  assert.equal((await inspectAuthSessionCookie("")).reason, "session_absent");
+  assert.equal((await inspectAuthSessionCookie("malformed")).reason, "session_malformed");
+  assert.equal((await inspectAuthSessionCookie("payload.signature")).reason, "session_signature_mismatch");
+  const session = await createAuthSessionCookieValue(opsAuthIdentity());
+  assert.equal((await inspectAuthSessionCookie(session)).session?.email, opsAuthIdentity());
 
   console.log("OpsCenter username/password authentication checks passed.");
 }

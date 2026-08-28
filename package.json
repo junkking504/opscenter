@@ -36,6 +36,7 @@
     "verify:qbo": "node --import tsx scripts/test-qbo-integration.ts && node --import tsx scripts/test-data-health.ts",
     "verify:data-health": "node --import tsx scripts/test-data-health.ts",
     "verify:ops-auth": "node --import tsx scripts/test-ops-auth.ts",
+    "verify:operational-readiness": "node --import tsx scripts/test-operational-readiness.ts",
     "verify:crew-auth": "node --import tsx scripts/test-crew-auth.ts",
     "verify:crew-attendance": "node --import tsx scripts/test-crew-attendance.ts",
     "verify:crew-job-values": "node --import tsx scripts/test-crew-job-values.ts",

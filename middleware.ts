@@ -13,7 +13,7 @@ import {
   protectedApiRoute,
   shouldRefreshTrustedDevice,
   trustedDeviceCookieOptionsForRequest,
-  verifyAuthSessionCookie,
+  inspectAuthSessionCookie,
   verifyTrustedDeviceCookie,
 } from "@/lib/auth";
 import {
@@ -33,6 +33,17 @@ import { WHATSAPP_JOB_PHOTO_API_PREFIX } from "@/lib/whatsapp-job-photo-constant
 import { LINXUP_PUSH_API_PREFIX } from "@/lib/linxup-push-constants";
 
 const authDebug = process.env.OPS_AUTH_DEBUG === "1";
+
+function logSessionRejection(request: NextRequest, reason: string, trustedDeviceValid: boolean): void {
+  console.warn("[auth] session rejected", {
+    reason,
+    requestKind: request.nextUrl.pathname.startsWith("/api/") ? "api" : "page",
+    host: request.headers.get("x-forwarded-host") || request.headers.get("host") || null,
+    method: request.method,
+    trustedDeviceValid,
+    requestId: request.headers.get("cf-ray") || null,
+  });
+}
 
 function requestHeadersWithSession(request: NextRequest, sessionValue: string): Headers {
   const requestHeaders = new Headers(request.headers);
@@ -168,9 +179,14 @@ export async function middleware(request: NextRequest) {
     && (pathname === AUTH_LOGIN_PATH || !publicAuthRoute(pathname));
 
   const sessionCookie = request.cookies.get(AUTH_SESSION_COOKIE)?.value || "";
-  const session = await verifyAuthSessionCookie(sessionCookie);
+  const sessionInspection = await inspectAuthSessionCookie(sessionCookie);
+  const session = sessionInspection.session;
   const trustedDeviceCookie = request.cookies.get(AUTH_TRUSTED_DEVICE_COOKIE)?.value || "";
   const trustedDevice = await verifyTrustedDeviceCookie(trustedDeviceCookie, request);
+
+  if (!session && !publicAuthRoute(pathname)) {
+    logSessionRejection(request, sessionInspection.reason || "session_unknown", Boolean(trustedDevice));
+  }
 
   if (enforceOpsAccess) {
     const accessAssertion = request.headers.get("cf-access-jwt-assertion");

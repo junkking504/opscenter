@@ -34,6 +34,7 @@ without mixing live runtime data or secrets into Git.
 - [WhatsApp job photos](whatsapp-job-photos.md)
 - [LinxUp live GPS push](linxup-push.md)
 - [Fleet Action Center](fleet-action-center.md)
+- [Operational readiness](operational-readiness.md)
 
 ## Canonical topology
 

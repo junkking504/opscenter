@@ -6,6 +6,7 @@ import { applyManualBonusesToMetrics } from "@/lib/manual-bonuses";
 
 const DATA_KEY = "crew-portal-data-v1";
 const metricsDirectory = path.join(process.cwd(), "data", "history", "daily_metrics");
+const syncStatusFile = path.join(process.cwd(), "data", "integrations", "crew-portal-sync", "status.json");
 
 type AnyRecord = Record<string, any>;
 
@@ -50,7 +51,20 @@ function putValue(key: string, value: unknown, tempDirectory: string) {
   }
 }
 
-function main() {
+function writeSyncStatus(payload: Record<string, unknown>) {
+  fs.mkdirSync(path.dirname(syncStatusFile), { recursive: true, mode: 0o700 });
+  const temporary = `${syncStatusFile}.tmp-${process.pid}-${Date.now()}`;
+  fs.writeFileSync(temporary, `${JSON.stringify({ version: 1, ...payload }, null, 2)}\n`, { mode: 0o600 });
+  fs.renameSync(temporary, syncStatusFile);
+}
+
+function safeErrorMessage(error: unknown): string {
+  return (error instanceof Error ? error.message : String(error || "Crew Portal synchronization failed."))
+    .replace(/https?:\/\/\S+/gi, "[url]")
+    .slice(0, 500);
+}
+
+function main(): string[] {
   const dates = metricDates();
   const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "opscenter-crew-portal-"));
   try {
@@ -65,10 +79,19 @@ function main() {
       }, tempDirectory);
     }
     putValue(`${DATA_KEY}:index`, { generatedAt: new Date().toISOString(), keys }, tempDirectory);
-    console.log(`Synced ${monthsToUpload.join(", ")} crew metrics to the Crew Portal.`);
+    return monthsToUpload;
   } finally {
     fs.rmSync(tempDirectory, { recursive: true, force: true });
   }
 }
 
-main();
+try {
+  const months = main();
+  const completedAt = new Date().toISOString();
+  writeSyncStatus({ status: "synchronized", lastAttemptAt: completedAt, lastSuccessAt: completedAt, months });
+  console.log(`Synced ${months.join(", ")} crew metrics to the Crew Portal.`);
+} catch (error) {
+  const attemptedAt = new Date().toISOString();
+  writeSyncStatus({ status: "failed", lastAttemptAt: attemptedAt, error: safeErrorMessage(error) });
+  throw error;
+}

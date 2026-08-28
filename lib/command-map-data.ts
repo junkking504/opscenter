@@ -1,7 +1,10 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { JobsMapPoint, JobsMapTruck } from "@/components/JobsMap";
 import { buildFleetMapPayload, type FleetTruckMapRecord } from "@/lib/fleet-map";
 import { jobRouteAssignmentKey } from "@/lib/job-route-key";
 import { type AnyRecord, readMetrics } from "@/lib/opsData";
+import { planningLocation } from "@/lib/planning-geocodes";
 
 export type CommandScheduleStatusBucket =
   | "Canceled"
@@ -94,7 +97,42 @@ function appointmentUrl(row: AnyRecord, appointmentId: string): string {
     : "";
 }
 
-function mapPoint(row: AnyRecord, index: number): JobsMapPoint {
+function readCommandMapGeocodes(): Record<string, Record<string, unknown>> {
+  const candidates = [
+    path.join(process.cwd(), "data", "cache", "appointment_geocodes.json"),
+    path.join(process.cwd(), "..", "opsbot", "data", "cache", "appointment_geocodes.json"),
+    path.join(process.env.HOME || "", ".openclaw", "workspace", "opsbot", "data", "cache", "appointment_geocodes.json"),
+  ];
+  for (const file of candidates) {
+    try {
+      const payload = JSON.parse(fs.readFileSync(file, "utf8"));
+      if (payload?.addresses && typeof payload.addresses === "object") {
+        return payload.addresses as Record<string, Record<string, unknown>>;
+      }
+    } catch {
+      // Try the next source. A missing cache must leave an appointment visible
+      // in the verification queue rather than inventing a map location.
+    }
+  }
+  return {};
+}
+
+function validSourceCoordinates(latitude: number | null, longitude: number | null): boolean {
+  return latitude !== null
+    && longitude !== null
+    && latitude !== 0
+    && longitude !== 0
+    && latitude >= -90
+    && latitude <= 90
+    && longitude >= -180
+    && longitude <= 180;
+}
+
+export function commandMapPoint(
+  row: AnyRecord,
+  index: number,
+  geocodes: Record<string, Record<string, unknown>> = {},
+): JobsMapPoint {
   const appointmentId = text(row, "appt_id", "appointment_id", "appointmentId");
   const jkNumber = text(row, "job_id", "jk_number", "jkNumber") || "—";
   const customerName = text(row, "customer_name", "customerName") || "Customer";
@@ -107,14 +145,23 @@ function mapPoint(row: AnyRecord, index: number): JobsMapPoint {
   const firstArrival = text(row, "first_arrival", "arrival_at");
   const finalDeparture = text(row, "final_departure", "departure_at");
   const assignmentKey = jobRouteAssignmentKey({ appointmentId, jkNumber, customerName, appointmentTime, address });
+  const sourceLatitude = number(row, "lat", "latitude");
+  const sourceLongitude = number(row, "lng", "longitude");
+  // JunkWare sometimes omits map coordinates even though the address has been
+  // confirmed by the appointment geocode collector. Use that verified cache
+  // before treating an appointment as unlocated, so a confirmed active job is
+  // never silently removed from Command/Dispatch.
+  const verifiedLocation = validSourceCoordinates(sourceLatitude, sourceLongitude)
+    ? null
+    : planningLocation(address, geocodes);
 
   return {
     key: `${assignmentKey || jkNumber}:${index}`,
     detailId: `command-map-${appointmentId || jkNumber.replace(/[^a-z0-9]+/gi, "-")}-${index}`,
     assignmentKey,
     appointmentId,
-    latitude: number(row, "lat", "latitude"),
-    longitude: number(row, "lng", "longitude"),
+    latitude: verifiedLocation?.latitude ?? sourceLatitude,
+    longitude: verifiedLocation?.longitude ?? sourceLongitude,
     customerName,
     address,
     territory: text(row, "normalized_territory", "territory", "market") || "Unknown territory",
@@ -184,7 +231,8 @@ export function buildCommandMapData(date: string): {
 } {
   const metrics = readMetrics(date);
   const appointments = Array.isArray(metrics?.appointments) ? metrics.appointments as AnyRecord[] : [];
-  const jobs = appointments.map(mapPoint);
+  const geocodes = readCommandMapGeocodes();
+  const jobs = appointments.map((appointment, index) => commandMapPoint(appointment, index, geocodes));
   const trucks = Array.from(new Set(jobs.map((job) => job.truck).filter((truck) => truck && !/virtual|unassigned|unavailable|^—$/i.test(truck))))
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   const fleet = buildFleetMapPayload(date);

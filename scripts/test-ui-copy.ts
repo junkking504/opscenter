@@ -42,6 +42,21 @@ assert.ok(
   "The follow-up page must order jobs from newest to oldest.",
 );
 
+const commandPageSource = readFileSync(new URL("../app/(protected)/page.tsx", import.meta.url), "utf8");
+assert.ok(commandPageSource.includes('label: "Today\'s jobs"'), "Command must retain the Today's jobs outcome card.");
+for (const outcome of ["Jobs", "Estimates", "Unclosed"]) {
+  assert.ok(
+    commandPageSource.includes(`{ label: "${outcome}"`),
+    `Command Today's jobs card is missing the ${outcome} outcome segment.`,
+  );
+}
+
+const commandBriefSource = readFileSync(new URL("../components/CommandBrief.tsx", import.meta.url), "utf8");
+assert.ok(
+  commandBriefSource.includes("styles.metricSegments") && commandBriefSource.includes("styles.metricBreakdown"),
+  "Command metrics must render both the appointment outcome meter and its labeled counts.",
+);
+
 const myPaySource = readFileSync(new URL("../app/my-pay/page.tsx", import.meta.url), "utf8");
 const payPeriodStart = myPaySource.indexOf("function PayPeriodView");
 const payPeriodEnd = myPaySource.indexOf("function MonthlyLeaderboardView");

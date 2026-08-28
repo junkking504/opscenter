@@ -36,5 +36,8 @@ assert.ok(navSource.includes("aria-current={subItem.active ? \"page\" : undefine
 for (const selector of [".ops-nav-subitems", ".ops-nav-subitem", ".ops-nav-subitem.active"]) {
   assert.ok(designSystemSource.includes(selector), `Secondary navigation styling is missing ${selector}.`);
 }
+assert.ok(designSystemSource.includes(".ops-sidebar > .ops-nav"), "The expanded view hierarchy must have its own scroll region.");
+assert.ok(designSystemSource.includes("overflow-y: auto"), "Dense sidebar views must remain reachable at short desktop heights.");
+assert.ok(designSystemSource.includes(".ops-sidebar > .ops-sidebar-footer"), "The account footer must remain outside the scrolling view hierarchy.");
 
 console.log("Secondary navigation discovery checks passed.");

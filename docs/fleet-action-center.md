@@ -1,8 +1,15 @@
-# Fleet Action Center
+# Today’s Fleet Work
 
 The Fleet Maintenance overview is the operational queue for truck work. It
 turns existing repair, inspection, and telemetry evidence into explicit next
 actions; it does not alter source records merely because a signal is observed.
+
+The landing page shows one next step per truck. `Stop` and `Urgent` evidence
+is presented as **Act now**; `Next` evidence is presented as **Plan next**.
+`Watch` evidence stays out of the daily queue until it needs human review.
+The three summary counts are out-of-service trucks, active repairs, and
+incomplete inspections. The editable Repair Queue remains the detailed system
+of record below the daily work list.
 
 ## Current action rules
 

@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
-import { uploadJunkwareJobPhoto } from "@/lib/junkware-photo-uploader";
+import { findJunkwareAppointmentIdByJkNumber, uploadJunkwareJobPhoto } from "@/lib/junkware-photo-uploader";
 import { uploadJunkwareTruckRecord } from "@/lib/junkware-truck-record-uploader";
 import { readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
@@ -253,7 +253,18 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
       finishWhatsAppImage(claim.file, "review", { review: match });
       return "review";
     }
-    matchedJob = match;
+    const appointmentId = match.appointmentId || await findJunkwareAppointmentIdByJkNumber(match.jkNumber);
+    if (!appointmentId) {
+      finishWhatsAppImage(claim.file, "review", {
+        review: {
+          reason: "jk_not_found_in_junkware",
+          detail: `${match.jkNumber} did not resolve to the exact JunkWare appointment.`,
+          category: match.category,
+        },
+      });
+      return "review";
+    }
+    matchedJob = { ...match, appointmentId };
     if (match.method === "jk_number" && whatsAppPhotoSlackNotificationsEnabled()) {
       recordWhatsAppPhotoSlackUpload({
         messageId: claim.message.messageId,
@@ -269,7 +280,7 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
     const filePath = await downloadWhatsAppImage(claim.message);
     stage = "uploading";
     const verification = await uploadJunkwareJobPhoto({
-      appointmentId: match.appointmentId,
+      appointmentId,
       jkNumber: match.jkNumber,
       filePath,
       category: match.category,

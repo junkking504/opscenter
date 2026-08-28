@@ -286,7 +286,7 @@ function PayPeriodView({ data }: { data: Awaited<ReturnType<typeof getCrewPayPor
   return (
     <>
       <section className={styles.section}>
-        <div className={styles.sectionHeader}>
+        <div className={`${styles.sectionHeader} ${styles.sectionHeaderCentered}`}>
           <div>
             <div className={styles.eyebrow}>Private to you</div>
             <h2>Your Pay Period</h2>
@@ -298,7 +298,7 @@ function PayPeriodView({ data }: { data: Awaited<ReturnType<typeof getCrewPayPor
       </section>
 
       <section className={styles.section}>
-        <div className={styles.sectionHeader}>
+        <div className={`${styles.sectionHeader} ${styles.sectionHeaderCentered}`}>
           <div><div className={styles.eyebrow}>Your private pay detail</div><h2>Pay Breakdown</h2></div>
         </div>
         <div className={styles.panel}>
@@ -315,7 +315,7 @@ function PayPeriodView({ data }: { data: Awaited<ReturnType<typeof getCrewPayPor
       </section>
 
       <section className={styles.section}>
-        <div className={styles.sectionHeader}><div><h2>Pay History</h2><p>Select a previous pay period for its private daily details.</p></div></div>
+        <div className={`${styles.sectionHeader} ${styles.sectionHeaderCentered}`}><div><h2>Pay History</h2><p>Select a previous pay period for its private daily details.</p></div></div>
         <div className={styles.historyList}>
           {data.history.length ? data.history.map((item) => (
             <Link className={styles.historyItem} href={`/my-pay?view=pay-period&period=${item.start}`} key={item.start}>
@@ -336,7 +336,7 @@ function MonthlyLeaderboardView({ data }: { data: Awaited<ReturnType<typeof getC
   return (
     <>
       <section className={styles.section}>
-        <div className={styles.sectionHeader}>
+        <div className={`${styles.sectionHeader} ${styles.sectionHeaderCentered}`}>
           <div>
             <div className={styles.eyebrow}>Month to date</div>
             <h2>Monthly Leaderboard</h2>
@@ -354,7 +354,7 @@ function MonthlyLeaderboardView({ data }: { data: Awaited<ReturnType<typeof getC
       </section>
 
       <section className={styles.section}>
-        <div className={styles.sectionHeader}>
+        <div className={`${styles.sectionHeader} ${styles.sectionHeaderCentered}`}>
           <div><div className={styles.eyebrow}>All crewmembers</div><h2>Month-to-Date Metrics</h2><p>Jobs completed, revenue, average job size, and tips.</p></div>
         </div>
         <div className={styles.leaderboardPanel}>

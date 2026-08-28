@@ -20,6 +20,7 @@ export default async function ProtectedLayout({
     <OpsShell
       sessionEmail={session.email}
       sessionLabel={opsAuthDisplayName(session.email)}
+      sessionRole={session.role}
       inboxEnabled={inboxEnabled}
     >
       {children}

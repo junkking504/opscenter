@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normalizeInteractiveOpsRole, type InteractiveOpsRole } from "@/lib/ops-roles";
 
 export const AUTH_SESSION_COOKIE = "opscenter_email_session";
 export const AUTH_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -35,6 +36,7 @@ export type AuthSessionPayload = {
 
 export type AuthSession = {
   email: string;
+  role: InteractiveOpsRole;
   issuedAt: Date;
   expiresAt: Date;
 };
@@ -208,6 +210,38 @@ export function opsAuthDisplayName(identityValue: unknown): string {
   return configuredUsername && identity === `${configuredUsername}@junk-king.com`
     ? configuredUsername
     : identity;
+}
+
+function configuredRoleBindings(): Record<string, InteractiveOpsRole> {
+  const raw = String(process.env.OPS_AUTH_ROLE_BINDINGS || "").trim();
+  if (!raw) return {};
+
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(parsed).map(([identity, role]) => [
+      normalizeAuthEmail(identity),
+      normalizeInteractiveOpsRole(role),
+    ]));
+  } catch {
+    return Object.fromEntries(raw.split(",").map((entry) => entry.split("=")).filter(([identity, role]) => identity && role).map(([identity, role]) => [
+      normalizeAuthEmail(identity),
+      normalizeInteractiveOpsRole(role),
+    ]));
+  }
+}
+
+export function opsAuthRole(identityValue: unknown): InteractiveOpsRole {
+  const identity = normalizeAuthEmail(identityValue);
+  const localPart = identity.split("@")[0] || "";
+  const bindings = configuredRoleBindings();
+  const configuredIdentity = opsAuthIdentity();
+
+  if (bindings[identity]) return bindings[identity];
+  if (bindings[localPart]) return bindings[localPart];
+  if (identity && identity === configuredIdentity) {
+    return normalizeInteractiveOpsRole(process.env.OPS_AUTH_ROLE, "admin");
+  }
+  return normalizeInteractiveOpsRole(process.env.OPS_AUTH_DEFAULT_ROLE, "operator");
 }
 
 export async function verifyOpsCredentials(usernameValue: unknown, passwordValue: unknown): Promise<boolean> {
@@ -421,6 +455,7 @@ export async function verifyTrustedDeviceCookie(
 
   return {
     email: normalizeAuthEmail(payload.email),
+    role: opsAuthRole(payload.email),
     deviceId: payload.deviceId,
     matchedBy: browserMatches ? "browser" : "network",
     issuedAt: new Date(issuedAtMs),
@@ -477,6 +512,7 @@ export async function inspectAuthSessionCookie(cookieValue: string | null | unde
   return {
     session: {
       email: normalizeAuthEmail(payload.email),
+      role: opsAuthRole(payload.email),
       issuedAt: new Date(issuedAtMs),
       expiresAt: new Date(expiresAtMs),
     },

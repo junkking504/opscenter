@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { inboxNavItem, primaryNavItems } from "@/components/navItems";
 import { titleCaseLabel } from "@/lib/title-case";
+import { opsRoleCan, type InteractiveOpsRole } from "@/lib/ops-roles";
 import styles from "./OpsNav.module.css";
 
 type SidebarSubItem = {
@@ -185,13 +186,16 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
 export default function OpsNav({
   variant = "tabs",
   inboxEnabled = false,
+  role = "admin",
 }: {
   variant?: "tabs" | "sidebar" | "bottom";
   inboxEnabled?: boolean;
+  role?: InteractiveOpsRole;
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const navigationItems = inboxEnabled ? [...primaryNavItems, inboxNavItem] : primaryNavItems;
+  const allNavigationItems = inboxEnabled ? [...primaryNavItems, inboxNavItem] : [...primaryNavItems];
+  const navigationItems = allNavigationItems.filter((item) => item.href !== "/finance" || opsRoleCan(role, "finance.read"));
 
   const date = searchParams.get("date");
   const mode = searchParams.get("mode");

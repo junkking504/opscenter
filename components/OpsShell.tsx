@@ -7,16 +7,19 @@ import TruckCameraController from "@/components/TruckCameraController";
 import InboxNavSummary from "@/components/InboxNavSummary";
 import GlobalSearch from "@/components/GlobalSearch";
 import { getOpsRuntime } from "@/lib/runtime";
+import { opsRoleLabel, type InteractiveOpsRole } from "@/lib/ops-roles";
 
 export default function OpsShell({
   children,
   sessionEmail,
   sessionLabel,
+  sessionRole,
   inboxEnabled = false,
 }: {
   children: React.ReactNode;
   sessionEmail?: string | null;
   sessionLabel?: string | null;
+  sessionRole: InteractiveOpsRole;
   inboxEnabled?: boolean;
 }) {
   const runtimeStatus = getOpsRuntime();
@@ -62,7 +65,7 @@ export default function OpsShell({
         </div>
 
         <Suspense fallback={<nav className="ops-nav" aria-hidden="true" />}>
-          <OpsNav variant="sidebar" inboxEnabled={inboxEnabled} />
+          <OpsNav variant="sidebar" inboxEnabled={inboxEnabled} role={sessionRole} />
         </Suspense>
 
         <div className="ops-sidebar-footer">
@@ -74,6 +77,7 @@ export default function OpsShell({
             <span className="ops-sidebar-footer-code">JKLA</span>
           </div>
           {sessionLabel ? <div className="ops-small-muted">Signed In As {sessionLabel}</div> : null}
+          <div className="ops-small-muted">{opsRoleLabel(sessionRole)} access</div>
           <a href="/api/auth/logout" className="ops-mini-link">
             Logout
           </a>
@@ -103,6 +107,9 @@ export default function OpsShell({
               {inboxEnabled ? <InboxNavSummary /> : null}
               <AddOnNotifications sessionEmail={sessionEmail} />
               <OperationsClock />
+              <div className="ops-role-chip" aria-label={`Signed in with ${opsRoleLabel(sessionRole)} access`}>
+                {opsRoleLabel(sessionRole)}
+              </div>
               <div className="ops-live-chip" aria-label="Live operations data connected">
                 <span className="ops-pulse" />
                 Live
@@ -124,7 +131,7 @@ export default function OpsShell({
         </div>
       </main>
 
-      <OpsNav variant="bottom" inboxEnabled={inboxEnabled} />
+      <OpsNav variant="bottom" inboxEnabled={inboxEnabled} role={sessionRole} />
     </TruckCameraController>
   );
 }

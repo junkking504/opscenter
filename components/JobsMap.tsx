@@ -108,6 +108,7 @@ const DEFAULT_DISPATCH_MAP_BOUNDS: [[number, number], [number, number]] = [
   [30.7, -89.75],
 ];
 const DEFAULT_DISPATCH_MAP_PADDING: [number, number] = [48, 48];
+const TRUCK_MARKER_PANE = "ops-truck-marker-pane";
 const DISPATCH_TERRITORY_SHORTCUTS = [
   { label: "New Orleans", abbreviation: "NO", tone: "is-new-orleans", center: [29.95, -90.08] as [number, number] },
   { label: "Baton Rouge", abbreviation: "BR", tone: "is-baton-rouge", center: [30.45, -91.15] as [number, number] },
@@ -1270,6 +1271,10 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       attribution: STREET_ATTRIBUTION,
       maxZoom: 20,
     }).addTo(map);
+    // Keep live truck icons above appointment pins and count circles regardless
+    // of the marker's latitude-derived Leaflet z-index.
+    const truckMarkerPane = map.getPane(TRUCK_MARKER_PANE) || map.createPane(TRUCK_MARKER_PANE);
+    truckMarkerPane.style.zIndex = "675";
     mapRef.current = map;
     resetMapToOperatingFootprint(false);
     map.scrollWheelZoom.enable();
@@ -1447,6 +1452,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       const atJob = truckIsCurrentlyAtAnyJob(truck, locatedJobs, currentScheduleTime?.timestamp ?? Date.now());
       const marker = leaflet.marker([latitude, longitude], {
         icon: truckIcon(leaflet, truck, truck.truck === selectedTruckName, atJob),
+        pane: TRUCK_MARKER_PANE,
         keyboard: true,
         title: markerLabel,
         alt: markerLabel,

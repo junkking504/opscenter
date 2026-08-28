@@ -1121,22 +1121,12 @@ a {
 }
 
 .ops-date-chip,
-.ops-live-chip,
-.ops-role-chip {
+.ops-live-chip {
   padding: 10px 13px;
   border: 1px solid var(--ops-border);
   background: rgba(16, 20, 28, 0.8);
   border-radius: 999px;
   white-space: nowrap;
-}
-
-.ops-role-chip {
-  color: var(--ops-gold);
-  border-color: color-mix(in srgb, var(--ops-gold) 38%, var(--ops-border));
-  font-size: 0.72rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .ops-date-chip {

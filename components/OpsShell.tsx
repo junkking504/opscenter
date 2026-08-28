@@ -107,9 +107,6 @@ export default function OpsShell({
               {inboxEnabled ? <InboxNavSummary /> : null}
               <AddOnNotifications sessionEmail={sessionEmail} />
               <OperationsClock />
-              <div className="ops-role-chip" aria-label={`Signed in with ${opsRoleLabel(sessionRole)} access`}>
-                {opsRoleLabel(sessionRole)}
-              </div>
               <div className="ops-live-chip" aria-label="Live operations data connected">
                 <span className="ops-pulse" />
                 Live

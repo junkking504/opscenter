@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { chicagoDateKey } from "@/lib/chicago-date";
 
 export type MonthOption = {
   key: string;
@@ -45,6 +46,14 @@ export default function OpsMonthSelector({
     params.set("date", `${nextMonthKey}-01`);
     params.set("view", searchParams.get("view") === "calendar" ? "calendar" : "monthly");
     params.delete("day");
+    // CurrentDataSync advances live pages to the freshest metrics date. A
+    // month chosen from history must opt out before that poll can replace the
+    // newly selected month with the current one.
+    if (nextMonthKey === chicagoDateKey().slice(0, 7)) {
+      params.delete("mode");
+    } else {
+      params.set("mode", "historical");
+    }
     router.push(`${pathname}?${params.toString()}`);
   }
 

@@ -24,7 +24,9 @@ try {
   const { availableSearchKingsMonths, readSearchKingsSnapshot } = await import("../lib/searchkings");
   assert.ok(availableSearchKingsMonths().includes("2026-03"));
   assert.equal(readSearchKingsSnapshot("2026-03")?.range.endDate, "2026-03-31");
-  assert.equal(readSearchKingsSnapshot("2026-02"), null);
+  // The production data root can contain other months. Use a deliberately
+  // unsupported historical key so this isolation check never reads it.
+  assert.equal(readSearchKingsSnapshot("1999-01"), null);
 
   const marketingPage = fs.readFileSync(path.join(process.cwd(), "app", "(protected)", "marketing", "page.tsx"), "utf8");
   assert.match(marketingPage, /availableSearchKingsMonths/);
@@ -34,6 +36,10 @@ try {
   const navigation = fs.readFileSync(path.join(process.cwd(), "components", "OpsNav.tsx"), "utf8");
   const marketingBlock = navigation.slice(navigation.indexOf('if (pathname.startsWith("/marketing"))'), navigation.indexOf('if (pathname.startsWith("/crew"))'));
   assert.doesNotMatch(marketingBlock, /includeDate: false/);
+
+  const monthSelector = fs.readFileSync(path.join(process.cwd(), "components", "OpsMonthSelector.tsx"), "utf8");
+  assert.match(monthSelector, /params\.set\("mode", "historical"\)/);
+  assert.match(monthSelector, /params\.delete\("mode"\)/);
 } finally {
   if (priorDataRoot === undefined) delete process.env.OPSBOT_DATA_DIR;
   else process.env.OPSBOT_DATA_DIR = priorDataRoot;

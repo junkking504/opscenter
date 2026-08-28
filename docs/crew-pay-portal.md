@@ -24,7 +24,7 @@ The shared temporary password is accepted only while that username has no person
 
 The signed-in Krewe portal includes daily metrics for Krewe members with a recorded clock-in that day and a month-to-date Krewe leaderboard. Both share only jobs completed, revenue, average job size, and tips. Total pay, hourly rates, hours, bonus amounts, bonus-day counts, and other payroll details remain visible only to the signed-in employee in their private pay sections.
 
-Dispatch appointment notes in OpsCenter Jobs are appended to the appointment's **Other Notes** in JunkWare and are read back before the UI confirms success. The Krewe Portal does not provide job or appointment notes.
+Schedule appointment notes in OpsCenter are appended to the appointment's **Other Notes** in JunkWare and are read back before the UI confirms success. The Krewe Portal does not provide job or appointment notes.
 
 Each employee also has a personal performance summary with Day, Week, and Month views. Week means Monday through the current day, and Month means calendar month-to-date. Longer-range average job size and estimate close percentage are recalculated from the combined underlying jobs and estimates rather than averaged from daily percentages.
 

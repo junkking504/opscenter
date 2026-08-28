@@ -75,7 +75,7 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
     if (view === "monthly") {
       const section = ["breakdown", "trend"].includes(requestedSection) ? requestedSection : "overview";
       return [
-        { label: "Dispatch", href: href({}), active: false },
+        { label: "Schedule", href: href({}), active: false },
         { label: "Monthly overview", href: href({ view: "monthly", section: "overview" }), active: section === "overview" },
         { label: "Breakdown", href: href({ view: "monthly", section: "breakdown" }), active: section === "breakdown" },
         { label: "Trend", href: href({ view: "monthly", section: "trend" }), active: section === "trend" },
@@ -83,7 +83,7 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
     }
 
     return [
-      { label: "Dispatch", href: href({}), active: true },
+      { label: "Schedule", href: href({}), active: true },
       { label: "Monthly", href: href({ view: "monthly" }), active: false },
     ];
   }

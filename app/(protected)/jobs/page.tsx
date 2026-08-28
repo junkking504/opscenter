@@ -3262,7 +3262,7 @@ export default async function JobsPage({
   return (
     <div className={`ops-dashboard ops-jobs-page${isDispatchWorkspace ? " is-dispatch" : ""}`}>
       <PageHeader
-        title={isOpenEstimatesWorkspace ? "Estimates" : isClosedEstimatesWorkspace ? "Closed estimates" : isUnclosedWorkspace ? "Unclosed jobs" : view === "daily" ? "Dispatch" : "Schedule"}
+        title={isOpenEstimatesWorkspace ? "Estimates" : isClosedEstimatesWorkspace ? "Closed estimates" : isUnclosedWorkspace ? "Unclosed jobs" : "Schedule"}
         subtitle={isFollowupWorkspace
           ? isOpenEstimatesWorkspace
             ? `${closedEstimateJobs.length} closed · ${openEstimateJobs.length} open · customer contact, pricing, notes, and photos in one place.`
@@ -3291,7 +3291,7 @@ export default async function JobsPage({
           </>
         }
         sections={[
-          { label: "Dispatch", href: buildJobsHref({ date, view: "daily", workspace: "dispatch", ...filters }), active: isDispatchWorkspace, badge: isDispatchWorkspace ? mapPoints.length || undefined : undefined },
+          { label: "Schedule", href: buildJobsHref({ date, view: "daily", workspace: "dispatch", ...filters }), active: isDispatchWorkspace, badge: isDispatchWorkspace ? mapPoints.length || undefined : undefined },
           { label: "Estimates", href: buildJobsHref({ date, view: "daily", workspace: "estimates" }), active: isOpenEstimatesWorkspace, badge: isOpenEstimatesWorkspace ? openEstimateJobs.length + closedEstimateJobs.length || undefined : undefined },
           { label: "Unclosed jobs", href: buildJobsHref({ date, view: "daily", workspace: "unclosed" }), active: isUnclosedWorkspace, badge: isUnclosedWorkspace ? followupJobs.length || undefined : undefined },
           { label: "Calendar", href: buildJobsHref({ date, view: "calendar", ...filters }), active: view === "calendar" },
@@ -3816,7 +3816,7 @@ export default async function JobsPage({
         ) : null}
       </div>
 
-      <nav className="ops-jobs-workspace-jump" aria-label="Dispatch workspace views">
+      <nav className="ops-jobs-workspace-jump" aria-label="Schedule workspace views">
         <a href="#jobs-map">Map &amp; board</a>
         <a href="#jobs-schedule">Appointment Queue <small>{filterCount}</small></a>
       </nav>
@@ -3830,13 +3830,13 @@ export default async function JobsPage({
             </div>
             <div className="ops-muted">
               {view === "calendar"
-                ? `${selectedCalendarJobs.length} appointment${selectedCalendarJobs.length === 1 ? "" : "s"}, using the dispatch layout and ordered by territory and time.`
+                ? `${selectedCalendarJobs.length} appointment${selectedCalendarJobs.length === 1 ? "" : "s"}, using the schedule layout and ordered by territory and time.`
                 : `${scheduleCopy.possessive} jobs, ordered by appointment time.`}
             </div>
           </div>
           {view === "calendar" ? (
             <Link className="ops-calendar-open-dispatch" href={buildJobsHref({ date: selectedCalendarDate, view: "daily", workspace: "dispatch" })}>
-              Open dispatch
+              Open schedule
             </Link>
           ) : <div className="ops-job-count-pill">{filterCount} appointments</div>}
         </div>

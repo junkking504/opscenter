@@ -346,7 +346,7 @@ export default function AddOnNotifications({ sessionEmail }: { sessionEmail?: st
           <div className="ops-notification-panel" role="dialog" aria-label="Add-on notifications">
             <div className="ops-notification-panel-head">
               <div>
-                <span>Dispatch alerts</span>
+                <span>Schedule alerts</span>
                 <strong>Add-on appointments</strong>
               </div>
               <span className={`ops-notification-feed-state${feedAvailable ? "" : " unavailable"}`}>

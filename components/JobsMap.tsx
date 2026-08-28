@@ -189,8 +189,10 @@ function truckIsCurrentlyAtJob(
   truck: JobsMapTruck,
   now: number,
 ): boolean {
-  return truckHasConfirmedDwellAtJob(job, truck, now)
-    || (truck.status === "At Job" && distanceMeters(truck, job) <= LINXUP_SITE_RADIUS_METERS);
+  // A marker earns the on-site state only from fresh, continuous GPS dwell.
+  // A historical visit or a single late point at the address is not proof that
+  // the truck has remained there.
+  return truckHasConfirmedDwellAtJob(job, truck, now);
 }
 
 function truckIsCurrentlyAtAnyJob(truck: JobsMapTruck, jobs: JobsMapPoint[], now: number): boolean {

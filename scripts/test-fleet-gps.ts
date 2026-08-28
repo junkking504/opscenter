@@ -4,7 +4,7 @@ import {
   applyAppointmentVisitConfirmations,
   type AppointmentVisitConfirmation,
 } from "@/lib/appointment-visit-confirmations";
-import { operationalStatusForFreshness } from "@/lib/fleet-map";
+import { classifyOperationalStatus, operationalStatusForFreshness } from "@/lib/fleet-map";
 
 const confirmations: AppointmentVisitConfirmation[] = [
   {
@@ -76,5 +76,24 @@ assert.equal(visits.find((row) => row.appointment_id === "untouched-appt")?.truc
 assert.equal(operationalStatusForFreshness("Driving", "Live GPS"), "Driving");
 assert.equal(operationalStatusForFreshness("Driving", "GPS Stale"), "GPS Stale");
 assert.equal(operationalStatusForFreshness("Idle", "Offline"), "Offline");
+
+assert.equal(
+  classifyOperationalStatus({
+    latest: { latitude: 30.453291, longitude: -90.052799, speed: 0 },
+    routePoints: [],
+    routeStops: [{
+      kind: "At Job",
+      label: "JK4068519",
+      truck: "Truck# 8",
+      latitude: 30.453521,
+      longitude: -90.05266,
+      begin: "2026-08-28T15:25:19Z",
+      end: "2026-08-28T17:14:18Z",
+      source: "appointment_visit",
+    }],
+  }),
+  "Idle",
+  "A historical job visit cannot prove a truck is currently on site.",
+);
 
 console.log("Fleet GPS status and appointment confirmation tests passed.");

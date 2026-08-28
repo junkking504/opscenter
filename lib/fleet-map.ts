@@ -285,7 +285,7 @@ function operationalLocationCodeAt(point: { latitude: number; longitude: number 
   return OPERATIONAL_LOCATIONS.find((location) => distanceMeters(point, location) <= location.radiusMeters)?.code || null;
 }
 
-function classifyOperationalStatus({
+export function classifyOperationalStatus({
   latest,
   routeStops,
   routePoints,
@@ -298,10 +298,14 @@ function classifyOperationalStatus({
   const latestLocation = latest && Number.isFinite(Number(latest.latitude)) && Number.isFinite(Number(latest.longitude))
     ? { latitude: Number(latest.latitude), longitude: Number(latest.longitude) }
     : null;
+  // Appointment visits are historical evidence: a visit's recorded departure
+  // must never be reclassified as a current job merely because a later GPS
+  // point is close to the same address. Current on-site status is established
+  // separately from fresh, continuous GPS dwell in Dispatch.
   const currentStop = latestLocation
     ? [...routeStops]
         .reverse()
-        .find((stop) => stop.kind !== "Unknown" && distanceMeters(latestLocation, stop) <= 150)
+        .find((stop) => stop.kind !== "Unknown" && stop.kind !== "At Job" && distanceMeters(latestLocation, stop) <= 150)
     : null;
   const namedLocationCode = operationalLocationCodeFromName(currentStop?.label);
   if (namedLocationCode) return namedLocationCode;

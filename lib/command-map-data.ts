@@ -3,6 +3,21 @@ import { buildFleetMapPayload, type FleetTruckMapRecord } from "@/lib/fleet-map"
 import { jobRouteAssignmentKey } from "@/lib/job-route-key";
 import { type AnyRecord, readMetrics } from "@/lib/opsData";
 
+export type CommandScheduleStatusBucket =
+  | "Canceled"
+  | "Completed"
+  | "Estimate"
+  | "Open / Scheduled"
+  | "Unclosed or Needs Attention";
+
+export type CommandScheduleSummary = {
+  scheduled: number;
+  closed: number;
+  completedJobs: number;
+  closedEstimates: number;
+  remaining: number;
+};
+
 function text(row: AnyRecord, ...keys: string[]): string {
   for (const key of keys) {
     const value = row?.[key];
@@ -35,7 +50,7 @@ function appointmentMinutes(value: string): [number | null, number | null] {
   return [minuteValue(matches[0]), minuteValue(matches[1])];
 }
 
-function statusBucket(row: AnyRecord): string {
+function statusBucket(row: AnyRecord): CommandScheduleStatusBucket {
   const type = text(row, "appointment_type", "appointmentType").toLowerCase();
   const status = text(row, "job_status", "status").toLowerCase();
   if (status.includes("cancel")) return "Canceled";
@@ -47,6 +62,28 @@ function statusBucket(row: AnyRecord): string {
   if (closed) return "Completed";
   if (status.includes("confirmed") || status.includes("open") || status.includes("schedule")) return "Open / Scheduled";
   return "Unclosed or Needs Attention";
+}
+
+/**
+ * Counts the active schedule independently from production-job metrics.
+ * A completed estimate is closed schedule work, but it must stay distinct
+ * from a completed revenue job.
+ */
+export function summarizeCommandSchedule(
+  jobs: Array<Pick<JobsMapPoint, "statusBucket">>,
+): CommandScheduleSummary {
+  const activeJobs = jobs.filter((job) => job.statusBucket !== "Canceled");
+  const completedJobs = activeJobs.filter((job) => job.statusBucket === "Completed").length;
+  const closedEstimates = activeJobs.filter((job) => job.statusBucket === "Estimate").length;
+  const closed = completedJobs + closedEstimates;
+
+  return {
+    scheduled: activeJobs.length,
+    closed,
+    completedJobs,
+    closedEstimates,
+    remaining: activeJobs.length - closed,
+  };
 }
 
 function appointmentUrl(row: AnyRecord, appointmentId: string): string {

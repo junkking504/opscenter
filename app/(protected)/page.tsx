@@ -26,7 +26,7 @@ import {
 } from "@/lib/opsData";
 import { buildMonthlySummary, monthOptions } from "@/lib/monthly-summary";
 import { buildFleetDailyRecord } from "@/lib/fleet-history";
-import { buildCommandMapData } from "@/lib/command-map-data";
+import { buildCommandMapData, summarizeCommandSchedule } from "@/lib/command-map-data";
 import { dispatchMapCoverage } from "@/lib/dispatch-map-quality";
 import {
   dailyRevenueTarget,
@@ -538,9 +538,11 @@ export default async function DashboardPage({
   const dailyJobsAtPlan = dailyRevenuePlan > 0 ? dailyRevenuePlan / operatingTargets.averageJobSize : 0;
   const dailyOperatingProfitAtPlan = dailyRevenuePlan * (operatingTargets.minOperatingMarginPercent / 100);
   const activeTruckCount = trucks.filter((truck) => Number(truck.revenue || 0) > 0).length;
-  const dailyAppointmentCount = Array.isArray(metrics?.appointments) ? metrics.appointments.length : jobs;
-  const projectedDayRevenue = jobs > 0 && dailyAppointmentCount > 0
-    ? Math.max(grossRevenue, dailyAverageJob * dailyAppointmentCount)
+  const commandSchedule = commandMap
+    ? summarizeCommandSchedule(commandMap.jobs)
+    : { scheduled: jobs, closed: jobs, completedJobs: jobs, closedEstimates: 0, remaining: 0 };
+  const projectedDayRevenue = jobs > 0 && commandSchedule.scheduled > 0
+    ? Math.max(grossRevenue, dailyAverageJob * commandSchedule.scheduled)
     : grossRevenue;
   const projectedLaborCostPercent = projectedDayRevenue > 0
     ? (totalPayroll / projectedDayRevenue) * 100
@@ -567,12 +569,12 @@ export default async function DashboardPage({
   const dailyRevenueStatus = minimumStatus(grossRevenue, dailyRevenuePlan);
   const commandBriefMetrics: CommandBriefMetric[] = [
     {
-      label: "Today's jobs",
-      value: String(dailyAppointmentCount),
-      detail: `${jobs} completed · ${Math.max(0, dailyAppointmentCount - jobs)} remaining`,
-      status: jobs >= dailyAppointmentCount && dailyAppointmentCount > 0 ? "on-track" : "watch",
-      progress: dailyAppointmentCount > 0 ? (jobs / dailyAppointmentCount) * 100 : 0,
-      progressLabel: `${jobs} of ${dailyAppointmentCount} jobs completed`,
+      label: "Today's schedule",
+      value: String(commandSchedule.scheduled),
+      detail: `${commandSchedule.closed} closed · ${commandSchedule.remaining} remaining`,
+      status: commandSchedule.remaining === 0 && commandSchedule.scheduled > 0 ? "on-track" : "watch",
+      progress: commandSchedule.scheduled > 0 ? (commandSchedule.closed / commandSchedule.scheduled) * 100 : 0,
+      progressLabel: `${commandSchedule.completedJobs} completed job${commandSchedule.completedJobs === 1 ? "" : "s"} and ${commandSchedule.closedEstimates} closed estimate${commandSchedule.closedEstimates === 1 ? "" : "s"}; ${commandSchedule.remaining} remaining`,
       href: `/jobs?date=${date}`,
     },
     {

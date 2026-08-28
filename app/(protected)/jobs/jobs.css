@@ -1008,20 +1008,27 @@
 }
 
 @media (max-width: 700px) {
-  /* Keep every appointment block in the phone viewport. The desktop board
-   * remains unchanged; only its mobile time cells compact into square slots. */
+  /* Give field users square, touchable appointments without compressing every
+   * hour into a 15px sliver. The board scrolls horizontally; tapping a block
+   * reveals the truck/time selectors below it. */
   .ops-jobs-map-workspace.has-schedule .ops-jobs-map-schedule {
     height: auto;
-    overflow: visible !important;
-    touch-action: auto;
+    overflow-x: auto !important;
+    overflow-y: visible;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    touch-action: pan-x pan-y;
   }
 
   .ops-jobs-map-schedule .ops-jobs-map-board {
-    min-width: 100% !important;
-    --ops-jobs-map-time-cell-min: 0px !important;
+    min-width: 600px !important;
+    --ops-jobs-map-time-cell-min: 44px !important;
   }
 
-  .ops-jobs-map-board-block { min-width: 0; }
+  .ops-jobs-map-board-block {
+    min-width: 0;
+    touch-action: pan-x pan-y;
+  }
 
   .ops-jobs-map-board-state {
     width: 14px;
@@ -1613,6 +1620,12 @@
 .ops-jobs-page .ops-jobs-route-board-header span { display: grid; gap: 2px; }
 .ops-jobs-page .ops-jobs-route-board-header strong { font-size: 0.78rem; }
 .ops-jobs-page .ops-jobs-route-board-header small { color: #68717d; font-size: 0.68rem; }
+.ops-jobs-page .ops-route-board-mobile-help { display: none; }
+
+@media (max-width: 700px) {
+  .ops-jobs-page .ops-route-board-desktop-help { display: none; }
+  .ops-jobs-page .ops-route-board-mobile-help { display: block; }
+}
 
 /* The working dispatch viewport is often narrower than the desktop shell.
  * Preserve the operational map/board pairing there instead of stacking it. */

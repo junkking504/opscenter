@@ -1,6 +1,7 @@
 import OpsDateSelector from "@/components/OpsDateSelector";
 import PageRefreshButton from "@/components/PageRefreshButton";
 import CurrentDataSync from "@/components/CurrentDataSync";
+import PageSubnav, { type PageSubnavItem } from "@/components/PageSubnav";
 import { availableDates } from "@/lib/opsData";
 import { stableUpdatedAt } from "@/lib/stable-date";
 import { titleCaseLabel } from "@/lib/title-case";
@@ -31,13 +32,7 @@ export default function PageHeader({
   status?: string;
   dateLabel?: string;
   dates?: string[];
-  sections?: Array<{
-    label: string;
-    href: string;
-    active?: boolean;
-    badge?: string | number;
-    attention?: boolean;
-  }>;
+  sections?: PageSubnavItem[];
   compact?: boolean;
 }) {
   const updated = lastUpdated ? stableUpdatedAt(lastUpdated) : "";
@@ -68,19 +63,7 @@ export default function PageHeader({
       ) : null}
 
       {sections?.length ? (
-        <nav className="ops-page-subnav" aria-label={`${title} sections`}>
-          {sections.map((section) => (
-            <a
-              key={`${section.label}-${section.href}`}
-              href={section.href}
-              className={`${section.active ? "active" : ""}${section.attention ? " needs-attention" : ""}`}
-              aria-current={section.active ? "page" : undefined}
-            >
-              <span>{titleCaseLabel(section.label)}</span>
-              {section.badge !== undefined ? <small>{section.badge}</small> : null}
-            </a>
-          ))}
-        </nav>
+        <PageSubnav title={title} sections={sections} />
       ) : null}
     </section>
   );

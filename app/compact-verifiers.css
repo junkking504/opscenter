@@ -391,6 +391,48 @@
     height: auto;
   }
 
+  /* Dense Fleet and Finance section lists are a single field-friendly rail.
+   * The prior fixed 38px nav box let later rows paint over page content. */
+  .ops-main :is(.ops-maintenance-page, .ops-finance-page) > .ops-page-header.has-subnav .ops-page-subnav {
+    display: flex;
+    height: auto;
+    min-height: 44px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: thin;
+    touch-action: pan-x pan-y;
+  }
+
+  .ops-main :is(.ops-maintenance-page, .ops-finance-page) > .ops-page-header.has-subnav .ops-page-subnav a {
+    width: auto;
+    min-width: max-content;
+    flex: 0 0 auto;
+    padding-inline: 14px;
+    scroll-snap-align: start;
+    white-space: nowrap;
+  }
+
+  /* Grid children default to min-width:auto. Reconciliation's 980px table
+   * was therefore sizing the whole monthly panel to ~799px and getting clipped
+   * by the phone shell instead of scrolling inside its own table wrapper. */
+  .ops-finance-page .ops-finance-layout > * {
+    min-width: 0;
+  }
+
+  .ops-finance-page .ops-reconciliation-job-link {
+    display: inline-flex;
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .ops-finance-page .ops-finance-table-scroll {
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    touch-action: pan-x pan-y;
+  }
+
   .ops-crew-period-employee-card .ops-crew-employee-summary {
     min-height: 44px;
     padding: 9px 10px;

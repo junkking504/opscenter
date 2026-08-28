@@ -52,6 +52,7 @@
     "verify:schedule-naming": "node --import tsx scripts/test-schedule-naming.ts",
     "verify:secondary-navigation": "node --import tsx scripts/test-secondary-navigation.ts",
     "verify:command-changes": "node --import tsx scripts/test-command-change-digest.ts",
+    "verify:mobile-field": "node --import tsx scripts/test-mobile-field-workflows.ts",
     "platform:migrate": "node --import tsx scripts/migrate-platform-kernel.ts",
     "verify:ui-copy": "node --import tsx scripts/test-ui-copy.ts",
     "verify:css-architecture": "node --import tsx scripts/test-css-architecture.ts",

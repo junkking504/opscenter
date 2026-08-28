@@ -22,11 +22,14 @@
 
 .topbarInner {
   min-height: 56px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
   gap: 20px;
 }
+
+.topbarSpacer { grid-column: 1; }
+.crewTopLogo { grid-column: 2; width: clamp(116px, 18vw, 156px); height: auto; }
 
 .brand {
   display: flex;
@@ -46,6 +49,8 @@
 }
 
 .logout {
+  grid-column: 3;
+  justify-self: end;
   color: #aeb6c1;
   font-size: 0.82rem;
   text-decoration: none;
@@ -625,6 +630,8 @@
     min-height: 52px;
     gap: 12px;
   }
+
+  .crewTopLogo { width: clamp(104px, 36vw, 136px); }
 
   .brand {
     min-width: 0;

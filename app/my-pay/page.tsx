@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Viewport } from "next";
 import { CREW_IDENTITY_HEADER } from "@/lib/crew-auth";
 import CrewProfileHeader from "@/components/CrewProfileHeader";
+import JunkKingLogo from "@/components/JunkKingLogo";
 import { readCrewJobNotesForEmployee, type CrewJobNote } from "@/lib/job-crew-notes";
 import { chicagoDateKey } from "@/lib/report-dates";
 import {
@@ -404,7 +405,8 @@ export default async function MyPayPage({ searchParams }: Props) {
     <div className={styles.page}>
       <header className={styles.topbar}>
         <div className={styles.topbarInner}>
-          <div className={styles.brand}><span className={styles.brandMark} /> OpsCenter Crew Portal</div>
+          <span className={styles.topbarSpacer} aria-hidden="true" />
+          <JunkKingLogo className={styles.crewTopLogo} />
           <a className={styles.logout} href="/api/crew/auth/logout">Sign out</a>
         </div>
       </header>

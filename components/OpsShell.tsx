@@ -5,6 +5,7 @@ import OpsCenterLogo from "@/components/OpsCenterLogo";
 import AddOnNotifications from "@/components/AddOnNotifications";
 import TruckCameraController from "@/components/TruckCameraController";
 import InboxNavSummary from "@/components/InboxNavSummary";
+import GlobalSearch from "@/components/GlobalSearch";
 import { getOpsRuntime } from "@/lib/runtime";
 
 export default function OpsShell({
@@ -98,6 +99,7 @@ export default function OpsShell({
               <label htmlFor="ops-sidebar-toggle" className="ops-sidebar-toggle-button">
                 Menu
               </label>
+              <GlobalSearch />
               {inboxEnabled ? <InboxNavSummary /> : null}
               <AddOnNotifications sessionEmail={sessionEmail} />
               <OperationsClock />

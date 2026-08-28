@@ -45,6 +45,7 @@
     "verify:crew-portal-monthly-summary": "node --import tsx scripts/test-crew-portal-monthly-summary.ts",
     "verify:platform-kernel": "node --import tsx scripts/test-platform-kernel.ts",
     "verify:inbox-theme": "node --import tsx scripts/test-inbox-preview-theme.ts",
+    "verify:global-search": "node --import tsx scripts/test-global-search.ts",
     "platform:migrate": "node --import tsx scripts/migrate-platform-kernel.ts",
     "verify:ui-copy": "node --import tsx scripts/test-ui-copy.ts",
     "verify:css-architecture": "node --import tsx scripts/test-css-architecture.ts",

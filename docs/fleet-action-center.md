@@ -9,7 +9,9 @@ is presented as **Act now**; `Next` evidence is presented as **Plan next**.
 `Watch` evidence stays out of the daily queue until it needs human review.
 The three summary counts are out-of-service trucks, active repairs, and
 incomplete inspections. The editable Repair Queue remains the detailed system
-of record below the daily work list.
+of record in its own adjacent view, so its table and attachments do not compete
+with the daily queue. Opening a repair from Today’s work switches directly to
+that editable work order.
 
 ## Current action rules
 

@@ -819,12 +819,12 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   }, [currentScheduleTime, date, scheduleBoard.rows, scheduleBoard.untimed]);
 
   useEffect(() => {
-    if (!selectedJobKey) return;
+    if (!selectedJobKey && !selectedTruckName) return;
     const frame = window.requestAnimationFrame(() => {
       mapSelectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [selectedJobKey]);
+  }, [selectedJobKey, selectedTruckName]);
   const scheduleTruckRows: ScheduleColumn[] = scheduleBoard.columns.length
     ? scheduleBoard.columns
     : [{ key: "empty", label: "—", virtual: false, assignment: "" }];
@@ -1822,7 +1822,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         ) : null}
 
         {selectedTruck ? (
-          <article className="ops-jobs-map-selection ops-jobs-map-truck-selection is-truck" aria-live="polite">
+          <article ref={mapSelectionRef} className="ops-jobs-map-selection ops-jobs-map-truck-selection is-truck" aria-live="polite">
             <button type="button" className="ops-jobs-map-selection-close" onClick={() => setSelectedTruckName("")} aria-label="Close truck details">×</button>
             <div className="ops-jobs-map-selection-kicker">
               <span className="ops-jobs-map-selection-truck-icon" aria-hidden="true">🚚</span>

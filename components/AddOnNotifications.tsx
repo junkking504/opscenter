@@ -338,7 +338,7 @@ export default function AddOnNotifications({ sessionEmail }: { sessionEmail?: st
           }}
         >
           <span className="ops-notification-bell" aria-hidden="true">●</span>
-          <span className="ops-notification-trigger-label">Alerts</span>
+          <span className="ops-notification-trigger-label">Add-ons</span>
           {unreadCount ? <span className="ops-notification-count">{unreadCount > 9 ? "9+" : unreadCount}</span> : null}
         </button>
 

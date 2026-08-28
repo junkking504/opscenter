@@ -4,16 +4,19 @@ import OperationsClock from "@/components/OperationsClock";
 import OpsCenterLogo from "@/components/OpsCenterLogo";
 import AddOnNotifications from "@/components/AddOnNotifications";
 import TruckCameraController from "@/components/TruckCameraController";
+import InboxNavSummary from "@/components/InboxNavSummary";
 import { getOpsRuntime } from "@/lib/runtime";
 
 export default function OpsShell({
   children,
   sessionEmail,
   sessionLabel,
+  inboxEnabled = false,
 }: {
   children: React.ReactNode;
   sessionEmail?: string | null;
   sessionLabel?: string | null;
+  inboxEnabled?: boolean;
 }) {
   const runtimeStatus = getOpsRuntime();
   const runtimeBadge = runtimeStatus === "VPS"
@@ -58,7 +61,7 @@ export default function OpsShell({
         </div>
 
         <Suspense fallback={<nav className="ops-nav" aria-hidden="true" />}>
-          <OpsNav variant="sidebar" />
+          <OpsNav variant="sidebar" inboxEnabled={inboxEnabled} />
         </Suspense>
 
         <div className="ops-sidebar-footer">
@@ -95,6 +98,7 @@ export default function OpsShell({
               <label htmlFor="ops-sidebar-toggle" className="ops-sidebar-toggle-button">
                 Menu
               </label>
+              {inboxEnabled ? <InboxNavSummary /> : null}
               <AddOnNotifications sessionEmail={sessionEmail} />
               <OperationsClock />
               <div className="ops-live-chip" aria-label="Live operations data connected">
@@ -118,7 +122,7 @@ export default function OpsShell({
         </div>
       </main>
 
-      <OpsNav variant="bottom" />
+      <OpsNav variant="bottom" inboxEnabled={inboxEnabled} />
     </TruckCameraController>
   );
 }

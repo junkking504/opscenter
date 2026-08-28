@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { inboxNavItem, primaryNavItems } from "@/components/navItems";
 import { titleCaseLabel } from "@/lib/title-case";
-import { opsRoleCan, type InteractiveOpsRole } from "@/lib/ops-roles";
+import { authorizeOpsRequest, opsRoleCan, type InteractiveOpsRole } from "@/lib/ops-roles";
 import styles from "./OpsNav.module.css";
 
 type SidebarSubItem = {
@@ -183,6 +183,13 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
   return [];
 }
 
+function roleVisibleSubItems(items: SidebarSubItem[], role: InteractiveOpsRole): SidebarSubItem[] {
+  return items.filter((item) => {
+    const target = new URL(item.href, "http://opscenter.local");
+    return authorizeOpsRequest(role, target.pathname, "GET", target.searchParams).allowed;
+  });
+}
+
 export default function OpsNav({
   variant = "tabs",
   inboxEnabled = false,
@@ -286,6 +293,7 @@ export default function OpsNav({
           );
         }
 
+        const subItems = active ? roleVisibleSubItems(sidebarSubItems(pathname, searchParams), role) : [];
         return (
           <div key={item.href} className={`ops-nav-group${active ? " active" : ""}`}>
             <Link
@@ -297,6 +305,21 @@ export default function OpsNav({
               <span className="ops-nav-icon">{item.icon}</span>
               <span>{titleCaseLabel(item.label)}</span>
             </Link>
+            {subItems.length ? (
+              <div className="ops-nav-subitems" role="group" aria-label={`${titleCaseLabel(item.label)} views`}>
+                {subItems.map((subItem) => (
+                  <Link
+                    key={subItem.href}
+                    href={subItem.href}
+                    prefetch={false}
+                    className={`ops-nav-subitem${subItem.active ? " active" : ""}`}
+                    aria-current={subItem.active ? "page" : undefined}
+                  >
+                    {titleCaseLabel(subItem.label)}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
           </div>
         );
       })}

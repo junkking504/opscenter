@@ -81,8 +81,9 @@ type FleetView = "daily" | "monthly" | "maintenance";
 
 function normalizeFleetView(value: unknown): FleetView {
   const raw = String(value || "").toLowerCase();
-  if (raw === "maintenance") return "maintenance";
-  return raw === "monthly" || raw === "july" ? "monthly" : "daily";
+  if (raw === "monthly" || raw === "july") return "monthly";
+  if (raw === "daily" || raw === "live") return "daily";
+  return "maintenance";
 }
 
 function normalizeSortKey(value: unknown): FleetSortKey {

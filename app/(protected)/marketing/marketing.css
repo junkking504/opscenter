@@ -198,10 +198,9 @@
 
 .ops-marketing-lead-context {
   display: grid;
-  grid-template-columns: minmax(150px, 0.8fr) minmax(90px, 0.45fr) minmax(
-      220px,
-      1.4fr
-    ) minmax(140px, 0.75fr);
+  grid-template-columns:
+    minmax(150px, 0.8fr) minmax(90px, 0.45fr) minmax(220px, 1.4fr)
+    minmax(140px, 0.75fr);
   gap: 10px;
 }
 
@@ -248,6 +247,62 @@
   background: rgba(79, 127, 168, 0.09);
   color: #334155;
   line-height: 1.45;
+}
+
+.ops-marketing-recovery-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.4fr) auto auto;
+  align-items: end;
+  gap: 14px;
+}
+
+.ops-marketing-recovery-toolbar label {
+  display: grid;
+  gap: 5px;
+  color: #4f5965;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ops-marketing-recovery-toolbar input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #aeb6bf;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #20242b;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.ops-marketing-recovery-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.ops-marketing-recovery-filters .ops-button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.ops-marketing-recovery-filters .ops-button.is-active {
+  border-color: #9f1f28;
+  background: #9f1f28;
+  color: #fff;
+}
+
+.ops-marketing-recovery-result-count {
+  min-width: max-content;
+  padding-bottom: 12px;
+  color: var(--ops-muted);
+  font-size: 0.875rem;
 }
 
 .ops-marketing-tags {
@@ -330,10 +385,9 @@
 
 .ops-marketing-lead-form {
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) minmax(150px, 0.75fr) minmax(
-      170px,
-      0.9fr
-    ) minmax(260px, 2fr) auto;
+  grid-template-columns:
+    minmax(190px, 1fr) minmax(150px, 0.75fr) minmax(170px, 0.9fr)
+    minmax(260px, 2fr) auto;
   align-items: end;
   gap: 10px;
 }
@@ -449,6 +503,15 @@
   .ops-marketing-recovery-alert-actions {
     justify-content: flex-start;
   }
+
+  .ops-marketing-recovery-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .ops-marketing-recovery-result-count {
+    padding-bottom: 0;
+  }
 }
 
 @media (max-width: 620px) {
@@ -521,10 +584,9 @@
  * working set visible, then let the user search or page through history. */
 .ops-marketing-call-toolbar {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(
-      170px,
-      0.38fr
-    ) auto auto minmax(150px, auto);
+  grid-template-columns:
+    minmax(260px, 1fr) minmax(170px, 0.38fr)
+    auto auto minmax(150px, auto);
   align-items: end;
   gap: 8px;
   padding: 10px 12px;

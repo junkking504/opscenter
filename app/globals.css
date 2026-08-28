@@ -3764,11 +3764,13 @@ a {
 }
 
 .ops-jobs-map-pin .ops-jobs-map-pin-check {
-  width: 11px;
-  height: 11px;
-  color: #16803c;
-  background: #f7fff9;
-  font-size: 9px;
+  width: 13px;
+  height: 13px;
+  border: 1px solid #ffffff;
+  color: #ffffff;
+  background: #16a34a;
+  box-shadow: 0 0 0 1px rgba(22, 101, 52, .9), 0 2px 5px rgba(0, 0, 0, .45);
+  font-size: 10px;
   font-weight: 950;
   line-height: 1;
 }

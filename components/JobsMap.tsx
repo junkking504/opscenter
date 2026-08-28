@@ -1425,7 +1425,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       });
     };
     for (const { job, latitude, longitude } of jobMarkers) {
-      const markerLabel = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber}`;
+      const markerLabel = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber} · ${scheduleJobState(job).label}`;
       const marker = leaflet.marker([latitude, longitude], {
         icon: markerIcon(leaflet, job, selectedKey === job.key),
         keyboard: true,

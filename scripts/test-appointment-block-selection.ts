@@ -48,8 +48,13 @@ assert.match(
 );
 assert.match(
   globalCss,
-  /\.ops-jobs-map-pin \.ops-jobs-map-pin-check[\s\S]*?color: #16803c/,
-  "The completed map-marker checkmark must remain green.",
+  /\.ops-jobs-map-pin \.ops-jobs-map-pin-check[\s\S]*?background: #16a34a;[\s\S]*?font-size: 10px/,
+  "The completed map-marker checkmark must remain an unmistakable green badge at compact locator size.",
+);
+assert.match(
+  jobsMapSource,
+  /const markerLabel = `\$\{job\.appointmentTime\} · \$\{job\.customerName\} · \$\{job\.jkNumber\} · \$\{scheduleJobState\(job\)\.label\}`/,
+  "Completed marker labels must expose their status to keyboard and assistive-technology users.",
 );
 assert.match(
   territorySource,

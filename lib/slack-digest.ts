@@ -13,7 +13,11 @@ import {
 } from "@/lib/slack-alerts";
 import type { AnyRecord } from "@/lib/opsData";
 import { slackEscape } from "@/lib/slack-message-format";
-import { readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
+import {
+  readClosedEstimateJunkwareRows,
+  readCompletedJunkwareRows,
+  truckCloseoutDetails,
+} from "@/lib/slack-closeout-details";
 
 const CHICAGO_TIME_ZONE = "America/Chicago";
 // The client checks more frequently, while this shared cache keeps aggregate
@@ -328,10 +332,11 @@ function closeoutForSlackAlert(
   date: string,
 ): SlackDigestMessage["closeout"] | undefined {
   const plainText = slackTextToPlainText(rawText);
-  const match = plainText.match(/^(?:✅|💰)\s*Job Closed\s*\n(?:Job:\s*)?(JK\d+)/i)
+  const match = plainText.match(/^(?:✅|💰)\s*(?:Job|Estimate) Closed\s*\n(?:Job:\s*)?(JK\d+)/i)
     || plainText.match(/^✅\s*(JK\d+)\s+closed out\./i);
   if (!match) return undefined;
-  const details = truckCloseoutDetails(lookup.get(match[1].toLowerCase()) || {});
+  const row = lookup.get(match[1].toLowerCase()) || {};
+  const details = truckCloseoutDetails(row);
   if (!details) return undefined;
   return {
     jobNumber: details.jobNumber,
@@ -486,15 +491,16 @@ export function normalizedLegacyCloseoutDigestText(
   date: string,
 ): string {
   const plainText = slackTextToPlainText(rawText);
-  const legacyMatch = plainText.match(/^(?:✅|💰)\s*Job Closed\s*\n(?:Job:\s*)?(JK\d+)/i)
+  const legacyMatch = plainText.match(/^(?:✅|💰)\s*(?:Job|Estimate) Closed\s*\n(?:Job:\s*)?(JK\d+)/i)
     || plainText.match(/^✅\s*(JK\d+)\s+closed out\.?/i);
   if (!legacyMatch) return rawText;
 
   const jobNumber = legacyMatch[1];
   const row = closeouts.get(jobNumber.toLowerCase());
-  if (row) return formatTruckCloseoutSlackNotification(date, row) || rawText;
+  const estimate = /^\s*(?:✅|💰)\s*Estimate Closed\b/i.test(plainText);
+  if (row) return formatTruckCloseoutSlackNotification(date, row, estimate ? "estimate_closed" : "job_closed") || rawText;
   return [
-    ":moneybag: *Job Closed*",
+    `:moneybag: *${estimate ? "Estimate Closed" : "Job Closed"}*`,
     `*<${legacyJobHref(rawText, jobNumber, date)}|${slackEscape(jobNumber)}>*`,
     "*Driver:*",
     "*Navigator:*",
@@ -703,7 +709,10 @@ export async function fetchSlackDailyDigest(
     }
   }
   const appointments = appointmentLookup(appointmentRows);
-  const closeouts = closeoutLookup(options.completedRows || readCompletedJunkwareRows(date));
+  const closeouts = closeoutLookup(options.completedRows || [
+    ...readCompletedJunkwareRows(date),
+    ...readClosedEstimateJunkwareRows(date),
+  ]);
   const messages: SlackDigestMessage[] = [];
   let readableChannels = 0;
   let rateLimited = false;

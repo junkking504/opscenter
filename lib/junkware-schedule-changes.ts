@@ -1,6 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
-import { appointmentChannelId, buildAddOnSlackNotification, buildCancellationSlackNotification, buildTruckCloseoutSlackNotifications, formatSlackAlert, slackPhoneLink, type SlackOpsAlert } from "@/lib/slack-alerts";
+import {
+  appointmentChannelId,
+  buildAddOnSlackNotification,
+  buildCancellationSlackNotification,
+  buildTruckCloseoutSlackNotifications,
+  buildTruckEstimateCloseoutSlackNotifications,
+  formatSlackAlert,
+  slackPhoneLink,
+  type SlackOpsAlert,
+} from "@/lib/slack-alerts";
+import { isEstimateCloseoutRow } from "@/lib/slack-closeout-details";
 import { slackEscape } from "@/lib/slack-message-format";
 import type { AnyRecord } from "@/lib/opsData";
 
@@ -19,7 +29,7 @@ type DetectorState = {
 
 export type ScheduleChange = {
   fingerprint: string;
-  kind: "new_appointment" | "cancelled" | "rescheduled" | "job_closed";
+  kind: "new_appointment" | "cancelled" | "rescheduled" | "job_closed" | "estimate_closed";
   alert: SlackOpsAlert;
 };
 
@@ -103,7 +113,9 @@ function closeoutAlert(date: string, row: AnyRecord): SlackOpsAlert | null {
   // carry the customer and crew context required by the truck-channel format.
   if (!first(row, ["customer_name", "customerName", "customer", "name"])) return null;
   if (!first(row, ["driver_normalized_name", "driver_name", "driver", "navigator_normalized_name", "navigator_name", "navigator"])) return null;
-  return buildTruckCloseoutSlackNotifications(date, [row])[0] || null;
+  return isEstimateCloseoutRow(row)
+    ? buildTruckEstimateCloseoutSlackNotifications(date, [row])[0] || null
+    : buildTruckCloseoutSlackNotifications(date, [row])[0] || null;
 }
 
 function rowMap(rows: AnyRecord[]): Map<string, AnyRecord> {
@@ -146,7 +158,9 @@ export function detectScheduleChanges(previous: Snapshot | null, current: Snapsh
     }
     if (!complete(previousRow) && complete(row)) {
       const alert = closeoutAlert(current.date, row);
-      if (alert) events.push({ fingerprint: `job_closed:${current.date}:${id}`, kind: "job_closed", alert });
+      if (alert && (alert.kind === "job_closed" || alert.kind === "estimate_closed")) {
+        events.push({ fingerprint: `${alert.kind}:${current.date}:${id}`, kind: alert.kind, alert });
+      }
     } else if (!complete(row) && scheduleShape(previousRow) !== scheduleShape(row)) {
       events.push({ fingerprint: `rescheduled:${current.date}:${id}:${scheduleShape(row)}`, kind: "rescheduled", alert: rescheduleAlert(current.date, previousRow, row) });
     }
@@ -306,7 +320,7 @@ export async function publishScheduleChanges(
     const failed: ScheduleChange[] = [];
     for (const event of detectScheduleChanges(previous, snapshot)) {
       if (delivered.has(event.fingerprint)) continue;
-      if (event.kind === "job_closed" && mainCloseouts.has(event.fingerprint)) {
+      if ((event.kind === "job_closed" || event.kind === "estimate_closed") && mainCloseouts.has(event.fingerprint)) {
         delivered.add(event.fingerprint);
         continue;
       }

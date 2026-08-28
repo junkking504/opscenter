@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { isEstimateAppointment } from "@/lib/job-audit-rules";
 import { money as moneyText } from "@/lib/money";
 import type { AnyRecord } from "@/lib/opsData";
 import { formatSlackMessage, type SlackMessageField } from "@/lib/slack-message-format";
@@ -72,6 +73,10 @@ function slackFields(lines: string[]): SlackMessageField[] {
   });
 }
 
+export function isEstimateCloseoutRow(row: AnyRecord): boolean {
+  return isEstimateAppointment(firstText(row, ["appointment_type", "final_appointment_type", "type"]));
+}
+
 export function truckCloseoutDetails(row: AnyRecord): TruckCloseoutDetails | null {
   const jobNumber = firstText(row, ["job_id", "jk_number", "job_number"]);
   if (!jobNumber) return null;
@@ -130,7 +135,7 @@ export function truckCloseoutDetails(row: AnyRecord): TruckCloseoutDetails | nul
   };
 }
 
-export function readCompletedJunkwareRows(date: string): AnyRecord[] {
+function readJunkwarePayload(date: string): AnyRecord | null {
   const configured = String(process.env.OPSCENTER_DATA_DIR || "").trim();
   const dataDirectories = Array.from(new Set([
     ...(configured ? [configured] : []),
@@ -143,10 +148,42 @@ export function readCompletedJunkwareRows(date: string): AnyRecord[] {
     const file = path.join(dataDirectory, "history", "junkware", `junkware_${date}_raw.json`);
     try {
       const payload = JSON.parse(fs.readFileSync(file, "utf8"));
-      if (Array.isArray(payload?.completed)) return payload.completed;
+      if (payload && typeof payload === "object") return payload as AnyRecord;
     } catch {
       // Try the next known OpsBot data location.
     }
   }
-  return [];
+  return null;
+}
+
+export function readCompletedJunkwareRows(date: string): AnyRecord[] {
+  const payload = readJunkwarePayload(date);
+  return Array.isArray(payload?.completed)
+    ? payload.completed.filter((row): row is AnyRecord => Boolean(row) && typeof row === "object")
+    : [];
+}
+
+/**
+ * JunkWare retains completed estimates in the daily appointments list rather
+ * than the completed-jobs list. Read both shapes so a closed estimate is not
+ * silently omitted when JunkWare changes which list it uses.
+ */
+export function readClosedEstimateJunkwareRows(date: string): AnyRecord[] {
+  const payload = readJunkwarePayload(date);
+  const rows = [payload?.appointments, payload?.completed]
+    .flatMap((group) => Array.isArray(group) ? group : [])
+    .filter((row): row is AnyRecord => Boolean(row) && typeof row === "object")
+    .filter((row) => (
+      isEstimateCloseoutRow(row)
+      && firstText(row, ["final_status", "job_status", "status"]).toLowerCase().includes("complete")
+    ));
+
+  const seen = new Set<string>();
+  return rows.filter((row) => {
+    const identity = firstText(row, ["appt_id", "appointment_id", "appointmentId"])
+      || firstText(row, ["job_id", "jk_number", "job_number"]);
+    if (!identity || seen.has(identity)) return false;
+    seen.add(identity);
+    return true;
+  });
 }

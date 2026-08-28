@@ -73,7 +73,7 @@ publish_verified_closeout_alerts() {
     cd "$OPSCENTER_DIR" || exit 1
     OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" \
       SLACK_OPSCENTER_STATE_FILE="$OPSBOT_DIR/data/slack/ops_alert_state.json" \
-      node --import tsx scripts/publish-slack-alerts.ts --date "$TODAY" --only job_closed
+      node --import tsx scripts/publish-slack-alerts.ts --date "$TODAY" --only job_closed,estimate_closed
   )
 }
 

@@ -26,10 +26,10 @@ function selectedKinds(): SlackAlertKind[] | undefined {
   const value = argumentValue("--only");
   if (!value) return undefined;
   const kinds = value.split(",").map((kind) => kind.trim()).filter(Boolean);
-  if (kinds.length !== 1 || !["truck_arrival", "job_closed"].includes(kinds[0])) {
-    throw new Error("--only supports truck_arrival or job_closed.");
+  if (!kinds.length || !kinds.every((kind) => ["truck_arrival", "job_closed", "estimate_closed"].includes(kind))) {
+    throw new Error("--only supports truck_arrival, job_closed, or estimate_closed.");
   }
-  return [kinds[0] as SlackAlertKind];
+  return kinds as SlackAlertKind[];
 }
 
 function withPublishLock<T>(callback: () => Promise<T>): Promise<T | undefined> {

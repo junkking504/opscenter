@@ -209,11 +209,13 @@ function renderMaintenancePage({
   sortKey,
   sortDirection,
   requestedSection,
+  requestedTruck,
 }: {
   date: string;
   sortKey: FleetSortKey;
   sortDirection: FleetSortDirection;
   requestedSection: string;
+  requestedTruck: string;
 }) {
   const section = ["overview", "checklists", "service", "reports", "records"].includes(requestedSection)
     ? requestedSection
@@ -223,6 +225,7 @@ function renderMaintenancePage({
   const templateStore = readFleetChecklistTemplateStore();
   const issueStore = readFleetIssueStore();
   const linxupInventory = readLatestLinxupVehicleInventory();
+  const fleetMapPayload = buildFleetMapPayload(date);
   const truckOptions = Array.from(new Set([
     ...linxupInventory.vehicles.map((vehicle) => vehicle.truck),
     ...store.records.map((record) => record.truck),
@@ -255,6 +258,8 @@ function renderMaintenancePage({
           initialIssues={issueStore.issues}
           customizations={templateStore.customizations}
           today={todayChicago()}
+          fleetMapPayload={fleetMapPayload}
+          date={date}
         /></div>
       <div id="fleet-checklists" className={section === "checklists" ? "" : "ops-section-hidden"}><FleetMaintenanceChecklists
           initialEntries={checklistStore.entries}
@@ -262,6 +267,7 @@ function renderMaintenancePage({
           today={todayChicago()}
           linxupInventory={linxupInventory}
           initialCustomizations={templateStore.customizations}
+          initialSelectedTruck={requestedTruck}
         /></div>
       <div id="fleet-service" className={section === "service" ? "" : "ops-section-hidden"}><FleetServicePlanner initialRecords={store.records} truckOptions={truckOptions} inventory={linxupInventory} today={todayChicago()} /></div>
       <div id="fleet-reports" className={section === "reports" ? "" : "ops-section-hidden"}><FleetReportsPanel entries={checklistStore.entries} issues={issueStore.issues} records={store.records} today={todayChicago()} /></div>
@@ -767,7 +773,13 @@ export default async function FleetPage({
   const date = resolveDate(params);
 
   if (view === "maintenance") {
-    return renderMaintenancePage({ date, sortKey, sortDirection, requestedSection });
+    return renderMaintenancePage({
+      date,
+      sortKey,
+      sortDirection,
+      requestedSection,
+      requestedTruck: params?.truck ? normalizeTruckLabel(params.truck) : "",
+    });
   }
 
   if (view === "monthly") {

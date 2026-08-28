@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { effectiveFleetChecklistDefinitions, type FleetChecklistCustomization } from "@/lib/fleet-checklist-definitions";
 import type { FleetChecklistEntry } from "@/lib/fleet-checklists";
 import type { FleetIssue, FleetIssueAttachment, FleetIssuePhoto, FleetIssueSeverity, FleetIssueStatus } from "@/lib/fleet-issues";
+import { buildFleetMaintenanceActions, type FleetMaintenanceAction } from "@/lib/fleet-maintenance-actions";
+import type { FleetMapPayload } from "@/lib/fleet-map";
 
 type IssueDraft = {
   issueId: string;
@@ -54,18 +56,29 @@ function dateLabel(value: string): string {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(year, month - 1, day));
 }
 
+function actionPriorityLabel(priority: FleetMaintenanceAction["priority"]): string {
+  if (priority === "stop") return "Stop";
+  if (priority === "urgent") return "Urgent";
+  if (priority === "next") return "Next";
+  return "Watch";
+}
+
 export default function FleetControlCenter({
   truckOptions,
   initialEntries,
   initialIssues,
   customizations,
   today,
+  fleetMapPayload,
+  date,
 }: {
   truckOptions: string[];
   initialEntries: FleetChecklistEntry[];
   initialIssues: FleetIssue[];
   customizations: FleetChecklistCustomization[];
   today: string;
+  fleetMapPayload: FleetMapPayload | null;
+  date: string;
 }) {
   const router = useRouter();
   const [issues, setIssues] = useState(initialIssues);
@@ -100,6 +113,19 @@ export default function FleetControlCenter({
   };
   const visibleIssues = issues.filter((issue) => issueFilter === "all" || issue.status !== "resolved");
   const editingIssue = issues.find((issue) => issue.issueId === draft.issueId);
+  const fleetActions = useMemo(() => buildFleetMaintenanceActions({
+    today,
+    truckOptions,
+    entries,
+    customizations,
+    issues,
+    fleetMap: fleetMapPayload,
+  }), [customizations, entries, fleetMapPayload, issues, today, truckOptions]);
+  const actionCounts = useMemo(() => ({
+    stop: fleetActions.filter((action) => action.priority === "stop").length,
+    urgent: fleetActions.filter((action) => action.priority === "urgent").length,
+    next: fleetActions.filter((action) => action.priority === "next").length,
+  }), [fleetActions]);
 
   function startIssue(issue?: FleetIssue, truck = truckOptions[0] || "") {
     setDraft(issueDraft(issue, truck));
@@ -107,6 +133,19 @@ export default function FleetControlCenter({
     setMessage("");
     setPendingPhotos([]);
     setPendingAttachments([]);
+  }
+
+  function openAction(action: FleetMaintenanceAction) {
+    if (action.kind === "repair") {
+      const issue = issues.find((candidate) => candidate.issueId === action.issueId);
+      if (issue) startIssue(issue);
+      return;
+    }
+    if (action.kind === "checklist") {
+      router.push(`/fleet?date=${encodeURIComponent(date)}&view=maintenance&section=checklists&truck=${encodeURIComponent(action.truck)}`);
+      return;
+    }
+    router.push(`/fleet?date=${encodeURIComponent(date)}&section=map&truck=${encodeURIComponent(action.truck)}`);
   }
 
   function addPhotos(files: FileList | null) {
@@ -251,6 +290,31 @@ export default function FleetControlCenter({
         <div><div className="ops-section-title">Fleet Readiness</div><div className="ops-muted">Today’s required inspections and unresolved repair issues in one view.</div></div>
         <button type="button" className="ops-refresh-button" onClick={() => startIssue()}>Add repair issue</button>
       </div>
+
+      <section className="ops-fleet-action-center" aria-labelledby="fleet-action-center-title">
+        <div className="ops-fleet-action-center-head">
+          <div>
+            <div className="ops-section-title" id="fleet-action-center-title">Fleet Action Center</div>
+            <div className="ops-muted">Prioritized work from repairs, inspections, and LinxUp. Signals create review tasks; they do not automatically change truck status.</div>
+          </div>
+          <div className="ops-fleet-action-counts" aria-label="Fleet action counts">
+            <span className={actionCounts.stop ? "stop" : ""}><strong>{actionCounts.stop}</strong> stop</span>
+            <span className={actionCounts.urgent ? "urgent" : ""}><strong>{actionCounts.urgent}</strong> urgent</span>
+            <span><strong>{actionCounts.next}</strong> next</span>
+          </div>
+        </div>
+        <div className="ops-fleet-action-list">
+          {fleetActions.slice(0, 12).map((action) => (
+            <div className={`ops-fleet-action-row priority-${action.priority}`} key={action.id}>
+              <span className="ops-fleet-action-priority">{actionPriorityLabel(action.priority)}</span>
+              <div className="ops-fleet-action-detail"><strong>{action.truck} · {action.title}</strong><small>{action.detail}</small></div>
+              <button type="button" className="ops-checklist-load" onClick={() => openAction(action)}>{action.actionLabel}</button>
+            </div>
+          ))}
+          {fleetActions.length === 0 ? <div className="ops-maintenance-empty">No fleet actions need attention right now.</div> : null}
+        </div>
+        {fleetActions.length > 12 ? <div className="ops-fleet-action-more">Showing the highest-priority 12 of {fleetActions.length} actions.</div> : null}
+      </section>
 
       <div className="ops-readiness-summary">
         <div className="ready"><span>Ready</span><strong>{summary.ready}</strong></div>

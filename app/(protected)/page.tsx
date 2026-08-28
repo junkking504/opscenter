@@ -34,6 +34,7 @@ import {
   operatingTargets,
 } from "@/lib/operating-targets";
 import { readSlackDailyDigest } from "@/lib/slack-digest";
+import { buildSearchKingsView } from "@/lib/searchkings";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { workedOrAttributedToJobToday } from "@/lib/crew-attendance";
 import "./command.css";

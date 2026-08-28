@@ -67,6 +67,17 @@
   letter-spacing: -0.045em;
 }
 
+.metricSecondaryValue {
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--oc-text-muted);
+  font-size: 0.75rem;
+  font-weight: 750;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .metric > p {
   margin: 3px 0 0;
   overflow: hidden;

@@ -52,8 +52,40 @@ export type MonthlySummary = {
   revenueSource: "junkware-monthly-dashboard" | "published-daily-metrics";
 };
 
+export type FinanceMonthTrend = {
+  monthKey: string;
+  monthDisplay: string;
+  dataThroughDate: string;
+  complete: boolean;
+  grossRevenue: number;
+  totalOperatingExpenses: number;
+  estimatedOperatingProfit: number;
+  completedJobs: number;
+  revenueSource: MonthlySummary["revenueSource"];
+};
+
+export type FinanceTrendSummary = {
+  selectedMonth: FinanceMonthTrend;
+  previousMonth: FinanceMonthTrend | null;
+  months: FinanceMonthTrend[];
+  yearToDate: {
+    year: string;
+    throughMonth: string;
+    grossRevenue: number;
+    totalOperatingExpenses: number;
+    estimatedOperatingProfit: number;
+    completedJobs: number;
+  };
+};
+
 function monthKey(date: string): string {
   return String(date || "").slice(0, 7);
+}
+
+function previousMonthKey(value: string): string {
+  const date = new Date(`${value}-01T12:00:00Z`);
+  date.setUTCMonth(date.getUTCMonth() - 1);
+  return date.toISOString().slice(0, 7);
 }
 
 function monthDisplayLabel(monthKeyValue: string): string {
@@ -254,5 +286,85 @@ export function buildMonthlySummary(selectedDate: string): MonthlySummary {
     itemizedGrossRevenue,
     itemizedCompletedJobs,
     revenueSource: authority ? "junkware-monthly-dashboard" : "published-daily-metrics",
+  };
+}
+
+function dailyOperatingExpenses(metrics: AnyRecord): number {
+  return finiteNumber(metrics.total_expenses);
+}
+
+function dailyEstimatedOperatingProfit(metrics: AnyRecord): number {
+  return finiteNumber(metrics.net_profit);
+}
+
+/**
+ * Finance's cross-month reporting contract. Revenue keeps the reconciled
+ * JunkWare monthly authority where it exists; expense and profit remain the
+ * aggregate of the published daily finance records that produced them.
+ */
+export function buildFinanceTrendSummary(selectedDate: string): FinanceTrendSummary {
+  const selectedMonthKey = monthKey(selectedDate);
+  const keys = Array.from(new Set(availableDates().map(monthKey)))
+    .filter((key) => key <= selectedMonthKey)
+    .sort();
+
+  const months = keys.map((key) => {
+    const summary = buildMonthlySummary(`${key}-01`);
+    return {
+      monthKey: key,
+      monthDisplay: summary.range.monthDisplay,
+      dataThroughDate: summary.range.dataThroughDate,
+      complete: summary.range.complete,
+      grossRevenue: summary.grossRevenue,
+      totalOperatingExpenses: summary.entries.reduce(
+        (sum, entry) => sum + dailyOperatingExpenses(entry.metrics),
+        0,
+      ),
+      estimatedOperatingProfit: summary.entries.reduce(
+        (sum, entry) => sum + dailyEstimatedOperatingProfit(entry.metrics),
+        0,
+      ),
+      completedJobs: summary.completedJobs,
+      revenueSource: summary.revenueSource,
+    } satisfies FinanceMonthTrend;
+  });
+
+  const selectedMonth = months.find((month) => month.monthKey === selectedMonthKey)
+    ?? (() => {
+      const summary = buildMonthlySummary(selectedDate);
+      return {
+        monthKey: summary.range.monthKey,
+        monthDisplay: summary.range.monthDisplay,
+        dataThroughDate: summary.range.dataThroughDate,
+        complete: summary.range.complete,
+        grossRevenue: summary.grossRevenue,
+        totalOperatingExpenses: summary.entries.reduce(
+          (sum, entry) => sum + dailyOperatingExpenses(entry.metrics),
+          0,
+        ),
+        estimatedOperatingProfit: summary.entries.reduce(
+          (sum, entry) => sum + dailyEstimatedOperatingProfit(entry.metrics),
+          0,
+        ),
+        completedJobs: summary.completedJobs,
+        revenueSource: summary.revenueSource,
+      } satisfies FinanceMonthTrend;
+    })();
+  const previousMonth = months.find((month) => month.monthKey === previousMonthKey(selectedMonth.monthKey)) ?? null;
+  const year = selectedMonth.monthKey.slice(0, 4);
+  const yearMonths = months.filter((month) => month.monthKey.startsWith(`${year}-`));
+
+  return {
+    selectedMonth,
+    previousMonth,
+    months,
+    yearToDate: {
+      year,
+      throughMonth: selectedMonth.monthDisplay,
+      grossRevenue: yearMonths.reduce((sum, month) => sum + month.grossRevenue, 0),
+      totalOperatingExpenses: yearMonths.reduce((sum, month) => sum + month.totalOperatingExpenses, 0),
+      estimatedOperatingProfit: yearMonths.reduce((sum, month) => sum + month.estimatedOperatingProfit, 0),
+      completedJobs: yearMonths.reduce((sum, month) => sum + month.completedJobs, 0),
+    },
   };
 }

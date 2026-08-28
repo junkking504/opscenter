@@ -13,6 +13,11 @@ export type CommandBriefMetric = {
   href: string;
   progress?: number;
   progressLabel?: string;
+  segments?: Array<{
+    label: string;
+    value: number;
+    status: OperatingStatus;
+  }>;
 };
 
 export type CommandBriefException = {
@@ -51,14 +56,40 @@ export default function CommandBrief({
     <section className={styles.brief} id="command-overview" aria-label="Command Overview">
       <div className={styles.metricStrip} aria-label="Headline operating metrics">
         {metrics.map((metric) => (
-          <Link className={`${styles.metric} ${toneClass(metric.status)}`} href={metric.href} key={metric.label}>
+          <Link
+            className={`${styles.metric} ${toneClass(metric.status)} ${metric.segments?.length ? styles.segmentedMetric : ""}`}
+            href={metric.href}
+            key={metric.label}
+          >
             <div>
               <span>{metric.label}</span>
               <i className={styles.metricStatus} aria-label={statusLabel[metric.status]} title={statusLabel[metric.status]} />
             </div>
             <strong>{metric.value}</strong>
-            <p>{metric.detail}</p>
-            {metric.progress == null ? null : (
+            {metric.segments?.length ? (
+              <>
+                <ul className={styles.metricBreakdown} aria-label={metric.detail}>
+                  {metric.segments.map((segment) => (
+                    <li className={toneClass(segment.status)} key={segment.label}>
+                      <i aria-hidden="true" />
+                      <span>{segment.label}</span>
+                      <strong>{segment.value}</strong>
+                    </li>
+                  ))}
+                </ul>
+                <div className={styles.metricSegments} role="img" aria-label={metric.detail}>
+                  {metric.segments.filter((segment) => segment.value > 0).map((segment) => (
+                    <i
+                      className={toneClass(segment.status)}
+                      key={segment.label}
+                      style={{ flexGrow: segment.value }}
+                      title={`${segment.label}: ${segment.value}`}
+                    />
+                  ))}
+                </div>
+              </>
+            ) : <p>{metric.detail}</p>}
+            {metric.segments?.length || metric.progress == null ? null : (
               <div
                 className={styles.metricProgress}
                 role="progressbar"

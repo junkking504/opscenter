@@ -540,7 +540,7 @@ export default async function DashboardPage({
   const activeTruckCount = trucks.filter((truck) => Number(truck.revenue || 0) > 0).length;
   const commandSchedule = commandMap
     ? summarizeCommandSchedule(commandMap.jobs)
-    : { scheduled: jobs, closed: jobs, completedJobs: jobs, closedEstimates: 0, remaining: 0 };
+    : { scheduled: jobs, closed: jobs, completedJobs: jobs, closedEstimates: 0, unclosed: 0 };
   const projectedDayRevenue = jobs > 0 && commandSchedule.scheduled > 0
     ? Math.max(grossRevenue, dailyAverageJob * commandSchedule.scheduled)
     : grossRevenue;
@@ -569,12 +569,15 @@ export default async function DashboardPage({
   const dailyRevenueStatus = minimumStatus(grossRevenue, dailyRevenuePlan);
   const commandBriefMetrics: CommandBriefMetric[] = [
     {
-      label: "Today's schedule",
+      label: "Today's jobs",
       value: String(commandSchedule.scheduled),
-      detail: `${commandSchedule.closed} closed · ${commandSchedule.remaining} remaining`,
-      status: commandSchedule.remaining === 0 && commandSchedule.scheduled > 0 ? "on-track" : "watch",
-      progress: commandSchedule.scheduled > 0 ? (commandSchedule.closed / commandSchedule.scheduled) * 100 : 0,
-      progressLabel: `${commandSchedule.completedJobs} completed job${commandSchedule.completedJobs === 1 ? "" : "s"} and ${commandSchedule.closedEstimates} closed estimate${commandSchedule.closedEstimates === 1 ? "" : "s"}; ${commandSchedule.remaining} remaining`,
+      detail: `${commandSchedule.completedJobs} job${commandSchedule.completedJobs === 1 ? "" : "s"}, ${commandSchedule.closedEstimates} estimate${commandSchedule.closedEstimates === 1 ? "" : "s"}, ${commandSchedule.unclosed} unclosed`,
+      status: commandSchedule.unclosed === 0 && commandSchedule.scheduled > 0 ? "on-track" : "watch",
+      segments: [
+        { label: "Jobs", value: commandSchedule.completedJobs, status: "on-track" },
+        { label: "Estimates", value: commandSchedule.closedEstimates, status: "watch" },
+        { label: "Unclosed", value: commandSchedule.unclosed, status: "off-track" },
+      ],
       href: `/jobs?date=${date}`,
     },
     {

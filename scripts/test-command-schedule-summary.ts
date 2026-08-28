@@ -16,7 +16,7 @@ assert.deepEqual(summary, {
   closed: 4,
   completedJobs: 2,
   closedEstimates: 2,
-  remaining: 2,
+  unclosed: 2,
 });
 
-console.log("Command schedule summary verifies closed estimates without counting them as completed jobs.");
+console.log("Command schedule summary verifies jobs, closed estimates, and unclosed appointments independently.");

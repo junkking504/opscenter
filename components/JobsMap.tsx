@@ -1101,6 +1101,12 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     setSelectedKey(jobKey);
 
     const job = displayJobs.find((candidate) => candidate.key === jobKey);
+    if (job && isLocated(job)) {
+      const map = mapRef.current;
+      if (map) {
+        map.setView([job.latitude, job.longitude], Math.max(map.getZoom(), 14), { animate: true });
+      }
+    }
     if (!job?.detailId) return;
     window.dispatchEvent(new CustomEvent(APPOINTMENT_SELECTION_EVENT, {
       detail: { articleId: job.detailId },

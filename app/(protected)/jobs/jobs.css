@@ -1993,6 +1993,19 @@
   }
 }
 
+/* Dense dispatch boards can allocate less than the default 24px per row.
+ * Keep each appointment inside its own grid cell so virtual lanes never
+ * overlap or steal clicks from the row below. */
+.ops-jobs-page.is-dispatch .ops-jobs-route-board .ops-jobs-map-board-cell {
+  overflow: hidden;
+}
+
+.ops-jobs-page.is-dispatch .ops-jobs-route-board .ops-jobs-map-board-block {
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+}
+
 @media (max-width: 720px) {
   .ops-jobs-page.is-dispatch > .ops-page-header.has-subnav {
     display: grid;

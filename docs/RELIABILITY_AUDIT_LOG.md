@@ -1,5 +1,13 @@
 # Reliability Audit Log
 
+## 2026-08-28 — Historical month labels shifted one month backward
+
+- Severity: high (the January historical option was displayed as December 2025, making available history appear absent).
+- Root cause: the shared monthly-label formatter interpreted every month start at a fixed summer-offset midnight. In Central Standard Time, that instant is still in the preceding calendar month.
+- Fix: format month keys at UTC noon before applying the America/Chicago display timezone. This is stable across both CST and CDT and applies to every shared monthly selector and monthly heading.
+- Regression coverage: `verify:monthly-labels` asserts January, March, and June 2026 display their actual calendar months.
+- Data handling: partial months retain the existing missing-day warning; correcting the label does not represent an unfinished month as complete.
+
 ## 2026-08-26 — JunkWare closeout alert latency fallback
 
 - Severity: high (a confirmed JunkWare closeout could wait behind unrelated downstream collection work before reaching OpsCenter/Slack).

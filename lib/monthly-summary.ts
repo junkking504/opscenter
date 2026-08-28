@@ -89,7 +89,10 @@ function previousMonthKey(value: string): string {
 }
 
 function monthDisplayLabel(monthKeyValue: string): string {
-  const date = new Date(`${monthKeyValue}-01T00:00:00-05:00`);
+  // Format at UTC noon so converting to the Chicago timezone remains on the
+  // intended calendar day in both CST and CDT. A fixed midnight offset shifts
+  // winter months into the previous month.
+  const date = new Date(`${monthKeyValue}-01T12:00:00Z`);
   return date.toLocaleDateString("en-US", {
     timeZone: "America/Chicago",
     month: "long",

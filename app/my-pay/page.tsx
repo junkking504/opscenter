@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Viewport } from "next";
 import { CREW_IDENTITY_HEADER } from "@/lib/crew-auth";
+import CrewProfileHeader from "@/components/CrewProfileHeader";
 import { readCrewJobNotesForEmployee, type CrewJobNote } from "@/lib/job-crew-notes";
 import { chicagoDateKey } from "@/lib/report-dates";
 import {
@@ -409,10 +410,12 @@ export default async function MyPayPage({ searchParams }: Props) {
       </header>
 
       <main className={styles.main}>
-        <div className={styles.hero}>
-          <div><div className={styles.eyebrow}>Private crew access</div><h1>Hi, {firstName}.</h1></div>
-          <div className={styles.updated}>{timestampLabel(data.lastUpdated)}<br />History available {data.availableFrom ? `from ${dateLabel(data.availableFrom)}` : "when payroll data is recorded"}.</div>
-        </div>
+        <CrewProfileHeader
+          employee={employee}
+          firstName={firstName}
+          updated={timestampLabel(data.lastUpdated)}
+          history={`History available ${data.availableFrom ? `from ${dateLabel(data.availableFrom)}` : "when payroll data is recorded"}.`}
+        />
 
         <ViewToggle view={view} />
 

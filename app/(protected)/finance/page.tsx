@@ -10,7 +10,7 @@ import {
   readMetrics,
   resolveDate,
 } from "@/lib/opsData";
-import { buildMonthlySummary, monthOptions } from "@/lib/monthly-summary";
+import { buildFinanceTrendSummary, buildMonthlySummary, monthOptions } from "@/lib/monthly-summary";
 import {
   buildDailyPaymentReconciliation,
   buildMonthlyPaymentReconciliation,
@@ -31,6 +31,22 @@ function toNumber(value: unknown): number {
 
 function percent(value: number): string {
   return `${value.toFixed(2)}%`;
+}
+
+function signedMoney(value: number): string {
+  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+  return `${sign}${money(Math.abs(value))}`;
+}
+
+function changePercent(current: number, previous: number): string | null {
+  if (previous === 0) return null;
+  return percent(((current - previous) / Math.abs(previous)) * 100);
+}
+
+function previousMonthKey(value: string): string {
+  const date = new Date(`${value}-01T12:00:00Z`);
+  date.setUTCMonth(date.getUTCMonth() - 1);
+  return date.toISOString().slice(0, 7);
 }
 
 function appointmentAnchor(jkNumber: string): string {
@@ -149,6 +165,16 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
   const paymentTotals = appointmentPaymentTotals(entries.map((entry) => entry.metrics));
   const paymentReconciliation = buildMonthlyPaymentReconciliation(range.dates);
   const marketing = buildSearchKingsView(range.monthKey);
+  const financeTrend = buildFinanceTrendSummary(date);
+  const previousMonth = financeTrend.previousMonth;
+  const monthRevenueChange = previousMonth ? sales - previousMonth.grossRevenue : null;
+  const monthProfitChange = previousMonth
+    ? estimatedOperatingProfit - previousMonth.estimatedOperatingProfit
+    : null;
+  const monthJobsChange = previousMonth ? monthlySummary.completedJobs - previousMonth.completedJobs : null;
+  const ytdMargin = financeTrend.yearToDate.grossRevenue > 0
+    ? (financeTrend.yearToDate.estimatedOperatingProfit / financeTrend.yearToDate.grossRevenue) * 100
+    : 0;
 
   const revenueByTerritory = new Map<string, number>();
   const expenseByCategory = new Map<string, number>();
@@ -336,8 +362,110 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
         <div className={section === "trend" ? "ops-card" : "ops-section-hidden"} id="finance-trend">
           <div className="ops-card-header compact">
             <div>
+              <div className="ops-section-title">Month-to-Month and Year-to-Date Trend</div>
+              <div className="ops-muted">
+                Revenue uses the reconciled JunkWare monthly total when available. Expenses and operating profit are summed from published daily finance records.
+              </div>
+            </div>
+          </div>
+
+          <div className="ops-summary-list">
+            <div>
+              <span>{range.monthDisplay} revenue</span>
+              <strong>{money(sales)}</strong>
+              {previousMonth ? (
+                <small className="ops-table-subline">
+                  {signedMoney(monthRevenueChange ?? 0)} vs {previousMonth.monthDisplay}
+                  {changePercent(sales, previousMonth.grossRevenue) ? ` · ${changePercent(sales, previousMonth.grossRevenue)}` : ""}
+                </small>
+              ) : <small className="ops-table-subline">No prior published month to compare.</small>}
+            </div>
+            <div>
+              <span>{range.monthDisplay} operating profit</span>
+              <strong>{money(estimatedOperatingProfit)}</strong>
+              {previousMonth ? (
+                <small className="ops-table-subline">
+                  {signedMoney(monthProfitChange ?? 0)} vs {previousMonth.monthDisplay}
+                  {changePercent(estimatedOperatingProfit, previousMonth.estimatedOperatingProfit)
+                    ? ` · ${changePercent(estimatedOperatingProfit, previousMonth.estimatedOperatingProfit)}`
+                    : ""}
+                </small>
+              ) : <small className="ops-table-subline">No prior published month to compare.</small>}
+            </div>
+            <div>
+              <span>{range.monthDisplay} completed jobs</span>
+              <strong>{monthlySummary.completedJobs.toLocaleString("en-US")}</strong>
+              {previousMonth ? (
+                <small className="ops-table-subline">
+                  {monthJobsChange && monthJobsChange > 0 ? "+" : ""}{monthJobsChange ?? 0} vs {previousMonth.monthDisplay}
+                </small>
+              ) : <small className="ops-table-subline">No prior published month to compare.</small>}
+            </div>
+            <div>
+              <span>{financeTrend.yearToDate.year} year to date revenue</span>
+              <strong>{money(financeTrend.yearToDate.grossRevenue)}</strong>
+              <small className="ops-table-subline">Through {financeTrend.yearToDate.throughMonth}</small>
+            </div>
+            <div>
+              <span>{financeTrend.yearToDate.year} year to date operating profit</span>
+              <strong>{money(financeTrend.yearToDate.estimatedOperatingProfit)}</strong>
+              <small className="ops-table-subline">{percent(ytdMargin)} margin · {financeTrend.yearToDate.completedJobs.toLocaleString("en-US")} completed jobs</small>
+            </div>
+          </div>
+
+          <div className="ops-section-spacer" />
+
+          <div className="ops-card-header compact">
+            <div>
+              <div className="ops-section-title">Monthly Financial Trend</div>
+              <div className="ops-muted">Each monthly total is labeled when the month is still in progress or has missing published days.</div>
+            </div>
+          </div>
+          <div className="ops-finance-table-scroll">
+            <table className="ops-table">
+              <thead>
+                <tr>
+                  <th>Month</th>
+                  <th>Revenue</th>
+                  <th>MoM Revenue</th>
+                  <th>Expenses</th>
+                  <th>Operating Profit</th>
+                  <th>Jobs</th>
+                </tr>
+              </thead>
+              <tbody>
+                {financeTrend.months.slice().reverse().map((month) => {
+                  const previous = financeTrend.months.find((item) => item.monthKey === previousMonthKey(month.monthKey)) ?? null;
+                  const revenueChange = previous ? month.grossRevenue - previous.grossRevenue : null;
+                  return (
+                    <tr key={month.monthKey}>
+                      <td>
+                        <strong>{month.monthDisplay}</strong>
+                        {!month.complete ? <div className="ops-table-subline">Data through {month.dataThroughDate}</div> : null}
+                      </td>
+                      <td className="ops-money">{money(month.grossRevenue)}</td>
+                      <td className="ops-money">
+                        {revenueChange === null ? "—" : signedMoney(revenueChange)}
+                        {previous && changePercent(month.grossRevenue, previous.grossRevenue)
+                          ? <div className="ops-table-subline">{changePercent(month.grossRevenue, previous.grossRevenue)}</div>
+                          : null}
+                      </td>
+                      <td className="ops-money">{money(month.totalOperatingExpenses)}</td>
+                      <td className="ops-money">{money(month.estimatedOperatingProfit)}</td>
+                      <td>{month.completedJobs.toLocaleString("en-US")}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="ops-section-spacer" />
+
+          <div className="ops-card-header compact">
+            <div>
               <div className="ops-section-title">Daily Revenue and Expense Trend</div>
-              <div className="ops-muted">Monthly trend derived from authoritative daily records.</div>
+              <div className="ops-muted">Daily detail for {range.monthDisplay}.</div>
             </div>
           </div>
           <table className="ops-table">

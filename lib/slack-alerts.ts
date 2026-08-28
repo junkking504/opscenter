@@ -61,13 +61,14 @@ type ActiveSlackAlert = {
 };
 
 type SlackAlertState = {
-  version: 4;
+  version: 5;
   initializedAt: string;
   updatedAt: string;
   active: Record<string, ActiveSlackAlert>;
   suppressedIncidentFingerprints: string[];
   knownAppointmentsByDate: Record<string, string[]>;
   knownCancellationsByDate: Record<string, string[]>;
+  deliveredScheduleChangesByDate: Record<string, string[]>;
   crewNotificationsInitializedAt: string;
   deliveredCrewNotificationsByDate: Record<string, string[]>;
   truckArrivalNotificationsInitializedAt: string;
@@ -139,13 +140,14 @@ function stateFile(): string {
 
 function emptyState(): SlackAlertState {
   return {
-    version: 4,
+    version: 5,
     initializedAt: "",
     updatedAt: "",
     active: {},
     suppressedIncidentFingerprints: [],
     knownAppointmentsByDate: {},
     knownCancellationsByDate: {},
+    deliveredScheduleChangesByDate: {},
     crewNotificationsInitializedAt: "",
     deliveredCrewNotificationsByDate: {},
     truckArrivalNotificationsInitializedAt: "",
@@ -161,7 +163,7 @@ function readState(): SlackAlertState {
   try {
     const payload = JSON.parse(fs.readFileSync(stateFile(), "utf8"));
     return {
-      version: 4,
+      version: 5,
       initializedAt: String(payload?.initializedAt || ""),
       updatedAt: String(payload?.updatedAt || ""),
       active: payload?.active && typeof payload.active === "object" ? payload.active : {},
@@ -175,6 +177,10 @@ function readState(): SlackAlertState {
       knownCancellationsByDate:
         payload?.knownCancellationsByDate && typeof payload.knownCancellationsByDate === "object"
           ? payload.knownCancellationsByDate
+          : {},
+      deliveredScheduleChangesByDate:
+        payload?.deliveredScheduleChangesByDate && typeof payload.deliveredScheduleChangesByDate === "object"
+          ? payload.deliveredScheduleChangesByDate
           : {},
       crewNotificationsInitializedAt: String(payload?.crewNotificationsInitializedAt || ""),
       deliveredCrewNotificationsByDate:
@@ -202,7 +208,18 @@ function readState(): SlackAlertState {
   }
 }
 
-function deliveredFastScheduleCloseouts(date: string): string[] {
+function scheduleChangeFingerprint(
+  kind: "new_appointment" | "cancelled",
+  date: string,
+  appointmentId: string,
+): string {
+  const identifier = String(appointmentId || "")
+    .replace(/^appt:/i, "appt-")
+    .replace(/^job:/i, "job-");
+  return `${kind}:${date}:${identifier}`;
+}
+
+function deliveredFastScheduleChanges(date: string): Set<string> {
   const configured = String(process.env.OPSCENTER_DATA_DIR || "").trim();
   const candidates = Array.from(new Set([
     ...(configured ? [configured] : []),
@@ -215,14 +232,21 @@ function deliveredFastScheduleCloseouts(date: string): string[] {
         path.join(dataDirectory, "slack", "junkware_schedule_change_state.json"),
         "utf8",
       ));
-      return (Array.isArray(payload?.delivered) ? payload.delivered.map(String) : [])
-        .filter((fingerprint: string) => /^(?:job_closed|estimate_closed):/.test(fingerprint))
-        .filter((fingerprint: string) => fingerprint.includes(`:${date}:`));
+      return new Set(
+        (Array.isArray(payload?.delivered) ? payload.delivered.map(String) : [])
+          .filter((fingerprint: string) => /^(?:new_appointment|cancelled|job_closed|estimate_closed):/.test(fingerprint))
+          .filter((fingerprint: string) => fingerprint.includes(`:${date}:`)),
+      );
     } catch {
       // Try the next known runtime data location.
     }
   }
-  return [];
+  return new Set();
+}
+
+function deliveredFastScheduleCloseouts(date: string): string[] {
+  return Array.from(deliveredFastScheduleChanges(date))
+    .filter((fingerprint) => /^(?:job_closed|estimate_closed):/.test(fingerprint));
 }
 
 function writeState(state: SlackAlertState): void {
@@ -1314,6 +1338,7 @@ export async function runSlackOpsAlerts(options?: {
     return runTruckCloseoutSlackAlerts({ date, dryRun, enabled, kinds: closeoutKinds });
   }
   const state = readState();
+  const fastScheduleDeliveries = deliveredFastScheduleChanges(date);
   const incidents = collectIncidentAlerts(date);
   const feed = buildAddOnAppointmentFeed(date);
   const cancellationFeed = buildCancelledAppointmentFeed(date);
@@ -1349,20 +1374,33 @@ export async function runSlackOpsAlerts(options?: {
   const hadCancellationBaseline = Object.prototype.hasOwnProperty.call(state.knownCancellationsByDate, date);
   const knownAppointments = new Set(state.knownAppointmentsByDate[date] || []);
   const knownCancellations = new Set(state.knownCancellationsByDate[date] || []);
+  const deliveredScheduleChanges = new Set([
+    ...(state.deliveredScheduleChangesByDate[date] || []),
+    ...Array.from(fastScheduleDeliveries)
+      .filter((fingerprint) => /^(?:new_appointment|cancelled):/.test(fingerprint)),
+  ]);
   const additions = hadAppointmentBaseline
-    ? feed.appointments.filter((appointment) => !knownAppointments.has(appointment.id))
+    ? feed.appointments.filter((appointment) =>
+      !knownAppointments.has(appointment.id)
+      && !fastScheduleDeliveries.has(scheduleChangeFingerprint("new_appointment", date, appointment.id)),
+    )
     : [];
   const cancellations = hadCancellationBaseline
-    ? cancellationFeed.appointments.filter((appointment) => !knownCancellations.has(appointment.id))
+    ? cancellationFeed.appointments.filter((appointment) =>
+      !knownCancellations.has(appointment.id)
+      && !fastScheduleDeliveries.has(scheduleChangeFingerprint("cancelled", date, appointment.id)),
+    )
     : [];
   const notificationDeliveries = [
     ...additions.map((appointment) => ({
       appointmentId: appointment.id,
+      scheduleChangeFingerprint: scheduleChangeFingerprint("new_appointment", date, appointment.id),
       stateKind: "addition" as const,
       alert: buildAddOnSlackNotification(appointment, date),
     })),
     ...cancellations.map((appointment) => ({
       appointmentId: appointment.id,
+      scheduleChangeFingerprint: scheduleChangeFingerprint("cancelled", date, appointment.id),
       stateKind: "cancellation" as const,
       alert: buildCancellationSlackNotification(appointment, date),
     })),
@@ -1501,6 +1539,7 @@ export async function runSlackOpsAlerts(options?: {
     }
     if (delivery.stateKind === "addition") deliveredAppointmentIds.add(delivery.appointmentId);
     else deliveredCancellationIds.add(delivery.appointmentId);
+    deliveredScheduleChanges.add(delivery.scheduleChangeFingerprint);
     result.posted.push(alert);
   }
 
@@ -1562,6 +1601,8 @@ export async function runSlackOpsAlerts(options?: {
   }
   state.knownAppointmentsByDate = pruneAppointmentDates(state.knownAppointmentsByDate);
   state.knownCancellationsByDate = pruneAppointmentDates(state.knownCancellationsByDate);
+  state.deliveredScheduleChangesByDate[date] = Array.from(deliveredScheduleChanges);
+  state.deliveredScheduleChangesByDate = pruneAppointmentDates(state.deliveredScheduleChangesByDate);
   state.deliveredCrewNotificationsByDate[date] = Array.from(deliveredCrewNotifications);
   state.deliveredCrewNotificationsByDate = pruneCrewNotificationDates(state.deliveredCrewNotificationsByDate);
   state.deliveredTruckArrivalsByDate[date] = Array.from(deliveredTruckArrivals);

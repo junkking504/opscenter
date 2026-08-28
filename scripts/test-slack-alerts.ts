@@ -22,6 +22,7 @@ import {
   runSlackOpsAlerts,
   slackAlertKindEnabled,
 } from "@/lib/slack-alerts";
+import { publishScheduleChanges } from "@/lib/junkware-schedule-changes";
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 
 process.env.SLACK_JOBS_NO_CHANNEL_ID = "C_TEST_NO";
@@ -857,6 +858,117 @@ try {
   });
   assert.deepEqual(duplicateDirectCloseout, { attempted: false, posted: false, duplicate: true });
   assert.equal(postedMessages.filter((message) => message.includes("|JK4051503>")).length, 1);
+
+  const fallbackDate = "2026-08-13";
+  const fallbackBaseline = {
+    appt_id: "610",
+    job_id: "JK4051610",
+    job_status: "Scheduled",
+    normalized_territory: "Northshore",
+    customer_name: "Baseline Customer",
+    appointment_time: "8:00 AM - 9:00 AM",
+    address: "610 Baseline Street, Covington, LA 70433",
+  };
+  const fastDeliveredAppointment = {
+    appt_id: "611",
+    job_id: "JK4051611",
+    job_status: "Scheduled",
+    normalized_territory: "Northshore",
+    customer_name: "Fast Delivered Customer",
+    appointment_time: "9:00 AM - 10:00 AM",
+    address: "611 Fast Street, Covington, LA 70433",
+  };
+  const fastDeliveredCancellation = {
+    appt_id: "612",
+    job_id: "JK4051612",
+    job_status: "Cancelled",
+    normalized_territory: "Northshore",
+    customer_name: "Fast Delivered Cancellation",
+    appointment_time: "10:00 AM - 11:00 AM",
+    address: "612 Fast Street, Covington, LA 70433",
+    cancellation_reason: "Customer requested",
+  };
+  fs.writeFileSync(path.join(junkwareDirectory, `junkware_${fallbackDate}_raw.json`), JSON.stringify({
+    scraped_at: "2026-08-13T14:00:00-05:00",
+    appointments: [fallbackBaseline, fastDeliveredAppointment],
+    cancelled: [fastDeliveredCancellation],
+  }));
+  const fallbackMetricsDirectory = path.join(temporaryDataDir, "data", "history", "daily_metrics");
+  fs.mkdirSync(fallbackMetricsDirectory, { recursive: true });
+  fs.writeFileSync(
+    path.join(fallbackMetricsDirectory, `daily_metrics_${fallbackDate}.json`),
+    JSON.stringify({ appointments: [fallbackBaseline, fastDeliveredAppointment] }),
+  );
+  const fallbackMainStateFile = path.join(temporaryDataDir, "slack", "ops_alert_state.json");
+  fs.mkdirSync(path.dirname(fallbackMainStateFile), { recursive: true });
+  process.env.SLACK_OPSCENTER_STATE_FILE = fallbackMainStateFile;
+  fs.writeFileSync(fallbackMainStateFile, JSON.stringify({
+    initializedAt: "2026-08-13T13:00:00.000Z",
+    knownAppointmentsByDate: { [fallbackDate]: ["appt:610"] },
+    knownCancellationsByDate: { [fallbackDate]: [] },
+  }));
+  const fastScheduleStateFile = path.join(temporaryDataDir, "slack", "junkware_schedule_change_state.json");
+  fs.mkdirSync(path.dirname(fastScheduleStateFile), { recursive: true });
+  fs.writeFileSync(fastScheduleStateFile, JSON.stringify({
+    version: 2,
+    snapshots: {},
+    delivered: [
+      "new_appointment:2026-08-13:appt-611",
+      "cancelled:2026-08-13:appt-612",
+    ],
+  }));
+  postedMessages.length = 0;
+  const priorWorkingDirectory = process.cwd();
+  process.chdir(temporaryDataDir);
+
+  try {
+    const fastPrimaryRun = await runSlackOpsAlerts({ date: fallbackDate });
+    assert.equal(
+      fastPrimaryRun.posted.filter((alert) => alert.kind === "add_on" || alert.kind === "cancellation").length,
+      0,
+    );
+
+    fs.writeFileSync(fastScheduleStateFile, JSON.stringify({ version: 2, snapshots: {}, delivered: [] }));
+    postedMessages.length = 0;
+    const fullRefreshFallbackRun = await runSlackOpsAlerts({ date: fallbackDate });
+    assert.deepEqual(
+      fullRefreshFallbackRun.posted
+        .map((alert) => alert.kind)
+        .filter((kind) => kind === "add_on" || kind === "cancellation"),
+      ["add_on", "cancellation"],
+    );
+    assert.equal(postedMessages.length, 2);
+    const fallbackState = JSON.parse(fs.readFileSync(fallbackMainStateFile, "utf8"));
+    assert.deepEqual(fallbackState.deliveredScheduleChangesByDate[fallbackDate].sort(), [
+      "cancelled:2026-08-13:appt-612",
+      "new_appointment:2026-08-13:appt-611",
+    ]);
+
+    fs.writeFileSync(fastScheduleStateFile, JSON.stringify({
+      version: 2,
+      snapshots: {
+        "all-markets": {
+          date: fallbackDate,
+          scrapedAt: "2026-08-13T13:55:00-05:00",
+          appointments: [fallbackBaseline],
+          cancelled: [],
+        },
+      },
+      delivered: [],
+    }));
+    postedMessages.length = 0;
+    const fastAfterFallback = await publishScheduleChanges(temporaryDataDir, {
+      date: fallbackDate,
+      scrapedAt: "2026-08-13T14:00:00-05:00",
+      appointments: [fallbackBaseline, fastDeliveredAppointment],
+      cancelled: [fastDeliveredCancellation],
+    }, "xoxb-test-token");
+    assert.deepEqual(fastAfterFallback.posted, []);
+    assert.equal(postedMessages.length, 0);
+  } finally {
+    process.chdir(priorWorkingDirectory);
+    process.env.SLACK_OPSCENTER_STATE_FILE = paymentStateFile;
+  }
 } finally {
   globalThis.fetch = originalFetch;
   delete process.env.SLACK_OPSCENTER_STATE_FILE;

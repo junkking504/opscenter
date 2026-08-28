@@ -90,10 +90,10 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
   if (pathname.startsWith("/marketing")) {
     const section = ["territory", "calls", "lost-leads"].includes(requestedSection) ? requestedSection : "overview";
     return [
-      { label: "Overview", href: sidebarHref("/marketing", searchParams, { section: "overview" }, { includeDate: false }), active: section === "overview" },
-      { label: "Territory", href: sidebarHref("/marketing", searchParams, { section: "territory" }, { includeDate: false }), active: section === "territory" },
-      { label: "Calls", href: sidebarHref("/marketing", searchParams, { section: "calls" }, { includeDate: false }), active: section === "calls" },
-      { label: "Lost Leads", href: sidebarHref("/marketing", searchParams, { section: "lost-leads" }, { includeDate: false }), active: section === "lost-leads" },
+      { label: "Overview", href: sidebarHref("/marketing", searchParams, { section: "overview" }), active: section === "overview" },
+      { label: "Territory", href: sidebarHref("/marketing", searchParams, { section: "territory" }), active: section === "territory" },
+      { label: "Calls", href: sidebarHref("/marketing", searchParams, { section: "calls" }), active: section === "calls" },
+      { label: "Lost Leads", href: sidebarHref("/marketing", searchParams, { section: "lost-leads" }), active: section === "lost-leads" },
     ];
   }
 

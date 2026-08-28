@@ -20,6 +20,7 @@
     "verify:pay-period": "node --import tsx scripts/test-pay-period.ts",
     "verify:job-audits": "node --import tsx scripts/test-job-audit-rules.ts",
     "verify:searchkings": "node --import tsx scripts/test-searchkings.ts",
+    "verify:historical-searchkings": "node --import tsx scripts/test-historical-searchkings.ts",
     "verify:junkware-sms": "node --import tsx scripts/test-junkware-sms.ts",
     "verify:junkware-assignment-email": "node --import tsx scripts/test-junkware-assignment-email.ts",
     "verify:appointment-block-selection": "node --import tsx scripts/test-appointment-block-selection.ts",

@@ -53,3 +53,12 @@ network failure.
 - `data/searchkings-overrides/lost-leads.json` — management outcomes and notes
 
 The deployment sync treats `searchkings-overrides` as shared application state. It is pulled from the VPS before publishing new collector data so lead outcomes are not overwritten.
+
+## Historical browsing
+
+Marketing uses the selected `date` query parameter as a month selector and
+reads the matching verified `searchkings_YYYY-MM.json` snapshot. Navigation
+keeps that date when moving between Marketing sections and other operating
+pages. The live `current.json` is a fallback only for the current calendar
+month; OpsCenter never substitutes it for a missing historical month. A month
+without a verified snapshot is shown as unavailable until it is backfilled.

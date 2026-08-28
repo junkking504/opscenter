@@ -508,6 +508,7 @@ export default async function DashboardPage({
     ? requestedSection
     : "overview";
   const metrics = readMetrics(date);
+  const marketing = buildSearchKingsView(date.slice(0, 7));
   const slackDigest = section === "overview" ? await readSlackDailyDigest(date) : null;
   const commandMap = section === "overview" ? buildCommandMapData(date) : null;
 

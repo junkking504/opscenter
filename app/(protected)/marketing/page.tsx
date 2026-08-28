@@ -1,6 +1,7 @@
 import Link from "next/link";
 import "./marketing.css";
 import LostLeadTracker from "@/components/LostLeadTracker";
+import OpsMonthSelector, { type MonthOption } from "@/components/OpsMonthSelector";
 import PageHeader from "@/components/PageHeader";
 import { appointmentScheduleHref } from "@/lib/job-links";
 import { money, type AnyRecord } from "@/lib/opsData";
@@ -10,6 +11,7 @@ import {
   type SearchKingsCallRange,
 } from "@/lib/searchkings-call-browser";
 import {
+  availableSearchKingsMonths,
   buildSearchKingsView,
   searchKingsSetupSummary,
 } from "@/lib/searchkings";
@@ -59,16 +61,29 @@ function statusLabel(value: string): string {
 }
 
 function callsHref(
+  date: string,
   range: SearchKingsCallRange,
   filter: SearchKingsCallFilter,
   query: string,
   page: number,
 ): string {
-  const params = new URLSearchParams({ section: "calls", range });
+  const params = new URLSearchParams({ date, view: "monthly", section: "calls", range });
   if (filter !== "all") params.set("filter", filter);
   if (query) params.set("q", query);
   if (page > 1) params.set("page", String(page));
   return `/marketing?${params.toString()}`;
+}
+
+function validDate(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function monthOptions(): MonthOption[] {
+  return availableSearchKingsMonths().map((key) => ({
+    key,
+    date: `${key}-01`,
+    label: new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${key}-01T12:00:00Z`)),
+  }));
 }
 
 export default async function MarketingPage({
@@ -83,17 +98,20 @@ export default async function MarketingPage({
   )
     ? requestedSection
     : "overview";
-  const view = buildSearchKingsView();
-  const date =
-    view.snapshot?.range.endDate ||
+  const months = monthOptions();
+  const requestedDate = validDate(params?.date) ? params.date : "";
+  const selectedMonthKey = requestedDate.slice(0, 7) || months[0]?.key || "";
+  const view = buildSearchKingsView(selectedMonthKey || undefined);
+  const date = requestedDate || view.snapshot?.range.endDate ||
     new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Chicago",
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
     }).format(new Date());
+  const marketingHref = (nextSection: string) => `/marketing?date=${encodeURIComponent(date)}&view=monthly&section=${nextSection}`;
   const calls = buildSearchKingsCallBrowser(view.leads, {
-    range: params?.range,
+    range: params?.range || (requestedDate ? "all" : undefined),
     filter: params?.filter,
     query: params?.q,
     page: params?.page,
@@ -110,28 +128,30 @@ export default async function MarketingPage({
         }
         date={date}
         showDateSelector={false}
+        dateLabel="Month"
         lastUpdated={view.snapshot?.fetchedAt}
         status={searchKingsSetupSummary()}
+        controls={<OpsMonthSelector months={months} selectedMonthKey={selectedMonthKey} />}
         sections={[
           {
             label: "Overview",
-            href: "/marketing?section=overview",
+            href: marketingHref("overview"),
             active: section === "overview",
           },
           {
             label: "Territory",
-            href: "/marketing?section=territory",
+            href: marketingHref("territory"),
             active: section === "territory",
           },
           {
             label: "Calls",
-            href: "/marketing?section=calls",
+            href: marketingHref("calls"),
             active: section === "calls",
             badge: view.totalCalls,
           },
           {
             label: "Lost Leads",
-            href: "/marketing?section=lost-leads",
+            href: marketingHref("lost-leads"),
             active: section === "lost-leads",
             badge: view.lostLeads + view.needsFollowUp,
             attention: view.lostLeads + view.needsFollowUp > 0,
@@ -380,6 +400,8 @@ export default async function MarketingPage({
             </div>
           </div>
           <form className="ops-card ops-marketing-call-toolbar" method="get">
+            <input type="hidden" name="date" value={date} />
+            <input type="hidden" name="view" value="monthly" />
             <input type="hidden" name="section" value="calls" />
             <label>
               <span>Find calls</span>
@@ -596,7 +618,7 @@ export default async function MarketingPage({
               {calls.page > 1 ? (
                 <Link
                   className="ops-button"
-                  href={callsHref(calls.range, calls.filter, calls.query, calls.page - 1)}
+                  href={callsHref(date, calls.range, calls.filter, calls.query, calls.page - 1)}
                 >
                   Previous
                 </Link>
@@ -609,7 +631,7 @@ export default async function MarketingPage({
               {calls.page < calls.totalPages ? (
                 <Link
                   className="ops-button"
-                  href={callsHref(calls.range, calls.filter, calls.query, calls.page + 1)}
+                  href={callsHref(date, calls.range, calls.filter, calls.query, calls.page + 1)}
                 >
                   Next
                 </Link>

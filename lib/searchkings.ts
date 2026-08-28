@@ -239,9 +239,38 @@ function dataRoots(): string[] {
 
 function snapshotCandidates(monthKey?: string): string[] {
   const names = monthKey
-    ? [path.join("history", "searchkings", `searchkings_${monthKey}.json`)]
+    ? [
+        path.join("history", "searchkings", `searchkings_${monthKey}.json`),
+        ...(monthKey === new Intl.DateTimeFormat("en-CA", {
+          timeZone: DEFAULT_TIMEZONE,
+          year: "numeric",
+          month: "2-digit",
+        }).format(new Date()) ? [path.join("searchkings", "current.json")] : []),
+      ]
     : [path.join("searchkings", "current.json")];
   return dataRoots().flatMap((root) => names.map((name) => path.join(root, name)));
+}
+
+export function availableSearchKingsMonths(): string[] {
+  const months = new Set<string>();
+
+  for (const root of dataRoots()) {
+    const historyDirectory = path.join(root, "history", "searchkings");
+    try {
+      for (const name of fs.readdirSync(historyDirectory)) {
+        const match = name.match(/^searchkings_(\d{4}-\d{2})\.json$/);
+        if (match) months.add(match[1]);
+      }
+    } catch {
+      // A source root may not have historical SearchKings data yet.
+    }
+
+    const current = readSearchKingsSnapshotFromFile(path.join(root, "searchkings", "current.json"));
+    const currentMonth = String(current?.range?.endDate || "").slice(0, 7);
+    if (/^\d{4}-\d{2}$/.test(currentMonth)) months.add(currentMonth);
+  }
+
+  return Array.from(months).sort().reverse();
 }
 
 function lostLeadStorePath(): string {
@@ -482,20 +511,25 @@ export function saveLostLeadOverride(input: {
   return saved;
 }
 
+function readSearchKingsSnapshotFromFile(file: string): SearchKingsSnapshot | null {
+  try {
+    if (!fs.existsSync(file)) return null;
+    const payload = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (
+      payload?.version !== 1
+      || !["searchkings_reports_api", "searchkings_signed_in_report"].includes(payload?.source)
+    ) return null;
+    if (!Array.isArray(payload.accounts) || !Array.isArray(payload?.calls?.calls)) return null;
+    return payload as SearchKingsSnapshot;
+  } catch {
+    return null;
+  }
+}
+
 export function readSearchKingsSnapshot(monthKey?: string): SearchKingsSnapshot | null {
   for (const file of snapshotCandidates(monthKey)) {
-    try {
-      if (!fs.existsSync(file)) continue;
-      const payload = JSON.parse(fs.readFileSync(file, "utf8"));
-      if (
-        payload?.version !== 1
-        || !["searchkings_reports_api", "searchkings_signed_in_report"].includes(payload?.source)
-      ) continue;
-      if (!Array.isArray(payload.accounts) || !Array.isArray(payload?.calls?.calls)) continue;
-      return payload as SearchKingsSnapshot;
-    } catch {
-      // Keep checking the other mirrored data roots.
-    }
+    const snapshot = readSearchKingsSnapshotFromFile(file);
+    if (snapshot) return snapshot;
   }
   return null;
 }

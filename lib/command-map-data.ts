@@ -15,7 +15,7 @@ export type CommandScheduleSummary = {
   closed: number;
   completedJobs: number;
   closedEstimates: number;
-  remaining: number;
+  unclosed: number;
 };
 
 function text(row: AnyRecord, ...keys: string[]): string {
@@ -82,7 +82,7 @@ export function summarizeCommandSchedule(
     closed,
     completedJobs,
     closedEstimates,
-    remaining: activeJobs.length - closed,
+    unclosed: activeJobs.length - closed,
   };
 }
 

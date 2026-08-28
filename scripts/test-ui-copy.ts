@@ -41,6 +41,8 @@ assert.ok(
   jobsPageSource.includes(".sort((a, b) => followupRecency(b) - followupRecency(a)"),
   "The follow-up page must order jobs from newest to oldest.",
 );
+assert.ok(jobsPageSource.includes("function readBookedJobsBySourceEstimate"), "Closed estimates must resolve later jobs through their JunkWare source estimate id.");
+assert.ok(jobsPageSource.includes("Job booked after this estimate"), "Closed estimates must clearly show when a related job was booked.");
 
 const commandPageSource = readFileSync(new URL("../app/(protected)/page.tsx", import.meta.url), "utf8");
 assert.ok(commandPageSource.includes('label: "Today\'s jobs"'), "Command must retain the Today's jobs outcome card.");

@@ -1872,6 +1872,25 @@
   border-bottom: 1px solid #e7edf1;
 }
 
+.ops-jobs-page .ops-estimate-booked-job {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #e7edf1;
+  background: #f1fbf5;
+  color: #17613e;
+  font-size: .8rem;
+  font-weight: 700;
+}
+
+.ops-jobs-page .ops-estimate-booked-job a {
+  color: #0f5e38;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .ops-jobs-page .ops-closed-estimate-actions :is(a, span) {
   min-height: 32px;
   padding: 7px 10px;
@@ -1919,6 +1938,7 @@
 
 @media (max-width: 720px) {
   .ops-jobs-page .ops-closed-estimate-header { align-items: stretch; flex-direction: column; }
+  .ops-jobs-page .ops-estimate-booked-job { align-items: flex-start; flex-direction: column; }
   .ops-jobs-page .ops-closed-estimate-value { text-align: left; }
   .ops-jobs-page .ops-closed-estimate-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ops-jobs-page .ops-closed-estimate-details { margin: 0 10px; }

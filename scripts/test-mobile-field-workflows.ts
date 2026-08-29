@@ -17,6 +17,18 @@ assert.match(compactCss, /\.ops-finance-page \.ops-finance-table-scroll \{[\s\S]
 assert.match(jobsCss, /\.ops-jobs-map-schedule \.ops-jobs-map-board \{[\s\S]*?min-width: 600px !important;[\s\S]*?--ops-jobs-map-time-cell-min: 44px !important;/);
 assert.match(jobsCss, /\.ops-jobs-map-board-block \{[\s\S]*?touch-action: pan-x pan-y/);
 assert.match(jobsCss, /\.ops-route-board-mobile-help \{ display: block; \}/);
+assert.match(
+  jobsCss,
+  /\.ops-jobs-page\.is-dispatch > \.ops-page-header \.ops-page-header-controls \{[\s\S]*?display: block;[\s\S]*?grid-column: 2;[\s\S]*?grid-row: 1;/,
+);
+assert.match(
+  jobsCss,
+  /\.ops-jobs-page\.is-dispatch > \.ops-page-header \.ops-page-header-controls > :is\([\s\S]*?\.ops-date-selector-wrap,[\s\S]*?\.ops-refresh-button[\s\S]*?\) \{ display: none; \}/,
+);
+assert.match(
+  jobsCss,
+  /\.ops-jobs-page\.is-dispatch > \.ops-page-header \.ops-view-toggle \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[\s\S]*?width: 156px;[\s\S]*?height: 44px;/,
+);
 assert.match(jobsMap, /Swipe for later times · tap an appointment to edit truck or time/);
 
 assert.match(pageHeader, /<PageSubnav title=\{title\} sections=\{sections\} \/>/);

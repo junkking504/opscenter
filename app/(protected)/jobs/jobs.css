@@ -2053,8 +2053,33 @@
   .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-header-copy { grid-column: 1; grid-row: 1; }
   .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-title { color: #fff; font-size: 1rem; }
   .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-header-subtitle,
-  .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-header-meta,
-  .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-header-controls { display: none; }
+  .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-header-meta { display: none; }
+  .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-header-controls {
+    display: block;
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    width: auto;
+  }
+  .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-header-controls > :is(
+    .ops-date-selector-wrap,
+    .ops-refresh-button
+  ) { display: none; }
+  .ops-jobs-page.is-dispatch > .ops-page-header .ops-view-toggle {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 156px;
+    height: 44px;
+    min-height: 44px;
+    margin: 0;
+    padding: 0;
+  }
+  .ops-jobs-page.is-dispatch > .ops-page-header .ops-view-toggle a {
+    min-width: 0;
+    min-height: 44px;
+    padding: 5px 7px;
+    font-size: 0.7rem !important;
+  }
   .ops-jobs-page.is-dispatch > .ops-page-header .ops-page-subnav {
     display: grid;
     grid-column: 1 / -1;

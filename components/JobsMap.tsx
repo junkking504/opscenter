@@ -251,6 +251,26 @@ function territoryTone(job: JobsMapPoint): string {
   return `${tone}${eastMetro ? " is-east-metro" : ""}${assignmentState}${completed ? " is-completed" : ""}`;
 }
 
+function clusterTerritoryTone(jobs: JobsMapPoint[]): string {
+  const counts = new Map<string, number>();
+  for (const job of jobs) {
+    const tone = territoryTone(job).split(" ")[0];
+    counts.set(tone, (counts.get(tone) || 0) + 1);
+  }
+  const territoryPriority = [
+    "is-new-orleans",
+    "is-jefferson",
+    "is-westbank",
+    "is-northshore",
+    "is-baton-rouge",
+    "is-lafayette",
+    "is-unknown-territory",
+  ];
+  return [...counts.entries()].sort(([firstTone, firstCount], [secondTone, secondCount]) =>
+    secondCount - firstCount || territoryPriority.indexOf(firstTone) - territoryPriority.indexOf(secondTone),
+  )[0]?.[0] || "is-unknown-territory";
+}
+
 function formatTravelTime(minutes: number | null | undefined): string {
   if (minutes == null || !Number.isFinite(minutes)) return "time unavailable";
   const rounded = Math.max(1, Math.round(minutes));
@@ -336,6 +356,16 @@ function truckIcon(leaflet: LeafletModule, truck: JobsMapTruck, selected: boolea
   });
 }
 
+function appointmentClusterIcon(leaflet: LeafletModule, count: number, tone: string) {
+  return leaflet.divIcon({
+    className: "",
+    html: `<span class="ops-map-cluster is-appointments ${tone}"><b>${count}</b><small>jobs</small></span>`,
+    iconSize: [42, 42],
+    iconAnchor: [21, 21],
+    tooltipAnchor: [0, -21],
+  });
+}
+
 type MapCluster<T> = {
   latitude: number;
   longitude: number;
@@ -344,12 +374,6 @@ type MapCluster<T> = {
 
 type VisibleTruckMarker = {
   truck: JobsMapTruck;
-  latitude: number;
-  longitude: number;
-};
-
-type VisibleJobMarker = {
-  job: JobsMapPoint & { latitude: number; longitude: number };
   latitude: number;
   longitude: number;
 };
@@ -397,26 +421,6 @@ function spreadLiveTruckMarkers(map: any, trucks: JobsMapTruck[]): VisibleTruckM
         latitude: visiblePosition.lat,
         longitude: visiblePosition.lng,
       };
-    }));
-}
-
-function spreadLocatedJobMarkers(
-  map: any,
-  jobs: Array<JobsMapPoint & { latitude: number; longitude: number }>,
-): VisibleJobMarker[] {
-  return clusterVisibleMapItems(map, jobs, (job) => job, 22)
-    .flatMap((group) => group.items.map((job, index) => {
-      if (group.items.length === 1) {
-        return { job, latitude: job.latitude, longitude: job.longitude };
-      }
-
-      const point = map.latLngToLayerPoint([job.latitude, job.longitude]);
-      const angle = -Math.PI / 2 + (index * 2 * Math.PI / group.items.length);
-      const visiblePosition = map.layerPointToLatLng([
-        point.x + Math.cos(angle) * 16,
-        point.y + Math.sin(angle) * 16,
-      ]);
-      return { job, latitude: visiblePosition.lat, longitude: visiblePosition.lng };
     }));
 }
 
@@ -1373,9 +1377,10 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         .addTo(routes);
     });
 
-    // Every verified appointment and every live truck is rendered individually.
-    // Overlapping coordinates fan into compact pins instead of a count circle.
-    const jobMarkers = spreadLocatedJobMarkers(map, locatedJobs);
+    // Keep the statewide overview readable: nearby appointments share one
+    // territory-colored count until the dispatcher focuses that area. Trucks
+    // remain individual locators and fan apart without becoming a count.
+    const jobClusters = clusterVisibleMapItems(map, locatedJobs, (job) => job, 44);
     const truckMarkers = spreadLiveTruckMarkers(map, liveTruckLocations);
 
     const focusMapArea = (items: Array<{ latitude: number | null; longitude: number | null }>) => {
@@ -1414,9 +1419,26 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         if (event.key === "Enter" || event.key === " ") handleActivation(event);
       });
     };
-    for (const { job, latitude, longitude } of jobMarkers) {
+    for (const cluster of jobClusters) {
+      if (cluster.items.length > 1) {
+        const marker = leaflet.marker([cluster.latitude, cluster.longitude], {
+          icon: appointmentClusterIcon(leaflet, cluster.items.length, clusterTerritoryTone(cluster.items)),
+          keyboard: true,
+          title: `${cluster.items.length} appointments in this area`,
+          alt: `${cluster.items.length} appointments in this area`,
+          zIndexOffset: 1000,
+        });
+        marker.bindTooltip(`${cluster.items.length} appointments · tap to focus`, {
+          direction: "top",
+          offset: [0, -18],
+        });
+        addInteractiveMarker(marker, () => focusMapArea(cluster.items));
+        continue;
+      }
+
+      const job = cluster.items[0];
       const markerLabel = `${job.appointmentTime} · ${job.customerName} · ${job.jkNumber} · ${scheduleJobState(job).label}`;
-      const marker = leaflet.marker([latitude, longitude], {
+      const marker = leaflet.marker([job.latitude, job.longitude], {
         icon: markerIcon(leaflet, job, selectedKey === job.key),
         keyboard: true,
         title: markerLabel,

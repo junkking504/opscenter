@@ -18,8 +18,8 @@ assert.match(
 );
 assert.match(
   jobsMapSource,
-  /const selectMapJob = \(job: JobsMapPoint & \{ latitude: number; longitude: number \}\) => \{[\s\S]*?focusMapArea\(\[job\]\);[\s\S]*?for \(const \{ job, latitude, longitude \} of jobMarkers\) \{[\s\S]*?addInteractiveMarker\(marker, \(\) => selectMapJob\(job\)\);/,
-  "A direct appointment marker click must focus that appointment's map location.",
+  /const selectMapJob = \(job: JobsMapPoint & \{ latitude: number; longitude: number \}\) => \{[\s\S]*?focusMapArea\(\[job\]\);[\s\S]*?for \(const cluster of jobClusters\) \{[\s\S]*?const job = cluster\.items\[0\];[\s\S]*?addInteractiveMarker\(marker, \(\) => selectMapJob\(job\)\);/,
+  "A direct single-appointment marker click must focus that appointment's map location.",
 );
 assert.match(
   jobsMapSource,
@@ -48,8 +48,8 @@ assert.match(
 );
 assert.match(
   jobsCss,
-  /@media \(max-width: 700px\)[\s\S]*?\.ops-jobs-map-schedule \.ops-jobs-map-board[\s\S]*?--ops-jobs-map-time-cell-min: 0px !important/,
-  "Phone appointment blocks must override the desktop cell size to fit the board in view.",
+  /@media \(max-width: 700px\)[\s\S]*?\.ops-jobs-map-schedule \.ops-jobs-map-board[\s\S]*?--ops-jobs-map-time-cell-min: 44px !important/,
+  "Phone appointment blocks must preserve swipeable touch-size time cells.",
 );
 assert.match(
   jobsMapSource,

@@ -5,10 +5,12 @@ const source = readFileSync(new URL("../components/JobsMap.tsx", import.meta.url
 
 assert.match(
   source,
-  /function spreadLocatedJobMarkers[\s\S]*?clusterVisibleMapItems\(map, jobs, \(job\) => job, 22\)[\s\S]*?for \(const \{ job, latitude, longitude \} of jobMarkers\) \{[\s\S]*?leaflet\.marker\(\[latitude, longitude\][\s\S]*?addInteractiveMarker\(marker, \(\) => selectMapJob\(job\)\);/,
-  "Every verified appointment must render as and focus from its own marker.",
+  /const jobClusters = clusterVisibleMapItems\(map, locatedJobs, \(job\) => job, 44\)[\s\S]*?if \(cluster\.items\.length > 1\)[\s\S]*?appointmentClusterIcon[\s\S]*?addInteractiveMarker\(marker, \(\) => focusMapArea\(cluster\.items\)\);/,
+  "Nearby appointments must collapse into a count that focuses the map without opening one appointment.",
 );
-assert.doesNotMatch(source, /jobsByClusterArea|jobClusters|appointmentClusterArea|appointmentClusterIcon/);
+assert.match(source, /function clusterTerritoryTone\(jobs: JobsMapPoint\[\]\): string/);
+assert.match(source, /function appointmentClusterIcon\(leaflet: LeafletModule, count: number, tone: string\)/);
+assert.doesNotMatch(source, /spreadLocatedJobMarkers/);
 assert.match(source, /function spreadLiveTruckMarkers\(map: any, trucks: JobsMapTruck\[\]\): VisibleTruckMarker\[\]/);
 assert.match(source, /const truckMarkers = spreadLiveTruckMarkers\(map, liveTruckLocations\);/);
 assert.doesNotMatch(source, /truck\.status === "At Job" && distanceMeters\(truck, job\)/, "On-site markers require current GPS dwell, not a historical status label.");
@@ -27,4 +29,4 @@ assert.doesNotMatch(source, /locationClusterIcon/);
 assert.doesNotMatch(source, /map items at this location/);
 assert.doesNotMatch(source, /truckClusterIcon/);
 assert.doesNotMatch(source, /truckClusters = clusterVisibleMapItems/);
-console.log("Dispatch truck and appointment markers are separated.");
+console.log("Dispatch appointments cluster cleanly while truck locators remain individual.");

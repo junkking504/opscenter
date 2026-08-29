@@ -28,6 +28,7 @@ import {
 } from "@/lib/crew-auth";
 import {
   opsAccessConfigured,
+  opsAccessLoginUrl,
   verifyOpsAccessJwt,
 } from "@/lib/cloudflare-access";
 import { JUNKWARE_SMS_API_PREFIX } from "@/lib/junkware-sms-constants";
@@ -86,6 +87,11 @@ function requestHeadersWithSession(request: NextRequest, sessionValue: string): 
   cookies.push(`${AUTH_SESSION_COOKIE}=${sessionValue}`);
   requestHeaders.set("cookie", cookies.join("; "));
   return requestHeaders;
+}
+
+function isPageNavigationRequest(request: NextRequest): boolean {
+  return (request.method === "GET" || request.method === "HEAD")
+    && !request.nextUrl.pathname.startsWith("/api/");
 }
 
 async function initializeOpsSession(
@@ -238,6 +244,14 @@ export async function middleware(request: NextRequest) {
 
     if (!session && !trustedDevice) {
       if (!accessEmail || !isValidJunkKingEmail(accessEmail)) {
+        const loginUrl = isPageNavigationRequest(request)
+          ? opsAccessLoginUrl(request.nextUrl)
+          : null;
+        if (loginUrl) {
+          const response = NextResponse.redirect(loginUrl);
+          response.headers.set("Cache-Control", "no-store, max-age=0");
+          return response;
+        }
         return NextResponse.json(
           { error: "Cloudflare Access authentication required." },
           { status: 401, headers: { "Cache-Control": "no-store, max-age=0" } },

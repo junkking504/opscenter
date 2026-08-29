@@ -27,10 +27,9 @@ assert.match(navItems, /href: "\/inbox"/);
 assert.match(navItems, /label: "Inbox"/);
 
 const nav = read("components/OpsNav.tsx");
-assert.match(nav, /mobileLabel: "Today"/);
-assert.match(nav, /inboxNavItem/);
 assert.match(navItems, /mobileLabel: "Schedule"/);
-assert.match(nav, /<small>More<\/small>/);
+assert.match(nav, /variant === "bottom"[\s\S]*navigationItems\.map/);
+assert.doesNotMatch(nav, /mobileItems|inboxNavItem|<small>More<\/small>/);
 
 const page = read("app/(protected)/inbox/page.tsx");
 assert.match(page, /import "\.\/inbox\.css"/);

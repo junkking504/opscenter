@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { inboxNavItem, opsNavigationItems, primaryNavItems } from "@/components/navItems";
+import { opsNavigationItems } from "@/components/navItems";
 import { titleCaseLabel } from "@/lib/title-case";
 import { authorizeOpsRequest, type InteractiveOpsRole } from "@/lib/ops-roles";
-import styles from "./OpsNav.module.css";
 
 type SidebarSubItem = {
   label: string;
@@ -228,16 +227,9 @@ export default function OpsNav({
   }
 
   if (variant === "bottom") {
-    const mobileItems = inboxEnabled
-      ? [
-          { ...primaryNavItems[0], mobileLabel: "Today" },
-          inboxNavItem,
-          primaryNavItems[1],
-        ]
-      : navigationItems;
     return (
-      <nav className={`ops-bottom-nav${inboxEnabled ? ` ${styles.fourItems}` : ""}`} aria-label="Primary navigation">
-        {mobileItems.map((item) => {
+      <nav className="ops-bottom-nav" aria-label="Primary navigation">
+        {navigationItems.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (
             <Link
@@ -252,20 +244,6 @@ export default function OpsNav({
             </Link>
           );
         })}
-        {inboxEnabled ? (
-          <button
-            type="button"
-            className={`ops-bottom-nav-item ops-bottom-nav-more ${styles.moreButton}`}
-            aria-label="Open navigation menu"
-            onClick={() => {
-              const toggle = document.getElementById("ops-sidebar-toggle") as HTMLInputElement | null;
-              if (toggle) toggle.checked = true;
-            }}
-          >
-            <span>•••</span>
-            <small>More</small>
-          </button>
-        ) : null}
       </nav>
     );
   }

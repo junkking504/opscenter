@@ -90,6 +90,7 @@ async function main() {
 
   assert.equal(opsNavigationItems("operator").some((item) => item.href === "/finance"), false, "Operator navigation must omit Finance.");
   assert.equal(opsNavigationItems("manager").some((item) => item.href === "/finance"), true, "Manager navigation must include Finance.");
+  assert.equal(opsNavigationItems("operator", true).some((item) => item.href === "/finance"), false, "Kernel-enabled navigation must retain the Finance role filter.");
 
   assert.ok(operatorInspection.session);
   const shellProps = opsShellSessionProps(operatorInspection.session);
@@ -109,6 +110,24 @@ async function main() {
     /revenue|margin|payroll|reconciliation|payments & recon|\$\d/i,
     "The unauthorized Finance state must not render financial values or labels.",
   );
+
+  process.env.OPS_ACCESS_TEAM_DOMAIN = "https://test-team.cloudflareaccess.com";
+  process.env.OPS_ACCESS_AUD = "test-access-audience";
+  const unauthenticatedPage = await middleware(new NextRequest("https://ops.example.test/fleet?view=maintenance"));
+  const unauthenticatedHead = await middleware(new NextRequest("https://ops.example.test/fleet", { method: "HEAD" }));
+  const unauthenticatedApi = await middleware(new NextRequest("https://ops.example.test/api/job-cancellation"));
+
+  for (const response of [unauthenticatedPage, unauthenticatedHead]) {
+    assert.equal(response.status, 307, "Unauthenticated page navigation must redirect to Cloudflare Access.");
+    const location = new URL(response.headers.get("location") || "");
+    assert.equal(location.origin, "https://test-team.cloudflareaccess.com");
+    assert.equal(location.pathname, "/cdn-cgi/access/login/ops.example.test");
+    assert.equal(location.searchParams.get("kid"), "test-access-audience");
+  }
+  assert.equal(unauthenticatedPage.headers.get("cache-control"), "no-store, max-age=0");
+  assert.equal(new URL(unauthenticatedPage.headers.get("location") || "").searchParams.get("redirect_url"), "/fleet?view=maintenance");
+  assert.equal(unauthenticatedApi.status, 401, "Unauthenticated API requests must retain a JSON 401 response.");
+  assert.deepEqual(await unauthenticatedApi.json(), { error: "Cloudflare Access authentication required." });
 
   console.log("OpsCenter role access checks passed.");
 }

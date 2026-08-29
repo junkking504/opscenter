@@ -7,10 +7,6 @@
  */
 
 :root {
-  --oc-text-secondary: #3f4650;
-  --oc-text-muted: #606873;
-  --oc-line: #d6d9d5;
-  --oc-line-strong: #bfc4bf;
   --oc-control-height: 44px;
   --oc-font-body: 0.9375rem;
   --oc-font-dense: 0.875rem;
@@ -157,7 +153,6 @@ body {
 /* Restore a clear page hierarchy where compact legacy selectors won. */
 .ops-main .ops-page-title,
 .ops-finance-page .ops-page-title {
-  color: #171a1f;
   font-size: clamp(2rem, 2.8vw, 2.65rem);
   line-height: 1.05;
   letter-spacing: -0.045em;
@@ -393,8 +388,6 @@ body {
 
 /* Tables are operational reading surfaces, not decorative micro-copy. */
 .ops-main .ops-table {
-  color: #303741;
-  font-size: 0.875rem;
   line-height: 1.45;
 }
 
@@ -1281,7 +1274,6 @@ body {
   align-content: center;
   border: 2px solid #fff;
   border-radius: 50%;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, .52);
   color: #fff;
   line-height: 1;
   text-align: center;
@@ -1295,8 +1287,6 @@ body {
   height: 10px;
   border: 2px solid #fff;
   border-radius: 50%;
-  background: #ef233c;
-  box-shadow: 0 0 0 3px rgba(239, 35, 60, .24), 0 0 11px rgba(239, 35, 60, .95);
   content: "";
   animation: ops-jobs-on-site-blink 1.15s ease-in-out infinite;
 }

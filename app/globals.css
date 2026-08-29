@@ -786,7 +786,6 @@ a {
 .ops-health-overall {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -1753,12 +1752,7 @@ a {
 .ops-date-selector {
   width: 100%;
   appearance: none;
-  color: var(--ops-text);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02)),
-    var(--ops-panel-strong);
   border: 1px solid var(--ops-border-strong);
-  border-radius: 14px;
   padding: 10px 36px 10px 12px;
   outline: none;
   cursor: pointer;
@@ -5579,7 +5573,6 @@ a.ops-jobs-map-selection-phone:focus-visible {
 
 .ops-crew-period-day-card {
   border-color: rgba(148, 163, 184, .22);
-  background: rgba(255, 255, 255, .035);
 }
 
 .ops-driver-expanded-row[hidden] {
@@ -9757,7 +9750,6 @@ a.ops-appointment-card-address:hover {
   min-width: 0;
   padding: 7px 9px;
   border: 1px solid var(--ops-border);
-  background: rgba(255, 255, 255, 0.02);
 }
 
 .ops-health-dot {

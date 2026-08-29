@@ -2,21 +2,6 @@
    Imported last so every operating area shares one deliberate UI system. */
 
 :root {
-  --oc-bg: #eceeeb;
-  --oc-sidebar: #111318;
-  --oc-surface: #ffffff;
-  --oc-surface-raised: #f7f8f6;
-  --oc-surface-soft: #eff0ee;
-  --oc-text: #20242b;
-  --oc-brand: #ed1c24;
-  --oc-brand-soft: rgba(237, 28, 36, 0.12);
-  --oc-positive: #55d892;
-  --oc-warning: #f4c45c;
-  --oc-critical: #ff6670;
-  --oc-focus: #7aa2ff;
-  --oc-radius-sm: 9px;
-  --oc-radius-md: 13px;
-  --oc-radius-lg: 16px;
   --oc-shadow: 0 12px 34px rgba(25, 28, 35, 0.12);
 }
 
@@ -29,11 +14,6 @@ input,
 select,
 textarea {
   font: inherit;
-}
-
-:where(a, button, input, select, textarea, summary):focus-visible {
-  outline: 2px solid var(--oc-focus);
-  outline-offset: 2px;
 }
 
 .ops-app {
@@ -97,9 +77,6 @@ textarea {
   --ops-muted: #6e7681;
   --ops-muted-2: #8d949d;
   --ops-shadow: 0 14px 34px rgba(25, 28, 35, 0.1);
-  background:
-    radial-gradient(circle at 88% 0%, rgba(255, 255, 255, 0.72), transparent 24rem),
-    var(--oc-bg);
 }
 
 .ops-main-frame {
@@ -117,7 +94,6 @@ textarea {
 
 .ops-workspace-title {
   margin-top: 2px;
-  color: var(--oc-text-secondary);
   font-size: 0.8rem;
   font-weight: 760;
 }
@@ -155,8 +131,6 @@ textarea {
   border: 0;
   border-bottom: 1px solid #d2d5d1;
   border-radius: 0;
-  background: transparent;
-  box-shadow: none;
 }
 
 .ops-page-header-copy {
@@ -1171,16 +1145,5 @@ textarea {
 
   .ops-page-subnav a {
     padding: 0 10px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
   }
 }

@@ -122,7 +122,10 @@ export function recordVerifiedWhatsAppJobPhoto(input: {
   return { duplicate: false };
 }
 
-export function queueVerifiedWhatsAppJobPhotoBatchConfirmations(now = new Date()): { pending: number; queued: number } {
+export function queueVerifiedWhatsAppJobPhotoBatchConfirmations(
+  now = new Date(),
+  options: { hasUnfinishedPhotos?: boolean } = {},
+): { pending: number; queued: number } {
   ensureDirectories();
   const quietMs = numberEnv("WHATSAPP_JOB_PHOTO_BATCH_QUIET_SECONDS", DEFAULT_BATCH_QUIET_SECONDS) * 1_000;
   let pending = 0;
@@ -131,8 +134,15 @@ export function queueVerifiedWhatsAppJobPhotoBatchConfirmations(now = new Date()
     const batch = readBatch(file);
     if (!batch || !batch.photos.length) continue;
     pending += 1;
-    const updatedAt = new Date(batch.updatedAt).getTime();
-    if (batch.confirmationQueuedAt || !Number.isFinite(updatedAt) || now.getTime() - updatedAt < quietMs) continue;
+    if (options.hasUnfinishedPhotos) continue;
+    const receivedTimes = batch.photos
+      .map((photo) => new Date(photo.receivedAt).getTime())
+      .filter(Number.isFinite);
+    const latestReceivedAt = receivedTimes.length ? Math.max(...receivedTimes) : Number.NaN;
+    const quietReferenceAt = Number.isFinite(latestReceivedAt)
+      ? latestReceivedAt
+      : new Date(batch.updatedAt).getTime();
+    if (batch.confirmationQueuedAt || !Number.isFinite(quietReferenceAt) || now.getTime() - quietReferenceAt < quietMs) continue;
     const firstPhoto = batch.photos[0];
     const count = batch.photos.length;
     enqueueOpsBotReply({

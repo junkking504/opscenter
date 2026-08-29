@@ -19,6 +19,10 @@ import { buildSearchKingsView } from "@/lib/searchkings";
 import { readResaleStore } from "@/lib/resale-items";
 import { readCrewExpenseRecords } from "@/lib/whatsapp-crew-expenses";
 import { jobScheduleHref } from "@/lib/related-record-links";
+import { cookies } from "next/headers";
+import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
+import { type InteractiveOpsRole } from "@/lib/ops-roles";
+import { financeUnauthorizedState } from "@/components/FinanceAccessGuard";
 
 export const dynamic = "force-dynamic";
 
@@ -509,11 +513,16 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
   );
 }
 
-export default async function FinancePage({
+async function renderFinancePageForRole({
+  role,
   searchParams,
 }: {
+  role: InteractiveOpsRole | null;
   searchParams?: Promise<AnyRecord>;
 }) {
+  const unauthorizedState = financeUnauthorizedState(role);
+  if (unauthorizedState) return unauthorizedState;
+
   const params = searchParams ? await searchParams : undefined;
   const date = resolveDate(params);
   const view = normalizeView(params?.view);
@@ -890,4 +899,14 @@ export default async function FinancePage({
       </div>
     </div>
   );
+}
+
+export default async function FinancePage({
+  searchParams,
+}: {
+  searchParams?: Promise<AnyRecord>;
+}) {
+  const cookieStore = await cookies();
+  const authSession = await verifyAuthSessionCookie(cookieStore.get(AUTH_SESSION_COOKIE)?.value || "");
+  return renderFinancePageForRole({ role: authSession?.role || null, searchParams });
 }

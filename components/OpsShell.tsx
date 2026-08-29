@@ -6,8 +6,9 @@ import AddOnNotifications from "@/components/AddOnNotifications";
 import TruckCameraController from "@/components/TruckCameraController";
 import InboxNavSummary from "@/components/InboxNavSummary";
 import GlobalSearch from "@/components/GlobalSearch";
+import OpsRoleBadge from "@/components/OpsRoleBadge";
 import { getOpsRuntime } from "@/lib/runtime";
-import { opsRoleLabel, type InteractiveOpsRole } from "@/lib/ops-roles";
+import { type InteractiveOpsRole } from "@/lib/ops-roles";
 
 export default function OpsShell({
   children,
@@ -74,9 +75,7 @@ export default function OpsShell({
               <span className="ops-pulse" />
               Network online
             </div>
-            <span className="ops-sidebar-footer-code" aria-label={`${opsRoleLabel(sessionRole)} access`}>
-              JKLA · {sessionRole.toUpperCase()}
-            </span>
+            <OpsRoleBadge role={sessionRole} />
           </div>
           {sessionLabel ? <div className="ops-small-muted">Signed In As {sessionLabel}</div> : null}
           <a href="/api/auth/logout" className="ops-mini-link">

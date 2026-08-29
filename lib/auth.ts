@@ -232,12 +232,10 @@ function configuredRoleBindings(): Record<string, InteractiveOpsRole> {
 
 export function opsAuthRole(identityValue: unknown): InteractiveOpsRole {
   const identity = normalizeAuthEmail(identityValue);
-  const localPart = identity.split("@")[0] || "";
   const bindings = configuredRoleBindings();
   const configuredIdentity = opsAuthIdentity();
 
   if (bindings[identity]) return bindings[identity];
-  if (bindings[localPart]) return bindings[localPart];
   if (identity && identity === configuredIdentity) {
     return normalizeInteractiveOpsRole(process.env.OPS_AUTH_ROLE, "admin");
   }

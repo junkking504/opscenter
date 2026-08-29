@@ -43,7 +43,7 @@ import { crewMemberAnchor, fleetTruckHref } from "@/lib/related-record-links";
 import relatedStyles from "@/components/RelatedRecords.module.css";
 import { cookies } from "next/headers";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
-import { opsRoleCan } from "@/lib/ops-roles";
+import { canShowCrewPayrollReview, canViewCrewPayroll } from "@/lib/crew-payroll-access";
 
 export const dynamic = "force-dynamic";
 
@@ -1493,7 +1493,7 @@ export default async function CrewPage({
   const params = searchParams ? await searchParams : undefined;
   const cookieStore = await cookies();
   const authSession = await verifyAuthSessionCookie(cookieStore.get(AUTH_SESSION_COOKIE)?.value || "");
-  const canViewPayroll = Boolean(authSession && opsRoleCan(authSession.role, "finance.read"));
+  const canViewPayroll = canViewCrewPayroll(authSession?.role);
   const date = resolveDate(params);
   const view = normalizeView(params?.view);
   const requestedSection = String(params?.section || "crew").toLowerCase();
@@ -1964,7 +1964,7 @@ export default async function CrewPage({
                           value={String(row.assignment_confidence || row.assignmentConfidence || "Unavailable").trim() || "Unavailable"}
                         />
                       </div>
-                      {canViewPayroll && payrollReview ? (
+                      {canShowCrewPayrollReview(authSession?.role, payrollReview) ? (
                         <PayrollDiscrepancyEditor
                           date={date}
                           employeeName={name}

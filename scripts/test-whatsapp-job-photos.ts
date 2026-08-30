@@ -165,9 +165,10 @@ try {
     receivedAt: now.toISOString(),
   };
   assert.equal(recordVerifiedWhatsAppJobPhoto({ ...confirmationPhoto, now }).duplicate, false);
-  assert.equal(recordVerifiedWhatsAppJobPhoto({ ...confirmationPhoto, messageId: "batch-image-2", now: new Date(now.getTime() + 10_000) }).duplicate, false);
   assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 50_000)).queued, 0);
-  assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 70_000)).queued, 1);
+  assert.equal(recordVerifiedWhatsAppJobPhoto({ ...confirmationPhoto, messageId: "batch-image-2", now: new Date(now.getTime() + 65_000) }).duplicate, false);
+  assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 65_000), { hasUnfinishedPhotos: true }).queued, 0);
+  assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 65_000)).queued, 1);
   const confirmationOutbox = path.join(temporaryState, "outbox-incoming");
   const confirmationFiles = fs.readdirSync(confirmationOutbox);
   assert.equal(confirmationFiles.length, 1);

@@ -87,6 +87,51 @@ type FleetSnapshot = {
   warning?: string;
 };
 
+type KrewePerson = {
+  name: string;
+  normalizedName: string;
+  todayStatus: "worked_or_attributed" | "roster_only";
+  clockIn: string;
+  clockOut: string;
+  truck: string;
+  recommendedForCallIn: boolean;
+  suggestedRole: "Driver" | "Crew" | "";
+  recommendationReason: string;
+  overtimeRisk: boolean;
+  availability: {
+    status: "available" | "unavailable" | "called_in";
+    role: "driver" | "crew" | "";
+    note: string;
+    updatedAt: string;
+  } | null;
+};
+
+type KreweSnapshot = {
+  date: string;
+  targetDate: string;
+  mode: "live_control" | "preview_simulation";
+  source: string;
+  sourceObservedAt: string;
+  storeUpdatedAt: string;
+  scheduleUpdatedAt: string;
+  scheduleAvailable: boolean;
+  people: KrewePerson[];
+  summary: {
+    roster: number;
+    workedToday: number;
+    clockedInNow: number;
+    tomorrowAppointments: number;
+    requiredHeadcount: number;
+    alreadyAssigned: number;
+    callInNeeded: number;
+    availableResponses: number;
+    unavailableResponses: number;
+    committedCallIns: number;
+  };
+  warning?: string;
+  authorityNotice: string;
+};
+
 type FinanceSnapshot = {
   date: string;
   mode: "live_control" | "preview_simulation";
@@ -150,6 +195,8 @@ function actionLabel(actionKey: string): string {
     "fleet.return_to_service.v1": "Fleet return to service",
     "finance.record_manual_bonus.v1": "Finance manual bonus",
     "finance.record_payroll_correction.v1": "Finance payroll correction",
+    "krewe.record_availability.v1": "Krewe availability",
+    "krewe.schedule_call_in.v1": "Krewe call-in commitment",
   };
   return labels[actionKey] || actionKey;
 }
@@ -188,11 +235,13 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [snapshot, setSnapshot] = useState<ActionSnapshot | null>(null);
   const [dispatch, setDispatch] = useState<DispatchSnapshot | null>(null);
   const [fleet, setFleet] = useState<FleetSnapshot | null>(null);
+  const [krewe, setKrewe] = useState<KreweSnapshot | null>(null);
   const [finance, setFinance] = useState<FinanceSnapshot | null>(null);
   const [financeAccessDenied, setFinanceAccessDenied] = useState(false);
   const [selectedId, setSelectedId] = useState("");
   const [selectedAppointmentId, setSelectedAppointmentId] = useState("");
   const [selectedFleetTruckId, setSelectedFleetTruckId] = useState("");
+  const [selectedKreweEmployeeName, setSelectedKreweEmployeeName] = useState("");
   const [selectedFinanceEmployeeName, setSelectedFinanceEmployeeName] = useState("");
   const [dispatchTruck, setDispatchTruck] = useState("");
   const [dispatchStartMinutes, setDispatchStartMinutes] = useState("");
@@ -200,6 +249,8 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [cancellationReason, setCancellationReason] = useState("");
   const [fleetHoldReason, setFleetHoldReason] = useState("");
   const [fleetReturnResolution, setFleetReturnResolution] = useState("");
+  const [kreweNote, setKreweNote] = useState("");
+  const [kreweRole, setKreweRole] = useState<"driver" | "crew">("crew");
   const [bonusAmount, setBonusAmount] = useState("");
   const [bonusNote, setBonusNote] = useState("");
   const [payrollClockIn, setPayrollClockIn] = useState("");
@@ -216,7 +267,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     setLoading(true);
     setError("");
     try {
-      const [inboxPayload, actionPayload, dispatchPayload, fleetPayload, financeResult] = await Promise.all([
+      const [inboxPayload, actionPayload, dispatchPayload, fleetPayload, krewePayload, financeResult] = await Promise.all([
         responseJson<InboxPayload>(await fetch("/api/inbox/reconcile", {
           method: "POST",
           cache: "no-store",
@@ -226,6 +277,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
         responseJson<ActionSnapshot>(await fetch("/api/platform/action-runs", { cache: "no-store" })),
         responseJson<DispatchSnapshot>(await fetch(`/api/platform/dispatch?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<FleetSnapshot>(await fetch(`/api/platform/fleet?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
+        responseJson<KreweSnapshot>(await fetch(`/api/platform/krewe?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         fetch(`/api/platform/finance?date=${encodeURIComponent(date)}`, { cache: "no-store" }).then(async (response) => {
           if (response.status === 403) return { payload: null, accessDenied: true };
           return { payload: await responseJson<FinanceSnapshot>(response), accessDenied: false };
@@ -235,6 +287,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       setSnapshot(actionPayload);
       setDispatch(dispatchPayload);
       setFleet(fleetPayload);
+      setKrewe(krewePayload);
       setFinance(financeResult.payload);
       setFinanceAccessDenied(financeResult.accessDenied);
       setSelectedId((current) => current && inboxPayload.items.some((item) => item.id === current)
@@ -246,6 +299,9 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       setSelectedFleetTruckId((current) => current && fleetPayload.trucks.some((item) => item.truck === current)
         ? current
         : fleetPayload.trucks.find((item) => item.readiness === "out_of_service")?.truck || fleetPayload.trucks[0]?.truck || "");
+      setSelectedKreweEmployeeName((current) => current && krewePayload.people.some((person) => person.name === current)
+        ? current
+        : krewePayload.people.find((person) => person.recommendedForCallIn)?.name || krewePayload.people[0]?.name || "");
       setSelectedFinanceEmployeeName((current) => current && financeResult.payload?.employees.some((employee) => employee.name === current)
         ? current
         : financeResult.payload?.employees[0]?.name || "");
@@ -272,6 +328,10 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     () => fleet?.trucks.find((truck) => truck.truck === selectedFleetTruckId) || null,
     [fleet, selectedFleetTruckId],
   );
+  const selectedKrewePerson = useMemo(
+    () => krewe?.people.find((person) => person.name === selectedKreweEmployeeName) || null,
+    [krewe, selectedKreweEmployeeName],
+  );
   const selectedFinanceEmployee = useMemo(
     () => finance?.employees.find((employee) => employee.name === selectedFinanceEmployeeName) || null,
     [finance, selectedFinanceEmployeeName],
@@ -286,6 +346,10 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     setFleetHoldReason("");
     setFleetReturnResolution("");
   }, [selectedFleetTruck]);
+  useEffect(() => {
+    setKreweNote("");
+    setKreweRole(selectedKrewePerson?.suggestedRole === "Driver" ? "driver" : "crew");
+  }, [date, selectedKrewePerson]);
   useEffect(() => {
     setBonusAmount("");
     setBonusNote("");
@@ -372,6 +436,35 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       await load();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "The Fleet action request failed.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function requestKreweAction(actionKey: string, input: Record<string, unknown>) {
+    if (!selectedKrewePerson || !krewe) return;
+    setBusy(actionKey);
+    setError("");
+    try {
+      await responseJson(await fetch("/api/platform/action-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actionKey,
+          entity: { type: "employee", id: selectedKrewePerson.name, label: selectedKrewePerson.name },
+          input: {
+            employeeName: selectedKrewePerson.name,
+            targetDate: krewe.targetDate,
+            expectedStoreUpdatedAt: krewe.storeUpdatedAt,
+            expectedRecordUpdatedAt: selectedKrewePerson.availability?.updatedAt || "",
+            ...input,
+          },
+        }),
+      }));
+      setKreweNote("");
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The Krewe action request failed.");
     } finally {
       setBusy("");
     }
@@ -583,6 +676,104 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
                 ? "Truck and time changes require approval; cross-date moves and cancellation are risk class 3. Every result is read back from JunkWare."
                 : "Simulation proves policy and verification without changing shared Dispatch, cancellation state, or JunkWare."}
             </p>
+          </section>
+
+          <section className={styles.kreweControl} aria-labelledby="opsbot-krewe-title">
+            <div className={styles.controlTitle}>
+              <div><span>Krewe control pack</span><strong id="opsbot-krewe-title">Tomorrow’s staffing command</strong></div>
+              <small data-mode={krewe?.mode}>{krewe?.mode === "live_control" ? "Mission Control" : "Preview simulation"}</small>
+            </div>
+            <div className={styles.kreweSummary}>
+              <div><b>{krewe?.summary.workedToday || 0}</b><span>worked today</span></div>
+              <div><b>{krewe?.summary.tomorrowAppointments || 0}</b><span>tomorrow’s jobs</span></div>
+              <div><b>{krewe?.summary.alreadyAssigned || 0}</b><span>already assigned</span></div>
+              <div data-attention={Boolean(krewe?.summary.callInNeeded)}><b>{krewe?.summary.callInNeeded || 0}</b><span>call-ins needed</span></div>
+            </div>
+            <div className={styles.kreweResponses}>
+              <span>{krewe?.summary.availableResponses || 0} available</span>
+              <span>{krewe?.summary.unavailableResponses || 0} unavailable</span>
+              <span>{krewe?.summary.committedCallIns || 0} committed</span>
+              <span>{krewe?.summary.requiredHeadcount || 0} target headcount</span>
+            </div>
+            {krewe?.warning ? <div className={styles.dispatchWarning}>{krewe.warning}</div> : null}
+            <label>
+              <span>Krewe employee · {krewe?.targetDate || "tomorrow"}</span>
+              <select value={selectedKreweEmployeeName} onChange={(event) => setSelectedKreweEmployeeName(event.target.value)} disabled={loading || Boolean(busy)}>
+                {(krewe?.people || []).map((person) => (
+                  <option key={person.normalizedName} value={person.name}>
+                    {person.recommendedForCallIn ? "Recommended · " : ""}{person.name}{person.availability ? ` · ${person.availability.status.replace("_", " ")}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {selectedKrewePerson ? (
+              <article className={styles.kreweTarget} data-status={selectedKrewePerson.availability?.status || "unconfirmed"}>
+                <div>
+                  <strong>{selectedKrewePerson.name}</strong>
+                  <span>{selectedKrewePerson.availability?.status.replace("_", " ") || "Availability unconfirmed"}</span>
+                </div>
+                <p>{selectedKrewePerson.recommendedForCallIn
+                  ? `Recommended ${selectedKrewePerson.suggestedRole === "Crew" ? "Krewe" : selectedKrewePerson.suggestedRole}`
+                  : selectedKrewePerson.todayStatus === "worked_or_attributed" ? "Worked or attributed today" : "Roster only today"}</p>
+                <small>{selectedKrewePerson.recommendationReason || `${selectedKrewePerson.truck || "No truck"} · ${selectedKrewePerson.clockIn || "No clock-in"}${selectedKrewePerson.clockOut ? ` – ${selectedKrewePerson.clockOut}` : ""}`}</small>
+                {selectedKrewePerson.overtimeRisk ? <em>Overtime risk in the current planning estimate</em> : null}
+                {selectedKrewePerson.availability?.note ? <small>Recorded evidence: {selectedKrewePerson.availability.note}</small> : null}
+              </article>
+            ) : <div className={styles.empty}>No authoritative Krewe roster is available.</div>}
+            {selectedKrewePerson ? (
+              <div className={styles.kreweActions}>
+                <label>
+                  <span>Human confirmation note</span>
+                  <input value={kreweNote} onChange={(event) => setKreweNote(event.target.value)} placeholder="Record who confirmed and how" maxLength={1000} disabled={Boolean(busy)} />
+                </label>
+                <div className={styles.availabilityActions}>
+                  <button
+                    type="button"
+                    disabled={Boolean(busy) || kreweNote.trim().length < 3 || selectedKrewePerson.availability?.status === "called_in"}
+                    onClick={() => void requestKreweAction("krewe.record_availability.v1", { status: "available", note: kreweNote })}
+                  >Mark available</button>
+                  <button
+                    type="button"
+                    disabled={Boolean(busy) || kreweNote.trim().length < 3 || selectedKrewePerson.availability?.status === "called_in"}
+                    onClick={() => void requestKreweAction("krewe.record_availability.v1", { status: "unavailable", note: kreweNote })}
+                  >Mark unavailable</button>
+                </div>
+                <div className={styles.callInCommitment}>
+                  <label>
+                    <span>Call-in role</span>
+                    <select value={kreweRole} onChange={(event) => setKreweRole(event.target.value as "driver" | "crew")} disabled={Boolean(busy)}>
+                      <option value="crew">Krewe</option>
+                      <option value="driver">Driver</option>
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={
+                      Boolean(busy)
+                      || kreweNote.trim().length < 5
+                      || !krewe?.scheduleAvailable
+                      || !krewe.scheduleUpdatedAt
+                      || selectedKrewePerson.availability?.status === "unavailable"
+                      || selectedKrewePerson.availability?.status === "called_in"
+                    }
+                    onClick={() => void requestKreweAction("krewe.schedule_call_in.v1", {
+                      baseDate: date,
+                      role: kreweRole,
+                      note: kreweNote,
+                      availabilityConfirmed: true,
+                      expectedScheduleUpdatedAt: krewe?.scheduleUpdatedAt,
+                    })}
+                  >Request call-in approval</button>
+                </div>
+              </div>
+            ) : null}
+            <div className={styles.kreweBoundary}>
+              <p>{krewe?.authorityNotice || "Krewe planning remains read-only until authoritative data is available."}</p>
+              <div>
+                <a href={`/crew?date=${encodeURIComponent(date)}&section=call-in`}>Open full call-in plan</a>
+                {krewe?.targetDate ? <a href={`/jobs?date=${encodeURIComponent(krewe.targetDate)}`}>Review tomorrow’s jobs</a> : null}
+              </div>
+            </div>
           </section>
 
           <section className={styles.fleetControl} aria-labelledby="opsbot-fleet-title">

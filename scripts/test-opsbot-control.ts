@@ -61,6 +61,12 @@ assert.match(docs, /The Finance control pack adds/);
 assert.match(docs, /manual bonuses and payroll corrections/);
 assert.match(docs, /Payment exceptions and QBO evidence remain read-only/);
 assert.match(docs, /only `MISSION_CONTROL` may change shared bonus or payroll-correction state/);
+assert.match(docs, /The Krewe control pack adds/);
+assert.match(docs, /worked or were attributed to a job today from\s+roster-only people/);
+assert.match(docs, /risk-class 1 available or unavailable responses/);
+assert.match(docs, /risk-class 2 call-in commitments/);
+assert.match(docs, /does not message the employee,\s+assign a JunkWare job/);
+assert.match(docs, /only `MISSION_CONTROL` may change shared Krewe control state/);
 assert.match(docs, /only `MISSION_CONTROL` may change shared Dispatch or JunkWare state/);
 assert.match(docs, /Money, payroll, customer communication, access, deletion, and broad operational\s+changes remain approval-gated/);
 

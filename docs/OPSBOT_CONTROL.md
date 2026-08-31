@@ -1,6 +1,6 @@
 # OpsBot Control
 
-Status: Work, Dispatch, Fleet, and Finance control foundation; production kernel activation pending
+Status: Work, Dispatch, Fleet, Finance, and Krewe control foundation; production kernel activation pending
 
 Route: Command `/?section=opsbot`
 
@@ -105,8 +105,28 @@ The Finance control pack adds:
 Payment exceptions and QBO evidence remain read-only and are never auto-cleared. This
 pack does not issue refunds, write QBO transactions, or mark a Daily Close complete.
 
+The Krewe control pack adds:
+
+- current daily attendance evidence and the complete roster beside tomorrow's JunkWare
+  staffing demand and call-in recommendations;
+- explicit separation of people who worked or were attributed to a job today from
+  roster-only people, without inventing attendance or activity;
+- risk-class 1 available or unavailable responses recorded only from a human confirmation;
+- risk-class 2 call-in commitments that require approval by a different manager or
+  administrator;
+- schedule, store, and employee-record observations that reject stale requests before
+  a write;
+- authoritative read-back of the exact availability or call-in record after execution;
+- a strict runtime guard: only `MISSION_CONTROL` may change shared Krewe control state;
+- preview simulation receipts that leave the shared Krewe control store unchanged.
+
+A call-in commitment is an OpsCenter staffing record. It does not message the employee,
+assign a JunkWare job, or claim that a recommendation is confirmed availability. A
+committed call-in also cannot be replaced by a direct availability response; cancellation
+and reassignment are intentionally outside this first bounded pack.
+
 Together these provide complete governed loops for work state and bounded
-Dispatch, Fleet, and Finance commands. They do not claim that every external operational system is
+Dispatch, Fleet, Finance, and Krewe commands. They do not claim that every external operational system is
 controllable yet.
 
 ## Authority and safety
@@ -117,7 +137,8 @@ human approval. Approval-gated actions must be approved by a different manager
 or administrator. Cross-date moves, manual resolution, appointment cancellation, and
 Fleet availability changes are risk class 3;
 manual bonuses and payroll corrections are risk class 3; truck assignment and
-same-day rescheduling are risk class 2.
+same-day rescheduling are risk class 2. Human-confirmed Krewe availability is risk
+class 1; a Krewe call-in commitment is risk class 2.
 
 Money, payroll, customer communication, access, deletion, and broad operational
 changes remain approval-gated. No autonomous production agent or unrestricted

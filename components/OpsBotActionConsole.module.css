@@ -69,6 +69,8 @@
 .head button,
 .commands button,
 .dispatchActions button,
+.availabilityActions button,
+.callInCommitment button,
 .fleetSensitiveAction button,
 .financeAction button,
 .sensitiveCommand button,
@@ -88,6 +90,8 @@
 .head button:disabled,
 .commands button:disabled,
 .dispatchActions button:disabled,
+.availabilityActions button:disabled,
+.callInCommitment button:disabled,
 .fleetSensitiveAction button:disabled,
 .financeAction button:disabled,
 .sensitiveCommand button:disabled,
@@ -213,6 +217,92 @@
 .cancellationActions button { border-color: rgba(255, 100, 107, 0.32); background: rgba(255, 100, 107, 0.07); color: #ff9ba0; }
 .cancellationActions > small { grid-column: 1 / -1; color: #8f6f72; font-size: 0.6rem; line-height: 1.4; }
 .dispatchBoundary { margin: 0; color: #778494; font-size: 0.62rem; line-height: 1.4; }
+
+.kreweControl {
+  display: grid;
+  gap: 10px;
+  margin: -2px -2px 4px;
+  padding: 13px;
+  border: 1px solid rgba(65, 196, 190, 0.22);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(65, 196, 190, 0.06), rgba(104, 167, 255, 0.025));
+}
+
+.kreweSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.kreweSummary > div {
+  display: grid;
+  gap: 2px;
+  padding: 7px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(4, 7, 12, 0.2);
+}
+.kreweSummary b { color: #fff; font-size: 0.8rem; }
+.kreweSummary span { color: #8f9bad; font-size: 0.56rem; }
+.kreweSummary > div[data-attention="true"] b { color: #f6d777; }
+
+.kreweResponses { display: flex; flex-wrap: wrap; gap: 6px; }
+.kreweResponses span {
+  padding: 4px 7px;
+  border: 1px solid rgba(65, 196, 190, 0.18);
+  border-radius: 999px;
+  color: #9ddbd7;
+  font-size: 0.59rem;
+}
+
+.kreweTarget {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 9px;
+  background: rgba(4, 7, 12, 0.22);
+}
+.kreweTarget > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.kreweTarget strong { color: #fff; font-size: 0.76rem; }
+.kreweTarget span { color: #9ddbd7; font-size: 0.62rem; font-weight: 850; text-transform: capitalize; }
+.kreweTarget[data-status="unavailable"] span { color: #ff9ba0; }
+.kreweTarget[data-status="called_in"] span { color: #8ce8af; }
+.kreweTarget p { margin: 0; color: #a7b1c0; font-size: 0.68rem; }
+.kreweTarget small { color: #7f8a99; font-size: 0.61rem; line-height: 1.4; }
+.kreweTarget em { color: #f6d777; font-size: 0.61rem; font-style: normal; }
+
+.kreweActions {
+  display: grid;
+  gap: 8px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+.kreweActions > label,
+.callInCommitment label { display: grid; gap: 6px; }
+.kreweActions label > span {
+  color: #83c8c4;
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.availabilityActions { display: flex; gap: 7px; }
+.availabilityActions button { flex: 1; border-color: rgba(65, 196, 190, 0.32); background: rgba(65, 196, 190, 0.08); color: #a9ebe6; }
+.availabilityActions button:last-child { border-color: rgba(255, 100, 107, 0.28); background: rgba(255, 100, 107, 0.06); color: #ff9ba0; }
+.callInCommitment {
+  display: grid;
+  grid-template-columns: minmax(120px, 0.45fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 8px;
+}
+.callInCommitment button { border-color: rgba(246, 195, 67, 0.32); background: rgba(246, 195, 67, 0.08); color: #f6d777; }
+
+.kreweBoundary { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.kreweBoundary p { margin: 0; color: #778494; font-size: 0.62rem; line-height: 1.4; }
+.kreweBoundary > div { display: flex; flex: none; flex-direction: column; align-items: flex-end; gap: 5px; }
+.kreweBoundary a { color: #83c8c4; font-size: 0.61rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.kreweBoundary a:hover { text-decoration: underline; }
 
 .fleetControl {
   display: grid;
@@ -429,6 +519,12 @@
   .dispatchActions { grid-template-columns: 1fr; }
   .rescheduleActions, .dateMoveActions, .cancellationActions { grid-template-columns: 1fr; }
   .rescheduleActions button, .dateMoveActions button, .cancellationActions button { width: 100%; }
+  .kreweSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .availabilityActions { flex-direction: column; }
+  .callInCommitment { grid-template-columns: 1fr; }
+  .callInCommitment button { width: 100%; }
+  .kreweBoundary { flex-direction: column; }
+  .kreweBoundary > div { align-items: flex-start; }
   .fleetSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fleetSensitiveAction { grid-template-columns: 1fr; }
   .fleetSensitiveAction button { width: 100%; }

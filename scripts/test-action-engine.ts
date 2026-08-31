@@ -43,6 +43,8 @@ assert.deepEqual(definitions.map((definition) => definition.key), [
   "fleet.return_to_service.v1",
   "finance.record_manual_bonus.v1",
   "finance.record_payroll_correction.v1",
+  "krewe.record_availability.v1",
+  "krewe.schedule_call_in.v1",
 ]);
 assert.equal(new Set(definitions.map((definition) => definition.key)).size, definitions.length);
 
@@ -122,6 +124,10 @@ for (const control of [
   "Finance control pack",
   "Request bonus approval",
   "Request payroll correction approval",
+  "Krewe control pack",
+  "Mark available",
+  "Mark unavailable",
+  "Request call-in approval",
   "Mark called",
 ]) {
   assert.ok(consoleSource.includes(control), `OpsBot console is missing ${control}.`);
@@ -345,5 +351,83 @@ assert.throws(() => payrollCorrection.validateInput({
   expectedPayrollStoreUpdatedAt: "",
   expectedCorrectionUpdatedAt: "",
 }), /HH:MM AM\/PM/);
+
+const kreweAvailability = registeredActionDefinition("krewe.record_availability.v1");
+assert.ok(kreweAvailability);
+assert.equal(kreweAvailability.riskClass, 1);
+assert.equal(decideActionPolicy(kreweAvailability, operator).decision.outcome, "allow");
+assert.equal(decideActionPolicy(kreweAvailability, manager).decision.outcome, "allow");
+assert.deepEqual(kreweAvailability.validateInput({
+  employeeName: " Morgan   Lee ",
+  targetDate: "2026-09-01",
+  status: "available",
+  note: " Confirmed by phone ",
+  expectedStoreUpdatedAt: "2026-08-31T20:15:00.000Z",
+  expectedRecordUpdatedAt: "",
+}), {
+  employeeName: "Morgan Lee",
+  targetDate: "2026-09-01",
+  status: "available",
+  note: "Confirmed by phone",
+  expectedStoreUpdatedAt: "2026-08-31T20:15:00.000Z",
+  expectedRecordUpdatedAt: "",
+});
+assert.throws(() => kreweAvailability.validateInput({
+  employeeName: "Morgan Lee",
+  targetDate: "2026-09-01",
+  status: "maybe",
+  note: "Confirmed by phone",
+  expectedStoreUpdatedAt: "",
+  expectedRecordUpdatedAt: "",
+}), /available or unavailable/);
+
+const kreweCallIn = registeredActionDefinition("krewe.schedule_call_in.v1");
+assert.ok(kreweCallIn);
+assert.equal(kreweCallIn.riskClass, 2);
+assert.equal(decideActionPolicy(kreweCallIn, operator).decision.outcome, "approval_required");
+assert.equal(decideActionPolicy(kreweCallIn, manager).decision.outcome, "approval_required");
+assert.deepEqual(kreweCallIn.validateInput({
+  employeeName: "Morgan Lee",
+  baseDate: "2026-08-31",
+  targetDate: "2026-09-01",
+  role: "Crew",
+  note: "Confirmed by phone for tomorrow",
+  availabilityConfirmed: true,
+  expectedScheduleUpdatedAt: "2026-08-31T20:14:00.000Z",
+  expectedStoreUpdatedAt: "2026-08-31T20:15:00.000Z",
+  expectedRecordUpdatedAt: "2026-08-31T20:15:00.000Z",
+}), {
+  employeeName: "Morgan Lee",
+  baseDate: "2026-08-31",
+  targetDate: "2026-09-01",
+  role: "crew",
+  note: "Confirmed by phone for tomorrow",
+  availabilityConfirmed: true,
+  expectedScheduleUpdatedAt: "2026-08-31T20:14:00.000Z",
+  expectedStoreUpdatedAt: "2026-08-31T20:15:00.000Z",
+  expectedRecordUpdatedAt: "2026-08-31T20:15:00.000Z",
+});
+assert.throws(() => kreweCallIn.validateInput({
+  employeeName: "Morgan Lee",
+  baseDate: "2026-08-31",
+  targetDate: "2026-09-02",
+  role: "crew",
+  note: "Confirmed by phone for tomorrow",
+  availabilityConfirmed: true,
+  expectedScheduleUpdatedAt: "2026-08-31T20:14:00.000Z",
+  expectedStoreUpdatedAt: "",
+  expectedRecordUpdatedAt: "",
+}), /next operating day/);
+assert.throws(() => kreweCallIn.validateInput({
+  employeeName: "Morgan Lee",
+  baseDate: "2026-08-31",
+  targetDate: "2026-09-01",
+  role: "crew",
+  note: "Confirmed by phone for tomorrow",
+  availabilityConfirmed: false,
+  expectedScheduleUpdatedAt: "2026-08-31T20:14:00.000Z",
+  expectedStoreUpdatedAt: "",
+  expectedRecordUpdatedAt: "",
+}), /Human-confirmed employee availability/);
 
 console.log("OpsBot action registry, policy, idempotency, approvals, verification, persistence, and control UI contracts passed.");

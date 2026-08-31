@@ -1,4 +1,5 @@
 import Link from "next/link";
+import OpsBotActionConsole from "@/components/OpsBotActionConsole";
 import styles from "./OpsBotControl.module.css";
 
 export type OpsBotRecommendation = {
@@ -136,7 +137,7 @@ export default function OpsBotControl({
     },
     {
       label: "Execute",
-      mode: "Approval required",
+      mode: kernelReady ? "Controlled" : "Staged",
       detail: "Only registered actions with identity, policy, and retry protection.",
       tone: "guarded",
     },
@@ -165,7 +166,7 @@ export default function OpsBotControl({
 
         <div className={styles.authorityCard}>
           <span>Current authority</span>
-          <strong>Observe + Recommend</strong>
+          <strong>{kernelReady ? "Controlled execution" : "Observe + Recommend"}</strong>
           <div><ToneDot tone="guarded" /> Human approval retained</div>
           <small>{shortTimestamp(observedAt)}</small>
         </div>
@@ -183,9 +184,9 @@ export default function OpsBotControl({
           <small>{recommendations.length ? "Current conditions to review" : "No urgent conditions"}</small>
         </article>
         <article>
-          <span>Pending approvals</span>
-          <strong>0</strong>
-          <small>Action execution is not live</small>
+          <span>Action runtime</span>
+          <strong>{kernelReady ? "Live" : "Staged"}</strong>
+          <small>{kernelReady ? "Registered commands and audit ledger" : "Kernel activation required"}</small>
         </article>
         <article>
           <span>Autonomous actions</span>
@@ -193,6 +194,8 @@ export default function OpsBotControl({
           <small>Production autonomy locked</small>
         </article>
       </div>
+
+      <OpsBotActionConsole date={date} enabled={kernelReady} />
 
       <div className={styles.primaryGrid}>
         <section className={styles.panel} aria-labelledby="opsbot-recommendations">
@@ -284,8 +287,8 @@ export default function OpsBotControl({
             <li className={styles.complete}><span>01</span><div><strong>Observe</strong><small>Fresh source evidence</small></div></li>
             <li className={styles.complete}><span>02</span><div><strong>Recommend</strong><small>Policy-backed next move</small></div></li>
             <li className={styles.gated}><span>03</span><div><strong>Approve</strong><small>Identity and risk gate</small></div></li>
-            <li className={styles.lockedStep}><span>04</span><div><strong>Execute</strong><small>Registered action only</small></div></li>
-            <li className={styles.lockedStep}><span>05</span><div><strong>Verify</strong><small>Correct authority confirms</small></div></li>
+            <li className={kernelReady ? styles.gated : styles.lockedStep}><span>04</span><div><strong>Execute</strong><small>Registered action only</small></div></li>
+            <li className={kernelReady ? styles.gated : styles.lockedStep}><span>05</span><div><strong>Verify</strong><small>Correct authority confirms</small></div></li>
           </ol>
           <div className={styles.kernelState}>
             <ToneDot tone={kernelReady ? "live" : "guarded"} />
@@ -293,8 +296,8 @@ export default function OpsBotControl({
               <strong>{kernelReady ? "Audit kernel connected" : "Action kernel not enabled"}</strong>
               <small>
                 {kernelReady
-                  ? "Durable work state is available; production actions still require registered executors."
-                  : "This control surface works in read-only mode without making Command Inbox a prerequisite."}
+                  ? "Durable work state, registered executors, verification, and audit are connected."
+                  : "This control surface stays read-only without making Command Inbox a prerequisite."}
               </small>
             </div>
           </div>

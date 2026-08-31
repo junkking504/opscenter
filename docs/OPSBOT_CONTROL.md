@@ -1,6 +1,6 @@
 # OpsBot Control
 
-Status: Initial read-only control surface
+Status: Controlled-action foundation; production activation pending
 
 Route: Command `/?section=opsbot`
 
@@ -21,42 +21,65 @@ the business system:
 - OpsBot observes approved context and may recommend or invoke only registered,
   policy-allowed actions.
 
-## Initial release
+## Complete control-system contract
 
-The first release is a server-rendered, read-only Command subview. It uses the
-same current Jobs, Krewe, Fleet, Finance, and data-freshness projections already
-used by Command. It does not introduce a second data authority.
+OpsBot Control is intended to control OpsCenter through one governed lifecycle:
 
-The surface contains:
+1. Observe fresh evidence from the correct source authority.
+2. Explain the condition and propose a bounded next action.
+3. Apply actor permission and action-risk policy.
+4. Obtain a separate human approval when policy requires it.
+5. Execute only a versioned, registered action with an idempotency key.
+6. Verify the result against the authoritative OpsCenter state.
+7. Preserve a sanitized audit event and recovery guidance.
 
-- current signal lanes and their named source systems;
-- a decision queue built from the current Command exception rules;
-- the explicit autonomy ladder: Observe, Recommend, Execute, Autonomous;
-- the signal-to-verified-outcome lifecycle;
-- the real platform-kernel connection state;
+The Operating Inbox UI is not a prerequisite. The control plane uses the shared
+kernel work and action contracts directly. If the kernel is disabled, the same
+Command surface remains useful and explicitly read-only.
+
+## Implemented vertical slice
+
+The current slice provides the control spine and a real end-to-end action path
+for OpsCenter work items:
+
+- durable action runs, policy decisions, approvals, state transitions, and events;
+- actor-aware permission checks and separation of requester from approver;
+- idempotent command requests and authoritative read-back verification;
+- a Command action console with work-item selection, action status, and audit summaries;
+- direct controls to acknowledge, claim, snooze, and reopen work;
+- approval-gated manual resolution with a required reason;
+- current Jobs, Krewe, Fleet, Finance, and freshness observations without a second data authority;
 - responsive desktop, tablet, and phone layouts.
 
-The Operating Inbox is not a prerequisite. When the action kernel is disabled,
-OpsBot Control remains useful in read-only mode and labels the kernel as staged.
+This is a complete control loop for the bounded work-item domain, not yet a
+claim that every external operational system is controllable.
 
 ## Authority and safety
 
-The first release has no action controls, no agent credentials, and no
-autonomous execution. `0` pending approvals and `0` autonomous actions describe
-the implemented action surface, not an inferred external queue.
+Risk-class 0 and 1 human commands can execute when the actor has the required
+permission. Risk-class 2 and 3 commands, and agent-initiated writes, require
+human approval. The manual-resolution action is risk class 3 and must be
+approved by a different manager or admin.
 
 Money, payroll, customer communication, access, deletion, and broad operational
-changes remain approval-gated. Future execution must use registered action
-definitions with actor identity, typed input, permission policy, idempotency,
-outcome verification, recovery guidance, and sanitized audit events.
+changes remain approval-gated. No autonomous production agent or unrestricted
+write access exists. External writes must not be added as generic HTTP or SQL
+commands; each needs a typed registered adapter, outcome verifier, and recovery
+contract.
 
 Source authority stays visible. JunkWare, QBO, LinxUp, and other connected
 systems remain authoritative for their own facts; OpsBot must not invent or
 silently overwrite source state.
 
-## Next vertical slice
+## Remaining system coverage
 
-The next slice should add one recommendation detail with cited evidence and a
-draft action request. The recommended first action remains a bounded existing
-workflow, not a sensitive write. It should stop at approval until durable action
-runs and verification have been proven in preview.
+The next phases should move existing OpsCenter mutations behind this registry,
+then add bounded adapters for JunkWare scheduling, LinxUp fleet operations, QBO
+finance workflows, and Slack or customer communication. Each adapter must ship
+with its own permission, risk class, approval rule, idempotency strategy,
+verification source, audit payload, retry behavior, and recovery guidance.
+
+Only after those deterministic controls are proven should an AI planner be
+allowed to turn cited evidence into draft action requests. Autonomous execution
+remains locked until its scope, rate limits, rollback behavior, and production
+acceptance are separately approved.

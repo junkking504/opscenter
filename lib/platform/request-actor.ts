@@ -6,7 +6,7 @@ export async function authenticatedPlatformActor() {
   const cookieStore = await cookies();
   const session = await verifyAuthSessionCookie(cookieStore.get(AUTH_SESSION_COOKIE)?.value || "");
   if (!session) return null;
-  return ensureHumanOperator(session.email);
+  return ensureHumanOperator(session.email, session.role);
 }
 
 export function validOperatingDate(value: string | null): string {

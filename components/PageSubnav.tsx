@@ -20,6 +20,7 @@ export default function PageSubnav({
   sections: PageSubnavItem[];
 }) {
   const activeLink = useRef<HTMLAnchorElement>(null);
+  const mobileMenu = useRef<HTMLDetailsElement>(null);
   const activeSection = sections.find((section) => section.active) || sections[0];
 
   useEffect(() => {
@@ -46,7 +47,7 @@ export default function PageSubnav({
           </Link>
         ))}
       </nav>
-      <details className="ops-page-subnav-mobile">
+      <details className="ops-page-subnav-mobile" ref={mobileMenu}>
         <summary>
           <span>{titleCaseLabel(activeSection?.label || title)}</span>
           <small>All sections</small>
@@ -59,6 +60,9 @@ export default function PageSubnav({
               prefetch={false}
               className={`${section.active ? "active" : ""}${section.attention ? " needs-attention" : ""}`}
               aria-current={section.active ? "page" : undefined}
+              onClick={() => {
+                if (mobileMenu.current) mobileMenu.current.open = false;
+              }}
             >
               <span>{titleCaseLabel(section.label)}</span>
               {section.badge !== undefined ? <small>{section.badge}</small> : null}

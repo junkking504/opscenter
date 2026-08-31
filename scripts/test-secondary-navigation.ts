@@ -59,6 +59,7 @@ assert.match(pageSubnavSource, /import Link from ["']next\/link["']/, "Page subn
 assert.doesNotMatch(pageSubnavSource, /<a\s/, "Page subnavigation must not retain full-document anchors.");
 assert.match(subnavMarkup, /<details class="ops-page-subnav-mobile">/, "Mobile page navigation must expose a one-tap section chooser.");
 assert.match(subnavMarkup, /<summary><span>Maintenance Overview<\/span><small>All sections<\/small><\/summary>/, "The mobile chooser must identify the current section.");
+assert.match(pageSubnavSource, /mobileMenu\.current\.open = false/, "The mobile chooser must close after selecting a section.");
 assert.equal((subnavMarkup.match(/href="\/fleet\?section=/g) || []).length, 6, "Desktop and mobile navigation must both expose every section.");
 
 console.log("Secondary navigation discovery checks passed.");

@@ -1,0 +1,201 @@
+.console {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(104, 167, 255, 0.25);
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 5% 0%, rgba(104, 167, 255, 0.09), transparent 26rem),
+    #0d131c;
+  color: #eef2f7;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+}
+
+.disabled {
+  display: flex;
+  min-height: 112px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 20px;
+}
+
+.disabled > div > span,
+.head > div > span,
+.ledgerHead span,
+.commandPane label > span,
+.sensitiveCommand label > span {
+  color: #79adf3;
+  font-size: 0.65rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.disabled h3,
+.head h3 {
+  margin: 5px 0 0;
+  color: #fff;
+  font-size: 1.05rem;
+}
+
+.disabled p,
+.head p {
+  margin: 5px 0 0;
+  color: #8f9bad;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.disabled > strong {
+  padding: 6px 9px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+  color: #aeb7c4;
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+
+.head {
+  display: flex;
+  min-height: 76px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 16px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.head button,
+.commands button,
+.sensitiveCommand button,
+.approvals button {
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid rgba(104, 167, 255, 0.32);
+  border-radius: 9px;
+  background: rgba(104, 167, 255, 0.08);
+  color: #dceaff;
+  font: inherit;
+  font-size: 0.69rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.head button:disabled,
+.commands button:disabled,
+.sensitiveCommand button:disabled,
+.approvals button:disabled { cursor: wait; opacity: 0.5; }
+
+.error {
+  padding: 9px 15px;
+  border-bottom: 1px solid rgba(255, 100, 107, 0.22);
+  background: rgba(255, 100, 107, 0.08);
+  color: #ffb1b5;
+  font-size: 0.72rem;
+}
+
+.workspace {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1.15fr) minmax(360px, 0.85fr);
+}
+
+.commandPane {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 10px;
+  padding: 14px;
+  border-right: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.commandPane label,
+.sensitiveCommand label { display: grid; gap: 6px; }
+
+.commandPane select,
+.sensitiveCommand input {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 9px;
+  background: #111924;
+  color: #eef2f7;
+  color-scheme: dark;
+  font: inherit;
+  font-size: 0.74rem;
+}
+
+.target {
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.022);
+}
+
+.target > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.target > div span { padding: 3px 6px; border-radius: 999px; background: rgba(246, 195, 67, 0.1); color: #f6d777; font-size: 0.59rem; font-weight: 850; text-transform: uppercase; }
+.target > div span[data-severity="critical"] { background: rgba(255, 100, 107, 0.1); color: #ff9ba0; }
+.target strong { color: #fff; font-size: 0.82rem; }
+.target p { margin: 0; color: #9ba6b5; font-size: 0.7rem; line-height: 1.4; }
+.target small { color: #7f8a99; font-size: 0.65rem; line-height: 1.4; }
+
+.commands { display: flex; flex-wrap: wrap; gap: 7px; }
+.commands button:first-child { border-color: rgba(55, 214, 122, 0.34); background: rgba(55, 214, 122, 0.08); color: #9de9bb; }
+
+.sensitiveCommand {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.sensitiveCommand button { border-color: rgba(246, 195, 67, 0.34); background: rgba(246, 195, 67, 0.08); color: #f6d777; }
+.sensitiveCommand > small { grid-column: 1 / -1; color: #7f8a99; font-size: 0.63rem; line-height: 1.4; }
+
+.ledger { min-width: 0; }
+.ledgerHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(3, auto);
+  gap: 12px;
+  align-items: center;
+  padding: 11px 13px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(4, 7, 12, 0.3);
+}
+.ledgerHead > div { display: grid; gap: 2px; color: #8f9bad; font-size: 0.61rem; text-align: right; }
+.ledgerHead > div:first-child { text-align: left; }
+.ledgerHead strong, .ledgerHead b { color: #eef2f7; font-size: 0.74rem; }
+.runs { display: grid; max-height: 410px; overflow-y: auto; }
+.runs article { display: grid; gap: 5px; padding: 10px 13px; border-bottom: 1px solid rgba(148, 163, 184, 0.1); }
+.runs article:last-child { border-bottom: 0; }
+.runs article > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.runs article strong { color: #eef2f7; font-size: 0.73rem; }
+.runs article span { color: #9bc5ff; font-size: 0.62rem; font-weight: 800; }
+.runs article[data-status="succeeded"] span { color: #7ce9aa; }
+.runs article[data-status="failed"] span, .runs article[data-status="denied"] span { color: #ff9ba0; }
+.runs article[data-status="awaiting_approval"] span { color: #f6d777; }
+.runs article > small { color: #7f8a99; font-size: 0.64rem; line-height: 1.35; }
+.approvals { display: flex; gap: 6px; margin-top: 2px; }
+.approvals button:last-child { border-color: rgba(255, 100, 107, 0.28); background: rgba(255, 100, 107, 0.06); color: #ff9ba0; }
+.empty { padding: 18px; color: #7f8a99; font-size: 0.7rem; text-align: center; }
+
+@media (max-width: 1050px) {
+  .workspace { grid-template-columns: 1fr; }
+  .commandPane { border-right: 0; border-bottom: 1px solid rgba(148, 163, 184, 0.14); }
+}
+
+@media (max-width: 560px) {
+  .disabled, .head { align-items: flex-start; flex-direction: column; }
+  .disabled { gap: 12px; padding: 15px; }
+  .head button { width: 100%; }
+  .sensitiveCommand { grid-template-columns: 1fr; }
+  .sensitiveCommand > small { grid-column: 1; }
+  .sensitiveCommand button { width: 100%; }
+  .ledgerHead { grid-template-columns: repeat(3, 1fr); }
+  .ledgerHead > div:first-child { grid-column: 1 / -1; }
+}

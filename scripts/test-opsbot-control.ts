@@ -24,14 +24,14 @@ for (const copy of [
   "No autonomous production agent or unrestricted write access.",
   "Source authority preserved",
   "Signal to verified outcome",
-  "Action execution is not live",
+  "Registered commands and audit ledger",
 ]) {
   assert.ok(component.includes(copy), `OpsBot Control is missing its safety contract: ${copy}`);
 }
 for (const source of ["JunkWare", "LinxUp", "JunkWare + QBO"]) {
   assert.ok(component.includes(source), `OpsBot Control must identify ${source} as a source lane.`);
 }
-assert.doesNotMatch(component, /<button|fetch\(/, "OpsBot Control v1 must remain a read-only control surface.");
+assert.match(component, /<OpsBotActionConsole date=\{date\} enabled=\{kernelReady\}/, "OpsBot Control must mount the kernel-gated action console.");
 
 const theme = read("components/OpsBotControl.module.css");
 for (const contract of [

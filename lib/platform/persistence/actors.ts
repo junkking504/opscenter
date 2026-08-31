@@ -19,7 +19,7 @@ async function rolesForActor(client: PoolClient, actorId: string): Promise<Platf
   return result.rows.map((row) => ({ role: row.role, resourceScope: row.resource_scope }));
 }
 
-export async function ensureHumanOperator(email: string): Promise<PlatformActor> {
+export async function ensureHumanOperator(email: string, interactiveRole: "admin" | "manager" | "operator" = "operator"): Promise<PlatformActor> {
   const identity = String(email || "").trim().toLowerCase();
   if (!identity) throw new Error("An authenticated identity is required.");
 
@@ -37,11 +37,20 @@ export async function ensureHumanOperator(email: string): Promise<PlatformActor>
     const actor = result.rows[0];
     await client.query(
       `
+        DELETE FROM opscenter_kernel.actor_roles
+        WHERE actor_id = $1
+          AND role IN ('admin', 'manager', 'operator')
+          AND role <> $2
+      `,
+      [actor.id, interactiveRole],
+    );
+    await client.query(
+      `
         INSERT INTO opscenter_kernel.actor_roles (actor_id, role, resource_scope)
-        VALUES ($1, 'operator', '*')
+        VALUES ($1, $2, '*')
         ON CONFLICT DO NOTHING
       `,
-      [actor.id],
+      [actor.id, interactiveRole],
     );
     return {
       id: actor.id,
@@ -51,6 +60,27 @@ export async function ensureHumanOperator(email: string): Promise<PlatformActor>
       roles: await rolesForActor(client, actor.id),
     };
   });
+}
+
+export async function getPlatformActor(id: string): Promise<PlatformActor | null> {
+  const client = await getKernelPool().connect();
+  try {
+    const result = await client.query<ActorRow>(
+      "SELECT id, kind, external_identity, display_name FROM opscenter_kernel.actors WHERE id = $1 AND status = 'active'",
+      [id],
+    );
+    const actor = result.rows[0];
+    if (!actor) return null;
+    return {
+      id: actor.id,
+      kind: actor.kind,
+      externalIdentity: actor.external_identity,
+      displayName: actor.display_name,
+      roles: await rolesForActor(client, actor.id),
+    };
+  } finally {
+    client.release();
+  }
 }
 
 export async function actorDisplayNames(actorIds: string[]): Promise<Map<string, string>> {

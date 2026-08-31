@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { NextResponse } from "next/server";
-import { isLinxupPosition, linxupBearerToken, validLinxupPushToken } from "@/lib/linxup-push";
+import { linxupBearerToken, normalizeLinxupV3Position, validLinxupPushToken } from "@/lib/linxup-push";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,7 +22,9 @@ export async function POST(request: Request) {
   const raw = await request.text();
   if (!raw || Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES) return noStore({ ok: false, error: "Invalid push payload." }, 400);
   const payload = await Promise.resolve().then(() => JSON.parse(raw) as unknown).catch(() => null);
-  if (!isLinxupPosition(payload)) return noStore({ ok: true, accepted: true, processed: false });
+  if (!normalizeLinxupV3Position(payload)) {
+    return noStore({ ok: false, accepted: false, processed: false, error: "Invalid LinxUp V3 position payload." }, 422);
+  }
 
   const temporary = path.join(os.tmpdir(), `opscenter-linxup-push-${crypto.randomUUID()}.json`);
   fs.writeFileSync(temporary, raw, { encoding: "utf8", mode: 0o600 });

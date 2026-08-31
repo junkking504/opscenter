@@ -4,6 +4,11 @@ import path from "path";
 import { withAppointmentVisitConfirmations } from "@/lib/appointment-visit-confirmations";
 import { AnyRecord, readMetrics } from "@/lib/opsData";
 import { buildFleetDailyRecord } from "@/lib/fleet-history";
+import {
+  LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS,
+  selectAuthoritativeLinxupPoint,
+  type LinxupDeliveryMode,
+} from "@/lib/linxup-authority";
 import { chicagoDateKey } from "@/lib/report-dates";
 
 export type FleetMapPoint = {
@@ -16,6 +21,7 @@ export type FleetMapPoint = {
   ignition: string | null;
   heading: string | null;
   sourceRecordId: string | null;
+  deliverySource: "v3_position_push" | "v2_poll";
   continuousUntil: string | null;
 };
 
@@ -41,6 +47,9 @@ export type FleetTruckMapRecord = {
   ignition: string;
   heading: string | null;
   lastGpsUpdate: string | null;
+  gpsDeliveryMode: LinxupDeliveryMode;
+  gpsFallbackActive: boolean;
+  latestV3PositionAt: string | null;
   freshnessLabel: string;
   operationalStatus: string;
   driver: string;
@@ -472,12 +481,21 @@ function buildTruckRecord({
       ignition: row.ignition_state ? String(row.ignition_state) : null,
       heading: row.heading ? String(row.heading) : null,
       sourceRecordId: row.source_record_id ? String(row.source_record_id) : null,
+      deliverySource: String(row.delivery_source || "").toLowerCase() === "v3_position_push"
+        || String(row.source_record_id || "").toLowerCase().startsWith("v3-position-")
+        ? "v3_position_push" as const
+        : "v2_poll" as const,
       continuousUntil: row.continuous_until ? String(row.continuous_until) : null,
     }))
     .filter((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude) && point.latitude !== 0 && point.longitude !== 0)
     .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
-  const lastPoint = truckPoints.length ? truckPoints[truckPoints.length - 1] : null;
+  const authority = selectAuthoritativeLinxupPoint(
+    truckPoints,
+    Date.now(),
+    Number(process.env.OPSCENTER_LINXUP_V3_MAX_AGE_SECONDS || LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS),
+  );
+  const lastPoint = authority.point;
   const gpsStops = (Array.isArray(locationPayload?.stops)
     ? locationPayload.stops
         .filter((row) => normalizeTruckLabel(row.driverName || row.firstName || row.personName) === truck)
@@ -575,6 +593,9 @@ function buildTruckRecord({
           : "Unavailable",
     heading: lastPoint?.heading ?? null,
     lastGpsUpdate: latestTimestamp,
+    gpsDeliveryMode: authority.mode,
+    gpsFallbackActive: authority.fallbackActive,
+    latestV3PositionAt: authority.latestV3PositionAt,
     freshnessLabel: freshnessStatus,
     operationalStatus,
     driver: selectedAppointmentSummary.driver || normalizePersonName(scoreRow?.assigned_driver || validation?.assigned_driver || ""),

@@ -183,7 +183,9 @@ npm run platform:migrate
 
 source_plist="$release/deploy/macmini/launchd/com.openclaw.opscenter.macmini-preview.plist"
 plutil -lint "$source_plist"
-/usr/bin/install -m 644 "$source_plist" "$INSTALLED_PREVIEW_PLIST"
+if [[ ! -f "$INSTALLED_PREVIEW_PLIST" ]] || ! cmp -s "$source_plist" "$INSTALLED_PREVIEW_PLIST"; then
+  /usr/bin/install -m 644 "$source_plist" "$INSTALLED_PREVIEW_PLIST"
+fi
 
 production_unchanged || fail "production link changed before preview activation"
 trap deployment_exit EXIT

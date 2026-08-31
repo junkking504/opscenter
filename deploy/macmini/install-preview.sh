@@ -84,7 +84,9 @@ cd "$APP_DIR"
 npm ci
 NEXT_DIST_DIR="tmp/macmini-preview-next" npm run build
 
-/usr/bin/install -m 644 "$SOURCE_PLIST" "$INSTALLED_PLIST"
+if [[ ! -f "$INSTALLED_PLIST" ]] || ! cmp -s "$SOURCE_PLIST" "$INSTALLED_PLIST"; then
+  /usr/bin/install -m 644 "$SOURCE_PLIST" "$INSTALLED_PLIST"
+fi
 launchctl bootout "gui/$(id -u)/$PREVIEW_LABEL" >/dev/null 2>&1 || true
 launchctl enable "gui/$(id -u)/$PREVIEW_LABEL"
 launchctl bootstrap "gui/$(id -u)" "$INSTALLED_PLIST"

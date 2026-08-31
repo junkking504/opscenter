@@ -102,7 +102,9 @@ if ! grep -Fxq "include_if_exists = 'opscenter-preview.conf'" "$DATA_DIR/postgre
 fi
 
 plutil -lint "$SOURCE_PLIST"
-/usr/bin/install -m 644 "$SOURCE_PLIST" "$INSTALLED_PLIST"
+if [[ ! -f "$INSTALLED_PLIST" ]] || ! cmp -s "$SOURCE_PLIST" "$INSTALLED_PLIST"; then
+  /usr/bin/install -m 644 "$SOURCE_PLIST" "$INSTALLED_PLIST"
+fi
 launchctl enable "gui/$(id -u)/$LABEL"
 if launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1; then
   launchctl kickstart -k "gui/$(id -u)/$LABEL"

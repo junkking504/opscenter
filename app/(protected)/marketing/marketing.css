@@ -119,6 +119,94 @@
   gap: 16px;
 }
 
+.ops-marketing-unassigned {
+  display: grid;
+  gap: 16px;
+  border-color: rgba(246, 195, 67, 0.34);
+}
+
+.ops-marketing-unassigned-count {
+  display: grid;
+  place-items: center;
+  min-width: 38px;
+  min-height: 38px;
+  border-radius: 999px;
+  background: rgba(246, 195, 67, 0.13);
+  color: #b77900;
+  font-size: 1rem;
+}
+
+.ops-marketing-unassigned-list {
+  display: grid;
+  gap: 12px;
+}
+
+.ops-marketing-unassigned-review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.72fr);
+  gap: 18px;
+  border-top: 1px solid var(--ops-border);
+  padding-top: 14px;
+}
+
+.ops-marketing-unassigned-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.ops-marketing-unassigned-copy header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ops-marketing-unassigned-copy header div {
+  display: grid;
+  gap: 3px;
+}
+
+.ops-marketing-unassigned-copy header small,
+.ops-marketing-unassigned-form label {
+  color: var(--ops-muted);
+  font-size: 0.75rem;
+}
+
+.ops-marketing-unassigned-copy header > span {
+  color: #c58b00;
+  letter-spacing: 0.05em;
+}
+
+.ops-marketing-unassigned-copy p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.ops-marketing-unassigned-form {
+  display: grid;
+  align-content: center;
+  gap: 7px;
+}
+
+.ops-marketing-unassigned-form > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.ops-marketing-unassigned-form input {
+  min-width: 0;
+  border: 1px solid var(--ops-border);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: var(--ops-panel);
+  color: var(--ops-text);
+}
+
+.ops-marketing-unassigned-error {
+  color: var(--ops-red);
+}
+
 .ops-marketing-review-credit-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -648,6 +736,10 @@
     align-items: stretch;
   }
 
+  .ops-marketing-unassigned-review {
+    grid-template-columns: 1fr;
+  }
+
   .ops-marketing-recovery-result-count {
     padding-bottom: 0;
   }
@@ -664,6 +756,10 @@
 
   .ops-marketing-note {
     grid-column: auto;
+  }
+
+  .ops-marketing-unassigned-form > div {
+    grid-template-columns: 1fr;
   }
 
   .ops-marketing-lead-heading {

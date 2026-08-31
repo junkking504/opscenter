@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPodiumConfig, PODIUM_STATE_COOKIE } from "@/lib/podium-config";
+import { getPodiumConfig, podiumUrl, PODIUM_STATE_COOKIE } from "@/lib/podium-config";
 import { exchangePodiumAuthorizationCode } from "@/lib/podium-oauth";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   if (!code) return jsonError(400, "Podium did not return an authorization code.");
   try {
     await exchangePodiumAuthorizationCode(code);
-    const response = NextResponse.redirect(new URL("/marketing?section=reviews&podium=connected", request.url));
+    const response = NextResponse.redirect(podiumUrl("/marketing?section=reviews&podium=connected"));
     response.cookies.set(PODIUM_STATE_COOKIE, "", {
       httpOnly: true,
       sameSite: "lax",

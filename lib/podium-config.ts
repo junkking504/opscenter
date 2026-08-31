@@ -2,7 +2,7 @@ import { PODIUM_TOKEN_STORE_DIR } from "@/lib/podium-token-store";
 
 export const PODIUM_PUBLIC_ORIGIN = "https://ops.junk-king.app";
 export const PODIUM_API_ORIGIN = "https://api.podium.com";
-export const PODIUM_API_VERSION = "2021.4.1";
+export const PODIUM_API_VERSION = "2021.04.01";
 export const PODIUM_SCOPES = ["read_reviews", "read_locations"] as const;
 export const PODIUM_STATE_COOKIE = "opscenter_podium_oauth_state";
 export const PODIUM_ROUTE_PATHS = {

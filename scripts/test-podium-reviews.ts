@@ -44,7 +44,7 @@ const originalFetch = globalThis.fetch;
 globalThis.fetch = async (input, init) => {
   const url = new URL(String(input));
   assert.equal(new Headers(init?.headers).get("Authorization"), `Bearer ${envelope.accessToken}`);
-  assert.equal(new Headers(init?.headers).get("podium-version"), "2021.4.1");
+  assert.equal(new Headers(init?.headers).get("podium-version"), "2021.04.01");
   if (url.pathname === "/v4/locations") {
     return Response.json({ data: [{ uid: "loc-1", displayName: "New Orleans", address: "123 Test St", archived: false }], metadata: {} });
   }
@@ -118,8 +118,11 @@ assert.equal(rolesModule.authorizeOpsRequest("admin", "/api/integrations/podium/
 
 const runner = fs.readFileSync(path.join(import.meta.dirname, "run-podium-reviews-refresh.sh"), "utf8");
 const plist = fs.readFileSync(path.join(import.meta.dirname, "../deploy/macmini/production-launchd/com.openclaw.opsbot.podium-reviews-collector.plist"), "utf8");
+const callbackRoute = fs.readFileSync(path.join(import.meta.dirname, "../app/api/integrations/podium/callback/route.ts"), "utf8");
 assert.match(runner, /load-opscenter-secrets\.sh/);
 assert.match(plist, /<integer>900<\/integer>/);
+assert.match(callbackRoute, /NextResponse\.redirect\(podiumUrl\("\/marketing\?section=reviews&podium=connected"\)\)/);
+assert.doesNotMatch(callbackRoute, /NextResponse\.redirect\(new URL\([^\n]+request\.url/);
 
 fs.rmSync(fixture, { recursive: true, force: true });
 console.log("Podium Google Reviews checks passed.");

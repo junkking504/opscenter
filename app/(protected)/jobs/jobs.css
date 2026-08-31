@@ -944,19 +944,28 @@
   }
 }
 .ops-jobs-page :is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette {
-  background: #a78bfa;
+  background: #00e13c;
 }
 
 .ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette.is-assigned-unfinished {
-  background: #986df8;
+  background: #00f044;
 }
 
 .ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette.is-unassigned {
-  background: rgba(167, 139, 250, .5);
+  background: rgba(0, 225, 60, .5);
 }
 
 .ops-jobs-page :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-lafayette.is-completed {
-  background: #ad9bd7;
+  background: #73d78d;
+}
+
+.ops-jobs-page :is(.ops-appointment-card-address, .ops-jobs-map-selection-address).is-lafayette {
+  color: #00e13c;
+  font-weight: 850;
+}
+
+.ops-jobs-page a.ops-appointment-card-address.is-lafayette:hover {
+  color: #5cff82;
 }
 
 .ops-jobs-page :is(.ops-jobs-map-legend i, .ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i, .ops-jobs-map-pin).is-westbank {

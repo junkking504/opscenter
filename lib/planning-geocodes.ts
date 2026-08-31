@@ -58,6 +58,10 @@ function canonicalStreetAddress(address: string): string {
 
 function serviceAreaLocation(candidate: Record<string, unknown> | undefined): PlanningLocation | null {
   if (candidate?.match_confidence !== "confirmed") return null;
+  // A unique geocoder result is not sufficient: Google and other providers
+  // can return a plausible nearby building. Only render a locator after the
+  // provider-returned house number and street name were matched to JunkWare.
+  if (candidate.house_street_verified !== true) return null;
   const latitude = Number(candidate.latitude);
   const longitude = Number(candidate.longitude);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;

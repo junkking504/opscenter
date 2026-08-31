@@ -13,6 +13,7 @@ const confirmed = {
     latitude: 29.9601984,
     longitude: -89.966716,
     match_confidence: "confirmed",
+    house_street_verified: true,
     normalized_address: chalmetteAddress,
   },
 };
@@ -37,11 +38,14 @@ assert.equal(planningLocation("4026 Juno Drive, Chalmette, LA 70043", {
   [cacheKey(chalmetteAddress)]: { latitude: 29.9601984, longitude: -89.966716, match_confidence: "ambiguous" },
 }), null, "Ambiguous geocodes must remain off the map.");
 assert.equal(planningLocation("4026 Juno Drive, Chalmette, LA 70043", {
-  [cacheKey(chalmetteAddress)]: { latitude: 0, longitude: 0, match_confidence: "confirmed" },
+  [cacheKey(chalmetteAddress)]: { latitude: 29.9601984, longitude: -89.966716, match_confidence: "confirmed" },
+}), null, "Legacy confirmed geocodes without house/street verification must remain off the map.");
+assert.equal(planningLocation("4026 Juno Drive, Chalmette, LA 70043", {
+  [cacheKey(chalmetteAddress)]: { latitude: 0, longitude: 0, match_confidence: "confirmed", house_street_verified: true },
 }), null, "Out-of-service-area coordinates must remain off the map.");
 assert.equal(planningLocation("4026 Juno Drive Chalmette, LA 70043", {
-  [cacheKey(chalmetteAddress)]: { latitude: 29.9601984, longitude: -89.966716, match_confidence: "confirmed", normalized_address: chalmetteAddress },
-  [cacheKey("4026 Juno Drive, Chalmette, 70043 #B")]: { latitude: 30.01, longitude: -90.01, match_confidence: "confirmed", normalized_address: chalmetteAddress },
+  [cacheKey(chalmetteAddress)]: { latitude: 29.9601984, longitude: -89.966716, match_confidence: "confirmed", house_street_verified: true, normalized_address: chalmetteAddress },
+  [cacheKey("4026 Juno Drive, Chalmette, 70043 #B")]: { latitude: 30.01, longitude: -90.01, match_confidence: "confirmed", house_street_verified: true, normalized_address: chalmetteAddress },
 }), null, "A non-unique canonical match must remain off the map.");
 assert.equal(planningLocation("—", confirmed), null);
 console.log("Planning geocode checks passed.");

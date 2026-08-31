@@ -5,6 +5,11 @@ const DENHAM_SPRINGS = /\bdenham\s+springs\b/i;
 // the city is omitted, while deliberately leaving Chalmette and New Orleans
 // East out of this override.
 const WESTBANK_LOCATION = /\b(?:algiers|avondale|barataria|belle\s+chasse|bridge\s+city|crown\s+point|estelle|gretna|harvey|jean\s+lafitte|lafitte|marrero|terrytown|timberlane|waggaman|westwego|woodmere)\b|\b(?:70037|70053|70056|70058|70072|70094|70114|70131)(?:-\d{4})?\b/i;
+const LAFAYETTE_SERVICE_CITY = /(?:^|[,\s])lafayette\s*,\s*(?:la\s+)?705\d{2}(?:-\d{4})?\b/i;
+
+export function isLafayetteServiceAddress(address: unknown): boolean {
+  return LAFAYETTE_SERVICE_CITY.test(String(address || ""));
+}
 
 /**
  * Apply location-specific territory rules that must override the territory

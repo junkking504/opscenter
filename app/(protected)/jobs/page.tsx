@@ -11,7 +11,7 @@ import JobCloseoutEditor from "@/components/JobCloseoutEditor";
 import JobAppointmentNote from "@/components/JobAppointmentNote";
 import { JobsMap, type JobsMapPoint } from "@/components/JobsMap";
 import { withAppointmentVisitConfirmations } from "@/lib/appointment-visit-confirmations";
-import { appointmentTerritoryForLocation } from "@/lib/appointment-territory";
+import { appointmentTerritoryForLocation, isLafayetteServiceAddress } from "@/lib/appointment-territory";
 import { AnyRecord, availableDates, completedJobs, money, readMetrics, resolveDate } from "@/lib/opsData";
 import { buildOperationalExceptions } from "@/lib/operational-exceptions";
 import { buildFleetMapPayload, type FleetTruckMapRecord } from "@/lib/fleet-map";
@@ -2253,6 +2253,10 @@ function territoryToneClass(territory: string): string {
   return "is-unknown-territory";
 }
 
+function appointmentToneClass(territory: string, address: string): string {
+  return isLafayetteServiceAddress(address) ? "is-lafayette" : territoryToneClass(territory);
+}
+
 function statusBadgeClass(bucket: JobStatusBucket): string {
   switch (bucket) {
     case "Open / Scheduled":
@@ -3997,7 +4001,7 @@ export default async function JobsPage({
                                   )}
                                   {job.address && job.address !== "—" ? (
                                     <a
-                                      className="ops-appointment-card-address"
+                                      className={`ops-appointment-card-address ${appointmentToneClass(territory, job.address)}`}
                                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
@@ -4270,7 +4274,7 @@ export default async function JobsPage({
                                 )}
                                 {job.address && job.address !== "—" ? (
                                   <a
-                                    className="ops-appointment-card-address"
+                                    className={`ops-appointment-card-address ${appointmentToneClass(territory, job.address)}`}
                                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"

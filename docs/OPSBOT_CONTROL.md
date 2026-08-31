@@ -60,6 +60,8 @@ The Dispatch control pack adds:
 - same-day hourly rescheduling through the existing JunkWare time-slot adapter, with
   current-time, truck, and local-version conflict protection;
 - risk-class 2 approval and authoritative JunkWare read-back for time changes;
+- cross-date moves with risk-class 3 approval, pre-write current-date/time checks,
+  destination-slot validation, and post-save JunkWare date/time read-back;
 - cancellation requests with a required reason, risk-class 3 approval, serialized
   JunkWare execution, and a verified cancellation receipt;
 - reuse of the existing serialized JunkWare adapter and assignment verification path;
@@ -67,9 +69,9 @@ The Dispatch control pack adds:
 - preview simulation receipts that prove policy and verification without writing route,
   call-ahead, cancellation, or JunkWare state.
 
-Cross-date moves are not registered yet. The current source-backed adapter can verify
-hourly time changes on the same operating date; adding a date-change action requires a
-separate JunkWare adapter that reads back both the new date and time.
+The cross-date adapter is intentionally separate from truck assignment. A move changes
+the scheduled date/time and verifies both fields in JunkWare; a truck-only change does
+not produce a reschedule action.
 
 Together these provide complete governed loops for work state and the first
 Dispatch commands. They do not claim that every external operational system is
@@ -80,7 +82,7 @@ controllable yet.
 Risk-class 0 and 1 human commands can execute when the actor has the required
 permission. Risk-class 2 and 3 commands, and agent-initiated writes, require
 human approval. Approval-gated actions must be approved by a different manager
-or administrator. Manual resolution and appointment cancellation are risk class 3;
+or administrator. Cross-date moves, manual resolution, and appointment cancellation are risk class 3;
 truck assignment and same-day rescheduling are risk class 2.
 
 Money, payroll, customer communication, access, deletion, and broad operational
@@ -96,9 +98,8 @@ silently overwrite source state.
 ## Remaining system coverage
 
 The next phases should move the remaining direct OpsCenter mutations behind
-this registry, then add verified cross-date moves, LinxUp fleet operations, QBO
-finance workflows, and Slack or customer communication. Each adapter must
-ship
+this registry, then add LinxUp fleet operations, QBO finance workflows, and
+Slack or customer communication. Each adapter must ship
 with its own permission, risk class, approval rule, idempotency strategy,
 verification source, audit payload, retry behavior, and recovery guidance.
 

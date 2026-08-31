@@ -76,6 +76,7 @@ function actionLabel(actionKey: string): string {
     "dispatch.call_ahead.v1": "Call ahead",
     "dispatch.reschedule_time.v1": "Time reschedule",
     "dispatch.cancel_appointment.v1": "Appointment cancellation",
+    "dispatch.move_date.v1": "Cross-date move",
   };
   return labels[actionKey] || actionKey;
 }
@@ -99,6 +100,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [selectedAppointmentId, setSelectedAppointmentId] = useState("");
   const [dispatchTruck, setDispatchTruck] = useState("");
   const [dispatchStartMinutes, setDispatchStartMinutes] = useState("");
+  const [dispatchDestinationDate, setDispatchDestinationDate] = useState(date);
   const [cancellationReason, setCancellationReason] = useState("");
   const [resolutionReason, setResolutionReason] = useState("");
   const [loading, setLoading] = useState(enabled);
@@ -151,8 +153,9 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   useEffect(() => {
     setDispatchTruck(selectedAppointment?.effectiveTruck || "");
     setDispatchStartMinutes(selectedAppointment?.appointmentStartMinutes == null ? "" : String(selectedAppointment.appointmentStartMinutes));
+    setDispatchDestinationDate(date);
     setCancellationReason("");
-  }, [selectedAppointment]);
+  }, [date, selectedAppointment]);
   const recentRuns = snapshot?.runs.slice(0, 8) || [];
 
   async function requestWorkAction(actionKey: string, extra: Record<string, unknown> = {}) {
@@ -332,6 +335,30 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
                     })}
                   >Request time approval</button>
                 </div>
+                <div className={styles.dateMoveActions}>
+                  <label>
+                    <span>Destination date</span>
+                    <input
+                      type="date"
+                      value={dispatchDestinationDate}
+                      onChange={(event) => setDispatchDestinationDate(event.target.value)}
+                      disabled={Boolean(busy)}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={Boolean(busy) || !dispatchDestinationDate || dispatchDestinationDate === date || !dispatchStartMinutes || selectedAppointment.appointmentStartMinutes == null}
+                    onClick={() => void requestDispatchAction("dispatch.move_date.v1", {
+                      destinationDate: dispatchDestinationDate,
+                      appointmentStartMinutes: Number(dispatchStartMinutes),
+                      expectedAppointmentStartMinutes: selectedAppointment.appointmentStartMinutes,
+                      expectedAppointmentTime: selectedAppointment.appointmentTime,
+                      expectedStatus: selectedAppointment.status,
+                      expectedRouteUpdatedAt: selectedAppointment.routeUpdatedAt,
+                    })}
+                  >Request date move approval</button>
+                  <small>The destination uses the requested time above. JunkWare must retain and read back both fields.</small>
+                </div>
                 <div className={styles.cancellationActions}>
                   <label>
                     <span>Cancellation reason</span>
@@ -359,7 +386,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
             ) : null}
             <p className={styles.dispatchBoundary}>
               {dispatch?.mode === "live_control"
-                ? "Truck and same-day time changes require approval; cancellation requires a recorded reason and separate approval. Every result is read back from JunkWare."
+                ? "Truck and time changes require approval; cross-date moves and cancellation are risk class 3. Every result is read back from JunkWare."
                 : "Simulation proves policy and verification without changing shared Dispatch, cancellation state, or JunkWare."}
             </p>
           </section>

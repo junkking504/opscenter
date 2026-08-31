@@ -3,15 +3,18 @@ import {
   executeDispatchAssignment,
   executeDispatchCancellation,
   executeDispatchCallAhead,
+  executeDispatchDateMove,
   executeDispatchReschedule,
   normalizeDispatchTruck,
   verifyDispatchAssignment,
   verifyDispatchCancellation,
   verifyDispatchCallAhead,
+  verifyDispatchDateMove,
   verifyDispatchReschedule,
   type DispatchAssignmentInput,
   type DispatchCancellationInput,
   type DispatchCallAheadInput,
+  type DispatchDateMoveInput,
   type DispatchRescheduleInput,
 } from "@/lib/dispatch-control";
 
@@ -28,6 +31,12 @@ function identity(input: Record<string, unknown>) {
   if (!/^\d{1,12}$/.test(appointmentId) || jobKey !== `appt:${appointmentId}`) throw new Error("A valid dispatch appointment is required.");
   if (!Number.isFinite(Date.parse(sourceObservedAt))) throw new Error("A verified schedule observation is required.");
   return { date, appointmentId, jobKey, sourceObservedAt };
+}
+
+function validDateKey(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T12:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 export function validateDispatchAssignment(value: unknown): DispatchAssignmentInput {
@@ -93,6 +102,35 @@ export function validateDispatchCancellation(value: unknown): DispatchCancellati
     cancellationReason,
     expectedStatus,
     expectedAppointmentTime,
+    expectedRouteUpdatedAt: String(input.expectedRouteUpdatedAt || "").trim(),
+  };
+}
+
+export function validateDispatchDateMove(value: unknown): DispatchDateMoveInput {
+  const input = record(value);
+  const base = identity(input);
+  const destinationDate = String(input.destinationDate || "").trim();
+  if (!validDateKey(destinationDate)) throw new Error("Choose a valid destination date.");
+  if (destinationDate === base.date) throw new Error("Choose a different destination date for a cross-date move.");
+  const dayDifference = Math.abs((Date.parse(`${destinationDate}T12:00:00.000Z`) - Date.parse(`${base.date}T12:00:00.000Z`)) / 86_400_000);
+  if (dayDifference > 366) throw new Error("The destination date must be within one year of the current appointment.");
+  const appointmentStartMinutes = Number(input.appointmentStartMinutes);
+  const expectedAppointmentStartMinutes = Number(input.expectedAppointmentStartMinutes);
+  for (const minutes of [appointmentStartMinutes, expectedAppointmentStartMinutes]) {
+    if (!Number.isInteger(minutes) || minutes < 0 || minutes >= 24 * 60 || minutes % 60 !== 0) {
+      throw new Error("Choose a valid hourly appointment time.");
+    }
+  }
+  const expectedAppointmentTime = String(input.expectedAppointmentTime || "").trim();
+  const expectedStatus = String(input.expectedStatus || "").trim();
+  if (!expectedAppointmentTime || !expectedStatus) throw new Error("The current appointment state is required.");
+  return {
+    ...base,
+    destinationDate,
+    appointmentStartMinutes,
+    expectedAppointmentStartMinutes,
+    expectedAppointmentTime,
+    expectedStatus,
     expectedRouteUpdatedAt: String(input.expectedRouteUpdatedAt || "").trim(),
   };
 }
@@ -213,5 +251,34 @@ export const dispatchActionDefinitions: ActionDefinition<any>[] = [
     retryableErrors: (error) => !/VERSION_CONFLICT|required|completed|rejected|not present|identity mismatch/i.test(error instanceof Error ? error.message : String(error)),
     recoveryGuidance: "Refresh the verified appointment. If it is still active, review the reason and submit a new cancellation request.",
     emittedEventTypes: ["dispatch.cancellation_requested.v1", "dispatch.cancellation_verified.v1"],
+  },
+  {
+    key: "dispatch.move_date.v1",
+    version: 1,
+    title: "Move appointment to another date",
+    riskClass: 3,
+    supportedEntityTypes: ["job"],
+    requiredPermission: "operations.write",
+    validateInput: validateDispatchDateMove,
+    redactInput: (input) => ({ ...input }),
+    idempotencyKey: ({ entity, input }) => [
+      entity.id,
+      input.date,
+      input.destinationDate,
+      input.appointmentStartMinutes,
+      input.expectedAppointmentStartMinutes,
+      input.expectedRouteUpdatedAt || "initial",
+    ].join("|"),
+    execute: async (context) => {
+      const receipt = await executeDispatchDateMove(context.input);
+      return { outcome: "completed", verificationAvailable: true, metadata: { receipt } };
+    },
+    verify: async (context, result) => verifyDispatchDateMove(
+      result.metadata?.receipt as Awaited<ReturnType<typeof executeDispatchDateMove>>,
+      context.input,
+    ),
+    retryableErrors: (error) => !/VERSION_CONFLICT|required|valid|different destination|within one year|not available|not present|identity mismatch/i.test(error instanceof Error ? error.message : String(error)),
+    recoveryGuidance: "Refresh the verified appointment date and time, confirm the destination slot, then submit a new move request if it is still needed.",
+    emittedEventTypes: ["dispatch.date_move_requested.v1", "dispatch.date_move_verified.v1"],
   },
 ];

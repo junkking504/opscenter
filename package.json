@@ -65,6 +65,7 @@
     "verify:dispatch-map-marker-separation": "node --import tsx scripts/test-dispatch-map-marker-separation.ts",
     "verify:dispatch-map-manual-zoom": "node --import tsx scripts/test-dispatch-map-manual-zoom.ts",
     "verify:job-cancellations": "node --import tsx scripts/test-job-cancellations.ts",
+    "verify:job-reschedules": "node --import tsx scripts/test-job-reschedules.ts",
     "verify:planning-geocodes": "node --import tsx scripts/test-planning-geocodes.ts",
     "verify:dispatch-map-quality": "node --import tsx scripts/test-dispatch-map-quality.ts",
     "verify:command-schedule-summary": "node --import tsx scripts/test-command-schedule-summary.ts",

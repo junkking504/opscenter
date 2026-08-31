@@ -38,6 +38,7 @@ assert.deepEqual(definitions.map((definition) => definition.key), [
   "dispatch.call_ahead.v1",
   "dispatch.reschedule_time.v1",
   "dispatch.cancel_appointment.v1",
+  "dispatch.move_date.v1",
 ]);
 assert.equal(new Set(definitions.map((definition) => definition.key)).size, definitions.length);
 
@@ -110,6 +111,7 @@ for (const control of [
   "Request truck approval",
   "Request time approval",
   "Request cancellation approval",
+  "Request date move approval",
   "Mark called",
 ]) {
   assert.ok(consoleSource.includes(control), `OpsBot console is missing ${control}.`);
@@ -189,5 +191,44 @@ assert.throws(() => cancellation.validateInput({
   expectedAppointmentTime: "08:00 AM - 09:00 AM",
   sourceObservedAt: "2026-08-31T18:30:00.000Z",
 }), /at least 3 characters/);
+
+const dateMove = registeredActionDefinition("dispatch.move_date.v1");
+assert.ok(dateMove);
+assert.equal(dateMove.riskClass, 3);
+assert.equal(decideActionPolicy(dateMove, operator).decision.outcome, "approval_required");
+assert.deepEqual(dateMove.validateInput({
+  date: "2026-08-31",
+  appointmentId: "4056261",
+  jobKey: "appt:4056261",
+  destinationDate: "2026-09-01",
+  appointmentStartMinutes: 660,
+  expectedAppointmentStartMinutes: 600,
+  expectedAppointmentTime: "10:00 AM - 11:00 AM",
+  expectedStatus: "Confirmed",
+  expectedRouteUpdatedAt: "",
+  sourceObservedAt: "2026-08-31T18:30:00.000Z",
+}), {
+  date: "2026-08-31",
+  appointmentId: "4056261",
+  jobKey: "appt:4056261",
+  destinationDate: "2026-09-01",
+  appointmentStartMinutes: 660,
+  expectedAppointmentStartMinutes: 600,
+  expectedAppointmentTime: "10:00 AM - 11:00 AM",
+  expectedStatus: "Confirmed",
+  expectedRouteUpdatedAt: "",
+  sourceObservedAt: "2026-08-31T18:30:00.000Z",
+});
+assert.throws(() => dateMove.validateInput({
+  date: "2026-08-31",
+  appointmentId: "4056261",
+  jobKey: "appt:4056261",
+  destinationDate: "2026-08-31",
+  appointmentStartMinutes: 660,
+  expectedAppointmentStartMinutes: 600,
+  expectedAppointmentTime: "10:00 AM - 11:00 AM",
+  expectedStatus: "Confirmed",
+  sourceObservedAt: "2026-08-31T18:30:00.000Z",
+}), /different destination date/);
 
 console.log("OpsBot action registry, policy, idempotency, approvals, verification, persistence, and control UI contracts passed.");

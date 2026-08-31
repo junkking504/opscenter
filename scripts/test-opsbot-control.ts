@@ -51,7 +51,8 @@ assert.match(docs, /OpsCenter OS remains the operating layer/);
 assert.match(docs, /The Dispatch control pack adds/);
 assert.match(docs, /same-day hourly rescheduling/);
 assert.match(docs, /cancellation requests with a required reason/);
-assert.match(docs, /Cross-date moves are not registered yet/);
+assert.match(docs, /cross-date moves with risk-class 3 approval/);
+assert.match(docs, /pre-write current-date\/time checks/);
 assert.match(docs, /only `MISSION_CONTROL` may change shared Dispatch or JunkWare state/);
 assert.match(docs, /Money, payroll, customer communication, access, deletion, and broad operational\s+changes remain approval-gated/);
 

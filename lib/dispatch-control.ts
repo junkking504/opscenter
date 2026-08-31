@@ -2,10 +2,12 @@ import path from "node:path";
 import type { ActionVerification } from "@/lib/platform/contracts";
 import type { AnyRecord } from "@/lib/opsData";
 import { cancelJunkwareAppointment } from "@/lib/junkware-appointment-cancellation";
+import { rescheduleJunkwareAppointment } from "@/lib/junkware-appointment-reschedule";
 import { classifyJunkwareAssignmentFailure } from "@/lib/junkware-assignment-failure";
 import { readVerifiedJunkwareScheduleSnapshot } from "@/lib/junkware-fast-schedule";
 import { readJobCallAheadStatuses, saveJobCallAheadStatus, type JobCallAheadStatus } from "@/lib/job-call-ahead";
 import { readVerifiedJobCancellations, saveVerifiedJobCancellation } from "@/lib/job-cancellations";
+import { readVerifiedJobReschedules, saveVerifiedJobReschedule } from "@/lib/job-reschedules";
 import {
   readJobRouteAssignmentOverrides,
   saveJobRouteAssignment,
@@ -82,6 +84,19 @@ export type DispatchCancellationInput = {
   cancellationReason: string;
   expectedStatus: string;
   expectedAppointmentTime: string;
+  expectedRouteUpdatedAt: string;
+  sourceObservedAt: string;
+};
+
+export type DispatchDateMoveInput = {
+  date: string;
+  appointmentId: string;
+  jobKey: string;
+  destinationDate: string;
+  appointmentStartMinutes: number;
+  expectedAppointmentStartMinutes: number;
+  expectedAppointmentTime: string;
+  expectedStatus: string;
   expectedRouteUpdatedAt: string;
   sourceObservedAt: string;
 };
@@ -169,8 +184,13 @@ export function readDispatchControlSnapshot(date: string): DispatchControlSnapsh
 
   const routeOverrides = readJobRouteAssignmentOverrides(date);
   const callAhead = readJobCallAheadStatuses();
+  const locallyCanceled = new Set(readVerifiedJobCancellations(date).map((entry) => entry.appointmentId));
+  const movedFromDate = new Set(readVerifiedJobReschedules(date).map((entry) => entry.appointmentId));
   const appointments = snapshot.appointments
-    .filter((row) => !closedOrCancelled(row))
+    .filter((row) => {
+      const appointmentId = first(row, ["appt_id", "appointment_id", "appointmentId"]);
+      return !closedOrCancelled(row) && !locallyCanceled.has(appointmentId) && !movedFromDate.has(appointmentId);
+    })
     .map((row): DispatchControlAppointment | null => {
       const appointmentId = first(row, ["appt_id", "appointment_id", "appointmentId"]);
       if (!/^\d{1,12}$/.test(appointmentId)) return null;
@@ -535,5 +555,92 @@ export function verifyDispatchCancellation(receipt: DispatchExecutionReceipt, in
     verifiedAt: cancellation.junkwareVerifiedAt,
     summary: "Appointment cancellation verified in JunkWare.",
     evidence: { canceledAt: cancellation.canceledAt },
+  };
+}
+
+export async function executeDispatchDateMove(input: DispatchDateMoveInput): Promise<DispatchExecutionReceipt> {
+  const current = currentAppointment(input);
+  if (current.jobKey !== input.jobKey) throw new Error("Dispatch job identity mismatch.");
+  if (
+    current.appointmentStartMinutes !== input.expectedAppointmentStartMinutes
+    || current.appointmentTime !== input.expectedAppointmentTime
+    || current.status !== input.expectedStatus
+    || current.routeUpdatedAt !== input.expectedRouteUpdatedAt
+  ) {
+    throw new Error("VERSION_CONFLICT: The appointment changed after this date move was prepared.");
+  }
+  const destinationTime = formatAppointmentTime(input.appointmentStartMinutes, input.appointmentStartMinutes + 60);
+  const mode = dispatchControlMode();
+  if (mode === "preview_simulation") {
+    return {
+      mode,
+      appointmentId: input.appointmentId,
+      changed: input.destinationDate !== input.date || input.appointmentStartMinutes !== current.appointmentStartMinutes,
+      verified: true,
+      summary: "Preview simulation verified; no appointment date or time was changed in JunkWare.",
+      evidence: {
+        previousDate: input.date,
+        previousTime: current.appointmentTime,
+        destinationDate: input.destinationDate,
+        destinationTime,
+      },
+    };
+  }
+
+  const junkware = await withJunkwareAppointmentSyncLock(
+    input.appointmentId,
+    () => rescheduleJunkwareAppointment({
+      appointmentId: input.appointmentId,
+      date: input.destinationDate,
+      appointmentStartMinutes: input.appointmentStartMinutes,
+      expectedDate: input.date,
+      expectedAppointmentStartMinutes: input.expectedAppointmentStartMinutes,
+    }),
+  );
+  const reschedule = saveVerifiedJobReschedule({
+    appointmentId: input.appointmentId,
+    jobKey: input.jobKey,
+    sourceDate: input.date,
+    destinationDate: junkware.date,
+    previousAppointmentStartMinutes: junkware.previousAppointmentStartMinutes,
+    appointmentStartMinutes: junkware.appointmentStartMinutes,
+    movedAt: new Date().toISOString(),
+    junkwareVerifiedAt: junkware.verifiedAt,
+  });
+  return {
+    mode,
+    appointmentId: input.appointmentId,
+    changed: junkware.changed,
+    verified: true,
+    summary: `Appointment move verified in JunkWare for ${input.destinationDate} at ${formatClock(input.appointmentStartMinutes)}.`,
+    evidence: {
+      previousDate: junkware.previousDate,
+      previousAppointmentStartMinutes: junkware.previousAppointmentStartMinutes,
+      destinationDate: junkware.date,
+      appointmentStartMinutes: junkware.appointmentStartMinutes,
+      verifiedAt: reschedule.junkwareVerifiedAt,
+    },
+  };
+}
+
+export function verifyDispatchDateMove(receipt: DispatchExecutionReceipt, input: DispatchDateMoveInput): ActionVerification {
+  if (!receipt.verified) return { outcome: "pending", summary: "The JunkWare date move is still awaiting verification." };
+  if (
+    receipt.evidence.destinationDate !== input.destinationDate
+    || Number(receipt.evidence.appointmentStartMinutes ?? input.appointmentStartMinutes) !== input.appointmentStartMinutes
+  ) {
+    return { outcome: "mismatch", summary: "The verified JunkWare date move does not match the approved destination." };
+  }
+  if (receipt.mode === "live_control") {
+    const record = readVerifiedJobReschedules(input.date).find((entry) => entry.appointmentId === input.appointmentId);
+    if (!record || record.destinationDate !== input.destinationDate || record.appointmentStartMinutes !== input.appointmentStartMinutes) {
+      return { outcome: "mismatch", summary: "The verified appointment move receipt is missing or does not match the approved destination." };
+    }
+  }
+  return {
+    outcome: "verified",
+    verifiedAt: String(receipt.evidence.verifiedAt || new Date().toISOString()),
+    summary: receipt.summary,
+    evidence: receipt.evidence,
   };
 }

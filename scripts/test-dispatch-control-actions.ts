@@ -11,6 +11,7 @@ process.env.OPSBOT_DATA_DIR = temporary;
 process.env.JOB_ROUTE_ASSIGNMENTS_FILE = path.join(temporary, "state", "assignments.json");
 process.env.JOB_CALL_AHEAD_FILE = path.join(temporary, "state", "call-ahead.json");
 process.env.JOB_CANCELLATIONS_FILE = path.join(temporary, "state", "cancellations.json");
+process.env.JOB_RESCHEDULES_FILE = path.join(temporary, "state", "reschedules.json");
 
 const scheduleDirectory = path.join(temporary, "history", "junkware");
 fs.mkdirSync(scheduleDirectory, { recursive: true });
@@ -26,6 +27,7 @@ fs.writeFileSync(scheduleFile, JSON.stringify({
   ],
   appointments: [
     { appt_id: "4056261", job_id: "JK4069439", customer_name: "Preview Customer", appointment_time: "08:00 AM - 09:00 AM", appointment_type: "Job", job_status: "Confirmed", truck: "Truck# 4", normalized_territory: "New Orleans" },
+    { appt_id: "4056262", job_id: "JK4069440", customer_name: "Cancellation Customer", appointment_time: "12:00 PM - 01:00 PM", appointment_type: "Job", job_status: "Confirmed", truck: "Truck# 5", normalized_territory: "Northshore" },
     { appt_id: "4056486", job_id: "JK4069664", appointment_time: "09:00 AM - 10:00 AM", job_status: "Completed", truck: "Truck# 9" },
   ],
   cancelled: [],
@@ -35,19 +37,22 @@ const {
   executeDispatchAssignment,
   executeDispatchCancellation,
   executeDispatchCallAhead,
+  executeDispatchDateMove,
   executeDispatchReschedule,
   readDispatchControlSnapshot,
   verifyDispatchAssignment,
   verifyDispatchCancellation,
   verifyDispatchCallAhead,
+  verifyDispatchDateMove,
   verifyDispatchReschedule,
 } = await import("@/lib/dispatch-control");
 
 try {
   const snapshot = readDispatchControlSnapshot(date);
   assert.equal(snapshot.mode, "preview_simulation");
-  assert.equal(snapshot.appointments.length, 1, "Completed appointments must not be controllable.");
+  assert.equal(snapshot.appointments.length, 2, "Completed appointments must not be controllable.");
   const appointment = snapshot.appointments[0];
+  const cancellationAppointment = snapshot.appointments[1];
   assert.equal(appointment.sourceTruck, "Truck 4");
   assert.equal(appointment.appointmentStartMinutes, 8 * 60);
 
@@ -96,18 +101,36 @@ try {
 
   const cancellationInput = {
     date,
-    appointmentId: appointment.appointmentId,
-    jobKey: appointment.jobKey,
+    appointmentId: cancellationAppointment.appointmentId,
+    jobKey: cancellationAppointment.jobKey,
     cancellationReason: "Customer requested cancellation",
-    expectedStatus: appointment.status,
-    expectedAppointmentTime: appointment.appointmentTime,
-    expectedRouteUpdatedAt: appointment.routeUpdatedAt,
-    sourceObservedAt: appointment.sourceObservedAt,
+    expectedStatus: cancellationAppointment.status,
+    expectedAppointmentTime: cancellationAppointment.appointmentTime,
+    expectedRouteUpdatedAt: cancellationAppointment.routeUpdatedAt,
+    sourceObservedAt: cancellationAppointment.sourceObservedAt,
   };
   const cancellation = await executeDispatchCancellation(cancellationInput);
   assert.equal(cancellation.mode, "preview_simulation");
   assert.equal(verifyDispatchCancellation(cancellation, cancellationInput).outcome, "verified");
   assert.equal(fs.existsSync(process.env.JOB_CANCELLATIONS_FILE), false, "Preview cancellation simulation must not write shared cancellation state.");
+
+  const dateMoveInput = {
+    date,
+    appointmentId: appointment.appointmentId,
+    jobKey: appointment.jobKey,
+    destinationDate: "2026-09-01",
+    appointmentStartMinutes: 11 * 60,
+    expectedAppointmentStartMinutes: appointment.appointmentStartMinutes!,
+    expectedAppointmentTime: appointment.appointmentTime,
+    expectedStatus: appointment.status,
+    expectedRouteUpdatedAt: appointment.routeUpdatedAt,
+    sourceObservedAt: appointment.sourceObservedAt,
+  };
+  const dateMove = await executeDispatchDateMove(dateMoveInput);
+  assert.equal(dateMove.mode, "preview_simulation");
+  assert.equal(verifyDispatchDateMove(dateMove, dateMoveInput).outcome, "verified");
+  assert.equal(fs.existsSync(process.env.JOB_ROUTE_ASSIGNMENTS_FILE), false, "Preview date move simulation must not write shared route state.");
+  assert.equal(fs.existsSync(process.env.JOB_RESCHEDULES_FILE), false, "Preview date move simulation must not write verified move state.");
 
   process.env.OPSCENTER_RUNTIME = "MISSION_CONTROL";
   process.env.JUNKWARE_ASSIGNMENT_STUB = "1";
@@ -141,23 +164,35 @@ try {
     "A stale reschedule request must not overwrite a newer verified time.",
   );
 
-  process.env.JUNKWARE_APPOINTMENT_CANCELLATION_STUB = "1";
   const afterReschedule = readDispatchControlSnapshot(date).appointments[0];
+  process.env.JUNKWARE_APPOINTMENT_RESCHEDULE_STUB = "1";
+  const liveDateMoveInput = {
+    ...dateMoveInput,
+    appointmentStartMinutes: 11 * 60,
+    expectedAppointmentStartMinutes: afterReschedule.appointmentStartMinutes!,
+    expectedAppointmentTime: afterReschedule.appointmentTime,
+    expectedStatus: afterReschedule.status,
+    expectedRouteUpdatedAt: afterReschedule.routeUpdatedAt,
+  };
+  const liveDateMove = await executeDispatchDateMove(liveDateMoveInput);
+  assert.equal(liveDateMove.mode, "live_control");
+  assert.equal(verifyDispatchDateMove(liveDateMove, liveDateMoveInput).outcome, "verified");
+  assert.equal(fs.existsSync(process.env.JOB_RESCHEDULES_FILE), true, "Mission Control date moves must persist a verified receipt.");
+
+  process.env.JUNKWARE_APPOINTMENT_CANCELLATION_STUB = "1";
   const liveCancellationInput = {
     ...cancellationInput,
-    expectedStatus: afterReschedule.status,
-    expectedAppointmentTime: afterReschedule.appointmentTime,
-    expectedRouteUpdatedAt: afterReschedule.routeUpdatedAt,
   };
   const liveCancellation = await executeDispatchCancellation(liveCancellationInput);
   assert.equal(liveCancellation.mode, "live_control");
   assert.equal(verifyDispatchCancellation(liveCancellation, liveCancellationInput).outcome, "verified");
   assert.equal(fs.existsSync(process.env.JOB_CANCELLATIONS_FILE), true, "Mission Control cancellation must persist a verified receipt.");
+  assert.equal(readDispatchControlSnapshot(date).appointments.length, 0, "Verified moves and cancellations must leave the stale source-date roster immediately.");
 } finally {
   fs.rmSync(temporary, { recursive: true, force: true });
 }
 
-console.log("Dispatch roster, assignment, call-ahead, reschedule, cancellation, preview isolation, and verification contracts passed.");
+console.log("Dispatch roster, assignment, call-ahead, reschedule, cross-date move, cancellation, preview isolation, and verification contracts passed.");
 }
 
 main().catch((error) => {

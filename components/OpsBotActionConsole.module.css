@@ -192,6 +192,7 @@
 .callAheadActions { display: flex; grid-column: 1 / -1; gap: 7px; }
 .callAheadActions button { flex: 1; }
 .rescheduleActions,
+.dateMoveActions,
 .cancellationActions {
   display: grid;
   grid-column: 1 / -1;
@@ -202,6 +203,8 @@
   border-top: 1px solid rgba(148, 163, 184, 0.12);
 }
 .rescheduleActions button { border-color: rgba(246, 195, 67, 0.32); background: rgba(246, 195, 67, 0.08); color: #f6d777; }
+.dateMoveActions button { border-color: rgba(193, 140, 255, 0.34); background: rgba(193, 140, 255, 0.08); color: #d9b8ff; }
+.dateMoveActions > small { grid-column: 1 / -1; color: #8c7a9f; font-size: 0.6rem; line-height: 1.4; }
 .cancellationActions button { border-color: rgba(255, 100, 107, 0.32); background: rgba(255, 100, 107, 0.07); color: #ff9ba0; }
 .cancellationActions > small { grid-column: 1 / -1; color: #8f6f72; font-size: 0.6rem; line-height: 1.4; }
 .dispatchBoundary { margin: 0; color: #778494; font-size: 0.62rem; line-height: 1.4; }
@@ -276,8 +279,8 @@
   .head button { width: 100%; }
   .sensitiveCommand { grid-template-columns: 1fr; }
   .dispatchActions { grid-template-columns: 1fr; }
-  .rescheduleActions, .cancellationActions { grid-template-columns: 1fr; }
-  .rescheduleActions button, .cancellationActions button { width: 100%; }
+  .rescheduleActions, .dateMoveActions, .cancellationActions { grid-template-columns: 1fr; }
+  .rescheduleActions button, .dateMoveActions button, .cancellationActions button { width: 100%; }
   .dispatchActions > button { width: 100%; }
   .sensitiveCommand > small { grid-column: 1; }
   .sensitiveCommand button { width: 100%; }

@@ -34,6 +34,8 @@ expect(runner.includes('cd "$OPSCENTER_DIR"'), "LinxUp collector must run the pu
 expect(plist.includes("<integer>60</integer>"), "LinxUp collector must run every minute");
 expect(plist.includes("run-linxup-live-refresh.sh"), "LaunchAgent must use the dedicated LinxUp refresh");
 expect(installer.includes("opsbot-linxup-api-token-v2"), "Installer must verify the LinxUp Keychain item");
+expect(installer.includes("for attempt in {1..5}"), "Installer must retry transient launchd bootstrap failures");
+expect(installer.includes('sleep 2'), "Installer must allow launchd to release the prior process between retries");
 expect(pushLibrary.includes("LINXUP_PUSH_BEARER_TOKEN"), "LinxUp push must require its independent bearer token");
 expect(pushRunner.includes("collect_linxup_location_history.py") === false, "LinxUp push must not poll the V2 collector");
 expect(pushRunner.includes("match_linxup_appointment_visits.py"), "LinxUp push must recompute the affected appointment visit directly");

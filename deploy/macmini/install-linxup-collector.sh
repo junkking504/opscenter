@@ -28,7 +28,17 @@ plutil -lint "$SOURCE_PLIST" >/dev/null
 cp "$SOURCE_PLIST" "$INSTALLED_PLIST"
 chmod 600 "$INSTALLED_PLIST"
 launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || true
-launchctl bootstrap "gui/$(id -u)" "$INSTALLED_PLIST"
+for attempt in {1..5}; do
+  if launchctl bootstrap "gui/$(id -u)" "$INSTALLED_PLIST"; then
+    break
+  fi
+  [ "$attempt" -lt 5 ] || {
+    echo "LinxUp collector could not be bootstrapped after five attempts." >&2
+    exit 1
+  }
+  # launchd can briefly retain the prior process after bootout.
+  sleep 2
+done
 launchctl enable "gui/$(id -u)/$LABEL"
 launchctl kickstart -k "gui/$(id -u)/$LABEL"
 launchctl print "gui/$(id -u)/$LABEL" >/dev/null

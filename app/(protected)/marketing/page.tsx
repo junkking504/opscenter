@@ -728,10 +728,10 @@ export default async function MarketingPage({
               <div className="ops-kpi-sub">Recent Google feed · {reviews.recentLowRatings} at 3 stars or lower</div>
             </section>
             <section className="ops-card ops-kpi-card">
-              <div className="ops-card-title">New Reviews</div>
-              <div className="ops-kpi-value">{reviews.new7Days}</div>
+              <div className="ops-card-title">New Reviews Today</div>
+              <div className="ops-kpi-value">{reviews.newToday}</div>
               <div className="ops-kpi-sub">
-                {reviews.newToday} today · {reviews.new30Days} in the last 30 days
+                {reviews.new7Days} in the last 7 days · {reviews.new30Days} in the last 30 days
               </div>
             </section>
           </div>

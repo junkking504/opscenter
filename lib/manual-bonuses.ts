@@ -41,6 +41,11 @@ export type ManualBonusUpsertInput = {
   note?: string;
 };
 
+export type ManualBonusExpectedState = {
+  storeUpdatedAt: string;
+  entryUpdatedAt?: string;
+};
+
 const STORE_FILE = "manual_bonus_entries.json";
 
 function storeDir(): string {
@@ -48,6 +53,8 @@ function storeDir(): string {
 }
 
 export function manualBonusStorePath(): string {
+  const configured = String(process.env.MANUAL_BONUSES_FILE || "").trim();
+  if (configured) return configured;
   return path.join(storeDir(), STORE_FILE);
 }
 
@@ -203,6 +210,21 @@ export function manualBonusEntriesForEmployee(date: string, employeeName: string
 }
 
 export function upsertManualBonusEntry(input: ManualBonusUpsertInput): ManualBonusEntry | null {
+  return upsertManualBonusEntryIfCurrent(input);
+}
+
+function nextTimestamp(...values: string[]): string {
+  const latest = values.reduce((maximum, value) => {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? Math.max(maximum, parsed) : maximum;
+  }, 0);
+  return new Date(Math.max(Date.now(), latest + 1)).toISOString();
+}
+
+export function upsertManualBonusEntryIfCurrent(
+  input: ManualBonusUpsertInput,
+  expected?: ManualBonusExpectedState,
+): ManualBonusEntry | null {
   const employeeName = String(input.employeeName || "").trim();
   const workDate = String(input.workDate || "").trim();
   const normalizedEmployeeName = normalizeEmployeeKey(employeeName);
@@ -212,9 +234,17 @@ export function upsertManualBonusEntry(input: ManualBonusUpsertInput): ManualBon
 
   if (!employeeName || !isValidDateKey(workDate) || !Number.isFinite(amount)) return null;
 
-  const now = new Date().toISOString();
   const store = readManualBonusStore();
+  if (expected && store.updatedAt !== expected.storeUpdatedAt) {
+    throw new Error("VERSION_CONFLICT: Manual bonus state changed after this request was prepared.");
+  }
   const rounded = roundMoney(Math.max(0, amount));
+  const existingIndex = entryId ? store.entries.findIndex((entry) => entry.entryId === entryId) : -1;
+  const existing = existingIndex >= 0 ? store.entries[existingIndex] : null;
+  if (expected && String(existing?.updatedAt || "") !== String(expected.entryUpdatedAt || "")) {
+    throw new Error("VERSION_CONFLICT: The manual bonus entry changed after this request was prepared.");
+  }
+  const now = nextTimestamp(store.updatedAt, existing?.updatedAt || "");
 
   if (rounded <= 0) {
     if (!entryId) return null;
@@ -228,9 +258,6 @@ export function upsertManualBonusEntry(input: ManualBonusUpsertInput): ManualBon
     });
     return null;
   }
-
-  const existingIndex = entryId ? store.entries.findIndex((entry) => entry.entryId === entryId) : -1;
-  const existing = existingIndex >= 0 ? store.entries[existingIndex] : null;
 
   const saved: ManualBonusEntry = {
     entryId: existing?.entryId || entryId || randomUUID(),

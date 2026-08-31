@@ -87,6 +87,32 @@ type FleetSnapshot = {
   warning?: string;
 };
 
+type FinanceSnapshot = {
+  date: string;
+  mode: "live_control" | "preview_simulation";
+  source: string;
+  sourceObservedAt: string;
+  employees: Array<{ name: string; normalizedName: string; correctionUpdatedAt: string }>;
+  paymentReconciliation: {
+    status: "balanced" | "needs_review" | "merchant_data_missing" | "merchant_data_stale" | "not_collected";
+    summary: {
+      junkware_count: number;
+      junkware_total: number;
+      merchant_center_count: number;
+      merchant_center_total: number;
+      exception_count: number;
+      net_difference: number;
+    };
+    exceptionCount: number;
+    merchantCenterAvailable: boolean;
+    merchantCenterFresh: boolean;
+    merchantSourceName: string;
+  };
+  manualBonuses: { count: number; totalAmount: number; storeUpdatedAt: string };
+  payrollCorrections: { count: number; storeUpdatedAt: string };
+  authorityNotice: string;
+};
+
 async function responseJson<T>(response: Response): Promise<T> {
   const payload = await response.json().catch(() => ({})) as T & { error?: string };
   if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
@@ -122,6 +148,8 @@ function actionLabel(actionKey: string): string {
     "dispatch.move_date.v1": "Cross-date move",
     "fleet.mark_out_of_service.v1": "Fleet out-of-service hold",
     "fleet.return_to_service.v1": "Fleet return to service",
+    "finance.record_manual_bonus.v1": "Finance manual bonus",
+    "finance.record_payroll_correction.v1": "Finance payroll correction",
   };
   return labels[actionKey] || actionKey;
 }
@@ -141,6 +169,18 @@ function fleetReadinessLabel(readiness: FleetControlTruck["readiness"]): string 
   return "No active hold";
 }
 
+function reconciliationLabel(status: FinanceSnapshot["paymentReconciliation"]["status"]): string {
+  if (status === "balanced") return "Balanced";
+  if (status === "needs_review") return "Needs review";
+  if (status === "merchant_data_missing") return "QBO data missing";
+  if (status === "merchant_data_stale") return "QBO data stale";
+  return "Not collected";
+}
+
+function moneyLabel(value: number): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value || 0);
+}
+
 const dispatchTimeOptions = Array.from({ length: 24 }, (_, hour) => hour * 60);
 
 export default function OpsBotActionConsole({ date, enabled }: { date: string; enabled: boolean }) {
@@ -148,15 +188,24 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [snapshot, setSnapshot] = useState<ActionSnapshot | null>(null);
   const [dispatch, setDispatch] = useState<DispatchSnapshot | null>(null);
   const [fleet, setFleet] = useState<FleetSnapshot | null>(null);
+  const [finance, setFinance] = useState<FinanceSnapshot | null>(null);
+  const [financeAccessDenied, setFinanceAccessDenied] = useState(false);
   const [selectedId, setSelectedId] = useState("");
   const [selectedAppointmentId, setSelectedAppointmentId] = useState("");
   const [selectedFleetTruckId, setSelectedFleetTruckId] = useState("");
+  const [selectedFinanceEmployeeName, setSelectedFinanceEmployeeName] = useState("");
   const [dispatchTruck, setDispatchTruck] = useState("");
   const [dispatchStartMinutes, setDispatchStartMinutes] = useState("");
   const [dispatchDestinationDate, setDispatchDestinationDate] = useState(date);
   const [cancellationReason, setCancellationReason] = useState("");
   const [fleetHoldReason, setFleetHoldReason] = useState("");
   const [fleetReturnResolution, setFleetReturnResolution] = useState("");
+  const [bonusAmount, setBonusAmount] = useState("");
+  const [bonusNote, setBonusNote] = useState("");
+  const [payrollClockIn, setPayrollClockIn] = useState("");
+  const [payrollClockOut, setPayrollClockOut] = useState("");
+  const [payrollHourlyRate, setPayrollHourlyRate] = useState("");
+  const [payrollNote, setPayrollNote] = useState("");
   const [resolutionReason, setResolutionReason] = useState("");
   const [loading, setLoading] = useState(enabled);
   const [busy, setBusy] = useState("");
@@ -167,7 +216,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     setLoading(true);
     setError("");
     try {
-      const [inboxPayload, actionPayload, dispatchPayload, fleetPayload] = await Promise.all([
+      const [inboxPayload, actionPayload, dispatchPayload, fleetPayload, financeResult] = await Promise.all([
         responseJson<InboxPayload>(await fetch("/api/inbox/reconcile", {
           method: "POST",
           cache: "no-store",
@@ -177,11 +226,17 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
         responseJson<ActionSnapshot>(await fetch("/api/platform/action-runs", { cache: "no-store" })),
         responseJson<DispatchSnapshot>(await fetch(`/api/platform/dispatch?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<FleetSnapshot>(await fetch(`/api/platform/fleet?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
+        fetch(`/api/platform/finance?date=${encodeURIComponent(date)}`, { cache: "no-store" }).then(async (response) => {
+          if (response.status === 403) return { payload: null, accessDenied: true };
+          return { payload: await responseJson<FinanceSnapshot>(response), accessDenied: false };
+        }),
       ]);
       setInbox(inboxPayload);
       setSnapshot(actionPayload);
       setDispatch(dispatchPayload);
       setFleet(fleetPayload);
+      setFinance(financeResult.payload);
+      setFinanceAccessDenied(financeResult.accessDenied);
       setSelectedId((current) => current && inboxPayload.items.some((item) => item.id === current)
         ? current
         : inboxPayload.items.find(activeItem)?.id || inboxPayload.items[0]?.id || "");
@@ -191,6 +246,9 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       setSelectedFleetTruckId((current) => current && fleetPayload.trucks.some((item) => item.truck === current)
         ? current
         : fleetPayload.trucks.find((item) => item.readiness === "out_of_service")?.truck || fleetPayload.trucks[0]?.truck || "");
+      setSelectedFinanceEmployeeName((current) => current && financeResult.payload?.employees.some((employee) => employee.name === current)
+        ? current
+        : financeResult.payload?.employees[0]?.name || "");
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load OpsBot control state.");
     } finally {
@@ -214,6 +272,10 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     () => fleet?.trucks.find((truck) => truck.truck === selectedFleetTruckId) || null,
     [fleet, selectedFleetTruckId],
   );
+  const selectedFinanceEmployee = useMemo(
+    () => finance?.employees.find((employee) => employee.name === selectedFinanceEmployeeName) || null,
+    [finance, selectedFinanceEmployeeName],
+  );
   useEffect(() => {
     setDispatchTruck(selectedAppointment?.effectiveTruck || "");
     setDispatchStartMinutes(selectedAppointment?.appointmentStartMinutes == null ? "" : String(selectedAppointment.appointmentStartMinutes));
@@ -224,6 +286,14 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     setFleetHoldReason("");
     setFleetReturnResolution("");
   }, [selectedFleetTruck]);
+  useEffect(() => {
+    setBonusAmount("");
+    setBonusNote("");
+    setPayrollClockIn("");
+    setPayrollClockOut("");
+    setPayrollHourlyRate("");
+    setPayrollNote("");
+  }, [date, selectedFinanceEmployeeName]);
   const recentRuns = snapshot?.runs.slice(0, 8) || [];
 
   async function requestWorkAction(actionKey: string, extra: Record<string, unknown> = {}) {
@@ -302,6 +372,34 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       await load();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "The Fleet action request failed.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function requestFinanceAction(actionKey: string, input: Record<string, unknown>) {
+    if (!selectedFinanceEmployee || !finance) return;
+    setBusy(actionKey);
+    setError("");
+    try {
+      await responseJson(await fetch("/api/platform/action-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actionKey,
+          entity: { type: "employee", id: selectedFinanceEmployee.name, label: selectedFinanceEmployee.name },
+          input: { employeeName: selectedFinanceEmployee.name, workDate: date, ...input },
+        }),
+      }));
+      setBonusAmount("");
+      setBonusNote("");
+      setPayrollClockIn("");
+      setPayrollClockOut("");
+      setPayrollHourlyRate("");
+      setPayrollNote("");
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The Finance action request failed.");
     } finally {
       setBusy("");
     }
@@ -579,6 +677,92 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
                 : "Simulation proves policy and verification without changing shared Fleet repair or availability state."}</p>
               <a href={`/fleet?date=${encodeURIComponent(date)}&view=maintenance&section=overview`}>Open Fleet repair queue</a>
             </div>
+          </section>
+
+          <section className={styles.financeControl} aria-labelledby="opsbot-finance-title">
+            <div className={styles.controlTitle}>
+              <div><span>Finance control pack</span><strong id="opsbot-finance-title">Daily close + payroll command</strong></div>
+              {finance ? <small data-mode={finance.mode}>{finance.mode === "live_control" ? "Mission Control" : "Preview simulation"}</small> : null}
+            </div>
+            {financeAccessDenied ? (
+              <div className={styles.financeAccess}>Finance evidence and money controls require a manager or administrator. Other OpsBot controls remain available.</div>
+            ) : finance ? (
+              <>
+                <div className={styles.financeSummary}>
+                  <div data-status={finance.paymentReconciliation.status}>
+                    <b>{reconciliationLabel(finance.paymentReconciliation.status)}</b><span>payments</span>
+                  </div>
+                  <div><b>{finance.paymentReconciliation.exceptionCount}</b><span>exceptions</span></div>
+                  <div><b>{moneyLabel(finance.paymentReconciliation.summary.net_difference)}</b><span>net difference</span></div>
+                  <div><b>{finance.payrollCorrections.count}</b><span>payroll corrections</span></div>
+                </div>
+                <div className={styles.financeEvidence}>
+                  <span>JunkWare {moneyLabel(finance.paymentReconciliation.summary.junkware_total)}</span>
+                  <span>QBO {moneyLabel(finance.paymentReconciliation.summary.merchant_center_total)}</span>
+                  <span>{finance.manualBonuses.count} bonuses · {moneyLabel(finance.manualBonuses.totalAmount)}</span>
+                </div>
+                <label>
+                  <span>Finance employee</span>
+                  <select value={selectedFinanceEmployeeName} onChange={(event) => setSelectedFinanceEmployeeName(event.target.value)} disabled={loading || Boolean(busy)}>
+                    {finance.employees.map((employee) => <option key={employee.normalizedName} value={employee.name}>{employee.name}</option>)}
+                  </select>
+                </label>
+                {selectedFinanceEmployee ? (
+                  <div className={styles.financeActions}>
+                    <article className={styles.financeAction}>
+                      <div><strong>Manual bonus</strong><small>Risk 3 · separate approver</small></div>
+                      <div className={styles.financeInputGrid}>
+                        <label>
+                          <span>Amount</span>
+                          <input type="number" min="0.01" max="10000" step="0.01" inputMode="decimal" value={bonusAmount} onChange={(event) => setBonusAmount(event.target.value)} placeholder="$0.00" disabled={Boolean(busy)} />
+                        </label>
+                        <label>
+                          <span>Verified reason</span>
+                          <input value={bonusNote} onChange={(event) => setBonusNote(event.target.value)} placeholder="State the earned bonus evidence" maxLength={1000} disabled={Boolean(busy)} />
+                        </label>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={Boolean(busy) || Number(bonusAmount) <= 0 || Number(bonusAmount) > 10_000 || bonusNote.trim().length < 5}
+                        onClick={() => void requestFinanceAction("finance.record_manual_bonus.v1", {
+                          amount: Number(bonusAmount),
+                          note: bonusNote,
+                          expectedBonusStoreUpdatedAt: finance.manualBonuses.storeUpdatedAt,
+                        })}
+                      >Request bonus approval</button>
+                    </article>
+                    <article className={styles.financeAction}>
+                      <div><strong>Payroll correction</strong><small>Risk 3 · separate approver</small></div>
+                      <div className={styles.payrollTimeGrid}>
+                        <label><span>Clock in</span><input value={payrollClockIn} onChange={(event) => setPayrollClockIn(event.target.value)} placeholder="08:00 AM" disabled={Boolean(busy)} /></label>
+                        <label><span>Clock out</span><input value={payrollClockOut} onChange={(event) => setPayrollClockOut(event.target.value)} placeholder="04:30 PM" disabled={Boolean(busy)} /></label>
+                        <label><span>Hourly rate</span><input type="number" min="0.01" max="500" step="0.01" inputMode="decimal" value={payrollHourlyRate} onChange={(event) => setPayrollHourlyRate(event.target.value)} placeholder="$0.00" disabled={Boolean(busy)} /></label>
+                      </div>
+                      <label><span>Verified correction reason</span><input value={payrollNote} onChange={(event) => setPayrollNote(event.target.value)} placeholder="State the timecard evidence" maxLength={1000} disabled={Boolean(busy)} /></label>
+                      <button
+                        type="button"
+                        disabled={Boolean(busy) || payrollClockIn.trim().length < 7 || Number(payrollHourlyRate) <= 0 || Number(payrollHourlyRate) > 500 || payrollNote.trim().length < 5}
+                        onClick={() => void requestFinanceAction("finance.record_payroll_correction.v1", {
+                          clockIn: payrollClockIn,
+                          clockOut: payrollClockOut,
+                          hourlyRate: Number(payrollHourlyRate),
+                          note: payrollNote,
+                          expectedPayrollStoreUpdatedAt: finance.payrollCorrections.storeUpdatedAt,
+                          expectedCorrectionUpdatedAt: selectedFinanceEmployee.correctionUpdatedAt,
+                        })}
+                      >Request payroll correction approval</button>
+                    </article>
+                  </div>
+                ) : <div className={styles.empty}>No employee from the authoritative payroll inputs is available for this date.</div>}
+                <div className={styles.financeBoundary}>
+                  <p>{finance.authorityNotice}</p>
+                  <div>
+                    <a href={`/finance?date=${encodeURIComponent(date)}&view=daily&section=payments`}>Open Payments &amp; Recon</a>
+                    <a href={`/crew?date=${encodeURIComponent(date)}&section=pay-period`}>Open pay period</a>
+                  </div>
+                </div>
+              </>
+            ) : <div className={styles.empty}>Loading authorized Finance evidence…</div>}
           </section>
 
           <div className={styles.controlTitle}>

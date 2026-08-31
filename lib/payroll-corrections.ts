@@ -43,6 +43,11 @@ export type PayrollCorrectionUpsertInput = {
   updatedBy?: string;
 };
 
+export type PayrollCorrectionExpectedState = {
+  storeUpdatedAt: string;
+  correctionUpdatedAt?: string;
+};
+
 const STORE_FILE = "payroll_corrections.json";
 
 function dataRoot(): string {
@@ -170,6 +175,7 @@ export function payrollCorrectionForEmployee(
 
 export function upsertPayrollCorrection(
   input: PayrollCorrectionUpsertInput,
+  expected?: PayrollCorrectionExpectedState,
 ): PayrollCorrection | null {
   const employeeName = String(input.employeeName || "").trim();
   const normalizedEmployeeName = normalizePayrollEmployeeKey(employeeName);
@@ -195,12 +201,22 @@ export function upsertPayrollCorrection(
     return null;
   }
 
-  const now = new Date().toISOString();
   const store = readPayrollCorrectionStore();
+  if (expected && store.updatedAt !== expected.storeUpdatedAt) {
+    throw new Error("VERSION_CONFLICT: Payroll correction state changed after this request was prepared.");
+  }
   const existingIndex = store.corrections.findIndex(
     (row) => row.workDate === workDate && row.normalizedEmployeeName === normalizedEmployeeName,
   );
   const existing = existingIndex >= 0 ? store.corrections[existingIndex] : null;
+  if (expected && String(existing?.updatedAt || "") !== String(expected.correctionUpdatedAt || "")) {
+    throw new Error("VERSION_CONFLICT: The payroll correction changed after this request was prepared.");
+  }
+  const latestTimestamp = Math.max(
+    Date.parse(store.updatedAt) || 0,
+    Date.parse(existing?.updatedAt || "") || 0,
+  );
+  const now = new Date(Math.max(Date.now(), latestTimestamp + 1)).toISOString();
   const saved: PayrollCorrection = {
     correctionId: existing?.correctionId || randomUUID(),
     employeeName,

@@ -41,6 +41,8 @@ assert.deepEqual(definitions.map((definition) => definition.key), [
   "dispatch.move_date.v1",
   "fleet.mark_out_of_service.v1",
   "fleet.return_to_service.v1",
+  "finance.record_manual_bonus.v1",
+  "finance.record_payroll_correction.v1",
 ]);
 assert.equal(new Set(definitions.map((definition) => definition.key)).size, definitions.length);
 
@@ -117,6 +119,9 @@ for (const control of [
   "Fleet control pack",
   "Request out-of-service approval",
   "Request return-to-service approval",
+  "Finance control pack",
+  "Request bonus approval",
+  "Request payroll correction approval",
   "Mark called",
 ]) {
   assert.ok(consoleSource.includes(control), `OpsBot console is missing ${control}.`);
@@ -279,5 +284,66 @@ assert.throws(() => fleetReturn.validateInput({
   expectedStoreUpdatedAt: "",
   expectedIssueUpdatedAt: "2026-08-31T20:04:00.000Z",
 }), /at least 5 characters/);
+
+const manualBonus = registeredActionDefinition("finance.record_manual_bonus.v1");
+assert.ok(manualBonus);
+assert.equal(manualBonus.riskClass, 3);
+assert.equal(decideActionPolicy(manualBonus, operator).decision.outcome, "deny");
+assert.equal(decideActionPolicy(manualBonus, manager).decision.outcome, "approval_required");
+assert.deepEqual(manualBonus.validateInput({
+  employeeName: " Morgan   Lee ",
+  workDate: "2026-08-31",
+  amount: 40.505,
+  note: " Approved safety leadership bonus ",
+  expectedBonusStoreUpdatedAt: "2026-08-31T20:10:00.000Z",
+}), {
+  employeeName: "Morgan Lee",
+  workDate: "2026-08-31",
+  amount: 40.51,
+  note: "Approved safety leadership bonus",
+  expectedBonusStoreUpdatedAt: "2026-08-31T20:10:00.000Z",
+});
+assert.throws(() => manualBonus.validateInput({
+  employeeName: "Morgan Lee",
+  workDate: "2026-08-31",
+  amount: 10_001,
+  note: "Over the bounded maximum",
+  expectedBonusStoreUpdatedAt: "",
+}), /no more than/);
+
+const payrollCorrection = registeredActionDefinition("finance.record_payroll_correction.v1");
+assert.ok(payrollCorrection);
+assert.equal(payrollCorrection.riskClass, 3);
+assert.equal(decideActionPolicy(payrollCorrection, operator).decision.outcome, "deny");
+assert.equal(decideActionPolicy(payrollCorrection, manager).decision.outcome, "approval_required");
+assert.deepEqual(payrollCorrection.validateInput({
+  employeeName: "Alex Rivera",
+  workDate: "2026-08-31",
+  clockIn: "7:45 am",
+  clockOut: "4:15 pm",
+  hourlyRate: 24.5,
+  note: " Manager verified timecard evidence ",
+  expectedPayrollStoreUpdatedAt: "2026-08-31T20:12:00.000Z",
+  expectedCorrectionUpdatedAt: "",
+}), {
+  employeeName: "Alex Rivera",
+  workDate: "2026-08-31",
+  clockIn: "07:45 AM",
+  clockOut: "04:15 PM",
+  hourlyRate: 24.5,
+  note: "Manager verified timecard evidence",
+  expectedPayrollStoreUpdatedAt: "2026-08-31T20:12:00.000Z",
+  expectedCorrectionUpdatedAt: "",
+});
+assert.throws(() => payrollCorrection.validateInput({
+  employeeName: "Alex Rivera",
+  workDate: "2026-08-31",
+  clockIn: "07:45",
+  clockOut: "",
+  hourlyRate: 24.5,
+  note: "Missing meridiem",
+  expectedPayrollStoreUpdatedAt: "",
+  expectedCorrectionUpdatedAt: "",
+}), /HH:MM AM\/PM/);
 
 console.log("OpsBot action registry, policy, idempotency, approvals, verification, persistence, and control UI contracts passed.");

@@ -71,6 +71,7 @@
     "verify:command-schedule-summary": "node --import tsx scripts/test-command-schedule-summary.ts",
     "verify:opsbot-control": "node --import tsx scripts/test-opsbot-control.ts",
     "verify:action-engine": "node --import tsx scripts/test-action-engine.ts",
+    "verify:finance-control": "node --import tsx scripts/test-finance-control.ts",
     "verify:dispatch-control": "node --import tsx scripts/test-dispatch-control-actions.ts",
     "verify:production-release-gate": "zsh scripts/test-production-release-gate.sh",
     "verify:collector-release-lifecycle": "node --import tsx scripts/test-deploy-collector-release-lifecycle.ts",

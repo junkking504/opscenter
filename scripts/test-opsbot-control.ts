@@ -57,6 +57,10 @@ assert.match(docs, /The Fleet control pack adds/);
 assert.match(docs, /risk-class 3 out-of-service requests/);
 assert.match(docs, /blocks return to service while any other out-of-service repair remains/);
 assert.match(docs, /LinxUp telemetry and checklist signals are advisory/);
+assert.match(docs, /The Finance control pack adds/);
+assert.match(docs, /manual bonuses and payroll corrections/);
+assert.match(docs, /Payment exceptions and QBO evidence remain read-only/);
+assert.match(docs, /only `MISSION_CONTROL` may change shared bonus or payroll-correction state/);
 assert.match(docs, /only `MISSION_CONTROL` may change shared Dispatch or JunkWare state/);
 assert.match(docs, /Money, payroll, customer communication, access, deletion, and broad operational\s+changes remain approval-gated/);
 

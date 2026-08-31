@@ -41,6 +41,7 @@ export type OpsAccessDecision = {
 const FINANCE_RESOURCE_PREFIXES = [
   "/api/manual-bonuses",
   "/api/payroll-corrections",
+  "/api/platform/finance",
   "/api/resale-items",
   "/api/integrations/qbo/status",
   "/api/integrations/qbo/disconnect",

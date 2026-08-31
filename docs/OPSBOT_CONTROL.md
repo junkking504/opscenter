@@ -1,6 +1,6 @@
 # OpsBot Control
 
-Status: Work, Dispatch, and Fleet control foundation; production kernel activation pending
+Status: Work, Dispatch, Fleet, and Finance control foundation; production kernel activation pending
 
 Route: Command `/?section=opsbot`
 
@@ -88,8 +88,25 @@ The Fleet control pack adds:
   change truck availability automatically;
 - preview simulation receipts that leave the shared Fleet repair store unchanged.
 
-Together these provide complete governed loops for work state and the first
-Dispatch commands. They do not claim that every external operational system is
+The Finance control pack adds:
+
+- an authorized Daily Close snapshot from Truck Records, JunkWare payments, QBO
+  reconciliation evidence, manual bonuses, and payroll corrections;
+- reconciliation status, exception count, source freshness, and difference shown inline
+  without creating a second accounting authority;
+- risk-class 3 manual bonuses and payroll corrections that require a different manager
+  or administrator to approve;
+- bounded amount and rate inputs, required evidence notes, and employee identity checks;
+- store and record observations that reject an approval when a newer Finance change exists;
+- authoritative read-back of the exact bonus or payroll correction after execution;
+- a strict runtime guard: only `MISSION_CONTROL` may change shared bonus or payroll-correction state;
+- preview simulation receipts that leave both shared Finance input stores unchanged.
+
+Payment exceptions and QBO evidence remain read-only and are never auto-cleared. This
+pack does not issue refunds, write QBO transactions, or mark a Daily Close complete.
+
+Together these provide complete governed loops for work state and bounded
+Dispatch, Fleet, and Finance commands. They do not claim that every external operational system is
 controllable yet.
 
 ## Authority and safety
@@ -99,7 +116,8 @@ permission. Risk-class 2 and 3 commands, and agent-initiated writes, require
 human approval. Approval-gated actions must be approved by a different manager
 or administrator. Cross-date moves, manual resolution, appointment cancellation, and
 Fleet availability changes are risk class 3;
-truck assignment and same-day rescheduling are risk class 2.
+manual bonuses and payroll corrections are risk class 3; truck assignment and
+same-day rescheduling are risk class 2.
 
 Money, payroll, customer communication, access, deletion, and broad operational
 changes remain approval-gated. No autonomous production agent or unrestricted
@@ -114,7 +132,7 @@ silently overwrite source state.
 ## Remaining system coverage
 
 The next phases should move the remaining direct OpsCenter mutations behind
-this registry, then add bounded LinxUp device-review operations, QBO finance workflows, and
+this registry, then add bounded LinxUp device-review operations, separately approved QBO write workflows, and
 Slack or customer communication. Each adapter must ship
 with its own permission, risk class, approval rule, idempotency strategy,
 verification source, audit payload, retry behavior, and recovery guidance.

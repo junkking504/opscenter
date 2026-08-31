@@ -71,6 +71,7 @@ async function main() {
   assert.equal(authorizeOpsRequest("operator", "/crew", "GET", new URLSearchParams("view=MONTHLY")).allowed, false);
   assert.equal(authorizeOpsRequest("operator", "/crew", "GET", new URLSearchParams("section=crew")).allowed, true);
   assert.equal(authorizeOpsRequest("operator", "/api/payroll-corrections", "GET").allowed, false);
+  assert.equal(authorizeOpsRequest("operator", "/api/platform/finance", "GET").allowed, false);
   assert.equal(authorizeOpsRequest("operator", "/api/job-cancellation", "POST").allowed, false);
   assert.equal(authorizeOpsRequest("operator", "/api/job-closeout", "POST").allowed, false);
   assert.equal(authorizeOpsRequest("operator", "/api/fleet-maintenance", "DELETE").allowed, false);
@@ -78,6 +79,7 @@ async function main() {
   assert.equal(authorizeOpsRequest("manager", "/api/job-cancellation", "POST").allowed, true);
   assert.equal(authorizeOpsRequest("admin", "/api/integrations/qbo/disconnect", "POST").allowed, true);
   assert.deepEqual(requiredOpsPermission("/api/manual-bonuses", "GET"), { permission: "finance.read", requiredRole: "manager" });
+  assert.deepEqual(requiredOpsPermission("/api/platform/finance", "GET"), { permission: "finance.read", requiredRole: "manager" });
 
   const cookieHeader = `opscenter_email_session=${operatorCookie}`;
   const financeResponse = await middleware(new NextRequest("http://127.0.0.1:3100/finance", { headers: { cookie: cookieHeader } }));

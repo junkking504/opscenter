@@ -70,6 +70,7 @@
 .commands button,
 .dispatchActions button,
 .fleetSensitiveAction button,
+.financeAction button,
 .sensitiveCommand button,
 .approvals button {
   min-height: 38px;
@@ -88,6 +89,7 @@
 .commands button:disabled,
 .dispatchActions button:disabled,
 .fleetSensitiveAction button:disabled,
+.financeAction button:disabled,
 .sensitiveCommand button:disabled,
 .approvals button:disabled { cursor: wait; opacity: 0.5; }
 
@@ -283,6 +285,78 @@
 .fleetBoundary a { flex: none; color: #b99bea; font-size: 0.62rem; font-weight: 800; text-decoration: none; }
 .fleetBoundary a:hover { text-decoration: underline; }
 
+.financeControl {
+  display: grid;
+  gap: 10px;
+  margin: -2px -2px 4px;
+  padding: 13px;
+  border: 1px solid rgba(246, 195, 67, 0.2);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(246, 195, 67, 0.05), rgba(55, 214, 122, 0.02));
+}
+
+.financeSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.financeSummary > div {
+  display: grid;
+  gap: 2px;
+  padding: 7px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(4, 7, 12, 0.2);
+}
+.financeSummary b { overflow: hidden; color: #fff; font-size: 0.72rem; text-overflow: ellipsis; }
+.financeSummary span { color: #8f9bad; font-size: 0.56rem; }
+.financeSummary > div[data-status="balanced"] b { color: #8ce8af; }
+.financeSummary > div[data-status="needs_review"] b,
+.financeSummary > div[data-status="merchant_data_stale"] b,
+.financeSummary > div[data-status="merchant_data_missing"] b { color: #f6d777; }
+
+.financeEvidence { display: flex; flex-wrap: wrap; gap: 6px; }
+.financeEvidence span {
+  padding: 4px 7px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 999px;
+  color: #a7b1c0;
+  font-size: 0.59rem;
+}
+
+.financeActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.financeAction {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 9px;
+  background: rgba(4, 7, 12, 0.22);
+}
+.financeAction > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 7px; }
+.financeAction strong { color: #fff; font-size: 0.72rem; }
+.financeAction small { color: #f6d777; font-size: 0.56rem; }
+.financeAction label { display: grid; gap: 5px; }
+.financeAction button { border-color: rgba(246, 195, 67, 0.32); background: rgba(246, 195, 67, 0.08); color: #f6d777; }
+.financeInputGrid { display: grid !important; grid-template-columns: minmax(80px, 0.35fr) minmax(0, 1fr); align-items: end !important; gap: 7px !important; }
+.payrollTimeGrid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end !important; gap: 7px !important; }
+
+.financeAccess {
+  padding: 10px;
+  border: 1px solid rgba(246, 195, 67, 0.2);
+  border-radius: 8px;
+  color: #d2b968;
+  font-size: 0.66rem;
+  line-height: 1.45;
+}
+.financeBoundary { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.financeBoundary p { margin: 0; color: #7f8a99; font-size: 0.61rem; line-height: 1.4; }
+.financeBoundary > div { display: flex; flex: none; gap: 9px; }
+.financeBoundary a { color: #e2c866; font-size: 0.61rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.financeBoundary a:hover { text-decoration: underline; }
+
 .target {
   display: grid;
   gap: 5px;
@@ -360,6 +434,11 @@
   .fleetSensitiveAction button { width: 100%; }
   .fleetSensitiveAction > small { grid-column: 1; }
   .fleetBoundary { align-items: flex-start; flex-direction: column; }
+  .financeSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .financeActions { grid-template-columns: 1fr; }
+  .financeInputGrid, .payrollTimeGrid { grid-template-columns: 1fr !important; }
+  .financeBoundary { align-items: flex-start; flex-direction: column; }
+  .financeBoundary > div { align-items: flex-start; flex-direction: column; gap: 6px; }
   .dispatchActions > button { width: 100%; }
   .sensitiveCommand > small { grid-column: 1; }
   .sensitiveCommand button { width: 100%; }

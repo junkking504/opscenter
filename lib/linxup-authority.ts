@@ -39,8 +39,8 @@ export function selectAuthoritativeLinxupPoint<T extends LinxupPointLike>(
   nowMs = Date.now(),
   maxV3AgeSeconds = LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS,
 ): LinxupAuthoritySelection<T> {
-  const latest = latestPoint(points);
   const latestV3 = latestPoint(points.filter(isLinxupV3Position));
+  const latestV2 = latestPoint(points.filter((point) => !isLinxupV3Position(point)));
   const latestV3Ms = latestV3 ? timestampMs(latestV3) : Number.NEGATIVE_INFINITY;
   const v3Fresh = Boolean(latestV3)
     && latestV3Ms <= nowMs
@@ -56,9 +56,9 @@ export function selectAuthoritativeLinxupPoint<T extends LinxupPointLike>(
   }
 
   return {
-    point: latest,
-    mode: latest ? "v2_poll_fallback" : "unavailable",
-    fallbackActive: Boolean(latest),
+    point: latestV2,
+    mode: latestV2 ? "v2_poll_fallback" : "unavailable",
+    fallbackActive: Boolean(latestV2),
     latestV3PositionAt: latestV3 ? String(latestV3.timestamp || "") || null : null,
   };
 }

@@ -54,6 +54,20 @@ for (const outcome of ["Jobs", "Estimates", "Unclosed"]) {
     `Command Today's jobs card is missing the ${outcome} outcome segment.`,
   );
 }
+assert.ok(
+  commandPageSource.includes("(totalPayroll / grossRevenue) * 100"),
+  "Command Labor percentage must use current payroll against current earned revenue.",
+);
+for (const currentLaborCopy of [
+  "Current percentage waiting for revenue",
+  "current revenue",
+  "% current labor against a",
+]) {
+  assert.ok(commandPageSource.includes(currentLaborCopy), `Command Labor card is missing ${currentLaborCopy}.`);
+}
+for (const projectedLaborCopy of ["projectedLaborCostPercent", "Projected percentage waiting for revenue", "projected labor against a"]) {
+  assert.ok(!commandPageSource.includes(projectedLaborCopy), `Command Labor card still uses ${projectedLaborCopy}.`);
+}
 
 const commandBriefSource = readFileSync(new URL("../components/CommandBrief.tsx", import.meta.url), "utf8");
 assert.ok(

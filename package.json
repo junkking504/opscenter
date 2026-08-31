@@ -73,7 +73,7 @@
     "verify:junkware-appointment-note": "node --import tsx scripts/test-junkware-appointment-note.ts",
     "verify:fleet-gps": "node --import tsx scripts/test-fleet-gps.ts",
     "verify:fleet-actions": "node --import tsx scripts/test-fleet-maintenance-actions.ts",
-    "verify:linxup-freshness": "node --import tsx scripts/test-linxup-live-freshness.ts && node --import tsx scripts/test-linxup-authority.ts",
+    "verify:linxup-freshness": "node --import tsx scripts/test-linxup-live-freshness.ts && node --import tsx scripts/test-linxup-authority.ts && node --import tsx scripts/test-linxup-push-v3.ts",
     "verify:linxup-camera:live": "node --import tsx scripts/test-linxup-camera-live.ts",
     "setup:linxup-camera": "node --import tsx scripts/setup-linxup-camera.ts",
     "alerts:slack": "node --import tsx scripts/publish-slack-alerts.ts"

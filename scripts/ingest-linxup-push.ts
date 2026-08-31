@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { normalizeLinxupV3Position } from "../lib/linxup-push";
 
 type RecordValue = Record<string, unknown>;
 type VehicleMapping = {
@@ -43,36 +44,39 @@ function writeJson(file: string, value: unknown): void {
   fs.renameSync(temporary, file);
 }
 
-function activeMapping(mappings: VehicleMapping[], name: string, date: string): VehicleMapping | undefined {
+function activeMapping(mappings: VehicleMapping[], name: string, trackerId: string, date: string): VehicleMapping | undefined {
   return mappings.find((mapping) => mapping.status === "active"
-    && mapping.linxup_vehicle_name.trim().toLowerCase() === name.trim().toLowerCase()
+    && (mapping.linxup_vehicle_name.trim().toLowerCase() === name.trim().toLowerCase()
+      || (Boolean(trackerId) && mapping.linxup_tracker_id.trim() === trackerId))
     && mapping.effective_start_date <= date
     && (!mapping.effective_end_date || mapping.effective_end_date >= date));
 }
 
-const payload = readJson(requiredArgument("--payload-file"));
-const positionDate = Number(payload.positionDate);
-const latitude = Number(payload.latitude);
-const longitude = Number(payload.longitude);
-if (!Number.isFinite(positionDate) || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+const providerPayload = readJson(requiredArgument("--payload-file"));
+const payload = normalizeLinxupV3Position(providerPayload);
+if (!payload) {
   throw new Error("Push payload does not contain a LinxUp position.");
 }
+const positionDate = payload.positionDate;
+const latitude = payload.latitude;
+const longitude = payload.longitude;
 const serviceDate = chicagoDate(positionDate);
 const dataRoot = String(process.env.OPSCENTER_DATA_DIR || "").trim() || path.join(process.cwd(), "data");
 const map = readJson(path.join(dataRoot, "config", "linxup_vehicle_map.json"));
 const tracker = payload.tracker && typeof payload.tracker === "object" ? payload.tracker as RecordValue : {};
 const trackerName = String(tracker.name || "").trim();
-const mapping = activeMapping(Array.isArray(map.mappings) ? map.mappings as VehicleMapping[] : [], trackerName, serviceDate);
+const trackerId = String(tracker.trackerId ?? tracker.id ?? "").trim();
+const mapping = activeMapping(Array.isArray(map.mappings) ? map.mappings as VehicleMapping[] : [], trackerName, trackerId, serviceDate);
 if (!mapping) {
-  console.log(JSON.stringify({ accepted: true, normalized: false, reason: "unmapped_tracker" }));
-  process.exit(0);
+  throw new Error(`No active LinxUp vehicle mapping for tracker ${trackerName || trackerId || "unknown"}.`);
 }
 
 const history = path.join(dataRoot, "history", "linxup");
-const rawFile = path.join(history, "push", serviceDate, `position-${String(payload.positionId || positionDate)}.json`);
+const sourcePositionId = `${trackerId || mapping.linxup_tracker_id}-${positionDate}`.replace(/[^A-Za-z0-9._-]+/g, "-");
+const rawFile = path.join(history, "push", serviceDate, `position-${sourcePositionId}.json`);
 const locationFile = path.join(history, `linxup_location_${serviceDate}.json`);
 const receivedAt = new Date().toISOString();
-writeJson(rawFile, { schema_version: 1, source: "LinxUp V3 Push API", received_at: receivedAt, payload });
+writeJson(rawFile, { schema_version: 1, source: "LinxUp V3 Push API", received_at: receivedAt, payload: providerPayload });
 const current = readJson(locationFile);
 const currentPoints = Array.isArray(current.points) ? current.points.filter((point): point is RecordValue => Boolean(point) && typeof point === "object") : [];
 const point = {
@@ -82,9 +86,9 @@ const point = {
   latitude,
   longitude,
   speed: Number(payload.speed) || 0,
-  ignition_state: String(payload.status || ""),
+  ignition_state: typeof payload.engineOn === "boolean" ? (payload.engineOn ? "ON" : "OFF") : String(payload.status || ""),
   heading: payload.heading || payload.direction || null,
-  source_record_id: `v3-position-${String(payload.positionId || positionDate)}`,
+  source_record_id: `v3-position-${sourcePositionId}`,
   delivery_source: "v3_position_push",
   received_at: receivedAt,
 };

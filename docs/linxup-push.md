@@ -33,8 +33,14 @@ is not complete until a real (non-synthetic) LinxUp event is stored below
 `delivery_source: v3_position_push`, and makes health report
 `linxupDeliveryMode: v3_position_push`.
 
+The official V3 Position contract names its epoch-millisecond timestamp field
+`date`. The receiver normalizes that field while retaining compatibility with
+the older `positionDate` spelling. Invalid, future-dated, or unmapped position
+payloads return a non-success response so LinxUp retains and retries them;
+OpsCenter must never acknowledge a position that it silently discards.
+
 The authoritative push path removes OpsCenter's polling delay. The timestamp remains the tracker’s
-reported `positionDate`, and confirmed job arrivals still require the existing
+reported `date`, and confirmed job arrivals still require the existing
 two-point, two-minute, 125-meter dwell evidence rule. A historical appointment
 visit, or a later isolated GPS point at the same address, must never be shown
 as a current on-site state; Schedule labels it only after fresh, continuous

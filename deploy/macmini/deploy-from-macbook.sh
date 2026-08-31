@@ -10,6 +10,7 @@ MC_SSH_KEY="${OPSCENTER_MC_SSH_KEY:-$HOME/.ssh/id_ed25519_opscenter}"
 REQUESTED_REF="HEAD"
 PRODUCTION_REMOTE_REF="refs/remotes/origin/production"
 REMOTE_CONTROLLER="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh"
+RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"
 
 fail() {
   echo "MacBook deployment stopped: $*" >&2
@@ -37,6 +38,8 @@ if [[ $# -ge 1 ]]; then
   shift
 fi
 [[ $# -eq 0 ]] || usage
+[[ "$RESTART_WHATSAPP_PHOTO_WORKER" == "true" || "$RESTART_WHATSAPP_PHOTO_WORKER" == "false" ]] \
+  || fail "OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER must be true or false"
 
 for command in git ssh; do
   command -v "$command" >/dev/null 2>&1 || fail "required command is missing: $command"
@@ -77,9 +80,10 @@ if $BOOTSTRAP; then
 fi
 
 echo "Deploying pushed commit $commit to Mission Control..."
-ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$commit" <<'REMOTE'
+ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$commit" "$RESTART_WHATSAPP_PHOTO_WORKER" <<'REMOTE'
 controller="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh"
 commit="$1"
+export OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER="$2"
 if [[ ! -x "$controller" ]]; then
   echo "Mission Control deployment stopped: installed production controller is missing: $controller" >&2
   exit 1

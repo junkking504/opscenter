@@ -18,6 +18,7 @@ import type { WhatsAppTextMessage } from "@/lib/whatsapp-job-photo-queue";
 
 const state = fs.mkdtempSync(path.join(os.tmpdir(), "opscenter-crew-expenses-"));
 process.env.WHATSAPP_CREW_EXPENSE_STATE_DIR = state;
+process.env.OPSCENTER_DATA_DIR = state;
 
 function message(
   messageId: string,

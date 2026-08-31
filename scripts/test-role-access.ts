@@ -63,6 +63,7 @@ async function main() {
 
   assert.equal(authorizeOpsRequest("operator", "/jobs", "GET").allowed, true);
   assert.equal(authorizeOpsRequest("operator", "/api/job-route-assignments", "POST").allowed, true);
+  assert.equal(authorizeOpsRequest("operator", "/api/truck-load-status", "POST").allowed, true);
   assert.equal(authorizeOpsRequest("operator", "/api/job-closeout", "GET").allowed, true);
   assert.equal(authorizeOpsRequest("operator", "/finance", "GET").allowed, false);
   assert.equal(authorizeOpsRequest("operator", "/crew", "GET", new URLSearchParams("section=pay-period")).allowed, false);

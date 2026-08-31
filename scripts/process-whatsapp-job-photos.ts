@@ -39,6 +39,12 @@ import {
   updateCrewExpenseTransaction,
 } from "@/lib/whatsapp-crew-expenses";
 import { sendCrewExpenseSlackNotification } from "@/lib/whatsapp-crew-expense-slack";
+import { analyzeTruckLoadPhoto } from "@/lib/truck-load-photo-analysis";
+import {
+  recordTruckLoadPhotoAnalysis,
+  recordTruckLoadPhotoFailure,
+  truckLoadPhotoRequest,
+} from "@/lib/whatsapp-truck-loads";
 
 function clean(value: unknown): string {
   return String(value || "").replace(/\s+/g, " ").trim();
@@ -222,8 +228,9 @@ function numberOption(name: string): number | undefined {
 async function processOne(incomingFile: string, map: Record<string, string>): Promise<"completed" | "review" | "retried" | "failed" | "skipped"> {
   const claim = claimWhatsAppImage(incomingFile);
   if (!claim) return "skipped";
-  let stage: "matching" | "downloading" | "uploading" = "matching";
+  let stage: "matching" | "downloading" | "analyzing" | "uploading" = "matching";
   let matchedJob: Record<string, unknown> | null = null;
+  let loadPhotoTruck = "";
   try {
     const receivedAt = new Date(claim.message.receivedAt);
     if (Number.isNaN(receivedAt.getTime())) throw new Error("The WhatsApp message timestamp is invalid.");
@@ -235,6 +242,23 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
       receivedAt,
       numberOption("WHATSAPP_CONTEXT_MAX_AGE_MINUTES") ?? 10,
     );
+    const loadPhoto = truckLoadPhotoRequest(claim.message, recentText);
+    if (loadPhoto) {
+      loadPhotoTruck = loadPhoto.truck;
+      stage = "downloading";
+      const filePath = await downloadWhatsAppImage(claim.message);
+      stage = "analyzing";
+      const analysis = await analyzeTruckLoadPhoto(filePath);
+      recordTruckLoadPhotoAnalysis(claim.message, loadPhoto.truck, analysis);
+      finishWhatsAppImage(claim.file, "completed", {
+        truckLoadPhoto: {
+          truck: loadPhoto.truck,
+          estimate: analysis,
+          confirmed: false,
+        },
+      });
+      return "completed";
+    }
     const match = matchWhatsAppPhoto({
       senderPhone: claim.message.senderPhone,
       caption: claim.message.caption,
@@ -324,7 +348,9 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
       });
       return "review";
     }
-    return requeueWhatsAppImage(claim.file, message) ? "retried" : "failed";
+    const requeued = requeueWhatsAppImage(claim.file, message);
+    if (!requeued && loadPhotoTruck) recordTruckLoadPhotoFailure(claim.message, loadPhotoTruck, error);
+    return requeued ? "retried" : "failed";
   }
 }
 

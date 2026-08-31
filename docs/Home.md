@@ -34,6 +34,7 @@ without mixing live runtime data or secrets into Git.
 - [Slack and OpsCenter](slack-opscenter.md)
 - [WhatsApp job photos](whatsapp-job-photos.md)
 - [LinxUp live GPS push](linxup-push.md)
+- [Truck load status](truck-load-status.md)
 - [Fleet Action Center](fleet-action-center.md)
 - [Operational readiness](operational-readiness.md)
 

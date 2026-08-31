@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 type Option = { value: string; label: string };
 type OtherCharge = { label: string; quantity: string; price: string; total: string };
@@ -36,7 +37,8 @@ function inputMoney(value: string): string {
   return String(value || "").replace(/[^0-9.-]/g, "");
 }
 
-export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initialStatus }: { appointmentId: string; appointmentUrl: string; initialStatus: string }) {
+export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initialStatus, serviceDate }: { appointmentId: string; appointmentUrl: string; initialStatus: string; serviceDate: string }) {
+  const router = useRouter();
   const resolvedAppointmentId = appointmentId || String(appointmentUrl || "").match(/[?&]id=(\d{1,12})(?:&|$)/i)?.[1] || "";
   const [live, setLive] = useState<LiveCloseout | null>(null);
   const [loading, setLoading] = useState(false);
@@ -156,6 +158,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           appointmentId: resolvedAppointmentId,
+          serviceDate,
           driverId: live.driver.value,
           navigatorIds,
           loadQuantity: live.loadQuantity,
@@ -186,7 +189,11 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
       setPaymentMethod("");
       setPaymentAmount("");
       setPendingOtherCharges([]);
-      setMessage("Saved and verified in JunkWare.");
+      const loadStatus = payload.truckLoadStatus;
+      setMessage(loadStatus?.updated && loadStatus?.status
+        ? `Saved and verified in JunkWare. ${loadStatus.status.truck} is now ${loadStatus.status.currentLoadLabel}.`
+        : `Saved and verified in JunkWare.${loadStatus?.reason ? ` Truck load status: ${loadStatus.reason}` : ""}`);
+      router.refresh();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Junkware did not save the closeout.");
     } finally {

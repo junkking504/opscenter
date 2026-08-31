@@ -7,6 +7,7 @@ import {
 } from "@/lib/whatsapp-job-photo-queue";
 import { enqueueCrewExpenseReceipt, ingestCrewExpenseText } from "@/lib/whatsapp-crew-expenses";
 import { ingestJobCloseoutText } from "@/lib/whatsapp-job-closeouts";
+import { ingestTruckLoadText } from "@/lib/whatsapp-truck-loads";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -57,18 +58,25 @@ export async function POST(request: Request) {
   }
 
   const closeoutResults = parsed.texts.map((text) => ingestJobCloseoutText(text));
-  const closeoutByMessage = new Map(parsed.texts.map((text, index) => [text.messageId, closeoutResults[index]]));
-  for (const message of parsed.messages.filter((entry) => entry.type === "text")) {
-    if (closeoutByMessage.get(message.messageId)?.status === "ignored") enqueueCrewExpenseReceipt(message);
-    else if (!closeoutByMessage.has(message.messageId)) enqueueCrewExpenseReceipt(message);
-  }
+  const truckLoadResults = parsed.texts.map((text, index) => closeoutResults[index].status === "ignored"
+    ? ingestTruckLoadText(text)
+    : { status: "ignored" as const });
 
   const expenseResults = parsed.texts.map((text, index) => {
     recordWhatsAppTextContext(text);
-    return closeoutResults[index].status === "ignored"
+    return closeoutResults[index].status === "ignored" && truckLoadResults[index].status === "ignored"
       ? ingestCrewExpenseText(text)
       : { status: "ignored" as const };
   });
+  const resultsByMessage = new Map(parsed.texts.map((text, index) => [text.messageId, {
+    closeout: closeoutResults[index].status,
+    truckLoad: truckLoadResults[index].status,
+    expense: expenseResults[index].status,
+  }]));
+  for (const message of parsed.messages.filter((entry) => entry.type === "text")) {
+    const result = resultsByMessage.get(message.messageId);
+    if (!result || Object.values(result).every((status) => status === "ignored")) enqueueCrewExpenseReceipt(message);
+  }
   for (const image of parsed.images) {
     if (!image.caption) continue;
     recordWhatsAppTextContext({
@@ -97,6 +105,13 @@ export async function POST(request: Request) {
       collecting: expenseResults.filter((result) => result.status === "collecting").length,
       queued: expenseResults.filter((result) => result.status === "queued").length,
       review: expenseResults.filter((result) => result.status === "review").length,
+    },
+    truckLoads: {
+      updated: truckLoadResults.filter((result) => result.status === "updated").length,
+      reset: truckLoadResults.filter((result) => result.status === "reset").length,
+      planned: truckLoadResults.filter((result) => result.status === "planned").length,
+      confirmed: truckLoadResults.filter((result) => result.status === "confirmed").length,
+      review: truckLoadResults.filter((result) => result.status === "review").length,
     },
     jobCloseouts: {
       prompted: closeoutResults.filter((result) => result.status === "prompted").length,

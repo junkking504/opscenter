@@ -4,6 +4,7 @@ import path from "node:path";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { normalizePhone } from "@/lib/whatsapp-job-photo-matching";
 import type { WhatsAppInboundMessage, WhatsAppTextMessage } from "@/lib/whatsapp-job-photo-queue";
+import { resetTruckLoad } from "@/lib/truck-load-status";
 
 export type CrewExpenseKind = "dump" | "fuel";
 
@@ -637,6 +638,16 @@ export function finishCrewExpenseTransaction(processingFile: string): CrewExpens
   const detail = transaction.record.kind === "dump"
     ? `${transaction.record.weight ? ` · ${transaction.record.weight}` : " · no weight"}`
     : ` · ${transaction.record.gallons} gal`;
+  if (transaction.record.kind === "dump") {
+    resetTruckLoad({
+      date: transaction.record.date,
+      truck: transaction.record.truck,
+      location: /\bmetal\b/i.test(transaction.record.location) ? "metal_yard" : "dump",
+      recordedBy: "Verified OpsBot dump expense",
+      occurredAt: transaction.record.reportedAt,
+      eventId: `expense:${transaction.record.messageId}`,
+    });
+  }
   enqueueReply({
     messageId: transaction.record.messageId,
     senderPhone: transaction.recipient,

@@ -5,6 +5,7 @@ import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
 import { withJunkwareAppointmentSyncLock } from "@/lib/job-route-assignments";
 import { junkwareJobCloseout } from "@/lib/junkware-job-closeout";
 import { publishVerifiedTruckCloseout } from "@/lib/slack-alerts";
+import { recordTruckLoadFromCloseout } from "@/lib/truck-load-status";
 
 async function authenticated() {
   const cookieStore = await cookies();
@@ -60,16 +61,42 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!(await authenticated())) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  const authSession = await authenticated();
+  if (!authSession) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   const parsed = await request.json().catch(() => null);
   const body = parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {};
   const id = appointmentId(request, body);
   if (!/^\d{1,12}$/.test(id)) return NextResponse.json({ error: "The appointment is unavailable." }, { status: 400 });
   try {
-    const { appointmentId: _ignored, ...payload } = body;
+    const { appointmentId: _ignored, serviceDate: _serviceDate, ...payload } = body;
     const result = await withJunkwareAppointmentSyncLock(id, () => junkwareJobCloseout(id, payload));
+    const closeout = result && typeof result === "object" && "closeout" in result && result.closeout && typeof result.closeout === "object"
+      ? result.closeout as Record<string, unknown>
+      : {};
+    const loadSize = closeout.loadSize && typeof closeout.loadSize === "object"
+      ? String((closeout.loadSize as Record<string, unknown>).label || "")
+      : String(closeout.loadSize || "");
+    let truckLoadStatus;
+    try {
+      truckLoadStatus = recordTruckLoadFromCloseout({
+        date: String(_serviceDate || ""),
+        truck: String(closeout.truck || ""),
+        appointmentId: id,
+        jobNumber: String(closeout.jobNumber || ""),
+        loadSize,
+        loadQuantity: closeout.loadQuantity,
+        verifiedAt: String((result as Record<string, unknown>).verifiedAt || ""),
+        recordedBy: authSession.email,
+      });
+    } catch (loadStatusError) {
+      truckLoadStatus = {
+        updated: false,
+        status: null,
+        reason: loadStatusError instanceof Error ? loadStatusError.message : "The truck load status could not be updated.",
+      };
+    }
     const slackNotification = await publishVerifiedCloseout(result as Record<string, unknown>, id);
-    return NextResponse.json({ ...result, slackNotification }, { headers: { "Cache-Control": "no-store, max-age=0" } });
+    return NextResponse.json({ ...result, truckLoadStatus, slackNotification }, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "JunkWare could not save the closeout." }, { status: 502 });
   }

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { chicagoDateKey } from "@/lib/chicago-date";
 import { getPodiumConfig } from "@/lib/podium-config";
+import { podiumReviewAssignmentMap } from "@/lib/podium-review-assignments";
 import type { PodiumReviewAppointmentAttribution } from "@/lib/podium-review-attribution";
 import { podiumTokenStoreStatus } from "@/lib/podium-token-store";
 
@@ -48,6 +49,12 @@ export type PodiumReviewCreditTally = {
   averageRating: number;
 };
 
+export type PodiumUnassignedReview = PodiumReviewSnapshotItem & {
+  isNew: boolean;
+  locationUid: string;
+  locationName: string;
+};
+
 export type PodiumGoogleReviewsView = {
   available: boolean;
   error?: string;
@@ -63,6 +70,7 @@ export type PodiumGoogleReviewsView = {
   recentLowRatings: number;
   attributed30Days: number;
   pendingAttribution30Days: number;
+  unassigned30Days: PodiumUnassignedReview[];
   employeeTallies30Days: PodiumReviewCreditTally[];
   teamTallies30Days: PodiumReviewCreditTally[];
 };
@@ -140,6 +148,7 @@ export function buildPodiumGoogleReviewsViewFromData(
       recentLowRatings: 0,
       attributed30Days: 0,
       pendingAttribution30Days: 0,
+      unassigned30Days: [],
       employeeTallies30Days: [],
       teamTallies30Days: [],
     };
@@ -162,6 +171,7 @@ export function buildPodiumGoogleReviewsViewFromData(
     .filter((candidate) => candidate.fetchedAt < snapshot.fetchedAt)
     .sort((left, right) => right.fetchedAt.localeCompare(left.fetchedAt))[0] || null;
   const previousLocations = new Map(previousSnapshot?.locations.map((location) => [location.uid, location]) || []);
+  const manualAssignments = podiumReviewAssignmentMap();
   const locations = snapshot.locations.map((location) => {
     const previous = previousLocations.get(location.uid);
     const previousReviewIds = new Set(previous?.reviews.map((review) => review.uid) || []);
@@ -171,7 +181,10 @@ export function buildPodiumGoogleReviewsViewFromData(
       newToday: location.reviews.filter((review) => createdToday(review.createdAt)).length,
       new7Days: location.reviews.filter((review) => withinDays(review.createdAt, 7)).length,
       new30Days: location.reviews.filter((review) => withinDays(review.createdAt, 30)).length,
-      reviews: [...location.reviews]
+      reviews: location.reviews.map((review) => {
+        const manual = manualAssignments.get(review.uid);
+        return manual ? { ...review, attribution: manual.attribution } : review;
+      })
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
         .map((review) => ({ ...review, isNew: Boolean(previous) && !previousReviewIds.has(review.uid) })),
     };
@@ -190,6 +203,19 @@ export function buildPodiumGoogleReviewsViewFromData(
   const recent = Array.from(recentByUid.values());
   const recent30Days = recent.filter((review) => withinDays(review.createdAt, 30));
   const matched30Days = recent30Days.filter((review) => review.attribution?.status === "matched");
+  const unassignedByUid = new Map<string, PodiumUnassignedReview>();
+  for (const location of locations) {
+    for (const review of location.reviews) {
+      if (!withinDays(review.createdAt, 30) || review.attribution?.status === "matched") continue;
+      unassignedByUid.set(review.uid, {
+        ...review,
+        locationUid: location.uid,
+        locationName: location.name,
+      });
+    }
+  }
+  const unassigned30Days = Array.from(unassignedByUid.values())
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   const tally = (entries: Array<{ name: string; rating: number }>): PodiumReviewCreditTally[] => {
     const values = new Map<string, { name: string; ratings: number[] }>();
     for (const entry of entries) {
@@ -226,6 +252,7 @@ export function buildPodiumGoogleReviewsViewFromData(
     recentLowRatings: recent.filter((review) => review.rating > 0 && review.rating <= 3).length,
     attributed30Days: matched30Days.length,
     pendingAttribution30Days: recent30Days.length - matched30Days.length,
+    unassigned30Days,
     employeeTallies30Days,
     teamTallies30Days,
   };

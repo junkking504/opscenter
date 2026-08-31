@@ -13,7 +13,7 @@ export type PodiumReviewInviteIdentity = {
 
 export type PodiumReviewAppointmentAttribution = {
   status: "matched" | "ambiguous" | "unmatched";
-  matchMethod?: "exact_phone" | "exact_email";
+  matchMethod?: "exact_phone" | "exact_email" | "manual_appointment";
   appointmentId?: string;
   jkNumber?: string;
   appointmentDate?: string;
@@ -27,6 +27,7 @@ type AppointmentCandidate = {
   date: string;
   appointmentId: string;
   jkNumber: string;
+  customerName: string;
   appointmentUrl: string;
   territory: string;
   truck: string;
@@ -123,6 +124,7 @@ function readAppointments(dataDir: string): AppointmentCandidate[] {
           date: match[1],
           appointmentId,
           jkNumber,
+          customerName: clean(row.customer_name || row.customer),
           appointmentUrl,
           territory: clean(row.normalized_territory || row.territory || row.market),
           truck: clean(row.assigned_truck || row.truck || row.truck_number),
@@ -150,7 +152,7 @@ function dateDaysBefore(value: string, days: number): string {
 
 function sanitizedMatch(
   candidate: AppointmentCandidate,
-  method: "exact_phone" | "exact_email",
+  method: "exact_phone" | "exact_email" | "manual_appointment",
 ): PodiumReviewAppointmentAttribution {
   return {
     status: "matched",
@@ -163,6 +165,63 @@ function sanitizedMatch(
     truck: candidate.truck,
     crew: candidate.crew,
   };
+}
+
+export type PodiumReviewAssignmentOption = {
+  reference: string;
+  appointmentId: string;
+  jkNumber: string;
+  appointmentDate: string;
+  territory: string;
+  truck: string;
+  crew: string[];
+  label: string;
+};
+
+function assignmentOption(candidate: AppointmentCandidate): PodiumReviewAssignmentOption {
+  const reference = candidate.appointmentId || candidate.jkNumber;
+  const details = [
+    candidate.date,
+    candidate.jkNumber,
+    candidate.customerName,
+    candidate.territory,
+    candidate.crew.join(" + "),
+  ].filter(Boolean);
+  return {
+    reference,
+    appointmentId: candidate.appointmentId,
+    jkNumber: candidate.jkNumber,
+    appointmentDate: candidate.date,
+    territory: candidate.territory,
+    truck: candidate.truck,
+    crew: candidate.crew,
+    label: details.join(" · "),
+  };
+}
+
+export function listPodiumReviewAssignmentOptions(
+  dataDir: string,
+  earliestDate = "",
+): PodiumReviewAssignmentOption[] {
+  return readAppointments(dataDir)
+    .filter((candidate) => candidate.crew.length > 0 && (!earliestDate || candidate.date >= earliestDate))
+    .sort((left, right) => right.date.localeCompare(left.date)
+      || left.jkNumber.localeCompare(right.jkNumber))
+    .map(assignmentOption);
+}
+
+export function findPodiumReviewAppointment(
+  dataDir: string,
+  referenceValue: string,
+): PodiumReviewAppointmentAttribution | null {
+  const reference = clean(referenceValue).toLowerCase();
+  if (!reference) return null;
+  const candidates = readAppointments(dataDir)
+    .filter((candidate) => candidate.crew.length > 0)
+    .filter((candidate) => candidate.appointmentId.toLowerCase() === reference
+      || candidate.jkNumber.toLowerCase() === reference)
+    .sort((left, right) => right.date.localeCompare(left.date));
+  return candidates.length ? sanitizedMatch(candidates[0], "manual_appointment") : null;
 }
 
 export function buildPodiumAppointmentMatcher(dataDir: string) {

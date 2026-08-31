@@ -217,7 +217,7 @@ export default async function MarketingPage({
               </Link>
             </div>
           </section>
-          <div className="ops-kpi-row ops-marketing-kpis ops-marketing-review-kpis">
+          <div className="ops-kpi-row ops-marketing-kpis">
             <Link
               className="ops-card ops-kpi-card ops-marketing-action-kpi"
               href="/marketing?section=lost-leads"
@@ -707,7 +707,7 @@ export default async function MarketingPage({
 
       {section === "reviews" && reviews.available ? (
         <>
-          <div className="ops-kpi-row ops-marketing-kpis">
+          <div className="ops-kpi-row ops-marketing-kpis ops-marketing-review-kpis">
             <section className="ops-card ops-kpi-card">
               <div className="ops-card-title">Google Reviews</div>
               <div className="ops-kpi-value">{reviews.totalReviewCount}</div>

@@ -40,6 +40,7 @@ for (const [relativePath, interpreter] of releaseBoundPlists) {
 for (const relativePath of [
   "deploy/macmini/install-junkware-schedule-detector.sh",
   "deploy/macmini/install-linxup-collector.sh",
+  "deploy/macmini/install-podium-reviews-collector.sh",
   "deploy/macmini/install-searchkings-collector.sh",
   "deploy/macmini/install-whatsapp-photo-worker.sh",
 ]) {
@@ -47,6 +48,19 @@ for (const relativePath of [
   assert.match(
     installer,
     /! cmp -s "\$SOURCE_PLIST" "\$INSTALLED_PLIST"/,
+    `${relativePath} must not rewrite an identical registered LaunchAgent`,
+  );
+}
+
+for (const relativePath of [
+  "deploy/macmini/deploy-preview-release.sh",
+  "deploy/macmini/install-postgres-preview.sh",
+  "deploy/macmini/install-preview.sh",
+]) {
+  const installer = fs.readFileSync(path.join(root, relativePath), "utf8");
+  assert.match(
+    installer,
+    /! cmp -s "\$(?:source_plist|SOURCE_PLIST)" "\$(?:INSTALLED_PREVIEW_PLIST|INSTALLED_PLIST)"/,
     `${relativePath} must not rewrite an identical registered LaunchAgent`,
   );
 }

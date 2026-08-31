@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const jobsMapSource = readFileSync(new URL("../components/JobsMap.tsx", import.meta.url), "utf8");
+const jobsPageSource = readFileSync(new URL("../app/(protected)/jobs/page.tsx", import.meta.url), "utf8");
 const jobsCss = readFileSync(new URL("../app/(protected)/jobs/jobs.css", import.meta.url), "utf8");
 const globalCss = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
 const territorySource = readFileSync(new URL("../lib/appointment-territory.ts", import.meta.url), "utf8");
@@ -95,6 +96,21 @@ assert.match(
   globalCss,
   /\.is-east-metro\.is-assigned-unfinished \{ background: #facc15; \}/,
   "Assigned New Orleans East and Chalmette appointments must display yellow on the board.",
+);
+assert.match(
+  jobsPageSource,
+  /className=\{`ops-appointment-card-address \$\{territoryToneClass\(territory\)\}`\}/,
+  "Appointment addresses must inherit their territory presentation class.",
+);
+assert.match(
+  jobsMapSource,
+  /ops-jobs-map-selection-address \$\{territoryTone\(selectedJob\)\.split\(" "\)\[0\]\}/,
+  "The selected map appointment address must inherit its territory presentation class.",
+);
+assert.match(
+  jobsCss,
+  /\.is-lafayette \{\s*background: #00e13c;[\s\S]*?\.is-lafayette\.is-assigned-unfinished \{\s*background: #00f044;[\s\S]*?\.ops-appointment-card-address, \.ops-jobs-map-selection-address\)\.is-lafayette \{\s*color: #00e13c;/,
+  "Lafayette addresses and truck-board blocks must share the bright-green territory presentation.",
 );
 
 console.log("Appointment block selection checks passed.");

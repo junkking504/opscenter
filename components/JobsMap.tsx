@@ -1502,7 +1502,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         ) : (
           <span className="ops-jobs-map-selection-phone is-unavailable">Phone unavailable</span>
         )}
-        <span className="ops-jobs-map-selection-address">{selectedJob.address}</span>
+        <span className={`ops-jobs-map-selection-address ${territoryTone(selectedJob).split(" ")[0]}`}>{selectedJob.address}</span>
         {selectedJob.statusBucket === "Canceled" ? (
           <div className="ops-jobs-map-selection-canceled" role="status">
             <b aria-hidden="true">×</b>

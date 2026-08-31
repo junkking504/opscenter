@@ -7356,9 +7356,9 @@ a.ops-jobs-map-selection-phone:focus-visible {
 }
 
 .ops-territory-header.is-lafayette {
-  --ops-territory-accent: #a78bfa;
-  --ops-territory-border: rgba(167, 139, 250, 0.36);
-  --ops-territory-wash: rgba(167, 139, 250, 0.16);
+  --ops-territory-accent: #00e13c;
+  --ops-territory-border: rgba(0, 225, 60, 0.42);
+  --ops-territory-wash: rgba(0, 225, 60, 0.16);
 }
 
 .ops-territory-header::before {

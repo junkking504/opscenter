@@ -3997,7 +3997,7 @@ export default async function JobsPage({
                                   )}
                                   {job.address && job.address !== "—" ? (
                                     <a
-                                      className="ops-appointment-card-address"
+                                      className={`ops-appointment-card-address ${territoryToneClass(territory)}`}
                                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`}
                                       target="_blank"
                                       rel="noopener noreferrer"
@@ -4270,7 +4270,7 @@ export default async function JobsPage({
                                 )}
                                 {job.address && job.address !== "—" ? (
                                   <a
-                                    className="ops-appointment-card-address"
+                                    className={`ops-appointment-card-address ${territoryToneClass(territory)}`}
                                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`}
                                     target="_blank"
                                     rel="noopener noreferrer"

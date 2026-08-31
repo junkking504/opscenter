@@ -22,8 +22,19 @@ process.env.WHATSAPP_TRUCK_PHONE_MAP = JSON.stringify({
   "5045550105": "Truck 1",
 });
 
-const date = "2026-08-13";
+function chicagoDateKey(value: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(value);
+  const fields = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${fields.year}-${fields.month}-${fields.day}`;
+}
+
 const receivedAt = new Date().toISOString();
+const date = chicagoDateKey(new Date(receivedAt));
 const confirmationAt = new Date(new Date(receivedAt).getTime() + 60_000).toISOString();
 const metricsDirectory = path.join(testRoot, "data", "history", "daily_metrics");
 fs.mkdirSync(metricsDirectory, { recursive: true });

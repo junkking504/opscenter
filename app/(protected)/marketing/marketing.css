@@ -82,6 +82,59 @@
   gap: 16px;
 }
 
+.ops-marketing-review-grid,
+.ops-marketing-review-list {
+  display: grid;
+  gap: 16px;
+}
+
+.ops-marketing-review-summary {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  text-align: right;
+}
+
+.ops-marketing-review-summary strong {
+  color: var(--ops-green);
+  font-size: 1.15rem;
+}
+
+.ops-marketing-review-summary span,
+.ops-marketing-review-card small {
+  color: var(--ops-muted);
+}
+
+.ops-marketing-review-card {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--ops-border);
+  padding-top: 14px;
+}
+
+.ops-marketing-review-card header,
+.ops-marketing-review-card footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ops-marketing-review-card header div {
+  display: grid;
+  gap: 3px;
+}
+
+.ops-marketing-review-card header > span {
+  color: #c58b00;
+  letter-spacing: 0.05em;
+}
+
+.ops-marketing-review-card p {
+  margin: 0;
+  line-height: 1.5;
+}
+
 .ops-table-scroll {
   width: 100%;
   overflow-x: auto;

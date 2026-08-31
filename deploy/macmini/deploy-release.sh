@@ -24,6 +24,7 @@ JUNKWARE_COLLECTOR_LABEL="com.openclaw.opsbot.junkware-collector"
 JUNKWARE_SCHEDULE_DETECTOR_LABEL="com.openclaw.opsbot.junkware-schedule-detector"
 JUNKWARE_HISTORY_RECONCILIATION_LABEL="com.openclaw.opsbot.junkware-history-reconciliation"
 SEARCHKINGS_COLLECTOR_LABEL="com.openclaw.opsbot.searchkings-collector"
+PODIUM_REVIEWS_COLLECTOR_LABEL="com.openclaw.opsbot.podium-reviews-collector"
 BROWSER_KEEPALIVE_LABEL="com.openclaw.opsbot.browser-keepalive"
 JUNKWARE_MARKET_WATCHER_LABEL_PREFIX="com.openclaw.opsbot.junkware-schedule-watcher-"
 REQUESTED_REF="${1:-}"
@@ -151,6 +152,7 @@ restart_release_bound_collectors() {
   restart_loaded_service "$JUNKWARE_COLLECTOR_LABEL" || return 1
   restart_loaded_service "$JUNKWARE_HISTORY_RECONCILIATION_LABEL" || return 1
   restart_loaded_service "$SEARCHKINGS_COLLECTOR_LABEL" || return 1
+  restart_loaded_service "$PODIUM_REVIEWS_COLLECTOR_LABEL" || return 1
 
   market_watchers=("${(@f)$(loaded_market_watcher_labels)}") || return 1
   for watcher_label in "${market_watchers[@]}"; do

@@ -12,6 +12,7 @@ for (const label of [
   "com.openclaw.opsbot.junkware-schedule-detector",
   "com.openclaw.opsbot.junkware-history-reconciliation",
   "com.openclaw.opsbot.searchkings-collector",
+  "com.openclaw.opsbot.podium-reviews-collector",
   "com.openclaw.opsbot.browser-keepalive",
 ]) {
   assert.match(deployer, new RegExp(`="${label}"`), `missing release-bound collector label: ${label}`);

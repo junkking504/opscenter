@@ -30,6 +30,7 @@ without mixing live runtime data or secrets into Git.
 - [Payment reconciliation](payment-reconciliation.md)
 - [QuickBooks/Intuit production setup](qbo-intuit-production-setup.md)
 - [SearchKings integration](searchkings-integration.md)
+- [Podium Google Reviews integration](podium-google-reviews.md)
 - [Slack and OpsCenter](slack-opscenter.md)
 - [WhatsApp job photos](whatsapp-job-photos.md)
 - [LinxUp live GPS push](linxup-push.md)

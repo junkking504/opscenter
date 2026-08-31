@@ -16,6 +16,10 @@ import {
   searchKingsSetupSummary,
 } from "@/lib/searchkings";
 import { searchKingsPhoneHref } from "@/lib/searchkings-phone";
+import {
+  buildPodiumGoogleReviewsView,
+  podiumReviewsSetupSummary,
+} from "@/lib/podium-reviews";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +64,18 @@ function statusLabel(value: string): string {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function reviewDate(value: string): string {
+  if (!value) return "Date unavailable";
+  return new Date(value).toLocaleString("en-US", {
+    timeZone: "America/Chicago",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function callsHref(
   date: string,
   range: SearchKingsCallRange,
@@ -93,7 +109,7 @@ export default async function MarketingPage({
 }) {
   const params = searchParams ? await searchParams : undefined;
   const requestedSection = String(params?.section || "overview").toLowerCase();
-  const section = ["overview", "territory", "calls", "lost-leads"].includes(
+  const section = ["overview", "territory", "calls", "lost-leads", "reviews"].includes(
     requestedSection,
   )
     ? requestedSection
@@ -116,22 +132,25 @@ export default async function MarketingPage({
     query: params?.q,
     page: params?.page,
   });
+  const reviews = buildPodiumGoogleReviewsView();
 
   return (
     <div className="ops-dashboard ops-marketing-page">
       <PageHeader
         title="Marketing"
         subtitle={
-          view.available
+          section === "reviews"
+            ? "Newest Google reviews from Podium"
+            : view.available
             ? `SearchKings performance · ${view.rangeLabel}`
             : "SearchKings performance and lead recovery"
         }
         date={date}
         showDateSelector={false}
         dateLabel="Month"
-        lastUpdated={view.snapshot?.fetchedAt}
-        status={searchKingsSetupSummary()}
-        controls={<OpsMonthSelector months={months} selectedMonthKey={selectedMonthKey} />}
+        lastUpdated={section === "reviews" ? reviews.snapshot?.fetchedAt : view.snapshot?.fetchedAt}
+        status={section === "reviews" ? podiumReviewsSetupSummary(reviews) : searchKingsSetupSummary()}
+        controls={section === "reviews" ? undefined : <OpsMonthSelector months={months} selectedMonthKey={selectedMonthKey} />}
         sections={[
           {
             label: "Overview",
@@ -156,10 +175,17 @@ export default async function MarketingPage({
             badge: view.lostLeads + view.needsFollowUp,
             attention: view.lostLeads + view.needsFollowUp > 0,
           },
+          {
+            label: "Reviews",
+            href: marketingHref("reviews"),
+            active: section === "reviews",
+            badge: reviews.recentNeedsResponse,
+            attention: reviews.recentNeedsResponse > 0,
+          },
         ]}
       />
 
-      {!view.available ? (
+      {!view.available && section !== "reviews" ? (
         <div className="ops-card ops-alert-card">
           <div className="ops-section-title">
             Waiting for the First SearchKings Refresh
@@ -659,6 +685,98 @@ export default async function MarketingPage({
           </div>
           <LostLeadTracker leads={view.leads} />
         </section>
+      ) : null}
+
+      {section === "reviews" && !reviews.available ? (
+        <section className="ops-card">
+          <div className="ops-card-header compact">
+            <div>
+              <div className="ops-section-title">Connect Podium Reviews</div>
+              <div className="ops-muted">
+                {params?.podium === "connected"
+                  ? "Podium authorization is saved. The first collector run will populate this page."
+                  : podiumReviewsSetupSummary(reviews)}
+              </div>
+            </div>
+            <a className="ops-button" href="/api/integrations/podium/connect">
+              Authorize Podium
+            </a>
+          </div>
+        </section>
+      ) : null}
+
+      {section === "reviews" && reviews.available ? (
+        <>
+          <div className="ops-kpi-row ops-marketing-kpis">
+            <section className="ops-card ops-kpi-card">
+              <div className="ops-card-title">Google Reviews</div>
+              <div className="ops-kpi-value">{reviews.totalReviewCount}</div>
+              <div className="ops-kpi-sub">Across {reviews.locations.length} Podium locations</div>
+            </section>
+            <section className="ops-card ops-kpi-card">
+              <div className="ops-card-title">Average Rating</div>
+              <div className="ops-kpi-value ops-kpi-good">
+                {reviews.weightedAverageRating?.toFixed(2) || "—"}
+              </div>
+              <div className="ops-kpi-sub">Weighted by each location&apos;s Google review count</div>
+            </section>
+            <section className="ops-card ops-kpi-card">
+              <div className="ops-card-title">Needs Response</div>
+              <div className={`ops-kpi-value ${reviews.recentNeedsResponse ? "ops-kpi-danger" : "ops-kpi-good"}`}>
+                {reviews.recentNeedsResponse}
+              </div>
+              <div className="ops-kpi-sub">Recent Google feed · {reviews.recentLowRatings} at 3 stars or lower</div>
+            </section>
+          </div>
+          <div className="ops-marketing-review-grid">
+            {reviews.locations.map((location) => (
+              <section className="ops-card" key={location.uid}>
+                <div className="ops-card-header compact">
+                  <div>
+                    <div className="ops-section-title">{location.name}</div>
+                    <div className="ops-muted">{location.address || "Address unavailable"}</div>
+                  </div>
+                  <div className="ops-marketing-review-summary">
+                    <strong>{location.averageRating?.toFixed(2) || "—"} ★</strong>
+                    <span>
+                      {location.reviewCount} reviews
+                      {location.reviewCountChange === null
+                        ? ""
+                        : ` · ${location.reviewCountChange >= 0 ? "+" : ""}${location.reviewCountChange} since prior snapshot`}
+                    </span>
+                  </div>
+                </div>
+                <div className="ops-marketing-review-list">
+                  {location.reviews.slice(0, 12).map((review) => (
+                    <article className="ops-marketing-review-card" key={review.uid}>
+                      <header>
+                        <div>
+                          <strong>{review.authorName}</strong>
+                          <small>{reviewDate(review.createdAt)}</small>
+                        </div>
+                        <span>{"★".repeat(Math.max(0, Math.min(5, review.rating)))}</span>
+                      </header>
+                      <p>{review.body || "Rating submitted without written feedback."}</p>
+                      <footer>
+                        <span className={review.needsResponse ? "ops-lead-status is-lost" : "ops-lead-status is-recovered"}>
+                          {review.needsResponse ? "Needs response" : review.responseCount ? "Responded" : "No response needed"}
+                        </span>
+                        {review.url ? (
+                          <a className="ops-mini-link" href={review.url} target="_blank" rel="noreferrer">
+                            Open Google review
+                          </a>
+                        ) : null}
+                      </footer>
+                    </article>
+                  ))}
+                  {location.reviews.length === 0 ? (
+                    <div className="ops-muted">No recent Google reviews were returned for this location.</div>
+                  ) : null}
+                </div>
+              </section>
+            ))}
+          </div>
+        </>
       ) : null}
     </div>
   );

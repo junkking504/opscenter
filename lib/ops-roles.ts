@@ -53,6 +53,11 @@ const SENSITIVE_WRITE_ROUTES = [
   "/api/integrations/qbo/disconnect",
 ] as const;
 
+const PLATFORM_MANAGE_RESOURCE_PREFIXES = [
+  "/api/integrations/podium/connect",
+  "/api/integrations/podium/callback",
+] as const;
+
 export function requiredOpsPermission(
   pathname: string,
   method: string,
@@ -68,6 +73,10 @@ export function requiredOpsPermission(
 
   if (pathname === "/finance" || pathname.startsWith("/finance/")) {
     return { permission: "finance.read", requiredRole: "manager" };
+  }
+
+  if (PLATFORM_MANAGE_RESOURCE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) {
+    return { permission: "platform.manage", requiredRole: "admin" };
   }
 
   const financeResource = FINANCE_RESOURCE_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));

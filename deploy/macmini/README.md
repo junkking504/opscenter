@@ -46,6 +46,12 @@ release. Superseded releases are pruned only after a bounded `lsof` scan proves
 that no running process still references them; the active and immediately
 previous releases are always protected.
 
+Release-bound LaunchAgents invoke their scripts through the stable macOS
+`/bin/bash` or `/bin/zsh` executable. This keeps macOS Background Task
+Management from treating every immutable-release symlink change as a newly
+added background program. Collector installers also leave an identical
+installed plist untouched while restarting the loaded service.
+
 Before deploying, commit and push the intended code, integrate it into
 `origin/production`, and install or refresh the reviewed controller explicitly:
 

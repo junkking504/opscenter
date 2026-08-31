@@ -6,6 +6,7 @@
   <string>com.openclaw.opsbot.junkware-schedule-detector</string>
   <key>ProgramArguments</key>
   <array>
+    <string>/bin/bash</string>
     <string>/Users/missioncontrol/opscenter-v2/opscenter/scripts/run-junkware-schedule-detector.sh</string>
   </array>
   <key>WorkingDirectory</key>

@@ -25,8 +25,10 @@ LOG_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/logs"
 
 mkdir -p "$EXPECTED_HOME/Library/LaunchAgents" "$LOG_DIR"
 plutil -lint "$SOURCE_PLIST" >/dev/null
-cp "$SOURCE_PLIST" "$INSTALLED_PLIST"
-chmod 600 "$INSTALLED_PLIST"
+if [[ ! -f "$INSTALLED_PLIST" ]] || ! cmp -s "$SOURCE_PLIST" "$INSTALLED_PLIST"; then
+  cp "$SOURCE_PLIST" "$INSTALLED_PLIST"
+  chmod 600 "$INSTALLED_PLIST"
+fi
 launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || true
 for attempt in {1..5}; do
   if launchctl bootstrap "gui/$(id -u)" "$INSTALLED_PLIST"; then

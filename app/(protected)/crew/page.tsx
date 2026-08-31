@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import PageHeader from "@/components/PageHeader";
 import CrewPayPeriodCards, {
@@ -97,6 +98,27 @@ function employeeTruck(row: AnyRecord): string {
 
   const text = String(truckValue || "").trim();
   return text || "Unassigned";
+}
+
+function employeeTruckLabels(row: AnyRecord): string[] {
+  const matches = employeeTruck(row).match(/Truck#?\s*\d+/gi) || [];
+  return Array.from(new Set(matches.map((truck) => {
+    const number = truck.match(/\d+/)?.[0];
+    return number ? `Truck# ${number}` : "";
+  }).filter(Boolean)));
+}
+
+function CrewTruckLinks({ date, row }: { date: string; row: AnyRecord }) {
+  const trucks = employeeTruckLabels(row);
+  if (!trucks.length) return <>{employeeTruck(row)}</>;
+  return <>{trucks.map((truck, index) => (
+    <span key={truck}>
+      {index > 0 ? ", " : null}
+      <Link className={relatedStyles.relatedLink} href={fleetTruckHref(date, truck)} title={`Open ${truck} on the live Fleet map`}>
+        {truck}
+      </Link>
+    </span>
+  ))}</>;
 }
 
 function employeeRevenue(row: AnyRecord): number {
@@ -369,6 +391,7 @@ function currentPayPeriodRowsWithToday(
   todayMetrics: AnyRecord | null,
   clockRows: ClockRow[],
   timesheetRateRows: TimesheetRateRow[],
+  payrollCorrections: Record<string, PayrollCorrection>,
   date: string,
   periodStart: string,
   periodEnd: string,
@@ -393,13 +416,17 @@ function currentPayPeriodRowsWithToday(
 
     const key = normalizeEmployeeKey(name);
     const clockRow = clockRowForEmployee(name, clockRows);
-    const timesheetRate =
+    const correction = payrollCorrections[normalizePayrollEmployeeKey(name)];
+    const sourceRate =
       timesheetRateForEmployee(clockRow?.name || name, timesheetRateRows) ||
       timesheetRateForEmployee(name, timesheetRateRows) ||
       firstNumber(todayRow, ["hourly_rate"]) ||
       0;
+    const timesheetRate = correction?.hourlyRate || sourceRate;
+    const clockIn = correction ? correction.clockIn : clockRow?.timeIn || "";
+    const clockOut = correction ? correction.clockOut : clockRow?.timeOut || "";
 
-    const liveHours = liveClockHours(date, clockRow?.timeIn || "", clockRow?.timeOut || "");
+    const liveHours = liveClockHours(date, clockIn, clockOut);
     const liveHourlyPay = liveHours * timesheetRate;
 
     const existing = byName.get(key) || {
@@ -677,9 +704,20 @@ function buildPeriodEmployeeViews(
       );
       const dayRecord = dayRow || {};
       const salary = worked ? isSalaryEmployee(dayRecord, employeeName(dayRecord)) : false;
-      const clockIn = dailyClockInDisplay(worked ? dayRow : null);
-      const clockOut = dailyClockOutDisplay(worked ? dayRow : null);
-      const hours = worked ? firstNumber(dayRecord, ["hours_worked", "hours", "labor_hours", "worked_hours"]) : null;
+      const sourceClockIn = worked
+        ? String(dayRecord.clock_in || dayRecord.time_in || dayRecord.clock_in_display || dayRecord.timeIn || "").trim()
+        : "";
+      const sourceClockOut = worked
+        ? String(dayRecord.clock_out || dayRecord.time_out || dayRecord.clock_out_display || dayRecord.timeOut || "").trim()
+        : "";
+      const sourceHourlyRate = worked ? dailyNumber(dayRecord, ["hourly_rate"]) : null;
+      const correction = worked ? payrollCorrectionsForDate(date)[normalizePayrollEmployeeKey(row.name)] || null : null;
+      const clockIn = correction?.clockIn || dailyClockInDisplay(worked ? dayRow : null);
+      const clockOut = correction
+        ? correction.clockOut || "On Shift"
+        : dailyClockOutDisplay(worked ? dayRow : null);
+      const correctedHours = correction ? liveClockHours(date, correction.clockIn, correction.clockOut) : null;
+      const hours = correctedHours ?? (worked ? firstNumber(dayRecord, ["hours_worked", "hours", "labor_hours", "worked_hours"]) : null);
       const role = worked ? dailyRoleDisplay(dayRecord, "Unassigned") : "Not Worked";
       const truck = worked ? textOrUnavailable(employeeTruck(dayRecord)) : "Not Worked";
       const jobs = worked ? dailyNumber(dayRecord, ["jobs_completed", "completed_jobs", "credited_jobs", "jobs", "job_count"]) : null;
@@ -696,8 +734,10 @@ function buildPeriodEmployeeViews(
       const bonus = worked ? totalBonuses(dayRecord) : null;
       const averageJobSize = worked && jobs && jobs > 0 && jobRevenueWorked != null ? jobRevenueWorked / jobs : null;
       const rph = worked && hours && hours > 0 && revenue != null ? revenue / hours : null;
-      const hourlyRate = worked ? dailyNumber(dayRecord, ["hourly_rate"]) : null;
-      const regularPay = worked ? dailyNumber(dayRecord, ["hourly_pay", "base_pay", "regular_pay", "wage_pay"]) : null;
+      const hourlyRate = correction?.hourlyRate || sourceHourlyRate;
+      const regularPay = correction && hours != null && hourlyRate != null
+        ? hours * hourlyRate
+        : worked ? dailyNumber(dayRecord, ["hourly_pay", "base_pay", "regular_pay", "wage_pay"]) : null;
       const supplementalPay = worked ? dailyNumber(dayRecord, ["supplemental_daily_pay", "supplemental_pay"]) : null;
       const totalPay = worked ? dailyNumber(dayRecord, ["total_pay", "total_daily_pay", "employee_total_earnings"]) : null;
       const firstVisitCloseRate = worked ? firstVisitCloseRateDisplay(dayRecord) : "Not Worked";
@@ -710,6 +750,24 @@ function buildPeriodEmployeeViews(
       const driverScoreStatusValue = worked ? driverScoreStatus(dayRecord) : "";
       const speedingEvents = worked ? dailyNumber(dayRecord, ["driver_speeding_events", "speeding_events", "speeding"]) : null;
       const harshBrakingEvents = worked ? dailyNumber(dayRecord, ["driver_hard_braking_events", "driver_harsh_braking_events", "harsh_braking_events"]) : null;
+      const timeCard = worked ? {
+        record: {
+          clockIn: correction?.clockIn || sourceClockIn,
+          clockOut: correction?.clockOut || sourceClockOut,
+          hourlyRate,
+          totalBonus: bonus || 0,
+          tips: tips || 0,
+          supplementalPay: supplementalPay || 0,
+          isSalary: salary,
+          weeklyHoursBeforeShift: 0,
+        },
+        source: {
+          clockIn: sourceClockIn,
+          clockOut: sourceClockOut,
+          hourlyRate: sourceHourlyRate,
+        },
+        correction,
+      } : null;
 
       return {
         date,
@@ -720,7 +778,7 @@ function buildPeriodEmployeeViews(
         hoursWorked: hours,
         clockInDisplay: clockIn,
         clockOutDisplay: clockOut,
-        hoursDisplay: dailyHoursDisplay(worked ? dayRecord : null),
+        hoursDisplay: correction && hours != null ? `${hours.toFixed(2)} hrs` : dailyHoursDisplay(worked ? dayRecord : null),
         roleDisplay: role,
         truckDisplay: truck,
         jobs,
@@ -747,6 +805,7 @@ function buildPeriodEmployeeViews(
         driverScoreStatus: driverScoreStatusValue,
         speedingEvents,
         harshBrakingEvents,
+        timeCard,
         isOpenShift: Boolean(
           worked && !salary && clockIn !== "Not Worked" && clockOut === "On Shift",
         ),
@@ -1215,6 +1274,7 @@ function splitCsvLine(line: string): string[] {
 type TimesheetRateRow = {
   name: string;
   hourlyRate: number;
+  status: string;
 };
 
 function readTimesheetRateRows(date: string): TimesheetRateRow[] {
@@ -1244,18 +1304,18 @@ function readTimesheetRateRows(date: string): TimesheetRateRow[] {
     return {
       name: String(row.name || ""),
       hourlyRate: moneyNumber(row.hourly_rate || row.hourly_rate_raw || 0),
+      status: String(row.status || ""),
     };
   }).filter((row) => row.name && row.hourlyRate > 0);
 }
 
-function timesheetRateForEmployee(name: string, rateRows: TimesheetRateRow[]): number {
+function timesheetRateRowForEmployee(name: string, rateRows: TimesheetRateRow[]): TimesheetRateRow | undefined {
   const target = normalizeEmployeeKey(name);
+  return rateRows.find((row) => normalizeEmployeeKey(row.name) === target);
+}
 
-  const found = rateRows.find((row) => {
-    return normalizeEmployeeKey(row.name) === target;
-  });
-
-  return found ? found.hourlyRate : 0;
+function timesheetRateForEmployee(name: string, rateRows: TimesheetRateRow[]): number {
+  return timesheetRateRowForEmployee(name, rateRows)?.hourlyRate || 0;
 }
 
 function normalizeEmployeeKey(name: string): string {
@@ -1367,6 +1427,9 @@ export default async function CrewPage({
   searchParams?: Promise<AnyRecord>;
 }) {
   const params = searchParams ? await searchParams : undefined;
+  const cookieStore = await cookies();
+  const authSession = await verifyAuthSessionCookie(cookieStore.get(AUTH_SESSION_COOKIE)?.value || "");
+  const canViewPayroll = canViewCrewPayroll(authSession?.role);
   const date = resolveDate(params);
   const view = normalizeView(params?.view);
   const requestedSection = String(params?.section || "crew").toLowerCase();
@@ -1385,6 +1448,7 @@ export default async function CrewPage({
   const clockRows = readCrewClockRows(date);
   const timesheetRateRows = readTimesheetRateRows(date);
   const priorWeeklyHours = weeklyHoursBeforeDate(date);
+  const payrollCorrections = payrollCorrectionsForDate(date);
 
   if (view === "monthly") {
     return renderMonthlyCrewPage({
@@ -1406,25 +1470,41 @@ export default async function CrewPage({
   const todayCrew = dailyCrew.crew;
 
   const livePayrollByEmployee = new Map<string, LivePayrollRecord>();
+  const payrollReviewByEmployee = new Map<string, {
+    record: LivePayrollRecord;
+    source: { clockIn: string; clockOut: string; hourlyRate: number | null; rateStatus: string };
+    correction: PayrollCorrection | null;
+  }>();
   for (const row of todayCrew) {
     const name = employeeName(row);
     const employeeClockRow = clockRowForEmployee(name, clockRows);
-    const clockIn = employeeClockRow?.timeIn || row.clock_in || row.time_in || "";
-    const clockOut = employeeClockRow?.timeOut || row.clock_out || row.time_out || "";
-    const hourlyRate =
-      timesheetRateForEmployee(employeeClockRow?.name || name, timesheetRateRows) ||
-      timesheetRateForEmployee(name, timesheetRateRows) ||
-      firstNumber(row, ["hourly_rate"]) ||
-      null;
-    livePayrollByEmployee.set(normalizeEmployeeKey(name), {
-      clockIn,
-      clockOut,
-      hourlyRate,
+    const sourceClockIn = employeeClockRow?.timeIn || row.clock_in || row.time_in || "";
+    const sourceClockOut = employeeClockRow?.timeOut || row.clock_out || row.time_out || "";
+    const rateRow =
+      timesheetRateRowForEmployee(employeeClockRow?.name || name, timesheetRateRows) ||
+      timesheetRateRowForEmployee(name, timesheetRateRows);
+    const sourceHourlyRate = rateRow?.hourlyRate || firstNumber(row, ["hourly_rate"]) || null;
+    const correction = payrollCorrections[normalizePayrollEmployeeKey(name)] || null;
+    const record: LivePayrollRecord = {
+      clockIn: correction ? correction.clockIn : sourceClockIn,
+      clockOut: correction ? correction.clockOut : sourceClockOut,
+      hourlyRate: correction?.hourlyRate || sourceHourlyRate,
       totalBonus: bonusPay(row),
       tips: tipPay(row),
       supplementalPay: firstNumber(row, ["supplemental_daily_pay", "supplemental_pay"]),
       isSalary: isSalaryEmployee(row, name),
       weeklyHoursBeforeShift: priorWeeklyHours.get(normalizeEmployeeKey(name)) || 0,
+    };
+    livePayrollByEmployee.set(normalizeEmployeeKey(name), record);
+    payrollReviewByEmployee.set(normalizeEmployeeKey(name), {
+      record,
+      source: {
+        clockIn: sourceClockIn,
+        clockOut: sourceClockOut,
+        hourlyRate: sourceHourlyRate,
+        rateStatus: rateRow?.status || "",
+      },
+      correction,
     });
   }
   const livePayrollRecords = Array.from(livePayrollByEmployee.values());
@@ -1439,10 +1519,16 @@ export default async function CrewPage({
   );
   const requestedCrewPage = Number.parseInt(String(params?.page || "1"), 10);
   const totalCrewPages = Math.max(1, Math.ceil(todayCrew.length / CREW_PER_PAGE));
-  const crewPage = Math.min(
-    totalCrewPages,
-    Math.max(1, Number.isFinite(requestedCrewPage) ? requestedCrewPage : 1),
-  );
+  const requestedMember = String(params?.member || "").trim().toLocaleLowerCase();
+  const requestedMemberIndex = requestedMember
+    ? todayCrew.findIndex((row) => employeeName(row).trim().toLocaleLowerCase() === requestedMember)
+    : -1;
+  const crewPage = requestedMemberIndex >= 0
+    ? Math.floor(requestedMemberIndex / CREW_PER_PAGE) + 1
+    : Math.min(
+        totalCrewPages,
+        Math.max(1, Number.isFinite(requestedCrewPage) ? requestedCrewPage : 1),
+      );
   const visibleCrew = todayCrew.slice((crewPage - 1) * CREW_PER_PAGE, crewPage * CREW_PER_PAGE);
 
   const totalTips = todayCrew.reduce((sum, row) => sum + tipPay(row), 0);
@@ -1465,6 +1551,7 @@ export default async function CrewPage({
     metrics,
     clockRows,
     timesheetRateRows,
+    payrollCorrections,
     date,
     currentPeriod.start,
     currentPeriod.end,
@@ -1537,12 +1624,12 @@ export default async function CrewPage({
           <div className="ops-kpi-value">{money(avgRph)}</div>
         </div>
 
-        <div className="ops-card ops-kpi-card ops-crew-kpi-card">
+        {canViewPayroll ? <div className="ops-card ops-kpi-card ops-crew-kpi-card">
           <div className="ops-card-title">Employee Total Earnings</div>
           <div className="ops-kpi-value">
             <LivePayrollValue date={date} records={livePayrollRecords} field="earnings" />
           </div>
-        </div>
+        </div> : null}
       </div> : null}
 
       {section === "crew" ? <section className="ops-card ops-daily-leaderboard" id="crew-leaderboard">
@@ -1580,6 +1667,7 @@ export default async function CrewPage({
                 const name = employeeName(row);
                 const rowClassName = hasLeaderboardResults && rank <= 3 ? `is-rank-${rank}` : undefined;
                 const payrollRecord = livePayrollByEmployee.get(normalizeEmployeeKey(name));
+                const payrollReview = payrollReviewByEmployee.get(normalizeEmployeeKey(name));
 
                 return (
                   <tr className={rowClassName} key={`${name}-${idx}`}>
@@ -1595,18 +1683,24 @@ export default async function CrewPage({
                       <strong>{name}</strong>
                       <small>{String(row.shift_status || row.clock_out_display || "Daily krewe")}</small>
                     </td>
-                    <td>{employeeTruck(row)}</td>
+                    <td><CrewTruckLinks date={date} row={row} /></td>
                     <td className="ops-daily-leaderboard-jobs">{employeeJobs(row, metrics)}</td>
                     <td className="ops-money ops-daily-leaderboard-revenue">{money(employeeRevenue(row))}</td>
                     <td className="ops-money">{money(employeeRph(row))}</td>
                     <td className="ops-money">{money(employeeAverageJob(row, metrics))}</td>
-                    <td className="ops-money ops-pay-total">
-                      {payrollRecord ? (
-                        <LivePayrollValue date={date} records={[payrollRecord]} field="earnings" />
+                    {canViewPayroll ? <td className="ops-money ops-pay-total">
+                      {payrollRecord && payrollReview ? (
+                        <PayrollDiscrepancyEditor
+                          date={date}
+                          employeeName={name}
+                          record={payrollRecord}
+                          source={payrollReview.source}
+                          correction={payrollReview.correction}
+                        />
                       ) : (
                         money(totalPayWithBonuses(row, firstNumber(row, ["supplemental_daily_pay", "supplemental_pay"])))
                       )}
-                    </td>
+                    </td> : null}
                   </tr>
                 );
               })}
@@ -1655,13 +1749,14 @@ export default async function CrewPage({
               const jobRevenueWorked = employeeJobRevenueWorked(row, metrics);
               const jobs = employeeJobs(row, metrics);
               const employeeClockRow = clockRowForEmployee(name, clockRows);
-              const employeeHourlyRate =
-                timesheetRateForEmployee(employeeClockRow?.name || name, timesheetRateRows) ||
-                timesheetRateForEmployee(name, timesheetRateRows) ||
-                firstNumber(row, ["hourly_rate"]) ||
-                0;
-              const sourceClockIn = employeeClockRow?.timeIn || row.clock_in || row.time_in || "";
-              const sourceClockOut = employeeClockRow?.timeOut || row.clock_out || row.time_out || "";
+              const payrollReview = payrollReviewByEmployee.get(normalizeEmployeeKey(name));
+              const employeeHourlyRate = payrollReview?.record.hourlyRate || 0;
+              const sourceClockIn = payrollReview
+                ? payrollReview.record.clockIn
+                : employeeClockRow?.timeIn || row.clock_in || row.time_in || "";
+              const sourceClockOut = payrollReview
+                ? payrollReview.record.clockOut
+                : employeeClockRow?.timeOut || row.clock_out || row.time_out || "";
               const isSalary = isSalaryEmployee(row, name);
               const status = todayStatusChip(sourceClockIn, sourceClockOut, isSalary);
               const avgJob = jobs > 0 ? jobRevenueWorked / jobs : null;
@@ -1672,7 +1767,7 @@ export default async function CrewPage({
               const supplementalVisible = supplementalPay > 0;
               const manualBonusEntries = manualBonusEntriesForEmployee(date, name);
               const manualBonusTotal = manualBonusForEmployee(date, name);
-              const livePayrollRecord: LivePayrollRecord = {
+              const livePayrollRecord: LivePayrollRecord = payrollReview?.record || {
                 clockIn: sourceClockIn,
                 clockOut: sourceClockOut,
                 hourlyRate: employeeHourlyRate || null,
@@ -1682,9 +1777,15 @@ export default async function CrewPage({
                 isSalary,
                 weeklyHoursBeforeShift: priorWeeklyHours.get(normalizeEmployeeKey(name)) || 0,
               };
+              const isRequestedMember = requestedMember === name.trim().toLocaleLowerCase();
 
               return (
-                <details key={`${name}-${idx}`} className="ops-card ops-crew-employee-card ops-crew-today-employee-card">
+                <details
+                  key={`${name}-${idx}`}
+                  id={crewMemberAnchor(name)}
+                  className={`ops-card ops-crew-employee-card ops-crew-today-employee-card${isRequestedMember ? ` ${relatedStyles.target}` : ""}`}
+                  open={isRequestedMember || undefined}
+                >
                   <summary className="ops-crew-employee-summary">
                     <div className="ops-crew-employee-summary-grid">
                       <div className="ops-crew-summary-field ops-crew-summary-field-employee">
@@ -1721,7 +1822,7 @@ export default async function CrewPage({
                         </div>
                       </div>
 
-                      <div className="ops-crew-summary-field">
+                      {canViewPayroll ? <div className="ops-crew-summary-field">
                         <span className="ops-crew-summary-label">Hourly Labor Cost</span>
                         <div className="ops-crew-summary-main">
                           <div className="ops-crew-summary-value">
@@ -1732,23 +1833,23 @@ export default async function CrewPage({
                             <LivePayrollValue date={date} records={[livePayrollRecord]} field="overtime" showIncompleteNote={false} /> OT additional
                           </div>
                         </div>
-                      </div>
+                      </div> : null}
 
-                      <div className="ops-crew-summary-field">
+                      {canViewPayroll ? <div className="ops-crew-summary-field">
                         <span className="ops-crew-summary-label">Tips</span>
                         <div className="ops-crew-summary-main">
                           <div className="ops-crew-summary-value ops-nowrap">{money(tipPay(row))}</div>
                         </div>
-                      </div>
+                      </div> : null}
 
-                      <div className="ops-crew-summary-field">
+                      {canViewPayroll ? <div className="ops-crew-summary-field">
                         <span className="ops-crew-summary-label">Bonuses</span>
                         <div className="ops-crew-summary-main">
                           <div className="ops-crew-summary-value ops-nowrap">{money(bonusPay(row))}</div>
                         </div>
-                      </div>
+                      </div> : null}
 
-                      <div className="ops-crew-summary-field ops-crew-summary-field-good">
+                      {canViewPayroll ? <div className="ops-crew-summary-field ops-crew-summary-field-good">
                         <span className="ops-crew-summary-label">Total Pay</span>
                         <div className="ops-crew-summary-main">
                           <div className="ops-crew-summary-value">
@@ -1759,7 +1860,7 @@ export default async function CrewPage({
                             />
                           </div>
                         </div>
-                      </div>
+                      </div> : null}
                     </div>
                     <span className="ops-crew-chevron" aria-hidden="true">▸</span>
                   </summary>
@@ -1794,6 +1895,16 @@ export default async function CrewPage({
                           value={String(row.assignment_confidence || row.assignmentConfidence || "Unavailable").trim() || "Unavailable"}
                         />
                       </div>
+                      {canShowCrewPayrollReview(authSession?.role, payrollReview) ? (
+                        <PayrollDiscrepancyEditor
+                          date={date}
+                          employeeName={name}
+                          record={livePayrollRecord}
+                          source={payrollReview.source}
+                          correction={payrollReview.correction}
+                          display="time"
+                        />
+                      ) : null}
                     </div>
 
                     <div className="ops-crew-detail-section">
@@ -1818,7 +1929,7 @@ export default async function CrewPage({
                       </div>
                     </div>
 
-                      <div className="ops-crew-detail-section">
+                      {canViewPayroll ? <div className="ops-crew-detail-section">
                         <div className="ops-crew-detail-section-title">Earnings</div>
                         <div className="ops-crew-detail-rows ops-crew-detail-rows-2">
                           <CrewDetailField label="Revenue Bonus" value={money(revenueBonus(row))} />
@@ -1859,11 +1970,15 @@ export default async function CrewPage({
                             totalAmount={manualBonusTotal}
                           />
                         </div>
-                      </div>
+                      </div> : null}
 
                     <div className="ops-crew-detail-section">
                       <div className="ops-crew-detail-section-title">Driving</div>
                       <div className="ops-crew-detail-rows ops-crew-detail-rows-2">
+                        <CrewDetailField
+                          label="Current Truck"
+                          value={<CrewTruckLinks date={date} row={row} />}
+                        />
                         <CrewDetailField
                           label="Driver Score"
                           value={driverScoreDisplay(row)}

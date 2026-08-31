@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normalizeInteractiveOpsRole, type InteractiveOpsRole } from "@/lib/ops-roles";
 
 export const AUTH_SESSION_COOKIE = "opscenter_email_session";
 export const AUTH_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -16,7 +17,7 @@ export const LEGACY_AUTH_COOKIE_NAMES = [
 ] as const;
 export const AUTH_PUBLIC_PREFIXES = ["/legal/", "/support"] as const;
 export const AUTH_PUBLIC_ROUTES = ["/integrations/qbo", "/integrations/qbo/disconnected"] as const;
-export const AUTH_PUBLIC_API_PREFIXES = ["/api/auth/", "/api/health", "/api/integrations/junkware/sms", "/api/integrations/whatsapp/job-photos", "/api/integrations/linxup/push"] as const;
+export const AUTH_PUBLIC_API_PREFIXES = ["/api/auth/", "/api/health", "/api/readiness", "/api/integrations/junkware/sms", "/api/integrations/whatsapp/job-photos", "/api/integrations/linxup/push"] as const;
 export const AUTH_PUBLIC_API_ROUTES = [
   "/api/integrations/qbo/connect",
   "/api/integrations/qbo/callback",
@@ -34,8 +35,23 @@ export type AuthSessionPayload = {
 
 export type AuthSession = {
   email: string;
+  role: InteractiveOpsRole;
   issuedAt: Date;
   expiresAt: Date;
+};
+
+export type AuthSessionRejectionReason =
+  | "session_absent"
+  | "session_malformed"
+  | "session_signature_mismatch"
+  | "session_payload_unreadable"
+  | "session_identity_invalid"
+  | "session_expired"
+  | "session_issued_at_invalid";
+
+export type AuthSessionInspection = {
+  session: AuthSession | null;
+  reason: AuthSessionRejectionReason | null;
 };
 
 export type TrustedDevicePayload = {
@@ -66,6 +82,32 @@ function getSessionSecret(): string {
       process.env.NEXTAUTH_SECRET ||
       DEFAULT_SESSION_SECRET,
   ).trim();
+}
+
+export function getOpsAuthReadiness(): {
+  ok: boolean;
+  identityConfigured: boolean;
+  passwordHashConfigured: boolean;
+  sessionSecretConfigured: boolean;
+} {
+  const identityConfigured = Boolean(opsAuthIdentity());
+  const passwordHashConfigured = /^pbkdf2-sha256\$\d+\$[^$]+\$[^$]+$/.test(
+    String(process.env.OPS_AUTH_PASSWORD_HASH || "").trim(),
+  );
+  const sessionSecretConfigured = Boolean(
+    String(
+      process.env.OPS_AUTH_SESSION_SECRET ||
+      process.env.AUTH_SESSION_SECRET ||
+      process.env.NEXTAUTH_SECRET ||
+      "",
+    ).trim(),
+  );
+  return {
+    ok: identityConfigured && passwordHashConfigured && sessionSecretConfigured,
+    identityConfigured,
+    passwordHashConfigured,
+    sessionSecretConfigured,
+  };
 }
 
 function isNodeBufferAvailable(): boolean {
@@ -167,6 +209,36 @@ export function opsAuthDisplayName(identityValue: unknown): string {
   return configuredUsername && identity === `${configuredUsername}@junk-king.com`
     ? configuredUsername
     : identity;
+}
+
+function configuredRoleBindings(): Record<string, InteractiveOpsRole> {
+  const raw = String(process.env.OPS_AUTH_ROLE_BINDINGS || "").trim();
+  if (!raw) return {};
+
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(parsed).map(([identity, role]) => [
+      normalizeAuthEmail(identity),
+      normalizeInteractiveOpsRole(role),
+    ]));
+  } catch {
+    return Object.fromEntries(raw.split(",").map((entry) => entry.split("=")).filter(([identity, role]) => identity && role).map(([identity, role]) => [
+      normalizeAuthEmail(identity),
+      normalizeInteractiveOpsRole(role),
+    ]));
+  }
+}
+
+export function opsAuthRole(identityValue: unknown): InteractiveOpsRole {
+  const identity = normalizeAuthEmail(identityValue);
+  const bindings = configuredRoleBindings();
+  const configuredIdentity = opsAuthIdentity();
+
+  if (bindings[identity]) return bindings[identity];
+  if (identity && identity === configuredIdentity) {
+    return normalizeInteractiveOpsRole(process.env.OPS_AUTH_ROLE, "admin");
+  }
+  return normalizeInteractiveOpsRole(process.env.OPS_AUTH_DEFAULT_ROLE, "operator");
 }
 
 export async function verifyOpsCredentials(usernameValue: unknown, passwordValue: unknown): Promise<boolean> {
@@ -383,6 +455,7 @@ export async function verifyTrustedDeviceCookie(
 
   return {
     email: normalizeAuthEmail(payload.email),
+    role: opsAuthRole(payload.email),
     deviceId: payload.deviceId,
     matchedBy: browserMatches ? "browser" : "network",
     issuedAt: new Date(issuedAtMs),
@@ -406,15 +479,15 @@ export function shouldRefreshTrustedDevice(
   return expiresAtMs <= nowMs;
 }
 
-export async function verifyAuthSessionCookie(cookieValue: string | null | undefined): Promise<AuthSession | null> {
+export async function inspectAuthSessionCookie(cookieValue: string | null | undefined): Promise<AuthSessionInspection> {
   const raw = String(cookieValue || "").trim();
-  if (!raw) return null;
+  if (!raw) return { session: null, reason: "session_absent" };
 
   const [encodedPayload, signature] = raw.split(".");
-  if (!encodedPayload || !signature) return null;
+  if (!encodedPayload || !signature) return { session: null, reason: "session_malformed" };
 
   const expectedSignature = await signPayload(encodedPayload);
-  if (signature !== expectedSignature) return null;
+  if (signature !== expectedSignature) return { session: null, reason: "session_signature_mismatch" };
 
   let payload: AuthSessionPayload | null = null;
   try {
@@ -424,19 +497,30 @@ export async function verifyAuthSessionCookie(cookieValue: string | null | undef
     payload = null;
   }
 
-  if (!payload || payload.version !== 1 || !isValidJunkKingEmail(payload.email)) return null;
+  if (!payload) return { session: null, reason: "session_payload_unreadable" };
+  if (payload.version !== 1 || !isValidJunkKingEmail(payload.email)) {
+    return { session: null, reason: "session_identity_invalid" };
+  }
 
   const expiresAtMs = parseSeconds(payload.expiresAt);
-  if (!expiresAtMs || expiresAtMs <= Date.now()) return null;
+  if (!expiresAtMs || expiresAtMs <= Date.now()) return { session: null, reason: "session_expired" };
 
   const issuedAtMs = parseSeconds(payload.issuedAt);
-  if (!issuedAtMs) return null;
+  if (!issuedAtMs) return { session: null, reason: "session_issued_at_invalid" };
 
   return {
-    email: normalizeAuthEmail(payload.email),
-    issuedAt: new Date(issuedAtMs),
-    expiresAt: new Date(expiresAtMs),
+    session: {
+      email: normalizeAuthEmail(payload.email),
+      role: opsAuthRole(payload.email),
+      issuedAt: new Date(issuedAtMs),
+      expiresAt: new Date(expiresAtMs),
+    },
+    reason: null,
   };
+}
+
+export async function verifyAuthSessionCookie(cookieValue: string | null | undefined): Promise<AuthSession | null> {
+  return (await inspectAuthSessionCookie(cookieValue)).session;
 }
 
 export function authCookieOptions(expiresAt: Date, secure = process.env.NODE_ENV === "production") {

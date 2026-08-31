@@ -59,6 +59,21 @@ if (explicit.status === "matched") {
   assert.equal(explicit.category, "before");
 }
 
+const explicitOutsideSchedule = matchWhatsAppPhoto({
+  senderPhone: "5045550101",
+  caption: "After JK4025999",
+  receivedAt: now,
+  appointments,
+  fleet: [],
+  senderTruckMap: {},
+});
+assert.equal(explicitOutsideSchedule.status, "matched");
+if (explicitOutsideSchedule.status === "matched") {
+  assert.equal(explicitOutsideSchedule.method, "jk_number");
+  assert.equal(explicitOutsideSchedule.jkNumber, "JK4025999");
+  assert.equal(explicitOutsideSchedule.appointmentId, null);
+}
+
 const nearest = matchWhatsAppPhoto({
   senderPhone: "+1 504-555-0101",
   caption: "After photos",
@@ -268,6 +283,8 @@ try {
 } finally {
   fs.rmSync(temporaryState, { recursive: true, force: true });
   delete process.env.WHATSAPP_JOB_PHOTO_STATE_DIR;
+  delete process.env.WHATSAPP_CREW_EXPENSE_STATE_DIR;
+  delete process.env.WHATSAPP_JOB_PHOTO_BATCH_QUIET_SECONDS;
   delete process.env.SLACK_OPSCENTER_ALERTS_ENABLED;
   delete process.env.SLACK_WHATSAPP_PHOTO_NOTIFICATIONS_ENABLED;
   delete process.env.SLACK_WHATSAPP_PHOTO_ATTACHMENTS_ENABLED;

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { OperatingStatus } from "@/components/OperatingPulse";
 import SlackAlertsDigest from "@/components/SlackAlertsDigest";
 import type { SlackDailyDigest } from "@/lib/slack-digest";
@@ -10,12 +11,20 @@ export type CommandBriefMetric = {
   detail: string;
   status: OperatingStatus;
   href: string;
+  secondaryValue?: string;
+  progress?: number;
+  progressLabel?: string;
+  segments?: Array<{
+    label: string;
+    value: number;
+    status: OperatingStatus;
+  }>;
 };
 
-export type CommandBriefSignal = {
-  title: string;
+export type CommandBriefException = {
+  label: string;
   detail: string;
-  status: OperatingStatus;
+  status: Exclude<OperatingStatus, "on-track">;
   href: string;
 };
 
@@ -33,56 +42,99 @@ function toneClass(status: OperatingStatus): string {
 
 export default function CommandBrief({
   metrics,
-  signals,
+  exceptions,
   date,
   slackDigest,
+  map,
 }: {
   metrics: CommandBriefMetric[];
-  signals: CommandBriefSignal[];
+  exceptions: CommandBriefException[];
   date: string;
   slackDigest: SlackDailyDigest;
+  map: ReactNode;
 }) {
   return (
     <section className={styles.brief} id="command-overview" aria-label="Command Overview">
       <div className={styles.metricStrip} aria-label="Headline operating metrics">
         {metrics.map((metric) => (
-          <Link className={`${styles.metric} ${toneClass(metric.status)}`} href={metric.href} key={metric.label}>
+          <Link
+            className={`${styles.metric} ${toneClass(metric.status)} ${metric.segments?.length ? styles.segmentedMetric : ""}`}
+            href={metric.href}
+            key={metric.label}
+          >
             <div>
               <span>{metric.label}</span>
             </div>
             <strong>{metric.value}</strong>
-            <p>{metric.detail}</p>
-            <b aria-hidden="true">→</b>
+            {metric.secondaryValue ? <small className={styles.metricSecondaryValue}>{metric.secondaryValue}</small> : null}
+            {metric.segments?.length ? (
+              <>
+                <ul className={styles.metricBreakdown} aria-label={metric.detail}>
+                  {metric.segments.map((segment) => (
+                    <li className={toneClass(segment.status)} key={segment.label}>
+                      <i aria-hidden="true" />
+                      <span>{segment.label}</span>
+                      <strong>{segment.value}</strong>
+                    </li>
+                  ))}
+                </ul>
+                <div className={styles.metricSegments} role="img" aria-label={metric.detail}>
+                  {metric.segments.filter((segment) => segment.value > 0).map((segment) => (
+                    <i
+                      className={toneClass(segment.status)}
+                      key={segment.label}
+                      style={{ flexGrow: segment.value }}
+                      title={`${segment.label}: ${segment.value}`}
+                    />
+                  ))}
+                </div>
+              </>
+            ) : <p>{metric.detail}</p>}
+            {metric.segments?.length || metric.progress == null ? null : (
+              <div
+                className={styles.metricProgress}
+                role="progressbar"
+                aria-label={metric.progressLabel || `${metric.label} progress`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.min(100, Math.max(0, Math.round(metric.progress)))}
+              >
+                <i style={{ width: `${Math.min(100, Math.max(0, metric.progress))}%` }} />
+              </div>
+            )}
           </Link>
         ))}
       </div>
 
-      <div className={styles.body}>
-        <SlackAlertsDigest date={date} initialDigest={slackDigest} />
-
-        <section className={styles.signals} aria-labelledby="operating-brief-title">
-          <div className={styles.sectionHeader}>
-            <div>
-              <span>Operating Status</span>
-              <h2 id="operating-brief-title">Current Conditions</h2>
-            </div>
-            <small>{String(signals.length).padStart(2, "0")} signals</small>
+      {exceptions.length ? (
+        <section className={styles.exceptionStrip} aria-labelledby="command-exceptions-title">
+          <div className={styles.exceptionHeading}>
+            <i aria-hidden="true" />
+            <strong id="command-exceptions-title">Needs attention</strong>
+            <span>{exceptions.length}</span>
           </div>
-
-          <div className={styles.signalList}>
-            {signals.map((signal) => (
-              <Link className={`${styles.signal} ${toneClass(signal.status)}`} href={signal.href} key={`${signal.title}-${signal.href}`}>
-                <span className={styles.signalDot} />
+          <div className={styles.exceptionList}>
+            {exceptions.map((exception) => (
+              <Link
+                className={`${styles.exception} ${toneClass(exception.status)}`}
+                href={exception.href}
+                key={`${exception.label}-${exception.detail}`}
+              >
+                <i aria-hidden="true" />
                 <span>
-                  <strong>{signal.title}</strong>
-                  <small>{signal.detail}</small>
+                  <strong>{exception.label}</strong>
+                  <small>{exception.detail}</small>
                 </span>
-                <em>{statusLabel[signal.status]}</em>
                 <b aria-hidden="true">→</b>
               </Link>
             ))}
           </div>
         </section>
+      ) : null}
+
+      <div className={styles.workspace}>
+        <SlackAlertsDigest date={date} initialDigest={slackDigest} title="Operations Feed" kicker="Today's alerts" />
+        <div className={`${styles.map} ops-jobs-page ops-command-operations-map`}>{map}</div>
       </div>
     </section>
   );

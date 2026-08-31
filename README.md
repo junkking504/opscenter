@@ -7,7 +7,7 @@ work, execute policy-controlled actions, and verify outcomes.
 Start at **[OpsCenter Home](docs/Home.md)** for the complete source,
 documentation, integration, runtime, editing, and sharing map.
 
-The current application includes dashboard, Jobs, Crew, Fleet, Marketing, and
+The current application includes dashboard, Schedule, Krewe, Fleet, Marketing, and
 Finance surfaces plus selected operational write workflows. The original daily
 metrics file remains the primary read projection while the platform kernel is
 built underneath the existing application.

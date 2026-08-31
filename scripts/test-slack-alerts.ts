@@ -15,12 +15,14 @@ import {
   buildCrewSlackNotifications,
   buildTruckArrivalSlackNotifications,
   buildTruckCloseoutSlackNotifications,
+  buildTruckEstimateCloseoutSlackNotifications,
   formatSlackAlert,
   publishVerifiedTruckCloseout,
   recordDeliveredTruckCloseout,
   runSlackOpsAlerts,
   slackAlertKindEnabled,
 } from "@/lib/slack-alerts";
+import { publishScheduleChanges } from "@/lib/junkware-schedule-changes";
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 
 process.env.SLACK_JOBS_NO_CHANNEL_ID = "C_TEST_NO";
@@ -76,7 +78,7 @@ assert.equal(
     jobNumber: "JK4052608",
     territory: "New Orleans",
     customerName: "Test Customer",
-    phone: "(504) 555-0100",
+    phone: "<tel:(504)555-0100|(504) 555-0100>",
     address: "4034 Tchoupitoulas St, New Orleans, 70115",
     appointmentTime: "12:00 PM - 01:00 PM",
     appointmentType: "Job",
@@ -105,6 +107,81 @@ assert.equal(
   }, "2026-08-14").channelId,
   "C_TEST_BR",
 );
+const cancellationSlackAlert = buildCancellationSlackNotification({
+  id: "appt:4037405",
+  appointmentId: "4037405",
+  jobNumber: "JK4050583",
+  territory: "Baton Rouge",
+  customerName: "Test Customer",
+  phone: "(225) 555-0100",
+  address: "175 Burgin Ave, Baton Rouge, 70808",
+  appointmentTime: "08:00 AM - 09:00 AM",
+  appointmentType: "Job",
+  assignedTruck: "Truck# 6",
+  items: [],
+  href: "/jobs?date=2026-08-14#job-jk4050583",
+  cancelledBy: "Dispatcher",
+  cancellationReason: "Test Customer 2255550100 175 Burgin Ave Baton Rouge LA 70808 Customer cancelled",
+}, "2026-08-14");
+assert.equal(formatSlackAlert(cancellationSlackAlert), [
+  ":x: *Cancellation*",
+  "*<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4050583|JK4050583>*",
+  "08:00 AM - 09:00 AM",
+  "Test Customer",
+  "<tel:+12255550100|(225) 555-0100>",
+  "175 Burgin Ave, Baton Rouge, 70808",
+  "*Reason:* Customer cancelled",
+].join("\n"));
+const collapsedCancellationSlackAlert = buildCancellationSlackNotification({
+  id: "appt:4045384",
+  appointmentId: "4045384",
+  jobNumber: "JK4058562",
+  territory: "New Orleans",
+  customerName: "Daniela Ortiz 8004215354x2071 400 Russell Ave New Orleans, LA 70143 Cancelled via email per accounts request Followup",
+  phone: "",
+  address: "",
+  appointmentTime: "02:00 PM - 03:00 PM",
+  appointmentType: "Job",
+  assignedTruck: "",
+  items: [],
+  href: "/jobs?date=2026-08-25#job-jk4058562",
+  cancelledBy: "Sasek, Anna",
+  cancellationReason: "Daniela Ortiz 8004215354x2071 400 Russell Ave New Orleans, LA 70143 Cancelled via email per accounts request Followup",
+}, "2026-08-25");
+assert.equal(formatSlackAlert(collapsedCancellationSlackAlert), [
+  ":x: *Cancellation*",
+  "*<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4058562|JK4058562>*",
+  "02:00 PM - 03:00 PM",
+  "Daniela Ortiz",
+  "<tel:+18004215354;ext=2071|(800) 421-5354 x2071>",
+  "400 Russell Ave New Orleans, LA 70143",
+  "*Reason:* Cancelled via email per accounts request Followup",
+].join("\n"));
+const repeatedAddressCancellationSlackAlert = buildCancellationSlackNotification({
+  id: "appt:4049973",
+  appointmentId: "4049973",
+  jobNumber: "JK4063151",
+  territory: "Northshore",
+  customerName: "Destiny Sanders",
+  phone: "(832) 506-4186",
+  address: "21115 Gardenia St, Covington, 70435",
+  appointmentTime: "02:00 PM - 03:00 PM",
+  appointmentType: "Job",
+  assignedTruck: "",
+  items: [],
+  href: "/jobs?date=2026-08-25#job-jk4063151",
+  cancelledBy: "Henriquez, Luis",
+  cancellationReason: "Destiny Sanders 8325064186 21115 Gardenia St Covington, LA 70435 Husband came on the line and decided to cancel Followup",
+}, "2026-08-25");
+assert.equal(formatSlackAlert(repeatedAddressCancellationSlackAlert), [
+  ":x: *Cancellation*",
+  "*<https://ops.junk-king.app/jobs?date=2026-08-25#job-jk4063151|JK4063151>*",
+  "02:00 PM - 03:00 PM",
+  "Destiny Sanders",
+  "<tel:+18325064186|(832) 506-4186>",
+  "21115 Gardenia St, Covington, 70435",
+  "*Reason:* Husband came on the line and decided to cancel Followup",
+].join("\n"));
 assert.equal(normalizeSlackTruckNumber("Truck# 4"), 4);
 assert.equal(normalizeSlackTruckNumber("Virtual Truck"), null);
 assert.equal(truckSlackChannelId("Truck 4", "C_TEST_FALLBACK"), "C_TEST_TRUCK_4");
@@ -154,11 +231,18 @@ const completedCloseoutRows = [
     job_id: "JK4051000",
     final_status: "Completed",
     truck: "Truck# 1",
+    customer_name: "Closeout Customer",
+    driver_normalized_name: "Driver One",
+    navigator_normalized_name: "Navigator One",
     revenue: "$508.00",
     tip: "$50.80",
     closeout: {
       loadSize: "4 (1/2)",
       loadPrice: "$538.00",
+      otherCharges: [
+        { name: "Labor", amount: "$225.00" },
+        { name: "CC Surcharge (Card Present)", amount: "$24.69" },
+      ],
       discount: "$30.00",
       tip: "$50.80",
       total: "$558.80",
@@ -170,6 +254,9 @@ const completedCloseoutRows = [
     job_id: "JK4051001",
     job_status: "Completed Duration: 60 min(s)",
     assigned_truck: "Truck 6",
+    customer_name: "Check Customer",
+    driver_normalized_name: "Driver Six",
+    navigator_normalized_name: "Navigator Six",
     closeout: {
       payments: [{ method: "Check", detail: "#1487", amount: "$198.00" }],
     },
@@ -188,6 +275,9 @@ const completedCloseoutRows = [
     job_id: "JK4051003",
     job_status: "Completed",
     truck: "Truck 1",
+    customer_name: "Payment Customer",
+    driver_normalized_name: "Driver Payment",
+    navigator_normalized_name: "Navigator Payment",
     closeout: {
       tip: "$15.00",
       payments: [
@@ -210,6 +300,9 @@ const completedCloseoutRows = [
     job_id: "JK4051005",
     job_status: "Completed",
     truck: "Truck 4",
+    customer_name: "No Payment Customer",
+    driver_normalized_name: "Driver Four",
+    navigator_normalized_name: "Navigator Four",
     closeout: { payments: [] },
   },
 ];
@@ -263,11 +356,55 @@ assert.deepEqual(
   ],
 );
 
+const completedEstimateRows = [{
+  appt_id: "16",
+  job_id: "JK4051006",
+  appointment_type: "Estimate",
+  final_status: "Completed",
+  truck: "Truck# 6",
+  customer_name: "Estimate Customer",
+  driver_normalized_name: "Estimate Driver",
+  navigator_normalized_name: "Estimate Navigator",
+  revenue: "$358.00",
+  closeout: {
+    loadSize: "1.5 (1/4)",
+    loadPrice: "$328.00",
+    otherCharges: [{ name: "Mattress/Box Spring", total: "$60.00" }],
+    discount: "$30.00",
+    tip: "",
+    total: "$358.00",
+    payments: [],
+  },
+}];
+
+assert.deepEqual(
+  buildTruckEstimateCloseoutSlackNotifications("2026-08-12", completedEstimateRows)
+    .map((alert) => ({ kind: alert.kind, channelId: alert.channelId, text: formatSlackAlert(alert) })),
+  [{
+    kind: "estimate_closed",
+    channelId: "C_TEST_TRUCK_6",
+    text: [
+      ":moneybag: *Estimate Closed*",
+      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051006|JK4051006>*",
+      "*Estimate Customer*",
+      "*Driver:* Estimate Driver",
+      "*Navigator:* Estimate Navigator",
+      "*Load:* $328.00 (1/4)",
+      "*Mattress/Box Spring:* $60.00",
+      "*Discount:* $30.00",
+      "*Tips:*",
+      "*Total:* $358.00",
+    ].join("\n"),
+  }],
+);
+assert.equal(buildTruckCloseoutSlackNotifications("2026-08-12", completedEstimateRows).length, 0);
+
 const truckArrivalAlerts = buildTruckArrivalSlackNotifications("2026-08-12", [
   {
     appointment_id: "4037246",
     jk_number: "JK4050424",
     customer_name: "Test Customer",
+    phone: "(504) 555-0100",
     address: "123 Test Street, New Orleans, LA 70115",
     truck_number: "Truck 4",
     visit_count: 2,
@@ -281,6 +418,7 @@ const truckArrivalAlerts = buildTruckArrivalSlackNotifications("2026-08-12", [
     appointment_id: "4037246",
     jk_number: "JK4050424",
     customer_name: "Test Customer",
+    phone: "(504) 555-0100",
     address: "123 Test Street, New Orleans, LA 70115",
     truck_number: "Truck 4",
     visit_count: 2,
@@ -399,10 +537,41 @@ const newCloseout = {
   job_id: "JK4051502",
   final_status: "Completed",
   assigned_truck: "Truck# 6",
+  customer_name: "New Closeout Customer",
+  driver_normalized_name: "New Driver",
+  navigator_normalized_name: "New Navigator",
   closeout: {
     tip: "$20.00",
+    total: "$220.00",
     payments: [{ method: "Check", detail: "#2201", amount: "$220.00" }],
   },
+};
+const newEstimateCloseout = {
+  appt_id: "504",
+  job_id: "JK4051504",
+  appointment_type: "Estimate",
+  final_status: "Completed",
+  truck: "Truck# 6",
+  customer_name: "New Estimate Customer",
+  driver_normalized_name: "Estimate Driver",
+  navigator_normalized_name: "Estimate Navigator",
+  closeout: {
+    loadSize: "1 (1/4)",
+    loadPrice: "$180.00",
+    tip: "",
+    total: "$180.00",
+    payments: [],
+  },
+};
+const directCloseoutSource = {
+  appt_id: "503",
+  job_id: "JK4051503",
+  final_status: "Completed",
+  truck: "Truck# 6",
+  customer_name: "Direct Closeout Customer",
+  driver_normalized_name: "Direct Driver",
+  navigator_normalized_name: "Direct Navigator",
+  closeout: {},
 };
 fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), JSON.stringify({
   scraped_at: "2026-08-12T14:00:00-05:00",
@@ -410,6 +579,7 @@ fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), J
     appt_id: "503",
     job_id: "JK4051503",
     customer_name: "Arrival Customer",
+    phone: "(504) 555-0123",
     address: "503 Arrival Street, New Orleans, LA 70115",
   }],
   completed: [existingCloseout],
@@ -473,6 +643,7 @@ try {
 
   fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), JSON.stringify({
     scraped_at: "2026-08-12T14:05:00-05:00",
+    appointments: [newEstimateCloseout],
     completed: [existingCloseout, newCloseout],
   }));
   const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });

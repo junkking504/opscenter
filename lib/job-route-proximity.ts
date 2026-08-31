@@ -43,6 +43,7 @@ export type JobRouteProximityPayload = {
 };
 
 const PRIVATE_CACHE_FILE = path.join(process.cwd(), "data", "job-route-geocodes", "geocodes.json");
+const PRIVATE_CACHE_FILE_MODE = process.env.OPSCENTER_RUNTIME === "VPS" ? 0o660 : 0o600;
 const RETRY_FAILED_AFTER_MS = 6 * 60 * 60 * 1000;
 const GEOCODER_USER_AGENT = "JunkKing-OpsCenter-RoutePlanner/1.0";
 
@@ -110,7 +111,13 @@ function writePrivateStore(newEntries: Record<string, CachedGeocode>): void {
   const directory = path.dirname(PRIVATE_CACHE_FILE);
   fs.mkdirSync(directory, { recursive: true });
   const temporaryFile = path.join(directory, `.${path.basename(PRIVATE_CACHE_FILE)}.${process.pid}.${Date.now()}.tmp`);
-  fs.writeFileSync(temporaryFile, JSON.stringify(store, null, 2), { encoding: "utf8", mode: 0o600 });
+  fs.writeFileSync(temporaryFile, JSON.stringify(store, null, 2), {
+    encoding: "utf8",
+    // The VPS container atomically replaces this cache while the host sync
+    // user reads it for standby replication. Keep that replacement group-readable.
+    mode: PRIVATE_CACHE_FILE_MODE,
+  });
+  fs.chmodSync(temporaryFile, PRIVATE_CACHE_FILE_MODE);
   fs.renameSync(temporaryFile, PRIVATE_CACHE_FILE);
 }
 

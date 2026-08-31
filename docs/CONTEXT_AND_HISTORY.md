@@ -35,6 +35,6 @@ authenticated behavior relevant to the question.
   evidence-backed and preserve provenance.
 - Map/appointment selection displays detail; live camera access requires the
   explicit `View live video` action.
-- Crew Portal pay information is employee-private.
+- Krewe Portal pay information is employee-private.
 - Production delivery uses immutable releases and changes only the documented
   OpsCenter service unless another service is explicitly in scope.

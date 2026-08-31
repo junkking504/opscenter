@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { primaryNavItems } from "@/components/navItems";
+import { opsNavigationItems } from "@/components/navItems";
 import { titleCaseLabel } from "@/lib/title-case";
+import { authorizeOpsRequest, type InteractiveOpsRole } from "@/lib/ops-roles";
 
 type SidebarSubItem = {
   label: string;
@@ -42,7 +43,9 @@ function sidebarHref(
 
 function sidebarSubItems(pathname: string, searchParams: SearchParamReader): SidebarSubItem[] {
   const rawView = searchParams.get("view")?.toLowerCase();
-  const view = rawView === "monthly" || rawView === "maintenance" ? rawView : "daily";
+  const view = pathname.startsWith("/finance")
+    ? rawView === "monthly" ? "monthly" : "daily"
+    : rawView === "monthly" || rawView === "maintenance" ? rawView : "daily";
   const requestedSection = searchParams.get("section")?.toLowerCase() || "";
 
   if (pathname === "/") {
@@ -72,7 +75,7 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
     if (view === "monthly") {
       const section = ["breakdown", "trend"].includes(requestedSection) ? requestedSection : "overview";
       return [
-        { label: "Dispatch", href: href({}), active: false },
+        { label: "Schedule", href: href({}), active: false },
         { label: "Monthly overview", href: href({ view: "monthly", section: "overview" }), active: section === "overview" },
         { label: "Breakdown", href: href({ view: "monthly", section: "breakdown" }), active: section === "breakdown" },
         { label: "Trend", href: href({ view: "monthly", section: "trend" }), active: section === "trend" },
@@ -80,7 +83,7 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
     }
 
     return [
-      { label: "Dispatch", href: href({}), active: true },
+      { label: "Schedule", href: href({}), active: true },
       { label: "Monthly", href: href({ view: "monthly" }), active: false },
     ];
   }
@@ -88,10 +91,10 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
   if (pathname.startsWith("/marketing")) {
     const section = ["territory", "calls", "lost-leads"].includes(requestedSection) ? requestedSection : "overview";
     return [
-      { label: "Overview", href: sidebarHref("/marketing", searchParams, { section: "overview" }, { includeDate: false }), active: section === "overview" },
-      { label: "Territory", href: sidebarHref("/marketing", searchParams, { section: "territory" }, { includeDate: false }), active: section === "territory" },
-      { label: "Calls", href: sidebarHref("/marketing", searchParams, { section: "calls" }, { includeDate: false }), active: section === "calls" },
-      { label: "Lost Leads", href: sidebarHref("/marketing", searchParams, { section: "lost-leads" }, { includeDate: false }), active: section === "lost-leads" },
+      { label: "Overview", href: sidebarHref("/marketing", searchParams, { section: "overview" }), active: section === "overview" },
+      { label: "Territory", href: sidebarHref("/marketing", searchParams, { section: "territory" }), active: section === "territory" },
+      { label: "Calls", href: sidebarHref("/marketing", searchParams, { section: "calls" }), active: section === "calls" },
+      { label: "Lost Leads", href: sidebarHref("/marketing", searchParams, { section: "lost-leads" }), active: section === "lost-leads" },
     ];
   }
 
@@ -154,33 +157,50 @@ function sidebarSubItems(pathname: string, searchParams: SearchParamReader): Sid
     if (view === "monthly") {
       const section = ["reconciliation", "expenses", "territory", "trend", "resale"].includes(requestedSection) ? requestedSection : "overview";
       return [
-        { label: "Daily finance", href: sidebarHref("/finance", searchParams, {}), active: false },
-        { label: "Overview", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "overview" }), active: section === "overview" },
-        { label: "Reconciliation", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "reconciliation" }), active: section === "reconciliation" },
-        { label: "Expenses", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "expenses" }), active: section === "expenses" },
+        { label: "Daily close", href: sidebarHref("/finance", searchParams, { view: "daily" }), active: false },
+        { label: "P&L summary", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "overview" }), active: section === "overview" },
+        { label: "Payments & recon", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "reconciliation" }), active: section === "reconciliation" },
+        { label: "Costs", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "expenses" }), active: section === "expenses" },
         { label: "Territory", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "territory" }), active: section === "territory" },
         { label: "Trend", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "trend" }), active: section === "trend" },
-        { label: "Resale", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "resale" }), active: section === "resale" },
+        { label: "Resale inventory", href: sidebarHref("/finance", searchParams, { view: "monthly", section: "resale" }), active: section === "resale" },
       ];
     }
 
-    const section = ["reconciliation", "expenses", "trucks", "resale"].includes(requestedSection) ? requestedSection : "overview";
+    const dailySection = requestedSection === "reconciliation" ? "payments" : requestedSection;
+    const section = ["payments", "expenses", "trucks", "resale"].includes(dailySection) ? dailySection : "overview";
     return [
-      { label: "Overview", href: sidebarHref("/finance", searchParams, { section: "overview" }), active: section === "overview" },
-      { label: "Reconciliation", href: sidebarHref("/finance", searchParams, { section: "reconciliation" }), active: section === "reconciliation" },
-      { label: "Expenses & earnings", href: sidebarHref("/finance", searchParams, { section: "expenses" }), active: section === "expenses" },
-      { label: "Truck breakdown", href: sidebarHref("/finance", searchParams, { section: "trucks" }), active: section === "trucks" },
-      { label: "Resale", href: sidebarHref("/finance", searchParams, { section: "resale" }), active: section === "resale" },
-      { label: "Monthly", href: sidebarHref("/finance", searchParams, { view: "monthly" }), active: false },
+      { label: "Daily summary", href: sidebarHref("/finance", searchParams, { view: "daily", section: "overview" }), active: section === "overview" },
+      { label: "Payments & recon", href: sidebarHref("/finance", searchParams, { view: "daily", section: "payments" }), active: section === "payments" },
+      { label: "Company costs", href: sidebarHref("/finance", searchParams, { view: "daily", section: "expenses" }), active: section === "expenses" },
+      { label: "Truck records", href: sidebarHref("/finance", searchParams, { view: "daily", section: "trucks" }), active: section === "trucks" },
+      { label: "Resale inventory", href: sidebarHref("/finance", searchParams, { view: "daily", section: "resale" }), active: section === "resale" },
+      { label: "Month to date", href: sidebarHref("/finance", searchParams, { view: "monthly" }), active: false },
     ];
   }
 
   return [];
 }
 
-export default function OpsNav({ variant = "tabs" }: { variant?: "tabs" | "sidebar" | "bottom" }) {
+function roleVisibleSubItems(items: SidebarSubItem[], role: InteractiveOpsRole): SidebarSubItem[] {
+  return items.filter((item) => {
+    const target = new URL(item.href, "http://opscenter.local");
+    return authorizeOpsRequest(role, target.pathname, "GET", target.searchParams).allowed;
+  });
+}
+
+export default function OpsNav({
+  variant = "tabs",
+  inboxEnabled = false,
+  role = "admin",
+}: {
+  variant?: "tabs" | "sidebar" | "bottom";
+  inboxEnabled?: boolean;
+  role?: InteractiveOpsRole;
+}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const navigationItems = opsNavigationItems(role, inboxEnabled);
 
   const date = searchParams.get("date");
   const mode = searchParams.get("mode");
@@ -209,7 +229,7 @@ export default function OpsNav({ variant = "tabs" }: { variant?: "tabs" | "sideb
   if (variant === "bottom") {
     return (
       <nav className="ops-bottom-nav" aria-label="Primary navigation">
-        {primaryNavItems.map((item) => {
+        {navigationItems.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (
             <Link
@@ -230,7 +250,7 @@ export default function OpsNav({ variant = "tabs" }: { variant?: "tabs" | "sideb
 
   return (
     <nav className={variant === "sidebar" ? "ops-nav" : "ops-tabs"}>
-      {primaryNavItems.map((item) => {
+      {navigationItems.map((item) => {
         const active =
           item.href === "/"
             ? pathname === "/"
@@ -250,6 +270,7 @@ export default function OpsNav({ variant = "tabs" }: { variant?: "tabs" | "sideb
           );
         }
 
+        const subItems = active ? roleVisibleSubItems(sidebarSubItems(pathname, searchParams), role) : [];
         return (
           <div key={item.href} className={`ops-nav-group${active ? " active" : ""}`}>
             <Link
@@ -261,6 +282,21 @@ export default function OpsNav({ variant = "tabs" }: { variant?: "tabs" | "sideb
               <span className="ops-nav-icon">{item.icon}</span>
               <span>{titleCaseLabel(item.label)}</span>
             </Link>
+            {subItems.length ? (
+              <div className="ops-nav-subitems" role="group" aria-label={`${titleCaseLabel(item.label)} views`}>
+                {subItems.map((subItem) => (
+                  <Link
+                    key={subItem.href}
+                    href={subItem.href}
+                    prefetch={false}
+                    className={`ops-nav-subitem${subItem.active ? " active" : ""}`}
+                    aria-current={subItem.active ? "page" : undefined}
+                  >
+                    {titleCaseLabel(subItem.label)}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
           </div>
         );
       })}

@@ -15,39 +15,72 @@ release at `/Users/missioncontrol/Library/Application Support/OpsCenter/slack.en
 When that file exists, every deployed release links it as `.env.slack.local`;
 the bot token remains in Keychain rather than in this file.
 
-## Ongoing commit-based deployments
+## Production lineage and deployments
 
 The Git deployment uses immutable release directories under
 `/Users/missioncontrol/opscenter-v2/releases`. The stable live path remains
 `/Users/missioncontrol/opscenter-v2/opscenter`, but becomes a symbolic link to
 the active release. This keeps all existing LaunchAgent paths valid.
 
-Before deploying, commit and push the intended code from the MacBook. A dirty
-working tree is allowed, but uncommitted changes are deliberately excluded.
+`origin/production` is the only production deployment source. Feature branches
+must first merge the active Mission Control commit and then be integrated into
+`production`. A deployment activates a complete commit snapshot, so this
+forward-only rule is what keeps previously shipped work in every later release.
 
-For the first deployment, supply MC's Bonjour name, DNS name, or address:
+Mission Control runs the production controller from outside Git release
+snapshots:
+
+```text
+/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh
+```
+
+This prevents the normal deployment command from using an older controller
+carried by a stale feature branch. The installed controller serializes builds,
+requires the requested SHA to equal `origin/production`, verifies that it
+contains the active release before and after the build, and records successful
+transitions in `deployment-history.tsv` beside the controller.
+
+After activation, the controller restarts every loaded release-bound collector
+and watcher with a bounded timeout. A restart failure restores the prior
+release. Superseded releases are pruned only after a bounded `lsof` scan proves
+that no running process still references them; the active and immediately
+previous releases are always protected.
+
+Before deploying, commit and push the intended code, integrate it into
+`origin/production`, and install or refresh the reviewed controller explicitly:
+
+```sh
+./deploy/macmini/install-production-release-controller-from-macbook.sh <mc-host> origin/production
+```
+
+Installing the controller does not build, activate, restart, or deploy
+OpsCenter. It is a separate authorization boundary from deployment.
+
+For the first setup, supply MC's Bonjour name, DNS name, or address:
 
 ```sh
 cd /Users/ejd/opscenter-v2/opscenter
-./deploy/macmini/deploy-from-macbook.sh --bootstrap <mc-host> HEAD
+./deploy/macmini/deploy-from-macbook.sh --bootstrap <mc-host> origin/production
 ```
 
 The bootstrap preserves the existing transferred application folder as a
 timestamped `pre-git-snapshot-*` directory. It does not enable a production
-service or Cloudflare Tunnel.
+service or Cloudflare Tunnel, install the production controller, or deploy.
+After bootstrap, run the explicit controller-install command below and then the
+normal production deployment command.
 
-For later deployments:
+For production deployments:
 
 ```sh
-git push
-./deploy/macmini/deploy-from-macbook.sh <mc-host> HEAD
+git fetch origin
+./deploy/macmini/deploy-from-macbook.sh <mc-host> origin/production
 ```
 
 To avoid repeating the host, set `OPSCENTER_MC_HOST` in the MacBook shell's
 private environment and run:
 
 ```sh
-OPSCENTER_MC_HOST=<mc-host> ./deploy/macmini/deploy-from-macbook.sh HEAD
+OPSCENTER_MC_HOST=<mc-host> ./deploy/macmini/deploy-from-macbook.sh origin/production
 ```
 
 ## Deployment safety
@@ -76,14 +109,14 @@ The controller uses `~/.ssh/id_ed25519_opscenter` by default. Set
 `OPSCENTER_MC_SSH_KEY` when the approved Mission Control key is stored at a
 different private path.
 
-The remote deployment refuses commits that are not contained in a pushed
-origin branch. It builds the release before changing the live link. If an
-OpsCenter preview or production LaunchAgent is already loaded, it restarts that
-service and requires the login page to return HTTP 200. A failed startup
-automatically restores the previous live link and restarts the prior release.
-Each release also installs the Chromium revision pinned by Playwright so
-JunkWare closeout and truck-assignment actions remain available after dependency
-updates.
+The local and installed controllers both reject any requested SHA other than the
+current `origin/production` head. The installed controller builds before
+changing the live link. If an OpsCenter preview or production LaunchAgent is
+already loaded, it restarts that service and requires the login page to return
+HTTP 200. A failed startup automatically restores the previous live link and
+restarts the prior release. Each release also installs the Chromium revision
+pinned by Playwright so JunkWare closeout and truck-assignment actions remain
+available after dependency updates.
 
 After a successful app health check, production also restarts every loaded
 release-bound OpsBot service: JunkWare's live collector, schedule detector,
@@ -285,6 +318,12 @@ http://127.0.0.1:3100
 Use the shared username and password on the local login screen. Configure
 `OPS_AUTH_USERNAME` and a salted `OPS_AUTH_PASSWORD_HASH` in the protected
 runtime environment; never store the password in the repository.
+
+The configured primary identity defaults to `admin`. Use `OPS_AUTH_ROLE`,
+`OPS_AUTH_DEFAULT_ROLE`, and `OPS_AUTH_ROLE_BINDINGS` to assign interactive
+`admin`, `manager`, or `operator` access without storing role data in source.
+See [the OpsCenter role model](../../docs/OPSCENTER_ROLE_MODEL.md) for the
+permission matrix and binding formats.
 
 ## 5. Verify isolation
 

@@ -150,19 +150,6 @@ function jobHref(batch: WhatsAppPhotoSlackBatch): string {
   return `${opsCenterOrigin()}/jobs${date ? `?date=${encodeURIComponent(date)}` : ""}#${anchor}`;
 }
 
-function categorySummary(photos: WhatsAppPhotoSlackBatchPhoto[]): string {
-  const counts = new Map<WhatsAppPhotoCategory, number>();
-  for (const photo of photos) counts.set(photo.category, (counts.get(photo.category) || 0) + 1);
-  const labels: Record<WhatsAppPhotoCategory, string> = {
-    before: "before",
-    after: "after",
-    donation: "donation / receipt",
-  };
-  return (["before", "after", "donation"] as const)
-    .flatMap((category) => counts.has(category) ? [`${counts.get(category)} ${labels[category]}`] : [])
-    .join(" · ");
-}
-
 export function formatWhatsAppPhotoSlackNotification(batch: WhatsAppPhotoSlackBatch): string {
   const count = batch.photos.length;
   const noun = count === 1 ? "photo" : "photos";

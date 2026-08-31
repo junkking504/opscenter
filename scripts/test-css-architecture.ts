@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import postcss, { type Rule } from "postcss";
 
 const root = process.cwd();
 const layout = fs.readFileSync(path.join(root, "app/layout.tsx"), "utf8");
 const entry = fs.readFileSync(path.join(root, "app/ops-styles.css"), "utf8");
 const usability = fs.readFileSync(path.join(root, "app/ops-usability.css"), "utf8");
+const visualSystem = fs.readFileSync(path.join(root, "app/ops-visual-system.css"), "utf8");
 const jobsCss = fs.readFileSync(path.join(root, "app/(protected)/jobs/jobs.css"), "utf8");
 const maintenanceCss = fs.readFileSync(path.join(root, "app/(protected)/fleet/maintenance.css"), "utf8");
 const jobsPage = fs.readFileSync(path.join(root, "app/(protected)/jobs/page.tsx"), "utf8");
@@ -18,6 +20,9 @@ const styleFiles = [
   "ops-design-system.css",
   "dashboard-v2.css",
   "ops-usability.css",
+  "crew-responsive.css",
+  "compact-verifiers.css",
+  "ops-visual-system.css",
 ];
 
 assert.match(layout, /import "\.\/ops-styles\.css";/, "The root layout must load the single OpsCenter style entry.");

@@ -21,4 +21,7 @@ then disable `com.openclaw.opsbot.linxup-collector`.
 
 This removes OpsCenter's polling delay. The timestamp remains the tracker’s
 reported `positionDate`, and confirmed job arrivals still require the existing
-two-point, two-minute, 125-meter dwell evidence rule.
+two-point, two-minute, 125-meter dwell evidence rule. A historical appointment
+visit, or a later isolated GPS point at the same address, must never be shown
+as a current on-site state; Schedule labels it only after fresh, continuous
+dwell evidence is present.

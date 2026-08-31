@@ -195,7 +195,7 @@ All mutation responses include `correlationId`, the new resource version, and th
 
 The current authenticated email becomes the initial human actor external identity. Roles and scopes are added in the platform store. Until roles are configured, new kernel mutations must default to deny outside explicitly bootstrapped administrators.
 
-Crew portal identity remains distinct and narrowly scoped. Service and agent actors use dedicated identities rather than impersonating a human.
+Krewe portal identity remains distinct and narrowly scoped. Service and agent actors use dedicated identities rather than impersonating a human.
 
 ## Observability and recovery
 

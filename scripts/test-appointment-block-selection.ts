@@ -13,13 +13,28 @@ assert.match(
 );
 assert.match(
   jobsMapSource,
-  /function handleAppointmentClick[\s\S]*?setSelectedKey\(jobKey\);[\s\S]*?const job = displayJobs\.find[\s\S]*?articleId: job\.detailId/,
-  "Normal clicks must select the appointment and publish its matching card ID.",
+  /function handleAppointmentClick[\s\S]*?setSelectedKey\(jobKey\);[\s\S]*?const job = displayJobs\.find[\s\S]*?map\.setView\(\[job\.latitude, job\.longitude\][\s\S]*?articleId: job\.detailId/,
+  "Normal appointment-block clicks must center the matching location and publish its matching card ID.",
+);
+assert.match(
+  jobsMapSource,
+  /const selectMapJob = \(job: JobsMapPoint & \{ latitude: number; longitude: number \}\) => \{[\s\S]*?focusMapArea\(\[job\]\);[\s\S]*?for \(const cluster of jobClusters\) \{[\s\S]*?const job = cluster\.items\[0\];[\s\S]*?addInteractiveMarker\(marker, \(\) => selectMapJob\(job\)\);/,
+  "A direct single-appointment marker click must focus that appointment's map location.",
 );
 assert.match(
   jobsMapSource,
   /function showAppointmentInQueue[\s\S]*?articleId: job\.detailId[\s\S]*?getElementById\("jobs-schedule"\)\?\.scrollIntoView[\s\S]*?getElementById\(job\.detailId\)\?\.focus/,
   "The selected map appointment must provide a route to its closeout card in the Appointment Queue.",
+);
+assert.doesNotMatch(
+  jobsMapSource,
+  /mapSelectionRef|selectedJobKey[\s\S]*?scrollIntoView/,
+  "Selecting an appointment or truck must not scroll the page away from the Dispatch map and truck board.",
+);
+assert.match(
+  globalCss,
+  /\.ops-jobs-map-selection \{[\s\S]*?overflow-anchor: none;[\s\S]*?\.ops-jobs-map-assignment-status \{[\s\S]*?overflow-anchor: none;/,
+  "Changing appointment or truck details must not trigger browser scroll anchoring.",
 );
 assert.match(
   jobsMapSource,
@@ -33,8 +48,8 @@ assert.match(
 );
 assert.match(
   jobsCss,
-  /@media \(max-width: 700px\)[\s\S]*?\.ops-jobs-map-schedule \.ops-jobs-map-board[\s\S]*?--ops-jobs-map-time-cell-min: 0px !important/,
-  "Phone appointment blocks must override the desktop cell size to fit the board in view.",
+  /@media \(max-width: 700px\)[\s\S]*?\.ops-jobs-map-schedule \.ops-jobs-map-board[\s\S]*?--ops-jobs-map-time-cell-min: 44px !important/,
+  "Phone appointment blocks must preserve swipeable touch-size time cells.",
 );
 assert.match(
   jobsMapSource,
@@ -43,13 +58,18 @@ assert.match(
 );
 assert.match(
   globalCss,
-  /\.ops-jobs-map-pin \.ops-jobs-map-pin-check[\s\S]*?color: #16803c/,
-  "The completed map-marker checkmark must remain green.",
+  /\.ops-jobs-map-pin \.ops-jobs-map-pin-check[\s\S]*?background: #16a34a;[\s\S]*?font-size: 10px/,
+  "The completed map-marker checkmark must remain an unmistakable green badge at compact locator size.",
+);
+assert.match(
+  jobsMapSource,
+  /const markerLabel = `\$\{job\.appointmentTime\} · \$\{job\.customerName\} · \$\{job\.jkNumber\} · \$\{scheduleJobState\(job\)\.label\}`/,
+  "Completed marker labels must expose their status to keyboard and assistive-technology users.",
 );
 assert.match(
   territorySource,
-  /WESTWEGO[\s\S]*?if \(WESTWEGO\.test\(location\)\) return "Westbank"/,
-  "Westwego appointments must be classified as Westbank.",
+  /WESTBANK_LOCATION[\s\S]*?if \(WESTBANK_LOCATION\.test\(location\)\) return "Westbank"/,
+  "South Bank appointments must be classified as Westbank.",
 );
 assert.match(
   jobsMapSource,
@@ -60,6 +80,11 @@ assert.match(
   globalCss,
   /\.is-westbank\.is-assigned-unfinished \{ background: #f59e0b; \}/,
   "Assigned Westbank appointments must display with the amber-orange indicator.",
+);
+assert.match(
+  readFileSync(new URL("../app/ops-usability.css", import.meta.url), "utf8"),
+  /\.ops-map-cluster:is\(\.is-appointments, \.is-locations\)\.is-westbank \{ background: #f59e0b; \}/,
+  "Westbank appointment clusters must display orange.",
 );
 assert.match(
   jobsMapSource,

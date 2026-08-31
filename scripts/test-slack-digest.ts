@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { fetchSlackDailyDigest, slackTextToPlainText } from "@/lib/slack-digest";
+import {
+  fetchSlackDailyDigest,
+  isOperationalSlackDigestMessage,
+  normalizedCancellationDigestText,
+  normalizedLegacyAppointmentDigestText,
+  normalizedLegacyCancellationDigestText,
+  normalizedLegacyCloseoutDigestText,
+  normalizedLegacyPhotoDigestText,
+  normalizedLegacyTruckArrivalDigestText,
+  normalizedRescheduleDigestText,
+  slackDigestChannelName,
+  slackTextToPlainText,
+} from "@/lib/slack-digest";
 
 async function main() {
   const clientSource = fs.readFileSync(new URL("../components/SlackAlertsDigest.tsx", import.meta.url), "utf8");
@@ -8,8 +20,10 @@ async function main() {
   assert.match(clientSource, /void refresh\(\);/);
   assert.match(clientSource, /window\.addEventListener\("focus", refreshWhenVisible\)/);
   assert.match(clientSource, /document\.addEventListener\("visibilitychange", refreshWhenVisible\)/);
-  assert.match(clientSource, /message\.closeout/);
-  assert.match(clientSource, /Open in OpsCenter/);
+  assert.match(clientSource, /function renderSlackInline/);
+  assert.match(clientSource, /message\.rawText/);
+  assert.match(clientSource, /tel:/);
+  assert.doesNotMatch(clientSource, /message\.closeout/);
 
   assert.equal(
     slackTextToPlainText(":warning: *New alert*\n<https://ops.junk-king.app/jobs|Open in OpsCenter>\n_Alert ID: test:123_"),
@@ -60,6 +74,11 @@ async function main() {
           ts: "1786710000.000001",
           text: "Older alert",
           bot_profile: { name: "OpsCenter Alerts" },
+        },
+        {
+          ts: "1786719100.000006",
+          subtype: "channel_name",
+          text: "Taylor renamed the channel from ops to command",
         },
       ],
       response_metadata: { next_cursor: "" },
@@ -116,6 +135,9 @@ async function main() {
       appt_id: "4039401",
       job_id: "JK4052579",
       truck: "Truck# 8",
+      customer_name: "Legacy Customer",
+      driver_normalized_name: "Legacy Driver",
+      navigator_normalized_name: "Legacy Navigator",
       revenue: "$358.00",
       tip: "$71.60",
       final_status: "Completed",
@@ -140,9 +162,9 @@ async function main() {
   assert.deepEqual(digest.messages[2].closeout?.lines, [
     "Load: 1/3 ($388.00).",
     "Discount: $30.00.",
-    "Job total: $358.00.",
-    "Tip: $71.60.",
-    "Charged: Card ending 9896 ($429.60).",
+    "Tips: $71.60.",
+    "Total: $358.00.",
+    "Card Ending: 9896.",
   ]);
   assert.equal(digest.messages[2].closeout?.href, "/jobs?date=2026-08-14#job-jk4052579");
   assert.equal(digest.messages[3].channel, "#jobs-no");

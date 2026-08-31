@@ -173,12 +173,12 @@ function CrewMetricsTable({
     <div className={styles.tableWrap}>
       <table
         className={`${styles.table} ${styles.leaderboardTable} ${daily ? styles.dailyMetricsTable : ""} ${ranked ? styles.rankedTable : ""}`}
-        aria-label={ranked ? "Monthly crew leaderboard" : "Crew performance metrics"}
+        aria-label={ranked ? "Monthly Krewe leaderboard" : "Krewe performance metrics"}
       >
         <thead>
           <tr>
             {ranked ? <th>Rank</th> : null}
-            <th>Crew member</th>
+            <th>Krewe member</th>
             <th>Jobs completed</th>
             {leaderboardMetrics ? <th>Average job size</th> : <th>Estimates closed</th>}
             {leaderboardMetrics ? <th>Revenue</th> : null}
@@ -191,7 +191,7 @@ function CrewMetricsTable({
             return (
               <tr key={row.name} className={isYou ? styles.youRow : undefined}>
                 {ranked ? <td className={styles.rankCell} data-label="Rank"><span className={styles.rank}>{index + 1}</span></td> : null}
-                <td className={styles.crewCell} data-label="Crew member"><span className={styles.crewName}>{row.name}</span>{isYou ? <span className={styles.youBadge}>You</span> : null}</td>
+                <td className={styles.crewCell} data-label="Krewe member"><span className={styles.crewName}>{row.name}</span>{isYou ? <span className={styles.youBadge}>You</span> : null}</td>
                 <td data-label="Jobs completed">{wholeNumber.format(row.jobsCompleted)}</td>
                 {leaderboardMetrics ? <td data-label="Average job size">{money.format(row.averageJobSize)}</td> : <td data-label="Estimates closed">{row.estimateCloseRate === null ? "—" : `${percent.format(row.estimateCloseRate)}%`}</td>}
                 {leaderboardMetrics ? <td data-label="Revenue">{money.format(row.creditedRevenue)}</td> : null}
@@ -212,7 +212,7 @@ function DailyPerformanceView({ data }: { data: Awaited<ReturnType<typeof getCre
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <div>
-            <div className={styles.eyebrow}>Private crew access</div>
+            <div className={styles.eyebrow}>Private Krewe access</div>
             <h2>Your Daily Performance</h2>
             <p>{dateLabel(data.dailyPerformance.end, { weekday: "long", month: "long", day: "numeric" })}</p>
           </div>
@@ -223,18 +223,18 @@ function DailyPerformanceView({ data }: { data: Awaited<ReturnType<typeof getCre
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
           <div>
-            <div className={styles.eyebrow}>All crewmembers</div>
+            <div className={styles.eyebrow}>All Krewe members</div>
             <h2>Everyone’s Daily Metrics</h2>
-            <p>Today’s clocked-in crew: jobs, average job size, credited revenue, and tips.</p>
+            <p>Today’s clocked-in Krewe: jobs, average job size, credited revenue, and tips.</p>
           </div>
-          <div className={styles.privacyNote}>Crew-visible · Total pay hidden</div>
+          <div className={styles.privacyNote}>Krewe-visible · Total pay hidden</div>
         </div>
         <div className={styles.leaderboardPanel}>
           <CrewMetricsTable
             rows={data.dailyPerformance.rows}
             employee={data.employee}
             daily
-            emptyMessage="No crew performance has been recorded yet today."
+            emptyMessage="No Krewe performance has been recorded yet today."
           />
         </div>
       </section>
@@ -338,7 +338,7 @@ function MonthlyLeaderboardView({ data }: { data: Awaited<ReturnType<typeof getC
             <h2>Monthly Leaderboard</h2>
             <p>{dateLabel(leaderboard.start, { month: "long", year: "numeric" })} · Ranked by jobs completed, then revenue.</p>
           </div>
-          <div className={styles.privacyNote}>Crew-visible · Total pay hidden</div>
+          <div className={styles.privacyNote}>Krewe-visible · Total pay hidden</div>
         </div>
         <div className={styles.monthSummary}>
           <div className={styles.monthSummaryCard}><span>Total jobs</span><strong>{wholeNumber.format(leaderboard.totalJobs)}</strong></div>
@@ -351,14 +351,14 @@ function MonthlyLeaderboardView({ data }: { data: Awaited<ReturnType<typeof getC
 
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div><div className={styles.eyebrow}>All crewmembers</div><h2>Month-to-Date Metrics</h2><p>Jobs completed, revenue, average job size, and tips.</p></div>
+          <div><div className={styles.eyebrow}>All Krewe members</div><h2>Month-to-Date Metrics</h2><p>Jobs completed, revenue, average job size, and tips.</p></div>
         </div>
         <div className={styles.leaderboardPanel}>
           <CrewMetricsTable
             rows={leaderboard.rows}
             employee={data.employee}
             ranked
-            emptyMessage="No crew performance has been recorded this month."
+            emptyMessage="No Krewe performance has been recorded this month."
           />
         </div>
       </section>
@@ -379,14 +379,14 @@ export default async function MyPayPage({ searchParams }: Props) {
     <div className={styles.page}>
       <header className={styles.topbar}>
         <div className={styles.topbarInner}>
-          <div className={styles.brand}><span className={styles.brandMark} /> OpsCenter Crew Portal</div>
+          <div className={styles.brand}><span className={styles.brandMark} /> OpsCenter Krewe Portal</div>
           <a className={styles.logout} href="/api/crew/auth/logout">Sign out</a>
         </div>
       </header>
 
       <main className={styles.main}>
         <div className={styles.hero}>
-          <div><div className={styles.eyebrow}>Private crew access</div><h1>Hi, {firstName}.</h1></div>
+          <div><div className={styles.eyebrow}>Private Krewe access</div><h1>Hi, {firstName}.</h1></div>
           <div className={styles.updated}>{timestampLabel(data.lastUpdated)}<br />History available {data.availableFrom ? `from ${dateLabel(data.availableFrom)}` : "when payroll data is recorded"}.</div>
         </div>
 
@@ -397,7 +397,7 @@ export default async function MyPayPage({ searchParams }: Props) {
         {view === "leaderboard" ? <MonthlyLeaderboardView data={data} /> : null}
 
         <div className={styles.notice}>
-          Performance, tips, and bonus-day counts are crew-visible. Bonus amounts and total pay are shown only to the signed-in employee. Current and open-shift pay amounts remain estimates until payroll is finalized.
+          Performance, tips, and bonus-day counts are Krewe-visible. Bonus amounts and total pay are shown only to the signed-in employee. Current and open-shift pay amounts remain estimates until payroll is finalized.
         </div>
       </main>
     </div>

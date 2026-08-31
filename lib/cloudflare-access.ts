@@ -140,3 +140,15 @@ export function crewAccessConfigured(): boolean {
 export function opsAccessConfigured(): boolean {
   return Boolean(opsTeamDomain() && opsAudience());
 }
+
+export function opsAccessLoginUrl(redirectUrl: URL | string): URL | null {
+  const domain = opsTeamDomain();
+  const audience = opsAudience();
+  if (!domain || !audience) return null;
+
+  const redirect = typeof redirectUrl === "string" ? new URL(redirectUrl) : redirectUrl;
+  const login = new URL(`/cdn-cgi/access/login/${redirect.hostname}`, domain);
+  login.searchParams.set("kid", audience);
+  login.searchParams.set("redirect_url", `${redirect.pathname}${redirect.search}`);
+  return login;
+}

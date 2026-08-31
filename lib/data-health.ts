@@ -40,11 +40,24 @@ type TimedFile = {
   mtime: Date;
 };
 
+type QboApiSnapshotMetadata = {
+  date?: unknown;
+  collected_at?: unknown;
+  account_name?: unknown;
+  qbo_company_name?: unknown;
+  transaction_count?: unknown;
+  transaction_total?: unknown;
+  collector?: unknown;
+};
+
 const AGE_GREEN = 10;
 const AGE_YELLOW = 20;
+const OPSBOT_DATA_DIR =
+  process.env.OPSBOT_DATA_DIR ||
+  path.join(process.env.HOME || "", ".openclaw", "workspace", "opsbot", "data");
 
 function dataDir(...parts: string[]): string {
-  return path.join(process.cwd(), "data", ...parts);
+  return path.join(OPSBOT_DATA_DIR, ...parts);
 }
 
 function chicagoNow(): Date {
@@ -113,6 +126,47 @@ function listFiles(dir: string, matcher: RegExp): TimedFile[] {
   }
 
   return files.sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+}
+
+function normalizedIdentity(value: unknown): string {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+function listQboApiSnapshots(): TimedFile[] {
+  const snapshots = listFiles(
+    dataDir("imports", "intuit_merchant_center", "junk_krewe"),
+    /^transactions-(\d{4}-\d{2}-\d{2})\.json$/i,
+  );
+
+  return snapshots.flatMap((snapshot) => {
+    const match = snapshot.file.match(/^transactions-(\d{4}-\d{2}-\d{2})\.json$/i);
+    if (!match) return [];
+
+    try {
+      const metadata = JSON.parse(fs.readFileSync(snapshot.fullPath, "utf8")) as QboApiSnapshotMetadata;
+      const collectedAt = new Date(String(metadata.collected_at || ""));
+      const company = normalizedIdentity(metadata.qbo_company_name);
+      const account = normalizedIdentity(metadata.account_name);
+      const count = metadata.transaction_count;
+      const total = metadata.transaction_total;
+      const valid =
+        metadata.collector === "qbo-accounting-api"
+        && metadata.date === match[1]
+        && !Number.isNaN(collectedAt.getTime())
+        && collectedAt.getTime() <= Date.now() + 5 * 60 * 1000
+        && Boolean(company)
+        && company === account
+        && typeof count === "number"
+        && Number.isInteger(count)
+        && count >= 0
+        && typeof total === "number"
+        && Number.isFinite(total);
+
+      return valid ? [{ ...snapshot, mtime: collectedAt }] : [];
+    } catch {
+      return [];
+    }
+  }).sort((left, right) => right.mtime.getTime() - left.mtime.getTime());
 }
 
 function latest(files: TimedFile[]): TimedFile | null {
@@ -233,7 +287,10 @@ export function getDataHealthReport(): DataHealthReport {
     ...listFiles(dataDir("history", "linxup"), new RegExp(today, "i")),
     ...listFiles(dataDir("history", "linxup", "appointment_visits"), new RegExp(today, "i")),
   ];
-  const qboFiles = listFiles(dataDir("history", "qbo"), /^qbo_(\d{4}-\d{2}-\d{2}).*\.(csv|json)$/i);
+  const qboApiSnapshots = listQboApiSnapshots();
+  const qboLegacyFiles = listFiles(dataDir("history", "qbo"), /^qbo_(\d{4}-\d{2}-\d{2}).*\.(csv|json)$/i);
+  const qboFiles = [...qboApiSnapshots, ...qboLegacyFiles]
+    .sort((left, right) => right.mtime.getTime() - left.mtime.getTime());
 
   const junkwarePartialNotes = [
     !hasFileMatching(junkwareFiles, /junkware_.*_raw\.json$/i) ? "Raw JunkWare file missing." : "",
@@ -261,7 +318,7 @@ export function getDataHealthReport(): DataHealthReport {
   });
 
   const qboLatest = latest(qboFiles);
-  const qboTodayFiles = qboFiles.filter((file) => file.file.includes(today));
+  const qboTodayFiles = qboApiSnapshots.filter((file) => file.file.includes(today));
   const qboHasAnyValid = qboFiles.length > 0;
   const qboAgeMinutes = minutesSince(qboLatest?.mtime ?? null, chicagoNow());
   const qboStatus: QboConnectionState =
@@ -282,7 +339,9 @@ export function getDataHealthReport(): DataHealthReport {
       qboStatus === "Connected"
         ? "Connected"
         : qboStatus === "Stale"
-          ? "Historical files only"
+          ? qboTodayFiles.length > 0
+            ? "Latest API snapshot is stale"
+            : "Historical files only"
           : "No valid QBO files found",
     lastSuccessfulAt: qboLatest?.mtime ? qboLatest.mtime.toISOString() : null,
     lastSuccessfulAtLabel: formatTimestamp(qboLatest?.mtime ?? null),
@@ -290,7 +349,7 @@ export function getDataHealthReport(): DataHealthReport {
     missingToday: qboTodayFiles.length === 0,
     partial: qboStatus === "Stale",
     notes: [
-      qboTodayFiles.length === 0 ? "No QBO files for today." : "Today’s QBO files are present.",
+      qboTodayFiles.length === 0 ? "No QBO API snapshot for today." : "Today’s QBO API snapshot is present.",
       qboLatest ? `Latest file: ${qboLatest.file}` : "No QBO files available.",
     ],
   };

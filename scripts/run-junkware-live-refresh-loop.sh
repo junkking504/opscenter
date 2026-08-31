@@ -61,6 +61,25 @@ auto_virtualize_external_bookings() {
   )
 }
 
+publish_verified_closeout_alerts() {
+  [[ "${SLACK_OPSCENTER_ALERTS_ENABLED:-false}" =~ ^(1|true|yes|on)$ ]] || return 0
+
+  if [ -z "${SLACK_BOT_TOKEN:-}" ]; then
+    SLACK_BOT_TOKEN=$(/usr/bin/security find-generic-password \
+      -a opscenter \
+      -s com.opscenter.slack-bot-token \
+      -w 2>/dev/null || true)
+    export SLACK_BOT_TOKEN
+  fi
+
+  (
+    cd "$OPSCENTER_DIR" || exit 1
+    OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" \
+      SLACK_OPSCENTER_STATE_FILE="$OPSBOT_DIR/data/slack/ops_alert_state.json" \
+      node --import tsx scripts/publish-slack-alerts.ts --date "$TODAY" --only job_closed,estimate_closed
+  )
+}
+
 queue_sms_refresh_date() {
   local schedule_date="$1"
   [[ "$schedule_date" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || return 0
@@ -173,6 +192,14 @@ do
       queue_sms_refresh_date "$SMS_DATE"
     done
   else
+    # Closeouts are complete in the verified JunkWare snapshot at this point.
+    # Publish the truck notice now instead of making it wait for QBO, Crew
+    # Portal, SearchKings, or VPS work. The focused publisher shares durable
+    # closeout fingerprints with the fast schedule detector and the later
+    # full alert pass, so a healthy detector cannot create a duplicate.
+    publish_verified_closeout_alerts \
+      || echo "WARNING: verified JunkWare closeout alert publish failed."
+
     auto_virtualize_external_bookings "$TODAY" \
       || echo "WARNING: new external-booking Virtual Truck assignment is pending retry."
     python3 "$OPSCENTER_DIR/scripts/reconcile-junkware-monthly.py" \

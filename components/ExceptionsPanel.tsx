@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import type { OperationalExceptionsReport, ExceptionCategory, ExceptionSeverity } from "@/lib/operational-exceptions";
+import { operationalCategoryLabel } from "@/lib/ops-labels";
 
 const severityLabels: Record<ExceptionSeverity, string> = {
   critical: "Critical",

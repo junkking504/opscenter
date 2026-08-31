@@ -1,0 +1,93 @@
+.relatedLink {
+  color: var(--ops-blue);
+  font-weight: 850;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  text-underline-offset: 3px;
+}
+
+.relatedLink:hover,
+.relatedLink:focus-visible {
+  text-decoration-color: currentColor;
+}
+
+.records {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ops-border);
+}
+
+.group {
+  display: grid;
+  gap: 7px;
+}
+
+.groupLabel {
+  color: var(--ops-muted-2);
+  font-size: .62rem;
+  font-weight: 850;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.card {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--ops-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .025);
+  color: var(--ops-text);
+}
+
+.card:hover,
+.card:focus-visible {
+  border-color: color-mix(in srgb, var(--ops-blue) 65%, var(--ops-border));
+  background: color-mix(in srgb, var(--ops-blue) 8%, transparent);
+}
+
+.card strong {
+  color: var(--ops-blue);
+  font-size: .84rem;
+}
+
+.card small {
+  overflow: hidden;
+  color: var(--ops-muted);
+  font-size: .72rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.target {
+  border-color: color-mix(in srgb, var(--ops-blue) 70%, var(--ops-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ops-blue) 12%, transparent);
+}
+
+@media (max-width: 720px) {
+  .list,
+  .compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .list,
+  .compact {
+    grid-template-columns: 1fr;
+  }
+}

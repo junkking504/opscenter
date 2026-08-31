@@ -5,7 +5,10 @@ export type WhatsAppPhotoCategory = "before" | "after" | "donation";
 export type WhatsAppPhotoMatch = {
   status: "matched";
   method: "jk_number" | "nearest_truck_gps";
-  appointmentId: string;
+  // An explicit JK number can belong to an appointment outside the message
+  // date's schedule snapshot. The worker resolves it directly through
+  // JunkWare before it downloads or uploads a photo.
+  appointmentId: string | null;
   jkNumber: string;
   truck: string | null;
   distanceMiles: number | null;
@@ -144,20 +147,12 @@ export function matchWhatsAppPhoto(input: {
   const explicitJk = extractJkNumber(combinedText);
   if (explicitJk) {
     const matched = appointments.find((appointment) => appointmentJkNumber(appointment) === explicitJk);
-    if (!matched) {
-      return {
-        status: "review",
-        reason: "jk_not_on_active_schedule",
-        detail: `${explicitJk} was not found on the active schedule for the message date.`,
-        category,
-      };
-    }
     return {
       status: "matched",
       method: "jk_number",
-      appointmentId: appointmentId(matched),
-      jkNumber: appointmentJkNumber(matched),
-      truck: normalizeTruck(matched.truck || matched.assigned_truck) || null,
+      appointmentId: matched ? appointmentId(matched) : null,
+      jkNumber: explicitJk,
+      truck: matched ? normalizeTruck(matched.truck || matched.assigned_truck) || null : null,
       distanceMiles: null,
       category,
     };

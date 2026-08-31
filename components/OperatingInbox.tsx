@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { WorkItemStatus } from "@/lib/platform/contracts";
 import type { InboxEvent, InboxPayload, InboxWorkItem } from "@/lib/platform/inbox";
+import { operationalCategoryLabel } from "@/lib/ops-labels";
 import styles from "./OperatingInbox.module.css";
 
 type ScopeFilter = "all" | "act_now" | "mine" | "unassigned";
@@ -258,7 +259,7 @@ export default function OperatingInbox({
   if (!payload) return null;
 
   return (
-    <div className={`${styles.shell}${variant === "command" ? ` ${styles.command}` : ""}`} id={variant === "command" ? "operating-inbox" : undefined}>
+    <div className={`${styles.shell}${variant === "command" ? ` ${styles.command}` : ` ${styles.standalone}`}`} id={variant === "command" ? "operating-inbox" : undefined}>
       {variant === "command" ? (
         <div className={styles.commandHead}>
           <div>
@@ -274,10 +275,21 @@ export default function OperatingInbox({
           </div>
         </div>
       ) : (
-        <div className={styles.standaloneActions}>
-          <button className={styles.createButton} type="button" onClick={() => setShowCreate((current) => !current)}>
-            {showCreate ? "Cancel" : "+ New work item"}
-          </button>
+        <div className={styles.standaloneHead}>
+          <div className={styles.standaloneCopy}>
+            <div className={styles.kicker}>Operating Inbox</div>
+            <h1>
+              <span className={styles.desktopTitle}>Work requiring a decision</span>
+              <span className={styles.mobileTitle}>Work assigned to you</span>
+            </h1>
+            <p className={styles.desktopSubtitle}>Own the work, take a controlled action, and verify the outcome.</p>
+            <p className={styles.mobileSubtitle}>Claim, act, and verify without leaving the queue.</p>
+          </div>
+          <div className={styles.standaloneActions}>
+            <button className={styles.createButton} type="button" onClick={() => setShowCreate((current) => !current)}>
+              {showCreate ? "Cancel" : "+ New work item"}
+            </button>
+          </div>
         </div>
       )}
 
@@ -332,6 +344,12 @@ export default function OperatingInbox({
         <div className={styles.metric}><span>Waiting</span><strong>{payload.counts.waiting}</strong></div>
       </div>
 
+      <div className={styles.mobileSummary} data-alert={payload.counts.actNow > 0}>
+        <span>Act now</span>
+        <strong>{payload.counts.actNow} {payload.counts.actNow === 1 ? "item needs" : "items need"} a decision</strong>
+        <button type="button" onClick={() => setScope("act_now")}>View all →</button>
+      </div>
+
       <div className={styles.toolbar}>
         <div className={styles.scope} aria-label="Ownership filter">
           {(["all", "act_now", "mine", "unassigned"] as ScopeFilter[]).map((value) => (
@@ -358,7 +376,11 @@ export default function OperatingInbox({
 
       <section className={styles.workspace} aria-label="Operating Inbox">
         <div className={styles.list}>
-          <div className={styles.listHead}><span>Work queue</span><span>{visibleItems.length} shown</span></div>
+          <div className={styles.listHead}>
+            <span className={styles.desktopQueueLabel}>Work queue</span>
+            <span className={styles.mobileQueueLabel}>Next in your queue</span>
+            <span>{visibleItems.length} shown</span>
+          </div>
           <div className={styles.items}>
             {visibleItems.length ? visibleItems.map((item) => (
               <button
@@ -381,7 +403,7 @@ export default function OperatingInbox({
           </div>
         </div>
 
-        <div className={styles.detail}>
+        <div className={styles.detail} data-severity={selected?.severity}>
           {selected ? (
             <>
               <div className={styles.detailTop}>

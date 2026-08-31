@@ -1,12 +1,12 @@
-# WhatsApp job photo and crew expense intake
+# WhatsApp job photo and Krewe expense intake
 
 OpsCenter receives truck photos through Meta's official WhatsApp Cloud API and uploads them to the corresponding JunkWare appointment.
 
-The same signed webhook accepts structured dump and fuel reports from the crew. These appear in Finance → Truck breakdown under **OpsBot Truck Records Detail**, corresponding to JunkWare Accounting → Truck Records categories. JunkWare exposes only daily Dumps and Gas dollar totals; OpsCenter retains the additional location, quantity, and time detail with the original WhatsApp message ID for audit and duplicate protection.
+The same signed webhook accepts structured dump and fuel reports from the Krewe. These appear in Finance → Truck breakdown under **OpsBot Truck Records Detail**, corresponding to JunkWare Accounting → Truck Records categories. JunkWare exposes only daily Dumps and Gas dollar totals; OpsCenter retains the additional location, quantity, and time detail with the original WhatsApp message ID for audit and duplicate protection.
 
-## Crew dump and fuel reports
+## Krewe dump and fuel reports
 
-Crew can send `Dump` or `Fuel` by itself and OpsBot replies with an unlabeled example. Each value can then be sent as its own message, or the whole unlabeled list can be sent at once. OpsBot accumulates the values for that sender's active expense session, which remains open for up to 12 hours of inactivity or until a new `Dump`/`Fuel` command replaces it.
+Krewe members can send `Dump` or `Fuel` by itself and OpsBot replies with an unlabeled example. Each value can then be sent as its own message, or the whole unlabeled list can be sent at once. OpsBot accumulates the values for that sender's active expense session, which remains open for up to 12 hours of inactivity or until a new `Dump`/`Fuel` command replaces it.
 
 ```text
 Truck 1
@@ -75,6 +75,11 @@ WHATSAPP_CONTEXT_MAX_AGE_MINUTES='10'
 WHATSAPP_GPS_MAX_AGE_MINUTES='30'
 WHATSAPP_MAX_JOB_DISTANCE_MILES='0.5'
 WHATSAPP_MINIMUM_JOB_MARGIN_MILES='0.15'
+
+# Wait for a quiet period after the most recent inbound photo before confirming
+# a verified explicit-JK photo batch. Upload and verification time counts toward
+# this window instead of starting another full wait afterward.
+WHATSAPP_JOB_PHOTO_BATCH_QUIET_SECONDS='60'
 ```
 
 Example decoded truck map shape (use real values only in the private environment, never Git):
@@ -95,13 +100,13 @@ cd /Users/missioncontrol/opscenter-v2/opscenter
 ./deploy/macmini/install-whatsapp-photo-worker.sh
 ```
 
-The worker reads the durable spool at `data/integrations/whatsapp-job-photos` unless `WHATSAPP_JOB_PHOTO_STATE_DIR` overrides it. Queue records and downloaded media are mode `0600`. It uploads through the authenticated JunkWare browser session and verifies that the appointment's media count increased before marking an item complete.
+The worker reads the durable spool at `data/integrations/whatsapp-job-photos` unless `WHATSAPP_JOB_PHOTO_STATE_DIR` overrides it. Queue records and downloaded media are mode `0600`. An explicit JK number is resolved and validated on its own JunkWare appointment page, so it does not need to be on the message day's schedule. The worker then uploads through the authenticated JunkWare browser session and verifies that the exact appointment's media count increased before marking an item complete.
 
 Crew expense transactions and the outbound reply queue live under `OPSBOT_DATA_DIR/integrations/whatsapp-crew-expenses` unless `WHATSAPP_CREW_EXPENSE_STATE_DIR` overrides it. Text messages get an idempotent `Recorded.` receipt. Photos are different: OpsBot waits until every matched photo in a sender's JK batch is verified in JunkWare and no new photo arrives for 60 seconds, then sends one receipt such as `Recorded 4 photos for JK4057267.`. Complete Fuel and Dump messages enter a durable transaction queue; they are not exposed as OpsCenter Finance records yet. After JunkWare verification, the sender can reply `EDIT` and submit corrected `Cost`, `Location`, `Gallons`, or `Weight` values. OpsBot updates the same JunkWare Truck Records line using its durable `OB-…` receipt number, preserves the original receipt time, and writes the before-value plus correction message to the local audit trail; it never creates a second expense for an edit.
 
 ### OpsBot job-closeout shadow mode
 
-Crew can send `Closeout` to receive a bare fill-in list containing only JK number, truck load, bedload, items, credit-card fee, discount, tip, start time, end time, and payment. They can also start a draft with an exact command such as `Close JK4051234`. OpsBot only accepts a JK number found exactly once on today’s or yesterday’s schedule, and the sender phone must be mapped to the same truck through `WHATSAPP_TRUCK_PHONE_MAP_BASE64`.
+Krewe members can send `Closeout` to receive a bare fill-in list containing only JK number, truck load, bedload, items, credit-card fee, discount, tip, start time, end time, and payment. They can also start a draft with an exact command such as `Close JK4051234`. OpsBot only accepts a JK number found exactly once on today’s or yesterday’s schedule, and the sender phone must be mapped to the same truck through `WHATSAPP_TRUCK_PHONE_MAP_BASE64`.
 
 The closeout draft accepts natural, multi-message details but requires one line per priced item. Quantities greater than one must use `@`, `each`, or `per` so OpsBot never guesses whether the amount is a unit price or a line total. The catalog mirrors JunkWare’s current Other Charges list:
 
@@ -124,7 +129,7 @@ The closeout draft accepts natural, multi-message details but requires one line 
 
 Truck load, bedload, discounts, tips, category, actual start/end time, and each payment are itemized separately. A Credit Card payment requires the card-present surcharge line; the surcharge is rejected without a Credit Card payment. Payments must reconcile exactly to the computed job total, or to the job total plus the entered tip.
 
-When the draft reconciles, OpsBot returns an itemized `SHADOW CLOSEOUT` preview and accepts the exact confirmation `CONFIRM JK…`. Both the preview and confirmation are deliberately non-writing: this first release cannot modify JunkWare. Durable drafts live under `OPSBOT_DATA_DIR/integrations/whatsapp-job-closeouts` unless `WHATSAPP_JOB_CLOSEOUT_STATE_DIR` overrides it. The shadow-confirmed records provide the evidence needed to validate real crew wording before a separately reviewed write path is enabled.
+When the draft reconciles, OpsBot returns an itemized `SHADOW CLOSEOUT` preview and accepts the exact confirmation `CONFIRM JK…`. Both the preview and confirmation are deliberately non-writing: this first release cannot modify JunkWare. Durable drafts live under `OPSBOT_DATA_DIR/integrations/whatsapp-job-closeouts` unless `WHATSAPP_JOB_CLOSEOUT_STATE_DIR` overrides it. The shadow-confirmed records provide the evidence needed to validate real Krewe wording before a separately reviewed write path is enabled.
 
 The expense worker enforces this order:
 

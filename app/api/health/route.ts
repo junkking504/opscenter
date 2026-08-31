@@ -3,12 +3,18 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { getOpsRuntime } from "@/lib/runtime";
 import { chicagoDateKey } from "@/lib/report-dates";
+import {
+  readVerifiedJunkwareReconciliationSnapshot,
+  readVerifiedJunkwareScheduleSnapshot,
+  type VerifiedJunkwareScheduleSnapshot,
+} from "@/lib/junkware-fast-schedule";
 import { getKernelDatabaseHealth } from "@/lib/platform/persistence/health";
 
 export const dynamic = "force-dynamic";
 
 const OPERATOR_STATE_DIRECTORIES = [
   "manual_bonuses",
+  "payroll_corrections",
   "job-route-assignments",
   "job-route-geocodes",
   "searchkings-overrides",
@@ -117,8 +123,33 @@ export async function GET(request: Request) {
     );
     const linxupStale = monitorsCurrentDate
       && (linxupAgeSeconds === null || linxupAgeSeconds > linxupMaxAgeSeconds);
-    const dataUpdatedAt = new Date(Math.max(stats.mtimeMs, linxupStats?.mtimeMs || 0)).toISOString();
-    const healthy = !stale && !linxupStale && assignmentStoreWritable && operatorStateWritable && platformKernel.healthy;
+    const dataDirectory = path.join(process.cwd(), "data");
+    const junkwareSchedule = [
+      readVerifiedJunkwareScheduleSnapshot(dataDirectory, targetDate),
+      readVerifiedJunkwareReconciliationSnapshot(dataDirectory, targetDate),
+    ]
+      .filter((snapshot): snapshot is VerifiedJunkwareScheduleSnapshot => snapshot !== null)
+      .sort((left, right) => right.freshnessAtMs - left.freshnessAtMs)[0] || null;
+    const junkwareScheduleAgeSeconds = junkwareSchedule
+      ? Math.max(0, Math.floor((Date.now() - junkwareSchedule.freshnessAtMs) / 1000))
+      : null;
+    const junkwareScheduleMaxAgeSeconds = Math.max(
+      60,
+      Number(process.env.OPSCENTER_JUNKWARE_SCHEDULE_MAX_AGE_SECONDS || 120),
+    );
+    const junkwareScheduleStale = monitorsCurrentDate
+      && (junkwareScheduleAgeSeconds === null || junkwareScheduleAgeSeconds > junkwareScheduleMaxAgeSeconds);
+    const dataUpdatedAt = new Date(Math.max(
+      stats.mtimeMs,
+      linxupStats?.mtimeMs || 0,
+      junkwareSchedule?.updatedAtMs || 0,
+    )).toISOString();
+    const healthy = !stale
+      && !linxupStale
+      && !junkwareScheduleStale
+      && assignmentStoreWritable
+      && operatorStateWritable
+      && platformKernel.healthy;
     return NextResponse.json(
       {
         ok: healthy,
@@ -126,6 +157,8 @@ export async function GET(request: Request) {
           ? "stale-data"
           : linxupStale
             ? "stale-linxup-data"
+          : junkwareScheduleStale
+            ? "stale-junkware-schedule"
           : !assignmentStoreWritable
             ? "assignment-storage-unwritable"
             : !operatorStateWritable
@@ -143,6 +176,9 @@ export async function GET(request: Request) {
         linxupUpdatedAt: linxupStats?.mtime.toISOString() || null,
         linxupAgeSeconds,
         linxupStale,
+        junkwareScheduleUpdatedAt: junkwareSchedule?.updatedAt || null,
+        junkwareScheduleAgeSeconds,
+        junkwareScheduleStale,
         ...assignmentHealth,
       },
       { status: healthy ? 200 : 503, headers: { "Cache-Control": "no-store" } },

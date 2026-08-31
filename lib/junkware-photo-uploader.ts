@@ -83,6 +83,27 @@ async function persistStorageState(context: BrowserContext): Promise<void> {
   fs.chmodSync(target, 0o600);
 }
 
+export async function findJunkwareAppointmentIdByJkNumber(inputJkNumber: string): Promise<string | null> {
+  const jkNumber = inputJkNumber.replace(/\s+/g, "").toUpperCase();
+  if (!/^JK\d{4,12}$/.test(jkNumber)) throw new Error("The JK number is invalid.");
+  const appointmentIdNumber = Number(jkNumber.slice(2)) - 13_178;
+  if (!Number.isSafeInteger(appointmentIdNumber) || appointmentIdNumber < 1) return null;
+  const appointmentId = String(appointmentIdNumber);
+
+  const stateFile = storageStateFile();
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext(fs.existsSync(stateFile) ? { storageState: stateFile } : {});
+    const page = await context.newPage();
+    await ensureAuthenticated(page, `${ORIGIN}/franchise/appointment.aspx?id=${encodeURIComponent(appointmentId)}`);
+    const titleJk = String(await page.title()).replace(/\s+/g, "").toUpperCase();
+    await persistStorageState(context);
+    return titleJk.includes(jkNumber) ? appointmentId : null;
+  } finally {
+    await browser.close();
+  }
+}
+
 export async function uploadJunkwareJobPhoto(input: {
   appointmentId: string;
   jkNumber: string;

@@ -4,6 +4,7 @@ import { applyManualBonusesToMetrics } from "@/lib/manual-bonuses";
 import { calculateWeeklyOvertime } from "@/lib/overtime";
 import { payPeriodDates } from "@/lib/pay-period";
 import { employeeJobRevenueWorked } from "@/lib/opsData";
+import { payrollCorrectionForEmployee, type PayrollCorrection } from "@/lib/payroll-corrections";
 
 export type CrewDayMetric = {
   date: string;
@@ -21,6 +22,13 @@ export type CrewDayMetric = {
   tips: number;
   bonuses: number;
   totalPay: number;
+  clockIn: string;
+  clockOut: string;
+  hourlyRate: number | null;
+  sourceClockIn: string;
+  sourceClockOut: string;
+  sourceHourlyRate: number | null;
+  correction: PayrollCorrection | null;
 };
 
 export type CrewPayPeriodMetrics = {
@@ -123,6 +131,27 @@ function num(value: unknown): number {
   const cleaned = String(value).replace(/[$,%\s,]/g, "");
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : 0;
+}
+
+function clockHours(date: string, clockIn: string, clockOut: string): number | null {
+  const parse = (value: string): Date | null => {
+    const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!match) return null;
+    let hour = Number(match[1]);
+    const minute = Number(match[2]);
+    if (hour < 1 || hour > 12 || minute > 59) return null;
+    if (match[3].toUpperCase() === "PM" && hour !== 12) hour += 12;
+    if (match[3].toUpperCase() === "AM" && hour === 12) hour = 0;
+    const parsed = new Date(`${date}T00:00:00`);
+    parsed.setHours(hour, minute, 0, 0);
+    return parsed;
+  };
+
+  const start = parse(clockIn);
+  const end = clockOut ? parse(clockOut) : null;
+  if (!start || !end) return null;
+  const duration = (end.getTime() - start.getTime()) / 3_600_000;
+  return duration >= 0 ? duration : null;
 }
 
 function readMetrics(date: string): Record<string, any> | null {
@@ -410,7 +439,15 @@ function dailyCrewMetric(date: string, employee: string, metrics: Record<string,
 
   const jobsCompleted = countCreditedCompletedJobs(metrics, employee, row);
 
-  const hours = num(row.hours_worked) || num(row.hours);
+  const sourceClockIn = String(row.clock_in || row.time_in || row.clockIn || row.timeIn || "").trim();
+  const sourceClockOut = String(row.clock_out || row.time_out || row.clockOut || row.timeOut || "").trim();
+  const sourceHourlyRate = num(row.hourly_rate) || null;
+  const correction = payrollCorrectionForEmployee(date, employee);
+  const clockIn = correction?.clockIn || sourceClockIn;
+  const clockOut = correction?.clockOut || sourceClockOut;
+  const hourlyRate = correction?.hourlyRate || sourceHourlyRate;
+  const correctedHours = correction ? clockHours(date, clockIn, clockOut) : null;
+  const hours = correctedHours ?? (num(row.hours_worked) || num(row.hours));
   const basePay = num(row.hourly_pay) || num(row.pay) || num(row.base_pay);
   const tips = num(row.tip) || num(row.tips);
   const bonuses = num(row.bonus) || num(row.bonuses);
@@ -442,6 +479,13 @@ function dailyCrewMetric(date: string, employee: string, metrics: Record<string,
     tips,
     bonuses,
     totalPay,
+    clockIn,
+    clockOut,
+    hourlyRate,
+    sourceClockIn,
+    sourceClockOut,
+    sourceHourlyRate,
+    correction,
   };
 }
 
@@ -513,6 +557,13 @@ export function getCrewPayPeriodMetrics(employee: string, selectedDate: string):
       tips,
       bonuses,
       totalPay,
+      clockIn: "",
+      clockOut: "",
+      hourlyRate: null,
+      sourceClockIn: "",
+      sourceClockOut: "",
+      sourceHourlyRate: null,
+      correction: null,
       firstVisitCloseRate:
         firstVisitOpportunities > 0 ? firstVisitClosed / firstVisitOpportunities : null,
       estimateCloseRate:

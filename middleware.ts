@@ -9,13 +9,15 @@ import {
   createAuthSessionCookieValue,
   createTrustedDeviceCookieValue,
   isValidJunkKingEmail,
+  opsAuthRole,
   publicAuthRoute,
   protectedApiRoute,
   shouldRefreshTrustedDevice,
   trustedDeviceCookieOptionsForRequest,
-  verifyAuthSessionCookie,
+  inspectAuthSessionCookie,
   verifyTrustedDeviceCookie,
 } from "@/lib/auth";
+import { authorizeOpsRequest, opsRoleLabel } from "@/lib/ops-roles";
 import {
   CREW_IDENTITY_HEADER,
   CREW_LOGIN_PATH,
@@ -26,6 +28,7 @@ import {
 } from "@/lib/crew-auth";
 import {
   opsAccessConfigured,
+  opsAccessLoginUrl,
   verifyOpsAccessJwt,
 } from "@/lib/cloudflare-access";
 import { JUNKWARE_SMS_API_PREFIX } from "@/lib/junkware-sms-constants";
@@ -33,6 +36,47 @@ import { WHATSAPP_JOB_PHOTO_API_PREFIX } from "@/lib/whatsapp-job-photo-constant
 import { LINXUP_PUSH_API_PREFIX } from "@/lib/linxup-push-constants";
 
 const authDebug = process.env.OPS_AUTH_DEBUG === "1";
+
+function roleDeniedResponse(request: NextRequest, email: string): NextResponse | null {
+  const role = opsAuthRole(email);
+  const decision = authorizeOpsRequest(role, request.nextUrl.pathname, request.method, request.nextUrl.searchParams);
+  if (decision.allowed) return null;
+
+  console.warn("[authz] request denied", {
+    role,
+    pathname: request.nextUrl.pathname,
+    method: request.method,
+    permission: decision.permission,
+  });
+
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.json(
+      {
+        error: `${opsRoleLabel(role)} access does not include this action.`,
+        code: "role_forbidden",
+        role,
+        requiredRole: decision.requiredRole,
+      },
+      { status: 403, headers: { "Cache-Control": "no-store, max-age=0" } },
+    );
+  }
+
+  const deniedUrl = new URL("/unauthorized", request.url);
+  deniedUrl.searchParams.set("required", decision.requiredRole);
+  deniedUrl.searchParams.set("from", `${request.nextUrl.pathname}${request.nextUrl.search}`);
+  return NextResponse.redirect(deniedUrl);
+}
+
+function logSessionRejection(request: NextRequest, reason: string, trustedDeviceValid: boolean): void {
+  console.warn("[auth] session rejected", {
+    reason,
+    requestKind: request.nextUrl.pathname.startsWith("/api/") ? "api" : "page",
+    host: request.headers.get("x-forwarded-host") || request.headers.get("host") || null,
+    method: request.method,
+    trustedDeviceValid,
+    requestId: request.headers.get("cf-ray") || null,
+  });
+}
 
 function requestHeadersWithSession(request: NextRequest, sessionValue: string): Headers {
   const requestHeaders = new Headers(request.headers);
@@ -45,11 +89,20 @@ function requestHeadersWithSession(request: NextRequest, sessionValue: string): 
   return requestHeaders;
 }
 
+function isPageNavigationRequest(request: NextRequest): boolean {
+  return (request.method === "GET" || request.method === "HEAD")
+    && !request.nextUrl.pathname.startsWith("/api/");
+}
+
 async function initializeOpsSession(
   request: NextRequest,
   email: string,
   options: { rememberDevice: boolean; redirect: boolean },
 ): Promise<NextResponse> {
+  if (!options.redirect) {
+    const denied = roleDeniedResponse(request, email);
+    if (denied) return denied;
+  }
   const sessionValue = await createAuthSessionCookieValue(email);
   const response = options.redirect
     ? NextResponse.redirect(request.nextUrl)
@@ -168,9 +221,14 @@ export async function middleware(request: NextRequest) {
     && (pathname === AUTH_LOGIN_PATH || !publicAuthRoute(pathname));
 
   const sessionCookie = request.cookies.get(AUTH_SESSION_COOKIE)?.value || "";
-  const session = await verifyAuthSessionCookie(sessionCookie);
+  const sessionInspection = await inspectAuthSessionCookie(sessionCookie);
+  const session = sessionInspection.session;
   const trustedDeviceCookie = request.cookies.get(AUTH_TRUSTED_DEVICE_COOKIE)?.value || "";
   const trustedDevice = await verifyTrustedDeviceCookie(trustedDeviceCookie, request);
+
+  if (!session && !publicAuthRoute(pathname)) {
+    logSessionRejection(request, sessionInspection.reason || "session_unknown", Boolean(trustedDevice));
+  }
 
   if (enforceOpsAccess) {
     const accessAssertion = request.headers.get("cf-access-jwt-assertion");
@@ -186,6 +244,14 @@ export async function middleware(request: NextRequest) {
 
     if (!session && !trustedDevice) {
       if (!accessEmail || !isValidJunkKingEmail(accessEmail)) {
+        const loginUrl = isPageNavigationRequest(request)
+          ? opsAccessLoginUrl(request.nextUrl)
+          : null;
+        if (loginUrl) {
+          const response = NextResponse.redirect(loginUrl);
+          response.headers.set("Cache-Control", "no-store, max-age=0");
+          return response;
+        }
         return NextResponse.json(
           { error: "Cloudflare Access authentication required." },
           { status: 401, headers: { "Cache-Control": "no-store, max-age=0" } },
@@ -221,6 +287,8 @@ export async function middleware(request: NextRequest) {
     });
   }
   if (session) {
+    const denied = roleDeniedResponse(request, session.email);
+    if (denied) return denied;
     if (trustedDevice && shouldRefreshTrustedDevice(trustedDevice)) {
       return initializeOpsSession(request, session.email, {
         rememberDevice: true,

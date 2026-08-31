@@ -40,7 +40,7 @@ Install the dedicated production collector on Mission Control:
 
 The LaunchAgent starts at login, checks every five minutes, and refreshes
 SearchKings at most once every 15 minutes. It runs independently of JunkWare,
-QBO, Crew Portal, and VPS synchronization, so a failure in those integrations
+QBO, Krewe Portal, and VPS synchronization, so a failure in those integrations
 does not make Marketing data stale. The general live refresh loop also retains
 its SearchKings call as a redundant fallback. Both paths use the same lock and
 freshness gate, and retain the last verified snapshot on authentication or
@@ -53,3 +53,12 @@ network failure.
 - `data/searchkings-overrides/lost-leads.json` — management outcomes and notes
 
 The deployment sync treats `searchkings-overrides` as shared application state. It is pulled from the VPS before publishing new collector data so lead outcomes are not overwritten.
+
+## Historical browsing
+
+Marketing uses the selected `date` query parameter as a month selector and
+reads the matching verified `searchkings_YYYY-MM.json` snapshot. Navigation
+keeps that date when moving between Marketing sections and other operating
+pages. The live `current.json` is a fallback only for the current calendar
+month; OpsCenter never substitutes it for a missing historical month. A month
+without a verified snapshot is shown as unavailable until it is backfilled.

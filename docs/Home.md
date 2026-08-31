@@ -28,13 +28,16 @@ without mixing live runtime data or secrets into Git.
 
 ## Integrations and operating areas
 
-- [Crew Pay Portal](crew-pay-portal.md)
+- [Krewe Pay Portal](crew-pay-portal.md)
 - [Payment reconciliation](payment-reconciliation.md)
 - [QuickBooks/Intuit production setup](qbo-intuit-production-setup.md)
 - [SearchKings integration](searchkings-integration.md)
+- [Podium Google Reviews integration](podium-google-reviews.md)
 - [Slack and OpsCenter](slack-opscenter.md)
 - [WhatsApp job photos](whatsapp-job-photos.md)
 - [LinxUp live GPS push](linxup-push.md)
+- [Fleet Action Center](fleet-action-center.md)
+- [Operational readiness](operational-readiness.md)
 
 ## Canonical topology
 

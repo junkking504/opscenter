@@ -79,7 +79,7 @@ export default function CurrentDataSync({
     if (searchParams.get("mode") === "historical") return;
 
     void syncCurrentData();
-    const interval = window.setInterval(() => void syncCurrentData(), 15_000);
+    const interval = window.setInterval(() => void syncCurrentData(), 5_000);
     const handleOnline = () => void syncCurrentData();
     const handleVisibility = () => {
       if (document.visibilityState === "visible") void syncCurrentData();

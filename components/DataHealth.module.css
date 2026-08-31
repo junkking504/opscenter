@@ -1,0 +1,96 @@
+.strip {
+  display: grid;
+  grid-template-columns: auto auto minmax(260px, 1fr) auto auto;
+  align-items: center;
+  gap: 6px 10px;
+  min-height: 48px;
+  padding: 6px 8px;
+  border-radius: 10px;
+}
+
+.strip :global(.ops-data-health-top) { display: contents; }
+.strip :global(.ops-health-overall) { grid-column: 1; grid-row: 1; }
+.strip :global(.ops-data-health-asof) { grid-column: 2; grid-row: 1; }
+.strip :global(.ops-data-health-actions) {
+  display: block;
+  grid-column: 5;
+  grid-row: 1;
+}
+
+/* Keep the action on the same 32px control line as the source chips and
+ * details trigger. The shared button treatment is intentionally larger in
+ * page headers, so this strip needs an explicit compact override. */
+.strip :global(.ops-data-health-actions .ops-refresh-button) {
+  min-height: 32px !important;
+  height: 32px !important;
+  padding-inline: 10px;
+}
+
+.strip :global(.ops-data-health-source-strip) {
+  display: grid;
+  grid-column: 3;
+  grid-row: 1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.strip :global(.ops-data-health-source-chip) {
+  justify-content: flex-start;
+  width: auto;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 7px;
+}
+
+.strip :global(.ops-data-health-source-name) {
+  display: block;
+  flex: 0 1 auto;
+  font-size: 0.7rem;
+}
+
+.strip :global(.ops-data-health-source-state) {
+  display: block;
+  margin-left: auto;
+  overflow: hidden;
+  font-size: 0.64rem;
+  text-overflow: ellipsis;
+}
+
+.strip :global(.ops-data-health-details) {
+  grid-column: 4;
+  grid-row: 1;
+}
+
+.strip :global(.ops-data-health-details summary) {
+  min-height: 32px;
+  padding: 7px 4px;
+  white-space: nowrap;
+}
+
+.strip :global(.ops-data-health-details[open]) {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+
+@media (max-width: 760px) {
+  .strip {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-height: 44px;
+    padding: 5px 8px;
+  }
+
+  .strip :global(.ops-data-health-asof) {
+    grid-column: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .strip :global(.ops-data-health-actions) { display: none; }
+  .strip :global(.ops-data-health-details) { grid-column: 3; }
+
+  .strip :global(.ops-data-health-source-strip) {
+    display: none;
+  }
+
+  .strip :global(.ops-data-health-details[open]) { grid-row: 2; }
+}

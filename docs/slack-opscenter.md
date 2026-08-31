@@ -23,13 +23,18 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
 
 Truck channels intentionally contain field execution events, not bookings or schedule changes. The territory jobs channels own appointment intake and cancellations so dispatch can see route-plan changes in one place. A closeout and its payment are one operational event, so both are sent together to the assigned truck channel.
 
-The first live run records existing appointments, existing cancellations, and currently active incidents as its baseline. It does not flood Slack with pre-existing conditions. Later appointment additions and cancellations are each posted once; failed notification deliveries remain eligible for retry. Once a baseline incident clears, a later recurrence is treated as a new incident. New incident alerts are deduplicated, and recovery messages are posted in the original Slack thread.
+Same-day appointments deliberately use a field-layout exception for dispatch
+scanning: `New Appointment`, a linked JK number, appointment time, bold customer
+name, a tap-to-call phone number, then address (with items following when present).
+The linked JK number replaces the otherwise redundant `Open in OpsCenter` footer.
 
 Crew lifecycle notifications are also baselined once when the feature is first deployed. After that baseline, each employee receives at most one clock-in and one finalized clock-out notification per day. A clock-out waits for verified daily pay, then sends the employee's hours, hourly pay, tips, bonus, and total together in one standalone message.
 
 All OpsCenter Slack alerts use one shared compact presentation: a bracketed event heading, the job, employee, or system on its own line when that identity adds context, aligned label/value rows in a monospace block, and an `Open in OpsCenter` link whenever there is a specific source record to open. Truck-channel alerts do not repeat the truck name because the `#truck-N` channel already establishes it. A clock-in includes a `Status` row so it follows the same shape as every other field alert. The `EOD Report` uses the same bracketed heading and aligned rows.
 
 The detector baselines silently on its first run and on the first verified snapshot of each new business date, then posts each new appointment, reschedule, and cancellation once. A reschedule means the appointment's date or time slot changed; moving a job to another truck, correcting its address, or updating territory metadata does not create a reschedule alert. It publishes only after JunkWare has confirmed the requested date and every selected market. It never posts a schedule-only closeout. Instead, a newly completed job remains in its fast retry queue until the targeted closeout read contains a method and amount for every payment; it then posts the one full truck-channel alert and clears the item. Existing completed jobs are baselined so they do not flood Slack. Full closeouts include the payment method, amount, check number where applicable, card last four, and any tip. Messages contain only the JK number, payment details, and a positive tip amount; they do not include customer data or a full card number.
+
+The same verified fast snapshot overlays the current OpsCenter Schedule roster when it is newer than the full collector output. The browser checks the combined freshness signal every five seconds, so status, type, total, payment method, truck, appointment additions, and cancellations do not wait for the multi-integration reconciliation cycle. The full collector remains authoritative for enriched closeout, crew, payment reconciliation, and historical details.
 
 Appointments that remain open after their scheduled window stay visible in OpsCenter but do not generate Slack alerts or resolution replies.
 

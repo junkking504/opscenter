@@ -3,6 +3,9 @@ set -euo pipefail
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
+SCRIPT_DIR="${0:A:h}"
+source "$SCRIPT_DIR/release-lineage.sh"
+
 EXPECTED_USER="missioncontrol"
 EXPECTED_HOME="/Users/missioncontrol"
 DEPLOY_ROOT="$EXPECTED_HOME/opscenter-v2"
@@ -309,9 +312,13 @@ git -C "$REPOSITORY" fetch --prune origin
 
 commit="$(git -C "$REPOSITORY" rev-parse --verify "${REQUESTED_REF}^{commit}" 2>/dev/null || true)"
 [[ -n "$commit" ]] || fail "cannot resolve $REQUESTED_REF after fetching origin"
+require_production_head "$commit"
 
-remote_containers="$(git -C "$REPOSITORY" for-each-ref --format='%(refname)' --contains "$commit" refs/remotes/origin)"
-[[ -n "$remote_containers" ]] || fail "commit $commit is not contained in a pushed origin branch"
+active_release="$(readlink "$APP_LINK")"
+[[ -n "$active_release" ]] || fail "cannot resolve the active OpsCenter release"
+active_commit="$(git -C "$active_release" rev-parse --verify HEAD 2>/dev/null || true)"
+[[ -n "$active_commit" ]] || fail "cannot resolve the active release commit from $active_release"
+require_forward_deploy "$active_commit" "$commit" "initial ancestry check"
 
 active_release="$(readlink "$APP_LINK")"
 [[ -n "$active_release" ]] || fail "cannot resolve the active OpsCenter release"
@@ -420,4 +427,3 @@ fi
 if (( ${#RESTARTED_SERVICE_LABELS[@]} > 0 )); then
   echo "Restarted: ${RESTARTED_SERVICE_LABELS[*]}"
 fi
-echo "Rollback:  deploy this previous target's commit again: $previous_target"

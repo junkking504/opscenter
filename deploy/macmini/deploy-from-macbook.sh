@@ -9,6 +9,8 @@ ALLOW_NON_FORWARD=false
 MC_HOST="${OPSCENTER_MC_HOST:-}"
 MC_SSH_KEY="${OPSCENTER_MC_SSH_KEY:-$HOME/.ssh/id_ed25519_opscenter}"
 REQUESTED_REF="HEAD"
+PRODUCTION_REMOTE_REF="refs/remotes/origin/production"
+REMOTE_CONTROLLER="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh"
 
 fail() {
   echo "MacBook deployment stopped: $*" >&2
@@ -54,11 +56,13 @@ done
 [[ "$(git -C "$REPOSITORY_ROOT" rev-parse --is-inside-work-tree 2>/dev/null || true)" == "true" ]] \
   || fail "$REPOSITORY_ROOT is not a Git checkout"
 [[ -f "$MC_SSH_KEY" ]] || fail "missing Mission Control SSH key: $MC_SSH_KEY"
+git -C "$REPOSITORY_ROOT" fetch --prune origin
 commit="$(git -C "$REPOSITORY_ROOT" rev-parse --verify "${REQUESTED_REF}^{commit}" 2>/dev/null || true)"
 [[ -n "$commit" ]] || fail "cannot resolve local Git ref: $REQUESTED_REF"
-
-remote_containers="$(git -C "$REPOSITORY_ROOT" for-each-ref --format='%(refname)' --contains "$commit" refs/remotes/origin)"
-[[ -n "$remote_containers" ]] || fail "commit $commit is not present in a known origin branch; push it first"
+production_commit="$(git -C "$REPOSITORY_ROOT" rev-parse --verify "${PRODUCTION_REMOTE_REF}^{commit}" 2>/dev/null || true)"
+[[ -n "$production_commit" ]] || fail "origin/production does not exist; create the reviewed production branch first"
+[[ "$commit" == "$production_commit" ]] \
+  || fail "requested commit $commit is not the current origin/production commit $production_commit"
 
 if [[ -n "$(git -C "$REPOSITORY_ROOT" status --short)" ]]; then
   echo "Note: uncommitted MacBook changes are not part of this deployment."
@@ -87,6 +91,8 @@ if $BOOTSTRAP; then
   echo "Preparing the Mission Control Git release layout..."
   ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$repository_url" \
     < "$SCRIPT_DIR/bootstrap-git-deployment.sh"
+  echo "Bootstrap complete. Install the production controller explicitly before the first deployment."
+  exit 0
 fi
 
 echo "Deploying pushed commit $commit to Mission Control..."

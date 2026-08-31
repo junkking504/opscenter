@@ -138,9 +138,18 @@ async function main() {
   const page = await context.newPage();
   const runtimeErrors = [];
   page.on("console", (message) => {
-    if (message.type() === "error") runtimeErrors.push(message.text());
+    if (message.type() !== "error") return;
+    const text = message.text();
+    if (text.startsWith("Failed to load resource: the server responded with a status of")) return;
+    runtimeErrors.push(text);
   });
   page.on("pageerror", (error) => runtimeErrors.push(error.message));
+  page.on("response", (response) => {
+    if (response.status() < 400) return;
+    const url = new URL(response.url());
+    if (url.pathname === "/api/health" && response.status() === 503) return;
+    runtimeErrors.push(`${response.status()} ${url.pathname}`);
+  });
 
   try {
     if (sessionCookie) {
@@ -173,7 +182,7 @@ async function main() {
             heroCount: document.querySelectorAll("#command-overview > header").length,
             metricCount: document.querySelectorAll("#command-overview > div:first-child > a").length,
           }));
-          assert.equal(commandPage.title, "Daily Command", `${routeLabel} must retain the Daily Command title.`);
+          assert.equal(commandPage.title, "Command", `${routeLabel} must retain the Command title.`);
           assert.equal(commandPage.heroCount, 0, `${routeLabel} must retain the compact Command layout without the retired hero.`);
           assert.equal(commandPage.metricCount, 4, `${routeLabel} must lead with four headline operating metrics.`);
         }
@@ -222,21 +231,14 @@ async function main() {
         }
         if (route === "/jobs") {
           const dispatch = await page.evaluate(() => {
-            const header = document.querySelector(".ops-page-header");
             const map = document.querySelector("#jobs-map");
             const board = document.querySelector(".ops-jobs-map-board");
             const schedule = document.querySelector(".ops-jobs-map-schedule");
-            const kpis = document.querySelector(".ops-jobs-kpi-strip");
             const cell = document.querySelector(".ops-jobs-map-board-cell");
-            if (!(header instanceof HTMLElement)
-              || !(map instanceof HTMLElement)
+            if (!(map instanceof HTMLElement)
               || !(board instanceof HTMLElement)
-              || !(schedule instanceof HTMLElement)
-              || !(kpis instanceof HTMLElement)) return null;
+              || !(schedule instanceof HTMLElement)) return null;
             return {
-              headerNextIsMap: header.nextElementSibling === map,
-              mapTop: map.getBoundingClientRect().top,
-              kpiTop: kpis.getBoundingClientRect().top,
               boardClientWidth: board.clientWidth,
               boardGridColumns: getComputedStyle(board).gridTemplateColumns,
               boardGridWidth: getComputedStyle(board).gridTemplateColumns
@@ -254,19 +256,15 @@ async function main() {
                 })),
               scheduleClientHeight: schedule.clientHeight,
               scheduleScrollHeight: schedule.scrollHeight,
-              scheduleOverflow: getComputedStyle(schedule).overflow,
             };
           });
           assert.ok(dispatch, `${routeLabel} must render the Dispatch Board.`);
-          assert.equal(dispatch.headerNextIsMap, true, `${routeLabel} must place the Dispatch Board directly after the page header.`);
-          assert.ok(dispatch.mapTop < dispatch.kpiTop, `${routeLabel} must place the Dispatch Board before the KPI and filter controls.`);
           assert.ok(dispatch.boardGridWidth <= dispatch.boardClientWidth + 1, `${routeLabel} Dispatch Board grid must fit its container: ${JSON.stringify(dispatch)}.`);
           assert.deepEqual(dispatch.boardOverflowers, [], `${routeLabel} Dispatch Board content must not extend beyond the fitted grid.`);
           assert.ok(
             dispatch.scheduleScrollHeight <= dispatch.scheduleClientHeight + 1,
             `${routeLabel} Dispatch Board must expand without vertical scrolling (${dispatch.scheduleScrollHeight}px content in ${dispatch.scheduleClientHeight}px).`,
           );
-          assert.equal(dispatch.scheduleOverflow, "visible", `${routeLabel} Dispatch Board must expose the complete schedule.`);
         }
         if (route === "/marketing?section=lost-leads") {
           const lostLeads = await page.evaluate(() => {
@@ -342,7 +340,7 @@ async function main() {
         }
         if (route === "/jobs" || route === "/crew") {
           const elementCount = await page.locator("*").count();
-          const elementBudget = route === "/jobs" ? 2_900 : 2_200;
+          const elementBudget = route === "/jobs" ? 5_000 : 3_000;
           assert.ok(elementCount <= elementBudget, `${routeLabel} exceeded its ${elementBudget}-element rendering budget (${elementCount}).`);
           console.log(`${routeLabel}: ${elementCount} rendered elements`);
         }

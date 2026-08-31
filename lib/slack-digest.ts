@@ -4,8 +4,20 @@ import {
   buildCancelledAppointmentFeed,
   type AddOnAppointment,
 } from "@/lib/add-on-notifications";
+import {
+  buildAddOnSlackNotification,
+  buildCancellationSlackNotification,
+  formatTruckCloseoutSlackNotification,
+  formatSlackAlert,
+  slackPhoneLink,
+} from "@/lib/slack-alerts";
 import type { AnyRecord } from "@/lib/opsData";
-import { readCompletedJunkwareRows, truckCloseoutDetails } from "@/lib/slack-closeout-details";
+import { slackEscape } from "@/lib/slack-message-format";
+import {
+  readClosedEstimateJunkwareRows,
+  readCompletedJunkwareRows,
+  truckCloseoutDetails,
+} from "@/lib/slack-closeout-details";
 
 const CHICAGO_TIME_ZONE = "America/Chicago";
 // The client checks more frequently, while this shared cache keeps aggregate
@@ -13,16 +25,16 @@ const CHICAGO_TIME_ZONE = "America/Chicago";
 const CACHE_TTL_MS = 30_000;
 
 const DEFAULT_CHANNEL_NAMES: Record<string, string> = {
-  C0BNMDJNYV9: "#ops-command",
-  C0BNRMD25AS: "#ops-dispatch",
+  C0BNMDJNYV9: "#command",
+  C0BNRMD25AS: "#dispatch",
   C0BNQ6J7LER: "#ops-fleet",
-  C0BNVJR6HMX: "#ops-finance",
+  C0BNVJR6HMX: "#finance",
   C0BNXBK8GTW: "#ops-growth",
-  C0BPN1FVCDN: "#ops-data-health",
-  C0BPS5MS406: "#payments",
-  C0BPRML654N: "#jobs-no",
-  C0BPQ30C8LD: "#jobs-br",
-  C0BPC9M5GLX: "#jobs-ns",
+  C0BPN1FVCDN: "#data",
+  C0BPS5MS406: "#payment",
+  C0BPRML654N: "#new-orleans",
+  C0BPQ30C8LD: "#baton-rouge",
+  C0BPC9M5GLX: "#northshore",
   C0BPU3XUANN: "#truck-1",
   C0BPQGBD4N9: "#truck-2",
   C0BPQGARS1K: "#truck-3",
@@ -44,6 +56,32 @@ type SlackMessagePayload = {
   reply_count?: number;
 };
 
+const IGNORED_SYSTEM_SUBTYPES = new Set([
+  "channel_archive",
+  "channel_join",
+  "channel_leave",
+  "channel_name",
+  "channel_purpose",
+  "channel_topic",
+  "channel_unarchive",
+  "group_archive",
+  "group_join",
+  "group_leave",
+  "group_name",
+  "group_purpose",
+  "group_topic",
+  "group_unarchive",
+  "message_deleted",
+]);
+
+export function isOperationalSlackDigestMessage(message: SlackMessagePayload): boolean {
+  const subtype = String(message.subtype || "").trim().toLowerCase();
+  if (IGNORED_SYSTEM_SUBTYPES.has(subtype)) return false;
+  const text = String(message.text || "").trim();
+  if (!text) return false;
+  return !/^(?:<@[^>]+>|\S+)\s+(?:renamed|joined|left|archived|unarchived)\s+(?:the\s+)?channel\b/i.test(text);
+}
+
 type SlackHistoryResponse = {
   ok?: boolean;
   error?: string;
@@ -56,6 +94,7 @@ export type SlackDigestMessage = {
   id: string;
   timestamp: string;
   channel: string;
+  rawText: string;
   text: string;
   threadReply: boolean;
   opsCenterHref?: string;
@@ -89,6 +128,7 @@ export type SlackDailyDigest = {
   status: "ready" | "unavailable";
   detail?: string;
   refreshedAt: string;
+  filteredSystemMessages?: number;
 };
 
 type DigestCacheEntry = {
@@ -173,17 +213,17 @@ function configuredChannelName(channelId: string): string {
   const truck = envName.match(/^SLACK_TRUCK_(\d+)_CHANNEL_ID$/);
   if (truck) return `#truck-${truck[1]}`;
   const known: Record<string, string> = {
-    SLACK_OPS_COMMAND_CHANNEL_ID: "#ops-command",
-    SLACK_OPS_DISPATCH_CHANNEL_ID: "#ops-dispatch",
-    SLACK_OPS_CREW_CHANNEL_ID: "#ops-command",
+    SLACK_OPS_COMMAND_CHANNEL_ID: "#command",
+    SLACK_OPS_DISPATCH_CHANNEL_ID: "#dispatch",
+    SLACK_OPS_CREW_CHANNEL_ID: "#command",
     SLACK_OPS_FLEET_CHANNEL_ID: "#ops-fleet",
-    SLACK_OPS_FINANCE_CHANNEL_ID: "#ops-finance",
+    SLACK_OPS_FINANCE_CHANNEL_ID: "#finance",
     SLACK_OPS_GROWTH_CHANNEL_ID: "#ops-growth",
-    SLACK_OPS_DATA_HEALTH_CHANNEL_ID: "#ops-data-health",
-    SLACK_OPS_PAYMENT_CHANNEL_ID: "#payments",
-    SLACK_JOBS_NO_CHANNEL_ID: "#jobs-no",
-    SLACK_JOBS_BR_CHANNEL_ID: "#jobs-br",
-    SLACK_JOBS_NS_CHANNEL_ID: "#jobs-ns",
+    SLACK_OPS_DATA_HEALTH_CHANNEL_ID: "#data",
+    SLACK_OPS_PAYMENT_CHANNEL_ID: "#payment",
+    SLACK_JOBS_NO_CHANNEL_ID: "#new-orleans",
+    SLACK_JOBS_BR_CHANNEL_ID: "#baton-rouge",
+    SLACK_JOBS_NS_CHANNEL_ID: "#northshore",
   };
   return known[envName] || "";
 }
@@ -209,9 +249,13 @@ export function slackTextToPlainText(value: string): string {
   const emoji: Record<string, string> = {
     rotating_light: "🚨",
     warning: "⚠️",
+    x: "❌",
     white_check_mark: "✅",
+    moneybag: "💰",
     truck: "🚚",
     camera_with_flash: "📸",
+    wastebasket: "🗑️",
+    fuelpump: "⛽",
   };
 
   return String(value || "")
@@ -312,7 +356,8 @@ function closeoutForSlackAlert(
   const match = plainText.match(/^✅\s*(JK\d+)\s+closed out\./i)
     || plainText.match(/^\[Job Closed\]\s*\n\s*(JK\d+)/i);
   if (!match) return undefined;
-  const details = truckCloseoutDetails(lookup.get(match[1].toLowerCase()) || {});
+  const row = lookup.get(match[1].toLowerCase()) || {};
+  const details = truckCloseoutDetails(row);
   if (!details) return undefined;
   return {
     jobNumber: details.jobNumber,
@@ -353,8 +398,31 @@ function digestMessage(
   closeouts: Map<string, AnyRecord>,
   date: string,
 ): SlackDigestMessage | null {
+  if (!isOperationalSlackDigestMessage(message)) return null;
   const ts = String(message.ts || "").trim();
-  const rawText = String(message.text || "");
+  const rawText = normalizedLegacyPhotoDigestText(
+    normalizedLegacyCloseoutDigestText(
+      normalizedLegacyCancellationDigestText(
+        normalizedLegacyTruckArrivalDigestText(
+          normalizedLegacyAppointmentDigestText(
+            normalizedRescheduleDigestText(
+              normalizedCancellationDigestText(String(message.text || ""), date),
+              appointments,
+            ),
+            appointments,
+            date,
+          ),
+          appointments,
+          date,
+        ),
+        appointments,
+        date,
+      ),
+      closeouts,
+      date,
+    ),
+    date,
+  );
   const plainText = slackTextToPlainText(rawText);
   const appointment = appointmentForSlackAlert(rawText, appointments);
   const closeout = closeoutForSlackAlert(rawText, closeouts, date);
@@ -366,7 +434,8 @@ function digestMessage(
     appointment.items.length ? `Items: ${appointment.items.join("; ")}` : "",
     appointment.nextAction ? `Next: ${appointment.nextAction}` : "",
   ].filter(Boolean).join("\n") : closeout ? [
-    `✅ ${closeout.jobNumber} closed out.`,
+    "✅ Job Closed",
+    `Job: ${closeout.jobNumber}`,
     ...closeout.lines,
   ].join("\n") : truckArrival ? [
     `🚚 ${truckArrival.truck} arrived`,
@@ -381,6 +450,7 @@ function digestMessage(
     id: `${channelId}:${ts}`,
     timestamp: new Date(epochMs).toISOString(),
     channel: slackDigestChannelName(channelId),
+    rawText,
     text,
     threadReply: Boolean(message.thread_ts && message.thread_ts !== ts),
     opsCenterHref: opsCenterHref(rawText),
@@ -421,7 +491,7 @@ async function channelMessages(
   appointments: Map<string, AddOnAppointment>,
   closeouts: Map<string, AnyRecord>,
   date: string,
-): Promise<{ ok: boolean; messages: SlackDigestMessage[]; rateLimited: boolean }> {
+): Promise<{ ok: boolean; messages: SlackDigestMessage[]; rateLimited: boolean; filteredSystemMessages: number }> {
   const roots: SlackMessagePayload[] = [];
   let cursor = "";
 
@@ -434,12 +504,17 @@ async function channelMessages(
       limit: "200",
       cursor,
     }, token, fetchImpl);
-    if (!response.ok) return { ok: false, messages: [], rateLimited: response.error === "ratelimited" };
+    if (!response.ok) return { ok: false, messages: [], rateLimited: response.error === "ratelimited", filteredSystemMessages: 0 };
     roots.push(...(response.messages || []));
     cursor = String(response.response_metadata?.next_cursor || "").trim();
   } while (cursor);
 
+  let filteredSystemMessages = 0;
   const messages = roots.flatMap((message) => {
+    if (!isOperationalSlackDigestMessage(message)) {
+      filteredSystemMessages += 1;
+      return [];
+    }
     const item = digestMessage(channelId, message, appointments, closeouts, date);
     return item ? [item] : [];
   });
@@ -460,6 +535,10 @@ async function channelMessages(
       if (!response.ok) break;
       for (const reply of response.messages || []) {
         if (reply.ts === root.ts) continue;
+        if (!isOperationalSlackDigestMessage(reply)) {
+          filteredSystemMessages += 1;
+          continue;
+        }
         const item = digestMessage(channelId, reply, appointments, closeouts, date);
         if (item) messages.push(item);
       }
@@ -467,7 +546,7 @@ async function channelMessages(
     } while (replyCursor);
   }
 
-  return { ok: true, messages, rateLimited: false };
+  return { ok: true, messages, rateLimited: false, filteredSystemMessages };
 }
 
 export async function fetchSlackDailyDigest(
@@ -503,10 +582,14 @@ export async function fetchSlackDailyDigest(
     }
   }
   const appointments = appointmentLookup(appointmentRows);
-  const closeouts = closeoutLookup(options.completedRows || readCompletedJunkwareRows(date));
+  const closeouts = closeoutLookup(options.completedRows || [
+    ...readCompletedJunkwareRows(date),
+    ...readClosedEstimateJunkwareRows(date),
+  ]);
   const messages: SlackDigestMessage[] = [];
   let readableChannels = 0;
   let rateLimited = false;
+  let filteredSystemMessages = 0;
 
   for (const channelId of Array.from(new Set(options.channelIds))) {
     const result = await channelMessages(
@@ -521,6 +604,7 @@ export async function fetchSlackDailyDigest(
     );
     if (result.ok) readableChannels += 1;
     if (result.rateLimited) rateLimited = true;
+    filteredSystemMessages += result.filteredSystemMessages;
     messages.push(...result.messages);
   }
 
@@ -537,7 +621,7 @@ export async function fetchSlackDailyDigest(
     };
   }
 
-  return { date, messages: unique, status: "ready", refreshedAt };
+  return { date, messages: unique, status: "ready", refreshedAt, filteredSystemMessages };
 }
 
 export function readSlackDailyDigest(date: string): Promise<SlackDailyDigest> {

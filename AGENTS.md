@@ -15,6 +15,21 @@ sharing, and historical context.
 - A release, service-health check, and authenticated browser check are separate
   evidence. Do not claim production changed until all required checks pass.
 
+## Production lineage
+
+- `origin/production` is the only branch permitted to deploy to Mission Control
+  production. Feature and task branches must be integrated into it first.
+- Before updating `production`, read the active Mission Control SHA and require
+  the proposed production commit to contain it. If production moved, merge the
+  new active SHA and rerun validation.
+- Production deployments must use `deploy/macmini/deploy-from-macbook.sh`. It
+  invokes the controller installed outside release snapshots at
+  `/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh`.
+- Never pipe or execute a task branch's `deploy-release.sh` directly. Never
+  bypass the installed controller or its deployment lock.
+- Manual rollback is a separate, explicitly authorized operation. Do not move
+  `origin/production` backward or deploy a non-forward commit as a workaround.
+
 ## Runtime boundary
 
 OpsCenter intentionally keeps runtime state outside Git:

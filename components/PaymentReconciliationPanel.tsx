@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { money } from "@/lib/opsData";
 import type { PaymentReconciliationView } from "@/lib/payment-reconciliation";
+import { jobScheduleHref } from "@/lib/related-record-links";
 import { stableUpdatedAt } from "@/lib/stable-date";
 
 const QBO_STATUS_URL = "/integrations/qbo/status";
@@ -153,7 +154,7 @@ export default function PaymentReconciliationPanel({
                       {row.junkwareAmount !== null && row.reference !== "—" ? (
                         <Link
                           className="ops-reconciliation-job-link"
-                          href={appointmentHref(row.date, row.reference)}
+                          href={jobScheduleHref(row.date, row.reference)}
                           title={`Open ${row.reference} on the OpsCenter schedule`}
                         >
                           {row.reference}

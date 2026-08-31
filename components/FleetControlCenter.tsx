@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { effectiveFleetChecklistDefinitions, type FleetChecklistCustomization } from "@/lib/fleet-checklist-definitions";
 import type { FleetChecklistEntry } from "@/lib/fleet-checklists";
 import type { FleetIssue, FleetIssueAttachment, FleetIssuePhoto, FleetIssueSeverity, FleetIssueStatus } from "@/lib/fleet-issues";
+import { buildFleetMaintenanceActions, type FleetMaintenanceAction } from "@/lib/fleet-maintenance-actions";
+import type { FleetMapPayload } from "@/lib/fleet-map";
 
 type IssueDraft = {
   issueId: string;
@@ -54,22 +56,31 @@ function dateLabel(value: string): string {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(year, month - 1, day));
 }
 
+function workBucketLabel(priority: FleetMaintenanceAction["priority"]): string {
+  return priority === "stop" || priority === "urgent" ? "Act now" : "Plan next";
+}
+
 export default function FleetControlCenter({
   truckOptions,
   initialEntries,
   initialIssues,
   customizations,
   today,
+  fleetMapPayload,
+  date,
 }: {
   truckOptions: string[];
   initialEntries: FleetChecklistEntry[];
   initialIssues: FleetIssue[];
   customizations: FleetChecklistCustomization[];
   today: string;
+  fleetMapPayload: FleetMapPayload | null;
+  date: string;
 }) {
   const router = useRouter();
   const [issues, setIssues] = useState(initialIssues);
   const [entries, setEntries] = useState(initialEntries);
+  const [activePanel, setActivePanel] = useState<"today" | "repairs">("today");
   const [issueFilter, setIssueFilter] = useState<"active" | "all">("active");
   const [formOpen, setFormOpen] = useState(false);
   const [draft, setDraft] = useState<IssueDraft>(() => issueDraft(undefined, truckOptions[0]));
@@ -87,26 +98,59 @@ export default function FleetControlCenter({
     const checklistComplete = Boolean(daily?.completedAt && daily.answers.length === required && daily.inspector);
     const activeIssues = issues.filter((issue) => issue.truck === truck && issue.status !== "resolved");
     const outOfService = activeIssues.some((issue) => issue.severity === "out_of_service");
-    const overdue = activeIssues.some((issue) => issue.dueDate && issue.dueDate < today);
-    const state = outOfService ? "out" : activeIssues.length ? "attention" : !checklistComplete ? "missing" : "ready";
-    return { truck, daily, required, checklistComplete, activeIssues, overdue, state };
+    return { checklistComplete, outOfService };
   }), [customizations, entries, issues, today, truckOptions]);
 
   const summary = {
-    ready: readiness.filter((truck) => truck.state === "ready").length,
-    missing: readiness.filter((truck) => truck.state === "missing").length,
-    attention: readiness.filter((truck) => truck.state === "attention").length,
-    out: readiness.filter((truck) => truck.state === "out").length,
+    out: readiness.filter((truck) => truck.outOfService).length,
   };
   const visibleIssues = issues.filter((issue) => issueFilter === "all" || issue.status !== "resolved");
   const editingIssue = issues.find((issue) => issue.issueId === draft.issueId);
+  const fleetActions = useMemo(() => buildFleetMaintenanceActions({
+    today,
+    truckOptions,
+    entries,
+    customizations,
+    issues,
+    fleetMap: fleetMapPayload,
+  }), [customizations, entries, fleetMapPayload, issues, today, truckOptions]);
+  const workItems = useMemo(() => {
+    const priorityRank: Record<FleetMaintenanceAction["priority"], number> = { stop: 0, urgent: 1, next: 2, watch: 3 };
+    const kindRank: Record<FleetMaintenanceAction["kind"], number> = { repair: 0, checklist: 1, telemetry: 2, mapping: 3 };
+    const selected = new Map<string, FleetMaintenanceAction>();
+    for (const action of [...fleetActions]
+      .filter((candidate) => candidate.priority !== "watch")
+      .sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority] || kindRank[a.kind] - kindRank[b.kind] || a.truck.localeCompare(b.truck, undefined, { numeric: true }))) {
+      if (!selected.has(action.truck)) selected.set(action.truck, action);
+    }
+    return [...selected.values()];
+  }, [fleetActions]);
+  const workSummary = {
+    outOfService: summary.out,
+    activeRepairs: issues.filter((issue) => issue.status !== "resolved").length,
+    missingInspections: readiness.filter((truck) => !truck.checklistComplete).length,
+  };
 
   function startIssue(issue?: FleetIssue, truck = truckOptions[0] || "") {
+    setActivePanel("repairs");
     setDraft(issueDraft(issue, truck));
     setFormOpen(true);
     setMessage("");
     setPendingPhotos([]);
     setPendingAttachments([]);
+  }
+
+  function openAction(action: FleetMaintenanceAction) {
+    if (action.kind === "repair") {
+      const issue = issues.find((candidate) => candidate.issueId === action.issueId);
+      if (issue) startIssue(issue);
+      return;
+    }
+    if (action.kind === "checklist") {
+      router.push(`/fleet?date=${encodeURIComponent(date)}&view=maintenance&section=checklists&truck=${encodeURIComponent(action.truck)}`);
+      return;
+    }
+    router.push(`/fleet?date=${encodeURIComponent(date)}&section=map&truck=${encodeURIComponent(action.truck)}`);
   }
 
   function addPhotos(files: FileList | null) {
@@ -248,28 +292,36 @@ export default function FleetControlCenter({
   return (
     <section className="ops-card ops-fleet-control-card">
       <div className="ops-card-header compact ops-maintenance-header">
-        <div><div className="ops-section-title">Fleet Readiness</div><div className="ops-muted">Today’s required inspections and unresolved repair issues in one view.</div></div>
+        <div><div className="ops-section-title">Today’s Fleet Work</div><div className="ops-muted">The next action for each truck that needs attention.</div></div>
         <button type="button" className="ops-refresh-button" onClick={() => startIssue()}>Add repair issue</button>
       </div>
 
-      <div className="ops-readiness-summary">
-        <div className="ready"><span>Ready</span><strong>{summary.ready}</strong></div>
-        <div className="missing"><span>Checklist missing</span><strong>{summary.missing}</strong></div>
-        <div className="attention"><span>Attention needed</span><strong>{summary.attention}</strong></div>
-        <div className="out"><span>Out of service</span><strong>{summary.out}</strong></div>
+      <div className="ops-fleet-work-tabs" role="tablist" aria-label="Fleet maintenance views">
+        <button type="button" role="tab" aria-selected={activePanel === "today"} className={activePanel === "today" ? "active" : ""} onClick={() => setActivePanel("today")}>Today’s work</button>
+        <button type="button" role="tab" aria-selected={activePanel === "repairs"} className={activePanel === "repairs" ? "active" : ""} onClick={() => setActivePanel("repairs")}>Repair queue <span>{workSummary.activeRepairs}</span></button>
       </div>
 
-      <div className="ops-readiness-grid">
-        {readiness.map((row) => (
-          <div className={`ops-readiness-truck state-${row.state}`} key={row.truck}>
-            <div><strong>{row.truck}</strong><span>{row.state === "ready" ? "Ready" : row.state === "missing" ? "Checklist missing" : row.state === "out" ? "Out of service" : "Attention needed"}</span></div>
-            <small>{row.checklistComplete ? `Daily check by ${row.daily?.inspector}` : `${row.daily?.answers.length || 0}/${row.required} daily items`}</small>
-            <small>{row.activeIssues.length ? `${row.activeIssues.length} active repair${row.activeIssues.length === 1 ? "" : "s"}${row.overdue ? " · overdue" : ""}` : "No open repairs"}</small>
-            <button type="button" onClick={() => startIssue(undefined, row.truck)}>Add issue</button>
+      {activePanel === "today" ? (
+        <section className="ops-fleet-action-center" aria-label="Today’s fleet work">
+          <div className="ops-fleet-work-summary" aria-label="Fleet work summary">
+            <div className="out"><span>Out of service</span><strong>{workSummary.outOfService}</strong></div>
+            <div className="attention"><span>Active repairs</span><strong>{workSummary.activeRepairs}</strong></div>
+            <div className="missing"><span>Inspections incomplete</span><strong>{workSummary.missingInspections}</strong></div>
           </div>
-        ))}
-      </div>
+          <div className="ops-fleet-action-list">
+            {workItems.map((action) => (
+              <div className={`ops-fleet-action-row priority-${action.priority}`} key={action.id}>
+                <span className="ops-fleet-action-priority">{workBucketLabel(action.priority)}</span>
+                <div className="ops-fleet-action-detail"><strong>{action.truck} · {action.title}</strong><small>{action.detail}</small></div>
+                <button type="button" className="ops-checklist-load" onClick={() => openAction(action)}>{action.actionLabel}</button>
+              </div>
+            ))}
+            {workItems.length === 0 ? <div className="ops-maintenance-empty">No fleet work needs attention right now.</div> : null}
+          </div>
+        </section>
+      ) : null}
 
+      {activePanel === "repairs" ? <>
       <div className="ops-repair-queue-header">
         <div><div className="ops-section-title">Repair Queue</div><div className="ops-muted">Checklist exceptions automatically appear here as repair work orders.</div></div>
         <div className="ops-checklist-cadence"><button type="button" className={issueFilter === "active" ? "active" : ""} onClick={() => setIssueFilter("active")}>Active</button><button type="button" className={issueFilter === "all" ? "active" : ""} onClick={() => setIssueFilter("all")}>All history</button></div>
@@ -322,6 +374,7 @@ export default function FleetControlCenter({
           </tbody>
         </table>
       </div>
+      </> : null}
     </section>
   );
 }

@@ -1,10 +1,10 @@
 /* eslint-disable @next/next/no-img-element -- JunkWare job photos are public closeout media URLs. */
-import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import Link from "next/link";
 import { unstable_noStore as noStore } from "next/cache";
 import PageHeader from "@/components/PageHeader";
+import DataHealth from "@/components/DataHealth";
 import OpsMonthSelector from "@/components/OpsMonthSelector";
 import JobCallAheadCard from "@/components/JobCallAheadCard";
 import JobCloseoutEditor from "@/components/JobCloseoutEditor";
@@ -31,6 +31,8 @@ import {
 } from "@/lib/junkware-job-details";
 import { isClosedAppointment, isEstimateAppointment, missingPaymentTypeLabel, shouldFlagMissingPhotos } from "@/lib/job-audit-rules";
 import { junkwareBookedAt } from "@/lib/junkware-booking-date";
+import { currentJunkwareScheduleSnapshot, readVerifiedJunkwareScheduleSnapshot } from "@/lib/junkware-fast-schedule";
+import { planningLocation, type PlanningLocation } from "@/lib/planning-geocodes";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
 import "./jobs.css";
 
@@ -135,7 +137,7 @@ type SiteTimeAppointment = {
 
 type JobStatusBucket = "Open / Scheduled" | "Estimate" | "Completed" | "Canceled" | "Unclosed or Needs Attention";
 type JobsView = "daily" | "calendar" | "monthly";
-type JobsWorkspace = "dispatch" | "estimates" | "unclosed";
+type JobsWorkspace = "dispatch" | "estimates" | "closed-estimates" | "unclosed";
 
 type JobsFilters = {
   territory: string;
@@ -146,10 +148,7 @@ type JobsFilters = {
   siteTime: string;
 };
 
-type RouteLocation = {
-  latitude: number;
-  longitude: number;
-};
+type RouteLocation = PlanningLocation;
 
 type RoutePlanStop = {
   job: JobRow;
@@ -277,6 +276,10 @@ function appointmentSiteTimeUpdatedAt(date: string): string | null {
   } catch {
     return null;
   }
+}
+
+function junkwareScheduleUpdatedAt(date: string): string | null {
+  return readVerifiedJunkwareScheduleSnapshot(OPSBOT_DATA_DIR, date)?.updatedAt || null;
 }
 
 function latestUpdatedAt(...values: Array<string | null | undefined>): string | null {
@@ -717,6 +720,7 @@ function normalizeJobsView(value: unknown): JobsView {
 function normalizeJobsWorkspace(value: unknown): JobsWorkspace {
   const workspace = String(value || "").toLowerCase();
   if (workspace === "unclosed") return "unclosed";
+  if (workspace === "closed-estimates" || workspace === "closed_estimates") return "closed-estimates";
   // Keep existing follow-up bookmarks useful, but direct them to the first separated tab.
   if (workspace === "estimates" || workspace === "followup") return "estimates";
   return "dispatch";
@@ -797,7 +801,7 @@ function scheduleDayCopy(date: string) {
   if (date === addDays(today, 1)) {
     return {
       possessive: "Tomorrow’s",
-      subtitle: "Tomorrow’s schedule preview. Review appointments, crew assignments, and dispatch routes ahead of time.",
+      subtitle: "Tomorrow’s schedule preview. Review appointments, Krewe assignments, and dispatch routes ahead of time.",
     };
   }
 
@@ -1880,10 +1884,86 @@ function readJobRows(date: string): JobRow[] {
     ? jobs.map((job) => verifiedCancellationIds.has(job.appointmentId) ? { ...job, status: "Canceled" } : job)
     : jobs;
 
-  return resolvedJobs.sort((a, b) => {
+  const fastSnapshot = currentJunkwareScheduleSnapshot(OPSBOT_DATA_DIR, date);
+  const currentJobs = fastSnapshot
+    ? mergeFastScheduleRows(resolvedJobs, fastSnapshot.appointments, fastSnapshot.cancelled, date)
+    : resolvedJobs;
+
+  return currentJobs.sort((a, b) => {
     const territoryCompare = a.territory.localeCompare(b.territory);
     if (territoryCompare !== 0) return territoryCompare;
     return compareJobSchedule(a, b);
+  });
+}
+
+function fastScheduleIdentity(row: Record<string, any>): string {
+  const appointmentId = firstValue(row, ["appt_id", "appointment_id", "appointmentId"]);
+  if (appointmentId) return `appt:${appointmentId}`;
+  const jobNumber = firstValue(row, ["job_id", "jk_number", "job_number"]);
+  return jobNumber ? `job:${jobNumber.toLowerCase()}` : "";
+}
+
+function jobRowIdentity(job: JobRow): string {
+  if (job.appointmentId) return `appt:${job.appointmentId}`;
+  return job.jkNumber && job.jkNumber !== "—" ? `job:${job.jkNumber.toLowerCase()}` : "";
+}
+
+function present(value: unknown): boolean {
+  const normalized = String(value ?? "").trim();
+  return Boolean(normalized && normalized !== "—");
+}
+
+function mergeFastScheduleRows(
+  canonicalJobs: JobRow[],
+  appointmentRows: Record<string, any>[],
+  cancelledRows: Record<string, any>[],
+  date: string,
+): JobRow[] {
+  const canonicalByIdentity = new Map<string, JobRow>();
+  for (const job of canonicalJobs) {
+    const identity = jobRowIdentity(job);
+    if (identity) canonicalByIdentity.set(identity, job);
+  }
+
+  return [...cancelledRows, ...appointmentRows].flatMap((row) => {
+    const identity = fastScheduleIdentity(row);
+    if (!identity) return [];
+    const existing = canonicalByIdentity.get(identity);
+    const fresh = normalizeJobRow(row);
+    fresh.sourceDate = date;
+    fresh.appointmentId = firstValue(row, ["appt_id", "appointment_id", "appointmentId"]) || fresh.appointmentId;
+    if (!existing) return [fresh];
+
+    return [{
+      ...existing,
+      appointmentId: fresh.appointmentId || existing.appointmentId,
+      jkNumber: present(fresh.jkNumber) ? fresh.jkNumber : existing.jkNumber,
+      appointmentUrl: fresh.appointmentUrl || existing.appointmentUrl,
+      appointmentTime: present(fresh.appointmentTime) ? fresh.appointmentTime : existing.appointmentTime,
+      appointmentStartMinutes: fresh.hasScheduledTime ? fresh.appointmentStartMinutes : existing.appointmentStartMinutes,
+      appointmentEndMinutes: fresh.hasScheduledTime ? fresh.appointmentEndMinutes : existing.appointmentEndMinutes,
+      hasScheduledTime: fresh.hasScheduledTime || existing.hasScheduledTime,
+      customerName: present(fresh.customerName) ? fresh.customerName : existing.customerName,
+      customerEmail: present(fresh.customerEmail) ? fresh.customerEmail : existing.customerEmail,
+      customerEmailCollected: fresh.customerEmailCollected || existing.customerEmailCollected,
+      phone: present(fresh.phone) ? fresh.phone : existing.phone,
+      address: present(fresh.address) && fresh.address !== "Address unavailable" ? fresh.address : existing.address,
+      territory: present(fresh.territory) ? fresh.territory : existing.territory,
+      appointmentType: present(fresh.appointmentType) ? fresh.appointmentType : existing.appointmentType,
+      status: present(fresh.status) ? fresh.status : existing.status,
+      truck: present(fresh.truck) ? fresh.truck : existing.truck,
+      assignedTruck: present(fresh.assignedTruck) ? fresh.assignedTruck : existing.assignedTruck,
+      driver: present(fresh.driver) ? fresh.driver : existing.driver,
+      driverName: present(fresh.driverName) ? fresh.driverName : existing.driverName,
+      driverNormalizedName: present(fresh.driverNormalizedName) ? fresh.driverNormalizedName : existing.driverNormalizedName,
+      navigator: present(fresh.navigator) ? fresh.navigator : existing.navigator,
+      navigatorName: present(fresh.navigatorName) ? fresh.navigatorName : existing.navigatorName,
+      navigatorNormalizedName: present(fresh.navigatorNormalizedName) ? fresh.navigatorNormalizedName : existing.navigatorNormalizedName,
+      paymentType: present(fresh.paymentType) ? fresh.paymentType : existing.paymentType,
+      paymentAmount: fresh.paymentAmount || existing.paymentAmount,
+      tipAmount: fresh.tipAmount || existing.tipAmount,
+      cancellationReason: fresh.cancellationReason || existing.cancellationReason,
+    }];
   });
 }
 
@@ -1894,7 +1974,7 @@ function followupRecency(job: JobRow): number {
   return Number.isFinite(sourceDate) ? sourceDate : 0;
 }
 
-function readScheduleFollowups(date: string, kind: "estimates" | "unclosed"): JobRow[] {
+function readScheduleFollowups(date: string, kind: "estimates" | "closed-estimates" | "unclosed"): JobRow[] {
   const latestByAppointment = new Map<string, JobRow>();
   const dates = Array.from(new Set([date, ...availableDates(), ...availableJobDates()]))
     .sort((a, b) => b.localeCompare(a));
@@ -1913,9 +1993,30 @@ function readScheduleFollowups(date: string, kind: "estimates" | "unclosed"): Jo
       const openEstimate = isEstimateAppointment(job.appointmentType)
         && !isClosedAppointment(job.status)
         && bucket !== "Canceled";
-      return kind === "estimates" ? openEstimate : bucket === "Unclosed or Needs Attention";
+      if (kind === "estimates") return openEstimate;
+      if (kind === "closed-estimates") return bucket === "Estimate";
+      return bucket === "Unclosed or Needs Attention";
     })
     .sort((a, b) => followupRecency(b) - followupRecency(a) || b.sourceDate.localeCompare(a.sourceDate));
+}
+
+function readBookedJobsBySourceEstimate(date: string): Map<string, JobRow> {
+  const bookedJobsByEstimate = new Map<string, JobRow>();
+  const dates = Array.from(new Set([date, ...availableDates(), ...availableJobDates()]))
+    .sort((a, b) => b.localeCompare(a));
+
+  for (const sourceDate of dates) {
+    for (const job of readJobRows(sourceDate)) {
+      const estimateId = job.sourceEstimateAppointmentId.trim();
+      if (!estimateId || job.appointmentId === estimateId || /estimate/i.test(job.appointmentType)) continue;
+      const existing = bookedJobsByEstimate.get(estimateId);
+      if (!existing || followupRecency(job) > followupRecency(existing)) {
+        bookedJobsByEstimate.set(estimateId, { ...job, sourceDate });
+      }
+    }
+  }
+
+  return bookedJobsByEstimate;
 }
 
 
@@ -2183,12 +2284,13 @@ function paymentDetail(payment: JobCloseoutPayment) {
 
 function JobCloseoutDetails({ job }: { job: JobRow }) {
   const closeout = job.closeout;
-  if (!closeout || statusBucket(job) !== "Completed") return null;
+  const closedEstimate = statusBucket(job) === "Estimate";
+  if (!closeout || (!closedEstimate && statusBucket(job) !== "Completed")) return null;
 
   return (
     <details className="ops-job-closeout-details">
       <summary>
-        <span>Payment details</span>
+        <span>{closedEstimate ? "Estimate pricing" : "Payment details"}</span>
         <strong>{money(closeout.total || job.paymentAmount)}</strong>
       </summary>
       <div className="ops-job-closeout-body">
@@ -2239,14 +2341,14 @@ function JobCloseoutDetails({ job }: { job: JobRow }) {
               </div>
             ) : null}
             <div className="ops-job-closeout-total">
-              <span>Total charged</span>
+              <span>{closedEstimate ? "Estimate total" : "Total charged"}</span>
               <strong>{money(closeout.total || job.paymentAmount)}</strong>
             </div>
           </div>
         </section>
 
         <section className="ops-job-closeout-section" aria-label="Payment breakdown">
-          <div className="ops-job-closeout-heading">Payments</div>
+          <div className="ops-job-closeout-heading">{closedEstimate ? "Payment record" : "Payments"}</div>
           <div className="ops-job-closeout-lines">
             {closeout.payments.length ? closeout.payments.map((payment, index) => (
               <div className="ops-job-closeout-line" key={`${payment.method}-${payment.detail}-${index}`}>
@@ -2257,7 +2359,7 @@ function JobCloseoutDetails({ job }: { job: JobRow }) {
                 <b>{money(payment.amount)}</b>
               </div>
             )) : (
-              <div className="ops-job-closeout-empty">No payment entry was recorded in JunkWare.</div>
+              <div className="ops-job-closeout-empty">{closedEstimate ? "No payment entry was recorded in JunkWare. This remains an estimate." : "No payment entry was recorded in JunkWare."}</div>
             )}
             <div className={`ops-job-closeout-balance${Math.abs(closeout.balance) > 0.005 ? " due" : " paid"}`}>
               <span>Balance</span>
@@ -2435,7 +2537,7 @@ function AppointmentCardScanSummary({ job, siteTime }: { job: JobRow; siteTime: 
           <span className="ops-appointment-visit-time">{siteWindow}{duration !== "—" ? ` · ${duration}` : ""}</span>
           <span className="ops-appointment-visit-crew">
             <strong>{primaryVisit.truck}</strong>
-            {crew.length ? <>{" · "}{crew.join(" · ")}</> : " · Crew not recorded"}
+            {crew.length ? <>{" · "}{crew.join(" · ")}</> : " · Krewe not recorded"}
           </span>
           {visitTrucks.length > 1 ? <span className="ops-appointment-visit-extra">+{visitTrucks.length - 1} truck</span> : null}
           <span className={`ops-appointment-photo-summary${jobMissingPhotos(job) ? " missing" : ""}`}>{appointmentPhotoSummary(job)}</span>
@@ -2460,7 +2562,7 @@ function AppointmentCardCompletedCrew({ job }: { job: JobRow }) {
   const navigator = safeText(job.navigatorName || job.navigator);
 
   return (
-    <div className="ops-appointment-card-completed-crew" aria-label={`Completed crew: ${truck}, driver ${driver}, navigator ${navigator}`}>
+    <div className="ops-appointment-card-completed-crew" aria-label={`Completed Krewe: ${truck}, driver ${driver}, navigator ${navigator}`}>
       <span>{truck}</span>
       <span>D: {driver}</span>
       <span>N: {navigator}</span>
@@ -2548,6 +2650,10 @@ function AppointmentMoreDetails({
     <details className="ops-appointment-more-details">
       <summary>More details</summary>
       <div className={detailGridClassName}>
+        <div className="ops-appointment-detail-full">
+          <span>Address</span>
+          <strong>{job.address && job.address !== "—" ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`} target="_blank" rel="noopener noreferrer">{job.address}</a> : "Unavailable"}</strong>
+        </div>
         <div>
           <span>Phone</span>
           <strong>{safeText(job.phone)}</strong>
@@ -2605,6 +2711,103 @@ function AppointmentMoreDetails({
       </div>
       <AppointmentSiteTimeDetails siteTime={siteTime} />
     </details>
+  );
+}
+
+function AppointmentDetails({ job, siteTime }: { job: JobRow; siteTime: SiteTimeAppointment | undefined }) {
+  const noteCount = job.appointmentNotes.filter((note) => !/^Appointment moved from\b/i.test(note)).length;
+  const summary = [
+    noteCount ? `${noteCount} note${noteCount === 1 ? "" : "s"}` : null,
+    job.photos.length ? `${job.photos.length} photo${job.photos.length === 1 ? "" : "s"}` : null,
+    job.closeout ? "Payment" : "Job info",
+  ].filter(Boolean).join(" · ");
+
+  return (
+    <details className="ops-appointment-details">
+      <summary>
+        <span>Details</span>
+        <small>{summary}</small>
+      </summary>
+      <div className="ops-appointment-details-body">
+        <JobContextDetails job={job} />
+        <JobPhotoDetails job={job} />
+        <JobCloseoutDetails job={job} />
+        <AppointmentMoreDetails job={job} siteTime={siteTime} detailGridClassName="ops-appointment-detail-grid" />
+        <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
+      </div>
+    </details>
+  );
+}
+
+function customerPhoneHref(phone: string): string {
+  const digits = String(phone || "").replace(/\D/g, "");
+  return digits.length >= 7 ? `tel:${digits}` : "";
+}
+
+function ClosedEstimateFollowupCard({ job, bookedJob }: { job: JobRow; bookedJob?: JobRow }) {
+  const phoneHref = customerPhoneHref(job.phone);
+  const hasEmail = job.customerEmail !== "—";
+  const hasAddress = job.address && job.address !== "—" && job.address !== "Address unavailable";
+  const bookedJobHref = bookedJob
+    ? buildJobsHref({ date: bookedJob.sourceDate, view: "daily", workspace: "dispatch", q: bookedJob.jkNumber })
+    : "";
+  const noteCount = job.appointmentNotes.filter((note) => !/^Appointment moved from\b/i.test(note)).length;
+  const pricingSummary = job.closeout
+    ? "Itemized pricing available"
+    : job.paymentAmount > 0
+      ? "Quoted total available"
+      : "Pricing not recorded";
+
+  return (
+    <article className="ops-closed-estimate-card">
+      <header className="ops-closed-estimate-header">
+        <div>
+          <div className="ops-closed-estimate-eyebrow">Closed estimate · {safeText(job.sourceDate)}</div>
+          <div className="ops-closed-estimate-title">
+            {job.appointmentUrl ? (
+              <a className="ops-jk-number clickable" href={job.appointmentUrl} target="_blank" rel="noopener noreferrer">{safeText(job.jkNumber)}</a>
+            ) : <strong>{safeText(job.jkNumber)}</strong>}
+            <span className={`ops-status-tag compact ${statusBadgeClass(statusBucket(job))}`}>{appointmentStatusLabel(job)}</span>
+          </div>
+          <strong className="ops-closed-estimate-customer">{safeText(job.customerName)}</strong>
+        </div>
+        <div className="ops-closed-estimate-value">
+          <span>Estimate value</span>
+          <strong>{job.paymentAmount > 0 ? money(job.paymentAmount) : "Not recorded"}</strong>
+        </div>
+      </header>
+
+      {bookedJob ? (
+        <div className="ops-estimate-booked-job">
+          <span>Job booked after this estimate</span>
+          <Link href={bookedJobHref}>View {safeText(bookedJob.jkNumber)} · {jobActivityDate(bookedJob.sourceDate)}</Link>
+        </div>
+      ) : null}
+
+      <div className="ops-closed-estimate-actions" aria-label={`Contact ${safeText(job.customerName)}`}>
+        {phoneHref ? <a href={phoneHref}>Call {safeText(job.phone)}</a> : <span>Phone unavailable</span>}
+        {hasEmail ? <a href={`mailto:${job.customerEmail}`}>Email customer</a> : <span>Email unavailable</span>}
+        {hasAddress ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`} target="_blank" rel="noopener noreferrer">Open address</a> : <span>Address unavailable</span>}
+        {job.appointmentUrl ? <a href={job.appointmentUrl} target="_blank" rel="noopener noreferrer">Open in JunkWare</a> : null}
+      </div>
+
+      <div className="ops-closed-estimate-facts">
+        <span><b>Pricing</b>{pricingSummary}</span>
+        <span><b>Photos</b>{job.photos.length ? `${job.photos.length} attached` : job.photoAuditAvailable ? "None attached" : "Not verified"}</span>
+        <span><b>Notes</b>{noteCount ? `${noteCount} on file` : "None recorded"}</span>
+        <span><b>Items</b>{appointmentItemsSummary(job)}</span>
+      </div>
+
+      <details className="ops-appointment-details ops-closed-estimate-details" open>
+        <summary><span>Review estimate</span><small>Pricing, notes, photos, and appointment record</small></summary>
+        <div className="ops-appointment-details-body">
+          <JobContextDetails job={job} />
+          <JobPhotoDetails job={job} />
+          <JobCloseoutDetails job={job} />
+          <AppointmentMoreDetails job={job} siteTime={undefined} detailGridClassName="ops-appointment-detail-grid" />
+        </div>
+      </details>
+    </article>
   );
 }
 
@@ -2699,15 +2902,6 @@ function planningTruckOptions(jobs: JobRow[]): string[] {
   }
 
   return Array.from(trucks).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-}
-
-function planningAddressHash(address: string): string {
-  const normalized = String(address || "")
-    .replace(/\s+/g, " ")
-    .replace(/\s*,\s*/g, ", ")
-    .trim()
-    .toUpperCase();
-  return crypto.createHash("sha256").update(normalized).digest("hex");
 }
 
 function readPlanningGeocodes(): Record<string, Record<string, unknown>> {
@@ -2926,8 +3120,9 @@ export default async function JobsPage({
   const view = normalizeJobsView(params?.view);
   const workspace = normalizeJobsWorkspace(params?.workspace);
   const isOpenEstimatesWorkspace = view === "daily" && workspace === "estimates";
+  const isClosedEstimatesWorkspace = view === "daily" && workspace === "closed-estimates";
   const isUnclosedWorkspace = view === "daily" && workspace === "unclosed";
-  const isFollowupWorkspace = isOpenEstimatesWorkspace || isUnclosedWorkspace;
+  const isFollowupWorkspace = isOpenEstimatesWorkspace || isClosedEstimatesWorkspace || isUnclosedWorkspace;
   const isDispatchWorkspace = view === "daily" && workspace === "dispatch";
   const requestedMonthlySection = String(params?.section || "overview").toLowerCase();
   const monthlySection = ["overview", "breakdown", "trend"].includes(requestedMonthlySection)
@@ -2952,9 +3147,22 @@ export default async function JobsPage({
   const jobs = view === "daily"
     ? applyJobRouteAssignmentOverrides(readJobRows(date), date)
     : monthlySummary?.jobs || readJobRows(date);
-  const followupJobs = isFollowupWorkspace
-    ? readScheduleFollowups(date, isOpenEstimatesWorkspace ? "estimates" : "unclosed")
+  const openEstimateJobs = (isOpenEstimatesWorkspace || isClosedEstimatesWorkspace)
+    ? readScheduleFollowups(date, "estimates")
     : [];
+  const closedEstimateJobs = (isOpenEstimatesWorkspace || isClosedEstimatesWorkspace)
+    ? readScheduleFollowups(date, "closed-estimates")
+    : [];
+  const bookedJobsByEstimate = (isOpenEstimatesWorkspace || isClosedEstimatesWorkspace)
+    ? readBookedJobsBySourceEstimate(date)
+    : new Map<string, JobRow>();
+  const followupJobs = isOpenEstimatesWorkspace
+    ? openEstimateJobs
+    : isClosedEstimatesWorkspace
+      ? closedEstimateJobs
+      : isUnclosedWorkspace
+        ? readScheduleFollowups(date, "unclosed")
+        : [];
   const callAheadStatuses = readJobCallAheadStatuses();
   const filters: JobsFilters = {
     territory: readFilterValue(params?.territory),
@@ -3106,11 +3314,15 @@ export default async function JobsPage({
     ? Array.from(monthlySummary.jobsByDate.values()).flat().filter((job) => statusBucket(job) !== "Canceled").length
     : 0;
   return (
-    <div className="ops-dashboard ops-jobs-page">
+    <div className={`ops-dashboard ops-jobs-page${isDispatchWorkspace ? " is-dispatch" : ""}`}>
       <PageHeader
-        title={isOpenEstimatesWorkspace ? "Open estimates" : isUnclosedWorkspace ? "Unclosed jobs" : view === "daily" ? "Dispatch board" : "Schedule"}
+        title={isOpenEstimatesWorkspace ? "Estimates" : isClosedEstimatesWorkspace ? "Closed estimates" : isUnclosedWorkspace ? "Unclosed jobs" : "Schedule"}
         subtitle={isFollowupWorkspace
-          ? `${followupJobs.length} current items · newest to oldest by booked time.`
+          ? isOpenEstimatesWorkspace
+            ? `${closedEstimateJobs.length} closed · ${openEstimateJobs.length} open · customer contact, pricing, notes, and photos in one place.`
+            : isClosedEstimatesWorkspace
+            ? `${followupJobs.length} estimates closed in JunkWare · customer contact, pricing, notes, and photos in one place.`
+            : `${followupJobs.length} current items · newest to oldest by booked time.`
           : isMonthView
           ? view === "calendar"
             ? `${month?.monthDisplay || monthlySummary?.monthDisplay || date.slice(0, 7)} schedule · ${calendarScheduledCount} appointment${calendarScheduledCount === 1 ? "" : "s"} on file`
@@ -3123,6 +3335,7 @@ export default async function JobsPage({
         lastUpdated={monthlyAuthority?.verifiedAt || latestUpdatedAt(
           metrics?.generated_at,
           view === "daily" ? appointmentSiteTimeUpdatedAt(date) : null,
+          view === "daily" ? junkwareScheduleUpdatedAt(date) : null,
         )}
         controls={
           <>
@@ -3132,14 +3345,16 @@ export default async function JobsPage({
           </>
         }
         sections={[
-          { label: "Dispatch", href: buildJobsHref({ date, view: "daily", workspace: "dispatch", ...filters }), active: isDispatchWorkspace, badge: isDispatchWorkspace ? mapPoints.length || undefined : undefined },
-          { label: "Open estimates", href: buildJobsHref({ date, view: "daily", workspace: "estimates" }), active: isOpenEstimatesWorkspace, badge: isOpenEstimatesWorkspace ? followupJobs.length || undefined : undefined },
+          { label: "Schedule", href: buildJobsHref({ date, view: "daily", workspace: "dispatch", ...filters }), active: isDispatchWorkspace, badge: isDispatchWorkspace ? mapPoints.length || undefined : undefined },
+          { label: "Estimates", href: buildJobsHref({ date, view: "daily", workspace: "estimates" }), active: isOpenEstimatesWorkspace, badge: isOpenEstimatesWorkspace ? openEstimateJobs.length + closedEstimateJobs.length || undefined : undefined },
           { label: "Unclosed jobs", href: buildJobsHref({ date, view: "daily", workspace: "unclosed" }), active: isUnclosedWorkspace, badge: isUnclosedWorkspace ? followupJobs.length || undefined : undefined },
           { label: "Calendar", href: buildJobsHref({ date, view: "calendar", ...filters }), active: view === "calendar" },
           { label: "Monthly Summary", href: buildJobsHref({ date, view: "monthly", ...filters }), active: view === "monthly" },
         ]}
         compact
       />
+
+      {isDispatchWorkspace && date === today ? <DataHealth compact strip /> : null}
 
       {isDispatchWorkspace ? (
         <form className="ops-junkware-search" method="get" role="search">
@@ -3172,16 +3387,54 @@ export default async function JobsPage({
       ) : null}
 
       {isFollowupWorkspace ? (
-        <section className="ops-card ops-jobs-followup-page" id="jobs-open-followups" aria-label={isOpenEstimatesWorkspace ? "Open estimates" : "Unclosed jobs"}>
+        <section className={`ops-card ops-jobs-followup-page${isOpenEstimatesWorkspace || isClosedEstimatesWorkspace ? " ops-closed-estimates-page" : ""}`} id="jobs-open-followups" aria-label={isOpenEstimatesWorkspace ? "Estimates" : isClosedEstimatesWorkspace ? "Closed estimates" : "Unclosed jobs"}>
           <div className="ops-card-header compact">
             <div>
-              <div className="ops-section-title">{isOpenEstimatesWorkspace ? "Open estimates" : "Unclosed jobs"}</div>
-              <div className="ops-muted">Current JunkWare state, ordered newest to oldest by booked time.</div>
+              <div className="ops-section-title">{isOpenEstimatesWorkspace ? "Estimates" : isClosedEstimatesWorkspace ? "Closed estimates" : "Unclosed jobs"}</div>
+              <div className="ops-muted">{isOpenEstimatesWorkspace || isClosedEstimatesWorkspace ? "Closed estimates include customer follow-up and estimate evidence from the latest JunkWare records." : "Current JunkWare state, ordered newest to oldest by booked time."}</div>
             </div>
-            <div className="ops-job-count-pill">{followupJobs.length} items</div>
+            <div className="ops-job-count-pill">{isOpenEstimatesWorkspace ? openEstimateJobs.length + closedEstimateJobs.length : followupJobs.length} items</div>
           </div>
-          {followupJobs.length ? (
-            <div className="ops-wide-table-wrap">
+          {isOpenEstimatesWorkspace ? (
+            <>
+              <div className="ops-estimate-followup-heading">
+                <div>
+                  <div className="ops-section-title">Closed estimates</div>
+                  <div className="ops-muted">Contact the customer, review pricing, notes, and photos before follow-up.</div>
+                </div>
+                <div className="ops-job-count-pill">{closedEstimateJobs.length} closed</div>
+              </div>
+              {closedEstimateJobs.length ? (
+                <div className="ops-closed-estimate-list">
+                  {closedEstimateJobs.map((job) => <ClosedEstimateFollowupCard key={`${job.appointmentId || job.jkNumber}-${job.sourceDate}`} job={job} bookedJob={bookedJobsByEstimate.get(job.appointmentId)} />)}
+                </div>
+              ) : <div className="ops-empty-state">No closed estimates are present in the latest JunkWare records.</div>}
+              <div className="ops-estimate-followup-heading open-estimates">
+                <div>
+                  <div className="ops-section-title">Open estimates</div>
+                  <div className="ops-muted">Still awaiting the customer’s decision.</div>
+                </div>
+                <div className="ops-job-count-pill">{openEstimateJobs.length} open</div>
+              </div>
+              {openEstimateJobs.length ? (
+                <div className="ops-wide-table-wrap">
+                  <table className="ops-table ops-jobs-followup-table">
+                    <thead><tr><th>Booked</th><th>Status</th><th>Appointment</th><th>Customer</th><th>Location</th></tr></thead>
+                    <tbody>{openEstimateJobs.map((job) => {
+                      const bucket = statusBucket(job);
+                      const booked = safeText(job.bookedAt);
+                      return <tr key={`${job.appointmentId || job.jkNumber}-${job.sourceDate}`}><td>{booked === "—" ? `Seen ${job.sourceDate}` : booked}</td><td><span className={`ops-status-tag compact ${statusBadgeClass(bucket)}`}>{appointmentStatusLabel(job)}</span></td><td>{job.appointmentUrl ? <a className="ops-jk-number clickable" href={job.appointmentUrl} target="_blank" rel="noopener noreferrer">{safeText(job.jkNumber)}</a> : safeText(job.jkNumber)}</td><td>{safeText(job.customerName)}</td><td>{safeText(job.address)} <small>{normalizeTerritory(job.territory)}</small></td></tr>;
+                    })}</tbody>
+                  </table>
+                </div>
+              ) : <div className="ops-empty-state">No open estimates are present in the latest JunkWare records.</div>}
+            </>
+          ) : followupJobs.length ? (
+            isClosedEstimatesWorkspace ? (
+              <div className="ops-closed-estimate-list">
+                {followupJobs.map((job) => <ClosedEstimateFollowupCard key={`${job.appointmentId || job.jkNumber}-${job.sourceDate}`} job={job} bookedJob={bookedJobsByEstimate.get(job.appointmentId)} />)}
+              </div>
+            ) : <div className="ops-wide-table-wrap">
               <table className="ops-table ops-jobs-followup-table">
                 <thead>
                   <tr>
@@ -3214,7 +3467,7 @@ export default async function JobsPage({
               </table>
             </div>
           ) : (
-            <div className="ops-empty-state">No {isOpenEstimatesWorkspace ? "open estimates" : "unclosed jobs"} are present in the latest JunkWare records.</div>
+            <div className="ops-empty-state">No {isOpenEstimatesWorkspace ? "open estimates" : isClosedEstimatesWorkspace ? "closed estimates" : "unclosed jobs"} are present in the latest JunkWare records.</div>
           )}
         </section>
       ) : null}
@@ -3617,7 +3870,7 @@ export default async function JobsPage({
         ) : null}
       </div>
 
-      <nav className="ops-jobs-workspace-jump" aria-label="Dispatch workspace views">
+      <nav className="ops-jobs-workspace-jump" aria-label="Schedule workspace views">
         <a href="#jobs-map">Map &amp; board</a>
         <a href="#jobs-schedule">Appointment Queue <small>{filterCount}</small></a>
       </nav>
@@ -3627,17 +3880,17 @@ export default async function JobsPage({
         <div className="ops-card-header compact">
           <div>
             <div className="ops-section-title">
-              {view === "calendar" ? `${jobActivityDate(selectedCalendarDate)} Appointments` : "Appointment Queue"}
+              {view === "calendar" ? `${jobActivityDate(selectedCalendarDate)} Appointments` : "Next Jobs"}
             </div>
             <div className="ops-muted">
               {view === "calendar"
-                ? `${selectedCalendarJobs.length} appointment${selectedCalendarJobs.length === 1 ? "" : "s"}, using the dispatch layout and ordered by territory and time.`
-                : `${scheduleCopy.possessive} jobs, grouped by territory and ordered by appointment time.`}
+                ? `${selectedCalendarJobs.length} appointment${selectedCalendarJobs.length === 1 ? "" : "s"}, using the schedule layout and ordered by territory and time.`
+                : `${scheduleCopy.possessive} jobs, ordered by appointment time.`}
             </div>
           </div>
           {view === "calendar" ? (
             <Link className="ops-calendar-open-dispatch" href={buildJobsHref({ date: selectedCalendarDate, view: "daily", workspace: "dispatch" })}>
-              Open dispatch
+              Open schedule
             </Link>
           ) : <div className="ops-job-count-pill">{filterCount} appointments</div>}
         </div>
@@ -3786,7 +4039,7 @@ export default async function JobsPage({
                                 {visitedButNotClosed ? (
                                   <span
                                     className="ops-visited-unclosed-badge"
-                                    title="Linxup shows a crew visit, but this appointment is not closed out in JunkWare."
+                                    title="Linxup shows a Krewe visit, but this appointment is not closed out in JunkWare."
                                   >
                                     <b aria-hidden="true">?</b>
                                     Visited · not closed
@@ -3807,18 +4060,12 @@ export default async function JobsPage({
                               </div>
                             </div>
 
-                            <JobContextDetails job={job} />
-
-                            <JobPhotoDetails job={job} />
-
                             {job.tipAmount > 0 ? <div className="ops-appointment-card-tip">
                               <span className="ops-appointment-card-tip-label">TIPS</span>
                               <strong className="ops-appointment-card-tip-value">{money(job.tipAmount || 0)}</strong>
                             </div> : null}
 
-                            <JobCloseoutDetails job={job} />
-
-                            <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
+                            <AppointmentDetails job={job} siteTime={siteTime} />
 
                             <details hidden className="ops-appointment-gps-details">
                               <summary>GPS and site time</summary>
@@ -3923,7 +4170,7 @@ export default async function JobsPage({
                                   <strong>{safeText(job.navigatorName || job.navigator)}</strong>
                                 </div>
                                 <div>
-                                  <span>Additional crew</span>
+                                  <span>Additional Krewe</span>
                                   <strong>
                                     {job.additionalCrew && job.additionalCrew.length > 0
                                       ? job.additionalCrew.join(", ")
@@ -3931,11 +4178,11 @@ export default async function JobsPage({
                                   </strong>
                                 </div>
                                 <div>
-                                  <span>Crew source</span>
+                                  <span>Krewe source</span>
                                   <strong>{safeText(job.crewAssignmentSource || "Unavailable")}</strong>
                                 </div>
                                 <div>
-                                  <span>Crew status</span>
+                                  <span>Krewe status</span>
                                   <strong>{safeText(job.crewAssignmentStatus || "Unavailable")}</strong>
                                 </div>
                                 <div>
@@ -3956,7 +4203,6 @@ export default async function JobsPage({
                                 </div>
                               </div>
                             </details>
-                            <AppointmentMoreDetails job={job} siteTime={siteTime} detailGridClassName="ops-appointment-detail-grid" />
                           </JobCallAheadCard>
                         );
                       })}
@@ -4066,7 +4312,7 @@ export default async function JobsPage({
                               {visitedButNotClosed ? (
                                 <span
                                   className="ops-visited-unclosed-badge"
-                                  title="Linxup shows a crew visit, but this appointment is not closed out in JunkWare."
+                                  title="Linxup shows a Krewe visit, but this appointment is not closed out in JunkWare."
                                 >
                                   <b aria-hidden="true">?</b>
                                   Visited · not closed
@@ -4087,18 +4333,12 @@ export default async function JobsPage({
                             </div>
                           </div>
 
-                          <JobContextDetails job={job} />
-
-                          <JobPhotoDetails job={job} />
-
                           {job.tipAmount > 0 ? <div className="ops-appointment-card-tip">
                             <span className="ops-appointment-card-tip-label">TIPS</span>
                             <strong className="ops-appointment-card-tip-value">{money(job.tipAmount || 0)}</strong>
                           </div> : null}
 
-                          <JobCloseoutDetails job={job} />
-
-                          <JobCloseoutEditor appointmentId={job.appointmentId} appointmentUrl={job.appointmentUrl} initialStatus={job.status} />
+                          <AppointmentDetails job={job} siteTime={siteTime} />
 
                           <details hidden className="ops-appointment-gps-details">
                             <summary>GPS and site time</summary>
@@ -4203,7 +4443,7 @@ export default async function JobsPage({
                                 <strong>{safeText(job.navigatorName || job.navigator)}</strong>
                               </div>
                               <div>
-                                <span>Additional crew</span>
+                                <span>Additional Krewe</span>
                                 <strong>
                                   {job.additionalCrew && job.additionalCrew.length > 0
                                     ? job.additionalCrew.join(", ")
@@ -4211,11 +4451,11 @@ export default async function JobsPage({
                                 </strong>
                               </div>
                               <div>
-                                <span>Crew source</span>
+                                <span>Krewe source</span>
                                 <strong>{safeText(job.crewAssignmentSource || "Unavailable")}</strong>
                               </div>
                               <div>
-                                <span>Crew status</span>
+                                <span>Krewe status</span>
                                 <strong>{safeText(job.crewAssignmentStatus || "Unavailable")}</strong>
                               </div>
                               <div>
@@ -4236,7 +4476,6 @@ export default async function JobsPage({
                               </div>
                             </div>
                           </details>
-                          <AppointmentMoreDetails job={job} siteTime={siteTime} detailGridClassName="ops-appointment-detail-grid" />
                         </JobCallAheadCard>
                       );
                     })}

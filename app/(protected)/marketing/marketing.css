@@ -9,7 +9,11 @@
   justify-content: space-between;
   gap: 16px;
   border-color: rgba(246, 195, 67, 0.34);
-  background: linear-gradient(135deg, rgba(246, 195, 67, 0.10), rgba(248, 113, 113, 0.04));
+  background: linear-gradient(
+    135deg,
+    rgba(246, 195, 67, 0.1),
+    rgba(248, 113, 113, 0.04)
+  );
 }
 
 .ops-marketing-kpis {
@@ -37,6 +41,59 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+}
+
+.ops-marketing-review-grid,
+.ops-marketing-review-list {
+  display: grid;
+  gap: 16px;
+}
+
+.ops-marketing-review-summary {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  text-align: right;
+}
+
+.ops-marketing-review-summary strong {
+  color: var(--ops-green);
+  font-size: 1.15rem;
+}
+
+.ops-marketing-review-summary span,
+.ops-marketing-review-card small {
+  color: var(--ops-muted);
+}
+
+.ops-marketing-review-card {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--ops-border);
+  padding-top: 14px;
+}
+
+.ops-marketing-review-card header,
+.ops-marketing-review-card footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ops-marketing-review-card header div {
+  display: grid;
+  gap: 3px;
+}
+
+.ops-marketing-review-card header > span {
+  color: #c58b00;
+  letter-spacing: 0.05em;
+}
+
+.ops-marketing-review-card p {
+  margin: 0;
+  line-height: 1.5;
 }
 
 .ops-table-scroll {
@@ -117,6 +174,13 @@
   letter-spacing: -0.01em;
 }
 
+.ops-marketing-date-heading p {
+  margin: 4px 0 0;
+  color: var(--ops-muted);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
 .ops-marketing-date-heading span {
   flex: 0 0 auto;
   border: 1px solid rgba(246, 195, 67, 0.3);
@@ -138,7 +202,9 @@
 
 .ops-marketing-lead.is-editing {
   border-color: #9aa9b7 !important;
-  box-shadow: 0 0 0 3px rgba(79, 127, 168, 0.12), 0 9px 24px rgba(25, 40, 55, 0.08) !important;
+  box-shadow:
+    0 0 0 3px rgba(79, 127, 168, 0.12),
+    0 9px 24px rgba(25, 40, 55, 0.08) !important;
 }
 
 .ops-marketing-lead-heading,
@@ -177,7 +243,9 @@
 
 .ops-marketing-lead-context {
   display: grid;
-  grid-template-columns: minmax(150px, 0.8fr) minmax(90px, 0.45fr) minmax(220px, 1.4fr) minmax(140px, 0.75fr);
+  grid-template-columns:
+    minmax(150px, 0.8fr) minmax(90px, 0.45fr) minmax(220px, 1.4fr)
+    minmax(140px, 0.75fr);
   gap: 10px;
 }
 
@@ -215,6 +283,71 @@
   border-radius: 0 10px 10px 0;
   background: rgba(246, 195, 67, 0.06);
   line-height: 1.5;
+}
+
+.ops-marketing-follow-up-note {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: rgba(79, 127, 168, 0.09);
+  color: #334155;
+  line-height: 1.45;
+}
+
+.ops-marketing-recovery-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.4fr) auto auto;
+  align-items: end;
+  gap: 14px;
+}
+
+.ops-marketing-recovery-toolbar label {
+  display: grid;
+  gap: 5px;
+  color: #4f5965;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ops-marketing-recovery-toolbar input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #aeb6bf;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  color: #20242b;
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.ops-marketing-recovery-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.ops-marketing-recovery-filters .ops-button {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.ops-marketing-recovery-filters .ops-button.is-active {
+  border-color: #9f1f28;
+  background: #9f1f28;
+  color: #fff;
+}
+
+.ops-marketing-recovery-result-count {
+  min-width: max-content;
+  padding-bottom: 12px;
+  color: var(--ops-muted);
+  font-size: 0.875rem;
 }
 
 .ops-marketing-tags {
@@ -277,6 +410,17 @@
   margin-left: auto;
 }
 
+.ops-marketing-call-button {
+  background: #9f1f28;
+  color: #fff;
+  text-decoration: none;
+}
+
+.ops-marketing-call-button:hover {
+  background: #7f1720;
+  color: #fff;
+}
+
 .ops-marketing-lead-review {
   display: grid;
   gap: 8px;
@@ -286,7 +430,9 @@
 
 .ops-marketing-lead-form {
   display: grid;
-  grid-template-columns: minmax(190px, 1fr) minmax(150px, 0.75fr) minmax(170px, 0.9fr) minmax(260px, 2fr) auto;
+  grid-template-columns:
+    minmax(190px, 1fr) minmax(150px, 0.75fr) minmax(170px, 0.9fr)
+    minmax(260px, 2fr) auto;
   align-items: end;
   gap: 10px;
 }
@@ -393,6 +539,24 @@
   .ops-marketing-note {
     grid-column: 1 / -1;
   }
+
+  .ops-marketing-recovery-alert {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ops-marketing-recovery-alert-actions {
+    justify-content: flex-start;
+  }
+
+  .ops-marketing-recovery-toolbar {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .ops-marketing-recovery-result-count {
+    padding-bottom: 0;
+  }
 }
 
 @media (max-width: 620px) {
@@ -431,7 +595,6 @@
   }
 }
 
-
 .ops-marketing-page .ops-page-header-status {
   max-width: 100%;
   white-space: normal;
@@ -459,5 +622,227 @@
   .ops-marketing-page > .ops-page-header .ops-page-subnav {
     grid-column: 1 / -1;
     grid-row: 3;
+  }
+}
+
+/* Calls are an operational browser, not a historical data dump. Keep one
+ * working set visible, then let the user search or page through history. */
+.ops-marketing-call-toolbar {
+  display: grid;
+  grid-template-columns:
+    minmax(260px, 1fr) minmax(170px, 0.38fr)
+    auto auto minmax(150px, auto);
+  align-items: end;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.ops-marketing-call-toolbar label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ops-marketing-call-toolbar label > span {
+  color: #626b77;
+  font-size: 0.6875rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ops-marketing-call-toolbar :is(input, select) {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #aeb6bf;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  color: #20242b;
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.ops-marketing-call-toolbar :is(input, select):focus-visible {
+  border-color: #4f7fa8;
+  outline: 3px solid rgba(79, 127, 168, 0.2);
+  outline-offset: 1px;
+}
+
+.ops-marketing-call-clear {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.ops-marketing-call-count {
+  align-self: center;
+  color: #626b77;
+  font-size: 0.75rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ops-marketing-call-count strong {
+  color: #20242b;
+}
+
+.ops-marketing-call-table .ops-table :is(th, td) {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  font-size: 0.75rem;
+}
+
+.ops-marketing-call-table .ops-marketing-phone {
+  font-size: 0.8125rem;
+}
+
+.ops-marketing-call-table .ops-marketing-summary-cell {
+  min-width: 220px;
+  max-width: 380px;
+  line-height: 1.35;
+}
+
+.ops-marketing-call-table .ops-marketing-summary-cell:not(:focus-within) {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ops-marketing-call-cards {
+  display: none;
+}
+
+.ops-marketing-call-empty {
+  display: grid;
+  min-height: 120px;
+  place-content: center;
+  gap: 4px;
+  color: #626b77;
+  text-align: center;
+}
+
+.ops-marketing-call-empty strong {
+  color: #20242b;
+}
+
+.ops-marketing-call-pagination {
+  display: grid;
+  grid-template-columns: 100px 1fr 100px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  color: #626b77;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.ops-marketing-call-pagination .ops-button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+@media (max-width: 900px) {
+  .ops-marketing-call-toolbar {
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 0.45fr) auto;
+  }
+
+  .ops-marketing-call-count {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+}
+
+@media (max-width: 720px) {
+  .ops-marketing-call-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    padding: 9px;
+  }
+
+  .ops-marketing-call-toolbar label:first-of-type {
+    grid-column: 1 / -1;
+  }
+  .ops-marketing-call-toolbar label:nth-of-type(2) {
+    grid-column: 1;
+  }
+  .ops-marketing-call-toolbar .ops-refresh-button {
+    grid-column: 2;
+  }
+  .ops-marketing-call-clear {
+    grid-column: 1 / -1;
+  }
+  .ops-marketing-call-count {
+    grid-column: 1 / -1;
+  }
+  .ops-marketing-call-table {
+    display: none;
+  }
+  .ops-marketing-call-cards {
+    display: grid;
+  }
+
+  .ops-marketing-call-card {
+    display: grid;
+    gap: 8px;
+    padding: 11px 12px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+  }
+
+  .ops-marketing-call-card:last-child {
+    border-bottom: 0;
+  }
+  .ops-marketing-call-card header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .ops-marketing-call-card header > div {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+  }
+  .ops-marketing-call-card header strong {
+    overflow: hidden;
+    font-size: 0.875rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ops-marketing-call-card header small {
+    color: #626b77;
+    font-size: 0.6875rem;
+  }
+  .ops-marketing-call-card p {
+    margin: 0;
+    color: #4f5864;
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+  .ops-marketing-call-card footer {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    color: #626b77;
+    font-size: 0.6875rem;
+  }
+  .ops-marketing-call-card .ops-marketing-phone {
+    min-height: 44px;
+    align-content: center;
+    font-size: 0.8125rem;
+  }
+  .ops-marketing-date-heading {
+    min-height: 40px;
+  }
+  .ops-marketing-call-group > .ops-marketing-date-heading {
+    padding: 9px 11px;
   }
 }

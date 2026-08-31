@@ -8,6 +8,10 @@ import { readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { matchWhatsAppPhoto, normalizePhone, type FleetLocation } from "@/lib/whatsapp-job-photo-matching";
 import {
+  queueVerifiedWhatsAppJobPhotoBatchConfirmations,
+  recordVerifiedWhatsAppJobPhoto,
+} from "@/lib/whatsapp-job-photo-confirmations";
+import {
   deliverWhatsAppPhotoSlackNotifications,
   recordWhatsAppPhotoSlackUpload,
   whatsAppPhotoSlackNotificationsEnabled,
@@ -288,7 +292,7 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
     const filePath = await downloadWhatsAppImage(claim.message);
     stage = "uploading";
     const verification = await uploadJunkwareJobPhoto({
-      appointmentId: match.appointmentId,
+      appointmentId,
       jkNumber: match.jkNumber,
       filePath,
       category: match.category,

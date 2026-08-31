@@ -273,7 +273,7 @@ export default function JobRoutePlanner({
     <section className={`ops-card ops-route-planner${draggedJobKey ? " is-dragging" : ""}`} id="jobs-dispatch" aria-labelledby="route-planner-title">
       <div className="ops-card-header compact ops-route-planner-header">
         <div>
-          <div className="ops-section-title" id="route-planner-title">Dispatch Routes</div>
+          <div className="ops-section-title" id="route-planner-title">Schedule Routes</div>
           <div className="ops-muted">Assign appointments that need a truck, then review active routes.</div>
         </div>
         <div className="ops-route-planner-stats" aria-label="Route planning coverage">

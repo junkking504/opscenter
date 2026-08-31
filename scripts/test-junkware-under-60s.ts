@@ -24,8 +24,8 @@ expect(stream.includes("for market_id, market_name in MARKETS"), "Streaming coll
 expect(stream.includes('f"market-{market_id}"'), "Each verified market must publish immediately with isolated state");
 expect(plist.includes("<key>KeepAlive</key>"), "LaunchAgent must keep the detector alive");
 expect(!plist.includes("<key>StartInterval</key>"), "Persistent detector must not use a one-minute launch interval");
-expect(deploy.includes('[[ "$active_label" == "$PRODUCTION_LABEL" ]]'), "Production deploy must own detector recovery");
-expect(deploy.includes('install-junkware-schedule-detector.sh'), "Production deploy must reinstall the detector");
+expect(deploy.includes('restart_release_bound_services "$release"'), "Production deploy must restart release-bound services after activation");
+expect(deploy.includes('"$release/deploy/macmini/install-junkware-schedule-detector.sh" || return 1'), "Production deploy must reinstall and restart the detector from the active release");
 expect(installer.includes("for attempt in {1..5}"), "Detector install must retry launchd's transient bootstrap race");
 expect(installer.includes("INSTALL_STARTED_EPOCH"), "Detector install must wait for a heartbeat from the new process");
 expect(installer.includes("child_command") && installer.includes("collect-junkware-schedule-stream.py"), "Detector install must validate orphan child commands");

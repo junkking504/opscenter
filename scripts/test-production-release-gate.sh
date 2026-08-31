@@ -16,8 +16,10 @@ grep -F 'require_forward_deploy "$latest_active_commit" "$commit" "active releas
 grep -F 'acquire_deploy_lock' "$deployer" >/dev/null
 grep -F '[[ -n "$watcher_label" ]] || continue' "$deployer" >/dev/null
 grep -F 'REMOTE_CONTROLLER="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh"' "$wrapper" >/dev/null
-grep -F 'ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$commit"' "$wrapper" >/dev/null
+grep -F 'RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"' "$wrapper" >/dev/null
+grep -F 'ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$commit" "$RESTART_WHATSAPP_PHOTO_WORKER"' "$wrapper" >/dev/null
 grep -F 'controller="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh"' "$wrapper" >/dev/null
+grep -F 'export OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER="$2"' "$wrapper" >/dev/null
 grep -F 'exec /bin/zsh "$controller" "$commit"' "$wrapper" >/dev/null
 grep -F 'requested controller commit $commit is not the current origin/production commit $production_commit' "$installer" >/dev/null
 if grep -F '< "$SCRIPT_DIR/deploy-release.sh"' "$wrapper" >/dev/null; then

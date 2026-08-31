@@ -13,7 +13,7 @@ export type PodiumReviewInviteIdentity = {
 
 export type PodiumReviewAppointmentAttribution = {
   status: "matched" | "ambiguous" | "unmatched";
-  matchMethod?: "exact_phone" | "exact_email";
+  matchMethod?: "exact_phone" | "exact_email" | "manual_appointment";
   appointmentId?: string;
   jkNumber?: string;
   appointmentDate?: string;
@@ -27,6 +27,7 @@ type AppointmentCandidate = {
   date: string;
   appointmentId: string;
   jkNumber: string;
+  customerName: string;
   appointmentUrl: string;
   territory: string;
   truck: string;
@@ -123,6 +124,7 @@ function readAppointments(dataDir: string): AppointmentCandidate[] {
           date: match[1],
           appointmentId,
           jkNumber,
+          customerName: clean(row.customer_name || row.customer),
           appointmentUrl,
           territory: clean(row.normalized_territory || row.territory || row.market),
           truck: clean(row.assigned_truck || row.truck || row.truck_number),
@@ -150,7 +152,7 @@ function dateDaysBefore(value: string, days: number): string {
 
 function sanitizedMatch(
   candidate: AppointmentCandidate,
-  method: "exact_phone" | "exact_email",
+  method: "exact_phone" | "exact_email" | "manual_appointment",
 ): PodiumReviewAppointmentAttribution {
   return {
     status: "matched",
@@ -163,6 +165,166 @@ function sanitizedMatch(
     truck: candidate.truck,
     crew: candidate.crew,
   };
+}
+
+export type PodiumReviewAssignmentOption = {
+  reference: string;
+  appointmentId: string;
+  jkNumber: string;
+  appointmentDate: string;
+  appointmentUrl: string;
+  customerName: string;
+  territory: string;
+  truck: string;
+  crew: string[];
+  label: string;
+};
+
+export type PodiumReviewNameSuggestion = PodiumReviewAssignmentOption & {
+  matchKind: "exact_name" | "exact_first_last" | "name_initial";
+};
+
+export type PodiumReviewNameSuggestionInput = {
+  uid: string;
+  authorName: string;
+  createdAt: string;
+  locationName: string;
+};
+
+function assignmentOption(candidate: AppointmentCandidate): PodiumReviewAssignmentOption {
+  const reference = candidate.appointmentId || candidate.jkNumber;
+  const details = [
+    candidate.date,
+    candidate.jkNumber,
+    candidate.customerName,
+    candidate.territory,
+    candidate.crew.join(" + "),
+  ].filter(Boolean);
+  return {
+    reference,
+    appointmentId: candidate.appointmentId,
+    jkNumber: candidate.jkNumber,
+    appointmentDate: candidate.date,
+    appointmentUrl: candidate.appointmentUrl,
+    customerName: candidate.customerName,
+    territory: candidate.territory,
+    truck: candidate.truck,
+    crew: candidate.crew,
+    label: details.join(" · "),
+  };
+}
+
+const ignoredNameParts = new Set(["mr", "mrs", "ms", "miss", "dr", "jr", "sr", "ii", "iii", "iv"]);
+
+function nameParts(value: string): string[] {
+  return clean(value)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part && !ignoredNameParts.has(part));
+}
+
+function nameMatchKind(
+  reviewerName: string,
+  customerName: string,
+): PodiumReviewNameSuggestion["matchKind"] | null {
+  const reviewer = nameParts(reviewerName);
+  const customer = nameParts(customerName);
+  if (reviewer.length < 2 || customer.length < 2) return null;
+  if (reviewer.join(" ") === customer.join(" ")) return "exact_name";
+  const reviewerSorted = [...reviewer].sort().join(" ");
+  const customerSorted = [...customer].sort().join(" ");
+  if (reviewerSorted === customerSorted) return "exact_name";
+  const reviewerFirst = reviewer[0];
+  const reviewerLast = reviewer.at(-1) || "";
+  const customerFirst = customer[0];
+  const customerLast = customer.at(-1) || "";
+  if (reviewerFirst === customerFirst && reviewerLast === customerLast) return "exact_first_last";
+  if (reviewerFirst === customerFirst && reviewerLast.length === 1 && customerLast.startsWith(reviewerLast)) {
+    return "name_initial";
+  }
+  if (customerFirst === reviewerFirst && customerLast.length === 1 && reviewerLast.startsWith(customerLast)) {
+    return "name_initial";
+  }
+  if (reviewerFirst.length === 1 && customerFirst.startsWith(reviewerFirst) && reviewerLast === customerLast) {
+    return "name_initial";
+  }
+  return null;
+}
+
+function normalizedTerritory(value: string): string {
+  return clean(value)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\bjunk king\b/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function sameTerritory(locationName: string, territory: string): boolean {
+  const location = normalizedTerritory(locationName);
+  const candidate = normalizedTerritory(territory);
+  return Boolean(location && candidate && (location === candidate || location.includes(candidate) || candidate.includes(location)));
+}
+
+export function buildPodiumReviewNameSuggestionMap(
+  dataDir: string,
+  reviews: PodiumReviewNameSuggestionInput[],
+): Record<string, PodiumReviewNameSuggestion[]> {
+  const appointments = readAppointments(dataDir).filter((candidate) => candidate.crew.length > 0 && candidate.customerName);
+  return Object.fromEntries(reviews.map((review) => {
+    const reviewDate = dateKey(review.createdAt);
+    const earliestDate = reviewDate ? dateDaysBefore(reviewDate, 90) : "";
+    const suggestions = reviewDate ? appointments
+      .map((candidate) => ({
+        candidate,
+        matchKind: nameMatchKind(review.authorName, candidate.customerName),
+      }))
+      .filter((entry): entry is { candidate: AppointmentCandidate; matchKind: PodiumReviewNameSuggestion["matchKind"] } =>
+        Boolean(entry.matchKind)
+        && entry.candidate.date >= earliestDate
+        && entry.candidate.date <= reviewDate)
+      .sort((left, right) => {
+        const matchRank = { exact_name: 3, exact_first_last: 2, name_initial: 1 } as const;
+        return matchRank[right.matchKind] - matchRank[left.matchKind]
+          || Number(sameTerritory(review.locationName, right.candidate.territory))
+            - Number(sameTerritory(review.locationName, left.candidate.territory))
+          || right.candidate.date.localeCompare(left.candidate.date)
+          || left.candidate.jkNumber.localeCompare(right.candidate.jkNumber);
+      })
+      .slice(0, 5)
+      .map(({ candidate, matchKind }) => ({ ...assignmentOption(candidate), matchKind })) : [];
+    return [review.uid, suggestions];
+  }));
+}
+
+export function listPodiumReviewAssignmentOptions(
+  dataDir: string,
+  earliestDate = "",
+): PodiumReviewAssignmentOption[] {
+  return readAppointments(dataDir)
+    .filter((candidate) => candidate.crew.length > 0 && (!earliestDate || candidate.date >= earliestDate))
+    .sort((left, right) => right.date.localeCompare(left.date)
+      || left.jkNumber.localeCompare(right.jkNumber))
+    .map(assignmentOption);
+}
+
+export function findPodiumReviewAppointment(
+  dataDir: string,
+  referenceValue: string,
+): PodiumReviewAppointmentAttribution | null {
+  const reference = clean(referenceValue).toLowerCase();
+  if (!reference) return null;
+  const candidates = readAppointments(dataDir)
+    .filter((candidate) => candidate.crew.length > 0)
+    .filter((candidate) => candidate.appointmentId.toLowerCase() === reference
+      || candidate.jkNumber.toLowerCase() === reference)
+    .sort((left, right) => right.date.localeCompare(left.date));
+  return candidates.length ? sanitizedMatch(candidates[0], "manual_appointment") : null;
 }
 
 export function buildPodiumAppointmentMatcher(dataDir: string) {

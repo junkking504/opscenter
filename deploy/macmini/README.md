@@ -118,9 +118,12 @@ cd /Users/missioncontrol/opscenter-v2/opscenter
 ```
 
 The LaunchAgent runs once per minute and uses the LinxUp API token stored in
-Keychain. `/api/health` reports `stale-linxup-data` when today's normalized GPS
-snapshot is more than three minutes old, and current OpsCenter pages refresh
-when a newer LinxUp snapshot arrives.
+Keychain. V3 Position Push is authoritative while current; this minute collector
+remains enabled as verification, backfill, and automatic V2 fallback.
+`/api/health` reports `degraded-linxup-v3-fallback` when the normalized snapshot
+is current but V3 delivery is not, and reports `stale-linxup-data` when today's
+normalized GPS snapshot is more than three minutes old. Current OpsCenter pages
+refresh when either source advances the normalized snapshot.
 
 ### Dedicated JunkWare schedule detector
 

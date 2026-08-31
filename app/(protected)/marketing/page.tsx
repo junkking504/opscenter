@@ -3,6 +3,7 @@ import "./marketing.css";
 import LostLeadTracker from "@/components/LostLeadTracker";
 import OpsMonthSelector, { type MonthOption } from "@/components/OpsMonthSelector";
 import PageHeader from "@/components/PageHeader";
+import PodiumUnassignedReviews, { PodiumReviewReassignControl } from "@/components/PodiumUnassignedReviews";
 import { appointmentScheduleHref } from "@/lib/job-links";
 import { money, type AnyRecord } from "@/lib/opsData";
 import {
@@ -20,6 +21,10 @@ import {
   buildPodiumGoogleReviewsView,
   podiumReviewsSetupSummary,
 } from "@/lib/podium-reviews";
+import {
+  podiumReviewAssignmentOptions,
+  podiumReviewNameSuggestions,
+} from "@/lib/podium-review-assignments";
 
 export const dynamic = "force-dynamic";
 
@@ -133,6 +138,16 @@ export default async function MarketingPage({
     page: params?.page,
   });
   const reviews = buildPodiumGoogleReviewsView();
+  const assignmentSnapshotTime = new Date(reviews.snapshot?.fetchedAt || "").getTime();
+  const assignmentCutoff = Number.isFinite(assignmentSnapshotTime)
+    ? new Date(assignmentSnapshotTime - 120 * 86_400_000).toISOString().slice(0, 10)
+    : "";
+  const reviewAppointmentOptions = section === "reviews"
+    ? podiumReviewAssignmentOptions(assignmentCutoff)
+    : [];
+  const reviewNameSuggestions = section === "reviews" && reviews.unassigned30Days.length > 0
+    ? podiumReviewNameSuggestions(reviews.unassigned30Days)
+    : {};
 
   return (
     <div className="ops-dashboard ops-marketing-page">
@@ -735,12 +750,17 @@ export default async function MarketingPage({
               </div>
             </section>
           </div>
+          <PodiumUnassignedReviews
+            reviews={reviews.unassigned30Days}
+            appointmentOptions={reviewAppointmentOptions}
+            suggestionsByReviewUid={reviewNameSuggestions}
+          />
           <section className="ops-card ops-marketing-review-credit">
             <div className="ops-card-header compact">
               <div>
                 <div className="ops-section-title">Appointment &amp; Crew Review Credit</div>
                 <div className="ops-muted">
-                  Last 30 days · {reviews.attributed30Days} exact appointment matches · {reviews.pendingAttribution30Days} unassigned
+                  Last 30 days · {reviews.attributed30Days} assigned to appointments · {reviews.pendingAttribution30Days} unassigned
                 </div>
               </div>
             </div>
@@ -811,11 +831,17 @@ export default async function MarketingPage({
                             {review.attribution.jkNumber ? ` · ${review.attribution.jkNumber}` : ""}
                             {review.attribution.appointmentDate ? ` · ${review.attribution.appointmentDate}` : ""}
                           </span>
-                          {review.attribution.appointmentUrl ? (
-                            <a className="ops-mini-link" href={review.attribution.appointmentUrl} target="_blank" rel="noreferrer">
-                              Open appointment
-                            </a>
-                          ) : null}
+                          <div className="ops-marketing-review-attribution-actions">
+                            {review.attribution.appointmentUrl ? (
+                              <a className="ops-mini-link" href={review.attribution.appointmentUrl} target="_blank" rel="noreferrer">
+                                Open appointment
+                              </a>
+                            ) : null}
+                            <PodiumReviewReassignControl
+                              reviewUid={review.uid}
+                              jkNumber={review.attribution.jkNumber || ""}
+                            />
+                          </div>
                         </div>
                       ) : review.attribution?.status === "ambiguous" ? (
                         <div className="ops-marketing-review-attribution is-pending">

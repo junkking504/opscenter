@@ -63,3 +63,26 @@ npm run verify:podium-reviews
 The dedicated LaunchAgent checks every 15 minutes. A failed request preserves
 the last verified snapshot; it never substitutes a partial result. Production
 deployment restarts the collector only after it has been explicitly installed.
+
+## Appointment and crew attribution
+
+OpsCenter first uses the exact phone or email from a Podium review invitation
+to find a completed JunkWare job from the preceding 90 days. Reviews without
+that exact identifier match remain unassigned. For those reviews, Marketing →
+Reviews cross-references the public reviewer name against completed JunkWare
+customer names and proposes only conservative matches: exact full name, exact
+first and last name, or a first/last-initial match. Same-territory and more
+recent completed jobs rank first when more than one candidate exists.
+
+A name match is a suggestion, not employee credit. A manager or administrator
+must confirm the displayed JK number or choose a different completed
+appointment. Confirming or re-assigning the review records the appointment,
+territory, truck, and recorded crew in the durable operator store:
+
+```text
+data/operator/podium_review_assignments.json
+```
+
+The assignment record excludes the customer name, phone, email, and Podium
+invitation identifier. Confirmed assignments override collector attribution and
+remain editable from the attributed review card after later Podium refreshes.

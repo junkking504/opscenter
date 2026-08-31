@@ -19,6 +19,9 @@ const plist = fs.readFileSync(
 );
 
 expect(health.includes("stale-linxup-data"), "Health endpoint must report stale LinxUp data");
+expect(health.includes("degraded-linxup-v3-fallback"), "Health endpoint must identify a current V2 fallback as degraded");
+expect(health.includes("linxupDeliveryMode"), "Health endpoint must expose the authoritative LinxUp delivery mode");
+expect(health.includes("linxupV3UpdatedAt"), "Health endpoint must expose the newest V3 position timestamp");
 expect(health.includes("dataUpdatedAt"), "Health endpoint must expose combined data freshness");
 expect(sync.includes("health?.dataUpdatedAt || health?.updatedAt"), "Current pages must react to LinxUp-only refreshes");
 for (const command of [
@@ -37,6 +40,7 @@ expect(installer.includes("opsbot-linxup-api-token-v2"), "Installer must verify 
 expect(installer.includes("for attempt in {1..5}"), "Installer must retry transient launchd bootstrap failures");
 expect(installer.includes('sleep 2'), "Installer must allow launchd to release the prior process between retries");
 expect(pushLibrary.includes("LINXUP_PUSH_BEARER_TOKEN"), "LinxUp push must require its independent bearer token");
+expect(fs.readFileSync(path.join(root, "scripts/ingest-linxup-push.ts"), "utf8").includes('delivery_source: "v3_position_push"'), "V3 positions must retain their authoritative delivery source");
 expect(pushRunner.includes("collect_linxup_location_history.py") === false, "LinxUp push must not poll the V2 collector");
 expect(pushRunner.includes("match_linxup_appointment_visits.py"), "LinxUp push must recompute the affected appointment visit directly");
 expect(pushRunner.includes("--only truck_arrival"), "LinxUp push must publish confirmed arrivals immediately");

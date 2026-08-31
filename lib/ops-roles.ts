@@ -50,6 +50,7 @@ const SENSITIVE_WRITE_ROUTES = [
   "/api/job-cancellation",
   "/api/job-closeout",
   "/api/fleet-checklist-templates",
+  "/api/integrations/podium/reviews/attribution",
   "/api/integrations/qbo/disconnect",
 ] as const;
 

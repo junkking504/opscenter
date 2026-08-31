@@ -2915,28 +2915,6 @@ function readPlanningGeocodes(): Record<string, Record<string, unknown>> {
   }
 }
 
-function planningLocation(
-  address: string,
-  geocodes: Record<string, Record<string, unknown>>,
-): RouteLocation | null {
-  if (!address || address === "—") return null;
-  const match = geocodes[planningAddressHash(address)];
-  if (match?.match_confidence !== "confirmed") return null;
-  // Number(null) is 0, which Leaflet renders off the Louisiana map at 0,0.
-  // Only use a confirmed address after the geocoder supplied both coordinates.
-  if (match?.latitude == null || match?.longitude == null) return null;
-  const latitude = Number(match?.latitude);
-  const longitude = Number(match?.longitude);
-  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude === 0 || longitude === 0) return null;
-  if (
-    latitude < 29
-    || latitude > 31.3
-    || longitude < -93
-    || longitude > -89.4
-  ) return null;
-  return { latitude, longitude };
-}
-
 function routeDistanceMiles(from: RouteLocation, to: RouteLocation): number {
   const radians = (degrees: number) => (degrees * Math.PI) / 180;
   const earthRadiusMiles = 3958.8;

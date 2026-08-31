@@ -304,57 +304,11 @@ export default function SlackAlertsDigest({
                 <strong className={styles.digestChannel}>
                   {message.channel}{message.threadReply ? " · Reply" : ""}
                 </strong>
-                {message.appointment ? (
-                  <div className={styles.digestAppointment}>
-                    <p className={styles.digestAppointmentTitle}>
-                      <span aria-hidden="true">⚠️</span>{" "}
-                      {message.appointment.title}:{" "}
-                      <Link href={message.appointment.href}>{message.appointment.jobNumber}</Link>
-                    </p>
-                    <p>
-                      {message.appointment.customerName} · {message.appointment.phone} · {message.appointment.appointmentTime}
-                    </p>
-                    <p>{message.appointment.address}</p>
-                    {message.appointment.items.length ? (
-                      <p>Items: {message.appointment.items.join("; ")}</p>
-                    ) : null}
-                    {message.appointment.nextAction ? (
-                      <p className={styles.digestNext}>Next: {message.appointment.nextAction}</p>
-                    ) : null}
-                    <Link className={styles.digestOpenLink} href={message.appointment.href}>
-                      Open in OpsCenter
-                    </Link>
-                  </div>
-                ) : message.closeout ? (
-                  <div className={styles.digestAppointment}>
-                    <p className={styles.digestAppointmentTitle}>
-                      <span aria-hidden="true">✅</span>{" "}
-                      <Link href={message.closeout.href}>{message.closeout.jobNumber}</Link> closed out.
-                    </p>
-                    {message.closeout.lines.map((line) => <p key={line}>{line}</p>)}
-                    <Link className={styles.digestOpenLink} href={message.closeout.href}>
-                      Open in OpsCenter
-                    </Link>
-                  </div>
-                ) : message.truckArrival ? (
-                  <div className={styles.digestAppointment}>
-                    <p className={styles.digestAppointmentTitle}>
-                      <span aria-hidden="true">🚚</span> {message.truckArrival.truck} arrived
-                    </p>
-                    <p>Job: {message.truckArrival.jobNumber}</p>
-                    <p>Customer: {message.truckArrival.customerName}</p>
-                    <p>Address: {message.truckArrival.address}</p>
-                  </div>
-                ) : (
-                  <>
-                    <p>{message.text}</p>
-                    {message.opsCenterHref ? (
-                      <Link className={styles.digestOpenLink} href={message.opsCenterHref}>
-                        Open in OpsCenter
-                      </Link>
-                    ) : null}
-                  </>
-                )}
+                <div className={styles.digestSlackMessage}>
+                  {slackDisplayLines(message.rawText).map((line, index) => (
+                    <p key={`${message.id}-${index}`}>{renderSlackInline(line)}</p>
+                  ))}
+                </div>
               </div>
             </article>
           ))}

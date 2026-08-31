@@ -12,6 +12,7 @@ for (const label of [
   "com.openclaw.opsbot.junkware-schedule-detector",
   "com.openclaw.opsbot.junkware-history-reconciliation",
   "com.openclaw.opsbot.searchkings-collector",
+  "com.openclaw.opsbot.podium-reviews-collector",
   "com.openclaw.opsbot.browser-keepalive",
 ]) {
   assert.match(deployer, new RegExp(`="${label}"`), `missing release-bound collector label: ${label}`);
@@ -19,7 +20,7 @@ for (const label of [
 
 assert.match(
   deployer,
-  /launchctl list \| awk -v prefix="\$JUNKWARE_MARKET_WATCHER_LABEL_PREFIX"/,
+  /launchctl list[\s\\]*\| awk -v prefix="\$JUNKWARE_MARKET_WATCHER_LABEL_PREFIX"/,
   "market watchers must be enumerated from loaded launchd instances",
 );
 assert.match(
@@ -69,7 +70,7 @@ assert.match(
 );
 assert.match(
   deployer,
-  /Skipping prune for \$candidate: lsof process-reference scan exceeded/, 
+  /Skipping prune for \$candidate: lsof process-reference scan exceeded/,
   "a timed-out scan must preserve the release",
 );
 assert.match(
@@ -87,11 +88,13 @@ async function verifyLsofDetectsReleaseWorkingDirectory() {
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "opscenter-release-lsof-fixture-"));
   const sleeper = spawn("/bin/sleep", ["10"], { cwd: fixture, stdio: "ignore" });
   try {
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  const records = execFileSync("/usr/sbin/lsof", ["-n", "-P", "-F", "p", "+D", fs.realpathSync(fixture)], { encoding: "utf8" });
-  const canonicalFixture = fs.realpathSync(fixture);
-  assert.ok(canonicalFixture.length > 0, "fixture must resolve to a canonical path");
-  assert.ok(records.split("\n").includes(`p${sleeper.pid}`), "lsof process scan must detect a release working directory");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const records = execFileSync(
+      "/usr/sbin/lsof",
+      ["-n", "-P", "-F", "p", "+D", fs.realpathSync(fixture)],
+      { encoding: "utf8" },
+    );
+    assert.ok(records.split("\n").includes(`p${sleeper.pid}`), "lsof must detect a release working directory");
   } finally {
     sleeper.kill();
     await new Promise((resolve) => sleeper.once("exit", resolve));

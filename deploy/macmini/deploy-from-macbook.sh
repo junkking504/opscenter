@@ -5,7 +5,6 @@ SCRIPT_DIR="${0:A:h}"
 REPOSITORY_ROOT="${SCRIPT_DIR:h:h}"
 PROGRAM_NAME="${0:t}"
 BOOTSTRAP=false
-ALLOW_NON_FORWARD=false
 MC_HOST="${OPSCENTER_MC_HOST:-}"
 MC_SSH_KEY="${OPSCENTER_MC_SSH_KEY:-$HOME/.ssh/id_ed25519_opscenter}"
 REQUESTED_REF="HEAD"
@@ -18,25 +17,15 @@ fail() {
 }
 
 usage() {
-  echo "usage: $PROGRAM_NAME [--bootstrap] [--allow-non-forward] <mc-host-or-address> [git-ref]" >&2
-  echo "   or: OPSCENTER_MC_HOST=<host> $PROGRAM_NAME [--bootstrap] [--allow-non-forward] [git-ref]" >&2
+  echo "usage: $PROGRAM_NAME [--bootstrap] <mc-host-or-address> [git-ref]" >&2
+  echo "   or: OPSCENTER_MC_HOST=<host> $PROGRAM_NAME [--bootstrap] [git-ref]" >&2
   exit 64
 }
 
-while [[ "${1:-}" == --* ]]; do
-  case "$1" in
-    --bootstrap)
-      BOOTSTRAP=true
-      ;;
-    --allow-non-forward)
-      ALLOW_NON_FORWARD=true
-      ;;
-    *)
-      usage
-      ;;
-  esac
+if [[ "${1:-}" == "--bootstrap" ]]; then
+  BOOTSTRAP=true
   shift
-done
+fi
 
 if [[ -z "$MC_HOST" ]]; then
   [[ $# -ge 1 ]] || usage
@@ -53,8 +42,7 @@ for command in git ssh; do
   command -v "$command" >/dev/null 2>&1 || fail "required command is missing: $command"
 done
 
-[[ "$(git -C "$REPOSITORY_ROOT" rev-parse --is-inside-work-tree 2>/dev/null || true)" == "true" ]] \
-  || fail "$REPOSITORY_ROOT is not a Git checkout"
+[[ -d "$REPOSITORY_ROOT/.git" ]] || fail "$REPOSITORY_ROOT is not a Git checkout"
 [[ -f "$MC_SSH_KEY" ]] || fail "missing Mission Control SSH key: $MC_SSH_KEY"
 git -C "$REPOSITORY_ROOT" fetch --prune origin
 commit="$(git -C "$REPOSITORY_ROOT" rev-parse --verify "${REQUESTED_REF}^{commit}" 2>/dev/null || true)"
@@ -80,13 +68,6 @@ fi
 ssh_options=(-i "$MC_SSH_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=10)
 ssh "${ssh_options[@]}" "$ssh_target" /usr/bin/true
 
-# Preserve an explicit request to leave the separately managed photo worker
-# running when the remote release script is invoked over SSH.
-remote_environment=()
-if [[ -n "${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER+x}" ]]; then
-  remote_environment=(env "OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER=$OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER")
-fi
-
 if $BOOTSTRAP; then
   echo "Preparing the Mission Control Git release layout..."
   ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$repository_url" \
@@ -96,10 +77,12 @@ if $BOOTSTRAP; then
 fi
 
 echo "Deploying pushed commit $commit to Mission Control..."
-allow_non_forward_arg=0
-if $ALLOW_NON_FORWARD; then
-  allow_non_forward_arg=1
+ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$commit" <<'REMOTE'
+controller="/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-release.sh"
+commit="$1"
+if [[ ! -x "$controller" ]]; then
+  echo "Mission Control deployment stopped: installed production controller is missing: $controller" >&2
+  exit 1
 fi
-ssh "${ssh_options[@]}" "$ssh_target" "${remote_environment[@]}" /bin/zsh -s -- "$commit" \
-  "$allow_non_forward_arg" \
-  < "$SCRIPT_DIR/deploy-release.sh"
+exec /bin/zsh "$controller" "$commit"
+REMOTE

@@ -24,6 +24,7 @@ JUNKWARE_COLLECTOR_LABEL="com.openclaw.opsbot.junkware-collector"
 JUNKWARE_SCHEDULE_DETECTOR_LABEL="com.openclaw.opsbot.junkware-schedule-detector"
 JUNKWARE_HISTORY_RECONCILIATION_LABEL="com.openclaw.opsbot.junkware-history-reconciliation"
 SEARCHKINGS_COLLECTOR_LABEL="com.openclaw.opsbot.searchkings-collector"
+PODIUM_REVIEWS_COLLECTOR_LABEL="com.openclaw.opsbot.podium-reviews-collector"
 BROWSER_KEEPALIVE_LABEL="com.openclaw.opsbot.browser-keepalive"
 JUNKWARE_MARKET_WATCHER_LABEL_PREFIX="com.openclaw.opsbot.junkware-schedule-watcher-"
 REQUESTED_REF="${1:-}"
@@ -31,9 +32,10 @@ RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"
 RELEASE_RETENTION="${OPSCENTER_RELEASE_RETENTION:-8}"
 RELEASE_LSOF_TIMEOUT_SECONDS="${OPSCENTER_RELEASE_LSOF_TIMEOUT_SECONDS:-5}"
 RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS="${OPSCENTER_SERVICE_RESTART_TIMEOUT_SECONDS:-20}"
-ALLOW_NON_FORWARD="${2:-0}"
+PRODUCTION_REF="refs/remotes/origin/production"
 DEPLOY_LOCK_DIR="$DEPLOY_ROOT/.deploy-lock"
 DEPLOY_LOCK_HELD=false
+DEPLOYMENT_HISTORY="$SHARED_CONFIG/deployment-history.tsv"
 RESTARTED_SERVICE_LABELS=()
 
 fail() {
@@ -50,7 +52,7 @@ release_deploy_lock() {
 
 acquire_deploy_lock() {
   if ! mkdir "$DEPLOY_LOCK_DIR" 2>/dev/null; then
-    lock_owner="$(cat "$DEPLOY_LOCK_DIR/owner" 2>/dev/null || true)"
+    lock_owner="$(<"$DEPLOY_LOCK_DIR/owner" 2>/dev/null || true)"
     [[ -n "$lock_owner" ]] || lock_owner="owner unavailable"
     fail "another deployment is already running ($lock_owner); refusing to race it"
   fi
@@ -62,19 +64,24 @@ acquire_deploy_lock() {
   } > "$DEPLOY_LOCK_DIR/owner"
 }
 
+require_production_head() {
+  local requested_commit="$1"
+  local details
+
+  if ! details="$(opscenter_require_exact_ref "$REPOSITORY" "$requested_commit" "$PRODUCTION_REF" 2>&1)"; then
+    fail "$details"
+  fi
+}
+
 require_forward_deploy() {
   local active_commit="$1"
   local requested_commit="$2"
-  local check_context="$3"
+  local context="$3"
+  local details
 
-  if [[ "$requested_commit" == "$active_commit" ]] \
-    || git -C "$REPOSITORY" merge-base --is-ancestor "$active_commit" "$requested_commit"; then
-    return 0
+  if ! details="$(opscenter_require_forward_commit "$REPOSITORY" "$active_commit" "$requested_commit" 2>&1)"; then
+    fail "$context: $details; merge the active release into origin/production first"
   fi
-  if [[ "$ALLOW_NON_FORWARD" != "1" ]]; then
-    fail "$check_context: requested commit $requested_commit does not contain active commit $active_commit; rebase or merge the active release first (intentional rollback requires --allow-non-forward)"
-  fi
-  echo "WARNING: allowing an explicitly authorized non-forward deployment: $active_commit -> $requested_commit" >&2
 }
 
 trap release_deploy_lock EXIT
@@ -84,7 +91,8 @@ service_loaded() {
 }
 
 service_run_count() {
-  launchctl print "gui/$(id -u)/$1" 2>/dev/null | awk '/^[[:space:]]*runs = [0-9]+;$/ { gsub(/[^0-9]/, "", $0); print; exit }'
+  launchctl print "gui/$(id -u)/$1" 2>/dev/null \
+    | awk '/^[[:space:]]*runs = [0-9]+;$/ { gsub(/[^0-9]/, "", $0); print; exit }'
 }
 
 restart_loaded_service_with_timeout() {
@@ -131,7 +139,8 @@ restart_loaded_service() {
 }
 
 loaded_market_watcher_labels() {
-  launchctl list | awk -v prefix="$JUNKWARE_MARKET_WATCHER_LABEL_PREFIX" '$3 ~ ("^" prefix) { print $3 }'
+  launchctl list \
+    | awk -v prefix="$JUNKWARE_MARKET_WATCHER_LABEL_PREFIX" '$3 ~ ("^" prefix) { print $3 }'
 }
 
 restart_release_bound_collectors() {
@@ -139,20 +148,26 @@ restart_release_bound_collectors() {
   local watcher_label
   local -a market_watchers
 
-  # Browser keepalive is infrastructure rather than a data stream, but every
-  # authenticated JunkWare scraper depends on its browser session.
   restart_loaded_service "$BROWSER_KEEPALIVE_LABEL" || return 1
   restart_loaded_service "$JUNKWARE_COLLECTOR_LABEL" || return 1
-  restart_loaded_service "$JUNKWARE_SCHEDULE_DETECTOR_LABEL" || return 1
   restart_loaded_service "$JUNKWARE_HISTORY_RECONCILIATION_LABEL" || return 1
   restart_loaded_service "$SEARCHKINGS_COLLECTOR_LABEL" || return 1
+  restart_loaded_service "$PODIUM_REVIEWS_COLLECTOR_LABEL" || return 1
 
   market_watchers=("${(@f)$(loaded_market_watcher_labels)}") || return 1
   for watcher_label in "${market_watchers[@]}"; do
+    [[ -n "$watcher_label" ]] || continue
     restart_loaded_service "$watcher_label" || return 1
   done
 
-  # LinxUp also refreshes its installed plist so policy changes travel with the
+  # Production owns the low-latency detector. Reinstalling also repairs a
+  # missing or unloaded LaunchAgent and ends by kickstarting it.
+  "$release/deploy/macmini/install-junkware-schedule-detector.sh" || return 1
+  if service_loaded "$JUNKWARE_SCHEDULE_DETECTOR_LABEL"; then
+    RESTARTED_SERVICE_LABELS+=("$JUNKWARE_SCHEDULE_DETECTOR_LABEL")
+  fi
+
+  # LinxUp refreshes its installed plist so policy changes travel with the
   # immutable release; its installer ends by kickstarting the loaded service.
   if service_loaded "$LINXUP_COLLECTOR_LABEL"; then
     "$release/deploy/macmini/install-linxup-collector.sh" || return 1
@@ -188,10 +203,6 @@ release_has_live_process_reference() {
     return 0
   }
 
-  # +D sees cwd, executable text, and open files below the candidate release.
-  # Limit output to PIDs so deployment logs never print runtime file paths.
-  # The explicit timeout below makes a large dependency tree fail safe by
-  # keeping the release instead of delaying deployment indefinitely.
   /usr/sbin/lsof -n -P -F p +D "$candidate" >"$scan_output" 2>"$scan_error" &
   scan_pid=$!
   remaining="$RELEASE_LSOF_TIMEOUT_SECONDS"
@@ -246,9 +257,6 @@ prune_superseded_releases() {
   local candidate
   local retained=0
 
-  # Directories are named by commit SHA and are only ever created by this script.
-  # Keep a compact rollback window while ensuring the live and immediate prior
-  # release can never be pruned by this deployment.
   releases=("${(@f)$(/bin/ls -1dt "$RELEASES_DIR"/*(N/))}")
   for candidate in "${releases[@]}"; do
     if [[ "$candidate" == "$protected_current" || "$candidate" == "$protected_previous" || "$retained" -lt "$RELEASE_RETENTION" ]]; then
@@ -286,12 +294,12 @@ restore_previous_release() {
   fi
 }
 
-[[ -n "$REQUESTED_REF" ]] || fail "usage: $0 <pushed-git-ref-or-commit> [allow-non-forward: 0|1]"
-[[ "$ALLOW_NON_FORWARD" == "0" || "$ALLOW_NON_FORWARD" == "1" ]] || fail "allow-non-forward must be 0 or 1"
+[[ -n "$REQUESTED_REF" ]] || fail "usage: $0 <pushed-git-ref-or-commit>"
 [[ "$(id -un)" == "$EXPECTED_USER" ]] || fail "run this while logged in as $EXPECTED_USER"
 [[ "$HOME" == "$EXPECTED_HOME" ]] || fail "HOME must be $EXPECTED_HOME"
 [[ "$RELEASE_RETENTION" == <-> && "$RELEASE_RETENTION" -ge 3 ]] || fail "OPSCENTER_RELEASE_RETENTION must be an integer of at least 3"
 [[ "$RELEASE_LSOF_TIMEOUT_SECONDS" == <-> && "$RELEASE_LSOF_TIMEOUT_SECONDS" -ge 1 ]] || fail "OPSCENTER_RELEASE_LSOF_TIMEOUT_SECONDS must be a positive integer"
+[[ "$RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS" == <-> && "$RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS" -ge 1 ]] || fail "OPSCENTER_SERVICE_RESTART_TIMEOUT_SECONDS must be a positive integer"
 [[ -d "$REPOSITORY/.git" ]] || fail "run deploy/macmini/bootstrap-git-deployment.sh first"
 [[ -d "$DATA_DIR" ]] || fail "missing authoritative OpsBot data: $DATA_DIR"
 [[ -L "$APP_LINK" ]] || fail "$APP_LINK must be a symbolic link; run the Git bootstrap first"
@@ -302,9 +310,6 @@ done
 
 mkdir -p "$RELEASES_DIR" "$SHARED_LOGS" "$SHARED_CONFIG"
 acquire_deploy_lock
-# Reclaim old immutable releases before installing a new dependency tree. This
-# keeps a failed or oversized prior deployment from consuming the space needed
-# for the next recovery deployment.
 active_release="$(readlink "$APP_LINK")"
 [[ -d "$active_release" ]] || fail "active OpsCenter target is missing: $active_release"
 prune_superseded_releases "$active_release" "$active_release"
@@ -313,12 +318,6 @@ git -C "$REPOSITORY" fetch --prune origin
 commit="$(git -C "$REPOSITORY" rev-parse --verify "${REQUESTED_REF}^{commit}" 2>/dev/null || true)"
 [[ -n "$commit" ]] || fail "cannot resolve $REQUESTED_REF after fetching origin"
 require_production_head "$commit"
-
-active_release="$(readlink "$APP_LINK")"
-[[ -n "$active_release" ]] || fail "cannot resolve the active OpsCenter release"
-active_commit="$(git -C "$active_release" rev-parse --verify HEAD 2>/dev/null || true)"
-[[ -n "$active_commit" ]] || fail "cannot resolve the active release commit from $active_release"
-require_forward_deploy "$active_commit" "$commit" "initial ancestry check"
 
 active_release="$(readlink "$APP_LINK")"
 [[ -n "$active_release" ]] || fail "cannot resolve the active OpsCenter release"
@@ -383,6 +382,8 @@ fi
   echo "deployed_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } > "$release/.opscenter-release"
 
+git -C "$REPOSITORY" fetch --prune origin
+require_production_head "$commit"
 latest_active_release="$(readlink "$APP_LINK")"
 [[ -n "$latest_active_release" ]] || fail "cannot recheck the active OpsCenter release"
 latest_active_commit="$(git -C "$latest_active_release" rev-parse --verify HEAD 2>/dev/null || true)"
@@ -401,15 +402,12 @@ if [[ -n "$active_label" ]]; then
   fi
 fi
 
-# All release-bound collector entrypoints use the stable active-release
-# symlink. Restart every loaded collector before pruning so none can retain an
-# executable, module, or working-directory reference to an obsolete release.
 if ! restart_release_bound_services "$release"; then
   echo "A release-bound service could not restart; restoring $previous_target" >&2
   restore_previous_release "$previous_target" "$active_label" "$active_port"
   RESTARTED_SERVICE_LABELS=()
-  restart_release_bound_services "$previous_target" || \
-    echo "WARNING: one or more services also failed to restart on the restored release." >&2
+  restart_release_bound_services "$previous_target" \
+    || echo "WARNING: one or more services also failed to restart on the restored release." >&2
   fail "release $commit failed collector restart health and was rolled back"
 fi
 
@@ -426,4 +424,13 @@ else
 fi
 if (( ${#RESTARTED_SERVICE_LABELS[@]} > 0 )); then
   echo "Restarted: ${RESTARTED_SERVICE_LABELS[*]}"
+fi
+echo "Recovery:  automatic health rollback target was $previous_target"
+
+if ! printf '%s\t%s\t%s\t%s\n' \
+  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  "$latest_active_commit" \
+  "$commit" \
+  "forward" >> "$DEPLOYMENT_HISTORY"; then
+  echo "WARNING: deployment succeeded, but the transition could not be appended to $DEPLOYMENT_HISTORY" >&2
 fi

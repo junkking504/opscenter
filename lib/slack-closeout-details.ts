@@ -1,9 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { isEstimateAppointment } from "@/lib/job-audit-rules";
 import { money as moneyText } from "@/lib/money";
 import type { AnyRecord } from "@/lib/opsData";
-import { formatSlackMessage, type SlackMessageField } from "@/lib/slack-message-format";
 
 export type TruckCloseoutDetails = {
   jobNumber: string;
@@ -38,10 +36,10 @@ function pricedLoadLine(label: string, size: string, price: number | null, quant
   const normalizedSize = loadSize(size);
   const quantityPrefix = quantity && quantity !== "1" ? `${quantity} × ` : "";
   const description = `${quantityPrefix}${normalizedSize || "Size unavailable"}`;
-  return `${label}: ${price !== null ? moneyText(price) : "Amount unavailable"}${description ? ` (${description})` : ""}.`;
+  return `${label}: ${description}${price !== null ? ` (${moneyText(price)})` : ""}.`;
 }
 
-function paymentLine(payment: AnyRecord): string {
+function paymentDescription(payment: AnyRecord): string {
   const method = firstText(payment, ["method", "payment_method", "paymentMethod"]);
   if (!method) return "";
   const detail = firstText(payment, ["detail", "payment_detail", "paymentDetail"]);
@@ -50,31 +48,14 @@ function paymentLine(payment: AnyRecord): string {
   const normalizedMethod = method.toLowerCase();
   if (normalizedMethod.includes("card")) {
     const lastFour = detail.match(/(\d{4})(?!.*\d)/)?.[1] || "";
-    return `Card Ending: ${lastFour || "Unavailable"}.`;
+    return `Card${lastFour ? ` ending ${lastFour}` : ""}${amountText}`;
   }
   if (normalizedMethod.includes("check")) {
     const checkNumber = detail.replace(/^\s*#\s*/, "").trim();
-    return `Check: ${checkNumber ? `#${checkNumber}` : "Number unavailable"}${amountText}.`;
+    return `Check${checkNumber ? ` #${checkNumber}` : ""}${amountText}`;
   }
-  if (normalizedMethod.includes("cash")) return `Cash: ${amountText.trim() || "Amount unavailable"}.`;
-  return `${method}: ${amountText.trim() || "Amount unavailable"}.`;
-}
-
-function closeoutChargeLabel(name: string): string {
-  const normalized = name.toLowerCase().replace(/\s+/g, " ").trim();
-  if (normalized.includes("surcharge") && normalized.includes("card present")) return "CC 3%";
-  return name;
-}
-
-function slackFields(lines: string[]): SlackMessageField[] {
-  return lines.flatMap((line) => {
-    const match = line.match(/^([^:]+):\s*(.*?)\.?$/);
-    return match ? [{ label: match[1], value: match[2] }] : [];
-  });
-}
-
-export function isEstimateCloseoutRow(row: AnyRecord): boolean {
-  return isEstimateAppointment(firstText(row, ["appointment_type", "final_appointment_type", "type"]));
+  if (normalizedMethod.includes("cash")) return `Cash${amountText}`;
+  return `${method}${amountText}`;
 }
 
 export function hasFullCloseoutPayment(row: AnyRecord): boolean {
@@ -112,41 +93,39 @@ export function truckCloseoutDetails(row: AnyRecord): TruckCloseoutDetails | nul
     if (!charge || typeof charge !== "object") continue;
     const name = firstText(charge, ["name", "label", "description"]);
     const amount = firstFiniteNumber(charge, ["total", "amount", "unitPrice"]);
-    if (name && amount !== null) lines.push(`${closeoutChargeLabel(name)}: ${moneyText(amount)}.`);
+    if (name && amount !== null) lines.push(`${name}: ${moneyText(amount)}.`);
   }
 
   const discount = firstFiniteNumber(closeout, ["discount"]);
   if (discount !== null && discount > 0) lines.push(`Discount: ${moneyText(discount)}.`);
 
+  const jobTotal = firstFiniteNumber(row, ["revenue", "job_total", "jobTotal"]);
+  if (jobTotal !== null) lines.push(`Job total: ${moneyText(jobTotal)}.`);
+
   const tip = firstFiniteNumber(closeout, ["tip"])
     ?? firstFiniteNumber(row, ["tip", "tips"])
     ?? 0;
-  lines.push(`Tips: ${tip > 0 ? moneyText(tip) : ""}.`);
-
-  const jobTotal = firstFiniteNumber(row, ["revenue", "job_total", "jobTotal"])
-    ?? firstFiniteNumber(closeout, ["total"]);
-  if (jobTotal !== null) lines.push(`Total: ${moneyText(jobTotal)}.`);
+  lines.push(`Tip: ${moneyText(tip)}.`);
 
   const payments = (Array.isArray(closeout.payments) ? closeout.payments : [])
     .filter((payment): payment is AnyRecord => Boolean(payment) && typeof payment === "object")
-    .map(paymentLine)
+    .map(paymentDescription)
     .filter(Boolean);
   if (payments.length) {
-    lines.push(...payments);
+    lines.push(`Charged: ${payments.join("; ")}.`);
+  } else {
+    const chargedTotal = firstFiniteNumber(closeout, ["total"]);
+    if (chargedTotal !== null) lines.push(`Total charged: ${moneyText(chargedTotal)}.`);
   }
 
   return {
     jobNumber,
     lines,
-    slackText: formatSlackMessage({
-      icon: ":white_check_mark:",
-      title: "Job Closed",
-      fields: [{ label: "Job", value: jobNumber }, ...slackFields(lines)],
-    }),
+    slackText: [`:white_check_mark: ${jobNumber} closed out.`, ...lines].join(" "),
   };
 }
 
-function readJunkwarePayload(date: string): AnyRecord | null {
+export function readCompletedJunkwareRows(date: string): AnyRecord[] {
   const configured = String(process.env.OPSCENTER_DATA_DIR || "").trim();
   const dataDirectories = Array.from(new Set([
     ...(configured ? [configured] : []),
@@ -159,42 +138,10 @@ function readJunkwarePayload(date: string): AnyRecord | null {
     const file = path.join(dataDirectory, "history", "junkware", `junkware_${date}_raw.json`);
     try {
       const payload = JSON.parse(fs.readFileSync(file, "utf8"));
-      if (payload && typeof payload === "object") return payload as AnyRecord;
+      if (Array.isArray(payload?.completed)) return payload.completed;
     } catch {
       // Try the next known OpsBot data location.
     }
   }
-  return null;
-}
-
-export function readCompletedJunkwareRows(date: string): AnyRecord[] {
-  const payload = readJunkwarePayload(date);
-  return Array.isArray(payload?.completed)
-    ? payload.completed.filter((row): row is AnyRecord => Boolean(row) && typeof row === "object")
-    : [];
-}
-
-/**
- * JunkWare retains completed estimates in the daily appointments list rather
- * than the completed-jobs list. Read both shapes so a closed estimate is not
- * silently omitted when JunkWare changes which list it uses.
- */
-export function readClosedEstimateJunkwareRows(date: string): AnyRecord[] {
-  const payload = readJunkwarePayload(date);
-  const rows = [payload?.appointments, payload?.completed]
-    .flatMap((group) => Array.isArray(group) ? group : [])
-    .filter((row): row is AnyRecord => Boolean(row) && typeof row === "object")
-    .filter((row) => (
-      isEstimateCloseoutRow(row)
-      && firstText(row, ["final_status", "job_status", "status"]).toLowerCase().includes("complete")
-    ));
-
-  const seen = new Set<string>();
-  return rows.filter((row) => {
-    const identity = firstText(row, ["appt_id", "appointment_id", "appointmentId"])
-      || firstText(row, ["job_id", "jk_number", "job_number"]);
-    if (!identity || seen.has(identity)) return false;
-    seen.add(identity);
-    return true;
-  });
+  return [];
 }

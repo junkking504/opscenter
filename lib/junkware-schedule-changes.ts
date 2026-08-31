@@ -95,10 +95,7 @@ function href(date: string, row: AnyRecord): string {
 function rescheduleAlert(date: string, previous: AnyRecord, current: AnyRecord): SlackOpsAlert {
   const oldTime = first(previous, ["appointment_time", "scheduled_time", "time_window"]) || "Unavailable";
   const newTime = first(current, ["appointment_time", "scheduled_time", "time_window"]) || "Unavailable";
-  const number = jobNumber(current);
-  const customerName = first(current, ["customer_name", "customer", "name"]);
-  const phone = first(current, ["phone", "customer_phone", "phone_number", "mobile_phone", "mobile"]);
-  const address = first(current, ["address", "service_address", "job_address"]);
+  const truck = first(current, ["truck", "assigned_truck", "truck_number"]);
   return {
     fingerprint: "",
     kind: "add_on",
@@ -116,19 +113,6 @@ function rescheduleAlert(date: string, previous: AnyRecord, current: AnyRecord):
       ...(truck ? [{ label: "Truck", value: truck }] : []),
     ],
   };
-}
-
-function closeoutAlert(date: string, row: AnyRecord): SlackOpsAlert | null {
-  const closeout = row?.closeout;
-  if (!closeout || typeof closeout !== "object" || Array.isArray(closeout) || !Object.keys(closeout).length) return null;
-  // Fast schedule snapshots are often populated before the completed-job
-  // record.  Do not consume the closeout delivery slot until the alert can
-  // carry the customer and crew context required by the truck-channel format.
-  if (!first(row, ["customer_name", "customerName", "customer", "name"])) return null;
-  if (!first(row, ["driver_normalized_name", "driver_name", "driver", "navigator_normalized_name", "navigator_name", "navigator"])) return null;
-  return isEstimateCloseoutRow(row)
-    ? buildTruckEstimateCloseoutSlackNotifications(date, [row])[0] || null
-    : buildTruckCloseoutSlackNotifications(date, [row])[0] || null;
 }
 
 function rowMap(rows: AnyRecord[]): Map<string, AnyRecord> {
@@ -229,26 +213,6 @@ function writeState(dataDir: string, state: DetectorState): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(`${file}.tmp`, JSON.stringify(state, null, 2));
   fs.renameSync(`${file}.tmp`, file);
-}
-
-function deliveredMainCloseouts(dataDir: string, date: string): Set<string> {
-  try {
-    const payload = JSON.parse(fs.readFileSync(path.join(dataDir, "slack", "ops_alert_state.json"), "utf8"));
-    const delivered = payload?.deliveredTruckCloseoutsByDate?.[date];
-    return new Set(Array.isArray(delivered) ? delivered.map(String) : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function deliveredMainScheduleChanges(dataDir: string, date: string): Set<string> {
-  try {
-    const payload = JSON.parse(fs.readFileSync(path.join(dataDir, "slack", "ops_alert_state.json"), "utf8"));
-    const delivered = payload?.deliveredScheduleChangesByDate?.[date];
-    return new Set(Array.isArray(delivered) ? delivered.map(String) : []);
-  } catch {
-    return new Set();
-  }
 }
 
 async function post(token: string, alert: SlackOpsAlert): Promise<boolean> {

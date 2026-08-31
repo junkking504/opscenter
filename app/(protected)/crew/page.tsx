@@ -38,7 +38,19 @@ import {
   normalizeCrewEmployeeKey,
   readCrewClockRows,
   type CrewClockRecord,
+  workedOrAttributedToJobToday,
 } from "@/lib/crew-attendance";
+import PayrollDiscrepancyEditor from "@/components/PayrollDiscrepancyEditor";
+import {
+  normalizePayrollEmployeeKey,
+  payrollCorrectionsForDate,
+  type PayrollCorrection,
+} from "@/lib/payroll-corrections";
+import { crewMemberAnchor, fleetTruckHref } from "@/lib/related-record-links";
+import relatedStyles from "@/components/RelatedRecords.module.css";
+import { cookies } from "next/headers";
+import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
+import { canShowCrewPayrollReview, canViewCrewPayroll } from "@/lib/crew-payroll-access";
 
 export const dynamic = "force-dynamic";
 

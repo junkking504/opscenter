@@ -83,28 +83,6 @@ private environment and run:
 OPSCENTER_MC_HOST=<mc-host> ./deploy/macmini/deploy-from-macbook.sh origin/production
 ```
 
-## Deployment safety
-
-Mission Control deployments are serialized with a host-side lock. A second
-deployment exits before fetching, building, restarting, or changing the active
-release.
-
-Deployments are also forward-only by default: the requested commit must contain
-the currently active production commit. If another branch was deployed while a
-change was in progress, merge or rebase that active commit into the change
-before deploying it. This prevents an older or sibling branch from silently
-reverting production.
-
-An intentional rollback requires explicit authorization and the visible
-override flag:
-
-```bash
-./deploy/macmini/deploy-from-macbook.sh --allow-non-forward <mc-host> <git-ref>
-```
-
-The automatic health-check rollback remains available and does not require this
-flag.
-
 The controller uses `~/.ssh/id_ed25519_opscenter` by default. Set
 `OPSCENTER_MC_SSH_KEY` when the approved Mission Control key is stored at a
 different private path.
@@ -118,26 +96,9 @@ restarts the prior release. Each release also installs the Chromium revision
 pinned by Playwright so JunkWare closeout and truck-assignment actions remain
 available after dependency updates.
 
-After a successful app health check, production also restarts every loaded
-release-bound OpsBot service: JunkWare's live collector, schedule detector,
-history reconciliation, SearchKings collector, all installed per-market
-schedule watchers, the LinxUp collector, and browser-session keepalive. The
-WhatsApp worker retains its existing opt-out setting. A restart failure stops
-the deployment and restores the prior release rather than being ignored.
-Each release-bound service restart is also bounded to 20 seconds by default
-(`OPSCENTER_SERVICE_RESTART_TIMEOUT_SECONDS`). A hung `launchctl kickstart`
-only proceeds when launchd's run counter proves that it did start a new service
-instance; otherwise it is treated as a deployment-health failure and rolls
-back cleanly.
-Before pruning an old release, the deployer runs a bounded five-second
-PID-only `lsof +D` scan for that candidate. It catches process working
-directories, executable text, and open files beneath the release. A process
-reference, scan error, or timeout keeps that release instead of removing it;
-the timeout prevents a large dependency tree from becoming an unbounded deploy
-delay.
-
-To roll back manually, deploy the previous commit SHA with the explicit
-`--allow-non-forward` flag shown above.
+The normal deployment command has no non-forward override. A manual rollback
+requires a separately reviewed and explicitly authorized recovery procedure;
+never move `origin/production` backward merely to make a deployment pass.
 
 ### Dedicated LinxUp freshness collector
 
@@ -155,33 +116,32 @@ Keychain. `/api/health` reports `stale-linxup-data` when today's normalized GPS
 snapshot is more than three minutes old, and current OpsCenter pages refresh
 when a newer LinxUp snapshot arrives.
 
-When the dedicated collector is already loaded, each immutable production
-deployment reinstalls its LaunchAgent from the newly active release. This keeps
-the installed retry, `KeepAlive`, and throttle policy synchronized with the
-release rather than leaving an older plist in place.
-
 ### Dedicated JunkWare schedule detector
 
-New appointment, reschedule, cancellation, and closeout alerts use a persistent,
-schedule-only JunkWare browser worker. Collection and Slack publishing are
-separate atomic steps: the worker resolves the current America/Chicago business
-date for every sweep (unless a one-off date is explicitly supplied), verifies that
-date and every selected JunkWare market, then the publisher compares the resulting
-snapshot and posts only new changes. Running several independent browser logins
-proved less reliable because JunkWare serialized subsequent sessions.
+Current appointments and Slack schedule events use a persistent, verified
+JunkWare schedule detector. JunkWare serializes concurrent browser logins, so
+one browser checks the four markets in sequence and publishes each market as
+soon as it is verified. Each sweep begins five seconds after the previous sweep
+completes. The production in-session sweep measured 17.2 seconds total and about
+4.3 seconds per market, yielding a roughly 22-second same-market read cadence
+before the five-second OpsCenter browser check. This targets about 30 seconds and
+keeps the operating requirement below 60 seconds. The full multi-integration
+collector remains the reconciliation and enrichment path.
 
-After deploying a release that includes this path, install or refresh only
-these watchers:
+Production deployments reinstall this detector even if its LaunchAgent has
+become unloaded. To repair or verify it independently, run:
 
 ```sh
 cd /Users/missioncontrol/opscenter-v2/opscenter
 ./deploy/macmini/install-junkware-schedule-detector.sh
 ```
 
-The detector begins its next verified sweep 10 seconds after the previous sweep
-completes, rather than letting launchd terminate an in-flight browser check. Its
-successful and failed heartbeat is written to
-`/Users/missioncontrol/.openclaw/workspace/opsbot/data/slack/junkware_schedule_watchers/detector.json`.
+The detector writes verified market snapshots below
+`data/history/junkware/schedule-watchers/` and a heartbeat to
+`data/slack/junkware_schedule_watchers/detector.json`. `/api/health` reports
+`stale-junkware-schedule` when the current-day verified snapshot is older than
+two minutes. Current OpsCenter pages poll the combined freshness signal every
+five seconds and refresh when a newer verified schedule arrives.
 
 To deploy OpsCenter while leaving the separately managed WhatsApp photo worker
 untouched, set `OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER=false` for the deployment

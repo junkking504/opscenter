@@ -12,8 +12,6 @@ const previous = {
   appointments: [
     { appt_id: "1", job_id: "JK4051001", job_status: "Scheduled", appointment_time: "9:00 AM", truck: "Truck 6", market: "Baton Rouge" },
     { appt_id: "2", job_id: "JK4051002", job_status: "Scheduled", appointment_time: "10:00 AM", truck: "Truck 1", market: "New Orleans" },
-    { appt_id: "5", job_id: "JK4051005", job_status: "Scheduled", appointment_time: "3:00 PM", appointment_date: "2026-08-17", truck: "Truck 1", market: "New Orleans" },
-    { appt_id: "6", job_id: "JK4051006", appointment_type: "Estimate", job_status: "Scheduled", appointment_time: "4:00 PM", truck: "Truck 6", market: "Baton Rouge" },
   ],
   cancelled: [],
 };
@@ -25,27 +23,6 @@ const current = {
     { appt_id: "1", job_id: "JK4051001", job_status: "Completed", appointment_time: "9:00 AM", truck: "Truck 6", market: "Baton Rouge", revenue: "$225.00", payment_type: "Cash" },
     { appt_id: "2", job_id: "JK4051002", job_status: "Scheduled", appointment_time: "11:00 AM", truck: "Truck 1", market: "New Orleans" },
     { appt_id: "3", job_id: "JK4051003", job_status: "Scheduled", appointment_time: "1:00 PM", truck: "Truck 4", market: "Northshore" },
-    { appt_id: "5", job_id: "JK4051005", job_status: "Scheduled", appointment_time: "3:00 PM", appointment_date: "2026-08-17", truck: "Truck 9", market: "Baton Rouge" },
-    {
-      appt_id: "6",
-      job_id: "JK4051006",
-      appointment_type: "Estimate",
-      job_status: "Completed",
-      appointment_time: "4:00 PM",
-      truck: "Truck 6",
-      market: "Baton Rouge",
-      customer_name: "Estimate Customer",
-      driver_normalized_name: "Estimate Driver",
-      navigator_normalized_name: "Estimate Navigator",
-      revenue: "$180.00",
-      closeout: {
-        loadSize: "1 (1/4)",
-        loadPrice: "$180.00",
-        tip: "",
-        total: "$180.00",
-        payments: [],
-      },
-    },
   ],
   cancelled: [
     { appt_id: "4", job_id: "JK4051004", job_status: "Cancelled", appointment_time: "2:00 PM", market: "Baton Rouge" },

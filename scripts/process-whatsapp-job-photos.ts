@@ -2,8 +2,8 @@ import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
-import { uploadJunkwareJobPhoto } from "@/lib/junkware-photo-uploader";
-import { updateJunkwareTruckRecord, uploadJunkwareTruckRecord } from "@/lib/junkware-truck-record-uploader";
+import { findJunkwareAppointmentIdByJkNumber, uploadJunkwareJobPhoto } from "@/lib/junkware-photo-uploader";
+import { uploadJunkwareTruckRecord } from "@/lib/junkware-truck-record-uploader";
 import { readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
 import { matchWhatsAppPhoto, normalizePhone, type FleetLocation } from "@/lib/whatsapp-job-photo-matching";
@@ -16,7 +16,6 @@ import {
   recordWhatsAppPhotoSlackUpload,
   whatsAppPhotoSlackNotificationsEnabled,
 } from "@/lib/whatsapp-job-photo-slack";
-import { deliverWhatsAppPhotoReceipts, recordWhatsAppPhotoReceipt } from "@/lib/whatsapp-job-photo-receipts";
 import {
   claimWhatsAppImage,
   finishWhatsAppImage,
@@ -39,7 +38,7 @@ import {
   requeueCrewExpenseReply,
   updateCrewExpenseTransaction,
 } from "@/lib/whatsapp-crew-expenses";
-import { sendCrewExpenseSlackCorrectionNotification, sendCrewExpenseSlackNotification } from "@/lib/whatsapp-crew-expense-slack";
+import { sendCrewExpenseSlackNotification } from "@/lib/whatsapp-crew-expense-slack";
 
 function clean(value: unknown): string {
   return String(value || "").replace(/\s+/g, " ").trim();
@@ -137,29 +136,6 @@ async function downloadWhatsAppImage(message: WhatsAppImageMessage): Promise<str
   return target;
 }
 
-async function sendWhatsAppReply(reply: { recipient: string; phoneNumberId: string; text: string }): Promise<{ metaMessageId: string }> {
-  const token = accessToken();
-  const version = clean(process.env.WHATSAPP_GRAPH_API_VERSION);
-  const configuredPhoneNumberId = clean(process.env.WHATSAPP_PHONE_NUMBER_ID);
-  if (!token || !/^v\d+\.\d+$/.test(version) || !/^\d+$/.test(configuredPhoneNumberId)) {
-    throw new Error("WhatsApp reply credentials are unavailable.");
-  }
-  if (reply.phoneNumberId && reply.phoneNumberId !== configuredPhoneNumberId) {
-    throw new Error("WhatsApp reply phone number ID mismatch.");
-  }
-  const recipient = reply.recipient.length === 10 ? `1${reply.recipient}` : reply.recipient;
-  const response = await fetch(`https://graph.facebook.com/${version}/${encodeURIComponent(configuredPhoneNumberId)}/messages`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to: recipient, type: "text", text: { preview_url: false, body: reply.text } }),
-    cache: "no-store",
-    signal: AbortSignal.timeout(20_000),
-  });
-  const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
-  if (!response.ok || payload.error) throw new Error(`WhatsApp reply failed (${response.status}).`);
-  return { metaMessageId: clean((payload.messages as Array<Record<string, unknown>> | undefined)?.[0]?.id) };
-}
-
 async function deliverCrewExpenseReplies(): Promise<{ sent: number; retried: number; failed: number }> {
   const results = { sent: 0, retried: 0, failed: 0 };
   const token = accessToken();
@@ -170,8 +146,21 @@ async function deliverCrewExpenseReplies(): Promise<{ sent: number; retried: num
     const claim = claimCrewExpenseReply(incomingFile);
     if (!claim) continue;
     try {
-      const delivery = await sendWhatsAppReply(claim.reply);
-      finishCrewExpenseReply(claim.file, "sent", delivery);
+      const phoneNumberId = configuredPhoneNumberId;
+      if (claim.reply.phoneNumberId && claim.reply.phoneNumberId !== phoneNumberId) {
+        throw new Error("WhatsApp reply phone number ID mismatch.");
+      }
+      const recipient = claim.reply.recipient.length === 10 ? `1${claim.reply.recipient}` : claim.reply.recipient;
+      const response = await fetch(`https://graph.facebook.com/${version}/${encodeURIComponent(phoneNumberId)}/messages`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ messaging_product: "whatsapp", recipient_type: "individual", to: recipient, type: "text", text: { preview_url: false, body: claim.reply.text } }),
+        cache: "no-store",
+        signal: AbortSignal.timeout(20_000),
+      });
+      const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+      if (!response.ok || payload.error) throw new Error(`WhatsApp reply failed (${response.status}).`);
+      finishCrewExpenseReply(claim.file, "sent", { metaMessageId: clean((payload.messages as Array<Record<string, unknown>> | undefined)?.[0]?.id) });
       results.sent += 1;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -190,18 +179,14 @@ async function processCrewExpenseTransactions(): Promise<{ completed: number; re
     try {
       let transaction = claim.transaction;
       if (transaction.stage === "pending_junkware") {
-        const verification = transaction.operation === "edit"
-          ? await updateJunkwareTruckRecord(transaction.originalRecord || transaction.record, transaction.record)
-          : await uploadJunkwareTruckRecord(transaction.record);
+        const verification = await uploadJunkwareTruckRecord(transaction.record);
         transaction = updateCrewExpenseTransaction(claim.file, {
           stage: "junkware_verified",
           junkware: { ...verification, verifiedAt: new Date().toISOString() },
         });
       }
       if (transaction.stage === "junkware_verified") {
-        const delivery = transaction.operation === "edit"
-          ? await sendCrewExpenseSlackCorrectionNotification(transaction.record, transaction.correctionMessageId || transaction.record.messageId)
-          : await sendCrewExpenseSlackNotification(transaction.record);
+        const delivery = await sendCrewExpenseSlackNotification(transaction.record);
         transaction = updateCrewExpenseTransaction(claim.file, {
           stage: "slack_sent",
           slack: { ...delivery, sentAt: new Date().toISOString() },
@@ -268,15 +253,18 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
       finishWhatsAppImage(claim.file, "review", { review: match });
       return "review";
     }
-    matchedJob = match;
-    recordWhatsAppPhotoReceipt({
-      messageId: claim.message.messageId,
-      senderPhone: claim.message.senderPhone,
-      phoneNumberId: claim.message.phoneNumberId,
-      jkNumber: match.jkNumber,
-      jobDate: date,
-      status: "pending",
-    });
+    const appointmentId = match.appointmentId || await findJunkwareAppointmentIdByJkNumber(match.jkNumber);
+    if (!appointmentId) {
+      finishWhatsAppImage(claim.file, "review", {
+        review: {
+          reason: "jk_not_found_in_junkware",
+          detail: `${match.jkNumber} did not resolve to the exact JunkWare appointment.`,
+          category: match.category,
+        },
+      });
+      return "review";
+    }
+    matchedJob = { ...match, appointmentId };
     if (match.method === "jk_number" && whatsAppPhotoSlackNotificationsEnabled()) {
       recordWhatsAppPhotoSlackUpload({
         messageId: claim.message.messageId,
@@ -297,14 +285,16 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
       filePath,
       category: match.category,
     });
-    recordWhatsAppPhotoReceipt({
-      messageId: claim.message.messageId,
-      senderPhone: claim.message.senderPhone,
-      phoneNumberId: claim.message.phoneNumberId,
-      jkNumber: match.jkNumber,
-      jobDate: date,
-      status: "completed",
-    });
+    if (match.method === "jk_number") {
+      recordVerifiedWhatsAppJobPhoto({
+        messageId: claim.message.messageId,
+        jkNumber: match.jkNumber,
+        jobDate: date,
+        senderPhone: claim.message.senderPhone,
+        phoneNumberId: claim.message.phoneNumberId,
+        receivedAt: claim.message.receivedAt,
+      });
+    }
     if (match.method === "jk_number" && whatsAppPhotoSlackNotificationsEnabled()) {
       recordWhatsAppPhotoSlackUpload({
         messageId: claim.message.messageId,
@@ -348,11 +338,14 @@ async function main(): Promise<void> {
   loadSlackBotToken();
   const crewExpenseTransactions = await processCrewExpenseTransactions();
   const slack = await deliverWhatsAppPhotoSlackNotifications();
-  const photoReceipts = await deliverWhatsAppPhotoReceipts(sendWhatsAppReply);
+  const photoQueue = whatsappQueueCounts();
+  const photoConfirmations = queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(), {
+    hasUnfinishedPhotos: photoQueue.incoming > 0 || photoQueue.processing > 0,
+  });
   const expenseReplies = await deliverCrewExpenseReplies();
   const processedCount = Object.values(results).reduce((sum, count) => sum + count, 0);
-  if (processedCount || slack.attempted || photoReceipts.attempted || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {
-    process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: whatsappQueueCounts(), slack, photoReceipts, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
+  if (processedCount || slack.attempted || photoConfirmations.queued || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {
+    process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: photoQueue, slack, photoConfirmations, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
   }
 }
 

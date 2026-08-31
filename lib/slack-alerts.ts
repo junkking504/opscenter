@@ -56,14 +56,13 @@ type ActiveSlackAlert = {
 };
 
 type SlackAlertState = {
-  version: 5;
+  version: 4;
   initializedAt: string;
   updatedAt: string;
   active: Record<string, ActiveSlackAlert>;
   suppressedIncidentFingerprints: string[];
   knownAppointmentsByDate: Record<string, string[]>;
   knownCancellationsByDate: Record<string, string[]>;
-  deliveredScheduleChangesByDate: Record<string, string[]>;
   crewNotificationsInitializedAt: string;
   deliveredCrewNotificationsByDate: Record<string, string[]>;
   truckArrivalNotificationsInitializedAt: string;
@@ -137,14 +136,13 @@ function stateFile(): string {
 
 function emptyState(): SlackAlertState {
   return {
-    version: 5,
+    version: 4,
     initializedAt: "",
     updatedAt: "",
     active: {},
     suppressedIncidentFingerprints: [],
     knownAppointmentsByDate: {},
     knownCancellationsByDate: {},
-    deliveredScheduleChangesByDate: {},
     crewNotificationsInitializedAt: "",
     deliveredCrewNotificationsByDate: {},
     truckArrivalNotificationsInitializedAt: "",
@@ -160,7 +158,7 @@ function readState(): SlackAlertState {
   try {
     const payload = JSON.parse(fs.readFileSync(stateFile(), "utf8"));
     return {
-      version: 5,
+      version: 4,
       initializedAt: String(payload?.initializedAt || ""),
       updatedAt: String(payload?.updatedAt || ""),
       active: payload?.active && typeof payload.active === "object" ? payload.active : {},
@@ -174,10 +172,6 @@ function readState(): SlackAlertState {
       knownCancellationsByDate:
         payload?.knownCancellationsByDate && typeof payload.knownCancellationsByDate === "object"
           ? payload.knownCancellationsByDate
-          : {},
-      deliveredScheduleChangesByDate:
-        payload?.deliveredScheduleChangesByDate && typeof payload.deliveredScheduleChangesByDate === "object"
-          ? payload.deliveredScheduleChangesByDate
           : {},
       crewNotificationsInitializedAt: String(payload?.crewNotificationsInitializedAt || ""),
       deliveredCrewNotificationsByDate:
@@ -205,47 +199,6 @@ function readState(): SlackAlertState {
   } catch {
     return emptyState();
   }
-}
-
-function scheduleChangeFingerprint(
-  kind: "new_appointment" | "cancelled",
-  date: string,
-  appointmentId: string,
-): string {
-  const identifier = String(appointmentId || "")
-    .replace(/^appt:/i, "appt-")
-    .replace(/^job:/i, "job-");
-  return `${kind}:${date}:${identifier}`;
-}
-
-function deliveredFastScheduleChanges(date: string): Set<string> {
-  const configured = String(process.env.OPSCENTER_DATA_DIR || "").trim();
-  const candidates = Array.from(new Set([
-    ...(configured ? [configured] : []),
-    path.join(process.cwd(), "data"),
-    path.join(process.env.HOME || "", ".openclaw", "workspace", "opsbot", "data"),
-  ]));
-  for (const dataDirectory of candidates) {
-    try {
-      const payload = JSON.parse(fs.readFileSync(
-        path.join(dataDirectory, "slack", "junkware_schedule_change_state.json"),
-        "utf8",
-      ));
-      return new Set(
-        (Array.isArray(payload?.delivered) ? payload.delivered.map(String) : [])
-          .filter((fingerprint: string) => /^(?:new_appointment|cancelled|job_closed|estimate_closed):/.test(fingerprint))
-          .filter((fingerprint: string) => fingerprint.includes(`:${date}:`)),
-      );
-    } catch {
-      // Try the next known runtime data location.
-    }
-  }
-  return new Set();
-}
-
-function deliveredFastScheduleCloseouts(date: string): string[] {
-  return Array.from(deliveredFastScheduleChanges(date))
-    .filter((fingerprint) => /^(?:job_closed|estimate_closed):/.test(fingerprint));
 }
 
 function writeState(state: SlackAlertState): void {
@@ -347,11 +300,6 @@ function absoluteOpsHref(href: string): string {
   return `${origin()}${href.startsWith("/") ? href : `/${href}`}`;
 }
 
-function closeoutOpsHref(date: string, jobNumber: string): string {
-  const jobAnchor = jobNumber.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-  return absoluteOpsHref(`/jobs?date=${encodeURIComponent(date)}#job-${jobAnchor}`);
-}
-
 function exceptionAlert(
   exception: OperationalException,
   kind: "unassigned_crew" | "late_job",
@@ -434,17 +382,6 @@ function staleDataAlert(source: DataHealthSource): SlackOpsAlert {
 }
 
 export function buildAddOnSlackNotification(appointment: AddOnAppointment, date: string): SlackOpsAlert {
-  const href = absoluteOpsHref(appointment.href);
-  const plainText = [
-    ":warning: *New Appointment*",
-    `<${href}|${slackEscape(appointment.jobNumber)}>`,
-    slackEscape(appointment.appointmentTime),
-    `*${slackEscape(appointment.customerName)}*`,
-    slackPhoneLink(appointment.phone),
-    slackEscape(appointment.address),
-    ...(appointment.items.length ? [`*Items:* ${slackEscape(appointment.items.join("; "))}`] : []),
-  ].filter(Boolean).join("\n");
-
   return {
     fingerprint: `add_on:${date}:${appointment.id}`,
     kind: "add_on",
@@ -463,104 +400,7 @@ export function buildAddOnSlackNotification(appointment: AddOnAppointment, date:
   };
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-type CancellationDisplayDetails = Pick<CancelledAppointment, "customerName" | "phone" | "address">;
-
-function missingCancellationField(value: string, unavailableLabel: string): boolean {
-  const normalized = String(value || "").replace(/\s+/g, " ").trim();
-  return !normalized || normalized.toLowerCase() === unavailableLabel.toLowerCase();
-}
-
-/**
- * The JunkWare cancelled schedule table can collapse customer, phone, address,
- * and reason into one cell. Recover the individual facts before the shared
- * formatter turns them into an alert.
- */
-function cancellationDisplayDetails(appointment: CancelledAppointment): CancellationDisplayDetails {
-  const fallback = {
-    customerName: String(appointment.customerName || "").replace(/\s+/g, " ").trim(),
-    phone: String(appointment.phone || "").replace(/\s+/g, " ").trim(),
-    address: String(appointment.address || "").replace(/\s+/g, " ").trim(),
-  };
-  const needsContactRecovery = missingCancellationField(fallback.phone, "Phone unavailable")
-    || missingCancellationField(fallback.address, "Address unavailable");
-  if (!needsContactRecovery) return fallback;
-
-  const sources = [appointment.cancellationReason, appointment.customerName]
-    .map((value) => String(value || "").replace(/\s+/g, " ").trim())
-    .filter(Boolean);
-
-  for (const source of sources) {
-    const phoneMatch = /(?:\+?1[\s.-]?)?(?:\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})(?:\s*(?:x|ext\.?)\s*\d{1,6})?/i.exec(source);
-    if (!phoneMatch || phoneMatch.index == null) continue;
-
-    const afterPhone = source.slice(phoneMatch.index + phoneMatch[0].length).replace(/^[\s,;:-]+/, "");
-    const zipMatch = /\b\d{5}(?:-\d{4})?\b/.exec(afterPhone);
-    if (!zipMatch || zipMatch.index == null) continue;
-
-    const customerName = source.slice(0, phoneMatch.index).replace(/[\s,;:-]+$/, "").trim();
-    const address = afterPhone.slice(0, zipMatch.index + zipMatch[0].length).replace(/[\s,;:-]+$/, "").trim();
-    if (!customerName || !address) continue;
-
-    return {
-      customerName,
-      phone: fallback.phone || phoneMatch[0].trim(),
-      address: fallback.address || address,
-    };
-  }
-
-  return fallback;
-}
-
-function normalizedCancellationReason(appointment: CancelledAppointment): string {
-  const original = String(appointment.cancellationReason || "").replace(/\s+/g, " ").trim();
-  if (!original) return "";
-
-  let reason = original;
-  let strippedContact = false;
-  const customerName = String(appointment.customerName || "").replace(/\s+/g, " ").trim();
-  if (customerName && reason.toLowerCase().startsWith(customerName.toLowerCase())) {
-    reason = reason.slice(customerName.length).replace(/^[\s,;:-]+/, "");
-    strippedContact = true;
-  }
-
-  const phoneDigits = String(appointment.phone || "").replace(/\D/g, "");
-  if (phoneDigits.length >= 7) {
-    const phonePattern = phoneDigits.split("").map(escapeRegExp).join("\\D*");
-    const phonePrefix = new RegExp(`^\\D*${phonePattern}(?:\\D+|$)`, "i");
-    if (phonePrefix.test(reason)) {
-      reason = reason.replace(phonePrefix, "").trim();
-      strippedContact = true;
-    }
-  }
-
-  if (strippedContact && /^\d{1,6}\s+/.test(reason)) {
-    // Street numbers can also be five digits. Use the final ZIP-code match so
-    // we remove the whole repeated address, not just its street number.
-    const addressPrefix = reason.match(/^.*\b\d{5}(?:-\d{4})?\b[\s,;:-]*/);
-    if (addressPrefix) reason = reason.slice(addressPrefix[0].length).trim();
-  }
-
-  return reason || original;
-}
-
 export function buildCancellationSlackNotification(appointment: CancelledAppointment, date: string): SlackOpsAlert {
-  const href = absoluteOpsHref(appointment.href);
-  const display = cancellationDisplayDetails(appointment);
-  const reason = normalizedCancellationReason({ ...appointment, ...display });
-  const plainText = [
-    ":x: *Cancellation*",
-    `*<${href}|${slackEscape(appointment.jobNumber)}>*`,
-    slackEscape(appointment.appointmentTime),
-    slackEscape(display.customerName),
-    slackPhoneLink(display.phone),
-    slackEscape(display.address),
-    ...(reason ? [`*Reason:* ${slackEscape(reason)}`] : []),
-  ].filter(Boolean).join("\n");
-
   return {
     fingerprint: `cancellation:${date}:${appointment.id}`,
     kind: "cancellation",
@@ -714,58 +554,7 @@ function closeoutTruck(row: AnyRecord): string {
   return firstText(row, ["truck", "assigned_truck", "truck_number", "truckNumber"]);
 }
 
-function closeoutCustomer(row: AnyRecord): string {
-  return firstText(row, ["customer_name", "customerName", "customer", "name"]);
-}
-
-function closeoutCrewMember(row: AnyRecord, role: "driver" | "navigator"): string {
-  return role === "driver"
-    ? firstText(row, ["driver_normalized_name", "driver_name", "driver"])
-    : firstText(row, ["navigator_normalized_name", "navigator_name", "navigator"]);
-}
-
-/**
- * The single approved truck-closeout presentation.  Keep the job link and
- * customer/crew facts with the financial detail so every publisher (the
- * collector, direct verified writes, and digest repair) renders identically.
- */
-type TruckCloseoutAlertKind = "job_closed" | "estimate_closed";
-
-function closeoutAlertTitle(kind: TruckCloseoutAlertKind): string {
-  return kind === "estimate_closed" ? "Estimate Closed" : "Job Closed";
-}
-
-export function formatTruckCloseoutSlackNotification(
-  date: string,
-  row: AnyRecord,
-  kind: TruckCloseoutAlertKind = isEstimateCloseoutRow(row) ? "estimate_closed" : "job_closed",
-): string | null {
-  const jobNumber = firstText(row, ["job_id", "jk_number", "job_number"]);
-  if (!jobNumber) return null;
-
-  const closeout = truckCloseoutDetails(row);
-  const detailLines = parseSlackDetailLines(closeout?.lines || []).map(({ label, value }) => (
-    label === "Tips" && !value ? "*Tips:*" : `*${slackEscape(label)}:* ${slackEscape(value)}`
-  ));
-  const customer = closeoutCustomer(row);
-  const driver = closeoutCrewMember(row, "driver");
-  const navigator = closeoutCrewMember(row, "navigator");
-
-  return [
-    `:moneybag: *${closeoutAlertTitle(kind)}*`,
-    `*<${closeoutOpsHref(date, jobNumber)}|${slackEscape(jobNumber)}>*`,
-    customer ? `*${slackEscape(customer)}*` : "",
-    `*Driver:*${driver ? ` ${slackEscape(driver)}` : ""}`,
-    `*Navigator:*${navigator ? ` ${slackEscape(navigator)}` : ""}`,
-    ...detailLines,
-  ].filter(Boolean).join("\n");
-}
-
-function buildTruckCloseoutSlackNotificationsForKind(
-  date: string,
-  rows: AnyRecord[],
-  kind: TruckCloseoutAlertKind,
-): SlackOpsAlert[] {
+export function buildTruckCloseoutSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   const seen = new Set<string>();
 
@@ -775,13 +564,12 @@ function buildTruckCloseoutSlackNotificationsForKind(
     const truck = closeoutTruck(row);
     const truckNumber = normalizeSlackTruckNumber(truck);
     if (!identity || !jobNumber || !truckNumber) continue;
-    if (isEstimateCloseoutRow(row) !== (kind === "estimate_closed")) continue;
 
     const status = firstText(row, ["final_status", "job_status", "status"]).toLowerCase();
     if (!status.includes("complete")) continue;
     if (!hasFullCloseoutPayment(row)) continue;
 
-    const fingerprint = `${kind}:${date}:${identity}`;
+    const fingerprint = `job_closed:${date}:${identity}`;
     if (seen.has(fingerprint)) continue;
     seen.add(fingerprint);
 
@@ -796,7 +584,7 @@ function buildTruckCloseoutSlackNotificationsForKind(
     });
     notifications.push({
       fingerprint,
-      kind,
+      kind: "job_closed",
       lifecycle: "notification",
       severity: "warning",
       channelId: truckSlackChannelId(truck, ""),
@@ -832,7 +620,6 @@ function readTruckArrivalVisitRows(date: string): AnyRecord[] {
 
 type TruckArrivalAppointmentDetails = {
   customerName: string;
-  phone: string;
   address: string;
 };
 
@@ -857,10 +644,9 @@ function readTruckArrivalAppointmentDetails(date: string): Map<string, TruckArri
       for (const row of rows) {
         const details = {
           customerName: firstText(row, ["customer_name", "customerName", "service_contact_name"]),
-          phone: firstText(row, ["phone", "customer_phone", "customerPhone", "service_contact_phone"]),
           address: firstText(row, ["service_address", "address", "serviceAddress"]),
         };
-        if (!details.customerName && !details.phone && !details.address) continue;
+        if (!details.customerName && !details.address) continue;
 
         for (const key of [
           firstText(row, ["appt_id", "appointment_id", "appointmentId"]),
@@ -882,40 +668,6 @@ function truckArrivalKeyPart(value: string): string {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-function formatTruckArrivalTime(value: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
-
-function phoneDisplayParts(value: string): { label: string; digits: string; extension: string } {
-  const raw = String(value || "").trim();
-  const slackTelLabel = raw.match(/^<tel:[^|>]*\|([^>]+)>$/i)?.[1]?.trim();
-  const unwrapped = slackTelLabel || raw;
-  const extensionMatch = /(?:\bext\.?|x)\s*(\d{1,6})\b/i.exec(unwrapped);
-  const phoneText = extensionMatch ? unwrapped.slice(0, extensionMatch.index).trim() : unwrapped;
-  let digits = phoneText.replace(/\D/g, "");
-  if (digits.length === 11 && digits.startsWith("1")) digits = digits.slice(1);
-  const extension = extensionMatch?.[1] || "";
-  const label = digits.length === 10
-    ? `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}${extension ? ` x${extension}` : ""}`
-    : unwrapped;
-  return { label, digits, extension };
-}
-
-function displayPhone(value: string): string {
-  return phoneDisplayParts(value).label;
-}
-
-export function slackPhoneLink(value: string): string {
-  const { label, digits, extension } = phoneDisplayParts(value);
-  if (!label || digits.length < 7) return slackEscape(label);
-  const phoneNumber = digits.length === 10 ? `+1${digits}` : `+${digits}`;
-  return `<tel:${phoneNumber}${extension ? `;ext=${extension}` : ""}|${slackEscape(label)}>`;
-}
-
 export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   const seen = new Set<string>();
@@ -933,9 +685,6 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
     const customerName = firstText(row, ["customer_name", "customerName", "service_contact_name"])
       || details?.customerName
       || "Unknown";
-    const phone = firstText(row, ["phone", "customer_phone", "customerPhone", "service_contact_phone"])
-      || details?.phone
-      || "";
     const address = firstText(row, ["service_address", "address", "serviceAddress"])
       || details?.address
       || "Unknown";
@@ -1112,17 +861,7 @@ export async function publishVerifiedTruckCloseout(
   const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
   if (!token) return { attempted: false, posted: false, duplicate: false, reason: "Slack bot token is unavailable." };
 
-  if (!closeoutCustomer(sourceRow) || (!closeoutCrewMember(sourceRow, "driver") && !closeoutCrewMember(sourceRow, "navigator"))) {
-    return {
-      attempted: false,
-      posted: false,
-      duplicate: false,
-      reason: "Closeout customer and crew details are awaiting the verified JunkWare record.",
-    };
-  }
-
   const row: AnyRecord = {
-    ...sourceRow,
     appt_id: appointmentId,
     job_id: jobNumber,
     truck,
@@ -1193,62 +932,6 @@ async function runTruckArrivalSlackAlerts(options: {
   return result;
 }
 
-async function runTruckCloseoutSlackAlerts(options: {
-  date: string;
-  dryRun: boolean;
-  enabled: boolean;
-  kinds?: ReadonlySet<TruckCloseoutAlertKind>;
-}): Promise<SlackAlertRunResult> {
-  const { date, dryRun, enabled, kinds } = options;
-  const state = readState();
-  const allNotifications = buildAllTruckCloseoutSlackNotifications(date);
-  const selectedNotifications = kinds?.size
-    ? allNotifications.filter((alert) => kinds.has(alert.kind as TruckCloseoutAlertKind))
-    : allNotifications;
-  const initialized = Boolean(state.truckCloseoutNotificationsInitializedAt);
-  const delivered = new Set(state.deliveredTruckCloseoutsByDate[date] || []);
-  const pending = initialized
-    ? selectedNotifications.filter((alert) => !delivered.has(alert.fingerprint))
-    : [];
-  const result = slackAlertRunResult(
-    date,
-    dryRun,
-    enabled,
-    initialized ? pending : allNotifications,
-  );
-
-  if (dryRun || !enabled) return result;
-
-  const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
-  if (!token) throw new Error("SLACK_BOT_TOKEN is required when Slack OpsCenter alerts are enabled.");
-
-  const now = new Date().toISOString();
-  if (!initialized) {
-    state.truckCloseoutNotificationsInitializedAt = now;
-    state.deliveredTruckCloseoutsByDate[date] = allNotifications.map((alert) => alert.fingerprint);
-    state.deliveredTruckCloseoutsByDate = pruneTruckCloseoutDates(state.deliveredTruckCloseoutsByDate);
-    state.updatedAt = now;
-    writeState(state);
-    return result;
-  }
-
-  for (const alert of pending) {
-    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
-    if (!response.ok || !response.ts) {
-      result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
-      continue;
-    }
-    delivered.add(alert.fingerprint);
-    result.posted.push(alert);
-  }
-
-  state.deliveredTruckCloseoutsByDate[date] = Array.from(delivered);
-  state.deliveredTruckCloseoutsByDate = pruneTruckCloseoutDates(state.deliveredTruckCloseoutsByDate);
-  state.updatedAt = now;
-  writeState(state);
-  return result;
-}
-
 export async function runSlackOpsAlerts(options?: {
   date?: string;
   dryRun?: boolean;
@@ -1261,21 +944,12 @@ export async function runSlackOpsAlerts(options?: {
   const enabled = boolEnv("SLACK_OPSCENTER_ALERTS_ENABLED");
   const onlyKinds = new Set(options?.onlyKinds || []);
   if (onlyKinds.size) {
-    if (onlyKinds.size === 1 && onlyKinds.has("truck_arrival")) {
-      return runTruckArrivalSlackAlerts({ date, dryRun, enabled });
+    if (onlyKinds.size !== 1 || !onlyKinds.has("truck_arrival")) {
+      throw new Error("Only truck_arrival can be published independently.");
     }
-    const closeoutKinds = new Set(
-      Array.from(onlyKinds).filter((kind): kind is TruckCloseoutAlertKind => (
-        kind === "job_closed" || kind === "estimate_closed"
-      )),
-    );
-    if (closeoutKinds.size !== onlyKinds.size) {
-      throw new Error("Only truck_arrival, job_closed, or estimate_closed can be published independently.");
-    }
-    return runTruckCloseoutSlackAlerts({ date, dryRun, enabled, kinds: closeoutKinds });
+    return runTruckArrivalSlackAlerts({ date, dryRun, enabled });
   }
   const state = readState();
-  const fastScheduleDeliveries = deliveredFastScheduleChanges(date);
   const incidents = collectIncidentAlerts(date);
   const feed = buildAddOnAppointmentFeed(date);
   const cancellationFeed = buildCancelledAppointmentFeed(date);
@@ -1293,12 +967,9 @@ export async function runSlackOpsAlerts(options?: {
     ? allTruckArrivalNotifications.filter((alert) => !deliveredTruckArrivals.has(alert.fingerprint))
     : [];
   const completedRows = readCompletedJunkwareRows(date);
-  const allTruckCloseoutNotifications = buildAllTruckCloseoutSlackNotifications(date);
+  const allTruckCloseoutNotifications = buildTruckCloseoutSlackNotifications(date, completedRows);
   const truckCloseoutNotificationsInitialized = Boolean(state.truckCloseoutNotificationsInitializedAt);
-  const deliveredTruckCloseouts = new Set([
-    ...(state.deliveredTruckCloseoutsByDate[date] || []),
-    ...deliveredFastScheduleCloseouts(date),
-  ]);
+  const deliveredTruckCloseouts = new Set(state.deliveredTruckCloseoutsByDate[date] || []);
   const truckCloseoutNotifications = truckCloseoutNotificationsInitialized
     ? allTruckCloseoutNotifications.filter((alert) => !deliveredTruckCloseouts.has(alert.fingerprint))
     : [];
@@ -1306,33 +977,20 @@ export async function runSlackOpsAlerts(options?: {
   const hadCancellationBaseline = Object.prototype.hasOwnProperty.call(state.knownCancellationsByDate, date);
   const knownAppointments = new Set(state.knownAppointmentsByDate[date] || []);
   const knownCancellations = new Set(state.knownCancellationsByDate[date] || []);
-  const deliveredScheduleChanges = new Set([
-    ...(state.deliveredScheduleChangesByDate[date] || []),
-    ...Array.from(fastScheduleDeliveries)
-      .filter((fingerprint) => /^(?:new_appointment|cancelled):/.test(fingerprint)),
-  ]);
   const additions = hadAppointmentBaseline
-    ? feed.appointments.filter((appointment) =>
-      !knownAppointments.has(appointment.id)
-      && !fastScheduleDeliveries.has(scheduleChangeFingerprint("new_appointment", date, appointment.id)),
-    )
+    ? feed.appointments.filter((appointment) => !knownAppointments.has(appointment.id))
     : [];
   const cancellations = hadCancellationBaseline
-    ? cancellationFeed.appointments.filter((appointment) =>
-      !knownCancellations.has(appointment.id)
-      && !fastScheduleDeliveries.has(scheduleChangeFingerprint("cancelled", date, appointment.id)),
-    )
+    ? cancellationFeed.appointments.filter((appointment) => !knownCancellations.has(appointment.id))
     : [];
   const notificationDeliveries = [
     ...additions.map((appointment) => ({
       appointmentId: appointment.id,
-      scheduleChangeFingerprint: scheduleChangeFingerprint("new_appointment", date, appointment.id),
       stateKind: "addition" as const,
       alert: buildAddOnSlackNotification(appointment, date),
     })),
     ...cancellations.map((appointment) => ({
       appointmentId: appointment.id,
-      scheduleChangeFingerprint: scheduleChangeFingerprint("cancelled", date, appointment.id),
       stateKind: "cancellation" as const,
       alert: buildCancellationSlackNotification(appointment, date),
     })),
@@ -1490,7 +1148,6 @@ export async function runSlackOpsAlerts(options?: {
     }
     if (delivery.stateKind === "addition") deliveredAppointmentIds.add(delivery.appointmentId);
     else deliveredCancellationIds.add(delivery.appointmentId);
-    deliveredScheduleChanges.add(delivery.scheduleChangeFingerprint);
     result.posted.push(alert);
   }
 

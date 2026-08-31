@@ -181,10 +181,13 @@ assert.equal(rolesModule.authorizeOpsRequest("admin", "/api/integrations/podium/
 const runner = fs.readFileSync(path.join(import.meta.dirname, "run-podium-reviews-refresh.sh"), "utf8");
 const plist = fs.readFileSync(path.join(import.meta.dirname, "../deploy/macmini/production-launchd/com.openclaw.opsbot.podium-reviews-collector.plist"), "utf8");
 const callbackRoute = fs.readFileSync(path.join(import.meta.dirname, "../app/api/integrations/podium/callback/route.ts"), "utf8");
+const marketingPage = fs.readFileSync(path.join(import.meta.dirname, "../app/(protected)/marketing/page.tsx"), "utf8");
 assert.match(runner, /load-opscenter-secrets\.sh/);
 assert.match(plist, /<integer>900<\/integer>/);
 assert.match(callbackRoute, /NextResponse\.redirect\(podiumUrl\("\/marketing\?section=reviews&podium=connected"\)\)/);
 assert.doesNotMatch(callbackRoute, /NextResponse\.redirect\(new URL\([^\n]+request\.url/);
+assert.match(marketingPage, /New Reviews Today/);
+assert.match(marketingPage, /ops-kpi-value">\{reviews\.newToday\}/);
 
 fs.rmSync(fixture, { recursive: true, force: true });
 console.log("Podium Google Reviews checks passed.");

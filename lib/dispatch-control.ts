@@ -1,9 +1,11 @@
 import path from "node:path";
 import type { ActionVerification } from "@/lib/platform/contracts";
 import type { AnyRecord } from "@/lib/opsData";
+import { cancelJunkwareAppointment } from "@/lib/junkware-appointment-cancellation";
 import { classifyJunkwareAssignmentFailure } from "@/lib/junkware-assignment-failure";
 import { readVerifiedJunkwareScheduleSnapshot } from "@/lib/junkware-fast-schedule";
 import { readJobCallAheadStatuses, saveJobCallAheadStatus, type JobCallAheadStatus } from "@/lib/job-call-ahead";
+import { readVerifiedJobCancellations, saveVerifiedJobCancellation } from "@/lib/job-cancellations";
 import {
   readJobRouteAssignmentOverrides,
   saveJobRouteAssignment,
@@ -20,6 +22,8 @@ export type DispatchControlAppointment = {
   jkNumber: string;
   customerName: string;
   appointmentTime: string;
+  appointmentStartMinutes: number | null;
+  appointmentEndMinutes: number | null;
   appointmentType: string;
   status: string;
   territory: string;
@@ -59,6 +63,29 @@ export type DispatchCallAheadInput = {
   sourceObservedAt: string;
 };
 
+export type DispatchRescheduleInput = {
+  date: string;
+  appointmentId: string;
+  jobKey: string;
+  appointmentStartMinutes: number;
+  durationHours: number;
+  expectedAppointmentTime: string;
+  expectedEffectiveTruck: string;
+  expectedRouteUpdatedAt: string;
+  sourceObservedAt: string;
+};
+
+export type DispatchCancellationInput = {
+  date: string;
+  appointmentId: string;
+  jobKey: string;
+  cancellationReason: string;
+  expectedStatus: string;
+  expectedAppointmentTime: string;
+  expectedRouteUpdatedAt: string;
+  sourceObservedAt: string;
+};
+
 export type DispatchExecutionReceipt = {
   mode: DispatchControlMode;
   appointmentId: string;
@@ -91,6 +118,30 @@ export function normalizeDispatchTruck(value: unknown): string {
 function closedOrCancelled(row: AnyRecord): boolean {
   const status = first(row, ["final_status", "job_status", "status"]).toLowerCase();
   return /complete|closed|paid|cancel/.test(status);
+}
+
+function clockMinutes(value: string): number | null {
+  const match = clean(value).match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  const minute = Number(match[2]);
+  if (minute > 59) return null;
+  let hour = Number(match[1]) % 12;
+  if (match[3].toUpperCase() === "PM") hour += 12;
+  return hour * 60 + minute;
+}
+
+function appointmentWindow(value: string): { start: number | null; end: number | null } {
+  const [startValue = "", endValue = ""] = clean(value).split(/\s+-\s+/);
+  return { start: clockMinutes(startValue), end: clockMinutes(endValue) };
+}
+
+function formatClock(minutes: number): string {
+  const hour = Math.floor(minutes / 60);
+  return `${String(hour % 12 || 12).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")} ${hour >= 12 ? "PM" : "AM"}`;
+}
+
+function formatAppointmentTime(startMinutes: number, endMinutes: number): string {
+  return `${formatClock(startMinutes)} - ${formatClock(endMinutes)}`;
 }
 
 function dispatchWritesAllowed(): boolean {
@@ -126,12 +177,17 @@ export function readDispatchControlSnapshot(date: string): DispatchControlSnapsh
       const jobKey = `appt:${appointmentId}`;
       const override = routeOverrides.get(jobKey);
       const sourceTruck = normalizeDispatchTruck(first(row, ["truck", "assigned_truck", "truck_number"]));
+      const sourceAppointmentTime = first(row, ["appointment_time", "scheduled_time", "time_window"]) || "Time unavailable";
+      const appointmentTime = override?.appointmentTime || sourceAppointmentTime;
+      const sourceWindow = appointmentWindow(appointmentTime);
       return {
         appointmentId,
         jobKey,
         jkNumber: first(row, ["job_id", "jk_number", "job_number"]) || `Appointment ${appointmentId}`,
         customerName: first(row, ["customer_name", "customer", "name"]),
-        appointmentTime: first(row, ["appointment_time", "scheduled_time", "time_window"]) || "Time unavailable",
+        appointmentTime,
+        appointmentStartMinutes: override?.appointmentStartMinutes ?? sourceWindow.start,
+        appointmentEndMinutes: override?.appointmentEndMinutes ?? sourceWindow.end,
         appointmentType: first(row, ["appointment_type", "type"]),
         status: first(row, ["final_status", "job_status", "status"]),
         territory: first(row, ["normalized_territory", "territory", "source_territory", "market"]),
@@ -191,7 +247,7 @@ export async function executeDispatchAssignment(input: DispatchAssignmentInput):
     truck: input.truck,
     appointmentId: input.appointmentId,
     junkwareSyncStatus: "pending",
-    expectedUpdatedAt: input.expectedRouteUpdatedAt || undefined,
+    expectedUpdatedAt: input.expectedRouteUpdatedAt,
   });
   if (!pending) throw new Error("VERSION_CONFLICT: The assignment changed before it could be saved.");
 
@@ -304,4 +360,180 @@ export function verifyDispatchCallAhead(receipt: DispatchExecutionReceipt, input
   return status === input.status
     ? { outcome: "verified", verifiedAt: new Date().toISOString(), summary: receipt.summary, evidence: { status } }
     : { outcome: "mismatch", summary: "The recorded call-ahead status does not match the requested outcome.", evidence: { status: status || null } };
+}
+
+export async function executeDispatchReschedule(input: DispatchRescheduleInput): Promise<DispatchExecutionReceipt> {
+  const current = currentAppointment(input);
+  if (current.jobKey !== input.jobKey) throw new Error("Dispatch job identity mismatch.");
+  if (
+    current.appointmentTime !== input.expectedAppointmentTime
+    || current.effectiveTruck !== input.expectedEffectiveTruck
+    || current.routeUpdatedAt !== input.expectedRouteUpdatedAt
+  ) {
+    throw new Error("VERSION_CONFLICT: The appointment schedule changed after this request was prepared.");
+  }
+  const appointmentEndMinutes = input.appointmentStartMinutes + input.durationHours * 60;
+  const appointmentTime = formatAppointmentTime(input.appointmentStartMinutes, appointmentEndMinutes);
+  const mode = dispatchControlMode();
+  if (mode === "preview_simulation") {
+    return {
+      mode,
+      appointmentId: input.appointmentId,
+      changed: current.appointmentTime !== appointmentTime,
+      verified: true,
+      summary: "Preview simulation verified; no OpsCenter schedule or JunkWare appointment time was changed.",
+      evidence: { previousTime: current.appointmentTime, requestedTime: appointmentTime },
+    };
+  }
+
+  const pending = saveJobRouteAssignment({
+    date: input.date,
+    jobKey: input.jobKey,
+    truck: current.effectiveTruck,
+    appointmentId: input.appointmentId,
+    appointmentTime,
+    appointmentStartMinutes: input.appointmentStartMinutes,
+    appointmentEndMinutes,
+    junkwareSyncStatus: "pending",
+    expectedUpdatedAt: input.expectedRouteUpdatedAt,
+  });
+  if (!pending) throw new Error("VERSION_CONFLICT: The appointment schedule changed before it could be saved.");
+
+  try {
+    const junkware = await withJunkwareAppointmentSyncLock(input.appointmentId, () => syncJunkwareTruckAssignment({
+      appointmentId: input.appointmentId,
+      truck: current.effectiveTruck,
+      appointmentStartMinutes: input.appointmentStartMinutes,
+      durationHours: input.durationHours,
+    }));
+    const verified = saveJobRouteAssignment({
+      date: input.date,
+      jobKey: input.jobKey,
+      truck: current.effectiveTruck,
+      appointmentId: input.appointmentId,
+      appointmentTime,
+      appointmentStartMinutes: input.appointmentStartMinutes,
+      appointmentEndMinutes,
+      junkwareVerifiedAt: junkware.verifiedAt,
+      junkwareSyncStatus: "verified",
+      expectedUpdatedAt: pending.updatedAt,
+    });
+    if (!verified) throw new Error("VERSION_CONFLICT: The appointment schedule changed during JunkWare verification.");
+    return {
+      mode,
+      appointmentId: input.appointmentId,
+      changed: junkware.changed,
+      verified: true,
+      summary: `Appointment time verified in JunkWare as ${appointmentTime}.`,
+      evidence: { appointmentTime, verifiedAt: junkware.verifiedAt, routeUpdatedAt: verified.updatedAt },
+    };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "JunkWare could not verify the appointment time.";
+    const status = classifyJunkwareAssignmentFailure(error);
+    saveJobRouteAssignment({
+      date: input.date,
+      jobKey: input.jobKey,
+      truck: current.effectiveTruck,
+      appointmentId: input.appointmentId,
+      appointmentTime,
+      appointmentStartMinutes: input.appointmentStartMinutes,
+      appointmentEndMinutes,
+      junkwareSyncStatus: status,
+      junkwareSyncError: detail,
+      expectedUpdatedAt: pending.updatedAt,
+    });
+    if (status === "manual_correction") throw new Error(`JunkWare rejected the appointment time: ${detail}`);
+    return {
+      mode,
+      appointmentId: input.appointmentId,
+      changed: true,
+      verified: false,
+      summary: "The new time is saved in OpsCenter and awaiting JunkWare verification.",
+      evidence: { appointmentTime, pending: true },
+    };
+  }
+}
+
+export function verifyDispatchReschedule(receipt: DispatchExecutionReceipt, input: DispatchRescheduleInput): ActionVerification {
+  if (receipt.mode === "preview_simulation") {
+    return { outcome: "verified", verifiedAt: new Date().toISOString(), summary: receipt.summary, evidence: receipt.evidence };
+  }
+  const record = readJobRouteAssignmentOverrides(input.date).get(input.jobKey);
+  if (!record) return { outcome: "mismatch", summary: "The OpsCenter appointment time is missing." };
+  if (record.appointmentStartMinutes !== input.appointmentStartMinutes) {
+    return { outcome: "mismatch", summary: "The OpsCenter appointment time no longer matches the approved time." };
+  }
+  if (record.junkwareSyncStatus !== "verified" || !record.junkwareVerifiedAt) {
+    return { outcome: "pending", summary: "The appointment time is still awaiting authoritative JunkWare verification." };
+  }
+  return {
+    outcome: "verified",
+    verifiedAt: record.junkwareVerifiedAt,
+    summary: `Appointment time verified in JunkWare as ${record.appointmentTime}.`,
+    evidence: { appointmentTime: record.appointmentTime, routeUpdatedAt: record.updatedAt },
+  };
+}
+
+export async function executeDispatchCancellation(input: DispatchCancellationInput): Promise<DispatchExecutionReceipt> {
+  const current = currentAppointment(input);
+  if (current.jobKey !== input.jobKey) throw new Error("Dispatch job identity mismatch.");
+  if (
+    current.status !== input.expectedStatus
+    || current.appointmentTime !== input.expectedAppointmentTime
+    || current.routeUpdatedAt !== input.expectedRouteUpdatedAt
+  ) {
+    throw new Error("VERSION_CONFLICT: The appointment changed after this cancellation was prepared.");
+  }
+  const mode = dispatchControlMode();
+  if (mode === "preview_simulation") {
+    return {
+      mode,
+      appointmentId: input.appointmentId,
+      changed: true,
+      verified: true,
+      summary: "Preview simulation verified; no appointment was canceled in OpsCenter or JunkWare.",
+      evidence: { previousStatus: current.status, reasonRecorded: true },
+    };
+  }
+
+  const junkware = await withJunkwareAppointmentSyncLock(
+    input.appointmentId,
+    () => cancelJunkwareAppointment(input.appointmentId, input.cancellationReason),
+  );
+  const cancellation = saveVerifiedJobCancellation({
+    date: input.date,
+    appointmentId: input.appointmentId,
+    jobKey: input.jobKey,
+    jkNumber: current.jkNumber,
+    customerName: current.customerName,
+    cancellationReason: input.cancellationReason,
+    canceledAt: new Date().toISOString(),
+    junkwareVerifiedAt: junkware.verifiedAt,
+  });
+  return {
+    mode,
+    appointmentId: input.appointmentId,
+    changed: junkware.changed,
+    verified: true,
+    summary: "Appointment cancellation verified in JunkWare.",
+    evidence: { status: junkware.status, verifiedAt: cancellation.junkwareVerifiedAt },
+  };
+}
+
+export function verifyDispatchCancellation(receipt: DispatchExecutionReceipt, input: DispatchCancellationInput): ActionVerification {
+  if (receipt.mode === "preview_simulation") {
+    return { outcome: "verified", verifiedAt: new Date().toISOString(), summary: receipt.summary, evidence: receipt.evidence };
+  }
+  const cancellation = readVerifiedJobCancellations(input.date)
+    .find((entry) => entry.appointmentId === input.appointmentId);
+  if (!cancellation) return { outcome: "mismatch", summary: "The verified cancellation receipt is missing." };
+  if (cancellation.cancellationReason !== input.cancellationReason || !cancellation.junkwareVerifiedAt) {
+    return { outcome: "mismatch", summary: "The cancellation receipt does not match the approved request." };
+  }
+  return {
+    outcome: "verified",
+    verifiedAt: cancellation.junkwareVerifiedAt,
+    summary: "Appointment cancellation verified in JunkWare.",
+    evidence: { canceledAt: cancellation.canceledAt },
+  };
 }

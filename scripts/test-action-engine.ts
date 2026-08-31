@@ -36,6 +36,8 @@ assert.deepEqual(definitions.map((definition) => definition.key), [
   "work.resolve_manually.v1",
   "dispatch.assign_truck.v1",
   "dispatch.call_ahead.v1",
+  "dispatch.reschedule_time.v1",
+  "dispatch.cancel_appointment.v1",
 ]);
 assert.equal(new Set(definitions.map((definition) => definition.key)).size, definitions.length);
 
@@ -106,6 +108,8 @@ for (const control of [
   "Action ledger",
   "Dispatch control pack",
   "Request truck approval",
+  "Request time approval",
+  "Request cancellation approval",
   "Mark called",
 ]) {
   assert.ok(consoleSource.includes(control), `OpsBot console is missing ${control}.`);
@@ -136,5 +140,54 @@ assert.deepEqual(assignment.validateInput({
 const callAhead = registeredActionDefinition("dispatch.call_ahead.v1");
 assert.ok(callAhead);
 assert.equal(decideActionPolicy(callAhead, operator).decision.outcome, "allow");
+
+const reschedule = registeredActionDefinition("dispatch.reschedule_time.v1");
+assert.ok(reschedule);
+assert.equal(reschedule.riskClass, 2);
+assert.equal(decideActionPolicy(reschedule, operator).decision.outcome, "approval_required");
+assert.deepEqual(reschedule.validateInput({
+  date: "2026-08-31",
+  appointmentId: "4056261",
+  jobKey: "appt:4056261",
+  appointmentStartMinutes: 600,
+  durationHours: 2,
+  expectedAppointmentTime: "08:00 AM - 10:00 AM",
+  expectedEffectiveTruck: "Truck# 4",
+  expectedRouteUpdatedAt: "",
+  sourceObservedAt: "2026-08-31T18:30:00.000Z",
+}), {
+  date: "2026-08-31",
+  appointmentId: "4056261",
+  jobKey: "appt:4056261",
+  appointmentStartMinutes: 600,
+  durationHours: 2,
+  expectedAppointmentTime: "08:00 AM - 10:00 AM",
+  expectedEffectiveTruck: "Truck 4",
+  expectedRouteUpdatedAt: "",
+  sourceObservedAt: "2026-08-31T18:30:00.000Z",
+});
+assert.throws(() => reschedule.validateInput({
+  date: "2026-08-31",
+  appointmentId: "4056261",
+  jobKey: "appt:4056261",
+  appointmentStartMinutes: 615,
+  durationHours: 1,
+  expectedAppointmentTime: "08:00 AM - 09:00 AM",
+  sourceObservedAt: "2026-08-31T18:30:00.000Z",
+}), /hourly appointment time/);
+
+const cancellation = registeredActionDefinition("dispatch.cancel_appointment.v1");
+assert.ok(cancellation);
+assert.equal(cancellation.riskClass, 3);
+assert.equal(decideActionPolicy(cancellation, operator).decision.outcome, "approval_required");
+assert.throws(() => cancellation.validateInput({
+  date: "2026-08-31",
+  appointmentId: "4056261",
+  jobKey: "appt:4056261",
+  cancellationReason: "no",
+  expectedStatus: "Confirmed",
+  expectedAppointmentTime: "08:00 AM - 09:00 AM",
+  sourceObservedAt: "2026-08-31T18:30:00.000Z",
+}), /at least 3 characters/);
 
 console.log("OpsBot action registry, policy, idempotency, approvals, verification, persistence, and control UI contracts passed.");

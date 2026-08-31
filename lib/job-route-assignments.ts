@@ -244,7 +244,8 @@ export function saveJobRouteAssignment(input: {
     const store = readStore();
     const existing = store.entries.find((entry) => entry.date === date && entry.jobKey === jobKey);
     const expectedUpdatedAt = String(input.expectedUpdatedAt || "").trim();
-    if (expectedUpdatedAt && existing?.updatedAt !== expectedUpdatedAt) return null;
+    const hasExpectedUpdatedAt = Object.prototype.hasOwnProperty.call(input, "expectedUpdatedAt");
+    if (hasExpectedUpdatedAt && (existing?.updatedAt || "") !== expectedUpdatedAt) return null;
     const appointmentId = String(input.appointmentId || "").trim();
     const appointmentTime = String(input.appointmentTime || existing?.appointmentTime || "").trim();
     const appointmentStartMinutes = Number.isInteger(input.appointmentStartMinutes)

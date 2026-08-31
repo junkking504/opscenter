@@ -10,6 +10,7 @@ process.env.OPSCENTER_RUNTIME = "MAC_MINI_PREVIEW";
 process.env.OPSBOT_DATA_DIR = temporary;
 process.env.JOB_ROUTE_ASSIGNMENTS_FILE = path.join(temporary, "state", "assignments.json");
 process.env.JOB_CALL_AHEAD_FILE = path.join(temporary, "state", "call-ahead.json");
+process.env.JOB_CANCELLATIONS_FILE = path.join(temporary, "state", "cancellations.json");
 
 const scheduleDirectory = path.join(temporary, "history", "junkware");
 fs.mkdirSync(scheduleDirectory, { recursive: true });
@@ -32,10 +33,14 @@ fs.writeFileSync(scheduleFile, JSON.stringify({
 
 const {
   executeDispatchAssignment,
+  executeDispatchCancellation,
   executeDispatchCallAhead,
+  executeDispatchReschedule,
   readDispatchControlSnapshot,
   verifyDispatchAssignment,
+  verifyDispatchCancellation,
   verifyDispatchCallAhead,
+  verifyDispatchReschedule,
 } = await import("@/lib/dispatch-control");
 
 try {
@@ -44,6 +49,7 @@ try {
   assert.equal(snapshot.appointments.length, 1, "Completed appointments must not be controllable.");
   const appointment = snapshot.appointments[0];
   assert.equal(appointment.sourceTruck, "Truck 4");
+  assert.equal(appointment.appointmentStartMinutes, 8 * 60);
 
   const assignmentInput = {
     date,
@@ -72,6 +78,37 @@ try {
   assert.equal(verifyDispatchCallAhead(callAhead, callAheadInput).outcome, "verified");
   assert.equal(fs.existsSync(process.env.JOB_CALL_AHEAD_FILE), false, "Preview call-ahead simulation must not write shared dispatch state.");
 
+  const rescheduleInput = {
+    date,
+    appointmentId: appointment.appointmentId,
+    jobKey: appointment.jobKey,
+    appointmentStartMinutes: 10 * 60,
+    durationHours: 1,
+    expectedAppointmentTime: appointment.appointmentTime,
+    expectedEffectiveTruck: appointment.effectiveTruck,
+    expectedRouteUpdatedAt: appointment.routeUpdatedAt,
+    sourceObservedAt: appointment.sourceObservedAt,
+  };
+  const reschedule = await executeDispatchReschedule(rescheduleInput);
+  assert.equal(reschedule.mode, "preview_simulation");
+  assert.equal(verifyDispatchReschedule(reschedule, rescheduleInput).outcome, "verified");
+  assert.equal(fs.existsSync(process.env.JOB_ROUTE_ASSIGNMENTS_FILE), false, "Preview reschedule simulation must not write shared route state.");
+
+  const cancellationInput = {
+    date,
+    appointmentId: appointment.appointmentId,
+    jobKey: appointment.jobKey,
+    cancellationReason: "Customer requested cancellation",
+    expectedStatus: appointment.status,
+    expectedAppointmentTime: appointment.appointmentTime,
+    expectedRouteUpdatedAt: appointment.routeUpdatedAt,
+    sourceObservedAt: appointment.sourceObservedAt,
+  };
+  const cancellation = await executeDispatchCancellation(cancellationInput);
+  assert.equal(cancellation.mode, "preview_simulation");
+  assert.equal(verifyDispatchCancellation(cancellation, cancellationInput).outcome, "verified");
+  assert.equal(fs.existsSync(process.env.JOB_CANCELLATIONS_FILE), false, "Preview cancellation simulation must not write shared cancellation state.");
+
   process.env.OPSCENTER_RUNTIME = "MISSION_CONTROL";
   process.env.JUNKWARE_ASSIGNMENT_STUB = "1";
   const liveAssignment = await executeDispatchAssignment(assignmentInput);
@@ -87,11 +124,40 @@ try {
     /VERSION_CONFLICT/,
     "A stale call-ahead command must not overwrite newer state.",
   );
+
+  const afterAssignment = readDispatchControlSnapshot(date).appointments[0];
+  const liveRescheduleInput = {
+    ...rescheduleInput,
+    expectedAppointmentTime: afterAssignment.appointmentTime,
+    expectedEffectiveTruck: afterAssignment.effectiveTruck,
+    expectedRouteUpdatedAt: afterAssignment.routeUpdatedAt,
+  };
+  const liveReschedule = await executeDispatchReschedule(liveRescheduleInput);
+  assert.equal(liveReschedule.mode, "live_control");
+  assert.equal(verifyDispatchReschedule(liveReschedule, liveRescheduleInput).outcome, "verified");
+  await assert.rejects(
+    () => executeDispatchReschedule(liveRescheduleInput),
+    /VERSION_CONFLICT/,
+    "A stale reschedule request must not overwrite a newer verified time.",
+  );
+
+  process.env.JUNKWARE_APPOINTMENT_CANCELLATION_STUB = "1";
+  const afterReschedule = readDispatchControlSnapshot(date).appointments[0];
+  const liveCancellationInput = {
+    ...cancellationInput,
+    expectedStatus: afterReschedule.status,
+    expectedAppointmentTime: afterReschedule.appointmentTime,
+    expectedRouteUpdatedAt: afterReschedule.routeUpdatedAt,
+  };
+  const liveCancellation = await executeDispatchCancellation(liveCancellationInput);
+  assert.equal(liveCancellation.mode, "live_control");
+  assert.equal(verifyDispatchCancellation(liveCancellation, liveCancellationInput).outcome, "verified");
+  assert.equal(fs.existsSync(process.env.JOB_CANCELLATIONS_FILE), true, "Mission Control cancellation must persist a verified receipt.");
 } finally {
   fs.rmSync(temporary, { recursive: true, force: true });
 }
 
-console.log("Dispatch roster, action policy, preview isolation, and verification contracts passed.");
+console.log("Dispatch roster, assignment, call-ahead, reschedule, cancellation, preview isolation, and verification contracts passed.");
 }
 
 main().catch((error) => {

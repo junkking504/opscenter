@@ -22,6 +22,8 @@ type DispatchAppointment = {
   jkNumber: string;
   customerName: string;
   appointmentTime: string;
+  appointmentStartMinutes: number | null;
+  appointmentEndMinutes: number | null;
   appointmentType: string;
   status: string;
   territory: string;
@@ -72,6 +74,8 @@ function actionLabel(actionKey: string): string {
     "work.resolve_manually.v1": "Manual resolution",
     "dispatch.assign_truck.v1": "Truck assignment",
     "dispatch.call_ahead.v1": "Call ahead",
+    "dispatch.reschedule_time.v1": "Time reschedule",
+    "dispatch.cancel_appointment.v1": "Appointment cancellation",
   };
   return labels[actionKey] || actionKey;
 }
@@ -80,6 +84,13 @@ function activeItem(item: InboxWorkItem): boolean {
   return !["resolved", "dismissed"].includes(item.status);
 }
 
+function clockLabel(minutes: number): string {
+  const hour = Math.floor(minutes / 60);
+  return `${hour % 12 || 12}:00 ${hour >= 12 ? "PM" : "AM"}`;
+}
+
+const dispatchTimeOptions = Array.from({ length: 24 }, (_, hour) => hour * 60);
+
 export default function OpsBotActionConsole({ date, enabled }: { date: string; enabled: boolean }) {
   const [inbox, setInbox] = useState<InboxPayload | null>(null);
   const [snapshot, setSnapshot] = useState<ActionSnapshot | null>(null);
@@ -87,6 +98,8 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [selectedId, setSelectedId] = useState("");
   const [selectedAppointmentId, setSelectedAppointmentId] = useState("");
   const [dispatchTruck, setDispatchTruck] = useState("");
+  const [dispatchStartMinutes, setDispatchStartMinutes] = useState("");
+  const [cancellationReason, setCancellationReason] = useState("");
   const [resolutionReason, setResolutionReason] = useState("");
   const [loading, setLoading] = useState(enabled);
   const [busy, setBusy] = useState("");
@@ -137,6 +150,8 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   );
   useEffect(() => {
     setDispatchTruck(selectedAppointment?.effectiveTruck || "");
+    setDispatchStartMinutes(selectedAppointment?.appointmentStartMinutes == null ? "" : String(selectedAppointment.appointmentStartMinutes));
+    setCancellationReason("");
   }, [selectedAppointment]);
   const recentRuns = snapshot?.runs.slice(0, 8) || [];
 
@@ -184,6 +199,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
           },
         }),
       }));
+      if (actionKey === "dispatch.cancel_appointment.v1") setCancellationReason("");
       await load();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "The dispatch action request failed.");
@@ -294,12 +310,57 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
                     onClick={() => void requestDispatchAction("dispatch.call_ahead.v1", { status: "not_called", expectedStatus: selectedAppointment.callAheadStatus })}
                   >Mark not called</button>
                 </div>
+                <div className={styles.rescheduleActions}>
+                  <label>
+                    <span>Requested time</span>
+                    <select value={dispatchStartMinutes} onChange={(event) => setDispatchStartMinutes(event.target.value)} disabled={Boolean(busy)}>
+                      {selectedAppointment.appointmentStartMinutes == null ? <option value="">Choose a time</option> : null}
+                      {dispatchTimeOptions.map((minutes) => <option key={minutes} value={minutes}>{clockLabel(minutes)}</option>)}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    disabled={Boolean(busy) || !dispatchStartMinutes || Number(dispatchStartMinutes) === selectedAppointment.appointmentStartMinutes}
+                    onClick={() => void requestDispatchAction("dispatch.reschedule_time.v1", {
+                      appointmentStartMinutes: Number(dispatchStartMinutes),
+                      durationHours: selectedAppointment.appointmentStartMinutes != null && selectedAppointment.appointmentEndMinutes != null
+                        ? Math.max(1, Math.round((selectedAppointment.appointmentEndMinutes - selectedAppointment.appointmentStartMinutes) / 60))
+                        : 1,
+                      expectedAppointmentTime: selectedAppointment.appointmentTime,
+                      expectedEffectiveTruck: selectedAppointment.effectiveTruck,
+                      expectedRouteUpdatedAt: selectedAppointment.routeUpdatedAt,
+                    })}
+                  >Request time approval</button>
+                </div>
+                <div className={styles.cancellationActions}>
+                  <label>
+                    <span>Cancellation reason</span>
+                    <input
+                      value={cancellationReason}
+                      onChange={(event) => setCancellationReason(event.target.value)}
+                      placeholder="Record the customer or operating reason"
+                      maxLength={500}
+                      disabled={Boolean(busy)}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={Boolean(busy) || cancellationReason.trim().length < 3}
+                    onClick={() => void requestDispatchAction("dispatch.cancel_appointment.v1", {
+                      cancellationReason,
+                      expectedStatus: selectedAppointment.status,
+                      expectedAppointmentTime: selectedAppointment.appointmentTime,
+                      expectedRouteUpdatedAt: selectedAppointment.routeUpdatedAt,
+                    })}
+                  >Request cancellation approval</button>
+                  <small>Cancellation is risk class 3 and requires a different manager or administrator.</small>
+                </div>
               </div>
             ) : null}
             <p className={styles.dispatchBoundary}>
               {dispatch?.mode === "live_control"
-                ? "Truck changes require a different manager or administrator, then JunkWare read-back verification."
-                : "Simulation proves policy and verification without changing shared Dispatch state or JunkWare."}
+                ? "Truck and same-day time changes require approval; cancellation requires a recorded reason and separate approval. Every result is read back from JunkWare."
+                : "Simulation proves policy and verification without changing shared Dispatch, cancellation state, or JunkWare."}
             </p>
           </section>
 

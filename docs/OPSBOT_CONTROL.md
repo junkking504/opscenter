@@ -1,6 +1,6 @@
 # OpsBot Control
 
-Status: Work and Dispatch control foundation; production kernel activation pending
+Status: Work and Dispatch control foundation, including schedule changes and cancellation; production kernel activation pending
 
 Route: Command `/?section=opsbot`
 
@@ -57,9 +57,19 @@ The Dispatch control pack adds:
 - call-ahead commands with current-state conflict protection and read-back verification;
 - truck assignment requests with stale-source and stale-local-state protection;
 - risk-class 2 approval by a different manager or administrator before assignment;
+- same-day hourly rescheduling through the existing JunkWare time-slot adapter, with
+  current-time, truck, and local-version conflict protection;
+- risk-class 2 approval and authoritative JunkWare read-back for time changes;
+- cancellation requests with a required reason, risk-class 3 approval, serialized
+  JunkWare execution, and a verified cancellation receipt;
 - reuse of the existing serialized JunkWare adapter and assignment verification path;
 - a strict runtime guard: only `MISSION_CONTROL` may change shared Dispatch or JunkWare state;
-- preview simulation receipts that prove policy and verification without writing shared state.
+- preview simulation receipts that prove policy and verification without writing route,
+  call-ahead, cancellation, or JunkWare state.
+
+Cross-date moves are not registered yet. The current source-backed adapter can verify
+hourly time changes on the same operating date; adding a date-change action requires a
+separate JunkWare adapter that reads back both the new date and time.
 
 Together these provide complete governed loops for work state and the first
 Dispatch commands. They do not claim that every external operational system is
@@ -70,8 +80,8 @@ controllable yet.
 Risk-class 0 and 1 human commands can execute when the actor has the required
 permission. Risk-class 2 and 3 commands, and agent-initiated writes, require
 human approval. Approval-gated actions must be approved by a different manager
-or administrator. Manual resolution is risk class 3; truck assignment is risk
-class 2.
+or administrator. Manual resolution and appointment cancellation are risk class 3;
+truck assignment and same-day rescheduling are risk class 2.
 
 Money, payroll, customer communication, access, deletion, and broad operational
 changes remain approval-gated. No autonomous production agent or unrestricted
@@ -86,8 +96,8 @@ silently overwrite source state.
 ## Remaining system coverage
 
 The next phases should move the remaining direct OpsCenter mutations behind
-this registry, then add rescheduling and cancellation, LinxUp fleet operations,
-QBO finance workflows, and Slack or customer communication. Each adapter must
+this registry, then add verified cross-date moves, LinxUp fleet operations, QBO
+finance workflows, and Slack or customer communication. Each adapter must
 ship
 with its own permission, risk class, approval rule, idempotency strategy,
 verification source, audit payload, retry behavior, and recovery guidance.

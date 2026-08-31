@@ -22,6 +22,7 @@ for (const section of [
 for (const destination of [
   "Monthly overview",
   "Lost Leads",
+  "Reviews",
   "Pay period",
   "Maintenance overview",
   "Service planner",

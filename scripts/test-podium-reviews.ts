@@ -13,6 +13,7 @@ process.env.PODIUM_CLIENT_SECRET = "test-secret";
 const configModule = await import("../lib/podium-config");
 const tokenModule = await import("../lib/podium-token-store");
 const apiModule = await import("../lib/podium-api");
+const attributionModule = await import("../lib/podium-review-attribution");
 const reviewsModule = await import("../lib/podium-reviews");
 const rolesModule = await import("../lib/ops-roles");
 
@@ -59,6 +60,7 @@ globalThis.fetch = async (input, init) => {
         locations: [{ uid: "loc-1" }],
         responses: [],
         needsResponse: true,
+        attributions: [{ reviewInvitationUid: "invite-1", userUid: "user-1" }],
       },
       {
         uid: "review-2",
@@ -73,6 +75,14 @@ globalThis.fetch = async (input, init) => {
     assert.deepEqual(url.searchParams.getAll("locationUids[]"), ["loc-1"]);
     return Response.json({ data: [{ siteName: "google", averageRating: 4.9, reviewCount: 101 }], metadata: {} });
   }
+  if (url.pathname === "/v4/reviews/invites/invite-1") {
+    return Response.json({ data: {
+      uid: "invite-1",
+      customerName: "Test Customer",
+      channel: { identifier: "+1 (504) 555-0123" },
+      location: { uid: "loc-1" },
+    }, metadata: {} });
+  }
   throw new Error(`Unexpected test request: ${url.pathname}`);
 };
 
@@ -82,11 +92,42 @@ try {
   const reviews = await apiModule.listRecentPodiumGoogleReviews(["loc-1"]);
   assert.equal(reviews.length, 1);
   assert.equal(reviews[0]?.needsResponse, true);
+  assert.deepEqual(reviews[0]?.reviewInvitationUids, ["invite-1"]);
+  const invite = await apiModule.getPodiumReviewInvite("invite-1");
+  assert.equal(invite?.channelIdentifier, "+1 (504) 555-0123");
   const summary = await apiModule.getPodiumGoogleSummary("loc-1");
   assert.deepEqual(summary, { averageRating: 4.9, reviewCount: 101 });
 } finally {
   globalThis.fetch = originalFetch;
 }
+
+const metricsDirectory = path.join(fixture, "processed");
+fs.mkdirSync(metricsDirectory, { recursive: true });
+fs.writeFileSync(path.join(metricsDirectory, "daily_metrics_2026-08-30.json"), JSON.stringify({
+  appointments: [{
+    appt_id: "4055001",
+    job_id: "JK4067001",
+    job_status: "Completed",
+    appointment_type: "Job",
+    customer_phone: "504-555-0123",
+    market: "New Orleans",
+    truck: "Truck 1",
+    driver_normalized_name: "Driver One",
+    navigator_normalized_name: "Navigator Two",
+    source_page: "https://junkware.example.test/appointment/4055001",
+  }],
+}));
+const matchAppointment = attributionModule.buildPodiumAppointmentMatcher(fixture);
+const matchedAppointment = matchAppointment("2026-08-31T15:00:00Z", {
+  uid: "invite-1",
+  customerName: "Test Customer",
+  channelIdentifier: "+1 (504) 555-0123",
+  locationUid: "loc-1",
+});
+assert.equal(matchedAppointment.status, "matched");
+assert.equal(matchedAppointment.appointmentId, "4055001");
+assert.deepEqual(matchedAppointment.crew, ["Driver One", "Navigator Two"]);
+assert.equal(JSON.stringify(matchedAppointment).includes("5045550123"), false);
 
 const previous = {
   version: 1 as const,
@@ -104,14 +145,35 @@ const current = {
     address: "123 Test St",
     averageRating: 4.9,
     reviewCount: 101,
-    reviews: [{ uid: "review-1", authorName: "Customer", body: "Excellent", url: "", rating: 5, createdAt: "2026-08-31T15:00:00Z", updatedAt: "2026-08-31T15:00:00Z", needsResponse: true, responseCount: 0 }],
+    reviews: [{
+      uid: "review-1",
+      authorName: "Customer",
+      body: "Excellent",
+      url: "",
+      rating: 5,
+      createdAt: "2026-08-31T15:00:00Z",
+      updatedAt: "2026-08-31T15:00:00Z",
+      needsResponse: true,
+      responseCount: 0,
+      attribution: matchedAppointment,
+    }],
   }],
 };
 const view = reviewsModule.buildPodiumGoogleReviewsViewFromData(current, [previous]);
 assert.equal(view.totalReviewCount, 101);
 assert.equal(view.locations[0]?.reviewCountChange, 1);
 assert.equal(view.locations[0]?.reviews[0]?.isNew, true);
+assert.equal(view.locations[0]?.newToday, 1);
+assert.equal(view.locations[0]?.new7Days, 1);
+assert.equal(view.locations[0]?.new30Days, 1);
+assert.equal(view.newToday, 1);
+assert.equal(view.new7Days, 1);
+assert.equal(view.new30Days, 1);
 assert.equal(view.recentNeedsResponse, 1);
+assert.equal(view.attributed30Days, 1);
+assert.equal(view.pendingAttribution30Days, 0);
+assert.deepEqual(view.employeeTallies30Days.map((entry) => entry.name), ["Driver One", "Navigator Two"]);
+assert.deepEqual(view.teamTallies30Days.map((entry) => entry.name), ["Driver One + Navigator Two"]);
 
 assert.equal(rolesModule.authorizeOpsRequest("operator", "/api/integrations/podium/connect", "GET").allowed, false);
 assert.equal(rolesModule.authorizeOpsRequest("admin", "/api/integrations/podium/connect", "GET").allowed, true);

@@ -217,7 +217,7 @@ export default async function MarketingPage({
               </Link>
             </div>
           </section>
-          <div className="ops-kpi-row ops-marketing-kpis">
+          <div className="ops-kpi-row ops-marketing-kpis ops-marketing-review-kpis">
             <Link
               className="ops-card ops-kpi-card ops-marketing-action-kpi"
               href="/marketing?section=lost-leads"
@@ -727,7 +727,54 @@ export default async function MarketingPage({
               </div>
               <div className="ops-kpi-sub">Recent Google feed · {reviews.recentLowRatings} at 3 stars or lower</div>
             </section>
+            <section className="ops-card ops-kpi-card">
+              <div className="ops-card-title">New Reviews</div>
+              <div className="ops-kpi-value">{reviews.new7Days}</div>
+              <div className="ops-kpi-sub">
+                {reviews.newToday} today · {reviews.new30Days} in the last 30 days
+              </div>
+            </section>
           </div>
+          <section className="ops-card ops-marketing-review-credit">
+            <div className="ops-card-header compact">
+              <div>
+                <div className="ops-section-title">Appointment &amp; Crew Review Credit</div>
+                <div className="ops-muted">
+                  Last 30 days · {reviews.attributed30Days} exact appointment matches · {reviews.pendingAttribution30Days} unassigned
+                </div>
+              </div>
+            </div>
+            <div className="ops-marketing-review-credit-grid">
+              <div>
+                <h3>Employees</h3>
+                <div className="ops-marketing-review-credit-list">
+                  {reviews.employeeTallies30Days.slice(0, 12).map((entry) => (
+                    <div className="ops-marketing-review-credit-row" key={entry.name}>
+                      <strong>{entry.name}</strong>
+                      <span>{entry.reviewCount} {entry.reviewCount === 1 ? "review" : "reviews"} · {entry.averageRating.toFixed(1)} ★</span>
+                    </div>
+                  ))}
+                  {reviews.employeeTallies30Days.length === 0 ? (
+                    <div className="ops-muted">No recent reviews have an exact crew match yet.</div>
+                  ) : null}
+                </div>
+              </div>
+              <div>
+                <h3>Teams</h3>
+                <div className="ops-marketing-review-credit-list">
+                  {reviews.teamTallies30Days.slice(0, 12).map((entry) => (
+                    <div className="ops-marketing-review-credit-row" key={entry.name}>
+                      <strong>{entry.name}</strong>
+                      <span>{entry.reviewCount} {entry.reviewCount === 1 ? "review" : "reviews"} · {entry.averageRating.toFixed(1)} ★</span>
+                    </div>
+                  ))}
+                  {reviews.teamTallies30Days.length === 0 ? (
+                    <div className="ops-muted">No recent reviews have an exact team match yet.</div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </section>
           <div className="ops-marketing-review-grid">
             {reviews.locations.map((location) => (
               <section className="ops-card" key={location.uid}>
@@ -739,10 +786,10 @@ export default async function MarketingPage({
                   <div className="ops-marketing-review-summary">
                     <strong>{location.averageRating?.toFixed(2) || "—"} ★</strong>
                     <span>
-                      {location.reviewCount} reviews
-                      {location.reviewCountChange === null
-                        ? ""
-                        : ` · ${location.reviewCountChange >= 0 ? "+" : ""}${location.reviewCountChange} since prior snapshot`}
+                      {location.reviewCount} total reviews
+                    </span>
+                    <span className="ops-marketing-review-territory-tally">
+                      +{location.newToday} today · +{location.new7Days} last 7 days · +{location.new30Days} last 30 days
                     </span>
                   </div>
                 </div>
@@ -757,6 +804,24 @@ export default async function MarketingPage({
                         <span>{"★".repeat(Math.max(0, Math.min(5, review.rating)))}</span>
                       </header>
                       <p>{review.body || "Rating submitted without written feedback."}</p>
+                      {review.attribution?.status === "matched" ? (
+                        <div className="ops-marketing-review-attribution">
+                          <span>
+                            Credited to {review.attribution.crew?.join(" + ") || "crew not recorded"}
+                            {review.attribution.jkNumber ? ` · ${review.attribution.jkNumber}` : ""}
+                            {review.attribution.appointmentDate ? ` · ${review.attribution.appointmentDate}` : ""}
+                          </span>
+                          {review.attribution.appointmentUrl ? (
+                            <a className="ops-mini-link" href={review.attribution.appointmentUrl} target="_blank" rel="noreferrer">
+                              Open appointment
+                            </a>
+                          ) : null}
+                        </div>
+                      ) : review.attribution?.status === "ambiguous" ? (
+                        <div className="ops-marketing-review-attribution is-pending">
+                          Appointment match needs review
+                        </div>
+                      ) : null}
                       <footer>
                         <span className={review.needsResponse ? "ops-lead-status is-lost" : "ops-lead-status is-recovered"}>
                           {review.needsResponse ? "Needs response" : review.responseCount ? "Responded" : "No response needed"}

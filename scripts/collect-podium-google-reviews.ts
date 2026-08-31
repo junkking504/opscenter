@@ -1,8 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
-import { getPodiumGoogleSummary, listPodiumLocations, listRecentPodiumGoogleReviews } from "../lib/podium-api";
+import {
+  getPodiumGoogleSummary,
+  getPodiumReviewInvite,
+  listPodiumLocations,
+  listRecentPodiumGoogleReviews,
+  type PodiumReviewInvite,
+} from "../lib/podium-api";
+import { buildPodiumAppointmentMatcher } from "../lib/podium-review-attribution";
 import type { PodiumGoogleReviewsSnapshot } from "../lib/podium-reviews";
 import { chicagoDateKey } from "../lib/report-dates";
+
+const ATTRIBUTION_LOOKBACK_DAYS = 45;
+const MAX_INVITES_PER_RUN = 200;
+const INVITE_BATCH_SIZE = 8;
 
 function argument(name: string): string {
   const index = process.argv.indexOf(`--${name}`);
@@ -32,6 +43,24 @@ function snapshotAgeMinutes(file: string): number | null {
   }
 }
 
+async function loadReviewInvites(uids: string[]): Promise<Map<string, PodiumReviewInvite>> {
+  const invites = new Map<string, PodiumReviewInvite>();
+  for (let index = 0; index < uids.length; index += INVITE_BATCH_SIZE) {
+    const batch = uids.slice(index, index + INVITE_BATCH_SIZE);
+    const results = await Promise.all(batch.map(async (uid) => {
+      try {
+        return await getPodiumReviewInvite(uid);
+      } catch {
+        return null;
+      }
+    }));
+    for (const invite of results) {
+      if (invite?.uid) invites.set(invite.uid, invite);
+    }
+  }
+  return invites;
+}
+
 async function main(): Promise<void> {
   const root = dataDirectory();
   const currentFile = path.join(root, "podium-google-reviews", "current.json");
@@ -47,6 +76,22 @@ async function main(): Promise<void> {
   const reviews = await listRecentPodiumGoogleReviews(locations.map((location) => location.uid));
   const summaries = await Promise.all(locations.map((location) => getPodiumGoogleSummary(location.uid)));
   const fetchedAt = new Date().toISOString();
+  const attributionCutoff = Date.now() - ATTRIBUTION_LOOKBACK_DAYS * 86_400_000;
+  const inviteUids = Array.from(new Set(reviews
+    .filter((review) => {
+      const createdAt = new Date(review.createdAt).getTime();
+      return Number.isFinite(createdAt) && createdAt >= attributionCutoff;
+    })
+    .flatMap((review) => review.reviewInvitationUids)))
+    .slice(0, MAX_INVITES_PER_RUN);
+  const invites = await loadReviewInvites(inviteUids);
+  const matchAppointment = buildPodiumAppointmentMatcher(root);
+  const attributionByReviewUid = new Map(reviews.map((review) => {
+    const invite = review.reviewInvitationUids
+      .map((uid) => invites.get(uid) || null)
+      .find((candidate): candidate is PodiumReviewInvite => Boolean(candidate)) || null;
+    return [review.uid, matchAppointment(review.createdAt, invite)] as const;
+  }));
   const snapshot: PodiumGoogleReviewsSnapshot = {
     version: 1,
     source: "podium_api",
@@ -67,6 +112,7 @@ async function main(): Promise<void> {
         updatedAt: review.updatedAt,
         needsResponse: review.needsResponse,
         responseCount: review.responseCount,
+        attribution: attributionByReviewUid.get(review.uid),
       })),
     })),
   };
@@ -75,9 +121,14 @@ async function main(): Promise<void> {
     snapshot,
   );
   writeJson(currentFile, snapshot);
+  const recentReviews = Array.from(new Map(
+    snapshot.locations.flatMap((location) => location.reviews).map((review) => [review.uid, review]),
+  ).values());
   console.log(JSON.stringify({
     status: "ok",
     fetchedAt,
+    attributedReviews: recentReviews.filter((review) => review.attribution?.status === "matched").length,
+    unassignedReviews: recentReviews.filter((review) => review.attribution?.status !== "matched").length,
     locations: snapshot.locations.map((location) => ({
       name: location.name,
       reviewCount: location.reviewCount,

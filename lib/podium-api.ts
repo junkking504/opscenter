@@ -25,6 +25,14 @@ export type PodiumGoogleReview = {
   locationUids: string[];
   needsResponse: boolean;
   responseCount: number;
+  reviewInvitationUids: string[];
+};
+
+export type PodiumReviewInvite = {
+  uid: string;
+  customerName: string;
+  channelIdentifier: string;
+  locationUid: string;
 };
 
 export type PodiumGoogleSummary = {
@@ -123,9 +131,30 @@ export async function listRecentPodiumGoogleReviews(locationUids: string[] = [])
       locationUids: records(item.locations).map((location) => String(location.uid || "").trim()).filter(Boolean),
       needsResponse: Boolean(item.needsResponse),
       responseCount: records(item.responses).length,
+      reviewInvitationUids: records(item.attributions)
+        .map((attribution) => String(attribution.reviewInvitationUid || "").trim())
+        .filter(Boolean),
     };
   }).filter((review) => review.uid && review.locationUids.length > 0)
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+export async function getPodiumReviewInvite(uid: string): Promise<PodiumReviewInvite | null> {
+  const requestedUid = String(uid || "").trim();
+  if (!requestedUid) return null;
+  const response = await podiumRequest(`/v4/reviews/invites/${encodeURIComponent(requestedUid)}`);
+  const item = response.data && typeof response.data === "object" && !Array.isArray(response.data)
+    ? response.data as Record<string, unknown>
+    : null;
+  if (!item) return null;
+  const channel = item.channel as Record<string, unknown> | undefined;
+  const location = item.location as Record<string, unknown> | undefined;
+  return {
+    uid: String(item.uid || requestedUid).trim(),
+    customerName: String(item.customerName || "").trim(),
+    channelIdentifier: String(channel?.identifier || "").trim(),
+    locationUid: String(location?.uid || "").trim(),
+  };
 }
 
 export async function getPodiumGoogleSummary(locationUid: string): Promise<PodiumGoogleSummary> {

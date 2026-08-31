@@ -1,10 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  buildPodiumReviewNameSuggestionMap,
   findPodiumReviewAppointment,
   listPodiumReviewAssignmentOptions,
   type PodiumReviewAppointmentAttribution,
   type PodiumReviewAssignmentOption,
+  type PodiumReviewNameSuggestion,
+  type PodiumReviewNameSuggestionInput,
 } from "@/lib/podium-review-attribution";
 
 export type PodiumReviewManualAssignment = {
@@ -104,4 +107,10 @@ export function podiumReviewAssignmentMap(): Map<string, PodiumReviewManualAssig
 
 export function podiumReviewAssignmentOptions(earliestDate = ""): PodiumReviewAssignmentOption[] {
   return listPodiumReviewAssignmentOptions(podiumReviewAssignmentDataDirectory(), earliestDate);
+}
+
+export function podiumReviewNameSuggestions(
+  reviews: PodiumReviewNameSuggestionInput[],
+): Record<string, PodiumReviewNameSuggestion[]> {
+  return buildPodiumReviewNameSuggestionMap(podiumReviewAssignmentDataDirectory(), reviews);
 }

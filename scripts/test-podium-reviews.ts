@@ -112,12 +112,24 @@ fs.writeFileSync(path.join(metricsDirectory, "daily_metrics_2026-08-30.json"), J
     job_id: "JK4067001",
     job_status: "Completed",
     appointment_type: "Job",
+    customer_name: "Google Customer",
     customer_phone: "504-555-0123",
     market: "New Orleans",
     truck: "Truck 1",
     driver_normalized_name: "Driver One",
     navigator_normalized_name: "Navigator Two",
     source_page: "https://junkware.example.test/appointment/4055001",
+  }, {
+    appt_id: "4055002",
+    job_id: "JK4067002",
+    job_status: "Completed",
+    appointment_type: "Job",
+    customer_name: "Different Person",
+    customer_phone: "504-555-0199",
+    market: "New Orleans",
+    truck: "Truck 2",
+    driver_normalized_name: "Driver Three",
+    source_page: "https://junkware.example.test/appointment/4055002",
   }],
 }));
 const matchAppointment = attributionModule.buildPodiumAppointmentMatcher(fixture);
@@ -132,9 +144,34 @@ assert.equal(matchedAppointment.appointmentId, "4055001");
 assert.deepEqual(matchedAppointment.crew, ["Driver One", "Navigator Two"]);
 assert.equal(JSON.stringify(matchedAppointment).includes("5045550123"), false);
 const assignmentOptions = assignmentModule.podiumReviewAssignmentOptions("2026-08-01");
-assert.equal(assignmentOptions.length, 1);
+assert.equal(assignmentOptions.length, 2);
 assert.equal(assignmentOptions[0]?.reference, "4055001");
 assert.match(assignmentOptions[0]?.label || "", /JK4067001/);
+assert.equal(assignmentOptions[0]?.customerName, "Google Customer");
+const exactNameSuggestions = assignmentModule.podiumReviewNameSuggestions([{
+  uid: "review-1",
+  authorName: "Google Customer",
+  createdAt: "2026-08-31T15:00:00Z",
+  locationName: "Junk King New Orleans",
+}]);
+assert.equal(exactNameSuggestions["review-1"]?.[0]?.jkNumber, "JK4067001");
+assert.equal(exactNameSuggestions["review-1"]?.[0]?.matchKind, "exact_name");
+assert.equal(exactNameSuggestions["review-1"]?.[0]?.customerName, "Google Customer");
+const initialNameSuggestions = assignmentModule.podiumReviewNameSuggestions([{
+  uid: "review-initial",
+  authorName: "Google C.",
+  createdAt: "2026-08-31T15:00:00Z",
+  locationName: "Junk King New Orleans",
+}]);
+assert.equal(initialNameSuggestions["review-initial"]?.[0]?.jkNumber, "JK4067001");
+assert.equal(initialNameSuggestions["review-initial"]?.[0]?.matchKind, "name_initial");
+const noNameSuggestions = assignmentModule.podiumReviewNameSuggestions([{
+  uid: "review-unmatched-name",
+  authorName: "Unrelated Reviewer",
+  createdAt: "2026-08-31T15:00:00Z",
+  locationName: "Junk King New Orleans",
+}]);
+assert.deepEqual(noNameSuggestions["review-unmatched-name"], []);
 
 const previous = {
   version: 1 as const,
@@ -154,7 +191,7 @@ const current = {
     reviewCount: 101,
     reviews: [{
       uid: "review-1",
-      authorName: "Customer",
+      authorName: "Google Customer",
       body: "Excellent",
       url: "",
       rating: 5,
@@ -195,6 +232,16 @@ assert.equal(view.pendingAttribution30Days, 0);
 assert.equal(view.unassigned30Days.length, 0);
 assert.deepEqual(view.employeeTallies30Days.map((entry) => entry.name), ["Driver One", "Navigator Two"]);
 assert.deepEqual(view.teamTallies30Days.map((entry) => entry.name), ["Driver One + Navigator Two"]);
+const reassignment = assignmentModule.assignPodiumReviewToAppointment({
+  reviewUid: "review-1",
+  appointmentReference: "JK4067002",
+  assignedBy: "manager@junk-king.com",
+});
+assert.equal(reassignment?.attribution.jkNumber, "JK4067002");
+assert.deepEqual(reassignment?.attribution.crew, ["Driver Three"]);
+assert.equal(assignmentModule.readPodiumReviewAssignments().length, 1);
+const reassignedView = reviewsModule.buildPodiumGoogleReviewsViewFromData(current, [previous]);
+assert.deepEqual(reassignedView.employeeTallies30Days.map((entry) => entry.name), ["Driver Three"]);
 
 assert.equal(rolesModule.authorizeOpsRequest("operator", "/api/integrations/podium/connect", "GET").allowed, false);
 assert.equal(rolesModule.authorizeOpsRequest("admin", "/api/integrations/podium/connect", "GET").allowed, true);
@@ -215,7 +262,11 @@ assert.match(marketingPage, /New Reviews Today/);
 assert.match(marketingPage, /ops-kpi-value">\{reviews\.newToday\}/);
 assert.match(marketingPage, /PodiumUnassignedReviews/);
 assert.match(assignmentRoute, /verifyAuthSessionCookie/);
-assert.match(unassignedComponent, /Appointment ID or JK number/);
+assert.match(unassignedComponent, /Exact customer-name match/);
+assert.match(unassignedComponent, /Confirm \$\{suggestion\.jkNumber/);
+assert.match(unassignedComponent, /Re-assign review/);
+assert.match(unassignedComponent, /Customer name, appointment ID, or JK number/);
+assert.match(unassignedComponent, /PodiumReviewReassignControl/);
 
 fs.rmSync(fixture, { recursive: true, force: true });
 console.log("Podium Google Reviews checks passed.");

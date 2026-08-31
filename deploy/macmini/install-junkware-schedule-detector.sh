@@ -20,8 +20,10 @@ INSTALLED_PLIST="$EXPECTED_HOME/Library/LaunchAgents/$LABEL.plist"
 
 mkdir -p "$EXPECTED_HOME/.openclaw/workspace/opsbot/logs"
 mkdir -p "$EXPECTED_HOME/.openclaw/workspace/opsbot/data/slack/junkware_schedule_watchers"
-cp "$SOURCE_PLIST" "$INSTALLED_PLIST"
-chmod 600 "$INSTALLED_PLIST"
+if [[ ! -f "$INSTALLED_PLIST" ]] || ! cmp -s "$SOURCE_PLIST" "$INSTALLED_PLIST"; then
+  cp "$SOURCE_PLIST" "$INSTALLED_PLIST"
+  chmod 600 "$INSTALLED_PLIST"
+fi
 INSTALL_STARTED_EPOCH="$(date +%s)"
 launchctl bootout "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || true
 LOCK_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/tmp/junkware_schedule_detector.lock"

@@ -6,6 +6,7 @@
   <string>com.openclaw.opsbot.junkware-history-reconciliation</string>
   <key>ProgramArguments</key>
   <array>
+    <string>/bin/bash</string>
     <string>/Users/missioncontrol/opscenter-v2/opscenter/scripts/run-junkware-history-reconciliation.sh</string>
   </array>
   <key>WorkingDirectory</key>

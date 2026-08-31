@@ -6,6 +6,7 @@
   <string>com.openclaw.opscenter.whatsapp-photos</string>
   <key>ProgramArguments</key>
   <array>
+    <string>/bin/zsh</string>
     <string>/Users/missioncontrol/opscenter-v2/opscenter/scripts/run-whatsapp-photo-worker.sh</string>
   </array>
   <key>WorkingDirectory</key>

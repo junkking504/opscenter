@@ -6,6 +6,7 @@
   <string>com.openclaw.opsbot.podium-reviews-collector</string>
   <key>ProgramArguments</key>
   <array>
+    <string>/bin/bash</string>
     <string>/Users/missioncontrol/opscenter-v2/opscenter/scripts/run-podium-reviews-refresh.sh</string>
   </array>
   <key>RunAtLoad</key>

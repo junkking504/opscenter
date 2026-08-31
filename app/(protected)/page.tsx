@@ -536,22 +536,18 @@ export default async function DashboardPage({
     : 0;
   const dailyRevenuePlan = configuredDailyTarget > 0 ? configuredDailyTarget : recentRevenueBaseline;
   const dailyOperatingProfit = toNumber(metrics?.net_profit);
-  const dailyAverageJob = jobs > 0 ? grossRevenue / jobs : 0;
   const dailyJobsAtPlan = dailyRevenuePlan > 0 ? dailyRevenuePlan / operatingTargets.averageJobSize : 0;
   const dailyOperatingProfitAtPlan = dailyRevenuePlan * (operatingTargets.minOperatingMarginPercent / 100);
   const activeTruckCount = trucks.filter((truck) => Number(truck.revenue || 0) > 0).length;
   const commandSchedule = commandMap
     ? summarizeCommandSchedule(commandMap.jobs)
     : { scheduled: jobs, closed: jobs, completedJobs: jobs, closedEstimates: 0, unclosed: 0 };
-  const projectedDayRevenue = jobs > 0 && commandSchedule.scheduled > 0
-    ? Math.max(grossRevenue, dailyAverageJob * commandSchedule.scheduled)
-    : grossRevenue;
-  const projectedLaborCostPercent = projectedDayRevenue > 0
-    ? (totalPayroll / projectedDayRevenue) * 100
+  const currentLaborCostPercent = grossRevenue > 0
+    ? (totalPayroll / grossRevenue) * 100
     : null;
-  const projectedLaborCostStatus: OperatingStatus = projectedLaborCostPercent == null
+  const currentLaborCostStatus: OperatingStatus = currentLaborCostPercent == null
     ? "watch"
-    : maximumStatus(projectedLaborCostPercent, operatingTargets.maxPayrollPercent);
+    : maximumStatus(currentLaborCostPercent, operatingTargets.maxPayrollPercent);
   const dailyRevenuePerTruck = activeTruckCount > 0 ? grossRevenue / activeTruckCount : 0;
   const dailyProfitPerJob = jobs > 0 ? dailyOperatingProfit / jobs : 0;
   const completedJobsStatus: OperatingStatus = dailyJobsAtPlan > 0
@@ -594,19 +590,19 @@ export default async function DashboardPage({
     {
       label: "Labor",
       value: money(totalPayroll),
-      secondaryValue: projectedLaborCostPercent == null
-        ? "Projected percentage waiting for revenue"
-        : `Projected ${projectedLaborCostPercent.toFixed(1)}%`,
-      detail: projectedLaborCostPercent == null
+      secondaryValue: currentLaborCostPercent == null
+        ? "Current percentage waiting for revenue"
+        : `Current ${currentLaborCostPercent.toFixed(1)}%`,
+      detail: currentLaborCostPercent == null
         ? `Goal < ${operatingTargets.maxPayrollPercent.toFixed(0)}% once revenue is available`
-        : `Goal < ${operatingTargets.maxPayrollPercent.toFixed(0)}% · ${money(projectedDayRevenue)} projected revenue`,
-      status: projectedLaborCostStatus,
-      progress: projectedLaborCostPercent == null
+        : `Goal < ${operatingTargets.maxPayrollPercent.toFixed(0)}% · ${money(grossRevenue)} current revenue`,
+      status: currentLaborCostStatus,
+      progress: currentLaborCostPercent == null
         ? 0
-        : (projectedLaborCostPercent / operatingTargets.maxPayrollPercent) * 100,
-      progressLabel: projectedLaborCostPercent == null
-        ? "Waiting for projected labor cost"
-        : `${projectedLaborCostPercent.toFixed(1)}% projected labor against a ${operatingTargets.maxPayrollPercent.toFixed(0)}% ceiling`,
+        : (currentLaborCostPercent / operatingTargets.maxPayrollPercent) * 100,
+      progressLabel: currentLaborCostPercent == null
+        ? "Waiting for current labor cost"
+        : `${currentLaborCostPercent.toFixed(1)}% current labor against a ${operatingTargets.maxPayrollPercent.toFixed(0)}% ceiling`,
       href: `/crew?date=${date}`,
     },
     {
@@ -645,9 +641,9 @@ export default async function DashboardPage({
       status: "off-track" as const,
       href: `/finance?date=${date}`,
     }] : []),
-    ...(projectedLaborCostStatus === "off-track" && projectedLaborCostPercent != null ? [{
+    ...(currentLaborCostStatus === "off-track" && currentLaborCostPercent != null ? [{
       label: "Labor above goal",
-      detail: `${projectedLaborCostPercent.toFixed(1)}% projected · goal under ${operatingTargets.maxPayrollPercent.toFixed(0)}%`,
+      detail: `${currentLaborCostPercent.toFixed(1)}% current · goal under ${operatingTargets.maxPayrollPercent.toFixed(0)}%`,
       status: "off-track" as const,
       href: `/crew?date=${date}`,
     }] : []),

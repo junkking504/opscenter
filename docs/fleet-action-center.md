@@ -36,6 +36,21 @@ that editable work order.
   dispatch or out-of-service change. Operators retain the decision and its
   audit trail.
 
+## OpsBot Fleet controls
+
+OpsBot Control exposes the same durable repair authority as a governed vehicle
+availability command. Placing a truck out of service creates an open
+`out_of_service` repair record. Returning a truck to service resolves the sole
+blocking repair only after a repair-resolution note is recorded. Both actions
+are risk class 3, require approval from a different manager or administrator,
+reject stale repair observations, and verify the saved record after execution.
+
+If multiple out-of-service repairs remain, return to service is blocked until
+the other blocking work orders are resolved. `No active hold` means only that
+OpsCenter has no unresolved out-of-service repair; it is not a mechanical
+safety certification. Preview runs simulate and verify the action lifecycle
+without changing the shared Fleet repair store.
+
 ## Future inputs
 
 Future data sources should normalize into the same evidence-and-action model:

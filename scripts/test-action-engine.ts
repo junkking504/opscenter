@@ -39,6 +39,8 @@ assert.deepEqual(definitions.map((definition) => definition.key), [
   "dispatch.reschedule_time.v1",
   "dispatch.cancel_appointment.v1",
   "dispatch.move_date.v1",
+  "fleet.mark_out_of_service.v1",
+  "fleet.return_to_service.v1",
 ]);
 assert.equal(new Set(definitions.map((definition) => definition.key)).size, definitions.length);
 
@@ -112,6 +114,9 @@ for (const control of [
   "Request time approval",
   "Request cancellation approval",
   "Request date move approval",
+  "Fleet control pack",
+  "Request out-of-service approval",
+  "Request return-to-service approval",
   "Mark called",
 ]) {
   assert.ok(consoleSource.includes(control), `OpsBot console is missing ${control}.`);
@@ -230,5 +235,49 @@ assert.throws(() => dateMove.validateInput({
   expectedStatus: "Confirmed",
   sourceObservedAt: "2026-08-31T18:30:00.000Z",
 }), /different destination date/);
+
+const fleetHold = registeredActionDefinition("fleet.mark_out_of_service.v1");
+assert.ok(fleetHold);
+assert.equal(fleetHold.riskClass, 3);
+assert.equal(decideActionPolicy(fleetHold, operator).decision.outcome, "approval_required");
+assert.deepEqual(fleetHold.validateInput({
+  truck: "Truck 4",
+  reason: " Hydraulic leak at lift gate ",
+  expectedStoreUpdatedAt: "2026-08-31T20:00:00.000Z",
+}), {
+  truck: "Truck# 4",
+  reason: "Hydraulic leak at lift gate",
+  expectedStoreUpdatedAt: "2026-08-31T20:00:00.000Z",
+});
+assert.throws(() => fleetHold.validateInput({
+  truck: "Truck 4",
+  reason: "bad",
+  expectedStoreUpdatedAt: "",
+}), /at least 5 characters/);
+
+const fleetReturn = registeredActionDefinition("fleet.return_to_service.v1");
+assert.ok(fleetReturn);
+assert.equal(fleetReturn.riskClass, 3);
+assert.equal(decideActionPolicy(fleetReturn, manager).decision.outcome, "approval_required");
+assert.deepEqual(fleetReturn.validateInput({
+  truck: "Truck# 4",
+  issueId: "issue-4",
+  resolution: " Hose replaced and pressure tested ",
+  expectedStoreUpdatedAt: "2026-08-31T20:05:00.000Z",
+  expectedIssueUpdatedAt: "2026-08-31T20:04:00.000Z",
+}), {
+  truck: "Truck# 4",
+  issueId: "issue-4",
+  resolution: "Hose replaced and pressure tested",
+  expectedStoreUpdatedAt: "2026-08-31T20:05:00.000Z",
+  expectedIssueUpdatedAt: "2026-08-31T20:04:00.000Z",
+});
+assert.throws(() => fleetReturn.validateInput({
+  truck: "Truck# 4",
+  issueId: "issue-4",
+  resolution: "done",
+  expectedStoreUpdatedAt: "",
+  expectedIssueUpdatedAt: "2026-08-31T20:04:00.000Z",
+}), /at least 5 characters/);
 
 console.log("OpsBot action registry, policy, idempotency, approvals, verification, persistence, and control UI contracts passed.");

@@ -44,6 +44,49 @@ type DispatchSnapshot = {
   warning?: string;
 };
 
+type FleetControlIssue = {
+  issueId: string;
+  title: string;
+  severity: "monitor" | "repair_soon" | "out_of_service";
+  status: "open" | "in_progress" | "resolved";
+  owner: string;
+  dueDate: string;
+  updatedAt: string;
+};
+
+type FleetControlTruck = {
+  truck: string;
+  readiness: "out_of_service" | "action_required" | "no_active_hold";
+  activeIssueCount: number;
+  blockingIssues: FleetControlIssue[];
+  topAction: {
+    kind: "repair" | "checklist" | "telemetry" | "mapping";
+    priority: "stop" | "urgent" | "next" | "watch";
+    title: string;
+    detail: string;
+  } | null;
+  gpsFreshness: string;
+  lastGpsUpdate: string;
+  hasVerifiedCoordinate: boolean;
+};
+
+type FleetSnapshot = {
+  date: string;
+  mode: "live_control" | "preview_simulation";
+  source: string;
+  sourceObservedAt: string;
+  storeUpdatedAt: string;
+  trucks: FleetControlTruck[];
+  summary: {
+    trucks: number;
+    outOfService: number;
+    actionRequired: number;
+    activeRepairs: number;
+    incompleteInspections: number;
+  };
+  warning?: string;
+};
+
 async function responseJson<T>(response: Response): Promise<T> {
   const payload = await response.json().catch(() => ({})) as T & { error?: string };
   if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
@@ -77,6 +120,8 @@ function actionLabel(actionKey: string): string {
     "dispatch.reschedule_time.v1": "Time reschedule",
     "dispatch.cancel_appointment.v1": "Appointment cancellation",
     "dispatch.move_date.v1": "Cross-date move",
+    "fleet.mark_out_of_service.v1": "Fleet out-of-service hold",
+    "fleet.return_to_service.v1": "Fleet return to service",
   };
   return labels[actionKey] || actionKey;
 }
@@ -90,18 +135,28 @@ function clockLabel(minutes: number): string {
   return `${hour % 12 || 12}:00 ${hour >= 12 ? "PM" : "AM"}`;
 }
 
+function fleetReadinessLabel(readiness: FleetControlTruck["readiness"]): string {
+  if (readiness === "out_of_service") return "Out of service";
+  if (readiness === "action_required") return "Action required";
+  return "No active hold";
+}
+
 const dispatchTimeOptions = Array.from({ length: 24 }, (_, hour) => hour * 60);
 
 export default function OpsBotActionConsole({ date, enabled }: { date: string; enabled: boolean }) {
   const [inbox, setInbox] = useState<InboxPayload | null>(null);
   const [snapshot, setSnapshot] = useState<ActionSnapshot | null>(null);
   const [dispatch, setDispatch] = useState<DispatchSnapshot | null>(null);
+  const [fleet, setFleet] = useState<FleetSnapshot | null>(null);
   const [selectedId, setSelectedId] = useState("");
   const [selectedAppointmentId, setSelectedAppointmentId] = useState("");
+  const [selectedFleetTruckId, setSelectedFleetTruckId] = useState("");
   const [dispatchTruck, setDispatchTruck] = useState("");
   const [dispatchStartMinutes, setDispatchStartMinutes] = useState("");
   const [dispatchDestinationDate, setDispatchDestinationDate] = useState(date);
   const [cancellationReason, setCancellationReason] = useState("");
+  const [fleetHoldReason, setFleetHoldReason] = useState("");
+  const [fleetReturnResolution, setFleetReturnResolution] = useState("");
   const [resolutionReason, setResolutionReason] = useState("");
   const [loading, setLoading] = useState(enabled);
   const [busy, setBusy] = useState("");
@@ -112,7 +167,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     setLoading(true);
     setError("");
     try {
-      const [inboxPayload, actionPayload, dispatchPayload] = await Promise.all([
+      const [inboxPayload, actionPayload, dispatchPayload, fleetPayload] = await Promise.all([
         responseJson<InboxPayload>(await fetch("/api/inbox/reconcile", {
           method: "POST",
           cache: "no-store",
@@ -121,16 +176,21 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
         })),
         responseJson<ActionSnapshot>(await fetch("/api/platform/action-runs", { cache: "no-store" })),
         responseJson<DispatchSnapshot>(await fetch(`/api/platform/dispatch?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
+        responseJson<FleetSnapshot>(await fetch(`/api/platform/fleet?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
       ]);
       setInbox(inboxPayload);
       setSnapshot(actionPayload);
       setDispatch(dispatchPayload);
+      setFleet(fleetPayload);
       setSelectedId((current) => current && inboxPayload.items.some((item) => item.id === current)
         ? current
         : inboxPayload.items.find(activeItem)?.id || inboxPayload.items[0]?.id || "");
       setSelectedAppointmentId((current) => current && dispatchPayload.appointments.some((item) => item.appointmentId === current)
         ? current
         : dispatchPayload.appointments[0]?.appointmentId || "");
+      setSelectedFleetTruckId((current) => current && fleetPayload.trucks.some((item) => item.truck === current)
+        ? current
+        : fleetPayload.trucks.find((item) => item.readiness === "out_of_service")?.truck || fleetPayload.trucks[0]?.truck || "");
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load OpsBot control state.");
     } finally {
@@ -150,12 +210,20 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     () => dispatch?.appointments.find((appointment) => appointment.appointmentId === selectedAppointmentId) || null,
     [dispatch, selectedAppointmentId],
   );
+  const selectedFleetTruck = useMemo(
+    () => fleet?.trucks.find((truck) => truck.truck === selectedFleetTruckId) || null,
+    [fleet, selectedFleetTruckId],
+  );
   useEffect(() => {
     setDispatchTruck(selectedAppointment?.effectiveTruck || "");
     setDispatchStartMinutes(selectedAppointment?.appointmentStartMinutes == null ? "" : String(selectedAppointment.appointmentStartMinutes));
     setDispatchDestinationDate(date);
     setCancellationReason("");
   }, [date, selectedAppointment]);
+  useEffect(() => {
+    setFleetHoldReason("");
+    setFleetReturnResolution("");
+  }, [selectedFleetTruck]);
   const recentRuns = snapshot?.runs.slice(0, 8) || [];
 
   async function requestWorkAction(actionKey: string, extra: Record<string, unknown> = {}) {
@@ -206,6 +274,34 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       await load();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "The dispatch action request failed.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function requestFleetAction(actionKey: string, input: Record<string, unknown>) {
+    if (!selectedFleetTruck || !fleet) return;
+    setBusy(actionKey);
+    setError("");
+    try {
+      await responseJson(await fetch("/api/platform/action-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actionKey,
+          entity: { type: "truck", id: selectedFleetTruck.truck, label: selectedFleetTruck.truck },
+          input: {
+            truck: selectedFleetTruck.truck,
+            expectedStoreUpdatedAt: fleet.storeUpdatedAt,
+            ...input,
+          },
+        }),
+      }));
+      setFleetHoldReason("");
+      setFleetReturnResolution("");
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The Fleet action request failed.");
     } finally {
       setBusy("");
     }
@@ -389,6 +485,100 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
                 ? "Truck and time changes require approval; cross-date moves and cancellation are risk class 3. Every result is read back from JunkWare."
                 : "Simulation proves policy and verification without changing shared Dispatch, cancellation state, or JunkWare."}
             </p>
+          </section>
+
+          <section className={styles.fleetControl} aria-labelledby="opsbot-fleet-title">
+            <div className={styles.controlTitle}>
+              <div><span>Fleet control pack</span><strong id="opsbot-fleet-title">Vehicle availability command</strong></div>
+              <small data-mode={fleet?.mode}>{fleet?.mode === "live_control" ? "Mission Control" : "Preview simulation"}</small>
+            </div>
+            <div className={styles.fleetSummary}>
+              <div><b>{fleet?.summary.outOfService || 0}</b><span>out of service</span></div>
+              <div><b>{fleet?.summary.actionRequired || 0}</b><span>need action</span></div>
+              <div><b>{fleet?.summary.activeRepairs || 0}</b><span>active repairs</span></div>
+              <div><b>{fleet?.summary.incompleteInspections || 0}</b><span>inspections due</span></div>
+            </div>
+            {fleet?.warning ? <div className={styles.dispatchWarning}>{fleet.warning}</div> : null}
+            <label>
+              <span>Fleet truck</span>
+              <select value={selectedFleetTruckId} onChange={(event) => setSelectedFleetTruckId(event.target.value)} disabled={loading || Boolean(busy)}>
+                {(fleet?.trucks || []).map((truck) => (
+                  <option key={truck.truck} value={truck.truck}>{truck.truck} · {fleetReadinessLabel(truck.readiness)}</option>
+                ))}
+              </select>
+            </label>
+            {selectedFleetTruck ? (
+              <article className={styles.fleetTarget} data-readiness={selectedFleetTruck.readiness}>
+                <div>
+                  <strong>{selectedFleetTruck.truck}</strong>
+                  <span>{fleetReadinessLabel(selectedFleetTruck.readiness)}</span>
+                </div>
+                <p>{selectedFleetTruck.topAction?.title || "No immediate Fleet queue action"}</p>
+                <small>{selectedFleetTruck.topAction?.detail || `${selectedFleetTruck.activeIssueCount} active repair records`}</small>
+                <small>GPS: {selectedFleetTruck.gpsFreshness} · {selectedFleetTruck.hasVerifiedCoordinate ? "verified coordinate" : "no verified coordinate"}</small>
+              </article>
+            ) : <div className={styles.empty}>No authoritative Fleet truck is available.</div>}
+
+            {selectedFleetTruck?.readiness === "out_of_service" ? (
+              selectedFleetTruck.blockingIssues.length === 1 ? (
+                <div className={styles.fleetSensitiveAction}>
+                  <div className={styles.blockingIssue}>
+                    <span>Blocking repair</span>
+                    <strong>{selectedFleetTruck.blockingIssues[0].title}</strong>
+                    <small>{selectedFleetTruck.blockingIssues[0].status.replace("_", " ")} · {selectedFleetTruck.blockingIssues[0].owner || "No owner assigned"}</small>
+                  </div>
+                  <label>
+                    <span>Verified repair and return-to-service resolution</span>
+                    <input
+                      value={fleetReturnResolution}
+                      onChange={(event) => setFleetReturnResolution(event.target.value)}
+                      placeholder="State the completed repair and verification"
+                      maxLength={1000}
+                      disabled={Boolean(busy)}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    disabled={Boolean(busy) || fleetReturnResolution.trim().length < 5}
+                    onClick={() => void requestFleetAction("fleet.return_to_service.v1", {
+                      issueId: selectedFleetTruck.blockingIssues[0].issueId,
+                      expectedIssueUpdatedAt: selectedFleetTruck.blockingIssues[0].updatedAt,
+                      resolution: fleetReturnResolution,
+                    })}
+                  >Request return-to-service approval</button>
+                  <small>Risk class 3. Approval resolves the sole blocking repair only after a separate manager or administrator approves.</small>
+                </div>
+              ) : (
+                <div className={styles.fleetBlocker}>
+                  This truck has {selectedFleetTruck.blockingIssues.length} blocking repairs. Resolve each work order in the Repair queue before requesting return to service.
+                </div>
+              )
+            ) : selectedFleetTruck ? (
+              <div className={styles.fleetSensitiveAction}>
+                <label>
+                  <span>Out-of-service reason</span>
+                  <input
+                    value={fleetHoldReason}
+                    onChange={(event) => setFleetHoldReason(event.target.value)}
+                    placeholder="State the defect or operating risk"
+                    maxLength={160}
+                    disabled={Boolean(busy)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={Boolean(busy) || fleetHoldReason.trim().length < 5}
+                  onClick={() => void requestFleetAction("fleet.mark_out_of_service.v1", { reason: fleetHoldReason })}
+                >Request out-of-service approval</button>
+                <small>Creates a durable blocking repair. LinxUp and checklist signals never place a truck out of service automatically.</small>
+              </div>
+            ) : null}
+            <div className={styles.fleetBoundary}>
+              <p>{fleet?.mode === "live_control"
+                ? "Fleet holds and returns are verified against durable repair records. No-active-hold is not a mechanical safety certification."
+                : "Simulation proves policy and verification without changing shared Fleet repair or availability state."}</p>
+              <a href={`/fleet?date=${encodeURIComponent(date)}&view=maintenance&section=overview`}>Open Fleet repair queue</a>
+            </div>
           </section>
 
           <div className={styles.controlTitle}>

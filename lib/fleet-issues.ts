@@ -60,7 +60,8 @@ export type FleetIssueStore = {
 const STORE_FILE = "repair_issues.json";
 
 function storePath(): string {
-  return path.join(process.cwd(), "data", "fleet", STORE_FILE);
+  const override = String(process.env.FLEET_ISSUES_FILE || "").trim();
+  return override ? path.resolve(override) : path.join(process.cwd(), "data", "fleet", STORE_FILE);
 }
 
 function normalizeTruck(value: unknown): string {
@@ -162,6 +163,12 @@ function sortIssues(issues: FleetIssue[]): FleetIssue[] {
   );
 }
 
+function nextStoreTimestamp(previous: string): string {
+  const now = Date.now();
+  const previousTime = Date.parse(previous);
+  return new Date(Number.isFinite(previousTime) && previousTime >= now ? previousTime + 1 : now).toISOString();
+}
+
 export function readFleetIssueStore(): FleetIssueStore {
   try {
     const filePath = storePath();
@@ -191,7 +198,7 @@ export function syncFleetIssuesFromChecklist(entry: FleetChecklistEntry): FleetI
   const attentionAnswers = entry.answers.filter((answer) => answer.status === "attention");
   const attentionIds = new Set(attentionAnswers.map((answer) => answer.itemId));
   const answeredIds = new Set(entry.answers.map((answer) => answer.itemId));
-  const now = new Date().toISOString();
+  const now = nextStoreTimestamp(store.updatedAt);
 
   for (const answer of attentionAnswers) {
     const definition = definitionById.get(answer.itemId);
@@ -235,11 +242,25 @@ export function syncFleetIssuesFromChecklist(entry: FleetChecklistEntry): FleetI
   return readFleetIssueStore();
 }
 
-export function upsertFleetIssue(input: Record<string, unknown>): FleetIssue | null {
+export type FleetIssueExpectedState = {
+  storeUpdatedAt?: string;
+  issueUpdatedAt?: string;
+};
+
+export function upsertFleetIssue(
+  input: Record<string, unknown>,
+  expected: FleetIssueExpectedState = {},
+): FleetIssue | null {
   const store = readFleetIssueStore();
+  if (Object.prototype.hasOwnProperty.call(expected, "storeUpdatedAt") && store.updatedAt !== expected.storeUpdatedAt) {
+    throw new Error("VERSION_CONFLICT: Fleet repair state changed after this request was prepared.");
+  }
   const issueId = String(input.issueId || "").trim();
   const index = issueId ? store.issues.findIndex((issue) => issue.issueId === issueId) : -1;
   const existing = index >= 0 ? store.issues[index] : null;
+  if (Object.prototype.hasOwnProperty.call(expected, "issueUpdatedAt") && existing?.updatedAt !== expected.issueUpdatedAt) {
+    throw new Error("VERSION_CONFLICT: The Fleet repair changed after this request was prepared.");
+  }
   const truck = normalizeTruck(input.truck || existing?.truck);
   const title = String(input.title || existing?.title || "").trim().slice(0, 160);
   if (!truck || !title) return null;
@@ -248,7 +269,7 @@ export function upsertFleetIssue(input: Record<string, unknown>): FleetIssue | n
   const rawDowntime = input.downtimeHours ?? existing?.downtimeHours;
   if (rawCost !== null && rawCost !== undefined && rawCost !== "" && nullableNonNegative(rawCost) === null) return null;
   if (rawDowntime !== null && rawDowntime !== undefined && rawDowntime !== "" && nullableNonNegative(rawDowntime) === null) return null;
-  const now = new Date().toISOString();
+  const now = nextStoreTimestamp(store.updatedAt);
   const issue: FleetIssue = {
     issueId: existing?.issueId || randomUUID(),
     truck,

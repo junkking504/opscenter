@@ -1,6 +1,6 @@
 # OpsBot Control
 
-Status: Work and Dispatch control foundation, including schedule changes and cancellation; production kernel activation pending
+Status: Work, Dispatch, and Fleet control foundation; production kernel activation pending
 
 Route: Command `/?section=opsbot`
 
@@ -73,6 +73,21 @@ The cross-date adapter is intentionally separate from truck assignment. A move c
 the scheduled date/time and verifies both fields in JunkWare; a truck-only change does
 not produce a reschedule action.
 
+The Fleet control pack adds:
+
+- the existing Fleet repair queue, checklist results, and LinxUp review signals in one
+  vehicle availability command surface;
+- explicit `out of service`, `action required`, and `no active hold` states without
+  presenting the latter as a mechanical safety certification;
+- risk-class 3 out-of-service requests that create durable blocking repair records;
+- risk-class 3 return-to-service requests that require a verified repair resolution;
+- store and issue observation checks that reject stale approvals before a Fleet write;
+- authoritative read-back of the repair record after execution;
+- a guard that blocks return to service while any other out-of-service repair remains;
+- a strict boundary that LinxUp telemetry and checklist signals are advisory and never
+  change truck availability automatically;
+- preview simulation receipts that leave the shared Fleet repair store unchanged.
+
 Together these provide complete governed loops for work state and the first
 Dispatch commands. They do not claim that every external operational system is
 controllable yet.
@@ -82,7 +97,8 @@ controllable yet.
 Risk-class 0 and 1 human commands can execute when the actor has the required
 permission. Risk-class 2 and 3 commands, and agent-initiated writes, require
 human approval. Approval-gated actions must be approved by a different manager
-or administrator. Cross-date moves, manual resolution, and appointment cancellation are risk class 3;
+or administrator. Cross-date moves, manual resolution, appointment cancellation, and
+Fleet availability changes are risk class 3;
 truck assignment and same-day rescheduling are risk class 2.
 
 Money, payroll, customer communication, access, deletion, and broad operational
@@ -98,7 +114,7 @@ silently overwrite source state.
 ## Remaining system coverage
 
 The next phases should move the remaining direct OpsCenter mutations behind
-this registry, then add LinxUp fleet operations, QBO finance workflows, and
+this registry, then add bounded LinxUp device-review operations, QBO finance workflows, and
 Slack or customer communication. Each adapter must ship
 with its own permission, risk class, approval rule, idempotency strategy,
 verification source, audit payload, retry behavior, and recovery guidance.

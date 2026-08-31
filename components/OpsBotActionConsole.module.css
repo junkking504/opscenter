@@ -69,6 +69,7 @@
 .head button,
 .commands button,
 .dispatchActions button,
+.fleetSensitiveAction button,
 .sensitiveCommand button,
 .approvals button {
   min-height: 38px;
@@ -86,6 +87,7 @@
 .head button:disabled,
 .commands button:disabled,
 .dispatchActions button:disabled,
+.fleetSensitiveAction button:disabled,
 .sensitiveCommand button:disabled,
 .approvals button:disabled { cursor: wait; opacity: 0.5; }
 
@@ -117,6 +119,7 @@
 
 .commandPane select,
 .commandPane input,
+.fleetSensitiveAction input,
 .sensitiveCommand input {
   width: 100%;
   min-height: 42px;
@@ -209,6 +212,77 @@
 .cancellationActions > small { grid-column: 1 / -1; color: #8f6f72; font-size: 0.6rem; line-height: 1.4; }
 .dispatchBoundary { margin: 0; color: #778494; font-size: 0.62rem; line-height: 1.4; }
 
+.fleetControl {
+  display: grid;
+  gap: 10px;
+  margin: -2px -2px 4px;
+  padding: 13px;
+  border: 1px solid rgba(193, 140, 255, 0.2);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(193, 140, 255, 0.055), rgba(104, 167, 255, 0.025));
+}
+
+.fleetSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.fleetSummary > div {
+  display: grid;
+  gap: 2px;
+  padding: 7px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(4, 7, 12, 0.2);
+}
+.fleetSummary b { color: #fff; font-size: 0.8rem; }
+.fleetSummary span { color: #8f9bad; font-size: 0.56rem; }
+
+.fleetTarget {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 9px;
+  background: rgba(4, 7, 12, 0.22);
+}
+.fleetTarget > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fleetTarget strong { color: #fff; font-size: 0.76rem; }
+.fleetTarget span { color: #9bc5ff; font-size: 0.62rem; font-weight: 850; }
+.fleetTarget[data-readiness="out_of_service"] span { color: #ff9ba0; }
+.fleetTarget[data-readiness="action_required"] span { color: #f6d777; }
+.fleetTarget p { margin: 0; color: #a7b1c0; font-size: 0.68rem; }
+.fleetTarget small { color: #7f8a99; font-size: 0.61rem; line-height: 1.4; }
+
+.fleetSensitiveAction {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+.fleetSensitiveAction label { display: grid; gap: 6px; }
+.fleetSensitiveAction label > span,
+.blockingIssue > span {
+  color: #b99bea;
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.fleetSensitiveAction button { border-color: rgba(255, 100, 107, 0.32); background: rgba(255, 100, 107, 0.07); color: #ff9ba0; }
+.fleetSensitiveAction > small { grid-column: 1 / -1; color: #8f7a94; font-size: 0.6rem; line-height: 1.4; }
+.blockingIssue { display: grid; grid-column: 1 / -1; gap: 3px; padding: 8px 9px; border-radius: 8px; background: rgba(255, 100, 107, 0.055); }
+.blockingIssue strong { color: #f3d9db; font-size: 0.69rem; }
+.blockingIssue small { color: #987c80; font-size: 0.6rem; }
+.fleetBlocker { padding: 8px 9px; border: 1px solid rgba(255, 100, 107, 0.22); border-radius: 8px; color: #ff9ba0; font-size: 0.65rem; line-height: 1.4; }
+.fleetBoundary { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.fleetBoundary p { margin: 0; color: #778494; font-size: 0.62rem; line-height: 1.4; }
+.fleetBoundary a { flex: none; color: #b99bea; font-size: 0.62rem; font-weight: 800; text-decoration: none; }
+.fleetBoundary a:hover { text-decoration: underline; }
+
 .target {
   display: grid;
   gap: 5px;
@@ -281,6 +355,11 @@
   .dispatchActions { grid-template-columns: 1fr; }
   .rescheduleActions, .dateMoveActions, .cancellationActions { grid-template-columns: 1fr; }
   .rescheduleActions button, .dateMoveActions button, .cancellationActions button { width: 100%; }
+  .fleetSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fleetSensitiveAction { grid-template-columns: 1fr; }
+  .fleetSensitiveAction button { width: 100%; }
+  .fleetSensitiveAction > small { grid-column: 1; }
+  .fleetBoundary { align-items: flex-start; flex-direction: column; }
   .dispatchActions > button { width: 100%; }
   .sensitiveCommand > small { grid-column: 1; }
   .sensitiveCommand button { width: 100%; }

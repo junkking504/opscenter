@@ -4,6 +4,7 @@ import type {
   EntityType,
 } from "@/lib/platform/contracts";
 import { dispatchActionDefinitions } from "@/lib/platform/actions/dispatch";
+import { fleetActionDefinitions } from "@/lib/platform/actions/fleet";
 import { getWorkItem, mutateWorkItem, type WorkItemMutation } from "@/lib/platform/persistence/work-items";
 
 type VersionedInput = { expectedVersion: number };
@@ -164,6 +165,7 @@ const workActionDefinitions: ActionDefinition<any>[] = [
 const definitions: ActionDefinition<any>[] = [
   ...workActionDefinitions,
   ...dispatchActionDefinitions,
+  ...fleetActionDefinitions,
 ];
 
 const registry = new Map(definitions.map((definition) => [definition.key, definition]));

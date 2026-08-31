@@ -53,6 +53,10 @@ assert.match(docs, /same-day hourly rescheduling/);
 assert.match(docs, /cancellation requests with a required reason/);
 assert.match(docs, /cross-date moves with risk-class 3 approval/);
 assert.match(docs, /pre-write current-date\/time checks/);
+assert.match(docs, /The Fleet control pack adds/);
+assert.match(docs, /risk-class 3 out-of-service requests/);
+assert.match(docs, /blocks return to service while any other out-of-service repair remains/);
+assert.match(docs, /LinxUp telemetry and checklist signals are advisory/);
 assert.match(docs, /only `MISSION_CONTROL` may change shared Dispatch or JunkWare state/);
 assert.match(docs, /Money, payroll, customer communication, access, deletion, and broad operational\s+changes remain approval-gated/);
 

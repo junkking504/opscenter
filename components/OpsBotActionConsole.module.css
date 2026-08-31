@@ -23,7 +23,8 @@
 .head > div > span,
 .ledgerHead span,
 .commandPane label > span,
-.sensitiveCommand label > span {
+.sensitiveCommand label > span,
+.controlTitle span {
   color: #79adf3;
   font-size: 0.65rem;
   font-weight: 850;
@@ -67,6 +68,7 @@
 
 .head button,
 .commands button,
+.dispatchActions button,
 .sensitiveCommand button,
 .approvals button {
   min-height: 38px;
@@ -83,6 +85,7 @@
 
 .head button:disabled,
 .commands button:disabled,
+.dispatchActions button:disabled,
 .sensitiveCommand button:disabled,
 .approvals button:disabled { cursor: wait; opacity: 0.5; }
 
@@ -125,6 +128,69 @@
   font: inherit;
   font-size: 0.74rem;
 }
+
+.dispatchControl {
+  display: grid;
+  gap: 10px;
+  margin: -2px -2px 4px;
+  padding: 13px;
+  border: 1px solid rgba(55, 214, 122, 0.2);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(55, 214, 122, 0.055), rgba(104, 167, 255, 0.025));
+}
+
+.controlTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.controlTitle > div { display: grid; gap: 3px; }
+.controlTitle strong { color: #fff; font-size: 0.82rem; }
+.controlTitle > small {
+  padding: 4px 7px;
+  border: 1px solid rgba(55, 214, 122, 0.25);
+  border-radius: 999px;
+  color: #8ce8af;
+  font-size: 0.59rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.controlTitle > small[data-mode="preview_simulation"] { border-color: rgba(246, 195, 67, 0.26); color: #f6d777; }
+
+.dispatchWarning {
+  padding: 8px 9px;
+  border: 1px solid rgba(246, 195, 67, 0.22);
+  border-radius: 8px;
+  background: rgba(246, 195, 67, 0.06);
+  color: #f6d777;
+  font-size: 0.66rem;
+}
+
+.dispatchTarget {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 9px;
+  background: rgba(4, 7, 12, 0.22);
+}
+.dispatchTarget > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dispatchTarget strong { color: #fff; font-size: 0.76rem; }
+.dispatchTarget span, .dispatchTarget small { color: #8f9bad; font-size: 0.62rem; }
+.dispatchTarget p { margin: 0; color: #a7b1c0; font-size: 0.67rem; }
+
+.dispatchActions {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+.dispatchActions > button { border-color: rgba(246, 195, 67, 0.32); background: rgba(246, 195, 67, 0.08); color: #f6d777; }
+.callAheadActions { display: flex; grid-column: 1 / -1; gap: 7px; }
+.callAheadActions button { flex: 1; }
+.dispatchBoundary { margin: 0; color: #778494; font-size: 0.62rem; line-height: 1.4; }
 
 .target {
   display: grid;
@@ -182,6 +248,7 @@
 .runs article > small { color: #7f8a99; font-size: 0.64rem; line-height: 1.35; }
 .approvals { display: flex; gap: 6px; margin-top: 2px; }
 .approvals button:last-child { border-color: rgba(255, 100, 107, 0.28); background: rgba(255, 100, 107, 0.06); color: #ff9ba0; }
+.separateApprover { flex: 1; align-self: center; color: #f6d777 !important; }
 .empty { padding: 18px; color: #7f8a99; font-size: 0.7rem; text-align: center; }
 
 @media (max-width: 1050px) {
@@ -194,6 +261,8 @@
   .disabled { gap: 12px; padding: 15px; }
   .head button { width: 100%; }
   .sensitiveCommand { grid-template-columns: 1fr; }
+  .dispatchActions { grid-template-columns: 1fr; }
+  .dispatchActions > button { width: 100%; }
   .sensitiveCommand > small { grid-column: 1; }
   .sensitiveCommand button { width: 100%; }
   .ledgerHead { grid-template-columns: repeat(3, 1fr); }

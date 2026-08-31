@@ -34,6 +34,8 @@ assert.deepEqual(definitions.map((definition) => definition.key), [
   "work.snooze.v1",
   "work.reopen.v1",
   "work.resolve_manually.v1",
+  "dispatch.assign_truck.v1",
+  "dispatch.call_ahead.v1",
 ]);
 assert.equal(new Set(definitions.map((definition) => definition.key)).size, definitions.length);
 
@@ -75,7 +77,7 @@ for (const contract of [
   "executeActionRun",
   "decidePersistedApproval",
   "verification.outcome === \"verified\"",
-  "Sensitive actions require approval from a different manager or administrator.",
+  "Approval-gated actions require approval from a different manager or administrator.",
 ]) {
   assert.ok(engine.includes(contract), `Action engine is missing ${contract}.`);
 }
@@ -102,8 +104,37 @@ for (const control of [
   "Snooze 1 hour",
   "Request resolution approval",
   "Action ledger",
+  "Dispatch control pack",
+  "Request truck approval",
+  "Mark called",
 ]) {
   assert.ok(consoleSource.includes(control), `OpsBot console is missing ${control}.`);
 }
+
+const assignment = registeredActionDefinition("dispatch.assign_truck.v1");
+assert.ok(assignment);
+assert.equal(assignment.riskClass, 2);
+assert.equal(decideActionPolicy(assignment, operator).decision.outcome, "approval_required");
+assert.deepEqual(assignment.validateInput({
+  date: "2026-08-31",
+  appointmentId: "4056261",
+  jobKey: "appt:4056261",
+  truck: "Truck# 4",
+  expectedSourceTruck: "Truck 2",
+  expectedRouteUpdatedAt: "",
+  sourceObservedAt: "2026-08-31T18:30:00.000Z",
+}), {
+  date: "2026-08-31",
+  appointmentId: "4056261",
+  jobKey: "appt:4056261",
+  truck: "Truck 4",
+  expectedSourceTruck: "Truck 2",
+  expectedRouteUpdatedAt: "",
+  sourceObservedAt: "2026-08-31T18:30:00.000Z",
+});
+
+const callAhead = registeredActionDefinition("dispatch.call_ahead.v1");
+assert.ok(callAhead);
+assert.equal(decideActionPolicy(callAhead, operator).decision.outcome, "allow");
 
 console.log("OpsBot action registry, policy, idempotency, approvals, verification, persistence, and control UI contracts passed.");

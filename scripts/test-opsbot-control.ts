@@ -11,6 +11,7 @@ assert.match(commandPage, /section === "overview" \|\| section === "opsbot"/, "O
 assert.match(commandPage, /<OpsBotControl/, "Command must render the OpsBot control surface.");
 assert.match(commandPage, /recommendations=\{commandExceptions\}/, "OpsBot recommendations must come from current Command conditions.");
 assert.match(commandPage, /kernelStatus=\{kernelDatabase\.status\}/, "OpsBot must disclose the real action-kernel state.");
+assert.match(commandPage, /kernelDatabase\.status === "ready" \? "Controlled execution"/, "The Command header must disclose when controlled execution is connected.");
 
 const nav = read("components/OpsNav.tsx");
 assert.match(nav, /label: "OpsBot Control"/, "Command navigation must expose OpsBot Control.");
@@ -47,6 +48,8 @@ for (const contract of [
 const docs = read("docs/OPSBOT_CONTROL.md");
 assert.match(docs, /OpsBot is the AI operator identity/);
 assert.match(docs, /OpsCenter OS remains the operating layer/);
+assert.match(docs, /The Dispatch control pack adds/);
+assert.match(docs, /only `MISSION_CONTROL` may change shared Dispatch or JunkWare state/);
 assert.match(docs, /Money, payroll, customer communication, access, deletion, and broad operational\s+changes remain approval-gated/);
 
 console.log("OpsBot Control route, source, autonomy, safety, and responsive contracts passed.");

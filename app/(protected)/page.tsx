@@ -669,7 +669,7 @@ export default async function DashboardPage({
         title={section === "opsbot" ? "OpsBot Control" : "Command"}
         compact
         subtitle={section === "opsbot"
-          ? `${shortMonthDay(date)} · Observe and recommend mode · Human approval retained`
+          ? `${shortMonthDay(date)} · ${kernelDatabase.status === "ready" ? "Controlled execution" : "Observe and recommend mode"} · Human approval retained`
           : `${shortMonthDay(date)} · ${jobs} completed job${jobs === 1 ? "" : "s"} · ${activeTruckCount} active truck${activeTruckCount === 1 ? "" : "s"}`}
         date={date}
         lastUpdated={metrics?.generated_at}

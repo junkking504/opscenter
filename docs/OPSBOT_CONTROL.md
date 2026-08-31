@@ -1,6 +1,6 @@
 # OpsBot Control
 
-Status: Controlled-action foundation; production activation pending
+Status: Work and Dispatch control foundation; production kernel activation pending
 
 Route: Command `/?section=opsbot`
 
@@ -37,10 +37,10 @@ The Operating Inbox UI is not a prerequisite. The control plane uses the shared
 kernel work and action contracts directly. If the kernel is disabled, the same
 Command surface remains useful and explicitly read-only.
 
-## Implemented vertical slice
+## Implemented control packs
 
-The current slice provides the control spine and a real end-to-end action path
-for OpsCenter work items:
+The work control pack provides the control spine and a real end-to-end action
+path for OpsCenter work items:
 
 - durable action runs, policy decisions, approvals, state transitions, and events;
 - actor-aware permission checks and separation of requester from approver;
@@ -51,15 +51,27 @@ for OpsCenter work items:
 - current Jobs, Krewe, Fleet, Finance, and freshness observations without a second data authority;
 - responsive desktop, tablet, and phone layouts.
 
-This is a complete control loop for the bounded work-item domain, not yet a
-claim that every external operational system is controllable.
+The Dispatch control pack adds:
+
+- a verified active-appointment roster from the complete JunkWare schedule;
+- call-ahead commands with current-state conflict protection and read-back verification;
+- truck assignment requests with stale-source and stale-local-state protection;
+- risk-class 2 approval by a different manager or administrator before assignment;
+- reuse of the existing serialized JunkWare adapter and assignment verification path;
+- a strict runtime guard: only `MISSION_CONTROL` may change shared Dispatch or JunkWare state;
+- preview simulation receipts that prove policy and verification without writing shared state.
+
+Together these provide complete governed loops for work state and the first
+Dispatch commands. They do not claim that every external operational system is
+controllable yet.
 
 ## Authority and safety
 
 Risk-class 0 and 1 human commands can execute when the actor has the required
 permission. Risk-class 2 and 3 commands, and agent-initiated writes, require
-human approval. The manual-resolution action is risk class 3 and must be
-approved by a different manager or admin.
+human approval. Approval-gated actions must be approved by a different manager
+or administrator. Manual resolution is risk class 3; truck assignment is risk
+class 2.
 
 Money, payroll, customer communication, access, deletion, and broad operational
 changes remain approval-gated. No autonomous production agent or unrestricted
@@ -73,9 +85,10 @@ silently overwrite source state.
 
 ## Remaining system coverage
 
-The next phases should move existing OpsCenter mutations behind this registry,
-then add bounded adapters for JunkWare scheduling, LinxUp fleet operations, QBO
-finance workflows, and Slack or customer communication. Each adapter must ship
+The next phases should move the remaining direct OpsCenter mutations behind
+this registry, then add rescheduling and cancellation, LinxUp fleet operations,
+QBO finance workflows, and Slack or customer communication. Each adapter must
+ship
 with its own permission, risk class, approval rule, idempotency strategy,
 verification source, audit payload, retry behavior, and recovery guidance.
 

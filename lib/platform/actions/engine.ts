@@ -178,8 +178,8 @@ export async function decideActionApproval(input: {
   if (!actorCanApprove(input.actor, "manager")) throw new Error("Manager approval is required.");
   const run = await getActionRun(input.actionRunId);
   if (!run) throw new Error("Action run not found.");
-  if (run.actorId === input.actor.id && run.riskClass >= 3) {
-    throw new Error("Sensitive actions require approval from a different manager or administrator.");
+  if (input.decision === "approved" && run.actorId === input.actor.id && run.riskClass >= 2) {
+    throw new Error("Approval-gated actions require approval from a different manager or administrator.");
   }
   const decided = await decidePersistedApproval({
     actionRunId: input.actionRunId,

@@ -3,6 +3,7 @@ import type {
   ActionVerification,
   EntityType,
 } from "@/lib/platform/contracts";
+import { dispatchActionDefinitions } from "@/lib/platform/actions/dispatch";
 import { getWorkItem, mutateWorkItem, type WorkItemMutation } from "@/lib/platform/persistence/work-items";
 
 type VersionedInput = { expectedVersion: number };
@@ -103,7 +104,7 @@ async function verifyWorkItem(
   };
 }
 
-const definitions: ActionDefinition<any>[] = [
+const workActionDefinitions: ActionDefinition<any>[] = [
   workMutationAction<VersionedInput>({
     key: "work.acknowledge.v1",
     title: "Acknowledge work item",
@@ -158,6 +159,11 @@ const definitions: ActionDefinition<any>[] = [
     ),
     emittedEvent: "work.resolved_manually.v1",
   }),
+];
+
+const definitions: ActionDefinition<any>[] = [
+  ...workActionDefinitions,
+  ...dispatchActionDefinitions,
 ];
 
 const registry = new Map(definitions.map((definition) => [definition.key, definition]));

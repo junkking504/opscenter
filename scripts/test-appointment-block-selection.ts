@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { isLafayetteServiceAddress } from "../lib/appointment-territory";
 
 const jobsMapSource = readFileSync(new URL("../components/JobsMap.tsx", import.meta.url), "utf8");
 const jobsPageSource = readFileSync(new URL("../app/(protected)/jobs/page.tsx", import.meta.url), "utf8");
@@ -99,8 +100,8 @@ assert.match(
 );
 assert.match(
   jobsPageSource,
-  /className=\{`ops-appointment-card-address \$\{territoryToneClass\(territory\)\}`\}/,
-  "Appointment addresses must inherit their territory presentation class.",
+  /className=\{`ops-appointment-card-address \$\{appointmentToneClass\(territory, job\.address\)\}`\}/,
+  "Appointment addresses must inherit their service-city-aware presentation class.",
 );
 assert.match(
   jobsMapSource,
@@ -111,6 +112,16 @@ assert.match(
   jobsCss,
   /\.is-lafayette \{\s*background: #00e13c;[\s\S]*?\.is-lafayette\.is-assigned-unfinished \{\s*background: #00f044;[\s\S]*?\.ops-appointment-card-address, \.ops-jobs-map-selection-address\)\.is-lafayette \{\s*color: #00e13c;/,
   "Lafayette addresses and truck-board blocks must share the bright-green territory presentation.",
+);
+assert.equal(
+  isLafayetteServiceAddress("3201 Kaliste Saloom Rd Lot #308 Lafayette, LA 70506"),
+  true,
+  "A Lafayette service city must retain the bright-green presentation even under another operating territory.",
+);
+assert.equal(
+  isLafayetteServiceAddress("264 Crestview Ave Baton Rouge, LA 70807"),
+  false,
+  "A non-Lafayette service city must retain its normal territory presentation.",
 );
 
 console.log("Appointment block selection checks passed.");

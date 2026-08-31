@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import AppointmentCancelDialog, { type AppointmentCancelTarget } from "@/components/AppointmentCancelDialog";
+import { isLafayetteServiceAddress } from "@/lib/appointment-territory";
 import type { JobRouteProximityPayload, JobTruckProximity } from "@/lib/job-route-proximity";
 import { buildJobRouteHistory } from "@/lib/job-route-history";
 import { parseTruckNumberFromLabel } from "@/lib/linxup-truck-label";
@@ -231,8 +232,11 @@ export function isClosedScheduleJob(job: Pick<JobsMapPoint, "statusBucket">): bo
 
 function territoryTone(job: JobsMapPoint): string {
   const territory = String(job.territory || "").toLowerCase();
-  let tone = "is-unknown-territory";
-  if (territory.includes("new orleans")) tone = "is-new-orleans";
+  let tone = isLafayetteServiceAddress(job.address) ? "is-lafayette" : "is-unknown-territory";
+  if (tone === "is-lafayette") {
+    // Lafayette presentation follows the service city even when JunkWare
+    // retains Baton Rouge as the appointment's operating territory.
+  } else if (territory.includes("new orleans")) tone = "is-new-orleans";
   else if (territory.includes("jefferson")) tone = "is-jefferson";
   else if (territory.includes("westbank")) tone = "is-westbank";
   else if (territory.includes("northshore")) tone = "is-northshore";

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { NextRequest } from "next/server";
+import { renderToStaticMarkup } from "react-dom/server";
+import { financeUnauthorizedState } from "../components/FinanceAccessGuard";
+import { opsNavigationItems } from "../components/navItems";
+import OpsRoleBadge from "../components/OpsRoleBadge";
 import {
   createAuthSessionCookieValue,
   inspectAuthSessionCookie,
@@ -13,6 +16,8 @@ import {
   opsRoleCan,
   requiredOpsPermission,
 } from "../lib/ops-roles";
+import { canShowCrewPayrollReview, canViewCrewPayroll } from "../lib/crew-payroll-access";
+import { opsShellSessionProps } from "../lib/ops-shell-session";
 import { middleware } from "../middleware";
 
 async function main() {
@@ -32,7 +37,15 @@ async function main() {
   process.env.OPS_AUTH_ROLE = "operator";
   assert.equal(opsAuthRole(opsAuthIdentity()), "operator");
   const operatorCookie = await createAuthSessionCookieValue(opsAuthIdentity());
-  assert.equal((await inspectAuthSessionCookie(operatorCookie)).session?.role, "operator", "Existing signed sessions must resolve the current configured role.");
+  const operatorInspection = await inspectAuthSessionCookie(operatorCookie);
+  assert.equal(operatorInspection.session?.role, "operator", "Existing signed sessions must resolve the current configured role.");
+
+  process.env.OPS_AUTH_ROLE_BINDINGS = "admin=admin";
+  assert.equal(
+    opsAuthRole("admin@different-domain.example"),
+    "operator",
+    "A local-part-shaped binding must not grant a role to a full address at another domain.",
+  );
 
   process.env.OPS_AUTH_ROLE_BINDINGS = JSON.stringify({
     "manager@junk-king.com": "manager",
@@ -75,18 +88,46 @@ async function main() {
   assert.equal((await cancellationResponse.json()).code, "role_forbidden");
   assert.equal(scheduleResponse.status, 200, "Operator Schedule access must remain available.");
 
-  const middlewareSource = readFileSync(new URL("../middleware.ts", import.meta.url), "utf8");
-  const navSource = readFileSync(new URL("../components/OpsNav.tsx", import.meta.url), "utf8");
-  const layoutSource = readFileSync(new URL("../app/(protected)/layout.tsx", import.meta.url), "utf8");
-  const shellSource = readFileSync(new URL("../components/OpsShell.tsx", import.meta.url), "utf8");
-  const crewPageSource = readFileSync(new URL("../app/(protected)/crew/page.tsx", import.meta.url), "utf8");
-  assert.ok(middlewareSource.includes("authorizeOpsRequest"), "Middleware must enforce role decisions server-side.");
-  assert.ok(middlewareSource.includes('code: "role_forbidden"'), "Denied APIs must expose a stable forbidden code.");
-  assert.ok(navSource.includes('item.href !== "/finance" || opsRoleCan(role, "finance.read")'), "Finance navigation must follow the role matrix.");
-  assert.ok(layoutSource.includes("sessionRole={session.role}"), "The authenticated role must reach the visible shell.");
-  assert.ok(shellSource.includes("JKLA · {sessionRole.toUpperCase()}"), "The active role must remain visible in the compact sidebar.");
-  assert.ok(crewPageSource.includes("canViewPayroll ? <th>Daily earnings</th> : null"), "Operator Krewe tables must omit daily earnings.");
-  assert.ok(crewPageSource.includes("canViewPayroll && payrollReview"), "Payroll correction controls must follow the manager permission.");
+  assert.equal(opsNavigationItems("operator").some((item) => item.href === "/finance"), false, "Operator navigation must omit Finance.");
+  assert.equal(opsNavigationItems("manager").some((item) => item.href === "/finance"), true, "Manager navigation must include Finance.");
+  assert.equal(opsNavigationItems("operator", true).some((item) => item.href === "/finance"), false, "Kernel-enabled navigation must retain the Finance role filter.");
+
+  assert.ok(operatorInspection.session);
+  const shellProps = opsShellSessionProps(operatorInspection.session);
+  assert.equal(shellProps.sessionRole, "operator", "The authenticated role must reach the visible shell props.");
+  const roleBadgeMarkup = renderToStaticMarkup(OpsRoleBadge({ role: shellProps.sessionRole }));
+  assert.match(roleBadgeMarkup, /JKLA · OPERATOR/, "The compact shell badge must render the active role.");
+
+  assert.equal(canViewCrewPayroll("operator"), false, "Operator Krewe views must omit payroll fields.");
+  assert.equal(canViewCrewPayroll("manager"), true, "Manager Krewe views must include payroll fields.");
+  assert.equal(canShowCrewPayrollReview("operator", { status: "review" }), false, "Operator Krewe views must omit payroll controls.");
+  assert.equal(canShowCrewPayrollReview("manager", { status: "review" }), true, "Manager Krewe views must include an available payroll control.");
+
+  const unauthorizedFinanceMarkup = renderToStaticMarkup(financeUnauthorizedState("operator"));
+  assert.match(unauthorizedFinanceMarkup, /Access restricted/, "An in-page Finance guard must render the unauthorized state.");
+  assert.doesNotMatch(
+    unauthorizedFinanceMarkup,
+    /revenue|margin|payroll|reconciliation|payments & recon|\$\d/i,
+    "The unauthorized Finance state must not render financial values or labels.",
+  );
+
+  process.env.OPS_ACCESS_TEAM_DOMAIN = "https://test-team.cloudflareaccess.com";
+  process.env.OPS_ACCESS_AUD = "test-access-audience";
+  const unauthenticatedPage = await middleware(new NextRequest("https://ops.example.test/fleet?view=maintenance"));
+  const unauthenticatedHead = await middleware(new NextRequest("https://ops.example.test/fleet", { method: "HEAD" }));
+  const unauthenticatedApi = await middleware(new NextRequest("https://ops.example.test/api/job-cancellation"));
+
+  for (const response of [unauthenticatedPage, unauthenticatedHead]) {
+    assert.equal(response.status, 307, "Unauthenticated page navigation must redirect to Cloudflare Access.");
+    const location = new URL(response.headers.get("location") || "");
+    assert.equal(location.origin, "https://test-team.cloudflareaccess.com");
+    assert.equal(location.pathname, "/cdn-cgi/access/login/ops.example.test");
+    assert.equal(location.searchParams.get("kid"), "test-access-audience");
+  }
+  assert.equal(unauthenticatedPage.headers.get("cache-control"), "no-store, max-age=0");
+  assert.equal(new URL(unauthenticatedPage.headers.get("location") || "").searchParams.get("redirect_url"), "/fleet?view=maintenance");
+  assert.equal(unauthenticatedApi.status, 401, "Unauthenticated API requests must retain a JSON 401 response.");
+  assert.deepEqual(await unauthenticatedApi.json(), { error: "Cloudflare Access authentication required." });
 
   console.log("OpsCenter role access checks passed.");
 }

@@ -1,8 +1,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import OpsShell from "@/components/OpsShell";
-import { AUTH_SESSION_COOKIE, opsAuthDisplayName, verifyAuthSessionCookie } from "@/lib/auth";
+import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
 import { resolveKernelDatabaseConfig } from "@/lib/platform/persistence/config";
+import { opsShellSessionProps } from "@/lib/ops-shell-session";
 
 export default async function ProtectedLayout({
   children,
@@ -18,9 +19,7 @@ export default async function ProtectedLayout({
 
   return (
     <OpsShell
-      sessionEmail={session.email}
-      sessionLabel={opsAuthDisplayName(session.email)}
-      sessionRole={session.role}
+      {...opsShellSessionProps(session)}
       inboxEnabled={inboxEnabled}
     >
       {children}

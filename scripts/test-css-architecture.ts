@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import postcss, { type Rule } from "postcss";
 
 const root = process.cwd();
 const layout = fs.readFileSync(path.join(root, "app/layout.tsx"), "utf8");
 const entry = fs.readFileSync(path.join(root, "app/ops-styles.css"), "utf8");
 const usability = fs.readFileSync(path.join(root, "app/ops-usability.css"), "utf8");
+const visualSystem = fs.readFileSync(path.join(root, "app/ops-visual-system.css"), "utf8");
 const jobsCss = fs.readFileSync(path.join(root, "app/(protected)/jobs/jobs.css"), "utf8");
 const maintenanceCss = fs.readFileSync(path.join(root, "app/(protected)/fleet/maintenance.css"), "utf8");
 const jobsPage = fs.readFileSync(path.join(root, "app/(protected)/jobs/page.tsx"), "utf8");
@@ -17,6 +19,8 @@ const styleFiles = [
   "ops-design-system.css",
   "dashboard-v2.css",
   "ops-usability.css",
+  "crew-responsive.css",
+  "compact-verifiers.css",
   "ops-visual-system.css",
 ];
 
@@ -43,6 +47,43 @@ for (const file of styleFiles) {
   assert.doesNotMatch(content, /^@media\s*$/m, `${file} must not contain orphaned media queries.`);
 }
 assert.match(entry, /@import "\.\/ops-visual-system\.css";/, "The visual system must remain the final shared cascade layer.");
+
+const visualRoot = postcss.parse(visualSystem);
+function declarationsFor(selector: string): Set<string> {
+  const declarations = new Set<string>();
+  visualRoot.walkRules((rule: Rule) => {
+    if (rule.selectors.map((entrySelector) => entrySelector.trim()).includes(selector)) {
+      rule.walkDecls((declaration) => {
+        declarations.add(declaration.prop);
+      });
+    }
+  });
+  return declarations;
+}
+
+for (const property of ["border-color", "background", "color"]) {
+  assert.ok(declarationsFor(".ops-nav-item:hover").has(property), `The final nav hover rule must provide ${property}.`);
+}
+for (const property of ["border-color", "background", "color", "box-shadow"]) {
+  assert.ok(declarationsFor(".ops-nav-item.active").has(property), `The final active nav rule must provide ${property}.`);
+}
+assert.ok(declarationsFor(".ops-nav-item.active .ops-nav-icon").has("color"), "The final active nav icon rule must provide color.");
+const focusSelector = ":where(a, button, input, select, textarea, summary):focus-visible";
+assert.deepEqual(
+  [...declarationsFor(focusSelector)].sort(),
+  ["outline", "outline-offset"],
+  "The final shared focus-visible rule must retain its visible ring.",
+);
+const reducedMotionDeclarations = new Set<string>();
+visualRoot.walkAtRules("media", (atRule) => {
+  if (atRule.params !== "(prefers-reduced-motion: reduce)") return;
+  atRule.walkDecls((declaration) => {
+    reducedMotionDeclarations.add(declaration.prop);
+  });
+});
+for (const property of ["scroll-behavior", "transition-duration", "animation-duration", "animation-iteration-count"]) {
+  assert.ok(reducedMotionDeclarations.has(property), `Reduced-motion handling must retain ${property}.`);
+}
 
 function hexRgb(hex: string) {
   const channels = hex.match(/[0-9a-f]{2}/gi)?.map((channel) => Number.parseInt(channel, 16));

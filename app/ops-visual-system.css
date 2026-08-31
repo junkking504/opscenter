@@ -461,11 +461,75 @@ body {
   background: var(--oc-surface-raised);
   color: var(--oc-text-muted);
 }
+.ops-page-subnav-mobile {
+  display: none;
+}
 :where(a, button, input, select, textarea, summary):focus-visible {
   outline: 2px solid var(--oc-focus);
   outline-offset: 2px;
 }
 @media (max-width: 720px) {
+  .ops-page-subnav {
+    display: none !important;
+  }
+  .ops-page-subnav-mobile {
+    position: relative;
+    display: block;
+    width: 100%;
+  }
+  .ops-page-subnav-mobile > summary {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--oc-line);
+    border-radius: var(--oc-radius-md);
+    background: var(--oc-surface-raised);
+    color: var(--oc-text);
+    cursor: pointer;
+    list-style: none;
+  }
+  .ops-page-subnav-mobile > summary::-webkit-details-marker {
+    display: none;
+  }
+  .ops-page-subnav-mobile > summary small::after {
+    content: " ↓";
+  }
+  .ops-page-subnav-mobile[open] > summary small::after {
+    content: " ↑";
+  }
+  .ops-page-subnav-mobile > nav {
+    display: grid;
+    gap: 2px;
+    margin-top: 6px;
+    padding: 6px;
+    border: 1px solid var(--oc-line);
+    border-radius: var(--oc-radius-md);
+    background: var(--oc-surface);
+    box-shadow: var(--oc-shadow-md);
+  }
+  .ops-page-subnav-mobile a {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: var(--oc-radius-sm);
+    color: var(--oc-text-muted);
+    text-decoration: none;
+  }
+  .ops-page-subnav-mobile a:hover,
+  .ops-page-subnav-mobile a:focus-visible,
+  .ops-page-subnav-mobile a.active {
+    background: var(--oc-interaction-tint);
+    color: var(--oc-text);
+  }
+  .ops-page-subnav-mobile a.active {
+    font-weight: 800;
+  }
   .ops-main :where(
     button,
     input:not([type="checkbox"]):not([type="radio"]),

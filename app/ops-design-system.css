@@ -646,39 +646,6 @@ body {
   text-shadow: 0 0 8px rgba(0, 175, 76, 0.45);
 }
 
-.ops-brand-mark {
-  position: relative;
-  display: grid;
-  grid-template-rows: 12px 1fr;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  padding: 3px 0 5px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.20);
-  border-radius: 5px;
-  background: var(--ops-red);
-  color: white;
-  font-family: var(--ops-font-display);
-  font-size: 1.25rem;
-  font-weight: 900;
-  letter-spacing: 0.01em;
-  line-height: 1;
-  transform: skewX(-2deg);
-  box-shadow: 8px 8px 0 rgba(237, 28, 36, 0.14);
-}
-
-.ops-brand-mark::after {
-  content: "";
-  position: absolute;
-  right: -10px;
-  bottom: -12px;
-  width: 30px;
-  height: 30px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  transform: rotate(45deg);
-}
-
 .ops-brand-crown {
   font-family: Georgia, serif;
   font-size: 0.65rem;
@@ -3638,11 +3605,6 @@ body {
   border-color: rgba(96, 165, 250, 0.2);
   background: rgba(12, 16, 22, 0.96);
   backdrop-filter: blur(16px);
-}
-
-.ops-jobs-search-field input {
-  min-height: 42px;
-  font-size: 0.86rem;
 }
 
 .ops-jobs-map-card {

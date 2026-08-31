@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { inboxNavItem, primaryNavItems } from "@/components/navItems";
+import { opsNavigationItems } from "@/components/navItems";
 import { titleCaseLabel } from "@/lib/title-case";
-import { authorizeOpsRequest, opsRoleCan, type InteractiveOpsRole } from "@/lib/ops-roles";
-import styles from "./OpsNav.module.css";
+import { authorizeOpsRequest, type InteractiveOpsRole } from "@/lib/ops-roles";
 
 type SidebarSubItem = {
   label: string;
@@ -201,8 +200,7 @@ export default function OpsNav({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const allNavigationItems = inboxEnabled ? [...primaryNavItems, inboxNavItem] : [...primaryNavItems];
-  const navigationItems = allNavigationItems.filter((item) => item.href !== "/finance" || opsRoleCan(role, "finance.read"));
+  const navigationItems = opsNavigationItems(role, inboxEnabled);
 
   const date = searchParams.get("date");
   const mode = searchParams.get("mode");
@@ -229,16 +227,9 @@ export default function OpsNav({
   }
 
   if (variant === "bottom") {
-    const mobileItems = inboxEnabled
-      ? [
-          { ...primaryNavItems[0], mobileLabel: "Today" },
-          inboxNavItem,
-          primaryNavItems[1],
-        ]
-      : navigationItems;
     return (
-      <nav className={`ops-bottom-nav${inboxEnabled ? ` ${styles.fourItems}` : ""}`} aria-label="Primary navigation">
-        {mobileItems.map((item) => {
+      <nav className="ops-bottom-nav" aria-label="Primary navigation">
+        {navigationItems.map((item) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (
             <Link
@@ -253,20 +244,6 @@ export default function OpsNav({
             </Link>
           );
         })}
-        {inboxEnabled ? (
-          <button
-            type="button"
-            className={`ops-bottom-nav-item ops-bottom-nav-more ${styles.moreButton}`}
-            aria-label="Open navigation menu"
-            onClick={() => {
-              const toggle = document.getElementById("ops-sidebar-toggle") as HTMLInputElement | null;
-              if (toggle) toggle.checked = true;
-            }}
-          >
-            <span>•••</span>
-            <small>More</small>
-          </button>
-        ) : null}
       </nav>
     );
   }

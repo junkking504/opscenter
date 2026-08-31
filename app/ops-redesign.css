@@ -445,12 +445,6 @@ textarea {
   border-radius: 8px;
 }
 
-.ops-jobs-search-field input {
-  border-color: var(--oc-line-strong);
-  background: #f3f4f2;
-  color: #20242b;
-}
-
 .ops-jobs-workspace-jump {
   display: none;
 }
@@ -584,12 +578,6 @@ textarea {
 
 .ops-jobs-page .ops-appointment-card-address {
   color: #66707c;
-}
-
-.ops-jobs-page .ops-physical-truck-badge {
-  border-color: #c7d7ec;
-  background: #eef5ff;
-  color: #416d9e;
 }
 
 .ops-jobs-page .ops-appointment-site-time {

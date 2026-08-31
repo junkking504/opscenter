@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { titleCaseLabel } from "@/lib/title-case";
 
@@ -19,6 +20,7 @@ export default function PageSubnav({
   sections: PageSubnavItem[];
 }) {
   const activeLink = useRef<HTMLAnchorElement>(null);
+  const activeSection = sections.find((section) => section.active) || sections[0];
 
   useEffect(() => {
     const link = activeLink.current;
@@ -28,19 +30,42 @@ export default function PageSubnav({
   }, []);
 
   return (
-    <nav className="ops-page-subnav" aria-label={`${title} sections`}>
-      {sections.map((section) => (
-        <a
-          key={`${section.label}-${section.href}`}
-          href={section.href}
-          ref={section.active ? activeLink : undefined}
-          className={`${section.active ? "active" : ""}${section.attention ? " needs-attention" : ""}`}
-          aria-current={section.active ? "page" : undefined}
-        >
-          <span>{titleCaseLabel(section.label)}</span>
-          {section.badge !== undefined ? <small>{section.badge}</small> : null}
-        </a>
-      ))}
-    </nav>
+    <>
+      <nav className="ops-page-subnav" aria-label={`${title} sections`}>
+        {sections.map((section) => (
+          <Link
+            key={`${section.label}-${section.href}`}
+            href={section.href}
+            prefetch={false}
+            ref={section.active ? activeLink : undefined}
+            className={`${section.active ? "active" : ""}${section.attention ? " needs-attention" : ""}`}
+            aria-current={section.active ? "page" : undefined}
+          >
+            <span>{titleCaseLabel(section.label)}</span>
+            {section.badge !== undefined ? <small>{section.badge}</small> : null}
+          </Link>
+        ))}
+      </nav>
+      <details className="ops-page-subnav-mobile">
+        <summary>
+          <span>{titleCaseLabel(activeSection?.label || title)}</span>
+          <small>All sections</small>
+        </summary>
+        <nav aria-label={`${title} mobile sections`}>
+          {sections.map((section) => (
+            <Link
+              key={`mobile-${section.label}-${section.href}`}
+              href={section.href}
+              prefetch={false}
+              className={`${section.active ? "active" : ""}${section.attention ? " needs-attention" : ""}`}
+              aria-current={section.active ? "page" : undefined}
+            >
+              <span>{titleCaseLabel(section.label)}</span>
+              {section.badge !== undefined ? <small>{section.badge}</small> : null}
+            </Link>
+          ))}
+        </nav>
+      </details>
+    </>
   );
 }

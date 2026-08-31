@@ -71,7 +71,8 @@ if (!mapping) {
 const history = path.join(dataRoot, "history", "linxup");
 const rawFile = path.join(history, "push", serviceDate, `position-${String(payload.positionId || positionDate)}.json`);
 const locationFile = path.join(history, `linxup_location_${serviceDate}.json`);
-writeJson(rawFile, { schema_version: 1, source: "LinxUp V3 Push API", received_at: new Date().toISOString(), payload });
+const receivedAt = new Date().toISOString();
+writeJson(rawFile, { schema_version: 1, source: "LinxUp V3 Push API", received_at: receivedAt, payload });
 const current = readJson(locationFile);
 const currentPoints = Array.isArray(current.points) ? current.points.filter((point): point is RecordValue => Boolean(point) && typeof point === "object") : [];
 const point = {
@@ -84,6 +85,8 @@ const point = {
   ignition_state: String(payload.status || ""),
   heading: payload.heading || payload.direction || null,
   source_record_id: `v3-position-${String(payload.positionId || positionDate)}`,
+  delivery_source: "v3_position_push",
+  received_at: receivedAt,
 };
 const key = `${point.tracker_id}|${point.timestamp}|${point.latitude.toFixed(7)}|${point.longitude.toFixed(7)}`;
 const points = [...currentPoints.filter((candidate) => `${candidate.tracker_id}|${candidate.timestamp}|${Number(candidate.latitude).toFixed(7)}|${Number(candidate.longitude).toFixed(7)}` !== key), point]
@@ -94,7 +97,18 @@ writeJson(locationFile, {
   source: "LinxUp V3 Push API",
   date: serviceDate,
   timezone: "America/Chicago",
-  collection_timestamp: new Date().toISOString(),
+  collection_timestamp: receivedAt,
+  delivery: {
+    authoritative_source: "v3_position_push",
+    current_mode: "v3_position_push",
+    fallback_source: "v2_poll",
+    v3_position_push: {
+      latest_received_at: receivedAt,
+      latest_position_at: point.timestamp,
+      latest_truck: point.truck_number,
+      sync_status: "current",
+    },
+  },
   points,
 });
 console.log(JSON.stringify({ accepted: true, normalized: true, serviceDate, truck: mapping.junkware_truck_number }));

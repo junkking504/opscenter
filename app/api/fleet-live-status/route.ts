@@ -40,6 +40,9 @@ export async function GET(request: Request) {
       status: truck.operationalStatus,
       freshness: truck.freshnessLabel,
       lastGpsUpdate: truck.lastGpsUpdate,
+      gpsDeliveryMode: truck.gpsDeliveryMode,
+      gpsFallbackActive: truck.gpsFallbackActive,
+      latestV3PositionAt: truck.latestV3PositionAt,
       driver: truck.driver,
       navigator: truck.navigator,
       recentPoints: truck.routePoints.slice(-8).map((point) => ({

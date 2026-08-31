@@ -15,11 +15,25 @@ publishes a newly confirmed truck-arrival Slack alert before returning success.
 Configure the V3 **Position URL** to the endpoint above and set the same bearer
 token in LinxUp and the Mission Control Keychain item
 `com.opscenter.linxup-push-bearer-token`. Do not put either token in Git, Slack,
-or a Business bundle. The V2 minute collector remains only as a
-rollback/backfill mechanism until a real V3 position is received and verified;
-then disable `com.openclaw.opsbot.linxup-collector`.
+or a Business bundle.
 
-This removes OpsCenter's polling delay. The timestamp remains the tracker’s
+V3 Position Push is the authoritative live source whenever a current push is
+present. The V2 minute collector remains enabled as a verification, backfill,
+and automatic fallback path. A current V3 point wins over a newer polled point;
+if no V3 point has arrived within the configured authority window, OpsCenter
+uses the newest V2 point and explicitly reports `v2_poll_fallback` rather than
+presenting the fallback as authoritative live push data.
+
+`/api/health` exposes `linxupDeliveryMode`, `linxupV3UpdatedAt`,
+`linxupV3AgeSeconds`, and `linxupFallbackActive`. A healthy V2 snapshot with a
+silent V3 receiver returns HTTP 200 as `degraded-linxup-v3-fallback`; stale V2
+and V3 data remains a hard `stale-linxup-data` failure. Provider configuration
+is not complete until a real (non-synthetic) LinxUp event is stored below
+`data/history/linxup/push/<date>/`, appears in the normalized snapshot with
+`delivery_source: v3_position_push`, and makes health report
+`linxupDeliveryMode: v3_position_push`.
+
+The authoritative push path removes OpsCenter's polling delay. The timestamp remains the tracker’s
 reported `positionDate`, and confirmed job arrivals still require the existing
 two-point, two-minute, 125-meter dwell evidence rule. A historical appointment
 visit, or a later isolated GPS point at the same address, must never be shown

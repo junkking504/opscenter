@@ -1,6 +1,7 @@
 import PageHeader from "@/components/PageHeader";
 import DataHealth from "@/components/DataHealth";
 import OperatingInbox from "@/components/OperatingInbox";
+import OpsBotControl from "@/components/OpsBotControl";
 import { resolveKernelDatabaseConfig } from "@/lib/platform/persistence/config";
 import CommandBrief, {
   type CommandBriefException,
@@ -505,13 +506,13 @@ export default async function DashboardPage({
   if (view === "monthly") {
     return renderMonthlyDashboard(date, requestedSection);
   }
-  const section = ["overview", "crew", "fleet"].includes(requestedSection)
+  const section = ["overview", "opsbot", "crew", "fleet"].includes(requestedSection)
     ? requestedSection
     : "overview";
   const metrics = readMetrics(date);
   const marketing = buildSearchKingsView(date.slice(0, 7));
   const slackDigest = section === "overview" ? await readSlackDailyDigest(date) : null;
-  const commandMap = section === "overview" ? buildCommandMapData(date) : null;
+  const commandMap = section === "overview" || section === "opsbot" ? buildCommandMapData(date) : null;
 
   const crew = crewRows(metrics);
   const activeCrew = crew.filter((row) => workedOrAttributedToJobToday(row));
@@ -665,15 +666,21 @@ export default async function DashboardPage({
   return (
     <div className="ops-dashboard ops-daily-dashboard">
       <PageHeader
-        title="Command"
+        title={section === "opsbot" ? "OpsBot Control" : "Command"}
         compact
-        subtitle={`${shortMonthDay(date)} · ${jobs} completed job${jobs === 1 ? "" : "s"} · ${activeTruckCount} active truck${activeTruckCount === 1 ? "" : "s"}`}
+        subtitle={section === "opsbot"
+          ? `${shortMonthDay(date)} · Observe and recommend mode · Human approval retained`
+          : `${shortMonthDay(date)} · ${jobs} completed job${jobs === 1 ? "" : "s"} · ${activeTruckCount} active truck${activeTruckCount === 1 ? "" : "s"}`}
         date={date}
         lastUpdated={metrics?.generated_at}
         sections={section === "overview" ? [
           { label: "Overview", href: `/?date=${date}&section=overview#command-overview`, active: true },
           { label: "Operations", href: `/?date=${date}&section=overview#slack-alerts-title` },
-          { label: "Live Map", href: `/?date=${date}&section=overview#jobs-map` },
+          { label: "OpsBot", href: `/?date=${date}&section=opsbot` },
+        ] : section === "opsbot" ? [
+          { label: "Command", href: `/?date=${date}&section=overview` },
+          { label: "OpsBot", href: `/?date=${date}&section=opsbot`, active: true },
+          { label: "Monthly", href: `/?date=${date}&view=monthly` },
         ] : [
           { label: "Overview", href: `/?date=${date}&section=overview`, active: false },
           { label: "Krewe Snapshot", href: `/?date=${date}&section=crew`, active: section === "crew" },
@@ -681,6 +688,25 @@ export default async function DashboardPage({
           { label: "Monthly", href: `/?date=${date}&view=monthly` },
         ]}
       />
+
+      {section === "opsbot" ? (
+        <OpsBotControl
+          date={date}
+          observedAt={metrics?.generated_at}
+          kernelStatus={kernelDatabase.status}
+          scheduledJobs={commandSchedule.scheduled}
+          completedJobs={commandSchedule.completedJobs}
+          unclosedJobs={commandSchedule.unclosed}
+          activeCrew={activeCrew.length}
+          trackedTrucks={commandMap?.truckLocations.length || 0}
+          staleTrucks={staleCommandTrucks}
+          unmappedAppointments={commandMapCoverage?.needsVerification || 0}
+          grossRevenue={grossRevenue}
+          dailyRevenuePlan={dailyRevenuePlan}
+          laborPercent={currentLaborCostPercent}
+          recommendations={commandExceptions}
+        />
+      ) : null}
 
       {section === "overview" ? <>
         {date === chicagoDateKey() ? <DataHealth compact strip /> : null}

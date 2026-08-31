@@ -68,6 +68,7 @@
     "verify:planning-geocodes": "node --import tsx scripts/test-planning-geocodes.ts",
     "verify:dispatch-map-quality": "node --import tsx scripts/test-dispatch-map-quality.ts",
     "verify:command-schedule-summary": "node --import tsx scripts/test-command-schedule-summary.ts",
+    "verify:opsbot-control": "node --import tsx scripts/test-opsbot-control.ts",
     "verify:production-release-gate": "zsh scripts/test-production-release-gate.sh",
     "verify:collector-release-lifecycle": "node --import tsx scripts/test-deploy-collector-release-lifecycle.ts",
     "verify:junkware-appointment-note": "node --import tsx scripts/test-junkware-appointment-note.ts",

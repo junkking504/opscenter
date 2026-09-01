@@ -19,7 +19,13 @@ answers how full each physical truck is right now.
        1/2 truck
        some metal, mostly junk
 
-   It replies with the recorded status and shows the contents on the Schedule.
+   The truck line may be `Truck 9`, `T9`, `#9`, or a standalone `9`. Load size
+   may be entered as a fraction or decimal (`1/2 truck`, `1/2 BRT`, `.5 truck`,
+   `.5 BRT`) or as its pickup-load equivalent (`3 pickups`, `3 loads`, `3pu`,
+   `3 pu`). One OpsCenter truck equals six pickup loads. These truck-number
+   variations also work for photo captions, confirmations, and yard resets.
+   OpsBot replies with the recorded status and shows the contents on the
+   Schedule.
 4. When a truck unloads, the dispatcher taps **Dumped** or **Metal yard**, or
    reports the reset to OpsBot. A dump expense resets the truck only after that
    expense is verified in JunkWare. The event retains the day's audit trail.

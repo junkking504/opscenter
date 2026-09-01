@@ -1,13 +1,20 @@
 import type { ActionDefinition } from "@/lib/platform/contracts";
 import {
   executeFinanceManualBonus,
+  executeFinancePaymentExceptionReview,
   executeFinancePayrollCorrection,
   verifyFinanceManualBonus,
+  verifyFinancePaymentExceptionReview,
   verifyFinancePayrollCorrection,
   type FinanceManualBonusInput,
+  type FinancePaymentExceptionReviewInput,
   type FinancePayrollCorrectionInput,
 } from "@/lib/finance-control";
 import { normalizeEmployeeKey } from "@/lib/manual-bonuses";
+import {
+  PAYMENT_EXCEPTION_REVIEW_DISPOSITIONS,
+  type PaymentExceptionReviewDisposition,
+} from "@/lib/payment-exception-reviews";
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? value as Record<string, unknown> : {};
@@ -29,6 +36,42 @@ function note(value: unknown, label: string): string {
   const text = String(value || "").replace(/\s+/g, " ").trim().slice(0, 1_000);
   if (text.length < 5) throw new Error(`${label} of at least 5 characters is required.`);
   return text;
+}
+
+function boundedText(value: unknown, label: string, minimum: number, maximum: number): string {
+  const text = String(value || "").replace(/\s+/g, " ").trim().slice(0, maximum);
+  if (text.length < minimum) throw new Error(`${label} of at least ${minimum} characters is required.`);
+  return text;
+}
+
+function rejectSensitiveReviewText(values: string[]): void {
+  const text = values.join(" ");
+  const prohibited = [
+    /xox[baprs]-[a-z0-9-]+/i,
+    /\bbearer\s+[a-z0-9._-]+/i,
+    /\b(?:password|secret|token)\s*[:=]\s*\S+/i,
+    /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i,
+    /(?<!\d)(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}(?!\d)/,
+  ];
+  const paymentCard = Array.from(text.matchAll(/(?:\d[ -]?){13,19}/g)).some((match) => {
+    const digits = match[0].replace(/\D/g, "");
+    if (digits.length < 13 || digits.length > 19) return false;
+    let total = 0;
+    let doubleDigit = false;
+    for (let index = digits.length - 1; index >= 0; index -= 1) {
+      let digit = Number(digits[index]);
+      if (doubleDigit) {
+        digit *= 2;
+        if (digit > 9) digit -= 9;
+      }
+      total += digit;
+      doubleDigit = !doubleDigit;
+    }
+    return total % 10 === 0;
+  });
+  if (paymentCard || prohibited.some((pattern) => pattern.test(text))) {
+    throw new Error("Payment review fields cannot contain credentials, contact details, or payment-card data.");
+  }
 }
 
 function expectedObservation(input: Record<string, unknown>, key: string, label: string): string {
@@ -80,6 +123,31 @@ export function validateFinancePayrollCorrection(value: unknown): FinancePayroll
     note: note(input.note, "A correction reason"),
     expectedPayrollStoreUpdatedAt: expectedObservation(input, "expectedPayrollStoreUpdatedAt", "payroll correction"),
     expectedCorrectionUpdatedAt: expectedObservation(input, "expectedCorrectionUpdatedAt", "employee correction"),
+  };
+}
+
+export function validateFinancePaymentExceptionReview(value: unknown): FinancePaymentExceptionReviewInput {
+  const input = record(value);
+  const exceptionId = String(input.exceptionId || "").trim();
+  const disposition = String(input.disposition || "").trim() as PaymentExceptionReviewDisposition;
+  const owner = boundedText(input.owner, "A payment review owner", 2, 80);
+  const nextAction = boundedText(input.nextAction, "A payment review next action", 5, 240);
+  const reviewNote = boundedText(input.note, "A payment review evidence note", 5, 1_000);
+  const expectedObservationKey = String(input.expectedObservationKey || "").trim();
+  if (!/^payment_exception_[0-9a-f]{24}$/.test(exceptionId)) throw new Error("A valid payment exception is required.");
+  if (!PAYMENT_EXCEPTION_REVIEW_DISPOSITIONS.includes(disposition)) throw new Error("A valid payment review disposition is required.");
+  if (!/^[0-9a-f]{64}$/.test(expectedObservationKey)) throw new Error("The payment reconciliation observation is invalid.");
+  rejectSensitiveReviewText([owner, nextAction, reviewNote]);
+  return {
+    date: dateKey(input.date),
+    exceptionId,
+    disposition,
+    owner,
+    nextAction,
+    note: reviewNote,
+    expectedReviewStoreUpdatedAt: expectedObservation(input, "expectedReviewStoreUpdatedAt", "payment review"),
+    expectedReviewUpdatedAt: expectedObservation(input, "expectedReviewUpdatedAt", "payment-exception review"),
+    expectedObservationKey,
   };
 }
 
@@ -140,5 +208,36 @@ export const financeActionDefinitions: ActionDefinition<any>[] = [
     retryableErrors: (error) => !/VERSION_CONFLICT|required|valid|identity mismatch|no more than/i.test(error instanceof Error ? error.message : String(error)),
     recoveryGuidance: "Refresh the employee payroll correction, confirm the time and rate evidence, then submit a new request against the current correction version.",
     emittedEventTypes: ["finance.payroll_correction_requested.v1", "finance.payroll_correction_verified.v1"],
+  },
+  {
+    key: "finance.record_payment_exception_review.v1",
+    version: 1,
+    title: "Record payment-exception review",
+    riskClass: 2,
+    supportedEntityTypes: ["finance"],
+    requiredPermission: "sensitive.write",
+    validateInput: validateFinancePaymentExceptionReview,
+    redactInput: (input) => ({ ...input }),
+    idempotencyKey: ({ entity, input }) => [
+      entity.id,
+      input.expectedObservationKey,
+      input.expectedReviewUpdatedAt || "new",
+      input.disposition,
+      input.owner.toLowerCase(),
+      input.nextAction.toLowerCase(),
+      input.note,
+    ].join("|"),
+    execute: async (context) => {
+      if (context.entity.id !== context.input.exceptionId) throw new Error("Payment exception identity mismatch.");
+      const receipt = await executeFinancePaymentExceptionReview(context.input, context.actor.displayName);
+      return { outcome: "completed", verificationAvailable: true, metadata: { receipt } };
+    },
+    verify: async (context, result) => verifyFinancePaymentExceptionReview(
+      result.metadata?.receipt as Awaited<ReturnType<typeof executeFinancePaymentExceptionReview>>,
+      context.input,
+    ),
+    retryableErrors: (error) => !/VERSION_CONFLICT|required|valid|identity mismatch|no longer present|cannot contain/i.test(error instanceof Error ? error.message : String(error)),
+    recoveryGuidance: "Refresh Payments & Recon, confirm the exception still exists, then submit a new owner, disposition, and next action against the current source observation.",
+    emittedEventTypes: ["finance.payment_exception_review_requested.v1", "finance.payment_exception_review_verified.v1"],
   },
 ];

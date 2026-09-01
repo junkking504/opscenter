@@ -43,6 +43,7 @@ assert.deepEqual(definitions.map((definition) => definition.key), [
   "fleet.return_to_service.v1",
   "finance.record_manual_bonus.v1",
   "finance.record_payroll_correction.v1",
+  "finance.record_payment_exception_review.v1",
   "krewe.record_availability.v1",
   "krewe.schedule_call_in.v1",
   "communications.post_ops_command_notice.v1",
@@ -124,6 +125,7 @@ for (const control of [
   "Request out-of-service approval",
   "Request return-to-service approval",
   "Finance control pack",
+  "Request exception review approval",
   "Request bonus approval",
   "Request payroll correction approval",
   "Krewe control pack",
@@ -357,6 +359,55 @@ assert.throws(() => payrollCorrection.validateInput({
   expectedPayrollStoreUpdatedAt: "",
   expectedCorrectionUpdatedAt: "",
 }), /HH:MM AM\/PM/);
+
+const paymentExceptionReview = registeredActionDefinition("finance.record_payment_exception_review.v1");
+assert.ok(paymentExceptionReview);
+assert.equal(paymentExceptionReview.riskClass, 2);
+assert.equal(decideActionPolicy(paymentExceptionReview, operator).decision.outcome, "deny");
+assert.equal(decideActionPolicy(paymentExceptionReview, manager).decision.outcome, "approval_required");
+assert.deepEqual(paymentExceptionReview.validateInput({
+  date: "2026-09-01",
+  exceptionId: `payment_exception_${"a".repeat(24)}`,
+  disposition: "qbo_follow_up",
+  owner: " Mission   Control ",
+  nextAction: " Verify the QBO transaction and refresh reconciliation. ",
+  note: " JunkWare reference and amount reviewed against the current snapshot. ",
+  expectedReviewStoreUpdatedAt: "",
+  expectedReviewUpdatedAt: "",
+  expectedObservationKey: "b".repeat(64),
+}), {
+  date: "2026-09-01",
+  exceptionId: `payment_exception_${"a".repeat(24)}`,
+  disposition: "qbo_follow_up",
+  owner: "Mission Control",
+  nextAction: "Verify the QBO transaction and refresh reconciliation.",
+  note: "JunkWare reference and amount reviewed against the current snapshot.",
+  expectedReviewStoreUpdatedAt: "",
+  expectedReviewUpdatedAt: "",
+  expectedObservationKey: "b".repeat(64),
+});
+assert.throws(() => paymentExceptionReview.validateInput({
+  date: "2026-09-01",
+  exceptionId: `payment_exception_${"a".repeat(24)}`,
+  disposition: "clear_in_qbo",
+  owner: "Mission Control",
+  nextAction: "Change the transaction.",
+  note: "Reviewed the source evidence.",
+  expectedReviewStoreUpdatedAt: "",
+  expectedReviewUpdatedAt: "",
+  expectedObservationKey: "b".repeat(64),
+}), /valid payment review disposition/);
+assert.throws(() => paymentExceptionReview.validateInput({
+  date: "2026-09-01",
+  exceptionId: `payment_exception_${"a".repeat(24)}`,
+  disposition: "keep_open",
+  owner: "Mission Control",
+  nextAction: "Keep the source exception open.",
+  note: "Card 4111 1111 1111 1111 needs review.",
+  expectedReviewStoreUpdatedAt: "",
+  expectedReviewUpdatedAt: "",
+  expectedObservationKey: "b".repeat(64),
+}), /cannot contain credentials, contact details, or payment-card data/);
 
 const kreweAvailability = registeredActionDefinition("krewe.record_availability.v1");
 assert.ok(kreweAvailability);

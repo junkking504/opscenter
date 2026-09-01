@@ -230,14 +230,41 @@ type FinanceSnapshot = {
       net_difference: number;
     };
     exceptionCount: number;
+    exceptions: Array<{
+      exceptionId: string;
+      date: string;
+      type: string;
+      reference: string;
+      junkwareAmount: number | null;
+      qboAmount: number | null;
+      observationKey: string;
+      suggestedDisposition: PaymentReviewDisposition;
+      reviewCurrent: boolean;
+      review: {
+        recordId: string;
+        disposition: PaymentReviewDisposition;
+        owner: string;
+        nextAction: string;
+        note: string;
+        sourceObservationKey: string;
+        updatedAt: string;
+        updatedBy: string;
+      } | null;
+    }>;
+    reviewStoreUpdatedAt: string;
+    currentReviewCount: number;
+    generatedAt: string;
     merchantCenterAvailable: boolean;
     merchantCenterFresh: boolean;
+    merchantCenterCollectedAt: string;
     merchantSourceName: string;
   };
   manualBonuses: { count: number; totalAmount: number; storeUpdatedAt: string };
   payrollCorrections: { count: number; storeUpdatedAt: string };
   authorityNotice: string;
 };
+
+type PaymentReviewDisposition = "keep_open" | "qbo_follow_up" | "junkware_follow_up" | "refund_verification" | "no_issue_confirmed";
 
 async function responseJson<T>(response: Response): Promise<T> {
   const payload = await response.json().catch(() => ({})) as T & { error?: string };
@@ -276,6 +303,7 @@ function actionLabel(actionKey: string): string {
     "fleet.return_to_service.v1": "Fleet return to service",
     "finance.record_manual_bonus.v1": "Finance manual bonus",
     "finance.record_payroll_correction.v1": "Finance payroll correction",
+    "finance.record_payment_exception_review.v1": "Payment exception review",
     "krewe.record_availability.v1": "Krewe availability",
     "krewe.schedule_call_in.v1": "Krewe call-in commitment",
     "communications.post_ops_command_notice.v1": "Ops Command Slack notice",
@@ -311,6 +339,14 @@ function moneyLabel(value: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value || 0);
 }
 
+function paymentReviewNextAction(disposition: PaymentReviewDisposition): string {
+  if (disposition === "qbo_follow_up") return "Verify the transaction in QBO and refresh reconciliation.";
+  if (disposition === "junkware_follow_up") return "Verify the payment in JunkWare and refresh reconciliation.";
+  if (disposition === "refund_verification") return "Verify correction or refund evidence in QBO before refreshing.";
+  if (disposition === "no_issue_confirmed") return "Document why the source exception remains expected.";
+  return "Keep open until refreshed source evidence resolves the exception.";
+}
+
 const dispatchTimeOptions = Array.from({ length: 24 }, (_, hour) => hour * 60);
 
 export default function OpsBotActionConsole({ date, enabled }: { date: string; enabled: boolean }) {
@@ -329,6 +365,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [selectedLinxupTruckId, setSelectedLinxupTruckId] = useState("");
   const [selectedKreweEmployeeName, setSelectedKreweEmployeeName] = useState("");
   const [selectedFinanceEmployeeName, setSelectedFinanceEmployeeName] = useState("");
+  const [selectedFinanceExceptionId, setSelectedFinanceExceptionId] = useState("");
   const [dispatchTruck, setDispatchTruck] = useState("");
   const [dispatchStartMinutes, setDispatchStartMinutes] = useState("");
   const [dispatchDestinationDate, setDispatchDestinationDate] = useState(date);
@@ -349,6 +386,10 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [payrollClockOut, setPayrollClockOut] = useState("");
   const [payrollHourlyRate, setPayrollHourlyRate] = useState("");
   const [payrollNote, setPayrollNote] = useState("");
+  const [paymentReviewDisposition, setPaymentReviewDisposition] = useState<PaymentReviewDisposition>("keep_open");
+  const [paymentReviewOwner, setPaymentReviewOwner] = useState("");
+  const [paymentReviewNextStep, setPaymentReviewNextStep] = useState("");
+  const [paymentReviewNote, setPaymentReviewNote] = useState("");
   const [resolutionReason, setResolutionReason] = useState("");
   const [loading, setLoading] = useState(enabled);
   const [busy, setBusy] = useState("");
@@ -404,6 +445,11 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       setSelectedFinanceEmployeeName((current) => current && financeResult.payload?.employees.some((employee) => employee.name === current)
         ? current
         : financeResult.payload?.employees[0]?.name || "");
+      setSelectedFinanceExceptionId((current) => current && financeResult.payload?.paymentReconciliation.exceptions.some((exception) => exception.exceptionId === current)
+        ? current
+        : financeResult.payload?.paymentReconciliation.exceptions.find((exception) => !exception.reviewCurrent)?.exceptionId
+          || financeResult.payload?.paymentReconciliation.exceptions[0]?.exceptionId
+          || "");
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load OpsBot control state.");
     } finally {
@@ -439,6 +485,10 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     () => finance?.employees.find((employee) => employee.name === selectedFinanceEmployeeName) || null,
     [finance, selectedFinanceEmployeeName],
   );
+  const selectedFinanceException = useMemo(
+    () => finance?.paymentReconciliation.exceptions.find((exception) => exception.exceptionId === selectedFinanceExceptionId) || null,
+    [finance, selectedFinanceExceptionId],
+  );
   useEffect(() => {
     setDispatchTruck(selectedAppointment?.effectiveTruck || "");
     setDispatchStartMinutes(selectedAppointment?.appointmentStartMinutes == null ? "" : String(selectedAppointment.appointmentStartMinutes));
@@ -469,6 +519,17 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     setPayrollHourlyRate("");
     setPayrollNote("");
   }, [date, selectedFinanceEmployeeName]);
+  useEffect(() => {
+    const disposition = selectedFinanceException?.reviewCurrent && selectedFinanceException.review
+      ? selectedFinanceException.review.disposition
+      : selectedFinanceException?.suggestedDisposition || "keep_open";
+    setPaymentReviewDisposition(disposition);
+    setPaymentReviewOwner(selectedFinanceException?.reviewCurrent ? selectedFinanceException.review?.owner || "" : "");
+    setPaymentReviewNextStep(selectedFinanceException?.reviewCurrent
+      ? selectedFinanceException.review?.nextAction || paymentReviewNextAction(disposition)
+      : paymentReviewNextAction(disposition));
+    setPaymentReviewNote("");
+  }, [date, selectedFinanceException]);
   const recentRuns = snapshot?.runs.slice(0, 8) || [];
 
   async function requestWorkAction(actionKey: string, extra: Record<string, unknown> = {}) {
@@ -636,6 +697,44 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       await load();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "The Finance action request failed.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function requestPaymentExceptionReview() {
+    if (!selectedFinanceException || !finance) return;
+    const actionKey = "finance.record_payment_exception_review.v1";
+    setBusy(actionKey);
+    setError("");
+    try {
+      await responseJson(await fetch("/api/platform/action-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actionKey,
+          entity: {
+            type: "finance",
+            id: selectedFinanceException.exceptionId,
+            label: `${selectedFinanceException.type} · ${selectedFinanceException.reference}`,
+          },
+          input: {
+            date,
+            exceptionId: selectedFinanceException.exceptionId,
+            disposition: paymentReviewDisposition,
+            owner: paymentReviewOwner,
+            nextAction: paymentReviewNextStep,
+            note: paymentReviewNote,
+            expectedReviewStoreUpdatedAt: finance.paymentReconciliation.reviewStoreUpdatedAt,
+            expectedReviewUpdatedAt: selectedFinanceException.review?.updatedAt || "",
+            expectedObservationKey: selectedFinanceException.observationKey,
+          },
+        }),
+      }));
+      setPaymentReviewNote("");
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The payment-exception review request failed.");
     } finally {
       setBusy("");
     }
@@ -1164,7 +1263,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
 
           <section className={styles.financeControl} aria-labelledby="opsbot-finance-title">
             <div className={styles.controlTitle}>
-              <div><span>Finance control pack</span><strong id="opsbot-finance-title">Daily close + payroll command</strong></div>
+              <div><span>Finance control pack</span><strong id="opsbot-finance-title">Daily close + payment review + payroll</strong></div>
               {finance ? <small data-mode={finance.mode}>{finance.mode === "live_control" ? "Mission Control" : "Preview simulation"}</small> : null}
             </div>
             {financeAccessDenied ? (
@@ -1182,8 +1281,77 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
                 <div className={styles.financeEvidence}>
                   <span>JunkWare {moneyLabel(finance.paymentReconciliation.summary.junkware_total)}</span>
                   <span>QBO {moneyLabel(finance.paymentReconciliation.summary.merchant_center_total)}</span>
+                  <span>{finance.paymentReconciliation.currentReviewCount} current exception reviews</span>
                   <span>{finance.manualBonuses.count} bonuses · {moneyLabel(finance.manualBonuses.totalAmount)}</span>
                 </div>
+                {finance.paymentReconciliation.exceptions.length > 0 ? (
+                  <div className={styles.paymentReviewControl}>
+                    <div className={styles.paymentReviewHead}>
+                      <div><strong>Payment exception follow-up</strong><small>Risk 2 · separate approver</small></div>
+                      <label>
+                        <span>Payment exception</span>
+                        <select value={selectedFinanceExceptionId} onChange={(event) => setSelectedFinanceExceptionId(event.target.value)} disabled={loading || Boolean(busy)}>
+                          {finance.paymentReconciliation.exceptions.map((exception) => (
+                            <option key={exception.exceptionId} value={exception.exceptionId}>
+                              {exception.type} · {exception.reference} · {exception.reviewCurrent ? "reviewed" : "open"}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    {selectedFinanceException ? (
+                      <>
+                        <div className={styles.paymentExceptionTarget}>
+                          <div><strong>{selectedFinanceException.type}</strong><span>{selectedFinanceException.reference}</span></div>
+                          <p>JunkWare {selectedFinanceException.junkwareAmount == null ? "—" : moneyLabel(selectedFinanceException.junkwareAmount)} · QBO {selectedFinanceException.qboAmount == null ? "—" : moneyLabel(selectedFinanceException.qboAmount)}</p>
+                        </div>
+                        {selectedFinanceException.review ? (
+                          <div className={styles.paymentReviewReceipt} data-current={selectedFinanceException.reviewCurrent}>
+                            <span>{selectedFinanceException.reviewCurrent ? "Current review" : "Prior evidence — source changed"}</span>
+                            <p>{selectedFinanceException.review.owner} · {selectedFinanceException.review.nextAction}</p>
+                            <small>{selectedFinanceException.review.disposition.replaceAll("_", " ")} · {selectedFinanceException.review.updatedBy}</small>
+                          </div>
+                        ) : null}
+                        <div className={styles.paymentReviewForm}>
+                          <label>
+                            <span>Disposition</span>
+                            <select value={paymentReviewDisposition} onChange={(event) => {
+                              const disposition = event.target.value as PaymentReviewDisposition;
+                              setPaymentReviewDisposition(disposition);
+                              setPaymentReviewNextStep(paymentReviewNextAction(disposition));
+                            }} disabled={Boolean(busy)}>
+                              <option value="keep_open">Keep exception open</option>
+                              <option value="qbo_follow_up">QBO follow-up</option>
+                              <option value="junkware_follow_up">JunkWare follow-up</option>
+                              <option value="refund_verification">Refund verification</option>
+                              <option value="no_issue_confirmed">No issue confirmed</option>
+                            </select>
+                          </label>
+                          <label>
+                            <span>Owner</span>
+                            <input value={paymentReviewOwner} onChange={(event) => setPaymentReviewOwner(event.target.value)} placeholder="Accountable manager" maxLength={80} disabled={Boolean(busy)} />
+                          </label>
+                          <label className={styles.paymentReviewNextAction}>
+                            <span>Next action</span>
+                            <input value={paymentReviewNextStep} onChange={(event) => setPaymentReviewNextStep(event.target.value)} placeholder="State the source verification required" maxLength={240} disabled={Boolean(busy)} />
+                          </label>
+                          <label className={styles.paymentReviewEvidence}>
+                            <span>Evidence note</span>
+                            <input value={paymentReviewNote} onChange={(event) => setPaymentReviewNote(event.target.value)} placeholder="State what was checked; do not enter card or contact data" maxLength={1000} disabled={Boolean(busy)} />
+                          </label>
+                          <button
+                            type="button"
+                            disabled={Boolean(busy) || paymentReviewOwner.trim().length < 2 || paymentReviewNextStep.trim().length < 5 || paymentReviewNote.trim().length < 5}
+                            onClick={() => void requestPaymentExceptionReview()}
+                          >Request exception review approval</button>
+                          <small>This records internal ownership and evidence only. It cannot clear the source exception or change QBO or JunkWare.</small>
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className={styles.paymentReviewEmpty}>No current payment exception requires review. Controls unlock only from refreshed source evidence.</div>
+                )}
                 <label>
                   <span>Finance employee</span>
                   <select value={selectedFinanceEmployeeName} onChange={(event) => setSelectedFinanceEmployeeName(event.target.value)} disabled={loading || Boolean(busy)}>

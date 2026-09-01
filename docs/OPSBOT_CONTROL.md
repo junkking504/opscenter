@@ -118,16 +118,28 @@ The Finance control pack adds:
   reconciliation evidence, manual bonuses, and payroll corrections;
 - reconciliation status, exception count, source freshness, and difference shown inline
   without creating a second accounting authority;
+- source-backed payment exceptions selectable with their JunkWare and QBO amounts while
+  customer, contact, and card data stay out of the control record;
+- risk-class 2 payment-exception reviews with a required disposition, owner, next action,
+  evidence note, and approval by a different manager or administrator;
+- the exact source observation, review-store version, and prior record version as conflict
+  checks so newer reconciliation evidence cannot be reviewed through a stale approval;
+- current and prior-review states that make a saved review prior evidence when the
+  reconciliation is regenerated or its QBO collection evidence changes;
+- durable internal review records with attribution, audit history, and authoritative
+  read-back of the exact saved owner, disposition, and next action;
 - risk-class 3 manual bonuses and payroll corrections that require a different manager
   or administrator to approve;
 - bounded amount and rate inputs, required evidence notes, and employee identity checks;
 - store and record observations that reject an approval when a newer Finance change exists;
 - authoritative read-back of the exact bonus or payroll correction after execution;
 - a strict runtime guard: only `MISSION_CONTROL` may change shared bonus or payroll-correction state;
-- preview simulation receipts that leave both shared Finance input stores unchanged.
+- review-field guards that reject credentials, contact details, and payment-card data;
+- preview simulation receipts that leave payment-review, bonus, and payroll stores unchanged.
 
-Payment exceptions and QBO evidence remain read-only and are never auto-cleared. This
-pack does not issue refunds, write QBO transactions, or mark a Daily Close complete.
+Payment reconciliation and QBO evidence remain read-only and are never auto-cleared.
+The review is internal follow-up state only: it never clears the source exception, posts
+or refunds a QBO transaction, changes JunkWare, or marks a Daily Close complete.
 
 The Krewe control pack adds:
 
@@ -188,6 +200,8 @@ An internal Ops Command Slack notice is risk class 2, is approval-gated, and is
 restricted to the owned internal channel. Customer-facing communications remain locked.
 A LinxUp device review is risk class 2 and approval-gated; it records bounded internal
 follow-up only and cannot mutate telemetry, mapping, provider state, or Fleet availability.
+A payment-exception review is risk class 2 and approval-gated; it records only internal
+ownership, disposition, next action, and evidence against the exact source observation.
 
 Money, payroll, customer communication, access, deletion, and broad operational
 changes remain approval-gated. No autonomous production agent or unrestricted
@@ -202,8 +216,9 @@ silently overwrite source state.
 ## Remaining system coverage
 
 The next phases should move the remaining direct OpsCenter mutations behind
-this registry, then add separately approved QBO write workflows and customer
-communication. Each adapter must ship
+this registry, then add separately approved customer communication and only those QBO
+write workflows backed by a connected runtime plus exact external read-back. Direct QBO
+writes remain locked until that authority and verification path exist. Each adapter must ship
 with its own permission, risk class, approval rule, idempotency strategy,
 verification source, audit payload, retry behavior, and recovery guidance.
 

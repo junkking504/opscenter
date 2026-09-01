@@ -74,6 +74,7 @@
 .communicationsNotice button,
 .fleetSensitiveAction button,
 .linxupReviewAction button,
+.paymentReviewForm button,
 .financeAction button,
 .sensitiveCommand button,
 .approvals button {
@@ -97,6 +98,7 @@
 .communicationsNotice button:disabled,
 .fleetSensitiveAction button:disabled,
 .linxupReviewAction button:disabled,
+.paymentReviewForm button:disabled,
 .financeAction button:disabled,
 .sensitiveCommand button:disabled,
 .approvals button:disabled { cursor: wait; opacity: 0.5; }
@@ -564,6 +566,61 @@
   font-size: 0.59rem;
 }
 
+.paymentReviewControl {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(246, 195, 67, 0.18);
+  border-radius: 9px;
+  background: rgba(4, 7, 12, 0.22);
+}
+.paymentReviewHead { display: grid; grid-template-columns: minmax(0, 0.55fr) minmax(220px, 1fr); align-items: end; gap: 9px; }
+.paymentReviewHead > div { display: grid; gap: 3px; align-self: center; }
+.paymentReviewHead strong { color: #fff; font-size: 0.72rem; }
+.paymentReviewHead small { color: #f6d777; font-size: 0.56rem; }
+.paymentReviewHead label { display: grid; gap: 5px; }
+
+.paymentExceptionTarget {
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.paymentExceptionTarget > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.paymentExceptionTarget strong { color: #fff; font-size: 0.69rem; }
+.paymentExceptionTarget span { color: #9edff6; font-size: 0.61rem; font-weight: 800; }
+.paymentExceptionTarget p { margin: 0; color: #8996a6; font-size: 0.61rem; }
+
+.paymentReviewReceipt {
+  display: grid;
+  gap: 3px;
+  padding: 7px 8px;
+  border-left: 2px solid #f6c343;
+  background: rgba(246, 195, 67, 0.05);
+}
+.paymentReviewReceipt[data-current="true"] { border-left-color: #37d67a; background: rgba(55, 214, 122, 0.05); }
+.paymentReviewReceipt span { color: #f6d777; font-size: 0.57rem; font-weight: 850; text-transform: uppercase; }
+.paymentReviewReceipt[data-current="true"] span { color: #8ce8af; }
+.paymentReviewReceipt p { margin: 0; color: #a7b1c0; font-size: 0.63rem; line-height: 1.4; }
+.paymentReviewReceipt small { color: #738291; font-size: 0.56rem; }
+
+.paymentReviewForm { display: grid; grid-template-columns: minmax(150px, 0.55fr) minmax(150px, 0.45fr) minmax(0, 1fr); align-items: end; gap: 7px; }
+.paymentReviewForm label { display: grid; gap: 5px; }
+.paymentReviewNextAction { grid-column: 1 / 3; }
+.paymentReviewEvidence { grid-column: 3; }
+.paymentReviewForm button { grid-column: 1 / -1; border-color: rgba(246, 195, 67, 0.32); background: rgba(246, 195, 67, 0.08); color: #f6d777; }
+.paymentReviewForm > small { grid-column: 1 / -1; color: #7f8a99; font-size: 0.58rem; line-height: 1.4; }
+.paymentReviewEmpty {
+  padding: 9px;
+  border: 1px dashed rgba(140, 232, 175, 0.2);
+  border-radius: 8px;
+  color: #8fb6a0;
+  font-size: 0.63rem;
+  line-height: 1.4;
+}
+
 .financeActions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .financeAction {
   display: grid;
@@ -690,6 +747,9 @@
   .linxupReviewAction button { width: 100%; }
   .linxupBoundary { flex-direction: column; }
   .financeSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .paymentReviewHead, .paymentReviewForm { grid-template-columns: 1fr; }
+  .paymentReviewNextAction, .paymentReviewEvidence, .paymentReviewForm button, .paymentReviewForm > small { grid-column: 1; }
+  .paymentReviewForm button { width: 100%; }
   .financeActions { grid-template-columns: 1fr; }
   .financeInputGrid, .payrollTimeGrid { grid-template-columns: 1fr !important; }
   .financeBoundary { align-items: flex-start; flex-direction: column; }

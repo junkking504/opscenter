@@ -38,6 +38,25 @@ Matching is one-to-one and intentionally conservative:
 - card last four, when QBO returns it, and customer name resolve duplicate amounts;
 - ambiguous rows remain exceptions and are never silently paired.
 
+## Governed exception review
+
+OpsBot Control presents the current source-backed exception rows inside its Finance
+control pack. A manager can request the registered
+`finance.record_payment_exception_review.v1` action with a disposition, accountable
+owner, next action, and evidence note. The risk-class 2 request requires approval by a
+different manager or administrator.
+
+The request carries the exact reconciliation observation hash, review-store version, and
+prior review version. Approval is rejected if the exception disappears, the reconciliation
+evidence changes, or another review is saved first. A review becomes visibly prior evidence
+when regenerated reconciliation or new QBO collection evidence changes its observation.
+
+The saved record is an internal follow-up ledger only. It never marks the source exception
+resolved, changes JunkWare, posts or refunds a QBO transaction, or marks Daily Close
+complete. Preview execution returns a verified simulation receipt and leaves the shared
+review store unchanged. Review fields reject credentials, contact details, and payment-card
+data.
+
 ## Security and safety
 
 - The collector uses read-only GET queries and never creates, changes, deletes, refunds, or posts a QBO transaction.

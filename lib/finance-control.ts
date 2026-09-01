@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import type { ActionVerification } from "@/lib/platform/contracts";
 import {
   normalizeEmployeeKey,
@@ -11,11 +12,36 @@ import {
   readPayrollCorrectionStore,
   upsertPayrollCorrection,
 } from "@/lib/payroll-corrections";
-import { buildDailyPaymentReconciliation, type PaymentReconciliationView } from "@/lib/payment-reconciliation";
+import {
+  buildDailyPaymentReconciliation,
+  type PaymentExceptionRow,
+  type PaymentReconciliationView,
+} from "@/lib/payment-reconciliation";
+import {
+  paymentExceptionReviewRecord,
+  readPaymentExceptionReviewStore,
+  savePaymentExceptionReview,
+  type PaymentExceptionReviewDisposition,
+  type PaymentExceptionReviewRecord,
+} from "@/lib/payment-exception-reviews";
 import { crewRows, readMetrics } from "@/lib/opsData";
 import { getOpsRuntime } from "@/lib/runtime";
 
 export type FinanceControlMode = "live_control" | "preview_simulation";
+export type FinanceReconciliationReader = (date: string) => PaymentReconciliationView;
+
+export type FinancePaymentException = {
+  exceptionId: string;
+  date: string;
+  type: PaymentExceptionRow["type"];
+  reference: string;
+  junkwareAmount: number | null;
+  qboAmount: number | null;
+  observationKey: string;
+  suggestedDisposition: PaymentExceptionReviewDisposition;
+  reviewCurrent: boolean;
+  review: Pick<PaymentExceptionReviewRecord, "recordId" | "disposition" | "owner" | "nextAction" | "note" | "sourceObservationKey" | "updatedAt" | "updatedBy"> | null;
+};
 
 export type FinanceControlSnapshot = {
   date: string;
@@ -35,6 +61,9 @@ export type FinanceControlSnapshot = {
   > & {
     summary: PaymentReconciliationView["summary"];
     exceptionCount: number;
+    exceptions: FinancePaymentException[];
+    reviewStoreUpdatedAt: string;
+    currentReviewCount: number;
   };
   manualBonuses: {
     count: number;
@@ -67,11 +96,33 @@ export type FinancePayrollCorrectionInput = {
   expectedCorrectionUpdatedAt: string;
 };
 
+export type FinancePaymentExceptionReviewInput = {
+  date: string;
+  exceptionId: string;
+  disposition: PaymentExceptionReviewDisposition;
+  owner: string;
+  nextAction: string;
+  note: string;
+  expectedReviewStoreUpdatedAt: string;
+  expectedReviewUpdatedAt: string;
+  expectedObservationKey: string;
+};
+
 export type FinanceExecutionReceipt = {
   mode: FinanceControlMode;
   recordId: string;
   employeeName: string;
   workDate: string;
+  changed: boolean;
+  verified: boolean;
+  summary: string;
+  evidence: Record<string, unknown>;
+};
+
+export type FinancePaymentExceptionReviewReceipt = {
+  mode: FinanceControlMode;
+  recordId: string;
+  exceptionId: string;
   changed: boolean;
   verified: boolean;
   summary: string;
@@ -110,8 +161,82 @@ function financeEmployees(date: string): Array<{ name: string; normalizedName: s
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
-export function readFinanceControlSnapshot(date: string): FinanceControlSnapshot {
-  const reconciliation = buildDailyPaymentReconciliation(date);
+export function paymentExceptionId(row: PaymentExceptionRow): string {
+  return `payment_exception_${crypto.createHash("sha256").update(JSON.stringify({
+    date: row.date,
+    type: row.type,
+    reference: row.reference,
+    customer: row.customer,
+  })).digest("hex").slice(0, 24)}`;
+}
+
+export function paymentExceptionObservationKey(
+  row: PaymentExceptionRow,
+  reconciliation: Pick<PaymentReconciliationView, "status" | "generatedAt" | "merchantCenterCollectedAt">,
+): string {
+  return crypto.createHash("sha256").update(JSON.stringify({
+    row: {
+      date: row.date,
+      type: row.type,
+      reference: row.reference,
+      customer: row.customer,
+      cardLastFour: row.cardLastFour,
+      junkwareAmount: row.junkwareAmount,
+      qboAmount: row.merchantAmount,
+    },
+    status: reconciliation.status,
+    generatedAt: reconciliation.generatedAt,
+    merchantCenterCollectedAt: reconciliation.merchantCenterCollectedAt,
+  })).digest("hex");
+}
+
+function suggestedDisposition(type: PaymentExceptionRow["type"]): PaymentExceptionReviewDisposition {
+  if (type === "Missing in QBO") return "qbo_follow_up";
+  if (type === "QBO only") return "junkware_follow_up";
+  if (type === "Amount mismatch") return "refund_verification";
+  return "keep_open";
+}
+
+function paymentExceptions(
+  reconciliation: PaymentReconciliationView,
+  reviewStore = readPaymentExceptionReviewStore(),
+): FinancePaymentException[] {
+  return reconciliation.exceptions.map((row): FinancePaymentException => {
+    const exceptionId = paymentExceptionId(row);
+    const observationKey = paymentExceptionObservationKey(row, reconciliation);
+    const review = reviewStore.records.find((candidate) => candidate.exceptionId === exceptionId) || null;
+    return {
+      exceptionId,
+      date: row.date,
+      type: row.type,
+      reference: row.reference,
+      junkwareAmount: row.junkwareAmount,
+      qboAmount: row.merchantAmount,
+      observationKey,
+      suggestedDisposition: suggestedDisposition(row.type),
+      reviewCurrent: Boolean(review && review.sourceObservationKey === observationKey),
+      review: review ? {
+        recordId: review.recordId,
+        disposition: review.disposition,
+        owner: review.owner,
+        nextAction: review.nextAction,
+        note: review.note,
+        sourceObservationKey: review.sourceObservationKey,
+        updatedAt: review.updatedAt,
+        updatedBy: review.updatedBy,
+      } : null,
+    };
+  }).sort((left, right) => Number(left.reviewCurrent) - Number(right.reviewCurrent)
+    || `${left.type}|${left.reference}`.localeCompare(`${right.type}|${right.reference}`));
+}
+
+export function readFinanceControlSnapshot(
+  date: string,
+  reconciliationReader: FinanceReconciliationReader = buildDailyPaymentReconciliation,
+): FinanceControlSnapshot {
+  const reconciliation = reconciliationReader(date);
+  const reviewStore = readPaymentExceptionReviewStore();
+  const exceptions = paymentExceptions(reconciliation, reviewStore);
   const bonusStore = readManualBonusStore();
   const bonusSummary = summarizeManualBonusesForDate(date);
   const payrollStore = readPayrollCorrectionStore();
@@ -121,6 +246,7 @@ export function readFinanceControlSnapshot(date: string): FinanceControlSnapshot
     reconciliation.merchantCenterCollectedAt || "",
     bonusStore.updatedAt,
     payrollStore.updatedAt,
+    reviewStore.updatedAt,
   ].filter(Boolean).sort().at(-1) || "";
   return {
     date,
@@ -132,6 +258,9 @@ export function readFinanceControlSnapshot(date: string): FinanceControlSnapshot
       status: reconciliation.status,
       summary: reconciliation.summary,
       exceptionCount: reconciliation.exceptions.length,
+      exceptions,
+      reviewStoreUpdatedAt: reviewStore.updatedAt,
+      currentReviewCount: exceptions.filter((exception) => exception.reviewCurrent).length,
       generatedAt: reconciliation.generatedAt,
       merchantCenterAvailable: reconciliation.merchantCenterAvailable,
       merchantCenterFresh: reconciliation.merchantCenterFresh,
@@ -148,7 +277,7 @@ export function readFinanceControlSnapshot(date: string): FinanceControlSnapshot
       count: corrections.length,
       storeUpdatedAt: payrollStore.updatedAt,
     },
-    authorityNotice: "Payment exceptions and QBO evidence are read-only and never auto-cleared. Bonus and payroll changes require a separate manager or administrator approval.",
+    authorityNotice: "Payment reviews record internal ownership and next steps only. They never clear an exception, post or refund a QBO transaction, or change JunkWare. Bonus and payroll changes require separate approval.",
   };
 }
 
@@ -237,6 +366,84 @@ export async function executeFinancePayrollCorrection(
   };
 }
 
+function currentPaymentException(
+  input: FinancePaymentExceptionReviewInput,
+  reconciliationReader: FinanceReconciliationReader,
+): { exception: FinancePaymentException; currentReview: PaymentExceptionReviewRecord | null; snapshot: FinanceControlSnapshot } {
+  const snapshot = readFinanceControlSnapshot(input.date, reconciliationReader);
+  if (snapshot.paymentReconciliation.reviewStoreUpdatedAt !== input.expectedReviewStoreUpdatedAt) {
+    throw new Error("VERSION_CONFLICT: Payment-exception review state changed after this request was prepared.");
+  }
+  const exception = snapshot.paymentReconciliation.exceptions.find((candidate) => candidate.exceptionId === input.exceptionId);
+  if (!exception) throw new Error("The payment exception is no longer present in the current reconciliation.");
+  if (exception.observationKey !== input.expectedObservationKey) {
+    throw new Error("VERSION_CONFLICT: Payment reconciliation evidence changed after this request was prepared.");
+  }
+  const currentReview = paymentExceptionReviewRecord(input.exceptionId);
+  if (String(currentReview?.updatedAt || "") !== input.expectedReviewUpdatedAt) {
+    throw new Error("VERSION_CONFLICT: The payment-exception review changed after this request was prepared.");
+  }
+  return { exception, currentReview, snapshot };
+}
+
+export async function executeFinancePaymentExceptionReview(
+  input: FinancePaymentExceptionReviewInput,
+  actorLabel = "Approved OpsCenter finance manager",
+  reconciliationReader: FinanceReconciliationReader = buildDailyPaymentReconciliation,
+): Promise<FinancePaymentExceptionReviewReceipt> {
+  const { exception, currentReview, snapshot } = currentPaymentException(input, reconciliationReader);
+  const mode = financeControlMode();
+  const evidence = {
+    date: input.date,
+    exceptionId: exception.exceptionId,
+    exceptionType: exception.type,
+    reference: exception.reference,
+    disposition: input.disposition,
+    sourceObservationKey: exception.observationKey,
+    sourceGeneratedAt: snapshot.paymentReconciliation.generatedAt,
+    sourceMerchantCollectedAt: snapshot.paymentReconciliation.merchantCenterCollectedAt,
+    sourceStatus: snapshot.paymentReconciliation.status,
+  };
+  if (mode === "preview_simulation") {
+    return {
+      mode,
+      recordId: currentReview?.recordId || "preview-simulation",
+      exceptionId: exception.exceptionId,
+      changed: true,
+      verified: true,
+      summary: "Preview simulation verified; no payment review, QBO transaction, refund, or JunkWare state was changed.",
+      evidence,
+    };
+  }
+  const record = savePaymentExceptionReview({
+    exceptionId: exception.exceptionId,
+    date: input.date,
+    exceptionType: exception.type,
+    reference: exception.reference,
+    disposition: input.disposition,
+    owner: input.owner,
+    nextAction: input.nextAction,
+    note: input.note,
+    sourceObservationKey: exception.observationKey,
+    sourceGeneratedAt: snapshot.paymentReconciliation.generatedAt || "",
+    sourceMerchantCollectedAt: snapshot.paymentReconciliation.merchantCenterCollectedAt || "",
+    sourceStatus: snapshot.paymentReconciliation.status,
+    updatedBy: actorLabel,
+  }, {
+    storeUpdatedAt: input.expectedReviewStoreUpdatedAt,
+    recordUpdatedAt: input.expectedReviewUpdatedAt,
+  });
+  return {
+    mode,
+    recordId: record.recordId,
+    exceptionId: record.exceptionId,
+    changed: true,
+    verified: true,
+    summary: `${record.exceptionType} review verified in Finance follow-up state.`,
+    evidence: { ...evidence, recordId: record.recordId, updatedAt: record.updatedAt },
+  };
+}
+
 export async function verifyFinanceManualBonus(
   receipt: FinanceExecutionReceipt,
   input: FinanceManualBonusInput,
@@ -286,5 +493,32 @@ export async function verifyFinancePayrollCorrection(
     verifiedAt: correction.updatedAt,
     summary: receipt.summary,
     evidence: { correctionId: correction.correctionId, workDate: correction.workDate, updatedAt: correction.updatedAt },
+  };
+}
+
+export async function verifyFinancePaymentExceptionReview(
+  receipt: FinancePaymentExceptionReviewReceipt,
+  input: FinancePaymentExceptionReviewInput,
+): Promise<ActionVerification> {
+  if (receipt.mode === "preview_simulation") {
+    return { outcome: "verified", verifiedAt: new Date().toISOString(), summary: receipt.summary, evidence: receipt.evidence };
+  }
+  const review = paymentExceptionReviewRecord(input.exceptionId);
+  if (
+    !review
+    || review.recordId !== receipt.recordId
+    || review.disposition !== input.disposition
+    || review.owner !== input.owner
+    || review.nextAction !== input.nextAction
+    || review.note !== input.note
+    || review.sourceObservationKey !== input.expectedObservationKey
+  ) {
+    return { outcome: "mismatch", summary: "The payment-exception review does not match the approved owner, disposition, next action, and source evidence." };
+  }
+  return {
+    outcome: "verified",
+    verifiedAt: review.updatedAt,
+    summary: receipt.summary,
+    evidence: { ...receipt.evidence, recordId: review.recordId, updatedAt: review.updatedAt },
   };
 }

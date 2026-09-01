@@ -71,6 +71,7 @@
     "verify:dispatch-map-quality": "node --import tsx scripts/test-dispatch-map-quality.ts",
     "verify:command-schedule-summary": "node --import tsx scripts/test-command-schedule-summary.ts",
     "verify:opsbot-control": "node --import tsx scripts/test-opsbot-control.ts",
+    "verify:opsbot-plain-language": "node --import tsx scripts/test-opsbot-plain-language.ts",
     "verify:action-engine": "node --import tsx scripts/test-action-engine.ts",
     "verify:finance-control": "node --import tsx scripts/test-finance-control.ts",
     "verify:krewe-control": "node --import tsx scripts/test-krewe-control.ts",

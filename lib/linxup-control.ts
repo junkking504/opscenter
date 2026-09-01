@@ -102,14 +102,14 @@ export function linxupObservationKey(date: string, device: Pick<
 }
 
 function attentionReason(device: FleetTruckMapRecord): string {
-  if (device.mappingStatus !== "Mapped") return "Tracker-to-truck mapping needs verification.";
-  if (!device.hasCoordinates) return "No verified device coordinate is available.";
+  if (device.mappingStatus !== "Mapped") return "This tracker is not matched to a truck.";
+  if (!device.hasCoordinates) return "This tracker does not have a current location.";
   if (device.freshnessLabel === "Offline") return "Tracker has stopped reporting.";
-  if (device.freshnessLabel === "GPS Stale") return "The newest device position is stale.";
-  if (/unavailable/i.test(device.freshnessLabel)) return "Device location evidence is unavailable.";
-  if (device.gpsFallbackActive) return "V3 push is stale; V2 polling is the active fallback.";
-  if (device.gpsDeliveryMode === "unavailable") return "No authoritative device delivery lane is available.";
-  return "Current device evidence is available.";
+  if (device.freshnessLabel === "GPS Stale") return "The latest truck location is out of date.";
+  if (/unavailable/i.test(device.freshnessLabel)) return "No tracker location is available.";
+  if (device.gpsFallbackActive) return "Direct updates are late, so OpsCenter is using backup updates.";
+  if (device.gpsDeliveryMode === "unavailable") return "This truck does not have a working GPS update source.";
+  return "The truck location is current.";
 }
 
 function needsReview(device: LinxupControlDevice): boolean {

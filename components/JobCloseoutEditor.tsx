@@ -223,8 +223,8 @@ export default function JobCloseoutEditor({
       if (!response.ok || (governed ? !payload?.run : !payload?.closeout)) throw new Error(payload?.error || "Junkware did not accept the closeout request.");
       if (governed) {
         setMessage(payload.run.status === "awaiting_approval"
-          ? "Closeout request recorded. A different manager or administrator must approve it in the OpsBot action ledger; JunkWare is unchanged until approval."
-          : `Closeout action ${String(payload.run.status || "recorded").replaceAll("_", " ")}.`);
+          ? "Closeout request saved. Another manager must approve it before JunkWare changes."
+          : `Closeout request ${String(payload.run.status || "saved").replaceAll("_", " ")}.`);
         await governed.onActionRequested?.();
         return;
       }
@@ -235,8 +235,8 @@ export default function JobCloseoutEditor({
       setPendingOtherCharges([]);
       const loadStatus = payload.truckLoadStatus;
       setMessage(loadStatus?.updated && loadStatus?.status
-        ? `Saved and verified in JunkWare. ${loadStatus.status.truck} is now ${loadStatus.status.currentLoadLabel}.`
-        : `Saved and verified in JunkWare.${loadStatus?.reason ? ` Truck load status: ${loadStatus.reason}` : ""}`);
+        ? `Saved and checked in JunkWare. ${loadStatus.status.truck} is now ${loadStatus.status.currentLoadLabel}.`
+        : `Saved and checked in JunkWare.${loadStatus?.reason ? ` Truck load status: ${loadStatus.reason}` : ""}`);
       router.refresh();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Junkware did not save the closeout.");
@@ -262,7 +262,7 @@ export default function JobCloseoutEditor({
               <div><span>Current total</span><strong>{live.total || "$0.00"}</strong></div>
               <div><span>Balance</span><strong>{live.balance || "0.00"}</strong></div>
             </div>
-            {saving ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">{governed ? "Recording approval-gated closeout request…" : "Saving changes and checking them in JunkWare…"}</div> : null}
+            {saving ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">{governed ? "Saving your request…" : "Saving changes and checking them in JunkWare…"}</div> : null}
 
             <section className="ops-closeout-editor-section">
               <h4>Krewe Assigned to This Job</h4>
@@ -362,10 +362,10 @@ export default function JobCloseoutEditor({
             </section>
 
             <div className="ops-closeout-editor-actions">
-              <button type="button" className="ops-button" onClick={save} disabled={saving}>{saving ? (governed ? "Recording request…" : "Saving and checking JunkWare…") : governed ? "Request closeout approval" : completed ? "Save changes in JunkWare" : "Save and close job in JunkWare"}</button>
+              <button type="button" className="ops-button" onClick={save} disabled={saving}>{saving ? (governed ? "Saving your request…" : "Saving and checking JunkWare…") : governed ? "Ask a manager to approve this closeout" : completed ? "Save changes in JunkWare" : "Save and close job in JunkWare"}</button>
               <button type="button" className="ops-button subtle" onClick={load} disabled={saving || loading}>Reload from JunkWare</button>
             </div>
-            {governed ? <p className="ops-closeout-editor-governance">Risk 3 · a different manager or administrator must approve. Execution re-checks this exact JunkWare observation and leaves the work item open until fresh source detection clears it.</p> : null}
+            {governed ? <p className="ops-closeout-editor-governance">Another manager must approve this. OpsCenter checks the current JunkWare closeout again before saving, then confirms the result.</p> : null}
           </>
         )}
         {message ? <div className="ops-closeout-editor-message success">{message}</div> : null}

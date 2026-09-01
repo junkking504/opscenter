@@ -21,6 +21,12 @@ the business system:
 - OpsBot observes approved context and may recommend or invoke only registered,
   policy-allowed actions.
 
+The dashboard itself uses everyday operating language. It tells the user what
+needs attention, what a button will do, who must approve it, and how the result
+will be checked. Technical terms such as risk classes, registered actions,
+source observations, runtime state, and audit ledgers stay in the implementation
+and this engineering reference instead of appearing in the operating interface.
+
 ## Complete control-system contract
 
 OpsBot Control is intended to control OpsCenter through one governed lifecycle:

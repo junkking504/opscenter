@@ -65,7 +65,7 @@ async function main() {
     assert.equal(initial.devices[0].review, null);
     assert.equal(initial.devices[0].reviewCurrent, false);
     assert.match(initial.devices[0].observationKey, /^[0-9a-f]{64}$/);
-    assert.match(initial.devices[0].attentionReason, /stale/);
+    assert.match(initial.devices[0].attentionReason, /out of date/);
 
     const input = {
       date: "2026-09-01",

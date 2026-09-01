@@ -11,7 +11,8 @@ assert.match(commandPage, /section === "overview" \|\| section === "opsbot"/, "O
 assert.match(commandPage, /<OpsBotControl/, "Command must render the OpsBot control surface.");
 assert.match(commandPage, /recommendations=\{commandExceptions\}/, "OpsBot recommendations must come from current Command conditions.");
 assert.match(commandPage, /kernelStatus=\{kernelDatabase\.status\}/, "OpsBot must disclose the real action-kernel state.");
-assert.match(commandPage, /kernelDatabase\.status === "ready" \? "Controlled execution"/, "The Command header must disclose when controlled execution is connected.");
+assert.match(commandPage, /title=\{section === "opsbot" \? "OpsBot AI Dashboard" : "Command"\}/, "The dashboard must use its plain product name.");
+assert.match(commandPage, /See what needs attention, take action, and review what happened/, "The page header must explain the dashboard in everyday language.");
 
 const nav = read("components/OpsNav.tsx");
 assert.match(nav, /label: "OpsBot Control"/, "Command navigation must expose OpsBot Control.");
@@ -19,17 +20,17 @@ assert.match(nav, /section: "opsbot"/, "OpsBot navigation must preserve the Comm
 
 const component = read("components/OpsBotControl.tsx");
 for (const copy of [
-  "OpsBot is watching the operation.",
-  "Observe + Recommend",
-  "Human approval retained",
-  "No autonomous production agent or unrestricted write access.",
-  "Source authority preserved",
-  "Signal to verified outcome",
-  "Registered commands and audit ledger",
+  "See what needs attention and take the next step.",
+  "What buttons can do",
+  "Manager approval for bigger changes",
+  "OpsBot cannot act on its own",
+  "Where the information comes from",
+  "What happens after you click",
+  "Check that it worked",
 ]) {
   assert.ok(component.includes(copy), `OpsBot Control is missing its safety contract: ${copy}`);
 }
-for (const source of ["OpsCenter health + readiness", "JunkWare", "LinxUp", "JunkWare + QBO", "Podium + SearchKings + JunkWare"]) {
+for (const source of ["OpsCenter status", "JunkWare", "LinxUp", "JunkWare + QBO", "Podium + SearchKings + JunkWare"]) {
   assert.ok(component.includes(source), `OpsBot Control must identify ${source} as a source lane.`);
 }
 assert.match(component, /<OpsBotActionConsole date=\{date\} enabled=\{kernelReady\}/, "OpsBot Control must mount the kernel-gated action console.");
@@ -48,6 +49,7 @@ for (const contract of [
 const docs = read("docs/OPSBOT_CONTROL.md");
 assert.match(docs, /OpsBot is the AI operator identity/);
 assert.match(docs, /OpsCenter OS remains the operating layer/);
+assert.match(docs, /The dashboard itself uses everyday operating language/);
 assert.match(docs, /The Dispatch control pack adds/);
 assert.match(docs, /The Systems control pack adds/);
 assert.match(docs, /platform kernel, operator authentication, JunkWare\s+schedule, LinxUp delivery, QBO reconciliation/);

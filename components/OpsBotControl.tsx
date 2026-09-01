@@ -37,10 +37,10 @@ function money(value: number): string {
 }
 
 function shortTimestamp(value?: string | null): string {
-  if (!value) return "Waiting for a published observation";
+  if (!value) return "Waiting for the latest update";
   const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "Observation time unavailable";
-  return `Observed ${parsed.toLocaleTimeString("en-US", {
+  if (Number.isNaN(parsed.getTime())) return "Update time unavailable";
+  return `Updated ${parsed.toLocaleTimeString("en-US", {
     timeZone: "America/Chicago",
     hour: "numeric",
     minute: "2-digit",
@@ -70,8 +70,8 @@ export default function OpsBotControl({
   const queue = recommendations.length
     ? recommendations
     : [{
-        label: "No urgent operating exceptions",
-        detail: "OpsBot will keep watching fresh Jobs, Krewe, Fleet, and Finance observations.",
+        label: "Nothing urgent needs your attention",
+        detail: "OpsBot is still watching Jobs, Krewe, Fleet, and Finance.",
         status: "watch" as const,
         href: `/?date=${date}&section=overview`,
       }];
@@ -88,44 +88,44 @@ export default function OpsBotControl({
     href: string;
   }> = [
     {
-      name: "Systems intelligence",
-      system: "OpsCenter health + readiness",
-      detail: "Kernel, auth, collectors, queues, and connected-source evidence with governed recovery reviews",
+      name: "Systems",
+      system: "OpsCenter status",
+      detail: "See what is working, what is delayed, and who owns the next step",
       tone: kernelReady ? "guarded" : "attention",
       href: `/?date=${date}&section=opsbot#opsbot-systems-title`,
     },
     {
-      name: "Schedule intelligence",
+      name: "Jobs & schedule",
       system: "JunkWare",
-      detail: `${scheduledJobs} scheduled · ${completedJobs} completed · ${unclosedJobs} need follow-up · governed customer contact`,
+      detail: `${scheduledJobs} scheduled · ${completedJobs} completed · ${unclosedJobs} need follow-up`,
       tone: unclosedJobs > 0 || unmappedAppointments > 0 ? "attention" : "live",
       href: `/jobs?date=${date}`,
     },
     {
-      name: "Krewe intelligence",
+      name: "Krewe",
       system: "OpsCenter",
       detail: `${activeCrew} team member${activeCrew === 1 ? "" : "s"} clocked in or attributed to work`,
       tone: activeCrew > 0 ? "live" : "attention",
       href: `/crew?date=${date}`,
     },
     {
-      name: "Fleet intelligence",
+      name: "Trucks & GPS",
       system: "LinxUp",
       detail: `${trackedTrucks} tracked · ${staleTrucks} stale or offline`,
       tone: staleTrucks > 0 || trackedTrucks === 0 ? "attention" : "live",
       href: `/fleet?date=${date}&section=map`,
     },
     {
-      name: "Financial intelligence",
+      name: "Money",
       system: "JunkWare + QBO",
       detail: `${money(grossRevenue)} of ${money(dailyRevenuePlan)} plan${laborPercent == null ? " · labor waiting" : ` · ${laborPercent.toFixed(1)}% labor`}`,
       tone: "guarded",
       href: `/finance?date=${date}`,
     },
     {
-      name: "Marketing intelligence",
+      name: "Reviews & leads",
       system: "Podium + SearchKings + JunkWare",
-      detail: "Read-only review evidence with governed completed-job and Krewe attribution",
+      detail: "Match reviews to completed jobs and follow up on missed leads",
       tone: "guarded",
       href: "/marketing?section=reviews",
     },
@@ -138,27 +138,27 @@ export default function OpsBotControl({
     tone: LaneTone;
   }> = [
     {
-      label: "Observe",
-      mode: "Live",
-      detail: "Read approved operational projections and freshness signals.",
+      label: "Watch the operation",
+      mode: "On",
+      detail: "Reads the latest information from each connected system.",
       tone: "live",
     },
     {
-      label: "Recommend",
-      mode: "Live",
-      detail: "Rank policy-backed follow-up without changing business state.",
+      label: "Suggest next steps",
+      mode: "On",
+      detail: "Shows what needs attention without changing anything.",
       tone: "live",
     },
     {
-      label: "Execute",
-      mode: kernelReady ? "Controlled" : "Staged",
-      detail: "Only registered actions with identity, policy, and retry protection.",
+      label: "Make changes",
+      mode: kernelReady ? "With safeguards" : "View only",
+      detail: "Records who clicked, asks for approval when needed, and checks the result.",
       tone: "guarded",
     },
     {
-      label: "Autonomous",
-      mode: "Locked",
-      detail: "No autonomous production agent or unrestricted write access.",
+      label: "Act without a person",
+      mode: "Off",
+      detail: "OpsBot cannot make production changes on its own.",
       tone: "locked",
     },
   ];
@@ -169,43 +169,43 @@ export default function OpsBotControl({
         <div className={styles.heroIdentity}>
           <div className={styles.botMark} aria-hidden="true"><span>OB</span></div>
           <div>
-            <div className={styles.kicker}><ToneDot tone="live" /> OpsCenter intelligence</div>
-            <h2 id="opsbot-title">OpsBot is watching the operation.</h2>
+            <div className={styles.kicker}><ToneDot tone="live" /> OpsBot AI Dashboard</div>
+            <h2 id="opsbot-title">See what needs attention and take the next step.</h2>
             <p>
-              It can surface risk, connect the right evidence, and recommend the next move.
-              Production changes remain human-controlled, policy-gated, and verified.
+              OpsBot brings Jobs, Krewe, Fleet, Finance, Systems, and Marketing into one place.
+              Bigger changes wait for another manager before anything happens.
             </p>
           </div>
         </div>
 
         <div className={styles.authorityCard}>
-          <span>Current authority</span>
-          <strong>{kernelReady ? "Controlled execution" : "Observe + Recommend"}</strong>
-          <div><ToneDot tone="guarded" /> Human approval retained</div>
+          <span>What buttons can do</span>
+          <strong>{kernelReady ? "Changes are enabled" : "View and suggest only"}</strong>
+          <div><ToneDot tone="guarded" /> Manager approval for bigger changes</div>
           <small>{shortTimestamp(observedAt)}</small>
         </div>
       </div>
 
       <div className={styles.metrics} aria-label="OpsBot control summary">
         <article>
-          <span>Signal lanes</span>
+          <span>Areas watched</span>
           <strong>6</strong>
           <small>Systems · Jobs · Krewe · Fleet · Finance · Marketing</small>
         </article>
         <article data-alert={recommendations.length > 0 ? "true" : "false"}>
-          <span>Recommendations</span>
+          <span>Needs attention</span>
           <strong>{recommendations.length}</strong>
-          <small>{recommendations.length ? "Current conditions to review" : "No urgent conditions"}</small>
+          <small>{recommendations.length ? "Items to review now" : "Nothing urgent"}</small>
         </article>
         <article>
-          <span>Action runtime</span>
-          <strong>{kernelReady ? "Live" : "Staged"}</strong>
-          <small>{kernelReady ? "Registered commands and audit ledger" : "Kernel activation required"}</small>
+          <span>Safe actions</span>
+          <strong>{kernelReady ? "Ready" : "View only"}</strong>
+          <small>{kernelReady ? "Every change is recorded and checked" : "Changes are not enabled here"}</small>
         </article>
         <article>
-          <span>Autonomous actions</span>
+          <span>Changes without a person</span>
           <strong>0</strong>
-          <small>Production autonomy locked</small>
+          <small>OpsBot cannot act on its own</small>
         </article>
       </div>
 
@@ -215,8 +215,8 @@ export default function OpsBotControl({
         <section className={styles.panel} aria-labelledby="opsbot-recommendations">
           <div className={styles.panelHead}>
             <div>
-              <span>Decision queue</span>
-              <h3 id="opsbot-recommendations">What OpsBot recommends now</h3>
+              <span>Your priority list</span>
+              <h3 id="opsbot-recommendations">What needs your attention</h3>
             </div>
             <small>{String(recommendations.length).padStart(2, "0")} active</small>
           </div>
@@ -240,10 +240,10 @@ export default function OpsBotControl({
         <section className={`${styles.panel} ${styles.autonomyPanel}`} aria-labelledby="opsbot-autonomy">
           <div className={styles.panelHead}>
             <div>
-              <span>Authority controls</span>
-              <h3 id="opsbot-autonomy">Autonomy ladder</h3>
+              <span>What OpsBot is allowed to do</span>
+              <h3 id="opsbot-autonomy">You stay in control</h3>
             </div>
-            <small>Policy first</small>
+            <small>People approve important changes</small>
           </div>
           <div className={styles.autonomyList}>
             {autonomyLanes.map((lane) => (
@@ -264,10 +264,10 @@ export default function OpsBotControl({
         <section className={styles.panel} aria-labelledby="opsbot-sources">
           <div className={styles.panelHead}>
             <div>
-              <span>Observation map</span>
-              <h3 id="opsbot-sources">What OpsBot can see</h3>
+              <span>Connected systems</span>
+              <h3 id="opsbot-sources">Where the information comes from</h3>
             </div>
-            <small>Source authority preserved</small>
+            <small>Open any area for details</small>
           </div>
           <div className={styles.sourceGrid}>
             {sourceLanes.map((lane) => (
@@ -279,7 +279,7 @@ export default function OpsBotControl({
                 </div>
                 <strong>{lane.name}</strong>
                 <p>{lane.detail}</p>
-                {lane.name === "Financial intelligence" ? (
+                {lane.name === "Money" ? (
                   <div className={styles.progress} role="progressbar" aria-label="Daily revenue plan progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={revenueProgress}>
                     <i style={{ width: `${revenueProgress}%` }} />
                   </div>
@@ -292,26 +292,26 @@ export default function OpsBotControl({
         <section className={`${styles.panel} ${styles.chainPanel}`} aria-labelledby="opsbot-chain">
           <div className={styles.panelHead}>
             <div>
-              <span>Trust architecture</span>
-              <h3 id="opsbot-chain">Signal to verified outcome</h3>
+              <span>Before anything changes</span>
+              <h3 id="opsbot-chain">What happens after you click</h3>
             </div>
-            <small>{kernelReady ? "Kernel connected" : "Kernel staged"}</small>
+            <small>{kernelReady ? "Actions are ready" : "View only"}</small>
           </div>
           <ol className={styles.chain}>
-            <li className={styles.complete}><span>01</span><div><strong>Observe</strong><small>Fresh source evidence</small></div></li>
-            <li className={styles.complete}><span>02</span><div><strong>Recommend</strong><small>Policy-backed next move</small></div></li>
-            <li className={styles.gated}><span>03</span><div><strong>Approve</strong><small>Identity and risk gate</small></div></li>
-            <li className={kernelReady ? styles.gated : styles.lockedStep}><span>04</span><div><strong>Execute</strong><small>Registered action only</small></div></li>
-            <li className={kernelReady ? styles.gated : styles.lockedStep}><span>05</span><div><strong>Verify</strong><small>Correct authority confirms</small></div></li>
+            <li className={styles.complete}><span>01</span><div><strong>Check current info</strong><small>Use the latest connected data</small></div></li>
+            <li className={styles.complete}><span>02</span><div><strong>Show the next step</strong><small>Explain what needs attention</small></div></li>
+            <li className={styles.gated}><span>03</span><div><strong>Get approval if needed</strong><small>Another manager reviews bigger changes</small></div></li>
+            <li className={kernelReady ? styles.gated : styles.lockedStep}><span>04</span><div><strong>Make the change</strong><small>Only the action you selected</small></div></li>
+            <li className={kernelReady ? styles.gated : styles.lockedStep}><span>05</span><div><strong>Check that it worked</strong><small>Confirm the saved result</small></div></li>
           </ol>
           <div className={styles.kernelState}>
             <ToneDot tone={kernelReady ? "live" : "guarded"} />
             <div>
-              <strong>{kernelReady ? "Audit kernel connected" : "Action kernel not enabled"}</strong>
+              <strong>{kernelReady ? "Actions and history are ready" : "Actions are view-only"}</strong>
               <small>
                 {kernelReady
-                  ? "Durable work state, registered executors, verification, and audit are connected."
-                  : "This control surface stays read-only without making Command Inbox a prerequisite."}
+                  ? "OpsCenter records who made each request, whether it was approved, and whether it worked."
+                  : "You can still see the operation and recommended next steps, but buttons will not change shared data."}
               </small>
             </div>
           </div>

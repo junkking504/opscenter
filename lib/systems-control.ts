@@ -115,10 +115,10 @@ function ageSeconds(value: string, now: Date): number | null {
 
 function freshnessLabel(value: string, maxAgeSeconds: number, now: Date): string {
   const age = ageSeconds(value, now);
-  if (age === null) return "Observation unavailable";
-  if (age < 60) return `${age}s old`;
-  if (age < 3_600) return `${Math.floor(age / 60)}m old${age > maxAgeSeconds ? " · stale" : ""}`;
-  return `${Math.floor(age / 3_600)}h old${age > maxAgeSeconds ? " · stale" : ""}`;
+  if (age === null) return "No recent update";
+  if (age < 60) return "Just updated";
+  if (age < 3_600) return `${Math.floor(age / 60)} min ago${age > maxAgeSeconds ? " · late" : ""}`;
+  return `${Math.floor(age / 3_600)} hr ago${age > maxAgeSeconds ? " · late" : ""}`;
 }
 
 function freshStatus(value: string, maxAgeSeconds: number, now: Date): "fresh" | "stale" | "missing" {
@@ -132,15 +132,15 @@ function suggestedReview(
   kind: "credential" | "source" | "general" = "general",
 ): Pick<LaneInput, "suggestedDisposition" | "suggestedNextAction"> {
   if (status === "healthy") {
-    return { suggestedDisposition: "monitor", suggestedNextAction: "Continue monitoring the current verified source evidence." };
+    return { suggestedDisposition: "monitor", suggestedNextAction: "Keep watching this system." };
   }
   if (kind === "credential") {
-    return { suggestedDisposition: "credential_follow_up", suggestedNextAction: "Verify the approved connection configuration without exposing or changing credentials." };
+    return { suggestedDisposition: "credential_follow_up", suggestedNextAction: "Have the owner check the approved login or connection settings. Do not enter passwords here." };
   }
   if (status === "unavailable" || kind === "source") {
-    return { suggestedDisposition: "source_recovery", suggestedNextAction: "Verify the owning source or collector and publish a fresh observation before retrying." };
+    return { suggestedDisposition: "source_recovery", suggestedNextAction: "Check the system or data feed, then refresh this page." };
   }
-  return { suggestedDisposition: "owner_follow_up", suggestedNextAction: "Assign an owner to verify the degraded lane and record the next bounded recovery step." };
+  return { suggestedDisposition: "owner_follow_up", suggestedNextAction: "Assign an owner to check the problem and record the next step." };
 }
 
 function laneWithReview(input: LaneInput, store: SystemsIntegrationReviewStore): SystemsControlIntegration {
@@ -213,109 +213,111 @@ export function buildSystemsControlSnapshot(
   const laneInputs: LaneInput[] = [
     {
       integrationId: "platform_kernel",
-      label: "Platform action kernel",
+      label: "OpsCenter changes",
       authority: "OpsCenter PostgreSQL",
       status: kernelStatus,
       observedAt: "",
-      freshness: "Current request probe",
+      freshness: "Checked now",
       detail: kernel.healthy
-        ? `${kernel.databaseName || "Kernel database"} · ${kernel.migrationVersion || "migration verified"}`
-        : `Kernel ${kernel.status.replaceAll("-", " ")}; controlled action execution is unavailable.`,
+        ? "Buttons can save approved changes."
+        : "Buttons cannot save shared changes right now.",
       ...suggestedReview(kernelStatus, "source"),
       evidence: { enabled: kernel.enabled, healthy: kernel.healthy, status: kernel.status, databaseName: kernel.databaseName || "", migrationVersion: kernel.migrationVersion || "" },
     },
     {
       integrationId: "opscenter_auth",
-      label: "OpsCenter operator authentication",
+      label: "OpsCenter sign-in",
       authority: "OpsCenter signed sessions",
       status: authStatus,
       observedAt: "",
-      freshness: "Current configuration probe",
-      detail: readiness.auth.ok ? "Identity, password hash, and signed-session secret are configured." : "One or more operator-authentication requirements are unavailable.",
+      freshness: "Checked now",
+      detail: readiness.auth.ok ? "Manager sign-in is working." : "Manager sign-in needs attention.",
       ...suggestedReview(authStatus, "credential"),
       evidence: { ok: readiness.auth.ok, identityConfigured: readiness.auth.identityConfigured, passwordHashConfigured: readiness.auth.passwordHashConfigured, sessionSecretConfigured: readiness.auth.sessionSecretConfigured },
     },
     {
       integrationId: "junkware_schedule",
-      label: "JunkWare verified schedule",
+      label: "JunkWare schedule",
       authority: "JunkWare",
       status: junkwareStatus,
       observedAt: dispatch.sourceObservedAt,
       freshness: freshnessLabel(dispatch.sourceObservedAt, 180, now),
-      detail: dispatch.warning || `${dispatch.appointments.length} active appointments available to governed Dispatch controls.`,
+      detail: dispatch.warning || `${dispatch.appointments.length} active appointments are available.`,
       ...suggestedReview(junkwareStatus, "source"),
       evidence: { observedAt: dispatch.sourceObservedAt, appointments: dispatch.appointments.length, warning: dispatch.warning || "" },
     },
     {
       integrationId: "linxup_delivery",
-      label: "LinxUp telemetry delivery",
+      label: "LinxUp GPS updates",
       authority: "LinxUp telemetry + verified vehicle map",
       status: linxupStatus,
       observedAt: linxup.sourceObservedAt,
       freshness: freshnessLabel(linxup.sourceObservedAt, 180, now),
       detail: linxupStatus === "healthy"
-        ? `Collector evidence is fresh; ${linxup.summary.reviewNeeded} device-level exceptions remain separate.`
-        : `${linxup.gpsDataStatus}; ${linxup.summary.fallback} fallback and ${linxup.summary.offline + linxup.summary.stale} stale/offline devices.`,
+        ? `GPS updates are current. ${linxup.summary.reviewNeeded} tracker${linxup.summary.reviewNeeded === 1 ? " needs" : "s need"} review.`
+        : `${linxup.summary.fallback} tracker${linxup.summary.fallback === 1 ? " is" : "s are"} using backup updates. ${linxup.summary.offline + linxup.summary.stale} tracker${linxup.summary.offline + linxup.summary.stale === 1 ? " is" : "s are"} late or offline.`,
       ...suggestedReview(linxupStatus, "source"),
       evidence: { observedAt: linxup.sourceObservedAt, gpsDataStatus: linxup.gpsDataStatus, fallback: linxup.summary.fallback, stale: linxup.summary.stale, offline: linxup.summary.offline },
     },
     {
       integrationId: "qbo_reconciliation",
-      label: "QBO payment reconciliation",
+      label: "QBO payment check",
       authority: finance.paymentReconciliation.merchantSourceName || "QuickBooks Online",
       status: qboStatus,
       observedAt: finance.paymentReconciliation.merchantCenterCollectedAt || "",
       freshness: finance.paymentReconciliation.merchantCenterCollectedAt
-        ? freshnessLabel(finance.paymentReconciliation.merchantCenterCollectedAt, 86_400, now) : "Collection unavailable",
-      detail: `${finance.paymentReconciliation.status.replaceAll("_", " ")} · ${finance.paymentReconciliation.exceptionCount} source exceptions; exceptions are not integration failures.`,
+        ? freshnessLabel(finance.paymentReconciliation.merchantCenterCollectedAt, 86_400, now) : "No recent update",
+      detail: finance.paymentReconciliation.exceptionCount > 0
+        ? `${finance.paymentReconciliation.exceptionCount} payment difference${finance.paymentReconciliation.exceptionCount === 1 ? " needs" : "s need"} review.`
+        : "No payment differences need review.",
       ...suggestedReview(qboStatus, "credential"),
       evidence: { status: finance.paymentReconciliation.status, available: finance.paymentReconciliation.merchantCenterAvailable, fresh: finance.paymentReconciliation.merchantCenterFresh, collectedAt: finance.paymentReconciliation.merchantCenterCollectedAt, exceptionCount: finance.paymentReconciliation.exceptionCount },
     },
     {
       integrationId: "slack_ops_command",
-      label: "Slack Ops Command delivery",
+      label: "Slack Ops messages",
       authority: "Slack #ops-command",
       status: slackStatus,
       observedAt: communications.slack.stateUpdatedAt,
-      freshness: communications.slack.stateUpdatedAt ? freshnessLabel(communications.slack.stateUpdatedAt, 86_400, now) : "Delivery ledger waiting",
+      freshness: communications.slack.stateUpdatedAt ? freshnessLabel(communications.slack.stateUpdatedAt, 86_400, now) : "No messages recorded yet",
       detail: slackConfigured
-        ? `${communications.slack.deliveredToday} delivered today · ${communications.slack.activeIncidents} active incidents.`
-        : "The approved bot credential, alert enablement, or owned command channel is unavailable.",
+        ? `${communications.slack.deliveredToday} delivered today · ${communications.slack.activeIncidents} problem${communications.slack.activeIncidents === 1 ? "" : "s"}.`
+        : "Slack messages are not fully connected.",
       ...suggestedReview(slackStatus, "credential"),
       evidence: { enabled: communications.slack.enabled, credentialAvailable: communications.slack.credentialAvailable, commandChannelConfigured: communications.slack.commandChannelConfigured, stateUpdatedAt: communications.slack.stateUpdatedAt, deliveredToday: communications.slack.deliveredToday, activeIncidents: communications.slack.activeIncidents },
     },
     {
       integrationId: "whatsapp_job_photos",
-      label: "WhatsApp job-photo queue",
+      label: "WhatsApp job photos",
       authority: "OpsBot durable WhatsApp queues",
       status: photoStatus,
       observedAt: "",
-      freshness: "Durable queue read-back",
-      detail: `${photoCounts.incoming} incoming · ${photoCounts.processing} processing · ${photoCounts.review} review · ${photoCounts.failed} failed.`,
+      freshness: "Current queue",
+      detail: `${photoCounts.incoming} incoming · ${photoCounts.processing} processing · ${photoCounts.review} need review · ${photoCounts.failed} failed.`,
       ...suggestedReview(photoStatus, "source"),
       evidence: { ...photoCounts },
     },
     {
       integrationId: "crew_portal_sync",
-      label: "Crew Portal synchronization",
+      label: "Crew Portal updates",
       authority: "Crew Portal sync ledger",
       status: crewStatus,
       observedAt: readiness.crewPortalSync.lastAttemptAt || readiness.crewPortalSync.lastSuccessAt || "",
-      freshness: readiness.crewPortalSync.lastSuccessAt ? freshnessLabel(readiness.crewPortalSync.lastSuccessAt, 86_400, now) : "Success unavailable",
-      detail: readiness.crewPortalSync.status === "synchronized" ? "The latest Crew Portal synchronization completed." : `Crew Portal sync is ${readiness.crewPortalSync.status}.`,
+      freshness: readiness.crewPortalSync.lastSuccessAt ? freshnessLabel(readiness.crewPortalSync.lastSuccessAt, 86_400, now) : "No successful update",
+      detail: readiness.crewPortalSync.status === "synchronized" ? "The latest Crew Portal update finished." : "Crew Portal updates need attention.",
       ...suggestedReview(crewStatus, "source"),
       evidence: { status: readiness.crewPortalSync.status, lastAttemptAt: readiness.crewPortalSync.lastAttemptAt || "", lastSuccessAt: readiness.crewPortalSync.lastSuccessAt || "", hasError: Boolean(readiness.crewPortalSync.error) },
     },
     {
       integrationId: "podium_reviews",
-      label: "Podium Reviews snapshot",
+      label: "Podium reviews",
       authority: "Podium Reviews collector",
       status: podiumStatus,
       observedAt: marketing.podium.snapshotFetchedAt,
       freshness: freshnessLabel(marketing.podium.snapshotFetchedAt, 3_600, now),
       detail: marketing.podium.snapshotAvailable
-        ? `${marketing.podium.locations} locations · ${marketing.podium.pendingAttribution} unattributed; direct runtime OAuth ${marketing.podium.connected ? "connected" : "not attached"}.`
-        : "No verified Podium Reviews snapshot is available.",
+        ? `${marketing.podium.locations} locations · ${marketing.podium.pendingAttribution} review${marketing.podium.pendingAttribution === 1 ? " needs" : "s need"} a job match.`
+        : "No recent Podium review update is available.",
       ...suggestedReview(podiumStatus, marketing.podium.snapshotAvailable ? "general" : "credential"),
       evidence: { snapshotAvailable: marketing.podium.snapshotAvailable, fetchedAt: marketing.podium.snapshotFetchedAt, connected: marketing.podium.connected, scopes: marketing.podium.scopes, locations: marketing.podium.locations },
     },
@@ -326,7 +328,7 @@ export function buildSystemsControlSnapshot(
       status: searchKingsStatus,
       observedAt: searchKings?.fetchedAt || "",
       freshness: freshnessLabel(searchKings?.fetchedAt || "", 1_800, now),
-      detail: searchKings ? `${searchKings.accounts.length} accounts · ${searchKings.calls.calls.length} calls in the verified snapshot.` : "No verified SearchKings snapshot is available.",
+      detail: searchKings ? `${searchKings.accounts.length} accounts · ${searchKings.calls.calls.length} calls in the latest report.` : "No recent SearchKings report is available.",
       ...suggestedReview(searchKingsStatus, "source"),
       evidence: { available: Boolean(searchKings), source: searchKings?.source || "", fetchedAt: searchKings?.fetchedAt || "", accounts: searchKings?.accounts.length || 0, calls: searchKings?.calls.calls.length || 0 },
     },

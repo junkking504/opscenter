@@ -666,10 +666,10 @@ export default async function DashboardPage({
   return (
     <div className="ops-dashboard ops-daily-dashboard">
       <PageHeader
-        title={section === "opsbot" ? "OpsBot Control" : "Command"}
+        title={section === "opsbot" ? "OpsBot AI Dashboard" : "Command"}
         compact
         subtitle={section === "opsbot"
-          ? `${shortMonthDay(date)} · ${kernelDatabase.status === "ready" ? "Controlled execution" : "Observe and recommend mode"} · Human approval retained`
+          ? `${shortMonthDay(date)} · See what needs attention, take action, and review what happened`
           : `${shortMonthDay(date)} · ${jobs} completed job${jobs === 1 ? "" : "s"} · ${activeTruckCount} active truck${activeTruckCount === 1 ? "" : "s"}`}
         date={date}
         lastUpdated={metrics?.generated_at}

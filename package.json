@@ -76,6 +76,7 @@
     "verify:krewe-control": "node --import tsx scripts/test-krewe-control.ts",
     "verify:communications-control": "node --import tsx scripts/test-communications-control.ts",
     "verify:customer-contact": "node --import tsx scripts/test-customer-contact-control.ts",
+    "verify:job-closeout-control": "node --import tsx scripts/test-job-closeout-control.ts",
     "verify:marketing-control": "node --import tsx scripts/test-marketing-control.ts",
     "verify:systems-control": "node --import tsx scripts/test-systems-control.ts",
     "verify:linxup-control": "node --import tsx scripts/test-linxup-control.ts",

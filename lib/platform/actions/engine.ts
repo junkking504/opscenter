@@ -7,6 +7,7 @@ import {
   registeredActionDefinitions,
 } from "@/lib/platform/actions/registry";
 import { getPlatformActor } from "@/lib/platform/persistence/actors";
+import { getWorkItem } from "@/lib/platform/persistence/work-items";
 import {
   createPersistedActionRun,
   decidePersistedApproval,
@@ -133,7 +134,17 @@ export async function requestAction(input: {
   const definition = registeredActionDefinition(input.actionKey);
   if (!definition) throw new Error("Registered action not found.");
   if (!actionSupportsEntity(definition, input.entity.type)) throw new Error("Action does not support this entity type.");
-  if (input.workItemId && input.workItemId !== input.entity.id) throw new Error("Work-item action entity mismatch.");
+  if (input.workItemId) {
+    if (input.entity.type === "platform") {
+      if (input.workItemId !== input.entity.id) throw new Error("Work-item action entity mismatch.");
+    } else {
+      const workItem = await getWorkItem(input.workItemId);
+      if (!workItem) throw new Error("Linked work item not found.");
+      if (workItem.entity.type !== input.entity.type || workItem.entity.id !== input.entity.id) {
+        throw new Error("Linked work item entity mismatch.");
+      }
+    }
+  }
   const validatedInput = definition.validateInput(input.rawInput);
   const correlationId = createCorrelationId();
   const policy = decideActionPolicy(definition, input.actor);

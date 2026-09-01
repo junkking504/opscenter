@@ -34,6 +34,7 @@ assert.deepEqual(definitions.map((definition) => definition.key), [
   "work.snooze.v1",
   "work.reopen.v1",
   "work.resolve_manually.v1",
+  "jobs.update_closeout.v1",
   "dispatch.assign_truck.v1",
   "dispatch.call_ahead.v1",
   "dispatch.reschedule_time.v1",
@@ -123,6 +124,8 @@ for (const control of [
   "Assign to me",
   "Snooze 1 hour",
   "Request resolution approval",
+  "JunkWare closeout pack",
+  "Request closeout approval",
   "Action ledger",
   "Dispatch control pack",
   "Request truck approval",
@@ -166,6 +169,14 @@ assert.ok(searchKingsRecovery);
 assert.equal(searchKingsRecovery.riskClass, 2);
 assert.equal(decideActionPolicy(searchKingsRecovery, operator).decision.outcome, "approval_required");
 assert.throws(() => searchKingsRecovery.validateInput({}), /recovery owner|SearchKings call/);
+
+const closeout = registeredActionDefinition("jobs.update_closeout.v1");
+assert.ok(closeout);
+assert.equal(closeout.riskClass, 3);
+assert.equal(closeout.requiredPermission, "sensitive.write");
+assert.equal(decideActionPolicy(closeout, operator).decision.outcome, "deny");
+assert.equal(decideActionPolicy(closeout, manager).decision.outcome, "approval_required");
+assert.throws(() => closeout.validateInput({}), /closeout work item|JunkWare appointment/);
 
 const assignment = registeredActionDefinition("dispatch.assign_truck.v1");
 assert.ok(assignment);

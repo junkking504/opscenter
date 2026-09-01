@@ -6,6 +6,7 @@ import type {
 import { dispatchActionDefinitions } from "@/lib/platform/actions/dispatch";
 import { communicationsActionDefinitions } from "@/lib/platform/actions/communications";
 import { customerContactActionDefinitions } from "@/lib/platform/actions/customer-contact";
+import { jobsActionDefinitions } from "@/lib/platform/actions/jobs";
 import { fleetActionDefinitions } from "@/lib/platform/actions/fleet";
 import { financeActionDefinitions } from "@/lib/platform/actions/finance";
 import { kreweActionDefinitions } from "@/lib/platform/actions/krewe";
@@ -172,6 +173,7 @@ const workActionDefinitions: ActionDefinition<any>[] = [
 
 const definitions: ActionDefinition<any>[] = [
   ...workActionDefinitions,
+  ...jobsActionDefinitions,
   ...dispatchActionDefinitions,
   ...fleetActionDefinitions,
   ...financeActionDefinitions,

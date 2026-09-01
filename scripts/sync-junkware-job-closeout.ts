@@ -306,7 +306,67 @@ async function applyCloseout(page: Page, input: CloseoutInput): Promise<void> {
   ]);
 }
 
-function verifyCloseout(closeout: { status: { value: string }; [key: string]: unknown }, input: CloseoutInput): void {
+function row(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? value as Record<string, unknown> : {};
+}
+
+function selectedValue(value: unknown): string {
+  return String(row(value).value || "");
+}
+
+function numericValue(value: unknown): number | null {
+  const text = String(value ?? "").replace(/[^0-9.-]/g, "");
+  if (!text) return null;
+  const number = Number(text);
+  return Number.isFinite(number) ? number : null;
+}
+
+function sameNumber(left: unknown, right: unknown): boolean {
+  const leftNumber = numericValue(left);
+  const rightNumber = numericValue(right);
+  return leftNumber === null && rightNumber === null
+    ? true
+    : leftNumber !== null && rightNumber !== null && Math.abs(leftNumber - rightNumber) < 0.005;
+}
+
+function optionLabel(optionsValue: unknown, value: string): string {
+  if (!Array.isArray(optionsValue)) return "";
+  const option = optionsValue.find((candidate) => String(row(candidate).value || "") === value);
+  return String(row(option).label || "").replace(/\s+/g, " ").trim();
+}
+
+function chargeSignature(value: unknown): string {
+  const charge = row(value);
+  return [
+    String(charge.label || "").replace(/\s+/g, " ").trim().toLowerCase(),
+    numericValue(charge.quantity),
+    numericValue(charge.price),
+  ].join("|");
+}
+
+function paymentSignature(value: unknown): string {
+  const payment = row(value);
+  return [
+    String(payment.description || "").replace(/\s+/g, " ").trim().toLowerCase(),
+    numericValue(payment.amount),
+  ].join("|");
+}
+
+function removePriorRows(beforeValue: unknown, afterValue: unknown, signature: (value: unknown) => string): unknown[] {
+  const remaining = Array.isArray(afterValue) ? [...afterValue] : [];
+  for (const prior of Array.isArray(beforeValue) ? beforeValue : []) {
+    const index = remaining.findIndex((candidate) => signature(candidate) === signature(prior));
+    if (index < 0) throw new Error("JunkWare changed an existing closeout row while applying the request.");
+    remaining.splice(index, 1);
+  }
+  return remaining;
+}
+
+function verifyCloseout(
+  closeout: { status: { value: string }; [key: string]: unknown },
+  input: CloseoutInput,
+  before: { status: { value: string }; [key: string]: unknown },
+): void {
   if (closeout.status.value !== "8") throw new Error("JunkWare did not retain the completed status.");
   const driver = closeout.driver && typeof closeout.driver === "object"
     ? String((closeout.driver as Record<string, unknown>).value || "")
@@ -317,6 +377,58 @@ function verifyCloseout(closeout: { status: { value: string }; [key: string]: un
   if (driver !== input.driverId) throw new Error("JunkWare did not retain the selected driver.");
   if (navigators.length !== input.navigatorIds.length || navigators.some((value, index) => value !== input.navigatorIds[index])) {
     throw new Error("JunkWare did not retain the selected navigators.");
+  }
+  const exactSelects: Array<[string, string, string]> = [
+    ["loadSize", input.loadSize, "load size"],
+    ["bedloadSize", input.bedloadSize, "bedload size"],
+    ["jobCategory", input.jobCategoryId, "job category"],
+    ["actualStartHour", input.actualStartHour, "actual start hour"],
+    ["actualStartMinute", input.actualStartMinute, "actual start minute"],
+    ["actualEndHour", input.actualEndHour, "actual end hour"],
+    ["actualEndMinute", input.actualEndMinute, "actual end minute"],
+  ];
+  for (const [field, expected, label] of exactSelects) {
+    if (selectedValue(closeout[field]) !== expected) throw new Error(`JunkWare did not retain the selected ${label}.`);
+  }
+  const exactNumbers: Array<[string, string, string]> = [
+    ["loadQuantity", input.loadQuantity, "truck quantity"],
+    ["loadPrice", input.loadPrice, "load price"],
+    ["bedloadQuantity", input.bedloadQuantity, "bedload quantity"],
+    ["bedloadPrice", input.bedloadPrice, "bedload price"],
+    ["discount", input.discount, "discount"],
+    ["tip", input.tip, "tip"],
+  ];
+  for (const [field, expected, label] of exactNumbers) {
+    if (!sameNumber(closeout[field], expected)) throw new Error(`JunkWare did not retain the selected ${label}.`);
+  }
+
+  const addedCharges = removePriorRows(before.otherCharges, closeout.otherCharges, chargeSignature);
+  if (addedCharges.length !== input.otherChargesToAdd.length) {
+    throw new Error("JunkWare did not retain the exact requested Other Charges.");
+  }
+  for (const requested of input.otherChargesToAdd) {
+    const label = optionLabel(before.otherChargeOptions, requested.typeValue).toLowerCase();
+    const isPercentage = requested.typeValue.split("|")[2] === "1";
+    const index = addedCharges.findIndex((candidate) => {
+      const charge = row(candidate);
+      const sameLabel = String(charge.label || "").replace(/\s+/g, " ").trim().toLowerCase() === label;
+      return sameLabel && (isPercentage || (sameNumber(charge.quantity, requested.quantity) && sameNumber(charge.price, requested.price)));
+    });
+    if (index < 0) throw new Error("JunkWare did not retain a requested Other Charge.");
+    addedCharges.splice(index, 1);
+  }
+
+  const addedPayments = removePriorRows(before.payments, closeout.payments, paymentSignature);
+  if (input.addPayment) {
+    const label = optionLabel(before.paymentMethods, input.addPayment.methodId).toLowerCase();
+    if (addedPayments.length !== 1) throw new Error("JunkWare did not retain exactly one requested payment.");
+    const payment = row(addedPayments[0]);
+    if (
+      String(payment.description || "").replace(/\s+/g, " ").trim().toLowerCase() !== label
+      || !sameNumber(payment.amount, input.addPayment.amount)
+    ) throw new Error("JunkWare did not retain the requested payment method and amount.");
+  } else if (addedPayments.length) {
+    throw new Error("JunkWare added an unrequested payment.");
   }
 }
 
@@ -337,9 +449,10 @@ async function main(): Promise<void> {
     const targetUrl = `${ORIGIN}/franchise/appointment.aspx?id=${appointmentId}`;
     await ensureAuthenticated(page, targetUrl);
     const input = mode === "write" ? parsePayload() : null;
+    const before = await capture(page);
     if (input) await applyCloseout(page, input);
     const closeout = await capture(page);
-    if (input) verifyCloseout(closeout, input);
+    if (input) verifyCloseout(closeout, input, before);
     process.stdout.write(`${JSON.stringify({ ok: true, mode, appointmentId, closeout, verifiedAt: new Date().toISOString() })}\n`);
     await context.close();
   } finally {

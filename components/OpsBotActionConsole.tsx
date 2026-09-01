@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ActionRun } from "@/lib/platform/contracts";
 import type { InboxPayload, InboxWorkItem } from "@/lib/platform/inbox";
+import JobCloseoutEditor from "./JobCloseoutEditor";
 import styles from "./OpsBotActionConsole.module.css";
 
 type ActionSnapshot = {
@@ -479,6 +480,7 @@ function actionLabel(actionKey: string): string {
     "work.snooze.v1": "Snooze",
     "work.reopen.v1": "Reopen",
     "work.resolve_manually.v1": "Manual resolution",
+    "jobs.update_closeout.v1": "JunkWare closeout correction",
     "dispatch.assign_truck.v1": "Truck assignment",
     "dispatch.call_ahead.v1": "Call ahead",
     "dispatch.reschedule_time.v1": "Time reschedule",
@@ -503,6 +505,15 @@ function actionLabel(actionKey: string): string {
 
 function activeItem(item: InboxWorkItem): boolean {
   return !["resolved", "dismissed"].includes(item.status);
+}
+
+function supportsCloseoutCorrection(item: InboxWorkItem): boolean {
+  return item.entity.type === "job" && [
+    "completed_job_with_no_driver",
+    "completed_job_with_no_navigator",
+    "job_with_revenue_but_no_credited_crew",
+    "payment_amount_present_but_payment_type_missing",
+  ].includes(item.rule);
 }
 
 function clockLabel(minutes: number): string {
@@ -2300,6 +2311,35 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
           ) : (
             <div className={styles.empty}>No reconciled work item is available for this date.</div>
           )}
+
+          {selected && activeItem(selected) && supportsCloseoutCorrection(selected) ? (
+            <section className={styles.closeoutPack} aria-label="Governed JunkWare closeout correction">
+              <div className={styles.closeoutPackHead}>
+                <div><span>JunkWare closeout pack</span><strong>Source-verified correction</strong></div>
+                <small>Risk 3 · separate approver</small>
+              </div>
+              <p>Load the authoritative closeout, correct only the required crew, charge, time, or payment fields, then choose Request closeout approval to create a durable request tied to this work item.</p>
+              <JobCloseoutEditor
+                key={`${selected.id}:${selected.version}`}
+                appointmentId={selected.entity.id}
+                appointmentUrl=""
+                initialStatus="Completed"
+                serviceDate={selected.operatingDate}
+                governed={{
+                  workItemId: selected.id,
+                  expectedWorkItemVersion: selected.version,
+                  onActionRequested: load,
+                }}
+              />
+              <small className={styles.closeoutBoundary}>Preview verifies the full request without mutating shared state. Live execution is limited to MISSION_CONTROL, re-checks the exact JunkWare observation, and cannot directly resolve the work item.</small>
+            </section>
+          ) : selected?.entity.type === "job" ? (
+            <div className={styles.closeoutUnavailable}>
+              <strong>Closeout controls remain locked for this work item.</strong>
+              <span>Use the recommended operating path; OpsBot only unlocks the closeout editor for supported crew or payment closeout defects.</span>
+              {selected.href ? <a href={selected.href}>Open related job</a> : null}
+            </div>
+          ) : null}
 
           {selected ? (
             <div className={styles.commands} aria-label="Available OpsBot commands">

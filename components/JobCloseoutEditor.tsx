@@ -33,11 +33,29 @@ type LiveCloseout = {
   total: string;
 };
 
+type GovernedCloseout = {
+  workItemId: string;
+  expectedWorkItemVersion: number;
+  onActionRequested?: () => void | Promise<void>;
+};
+
 function inputMoney(value: string): string {
   return String(value || "").replace(/[^0-9.-]/g, "");
 }
 
-export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initialStatus, serviceDate }: { appointmentId: string; appointmentUrl: string; initialStatus: string; serviceDate: string }) {
+export default function JobCloseoutEditor({
+  appointmentId,
+  appointmentUrl,
+  initialStatus,
+  serviceDate,
+  governed,
+}: {
+  appointmentId: string;
+  appointmentUrl: string;
+  initialStatus: string;
+  serviceDate: string;
+  governed?: GovernedCloseout;
+}) {
   const router = useRouter();
   const resolvedAppointmentId = appointmentId || String(appointmentUrl || "").match(/[?&]id=(\d{1,12})(?:&|$)/i)?.[1] || "";
   const [live, setLive] = useState<LiveCloseout | null>(null);
@@ -52,6 +70,8 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
   const [otherChargeQuantity, setOtherChargeQuantity] = useState("1");
   const [otherChargePrice, setOtherChargePrice] = useState("");
   const [pendingOtherCharges, setPendingOtherCharges] = useState<PendingOtherCharge[]>([]);
+  const [observationKey, setObservationKey] = useState("");
+  const [sourceObservedAt, setSourceObservedAt] = useState("");
   const otherChargePriceIsAutomatic = otherChargeType.split("|")[2] === "1";
 
   if (/cancel(?:ed|led)/i.test(initialStatus)) return null;
@@ -69,6 +89,8 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
       const payload = await response.json();
       if (!response.ok || !payload?.closeout) throw new Error(payload?.error || "The Junkware closeout could not be loaded.");
       setLive(payload.closeout);
+      setObservationKey(String(payload.observationKey || ""));
+      setSourceObservedAt(String(payload.sourceObservedAt || payload.verifiedAt || ""));
       setPendingOtherCharges([]);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "The Junkware closeout could not be loaded.");
@@ -153,37 +175,59 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
     setError("");
     setMessage("");
     try {
-      const response = await fetch("/api/job-closeout", {
+      const closeout = {
+        driverId: live.driver.value,
+        navigatorIds,
+        loadQuantity: live.loadQuantity,
+        loadSize: live.loadSize.value,
+        loadPrice: inputMoney(live.loadPrice),
+        bedloadQuantity: live.bedloadQuantity,
+        bedloadSize: live.bedloadSize.value,
+        bedloadPrice: inputMoney(live.bedloadPrice),
+        otherChargesToAdd: pendingOtherCharges.map((charge) => ({
+          typeValue: charge.typeValue,
+          quantity: charge.quantity,
+          price: inputMoney(charge.price),
+        })),
+        discount: inputMoney(live.discount),
+        tip: inputMoney(live.tip),
+        jobCategoryId: live.jobCategory.value,
+        actualStartHour: live.actualStartHour.value,
+        actualStartMinute: live.actualStartMinute.value,
+        actualEndHour: live.actualEndHour.value,
+        actualEndMinute: live.actualEndMinute.value,
+        addPayment: addPayment ? { methodId: paymentMethod, amount: inputMoney(paymentAmount) } : null,
+      };
+      if (governed && (!/^[0-9a-f]{64}$/.test(observationKey) || !Number.isFinite(Date.parse(sourceObservedAt)))) {
+        throw new Error("Reload the current JunkWare closeout before requesting approval.");
+      }
+      const response = await fetch(governed ? "/api/platform/action-runs" : "/api/job-closeout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          appointmentId: resolvedAppointmentId,
-          serviceDate,
-          driverId: live.driver.value,
-          navigatorIds,
-          loadQuantity: live.loadQuantity,
-          loadSize: live.loadSize.value,
-          loadPrice: inputMoney(live.loadPrice),
-          bedloadQuantity: live.bedloadQuantity,
-          bedloadSize: live.bedloadSize.value,
-          bedloadPrice: inputMoney(live.bedloadPrice),
-          otherChargesToAdd: pendingOtherCharges.map((charge) => ({
-            typeValue: charge.typeValue,
-            quantity: charge.quantity,
-            price: inputMoney(charge.price),
-          })),
-          discount: inputMoney(live.discount),
-          tip: inputMoney(live.tip),
-          jobCategoryId: live.jobCategory.value,
-          actualStartHour: live.actualStartHour.value,
-          actualStartMinute: live.actualStartMinute.value,
-          actualEndHour: live.actualEndHour.value,
-          actualEndMinute: live.actualEndMinute.value,
-          addPayment: addPayment ? { methodId: paymentMethod, amount: inputMoney(paymentAmount) } : null,
-        }),
+        body: JSON.stringify(governed ? {
+          actionKey: "jobs.update_closeout.v1",
+          entity: { type: "job", id: resolvedAppointmentId, label: `JunkWare appointment ${resolvedAppointmentId}` },
+          workItemId: governed.workItemId,
+          input: {
+            appointmentId: resolvedAppointmentId,
+            serviceDate,
+            sourceObservedAt,
+            expectedObservationKey: observationKey,
+            workItemId: governed.workItemId,
+            expectedWorkItemVersion: governed.expectedWorkItemVersion,
+            closeout,
+          },
+        } : { appointmentId: resolvedAppointmentId, serviceDate, ...closeout }),
       });
       const payload = await response.json();
-      if (!response.ok || !payload?.closeout) throw new Error(payload?.error || "Junkware did not save the closeout.");
+      if (!response.ok || (governed ? !payload?.run : !payload?.closeout)) throw new Error(payload?.error || "Junkware did not accept the closeout request.");
+      if (governed) {
+        setMessage(payload.run.status === "awaiting_approval"
+          ? "Closeout request recorded. A different manager or administrator must approve it in the OpsBot action ledger; JunkWare is unchanged until approval."
+          : `Closeout action ${String(payload.run.status || "recorded").replaceAll("_", " ")}.`);
+        await governed.onActionRequested?.();
+        return;
+      }
       setLive(payload.closeout);
       setAddPayment(false);
       setPaymentMethod("");
@@ -218,7 +262,7 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
               <div><span>Current total</span><strong>{live.total || "$0.00"}</strong></div>
               <div><span>Balance</span><strong>{live.balance || "0.00"}</strong></div>
             </div>
-            {saving ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">Saving changes and checking them in JunkWare…</div> : null}
+            {saving ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">{governed ? "Recording approval-gated closeout request…" : "Saving changes and checking them in JunkWare…"}</div> : null}
 
             <section className="ops-closeout-editor-section">
               <h4>Krewe Assigned to This Job</h4>
@@ -318,9 +362,10 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
             </section>
 
             <div className="ops-closeout-editor-actions">
-              <button type="button" className="ops-button" onClick={save} disabled={saving}>{saving ? "Saving and checking JunkWare…" : completed ? "Save changes in JunkWare" : "Save and close job in JunkWare"}</button>
+              <button type="button" className="ops-button" onClick={save} disabled={saving}>{saving ? (governed ? "Recording request…" : "Saving and checking JunkWare…") : governed ? "Request closeout approval" : completed ? "Save changes in JunkWare" : "Save and close job in JunkWare"}</button>
               <button type="button" className="ops-button subtle" onClick={load} disabled={saving || loading}>Reload from JunkWare</button>
             </div>
+            {governed ? <p className="ops-closeout-editor-governance">Risk 3 · a different manager or administrator must approve. Execution re-checks this exact JunkWare observation and leaves the work item open until fresh source detection clears it.</p> : null}
           </>
         )}
         {message ? <div className="ops-closeout-editor-message success">{message}</div> : null}

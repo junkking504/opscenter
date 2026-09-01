@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
 import { withJunkwareAppointmentSyncLock } from "@/lib/job-route-assignments";
 import { junkwareJobCloseout } from "@/lib/junkware-job-closeout";
+import { readJobCloseoutControlSnapshot } from "@/lib/job-closeout-control";
 import { publishVerifiedTruckCloseout } from "@/lib/slack-alerts";
 import { recordTruckLoadFromCloseout } from "@/lib/truck-load-status";
 
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
   const id = appointmentId(request);
   if (!/^\d{1,12}$/.test(id)) return NextResponse.json({ error: "The appointment is unavailable." }, { status: 400 });
   try {
-    const result = await withJunkwareAppointmentSyncLock(id, () => junkwareJobCloseout(id));
+    const result = await readJobCloseoutControlSnapshot(id);
     return NextResponse.json(result, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "JunkWare could not load the closeout." }, { status: 502 });

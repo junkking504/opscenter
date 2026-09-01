@@ -1,6 +1,6 @@
 # OpsBot Control
 
-Status: Work, Systems, Dispatch, Fleet, LinxUp, Finance, Krewe, Communications, Customer Contact, Podium, and SearchKings control foundation; production kernel activation pending
+Status: Work, JunkWare Closeout, Systems, Dispatch, Fleet, LinxUp, Finance, Krewe, Communications, Customer Contact, Podium, and SearchKings control foundation; production kernel activation pending
 
 Route: Command `/?section=opsbot`
 
@@ -50,6 +50,18 @@ path for OpsCenter work items:
 - approval-gated manual resolution with a required reason;
 - current Systems, Jobs, Krewe, Fleet, LinxUp, Finance, Communications, Marketing, and freshness observations without a second data authority;
 - responsive desktop, tablet, and phone layouts.
+
+The JunkWare closeout pack adds the first source-verified external job correction behind the action registry:
+
+- `jobs.update_closeout.v1` unlocks only for active closeout work covering missing driver, missing navigator, uncredited Krewe, or a missing payment type;
+- the operator must load the current JunkWare closeout before preparing the complete crew, charge, time, and optional payment request;
+- the durable request is tied to the exact work-item version and a SHA-256 observation of the current closeout values, available options, charges, and payments;
+- risk class 3 and `sensitive.write` require approval by a different manager or administrator;
+- execution re-reads the closeout under the serialized appointment lock, rejects changed evidence, writes only at `MISSION_CONTROL`, and verifies every requested field from the post-save JunkWare page;
+- preview performs the same validation and source-observation checks but changes no closeout, payment, truck-load, Slack, or shared OpsCenter state;
+- a verified write records truck-load and closeout-notification side effects when available, but does not directly resolve the work item. Fresh exception detection remains the only source-verified resolution path.
+
+The existing Jobs closeout remains available during migration. The governed path is embedded in Command so the owner, reason, exact source evidence, approval, execution, and audit receipt stay together.
 
 The Systems control pack adds:
 

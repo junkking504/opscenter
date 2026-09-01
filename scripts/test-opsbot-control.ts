@@ -104,6 +104,9 @@ assert.match(docs, /risk-class 2 registered attribution request/);
 assert.match(docs, /exact Podium snapshot, review, assignment-store, prior-assignment, and completed-job/);
 assert.match(docs, /never replies to the reviewer, changes\s+the Podium review, edits the JunkWare appointment/);
 assert.match(docs, /only `MISSION_CONTROL` may change shared Dispatch or JunkWare state/);
+assert.match(docs, /The JunkWare closeout pack adds/);
+assert.match(docs, /`jobs\.update_closeout\.v1`/);
+assert.match(docs, /does not directly resolve the work item/);
 assert.match(docs, /Money, payroll, customer communication, access, deletion, and broad operational\s+changes remain approval-gated/);
 
 console.log("OpsBot Control route, source, autonomy, safety, and responsive contracts passed.");

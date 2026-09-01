@@ -4854,6 +4854,7 @@ a.ops-jobs-map-selection-phone:focus-visible {
 .ops-closeout-text-button { padding: 0; border: 0; background: none; color: #fbbf24; cursor: pointer; font: inherit; font-weight: 800; }
 .ops-closeout-charge-entry { display: grid; grid-template-columns: minmax(170px, 1.7fr) minmax(58px, .45fr) minmax(90px, .7fr) auto; align-items: end; gap: 7px; }
 .ops-closeout-editor-actions { position: sticky; bottom: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: 8px; padding: 9px; border: 1px solid rgba(148, 163, 184, .22); border-radius: 10px; background: rgba(15, 23, 42, .96); box-shadow: 0 -8px 20px rgba(2, 6, 23, .2); }
+.ops-closeout-editor-governance { margin: 0; color: #f6d777; font-size: 12px; line-height: 1.45; }
 .ops-closeout-editor-message { padding: 10px 12px; border-radius: 8px; font-size: 14px; line-height: 1.4; font-weight: 750; }
 .ops-closeout-editor-message.progress { background: rgba(59, 130, 246, .16); color: #dbeafe; }
 .ops-closeout-editor-message.success { background: rgba(16, 185, 129, .14); color: #6ee7b7; }

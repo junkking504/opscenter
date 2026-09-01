@@ -97,7 +97,7 @@ export default function OpsBotControl({
     {
       name: "Schedule intelligence",
       system: "JunkWare",
-      detail: `${scheduledJobs} scheduled · ${completedJobs} completed · ${unclosedJobs} need follow-up`,
+      detail: `${scheduledJobs} scheduled · ${completedJobs} completed · ${unclosedJobs} need follow-up · governed customer contact`,
       tone: unclosedJobs > 0 || unmappedAppointments > 0 ? "attention" : "live",
       href: `/jobs?date=${date}`,
     },

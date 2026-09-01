@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import path from "node:path";
 import type { ActionVerification } from "@/lib/platform/contracts";
 import type { AnyRecord } from "@/lib/opsData";
@@ -23,6 +24,7 @@ export type DispatchControlAppointment = {
   jobKey: string;
   jkNumber: string;
   customerName: string;
+  phone: string;
   appointmentTime: string;
   appointmentStartMinutes: number | null;
   appointmentEndMinutes: number | null;
@@ -34,6 +36,7 @@ export type DispatchControlAppointment = {
   sourceObservedAt: string;
   routeUpdatedAt: string;
   callAheadStatus: JobCallAheadStatus | "";
+  contactObservationKey: string;
 };
 
 export type DispatchControlSnapshot = {
@@ -125,6 +128,20 @@ function first(row: AnyRecord, keys: string[]): string {
   return "";
 }
 
+function contactObservationKey(input: {
+  appointmentId: string;
+  phone: string;
+  appointmentTime: string;
+  status: string;
+}): string {
+  return crypto.createHash("sha256").update(JSON.stringify({
+    appointmentId: input.appointmentId,
+    phone: input.phone.replace(/\D/g, "").slice(-10),
+    appointmentTime: input.appointmentTime,
+    status: input.status,
+  })).digest("hex");
+}
+
 export function normalizeDispatchTruck(value: unknown): string {
   const match = clean(value).match(/truck\s*#?\s*([1-9])/i);
   return match ? `Truck ${match[1]}` : "";
@@ -200,22 +217,31 @@ export function readDispatchControlSnapshot(date: string): DispatchControlSnapsh
       const sourceAppointmentTime = first(row, ["appointment_time", "scheduled_time", "time_window"]) || "Time unavailable";
       const appointmentTime = override?.appointmentTime || sourceAppointmentTime;
       const sourceWindow = appointmentWindow(appointmentTime);
+      const phone = first(row, ["phone", "customer_phone", "phone_number"]);
+      const status = first(row, ["final_status", "job_status", "status"]);
       return {
         appointmentId,
         jobKey,
         jkNumber: first(row, ["job_id", "jk_number", "job_number"]) || `Appointment ${appointmentId}`,
         customerName: first(row, ["customer_name", "customer", "name"]),
+        phone,
         appointmentTime,
         appointmentStartMinutes: override?.appointmentStartMinutes ?? sourceWindow.start,
         appointmentEndMinutes: override?.appointmentEndMinutes ?? sourceWindow.end,
         appointmentType: first(row, ["appointment_type", "type"]),
-        status: first(row, ["final_status", "job_status", "status"]),
+        status,
         territory: first(row, ["normalized_territory", "territory", "source_territory", "market"]),
         sourceTruck,
         effectiveTruck: override?.truck || sourceTruck,
         sourceObservedAt: snapshot.scrapedAt,
         routeUpdatedAt: override?.updatedAt || "",
         callAheadStatus: callAhead.get(`${date}|${jobKey}`) || "",
+        contactObservationKey: contactObservationKey({
+          appointmentId,
+          phone,
+          appointmentTime,
+          status,
+        }),
       };
     })
     .filter((appointment): appointment is DispatchControlAppointment => Boolean(appointment))

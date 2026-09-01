@@ -47,6 +47,8 @@ assert.deepEqual(definitions.map((definition) => definition.key), [
   "krewe.record_availability.v1",
   "krewe.schedule_call_in.v1",
   "communications.post_ops_command_notice.v1",
+  "communications.approve_customer_contact.v1",
+  "communications.record_customer_contact_outcome.v1",
   "marketing.assign_podium_review.v1",
   "marketing.record_searchkings_recovery.v1",
   "systems.record_integration_review.v1",
@@ -137,6 +139,11 @@ for (const control of [
   "Request call-in approval",
   "Communications control pack",
   "Request Slack notice approval",
+  "Customer contact pack",
+  "Request customer contact approval",
+  "Open approved call",
+  "Open approved text draft",
+  "Record verified contact outcome",
   "Marketing control pack",
   "SearchKings recovery pack",
   "Request lead recovery approval",
@@ -531,6 +538,77 @@ assert.throws(() => opsCommandNotice.validateInput({
   owner: "Dispatch lead",
   nextAction: "Confirm the integration status.",
 }), /cannot contain credentials, customer contact details, or payment-card data/);
+
+const customerContactPlan = registeredActionDefinition("communications.approve_customer_contact.v1");
+assert.ok(customerContactPlan);
+assert.equal(customerContactPlan.riskClass, 2);
+assert.equal(decideActionPolicy(customerContactPlan, operator).decision.outcome, "deny");
+assert.equal(decideActionPolicy(customerContactPlan, manager).decision.outcome, "approval_required");
+assert.deepEqual(customerContactPlan.validateInput({
+  date: "2026-09-01",
+  appointmentId: "4057001",
+  jobKey: "appt:4057001",
+  channel: "sms",
+  purpose: " Confirm arrival window ",
+  message: " Junk King plans to arrive during your scheduled window. ",
+  owner: " Dispatch lead ",
+  nextAction: " Open the approved draft and record the outcome. ",
+  sourceObservedAt: "2026-09-01T14:00:00.000Z",
+  expectedObservationKey: "a".repeat(64),
+  expectedStoreUpdatedAt: "",
+}), {
+  date: "2026-09-01",
+  appointmentId: "4057001",
+  jobKey: "appt:4057001",
+  channel: "sms",
+  purpose: "Confirm arrival window",
+  message: "Junk King plans to arrive during your scheduled window.",
+  owner: "Dispatch lead",
+  nextAction: "Open the approved draft and record the outcome.",
+  sourceObservedAt: "2026-09-01T14:00:00.000Z",
+  expectedObservationKey: "a".repeat(64),
+  expectedStoreUpdatedAt: "",
+});
+assert.throws(() => customerContactPlan.validateInput({
+  date: "2026-09-01",
+  appointmentId: "4057001",
+  jobKey: "appt:4057001",
+  channel: "sms",
+  purpose: "Confirm arrival window",
+  message: "Call 504-555-0199 before arrival.",
+  owner: "Dispatch lead",
+  nextAction: "Open the approved draft.",
+  sourceObservedAt: "2026-09-01T14:00:00.000Z",
+  expectedObservationKey: "a".repeat(64),
+}), /cannot contain contact details/);
+
+const customerContactOutcome = registeredActionDefinition("communications.record_customer_contact_outcome.v1");
+assert.ok(customerContactOutcome);
+assert.equal(customerContactOutcome.riskClass, 1);
+assert.equal(decideActionPolicy(customerContactOutcome, operator).decision.outcome, "allow");
+assert.deepEqual(customerContactOutcome.validateInput({
+  date: "2026-09-01",
+  appointmentId: "4057001",
+  jobKey: "appt:4057001",
+  recordId: "action_contact-123",
+  outcome: "reached",
+  evidenceNote: " Customer confirmed the arrival window. ",
+  sourceObservedAt: "2026-09-01T14:00:00.000Z",
+  expectedObservationKey: "a".repeat(64),
+  expectedStoreUpdatedAt: "2026-09-01T14:03:00.000Z",
+  expectedRecordUpdatedAt: "2026-09-01T14:03:00.000Z",
+}), {
+  date: "2026-09-01",
+  appointmentId: "4057001",
+  jobKey: "appt:4057001",
+  recordId: "action_contact-123",
+  outcome: "reached",
+  evidenceNote: "Customer confirmed the arrival window.",
+  sourceObservedAt: "2026-09-01T14:00:00.000Z",
+  expectedObservationKey: "a".repeat(64),
+  expectedStoreUpdatedAt: "2026-09-01T14:03:00.000Z",
+  expectedRecordUpdatedAt: "2026-09-01T14:03:00.000Z",
+});
 
 const podiumAttribution = registeredActionDefinition("marketing.assign_podium_review.v1");
 assert.ok(podiumAttribution);

@@ -213,6 +213,52 @@ type CommunicationsSnapshot = {
   authorityNotice: string;
 };
 
+type CustomerContactChannel = "phone" | "sms";
+type CustomerContactOutcome = "reached" | "voicemail" | "no_answer" | "sms_sent" | "sms_not_sent";
+
+type CustomerContactRecord = {
+  recordId: string;
+  channel: CustomerContactChannel;
+  purpose: string;
+  message: string;
+  owner: string;
+  nextAction: string;
+  status: "approved" | "outcome_recorded" | "not_completed";
+  outcome: CustomerContactOutcome | "";
+  evidenceNote: string;
+  junkwareVerifiedAt: string;
+  updatedAt: string;
+  updatedBy: string;
+};
+
+type CustomerContactAppointment = {
+  appointmentId: string;
+  jobKey: string;
+  jkNumber: string;
+  customerName: string;
+  phone: string;
+  maskedPhone: string;
+  appointmentTime: string;
+  status: string;
+  territory: string;
+  sourceObservedAt: string;
+  observationKey: string;
+  latestPlan: CustomerContactRecord | null;
+  planCurrent: boolean;
+};
+
+type CustomerContactSnapshot = {
+  date: string;
+  mode: "live_control" | "preview_simulation";
+  source: string;
+  sourceObservedAt: string;
+  storeUpdatedAt: string;
+  appointments: CustomerContactAppointment[];
+  summary: { contactable: number; approved: number; outcomesRecorded: number; notCompleted: number };
+  authorityNotice: string;
+  warning?: string;
+};
+
 type MarketingCandidate = {
   reference: string;
   appointmentId: string;
@@ -446,6 +492,8 @@ function actionLabel(actionKey: string): string {
     "krewe.record_availability.v1": "Krewe availability",
     "krewe.schedule_call_in.v1": "Krewe call-in commitment",
     "communications.post_ops_command_notice.v1": "Ops Command Slack notice",
+    "communications.approve_customer_contact.v1": "Customer contact approval",
+    "communications.record_customer_contact_outcome.v1": "Customer contact outcome",
     "marketing.assign_podium_review.v1": "Podium review attribution",
     "systems.record_integration_review.v1": "Integration recovery review",
     "linxup.record_device_review.v1": "LinxUp device review",
@@ -480,6 +528,16 @@ function moneyLabel(value: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value || 0);
 }
 
+function customerPhoneHref(value: string): string {
+  const digits = String(value || "").replace(/\D/g, "");
+  return digits.length >= 10 ? `tel:+1${digits.slice(-10)}` : "";
+}
+
+function customerSmsHref(phone: string, message: string): string {
+  const href = customerPhoneHref(phone).replace(/^tel:/, "sms:");
+  return href ? `${href}?&body=${encodeURIComponent(message)}` : "";
+}
+
 function paymentReviewNextAction(disposition: PaymentReviewDisposition): string {
   if (disposition === "qbo_follow_up") return "Verify the transaction in QBO and refresh reconciliation.";
   if (disposition === "junkware_follow_up") return "Verify the payment in JunkWare and refresh reconciliation.";
@@ -498,6 +556,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [linxup, setLinxup] = useState<LinxupSnapshot | null>(null);
   const [krewe, setKrewe] = useState<KreweSnapshot | null>(null);
   const [communications, setCommunications] = useState<CommunicationsSnapshot | null>(null);
+  const [customerContact, setCustomerContact] = useState<CustomerContactSnapshot | null>(null);
   const [marketing, setMarketing] = useState<MarketingSnapshot | null>(null);
   const [searchKings, setSearchKings] = useState<SearchKingsControlSnapshot | null>(null);
   const [systems, setSystems] = useState<SystemsSnapshot | null>(null);
@@ -508,6 +567,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [selectedFleetTruckId, setSelectedFleetTruckId] = useState("");
   const [selectedLinxupTruckId, setSelectedLinxupTruckId] = useState("");
   const [selectedKreweEmployeeName, setSelectedKreweEmployeeName] = useState("");
+  const [selectedCustomerContactAppointmentId, setSelectedCustomerContactAppointmentId] = useState("");
   const [selectedFinanceEmployeeName, setSelectedFinanceEmployeeName] = useState("");
   const [selectedFinanceExceptionId, setSelectedFinanceExceptionId] = useState("");
   const [selectedMarketingReviewUid, setSelectedMarketingReviewUid] = useState("");
@@ -534,6 +594,13 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [slackNoticeMessage, setSlackNoticeMessage] = useState("");
   const [slackNoticeOwner, setSlackNoticeOwner] = useState("");
   const [slackNoticeNextAction, setSlackNoticeNextAction] = useState("");
+  const [customerContactChannel, setCustomerContactChannel] = useState<CustomerContactChannel>("phone");
+  const [customerContactPurpose, setCustomerContactPurpose] = useState("");
+  const [customerContactMessage, setCustomerContactMessage] = useState("");
+  const [customerContactOwner, setCustomerContactOwner] = useState("");
+  const [customerContactNextAction, setCustomerContactNextAction] = useState("");
+  const [customerContactOutcome, setCustomerContactOutcome] = useState<CustomerContactOutcome>("reached");
+  const [customerContactEvidence, setCustomerContactEvidence] = useState("");
   const [bonusAmount, setBonusAmount] = useState("");
   const [bonusNote, setBonusNote] = useState("");
   const [payrollClockIn, setPayrollClockIn] = useState("");
@@ -558,7 +625,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     setLoading(true);
     setError("");
     try {
-      const [inboxPayload, actionPayload, systemsPayload, dispatchPayload, fleetPayload, linxupPayload, krewePayload, communicationsPayload, marketingPayload, searchKingsPayload, financeResult] = await Promise.all([
+      const [inboxPayload, actionPayload, systemsPayload, dispatchPayload, fleetPayload, linxupPayload, krewePayload, communicationsPayload, customerContactPayload, marketingPayload, searchKingsPayload, financeResult] = await Promise.all([
         responseJson<InboxPayload>(await fetch("/api/inbox/reconcile", {
           method: "POST",
           cache: "no-store",
@@ -572,6 +639,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
         responseJson<LinxupSnapshot>(await fetch(`/api/platform/linxup?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<KreweSnapshot>(await fetch(`/api/platform/krewe?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<CommunicationsSnapshot>(await fetch(`/api/platform/communications?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
+        responseJson<CustomerContactSnapshot>(await fetch(`/api/platform/customer-contact?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<MarketingSnapshot>(await fetch(`/api/platform/marketing?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<SearchKingsControlSnapshot>(await fetch(`/api/platform/searchkings?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         fetch(`/api/platform/finance?date=${encodeURIComponent(date)}`, { cache: "no-store" }).then(async (response) => {
@@ -587,6 +655,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       setLinxup(linxupPayload);
       setKrewe(krewePayload);
       setCommunications(communicationsPayload);
+      setCustomerContact(customerContactPayload);
       setMarketing(marketingPayload);
       setSearchKings(searchKingsPayload);
       setFinance(financeResult.payload);
@@ -606,6 +675,11 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       setSelectedKreweEmployeeName((current) => current && krewePayload.people.some((person) => person.name === current)
         ? current
         : krewePayload.people.find((person) => person.recommendedForCallIn)?.name || krewePayload.people[0]?.name || "");
+      setSelectedCustomerContactAppointmentId((current) => current && customerContactPayload.appointments.some((appointment) => appointment.appointmentId === current)
+        ? current
+        : customerContactPayload.appointments.find((appointment) => appointment.latestPlan?.status === "approved" && appointment.planCurrent)?.appointmentId
+          || customerContactPayload.appointments[0]?.appointmentId
+          || "");
       setSelectedFinanceEmployeeName((current) => current && financeResult.payload?.employees.some((employee) => employee.name === current)
         ? current
         : financeResult.payload?.employees[0]?.name || "");
@@ -659,6 +733,10 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     () => krewe?.people.find((person) => person.name === selectedKreweEmployeeName) || null,
     [krewe, selectedKreweEmployeeName],
   );
+  const selectedCustomerContactAppointment = useMemo(
+    () => customerContact?.appointments.find((appointment) => appointment.appointmentId === selectedCustomerContactAppointmentId) || null,
+    [customerContact, selectedCustomerContactAppointmentId],
+  );
   const selectedFinanceEmployee = useMemo(
     () => finance?.employees.find((employee) => employee.name === selectedFinanceEmployeeName) || null,
     [finance, selectedFinanceEmployeeName],
@@ -707,6 +785,16 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     setKreweNote("");
     setKreweRole(selectedKrewePerson?.suggestedRole === "Driver" ? "driver" : "crew");
   }, [date, selectedKrewePerson]);
+  useEffect(() => {
+    const plan = selectedCustomerContactAppointment?.latestPlan;
+    setCustomerContactChannel(plan?.channel || "phone");
+    setCustomerContactPurpose(plan?.purpose || "Confirm appointment details and arrival expectations.");
+    setCustomerContactMessage(plan?.message || "Hi, this is Junk King. We are reaching out about your scheduled appointment. Please reply or call us if anything has changed.");
+    setCustomerContactOwner(plan?.owner || "");
+    setCustomerContactNextAction(plan?.nextAction || "Record the human-confirmed outcome in JunkWare.");
+    setCustomerContactOutcome(plan?.channel === "sms" ? "sms_sent" : "reached");
+    setCustomerContactEvidence("");
+  }, [selectedCustomerContactAppointment]);
   useEffect(() => {
     setBonusAmount("");
     setBonusNote("");
@@ -1023,6 +1111,77 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       await load();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "The Communications action request failed.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function requestCustomerContactPlan() {
+    if (!customerContact || !selectedCustomerContactAppointment) return;
+    const actionKey = "communications.approve_customer_contact.v1";
+    setBusy(actionKey);
+    setError("");
+    try {
+      await responseJson(await fetch("/api/platform/action-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actionKey,
+          entity: { type: "customer", id: `appointment:${selectedCustomerContactAppointment.appointmentId}`, label: selectedCustomerContactAppointment.jkNumber },
+          input: {
+            date,
+            appointmentId: selectedCustomerContactAppointment.appointmentId,
+            jobKey: selectedCustomerContactAppointment.jobKey,
+            channel: customerContactChannel,
+            purpose: customerContactPurpose,
+            message: customerContactChannel === "sms" ? customerContactMessage : "",
+            owner: customerContactOwner,
+            nextAction: customerContactNextAction,
+            sourceObservedAt: selectedCustomerContactAppointment.sourceObservedAt,
+            expectedObservationKey: selectedCustomerContactAppointment.observationKey,
+            expectedStoreUpdatedAt: customerContact.storeUpdatedAt,
+          },
+        }),
+      }));
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The customer-contact approval request failed.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function recordCustomerContactOutcome() {
+    const plan = selectedCustomerContactAppointment?.latestPlan;
+    if (!customerContact || !selectedCustomerContactAppointment || !plan) return;
+    const actionKey = "communications.record_customer_contact_outcome.v1";
+    setBusy(actionKey);
+    setError("");
+    try {
+      await responseJson(await fetch("/api/platform/action-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actionKey,
+          entity: { type: "customer", id: `appointment:${selectedCustomerContactAppointment.appointmentId}`, label: selectedCustomerContactAppointment.jkNumber },
+          input: {
+            date,
+            appointmentId: selectedCustomerContactAppointment.appointmentId,
+            jobKey: selectedCustomerContactAppointment.jobKey,
+            recordId: plan.recordId,
+            outcome: customerContactOutcome,
+            evidenceNote: customerContactEvidence,
+            sourceObservedAt: selectedCustomerContactAppointment.sourceObservedAt,
+            expectedObservationKey: selectedCustomerContactAppointment.observationKey,
+            expectedStoreUpdatedAt: customerContact.storeUpdatedAt,
+            expectedRecordUpdatedAt: plan.updatedAt,
+          },
+        }),
+      }));
+      setCustomerContactEvidence("");
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The customer-contact outcome could not be recorded.");
     } finally {
       setBusy("");
     }
@@ -1513,6 +1672,112 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
             <div className={styles.communicationsBoundary}>
               <p>{communications?.authorityNotice || "Customer-facing communications remain locked until their source and delivery evidence are available."}</p>
               <a href="/marketing?section=reviews">Open Podium Reviews</a>
+            </div>
+          </section>
+
+          <section className={styles.customerContactControl} aria-labelledby="opsbot-customer-contact-title">
+            <div className={styles.controlTitle}>
+              <div><span>Customer contact pack</span><strong id="opsbot-customer-contact-title">Approved human outreach + JunkWare receipt</strong></div>
+              <small data-mode={customerContact?.mode}>{customerContact?.mode === "live_control" ? "Mission Control" : "Preview simulation"}</small>
+            </div>
+            <div className={styles.customerContactSummary}>
+              <div><b>{customerContact?.summary.contactable || 0}</b><span>contactable jobs</span></div>
+              <div data-attention={Boolean(customerContact?.summary.approved)}><b>{customerContact?.summary.approved || 0}</b><span>approved plans</span></div>
+              <div><b>{customerContact?.summary.outcomesRecorded || 0}</b><span>outcomes recorded</span></div>
+              <div data-attention={Boolean(customerContact?.summary.notCompleted)}><b>{customerContact?.summary.notCompleted || 0}</b><span>not completed</span></div>
+            </div>
+            {customerContact?.warning ? <div className={styles.dispatchWarning}>{customerContact.warning}</div> : null}
+            {customerContact?.appointments.length ? (
+              <>
+                <label>
+                  <span>JunkWare appointment</span>
+                  <select value={selectedCustomerContactAppointmentId} onChange={(event) => setSelectedCustomerContactAppointmentId(event.target.value)} disabled={loading || Boolean(busy)}>
+                    {customerContact.appointments.map((appointment) => (
+                      <option key={appointment.appointmentId} value={appointment.appointmentId}>
+                        {appointment.latestPlan?.status === "approved" && appointment.planCurrent ? "Approved · " : "Plan · "}{appointment.appointmentTime} · {appointment.jkNumber} · {appointment.customerName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {selectedCustomerContactAppointment ? (
+                  <article className={styles.customerContactTarget}>
+                    <header>
+                      <div><strong>{selectedCustomerContactAppointment.customerName}</strong><small>{selectedCustomerContactAppointment.jkNumber} · {selectedCustomerContactAppointment.appointmentTime} · {selectedCustomerContactAppointment.territory}</small></div>
+                      <span>{selectedCustomerContactAppointment.maskedPhone}</span>
+                    </header>
+                    <p>{selectedCustomerContactAppointment.status || "JunkWare status unavailable"}</p>
+                    {selectedCustomerContactAppointment.latestPlan ? (
+                      <div className={styles.customerContactReceipt} data-current={selectedCustomerContactAppointment.planCurrent}>
+                        <span>{selectedCustomerContactAppointment.planCurrent ? selectedCustomerContactAppointment.latestPlan.status.replaceAll("_", " ") : "Prior-source contact record"}</span>
+                        <p>{selectedCustomerContactAppointment.latestPlan.channel.toUpperCase()} · {selectedCustomerContactAppointment.latestPlan.owner} · {selectedCustomerContactAppointment.latestPlan.purpose}</p>
+                        <small>{selectedCustomerContactAppointment.latestPlan.outcome ? `${selectedCustomerContactAppointment.latestPlan.outcome.replaceAll("_", " ")} · ` : ""}{selectedCustomerContactAppointment.latestPlan.junkwareVerifiedAt ? "JunkWare note verified" : "No carrier delivery receipt"}</small>
+                      </div>
+                    ) : null}
+                  </article>
+                ) : null}
+                {selectedCustomerContactAppointment?.latestPlan?.status === "approved" && selectedCustomerContactAppointment.planCurrent ? (
+                  <div className={styles.customerContactOutcome}>
+                    <div className={styles.customerContactLaunch}>
+                      {selectedCustomerContactAppointment.latestPlan.channel === "phone" ? (
+                        <a href={customerPhoneHref(selectedCustomerContactAppointment.phone)}>Open approved call</a>
+                      ) : (
+                        <a href={customerSmsHref(selectedCustomerContactAppointment.phone, selectedCustomerContactAppointment.latestPlan.message)}>Open approved text draft</a>
+                      )}
+                      <small>This opens the human-controlled phone or message composer; OpsBot does not send.</small>
+                    </div>
+                    <label>
+                      <span>Human-confirmed outcome</span>
+                      <select value={customerContactOutcome} onChange={(event) => setCustomerContactOutcome(event.target.value as CustomerContactOutcome)} disabled={Boolean(busy)}>
+                        {selectedCustomerContactAppointment.latestPlan.channel === "sms" ? (
+                          <><option value="sms_sent">SMS sent — human confirmed</option><option value="sms_not_sent">SMS not sent</option></>
+                        ) : (
+                          <><option value="reached">Customer reached</option><option value="voicemail">Voicemail left</option><option value="no_answer">No answer</option></>
+                        )}
+                      </select>
+                    </label>
+                    <label className={styles.customerContactEvidenceNote}>
+                      <span>Outcome evidence</span>
+                      <textarea value={customerContactEvidence} onChange={(event) => setCustomerContactEvidence(event.target.value)} placeholder="Record what the human operator confirmed; do not paste phone, email, credentials, or card data" maxLength={1000} disabled={Boolean(busy)} />
+                    </label>
+                    <button type="button" disabled={Boolean(busy) || customerContactEvidence.trim().length < 5} onClick={() => void recordCustomerContactOutcome()}>Record verified contact outcome</button>
+                    <small>Risk class 1 after a separately approved plan. The outcome is written to JunkWare appointment notes; carrier delivery remains unverified.</small>
+                  </div>
+                ) : selectedCustomerContactAppointment ? (
+                  <div className={styles.customerContactPlan}>
+                    <label>
+                      <span>Channel</span>
+                      <select value={customerContactChannel} onChange={(event) => setCustomerContactChannel(event.target.value as CustomerContactChannel)} disabled={Boolean(busy)}>
+                        <option value="phone">Phone call</option>
+                        <option value="sms">SMS draft</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Purpose</span>
+                      <input value={customerContactPurpose} onChange={(event) => setCustomerContactPurpose(event.target.value)} maxLength={120} disabled={Boolean(busy)} />
+                    </label>
+                    {customerContactChannel === "sms" ? (
+                      <label className={styles.customerContactDraft}>
+                        <span>Customer-safe draft</span>
+                        <textarea value={customerContactMessage} onChange={(event) => setCustomerContactMessage(event.target.value)} maxLength={500} disabled={Boolean(busy)} />
+                      </label>
+                    ) : null}
+                    <label>
+                      <span>Owner</span>
+                      <input value={customerContactOwner} onChange={(event) => setCustomerContactOwner(event.target.value)} placeholder="Named human operator" maxLength={120} disabled={Boolean(busy)} />
+                    </label>
+                    <label>
+                      <span>Next action</span>
+                      <input value={customerContactNextAction} onChange={(event) => setCustomerContactNextAction(event.target.value)} maxLength={240} disabled={Boolean(busy)} />
+                    </label>
+                    <button type="button" disabled={Boolean(busy) || customerContactPurpose.trim().length < 5 || customerContactOwner.trim().length < 2 || customerContactNextAction.trim().length < 5 || (customerContactChannel === "sms" && customerContactMessage.trim().length < 10)} onClick={() => void requestCustomerContactPlan()}>Request customer contact approval</button>
+                    <small>Risk class 2. A different manager or administrator approves the exact JunkWare contact observation and bounded draft. Approval does not send anything.</small>
+                  </div>
+                ) : null}
+              </>
+            ) : <div className={styles.empty}>No active JunkWare appointments with a verified contact number are available.</div>}
+            <div className={styles.customerContactBoundary}>
+              <p>{customerContact?.authorityNotice || "Customer contact remains locked until current JunkWare evidence is available."}</p>
+              <a href={`/jobs?date=${encodeURIComponent(date)}`}>Open Jobs</a>
             </div>
           </section>
 

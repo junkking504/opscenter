@@ -72,6 +72,8 @@
 .availabilityActions button,
 .callInCommitment button,
 .communicationsNotice button,
+.customerContactPlan button,
+.customerContactOutcome button,
 .searchKingsAction button,
 .marketingAttributionButtons button,
 .systemsReviewForm button,
@@ -99,6 +101,8 @@
 .availabilityActions button:disabled,
 .callInCommitment button:disabled,
 .communicationsNotice button:disabled,
+.customerContactPlan button:disabled,
+.customerContactOutcome button:disabled,
 .searchKingsAction button:disabled,
 .marketingAttributionButtons button:disabled,
 .systemsReviewForm button:disabled,
@@ -473,6 +477,46 @@
 .communicationsBoundary p { margin: 0; color: #778494; font-size: 0.62rem; line-height: 1.4; }
 .communicationsBoundary a { flex: none; color: #9bc5ff; font-size: 0.61rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
 .communicationsBoundary a:hover { text-decoration: underline; }
+
+.customerContactControl {
+  display: grid;
+  gap: 10px;
+  margin: -2px -2px 4px;
+  padding: 13px;
+  border: 1px solid rgba(87, 211, 173, 0.22);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(87, 211, 173, 0.06), rgba(104, 167, 255, 0.02));
+}
+.customerContactSummary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.customerContactSummary > div { display: grid; gap: 2px; padding: 7px; border: 1px solid rgba(148, 163, 184, 0.12); border-radius: 8px; background: rgba(4, 7, 12, 0.2); }
+.customerContactSummary b { color: #fff; font-size: 0.8rem; }
+.customerContactSummary span { color: #8f9bad; font-size: 0.56rem; }
+.customerContactSummary > div[data-attention="true"] b { color: #f6d777; }
+.customerContactTarget { display: grid; gap: 6px; padding: 10px; border: 1px solid rgba(148, 163, 184, 0.13); border-radius: 9px; background: rgba(4, 7, 12, 0.22); }
+.customerContactTarget > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.customerContactTarget > header > div { display: grid; gap: 2px; }
+.customerContactTarget strong { color: #fff; font-size: 0.74rem; }
+.customerContactTarget header small { color: #7f8a99; font-size: 0.58rem; }
+.customerContactTarget header > span { color: #9be8d2; font-size: 0.63rem; font-weight: 850; }
+.customerContactTarget > p { margin: 0; color: #8996a6; font-size: 0.63rem; }
+.customerContactReceipt { display: grid; gap: 3px; padding: 8px 9px; border-left: 2px solid #f6c343; background: rgba(246, 195, 67, 0.05); }
+.customerContactReceipt[data-current="true"] { border-left-color: #37d67a; background: rgba(55, 214, 122, 0.05); }
+.customerContactReceipt span { color: #f6d777; font-size: 0.57rem; font-weight: 850; text-transform: uppercase; }
+.customerContactReceipt[data-current="true"] span { color: #8ce8af; }
+.customerContactReceipt p { margin: 0; color: #a7b1c0; font-size: 0.63rem; line-height: 1.4; }
+.customerContactReceipt small { color: #738291; font-size: 0.57rem; }
+.customerContactPlan, .customerContactOutcome { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; gap: 8px; padding-top: 9px; border-top: 1px solid rgba(148, 163, 184, 0.12); }
+.customerContactPlan label, .customerContactOutcome label { display: grid; gap: 6px; }
+.customerContactDraft, .customerContactEvidenceNote, .customerContactLaunch, .customerContactPlan button, .customerContactOutcome button, .customerContactPlan > small, .customerContactOutcome > small { grid-column: 1 / -1; }
+.customerContactPlan button, .customerContactOutcome button { border-color: rgba(246, 195, 67, 0.32); background: rgba(246, 195, 67, 0.08); color: #f6d777; }
+.customerContactPlan > small, .customerContactOutcome > small { color: #7f8a99; font-size: 0.59rem; line-height: 1.4; }
+.customerContactLaunch { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px; border: 1px solid rgba(87, 211, 173, 0.18); border-radius: 8px; background: rgba(87, 211, 173, 0.04); }
+.customerContactLaunch a { flex: none; padding: 7px 9px; border-radius: 7px; background: rgba(87, 211, 173, 0.12); color: #9be8d2; font-size: 0.65rem; font-weight: 850; text-decoration: none; }
+.customerContactLaunch small { color: #7f8a99; font-size: 0.58rem; line-height: 1.4; }
+.customerContactBoundary { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.customerContactBoundary p { margin: 0; color: #778494; font-size: 0.62rem; line-height: 1.4; }
+.customerContactBoundary a { flex: none; color: #9be8d2; font-size: 0.61rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.customerContactBoundary a:hover { text-decoration: underline; }
 
 .searchKingsControl {
   display: grid;
@@ -953,6 +997,10 @@
   .communicationsMessage, .communicationsNotice button, .communicationsNotice > small { grid-column: 1; }
   .communicationsNotice button { width: 100%; }
   .communicationsBoundary { flex-direction: column; }
+  .customerContactSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .customerContactPlan, .customerContactOutcome { grid-template-columns: 1fr; }
+  .customerContactDraft, .customerContactEvidenceNote, .customerContactLaunch, .customerContactPlan button, .customerContactOutcome button, .customerContactPlan > small, .customerContactOutcome > small { grid-column: 1; }
+  .customerContactLaunch, .customerContactBoundary { align-items: flex-start; flex-direction: column; }
   .searchKingsSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .searchKingsAction { grid-template-columns: 1fr; }
   .searchKingsEvidenceNote, .searchKingsContactFlag, .searchKingsAction button, .searchKingsAction > small { grid-column: 1; }

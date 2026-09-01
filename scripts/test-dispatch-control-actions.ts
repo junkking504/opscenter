@@ -26,8 +26,8 @@ fs.writeFileSync(scheduleFile, JSON.stringify({
     "Junk King Jefferson Parish",
   ],
   appointments: [
-    { appt_id: "4056261", job_id: "JK4069439", customer_name: "Preview Customer", appointment_time: "08:00 AM - 09:00 AM", appointment_type: "Job", job_status: "Confirmed", truck: "Truck# 4", normalized_territory: "New Orleans" },
-    { appt_id: "4056262", job_id: "JK4069440", customer_name: "Cancellation Customer", appointment_time: "12:00 PM - 01:00 PM", appointment_type: "Job", job_status: "Confirmed", truck: "Truck# 5", normalized_territory: "Northshore" },
+    { appt_id: "4056261", job_id: "JK4069439", customer_name: "Preview Customer", phone: "504-555-0101", appointment_time: "08:00 AM - 09:00 AM", appointment_type: "Job", job_status: "Confirmed", truck: "Truck# 4", normalized_territory: "New Orleans" },
+    { appt_id: "4056262", job_id: "JK4069440", customer_name: "Cancellation Customer", phone: "985-555-0102", appointment_time: "12:00 PM - 01:00 PM", appointment_type: "Job", job_status: "Confirmed", truck: "Truck# 5", normalized_territory: "Northshore" },
     { appt_id: "4056486", job_id: "JK4069664", appointment_time: "09:00 AM - 10:00 AM", job_status: "Completed", truck: "Truck# 9" },
   ],
   cancelled: [],
@@ -55,6 +55,8 @@ try {
   const cancellationAppointment = snapshot.appointments[1];
   assert.equal(appointment.sourceTruck, "Truck 4");
   assert.equal(appointment.appointmentStartMinutes, 8 * 60);
+  assert.equal(appointment.phone, "504-555-0101");
+  assert.match(appointment.contactObservationKey, /^[0-9a-f]{64}$/);
 
   const assignmentInput = {
     date,

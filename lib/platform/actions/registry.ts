@@ -5,6 +5,7 @@ import type {
 } from "@/lib/platform/contracts";
 import { dispatchActionDefinitions } from "@/lib/platform/actions/dispatch";
 import { communicationsActionDefinitions } from "@/lib/platform/actions/communications";
+import { customerContactActionDefinitions } from "@/lib/platform/actions/customer-contact";
 import { fleetActionDefinitions } from "@/lib/platform/actions/fleet";
 import { financeActionDefinitions } from "@/lib/platform/actions/finance";
 import { kreweActionDefinitions } from "@/lib/platform/actions/krewe";
@@ -176,6 +177,7 @@ const definitions: ActionDefinition<any>[] = [
   ...financeActionDefinitions,
   ...kreweActionDefinitions,
   ...communicationsActionDefinitions,
+  ...customerContactActionDefinitions,
   ...marketingActionDefinitions,
   ...searchKingsActionDefinitions,
   ...systemsActionDefinitions,

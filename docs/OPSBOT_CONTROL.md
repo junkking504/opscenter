@@ -1,6 +1,6 @@
 # OpsBot Control
 
-Status: Work, Systems, Dispatch, Fleet, LinxUp, Finance, Krewe, Communications, Podium, and SearchKings control foundation; production kernel activation pending
+Status: Work, Systems, Dispatch, Fleet, LinxUp, Finance, Krewe, Communications, Customer Contact, Podium, and SearchKings control foundation; production kernel activation pending
 
 Route: Command `/?section=opsbot`
 
@@ -198,11 +198,33 @@ The Communications control pack adds:
   verified JunkWare upload, quiet-window batching, and existing delivery workers;
 - Podium observation under only the approved `read_reviews` and `read_locations` scopes.
 
-Only the internal Ops Command notice is writable in this pack. It does not accept an
-arbitrary Slack channel. WhatsApp retry or manual customer send controls remain locked
-because they must first prove the prior JunkWare result and final Meta delivery without
-creating a duplicate. Podium review responses and outreach remain read-only because the
-approved OAuth token has no write scope.
+Only the internal Ops Command notice performs an outbound write in this pack. It does not
+accept an arbitrary Slack channel. WhatsApp retry controls remain locked because they must
+first prove the prior JunkWare result and final Meta delivery without creating a duplicate.
+Podium review responses and outreach remain read-only because the approved OAuth token has
+no write scope.
+
+The Customer Contact control pack adds:
+
+- an authenticated contact workspace over current active JunkWare appointments and their
+  current phone observations, without copying the customer name or phone into the action
+  input, audit record, or governed contact ledger;
+- a risk-class 2 call or SMS plan requiring approval by a different manager or administrator
+  against the exact current appointment, contact observation, and contact-store version;
+- a human-controlled `tel:` call launcher or prefilled `sms:` composer only after the plan is
+  approved; OpsBot never presses send and the approval itself performs no outbound contact;
+- a risk-class 1 outcome record available only for a still-current approved plan, with
+  channel-specific outcomes and a required human evidence note;
+- a serialized JunkWare appointment-note adapter that reloads the appointment and verifies
+  the exact retained note before OpsCenter records the outcome;
+- optimistic source, record, and store conflict checks that reject stale plans and duplicate
+  outcomes, plus preview receipts that leave the contact ledger and JunkWare unchanged;
+- explicit separation of the human-confirmed outcome, verified JunkWare note, and carrier
+  delivery: an `SMS sent` confirmation is not a carrier delivery receipt.
+
+The Customer Contact pack is a governed handoff to a human operator, not an outbound
+messaging service. A carrier-backed send remains locked until OpsCenter has a narrow provider
+adapter, idempotency contract, final delivery receipt, and duplicate-prevention evidence.
 
 The Marketing control pack adds:
 
@@ -248,8 +270,8 @@ expands beyond `read_reviews` and `read_locations`. The existing Marketing confi
 re-assign controls now create the same governed action request instead of writing directly.
 
 Together these provide complete governed loops for work state and bounded Systems review,
-Dispatch, Fleet, LinxUp review, Finance, Krewe, internal Communications, Podium attribution,
-and SearchKings recovery
+Dispatch, Fleet, LinxUp review, Finance, Krewe, internal Communications, human-controlled
+Customer Contact, Podium attribution, and SearchKings recovery
 commands. They do not
 claim that every external operational system is controllable yet.
 
@@ -264,7 +286,10 @@ manual bonuses and payroll corrections are risk class 3; truck assignment and
 same-day rescheduling are risk class 2. Human-confirmed Krewe availability is risk
 class 1; a Krewe call-in commitment is risk class 2.
 An internal Ops Command Slack notice is risk class 2, is approval-gated, and is
-restricted to the owned internal channel. Customer-facing communications remain locked.
+restricted to the owned internal channel. A human-controlled customer-contact plan is risk
+class 2 and approval-gated; recording its human-confirmed outcome is risk class 1 only after
+the approved plan remains current and the outcome is retained in JunkWare. OpsBot does not
+send the call or text, and carrier delivery remains unverified.
 A LinxUp device review is risk class 2 and approval-gated; it records bounded internal
 follow-up only and cannot mutate telemetry, mapping, provider state, or Fleet availability.
 A payment-exception review is risk class 2 and approval-gated; it records only internal
@@ -291,9 +316,10 @@ silently overwrite source state.
 ## Remaining system coverage
 
 The next phases should move the remaining direct OpsCenter mutations behind
-this registry, then add separately approved customer communication and only those QBO
-write workflows backed by a connected runtime plus exact external read-back. Direct QBO
-writes remain locked until that authority and verification path exist. Each adapter must ship
+this registry, then add carrier-backed customer communication and only those QBO write
+workflows backed by a connected runtime plus exact external read-back. Direct customer sends
+remain locked until a carrier receipt can be verified. Direct QBO writes remain locked until
+that accounting authority and verification path exist. Each adapter must ship
 with its own permission, risk class, approval rule, idempotency strategy,
 verification source, audit payload, retry behavior, and recovery guidance.
 

@@ -29,7 +29,7 @@ for (const copy of [
 ]) {
   assert.ok(component.includes(copy), `OpsBot Control is missing its safety contract: ${copy}`);
 }
-for (const source of ["OpsCenter health + readiness", "JunkWare", "LinxUp", "JunkWare + QBO", "Podium + JunkWare"]) {
+for (const source of ["OpsCenter health + readiness", "JunkWare", "LinxUp", "JunkWare + QBO", "Podium + SearchKings + JunkWare"]) {
   assert.ok(component.includes(source), `OpsBot Control must identify ${source} as a source lane.`);
 }
 assert.match(component, /<OpsBotActionConsole date=\{date\} enabled=\{kernelReady\}/, "OpsBot Control must mount the kernel-gated action console.");
@@ -88,6 +88,10 @@ assert.match(docs, /customer-facing sends remain controlled by the\s+verified Ju
 assert.match(docs, /approved `read_reviews` and `read_locations` scopes/);
 assert.match(docs, /WhatsApp retry or manual customer send controls remain locked/);
 assert.match(docs, /The Marketing control pack adds/);
+assert.match(docs, /The SearchKings recovery pack adds/);
+assert.match(docs, /priority worklist over verified lost and needs-follow-up calls/);
+assert.match(docs, /only a completed JunkWare appointment may supply attributed revenue/);
+assert.match(docs, /never calls or messages a\s+customer, changes a SearchKings call, creates or edits a JunkWare appointment/);
 assert.match(docs, /candidate customer, JK number, completed appointment date, territory, and Krewe/);
 assert.match(docs, /separate `confirm suggestion` and `re-assign` intents/);
 assert.match(docs, /risk-class 2 registered attribution request/);

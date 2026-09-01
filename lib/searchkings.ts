@@ -109,12 +109,14 @@ export type LostLeadOverride = {
   status: LostLeadStatus;
   reason: LostLeadReason;
   note: string;
+  owner?: string;
+  evidenceNote?: string;
   franchiseContacted: boolean;
   updatedAt: string;
   updatedBy: string;
 };
 
-type LostLeadStore = {
+export type LostLeadStore = {
   version: 1;
   updatedAt: string;
   entries: LostLeadOverride[];
@@ -152,6 +154,8 @@ export type SearchKingsLead = {
   status: LostLeadStatus;
   reason: LostLeadReason;
   note: string;
+  owner: string;
+  evidenceNote: string;
   franchiseContacted: boolean;
   potentialRevenue: number | null;
   matchedAppointment: SearchKingsAppointmentMatch | null;
@@ -274,7 +278,8 @@ export function availableSearchKingsMonths(): string[] {
 }
 
 function lostLeadStorePath(): string {
-  return path.join(process.cwd(), "data", "searchkings-overrides", "lost-leads.json");
+  const configured = String(process.env.SEARCHKINGS_LOST_LEAD_STORE || "").trim();
+  return configured || path.join(process.cwd(), "data", "searchkings-overrides", "lost-leads.json");
 }
 
 function validDateKey(value: unknown): value is string {
@@ -428,7 +433,7 @@ function emptyStore(): LostLeadStore {
   return { version: 1, updatedAt: "", entries: [] };
 }
 
-function readLostLeadStore(): LostLeadStore {
+export function readLostLeadStore(): LostLeadStore {
   try {
     const file = lostLeadStorePath();
     if (!fs.existsSync(file)) return emptyStore();
@@ -445,6 +450,8 @@ function readLostLeadStore(): LostLeadStore {
           status,
           reason: String(entry.reason || "") as LostLeadReason,
           note: String(entry.note || "").slice(0, 1000),
+          owner: String(entry.owner || "").slice(0, 120),
+          evidenceNote: String(entry.evidenceNote || "").slice(0, 1000),
           franchiseContacted: entry.franchiseContacted === true,
           updatedAt: String(entry.updatedAt || ""),
           updatedBy: String(entry.updatedBy || ""),
@@ -455,6 +462,12 @@ function readLostLeadStore(): LostLeadStore {
   } catch {
     return emptyStore();
   }
+}
+
+function nextStoreTimestamp(previous: string): string {
+  const now = Date.now();
+  const prior = Date.parse(previous);
+  return new Date(Number.isFinite(prior) && prior >= now ? prior + 1 : now).toISOString();
 }
 
 function writeLostLeadStore(store: LostLeadStore): void {
@@ -471,6 +484,8 @@ export function saveLostLeadOverride(input: {
   status: LostLeadStatus;
   reason?: LostLeadReason;
   note?: string;
+  owner?: string;
+  evidenceNote?: string;
   franchiseContacted?: boolean;
   updatedBy: string;
 }): LostLeadOverride | null {
@@ -494,20 +509,42 @@ export function saveLostLeadOverride(input: {
   const reason = allowedReasons.includes(String(input.reason || ""))
     ? String(input.reason || "") as LostLeadReason
     : "other";
+  const store = readLostLeadStore();
   const saved: LostLeadOverride = {
     callId,
     status,
     reason,
     note: String(input.note || "").trim().slice(0, 1000),
+    owner: String(input.owner || "").trim().slice(0, 120),
+    evidenceNote: String(input.evidenceNote || "").trim().slice(0, 1000),
     franchiseContacted: input.franchiseContacted === true,
-    updatedAt: new Date().toISOString(),
+    updatedAt: nextStoreTimestamp(store.updatedAt),
     updatedBy: String(input.updatedBy || "").trim().slice(0, 320),
   };
-  const store = readLostLeadStore();
   const entries = store.entries.filter((entry) => entry.callId !== callId);
   entries.push(saved);
   entries.sort((a, b) => a.callId.localeCompare(b.callId));
   writeLostLeadStore({ version: 1, updatedAt: saved.updatedAt, entries });
+  return saved;
+}
+
+export function saveLostLeadOverrideIfCurrent(input: {
+  callId: string;
+  status: LostLeadStatus;
+  reason?: LostLeadReason;
+  note?: string;
+  owner?: string;
+  evidenceNote?: string;
+  franchiseContacted?: boolean;
+  updatedBy: string;
+}, expected: { storeUpdatedAt: string; entryUpdatedAt: string }): LostLeadOverride {
+  const store = readLostLeadStore();
+  const current = store.entries.find((entry) => entry.callId === String(input.callId || "").trim());
+  if (store.updatedAt !== expected.storeUpdatedAt || String(current?.updatedAt || "") !== expected.entryUpdatedAt) {
+    throw new Error("VERSION_CONFLICT: SearchKings recovery state changed after this request was prepared.");
+  }
+  const saved = saveLostLeadOverride(input);
+  if (!saved) throw new Error("A valid SearchKings recovery disposition is required.");
   return saved;
 }
 
@@ -731,6 +768,8 @@ export function buildSearchKingsViewFromData(
       status,
       reason: override?.reason || inferredReason(call),
       note: override?.note || "",
+      owner: override?.owner || "",
+      evidenceNote: override?.evidenceNote || "",
       franchiseContacted: override?.franchiseContacted === true,
       potentialRevenue: explicitCallValue(call.reportingTag),
       matchedAppointment,

@@ -72,6 +72,7 @@
 .availabilityActions button,
 .callInCommitment button,
 .communicationsNotice button,
+.searchKingsAction button,
 .marketingAttributionButtons button,
 .systemsReviewForm button,
 .fleetSensitiveAction button,
@@ -98,6 +99,7 @@
 .availabilityActions button:disabled,
 .callInCommitment button:disabled,
 .communicationsNotice button:disabled,
+.searchKingsAction button:disabled,
 .marketingAttributionButtons button:disabled,
 .systemsReviewForm button:disabled,
 .fleetSensitiveAction button:disabled,
@@ -471,6 +473,41 @@
 .communicationsBoundary p { margin: 0; color: #778494; font-size: 0.62rem; line-height: 1.4; }
 .communicationsBoundary a { flex: none; color: #9bc5ff; font-size: 0.61rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
 .communicationsBoundary a:hover { text-decoration: underline; }
+
+.searchKingsControl {
+  display: grid;
+  gap: 10px;
+  margin: -2px -2px 4px;
+  padding: 13px;
+  border: 1px solid rgba(105, 193, 255, 0.22);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(105, 193, 255, 0.06), rgba(82, 220, 203, 0.02));
+}
+.searchKingsSummary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.searchKingsSummary > div { display: grid; gap: 2px; padding: 7px; border: 1px solid rgba(148, 163, 184, 0.12); border-radius: 8px; background: rgba(4, 7, 12, 0.2); }
+.searchKingsSummary b { overflow: hidden; color: #fff; font-size: 0.76rem; text-overflow: ellipsis; }
+.searchKingsSummary span { color: #8f9bad; font-size: 0.56rem; }
+.searchKingsSummary > div[data-attention="true"] b { color: #f6d777; }
+.searchKingsTarget { display: grid; gap: 7px; padding: 10px; border: 1px solid rgba(148, 163, 184, 0.13); border-radius: 9px; background: rgba(4, 7, 12, 0.22); }
+.searchKingsTarget > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.searchKingsTarget > header > div { display: grid; gap: 2px; }
+.searchKingsTarget strong { color: #fff; font-size: 0.74rem; }
+.searchKingsTarget header small, .searchKingsTarget > small { color: #7f8a99; font-size: 0.58rem; line-height: 1.4; }
+.searchKingsTarget header > span { color: #f6d777; font-size: 0.61rem; font-weight: 850; text-transform: capitalize; }
+.searchKingsTarget > p { margin: 0; color: #a7b1c0; font-size: 0.65rem; line-height: 1.4; }
+.searchKingsEvidence { display: flex; flex-wrap: wrap; gap: 5px; }
+.searchKingsEvidence span { padding: 4px 6px; border: 1px solid rgba(105, 193, 255, 0.17); border-radius: 999px; color: #9edff6; font-size: 0.57rem; }
+.searchKingsAction { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: end; gap: 8px; padding-top: 9px; border-top: 1px solid rgba(148, 163, 184, 0.12); }
+.searchKingsAction label { display: grid; gap: 6px; }
+.searchKingsEvidenceNote, .searchKingsContactFlag, .searchKingsAction button, .searchKingsAction > small { grid-column: 1 / -1; }
+.searchKingsContactFlag { display: flex !important; grid-template-columns: auto minmax(0, 1fr); align-items: center; color: #a7b1c0; font-size: 0.63rem; }
+.searchKingsContactFlag input { width: auto; min-height: auto; }
+.searchKingsAction button { border-color: rgba(246, 195, 67, 0.32); background: rgba(246, 195, 67, 0.08); color: #f6d777; }
+.searchKingsAction > small { color: #7f8a99; font-size: 0.59rem; line-height: 1.4; }
+.searchKingsBoundary { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.searchKingsBoundary p { margin: 0; color: #778494; font-size: 0.62rem; line-height: 1.4; }
+.searchKingsBoundary a { flex: none; color: #9edff6; font-size: 0.61rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.searchKingsBoundary a:hover { text-decoration: underline; }
 
 .marketingControl {
   display: grid;
@@ -916,6 +953,10 @@
   .communicationsMessage, .communicationsNotice button, .communicationsNotice > small { grid-column: 1; }
   .communicationsNotice button { width: 100%; }
   .communicationsBoundary { flex-direction: column; }
+  .searchKingsSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .searchKingsAction { grid-template-columns: 1fr; }
+  .searchKingsEvidenceNote, .searchKingsContactFlag, .searchKingsAction button, .searchKingsAction > small { grid-column: 1; }
+  .searchKingsBoundary { flex-direction: column; }
   .marketingSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .marketingAttributionButtons { grid-template-columns: 1fr; }
   .marketingAttributionButtons button { width: 100%; }

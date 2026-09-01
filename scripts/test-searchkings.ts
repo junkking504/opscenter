@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { appointmentScheduleHref } from "../lib/job-links";
 import { formatSearchKingsDateHeading, groupSearchKingsLeadsByDate } from "../lib/searchkings-date-groups";
 import {
@@ -195,5 +196,13 @@ assert.equal(explicitCallValue("Agent provided $200 starting price."), 200);
 assert.equal(explicitCallValue("Free on-site estimate scheduled between 12 PM and 2 PM."), null);
 assert.equal(explicitCallValue("Quote requested outside the 25-mile service area."), null);
 assert.equal(explicitCallValue("Agent quoted $128 or $158 depending on volume."), null);
+
+const governedRoute = readFileSync("app/api/searchkings/lost-leads/route.ts", "utf8");
+assert.match(governedRoute, /requestAction/);
+assert.match(governedRoute, /marketing\.record_searchkings_recovery\.v1/);
+assert.doesNotMatch(governedRoute, /saveLostLeadOverride/);
+const recoveryUi = readFileSync("components/LostLeadTracker.tsx", "utf8");
+assert.match(recoveryUi, /Recovery approval requested in OpsBot Control/);
+assert.match(recoveryUi, /Request approval/);
 
 console.log("SearchKings attribution and lost-lead checks passed.");

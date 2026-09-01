@@ -256,6 +256,58 @@ type MarketingSnapshot = {
   authorityNotice: string;
 };
 
+type SearchKingsRecoveryStatus = "needs_follow_up" | "lost" | "unqualified";
+type SearchKingsRecoveryReason = "" | "availability" | "pricing" | "missed_call" | "no_follow_up" | "competitor" | "out_of_area" | "service_not_offered" | "customer_declined" | "other";
+
+type SearchKingsRecoveryLead = {
+  callId: string;
+  callerName: string;
+  calledAt: string;
+  territory: string;
+  city: string;
+  source: string;
+  score: number | null;
+  summary: string;
+  tags: string[];
+  status: SearchKingsRecoveryStatus;
+  reason: SearchKingsRecoveryReason;
+  owner: string;
+  nextAction: string;
+  evidenceNote: string;
+  franchiseContacted: boolean;
+  potentialRevenue: number | null;
+  matchedAppointment: {
+    appointmentId: string;
+    jkNumber: string;
+    date: string;
+    status: string;
+    completed: boolean;
+    realizedRevenue: number | null;
+  } | null;
+  observationKey: string;
+  overrideUpdatedAt: string;
+};
+
+type SearchKingsControlSnapshot = {
+  date: string;
+  mode: "live_control" | "preview_simulation";
+  source: string;
+  sourceObservedAt: string;
+  rangeLabel: string;
+  storeUpdatedAt: string;
+  summary: {
+    totalCalls: number;
+    qualifiedCalls: number;
+    lost: number;
+    needsFollowUp: number;
+    bookedOrRecovered: number;
+    completedAttributedRevenue: number;
+  };
+  recoveryLeads: SearchKingsRecoveryLead[];
+  authorityNotice: string;
+  warning?: string;
+};
+
 type SystemsReviewDisposition = "monitor" | "owner_follow_up" | "credential_follow_up" | "source_recovery" | "no_issue_confirmed";
 
 type SystemsIntegration = {
@@ -447,6 +499,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [krewe, setKrewe] = useState<KreweSnapshot | null>(null);
   const [communications, setCommunications] = useState<CommunicationsSnapshot | null>(null);
   const [marketing, setMarketing] = useState<MarketingSnapshot | null>(null);
+  const [searchKings, setSearchKings] = useState<SearchKingsControlSnapshot | null>(null);
   const [systems, setSystems] = useState<SystemsSnapshot | null>(null);
   const [finance, setFinance] = useState<FinanceSnapshot | null>(null);
   const [financeAccessDenied, setFinanceAccessDenied] = useState(false);
@@ -458,8 +511,15 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [selectedFinanceEmployeeName, setSelectedFinanceEmployeeName] = useState("");
   const [selectedFinanceExceptionId, setSelectedFinanceExceptionId] = useState("");
   const [selectedMarketingReviewUid, setSelectedMarketingReviewUid] = useState("");
+  const [selectedSearchKingsCallId, setSelectedSearchKingsCallId] = useState("");
   const [selectedSystemsIntegrationId, setSelectedSystemsIntegrationId] = useState("");
   const [marketingAppointmentReference, setMarketingAppointmentReference] = useState("");
+  const [searchKingsStatus, setSearchKingsStatus] = useState<SearchKingsRecoveryStatus>("needs_follow_up");
+  const [searchKingsReason, setSearchKingsReason] = useState<SearchKingsRecoveryReason>("");
+  const [searchKingsOwner, setSearchKingsOwner] = useState("");
+  const [searchKingsNextAction, setSearchKingsNextAction] = useState("");
+  const [searchKingsEvidenceNote, setSearchKingsEvidenceNote] = useState("");
+  const [searchKingsFranchiseContacted, setSearchKingsFranchiseContacted] = useState(false);
   const [dispatchTruck, setDispatchTruck] = useState("");
   const [dispatchStartMinutes, setDispatchStartMinutes] = useState("");
   const [dispatchDestinationDate, setDispatchDestinationDate] = useState(date);
@@ -498,7 +558,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     setLoading(true);
     setError("");
     try {
-      const [inboxPayload, actionPayload, systemsPayload, dispatchPayload, fleetPayload, linxupPayload, krewePayload, communicationsPayload, marketingPayload, financeResult] = await Promise.all([
+      const [inboxPayload, actionPayload, systemsPayload, dispatchPayload, fleetPayload, linxupPayload, krewePayload, communicationsPayload, marketingPayload, searchKingsPayload, financeResult] = await Promise.all([
         responseJson<InboxPayload>(await fetch("/api/inbox/reconcile", {
           method: "POST",
           cache: "no-store",
@@ -513,6 +573,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
         responseJson<KreweSnapshot>(await fetch(`/api/platform/krewe?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<CommunicationsSnapshot>(await fetch(`/api/platform/communications?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<MarketingSnapshot>(await fetch(`/api/platform/marketing?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
+        responseJson<SearchKingsControlSnapshot>(await fetch(`/api/platform/searchkings?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         fetch(`/api/platform/finance?date=${encodeURIComponent(date)}`, { cache: "no-store" }).then(async (response) => {
           if (response.status === 403) return { payload: null, accessDenied: true };
           return { payload: await responseJson<FinanceSnapshot>(response), accessDenied: false };
@@ -527,6 +588,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       setKrewe(krewePayload);
       setCommunications(communicationsPayload);
       setMarketing(marketingPayload);
+      setSearchKings(searchKingsPayload);
       setFinance(financeResult.payload);
       setFinanceAccessDenied(financeResult.accessDenied);
       setSelectedId((current) => current && inboxPayload.items.some((item) => item.id === current)
@@ -557,6 +619,9 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
         : marketingPayload.podium.reviews.find((review) => review.suggestions.length > 0)?.reviewUid
           || marketingPayload.podium.reviews[0]?.reviewUid
           || "");
+      setSelectedSearchKingsCallId((current) => current && searchKingsPayload.recoveryLeads.some((lead) => lead.callId === current)
+        ? current
+        : searchKingsPayload.recoveryLeads[0]?.callId || "");
       setSelectedSystemsIntegrationId((current) => current && systemsPayload.integrations.some((integration) => integration.integrationId === current)
         ? current
         : systemsPayload.integrations.find((integration) => integration.status !== "healthy" && !integration.reviewCurrent)?.integrationId
@@ -605,6 +670,10 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const selectedMarketingReview = useMemo(
     () => marketing?.podium.reviews.find((review) => review.reviewUid === selectedMarketingReviewUid) || null,
     [marketing, selectedMarketingReviewUid],
+  );
+  const selectedSearchKingsLead = useMemo(
+    () => searchKings?.recoveryLeads.find((lead) => lead.callId === selectedSearchKingsCallId) || null,
+    [searchKings, selectedSearchKingsCallId],
   );
   const selectedSystemsIntegration = useMemo(
     () => systems?.integrations.find((integration) => integration.integrationId === selectedSystemsIntegrationId) || null,
@@ -660,6 +729,14 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   useEffect(() => {
     setMarketingAppointmentReference(selectedMarketingReview?.suggestions[0]?.reference || "");
   }, [selectedMarketingReview]);
+  useEffect(() => {
+    setSearchKingsStatus(selectedSearchKingsLead?.status || "needs_follow_up");
+    setSearchKingsReason(selectedSearchKingsLead?.reason || "");
+    setSearchKingsOwner(selectedSearchKingsLead?.owner || "");
+    setSearchKingsNextAction(selectedSearchKingsLead?.nextAction || "");
+    setSearchKingsEvidenceNote("");
+    setSearchKingsFranchiseContacted(selectedSearchKingsLead?.franchiseContacted === true);
+  }, [selectedSearchKingsLead]);
   useEffect(() => {
     const disposition = selectedSystemsIntegration?.reviewCurrent && selectedSystemsIntegration.review
       ? selectedSystemsIntegration.review.disposition
@@ -985,6 +1062,43 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       await load();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "The Podium attribution request failed.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function requestSearchKingsRecovery() {
+    if (!searchKings || !selectedSearchKingsLead) return;
+    const actionKey = "marketing.record_searchkings_recovery.v1";
+    setBusy(actionKey);
+    setError("");
+    try {
+      await responseJson(await fetch("/api/platform/action-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actionKey,
+          entity: { type: "lead", id: selectedSearchKingsLead.callId, label: "SearchKings recovery lead" },
+          input: {
+            date,
+            callId: selectedSearchKingsLead.callId,
+            status: searchKingsStatus,
+            reason: searchKingsReason,
+            owner: searchKingsOwner,
+            nextAction: searchKingsNextAction,
+            evidenceNote: searchKingsEvidenceNote,
+            franchiseContacted: searchKingsFranchiseContacted,
+            expectedSnapshotFetchedAt: searchKings.sourceObservedAt,
+            expectedStoreUpdatedAt: searchKings.storeUpdatedAt,
+            expectedOverrideUpdatedAt: selectedSearchKingsLead.overrideUpdatedAt,
+            expectedObservationKey: selectedSearchKingsLead.observationKey,
+          },
+        }),
+      }));
+      setSearchKingsEvidenceNote("");
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The SearchKings recovery request failed.");
     } finally {
       setBusy("");
     }
@@ -1399,6 +1513,104 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
             <div className={styles.communicationsBoundary}>
               <p>{communications?.authorityNotice || "Customer-facing communications remain locked until their source and delivery evidence are available."}</p>
               <a href="/marketing?section=reviews">Open Podium Reviews</a>
+            </div>
+          </section>
+
+          <section className={styles.searchKingsControl} aria-labelledby="opsbot-searchkings-title">
+            <div className={styles.controlTitle}>
+              <div><span>SearchKings recovery pack</span><strong id="opsbot-searchkings-title">Lead recovery command</strong></div>
+              <small data-mode={searchKings?.mode}>{searchKings?.mode === "live_control" ? "Mission Control" : "Preview simulation"}</small>
+            </div>
+            <div className={styles.searchKingsSummary}>
+              <div data-attention={Boolean(searchKings?.summary.lost)}><b>{searchKings?.summary.lost || 0}</b><span>lost leads</span></div>
+              <div data-attention={Boolean(searchKings?.summary.needsFollowUp)}><b>{searchKings?.summary.needsFollowUp || 0}</b><span>need follow-up</span></div>
+              <div><b>{searchKings?.summary.bookedOrRecovered || 0}</b><span>JunkWare matches</span></div>
+              <div><b>{moneyLabel(searchKings?.summary.completedAttributedRevenue || 0)}</b><span>completed revenue</span></div>
+            </div>
+            {searchKings?.warning ? <div className={styles.dispatchWarning}>{searchKings.warning}</div> : null}
+            {searchKings?.recoveryLeads.length ? (
+              <>
+                <label>
+                  <span>Priority recovery lead</span>
+                  <select value={selectedSearchKingsCallId} onChange={(event) => setSelectedSearchKingsCallId(event.target.value)} disabled={loading || Boolean(busy)}>
+                    {searchKings.recoveryLeads.map((lead) => (
+                      <option key={lead.callId} value={lead.callId}>
+                        {lead.status === "lost" ? "Lost" : "Follow-up"} · {lead.callerName} · {lead.territory}{lead.potentialRevenue == null ? "" : ` · ${moneyLabel(lead.potentialRevenue)}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {selectedSearchKingsLead ? (
+                  <article className={styles.searchKingsTarget}>
+                    <header>
+                      <div><strong>{selectedSearchKingsLead.callerName}</strong><small>{selectedSearchKingsLead.calledAt.slice(0, 10)} · {selectedSearchKingsLead.territory} · score {selectedSearchKingsLead.score ?? "—"}/5</small></div>
+                      <span>{selectedSearchKingsLead.status.replaceAll("_", " ")}</span>
+                    </header>
+                    <p>{selectedSearchKingsLead.summary || "No call summary was supplied by SearchKings."}</p>
+                    <div className={styles.searchKingsEvidence}>
+                      <span>Source: {selectedSearchKingsLead.source}</span>
+                      <span>Quoted: {selectedSearchKingsLead.potentialRevenue == null ? "not explicit" : moneyLabel(selectedSearchKingsLead.potentialRevenue)}</span>
+                      <span>{selectedSearchKingsLead.matchedAppointment ? `JunkWare ${selectedSearchKingsLead.matchedAppointment.jkNumber || selectedSearchKingsLead.matchedAppointment.appointmentId}` : "No JunkWare match"}</span>
+                    </div>
+                    {selectedSearchKingsLead.matchedAppointment ? (
+                      <small>{selectedSearchKingsLead.matchedAppointment.date} · {selectedSearchKingsLead.matchedAppointment.completed ? `completed · ${moneyLabel(selectedSearchKingsLead.matchedAppointment.realizedRevenue || 0)}` : `booking only · ${selectedSearchKingsLead.matchedAppointment.status}`}</small>
+                    ) : null}
+                  </article>
+                ) : null}
+                {selectedSearchKingsLead ? (
+                  <div className={styles.searchKingsAction}>
+                    <label>
+                      <span>Disposition</span>
+                      <select value={searchKingsStatus} onChange={(event) => setSearchKingsStatus(event.target.value as SearchKingsRecoveryStatus)} disabled={Boolean(busy)}>
+                        <option value="needs_follow_up">Needs follow-up</option>
+                        <option value="lost">Lost</option>
+                        <option value="unqualified">Unqualified</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Reason</span>
+                      <select value={searchKingsReason} onChange={(event) => setSearchKingsReason(event.target.value as SearchKingsRecoveryReason)} disabled={Boolean(busy)}>
+                        <option value="">No reason selected</option>
+                        <option value="availability">Availability</option>
+                        <option value="pricing">Pricing</option>
+                        <option value="missed_call">Missed call</option>
+                        <option value="no_follow_up">No follow-up</option>
+                        <option value="competitor">Competitor</option>
+                        <option value="out_of_area">Out of area</option>
+                        <option value="service_not_offered">Service not offered</option>
+                        <option value="customer_declined">Customer declined</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Recovery owner</span>
+                      <input value={searchKingsOwner} onChange={(event) => setSearchKingsOwner(event.target.value)} placeholder="Named owner" maxLength={120} disabled={Boolean(busy)} />
+                    </label>
+                    <label>
+                      <span>Next action</span>
+                      <input value={searchKingsNextAction} onChange={(event) => setSearchKingsNextAction(event.target.value)} placeholder="Bounded follow-up step" maxLength={500} disabled={Boolean(busy)} />
+                    </label>
+                    <label className={styles.searchKingsEvidenceNote}>
+                      <span>Evidence note</span>
+                      <textarea value={searchKingsEvidenceNote} onChange={(event) => setSearchKingsEvidenceNote(event.target.value)} placeholder="What was verified; do not paste phone, email, credentials, or payment data" maxLength={1000} disabled={Boolean(busy)} />
+                    </label>
+                    <label className={styles.searchKingsContactFlag}>
+                      <input type="checkbox" checked={searchKingsFranchiseContacted} onChange={(event) => setSearchKingsFranchiseContacted(event.target.checked)} disabled={Boolean(busy)} />
+                      <span>Franchise follow-up confirmed in the evidence note</span>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={Boolean(busy) || searchKingsOwner.trim().length < 2 || searchKingsNextAction.trim().length < 5 || searchKingsEvidenceNote.trim().length < (searchKingsFranchiseContacted ? 10 : 5) || ((searchKingsStatus === "lost" || searchKingsStatus === "unqualified") && !searchKingsReason)}
+                      onClick={() => void requestSearchKingsRecovery()}
+                    >Request lead recovery approval</button>
+                    <small>Risk class 2. A different manager or administrator approves against the exact SearchKings call, JunkWare match, and prior recovery record.</small>
+                  </div>
+                ) : null}
+              </>
+            ) : <div className={styles.empty}>No verified SearchKings leads currently need recovery work.</div>}
+            <div className={styles.searchKingsBoundary}>
+              <p>{searchKings?.authorityNotice || "SearchKings recovery remains read-only until verified source evidence is available."}</p>
+              <a href="/marketing?section=lost-leads">Open all recovery leads</a>
             </div>
           </section>
 

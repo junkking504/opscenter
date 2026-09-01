@@ -48,6 +48,7 @@ assert.deepEqual(definitions.map((definition) => definition.key), [
   "krewe.schedule_call_in.v1",
   "communications.post_ops_command_notice.v1",
   "marketing.assign_podium_review.v1",
+  "marketing.record_searchkings_recovery.v1",
   "systems.record_integration_review.v1",
   "linxup.record_device_review.v1",
 ]);
@@ -137,6 +138,8 @@ for (const control of [
   "Communications control pack",
   "Request Slack notice approval",
   "Marketing control pack",
+  "SearchKings recovery pack",
+  "Request lead recovery approval",
   "Request confirm approval",
   "Request re-assignment approval",
   "Systems control pack",
@@ -147,6 +150,12 @@ for (const control of [
 ]) {
   assert.ok(consoleSource.includes(control), `OpsBot console is missing ${control}.`);
 }
+
+const searchKingsRecovery = registeredActionDefinition("marketing.record_searchkings_recovery.v1");
+assert.ok(searchKingsRecovery);
+assert.equal(searchKingsRecovery.riskClass, 2);
+assert.equal(decideActionPolicy(searchKingsRecovery, operator).decision.outcome, "approval_required");
+assert.throws(() => searchKingsRecovery.validateInput({}), /recovery owner|SearchKings call/);
 
 const assignment = registeredActionDefinition("dispatch.assign_truck.v1");
 assert.ok(assignment);

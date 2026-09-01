@@ -124,7 +124,7 @@ export default function OpsBotControl({
     },
     {
       name: "Marketing intelligence",
-      system: "Podium + JunkWare",
+      system: "Podium + SearchKings + JunkWare",
       detail: "Read-only review evidence with governed completed-job and Krewe attribution",
       tone: "guarded",
       href: "/marketing?section=reviews",

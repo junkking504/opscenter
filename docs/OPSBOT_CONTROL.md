@@ -1,6 +1,6 @@
 # OpsBot Control
 
-Status: Work, Systems, Dispatch, Fleet, LinxUp, Finance, Krewe, Communications, and Marketing control foundation; production kernel activation pending
+Status: Work, Systems, Dispatch, Fleet, LinxUp, Finance, Krewe, Communications, Podium, and SearchKings control foundation; production kernel activation pending
 
 Route: Command `/?section=opsbot`
 
@@ -222,13 +222,34 @@ The Marketing control pack adds:
   read-back of the exact saved JK number and Krewe;
 - preview simulation receipts that leave shared Podium attribution state unchanged.
 
+The SearchKings recovery pack adds:
+
+- a priority worklist over verified lost and needs-follow-up calls, ordered with lost and
+  uncontacted opportunities first, then explicit quoted value and recency;
+- source-backed call facts beside any normalized-phone JunkWare booking match, while phone
+  numbers and other customer contact details stay out of the action input and audit record;
+- explicit separation of a SearchKings call, a JunkWare booking signal, and realized revenue:
+  only a completed JunkWare appointment may supply attributed revenue;
+- a risk-class 2 registered recovery disposition with a required owner, next bounded action,
+  evidence note, reason for lost or unqualified outcomes, and separate-manager approval;
+- exact SearchKings snapshot, call observation, recovery-store, and prior-record conflict
+  checks so approval cannot apply after newer call, JunkWare, or recovery evidence arrives;
+- authoritative read-back of the saved OpsCenter disposition and preview receipts that leave
+  shared recovery state unchanged.
+
+A recovery disposition changes OpsCenter follow-up state only. It never calls or messages a
+customer, changes a SearchKings call, creates or edits a JunkWare appointment, or claims that
+a booking produced revenue without completed JunkWare evidence. The existing Marketing lost-
+lead form now creates this same governed approval request instead of writing directly.
+
 Attribution changes OpsCenter reporting only. It never replies to the reviewer, changes
 the Podium review, edits the JunkWare appointment, sends customer communication, or
 expands beyond `read_reviews` and `read_locations`. The existing Marketing confirm and
 re-assign controls now create the same governed action request instead of writing directly.
 
 Together these provide complete governed loops for work state and bounded Systems review,
-Dispatch, Fleet, LinxUp review, Finance, Krewe, internal Communications, and Marketing attribution
+Dispatch, Fleet, LinxUp review, Finance, Krewe, internal Communications, Podium attribution,
+and SearchKings recovery
 commands. They do not
 claim that every external operational system is controllable yet.
 
@@ -250,6 +271,9 @@ A payment-exception review is risk class 2 and approval-gated; it records only i
 ownership, disposition, next action, and evidence against the exact source observation.
 A Podium review attribution is risk class 2 and approval-gated; it requires explicit
 confirm-or-reassign intent and verifies the selected completed JunkWare job and Krewe.
+A SearchKings recovery disposition is risk class 2 and approval-gated; it records internal
+ownership and evidence against the exact current call and JunkWare observation without
+performing customer outreach or changing either source system.
 A systems recovery review is risk class 2 and approval-gated; it records internal
 ownership against the exact current source observation while service, collector,
 credential, tunnel, database, queue, and external-delivery mutations remain locked.

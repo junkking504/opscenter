@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { appointmentScheduleHref } from "@/lib/job-links";
 import { searchKingsPhoneHref } from "@/lib/searchkings-phone";
 import type {
@@ -18,6 +17,9 @@ const STATUS_OPTIONS: Array<{ value: LostLeadStatus; label: string }> = [
   { value: "recovered", label: "Recovered" },
   { value: "unqualified", label: "Unqualified" },
 ];
+const RECOVERY_STATUS_OPTIONS = STATUS_OPTIONS.filter((item) =>
+  ["needs_follow_up", "lost", "unqualified"].includes(item.value),
+);
 
 const REASON_OPTIONS: Array<{ value: LostLeadReason; label: string }> = [
   { value: "", label: "No reason selected" },
@@ -36,6 +38,8 @@ type Draft = {
   status: LostLeadStatus;
   reason: LostLeadReason;
   note: string;
+  owner: string;
+  evidenceNote: string;
   franchiseContacted: boolean;
 };
 
@@ -102,7 +106,6 @@ export default function LostLeadTracker({
 }: {
   leads: SearchKingsLead[];
 }) {
-  const router = useRouter();
   const actionable = useMemo(
     () =>
       leads
@@ -140,6 +143,8 @@ export default function LostLeadTracker({
           status: lead.status,
           reason: lead.reason,
           note: lead.note,
+          owner: lead.owner,
+          evidenceNote: lead.evidenceNote,
           franchiseContacted: lead.franchiseContacted,
         },
       ]),
@@ -198,8 +203,7 @@ export default function LostLeadTracker({
       const payload = await response.json().catch(() => null);
       if (!response.ok)
         throw new Error(String(payload?.error || "Unable to save the lead."));
-      setMessage((current) => ({ ...current, [callId]: "Saved" }));
-      router.refresh();
+      setMessage((current) => ({ ...current, [callId]: "Recovery approval requested in OpsBot Control." }));
     } catch (error) {
       setMessage((current) => ({
         ...current,
@@ -439,7 +443,7 @@ export default function LostLeadTracker({
                                 })
                               }
                             >
-                              {STATUS_OPTIONS.map((item) => (
+                              {RECOVERY_STATUS_OPTIONS.map((item) => (
                                 <option value={item.value} key={item.value}>
                                   {item.label}
                                 </option>
@@ -464,11 +468,20 @@ export default function LostLeadTracker({
                             </select>
                           </label>
                           <label className="ops-marketing-note">
-                            Follow-up note
+                            Recovery owner
+                            <input
+                              value={draft.owner}
+                              maxLength={120}
+                              placeholder="Named recovery owner"
+                              onChange={(event) => update(lead.callId, { owner: event.target.value })}
+                            />
+                          </label>
+                          <label className="ops-marketing-note">
+                            Next action
                             <input
                               value={draft.note}
-                              maxLength={1000}
-                              placeholder="What happened, and what is the next action?"
+                              maxLength={500}
+                              placeholder="Bounded follow-up step"
                               onChange={(event) =>
                                 update(lead.callId, {
                                   note: event.target.value,
@@ -476,26 +489,44 @@ export default function LostLeadTracker({
                               }
                             />
                           </label>
+                          <label className="ops-marketing-note">
+                            Evidence note
+                            <input
+                              value={draft.evidenceNote}
+                              maxLength={1000}
+                              placeholder="What was verified; do not paste contact details"
+                              onChange={(event) => update(lead.callId, { evidenceNote: event.target.value })}
+                            />
+                          </label>
                           <button
                             className="ops-refresh-button"
                             type="button"
-                            disabled={saving === lead.callId}
+                            disabled={
+                              saving === lead.callId
+                              || draft.owner.trim().length < 2
+                              || draft.note.trim().length < 5
+                              || draft.evidenceNote.trim().length < (draft.franchiseContacted ? 10 : 5)
+                              || ((draft.status === "lost" || draft.status === "unqualified") && !draft.reason)
+                            }
                             onClick={() => save(lead.callId)}
                           >
-                            {saving === lead.callId ? "Saving…" : "Save"}
+                            {saving === lead.callId ? "Requesting…" : "Request approval"}
                           </button>
                         </div>
                         {message[lead.callId] ? (
                           <div className="ops-marketing-lead-footer">
                             <span
                               className={
-                                message[lead.callId] === "Saved"
+                                message[lead.callId].includes("approval requested")
                                   ? "ops-kpi-good"
                                   : "ops-kpi-danger"
                               }
                             >
                               {message[lead.callId]}
                             </span>
+                            {message[lead.callId].includes("approval requested") ? (
+                              <Link className="ops-mini-link" href="/?section=opsbot">Open OpsBot Control</Link>
+                            ) : null}
                           </div>
                         ) : null}
                       </div>

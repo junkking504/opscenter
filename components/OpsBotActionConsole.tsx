@@ -256,6 +256,50 @@ type MarketingSnapshot = {
   authorityNotice: string;
 };
 
+type SystemsReviewDisposition = "monitor" | "owner_follow_up" | "credential_follow_up" | "source_recovery" | "no_issue_confirmed";
+
+type SystemsIntegration = {
+  integrationId: string;
+  label: string;
+  authority: string;
+  status: "healthy" | "degraded" | "attention" | "unavailable";
+  observedAt: string;
+  freshness: string;
+  detail: string;
+  suggestedDisposition: SystemsReviewDisposition;
+  suggestedNextAction: string;
+  observationKey: string;
+  reviewCurrent: boolean;
+  review: {
+    recordId: string;
+    disposition: SystemsReviewDisposition;
+    owner: string;
+    nextAction: string;
+    note: string;
+    sourceObservationKey: string;
+    updatedAt: string;
+    updatedBy: string;
+  } | null;
+};
+
+type SystemsSnapshot = {
+  date: string;
+  mode: "live_control" | "preview_simulation";
+  source: string;
+  sourceObservedAt: string;
+  reviewStoreUpdatedAt: string;
+  integrations: SystemsIntegration[];
+  summary: {
+    integrations: number;
+    healthy: number;
+    degraded: number;
+    attention: number;
+    unavailable: number;
+    reviewed: number;
+  };
+  authorityNotice: string;
+};
+
 type FinanceSnapshot = {
   date: string;
   mode: "live_control" | "preview_simulation";
@@ -351,6 +395,7 @@ function actionLabel(actionKey: string): string {
     "krewe.schedule_call_in.v1": "Krewe call-in commitment",
     "communications.post_ops_command_notice.v1": "Ops Command Slack notice",
     "marketing.assign_podium_review.v1": "Podium review attribution",
+    "systems.record_integration_review.v1": "Integration recovery review",
     "linxup.record_device_review.v1": "LinxUp device review",
   };
   return labels[actionKey] || actionKey;
@@ -402,6 +447,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [krewe, setKrewe] = useState<KreweSnapshot | null>(null);
   const [communications, setCommunications] = useState<CommunicationsSnapshot | null>(null);
   const [marketing, setMarketing] = useState<MarketingSnapshot | null>(null);
+  const [systems, setSystems] = useState<SystemsSnapshot | null>(null);
   const [finance, setFinance] = useState<FinanceSnapshot | null>(null);
   const [financeAccessDenied, setFinanceAccessDenied] = useState(false);
   const [selectedId, setSelectedId] = useState("");
@@ -412,6 +458,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [selectedFinanceEmployeeName, setSelectedFinanceEmployeeName] = useState("");
   const [selectedFinanceExceptionId, setSelectedFinanceExceptionId] = useState("");
   const [selectedMarketingReviewUid, setSelectedMarketingReviewUid] = useState("");
+  const [selectedSystemsIntegrationId, setSelectedSystemsIntegrationId] = useState("");
   const [marketingAppointmentReference, setMarketingAppointmentReference] = useState("");
   const [dispatchTruck, setDispatchTruck] = useState("");
   const [dispatchStartMinutes, setDispatchStartMinutes] = useState("");
@@ -437,6 +484,10 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [paymentReviewOwner, setPaymentReviewOwner] = useState("");
   const [paymentReviewNextStep, setPaymentReviewNextStep] = useState("");
   const [paymentReviewNote, setPaymentReviewNote] = useState("");
+  const [systemsReviewDisposition, setSystemsReviewDisposition] = useState<SystemsReviewDisposition>("monitor");
+  const [systemsReviewOwner, setSystemsReviewOwner] = useState("");
+  const [systemsReviewNextAction, setSystemsReviewNextAction] = useState("");
+  const [systemsReviewNote, setSystemsReviewNote] = useState("");
   const [resolutionReason, setResolutionReason] = useState("");
   const [loading, setLoading] = useState(enabled);
   const [busy, setBusy] = useState("");
@@ -447,7 +498,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     setLoading(true);
     setError("");
     try {
-      const [inboxPayload, actionPayload, dispatchPayload, fleetPayload, linxupPayload, krewePayload, communicationsPayload, marketingPayload, financeResult] = await Promise.all([
+      const [inboxPayload, actionPayload, systemsPayload, dispatchPayload, fleetPayload, linxupPayload, krewePayload, communicationsPayload, marketingPayload, financeResult] = await Promise.all([
         responseJson<InboxPayload>(await fetch("/api/inbox/reconcile", {
           method: "POST",
           cache: "no-store",
@@ -455,6 +506,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
           body: JSON.stringify({ date }),
         })),
         responseJson<ActionSnapshot>(await fetch("/api/platform/action-runs", { cache: "no-store" })),
+        responseJson<SystemsSnapshot>(await fetch(`/api/platform/systems?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<DispatchSnapshot>(await fetch(`/api/platform/dispatch?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<FleetSnapshot>(await fetch(`/api/platform/fleet?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<LinxupSnapshot>(await fetch(`/api/platform/linxup?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
@@ -468,6 +520,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       ]);
       setInbox(inboxPayload);
       setSnapshot(actionPayload);
+      setSystems(systemsPayload);
       setDispatch(dispatchPayload);
       setFleet(fleetPayload);
       setLinxup(linxupPayload);
@@ -503,6 +556,12 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
         ? current
         : marketingPayload.podium.reviews.find((review) => review.suggestions.length > 0)?.reviewUid
           || marketingPayload.podium.reviews[0]?.reviewUid
+          || "");
+      setSelectedSystemsIntegrationId((current) => current && systemsPayload.integrations.some((integration) => integration.integrationId === current)
+        ? current
+        : systemsPayload.integrations.find((integration) => integration.status !== "healthy" && !integration.reviewCurrent)?.integrationId
+          || systemsPayload.integrations.find((integration) => integration.status !== "healthy")?.integrationId
+          || systemsPayload.integrations[0]?.integrationId
           || "");
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load OpsBot control state.");
@@ -546,6 +605,10 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const selectedMarketingReview = useMemo(
     () => marketing?.podium.reviews.find((review) => review.reviewUid === selectedMarketingReviewUid) || null,
     [marketing, selectedMarketingReviewUid],
+  );
+  const selectedSystemsIntegration = useMemo(
+    () => systems?.integrations.find((integration) => integration.integrationId === selectedSystemsIntegrationId) || null,
+    [selectedSystemsIntegrationId, systems],
   );
   const selectedMarketingCandidate = useMemo(() => {
     const candidates = [...(selectedMarketingReview?.suggestions || []), ...(marketing?.podium.assignmentOptions || [])];
@@ -597,6 +660,17 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   useEffect(() => {
     setMarketingAppointmentReference(selectedMarketingReview?.suggestions[0]?.reference || "");
   }, [selectedMarketingReview]);
+  useEffect(() => {
+    const disposition = selectedSystemsIntegration?.reviewCurrent && selectedSystemsIntegration.review
+      ? selectedSystemsIntegration.review.disposition
+      : selectedSystemsIntegration?.suggestedDisposition || "monitor";
+    setSystemsReviewDisposition(disposition);
+    setSystemsReviewOwner(selectedSystemsIntegration?.reviewCurrent ? selectedSystemsIntegration.review?.owner || "" : "");
+    setSystemsReviewNextAction(selectedSystemsIntegration?.reviewCurrent
+      ? selectedSystemsIntegration.review?.nextAction || selectedSystemsIntegration.suggestedNextAction
+      : selectedSystemsIntegration?.suggestedNextAction || "");
+    setSystemsReviewNote("");
+  }, [selectedSystemsIntegration]);
   const recentRuns = snapshot?.runs.slice(0, 8) || [];
 
   async function requestWorkAction(actionKey: string, extra: Record<string, unknown> = {}) {
@@ -618,6 +692,44 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       await load();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "The action request failed.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function requestSystemsIntegrationReview() {
+    if (!selectedSystemsIntegration || !systems) return;
+    const actionKey = "systems.record_integration_review.v1";
+    setBusy(actionKey);
+    setError("");
+    try {
+      await responseJson(await fetch("/api/platform/action-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actionKey,
+          entity: {
+            type: "platform",
+            id: `integration:${selectedSystemsIntegration.integrationId}`,
+            label: selectedSystemsIntegration.label,
+          },
+          input: {
+            date,
+            integrationId: selectedSystemsIntegration.integrationId,
+            disposition: systemsReviewDisposition,
+            owner: systemsReviewOwner,
+            nextAction: systemsReviewNextAction,
+            note: systemsReviewNote,
+            expectedReviewStoreUpdatedAt: systems.reviewStoreUpdatedAt,
+            expectedReviewUpdatedAt: selectedSystemsIntegration.review?.updatedAt || "",
+            expectedObservationKey: selectedSystemsIntegration.observationKey,
+          },
+        }),
+      }));
+      setSystemsReviewNote("");
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The integration review request failed.");
     } finally {
       setBusy("");
     }
@@ -925,6 +1037,83 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
 
       <div className={styles.workspace}>
         <div className={styles.commandPane}>
+          <section className={styles.systemsControl} aria-labelledby="opsbot-systems-title">
+            <div className={styles.controlTitle}>
+              <div><span>Systems control pack</span><strong id="opsbot-systems-title">Integration health + recovery command</strong></div>
+              <small data-mode={systems?.mode}>{systems?.mode === "live_control" ? "Mission Control" : "Preview simulation"}</small>
+            </div>
+            <div className={styles.systemsSummary}>
+              <div data-status="healthy"><b>{systems?.summary.healthy || 0}</b><span>healthy</span></div>
+              <div data-status="degraded"><b>{systems?.summary.degraded || 0}</b><span>degraded</span></div>
+              <div data-status="attention"><b>{systems?.summary.attention || 0}</b><span>attention</span></div>
+              <div data-status="unavailable"><b>{systems?.summary.unavailable || 0}</b><span>unavailable</span></div>
+            </div>
+            <div className={styles.systemsEvidence}>
+              <span>{systems?.summary.integrations || 0} source lanes</span>
+              <span>{systems?.summary.reviewed || 0} current reviews</span>
+              <span>Restart controls locked</span>
+            </div>
+            <label>
+              <span>Integration source lane</span>
+              <select value={selectedSystemsIntegrationId} onChange={(event) => setSelectedSystemsIntegrationId(event.target.value)} disabled={loading || Boolean(busy)}>
+                {(systems?.integrations || []).map((integration) => (
+                  <option key={integration.integrationId} value={integration.integrationId}>
+                    {integration.status.replace("_", " ")} · {integration.label} · {integration.freshness}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {selectedSystemsIntegration ? (
+              <article className={styles.systemsTarget} data-status={selectedSystemsIntegration.status}>
+                <div><strong>{selectedSystemsIntegration.label}</strong><span>{selectedSystemsIntegration.status}</span></div>
+                <p>{selectedSystemsIntegration.detail}</p>
+                <small>{selectedSystemsIntegration.authority} · {selectedSystemsIntegration.freshness}</small>
+                {selectedSystemsIntegration.review ? (
+                  <div className={styles.systemsReviewReceipt} data-current={selectedSystemsIntegration.reviewCurrent}>
+                    <span>{selectedSystemsIntegration.reviewCurrent ? "Current recovery review" : "Prior-source review"}</span>
+                    <p>{selectedSystemsIntegration.review.owner} · {selectedSystemsIntegration.review.nextAction}</p>
+                    <small>{selectedSystemsIntegration.review.disposition.replaceAll("_", " ")} · {selectedSystemsIntegration.review.updatedBy}</small>
+                  </div>
+                ) : null}
+              </article>
+            ) : <div className={styles.empty}>No integration evidence is available.</div>}
+            {selectedSystemsIntegration ? (
+              <div className={styles.systemsReviewForm}>
+                <label>
+                  <span>Disposition</span>
+                  <select value={systemsReviewDisposition} onChange={(event) => setSystemsReviewDisposition(event.target.value as SystemsReviewDisposition)} disabled={Boolean(busy)}>
+                    <option value="monitor">Monitor</option>
+                    <option value="owner_follow_up">Owner follow-up</option>
+                    <option value="credential_follow_up">Credential follow-up</option>
+                    <option value="source_recovery">Source recovery</option>
+                    <option value="no_issue_confirmed">No issue confirmed</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Owner</span>
+                  <input value={systemsReviewOwner} onChange={(event) => setSystemsReviewOwner(event.target.value)} placeholder="Named recovery owner" maxLength={120} disabled={Boolean(busy)} />
+                </label>
+                <label className={styles.systemsNextAction}>
+                  <span>Next bounded action</span>
+                  <input value={systemsReviewNextAction} onChange={(event) => setSystemsReviewNextAction(event.target.value)} maxLength={240} disabled={Boolean(busy)} />
+                </label>
+                <label className={styles.systemsReviewEvidence}>
+                  <span>Evidence note</span>
+                  <textarea value={systemsReviewNote} onChange={(event) => setSystemsReviewNote(event.target.value)} placeholder="Record what was checked; do not paste credentials or customer data" maxLength={1000} disabled={Boolean(busy)} />
+                </label>
+                <button
+                  type="button"
+                  disabled={Boolean(busy) || systemsReviewOwner.trim().length < 2 || systemsReviewNextAction.trim().length < 5 || systemsReviewNote.trim().length < 5}
+                  onClick={() => void requestSystemsIntegrationReview()}
+                >Request recovery review approval</button>
+                <small>Risk class 2: a different manager or administrator must approve the exact source observation.</small>
+              </div>
+            ) : null}
+            <div className={styles.systemsBoundary}>
+              <p>{systems?.authorityNotice || "Systems reviews cannot restart services, change credentials, or overwrite source evidence."}</p>
+            </div>
+          </section>
+
           <section className={styles.dispatchControl} aria-labelledby="opsbot-dispatch-title">
             <div className={styles.controlTitle}>
               <div><span>Dispatch control pack</span><strong id="opsbot-dispatch-title">Appointment command</strong></div>

@@ -88,6 +88,13 @@ export default function OpsBotControl({
     href: string;
   }> = [
     {
+      name: "Systems intelligence",
+      system: "OpsCenter health + readiness",
+      detail: "Kernel, auth, collectors, queues, and connected-source evidence with governed recovery reviews",
+      tone: kernelReady ? "guarded" : "attention",
+      href: `/?date=${date}&section=opsbot#opsbot-systems-title`,
+    },
+    {
       name: "Schedule intelligence",
       system: "JunkWare",
       detail: `${scheduledJobs} scheduled · ${completedJobs} completed · ${unclosedJobs} need follow-up`,
@@ -182,8 +189,8 @@ export default function OpsBotControl({
       <div className={styles.metrics} aria-label="OpsBot control summary">
         <article>
           <span>Signal lanes</span>
-          <strong>5</strong>
-          <small>Jobs · Krewe · Fleet · Finance · Marketing</small>
+          <strong>6</strong>
+          <small>Systems · Jobs · Krewe · Fleet · Finance · Marketing</small>
         </article>
         <article data-alert={recommendations.length > 0 ? "true" : "false"}>
           <span>Recommendations</span>

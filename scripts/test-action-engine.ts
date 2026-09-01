@@ -48,6 +48,7 @@ assert.deepEqual(definitions.map((definition) => definition.key), [
   "krewe.schedule_call_in.v1",
   "communications.post_ops_command_notice.v1",
   "marketing.assign_podium_review.v1",
+  "systems.record_integration_review.v1",
   "linxup.record_device_review.v1",
 ]);
 assert.equal(new Set(definitions.map((definition) => definition.key)).size, definitions.length);
@@ -138,6 +139,8 @@ for (const control of [
   "Marketing control pack",
   "Request confirm approval",
   "Request re-assignment approval",
+  "Systems control pack",
+  "Request recovery review approval",
   "LinxUp control pack",
   "Request device review approval",
   "Mark called",
@@ -563,6 +566,44 @@ assert.throws(() => podiumAttribution.validateInput({
   expectedCandidateJkNumber: "JK4061853",
   expectedCandidateCrew: ["Ivory Grace"],
 }), /confirm suggestion or re-assign/);
+
+const systemsReview = registeredActionDefinition("systems.record_integration_review.v1");
+assert.ok(systemsReview);
+assert.equal(systemsReview.riskClass, 2);
+assert.equal(decideActionPolicy(systemsReview, operator).decision.outcome, "approval_required");
+assert.equal(decideActionPolicy(systemsReview, manager).decision.outcome, "approval_required");
+assert.deepEqual(systemsReview.validateInput({
+  date: "2026-09-01",
+  integrationId: " qbo_reconciliation ",
+  disposition: "credential_follow_up",
+  owner: " Finance manager ",
+  nextAction: " Verify the approved connection and refresh reconciliation. ",
+  note: " Current merchant collection is unavailable. ",
+  expectedReviewStoreUpdatedAt: "",
+  expectedReviewUpdatedAt: "",
+  expectedObservationKey: "a".repeat(64),
+}), {
+  date: "2026-09-01",
+  integrationId: "qbo_reconciliation",
+  disposition: "credential_follow_up",
+  owner: "Finance manager",
+  nextAction: "Verify the approved connection and refresh reconciliation.",
+  note: "Current merchant collection is unavailable.",
+  expectedReviewStoreUpdatedAt: "",
+  expectedReviewUpdatedAt: "",
+  expectedObservationKey: "a".repeat(64),
+});
+assert.throws(() => systemsReview.validateInput({
+  date: "2026-09-01",
+  integrationId: "qbo_reconciliation",
+  disposition: "source_recovery",
+  owner: "Finance manager",
+  nextAction: "Use token=xoxb-secret-value to reconnect.",
+  note: "Reconnect the integration.",
+  expectedReviewStoreUpdatedAt: "",
+  expectedReviewUpdatedAt: "",
+  expectedObservationKey: "a".repeat(64),
+}), /cannot contain credentials/);
 
 const linxupDeviceReview = registeredActionDefinition("linxup.record_device_review.v1");
 assert.ok(linxupDeviceReview);

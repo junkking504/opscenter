@@ -1,6 +1,6 @@
 # OpsBot Control
 
-Status: Work, Dispatch, Fleet, LinxUp, Finance, Krewe, Communications, and Marketing control foundation; production kernel activation pending
+Status: Work, Systems, Dispatch, Fleet, LinxUp, Finance, Krewe, Communications, and Marketing control foundation; production kernel activation pending
 
 Route: Command `/?section=opsbot`
 
@@ -48,8 +48,30 @@ path for OpsCenter work items:
 - a Command action console with work-item selection, action status, and audit summaries;
 - direct controls to acknowledge, claim, snooze, and reopen work;
 - approval-gated manual resolution with a required reason;
-- current Jobs, Krewe, Fleet, LinxUp, Finance, Communications, Marketing, and freshness observations without a second data authority;
+- current Systems, Jobs, Krewe, Fleet, LinxUp, Finance, Communications, Marketing, and freshness observations without a second data authority;
 - responsive desktop, tablet, and phone layouts.
+
+The Systems control pack adds:
+
+- one supervision surface over the platform kernel, operator authentication, JunkWare
+  schedule, LinxUp delivery, QBO reconciliation, Slack Ops Command, WhatsApp photo
+  queues, Crew Portal sync, Podium Reviews, and SearchKings reporting;
+- distinct `healthy`, `degraded`, `attention`, and `unavailable` states derived from
+  each owning source instead of treating a green `/api/health` response as universal readiness;
+- explicit separation of collector or integration health from downstream business
+  exceptions, such as an individual stale LinxUp tracker or a QBO payment mismatch;
+- a risk-class 2 recovery review with required disposition, owner, next bounded action,
+  evidence note, and approval by a different manager or administrator;
+- exact source-observation, review-store, and prior-review version checks so an
+  approval cannot be applied after integration evidence changes;
+- durable internal recovery records, attribution, audit history, and authoritative
+  read-back of the exact owner, disposition, and next action;
+- preview simulation receipts that leave shared systems review state unchanged.
+
+A systems recovery review records ownership and intent only. It never restarts a service
+or collector, changes credentials, touches a tunnel or database, retries a queue item,
+sends a message, or overwrites source evidence. Those operations remain locked until
+they have separately authorized, typed adapters with narrow targets and verifiable outcomes.
 
 The Dispatch control pack adds:
 
@@ -205,8 +227,8 @@ the Podium review, edits the JunkWare appointment, sends customer communication,
 expands beyond `read_reviews` and `read_locations`. The existing Marketing confirm and
 re-assign controls now create the same governed action request instead of writing directly.
 
-Together these provide complete governed loops for work state and bounded Dispatch,
-Fleet, LinxUp review, Finance, Krewe, internal Communications, and Marketing attribution
+Together these provide complete governed loops for work state and bounded Systems review,
+Dispatch, Fleet, LinxUp review, Finance, Krewe, internal Communications, and Marketing attribution
 commands. They do not
 claim that every external operational system is controllable yet.
 
@@ -228,6 +250,9 @@ A payment-exception review is risk class 2 and approval-gated; it records only i
 ownership, disposition, next action, and evidence against the exact source observation.
 A Podium review attribution is risk class 2 and approval-gated; it requires explicit
 confirm-or-reassign intent and verifies the selected completed JunkWare job and Krewe.
+A systems recovery review is risk class 2 and approval-gated; it records internal
+ownership against the exact current source observation while service, collector,
+credential, tunnel, database, queue, and external-delivery mutations remain locked.
 
 Money, payroll, customer communication, access, deletion, and broad operational
 changes remain approval-gated. No autonomous production agent or unrestricted

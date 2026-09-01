@@ -29,7 +29,7 @@ for (const copy of [
 ]) {
   assert.ok(component.includes(copy), `OpsBot Control is missing its safety contract: ${copy}`);
 }
-for (const source of ["JunkWare", "LinxUp", "JunkWare + QBO", "Podium + JunkWare"]) {
+for (const source of ["OpsCenter health + readiness", "JunkWare", "LinxUp", "JunkWare + QBO", "Podium + JunkWare"]) {
   assert.ok(component.includes(source), `OpsBot Control must identify ${source} as a source lane.`);
 }
 assert.match(component, /<OpsBotActionConsole date=\{date\} enabled=\{kernelReady\}/, "OpsBot Control must mount the kernel-gated action console.");
@@ -49,6 +49,10 @@ const docs = read("docs/OPSBOT_CONTROL.md");
 assert.match(docs, /OpsBot is the AI operator identity/);
 assert.match(docs, /OpsCenter OS remains the operating layer/);
 assert.match(docs, /The Dispatch control pack adds/);
+assert.match(docs, /The Systems control pack adds/);
+assert.match(docs, /platform kernel, operator authentication, JunkWare\s+schedule, LinxUp delivery, QBO reconciliation/);
+assert.match(docs, /risk-class 2 recovery review with required disposition, owner, next bounded action/);
+assert.match(docs, /never restarts a service\s+or collector, changes credentials, touches a tunnel or database/);
 assert.match(docs, /same-day hourly rescheduling/);
 assert.match(docs, /cancellation requests with a required reason/);
 assert.match(docs, /cross-date moves with risk-class 3 approval/);

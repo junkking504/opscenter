@@ -73,6 +73,7 @@
 .callInCommitment button,
 .communicationsNotice button,
 .marketingAttributionButtons button,
+.systemsReviewForm button,
 .fleetSensitiveAction button,
 .linxupReviewAction button,
 .paymentReviewForm button,
@@ -98,6 +99,7 @@
 .callInCommitment button:disabled,
 .communicationsNotice button:disabled,
 .marketingAttributionButtons button:disabled,
+.systemsReviewForm button:disabled,
 .fleetSensitiveAction button:disabled,
 .linxupReviewAction button:disabled,
 .paymentReviewForm button:disabled,
@@ -152,6 +154,97 @@
   min-height: 74px;
   resize: vertical;
 }
+
+.systemsControl {
+  display: grid;
+  gap: 10px;
+  margin: -2px -2px 4px;
+  padding: 13px;
+  border: 1px solid rgba(82, 220, 203, 0.22);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(82, 220, 203, 0.065), rgba(104, 167, 255, 0.025));
+}
+
+.systemsSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.systemsSummary > div {
+  display: grid;
+  gap: 2px;
+  padding: 7px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(4, 7, 12, 0.2);
+}
+.systemsSummary b { color: #fff; font-size: 0.8rem; }
+.systemsSummary span { color: #8f9bad; font-size: 0.56rem; }
+.systemsSummary > div[data-status="healthy"] b { color: #8ce8af; }
+.systemsSummary > div[data-status="degraded"] b,
+.systemsSummary > div[data-status="attention"] b { color: #f6d777; }
+.systemsSummary > div[data-status="unavailable"] b { color: #ff9ba0; }
+
+.systemsEvidence { display: flex; flex-wrap: wrap; gap: 6px; }
+.systemsEvidence span {
+  padding: 4px 7px;
+  border: 1px solid rgba(82, 220, 203, 0.18);
+  border-radius: 999px;
+  color: #9ae6dc;
+  font-size: 0.59rem;
+}
+
+.systemsTarget {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 9px;
+  background: rgba(4, 7, 12, 0.22);
+}
+.systemsTarget > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.systemsTarget strong { color: #fff; font-size: 0.76rem; }
+.systemsTarget > div:first-child span { color: #8ce8af; font-size: 0.62rem; font-weight: 850; text-transform: capitalize; }
+.systemsTarget[data-status="degraded"] > div:first-child span,
+.systemsTarget[data-status="attention"] > div:first-child span { color: #f6d777; }
+.systemsTarget[data-status="unavailable"] > div:first-child span { color: #ff9ba0; }
+.systemsTarget > p { margin: 0; color: #a7b1c0; font-size: 0.68rem; line-height: 1.4; }
+.systemsTarget > small { color: #7f8a99; font-size: 0.61rem; line-height: 1.4; }
+
+.systemsReviewReceipt {
+  display: grid;
+  gap: 3px;
+  margin-top: 5px;
+  padding: 8px 9px;
+  border-left: 2px solid #f6c343;
+  background: rgba(246, 195, 67, 0.05);
+}
+.systemsReviewReceipt[data-current="true"] { border-left-color: #37d67a; background: rgba(55, 214, 122, 0.05); }
+.systemsReviewReceipt span { color: #f6d777; font-size: 0.57rem; font-weight: 850; text-transform: uppercase; }
+.systemsReviewReceipt[data-current="true"] span { color: #8ce8af; }
+.systemsReviewReceipt p { margin: 0; color: #a7b1c0; font-size: 0.63rem; line-height: 1.4; }
+.systemsReviewReceipt small { color: #738291; font-size: 0.56rem; }
+
+.systemsReviewForm {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.45fr) minmax(150px, 0.55fr);
+  align-items: end;
+  gap: 7px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+.systemsReviewForm label { display: grid; gap: 5px; }
+.systemsReviewForm label > span { color: #8bd9cf; font-size: 0.62rem; font-weight: 850; letter-spacing: 0.06em; text-transform: uppercase; }
+.systemsNextAction { grid-column: 1 / -1; }
+.systemsReviewEvidence { grid-column: 1 / -1; }
+.systemsReviewForm button {
+  grid-column: 1 / -1;
+  border-color: rgba(246, 195, 67, 0.32);
+  background: rgba(246, 195, 67, 0.08);
+  color: #f6d777;
+}
+.systemsReviewForm > small { grid-column: 1 / -1; color: #7f8a99; font-size: 0.58rem; line-height: 1.4; }
+.systemsBoundary p { margin: 0; color: #778494; font-size: 0.62rem; line-height: 1.4; }
 
 .dispatchControl {
   display: grid;
@@ -805,6 +898,10 @@
   .disabled { gap: 12px; padding: 15px; }
   .head button { width: 100%; }
   .sensitiveCommand { grid-template-columns: 1fr; }
+  .systemsSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .systemsReviewForm { grid-template-columns: 1fr; }
+  .systemsNextAction, .systemsReviewEvidence, .systemsReviewForm button, .systemsReviewForm > small { grid-column: 1; }
+  .systemsReviewForm button { width: 100%; }
   .dispatchActions { grid-template-columns: 1fr; }
   .rescheduleActions, .dateMoveActions, .cancellationActions { grid-template-columns: 1fr; }
   .rescheduleActions button, .dateMoveActions button, .cancellationActions button { width: 100%; }

@@ -58,7 +58,7 @@ The JunkWare closeout pack adds the first source-verified external job correctio
 - the durable request is tied to the exact work-item version and a SHA-256 observation of the current closeout values, available options, charges, and payments;
 - risk class 3 and `sensitive.write` require approval by a different manager or administrator;
 - execution re-reads the closeout under the serialized appointment lock, rejects changed evidence, writes only at `MISSION_CONTROL`, and verifies every requested field from the post-save JunkWare page;
-- preview performs the same validation and source-observation checks but changes no closeout, payment, truck-load, Slack, or shared OpsCenter state;
+- preview performs the same validation and source-observation checks, while the action makes no closeout, payment, truck-load, Slack, or shared OpsCenter change;
 - a verified write records truck-load and closeout-notification side effects when available, but does not directly resolve the work item. Fresh exception detection remains the only source-verified resolution path.
 
 The existing Jobs closeout remains available during migration. The governed path is embedded in Command so the owner, reason, exact source evidence, approval, execution, and audit receipt stay together.

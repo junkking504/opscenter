@@ -259,7 +259,7 @@ export async function executeJobCloseout(
       changed: false,
       verified: true,
       verifiedAt: new Date().toISOString(),
-      summary: "Preview simulation verified against the current JunkWare closeout; no closeout, payment, truck-load, or Slack state changed.",
+      summary: "Preview simulation verified against the current JunkWare closeout; this action made no closeout, payment, truck-load, or Slack changes.",
       evidence: { ...baseEvidence, externalWrite: false },
     };
   }

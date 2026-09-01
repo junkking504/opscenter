@@ -123,7 +123,7 @@ assert.equal(receipt.changed, false);
 assert.equal(receipt.verified, true);
 assert.equal(adapterReads, 1);
 assert.equal(adapterWrites, 0);
-assert.match(receipt.summary, /no closeout, payment, truck-load, or Slack state changed/i);
+assert.match(receipt.summary, /this action made no closeout, payment, truck-load, or Slack changes/i);
 
 const adapterSource = readFileSync(path.join(process.cwd(), "scripts/sync-junkware-job-closeout.ts"), "utf8");
 for (const verificationContract of [

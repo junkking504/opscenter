@@ -99,6 +99,9 @@ for (const contract of [
   assert.ok(engine.includes(contract), `Action engine is missing ${contract}.`);
 }
 
+const actionRoute = read("app/api/platform/action-runs/route.ts");
+assert.match(actionRoute, /cannot contain/, "Sanitized-input validation failures must be returned as a client error, not an integration outage.");
+
 const persistence = read("lib/platform/persistence/action-runs.ts");
 for (const contract of [
   "ON CONFLICT (action_key, idempotency_key) DO NOTHING",

@@ -16,7 +16,7 @@ function requestError(error: unknown) {
   const message = error instanceof Error ? error.message : "Unknown action request failure.";
   if (/not found/i.test(message)) return response({ error: message }, 404);
   if (/permission|approval|different manager/i.test(message)) return response({ error: message }, 403);
-  if (/required|invalid|mismatch|support|future|version/i.test(message)) return response({ error: message }, 400);
+  if (/required|invalid|mismatch|support|future|version|cannot contain|choose/i.test(message)) return response({ error: message }, 400);
   return response({ error: "The OpsBot action request could not be completed." }, 503);
 }
 

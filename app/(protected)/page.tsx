@@ -1,7 +1,7 @@
 import PageHeader from "@/components/PageHeader";
 import DataHealth from "@/components/DataHealth";
 import OperatingInbox from "@/components/OperatingInbox";
-import OpsBotControl from "@/components/OpsBotControl";
+import OpsBotCommandBrief from "@/components/OpsBotCommandBrief";
 import { resolveKernelDatabaseConfig } from "@/lib/platform/persistence/config";
 import CommandBrief, {
   type CommandBriefException,
@@ -506,13 +506,13 @@ export default async function DashboardPage({
   if (view === "monthly") {
     return renderMonthlyDashboard(date, requestedSection);
   }
-  const section = ["overview", "opsbot", "crew", "fleet"].includes(requestedSection)
-    ? requestedSection
-    : "overview";
+  const section = requestedSection === "opsbot"
+    ? "overview"
+    : ["overview", "crew", "fleet"].includes(requestedSection) ? requestedSection : "overview";
   const metrics = readMetrics(date);
   const marketing = buildSearchKingsView(date.slice(0, 7));
   const slackDigest = section === "overview" ? await readSlackDailyDigest(date) : null;
-  const commandMap = section === "overview" || section === "opsbot" ? buildCommandMapData(date) : null;
+  const commandMap = section === "overview" ? buildCommandMapData(date) : null;
 
   const crew = crewRows(metrics);
   const activeCrew = crew.filter((row) => workedOrAttributedToJobToday(row));
@@ -666,20 +666,14 @@ export default async function DashboardPage({
   return (
     <div className="ops-dashboard ops-daily-dashboard">
       <PageHeader
-        title={section === "opsbot" ? "OpsBot AI Dashboard" : "Command"}
+        title="Command"
         compact
-        subtitle={section === "opsbot"
-          ? `${shortMonthDay(date)} · See what needs attention, take action, and review what happened`
-          : `${shortMonthDay(date)} · ${jobs} completed job${jobs === 1 ? "" : "s"} · ${activeTruckCount} active truck${activeTruckCount === 1 ? "" : "s"}`}
+        subtitle={`${shortMonthDay(date)} · ${jobs} completed job${jobs === 1 ? "" : "s"} · ${activeTruckCount} active truck${activeTruckCount === 1 ? "" : "s"}`}
         date={date}
         lastUpdated={metrics?.generated_at}
         sections={section === "overview" ? [
           { label: "Overview", href: `/?date=${date}&section=overview#command-overview`, active: true },
           { label: "Operations", href: `/?date=${date}&section=overview#slack-alerts-title` },
-          { label: "OpsBot", href: `/?date=${date}&section=opsbot` },
-        ] : section === "opsbot" ? [
-          { label: "Command", href: `/?date=${date}&section=overview` },
-          { label: "OpsBot", href: `/?date=${date}&section=opsbot`, active: true },
           { label: "Monthly", href: `/?date=${date}&view=monthly` },
         ] : [
           { label: "Overview", href: `/?date=${date}&section=overview`, active: false },
@@ -689,27 +683,10 @@ export default async function DashboardPage({
         ]}
       />
 
-      {section === "opsbot" ? (
-        <OpsBotControl
-          date={date}
-          observedAt={metrics?.generated_at}
-          kernelStatus={kernelDatabase.status}
-          scheduledJobs={commandSchedule.scheduled}
-          completedJobs={commandSchedule.completedJobs}
-          unclosedJobs={commandSchedule.unclosed}
-          activeCrew={activeCrew.length}
-          trackedTrucks={commandMap?.truckLocations.length || 0}
-          staleTrucks={staleCommandTrucks}
-          unmappedAppointments={commandMapCoverage?.needsVerification || 0}
-          grossRevenue={grossRevenue}
-          dailyRevenuePlan={dailyRevenuePlan}
-          laborPercent={currentLaborCostPercent}
-          recommendations={commandExceptions}
-        />
-      ) : null}
-
       {section === "overview" ? <>
         {date === chicagoDateKey() ? <DataHealth compact strip /> : null}
+
+        <OpsBotCommandBrief date={date} exceptions={commandExceptions} />
 
         <section className="ops-supporting-metrics" aria-labelledby="supporting-metrics-title">
           <div className="ops-supporting-metrics-heading">
@@ -770,7 +747,6 @@ export default async function DashboardPage({
 
         <CommandBrief
           metrics={commandBriefMetrics}
-          exceptions={commandExceptions}
           date={date}
           slackDigest={slackDigest!}
           map={commandMap ? (

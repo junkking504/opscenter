@@ -38,7 +38,7 @@ that editable work order.
 
 ## OpsBot Fleet controls
 
-OpsBot Control exposes the same durable repair authority as a governed vehicle
+OpsBot in Command exposes the same durable repair authority as a governed vehicle
 availability command. Placing a truck out of service creates an open
 `out_of_service` repair record. Returning a truck to service resolves the sole
 blocking repair only after a repair-resolution note is recorded. Both actions

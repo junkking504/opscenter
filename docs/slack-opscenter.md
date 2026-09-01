@@ -74,7 +74,7 @@ Copy `.env.slack.example` to `.env.slack.local` and set `SLACK_OPSCENTER_ALERTS_
 
 ## Governed manual Ops Command notices
 
-OpsBot Control may request a bounded internal notice through
+OpsBot in Command may request a bounded internal notice through
 `communications.post_ops_command_notice.v1`. The adapter is risk class 2, requires a
 different manager or administrator to approve, and always targets the configured owned
 `#ops-command` channel. It does not accept an arbitrary channel.

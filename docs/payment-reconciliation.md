@@ -40,7 +40,7 @@ Matching is one-to-one and intentionally conservative:
 
 ## Governed exception review
 
-OpsBot Control presents the current source-backed exception rows inside its Finance
+The embedded OpsBot workflow presents the current source-backed exception rows inside Finance
 control pack. A manager can request the registered
 `finance.record_payment_exception_review.v1` action with a disposition, accountable
 owner, next action, and evidence note. The risk-class 2 request requires approval by a

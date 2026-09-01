@@ -203,7 +203,7 @@ export default function LostLeadTracker({
       const payload = await response.json().catch(() => null);
       if (!response.ok)
         throw new Error(String(payload?.error || "Unable to save the lead."));
-      setMessage((current) => ({ ...current, [callId]: "Recovery approval requested in OpsBot Control." }));
+      setMessage((current) => ({ ...current, [callId]: "Follow-up approval requested in Command." }));
     } catch (error) {
       setMessage((current) => ({
         ...current,
@@ -525,7 +525,7 @@ export default function LostLeadTracker({
                               {message[lead.callId]}
                             </span>
                             {message[lead.callId].includes("approval requested") ? (
-                              <Link className="ops-mini-link" href="/?section=opsbot">Open OpsBot Control</Link>
+                              <Link className="ops-mini-link" href="/?section=overview#opsbot-assistant">Open approvals</Link>
                             ) : null}
                           </div>
                         ) : null}

@@ -48,7 +48,7 @@ dwell evidence is present.
 
 ## Governed device review
 
-OpsBot Control shows LinxUp at the device level through
+OpsBot in Command shows LinxUp at the device level through
 `/api/platform/linxup?date=YYYY-MM-DD`. The overall collector or Fleet snapshot can be
 fresh while an individual tracker is stale, missing a coordinate, using V2 fallback, or
 unmapped. Collector health is therefore displayed separately and its collection

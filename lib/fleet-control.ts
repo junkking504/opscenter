@@ -223,7 +223,7 @@ export async function executeFleetOutOfService(input: FleetOutOfServiceInput): P
   const issue = upsertFleetIssue({
     truck: input.truck,
     title: input.reason,
-    description: "Out-of-service hold created through OpsBot Control.",
+    description: "Out-of-service hold created in Command.",
     severity: "out_of_service",
     status: "open",
   }, { storeUpdatedAt: input.expectedStoreUpdatedAt });

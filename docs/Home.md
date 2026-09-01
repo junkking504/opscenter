@@ -21,7 +21,7 @@ without mixing live runtime data or secrets into Git.
 - [OpsCenter OS Constitution](OPSCENTER_OS_CONSTITUTION.md)
 - [Platform Kernel Architecture](PLATFORM_KERNEL_ARCHITECTURE.md)
 - [Operating Inbox vertical slice](OPERATING_INBOX_VERTICAL_SLICE.md)
-- [OpsBot Control](OPSBOT_CONTROL.md)
+- [OpsBot in Command](OPSBOT_CONTROL.md)
 - [Platform store ADR](adr/0001-platform-store-postgresql.md)
 - [Original OpsCenter V2 specification](../OPSCENTER_V2_SPEC.md)
 

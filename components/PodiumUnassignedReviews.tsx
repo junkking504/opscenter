@@ -63,7 +63,7 @@ export function PodiumReviewReassignControl({
     try {
       await requestAssignment(reviewUid, appointmentReference, "reassign");
       setEditing(false);
-      setNotice("Re-assignment approval requested in OpsBot Control.");
+      setNotice("Re-assignment approval requested in Command.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The review could not be re-assigned.");
     } finally {
@@ -77,7 +77,7 @@ export function PodiumReviewReassignControl({
         <button className="ops-mini-link ops-marketing-review-reassign-button" type="button" onClick={() => { setEditing(true); setNotice(""); }}>
           Re-assign {jkNumber || "review"}
         </button>
-        {notice ? <small className="ops-marketing-unassigned-notice">{notice} <Link href="/?section=opsbot">Open OpsBot Control</Link></small> : null}
+        {notice ? <small className="ops-marketing-unassigned-notice">{notice} <Link href="/?section=overview#opsbot-assistant">Open approvals</Link></small> : null}
       </div>
     );
   }
@@ -131,7 +131,7 @@ export default function PodiumUnassignedReviews({
     try {
       await requestAssignment(reviewUid, appointmentReference, assignmentMode);
       setManualReviewUid("");
-      setNotices((current) => ({ ...current, [reviewUid]: "Attribution approval requested in OpsBot Control." }));
+      setNotices((current) => ({ ...current, [reviewUid]: "Attribution approval requested in Command." }));
     } catch (caught) {
       setErrors((current) => ({
         ...current,
@@ -241,7 +241,7 @@ export default function PodiumUnassignedReviews({
                     </form>
                   ) : null}
                   {errors[review.uid] ? <small className="ops-marketing-unassigned-error">{errors[review.uid]}</small> : null}
-                  {notices[review.uid] ? <small className="ops-marketing-unassigned-notice">{notices[review.uid]} <Link href="/?section=opsbot">Open approval ledger</Link></small> : null}
+                  {notices[review.uid] ? <small className="ops-marketing-unassigned-notice">{notices[review.uid]} <Link href="/?section=overview#opsbot-assistant">Open approvals</Link></small> : null}
                 </div>
               </article>
             );

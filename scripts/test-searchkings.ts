@@ -202,7 +202,8 @@ assert.match(governedRoute, /requestAction/);
 assert.match(governedRoute, /marketing\.record_searchkings_recovery\.v1/);
 assert.doesNotMatch(governedRoute, /saveLostLeadOverride/);
 const recoveryUi = readFileSync("components/LostLeadTracker.tsx", "utf8");
-assert.match(recoveryUi, /Recovery approval requested in OpsBot Control/);
+assert.match(recoveryUi, /Follow-up approval requested in Command/);
+assert.match(recoveryUi, /#opsbot-assistant/);
 assert.match(recoveryUi, /Request approval/);
 
 console.log("SearchKings attribution and lost-lead checks passed.");

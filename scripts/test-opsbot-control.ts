@@ -6,50 +6,45 @@ const root = process.cwd();
 const read = (file: string) => readFileSync(path.join(root, file), "utf8");
 
 const commandPage = read("app/(protected)/page.tsx");
-assert.match(commandPage, /\["overview", "opsbot", "crew", "fleet"\]/, "Command must recognize the OpsBot subview.");
-assert.match(commandPage, /section === "overview" \|\| section === "opsbot"/, "OpsBot must use the same current schedule and fleet observation path as Command.");
-assert.match(commandPage, /<OpsBotControl/, "Command must render the OpsBot control surface.");
-assert.match(commandPage, /recommendations=\{commandExceptions\}/, "OpsBot recommendations must come from current Command conditions.");
-assert.match(commandPage, /kernelStatus=\{kernelDatabase\.status\}/, "OpsBot must disclose the real action-kernel state.");
-assert.match(commandPage, /title=\{section === "opsbot" \? "OpsBot AI Dashboard" : "Command"\}/, "The dashboard must use its plain product name.");
-assert.match(commandPage, /See what needs attention, take action, and review what happened/, "The page header must explain the dashboard in everyday language.");
+assert.match(commandPage, /requestedSection === "opsbot"\s*\? "overview"/, "The retired OpsBot URL must fall back to Command Overview.");
+assert.match(commandPage, /<OpsBotCommandBrief date=\{date\} exceptions=\{commandExceptions\}/, "Command must embed the useful OpsBot brief.");
+assert.doesNotMatch(commandPage, /<OpsBotControl/, "Command must not retain the standalone OpsBot dashboard.");
+assert.match(commandPage, /title="Command"/, "Command must retain one primary destination.");
 
 const nav = read("components/OpsNav.tsx");
-assert.match(nav, /label: "OpsBot Control"/, "Command navigation must expose OpsBot Control.");
-assert.match(nav, /section: "opsbot"/, "OpsBot navigation must preserve the Command section contract.");
+assert.doesNotMatch(nav, /label: "OpsBot Control"/, "OpsBot must not remain a separate navigation destination.");
+assert.doesNotMatch(nav, /section: "opsbot"/, "Command navigation must not create a second OpsBot page.");
 
-const component = read("components/OpsBotControl.tsx");
+const component = read("components/OpsBotCommandBrief.tsx");
 for (const copy of [
-  "See what needs attention and take the next step.",
-  "What buttons can do",
-  "Manager approval for bigger changes",
-  "OpsBot cannot act on its own",
-  "Where the information comes from",
-  "What happens after you click",
-  "Check that it worked",
+  "Only appears when something needs attention.",
+  "Needs attention",
+  "Waiting for approval",
+  "Recent results",
+  "Another manager must review",
 ]) {
-  assert.ok(component.includes(copy), `OpsBot Control is missing its safety contract: ${copy}`);
+  assert.ok(component.includes(copy), `The embedded OpsBot brief is missing: ${copy}`);
 }
-for (const source of ["OpsCenter status", "JunkWare", "LinxUp", "JunkWare + QBO", "Podium + SearchKings + JunkWare"]) {
-  assert.ok(component.includes(source), `OpsBot Control must identify ${source} as a source lane.`);
-}
-assert.match(component, /<OpsBotActionConsole date=\{date\} enabled=\{kernelReady\}/, "OpsBot Control must mount the kernel-gated action console.");
+assert.match(component, /\/api\/platform\/action-runs/, "The embedded brief must load real approval activity.");
+assert.match(component, /\/api\/inbox\?date=/, "The embedded brief must identify the current actor before offering approval.");
+assert.match(component, /run\.riskClass >= 2 && run\.actorId === actorId/, "The requester must not approve their own important change.");
+assert.match(component, /if \(!hasUsefulWork\) return null/, "OpsBot must disappear when nothing useful needs attention.");
 
-const theme = read("components/OpsBotControl.module.css");
+const theme = read("components/OpsBotCommandBrief.module.css");
 for (const contract of [
-  ".primaryGrid",
-  ".secondaryGrid",
-  ".autonomyList",
-  "@media (max-width: 820px)",
-  "@media (max-width: 560px)",
+  ".columns",
+  ".approvalActions",
+  "@media (max-width: 900px)",
+  "@media (max-width: 620px)",
 ]) {
-  assert.ok(theme.includes(contract), `OpsBot Control theme is missing ${contract}.`);
+  assert.ok(theme.includes(contract), `The embedded OpsBot theme is missing ${contract}.`);
 }
 
 const docs = read("docs/OPSBOT_CONTROL.md");
 assert.match(docs, /OpsBot is the AI operator identity/);
 assert.match(docs, /OpsCenter OS remains the operating layer/);
-assert.match(docs, /The dashboard itself uses everyday operating language/);
+assert.match(docs, /it is not a separate dashboard destination/);
+assert.match(docs, /appears only\s+when an exception, approval, or failed result needs attention/);
 assert.match(docs, /The Dispatch control pack adds/);
 assert.match(docs, /The Systems control pack adds/);
 assert.match(docs, /platform kernel, operator authentication, JunkWare\s+schedule, LinxUp delivery, QBO reconciliation/);
@@ -111,4 +106,4 @@ assert.match(docs, /`jobs\.update_closeout\.v1`/);
 assert.match(docs, /does not directly resolve the work item/);
 assert.match(docs, /Money, payroll, customer communication, access, deletion, and broad operational\s+changes remain approval-gated/);
 
-console.log("OpsBot Control route, source, autonomy, safety, and responsive contracts passed.");
+console.log("Embedded OpsBot Command brief, approval safety, route fallback, and responsive contracts passed.");

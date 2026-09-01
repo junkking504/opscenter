@@ -126,7 +126,7 @@ async function main() {
     assert.equal(liveReceipt.channelId, "C1234567890");
     assert.equal(liveReceipt.messageTs, "2099.123456");
     assert.match(String(requestBody.text || ""), /Route plan update/);
-    assert.match(String(requestBody.text || ""), /OpsBot Control/);
+    assert.match(String(requestBody.text || ""), /Approved in.*Command/);
     assert.match(String(requestBody.client_msg_id || ""), /^[0-9a-f-]{36}$/);
     assert.equal((await verifyInternalSlackNotice(liveReceipt)).outcome, "verified");
 

@@ -1,17 +1,17 @@
-# OpsBot Control
+# OpsBot in Command
 
-Status: Work, JunkWare Closeout, Systems, Dispatch, Fleet and Truck Load, LinxUp, Finance, Krewe, Communications, Customer Contact, Podium, and SearchKings control foundation; production kernel activation pending
+Status: Embedded Command assistant over Work, JunkWare Closeout, Systems, Dispatch, Fleet and Truck Load, LinxUp, Finance, Krewe, Communications, Customer Contact, Podium, and SearchKings actions; production kernel activation pending
 
-Route: Command `/?section=opsbot`
+Route: Command `/?section=overview#opsbot-assistant`; legacy `/?section=opsbot` opens Command Overview
 
 Companions: [OpsCenter OS Constitution](OPSCENTER_OS_CONSTITUTION.md), [Platform Kernel Architecture](PLATFORM_KERNEL_ARCHITECTURE.md)
 
 ## Product naming
 
 OpsCenter is the product. OpsCenter OS remains the operating layer and shared
-policy-controlled kernel. OpsBot is the AI operator identity. **OpsBot Control**
-is the Command dashboard where people see what OpsBot observes, recommends,
-and is allowed to do.
+policy-controlled kernel. OpsBot is the AI operator identity. OpsBot is embedded
+inside Command and the operating areas where its recommendation or approval is
+useful; it is not a separate dashboard destination.
 
 This separation keeps the language useful without implying that an agent owns
 the business system:
@@ -21,15 +21,16 @@ the business system:
 - OpsBot observes approved context and may recommend or invoke only registered,
   policy-allowed actions.
 
-The dashboard itself uses everyday operating language. It tells the user what
-needs attention, what a button will do, who must approve it, and how the result
-will be checked. Technical terms such as risk classes, registered actions,
+The embedded Command assistant uses everyday operating language and appears only
+when an exception, approval, or failed result needs attention. It keeps three
+questions together: what needs attention, what is waiting for approval, and what
+happened recently. Technical terms such as risk classes, registered actions,
 source observations, runtime state, and audit ledgers stay in the implementation
 and this engineering reference instead of appearing in the operating interface.
 
 ## Complete control-system contract
 
-OpsBot Control is intended to control OpsCenter through one governed lifecycle:
+OpsBot actions control OpsCenter through one governed lifecycle:
 
 1. Observe fresh evidence from the correct source authority.
 2. Explain the condition and propose a bounded next action.

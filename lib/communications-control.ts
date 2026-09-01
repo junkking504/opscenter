@@ -329,11 +329,11 @@ export async function executeInternalSlackNotice(
     title: input.subject,
     fields: [
       { label: "Owner", value: input.owner },
-      { label: "Approved via", value: "OpsBot Control" },
+      { label: "Approved in", value: "Command" },
     ],
     body: input.message,
     nextAction: input.nextAction,
-    href: `${baseUrl}/?section=opsbot`,
+    href: `${baseUrl}/?section=overview#opsbot-assistant`,
   });
   const response = await fetchImpl("https://slack.com/api/chat.postMessage", {
     method: "POST",

@@ -6,8 +6,8 @@ const root = process.cwd();
 const read = (file: string) => readFileSync(path.join(root, file), "utf8");
 const interfaceSource = [
   read("app/(protected)/page.tsx"),
-  read("components/OpsBotControl.tsx"),
-  read("components/OpsBotActionConsole.tsx"),
+  read("components/OpsBotCommandBrief.tsx"),
+  read("components/OpsNav.tsx"),
   read("components/JobCloseoutEditor.tsx"),
 ].join("\n");
 const generatedStatusCopy = [
@@ -16,13 +16,11 @@ const generatedStatusCopy = [
 ].join("\n");
 
 for (const required of [
-  "OpsBot AI Dashboard",
-  "See what needs attention and take the next step",
-  "What buttons can do",
-  "What happens after you click",
-  "Choose an area and complete the next step",
-  "Another manager must approve",
-  "Recent activity",
+  "Only appears when something needs attention",
+  "Needs attention",
+  "Waiting for approval",
+  "Recent results",
+  "Another manager must review",
   "OpsCenter changes",
   "LinxUp GPS updates",
   "QBO payment check",
@@ -55,8 +53,10 @@ for (const jargon of [
   "Autonomy ladder",
   "Trust architecture",
   "source lanes",
+  "OpsBot AI Dashboard",
+  "label: \"OpsBot Control\"",
 ]) {
   assert.ok(!interfaceSource.includes(jargon), `The dashboard still exposes internal wording: ${jargon}`);
 }
 
-console.log("OpsBot AI Dashboard plain-language contract passed.");
+console.log("Embedded OpsBot plain-language contract passed.");

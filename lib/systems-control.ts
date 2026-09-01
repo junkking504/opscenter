@@ -289,7 +289,7 @@ export function buildSystemsControlSnapshot(
       label: "WhatsApp job-photo queue",
       authority: "OpsBot durable WhatsApp queues",
       status: photoStatus,
-      observedAt: communications.sourceObservedAt,
+      observedAt: "",
       freshness: "Durable queue read-back",
       detail: `${photoCounts.incoming} incoming · ${photoCounts.processing} processing · ${photoCounts.review} review · ${photoCounts.failed} failed.`,
       ...suggestedReview(photoStatus, "source"),

@@ -1,6 +1,6 @@
 # OpsBot Control
 
-Status: Work, JunkWare Closeout, Systems, Dispatch, Fleet, LinxUp, Finance, Krewe, Communications, Customer Contact, Podium, and SearchKings control foundation; production kernel activation pending
+Status: Work, JunkWare Closeout, Systems, Dispatch, Fleet and Truck Load, LinxUp, Finance, Krewe, Communications, Customer Contact, Podium, and SearchKings control foundation; production kernel activation pending
 
 Route: Command `/?section=opsbot`
 
@@ -121,6 +121,24 @@ The Fleet control pack adds:
 - a strict boundary that LinxUp telemetry and checklist signals are advisory and never
   change truck availability automatically;
 - preview simulation receipts that leave the shared Fleet repair store unchanged.
+
+The embedded Truck Load control adds:
+
+- the current starting load, calculated capacity, contents, and last authoritative ledger
+  event beside each selected Fleet truck;
+- `fleet.set_starting_load.v1` and `fleet.record_yard_reset.v1` as risk-class 1,
+  permission-checked records of a human-observed load state;
+- exact load-ledger observation checks performed again under the file lock, deterministic
+  day-start and action-run event identities, and authoritative event read-back;
+- a no-op outcome when the approved starting load is already current, without rewriting
+  the ledger merely to refresh a timestamp;
+- explicit separation between recording a dump or metal-yard reset and causing or claiming
+  an unobserved physical truck movement;
+- preview receipts that state causally that the action itself made no shared truck-load change.
+
+The existing Truck Load panel and API remain as compatibility paths while callers move to
+the registered actions. The governed controls stay in the Fleet command surface so current
+load evidence, the operator action, and its audit receipt remain together.
 
 The LinxUp control pack adds:
 
@@ -297,6 +315,8 @@ Fleet availability changes are risk class 3;
 manual bonuses and payroll corrections are risk class 3; truck assignment and
 same-day rescheduling are risk class 2. Human-confirmed Krewe availability is risk
 class 1; a Krewe call-in commitment is risk class 2.
+Human-observed truck starting-load and yard-reset records are risk class 1; they do not
+assert that OpsBot moved or emptied the truck.
 An internal Ops Command Slack notice is risk class 2, is approval-gated, and is
 restricted to the owned internal channel. A human-controlled customer-contact plan is risk
 class 2 and approval-gated; recording its human-confirmed outcome is risk class 1 only after

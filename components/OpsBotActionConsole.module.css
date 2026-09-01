@@ -78,6 +78,7 @@
 .marketingAttributionButtons button,
 .systemsReviewForm button,
 .fleetSensitiveAction button,
+.fleetLoadAction button,
 .linxupReviewAction button,
 .paymentReviewForm button,
 .financeAction button,
@@ -107,6 +108,7 @@
 .marketingAttributionButtons button:disabled,
 .systemsReviewForm button:disabled,
 .fleetSensitiveAction button:disabled,
+.fleetLoadAction button:disabled,
 .linxupReviewAction button:disabled,
 .paymentReviewForm button:disabled,
 .financeAction button:disabled,
@@ -143,6 +145,7 @@
 .commandPane input,
 .commandPane textarea,
 .fleetSensitiveAction input,
+.fleetLoadAction select,
 .sensitiveCommand input {
   width: 100%;
   min-height: 42px;
@@ -696,6 +699,27 @@
 }
 .fleetSensitiveAction button { border-color: rgba(255, 100, 107, 0.32); background: rgba(255, 100, 107, 0.07); color: #ff9ba0; }
 .fleetSensitiveAction > small { grid-column: 1 / -1; color: #8f7a94; font-size: 0.6rem; line-height: 1.4; }
+.fleetLoadAction {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.55fr) auto;
+  align-items: end;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgba(104, 167, 255, 0.18);
+  border-radius: 9px;
+  background: rgba(104, 167, 255, 0.035);
+}
+.fleetLoadAction label { display: grid; gap: 6px; }
+.fleetLoadAction label > span,
+.fleetLoadState > span { color: #9bc5ff; font-size: 0.62rem; font-weight: 850; letter-spacing: 0.06em; text-transform: uppercase; }
+.fleetLoadState { display: grid; gap: 3px; }
+.fleetLoadState strong { color: #fff; font-size: 0.78rem; }
+.fleetLoadState small { color: #7f8a99; font-size: 0.6rem; line-height: 1.35; }
+.fleetLoadState[data-over-capacity="true"] strong { color: #ff9ba0; }
+.fleetLoadAction button { border-color: rgba(104, 167, 255, 0.3); background: rgba(104, 167, 255, 0.08); color: #b9d5ff; }
+.fleetLoadButtons { display: flex; grid-column: 1 / -1; gap: 8px; }
+.fleetLoadButtons button { flex: 1; }
+.fleetLoadAction > small { grid-column: 1 / -1; color: #778494; font-size: 0.6rem; line-height: 1.4; }
 .blockingIssue { display: grid; grid-column: 1 / -1; gap: 3px; padding: 8px 9px; border-radius: 8px; background: rgba(255, 100, 107, 0.055); }
 .blockingIssue strong { color: #f3d9db; font-size: 0.69rem; }
 .blockingIssue small { color: #987c80; font-size: 0.6rem; }
@@ -1042,6 +1066,8 @@
   .fleetSensitiveAction button { width: 100%; }
   .fleetSensitiveAction > small { grid-column: 1; }
   .fleetBoundary { align-items: flex-start; flex-direction: column; }
+  .fleetLoadAction { grid-template-columns: 1fr; }
+  .fleetLoadButtons { grid-column: 1; flex-direction: column; }
   .linxupSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .linxupReviewAction { grid-template-columns: 1fr; }
   .linxupReviewAction button, .linxupReviewAction > small { grid-column: 1; }

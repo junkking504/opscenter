@@ -7,6 +7,7 @@ import { readFleetMaintenanceStore } from "@/lib/fleet-maintenance";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
 import { readLatestLinxupVehicleInventory } from "@/lib/linxup-vehicle-inventory";
 import { getOpsRuntime } from "@/lib/runtime";
+import { deriveTruckLoadStatus, readTruckLoadStore, truckLoadEventLabel } from "@/lib/truck-load-status";
 
 export type FleetControlMode = "live_control" | "preview_simulation";
 export type FleetReadiness = "out_of_service" | "action_required" | "no_active_hold";
@@ -25,14 +26,26 @@ export type FleetControlTruck = {
   gpsFreshness: string;
   lastGpsUpdate: string;
   hasVerifiedCoordinate: boolean;
+  truckLoad: {
+    startingLoadFraction: number;
+    currentLoadFraction: number;
+    currentLoadLabel: string;
+    currentContents: string;
+    capacityPercent: number;
+    isOverCapacity: boolean;
+    lastEventId: string;
+    lastEventLabel: string;
+    lastEventRecordedAt: string;
+  };
 };
 
 export type FleetControlSnapshot = {
   date: string;
   mode: FleetControlMode;
-  source: "OpsCenter Fleet repair records";
+  source: "OpsCenter Fleet repair and truck-load records";
   sourceObservedAt: string;
   storeUpdatedAt: string;
+  truckLoadStoreUpdatedAt: string;
   trucks: FleetControlTruck[];
   summary: {
     trucks: number;
@@ -104,6 +117,7 @@ export function readFleetControlSnapshot(date: string): FleetControlSnapshot {
   const maintenanceStore = readFleetMaintenanceStore();
   const inventory = readLatestLinxupVehicleInventory();
   const fleetMap = buildFleetMapPayload(date);
+  const truckLoadStore = readTruckLoadStore();
   const truckOptions = Array.from(new Set([
     ...inventory.vehicles.map((vehicle) => vehicle.truck),
     ...maintenanceStore.records.map((record) => record.truck),
@@ -121,11 +135,13 @@ export function readFleetControlSnapshot(date: string): FleetControlSnapshot {
     issues: issueStore.issues,
     fleetMap,
   });
+  const truckLoadStatuses = truckOptions.map((truck) => deriveTruckLoadStatus(date, truck, truckLoadStore.events));
   const trucks = truckOptions.map((truck): FleetControlTruck => {
     const activeIssues = activeIssuesForTruck(issueStore.issues, truck);
     const blockingIssues = activeIssues.filter((issue) => issue.severity === "out_of_service");
     const topAction = actions.find((action) => action.truck === truck) || null;
     const mapRecord = fleetMap?.trucks.find((record) => record.truck === truck);
+    const loadStatus = truckLoadStatuses.find((status) => status.truck === truck);
     const readiness: FleetReadiness = blockingIssues.length
       ? "out_of_service"
       : topAction && topAction.priority !== "watch" ? "action_required" : "no_active_hold";
@@ -138,6 +154,17 @@ export function readFleetControlSnapshot(date: string): FleetControlSnapshot {
       gpsFreshness: mapRecord?.freshnessLabel || "No verified tracker state",
       lastGpsUpdate: mapRecord?.lastGpsUpdate || "",
       hasVerifiedCoordinate: Boolean(mapRecord?.hasCoordinates),
+      truckLoad: {
+        startingLoadFraction: loadStatus?.startingLoadFraction || 0,
+        currentLoadFraction: loadStatus?.currentLoadFraction || 0,
+        currentLoadLabel: loadStatus?.currentLoadLabel || "Empty",
+        currentContents: loadStatus?.currentContents || "",
+        capacityPercent: loadStatus?.capacityPercent || 0,
+        isOverCapacity: Boolean(loadStatus?.isOverCapacity),
+        lastEventId: loadStatus?.lastEvent?.eventId || "",
+        lastEventLabel: truckLoadEventLabel(loadStatus?.lastEvent || null),
+        lastEventRecordedAt: loadStatus?.lastEvent?.recordedAt || "",
+      },
     };
   });
   const sourceObservedAt = [
@@ -147,13 +174,15 @@ export function readFleetControlSnapshot(date: string): FleetControlSnapshot {
     maintenanceStore.updatedAt,
     inventory.retrievedAt,
     fleetMap?.lastUpdatedAt || "",
+    truckLoadStore.updatedAt,
   ].filter(Boolean).sort().at(-1) || "";
   return {
     date,
     mode: fleetControlMode(),
-    source: "OpsCenter Fleet repair records",
+    source: "OpsCenter Fleet repair and truck-load records",
     sourceObservedAt,
     storeUpdatedAt: issueStore.updatedAt,
+    truckLoadStoreUpdatedAt: truckLoadStore.updatedAt,
     trucks,
     summary: {
       trucks: trucks.length,

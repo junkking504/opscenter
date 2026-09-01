@@ -290,12 +290,16 @@ export function setTruckStartingLoad(input: {
   truck: string;
   loadFraction: unknown;
   recordedBy: string;
+  expectedStoreUpdatedAt?: string;
 }): TruckLoadStatus {
   const truck = normalizeTruckLoadLabel(input.truck);
   const loadFraction = cleanFraction(input.loadFraction, 1);
   if (!validDate(input.date) || !truck || loadFraction === null) throw new Error("Choose a valid truck, date, and starting load.");
   return withTruckLoadStoreLock(() => {
     const store = readTruckLoadStore();
+    if (input.expectedStoreUpdatedAt !== undefined && store.updatedAt !== input.expectedStoreUpdatedAt) {
+      throw new Error("VERSION_CONFLICT: Truck load state changed after this request was prepared.");
+    }
     const now = new Date().toISOString();
     const eventId = `day-start:${input.date}:${truck.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
     const existing = store.events.find((event) => event.eventId === eventId);
@@ -329,6 +333,7 @@ export function resetTruckLoad(input: {
   recordedBy: string;
   occurredAt?: string;
   eventId?: string;
+  expectedStoreUpdatedAt?: string;
 }): TruckLoadStatus {
   const truck = normalizeTruckLoadLabel(input.truck);
   if (!validDate(input.date) || !truck || !["dump", "metal_yard"].includes(input.location)) {
@@ -341,6 +346,9 @@ export function resetTruckLoad(input: {
     const eventId = suppliedEventId ? `yard-reset:${suppliedEventId}` : randomUUID();
     const existing = store.events.find((candidate) => candidate.eventId === eventId);
     if (existing) return deriveTruckLoadStatus(input.date, existing.truck, store.events);
+    if (input.expectedStoreUpdatedAt !== undefined && store.updatedAt !== input.expectedStoreUpdatedAt) {
+      throw new Error("VERSION_CONFLICT: Truck load state changed after this request was prepared.");
+    }
     const latestTruckEvent = store.events
       .filter((candidate) => candidate.date === input.date && candidate.truck === truck && candidate.kind !== "day_start")
       .slice()

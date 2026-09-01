@@ -69,6 +69,17 @@ type FleetControlTruck = {
   gpsFreshness: string;
   lastGpsUpdate: string;
   hasVerifiedCoordinate: boolean;
+  truckLoad: {
+    startingLoadFraction: number;
+    currentLoadFraction: number;
+    currentLoadLabel: string;
+    currentContents: string;
+    capacityPercent: number;
+    isOverCapacity: boolean;
+    lastEventId: string;
+    lastEventLabel: string;
+    lastEventRecordedAt: string;
+  };
 };
 
 type FleetSnapshot = {
@@ -77,6 +88,7 @@ type FleetSnapshot = {
   source: string;
   sourceObservedAt: string;
   storeUpdatedAt: string;
+  truckLoadStoreUpdatedAt: string;
   trucks: FleetControlTruck[];
   summary: {
     trucks: number;
@@ -488,6 +500,8 @@ function actionLabel(actionKey: string): string {
     "dispatch.move_date.v1": "Cross-date move",
     "fleet.mark_out_of_service.v1": "Fleet out-of-service hold",
     "fleet.return_to_service.v1": "Fleet return to service",
+    "fleet.set_starting_load.v1": "Fleet starting load",
+    "fleet.record_yard_reset.v1": "Fleet yard reset",
     "finance.record_manual_bonus.v1": "Finance manual bonus",
     "finance.record_payroll_correction.v1": "Finance payroll correction",
     "finance.record_payment_exception_review.v1": "Payment exception review",
@@ -558,6 +572,21 @@ function paymentReviewNextAction(disposition: PaymentReviewDisposition): string 
 }
 
 const dispatchTimeOptions = Array.from({ length: 24 }, (_, hour) => hour * 60);
+const truckStartingLoadOptions = [
+  [0, "Empty"],
+  [1 / 12, "Minimum / 1/12"],
+  [1 / 8, "1/8 full"],
+  [1 / 6, "1/6 full"],
+  [1 / 4, "1/4 full"],
+  [1 / 3, "1/3 full"],
+  [3 / 8, "3/8 full"],
+  [1 / 2, "1/2 full"],
+  [5 / 8, "5/8 full"],
+  [2 / 3, "2/3 full"],
+  [3 / 4, "3/4 full"],
+  [7 / 8, "7/8 full"],
+  [1, "Full truck"],
+] as const;
 
 export default function OpsBotActionConsole({ date, enabled }: { date: string; enabled: boolean }) {
   const [inbox, setInbox] = useState<InboxPayload | null>(null);
@@ -597,6 +626,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [cancellationReason, setCancellationReason] = useState("");
   const [fleetHoldReason, setFleetHoldReason] = useState("");
   const [fleetReturnResolution, setFleetReturnResolution] = useState("");
+  const [fleetStartingLoad, setFleetStartingLoad] = useState("0");
   const [linxupDisposition, setLinxupDisposition] = useState<LinxupControlDisposition>("monitor");
   const [linxupReviewNote, setLinxupReviewNote] = useState("");
   const [kreweNote, setKreweNote] = useState("");
@@ -783,6 +813,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   useEffect(() => {
     setFleetHoldReason("");
     setFleetReturnResolution("");
+    setFleetStartingLoad(String(selectedFleetTruck?.truckLoad.startingLoadFraction || 0));
   }, [selectedFleetTruck]);
   useEffect(() => {
     setLinxupReviewNote("");
@@ -2009,8 +2040,55 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
                 <p>{selectedFleetTruck.topAction?.title || "No immediate Fleet queue action"}</p>
                 <small>{selectedFleetTruck.topAction?.detail || `${selectedFleetTruck.activeIssueCount} active repair records`}</small>
                 <small>GPS: {selectedFleetTruck.gpsFreshness} · {selectedFleetTruck.hasVerifiedCoordinate ? "verified coordinate" : "no verified coordinate"}</small>
+                <small>Load: {selectedFleetTruck.truckLoad.currentLoadLabel} ({selectedFleetTruck.truckLoad.capacityPercent}%) · {selectedFleetTruck.truckLoad.lastEventLabel}</small>
               </article>
             ) : <div className={styles.empty}>No authoritative Fleet truck is available.</div>}
+
+            {selectedFleetTruck && fleet ? (
+              <div className={styles.fleetLoadAction}>
+                <div className={styles.fleetLoadState} data-over-capacity={selectedFleetTruck.truckLoad.isOverCapacity}>
+                  <span>Truck load control</span>
+                  <strong>{selectedFleetTruck.truckLoad.currentLoadLabel}</strong>
+                  <small>{selectedFleetTruck.truckLoad.currentContents || "Contents not recorded"}</small>
+                </div>
+                <label>
+                  <span>Starting load</span>
+                  <select value={fleetStartingLoad} onChange={(event) => setFleetStartingLoad(event.target.value)} disabled={Boolean(busy)}>
+                    {truckStartingLoadOptions.map(([value, label]) => <option key={label} value={value}>{label}</option>)}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  disabled={Boolean(busy)}
+                  onClick={() => void requestFleetAction("fleet.set_starting_load.v1", {
+                    date,
+                    loadFraction: Number(fleetStartingLoad),
+                    expectedStoreUpdatedAt: fleet.truckLoadStoreUpdatedAt,
+                  })}
+                >Record starting load</button>
+                <div className={styles.fleetLoadButtons}>
+                  <button
+                    type="button"
+                    disabled={Boolean(busy)}
+                    onClick={() => void requestFleetAction("fleet.record_yard_reset.v1", {
+                      date,
+                      location: "dump",
+                      expectedStoreUpdatedAt: fleet.truckLoadStoreUpdatedAt,
+                    })}
+                  >Record dump reset</button>
+                  <button
+                    type="button"
+                    disabled={Boolean(busy)}
+                    onClick={() => void requestFleetAction("fleet.record_yard_reset.v1", {
+                      date,
+                      location: "metal_yard",
+                      expectedStoreUpdatedAt: fleet.truckLoadStoreUpdatedAt,
+                    })}
+                  >Record metal-yard reset</button>
+                </div>
+                <small>Risk class 1. These controls record a human-observed load state; they do not dispatch a truck or claim that a physical dump occurred.</small>
+              </div>
+            ) : null}
 
             {selectedFleetTruck?.readiness === "out_of_service" ? (
               selectedFleetTruck.blockingIssues.length === 1 ? (

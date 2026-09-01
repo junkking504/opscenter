@@ -42,6 +42,8 @@ assert.deepEqual(definitions.map((definition) => definition.key), [
   "dispatch.move_date.v1",
   "fleet.mark_out_of_service.v1",
   "fleet.return_to_service.v1",
+  "fleet.set_starting_load.v1",
+  "fleet.record_yard_reset.v1",
   "finance.record_manual_bonus.v1",
   "finance.record_payroll_correction.v1",
   "finance.record_payment_exception_review.v1",
@@ -135,6 +137,10 @@ for (const control of [
   "Fleet control pack",
   "Request out-of-service approval",
   "Request return-to-service approval",
+  "Truck load control",
+  "Record starting load",
+  "Record dump reset",
+  "Record metal-yard reset",
   "Finance control pack",
   "Request exception review approval",
   "Request bonus approval",
@@ -335,6 +341,50 @@ assert.throws(() => fleetReturn.validateInput({
   expectedStoreUpdatedAt: "",
   expectedIssueUpdatedAt: "2026-08-31T20:04:00.000Z",
 }), /at least 5 characters/);
+
+const startingLoad = registeredActionDefinition("fleet.set_starting_load.v1");
+assert.ok(startingLoad);
+assert.equal(startingLoad.riskClass, 1);
+assert.equal(decideActionPolicy(startingLoad, operator).decision.outcome, "allow");
+assert.deepEqual(startingLoad.validateInput({
+  date: "2026-09-01",
+  truck: "Truck 4",
+  loadFraction: 0.25,
+  expectedStoreUpdatedAt: "2026-09-01T12:00:00.000Z",
+}), {
+  date: "2026-09-01",
+  truck: "Truck# 4",
+  loadFraction: 0.25,
+  expectedStoreUpdatedAt: "2026-09-01T12:00:00.000Z",
+});
+assert.throws(() => startingLoad.validateInput({
+  date: "2026-09-01",
+  truck: "Truck 4",
+  loadFraction: 0.45,
+  expectedStoreUpdatedAt: "",
+}), /valid starting truck load/);
+
+const yardReset = registeredActionDefinition("fleet.record_yard_reset.v1");
+assert.ok(yardReset);
+assert.equal(yardReset.riskClass, 1);
+assert.equal(decideActionPolicy(yardReset, operator).decision.outcome, "allow");
+assert.deepEqual(yardReset.validateInput({
+  date: "2026-09-01",
+  truck: "Truck# 4",
+  location: "metal_yard",
+  expectedStoreUpdatedAt: "",
+}), {
+  date: "2026-09-01",
+  truck: "Truck# 4",
+  location: "metal_yard",
+  expectedStoreUpdatedAt: "",
+});
+assert.throws(() => yardReset.validateInput({
+  date: "2026-09-01",
+  truck: "Truck# 4",
+  location: "shop",
+  expectedStoreUpdatedAt: "",
+}), /dump or metal-yard/);
 
 const manualBonus = registeredActionDefinition("finance.record_manual_bonus.v1");
 assert.ok(manualBonus);

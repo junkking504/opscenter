@@ -8,6 +8,15 @@ import {
   type FleetOutOfServiceInput,
   type FleetReturnToServiceInput,
 } from "@/lib/fleet-control";
+import {
+  executeTruckLoadReset,
+  executeTruckStartingLoad,
+  verifyTruckLoadReset,
+  verifyTruckStartingLoad,
+  type TruckLoadResetInput,
+  type TruckLoadStartingInput,
+} from "@/lib/truck-load-control";
+import { TRUCK_STARTING_LOAD_OPTIONS } from "@/lib/truck-load-status";
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? value as Record<string, unknown> : {};
@@ -51,6 +60,53 @@ export function validateFleetReturnToService(value: unknown): FleetReturnToServi
 
 function entityMatchesTruck(entityId: string, truck: string): void {
   if (normalizeFleetControlTruck(entityId) !== truck) throw new Error("Fleet truck identity mismatch.");
+}
+
+function validOperatingDate(value: unknown): string {
+  const date = String(value || "").trim();
+  const parsed = new Date(`${date}T12:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+    throw new Error("A valid truck-load operating date is required.");
+  }
+  return date;
+}
+
+function expectedTruckLoadStoreUpdatedAt(input: Record<string, unknown>): string {
+  if (!Object.prototype.hasOwnProperty.call(input, "expectedStoreUpdatedAt")) {
+    throw new Error("The current truck-load state is required.");
+  }
+  const value = String(input.expectedStoreUpdatedAt || "").trim();
+  if (value && !Number.isFinite(Date.parse(value))) throw new Error("The truck-load observation is invalid.");
+  return value;
+}
+
+export function validateTruckStartingLoad(value: unknown): TruckLoadStartingInput {
+  const input = record(value);
+  const truck = normalizeFleetControlTruck(input.truck);
+  const loadFraction = Number(input.loadFraction);
+  const option = TRUCK_STARTING_LOAD_OPTIONS.find((candidate) => Math.abs(candidate.value - loadFraction) < 0.000001);
+  if (!truck) throw new Error("A valid Fleet truck is required.");
+  if (!option) throw new Error("Choose a valid starting truck load.");
+  return {
+    date: validOperatingDate(input.date),
+    truck,
+    loadFraction: option.value,
+    expectedStoreUpdatedAt: expectedTruckLoadStoreUpdatedAt(input),
+  };
+}
+
+export function validateTruckLoadReset(value: unknown): TruckLoadResetInput {
+  const input = record(value);
+  const truck = normalizeFleetControlTruck(input.truck);
+  const location = String(input.location || "");
+  if (!truck) throw new Error("A valid Fleet truck is required.");
+  if (location !== "dump" && location !== "metal_yard") throw new Error("Choose a dump or metal-yard reset.");
+  return {
+    date: validOperatingDate(input.date),
+    truck,
+    location,
+    expectedStoreUpdatedAt: expectedTruckLoadStoreUpdatedAt(input),
+  };
 }
 
 export const fleetActionDefinitions: ActionDefinition<any>[] = [
@@ -105,5 +161,54 @@ export const fleetActionDefinitions: ActionDefinition<any>[] = [
     retryableErrors: (error) => !/VERSION_CONFLICT|required|invalid|no longer|every other|identity mismatch/i.test(error instanceof Error ? error.message : String(error)),
     recoveryGuidance: "Refresh the Fleet repair queue. Resolve every remaining blocking repair, record the actual repair evidence, then submit a new return-to-service request.",
     emittedEventTypes: ["fleet.return_to_service_requested.v1", "fleet.return_to_service_verified.v1"],
+  },
+  {
+    key: "fleet.set_starting_load.v1",
+    version: 1,
+    title: "Set truck starting load",
+    riskClass: 1,
+    supportedEntityTypes: ["truck"],
+    requiredPermission: "operations.write",
+    validateInput: validateTruckStartingLoad,
+    redactInput: (input) => ({ ...input }),
+    idempotencyKey: ({ entity, input }) => [entity.id, input.date, input.loadFraction, input.expectedStoreUpdatedAt || "initial"].join("|"),
+    execute: async (context) => {
+      entityMatchesTruck(context.entity.id, context.input.truck);
+      const receipt = await executeTruckStartingLoad(context.input, context.actor.displayName);
+      return { outcome: "completed", verificationAvailable: true, metadata: { receipt } };
+    },
+    verify: async (context, result) => verifyTruckStartingLoad(
+      result.metadata?.receipt as Awaited<ReturnType<typeof executeTruckStartingLoad>>,
+      context.input,
+    ),
+    retryableErrors: (error) => !/VERSION_CONFLICT|required|invalid|choose|identity mismatch/i.test(error instanceof Error ? error.message : String(error)),
+    recoveryGuidance: "Refresh the Fleet load ledger, confirm the physical starting load, then submit a new request against the current observation.",
+    emittedEventTypes: ["fleet.starting_load_requested.v1", "fleet.starting_load_verified.v1"],
+  },
+  {
+    key: "fleet.record_yard_reset.v1",
+    version: 1,
+    title: "Record truck yard reset",
+    riskClass: 1,
+    supportedEntityTypes: ["truck"],
+    requiredPermission: "operations.write",
+    validateInput: validateTruckLoadReset,
+    redactInput: (input) => ({ ...input }),
+    idempotencyKey: ({ entity, input }) => [entity.id, input.date, input.location, input.expectedStoreUpdatedAt || "initial"].join("|"),
+    execute: async (context) => {
+      entityMatchesTruck(context.entity.id, context.input.truck);
+      const receipt = await executeTruckLoadReset(context.input, {
+        actionRunId: context.actionRunId,
+        recordedBy: context.actor.displayName,
+      });
+      return { outcome: "completed", verificationAvailable: true, metadata: { receipt } };
+    },
+    verify: async (context, result) => verifyTruckLoadReset(
+      result.metadata?.receipt as Awaited<ReturnType<typeof executeTruckLoadReset>>,
+      context.input,
+    ),
+    retryableErrors: (error) => !/VERSION_CONFLICT|required|invalid|choose|identity mismatch/i.test(error instanceof Error ? error.message : String(error)),
+    recoveryGuidance: "Refresh the Fleet load ledger, confirm where the physical load was emptied, then submit a new reset against the current observation.",
+    emittedEventTypes: ["fleet.yard_reset_requested.v1", "fleet.yard_reset_verified.v1"],
   },
 ];

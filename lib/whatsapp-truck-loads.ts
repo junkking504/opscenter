@@ -67,10 +67,15 @@ function writeJsonAtomic(target: string, payload: unknown): void {
 
 function truckFromText(text: string): string {
   const value = String(text || "");
-  const named = value.match(/\btruck(?:\s+status)?\s*#?\s*(\d{1,3})\b/i);
+  const named = value.match(/\btruck(?:[ \t]+status)?[ \t]*#?[ \t]*(\d{1,3})\b/i);
   if (named) return normalizeTruckLoadLabel(named[1]);
-  const shorthand = value.match(/(?:^|\n)\s*t\s*#?\s*(\d{1,3})\b/im);
-  return shorthand ? normalizeTruckLoadLabel(shorthand[1]) : "";
+  const shorthand = value.match(/\bt[ \t]*#?[ \t]*(\d{1,3})\b/i);
+  if (shorthand) return normalizeTruckLoadLabel(shorthand[1]);
+  const hash = value.match(/(?:^|[^a-z0-9_])#[ \t]*(\d{1,3})\b/i);
+  if (hash) return normalizeTruckLoadLabel(hash[1]);
+  const firstLine = value.split(/\r?\n/).map((line) => line.trim()).find(Boolean) || "";
+  const bare = firstLine.match(/^(\d{1,3})\b(?![ \t]*[/.])/);
+  return bare ? normalizeTruckLoadLabel(bare[1]) : "";
 }
 
 function loadFromLine(line: string): number | null {
@@ -79,8 +84,25 @@ function loadFromLine(line: string): number | null {
     const value = Number(percent[1]) / 100;
     return Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
   }
-  if (!/(?:\b(?:empty|minimum|full)\b|\d+\s*\/\s*\d+)/i.test(line)) return null;
-  return parseJunkwareLoadFraction(line);
+  if (/(?:\b(?:empty|minimum|full)\b|\d+\s*\/\s*\d+)/i.test(line)) {
+    return parseJunkwareLoadFraction(line);
+  }
+  const truckEquivalent = line.match(/(?:^|[ \t])((?:\d+(?:\.\d+)?|\.\d+))[ \t]*(?:brt|trucks?)\b/i);
+  if (truckEquivalent) {
+    const value = Number(truckEquivalent[1]);
+    return Number.isFinite(value) && value >= 0 && value <= 2 ? value : null;
+  }
+  const pickupEquivalent = line.match(/(?:^|[ \t])(\d+(?:\.\d+)?)[ \t]*(?:pickups?(?:[ \t]+trucks?)?|loads?|p[ \t]*u)\b/i);
+  if (pickupEquivalent) {
+    const pickups = Number(pickupEquivalent[1]);
+    return Number.isFinite(pickups) && pickups >= 0 && pickups <= 12 ? pickups / 6 : null;
+  }
+  return null;
+}
+
+function isTruckIdentifierOnly(text: string): boolean {
+  const value = clean(text, 80);
+  return /^(?:truck(?:[ \t]+status)?[ \t]*#?[ \t]*\d{1,3}|t[ \t]*#?[ \t]*\d{1,3}|#[ \t]*\d{1,3}|\d{1,3})$/i.test(value);
 }
 
 function parseSnapshot(text: string): { truck: string; loadFraction: number | null; contents: string; recognized: boolean } {
@@ -178,7 +200,9 @@ function readPendingPhoto(senderPhone: string, receivedAt: string): PendingPhoto
 
 export function truckLoadPhotoRequest(message: WhatsAppImageMessage, recentText: string): { truck: string } | null {
   const context = [message.caption, recentText].filter(Boolean).join("\n");
-  if (!/\b(?:truck|load)\s+status\b|\b(?:check|estimate)\s+(?:this\s+)?truck(?:\s+load)?\b|\bhow\s+full\b/i.test(context)) return null;
+  const hasTruckIntent = /\b(?:truck|load)\s+status\b|\b(?:check|estimate)\s+(?:this\s+)?truck(?:\s+load)?\b|\bhow\s+full\b/i.test(context);
+  const hasIdentifierOnly = [message.caption, recentText].some((value) => isTruckIdentifierOnly(value));
+  if (!hasTruckIntent && !hasIdentifierOnly) return null;
   const truck = truckFromText(context);
   return truck ? { truck } : null;
 }
@@ -219,7 +243,7 @@ export function recordTruckLoadPhotoAnalysis(message: WhatsAppImageMessage, truc
 export function ingestTruckLoadText(message: WhatsAppTextMessage): TruckLoadIngestResult {
   const text = clean(message.text);
   const date = chicagoDateKey(new Date(message.receivedAt));
-  const confirm = text.match(/^confirm\s+(?:(?:truck|t)\s*#?\s*)?(\d{1,3})\s*$/i);
+  const confirm = text.match(/^confirm\s+(?:(?:truck|t)[ \t]*)?#?[ \t]*(\d{1,3})\s*$/i);
   if (confirm) {
     const pending = readPendingPhoto(message.senderPhone, message.receivedAt);
     if (!pending || pending.truck !== normalizeTruckLoadLabel(confirm[1])) return { status: "ignored" };

@@ -22,22 +22,34 @@ function message(messageId: string, text: string, senderPhone = "5045550101", re
   return { messageId, text, senderPhone, receivedAt, phoneNumberId: "12345" };
 }
 
-const shorthand = ingestTruckLoadText(message("shorthand-1", "T9\n1/2 truck\nMostly metal"));
-assert.equal(shorthand.status, "updated");
-assert.equal(shorthand.truck, "Truck# 9");
-let truck9 = readTruckLoadStatuses("2026-08-31").find((status) => status.truck === "Truck# 9");
-assert.equal(truck9?.currentLoadFraction, 1 / 2);
-assert.equal(truck9?.currentContents, "Mostly metal");
+const manualVariations = [
+  "T9\n1/2 truck\nMostly metal",
+  "Truck 9\n1/2 BRT\nMostly metal",
+  "#9\n.5 truck\nMostly metal",
+  "9\n.5 BRT\nMostly metal",
+  "T9\n3 pickups\nMostly metal",
+  "Truck #9\n3 loads\nMostly metal",
+  "#9\n3pu\nMostly metal",
+  "9\n3 pu\nMostly metal",
+];
+for (const [index, text] of manualVariations.entries()) {
+  const receivedAt = `2026-08-31T20:0${index}:00.000Z`;
+  const result = ingestTruckLoadText(message(`variation-${index}`, text, "5045550101", receivedAt));
+  assert.equal(result.status, "updated");
+  assert.equal(result.truck, "Truck# 9");
+  const status = readTruckLoadStatuses("2026-08-31").find((entry) => entry.truck === "Truck# 9");
+  assert.equal(status?.currentLoadFraction, 1 / 2);
+  assert.equal(status?.currentContents, "Mostly metal");
+  const reply = claimCrewExpenseReply(queuedCrewExpenseReplies()[0]);
+  assert.ok(reply);
+  assert.match(reply.reply.text, /Truck# 9 recorded at 1\/2 full/);
+  assert.notEqual(reply.reply.text, "Recorded.");
+}
 
-const firstReply = claimCrewExpenseReply(queuedCrewExpenseReplies()[0]);
-assert.ok(firstReply);
-assert.match(firstReply.reply.text, /Truck# 9 recorded at 1\/2 full/);
-assert.notEqual(firstReply.reply.text, "Recorded.");
-
-const manual = ingestTruckLoadText(message("manual-1", "Truck 9\n1/2 truck\nsome metal, mostly junk"));
+const manual = ingestTruckLoadText(message("manual-1", "Truck 9\n1/2 truck\nsome metal, mostly junk", "5045550101", "2026-08-31T20:10:00.000Z"));
 assert.equal(manual.status, "updated");
 assert.equal(manual.truck, "Truck# 9");
-truck9 = readTruckLoadStatuses("2026-08-31").find((status) => status.truck === "Truck# 9");
+const truck9 = readTruckLoadStatuses("2026-08-31").find((status) => status.truck === "Truck# 9");
 assert.equal(truck9?.currentLoadFraction, 1 / 2);
 assert.equal(truck9?.currentContents, "some metal, mostly junk");
 
@@ -54,7 +66,7 @@ assert.match(plan, /Move Truck# 2's 1\/4 full junk load into Truck# 3; Truck# 3 
 assert.match(plan, /Sort Truck# 9's mixed load first/);
 assert.equal(ingestTruckLoadText(message("plan-1", "Consolidation plan")).status, "planned");
 
-assert.equal(ingestTruckLoadText(message("dump-1", "Truck 3 dumped")).status, "reset");
+assert.equal(ingestTruckLoadText(message("dump-1", "#3 dumped")).status, "reset");
 assert.equal(readTruckLoadStatuses("2026-08-31").find((status) => status.truck === "Truck# 3")?.currentLoadFraction, 0);
 assert.equal(ingestTruckLoadText(message("dump-expense", "Dump\nTruck 3\nRiver Birch\n$75\n2 tons")).status, "ignored");
 
@@ -67,10 +79,11 @@ const imageMessage: WhatsAppImageMessage = {
   mediaId: "media-1",
   mimeType: "image/jpeg",
   sha256: "",
-  caption: "Truck status 6",
+  caption: "#6",
   enqueuedAt: "2026-08-31T21:00:01.000Z",
 };
 assert.equal(truckLoadPhotoRequest(imageMessage, "")?.truck, "Truck# 6");
+assert.equal(truckLoadPhotoRequest({ ...imageMessage, caption: "6" }, "")?.truck, "Truck# 6");
 assert.equal(truckLoadPhotoRequest({ ...imageMessage, caption: "JK4051234 before photo" }, ""), null);
 
 recordTruckLoadPhotoAnalysis(imageMessage, "Truck 6", {
@@ -82,7 +95,7 @@ recordTruckLoadPhotoAnalysis(imageMessage, "Truck 6", {
   notes: "Rear corners are visible.",
   model: "test-model",
 });
-assert.equal(ingestTruckLoadText(message("confirm-1", "CONFIRM TRUCK 6", "5045550102", "2026-08-31T21:02:00.000Z")).status, "confirmed");
+assert.equal(ingestTruckLoadText(message("confirm-1", "CONFIRM #6", "5045550102", "2026-08-31T21:02:00.000Z")).status, "confirmed");
 const truck6 = readTruckLoadStatuses("2026-08-31").find((status) => status.truck === "Truck# 6");
 assert.equal(truck6?.currentLoadFraction, 3 / 4);
 assert.equal(truck6?.currentContents, "furniture and household junk");

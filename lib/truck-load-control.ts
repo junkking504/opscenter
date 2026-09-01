@@ -63,6 +63,7 @@ function previewReceipt(input: TruckLoadStartingInput | TruckLoadResetInput, req
       date: input.date,
       sourceStoreUpdatedAt: input.expectedStoreUpdatedAt,
       requestedState,
+      changed: false,
       externalWrite: false,
     },
   };
@@ -85,7 +86,7 @@ export async function executeTruckStartingLoad(
       changed: false,
       verified: true,
       summary: `${input.truck} already has the approved starting load in OpsCenter.`,
-      evidence: { eventId, loadFraction: input.loadFraction, storeUpdatedAt: store.updatedAt, externalWrite: false },
+      evidence: { eventId, loadFraction: input.loadFraction, storeUpdatedAt: store.updatedAt, changed: false, externalWrite: false },
     };
   }
   if (mode === "preview_simulation") {
@@ -111,6 +112,7 @@ export async function executeTruckStartingLoad(
       loadFraction: status.startingLoadFraction,
       currentLoadFraction: status.currentLoadFraction,
       storeUpdatedAt: writtenStore.updatedAt,
+      changed: true,
       externalWrite: false,
     },
   };
@@ -132,7 +134,7 @@ export async function executeTruckLoadReset(
       changed: false,
       verified: true,
       summary: `${input.truck} ${input.location === "metal_yard" ? "metal-yard" : "dump"} reset is already recorded in OpsCenter.`,
-      evidence: { eventId, resetLocation: input.location, storeUpdatedAt: store.updatedAt, externalWrite: false },
+      evidence: { eventId, resetLocation: input.location, storeUpdatedAt: store.updatedAt, changed: false, externalWrite: false },
     };
   }
   currentStore(input.expectedStoreUpdatedAt);
@@ -160,6 +162,7 @@ export async function executeTruckLoadReset(
       resetLocation: input.location,
       currentLoadFraction: status.currentLoadFraction,
       storeUpdatedAt: writtenStore.updatedAt,
+      changed: true,
       externalWrite: false,
     },
   };

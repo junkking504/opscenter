@@ -72,7 +72,9 @@ async function main() {
     assert.equal(previewReceipt.mode, "preview_simulation");
     assert.equal(previewReceipt.changed, false);
     assert.equal(previewReceipt.evidence.externalWrite, false);
-    assert.equal((await verifyTruckLoadReset(previewReceipt, previewInput)).outcome, "verified");
+    const previewVerification = await verifyTruckLoadReset(previewReceipt, previewInput);
+    assert.equal(previewVerification.outcome, "verified");
+    assert.equal(previewVerification.evidence?.changed, false);
     assert.equal(digest(storeFile), previewBefore);
 
     console.log("Truck-load starting state, deterministic reset, stale-state, read-back, no-op, and preview-isolation checks passed.");

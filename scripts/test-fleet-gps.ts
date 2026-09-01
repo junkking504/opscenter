@@ -4,7 +4,7 @@ import {
   applyAppointmentVisitConfirmations,
   type AppointmentVisitConfirmation,
 } from "@/lib/appointment-visit-confirmations";
-import { classifyOperationalStatus, operationalStatusForFreshness } from "@/lib/fleet-map";
+import { classifyOperationalStatus, gpsFreshnessLabel, operationalStatusForFreshness } from "@/lib/fleet-map";
 
 const confirmations: AppointmentVisitConfirmation[] = [
   {
@@ -76,6 +76,11 @@ assert.equal(visits.find((row) => row.appointment_id === "untouched-appt")?.truc
 assert.equal(operationalStatusForFreshness("Driving", "Live GPS"), "Driving");
 assert.equal(operationalStatusForFreshness("Driving", "GPS Stale"), "GPS Stale");
 assert.equal(operationalStatusForFreshness("Idle", "Offline"), "Offline");
+assert.equal(
+  gpsFreshnessLabel({ hasPayload: true, latestTimestamp: null, selectedDate: "2026-09-01" }),
+  "GPS unavailable",
+  "A fresh collector snapshot cannot make a device without a position look live.",
+);
 
 assert.equal(
   classifyOperationalStatus({

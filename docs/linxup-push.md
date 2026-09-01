@@ -45,3 +45,23 @@ two-point, two-minute, 125-meter dwell evidence rule. A historical appointment
 visit, or a later isolated GPS point at the same address, must never be shown
 as a current on-site state; Schedule labels it only after fresh, continuous
 dwell evidence is present.
+
+## Governed device review
+
+OpsBot Control shows LinxUp at the device level through
+`/api/platform/linxup?date=YYYY-MM-DD`. The overall collector or Fleet snapshot can be
+fresh while an individual tracker is stale, missing a coordinate, using V2 fallback, or
+unmapped. Collector health is therefore displayed separately and its collection
+timestamp is never substituted for a device position timestamp. A truck with no actual
+device point is `GPS unavailable`, not `Live GPS`.
+
+`linxup.record_device_review.v1` is the only write in the first LinxUp control pack. It
+records one of four bounded internal dispositions: monitor, provider follow-up, mapping
+follow-up, or human-confirmed no issue. It is risk class 2, requires approval from a
+different manager or administrator, and checks the exact device observation plus the
+current review-store and record versions before execution. The saved review and its audit
+event are then read back for verification.
+
+This review action does not rewrite GPS history, change the effective vehicle map,
+contact LinxUp, or alter a truck's Fleet availability. In preview it returns a verified
+simulation receipt and does not write the shared review store.

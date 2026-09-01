@@ -1,6 +1,6 @@
 # OpsBot Control
 
-Status: Work, Dispatch, Fleet, Finance, Krewe, and Communications control foundation; production kernel activation pending
+Status: Work, Dispatch, Fleet, LinxUp, Finance, Krewe, and Communications control foundation; production kernel activation pending
 
 Route: Command `/?section=opsbot`
 
@@ -48,7 +48,7 @@ path for OpsCenter work items:
 - a Command action console with work-item selection, action status, and audit summaries;
 - direct controls to acknowledge, claim, snooze, and reopen work;
 - approval-gated manual resolution with a required reason;
-- current Jobs, Krewe, Fleet, Finance, Communications, and freshness observations without a second data authority;
+- current Jobs, Krewe, Fleet, LinxUp, Finance, Communications, and freshness observations without a second data authority;
 - responsive desktop, tablet, and phone layouts.
 
 The Dispatch control pack adds:
@@ -87,6 +87,30 @@ The Fleet control pack adds:
 - a strict boundary that LinxUp telemetry and checklist signals are advisory and never
   change truck availability automatically;
 - preview simulation receipts that leave the shared Fleet repair store unchanged.
+
+The LinxUp control pack adds:
+
+- a per-device evidence view over tracker freshness, the last actual GPS point, V3 push
+  activity, V2 fallback, coordinate availability, and the verified vehicle map;
+- an explicit distinction between collector health and device health: a fresh collector
+  file never labels a truck `Live GPS` unless that device supplied an actual current point;
+- risk-class 2 review dispositions for monitoring, provider follow-up, mapping follow-up,
+  or a human-confirmed no-issue finding, with approval by a different manager or
+  administrator;
+- the exact current device observation, review-store version, and prior record version as
+  conflict checks so an approval cannot silently apply to newer tracker evidence;
+- durable review records, attribution, audit history, and authoritative read-back of the
+  exact saved disposition;
+- current-review counts that drop back to zero when newer tracker evidence replaces the
+  observation a review was based on;
+- review-note guards that reject credentials, contact details, and payment-card data;
+- preview simulation receipts that leave the shared LinxUp review store unchanged;
+- a strict boundary: the review action does not rewrite telemetry, change the vehicle map,
+  contact LinxUp, or change truck availability.
+
+The review record is OpsCenter follow-up state, not a replacement telemetry source. A
+`provider_follow_up` or `mapping_follow_up` disposition records the next operational lane;
+it does not claim that the provider was contacted or that a mapping correction was made.
 
 The Finance control pack adds:
 
@@ -146,9 +170,9 @@ because they must first prove the prior JunkWare result and final Meta delivery 
 creating a duplicate. Podium review responses and outreach remain read-only because the
 approved OAuth token has no write scope.
 
-Together these provide complete governed loops for work state and bounded
-Dispatch, Fleet, Finance, Krewe, and internal Communications commands. They do not claim that every external operational system is
-controllable yet.
+Together these provide complete governed loops for work state and bounded Dispatch,
+Fleet, LinxUp review, Finance, Krewe, and internal Communications commands. They do not
+claim that every external operational system is controllable yet.
 
 ## Authority and safety
 
@@ -162,6 +186,8 @@ same-day rescheduling are risk class 2. Human-confirmed Krewe availability is ri
 class 1; a Krewe call-in commitment is risk class 2.
 An internal Ops Command Slack notice is risk class 2, is approval-gated, and is
 restricted to the owned internal channel. Customer-facing communications remain locked.
+A LinxUp device review is risk class 2 and approval-gated; it records bounded internal
+follow-up only and cannot mutate telemetry, mapping, provider state, or Fleet availability.
 
 Money, payroll, customer communication, access, deletion, and broad operational
 changes remain approval-gated. No autonomous production agent or unrestricted
@@ -176,8 +202,8 @@ silently overwrite source state.
 ## Remaining system coverage
 
 The next phases should move the remaining direct OpsCenter mutations behind
-this registry, then add bounded LinxUp device-review operations, separately approved QBO write workflows, and
-customer communication. Each adapter must ship
+this registry, then add separately approved QBO write workflows and customer
+communication. Each adapter must ship
 with its own permission, risk class, approval rule, idempotency strategy,
 verification source, audit payload, retry behavior, and recovery guidance.
 

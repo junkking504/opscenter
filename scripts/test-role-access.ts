@@ -72,6 +72,7 @@ async function main() {
   assert.equal(authorizeOpsRequest("operator", "/crew", "GET", new URLSearchParams("section=crew")).allowed, true);
   assert.equal(authorizeOpsRequest("operator", "/api/payroll-corrections", "GET").allowed, false);
   assert.equal(authorizeOpsRequest("operator", "/api/platform/finance", "GET").allowed, false);
+  assert.equal(authorizeOpsRequest("operator", "/api/platform/linxup", "GET").allowed, true);
   assert.equal(authorizeOpsRequest("operator", "/api/job-cancellation", "POST").allowed, false);
   assert.equal(authorizeOpsRequest("operator", "/api/job-closeout", "POST").allowed, false);
   assert.equal(authorizeOpsRequest("operator", "/api/fleet-maintenance", "DELETE").allowed, false);

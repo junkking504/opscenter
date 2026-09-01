@@ -87,6 +87,53 @@ type FleetSnapshot = {
   warning?: string;
 };
 
+type LinxupControlDisposition = "monitor" | "provider_follow_up" | "mapping_follow_up" | "no_issue_confirmed";
+
+type LinxupControlDevice = {
+  truck: string;
+  freshness: string;
+  lastGpsUpdate: string;
+  deliveryMode: string;
+  fallbackActive: boolean;
+  latestV3PositionAt: string;
+  mappingStatus: string;
+  hasVerifiedCoordinate: boolean;
+  attentionReason: string;
+  observationKey: string;
+  reviewCurrent: boolean;
+  review: {
+    recordId: string;
+    disposition: LinxupControlDisposition;
+    note: string;
+    sourceObservationKey: string;
+    updatedAt: string;
+    updatedBy: string;
+  } | null;
+};
+
+type LinxupSnapshot = {
+  date: string;
+  mode: "live_control" | "preview_simulation";
+  source: string;
+  sourceObservedAt: string;
+  storeUpdatedAt: string;
+  gpsDataStatus: string;
+  devices: LinxupControlDevice[];
+  mappingWarnings: string[];
+  summary: {
+    devices: number;
+    live: number;
+    stale: number;
+    offline: number;
+    missingCoordinate: number;
+    fallback: number;
+    reviewNeeded: number;
+    reviewed: number;
+  };
+  warning?: string;
+  authorityNotice: string;
+};
+
 type KrewePerson = {
   name: string;
   normalizedName: string;
@@ -232,6 +279,7 @@ function actionLabel(actionKey: string): string {
     "krewe.record_availability.v1": "Krewe availability",
     "krewe.schedule_call_in.v1": "Krewe call-in commitment",
     "communications.post_ops_command_notice.v1": "Ops Command Slack notice",
+    "linxup.record_device_review.v1": "LinxUp device review",
   };
   return labels[actionKey] || actionKey;
 }
@@ -270,6 +318,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [snapshot, setSnapshot] = useState<ActionSnapshot | null>(null);
   const [dispatch, setDispatch] = useState<DispatchSnapshot | null>(null);
   const [fleet, setFleet] = useState<FleetSnapshot | null>(null);
+  const [linxup, setLinxup] = useState<LinxupSnapshot | null>(null);
   const [krewe, setKrewe] = useState<KreweSnapshot | null>(null);
   const [communications, setCommunications] = useState<CommunicationsSnapshot | null>(null);
   const [finance, setFinance] = useState<FinanceSnapshot | null>(null);
@@ -277,6 +326,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [selectedId, setSelectedId] = useState("");
   const [selectedAppointmentId, setSelectedAppointmentId] = useState("");
   const [selectedFleetTruckId, setSelectedFleetTruckId] = useState("");
+  const [selectedLinxupTruckId, setSelectedLinxupTruckId] = useState("");
   const [selectedKreweEmployeeName, setSelectedKreweEmployeeName] = useState("");
   const [selectedFinanceEmployeeName, setSelectedFinanceEmployeeName] = useState("");
   const [dispatchTruck, setDispatchTruck] = useState("");
@@ -285,6 +335,8 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [cancellationReason, setCancellationReason] = useState("");
   const [fleetHoldReason, setFleetHoldReason] = useState("");
   const [fleetReturnResolution, setFleetReturnResolution] = useState("");
+  const [linxupDisposition, setLinxupDisposition] = useState<LinxupControlDisposition>("monitor");
+  const [linxupReviewNote, setLinxupReviewNote] = useState("");
   const [kreweNote, setKreweNote] = useState("");
   const [kreweRole, setKreweRole] = useState<"driver" | "crew">("crew");
   const [slackNoticeSubject, setSlackNoticeSubject] = useState("");
@@ -307,7 +359,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     setLoading(true);
     setError("");
     try {
-      const [inboxPayload, actionPayload, dispatchPayload, fleetPayload, krewePayload, communicationsPayload, financeResult] = await Promise.all([
+      const [inboxPayload, actionPayload, dispatchPayload, fleetPayload, linxupPayload, krewePayload, communicationsPayload, financeResult] = await Promise.all([
         responseJson<InboxPayload>(await fetch("/api/inbox/reconcile", {
           method: "POST",
           cache: "no-store",
@@ -317,6 +369,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
         responseJson<ActionSnapshot>(await fetch("/api/platform/action-runs", { cache: "no-store" })),
         responseJson<DispatchSnapshot>(await fetch(`/api/platform/dispatch?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<FleetSnapshot>(await fetch(`/api/platform/fleet?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
+        responseJson<LinxupSnapshot>(await fetch(`/api/platform/linxup?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<KreweSnapshot>(await fetch(`/api/platform/krewe?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<CommunicationsSnapshot>(await fetch(`/api/platform/communications?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         fetch(`/api/platform/finance?date=${encodeURIComponent(date)}`, { cache: "no-store" }).then(async (response) => {
@@ -328,6 +381,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       setSnapshot(actionPayload);
       setDispatch(dispatchPayload);
       setFleet(fleetPayload);
+      setLinxup(linxupPayload);
       setKrewe(krewePayload);
       setCommunications(communicationsPayload);
       setFinance(financeResult.payload);
@@ -341,6 +395,9 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       setSelectedFleetTruckId((current) => current && fleetPayload.trucks.some((item) => item.truck === current)
         ? current
         : fleetPayload.trucks.find((item) => item.readiness === "out_of_service")?.truck || fleetPayload.trucks[0]?.truck || "");
+      setSelectedLinxupTruckId((current) => current && linxupPayload.devices.some((item) => item.truck === current)
+        ? current
+        : linxupPayload.devices.find((item) => item.attentionReason !== "Current device evidence is available.")?.truck || linxupPayload.devices[0]?.truck || "");
       setSelectedKreweEmployeeName((current) => current && krewePayload.people.some((person) => person.name === current)
         ? current
         : krewePayload.people.find((person) => person.recommendedForCallIn)?.name || krewePayload.people[0]?.name || "");
@@ -370,6 +427,10 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     () => fleet?.trucks.find((truck) => truck.truck === selectedFleetTruckId) || null,
     [fleet, selectedFleetTruckId],
   );
+  const selectedLinxupDevice = useMemo(
+    () => linxup?.devices.find((device) => device.truck === selectedLinxupTruckId) || null,
+    [linxup, selectedLinxupTruckId],
+  );
   const selectedKrewePerson = useMemo(
     () => krewe?.people.find((person) => person.name === selectedKreweEmployeeName) || null,
     [krewe, selectedKreweEmployeeName],
@@ -388,6 +449,14 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     setFleetHoldReason("");
     setFleetReturnResolution("");
   }, [selectedFleetTruck]);
+  useEffect(() => {
+    setLinxupReviewNote("");
+    setLinxupDisposition(selectedLinxupDevice?.mappingStatus !== "Mapped"
+      ? "mapping_follow_up"
+      : selectedLinxupDevice?.fallbackActive || selectedLinxupDevice?.deliveryMode === "unavailable"
+        ? "provider_follow_up"
+        : "monitor");
+  }, [selectedLinxupDevice]);
   useEffect(() => {
     setKreweNote("");
     setKreweRole(selectedKrewePerson?.suggestedRole === "Driver" ? "driver" : "crew");
@@ -478,6 +547,38 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       await load();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "The Fleet action request failed.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function requestLinxupReview() {
+    if (!selectedLinxupDevice || !linxup) return;
+    const actionKey = "linxup.record_device_review.v1";
+    setBusy(actionKey);
+    setError("");
+    try {
+      await responseJson(await fetch("/api/platform/action-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actionKey,
+          entity: { type: "truck", id: selectedLinxupDevice.truck, label: selectedLinxupDevice.truck },
+          input: {
+            date,
+            truck: selectedLinxupDevice.truck,
+            disposition: linxupDisposition,
+            note: linxupReviewNote,
+            expectedStoreUpdatedAt: linxup.storeUpdatedAt,
+            expectedRecordUpdatedAt: selectedLinxupDevice.review?.updatedAt || "",
+            expectedObservationKey: selectedLinxupDevice.observationKey,
+          },
+        }),
+      }));
+      setLinxupReviewNote("");
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The LinxUp review request failed.");
     } finally {
       setBusy("");
     }
@@ -998,6 +1099,66 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
                 ? "Fleet holds and returns are verified against durable repair records. No-active-hold is not a mechanical safety certification."
                 : "Simulation proves policy and verification without changing shared Fleet repair or availability state."}</p>
               <a href={`/fleet?date=${encodeURIComponent(date)}&view=maintenance&section=overview`}>Open Fleet repair queue</a>
+            </div>
+          </section>
+
+          <section className={styles.linxupControl} aria-labelledby="opsbot-linxup-title">
+            <div className={styles.controlTitle}>
+              <div><span>LinxUp control pack</span><strong id="opsbot-linxup-title">Device evidence + governed review</strong></div>
+              <small data-mode={linxup?.mode}>{linxup?.mode === "live_control" ? "Mission Control" : "Preview simulation"}</small>
+            </div>
+            <div className={styles.linxupSummary}>
+              <div data-attention={Boolean(linxup?.summary.reviewNeeded)}><b>{linxup?.summary.reviewNeeded || 0}</b><span>need review</span></div>
+              <div data-attention={Boolean(linxup?.summary.missingCoordinate)}><b>{linxup?.summary.missingCoordinate || 0}</b><span>no coordinate</span></div>
+              <div data-attention={Boolean(linxup?.summary.fallback)}><b>{linxup?.summary.fallback || 0}</b><span>using fallback</span></div>
+              <div><b>{linxup?.summary.reviewed || 0}</b><span>current reviews</span></div>
+            </div>
+            {linxup?.warning ? <div className={styles.dispatchWarning}>{linxup.warning}</div> : null}
+            <label>
+              <span>LinxUp device</span>
+              <select value={selectedLinxupTruckId} onChange={(event) => setSelectedLinxupTruckId(event.target.value)} disabled={loading || Boolean(busy)}>
+                {(linxup?.devices || []).map((device) => (
+                  <option key={device.truck} value={device.truck}>{device.truck} · {device.freshness} · {device.mappingStatus}</option>
+                ))}
+              </select>
+            </label>
+            {selectedLinxupDevice ? (
+              <article className={styles.linxupTarget} data-freshness={selectedLinxupDevice.freshness}>
+                <div><strong>{selectedLinxupDevice.truck}</strong><span>{selectedLinxupDevice.freshness}</span></div>
+                <p>{selectedLinxupDevice.attentionReason}</p>
+                <small>Delivery: {selectedLinxupDevice.deliveryMode.replaceAll("_", " ")} · Mapping: {selectedLinxupDevice.mappingStatus} · {selectedLinxupDevice.hasVerifiedCoordinate ? "verified coordinate" : "no verified coordinate"}</small>
+                <small>Last device position: {selectedLinxupDevice.lastGpsUpdate || "Unavailable"}{selectedLinxupDevice.latestV3PositionAt ? ` · Latest V3: ${selectedLinxupDevice.latestV3PositionAt}` : ""}</small>
+                {selectedLinxupDevice.review ? (
+                  <div className={styles.linxupReviewReceipt}>
+                    <span>{selectedLinxupDevice.review.disposition.replaceAll("_", " ")} · {selectedLinxupDevice.reviewCurrent ? "current evidence" : "prior evidence"}</span>
+                    <p>{selectedLinxupDevice.review.note}</p>
+                    <small>Recorded by {selectedLinxupDevice.review.updatedBy || "OpsCenter"} · {selectedLinxupDevice.review.updatedAt}</small>
+                  </div>
+                ) : null}
+              </article>
+            ) : <div className={styles.empty}>No LinxUp device evidence is available for this date.</div>}
+            {selectedLinxupDevice ? (
+              <div className={styles.linxupReviewAction}>
+                <label>
+                  <span>Review disposition</span>
+                  <select value={linxupDisposition} onChange={(event) => setLinxupDisposition(event.target.value as LinxupControlDisposition)} disabled={Boolean(busy)}>
+                    <option value="monitor">Continue monitoring</option>
+                    <option value="provider_follow_up">Provider follow-up required</option>
+                    <option value="mapping_follow_up">Physical mapping check required</option>
+                    <option value="no_issue_confirmed">No issue confirmed</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Verified review note</span>
+                  <input value={linxupReviewNote} onChange={(event) => setLinxupReviewNote(event.target.value)} placeholder="State what was checked and the required follow-up" maxLength={1000} disabled={Boolean(busy)} />
+                </label>
+                <button type="button" disabled={Boolean(busy) || linxupReviewNote.trim().length < 5} onClick={() => void requestLinxupReview()}>Request device review approval</button>
+                <small>Risk class 2. A different manager or administrator approves the disposition against the exact current device observation.</small>
+              </div>
+            ) : null}
+            <div className={styles.linxupBoundary}>
+              <p>{linxup?.authorityNotice || "LinxUp remains the telemetry authority; OpsCenter records only governed human review evidence."}</p>
+              <a href={`/fleet?date=${encodeURIComponent(date)}&view=live`}>Open live Fleet map</a>
             </div>
           </section>
 

@@ -73,6 +73,7 @@
 .callInCommitment button,
 .communicationsNotice button,
 .fleetSensitiveAction button,
+.linxupReviewAction button,
 .financeAction button,
 .sensitiveCommand button,
 .approvals button {
@@ -95,6 +96,7 @@
 .callInCommitment button:disabled,
 .communicationsNotice button:disabled,
 .fleetSensitiveAction button:disabled,
+.linxupReviewAction button:disabled,
 .financeAction button:disabled,
 .sensitiveCommand button:disabled,
 .approvals button:disabled { cursor: wait; opacity: 0.5; }
@@ -444,6 +446,84 @@
 .fleetBoundary a { flex: none; color: #b99bea; font-size: 0.62rem; font-weight: 800; text-decoration: none; }
 .fleetBoundary a:hover { text-decoration: underline; }
 
+.linxupControl {
+  display: grid;
+  gap: 10px;
+  margin: -2px -2px 4px;
+  padding: 13px;
+  border: 1px solid rgba(71, 190, 232, 0.22);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(71, 190, 232, 0.06), rgba(104, 167, 255, 0.025));
+}
+
+.linxupSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.linxupSummary > div {
+  display: grid;
+  gap: 2px;
+  padding: 7px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(4, 7, 12, 0.2);
+}
+.linxupSummary b { color: #fff; font-size: 0.8rem; }
+.linxupSummary span { color: #8f9bad; font-size: 0.56rem; }
+.linxupSummary > div[data-attention="true"] b { color: #f6d777; }
+
+.linxupTarget {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 9px;
+  background: rgba(4, 7, 12, 0.22);
+}
+.linxupTarget > div:first-child { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.linxupTarget strong { color: #fff; font-size: 0.76rem; }
+.linxupTarget > div:first-child span { color: #8ce8af; font-size: 0.62rem; font-weight: 850; }
+.linxupTarget[data-freshness="GPS Stale"] > div:first-child span,
+.linxupTarget[data-freshness="GPS unavailable"] > div:first-child span { color: #f6d777; }
+.linxupTarget[data-freshness="Offline"] > div:first-child span { color: #ff9ba0; }
+.linxupTarget > p { margin: 0; color: #a7b1c0; font-size: 0.68rem; }
+.linxupTarget > small { color: #7f8a99; font-size: 0.61rem; line-height: 1.4; }
+
+.linxupReviewReceipt {
+  display: grid;
+  gap: 3px;
+  margin-top: 5px;
+  padding: 8px 9px;
+  border-left: 2px solid rgba(71, 190, 232, 0.45);
+  background: rgba(71, 190, 232, 0.045);
+}
+.linxupReviewReceipt span { color: #9edff6; font-size: 0.58rem; font-weight: 850; text-transform: uppercase; }
+.linxupReviewReceipt p { margin: 0; color: #a7b1c0; font-size: 0.64rem; line-height: 1.4; }
+.linxupReviewReceipt small { color: #738291; font-size: 0.57rem; }
+
+.linxupReviewAction {
+  display: grid;
+  grid-template-columns: minmax(145px, 0.45fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 8px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+.linxupReviewAction label { display: grid; gap: 6px; }
+.linxupReviewAction button {
+  grid-column: 1 / -1;
+  border-color: rgba(246, 195, 67, 0.32);
+  background: rgba(246, 195, 67, 0.08);
+  color: #f6d777;
+}
+.linxupReviewAction > small { grid-column: 1 / -1; color: #7f8a99; font-size: 0.6rem; line-height: 1.4; }
+
+.linxupBoundary { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.linxupBoundary p { margin: 0; color: #778494; font-size: 0.62rem; line-height: 1.4; }
+.linxupBoundary a { flex: none; color: #9edff6; font-size: 0.61rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.linxupBoundary a:hover { text-decoration: underline; }
+
 .financeControl {
   display: grid;
   gap: 10px;
@@ -604,6 +684,11 @@
   .fleetSensitiveAction button { width: 100%; }
   .fleetSensitiveAction > small { grid-column: 1; }
   .fleetBoundary { align-items: flex-start; flex-direction: column; }
+  .linxupSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .linxupReviewAction { grid-template-columns: 1fr; }
+  .linxupReviewAction button, .linxupReviewAction > small { grid-column: 1; }
+  .linxupReviewAction button { width: 100%; }
+  .linxupBoundary { flex-direction: column; }
   .financeSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .financeActions { grid-template-columns: 1fr; }
   .financeInputGrid, .payrollTimeGrid { grid-template-columns: 1fr !important; }

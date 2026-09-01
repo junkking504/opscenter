@@ -341,7 +341,7 @@ export function operationalStatusForFreshness(status: string, freshness: string)
   return status;
 }
 
-function freshnessLabel({
+export function gpsFreshnessLabel({
   hasPayload,
   latestTimestamp,
   selectedDate,
@@ -550,8 +550,8 @@ function buildTruckRecord({
         { label: "After-Hours Driving", value: Number(validation?.after_hours_events || 0), available: true },
       ];
 
-  const latestTimestamp = lastPoint?.timestamp || locationPayload?.collection_timestamp || null;
-  const freshness = freshnessLabel({
+  const latestTimestamp = lastPoint?.timestamp || null;
+  const freshness = gpsFreshnessLabel({
     hasPayload: Boolean(locationPayload),
     latestTimestamp,
     selectedDate: date,

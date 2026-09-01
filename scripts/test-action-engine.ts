@@ -46,6 +46,7 @@ assert.deepEqual(definitions.map((definition) => definition.key), [
   "krewe.record_availability.v1",
   "krewe.schedule_call_in.v1",
   "communications.post_ops_command_notice.v1",
+  "linxup.record_device_review.v1",
 ]);
 assert.equal(new Set(definitions.map((definition) => definition.key)).size, definitions.length);
 
@@ -131,6 +132,8 @@ for (const control of [
   "Request call-in approval",
   "Communications control pack",
   "Request Slack notice approval",
+  "LinxUp control pack",
+  "Request device review approval",
   "Mark called",
 ]) {
   assert.ok(consoleSource.includes(control), `OpsBot console is missing ${control}.`);
@@ -461,5 +464,64 @@ assert.throws(() => opsCommandNotice.validateInput({
   owner: "Dispatch lead",
   nextAction: "Confirm the integration status.",
 }), /cannot contain credentials, customer contact details, or payment-card data/);
+
+const linxupDeviceReview = registeredActionDefinition("linxup.record_device_review.v1");
+assert.ok(linxupDeviceReview);
+assert.equal(linxupDeviceReview.riskClass, 2);
+assert.equal(decideActionPolicy(linxupDeviceReview, operator).decision.outcome, "approval_required");
+assert.equal(decideActionPolicy(linxupDeviceReview, manager).decision.outcome, "approval_required");
+assert.deepEqual(linxupDeviceReview.validateInput({
+  date: "2026-09-01",
+  truck: " Truck 2 ",
+  disposition: "provider_follow_up",
+  note: " Verify the silent V3 push lane with the provider. ",
+  expectedStoreUpdatedAt: "",
+  expectedRecordUpdatedAt: "",
+  expectedObservationKey: "a".repeat(64),
+}), {
+  date: "2026-09-01",
+  truck: "Truck# 2",
+  disposition: "provider_follow_up",
+  note: "Verify the silent V3 push lane with the provider.",
+  expectedStoreUpdatedAt: "",
+  expectedRecordUpdatedAt: "",
+  expectedObservationKey: "a".repeat(64),
+});
+assert.throws(() => linxupDeviceReview.validateInput({
+  date: "2026-09-01",
+  truck: "Truck 2",
+  disposition: "fixed",
+  note: "Provider repaired the tracker.",
+  expectedStoreUpdatedAt: "",
+  expectedRecordUpdatedAt: "",
+  expectedObservationKey: "a".repeat(64),
+}), /valid LinxUp review disposition/);
+assert.throws(() => linxupDeviceReview.validateInput({
+  date: "2026-09-01",
+  truck: "Truck 2",
+  disposition: "provider_follow_up",
+  note: "Use token=xoxb-secret-value when reviewing the device.",
+  expectedStoreUpdatedAt: "",
+  expectedRecordUpdatedAt: "",
+  expectedObservationKey: "a".repeat(64),
+}), /cannot contain credentials, contact details, or payment-card data/);
+assert.equal(linxupDeviceReview.validateInput({
+  date: "2026-09-01",
+  truck: "Truck 2",
+  disposition: "provider_follow_up",
+  note: "Provider review receipt 1788268000000 is attached.",
+  expectedStoreUpdatedAt: "",
+  expectedRecordUpdatedAt: "",
+  expectedObservationKey: "a".repeat(64),
+}).note, "Provider review receipt 1788268000000 is attached.");
+assert.throws(() => linxupDeviceReview.validateInput({
+  date: "2026-09-01",
+  truck: "Truck 2",
+  disposition: "provider_follow_up",
+  note: "Do not store payment card 4111 1111 1111 1111 here.",
+  expectedStoreUpdatedAt: "",
+  expectedRecordUpdatedAt: "",
+  expectedObservationKey: "a".repeat(64),
+}), /cannot contain credentials, contact details, or payment-card data/);
 
 console.log("OpsBot action registry, policy, idempotency, approvals, verification, persistence, and control UI contracts passed.");

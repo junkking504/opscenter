@@ -71,6 +71,7 @@
 .dispatchActions button,
 .availabilityActions button,
 .callInCommitment button,
+.communicationsNotice button,
 .fleetSensitiveAction button,
 .financeAction button,
 .sensitiveCommand button,
@@ -92,6 +93,7 @@
 .dispatchActions button:disabled,
 .availabilityActions button:disabled,
 .callInCommitment button:disabled,
+.communicationsNotice button:disabled,
 .fleetSensitiveAction button:disabled,
 .financeAction button:disabled,
 .sensitiveCommand button:disabled,
@@ -125,6 +127,7 @@
 
 .commandPane select,
 .commandPane input,
+.commandPane textarea,
 .fleetSensitiveAction input,
 .sensitiveCommand input {
   width: 100%;
@@ -137,6 +140,11 @@
   color-scheme: dark;
   font: inherit;
   font-size: 0.74rem;
+}
+
+.commandPane textarea {
+  min-height: 74px;
+  resize: vertical;
 }
 
 .dispatchControl {
@@ -303,6 +311,67 @@
 .kreweBoundary > div { display: flex; flex: none; flex-direction: column; align-items: flex-end; gap: 5px; }
 .kreweBoundary a { color: #83c8c4; font-size: 0.61rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
 .kreweBoundary a:hover { text-decoration: underline; }
+
+.communicationsControl {
+  display: grid;
+  gap: 10px;
+  margin: -2px -2px 4px;
+  padding: 13px;
+  border: 1px solid rgba(65, 155, 255, 0.22);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(65, 155, 255, 0.06), rgba(65, 196, 190, 0.025));
+}
+
+.communicationsSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.communicationsSummary > div {
+  display: grid;
+  gap: 2px;
+  padding: 7px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(4, 7, 12, 0.2);
+}
+.communicationsSummary b { color: #fff; font-size: 0.8rem; }
+.communicationsSummary span { color: #8f9bad; font-size: 0.56rem; }
+.communicationsSummary > div[data-attention="true"] b { color: #f6d777; }
+
+.communicationsEvidence { display: flex; flex-wrap: wrap; gap: 6px; }
+.communicationsEvidence span {
+  padding: 4px 7px;
+  border: 1px solid rgba(65, 155, 255, 0.18);
+  border-radius: 999px;
+  color: #9bc5ff;
+  font-size: 0.59rem;
+}
+.communicationsEvidence span[data-attention="true"] { border-color: rgba(255, 100, 107, 0.24); color: #ff9ba0; }
+
+.communicationsNotice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 8px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+.communicationsNotice label { display: grid; gap: 6px; }
+.communicationsMessage { grid-column: 1 / -1; }
+.communicationsNotice button {
+  grid-column: 1 / -1;
+  border-color: rgba(246, 195, 67, 0.32);
+  background: rgba(246, 195, 67, 0.08);
+  color: #f6d777;
+}
+.communicationsNotice > small { grid-column: 1 / -1; color: #7f8a99; font-size: 0.6rem; line-height: 1.4; }
+
+.communicationsBoundary { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.communicationsBoundary p { margin: 0; color: #778494; font-size: 0.62rem; line-height: 1.4; }
+.communicationsBoundary a { flex: none; color: #9bc5ff; font-size: 0.61rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.communicationsBoundary a:hover { text-decoration: underline; }
 
 .fleetControl {
   display: grid;
@@ -525,6 +594,11 @@
   .callInCommitment button { width: 100%; }
   .kreweBoundary { flex-direction: column; }
   .kreweBoundary > div { align-items: flex-start; }
+  .communicationsSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .communicationsNotice { grid-template-columns: 1fr; }
+  .communicationsMessage, .communicationsNotice button, .communicationsNotice > small { grid-column: 1; }
+  .communicationsNotice button { width: 100%; }
+  .communicationsBoundary { flex-direction: column; }
   .fleetSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fleetSensitiveAction { grid-template-columns: 1fr; }
   .fleetSensitiveAction button { width: 100%; }

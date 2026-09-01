@@ -72,6 +72,22 @@ Create a dedicated internal Slack app from `deploy/slack/app-manifest.yml` and i
 
 Copy `.env.slack.example` to `.env.slack.local` and set `SLACK_OPSCENTER_ALERTS_ENABLED=true`. Keep the bot token out of the file when Keychain is available.
 
+## Governed manual Ops Command notices
+
+OpsBot Control may request a bounded internal notice through
+`communications.post_ops_command_notice.v1`. The adapter is risk class 2, requires a
+different manager or administrator to approve, and always targets the configured owned
+`#ops-command` channel. It does not accept an arbitrary channel.
+
+The notice uses the same compact formatter as automatic OpsCenter alerts and supplies a
+deterministic Slack `client_msg_id` so a repeated action run does not intentionally create
+a second logical message. A successful result requires Slack to return a channel and
+message timestamp. Preview runtimes simulate that receipt and do not call Slack.
+
+The request validator rejects credentials, email addresses, phone numbers, and card-like
+data. Customer-facing WhatsApp sends and Podium review responses are not routed through
+this adapter.
+
 ## Verification
 
 Preview current alerts without writing state or sending Slack messages:

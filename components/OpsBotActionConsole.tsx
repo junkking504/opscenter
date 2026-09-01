@@ -132,6 +132,40 @@ type KreweSnapshot = {
   authorityNotice: string;
 };
 
+type CommunicationsSnapshot = {
+  date: string;
+  mode: "live_control" | "preview_simulation";
+  source: string;
+  sourceObservedAt: string;
+  slack: {
+    enabled: boolean;
+    credentialAvailable: boolean;
+    commandChannelConfigured: boolean;
+    stateUpdatedAt: string;
+    activeIncidents: number;
+    deliveredToday: number;
+  };
+  whatsapp: {
+    photos: { incoming: number; processing: number; completed: number; review: number; failed: number };
+    photoConfirmations: { pending: number; delivered: number };
+    slackPhotoBatches: { pending: number; delivered: number };
+    expenses: { pending: number; processing: number; completed: number; failed: number; review: number };
+    replies: { pending: number; processing: number; sent: number; failed: number };
+  };
+  podium: {
+    connected: boolean;
+    scopes: readonly string[];
+    snapshotFetchedAt: string;
+    locations: number;
+    recentNeedsResponse: number;
+    recentLowRatings: number;
+    pendingAttribution: number;
+    newToday: number;
+  };
+  warning?: string;
+  authorityNotice: string;
+};
+
 type FinanceSnapshot = {
   date: string;
   mode: "live_control" | "preview_simulation";
@@ -197,6 +231,7 @@ function actionLabel(actionKey: string): string {
     "finance.record_payroll_correction.v1": "Finance payroll correction",
     "krewe.record_availability.v1": "Krewe availability",
     "krewe.schedule_call_in.v1": "Krewe call-in commitment",
+    "communications.post_ops_command_notice.v1": "Ops Command Slack notice",
   };
   return labels[actionKey] || actionKey;
 }
@@ -236,6 +271,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [dispatch, setDispatch] = useState<DispatchSnapshot | null>(null);
   const [fleet, setFleet] = useState<FleetSnapshot | null>(null);
   const [krewe, setKrewe] = useState<KreweSnapshot | null>(null);
+  const [communications, setCommunications] = useState<CommunicationsSnapshot | null>(null);
   const [finance, setFinance] = useState<FinanceSnapshot | null>(null);
   const [financeAccessDenied, setFinanceAccessDenied] = useState(false);
   const [selectedId, setSelectedId] = useState("");
@@ -251,6 +287,10 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [fleetReturnResolution, setFleetReturnResolution] = useState("");
   const [kreweNote, setKreweNote] = useState("");
   const [kreweRole, setKreweRole] = useState<"driver" | "crew">("crew");
+  const [slackNoticeSubject, setSlackNoticeSubject] = useState("");
+  const [slackNoticeMessage, setSlackNoticeMessage] = useState("");
+  const [slackNoticeOwner, setSlackNoticeOwner] = useState("");
+  const [slackNoticeNextAction, setSlackNoticeNextAction] = useState("");
   const [bonusAmount, setBonusAmount] = useState("");
   const [bonusNote, setBonusNote] = useState("");
   const [payrollClockIn, setPayrollClockIn] = useState("");
@@ -267,7 +307,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     setLoading(true);
     setError("");
     try {
-      const [inboxPayload, actionPayload, dispatchPayload, fleetPayload, krewePayload, financeResult] = await Promise.all([
+      const [inboxPayload, actionPayload, dispatchPayload, fleetPayload, krewePayload, communicationsPayload, financeResult] = await Promise.all([
         responseJson<InboxPayload>(await fetch("/api/inbox/reconcile", {
           method: "POST",
           cache: "no-store",
@@ -278,6 +318,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
         responseJson<DispatchSnapshot>(await fetch(`/api/platform/dispatch?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<FleetSnapshot>(await fetch(`/api/platform/fleet?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<KreweSnapshot>(await fetch(`/api/platform/krewe?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
+        responseJson<CommunicationsSnapshot>(await fetch(`/api/platform/communications?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         fetch(`/api/platform/finance?date=${encodeURIComponent(date)}`, { cache: "no-store" }).then(async (response) => {
           if (response.status === 403) return { payload: null, accessDenied: true };
           return { payload: await responseJson<FinanceSnapshot>(response), accessDenied: false };
@@ -288,6 +329,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       setDispatch(dispatchPayload);
       setFleet(fleetPayload);
       setKrewe(krewePayload);
+      setCommunications(communicationsPayload);
       setFinance(financeResult.payload);
       setFinanceAccessDenied(financeResult.accessDenied);
       setSelectedId((current) => current && inboxPayload.items.some((item) => item.id === current)
@@ -493,6 +535,38 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       await load();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "The Finance action request failed.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function requestCommunicationsAction() {
+    if (!communications) return;
+    const actionKey = "communications.post_ops_command_notice.v1";
+    setBusy(actionKey);
+    setError("");
+    try {
+      await responseJson(await fetch("/api/platform/action-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actionKey,
+          entity: { type: "platform", id: "communications:ops-command", label: "Ops Command" },
+          input: {
+            subject: slackNoticeSubject,
+            message: slackNoticeMessage,
+            owner: slackNoticeOwner,
+            nextAction: slackNoticeNextAction,
+          },
+        }),
+      }));
+      setSlackNoticeSubject("");
+      setSlackNoticeMessage("");
+      setSlackNoticeOwner("");
+      setSlackNoticeNextAction("");
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The Communications action request failed.");
     } finally {
       setBusy("");
     }
@@ -773,6 +847,63 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
                 <a href={`/crew?date=${encodeURIComponent(date)}&section=call-in`}>Open full call-in plan</a>
                 {krewe?.targetDate ? <a href={`/jobs?date=${encodeURIComponent(krewe.targetDate)}`}>Review tomorrow’s jobs</a> : null}
               </div>
+            </div>
+          </section>
+
+          <section className={styles.communicationsControl} aria-labelledby="opsbot-communications-title">
+            <div className={styles.controlTitle}>
+              <div><span>Communications control pack</span><strong id="opsbot-communications-title">Internal notice + delivery readiness</strong></div>
+              <small data-mode={communications?.mode}>{communications?.mode === "live_control" ? "Mission Control" : "Preview simulation"}</small>
+            </div>
+            <div className={styles.communicationsSummary}>
+              <div data-attention={Boolean(communications?.slack.activeIncidents)}><b>{communications?.slack.activeIncidents || 0}</b><span>Slack incidents</span></div>
+              <div><b>{(communications?.whatsapp.photos.incoming || 0) + (communications?.whatsapp.photos.processing || 0)}</b><span>photos processing</span></div>
+              <div data-attention={Boolean((communications?.whatsapp.photos.review || 0) + (communications?.whatsapp.photos.failed || 0))}><b>{(communications?.whatsapp.photos.review || 0) + (communications?.whatsapp.photos.failed || 0)}</b><span>photo exceptions</span></div>
+              <div data-attention={Boolean(communications?.podium.recentNeedsResponse)}><b>{communications?.podium.recentNeedsResponse || 0}</b><span>reviews need response</span></div>
+            </div>
+            <div className={styles.communicationsEvidence}>
+              <span>{communications?.slack.deliveredToday || 0} Slack deliveries today</span>
+              <span>{communications?.whatsapp.photoConfirmations.delivered || 0} verified photo confirmations</span>
+              <span data-attention={Boolean(communications?.whatsapp.replies.failed)}>{communications?.whatsapp.replies.failed || 0} WhatsApp reply failures</span>
+              <span>{communications?.podium.locations || 0} Podium locations · read-only</span>
+            </div>
+            {communications?.warning ? <div className={styles.dispatchWarning}>{communications.warning}</div> : null}
+            <div className={styles.communicationsNotice}>
+              <label>
+                <span>Internal notice subject</span>
+                <input value={slackNoticeSubject} onChange={(event) => setSlackNoticeSubject(event.target.value)} placeholder="Route plan updated" maxLength={80} disabled={Boolean(busy)} />
+              </label>
+              <label className={styles.communicationsMessage}>
+                <span>Ops Command message</span>
+                <textarea value={slackNoticeMessage} onChange={(event) => setSlackNoticeMessage(event.target.value)} placeholder="State the verified operating update. Do not include customer contact or payment data." maxLength={800} disabled={Boolean(busy)} />
+              </label>
+              <label>
+                <span>Owner</span>
+                <input value={slackNoticeOwner} onChange={(event) => setSlackNoticeOwner(event.target.value)} placeholder="Dispatch lead" maxLength={80} disabled={Boolean(busy)} />
+              </label>
+              <label>
+                <span>Next action</span>
+                <input value={slackNoticeNextAction} onChange={(event) => setSlackNoticeNextAction(event.target.value)} placeholder="Review the board before departure" maxLength={200} disabled={Boolean(busy)} />
+              </label>
+              <button
+                type="button"
+                disabled={
+                  Boolean(busy)
+                  || slackNoticeSubject.trim().length < 5
+                  || slackNoticeMessage.trim().length < 10
+                  || slackNoticeOwner.trim().length < 2
+                  || slackNoticeNextAction.trim().length < 5
+                  || !communications?.slack.enabled
+                  || !communications.slack.credentialAvailable
+                  || !communications.slack.commandChannelConfigured
+                }
+                onClick={() => void requestCommunicationsAction()}
+              >Request Slack notice approval</button>
+              <small>Risk class 2. A different manager or administrator must approve; delivery is restricted to the owned internal #ops-command channel.</small>
+            </div>
+            <div className={styles.communicationsBoundary}>
+              <p>{communications?.authorityNotice || "Customer-facing communications remain locked until their source and delivery evidence are available."}</p>
+              <a href="/marketing?section=reviews">Open Podium Reviews</a>
             </div>
           </section>
 

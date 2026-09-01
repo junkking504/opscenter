@@ -67,6 +67,12 @@ assert.match(docs, /risk-class 1 available or unavailable responses/);
 assert.match(docs, /risk-class 2 call-in commitments/);
 assert.match(docs, /does not message the employee,\s+assign a JunkWare job/);
 assert.match(docs, /only `MISSION_CONTROL` may change shared Krewe control state/);
+assert.match(docs, /The Communications control pack adds/);
+assert.match(docs, /risk-class 2 internal Ops Command notice/);
+assert.match(docs, /only to the owned `#ops-command` channel/);
+assert.match(docs, /customer-facing sends remain controlled by the\s+verified JunkWare upload, quiet-window batching, and existing delivery workers/);
+assert.match(docs, /approved `read_reviews` and `read_locations` scopes/);
+assert.match(docs, /WhatsApp retry or manual customer send controls remain locked/);
 assert.match(docs, /only `MISSION_CONTROL` may change shared Dispatch or JunkWare state/);
 assert.match(docs, /Money, payroll, customer communication, access, deletion, and broad operational\s+changes remain approval-gated/);
 

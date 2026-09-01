@@ -73,6 +73,7 @@
     "verify:action-engine": "node --import tsx scripts/test-action-engine.ts",
     "verify:finance-control": "node --import tsx scripts/test-finance-control.ts",
     "verify:krewe-control": "node --import tsx scripts/test-krewe-control.ts",
+    "verify:communications-control": "node --import tsx scripts/test-communications-control.ts",
     "verify:dispatch-control": "node --import tsx scripts/test-dispatch-control-actions.ts",
     "verify:production-release-gate": "zsh scripts/test-production-release-gate.sh",
     "verify:collector-release-lifecycle": "node --import tsx scripts/test-deploy-collector-release-lifecycle.ts",

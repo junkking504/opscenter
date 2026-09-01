@@ -1,6 +1,6 @@
 # OpsBot Control
 
-Status: Work, Dispatch, Fleet, Finance, and Krewe control foundation; production kernel activation pending
+Status: Work, Dispatch, Fleet, Finance, Krewe, and Communications control foundation; production kernel activation pending
 
 Route: Command `/?section=opsbot`
 
@@ -48,7 +48,7 @@ path for OpsCenter work items:
 - a Command action console with work-item selection, action status, and audit summaries;
 - direct controls to acknowledge, claim, snooze, and reopen work;
 - approval-gated manual resolution with a required reason;
-- current Jobs, Krewe, Fleet, Finance, and freshness observations without a second data authority;
+- current Jobs, Krewe, Fleet, Finance, Communications, and freshness observations without a second data authority;
 - responsive desktop, tablet, and phone layouts.
 
 The Dispatch control pack adds:
@@ -125,8 +125,29 @@ assign a JunkWare job, or claim that a recommendation is confirmed availability.
 committed call-in also cannot be replaced by a direct availability response; cancellation
 and reassignment are intentionally outside this first bounded pack.
 
+The Communications control pack adds:
+
+- one readiness view over Slack delivery state, WhatsApp durable photo and expense queues,
+  and the current Podium Reviews snapshot without creating a second message authority;
+- a risk-class 2 internal Ops Command notice that requires approval by a different manager
+  or administrator and can post only to the owned `#ops-command` channel;
+- the shared OpsCenter Slack formatter, a deterministic Slack `client_msg_id`, and a
+  `chat.postMessage` channel plus timestamp receipt as delivery verification;
+- bounded subject, message, owner, and next-action inputs that reject credentials, email
+  addresses, phone numbers, and payment-card data;
+- preview simulation receipts that never call Slack or change shared Slack state;
+- explicit WhatsApp queue visibility while customer-facing sends remain controlled by the
+  verified JunkWare upload, quiet-window batching, and existing delivery workers;
+- Podium observation under only the approved `read_reviews` and `read_locations` scopes.
+
+Only the internal Ops Command notice is writable in this pack. It does not accept an
+arbitrary Slack channel. WhatsApp retry or manual customer send controls remain locked
+because they must first prove the prior JunkWare result and final Meta delivery without
+creating a duplicate. Podium review responses and outreach remain read-only because the
+approved OAuth token has no write scope.
+
 Together these provide complete governed loops for work state and bounded
-Dispatch, Fleet, Finance, and Krewe commands. They do not claim that every external operational system is
+Dispatch, Fleet, Finance, Krewe, and internal Communications commands. They do not claim that every external operational system is
 controllable yet.
 
 ## Authority and safety
@@ -139,6 +160,8 @@ Fleet availability changes are risk class 3;
 manual bonuses and payroll corrections are risk class 3; truck assignment and
 same-day rescheduling are risk class 2. Human-confirmed Krewe availability is risk
 class 1; a Krewe call-in commitment is risk class 2.
+An internal Ops Command Slack notice is risk class 2, is approval-gated, and is
+restricted to the owned internal channel. Customer-facing communications remain locked.
 
 Money, payroll, customer communication, access, deletion, and broad operational
 changes remain approval-gated. No autonomous production agent or unrestricted
@@ -154,7 +177,7 @@ silently overwrite source state.
 
 The next phases should move the remaining direct OpsCenter mutations behind
 this registry, then add bounded LinxUp device-review operations, separately approved QBO write workflows, and
-Slack or customer communication. Each adapter must ship
+customer communication. Each adapter must ship
 with its own permission, risk class, approval rule, idempotency strategy,
 verification source, audit payload, retry behavior, and recovery guidance.
 

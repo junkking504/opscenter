@@ -45,6 +45,7 @@ assert.deepEqual(definitions.map((definition) => definition.key), [
   "finance.record_payroll_correction.v1",
   "krewe.record_availability.v1",
   "krewe.schedule_call_in.v1",
+  "communications.post_ops_command_notice.v1",
 ]);
 assert.equal(new Set(definitions.map((definition) => definition.key)).size, definitions.length);
 
@@ -128,6 +129,8 @@ for (const control of [
   "Mark available",
   "Mark unavailable",
   "Request call-in approval",
+  "Communications control pack",
+  "Request Slack notice approval",
   "Mark called",
 ]) {
   assert.ok(consoleSource.includes(control), `OpsBot console is missing ${control}.`);
@@ -429,5 +432,34 @@ assert.throws(() => kreweCallIn.validateInput({
   expectedStoreUpdatedAt: "",
   expectedRecordUpdatedAt: "",
 }), /Human-confirmed employee availability/);
+
+const opsCommandNotice = registeredActionDefinition("communications.post_ops_command_notice.v1");
+assert.ok(opsCommandNotice);
+assert.equal(opsCommandNotice.riskClass, 2);
+assert.equal(decideActionPolicy(opsCommandNotice, operator).decision.outcome, "approval_required");
+assert.equal(decideActionPolicy(opsCommandNotice, manager).decision.outcome, "approval_required");
+assert.deepEqual(opsCommandNotice.validateInput({
+  subject: " Route plan updated ",
+  message: " The afternoon route plan is ready for field review. ",
+  owner: " Dispatch lead ",
+  nextAction: " Review the board before departure. ",
+}), {
+  subject: "Route plan updated",
+  message: "The afternoon route plan is ready for field review.",
+  owner: "Dispatch lead",
+  nextAction: "Review the board before departure.",
+});
+assert.throws(() => opsCommandNotice.validateInput({
+  subject: "Customer follow-up",
+  message: "Call customer@example.com before the route leaves.",
+  owner: "Dispatch lead",
+  nextAction: "Confirm the customer contact.",
+}), /cannot contain credentials, customer contact details, or payment-card data/);
+assert.throws(() => opsCommandNotice.validateInput({
+  subject: "Token update",
+  message: "Use token=xoxb-secret-value for the next delivery.",
+  owner: "Dispatch lead",
+  nextAction: "Confirm the integration status.",
+}), /cannot contain credentials, customer contact details, or payment-card data/);
 
 console.log("OpsBot action registry, policy, idempotency, approvals, verification, persistence, and control UI contracts passed.");

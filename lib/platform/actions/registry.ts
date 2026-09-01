@@ -4,6 +4,7 @@ import type {
   EntityType,
 } from "@/lib/platform/contracts";
 import { dispatchActionDefinitions } from "@/lib/platform/actions/dispatch";
+import { communicationsActionDefinitions } from "@/lib/platform/actions/communications";
 import { fleetActionDefinitions } from "@/lib/platform/actions/fleet";
 import { financeActionDefinitions } from "@/lib/platform/actions/finance";
 import { kreweActionDefinitions } from "@/lib/platform/actions/krewe";
@@ -170,6 +171,7 @@ const definitions: ActionDefinition<any>[] = [
   ...fleetActionDefinitions,
   ...financeActionDefinitions,
   ...kreweActionDefinitions,
+  ...communicationsActionDefinitions,
 ];
 
 const registry = new Map(definitions.map((definition) => [definition.key, definition]));

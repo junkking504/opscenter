@@ -66,8 +66,11 @@ function writeJsonAtomic(target: string, payload: unknown): void {
 }
 
 function truckFromText(text: string): string {
-  const match = String(text || "").match(/\btruck(?:\s+status)?\s*#?\s*(\d{1,3})\b/i);
-  return match ? normalizeTruckLoadLabel(match[1]) : "";
+  const value = String(text || "");
+  const named = value.match(/\btruck(?:\s+status)?\s*#?\s*(\d{1,3})\b/i);
+  if (named) return normalizeTruckLoadLabel(named[1]);
+  const shorthand = value.match(/(?:^|\n)\s*t\s*#?\s*(\d{1,3})\b/im);
+  return shorthand ? normalizeTruckLoadLabel(shorthand[1]) : "";
 }
 
 function loadFromLine(line: string): number | null {
@@ -216,7 +219,7 @@ export function recordTruckLoadPhotoAnalysis(message: WhatsAppImageMessage, truc
 export function ingestTruckLoadText(message: WhatsAppTextMessage): TruckLoadIngestResult {
   const text = clean(message.text);
   const date = chicagoDateKey(new Date(message.receivedAt));
-  const confirm = text.match(/^confirm\s+(?:truck\s*#?\s*)?(\d{1,3})\s*$/i);
+  const confirm = text.match(/^confirm\s+(?:(?:truck|t)\s*#?\s*)?(\d{1,3})\s*$/i);
   if (confirm) {
     const pending = readPendingPhoto(message.senderPhone, message.receivedAt);
     if (!pending || pending.truck !== normalizeTruckLoadLabel(confirm[1])) return { status: "ignored" };

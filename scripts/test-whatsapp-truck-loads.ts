@@ -22,23 +22,31 @@ function message(messageId: string, text: string, senderPhone = "5045550101", re
   return { messageId, text, senderPhone, receivedAt, phoneNumberId: "12345" };
 }
 
-const manual = ingestTruckLoadText(message("manual-1", "Truck 9\n1/2 truck\nsome metal, mostly junk"));
-assert.equal(manual.status, "updated");
-assert.equal(manual.truck, "Truck# 9");
+const shorthand = ingestTruckLoadText(message("shorthand-1", "T9\n1/2 truck\nMostly metal"));
+assert.equal(shorthand.status, "updated");
+assert.equal(shorthand.truck, "Truck# 9");
 let truck9 = readTruckLoadStatuses("2026-08-31").find((status) => status.truck === "Truck# 9");
 assert.equal(truck9?.currentLoadFraction, 1 / 2);
-assert.equal(truck9?.currentContents, "some metal, mostly junk");
+assert.equal(truck9?.currentContents, "Mostly metal");
 
 const firstReply = claimCrewExpenseReply(queuedCrewExpenseReplies()[0]);
 assert.ok(firstReply);
 assert.match(firstReply.reply.text, /Truck# 9 recorded at 1\/2 full/);
+assert.notEqual(firstReply.reply.text, "Recorded.");
+
+const manual = ingestTruckLoadText(message("manual-1", "Truck 9\n1/2 truck\nsome metal, mostly junk"));
+assert.equal(manual.status, "updated");
+assert.equal(manual.truck, "Truck# 9");
+truck9 = readTruckLoadStatuses("2026-08-31").find((status) => status.truck === "Truck# 9");
+assert.equal(truck9?.currentLoadFraction, 1 / 2);
+assert.equal(truck9?.currentContents, "some metal, mostly junk");
 
 assert.equal(ingestTruckLoadText(message("incomplete", "Truck status 8\n3/4 truck")).status, "review");
 assert.equal(ingestTruckLoadText(message("ordinary", "JK4051234 after photos")).status, "ignored");
 
-recordTruckLoadSnapshot({ date: "2026-08-31", truck: "Truck 2", loadFraction: 1 / 4, contents: "household junk", messageId: "truck-2" });
-recordTruckLoadSnapshot({ date: "2026-08-31", truck: "Truck 3", loadFraction: 1 / 2, contents: "mostly junk", messageId: "truck-3" });
-recordTruckLoadSnapshot({ date: "2026-08-31", truck: "Truck 4", loadFraction: 1 / 4, contents: "household junk", messageId: "truck-4" });
+recordTruckLoadSnapshot({ date: "2026-08-31", truck: "Truck 2", loadFraction: 1 / 4, contents: "household junk", messageId: "truck-2", occurredAt: "2026-08-31T19:00:00.000Z" });
+recordTruckLoadSnapshot({ date: "2026-08-31", truck: "Truck 3", loadFraction: 1 / 2, contents: "mostly junk", messageId: "truck-3", occurredAt: "2026-08-31T19:00:00.000Z" });
+recordTruckLoadSnapshot({ date: "2026-08-31", truck: "Truck 4", loadFraction: 1 / 4, contents: "household junk", messageId: "truck-4", occurredAt: "2026-08-31T19:00:00.000Z" });
 const plan = formatTruckConsolidationPlan("2026-08-31", readTruckLoadStatuses("2026-08-31"));
 assert.match(plan, /Morning consolidation plan — 2026-09-01/);
 assert.match(plan, /Move Truck# 4's 1\/4 full junk load into Truck# 3; Truck# 3 becomes 3\/4 full/);

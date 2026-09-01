@@ -29,7 +29,7 @@ for (const copy of [
 ]) {
   assert.ok(component.includes(copy), `OpsBot Control is missing its safety contract: ${copy}`);
 }
-for (const source of ["JunkWare", "LinxUp", "JunkWare + QBO"]) {
+for (const source of ["JunkWare", "LinxUp", "JunkWare + QBO", "Podium + JunkWare"]) {
   assert.ok(component.includes(source), `OpsBot Control must identify ${source} as a source lane.`);
 }
 assert.match(component, /<OpsBotActionConsole date=\{date\} enabled=\{kernelReady\}/, "OpsBot Control must mount the kernel-gated action console.");
@@ -83,6 +83,12 @@ assert.match(docs, /only to the owned `#ops-command` channel/);
 assert.match(docs, /customer-facing sends remain controlled by the\s+verified JunkWare upload, quiet-window batching, and existing delivery workers/);
 assert.match(docs, /approved `read_reviews` and `read_locations` scopes/);
 assert.match(docs, /WhatsApp retry or manual customer send controls remain locked/);
+assert.match(docs, /The Marketing control pack adds/);
+assert.match(docs, /candidate customer, JK number, completed appointment date, territory, and Krewe/);
+assert.match(docs, /separate `confirm suggestion` and `re-assign` intents/);
+assert.match(docs, /risk-class 2 registered attribution request/);
+assert.match(docs, /exact Podium snapshot, review, assignment-store, prior-assignment, and completed-job/);
+assert.match(docs, /never replies to the reviewer, changes\s+the Podium review, edits the JunkWare appointment/);
 assert.match(docs, /only `MISSION_CONTROL` may change shared Dispatch or JunkWare state/);
 assert.match(docs, /Money, payroll, customer communication, access, deletion, and broad operational\s+changes remain approval-gated/);
 

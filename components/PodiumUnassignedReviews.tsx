@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import type {
   PodiumReviewAssignmentOption,
@@ -27,11 +27,15 @@ function nameMatchLabel(kind: PodiumReviewNameSuggestion["matchKind"]): string {
   return "Exact customer-name match";
 }
 
-async function saveAssignment(reviewUid: string, appointmentReference: string): Promise<void> {
+async function requestAssignment(
+  reviewUid: string,
+  appointmentReference: string,
+  assignmentMode: "confirm_suggestion" | "reassign",
+): Promise<void> {
   const response = await fetch("/api/integrations/podium/reviews/attribution", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ reviewUid, appointmentReference }),
+    body: JSON.stringify({ reviewUid, appointmentReference, assignmentMode }),
   });
   const payload = await response.json().catch(() => ({})) as { error?: string };
   if (!response.ok) throw new Error(payload.error || "The review could not be assigned.");
@@ -44,10 +48,10 @@ export function PodiumReviewReassignControl({
   reviewUid: string;
   jkNumber: string;
 }) {
-  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   async function reassign(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,9 +61,9 @@ export function PodiumReviewReassignControl({
     setPending(true);
     setError("");
     try {
-      await saveAssignment(reviewUid, appointmentReference);
+      await requestAssignment(reviewUid, appointmentReference, "reassign");
       setEditing(false);
-      router.refresh();
+      setNotice("Re-assignment approval requested in OpsBot Control.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The review could not be re-assigned.");
     } finally {
@@ -69,9 +73,12 @@ export function PodiumReviewReassignControl({
 
   if (!editing) {
     return (
-      <button className="ops-mini-link ops-marketing-review-reassign-button" type="button" onClick={() => setEditing(true)}>
-        Re-assign {jkNumber || "review"}
-      </button>
+      <div>
+        <button className="ops-mini-link ops-marketing-review-reassign-button" type="button" onClick={() => { setEditing(true); setNotice(""); }}>
+          Re-assign {jkNumber || "review"}
+        </button>
+        {notice ? <small className="ops-marketing-unassigned-notice">{notice} <Link href="/?section=opsbot">Open OpsBot Control</Link></small> : null}
+      </div>
     );
   }
 
@@ -108,19 +115,23 @@ export default function PodiumUnassignedReviews({
   appointmentOptions: PodiumReviewAssignmentOption[];
   suggestionsByReviewUid: Record<string, PodiumReviewNameSuggestion[]>;
 }) {
-  const router = useRouter();
   const [pendingReviewUid, setPendingReviewUid] = useState("");
   const [manualReviewUid, setManualReviewUid] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [notices, setNotices] = useState<Record<string, string>>({});
 
-  async function assignReference(reviewUid: string, appointmentReference: string) {
+  async function assignReference(
+    reviewUid: string,
+    appointmentReference: string,
+    assignmentMode: "confirm_suggestion" | "reassign",
+  ) {
     if (!appointmentReference) return;
     setPendingReviewUid(reviewUid);
     setErrors((current) => ({ ...current, [reviewUid]: "" }));
     try {
-      await saveAssignment(reviewUid, appointmentReference);
+      await requestAssignment(reviewUid, appointmentReference, assignmentMode);
       setManualReviewUid("");
-      router.refresh();
+      setNotices((current) => ({ ...current, [reviewUid]: "Attribution approval requested in OpsBot Control." }));
     } catch (caught) {
       setErrors((current) => ({
         ...current,
@@ -134,7 +145,7 @@ export default function PodiumUnassignedReviews({
   async function assignReview(event: FormEvent<HTMLFormElement>, reviewUid: string) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    await assignReference(reviewUid, String(form.get("appointmentReference") || "").trim());
+    await assignReference(reviewUid, String(form.get("appointmentReference") || "").trim(), "reassign");
   }
 
   return (
@@ -191,7 +202,7 @@ export default function PodiumUnassignedReviews({
                           className="ops-button"
                           type="button"
                           disabled={pendingReviewUid === review.uid}
-                          onClick={() => assignReference(review.uid, suggestion.reference)}
+                          onClick={() => assignReference(review.uid, suggestion.reference, "confirm_suggestion")}
                         >
                           {pendingReviewUid === review.uid ? "Confirming…" : `Confirm ${suggestion.jkNumber || "appointment"}`}
                         </button>
@@ -230,6 +241,7 @@ export default function PodiumUnassignedReviews({
                     </form>
                   ) : null}
                   {errors[review.uid] ? <small className="ops-marketing-unassigned-error">{errors[review.uid]}</small> : null}
+                  {notices[review.uid] ? <small className="ops-marketing-unassigned-notice">{notices[review.uid]} <Link href="/?section=opsbot">Open approval ledger</Link></small> : null}
                 </div>
               </article>
             );

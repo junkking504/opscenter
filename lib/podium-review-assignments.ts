@@ -17,7 +17,7 @@ export type PodiumReviewManualAssignment = {
   assignedBy: string;
 };
 
-type PodiumReviewAssignmentStore = {
+export type PodiumReviewAssignmentStore = {
   version: 1;
   updatedAt: string;
   assignments: PodiumReviewManualAssignment[];
@@ -56,21 +56,37 @@ function validAssignment(value: unknown): value is PodiumReviewManualAssignment 
 }
 
 export function readPodiumReviewAssignments(): PodiumReviewManualAssignment[] {
+  return readPodiumReviewAssignmentStore().assignments;
+}
+
+export function readPodiumReviewAssignmentStore(): PodiumReviewAssignmentStore {
   try {
     const payload = JSON.parse(fs.readFileSync(podiumReviewAssignmentStorePath(), "utf8")) as Partial<PodiumReviewAssignmentStore>;
-    return Array.isArray(payload.assignments) ? payload.assignments.filter(validAssignment) : [];
+    return {
+      version: 1,
+      updatedAt: String(payload.updatedAt || ""),
+      assignments: Array.isArray(payload.assignments) ? payload.assignments.filter(validAssignment) : [],
+    };
   } catch {
-    return [];
+    return { version: 1, updatedAt: "", assignments: [] };
   }
 }
 
-function writeAssignments(assignments: PodiumReviewManualAssignment[]): void {
+function nextTimestamp(...values: string[]): string {
+  const latest = values.reduce((maximum, value) => {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? Math.max(maximum, parsed) : maximum;
+  }, 0);
+  return new Date(Math.max(Date.now(), latest + 1)).toISOString();
+}
+
+function writeAssignments(assignments: PodiumReviewManualAssignment[], updatedAt: string): void {
   const file = podiumReviewAssignmentStorePath();
   const directory = path.dirname(file);
   fs.mkdirSync(directory, { recursive: true, mode: 0o770 });
   const payload: PodiumReviewAssignmentStore = {
     version: 1,
-    updatedAt: new Date().toISOString(),
+    updatedAt,
     assignments: [...assignments].sort((left, right) => left.reviewUid.localeCompare(right.reviewUid)),
   };
   const temporary = path.join(directory, `.${path.basename(file)}.${process.pid}.${Date.now()}.tmp`);
@@ -84,20 +100,50 @@ export function assignPodiumReviewToAppointment(input: {
   appointmentReference: string;
   assignedBy: string;
 }): PodiumReviewManualAssignment | null {
+  const store = readPodiumReviewAssignmentStore();
+  const current = store.assignments.find((entry) => entry.reviewUid === String(input.reviewUid || "").trim()) || null;
+  return assignPodiumReviewToAppointmentIfCurrent(input, {
+    storeUpdatedAt: store.updatedAt,
+    assignmentUpdatedAt: current?.assignedAt || "",
+  });
+}
+
+export function podiumReviewAssignmentForReview(reviewUid: string): PodiumReviewManualAssignment | null {
+  const normalized = String(reviewUid || "").trim();
+  return readPodiumReviewAssignmentStore().assignments.find((entry) => entry.reviewUid === normalized) || null;
+}
+
+export function assignPodiumReviewToAppointmentIfCurrent(input: {
+  reviewUid: string;
+  appointmentReference: string;
+  assignedBy: string;
+}, expected: {
+  storeUpdatedAt: string;
+  assignmentUpdatedAt: string;
+}): PodiumReviewManualAssignment | null {
   const reviewUid = String(input.reviewUid || "").trim();
   const attribution = findPodiumReviewAppointment(
     podiumReviewAssignmentDataDirectory(),
     input.appointmentReference,
   );
   if (!reviewUid || !attribution) return null;
+  const store = readPodiumReviewAssignmentStore();
+  if (store.updatedAt !== expected.storeUpdatedAt) {
+    throw new Error("VERSION_CONFLICT: Podium review assignment state changed after this request was prepared.");
+  }
+  const current = store.assignments.find((entry) => entry.reviewUid === reviewUid) || null;
+  if (String(current?.assignedAt || "") !== expected.assignmentUpdatedAt) {
+    throw new Error("VERSION_CONFLICT: The Podium review assignment changed after this request was prepared.");
+  }
+  const assignedAt = nextTimestamp(store.updatedAt, current?.assignedAt || "");
   const assignment: PodiumReviewManualAssignment = {
     reviewUid,
     attribution,
-    assignedAt: new Date().toISOString(),
+    assignedAt,
     assignedBy: String(input.assignedBy || "").trim(),
   };
-  const remaining = readPodiumReviewAssignments().filter((entry) => entry.reviewUid !== reviewUid);
-  writeAssignments([...remaining, assignment]);
+  const remaining = store.assignments.filter((entry) => entry.reviewUid !== reviewUid);
+  writeAssignments([...remaining, assignment], assignedAt);
   return assignment;
 }
 

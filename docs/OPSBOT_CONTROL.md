@@ -1,6 +1,6 @@
 # OpsBot Control
 
-Status: Work, Dispatch, Fleet, LinxUp, Finance, Krewe, and Communications control foundation; production kernel activation pending
+Status: Work, Dispatch, Fleet, LinxUp, Finance, Krewe, Communications, and Marketing control foundation; production kernel activation pending
 
 Route: Command `/?section=opsbot`
 
@@ -48,7 +48,7 @@ path for OpsCenter work items:
 - a Command action console with work-item selection, action status, and audit summaries;
 - direct controls to acknowledge, claim, snooze, and reopen work;
 - approval-gated manual resolution with a required reason;
-- current Jobs, Krewe, Fleet, LinxUp, Finance, Communications, and freshness observations without a second data authority;
+- current Jobs, Krewe, Fleet, LinxUp, Finance, Communications, Marketing, and freshness observations without a second data authority;
 - responsive desktop, tablet, and phone layouts.
 
 The Dispatch control pack adds:
@@ -182,8 +182,32 @@ because they must first prove the prior JunkWare result and final Meta delivery 
 creating a duplicate. Podium review responses and outreach remain read-only because the
 approved OAuth token has no write scope.
 
+The Marketing control pack adds:
+
+- the fresh read-only Podium Reviews snapshot beside completed JunkWare appointment and
+  recorded Krewe evidence without creating a second review or job authority;
+- explicit unassigned-review selection with the reviewer, rating, location, and any
+  conservative customer-name candidate visible before action;
+- the candidate customer, JK number, completed appointment date, territory, and Krewe
+  shown together so confirmation is attributable to the intended job;
+- separate `confirm suggestion` and `re-assign` intents; a suggested name match never
+  becomes employee review credit automatically;
+- a risk-class 2 registered attribution request requiring approval by a different manager
+  or administrator;
+- exact Podium snapshot, review, assignment-store, prior-assignment, and completed-job
+  evidence checks that reject a stale approval;
+- durable attribution, optimistic conflict protection, audit events, and authoritative
+  read-back of the exact saved JK number and Krewe;
+- preview simulation receipts that leave shared Podium attribution state unchanged.
+
+Attribution changes OpsCenter reporting only. It never replies to the reviewer, changes
+the Podium review, edits the JunkWare appointment, sends customer communication, or
+expands beyond `read_reviews` and `read_locations`. The existing Marketing confirm and
+re-assign controls now create the same governed action request instead of writing directly.
+
 Together these provide complete governed loops for work state and bounded Dispatch,
-Fleet, LinxUp review, Finance, Krewe, and internal Communications commands. They do not
+Fleet, LinxUp review, Finance, Krewe, internal Communications, and Marketing attribution
+commands. They do not
 claim that every external operational system is controllable yet.
 
 ## Authority and safety
@@ -202,6 +226,8 @@ A LinxUp device review is risk class 2 and approval-gated; it records bounded in
 follow-up only and cannot mutate telemetry, mapping, provider state, or Fleet availability.
 A payment-exception review is risk class 2 and approval-gated; it records only internal
 ownership, disposition, next action, and evidence against the exact source observation.
+A Podium review attribution is risk class 2 and approval-gated; it requires explicit
+confirm-or-reassign intent and verifies the selected completed JunkWare job and Krewe.
 
 Money, payroll, customer communication, access, deletion, and broad operational
 changes remain approval-gated. No autonomous production agent or unrestricted

@@ -13,7 +13,7 @@ export type PlatformActor = {
   }>;
 };
 
-export type EntityType = "job" | "employee" | "truck" | "finance" | "customer" | "lead" | "platform";
+export type EntityType = "job" | "employee" | "truck" | "finance" | "customer" | "lead" | "review" | "platform";
 
 export type EntityReference = {
   type: EntityType;

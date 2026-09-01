@@ -9,6 +9,7 @@ import { fleetActionDefinitions } from "@/lib/platform/actions/fleet";
 import { financeActionDefinitions } from "@/lib/platform/actions/finance";
 import { kreweActionDefinitions } from "@/lib/platform/actions/krewe";
 import { linxupActionDefinitions } from "@/lib/platform/actions/linxup";
+import { marketingActionDefinitions } from "@/lib/platform/actions/marketing";
 import { getWorkItem, mutateWorkItem, type WorkItemMutation } from "@/lib/platform/persistence/work-items";
 
 type VersionedInput = { expectedVersion: number };
@@ -173,6 +174,7 @@ const definitions: ActionDefinition<any>[] = [
   ...financeActionDefinitions,
   ...kreweActionDefinitions,
   ...communicationsActionDefinitions,
+  ...marketingActionDefinitions,
   ...linxupActionDefinitions,
 ];
 

@@ -74,15 +74,23 @@ customer names and proposes only conservative matches: exact full name, exact
 first and last name, or a first/last-initial match. Same-territory and more
 recent completed jobs rank first when more than one candidate exists.
 
-A name match is a suggestion, not employee credit. A manager or administrator
-must confirm the displayed JK number or choose a different completed
-appointment. Confirming or re-assigning the review records the appointment,
+A name match is a suggestion, not employee credit. A manager must explicitly request
+confirmation of the displayed JK number or choose a different completed appointment.
+The risk-class 2 request is registered as `marketing.assign_podium_review.v1` and must
+be approved by a different manager or administrator. Confirming or re-assigning records the appointment,
 territory, truck, and recorded crew in the durable operator store:
 
 ```text
 data/operator/podium_review_assignments.json
 ```
 
-The assignment record excludes the customer name, phone, email, and Podium
-invitation identifier. Confirmed assignments override collector attribution and
-remain editable from the attributed review card after later Podium refreshes.
+The request carries the exact Podium snapshot and review timestamps, assignment-store
+and prior-assignment versions, and a hash of the selected completed-job evidence. Approval
+is rejected if any of those facts changes. The assignment record excludes the customer
+name, phone, email, and Podium invitation identifier. Confirmed assignments override
+collector attribution and remain editable from the attributed review card after later
+Podium refreshes.
+
+This attribution changes only OpsCenter reporting. It never writes to Podium, responds to
+the customer, or edits the JunkWare appointment. Preview execution returns a verified
+simulation receipt and leaves the shared attribution store unchanged.

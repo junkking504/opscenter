@@ -72,6 +72,7 @@
 .availabilityActions button,
 .callInCommitment button,
 .communicationsNotice button,
+.marketingAttributionButtons button,
 .fleetSensitiveAction button,
 .linxupReviewAction button,
 .paymentReviewForm button,
@@ -96,6 +97,7 @@
 .availabilityActions button:disabled,
 .callInCommitment button:disabled,
 .communicationsNotice button:disabled,
+.marketingAttributionButtons button:disabled,
 .fleetSensitiveAction button:disabled,
 .linxupReviewAction button:disabled,
 .paymentReviewForm button:disabled,
@@ -376,6 +378,87 @@
 .communicationsBoundary p { margin: 0; color: #778494; font-size: 0.62rem; line-height: 1.4; }
 .communicationsBoundary a { flex: none; color: #9bc5ff; font-size: 0.61rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
 .communicationsBoundary a:hover { text-decoration: underline; }
+
+.marketingControl {
+  display: grid;
+  gap: 10px;
+  margin: -2px -2px 4px;
+  padding: 13px;
+  border: 1px solid rgba(255, 145, 92, 0.22);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(255, 145, 92, 0.06), rgba(255, 100, 151, 0.02));
+}
+
+.marketingSummary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.marketingSummary > div {
+  display: grid;
+  gap: 2px;
+  padding: 7px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 8px;
+  background: rgba(4, 7, 12, 0.2);
+}
+.marketingSummary b { color: #fff; font-size: 0.8rem; }
+.marketingSummary span { color: #8f9bad; font-size: 0.56rem; }
+.marketingSummary > div[data-attention="true"] b { color: #ffad83; }
+
+.marketingReviewTarget {
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 9px;
+  background: rgba(4, 7, 12, 0.22);
+}
+.marketingReviewTarget > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.marketingReviewTarget > header > div { display: grid; gap: 2px; }
+.marketingReviewTarget strong { color: #fff; font-size: 0.74rem; }
+.marketingReviewTarget header small { color: #7f8a99; font-size: 0.58rem; }
+.marketingReviewTarget header > span { color: #f6d777; font-size: 0.7rem; letter-spacing: 0.06em; }
+.marketingReviewTarget > p { margin: 0; color: #a7b1c0; font-size: 0.65rem; line-height: 1.4; }
+
+.marketingSuggestion {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 8px;
+  padding: 8px;
+  border-left: 2px solid #ff915c;
+  background: rgba(255, 145, 92, 0.05);
+}
+.marketingSuggestion small { grid-column: 1 / -1; color: #ffad83; font-size: 0.56rem; font-weight: 850; text-transform: uppercase; }
+.marketingSuggestion strong { color: #fff; font-size: 0.68rem; }
+.marketingSuggestion > span { color: #f2c1a9; font-size: 0.61rem; font-weight: 800; }
+.marketingSuggestion p { grid-column: 1 / -1; margin: 0; color: #8996a6; font-size: 0.59rem; }
+.marketingNoSuggestion { padding: 8px; border: 1px dashed rgba(255, 145, 92, 0.2); border-radius: 8px; color: #b89989; font-size: 0.62rem; line-height: 1.4; }
+
+.marketingAttributionAction { display: grid; gap: 8px; padding-top: 9px; border-top: 1px solid rgba(148, 163, 184, 0.12); }
+.marketingAttributionAction label { display: grid; gap: 6px; }
+.marketingCandidateEvidence {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 8px;
+  padding: 8px;
+  border: 1px solid rgba(255, 145, 92, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 145, 92, 0.035);
+}
+.marketingCandidateEvidence strong { color: #ffbd9c; font-size: 0.68rem; }
+.marketingCandidateEvidence span { overflow: hidden; color: #e2e7ef; font-size: 0.64rem; text-overflow: ellipsis; white-space: nowrap; }
+.marketingCandidateEvidence small { grid-column: 1 / -1; color: #7f8a99; font-size: 0.58rem; }
+.marketingAttributionButtons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.marketingAttributionButtons button { border-color: rgba(255, 145, 92, 0.32); background: rgba(255, 145, 92, 0.08); color: #ffbd9c; }
+.marketingAttributionButtons button:last-child { border-color: rgba(246, 195, 67, 0.28); color: #f6d777; }
+.marketingAttributionAction > small { color: #7f8a99; font-size: 0.59rem; line-height: 1.4; }
+
+.marketingBoundary { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.marketingBoundary p { margin: 0; color: #778494; font-size: 0.62rem; line-height: 1.4; }
+.marketingBoundary a { flex: none; color: #ffad83; font-size: 0.61rem; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.marketingBoundary a:hover { text-decoration: underline; }
 
 .fleetControl {
   display: grid;
@@ -736,6 +819,10 @@
   .communicationsMessage, .communicationsNotice button, .communicationsNotice > small { grid-column: 1; }
   .communicationsNotice button { width: 100%; }
   .communicationsBoundary { flex-direction: column; }
+  .marketingSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .marketingAttributionButtons { grid-template-columns: 1fr; }
+  .marketingAttributionButtons button { width: 100%; }
+  .marketingBoundary { flex-direction: column; }
   .fleetSummary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .fleetSensitiveAction { grid-template-columns: 1fr; }
   .fleetSensitiveAction button { width: 100%; }

@@ -261,10 +261,15 @@ assert.doesNotMatch(callbackRoute, /NextResponse\.redirect\(new URL\([^\n]+reque
 assert.match(marketingPage, /New Reviews Today/);
 assert.match(marketingPage, /ops-kpi-value">\{reviews\.newToday\}/);
 assert.match(marketingPage, /PodiumUnassignedReviews/);
-assert.match(assignmentRoute, /verifyAuthSessionCookie/);
+assert.match(assignmentRoute, /authenticatedPlatformActor/);
+assert.match(assignmentRoute, /requestAction/);
+assert.match(assignmentRoute, /marketing\.assign_podium_review\.v1/);
+assert.doesNotMatch(assignmentRoute, /assignPodiumReviewToAppointment\(/);
 assert.match(unassignedComponent, /Exact customer-name match/);
 assert.match(unassignedComponent, /Confirm \$\{suggestion\.jkNumber/);
 assert.match(unassignedComponent, /Re-assign review/);
+assert.match(unassignedComponent, /Attribution approval requested in OpsBot Control/);
+assert.match(unassignedComponent, /confirm_suggestion/);
 assert.match(unassignedComponent, /Customer name, appointment ID, or JK number/);
 assert.match(unassignedComponent, /PodiumReviewReassignControl/);
 

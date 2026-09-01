@@ -285,6 +285,17 @@
   color: var(--ops-red);
 }
 
+.ops-marketing-unassigned-notice {
+  display: block;
+  color: var(--ops-success, #37d67a);
+  line-height: 1.45;
+}
+
+.ops-marketing-unassigned-notice a {
+  color: inherit;
+  font-weight: 800;
+}
+
 .ops-marketing-review-credit-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

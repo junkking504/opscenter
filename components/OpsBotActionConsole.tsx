@@ -213,6 +213,49 @@ type CommunicationsSnapshot = {
   authorityNotice: string;
 };
 
+type MarketingCandidate = {
+  reference: string;
+  appointmentId: string;
+  jkNumber: string;
+  appointmentDate: string;
+  customerName: string;
+  territory: string;
+  truck: string;
+  crew: string[];
+  candidateKey: string;
+  matchKind?: "exact_name" | "exact_first_last" | "name_initial";
+};
+
+type MarketingSnapshot = {
+  date: string;
+  mode: "live_control" | "preview_simulation";
+  source: string;
+  sourceObservedAt: string;
+  podium: {
+    connected: boolean;
+    scopes: readonly string[];
+    snapshotAvailable: boolean;
+    snapshotFetchedAt: string;
+    locations: number;
+    pendingAttribution: number;
+    recentNeedsResponse: number;
+    assignmentStoreUpdatedAt: string;
+    reviews: Array<{
+      reviewUid: string;
+      authorName: string;
+      body: string;
+      rating: number;
+      createdAt: string;
+      updatedAt: string;
+      locationName: string;
+      needsResponse: boolean;
+      suggestions: MarketingCandidate[];
+    }>;
+    assignmentOptions: MarketingCandidate[];
+  };
+  authorityNotice: string;
+};
+
 type FinanceSnapshot = {
   date: string;
   mode: "live_control" | "preview_simulation";
@@ -307,6 +350,7 @@ function actionLabel(actionKey: string): string {
     "krewe.record_availability.v1": "Krewe availability",
     "krewe.schedule_call_in.v1": "Krewe call-in commitment",
     "communications.post_ops_command_notice.v1": "Ops Command Slack notice",
+    "marketing.assign_podium_review.v1": "Podium review attribution",
     "linxup.record_device_review.v1": "LinxUp device review",
   };
   return labels[actionKey] || actionKey;
@@ -357,6 +401,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [linxup, setLinxup] = useState<LinxupSnapshot | null>(null);
   const [krewe, setKrewe] = useState<KreweSnapshot | null>(null);
   const [communications, setCommunications] = useState<CommunicationsSnapshot | null>(null);
+  const [marketing, setMarketing] = useState<MarketingSnapshot | null>(null);
   const [finance, setFinance] = useState<FinanceSnapshot | null>(null);
   const [financeAccessDenied, setFinanceAccessDenied] = useState(false);
   const [selectedId, setSelectedId] = useState("");
@@ -366,6 +411,8 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
   const [selectedKreweEmployeeName, setSelectedKreweEmployeeName] = useState("");
   const [selectedFinanceEmployeeName, setSelectedFinanceEmployeeName] = useState("");
   const [selectedFinanceExceptionId, setSelectedFinanceExceptionId] = useState("");
+  const [selectedMarketingReviewUid, setSelectedMarketingReviewUid] = useState("");
+  const [marketingAppointmentReference, setMarketingAppointmentReference] = useState("");
   const [dispatchTruck, setDispatchTruck] = useState("");
   const [dispatchStartMinutes, setDispatchStartMinutes] = useState("");
   const [dispatchDestinationDate, setDispatchDestinationDate] = useState(date);
@@ -400,7 +447,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     setLoading(true);
     setError("");
     try {
-      const [inboxPayload, actionPayload, dispatchPayload, fleetPayload, linxupPayload, krewePayload, communicationsPayload, financeResult] = await Promise.all([
+      const [inboxPayload, actionPayload, dispatchPayload, fleetPayload, linxupPayload, krewePayload, communicationsPayload, marketingPayload, financeResult] = await Promise.all([
         responseJson<InboxPayload>(await fetch("/api/inbox/reconcile", {
           method: "POST",
           cache: "no-store",
@@ -413,6 +460,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
         responseJson<LinxupSnapshot>(await fetch(`/api/platform/linxup?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<KreweSnapshot>(await fetch(`/api/platform/krewe?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         responseJson<CommunicationsSnapshot>(await fetch(`/api/platform/communications?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
+        responseJson<MarketingSnapshot>(await fetch(`/api/platform/marketing?date=${encodeURIComponent(date)}`, { cache: "no-store" })),
         fetch(`/api/platform/finance?date=${encodeURIComponent(date)}`, { cache: "no-store" }).then(async (response) => {
           if (response.status === 403) return { payload: null, accessDenied: true };
           return { payload: await responseJson<FinanceSnapshot>(response), accessDenied: false };
@@ -425,6 +473,7 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       setLinxup(linxupPayload);
       setKrewe(krewePayload);
       setCommunications(communicationsPayload);
+      setMarketing(marketingPayload);
       setFinance(financeResult.payload);
       setFinanceAccessDenied(financeResult.accessDenied);
       setSelectedId((current) => current && inboxPayload.items.some((item) => item.id === current)
@@ -449,6 +498,11 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
         ? current
         : financeResult.payload?.paymentReconciliation.exceptions.find((exception) => !exception.reviewCurrent)?.exceptionId
           || financeResult.payload?.paymentReconciliation.exceptions[0]?.exceptionId
+          || "");
+      setSelectedMarketingReviewUid((current) => current && marketingPayload.podium.reviews.some((review) => review.reviewUid === current)
+        ? current
+        : marketingPayload.podium.reviews.find((review) => review.suggestions.length > 0)?.reviewUid
+          || marketingPayload.podium.reviews[0]?.reviewUid
           || "");
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Unable to load OpsBot control state.");
@@ -489,6 +543,16 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
     () => finance?.paymentReconciliation.exceptions.find((exception) => exception.exceptionId === selectedFinanceExceptionId) || null,
     [finance, selectedFinanceExceptionId],
   );
+  const selectedMarketingReview = useMemo(
+    () => marketing?.podium.reviews.find((review) => review.reviewUid === selectedMarketingReviewUid) || null,
+    [marketing, selectedMarketingReviewUid],
+  );
+  const selectedMarketingCandidate = useMemo(() => {
+    const candidates = [...(selectedMarketingReview?.suggestions || []), ...(marketing?.podium.assignmentOptions || [])];
+    const reference = marketingAppointmentReference.trim().toLowerCase();
+    return candidates.find((candidate) => [candidate.reference, candidate.appointmentId, candidate.jkNumber]
+      .some((value) => value.toLowerCase() === reference)) || null;
+  }, [marketing, marketingAppointmentReference, selectedMarketingReview]);
   useEffect(() => {
     setDispatchTruck(selectedAppointment?.effectiveTruck || "");
     setDispatchStartMinutes(selectedAppointment?.appointmentStartMinutes == null ? "" : String(selectedAppointment.appointmentStartMinutes));
@@ -530,6 +594,9 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       : paymentReviewNextAction(disposition));
     setPaymentReviewNote("");
   }, [date, selectedFinanceException]);
+  useEffect(() => {
+    setMarketingAppointmentReference(selectedMarketingReview?.suggestions[0]?.reference || "");
+  }, [selectedMarketingReview]);
   const recentRuns = snapshot?.runs.slice(0, 8) || [];
 
   async function requestWorkAction(actionKey: string, extra: Record<string, unknown> = {}) {
@@ -767,6 +834,45 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
       await load();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "The Communications action request failed.");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function requestMarketingAttribution(assignmentMode: "confirm_suggestion" | "reassign") {
+    if (!marketing || !selectedMarketingReview || !selectedMarketingCandidate) return;
+    const actionKey = "marketing.assign_podium_review.v1";
+    setBusy(actionKey);
+    setError("");
+    try {
+      await responseJson(await fetch("/api/platform/action-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          actionKey,
+          entity: {
+            type: "review",
+            id: selectedMarketingReview.reviewUid,
+            label: `${selectedMarketingReview.authorName} · ${selectedMarketingCandidate.jkNumber}`,
+          },
+          input: {
+            reviewUid: selectedMarketingReview.reviewUid,
+            appointmentReference: selectedMarketingCandidate.reference,
+            assignmentMode,
+            expectedSnapshotFetchedAt: marketing.podium.snapshotFetchedAt,
+            expectedReviewUpdatedAt: selectedMarketingReview.updatedAt,
+            expectedAssignmentStoreUpdatedAt: marketing.podium.assignmentStoreUpdatedAt,
+            expectedAssignmentUpdatedAt: "",
+            expectedCandidateKey: selectedMarketingCandidate.candidateKey,
+            expectedCandidateAppointmentId: selectedMarketingCandidate.appointmentId,
+            expectedCandidateJkNumber: selectedMarketingCandidate.jkNumber,
+            expectedCandidateCrew: selectedMarketingCandidate.crew,
+          },
+        }),
+      }));
+      await load();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "The Podium attribution request failed.");
     } finally {
       setBusy("");
     }
@@ -1104,6 +1210,96 @@ export default function OpsBotActionConsole({ date, enabled }: { date: string; e
             <div className={styles.communicationsBoundary}>
               <p>{communications?.authorityNotice || "Customer-facing communications remain locked until their source and delivery evidence are available."}</p>
               <a href="/marketing?section=reviews">Open Podium Reviews</a>
+            </div>
+          </section>
+
+          <section className={styles.marketingControl} aria-labelledby="opsbot-marketing-title">
+            <datalist id="opsbot-podium-appointment-options">
+              {(marketing?.podium.assignmentOptions || []).map((candidate) => (
+                <option key={`${candidate.appointmentDate}-${candidate.reference}`} value={candidate.reference}>
+                  {candidate.appointmentDate} · {candidate.jkNumber} · {candidate.customerName} · {candidate.crew.join(" + ")}
+                </option>
+              ))}
+            </datalist>
+            <div className={styles.controlTitle}>
+              <div><span>Marketing control pack</span><strong id="opsbot-marketing-title">Podium attribution command</strong></div>
+              <small data-mode={marketing?.mode}>{marketing?.mode === "live_control" ? "Mission Control" : "Preview simulation"}</small>
+            </div>
+            <div className={styles.marketingSummary}>
+              <div data-attention={Boolean(marketing?.podium.pendingAttribution)}><b>{marketing?.podium.pendingAttribution || 0}</b><span>unassigned reviews</span></div>
+              <div><b>{marketing?.podium.reviews.filter((review) => review.suggestions.length > 0).length || 0}</b><span>candidate matches</span></div>
+              <div data-attention={Boolean(marketing?.podium.recentNeedsResponse)}><b>{marketing?.podium.recentNeedsResponse || 0}</b><span>need response</span></div>
+              <div><b>{marketing?.podium.locations || 0}</b><span>Podium locations</span></div>
+            </div>
+            {marketing?.podium.snapshotAvailable ? (
+              <>
+                <label>
+                  <span>Unassigned Podium review</span>
+                  <select value={selectedMarketingReviewUid} onChange={(event) => setSelectedMarketingReviewUid(event.target.value)} disabled={loading || Boolean(busy)}>
+                    {marketing.podium.reviews.map((review) => (
+                      <option key={review.reviewUid} value={review.reviewUid}>
+                        {review.suggestions.length ? "Candidate · " : "Unmatched · "}{review.authorName} · {review.rating} stars
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {selectedMarketingReview ? (
+                  <article className={styles.marketingReviewTarget}>
+                    <header>
+                      <div><strong>{selectedMarketingReview.authorName}</strong><small>{selectedMarketingReview.locationName} · {selectedMarketingReview.createdAt.slice(0, 10)}</small></div>
+                      <span>{"★".repeat(Math.max(0, Math.min(5, selectedMarketingReview.rating)))}</span>
+                    </header>
+                    <p>{selectedMarketingReview.body || "Rating submitted without written feedback."}</p>
+                    {selectedMarketingReview.suggestions[0] ? (
+                      <div className={styles.marketingSuggestion}>
+                        <small>{selectedMarketingReview.suggestions[0].matchKind?.replaceAll("_", " ")} candidate</small>
+                        <strong>{selectedMarketingReview.suggestions[0].customerName}</strong>
+                        <span>{selectedMarketingReview.suggestions[0].jkNumber} · {selectedMarketingReview.suggestions[0].appointmentDate}</span>
+                        <p>Krewe: {selectedMarketingReview.suggestions[0].crew.join(" + ")}</p>
+                      </div>
+                    ) : <div className={styles.marketingNoSuggestion}>No confident name match. Choose the completed appointment explicitly.</div>}
+                  </article>
+                ) : <div className={styles.empty}>Every recent Podium review has a confirmed appointment and Krewe assignment.</div>}
+                {selectedMarketingReview ? (
+                  <div className={styles.marketingAttributionAction}>
+                    <label>
+                      <span>Completed appointment · confirm or re-assign</span>
+                      <input
+                        value={marketingAppointmentReference}
+                        onChange={(event) => setMarketingAppointmentReference(event.target.value)}
+                        list="opsbot-podium-appointment-options"
+                        placeholder="Appointment ID or JK number"
+                        autoComplete="off"
+                        disabled={Boolean(busy)}
+                      />
+                    </label>
+                    {selectedMarketingCandidate ? (
+                      <div className={styles.marketingCandidateEvidence}>
+                        <strong>{selectedMarketingCandidate.jkNumber}</strong>
+                        <span>{selectedMarketingCandidate.customerName} · {selectedMarketingCandidate.appointmentDate}</span>
+                        <small>{selectedMarketingCandidate.territory || "Territory unavailable"} · Krewe: {selectedMarketingCandidate.crew.join(" + ")}</small>
+                      </div>
+                    ) : <div className={styles.marketingNoSuggestion}>Choose an exact completed appointment from the source-backed list.</div>}
+                    <div className={styles.marketingAttributionButtons}>
+                      <button
+                        type="button"
+                        disabled={Boolean(busy) || !selectedMarketingCandidate || !selectedMarketingReview.suggestions.some((candidate) => candidate.candidateKey === selectedMarketingCandidate.candidateKey)}
+                        onClick={() => void requestMarketingAttribution("confirm_suggestion")}
+                      >Request confirm approval</button>
+                      <button
+                        type="button"
+                        disabled={Boolean(busy) || !selectedMarketingCandidate}
+                        onClick={() => void requestMarketingAttribution("reassign")}
+                      >Request re-assignment approval</button>
+                    </div>
+                    <small>Risk class 2. A different manager or administrator approves against the exact Podium review and completed-job evidence.</small>
+                  </div>
+                ) : null}
+              </>
+            ) : <div className={styles.empty}>No Podium Reviews snapshot has been collected yet.</div>}
+            <div className={styles.marketingBoundary}>
+              <p>{marketing?.authorityNotice || "Podium attribution remains read-only until source evidence is available."}</p>
+              <a href="/marketing?section=reviews">Open Marketing Reviews</a>
             </div>
           </section>
 

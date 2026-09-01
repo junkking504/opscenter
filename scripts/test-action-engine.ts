@@ -47,6 +47,7 @@ assert.deepEqual(definitions.map((definition) => definition.key), [
   "krewe.record_availability.v1",
   "krewe.schedule_call_in.v1",
   "communications.post_ops_command_notice.v1",
+  "marketing.assign_podium_review.v1",
   "linxup.record_device_review.v1",
 ]);
 assert.equal(new Set(definitions.map((definition) => definition.key)).size, definitions.length);
@@ -134,6 +135,9 @@ for (const control of [
   "Request call-in approval",
   "Communications control pack",
   "Request Slack notice approval",
+  "Marketing control pack",
+  "Request confirm approval",
+  "Request re-assignment approval",
   "LinxUp control pack",
   "Request device review approval",
   "Mark called",
@@ -515,6 +519,50 @@ assert.throws(() => opsCommandNotice.validateInput({
   owner: "Dispatch lead",
   nextAction: "Confirm the integration status.",
 }), /cannot contain credentials, customer contact details, or payment-card data/);
+
+const podiumAttribution = registeredActionDefinition("marketing.assign_podium_review.v1");
+assert.ok(podiumAttribution);
+assert.equal(podiumAttribution.riskClass, 2);
+assert.equal(decideActionPolicy(podiumAttribution, operator).decision.outcome, "deny");
+assert.equal(decideActionPolicy(podiumAttribution, manager).decision.outcome, "approval_required");
+assert.deepEqual(podiumAttribution.validateInput({
+  reviewUid: " review-12345678 ",
+  appointmentReference: " JK4061853 ",
+  assignmentMode: "confirm_suggestion",
+  expectedSnapshotFetchedAt: "2026-09-01T13:22:07.918Z",
+  expectedReviewUpdatedAt: "2026-08-31T19:16:15.000Z",
+  expectedAssignmentStoreUpdatedAt: "",
+  expectedAssignmentUpdatedAt: "",
+  expectedCandidateKey: "a".repeat(64),
+  expectedCandidateAppointmentId: "4048675",
+  expectedCandidateJkNumber: "JK4061853",
+  expectedCandidateCrew: [" Ivory Grace ", "Jonathan Myles", "Ivory Grace"],
+}), {
+  reviewUid: "review-12345678",
+  appointmentReference: "JK4061853",
+  assignmentMode: "confirm_suggestion",
+  expectedSnapshotFetchedAt: "2026-09-01T13:22:07.918Z",
+  expectedReviewUpdatedAt: "2026-08-31T19:16:15.000Z",
+  expectedAssignmentStoreUpdatedAt: "",
+  expectedAssignmentUpdatedAt: "",
+  expectedCandidateKey: "a".repeat(64),
+  expectedCandidateAppointmentId: "4048675",
+  expectedCandidateJkNumber: "JK4061853",
+  expectedCandidateCrew: ["Ivory Grace", "Jonathan Myles"],
+});
+assert.throws(() => podiumAttribution.validateInput({
+  reviewUid: "review-12345678",
+  appointmentReference: "JK4061853",
+  assignmentMode: "automatic",
+  expectedSnapshotFetchedAt: "2026-09-01T13:22:07.918Z",
+  expectedReviewUpdatedAt: "2026-08-31T19:16:15.000Z",
+  expectedAssignmentStoreUpdatedAt: "",
+  expectedAssignmentUpdatedAt: "",
+  expectedCandidateKey: "a".repeat(64),
+  expectedCandidateAppointmentId: "4048675",
+  expectedCandidateJkNumber: "JK4061853",
+  expectedCandidateCrew: ["Ivory Grace"],
+}), /confirm suggestion or re-assign/);
 
 const linxupDeviceReview = registeredActionDefinition("linxup.record_device_review.v1");
 assert.ok(linxupDeviceReview);

@@ -115,6 +115,13 @@ export default function OpsBotControl({
       tone: "guarded",
       href: `/finance?date=${date}`,
     },
+    {
+      name: "Marketing intelligence",
+      system: "Podium + JunkWare",
+      detail: "Read-only review evidence with governed completed-job and Krewe attribution",
+      tone: "guarded",
+      href: "/marketing?section=reviews",
+    },
   ];
 
   const autonomyLanes: Array<{
@@ -175,8 +182,8 @@ export default function OpsBotControl({
       <div className={styles.metrics} aria-label="OpsBot control summary">
         <article>
           <span>Signal lanes</span>
-          <strong>4</strong>
-          <small>Jobs · Krewe · Fleet · Finance</small>
+          <strong>5</strong>
+          <small>Jobs · Krewe · Fleet · Finance · Marketing</small>
         </article>
         <article data-alert={recommendations.length > 0 ? "true" : "false"}>
           <span>Recommendations</span>

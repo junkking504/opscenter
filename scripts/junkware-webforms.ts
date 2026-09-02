@@ -83,6 +83,31 @@ export async function selectWithWebFormsPostback(
   }, value), description);
 }
 
+export async function setInputWithWebFormsPostback(
+  page: Page,
+  selector: string,
+  value: string,
+  description: string,
+): Promise<void> {
+  const control = page.locator(selector).first();
+  if (!(await control.count())) throw new Error(`The JunkWare control is unavailable (${selector}).`);
+  if (await control.inputValue() === value) return;
+
+  await waitForWebFormsNavigation(page, () => control.evaluate((node, nextValue) => {
+    const input = node as HTMLInputElement;
+    const form = input.form;
+    const eventTarget = form?.elements.namedItem("__EVENTTARGET");
+    const eventArgument = form?.elements.namedItem("__EVENTARGUMENT");
+    if (!form || !input.name || !(eventTarget instanceof HTMLInputElement) || !(eventArgument instanceof HTMLInputElement)) {
+      throw new Error("The JunkWare postback control has changed.");
+    }
+    input.value = nextValue;
+    eventTarget.value = input.name;
+    eventArgument.value = "";
+    HTMLFormElement.prototype.submit.call(form);
+  }, value), description);
+}
+
 export async function clickWithWebFormsCompletion(
   page: Page,
   selector: string,

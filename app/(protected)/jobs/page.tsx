@@ -9,6 +9,7 @@ import OpsMonthSelector from "@/components/OpsMonthSelector";
 import JobCallAheadCard from "@/components/JobCallAheadCard";
 import JobCloseoutEditor from "@/components/JobCloseoutEditor";
 import JobAppointmentNote from "@/components/JobAppointmentNote";
+import AppointmentCreateDialog from "@/components/AppointmentCreateDialog";
 import TruckLoadStatusPanel from "@/components/TruckLoadStatusPanel";
 import { JobsMap, type JobsMapPoint } from "@/components/JobsMap";
 import { withAppointmentVisitConfirmations } from "@/lib/appointment-visit-confirmations";
@@ -3329,6 +3330,7 @@ export default async function JobsPage({
         )}
         controls={
           <>
+            {isDispatchWorkspace ? <AppointmentCreateDialog selectedDate={date} /> : null}
             {isMonthView ? (
               <OpsMonthSelector months={jobsMonthOptions()} selectedMonthKey={date.slice(0, 7)} currentMonthKey={today.slice(0, 7)} />
             ) : isDispatchWorkspace ? <ScheduleDayToggle date={date} workspace={workspace} filters={filters} /> : null}

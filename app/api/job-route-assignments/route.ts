@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     : formatAppointmentTime(appointmentStartMinutes, appointmentEndMinutes);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)
       || jobKey !== `appt:${appointmentId}`
-      || (truck && !/^Truck [1-9]$/.test(truck))
+      || (truck && !/^Truck [1-9][0-9]?$/.test(truck))
       || (appointmentStartMinutes !== undefined && (
         appointmentStartMinutes < 0
         || appointmentStartMinutes >= 24 * 60

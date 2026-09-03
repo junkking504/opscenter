@@ -2,6 +2,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
+import { requestGoogleRouteMatrix } from "@/lib/google-routes-transport";
 
 export type Coordinates = { latitude: number; longitude: number };
 
@@ -285,14 +286,7 @@ export async function googleTrafficMatrix(
   if (!apiKey || !origins.length || !destinations.length || origins.length * destinations.length > 625) return null;
 
   try {
-    const response = await fetch("https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Goog-Api-Key": apiKey,
-        "X-Goog-FieldMask": "originIndex,destinationIndex,status,condition,distanceMeters,duration",
-      },
-      body: JSON.stringify({
+    const payload = await requestGoogleRouteMatrix(apiKey, JSON.stringify({
         origins: origins.map((coordinates) => ({
           waypoint: { location: { latLng: coordinates } },
         })),
@@ -301,12 +295,7 @@ export async function googleTrafficMatrix(
         })),
         travelMode: "DRIVE",
         routingPreference: "TRAFFIC_AWARE",
-      }),
-      signal: AbortSignal.timeout(25_000),
-      cache: "no-store",
-    });
-    if (!response.ok) return null;
-    const payload = await response.json();
+      }));
     return Array.isArray(payload) ? payload as GoogleRouteMatrixElement[] : null;
   } catch {
     return null;

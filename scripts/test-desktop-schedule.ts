@@ -14,11 +14,16 @@ async function main() {
   assert.equal(pairs[1].gapMinutes, -15, 'Overlapping windows must remain visible as conflicts');
   const unavailable = await calculateDesktopRouteLegs(jobs, async () => null);
   assert.ok(unavailable.every(leg => leg.travelMinutes === null && leg.miles === null && leg.source === 'unavailable'));
-  const routed = await calculateDesktopRouteLegs(jobs, async () => [
-    { originIndex: 0, destinationIndex: 0, duration: '1200s', distanceMeters: 16093.44, condition: 'ROUTE_EXISTS' },
-    { originIndex: 1, destinationIndex: 1, duration: '600s', distanceMeters: 8046.72, condition: 'ROUTE_EXISTS' },
-    { originIndex: 0, destinationIndex: 1, duration: '1s', distanceMeters: 1, condition: 'ROUTE_EXISTS' },
-  ]);
+  let requests = 0;
+  const routed = await calculateDesktopRouteLegs(jobs, async (origins, destinations) => {
+    assert.equal(origins.length * destinations.length, 1, 'Do not request or bill unused cross-pair route elements');
+    requests += 1;
+    return [
+      { originIndex: 0, destinationIndex: 0, duration: requests === 1 ? '1200s' : '600s', distanceMeters: 16093.44, condition: 'ROUTE_EXISTS' },
+      { originIndex: 0, destinationIndex: 1, duration: '1s', distanceMeters: 1, condition: 'ROUTE_EXISTS' },
+    ];
+  });
+  assert.equal(requests, 2);
   assert.equal(routed[0].travelMinutes, 20);
   assert.equal(routed[0].miles, 10);
   assert.equal(routed[0].bufferMinutes, -5);

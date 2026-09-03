@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { DesktopLiveProps } from '@/lib/live-contract';
+import LiveSchedule, { dateForDay } from '../live-schedule';
 
 type Priority = 'critical' | 'warning' | 'watch';
 type AppointmentLoadStream = 'mixed' | 'metal' | 'donation';
@@ -929,7 +930,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const liveAlert = (item: WorkItem) => live?.snapshot.alerts.find(alert => alert.id === item.id);
   const [activeNav, setActiveNavValue] = useState('Command');
   const setActiveNav = (value: string) => {
-    if (live && value !== 'Command') { setActionFeedback(value + ' live integration is still being verified. No sample records will be opened.'); return; }
+    if (live && !['Command', 'Schedule'].includes(value)) { setActionFeedback(value + ' live integration is still being verified. No sample records will be opened.'); return; }
     setActiveNavValue(value);
   };
   const [view, setViewValue] = useState<'now' | 'today' | 'monitor'>('now');
@@ -937,7 +938,6 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     if (live && value !== 'now') { setActionFeedback('This tab is still being connected to live sources. The approved layout remains in the reference preview.'); return; }
     setViewValue(value);
   };
-  const operatingDateHeading = live ? new Date(live.snapshot.date + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric' }) : 'Sunday, August 31';
   const connectedSources = live ? [
     { name: 'JunkWare', area: 'Command metrics', workspace: 'Command', action: 'Open Command', state: live.snapshot.sources.metrics ? 'Healthy' : 'Unavailable', tone: live.snapshot.sources.metrics ? 'healthy' : 'warning', freshness: live.snapshot.sources.metrics ? 'Source snapshot available' : 'No source snapshot' },
     { name: 'Slack', area: 'Operational alerts', workspace: 'Command', action: 'Open Alerts', state: live.snapshot.sources.alerts ? 'Healthy' : 'Unavailable', tone: live.snapshot.sources.alerts ? 'healthy' : 'warning', freshness: live.snapshot.sources.alerts ? 'Read from Slack digest' : 'Slack digest unavailable' },
@@ -980,7 +980,13 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const [drawer, setDrawer] = useState<DrawerRecord | null>(null);
   const [copiedJk, setCopiedJk] = useState<string | null>(null);
   const [scheduleDay, setScheduleDay] = useState<ScheduleDay>('today');
-  const [scheduleView, setScheduleView] = useState<'board' | 'calendar' | 'followup' | 'history'>('board');
+  const [liveScheduleCounts, setLiveScheduleCounts] = useState({ today: 0, tomorrow: 0 });
+  const operatingDateHeading = live ? new Date((activeNav === 'Schedule' ? dateForDay(live.snapshot.date, scheduleDay) : live.snapshot.date) + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric' }) : 'Sunday, August 31';
+  const [scheduleView, setScheduleViewValue] = useState<'board' | 'calendar' | 'followup' | 'history'>('board');
+  const setScheduleView = (value: 'board' | 'calendar' | 'followup' | 'history') => {
+    if (live && value !== 'board') { setActionFeedback('This Schedule tab is still being connected to source data. No sample records will be opened.'); return; }
+    setScheduleViewValue(value);
+  };
   const [followupFilter, setFollowupFilter] = useState<'all' | 'estimates' | 'closed' | 'unclosed' | 'photos'>('all');
   const [historyFilter, setHistoryFilter] = useState<ScheduleHistoryFilter>('all');
   const [newAppointmentOpen, setNewAppointmentOpenValue] = useState(false);
@@ -4192,10 +4198,10 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             ) : activeNav === 'Schedule' ? (
               <div className="schedule-heading-actions">
                 <div className="schedule-view-switcher workspace-tabs" role="tablist" aria-label="Schedule views">
-                  <button className={scheduleView === 'board' ? 'active' : ''} onClick={() => setScheduleView('board')}>Board <span>{scheduledAppointments.length}</span></button>
+                  <button className={scheduleView === 'board' ? 'active' : ''} onClick={() => setScheduleView('board')}>Board <span>{live ? liveScheduleCounts[scheduleDay] : scheduledAppointments.length}</span></button>
                   <button className={scheduleView === 'calendar' ? 'active' : ''} onClick={() => setScheduleView('calendar')}>Calendar</button>
-                  <button className={scheduleView === 'followup' ? 'active' : ''} onClick={() => setScheduleView('followup')}>Follow-Up <span>{activeFollowups.length}</span></button>
-                  <button className={scheduleView === 'history' ? 'active' : ''} onClick={() => setScheduleView('history')}>History <span>{scheduleDayHistory.length}</span></button>
+                  <button className={scheduleView === 'followup' ? 'active' : ''} onClick={() => setScheduleView('followup')}>Follow-Up <span>{live ? '—' : activeFollowups.length}</span></button>
+                  <button className={scheduleView === 'history' ? 'active' : ''} onClick={() => setScheduleView('history')}>History <span>{live ? '—' : scheduleDayHistory.length}</span></button>
                 </div>
               </div>
             ) : activeNav === 'Krewe' ? (
@@ -4549,7 +4555,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </div>
           )}
 
-          {activeNav === 'Schedule' && (
+          {activeNav === 'Schedule' && live && <LiveSchedule baseDate={live.snapshot.date} day={scheduleDay} onDayChange={setScheduleDay} onCounts={setLiveScheduleCounts} report={setActionFeedback} />}
+          {activeNav === 'Schedule' && !live && (
             <section className="schedule-workspace">
               <div className="schedule-control-bar">
                 <div className="day-switcher" role="tablist" aria-label="Schedule day">

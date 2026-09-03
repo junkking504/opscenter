@@ -58,7 +58,9 @@ source of truth for this release.
 - Route-leg calculations preserve separate appointments even with a shared JK,
   retain overlaps, require verified geocodes, and accept distance/time only from
   the existing routing provider. No prototype travel-time fallback is used.
-  These calculations are not yet connected to the rendered Schedule board.
+  The live integration now renders these results in the truck board and full
+  appointment register, with a selected-appointment closest-truck comparison.
+  Missing provider data stays unavailable rather than using prototype estimates.
 - The source-preservation, honest-empty-state, estimate/job KPI, and essential
   alert-fact tests pass. Shared database tests passed concurrent creation, durable
   read-back, audit attribution, version conflict, and resolution checks using
@@ -75,3 +77,85 @@ Next: connect Schedule's approved board/map/register/drawers to the typed source
 replace its JK-only internal identity and integer-hour placement assumptions,
 wire verified mutations, and complete Control, Monitor, Krewe, Fleet, Marketing,
 and Finance data/action adapters. Do not deploy the partially connected view.
+
+## Schedule repair checkpoint (September 3)
+
+The live Schedule adapter now mounts successfully with real appointments and
+separate source IDs, fractional-window placement, the map, territory register,
+and appointment drawer. Dragging proposes a truck/time change and requires an
+explicit review before submitting. Notes, call-ahead, cancellation, and assignment
+controls call existing authenticated handlers. A private runtime receipt journal
+guards source versions and duplicate/uncertain submissions, including new request
+IDs for the same appointment. These write paths have deterministic synthetic
+tests; no live customer appointment was changed for testing. Creation, closeout,
+Calendar, Follow-Up, History, and the remaining workspaces still need integration.
+
+The original prototype CSS, UI primitives, and dependency hashes still pass.
+Desktop build, application type-check, and operation contract tests pass at this
+checkpoint. Browser QA confirmed rendering, but full drag/drop and visual parity
+acceptance are not yet complete. A full release build has not been repeated after
+these changes. This is still not a production-ready release.
+
+The routing preview initially lacked the configured Google credential. Loading
+only the existing routing credential into its process exposed an independent
+Google restriction: IPv6 requests return `API_KEY_IP_ADDRESS_BLOCKED`; IPv4 gets
+past that restriction but returns `API_KEY_SERVICE_BLOCKED` for Routes API.
+After the user enabled two-step verification, Routes API was enabled in the
+existing Google Cloud project and added to the Maps Platform API Key allowlist.
+Saved settings were read back: Places API (New) remains allowed and the existing
+IPv4 restriction is unchanged. Google's active-usage warning referenced Geocoding,
+which was already absent from the saved allowlist; no access was removed. No key
+was rotated or exposed, and billing/account settings were not changed.
+
+Google Routes requests now use a provider-scoped IPv4 HTTPS transport with the
+same timeout and restricted server key. Adjacent appointment legs request one
+billable matrix element each (at most four concurrent requests), not an N-by-N
+matrix. Cached results retain their actual calculation timestamp. The UI reports
+partial routing availability rather than suggesting every route succeeded.
+
+A public-coordinate provider probe returned ROUTE_EXISTS with 23,815 meters and
+1,289 seconds. In-app browser QA of `/desktop?data=live` confirmed real Schedule
+travel labels, including verified legs of 18 minutes / 8 miles and 20 minutes /
+9 miles. These are current-traffic
+planning estimates, not reconstructed historical drive times. Missing verified
+locations remain unavailable. No customer appointment was changed.
+
+The routing transport, schedule contracts, and application type-check pass.
+The live board uses its measured header height rather than subtracting a fixed
+44 pixels, so the final truck row is not clipped by a taller source-data header.
+Rebuilt-browser QA at 1280 x 720 confirmed all eight truck rows inside the panel
+and viewport (last row bottom 713.78px), plus 9 of 12 route legs available. The
+remaining routes are explicitly unavailable; no travel numbers were invented.
+Production service, collectors, and the original port-3101 prototype remain
+unchanged. The Google access change is live; the frontend integration and IPv4
+transport code are still local and must pass the remaining release gates above.
+
+## Schedule interaction verification (September 3)
+
+In the authenticated live-data preview, both vertical truck reassignment and
+horizontal retiming reach an explicit review without writing to JunkWare. The
+review now displays the complete destination window, including its end time.
+Escape dismisses it and returns focus to the original appointment without
+scrolling the board. The drawer's truck/time selectors use the same review and
+detect source appointment overlaps, including distinct records sharing a JK.
+
+Unchanged assignment values cannot be submitted from the drawer. Closed records
+remain non-movable. Pending/manual-correction assignment state is visibly labeled
+and blocked from another move in both the UI and server, independently of the
+desktop receipt journal. In-flight operations prevent closing the drawer or
+changing its local operating day. Reading an uncertain receipt no longer triggers
+the verified-save callback.
+
+Note and cancellation controls reuse the prototype's compact action layout. Empty
+notes/reasons stay disabled; cancellation requires a second explicit confirmation.
+Browser QA entered and discarded draft inputs and canceled every move/review.
+No live customer record was submitted or changed. Actual source writes still
+require deliberate test-safe acceptance; deterministic lifecycle tests cover
+versions, roles, duplicate/uncertain writes, and the new assignment guard.
+
+The desktop build, complete Next application build, both TypeScript projects,
+source-preservation checks, and schedule interaction/operation tests pass. Existing
+framework middleware/Edge warnings and the desktop bundle-size warning remain.
+Next: connect the approved New Appointment form to the existing verified creation
+workflow, then complete the remaining category-specific closeout and Schedule tabs.
+This is an integration checkpoint, not a production release.

@@ -23,7 +23,7 @@ export async function syncJunkwareTruckAssignment(input: {
   const appointmentId = String(input.appointmentId || "").trim();
   const truck = String(input.truck || "").trim();
   if (!/^\d{1,12}$/.test(appointmentId)) throw new Error("The JunkWare appointment ID is unavailable.");
-  if (truck && !/^Truck [1-9]$/.test(truck)) throw new Error("That truck is not available in JunkWare.");
+  if (truck && !/^Truck [1-9][0-9]?$/.test(truck)) throw new Error("That truck is not available in JunkWare.");
   const appointmentStartMinutes = Number.isInteger(input.appointmentStartMinutes)
     ? Number(input.appointmentStartMinutes)
     : undefined;

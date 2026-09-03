@@ -1,0 +1,36 @@
+/* Adapter-only geometry for real coordinates, fractional windows, and overlaps.
+   The approved stylesheet and type scale remain unchanged. */
+.live-schedule-map { position: absolute; inset: 0; z-index: 0; }
+.live-schedule-map .leaflet-tile-pane { filter: saturate(.72) contrast(.94); }
+.live-schedule-map .leaflet-control { font-family: inherit; }
+.live-schedule-map .map-marker { position: relative; left: 0; top: 0; }
+.live-schedule-map .leaflet-control-zoom { margin-top: 65px; }
+.live-schedule .schedule-truck-row { display: block; }
+.live-schedule .schedule-truck-cell { position: absolute; inset: 0 auto 0 0; width: 88px; height: 100%; }
+.live-schedule .live-truck-timeline { position: absolute; inset: 0 0 0 88px; }
+.live-schedule .live-truck-timeline .schedule-appointment { position: absolute; margin: 2px 1px; height: auto; min-height: 0; }
+.live-schedule .live-truck-timeline .schedule-appointment.scope-match { position: absolute; }
+.live-schedule .live-truck-timeline .schedule-route-leg { position: absolute; margin: 0; bottom: 1px; height: 16px; }
+.live-schedule .schedule-route-leg small { display: none; }
+.live-schedule .schedule-map-controls .route-candidate-list { max-height: 144px; overflow-y: auto; }
+.live-schedule .route-intelligence-panel footer { white-space: normal; }
+.live-schedule .schedule-map-controls .map-status-list { overflow: hidden; }
+.live-schedule .live-schedule-status { padding: 6px 10px; color: #59635e; font-size: 11px; }
+.live-schedule .live-schedule-error { color: #9f202b; }
+.live-schedule .appointment-register-row .route-leg-inline { display: block; margin-top: 3px; font-weight: 650; color: #3f5c4b; }
+.live-schedule .appointment-register-row .route-leg-inline.late { color: #9f202b; }
+.live-schedule .record-drawer { z-index: 1100; }
+.live-schedule .record-drawer-backdrop { z-index: 1099; }
+.live-schedule .live-truck-timeline .schedule-drag-preview { position: absolute; inset-block: 0; height: auto; }
+.live-schedule .schedule-appointment[aria-roledescription] { cursor: grab; touch-action: none; user-select: none; }
+.live-schedule .schedule-appointment.is-dragging { opacity: .35; }
+.live-schedule .schedule-grip { position: absolute; top: 3px; right: 1px; color: #68756d; pointer-events: none; }
+.live-schedule .schedule-board-layout { position: relative; }
+.live-schedule .schedule-board-layout.map-open .schedule-board-shell { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.live-schedule .schedule-board-layout.map-open .schedule-board-scroll { height: auto; min-height: 0; }
+.live-schedule .schedule-change-receipt > header { grid-column: 1 / -1; }
+.live-schedule .drawer-cancel-field textarea { width: 100%; min-height: 72px; padding: 8px; border: 1px solid var(--border); border-radius: 6px; font: inherit; font-size: 11px; }
+.live-schedule .drawer-note-row { display: grid; gap: 7px; margin-top: 11px; }
+.live-schedule .drawer-cancel-confirmation { grid-column: 1 / -1; }
+.live-schedule .drawer-cancel-confirmation > p { margin: 0; color: #9f202b; font-size: 11px; }
+.live-schedule .appointment-register-row .assignment-unverified { color: #9f202b; font-weight: 700; }

@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
 
-type Coordinates = { latitude: number; longitude: number };
+export type Coordinates = { latitude: number; longitude: number };
 
 type CachedGeocode = {
   latitude: number | null;
@@ -253,7 +253,7 @@ function distanceMiles(from: Coordinates, to: Coordinates): number {
   return 3958.8 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-type GoogleRouteMatrixElement = {
+export type GoogleRouteMatrixElement = {
   originIndex?: number;
   destinationIndex?: number;
   distanceMeters?: number;
@@ -277,7 +277,7 @@ function durationMinutes(value: unknown): number | null {
   return Number.isFinite(seconds) ? Math.max(1, Math.ceil(seconds / 60)) : null;
 }
 
-async function googleTrafficMatrix(
+export async function googleTrafficMatrix(
   origins: Coordinates[],
   destinations: Coordinates[],
 ): Promise<GoogleRouteMatrixElement[] | null> {

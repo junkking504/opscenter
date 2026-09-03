@@ -10,6 +10,7 @@ import { assertWorkItemTransition } from "@/lib/platform/state-machines";
 import { appendPlatformEvent } from "@/lib/platform/persistence/events";
 import { getKernelPool } from "@/lib/platform/persistence/pool";
 import { withKernelTransaction } from "@/lib/platform/persistence/transaction";
+import { COMMAND_ALERT_RULE, type CommandAlertAction } from "@/lib/command-alert-workflow";
 
 export type DetectedWorkItemInput = {
   operatingDate: string;
@@ -310,6 +311,53 @@ export async function getWorkItem(id: string): Promise<WorkItem | null> {
     [id],
   );
   return result.rows[0] ? workItemFromRow(result.rows[0]) : null;
+}
+
+export async function listCommandAlertWorkItems(date: string): Promise<WorkItem[]> {
+  const result = await getKernelPool().query<WorkItemRow>(
+    "SELECT * FROM opscenter_kernel.work_items WHERE operating_date = $1 AND rule = $2 ORDER BY first_detected_at DESC",
+    [date, COMMAND_ALERT_RULE],
+  );
+  return result.rows.map(workItemFromRow);
+}
+
+export async function saveCommandAlertWorkItem(input: DetectedWorkItemInput, context: {
+  actorId: string; correlationId: string; action: CommandAlertAction; expectedVersion: number;
+}): Promise<WorkItem> {
+  const dedupeKey = workItemDedupeKey({ operatingDate: input.operatingDate, category: input.category, rule: COMMAND_ALERT_RULE, entityType: input.entity.type, entityId: input.entity.id });
+  return withKernelTransaction(async (client) => {
+    // The unique dedupe key serializes simultaneous clicks from different
+    // operators without creating duplicate Control records.
+    const inserted = await client.query<WorkItemRow>(`
+      INSERT INTO opscenter_kernel.work_items (
+        id, dedupe_key, operating_date, rule, category, severity, entity_type,
+        entity_id, entity_label, title, description, source, source_observed_at,
+        status, first_detected_at, last_detected_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'open',now(),now())
+      ON CONFLICT (dedupe_key) DO NOTHING RETURNING *
+    `, [createPlatformId("work"), dedupeKey, input.operatingDate, COMMAND_ALERT_RULE, input.category, input.severity, input.entity.type, input.entity.id, input.entity.label, input.title, input.description, input.source, input.sourceObservedAt]);
+    const current = inserted.rows[0] || await selectByDedupeKey(client, dedupeKey);
+    if (!current) throw new Error("The alert work item is unavailable.");
+    if (["resolved", "dismissed"].includes(current.status)) throw new Error("This alert is already resolved. Review its Control record before reopening it.");
+    const target: WorkItemStatus = context.action === "acknowledge" ? "acknowledged" : "in_progress";
+    if (!inserted.rows.length && (current.status === target || (context.action === "acknowledge" && current.status === "in_progress"))) return workItemFromRow(current);
+    if (!inserted.rows.length && current.version !== context.expectedVersion) throw new Error("WORK_ITEM_VERSION_CONFLICT");
+    if (inserted.rows.length && context.expectedVersion !== 0) throw new Error("WORK_ITEM_VERSION_CONFLICT");
+    assertWorkItemTransition(current.status, target);
+    const result = await client.query<WorkItemRow>(`
+      UPDATE opscenter_kernel.work_items SET status = $2,
+        owner_actor_id = CASE WHEN $2 = 'in_progress' THEN COALESCE(owner_actor_id, $3) ELSE owner_actor_id END,
+        version = version + 1, updated_at = now() WHERE id = $1 RETURNING *
+    `, [current.id, target, context.actorId]);
+    const item = workItemFromRow(result.rows[0]);
+    await appendPlatformEvent(client, {
+      eventType: context.action === "acknowledge" ? "work.acknowledged.v1" : "work.added_to_control.v1",
+      eventVersion: 1, aggregateType: "work_item", aggregateId: item.id,
+      actorId: context.actorId, occurredAt: new Date().toISOString(), correlationId: context.correlationId,
+      payload: { alertId: input.entity.id, source: "Slack", created: Boolean(inserted.rows.length), fromStatus: current.status, toStatus: item.status, ownerActorId: item.ownerActorId || null, version: item.version },
+    });
+    return item;
+  });
 }
 
 export async function listWorkItems(input: {

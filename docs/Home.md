@@ -18,6 +18,7 @@ without mixing live runtime data or secrets into Git.
 
 ## Product and architecture
 
+- [Approved Desktop Source Release](prototype-source-release.md)
 - [OpsCenter OS Constitution](OPSCENTER_OS_CONSTITUTION.md)
 - [Platform Kernel Architecture](PLATFORM_KERNEL_ARCHITECTURE.md)
 - [Operating Inbox vertical slice](OPERATING_INBOX_VERTICAL_SLICE.md)

@@ -1,0 +1,17 @@
+{
+  "source": "Approved localhost:3101 prototype",
+  "capturedAt": "2026-09-03T21:26:17.529Z",
+  "files": {
+    "app/page.tsx": "2abe9d1f23f6771dcf1a860cf57de6f8571ea5717d9c6c650052024cd0ebc69f",
+    "app/globals.css": "c6d2ec34ee2e900bdfffaef0273ef562fa1640a00970c30fa1fc9fdda6fe88d6",
+    "app/layout.tsx": "56fc4daf6e3c6e5a4f6f657cb35a80de35976d6b8454f8a33603b70b1472dc4b",
+    "components/ui/badge.tsx": "5706189b86e8670499fb33f37147dd6f65c39d59eef5211e34157f2952c35e32",
+    "components/ui/button.tsx": "081d2a1cb4f3aec636a6894d9eff4e90d476d5db85b82d0399c1f4d18517112e",
+    "components/ui/input.tsx": "6763c86c34c1c07826386d376f5da8fe2e41585bff3615716d5da88915e088d8",
+    "components/ui/textarea.tsx": "7ae7f0f5d907be24658652c771fee1685193102bf3200aafbf578d144d379fbf",
+    "lib/utils.ts": "9304a861c8673bee09e0f12de31773abbde503b02e59dfd74763ddec2e37cf05",
+    "package.json": "4995cbbd54b3038468bb9393a0413ffcd6927ce1a040c53e23544c7ec71f68dd",
+    "package-lock.json": "97f2b4bfa7857cf84ea2a0977f4b7dc48a9ee0e7648b32456615661bf2913d44",
+    "public/favicon.svg": "e6d2e59b7b5bbb0342e0fb496dfc262decbfe4426bbb7b047aec8d467d1dc6f7"
+  }
+}

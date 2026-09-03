@@ -1,4 +1,5 @@
 node_modules/
+/public/desktop-assets/
 .next/
 .next-*/
 /worktrees/

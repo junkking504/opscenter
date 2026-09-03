@@ -1,4 +1,5 @@
 import type { OperationalException, OperationalExceptionsReport } from "@/lib/operational-exceptions";
+import { COMMAND_ALERT_RULE } from "@/lib/command-alert-workflow";
 import { buildOperationalExceptions } from "@/lib/operational-exceptions";
 import type { PlatformActor, PlatformEvent, WorkItem, WorkItemStatus } from "@/lib/platform/contracts";
 import { createCorrelationId, createPlatformId, workItemDedupeKey } from "@/lib/platform/identifiers";
@@ -97,6 +98,15 @@ function detectedInput(exception: OperationalException, report: OperationalExcep
 }
 
 function workItemHref(item: WorkItem): string | undefined {
+  if (item.rule === COMMAND_ALERT_RULE) {
+    const source = item.description.split("\n").findLast((line) => line.startsWith("Source: "))?.slice(8);
+    if (source?.startsWith("/") && !source.startsWith("//")) return source;
+    try {
+      const url = new URL(source || "");
+      if (url.protocol === "https:" && url.hostname === "ops.junk-king.app") return `${url.pathname}${url.search}${url.hash}`;
+    } catch { /* Older records still use their entity-linked fallback. */ }
+    return `/?date=${encodeURIComponent(item.operatingDate)}&commandView=alerts`;
+  }
   if (item.entity.type === "job") {
     const anchor = String(item.entity.label || item.entity.id)
       .replace(/[^a-z0-9]+/gi, "-")
@@ -251,7 +261,7 @@ export async function reconcileOperatingInbox(date: string, actorId: string): Pr
 
 export async function buildInboxPayload(date: string, actor: PlatformActor): Promise<InboxPayload> {
   const storedItems = await listWorkItems({ carryActiveThroughDate: date, limit: 200 });
-  const items = storedItems.filter((item) => item.source === "Manual entry" || INBOX_RULES.has(item.rule));
+  const items = storedItems.filter((item) => item.source === "Manual entry" || item.rule === COMMAND_ALERT_RULE || INBOX_RULES.has(item.rule));
   const names = await actorDisplayNames(items.flatMap((item) => item.ownerActorId ? [item.ownerActorId] : []));
   const now = new Date();
   const enriched = items.map((item) => {
@@ -260,7 +270,7 @@ export async function buildInboxPayload(date: string, actor: PlatformActor): Pro
       ...item,
       ownerDisplayName: item.ownerActorId ? names.get(item.ownerActorId) : undefined,
       href: workItemHref(item),
-      recommendedAction: item.source === "Manual entry"
+      recommendedAction: item.source === "Manual entry" || item.rule === COMMAND_ALERT_RULE
         ? "Complete the requested follow-up, then record the result and its verification."
         : inboxRulePolicy(item.rule).recommendedAction,
       attentionBucket: attentionBucketForWorkItem(item, date, now),

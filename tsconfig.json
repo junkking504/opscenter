@@ -35,10 +35,13 @@
     ".next/types/**/*.ts",
     "tmp/macmini-preview-next/types/**/*.ts",
     "next-env.d.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    ".next-prototype-source/types/**/*.ts",
+    ".next-prototype-source/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
+    "desktop-ui",
     "worktrees"
   ]
 }

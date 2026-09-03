@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "build:desktop": "node scripts/build-desktop-ui.mjs",
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",

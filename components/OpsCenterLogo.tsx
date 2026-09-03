@@ -1,53 +1,26 @@
-import { useId } from "react";
-
 type OpsCenterLogoProps = {
   className?: string;
 };
 
-/** The product mark: route nodes converge on the dispatch point at its center. */
+/** A compact dispatch-location mark shared by the desktop and mobile shells. */
 export default function OpsCenterLogo({ className = "" }: OpsCenterLogoProps) {
-  const instanceId = useId().replace(/:/g, "");
-  const surfaceId = `opscenter-surface-${instanceId}`;
-  const signalId = `opscenter-signal-${instanceId}`;
-  const glowId = `opscenter-glow-${instanceId}`;
-
   return (
     <svg
       className={className}
-      viewBox="0 0 64 64"
+      viewBox="0 0 40 40"
       role="img"
       aria-label="OpsCenter"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <defs>
-        <linearGradient id={surfaceId} x1="8" y1="5" x2="56" y2="61" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#252a33" />
-          <stop offset="1" stopColor="#0a0d12" />
-        </linearGradient>
-        <linearGradient id={signalId} x1="24" y1="18" x2="41" y2="47" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#ff4b51" />
-          <stop offset="1" stopColor="#d90d1d" />
-        </linearGradient>
-        <filter id={glowId} x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="2" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-
-      <rect x="2" y="2" width="60" height="60" rx="17" fill={`url(#${surfaceId})`} />
-      <rect x="3" y="3" width="58" height="58" rx="16" stroke="#f5ca62" strokeOpacity=".42" strokeWidth="1.4" />
-      <path d="M14 21.5 27.7 29M14 42.5l13.7-7.5M50 21.5 36.3 29M50 42.5l-13.7-7.5" stroke="#f5ca62" strokeLinecap="round" strokeWidth="2.5" />
-      <circle cx="14" cy="21.5" r="3.5" fill="#151a21" stroke="#f5ca62" strokeWidth="2" />
-      <circle cx="14" cy="42.5" r="3.5" fill="#151a21" stroke="#f5ca62" strokeWidth="2" />
-      <circle cx="50" cy="21.5" r="3.5" fill="#151a21" stroke="#f5ca62" strokeWidth="2" />
-      <circle cx="50" cy="42.5" r="3.5" fill="#151a21" stroke="#f5ca62" strokeWidth="2" />
-      <path d="m32 14 12 17.5L32 51 20 31.5 32 14Z" fill={`url(#${signalId})`} stroke="#f8d274" strokeLinejoin="round" strokeWidth="2" />
-      <circle cx="32" cy="31.5" r="7" fill="#10141b" stroke="#fff0b1" strokeWidth="1.5" />
-      <path d="M32 27.5v8M28 31.5h8" stroke="#f8d274" strokeLinecap="round" strokeWidth="2" />
-      <circle cx="32" cy="31.5" r="2.2" fill="#f8d274" filter={`url(#${glowId})`} />
+      <rect x="1" y="1" width="38" height="38" rx="10" fill="#17191d" stroke="#6d4a23" />
+      <path
+        d="M20 8.5a8 8 0 0 0-8 8c0 6.1 8 14.9 8 14.9s8-8.8 8-14.9a8 8 0 0 0-8-8Z"
+        fill="none"
+        stroke="#f0b338"
+        strokeWidth="2.2"
+        strokeLinejoin="round"
+      />
+      <circle cx="20" cy="16.5" r="3.2" fill="#e8323e" stroke="#f0b338" strokeWidth="1.2" />
     </svg>
   );
 }

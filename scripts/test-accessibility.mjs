@@ -313,7 +313,7 @@ async function main() {
           const failures = lostLeads.text.filter((item) => item.fontSize < 13 || item.contrast < 4.5);
           assert.deepEqual(failures, [], `${routeLabel} lead scanner text must remain readable: ${JSON.stringify(failures)}.`);
 
-          await page.getByRole("button", { name: "Review lead" }).first().click();
+          await page.getByRole("button", { name: /Review lead|Update outcome/ }).first().click();
           const editor = page.locator(".ops-marketing-lead-review").first();
           await editor.waitFor({ state: "visible" });
           const editorContract = await editor.evaluate((element) => {

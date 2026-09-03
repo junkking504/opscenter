@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { calculateLivePay } from "@/lib/live-pay";
 import type { PayrollCorrection } from "@/lib/payroll-corrections";
@@ -82,6 +82,7 @@ export default function PayrollDiscrepancyEditor({
 }) {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const timeEntryHelpId = useId();
   const [clockIn, setClockIn] = useState(() => clockToTimeInput(correction?.clockIn || source.clockIn));
   const [clockOut, setClockOut] = useState(() => clockToTimeInput(correction?.clockOut || source.clockOut));
   const [hourlyRate, setHourlyRate] = useState(() => String(correction?.hourlyRate ?? source.hourlyRate ?? ""));
@@ -242,7 +243,7 @@ export default function PayrollDiscrepancyEditor({
                 step="60"
                 value={clockIn}
                 onChange={(event) => setClockIn(event.target.value)}
-                aria-describedby="time-entry-help"
+                aria-describedby={timeEntryHelpId}
                 required
               />
             </label>
@@ -253,7 +254,7 @@ export default function PayrollDiscrepancyEditor({
                 step="60"
                 value={clockOut}
                 onChange={(event) => setClockOut(event.target.value)}
-                aria-describedby="time-entry-help"
+                aria-describedby={timeEntryHelpId}
               />
               <small>Leave blank if still on shift.</small>
             </label>
@@ -279,7 +280,7 @@ export default function PayrollDiscrepancyEditor({
               <small>A starter reason is included. Replace it with the details if needed.</small>
             </label>
           </div>
-          <p id="time-entry-help" className={styles.timeEntryHelp}>
+          <p id={timeEntryHelpId} className={styles.timeEntryHelp}>
             Select the time from the picker—no AM/PM typing or special format is needed.
           </p>
           {correction ? (

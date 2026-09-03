@@ -17,6 +17,7 @@ export default async function InboxPage({
 
   return (
     <div className="ops-dashboard ops-inbox-page">
+      <h1 className="ops-sr-only">Inbox</h1>
       <OperatingInbox
         date={date}
         enabled={kernelDatabase.status === "ready"}

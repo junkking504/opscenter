@@ -14,6 +14,40 @@ type SidebarSubItem = {
 
 type SearchParamReader = Pick<URLSearchParams, "get">;
 
+function WorkspaceIcon({ href }: { href: string }) {
+  const shared = {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    "aria-hidden": true,
+  };
+
+  if (href === "/jobs") {
+    return <svg {...shared}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01" /></svg>;
+  }
+  if (href === "/crew") {
+    return <svg {...shared}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
+  }
+  if (href === "/fleet") {
+    return <svg {...shared}><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7z" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></svg>;
+  }
+  if (href === "/marketing") {
+    return <svg {...shared}><path d="m3 11 15-5v12L3 14zM11.6 16.9 13 21H8l-1.7-5.7M18 10a3 3 0 0 1 0 4" /></svg>;
+  }
+  if (href === "/finance") {
+    return <svg {...shared}><circle cx="12" cy="12" r="9" /><path d="M16 8.5c-.8-.8-2-1.2-3.3-1.2-1.8 0-3.2.9-3.2 2.2 0 3.3 7 1.5 7 5 0 1.4-1.5 2.3-3.5 2.3-1.5 0-2.9-.5-3.8-1.4M12.8 5v14" /></svg>;
+  }
+  if (href === "/inbox") {
+    return <svg {...shared}><path d="M4 4h16v15H4zM4 14h4l2 3h4l2-3h4" /></svg>;
+  }
+  return <svg {...shared}><path d="M4 7h4v4H4zM16 4h4v4h-4zM16 16h4v4h-4zM4 16h4v4H4zM8 9h4a4 4 0 0 1 4 4v3M8 18h8" /></svg>;
+}
+
 function sidebarHref(
   pathname: string,
   searchParams: SearchParamReader,
@@ -240,7 +274,7 @@ export default function OpsNav({
               className={`ops-bottom-nav-item${active ? " active" : ""}`}
               aria-current={active ? "page" : undefined}
             >
-              <span>{item.icon}</span>
+              <span><WorkspaceIcon href={item.href} /></span>
               <small>{titleCaseLabel(item.mobileLabel)}</small>
             </Link>
           );
@@ -280,7 +314,7 @@ export default function OpsNav({
               className={`ops-nav-item${active ? " active" : ""}`}
               aria-current={active ? "page" : undefined}
             >
-              <span className="ops-nav-icon">{item.icon}</span>
+              <span className="ops-nav-icon"><WorkspaceIcon href={item.href} /></span>
               <span>{titleCaseLabel(item.label)}</span>
             </Link>
             {subItems.length ? (

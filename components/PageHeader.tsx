@@ -47,12 +47,18 @@ export default function PageHeader({
         {subtitle ? <div className="ops-muted ops-page-header-subtitle">{subtitle}</div> : null}
       </div>
 
-      <div className="ops-page-header-controls">
-        {showDateSelector ? (
-          <OpsDateSelector dates={dates || availableDates()} selectedDate={date} label={dateLabel} />
+      <div className="ops-page-header-actions">
+        <div className="ops-page-header-controls">
+          {showDateSelector ? (
+            <OpsDateSelector dates={dates || availableDates()} selectedDate={date} label={dateLabel} />
+          ) : null}
+          {controls}
+          {showRefresh ? <PageRefreshButton /> : null}
+        </div>
+
+        {sections?.length ? (
+          <PageSubnav title={title} sections={sections} />
         ) : null}
-        {controls}
-        {showRefresh ? <PageRefreshButton /> : null}
       </div>
 
       {status || updated ? (
@@ -60,10 +66,6 @@ export default function PageHeader({
           {status ? <span className="ops-page-header-status">{status}</span> : null}
           {updated ? <span className="ops-page-header-updated">Last updated: {updated}</span> : null}
         </div>
-      ) : null}
-
-      {sections?.length ? (
-        <PageSubnav title={title} sections={sections} />
       ) : null}
     </section>
   );

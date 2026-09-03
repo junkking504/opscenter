@@ -257,6 +257,10 @@
 
 .workspace > * { min-width: 0; }
 
+.singleWorkspace {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .map {
   min-width: 0;
   height: 100%;
@@ -265,7 +269,7 @@
 .queue {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid #353b45;
+  border: 1px solid var(--oc-line);
   border-radius: var(--oc-radius-md);
   background: var(--oc-surface);
 }
@@ -277,20 +281,20 @@
   justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
-  border-bottom: 1px solid #353b45;
-  background: #20242b;
+  border-bottom: 1px solid var(--oc-line);
+  background: #ffffff;
 }
 
 .sectionHeader h2 {
   margin: 2px 0 0;
-  color: #fff;
+  color: var(--oc-text);
   font-size: 1.125rem;
   line-height: 1.1;
   letter-spacing: -0.025em;
 }
 
 .sectionHeader > small {
-  color: #b8bec9;
+  color: var(--oc-text-muted);
   font-size: 0.6875rem;
   font-weight: 800;
   text-align: right;

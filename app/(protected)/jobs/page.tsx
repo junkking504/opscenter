@@ -10,7 +10,6 @@ import JobCallAheadCard from "@/components/JobCallAheadCard";
 import JobCloseoutEditor from "@/components/JobCloseoutEditor";
 import JobAppointmentNote from "@/components/JobAppointmentNote";
 import AppointmentCreateDialog from "@/components/AppointmentCreateDialog";
-import TruckLoadStatusPanel from "@/components/TruckLoadStatusPanel";
 import { JobsMap, type JobsMapPoint } from "@/components/JobsMap";
 import { withAppointmentVisitConfirmations } from "@/lib/appointment-visit-confirmations";
 import { appointmentTerritoryForLocation, isLafayetteServiceAddress } from "@/lib/appointment-territory";
@@ -36,7 +35,6 @@ import { junkwareBookedAt } from "@/lib/junkware-booking-date";
 import { currentJunkwareScheduleSnapshot, readVerifiedJunkwareScheduleSnapshot } from "@/lib/junkware-fast-schedule";
 import { planningLocation, type PlanningLocation } from "@/lib/planning-geocodes";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
-import { readTruckLoadStatuses } from "@/lib/truck-load-status";
 import "./jobs.css";
 
 const OPSBOT_DATA_DIR =
@@ -3250,12 +3248,6 @@ export default async function JobsPage({
     ? readJunkwareDayActivity(OPSBOT_DATA_DIR, date)
     : { rescheduled: [], cancelled: [] };
   const routeTrucks = view === "daily" ? planningTruckOptions(jobs) : [];
-  const truckLoadStatuses = view === "daily"
-    ? readTruckLoadStatuses(date, [
-      ...routeTrucks,
-      ...(fleetMapPayload?.trucks || []).map((truck) => truck.truck),
-    ])
-    : [];
   const mapTrucks = (fleetMapPayload?.trucks || [])
     .filter((truck) => truck.hasCoordinates && Number.isFinite(truck.latitude) && Number.isFinite(truck.longitude))
     .map((truck) => ({
@@ -3372,10 +3364,6 @@ export default async function JobsPage({
             </a>
           ) : null}
         </form>
-      ) : null}
-
-      {isDispatchWorkspace && truckLoadStatuses.length ? (
-        <TruckLoadStatusPanel date={date} initialStatuses={truckLoadStatuses} />
       ) : null}
 
       {isDispatchWorkspace ? (
@@ -3876,12 +3864,12 @@ export default async function JobsPage({
         <div className="ops-card-header compact">
           <div>
             <div className="ops-section-title">
-              {view === "calendar" ? `${jobActivityDate(selectedCalendarDate)} Appointments` : "Next Jobs"}
+              {view === "calendar" ? `${jobActivityDate(selectedCalendarDate)} Appointments` : "All Appointments"}
             </div>
             <div className="ops-muted">
               {view === "calendar"
                 ? `${selectedCalendarJobs.length} appointment${selectedCalendarJobs.length === 1 ? "" : "s"}, using the schedule layout and ordered by territory and time.`
-                : `${scheduleCopy.possessive} jobs, ordered by appointment time.`}
+                : `${scheduleCopy.possessive} appointments, separated by territory and ordered by time.`}
             </div>
           </div>
           {view === "calendar" ? (

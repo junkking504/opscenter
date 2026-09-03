@@ -1,15 +1,19 @@
 .panel {
-  display: grid;
+  display: flex;
+  min-width: 0;
+  align-items: center;
   gap: 12px;
-  margin: 12px 0;
-  padding: 14px;
+  margin: 0;
+  padding: 9px 10px;
   border: 1px solid var(--ops-border, #d8dee8);
-  border-radius: 14px;
+  border-radius: 9px;
   background: var(--ops-panel, #fff);
   box-shadow: 0 8px 24px rgba(15, 23, 42, .06);
 }
 
 .heading {
+  width: 178px;
+  flex: 0 0 178px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -33,6 +37,12 @@
   line-height: 1.4;
 }
 
+.heading span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .message {
   max-width: 340px;
   color: #0f766e;
@@ -41,17 +51,26 @@
 }
 
 .grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 10px;
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 6px;
+  padding-bottom: 1px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
 }
 
 .truck {
+  position: relative;
   display: grid;
-  gap: 9px;
-  padding: 11px;
+  width: 126px;
+  min-width: 126px;
+  flex: 0 0 126px;
+  gap: 5px;
+  padding: 7px 8px 6px;
   border: 1px solid #d9e1ec;
-  border-radius: 11px;
+  border-radius: 7px;
   background: #f8fafc;
 }
 
@@ -75,25 +94,60 @@
 
 .current strong {
   color: #172033;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .current span {
   color: #48566b;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
 }
 
 .current b {
   color: #0f766e;
-  font-size: 18px;
+  font-size: 14px;
 }
 
 .meter {
-  height: 7px;
+  height: 4px;
   overflow: hidden;
   border-radius: 999px;
   background: #dfe7f1;
+}
+
+.controls {
+  min-width: 0;
+}
+
+.controls > summary {
+  color: #526070;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1.2;
+  list-style: none;
+  text-align: right;
+}
+
+.controls > summary::-webkit-details-marker { display: none; }
+
+.controls > summary::after {
+  content: " →";
+}
+
+.controlPopover {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 5px);
+  right: 0;
+  width: 248px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #cbd5df;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, .16);
 }
 
 .meter i {
@@ -178,12 +232,15 @@
 
 @media (max-width: 680px) {
   .panel {
+    display: grid;
     margin-inline: -2px;
     padding: 11px;
   }
 
   .heading {
     display: grid;
+    width: auto;
+    flex-basis: auto;
   }
 
   .message {
@@ -202,5 +259,14 @@
   .truck {
     flex: 0 0 min(78vw, 270px);
     scroll-snap-align: start;
+  }
+
+  .controlPopover {
+    position: static;
+    width: auto;
+    margin-top: 7px;
+    border: 0;
+    padding: 0;
+    box-shadow: none;
   }
 }

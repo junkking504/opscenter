@@ -154,7 +154,7 @@ function appointmentPaymentTotals(entries: AnyRecord[]): {
 }
 
 function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, requestedSection: string) {
-  const section = ["overview", "reconciliation", "expenses", "territory", "trend", "resale"].includes(requestedSection)
+  const section = ["overview", "reconciliation", "expenses", "territory", "trend", "resale", "recycling"].includes(requestedSection)
     ? requestedSection
     : "overview";
   const monthlySummary = buildMonthlySummary(date);
@@ -236,7 +236,8 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
           { label: "Costs", href: financeHref(date, "monthly", "expenses"), active: section === "expenses" },
           { label: "Territory", href: financeHref(date, "monthly", "territory"), active: section === "territory" },
           { label: "Trend", href: financeHref(date, "monthly", "trend"), active: section === "trend" },
-          { label: "Resale inventory", href: financeHref(date, "monthly", "resale"), active: section === "resale" },
+          { label: "Resale", href: financeHref(date, "monthly", "resale"), active: section === "resale" },
+          { label: "Recycling", href: financeHref(date, "monthly", "recycling"), active: section === "recycling" },
         ]}
       />
 
@@ -261,6 +262,25 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
         <div className={section === "resale" ? "" : "ops-section-hidden"} id="finance-resale">
           <ResaleInventory initialItems={readResaleStore().items} />
         </div>
+
+        <section className={section === "recycling" ? "ops-card" : "ops-section-hidden"} id="finance-recycling">
+          <div className="ops-card-header compact">
+            <div>
+              <div className="ops-section-title">Recycling</div>
+              <div className="ops-muted">Monthly recycling expense recorded in the published daily finance records.</div>
+            </div>
+            <strong className="ops-kpi-value">{money(recyclingExpense)}</strong>
+          </div>
+          <table className="ops-table">
+            <thead><tr><th>Date</th><th>Recycling Expense</th></tr></thead>
+            <tbody>
+              {entries.map((entry) => ({ date: entry.date, value: Number(entry.metrics.recycling_expense || entry.metrics.truck_record_financial_summary?.recycling_expense || 0) }))
+                .filter((entry) => entry.value !== 0)
+                .map((entry) => <tr key={entry.date}><td>{entry.date}</td><td className="ops-money">{money(entry.value)}</td></tr>)}
+              {recyclingExpense === 0 ? <tr><td colSpan={2} className="ops-muted">No recycling expense is recorded for this month.</td></tr> : null}
+            </tbody>
+          </table>
+        </section>
 
         <div id="finance-reconciliation" className={section === "reconciliation" ? "" : "ops-section-hidden"}><PaymentReconciliationPanel
             view={paymentReconciliation}
@@ -577,8 +597,17 @@ async function renderFinancePageForRole({
   if (view === "monthly") {
     return renderMonthlyFinancePage(date, metrics, requestedSection);
   }
+  const currentMonth = buildMonthlySummary(date);
+  const currentMonthExpenses = sumValues(currentMonth.entries.map((entry) => entry.metrics), ["total_expenses"]);
+  const currentMonthProfit = sumValues(currentMonth.entries.map((entry) => entry.metrics), ["net_profit"]);
+  const dailyRecyclingRows = (Array.isArray(metrics?.truck_record_financial_rows) ? metrics.truck_record_financial_rows : [])
+    .map((row: AnyRecord) => ({
+      truck: String(row.truck || row.truck_name || "Unassigned"),
+      value: Number(row.recycling_expense || 0),
+    }))
+    .filter((row: { truck: string; value: number }) => row.value !== 0);
   const dailySection = requestedSection === "reconciliation" ? "payments" : requestedSection;
-  const section = ["overview", "payments", "expenses", "trucks", "resale"].includes(dailySection)
+  const section = ["overview", "payments", "expenses", "trucks", "resale", "recycling"].includes(dailySection)
     ? dailySection
     : "overview";
 
@@ -596,7 +625,8 @@ async function renderFinancePageForRole({
           { label: "Payments & recon", href: financeHref(date, "daily", "payments"), active: section === "payments" },
           { label: "Company costs", href: financeHref(date, "daily", "expenses"), active: section === "expenses" },
           { label: "Truck records", href: financeHref(date, "daily", "trucks"), active: section === "trucks" },
-          { label: "Resale inventory", href: financeHref(date, "daily", "resale"), active: section === "resale" },
+          { label: "Resale", href: financeHref(date, "daily", "resale"), active: section === "resale" },
+          { label: "Recycling", href: financeHref(date, "daily", "recycling"), active: section === "recycling" },
         ]}
       />
 
@@ -654,6 +684,22 @@ async function renderFinancePageForRole({
             <strong>Reconcile</strong>
             <small>Compare card payments and exceptions</small>
           </Link>
+        </div>
+      </section>
+
+      <section className={section === "overview" ? "ops-card ops-finance-monthly-totals" : "ops-section-hidden"}>
+        <div className="ops-card-header compact">
+          <div>
+            <div className="ops-section-title">Month-to-Date Totals</div>
+            <div className="ops-muted">{currentMonth.range.monthDisplay} through {currentMonth.range.dataThroughLabel}</div>
+          </div>
+          <Link className="ops-mini-link" href={financeHref(date, "monthly")}>Open Month to Date</Link>
+        </div>
+        <div className="ops-finance-monthly-total-grid">
+          <div><span>Revenue</span><strong>{money(currentMonth.grossRevenue)}</strong></div>
+          <div><span>Expenses</span><strong>{money(currentMonthExpenses)}</strong></div>
+          <div><span>Operating Profit</span><strong>{money(currentMonthProfit)}</strong></div>
+          <div><span>Completed Jobs</span><strong>{currentMonth.completedJobs}</strong></div>
         </div>
       </section>
 
@@ -727,6 +773,23 @@ async function renderFinancePageForRole({
         <div className={section === "resale" ? "" : "ops-section-hidden"} id="finance-resale">
           <ResaleInventory initialItems={readResaleStore().items} />
         </div>
+
+        <section className={section === "recycling" ? "ops-card" : "ops-section-hidden"} id="finance-recycling">
+          <div className="ops-card-header compact">
+            <div>
+              <div className="ops-section-title">Recycling</div>
+              <div className="ops-muted">Daily recycling costs remain separate from resale inventory.</div>
+            </div>
+            <strong className="ops-kpi-value">{money(toNumber(metrics?.recycling_expense ?? financeSummary.recycling_expense))}</strong>
+          </div>
+          <table className="ops-table">
+            <thead><tr><th>Truck</th><th>Recycling Expense</th></tr></thead>
+            <tbody>
+              {dailyRecyclingRows.map((row: { truck: string; value: number }) => <tr key={row.truck}><td><strong>{row.truck}</strong></td><td className="ops-money">{money(row.value)}</td></tr>)}
+              {dailyRecyclingRows.length === 0 ? <tr><td colSpan={2} className="ops-muted">No truck-level recycling expense is recorded for this date.</td></tr> : null}
+            </tbody>
+          </table>
+        </section>
 
         <div id="finance-reconciliation" className={section === "payments" ? "" : "ops-section-hidden"}><PaymentReconciliationPanel
             view={paymentReconciliation}

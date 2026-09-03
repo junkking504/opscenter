@@ -235,6 +235,18 @@ export default async function MarketingPage({
           <div className="ops-kpi-row ops-marketing-kpis">
             <Link
               className="ops-card ops-kpi-card ops-marketing-action-kpi"
+              href="/marketing?section=reviews"
+            >
+              <div className="ops-card-title">Today&apos;s Reviews</div>
+              <div className="ops-kpi-value">{reviews.available ? reviews.newToday : "—"}</div>
+              <div className="ops-kpi-sub">
+                {reviews.available
+                  ? `${reviews.recentNeedsResponse} need a response · ${reviews.new7Days} in 7 days`
+                  : "Waiting for Podium review data"}
+              </div>
+            </Link>
+            <Link
+              className="ops-card ops-kpi-card ops-marketing-action-kpi"
               href="/marketing?section=lost-leads"
             >
               <div className="ops-card-title">Leads to Recover</div>

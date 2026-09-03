@@ -94,11 +94,11 @@ export default function GlobalSearch() {
           type="search"
           role="combobox"
           value={query}
-          aria-label="Search appointments, Krewe, and trucks"
+          aria-label="Search OpsCenter records"
           aria-expanded={open}
           aria-controls="ops-global-search-results"
           aria-autocomplete="list"
-          placeholder="Search jobs, Krewe, trucks"
+          placeholder="Search all of OpsCenter"
           onFocus={() => setOpen(true)}
           onChange={(event) => {
             setQuery(event.target.value);

@@ -28,6 +28,8 @@ export type CommandBriefException = {
   href: string;
 };
 
+export type CommandBriefView = "alerts" | "control" | "monitor";
+
 const statusLabel: Record<OperatingStatus, string> = {
   "on-track": "On Track",
   watch: "Watch",
@@ -46,12 +48,14 @@ export default function CommandBrief({
   date,
   slackDigest,
   map,
+  activeView = "alerts",
 }: {
   metrics: CommandBriefMetric[];
   exceptions: CommandBriefException[];
   date: string;
   slackDigest: SlackDailyDigest;
   map: ReactNode;
+  activeView?: CommandBriefView;
 }) {
   return (
     <section className={styles.brief} id="command-overview" aria-label="Command Overview">
@@ -107,8 +111,8 @@ export default function CommandBrief({
         ))}
       </div>
 
-      {exceptions.length ? (
-        <section className={styles.exceptionStrip} aria-labelledby="command-exceptions-title">
+      {activeView === "control" && exceptions.length ? (
+        <section className={styles.exceptionStrip} id="command-control" aria-labelledby="command-exceptions-title">
           <div className={styles.exceptionHeading}>
             <i aria-hidden="true" />
             <strong id="command-exceptions-title">Needs attention</strong>
@@ -133,10 +137,17 @@ export default function CommandBrief({
         </section>
       ) : null}
 
-      <div className={styles.workspace}>
-        <SlackAlertsDigest date={date} initialDigest={slackDigest} title="Operations Feed" kicker="Today's alerts" />
-        <div className={`${styles.map} ops-jobs-page ops-command-operations-map`}>{map}</div>
-      </div>
+      {activeView === "alerts" ? (
+        <div className={`${styles.workspace} ${styles.singleWorkspace}`}>
+          <SlackAlertsDigest date={date} initialDigest={slackDigest} title="Alerts" kicker="Slack source · OpsCenter format" />
+        </div>
+      ) : null}
+
+      {activeView === "monitor" ? (
+        <div className={`${styles.workspace} ${styles.singleWorkspace}`}>
+          <div className={`${styles.map} ops-jobs-page ops-command-operations-map`} id="command-monitor">{map}</div>
+        </div>
+      ) : null}
     </section>
   );
 }

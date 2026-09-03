@@ -93,7 +93,7 @@ export default function TruckLoadStatusPanel({
     <section className={styles.panel} aria-labelledby="truck-load-status-title">
       <div className={styles.heading}>
         <div>
-          <strong id="truck-load-status-title">Truck load status</strong>
+          <strong id="truck-load-status-title">Truck Load Status</strong>
           <span>Set the morning load once. Job closeouts add their load automatically; dump and metal-yard runs reset it.</span>
         </div>
         {message ? <output className={styles.message} aria-live="polite">{message}</output> : null}
@@ -115,25 +115,30 @@ export default function TruckLoadStatusPanel({
               <div className={styles.meter} aria-label={`${status.truck} is ${status.capacityPercent}% full`}>
                 <i style={{ width: meterWidth }} />
               </div>
-              <div className={styles.latest}>
-                <span>{eventLabel(status.lastEvent)}</span>
-                {status.lastEvent?.occurredAt ? <time dateTime={status.lastEvent.occurredAt}>{timeLabel(status.lastEvent.occurredAt)}</time> : null}
-              </div>
-              {status.currentContents ? <p className={styles.contents}>{status.currentContents}</p> : null}
-              <label className={styles.startingLoad}>
-                <span>Start-of-day load</span>
-                <select
-                  value={String(status.startingLoadFraction)}
-                  onChange={(event) => setStartingLoad(status.truck, event.target.value)}
-                  disabled={saving}
-                >
-                  {STARTING_LOAD_OPTIONS.map(([value, label]) => <option value={String(value)} key={label}>{label}</option>)}
-                </select>
-              </label>
-              <div className={styles.actions}>
-                <button type="button" onClick={() => resetLoad(status.truck, "dump")} disabled={saving}>Dumped</button>
-                <button type="button" onClick={() => resetLoad(status.truck, "metal_yard")} disabled={saving}>Metal yard</button>
-              </div>
+              <details className={styles.controls}>
+                <summary>Update load</summary>
+                <div className={styles.controlPopover}>
+                  <div className={styles.latest}>
+                    <span>{eventLabel(status.lastEvent)}</span>
+                    {status.lastEvent?.occurredAt ? <time dateTime={status.lastEvent.occurredAt}>{timeLabel(status.lastEvent.occurredAt)}</time> : null}
+                  </div>
+                  {status.currentContents ? <p className={styles.contents}>{status.currentContents}</p> : null}
+                  <label className={styles.startingLoad}>
+                    <span>Start-of-day load</span>
+                    <select
+                      value={String(status.startingLoadFraction)}
+                      onChange={(event) => setStartingLoad(status.truck, event.target.value)}
+                      disabled={saving}
+                    >
+                      {STARTING_LOAD_OPTIONS.map(([value, label]) => <option value={String(value)} key={label}>{label}</option>)}
+                    </select>
+                  </label>
+                  <div className={styles.actions}>
+                    <button type="button" onClick={() => resetLoad(status.truck, "dump")} disabled={saving}>Dumped</button>
+                    <button type="button" onClick={() => resetLoad(status.truck, "metal_yard")} disabled={saving}>Metal yard</button>
+                  </div>
+                </div>
+              </details>
             </article>
           );
         })}

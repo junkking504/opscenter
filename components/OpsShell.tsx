@@ -61,7 +61,7 @@ export default function OpsShell({
           <OpsCenterLogo className="opscenter-logo" />
           <div className="ops-brand-product">
             <div className="ops-brand-title">OpsCenter</div>
-            <div className="ops-brand-subtitle">Junk King | Louisiana</div>
+            <div className="ops-brand-subtitle">Junk King Louisiana</div>
           </div>
         </div>
 
@@ -92,18 +92,14 @@ export default function OpsShell({
             <span>OpsCenter</span>
           </div>
           <header className="ops-topbar">
-            <div className="ops-topbar-identity">
-              <div className="ops-eyebrow">Operations workspace</div>
-              <div className="ops-topbar-title-row">
-                <div className="ops-workspace-title">Junk King Louisiana</div>
-              </div>
+            <div className="ops-topbar-search">
+              <GlobalSearch />
             </div>
 
             <div className="ops-topbar-right">
               <label htmlFor="ops-sidebar-toggle" className="ops-sidebar-toggle-button">
                 Menu
               </label>
-              <GlobalSearch />
               {inboxEnabled ? <InboxNavSummary /> : null}
               <AddOnNotifications sessionEmail={sessionEmail} />
               <OperationsClock />

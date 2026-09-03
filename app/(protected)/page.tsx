@@ -5,6 +5,7 @@ import { resolveKernelDatabaseConfig } from "@/lib/platform/persistence/config";
 import CommandBrief, {
   type CommandBriefException,
   type CommandBriefMetric,
+  type CommandBriefView,
 } from "@/components/CommandBrief";
 import { JobsMap } from "@/components/JobsMap";
 import OpsMonthSelector from "@/components/OpsMonthSelector";
@@ -35,7 +36,6 @@ import {
 } from "@/lib/operating-targets";
 import { readSlackDailyDigest } from "@/lib/slack-digest";
 import { buildSearchKingsView } from "@/lib/searchkings";
-import { chicagoDateKey } from "@/lib/report-dates";
 import { workedOrAttributedToJobToday } from "@/lib/crew-attendance";
 import "./command.css";
 import "./jobs/jobs.css";
@@ -142,6 +142,12 @@ function totalPay(row: AnyRecord): number {
 
 function normalizeView(value: unknown): "daily" | "monthly" {
   return String(value || "").toLowerCase() === "monthly" ? "monthly" : "daily";
+}
+
+function normalizeCommandView(value: unknown): CommandBriefView {
+  const normalized = String(value || "").toLowerCase();
+  if (normalized === "control" || normalized === "monitor") return normalized;
+  return "alerts";
 }
 
 function toNumber(value: unknown): number {
@@ -501,6 +507,7 @@ export default async function DashboardPage({
   const kernelDatabase = resolveKernelDatabaseConfig();
   const date = resolveDate(params);
   const view = normalizeView(params?.view);
+  const commandView = normalizeCommandView(params?.commandView);
   const requestedSection = String(params?.section || "overview").toLowerCase();
   if (view === "monthly") {
     return renderMonthlyDashboard(date, requestedSection);
@@ -667,13 +674,13 @@ export default async function DashboardPage({
       <PageHeader
         title="Command"
         compact
-        subtitle={`${shortMonthDay(date)} · ${jobs} completed job${jobs === 1 ? "" : "s"} · ${activeTruckCount} active truck${activeTruckCount === 1 ? "" : "s"}`}
+        subtitle="Live Slack alerts, organized by urgency and operational area."
         date={date}
         lastUpdated={metrics?.generated_at}
         sections={section === "overview" ? [
-          { label: "Overview", href: `/?date=${date}&section=overview#command-overview`, active: true },
-          { label: "Operations", href: `/?date=${date}&section=overview#slack-alerts-title` },
-          { label: "Live Map", href: `/?date=${date}&section=overview#jobs-map` },
+          { label: "Alerts", href: `/?date=${date}&section=overview&commandView=alerts`, active: commandView === "alerts" },
+          { label: "Control", href: `/?date=${date}&section=overview&commandView=control`, active: commandView === "control" },
+          { label: "Monitor", href: `/?date=${date}&section=overview&commandView=monitor`, active: commandView === "monitor" },
         ] : [
           { label: "Overview", href: `/?date=${date}&section=overview`, active: false },
           { label: "Krewe Snapshot", href: `/?date=${date}&section=crew`, active: section === "crew" },
@@ -683,8 +690,6 @@ export default async function DashboardPage({
       />
 
       {section === "overview" ? <>
-        {date === chicagoDateKey() ? <DataHealth compact strip /> : null}
-
         <section className="ops-supporting-metrics" aria-labelledby="supporting-metrics-title">
           <div className="ops-supporting-metrics-heading">
             <div>
@@ -747,6 +752,7 @@ export default async function DashboardPage({
           exceptions={commandExceptions}
           date={date}
           slackDigest={slackDigest!}
+          activeView={commandView}
           map={commandMap ? (
             <JobsMap
               date={date}
@@ -758,9 +764,11 @@ export default async function DashboardPage({
           ) : null}
         />
 
-        {kernelDatabase.status === "ready" ? (
+        {commandView === "control" && kernelDatabase.status === "ready" ? (
           <OperatingInbox date={date} variant="command" />
         ) : null}
+
+        {commandView === "monitor" ? <DataHealth compact strip /> : null}
 
         {!metrics && (
         <div className="ops-card ops-alert-card">

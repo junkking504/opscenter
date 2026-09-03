@@ -1,0 +1,992 @@
+/*
+ * Approved desktop OpsCenter interface.
+ *
+ * The localhost:3101 operating concept is the presentation contract. This
+ * final layer deliberately leaves page data, links, forms, and action handlers
+ * in their production components while reconciling the shared shell, density,
+ * hierarchy, and surface treatment with that approved interface.
+ */
+
+:root {
+  --oc-bg: #f1f3f1;
+  --oc-sidebar: #111419;
+  --oc-surface: #ffffff;
+  --oc-surface-raised: #f7f8f6;
+  --oc-surface-soft: #ecefec;
+  --oc-text: #171a1d;
+  --oc-text-secondary: #3f4843;
+  --oc-text-muted: #69716e;
+  --oc-line: #d7dbd7;
+  --oc-line-strong: #c9cfca;
+  --oc-brand: #e42a35;
+  --oc-brand-soft: #fff0f1;
+  --oc-positive: #49c985;
+  --oc-positive-text: #2d734a;
+  --oc-warning: #e9ae3c;
+  --oc-warning-text: #806019;
+  --oc-critical: #e42a35;
+  --oc-critical-text: #b6242e;
+  --oc-focus: #477aa6;
+  --oc-focus-text: #345f83;
+  --oc-radius-sm: 6px;
+  --oc-radius-md: 9px;
+  --oc-radius-lg: 11px;
+  --oc-shadow-raised: 0 12px 34px rgba(25, 31, 27, 0.1);
+  --oc-shadow-interactive: 0 5px 14px rgba(31, 39, 34, 0.08);
+}
+
+html,
+body,
+button,
+input,
+select,
+textarea,
+.leaflet-container,
+.leaflet-container :where(a, button, input, select, textarea, div, span) {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+}
+
+body {
+  color-scheme: light;
+  background: var(--oc-bg);
+  color: var(--oc-text);
+  font-feature-settings: "tnum" 1;
+}
+
+.ops-app {
+  background: var(--oc-bg);
+}
+
+.ops-main {
+  color-scheme: light;
+  background: var(--oc-bg);
+  color: var(--oc-text);
+}
+
+.ops-main :where(.ops-muted, .ops-small-muted, .ops-table-note, .ops-kpi-sub) {
+  color: var(--oc-text-muted);
+}
+
+.ops-main .ops-daily-leaderboard-state.is-pending {
+  border-color: #d2b340 !important;
+  background: #fff4c7 !important;
+  color: #5f4b08 !important;
+}
+
+.ops-main :where(.ops-card, .ops-mini-kpi, .ops-supporting-metric, .ops-crew-section) {
+  border-color: var(--oc-line) !important;
+  border-radius: var(--oc-radius-md) !important;
+  background: var(--oc-surface) !important;
+  color: var(--oc-text);
+  box-shadow: 0 1px 0 rgba(17, 20, 25, 0.025) !important;
+}
+
+.ops-main :where(.ops-card-header, .ops-section-header) {
+  border-color: var(--oc-line);
+}
+
+.ops-main :where(.ops-section-title, .ops-card-title, h1, h2, h3, strong) {
+  color: var(--oc-text);
+}
+
+.ops-main :where(.ops-section-title, .ops-card-title) {
+  letter-spacing: -0.01em;
+}
+
+.ops-main .ops-table {
+  border-color: var(--oc-line);
+  color: var(--oc-text-secondary);
+  background: var(--oc-surface);
+}
+
+.ops-main .ops-table :where(th, td) {
+  border-color: #e0e4e0;
+}
+
+.ops-main .ops-table th {
+  color: #66706b;
+  background: #f2f4f1;
+}
+
+.ops-main .ops-table tbody tr,
+.ops-main .ops-table tbody tr:nth-child(even) {
+  background: #fff;
+}
+
+.ops-main .ops-table tbody tr:hover {
+  background: #f4f7f4;
+}
+
+.ops-main :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  border-color: #cfd5cf;
+  border-radius: 6px;
+  background: #fff;
+  color: #303734;
+}
+
+.ops-main :where(.ops-button, .ops-refresh-button, button):focus-visible,
+.ops-sidebar a:focus-visible {
+  outline: 3px solid rgba(71, 122, 166, 0.24);
+  outline-offset: 2px;
+}
+
+/* Deliberate white operating surfaces instead of dark dashboard panels. */
+.ops-main :where(.ops-operating-pulse, .ops-command-center-v2, .ops-finance-brief, .ops-jobs-map-card) {
+  color-scheme: light;
+  border-color: var(--oc-line) !important;
+  background: #fff !important;
+  color: var(--oc-text) !important;
+  box-shadow: none !important;
+}
+
+.ops-main .ops-finance-brief :where(h2, strong, p, small, span),
+.ops-main .ops-jobs-map-card :where(.ops-section-title, .ops-muted) {
+  color: inherit;
+}
+
+.ops-main .ops-finance-brief :where(.ops-finance-brief-heading, .ops-finance-brief-grid),
+.ops-main .ops-jobs-map-card :where(.ops-jobs-map-header, .ops-jobs-map-legend) {
+  border-color: var(--oc-line);
+}
+
+/* Compact KPI meters and scan-first summary cards. */
+.ops-dashboard > :where(.ops-kpi-row, .ops-crew-kpi-row),
+.ops-daily-kpi-grid {
+  gap: 8px;
+}
+
+.ops-dashboard > :where(.ops-kpi-row, .ops-crew-kpi-row) > :where(.ops-card, .ops-mini-kpi),
+.ops-daily-kpi-card {
+  min-height: 76px;
+  height: auto;
+  padding: 9px 11px 10px;
+  border-top: 3px solid #8c9691 !important;
+}
+
+.ops-dashboard > :where(.ops-kpi-row, .ops-crew-kpi-row) .ops-card-title,
+.ops-daily-kpi-card .ops-card-title {
+  margin: 0 0 4px;
+  color: #66707d;
+  font-size: 0.66rem;
+  font-weight: 780;
+  letter-spacing: 0.08em;
+  line-height: 1.15;
+  text-transform: uppercase;
+}
+
+.ops-dashboard > :where(.ops-kpi-row, .ops-crew-kpi-row) .ops-kpi-value,
+.ops-daily-kpi-card .ops-kpi-value {
+  color: var(--oc-text);
+  font-size: clamp(1.22rem, 1.65vw, 1.55rem);
+  line-height: 1;
+  letter-spacing: -0.025em;
+}
+
+.ops-dashboard > :where(.ops-kpi-row, .ops-crew-kpi-row) .ops-kpi-sub,
+.ops-daily-kpi-card .ops-kpi-sub {
+  margin-top: 5px;
+  color: #626c78;
+  font-size: 0.68rem !important;
+  line-height: 1.2;
+}
+
+.ops-daily-kpi-card .ops-daily-kpi-progress {
+  height: 5px;
+  margin-top: 7px;
+  border-radius: 4px;
+  background: #e7eae7;
+}
+
+/* Preserve the approved Schedule viewport: map and every truck remain paired. */
+.ops-jobs-page.is-dispatch .ops-jobs-map-card {
+  border-radius: 9px !important;
+}
+
+.ops-jobs-page.is-dispatch .ops-jobs-map-workspace.has-schedule {
+  background: #fff;
+}
+
+.ops-jobs-page.is-dispatch .ops-jobs-map-header {
+  background: #fff;
+}
+
+  .ops-jobs-page.is-dispatch .ops-jobs-map-legend {
+    background: #f7f8f6;
+  }
+
+  .ops-main .ops-jobs-page.is-dispatch > .ops-junkware-search {
+    display: none !important;
+  }
+
+  .ops-main .ops-jobs-page.is-dispatch > .ops-jobs-filter-card {
+    display: none !important;
+  }
+
+  .ops-main .ops-jobs-page.is-dispatch .ops-jobs-map-card .ops-jobs-map-header :where(.ops-section-title, .ops-muted),
+  .ops-main .ops-jobs-page.is-dispatch .ops-jobs-map-card .ops-jobs-map-counts,
+  .ops-main .ops-jobs-page.is-dispatch .ops-jobs-map-card .ops-jobs-map-counts strong,
+  .ops-main .ops-jobs-page.is-dispatch .ops-jobs-map-card .ops-jobs-map-legend :where(span, button) {
+    color: var(--oc-text-secondary) !important;
+  }
+
+  .ops-main .ops-jobs-page.is-dispatch .ops-jobs-route-board,
+  .ops-main .ops-jobs-page.is-dispatch .ops-jobs-route-board .ops-jobs-map-board,
+  .ops-main .ops-jobs-page.is-dispatch .ops-jobs-route-board .ops-jobs-map-board-cell,
+  .ops-main .ops-jobs-page.is-dispatch .ops-jobs-route-board .ops-jobs-map-board-truck.is-row-label,
+  .ops-main .ops-jobs-page.is-dispatch .ops-jobs-route-board :where(.ops-jobs-map-board-corner, .ops-jobs-map-board-time) {
+    border-color: #dfe3df !important;
+    background: #fff !important;
+    color: var(--oc-text-secondary) !important;
+  }
+
+  .ops-main .ops-jobs-page.is-dispatch .ops-jobs-route-board :where(.ops-jobs-map-board-corner, .ops-jobs-map-board-time) {
+    background: #eef1ee !important;
+    color: #3f4843 !important;
+  }
+
+  .ops-main .ops-jobs-page.is-dispatch .ops-jobs-route-board .ops-jobs-map-board-truck.is-row-label {
+    background: #f7f8f6 !important;
+  }
+
+  .ops-main .ops-jobs-page.is-dispatch .ops-jobs-map-assignment-status {
+    border-color: var(--oc-line) !important;
+    background: #f7f8f6 !important;
+    color: var(--oc-text-secondary) !important;
+  }
+
+  .ops-main .ops-jobs-page.is-dispatch .ops-jobs-map-foot {
+    margin: 0 !important;
+    padding: 7px 12px !important;
+    border-color: #ead9a4 !important;
+    background: #fff8df !important;
+    color: #72591b !important;
+  }
+
+  .ops-main .ops-jobs-page.is-dispatch .ops-territory-jump {
+    margin: 0 !important;
+    border-color: var(--oc-line) !important;
+    border-radius: 0 !important;
+    background: #f7f8f6 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+.ops-jobs-page :where(.ops-route-plan, .ops-route-planner, #jobs-schedule) {
+  border-color: var(--oc-line) !important;
+  background: #fff !important;
+  color: var(--oc-text);
+  box-shadow: none !important;
+}
+
+.ops-jobs-page :where(.ops-route-plan-heading, .ops-route-planner-header, .ops-status-group-header, .ops-territory-header) {
+  border-color: var(--oc-line);
+  background: #f7f8f6;
+  color: var(--oc-text);
+}
+
+@media (min-width: 901px) {
+  .ops-app {
+    grid-template-columns: 224px minmax(0, 1fr) !important;
+  }
+
+  .ops-sidebar {
+    position: sticky;
+    top: 0;
+    width: 224px;
+    height: 100vh;
+    gap: 0;
+    padding: 22px 14px 15px;
+    border-right: 1px solid #262b30;
+    background: #111419;
+    color: #e7ebe7;
+    box-shadow: none;
+  }
+
+  .ops-main .ops-dashboard > .ops-kpi-row,
+  .ops-main .ops-dashboard > .ops-crew-kpi-row {
+    gap: 8px !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .ops-main .ops-dashboard > .ops-kpi-row > .ops-card,
+  .ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card {
+    border: 1px solid var(--oc-line) !important;
+    border-top: 3px solid #8c9691 !important;
+    border-radius: var(--oc-radius-md) !important;
+    background: #fff !important;
+  }
+
+  .ops-main .ops-marketing-page .ops-marketing-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .ops-main .ops-marketing-page .ops-marketing-kpis > .ops-card {
+    min-height: 106px !important;
+    height: auto !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    grid-template-rows: auto auto auto !important;
+    align-content: start !important;
+    gap: 3px !important;
+    padding: 9px 11px !important;
+    overflow: hidden;
+  }
+
+  .ops-main .ops-marketing-page .ops-marketing-kpis .ops-kpi-value,
+  .ops-main .ops-marketing-page .ops-marketing-kpis .ops-kpi-sub {
+    position: static !important;
+    margin: 0 !important;
+  }
+
+  .ops-main .ops-marketing-page .ops-marketing-kpis .ops-kpi-value {
+    grid-column: 2 !important;
+    grid-row: 1 / span 3 !important;
+    font-size: 1.24rem !important;
+    line-height: 1.05 !important;
+  }
+
+  .ops-main .ops-marketing-page .ops-marketing-kpis .ops-kpi-sub {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+    font-size: 0.68rem !important;
+    line-height: 1.25 !important;
+  }
+
+  .ops-main .ops-finance-page > .ops-finance-brief {
+    border: 1px solid var(--oc-line) !important;
+    border-radius: var(--oc-radius-md) !important;
+    background: #fff !important;
+    color: var(--oc-text) !important;
+    box-shadow: none !important;
+  }
+
+  .ops-main .ops-finance-page > .ops-finance-brief :where(h2, strong, p, small, span) {
+    color: var(--oc-text) !important;
+  }
+
+  .ops-main .ops-finance-page > .ops-finance-brief .ops-finance-brief-heading {
+    min-height: 80px !important;
+    padding: 13px 16px !important;
+    border-color: var(--oc-line) !important;
+    text-transform: none !important;
+  }
+
+  .ops-main .ops-finance-page > .ops-finance-brief .ops-finance-brief-grid a {
+    min-height: 88px !important;
+    padding: 12px 14px !important;
+    border-color: var(--oc-line) !important;
+    background: #f8f9f7 !important;
+  }
+
+  .ops-finance-monthly-total-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .ops-finance-monthly-total-grid > div {
+    display: grid;
+    gap: 4px;
+    padding: 12px 14px;
+    border-right: 1px solid var(--oc-line);
+  }
+
+  .ops-finance-monthly-total-grid > div:last-child { border-right: 0; }
+  .ops-finance-monthly-total-grid span { color: var(--oc-text-muted); font-size: 0.66rem; font-weight: 780; letter-spacing: 0.07em; text-transform: uppercase; }
+  .ops-finance-monthly-total-grid strong { font-size: 1.25rem; }
+
+  .ops-brand {
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 0 8px 24px;
+    border-bottom: 1px solid #282d32;
+  }
+
+  .ops-brand .opscenter-logo {
+    width: 39px;
+    height: 39px;
+    flex: 0 0 39px;
+  }
+
+  .ops-brand-product {
+    display: block;
+    width: auto !important;
+    max-width: none !important;
+    overflow: visible !important;
+  }
+
+  .ops-brand-title {
+    color: #e7ebe7;
+    font-size: 0.9rem;
+    font-weight: 720;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+
+  .ops-brand-subtitle {
+    margin-top: 4px;
+    color: #8f9897;
+    font-size: 0.58rem;
+    font-weight: 650;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .ops-sidebar > .ops-nav {
+    display: block !important;
+    flex: 0 0 auto !important;
+    align-content: start !important;
+    gap: 3px;
+    margin: 0;
+    padding: 22px 0 0;
+  }
+
+  .ops-nav-group {
+    margin: 0 0 3px !important;
+  }
+
+  .ops-sidebar .ops-nav-subitems {
+    display: none;
+  }
+
+  .ops-sidebar .ops-nav-item {
+    width: 100%;
+    min-height: 41px;
+    display: grid;
+    grid-template-columns: 22px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 7px;
+    color: #9ea6a4;
+    background: transparent;
+    font-size: 0.82rem;
+    font-weight: 650;
+    text-decoration: none;
+    box-shadow: none;
+  }
+
+  .ops-sidebar .ops-nav-item:hover {
+    color: #fff;
+    background: #1a1f24;
+  }
+
+  .ops-sidebar .ops-nav-item.active {
+    border: 0;
+    color: #fff;
+    background: #242a30;
+    box-shadow: inset 3px 0 #e72d39;
+  }
+
+  .ops-nav-icon {
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    color: #8e9795;
+    font-size: 0;
+  }
+
+  .ops-nav-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .ops-sidebar .ops-nav-item.active .ops-nav-icon {
+    color: #e7ebe7;
+  }
+
+  .ops-sidebar-footer {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 6px;
+    margin-top: auto;
+    padding: 14px 7px 0;
+    border: 0;
+    border-top: 1px solid #282d32;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .ops-sidebar-footer-top {
+    min-width: 0;
+  }
+
+  .ops-sidebar .ops-status-pill {
+    padding: 0;
+    border: 0;
+    color: #82908b;
+    background: transparent;
+    font-size: 0.61rem;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .ops-sidebar .ops-mini-link {
+    min-height: 27px;
+    padding: 5px 7px;
+    border: 1px solid #30363c;
+    border-radius: 6px;
+    color: #aeb6b3;
+    background: #1a1f24;
+  }
+
+  .ops-sidebar-footer > .ops-small-muted {
+    display: none;
+  }
+
+  .ops-main {
+    min-width: 0;
+    padding: 0 0 36px !important;
+  }
+
+  .ops-main-frame {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+  }
+
+  .ops-mobile-brand,
+  .ops-bottom-nav {
+    display: none;
+  }
+
+  .ops-topbar {
+    width: 100%;
+    min-height: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    margin: 0;
+    padding: 0 24px;
+    border: 0;
+    border-bottom: 1px solid var(--oc-line);
+    background: rgba(247, 248, 246, 0.94);
+    backdrop-filter: blur(16px);
+  }
+
+  .ops-topbar::after {
+    display: none;
+  }
+
+  .ops-topbar-search {
+    min-width: 260px;
+    width: min(680px, 58vw);
+  }
+
+  .ops-topbar-search > div {
+    width: 100%;
+  }
+
+  .ops-topbar-search form input {
+    min-height: 34px;
+    height: 34px;
+    padding: 0 36px 0 35px;
+    border: 1px solid #cfd4cf;
+    border-radius: 8px;
+    color: #303734;
+    background: #fff;
+    font-size: 0.8rem;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+  }
+
+  .ops-topbar-search form input::placeholder {
+    color: #747d79;
+  }
+
+  .ops-topbar-search form input:focus {
+    border-color: #8ca2b5;
+    box-shadow: 0 0 0 3px rgba(71, 122, 166, 0.12);
+  }
+
+  .ops-topbar-search form > span {
+    color: #7f8984;
+  }
+
+  .ops-topbar-search form kbd {
+    border-color: #d5d9d5;
+    color: #818884;
+    background: #f3f5f2;
+  }
+
+  .ops-topbar-search [role="listbox"],
+  .ops-topbar-search [id="ops-global-search-results"] {
+    right: auto;
+    left: 0;
+    border-color: #c9cfca;
+    background: #fff;
+    color: var(--oc-text);
+    box-shadow: 0 22px 60px rgba(24, 31, 27, 0.24);
+  }
+
+  .ops-topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ops-topbar-right > * {
+    flex: 0 0 auto;
+  }
+
+  .ops-notification-trigger,
+  .ops-command-clock,
+  .ops-live-chip {
+    min-height: 32px;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid #d4d8d4;
+    border-radius: 7px;
+    background: #fff;
+    color: #3f4843;
+    box-shadow: none;
+  }
+
+  .ops-live-chip {
+    order: 2;
+    border-color: #cfe1d7;
+    color: #2e6b50;
+    background: #edf8f1;
+  }
+
+  .ops-command-clock {
+    order: 3;
+  }
+
+  .ops-notification-center,
+  .ops-topbar-right > [class*="InboxNav"] {
+    order: 1;
+  }
+
+  .ops-runtime-status {
+    display: none;
+  }
+
+  .ops-notification-trigger-label,
+  .ops-command-clock-zone {
+    display: none;
+  }
+
+  .ops-content {
+    width: min(100%, 1508px);
+    margin: 0 auto;
+    padding: 20px 24px 22px;
+  }
+
+  .ops-dashboard {
+    gap: 10px;
+  }
+
+  .ops-main .ops-page-header,
+  .ops-main .ops-dashboard .ops-page-header,
+  .ops-main .ops-dashboard .ops-page-header.has-subnav,
+  .ops-main .ops-page-header.ops-control-strip {
+    width: 100%;
+    min-height: 68px !important;
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) auto;
+    grid-template-rows: auto auto;
+    align-items: start;
+    gap: 3px 16px !important;
+    margin: 0 0 4px;
+    padding: 0 !important;
+    overflow: visible;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--oc-text) !important;
+    box-shadow: none !important;
+  }
+
+  .ops-page-header-copy {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: start;
+    min-width: 0;
+    display: block !important;
+  }
+
+  .ops-main .ops-page-title,
+  .ops-finance-page .ops-page-title,
+  .ops-main .ops-page-header .ops-page-title {
+    margin: 0;
+    color: var(--oc-text) !important;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+    font-size: clamp(1.9rem, 2.5vw, 2.6rem);
+    font-weight: 720;
+    line-height: 1;
+    letter-spacing: -0.025em;
+  }
+
+  .ops-main .ops-page-header-subtitle {
+    margin-top: 5px;
+    color: #747c78 !important;
+    font-size: 0.8rem;
+    line-height: 1.3;
+  }
+
+  .ops-page-header-actions {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    min-width: 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .ops-page-header-controls {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 7px;
+  }
+
+  .ops-page-header-meta {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+    margin: 1px 0 0;
+  }
+
+  .ops-marketing-page .ops-page-header-meta {
+    max-width: none;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .ops-main :where(.ops-page-header-meta, .ops-page-header-updated, .ops-page-header-status) {
+    color: #7d8581 !important;
+    font-size: 0.62rem;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+
+  .ops-page-header .ops-date-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .ops-page-header :where(.ops-date-selector, .ops-refresh-button, .ops-button),
+  .ops-page-header .ops-view-toggle a {
+    min-height: 44px !important;
+    height: 44px !important;
+    padding: 0 10px;
+    border: 1px solid #cfd4cf !important;
+    border-radius: 7px !important;
+    color: #3f4843 !important;
+    background: #fff !important;
+    font-size: 0.72rem;
+    box-shadow: none !important;
+  }
+
+  .ops-page-header .ops-refresh-button {
+    color: #69716e !important;
+  }
+
+  .ops-main .ops-refresh-button,
+  .ops-main .ops-date-selector {
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+
+  body .ops-main .ops-jobs-page.ops-jobs-page.is-dispatch > .ops-page-header.has-subnav {
+    min-height: 98px !important;
+    grid-template-rows: auto auto !important;
+  }
+
+  body .ops-main .ops-jobs-page.ops-jobs-page.is-dispatch .ops-refresh-button,
+  body .ops-main .ops-jobs-page.ops-jobs-page.is-dispatch .ops-date-selector {
+    min-height: 44px !important;
+    height: 44px !important;
+  }
+
+  body .ops-main .ops-jobs-page.ops-jobs-page.is-dispatch > .ops-page-header .ops-page-header-controls {
+    min-height: 44px !important;
+    height: auto !important;
+  }
+
+  .ops-page-header .ops-view-toggle {
+    min-height: 38px;
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid #d4d8d4;
+    border-radius: 8px;
+    background: #e8ebe7;
+  }
+
+  .ops-page-header .ops-view-toggle a {
+    border-color: transparent !important;
+    background: transparent !important;
+  }
+
+  .ops-page-header .ops-view-toggle a.active {
+    color: #171a1d !important;
+    background: #fff !important;
+  }
+
+  .ops-page-header .ops-page-subnav {
+    min-width: 0;
+    min-height: 50px;
+    height: 50px;
+    display: grid !important;
+    position: relative !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(84px, auto);
+    align-items: stretch;
+    gap: 2px;
+    margin: 0;
+    padding: 2px;
+    overflow-x: auto;
+    border: 1px solid #d4d8d4;
+    border-radius: 8px;
+    background: #e8ebe7;
+  }
+
+  .ops-page-header .ops-page-subnav a {
+    min-width: 0;
+    min-height: 44px !important;
+    height: 44px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 0 10px;
+    border: 0 !important;
+    border-radius: 6px;
+    color: #69716e !important;
+    background: transparent !important;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    box-shadow: none !important;
+  }
+
+  .ops-page-header .ops-page-subnav a:hover,
+  .ops-page-header .ops-page-subnav a:focus-visible {
+    color: #303734 !important;
+    background: rgba(255, 255, 255, 0.64) !important;
+  }
+
+  .ops-page-header .ops-page-subnav a.active {
+    color: #171a1d !important;
+    background: #fff !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+  }
+
+  .ops-page-header .ops-page-subnav small {
+    min-width: 17px;
+    height: 17px;
+    display: inline-grid;
+    place-items: center;
+    padding: 0 4px;
+    border-radius: 9px;
+    color: #fff;
+    background: #df2b36;
+    font-size: 0.55rem;
+    line-height: 1;
+  }
+
+  .ops-page-subnav-mobile {
+    display: none;
+  }
+
+  .ops-command-operations-map .ops-jobs-map-workspace,
+  .ops-command-operations-map .ops-jobs-map-shell {
+    border-color: var(--oc-line) !important;
+    background: #fff !important;
+  }
+
+  .ops-command-operations-map .ops-jobs-map-card,
+  .ops-command-operations-map .ops-jobs-map-header,
+  .ops-command-operations-map .ops-jobs-map-legend {
+    border-color: var(--oc-line) !important;
+    background: #fff !important;
+    color: var(--oc-text) !important;
+  }
+
+  .ops-command-operations-map .ops-jobs-map-header :where(.ops-section-title, .ops-muted),
+  .ops-command-operations-map .ops-jobs-map-counts,
+  .ops-command-operations-map .ops-jobs-map-legend :where(span, button) {
+    color: var(--oc-text-secondary) !important;
+  }
+
+  .ops-main .ops-jobs-page .ops-jobs-map-card .ops-jobs-map-header .ops-section-title,
+  .ops-main .ops-jobs-page .ops-jobs-map-card .ops-jobs-map-header .ops-muted {
+    color: var(--oc-text) !important;
+  }
+
+
+  .ops-command-operations-map .ops-jobs-map-counts strong {
+    color: var(--oc-text) !important;
+  }
+
+  .ops-command-operations-map .ops-jobs-map-empty {
+    background: #f3f5f2 !important;
+    color: var(--oc-text-muted) !important;
+  }
+
+  /* Wider section groups stay readable without changing their hit targets. */
+  .ops-jobs-page .ops-page-header-actions,
+  .ops-marketing-page .ops-page-header-actions,
+  .ops-finance-page .ops-page-header-actions {
+    flex-wrap: wrap;
+    max-width: min(70vw, 960px);
+  }
+
+  .ops-jobs-page .ops-page-header .ops-page-subnav,
+  .ops-marketing-page .ops-page-header .ops-page-subnav,
+  .ops-finance-page .ops-page-header .ops-page-subnav {
+    grid-auto-columns: minmax(84px, auto);
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1220px) {
+  .ops-content {
+    padding-inline: 18px;
+  }
+
+  .ops-topbar {
+    padding-inline: 18px;
+  }
+
+  .ops-page-header-actions {
+    max-width: 62vw;
+    flex-wrap: wrap;
+  }
+
+  .ops-page-header .ops-page-subnav {
+    grid-auto-columns: minmax(88px, auto);
+  }
+
+  .ops-page-header .ops-page-subnav a {
+    padding-inline: 8px;
+  }
+}

@@ -11,6 +11,7 @@ import FleetMaintenanceChecklists from "@/components/FleetMaintenanceChecklists"
 import FleetControlCenter from "@/components/FleetControlCenter";
 import FleetServicePlanner from "@/components/FleetServicePlanner";
 import FleetReportsPanel from "@/components/FleetReportsPanel";
+import TruckLoadStatusPanel from "@/components/TruckLoadStatusPanel";
 import { AnyRecord, money, readMetrics, resolveDate, truckRows } from "@/lib/opsData";
 import { buildFleetDailyRecord, buildFleetMonthlySummary, FleetSortDirection, FleetSortKey } from "@/lib/fleet-history";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
@@ -21,6 +22,7 @@ import { readFleetIssueStore } from "@/lib/fleet-issues";
 import { readLatestLinxupVehicleInventory } from "@/lib/linxup-vehicle-inventory";
 import { monthOptions } from "@/lib/monthly-summary";
 import { DRIVING_SCORE_ALERT_RULES, DRIVING_SCORE_COMPENSATION_COPY, drivingScoreCompensationLabel } from "@/lib/driving-score-policy";
+import { readTruckLoadStatuses } from "@/lib/truck-load-status";
 
 function truckDriverScoreRows(metrics: AnyRecord | null): AnyRecord[] {
   const rows = metrics?.truck_driver_scores || metrics?.truck_driver_scores_by_truck || [];
@@ -83,7 +85,7 @@ function normalizeFleetView(value: unknown): FleetView {
   const raw = String(value || "").toLowerCase();
   if (raw === "monthly" || raw === "july") return "monthly";
   if (raw === "daily" || raw === "live") return "daily";
-  return "maintenance";
+  return "daily";
 }
 
 function normalizeSortKey(value: unknown): FleetSortKey {
@@ -792,6 +794,7 @@ export default async function FleetPage({
   const dailyRecord = buildFleetDailyRecord(date);
   const truckScoreRows = dailyRecord?.truckScoreRows || truckDriverScoreRows(metrics);
   const trucks = mergeFleetTruckRows(truckRows(metrics), truckScoreRows);
+  const truckLoadStatuses = readTruckLoadStatuses(date, trucks.map((truck) => String(truck.truck || "")));
   const driverMap = new Map<string, AnyRecord>();
   for (const row of truckScoreRows) {
     driverMap.set(String(row.truck || "").trim(), row);
@@ -826,6 +829,10 @@ export default async function FleetPage({
           { label: "Monthly", href: buildFleetHref({ view: "monthly", date, sort: sortKey, dir: sortDirection }) },
         ]}
       />
+
+      {section === "overview" && truckLoadStatuses.length ? (
+        <TruckLoadStatusPanel date={date} initialStatuses={truckLoadStatuses} />
+      ) : null}
 
       <div className={section === "overview" ? "ops-kpi-row" : "ops-section-hidden"} id="fleet-overview">
         <div className="ops-card ops-kpi-card">

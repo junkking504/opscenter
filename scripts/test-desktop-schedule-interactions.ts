@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { assignmentNeedsVerification, scheduleMoveRestriction, unavailableRoute, isClosed, scheduleMoveWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
+import { assignmentNeedsVerification, scheduleMoveRestriction, scheduleCustomerLabel, scheduleStatusTone, unavailableRoute, isClosed, scheduleMoveWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
 import { scheduleMoveProposal } from '../desktop-ui/schedule-drag';
 
 const job = { recordId: '2026-09-03:appointment:1234', appointmentId: '1234', jkNumber: 'JK1234567', truck: 'Truck 4', appointmentStartMinutes: 840, appointmentEndMinutes: 960, appointmentTime: '2:00 PM–4:00 PM', appointmentType: 'Estimate', status: 'Confirmed' } as ScheduleAppointment;
@@ -38,3 +38,14 @@ assert.equal(scheduleMoveRestriction(job), null);
 assert.match(scheduleMoveRestriction({ ...job, appointmentType: "Job", status: "Completed" })!, /Completed appointments/);
 assert.match(scheduleMoveRestriction({ ...job, status: "Canceled" })!, /Canceled appointments/);
 assert.match(scheduleMoveRestriction({ ...job, junkwareSyncStatus: "pending" })!, /Verify the previous assignment/);
+
+assert.equal(scheduleCustomerLabel({ customerName: "Alex Example 5551234567 Address and cancellation notes", phone: "(555) 123-4567" }), "Alex Example");
+assert.equal(scheduleCustomerLabel({ customerName: "Business 5551234567", phone: "5559876543" }), "Business 5551234567");
+assert.equal(scheduleCustomerLabel({ customerName: "Alex Example", phone: "5551234567" }), "Alex Example");
+
+assert.equal(scheduleStatusTone({ status: 'On Site' }), 'on-site');
+assert.equal(scheduleStatusTone({ status: 'On-site' }), 'on-site');
+assert.equal(scheduleStatusTone({ status: 'Completed' }), 'completed');
+assert.equal(scheduleStatusTone({ status: 'Estimate Closed' }), 'completed');
+assert.equal(scheduleStatusTone({ status: 'Cancelled' }), 'canceled');
+assert.equal(scheduleStatusTone({ status: 'Confirmed' }), 'waiting');

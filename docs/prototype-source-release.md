@@ -232,15 +232,15 @@ Appointment symbols are 18px territory-colored circles; trucks use a numbered
 truck silhouette. Both retain 30px click targets and collision separation.
 
 Schedule blocks keep their territory color across estimate and completion
-states. JK numbers wrap within narrow blocks instead of truncating. Overlapping
-appointments receive enough lane height for the identifier; the board scrolls
-locally when its rows exceed the available panel height.
+states. Customer names and status identify each compact block; time windows remain
+visible in grid placement and full appointment details. Overlapping appointments
+receive separate lanes.
 
 Map hover labels show only the JK number and appointment window, or the truck
 number and GPS freshness. They wrap within 150px and clamp to the map canvas;
 full accessible labels and click-through details remain available.
 
-Dragging can begin on the block or JK number. Pointer capture and temporary
+Dragging can begin anywhere on the appointment block. Pointer capture and temporary
 selection suppression prevent native text selection; drop still requires the
 existing review and verified JunkWare write. Clicks after a drag are suppressed,
 and Escape, pointer cancellation, blur, or unmount clean up the gesture.
@@ -250,8 +250,17 @@ missing provider estimate. Coordinates remain subject to the existing strict
 verification; the interface never substitutes invented travel times.
 
 Dispatch keeps the map and truck schedule side by side on desktop, with the
-timeline scrolling inside its panel. Narrow screens stack the panels. Cards
-retain their 88px height and separate overlap lanes. Time, JK identity, customer, and status remain
-visible independently of viewport height. Closed/canceled or unverified
+full day and all truck rows visible without an inner schedule scrollbar. Phone screens stack the panels; compact desktop panes retain both columns. Cards
+retain their compact 58px height and separate overlap lanes. Customer name and
+status are the only visible card labels; JK identity and time remain in the
+accessible label and appointment drawer. Closed/canceled or unverified
 appointments show their restriction; attempted drags explain it without
 submitting a move. The shared Command map keeps its compact layout.
+
+Schedule toolbar actions use the same 26px height and 10px type as the day
+controls. Compact cards prioritize customer name and status. On-site status uses a red
+light with the existing 1.15-second pulse (static for reduced motion), completed
+work a green check, and canceled work a black X. Source status determines these
+indicators; GPS proximity is not inferred by the desktop card.
+When the source appends a matching contact phone and notes to a customer name,
+only the name is shown on the card; the source detail remains unchanged.

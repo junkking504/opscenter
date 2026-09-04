@@ -1,34 +1,31 @@
 /* Dispatch needs readable cards independently of the map and viewport height. */
-.ops-live .schedule-dispatch .schedule-board-layout.map-open { height: clamp(390px, calc(100dvh - 280px), 580px); grid-template-columns: minmax(330px, .78fr) minmax(0, 1.22fr); gap: 8px; }
+.ops-live .schedule-dispatch .schedule-board-layout.map-open { height: auto; grid-template-columns: minmax(180px, .6fr) minmax(0, 1.4fr); gap: 8px; }
 .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-map-panel { height: 100%; min-height: 0; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(200px, 1fr) auto; }
 .ops-live .schedule-dispatch .live-map-territories { grid-column: 1 / -1; }
 .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-map-canvas { min-height: 200px; border-right: 0; border-bottom: 1px solid var(--border); }
 .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-map-controls { display: flex; flex-direction: column; max-height: 180px; overflow-y: auto; }
 .ops-live .schedule-dispatch .schedule-board-shell { height: auto; display: block; min-width: 0; }
 .ops-live .schedule-dispatch .schedule-board-scroll { height: auto; max-height: 680px; overflow: auto; overscroll-behavior: contain; }
-.ops-live .schedule-dispatch .schedule-board-layout .schedule-board { display: block; height: auto; width: 100%; position: relative; --schedule-route-width: 144px; }
-.ops-live .schedule-dispatch .schedule-time-row { position: sticky; top: 0; z-index: 6; height: 30px; background: #f1f4f1; }
-.ops-live .schedule-dispatch .schedule-time-row > span { padding: 7px 8px; font-size: 11px; }
+.ops-live .schedule-dispatch .schedule-board-layout .schedule-board { display: block; height: auto; width: 100%; position: relative; --schedule-route-width: 104px; }
+.ops-live .schedule-dispatch .schedule-time-row { position: sticky; top: 0; z-index: 6; height: 22px; background: #f1f4f1; }
+.ops-live .schedule-dispatch .schedule-time-row > span { padding: 4px 6px; font-size: 9px; }
 .ops-live .schedule-dispatch .schedule-time-row > span:first-child { position: sticky; left: 0; z-index: 7; background: #f1f4f1; border-right: 1px solid var(--border); }
-.ops-live .schedule-dispatch .schedule-truck-row { min-height: 60px; }
-.ops-live .schedule-dispatch .schedule-truck-cell { position: sticky; width: 144px; inset: auto; left: 0; height: 100%; padding: 7px 9px; grid-template-columns: 5px minmax(0, 1fr); column-gap: 7px; }
-.ops-live .schedule-dispatch .schedule-truck-cell strong { font-size: 12px; }
-.ops-live .schedule-dispatch .schedule-truck-cell span { display: block; font-size: 11px; line-height: 1.35; }
-.ops-live .schedule-dispatch .live-truck-timeline { left: 144px; }
-.ops-live .schedule-dispatch .live-truck-timeline .schedule-appointment { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 2px; bottom: auto; margin: 0 1px; min-height: 88px; padding: 6px; opacity: 1; border-radius: 5px; }
-.ops-live .schedule-dispatch .schedule-appointment > span { flex: 0 0 auto; color: #344b55; font-size: 11px; line-height: 14px; padding-right: 8px; }
-.ops-live .schedule-dispatch .schedule-appointment > .schedule-jk-link { flex: 0 0 auto; font-size: 12px !important; line-height: 15px; margin: 0 !important; color: #25323a !important; text-decoration-thickness: 1px; }
-.ops-live .schedule-dispatch .live-truck-timeline .schedule-appointment > small { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow: hidden; flex: 1 1 auto; min-height: 14px; margin: 0; color: #344b55; font-size: 11px; line-height: 14px; }
-.ops-live .schedule-dispatch .schedule-appointment > .schedule-block-status { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; margin: 0; color: #344b55; font-size: 10px; line-height: 12px; }
+.ops-live .schedule-dispatch .schedule-truck-row { min-height: 44px; }
+.ops-live .schedule-dispatch .schedule-truck-cell { position: sticky; width: 104px; inset: auto; left: 0; height: 100%; padding: 4px 6px; grid-template-columns: 5px minmax(0, 1fr); column-gap: 7px; }
+.ops-live .schedule-dispatch .schedule-truck-cell strong { font-size: 10px; }
+.ops-live .schedule-dispatch .schedule-truck-cell span { display: block; font-size: 9px; line-height: 1.25; }
+.ops-live .schedule-dispatch .live-truck-timeline { left: 104px; }
+.ops-live .schedule-dispatch .live-truck-timeline .schedule-appointment { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 1px; bottom: auto; margin: 0 1px; min-height: 58px; padding: 3px; opacity: 1; border-radius: 5px; }
+.ops-live .schedule-dispatch .schedule-appointment > .schedule-block-status { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; margin: 0; color: #344b55; font-size: 8px; line-height: 10px; }
 .ops-live .schedule-dispatch .schedule-block-status svg { flex-shrink: 0; }
-.ops-live .schedule-dispatch .schedule-grip { top: 6px; right: 2px; }
+.ops-live .schedule-dispatch .schedule-grip { top: 3px; right: 1px; }
 .ops-live .schedule-dispatch .schedule-appointment.scope-muted { opacity: .25; }
 .ops-live .schedule-dispatch .schedule-appointment.is-dragging { opacity: .35; }
-.ops-live .schedule-dispatch .schedule-route-leg { bottom: 1px; height: 18px; }
-.ops-live .schedule-dispatch .schedule-route-leg strong { font-size: 10px; }
-.ops-live .schedule-dispatch .schedule-drag-preview { min-height: 88px; top: 4px; bottom: 20px; font-size: 12px; }
-.ops-live .schedule-dispatch .schedule-drag-help { font-size: 10px; }
-@media (max-width: 720px) {
+.ops-live .schedule-dispatch .schedule-route-leg { bottom: 1px; height: 13px; }
+.ops-live .schedule-dispatch .schedule-route-leg strong { font-size: 8px; }
+.ops-live .schedule-dispatch .schedule-drag-preview { min-height: 58px; top: 3px; bottom: 14px; font-size: 11px; }
+.ops-live .schedule-dispatch .schedule-drag-help { font-size: 8px; }
+@media (max-width: 540px) {
   .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-map-panel { height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 260px auto; }
   .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-map-controls { max-height: 170px; }
   .ops-live .schedule-dispatch .schedule-board-scroll { max-height: 620px; }
@@ -40,7 +37,7 @@
 /* Keep both panels aligned while the timeline scrolls within its own panel. */
 .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-board-shell { height: 100%; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
 .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-board-scroll { height: auto; min-height: 0; max-height: none; }
-@media (max-width: 1100px) {
+@media (max-width: 540px) {
   .ops-live .schedule-dispatch .schedule-board-layout.map-open { height: auto; grid-template-columns: minmax(0, 1fr); }
   .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-map-panel { height: 470px; }
   .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-board-shell { height: auto; display: block; }
@@ -48,3 +45,37 @@
 }
 
 .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-board { display: block; height: auto; }
+
+.ops-live .schedule-dispatch .schedule-board-shell > .section-title { min-height: 36px; padding: 5px 8px; }
+.ops-live .schedule-dispatch .schedule-board-shell > .section-title h2 { font-size: 14px; line-height: 1.2; }
+.ops-live .schedule-dispatch .schedule-board-shell .section-kicker { font-size: 8px; }
+
+/* Match the compact control scale across the schedule toolbar. */
+.ops-live .schedule-dispatch .schedule-control-bar { padding: 4px; gap: 6px; }
+.ops-live .schedule-dispatch .schedule-control-actions { gap: 5px; }
+.ops-live .schedule-dispatch .schedule-control-actions > button,
+.ops-live .schedule-dispatch .schedule-control-actions input,
+.ops-live .schedule-dispatch .day-switcher button { height: 26px; min-height: 26px; padding: 3px 8px; border-radius: 5px; font-size: 10px; line-height: 18px; }
+.ops-live .schedule-dispatch .day-switcher button { width: auto; min-width: 80px; }
+.ops-live .schedule-dispatch .day-switcher span { min-width: 16px; min-height: 16px; margin-left: 4px; font-size: 8px; }
+
+/* Show the full day and every row without an inner schedule viewport. */
+.ops-live .schedule-dispatch .schedule-board-layout .schedule-board-shell { height: auto; display: block; }
+.ops-live .schedule-dispatch .schedule-board-layout .schedule-board-scroll { height: auto; max-height: none; overflow: visible; }
+.ops-live .schedule-dispatch .schedule-board-layout .schedule-board { min-width: 0; width: 100%; }
+@media (min-width: 541px) {
+  .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-board-shell { height: auto; display: block; }
+  .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-board-scroll { height: auto; max-height: none; overflow: visible; }
+}
+
+/* Names and source status are the only visible appointment labels. */
+.ops-live .schedule-dispatch .live-truck-timeline .schedule-appointment > .schedule-customer-name { display: block; flex: 1 1 auto; min-height: 0; padding-right: 3px; color: #25323a; font-size: 10px; line-height: 12px; font-weight: 650; white-space: normal; overflow-wrap: anywhere; overflow: hidden; }
+.ops-live .schedule-dispatch .schedule-appointment > .schedule-block-status { min-height: 12px; font-size: 8px; line-height: 11px; font-style: normal; white-space: normal; }
+.ops-live .schedule-dispatch .schedule-block-status > span { min-width: 0; overflow-wrap: anywhere; }
+.ops-live .schedule-dispatch .schedule-block-status.status-completed > svg { color: #188346; }
+.ops-live .schedule-dispatch .schedule-block-status.status-canceled > svg { color: #111; }
+.ops-live .schedule-dispatch .schedule-appointment.canceled::after { content: none; }
+.ops-live .schedule-dispatch .schedule-appointment.canceled { box-shadow: none; }
+.ops-live .schedule-dispatch .schedule-on-site-light { flex: 0 0 7px; width: 7px; height: 7px; border-radius: 50%; background: #ef233c; box-shadow: 0 0 0 2px #ef233c33; animation: schedule-on-site-blink 1.15s ease-in-out infinite; }
+@keyframes schedule-on-site-blink { 0%, 100% { opacity: 1; } 50% { opacity: .28; } }
+@media (prefers-reduced-motion: reduce) { .ops-live .schedule-dispatch .schedule-on-site-light { animation: none; } }

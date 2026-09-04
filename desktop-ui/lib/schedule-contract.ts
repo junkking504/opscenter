@@ -106,12 +106,28 @@ export function appointmentStatus(job: Pick<ScheduleAppointment, 'appointmentTyp
   if (/complete|closed/i.test(job.status)) return appointmentCategory(job) === 'Estimate' ? 'Estimate Closed' : 'Completed';
   return job.status || 'Status Unavailable';
 }
+export function scheduleStatusTone(job: Pick<ScheduleAppointment, 'status'>) {
+  if (/cancel/i.test(job.status)) return 'canceled';
+  if (/complete|closed/i.test(job.status)) return 'completed';
+  if (/on[ _-]?site|on location/i.test(job.status)) return 'on-site';
+  return 'waiting';
+}
 export function isClosed(job: Pick<ScheduleAppointment, 'appointmentType' | 'status'>) { return /complete|closed|cancel/i.test(job.status); }
 export function assignmentNeedsVerification(job: Pick<ScheduleAppointment, 'junkwareSyncStatus'>) { return Boolean(job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified'); }
 export function scheduleMoveRestriction(job: ScheduleAppointment) {
   if (isClosed(job)) return `${appointmentStatus(job)} appointments cannot be moved through dispatch.`;
   if (assignmentNeedsVerification(job)) return 'Verify the previous assignment change in JunkWare before moving this appointment again.';
   return null;
+}
+export function scheduleCustomerLabel(job: Pick<ScheduleAppointment, 'customerName' | 'phone'>) {
+  // Some source cancellation labels append the phone, address and notes to
+  // the name. Split only when that phone matches the appointment contact.
+  const name = job.customerName.trim();
+  const contact = job.phone.replace(/\D/g, '').slice(-10);
+  const embedded = /\s+(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]?\d{3}[ .-]?\d{4}\b/.exec(name);
+  return embedded && contact.length === 10 && embedded[0].replace(/\D/g, '').slice(-10) === contact
+    ? name.slice(0, embedded.index).trim() || name
+    : name || 'Customer Unavailable';
 }
 export function scheduleMoveWindow(job: Pick<ScheduleAppointment, 'appointmentStartMinutes' | 'appointmentEndMinutes' | 'appointmentTime'>, start: number | null) {
   const changed = start !== null && start !== job.appointmentStartMinutes;

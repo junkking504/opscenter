@@ -108,6 +108,11 @@ export function appointmentStatus(job: Pick<ScheduleAppointment, 'appointmentTyp
 }
 export function isClosed(job: Pick<ScheduleAppointment, 'appointmentType' | 'status'>) { return /complete|closed|cancel/i.test(job.status); }
 export function assignmentNeedsVerification(job: Pick<ScheduleAppointment, 'junkwareSyncStatus'>) { return Boolean(job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified'); }
+export function scheduleMoveRestriction(job: ScheduleAppointment) {
+  if (isClosed(job)) return `${appointmentStatus(job)} appointments cannot be moved through dispatch.`;
+  if (assignmentNeedsVerification(job)) return 'Verify the previous assignment change in JunkWare before moving this appointment again.';
+  return null;
+}
 export function scheduleMoveWindow(job: Pick<ScheduleAppointment, 'appointmentStartMinutes' | 'appointmentEndMinutes' | 'appointmentTime'>, start: number | null) {
   const changed = start !== null && start !== job.appointmentStartMinutes;
   const duration = job.appointmentStartMinutes !== null && job.appointmentEndMinutes !== null ? job.appointmentEndMinutes - job.appointmentStartMinutes : null;

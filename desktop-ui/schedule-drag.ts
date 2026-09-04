@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
-  assignmentNeedsVerification,
-  isClosed,
   truckLabel,
+  scheduleMoveRestriction,
   type ScheduleAppointment,
   type timelineRange,
 } from "./lib/schedule-contract";
@@ -43,6 +42,7 @@ export function useScheduleDrag(
   onDrop: (move: MoveProposal) => void,
   date: string,
   disabled = false,
+  onBlocked?: (reason: string) => void,
 ) {
   const [preview, setPreview] = useState<MoveProposal | null>(null);
   const suppressClick = useRef(false);
@@ -54,8 +54,6 @@ export function useScheduleDrag(
     const target = event.target as HTMLElement;
     if (
       disabled ||
-      isClosed(job) ||
-      assignmentNeedsVerification(job) ||
       (target.closest("button,a,input,select") && !target.closest('.schedule-jk-link'))
     )
       return;
@@ -71,6 +69,7 @@ export function useScheduleDrag(
     const block = element.getBoundingClientRect();
     const grabOffset = x - block.left;
     let moved = false;
+    const restriction = scheduleMoveRestriction(job);
     let proposal: MoveProposal | null = null;
     const finish = () => {
       window.removeEventListener("pointermove", move);
@@ -88,9 +87,11 @@ export function useScheduleDrag(
       if (pointer.pointerId !== pointerId) return;
       if (!moved && Math.hypot(pointer.clientX - x, pointer.clientY - y) < 6) return;
       if (!moved) element.focus({ preventScroll: true });
+      if (!moved && restriction) onBlocked?.(restriction);
       moved = true;
       suppressClick.current = true;
       pointer.preventDefault();
+      if (restriction) return;
       const row = document
         .elementFromPoint(pointer.clientX, pointer.clientY)
         ?.closest<HTMLElement>("[data-schedule-truck]");

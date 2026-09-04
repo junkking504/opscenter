@@ -248,3 +248,9 @@ and Escape, pointer cancellation, blur, or unmount clean up the gesture.
 Unavailable route labels distinguish an unverified appointment address from a
 missing provider estimate. Coordinates remain subject to the existing strict
 verification; the interface never substitutes invented travel times.
+
+Dispatch uses a full-width, horizontally scrollable timeline with 88px cards
+and separate overlap lanes. Time, JK identity, customer, and status remain
+visible independently of viewport height. Closed/canceled or unverified
+appointments show their restriction; attempted drags explain it without
+submitting a move. The shared Command map keeps its compact layout.

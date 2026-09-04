@@ -70,9 +70,34 @@
 .live-schedule .live-map-truck-jobs { display: grid; gap: 4px; }
 .live-schedule .live-map-truck-jobs button { border: 0; background: #f0f4f0; padding: 4px; text-align: left; font-size: 10px; cursor: pointer; }
 .live-schedule .schedule-truck-cell[aria-pressed="true"] { outline: 2px solid #20262b; outline-offset: -2px; }
+/* Small visible symbols retain separate 30px click targets. */
 .live-schedule-map .live-map-pin { pointer-events: none; }
-.live-schedule-map .live-map-pin .map-marker { position: static; transform: none; width: 30px; height: 30px; margin: 0; padding: 0; pointer-events: auto; cursor: pointer; }
-.live-schedule-map .live-map-pin .appointment-marker { --territory-color: #89918d; color: #17212b; background: var(--territory-color); }
-.live-schedule-map .live-map-pin .completed { border-style: double; border-width: 4px; }
-.live-schedule-map .live-map-pin .canceled { opacity: .65; }
-.live-schedule-map .live-map-pin .route-selected, .live-schedule-map .live-map-pin button:focus-visible { outline: 3px solid #20262b; outline-offset: 2px; }
+.live-schedule-map .live-map-pin .map-marker { position: static; transform: none; display: grid; place-items: center; width: 30px; height: 30px; margin: 0; padding: 0; border: 0; outline: 0; background: transparent; box-shadow: none; pointer-events: auto; cursor: pointer; }
+.live-schedule-map .map-pin-symbol { display: grid; place-items: center; position: relative; pointer-events: none; }
+.live-schedule-map .appointment-marker .map-pin-symbol { --territory-color: inherit; width: 18px; height: 18px; border: 1.5px solid #fff; border-radius: 50%; background: var(--territory-color, #89918d); color: #17212b; font-size: 8px; font-weight: 800; box-shadow: 0 1px 3px #17212b44; }
+.live-schedule-map .completed .map-pin-symbol { border-style: double; border-width: 3px; }
+.live-schedule-map .canceled .map-pin-symbol { opacity: .65; }
+.live-schedule-map .truck-marker .map-pin-symbol { width: 28px; height: 24px; color: #20262b; filter: drop-shadow(0 1px 2px #17212b66); }
+.live-schedule-map .truck-marker.stale .map-pin-symbol { color: #a87818; }
+.live-schedule-map .truck-marker svg { display: block; width: 28px; height: 24px; fill: currentColor; stroke: #fff; stroke-width: 1.2; }
+.live-schedule-map .truck-marker .truck-window { fill: #fff; stroke: none; }
+.live-schedule-map .truck-marker svg text { fill: #fff; stroke: none; font: 800 9px sans-serif; }
+.live-schedule-map .route-selected .map-pin-symbol, .live-schedule-map button:focus-visible .map-pin-symbol { outline: 2px solid #20262b; outline-offset: 2px; border-radius: 4px; }
+.live-schedule-map .appointment-marker.route-selected .map-pin-symbol, .live-schedule-map .appointment-marker:focus-visible .map-pin-symbol { width: 20px; height: 20px; border-radius: 50%; }
+
+/* Compact shared map details on Command and Schedule. */
+.ops-live .live-schedule .schedule-map-controls { padding: 7px 9px; gap: 4px 8px; }
+.ops-live .live-schedule .schedule-map-controls h2 { margin: 1px 0 0; font-size: 12px; line-height: 1.2; font-weight: 650; }
+.ops-live .live-schedule .schedule-map-controls .section-kicker { font-size: 8px; letter-spacing: .08em; }
+.ops-live .live-schedule .live-map-help { font-size: 9px; line-height: 1.35; }
+.ops-live .live-schedule .live-map-truck-details { font-size: 10px; line-height: 1.35; }
+.ops-live .live-schedule .live-map-truck-details header strong { font-size: 12px; }
+.ops-live .live-schedule .live-map-truck-details header button { min-width: 24px; min-height: 24px; padding: 0; font-size: 18px; line-height: 1; }
+.ops-live .live-schedule .live-map-truck-details dl { gap: 3px; margin: 3px 0; }
+.ops-live .live-schedule .live-map-truck-details dd { min-width: 0; overflow-wrap: anywhere; font-size: 10px; }
+.ops-live .live-schedule .live-map-truck-actions { gap: 4px 8px; margin: 5px 0; }
+.ops-live .live-schedule .live-map-truck-actions a, .ops-live .live-schedule .live-map-truck-actions button { font-size: 10px; }
+.ops-live .live-schedule .live-map-truck-actions button { height: 25px; padding: 3px 8px; }
+.ops-live .live-schedule .live-map-truck-jobs { gap: 3px; }
+.ops-live .live-schedule-map .leaflet-control-attribution { padding: 1px 4px; font-size: 10px; line-height: 1.25; }
+.ops-live .live-schedule-map .leaflet-control-attribution a { font-size: inherit; }

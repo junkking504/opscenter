@@ -21,6 +21,7 @@ import { LiveMarketing } from '../live-marketing';
 import { LiveFinance } from '../live-finance';
 import LiveSearch from '../live-search';
 import LiveSchedule, { dateForDay } from '../live-schedule';
+import CommandMap from '../command-map';
 
 type Priority = 'critical' | 'warning' | 'watch';
 type AppointmentLoadStream = 'mixed' | 'metal' | 'donation';
@@ -4289,6 +4290,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               </button>
             ))}
           </section>}
+
+          {activeNav === 'Command' && view === 'now' && live && <CommandMap date={live.snapshot.date} busy={mutationBusy} report={setActionFeedback} onBusyChange={onBusyChange} openSchedule={() => { if (mutationBusyRef.current) return; setScheduleDay('today'); setScheduleView('board'); setActiveNav('Schedule'); }} />}
 
           {activeNav === 'Command' && view === 'now' && (
             <div className="command-grid">

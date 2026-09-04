@@ -214,3 +214,19 @@ runs. The Mission Control collector now calls the existing one-way `initial`
 sync mode, publishing data and shared state without pulling VPS copies back.
 The VPS is a routing relay, not a verified hot standby. Direct tunnel routing and
 independent code/database failover remain separate infrastructure work.
+
+
+### Command operations map
+
+Command's Alerts view includes a collapsible Operations Map below the KPIs.
+It uses the same live Schedule map, territory focus, appointment drawer, truck
+selection, camera controller, and mutation guards. The compact mode loads only
+the selected operating day and requests route comparisons after appointment
+selection. Collapsing unmounts the map, stops its polling, and cleans up camera
+sessions. Visibility is remembered in browser storage; first use on mobile starts
+collapsed. Open Schedule switches to the selected day's board.
+
+Shared map details use compact headings and actions. The optional Leaflet prefix
+is removed; the OpenStreetMap attribution remains visible and linked.
+Appointment symbols are 18px territory-colored circles; trucks use a numbered
+truck silhouette. Both retain 30px click targets and collision separation.

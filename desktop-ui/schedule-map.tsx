@@ -22,6 +22,7 @@ export default function ScheduleMap(props: Props) {
   useEffect(() => {
     if (!host.current) return;
     const view = L.map(host.current, { zoomControl: true, scrollWheelZoom: true }).setView([30.14, -90.5], 8);
+    view.attributionControl.setPrefix(false);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom: 19 }).addTo(view);
     map.current = view;
     markers.current = L.layerGroup().addTo(view);
@@ -87,7 +88,20 @@ export default function ScheduleMap(props: Props) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `map-marker ${pin.className}${pin.selected ? ' route-selected' : ''}`;
-        button.textContent = pin.text;
+        const symbol = document.createElement('span');
+        symbol.className = 'map-pin-symbol';
+        symbol.setAttribute('aria-hidden', 'true');
+        if (pin.id.startsWith('truck:')) {
+          // Static icon geometry; the truck number is inserted as text, never HTML.
+          symbol.innerHTML = '<svg viewBox="0 0 28 24" focusable="false"><rect x="1" y="3" width="15" height="14" rx="2"/><path d="M16 8h5l5 5v4H16z"/><path class="truck-window" d="M18 10h2l3 3h-5z"/><circle cx="6" cy="18" r="3"/><circle cx="21" cy="18" r="3"/></svg>';
+          const number = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+          number.setAttribute('x', '8.5');
+          number.setAttribute('y', '13.5');
+          number.setAttribute('text-anchor', 'middle');
+          number.textContent = pin.text.replace(/^T/, '');
+          symbol.querySelector('svg')!.append(number);
+        } else symbol.textContent = pin.text;
+        button.append(symbol);
         button.dataset.mapPin = pin.id;
         button.setAttribute('aria-label', pin.label);
         button.setAttribute('aria-pressed', String(pin.selected));

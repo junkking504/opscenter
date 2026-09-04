@@ -1,0 +1,47 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { CommercialActionError, authoritativeMarketingTotals, commercialVersion, executeCommercialOperation, parseCommercialOperation, validCommercialDate, readCommercialReceipt } from '../lib/desktop-marketing';
+import { updateDesktopFinance } from '../lib/desktop-finance';
+import type { CommercialOperation } from '../desktop-ui/lib/commercial-contract';
+const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-commercial-test-'));
+const previous = process.env.OPSCENTER_DESKTOP_COMMERCIAL_DIR;
+process.env.OPSCENTER_DESKTOP_COMMERCIAL_DIR = directory;
+const manager = { email: 'manager@example.invalid', role: 'manager' as const };
+const operator = { email: 'operator@example.invalid', role: 'operator' as const };
+function operation(action: CommercialOperation['action'] = 'lead.update'): CommercialOperation { return { requestId: randomUUID(), action, date: '2026-09-04', recordId: randomUUID(), expectedVersion: commercialVersion({ test: true }), values: {} }; }
+try {
+  const leads = [{ status: 'booked', matchedAppointment: null }, { status: 'booked', matchedAppointment: { appointmentId: 'TEST-1', completed: true, revenue: 125 } }, { status: 'booked', matchedAppointment: { appointmentId: 'TEST-1', completed: true, revenue: 125 } }];
+  assert.deepEqual(authoritativeMarketingTotals(leads as Parameters<typeof authoritativeMarketingTotals>[0]), { bookings: 1, completed: 1, revenue: 125 }, 'reported bookings never inflate source matches; repeat calls never duplicate completed revenue');
+  assert.equal(validCommercialDate('2026-02-30'), false);
+  assert.equal(validCommercialDate('2024-02-29'), true);
+  assert.throws(() => parseCommercialOperation({ ...operation(), action: 'payment.match' }));
+  assert.throws(() => parseCommercialOperation({ ...operation(), requestId: '../../receipt' }));
+  const change = operation(); let writes = 0;
+  const execute = () => executeCommercialOperation(change, operator, () => change.expectedVersion, () => { writes += 1; return true; });
+  assert.equal(execute().status, 'verified'); assert.equal(execute().status, 'verified'); assert.equal(writes, 1, 'same request never replays');
+  assert.equal(readCommercialReceipt(change.requestId)?.actor, operator.email);
+  assert.throws(() => executeCommercialOperation({ ...change, values: { other: true } }, operator, () => change.expectedVersion, () => true), /another change/);
+  assert.throws(() => executeCommercialOperation(operation('review.assign'), operator, () => '', () => true), /Manager/);
+  assert.throws(() => executeCommercialOperation(operation(), manager, () => 'stale', () => true), /record changed/);
+  const uncertain = operation(); assert.equal(executeCommercialOperation(uncertain, manager, () => uncertain.expectedVersion, () => false).status, 'uncertain');
+  assert.throws(() => executeCommercialOperation({ ...uncertain, requestId: randomUUID() }, manager, () => uncertain.expectedVersion, () => true), /unverified change/);
+  const persistenceFailure = operation();
+  assert.throws(() => executeCommercialOperation(persistenceFailure, manager, () => persistenceFailure.expectedVersion, () => { fs.mkdirSync(path.join(directory, `${persistenceFailure.requestId}.json.tmp`)); return true; }), error => error instanceof CommercialActionError && error.stage === 'uncertain', 'Failure to persist a receipt after a write must never be reported as a preflight rejection');
+  assert.equal(readCommercialReceipt(persistenceFailure.requestId)?.status, 'pending');
+  assert.throws(() => executeCommercialOperation(operation(), manager, () => 'stale', () => true), error => error instanceof CommercialActionError && error.stage === 'preflight');
+  const run: CommercialOperation = { ...operation('recycling.save'), expectedVersion: commercialVersion([]), values: { material: 'Synthetic metal', sourceJob: 'TEST-ONLY', yard: '', quantity: '20 lb', owner: 'Synthetic manager', ticket: '', paymentReference: '', note: '', status: 'Awaiting yard', expectedValue: null, realizedValue: null } };
+  assert.equal(updateDesktopFinance(run, manager).status, 'verified');
+  assert.equal(updateDesktopFinance(run, manager).status, 'verified', 'retries return receipt without duplicate records');
+  let records = JSON.parse(fs.readFileSync(path.join(directory, 'recycling-store'), 'utf8')).records;
+  assert.equal(records.length, 1); assert.equal(records[0].realizedValue, null, 'missing receipt amount stays unknown');
+  assert.throws(() => updateDesktopFinance({ ...run, requestId: randomUUID(), expectedVersion: records[0].version, values: { ...run.values, status: 'Paid' } }, manager), /Yard and ticket/);
+  assert.throws(() => updateDesktopFinance({ ...run, requestId: randomUUID(), expectedVersion: records[0].version, values: { ...run.values, status: 'Paid', yard: 'Synthetic yard', ticket: 'TEST-TICKET', paymentReference: 'TEST-RECEIPT', realizedValue: null } }, manager), /actual amount/);
+  const saved = updateDesktopFinance({ ...run, requestId: randomUUID(), date: '2026-09-05', expectedVersion: records[0].version, values: { ...run.values, status: 'Paid', yard: 'Synthetic yard', ticket: 'TEST-TICKET', paymentReference: 'TEST-RECEIPT', realizedValue: 12.34 } }, manager);
+  assert.equal(saved.status, 'verified'); records = JSON.parse(fs.readFileSync(path.join(directory, 'recycling-store'), 'utf8')).records;
+  assert.equal(records[0].date, '2026-09-04', 'editing from another selected day preserves original run date');
+  assert.equal(records[0].realizedValue, 12.34);
+  console.log('Commercial lifecycle: role checks, validation, stale versions, idempotency, uncertain-write guard, required evidence and durable read-back passed.');
+} finally { if (previous === undefined) delete process.env.OPSCENTER_DESKTOP_COMMERCIAL_DIR; else process.env.OPSCENTER_DESKTOP_COMMERCIAL_DIR = previous; fs.rmSync(directory, { recursive: true, force: true }); }

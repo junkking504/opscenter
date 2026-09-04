@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client';
 import Home from './app/page';
 import LiveCommand from './live-command';
 import './app/globals.css';
+import './live-responsive.css';
 
 // The authenticated server, not a query parameter or local storage, selects the
 // data mode. The approved fixtures are only available in isolated local QA.

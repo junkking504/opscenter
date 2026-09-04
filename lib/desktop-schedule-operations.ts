@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import type { DesktopAppointment } from '@/lib/desktop-schedule';
 import { withJobRouteAssignmentSyncLock } from '@/lib/job-route-assignments';
 
-export type ScheduleOperation = { requestId: string; date: string; recordId: string; expectedVersion: string; action: 'move' | 'call_ahead' | 'cancel' | 'note'; values: Record<string, unknown> };
+export type ScheduleOperation = { requestId: string; date: string; recordId: string; expectedVersion: string; action: 'move' | 'call_ahead' | 'cancel' | 'note' | 'closeout'; values: Record<string, unknown> };
 export type ScheduleReceipt = { requestId: string; actor: string; action: ScheduleOperation['action']; recordId: string; date: string; fingerprint: string; status: 'pending' | 'verified' | 'failed' | 'uncertain'; updatedAt: string; message: string; sourceResult?: Record<string, unknown> };
 const directory = () => process.env.OPSCENTER_DESKTOP_OPERATIONS_DIR || path.join(process.cwd(), 'data', 'desktop-operations');
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -15,13 +15,14 @@ export function parseScheduleOperation(value: unknown): ScheduleOperation {
   const recordId = String(body.recordId || '');
   const expectedVersion = String(body.expectedVersion || '');
   const action = String(body.action || '') as ScheduleOperation['action'];
-  if (!uuid.test(requestId) || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) !== date || !recordId.startsWith(`${date}:appointment:`) || recordId.length > 100 || !/^[a-f0-9]{64}$/.test(expectedVersion) || !['move', 'call_ahead', 'cancel', 'note'].includes(action)) throw new Error('A valid appointment, source version, operating date, and request ID are required.');
+  if (!uuid.test(requestId) || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) !== date || !recordId.startsWith(`${date}:appointment:`) || recordId.length > 100 || !/^[a-f0-9]{64}$/.test(expectedVersion) || !['move', 'call_ahead', 'cancel', 'note', 'closeout'].includes(action)) throw new Error('A valid appointment, source version, operating date, and request ID are required.');
   const values = body.values && typeof body.values === 'object' ? body.values as Record<string, unknown> : {};
   if (JSON.stringify(values).length > 10_000) throw new Error('The appointment change is too large.');
   if (!new RegExp(`^${date}:appointment:[0-9]{1,12}$`).test(recordId)) throw new Error('A valid source appointment ID is required.');
   if (action === 'call_ahead' && typeof values.called !== 'boolean') throw new Error('A call-ahead status is required.');
   if (action === 'note' && (typeof values.note !== 'string' || !values.note.trim() || values.note.length > 2000)) throw new Error('A note of 1 to 2000 characters is required.');
   if (action === 'cancel' && (typeof values.reason !== 'string' || !values.reason.trim() || values.reason.length > 500)) throw new Error('A cancellation reason of 1 to 500 characters is required.');
+  if (action === 'closeout' && !/^[a-f0-9]{64}$/.test(String(values.expectedSourceVersion || ''))) throw new Error('A current JunkWare closeout source version is required.');
   if (action === 'move') {
     if (typeof values.truck !== 'string' || (values.truck && !/^Truck [1-9][0-9]?$/.test(values.truck))) throw new Error('A valid truck assignment is required.');
     if (values.appointmentStartMinutes !== undefined) {
@@ -71,7 +72,8 @@ export async function executeScheduleOperation(operation: ScheduleOperation, act
     if (pending) throw new Error(`This appointment has an unverified change (${pending.requestId}). Check its saved result and JunkWare before another change.`);
     const job = load();
     if (!job || job.version !== operation.expectedVersion) throw new Error('This appointment changed. Refresh and review the current source record.');
-    if (/cancel|complete|closed/i.test(job.status) && operation.action !== 'note') throw new Error('Closed appointments cannot be changed through dispatch controls.');
+    if (/cancel/i.test(job.status) && operation.action !== 'note') throw new Error('Canceled appointments cannot be changed through dispatch controls.');
+    if (/complete|closed/i.test(job.status) && !['note', 'closeout'].includes(operation.action)) throw new Error('Closed appointments cannot be changed through dispatch controls.');
     if (operation.action === 'move' && job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified') throw new Error('This appointment has an unverified change to its assignment. Verify it in JunkWare before another move.');
     let receipt: ScheduleReceipt = { requestId: operation.requestId, actor, action: operation.action, date: operation.date, recordId: operation.recordId, fingerprint, status: 'pending', updatedAt: new Date().toISOString(), message: 'Source verification in progress. Do not submit another change.' };
     await writeReceipt(receipt);

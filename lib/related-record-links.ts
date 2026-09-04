@@ -34,7 +34,8 @@ export function jobScheduleAnchor(jkNumber: string): string {
   return `job-${slug(jkNumber) || "unknown"}`;
 }
 
-export function jobScheduleHref(date: string, jkNumber: string): string {
+export function jobScheduleHref(date: string, jkNumber: string, appointmentId?: string): string {
   const params = new URLSearchParams({ date, q: jkNumber });
+  if (appointmentId) params.set('appointment', appointmentId);
   return `/jobs?${params.toString()}#${jobScheduleAnchor(jkNumber)}`;
 }

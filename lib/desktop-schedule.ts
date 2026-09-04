@@ -49,7 +49,7 @@ export function readDesktopSchedule(date: string) {
     const callAhead = calls.get(jobCallAheadLookupKey(date, `appt:${job.appointmentId}`)) || 'not_called';
     return {
     ...job, callAhead,
-    version: createHash('sha256').update(JSON.stringify([job.appointmentId, job.truck, job.appointmentStartMinutes, job.appointmentEndMinutes, job.status, job.appointmentNotes, job.cancellationReason, callAhead])).digest('hex'),
+    version: createHash('sha256').update(JSON.stringify([job.appointmentId, job.truck, job.appointmentStartMinutes, job.appointmentEndMinutes, job.status, job.appointmentNotes, job.cancellationReason, callAhead, job.closeout, job.driver, job.navigator, job.additionalCrew])).digest('hex'),
     // A JK reference can span multiple appointments. Never use it as the
     // mutation identity or combine separate estimate/job appointments by JK.
     recordId: job.appointmentId ? `${date}:appointment:${job.appointmentId}` : `${date}:unverified:${index}`,

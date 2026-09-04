@@ -62,5 +62,5 @@ export default function LiveCommand() {
     }
   };
   if (!snapshot) return <main className="empty-state" role="status"><strong>{error || 'Loading Command from live sources…'}</strong><span>No sample records are used.</span></main>;
-  return <Home live={{ snapshot, error, pendingAlertId, onAlertAction }} />;
+  return <Home key={snapshot.date} live={{ snapshot, error, pendingAlertId, onAlertAction, onDateChange: (nextDate, workspace) => { const url = new URL(window.location.href); url.searchParams.set('date', nextDate); if (workspace) url.searchParams.set('workspace', workspace); window.location.assign(url.href); } }} />;
 }

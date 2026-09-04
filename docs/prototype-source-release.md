@@ -14,69 +14,75 @@ not the visual components. The existing OpsCenter server handles authentication,
 authorization, data, and source-system mutations. No second production port or
 iframe is required. Never edit or stop the original port-3101 preview.
 
-## Current integration status
+## Production integration (September 4)
 
-This is an integration worktree, **not a release-ready build**. The local
-`/desktop` reference route requires an authenticated session,
-`OPSCENTER_RUNTIME=MAC_MINI_PREVIEW`, `OPSCENTER_DESKTOP_PREVIEW=reference`, and a
-loopback request URL. It is unavailable in production. Directly opening the
-generated static HTML does not enable fixture mode.
+The normal `npm run build` now builds the pinned desktop package before Next.js.
+Authenticated `/` opens `/desktop?data=live`; monthly reporting and explicit
+`legacy=1` links retain the existing application. Production always uses live
+adapters. Fixture rendering requires an explicit `data=reference` request, a
+loopback URL, and both `MAC_MINI_PREVIEW` and the reference-preview flag.
+The original port-3101 prototype is preserved and must not be edited or stopped.
 
-Before enabling this interface in production:
+All six workspaces use source data and retain the approved component hierarchy,
+CSS, primitives, and dependency lock. Missing inputs remain unavailable rather
+than falling back to prototype records or simulated successes.
 
-- Replace all sample data, fixed dates, and simulated mutation receipts with
-  authoritative data and verified API results. Do not silently fall back to the
-  sample records when a source is unavailable.
-- Preserve appointment identifiers and JunkWare-issued JK numbers separately.
-- Use provider-backed route legs and GPS freshness; never publish fixture travel
-  times or guessed on-site states as live evidence.
-- Retain role authorization for each workspace and API, shared action persistence,
-  idempotency, uncertain-write handling, and source verification.
-- Compare every workspace, tab, drawer, and schedule interaction against the
-  original in the in-app browser at matching viewport sizes.
-- Only after those checks, include the desktop build in the normal immutable
-  release and verify the exact authenticated live interactions.
+- Command: source metrics and Slack alerts, shared PostgreSQL decisions, actor and
+  reason audit, optimistic versions, day start/close/reopen, carryovers, pagination,
+  exact action links, and source reconciliation. Manual completion is labeled as
+  an OpsCenter decision; source completion requires verified source observations.
+- Schedule: board/map/register, fractional windows, separate appointment IDs and
+  JK references, provider-backed routing, guarded drag review, notes, call-ahead,
+  cancellation, reviewed creation, and JunkWare closeout. Calendar distinguishes
+  a verified empty schedule from unavailable data. Follow-Up uses actual estimate
+  links and photo-audit availability. History explicitly covers saved OpsCenter
+  operations rather than claiming complete JunkWare history.
+- Krewe: roster, call-in plan, pay periods, monthly summaries, and guarded time/pay
+  corrections. Missing overtime inputs remain unavailable. Source-only assignment
+  actions stay in their authoritative workflow.
+- Fleet: GPS/readiness, inspection and maintenance records, work orders, service,
+  reports, and actual load observations/resets. Missing load records stay unknown.
+- Marketing: SearchKings leads and outcomes, Podium review attribution, and sourced
+  performance. Finance: reconciliation, payments, resale inventory and an
+  OpsCenter-owned recycling evidence ledger. Recycling entries do not claim a QBO
+  posting, and payment changes without a supported source writer remain read-only.
 
-The previous manual UI port remains untouched as prior work. It is not the visual
-source of truth for this release.
+Source mutations require authenticated roles, same-origin checks (including the
+trusted proxy origin), actor-bound request IDs, current source versions, and
+read-back. Creation additionally guards equivalent booking identities across
+request IDs. Post-write failures remain uncertain and block blind retries.
+Control uses the shared PostgreSQL audit. Schedule, creation, people/fleet and
+commercial adapters use private durable runtime receipt journals; these are not
+misrepresented as PostgreSQL audit records. Runtime data and protected environment
+files stay outside Git and immutable release directories.
 
-## Verified integration checkpoint
+## Release validation
 
-- All six workspace overview headers, tab groups, and first panels match the
-  original's measured geometry at 1280 x 720. Command KPI/alert rows and Schedule
-  board/register geometry also match. This is a targeted comparison, not complete
-  visual acceptance of every tab and interaction.
-- `/desktop?data=live` renders the approved Command component with real daily
-  metrics and Slack alerts. Acknowledgement/Control linkage use the shared action
-  API, server-resolved source facts, expected versions, and database audit records.
-  Unsupported workspace actions in this integration view are gated rather than
-  running the prototype's local simulations. The reference view remains intact.
-- `/api/desktop/schedule` exposes the existing JunkWare normalization and fast
-  schedule precedence with separate appointment IDs and JK references. The
-  extracted parser remains aligned with the deployed Schedule implementation;
-  finish consolidating its shared ownership before future parser changes.
-- Route-leg calculations preserve separate appointments even with a shared JK,
-  retain overlaps, require verified geocodes, and accept distance/time only from
-  the existing routing provider. No prototype travel-time fallback is used.
-  The live integration now renders these results in the truck board and full
-  appointment register, with a selected-appointment closest-truck comparison.
-  Missing provider data stays unavailable rather than using prototype estimates.
-- The source-preservation, honest-empty-state, estimate/job KPI, and essential
-  alert-fact tests pass. Shared database tests passed concurrent creation, durable
-  read-back, audit attribution, version conflict, and resolution checks using
-  isolated synthetic preview records only; those records were cleaned up.
-- In-app browser QA also confirmed a real source alert could be acknowledged,
-  survive reload, and then enter Control through the preview database. This did
-  not acknowledge or resolve an alert in production or send anything to Slack.
-- Both the isolated desktop build and the complete Next.js application build
-  pass. Targeted server/adapter lint passes. Existing framework Edge Runtime and
-  middleware deprecation warnings remain; the desktop bundle also reports a
-  code-size warning. The normal release build is not switched to this frontend.
+The desktop and complete Next.js builds, source-preservation checks, CSS ceiling,
+production-lineage gate, and focused adapter contracts pass. Control concurrency,
+transaction rollback, pagination beyond 200 rows, day lifecycle, source observation
+reconciliation, and exact action lookup passed against an isolated disposable
+PostgreSQL database. No production database records were used for those tests.
 
-Next: connect Schedule's approved board/map/register/drawers to the typed source,
-replace its JK-only internal identity and integer-hour placement assumptions,
-wire verified mutations, and complete Control, Monitor, Krewe, Fleet, Marketing,
-and Finance data/action adapters. Do not deploy the partially connected view.
+Authenticated browser checks at 1280 x 720 cover all six workspaces and their
+primary tabs, source data/error states, booking and closeout forms, correction and
+inventory drawers, and a truck/time drag proposal that was canceled. No customer,
+payroll, financial, or Slack mutation was submitted during this release's browser
+checks. Deterministic tests cover write identity, roles, conflicts, exact read-back,
+uncertain outcomes, and failed receipt persistence. A failed or unavailable source
+is not a successful empty result.
+
+Desktop asset size and existing Next middleware warnings remain. Deployment,
+service health, public routing/revision, and authenticated production rendering
+are separate gates; a successful local build does not establish a live release.
+Mission Control activation alone does not establish that the public hostname has
+stopped serving the VPS. Follow the canonical controlled release path and check
+both explicitly.
+
+## Historical integration checkpoints
+
+The following notes describe the earlier September 3 integration state. Their
+remaining-work statements are superseded by the production integration above.
 
 ## Schedule repair checkpoint (September 3)
 

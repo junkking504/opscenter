@@ -1,3 +1,4 @@
+import { closeoutSourceVersion, verifyCloseoutFields, verifyAddedCloseoutCharges } from '../lib/desktop-closeout-contract';
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -12,8 +13,10 @@ const STORAGE_STATE = path.join(
 );
 
 type Option = { value: string; label: string };
-type OtherChargeInput = { typeValue: string; quantity: string; price: string };
+type OtherChargeInput = { typeValue: string; quantity: string; price: string; sourceCalculatedPrice?: string };
 type CloseoutInput = {
+  expectedSourceVersion?: string;
+  appointmentType?: string;
   driverId: string;
   navigatorIds: string[];
   loadQuantity: string;
@@ -121,6 +124,7 @@ async function capture(page: Page): Promise<{ status: { value: string }; [key: s
       truck: truckSelect instanceof HTMLSelectElement
         ? clean(truckSelect.options[truckSelect.selectedIndex]?.textContent)
         : "",
+      appointmentType: selectData("ctl00_Content_AppointmentTypeDD"),
       status: selectData("ctl00_Content_StatusDD"),
       driver: { value: driver.value, label: driver.label },
       drivers: driver.options,
@@ -226,6 +230,8 @@ function parsePayload(): CloseoutInput {
     otherChargesToAdd,
     discount: cleanMoney(row.discount),
     tip: cleanMoney(row.tip),
+    expectedSourceVersion: row.expectedSourceVersion ? String(row.expectedSourceVersion) : undefined,
+    appointmentType: ["Job", "Estimate"].includes(String(row.appointmentType)) ? String(row.appointmentType) : undefined,
     jobCategoryId: String(row.jobCategoryId || "").trim(),
     actualStartHour: String(row.actualStartHour || "").trim(),
     actualStartMinute: String(row.actualStartMinute || "").trim(),
@@ -238,10 +244,16 @@ function parsePayload(): CloseoutInput {
   };
 }
 
-async function applyCloseout(page: Page, input: CloseoutInput): Promise<void> {
+async function applyCloseout(page: Page, input: CloseoutInput, before: Record<string, unknown>): Promise<void> {
   // JunkWare uses ASP.NET WebForms. Changing these selects with selectOption()
   // fires AutoPostBack and reloads the full appointment once per field. Set the
   // selected values directly so the final Save post submits them together.
+  if (input.appointmentType) {
+    const options = await page.locator('#ctl00_Content_AppointmentTypeDD option').evaluateAll(elements => elements.map(element => ({ value: (element as HTMLOptionElement).value, label: element.textContent?.trim() || '' })));
+    const selected = options.find(option => option.label.toLowerCase() === input.appointmentType!.toLowerCase());
+    if (!selected) throw new Error('The selected JunkWare appointment category is unavailable.');
+    await selectWithPostback(page, '#ctl00_Content_AppointmentTypeDD', selected.value);
+  }
   await selectWithoutPostback(page, "#ctl00_Content_StatusDD", "8");
 
   const currentNavigatorCount = await page.locator('select[id*="AppointmentTechniciansLV"][id$="NavigatorDD"]').count();
@@ -277,6 +289,7 @@ async function applyCloseout(page: Page, input: CloseoutInput): Promise<void> {
   await selectWithoutPostback(page, "#ctl00_Content_ActualEndMinuteDD", input.actualEndMinute);
 
   for (const charge of input.otherChargesToAdd) {
+    const beforeCharge = await capture(page);
     const isPercentage = charge.typeValue.split("|")[2] === "1";
     await selectWithPostback(page, "#ctl00_Content_OtherChargeDD", charge.typeValue);
     if (!isPercentage) {
@@ -287,6 +300,8 @@ async function applyCloseout(page: Page, input: CloseoutInput): Promise<void> {
       page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
       page.locator("#ctl00_Content_OCAddBtn").click(),
     ]);
+    const [savedCharge] = verifyAddedCloseoutCharges(await capture(page), beforeCharge, [charge], true);
+    if (isPercentage) charge.sourceCalculatedPrice = String(savedCharge.price ?? "");
   }
 
   if (input.addPayment?.methodId && input.addPayment.amount) {
@@ -298,6 +313,9 @@ async function applyCloseout(page: Page, input: CloseoutInput): Promise<void> {
     ]);
   }
 
+  // Capture final provider-calculated prices after all added charges/payment postbacks.
+  const stagedCharges = verifyAddedCloseoutCharges(await capture(page), before, input.otherChargesToAdd, true);
+  input.otherChargesToAdd.forEach((charge, index) => { if (charge.typeValue.split("|")[2] === "1") charge.sourceCalculatedPrice = String(stagedCharges[index].price ?? ""); });
   const save = page.locator("#ctl00_Content_SaveAppointmentBtn");
   if (!(await save.count())) throw new Error("The JunkWare closeout update control is unavailable.");
   await Promise.all([
@@ -320,6 +338,8 @@ function verifyCloseout(closeout: { status: { value: string }; [key: string]: un
   }
 }
 
+let writeStarted = false;
+let failureCode = 'closeout_unavailable';
 async function main(): Promise<void> {
   const appointmentId = argument("appointment");
   const mode = argument("mode") || "read";
@@ -337,9 +357,11 @@ async function main(): Promise<void> {
     const targetUrl = `${ORIGIN}/franchise/appointment.aspx?id=${appointmentId}`;
     await ensureAuthenticated(page, targetUrl);
     const input = mode === "write" ? parsePayload() : null;
-    if (input) await applyCloseout(page, input);
+    const before = input ? await capture(page) : undefined;
+    if (input?.expectedSourceVersion && before && closeoutSourceVersion(before) !== input.expectedSourceVersion) { failureCode = 'source_version_conflict'; throw new Error('This JunkWare closeout changed. Reload and review it before saving.'); }
+    if (input) { writeStarted = true; await applyCloseout(page, input, before!); }
     const closeout = await capture(page);
-    if (input) verifyCloseout(closeout, input);
+    if (input) { verifyCloseout(closeout, input); verifyCloseoutFields(closeout, input, before); }
     process.stdout.write(`${JSON.stringify({ ok: true, mode, appointmentId, closeout, verifiedAt: new Date().toISOString() })}\n`);
     await context.close();
   } finally {
@@ -348,6 +370,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(`${JSON.stringify({ error: error instanceof Error ? error.message : 'JunkWare closeout failed.', stage: writeStarted ? 'uncertain' : 'preflight', code: failureCode })}\n`);
   process.exitCode = 1;
 });

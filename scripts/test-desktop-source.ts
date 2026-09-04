@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
-import { desktopReferenceAllowed } from '../lib/desktop-release';
+import { desktopReferenceAllowed, desktopReleaseMode } from '../lib/desktop-release';
 import { desktopCommandKpis } from '../lib/desktop-command';
 import { toOperationalAlert } from '../lib/operational-alert-presentation';
 
@@ -16,6 +16,14 @@ assert.equal(desktopReferenceAllowed('MAC_MINI', 'reference', 'http://localhost:
 assert.equal(desktopReferenceAllowed('MAC_MINI_PREVIEW', 'reference', 'https://ops.junk-king.app/desktop'), false);
 assert.equal(desktopReferenceAllowed('MAC_MINI_PREVIEW', undefined, 'http://localhost:3103/desktop'), false);
 
+for (const runtime of ['MISSION_CONTROL', 'MAC_MINI', 'VPS', undefined]) {
+  for (const query of ['', '?data=live', '?data=reference']) {
+    assert.equal(desktopReleaseMode(runtime, 'reference', `http://localhost:3104/desktop${query}`), 'command-live', 'Production must never render fixture data');
+  }
+}
+assert.equal(desktopReleaseMode('MAC_MINI_PREVIEW', 'reference', 'http://localhost:3104/desktop'), 'command-live');
+assert.equal(desktopReleaseMode('MAC_MINI_PREVIEW', 'reference', 'http://localhost:3104/desktop?data=reference'), 'reference');
+assert.equal(desktopReleaseMode('MAC_MINI_PREVIEW', 'reference', 'https://ops.junk-king.app/desktop?data=reference'), 'command-live');
 const missing = desktopCommandKpis(null, null, 0);
 assert.equal(missing.length, 8);
 assert.ok(missing.every(kpi => kpi.value === '—'), 'An unavailable source must never be displayed as zero or a prototype value');

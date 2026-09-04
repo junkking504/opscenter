@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import DataHealth from "@/components/DataHealth";
 import OperatingInbox from "@/components/OperatingInbox";
@@ -504,6 +505,13 @@ export default async function DashboardPage({
   searchParams?: Promise<AnyRecord>;
 }) {
   const params = searchParams ? await searchParams : undefined;
+  if (params?.legacy !== '1' && params?.view !== 'monthly') {
+    const destination = new URLSearchParams({ data: 'live', workspace: 'Command' });
+    for (const [key, value] of Object.entries(params || {})) {
+      if (typeof value === 'string' && key !== 'data' && key !== 'workspace') destination.set(key, value);
+    }
+    redirect(`/desktop?${destination}`);
+  }
   const kernelDatabase = resolveKernelDatabaseConfig();
   const date = resolveDate(params);
   const view = normalizeView(params?.view);

@@ -87,7 +87,7 @@ function jobResult(row: AnyRecord, date: string): GlobalSearchResult | null {
     title,
     subtitle: detail,
     source: "JunkWare appointment",
-    href: jobScheduleHref(date, routeQuery),
+    href: jobScheduleHref(date, routeQuery, appointmentId),
     searchText: [title, phone, address, status, truck, driver, navigator, appointmentId].join(" "),
   };
 }

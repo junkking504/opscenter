@@ -37,6 +37,7 @@ export type DesktopCommandSnapshot = {
 };
 
 export type DesktopLiveProps = {
+  onDateChange: (date: string, workspace?: string) => void;
   snapshot: DesktopCommandSnapshot;
   pendingAlertId: string | null;
   error: string;

@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import { desktopCalendarDay } from '../lib/desktop-schedule-calendar';
+import { scheduleFollowupFlags, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
+const absent=desktopCalendarDay('2026-09-04',null,[]);assert.equal(absent.available,false);assert.equal(absent.count,null);assert.equal(absent.routes,null);
+const empty=desktopCalendarDay('2026-09-04','2026-09-04T12:00:00Z',[]);assert.equal(empty.available,true);assert.equal(empty.count,0);assert.equal(empty.routes,0);
+const observed=desktopCalendarDay('2026-09-04',null,[{truck:'Truck 2',address:'Test, New Orleans',territory:'New Orleans'}]);assert.equal(observed.available,true);assert.equal(observed.count,1);assert.equal(observed.routes,1);
+const estimate:ScheduleAppointment={version:'synthetic',callAhead:'not_called',appointmentUrl:'',appointmentTime:'',appointmentStartMinutes:null,appointmentEndMinutes:null,hasScheduledTime:false,customerName:'Synthetic',customerEmail:'',phone:'',address:'',territory:'',truck:'',driver:'',navigator:'',paymentType:'',paymentAmount:0,tipAmount:0,junkItems:[],appointmentNotes:[],cancellationReason:'',location:null,recordId:'date:appointment:101',appointmentId:'101',jkNumber:'JK-SYNTHETIC',appointmentType:'Estimate',status:'Closed',photos:[],photoAuditAvailable:false};
+const other={...estimate,recordId:'date:appointment:102',appointmentId:'102',appointmentType:'Job',status:'Open'};
+assert.equal(scheduleFollowupFlags(estimate,[estimate,other]).linkedBooking,null,'same JK never establishes a source link');
+assert.equal(scheduleFollowupFlags(estimate,[estimate,{...other,sourceEstimateAppointmentId:'101'}]).linkedBooking?.appointmentId,'102');
+assert.equal(scheduleFollowupFlags(estimate,[estimate]).photos,false,'unavailable photo audit is not missing-photo evidence');
+assert.equal(scheduleFollowupFlags({...estimate,photoAuditAvailable:true},[estimate]).photos,true);
+assert.equal(scheduleFollowupFlags({...estimate,photoAuditAvailable:true,photos:[{url:'https://example.invalid/photo',category:'Before',fileName:'synthetic'}]},[]).photos,false);
+assert.equal(scheduleFollowupFlags({...estimate,status:'Canceled',photoAuditAvailable:true},[]).photos,false);
+assert.equal(scheduleFollowupFlags(estimate,[]).unclosed,false);
+assert.equal(scheduleFollowupFlags({...other,status:'Open'},[]).unclosed,true);
+console.log('Calendar source absence/verified empty and follow-up source identity/photo-audit tests passed.');

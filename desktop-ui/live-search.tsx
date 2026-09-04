@@ -1,0 +1,23 @@
+import { useEffect, useRef, useState } from 'react';
+import { ArrowRight, Search, X } from 'lucide-react';
+import { Input } from './components/ui/input';
+export function desktopHref(href: string): string {
+  const url = new URL(href, window.location.origin);
+  if (url.origin !== window.location.origin) return url.href;
+  const workspace = ({ '/jobs': 'Schedule', '/crew': 'Krewe', '/fleet': 'Fleet', '/finance': 'Finance', '/marketing': 'Marketing', '/inbox': 'Command', '/': 'Command' } as Record<string, string>)[url.pathname];
+  if (!workspace) return url.href;
+  url.pathname = '/desktop'; url.searchParams.set('workspace', workspace); url.searchParams.set('data', 'live');
+  return url.pathname + url.search + url.hash;
+}
+type Result = { id: string; type: string; title: string; subtitle: string; source: string; href: string };
+export default function LiveSearch({ date, navigate, disabled, finance }: { date: string; navigate: (workspace: string) => void; disabled: boolean; finance: boolean }) {
+  const [query, setQuery] = useState(''); const [open, setOpen] = useState(false); const [results, setResults] = useState<Result[]>([]); const [error, setError] = useState('');
+  const input = useRef<HTMLInputElement>(null);
+  const commands = ['Command', 'Schedule', 'Krewe', 'Fleet', 'Marketing', ...(finance ? ['Finance'] : [])].filter(name => name.toLowerCase().includes(query.toLowerCase()));
+  useEffect(() => { const listener = (event: KeyboardEvent) => { if (disabled) return; if (event.key === 'Escape') setOpen(false); if (event.key === '/' && !/input|textarea|select/i.test((event.target as HTMLElement)?.tagName)) { event.preventDefault(); setOpen(true); input.current?.focus(); } }; window.addEventListener('keydown', listener); return () => window.removeEventListener('keydown', listener); }, [disabled]);
+  useEffect(() => { const abort = new AbortController(); setResults([]); setError(''); if (query.trim().length < 2) return; const timer = window.setTimeout(() => { void fetch(`/api/global-search?q=${encodeURIComponent(query)}&date=${date}`, { cache: 'no-store', credentials: 'same-origin', signal: abort.signal }).then(async response => { const body = await response.json(); if (!response.ok) throw new Error('Source search is unavailable.'); setResults(body.results || []); }).catch(error => { if (!abort.signal.aborted) setError(error.message); }); }, 200); return () => { abort.abort(); window.clearTimeout(timer); }; }, [date, query]);
+  useEffect(() => { if (disabled) setOpen(false); }, [disabled]);
+  const openResult = (href: string) => { if (!disabled) window.location.assign(desktopHref(href)); };
+  const go = (workspace: string) => { if (disabled) return; navigate(workspace); setOpen(false); setQuery(''); };
+  return <div className="global-search-shell">{open && <button className="global-search-backdrop" aria-label="Close search" onClick={() => setOpen(false)} />}<div className={`global-search${open ? ' active' : ''}`}><Search size={17} /><Input ref={input} value={query} disabled={disabled} onFocus={() => setOpen(true)} onChange={event => { setQuery(event.target.value); setOpen(true); }} placeholder="Search records or run a command" aria-label="Search records or run an OpsCenter command" aria-expanded={open} onKeyDown={event => { if (event.key === 'Enter') { if (commands[0]) go(commands[0]); else if (results[0]) openResult(results[0].href); } }} />{query ? <button aria-label="Clear search" onClick={() => setQuery('')}><X size={14} /></button> : <kbd>/</kbd>}</div>{open && <section className="global-search-panel" role="dialog" aria-label="OpsCenter launcher"><header><div><span>OpsCenter Launcher</span><strong>Commands and source records</strong></div></header><div className="global-search-results-body"><section className="launcher-command-group"><div className="launcher-command-grid">{commands.map(name => <button key={name} disabled={disabled} onClick={() => go(name)}><strong>Open {name}</strong><ArrowRight size={14} /></button>)}</div></section><div className="global-search-groups"><section className="global-search-group"><header><strong>Source Records</strong><small>Recent JunkWare, Krewe and fleet snapshots</small></header><div>{results.map(result => <button key={result.id} disabled={disabled} onClick={() => openResult(result.href)}><div><strong>{result.title}</strong><span>{result.subtitle}</span><small>{result.source}</small></div><ArrowRight size={15} /></button>)}</div></section></div>{error && <p role="alert">{error}</p>}{query.length >= 2 && !results.length && !error && <p>No matching records in the searchable source snapshots.</p>}</div><footer><span><kbd>Esc</kbd> Close</span></footer></section>}</div>;
+}

@@ -1,9 +1,10 @@
+import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { cookies } from "next/headers";
 import { execFileSync } from "node:child_process";
 import { NextResponse } from "next/server";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
 import { withJunkwareAppointmentSyncLock } from "@/lib/job-route-assignments";
-import { junkwareJobCloseout } from "@/lib/junkware-job-closeout";
+import { junkwareJobCloseout, JunkwareCloseoutError } from "@/lib/junkware-job-closeout";
 import { publishVerifiedTruckCloseout } from "@/lib/slack-alerts";
 import { recordTruckLoadFromCloseout } from "@/lib/truck-load-status";
 
@@ -63,6 +64,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const authSession = await authenticated();
   if (!authSession) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  if (!isDesktopWriteOriginAllowed(request)) return NextResponse.json({ ok: false, error: "Same-origin request required.", stage: "preflight" }, { status: 403 });
   const parsed = await request.json().catch(() => null);
   const body = parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {};
   const id = appointmentId(request, body);
@@ -98,6 +100,7 @@ export async function POST(request: Request) {
     const slackNotification = await publishVerifiedCloseout(result as Record<string, unknown>, id);
     return NextResponse.json({ ...result, truckLoadStatus, slackNotification }, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : "JunkWare could not save the closeout." }, { status: 502 });
+    const preflight = error instanceof JunkwareCloseoutError && error.stage === "preflight";
+    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "JunkWare could not save the closeout.", stage: preflight ? "preflight" : "uncertain", code: error instanceof JunkwareCloseoutError ? error.code : "closeout_unavailable" }, { status: preflight ? 409 : 502 });
   }
 }

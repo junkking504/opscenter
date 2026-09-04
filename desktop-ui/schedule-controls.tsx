@@ -9,7 +9,8 @@ import {
 } from "./lib/schedule-contract";
 
 export type { MoveProposal } from "./lib/schedule-contract";
-type Receipt = {
+export type Receipt = {
+  sourceResult?: Record<string, unknown>;
   requestId: string;
   status: "pending" | "verified" | "failed" | "uncertain";
   message: string;

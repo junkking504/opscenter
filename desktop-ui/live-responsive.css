@@ -1,0 +1,21 @@
+/* Live-data adapters can contain longer source labels than the reference.
+   Keep the approved desktop stylesheet unchanged. */
+.live-mobile-navigation { display: none; }
+.ops-live .ops-content { min-width: 0; }
+.ops-live .workspace-heading > * { min-width: 0; }
+@media (max-width: 1100px) {
+  .ops-live .workspace-heading { flex-wrap: wrap; }
+  .ops-live .workspace-heading [role="tablist"] { max-width: 100%; overflow-x: auto; }
+  .ops-live .topbar { gap: 8px; }
+  .ops-live .global-search-shell { min-width: 0; flex: 1; }
+}
+@media (max-width: 760px) {
+  .live-mobile-navigation { display: block; padding: 10px 16px; background: #111419; color: #e7ebe7; }
+  .live-mobile-navigation label { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; }
+  .live-mobile-navigation select { max-width: 70%; padding: 6px 10px; border: 1px solid #48504f; border-radius: 6px; background: #24292f; color: #fff; }
+  .ops-live .topbar { height: auto; min-height: 56px; flex-wrap: wrap; padding-block: 8px; }
+  .ops-live .topbar-actions { margin-left: auto; }
+  .ops-live .global-search-shell { flex-basis: 100%; }
+  .ops-live .workspace-heading [role="tablist"] { width: 100%; }
+  .ops-live .schedule-heading-actions { width: 100%; }
+}

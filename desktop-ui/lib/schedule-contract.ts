@@ -5,6 +5,9 @@ export type ScheduleAppointment = {
   junkwareSyncStatus?: 'pending' | 'verified' | 'manual_correction';
   junkwareSyncError?: string;
   appointmentId: string;
+  sourceEstimateAppointmentId?: string;
+  photoAuditAvailable?: boolean;
+  photos?: Array<{ url: string; category: string; fileName: string }>;
   jkNumber: string;
   appointmentUrl: string;
   appointmentTime: string;
@@ -113,4 +116,41 @@ export function timelineRange(jobs: ScheduleAppointment[]) {
 export function timelinePlacement(job: ScheduleAppointment, range: ReturnType<typeof timelineRange>) {
   if (!job.hasScheduledTime || job.appointmentStartMinutes === null || job.appointmentEndMinutes === null) return null;
   return { left: (job.appointmentStartMinutes - range.start) / range.duration, width: Math.max(0, job.appointmentEndMinutes - job.appointmentStartMinutes) / range.duration };
+}
+
+export type ScheduleFollowupFlags = { estimates: boolean; closed: boolean; unclosed: boolean; photos: boolean; linkedBooking: ScheduleAppointment | null };
+export function scheduleFollowupFlags(job: ScheduleAppointment, jobs: ScheduleAppointment[]): ScheduleFollowupFlags {
+  const canceled = /cancel/i.test(job.status);
+  const estimate = appointmentCategory(job) === 'Estimate';
+  const closed = isClosed(job) || /paid/i.test(job.status);
+  const linkedBooking = estimate && job.appointmentId ? jobs.find(candidate => candidate.sourceEstimateAppointmentId === job.appointmentId && appointmentCategory(candidate) === 'Job' && !/cancel/i.test(candidate.status)) || null : null;
+  return {
+    estimates: !canceled && estimate && !closed,
+    closed: !canceled && estimate && closed,
+    unclosed: !canceled && appointmentCategory(job) === 'Job' && !closed,
+    photos: !canceled && closed && job.photoAuditAvailable === true && Array.isArray(job.photos) && job.photos.length === 0,
+    linkedBooking,
+  };
+}
+
+export function scheduleMatchesQuery(job: ScheduleAppointment, query: string): boolean {
+  const normalized = query.trim().toLocaleLowerCase();
+  if (!normalized) return true;
+  return [job.recordId, job.appointmentId, job.jkNumber, job.customerName, job.phone, job.address, job.territory, job.truck, job.driver, job.navigator]
+    .some(value => String(value || '').toLocaleLowerCase().includes(normalized));
+}
+export function resolveScheduleDeepLink(jobs: ScheduleAppointment[], queryValue: string, appointmentValue: string) {
+  const query = queryValue.trim().length <= 200 ? queryValue.trim() : '';
+  const appointment = appointmentValue.trim();
+  if (appointment) {
+    if (!/^(?:\d{4}-\d{2}-\d{2}:appointment:)?\d{1,12}$/.test(appointment)) return { query, recordId: null, notice: 'The appointment link is invalid. Choose a source record.' };
+    const matches = jobs.filter(job => job.recordId === appointment || job.appointmentId === appointment);
+    return matches.length === 1
+      ? { query: matches[0].appointmentId, recordId: matches[0].recordId, notice: '' }
+      : { query, recordId: null, notice: 'The linked appointment is not uniquely available on this operating date.' };
+  }
+  if (!query) return { query, recordId: null, notice: queryValue.trim() ? 'The search link is too long. Enter a shorter search.' : '' };
+  const exact = query.toLocaleLowerCase();
+  const matches = jobs.filter(job => [job.appointmentId, job.recordId, job.jkNumber, job.customerName].some(value => value.toLocaleLowerCase() === exact));
+  return { query, recordId: matches.length === 1 ? matches[0].recordId : null, notice: matches.length > 1 ? 'Several appointments match this reference. Choose the intended source appointment.' : '' };
 }

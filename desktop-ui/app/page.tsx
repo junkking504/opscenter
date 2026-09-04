@@ -1,18 +1,24 @@
 'use client';
 
 import {
-  ArrowLeft, ArrowRight, BarChart3, Bell, CalendarDays, Check, GripVertical,
+  Activity, ArrowLeft, ArrowRight, BarChart3, Bell, CalendarDays, Check, GripVertical,
   CircleDollarSign, Command, Copy, Gauge, MapPin, Megaphone, Search,
   PhoneCall, Play, ShieldCheck, Star, Truck, Users, Wrench, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { DesktopLiveProps } from '@/lib/live-contract';
+import LiveControl from '../live-control';
+import LiveKrewe from '../live-krewe';
+import LiveFleet from '../live-fleet';
+import { LiveMarketing } from '../live-marketing';
+import { LiveFinance } from '../live-finance';
+import LiveSearch from '../live-search';
 import LiveSchedule, { dateForDay } from '../live-schedule';
 
 type Priority = 'critical' | 'warning' | 'watch';
@@ -928,19 +934,37 @@ const initialAuditEvents: AuditEvent[] = [
 export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const workItems: WorkItem[] = live?.snapshot.alerts ?? referenceWorkItems;
   const liveAlert = (item: WorkItem) => live?.snapshot.alerts.find(alert => alert.id === item.id);
-  const [activeNav, setActiveNavValue] = useState('Command');
+  const [workspaceMutationBusy, setWorkspaceMutationBusy] = useState(false);
+  const alertMutationBusyRef = useRef(false);
+  alertMutationBusyRef.current = Boolean(live?.pendingAlertId);
+  const mutationBusy = workspaceMutationBusy || alertMutationBusyRef.current;
+  const mutationBusyRef = useRef(false);
+  mutationBusyRef.current = mutationBusy;
+  const onBusyChange = useCallback((busy: boolean) => { mutationBusyRef.current = busy || alertMutationBusyRef.current; setWorkspaceMutationBusy(busy); }, []);
+  const canFinance = Boolean(live && ['Administrator', 'Manager'].includes(live.snapshot.actor.role));
+  const [activeNav, setActiveNavValue] = useState(() => {
+    if (!live) return 'Command';
+    const workspace = new URLSearchParams(window.location.search).get('workspace') || 'Command';
+    return ['Command', 'Schedule', 'Krewe', 'Fleet', 'Marketing', ...(canFinance ? ['Finance'] : [])].includes(workspace) ? workspace : 'Command';
+  });
   const setActiveNav = (value: string) => {
-    if (live && !['Command', 'Schedule'].includes(value)) { setActionFeedback(value + ' live integration is still being verified. No sample records will be opened.'); return; }
+    if (mutationBusyRef.current) { setActionFeedback('Wait for the current action result before changing workspaces.'); return; }
+    if (live && value === 'Finance' && !canFinance) return;
     setActiveNavValue(value);
   };
-  const [view, setViewValue] = useState<'now' | 'today' | 'monitor'>('now');
+  const [view, setViewValue] = useState<'now' | 'today' | 'monitor'>(() => {
+    if (!live) return 'now';
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get('commandView');
+    return requested === 'monitor' ? 'monitor' : requested === 'control' || requested === 'today' || params.has('action') ? 'today' : 'now';
+  });
   const setView = (value: 'now' | 'today' | 'monitor') => {
-    if (live && value !== 'now') { setActionFeedback('This tab is still being connected to live sources. The approved layout remains in the reference preview.'); return; }
+    if (mutationBusyRef.current) return;
     setViewValue(value);
   };
   const connectedSources = live ? [
-    { name: 'JunkWare', area: 'Command metrics', workspace: 'Command', action: 'Open Command', state: live.snapshot.sources.metrics ? 'Healthy' : 'Unavailable', tone: live.snapshot.sources.metrics ? 'healthy' : 'warning', freshness: live.snapshot.sources.metrics ? 'Source snapshot available' : 'No source snapshot' },
-    { name: 'Slack', area: 'Operational alerts', workspace: 'Command', action: 'Open Alerts', state: live.snapshot.sources.alerts ? 'Healthy' : 'Unavailable', tone: live.snapshot.sources.alerts ? 'healthy' : 'warning', freshness: live.snapshot.sources.alerts ? 'Read from Slack digest' : 'Slack digest unavailable' },
+    { name: 'JunkWare', area: 'Command metrics', workspace: 'Command', action: 'Open Command', state: live.snapshot.sources.metrics ? 'Snapshot available' : 'Unavailable', tone: live.snapshot.sources.metrics ? 'healthy' : 'warning', freshness: live.snapshot.sources.metrics ? 'Source snapshot available' : 'No source snapshot' },
+    { name: 'Slack', area: 'Operational alerts', workspace: 'Command', action: 'Open Alerts', state: live.snapshot.sources.alerts ? 'Snapshot available' : 'Unavailable', tone: live.snapshot.sources.alerts ? 'healthy' : 'warning', freshness: live.snapshot.sources.alerts ? 'Read from Slack digest' : 'Slack digest unavailable' },
     { name: 'Control', area: 'Shared alert actions', workspace: 'Command', action: 'Open Alerts', state: live.snapshot.sources.workflow ? 'Healthy' : 'Unavailable', tone: live.snapshot.sources.workflow ? 'healthy' : 'warning', freshness: live.snapshot.sources.workflow ? 'Shared database connected' : 'Actions unavailable' },
   ] : referenceConnectedSources;
   const [query, setQuery] = useState('');
@@ -984,7 +1008,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const operatingDateHeading = live ? new Date((activeNav === 'Schedule' ? dateForDay(live.snapshot.date, scheduleDay) : live.snapshot.date) + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric' }) : 'Sunday, August 31';
   const [scheduleView, setScheduleViewValue] = useState<'board' | 'calendar' | 'followup' | 'history'>('board');
   const setScheduleView = (value: 'board' | 'calendar' | 'followup' | 'history') => {
-    if (live && value !== 'board') { setActionFeedback('This Schedule tab is still being connected to source data. No sample records will be opened.'); return; }
+    if (mutationBusyRef.current) return;
     setScheduleViewValue(value);
   };
   const [followupFilter, setFollowupFilter] = useState<'all' | 'estimates' | 'closed' | 'unclosed' | 'photos'>('all');
@@ -1009,12 +1033,14 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const junkWareCreationBusy = junkWareCreationState === 'creating' || junkWareCreationState === 'verifying' || junkWareCreationState === 'searching' || junkWareCreationState === 'created';
   const [kreweMembers, setKreweMembers] = useState<KreweMember[]>(live ? [] : kreweRoster);
   const [kreweFilter, setKreweFilter] = useState<KreweFilter>('all');
-  const [kreweView, setKreweView] = useState<KreweView>('today');
+  const [kreweView, setKreweViewValue] = useState<KreweView>('today');
+  const setKreweView = (value: KreweView) => { if (!mutationBusyRef.current) setKreweViewValue(value); };
   const [callInCandidates, setCallInCandidates] = useState<CallInCandidate[]>(live ? [] : initialCallInCandidates);
   const [kreweMonth, setKreweMonth] = useState<'august' | 'july'>('august');
   const [timeCorrection, setTimeCorrection] = useState({ clockIn: '', clockOut: '', reason: '' });
   const [bonusEntry, setBonusEntry] = useState({ amount: '', reason: '' });
-  const [fleetView, setFleetView] = useState<FleetView>('overview');
+  const [fleetView, setFleetViewValue] = useState<FleetView>('overview');
+  const setFleetView = (value: FleetView) => { if (!mutationBusyRef.current) setFleetViewValue(value); };
   const [fleetTruckRows, setFleetTruckRows] = useState<FleetTruck[]>(live ? [] : fleetTrucks);
   const [fleetIssues, setFleetIssues] = useState<FleetIssue[]>(live ? [] : initialFleetIssues);
   const [fleetIssueFilter, setFleetIssueFilter] = useState<FleetIssueFilter>('active');
@@ -1024,11 +1050,13 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const [fleetReportMonth, setFleetReportMonth] = useState<'august' | 'july'>('august');
   const [fleetLoadDraft, setFleetLoadDraft] = useState({ percent: '', note: '', metal: '' });
   const [fleetIssueDraft, setFleetIssueDraft] = useState({ status: 'Open' as FleetIssueStatus, owner: '', due: '', resolution: '', cost: '', downtime: '' });
-  const [marketingView, setMarketingView] = useState<MarketingView>('overview');
+  const [marketingView, setMarketingViewValue] = useState<MarketingView>('overview');
+  const setMarketingView = (value: MarketingView) => { if (!mutationBusyRef.current) setMarketingViewValue(value); };
   const [marketingLeads, setMarketingLeads] = useState<MarketingLead[]>(live ? [] : initialMarketingLeads);
   const [marketingReviews, setMarketingReviews] = useState<MarketingReview[]>(live ? [] : initialMarketingReviews);
   const [marketingLeadFilter, setMarketingLeadFilter] = useState<'recover' | 'lost' | 'followup' | 'all'>('recover');
-  const [financeView, setFinanceView] = useState<FinanceView>('overview');
+  const [financeView, setFinanceViewValue] = useState<FinanceView>('overview');
+  const setFinanceView = (value: FinanceView) => { if (!mutationBusyRef.current) setFinanceViewValue(value); };
   const [financePayments, setFinancePayments] = useState<FinancePayment[]>(live ? [] : initialFinancePayments);
   const [financeRecoveryItems, setFinanceRecoveryItems] = useState<FinanceRecoveryItem[]>(live ? [] : initialFinanceRecoveryItems);
   const [financeCloseSteps, setFinanceCloseSteps] = useState<string[]>(['costs']);
@@ -3196,6 +3224,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     });
   };
   const acknowledgeAlert = (item: WorkItem) => {
+    if (mutationBusyRef.current) return;
     if (live) { void live.onAlertAction(String(item.id), 'acknowledge'); return; }
     setCompleted((items) => items.includes(item.id) ? items : [...items, item.id]);
     logAudit({ workspace: 'Command', action: 'Alert acknowledged', record: item.title, summary: `Seen by Mission Control. Underlying issue remains separate: ${item.context}`, previous: 'Active', next: 'Acknowledged', source: item.source, result: 'Needs review' });
@@ -3842,13 +3871,14 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     return status === 'Resolved';
   });
   const openCommandKpi = (label: string) => {
+    if (mutationBusyRef.current) { setActionFeedback('Wait for the current action result before opening another workspace.'); return; }
     setDrawer(null);
     setActionFeedback('');
     if (label === 'Completed jobs' || label === "Today’s jobs") {
       setActiveNav('Schedule');
       setScheduleDay('today');
-      setOperatingDate('2026-08-31');
-      setCalendarDateDraft('2026-08-31');
+      setOperatingDate(live?.snapshot.date || '2026-08-31');
+      setCalendarDateDraft(live?.snapshot.date || '2026-08-31');
       setScheduleView('board');
       setScheduleScope('ALL');
       setScheduleStatusFilter(label === 'Completed jobs' ? 'completed' : 'all');
@@ -3873,10 +3903,11 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   };
   const alertNeedsControl = (item: WorkItem) => alertWorkflowStatus(item) === 'Active';
   const addAlertToControl = (item: WorkItem) => {
+    if (mutationBusyRef.current) return;
     if (live) {
       const alert = liveAlert(item);
-      if (alert?.workflowState === 'in-control') { setActionFeedback('This alert is already in shared Control. The Control interface is still being integrated.'); return; }
-      void live.onAlertAction(String(item.id), 'add_to_control'); return;
+      if (alert?.workflowState === 'in-control') { setActiveNav('Command'); setView('today'); return; }
+      void live.onAlertAction(String(item.id), 'add_to_control').then(() => { setActiveNav('Command'); setView('today'); }); return;
     }
     const existing = linkedActionForAlert(item);
     if (existing) {
@@ -4070,7 +4101,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   };
 
   return (
-    <main className="ops-app">
+    <main className={live ? 'ops-app ops-live' : 'ops-app'}>
       <aside className="ops-sidebar">
         <div className="brand-lockup">
           <div className="brand-mark"><MapPin size={23} strokeWidth={2.3} /><span /></div>
@@ -4079,7 +4110,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
 
         <nav className="primary-nav" aria-label="Primary">
           <p className="nav-label">Workspaces</p>
-          {(live ? nav.map(item => ({ ...item, count: item.label === 'Command' ? workItems.length : 0 })) : nav).map((item) => {
+          {(live ? nav.filter(item => item.label !== 'Finance' || canFinance).map(item => ({ ...item, count: item.label === 'Command' ? workItems.length : 0 })) : nav).map((item) => {
             const Icon = item.icon;
             return (
               <button key={item.label} className={activeNav === item.label ? 'nav-item active' : 'nav-item'} onClick={() => setActiveNav(item.label)}>
@@ -4096,8 +4127,9 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       </aside>
 
       <section className="ops-content">
+        {live && <nav className="live-mobile-navigation" aria-label="Mobile workspaces"><label>Workspace<select aria-label="Choose workspace" value={activeNav} disabled={mutationBusy} onChange={event => setActiveNav(event.target.value)}>{nav.filter(item => item.label !== 'Finance' || canFinance).map(item => <option key={item.label}>{item.label}</option>)}</select></label></nav>}
         <header className="topbar">
-          <div className="global-search-shell">
+          {live ? <LiveSearch date={live.snapshot.date} navigate={setActiveNav} disabled={mutationBusy} finance={canFinance} /> : <div className="global-search-shell">
             {searchOpen && <button className="global-search-backdrop" aria-label="Close search" onClick={closeGlobalSearch} />}
             <div className={`global-search${searchOpen ? ' active' : ''}`}>
               <Search size={17} />
@@ -4114,21 +4146,22 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               <footer><span><kbd>↵</kbd> Run first match</span><span><kbd>Esc</kbd> Close and clear</span><strong>Actions open the authoritative workspace</strong></footer>
             </section>}
           </div>
+          }
           <div className="topbar-actions">
             <div className="notification-center">
               {notificationOpen && <button className="notification-backdrop" aria-label="Close alerts" onClick={() => setNotificationOpen(false)} />}
-              <Button className="notification-trigger" variant="outline" size="lg" aria-label={`${activeAlerts.length} active alerts`} aria-expanded={notificationOpen} aria-controls="notification-panel" onClick={() => { setNotificationOpen((open) => !open); setSearchOpen(false); setOperatingDayOpen(false); setQuery(''); }}><Bell size={16} />{activeAlerts.length > 0 && <><span className="notification-dot" /><b>{activeAlerts.length}</b></>}</Button>
+              <Button className="notification-trigger" variant="outline" size="lg" aria-label={live && !live.snapshot.sources.alerts ? 'Alert count unavailable' : `${activeAlerts.length} active alerts`} aria-expanded={notificationOpen} aria-controls="notification-panel" onClick={() => { setNotificationOpen((open) => !open); setSearchOpen(false); setOperatingDayOpen(false); setQuery(''); }}><Bell size={16} />{activeAlerts.length > 0 && <><span className="notification-dot" /><b>{activeAlerts.length}</b></>}</Button>
               {notificationOpen && <aside className="notification-panel" id="notification-panel" role="dialog" aria-label="Alerts">
                 <header><div><span>Slack source · OpsCenter format</span><strong>Alerts</strong><small>{activeAlerts.length} active · Essential operating information</small></div><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>Open Command <ArrowRight size={14} /></button></header>
-                {activeAlerts.length ? <div className="notification-list">{activeAlerts.map((item) => { const linkedAction = linkedActionForAlert(item); return <article className={`notification-alert ${item.priority}`} key={item.id}><i className={`priority-mark ${item.priority}`} /><button className="notification-alert-open" onClick={() => openAlertRecord(item)}><div><span className={`notification-priority ${item.priority}`}>{item.label}</span><small>{item.domain} · {item.detected}</small><span className={`alert-workflow-status ${linkedAction ? 'in-control' : 'active'}`}>{linkedAction ? 'In Control' : 'Active'}</span></div><strong>{item.title}</strong><p>{item.detail}</p><footer><span>Owner · {item.owner}</span><b>{item.context}</b></footer></button><div className="notification-alert-controls"><button onClick={() => acknowledgeAlert(item)}>Acknowledge</button><button className="primary" onClick={() => addAlertToControl(item)}>{linkedAction ? 'Manage Action' : 'Add to Control'}</button></div></article>; })}</div>
-                  : <div className="notification-empty"><Check size={22} /><strong>No active alerts</strong><p>Acknowledged and resolved alerts remain visible on Command.</p></div>}
+                {activeAlerts.length ? <div className="notification-list">{activeAlerts.map((item) => { const linkedAction = linkedActionForAlert(item); return <article className={`notification-alert ${item.priority}`} key={item.id}><i className={`priority-mark ${item.priority}`} /><button className="notification-alert-open" onClick={() => openAlertRecord(item)}><div><span className={`notification-priority ${item.priority}`}>{item.label}</span><small>{item.domain} · {item.detected}</small><span className={`alert-workflow-status ${linkedAction ? 'in-control' : 'active'}`}>{linkedAction ? 'In Control' : 'Active'}</span></div><strong>{item.title}</strong><p>{item.detail}</p><footer><span>Owner · {item.owner}</span><b>{item.context}</b></footer></button><div className="notification-alert-controls"><button disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) acknowledgeAlert(item); }}>Acknowledge</button><button className="primary" disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) addAlertToControl(item); }}>{linkedAction ? 'Manage Action' : 'Add to Control'}</button></div></article>; })}</div>
+                  : <div className="notification-empty">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Slack alerts unavailable</strong><p>Active alert counts are unknown until the source refreshes.</p></> : <><Check size={22} /><strong>No active alerts</strong><p>Acknowledged and resolved alerts remain visible on Command.</p></>}</div>}
                 <footer><span><ShieldCheck size={13} />Source and ownership stay attached</span><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>View All Alerts</button></footer>
               </aside>}
             </div>
             <div className="live-chip"><span />{live ? 'Updated · ' + new Date(live.snapshot.generatedAt).toLocaleTimeString('en-US', {timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}) : 'Live · 10:24 AM'}</div>
-            <div className="operating-day-center">
+            {live ? <div className="operating-day-center"><label className="operating-day-trigger"><CalendarDays size={14} /><input aria-label="Choose operating day" type="date" disabled={mutationBusy} value={live.snapshot.date} onChange={event => { if (event.target.value) live.onDateChange(event.target.value, activeNav); }} /></label></div> : <div className="operating-day-center">
               {operatingDayOpen && <button className="operating-day-backdrop" aria-label="Close operating day" onClick={() => setOperatingDayOpen(false)} />}
-              <Button className="operating-day-trigger" variant="outline" size="lg" aria-label="Choose operating day" aria-expanded={operatingDayOpen} aria-controls="operating-day-panel" onClick={() => { setOperatingDayOpen((open) => !open); setSearchOpen(false); setNotificationOpen(false); setQuery(''); }}><CalendarDays size={14} />{live ? new Date(live.snapshot.date + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric' }) : operatingDateLabel}</Button>
+              <Button className="operating-day-trigger" variant="outline" size="lg" aria-label="Choose operating day" aria-expanded={operatingDayOpen} aria-controls="operating-day-panel" onClick={() => { setOperatingDayOpen((open) => !open); setSearchOpen(false); setNotificationOpen(false); setQuery(''); }}><CalendarDays size={14} />{operatingDateLabel}</Button>
               {operatingDayOpen && <aside className="operating-day-panel" id="operating-day-panel" role="dialog" aria-label="Operating day">
                 <header><div><span>Operating Context</span><strong>Today and Tomorrow</strong><small>Live work and planning remain separate.</small></div></header>
                 <div className="operating-day-options">
@@ -4151,13 +4184,14 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <footer><ShieldCheck size={13} /><span>Finance and Marketing keep their own reporting periods.</span></footer>
               </aside>}
             </div>
+          }
           </div>
         </header>
 
         <div className={activeNav === 'Schedule' ? 'workspace schedule-mode' : 'workspace'}>
-          <div className="workspace-heading">
+          <div className="workspace-heading" onClickCapture={event => { if (mutationBusyRef.current) { event.preventDefault(); event.stopPropagation(); } }}>
             <div>
-              <span className="eyebrow">{activeNav === 'Schedule' && scheduleView === 'calendar'
+              <span className="eyebrow">{live ? operatingDateHeading : activeNav === 'Schedule' && scheduleView === 'calendar'
                 ? selectedCalendarDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
                 : activeNav === 'Schedule' && scheduleDay === 'tomorrow' ? 'Monday, September 1' : operatingDateHeading}</span>
               <h1>{activeNav}</h1>
@@ -4191,7 +4225,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </div>
             {activeNav === 'Command' ? (
               <div className="view-switcher workspace-tabs" role="tablist" aria-label="Command views">
-                <button onClick={() => setView('now')} className={view === 'now' ? 'active' : ''}>Alerts <span>{activeAlerts.length}</span></button>
+                <button onClick={() => setView('now')} className={view === 'now' ? 'active' : ''}>Alerts <span>{live && !live.snapshot.sources.alerts ? '—' : activeAlerts.length}</span></button>
                 <button onClick={() => setView('today')} className={view === 'today' ? 'active' : ''}>Control</button>
                 <button onClick={() => setView('monitor')} className={view === 'monitor' ? 'active' : ''}>Monitor</button>
               </div>
@@ -4209,33 +4243,35 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <div className="krewe-view-switcher workspace-tabs" role="tablist" aria-label="Krewe views">
                   {([
                     ['today', 'Today'], ['callin', 'Call-in plan'], ['payperiod', 'Pay period'], ['monthly', 'Monthly'],
-                  ] as const).map(([key, label]) => <button className={kreweView === key ? 'active' : ''} onClick={() => { setKreweView(key); if (key === 'today') changeScheduleDay('today'); if (key === 'callin') changeScheduleDay('tomorrow'); }} role="tab" aria-selected={kreweView === key} key={key}>{label}{key === 'today' && <span>{workingKrewe.length}</span>}</button>)}
+                  ] as const).map(([key, label]) => <button className={kreweView === key ? 'active' : ''} onClick={() => { setKreweView(key); if (key === 'today') changeScheduleDay('today'); if (key === 'callin') changeScheduleDay('tomorrow'); }} role="tab" aria-selected={kreweView === key} key={key}>{label}{!live && key === 'today' && <span>{live ? '—' : workingKrewe.length}</span>}</button>)}
                 </div>
               </div>
             ) : activeNav === 'Fleet' ? (
               <div className="fleet-heading-actions">
                 <div className="fleet-view-switcher workspace-tabs" role="tablist" aria-label="Fleet views">
-                  {([['overview', 'Overview'], ['maintenance', 'Maintenance'], ['service', 'Service'], ['reports', 'Reports']] as const).map(([key, label]) => <button className={fleetView === key ? 'active' : ''} onClick={() => setFleetView(key)} role="tab" aria-selected={fleetView === key} key={key}>{label}{key === 'maintenance' && <span>{activeFleetIssues.length}</span>}</button>)}
+                  {([['overview', 'Overview'], ['maintenance', 'Maintenance'], ['service', 'Service'], ['reports', 'Reports']] as const).map(([key, label]) => <button className={fleetView === key ? 'active' : ''} onClick={() => setFleetView(key)} role="tab" aria-selected={fleetView === key} key={key}>{label}{!live && key === 'maintenance' && <span>{activeFleetIssues.length}</span>}</button>)}
                 </div>
               </div>
             ) : activeNav === 'Marketing' ? (
               <div className="marketing-heading-actions">
                 <div className="marketing-view-switcher workspace-tabs" role="tablist" aria-label="Marketing views">
-                  {([['overview', 'Overview'], ['leads', 'Lead Recovery'], ['reviews', 'Reviews'], ['performance', 'Performance']] as const).map(([key, label]) => <button className={marketingView === key ? 'active' : ''} onClick={() => { setMarketingView(key); setActionFeedback(''); }} role="tab" aria-selected={marketingView === key} key={key}>{label}{key === 'leads' && marketingRecoveryLeads.length > 0 && <span>{marketingRecoveryLeads.length}</span>}{key === 'reviews' && marketingReviewCount > 0 && <span>{marketingReviewCount}</span>}</button>)}
+                  {([['overview', 'Overview'], ['leads', 'Lead Recovery'], ['reviews', 'Reviews'], ['performance', 'Performance']] as const).map(([key, label]) => <button className={marketingView === key ? 'active' : ''} onClick={() => { setMarketingView(key); setActionFeedback(''); }} role="tab" aria-selected={marketingView === key} key={key}>{label}{!live && key === 'leads' && marketingRecoveryLeads.length > 0 && <span>{marketingRecoveryLeads.length}</span>}{!live && key === 'reviews' && marketingReviewCount > 0 && <span>{marketingReviewCount}</span>}</button>)}
                 </div>
               </div>
             ) : activeNav === 'Finance' ? (
               <div className="finance-heading-actions">
                 <div className="finance-view-switcher workspace-tabs" role="tablist" aria-label="Finance views">
-                  {([['overview', 'Overview'], ['payments', 'Payments'], ['resale', 'Resale'], ['recycling', 'Recycling'], ['trends', 'Trends']] as const).map(([key, label]) => <button className={financeView === key ? 'active' : ''} onClick={() => { setFinanceView(key); setActionFeedback(''); }} role="tab" aria-selected={financeView === key} key={key}>{label}{key === 'overview' && financeCloseSteps.length < 6 && <span>{6 - financeCloseSteps.length}</span>}{key === 'payments' && financeDifference > 0 && <span>{financePayments.filter((payment) => payment.status !== 'Matched').length}</span>}{key === 'resale' && financeResaleAttention > 0 && <span>{financeResaleAttention}</span>}{key === 'recycling' && financeRecyclingAttention > 0 && <span>{financeRecyclingAttention}</span>}</button>)}
+                  {([['overview', 'Overview'], ['payments', 'Payments'], ['resale', 'Resale'], ['recycling', 'Recycling'], ['trends', 'Trends']] as const).map(([key, label]) => <button className={financeView === key ? 'active' : ''} onClick={() => { setFinanceView(key); setActionFeedback(''); }} role="tab" aria-selected={financeView === key} key={key}>{label}{!live && key === 'overview' && financeCloseSteps.length < 6 && <span>{6 - financeCloseSteps.length}</span>}{!live && key === 'payments' && financeDifference > 0 && <span>{financePayments.filter((payment) => payment.status !== 'Matched').length}</span>}{key === 'resale' && financeResaleAttention > 0 && <span>{financeResaleAttention}</span>}{key === 'recycling' && financeRecyclingAttention > 0 && <span>{financeRecyclingAttention}</span>}</button>)}
                 </div>
               </div>
             ) : null}
           </div>
 
+          {live?.error && <p className="appointment-create-error" role="alert">{live.error}</p>}
+
           {activeNav === 'Command' && <section className="metric-strip" aria-label="Today at a glance">
             {commandKpiRows.map((kpi) => (
-              <button type="button" className={`kpi-card ${kpi.tone}`} onClick={() => openCommandKpi(kpi.label)} aria-label={`Open ${kpi.label} details`} key={kpi.label}>
+              <button type="button" className={`kpi-card ${kpi.tone}`} disabled={mutationBusy} onClick={() => openCommandKpi(kpi.label)} aria-label={`Open ${kpi.label} details`} key={kpi.label}>
                 <div className="kpi-heading"><span>{kpi.label}</span><span className="kpi-card-affordance"><i className={`kpi-dot ${kpi.tone}`} /><ArrowRight size={12} /></span></div>
                 <strong>{kpi.value}</strong>
                 <div className="kpi-meter" role="progressbar" aria-label={`${kpi.label}: ${kpi.detail}`} aria-valuenow={kpi.progress} aria-valuemin={0} aria-valuemax={100}>
@@ -4252,14 +4288,14 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             <div className="command-grid">
               <section className="work-panel">
                 <div className="section-title">
-                  <div><span className="section-kicker">{alertViewCounts.open} unresolved · {visibleCommandAlerts.length} shown</span><h2>Alerts</h2></div>
+                  <div><span className="section-kicker">{live && !live.snapshot.sources.alerts ? 'Slack source unavailable · alert counts unknown' : `${alertViewCounts.open} unresolved · ${visibleCommandAlerts.length} shown`}</span><h2>Alerts</h2></div>
                   <Button variant="ghost" size="sm" onClick={() => { setAlertViewFilter('all'); setQuery(''); }}>View All Alerts <ArrowRight /></Button>
                 </div>
                 <div className="alert-triage-bar" role="toolbar" aria-label="Filter alerts by workflow state">
                   <span>Workflow State</span>
                   <div>
                     {([['open', 'Open'], ['action', 'Needs Action'], ['control', 'In Control'], ['acknowledged', 'Acknowledged'], ['resolved', 'Resolved'], ['all', 'All']] as Array<[AlertViewFilter, string]>).map(([filter, label]) => (
-                      <button className={alertViewFilter === filter ? 'active' : ''} aria-pressed={alertViewFilter === filter} onClick={() => setAlertViewFilter(filter)} key={filter}>{label}<b>{alertViewCounts[filter]}</b></button>
+                      <button className={alertViewFilter === filter ? 'active' : ''} aria-pressed={alertViewFilter === filter} onClick={() => setAlertViewFilter(filter)} key={filter}>{label}<b>{live && !live.snapshot.sources.alerts ? '—' : alertViewCounts[filter]}</b></button>
                     ))}
                   </div>
                 </div>
@@ -4292,13 +4328,13 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                         </div>
                       </div>
                     </article>
-                  ); }) : <div className="empty-state"><Check size={22} /><strong>No alerts in this view</strong><span>Choose another workflow state or clear the search.</span></div>}
+                  ); }) : <div className="empty-state">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Slack alerts unavailable</strong><span>Alert counts are unknown until the source refreshes. This does not confirm that there are no alerts.</span></> : <><Check size={22} /><strong>No alerts in this view</strong><span>Choose another workflow state or clear the search.</span></>}</div>}
                 </div>
               </section>
             </div>
           )}
 
-          {activeNav === 'Command' && view === 'today' && (
+          {activeNav === 'Command' && view === 'today' && !live && (
             <div className="run-grid control-workspace">
               <section className="control-summary-strip" aria-label="Control status">
                 <button onClick={() => setActionQueueFilter('all')} className={actionQueueFilter === 'all' ? 'active' : ''}><span>Open Actions</span><strong>{actionQueue.length}</strong><small>Across all workspaces</small></button>
@@ -4504,7 +4540,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </div>
           )}
 
-          {activeNav === 'Command' && view === 'monitor' && (
+          {activeNav === 'Command' && view === 'monitor' && !live && (
             <div className="monitor-layout">
               <section className="signal-grid" aria-label="Operational trend signals">
                 {monitorSignals.map((signal) => { const Icon = signal.icon; return (
@@ -4555,7 +4591,12 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </div>
           )}
 
-          {activeNav === 'Schedule' && live && <LiveSchedule baseDate={live.snapshot.date} day={scheduleDay} onDayChange={setScheduleDay} onCounts={setLiveScheduleCounts} report={setActionFeedback} />}
+          {live && activeNav === 'Command' && view !== 'now' && <LiveControl date={live.snapshot.date} view={view} report={setActionFeedback} onNavigate={setActiveNav} onBusyChange={onBusyChange} />}
+          {live && activeNav === 'Krewe' && <LiveKrewe date={live.snapshot.date} view={kreweView} onViewChange={setKreweView} onBusyChange={onBusyChange} />}
+          {live && activeNav === 'Fleet' && <LiveFleet date={live.snapshot.date} view={fleetView} onViewChange={setFleetView} onBusyChange={onBusyChange} />}
+          {live && activeNav === 'Marketing' && <LiveMarketing date={live.snapshot.date} view={marketingView} onViewChange={setMarketingView} onBusyChange={onBusyChange} />}
+          {live && activeNav === 'Finance' && canFinance && <LiveFinance date={live.snapshot.date} view={financeView} onViewChange={setFinanceView} onBusyChange={onBusyChange} />}
+          {activeNav === 'Schedule' && live && <LiveSchedule baseDate={live.snapshot.date} day={scheduleDay} view={scheduleView} onDayChange={setScheduleDay} onCounts={setLiveScheduleCounts} report={setActionFeedback} onBusyChange={onBusyChange} onOpenDate={date => live.onDateChange(date, 'Schedule')} />}
           {activeNav === 'Schedule' && !live && (
             <section className="schedule-workspace">
               <div className="schedule-control-bar">
@@ -4980,7 +5021,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </section>
           )}
 
-          {activeNav === 'Krewe' && (
+          {activeNav === 'Krewe' && !live && (
             <section className={`krewe-workspace krewe-view-${kreweView}`}>
               {kreweView === 'today' && <>
                 <div className="krewe-kpi-strip" aria-label="Today’s Krewe summary">
@@ -5085,7 +5126,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </section>
           )}
 
-          {activeNav === 'Fleet' && (
+          {activeNav === 'Fleet' && !live && (
             <section className={`fleet-workspace fleet-view-${fleetView}`}>
               {fleetView === 'overview' && <>
                 <section className="fleet-load-board">
@@ -5158,7 +5199,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </section>
           )}
 
-          {activeNav === 'Marketing' && (
+          {activeNav === 'Marketing' && !live && (
             <section className={`marketing-workspace marketing-view-${marketingView}`}>
               {actionFeedback && <p className="marketing-feedback" role="status"><Check size={14} />{actionFeedback}</p>}
 
@@ -5241,7 +5282,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </section>
           )}
 
-          {activeNav === 'Finance' && (
+          {activeNav === 'Finance' && !live && (
             <section className={`finance-workspace finance-view-${financeView}`}>
               {actionFeedback && <p className="finance-feedback" role="status"><Check size={14} />{actionFeedback}</p>}
 
@@ -5348,7 +5389,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </section>
           )}
 
-          <footer className="command-footer"><span><ShieldCheck size={15} /> {activeNav === 'Schedule' ? 'JunkWare schedule and LinxUp locations connected' : activeNav === 'Krewe' ? 'JunkWare attendance and schedule assignments connected' : activeNav === 'Fleet' ? 'LinxUp telemetry, Fleet maintenance, and Schedule assignments connected' : activeNav === 'Marketing' ? 'SearchKings calls, JunkWare appointments, and Podium reviews connected' : activeNav === 'Finance' ? 'Truck Records, JunkWare closeouts, and QBO reconciliation connected' : live ? 'Source-backed Command · Live integration preview' : 'JunkWare, LinxUp, QBO, and SearchKings connected'}</span><button onClick={openSourceHealth}>View Source Health {sourceAttentionCount > 0 && <b>{sourceAttentionCount}</b>}<ArrowRight size={14} /></button></footer>
+          <footer className="command-footer"><span><ShieldCheck size={15} /> {live ? `${activeNav} · Source timestamps and unavailable inputs are shown in each view` : activeNav === 'Schedule' ? 'JunkWare schedule and LinxUp locations connected' : activeNav === 'Krewe' ? 'JunkWare attendance and schedule assignments connected' : activeNav === 'Fleet' ? 'LinxUp telemetry, Fleet maintenance, and Schedule assignments connected' : activeNav === 'Marketing' ? 'SearchKings calls, JunkWare appointments, and Podium reviews connected' : activeNav === 'Finance' ? 'Truck Records, JunkWare closeouts, and QBO reconciliation connected' : live ? 'Source-backed Command · Live integration preview' : 'JunkWare, LinxUp, QBO, and SearchKings connected'}</span><button onClick={openSourceHealth}>View Source Health {sourceAttentionCount > 0 && <b>{sourceAttentionCount}</b>}<ArrowRight size={14} /></button></footer>
         </div>
       </section>
       {sourceHealthOpen && (

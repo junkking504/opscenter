@@ -34,3 +34,11 @@
 .live-schedule .drawer-cancel-confirmation { grid-column: 1 / -1; }
 .live-schedule .drawer-cancel-confirmation > p { margin: 0; color: #9f202b; font-size: 11px; }
 .live-schedule .appointment-register-row .assignment-unverified { color: #9f202b; font-weight: 700; }
+
+.desktop-closeout-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.appointment-closeout-body .appointment-create-section { margin-block: 12px; }
+.appointment-closeout-body input, .appointment-closeout-body select { min-width: 0; width: 100%; padding: 6px 8px; color: inherit; background: var(--panel, #fff); border: 1px solid var(--line, #dce2eb); border-radius: 6px; }
+.appointment-closeout-body .ops-button { padding: 6px 10px; border: 1px solid var(--line, #dce2eb); border-radius: 6px; font-size: 12px; }
+.appointment-closeout-body .ops-closeout-editor-actions { display: flex; gap: 8px; padding-block: 12px; }
+.appointment-create-drawer .appointment-customer-results { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; }
+.appointment-create-drawer .appointment-customer-results small { display: block; }

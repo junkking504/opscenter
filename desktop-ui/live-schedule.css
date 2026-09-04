@@ -106,3 +106,13 @@
 .ops-live .live-schedule .schedule-appointment > .schedule-jk-link { width: 100%; max-width: 100%; min-width: 0; padding: 0; white-space: normal; overflow-wrap: anywhere; overflow: visible; text-overflow: clip; font-size: 9px !important; line-height: 1.15; letter-spacing: 0; color: #24312a; }
 .ops-live .live-schedule .schedule-appointment > span { line-height: 1.15; }
 .ops-live .live-schedule .schedule-board-scroll { overflow: auto; }
+
+.ops-live .live-schedule-map .live-map-tooltip { padding: 4px 6px; width: max-content; max-width: 150px; white-space: normal; overflow-wrap: anywhere; color: #26312b; background: #fffffff5; border: 1px solid #d5ddd7; border-radius: 4px; box-shadow: 0 1px 4px #17212b26; font-size: 10px; line-height: 1.25; pointer-events: none; }
+.ops-live .live-schedule-map .live-map-tooltip::before { display: none; }
+.ops-live .live-schedule-map .live-map-tooltip strong, .ops-live .live-schedule-map .live-map-tooltip small { display: block; font-size: 10px; line-height: 1.25; }
+.ops-live .live-schedule-map .live-map-tooltip strong { font-weight: 700; }
+.ops-live .live-schedule-map .live-map-tooltip small { color: #59675e; font-size: 9px; }
+
+.ops-live .live-schedule .schedule-board, .ops-live .live-schedule .schedule-board * { -webkit-user-select: none; user-select: none; }
+.ops-live .live-schedule .schedule-jk-link { -webkit-user-drag: none; touch-action: none; }
+body.schedule-pointer-drag, body.schedule-pointer-drag * { -webkit-user-select: none !important; user-select: none !important; cursor: grabbing !important; }

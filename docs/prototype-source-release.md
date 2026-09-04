@@ -235,3 +235,16 @@ Schedule blocks keep their territory color across estimate and completion
 states. JK numbers wrap within narrow blocks instead of truncating. Overlapping
 appointments receive enough lane height for the identifier; the board scrolls
 locally when its rows exceed the available panel height.
+
+Map hover labels show only the JK number and appointment window, or the truck
+number and GPS freshness. They wrap within 150px and clamp to the map canvas;
+full accessible labels and click-through details remain available.
+
+Dragging can begin on the block or JK number. Pointer capture and temporary
+selection suppression prevent native text selection; drop still requires the
+existing review and verified JunkWare write. Clicks after a drag are suppressed,
+and Escape, pointer cancellation, blur, or unmount clean up the gesture.
+
+Unavailable route labels distinguish an unverified appointment address from a
+missing provider estimate. Coordinates remain subject to the existing strict
+verification; the interface never substitutes invented travel times.

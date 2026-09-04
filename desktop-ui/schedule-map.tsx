@@ -37,7 +37,7 @@ export default function ScheduleMap(props: Props) {
     const layer = markers.current;
     if (!view || !layer) return;
     const { appointments, trucks, selected, selectedTruck, scope, resetKey, date } = current.current;
-    type Pin = { id: string; coordinate: L.LatLngTuple; label: string; text: string; className: string; selected: boolean; select: () => void };
+    type Pin = { id: string; coordinate: L.LatLngTuple; label: string; text: string; tooltipTitle: string; tooltipDetail: string; className: string; selected: boolean; select: () => void };
     const pins: Pin[] = [];
     const appointmentBounds: L.LatLngTuple[] = [];
     appointments.forEach((job, index) => {
@@ -45,7 +45,7 @@ export default function ScheduleMap(props: Props) {
       const coordinate: L.LatLngTuple = [job.location.latitude, job.location.longitude];
       appointmentBounds.push(coordinate);
       pins.push({ id: `appointment:${job.recordId}`, coordinate,
-        text: String(index + 1), label: `Open appointment ${job.jkNumber}, ${job.appointmentTime}, ${job.customerName}`,
+        tooltipTitle: job.jkNumber, tooltipDetail: job.appointmentTime, text: String(index + 1), label: `Open appointment ${job.jkNumber}, ${job.appointmentTime}, ${job.customerName}`,
         className: `appointment-marker territory-${appointmentRegion(job).code.toLowerCase()} ${appointmentStatus(job).toLowerCase().replaceAll(' ', '-')}`,
         selected: selected === job.recordId, select: () => current.current.onSelect(job.recordId) });
     });
@@ -55,6 +55,7 @@ export default function ScheduleMap(props: Props) {
       const age = Date.now() - Date.parse(truck.lastGpsUpdate || '');
       const fresh = Number.isFinite(age) && age >= 0 && age <= 180_000;
       pins.push({ id: `truck:${name}`, coordinate: [truck.latitude, truck.longitude], text: name.replace('Truck ', 'T'),
+        tooltipTitle: name, tooltipDetail: fresh ? 'Recent GPS' : 'Last known GPS',
         label: `Select ${name}, ${fresh ? 'Recent GPS' : 'Last Known Position'}`,
         className: `truck-marker${fresh ? '' : ' stale'}`, selected: selectedTruck === name,
         select: () => current.current.onSelectTruck(name) });
@@ -107,8 +108,28 @@ export default function ScheduleMap(props: Props) {
         button.setAttribute('aria-pressed', String(pin.selected));
         L.DomEvent.disableClickPropagation(button);
         button.onclick = event => { event.stopPropagation(); pin.select(); };
-        const tooltip = document.createElement('span'); tooltip.textContent = pin.label;
-        L.marker(coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize: [30, 30], iconAnchor: [15, 15] }), zIndexOffset: pin.selected ? 900 : 0 }).bindTooltip(tooltip).addTo(layer);
+        const tooltip = document.createElement('span');
+        const title = document.createElement('strong'); title.textContent = pin.tooltipTitle;
+        const detail = document.createElement('small'); detail.textContent = pin.tooltipDetail;
+        tooltip.append(title, detail);
+        const marker = L.marker(coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize: [30, 30], iconAnchor: [15, 15] }), zIndexOffset: pin.selected ? 900 : 0 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: L.point(0, -12), opacity: 1 }).addTo(layer);
+        button.onfocus = () => marker.openTooltip();
+        button.onblur = () => marker.closeTooltip();
+        marker.on('tooltipopen', () => {
+          const bubble = marker.getTooltip();
+          const element = bubble?.getElement();
+          const canvas = host.current;
+          if (!bubble || !element || !canvas) return;
+          bubble.options.offset = L.point(0, -12);
+          element.style.maxWidth = `${Math.max(80, Math.min(150, canvas.clientWidth - 16))}px`;
+          bubble.update();
+          const bounds = canvas.getBoundingClientRect();
+          const rect = element.getBoundingClientRect();
+          const dx = Math.max(bounds.left + 6 - rect.left, Math.min(0, bounds.right - 6 - rect.right));
+          const dy = Math.max(bounds.top + 6 - rect.top, Math.min(0, bounds.bottom - 6 - rect.bottom));
+          bubble.options.offset = L.point(dx, -12 + dy);
+          bubble.update();
+        });
         if (activeId === pin.id) button.focus({ preventScroll: true });
       }
     };

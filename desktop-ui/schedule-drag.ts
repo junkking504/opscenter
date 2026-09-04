@@ -49,19 +49,25 @@ export function useScheduleDrag(
   const cleanup = useRef<(() => void) | null>(null);
   useEffect(() => () => cleanup.current?.(), [date]);
   const begin = (event: ReactPointerEvent<HTMLElement>, job: ScheduleAppointment) => {
+    if (event.button !== 0) return;
+    suppressClick.current = false;
+    const target = event.target as HTMLElement;
     if (
       disabled ||
-      event.button !== 0 ||
       isClosed(job) ||
       assignmentNeedsVerification(job) ||
-      (event.target as HTMLElement).closest("button,a,input,select")
+      (target.closest("button,a,input,select") && !target.closest('.schedule-jk-link'))
     )
       return;
     cleanup.current?.();
-    suppressClick.current = false;
+    // Cancel native text selection before the browser begins its drag gesture.
+    event.preventDefault();
+    document.body.classList.add('schedule-pointer-drag');
     const x = event.clientX,
       y = event.clientY;
     const element = event.currentTarget;
+    const pointerId = event.pointerId;
+    element.setPointerCapture(pointerId);
     const block = element.getBoundingClientRect();
     const grabOffset = x - block.left;
     let moved = false;
@@ -71,10 +77,15 @@ export function useScheduleDrag(
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", cancel);
       window.removeEventListener("keydown", keydown, true);
+      window.removeEventListener("blur", cancel);
+      element.removeEventListener("lostpointercapture", cancel);
+      if (element.hasPointerCapture(pointerId)) element.releasePointerCapture(pointerId);
+      document.body.classList.remove('schedule-pointer-drag');
       setPreview(null);
       cleanup.current = null;
     };
     const move = (pointer: PointerEvent) => {
+      if (pointer.pointerId !== pointerId) return;
       if (!moved && Math.hypot(pointer.clientX - x, pointer.clientY - y) < 6) return;
       if (!moved) element.focus({ preventScroll: true });
       moved = true;
@@ -107,7 +118,8 @@ export function useScheduleDrag(
       proposal = scheduleMoveProposal(job, truck, start, jobs);
       setPreview(proposal);
     };
-    const up = () => {
+    const up = (pointer: PointerEvent) => {
+      if (pointer.pointerId !== pointerId) return;
       const result = proposal;
       finish();
       if (
@@ -130,6 +142,8 @@ export function useScheduleDrag(
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", cancel);
     window.addEventListener("keydown", keydown, true);
+    window.addEventListener("blur", cancel);
+    element.addEventListener("lostpointercapture", cancel);
   };
   return { preview, begin, suppressClick };
 }

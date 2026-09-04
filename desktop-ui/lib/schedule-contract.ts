@@ -63,6 +63,15 @@ export type ClosestTruck = {
 };
 export type ScheduleRouting = { date: string; calculatedAt: string; legs: ScheduleRouteLeg[]; closest: ClosestTruck[]; appointmentId: string | null };
 
+export function unavailableRoute(leg: ScheduleRouteLeg, jobs: ScheduleAppointment[]) {
+  const missing = [leg.fromAppointmentId, leg.toAppointmentId]
+    .map(id => jobs.find(job => job.recordId === id))
+    .filter(job => !job?.location);
+  return missing.length
+    ? { label: 'Verify Address', detail: `Travel time needs verified coordinates for ${missing.map(job => job?.jkNumber || 'the appointment').join(' and ')}.` }
+    : { label: 'ETA Unavailable', detail: 'The route provider has not returned a travel estimate.' };
+}
+
 export const territoryLabels: Record<string, string> = { NO: 'New Orleans', JP: 'Jefferson Parish', NS: 'Northshore', BR: 'Baton Rouge', LF: 'Lafayette', UNK: 'Unclassified' };
 export const territoryOrder = ['NO', 'JP', 'NS', 'BR', 'LF', 'UNK'];
 export function appointmentRegion(job: Pick<ScheduleAppointment, 'address' | 'territory'>) {

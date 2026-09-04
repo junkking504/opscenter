@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { assignmentNeedsVerification, isClosed, scheduleMoveWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
+import { assignmentNeedsVerification, unavailableRoute, isClosed, scheduleMoveWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
 import { scheduleMoveProposal } from '../desktop-ui/schedule-drag';
 
 const job = { recordId: '2026-09-03:appointment:1234', appointmentId: '1234', jkNumber: 'JK1234567', truck: 'Truck 4', appointmentStartMinutes: 840, appointmentEndMinutes: 960, appointmentTime: '2:00 PM–4:00 PM', appointmentType: 'Estimate', status: 'Confirmed' } as ScheduleAppointment;
@@ -28,3 +28,8 @@ assert.equal(assignmentNeedsVerification({ junkwareSyncStatus: 'verified' }), fa
 assert.equal(assignmentNeedsVerification({ junkwareSyncStatus: 'pending' }), true);
 assert.equal(assignmentNeedsVerification({ junkwareSyncStatus: 'manual_correction' }), true);
 console.log('Schedule interaction contracts passed: full windows, source duration, hourly constraints, independent identity, conflicts, and unverified-assignment safety.');
+
+const route = { fromAppointmentId: job.recordId, toAppointmentId: sharedJk.recordId } as Parameters<typeof unavailableRoute>[0];
+assert.match(unavailableRoute(route, [job, sharedJk]).detail, /verified coordinates/);
+assert.equal(unavailableRoute(route, [{ ...job, location: { latitude: 30, longitude: -90 } }, { ...sharedJk, location: { latitude: 30.1, longitude: -90.1 } }]).label, "ETA Unavailable");
+assert.equal(unavailableRoute(route, [{ ...job, location: { latitude: 30, longitude: -90 } }, sharedJk]).label, "Verify Address");

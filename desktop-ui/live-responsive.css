@@ -30,3 +30,50 @@
   .ops-live .workspace-tabs { max-width: 100%; overflow-x: auto; }
   .ops-live .fleet-table-shell { overflow-x: auto; }
 }
+
+/* Source-backed roster uses the same compact text scale as Krewe Snapshot. */
+.ops-live .live-krewe .krewe-layout { grid-template-columns: minmax(0, 1fr); }
+.ops-live .live-krewe .krewe-roster-shell { min-width: 0; overflow-x: auto; }
+.ops-live .live-krewe .krewe-performance-head, .ops-live .live-krewe .krewe-performance-row { min-width: 900px; grid-template-columns: minmax(145px, 1.3fr) 98px 110px 110px 80px 70px 70px 80px 52px; gap: 8px; }
+.ops-live .live-krewe .krewe-performance-row { min-height: 53px; padding: 7px 12px; font-size: 10px; }
+.ops-live .live-krewe .krewe-performance-row > strong { font-size: 10px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.ops-live .live-krewe .krewe-assignment > strong { display: block; font-size: 10px; font-weight: 600; }
+.ops-live .live-krewe .krewe-identity > i { width: 28px; height: 28px; }
+.ops-live .live-krewe .krewe-performance-head { font-size: 8px; }
+.ops-live .live-krewe .krewe-exceptions-shell:has(> .section-title:only-child) { display: none; }
+.ops-live .live-fleet .fleet-overview-grid { grid-template-columns: minmax(0, 1fr); }
+.ops-live .live-fleet .fleet-readiness-shell { min-width: 0; overflow-x: auto; }
+.ops-live .live-fleet .fleet-table-head, .ops-live .live-fleet .fleet-truck-row { min-width: 920px; grid-template-columns: minmax(135px, 1fr) 100px minmax(145px, 1.1fr) 115px 80px 100px 90px 52px; gap: 8px; }
+.ops-live .live-fleet .fleet-truck-row { min-height: 58px; padding: 7px 11px; font-size: 10px; }
+.ops-live .live-fleet .fleet-truck-row > div > strong { font-size: 10px; font-weight: 600; }
+.ops-live .live-fleet .fleet-readiness.attention { color: #805710; background: #fff1d0; }
+.ops-live .live-fleet .fleet-readiness.out-of-service { color: #a42331; background: #fde9ec; }
+.ops-live .live-fleet .fleet-exceptions-shell:has(> .section-title:only-child) { display: none; }
+@media (max-width: 760px) {
+  .ops-live .live-fleet .fleet-load-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ops-live .live-fleet .fleet-load-cards > button { border-bottom: 1px solid var(--border); }
+  .ops-live .live-fleet .fleet-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.ops-live .live-marketing .marketing-overview-grid { grid-template-columns: minmax(0, 1fr); }
+.ops-live .live-marketing .marketing-recovery-shell, .ops-live .live-marketing .marketing-leads-shell { min-width: 0; overflow-x: auto; }
+.ops-live .live-marketing .marketing-lead-head, .ops-live .live-marketing .marketing-lead-list > article { min-width: 920px; grid-template-columns: minmax(130px, .85fr) minmax(230px, 1.5fr) 82px minmax(135px, 1fr) 105px 85px; }
+.ops-live .live-marketing .marketing-lead-head.detailed, .ops-live .live-marketing .marketing-lead-list.detailed > article { min-width: 985px; grid-template-columns: minmax(120px, 1fr) minmax(210px, 1.6fr) 74px 78px minmax(125px, 1fr) 98px 102px; }
+.ops-live .live-marketing .marketing-lead-list > article { align-items: start; padding-block: 10px; font-size: 10px; }
+.ops-live .live-marketing .live-lead-need p { margin: 0; font-size: 10px; font-weight: 450; line-height: 1.45; }
+.ops-live .live-marketing .marketing-lead-list article > div > strong { font-size: 10px; font-weight: 650; }
+.ops-live .live-marketing .marketing-recording { white-space: nowrap; }
+.ops-live .live-marketing .marketing-outcome-actions { flex-wrap: wrap; }
+.ops-live .live-marketing .marketing-lead-status { white-space: nowrap; }
+.ops-live .live-alert-summary { margin: 0; padding: 0 10px 5px; color: #55615a; font-size: 11px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ops-live .live-alert-details > summary { width: fit-content; margin: 0 10px 7px; color: #59685f; font-size: 10px; cursor: pointer; }
+.ops-live .live-alert-details .inline-alert-facts { gap: 8px 16px; padding: 10px; }
+.ops-live .live-alert-details .inline-alert-facts > div { display: block; padding: 0; border: 0; flex: 0 1 auto; }
+.ops-live .live-alert-details .inline-alert-facts > div > span { display: block; margin-bottom: 2px; }
+.ops-live .live-alert-details .inline-alert-facts strong { font-weight: 500; }
+.ops-live .live-alert-details .inline-alert-facts .next-step { flex-basis: 100%; }
+.ops-live .alert-card-actions button { height: 28px; padding-inline: 8px; font-size: 10px; }
+.ops-live .alert-card-heading { align-items: flex-start; }
+@media (max-width: 1000px) {
+  .ops-live .alert-card-heading { flex-wrap: wrap; }
+  .ops-live .alert-card-actions { flex-wrap: wrap; }
+}

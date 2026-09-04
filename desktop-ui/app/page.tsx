@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { DesktopLiveProps } from '@/lib/live-contract';
 import LiveControl from '../live-control';
+import { navigationValue, workspaceUrl } from '../lib/workspace-navigation';
 import LiveKrewe from '../live-krewe';
 import LiveFleet from '../live-fleet';
 import { LiveMarketing } from '../live-marketing';
@@ -1003,10 +1004,10 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const [customerNoteDraft, setCustomerNoteDraft] = useState('');
   const [drawer, setDrawer] = useState<DrawerRecord | null>(null);
   const [copiedJk, setCopiedJk] = useState<string | null>(null);
-  const [scheduleDay, setScheduleDay] = useState<ScheduleDay>('today');
+  const [scheduleDay, setScheduleDay] = useState<ScheduleDay>(() => live ? navigationValue(window.location.search, 'scheduleDay', ['today', 'tomorrow'], 'today') : 'today');
   const [liveScheduleCounts, setLiveScheduleCounts] = useState({ today: 0, tomorrow: 0 });
   const operatingDateHeading = live ? new Date((activeNav === 'Schedule' ? dateForDay(live.snapshot.date, scheduleDay) : live.snapshot.date) + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric' }) : 'Sunday, August 31';
-  const [scheduleView, setScheduleViewValue] = useState<'board' | 'calendar' | 'followup' | 'history'>('board');
+  const [scheduleView, setScheduleViewValue] = useState<'board' | 'calendar' | 'followup' | 'history'>(() => live ? navigationValue(window.location.search, 'scheduleView', ['board', 'calendar', 'followup', 'history'], 'board') : 'board');
   const setScheduleView = (value: 'board' | 'calendar' | 'followup' | 'history') => {
     if (mutationBusyRef.current) return;
     setScheduleViewValue(value);
@@ -1033,13 +1034,13 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const junkWareCreationBusy = junkWareCreationState === 'creating' || junkWareCreationState === 'verifying' || junkWareCreationState === 'searching' || junkWareCreationState === 'created';
   const [kreweMembers, setKreweMembers] = useState<KreweMember[]>(live ? [] : kreweRoster);
   const [kreweFilter, setKreweFilter] = useState<KreweFilter>('all');
-  const [kreweView, setKreweViewValue] = useState<KreweView>('today');
+  const [kreweView, setKreweViewValue] = useState<KreweView>(() => live ? navigationValue(window.location.search, 'kreweView', ['today', 'callin', 'payperiod', 'monthly'], 'today') : 'today');
   const setKreweView = (value: KreweView) => { if (!mutationBusyRef.current) setKreweViewValue(value); };
   const [callInCandidates, setCallInCandidates] = useState<CallInCandidate[]>(live ? [] : initialCallInCandidates);
   const [kreweMonth, setKreweMonth] = useState<'august' | 'july'>('august');
   const [timeCorrection, setTimeCorrection] = useState({ clockIn: '', clockOut: '', reason: '' });
   const [bonusEntry, setBonusEntry] = useState({ amount: '', reason: '' });
-  const [fleetView, setFleetViewValue] = useState<FleetView>('overview');
+  const [fleetView, setFleetViewValue] = useState<FleetView>(() => live ? navigationValue(window.location.search, 'fleetView', ['overview', 'maintenance', 'service', 'reports'], 'overview') : 'overview');
   const setFleetView = (value: FleetView) => { if (!mutationBusyRef.current) setFleetViewValue(value); };
   const [fleetTruckRows, setFleetTruckRows] = useState<FleetTruck[]>(live ? [] : fleetTrucks);
   const [fleetIssues, setFleetIssues] = useState<FleetIssue[]>(live ? [] : initialFleetIssues);
@@ -1050,13 +1051,18 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const [fleetReportMonth, setFleetReportMonth] = useState<'august' | 'july'>('august');
   const [fleetLoadDraft, setFleetLoadDraft] = useState({ percent: '', note: '', metal: '' });
   const [fleetIssueDraft, setFleetIssueDraft] = useState({ status: 'Open' as FleetIssueStatus, owner: '', due: '', resolution: '', cost: '', downtime: '' });
-  const [marketingView, setMarketingViewValue] = useState<MarketingView>('overview');
+  const [marketingView, setMarketingViewValue] = useState<MarketingView>(() => live ? navigationValue(window.location.search, 'marketingView', ['overview', 'leads', 'reviews', 'performance'], 'overview') : 'overview');
   const setMarketingView = (value: MarketingView) => { if (!mutationBusyRef.current) setMarketingViewValue(value); };
   const [marketingLeads, setMarketingLeads] = useState<MarketingLead[]>(live ? [] : initialMarketingLeads);
   const [marketingReviews, setMarketingReviews] = useState<MarketingReview[]>(live ? [] : initialMarketingReviews);
   const [marketingLeadFilter, setMarketingLeadFilter] = useState<'recover' | 'lost' | 'followup' | 'all'>('recover');
-  const [financeView, setFinanceViewValue] = useState<FinanceView>('overview');
+  const [financeView, setFinanceViewValue] = useState<FinanceView>(() => live ? navigationValue(window.location.search, 'financeView', ['overview', 'payments', 'resale', 'recycling', 'trends'], 'overview') : 'overview');
   const setFinanceView = (value: FinanceView) => { if (!mutationBusyRef.current) setFinanceViewValue(value); };
+  useEffect(() => {
+    if (!live) return;
+    const url = workspaceUrl(window.location.href, { workspace: activeNav, commandView: view, scheduleView, scheduleDay, kreweView, fleetView, marketingView, financeView });
+    window.history.replaceState(window.history.state, '', url);
+  }, [Boolean(live), activeNav, view, scheduleView, scheduleDay, kreweView, fleetView, marketingView, financeView]);
   const [financePayments, setFinancePayments] = useState<FinancePayment[]>(live ? [] : initialFinancePayments);
   const [financeRecoveryItems, setFinanceRecoveryItems] = useState<FinanceRecoveryItem[]>(live ? [] : initialFinanceRecoveryItems);
   const [financeCloseSteps, setFinanceCloseSteps] = useState<string[]>(['costs']);
@@ -4300,7 +4306,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   </div>
                 </div>
                 <div className="work-list">
-                  {visibleCommandAlerts.length ? visibleCommandAlerts.map((item) => { const linkedAction = linkedActionForAlert(item); const outcome = alertOutcomes[item.id]; const workflowStatus = alertWorkflowStatus(item); return (
+                  {visibleCommandAlerts.length ? visibleCommandAlerts.map((item) => { const linkedAction = linkedActionForAlert(item); const outcome = alertOutcomes[item.id]; const workflowStatus = alertWorkflowStatus(item); const briefFacts = item.facts.filter(fact => /^(customer|total|arrival|reason|context)$/i.test(fact.label)).slice(0, 2); return (
                     <article key={item.id} className={`work-row ${workflowStatus.toLowerCase().replaceAll(' ', '-')}`}>
                       <span className={`priority-mark ${item.priority}`} />
                       <div className="alert-card-main">
@@ -4311,10 +4317,13 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                           </div>
                           <div className="alert-card-actions">
                             {!completed.includes(item.id) && !outcome && (!live || liveAlert(item)?.workflowState === 'active' || liveAlert(item)?.workflowState === 'in-control') && <Button variant="outline" size="sm" disabled={Boolean(live && (!live.snapshot.sources.workflow || live.pendingAlertId))} onClick={() => acknowledgeAlert(item)}>Acknowledge</Button>}
-                            <Button variant={outcome ? 'outline' : 'default'} size="sm" disabled={Boolean(outcome || (live && (!live.snapshot.sources.workflow || live.pendingAlertId || liveAlert(item)?.workflowState === 'resolved')))} onClick={() => addAlertToControl(item)}>{outcome || liveAlert(item)?.workflowState === 'resolved' ? 'Resolved' : linkedAction || liveAlert(item)?.workflowState === 'in-control' ? 'Manage Action' : 'Add to Control'} {outcome ? <Check /> : <ArrowRight />}</Button>
-                            <Button variant="ghost" size="sm" onClick={() => openAlertRecord(item)}>Open Source</Button>
+                            <Button variant={live || outcome ? 'outline' : 'default'} size="sm" disabled={Boolean(outcome || (live && (!live.snapshot.sources.workflow || live.pendingAlertId || liveAlert(item)?.workflowState === 'resolved')))} onClick={() => addAlertToControl(item)}>{outcome || liveAlert(item)?.workflowState === 'resolved' ? 'Resolved' : linkedAction || liveAlert(item)?.workflowState === 'in-control' ? 'Manage Action' : 'Add to Control'} {outcome ? <Check /> : <ArrowRight />}</Button>
+                            {!live && <Button variant="ghost" size="sm" onClick={() => openAlertRecord(item)}>Open Source</Button>}
                           </div>
                         </div>
+                        {live && <p className="live-alert-summary">{(briefFacts.length ? briefFacts : item.facts.slice(0, 1)).map(fact => `${fact.label}: ${fact.value}`).join(' · ') || item.context}</p>}
+                        <details className="live-alert-details" open={live ? undefined : true}>
+                        {live && <summary>Details</summary>}
                         <div className="inline-alert-facts" aria-label={`${item.label} details`}>
                           {item.facts.map((fact) => (
                             <div key={fact.label}>
@@ -4323,9 +4332,11 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                             </div>
                           ))}
                           {outcome && <div><span>Evidence</span><strong>{outcome.evidence}</strong></div>}
+                          {live && <div><Button variant="ghost" size="sm" onClick={() => openAlertRecord(item)}>Open Source</Button></div>}
                           <div><span>Owner</span><strong>{item.owner}</strong></div>
                           <div className="next-step"><span>{outcome ? 'Verified' : 'Next'}</span><strong>{outcome?.resolution || item.context}</strong>{outcome && <em>{outcome.source} · {outcome.time}</em>}</div>
                         </div>
+                        </details>
                       </div>
                     </article>
                   ); }) : <div className="empty-state">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Slack alerts unavailable</strong><span>Alert counts are unknown until the source refreshes. This does not confirm that there are no alerts.</span></> : <><Check size={22} /><strong>No alerts in this view</strong><span>Choose another workflow state or clear the search.</span></>}</div>}

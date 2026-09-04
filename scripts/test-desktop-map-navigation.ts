@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { spreadMapPins } from '../desktop-ui/lib/schedule-map-layout';
+import { navigationValue, workspaceUrl } from '../desktop-ui/lib/workspace-navigation';
+const crowded = Array.from({ length: 14 }, (_, i) => ({ id: `${i < 10 ? 'appointment' : 'truck'}:${i}`, x: 200 + i % 3, y: 200 + i % 2 }));
+const source = JSON.stringify(crowded);
+const spread = spreadMapPins(crowded);
+assert.equal(JSON.stringify(crowded), source, 'Display offsets must not mutate source coordinates');
+assert.equal(new Set(spread.map(pin => pin.id)).size, 14, 'All appointments and trucks remain selectable');
+for (const [i, a] of spread.entries()) for (const b of spread.slice(i + 1)) assert.ok(Math.hypot(a.x - b.x, a.y - b.y) >= 38, 'Hit targets must not overlap');
+assert.deepEqual(spreadMapPins([...crowded].reverse()), spread, 'Refresh ordering must not shuffle pins');
+assert.deepEqual(spreadMapPins([{id:'a',x:0,y:0},{id:'b',x:100,y:100}]), [{id:'a',x:0,y:0},{id:'b',x:100,y:100}]);
+const url = workspaceUrl('https://ops.junk-king.app/desktop?data=live&date=2026-09-04&workspace=Command', { workspace: 'Schedule', scheduleView: 'calendar', scheduleDay: 'tomorrow' });
+assert.equal(url.searchParams.get('date'), '2026-09-04');
+assert.equal(url.searchParams.get('data'), 'live');
+assert.equal(navigationValue(url.search, 'workspace', ['Command','Schedule'], 'Command'), 'Schedule');
+assert.equal(navigationValue(url.search, 'scheduleView', ['board','calendar'], 'board'), 'calendar');
+assert.equal(navigationValue('?scheduleView=invalid', 'scheduleView', ['board','calendar'], 'board'), 'board');
+console.log('Map collision and refresh-navigation contracts passed.');

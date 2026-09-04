@@ -48,7 +48,7 @@ export function LiveMarketing({ date, view, report, onViewChange, onBusyChange }
   const marketingTotals = data.totals, marketingSources = data.sources;
   return <>
     <p className="marketing-source-note" role="status">{data.available ? `${data.range} · SearchKings observed ${commercialDate(data.fetchedAt || '')}` : data.error || 'SearchKings source unavailable.'} · {data.reviewAvailable ? `Podium snapshot ${commercialDate(data.reviewFetchedAt || '')}` : data.reviewError || 'Podium unavailable.'}</p>
-            <section className={`marketing-workspace marketing-view-${marketingView}`}>
+            <section className={`marketing-workspace live-marketing marketing-view-${marketingView}`}>
               {actionFeedback && <p className="marketing-feedback" role="status"><Check size={14} />{actionFeedback}</p>}
 
               {marketingView === 'overview' && data.available && <>
@@ -66,7 +66,7 @@ export function LiveMarketing({ date, view, report, onViewChange, onBusyChange }
                     <div className="marketing-lead-head"><span>Lead</span><span>Need</span><span>Quoted Value</span><span>Contact</span><span>Status</span><span /></div>
                     <div className="marketing-lead-list">{marketingRecoveryLeads.slice(0, 4).map((lead) => <article className={lead.status === 'Lost' ? 'lost' : 'followup'} key={lead.id}>
                       <div><strong>{lead.customer}</strong><small>{lead.territory} · {lead.age}</small></div>
-                      <div><strong>{lead.intent}</strong><small>{lead.reason}</small></div>
+                      <div className="live-lead-need"><p>{lead.intent}</p><small>{lead.reason}</small></div>
                       <strong>{moneyValue(lead.quotedValue)}</strong>
                       <div><PhoneContact phone={lead.phone} /><small>{lead.lastContact}</small></div>
                       <span className={`marketing-lead-status ${lead.status.toLowerCase().replaceAll(' ', '-')}`}>{lead.status}</span>
@@ -100,7 +100,7 @@ export function LiveMarketing({ date, view, report, onViewChange, onBusyChange }
                 <div className="marketing-lead-head detailed"><span>Lead</span><span>Need</span><span>Quoted Value</span><span>Call</span><span>Contact History</span><span>Status</span><span>Outcome</span></div>
                 <div className="marketing-lead-list detailed">{visibleMarketingLeads.length ? visibleMarketingLeads.map((lead) => <article className={lead.status === 'Lost' ? 'lost' : lead.status === 'Needs follow-up' ? 'followup' : 'resolved'} key={lead.id}>
                   <div><strong>{lead.customer}</strong><PhoneContact phone={lead.phone} /><small>{lead.territory} · {lead.source}</small></div>
-                  <div><strong>{lead.intent}</strong><small>{lead.reason}</small></div>
+                  <div className="live-lead-need"><p>{lead.intent}</p><small>{lead.reason}</small></div>
                   <strong>{moneyValue(lead.quotedValue)}</strong>
                   <a className="marketing-recording" href={safeUrl(lead.sourceUrl)} target="_blank" rel="noreferrer"><Play size={12} />Open Source</a>
                   <div><strong>{lead.lastContact}</strong><small>Inbound call · {lead.age}</small></div>

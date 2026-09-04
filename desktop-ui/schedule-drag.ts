@@ -45,6 +45,7 @@ export function useScheduleDrag(
   disabled = false,
 ) {
   const [preview, setPreview] = useState<MoveProposal | null>(null);
+  const suppressClick = useRef(false);
   const cleanup = useRef<(() => void) | null>(null);
   useEffect(() => () => cleanup.current?.(), [date]);
   const begin = (event: ReactPointerEvent<HTMLElement>, job: ScheduleAppointment) => {
@@ -57,6 +58,7 @@ export function useScheduleDrag(
     )
       return;
     cleanup.current?.();
+    suppressClick.current = false;
     const x = event.clientX,
       y = event.clientY;
     const element = event.currentTarget;
@@ -76,6 +78,7 @@ export function useScheduleDrag(
       if (!moved && Math.hypot(pointer.clientX - x, pointer.clientY - y) < 6) return;
       if (!moved) element.focus({ preventScroll: true });
       moved = true;
+      suppressClick.current = true;
       pointer.preventDefault();
       const row = document
         .elementFromPoint(pointer.clientX, pointer.clientY)
@@ -128,5 +131,5 @@ export function useScheduleDrag(
     window.addEventListener("pointercancel", cancel);
     window.addEventListener("keydown", keydown, true);
   };
-  return { preview, begin };
+  return { preview, begin, suppressClick };
 }

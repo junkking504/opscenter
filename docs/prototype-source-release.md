@@ -56,6 +56,25 @@ commercial adapters use private durable runtime receipt journals; these are not
 misrepresented as PostgreSQL audit records. Runtime data and protected environment
 files stay outside Git and immutable release directories.
 
+## Desktop interaction repairs (September 4)
+
+- Workspace and view selections update the URL; a reload restores the active
+  workspace, subview, and Schedule day.
+- Schedule territory controls focus on matching appointment coordinates, with
+  the existing territory center as the empty-territory fallback. Distant trucks
+  do not keep a territory at the all-locations zoom.
+- Map pins and schedule rows select the same appointment/truck. Appointment
+  selections open the source-backed detail drawer. Truck selections focus GPS
+  and expose crew, status, appointments, the Fleet record, and LinxUp video.
+- Overlapping appointment and truck pins have deterministic display offsets
+  with leader lines to the unchanged source coordinates. Escape/All resets focus.
+- The desktop reuses `TruckCameraController`; Vite deduplicates React so the
+  shared component uses the desktop renderer. Playback still depends on the
+  truck having an assigned and available LinxUp camera.
+- Live Krewe, Fleet, and Marketing tables use scoped compact styles and local
+  horizontal scrolling at narrow widths. Command alerts disclose full facts
+  through Details without changing workflow state.
+
 ## Release validation
 
 The desktop and complete Next.js builds, source-preservation checks, CSS ceiling,

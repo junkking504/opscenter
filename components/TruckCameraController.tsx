@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { truckCameraLabel } from "@/lib/linxup-truck-label";
+import { truckCameraLabel } from "../lib/linxup-truck-label";
 import styles from "./TruckCameraController.module.css";
 
 type CameraOrientation = "outside" | "inside" | "aux";
@@ -78,7 +78,7 @@ function VideoPlayer({ url, onPlaybackError }: { url: string; onPlaybackError: (
   return <video ref={videoRef} className={styles.video} controls playsInline muted autoPlay />;
 }
 
-export default function TruckCameraController({ children }: { children: ReactNode }) {
+export default function TruckCameraController({ children, className = "ops-app" }: { children: ReactNode; className?: string }) {
   const [camera, setCamera] = useState<CameraState>({ status: "closed" });
   const [orientation, setOrientation] = useState<CameraOrientation>("outside");
   const [secondsRemaining, setSecondsRemaining] = useState(60);
@@ -116,7 +116,10 @@ export default function TruckCameraController({ children }: { children: ReactNod
         body: JSON.stringify({ action: "start", truck }),
       });
       const payload = await response.json() as CameraStream & { error?: string; code?: string };
-      if (sequence !== requestSequence.current) return;
+      if (sequence !== requestSequence.current) {
+        if (response.ok && payload.channels) stopStream({ status: "playing", stream: payload }, true);
+        return;
+      }
       if (!response.ok) throw Object.assign(new Error(payload.error || "Live video could not start."), { code: payload.code });
       const available = Object.keys(payload.channels) as CameraOrientation[];
       setOrientation(available.includes("outside") ? "outside" : available[0]);
@@ -183,7 +186,7 @@ export default function TruckCameraController({ children }: { children: ReactNod
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [closeCamera]);
 
-  useEffect(() => () => stopStream(cameraRef.current, true), [stopStream]);
+  useEffect(() => () => { requestSequence.current += 1; stopStream(cameraRef.current, true); }, [stopStream]);
 
   const activeStream = camera.status === "playing" || camera.status === "ended" ? camera.stream : null;
   const channels = useMemo(() => activeStream
@@ -196,7 +199,7 @@ export default function TruckCameraController({ children }: { children: ReactNod
 
   return (
     <div
-      className={`ops-app ${styles.root}`}
+      className={`${className} ${styles.root}`}
       data-truck-camera-controller="ready"
       onClickCapture={handleTruckClick}
       onPointerOverCapture={handleTruckPointerOver}

@@ -1,12 +1,12 @@
 /* Dispatch needs readable cards independently of the map and viewport height. */
-.ops-live .schedule-dispatch .schedule-board-layout.map-open { height: auto; grid-template-columns: minmax(0, 1fr); gap: 12px; }
-.ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-map-panel { height: 300px; min-height: 0; grid-template-columns: minmax(0, 1fr) 270px; grid-template-rows: auto minmax(0, 1fr); }
+.ops-live .schedule-dispatch .schedule-board-layout.map-open { height: clamp(390px, calc(100dvh - 280px), 580px); grid-template-columns: minmax(330px, .78fr) minmax(0, 1.22fr); gap: 8px; }
+.ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-map-panel { height: 100%; min-height: 0; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(200px, 1fr) auto; }
 .ops-live .schedule-dispatch .live-map-territories { grid-column: 1 / -1; }
-.ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-map-canvas { min-height: 0; border-right: 1px solid var(--border); border-bottom: 0; }
-.ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-map-controls { display: flex; flex-direction: column; max-height: none; overflow-y: auto; }
+.ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-map-canvas { min-height: 200px; border-right: 0; border-bottom: 1px solid var(--border); }
+.ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-map-controls { display: flex; flex-direction: column; max-height: 180px; overflow-y: auto; }
 .ops-live .schedule-dispatch .schedule-board-shell { height: auto; display: block; min-width: 0; }
 .ops-live .schedule-dispatch .schedule-board-scroll { height: auto; max-height: 680px; overflow: auto; overscroll-behavior: contain; }
-.ops-live .schedule-dispatch .schedule-board { display: block; height: auto; width: 100%; position: relative; --schedule-route-width: 144px; }
+.ops-live .schedule-dispatch .schedule-board-layout .schedule-board { display: block; height: auto; width: 100%; position: relative; --schedule-route-width: 144px; }
 .ops-live .schedule-dispatch .schedule-time-row { position: sticky; top: 0; z-index: 6; height: 30px; background: #f1f4f1; }
 .ops-live .schedule-dispatch .schedule-time-row > span { padding: 7px 8px; font-size: 11px; }
 .ops-live .schedule-dispatch .schedule-time-row > span:first-child { position: sticky; left: 0; z-index: 7; background: #f1f4f1; border-right: 1px solid var(--border); }
@@ -36,3 +36,15 @@
 
 .ops-live .schedule-drag-notice { position: fixed; right: 20px; bottom: 20px; z-index: 1080; display: flex; align-items: center; gap: 12px; max-width: min(380px, calc(100vw - 40px)); padding: 12px 14px; border: 1px solid #dbc183; border-radius: 8px; color: #57451f; background: #fffaeb; box-shadow: 0 3px 15px #17212b26; font-size: 13px; line-height: 1.4; }
 .ops-live .schedule-drag-notice button { border: 0; padding: 4px; background: transparent; color: inherit; font-size: 20px; }
+
+/* Keep both panels aligned while the timeline scrolls within its own panel. */
+.ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-board-shell { height: 100%; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-board-scroll { height: auto; min-height: 0; max-height: none; }
+@media (max-width: 1100px) {
+  .ops-live .schedule-dispatch .schedule-board-layout.map-open { height: auto; grid-template-columns: minmax(0, 1fr); }
+  .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-map-panel { height: 470px; }
+  .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-board-shell { height: auto; display: block; }
+  .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-board-scroll { max-height: 620px; }
+}
+
+.ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-board { display: block; height: auto; }

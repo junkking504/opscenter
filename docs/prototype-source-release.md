@@ -249,8 +249,9 @@ Unavailable route labels distinguish an unverified appointment address from a
 missing provider estimate. Coordinates remain subject to the existing strict
 verification; the interface never substitutes invented travel times.
 
-Dispatch uses a full-width, horizontally scrollable timeline with 88px cards
-and separate overlap lanes. Time, JK identity, customer, and status remain
+Dispatch keeps the map and truck schedule side by side on desktop, with the
+timeline scrolling inside its panel. Narrow screens stack the panels. Cards
+retain their 88px height and separate overlap lanes. Time, JK identity, customer, and status remain
 visible independently of viewport height. Closed/canceled or unverified
 appointments show their restriction; attempted drags explain it without
 submitting a move. The shared Command map keeps its compact layout.

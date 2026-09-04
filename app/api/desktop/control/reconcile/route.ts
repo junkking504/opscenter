@@ -1,3 +1,4 @@
+import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { opsRoleCan } from '@/lib/ops-roles';
@@ -17,8 +18,7 @@ export async function POST(request: Request) {
   const session = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '');
   if (!session) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
   if (!opsRoleCan(session.role, 'sensitive.write')) return Response.json({ error: 'A manager is required to reconcile all source categories.' }, { status: 403, headers });
-  const origin = request.headers.get('origin');
-  if (request.headers.get('sec-fetch-site') === 'cross-site' || origin && origin !== new URL(request.url).origin) return Response.json({ error: 'Cross-site changes are not allowed.' }, { status: 403, headers });
+  if (!isDesktopWriteOriginAllowed(request)) return Response.json({ error: 'Cross-site changes are not allowed.' }, { status: 403, headers });
   try {
     const body = await request.json();
     const date = validControlDate(body.date);

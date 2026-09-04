@@ -1,3 +1,4 @@
+import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { readDesktopControl, executeDesktopControl } from '@/lib/desktop-control';
@@ -22,8 +23,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const actor = await identity();
   if (!actor) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
-  const origin = request.headers.get('origin');
-  if (request.headers.get('sec-fetch-site') === 'cross-site' || origin && origin !== new URL(request.url).origin) return Response.json({ error: 'Cross-site changes are not allowed.' }, { status: 403, headers });
+  if (!isDesktopWriteOriginAllowed(request)) return Response.json({ error: 'Cross-site changes are not allowed.' }, { status: 403, headers });
   try { return Response.json({ receipt: await executeDesktopControl(await request.json(), actor) }, { headers }); }
   catch (error) { return failure(error); }
 }

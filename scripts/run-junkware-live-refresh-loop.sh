@@ -232,10 +232,12 @@ do
       cd "$OPSCENTER_DIR" || exit 1
       ./node_modules/.bin/tsx scripts/collect-searchkings.ts --data-dir "$OPSBOT_DIR/data"
     ) || echo "WARNING: SearchKings refresh failed; retaining the last verified marketing snapshot."
+    # Mission Control owns app state. The one-way mode publishes to the retired
+    # VPS without importing stale copies over new Mission Control writes.
     if ! env \
       OPSCENTER_VPS="$OPSCENTER_VPS" \
       OPSCENTER_SSH_KEY="$OPSCENTER_SSH_KEY" \
-      "$OPSCENTER_DIR/deploy/vps/sync-data.sh" incremental; then
+      "$OPSCENTER_DIR/deploy/vps/sync-data.sh" initial; then
       echo "WARNING: VPS data sync failed; the VPS will retain its last verified snapshot."
     elif [ "$CYCLE_COMPLETE" = true ]; then
       PUBLISH_SUCCEEDED=true

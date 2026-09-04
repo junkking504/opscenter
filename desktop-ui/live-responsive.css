@@ -2,7 +2,7 @@
    Keep the approved desktop stylesheet unchanged. */
 .live-mobile-navigation { display: none; }
 .ops-live .ops-content { min-width: 0; }
-.ops-live .workspace-heading > * { min-width: 0; }
+.ops-live .workspace-heading > * { min-width: 0; max-width: 100%; }
 @media (max-width: 1100px) {
   .ops-live .workspace-heading { flex-wrap: wrap; }
   .ops-live .workspace-heading [role="tablist"] { max-width: 100%; overflow-x: auto; }
@@ -18,4 +18,15 @@
   .ops-live .global-search-shell { flex-basis: 100%; }
   .ops-live .workspace-heading [role="tablist"] { width: 100%; }
   .ops-live .schedule-heading-actions { width: 100%; }
+  .ops-live .workspace.schedule-mode { padding: 16px; }
+  .ops-live .schedule-workspace, .ops-live .krewe-workspace { grid-template-columns: minmax(0, 1fr); }
+  .ops-live .schedule-workspace > *, .ops-live .krewe-workspace > * { min-width: 0; }
+  .ops-live .schedule-control-bar, .ops-live .schedule-control-actions { flex-wrap: wrap; }
+  .ops-live .schedule-control-actions { width: 100%; }
+  .ops-live .schedule-control-actions input { flex: 1 1 100%; width: 100% !important; max-width: 100% !important; }
+  .ops-live .krewe-kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ops-live .krewe-snapshot-shell, .ops-live .krewe-callin-shell, .ops-live .krewe-period-shell, .ops-live .krewe-monthly-shell { overflow-x: auto; }
+  .ops-live .krewe-snapshot-head, .ops-live .krewe-snapshot-table > button { min-width: 780px; }
+  .ops-live .workspace-tabs { max-width: 100%; overflow-x: auto; }
+  .ops-live .fleet-table-shell { overflow-x: auto; }
 }

@@ -165,3 +165,18 @@ framework middleware/Edge warnings and the desktop bundle-size warning remain.
 Next: connect the approved New Appointment form to the existing verified creation
 workflow, then complete the remaining category-specific closeout and Schedule tabs.
 This is an integration checkpoint, not a production release.
+
+## Mission Control public cutover
+
+The dedicated `opscenter-mission-control` tunnel isolates Mission Control from
+the old shared VPS tunnel. Public `ops` and signed-webhook `hooks` routing must
+move together after service validation. Existing hostname Access policies remain
+in place; this is not a paid Load Balancing configuration. Before routing, drain
+the VPS assignment retry worker and compare its final app-authored state against
+Mission Control. Keep the retired VPS application stopped to prevent writes.
+
+The Mission Control collector now calls the existing one-way `initial` sync mode,
+which publishes data and shared state to the VPS without pulling VPS state back.
+Do not resume the old incremental reverse-pull or restart VPS assignment retries.
+The VPS is not a verified hot standby: its code and PostgreSQL replication require
+a separate controlled standby release before failover can be offered.

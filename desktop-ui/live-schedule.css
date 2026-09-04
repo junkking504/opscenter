@@ -12,7 +12,7 @@
 .live-schedule .schedule-time-row > span:first-child { border-right: 0; }
 .live-schedule .schedule-truck-cell { position: absolute; inset: 0 auto 0 0; width: 88px; height: 100%; }
 .live-schedule .live-truck-timeline { position: absolute; inset: 0 0 0 88px; background-image: linear-gradient(to right, #e7eae7 1px, transparent 1px); background-size: calc(100% / var(--schedule-hour-count)) 100%; background-repeat: repeat-x; }
-.live-schedule .live-truck-timeline .schedule-appointment { --territory-color: #89918d; position: absolute; margin: 2px 1px; height: auto; min-height: 0; border-color: color-mix(in srgb, var(--territory-color) 58%, #d8dcd8); border-left-color: var(--territory-color); background: color-mix(in srgb, var(--territory-color) 15%, #fff); }
+.ops-live .live-schedule .live-truck-timeline .schedule-appointment { --territory-color: #89918d; position: absolute; margin: 2px 1px; height: auto; min-height: 0; border-color: color-mix(in srgb, var(--territory-color) 75%, #d8dcd8); border-left-color: var(--territory-color); background: color-mix(in srgb, var(--territory-color) 26%, #fff); }
 .live-schedule .live-truck-timeline .schedule-appointment.scope-match { position: absolute; }
 .live-schedule .live-truck-timeline .schedule-route-leg { position: absolute; margin: 0; bottom: 1px; height: 16px; }
 .live-schedule .schedule-route-leg small { display: none; }
@@ -101,3 +101,8 @@
 .ops-live .live-schedule .live-map-truck-jobs { gap: 3px; }
 .ops-live .live-schedule-map .leaflet-control-attribution { padding: 1px 4px; font-size: 10px; line-height: 1.25; }
 .ops-live .live-schedule-map .leaflet-control-attribution a { font-size: inherit; }
+
+/* Keep the complete job identity inside narrow or stacked appointment blocks. */
+.ops-live .live-schedule .schedule-appointment > .schedule-jk-link { width: 100%; max-width: 100%; min-width: 0; padding: 0; white-space: normal; overflow-wrap: anywhere; overflow: visible; text-overflow: clip; font-size: 9px !important; line-height: 1.15; letter-spacing: 0; color: #24312a; }
+.ops-live .live-schedule .schedule-appointment > span { line-height: 1.15; }
+.ops-live .live-schedule .schedule-board-scroll { overflow: auto; }

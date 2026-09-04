@@ -230,3 +230,8 @@ Shared map details use compact headings and actions. The optional Leaflet prefix
 is removed; the OpenStreetMap attribution remains visible and linked.
 Appointment symbols are 18px territory-colored circles; trucks use a numbered
 truck silhouette. Both retain 30px click targets and collision separation.
+
+Schedule blocks keep their territory color across estimate and completion
+states. JK numbers wrap within narrow blocks instead of truncating. Overlapping
+appointments receive enough lane height for the identifier; the board scrolls
+locally when its rows exceed the available panel height.

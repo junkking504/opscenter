@@ -3018,7 +3018,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     });
   }, [query, workItems]);
   const activeAlerts = workItems.filter((item) => live ? !['resolved', 'acknowledged'].includes(liveAlert(item)?.workflowState || '') : !completed.includes(item.id) && !alertOutcomes[item.id]);
-  const sourceAttentionCount = connectedSources.filter((source) => source.state !== 'Healthy').length;
+  const sourceAttentionCount = connectedSources.filter((source) => source.tone !== 'healthy').length;
   const openSourceHealth = () => {
     setSourceHealthOpen(true);
     setSearchOpen(false);
@@ -5398,7 +5398,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           <aside className="source-health-drawer" role="dialog" aria-modal="true" aria-labelledby="source-health-title">
             <header className="source-health-header"><div><span>Tertiary System Status</span><h2 id="source-health-title">Source Health</h2><p>Freshness, affected workspace, and last successful update.</p></div><Button variant="ghost" size="icon" aria-label="Close" onClick={() => setSourceHealthOpen(false)}><X /></Button></header>
             <div className="source-health-body">
-              <section className="source-health-summary"><div><span>Connected Sources</span><strong>{connectedSources.length}</strong></div><div><span>Healthy</span><strong>{connectedSources.length - sourceAttentionCount}</strong></div><div className={sourceAttentionCount ? 'attention' : ''}><span>Need Attention</span><strong>{sourceAttentionCount}</strong></div></section>
+              <section className="source-health-summary"><div><span>Connected Sources</span><strong>{connectedSources.length}</strong></div><div><span>{live ? 'Available' : 'Healthy'}</span><strong>{connectedSources.length - sourceAttentionCount}</strong></div><div className={sourceAttentionCount ? 'attention' : ''}><span>Need Attention</span><strong>{sourceAttentionCount}</strong></div></section>
               <div className="source-health-list">{connectedSources.map((source) => <article className={source.tone} key={source.name}><header><i /><div><strong>{source.name}</strong><span>{source.area}</span></div><em>{source.state}</em></header><div><span><b>Affected Workspace</b>{source.workspace}</span><span><b>Last Successful Update</b>{source.freshness}</span></div><button onClick={() => openSourceWorkspace(source.name)}>{source.action}<ArrowRight size={13} /></button></article>)}</div>
               <section className="source-health-note"><ShieldCheck size={14} /><div><strong>Freshness does not replace record truth.</strong><p>A healthy collector can still contain an individual stale truck or unresolved source record.</p></div></section>
             </div>

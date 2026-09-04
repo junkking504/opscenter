@@ -166,17 +166,32 @@ Next: connect the approved New Appointment form to the existing verified creatio
 workflow, then complete the remaining category-specific closeout and Schedule tabs.
 This is an integration checkpoint, not a production release.
 
-## Mission Control public cutover
+## Mission Control public routing (September 4)
 
-The dedicated `opscenter-mission-control` tunnel isolates Mission Control from
-the old shared VPS tunnel. Public `ops` and signed-webhook `hooks` routing must
-move together after service validation. Existing hostname Access policies remain
-in place; this is not a paid Load Balancing configuration. Before routing, drain
-the VPS assignment retry worker and compare its final app-authored state against
-Mission Control. Keep the retired VPS application stopped to prevent writes.
+Production runs on Mission Control. The old shared Cloudflare tunnel still has
+both Mission Control and VPS connectors, but the VPS now forwards its loopback
+port 3000 over authenticated SSH to Mission Control's loopback port 3000. Both
+public paths therefore reach the same application, runtime data and PostgreSQL
+store. Existing hostname Access and signed-webhook policies are unchanged.
 
-The Mission Control collector now calls the existing one-way `initial` sync mode,
-which publishes data and shared state to the VPS without pulling VPS state back.
-Do not resume the old incremental reverse-pull or restart VPS assignment retries.
-The VPS is not a verified hot standby: its code and PostgreSQL replication require
-a separate controlled standby release before failover can be offered.
+The private relay is a Mission Control LaunchAgent,
+`com.opscenter.vps-origin-relay`, using the existing deployment SSH identity,
+`ExitOnForwardFailure`, 15-second keepalives and automatic restart. Its VPS bind
+is `127.0.0.1:3000`; no public application port was opened. The former VPS
+application and assignment retry containers are stopped. Do not run the unchanged
+VPS `push-app.sh`, which would restart both and conflict with the relay port.
+
+A dedicated `opscenter-mission-control` tunnel was also prepared and connected.
+Its direct DNS cutover remains pending access to the account/zone owning
+`junk-king.app`. Existing local certificates are scoped to `jkops.live`; the two
+incorrectly suffixed records created during the attempted CLI cutover were
+verified and removed. Never treat a successful tunnel command as proof of a
+correct hostname change. No paid Load Balancing service was enabled.
+
+Before replacing the VPS app with the relay, shared-state manifests matched:
+the only differing assignment fields were retry timestamps, not truck, time,
+source status, or other business values. The VPS retry worker was stopped between
+runs. The Mission Control collector now calls the existing one-way `initial`
+sync mode, publishing data and shared state without pulling VPS copies back.
+The VPS is a routing relay, not a verified hot standby. Direct tunnel routing and
+independent code/database failover remain separate infrastructure work.

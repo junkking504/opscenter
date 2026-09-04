@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   if (!isDesktopWriteOriginAllowed(request)) return Response.json({ error: 'Same-origin request required.' }, { status: 403, headers });
   try {
     const operation = parseCommercialOperation(await request.json().catch(() => null));
-    
+
     const receipt = updateDesktopFinance(operation, actor);
     return Response.json({ receipt }, { status: receipt.status === 'verified' ? 200 : 202, headers });
   } catch (error) {

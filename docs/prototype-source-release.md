@@ -284,6 +284,17 @@ indicators; GPS proximity is not inferred by the desktop card.
 When the source appends a matching contact phone and notes to a customer name,
 the source detail remains unchanged; cards do not render customer names.
 
+Krewe pay-period records show employee hours and earnings totals above independent
+Week 1 and Week 2 dropdowns. Each week contains its own totals and seven daily
+cards with date, clock-in/out, hours, role, truck, jobs, job revenue worked,
+hourly pay, tips, bonuses, and total pay. Supplemental pay is shown when present
+or unavailable. Published payroll amounts remain authoritative; missing amounts
+are not treated as zero and a component/total mismatch is flagged for review.
+The existing reconciliation table and payroll actions remain available.
+
+Validation: payroll breakdown and weekly-hours regression tests, production
+build, and authenticated preview checks of independent weekly expansion and
+the daily card layout passed before release.
 
 ## Existing setup reliability fixes (September 5, 2026)
 

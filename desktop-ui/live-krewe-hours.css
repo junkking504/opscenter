@@ -23,4 +23,41 @@
 .hours-daily-weeks h3 { font-size: 13px; margin: 0; padding: 10px; background: #f0f5f1; }
 .hours-daily-row { display: grid; grid-template-columns: 65px minmax(0, 1fr) 80px; gap: 8px; padding: 9px 10px; border-top: 1px solid #e0e6e1; font-size: 12px; }
 .hours-daily-row > strong { text-align: right; }
+.hours-pay-breakdown { margin-top: 10px; padding-top: 9px; border-top: 1px solid #dfe5e0; font-size: 12px; }
+.hours-pay-total { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; color: #254c35; }
+.hours-pay-total strong { font-size: 15px; }
+.hours-pay-breakdown dl { margin: 7px 0 0; display: grid; gap: 4px; }
+.hours-pay-breakdown dl > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px; }
+.hours-pay-breakdown dt { color: #56665b; }
+.hours-pay-breakdown dd { margin: 0; font-variant-numeric: tabular-nums; }
+.hours-daily-pay { grid-column: 1 / -1; }
+.hours-daily-pay .hours-pay-breakdown { margin-top: 0; padding-top: 5px; }
+.hours-employee-cards { display: grid; gap: 14px; padding: 0 14px 14px; }
+.hours-employee-card { border: 1px solid #ced8d0; border-radius: 10px; overflow: hidden; }
+.hours-employee-card > header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; padding: 12px 14px 6px; background: #f2f6f2; }
+.hours-employee-card h3 { font-size: 17px; margin: 0; }
+.hours-employee-card > header > span { color: #617067; font-size: 12px; }
+.hours-total-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(115px,1fr)); gap: 12px; padding: 12px 14px; background: #f2f6f2; }
+.hours-fact { min-width: 0; }
+.hours-fact > span { display: block; color: #67766c; font-size: 10px; font-weight: 750; text-transform: uppercase; letter-spacing: .07em; }
+.hours-fact > strong { display: block; margin-top: 4px; font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.hours-fact > small { display: block; margin-top: 3px; font-size: 11px; color: #67766c; font-weight: 400; }
+.hours-fact.pay-total > strong { color: #17613b; }
+.hours-record-warning { margin: 0; padding: 5px 14px 9px; font-size: 11px; color: #865819; }
+.hours-week-dropdown { border-top: 1px solid #d7e0d9; }
+.hours-week-dropdown > summary { display: grid; grid-template-columns: minmax(0,1fr) auto auto; align-items: center; gap: 16px; padding: 10px 14px 10px 34px; position: relative; list-style: none; cursor: pointer; font-size: 14px; }
+.hours-week-dropdown > summary::-webkit-details-marker { display: none; }
+.hours-week-dropdown > summary::before { content: '›'; position: absolute; left: 14px; font-size: 22px; }
+.hours-week-dropdown[open] > summary::before { transform: rotate(90deg); }
+.hours-week-dropdown > summary small { display: inline-block; margin-left: 10px; color: #67766c; font-size: 12px; }
+.hours-week-dropdown > summary:hover { background: #f5f8f5; }
+.hours-week-dropdown > summary:focus-visible { outline: 2px solid #37784f; outline-offset: -2px; }
+.hours-week-content { padding: 0 12px 12px; background: #f8faf8; border-top: 1px solid #dce4dd; }
+.hours-week-content h4 { margin: 0; padding: 12px 2px 8px; color: #65746a; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; }
+.hours-week-content > .hours-total-grid { border: 1px solid #dae2dc; border-radius: 8px; }
+.hours-daily-records { display: grid; gap: 9px; }
+.hours-day-card { border: 1px solid #d4dfd6; border-radius: 10px; background: #fff; overflow: hidden; }
+.hours-day-grid { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 14px 16px; padding: 12px; }
+@media (max-width: 1100px) { .hours-day-grid { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@media (max-width: 600px) { .hours-day-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .hours-week-dropdown > summary { gap: 8px; } .hours-week-dropdown > summary small { display: block; margin: 4px 0 0; } }
 @media (max-width: 1000px) { .hours-daily-weeks { grid-template-columns: 1fr; } .live-krewe-hours th, .live-krewe-hours td { padding: 10px; } }

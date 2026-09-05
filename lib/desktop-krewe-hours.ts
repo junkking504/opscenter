@@ -85,7 +85,7 @@ export function buildKreweHours(date: string, sources: Map<string, AnyRecord | n
           incomplete: days.some(day => !['Recorded', 'Upcoming'].includes(day.status)), days: days.map(day => ({ date: day.date, hours: day.hours, regular: day.regular, overtime: day.overtime, clockIn: day.clockIn, clockOut: day.clockOut, corrected: day.corrected, status: day.status, role: day.role, truck: day.truck, jobs: day.jobs, jobRevenueWorked: day.jobRevenueWorked })) };
       });
       return { id, name, weeks, total: weeks.some(week => week.total !== null) ? round(weeks.reduce((sum, week) => sum + (week.total ?? 0), 0)) : null };
-    }),
+    }).filter(employee => (employee.total ?? 0) > 0 || employee.weeks.some(week => week.days.some(day => ['Hours Unavailable', 'Source Unavailable', 'Missing Clock-Out'].includes(day.status)))),
   };
 }
 

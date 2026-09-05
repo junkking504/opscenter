@@ -291,6 +291,10 @@ hourly pay, tips, bonuses, and total pay. Supplemental pay is shown when present
 or unavailable. Published payroll amounts remain authoritative; missing amounts
 are not treated as zero and a component/total mismatch is flagged for review.
 The existing reconciliation table and payroll actions remain available.
+Employees with no hours in the pay period are excluded from both the weekly
+cards and reconciliation totals, even if their roster row has attributed jobs
+or pay. Eligibility uses corrected period hours. Unavailable hours and missing
+clock-outs remain reviewable rather than being silently treated as zero.
 
 Validation: payroll breakdown and weekly-hours regression tests, production
 build, and authenticated preview checks of independent weekly expansion and

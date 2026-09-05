@@ -42,4 +42,14 @@ assert.equal(stale.employees[0].weeks[1].days[5].status, 'Missing Clock-Out');
 const aliases = new Map([['2026-09-05', { payroll_records: [{ name: 'Employee, Test', hours_worked: 4 }], employee_leaderboard: [{ name: 'Test Employee', hours_worked: 9 }] }]]);
 assert.equal(buildKreweHours('2026-09-05', aliases, new Map(), now).employees.length, 1);
 assert.equal(buildKreweHours('2026-09-05', aliases, new Map(), now).employees[0].total, 4);
+const zeroHours = new Map(period.dates.map(date => [date, { payroll_records: [
+  { name: 'Zero Hours', hours_worked: 0, total_pay: 50, jobs_completed: 2 },
+  { name: 'Worked Hours', hours_worked: date === period.start ? 1 : 0 },
+  { name: 'Unknown Hours', hours_worked: null },
+] }]));
+const eligible = buildKreweHours('2026-09-05', zeroHours, new Map(), now);
+assert.deepEqual(eligible.employees.map(row => row.name), ['Unknown Hours', 'Worked Hours']);
+assert.equal(eligible.employees.find(row => row.name === 'Unknown Hours')?.total, null);
+const addedHours = { employeeName: 'Zero Hours', clockIn: '8:00 AM', clockOut: '9:00 AM' } as PayrollCorrection;
+assert.ok(buildKreweHours('2026-09-05', zeroHours, new Map([[period.start, { 'zero hours': addedHours }]]), now).employees.some(row => row.name === 'Zero Hours'));
 console.log('Desktop Krewe hours: weekly boundaries, OT, corrections, missing/future weeks, open shifts, source priority, and source preservation passed.');

@@ -10,6 +10,7 @@ import { manualBonusEntriesForEmployee, upsertManualBonusEntry } from '@/lib/man
 import { opsRoleCan, type InteractiveOpsRole } from '@/lib/ops-roles';
 import { calculateLivePay } from '@/lib/live-pay';
 import { chicagoDateKey, addDays } from '@/lib/report-dates';
+import { readKreweHours } from '@/lib/desktop-krewe-hours';
 import { nullableNumber as num, sumObserved, validDesktopDate, type CrewAmounts, type DesktopCrewMember, type DesktopKreweSnapshot, type KreweView, type CallInDecision, type DesktopLocalReceipt } from '../desktop-ui/lib/people-fleet-contract';
 
 /** Registered adapters invoke the existing domain writers; their private receipt
@@ -93,7 +94,10 @@ export function readDesktopKrewe(date: string, view: KreweView, role: Interactiv
   const period=payPeriodForDate(date); const start=view==='monthly'?`${date.slice(0,7)}-01`:view==='payperiod'?period.start:date; const end=view==='payperiod'?(period.end<chicagoDateKey()?period.end:chicagoDateKey()):view==='monthly'&&date>chicagoDateKey()?chicagoDateKey():date;
   const grouped=new Map<string,DesktopCrewMember>(); const missingDates:string[]=[];
   for(let cursor=start;cursor<=end;cursor=addDays(cursor,1)){ if(!readMetrics(cursor)) missingDates.push(cursor); for(const row of dayMembers(cursor,payrollVisible)){ const existing=grouped.get(row.id); const day={...Object.fromEntries(amountKeys.map(key=>[key,row[key]])) as CrewAmounts,date:cursor,clockIn:row.clockIn,clockOut:row.clockOut}; if(existing){existing.days.push(day);for(const key of amountKeys) existing[key]=sumObserved([existing[key],row[key]]);}else grouped.set(row.id,{...row,days:[day]}); } }
-  const members=[...grouped.values()].sort((a,b)=>(b.revenue??-1)-(a.revenue??-1));
+  // Use the same corrected-hours eligibility as the weekly employee cards.
+  // Revenue, tips, or bonuses alone do not qualify a zero-hour roster entry.
+  const eligibleIds=view==='payperiod'?new Set(readKreweHours(date).employees.map(employee=>employee.id)):null;
+  const members=[...grouped.values()].filter(member=>!eligibleIds||eligibleIds.has(member.id)).sort((a,b)=>(b.revenue??-1)-(a.revenue??-1));
   const plan=view==='callin'?buildCrewCallInPlan(date):null;
   const callIn=plan?{...plan,recommendations:[...plan.recommendations,...plan.alternates].map(candidate=>{const decision=decisions().find(row=>row.targetDate===plan.targetDate&&keyOf(row.name)===keyOf(candidate.name))||null;return {...candidate,decision,version:desktopVersion(decision)};})}:null;
   return {date,view,start,end,sourceUpdatedAt:readMetrics(date)?.payroll_as_of||readMetrics(date)?.generated_at||null,missingDates,payrollVisible,canWrite:opsRoleCan(role,'sensitive.write'),members,totals:Object.fromEntries(amountKeys.map(key=>[key,sumObserved(members.map(member=>member[key]))])) as CrewAmounts,callIn};

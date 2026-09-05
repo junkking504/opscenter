@@ -10,7 +10,10 @@ import {
   normalizePhone,
 } from "@/lib/whatsapp-job-photo-matching";
 import {
+  claimWhatsAppImage,
   enqueueWhatsAppImage,
+  finishWhatsAppImage,
+  hasUnfinishedWhatsAppPhotosForSender,
   parseWhatsAppWebhook,
   queuedWhatsAppImages,
   recentWhatsAppText,
@@ -167,13 +170,34 @@ try {
   assert.equal(recordVerifiedWhatsAppJobPhoto({ ...confirmationPhoto, now }).duplicate, false);
   assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 50_000)).queued, 0);
   assert.equal(recordVerifiedWhatsAppJobPhoto({ ...confirmationPhoto, messageId: "batch-image-2", now: new Date(now.getTime() + 65_000) }).duplicate, false);
-  assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 65_000), { hasUnfinishedPhotos: true }).queued, 0);
+  // A captionless sibling must hold the batch in both incoming and processing.
+  assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 65_000)).queued, 0);
+  const sibling = claimWhatsAppImage(queuedWhatsAppImages()[0]);
+  assert.ok(sibling);
+  assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 65_000)).queued, 0);
+  finishWhatsAppImage(sibling.file, "completed", { upload: { verified: true } });
+
+  // Reproduce the production incident: old processing records and another
+  // sender's current images must not suppress this sender's verified receipt.
+  const oldPhoto = { ...parsed.images[0], messageId: "old-orphan", caption: "", receivedAt: "2026-08-08T15:00:00Z" };
+  enqueueWhatsAppImage(oldPhoto);
+  const orphan = claimWhatsAppImage(queuedWhatsAppImages()[0]);
+  assert.ok(orphan);
+  enqueueWhatsAppImage({ ...parsed.images[0], messageId: "other-sender", senderPhone: "5045550199", receivedAt: now.toISOString() });
+  enqueueWhatsAppImage({ ...parsed.images[0], messageId: "other-inbox", phoneNumberId: "54321", receivedAt: now.toISOString() });
   assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 65_000)).queued, 1);
+  assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 70_000)).queued, 0);
+  assert.ok(fs.existsSync(orphan.file), "confirmation must not replay or discard uncertain uploads");
   const confirmationOutbox = path.join(temporaryState, "outbox-incoming");
   const confirmationFiles = fs.readdirSync(confirmationOutbox);
   assert.equal(confirmationFiles.length, 1);
   const confirmation = JSON.parse(fs.readFileSync(path.join(confirmationOutbox, confirmationFiles[0]), "utf8")) as { text?: string };
   assert.equal(confirmation.text, "2 photos for JK4025001 uploaded and verified in JunkWare.");
+
+  // Chicago's job date, not UTC's date, controls the unfinished-photo guard.
+  enqueueWhatsAppImage({ ...parsed.images[0], messageId: "late-night", caption: "", receivedAt: "2026-08-12T04:59:00Z" });
+  assert.equal(hasUnfinishedWhatsAppPhotosForSender(confirmationPhoto), true);
+  assert.equal(hasUnfinishedWhatsAppPhotosForSender({ ...confirmationPhoto, jobDate: "2026-08-12" }), false);
 
   const slackBatch = {
     version: 2 as const,

@@ -365,9 +365,7 @@ async function main(): Promise<void> {
   const crewExpenseTransactions = await processCrewExpenseTransactions();
   const slack = await deliverWhatsAppPhotoSlackNotifications();
   const photoQueue = whatsappQueueCounts();
-  const photoConfirmations = queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(), {
-    hasUnfinishedPhotos: photoQueue.incoming > 0 || photoQueue.processing > 0,
-  });
+  const photoConfirmations = queueVerifiedWhatsAppJobPhotoBatchConfirmations();
   const expenseReplies = await deliverCrewExpenseReplies();
   const processedCount = Object.values(results).reduce((sum, count) => sum + count, 0);
   if (processedCount || slack.attempted || photoConfirmations.queued || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {

@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { chicagoDateKey } from "@/lib/chicago-date";
 import { normalizePhone } from "@/lib/whatsapp-job-photo-matching";
 
 export type WhatsAppImageMessage = {
@@ -208,6 +209,34 @@ export function queuedWhatsAppImages(limit = 10): string[] {
     .sort()
     .slice(0, Math.max(0, limit))
     .map((name) => path.join(directory("incoming"), name));
+}
+
+export function hasUnfinishedWhatsAppPhotosForSender(batch: {
+  senderPhone: string;
+  phoneNumberId: string;
+  jobDate: string;
+}): boolean {
+  ensureDirectories();
+  for (const queue of ["incoming", "processing"] as const) {
+    for (const name of fs.readdirSync(directory(queue))) {
+      if (!/^[a-f0-9]{64}\.json$/.test(name)) continue;
+      let message: WhatsAppImageMessage;
+      try {
+        message = JSON.parse(fs.readFileSync(path.join(directory(queue), name), "utf8"));
+      } catch (error) {
+        // A worker may finish or claim a record between listing and reading it.
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+        throw error;
+      }
+      if (normalizePhone(message.senderPhone) !== normalizePhone(batch.senderPhone)) continue;
+      if (message.phoneNumberId !== batch.phoneNumberId) continue;
+      const receivedAt = new Date(message.receivedAt);
+      // Captionless images may be part of this batch. Keep the whole sender/day
+      // pending, without letting another sender or an old day's orphan block it.
+      if (!Number.isFinite(receivedAt.getTime()) || chicagoDateKey(receivedAt) === batch.jobDate) return true;
+    }
+  }
+  return false;
 }
 
 export function claimWhatsAppImage(incomingFile: string): { file: string; message: WhatsAppImageMessage } | null {

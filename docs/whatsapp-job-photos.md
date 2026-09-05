@@ -102,7 +102,7 @@ cd /Users/missioncontrol/opscenter-v2/opscenter
 
 The worker reads the durable spool at `data/integrations/whatsapp-job-photos` unless `WHATSAPP_JOB_PHOTO_STATE_DIR` overrides it. Queue records and downloaded media are mode `0600`. An explicit JK number is resolved and validated on its own JunkWare appointment page, so it does not need to be on the message day's schedule. The worker then uploads through the authenticated JunkWare browser session and verifies that the exact appointment's media count increased before marking an item complete.
 
-Krewe expense transactions and the outbound reply queue live under `OPSBOT_DATA_DIR/integrations/whatsapp-crew-expenses` unless `WHATSAPP_CREW_EXPENSE_STATE_DIR` overrides it. Text messages can receive an idempotent `Recorded.` receipt. Image messages never receive an individual receipt: after every explicitly matched photo for a job has uploaded and been verified in JunkWare, the inbound photo queue is drained, and the configured quiet period has elapsed since the most recent inbound photo, OpsBot sends exactly one batch confirmation to the sender. Upload and verification time counts toward that quiet window, so it does not add a second full delay after JunkWare verification. Complete Fuel and Dump messages enter a durable transaction queue; they are not exposed as OpsCenter Finance records yet.
+Krewe expense transactions and the outbound reply queue live under `OPSBOT_DATA_DIR/integrations/whatsapp-crew-expenses` unless `WHATSAPP_CREW_EXPENSE_STATE_DIR` overrides it. Text messages can receive an idempotent `Recorded.` receipt. Image messages never receive an individual receipt: after every explicitly matched photo for a job has uploaded and been verified in JunkWare, the inbound photo queue for the same sender, receiving number, and Chicago job date is drained, and the configured quiet period has elapsed since the most recent inbound photo, OpsBot sends exactly one batch confirmation to the sender. Upload and verification time counts toward that quiet window, so it does not add a second full delay after JunkWare verification. Complete Fuel and Dump messages enter a durable transaction queue; they are not exposed as OpsCenter Finance records yet.
 
 ### OpsBot job-closeout shadow mode
 
@@ -141,6 +141,8 @@ The expense worker enforces this order:
 Retries resume from the saved stage. A deterministic JunkWare receipt number prevents a retry from inserting the same WhatsApp expense twice, and Slack's `client_msg_id` prevents duplicate alerts. If JunkWare or Slack is unavailable, the transaction stays out of OpsCenter until the missing verification succeeds.
 
 Queue directories are `incoming`, `processing`, `completed`, `review`, and `failed`. A failure before JunkWare submission can retry up to three times. A failure during submission is treated as an uncertain outcome and moved to review to prevent duplicate customer photos.
+
+WhatsApp confirmation waits for unfinished photos from the same normalized sender, receiving WhatsApp number, and Chicago job date. Captionless images remain a blocker because they may belong to that sender's batch. Photos from other senders or dates cannot hold up a verified batch. This check reads both `incoming` and `processing` inside the confirmation function; it does not replay or discard orphaned uploads, whose JunkWare outcome may be uncertain.
 
 ## Slack receipt notifications
 

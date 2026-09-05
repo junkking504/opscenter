@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { enqueueOpsBotReply } from "@/lib/whatsapp-crew-expenses";
 import { normalizePhone } from "@/lib/whatsapp-job-photo-matching";
-import { whatsappPhotoStateDirectory } from "@/lib/whatsapp-job-photo-queue";
+import { hasUnfinishedWhatsAppPhotosForSender, whatsappPhotoStateDirectory } from "@/lib/whatsapp-job-photo-queue";
 
 type BatchPhoto = {
   messageId: string;
@@ -124,7 +124,6 @@ export function recordVerifiedWhatsAppJobPhoto(input: {
 
 export function queueVerifiedWhatsAppJobPhotoBatchConfirmations(
   now = new Date(),
-  options: { hasUnfinishedPhotos?: boolean } = {},
 ): { pending: number; queued: number } {
   ensureDirectories();
   const quietMs = numberEnv("WHATSAPP_JOB_PHOTO_BATCH_QUIET_SECONDS", DEFAULT_BATCH_QUIET_SECONDS) * 1_000;
@@ -134,7 +133,7 @@ export function queueVerifiedWhatsAppJobPhotoBatchConfirmations(
     const batch = readBatch(file);
     if (!batch || !batch.photos.length) continue;
     pending += 1;
-    if (options.hasUnfinishedPhotos) continue;
+    if (hasUnfinishedWhatsAppPhotosForSender(batch)) continue;
     const receivedTimes = batch.photos
       .map((photo) => new Date(photo.receivedAt).getTime())
       .filter(Number.isFinite);

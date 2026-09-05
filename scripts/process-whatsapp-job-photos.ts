@@ -1,6 +1,5 @@
+import { downloadWhatsAppImage } from "@/lib/whatsapp-photo-media";
 import { execFileSync } from "node:child_process";
-import crypto from "node:crypto";
-import fs from "node:fs";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
 import { findJunkwareAppointmentIdByJkNumber, uploadJunkwareJobPhoto } from "@/lib/junkware-photo-uploader";
 import { uploadJunkwareTruckRecord } from "@/lib/junkware-truck-record-uploader";
@@ -22,9 +21,7 @@ import {
   queuedWhatsAppImages,
   recentWhatsAppPhotoContext,
   requeueWhatsAppImage,
-  whatsappMediaFile,
   whatsappQueueCounts,
-  type WhatsAppImageMessage,
 } from "@/lib/whatsapp-job-photo-queue";
 import {
   claimCrewExpenseTransaction,
@@ -88,58 +85,6 @@ export function senderTruckMap(raw = process.env.WHATSAPP_TRUCK_PHONE_MAP): Reco
     const label = clean(truck);
     return normalized && label ? [[normalized, label]] : [];
   }));
-}
-
-function expectedMediaHash(buffer: Buffer, supplied: string): boolean {
-  if (!supplied) return true;
-  const hex = crypto.createHash("sha256").update(buffer).digest("hex");
-  const base64 = Buffer.from(hex, "hex").toString("base64");
-  return supplied === hex || supplied === base64;
-}
-
-function allowedMediaUrl(raw: string): URL {
-  const url = new URL(raw);
-  const hostname = url.hostname.toLowerCase();
-  const allowed = url.protocol === "https:"
-    && (hostname === "lookaside.fbsbx.com" || hostname.endsWith(".fbsbx.com") || hostname.endsWith(".fbcdn.net") || hostname.endsWith(".facebook.com"));
-  if (!allowed) throw new Error("Meta returned an unexpected media host.");
-  return url;
-}
-
-async function downloadWhatsAppImage(message: WhatsAppImageMessage): Promise<string> {
-  const token = accessToken();
-  const version = clean(process.env.WHATSAPP_GRAPH_API_VERSION);
-  if (!token || !/^v\d+\.\d+$/.test(version)) throw new Error("WhatsApp Graph API credentials are unavailable.");
-  const phoneNumberId = clean(process.env.WHATSAPP_PHONE_NUMBER_ID || message.phoneNumberId);
-  if (!/^\d+$/.test(phoneNumberId) || phoneNumberId !== message.phoneNumberId) throw new Error("WhatsApp phone number ID mismatch.");
-  const metadataUrl = new URL(`https://graph.facebook.com/${version}/${encodeURIComponent(message.mediaId)}`);
-  metadataUrl.searchParams.set("phone_number_id", phoneNumberId);
-  const metadataResponse = await fetch(metadataUrl, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (!metadataResponse.ok) throw new Error(`Meta media lookup failed (${metadataResponse.status}).`);
-  const metadata = await metadataResponse.json() as Record<string, unknown>;
-  const mediaUrl = allowedMediaUrl(clean(metadata.url));
-  const mimeType = clean(metadata.mime_type || message.mimeType).toLowerCase();
-  if (!new Set(["image/jpeg", "image/png"]).has(mimeType)) throw new Error("Only JPEG and PNG WhatsApp photos are supported.");
-  const declaredSize = Number(metadata.file_size || 0);
-  if (declaredSize > 5 * 1024 * 1024) throw new Error("The WhatsApp photo exceeds the 5 MB JunkWare limit.");
-  const mediaResponse = await fetch(mediaUrl, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (!mediaResponse.ok) throw new Error(`Meta media download failed (${mediaResponse.status}).`);
-  const buffer = Buffer.from(await mediaResponse.arrayBuffer());
-  if (!buffer.length || buffer.length > 5 * 1024 * 1024) throw new Error("The downloaded WhatsApp photo has an invalid size.");
-  if (!expectedMediaHash(buffer, clean(metadata.sha256 || message.sha256))) throw new Error("The WhatsApp photo checksum did not match Meta metadata.");
-  const target = whatsappMediaFile(message.messageId, mimeType);
-  const temporary = `${target}.tmp-${process.pid}`;
-  fs.writeFileSync(temporary, buffer, { mode: 0o600 });
-  fs.renameSync(temporary, target);
-  return target;
 }
 
 async function deliverCrewExpenseReplies(): Promise<{ sent: number; retried: number; failed: number }> {
@@ -244,16 +189,19 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
       claim.message.phoneNumberId,
       claim.message.messageId,
     );
+    const recentText = matchingContext.text;
+    const loadPhoto = matchingContext.reviewReason ? null : truckLoadPhotoRequest(claim.message, recentText);
+    if (loadPhoto) loadPhotoTruck = loadPhoto.truck;
+    // Retain the original even when matching requires human review. Provider
+    // media availability must not be the only copy of a held photo.
+    stage = "downloading";
+    const filePath = await downloadWhatsAppImage(claim.message);
+    stage = "matching";
     if (matchingContext.reviewReason && !extractJkNumber(claim.message.caption)) {
       finishWhatsAppImage(claim.file, "review", { review: { reason: matchingContext.reviewReason, detail: "The preceding messages do not identify one reliable photo context. Supply the exact JK in the photo caption.", category: inferPhotoCategory(claim.message.caption) } });
       return "review";
     }
-    const recentText = matchingContext.text;
-    const loadPhoto = truckLoadPhotoRequest(claim.message, recentText);
     if (loadPhoto) {
-      loadPhotoTruck = loadPhoto.truck;
-      stage = "downloading";
-      const filePath = await downloadWhatsAppImage(claim.message);
       stage = "analyzing";
       const analysis = await analyzeTruckLoadPhoto(filePath);
       recordTruckLoadPhotoAnalysis(claim.message, loadPhoto.truck, analysis);
@@ -307,8 +255,6 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
         status: "pending",
       });
     }
-    stage = "downloading";
-    const filePath = await downloadWhatsAppImage(claim.message);
     stage = "uploading";
     const verification = await uploadJunkwareJobPhoto({
       appointmentId,

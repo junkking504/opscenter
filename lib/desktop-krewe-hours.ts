@@ -1,4 +1,4 @@
-import { readMetrics, type AnyRecord } from '@/lib/opsData';
+import { readMetrics, employeeJobRevenueWorked, type AnyRecord } from '@/lib/opsData';
 import { payPeriodDates, addDateKeyDays } from '@/lib/pay-period';
 import { normalizePayrollEmployeeKey, payrollCorrectionsForDate, type PayrollCorrection } from '@/lib/payroll-corrections';
 import { chicagoClockToDate, MAX_SHIFT_SECONDS } from '@/lib/live-pay';
@@ -70,14 +70,19 @@ export function buildKreweHours(date: string, sources: Map<string, AnyRecord | n
           if (day > today) { hours = null; status = 'Upcoming'; }
           else if (!sources.get(day) && !correction) { hours = null; status = 'Source Unavailable'; }
           else if (!row && !correction) { hours = null; status = 'No Record'; }
-          return { date: day, hours, clockIn, clockOut, corrected: Boolean(correction), status, regular: 0, overtime: 0, salary: Boolean(row?.is_salary) };
+          const jobsRaw = row?.jobs_completed ?? row?.completed_jobs ?? row?.credited_jobs ?? row?.jobs;
+          const jobs = jobsRaw !== null && jobsRaw !== undefined && Number.isFinite(Number(jobsRaw)) ? Number(jobsRaw) : null;
+          return { date: day, hours, clockIn, clockOut, corrected: Boolean(correction), status, regular: 0, overtime: 0, salary: Boolean(row?.is_salary),
+            role: row ? String(row.role || (Array.isArray(row.credited_roles) ? row.credited_roles.join(' / ') : '') || 'Unavailable') : 'Unavailable',
+            truck: row ? String((Array.isArray(row.trucks) ? row.trucks.join(', ') : row.truck || row.assigned_truck) || 'Unassigned') : 'Unavailable',
+            jobs, jobRevenueWorked: row ? employeeJobRevenueWorked(row, sources.get(day)) : null };
         });
         const allocation = calculateWeeklyOvertime(days.map(day => ({ hours: day.hours ?? 0, isSalary: day.salary })));
         days.forEach((day, i) => { day.regular = round(allocation[i].regularHours); day.overtime = round(allocation[i].overtimeHours); });
         const known = days.some(day => day.hours !== null);
         return { start, end: addDateKeyDays(start, 6), total: known ? round(days.reduce((sum, day) => sum + (day.hours ?? 0), 0)) : null,
           regular: round(allocation.reduce((sum, day) => sum + day.regularHours, 0)), overtime: round(allocation.reduce((sum, day) => sum + day.overtimeHours, 0)),
-          incomplete: days.some(day => !['Recorded', 'Upcoming'].includes(day.status)), days: days.map(day => ({ date: day.date, hours: day.hours, regular: day.regular, overtime: day.overtime, clockIn: day.clockIn, clockOut: day.clockOut, corrected: day.corrected, status: day.status })) };
+          incomplete: days.some(day => !['Recorded', 'Upcoming'].includes(day.status)), days: days.map(day => ({ date: day.date, hours: day.hours, regular: day.regular, overtime: day.overtime, clockIn: day.clockIn, clockOut: day.clockOut, corrected: day.corrected, status: day.status, role: day.role, truck: day.truck, jobs: day.jobs, jobRevenueWorked: day.jobRevenueWorked })) };
       });
       return { id, name, weeks, total: weeks.some(week => week.total !== null) ? round(weeks.reduce((sum, week) => sum + (week.total ?? 0), 0)) : null };
     }),

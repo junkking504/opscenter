@@ -28,7 +28,7 @@ export default function LiveKrewe({date,view,report,onBusyChange}:DesktopWorkspa
   const summary=(items:Array<[string,number|null,boolean?]>,className:string)=><div className={className}>{items.map(([label,value,currency])=><article key={label}><span>{label}</span><strong>{currency?money(value):metric(value)}</strong></article>)}</div>;
   const periodColumns=(row:CrewAmounts)=><><div><strong>{metric(row.hours)} hrs</strong><small>{metric(row.regularHours)} regular · {metric(row.overtimeHours)} OT</small></div><div><strong>{metric(row.jobs)} jobs</strong><small>{money(row.revenue)} credited</small></div><strong>{money(row.labor)}</strong><strong>{money(row.tips)}</strong><strong>{money(row.bonuses)}</strong><strong>{money(row.supplemental)}</strong><strong className="pay">{money(row.totalPay)}</strong></>;
   return <section className={`krewe-workspace live-krewe krewe-view-${view}`}>
-    {view==='payperiod'&&snapshot.payrollVisible&&<LiveKreweHours key={`${selectedDate}:${members.map(member=>member.version).join(',')}`} date={selectedDate} onDateChange={next=>setPeriodSelection({base:date,date:next})} />}
+    {view==='payperiod'&&snapshot.payrollVisible&&<LiveKreweHours key={`${selectedDate}:${members.map(member=>member.version).join(',')}`} date={selectedDate} payroll={snapshot} onRefresh={()=>void refresh().catch(failure=>setError(failure.message))} onDateChange={next=>setPeriodSelection({base:date,date:next})} />}
     {error&&<p className="drawer-action-feedback" role="status">{error}</p>}
     {!!snapshot.missingDates.length&&<p className="krewe-roster-note">Source unavailable for {snapshot.missingDates.length} date(s): {snapshot.missingDates.join(', ')}. Totals cover available records only.</p>}
     {view==='today'&&<>

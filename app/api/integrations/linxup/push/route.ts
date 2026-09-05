@@ -1,17 +1,25 @@
 import { execFile } from "node:child_process";
-import crypto from "node:crypto";
-import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { linxupBearerToken, normalizeLinxupV3Position, validLinxupPushToken } from "@/lib/linxup-push";
+import { enqueueLinxupPush, InvalidLinxupPush } from "@/lib/linxup-push-queue";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const runFile = promisify(execFile);
 const MAX_BODY_BYTES = 512 * 1024;
+let draining: Promise<unknown> | null = null;
+
+async function kickDrain() {
+  if (draining) return draining;
+  draining = runFile(path.join(process.cwd(), 'scripts', 'run-linxup-push.sh'), ['--drain'], {
+    cwd: process.cwd(), maxBuffer: 64 * 1024, env: process.env,
+  }).catch(() => { console.error('LinxUp queue drain failed; durable entries retained for the minute collector.'); })
+    .finally(() => { draining = null; });
+  return draining;
+}
 
 function noStore(body: Record<string, unknown>, status = 200) {
   return NextResponse.json(body, { status, headers: { "Cache-Control": "no-store, max-age=0" } });
@@ -26,20 +34,13 @@ export async function POST(request: Request) {
     return noStore({ ok: false, accepted: false, processed: false, error: "Invalid LinxUp V3 position payload." }, 422);
   }
 
-  const temporary = path.join(os.tmpdir(), `opscenter-linxup-push-${crypto.randomUUID()}.json`);
-  fs.writeFileSync(temporary, raw, { encoding: "utf8", mode: 0o600 });
   try {
-    await runFile(path.join(process.cwd(), "scripts", "run-linxup-push.sh"), [temporary], {
-      cwd: process.cwd(),
-      timeout: 45_000,
-      maxBuffer: 64 * 1024,
-      env: process.env,
-    });
-    return noStore({ ok: true, accepted: true, processed: true });
+    enqueueLinxupPush(raw);
   } catch (error) {
-    console.error("LinxUp push processing failed", error instanceof Error ? error.message : error);
-    return noStore({ ok: false, accepted: true, error: "Push processing failed." }, 503);
-  } finally {
-    fs.rmSync(temporary, { force: true });
+    if (error instanceof InvalidLinxupPush) return noStore({ok:false,accepted:false,error:'Invalid or unmapped LinxUp position.'},422);
+    console.error('LinxUp push could not be durably queued.');
+    return noStore({ok:false,accepted:false,error:'Unable to queue position; retry required.'},503);
   }
+  after(kickDrain);
+  return noStore({ok:true,accepted:true,queued:true,processed:false});
 }

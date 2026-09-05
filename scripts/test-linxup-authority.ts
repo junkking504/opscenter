@@ -40,18 +40,22 @@ assert.deepEqual(selectAuthoritativeLinxupPoint([v2, staleV3], now), {
 
 const olderV2 = { ...v2, timestamp: "2026-08-31T16:40:00Z" };
 assert.deepEqual(selectAuthoritativeLinxupPoint([olderV2, staleV3], now), {
-  point: olderV2,
-  mode: "v2_poll_fallback",
-  fallbackActive: true,
+  point: staleV3,
+  mode: "last_known",
+  fallbackActive: false,
   latestV3PositionAt: staleV3.timestamp,
 });
 
 assert.deepEqual(selectAuthoritativeLinxupPoint([staleV3], now), {
-  point: null,
-  mode: "unavailable",
+  point: staleV3,
+  mode: "last_known",
   fallbackActive: false,
   latestV3PositionAt: staleV3.timestamp,
 });
+
+assert.equal(selectAuthoritativeLinxupPoint([{...freshV3,timestamp:'invalid'},v2],now).point,v2);
+assert.equal(selectAuthoritativeLinxupPoint([{...freshV3,timestamp:'2026-08-31T18:00:00Z'},v2],now).point,v2);
+assert.equal(selectAuthoritativeLinxupPoint([olderV2,staleV3].reverse(),now).point,staleV3);
 
 assert.deepEqual(selectAuthoritativeLinxupPoint([], now), {
   point: null,

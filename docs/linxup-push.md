@@ -8,9 +8,19 @@ https://hooks.junk-king.app/api/integrations/linxup/push
 
 The public `hooks` hostname exposes only signed ingestion routes. The receiver
 requires the exact bearer token configured in `LINXUP_PUSH_BEARER_TOKEN`, stores
-the raw V3 event in the private OpsBot data directory, normalizes the GPS point
-against the effective vehicle map, recomputes the current appointment visit, and
-publishes a newly confirmed truck-arrival Slack alert before returning success.
+the raw V3 event in a private durable queue before returning success. The response
+distinguishes `queued: true` from `processed: false`. Invalid/unmapped events are
+rejected before acknowledgement; storage failures return a retryable error.
+After the response, a processor takes the shared GPS lock, normalizes queued
+points against the effective vehicle map, recomputes appointment visits, and
+publishes newly confirmed truck-arrival alerts. A busy lock leaves entries queued,
+not rejected. The existing minute collector drains pending entries before network
+work and after polling, providing recovery after a server restart. Failed entries
+remain queued and do not block other trucks. Raw audit records retain the original
+receipt time; provider timestamps are never advanced to make a position look fresh.
+Queue files are mode 0600, atomically published and flushed before acknowledgement;
+pending capacity is bounded to 1,000 records and a drain processes up to 100.
+`/api/health` exposes pending count, oldest age, and queue readability.
 
 Configure the V3 **Position URL** to the endpoint above and set the same bearer
 token in LinxUp and the Mission Control Keychain item
@@ -21,8 +31,11 @@ V3 Position Push is the authoritative live source whenever a current push is
 present. The V2 minute collector remains enabled as a verification, backfill,
 and automatic fallback path. A current V3 point wins over a newer polled point;
 if no V3 point has arrived within the configured authority window, OpsCenter
-uses the newest V2 point and explicitly reports `v2_poll_fallback` rather than
-presenting the fallback as authoritative live push data.
+uses the newest valid observation across V2 and V3. A polled observation reports
+`v2_poll_fallback`; a newer stale V3 observation reports `last_known`. Push-only
+trucks remain visible. Invalid/future observations are excluded. The observation's
+own timestamp still controls stale labels, nearest-truck eligibility, and on-site
+evidence; keeping a last-known marker does not restore live GPS authority.
 
 `/api/health` exposes `linxupDeliveryMode`, `linxupV3UpdatedAt`,
 `linxupV3AgeSeconds`, and `linxupFallbackActive`. A healthy V2 snapshot with a

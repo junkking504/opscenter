@@ -32,16 +32,19 @@ function readJson(file: string): RecordValue {
   try {
     const value = JSON.parse(fs.readFileSync(file, "utf8"));
     return value && typeof value === "object" ? value as RecordValue : {};
-  } catch {
-    return {};
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {};
+    throw error;
   }
 }
 
 function writeJson(file: string, value: unknown): void {
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   const temporary = `${file}.tmp-${process.pid}-${crypto.randomUUID()}`;
-  fs.writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  const fd=fs.openSync(temporary,'wx',0o600);
+  try { fs.writeFileSync(fd, `${JSON.stringify(value, null, 2)}\n`); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
   fs.renameSync(temporary, file);
+  const dir=fs.openSync(path.dirname(file),'r'); try { fs.fsyncSync(dir); } finally { fs.closeSync(dir); }
 }
 
 function activeMapping(mappings: VehicleMapping[], name: string, trackerId: string, date: string): VehicleMapping | undefined {
@@ -75,7 +78,8 @@ const history = path.join(dataRoot, "history", "linxup");
 const sourcePositionId = `${trackerId || mapping.linxup_tracker_id}-${positionDate}`.replace(/[^A-Za-z0-9._-]+/g, "-");
 const rawFile = path.join(history, "push", serviceDate, `position-${sourcePositionId}.json`);
 const locationFile = path.join(history, `linxup_location_${serviceDate}.json`);
-const receivedAt = new Date().toISOString();
+const receiptIndex = process.argv.indexOf('--received-at');
+const receivedAt = receiptIndex>=0 ? new Date(process.argv[receiptIndex+1]).toISOString() : new Date().toISOString();
 writeJson(rawFile, { schema_version: 1, source: "LinxUp V3 Push API", received_at: receivedAt, payload: providerPayload });
 const current = readJson(locationFile);
 const currentPoints = Array.isArray(current.points) ? current.points.filter((point): point is RecordValue => Boolean(point) && typeof point === "object") : [];
@@ -95,21 +99,22 @@ const point = {
 const key = `${point.tracker_id}|${point.timestamp}|${point.latitude.toFixed(7)}|${point.longitude.toFixed(7)}`;
 const points = [...currentPoints.filter((candidate) => `${candidate.tracker_id}|${candidate.timestamp}|${Number(candidate.latitude).toFixed(7)}|${Number(candidate.longitude).toFixed(7)}` !== key), point]
   .sort((left, right) => `${left.timestamp}|${left.tracker_id}`.localeCompare(`${right.timestamp}|${right.tracker_id}`));
+const latestV3=points.filter(candidate=>candidate.delivery_source==='v3_position_push').at(-1)!;
 writeJson(locationFile, {
   ...current,
   schema_version: 1,
   source: "LinxUp V3 Push API",
   date: serviceDate,
   timezone: "America/Chicago",
-  collection_timestamp: receivedAt,
+  collection_timestamp: new Date().toISOString(),
   delivery: {
     authoritative_source: "v3_position_push",
     current_mode: "v3_position_push",
     fallback_source: "v2_poll",
     v3_position_push: {
       latest_received_at: receivedAt,
-      latest_position_at: point.timestamp,
-      latest_truck: point.truck_number,
+      latest_position_at: latestV3.timestamp,
+      latest_truck: latestV3.truck_number,
       sync_status: "current",
     },
   },

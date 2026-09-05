@@ -3,6 +3,7 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { getOpsRuntime } from "@/lib/runtime";
 import { chicagoDateKey } from "@/lib/report-dates";
+import { linxupDataRoot, linxupPushQueueStatus } from '@/lib/linxup-push-queue';
 import {
   readVerifiedJunkwareReconciliationSnapshot,
   readVerifiedJunkwareScheduleSnapshot,
@@ -222,6 +223,7 @@ export async function GET(request: Request) {
         linxupV3MaxAgeSeconds,
         linxupDeliveryMode,
         linxupFallbackActive,
+        linxupPushQueue: linxupPushQueueStatus(linxupDataRoot()),
         degraded: linxupFallbackActive,
         junkwareScheduleUpdatedAt: junkwareSchedule?.updatedAt || null,
         junkwareScheduleAgeSeconds,

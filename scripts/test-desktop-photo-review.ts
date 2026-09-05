@@ -38,13 +38,15 @@ async function main(){
   assert.equal(read('state=failed').filtered,1);assert.equal(read('reason=sender_not_mapped_to_truck').filtered,27);
   assert.equal(read(`sender=${all.senders[0].key}`).filtered,27);assert.equal(read('q=jk7654321').filtered,1);
   assert.equal(read('q=1111').filtered,27);assert.equal(read('q=2026-09-01').filtered,1);
-  assert.equal(read('q=missing').filtered,0);assert.equal(read('state=failed').records[0].reasonLabel,'Media retrieval failed');
+  assert.equal(read('q=missing').filtered,0);assert.equal(read('state=failed').records[0].reasonLabel,'Network request failed');
   const serialized=JSON.stringify(read('state=failed'));
   for(const privateValue of ['+15550002222','synthetic-failed','private.invalid','PRIVATE_TEST_VALUE','mediaId','phoneNumberId'])assert.equal(serialized.includes(privateValue),false,privateValue);
   assert.equal(all.records[0].previewAvailable,true);assert.deepEqual(readPhotoPreview(first,'review',root)?.bytes,png);
   assert.equal(readPhotoPreview(first,'uploaded',root),null);assert.equal(readPhotoPreview('../'+first,'review',root),null);assert.equal(readPhotoPreview(first,'../review',root),null);
   assert.deepEqual(contents(),before,'Listing, filtering and previewing must leave queue and media contents unchanged.');
   for(const query of ['state=uploaded','page=0','page=1.5','page=Infinity',`q=${'x'.repeat(101)}`])assert.throws(()=>read(query),InvalidPhotoReviewFilter);
+  assert.match(photoReason('network_request_failed').nextStep,/does not establish whether an upload succeeded/);
+  assert.notEqual(photoReason('processing_interrupted_outcome_unknown').label,photoReason('upload_outcome_uncertain').label);
   assert.match(photoReason('upload_outcome_uncertain').nextStep,/may already have succeeded/);
   assert.equal(photoReason('photo_exceeds_5_MB').label,'Photo too large');
   assert.match(photoReason('jk_not_on_active_schedule').nextStep,/more than one appointment/);

@@ -12,9 +12,9 @@ export class InvalidPhotoReviewFilter extends Error {}
 export function photoReason(reason:string): {label:string;nextStep:string} {
   if(reason==='sender_not_mapped_to_truck')return {label:'Sender mapping needed',nextStep:'Verify which truck used this sender phone at the time of the message, or obtain the exact appointment reference.'};
   if(/jk_(not_on_active_schedule|not_found_in_junkware)/.test(reason))return {label:'Appointment match needed',nextStep:'Confirm the JK number and the intended appointment date. A JK reference alone may have more than one appointment.'};
-  if(/uncertain|outcome_unknown/.test(reason))return {label:'Upload outcome uncertain',nextStep:'Inspect the intended JunkWare appointment and its existing photos before any retry; the upload may already have succeeded.'};
+  if(/uncertain|outcome_unknown/.test(reason))return {label:reason==='processing_interrupted_outcome_unknown'?'Upload interrupted; outcome unknown':'Upload outcome uncertain',nextStep:'Inspect the intended JunkWare appointment and its existing photos before any retry; the upload may already have succeeded.'};
   if(/5 MB|5_MB|invalid size/.test(reason))return {label:'Photo too large',nextStep:'Use a JPEG or PNG below the 5 MB JunkWare limit and verify the appointment before submitting a replacement.'};
-  if(/fetch failed|network|timeout|Meta media/.test(reason))return {label:'Media retrieval failed',nextStep:'Check that the original media is still available and the appointment is correct before a controlled retry. Old media may need to be resent.'};
+  if(/fetch failed|network|timeout|Meta media/.test(reason))return {label:'Network request failed',nextStep:'Verify the intended appointment and its existing JunkWare photos before any retry. A failed network request does not establish whether an upload succeeded. If original media is unavailable, it may need to be resent.'};
   if(reason==='unreadable_record')return {label:'Record unreadable',nextStep:'Recover the original queue record before any upload or retry.'};
   if(reason==='processing')return {label:'Processing',nextStep:'Wait for the worker result. A stale processing record needs outcome verification before it can be retried.'};
   if(reason==='incoming')return {label:'Waiting for worker',nextStep:'Check worker health if this record does not advance.'};
@@ -70,7 +70,7 @@ export function readPhotoReview(params:URLSearchParams,root=photoReviewRoot()):P
       // Worker exceptions may contain provider URLs or identifiers. Return a
       // bounded reason code rather than the original exception or payload.
       const storedReason=clean(review.reason,150),failure=clean(row.error)||clean(row.lastError);
-      const rawReason=/^[a-z][a-z0-9_]{0,149}$/.test(storedReason)?storedReason:failure?(/5 MB|invalid size/.test(failure)?'photo_exceeds_5_MB':/fetch failed|network|timeout|Meta media/i.test(failure)?'network_media_failure':'worker_failure'):queue;
+      const rawReason=/^[a-z][a-z0-9_]{0,149}$/.test(storedReason)?storedReason:failure?(/5 MB|invalid size/.test(failure)?'photo_exceeds_5_MB':/fetch failed|network|timeout|Meta media/i.test(failure)?'network_request_failed':'worker_failure'):queue;
       const advice=photoReason(rawReason),phone=clean(row.senderPhone).replace(/\D/g,'');
       const senderKey=hash(phone||id).slice(0,16),senderLabel=phone?`Sender ending ${phone.slice(-4)}`:'Sender unavailable';
       const sourceHref=jk&&jobDate?`/desktop?${new URLSearchParams({data:'live',workspace:'Schedule',date:jobDate,job:jk})}`:null;

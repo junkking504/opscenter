@@ -4,6 +4,7 @@ export type ControlItem = {
   sourceObservedAt: string; status: 'open' | 'acknowledged' | 'in_progress' | 'snoozed' | 'resolved' | 'dismissed';
   entity: { type: string; id: string; label?: string }; ownerActorId?: string; ownerDisplayName?: string;
   dueAt?: string; resolutionCode?: string; resolutionNote?: string; href?: string; recommendedAction: string;
+  currentSource?: {status:string;observedAt:string|null};
   overdue: boolean; carryover: boolean;
 };
 export type ControlGate = {

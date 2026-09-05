@@ -1,3 +1,4 @@
+import { controlAppointmentEvidence } from '@/lib/desktop-control-evidence';
 import { desktopWorkItemHref } from '@/lib/desktop-record-links';
 import { readDesktopSourceHealth } from '@/lib/desktop-source-health';
 import { createHash } from 'node:crypto';
@@ -90,7 +91,13 @@ export async function readDesktopControl(dateInput: string, identity: Identity, 
     getKernelPool().query<{ id: string; action_key: string; entity_type: string; status: string; requested_at: Date }>(`SELECT id,action_key,entity_type,status,requested_at FROM opscenter_kernel.action_runs WHERE (requested_at AT TIME ZONE 'America/Chicago')::date=$1 AND status IN ('awaiting_approval','verifying','failed') AND ($2 OR actor_id=$3) ORDER BY requested_at DESC LIMIT 200`, [date,canFinance,actor.id]),
   ]);
   const owners = await actorDisplayNames([...itemRows.rows.map(row => row.item.ownerActorId || ''), ...allActiveRows.rows.map(row => row.owner_actor_id || '')]);
-  const items = itemRows.rows.map(({item,rule}) => ({ ...item, ownerDisplayName: item.ownerActorId ? owners.get(item.ownerActorId) : undefined, recommendedAction: inboxRulePolicy(rule).recommendedAction, href: desktopWorkItemHref(item) }));
+  const schedules = new Map([[date,schedule]]);
+  const currentEvidence = (item:ControlItem) => {
+    if(item.entity.type!=='job')return undefined;
+    if(!schedules.has(item.operatingDate)){try{schedules.set(item.operatingDate,readDesktopSchedule(item.operatingDate));}catch{return {status:'Current source unavailable',observedAt:null};}}
+    return controlAppointmentEvidence(item.entity,schedules.get(item.operatingDate)!);
+  };
+  const items = itemRows.rows.map(({item,rule}) => ({ ...item, currentSource:currentEvidence(item), ownerDisplayName: item.ownerActorId ? owners.get(item.ownerActorId) : undefined, recommendedAction: inboxRulePolicy(rule).recommendedAction, href: desktopWorkItemHref(item) }));
   const itemsTruncated = false;
   const allActive = allActiveRows.rows;
   const scheduleKnown = Boolean(schedule.observedAt);

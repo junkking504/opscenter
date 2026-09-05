@@ -296,3 +296,5 @@ SearchKings uses the source's Chicago calendar date, including evening calls and
 Finance compares matching elapsed calendar days by default. The full-prior-month comparison remains selectable and explicitly identifies different period lengths. Missing daily evidence produces unavailable comparisons rather than assumed zero values.
 
 Regression checks: `scripts/test-existing-setup-reliability.ts`, `scripts/test-operational-readiness.ts`, and `tests/desktop-people-fleet.ts`. The isolated browser fixture is `desktop-ui/tests/refresh.html`, served using `node desktop-ui/node_modules/vite/bin/vite.js --config desktop-ui/tests/refresh.vite.config.ts`; it is not part of the production build. Operational health semantics are documented in [operational-readiness.md](operational-readiness.md).
+
+Monitor labels durable alerts as recorded conditions and displays the latest uniquely matched appointment disposition and its observation time beside them. A closed source appointment does not silently resolve a decision: the existing reconciliation and audit rules remain authoritative.

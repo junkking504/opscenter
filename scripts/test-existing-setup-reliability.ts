@@ -1,3 +1,5 @@
+import {controlAppointmentEvidence} from '../lib/desktop-control-evidence';
+import type {ScheduleAppointment} from '../desktop-ui/lib/schedule-contract';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -62,6 +64,12 @@ async function main() {
   assert.equal(financePeriodComparison('2026-09-05',date=>date==='2026-08-03'?null:{total_revenue:10}).priorRevenue,null);
   const link=new URL(desktopWorkItemHref({operatingDate:'2026-09-04',category:'Dispatch',entity:{type:'job',id:'2026-09-04:appointment:123',label:'Job'}}),'http://fixture');
   assert.equal(link.searchParams.get('date'),'2026-09-04'); assert.equal(link.searchParams.get('appointment'),'2026-09-04:appointment:123');
+  const appointment={recordId:'2026-09-04:appointment:123',appointmentId:'123',jkNumber:'JK123',status:'Estimate Closed'} as ScheduleAppointment;
+  const published={observedAt:'2026-09-05T00:00:00Z',appointments:[appointment]};
+  assert.equal(controlAppointmentEvidence({type:'job',id:'123'},published)?.status,'Estimate Closed');
+  assert.match(controlAppointmentEvidence({type:'job',id:'JK123'},{...published,appointments:[appointment,{...appointment,appointmentId:'456'}]})!.status,/ambiguous/);
+  assert.equal(controlAppointmentEvidence({type:'job',id:'123'},{...published,appointments:[appointment,{...appointment,appointmentId:'456',recordId:'456'}]})?.status,'Estimate Closed');
+  assert.match(controlAppointmentEvidence({type:'job',id:'123'},{...published,observedAt:null})!.status,/unavailable/);
   console.log('Existing setup reliability regression checks passed.');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

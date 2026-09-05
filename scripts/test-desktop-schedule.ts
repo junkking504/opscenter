@@ -14,6 +14,10 @@ async function main() {
   assert.equal(pairs[1].gapMinutes, -15, 'Overlapping windows must remain visible as conflicts');
   const unavailable = await calculateDesktopRouteLegs(jobs, async () => null);
   assert.ok(unavailable.every(leg => leg.travelMinutes === null && leg.miles === null && leg.source === 'unavailable'));
+  let failures = 0;
+  const partial = await calculateDesktopRouteLegs(jobs, async () => { if (++failures === 1) throw new Error('Provider timeout'); return [{condition:'ROUTE_EXISTS',duration:'300s',distanceMeters:1609.344}]; });
+  assert.equal(partial[0].travelMinutes, null);
+  assert.equal(partial[1].travelMinutes, 5, 'A failed leg must not hide other travel estimates');
   let requests = 0;
   const routed = await calculateDesktopRouteLegs(jobs, async (origins, destinations) => {
     assert.equal(origins.length * destinations.length, 1, 'Do not request or bill unused cross-pair route elements');
@@ -30,6 +34,13 @@ async function main() {
   assert.equal(routed[1].bufferMinutes, -25);
   const missingPin = await calculateDesktopRouteLegs([jobs[0], { ...jobs[1], location: null }], async () => { throw new Error('Unverified coordinates must not reach routing provider'); });
   assert.equal(missingPin[0].source, 'unavailable');
+  const tied = [appointment('b',480,540),appointment('a',480,540,{truck:'Truck# 2'}),appointment('c',480,540),appointment('untimed',0,0,{hasScheduledTime:false,appointmentStartMinutes:null,appointmentEndMinutes:null})];
+  const tiedLegs = await calculateDesktopRouteLegs(tied,async()=>[{condition:'ROUTE_EXISTS',duration:'300s',distanceMeters:1609.344}]);
+  assert.deepEqual(tiedLegs.map(leg=>[leg.fromAppointmentId,leg.toAppointmentId]),[['a','b'],['b','c'],['c','untimed']]);
+  assert.ok(tiedLegs.every(leg=>leg.travelMinutes===5&&leg.miles===1));
+  assert.equal(tiedLegs[2].gapMinutes,null);
+  assert.equal(tiedLegs[2].bufferMinutes,null);
+  assert.deepEqual(scheduleRoutePairs([...tied].reverse()),scheduleRoutePairs(tied),'Same-time order must not change when source rows reorder');
   console.log('Schedule contracts passed: separate appointment identity, route ordering, overlaps, verified coordinates, provider distance/time, and no fabricated fallback.');
 }
 void main();

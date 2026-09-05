@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { chicagoDateKey } from '@/lib/report-dates';
-import { readDesktopSchedule } from '@/lib/desktop-schedule';
+import { readVerifiedDesktopSchedule } from '@/lib/desktop-schedule';
 
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     return Response.json({ error: 'A valid operating date is required.' }, { status: 400, headers });
   }
   try {
-    return Response.json(readDesktopSchedule(date), { headers });
+    return Response.json(await readVerifiedDesktopSchedule(date), { headers });
   } catch {
     return Response.json({ error: 'Schedule source unavailable.' }, { status: 503, headers });
   }

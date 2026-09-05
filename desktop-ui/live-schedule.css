@@ -1,5 +1,19 @@
 /* Adapter-only geometry for real coordinates, fractional windows, and overlaps.
    The approved stylesheet and type scale remain unchanged. */
+.live-schedule .schedule-travel { border: 1px solid #d6ded8; border-radius: 9px; background: #fff; margin: 8px 0; }
+.live-schedule .schedule-travel header { padding: 10px 12px; border-bottom: 1px solid #d6ded8; }
+.live-schedule .schedule-travel h2 { font-size: 15px; margin: 0; }
+.live-schedule .schedule-travel p { font-size: 12px; color: #58655d; margin: 4px 0 0; }
+.live-schedule .schedule-travel-truck { display: grid; grid-template-columns: 82px minmax(0,1fr); gap: 8px; padding: 8px 12px; border-bottom: 1px solid #e5e9e5; font-size: 12px; }
+.live-schedule .schedule-travel-truck:last-child { border-bottom: 0; }
+.live-schedule .schedule-travel-legs { display: flex; flex-wrap: wrap; gap: 8px; }
+.live-schedule .schedule-travel-pair { border: 1px solid #dce3dd; border-radius: 6px; padding: 7px 9px; display: grid; gap: 4px; }
+.live-schedule .schedule-travel-pair > div { display: flex; gap: 5px; align-items: center; }
+.live-schedule .schedule-travel-pair button { font: inherit; font-weight: 650; text-decoration: underline; border: 0; padding: 0; color: #263e32; background: transparent; cursor: pointer; }
+.live-schedule .schedule-travel-pair > strong { color: #17613b; }
+.live-schedule .schedule-travel-pair.unavailable > strong { color: #8b5a08; }
+.live-schedule .schedule-travel-pair small { font-size: 11px; color: #58655d; }
+.live-schedule .schedule-stop-number { border-radius: 3px; background: #edf1ed; padding: 1px 4px; font-size: 10px; }
 .live-schedule-map { position: absolute; inset: 0; z-index: 0; }
 .live-schedule-map .leaflet-tile-pane { filter: saturate(.72) contrast(.94); }
 .live-schedule-map .leaflet-control { font-family: inherit; }

@@ -53,7 +53,7 @@ export type ScheduleSnapshot = {
 };
 export type ScheduleRouteLeg = {
   truck: string; fromAppointmentId: string; toAppointmentId: string;
-  fromJk: string; toJk: string; gapMinutes: number;
+  fromJk: string; toJk: string; gapMinutes: number | null;
   travelMinutes: number | null; miles: number | null; bufferMinutes: number | null;
   source: 'google_live_traffic' | 'unavailable';
 };

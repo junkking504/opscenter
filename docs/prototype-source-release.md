@@ -16,6 +16,23 @@ iframe is required. Never edit or stop the original port-3101 preview.
 
 ## Production integration (September 4)
 
+### Weekly employee hours (September 5)
+
+Krewe's Pay Period tab adds the approved weekly-hours panel above existing
+reconciliation and guarded payroll actions. Both seven-day weeks remain visible,
+with regular/OT hours, period totals, daily clock records, correction flags, and
+unavailable/upcoming states. Period navigation also updates the reconciliation
+selection. Existing Today, Call-In Plan, Monthly, and payroll actions remain intact.
+
+The new read-only hours endpoint enforces payroll-view permission and uses the
+canonical period anchor, weekly overtime calculator, daily payroll-first source
+priority, and manager corrections. Old open shifts are not extrapolated. Tests
+cover date boundaries, weekly OT, missing/future records, open shifts, corrections,
+and source preservation. The production build, source/navigation regressions,
+pay-period checks, and targeted lint pass. Pre-release browser QA verified that
+the weekly panel and existing reconciliation switch together to Aug 10–23 and
+back to the current period without changing payroll data.
+
 The normal `npm run build` now builds the pinned desktop package before Next.js.
 Authenticated `/` opens `/desktop?data=live`; monthly reporting and explicit
 `legacy=1` links retain the existing application. Production always uses live

@@ -1,0 +1,26 @@
+.live-krewe-hours { border: 1px solid #d3dad5; border-radius: 9px; background: #fff; overflow: hidden; }
+.live-krewe-hours > header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #dce2dd; }
+.live-krewe-hours h2 { margin: 0; font-size: 18px; }
+.live-krewe-hours header p { margin: 4px 0 0; font-size: 14px; color: #56645b; }
+.hours-period-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.live-krewe-hours label { display: grid; gap: 5px; font-size: 12px; font-weight: 650; }
+.live-krewe-hours input, .hours-period-controls button { border: 1px solid #cbd4ce; border-radius: 6px; padding: 7px 10px; height: 36px; font: inherit; font-size: 13px; background: #f8faf8; }
+.hours-period-controls button { cursor: pointer; }
+.hours-period-controls button:disabled { opacity: .5; cursor: default; }
+.hours-toolbar { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: end; padding: 12px 16px 0; }
+.hours-toolbar a { font-size: 13px; color: #305c43; text-decoration: underline; }
+.hours-source-note { margin: 0; padding: 10px 16px; font-size: 12px; line-height: 1.5; color: #607066; }
+.hours-table-wrap { overflow-x: auto; }
+.live-krewe-hours table { width: 100%; min-width: 520px; border-collapse: collapse; table-layout: fixed; font-size: 14px; }
+.live-krewe-hours th, .live-krewe-hours td { padding: 12px 16px; text-align: left; vertical-align: top; border-top: 1px solid #dde4de; }
+.live-krewe-hours thead th { background: #f0f4f1; font-size: 13px; }
+.live-krewe-hours table small { display: block; margin-top: 5px; color: #5d6c62; font-weight: 400; font-size: 12px; line-height: 1.4; }
+.live-krewe-hours .hours-attention { color: #8b5316; }
+.hours-employee { border: 0; padding: 0; background: none; font: inherit; font-weight: 650; text-align: left; color: #223d2d; cursor: pointer; }
+.hours-employee:focus-visible { outline: 2px solid #3b7d53; outline-offset: 4px; }
+.hours-daily-weeks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.hours-daily-weeks section { border: 1px solid #d6dfd8; border-radius: 6px; overflow: hidden; }
+.hours-daily-weeks h3 { font-size: 13px; margin: 0; padding: 10px; background: #f0f5f1; }
+.hours-daily-row { display: grid; grid-template-columns: 65px minmax(0, 1fr) 80px; gap: 8px; padding: 9px 10px; border-top: 1px solid #e0e6e1; font-size: 12px; }
+.hours-daily-row > strong { text-align: right; }
+@media (max-width: 1000px) { .hours-daily-weeks { grid-template-columns: 1fr; } .live-krewe-hours th, .live-krewe-hours td { padding: 10px; } }

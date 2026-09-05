@@ -4,6 +4,7 @@ import { X } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { Badge } from './components/ui/badge';
+import LiveKreweHours from './live-krewe-hours';
 import { boundedRecordQuery, uniqueMemberMatch } from './lib/people-fleet-contract';
 import type { DesktopWorkspaceProps, KreweView, DesktopKreweSnapshot, DesktopCrewMember, CrewAmounts } from './lib/people-fleet-contract';
 const money=(value:number|null|undefined)=>value==null?'—':value.toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2});
@@ -12,7 +13,8 @@ const ampm=(value:string)=>{if(!/^\d{2}:\d{2}$/.test(value))return value;const [
 /** Parent owns the approved workspace header/tabs; report optionally selects an ISO month/date. */
 export default function LiveKrewe({date,view,report,onBusyChange}:DesktopWorkspaceProps<KreweView>){
   const deepLinkApplied=useRef('');
-  const selectedDate=view==='monthly'&&report&&/^\d{4}-\d{2}/.test(report)?`${report.slice(0,7)}-${new Date(Number(report.slice(0,4)),Number(report.slice(5,7)),0).getDate()}`:date;
+  const [periodSelection,setPeriodSelection]=useState({base:date,date});
+  const selectedDate=view==='monthly'&&report&&/^\d{4}-\d{2}/.test(report)?`${report.slice(0,7)}-${new Date(Number(report.slice(0,4)),Number(report.slice(5,7)),0).getDate()}`:view==='payperiod'&&periodSelection.base===date?periodSelection.date:date;
   const [snapshot,setSnapshot]=useState<DesktopKreweSnapshot|null>(null);const [error,setError]=useState('');const [pending,setPending]=useState(false);const [active,setActive]=useState<DesktopCrewMember|null>(null);const [filter,setFilter]=useState('all');const [draft,setDraft]=useState({clockIn:'',clockOut:'',hourlyRate:'',note:'',amount:'',bonusNote:''});const busy=useRef(false);const generation=useRef(0);const opener=useRef<HTMLElement|null>(null);const drawer=useRef<HTMLElement|null>(null);
   const loadSnapshot=useCallback(async(signal:AbortSignal)=>{const run=++generation.current;const response=await fetch(`/api/desktop/krewe?date=${encodeURIComponent(selectedDate)}&view=${view}`,{cache:'no-store',credentials:'same-origin',signal});const body=await response.json();if(!response.ok)throw new Error(body.error||'Krewe could not refresh.');if(run===generation.current&&!signal.aborted){setSnapshot(body);setActive(previous=>previous?body.members.find((member:DesktopCrewMember)=>member.id===previous.id)||null:null);}},[selectedDate,view]);
   const invalidate=useCallback(()=>{generation.current+=1;},[]);
@@ -31,6 +33,7 @@ export default function LiveKrewe({date,view,report,onBusyChange}:DesktopWorkspa
   const periodColumns=(row:CrewAmounts)=><><div><strong>{metric(row.hours)} hrs</strong><small>{metric(row.regularHours)} regular · {metric(row.overtimeHours)} OT</small></div><div><strong>{metric(row.jobs)} jobs</strong><small>{money(row.revenue)} credited</small></div><strong>{money(row.labor)}</strong><strong>{money(row.tips)}</strong><strong>{money(row.bonuses)}</strong><strong>{money(row.supplemental)}</strong><strong className="pay">{money(row.totalPay)}</strong></>;
   return <section className={`krewe-workspace live-krewe krewe-view-${view}`}>
     <WorkspaceFreshness state={freshness} sourceAt={snapshot.sourceUpdatedAt}/>
+    {view==='payperiod'&&snapshot.payrollVisible&&<LiveKreweHours key={`${selectedDate}:${members.map(member=>member.version).join(',')}`} date={selectedDate} onDateChange={next=>setPeriodSelection({base:date,date:next})} />}
     {error&&<p className="drawer-action-feedback" role="status">{error}</p>}
     {!!snapshot.missingDates.length&&<p className="krewe-roster-note">Source unavailable for {snapshot.missingDates.length} date(s): {snapshot.missingDates.join(', ')}. Totals cover available records only.</p>}
     {view==='today'&&<>

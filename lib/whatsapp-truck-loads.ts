@@ -13,7 +13,7 @@ import {
 } from "@/lib/truck-load-status";
 import type { TruckLoadPhotoAnalysis } from "@/lib/truck-load-photo-analysis";
 import { enqueueOpsBotReply } from "@/lib/whatsapp-crew-expenses";
-import { normalizePhone } from "@/lib/whatsapp-job-photo-matching";
+import { extractJkNumber, normalizePhone } from "@/lib/whatsapp-job-photo-matching";
 import type { WhatsAppImageMessage, WhatsAppTextMessage } from "@/lib/whatsapp-job-photo-queue";
 
 export type TruckLoadIngestResult = {
@@ -199,6 +199,7 @@ function readPendingPhoto(senderPhone: string, receivedAt: string): PendingPhoto
 }
 
 export function truckLoadPhotoRequest(message: WhatsAppImageMessage, recentText: string): { truck: string } | null {
+  if (extractJkNumber(message.caption)) return null;
   const context = [message.caption, recentText].filter(Boolean).join("\n");
   const hasTruckIntent = /\b(?:truck|load)\s+status\b|\b(?:check|estimate)\s+(?:this\s+)?truck(?:\s+load)?\b|\bhow\s+full\b/i.test(context);
   const hasIdentifierOnly = [message.caption, recentText].some((value) => isTruckIdentifierOnly(value));

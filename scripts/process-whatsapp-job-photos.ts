@@ -6,7 +6,7 @@ import { findJunkwareAppointmentIdByJkNumber, uploadJunkwareJobPhoto } from "@/l
 import { uploadJunkwareTruckRecord } from "@/lib/junkware-truck-record-uploader";
 import { readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
-import { matchWhatsAppPhoto, normalizePhone, type FleetLocation } from "@/lib/whatsapp-job-photo-matching";
+import { extractJkNumber, inferPhotoCategory, matchWhatsAppPhoto, normalizePhone, type FleetLocation } from "@/lib/whatsapp-job-photo-matching";
 import {
   queueVerifiedWhatsAppJobPhotoBatchConfirmations,
   recordVerifiedWhatsAppJobPhoto,
@@ -20,7 +20,7 @@ import {
   claimWhatsAppImage,
   finishWhatsAppImage,
   queuedWhatsAppImages,
-  recentWhatsAppText,
+  recentWhatsAppPhotoContext,
   requeueWhatsAppImage,
   whatsappMediaFile,
   whatsappQueueCounts,
@@ -237,11 +237,18 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
     const date = chicagoDateKey(receivedAt);
     const metrics = readMetrics(date);
     const appointments = Array.isArray(metrics?.appointments) ? metrics.appointments as AnyRecord[] : [];
-    const recentText = recentWhatsAppText(
+    const matchingContext = claim.message.matchingContext?.version === 1 ? claim.message.matchingContext : recentWhatsAppPhotoContext(
       claim.message.senderPhone,
       receivedAt,
       numberOption("WHATSAPP_CONTEXT_MAX_AGE_MINUTES") ?? 10,
+      claim.message.phoneNumberId,
+      claim.message.messageId,
     );
+    if (matchingContext.reviewReason && !extractJkNumber(claim.message.caption)) {
+      finishWhatsAppImage(claim.file, "review", { review: { reason: matchingContext.reviewReason, detail: "The preceding messages do not identify one reliable photo context. Supply the exact JK in the photo caption.", category: inferPhotoCategory(claim.message.caption) } });
+      return "review";
+    }
+    const recentText = matchingContext.text;
     const loadPhoto = truckLoadPhotoRequest(claim.message, recentText);
     if (loadPhoto) {
       loadPhotoTruck = loadPhoto.truck;

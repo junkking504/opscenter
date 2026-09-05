@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { chromium, type BrowserContext, type Page } from "@playwright/test";
-import type { WhatsAppPhotoCategory } from "@/lib/whatsapp-job-photo-matching";
+import { matchesExactJkReference, type WhatsAppPhotoCategory } from "@/lib/whatsapp-job-photo-matching";
 
 const ORIGIN = "https://junkware.junk-king.com";
 const LOGIN = "/account/login.aspx";
@@ -96,9 +96,9 @@ export async function findJunkwareAppointmentIdByJkNumber(inputJkNumber: string)
     const context = await browser.newContext(fs.existsSync(stateFile) ? { storageState: stateFile } : {});
     const page = await context.newPage();
     await ensureAuthenticated(page, `${ORIGIN}/franchise/appointment.aspx?id=${encodeURIComponent(appointmentId)}`);
-    const titleJk = String(await page.title()).replace(/\s+/g, "").toUpperCase();
+    const titleJk = String(await page.title());
     await persistStorageState(context);
-    return titleJk.includes(jkNumber) ? appointmentId : null;
+    return matchesExactJkReference(titleJk, jkNumber) ? appointmentId : null;
   } finally {
     await browser.close();
   }
@@ -123,8 +123,8 @@ export async function uploadJunkwareJobPhoto(input: {
     const page = await context.newPage();
     const targetUrl = `${ORIGIN}/franchise/appointment.aspx?id=${encodeURIComponent(input.appointmentId)}`;
     await ensureAuthenticated(page, targetUrl);
-    const titleJk = String(await page.title()).replace(/\s+/g, "").toUpperCase();
-    if (!titleJk.includes(input.jkNumber.replace(/\s+/g, "").toUpperCase())) {
+    const titleJk = String(await page.title());
+    if (!matchesExactJkReference(titleJk, input.jkNumber)) {
       throw new Error("JunkWare loaded a different JK appointment than the matched job.");
     }
 

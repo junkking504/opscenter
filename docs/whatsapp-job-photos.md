@@ -59,12 +59,14 @@ The desktop WhatsApp linked-device connection is useful for staff visibility, bu
 
 ## Matching policy
 
-1. An explicit `JK` number in the image caption, or in a text message from the same sender during the previous 10 minutes, wins.
+1. An explicit `JK` number in the image caption wins over prior text. Otherwise use context from the same sender and receiving WhatsApp inbox during the preceding 10 minutes. Multiple JK numbers or multiple appointment IDs for one JK require review.
 2. Without a JK number, the sender phone is mapped to a truck and OpsCenter uses that truck's GPS position at message time.
 3. The nearest non-cancelled appointment is selected only when GPS is fresh, the truck is within 0.5 mile, and the next-nearest appointment is at least 0.15 mile farther away.
 4. Missing mappings, stale GPS, excessive distance, ambiguity, unknown JK numbers, and uncertain upload outcomes go to the review queue. They are never auto-attached to a customer job.
 
-The caption keywords `before`, `after`, `donation`, or `receipt` select the JunkWare image category. Photos without a category keyword default to `After`.
+New images freeze their matching context when queued, including an empty context when no preceding text can be verified. Later messages cannot change that photo's destination. Text history is kept in private runtime `context-history/<sender hash>/<inbox hash>/` files, identified by timestamp and message hash; delayed images can use the context that preceded their own timestamp. Existing records retain a legacy-context fallback. Future text, another inbox, and conflicting same-second context are never used. A category-only caption retains the preceding JK; a new truck, expense, or unrelated message ends that context. Text delivered after the image was queued does not retrospectively release it.
+
+The caption keywords `before`, `after`, `donation`, or `receipt` select the JunkWare image category. An explicit caption category overrides older context; an explicit caption JK prevents a prior truck-status request from diverting the image into load analysis. Photos without a category keyword default to `After`.
 
 ## Meta configuration
 

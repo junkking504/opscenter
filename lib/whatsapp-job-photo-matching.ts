@@ -19,6 +19,7 @@ export type WhatsAppPhotoReview = {
   status: "review";
   reason:
     | "jk_not_on_active_schedule"
+    | "explicit_job_ambiguous"
     | "sender_not_mapped_to_truck"
     | "truck_gps_unavailable"
     | "truck_gps_stale"
@@ -81,6 +82,18 @@ export function extractJkNumber(message: string): string {
   return standalone ? `JK${standalone[1]}` : "";
 }
 
+export function extractJkNumbers(message: string): string[] {
+  const text = String(message || "");
+  const prefixed = [...text.matchAll(/\bJK\s*[-#:]*\s*(\d{4,12})\b/gi)].map(match => `JK${match[1]}`);
+  const bare = [...text.replace(/\bJK\s*[-#:]*\s*\d{4,12}\b/gi, " ").matchAll(/(?:^|\s)(\d{7,12})(?=\s|$)/g)].map(match => `JK${match[1]}`);
+  return [...new Set([...prefixed, ...bare])];
+}
+
+export function matchesExactJkReference(text: string, expected: string): boolean {
+  const references = extractJkNumbers(text);
+  return references.length === 1 && references[0] === normalizeJkNumber(expected);
+}
+
 export function inferPhotoCategory(message: string): WhatsAppPhotoCategory {
   const normalized = String(message || "").toLowerCase();
   if (/\b(?:donation|receipt)\b/.test(normalized)) return "donation";
@@ -141,12 +154,17 @@ export function matchWhatsAppPhoto(input: {
   senderTruckMap: Record<string, string>;
   options?: WhatsAppMatchOptions;
 }): WhatsAppPhotoMatchResult {
-  const combinedText = [input.caption, input.recentText].map(clean).filter(Boolean).join(" ");
-  const category = inferPhotoCategory(combinedText);
+  const captionJobs = extractJkNumbers(input.caption);
+  const jobs = captionJobs.length ? captionJobs : extractJkNumbers(input.recentText || "");
+  const categoryText = /\b(?:before|after|donation|receipt)\b/i.test(input.caption) ? input.caption : input.recentText || input.caption;
+  const category = inferPhotoCategory(categoryText);
+  if (jobs.length > 1) return { status: "review", reason: "explicit_job_ambiguous", detail: "More than one JK number was supplied; identify a single appointment.", category };
   const appointments = input.appointments.filter(activeAppointment);
-  const explicitJk = extractJkNumber(combinedText);
+  const explicitJk = jobs[0];
   if (explicitJk) {
-    const matched = appointments.find((appointment) => appointmentJkNumber(appointment) === explicitJk);
+    const matches = appointments.filter((appointment) => appointmentJkNumber(appointment) === explicitJk);
+    if (new Set(matches.map(appointmentId)).size > 1) return { status: "review", reason: "explicit_job_ambiguous", detail: `${explicitJk} identifies multiple appointments; select the exact appointment.`, category };
+    const matched = matches[0];
     return {
       status: "matched",
       method: "jk_number",

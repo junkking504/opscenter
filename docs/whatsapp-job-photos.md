@@ -2,6 +2,33 @@
 
 OpsCenter receives truck photos through Meta's official WhatsApp Cloud API and uploads them to the corresponding JunkWare appointment.
 
+## Reviewing held photos in OpsCenter
+
+Managers and administrators can open **Command → Control → Review WhatsApp photos**,
+or use **Source Health → Review photo decisions**. The panel reads the current
+`review`, `failed`, `processing`, and `incoming` queues across all dates, with
+oldest-first pagination and filters for reason, masked sender group, and text.
+Received and outcome times use America/Chicago. Queue observation time is
+separate from the age of each message. Open panels refresh every 30 seconds and
+on focus; inspection pauses refresh until the detail is closed. Failed reads
+retain the last retrieved snapshot; missing directories and unreadable records
+produce an explicit incomplete-view warning.
+
+`GET /api/desktop/photos` is authenticated and manager-only. Its optional
+`preview=<hashed record ID>&state=<queue>` serves only existing JPEG/PNG media
+for a currently unresolved record, with identity, size, file-type and signature
+checks and private/no-store caching. It does not retrieve media from Meta.
+Raw sender phones, provider IDs and worker exception payloads are omitted.
+There are no mutation handlers: opening the panel does not alter mappings,
+retry an upload, release a hold, or delete a record.
+
+A Schedule link is a **job reference on the message's received date**, not an
+appointment match. Verify the intended appointment and existing JunkWare media
+before any separately authorized recovery, especially for an uncertain upload.
+An absent cached preview does not establish whether a photo was uploaded.
+
+Regression check: `node --import tsx scripts/test-desktop-photo-review.ts`.
+
 The same signed webhook accepts structured dump and fuel reports from the Krewe. These appear in Finance → Truck breakdown under **OpsBot Truck Records Detail**, corresponding to JunkWare Accounting → Truck Records categories. JunkWare exposes only daily Dumps and Gas dollar totals; OpsCenter retains the additional location, quantity, and time detail with the original WhatsApp message ID for audit and duplicate protection.
 
 ## Krewe dump and fuel reports

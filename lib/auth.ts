@@ -24,7 +24,7 @@ export const AUTH_PUBLIC_API_ROUTES = [
   "/api/integrations/qbo/callback",
 ] as const;
 export const AUTH_PUBLIC_FILES = ["/junk-king-logo.svg"] as const;
-export const AUTH_PROTECTED_API_PREFIXES = ["/api/exceptions", "/api/inbox", "/api/global-search", "/api/fleet-map", "/api/fleet-maintenance", "/api/fleet-checklists", "/api/fleet-checklist-templates", "/api/fleet-checklist-photos", "/api/fleet-issues", "/api/fleet-issue-photos", "/api/fleet-issue-attachments", "/api/truck-load-status", "/api/manual-bonuses", "/api/payroll-corrections", "/api/searchkings", "/api/integrations/qbo/status", "/api/integrations/qbo/disconnect"] as const;
+export const AUTH_PROTECTED_API_PREFIXES = ["/api/desktop/photos", "/api/exceptions", "/api/inbox", "/api/global-search", "/api/fleet-map", "/api/fleet-maintenance", "/api/fleet-checklists", "/api/fleet-checklist-templates", "/api/fleet-checklist-photos", "/api/fleet-issues", "/api/fleet-issue-photos", "/api/fleet-issue-attachments", "/api/truck-load-status", "/api/manual-bonuses", "/api/payroll-corrections", "/api/searchkings", "/api/integrations/qbo/status", "/api/integrations/qbo/disconnect"] as const;
 export const LEGACY_VERIFICATION_CODE_FLOW_ENABLED = false;
 
 export type AuthSessionPayload = {

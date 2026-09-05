@@ -1,0 +1,32 @@
+.photo-review-panel { min-width: 0; grid-column: 1 / -1; margin-bottom: 16px; border: 1px solid var(--border); border-radius: 11px; background: #fff; color: #252b2e; }
+.photo-review-panel > header, .photo-review-detail > header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 16px; }
+.photo-review-panel h2, .photo-review-panel h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.photo-review-panel > header p { margin: 5px 0 0; color: #59655e; font-size: 12px; }
+.photo-review-body { padding: 0 16px 16px; font-size: 13px; }
+.photo-review-note { display: block; color: #59655e; font-size: 12px; line-height: 1.5; margin: 10px 0; overflow-wrap: anywhere; }
+.photo-review-counts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 12px 0; border: 1px solid var(--border); border-radius: 8px; background: #f6f8f5; }
+.photo-review-counts > div { display: grid; gap: 4px; padding: 12px; }
+.photo-review-counts strong { font-size: 21px; overflow-wrap: anywhere; }.photo-review-counts span { font-size: 12px; color: #59655e; }
+.photo-review-warning { padding: 12px; border: 1px solid #c89d48; border-radius: 6px; background: #fff8e8; color: #684812; line-height: 1.5; }
+.photo-review-filters { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
+.photo-review-filters label { display: grid; gap: 5px; min-width: 130px; max-width: 100%; font-size: 12px; font-weight: 600; }
+.photo-review-filters select, .photo-review-filters input { min-width: 0; max-width: 100%; height: 36px; border: 1px solid var(--border); border-radius: 6px; background: #fff; color: #252b2e; padding: 6px 9px; font: inherit; font-weight: 400; }
+.photo-review-search { flex: 1 1 240px; }
+.photo-review-panel :focus-visible { outline: 2px solid #b8202e; outline-offset: 3px; }
+.photo-review-table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
+.photo-review-panel table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; }
+.photo-review-panel th { font-weight: 600; color: #536058; background: #f6f8f5; }
+.photo-review-panel th, .photo-review-panel td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.photo-review-panel td:first-child { min-width: 160px; }.photo-review-panel td:nth-child(2) { min-width: 155px; }
+.photo-review-panel td strong, .photo-review-panel td span { display: block; }.photo-review-panel td span { margin-top: 4px; color: #59655e; }
+.photo-review-panel tbody tr:last-child td { border-bottom: 0; }
+.photo-review-pages { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.photo-review-empty { padding: 24px; border: 1px solid var(--border); border-radius: 8px; }
+.photo-review-detail { margin-top: 12px; border: 1px solid var(--border); border-radius: 8px; }.photo-review-detail > header { border-bottom: 1px solid var(--border); }
+.photo-review-detail-grid { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1.2fr); gap: 20px; padding: 16px; }
+.photo-review-preview { display: grid; align-content: start; background: #f6f8f5; border-radius: 8px; overflow: hidden; }.photo-review-preview img { display: block; width: 100%; max-height: 420px; object-fit: contain; }
+.photo-review-preview p { display: grid; gap: 12px; margin: 0; padding: 24px; color: #59655e; line-height: 1.5; }
+.photo-review-next { display: grid; gap: 6px; padding: 12px; margin: 0 0 12px; background: #fff8e8; color: #684812; border-radius: 6px; line-height: 1.5; }
+.photo-review-detail dl { margin: 0; }.photo-review-detail dl > div { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(0, 1fr); gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }.photo-review-detail dt { color: #59655e; }.photo-review-detail dd { margin: 0; overflow-wrap: anywhere; }
+.photo-review-caption { display: grid; gap: 6px; overflow-wrap: anywhere; line-height: 1.5; }.photo-review-source { display: inline-flex; align-items: center; gap: 4px; color: #a31c28; text-decoration: underline; font-weight: 600; }
+@media (max-width: 760px) { .photo-review-detail-grid { grid-template-columns: minmax(0, 1fr); }.photo-review-counts { grid-template-columns: repeat(2, minmax(0, 1fr)); }.photo-review-filters label { flex: 1 1 160px; } }

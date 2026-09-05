@@ -66,6 +66,12 @@ export function requiredOpsPermission(
 ): Omit<OpsAccessDecision, "allowed"> {
   const normalizedMethod = String(method || "GET").trim().toUpperCase();
 
+  // Unmatched inbound media uses the manager boundary, including read-only
+  // queue and cached preview requests.
+  if (pathname === "/api/desktop/photos") {
+    return { permission: "sensitive.write", requiredRole: "manager" };
+  }
+
   const crewView = String(searchParams?.get("view") || "").trim().toLowerCase();
   const crewSection = String(searchParams?.get("section") || "").trim().toLowerCase();
   if (pathname === "/crew" && (crewView === "monthly" || crewSection === "pay-period")) {

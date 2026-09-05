@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { DesktopLiveProps } from '@/lib/live-contract';
 import LiveControl from '../live-control';
+import LivePhotoReview from '../live-photo-review';
 import { navigationValue, workspaceUrl } from '../lib/workspace-navigation';
 import LiveKrewe from '../live-krewe';
 import LiveFleet from '../live-fleet';
@@ -4610,6 +4611,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </div>
           )}
 
+          {live && activeNav === 'Command' && view === 'today' && <LivePhotoReview canReview={canFinance} />}
           {live && activeNav === 'Command' && view !== 'now' && <LiveControl date={live.snapshot.date} view={view} report={setActionFeedback} onNavigate={setActiveNav} onBusyChange={onBusyChange} />}
           {live && activeNav === 'Krewe' && <LiveKrewe date={live.snapshot.date} view={kreweView} onViewChange={setKreweView} onBusyChange={onBusyChange} />}
           {live && activeNav === 'Fleet' && <LiveFleet date={live.snapshot.date} view={fleetView} onViewChange={setFleetView} onBusyChange={onBusyChange} />}

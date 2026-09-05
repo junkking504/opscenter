@@ -95,10 +95,9 @@ export function matchesExactJkReference(text: string, expected: string): boolean
 }
 
 export function inferPhotoCategory(message: string): WhatsAppPhotoCategory {
-  const normalized = String(message || "").toLowerCase();
-  if (/\b(?:donation|receipt)\b/.test(normalized)) return "donation";
-  if (/\bbefore\b/.test(normalized)) return "before";
-  return "after";
+  // Context is ordered newest first; an older Before cannot override After.
+  const keyword = String(message || "").toLowerCase().match(/\b(before|after|donation|receipt)\b/)?.[1];
+  return keyword === "before" ? "before" : keyword === "donation" || keyword === "receipt" ? "donation" : "after";
 }
 
 function coordinates(latitude: unknown, longitude: unknown): Coordinates | null {

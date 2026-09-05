@@ -49,6 +49,7 @@ try {
   assert.equal(matchesExactJkReference("Appointment JK4000001 JK4000002", "JK4000001"), false);
   const input = { senderPhone, caption: "After JK4000001", recentText: "Before JK4000002", receivedAt: date(0), appointments: [], fleet: [], senderTruckMap: {} };
   const match = matchWhatsAppPhoto(input);
+  assert.equal(matchWhatsAppPhoto({...input, caption: "", recentText: "After Before JK4000001"}).category, "after", "newer standalone category wins over category in older job text");
   assert.equal(match.status, "matched");if (match.status === "matched") {assert.equal(match.jkNumber, "JK4000001");assert.equal(match.category, "after");}
   assert.equal(matchWhatsAppPhoto({...input, caption: "JK4000001 JK4000002"}).status, "review");
   assert.equal(matchWhatsAppPhoto({...input, appointments: [{appt_id:"1",job_id:"JK4000001"},{appt_id:"2",job_id:"JK4000001"}]}).status,"review");

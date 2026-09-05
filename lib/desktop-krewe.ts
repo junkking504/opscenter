@@ -32,6 +32,12 @@ export const desktopVersion = (value: unknown) => createHash('sha256').update(JS
 const stateDirectory = () => process.env.OPSCENTER_DESKTOP_PEOPLE_FLEET_DIR || path.join(process.env.OPSBOT_DATA_DIR || path.join(process.cwd(), 'data'), 'desktop-people-fleet');
 function readPrivate<T>(name: string, empty: T): T { try { return JSON.parse(fs.readFileSync(path.join(stateDirectory(), name), 'utf8')); } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return empty; throw error; } }
 function writePrivate(name: string, value: unknown) { fs.mkdirSync(stateDirectory(), { recursive: true, mode: 0o700 }); const file = path.join(stateDirectory(), name); fs.writeFileSync(`${file}.${process.pid}.tmp`, JSON.stringify(value), { mode: 0o600 }); fs.renameSync(`${file}.${process.pid}.tmp`, file); }
+/** Return only an actor's own receipt status, never the saved sensitive input. */
+export function readDesktopLocalReceipt(requestId: string, actor: string, workspace: 'fleet' | 'krewe') {
+  if (!/^[0-9a-f-]{36}$/i.test(requestId)) return null;
+  const row = readPrivate<DesktopLocalReceipt[]>('receipts.json', []).find(receipt => receipt.requestId === requestId && receipt.actor === actor && receipt.action.startsWith(`${workspace}.`));
+  return row ? {requestId: row.requestId, status: row.status, updatedAt: row.updatedAt} : null;
+}
 export function executeDesktopLocalAction(input: { requestId: string; action: string; entity: string; expectedVersion: string; values: Record<string, unknown> }, actor: string, current: () => unknown, execute: () => unknown, verify: (result: unknown) => boolean): DesktopLocalReceipt {
   if(JSON.stringify(input.values).length>20_000) throw new Error('The action input is too large.');
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(input.requestId) || !/^[a-f0-9]{64}$/.test(input.expectedVersion)) throw new Error('A request ID and current record version are required.');

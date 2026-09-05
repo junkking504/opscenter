@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useState } from 'react';
+import {useWorkspaceRefresh} from './workspace-freshness';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import type { HoursWeek, KreweHoursSnapshot } from './lib/krewe-hours-contract';
 import './live-krewe-hours.css';
 
@@ -13,26 +14,24 @@ export default function LiveKreweHours({ date, onDateChange }: { date: string; o
   const changeDate = (next: string) => { setSelectedDate(next); onDateChange?.(next); };
   const [snapshot, setSnapshot] = useState<KreweHoursSnapshot | null>(null);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true); setError(''); setSnapshot(null); setExpanded(null);
-    fetch(`/api/desktop/krewe/hours?date=${selectedDate}`, { credentials: 'same-origin', cache: 'no-store', signal: controller.signal })
-      .then(async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Employee hours are unavailable.'); return body as KreweHoursSnapshot; })
-      .then(setSnapshot).catch(error => { if (!controller.signal.aborted) setError(error.message); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [selectedDate, refresh]);
+  useEffect(() => { setSnapshot(null); setExpanded(null); },[selectedDate]);
+  const load = useCallback(async (signal:AbortSignal) => {
+    const response = await fetch(`/api/desktop/krewe/hours?date=${selectedDate}`, {credentials:'same-origin',cache:'no-store',signal});
+    const body=await response.json(); if(!response.ok)throw new Error(body.error||'Employee hours are unavailable.');
+    if(!signal.aborted){setSnapshot(body);setError('');}
+  },[selectedDate]);
+  const freshness=useWorkspaceRefresh(load,`${selectedDate}:${refresh}`);
+  const loading=freshness.pending;
   const employees = snapshot?.employees.filter(employee => employee.name.toLowerCase().includes(search.toLowerCase())) || [];
   return <section className="live-krewe-hours" aria-label="Pay-Period Hours">
     <header><div><h2>Pay-Period Hours</h2><p>{snapshot ? `${dayLabel(snapshot.start)} – ${dayLabel(snapshot.end)}, ${snapshot.end.slice(0, 4)}` : 'Employee Hours By Week'}</p></div><div className="hours-period-controls"><button disabled={loading} onClick={() => changeDate(offsetDay(snapshot?.start || selectedDate, -14))} aria-label="Previous pay period">←</button><label>Pay-Period Date<input type="date" value={selectedDate} onChange={event => { if (event.target.value) changeDate(event.target.value); }} /></label><button disabled={loading} onClick={() => changeDate(offsetDay(snapshot?.start || selectedDate, 14))} aria-label="Next pay period">→</button><button disabled={loading} onClick={() => setRefresh(value => value + 1)}>Refresh</button></div></header>
     <div className="hours-toolbar"><label>Find Employee<input type="search" value={search} placeholder="Search employees" onChange={event => setSearch(event.target.value)} /></label><a href={`/crew?section=pay-period&date=${selectedDate}`} target="_blank" rel="noopener noreferrer">Open Full Pay-Period Records ↗</a></div>
     <p className="hours-source-note">Recorded hours and manager corrections · Overtime is calculated separately for each week. Open shifts are estimates as of refresh; incomplete records are flagged, not treated as confirmed zero hours.</p>
     {loading && <p role="status" className="hours-source-note">Loading Employee Hours…</p>}
-    {error && <p role="alert" className="hours-source-note hours-attention">{error}</p>}
+    {(error||freshness.error) && <p role="alert" className="hours-source-note hours-attention">{error||freshness.error} · Last retrieved hours retained.</p>}
     {snapshot && <>
       {snapshot.missingDates.length > 0 && <p className="hours-source-note hours-attention">Daily Source Unavailable: {snapshot.missingDates.map(dayLabel).join(', ')}. Totals include available records only.</p>}
       <div className="hours-table-wrap"><table><thead><tr><th>Employee</th><th>Week 1<small>{dayLabel(snapshot.start)} – {dayLabel(offsetDay(snapshot.start, 6))}</small></th><th>Week 2<small>{dayLabel(offsetDay(snapshot.start, 7))} – {dayLabel(snapshot.end)}</small></th><th>Pay-Period Total<small>Recorded Hours</small></th></tr></thead><tbody>

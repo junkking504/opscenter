@@ -408,7 +408,10 @@ function legacyCalledDate(call: SearchKingsCall): string {
 
 export function parseCalledDate(call: SearchKingsCall): string {
   const direct = String(call.calledAtDate || '').trim();
-  if (validDateKey(direct)) return direct;
+  if (validDateKey(direct)) {
+    const parsed = new Date(`${direct}T12:00:00Z`);
+    return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0,10) === direct ? direct : '';
+  }
   // The source date is a local calendar date, never the UTC date of an evening call.
   const parsed = new Date(`${direct} 12:00:00 GMT`);
   return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);

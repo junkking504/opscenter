@@ -20,6 +20,8 @@ async function main() {
   assert.equal(at('2026-11-01','1:30 am CDT'),'2026-11-01T06:30:00.000Z');
   assert.equal(at('2026-03-08','2:30 am'),'');
   assert.equal(at('2026-09-04','unknown'),'');
+  assert.equal(at('2026-02-30','7:00 am'),'');
+  assert.equal(at('2026-99-99','7:00 am'),'');
   assert.equal(at('2026-09-04','25:10'),'');
   const now=Date.now();
   const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(now);

@@ -307,7 +307,7 @@ function callFingerprintHash(value: string): string {
 
 export function canonicalSearchKingsCallId(call: SearchKingsCall): string {
   const fingerprint = [
-    parseCalledDate(call),
+    legacyCalledDate(call),
     String(call.calledAtTime || "").trim().toLowerCase(),
     normalizedPhone(call.callerNumberComplete || call.callerNumberFormat),
     String(call.duration || "").trim(),
@@ -398,19 +398,40 @@ function territoryForCall(call: SearchKingsCall): string {
   return normalizeSearchKingsTerritory(call.city);
 }
 
-function parseCalledDate(call: SearchKingsCall): string {
-  const direct = String(call.calledAtDate || "").trim();
+// Keep existing call IDs stable: historical notes/overrides use this old date fingerprint.
+function legacyCalledDate(call: SearchKingsCall): string {
+  const direct = String(call.calledAtDate || '').trim();
   if (validDateKey(direct)) return direct;
-  const parsed = new Date(`${direct} ${String(call.calledAtTime || "").trim()}`.trim());
-  return Number.isNaN(parsed.getTime()) ? "" : parsed.toISOString().slice(0, 10);
+  const parsed = new Date(`${direct} ${String(call.calledAtTime || '').trim()}`.trim());
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
 }
 
-function parseCalledAt(call: SearchKingsCall): string {
+export function parseCalledDate(call: SearchKingsCall): string {
+  const direct = String(call.calledAtDate || '').trim();
+  if (validDateKey(direct)) return direct;
+  // The source date is a local calendar date, never the UTC date of an evening call.
+  const parsed = new Date(`${direct} 12:00:00 GMT`);
+  return Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString().slice(0, 10);
+}
+
+export function parseCalledAt(call: SearchKingsCall): string {
   const date = parseCalledDate(call);
-  if (!date) return "";
-  const raw = `${date} ${String(call.calledAtTime || "").trim()}`.trim();
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? `${date}T12:00:00.000Z` : parsed.toISOString();
+  if (!date) return '';
+  const time = String(call.calledAtTime || '').trim();
+  const match = time.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(am|pm)?(?:\s+(CDT|CST))?$/i);
+  if (!match) return ''; // A made-up noon timestamp is not a call observation.
+  let hour = Number(match[1]); const minute = Number(match[2]); const second = Number(match[3] || 0);
+  if (minute > 59 || second > 59 || (match[4] ? hour < 1 || hour > 12 : hour > 23)) return '';
+  if (match[4]) hour = hour % 12 + (match[4].toLowerCase() === 'pm' ? 12 : 0);
+  const wall = Date.parse(`${date}T${String(hour).padStart(2,'0')}:${match[2]}:${String(second).padStart(2,'0')}Z`);
+  const offsets = match[5] ? [match[5].toUpperCase() === 'CDT' ? 5 : 6] : [5, 6];
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: DEFAULT_TIMEZONE, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23' });
+  const candidates = offsets.map(offset => new Date(wall + offset * 3600000)).filter(value => {
+    const parts = Object.fromEntries(formatter.formatToParts(value).map(part => [part.type,part.value]));
+    return `${parts.year}-${parts.month}-${parts.day}` === date && Number(parts.hour) === hour && Number(parts.minute) === minute && Number(parts.second) === second;
+  });
+  // Ambiguous fall-back hour needs an explicit CST/CDT designation.
+  return candidates.length === 1 ? candidates[0].toISOString() : '';
 }
 
 function inferredReason(call: SearchKingsCall): LostLeadReason {

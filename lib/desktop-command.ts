@@ -1,3 +1,4 @@
+import { readDesktopSourceHealth } from '@/lib/desktop-source-health';
 import { readMetrics, completedJobs, crewRows, truckRows, money, type AnyRecord } from '@/lib/opsData';
 import { workedOrAttributedToJobToday } from '@/lib/crew-attendance';
 import { buildCommandMapData, summarizeCommandSchedule } from '@/lib/command-map-data';
@@ -65,6 +66,9 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   return {
     date, generatedAt: new Date().toISOString(), actor,
     kpis: desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0),
+    sourceHealth: [...readDesktopSourceHealth(/^(admin|administrator|manager)$/i.test(actor.role)),
+      {name:'Slack',area:'Operational alerts',workspace:'Command',action:'Open alerts',state:digest.status==='ready'?'Current':'Unavailable',tone:digest.status==='ready'?'healthy':'warning',observedAt:digest.refreshedAt,maxAgeSeconds:120},
+      {name:'Control',area:'Shared database connection',workspace:'Command',action:'Open decisions',state:workflow.available?'Connected':'Unavailable',tone:workflow.available?'healthy':'warning',observedAt:new Date().toISOString(),maxAgeSeconds:120}],
     sources: { metrics: Boolean(metrics), alerts: digest.status === 'ready', workflow: workflow.available },
     alerts: digest.messages.map(message => {
       const alert = toOperationalAlert(message);

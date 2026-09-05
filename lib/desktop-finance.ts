@@ -1,3 +1,4 @@
+import { financePeriodComparison } from '@/lib/finance-period-comparison';
 import fs from 'node:fs';
 import path from 'node:path';
 import { readMetrics, type AnyRecord } from '@/lib/opsData';
@@ -22,7 +23,7 @@ export function readDesktopFinance(date: string): FinanceData {
   const markets = [...new Set(monthly.entries.flatMap(entry => [...Object.keys(entry.metrics.revenue_by_market || {}), ...Object.keys(entry.metrics.jobs_by_market || {})]))];
   const marketSum = (territory: string, key: string) => { const values = monthly.entries.map(entry => finite(entry.metrics[key]?.[territory])); return values.every(value => value == null) ? null : values.reduce<number>((sum, value) => sum + (value ?? 0), 0); };
 
-  return { date, available: Boolean(metrics), generatedAt: metrics?.generated_at || metrics?.updated_at || null,
+  return { comparison:financePeriodComparison(monthly.range.dataThroughDate,readMetrics), date, available: Boolean(metrics), generatedAt: metrics?.generated_at || metrics?.updated_at || null,
     daily: { revenue: finite(metrics?.sales ?? metrics?.truck_record_financial_summary?.sales ?? metrics?.total_revenue ?? metrics?.gross_revenue), costs: finite(metrics?.total_expenses), profit: finite(metrics?.net_profit), recyclingExpense: finite(metrics?.recycling_expense ?? metrics?.truck_record_financial_summary?.recycling_expense) },
     month: { label: monthly.range.monthDisplay, through: monthly.range.dataThroughDate, complete: monthly.range.complete, missingDates: monthly.range.missingDates, revenue: monthly.entries.length || monthly.authority ? monthly.grossRevenue : null, jobs: monthly.entries.length || monthly.authority ? monthly.completedJobs : null, costs: sumField(monthly.entries.map(entry => entry.metrics), 'total_expenses'), profit: sumField(monthly.entries.map(entry => entry.metrics), 'net_profit'), source: monthly.revenueSource },
     territories: markets.map(territory => ({ territory, jobs: marketSum(territory, 'jobs_by_market'), revenue: marketSum(territory, 'revenue_by_market') })), costs: [['Payroll', 'total_payroll'], ['Dump Expense', 'dump_expense'], ['Fuel Expense', 'fuel_expense'], ['Recycling Expense', 'recycling_expense'], ['Other Expense', 'other_expense']].map(([category, key]) => ({ category, amount: sumField(monthly.entries.map(entry => entry.metrics), key), source: 'Published daily metrics' })),

@@ -1,3 +1,4 @@
+export type DesktopSourceHealth = { name: string; area: string; workspace: string; action: string; state: string; tone: 'healthy' | 'warning'; observedAt: string | null; maxAgeSeconds: number; href?: string };
 export type DesktopKpi = {
   label: string;
   value: string;
@@ -33,10 +34,12 @@ export type DesktopCommandSnapshot = {
   actor: { displayName: string; role: string };
   kpis: DesktopKpi[];
   alerts: DesktopAlert[];
+  sourceHealth?: DesktopSourceHealth[];
   sources: { metrics: boolean; alerts: boolean; workflow: boolean };
 };
 
 export type DesktopLiveProps = {
+  onBusyChange?: (busy: boolean) => void;
   onDateChange: (date: string, workspace?: string) => void;
   snapshot: DesktopCommandSnapshot;
   pendingAlertId: string | null;

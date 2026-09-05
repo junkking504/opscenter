@@ -1,7 +1,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { spawnSync } from "child_process";
+import { publishCrewValue, runCrewWrangler, writeCrewSyncStatus } from "@/lib/crew-portal-sync";
 import { applyManualBonusesToMetrics } from "@/lib/manual-bonuses";
 
 const DATA_KEY = "crew-portal-data-v1";
@@ -36,27 +36,12 @@ function crewMetricsForDate(date: string): AnyRecord {
   };
 }
 
-function putValue(key: string, value: unknown, tempDirectory: string) {
+async function putValue(key: string, value: unknown, tempDirectory: string) {
   const payloadPath = path.join(tempDirectory, `${key.replace(/[^a-z0-9-]/gi, "-")}.json`);
-  fs.writeFileSync(payloadPath, JSON.stringify(value));
-  const result = spawnSync(
-    path.join(process.cwd(), "node_modules", ".bin", "wrangler"),
-    ["kv", "key", "put", key, "--path", payloadPath, "--binding", "CREW_METRICS", "--remote"],
-    { cwd: process.cwd(), encoding: "utf8" },
-  );
-  const output = `${result.stdout || ""}${result.stderr || ""}`;
-  process.stdout.write(output);
-  if (result.status !== 0 || /\bERROR\b|fetch failed/i.test(output)) {
-    throw new Error(`Cloudflare KV upload failed for ${key}.`);
-  }
+  fs.writeFileSync(payloadPath, JSON.stringify(value), {mode:0o600});
+  await publishCrewValue(key,payloadPath,value,runCrewWrangler);
 }
-
-function writeSyncStatus(payload: Record<string, unknown>) {
-  fs.mkdirSync(path.dirname(syncStatusFile), { recursive: true, mode: 0o700 });
-  const temporary = `${syncStatusFile}.tmp-${process.pid}-${Date.now()}`;
-  fs.writeFileSync(temporary, `${JSON.stringify({ version: 1, ...payload }, null, 2)}\n`, { mode: 0o600 });
-  fs.renameSync(temporary, syncStatusFile);
-}
+function writeSyncStatus(payload: Record<string, unknown>) { writeCrewSyncStatus(syncStatusFile,payload); }
 
 function safeErrorMessage(error: unknown): string {
   return (error instanceof Error ? error.message : String(error || "Crew Portal synchronization failed."))
@@ -64,7 +49,7 @@ function safeErrorMessage(error: unknown): string {
     .slice(0, 500);
 }
 
-function main(): string[] {
+async function main(): Promise<string[]> {
   const dates = metricDates();
   const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "opscenter-crew-portal-"));
   try {
@@ -74,24 +59,28 @@ function main(): string[] {
     for (const month of monthsToUpload) {
       const index = monthKeys.indexOf(month);
       const monthDates = dates.filter((date) => date.startsWith(month));
-      putValue(keys[index], {
+      await putValue(keys[index], {
         dates: Object.fromEntries(monthDates.map((date) => [date, crewMetricsForDate(date)])),
       }, tempDirectory);
     }
-    putValue(`${DATA_KEY}:index`, { generatedAt: new Date().toISOString(), keys }, tempDirectory);
+    await putValue(`${DATA_KEY}:index`, { generatedAt: new Date().toISOString(), keys }, tempDirectory);
     return monthsToUpload;
   } finally {
     fs.rmSync(tempDirectory, { recursive: true, force: true });
   }
 }
 
+async function synchronize() {
 try {
-  const months = main();
+  const months = await main();
   const completedAt = new Date().toISOString();
   writeSyncStatus({ status: "synchronized", lastAttemptAt: completedAt, lastSuccessAt: completedAt, months });
   console.log(`Synced ${months.join(", ")} crew metrics to the Crew Portal.`);
 } catch (error) {
   const attemptedAt = new Date().toISOString();
   writeSyncStatus({ status: "failed", lastAttemptAt: attemptedAt, error: safeErrorMessage(error) });
-  throw error;
+  console.error(safeErrorMessage(error));
+  process.exitCode = 1;
 }
+}
+void synchronize();

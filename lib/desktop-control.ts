@@ -1,3 +1,5 @@
+import { desktopWorkItemHref } from '@/lib/desktop-record-links';
+import { readDesktopSourceHealth } from '@/lib/desktop-source-health';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -89,7 +91,7 @@ export async function readDesktopControl(dateInput: string, identity: Identity, 
   ]);
   const owners = await actorDisplayNames([...itemRows.rows.map(row => row.item.ownerActorId || ''), ...allActiveRows.rows.map(row => row.owner_actor_id || '')]);
   const workspaceForCategory = (category: string) => category === 'Jobs' ? 'Schedule' : category === 'Crew' ? 'Krewe' : category;
-  const items = itemRows.rows.map(({item,rule}) => ({ ...item, ownerDisplayName: item.ownerActorId ? owners.get(item.ownerActorId) : undefined, recommendedAction: inboxRulePolicy(rule).recommendedAction, href: sourceHref(item.operatingDate,workspaceForCategory(item.category)) }));
+  const items = itemRows.rows.map(({item,rule}) => ({ ...item, ownerDisplayName: item.ownerActorId ? owners.get(item.ownerActorId) : undefined, recommendedAction: inboxRulePolicy(rule).recommendedAction, href: desktopWorkItemHref(item) }));
   const itemsTruncated = false;
   const allActive = allActiveRows.rows;
   const scheduleKnown = Boolean(schedule.observedAt);
@@ -133,7 +135,7 @@ export async function readDesktopControl(dateInput: string, identity: Identity, 
     actionRuns: actionRows.rows.map(run => { const workspace = /finance|payment|qbo/.test(run.action_key) || run.entity_type === 'finance' ? 'Finance' : /payroll|crew/.test(run.action_key) || run.entity_type === 'employee' ? 'Krewe' : /fleet|truck/.test(run.action_key) || run.entity_type === 'truck' ? 'Fleet' : /marketing|lead|review/.test(run.action_key) ? 'Marketing' : 'Schedule'; return { id: run.id, key: run.action_key, status: run.status, workspace, href: sourceHref(date,workspace), requestedAt: new Date(run.requested_at).toISOString() }; }),
     closeouts: open.map(job => ({ id: job.recordId, appointmentId: job.appointmentId, jk: job.jkNumber, customer: job.customerName, truck: truckLabel(job.truck), window: job.appointmentTime, category: appointmentCategory(job), amount: appointmentCategory(job) === 'Estimate' ? null : finite(job.paymentAmount), detail: `${job.status || 'Disposition unavailable'} · Source appointment ${job.appointmentId || 'unavailable'}`, href: job.appointmentUrl || sourceHref(date, 'Schedule') })),
     routes: routeTrucks.map(truck => { const jobs = appointments.filter(job => truckLabel(job.truck) === truck); const telemetry = schedule.fleet.trucks.find(row => truckLabel(row.truck) === truck); return { truck, crew: [...new Set(jobs.flatMap(job => [job.driver, job.navigator]).filter(Boolean))].join(' · ') || 'Assignment unavailable', status: telemetry?.operationalStatus || 'GPS status unavailable', stops: jobs.length, complete: jobs.filter(isClosed).length, next: jobs.find(job => !isClosed(job))?.jkNumber || 'No open appointment', freshness: telemetry?.freshnessLabel || 'GPS unavailable' }; }),
-    sources: Object.values(health.sources).filter(source => canFinance || source.key !== 'qbo').map(source => ({ name: source.label, state: source.stateLabel, tone: source.status === 'green' ? 'healthy' as const : source.status === 'red' ? 'critical' as const : 'warning' as const, detail: source.details, observedAt: source.lastSuccessfulAt })),
+    sources: readDesktopSourceHealth(canFinance).map(source => ({name:source.name,state:source.state,tone:source.tone,detail:source.area,observedAt:source.observedAt})),
     audit: audits.rows.map(event => ({ id: event.id, at: new Date(event.occurred_at).toISOString(), action: event.event_type.replace(/^work\.|^control\.|\.v1$/g, '').replaceAll('_', ' '), actor: names.get(event.actor_id) || 'System', record: event.aggregate_id, before: String(event.payload_json.fromStatus || event.payload_json.previousStatus || '—'), after: String(event.payload_json.toStatus || event.payload_json.status || 'Recorded'), reason: String(event.payload_json.reason || '') })),
     counts: { approval: actionCount('awaiting_approval'), verifying: actionCount('verifying'), verified: actionCount('succeeded') },
   };

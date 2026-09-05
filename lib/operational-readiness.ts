@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { sourceFreshness, CREW_PORTAL_MAX_AGE_SECONDS } from "@/lib/source-freshness";
 import path from "node:path";
 import { getOpsAuthReadiness } from "@/lib/auth";
 
@@ -12,6 +13,9 @@ export type OperationalReadiness = {
     ok: boolean;
     counts: Record<PhotoQueueName, number>;
     reasons: Record<string, number>;
+    available: boolean;
+    oldestUnresolvedAt: string | null;
+    olderThan24Hours: number;
   };
   crewPortalSync: {
     ok: boolean;
@@ -19,6 +23,9 @@ export type OperationalReadiness = {
     lastAttemptAt: string | null;
     lastSuccessAt: string | null;
     error: string | null;
+    fresh: boolean;
+    ageSeconds: number | null;
+    maxAgeSeconds: number;
   };
 };
 
@@ -56,7 +63,7 @@ function readPhotoReasons(directory: string): Record<string, number> {
   return reasons;
 }
 
-function readCrewPortalSync(dataDirectory: string): OperationalReadiness["crewPortalSync"] {
+function readCrewPortalSync(dataDirectory: string, now: number): OperationalReadiness["crewPortalSync"] {
   const statusFile = path.join(dataDirectory, "integrations", "crew-portal-sync", "status.json");
   try {
     const payload = JSON.parse(fs.readFileSync(statusFile, "utf8")) as {
@@ -66,19 +73,21 @@ function readCrewPortalSync(dataDirectory: string): OperationalReadiness["crewPo
       error?: unknown;
     };
     const status = payload.status === "synchronized" ? "synchronized" : "failed";
+    const freshness = sourceFreshness(String(payload.lastSuccessAt || ''), CREW_PORTAL_MAX_AGE_SECONDS, now);
     return {
-      ok: status === "synchronized",
+      ...freshness,
+      ok: status === "synchronized" && freshness.fresh,
       status,
       lastAttemptAt: String(payload.lastAttemptAt || "").trim() || null,
       lastSuccessAt: String(payload.lastSuccessAt || "").trim() || null,
       error: String(payload.error || "").trim() || null,
     };
   } catch {
-    return { ok: false, status: "unknown", lastAttemptAt: null, lastSuccessAt: null, error: null };
+    return { ...sourceFreshness(null, CREW_PORTAL_MAX_AGE_SECONDS, now), ok: false, status: "unknown", lastAttemptAt: null, lastSuccessAt: null, error: null };
   }
 }
 
-export function getOperationalReadiness(dataDirectory = path.join(process.cwd(), "data")): OperationalReadiness {
+export function getOperationalReadiness(dataDirectory = path.join(process.cwd(), "data"), now = Date.now()): OperationalReadiness {
   const auth = getOpsAuthReadiness();
   const photoRoot = String(process.env.WHATSAPP_JOB_PHOTO_STATE_DIR || "").trim()
     || path.join(dataDirectory, "integrations", "whatsapp-job-photos");
@@ -89,12 +98,19 @@ export function getOperationalReadiness(dataDirectory = path.join(process.cwd(),
     ...readPhotoReasons(path.join(photoRoot, "review")),
     ...Object.fromEntries(Object.entries(readPhotoReasons(path.join(photoRoot, "failed"))).map(([reason, count]) => [`failed:${reason}`, count])),
   };
+  const available = PHOTO_QUEUE_NAMES.every(name => { try { fs.accessSync(path.join(photoRoot, name), fs.constants.R_OK); return fs.statSync(path.join(photoRoot, name)).isDirectory(); } catch { return false; } });
+  const unresolvedTimes = ['incoming','processing','review','failed'].flatMap(name => {
+    try { return fs.readdirSync(path.join(photoRoot,name)).filter(file => file.endsWith('.json')).flatMap(file => { try { return [fs.statSync(path.join(photoRoot,name,file)).mtimeMs]; } catch { return []; } }); } catch { return []; }
+  });
   const photoQueue = {
-    ok: counts.incoming === 0 && counts.processing === 0 && counts.review === 0 && counts.failed === 0,
+    available,
+    oldestUnresolvedAt: unresolvedTimes.length ? new Date(Math.min(...unresolvedTimes)).toISOString() : null,
+    olderThan24Hours: unresolvedTimes.filter(time => now - time > 86400000).length,
+    ok: available && !Object.keys(reasons).some(reason => /unreadable/.test(reason)) && counts.incoming === 0 && counts.processing === 0 && counts.review === 0 && counts.failed === 0,
     counts,
     reasons,
   };
-  const crewPortalSync = readCrewPortalSync(dataDirectory);
+  const crewPortalSync = readCrewPortalSync(dataDirectory, now);
   const ok = auth.ok && photoQueue.ok && crewPortalSync.ok;
   return { ok, status: ok ? "ready" : "attention", auth, photoQueue, crewPortalSync };
 }

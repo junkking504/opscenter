@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useWorkspaceRefresh, WorkspaceFreshness } from './workspace-freshness';
+import { useCallback, useEffect, useState } from 'react';
 import { ArrowRight, Check, PhoneCall, Play, ShieldCheck, Star, X } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Badge } from './components/ui/badge';
@@ -18,25 +19,32 @@ export function LiveMarketing({ date, view, report, onViewChange, onBusyChange }
   const setMarketingView = (next: MarketingView) => { setLocalView(next); onViewChange?.(next); };
   const [marketingLeadFilter, setMarketingLeadFilter] = useState<'recover' | 'lost' | 'followup' | 'all'>('recover');
   const [actionFeedback, setActionFeedback] = useState(''), [busy, setBusy] = useState(false), [draft, setDraft] = useState<Lead | null>(null), [selections, setSelections] = useState<Record<string, string>>({});
-  useEffect(() => { const controller = new AbortController(); setData(null); setError(''); setDraft(null); fetch(`/api/desktop/marketing?date=${date}`, { signal: controller.signal, cache: 'no-store' }).then(async response => { const payload = await response.json(); if (!response.ok) throw new Error(payload.error || 'Marketing unavailable.'); setData(payload); }).catch(error => { if (!controller.signal.aborted) setError(error.message); }); return () => controller.abort(); }, [date, revision]);
+  useEffect(() => { setData(null); setError(''); setDraft(null); }, [date]);
+  const loadSnapshot = useCallback(async (signal: AbortSignal) => {
+    const response = await fetch(`/api/desktop/marketing?date=${date}`, {signal,cache:'no-store',credentials:'same-origin'});
+    const payload = await response.json(); if (!response.ok) throw new Error(payload.error || 'Marketing could not refresh.');
+    if (!signal.aborted) setData(payload);
+  }, [date]);
+  const freshness = useWorkspaceRefresh(loadSnapshot,`${date}:${revision}`,busy || Boolean(draft) || Object.keys(selections).length > 0);
+
   useEffect(() => { if (!draft) return; const prior = document.activeElement as HTMLElement | null; document.querySelector<HTMLElement>('[aria-labelledby="commercial-lead-title"] button')?.focus(); return () => { if (prior?.isConnected) prior.focus({ preventScroll: true }); }; }, [draft?.id]);
   useEffect(() => { const listener = (event: KeyboardEvent) => { if (event.key === 'Escape' && !busy) setDraft(null); }; window.addEventListener('keydown', listener); return () => window.removeEventListener('keydown', listener); }, [busy]);
   useEffect(() => { if (actionFeedback) report?.(actionFeedback); }, [actionFeedback, report]);
-  useEffect(() => { onBusyChange?.(busy); return () => onBusyChange?.(false); }, [busy, onBusyChange]);
+  useEffect(() => { onBusyChange?.(busy || Boolean(draft) || Object.keys(selections).length > 0); return () => onBusyChange?.(false); }, [busy, Boolean(draft), Object.keys(selections).length, onBusyChange]);
   const [lastRequest, setLastRequest] = useState('');
   async function checkReceipt() {
     if (!lastRequest || busy) return; setBusy(true); onBusyChange?.(true);
-    try { const response = await fetch(`/api/desktop/marketing?date=${date}&receipt=${lastRequest}`, { cache: 'no-store' }); const result = await response.json(); if (!response.ok) throw new Error(result.error); setActionFeedback(result.receipt.message); if (result.receipt.status === 'verified') setRevision(value => value + 1); }
+    try { const response = await fetch(`/api/desktop/marketing?date=${date}&receipt=${lastRequest}`, { cache: 'no-store', signal: AbortSignal.timeout(30_000) }); const result = await response.json(); if (!response.ok) throw new Error(result.error); setActionFeedback(result.receipt.message); if (result.receipt.status === 'verified') {setDraft(null);setSelections({});setRevision(value => value + 1);} }
     catch (error) { setActionFeedback(error instanceof Error ? error.message : 'Saved receipt unavailable.'); } finally { setBusy(false); onBusyChange?.(false); }
   }
   async function mutate(operation: Omit<CommercialOperation, 'date' | 'requestId'>) {
     setBusy(true); onBusyChange?.(true); setActionFeedback(''); const requestId = crypto.randomUUID(); setLastRequest(requestId);
-    try { const response = await fetch('/api/desktop/marketing', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...operation, date, requestId }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error); const receipt: CommercialReceipt = result.receipt; setActionFeedback(receipt.message); if (receipt.status === 'verified') { setDraft(null); setRevision(value => value + 1); } }
+    try { const response = await fetch('/api/desktop/marketing', { method: 'POST', signal: AbortSignal.timeout(30_000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...operation, date, requestId }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error); const receipt: CommercialReceipt = result.receipt; setActionFeedback(receipt.message); if (receipt.status === 'verified') { setSelections({}); setDraft(null); setRevision(value => value + 1); } }
     catch (error) { setActionFeedback(`${error instanceof Error ? error.message : 'Result unavailable.'} Check saved receipt ${requestId} before retrying.`); } finally { setBusy(false); onBusyChange?.(false); }
   }
   const editLead = (id: string) => setDraft(data?.leads.find(lead => lead.id === id) || null);
   const confirmMarketingReview = (id: string) => { const review = data?.reviews.find(review => review.id === id); if (review) void mutate({ action: 'review.assign', recordId: id, expectedVersion: review.version, values: { appointmentId: selections[id] ?? review.attribution?.appointmentId ?? '' } }); };
-  if (!data) return <section className="marketing-workspace"><div className="marketing-empty" role="status">{error || 'Loading Marketing sources…'}</div></section>;
+  if (!data) return <section className="marketing-workspace"><WorkspaceFreshness state={freshness}/><div className="marketing-empty" role="status">{error || freshness.error || 'Loading Marketing sources…'}</div></section>;
   const marketingLeads = data.leads.map(lead => ({ ...lead, status: label(lead.status), age: commercialDate(lead.calledAt), lastContact: lead.contacted ? `Franchise contacted · ${commercialDate(lead.updatedAt)}` : 'No recorded franchise contact', callDuration: 'Source' }));
   const marketingRecoveryLeads = marketingLeads.filter(lead => ['Lost', 'Needs follow-up', 'Contacted'].includes(lead.status));
   const marketingLostCount = marketingLeads.filter(lead => lead.status === 'Lost').length;
@@ -47,6 +55,8 @@ export function LiveMarketing({ date, view, report, onViewChange, onBusyChange }
   const todaysReviewAverage = todaysMarketingReviews.length ? todaysMarketingReviews.reduce((sum, review) => sum + review.stars, 0) / todaysMarketingReviews.length : null;
   const marketingTotals = data.totals, marketingSources = data.sources;
   return <>
+    <WorkspaceFreshness state={freshness} sourceAt={data.fetchedAt} budgetMinutes={20}/>
+    {Object.keys(selections).length > 0 && <Button variant="outline" size="sm" disabled={busy} onClick={()=>setSelections({})}>Clear review selections</Button>}
     <p className="marketing-source-note" role="status">{data.available ? `${data.range} · SearchKings observed ${commercialDate(data.fetchedAt || '')}` : data.error || 'SearchKings source unavailable.'} · {data.reviewAvailable ? `Podium snapshot ${commercialDate(data.reviewFetchedAt || '')}` : data.reviewError || 'Podium unavailable.'}</p>
             <section className={`marketing-workspace live-marketing marketing-view-${marketingView}`}>
               {actionFeedback && <p className="marketing-feedback" role="status"><Check size={14} />{actionFeedback}</p>}

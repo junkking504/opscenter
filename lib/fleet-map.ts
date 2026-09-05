@@ -341,7 +341,7 @@ export function operationalStatusForFreshness(status: string, freshness: string)
   return status;
 }
 
-function freshnessLabel({
+export function freshnessLabel({
   hasPayload,
   latestTimestamp,
   selectedDate,
@@ -354,7 +354,8 @@ function freshnessLabel({
   if (!latestTimestamp) return "GPS unavailable";
   if (selectedDate !== chicagoDateKey()) return "Historical GPS";
   const ageMinutes = (Date.now() - new Date(latestTimestamp).getTime()) / 60000;
-  if (ageMinutes <= 15) return "Live GPS";
+  if (!Number.isFinite(ageMinutes) || ageMinutes < 0) return "GPS unavailable";
+  if (ageMinutes <= 3) return "Live GPS";
   if (ageMinutes <= STALE_THRESHOLD_MINUTES) return "GPS Stale";
   return "Offline";
 }
@@ -550,7 +551,7 @@ function buildTruckRecord({
         { label: "After-Hours Driving", value: Number(validation?.after_hours_events || 0), available: true },
       ];
 
-  const latestTimestamp = lastPoint?.timestamp || locationPayload?.collection_timestamp || null;
+  const latestTimestamp = lastPoint?.timestamp || null;
   const freshness = freshnessLabel({
     hasPayload: Boolean(locationPayload),
     latestTimestamp,

@@ -2,10 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Home from './app/page';
 import type { DesktopCommandSnapshot } from './lib/live-contract';
 
-const date = new URLSearchParams(window.location.search).get('date') || new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date());
+const currentDay = () => new Intl.DateTimeFormat('en-CA', {timeZone:'America/Chicago'}).format(new Date());
+const explicitDate = new URLSearchParams(window.location.search).get('date');
 
 export default function LiveCommand() {
+  const [date,setDate] = useState(() => explicitDate || currentDay());
+  const workspaceBusy = useRef(false);
+  const onWorkspaceBusy = useCallback((busy:boolean) => {workspaceBusy.current=busy;},[]);
   const [snapshot, setSnapshot] = useState<DesktopCommandSnapshot | null>(null);
+  const [, setClock] = useState(Date.now);
   const [error, setError] = useState('');
   const [pendingAlertId, setPendingAlertId] = useState<string | null>(null);
   const pendingRef = useRef(false);
@@ -19,13 +24,14 @@ export default function LiveCommand() {
       setSnapshot(body);
       setError(body.sources.alerts ? '' : 'Slack alerts are unavailable. This is not confirmation that there are no alerts.');
     }
-  }, []);
+  }, [date]);
   useEffect(() => {
-    const load = () => { void refresh().catch(() => setError('Live data could not refresh. The last verified snapshot remains visible.')); };
+    const load = () => { setClock(Date.now()); if (!explicitDate && !workspaceBusy.current && !pendingRef.current && date !== currentDay()) { generation.current += 1; setSnapshot(null); setDate(currentDay()); return; } void refresh().catch(() => setError('Live data could not refresh. The last verified snapshot remains visible.')); };
     load();
     const timer = window.setInterval(load, 30_000);
-    return () => { window.clearInterval(timer); generation.current += 1; };
-  }, [refresh]);
+    window.addEventListener('focus',load); window.addEventListener('online',load);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus',load); window.removeEventListener('online',load); generation.current += 1; };
+  }, [refresh,date]);
 
   const onAlertAction = async (alertId: string, action: 'acknowledge' | 'add_to_control') => {
     if (pendingRef.current) return;
@@ -62,5 +68,5 @@ export default function LiveCommand() {
     }
   };
   if (!snapshot) return <main className="empty-state" role="status"><strong>{error || 'Loading Command from live sources…'}</strong><span>No sample records are used.</span></main>;
-  return <Home key={snapshot.date} live={{ snapshot, error, pendingAlertId, onAlertAction, onDateChange: (nextDate, workspace) => { const url = new URL(window.location.href); url.searchParams.set('date', nextDate); if (workspace) url.searchParams.set('workspace', workspace); window.location.assign(url.href); } }} />;
+  return <Home key={snapshot.date} live={{ onBusyChange: onWorkspaceBusy, snapshot, error, pendingAlertId, onAlertAction, onDateChange: (nextDate, workspace) => { const url = new URL(window.location.href); url.searchParams.set('date', nextDate); url.searchParams.set('scheduleDay','today'); if (workspace) url.searchParams.set('workspace', workspace); window.location.assign(url.href); } }} />;
 }

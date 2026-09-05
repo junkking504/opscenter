@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import {useWorkspaceRefresh} from './workspace-freshness';
 import type { KreweHoursSnapshot } from './lib/krewe-hours-contract';
 import type { DesktopKreweSnapshot } from './lib/people-fleet-contract';
 import { payForDays, payBreakdownDifference, type PayBreakdown } from './lib/krewe-pay-breakdown';
@@ -25,18 +26,16 @@ export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh 
   const changeDate = (next: string) => { setSelectedDate(next); onDateChange?.(next); };
   const [snapshot, setSnapshot] = useState<KreweHoursSnapshot | null>(null);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
   const [refresh, setRefresh] = useState(0);
   const [search, setSearch] = useState('');
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true); setError(''); setSnapshot(null);
-    fetch(`/api/desktop/krewe/hours?date=${selectedDate}`, { credentials: 'same-origin', cache: 'no-store', signal: controller.signal })
-      .then(async response => { const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Employee hours are unavailable.'); return body as KreweHoursSnapshot; })
-      .then(setSnapshot).catch(error => { if (!controller.signal.aborted) setError(error.message); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [selectedDate, refresh]);
+  useEffect(() => { setSnapshot(null); },[selectedDate]);
+  const load = useCallback(async (signal:AbortSignal) => {
+    const response = await fetch(`/api/desktop/krewe/hours?date=${selectedDate}`, {credentials:'same-origin',cache:'no-store',signal});
+    const body=await response.json(); if(!response.ok)throw new Error(body.error||'Employee hours are unavailable.');
+    if(!signal.aborted){setSnapshot(body);setError('');}
+  },[selectedDate]);
+  const freshness=useWorkspaceRefresh(load,`${selectedDate}:${refresh}`);
+  const loading=freshness.pending;
   const employees = snapshot?.employees.filter(employee => employee.name.toLowerCase().includes(search.toLowerCase())) || [];
   const payMembers = new Map((payroll?.date === selectedDate ? payroll.members : []).map(member => [member.id, member]));
   return <section className="live-krewe-hours" aria-label="Pay-Period Hours and Pay">
@@ -44,7 +43,7 @@ export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh 
     <div className="hours-toolbar"><label>Find Employee<input type="search" value={search} placeholder="Search employees" onChange={event => setSearch(event.target.value)} /></label><a href={`/crew?section=pay-period&date=${selectedDate}`} target="_blank" rel="noopener noreferrer">Open Full Pay-Period Records ↗</a></div>
     <p className="hours-source-note">Open each week for daily time and pay records. Hours include recorded corrections; pay follows published payroll. Open shifts are estimates and incomplete amounts remain unavailable.</p>
     {loading && <p role="status" className="hours-source-note">Loading Employee Hours…</p>}
-    {error && <p role="alert" className="hours-source-note hours-attention">{error}</p>}
+    {(error||freshness.error) && <p role="alert" className="hours-source-note hours-attention">{error||freshness.error} · Last retrieved hours retained.</p>}
     {snapshot && <>
       {snapshot.missingDates.length > 0 && <p className="hours-source-note hours-attention">Daily Source Unavailable: {snapshot.missingDates.map(dayLabel).join(', ')}. Totals include available records only.</p>}
       <div className="hours-employee-cards">{employees.map(employee => {

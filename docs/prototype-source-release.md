@@ -295,3 +295,15 @@ The existing reconciliation table and payroll actions remain available.
 Validation: payroll breakdown and weekly-hours regression tests, production
 build, and authenticated preview checks of independent weekly expansion and
 the daily card layout passed before release.
+
+## Existing setup reliability fixes (September 5, 2026)
+
+Fleet, Krewe, Marketing, Finance, and weekly employee hours refresh every 30 seconds while visible and on focus/reconnection. Screen retrieval time is distinct from source observation time. Open record edits pause background replacement; failed reads retain the previous snapshot and expose a bounded retry. Fleet and Krewe can read the actor's own saved action status without repeating a write. Existing permissions and record-version guards remain in force.
+
+An unpinned operating day follows Chicago midnight after an active record/action closes. Explicit date selections remain pinned. Schedule's top date picker reflects the effective Today/Tomorrow selection; historical toggles display dates. Monitor links include the operating date and available appointment, truck, or employee identity. The existing map remains in place with a shortcut to Needs Action.
+
+SearchKings uses the source's Chicago calendar date, including evening calls and explicit CST/CDT offsets. Historical call identity fingerprints remain unchanged so existing notes and overrides stay attached. Missing/invalid/ambiguous call times do not become invented noon observations. Fleet labels use each truck's own observation, with a three-minute live limit, including when a failed refresh leaves an old screen visible.
+
+Finance compares matching elapsed calendar days by default. The full-prior-month comparison remains selectable and explicitly identifies different period lengths. Missing daily evidence produces unavailable comparisons rather than assumed zero values.
+
+Regression checks: `scripts/test-existing-setup-reliability.ts`, `scripts/test-operational-readiness.ts`, and `tests/desktop-people-fleet.ts`. The isolated browser fixture is `desktop-ui/tests/refresh.html`, served using `node desktop-ui/node_modules/vite/bin/vite.js --config desktop-ui/tests/refresh.vite.config.ts`; it is not part of the production build. Operational health semantics are documented in [operational-readiness.md](operational-readiness.md).

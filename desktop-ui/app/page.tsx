@@ -942,7 +942,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const mutationBusy = workspaceMutationBusy || alertMutationBusyRef.current;
   const mutationBusyRef = useRef(false);
   mutationBusyRef.current = mutationBusy;
-  const onBusyChange = useCallback((busy: boolean) => { mutationBusyRef.current = busy || alertMutationBusyRef.current; setWorkspaceMutationBusy(busy); }, []);
+  const onBusyChange = useCallback((busy: boolean) => { mutationBusyRef.current = busy || alertMutationBusyRef.current; setWorkspaceMutationBusy(busy); live?.onBusyChange?.(busy); }, [live?.onBusyChange]);
   const canFinance = Boolean(live && ['Administrator', 'Manager'].includes(live.snapshot.actor.role));
   const [activeNav, setActiveNavValue] = useState(() => {
     if (!live) return 'Command';
@@ -964,11 +964,13 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     if (mutationBusyRef.current) return;
     setViewValue(value);
   };
-  const connectedSources = live ? [
-    { name: 'JunkWare', area: 'Command metrics', workspace: 'Command', action: 'Open Command', state: live.snapshot.sources.metrics ? 'Snapshot available' : 'Unavailable', tone: live.snapshot.sources.metrics ? 'healthy' : 'warning', freshness: live.snapshot.sources.metrics ? 'Source snapshot available' : 'No source snapshot' },
-    { name: 'Slack', area: 'Operational alerts', workspace: 'Command', action: 'Open Alerts', state: live.snapshot.sources.alerts ? 'Snapshot available' : 'Unavailable', tone: live.snapshot.sources.alerts ? 'healthy' : 'warning', freshness: live.snapshot.sources.alerts ? 'Read from Slack digest' : 'Slack digest unavailable' },
-    { name: 'Control', area: 'Shared alert actions', workspace: 'Command', action: 'Open Alerts', state: live.snapshot.sources.workflow ? 'Healthy' : 'Unavailable', tone: live.snapshot.sources.workflow ? 'healthy' : 'warning', freshness: live.snapshot.sources.workflow ? 'Shared database connected' : 'Actions unavailable' },
-  ] : referenceConnectedSources;
+  const connectedSources = live ? (live.snapshot.sourceHealth || []).map(source => {
+    const age = source.observedAt ? (Date.now()-Date.parse(source.observedAt))/1000 : NaN;
+    const stale = !Number.isFinite(age) || age < -60 || age > source.maxAgeSeconds;
+    return {...source, state:source.tone==='healthy'&&stale?'Stale / unavailable':source.state, tone:source.tone==='healthy'&&stale?'warning':source.tone,
+      freshness:source.observedAt ? `${new Date(source.observedAt).toLocaleString('en-US',{timeZone:'America/Chicago'})} · ${Math.max(0,Math.floor(age/60))} min ago` : 'No verified observation'};
+  }) : referenceConnectedSources;
+
   const [query, setQuery] = useState('');
   const [searchOpen, setSearchOpenValue] = useState(false);
   const setSearchOpen = (value: boolean) => {
@@ -3037,6 +3039,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   };
   const openSourceWorkspace = (sourceName: string) => {
     setSourceHealthOpen(false);
+    if (sourceName === 'Crew Portal') { setActiveNav('Krewe'); return; }
+    if (sourceName === 'Control' || sourceName === 'WhatsApp photos') { setActiveNav('Command'); setView('today'); return; }
     if (sourceName === 'LinxUp') { setActiveNav('Fleet'); setFleetView('overview'); return; }
     if (sourceName === 'QuickBooks') { setActiveNav('Finance'); setFinanceView('overview'); return; }
     if (sourceName === 'SearchKings') { setActiveNav('Marketing'); setMarketingView('leads'); return; }
@@ -4128,7 +4132,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         </nav>
 
         <div className="sidebar-footer">
-          <button className={`health-pulse${sourceAttentionCount ? ' attention' : ''}`} onClick={openSourceHealth}><span />{sourceAttentionCount ? `${sourceAttentionCount} source needs attention` : live ? 'Command sources available' : 'All sources healthy'}</button>
+          <button className={`health-pulse${sourceAttentionCount ? ' attention' : ''}`} onClick={openSourceHealth}><span />{sourceAttentionCount ? `${sourceAttentionCount} source needs attention` : live ? 'Source checks current' : 'All sources healthy'}</button>
           <div className="user-row"><div className="avatar">MC</div><div><strong>{live?.snapshot.actor.displayName || 'Mission Control'}</strong><small>{live?.snapshot.actor.role || 'Administrator'}</small></div></div>
         </div>
       </aside>
@@ -4165,8 +4169,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <footer><span><ShieldCheck size={13} />Source and ownership stay attached</span><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>View All Alerts</button></footer>
               </aside>}
             </div>
-            <div className="live-chip"><span />{live ? 'Updated · ' + new Date(live.snapshot.generatedAt).toLocaleTimeString('en-US', {timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}) : 'Live · 10:24 AM'}</div>
-            {live ? <div className="operating-day-center"><label className="operating-day-trigger"><CalendarDays size={14} /><input aria-label="Choose operating day" type="date" disabled={mutationBusy} value={live.snapshot.date} onChange={event => { if (event.target.value) live.onDateChange(event.target.value, activeNav); }} /></label></div> : <div className="operating-day-center">
+            <div className="live-chip"><span />{live ? 'Command checked · ' + new Date(live.snapshot.generatedAt).toLocaleTimeString('en-US', {timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}) : 'Live · 10:24 AM'}</div>
+            {live ? <div className="operating-day-center"><label className="operating-day-trigger"><CalendarDays size={14} /><input aria-label="Choose operating day" type="date" disabled={mutationBusy} value={activeNav === 'Schedule' ? dateForDay(live.snapshot.date, scheduleDay) : live.snapshot.date} onChange={event => { if (event.target.value) live.onDateChange(event.target.value, activeNav); }} /></label></div> : <div className="operating-day-center">
               {operatingDayOpen && <button className="operating-day-backdrop" aria-label="Close operating day" onClick={() => setOperatingDayOpen(false)} />}
               <Button className="operating-day-trigger" variant="outline" size="lg" aria-label="Choose operating day" aria-expanded={operatingDayOpen} aria-controls="operating-day-panel" onClick={() => { setOperatingDayOpen((open) => !open); setSearchOpen(false); setNotificationOpen(false); setQuery(''); }}><CalendarDays size={14} />{operatingDateLabel}</Button>
               {operatingDayOpen && <aside className="operating-day-panel" id="operating-day-panel" role="dialog" aria-label="Operating day">
@@ -4241,8 +4245,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <div className="schedule-view-switcher workspace-tabs" role="tablist" aria-label="Schedule views">
                   <button className={scheduleView === 'board' ? 'active' : ''} onClick={() => setScheduleView('board')}>Board <span>{live ? liveScheduleCounts[scheduleDay] : scheduledAppointments.length}</span></button>
                   <button className={scheduleView === 'calendar' ? 'active' : ''} onClick={() => setScheduleView('calendar')}>Calendar</button>
-                  <button className={scheduleView === 'followup' ? 'active' : ''} onClick={() => setScheduleView('followup')}>Follow-Up <span>{live ? '—' : activeFollowups.length}</span></button>
-                  <button className={scheduleView === 'history' ? 'active' : ''} onClick={() => setScheduleView('history')}>History <span>{live ? '—' : scheduleDayHistory.length}</span></button>
+                  <button className={scheduleView === 'followup' ? 'active' : ''} onClick={() => setScheduleView('followup')}>Follow-Up {!live && <span>{activeFollowups.length}</span>}</button>
+                  <button className={scheduleView === 'history' ? 'active' : ''} onClick={() => setScheduleView('history')}>History {!live && <span>{scheduleDayHistory.length}</span>}</button>
                 </div>
               </div>
             ) : activeNav === 'Krewe' ? (
@@ -4291,13 +4295,14 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             ))}
           </section>}
 
+          {activeNav === 'Command' && view === 'now' && live && <Button variant="outline" size="sm" onClick={()=>{setAlertViewFilter('action');requestAnimationFrame(()=>document.getElementById('live-alert-list')?.scrollIntoView({behavior:'auto',block:'start'}));}}>Jump to Needs Action</Button>}
           {activeNav === 'Command' && view === 'now' && live && <CommandMap date={live.snapshot.date} busy={mutationBusy} report={setActionFeedback} onBusyChange={onBusyChange} openSchedule={() => { if (mutationBusyRef.current) return; setScheduleDay('today'); setScheduleView('board'); setActiveNav('Schedule'); }} />}
 
           {activeNav === 'Command' && view === 'now' && (
             <div className="command-grid">
               <section className="work-panel">
                 <div className="section-title">
-                  <div><span className="section-kicker">{live && !live.snapshot.sources.alerts ? 'Slack source unavailable · alert counts unknown' : `${alertViewCounts.open} unresolved · ${visibleCommandAlerts.length} shown`}</span><h2>Alerts</h2></div>
+                  <div><span className="section-kicker">{live && !live.snapshot.sources.alerts ? 'Slack source unavailable · alert counts unknown' : `${alertViewCounts.open} unresolved · ${visibleCommandAlerts.length} shown`}</span><h2 id="live-alert-list">Alerts</h2></div>
                   <Button variant="ghost" size="sm" onClick={() => { setAlertViewFilter('all'); setQuery(''); }}>View All Alerts <ArrowRight /></Button>
                 </div>
                 <div className="alert-triage-bar" role="toolbar" aria-label="Filter alerts by workflow state">
@@ -5413,7 +5418,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             <header className="source-health-header"><div><span>Tertiary System Status</span><h2 id="source-health-title">Source Health</h2><p>Freshness, affected workspace, and last successful update.</p></div><Button variant="ghost" size="icon" aria-label="Close" onClick={() => setSourceHealthOpen(false)}><X /></Button></header>
             <div className="source-health-body">
               <section className="source-health-summary"><div><span>Connected Sources</span><strong>{connectedSources.length}</strong></div><div><span>{live ? 'Available' : 'Healthy'}</span><strong>{connectedSources.length - sourceAttentionCount}</strong></div><div className={sourceAttentionCount ? 'attention' : ''}><span>Need Attention</span><strong>{sourceAttentionCount}</strong></div></section>
-              <div className="source-health-list">{connectedSources.map((source) => <article className={source.tone} key={source.name}><header><i /><div><strong>{source.name}</strong><span>{source.area}</span></div><em>{source.state}</em></header><div><span><b>Affected Workspace</b>{source.workspace}</span><span><b>Last Successful Update</b>{source.freshness}</span></div><button onClick={() => openSourceWorkspace(source.name)}>{source.action}<ArrowRight size={13} /></button></article>)}</div>
+              <div className="source-health-list">{connectedSources.map((source) => <article className={source.tone} key={source.name}><header><i /><div><strong>{source.name}</strong><span>{source.area}</span></div><em>{source.state}</em></header><div><span><b>Affected Workspace</b>{source.workspace}</span><span><b>Last Successful Update</b>{source.freshness}</span></div><button onClick={() => { if ('href' in source && typeof source.href === 'string' && source.href) window.location.assign(source.href); else openSourceWorkspace(source.name); }}>{source.action}<ArrowRight size={13} /></button></article>)}</div>
               <section className="source-health-note"><ShieldCheck size={14} /><div><strong>Freshness does not replace record truth.</strong><p>A healthy collector can still contain an individual stale truck or unresolved source record.</p></div></section>
             </div>
             <footer className="source-health-actions"><Button variant="outline" onClick={() => setSourceHealthOpen(false)}>Close</Button><Button onClick={() => { setSourceHealthOpen(false); setActiveNav('Command'); setView('monitor'); }}>Open Monitor <ArrowRight size={14} /></Button></footer>

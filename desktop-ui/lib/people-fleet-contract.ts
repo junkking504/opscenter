@@ -41,3 +41,14 @@ export function uniqueTruckMatch<T extends { id: string; label: string }>(trucks
   const matches = trucks.filter(truck => normalizedTruckQuery(truck.id) === key || normalizedTruckQuery(truck.label) === key);
   return matches.length === 1 ? matches[0] : null;
 }
+
+/** Re-evaluate point age even when the last server snapshot is retained after a failure. */
+export function displayedGpsFreshness(timestamp: string | null, selectedDate: string, now: number): string {
+  if (!timestamp || !Number.isFinite(Date.parse(timestamp))) return 'GPS unavailable';
+  if (selectedDate !== new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(now)) return 'Historical GPS';
+  const age=(now-Date.parse(timestamp))/60000;
+  if(age<0)return 'GPS unavailable';
+  if(age<=3)return 'Live GPS';
+  if(age<=120)return 'GPS Stale';
+  return 'Offline';
+}

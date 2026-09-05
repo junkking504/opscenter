@@ -313,3 +313,21 @@ Finance compares matching elapsed calendar days by default. The full-prior-month
 Regression checks: `scripts/test-existing-setup-reliability.ts`, `scripts/test-operational-readiness.ts`, and `tests/desktop-people-fleet.ts`. The isolated browser fixture is `desktop-ui/tests/refresh.html`, served using `node desktop-ui/node_modules/vite/bin/vite.js --config desktop-ui/tests/refresh.vite.config.ts`; it is not part of the production build. Operational health semantics are documented in [operational-readiness.md](operational-readiness.md).
 
 Monitor labels durable alerts as recorded conditions and displays the latest uniquely matched appointment disposition and its observation time beside them. A closed source appointment does not silently resolve a decision: the existing reconciliation and audit rules remain authoritative.
+
+## Schedule Address Verification And Travel (September 5, 2026)
+
+Schedule supplements the existing verified geocode cache with server-side Google
+Geocoding when a location is missing. The existing restricted server key needs
+Geocoding API enabled and allowlisted in addition to Routes API. Only a single,
+non-partial match with matching house, street, ZIP, Louisiana/US components and
+precise in-area coordinates is accepted. Results remain in bounded memory caches;
+neither JunkWare addresses nor the collector cache are overwritten. Failed lookups
+are cached briefly and later missing addresses continue on subsequent refreshes.
+
+Travel Between Appointments displays every consecutive pair for each assigned
+truck, including overlapping, identical, back-to-back, and untimed windows.
+Same-time ties use stable appointment identity and are explicitly a proposed
+order, not a confirmed route or dispatch mutation. Canceled and unassigned stops
+are excluded. Google supplies minutes and miles; missing verified locations or
+provider failures remain unavailable, without hiding the pair or other results.
+Appointment colors and compact icon-only blocks remain unchanged.

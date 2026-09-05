@@ -9,6 +9,7 @@ import { LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS } from '@/lib/linxup-authority';
 import type { ClosestTruck, ScheduleTruck } from '../desktop-ui/lib/schedule-contract';
 import { readJobRouteAssignmentOverrides } from '@/lib/job-route-assignments';
 import { jobCallAheadLookupKey, readJobCallAheadStatuses } from '@/lib/job-call-ahead';
+import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-address-verification';
 
 export type DesktopAppointment = JobRow & { recordId: string; version: string; callAhead: 'called' | 'not_called'; location: Coordinates | null };
 export type DesktopRouteLeg = {
@@ -17,7 +18,7 @@ export type DesktopRouteLeg = {
   toAppointmentId: string;
   fromJk: string;
   toJk: string;
-  gapMinutes: number;
+  gapMinutes: number | null;
   travelMinutes: number | null;
   miles: number | null;
   bufferMinutes: number | null;
@@ -53,7 +54,7 @@ export function readDesktopSchedule(date: string) {
     // A JK reference can span multiple appointments. Never use it as the
     // mutation identity or combine separate estimate/job appointments by JK.
     recordId: job.appointmentId ? `${date}:appointment:${job.appointmentId}` : `${date}:unverified:${index}`,
-    location: planningLocation(job.address, pins),
+    location: planningLocation(job.address, pins) || cachedAddressVerification(job.address)?.location || null,
   }; });
   return {
     date,
@@ -65,22 +66,32 @@ export function readDesktopSchedule(date: string) {
 
 type MatrixProvider = (origins: Coordinates[], destinations: Coordinates[]) => Promise<GoogleRouteMatrixElement[] | null>;
 
+export async function readVerifiedDesktopSchedule(date: string) {
+  const snapshot = readDesktopSchedule(date);
+  const missing = snapshot.appointments.filter(job=>!job.location && job.address && job.address!=='—' && !cachedAddressVerification(job.address)).slice(0,12);
+  for(let offset=0;offset<missing.length;offset+=4) await Promise.all(missing.slice(offset,offset+4).map(async job=>{job.location=(await verifyDesktopAddress(job.address)).location;}));
+  return snapshot;
+}
+
 export function scheduleRoutePairs(appointments: DesktopAppointment[]): DesktopRouteLeg[] {
   const trucks = new Map<string, DesktopAppointment[]>();
   for (const appointment of appointments) {
-    if (/cancel/i.test(appointment.status) || !appointment.truck || /unassigned|virtual|^—$/i.test(appointment.truck) || !appointment.hasScheduledTime) continue;
-    const rows = trucks.get(appointment.truck) || [];
+    if (/cancel/i.test(appointment.status) || !appointment.truck || /unassigned|virtual|^—$/i.test(appointment.truck)) continue;
+    const truck = appointment.truck.replace(/^truck\s*#?\s*(\d+)$/i, 'Truck $1');
+    const rows = trucks.get(truck) || [];
     rows.push(appointment);
-    trucks.set(appointment.truck, rows);
+    trucks.set(truck, rows);
   }
   return [...trucks.entries()].flatMap(([truck, jobs]) => {
-    jobs.sort((a, b) => (a.appointmentStartMinutes ?? Infinity) - (b.appointmentStartMinutes ?? Infinity));
+    // Same-window stops retain separate appointment identities. A stable tie
+    // break makes this a reproducible proposal, not an asserted dispatch order.
+    jobs.sort((a, b) => (a.appointmentStartMinutes ?? Infinity) - (b.appointmentStartMinutes ?? Infinity) || a.recordId.localeCompare(b.recordId, undefined, { numeric: true }));
     return jobs.slice(1).map((to, index) => {
       const from = jobs[index];
       return {
         truck, fromAppointmentId: from.recordId, toAppointmentId: to.recordId,
         fromJk: from.jkNumber, toJk: to.jkNumber,
-        gapMinutes: (to.appointmentStartMinutes || 0) - (from.appointmentEndMinutes || 0),
+        gapMinutes: to.appointmentStartMinutes !== null && from.appointmentEndMinutes !== null ? to.appointmentStartMinutes - from.appointmentEndMinutes : null,
         travelMinutes: null, miles: null, bufferMinutes: null, source: 'unavailable' as const,
       };
     });
@@ -95,7 +106,7 @@ export async function calculateDesktopRouteLegs(appointments: DesktopAppointment
   // unrelated appointments. Bill one element per leg, with bounded concurrency.
   for (let start = 0; start < located.length; start += 4) {
     await Promise.all(located.slice(start, start + 4).map(async leg => {
-      const matrix = await provider([byId.get(leg.fromAppointmentId)!.location!], [byId.get(leg.toAppointmentId)!.location!]);
+      const matrix = await provider([byId.get(leg.fromAppointmentId)!.location!], [byId.get(leg.toAppointmentId)!.location!]).catch(() => null);
       const element = matrix?.find(row => (row.originIndex ?? 0) === 0 && (row.destinationIndex ?? 0) === 0);
       if (!element) return;
       const seconds = typeof element.duration === 'string' && /^\d+(?:\.\d+)?s$/.test(element.duration) ? Number(element.duration.slice(0, -1)) : NaN;
@@ -103,7 +114,7 @@ export async function calculateDesktopRouteLegs(appointments: DesktopAppointment
       if (element.status?.code || element.condition !== 'ROUTE_EXISTS' || !Number.isFinite(seconds) || seconds < 0 || typeof meters !== 'number' || !Number.isFinite(meters) || meters < 0) return;
       leg.travelMinutes = Math.ceil(seconds / 60);
       leg.miles = Math.round(meters / 1609.344 * 10) / 10;
-      leg.bufferMinutes = leg.gapMinutes - leg.travelMinutes;
+      leg.bufferMinutes = leg.gapMinutes === null ? null : leg.gapMinutes - leg.travelMinutes;
       leg.source = 'google_live_traffic';
     }));
   }
@@ -154,7 +165,7 @@ async function cachedRouting<T>(keyParts: unknown, read: () => Promise<T>): Prom
 }
 
 export async function readDesktopScheduleRouting(date: string, recordId: string | null) {
-  const snapshot = readDesktopSchedule(date);
+  const snapshot = await readVerifiedDesktopSchedule(date);
   const target = recordId ? snapshot.appointments.find(job => job.recordId === recordId) : undefined;
   if (recordId && !target) return null;
   const legs = await cachedRouting(['legs', date, snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.location])], () => calculateDesktopRouteLegs(snapshot.appointments));

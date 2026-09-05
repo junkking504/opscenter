@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { verifyGoogleAddress } from '../lib/desktop-address-verification';
+const component=(type:string,value:string)=>({types:[type],long_name:value,short_name:value});
+const result={address_components:[component('street_number','100'),component('route','Example Street'),component('postal_code','70125'),component('administrative_area_level_1','LA'),component('country','US')],geometry:{location:{lat:29.95,lng:-90.1},location_type:'ROOFTOP'}};
+const payload={status:'OK',results:[result]};
+assert.ok(verifyGoogleAddress('100 Example St, New Orleans, LA 70125',payload).location);
+assert.ok(verifyGoogleAddress('Business Name 100 Example Street New Orleans, 70125',payload).location);
+assert.equal(verifyGoogleAddress('101 Example Street, New Orleans, LA 70125',payload).location,null);
+assert.equal(verifyGoogleAddress('100 Other Street, New Orleans, LA 70125',payload).location,null);
+assert.equal(verifyGoogleAddress('100 Example Street, New Orleans, LA 70124',payload).location,null);
+assert.equal(verifyGoogleAddress('100 Example Street, New Orleans, LA 70125',{status:'OK',results:[{...result,partial_match:true}]}).location,null);
+assert.equal(verifyGoogleAddress('100 Example Street, New Orleans, LA 70125',{status:'OK',results:[result,result]}).location,null);
+assert.equal(verifyGoogleAddress('100 Example Street, New Orleans, LA 70125',{status:'OK',results:[{...result,geometry:{...result.geometry,location_type:'APPROXIMATE'}}]}).location,null);
+assert.equal(verifyGoogleAddress('100 Example Street, New Orleans, LA 70125',{status:'REQUEST_DENIED'}).reason,'Geocoding REQUEST_DENIED');
+console.log('Address verification: exact house/street/ZIP, aliases, business prefixes, partial matches, ambiguous results, and provider failure passed.');

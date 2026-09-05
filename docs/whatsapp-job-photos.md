@@ -22,7 +22,9 @@ Raw sender phones, provider IDs and worker exception payloads are omitted.
 There are no mutation handlers: opening the panel does not alter mappings,
 retry an upload, release a hold, or delete a record.
 
-A Schedule link is a **job reference on the message's received date**, not an
+Schedule links use the shared dated record-link builder and Schedule's `q`
+filter; ambiguous JK references remain a choice. A link is a **job reference
+on the message's received date**, not an
 appointment match. Verify the intended appointment and existing JunkWare media
 before any separately authorized recovery, especially for an uncertain upload.
 An absent cached preview does not establish whether a photo was uploaded.

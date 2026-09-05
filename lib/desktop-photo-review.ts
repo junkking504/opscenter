@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
+import {desktopWorkItemHref} from '@/lib/desktop-record-links';
 import {extractJkNumber} from '@/lib/whatsapp-job-photo-matching';
 import {PHOTO_STATES, type PhotoReviewRecord, type PhotoReviewSnapshot, type PhotoState} from '../desktop-ui/lib/photo-review-contract';
 
@@ -73,7 +74,7 @@ export function readPhotoReview(params:URLSearchParams,root=photoReviewRoot()):P
       const rawReason=/^[a-z][a-z0-9_]{0,149}$/.test(storedReason)?storedReason:failure?(/5 MB|invalid size/.test(failure)?'photo_exceeds_5_MB':/fetch failed|network|timeout|Meta media/i.test(failure)?'network_request_failed':'worker_failure'):queue;
       const advice=photoReason(rawReason),phone=clean(row.senderPhone).replace(/\D/g,'');
       const senderKey=hash(phone||id).slice(0,16),senderLabel=phone?`Sender ending ${phone.slice(-4)}`:'Sender unavailable';
-      const sourceHref=jk&&jobDate?`/desktop?${new URLSearchParams({data:'live',workspace:'Schedule',date:jobDate,job:jk})}`:null;
+      const sourceHref=jk&&jobDate?desktopWorkItemHref({operatingDate:jobDate,category:'Dispatch',entity:{type:'job',id:jk,label:jk}}):null;
       const attemptCount=Number(row.attempts);
       rows.push({id,state:queue,receivedAt,outcomeAt:time(row.outcomeAt),jobDate,sender:senderLabel,senderKey,jk,category:clean(match.category||review.category,40)||'Unspecified',caption,reason:rawReason,reasonLabel:advice.label,nextStep:advice.nextStep,attempts:Number.isFinite(attemptCount)?Math.max(0,Math.floor(attemptCount)):0,previewAvailable:cachedPreviewExists(root,id,row.mimeType),sourceHref});
     }

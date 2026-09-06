@@ -65,7 +65,7 @@ if [[ "${SLACK_OPSCENTER_ALERTS_ENABLED:-false}" =~ ^(1|true|yes|on)$ ]]; then
     cd "$OPSCENTER_DIR"
     node --import tsx scripts/publish-slack-alerts.ts \
       --date "$TARGET_DATE" \
-      --only truck_arrival
+      --only truck_arrival,truck_departure
   )
 fi
 

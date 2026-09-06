@@ -178,6 +178,8 @@ async function main() {
       "*Tips:* $71.60",
       "*Total:* $358.00",
       "*Card Ending:* 9896",
+      "*Payment:* Card ending 9896 ($429.60)",
+      "*Card verification:* Awaiting QuickBooks verification",
     ].join("\n"),
   );
   assert.equal(

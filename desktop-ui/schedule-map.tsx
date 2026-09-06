@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract';
-import { appointmentRegion, appointmentStatus, truckLabel } from './lib/schedule-contract';
+import { appointmentRegion, appointmentStatus, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
 import { spreadMapPins, territoryMapCenters } from './lib/schedule-map-layout';
 
 type Props = {
@@ -45,7 +45,7 @@ export default function ScheduleMap(props: Props) {
       const coordinate: L.LatLngTuple = [job.location.latitude, job.location.longitude];
       appointmentBounds.push(coordinate);
       pins.push({ id: `appointment:${job.recordId}`, coordinate,
-        tooltipTitle: job.jkNumber, tooltipDetail: job.appointmentTime, text: String(index + 1), label: `Open appointment ${job.jkNumber}, ${job.appointmentTime}, ${job.customerName}`,
+        tooltipTitle: job.jkNumber, tooltipDetail: job.appointmentTime, text: scheduleStatusTone(job) === 'completed' ? '✓' : scheduleStatusTone(job) === 'canceled' ? '×' : String(index + 1), label: `Open appointment ${job.jkNumber}, ${job.appointmentTime}, ${job.customerName}, ${appointmentStatus(job)}`,
         className: `appointment-marker territory-${appointmentRegion(job).code.toLowerCase()} ${appointmentStatus(job).toLowerCase().replaceAll(' ', '-')}`,
         selected: selected === job.recordId, select: () => current.current.onSelect(job.recordId) });
     });

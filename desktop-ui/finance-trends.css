@@ -1,0 +1,11 @@
+.ops-live .finance-trends-shell .finance-trend-cards { grid-template-columns: repeat(6,minmax(0,1fr)); gap: 0; }
+.ops-live .finance-trends-shell .finance-trend-cards > article > span { font-size: 8px; }
+.ops-live .finance-trends-shell .finance-trend-cards > article > strong { font-size: 18px; }
+.ops-live .finance-trends-shell .finance-trend-cards > article > b { color: inherit; font-size: 9px; }
+.ops-live .finance-trend-scroll { overflow-x: auto; }
+.ops-live .finance-trend-scroll :is(.finance-trend-head,.finance-trend-table > article) { min-width: 720px; grid-template-columns: 1.4fr repeat(6,minmax(0,1fr)); }
+.ops-live .finance-trend-scroll .finance-trend-table > article { padding: 6px 10px; gap: 8px; }
+.ops-live .finance-trend-scroll .finance-trend-table small { color: #59685f; font-size: 9px; line-height: 1.3; margin-top: 2px; }
+.ops-live .finance-trend-value { display: grid; gap: 1px; }
+.ops-live .finance-trend-value strong { font-size: 11px; }
+@media(max-width:760px) { .ops-live .finance-trends-shell .finance-trend-cards { grid-template-columns: repeat(3,minmax(0,1fr)); } }

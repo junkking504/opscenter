@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {financeTrendComparisons} from '../lib/finance-trend-comparison';
+const month=(key:string,revenue:number,jobs:number,complete=true)=>({monthKey:key,monthDisplay:key,dataThroughDate:key+'-'+(complete?'31':'06'),complete,grossRevenue:revenue,completedJobs:jobs,totalOperatingExpenses:revenue/4,estimatedOperatingProfit:revenue*3/4,revenueSource:'fixture'});
+const months=Array.from({length:9},(_,i)=>month(`2026-${String(i+1).padStart(2,'0')}`,i===8?600:1000,i===8?3:2,i!==8));
+const read=(date:string)=>({sales:date.startsWith('2026-09')?100:200,completed_jobs:1,total_expenses:25,net_profit:75});
+const sep=financeTrendComparisons(months,read)['2026-09'];
+assert.equal(sep.currentEnd,'2026-09-06');assert.equal(sep.priorEnd,'2026-08-06');
+assert.equal(sep.current.revenue,600);assert.equal(sep.prior.revenue,1200);
+assert.equal(sep.ytd.revenue,8600);assert.equal(sep.ytd.jobs,19);assert.equal(sep.ytd.averageJob,8600/19);assert.equal(sep.ytd.margin,75);
+assert.equal(sep.ytdComplete,true);
+const incomplete=financeTrendComparisons(months.filter(m=>m.monthKey!=='2026-02'),read)['2026-09'];
+assert.equal(incomplete.ytdComplete,false);assert.equal(incomplete.ytd.revenue,null);assert.deepEqual(incomplete.missingMonths,['2026-02']);
+const missing=financeTrendComparisons(months,d=>d==='2026-08-03'?null:read(d))['2026-09'];assert.equal(missing.prior.revenue,null);
+const zero=financeTrendComparisons([month('2026-01',0,0)],()=>null)['2026-01'];assert.equal(zero.ytd.averageJob,null);assert.equal(zero.ytd.margin,null);assert.equal(zero.priorStart,'2025-12-01');
+const leap=financeTrendComparisons([{...month('2024-03',100,1,false),dataThroughDate:'2024-03-31'}],read)['2024-03'];assert.equal(leap.currentEnd,'2024-03-29');assert.equal(leap.priorEnd,'2024-02-29');
+assert.equal(financeTrendComparisons(months.map(m=>m.monthKey==='2026-09'?{...m,missingDates:['2026-09-03']}:m),read)['2026-09'].ytdComplete,false);
+console.log('Finance matched-date comparisons, weighted YTD, missing history, zero denominators and leap dates passed.');

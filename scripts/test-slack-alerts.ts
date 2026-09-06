@@ -15,6 +15,8 @@ import {
   buildPaymentCloseoutSlackNotifications,
   buildCrewSlackNotifications,
   buildTruckArrivalSlackNotifications,
+  buildTruckDepartureSlackNotifications,
+  recordFastCloseoutMessage,
   buildTruckCloseoutSlackNotifications,
   buildTruckEstimateCloseoutSlackNotifications,
   formatSlackAlert,
@@ -226,7 +228,7 @@ assert.equal(slackAlertKindEnabled("unassigned_crew"), false);
 assert.equal(slackAlertKindEnabled("truck_arrival"), true);
 assert.equal(slackAlertKindEnabled("job_closed"), true);
 assert.equal(slackAlertKindEnabled("estimate_closed"), true);
-assert.equal(slackAlertKindEnabled("job_closed_payment"), true);
+assert.equal(slackAlertKindEnabled("job_closed_payment"), false);
 
 assert.deepEqual(appointmentItemDescriptions({
   appointment_notes: [
@@ -405,6 +407,8 @@ assert.deepEqual(
         "*Tips:* $50.80",
         "*Total:* $508.00",
         "*Card Ending:* 3013",
+        "*Payment:* Card ending 3013 ($558.80)",
+        "*Card verification:* Awaiting QuickBooks verification",
       ].join("\n"),
     },
     {
@@ -418,6 +422,7 @@ assert.deepEqual(
         "*Navigator:* Navigator Six",
         "*Tips:*",
         "*Check:* #1487 ($198.00)",
+        "*Payment:* Check #1487 ($198.00)",
       ].join("\n"),
     },
     {
@@ -432,6 +437,8 @@ assert.deepEqual(
         "*Tips:* $15.00",
         "*Card Ending:* 4242",
         "*Cash:* ($50.00)",
+        "*Payment:* Card ending 4242 ($100.00); Cash ($50.00)",
+        "*Card verification:* Awaiting QuickBooks verification",
       ].join("\n"),
     },
     {
@@ -444,6 +451,7 @@ assert.deepEqual(
         "*Driver:* Driver Four",
         "*Navigator:* Navigator Four",
         "*Tips:*",
+        "*Payment:* Not recorded",
       ].join("\n"),
     },
   ],
@@ -539,7 +547,7 @@ assert.deepEqual(
       kind: "truck_arrival",
       channelId: "C_TEST_TRUCK_4",
       text: [
-        ":truck: *Truck 4 On-site*",
+        ":truck: *Truck 4 Arrival*",
         "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4050424|JK4050424>*",
         "1:06 PM",
         "Test Customer",
@@ -551,7 +559,7 @@ assert.deepEqual(
       kind: "truck_arrival",
       channelId: "C_TEST_TRUCK_4",
       text: [
-        ":truck: *Truck 4 On-site*",
+        ":truck: *Truck 4 Arrival*",
         "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4050424|JK4050424>*",
         "1:41 PM",
         "Test Customer",
@@ -561,6 +569,11 @@ assert.deepEqual(
     },
   ],
 );
+
+const visit={appointment_id:'503',jk_number:'JK4051503',truck_number:'Truck 6',visit_count:1,match_confidence:'confirmed',visit_intervals:[{arrival:'2026-08-12T18:00:00Z',departure:'2026-08-12T18:20:00Z'}]};
+assert.equal(buildTruckDepartureSlackNotifications('2026-08-12',[visit]).length,1);
+for(const invalid of [{...visit,match_confidence:'probable'},{...visit,pass_by_only:true},{...visit,visit_intervals:[{arrival:'2026-08-12T18:00:00Z',departure:null}]},{...visit,visit_intervals:[{arrival:'2026-08-12T18:00:00Z',departure:'2026-08-12T17:00:00Z'}]},{...visit,visit_intervals:[{arrival:'2026-08-12T18:00:00Z',departure:'2099-08-12T18:20:00Z'}]}]) assert.equal(buildTruckDepartureSlackNotifications('2026-08-12',[invalid]).length,0);
+assert.equal(buildTruckDepartureSlackNotifications('2026-08-12',[visit,visit]).length,1);
 
 const temporaryDataDir = fs.mkdtempSync(path.join(os.tmpdir(), "opscenter-slack-alert-test-"));
 process.env.OPSCENTER_DATA_DIR = temporaryDataDir;
@@ -678,8 +691,10 @@ fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), J
 
 const originalFetch = globalThis.fetch;
 const postedMessages: string[] = [];
+const updates: Array<{ts:string;text:string}> = [];
 globalThis.fetch = (async (_input, init) => {
   const body = JSON.parse(String(init?.body || "{}"));
+  if(String(_input).endsWith('/chat.update')) { updates.push(body); return new Response(JSON.stringify({ok:true,ts:body.ts})); }
   postedMessages.push(String(body.text || ""));
   return new Response(JSON.stringify({ ok: true, channel: body.channel, ts: `1000.${postedMessages.length}` }), {
     status: 200,
@@ -716,7 +731,7 @@ try {
   assert.deepEqual(arrivalRun.posted.map((alert) => alert.kind), ["truck_arrival"]);
   assert.deepEqual(postedMessages, [
     [
-      ":truck: *Truck 6 On-site*",
+      ":truck: *Truck 6 Arrival*",
       "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|JK4051503>*",
       "1:47 PM",
       "Arrival Customer",
@@ -724,11 +739,15 @@ try {
       "503 Arrival Street, New Orleans, LA 70115",
     ].join("\n"),
   ]);
+  fs.writeFileSync(arrivalVisitsFile, JSON.stringify({visits:[{...visit,first_arrival:'2026-08-12T18:47:43Z',visit_intervals:[{arrival:'2026-08-12T18:47:43Z',departure:'2026-08-12T19:05:00Z'}]}]}));
+  assert.equal((await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['truck_arrival']})).posted.length,0);
+  assert.deepEqual((await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['truck_departure']})).posted.map(a=>a.kind),['truck_departure']);
+  assert.equal((await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['truck_departure']})).posted.length,0);
   postedMessages.length = 0;
 
   const baselineRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.equal(baselineRun.bootstrappedTruckCloseouts, 1);
-  assert.equal(baselineRun.bootstrappedPayments, 1);
+  assert.equal(baselineRun.bootstrappedPayments, 0);
   assert.equal(baselineRun.posted.length, 0);
   assert.equal(postedMessages.length, 0);
 
@@ -749,6 +768,7 @@ try {
       "*Tips:* $20.00",
       "*Total:* $220.00",
       "*Check:* #2201 ($220.00)",
+        "*Payment:* Check #2201 ($220.00)",
     ].join("\n"),
   ]);
 
@@ -764,6 +784,7 @@ try {
       "*Tips:* $20.00",
       "*Total:* $220.00",
       "*Check:* #2201 ($220.00)",
+        "*Payment:* Check #2201 ($220.00)",
     ].join("\n"),
     [
       ":moneybag: *Estimate Closed*",
@@ -778,7 +799,7 @@ try {
   ]);
 
   const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });
-  assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["job_closed_payment"]);
+  assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), []);
   assert.deepEqual(postedMessages, [
     [
       ":moneybag: *Job Closed*",
@@ -789,6 +810,7 @@ try {
       "*Tips:* $20.00",
       "*Total:* $220.00",
       "*Check:* #2201 ($220.00)",
+        "*Payment:* Check #2201 ($220.00)",
     ].join("\n"),
     [
       ":moneybag: *Estimate Closed*",
@@ -800,18 +822,25 @@ try {
       "*Tips:*",
       "*Total:* $180.00",
     ].join("\n"),
-    [
-      ":credit_card: *Payment recorded*",
-      "*Job:* JK4051502",
-      "*Payment:* Check #2201 ($220.00)",
-      "*Tip:* $20.00",
-    ].join("\n"),
   ]);
 
   const dedupeRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.equal(dedupeRun.posted.length, 0);
-  assert.equal(postedMessages.length, 3);
+  assert.equal(postedMessages.length, 2);
 
+  const changedCloseout = {...newCloseout,closeout:{...newCloseout.closeout,payments:[{method:'Credit Card',detail:'***2463',amount:'$244.73'}]}};
+  fs.writeFileSync(path.join(junkwareDirectory,'junkware_2026-08-12_raw.json'),JSON.stringify({scraped_at:'2026-08-12T14:06:00-05:00',appointments:[newEstimateCloseout],completed:[existingCloseout,changedCloseout]}));
+  // Simulate the independent detector publishing this closeout. The main
+  // publisher must honor its receipt and update that same message.
+  const receiptState=JSON.parse(fs.readFileSync(paymentStateFile,'utf8'));
+  const receiptAlert=buildTruckCloseoutSlackNotifications('2026-08-12',[newCloseout])[0];
+  recordFastCloseoutMessage(temporaryDataDir,receiptAlert,'1000.1');
+  delete receiptState.closeoutMessages[receiptAlert.fingerprint];
+  fs.writeFileSync(paymentStateFile,JSON.stringify(receiptState));
+  const originalPostCount=postedMessages.length;
+  await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['job_closed']});
+  assert.equal(postedMessages.length,originalPostCount);assert.equal(updates.length,1);assert.match(updates[0].text,/Card ending 2463/);assert.equal(updates[0].ts,'1000.1');
+  await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['job_closed']});assert.equal(updates.length,1);
   fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), JSON.stringify({
     scraped_at: "2026-08-12T14:06:00-05:00",
     appointments: [newEstimateCloseout],
@@ -842,6 +871,8 @@ try {
     "*Tips:* $10.00",
     "*Total:* $110.00",
     "*Card Ending:* 1503",
+    "*Payment:* Card ending 1503 ($110.00)",
+    "*Card verification:* Awaiting QuickBooks verification",
   ].join("\n"));
 
   const duplicateDirectCloseout = await publishVerifiedTruckCloseout({

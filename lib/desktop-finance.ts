@@ -1,3 +1,4 @@
+import { financeTrendComparisons } from './finance-trend-comparison';
 import { financePeriodComparison } from '@/lib/finance-period-comparison';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -16,6 +17,7 @@ export function readDesktopFinance(date: string): FinanceData {
   const metrics = readMetrics(date);
   const monthly = buildMonthlySummary(date);
   const trend = buildFinanceTrendSummary(date);
+  const trends = trend.months.map(month => { const summary = buildMonthlySummary(`${month.monthKey}-01`); const published = summary.entries.map(entry => entry.metrics); return { ...month, missingDates: summary.range.missingDates, totalOperatingExpenses: sumField(published, 'total_expenses'), estimatedOperatingProfit: sumField(published, 'net_profit') }; });
   const resaleFile = path.join(process.cwd(), 'data', 'finance', 'resale_items.json');
   if (fs.existsSync(resaleFile)) { const payload = JSON.parse(fs.readFileSync(resaleFile, 'utf8')); if (payload.version !== 1 || !Array.isArray(payload.items)) throw new CommercialActionError('Resale source needs recovery.'); }
   const resale = readResaleStore();
@@ -27,7 +29,7 @@ export function readDesktopFinance(date: string): FinanceData {
     daily: { revenue: finite(metrics?.sales ?? metrics?.truck_record_financial_summary?.sales ?? metrics?.total_revenue ?? metrics?.gross_revenue), costs: finite(metrics?.total_expenses), profit: finite(metrics?.net_profit), recyclingExpense: finite(metrics?.recycling_expense ?? metrics?.truck_record_financial_summary?.recycling_expense) },
     month: { label: monthly.range.monthDisplay, through: monthly.range.dataThroughDate, complete: monthly.range.complete, missingDates: monthly.range.missingDates, revenue: monthly.entries.length || monthly.authority ? monthly.grossRevenue : null, jobs: monthly.entries.length || monthly.authority ? monthly.completedJobs : null, costs: sumField(monthly.entries.map(entry => entry.metrics), 'total_expenses'), profit: sumField(monthly.entries.map(entry => entry.metrics), 'net_profit'), source: monthly.revenueSource },
     territories: markets.map(territory => ({ territory, jobs: marketSum(territory, 'jobs_by_market'), revenue: marketSum(territory, 'revenue_by_market') })), costs: [['Payroll', 'total_payroll'], ['Dump Expense', 'dump_expense'], ['Fuel Expense', 'fuel_expense'], ['Recycling Expense', 'recycling_expense'], ['Other Expense', 'other_expense']].map(([category, key]) => ({ category, amount: sumField(monthly.entries.map(entry => entry.metrics), key), source: 'Published daily metrics' })),
-    trends: trend.months.map(month => { const published = buildMonthlySummary(`${month.monthKey}-01`).entries.map(entry => entry.metrics); return { ...month, totalOperatingExpenses: sumField(published, 'total_expenses'), estimatedOperatingProfit: sumField(published, 'net_profit') }; }), reconciliation: buildDailyPaymentReconciliation(date), resale: resale.items.map(item => ({ ...item, version: commercialVersion(item) })), resaleUpdatedAt: resale.updatedAt || null,
+    trends, trendComparisons: financeTrendComparisons(trends, readMetrics), reconciliation: buildDailyPaymentReconciliation(date), resale: resale.items.map(item => ({ ...item, version: commercialVersion(item) })), resaleUpdatedAt: resale.updatedAt || null,
     recycling, recyclingVersion: commercialVersion(recycling), recyclingExpenses: (Array.isArray(metrics?.truck_record_financial_rows) ? metrics.truck_record_financial_rows : []).map((row: AnyRecord) => ({ truck: String(row.truck || row.truck_name || 'Unassigned'), value: finite(row.recycling_expense) })).filter((row: { truck: string; value: number | null }): row is { truck: string; value: number } => row.value != null && row.value !== 0) };
 }
 function text(value: unknown, maximum = 500): string { if (typeof value !== 'string' || value.length > maximum) throw new CommercialActionError('A valid text value is required.'); return value.trim(); }

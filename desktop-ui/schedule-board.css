@@ -141,3 +141,10 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { height: auto; }
 .ops-live .live-schedule.schedule-dispatch .schedule-appointment > .schedule-block-status { display: flex; justify-content: center; align-items: center; width: 100%; }
 .ops-live .live-schedule.schedule-dispatch .schedule-block-status.status-visited > b { color: #8c5700; font-size: 14px; line-height: 16px; }
+
+/* Give dispatch geography and the truck timeline equal horizontal space. */
+.ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+@media (max-width: 900px) {
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open { grid-template-columns: minmax(0, 1fr); }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open .schedule-map-panel { height: 230px; grid-template-rows: auto minmax(0,1fr) auto; }
+}

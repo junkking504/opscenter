@@ -93,3 +93,14 @@
 .ops-live :is(.schedule-history-shell,.schedule-followup-shell,.schedule-calendar-shell) > p { margin: 0; padding: 6px 10px; font-size: 11px; line-height: 1.4; color: #59685f; }
 .ops-live .schedule-history-shell .history-overview > button { min-height: 32px; padding: 5px 8px; }
 .ops-live .schedule-history-shell .history-empty { min-height: 100px; padding: 12px; }
+
+/* Six metrics and one small action; Clear must never become a seventh KPI. */
+.ops-live .live-schedule.schedule-dispatch .schedule-summary-strip {
+  grid-template-columns: repeat(6,minmax(70px,1fr)) auto; gap: 0; overflow-x: auto;
+}
+.ops-live .live-schedule.schedule-dispatch .schedule-summary-strip > .schedule-summary-clear {
+  grid-column: auto; grid-row: auto; height: 28px; min-height: 28px; padding: 3px 8px; margin: 0 6px;
+  align-self: center; border: 1px solid var(--border); border-radius: 5px;
+  background: #fff; color: inherit; font-size: 10px; line-height: 1.2;
+}
+.ops-live .schedule-summary-clear:disabled { opacity: .45; }

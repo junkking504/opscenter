@@ -7,6 +7,7 @@ import {
   buildTruckCloseoutSlackNotifications,
   buildTruckEstimateCloseoutSlackNotifications,
   formatSlackAlert,
+  recordFastCloseoutMessage,
   slackPhoneLink,
   type SlackOpsAlert,
 } from "@/lib/slack-alerts";
@@ -241,14 +242,18 @@ function deliveredMainScheduleChanges(dataDir: string, date: string): Set<string
   }
 }
 
-async function post(token: string, alert: SlackOpsAlert): Promise<boolean> {
+async function post(token: string, alert: SlackOpsAlert, dataDir: string): Promise<boolean> {
   const response = await fetch("https://slack.com/api/chat.postMessage", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json; charset=utf-8" },
     body: JSON.stringify({ channel: alert.channelId, text: formatSlackAlert(alert), mrkdwn: true, unfurl_links: false, unfurl_media: false }),
   });
-  const payload = await response.json().catch(() => ({})) as { ok?: boolean };
-  return Boolean(response.ok && payload.ok);
+  const payload = await response.json().catch(() => ({})) as { ok?: boolean; ts?: string };
+  if (response.ok && payload.ok && payload.ts) {
+    try { recordFastCloseoutMessage(dataDir, alert, payload.ts); }
+    catch { console.warn("Closeout posted, but its update receipt could not be saved."); }
+  }
+  return Boolean(response.ok && payload.ok && payload.ts);
 }
 
 function normalizedScope(value: string | undefined): string {
@@ -339,7 +344,7 @@ export async function publishScheduleChanges(
         delivered.add(event.fingerprint);
         continue;
       }
-      if (await post(token, event.alert)) {
+      if (await post(token, event.alert, dataDir)) {
         delivered.add(event.fingerprint);
         posted.push(event);
       } else {

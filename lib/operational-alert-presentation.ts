@@ -62,12 +62,14 @@ function classifyAlert(message: SlackDigestMessage, lines: string[]): Pick<Opera
   const heading = lines[0] || "";
   if (/cancel/i.test(heading)) return { label: "Cancellation", domain: "Schedule", owner: "Dispatch", next: "Review the reason and reuse the open capacity.", needsAction: true };
   if (/estimate.*closed|closed.*estimate/i.test(heading)) return { label: "Estimate Closed", domain: "Schedule", owner: "Dispatch", next: "Review the estimate outcome and follow-up.", needsAction: true };
-  if (/on[ -]?site|arriv/i.test(heading)) return { label: "On Site", domain: "Schedule", owner: "Dispatch", next: "Confirm the route remains on plan.", needsAction: false };
+  if (/depart/i.test(heading)) return { label: "Departure", domain: "Schedule", owner: "Dispatch", next: "Review the next stop and closeout status.", needsAction: false };
+  if (/payment recorded/i.test(heading)) return { label: "Payment Recorded", domain: "Finance", owner: "Finance", next: "Await closeout and verify the payment.", needsAction: true };
+  if (/on[ -]?site|arriv/i.test(heading)) return { label: "Arrival", domain: "Schedule", owner: "Dispatch", next: "Confirm the route remains on plan.", needsAction: false };
   if (/photo/i.test(heading)) {
     const needsAction = /not verified|unverified|missing|pending/i.test(text) || !/\bverified\b/i.test(text);
     return { label: "Photos Uploaded", domain: "Schedule", owner: "Dispatch", next: needsAction ? "Verify required closeout photos." : "Complete · No action required.", needsAction };
   }
-  if (/closed|closeout|payment|total/i.test(text) && message.closeout) return { label: "Job Closed", domain: "Finance", owner: "Finance", next: "Verify totals, payment, and closeout evidence.", needsAction: true };
+  if (/job closed/i.test(heading) || /closed|closeout|payment|total/i.test(text) && message.closeout) return { label: "Job Closed", domain: "Finance", owner: "Finance", next: "Verify totals, payment, and closeout evidence.", needsAction: true };
   if (/new appointment/i.test(text) || message.appointment) return { label: "New Appointment", domain: "Schedule", owner: "Dispatch", next: "Place the appointment in the live route plan.", needsAction: true };
   if (/fleet|truck/i.test(message.channel)) return { label: "Fleet Update", domain: "Fleet", owner: "Fleet", next: "Review the truck record and required response.", needsAction: true };
   return { label: "Operational Update", domain: "Command", owner: "Mission Control", next: "Review the source record and assign the next action.", needsAction: true };
@@ -75,7 +77,7 @@ function classifyAlert(message: SlackDigestMessage, lines: string[]): Pick<Opera
 
 export function factsForAlert(message: SlackDigestMessage, lines: string[]): EssentialFact[] {
   const labeledFacts = lines.flatMap((line): EssentialFact[] => {
-    const match = line.match(/^(Reason|Items|Arrival|Krewe|Crew|Driver|Navigator|Truck|Labor|Load|Bedload|CC 3%|Tips|Total|Payment|Photos|Verification|Outcome|Quote|Previous|New):\s*(.+)$/i);
+    const match = line.match(/^(Reason|Items|Arrival|Departure|Card verification|QuickBooks entry|Krewe|Crew|Driver|Navigator|Truck|Labor|Load|Bedload|CC 3%|Tips|Total|Payments?|Photos|Verification|Outcome|Quote|Previous|New):\s*(.+)$/i);
     return match ? [{ label: match[1], value: match[2] }] : [];
   });
   if (/photo/i.test(lines[0] || "")) {
@@ -89,13 +91,13 @@ export function factsForAlert(message: SlackDigestMessage, lines: string[]): Ess
       ...labeledFacts,
     ];
   }
-  if (/on[ -]?site|arriv/i.test(lines[0] || "")) {
+  if (/on[ -]?site|arriv|depart/i.test(lines[0] || "")) {
     const timeIndex = lines.findIndex((line) => /^\d{1,2}:\d{2}\s*(?:AM|PM)(?:\s*(?:CT|CDT|CST))?$/i.test(line));
     const phone = findLine(lines, /^(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}$/);
     const address = message.appointment?.address || findLine(lines, /\d{2,}.*\b\d{5}(?:-\d{4})?$/);
     const customer = message.appointment?.customerName || (timeIndex >= 0 ? lines[timeIndex + 1] : "");
     return [
-      ...(timeIndex >= 0 ? [{ label: "Arrival", value: lines[timeIndex] }] : []),
+      ...(timeIndex >= 0 ? [{ label: /depart/i.test(lines[0]) ? "Departure" : "Arrival", value: lines[timeIndex] }] : []),
       ...(customer && customer !== phone && customer !== address ? [{ label: "Customer", value: customer }] : []),
       ...(phone ? [{ label: "Phone", value: phone, href: `tel:${phone.replace(/[^\d+]/g, "")}` }] : []),
       ...(address ? [{ label: "Service Address", value: address, href: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}` }] : []),
@@ -134,7 +136,7 @@ export function factsForAlert(message: SlackDigestMessage, lines: string[]): Ess
   const address = findLine(lines, /\d{2,}.*\b\d{5}(?:-\d{4})?$/i);
   const time = findLine(lines, /\b\d{1,2}:\d{2}\s*(?:AM|PM)\b/i);
   const reason = findLine(lines, /^Reason:/i).replace(/^Reason:\s*/i, "");
-  const ignored = new Set([phone, address, time, lines[0], jobNumber(message, lines), ...lines.filter((line) => /^(Reason|Items|Arrival|Krewe|Crew|Truck|Photos|Verification|Outcome|Quote|Previous|New):/i.test(line))]);
+  const ignored = new Set([phone, address, time, lines[0], jobNumber(message, lines), ...lines.filter((line) => /^(Reason|Items|Arrival|Departure|Card verification|QuickBooks entry|Krewe|Crew|Truck|Photos|Verification|Outcome|Quote|Previous|New):/i.test(line))]);
   const context = lines.find((line) => !ignored.has(line) && !/^#/.test(line) && !/\bJK\d{5,}\b/i.test(line));
   const appointmentNotice = /new appointment|cancellation/i.test(lines[0] || "");
   return [

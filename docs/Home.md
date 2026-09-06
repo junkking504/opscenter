@@ -33,6 +33,7 @@ without mixing live runtime data or secrets into Git.
 - [SearchKings integration](searchkings-integration.md)
 - [Podium Google Reviews integration](podium-google-reviews.md)
 - [Slack and OpsCenter](slack-opscenter.md)
+- [Schedule connectors and Finance comparisons](schedule-finance-presentation.md)
 - [WhatsApp job photos](whatsapp-job-photos.md)
 - [LinxUp live GPS push](linxup-push.md)
 - [Truck load status](truck-load-status.md)

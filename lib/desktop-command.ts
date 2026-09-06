@@ -4,7 +4,9 @@ import { workedOrAttributedToJobToday } from '@/lib/crew-attendance';
 import { buildCommandMapData, summarizeCommandSchedule } from '@/lib/command-map-data';
 import { dailyRevenueTarget, operatingTargets } from '@/lib/operating-targets';
 import { readSlackDailyDigest } from '@/lib/slack-digest';
-import { toOperationalAlert } from '@/lib/operational-alert-presentation';
+import { combinedCloseoutAlerts } from '@/lib/combined-closeout-alerts';
+import { buildDailyPaymentReconciliation } from '@/lib/payment-reconciliation';
+import { readCompletedJunkwareRows } from '@/lib/slack-closeout-details';
 import { commandAlertState } from '@/lib/command-alert-workflow';
 import { listCommandAlertWorkItems } from '@/lib/platform/persistence/work-items';
 import type { WorkItem } from '@/lib/platform/contracts';
@@ -70,9 +72,8 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
       {name:'Slack',area:'Operational alerts',workspace:'Command',action:'Open alerts',state:digest.status==='ready'?'Current':'Unavailable',tone:digest.status==='ready'?'healthy':'warning',observedAt:digest.refreshedAt,maxAgeSeconds:120},
       {name:'Control',area:'Shared database connection',workspace:'Command',action:'Open decisions',state:workflow.available?'Connected':'Unavailable',tone:workflow.available?'healthy':'warning',observedAt:new Date().toISOString(),maxAgeSeconds:120}],
     sources: { metrics: Boolean(metrics), alerts: digest.status === 'ready', workflow: workflow.available },
-    alerts: digest.messages.map(message => {
-      const alert = toOperationalAlert(message);
-      const action = actions.get(message.id);
+    alerts: combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)).map(alert => {
+      const action = actions.get(alert.id);
       return {
         id: alert.id, domain: alert.domain, priority: alert.label === 'Cancellation' ? 'critical' : alert.needsAction ? 'warning' : 'watch',
         title: alert.title, detail: '', label: alert.label, territory: alert.territory, photos: alert.photos, owner: alert.owner, detected: alert.detected,

@@ -7,7 +7,7 @@ const alerts = fs.readFileSync("lib/slack-alerts.ts", "utf8");
 
 assert.match(
   publisher,
-  /--only supports truck_arrival, job_closed, or estimate_closed\./,
+  /--only supports truck_arrival, truck_departure, job_closed, or estimate_closed\./,
   "The command-line publisher must expose isolated job and estimate closeout modes.",
 );
 assert.match(

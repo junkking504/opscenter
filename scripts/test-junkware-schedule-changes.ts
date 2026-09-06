@@ -81,6 +81,8 @@ assert.equal(formatSlackAlert(events.find((event) => event.kind === "job_closed"
   "*Tips:*",
   "*Total:* $500.00",
   "*Card Ending:* 1234",
+  "*Payment:* Card ending 1234 ($500.00)",
+  "*Card verification:* Awaiting QuickBooks verification",
 ].join("\n"));
 assert.equal(events.find((event) => event.kind === "estimate_closed")?.alert.channelId, "C_TEST_TRUCK_6");
 assert.equal(formatSlackAlert(events.find((event) => event.kind === "estimate_closed")!.alert), [

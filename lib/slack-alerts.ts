@@ -1,4 +1,7 @@
 import fs from "fs";
+import { createHash } from "node:crypto";
+import { buildDailyPaymentReconciliation } from "./payment-reconciliation";
+import { closeoutPaymentFacts } from "./closeout-payment-verification";
 import path from "path";
 import {
   buildAddOnAppointmentFeed,
@@ -32,6 +35,7 @@ export type SlackAlertKind =
   | "late_job"
   | "fleet_down"
   | "stale_data"
+  | "truck_departure"
   | "truck_arrival"
   | "crew_clock_in"
   | "crew_clock_out"
@@ -71,10 +75,12 @@ type SlackAlertState = {
   deliveredScheduleChangesByDate: Record<string, string[]>;
   crewNotificationsInitializedAt: string;
   deliveredCrewNotificationsByDate: Record<string, string[]>;
+  truckDepartureNotificationsInitializedAt: string;
   truckArrivalNotificationsInitializedAt: string;
   deliveredTruckArrivalsByDate: Record<string, string[]>;
   truckCloseoutNotificationsInitializedAt: string;
   deliveredTruckCloseoutsByDate: Record<string, string[]>;
+  closeoutMessages: Record<string, { channelId: string; ts: string; hash: string }>;
   paymentNotificationsInitializedAt: string;
   deliveredPaymentNotificationsByDate: Record<string, string[]>;
 };
@@ -150,10 +156,12 @@ function emptyState(): SlackAlertState {
     deliveredScheduleChangesByDate: {},
     crewNotificationsInitializedAt: "",
     deliveredCrewNotificationsByDate: {},
+    truckDepartureNotificationsInitializedAt: "",
     truckArrivalNotificationsInitializedAt: "",
     deliveredTruckArrivalsByDate: {},
     truckCloseoutNotificationsInitializedAt: "",
     deliveredTruckCloseoutsByDate: {},
+    closeoutMessages: {},
     paymentNotificationsInitializedAt: "",
     deliveredPaymentNotificationsByDate: {},
   };
@@ -187,6 +195,7 @@ function readState(): SlackAlertState {
         payload?.deliveredCrewNotificationsByDate && typeof payload.deliveredCrewNotificationsByDate === "object"
           ? payload.deliveredCrewNotificationsByDate
           : {},
+      truckDepartureNotificationsInitializedAt: String(payload?.truckDepartureNotificationsInitializedAt || ""),
       truckArrivalNotificationsInitializedAt: String(payload?.truckArrivalNotificationsInitializedAt || ""),
       deliveredTruckArrivalsByDate:
         payload?.deliveredTruckArrivalsByDate && typeof payload.deliveredTruckArrivalsByDate === "object"
@@ -197,6 +206,7 @@ function readState(): SlackAlertState {
         payload?.deliveredTruckCloseoutsByDate && typeof payload.deliveredTruckCloseoutsByDate === "object"
           ? payload.deliveredTruckCloseoutsByDate
           : {},
+      closeoutMessages: payload?.closeoutMessages && typeof payload.closeoutMessages === "object" ? payload.closeoutMessages : {},
       paymentNotificationsInitializedAt: String(payload?.paymentNotificationsInitializedAt || ""),
       deliveredPaymentNotificationsByDate:
         payload?.deliveredPaymentNotificationsByDate && typeof payload.deliveredPaymentNotificationsByDate === "object"
@@ -322,7 +332,7 @@ export function appointmentChannelId(territory: string): string {
 }
 
 export function slackAlertKindEnabled(kind: SlackAlertKind): boolean {
-  return kind !== "late_job" && kind !== "unassigned_crew";
+  return kind !== "late_job" && kind !== "unassigned_crew" && kind !== "job_closed_payment";
 }
 
 function origin(): string {
@@ -723,6 +733,7 @@ export function formatTruckCloseoutSlackNotification(
     `*Driver:*${driver ? ` ${slackEscape(driver)}` : ""}`,
     `*Navigator:*${navigator ? ` ${slackEscape(navigator)}` : ""}`,
     ...detailLines,
+    ...(kind === "job_closed" ? closeoutPaymentFacts(row, buildDailyPaymentReconciliation(date)).map(fact => `*${slackEscape(fact.label)}:* ${slackEscape(fact.value)}`) : []),
   ].filter(Boolean).join("\n");
 }
 
@@ -942,14 +953,14 @@ export function slackPhoneLink(value: string): string {
   return `<tel:${phoneNumber}${extension ? `;ext=${extension}` : ""}|${slackEscape(label)}>`;
 }
 
-export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
+function buildTruckVisitSlackNotifications(date: string, rows: AnyRecord[], kind: "truck_arrival" | "truck_departure"): SlackOpsAlert[] {
   const notifications: SlackOpsAlert[] = [];
   const seen = new Set<string>();
   const appointmentDetails = readTruckArrivalAppointmentDetails(date);
 
   for (const row of rows) {
     if (String(row?.match_confidence || "").trim().toLowerCase() !== "confirmed") continue;
-    if (Number(row?.visit_count || 0) <= 0) continue;
+    if (Number(row?.visit_count || 0) <= 0 || row?.pass_by_only === true) continue;
 
     const appointmentId = firstText(row, ["appointment_id", "appt_id", "appointmentId"]);
     const jkNumber = firstText(row, ["jk_number", "job_id", "job_number"]) || appointmentId || "Appointment";
@@ -966,17 +977,20 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
       || details?.address
       || "Unknown";
 
-    const intervalArrivals = (Array.isArray(row?.visit_intervals) ? row.visit_intervals : [])
-      .map((interval: AnyRecord) => firstText(interval, ["arrival"]))
-      .filter(Boolean);
-    const arrivals = intervalArrivals.length
-      ? intervalArrivals
-      : [firstText(row, ["first_arrival", "arrival"])].filter(Boolean);
+    const intervals = Array.isArray(row?.visit_intervals) && row.visit_intervals.length ? row.visit_intervals : [{ arrival: firstText(row, ["first_arrival", "arrival", "arrival_at"]), departure: firstText(row, ["final_departure", "departure", "departure_at"]) }];
+    const arrivals = intervals.flatMap((interval: AnyRecord) => {
+      const arrival = firstText(interval, ["arrival"]);
+      const departure = firstText(interval, ["departure"]);
+      if (kind === "truck_arrival") return [arrival].filter(Boolean);
+      // A missing GPS observation is not a departure. Require a confirmed
+      // visit interval with an explicit, chronologically valid exit time.
+      return Number.isFinite(Date.parse(arrival)) && Number.isFinite(Date.parse(departure)) && Date.parse(departure) > Date.parse(arrival) && Date.parse(departure) <= Date.now() ? [departure] : [];
+    });
 
     for (const arrival of arrivals) {
       if (!Number.isFinite(Date.parse(arrival))) continue;
       const fingerprint = [
-        "truck_arrival",
+        kind,
         date,
         truckArrivalKeyPart(appointmentId),
         truckArrivalKeyPart(truck),
@@ -985,7 +999,7 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
       if (seen.has(fingerprint)) continue;
       seen.add(fingerprint);
       const truckNumber = normalizeSlackTruckNumber(truck);
-      const title = `${truckNumber ? `Truck ${truckNumber}` : truck} On-site`;
+      const title = `${truckNumber ? `Truck ${truckNumber}` : truck} ${kind === "truck_departure" ? "Departure" : "Arrival"}`;
       const href = closeoutOpsHref(date, jkNumber);
       const plainText = [
         `:truck: *${slackEscape(title)}*`,
@@ -997,7 +1011,7 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
       ].filter(Boolean).join("\n");
       notifications.push({
         fingerprint,
-        kind: "truck_arrival",
+        kind,
         lifecycle: "notification",
         severity: "warning",
         channelId: truckSlackChannelId(truck, channel("dispatch")),
@@ -1011,6 +1025,22 @@ export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecor
   }
 
   return notifications.sort((left, right) => left.fingerprint.localeCompare(right.fingerprint));
+}
+
+export function buildTruckArrivalSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
+  return buildTruckVisitSlackNotifications(date, rows, "truck_arrival");
+}
+export function buildTruckDepartureSlackNotifications(date: string, rows: AnyRecord[]): SlackOpsAlert[] {
+  return buildTruckVisitSlackNotifications(date, rows, "truck_departure");
+}
+function allTruckVisitNotifications(date: string, state: SlackAlertState): SlackOpsAlert[] {
+  const rows = readTruckArrivalVisitRows(date);
+  const departures = buildTruckDepartureSlackNotifications(date, rows);
+  if (!state.truckDepartureNotificationsInitializedAt) {
+    state.truckDepartureNotificationsInitializedAt = new Date().toISOString();
+    state.deliveredTruckArrivalsByDate[date] = [...(state.deliveredTruckArrivalsByDate[date] || []), ...departures.map(alert => alert.fingerprint)];
+  }
+  return [...buildTruckArrivalSlackNotifications(date, rows), ...departures];
 }
 
 function collectIncidentAlerts(date: string): SlackOpsAlert[] {
@@ -1089,11 +1119,12 @@ async function postSlackMessage(
   channelId: string,
   text: string,
   threadTs?: string,
+  updateTs?: string,
 ): Promise<SlackApiResponse> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
-    const response = await fetch("https://slack.com/api/chat.postMessage", {
+    const response = await fetch(`https://slack.com/api/${updateTs ? "chat.update" : "chat.postMessage"}`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -1106,6 +1137,7 @@ async function postSlackMessage(
         unfurl_links: false,
         unfurl_media: false,
         ...(threadTs ? { thread_ts: threadTs } : {}),
+        ...(updateTs ? { ts: updateTs } : {}),
       }),
       signal: controller.signal,
     });
@@ -1116,6 +1148,44 @@ async function postSlackMessage(
     return { ok: false, error: error instanceof Error ? error.message : "Slack request failed" };
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+function closeoutMessageHash(alert: SlackOpsAlert): string {
+  return createHash("sha256").update(formatSlackAlert(alert)).digest("hex");
+}
+function rememberCloseoutMessage(state: SlackAlertState, alert: SlackOpsAlert, ts: string): void {
+  if (alert.kind !== "job_closed") return;
+  state.closeoutMessages[alert.fingerprint] = { channelId: alert.channelId, ts, hash: closeoutMessageHash(alert) };
+  const dates = [...new Set(Object.keys(state.closeoutMessages).map(key => key.split(":")[1]))].sort().slice(-10);
+  state.closeoutMessages = Object.fromEntries(Object.entries(state.closeoutMessages).filter(([key]) => dates.includes(key.split(":")[1])));
+}
+// Fast schedule detection owns a separate state lock. Keep its receipt in a
+// separate file instead of racing the main alert-state writer.
+export function recordFastCloseoutMessage(dataDir: string, alert: SlackOpsAlert, ts: string): void {
+  if (alert.kind !== "job_closed") return;
+  const file = path.join(dataDir, "slack", "closeout-receipts", `${createHash("sha256").update(alert.fingerprint).digest("hex")}.json`);
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, JSON.stringify({ channelId: alert.channelId, ts, hash: closeoutMessageHash(alert) }), { mode: 0o600 });
+}
+function fastCloseoutReceipt(alert: SlackOpsAlert): SlackAlertState["closeoutMessages"][string] | undefined {
+  const dataDir = process.env.OPSCENTER_DATA_DIR || path.dirname(path.dirname(stateFile()));
+  try {
+    return JSON.parse(fs.readFileSync(path.join(dataDir, "slack", "closeout-receipts", `${createHash("sha256").update(alert.fingerprint).digest("hex")}.json`), "utf8"));
+  } catch { return undefined; }
+}
+async function refreshCloseoutMessages(state: SlackAlertState, alerts: SlackOpsAlert[], token: string, result: SlackAlertRunResult): Promise<void> {
+  for (const alert of alerts) {
+    const saved = state.closeoutMessages[alert.fingerprint] || fastCloseoutReceipt(alert);
+    if (!saved?.ts || saved.channelId !== alert.channelId || saved.hash === closeoutMessageHash(alert)) continue;
+    const response = await postSlackMessage(token, saved.channelId, formatSlackAlert(alert), undefined, saved.ts);
+    if (!response.ok) {
+      result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack closeout update failed" });
+      continue;
+    }
+    // Preserve the original message identity so late payments and QBO matches
+    // update the closeout in place and never create another alert.
+    rememberCloseoutMessage(state, alert, saved.ts);
   }
 }
 
@@ -1162,7 +1232,7 @@ export async function publishVerifiedTruckCloseout(
   const kind: TruckCloseoutAlertKind = isEstimateCloseoutRow(sourceRow) ? "estimate_closed" : "job_closed";
   const fingerprint = `${kind}:${date}:appt-${appointmentId.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
   const state = readState();
-  const delivered = new Set(state.deliveredTruckCloseoutsByDate[date] || []);
+  const delivered = new Set([...(state.deliveredTruckCloseoutsByDate[date] || []), ...deliveredFastScheduleCloseouts(date)]);
   if (delivered.has(fingerprint)) return { attempted: false, posted: false, duplicate: true };
 
   const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
@@ -1196,6 +1266,7 @@ export async function publishVerifiedTruckCloseout(
   }
 
   delivered.add(fingerprint);
+  rememberCloseoutMessage(state, alert, response.ts);
   state.truckCloseoutNotificationsInitializedAt ||= new Date().toISOString();
   state.deliveredTruckCloseoutsByDate[date] = Array.from(delivered);
   state.deliveredTruckCloseoutsByDate = pruneTruckCloseoutDates(state.deliveredTruckCloseoutsByDate);
@@ -1208,14 +1279,15 @@ async function runTruckArrivalSlackAlerts(options: {
   date: string;
   dryRun: boolean;
   enabled: boolean;
+  kinds: ReadonlySet<SlackAlertKind>;
 }): Promise<SlackAlertRunResult> {
-  const { date, dryRun, enabled } = options;
+  const { date, dryRun, enabled, kinds } = options;
   const state = readState();
-  const allNotifications = buildTruckArrivalSlackNotifications(date, readTruckArrivalVisitRows(date));
+  const allNotifications = allTruckVisitNotifications(date, state);
   const initialized = Boolean(state.truckArrivalNotificationsInitializedAt);
   const delivered = new Set(state.deliveredTruckArrivalsByDate[date] || []);
   const pending = initialized
-    ? allNotifications.filter((alert) => !delivered.has(alert.fingerprint))
+    ? allNotifications.filter((alert) => kinds.has(alert.kind) && !delivered.has(alert.fingerprint))
     : [];
   const result = slackAlertRunResult(
     date,
@@ -1269,7 +1341,7 @@ async function runTruckCloseoutSlackAlerts(options: {
     ? allNotifications.filter((alert) => kinds.has(alert.kind as TruckCloseoutAlertKind))
     : allNotifications;
   const initialized = Boolean(state.truckCloseoutNotificationsInitializedAt);
-  const delivered = new Set(state.deliveredTruckCloseoutsByDate[date] || []);
+  const delivered = new Set([...(state.deliveredTruckCloseoutsByDate[date] || []), ...deliveredFastScheduleCloseouts(date)]);
   const pending = initialized
     ? selectedNotifications.filter((alert) => !delivered.has(alert.fingerprint))
     : [];
@@ -1295,12 +1367,14 @@ async function runTruckCloseoutSlackAlerts(options: {
     return result;
   }
 
+  await refreshCloseoutMessages(state, selectedNotifications, token, result);
   for (const alert of pending) {
     const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
     if (!response.ok || !response.ts) {
       result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
       continue;
     }
+    rememberCloseoutMessage(state, alert, response.ts);
     delivered.add(alert.fingerprint);
     result.posted.push(alert);
   }
@@ -1324,8 +1398,8 @@ export async function runSlackOpsAlerts(options?: {
   const enabled = boolEnv("SLACK_OPSCENTER_ALERTS_ENABLED");
   const onlyKinds = new Set(options?.onlyKinds || []);
   if (onlyKinds.size) {
-    if (onlyKinds.size === 1 && onlyKinds.has("truck_arrival")) {
-      return runTruckArrivalSlackAlerts({ date, dryRun, enabled });
+    if ([...onlyKinds].every(kind => kind === "truck_arrival" || kind === "truck_departure")) {
+      return runTruckArrivalSlackAlerts({ date, dryRun, enabled, kinds: onlyKinds });
     }
     const closeoutKinds = new Set(
       Array.from(onlyKinds).filter((kind): kind is TruckCloseoutAlertKind => (
@@ -1333,7 +1407,7 @@ export async function runSlackOpsAlerts(options?: {
       )),
     );
     if (closeoutKinds.size !== onlyKinds.size) {
-      throw new Error("Only truck_arrival, job_closed, or estimate_closed can be published independently.");
+      throw new Error("Only truck_arrival, truck_departure, job_closed, or estimate_closed can be published independently.");
     }
     return runTruckCloseoutSlackAlerts({ date, dryRun, enabled, kinds: closeoutKinds });
   }
@@ -1348,13 +1422,12 @@ export async function runSlackOpsAlerts(options?: {
   const crewNotifications = crewNotificationsInitialized
     ? allCrewNotifications.filter((alert) => !deliveredCrewNotifications.has(alert.fingerprint))
     : [];
-  const allTruckArrivalNotifications = buildTruckArrivalSlackNotifications(date, readTruckArrivalVisitRows(date));
+  const allTruckArrivalNotifications = allTruckVisitNotifications(date, state);
   const truckArrivalNotificationsInitialized = Boolean(state.truckArrivalNotificationsInitializedAt);
   const deliveredTruckArrivals = new Set(state.deliveredTruckArrivalsByDate[date] || []);
   const truckArrivalNotifications = truckArrivalNotificationsInitialized
     ? allTruckArrivalNotifications.filter((alert) => !deliveredTruckArrivals.has(alert.fingerprint))
     : [];
-  const completedRows = readCompletedJunkwareRows(date);
   const allTruckCloseoutNotifications = buildAllTruckCloseoutSlackNotifications(date);
   const truckCloseoutNotificationsInitialized = Boolean(state.truckCloseoutNotificationsInitializedAt);
   const deliveredTruckCloseouts = new Set([
@@ -1364,7 +1437,8 @@ export async function runSlackOpsAlerts(options?: {
   const truckCloseoutNotifications = truckCloseoutNotificationsInitialized
     ? allTruckCloseoutNotifications.filter((alert) => !deliveredTruckCloseouts.has(alert.fingerprint))
     : [];
-  const allPaymentNotifications = buildPaymentCloseoutSlackNotifications(date, completedRows);
+  // Payment belongs to the closeout notification, never a second alert.
+  const allPaymentNotifications: SlackOpsAlert[] = [];
   const paymentNotificationsInitialized = Boolean(state.paymentNotificationsInitializedAt);
   const deliveredPaymentNotifications = new Set(state.deliveredPaymentNotificationsByDate[date] || []);
   const paymentNotifications = paymentNotificationsInitialized
@@ -1563,12 +1637,14 @@ export async function runSlackOpsAlerts(options?: {
     result.posted.push(alert);
   }
 
+  await refreshCloseoutMessages(state, allTruckCloseoutNotifications, token, result);
   for (const alert of truckCloseoutNotifications) {
     const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
     if (!response.ok || !response.ts) {
       result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
       continue;
     }
+    rememberCloseoutMessage(state, alert, response.ts);
     deliveredTruckCloseouts.add(alert.fingerprint);
     result.posted.push(alert);
   }

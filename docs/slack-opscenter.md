@@ -102,3 +102,28 @@ npm run alerts:slack
 ```
 
 The live refresh loop runs a focused closeout publisher immediately after the verified JunkWare snapshot succeeds, before optional QBO, Krewe Portal, marketing, or VPS work. It then runs the full publisher after the broader refresh. Both use the same durable closeout fingerprints, so the focused fallback, the fast schedule detector, and the full pass cannot duplicate a closeout. Runtime state is stored at `data/slack/ops_alert_state.json` and is intentionally excluded from git.
+
+
+### Closeout and visit alerts (September 2026)
+
+Job Closed owns the recorded payment and card-verification facts. The general
+publisher no longer emits a separate Payment Recorded alert. OpsCenter groups
+legacy closeout/payment messages by JK number, preserving the canonical closeout
+message ID and its photos. A standalone payment remains visible until a matching
+closeout exists. Job total, tips, and paid amount retain separate labels.
+
+Card verification requires fresh `qbo-accounting-api` reconciliation evidence for
+the same job, amount, card suffix (when recorded), and one unique matched QBO
+transaction. Missing, stale, ambiguous, voided, or mismatched evidence never shows
+as verified. These are read-only checks; no accounting adjustment is posted.
+
+New closeout message receipts let the publisher update its original Slack message
+in place when payment/QBO facts change. Main receipts live in `ops_alert_state.json`;
+fast-detector receipts live in runtime `slack/closeout-receipts/` to avoid writing
+across the detector's separate state lock. Older messages without saved receipts
+are consolidated and enriched in OpsCenter; they are not blindly reposted.
+
+Truck On-site is displayed as Arrival. Departure requires a confirmed visit with
+an explicit exit timestamp after arrival, not loss of GPS. Existing departures
+are baselined on first activation; subsequent departures use the same fast GPS
+publisher with distinct visit fingerprints and retry deduplication.

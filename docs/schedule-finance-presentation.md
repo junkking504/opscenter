@@ -26,3 +26,21 @@ fields remain unavailable, never zero. Average job and margin use aggregate
 revenue/jobs/profit, not averages of daily ratios. Operating profit remains an
 estimate. Margin changes are percentage points; zero comparison denominators are
 labeled without infinity. YTD totals are no longer shown in Finance Trends.
+
+## Historical collection
+
+`reconcile-junkware-monthly.py --month 2025-09 --previous-months 8` collects
+January–September 2025 dashboard totals. Finance can use verified monthly revenue
+and job counts for full-month YOY even before daily history is available. Expenses
+and profit require complete daily history; full-month totals never substitute for
+a partial-month comparison.
+
+`collect-finance-yoy-history.py --through 2025-09-06` runs a resumable, bounded
+backfill of 249 dates, starting September 1–6 and then August back to January.
+It waits for the live refresh, collects and verifies all four territories, collects
+historical timesheet rates, and processes the daily metrics. Missing payroll rates
+leave Finance cost/profit comparisons unavailable. It does not send Slack alerts
+or run the broad refresh/backup pipeline. It pauses between dates and stops after
+three consecutive failures. A per-year file lock prevents duplicate workers.
+Status lives in OpsBot `data/audits/finance_yoy_backfill_2025.json`; detailed logs
+remain in OpsBot `logs/finance-yoy-2025/`. Rerunning resumes unfinished dates.

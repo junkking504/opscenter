@@ -5,7 +5,7 @@ type Month = FinanceData['trends'][number];
 const finite = (v: unknown) => v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v);
 const values = (revenue: number | null, jobs: number | null, costs: number | null, profit: number | null): TrendValues => ({ revenue, jobs, costs, profit, averageJob: revenue != null && jobs != null && jobs > 0 ? revenue / jobs : null, margin: profit != null && revenue != null && revenue !== 0 ? profit / revenue * 100 : null });
 const fromMonth = (month?: Month) => values(month?.grossRevenue ?? null, month?.completedJobs ?? null, month?.totalOperatingExpenses ?? null, month?.estimatedOperatingProfit ?? null);
-export function financeTrendComparisons(months: Month[], read: (date: string) => Record<string, unknown> | null): Record<string, TrendComparison> {
+export function financeTrendComparisons(months: Month[], read: (date: string) => Record<string, unknown> | null, readYearMonth?: (key: string) => TrendValues | null): Record<string, TrendComparison> {
   const cache = new Map<string, Record<string, unknown> | null>();
   const daily = (key: string, days: number) => {
     const rows = Array.from({length: days}, (_, i) => {
@@ -41,7 +41,7 @@ export function financeTrendComparisons(months: Month[], read: (date: string) =>
     const yearPriorMonth = months.find(m => m.monthKey === yearPriorKey && m.complete);
     const yearCurrentEnd = month.complete ? new Date(Date.UTC(year, number, 0, 12)).toISOString().slice(0, 10) : `${month.monthKey}-${String(yearDays).padStart(2, '0')}`;
     const yearCurrent = month.complete ? fromMonth(month) : daily(month.monthKey, yearDays);
-    const yearPrior = month.complete && yearPriorMonth ? fromMonth(yearPriorMonth) : daily(yearPriorKey, yearDays);
+    const yearPrior = month.complete ? (readYearMonth?.(yearPriorKey) ?? (yearPriorMonth ? fromMonth(yearPriorMonth) : daily(yearPriorKey, yearDays))) : daily(yearPriorKey, yearDays);
     return [month.monthKey, {
       currentStart: `${month.monthKey}-01`, currentEnd,
       priorStart: `${priorKey}-01`, priorEnd: `${priorKey}-${String(days).padStart(2,'0')}`,

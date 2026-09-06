@@ -22,3 +22,8 @@ const byMarket=financeTrendComparisons(months,()=>({total_revenue:250,sales:200,
 assert.equal(byMarket.current.jobs,30);assert.equal(byMarket.current.revenue,1500);assert.equal(byMarket.current.averageJob,50);
 const missingField=financeTrendComparisons(months,()=>({total_revenue:250,completed_jobs:2,total_expenses:null,net_profit:null}))['2026-09'];assert.equal(missingField.yearPrior.costs,null);assert.equal(missingField.yearPrior.profit,null);assert.equal(missingField.yearPrior.revenue,1500);
 console.log('Finance MTM and YOY: matched dates, full months, missing history, weighted ratios, zero denominators and leap dates passed.');
+
+const authorityOnly = financeTrendComparisons([month('2026-08',1000,5)],()=>null,()=>({revenue:800,jobs:4,averageJob:200,costs:null,profit:null,margin:null}))['2026-08'];
+assert.equal(authorityOnly.yearPrior.revenue,800);assert.equal(authorityOnly.yearPrior.costs,null);
+const partialAuthority = financeTrendComparisons([month('2026-09',600,3,false)],()=>null,()=>({revenue:800,jobs:4,averageJob:200,costs:null,profit:null,margin:null}))['2026-09'];
+assert.equal(partialAuthority.yearPrior.revenue,null, 'Never substitute the entire prior September for September 1-6');

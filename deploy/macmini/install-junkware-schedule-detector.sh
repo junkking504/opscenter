@@ -33,13 +33,20 @@ LOCK_PID=""
 if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
   LOCK_COMMAND="$(ps -p "$LOCK_PID" -o command= 2>/dev/null || true)"
   if [[ "$LOCK_COMMAND" != *"run-junkware-schedule-detector.sh"* ]]; then
-    echo "JunkWare detector lock belongs to an unexpected active process; refusing to terminate it." >&2
-    exit 1
+    # bootout can finish stopping the process between kill -0 and ps. Only
+    # reject a mismatched identity if that PID still exists on the second check.
+    if kill -0 "$LOCK_PID" 2>/dev/null; then
+      echo "JunkWare detector lock belongs to an unexpected active process; refusing to terminate it." >&2
+      exit 1
+    fi
+    LOCK_PID=""
   fi
+fi
+if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
   LOCK_CHILD_PIDS="$(pgrep -P "$LOCK_PID" || true)"
   for child_pid in $LOCK_CHILD_PIDS; do
     child_command="$(ps -p "$child_pid" -o command= 2>/dev/null || true)"
-    if [[ "$child_command" != *"collect-junkware-schedule-stream.py"* ]]; then
+    if [[ "$child_command" != *"collect-junkware-schedule-stream.py"* ]] && kill -0 "$child_pid" 2>/dev/null; then
       echo "JunkWare detector has an unexpected child process; refusing to terminate it." >&2
       exit 1
     fi

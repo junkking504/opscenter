@@ -385,3 +385,9 @@ Before a future cutover:
 
 Cutover should be handled as a separate, supervised operation with rollback to
 the current Mac available.
+
+
+The schedule-detector installer rechecks PID liveness when `ps` no longer returns
+the expected command after `launchctl bootout`. An already-exited detector is a
+successful stop; an unrelated or unidentified live process still blocks the
+release. `scripts/test-detector-restart-race.ts` covers both cases.

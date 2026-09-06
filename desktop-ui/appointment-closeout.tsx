@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ScheduleAppointment } from './lib/schedule-contract';
 import { sendScheduleChange, checkScheduleChange, ChangeReceipt, type Receipt } from './schedule-controls';
+import './appointment-closeout.css';
 
 type Option = { value: string; label: string };
 type OtherCharge = { label: string; quantity: string; price: string; total: string };

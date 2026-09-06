@@ -1,0 +1,102 @@
+/* Match the label/value rows in the appointment drawer above this editor. */
+.ops-live .appointment-closeout-panel > summary {
+  padding: 11px 12px;
+  color: #202529;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.ops-live .appointment-closeout-panel[open] > summary { border-bottom: 1px solid #e6e9e5; }
+.ops-live .appointment-closeout-body { padding: 10px; font-size: 11px; line-height: 1.35; }
+.ops-live .appointment-closeout-body label {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 38px;
+  margin: 0;
+  padding: 5px 12px;
+  border-bottom: 1px solid #e6e9e5;
+}
+.ops-live .appointment-closeout-body label > span,
+.ops-live .ops-closeout-time-grid > span {
+  color: #7b847f;
+  font-size: 9px;
+  font-weight: 730;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.ops-live .appointment-closeout-body input:not([type='checkbox']),
+.ops-live .appointment-closeout-body select {
+  width: 100%;
+  min-width: 0;
+  min-height: 28px;
+  padding: 4px 6px;
+  border: 1px solid #dce2dc;
+  border-radius: 5px;
+  background: #fff;
+  color: #202529;
+  font: inherit;
+  font-weight: 700;
+}
+.ops-live .appointment-closeout-body :is(input, select):focus-visible { outline: 2px solid #576e60; outline-offset: 1px; }
+.ops-live .appointment-closeout-body :is(input, select, button):disabled { opacity: .6; cursor: not-allowed; }
+.ops-live .appointment-closeout-body .appointment-create-section { margin: 10px 0; }
+.ops-live .appointment-closeout-body :is(h4, h5) {
+  margin: 0;
+  padding: 9px 12px;
+  border-bottom: 1px solid #e6e9e5;
+  background: #f3f5f2;
+  color: #202529;
+  font-size: 11px;
+  font-weight: 750;
+}
+.ops-live .appointment-closeout-grid,
+.ops-live .ops-closeout-charge-entry { display: block; }
+.ops-live .ops-closeout-crew-row { display: flex; align-items: center; border-bottom: 1px solid #e6e9e5; }
+.ops-live .ops-closeout-crew-row label { flex: 1; min-width: 0; padding-right: 0; border: 0; }
+.ops-live .appointment-closeout-body .ops-button,
+.ops-live .appointment-closeout-body .ops-closeout-text-button {
+  min-height: 28px;
+  margin: 7px 12px;
+  padding: 5px 8px;
+  border: 1px solid #dce2dc;
+  border-radius: 5px;
+  background: #fff;
+  color: #202529;
+  font: inherit;
+  font-weight: 650;
+}
+.ops-live .ops-closeout-time-grid {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 12px;
+  padding: 7px 12px;
+}
+.ops-live .ops-closeout-payments > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 12px;
+  padding: 11px 12px;
+  border-bottom: 1px solid #e6e9e5;
+}
+.ops-live .ops-closeout-payments > div > span { color: #7b847f; font-size: 9px; font-weight: 730; text-transform: uppercase; letter-spacing: .06em; }
+.ops-live .appointment-closeout-body .ops-closeout-payment-toggle { display: flex; justify-content: flex-start; gap: 8px; }
+.ops-live .appointment-closeout-body input[type='checkbox'] { width: 14px; height: 14px; margin: 0; flex: 0 0 auto; accent-color: #a8202d; }
+.ops-live .ops-closeout-payment-entry { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 7px 12px; }
+.ops-live .ops-closeout-charge-list > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px; border-bottom: 1px solid #e6e9e5; }
+.ops-live .ops-closeout-charge-list > div > span:first-child { flex: 1; }
+.ops-live .ops-closeout-charge-list small { display: block; color: #7b847f; }
+.ops-live .appointment-closeout-body p,
+.ops-live .ops-closeout-editor-message { margin: 0; padding: 9px 12px; }
+.ops-live .appointment-closeout-body .ops-closeout-editor-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0 0; }
+.ops-live .ops-closeout-editor-actions .ops-button { margin: 0; }
+@media (max-width: 420px) {
+  .ops-live .appointment-closeout-body label,
+  .ops-live .ops-closeout-payments > div { grid-template-columns: 90px minmax(0, 1fr); gap: 8px; padding-inline: 8px; }
+  .ops-live .ops-closeout-time-grid { grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr); gap: 8px; padding-inline: 8px; }
+  .ops-live .ops-closeout-crew-row { flex-wrap: wrap; }
+  .ops-live .ops-closeout-crew-row label { flex-basis: 100%; }
+  .ops-live .ops-closeout-crew-row .ops-button { margin: 0 8px 7px 106px; }
+}

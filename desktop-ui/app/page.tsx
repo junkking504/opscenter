@@ -6,7 +6,7 @@ import {
   PhoneCall, Play, ShieldCheck, Star, Truck, Users, Wrench, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,10 +16,10 @@ import type { DesktopLiveProps } from '@/lib/live-contract';
 import LiveControl from '../live-control';
 import LivePhotoReview from '../live-photo-review';
 import { navigationValue, workspaceUrl } from '../lib/workspace-navigation';
-import LiveKrewe from '../live-krewe';
-import LiveFleet from '../live-fleet';
-import { LiveMarketing } from '../live-marketing';
-import { LiveFinance } from '../live-finance';
+const LiveKrewe = lazy(() => import('../live-krewe'));
+const LiveFleet = lazy(() => import('../live-fleet'));
+const LiveMarketing = lazy(() => import('../live-marketing').then(module => ({ default: module.LiveMarketing })));
+const LiveFinance = lazy(() => import('../live-finance').then(module => ({ default: module.LiveFinance })));
 import LiveSearch, { desktopHref } from '../live-search';
 import { desktopAppointmentHref } from '../lib/desktop-links';
 import LiveSchedule, { dateForDay } from '../live-schedule';
@@ -4616,10 +4616,12 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
 
           {live && activeNav === 'Command' && view === 'today' && <LivePhotoReview canReview={canFinance} />}
           {live && activeNav === 'Command' && view !== 'now' && <LiveControl date={live.snapshot.date} view={view} report={setActionFeedback} onNavigate={setActiveNav} onBusyChange={onBusyChange} />}
+          <Suspense fallback={<div className="workspace-loading" role="status">Loading {activeNav}…</div>}>
           {live && activeNav === 'Krewe' && <LiveKrewe date={live.snapshot.date} view={kreweView} onViewChange={setKreweView} onBusyChange={onBusyChange} />}
           {live && activeNav === 'Fleet' && <LiveFleet date={live.snapshot.date} view={fleetView} onViewChange={setFleetView} onBusyChange={onBusyChange} />}
           {live && activeNav === 'Marketing' && <LiveMarketing date={live.snapshot.date} view={marketingView} onViewChange={setMarketingView} onBusyChange={onBusyChange} />}
           {live && activeNav === 'Finance' && canFinance && <LiveFinance date={live.snapshot.date} view={financeView} onViewChange={setFinanceView} onBusyChange={onBusyChange} />}
+          </Suspense>
           {activeNav === 'Schedule' && live && <LiveSchedule baseDate={live.snapshot.date} day={scheduleDay} view={scheduleView} onDayChange={setScheduleDay} onCounts={setLiveScheduleCounts} report={setActionFeedback} onBusyChange={onBusyChange} onOpenDate={date => live.onDateChange(date, 'Schedule')} />}
           {activeNav === 'Schedule' && !live && (
             <section className="schedule-workspace">

@@ -12,16 +12,16 @@
 .ops-live .section-title h2 { font-size: 14px; margin: 2px 0; line-height: 1.25; }
 .ops-live .section-title p { margin: 2px 0 0; font-size: 10px; line-height: 1.3; }
 .ops-live .section-kicker { font-size: 8px; line-height: 1.2; }
-.ops-live :is(.metric-strip,.krewe-kpi-strip,.krewe-monthly-kpis,.krewe-period-summary,.krewe-callin-summary,.control-summary-strip,.fleet-kpi-strip,.fleet-report-kpis,.fleet-maintenance-summary,.marketing-kpi-strip,.marketing-performance-kpis,.marketing-review-summary,.finance-kpi-strip,.finance-monthly-kpis,.finance-trend-cards,.finance-recovery-kpis,.finance-payment-summary,.schedule-summary-strip) {
+.ops-live :is(.metric-strip,.signal-grid,.followup-overview,.calendar-selection-metrics,.krewe-kpi-strip,.krewe-monthly-kpis,.krewe-period-summary,.krewe-callin-summary,.control-summary-strip,.fleet-kpi-strip,.fleet-report-kpis,.fleet-maintenance-summary,.marketing-kpi-strip,.marketing-performance-kpis,.marketing-review-summary,.finance-kpi-strip,.finance-monthly-kpis,.finance-trend-cards,.finance-recovery-kpis,.finance-payment-summary,.schedule-summary-strip) {
   display: grid; grid-template-columns: repeat(auto-fit,minmax(156px,1fr)); gap: 6px; margin-block: 0 8px; align-items: stretch;
 }
-.ops-live :is(.metric-strip,.krewe-kpi-strip,.krewe-monthly-kpis,.krewe-period-summary,.krewe-callin-summary,.control-summary-strip,.fleet-kpi-strip,.fleet-report-kpis,.fleet-maintenance-summary,.marketing-kpi-strip,.marketing-performance-kpis,.marketing-review-summary,.finance-kpi-strip,.finance-monthly-kpis,.finance-trend-cards,.finance-recovery-kpis,.finance-payment-summary,.schedule-summary-strip) > :is(button,article,div) {
+.ops-live :is(.metric-strip,.signal-grid,.followup-overview,.calendar-selection-metrics,.krewe-kpi-strip,.krewe-monthly-kpis,.krewe-period-summary,.krewe-callin-summary,.control-summary-strip,.fleet-kpi-strip,.fleet-report-kpis,.fleet-maintenance-summary,.marketing-kpi-strip,.marketing-performance-kpis,.marketing-review-summary,.finance-kpi-strip,.finance-monthly-kpis,.finance-trend-cards,.finance-recovery-kpis,.finance-payment-summary,.schedule-summary-strip) > :is(button,article,div) {
   grid-column: auto; box-sizing: border-box; height: var(--ops-kpi-height); min-height: var(--ops-kpi-height); min-width: 0; padding: 5px 8px; display: flex; flex-direction: column; justify-content: center; gap: 1px; overflow: auto;
 }
-.ops-live :is(.metric-strip,.krewe-kpi-strip,.krewe-monthly-kpis,.krewe-period-summary,.krewe-callin-summary,.control-summary-strip,.fleet-kpi-strip,.fleet-report-kpis,.fleet-maintenance-summary,.marketing-kpi-strip,.marketing-performance-kpis,.marketing-review-summary,.finance-kpi-strip,.finance-monthly-kpis,.finance-trend-cards,.finance-recovery-kpis,.finance-payment-summary,.schedule-summary-strip) > :is(button,article,div) > strong {
+.ops-live :is(.metric-strip,.signal-grid,.followup-overview,.calendar-selection-metrics,.krewe-kpi-strip,.krewe-monthly-kpis,.krewe-period-summary,.krewe-callin-summary,.control-summary-strip,.fleet-kpi-strip,.fleet-report-kpis,.fleet-maintenance-summary,.marketing-kpi-strip,.marketing-performance-kpis,.marketing-review-summary,.finance-kpi-strip,.finance-monthly-kpis,.finance-trend-cards,.finance-recovery-kpis,.finance-payment-summary,.schedule-summary-strip) > :is(button,article,div) > strong {
   font-size: 20px; line-height: 1.05; margin: 0; font-variant-numeric: tabular-nums;
 }
-.ops-live :is(.metric-strip,.krewe-kpi-strip,.krewe-monthly-kpis,.krewe-period-summary,.krewe-callin-summary,.control-summary-strip,.fleet-kpi-strip,.fleet-report-kpis,.fleet-maintenance-summary,.marketing-kpi-strip,.marketing-performance-kpis,.marketing-review-summary,.finance-kpi-strip,.finance-monthly-kpis,.finance-trend-cards,.finance-recovery-kpis,.finance-payment-summary,.schedule-summary-strip) > :is(button,article,div) > small {
+.ops-live :is(.metric-strip,.signal-grid,.followup-overview,.calendar-selection-metrics,.krewe-kpi-strip,.krewe-monthly-kpis,.krewe-period-summary,.krewe-callin-summary,.control-summary-strip,.fleet-kpi-strip,.fleet-report-kpis,.fleet-maintenance-summary,.marketing-kpi-strip,.marketing-performance-kpis,.marketing-review-summary,.finance-kpi-strip,.finance-monthly-kpis,.finance-trend-cards,.finance-recovery-kpis,.finance-payment-summary,.schedule-summary-strip) > :is(button,article,div) > small {
   font-size: 9px; line-height: 1.2; margin: 0;
 }
 .ops-live .kpi-meter { height: 3px; min-height: 3px; margin: 0; }
@@ -44,7 +44,7 @@
   .ops-live .workspace, .ops-live .workspace.schedule-mode { padding: 8px; }
   .ops-live .workspace-heading { align-items: flex-start; gap: 6px; }
   .ops-live .workspace-heading h1 { font-size: 23px; }
-  .ops-live :is(.metric-strip,.krewe-kpi-strip,.krewe-monthly-kpis,.krewe-period-summary,.krewe-callin-summary,.control-summary-strip,.fleet-kpi-strip,.fleet-report-kpis,.fleet-maintenance-summary,.marketing-kpi-strip,.marketing-performance-kpis,.marketing-review-summary,.finance-kpi-strip,.finance-monthly-kpis,.finance-trend-cards,.finance-recovery-kpis,.finance-payment-summary,.schedule-summary-strip) { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .ops-live :is(.metric-strip,.signal-grid,.followup-overview,.calendar-selection-metrics,.krewe-kpi-strip,.krewe-monthly-kpis,.krewe-period-summary,.krewe-callin-summary,.control-summary-strip,.fleet-kpi-strip,.fleet-report-kpis,.fleet-maintenance-summary,.marketing-kpi-strip,.marketing-performance-kpis,.marketing-review-summary,.finance-kpi-strip,.finance-monthly-kpis,.finance-trend-cards,.finance-recovery-kpis,.finance-payment-summary,.schedule-summary-strip) { grid-template-columns: repeat(2,minmax(0,1fr)); }
   .ops-live .live-schedule .schedule-travel-pair { grid-template-columns: minmax(0,1fr); }
 }
 
@@ -86,3 +86,10 @@
   .ops-live .workspace-heading p { display: none; }
   .ops-live .workspace-heading { margin-bottom: 6px; }
 }
+
+.ops-live .signal-meter { height: 3px; margin: 2px 0; }
+.ops-live .signal-heading { min-height: 0; }
+.ops-live .signal-heading > span { font-size: 9px; }
+.ops-live :is(.schedule-history-shell,.schedule-followup-shell,.schedule-calendar-shell) > p { margin: 0; padding: 6px 10px; font-size: 11px; line-height: 1.4; color: #59685f; }
+.ops-live .schedule-history-shell .history-overview > button { min-height: 32px; padding: 5px 8px; }
+.ops-live .schedule-history-shell .history-empty { min-height: 100px; padding: 12px; }

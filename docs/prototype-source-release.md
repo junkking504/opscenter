@@ -360,3 +360,9 @@ failure no longer marks successful local collection as failed or triggers its
 exponential retry delay. Backup SSH connections are non-interactive and bounded
 by connection/liveness timeouts. Existing shared alert fingerprints and source
 failure handling remain in force.
+
+Krewe, Fleet, Marketing, and Finance bundles now load on first use with a
+workspace loading state that preserves the surrounding navigation. This removes
+about 114 kB of JavaScript from the initial bundle (before compression); it is
+not a measured page-load-time claim. Monitor and Follow-Up KPI variants share
+the same height, while History's filter-only controls use the compact tab height.

@@ -48,7 +48,7 @@ if [[ "$MODE" == "incremental" ]]; then
 
   # These folders are written by the VPS app. Pull them back first so the Mac
   # collector sees manual changes before it produces the next metrics file.
-  rsync -az -e "$RSYNC_RSH" --delay-updates \
+  rsync -az --timeout=30 -e "$RSYNC_RSH" --delay-updates \
     --include '/manual_bonuses/***' \
     --include '/payroll_corrections/***' \
     --include '/job-route-assignments/***' \
@@ -68,7 +68,7 @@ elif [[ "$MODE" != "initial" ]]; then
   exit 64
 fi
 
-rsync -az -e "$RSYNC_RSH" --delay-updates \
+rsync -az --timeout=30 -e "$RSYNC_RSH" --delay-updates \
   --exclude '/backups/' \
   --exclude '/audits/' \
   --exclude '/diagnostics/' \
@@ -89,7 +89,7 @@ rsync -az -e "$RSYNC_RSH" --delay-updates \
   "$LOCAL_DATA_DIR/" "$REMOTE:$REMOTE_DATA_DIR/"
 
 if [[ "$MODE" == "initial" ]]; then
-  rsync -az -e "$RSYNC_RSH" --delay-updates \
+  rsync -az --timeout=30 -e "$RSYNC_RSH" --delay-updates \
     --include '/manual_bonuses/***' \
     --include '/payroll_corrections/***' \
     --include '/job-route-assignments/***' \

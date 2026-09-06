@@ -130,5 +130,6 @@ publisher with distinct visit fingerprints and retry deduplication.
 
 All Command alert facts, owner, and next action are always visible inline. Alert
 cards have no Details disclosure; the condensed duplicate summary is omitted.
-Photos appear only on Job Closed alerts. Source and workflow action buttons remain
+Photos appear only on Job Closed and Estimate Closed alerts, and in the closed
+appointment’s Schedule record. Source and workflow action buttons remain
 available without expanding an alert.

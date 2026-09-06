@@ -398,10 +398,14 @@ async function main() {
   assert.equal(photoDigest.messages[1].photos?.length, 1, "Photo alerts display current job media without duplicate URLs");
   assert.equal(toOperationalAlert(photoDigest.messages[1]).label, "Photos Uploaded");
   assert.equal(toOperationalAlert(photoDigest.messages[1]).photos, undefined, "Upload notices do not repeat the photos shown on Job Closed");
-  for (const rawText of ["Payment recorded\nJK4000001\nPayment: Cash ($100.00)", "Truck 4 On-site\nJK4000001\n8:26 AM", "Estimate Closed\nJK4000001"]) {
-    assert.equal(toOperationalAlert({ ...photoDigest.messages[1], rawText }).photos, undefined, "Only Job Closed cards show photos");
+  for (const rawText of ["Payment recorded\nJK4000001\nPayment: Cash ($100.00)", "Truck 4 On-site\nJK4000001\n8:26 AM"]) {
+    assert.equal(toOperationalAlert({ ...photoDigest.messages[1], rawText }).photos, undefined, "Pre-closeout alerts do not show photos");
   }
 
+  const estimateClosed = toOperationalAlert({ ...photoDigest.messages[1], rawText: "Estimate Closed\nJK4000001" });
+  assert.equal(estimateClosed.label, "Estimate Closed");
+  assert.equal(estimateClosed.photos?.length, 1, "Closed estimates show their matched appointment photos");
+  assert.equal(estimateClosed.photos?.[0].category, "After");
   console.log("Slack digest verification passed.");
 }
 

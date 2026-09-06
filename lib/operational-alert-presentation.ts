@@ -172,7 +172,7 @@ export function toOperationalAlert(message: SlackDigestMessage): OperationalAler
     territory: classification.label === "New Appointment"
       ? (sourceTerritory && !/unknown|unavailable/i.test(sourceTerritory) ? sourceTerritory : channelTerritory) || "Territory unavailable"
       : undefined,
-    photos: classification.label === "Job Closed" ? message.photos : undefined,
+    photos: ["Job Closed", "Estimate Closed"].includes(classification.label) ? message.photos : undefined,
     detected: messageTime(message.timestamp),
     title: reference === "Operational alert" ? (lines[0] || "Operational Alert") : truck ? `${truck} · ${reference}` : window ? `${reference} · ${window}` : reference,
     facts: factsForAlert(message, lines),

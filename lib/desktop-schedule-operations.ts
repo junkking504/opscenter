@@ -35,7 +35,15 @@ export function parseScheduleOperation(value: unknown): ScheduleOperation {
 }
 export async function readScheduleReceipt(id: string): Promise<ScheduleReceipt | null> {
   if (!uuid.test(id)) return null;
-  try { return JSON.parse(await fs.readFile(path.join(directory(), `${id}.json`), 'utf8')); }
+  try {
+    const receipt: ScheduleReceipt = JSON.parse(await fs.readFile(path.join(directory(), `${id}.json`), 'utf8'));
+    // A process restart can interrupt a source write before its final receipt.
+    // Never imply that an abandoned request is still running or permit replay.
+    if (receipt.status === 'pending' && (!Number.isFinite(Date.parse(receipt.updatedAt)) || Date.now() - Date.parse(receipt.updatedAt) > 10 * 60_000)) {
+      return { ...receipt, status: 'uncertain', message: 'Verification did not finish. Review this appointment in JunkWare before another change; do not resubmit the change.' };
+    }
+    return receipt;
+  }
   catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null; throw error; }
 }
 export async function readPendingScheduleReceipt(recordId: string): Promise<ScheduleReceipt | null> {

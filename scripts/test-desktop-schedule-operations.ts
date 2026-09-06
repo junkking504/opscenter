@@ -51,6 +51,17 @@ async function main() {
     const other = { ...job, appointmentId: '5678', recordId: `${date}:appointment:5678` };
     const thrown = await executeScheduleOperation(operation({ recordId: other.recordId }), 'test-operator', () => other, async () => { throw new Error('Transport disconnected after submit'); });
     assert.equal(thrown.status, 'uncertain');
+    const abandonedOperation = operation({ recordId: `${date}:appointment:9012` });
+    const abandoned = { ...receipts[0], requestId: abandonedOperation.requestId, recordId: abandonedOperation.recordId, status: 'pending', updatedAt: new Date(Date.now() - 11 * 60_000).toISOString() };
+    const abandonedPath = path.join(temporary, 'receipts', `${abandoned.requestId}.json`);
+    await fs.writeFile(abandonedPath, JSON.stringify(abandoned));
+    assert.equal((await readScheduleReceipt(abandoned.requestId))?.status, 'uncertain', 'Abandoned writes must not appear to run indefinitely');
+    assert.equal(JSON.parse(await fs.readFile(abandonedPath, 'utf8')).status, 'pending', 'Read-back must preserve the original audit record');
+    const writesBefore = writes;
+    await assert.rejects(executeScheduleOperation(operation({ recordId: abandoned.recordId }), 'test-operator', () => ({ ...job, recordId: abandoned.recordId }), success), /unverified change/);
+    assert.equal(writes, writesBefore, 'Stale pending writes remain blocked against duplicate submission');
+    await fs.writeFile(abandonedPath, JSON.stringify({ ...abandoned, updatedAt: new Date().toISOString() }));
+    assert.equal((await readScheduleReceipt(abandoned.requestId))?.status, 'pending', 'An active request keeps its pending status');
     const persisted = await fs.readFile(path.join(temporary, 'receipts', `${verifiedOperation.requestId}.json`), 'utf8');
     assert.equal(persisted.includes('appointmentStartMinutes'), false, 'Do not store customer input in receipts');
     console.log('Schedule operations passed: input validation, roles, source versions, durable read-back, concurrent idempotency, separate estimate identity, closed-record safety, and unknown-result retry guard. No live writes performed.');

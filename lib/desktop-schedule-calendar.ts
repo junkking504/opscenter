@@ -3,6 +3,7 @@ import path from 'node:path';
 import { readJobRows, junkwareScheduleUpdatedAt } from './desktop-schedule-source';
 import { readJobRouteAssignmentOverrides } from './job-route-assignments';
 import { readVerifiedJobCancellations } from './job-cancellations';
+import { readScheduleReceipt } from './desktop-schedule-operations';
 import { appointmentRegion, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
 
 export function desktopCalendarDay(date: string, observedAt: string | null, jobs: Array<Pick<ScheduleAppointment, 'address' | 'territory' | 'truck'>>) {
@@ -28,8 +29,8 @@ export async function readDesktopScheduleHistory(date: string) {
   let files: string[] = [];
   try { files = await fs.readdir(directory); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   for (const file of files.filter(file => /^[a-f0-9-]{36}\.json$/i.test(file))) {
-    const entry = JSON.parse(await fs.readFile(path.join(directory, file), 'utf8'));
-    if (entry.date === date) rows.push({ id: entry.requestId, at: entry.updatedAt, appointmentId: String(entry.recordId).split(':appointment:')[1], action: entry.action, actor: entry.actor, status: entry.status, detail: entry.message });
+    const entry = await readScheduleReceipt(file.slice(0, -5));
+    if (entry?.date === date) rows.push({ id: entry.requestId, at: entry.updatedAt, appointmentId: String(entry.recordId).split(':appointment:')[1], action: entry.action, actor: entry.actor, status: entry.status, detail: entry.message });
   }
   for (const [key, entry] of readJobRouteAssignmentOverrides(date)) rows.push({ id: `assignment:${key}`, at: entry.updatedAt, appointmentId: entry.appointmentId || key.replace(/^appt:/, ''), action: 'assignment', actor: 'OpsCenter assignment service', status: entry.junkwareSyncStatus || 'unverified', detail: `${entry.truck || 'Unassigned'} · ${entry.appointmentTime || 'Time unchanged'}` });
   for (const entry of readVerifiedJobCancellations(date)) rows.push({ id: `cancellation:${entry.appointmentId}`, at: entry.canceledAt, appointmentId: entry.appointmentId, action: 'cancel', actor: 'OpsCenter cancellation service', status: 'verified', detail: entry.cancellationReason });

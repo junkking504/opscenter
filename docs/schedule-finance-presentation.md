@@ -13,15 +13,16 @@ minutes/miles. Booked windows are not moved, and traffic time is not described a
 verified visit order, service duration, or available buffer.
 
 Finance Trends shows each metric's month value, month-to-month (MTM) change, and
-cumulative year-to-date (YTD) total in the same column. In-progress months compare
-the same elapsed calendar dates with the preceding month, clamping both to the
-shorter month's day count. Full months use full-month comparisons. The exact dates
-are visible. Same-day comparisons require every daily source record and required
-metric; incomplete comparisons remain unavailable.
+year-over-year (YOY) change in the same column. August 2026 compares with August
+2025. In-progress months compare the same elapsed dates with the preceding month
+and the same month last year; each comparison independently clamps both periods
+to the shorter month's day count. Full months compare full months, including
+February in leap years. Exact dates are visible and comparison values are in
+metric tooltips.
 
-YTD sums the published monthly values from January through each row. Missing
-months or missing fields never silently become zero. Coverage is labeled partial
-when a preceding month or current dates are incomplete. Average job value and
-margin are recomputed from aggregate revenue/jobs/profit, not averages of monthly
-ratios. Operating profit retains its estimated designation. Margin changes are
-percentage points; zero comparison denominators are labeled without infinity.
+Each comparison uses complete published monthly values when available, otherwise
+requires every daily record and required metric. Missing prior-year history or
+fields remain unavailable, never zero. Average job and margin use aggregate
+revenue/jobs/profit, not averages of daily ratios. Operating profit remains an
+estimate. Margin changes are percentage points; zero comparison denominators are
+labeled without infinity. YTD totals are no longer shown in Finance Trends.

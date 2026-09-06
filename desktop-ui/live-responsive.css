@@ -64,8 +64,6 @@
 .ops-live .live-marketing .marketing-recording { white-space: nowrap; }
 .ops-live .live-marketing .marketing-outcome-actions { flex-wrap: wrap; }
 .ops-live .live-marketing .marketing-lead-status { white-space: nowrap; }
-.ops-live .live-alert-summary { margin: 0; padding: 0 10px 5px; color: #55615a; font-size: 11px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.ops-live .live-alert-details > summary { width: fit-content; margin: 0 10px 7px; color: #59685f; font-size: 10px; cursor: pointer; }
 .ops-live .live-alert-details .inline-alert-facts { gap: 8px 16px; padding: 10px; }
 .ops-live .live-alert-details .inline-alert-facts > div { display: block; padding: 0; border: 0; flex: 0 1 auto; }
 .ops-live .live-alert-details .inline-alert-facts > div > span { display: block; margin-bottom: 2px; }

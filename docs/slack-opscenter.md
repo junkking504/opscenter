@@ -127,3 +127,8 @@ Truck On-site is displayed as Arrival. Departure requires a confirmed visit with
 an explicit exit timestamp after arrival, not loss of GPS. Existing departures
 are baselined on first activation; subsequent departures use the same fast GPS
 publisher with distinct visit fingerprints and retry deduplication.
+
+All Command alert facts, owner, and next action are always visible inline. Alert
+cards have no Details disclosure; the condensed duplicate summary is omitted.
+Photos appear only on Job Closed alerts. Source and workflow action buttons remain
+available without expanding an alert.

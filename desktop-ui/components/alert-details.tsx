@@ -2,10 +2,8 @@
 import { useState, type ReactNode } from 'react';
 import type { DesktopAlert } from '../lib/live-contract';
 
-export function AlertDetails({ expanded, children }: { expanded: boolean; children: ReactNode }) {
-  return expanded
-    ? <div className="live-alert-details">{children}</div>
-    : <details className="live-alert-details"><summary>Details</summary>{children}</details>;
+export function AlertDetails({ children }: { children: ReactNode }) {
+  return <div className="live-alert-details">{children}</div>;
 }
 
 function AlertPhoto({ photo }: { photo: NonNullable<DesktopAlert['photos']>[number] }) {

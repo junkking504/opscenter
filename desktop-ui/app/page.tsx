@@ -4318,7 +4318,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   </div>
                 </div>
                 <div className="work-list">
-                  {visibleCommandAlerts.length ? visibleCommandAlerts.map((item) => { const linkedAction = linkedActionForAlert(item); const outcome = alertOutcomes[item.id]; const workflowStatus = alertWorkflowStatus(item); const briefFacts = item.facts.filter(fact => /^(customer|total|arrival|reason|context)$/i.test(fact.label)).slice(0, 2); return (
+                  {visibleCommandAlerts.length ? visibleCommandAlerts.map((item) => { const linkedAction = linkedActionForAlert(item); const outcome = alertOutcomes[item.id]; const workflowStatus = alertWorkflowStatus(item); return (
                     <article key={item.id} className={`work-row ${workflowStatus.toLowerCase().replaceAll(' ', '-')}`}>
                       <span className={`priority-mark ${item.priority}`} />
                       <div className="alert-card-main">
@@ -4333,8 +4333,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                             {!live && <Button variant="ghost" size="sm" onClick={() => openAlertRecord(item)}>Open Source</Button>}
                           </div>
                         </div>
-                        {live && item.label !== 'New Appointment' && <p className="live-alert-summary">{(briefFacts.length ? briefFacts : item.facts.slice(0, 1)).map(fact => `${fact.label}: ${fact.value}`).join(' · ') || item.context}</p>}
-                        <AlertDetails expanded={!live || item.label === 'New Appointment'}>
+                        <AlertDetails>
                         <div className="inline-alert-facts" aria-label={`${item.label} details`}>
                           {item.facts.map((fact) => (
                             <div key={fact.label}>

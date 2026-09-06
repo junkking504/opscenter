@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {desktopSourceHref, desktopAppointmentHref} from '../desktop-ui/lib/desktop-links';
+const origin='https://ops.junk-king.app';
+const job=new URL(desktopAppointmentHref('JK4000001','2026-09-06'),origin);
+assert.equal(job.pathname,'/desktop');
+assert.equal(job.searchParams.get('workspace'),'Schedule');
+assert.equal(job.searchParams.get('q'),'JK4000001');
+assert.equal(job.searchParams.get('date'),'2026-09-06');
+const legacy=new URL(desktopSourceHref('/jobs?date=2026-09-06&jk=JK4000001',origin),origin);
+assert.equal(legacy.pathname,'/desktop');assert.equal(legacy.searchParams.get('q'),'JK4000001');
+assert.equal(desktopSourceHref('https://junkware.junk-king.com/source',origin),'https://junkware.junk-king.com/source');
+assert.equal(new URL(desktopSourceHref('/fleet?truck=Truck%203',origin),origin).searchParams.get('truck'),'Truck 3');
+console.log('Desktop links preserve date, appointment reference, workspace, and external source URLs.');

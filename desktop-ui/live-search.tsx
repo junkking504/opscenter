@@ -1,14 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, Search, X } from 'lucide-react';
 import { Input } from './components/ui/input';
-export function desktopHref(href: string): string {
-  const url = new URL(href, window.location.origin);
-  if (url.origin !== window.location.origin) return url.href;
-  const workspace = ({ '/jobs': 'Schedule', '/crew': 'Krewe', '/fleet': 'Fleet', '/finance': 'Finance', '/marketing': 'Marketing', '/inbox': 'Command', '/': 'Command' } as Record<string, string>)[url.pathname];
-  if (!workspace) return url.href;
-  url.pathname = '/desktop'; url.searchParams.set('workspace', workspace); url.searchParams.set('data', 'live');
-  return url.pathname + url.search + url.hash;
-}
+import { desktopSourceHref } from './lib/desktop-links';
+export function desktopHref(href: string): string { return desktopSourceHref(href, window.location.origin); }
+
 type Result = { id: string; type: string; title: string; subtitle: string; source: string; href: string };
 export default function LiveSearch({ date, navigate, disabled, finance }: { date: string; navigate: (workspace: string) => void; disabled: boolean; finance: boolean }) {
   const [query, setQuery] = useState(''); const [open, setOpen] = useState(false); const [results, setResults] = useState<Result[]>([]); const [error, setError] = useState('');

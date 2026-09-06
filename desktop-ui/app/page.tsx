@@ -20,7 +20,8 @@ import LiveKrewe from '../live-krewe';
 import LiveFleet from '../live-fleet';
 import { LiveMarketing } from '../live-marketing';
 import { LiveFinance } from '../live-finance';
-import LiveSearch from '../live-search';
+import LiveSearch, { desktopHref } from '../live-search';
+import { desktopAppointmentHref } from '../lib/desktop-links';
 import LiveSchedule, { dateForDay } from '../live-schedule';
 import CommandMap from '../command-map';
 import { AlertDetails, AlertPhotos } from '../components/alert-details';
@@ -3155,9 +3156,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   };
   const openUnifiedJobRecord = (appointmentId: string, source = 'JunkWare', updated = 'Live') => {
     if (live) {
-      const alert = live.snapshot.alerts.find(item => item.title.includes(appointmentId));
-      if (alert?.href) window.open(alert.href, '_blank', 'noopener,noreferrer');
-      else setActionFeedback('The source record is not available in this Command snapshot.');
+      if (!mutationBusyRef.current) window.location.assign(desktopAppointmentHref(appointmentId, live.snapshot.date));
       return true;
     }
     setActionFeedback('');
@@ -3226,7 +3225,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   };
   const openAlertRecord = (item: WorkItem) => {
     setNotificationOpen(false);
-    if (live) { const href = liveAlert(item)?.href; if (href) window.open(href, '_blank', 'noopener,noreferrer'); return; }
+    if (live) { const href = liveAlert(item)?.href; if (href) window.open(desktopHref(href), '_blank', 'noopener,noreferrer'); return; }
     const appointmentId = item.title.match(/JK\d{7}/)?.[0];
     if (appointmentId && openUnifiedJobRecord(appointmentId, item.source, item.detected)) return;
     openRecordDrawer({

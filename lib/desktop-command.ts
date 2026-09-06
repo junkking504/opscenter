@@ -75,7 +75,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
       const action = actions.get(message.id);
       return {
         id: alert.id, domain: alert.domain, priority: alert.label === 'Cancellation' ? 'critical' : alert.needsAction ? 'warning' : 'watch',
-        title: alert.title, detail: '', label: alert.label, owner: alert.owner, detected: alert.detected,
+        title: alert.title, detail: '', label: alert.label, territory: alert.territory, photos: alert.photos, owner: alert.owner, detected: alert.detected,
         source: 'Slack', action: 'Open Source', context: alert.next, facts: alert.facts, href: alert.href,
         needsAction: alert.needsAction, workflowState: commandAlertState(action), version: action?.version || 0, actionId: action?.id,
       };

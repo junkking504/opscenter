@@ -13,6 +13,7 @@ import {
 } from "@/lib/slack-alerts";
 import type { AnyRecord } from "@/lib/opsData";
 import { slackEscape } from "@/lib/slack-message-format";
+import { junkwareJobPhotos, type JunkwareJobPhoto } from "@/lib/junkware-job-details";
 import {
   readClosedEstimateJunkwareRows,
   readCompletedJunkwareRows,
@@ -98,9 +99,11 @@ export type SlackDigestMessage = {
   text: string;
   threadReply: boolean;
   opsCenterHref?: string;
+  photos?: JunkwareJobPhoto[];
   appointment?: {
     title: string;
     jobNumber: string;
+    territory?: string;
     customerName: string;
     phone: string;
     appointmentTime: string;
@@ -307,6 +310,7 @@ function appointmentForSlackAlert(
   return {
     title: title.replace(/^./, (value) => value.toUpperCase()),
     jobNumber: appointment.jobNumber,
+    territory: appointment.territory,
     customerName: appointment.customerName,
     phone: appointment.phone,
     appointmentTime: appointment.appointmentTime,
@@ -560,6 +564,14 @@ function digestMessage(
   const plainText = slackTextToPlainText(rawText);
   const appointment = appointmentForSlackAlert(rawText, appointments);
   const closeout = closeoutForSlackAlert(rawText, closeouts, date);
+  const photoJobNumber = appointment?.jobNumber || closeout?.jobNumber || plainText.match(/\bJK\d{5,}\b/i)?.[0];
+  // Read current job media even when the original Slack notice predates the upload.
+  // Reuse the JunkWare media allowlist; never expose Slack private download URLs.
+  const photoKey = photoJobNumber?.toLowerCase();
+  const photos = junkwareJobPhotos({ photos: [
+    ...(photoKey ? appointments.get(`job:${photoKey}`)?.photos || [] : []),
+    ...(photoKey ? junkwareJobPhotos(closeouts.get(photoKey) || {}) : []),
+  ] });
   const text = appointment ? [
     `⚠️ ${appointment.title}: ${appointment.jobNumber}`,
     `${appointment.customerName} · ${appointment.phone} · ${appointment.appointmentTime}`,
@@ -584,6 +596,7 @@ function digestMessage(
     opsCenterHref: opsCenterHref(rawText),
     appointment,
     closeout,
+    photos,
   };
 }
 

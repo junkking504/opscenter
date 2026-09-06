@@ -603,6 +603,7 @@ assert.deepEqual(cancellationFeed.appointments[0], {
   appointmentType: "Appointment",
   assignedTruck: "Truck 4",
   items: [],
+  photos: [],
   href: "/jobs?date=2026-08-12#job-jk4025001",
   cancelledBy: "Dispatcher",
   cancellationReason: "Customer requested",

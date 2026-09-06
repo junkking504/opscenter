@@ -1,5 +1,14 @@
 # OpsCenter Slack alerts
 
+Command new-appointment cards display their complete facts without a Details
+toggle. Their badge includes the source appointment territory, with the territory
+channel as a fallback when the appointment record is unavailable. Missing
+territory is explicitly labeled. Uploaded JunkWare job photos appear as linked
+thumbnails outside the Details toggle on matching alerts, including uploads
+collected after the original notice. Media uses the existing JunkWare URL
+allowlist; private Slack download URLs are not exposed. Photo availability still
+depends on the job collector having captured the upload.
+
 OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. Confirmed LinxUp truck-arrival alerts are published separately by the one-minute LinxUp collector, immediately after visit matching. New appointments, reschedules, cancellations, and closeouts are checked by a persistent verified JunkWare schedule detector; it reads schedule pages only and does not wait for detail pages, GPS, payroll, QBO, Krewe Portal, marketing, or VPS work. It uses one browser because JunkWare serializes concurrent logins, but publishes each market immediately after that market is verified instead of waiting for the other three. A sweep starts five seconds after the preceding sweep completes. The production in-session sweep measured 17.2 seconds total and about 4.3 seconds per market, producing a roughly 22-second same-market read cadence before the five-second OpsCenter browser check. This targets about 30 seconds and keeps the operating requirement below 60 seconds. Slack is the action and escalation layer; OpsCenter remains the source of truth.
 
 ## Routing policy

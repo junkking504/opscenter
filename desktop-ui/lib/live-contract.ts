@@ -16,6 +16,8 @@ export type DesktopAlert = {
   detail: string;
   label: string;
   owner: string;
+  territory?: string;
+  photos?: Array<{ url: string; category: string; fileName: string }>;
   detected: string;
   source: string;
   action: string;

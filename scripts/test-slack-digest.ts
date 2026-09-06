@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { toOperationalAlert } from "@/lib/operational-alert-presentation";
 import {
   fetchSlackDailyDigest,
   isOperationalSlackDigestMessage,
@@ -307,6 +308,7 @@ async function main() {
       appointmentType: "Appointment",
       assignedTruck: "Truck# 1",
       items: ["Sofa", "Desk"],
+      photos: [{ url: "https://junkware.junk-king.com/system/aspnet/local/media/test-before.jpg", category: "Before", fileName: "test-before.jpg" }],
       href: "/jobs?date=2026-08-14#job-jk4052608",
     }],
     completedRows: [{
@@ -319,6 +321,11 @@ async function main() {
       revenue: "$358.00",
       tip: "$71.60",
       final_status: "Completed",
+      photos: [
+        { url: "https://junkware.junk-king.com/system/aspnet/local/media/test-after.jpg", category: "After" },
+        { url: "https://example.com/untrusted.jpg" },
+        { url: "javascript:alert(1)" },
+      ],
       closeout: {
         loadSize: "2 (1/3)",
         loadPrice: "$388.00",
@@ -351,6 +358,18 @@ async function main() {
   assert.equal(digest.messages[3].appointment?.jobNumber, "JK4052608");
   assert.equal(digest.messages[3].appointment?.phone, "(504) 555-0100");
   assert.deepEqual(digest.messages[3].appointment?.items, ["Sofa", "Desk"]);
+  assert.equal(digest.messages[3].appointment?.territory, "New Orleans");
+  assert.equal(toOperationalAlert(digest.messages[3]).territory, "New Orleans");
+  assert.equal(toOperationalAlert(digest.messages[3]).facts.filter(fact => /^items$/i.test(fact.label)).length, 1, "Do not repeat Items from the source and Slack message");
+  assert.equal(toOperationalAlert({ ...digest.messages[3], appointment: { ...digest.messages[3].appointment!, territory: "Jefferson Parish" } }).territory, "Jefferson Parish", "Source territory takes precedence over routing channel");
+  assert.equal(toOperationalAlert({ ...digest.messages[3], appointment: { ...digest.messages[3].appointment!, territory: "Unknown territory" } }).territory, "New Orleans");
+  assert.equal(toOperationalAlert(digest.messages[1]).territory, undefined, "Cancellation keeps its own heading");
+  assert.equal(digest.messages[3].photos?.length, 1);
+  assert.equal(digest.messages[2].photos?.length, 1, "Only trusted job media is exposed");
+  assert.equal(toOperationalAlert(digest.messages[2]).photos?.[0].category, "After");
+  const unmatchedAppointment = { ...digest.messages[3], appointment: undefined };
+  assert.equal(toOperationalAlert(unmatchedAppointment).territory, "New Orleans", "Channel fallback when source record is unavailable");
+  assert.equal(toOperationalAlert({ ...unmatchedAppointment, channel: "#dispatch" }).territory, "Territory unavailable");
   assert.equal(digest.messages[3].appointment?.href, "/jobs?date=2026-08-14#job-jk4052608");
   assert.match(digest.messages[3].rawText, /^:warning: \*New Appointment\*/);
   assert.doesNotMatch(digest.messages[3].text, /Alert ID|Truck# 1|Open in OpsCenter/);
@@ -359,6 +378,22 @@ async function main() {
   assert.equal(requests.filter((request) => request.pathname.endsWith("conversations.history")).length, 2);
   assert.ok(requests.every((request) => request.searchParams.get("oldest") === "1786683600"));
   assert.ok(requests.every((request) => request.searchParams.has("latest")));
+
+  const photoDigest = await fetchSlackDailyDigest("2026-08-14", {
+    token: "xoxb-test-token", channelIds: ["C0BQNEV0GFJ"], appointments: [],
+    completedRows: [{ job_id: "JK4000001", photos: [
+      { url: "https://junkware.junk-king.com/system/aspnet/local/media/upload-after.jpg", category: "After" },
+      { url: "https://junkware.junk-king.com/system/aspnet/local/media/upload-after.jpg", category: "After" },
+    ] }],
+    fetchImpl: (async () => Response.json({ ok: true, messages: [
+      { ts: "1786719000.000003", text: ":camera_with_flash: *Photos Uploaded*\nJK4000001\n1 photo\nVerified" },
+      { ts: "1786719001.000004", text: ":camera_with_flash: *Photos Uploaded*\nJK4000002\n1 photo\nPending" },
+    ] })) as typeof fetch,
+  });
+  assert.equal(photoDigest.messages[0].photos?.length, 0, "Never attach another job's photos");
+  assert.equal(photoDigest.messages[1].photos?.length, 1, "Photo alerts display current job media without duplicate URLs");
+  assert.equal(toOperationalAlert(photoDigest.messages[1]).label, "Photos Uploaded");
+  assert.equal(toOperationalAlert(photoDigest.messages[1]).photos?.[0].category, "After");
 
   console.log("Slack digest verification passed.");
 }

@@ -23,12 +23,15 @@ import { LiveFinance } from '../live-finance';
 import LiveSearch from '../live-search';
 import LiveSchedule, { dateForDay } from '../live-schedule';
 import CommandMap from '../command-map';
+import { AlertDetails, AlertPhotos } from '../components/alert-details';
 
 type Priority = 'critical' | 'warning' | 'watch';
 type AppointmentLoadStream = 'mixed' | 'metal' | 'donation';
 type WorkItem = {
   id: number | string; domain: string; priority: Priority; title: string; detail: string;
   label: string; owner: string; detected: string; source: string; action: string; context: string;
+  territory?: string;
+  photos?: Array<{ url: string; category: string; fileName: string }>;
   facts: Array<{ label: string; value: string; wide?: boolean; href?: string }>;
 };
 type AlertViewFilter = 'open' | 'action' | 'control' | 'acknowledged' | 'resolved' | 'all';
@@ -4321,7 +4324,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                       <div className="alert-card-main">
                         <div className="alert-card-heading">
                           <div className="work-copy">
-                            <div className="work-meta"><Badge variant="outline" className={`priority-badge ${item.priority}`}>{item.label}</Badge><span>{item.domain}</span><span>·</span><span>{item.detected}</span><span className={`alert-workflow-status ${workflowStatus.toLowerCase().replaceAll(' ', '-')}`}>{workflowStatus}</span></div>
+                            <div className="work-meta"><Badge variant="outline" className={`priority-badge ${item.priority}`}>{item.label}{item.label === 'New Appointment' && ` · ${item.territory || 'Territory unavailable'}`}</Badge><span>{item.domain}</span><span>·</span><span>{item.detected}</span><span className={`alert-workflow-status ${workflowStatus.toLowerCase().replaceAll(' ', '-')}`}>{workflowStatus}</span></div>
                             <h3>{renderLinkedJkText(item.title, item.source, item.detected)}</h3>
                           </div>
                           <div className="alert-card-actions">
@@ -4330,9 +4333,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                             {!live && <Button variant="ghost" size="sm" onClick={() => openAlertRecord(item)}>Open Source</Button>}
                           </div>
                         </div>
-                        {live && <p className="live-alert-summary">{(briefFacts.length ? briefFacts : item.facts.slice(0, 1)).map(fact => `${fact.label}: ${fact.value}`).join(' · ') || item.context}</p>}
-                        <details className="live-alert-details" open={live ? undefined : true}>
-                        {live && <summary>Details</summary>}
+                        {live && item.label !== 'New Appointment' && <p className="live-alert-summary">{(briefFacts.length ? briefFacts : item.facts.slice(0, 1)).map(fact => `${fact.label}: ${fact.value}`).join(' · ') || item.context}</p>}
+                        <AlertDetails expanded={!live || item.label === 'New Appointment'}>
                         <div className="inline-alert-facts" aria-label={`${item.label} details`}>
                           {item.facts.map((fact) => (
                             <div key={fact.label}>
@@ -4345,7 +4347,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                           <div><span>Owner</span><strong>{item.owner}</strong></div>
                           <div className="next-step"><span>{outcome ? 'Verified' : 'Next'}</span><strong>{outcome?.resolution || item.context}</strong>{outcome && <em>{outcome.source} · {outcome.time}</em>}</div>
                         </div>
-                        </details>
+                        </AlertDetails>
+                        <AlertPhotos photos={item.photos} />
                       </div>
                     </article>
                   ); }) : <div className="empty-state">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Slack alerts unavailable</strong><span>Alert counts are unknown until the source refreshes. This does not confirm that there are no alerts.</span></> : <><Check size={22} /><strong>No alerts in this view</strong><span>Choose another workflow state or clear the search.</span></>}</div>}

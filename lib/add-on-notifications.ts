@@ -2,7 +2,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { appointmentTerritoryForLocation } from "@/lib/appointment-territory";
-import { appointmentNotes } from "@/lib/junkware-job-details";
+import { appointmentNotes, junkwareJobPhotos, type JunkwareJobPhoto } from "@/lib/junkware-job-details";
 import { AnyRecord, readMetrics } from "@/lib/opsData";
 
 export type AddOnAppointment = {
@@ -17,6 +17,7 @@ export type AddOnAppointment = {
   appointmentType: string;
   assignedTruck: string;
   items: string[];
+  photos?: JunkwareJobPhoto[];
   href: string;
 };
 
@@ -111,6 +112,7 @@ function appointmentFromRow(row: AnyRecord, date: string): AddOnAppointment {
     appointmentType: firstText(row, ["appointment_type", "type"], "Appointment"),
     assignedTruck: firstText(row, ["assigned_truck", "truck", "truck_number"], "Unassigned"),
     items: appointmentItemDescriptions(row),
+    photos: junkwareJobPhotos(row),
     href: `/jobs?date=${encodeURIComponent(date)}${anchorValue ? `#job-${jobAnchor(anchorValue)}` : ""}`,
   };
 }

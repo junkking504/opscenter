@@ -77,3 +77,16 @@
   .ops-live .alert-card-heading { flex-wrap: wrap; }
   .ops-live .alert-card-actions { flex-wrap: wrap; }
 }
+.ops-live .alert-photo-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 180px));
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid var(--border);
+}
+.ops-live .alert-photo-gallery a { min-width: 0; display: flex; flex-direction: column; gap: 4px; color: #55615a; font-size: 11px; }
+.ops-live .alert-photo-gallery img,
+.ops-live .alert-photo-unavailable { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; border-radius: 4px; background: #e9ede9; }
+.ops-live .alert-photo-unavailable { display: grid; place-content: center; padding: 8px; }
+.ops-live .work-meta { flex-wrap: wrap; }
+.ops-live .work-meta .priority-badge { height: auto; min-height: 18px; white-space: normal; }

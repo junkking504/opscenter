@@ -8,6 +8,8 @@ export type EssentialFact = { label: string; value: string; href?: string };
 export type OperationalAlert = {
   id: string;
   label: string;
+  territory?: string;
+  photos?: SlackDigestMessage["photos"];
   domain: string;
   detected: string;
   title: string;
@@ -105,8 +107,8 @@ export function factsForAlert(message: SlackDigestMessage, lines: string[]): Ess
       { label: "Customer", value: message.appointment.customerName || "Not provided" },
       { label: "Phone", value: message.appointment.phone || "Not provided", href: message.appointment.phone ? `tel:${message.appointment.phone.replace(/[^\d+]/g, "")}` : undefined },
       { label: "Service Address", value: message.appointment.address || "Not provided", href: message.appointment.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(message.appointment.address)}` : undefined },
-      { label: "Items", value: message.appointment.items?.join(", ") || "Not listed" },
-      ...labeledFacts,
+      { label: "Items", value: message.appointment.items?.join(", ") || labeledFacts.find(fact => /^items$/i.test(fact.label))?.value || "Not listed" },
+      ...labeledFacts.filter(fact => !/^items$/i.test(fact.label)),
     ];
   }
 
@@ -160,9 +162,15 @@ export function toOperationalAlert(message: SlackDigestMessage): OperationalAler
     const url = new URL(href);
     if (url.protocol === "https:" && url.hostname === "ops.junk-king.app") href = `${url.pathname}${url.search}${url.hash}`;
   } catch { /* App-relative links already point at the current runtime. */ }
+  const sourceTerritory = message.appointment?.territory?.trim();
+  const channelTerritory = ({ "#new-orleans": "New Orleans", "#baton-rouge": "Baton Rouge", "#northshore": "Northshore" } as Record<string, string>)[message.channel];
   return {
     id: message.id,
     ...classification,
+    territory: classification.label === "New Appointment"
+      ? (sourceTerritory && !/unknown|unavailable/i.test(sourceTerritory) ? sourceTerritory : channelTerritory) || "Territory unavailable"
+      : undefined,
+    photos: message.photos,
     detected: messageTime(message.timestamp),
     title: reference === "Operational alert" ? (lines[0] || "Operational Alert") : truck ? `${truck} · ${reference}` : window ? `${reference} · ${window}` : reference,
     facts: factsForAlert(message, lines),

@@ -7,6 +7,20 @@ type Payload = { status?: string; results?: Result[] };
 export type AddressVerification = { location: PlanningLocation | null; reason: string };
 const aliases: Record<string,string> = { STREET:'ST',ROAD:'RD',AVENUE:'AVE',DRIVE:'DR',LANE:'LN',COURT:'CT',BOULEVARD:'BLVD',HIGHWAY:'HWY',PLACE:'PL',PARKWAY:'PKWY',TERRACE:'TER',CIRCLE:'CIR',TRAIL:'TRL',NORTH:'N',SOUTH:'S',EAST:'E',WEST:'W' };
 const normalize = (text: string) => text.toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim().split(/\s+/).map(word=>aliases[word]||word).join(' ');
+const normalizeRouteName = (text: string) => normalize(text).replace(/\bS NORMAN FRANCIS PKWY\b/g, 'S NORMAN C FRANCIS PKWY');
+
+function matchesStreet(requested: string, house: string, street: string, city: string) {
+  const matched = normalizeRouteName(`${house} ${street}`);
+  const input = normalizeRouteName(requested);
+  if (input === matched || input.startsWith(`${matched} `)) return true;
+  // JunkWare sometimes omits the road type ("824 Pontalba New Orleans").
+  // Accept that omission only when the complete returned city follows the
+  // complete street name. Never accept a street-name prefix or guessed suffix.
+  const shortened = matched.replace(/ (ST|RD|AVE|DR|LN|CT|BLVD|HWY|PL|PKWY|TER|CIR|TRL)$/, '');
+  if (shortened === matched || !city) return false;
+  const addressThroughCity = `${shortened} ${normalize(city)}`;
+  return input === addressThroughCity || input.startsWith(`${addressThroughCity} `);
+}
 
 // Match returned components, never a city centroid or a nearby street/house.
 export function verifyGoogleAddress(address: string, payload: Payload): AddressVerification {
@@ -21,9 +35,9 @@ export function verifyGoogleAddress(address: string, payload: Payload): AddressV
   const requested=normalize(address);
   const requestedHouse=requested.match(/\b\d+[A-Z]?\b/);
   const requestedStreet=requestedHouse ? requested.slice(requestedHouse.index) : '';
-  const matchedStreet=house&&street?normalize(`${house} ${street}`):'';
+  const streetMatches=house&&street&&matchesStreet(requestedStreet,house,street,component('locality')?.long_name||'');
   const point=result.geometry?.location;
-  if(result.partial_match || !matchedStreet || !(requestedStreet===matchedStreet || requestedStreet.startsWith(`${matchedStreet} `)) || !expectedZip || zip!==expectedZip || component('administrative_area_level_1')?.short_name!=='LA' || component('country')?.short_name!=='US') return {location:null,reason:'Address Needs Exact House, Street, And ZIP Match'};
+  if(result.partial_match || !streetMatches || !expectedZip || zip!==expectedZip || component('administrative_area_level_1')?.short_name!=='LA' || component('country')?.short_name!=='US') return {location:null,reason:'Address Needs Exact House, Street, And ZIP Match'};
   if(!['ROOFTOP','RANGE_INTERPOLATED'].includes(result.geometry?.location_type||'') || !point || !Number.isFinite(point.lat) || !Number.isFinite(point.lng) || point.lat<29 || point.lat>31.3 || point.lng< -93 || point.lng> -89.4) return {location:null,reason:'Precise Service Location Unavailable'};
   return {location:{latitude:point.lat,longitude:point.lng},reason:'Google House, Street, And ZIP Verified'};
 }

@@ -77,6 +77,28 @@ publish_verified_closeout_alerts() {
   )
 }
 
+# Alert delivery follows the verified local snapshot, never backup availability.
+publish_due_slack_alerts() {
+  local force="${1:-false}"
+  local started
+  started=$(date +%s)
+  [[ "${SLACK_OPSCENTER_ALERTS_ENABLED:-false}" =~ ^(1|true|yes|on)$ ]] || return 0
+  if [ "$force" != true ] && [ $((started - LAST_SLACK_ALERT_RUN)) -lt "$SLACK_ALERT_MIN_INTERVAL_SECONDS" ]; then
+    return 0
+  fi
+  if [ -z "${SLACK_BOT_TOKEN:-}" ]; then
+    SLACK_BOT_TOKEN=$(/usr/bin/security find-generic-password -a opscenter -s com.opscenter.slack-bot-token -w 2>/dev/null || true)
+    export SLACK_BOT_TOKEN
+  fi
+  (
+    cd "$OPSCENTER_DIR" || exit 1
+    OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" \
+      SLACK_OPSCENTER_STATE_FILE="$OPSBOT_DIR/data/slack/ops_alert_state.json" \
+      node --import tsx scripts/publish-slack-alerts.ts --date "$TODAY"
+  ) || echo "WARNING: OpsCenter Slack alert publish failed."
+  LAST_SLACK_ALERT_RUN=$(date +%s)
+}
+
 queue_sms_refresh_date() {
   local schedule_date="$1"
   [[ "$schedule_date" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || return 0
@@ -197,6 +219,8 @@ do
     publish_verified_closeout_alerts \
       || echo "WARNING: verified JunkWare closeout alert publish failed."
 
+    publish_due_slack_alerts true
+
     auto_virtualize_external_bookings "$TODAY" \
       || echo "WARNING: new external-booking Virtual Truck assignment is pending retry."
     python3 "$OPSCENTER_DIR/scripts/reconcile-junkware-monthly.py" \
@@ -234,32 +258,19 @@ do
     ) || echo "WARNING: SearchKings refresh failed; retaining the last verified marketing snapshot."
     # Mission Control owns app state. The one-way mode publishes to the retired
     # VPS without importing stale copies over new Mission Control writes.
+    # A backup failure must not back off successful local source collection.
+    if [ "$CYCLE_COMPLETE" = true ]; then
+      PUBLISH_SUCCEEDED=true
+    fi
     if ! env \
       OPSCENTER_VPS="$OPSCENTER_VPS" \
       OPSCENTER_SSH_KEY="$OPSCENTER_SSH_KEY" \
       "$OPSCENTER_DIR/deploy/vps/sync-data.sh" initial; then
       echo "WARNING: VPS data sync failed; the VPS will retain its last verified snapshot."
-    elif [ "$CYCLE_COMPLETE" = true ]; then
-      PUBLISH_SUCCEEDED=true
     fi
   fi
 
-  SLACK_ALERT_RUN_STARTED=$(date +%s)
-  if [[ "${SLACK_OPSCENTER_ALERTS_ENABLED:-false}" =~ ^(1|true|yes|on)$ ]] \
-    && { [ "$PUBLISH_SUCCEEDED" = true ] || [ $((SLACK_ALERT_RUN_STARTED - LAST_SLACK_ALERT_RUN)) -ge "$SLACK_ALERT_MIN_INTERVAL_SECONDS" ]; }; then
-    if [ -z "${SLACK_BOT_TOKEN:-}" ]; then
-      SLACK_BOT_TOKEN=$(/usr/bin/security find-generic-password \
-        -a opscenter \
-        -s com.opscenter.slack-bot-token \
-        -w 2>/dev/null || true)
-      export SLACK_BOT_TOKEN
-    fi
-    (
-      cd "$OPSCENTER_DIR" || exit 1
-      node --import tsx scripts/publish-slack-alerts.ts --date "$TODAY"
-    ) || echo "WARNING: OpsCenter Slack alert publish failed."
-    LAST_SLACK_ALERT_RUN=$(date +%s)
-  fi
+  publish_due_slack_alerts
 
   TOMORROW_SCHEDULE="$OPSBOT_DIR/data/history/junkware/junkware_live_${TOMORROW}_summary.csv"
   TOMORROW_SCHEDULE_AGE=$TOMORROW_REFRESH_INTERVAL_SECONDS

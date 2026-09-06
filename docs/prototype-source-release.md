@@ -346,3 +346,17 @@ plural reader intentionally also returns other trucks and cannot be indexed at
 zero for writes. LinxUp's zero placeholder is excluded from physical truck rows
 and mapping warnings. Cancellation contact-cell overflow is separated from the
 customer name and retained under appointment notes.
+
+The September 6 follow-up also normalizes narrow-screen navigation and subpage
+table spacing. Address verification accepts an omitted terminal road type only
+when the complete matching locality immediately follows the street name, plus
+the known South Norman C. Francis Parkway naming variation. The unique,
+non-partial result, matching house and ZIP, state/country, and precise geometry
+checks remain required. Source addresses are never rewritten.
+
+The collector publishes the general Slack pass immediately after the verified
+local refresh, before accounting, marketing, and backup synchronization. Backup
+failure no longer marks successful local collection as failed or triggers its
+exponential retry delay. Backup SSH connections are non-interactive and bounded
+by connection/liveness timeouts. Existing shared alert fingerprints and source
+failure handling remain in force.

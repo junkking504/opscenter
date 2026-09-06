@@ -4,8 +4,8 @@ set -euo pipefail
 REMOTE="${OPSCENTER_VPS:-}"
 REMOTE_ROOT="${OPSCENTER_REMOTE_ROOT:-/srv/opscenter}"
 SSH_KEY="${OPSCENTER_SSH_KEY:-}"
-SSH_ARGS=()
-RSYNC_RSH="ssh"
+SSH_ARGS=(-o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=10 -o ServerAliveCountMax=2)
+RSYNC_RSH="ssh -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=10 -o ServerAliveCountMax=2"
 LOCAL_DATA_INPUT="${OPSBOT_DATA_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)/data}"
 MODE="${1:-incremental}"
 
@@ -24,8 +24,8 @@ if [[ -n "$SSH_KEY" ]]; then
     echo "SSH key does not exist: $SSH_KEY" >&2
     exit 66
   fi
-  SSH_ARGS=(-i "$SSH_KEY")
-  printf -v RSYNC_RSH 'ssh -i %q' "$SSH_KEY"
+  SSH_ARGS+=(-i "$SSH_KEY")
+  printf -v RSYNC_RSH '%s -i %q' "$RSYNC_RSH" "$SSH_KEY"
 fi
 
 if [[ ! -d "$LOCAL_DATA_INPUT" ]]; then

@@ -12,4 +12,13 @@ assert.equal(verifyGoogleAddress('100 Example Street, New Orleans, LA 70125',{st
 assert.equal(verifyGoogleAddress('100 Example Street, New Orleans, LA 70125',{status:'OK',results:[result,result]}).location,null);
 assert.equal(verifyGoogleAddress('100 Example Street, New Orleans, LA 70125',{status:'OK',results:[{...result,geometry:{...result.geometry,location_type:'APPROXIMATE'}}]}).location,null);
 assert.equal(verifyGoogleAddress('100 Example Street, New Orleans, LA 70125',{status:'REQUEST_DENIED'}).reason,'Geocoding REQUEST_DENIED');
+const cityResult={...result,address_components:[...result.address_components,component('locality','New Orleans')]};
+assert.ok(verifyGoogleAddress('100 Example New Orleans, LA 70125',{status:'OK',results:[cityResult]}).location,'An omitted road type is safe with the exact following city');
+assert.equal(verifyGoogleAddress('100 Example Other City, LA 70125',{status:'OK',results:[cityResult]}).location,null);
+assert.equal(verifyGoogleAddress('100 Example Heights New Orleans, LA 70125',{status:'OK',results:[cityResult]}).location,null,'Do not accept a different street sharing a prefix');
+assert.equal(verifyGoogleAddress('100 Example New Orleans, LA 70124',{status:'OK',results:[cityResult]}).location,null);
+assert.equal(verifyGoogleAddress('100 Example New Orleans, LA 70125',{status:'OK',results:[{...cityResult,partial_match:true}]}).location,null);
+const renamedRoute={...cityResult,address_components:cityResult.address_components.map(c=>c.types.includes('route')?component('route','South Norman C. Francis Parkway'):c)};
+assert.ok(verifyGoogleAddress('100 South Norman Francis Parkway, New Orleans, LA 70125',{status:'OK',results:[renamedRoute]}).location);
+assert.equal(verifyGoogleAddress('100 North Norman Francis Parkway, New Orleans, LA 70125',{status:'OK',results:[renamedRoute]}).location,null,'Direction remains significant');
 console.log('Address verification: exact house/street/ZIP, aliases, business prefixes, partial matches, ambiguous results, and provider failure passed.');

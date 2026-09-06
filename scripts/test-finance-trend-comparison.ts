@@ -14,4 +14,6 @@ const missing=financeTrendComparisons(months,d=>d==='2026-08-03'?null:read(d))['
 const zero=financeTrendComparisons([month('2026-01',0,0)],()=>null)['2026-01'];assert.equal(zero.ytd.averageJob,null);assert.equal(zero.ytd.margin,null);assert.equal(zero.priorStart,'2025-12-01');
 const leap=financeTrendComparisons([{...month('2024-03',100,1,false),dataThroughDate:'2024-03-31'}],read)['2024-03'];assert.equal(leap.currentEnd,'2024-03-29');assert.equal(leap.priorEnd,'2024-02-29');
 assert.equal(financeTrendComparisons(months.map(m=>m.monthKey==='2026-09'?{...m,missingDates:['2026-09-03']}:m),read)['2026-09'].ytdComplete,false);
+const byMarket=financeTrendComparisons(months,()=>({total_revenue:250,sales:200,jobs_by_market:{NO:2,BR:3},total_expenses:100,net_profit:150}))['2026-09'];
+assert.equal(byMarket.current.jobs,30);assert.equal(byMarket.current.revenue,1500);assert.equal(byMarket.current.averageJob,50);
 console.log('Finance matched-date comparisons, weighted YTD, missing history, zero denominators and leap dates passed.');

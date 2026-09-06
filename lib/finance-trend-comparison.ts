@@ -17,7 +17,14 @@ export function financeTrendComparisons(months: Month[], read: (date: string) =>
       const entries = rows.map(row => row ? finite(get(row)) : null);
       return entries.some(v => v == null) ? null : entries.reduce<number>((a,v) => a + v!, 0);
     };
-    return values(sum(r => r.sales ?? r.total_revenue ?? r.gross_revenue), sum(r => r.completed_jobs ?? r.total_jobs ?? r.jobs_completed), sum(r => r.total_expenses), sum(r => r.net_profit));
+    return values(sum(r => r.total_revenue ?? r.gross_revenue ?? r.sales), sum(r => {
+      const market = r.jobs_by_market;
+      if (market && typeof market === 'object' && !Array.isArray(market) && Object.keys(market).length) {
+        const counts = Object.values(market).map(finite);
+        return counts.some(v=>v==null) ? null : counts.reduce<number>((a,v)=>a+v!,0);
+      }
+      return r.completed_jobs ?? r.total_jobs ?? r.jobs_completed;
+    }), sum(r => r.total_expenses), sum(r => r.net_profit));
   };
   return Object.fromEntries(months.map(month => {
     const [year, number] = month.monthKey.split('-').map(Number);

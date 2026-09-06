@@ -1,3 +1,5 @@
+import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
+import { readScheduleVisits } from './desktop-schedule-visits';
 import fs from "fs";
 import { createHash } from "node:crypto";
 import { buildDailyPaymentReconciliation } from "./payment-reconciliation";
@@ -733,6 +735,7 @@ export function formatTruckCloseoutSlackNotification(
     `*Driver:*${driver ? ` ${slackEscape(driver)}` : ""}`,
     `*Navigator:*${navigator ? ` ${slackEscape(navigator)}` : ""}`,
     ...detailLines,
+    ...onsiteTimeFacts(appointmentOnsiteTime({appointmentId:firstText(row,['appointment_id','appt_id','appointmentId']),jkNumber:jobNumber,truck:closeoutTruck(row)},readScheduleVisits(date).visits)).map(fact => `*${slackEscape(fact.label)}:* ${slackEscape(fact.value)}`),
     ...(kind === "job_closed" ? closeoutPaymentFacts(row, buildDailyPaymentReconciliation(date)).map(fact => `*${slackEscape(fact.label)}:* ${slackEscape(fact.value)}`) : []),
   ].filter(Boolean).join("\n");
 }
@@ -1008,6 +1011,7 @@ function buildTruckVisitSlackNotifications(date: string, rows: AnyRecord[], kind
         slackEscape(customerName),
         slackPhoneLink(phone),
         slackEscape(address),
+        ...(kind === "truck_departure" ? onsiteTimeFacts(appointmentOnsiteTime({appointmentId,truck},[{...row,visit_intervals:intervals.filter((interval: AnyRecord) => interval.departure === arrival)}])).filter(f=>f.label==='On-site time').map(f=>`*${f.label}:* ${slackEscape(f.value)}`) : []),
       ].filter(Boolean).join("\n");
       notifications.push({
         fingerprint,

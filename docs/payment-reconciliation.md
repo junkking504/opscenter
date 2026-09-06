@@ -45,3 +45,17 @@ Matching is one-to-one and intentionally conservative:
 - The encryption key and Intuit application credentials are loaded from macOS Keychain and are never logged.
 - A failed refresh retains the last verified reconciliation and reports the API error; it never labels stale totals as current.
 - Disconnect revokes the Intuit refresh token before clearing the encrypted local token file.
+
+## Desktop Payments tender coverage
+
+Finance → Payments combines the card reconciliation feed with cash and check
+payment rows from the selected day's JunkWare appointment closeouts. Completed
+records take precedence over duplicate schedule copies; individual split tenders
+remain separate. Check numbers retain their source text and leading zeroes. An
+absent check number is explicitly unavailable.
+
+Recorded Payments includes displayed card, cash, and check tenders. Cash/check
+rows are marked Recorded, with no claim that a bank deposit or QBO match has been
+verified. Card Payments and Card Difference retain the existing card-only QBO
+reconciliation. Job Difference compares all closeout tenders with job revenue
+plus tip; split-tender tips are not invented or repeated per payment.

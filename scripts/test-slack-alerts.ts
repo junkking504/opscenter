@@ -407,6 +407,7 @@ assert.deepEqual(
         "*Tips:* $50.80",
         "*Total:* $508.00",
         "*Card Ending:* 3013",
+        "*On-site time:* Unavailable · no confirmed visit",
         "*Payment:* Card ending 3013 ($558.80)",
         "*Card verification:* Awaiting QuickBooks verification",
       ].join("\n"),
@@ -422,6 +423,7 @@ assert.deepEqual(
         "*Navigator:* Navigator Six",
         "*Tips:*",
         "*Check:* #1487 ($198.00)",
+        "*On-site time:* Unavailable · no confirmed visit",
         "*Payment:* Check #1487 ($198.00)",
       ].join("\n"),
     },
@@ -437,6 +439,7 @@ assert.deepEqual(
         "*Tips:* $15.00",
         "*Card Ending:* 4242",
         "*Cash:* ($50.00)",
+        "*On-site time:* Unavailable · no confirmed visit",
         "*Payment:* Card ending 4242 ($100.00); Cash ($50.00)",
         "*Card verification:* Awaiting QuickBooks verification",
       ].join("\n"),
@@ -451,6 +454,7 @@ assert.deepEqual(
         "*Driver:* Driver Four",
         "*Navigator:* Navigator Four",
         "*Tips:*",
+        "*On-site time:* Unavailable · no confirmed visit",
         "*Payment:* Not recorded",
       ].join("\n"),
     },
@@ -495,6 +499,7 @@ assert.deepEqual(
       "*Discount:* $30.00",
       "*Tips:*",
       "*Total:* $358.00",
+      "*On-site time:* Unavailable · no confirmed visit",
     ].join("\n"),
   }],
 );
@@ -572,6 +577,8 @@ assert.deepEqual(
 
 const visit={appointment_id:'503',jk_number:'JK4051503',truck_number:'Truck 6',visit_count:1,match_confidence:'confirmed',visit_intervals:[{arrival:'2026-08-12T18:00:00Z',departure:'2026-08-12T18:20:00Z'}]};
 assert.equal(buildTruckDepartureSlackNotifications('2026-08-12',[visit]).length,1);
+assert.match(formatSlackAlert(buildTruckDepartureSlackNotifications('2026-08-12',[visit])[0]), /On-site time:\* 20 min/);
+assert.match(formatSlackAlert(buildTruckDepartureSlackNotifications('2026-08-12',[{...visit,visit_intervals:[...visit.visit_intervals,{arrival:'2026-08-12T19:00:00Z',departure:null}]}])[0]), /On-site time:\* 20 min/);
 for(const invalid of [{...visit,match_confidence:'probable'},{...visit,pass_by_only:true},{...visit,visit_intervals:[{arrival:'2026-08-12T18:00:00Z',departure:null}]},{...visit,visit_intervals:[{arrival:'2026-08-12T18:00:00Z',departure:'2026-08-12T17:00:00Z'}]},{...visit,visit_intervals:[{arrival:'2026-08-12T18:00:00Z',departure:'2099-08-12T18:20:00Z'}]}]) assert.equal(buildTruckDepartureSlackNotifications('2026-08-12',[invalid]).length,0);
 assert.equal(buildTruckDepartureSlackNotifications('2026-08-12',[visit,visit]).length,1);
 
@@ -768,6 +775,7 @@ try {
       "*Tips:* $20.00",
       "*Total:* $220.00",
       "*Check:* #2201 ($220.00)",
+        "*On-site time:* Unavailable · no confirmed visit",
         "*Payment:* Check #2201 ($220.00)",
     ].join("\n"),
   ]);
@@ -784,6 +792,7 @@ try {
       "*Tips:* $20.00",
       "*Total:* $220.00",
       "*Check:* #2201 ($220.00)",
+        "*On-site time:* Unavailable · no confirmed visit",
         "*Payment:* Check #2201 ($220.00)",
     ].join("\n"),
     [
@@ -795,6 +804,7 @@ try {
       "*Load:* $180.00 (1/4)",
       "*Tips:*",
       "*Total:* $180.00",
+      "*On-site time:* Unavailable · no confirmed visit",
     ].join("\n"),
   ]);
 
@@ -810,6 +820,7 @@ try {
       "*Tips:* $20.00",
       "*Total:* $220.00",
       "*Check:* #2201 ($220.00)",
+        "*On-site time:* Unavailable · no confirmed visit",
         "*Payment:* Check #2201 ($220.00)",
     ].join("\n"),
     [
@@ -821,6 +832,7 @@ try {
       "*Load:* $180.00 (1/4)",
       "*Tips:*",
       "*Total:* $180.00",
+      "*On-site time:* Unavailable · no confirmed visit",
     ].join("\n"),
   ]);
 
@@ -871,6 +883,7 @@ try {
     "*Tips:* $10.00",
     "*Total:* $110.00",
     "*Card Ending:* 1503",
+    "*On-site time:* Unavailable · no confirmed visit",
     "*Payment:* Card ending 1503 ($110.00)",
     "*Card verification:* Awaiting QuickBooks verification",
   ].join("\n"));

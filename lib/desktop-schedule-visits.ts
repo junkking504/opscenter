@@ -1,3 +1,4 @@
+import { appointmentOnsiteTime } from './appointment-onsite-time';
 import fs from 'node:fs';
 import path from 'node:path';
 import { withAppointmentVisitConfirmations } from '@/lib/appointment-visit-confirmations';
@@ -33,5 +34,5 @@ export function scheduleVisitState(
     const departure = latest ? latest.departure : row.final_departure || row.departure_at;
     return Number.isFinite(Date.parse(arrival || '')) && Date.parse(arrival) <= now && !departure;
   });
-  return { hasVisit: confirmed.length > 0, truckOnSite };
+  return { hasVisit: confirmed.length > 0, truckOnSite, onsiteTime: appointmentOnsiteTime(job, visits, now) };
 }

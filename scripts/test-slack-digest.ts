@@ -178,6 +178,7 @@ async function main() {
       "*Tips:* $71.60",
       "*Total:* $358.00",
       "*Card Ending:* 9896",
+        "*On-site time:* Unavailable · no confirmed visit",
       "*Payment:* Card ending 9896 ($429.60)",
       "*Card verification:* Awaiting QuickBooks verification",
     ].join("\n"),
@@ -225,6 +226,7 @@ async function main() {
       "*Load:* $180.00 (1/4)",
       "*Tips:*",
       "*Total:* $180.00",
+      "*On-site time:* Unavailable · no confirmed visit",
     ].join("\n"),
   );
 

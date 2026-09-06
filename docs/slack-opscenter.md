@@ -133,3 +133,9 @@ cards have no Details disclosure; the condensed duplicate summary is omitted.
 Photos appear only on Job Closed and Estimate Closed alerts, and in the closed
 appointment’s Schedule record. Source and workflow action buttons remain
 available without expanding an alert.
+
+Completed job and estimate records and their closeout alerts show recorded on-site
+time with arrival/departure clocks. The duration sums confirmed visit intervals,
+merges overlapping observations, and excludes time away between visits. Missing,
+ambiguous, or incomplete timestamps remain unavailable; an open visit awaits its
+recorded departure. Departure alerts include the recorded duration as well.

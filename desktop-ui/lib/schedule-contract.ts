@@ -1,3 +1,4 @@
+import type { AppointmentOnsiteTime } from '../../lib/appointment-onsite-time';
 export type ScheduleAppointment = {
   recordId: string;
   version: string;
@@ -23,6 +24,7 @@ export type ScheduleAppointment = {
   status: string;
   hasVisit?: boolean;
   truckOnSite?: boolean;
+  onsiteTime?: AppointmentOnsiteTime;
   truck: string;
   driver: string;
   navigator: string;

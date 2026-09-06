@@ -12,7 +12,7 @@ import { jobCallAheadLookupKey, readJobCallAheadStatuses } from '@/lib/job-call-
 import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-address-verification';
 import { readScheduleVisits, scheduleVisitState } from '@/lib/desktop-schedule-visits';
 
-export type DesktopAppointment = JobRow & { recordId: string; version: string; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean };
+export type DesktopAppointment = JobRow & { recordId: string; version: string; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
   truck: string;
   fromAppointmentId: string;

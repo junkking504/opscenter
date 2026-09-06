@@ -1,3 +1,5 @@
+import { desktopPayments } from './desktop-payments';
+import { readJunkwarePaymentRows } from './slack-closeout-details';
 import { financeTrendComparisons } from './finance-trend-comparison';
 import { financePeriodComparison } from '@/lib/finance-period-comparison';
 import fs from 'node:fs';
@@ -39,7 +41,7 @@ export function readDesktopFinance(date: string): FinanceData {
       return { revenue: authority.grossRevenue, jobs: authority.completedJobs,
         averageJob: authority.completedJobs > 0 ? authority.grossRevenue / authority.completedJobs : null,
         costs, profit, margin: profit != null && authority.grossRevenue !== 0 ? profit / authority.grossRevenue * 100 : null };
-    }), reconciliation: buildDailyPaymentReconciliation(date), resale: resale.items.map(item => ({ ...item, version: commercialVersion(item) })), resaleUpdatedAt: resale.updatedAt || null,
+    }), reconciliation: desktopPayments(date, buildDailyPaymentReconciliation(date), readJunkwarePaymentRows(date)), resale: resale.items.map(item => ({ ...item, version: commercialVersion(item) })), resaleUpdatedAt: resale.updatedAt || null,
     recycling, recyclingVersion: commercialVersion(recycling), recyclingExpenses: (Array.isArray(metrics?.truck_record_financial_rows) ? metrics.truck_record_financial_rows : []).map((row: AnyRecord) => ({ truck: String(row.truck || row.truck_name || 'Unassigned'), value: finite(row.recycling_expense) })).filter((row: { truck: string; value: number | null }): row is { truck: string; value: number } => row.value != null && row.value !== 0) };
 }
 function text(value: unknown, maximum = 500): string { if (typeof value !== 'string' || value.length > maximum) throw new CommercialActionError('A valid text value is required.'); return value.trim(); }

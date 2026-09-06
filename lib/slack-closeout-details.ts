@@ -187,3 +187,10 @@ export function readClosedEstimateJunkwareRows(date: string): AnyRecord[] {
     return true;
   });
 }
+
+/** Completed records take precedence over their schedule copies. */
+export function readJunkwarePaymentRows(date: string): AnyRecord[] {
+  const payload = readJunkwarePayload(date);
+  return [payload?.completed, payload?.appointments].flatMap(group => Array.isArray(group) ? group : [])
+    .filter((row): row is AnyRecord => Boolean(row) && typeof row === 'object' && Array.isArray(row.closeout?.payments));
+}

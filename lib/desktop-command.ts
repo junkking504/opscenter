@@ -1,3 +1,6 @@
+import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
+import { readScheduleVisits } from './desktop-schedule-visits';
+import { readJobRows } from './desktop-schedule-source';
 import { readDesktopSourceHealth } from '@/lib/desktop-source-health';
 import { readMetrics, completedJobs, crewRows, truckRows, money, type AnyRecord } from '@/lib/opsData';
 import { workedOrAttributedToJobToday } from '@/lib/crew-attendance';
@@ -65,6 +68,8 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
     listCommandAlertWorkItems(date).then(items => ({ available: true, items })).catch(() => ({ available: false, items: [] as WorkItem[] })),
   ]);
   const actions = new Map(workflow.items.map(item => [item.entity.id, item]));
+  const visits = readScheduleVisits(date).visits;
+  const appointments = readJobRows(date);
   return {
     date, generatedAt: new Date().toISOString(), actor,
     kpis: desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0),
@@ -74,6 +79,12 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
     sources: { metrics: Boolean(metrics), alerts: digest.status === 'ready', workflow: workflow.available },
     alerts: combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)).map(alert => {
       const action = actions.get(alert.id);
+      if (['Job Closed', 'Estimate Closed'].includes(alert.label)) {
+        const jk = alert.title.match(/\bJK\d+\b/i)?.[0]?.toUpperCase();
+        const candidates = appointments.filter(job => job.jkNumber.toUpperCase() === jk && (/estimate/i.test(job.appointmentType) === (alert.label === 'Estimate Closed')));
+        const time = candidates.length === 1 ? appointmentOnsiteTime(candidates[0], visits) : {minutes:null,arrival:null,departure:null,label:'Unavailable · appointment match needed'};
+        alert = {...alert, facts:[...alert.facts.filter(f=>!/^On-site time$|^Arrival$|^Departure$/i.test(f.label)), ...onsiteTimeFacts(time)]};
+      }
       return {
         id: alert.id, domain: alert.domain, priority: alert.label === 'Cancellation' ? 'critical' : alert.needsAction ? 'warning' : 'watch',
         title: alert.title, detail: '', label: alert.label, territory: alert.territory, photos: alert.photos, owner: alert.owner, detected: alert.detected,

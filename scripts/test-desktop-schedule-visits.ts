@@ -1,8 +1,9 @@
 import { separateCancellationContact } from '../lib/desktop-schedule-source';
 import assert from 'node:assert/strict';
-import { scheduleVisitState } from '../lib/desktop-schedule-visits';
+import { scheduleVisitState as fullScheduleVisitState } from '../lib/desktop-schedule-visits';
 import { scheduleStatusTone } from '../desktop-ui/lib/schedule-contract';
 
+const scheduleVisitState = (...args: Parameters<typeof fullScheduleVisitState>) => { const {onsiteTime, ...state} = fullScheduleVisitState(...args); return state; };
 const now = Date.parse('2026-09-06T16:00:00Z');
 const recent = '2026-09-06T15:59:30Z';
 const trucks = [{ truck: 'Truck 4', lastGpsUpdate: recent }];

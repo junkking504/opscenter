@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { readJobRows, junkwareScheduleUpdatedAt, type JobRow } from '@/lib/desktop-schedule-source';
+import { readJobRows, separateCancellationContact, junkwareScheduleUpdatedAt, type JobRow } from '@/lib/desktop-schedule-source';
 import { buildFleetMapPayload } from '@/lib/fleet-map';
 import { planningLocation } from '@/lib/planning-geocodes';
 import { googleTrafficMatrix, type GoogleRouteMatrixElement, type Coordinates } from '@/lib/job-route-proximity';
@@ -10,8 +10,9 @@ import type { ClosestTruck, ScheduleTruck } from '../desktop-ui/lib/schedule-con
 import { readJobRouteAssignmentOverrides } from '@/lib/job-route-assignments';
 import { jobCallAheadLookupKey, readJobCallAheadStatuses } from '@/lib/job-call-ahead';
 import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-address-verification';
+import { readScheduleVisits, scheduleVisitState } from '@/lib/desktop-schedule-visits';
 
-export type DesktopAppointment = JobRow & { recordId: string; version: string; callAhead: 'called' | 'not_called'; location: Coordinates | null };
+export type DesktopAppointment = JobRow & { recordId: string; version: string; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean };
 export type DesktopRouteLeg = {
   truck: string;
   fromAppointmentId: string;
@@ -37,7 +38,10 @@ export function readDesktopSchedule(date: string) {
   const pins = geocodes();
   const overrides = readJobRouteAssignmentOverrides(date);
   const calls = readJobCallAheadStatuses();
-  const appointments: DesktopAppointment[] = readJobRows(date).map((source, index) => {
+  const fleet = buildFleetMapPayload(date) || { date, isToday: false, trucks: [], lastUpdatedAt: null };
+  const visits = readScheduleVisits(date);
+  const appointments: DesktopAppointment[] = readJobRows(date).map((rawSource, index) => {
+    const source = separateCancellationContact(rawSource);
     const override = overrides.get(`appt:${source.appointmentId}`);
     const job = override ? {
       ...source, truck: override.truck || 'Unassigned', assignedTruck: override.truck || 'Unassigned',
@@ -49,7 +53,7 @@ export function readDesktopSchedule(date: string) {
     } : source;
     const callAhead = calls.get(jobCallAheadLookupKey(date, `appt:${job.appointmentId}`)) || 'not_called';
     return {
-    ...job, callAhead,
+    ...job, callAhead, ...scheduleVisitState(job, visits.visits, visits.observedAt, fleet.isToday ? fleet.trucks : []),
     version: createHash('sha256').update(JSON.stringify([job.appointmentId, job.truck, job.appointmentStartMinutes, job.appointmentEndMinutes, job.status, job.appointmentNotes, job.cancellationReason, callAhead, job.closeout, job.driver, job.navigator, job.additionalCrew])).digest('hex'),
     // A JK reference can span multiple appointments. Never use it as the
     // mutation identity or combine separate estimate/job appointments by JK.
@@ -60,7 +64,7 @@ export function readDesktopSchedule(date: string) {
     date,
     observedAt: junkwareScheduleUpdatedAt(date),
     appointments,
-    fleet: buildFleetMapPayload(date) || { date, isToday: false, trucks: [], lastUpdatedAt: null },
+    fleet,
   };
 }
 

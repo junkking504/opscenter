@@ -285,6 +285,12 @@ export function readTruckLoadStatuses(date: string, trucks: string[] = []): Truc
   return normalizedTrucks.map((truck) => deriveTruckLoadStatus(date, truck, store.events));
 }
 
+/** Select by identity: readTruckLoadStatuses also includes other stored trucks. */
+export function readTruckLoadStatus(date: string, truck: string): TruckLoadStatus | null {
+  const label = normalizeTruckLoadLabel(truck);
+  return readTruckLoadStatuses(date, [label]).find(row => row.truck === label) || null;
+}
+
 export function setTruckStartingLoad(input: {
   date: string;
   truck: string;

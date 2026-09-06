@@ -7,7 +7,7 @@ import { readFleetIssueStore, upsertFleetIssue, syncFleetIssuesFromChecklist } f
 import { readFleetChecklistStore, upsertFleetChecklist } from '@/lib/fleet-checklists';
 import { effectiveFleetChecklistDefinitions, fleetChecklistPeriodKey, type FleetChecklistCadence } from '@/lib/fleet-checklist-definitions';
 import { readFleetChecklistTemplateStore } from '@/lib/fleet-checklist-templates';
-import { readTruckLoadStatuses, resetTruckLoad, setTruckStartingLoad, recordTruckLoadSnapshot } from '@/lib/truck-load-status';
+import { readTruckLoadStatuses, readTruckLoadStatus, resetTruckLoad, setTruckStartingLoad, recordTruckLoadSnapshot } from '@/lib/truck-load-status';
 import { opsRoleCan, type InteractiveOpsRole } from '@/lib/ops-roles';
 import { desktopVersion, executeDesktopLocalAction } from '@/lib/desktop-krewe';
 import { validDesktopDate, type DesktopFleetSnapshot } from '../desktop-ui/lib/people-fleet-contract';
@@ -32,7 +32,7 @@ export function runDesktopFleetAction(body:Record<string,unknown>,actor:string,r
   if(!readDesktopFleet(date,'overview',role).trucks.some(row=>row.id===truck)) throw new Error('Truck is not present in current source records.');
   const cadence=String(values.cadence||'daily') as FleetChecklistCadence; if(action==='checklist'&&!['daily','weekly','monthly'].includes(cadence)) throw new Error('Choose a valid checklist frequency.');
   const recordId=String(values.recordId||'');const issueId=String(values.issueId||'');
-  const current=()=>action==='maintenance'?readFleetMaintenanceStore().records.find(row=>row.recordId===recordId)||null:action==='issue'?readFleetIssueStore().issues.find(row=>row.issueId===issueId)||null:action==='checklist'?readFleetChecklistStore().entries.find(row=>row.truck===truck&&row.cadence===cadence&&row.periodKey===fleetChecklistPeriodKey(date,cadence))||null:readTruckLoadStatuses(date,[truck])[0]||null;
+  const current=()=>action==='maintenance'?readFleetMaintenanceStore().records.find(row=>row.recordId===recordId)||null:action==='issue'?readFleetIssueStore().issues.find(row=>row.issueId===issueId)||null:action==='checklist'?readFleetChecklistStore().entries.find(row=>row.truck===truck&&row.cadence===cadence&&row.periodKey===fleetChecklistPeriodKey(date,cadence))||null:readTruckLoadStatus(date,truck);
   const source=current(); if(source && 'truck' in source && source.truck!==truck) throw new Error('Record belongs to another truck.');
   if(action==='issue' && values.status==='resolved'&&!String(values.resolution||'').trim()) throw new Error('A resolution is required before closing a repair.');
   if(action==='maintenance'&&(!validDesktopDate(String(values.serviceDate||date))||!String(values.serviceType||'').trim()||!['scheduled','completed'].includes(String(values.status)))) throw new Error('Service date, type, and status are required.');

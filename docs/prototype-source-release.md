@@ -331,3 +331,18 @@ order, not a confirmed route or dispatch mutation. Canceled and unassigned stops
 are excluded. Google supplies minutes and miles; missing verified locations or
 provider failures remain unavailable, without hiding the pair or other results.
 Appointment colors and compact icon-only blocks remain unchanged.
+
+
+September 6 density and record corrections: desktop workspaces share
+`desktop-ui/workspace-density.css` (68px KPI height, responsive columns, compact
+headers and section spacing). Truck Schedule rows size to occupied lanes; status
+marks are blank / check / cross / question / red pulse for confirmed / completed /
+canceled / visited without closeout / currently on site. Confirmed visit evidence
+comes from the appointment-visits file matched by appointment ID. A current
+on-site indication additionally requires matching assigned truck and fresh
+collector and truck GPS timestamps (three minutes). Closed states take precedence.
+Fleet load updates select the requested normalized truck from the ledger; the
+plural reader intentionally also returns other trucks and cannot be indexed at
+zero for writes. LinxUp's zero placeholder is excluded from physical truck rows
+and mapping warnings. Cancellation contact-cell overflow is separated from the
+customer name and retained under appointment notes.

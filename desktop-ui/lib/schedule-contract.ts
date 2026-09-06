@@ -21,6 +21,8 @@ export type ScheduleAppointment = {
   territory: string;
   appointmentType: string;
   status: string;
+  hasVisit?: boolean;
+  truckOnSite?: boolean;
   truck: string;
   driver: string;
   navigator: string;
@@ -101,15 +103,18 @@ export function appointmentRegion(job: Pick<ScheduleAppointment, 'address' | 'te
 export function appointmentCategory(job: Pick<ScheduleAppointment, 'appointmentType'>) {
   return /estimate/i.test(job.appointmentType) ? 'Estimate' : /job|junk|removal/i.test(job.appointmentType) ? 'Job' : job.appointmentType || 'Unspecified';
 }
-export function appointmentStatus(job: Pick<ScheduleAppointment, 'appointmentType' | 'status'>) {
+export function appointmentStatus(job: Pick<ScheduleAppointment, 'appointmentType' | 'status' | 'hasVisit' | 'truckOnSite'>) {
   if (/cancel/i.test(job.status)) return 'Canceled';
   if (/complete|closed/i.test(job.status)) return appointmentCategory(job) === 'Estimate' ? 'Estimate Closed' : 'Completed';
+  if (job.truckOnSite) return 'On Site';
+  if (job.hasVisit) return 'Visited · Closeout Pending';
   return job.status || 'Status Unavailable';
 }
-export function scheduleStatusTone(job: Pick<ScheduleAppointment, 'status'>) {
+export function scheduleStatusTone(job: Pick<ScheduleAppointment, 'status' | 'hasVisit' | 'truckOnSite'>) {
   if (/cancel/i.test(job.status)) return 'canceled';
   if (/complete|closed/i.test(job.status)) return 'completed';
-  if (/on[ _-]?site|on location/i.test(job.status)) return 'on-site';
+  if (job.truckOnSite || /on[ _-]?site|on location/i.test(job.status)) return 'on-site';
+  if (job.hasVisit || /visited/i.test(job.status)) return 'visited';
   return 'waiting';
 }
 export function isClosed(job: Pick<ScheduleAppointment, 'appointmentType' | 'status'>) { return /complete|closed|cancel/i.test(job.status); }

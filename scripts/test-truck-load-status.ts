@@ -7,6 +7,7 @@ import {
   junkwareJobLoadFraction,
   parseJunkwareLoadFraction,
   readTruckLoadStatuses,
+  readTruckLoadStatus,
   recordTruckLoadFromCloseout,
   recordTruckLoadSnapshot,
   resetTruckLoad,
@@ -132,6 +133,16 @@ const monotonicReset = resetTruckLoad({
 });
 assert.equal(monotonicReset.currentLoadFraction, 0, "A dispatcher reset must remain latest even after a clock-skewed event.");
 assert.ok((monotonicReset.lastEvent?.occurredAt || "") > "2099-09-01T23:59:59.000Z");
+
+
+// Stored Truck 2 must never be mistaken for a requested Truck 3.
+setTruckStartingLoad({date, truck:'Truck 2', loadFraction:0, recordedBy:'test'});
+const truck3 = readTruckLoadStatus(date, 'Truck 3');
+assert.equal(truck3?.truck, 'Truck# 3');
+assert.equal(truck3?.events.length, 0);
+setTruckStartingLoad({date, truck:'Truck 3', loadFraction:.5, recordedBy:'test'});
+assert.equal(readTruckLoadStatus(date, 'Truck# 3')?.capacityPercent, 50);
+assert.equal(readTruckLoadStatus(date, 'Truck 2')?.capacityPercent, 0);
 
 fs.rmSync(testRoot, { recursive: true, force: true });
 console.log("Truck load status verification passed.");

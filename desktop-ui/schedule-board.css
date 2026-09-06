@@ -133,3 +133,11 @@
   .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell span { display: none; }
   .ops-live .live-schedule.schedule-dispatch .schedule-time-row > span { padding: 2px 1px; font-size: 8px; }
 }
+/* Compact rows follow their appointment lanes instead of stretching to fill space. */
+.ops-live .live-schedule.schedule-dispatch .schedule-board-layout,
+.ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open { height: auto; }
+.ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-shell { height: auto; }
+.ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { flex: none; height: auto; }
+.ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { height: auto; }
+.ops-live .live-schedule.schedule-dispatch .schedule-appointment > .schedule-block-status { display: flex; justify-content: center; align-items: center; width: 100%; }
+.ops-live .live-schedule.schedule-dispatch .schedule-block-status.status-visited > b { color: #8c5700; font-size: 14px; line-height: 16px; }

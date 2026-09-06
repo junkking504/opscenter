@@ -184,7 +184,7 @@ function normalizeTruckLabel(value: unknown): string {
 }
 
 function isRealTruckLabel(value: unknown): boolean {
-  return /^Truck#?\s*\d+$/i.test(normalizeTruckLabel(value));
+  return /^Truck#?\s*[1-9]\d*$/i.test(normalizeTruckLabel(value));
 }
 
 function normalizePersonName(value: unknown): string {
@@ -706,7 +706,7 @@ export function buildFleetMapPayload(date: string, selectedTruckRaw?: string | n
       ? vehicleMap.unresolved.junkware_trucks_without_verified_trackers.map((truck: string) => `Unmapped truck: ${truck}`)
       : []),
     ...(Array.isArray(vehicleMap?.unresolved?.linxup_vehicle_names_without_verified_truck_mapping)
-      ? vehicleMap.unresolved.linxup_vehicle_names_without_verified_truck_mapping.map((name: string) => `Unmapped Linxup vehicle: ${name}`)
+      ? vehicleMap.unresolved.linxup_vehicle_names_without_verified_truck_mapping.filter((name: string) => !/^(?:truck\s*#?\s*)?0+$/i.test(String(name).trim())).map((name: string) => `Unmapped Linxup vehicle: ${name}`)
       : []),
   ];
 

@@ -319,6 +319,26 @@ function cancellationReasonText(value: string, customerName: string, phone: stri
   return reason.replace(/^[-,:;\s]+/, "").replace(/\s+Followup\.?$/i, "").trim() || "Cancellation reason unavailable";
 }
 
+/** A cancelled-row scrape may put the entire contact/reason cell in customer_name. */
+export function separateCancellationContact<T extends Pick<JobRow, 'customerName' | 'phone' | 'address' | 'status' | 'cancellationReason' | 'appointmentNotes'>>(job: T): T {
+  if (!/cancel/i.test(job.status)) return job;
+  const raw = job.customerName.trim();
+  let customerName = raw;
+  // Only split an obviously contaminated cancellation cell, never ordinary names.
+  const contaminated = /cancel(?:led|ed|lation)|called to cancel/i.test(raw);
+  if (contaminated) {
+    const phoneDigits = job.phone.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
+    const phonePattern = phoneDigits.length === 10 ? new RegExp(phoneDigits.split('').join('[\\s().+-]*')) : null;
+    const boundary = phonePattern ? raw.search(phonePattern) : -1;
+    const cancelBoundary = raw.search(/\b(?:cancelled|canceled|cancellation|called to cancel)\b/i);
+    const end = boundary > 0 ? boundary : cancelBoundary;
+    customerName = end > 0 ? raw.slice(0, end).replace(/[\s,;:–-]+$/, '') : 'Customer name unavailable';
+  }
+  const cancellationReason = cancellationReasonText(job.cancellationReason || (contaminated ? raw : ''), customerName, job.phone, job.address);
+  return {...job, customerName, cancellationReason,
+    appointmentNotes: [...new Set([...job.appointmentNotes, cancellationReason].filter(Boolean))]};
+}
+
 function jobKey(job: JobRow): string {
   const appointmentId = String(job.appointmentId || "").trim();
   if (appointmentId) return `appt:${appointmentId}`;

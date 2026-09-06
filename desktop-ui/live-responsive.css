@@ -90,3 +90,8 @@
 .ops-live .alert-photo-unavailable { display: grid; place-content: center; padding: 8px; }
 .ops-live .work-meta { flex-wrap: wrap; }
 .ops-live .work-meta .priority-badge { height: auto; min-height: 18px; white-space: normal; }
+.ops-live .priority-badge.appointment-territory-badge {
+  border-color: var(--territory-color, #89918d);
+  background: color-mix(in srgb, var(--territory-color, #89918d) 26%, #fff);
+  color: #202529;
+}

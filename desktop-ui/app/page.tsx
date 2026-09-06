@@ -24,6 +24,7 @@ import LiveSearch from '../live-search';
 import LiveSchedule, { dateForDay } from '../live-schedule';
 import CommandMap from '../command-map';
 import { AlertDetails, AlertPhotos } from '../components/alert-details';
+import { appointmentRegion } from '../lib/schedule-contract';
 
 type Priority = 'critical' | 'warning' | 'watch';
 type AppointmentLoadStream = 'mixed' | 'metal' | 'donation';
@@ -4324,7 +4325,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                       <div className="alert-card-main">
                         <div className="alert-card-heading">
                           <div className="work-copy">
-                            <div className="work-meta"><Badge variant="outline" className={`priority-badge ${item.priority}`}>{item.label}{item.label === 'New Appointment' && ` · ${item.territory || 'Territory unavailable'}`}</Badge><span>{item.domain}</span><span>·</span><span>{item.detected}</span><span className={`alert-workflow-status ${workflowStatus.toLowerCase().replaceAll(' ', '-')}`}>{workflowStatus}</span></div>
+                            <div className="work-meta"><Badge variant="outline" className={`priority-badge ${item.priority}${item.label === 'New Appointment' ? ` appointment-territory-badge territory-${appointmentRegion({territory: item.territory || '', address: ''}).code.toLowerCase()}` : ''}`}>{item.label}{item.label === 'New Appointment' && ` · ${item.territory || 'Territory unavailable'}`}</Badge><span>{item.domain}</span><span>·</span><span>{item.detected}</span><span className={`alert-workflow-status ${workflowStatus.toLowerCase().replaceAll(' ', '-')}`}>{workflowStatus}</span></div>
                             <h3>{renderLinkedJkText(item.title, item.source, item.detected)}</h3>
                           </div>
                           <div className="alert-card-actions">
@@ -4348,7 +4349,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                           <div className="next-step"><span>{outcome ? 'Verified' : 'Next'}</span><strong>{outcome?.resolution || item.context}</strong>{outcome && <em>{outcome.source} · {outcome.time}</em>}</div>
                         </div>
                         </AlertDetails>
-                        <AlertPhotos photos={item.photos} />
+                        {item.label === 'Job Closed' && <AlertPhotos photos={item.photos} />}
                       </div>
                     </article>
                   ); }) : <div className="empty-state">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Slack alerts unavailable</strong><span>Alert counts are unknown until the source refreshes. This does not confirm that there are no alerts.</span></> : <><Check size={22} /><strong>No alerts in this view</strong><span>Choose another workflow state or clear the search.</span></>}</div>}

@@ -367,6 +367,8 @@ async function main() {
   assert.equal(digest.messages[3].photos?.length, 1);
   assert.equal(digest.messages[2].photos?.length, 1, "Only trusted job media is exposed");
   assert.equal(toOperationalAlert(digest.messages[2]).photos?.[0].category, "After");
+  assert.equal(toOperationalAlert(digest.messages[3]).photos, undefined, "New appointment alerts do not repeat closeout photos");
+  assert.equal(toOperationalAlert(digest.messages[1]).photos, undefined, "Cancellation alerts do not show photos");
   const unmatchedAppointment = { ...digest.messages[3], appointment: undefined };
   assert.equal(toOperationalAlert(unmatchedAppointment).territory, "New Orleans", "Channel fallback when source record is unavailable");
   assert.equal(toOperationalAlert({ ...unmatchedAppointment, channel: "#dispatch" }).territory, "Territory unavailable");
@@ -393,7 +395,10 @@ async function main() {
   assert.equal(photoDigest.messages[0].photos?.length, 0, "Never attach another job's photos");
   assert.equal(photoDigest.messages[1].photos?.length, 1, "Photo alerts display current job media without duplicate URLs");
   assert.equal(toOperationalAlert(photoDigest.messages[1]).label, "Photos Uploaded");
-  assert.equal(toOperationalAlert(photoDigest.messages[1]).photos?.[0].category, "After");
+  assert.equal(toOperationalAlert(photoDigest.messages[1]).photos, undefined, "Upload notices do not repeat the photos shown on Job Closed");
+  for (const rawText of ["Payment recorded\nJK4000001\nPayment: Cash ($100.00)", "Truck 4 On-site\nJK4000001\n8:26 AM", "Estimate Closed\nJK4000001"]) {
+    assert.equal(toOperationalAlert({ ...photoDigest.messages[1], rawText }).photos, undefined, "Only Job Closed cards show photos");
+  }
 
   console.log("Slack digest verification passed.");
 }

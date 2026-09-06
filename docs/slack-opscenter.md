@@ -1,11 +1,14 @@
 # OpsCenter Slack alerts
 
-Command new-appointment cards display their complete facts without a Details
+Command new-appointment tags reuse the Schedule territory color palette and
+territory classification (including Westbank within Jefferson Parish).
+New-appointment cards display their complete facts without a Details
 toggle. Their badge includes the source appointment territory, with the territory
 channel as a fallback when the appointment record is unavailable. Missing
 territory is explicitly labeled. Uploaded JunkWare job photos appear as linked
-thumbnails outside the Details toggle on matching alerts, including uploads
-collected after the original notice. Media uses the existing JunkWare URL
+thumbnails only on the Job Closed alert, outside its Details toggle, including
+uploads collected after closeout. Other alerts for the same appointment do not
+repeat the photos. Media uses the existing JunkWare URL
 allowlist; private Slack download URLs are not exposed. Photo availability still
 depends on the job collector having captured the upload.
 

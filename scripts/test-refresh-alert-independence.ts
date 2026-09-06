@@ -16,6 +16,7 @@ try {
   fs.mkdirSync(path.join(root, 'node_modules/.bin'), { recursive: true });
   fs.writeFileSync(path.join(root, 'node_modules/.bin/tsx'), '#!/bin/bash\nexit 0\n', { mode: 0o700 });
   fs.writeFileSync(path.join(root, 'scripts/run_opscenter_refresh.sh'), '#!/bin/bash\nexit "${TEST_SOURCE_RESULT:-0}"\n', { mode: 0o700 });
+  fs.writeFileSync(path.join(root, 'scripts/run-opscenter-backup-sync.py'), 'import os\nwith open(os.environ["TEST_EVENTS"], "a") as f: f.write("backup\\n")\nraise SystemExit(1)\n');
   fs.writeFileSync(path.join(root, 'deploy/vps/sync-data.sh'), '#!/bin/bash\necho backup >> "$TEST_EVENTS"\nexit 1\n', { mode: 0o700 });
   for (const sourceResult of [0, 1]) {
     const events = path.join(root, `events-${sourceResult}`);
@@ -34,7 +35,7 @@ try {
       publish_verified_closeout_alerts() { echo closeout >> "$TEST_EVENTS"; }
       auto_virtualize_external_bookings() { :; }
       npm() { echo accounting >> "$TEST_EVENTS"; }
-      python3() { :; }
+      python3() { if [[ "$1" == *run-opscenter-backup-sync.py ]]; then echo backup >> "$TEST_EVENTS"; return 1; fi; }
       node() { echo alerts >> "$TEST_EVENTS"; }
       ${publisher}
       ${cycle}

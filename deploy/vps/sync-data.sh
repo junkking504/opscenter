@@ -73,6 +73,7 @@ fi
 
 rsync -az --no-perms --omit-dir-times --timeout=30 -e "$RSYNC_RSH" --delay-updates \
   --exclude '/backups/' \
+  --exclude '/backup-sync/' \
   --exclude '/audits/' \
   --exclude '/diagnostics/' \
   --exclude '/logs/' \

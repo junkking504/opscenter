@@ -265,8 +265,9 @@ do
     if ! env \
       OPSCENTER_VPS="$OPSCENTER_VPS" \
       OPSCENTER_SSH_KEY="$OPSCENTER_SSH_KEY" \
-      "$OPSCENTER_DIR/deploy/vps/sync-data.sh" initial; then
-      echo "WARNING: VPS data sync failed; the VPS will retain its last verified snapshot."
+      OPSBOT_DATA_DIR="$OPSBOT_DIR/data" \
+      python3 "$OPSCENTER_DIR/scripts/run-opscenter-backup-sync.py" --background; then
+      echo "WARNING: VPS backup could not be scheduled; live collection will continue."
     fi
   fi
 

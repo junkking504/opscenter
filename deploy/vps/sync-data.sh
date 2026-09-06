@@ -36,6 +36,9 @@ fi
 LOCAL_DATA_DIR="$(cd "$LOCAL_DATA_INPUT" && pwd -P)"
 REMOTE_DATA_DIR="$REMOTE_ROOT/data"
 
+# Shared directories can belong to the app user while remaining group-writable.
+# Copy file contents and file times without changing directory times or modes.
+
 ssh "${SSH_ARGS[@]}" "$REMOTE" "test -d '$REMOTE_DATA_DIR'"
 
 if [[ "$MODE" == "incremental" ]]; then
@@ -48,7 +51,7 @@ if [[ "$MODE" == "incremental" ]]; then
 
   # These folders are written by the VPS app. Pull them back first so the Mac
   # collector sees manual changes before it produces the next metrics file.
-  rsync -az --timeout=30 -e "$RSYNC_RSH" --delay-updates \
+  rsync -az --no-perms --omit-dir-times --timeout=30 -e "$RSYNC_RSH" --delay-updates \
     --include '/manual_bonuses/***' \
     --include '/payroll_corrections/***' \
     --include '/job-route-assignments/***' \
@@ -68,7 +71,7 @@ elif [[ "$MODE" != "initial" ]]; then
   exit 64
 fi
 
-rsync -az --timeout=30 -e "$RSYNC_RSH" --delay-updates \
+rsync -az --no-perms --omit-dir-times --timeout=30 -e "$RSYNC_RSH" --delay-updates \
   --exclude '/backups/' \
   --exclude '/audits/' \
   --exclude '/diagnostics/' \
@@ -89,7 +92,7 @@ rsync -az --timeout=30 -e "$RSYNC_RSH" --delay-updates \
   "$LOCAL_DATA_DIR/" "$REMOTE:$REMOTE_DATA_DIR/"
 
 if [[ "$MODE" == "initial" ]]; then
-  rsync -az --timeout=30 -e "$RSYNC_RSH" --delay-updates \
+  rsync -az --no-perms --omit-dir-times --timeout=30 -e "$RSYNC_RSH" --delay-updates \
     --include '/manual_bonuses/***' \
     --include '/payroll_corrections/***' \
     --include '/job-route-assignments/***' \

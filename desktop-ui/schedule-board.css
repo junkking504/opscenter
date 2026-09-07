@@ -154,6 +154,6 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open .schedule-map-panel { min-height: 280px; }
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open .schedule-map-canvas { min-height: 200px; }
 
-.estimate-outcome-fields { display: grid; gap: 8px; margin-block: 8px; }
-.estimate-outcome-fields label { display: grid; gap: 4px; }
+.appointment-type-control .estimate-outcome-fields { display: grid; gap: 8px; margin-block: 4px; flex: 0 0 100%; min-width: 0; }
+.appointment-type-control .estimate-outcome-fields label { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 4px; }
 .estimate-outcome-fields textarea { width: 100%; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font: inherit; }

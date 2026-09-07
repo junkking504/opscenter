@@ -1,13 +1,33 @@
 import { useMemo, useState } from 'react';
-import { Check, ChevronDown, ChevronRight, CircleHelp, Clock3, Search, Truck, TriangleAlert } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, CircleHelp, Clock3, Minus, Search, Truck, TriangleAlert } from 'lucide-react';
 import type { DesktopAlert, DesktopLiveProps } from '../lib/live-contract';
 import type { CrewStep } from '../lib/crew-progress-contract';
 import { CrewAlertPhotos } from './crew-alert-photos';
 import './crew-progress-alerts.css';
 
 const stateLabel: Record<CrewStep['state'], string> = { complete:'Recorded', next:'Next', pending:'Pending', missing:'Follow up', unknown:'Unknown', 'not-required':'Not required' };
-const stateIcon = (state: CrewStep['state']) => state === 'complete' ? <Check size={13}/> : state === 'missing' ? <TriangleAlert size={13}/> : state === 'unknown' ? <CircleHelp size={13}/> : <Clock3 size={13}/>;
+const stateIcon = (state: CrewStep['state']) => state === 'complete' ? <Check size={13}/> : state === 'missing' ? <TriangleAlert size={13}/> : state === 'unknown' ? <CircleHelp size={13}/> : state === 'not-required' ? <Minus size={13}/> : <Clock3 size={13}/>;
 const clock = (stamp?: string) => stamp && Number.isFinite(Date.parse(stamp)) ? new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}).format(new Date(stamp)) : 'Time unavailable';
+
+function StepSummary({step, jobNumber}: {step: CrewStep; jobNumber: string}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasEvidence = Boolean(step.facts?.length || step.photos?.length);
+  return <li className={`crew-step ${step.state}`}>
+    <button type="button" className="crew-step-label" aria-expanded={expanded}
+      aria-label={`${step.label}: ${stateLabel[step.state]}. ${expanded ? 'Hide' : 'Show'} details`}
+      onClick={() => setExpanded(!expanded)}>
+      {stateIcon(step.state)}<strong>{step.label}</strong><ChevronDown size={11} className="crew-step-chevron"/>
+    </button>
+    <div className="crew-step-summary">
+      {(step.state !== 'complete' || !hasEvidence) && <span className="crew-step-state">{stateLabel[step.state]}</span>}
+      {step.facts?.length ? <dl className="crew-step-facts">{step.facts.map((fact,index) => <div key={`${fact.label}-${index}`}>
+        <dt className={fact.label === step.label ? 'crew-step-repeated-label' : undefined}>{fact.label}</dt><dd>{fact.value}</dd>
+      </div>)}</dl> : null}
+      <CrewAlertPhotos photos={step.photos} title={jobNumber}/>
+    </div>
+    {expanded && <p className="crew-step-detail">{step.detail}</p>}
+  </li>;
+}
 
 export function CrewProgressAlerts({live, openAlert, openControl}: {live: DesktopLiveProps; openAlert: (alert: DesktopAlert) => void; openControl: () => void}) {
   const {snapshot} = live;
@@ -70,7 +90,7 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
               <header className="crew-job-heading"><div><a href={job.href}>{job.jobNumber}</a><span>{job.window}</span><span>{job.territory}</span></div><span className="crew-job-status">{job.status}</span></header>
               <p className="crew-job-crew">{job.crew}</p>
               <dl className="crew-job-customer">{job.customerFacts?.map(fact=><div key={fact.label} className={['Pickup items','Key notes'].includes(fact.label) ? 'crew-customer-long' : ''}><dt>{fact.label}</dt><dd>{fact.href ? <a href={fact.href}>{fact.value}</a> : fact.value}</dd></div>)}</dl>
-              <ol className="crew-job-steps" aria-label={`${job.jobNumber} required steps`}>{job.steps.map(step => <li key={step.label} className={`crew-step ${step.state}`}><span>{stateIcon(step.state)}<strong>{step.label}</strong></span><small>{stateLabel[step.state]}</small>{step.facts?.length ? <dl className="crew-step-facts">{step.facts.map((fact,index)=><div key={`${fact.label}-${index}`}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}</dl> : null}<CrewAlertPhotos photos={step.photos} title={job.jobNumber}/><span className="crew-step-detail">{step.detail}</span></li>)}</ol>
+              <ol className="crew-job-steps" aria-label={`${job.jobNumber} required steps`}>{job.steps.map(step => <StepSummary key={step.label} step={step} jobNumber={job.jobNumber}/>)}</ol>
               <div className="crew-job-next"><strong>{job.needsFollowUp ? 'Follow up' : 'Next required'}</strong><span>{job.next}</span><a href={job.href}>Open job <ChevronRight size={14}/></a></div>
               <div className="crew-job-latest"><span>{latest ? <><b>{latest.label}</b> · {latest.detected}{latest.corrected && ' · Updated'}</> : 'No updates received yet'}</span><button type="button" aria-expanded={isExpanded} aria-controls={`job-updates-${job.id}`} disabled={!events.length} onClick={() => toggle(job.id)}>{isExpanded ? 'Hide' : 'Show'} {events.length} update{events.length === 1 ? '' : 's'} <ChevronDown size={14}/></button></div>
               {isExpanded && <div className="crew-job-timeline" id={`job-updates-${job.id}`} aria-label={`${job.jobNumber} update history`}><p className="crew-history-label">First to latest · all milestones retained</p>{events.map(renderUpdate)}</div>}

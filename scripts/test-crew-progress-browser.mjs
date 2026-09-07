@@ -18,6 +18,13 @@ try {
   await page.getByRole('button',{name:'Close photos'}).click();
   await page.screenshot({path:`${directory}/desktop.png`,fullPage:true});
   const firstJob = page.locator('.crew-job-card').filter({has:page.getByRole('link',{name:'JK1000001',exact:true})});
+  const durationDetails = firstJob.getByRole('button',{name:'Duration: Recorded. Show details',exact:true});
+  await durationDetails.focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await firstJob.getByText('Recorded time on site.',{exact:true}).isVisible(),true,'Compact statuses retain keyboard-accessible evidence details');
+  await firstJob.getByRole('button',{name:'Duration: Recorded. Hide details',exact:true}).click();
+  assert.equal(await firstJob.getByText('Recorded time on site.',{exact:true}).count(),0);
+  assert.match(await firstJob.locator('.crew-step-facts').first().innerText(),/8:05 AM[\s\S]*9:10 AM/,'Both visit times remain visible without opening details');
   await firstJob.getByRole('button',{name:'Show 2 updates'}).click();
   assert.deepEqual(await firstJob.locator('.crew-update-content header strong').allTextContents(),['Job Closed','Duration']);
   await firstJob.getByRole('button',{name:'Mark reviewed',exact:true}).first().click();

@@ -72,6 +72,13 @@ The fixture is `/tests/crew-progress.html` on that local Vite server. It uses
 synthetic records and simulated review/Control actions; it cannot write to
 operational sources. This fixture is not included in the production entry point.
 
+Appointment milestones use compact rows: two columns on desktop and one on
+narrow screens. Arrival/departure times, photo links, payment references, tips,
+load sizes, and charges remain visible. The status label opens its explanation
+with mouse or keyboard; completed steps no longer repeat “Recorded” or source
+boilerplate in the default view. Missing and unknown states remain explicit,
+and the next-required action and review history stay on the appointment.
+
 Command new-appointment tags reuse the Schedule territory color palette and
 territory classification (including Westbank within Jefferson Parish).
 New-appointment cards display their complete facts without a Details

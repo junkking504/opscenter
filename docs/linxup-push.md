@@ -58,3 +58,39 @@ two-point, two-minute, 125-meter dwell evidence rule. A historical appointment
 visit, or a later isolated GPS point at the same address, must never be shown
 as a current on-site state; Schedule labels it only after fresh, continuous
 dwell evidence is present.
+
+## Recorded daily GPS routes
+
+Schedule and the Command map offer a **Truck GPS route** selector. Selecting a
+truck row or current truck pin uses the same selection. The map fits that truck's
+recorded trail for the selected operating date and marks its first and last
+positions. **Fit route** restores the trail after manual zooming or panning;
+background refresh does not reset the viewport. Dates, truck changes, and clearing
+selection remove the previous overlay. Unassigned has no physical GPS history.
+
+The authenticated, read-only `GET /api/desktop/schedule/gps?date=YYYY-MM-DD&truck=Truck+4`
+reads `history/linxup/linxup_location_YYYY-MM-DD.json` from the configured OpsBot
+data directory. It does not require daily metrics, crew clock-ins, appointment
+assignments, or scheduled work. Only the requested truck's normalized positions
+and collection/coverage timestamps are returned; tracker identifiers and other
+raw telemetry fields are omitted. The client checks date/truck identity, polls
+every 30 seconds, cancels obsolete requests, and labels retained history when a
+refresh fails. Missing or malformed history is unavailable; a valid file with no
+matching observations is empty. Neither state proves that a truck did not move.
+
+Observation timestamps determine the America/Chicago operating date. Previous-day
+last-known positions in a daily file do not become travel on that file's date.
+Invalid coordinates, invalid/future timestamps, and duplicate positions are
+excluded. Recorded stationary `continuous_until` intervals preserve coverage.
+Connectors stop at observation gaps over five minutes or an implausible transition
+under the shared route-history speed/jitter rules. Isolated points remain visible.
+The blue lines join observed positions; they are not road-snapped directions or a
+complete account of unobserved travel. The summary shows coverage times, source
+collection time, and gaps so incomplete evidence stays visible.
+
+Implementation: `lib/desktop-gps-route.ts`,
+`desktop-ui/schedule-gps-route.tsx`, and `desktop-ui/schedule-map.tsx`.
+Run `node --import tsx scripts/test-desktop-gps-route.ts` for date, truck,
+privacy, gap, stationary coverage, and missing-file contracts. The synthetic
+browser fixture at `desktop-ui/tests/gps-route.html` runs the production Leaflet
+component without operational API access; start it with the companion Vite config.

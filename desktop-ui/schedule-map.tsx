@@ -4,10 +4,12 @@ import 'leaflet/dist/leaflet.css';
 import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract';
 import { appointmentRegion, appointmentStatus, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
 import { spreadMapPins, territoryMapCenters } from './lib/schedule-map-layout';
+import type {TruckGpsRoute} from './lib/gps-route-contract';
 
 type Props = {
   appointments: ScheduleAppointment[]; trucks: ScheduleTruck[];
   selected: string | null; selectedTruck: string | null;
+  gpsRoute?:TruckGpsRoute|null;
   scope: string; resetKey: number; date: string;
   onSelect: (id: string) => void; onSelectTruck: (truck: string) => void;
 };
@@ -15,6 +17,8 @@ export default function ScheduleMap(props: Props) {
   const host = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const markers = useRef<L.LayerGroup | null>(null);
+  const gpsLayer=useRef<L.LayerGroup|null>(null);
+  const gpsFit=useRef('');
   const current = useRef(props);
   current.current = props;
   const fitted = useRef('');
@@ -25,10 +29,11 @@ export default function ScheduleMap(props: Props) {
     view.attributionControl.setPrefix(false);
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', maxZoom: 19 }).addTo(view);
     map.current = view;
+    gpsLayer.current=L.layerGroup().addTo(view);
     markers.current = L.layerGroup().addTo(view);
     const observer = new ResizeObserver(() => view.invalidateSize());
     observer.observe(host.current);
-    return () => { observer.disconnect(); view.remove(); map.current = null; markers.current = null; fitted.current = ''; focused.current = ''; };
+    return () => { observer.disconnect(); view.remove(); map.current = null; markers.current = null; gpsLayer.current=null;gpsFit.current='';fitted.current = ''; focused.current = ''; };
   }, []);
   // Avoid rebuilding marker DOM on unrelated parent renders, preserving keyboard focus.
   const signature = JSON.stringify([props.appointments, props.trucks, props.selected, props.selectedTruck, props.scope, props.resetKey, props.date]);
@@ -137,5 +142,25 @@ export default function ScheduleMap(props: Props) {
     view.on('zoomend moveend', render);
     return () => { view.off('zoomend moveend', render); };
   }, [signature]);
+  useEffect(()=>{
+    const view=map.current,layer=gpsLayer.current,route=props.gpsRoute;
+    if(!view || !layer) return;
+    layer.clearLayers();
+    if(!route || route.date!==props.date || route.truck!==props.selectedTruck || !route.points.length) {gpsFit.current='';return;}
+    for(const points of route.paths) L.polyline(points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{color:'#2563a5',weight:3,opacity:.9,interactive:false,className:'schedule-gps-trail'}).addTo(layer);
+    // Isolated observations stay visible without inventing a connecting route.
+    for(const point of route.points) L.circleMarker([point.latitude,point.longitude],{radius:2,color:'#2563a5',fillOpacity:.6,weight:0,interactive:false,className:'schedule-gps-point'}).addTo(layer);
+    const endpoints=route.points.length===1?[[route.points[0],'Recorded position'] as const]:[[route.points[0],'First'] as const,[route.points.at(-1)!,'Last'] as const];
+    for(const [point,label] of endpoints) {
+      const text=document.createElement('span');text.textContent=label;
+      const tooltip=document.createElement('span');tooltip.textContent=`${label} GPS · ${new Date(point.timestamp).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})}`;
+      // Routes commonly return to the same yard. Keep both endpoint labels
+      // readable even when first and last positions overlap.
+      L.marker([point.latitude,point.longitude],{keyboard:false,icon:L.divIcon({className:'schedule-gps-endpoint',html:text,iconSize:[40,22],iconAnchor:[20,label==='Last'?-3:25]}),zIndexOffset:500}).bindTooltip(tooltip).addTo(layer);
+    }
+    const fitKey=`${route.date}:${route.truck}:${props.resetKey}`;
+    if(gpsFit.current!==fitKey) {view.fitBounds(route.points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{padding:[45,45],maxZoom:15,animate:false});gpsFit.current=fitKey;}
+    return()=>{layer.clearLayers();};
+  },[props.gpsRoute,props.selectedTruck,props.date,props.resetKey]);
   return <div ref={host} className="live-schedule-map" aria-label="Verified appointment locations and truck GPS" />;
 }

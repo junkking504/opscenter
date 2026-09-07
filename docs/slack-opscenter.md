@@ -24,9 +24,9 @@ Departure requires an explicit confirmed visit exit, never disappearance of GPS.
 
 Stale/unavailable sources retain recorded facts, but absent evidence becomes
 Unknown rather than a new missing-step assertion. A partial Slack channel or
-thread read is explicitly marked incomplete. Shared review/follow-up writes wait
-for complete update history so a temporarily missing duplicate cannot create a
-second work item. Empty history is not evidence that operational work is done.
+thread read is explicitly marked incomplete. Available source messages remain reviewable and can be linked to Control even
+when other channels or replies are unavailable. Server-side source identity and
+version checks still apply; unavailable source messages cannot be acted on. Empty history is not evidence that operational work is done.
 
 Existing sentence-style crew clock-in/out and final-pay messages also use the
 same event layout, preserving the member, recorded times, hours, and pay fields.

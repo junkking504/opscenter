@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     // The browser supplies only an identity. Alert facts and source links always
     // come from the server's Slack digest, never from a client-authored record.
     const digest = await readSlackDailyDigest(date);
-    if (digest.status !== 'ready' || digest.complete === false) return NextResponse.json({ error: 'Update history is incomplete. Refresh before saving a review or follow-up.' }, { status: 503, headers });
+    if (digest.status !== 'ready') return NextResponse.json({ error: 'Update history is unavailable. Refresh before saving a review or follow-up.' }, { status: 503, headers });
     const message = digest.messages.find((candidate) => candidate.id === body.alertId);
     if (!message) return NextResponse.json({ error: "The source alert is unavailable. Refresh and try again." }, { status: 404, headers });
     const alert = combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)).find(candidate => candidate.id === message.id) || toOperationalAlert(message);

@@ -38,6 +38,9 @@ try {
   await page.getByRole('button',{name:'All updates',exact:true}).click();
   assert.equal(await page.locator('.crew-update').count(),6);
   assert.equal(await page.locator('.crew-update-content header strong').first().textContent(),'Arrival');
+  await page.getByRole('button',{name:'Simulate partial history'}).click();
+  assert.match(await page.locator('.crew-source-notice').textContent(),/history is incomplete/);
+  assert.equal(await page.getByRole('button',{name:'Mark reviewed',exact:true}).first().isEnabled(),true,'Known source updates remain actionable during partial history');
   await page.getByRole('button',{name:'Simulate disconnected sources'}).click();
   assert.match(await page.locator('.crew-source-notice').textContent(),/history is incomplete/);
   for (const button of await page.getByRole('button',{name:'Mark reviewed',exact:true}).all()) assert.equal(await button.isDisabled(),true);

@@ -29,7 +29,7 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
   const visibleIds = new Set([...filteredJobs.flatMap(job => job.updateIds), ...otherUpdates.map(alert => alert.id)]);
   const visibleUpdates = snapshot.alerts.filter(alert => visibleIds.has(alert.id)).sort((a,b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
   const groups = [...new Set(filteredJobs.map(job => job.truck))];
-  const blocked = !snapshot.sources.workflow || progress?.updatesComplete === false || Boolean(live.pendingAlertId);
+  const blocked = !snapshot.sources.workflow || Boolean(live.pendingAlertId);
   const toggle = (id: string) => setExpanded(previous => {const next = new Set(previous); if(next.has(id))next.delete(id);else next.add(id);return next;});
 
   const renderUpdate = (alert: DesktopAlert) => <article key={alert.id} className="crew-update">

@@ -2,6 +2,8 @@ import { consolidateConfirmedVisitAlerts } from '@/lib/confirmed-visit-alerts';
 import { readScheduleVisits } from '@/lib/desktop-schedule-visits';
 import { NextResponse } from "next/server";
 import { COMMAND_ALERT_RULE, commandAlertWorkItemForSource } from "@/lib/command-alert-workflow";
+import { geofenceOperationalAlert, readGeofenceEntries } from "@/lib/linxup-geofence-alerts";
+import type { OperationalAlert } from "@/lib/operational-alert-presentation";
 import { toOperationalAlert } from "@/lib/operational-alert-presentation";
 import { combinedCloseoutAlerts } from '@/lib/combined-closeout-alerts';
 import { readCompletedJunkwareRows } from '@/lib/slack-closeout-details';
@@ -42,23 +44,33 @@ export async function POST(request: Request) {
     if (body.action !== "acknowledge" && body.action !== "add_to_control") throw new Error("Unsupported alert action.");
     const version = Number(body.expectedVersion);
     if (!Number.isInteger(version) || version < 0) throw new Error("A valid expected version is required.");
-    // The browser supplies only an identity. Alert facts and source links always
-    // come from the server's Slack digest, never from a client-authored record.
-    const digest = await readSlackDailyDigest(date);
-    if (digest.status !== 'ready') return NextResponse.json({ error: 'Update history is unavailable. Refresh before saving a review or follow-up.' }, { status: 503, headers });
-    const message = digest.messages.find((candidate) => candidate.id === body.alertId);
-    if (!message) return NextResponse.json({ error: "The source alert is unavailable. Refresh and try again." }, { status: 404, headers });
-    const alert = consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)), readScheduleVisits(date).visits).find(candidate => candidate.id === message.id) || toOperationalAlert(message);
+    // The client supplies identity only. Re-read the authoritative source for
+    // every review, including native LinxUp events that never passed through Slack.
+    let alert: OperationalAlert;
+    let sourceObservedAt: string;
+    if (String(body.alertId).startsWith('linxup-geofence-')) {
+      const entry = readGeofenceEntries(date).entries.find(row=>row.id===body.alertId);
+      if (!entry) return NextResponse.json({error:'The source geofence entry is unavailable. Refresh and try again.'},{status:404,headers});
+      alert = geofenceOperationalAlert(entry,date);
+      sourceObservedAt = entry.timestamp;
+    } else {
+      const digest = await readSlackDailyDigest(date);
+      if (digest.status !== 'ready') return NextResponse.json({ error: 'Update history is unavailable. Refresh before saving a review or follow-up.' }, { status: 503, headers });
+      const message = digest.messages.find(candidate=>candidate.id===body.alertId);
+      if (!message) return NextResponse.json({ error: 'The source alert is unavailable. Refresh and try again.' }, { status: 404, headers });
+      sourceObservedAt = message.timestamp;
+      alert = consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)), readScheduleVisits(date).visits).find(candidate=>candidate.id===message.id) || toOperationalAlert(message);
+    }
     const existingItems = await listCommandAlertWorkItems(date);
     const existing = commandAlertWorkItemForSource(existingItems, alert);
     const category = alert.domain === "Finance" ? "Finance" : alert.domain === "Fleet" ? "Fleet" : alert.domain === "Krewe" ? "Crew" : "Jobs";
     const item = await saveCommandAlertWorkItem({
       operatingDate: date, rule: COMMAND_ALERT_RULE, category,
       severity: alert.needsAction ? "warning" : "info",
-      entity: { type: category === "Fleet" ? "truck" : category === "Crew" ? "employee" : category === "Finance" ? "finance" : "job", id: existing?.entity.id || message.id, label: alert.title.match(/\bJK\d+/)?.[0] || alert.title },
+      entity: { type: category === "Fleet" ? "truck" : category === "Crew" ? "employee" : category === "Finance" ? "finance" : "job", id: existing?.entity.id || alert.id, label: alert.title.match(/\bJK\d+/)?.[0] || alert.title },
       title: alert.title,
       description: [alert.label, ...alert.facts.map((fact) => `${fact.label}: ${fact.value}`), `Required result: ${alert.next}`, `Source: ${alert.href}`].join("\n"),
-      source: "Slack", sourceObservedAt: message.timestamp,
+      source: alert.source || "Slack", sourceObservedAt,
     }, { actorId: actor.id, correlationId, action: body.action, expectedVersion: version });
     return NextResponse.json({ item }, { headers });
   } catch (error) {

@@ -50,8 +50,15 @@ The production WhatsApp worker loads `OPENAI_API_KEY` from the host-only
 repository and must never be committed. `OPSBOT_TRUCK_VISION_MODEL` can override
 the default `gpt-5.4-mini` model.
 
-GPS presence at a dump or recycler does not by itself prove the truck unloaded,
-so GPS alone never resets a load.
+A LinxUp **GEOFENCE_ENTERED** event at a transfer station, landfill, or metal
+recycling yard automatically resets the load to empty under the operating rule.
+Later completed jobs add to that new load. Warehouse entries remain informational
+and never reset the load. Ordinary GPS points, stop/ignition records, exits, and
+unknown geofences do not reset it. Native entries and their reset effects share
+one stable event ID, so refreshes and delivery retries do not repeat a reset.
+The source event remains visible in Command's chronological timeline. The reset
+is a read projection from the collected LinxUp event; it does not assert a paid
+dump receipt or create a JunkWare payment.
 
 ## Runtime data and API
 
@@ -74,7 +81,7 @@ Confirmed visit departure or an existing closeout event places an added load
 before or after an unload or observation. The schedule's `completed_at` field
 can contain the appointment window end and is not used as actual pickup time.
 If ordering matters and cannot be verified, the UI displays **Verify load**.
-Current Fleet/API unloads and load observations retain the IDs of jobs already
+Manual Fleet/API unloads and load observations retain the IDs of jobs already
 closed on that truck, so those loads remain covered even if their visit times
 are missing or their closeouts are later corrected. A saved starting load is
 the day's baseline; without one, completed job contributions accumulate from

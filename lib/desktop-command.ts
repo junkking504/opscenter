@@ -4,6 +4,7 @@ import { crewAppointmentFacts } from './crew-progress-details';
 import { sourceFreshness } from './source-freshness';
 import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
 import { readScheduleVisits } from './desktop-schedule-visits';
+import { geofenceOperationalAlert, readGeofenceEntries } from './linxup-geofence-alerts';
 import { readJobRows } from './desktop-schedule-source';
 import { readDesktopSourceHealth } from '@/lib/desktop-source-health';
 import { readMetrics, completedJobs, crewRows, truckRows, money, type AnyRecord } from '@/lib/opsData';
@@ -75,7 +76,8 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const visits = visitSnapshot.visits;
   const appointments = readJobRows(date);
   const sourceHealth = readDesktopSourceHealth(/^(admin|administrator|manager)$/i.test(actor.role));
-  const alerts: DesktopCommandSnapshot['alerts'] = consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)), visits).map(alert => {
+  const geofences = readGeofenceEntries(date);
+  const alerts: DesktopCommandSnapshot['alerts'] = [...consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)), visits),...geofences.entries.map(entry=>geofenceOperationalAlert(entry,date))].map(alert => {
       const action = commandAlertWorkItemForSource(workflow.items, alert);
       return presentAlert(alert, action);
   });
@@ -107,7 +109,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
       return {
         ...alert, timestamp: alert.timestamp,
         priority: ['New Appointment','Arrival','Departure','Duration','Job Closed','Estimate Closed','Photos Uploaded','Payment Recorded','Clock In','Clock Out','Final Daily Pay','Fuel Receipt','Dump Receipt','Receipt Recorded'].includes(alert.label) ? 'watch' : alert.needsAction ? 'warning' : 'watch',
-        detail: '', source: 'Slack', action: 'Open Source', context: alert.next,
+        detail: '', source: alert.source || 'Slack', action: 'Open Source', context: alert.next,
         workflowState: commandAlertState(action), version: action?.version || 0, actionId: action?.id,
       };
   }
@@ -115,14 +117,15 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
     date, generatedAt: new Date().toISOString(), actor,
     kpis: desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0),
     sourceHealth: [...sourceHealth,
+      {name:'LinxUp geofences',area:'Facility entries and automatic load resets',workspace:'Fleet',action:'Open Fleet',state:geofences.available ? geofences.complete ? 'Available' : 'Incomplete' : 'Unavailable',tone:geofences.available && geofences.complete ? 'healthy' : 'warning',observedAt:geofences.observedAt || null,maxAgeSeconds:180},
       {name:'Slack',area:'Operational alerts',workspace:'Command',action:'Open alerts',state:digest.status==='ready'?(digest.complete === false ? 'Incomplete' : 'Current'):'Unavailable',tone:digest.status==='ready' && digest.complete !== false ?'healthy':'warning',observedAt:digest.refreshedAt,maxAgeSeconds:120},
       {name:'Control',area:'Shared database connection',workspace:'Command',action:'Open decisions',state:workflow.available?'Connected':'Unavailable',tone:workflow.available?'healthy':'warning',observedAt:new Date().toISOString(),maxAgeSeconds:120}],
-    sources: { metrics: Boolean(metrics), alerts: digest.status === 'ready', workflow: workflow.available },
+    sources: { metrics: Boolean(metrics), alerts: digest.status === 'ready' || geofences.available, workflow: workflow.available },
     alerts,
     crewProgress: buildCrewProgress({date,appointments,visits,alerts,
       scheduleCurrent: sourceHealth.some(source => source.name === 'JunkWare' && source.tone === 'healthy' && sourceFreshness(source.observedAt,source.maxAgeSeconds).fresh),
       visitsCurrent: sourceFreshness(visitSnapshot.observedAt,180).fresh,
-      updatesComplete: digest.status === 'ready' && digest.complete !== false,
+      updatesComplete: digest.status === 'ready' && digest.complete !== false && geofences.complete,
     }),
   };
 }

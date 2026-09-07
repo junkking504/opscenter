@@ -57,6 +57,15 @@ try {
   await page.getByRole('button',{name:'Simulate unindexed updates'}).click();
   assert.deepEqual(await labels(),['Arrival','New Appointment','Truck Unloaded','Clock In','Duration','Job Closed','Inspection'],'Source updates missing from appointment indexes are retained; timezone offsets sort by instant and unknown times sort last');
   await page.getByRole('button',{name:'Reset preview'}).click();
+  await page.getByRole('button',{name:'Simulate warehouse entry'}).click();
+  assert.deepEqual(await labels(),['Arrival','New Appointment','Geofence Entry','Clock In','Duration','Job Closed'],'Native geofence entries interleave by occurrence time');
+  const warehouse = timeline.locator('.crew-update').filter({hasText:'Geofence Entry'});
+  assert.match(await warehouse.innerText(),/Junk King warehouse[\s\S]*Unchanged/,'Warehouse entry does not claim an unload');
+  await warehouse.getByRole('button',{name:'Mark reviewed',exact:true}).click();
+  assert.equal(await warehouse.getByText('Reviewed',{exact:true}).count(),1);
+  await warehouse.getByRole('button',{name:'Open record',exact:true}).click();
+  assert.match(await page.getByRole('status').last().textContent(),/workspace=Fleet/);
+  await page.getByRole('button',{name:'Reset preview'}).click();
   await page.setViewportSize({width:390,height:844});
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true,'Mobile must not overflow horizontally');
   await page.screenshot({path:`${directory}/mobile.png`,fullPage:true});

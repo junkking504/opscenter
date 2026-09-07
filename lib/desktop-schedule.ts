@@ -41,7 +41,8 @@ export function readDesktopSchedule(date: string) {
   const calls = readJobCallAheadStatuses();
   const fleet = buildFleetMapPayload(date) || { date, isToday: false, trucks: [], lastUpdatedAt: null };
   const visits = readScheduleVisits(date);
-  const appointments: DesktopAppointment[] = readJobRows(date).map((rawSource, index) => {
+  const sourceAppointments = readJobRows(date);
+  const appointments: DesktopAppointment[] = sourceAppointments.map((rawSource, index) => {
     const source = separateCancellationContact(rawSource);
     const override = overrides.get(`appt:${source.appointmentId}`);
     const job = override ? {
@@ -65,7 +66,7 @@ export function readDesktopSchedule(date: string) {
     date,
     observedAt: junkwareScheduleUpdatedAt(date),
     appointments,
-    truckLoads: readOperationalTruckLoads(date, [...fleet.trucks.map(truck=>truck.truck),...appointments.map(job=>job.truck)], appointments).map(load=>({
+    truckLoads: readOperationalTruckLoads(date, [...fleet.trucks.map(truck=>truck.truck),...appointments.map(job=>job.truck)], sourceAppointments).map(load=>({
       truck:load.truck, label:load.needsVerification ? 'Verify load' : load.events.length ? load.currentLoadLabel : 'Load not recorded',
       percent:load.needsVerification || !load.events.length ? null : load.capacityPercent,
       needsVerification:load.needsVerification, note:load.verificationNote || (load.isOverCapacity ? 'Over capacity · verify an unload or the recorded loads.' : load.currentContents),

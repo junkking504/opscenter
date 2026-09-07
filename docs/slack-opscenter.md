@@ -81,6 +81,20 @@ exposed. Photo availability depends on the job collector capturing the upload.
 
 OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. Confirmed LinxUp truck-arrival alerts are published separately by the one-minute LinxUp collector, immediately after visit matching. New appointments, reschedules, cancellations, and closeouts are checked by a persistent verified JunkWare schedule detector; it reads schedule pages only and does not wait for detail pages, GPS, payroll, QBO, Krewe Portal, marketing, or VPS work. It uses one browser because JunkWare serializes concurrent logins, but publishes each market immediately after that market is verified instead of waiting for the other three. A sweep starts five seconds after the preceding sweep completes. The production in-session sweep measured 17.2 seconds total and about 4.3 seconds per market, producing a roughly 22-second same-market read cadence before the five-second OpsCenter browser check. This targets about 30 seconds and keeps the operating requirement below 60 seconds. Slack is the action and escalation layer; OpsCenter remains the source of truth.
 
+## LinxUp facility entries
+
+Command also reads native LinxUp `GEOFENCE_ENTERED` events from the selected
+operating day's collected alert file, without requiring a Slack message. Entries
+show truck, facility, entered time, and the load effect in the same newest-first
+timeline. Warehouse entries keep the current load; transfer stations, landfills,
+and metal recycling yards reset it to empty. Known configured facility aliases
+are recognized; unknown geofences remain informational. Provider retries combine
+by truck, geofence, and actual entry time; later reentries remain distinct.
+Entry alerts support the same review/Control actions, with server-side source
+lookup and LinxUp provenance. No Slack post or source record mutation is made.
+Unavailable or partial LinxUp alert collections remain explicit in Source Health;
+stop rows and starting inside a geofence do not invent entry events.
+
 ## Routing policy
 
 - New or cancelled same-day appointment -> `#jobs-no`, `#jobs-br`, or `#jobs-ns` by territory, regardless of truck assignment

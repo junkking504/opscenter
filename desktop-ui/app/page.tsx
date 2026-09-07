@@ -4177,9 +4177,9 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               {notificationOpen && <button className="notification-backdrop" aria-label="Close alerts" onClick={() => setNotificationOpen(false)} />}
               <Button className="notification-trigger" variant="outline" size="lg" aria-label={live && !live.snapshot.sources.alerts ? 'Alert count unavailable' : `${activeAlerts.length} active alerts`} aria-expanded={notificationOpen} aria-controls="notification-panel" onClick={() => { setNotificationOpen((open) => !open); setSearchOpen(false); setOperatingDayOpen(false); setQuery(''); }}><Bell size={16} />{activeAlerts.length > 0 && <><span className="notification-dot" /><b>{activeAlerts.length}</b></>}</Button>
               {notificationOpen && <aside className="notification-panel" id="notification-panel" role="dialog" aria-label="Alerts">
-                <header><div><span>Slack source · OpsCenter format</span><strong>Alerts</strong><small>{activeAlerts.length} active · Essential operating information</small></div><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>Open Command <ArrowRight size={14} /></button></header>
+                <header><div><span>Operational sources · OpsCenter format</span><strong>Alerts</strong><small>{activeAlerts.length} active · Essential operating information</small></div><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>Open Command <ArrowRight size={14} /></button></header>
                 {activeAlerts.length ? <div className="notification-list">{activeAlerts.map((item) => { const linkedAction = linkedActionForAlert(item); return <article className={`notification-alert ${item.priority}`} key={item.id}><i className={`priority-mark ${item.priority}`} /><button className="notification-alert-open" onClick={() => openAlertRecord(item)}><div><span className={`notification-priority ${item.priority}`}>{item.label}</span><small>{item.domain} · {item.detected}</small><span className={`alert-workflow-status ${linkedAction ? 'in-control' : 'active'}`}>{linkedAction ? 'In Control' : 'Active'}</span></div><strong>{item.title}</strong><p>{item.detail}</p><footer><span>Owner · {item.owner}</span><b>{item.context}</b></footer></button><div className="notification-alert-controls"><button disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) acknowledgeAlert(item); }}>Acknowledge</button><button className="primary" disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) addAlertToControl(item); }}>{linkedAction ? 'Manage Action' : 'Add to Control'}</button></div></article>; })}</div>
-                  : <div className="notification-empty">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Slack alerts unavailable</strong><p>Active alert counts are unknown until the source refreshes.</p></> : <><Check size={22} /><strong>No active alerts</strong><p>Acknowledged and resolved alerts remain visible on Command.</p></>}</div>}
+                  : <div className="notification-empty">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Operational alerts unavailable</strong><p>Active alert counts are unknown until the source refreshes.</p></> : <><Check size={22} /><strong>No active alerts</strong><p>Acknowledged and resolved alerts remain visible on Command.</p></>}</div>}
                 <footer><span><ShieldCheck size={13} />Source and ownership stay attached</span><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>View All Alerts</button></footer>
               </aside>}
             </div>
@@ -4244,7 +4244,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                     : financeView === 'resale' ? 'Manage resale custody, listing status, disposition, and realized value.'
                       : financeView === 'recycling' ? 'Track recycling loads, yard tickets, payments, and realized value.'
                         : 'Compare exact calendar months and year-to-date operating performance.'
-                  : view === 'now' ? 'Crew progress and operational updates, organized by truck and job.'
+                  : view === 'now' ? 'All operational updates in one timeline, newest first.'
                     : view === 'today' ? 'Resolve today’s operating gaps with ownership, approval, source context, and verified outcomes.'
                       : 'Watch operational trends and emerging risks; system health remains supporting context.'}</p>
             </div>
@@ -4315,7 +4315,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             <div className="command-grid">
               <section className="work-panel">
                 <div className="section-title">
-                  <div><span className="section-kicker">{live && !live.snapshot.sources.alerts ? 'Slack source unavailable · alert counts unknown' : `${alertViewCounts.open} unresolved · ${visibleCommandAlerts.length} shown`}</span><h2 id="live-alert-list">Alerts</h2></div>
+                  <div><span className="section-kicker">{live && !live.snapshot.sources.alerts ? 'Operational sources unavailable · alert counts unknown' : `${alertViewCounts.open} unresolved · ${visibleCommandAlerts.length} shown`}</span><h2 id="live-alert-list">Alerts</h2></div>
                   <Button variant="ghost" size="sm" onClick={() => { setAlertViewFilter('all'); setQuery(''); }}>View All Alerts <ArrowRight /></Button>
                 </div>
                 <div className="alert-triage-bar" role="toolbar" aria-label="Filter alerts by workflow state">
@@ -4359,7 +4359,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                         {['Job Closed', 'Estimate Closed'].includes(item.label) && <AlertPhotos photos={item.photos} />}
                       </div>
                     </article>
-                  ); }) : <div className="empty-state">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Slack alerts unavailable</strong><span>Alert counts are unknown until the source refreshes. This does not confirm that there are no alerts.</span></> : <><Check size={22} /><strong>No alerts in this view</strong><span>Choose another workflow state or clear the search.</span></>}</div>}
+                  ); }) : <div className="empty-state">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Operational alerts unavailable</strong><span>Alert counts are unknown until the source refreshes. This does not confirm that there are no alerts.</span></> : <><Check size={22} /><strong>No alerts in this view</strong><span>Choose another workflow state or clear the search.</span></>}</div>}
                 </div>
               </section>
             </div>

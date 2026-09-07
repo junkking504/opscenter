@@ -73,6 +73,8 @@ while a saved change is verified even if the WebForms navigation timed out.
 
 Completing an estimate also requires JunkWare’s unclosed-estimate outcome: Price/Budget, Date/Time, or Other plus an explanation. If there is no discount, its explanation is required too. The type control collects these facts before review; the adapter handles JunkWare’s second modal and verifies the saved outcome. An HTTP response opening that modal is not a completed save. Classification corrections disable the incidental Send Pictures email checkbox.
 
+JunkWare can fill entirely blank actual-time controls with the scheduled window when completing an estimate. Verification accepts only that exact, unchanged source window and returns an explicit timing-confirmation notice; it does not treat those defaults as GPS arrival/departure evidence. Existing actual times, appointment windows, crew, charges, and payments must remain unchanged. Option-list changes are excluded from field-difference diagnostics.
+
 ## Alert note summaries
 
 Appointment alerts show pertinent note details: removal items, access constraints, special requests, and customer ETA contact. Repeated ETA calls become one detail; operator timestamps, routine rescheduling logs, resolved call-center case boilerplate, and promotional boilerplate are omitted. Extraction preserves concrete instructions and negation, deduplicates repeated details, and leaves the complete source notes available in the appointment record. This changes presentation only.

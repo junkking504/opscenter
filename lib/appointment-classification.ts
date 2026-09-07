@@ -4,6 +4,24 @@ import { closeoutSourceVersion } from './desktop-closeout-contract';
 
 export type EstimateOutcome = {reason:'Price/Budget'|'Date/Time'|'Other'; explanation:string; noDiscountReason?:string};
 export type ClassificationChange = {appointmentType:'Job'|'Estimate'; completeEstimate:boolean; expectedSourceVersion:string; truck?:string; estimateOutcome?:EstimateOutcome};
+const actualTimeFields = ['actualStartHour','actualStartMinute','actualEndHour','actualEndMinute'];
+export function classificationCompletionTimeWarning(before: Record<string,unknown>, after: Record<string,unknown>, change: ClassificationChange): string | undefined {
+  const value = (record: Record<string,unknown>, key: string) => String((record[key] as {value?:unknown} | undefined)?.value ?? '');
+  if (!change.completeEstimate || change.appointmentType !== 'Estimate' || value(before,'status') !== '1' || value(after,'status') !== '8' || actualTimeFields.some(key=>value(before,key))) return;
+  const window = before.appointmentWindow as {startTime?:string;durationHours?:string} | undefined;
+  if (!window || JSON.stringify(window) !== JSON.stringify(after.appointmentWindow)) return;
+  const match = String(window.startTime || '').trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+  const duration = Number(window.durationHours);
+  if (!match || !Number.isFinite(duration) || duration <= 0 || duration > 12) return;
+  let hour = Number(match[1]); const minute = Number(match[2]);
+  if (minute > 59 || hour > (match[3] ? 12 : 23) || match[3] && hour < 1) return;
+  if (match[3]) hour = hour % 12 + (match[3].toUpperCase() === 'PM' ? 12 : 0);
+  const end = hour * 60 + minute + duration * 60;
+  if (!Number.isInteger(end) || end >= 1440) return;
+  const expected = [hour,minute,Math.floor(end/60),end%60].map(value=>String(value).padStart(2,'0'));
+  if (!actualTimeFields.every((key,index)=>value(after,key) === expected[index])) return;
+  return 'JunkWare filled previously blank actual times from the appointment window. Actual visit timing still needs confirmation.';
+}
 export function parseClassificationChange(value: Record<string,unknown>): ClassificationChange {
   if (!['Job','Estimate'].includes(String(value.appointmentType)) || !/^[a-f0-9]{64}$/.test(String(value.expectedSourceVersion || '')) || typeof value.completeEstimate !== 'boolean' || value.completeEstimate && value.appointmentType !== 'Estimate') throw new Error('A valid appointment type and current source version are required.');
   if (value.truck !== undefined && !/^Truck [1-9]\d?$/.test(String(value.truck))) throw new Error('A valid truck is required.');
@@ -30,13 +48,16 @@ export function verifyClassificationChange(before: Record<string,unknown>, after
   // closeout fields, including money, crew, and payments, remained intact.
   const truckName = (value: unknown) => String(value || '').replace(/Truck#?\s*/i,'Truck ').trim();
   if (change.truck && (truckName(before.truck) || truckName(after.truck) !== change.truck)) throw new Error('The completion truck was not retained or would replace an existing assignment.');
+  const completionTimeDefault = classificationCompletionTimeWarning(before,after,change);
   const withoutClassification = (record: Record<string,unknown>) => {
     const {appointmentType:_type,status:_status,drivers:_drivers,navigatorOptions:_navigators,paymentMethods:_methods,otherChargeOptions:_charges,truckOptions:_trucks,...fields} = record;
     if (change.truck) delete fields.truck;
     if (change.estimateOutcome) delete fields.appointmentNotes;
-    return closeoutSourceVersion(Object.fromEntries(Object.entries(fields).map(([key,value])=>[key,value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).filter(([name])=>name !== 'options')) : value])));
+    if (completionTimeDefault) for (const key of actualTimeFields) delete fields[key];
+    return Object.fromEntries(Object.entries(fields).map(([key,value])=>[key,value && typeof value === 'object' && !Array.isArray(value) ? Object.fromEntries(Object.entries(value).filter(([name])=>name !== 'options')) : value]));
   };
-  if (withoutClassification(before) !== withoutClassification(after)) throw new Error('JunkWare changed other appointment details ('+Object.keys(before).filter(key=>!['appointmentType','status','truckOptions','drivers','navigatorOptions','paymentMethods','otherChargeOptions'].includes(key) && !(key==='truck' && change.truck) && !(key==='appointmentNotes' && change.estimateOutcome) && JSON.stringify(before[key])!==JSON.stringify(after[key])).join(', ')+'); review the source before making another change.');
+  const previousFields = withoutClassification(before), currentFields = withoutClassification(after);
+  if (closeoutSourceVersion(previousFields) !== closeoutSourceVersion(currentFields)) throw new Error('JunkWare changed other appointment details ('+[...new Set([...Object.keys(previousFields),...Object.keys(currentFields)])].filter(key=>JSON.stringify(previousFields[key])!==JSON.stringify(currentFields[key])).join(', ')+'); review the source before making another change.');
 }
 type VerifiedClassification = {appointmentId:string; appointmentType:string; status:string; verifiedAt:string; truck?:string};
 const directory = () => path.join(process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data'),'appointment-classifications');

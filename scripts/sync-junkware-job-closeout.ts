@@ -1,6 +1,6 @@
 import { clickWithWebFormsCompletion, selectWithWebFormsPostback } from './junkware-webforms';
 import { closeoutSourceVersion, verifyCloseoutFields, verifyAddedCloseoutCharges } from '../lib/desktop-closeout-contract';
-import { parseClassificationChange, verifyClassificationChange, type ClassificationChange } from '../lib/appointment-classification';
+import { classificationCompletionTimeWarning, parseClassificationChange, verifyClassificationChange, type ClassificationChange } from '../lib/appointment-classification';
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -128,6 +128,7 @@ async function capture(page: Page): Promise<{ status: { value: string; label: st
         : "",
       truckOptions: truckSelect instanceof HTMLSelectElement ? Array.from(truckSelect.options).map(option=>({value:option.value,label:clean(option.textContent)})) : [],
       appointmentType: selectData("ctl00_Content_AppointmentTypeDD"),
+      appointmentWindow: {startTime:input('ctl00_Content_StartTimeTB'),durationHours:selectData('ctl00_Content_DurationDD').value},
       status: selectData("ctl00_Content_StatusDD"),
       appointmentNotes: Array.from(document.querySelectorAll('[id*="NotesLV"][id$="NoteLbl"]')).map(node=>clean(node.textContent)),
       driver: { value: driver.value, label: driver.label },
@@ -452,7 +453,8 @@ async function main(): Promise<void> {
     const closeout = await capture(page);
     if (input) { verifyCloseout(closeout, input); verifyCloseoutFields(closeout, input, before); }
     if (classification && before) verifyClassificationChange(before,closeout,classification);
-    process.stdout.write(`${JSON.stringify({ ok: true, mode, appointmentId, closeout, verifiedAt: new Date().toISOString() })}\n`);
+    const warning = classification && before ? classificationCompletionTimeWarning(before,closeout,classification) : undefined;
+    process.stdout.write(`${JSON.stringify({ ok: true, mode, appointmentId, closeout, ...(warning ? {warning} : {}), verifiedAt: new Date().toISOString() })}\n`);
     await context.close();
   } finally {
     if (browser) await browser.close();

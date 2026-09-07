@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {parseClassificationChange,verifyClassificationChange,recordAppointmentClassification,applyVerifiedClassifications} from '../lib/appointment-classification';
+import {classificationCompletionTimeWarning,parseClassificationChange,verifyClassificationChange,recordAppointmentClassification,applyVerifiedClassifications} from '../lib/appointment-classification';
 import {parseScheduleOperation,executeScheduleOperation} from '../lib/desktop-schedule-operations';
 import type {DesktopAppointment} from '../lib/desktop-schedule';
 
@@ -22,6 +22,17 @@ async function main() {
     const before={appointmentType:{label:'Job',value:'2'},status:{label:'Confirmed',value:'1'},driver:{value:'9'},total:'628.00',payments:[],tip:'0',otherCharges:[]};
     const after={...before,appointmentType:{label:'Estimate',value:'1'},status:{label:'Completed',value:'8'}};
     verifyClassificationChange(before,after,change);
+    const timeKeys=['actualStartHour','actualStartMinute','actualEndHour','actualEndMinute'];
+    const baseline={...before,appointmentWindow:{startTime:'08:00 AM',durationHours:'1'},...Object.fromEntries(timeKeys.map(key=>[key,{value:'',label:''}]))};
+    const defaulted={...baseline,...after,...Object.fromEntries(timeKeys.map((key,index)=>[key,{value:['08','00','09','00'][index],label:['08 AM','00','09 AM','00'][index]}]))};
+    verifyClassificationChange(baseline,defaulted,change);
+    assert.match(classificationCompletionTimeWarning(baseline,defaulted,change) || '',/timing still needs confirmation/);
+    assert.throws(()=>verifyClassificationChange({...baseline,actualStartHour:{value:'07',label:'07 AM'}},defaulted,change),/actualStartHour/,'A recorded actual time must never be replaced by the window');
+    assert.throws(()=>verifyClassificationChange(baseline,{...defaulted,actualEndHour:{value:'10',label:'10 AM'}},change),/actualEndHour/,'Only the exact source window is an allowable provider default');
+    assert.throws(()=>verifyClassificationChange(baseline,{...defaulted,appointmentWindow:{startTime:'09:00 AM',durationHours:'1'}},change),/appointmentWindow/);
+    assert.throws(()=>verifyClassificationChange(baseline,{...defaulted,payments:[{amount:'628.00'}]},change),/payments/);
+    assert.equal(classificationCompletionTimeWarning({...baseline,appointmentWindow:undefined},defaulted,change),undefined);
+    verifyClassificationChange({...before,jobCategory:{value:'',label:'',options:[{value:'',label:''}]}},{...after,jobCategory:{value:'',label:'',options:[]}},change);
     const withTruck=parseClassificationChange({...values,truck:'Truck 6'});
     verifyClassificationChange({...before,truck:''},{...after,truck:'Truck# 6'},withTruck);
     assert.throws(()=>verifyClassificationChange({...before,truck:'Truck# 4'},{...after,truck:'Truck# 6'},withTruck),/existing assignment/);
@@ -51,6 +62,8 @@ async function main() {
     assert.equal((await executeScheduleOperation(operation,'actor',()=>job,run)).status,'verified');
     await executeScheduleOperation(operation,'actor',()=>job,run);
     assert.equal(writes,1,'Classification retries must not write twice');
+    const notice=await executeScheduleOperation({...operation,requestId:randomUUID()},'actor',()=>job,async()=>({status:200,body:{ok:true,warning:'Actual visit timing still needs confirmation.'}}));
+    assert.match(notice.message,/timing still needs confirmation/);
     await assert.rejects(executeScheduleOperation({...operation,requestId:randomUUID()},'actor',()=>({...job,status:'Canceled'}),run),/Canceled/);
     await assert.rejects(executeScheduleOperation({...operation,requestId:randomUUID()},'actor',()=>({...job,version:'c'.repeat(64)}),run),/changed/);
     console.log('Appointment classification passed: input validation, source read-back, field preservation, both directions, overlay precedence, closed-record support, and idempotency. No live writes.');

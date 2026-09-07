@@ -91,6 +91,7 @@ export async function executeScheduleOperation(operation: ScheduleOperation, act
       const result = await run(job);
       const verified = result.status >= 200 && result.status < 300 && result.status !== 202 && result.body.ok !== false;
       receipt = { ...receipt, status: verified ? 'verified' : result.status === 202 || result.status >= 500 ? 'uncertain' : 'failed', updatedAt: new Date().toISOString(), message: verified ? operation.action === 'call_ahead' ? 'Call-ahead recorded in OpsCenter.' : 'JunkWare verified the appointment change.' : String(result.body.warning || result.body.error || 'The source result needs verification.'), sourceResult: result.body };
+      if (verified && operation.action === 'classify' && typeof result.body.warning === 'string') receipt.message += ` ${result.body.warning}`;
     } catch {
       receipt = { ...receipt, status: 'uncertain', updatedAt: new Date().toISOString(), message: 'The result could not be confirmed. Verify the source before trying again.' };
     }

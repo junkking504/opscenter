@@ -119,6 +119,10 @@ assert.deepEqual(summarizeAppointmentNotes([
 assert.deepEqual(summarizeAppointmentNotes(['Customer called for an ETA. Please leave the piano upstairs.']), ['Please leave the piano upstairs.', 'Customer requested an ETA.']);
 assert.deepEqual(summarizeAppointmentNotes(['Additional Lead Note Label: Website Note: What will be picking up?: 12 bags and a fountain, Service Type: Residential, Special Offer: boilerplate']), ['12 bags and a fountain']);
 assert.deepEqual(summarizeAppointmentNotes(['Do not remove the cabinet. Gate code 0012.', 'No elevator; use rear stairs.']), ['Do not remove the cabinet.', 'Gate code 0012.', 'No elevator; use rear stairs.']);
+assert.deepEqual(summarizeAppointmentNotes(['TOG–Junk King Customer Care Case Type: ETA/Status Resolution: Resolved Call Summary: The caller requested an update on their scheduled appointment because the pickup window was past due. I checked the appointment details and attempted to contact the team for an update but was forwarded to voicemail and could not provide a confirmed status. I spoke with the team to inquire about the issue and apologized to the caller. I provided an explanation but did not complete any request or confirm a resolution. Next Steps: Follow up needed to address the caller’s issue or request.', 'Customer requested to cancel. Nobody showed up.']), ['Customer requested to cancel.', 'Nobody showed up.', 'Customer contacted the call center for an ETA.']);
+assert.deepEqual(summarizeAppointmentNotes(['The caller acknowledged the information. I acknowledged the caller’s request to have someone return their call. The caller mentioned needing a callback before their plans in two hours. Next Steps: Await callback from the appropriate department as requested by the caller.']), ['The caller mentioned needing a callback before their plans in two hours.']);
+assert.deepEqual(summarizeAppointmentNotes(['I acknowledged the caller’s request to have someone return their call.']), ['Customer requested a callback.']);
+assert.deepEqual(summarizeAppointmentNotes(['Cash $100.00 Remove', 'Do not remove the piano.']), ['Do not remove the piano.']);
 
 
 async function main() {

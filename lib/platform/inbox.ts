@@ -129,16 +129,18 @@ async function recordAbsences(input: {
   sourceFresh: boolean;
 }): Promise<void> {
   await withKernelTransaction(async (client) => {
+    // Serialize the observation comparison as well as its absence increments.
+    // Two operators checking the same snapshot must not count it twice.
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['inbox-absence:' + input.report.date]);
     const previous = await client.query<{ source_observed_at: Date | string | null }>(
       `
-        SELECT source_observed_at
+        SELECT max(source_observed_at) AS source_observed_at
         FROM opscenter_kernel.detector_runs
         WHERE detector_key = 'operating_inbox.v1'
           AND operating_date = $1
           AND status = 'succeeded'
+          AND source_fresh = true
           AND id <> $2
-        ORDER BY finished_at DESC NULLS LAST, started_at DESC
-        LIMIT 1
       `,
       [input.report.date, input.runId],
     );
@@ -146,7 +148,7 @@ async function recordAbsences(input: {
     const previousObservedAt = previous.rows[0]?.source_observed_at
       ? new Date(previous.rows[0].source_observed_at).toISOString()
       : null;
-    const advancesAbsence = input.sourceFresh && previousObservedAt !== observedAt;
+    const advancesAbsence = input.sourceFresh && (!previousObservedAt || observedAt > previousObservedAt);
 
     const active = await client.query<{
       id: string;

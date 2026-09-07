@@ -83,13 +83,26 @@ async function main() {
   const writeObservation = (generated_at: string) => fs.writeFileSync(path.join(metricsDirectory, `daily_metrics_${date}.json`), JSON.stringify({ date, generated_at, appointments: [], employee_leaderboard: [], attendance_employee_metrics: [], missing_inputs: [] }));
   writeObservation(observation);
   const detected = await reconcileDetectedWorkItem({ operatingDate: date, rule: 'payment_amount_present_but_payment_type_missing', category: 'Jobs', severity: 'warning', entity: { type: 'job', id: 'synthetic-missing-payment' }, title: 'Synthetic missing payment method', description: 'Synthetic source detector test.', source: 'Synthetic fixture', sourceObservedAt: observation }, { actorId: actor.id, correlationId: randomUUID() });
-  await reconcileOperatingInbox(date, actor.id);
+  await Promise.all([reconcileOperatingInbox(date, actor.id), reconcileOperatingInbox(date, actor.id)]);
   assert.equal((await getWorkItem(detected.workItem.id))?.status, 'open', 'One fresh absence cannot resolve a source condition.');
+  assert.equal((await pool.query('SELECT consecutive_fresh_absences FROM opscenter_kernel.work_items WHERE id=$1', [detected.workItem.id])).rows[0].consecutive_fresh_absences, 1, 'Concurrent checks cannot count one observation twice.');
   await reconcileOperatingInbox(date, actor.id);
   assert.equal((await getWorkItem(detected.workItem.id))?.status, 'open', 'Repeated identical snapshots cannot manufacture verification.');
+  writeObservation(new Date(Date.parse(observation)-1000).toISOString());
+  await reconcileOperatingInbox(date, actor.id);
+  assert.equal((await getWorkItem(detected.workItem.id))?.status, 'open', 'An older snapshot is not new confirming evidence.');
+  writeObservation(observation);
+  await reconcileOperatingInbox(date, actor.id);
+  assert.equal((await getWorkItem(detected.workItem.id))?.status, 'open', 'Returning to a previously checked timestamp does not count twice.');
   writeObservation(new Date(Date.parse(observation)+1000).toISOString());
   await reconcileOperatingInbox(date, actor.id);
   assert.equal((await getWorkItem(detected.workItem.id))?.resolutionCode, 'source_condition_cleared', 'Two distinct fresh observations can resolve the supported source condition.');
+  const priorDate = new Date(Date.parse(date + 'T12:00:00Z') - 86400000).toISOString().slice(0, 10);
+  const carryover = await createManualWorkItem({ operatingDate: priorDate, title: 'Synthetic prior-day carryover', description: 'Synthetic retained history.', category: 'Jobs', severity: 'warning', relatedRecord: 'synthetic-prior-appointment', dueAt, assignToSelf: true }, { actorId: actor.id, correlationId: randomUUID() });
+  await executeDesktopControl({ date, requestId: randomUUID(), action: 'resolve_manually', expectedVersion: 1, itemId: carryover.id, reason: 'Synthetic prior-day decision resolved today.' }, identity);
+  const retained = await readDesktopControl(date, identity, 1, carryover.id);
+  assert.ok(retained.items.some(row => row.id === carryover.id && row.status === 'resolved'), 'Carryovers resolved today remain discoverable from today.');
+  assert.ok(retained.audit.some(row => row.record === carryover.id), 'Current-day carryover decisions keep their audit history visible.');
   console.log('Isolated PostgreSQL lifecycle passed: concurrent exactly-once handoff, JSONB-stable receipts, conflict rollback, manual-resolution labeling, role isolation, 207-row pagination, off-page gate ownership, day start/close/reopen, stale-version rejection, attributable events, and source resolution requiring two distinct fresh observations. No production database or source writes.');
   await pool.end();
 }

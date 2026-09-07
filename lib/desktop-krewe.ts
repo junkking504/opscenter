@@ -6,6 +6,7 @@ import { workedOrAttributedToJobToday } from '@/lib/crew-attendance';
 import { buildCrewCallInPlan } from '@/lib/crew-call-in-recommendations';
 import { payPeriodForDate, payPeriodDates } from '@/lib/pay-period';
 import { payrollCorrectionForEmployee, payrollCorrectionsForDate, normalizePayrollEmployeeKey, upsertPayrollCorrection } from '@/lib/payroll-corrections';
+import {assertPayrollSyncEditable,stagePayrollSync,payrollSyncForRequest,payrollSyncForCorrection,payrollSyncMessage} from './junkware-payroll-sync';
 import { manualBonusEntriesForEmployee, upsertManualBonusEntry } from '@/lib/manual-bonuses';
 import { opsRoleCan, type InteractiveOpsRole } from '@/lib/ops-roles';
 import { chicagoClockToDate } from '@/lib/live-pay';
@@ -20,7 +21,7 @@ import { nullableNumber as num, sumObserved, validDesktopDate, type CrewAmounts,
  * operator repairs the receipt. Never retry the writer to discover its result.
  */
 export const DESKTOP_PEOPLE_FLEET_ACTIONS = {
-  'krewe.correction': { permission: 'sensitive.write', risk: 3, authority: 'opscenter_authoritative', verifier: 'payrollCorrectionForEmployee' },
+  'krewe.correction': { permission: 'sensitive.write', risk: 3, authority: 'junkware_authoritative', verifier: 'JunkWare timesheet read-back' },
   'krewe.bonus': { permission: 'sensitive.write', risk: 3, authority: 'opscenter_authoritative', verifier: 'manualBonusEntriesForEmployee' },
   'krewe.callin': { permission: 'operations.write', risk: 1, authority: 'opscenter_authoritative', verifier: 'call-in decision read-back' },
   'fleet.maintenance': { permission: 'operations.write', risk: 1, authority: 'opscenter_authoritative', verifier: 'readFleetMaintenanceStore' },
@@ -38,7 +39,9 @@ function writePrivate(name: string, value: unknown) { fs.mkdirSync(stateDirector
 export function readDesktopLocalReceipt(requestId: string, actor: string, workspace: 'fleet' | 'krewe') {
   if (!/^[0-9a-f-]{36}$/i.test(requestId)) return null;
   const row = readPrivate<DesktopLocalReceipt[]>('receipts.json', []).find(receipt => receipt.requestId === requestId && receipt.actor === actor && receipt.action.startsWith(`${workspace}.`));
-  return row ? {requestId: row.requestId, status: row.status, updatedAt: row.updatedAt} : null;
+  if(!row)return null;
+  const sync=row.action==='krewe.correction'?payrollSyncForRequest(requestId):null;
+  return {requestId:row.requestId,status:row.status==='verified'&&sync?sync.status:row.status,updatedAt:sync?.updatedAt||row.updatedAt,message:sync?.message||(row.action==='krewe.correction'?'Saved in OpsCenter; not synced to JunkWare.':'Saved and read back from OpsCenter.'),...(sync?{syncId:sync.id}:{} )};
 }
 export function executeDesktopLocalAction(input: { requestId: string; action: string; entity: string; expectedVersion: string; values: Record<string, unknown> }, actor: string, current: () => unknown, execute: () => unknown, verify: (result: unknown) => boolean): DesktopLocalReceipt {
   if(JSON.stringify(input.values).length>20_000) throw new Error('The action input is too large.');
@@ -87,9 +90,9 @@ function dayMembers(date: string, payroll: boolean): DesktopCrewMember[] {
     const hourlyRate=correction?.hourlyRate ?? num(rate || row,['hourly_rate','hourly_rate_raw']);
     const week=hourHistory?.employees.find(employee=>employee.id===id)?.weeks.find(week=>week.start<=date&&week.end>=date);
     const calculation=correctedCrewPay({date,clockIn,clockOut,hourlyRate,corrected:Boolean(correction),isSalary:Boolean(row.is_salary),amounts:fields(row),week,sourcePriorHours:num(row,['weekly_hours_before_shift'])});
-    const amounts=calculation.amounts;
+    const amounts=calculation.amounts;const sync=payrollSyncForCorrection(correction);
     const working=workedOrAttributedToJobToday({...row,clock_in:clockIn}, {timeIn:clockIn}); const truck=Array.isArray(row.trucks)?row.trucks.join(', '):String(row.truck || row.assigned_truck || clock?.trucks || 'Unassigned');
-    const member: DesktopCrewMember={...amounts,id,name,initials:name.split(/\s+/).map(v=>v[0]).slice(0,2).join(''),role:Array.isArray(row.driver_trucks)&&row.driver_trucks.length?'Driver':String(row.role || 'Krewe'),truck,working,clockIn,clockOut,hourlyRate:payroll?hourlyRate:null,status:clockIn?clockOut?'Clocked out':'Clocked in':working?'Job attributed':'Off today',issue:working&&!clockIn?'Missing clock-in':date<chicagoDateKey()&&clockIn&&!clockOut?'Missing clock-out':calculation.issue,version:desktopVersion({row,correction,bonuses:manualBonusEntriesForEmployee(date,name)}),correction:payroll?correction:null,payNote:calculation.recalculated?'Calculated in OpsCenter · Not synced to JunkWare':'',days:[]};
+    const member: DesktopCrewMember={...amounts,id,name,initials:name.split(/\s+/).map(v=>v[0]).slice(0,2).join(''),role:Array.isArray(row.driver_trucks)&&row.driver_trucks.length?'Driver':String(row.role || 'Krewe'),truck,working,clockIn,clockOut,hourlyRate:payroll?hourlyRate:null,status:clockIn?clockOut?'Clocked out':'Clocked in':working?'Job attributed':'Off today',issue:working&&!clockIn?'Missing clock-in':date<chicagoDateKey()&&clockIn&&!clockOut?'Missing clock-out':calculation.issue||(sync&&['failed','uncertain'].includes(sync.status)?sync.message:''),version:desktopVersion({row,correction,bonuses:manualBonusEntriesForEmployee(date,name)}),correction:payroll?correction:null,payNote:calculation.recalculated?`Pay calculated in OpsCenter · ${payrollSyncMessage(sync)}`:'',junkwareSync:payroll&&sync?{status:sync.status,message:sync.message,verifiedAt:sync.verifiedAt}:null,days:[]};
     if(!payroll) for(const field of ['labor','tips','bonuses','supplemental','totalPay'] as const) member[field]=null;
     return member;
   });
@@ -119,7 +122,7 @@ function employeeForDay(date: string, name: string, periodDate?: string) {
   if(periodDate) {
     for(const day of payPeriodDates(periodDate).dates) {
       const known=dayMembers(day,true).find(row=>row.id===keyOf(name));
-      if(known) return {...known,...fields({}),clockIn:'',clockOut:'',hourlyRate:null,correction:null,working:false,status:'No record for this day',issue:'Enter the missing shift and rate for this date.',truck:'Unavailable',role:'Unavailable',days:[]};
+      if(known) return {...known,...fields({}),clockIn:'',clockOut:'',hourlyRate:null,correction:null,junkwareSync:null,payNote:'',working:false,status:'No record for this day',issue:'Enter the missing shift and rate for this date.',truck:'Unavailable',role:'Unavailable',days:[]};
     }
   }
   throw new Error('Employee was not found in the selected source date or pay period.');
@@ -141,8 +144,9 @@ export function runDesktopKreweAction(body: Record<string, unknown>, actor: stri
   if(action==='correction'&&(!String(values.note||'').trim()||!String(values.clockIn||'').trim()||!Number.isFinite(Number(values.hourlyRate))||Number(values.hourlyRate)<=0)) throw new Error('Clock-in, hourly rate, and a correction reason are required.');
   if(action==='bonus'&&(!String(values.note||'').trim()||!Number.isFinite(Number(values.amount))||Number(values.amount)<=0)) throw new Error('A positive bonus and reason are required.');
   if(action==='callin'&&!['Recommended','Called','Confirmed','Unavailable'].includes(String(values.status))) throw new Error('Choose a valid call-in outcome.');
+  if(action==='correction'&&!payrollSyncForRequest(String(body.requestId||'')))assertPayrollSyncEditable(date,name);
   return executeDesktopLocalAction({requestId:String(body.requestId||''),action:`krewe.${action}`,entity:`krewe:${targetDate}:${keyOf(name)}:${action}`,expectedVersion:String(body.expectedVersion||''),values},actor,current,()=>{
-    if(action==='correction') return upsertPayrollCorrection({employeeName:name,workDate:date,clockIn:String(values.clockIn),clockOut:String(values.clockOut||''),hourlyRate:Number(values.hourlyRate),note:String(values.note),updatedBy:actor});
+    if(action==='correction') {assertPayrollSyncEditable(date,name);const correction=upsertPayrollCorrection({employeeName:name,workDate:date,clockIn:String(values.clockIn),clockOut:String(values.clockOut||''),hourlyRate:Number(values.hourlyRate),note:String(values.note),updatedBy:actor});if(correction)stagePayrollSync(correction,String(body.requestId));return correction;}
     if(action==='bonus') return upsertManualBonusEntry({entryId:`desktop-${body.requestId}`,employeeName:name,workDate:date,amount:Number(values.amount),note:String(values.note)});
     const decision:CallInDecision={name,targetDate,status:String(values.status) as CallInDecision['status'],note:String(values.note||''),actor,updatedAt:new Date().toISOString()};writePrivate('call-in.json',[...decisions().filter(row=>!(row.targetDate===targetDate&&keyOf(row.name)===keyOf(name))),decision]);return decision;
   },result=>action==='bonus'?manualBonusEntriesForEmployee(date,name).some(entry=>desktopVersion(entry)===desktopVersion(result)):desktopVersion(current())===desktopVersion(result));

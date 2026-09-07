@@ -65,7 +65,7 @@ export function applyClockOutCorrections(alerts: OperationalAlert[], correctionS
         {label:'Total pay',value:money(member.totalPay)}, {label:'Hourly pay',value:money(member.labor)},
         {label:'Tips',value:money(member.tips)}, {label:'Bonuses',value:money(member.bonuses)},
         ...(member.supplemental ? [{label:'Other pay',value:money(member.supplemental)}] : []),
-        {label:'Pay basis',value:'OpsCenter correction · Not synced to JunkWare'}],
-      needsAction:alert.needsAction||Boolean(member.issue),next:member.issue||'Review the corrected shift and pay. Changes are not sent to JunkWare.'};
+        {label:'Pay basis',value:member.payNote||'OpsCenter correction · Not synced to JunkWare'}],
+      needsAction:alert.needsAction||Boolean(member.issue),next:member.issue||member.junkwareSync?.message||'Review the corrected shift and pay.'};
   });
 }

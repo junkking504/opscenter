@@ -10,6 +10,10 @@ export type DesktopKpi = {
 
 export type DesktopAlert = {
   id: string;
+  timestamp?: string;
+  corrected?: boolean;
+  updatedAt?: string;
+  sourceMessageIds?: string[];
   domain: string;
   priority: 'critical' | 'warning' | 'watch';
   title: string;
@@ -17,6 +21,7 @@ export type DesktopAlert = {
   label: string;
   owner: string;
   territory?: string;
+  truck?: string;
   photos?: Array<{ url: string; category: string; fileName: string }>;
   detected: string;
   source: string;
@@ -36,6 +41,7 @@ export type DesktopCommandSnapshot = {
   actor: { displayName: string; role: string };
   kpis: DesktopKpi[];
   alerts: DesktopAlert[];
+  crewProgress?: import('./crew-progress-contract').CrewProgressSnapshot;
   sourceHealth?: DesktopSourceHealth[];
   sources: { metrics: boolean; alerts: boolean; workflow: boolean };
 };

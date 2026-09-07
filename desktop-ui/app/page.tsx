@@ -25,6 +25,7 @@ import { desktopAppointmentHref } from '../lib/desktop-links';
 import LiveSchedule, { dateForDay } from '../live-schedule';
 import CommandMap from '../command-map';
 import { AlertDetails, AlertPhotos } from '../components/alert-details';
+import { CrewProgressAlerts } from '../components/crew-progress-alerts';
 import { appointmentRegion } from '../lib/schedule-contract';
 
 type Priority = 'critical' | 'warning' | 'watch';
@@ -995,7 +996,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [completed, setCompleted] = useState<Array<number | string>>([]);
   const [alertOutcomes, setAlertOutcomes] = useState<Record<number | string, AlertOutcome>>({});
-  const [alertViewFilter, setAlertViewFilter] = useState<AlertViewFilter>('open');
+  const [alertViewFilter, setAlertViewFilter] = useState<AlertViewFilter>('all');
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>(live ? [] : initialAuditEvents);
   const [auditFilter, setAuditFilter] = useState<'All' | AuditWorkspace>('All');
   const [actionQueue, setActionQueue] = useState<ActionQueueItem[]>(live ? [] : initialActionQueue);
@@ -4234,13 +4235,13 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                     : financeView === 'resale' ? 'Manage resale custody, listing status, disposition, and realized value.'
                       : financeView === 'recycling' ? 'Track recycling loads, yard tickets, payments, and realized value.'
                         : 'Compare exact calendar months and year-to-date operating performance.'
-                  : view === 'now' ? 'Live Slack alerts, organized by urgency and operational area.'
+                  : view === 'now' ? 'Crew progress and operational updates, organized by truck and job.'
                     : view === 'today' ? 'Resolve today’s operating gaps with ownership, approval, source context, and verified outcomes.'
                       : 'Watch operational trends and emerging risks; system health remains supporting context.'}</p>
             </div>
             {activeNav === 'Command' ? (
               <div className="view-switcher workspace-tabs" role="tablist" aria-label="Command views">
-                <button onClick={() => setView('now')} className={view === 'now' ? 'active' : ''}>Alerts <span>{live && !live.snapshot.sources.alerts ? '—' : activeAlerts.length}</span></button>
+                <button onClick={() => setView('now')} className={view === 'now' ? 'active' : ''}>Alerts <span className={live ? 'crew-update-count' : undefined}>{live && !live.snapshot.sources.alerts ? '—' : workItems.length}</span></button>
                 <button onClick={() => setView('today')} className={view === 'today' ? 'active' : ''}>Control</button>
                 <button onClick={() => setView('monitor')} className={view === 'monitor' ? 'active' : ''}>Monitor</button>
               </div>
@@ -4299,10 +4300,9 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             ))}
           </section>}
 
-          {activeNav === 'Command' && view === 'now' && live && <Button variant="outline" size="sm" onClick={()=>{setAlertViewFilter('action');requestAnimationFrame(()=>document.getElementById('live-alert-list')?.scrollIntoView({behavior:'auto',block:'start'}));}}>Jump to Needs Action</Button>}
-          {activeNav === 'Command' && view === 'now' && live && <CommandMap date={live.snapshot.date} busy={mutationBusy} report={setActionFeedback} onBusyChange={onBusyChange} openSchedule={() => { if (mutationBusyRef.current) return; setScheduleDay('today'); setScheduleView('board'); setActiveNav('Schedule'); }} />}
+          {activeNav === 'Command' && view === 'now' && live && <CrewProgressAlerts live={live} openAlert={openAlertRecord} openControl={() => {setActiveNav('Command');setView('today');}} />}
 
-          {activeNav === 'Command' && view === 'now' && (
+          {activeNav === 'Command' && view === 'now' && !Boolean(live) && (
             <div className="command-grid">
               <section className="work-panel">
                 <div className="section-title">
@@ -4355,6 +4355,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               </section>
             </div>
           )}
+
+          {activeNav === 'Command' && view === 'now' && live && <CommandMap date={live.snapshot.date} busy={mutationBusy} report={setActionFeedback} onBusyChange={onBusyChange} openSchedule={() => { if (mutationBusyRef.current) return; setScheduleDay('today'); setScheduleView('board'); setActiveNav('Schedule'); }} />}
 
           {activeNav === 'Command' && view === 'today' && !live && (
             <div className="run-grid control-workspace">

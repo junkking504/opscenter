@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import { COMMAND_ALERT_RULE } from "@/lib/command-alert-workflow";
+import { COMMAND_ALERT_RULE, commandAlertWorkItemForSource } from "@/lib/command-alert-workflow";
 import { toOperationalAlert } from "@/lib/operational-alert-presentation";
+import { combinedCloseoutAlerts } from '@/lib/combined-closeout-alerts';
+import { readCompletedJunkwareRows } from '@/lib/slack-closeout-details';
+import { buildDailyPaymentReconciliation } from '@/lib/payment-reconciliation';
 import { readSlackDailyDigest } from "@/lib/slack-digest";
 import { createCorrelationId } from "@/lib/platform/identifiers";
 import { authenticatedPlatformActor } from "@/lib/platform/request-actor";
@@ -40,14 +43,17 @@ export async function POST(request: Request) {
     // The browser supplies only an identity. Alert facts and source links always
     // come from the server's Slack digest, never from a client-authored record.
     const digest = await readSlackDailyDigest(date);
+    if (digest.status !== 'ready' || digest.complete === false) return NextResponse.json({ error: 'Update history is incomplete. Refresh before saving a review or follow-up.' }, { status: 503, headers });
     const message = digest.messages.find((candidate) => candidate.id === body.alertId);
     if (!message) return NextResponse.json({ error: "The source alert is unavailable. Refresh and try again." }, { status: 404, headers });
-    const alert = toOperationalAlert(message);
+    const alert = combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)).find(candidate => candidate.id === message.id) || toOperationalAlert(message);
+    const existingItems = await listCommandAlertWorkItems(date);
+    const existing = commandAlertWorkItemForSource(existingItems, alert);
     const category = alert.domain === "Finance" ? "Finance" : alert.domain === "Fleet" ? "Fleet" : alert.domain === "Krewe" ? "Crew" : "Jobs";
     const item = await saveCommandAlertWorkItem({
       operatingDate: date, rule: COMMAND_ALERT_RULE, category,
       severity: alert.needsAction ? "warning" : "info",
-      entity: { type: category === "Fleet" ? "truck" : category === "Crew" ? "employee" : category === "Finance" ? "finance" : "job", id: message.id, label: alert.title.match(/\bJK\d+/)?.[0] || alert.title },
+      entity: { type: category === "Fleet" ? "truck" : category === "Crew" ? "employee" : category === "Finance" ? "finance" : "job", id: existing?.entity.id || message.id, label: alert.title.match(/\bJK\d+/)?.[0] || alert.title },
       title: alert.title,
       description: [alert.label, ...alert.facts.map((fact) => `${fact.label}: ${fact.value}`), `Required result: ${alert.next}`, `Source: ${alert.href}`].join("\n"),
       source: "Slack", sourceObservedAt: message.timestamp,

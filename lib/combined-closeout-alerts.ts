@@ -22,6 +22,6 @@ export function combinedCloseoutAlerts(messages: SlackDigestMessage[], completed
     const recorded = related.flatMap(item => item.facts.filter(f=>/^payments?$/i.test(f.label)));
     const paymentFacts = row?.closeout?.payments?.length ? closeoutPaymentFacts(row, reconciliation) : recorded.length ? [...recorded, ...(/card/i.test(recorded.map(f=>f.value).join(' ')) ? [{ label: 'Card verification', value: 'Awaiting current closeout payment details' }] : [])] : row ? closeoutPaymentFacts(row, reconciliation) : [{ label: 'Payment verification', value: 'Awaiting current closeout payment details' }];
     const facts = alert.facts.filter(f => !/^(payment|payments|card ending|cash|check|card verification|quickbooks entry)$/i.test(f.label)).map(f => ({ ...f, label: /^total$/i.test(f.label) ? 'Job total' : f.label }));
-    return [{ ...alert, facts: [...facts, ...paymentFacts], next: 'Review closeout, payment verification, and photos.' }];
+    return [{ ...alert, sourceMessageIds: Array.from(new Set(presented.filter(item => jobKey(item) === key && ['Job Closed','Payment Recorded'].includes(item.label)).flatMap(item => item.sourceMessageIds || [item.id]))), facts: [...facts, ...paymentFacts], next: 'Review closeout, payment verification, and photos.' }];
   });
 }

@@ -1,0 +1,85 @@
+.crew-alerts { --crew-line: #d9e0e5; --crew-ink: #182f3b; --crew-muted: #546674; color: var(--crew-ink); background: #f5f7f8; border: 1px solid var(--crew-line); border-radius: 14px; padding: 24px; margin-top: 18px; font-size: 14px; }
+.crew-alerts button,.crew-alerts input,.crew-alerts select { font: inherit; }
+.crew-alerts button,.crew-alerts a { touch-action: manipulation; }
+.crew-alerts button:focus-visible,.crew-alerts a:focus-visible,.crew-alerts input:focus-visible,.crew-alerts select:focus-visible { outline: 3px solid #277aa5; outline-offset: 3px; }
+.crew-alerts button:disabled { opacity: .55; cursor: not-allowed; }
+.crew-alert-heading,.crew-truck-heading,.crew-job-heading,.crew-job-latest,.crew-update-content header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.crew-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--crew-muted); }
+.crew-alert-heading h2 { margin: 5px 0; font-size: 25px; letter-spacing: -.025em; }
+.crew-alert-heading p,.crew-truck-heading p,.crew-other-updates>p { margin: 4px 0; color: var(--crew-muted); font-size: 13px; }
+.crew-alert-counts { display: flex; align-items: center; gap: 7px; color: var(--crew-muted); white-space: nowrap; }
+.crew-alert-counts strong { font-size: 20px; color: var(--crew-ink); }
+.crew-source-notice { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; padding: 12px; background: #edf2f6; border: 1px solid #ccd8e2; border-radius: 8px; font-size: 13px; line-height: 1.5; }
+.crew-source-notice svg { flex-shrink: 0; margin-top: 2px; }
+.crew-alert-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 20px 0 12px; }
+.crew-view-toggle { display: flex; padding: 3px; background: #e8edef; border-radius: 8px; gap: 2px; }
+.crew-view-toggle button { padding: 8px 12px; border: 0; border-radius: 6px; color: var(--crew-muted); background: transparent; font-weight: 600; }
+.crew-view-toggle button[aria-pressed=true] { background: #fff; color: var(--crew-ink); box-shadow: 0 1px 3px #182f3b20; }
+.crew-truck-filter { display: flex; gap: 7px; align-items: center; color: var(--crew-muted); }
+.crew-truck-filter select,.crew-alert-search { background: #fff; border: 1px solid var(--crew-line); border-radius: 7px; padding: 9px; }
+.crew-alert-search { display: flex; gap: 7px; align-items: center; flex: 1; min-width: 210px; color: var(--crew-muted); }
+.crew-alert-search input { border: 0; background: transparent; width: 100%; min-width: 0; color: var(--crew-ink); }
+.crew-follow-filter,.crew-clear { background: #fff; color: var(--crew-ink); border: 1px solid var(--crew-line); padding: 9px 12px; border-radius: 7px; }
+.crew-follow-filter[aria-pressed=true] { background: #fff2d8; border-color: #bf8d2c; }
+.crew-clear { border: 0; background: transparent; text-decoration: underline; }
+.crew-step-legend { display: flex; gap: 18px; flex-wrap: wrap; color: var(--crew-muted); font-size: 12px; padding-bottom: 16px; }
+.crew-step-legend>span { display: flex; align-items: center; gap: 4px; }
+.crew-step-legend small { margin-left: auto; font-size: 12px; }
+.crew-truck-group { margin-top: 8px; margin-bottom: 26px; }
+.crew-truck-heading { padding: 12px 0; }
+.crew-truck-heading>div { display: flex; align-items: center; gap: 10px; }
+.crew-truck-heading h3,.crew-other-updates h3 { font-size: 17px; font-weight: 700; margin: 0; }
+.crew-truck-heading span { font-size: 12px; color: var(--crew-muted); }
+.crew-job-list { display: grid; gap: 12px; }
+.crew-job-card { background: #fff; border: 1px solid var(--crew-line); border-radius: 10px; overflow: hidden; }
+.crew-job-card.needs-follow-up { border-left: 4px solid #bb831f; }
+.crew-job-heading { padding: 16px 18px 0; }
+.crew-job-heading>div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
+.crew-job-heading a { color: #14547a; font-size: 16px; font-weight: 750; text-decoration: underline; text-underline-offset: 3px; }
+.crew-job-heading span { color: var(--crew-muted); font-size: 12px; }
+.crew-job-status { background: #f0f3f5; padding: 5px 9px; border-radius: 5px; white-space: nowrap; }
+.crew-job-crew { padding: 0 18px; margin: 7px 0 14px; font-size: 12px; color: var(--crew-muted); }
+.crew-job-steps { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 8px; margin: 0; padding: 0 18px 16px; list-style: none; }
+.crew-step { background: #f6f8f9; border: 1px solid #e2e8ec; border-radius: 7px; padding: 9px; min-width: 0; }
+.crew-step>span:first-child { display: flex; align-items: center; gap: 5px; font-size: 12px; }
+.crew-step>span:first-child svg { flex-shrink: 0; }
+.crew-step small { display: block; font-size: 11px; margin-top: 4px; }
+.crew-step .crew-step-detail { display: block; font-size: 11px; line-height: 1.4; margin-top: 6px; color: var(--crew-muted); }
+.crew-step.complete { border-color: #c3dbd0; background: #f1f8f4; }
+.crew-step.complete>span:first-child,.crew-step.complete small { color: #266345; }
+.crew-step.missing { background: #fff6e6; border-color: #e3bd79; }
+.crew-step.missing>span:first-child,.crew-step.missing small { color: #835508; }
+.crew-step.unknown { border-style: dashed; }
+.crew-step.not-required { opacity: .8; }
+.crew-job-next { display: flex; align-items: center; gap: 10px; background: #f5f8fa; border-top: 1px solid #e6ecef; padding: 11px 18px; font-size: 12px; line-height: 1.5; }
+.crew-job-next>strong { white-space: nowrap; }
+.crew-job-next>span { flex: 1; }
+.crew-job-next a,.crew-update-content footer button { display: inline-flex; align-items: center; color: #14547a; white-space: nowrap; }
+.crew-job-latest { padding: 10px 18px; font-size: 12px; color: var(--crew-muted); border-top: 1px solid #e6ecef; }
+.crew-job-latest button { display: inline-flex; align-items: center; gap: 5px; background: transparent; color: #14547a; border: 0; padding: 4px; }
+.crew-job-timeline { border-top: 1px solid var(--crew-line); padding: 16px 18px; }
+.crew-history-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--crew-muted); margin: 0 0 8px; }
+.crew-update { display: grid; grid-template-columns: 82px minmax(0,1fr); gap: 14px; padding: 16px 0; }
+.crew-update+.crew-update { border-top: 1px solid #e6ecef; }
+.crew-update-time { display: flex; align-items: flex-start; justify-content: space-between; gap: 5px; font-size: 12px; color: var(--crew-muted); padding-top: 3px; }
+.crew-update-time>span { width: 7px; height: 7px; border-radius: 50%; background: #7092a4; margin-top: 4px; flex-shrink: 0; }
+.crew-update-content { min-width: 0; }
+.crew-update-content header>div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
+.crew-update-content header strong { font-size: 14px; }
+.crew-update-content header span { color: var(--crew-muted); font-size: 12px; }
+.crew-update-content header em { font-size: 11px; color: #356685; font-style: normal; }
+.crew-update-content dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px 24px; margin: 12px 0; }
+.crew-update-content dl>div { min-width: 0; }
+.crew-update-content dt { color: var(--crew-muted); font-size: 11px; }
+.crew-update-content dd { margin: 2px 0 0; font-size: 13px; overflow-wrap: anywhere; }
+.crew-update-content dd a { color: #14547a; text-decoration: underline; }
+.crew-update-content footer { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.crew-update-content footer button { padding: 5px 0; border: 0; background: transparent; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.crew-update-content footer span { margin-right: auto; font-size: 11px; color: var(--crew-muted); }
+.crew-other-updates,.crew-all-updates { padding: 18px; border: 1px solid var(--crew-line); border-radius: 10px; background: #fff; }
+.crew-empty,.crew-workflow-notice { padding: 24px 12px; text-align: center; color: var(--crew-muted); line-height: 1.6; }
+@media (max-width:1000px) { .crew-job-steps { grid-template-columns: repeat(3,minmax(0,1fr)); } .crew-alert-heading,.crew-truck-heading { align-items: flex-start; flex-direction: column; gap: 7px; } }
+@media (max-width:600px) { .crew-alerts { padding: 14px; } .crew-alert-heading h2 { font-size: 23px; } .crew-job-heading { align-items: flex-start; } .crew-job-heading>div { gap: 6px; } .crew-job-heading span { font-size: 11px; } .crew-job-heading,.crew-job-next,.crew-job-latest { padding-left: 12px; padding-right: 12px; } .crew-job-steps { grid-template-columns: repeat(2,minmax(0,1fr)); padding-left: 12px; padding-right: 12px; } .crew-job-crew { padding-left: 12px; } .crew-job-next { flex-wrap: wrap; } .crew-job-next>span { flex-basis: 65%; } .crew-job-latest { align-items: flex-start; } .crew-job-latest button { white-space: nowrap; } .crew-update { grid-template-columns: 1fr; gap: 8px; } .crew-update-time { justify-content: flex-start; } .crew-update-content dl { grid-template-columns: 1fr; } .crew-step-legend { gap: 10px; } .crew-step-legend small { margin-left: 0; } .crew-alert-search { flex-basis: 100%; } }
+
+.view-switcher .crew-update-count { background: #526c7b; }
+.crew-step.next { background: #edf5fa; border-color: #b5cede; }

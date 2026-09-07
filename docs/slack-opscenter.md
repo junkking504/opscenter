@@ -1,5 +1,62 @@
 # OpsCenter Slack alerts
 
+## Crew progress in Command
+
+Command Alerts opens with operational updates grouped by truck and appointment.
+Every appointment in the available Schedule snapshot remains visible, including
+appointments that have not generated a Slack update. Each card shows its crew,
+window, territory, latest update, recorded steps, and next required action.
+The optional All updates view shows events newest first; each job's expanded
+history runs first to latest. Search, truck selection, and Follow-up only are
+local viewing controls. Reviewing an update never removes it from the history
+or marks a crew step complete. Control retains the existing shared follow-up
+workflow. The Operations Map follows the updates and keeps its existing controls.
+
+Tracked evidence is truck assignment, confirmed arrival, uploaded photos,
+recorded payment, JunkWare closeout, and confirmed departure. Photo presence is
+not proof of before/after coverage; the application has no verified before/after
+requirement contract. Missing photos are flagged only after closeout with an
+available photo audit. Payment is recorded only with named tender(s), positive
+payment covering the recorded total, and no remaining balance. Estimates do not
+require payment. Settlement verification remains separate. A missing arrival
+record means confirm crew status; it does not establish that the crew is late.
+Departure requires an explicit confirmed visit exit, never disappearance of GPS.
+
+Stale/unavailable sources retain recorded facts, but absent evidence becomes
+Unknown rather than a new missing-step assertion. A partial Slack channel or
+thread read is explicitly marked incomplete. Shared review/follow-up writes wait
+for complete update history so a temporarily missing duplicate cannot create a
+second work item. Empty history is not evidence that operational work is done.
+
+Command and the Slack digest combine delivery retries using the original event
+fingerprint while retaining the first source message ID, latest facts, and all
+source message aliases. In-place Slack edits and changed event facts are labeled
+Updated. An existing owned Control item takes precedence over a duplicate review
+mark, with identical alias selection on server reads and writes. Existing work
+items and source messages are not deleted. Distinct visit IDs, photo-batch IDs,
+receipts, and thread replies remain separate. Legacy messages without an event
+fingerprint are preserved because identical wording alone cannot prove a retry.
+The existing Job Closed / Payment Recorded consolidation remains in place.
+
+This change affects OpsCenter presentation and shared action lookup. It does not
+change Slack posting, channel routing, notification cadence, or collector state.
+Outbound duplication needs delivery-specific evidence before changing a publisher.
+
+Local verification:
+
+```bash
+npm run verify:crew-progress
+# In another terminal, run the isolated synthetic UI fixture:
+cd desktop-ui
+node node_modules/vite/bin/vite.js --config tests/refresh.vite.config.ts --port 3128
+# From the repository root:
+npm run verify:crew-progress:browser
+```
+
+The fixture is `/tests/crew-progress.html` on that local Vite server. It uses
+synthetic records and simulated review/Control actions; it cannot write to
+operational sources. This fixture is not included in the production entry point.
+
 Command new-appointment tags reuse the Schedule territory color palette and
 territory classification (including Westbank within Jefferson Parish).
 New-appointment cards display their complete facts without a Details
@@ -128,8 +185,9 @@ an explicit exit timestamp after arrival, not loss of GPS. Existing departures
 are baselined on first activation; subsequent departures use the same fast GPS
 publisher with distinct visit fingerprints and retry deduplication.
 
-All Command alert facts, owner, and next action are always visible inline. Alert
-cards have no Details disclosure; the condensed duplicate summary is omitted.
+Within an expanded job history or All updates, Command event facts are visible
+inline. The truck/job card keeps current progress and next action visible before
+opening the history; the condensed duplicate summary is omitted.
 Photos appear only on Job Closed and Estimate Closed alerts, and in the closed
 appointment’s Schedule record. Source and workflow action buttons remain
 available without expanding an alert.

@@ -8,6 +8,15 @@ export type CommandAlertWorkflowPayload = {
   actor: { id: string; displayName: string };
 };
 
+/** Use the same surviving action on reads and writes after delivery duplicates
+ * are combined. Existing owned follow-up takes precedence over a review mark.
+ */
+export function commandAlertWorkItemForSource(items: WorkItem[], source: {id: string; sourceMessageIds?: string[]}): WorkItem | undefined {
+  const byId = new Map(items.map(item => [item.entity.id,item]));
+  const candidates = [...new Set([source.id,...(source.sourceMessageIds || [])])].flatMap(id => byId.has(id) ? [byId.get(id)!] : []);
+  return candidates.find(item => commandAlertState(item) === 'in-control') || candidates[0];
+}
+
 export function commandAlertState(item?: WorkItem): AlertWorkflowState {
   if (!item) return "active";
   if (item.status === "resolved" || item.status === "dismissed") return "resolved";

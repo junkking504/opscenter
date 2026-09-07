@@ -1,3 +1,5 @@
+import { buildCrewProgress } from './crew-progress';
+import { sourceFreshness } from './source-freshness';
 import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
 import { readScheduleVisits } from './desktop-schedule-visits';
 import { readJobRows } from './desktop-schedule-source';
@@ -10,7 +12,7 @@ import { readSlackDailyDigest } from '@/lib/slack-digest';
 import { combinedCloseoutAlerts } from '@/lib/combined-closeout-alerts';
 import { buildDailyPaymentReconciliation } from '@/lib/payment-reconciliation';
 import { readCompletedJunkwareRows } from '@/lib/slack-closeout-details';
-import { commandAlertState } from '@/lib/command-alert-workflow';
+import { commandAlertState, commandAlertWorkItemForSource } from '@/lib/command-alert-workflow';
 import { listCommandAlertWorkItems } from '@/lib/platform/persistence/work-items';
 import type { WorkItem } from '@/lib/platform/contracts';
 import type { DesktopKpi, DesktopCommandSnapshot } from '../desktop-ui/lib/live-contract';
@@ -67,18 +69,15 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
     readSlackDailyDigest(date),
     listCommandAlertWorkItems(date).then(items => ({ available: true, items })).catch(() => ({ available: false, items: [] as WorkItem[] })),
   ]);
-  const actions = new Map(workflow.items.map(item => [item.entity.id, item]));
-  const visits = readScheduleVisits(date).visits;
+  const visitSnapshot = readScheduleVisits(date);
+  const visits = visitSnapshot.visits;
   const appointments = readJobRows(date);
-  return {
-    date, generatedAt: new Date().toISOString(), actor,
-    kpis: desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0),
-    sourceHealth: [...readDesktopSourceHealth(/^(admin|administrator|manager)$/i.test(actor.role)),
-      {name:'Slack',area:'Operational alerts',workspace:'Command',action:'Open alerts',state:digest.status==='ready'?'Current':'Unavailable',tone:digest.status==='ready'?'healthy':'warning',observedAt:digest.refreshedAt,maxAgeSeconds:120},
-      {name:'Control',area:'Shared database connection',workspace:'Command',action:'Open decisions',state:workflow.available?'Connected':'Unavailable',tone:workflow.available?'healthy':'warning',observedAt:new Date().toISOString(),maxAgeSeconds:120}],
-    sources: { metrics: Boolean(metrics), alerts: digest.status === 'ready', workflow: workflow.available },
-    alerts: combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)).map(alert => {
-      const action = actions.get(alert.id);
+  const sourceHealth = readDesktopSourceHealth(/^(admin|administrator|manager)$/i.test(actor.role));
+  const alerts: DesktopCommandSnapshot['alerts'] = combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)).map(alert => {
+      const action = commandAlertWorkItemForSource(workflow.items, alert);
+      return presentAlert(alert, action);
+  });
+  function presentAlert(alert: ReturnType<typeof combinedCloseoutAlerts>[number], action?: WorkItem): DesktopCommandSnapshot['alerts'][number] {
       if (['Job Closed', 'Estimate Closed'].includes(alert.label)) {
         const jk = alert.title.match(/\bJK\d+\b/i)?.[0]?.toUpperCase();
         const candidates = appointments.filter(job => job.jkNumber.toUpperCase() === jk && (/estimate/i.test(job.appointmentType) === (alert.label === 'Estimate Closed')));
@@ -86,11 +85,24 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
         alert = {...alert, facts:[...alert.facts.filter(f=>!/^On-site time$|^Arrival$|^Departure$/i.test(f.label)), ...onsiteTimeFacts(time)]};
       }
       return {
-        id: alert.id, domain: alert.domain, priority: alert.label === 'Cancellation' ? 'critical' : alert.needsAction ? 'warning' : 'watch',
-        title: alert.title, detail: '', label: alert.label, territory: alert.territory, photos: alert.photos, owner: alert.owner, detected: alert.detected,
-        source: 'Slack', action: 'Open Source', context: alert.next, facts: alert.facts, href: alert.href,
-        needsAction: alert.needsAction, workflowState: commandAlertState(action), version: action?.version || 0, actionId: action?.id,
+        ...alert, timestamp: alert.timestamp,
+        priority: ['New Appointment','Arrival','Departure','Job Closed','Estimate Closed','Photos Uploaded','Payment Recorded','Clock In','Clock Out','Fuel Receipt','Dump Receipt','Receipt Recorded'].includes(alert.label) ? 'watch' : alert.needsAction ? 'warning' : 'watch',
+        detail: '', source: 'Slack', action: 'Open Source', context: alert.next,
+        workflowState: commandAlertState(action), version: action?.version || 0, actionId: action?.id,
       };
+  }
+  return {
+    date, generatedAt: new Date().toISOString(), actor,
+    kpis: desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0),
+    sourceHealth: [...sourceHealth,
+      {name:'Slack',area:'Operational alerts',workspace:'Command',action:'Open alerts',state:digest.status==='ready'?(digest.complete === false ? 'Incomplete' : 'Current'):'Unavailable',tone:digest.status==='ready' && digest.complete !== false ?'healthy':'warning',observedAt:digest.refreshedAt,maxAgeSeconds:120},
+      {name:'Control',area:'Shared database connection',workspace:'Command',action:'Open decisions',state:workflow.available?'Connected':'Unavailable',tone:workflow.available?'healthy':'warning',observedAt:new Date().toISOString(),maxAgeSeconds:120}],
+    sources: { metrics: Boolean(metrics), alerts: digest.status === 'ready', workflow: workflow.available },
+    alerts,
+    crewProgress: buildCrewProgress({date,appointments,visits,alerts,
+      scheduleCurrent: sourceHealth.some(source => source.name === 'JunkWare' && source.tone === 'healthy' && sourceFreshness(source.observedAt,source.maxAgeSeconds).fresh),
+      visitsCurrent: sourceFreshness(visitSnapshot.observedAt,180).fresh,
+      updatesComplete: digest.status === 'ready' && digest.complete !== false,
     }),
   };
 }

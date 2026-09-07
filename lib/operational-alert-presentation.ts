@@ -7,8 +7,13 @@ export type EssentialFact = { label: string; value: string; href?: string };
 
 export type OperationalAlert = {
   id: string;
+  timestamp?: string;
+  sourceMessageIds?: string[];
+  corrected?: boolean;
+  updatedAt?: string;
   label: string;
   territory?: string;
+  truck?: string;
   photos?: SlackDigestMessage["photos"];
   domain: string;
   detected: string;
@@ -60,6 +65,10 @@ function jobNumber(message: SlackDigestMessage, lines: string[]): string {
 function classifyAlert(message: SlackDigestMessage, lines: string[]): Pick<OperationalAlert, "label" | "domain" | "owner" | "next" | "needsAction"> {
   const text = lines.join(" ");
   const heading = lines[0] || "";
+  if (/reschedul/i.test(heading)) return { label: "Rescheduled", domain: "Schedule", owner: "Dispatch", next: "Confirm the updated route and appointment window.", needsAction: true };
+  if (/clock.?in/i.test(heading)) return { label: "Clock In", domain: "Krewe", owner: "Dispatch", next: "Confirm the crew assignment.", needsAction: false };
+  if (/clock.?out/i.test(heading)) return { label: "Clock Out", domain: "Krewe", owner: "Dispatch", next: "Review the completed shift.", needsAction: false };
+  if (/fuel|dump|receipt/i.test(heading)) return { label: /fuel/i.test(heading) ? "Fuel Receipt" : /dump/i.test(heading) ? "Dump Receipt" : "Receipt Recorded", domain: "Fleet", owner: "Fleet", next: "Review the recorded receipt.", needsAction: false };
   if (/cancel/i.test(heading)) return { label: "Cancellation", domain: "Schedule", owner: "Dispatch", next: "Review the reason and reuse the open capacity.", needsAction: true };
   if (/estimate.*closed|closed.*estimate/i.test(heading)) return { label: "Estimate Closed", domain: "Schedule", owner: "Dispatch", next: "Review the estimate outcome and follow-up.", needsAction: true };
   if (/depart/i.test(heading)) return { label: "Departure", domain: "Schedule", owner: "Dispatch", next: "Review the next stop and closeout status.", needsAction: false };
@@ -168,6 +177,11 @@ export function toOperationalAlert(message: SlackDigestMessage): OperationalAler
   const channelTerritory = ({ "#new-orleans": "New Orleans", "#baton-rouge": "Baton Rouge", "#northshore": "Northshore" } as Record<string, string>)[message.channel];
   return {
     id: message.id,
+    truck: message.channel.match(/truck[- ](\d+)/i)?.[1]?.replace(/^(\d+)$/, "Truck $1"),
+    timestamp: message.timestamp,
+    sourceMessageIds: message.sourceMessageIds,
+    corrected: message.corrected,
+    updatedAt: message.updatedAt,
     ...classification,
     territory: classification.label === "New Appointment"
       ? (sourceTerritory && !/unknown|unavailable/i.test(sourceTerritory) ? sourceTerritory : channelTerritory) || "Territory unavailable"

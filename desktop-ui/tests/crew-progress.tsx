@@ -1,0 +1,15 @@
+import {useState} from 'react';
+import {createRoot} from 'react-dom/client';
+import {CrewProgressAlerts} from '../components/crew-progress-alerts';
+import {fixtureSnapshot} from '../../scripts/fixtures/crew-progress';
+
+function Fixture() {
+  const [snapshot,setSnapshot] = useState(fixtureSnapshot);
+  const [opened,setOpened] = useState('');
+  return <main style={{maxWidth:1280,margin:'20px auto',padding:'0 16px'}}>
+    <div style={{display:'flex',flexWrap:'wrap',gap:12,fontSize:13,alignItems:'center'}}><strong>Local design preview · synthetic records</strong><span>No live operational actions</span><button onClick={() => setSnapshot(old => ({...old,sources:{...old.sources,workflow:false},crewProgress:{...old.crewProgress!,scheduleCurrent:false,visitsCurrent:false,updatesComplete:false}}))}>Simulate disconnected sources</button><button onClick={() => setSnapshot(fixtureSnapshot())}>Reset preview</button></div>
+    <CrewProgressAlerts live={{snapshot,pendingAlertId:null,error:'',onDateChange:()=>{},onAlertAction:async (id,action) => setSnapshot(old => ({...old,alerts:old.alerts.map(alert => alert.id === id ? {...alert,workflowState:action === 'acknowledge' ? 'acknowledged':'in-control',version:alert.version+1} : alert)}))}} openAlert={alert => setOpened(alert.href)} openControl={() => setOpened('Control')}/>
+    <p role="status">{opened && `Preview opened record: ${opened}`}</p>
+  </main>;
+}
+createRoot(document.getElementById('root')!).render(<Fixture/>);

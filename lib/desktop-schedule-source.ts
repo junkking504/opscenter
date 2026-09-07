@@ -411,7 +411,7 @@ function parseJobCloseout(row: Record<string, any>): JobCloseout | null {
     .filter((payment: JobCloseoutPayment | null): payment is JobCloseoutPayment => Boolean(payment));
 
   const closeout: JobCloseout = {
-    loadQuantity: moneyNumber(raw.loadQuantity),
+    loadQuantity: String(raw.loadQuantity ?? '').trim() ? moneyNumber(raw.loadQuantity) : String(raw.loadSize || '').trim() ? 1 : 0,
     loadSize: String(raw.loadSize || "").trim(),
     loadPrice: moneyNumber(raw.loadPrice),
     bedloadQuantity: moneyNumber(raw.bedloadQuantity),

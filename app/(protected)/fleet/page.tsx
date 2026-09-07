@@ -22,7 +22,7 @@ import { readFleetIssueStore } from "@/lib/fleet-issues";
 import { readLatestLinxupVehicleInventory } from "@/lib/linxup-vehicle-inventory";
 import { monthOptions } from "@/lib/monthly-summary";
 import { DRIVING_SCORE_ALERT_RULES, DRIVING_SCORE_COMPENSATION_COPY, drivingScoreCompensationLabel } from "@/lib/driving-score-policy";
-import { readTruckLoadStatuses } from "@/lib/truck-load-status";
+import { readOperationalTruckLoads } from "@/lib/truck-load-closeouts";
 
 function truckDriverScoreRows(metrics: AnyRecord | null): AnyRecord[] {
   const rows = metrics?.truck_driver_scores || metrics?.truck_driver_scores_by_truck || [];
@@ -794,7 +794,7 @@ export default async function FleetPage({
   const dailyRecord = buildFleetDailyRecord(date);
   const truckScoreRows = dailyRecord?.truckScoreRows || truckDriverScoreRows(metrics);
   const trucks = mergeFleetTruckRows(truckRows(metrics), truckScoreRows);
-  const truckLoadStatuses = readTruckLoadStatuses(date, trucks.map((truck) => String(truck.truck || "")));
+  const truckLoadStatuses = readOperationalTruckLoads(date, trucks.map((truck) => String(truck.truck || "")));
   const driverMap = new Map<string, AnyRecord>();
   for (const row of truckScoreRows) {
     driverMap.set(String(row.truck || "").trim(), row);

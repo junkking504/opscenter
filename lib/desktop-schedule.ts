@@ -11,6 +11,7 @@ import { readJobRouteAssignmentOverrides } from '@/lib/job-route-assignments';
 import { jobCallAheadLookupKey, readJobCallAheadStatuses } from '@/lib/job-call-ahead';
 import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-address-verification';
 import { readScheduleVisits, scheduleVisitState } from '@/lib/desktop-schedule-visits';
+import { readOperationalTruckLoads } from './truck-load-closeouts';
 
 export type DesktopAppointment = JobRow & { recordId: string; version: string; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
@@ -64,6 +65,11 @@ export function readDesktopSchedule(date: string) {
     date,
     observedAt: junkwareScheduleUpdatedAt(date),
     appointments,
+    truckLoads: readOperationalTruckLoads(date, [...fleet.trucks.map(truck=>truck.truck),...appointments.map(job=>job.truck)], appointments).map(load=>({
+      truck:load.truck, label:load.needsVerification ? 'Verify load' : load.events.length ? load.currentLoadLabel : 'Load not recorded',
+      percent:load.needsVerification || !load.events.length ? null : load.capacityPercent,
+      needsVerification:load.needsVerification, note:load.verificationNote || (load.isOverCapacity ? 'Over capacity · verify an unload or the recorded loads.' : load.currentContents),
+    })),
     fleet,
   };
 }

@@ -9,10 +9,13 @@ answers how full each physical truck is right now.
 
 1. A dispatcher selects each truck's start-of-day load. The selection is saved
    immediately and can be corrected without creating duplicate starting events.
-2. A successful, verified OpsCenter job closeout contributes the selected
-   JunkWare load size to the assigned physical truck. A blank load quantity is
-   treated as one load, matching the existing JunkWare records. Saving the same
-   appointment again replaces its contribution instead of adding it twice.
+2. Every completed **Job** contributes its selected JunkWare load size to the
+   assigned physical truck. Two separate 1/4-truck jobs produce 1/2 truck.
+   Estimates, open appointments, and canceled appointments add no load. A blank
+   load quantity is treated as one load; an explicit zero stays zero. Saving
+   the same appointment again replaces its contribution instead of adding it
+   twice. Converting a completed job to an estimate retracts that contribution;
+   converting a completed estimate to a job adds it once.
 3. OpsBot accepts a current snapshot as three plain-text lines:
 
        Truck 9
@@ -58,6 +61,24 @@ so GPS alone never resets a load.
 - Authorized operators may set start loads and record yard resets.
 - The store uses an atomic file replacement and a short cross-process lock so a
   closeout and a dispatcher update cannot silently overwrite one another.
+
+Schedule and Fleet share the closeout projection in
+`lib/truck-load-closeouts.ts`. It combines this ledger with completed jobs in
+the collected JunkWare schedule by appointment ID, so direct JunkWare closeouts
+also appear. A verified local save takes precedence until a newer collected
+source arrives. This read projection does not rewrite historical source or
+ledger files. Schedule shows the load beside each truck; Fleet shows the same
+fraction and capacity meter.
+
+Confirmed visit departure or an existing closeout event places an added load
+before or after an unload or observation. The schedule's `completed_at` field
+can contain the appointment window end and is not used as actual pickup time.
+If ordering matters and cannot be verified, the UI displays **Verify load**.
+Current Fleet/API unloads and load observations retain the IDs of jobs already
+closed on that truck, so those loads remain covered even if their visit times
+are missing or their closeouts are later corrected. A saved starting load is
+the day's baseline; without one, completed job contributions accumulate from
+zero. No recorded load evidence is shown as **Load not recorded**.
 
 Load sizes use the fractions visible in JunkWare, including Minimum/1/12,
 eighths, sixths, quarters, thirds, halves, three-quarters, seven-eighths, and a

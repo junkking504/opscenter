@@ -2,11 +2,12 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
 import {
-  readTruckLoadStatuses,
   resetTruckLoad,
   setTruckStartingLoad,
   type TruckLoadResetLocation,
 } from "@/lib/truck-load-status";
+
+import { completedTruckJobIds, readOperationalTruckLoads } from "@/lib/truck-load-closeouts";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +29,7 @@ export async function GET(request: Request) {
   const date = String(url.searchParams.get("date") || "").trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return response({ error: "A valid date is required." }, 400);
   const trucks = url.searchParams.getAll("truck");
-  return response({ date, statuses: readTruckLoadStatuses(date, trucks) });
+  return response({ date, statuses: readOperationalTruckLoads(date, trucks) });
 }
 
 export async function POST(request: Request) {
@@ -51,12 +52,13 @@ export async function POST(request: Request) {
         ? resetTruckLoad({
           date: String(values.date || ""),
           truck: String(values.truck || ""),
+          coveredAppointmentIds: completedTruckJobIds(String(values.date || ""), String(values.truck || "")),
           location: String(values.location || "") as TruckLoadResetLocation,
           recordedBy: authSession.email,
         })
         : null;
     if (!status) return response({ error: "Choose a starting-load or yard-reset action." }, 400);
-    return response({ ok: true, status });
+    return response({ ok: true, status: readOperationalTruckLoads(status.date,[status.truck]).find(row=>row.truck===status.truck) || status });
   } catch (error) {
     return response({ error: error instanceof Error ? error.message : "The truck load status could not be saved." }, 400);
   }

@@ -102,17 +102,18 @@ export default function TruckLoadStatusPanel({
       <div className={styles.grid}>
         {statuses.map((status) => {
           const saving = savingTruck === status.truck;
-          const meterWidth = `${Math.max(0, Math.min(100, status.capacityPercent))}%`;
+          const meterWidth = `${status.needsVerification ? 0 : Math.max(0, Math.min(100, status.capacityPercent))}%`;
           return (
             <article className={`${styles.truck}${status.isOverCapacity ? ` ${styles.overCapacity}` : ""}`} key={status.truck} aria-busy={saving}>
               <div className={styles.current}>
                 <div>
                   <strong>{status.truck}</strong>
-                  <span>{status.currentLoadLabel}</span>
+                  <span>{status.needsVerification ? 'Verify load' : status.currentLoadLabel}</span>
                 </div>
-                <b>{status.capacityPercent}%</b>
+                <b>{status.needsVerification ? '—' : `${status.capacityPercent}%`}</b>
               </div>
-              <div className={styles.meter} aria-label={`${status.truck} is ${status.capacityPercent}% full`}>
+              {status.verificationNote && <p>{status.verificationNote}</p>}
+              <div className={styles.meter} aria-label={status.needsVerification ? `${status.truck} load needs verification` : `${status.truck} is ${status.capacityPercent}% full`}>
                 <i style={{ width: meterWidth }} />
               </div>
               <details className={styles.controls}>

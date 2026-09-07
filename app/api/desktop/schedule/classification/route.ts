@@ -5,6 +5,7 @@ import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { withJunkwareAppointmentSyncLock } from '@/lib/job-route-assignments';
 import { junkwareJobCloseout, JunkwareCloseoutError } from '@/lib/junkware-job-closeout';
 import { parseClassificationChange, recordAppointmentClassification } from '@/lib/appointment-classification';
+import { updateVerifiedCloseoutLoad } from '@/lib/truck-load-closeouts';
 export { GET } from '../closeout/route';
 export const dynamic = 'force-dynamic';
 export async function POST(request: Request) {
@@ -20,7 +21,8 @@ export async function POST(request: Request) {
     validated = true;
     const result = await withJunkwareAppointmentSyncLock(appointmentId,()=>junkwareJobCloseout(appointmentId,change,'classify'));
     recordAppointmentClassification(date,{appointmentId,appointmentType:result.closeout.appointmentType.label,status:result.closeout.status.label,verifiedAt:result.verifiedAt,...(change.truck ? {truck:change.truck} : {})});
-    return Response.json(result,{headers:{'Cache-Control':'no-store'}});
+    const truckLoadStatus = updateVerifiedCloseoutLoad(date, appointmentId, result.closeout, result.verifiedAt, actor.email);
+    return Response.json({...result,truckLoadStatus},{headers:{'Cache-Control':'no-store'}});
   } catch(error) {
     const preflight = error instanceof JunkwareCloseoutError && error.stage === 'preflight';
     return Response.json({ok:false,error:error instanceof Error ? error.message : 'The source change could not be verified.'},{status:!validated ? 400 : preflight ? 409 : 502});

@@ -55,6 +55,7 @@ export type ScheduleSnapshot = {
   observedAt: string | null;
   sourceRequest?: {state:'ready'|'loading'|'queued'|'failed';message:string};
   appointments: ScheduleAppointment[];
+  truckLoads?: Array<{truck:string;label:string;percent:number|null;needsVerification:boolean;note:string}>;
   fleet: { isToday: boolean; trucks: ScheduleTruck[]; lastUpdatedAt: string | null };
 };
 export type ScheduleRouteLeg = {

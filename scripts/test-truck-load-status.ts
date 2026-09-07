@@ -25,6 +25,7 @@ assertClose(parseJunkwareLoadFraction(".5 (1/12)"), 1 / 12);
 assertClose(parseJunkwareLoadFraction("1 (1/6)"), 1 / 6);
 assert.equal(parseJunkwareLoadFraction("2.5 (3/8)"), 3 / 8);
 assert.equal(parseJunkwareLoadFraction("Full truck"), 1);
+assert.equal(parseJunkwareLoadFraction("1/4 full"), 1 / 4);
 assertClose(parseJunkwareLoadFraction("Minimum"), 1 / 12);
 assertClose(parseJunkwareLoadFraction("4"), 2 / 3);
 assert.equal(parseJunkwareLoadFraction("Bag(s)"), null);
@@ -41,6 +42,7 @@ assertClose(status.startingLoadFraction, 1 / 4);
 assertClose(status.currentLoadFraction, 1 / 4);
 
 let closeout = recordTruckLoadFromCloseout({
+  appointmentType: 'Job', appointmentStatus: 'Completed',
   date,
   truck: "Truck# 9",
   appointmentId: "4050001",
@@ -53,6 +55,7 @@ assert.equal(closeout.updated, true);
 assertClose(closeout.status?.currentLoadFraction, 7 / 12);
 
 closeout = recordTruckLoadFromCloseout({
+  appointmentType: 'Job', appointmentStatus: 'Completed',
   date,
   truck: "Truck# 9",
   appointmentId: "4050001",
@@ -69,6 +72,7 @@ assert.equal(status.currentLoadFraction, 0);
 assert.equal(status.lastEvent?.resetLocation, "dump");
 
 closeout = recordTruckLoadFromCloseout({
+  appointmentType: 'Job', appointmentStatus: 'Completed',
   date,
   truck: "Truck 9",
   appointmentId: "4050002",
@@ -103,6 +107,7 @@ assert.equal(recordTruckLoadSnapshot({
 }).created, false);
 
 const ignoredVirtual = recordTruckLoadFromCloseout({
+  appointmentType: 'Job', appointmentStatus: 'Completed',
   date,
   truck: "Virtual Truck",
   appointmentId: "4050003",

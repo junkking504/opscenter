@@ -6,7 +6,7 @@ import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
 import { withJunkwareAppointmentSyncLock } from "@/lib/job-route-assignments";
 import { junkwareJobCloseout, JunkwareCloseoutError } from "@/lib/junkware-job-closeout";
 import { publishVerifiedTruckCloseout } from "@/lib/slack-alerts";
-import { recordTruckLoadFromCloseout } from "@/lib/truck-load-status";
+import { updateVerifiedCloseoutLoad } from "@/lib/truck-load-closeouts";
 
 async function authenticated() {
   const cookieStore = await cookies();
@@ -75,28 +75,7 @@ export async function POST(request: Request) {
     const closeout = result && typeof result === "object" && "closeout" in result && result.closeout && typeof result.closeout === "object"
       ? result.closeout as Record<string, unknown>
       : {};
-    const loadSize = closeout.loadSize && typeof closeout.loadSize === "object"
-      ? String((closeout.loadSize as Record<string, unknown>).label || "")
-      : String(closeout.loadSize || "");
-    let truckLoadStatus;
-    try {
-      truckLoadStatus = recordTruckLoadFromCloseout({
-        date: String(_serviceDate || ""),
-        truck: String(closeout.truck || ""),
-        appointmentId: id,
-        jobNumber: String(closeout.jobNumber || ""),
-        loadSize,
-        loadQuantity: closeout.loadQuantity,
-        verifiedAt: String((result as Record<string, unknown>).verifiedAt || ""),
-        recordedBy: authSession.email,
-      });
-    } catch (loadStatusError) {
-      truckLoadStatus = {
-        updated: false,
-        status: null,
-        reason: loadStatusError instanceof Error ? loadStatusError.message : "The truck load status could not be updated.",
-      };
-    }
+    const truckLoadStatus = updateVerifiedCloseoutLoad(String(_serviceDate || ""), id, closeout, String((result as Record<string, unknown>).verifiedAt || ""), authSession.email);
     const slackNotification = await publishVerifiedCloseout(result as Record<string, unknown>, id);
     return NextResponse.json({ ...result, truckLoadStatus, slackNotification }, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {

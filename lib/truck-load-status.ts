@@ -36,6 +36,9 @@ export type TruckLoadEvent = {
   loadQuantity: string;
   contents: string;
   resetLocation: TruckLoadResetLocation | "";
+  appointmentType?: string;
+  appointmentStatus?: string;
+  coveredAppointmentIds?: string[];
 };
 
 export type TruckLoadStatus = {
@@ -49,6 +52,8 @@ export type TruckLoadStatus = {
   isOverCapacity: boolean;
   lastEvent: TruckLoadEvent | null;
   events: TruckLoadEvent[];
+  needsVerification?: boolean;
+  verificationNote?: string;
 };
 
 type TruckLoadStore = {
@@ -113,6 +118,9 @@ function cleanEvent(value: unknown): TruckLoadEvent | null {
     loadQuantity: String(row.loadQuantity || "").trim().slice(0, 20),
     contents: String(row.contents || "").replace(/\s+/g, " ").trim().slice(0, 500),
     resetLocation: resetLocation === "dump" || resetLocation === "metal_yard" ? resetLocation : "",
+    ...(row.appointmentType ? {appointmentType: String(row.appointmentType)} : {}),
+    ...(row.appointmentStatus ? {appointmentStatus: String(row.appointmentStatus)} : {}),
+    ...(Array.isArray(row.coveredAppointmentIds) ? {coveredAppointmentIds:[...new Set(row.coveredAppointmentIds.map(String).filter(id=>/^\d{1,12}$/.test(id)))].slice(0,1000)} : {}),
   };
 }
 
@@ -209,7 +217,6 @@ export function formatTruckLoadFraction(value: number): string {
 export function parseJunkwareLoadFraction(value: unknown): number | null {
   const text = String(value || "").trim();
   if (!text) return null;
-  if (/\bfull(?:\s+truck)?\b/i.test(text)) return 1;
   if (/\bminimum\b/i.test(text)) return 1 / 12;
   if (/\b(?:empty|none)\b/i.test(text)) return 0;
 
@@ -220,6 +227,7 @@ export function parseJunkwareLoadFraction(value: unknown): number | null {
     const denominator = Number(fraction[2]);
     if (Number.isFinite(numerator) && Number.isFinite(denominator) && denominator > 0) return cleanFraction(numerator / denominator, 1);
   }
+  if (/\bfull(?:\s+truck)?\b/i.test(text)) return 1;
 
   const junkwareUnits = Number(text.match(/^\s*(\d+(?:\.\d+)?)/)?.[1]);
   if (Number.isFinite(junkwareUnits) && junkwareUnits >= 0 && junkwareUnits <= 6) return cleanFraction(junkwareUnits / 6, 1);
@@ -335,6 +343,7 @@ export function resetTruckLoad(input: {
   recordedBy: string;
   occurredAt?: string;
   eventId?: string;
+  coveredAppointmentIds?: string[];
 }): TruckLoadStatus {
   const truck = normalizeTruckLoadLabel(input.truck);
   if (!validDate(input.date) || !truck || !["dump", "metal_yard"].includes(input.location)) {
@@ -371,6 +380,7 @@ export function resetTruckLoad(input: {
       loadQuantity: "",
       contents: "",
       resetLocation: input.location,
+      ...(input.coveredAppointmentIds ? {coveredAppointmentIds:input.coveredAppointmentIds} : {}),
     };
     const events = [...store.events, event];
     writeTruckLoadStore({ version: 1, updatedAt: now, events });
@@ -382,6 +392,8 @@ export function recordTruckLoadFromCloseout(input: {
   date: string;
   truck: string;
   appointmentId: string;
+  appointmentType: string;
+  appointmentStatus: string;
   jobNumber?: string;
   loadSize: unknown;
   loadQuantity: unknown;
@@ -390,11 +402,15 @@ export function recordTruckLoadFromCloseout(input: {
 }): { updated: boolean; status: TruckLoadStatus | null; reason: string } {
   const truck = normalizeTruckLoadLabel(input.truck);
   const appointmentId = String(input.appointmentId || "").trim();
-  if (!validDate(input.date) || !truck || !/^\d{1,12}$/.test(appointmentId)) {
+  if (!validDate(input.date) || !/^\d{1,12}$/.test(appointmentId)) {
     return { updated: false, status: null, reason: "The closeout does not have a dated physical truck assignment." };
   }
+  const estimate = /^estimate$/i.test(input.appointmentType.trim());
+  if (!estimate && (!/^job$/i.test(input.appointmentType.trim()) || !/^(?:completed|closed)\b/i.test(input.appointmentStatus.trim()))) {
+    return {updated:false,status:null,reason:'Only completed jobs add to the truck load.'};
+  }
   const loadSize = String(input.loadSize || "").trim();
-  const loadFraction = junkwareJobLoadFraction(loadSize, input.loadQuantity);
+  const loadFraction = estimate ? 0 : junkwareJobLoadFraction(loadSize, input.loadQuantity);
   if (loadFraction === null) {
     return { updated: false, status: null, reason: "The JunkWare closeout did not contain a recognized load size." };
   }
@@ -404,13 +420,17 @@ export function recordTruckLoadFromCloseout(input: {
     const now = new Date().toISOString();
     const eventId = `job-closeout:${appointmentId}`;
     const existing = store.events.find((event) => event.eventId === eventId);
+    if (estimate && !existing) return {updated:false,status:null,reason:'Estimates do not add to truck load.'};
+    const eventTruck = estimate ? existing!.truck : truck;
+    if (!/^Truck# [1-9]\d*$/.test(eventTruck)) return {updated:false,status:null,reason:'The closeout does not have a dated physical truck assignment.'};
+    const coveredBy = store.events.filter(event=>event.date === input.date && event.truck === eventTruck && ['yard_reset','manual_snapshot'].includes(event.kind) && event.coveredAppointmentIds?.includes(appointmentId)).sort(eventOrder).at(-1);
     const event: TruckLoadEvent = {
       eventId,
       date: input.date,
-      truck,
+      truck: eventTruck,
       kind: "job_closeout",
       loadFraction,
-      occurredAt: existing?.occurredAt || String(input.verifiedAt || now),
+      occurredAt: coveredBy ? new Date(Date.parse(coveredBy.occurredAt)-1).toISOString() : existing?.occurredAt || String(input.verifiedAt || now),
       recordedAt: now,
       recordedBy: String(input.recordedBy || "JunkWare closeout").trim().slice(0, 160),
       appointmentId,
@@ -419,11 +439,13 @@ export function recordTruckLoadFromCloseout(input: {
       loadQuantity: String(input.loadQuantity ?? "").trim().slice(0, 20),
       contents: "",
       resetLocation: "",
+      appointmentType: input.appointmentType,
+      appointmentStatus: input.appointmentStatus,
     };
     const events = store.events.filter((candidate) => candidate.eventId !== eventId);
     events.push(event);
     writeTruckLoadStore({ version: 1, updatedAt: now, events });
-    return { updated: true, status: deriveTruckLoadStatus(input.date, truck, events), reason: "" };
+    return { updated: true, status: deriveTruckLoadStatus(input.date, eventTruck, events), reason: estimate ? 'Estimate conversion removed the job load contribution.' : "" };
   });
 }
 
@@ -435,6 +457,7 @@ export function recordTruckLoadSnapshot(input: {
   messageId: string;
   occurredAt?: string;
   recordedBy?: string;
+  coveredAppointmentIds?: string[];
 }): { created: boolean; status: TruckLoadStatus } {
   const truck = normalizeTruckLoadLabel(input.truck);
   const loadFraction = cleanFraction(input.loadFraction, 2);
@@ -464,6 +487,7 @@ export function recordTruckLoadSnapshot(input: {
       loadQuantity: "",
       contents,
       resetLocation: "",
+      ...(input.coveredAppointmentIds ? {coveredAppointmentIds:input.coveredAppointmentIds} : {}),
     };
     const events = [...store.events, event];
     writeTruckLoadStore({ version: 1, updatedAt: now, events });
@@ -476,6 +500,7 @@ export function truckLoadEventLabel(event: TruckLoadEvent | null): string {
   if (event.kind === "day_start") return `Started at ${formatTruckLoadFraction(event.loadFraction)}`;
   if (event.kind === "yard_reset") return event.resetLocation === "metal_yard" ? "Reset at metal yard" : "Reset at dump";
   if (event.kind === "manual_snapshot") return `OpsBot snapshot: ${formatTruckLoadFraction(event.loadFraction)}`;
+  if (event.appointmentType === 'Estimate') return `${event.jobNumber || 'Appointment'} changed to estimate · no load added`;
   const job = event.jobNumber || (event.appointmentId ? `appointment ${event.appointmentId}` : "job closeout");
   return `${job} added ${formatTruckLoadFraction(event.loadFraction)}`;
 }

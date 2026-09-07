@@ -94,6 +94,29 @@ The existing dashboard Exceptions panel remains available during migration. It s
 
 ## Reconciliation behavior
 
+### Desktop Command Triage
+
+Command Control separates **Needs Action**, **Waiting**, **Awaiting Verification**,
+and **Resolved** without changing the durable work-item state. Waiting requires
+an owner and a future deadline; overdue or incomplete handoffs return to Needs
+Action. Monitor's urgent watchlist uses the same classification.
+
+Only an `open_appointment_past_scheduled_window` warning with a uniquely matched,
+newer closed appointment observation moves to Awaiting Verification. It is not
+resolved by that presentation change. Payment, photos, Krewe, and manual work
+remain actionable independently of appointment completion. The original
+condition, source timestamp, owner, deadline, and manual-resolution label remain
+available. Carryovers resolved on the selected date remain in its queue/history.
+
+**Check Latest Sources** is a manager-only, origin-protected action. It checks the
+selected date plus detector-supported active carryover dates (up to 32 dates per
+request). Each date independently requires complete, fresh metrics; missing or
+failed dates are explicitly reported and never treated as cleared. Source
+resolution still requires two fresh observations with advancing timestamps.
+The comparison and absence increment are serialized per date so concurrent
+checks, repeated snapshots, and timestamp regressions cannot manufacture a
+second observation. Viewing or refreshing Command never resolves durable work.
+
 The reconciler runs the existing exception builder and upserts work using this dedupe key:
 
 ```text

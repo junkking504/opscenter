@@ -7,5 +7,6 @@ export function controlAppointmentEvidence(entity: ControlItem['entity'], schedu
   const exact=schedule.appointments.filter(row=>row.recordId===entity.id||row.appointmentId===entity.id);
   const matches=exact.length?exact:schedule.appointments.filter(row=>row.jkNumber===entity.id||row.jkNumber===entity.label);
   if(!schedule.observedAt||matches.length!==1)return {status:'Current appointment evidence unavailable or ambiguous',observedAt:schedule.observedAt};
-  return {status:matches[0].status||'Disposition unavailable',observedAt:schedule.observedAt};
+  const status = matches[0].status || 'Disposition unavailable';
+  return {status,observedAt:schedule.observedAt,appointmentClosed:/^(?:estimate\s+)?(?:completed|closed|cancelled|canceled)\b/i.test(status.trim())};
 }

@@ -33,6 +33,7 @@ export type ScheduleAppointment = {
   paymentAmount: number;
   tipAmount: number;
   junkItems: string[];
+  pickupItems?: string[];
   appointmentNotes: string[];
   cancellationReason: string;
   location: { latitude: number; longitude: number } | null;
@@ -52,6 +53,7 @@ export type MoveProposal = { job: ScheduleAppointment; truck: string; start: num
 export type ScheduleSnapshot = {
   date: string;
   observedAt: string | null;
+  sourceRequest?: {state:'ready'|'loading'|'queued'|'failed';message:string};
   appointments: ScheduleAppointment[];
   fleet: { isToday: boolean; trucks: ScheduleTruck[]; lastUpdatedAt: string | null };
 };
@@ -180,11 +182,11 @@ export function resolveScheduleDeepLink(jobs: ScheduleAppointment[], queryValue:
   const query = queryValue.trim().length <= 200 ? queryValue.trim() : '';
   const appointment = appointmentValue.trim();
   if (appointment) {
-    if (!/^(?:\d{4}-\d{2}-\d{2}:appointment:)?\d{1,12}$/.test(appointment)) return { query, recordId: null, notice: 'The appointment link is invalid. Choose a source record.' };
+    if (!/^(?:\d{4}-\d{2}-\d{2}:appointment:)?\d{1,12}$/.test(appointment)) return { query:'', recordId: null, notice: 'The appointment link is invalid. Choose a source record.' };
     const matches = jobs.filter(job => job.recordId === appointment || job.appointmentId === appointment);
     return matches.length === 1
       ? { query: matches[0].appointmentId, recordId: matches[0].recordId, notice: '' }
-      : { query, recordId: null, notice: 'The linked appointment is not uniquely available on this operating date.' };
+      : { query:'', recordId: null, notice: 'The linked appointment is not uniquely available on this operating date. Showing the full schedule.' };
   }
   if (!query) return { query, recordId: null, notice: queryValue.trim() ? 'The search link is too long. Enter a shorter search.' : '' };
   const exact = query.toLocaleLowerCase();

@@ -52,11 +52,13 @@ export function readVerifiedJunkwareScheduleSnapshot(
   dataDir: string,
   date: string,
 ): VerifiedJunkwareScheduleSnapshot | null {
-  const aggregate = readVerifiedSnapshotFile(
+  const fast = readVerifiedSnapshotFile(
     junkwareScheduleSnapshotFile(dataDir, date),
     date,
     [...REQUIRED_MARKETS],
   );
+  const requested = readVerifiedSnapshotFile(path.join(dataDir,'history','junkware',`junkware_schedule_requested_${date}.json`),date,[...REQUIRED_MARKETS]);
+  const aggregate = requested && (!fast || requested.updatedAtMs > fast.updatedAtMs) ? requested : fast;
   const scoped = MARKET_SCOPES.map(([marketId, market]) => readVerifiedSnapshotFile(
     path.join(
       dataDir,

@@ -207,6 +207,15 @@ export function junkItemKeywords(row: AnyRecord): string[] {
     .map(([label]) => label);
 }
 
+/** Keep the full pickup description for operational cards; keyword tags omit
+ * quantities and items outside the tag vocabulary. */
+export function appointmentPickupItems(row: AnyRecord): string[] {
+  return unique([
+    ...stringList(row?.job_description),
+    ...appointmentNotes(row).filter(note=>/^Online request:/i.test(note)).map(note=>note.replace(/^Online request:\s*/i,'')),
+  ]);
+}
+
 function isoDate(value: string): string {
   const match = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!match) return value;

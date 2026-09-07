@@ -6,6 +6,8 @@ import { deduplicateOperationalUpdates } from '../lib/operational-update-dedup';
 import { fetchSlackDailyDigest, type SlackDigestMessage } from '../lib/slack-digest';
 import { fixtureSnapshot, job, alert, now } from './fixtures/crew-progress';
 import { commandAlertWorkItemForSource } from '../lib/command-alert-workflow';
+import { crewPaymentFacts, crewCloseoutFacts, crewAppointmentFacts } from '../lib/crew-progress-details';
+import { appointmentPickupItems } from '../lib/junkware-job-details';
 import type { WorkItem } from '../lib/platform/contracts';
 
 const message = (id:string, timestamp:string, rawText:string, values:Partial<SlackDigestMessage> = {}): SlackDigestMessage => ({id,timestamp,rawText,text:rawText,channel:'#truck-2',threadReply:false,...values});
@@ -35,9 +37,11 @@ assert.equal(updates[0].rawText,'Corrected arrival','A later retry must not repl
 assert.equal(deduplicateOperationalUpdates([message('a',first.timestamp,'Photos Uploaded\nJK1000001'),message('b',retry.timestamp,'Photos Uploaded\nJK1000001')]).length,2,'Unidentified photo batches cannot be safely merged');
 const fixture = fixtureSnapshot();
 assert.equal(fixture.crewProgress?.jobs.length,3);
+assert.equal(fixture.crewProgress?.jobs.some(job=>job.steps.some(step=>step.label === 'Assignment' || step.label === 'Departure')),false);
+assert.deepEqual(fixture.crewProgress?.jobs[0].steps.map(step=>step.label),['Duration','Photos','Payment','Closeout']);
 assert.equal(fixture.crewProgress?.jobs[0].needsFollowUp,true);
 assert.match(fixture.crewProgress!.jobs[0].next,/No uploaded photos/);
-assert.deepEqual(fixture.crewProgress?.jobs[0].updateIds,['arrival-one','closed-one','departure-one']);
+assert.deepEqual(fixture.crewProgress?.jobs[0].updateIds,['closed-one','arrival-one']);
 assert.equal(fixture.crewProgress!.jobs[1].steps.filter(step => step.state === 'next').length,1);
 assert.match(fixture.crewProgress!.jobs[1].next,/arrival/i);
 assert.deepEqual(fixture.crewProgress?.unlinkedUpdateIds,['clock-in']);
@@ -71,7 +75,8 @@ assert.equal(consolidated[0].id,'early');
 assert.equal(consolidated[0].corrected,true);
 assert.deepEqual(consolidated[0].sourceMessageIds,['early','middle','final']);
 assert.equal(consolidated[0].facts.find(fact => fact.label === 'Departure')?.value,'8:20 AM');
-assert.equal(consolidated[0].facts.find(fact => fact.label === 'On-site time')?.value,'20 min');
+assert.equal(consolidated[0].label,'Duration');
+assert.equal(consolidated[0].facts.find(fact => fact.label === 'Duration')?.value,'20 min');
 const priorReview = {...reviewed,entity:{id:'middle'}} as WorkItem;
 assert.equal(commandAlertWorkItemForSource([priorReview],consolidated[0]),priorReview,'A review on a provisional departure survives consolidation');
 assert.equal(consolidateConfirmedVisitAlerts([...reports,{...reports[0],id:'reply',threadReply:true}],[visit],now).length,2,'Thread replies remain separate');
@@ -83,6 +88,24 @@ assert.equal(consolidateConfirmedVisitAlerts([...reports,departure('return','202
 assert.equal(consolidateConfirmedVisitAlerts(reports,[visit,{...visit,appointment_id:'ambiguous'}],now).length,3,'Ambiguous visit identity must remain separate');
 assert.equal(consolidateConfirmedVisitAlerts(reports,[{...visit,visit_intervals:[],visit_count:2,first_arrival:visit.visit_intervals[0].arrival,final_departure:visit.visit_intervals[0].departure}],now).length,3,'First and final timestamps cannot collapse multiple visits without intervals');
 assert.equal(consolidateConfirmedVisitAlerts(reports,[{...visit,truck_number:'Truck 3'}],now).length,3,'Different truck evidence cannot establish a revision');
+const arrivalReport = toOperationalAlert(message('arrival','2026-09-07T13:01:00Z','Truck 2 Arrival\nJK1000001\n8:00 AM'));
+const wholeVisit = consolidateConfirmedVisitAlerts([arrivalReport,...reports],[visit],now);
+assert.equal(wholeVisit.length,1,'Arrival and departure become one Duration alert');
+assert.equal(wholeVisit[0].id,'arrival');
+assert.deepEqual(wholeVisit[0].sourceMessageIds,['arrival','early','middle','final']);
+assert.equal(consolidateConfirmedVisitAlerts([arrivalReport],[{...visit,visit_intervals:[{arrival:'2026-09-07T13:00:00Z'}]}],now)[0].label,'Arrival','Arrival remains visible until a departure is confirmed');
+assert.equal(consolidateConfirmedVisitAlerts([arrivalReport],[visit],now)[0].label,'Duration','A confirmed departure updates the arrival even before the Slack departure arrives');
+const tenderJob = job({closeout:{...job().closeout!,tip:25,payments:[{method:'Check',detail:'Check #00127',amount:100},{method:'Credit Card',detail:'4111111111114242',amount:375}]}});
+assert.deepEqual(crewPaymentFacts(tenderJob),[{label:'Check #00127',value:'$100.00'},{label:'Credit Card · ending 4242',value:'$375.00'},{label:'Tips',value:'$25.00'}]);
+assert.doesNotMatch(JSON.stringify(crewPaymentFacts(tenderJob)),/411111111111/);
+assert.equal(crewPaymentFacts(job()).some(fact=>fact.label === 'Tips'),false,'Zero tips do not add an empty field');
+assert.deepEqual(crewCloseoutFacts(job({closeout:{...job().closeout!,otherCharges:[{name:'Mattress fee',quantity:2,unitPrice:20,total:40}]}})),[{label:'Load',value:'Half truck · $450.00'},{label:'2 × Mattress fee',value:'$40.00'}]);
+const description = '2 king bed frames, one ceramic fountain and 14 bags';
+assert.deepEqual(appointmentPickupItems({job_description:description}),[description],'Original item descriptions retain quantities and unrecognized items');
+const customer = crewAppointmentFacts(job({customerEmail:'customer@example.test',phone:'555-010-0200',pickupItems:[description],appointmentNotes:['Use side gate.','Call before arrival.']}));
+assert.equal(customer.find(fact=>fact.label === 'Pickup items')?.value,description);
+assert.equal(customer.find(fact=>fact.label === 'Appointment notes')?.value,'Use side gate.\nCall before arrival.');
+assert.equal(customer.find(fact=>fact.label === 'Email')?.href,'mailto:customer@example.test');
 
 async function main() {
   // All Slack calls are intercepted; no token, network or provider is used.

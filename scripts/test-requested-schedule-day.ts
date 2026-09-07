@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {scheduleDayNeedsCollection,requestScheduleDay} from '../lib/requested-schedule-day';
+import {readVerifiedJunkwareScheduleSnapshot} from '../lib/junkware-fast-schedule';
+const now=Date.parse('2026-09-07T17:00:00Z');
+assert.equal(scheduleDayNeedsCollection('2026-09-09',null,false,now),true);
+assert.equal(scheduleDayNeedsCollection('2026-09-09','2026-09-07T16:58:00Z',false,now),false,'Verified empty future date is ready');
+assert.equal(scheduleDayNeedsCollection('2026-09-09','2026-09-07T16:00:00Z',true,now),true);
+assert.equal(scheduleDayNeedsCollection('2026-09-06',null,true,now),false);
+assert.equal(scheduleDayNeedsCollection('2026-09-06',null,false,now),true);
+assert.equal(scheduleDayNeedsCollection('2026-09-09','invalid',true,now),true);
+const directory=fs.mkdtempSync(path.join(os.tmpdir(),'requested-schedule-test-'));
+process.env.OPSCENTER_DATA_DIR=directory;
+try {
+  const control=path.join(directory,'schedule-requests');fs.mkdirSync(control);
+  fs.writeFileSync(path.join(control,'active.json'),JSON.stringify({date:'2026-09-09',token:'example',startedAt:Date.now()}));
+  assert.equal(requestScheduleDay('2026-09-09',null,false).state,'loading');
+  assert.equal(requestScheduleDay('2026-09-10',null,false).state,'queued');
+  fs.unlinkSync(path.join(control,'active.json'));
+  fs.writeFileSync(path.join(control,'2026-09-09.json'),JSON.stringify({state:'failed',finishedAt:Date.now()}));
+  assert.equal(requestScheduleDay('2026-09-09',null,false).state,'failed');
+  const history=path.join(directory,'history','junkware');fs.mkdirSync(history,{recursive:true});
+  const file=path.join(history,'junkware_schedule_requested_2026-09-09.json');
+  const payload={date:'2026-09-09',scraped_at:new Date(now).toISOString(),appointments:[],cancelled:[],markets_scraped:['Junk King New Orleans','Junk King Northshore','Junk King Baton Rouge','Junk King Jefferson Parish']};
+  fs.writeFileSync(file,JSON.stringify(payload));
+  assert.equal(readVerifiedJunkwareScheduleSnapshot(directory,payload.date)?.appointments.length,0);
+  fs.writeFileSync(file,JSON.stringify({...payload,markets_scraped:payload.markets_scraped.slice(1)}));
+  assert.equal(readVerifiedJunkwareScheduleSnapshot(directory,payload.date),null,'Partial markets must never imply an empty schedule');
+  console.log('Requested schedule date passed: past/future freshness, verified empty dates, loading queue, failure cooldown, and complete-market gate. No external collection.');
+} finally {fs.rmSync(directory,{recursive:true,force:true});}

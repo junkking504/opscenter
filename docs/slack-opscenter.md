@@ -12,8 +12,13 @@ local viewing controls. Reviewing an update never removes it from the history
 or marks a crew step complete. Control retains the existing shared follow-up
 workflow. The Operations Map follows the updates and keeps its existing controls.
 
-Tracked evidence is truck assignment, confirmed arrival, uploaded photos,
-recorded payment, JunkWare closeout, and confirmed departure. Photo presence is
+Tracked evidence is confirmed arrival, uploaded photos, recorded payment, and
+JunkWare closeout. Once a confirmed departure is available, Duration combines
+arrival and departure into one update and milestone. Assignment is not a step.
+Payment lists tender, check reference or card last four, and applicable tips.
+Closeout lists load size and other charges. Appointment cards show available
+customer contact information, original pickup descriptions, and full notes.
+Compact inline facts retain all details; photos open in a keyboard-accessible dialog. Photo presence is
 not proof of before/after coverage; the application has no verified before/after
 requirement contract. Missing photos are flagged only after closeout with an
 available photo audit. Payment is recorded only with named tender(s), positive

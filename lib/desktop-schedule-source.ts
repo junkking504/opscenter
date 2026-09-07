@@ -5,9 +5,10 @@ import fs from "fs";
 import path from "path";
 import { appointmentTerritoryForLocation } from "@/lib/appointment-territory";
 import { readVerifiedJobCancellations } from "@/lib/job-cancellations";
-import { appointmentNotes, junkItemKeywords, junkwareJobPhotos, junkwarePhotoAuditAvailable, type JunkwareJobPhoto } from "@/lib/junkware-job-details";
+import { appointmentNotes, appointmentPickupItems, junkItemKeywords, junkwareJobPhotos, junkwarePhotoAuditAvailable, type JunkwareJobPhoto } from "@/lib/junkware-job-details";
 import { junkwareBookedAt } from "@/lib/junkware-booking-date";
-import { currentJunkwareScheduleSnapshot, readVerifiedJunkwareScheduleSnapshot } from "@/lib/junkware-fast-schedule";
+import { currentJunkwareScheduleSnapshot, readVerifiedJunkwareScheduleSnapshot, canonicalJunkwareUpdatedAtMs } from "@/lib/junkware-fast-schedule";
+import { applyVerifiedClassifications } from './appointment-classification';
 
 const OPSBOT_DATA_DIR =
   process.env.OPSBOT_DATA_DIR ||
@@ -53,6 +54,7 @@ type JobRow = {
   photos: JunkwareJobPhoto[];
   photoAuditAvailable: boolean;
   junkItems: string[];
+  pickupItems?: string[];
   appointmentNotes: string[];
   cancellationReason: string;
 };
@@ -718,6 +720,7 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
     photos: junkwareJobPhotos(row),
     photoAuditAvailable: junkwarePhotoAuditAvailable(row),
     junkItems: junkItemKeywords(row),
+    pickupItems: appointmentPickupItems(row),
     appointmentNotes: appointmentNotes(row),
     cancellationReason: cancellationReasonText(
       firstValue(row, ["cancellation_reason", "cancel_reason", "Cancellation Reason", "Cancel Reason"]),
@@ -1028,6 +1031,7 @@ function readJobRows(date: string): JobRow[] {
         photos: junkwareJobPhotos(sourceRow),
         photoAuditAvailable: junkwarePhotoAuditAvailable(sourceRow),
         junkItems: junkItemKeywords(sourceRow),
+        pickupItems: appointmentPickupItems(sourceRow),
         appointmentNotes: appointmentNotes(sourceRow),
         cancellationReason: cancellationReasonText(cancellationReasonRaw, customerName, phone, address),
       });
@@ -1052,7 +1056,7 @@ function readJobRows(date: string): JobRow[] {
     ? mergeFastScheduleRows(resolvedJobs, fastSnapshot.appointments, fastSnapshot.cancelled, date)
     : resolvedJobs;
 
-  return currentJobs.sort((a, b) => {
+  return applyVerifiedClassifications(date,currentJobs,Math.max(canonicalJunkwareUpdatedAtMs(OPSBOT_DATA_DIR,date),fastSnapshot?.updatedAtMs || 0)).sort((a, b) => {
     const territoryCompare = a.territory.localeCompare(b.territory);
     if (territoryCompare !== 0) return territoryCompare;
     return compareJobSchedule(a, b);
@@ -1125,6 +1129,8 @@ function mergeFastScheduleRows(
       paymentType: present(fresh.paymentType) ? fresh.paymentType : existing.paymentType,
       paymentAmount: fresh.paymentAmount || existing.paymentAmount,
       tipAmount: fresh.tipAmount || existing.tipAmount,
+      pickupItems: fresh.pickupItems?.length ? fresh.pickupItems : existing.pickupItems,
+      appointmentNotes: fresh.appointmentNotes.length ? fresh.appointmentNotes : existing.appointmentNotes,
       cancellationReason: fresh.cancellationReason || existing.cancellationReason,
     }];
   });

@@ -130,3 +130,10 @@
 .ops-live .live-schedule .schedule-board, .ops-live .live-schedule .schedule-board * { -webkit-user-select: none; user-select: none; }
 .ops-live .live-schedule .schedule-jk-link { -webkit-user-drag: none; touch-action: none; }
 body.schedule-pointer-drag, body.schedule-pointer-drag * { -webkit-user-select: none !important; user-select: none !important; cursor: grabbing !important; }
+
+.appointment-type-control { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 13px; }
+.appointment-type-control > div:first-child { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
+.appointment-type-control > div:first-child button { margin-left: auto; }
+.appointment-type-control p { width: 100%; margin: 0; line-height: 1.4; }
+.appointment-type-control label { display: flex; align-items: center; gap: 6px; }
+.appointment-type-control select { min-height: 32px; border: 1px solid var(--border); border-radius: 5px; padding: 4px 8px; background: var(--background); }

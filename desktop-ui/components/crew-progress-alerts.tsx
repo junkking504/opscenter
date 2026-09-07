@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Check, ChevronDown, ChevronRight, CircleHelp, Clock3, Search, Truck, TriangleAlert } from 'lucide-react';
 import type { DesktopAlert, DesktopLiveProps } from '../lib/live-contract';
 import type { CrewStep } from '../lib/crew-progress-contract';
-import { AlertPhotos } from './alert-details';
+import { CrewAlertPhotos } from './crew-alert-photos';
 import './crew-progress-alerts.css';
 
 const stateLabel: Record<CrewStep['state'], string> = { complete:'Recorded', next:'Next', pending:'Pending', missing:'Follow up', unknown:'Unknown', 'not-required':'Not required' };
@@ -23,7 +23,7 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
   const search = query.trim().toLowerCase();
   const matchingAlert = (alert: DesktopAlert) => !search || `${alert.title} ${alert.label} ${alert.facts.map(f => f.value).join(' ')}`.toLowerCase().includes(search);
   const filteredJobs = jobs.filter(job => (truck === 'all' || job.truck === truck) && (!followUp || job.needsFollowUp)
-    && (!search || `${job.jobNumber} ${job.truck} ${job.crew} ${job.territory} ${job.status}`.toLowerCase().includes(search) || job.updateIds.some(id => alerts.has(id) && matchingAlert(alerts.get(id)!))));
+    && (!search || `${job.jobNumber} ${job.truck} ${job.crew} ${job.territory} ${job.status} ${job.customerFacts?.map(fact=>fact.value).join(' ')}`.toLowerCase().includes(search) || job.updateIds.some(id => alerts.has(id) && matchingAlert(alerts.get(id)!))));
   const unlinked = (progress?.unlinkedUpdateIds || snapshot.alerts.map(alert => alert.id)).flatMap(id => alerts.has(id) ? [alerts.get(id)!] : []);
   const otherUpdates = unlinked.filter(alert => (truck === 'all' || alert.truck === truck) && matchingAlert(alert) && (!followUp || alert.needsAction));
   const visibleIds = new Set([...filteredJobs.flatMap(job => job.updateIds), ...otherUpdates.map(alert => alert.id)]);
@@ -33,12 +33,11 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
   const toggle = (id: string) => setExpanded(previous => {const next = new Set(previous); if(next.has(id))next.delete(id);else next.add(id);return next;});
 
   const renderUpdate = (alert: DesktopAlert) => <article key={alert.id} className="crew-update">
-    <div className="crew-update-time"><time dateTime={alert.timestamp}>{alert.detected}</time><span aria-hidden="true"/></div>
+    <div className="crew-update-time"><time dateTime={alert.timestamp}>{alert.label === 'Arrival' ? alert.facts.find(fact=>fact.label === 'Arrival')?.value || alert.detected : alert.detected}</time><span aria-hidden="true"/></div>
     <div className="crew-update-content">
       <header><div><strong>{alert.label}</strong><span>{alert.title}</span></div>{alert.corrected && <em>Updated · {clock(alert.updatedAt)}</em>}</header>
-      <dl>{alert.facts.map((fact,index) => <div key={`${fact.label}-${index}`}><dt>{fact.label}</dt><dd>{fact.href ? <a href={fact.href}>{fact.value}</a> : fact.value}</dd></div>)}</dl>
-      {['Job Closed','Estimate Closed'].includes(alert.label) && <AlertPhotos photos={alert.photos}/>}
-      <footer><button type="button" onClick={() => openAlert(alert)}>Open record <ChevronRight size={13}/></button>
+      <dl>{alert.facts.filter(fact=>!(/^(Krewe member|Crew member|Employee)$/i.test(fact.label) && fact.value === alert.title)).map((fact,index) => <div key={`${fact.label}-${index}`}><dt>{fact.label}</dt><dd>{fact.href ? <a href={fact.href}>{fact.value}</a> : fact.value}</dd></div>)}</dl>
+      <footer><CrewAlertPhotos photos={alert.photos} title={alert.title}/><button type="button" onClick={() => openAlert(alert)}>Open record <ChevronRight size={13}/></button>
         <span>{alert.workflowState === 'in-control' ? 'Follow-up in Control' : alert.workflowState === 'acknowledged' ? 'Reviewed' : alert.workflowState === 'resolved' ? 'Follow-up resolved' : ''}</span>
         {alert.workflowState === 'active' && <button type="button" disabled={blocked} onClick={() => void live.onAlertAction(alert.id,'acknowledge')}>Mark reviewed</button>}
         {alert.workflowState === 'in-control' ? <button type="button" onClick={openControl}>Open Control</button> : alert.workflowState !== 'resolved' && <button type="button" disabled={blocked} onClick={() => void live.onAlertAction(alert.id,'add_to_control')}>Follow up in Control</button>}
@@ -70,7 +69,8 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
             return <article className={`crew-job-card${job.needsFollowUp ? ' needs-follow-up' : ''}`} key={job.id}>
               <header className="crew-job-heading"><div><a href={job.href}>{job.jobNumber}</a><span>{job.window}</span><span>{job.territory}</span></div><span className="crew-job-status">{job.status}</span></header>
               <p className="crew-job-crew">{job.crew}</p>
-              <ol className="crew-job-steps" aria-label={`${job.jobNumber} required steps`}>{job.steps.map(step => <li key={step.label} className={`crew-step ${step.state}`}><span>{stateIcon(step.state)}<strong>{step.label}</strong></span><small>{stateLabel[step.state]}</small><span className="crew-step-detail">{step.detail}</span></li>)}</ol>
+              <dl className="crew-job-customer">{job.customerFacts?.map(fact=><div key={fact.label} className={['Pickup items','Appointment notes'].includes(fact.label) ? 'crew-customer-long' : ''}><dt>{fact.label}</dt><dd>{fact.href ? <a href={fact.href}>{fact.value}</a> : fact.value}</dd></div>)}</dl>
+              <ol className="crew-job-steps" aria-label={`${job.jobNumber} required steps`}>{job.steps.map(step => <li key={step.label} className={`crew-step ${step.state}`}><span>{stateIcon(step.state)}<strong>{step.label}</strong></span><small>{stateLabel[step.state]}</small>{step.facts?.length ? <dl className="crew-step-facts">{step.facts.map((fact,index)=><div key={`${fact.label}-${index}`}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>)}</dl> : null}<CrewAlertPhotos photos={step.photos} title={job.jobNumber}/><span className="crew-step-detail">{step.detail}</span></li>)}</ol>
               <div className="crew-job-next"><strong>{job.needsFollowUp ? 'Follow up' : 'Next required'}</strong><span>{job.next}</span><a href={job.href}>Open job <ChevronRight size={14}/></a></div>
               <div className="crew-job-latest"><span>{latest ? <><b>{latest.label}</b> · {latest.detected}{latest.corrected && ' · Updated'}</> : 'No updates received yet'}</span><button type="button" aria-expanded={isExpanded} aria-controls={`job-updates-${job.id}`} disabled={!events.length} onClick={() => toggle(job.id)}>{isExpanded ? 'Hide' : 'Show'} {events.length} update{events.length === 1 ? '' : 's'} <ChevronDown size={14}/></button></div>
               {isExpanded && <div className="crew-job-timeline" id={`job-updates-${job.id}`} aria-label={`${job.jobNumber} update history`}><p className="crew-history-label">First to latest · all milestones retained</p>{events.map(renderUpdate)}</div>}

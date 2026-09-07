@@ -13,12 +13,15 @@ try {
   await page.getByRole('heading',{name:'Operational updates',exact:true}).waitFor();
   assert.equal(await page.locator('.crew-job-card').count(),3);
   assert.equal(await page.locator('.crew-job-steps .missing').count(),1);
+  await page.getByRole('button',{name:'View 1 photo',exact:true}).click();
+  await page.getByRole('dialog').waitFor();
+  await page.getByRole('button',{name:'Close photos'}).click();
   await page.screenshot({path:`${directory}/desktop.png`,fullPage:true});
   const firstJob = page.locator('.crew-job-card').filter({has:page.getByRole('link',{name:'JK1000001',exact:true})});
-  await firstJob.getByRole('button',{name:'Show 3 updates'}).click();
-  assert.deepEqual(await firstJob.locator('.crew-update-content header strong').allTextContents(),['Arrival','Job Closed','Departure']);
+  await firstJob.getByRole('button',{name:'Show 2 updates'}).click();
+  assert.deepEqual(await firstJob.locator('.crew-update-content header strong').allTextContents(),['Job Closed','Duration']);
   await firstJob.getByRole('button',{name:'Mark reviewed',exact:true}).first().click();
-  assert.equal(await firstJob.locator('.crew-update').count(),3,'Review must retain the event in history');
+  assert.equal(await firstJob.locator('.crew-update').count(),2,'Review must retain the event in history');
   assert.equal(await firstJob.getByText('Reviewed',{exact:true}).count(),1);
   await firstJob.getByRole('button',{name:'Follow up in Control',exact:true}).first().click();
   assert.equal(await firstJob.getByText('Follow-up in Control',{exact:true}).count(),1);
@@ -36,7 +39,7 @@ try {
   assert.equal(await page.locator('.crew-job-card').count(),1);
   await page.getByRole('button',{name:'Clear filters',exact:true}).click();
   await page.getByRole('button',{name:'All updates',exact:true}).click();
-  assert.equal(await page.locator('.crew-update').count(),6);
+  assert.equal(await page.locator('.crew-update').count(),5);
   assert.equal(await page.locator('.crew-update-content header strong').first().textContent(),'Arrival');
   await page.getByRole('button',{name:'Simulate partial history'}).click();
   assert.match(await page.locator('.crew-source-notice').textContent(),/history is incomplete/);

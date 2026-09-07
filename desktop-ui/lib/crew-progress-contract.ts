@@ -2,6 +2,8 @@ export type CrewStep = {
   label: string;
   state: 'complete' | 'next' | 'pending' | 'missing' | 'unknown' | 'not-required';
   detail: string;
+  facts?: Array<{label: string; value: string}>;
+  photos?: Array<{url: string; category: string; fileName: string}>;
 };
 export type CrewProgressJob = {
   id: string;
@@ -12,6 +14,7 @@ export type CrewProgressJob = {
   window: string;
   status: string;
   href: string;
+  customerFacts: Array<{label: string; value: string; href?: string}>;
   steps: CrewStep[];
   next: string;
   needsFollowUp: boolean;

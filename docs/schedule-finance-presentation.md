@@ -44,3 +44,23 @@ or run the broad refresh/backup pipeline. It pauses between dates and stops afte
 three consecutive failures. A per-year file lock prevents duplicate workers.
 Status lives in OpsBot `data/audits/finance_yoy_backfill_2025.json`; detailed logs
 remain in OpsBot `logs/finance-yoy-2025/`. Rerunning resumes unfinished dates.
+
+## Any-date schedule and appointment type
+
+Calendar opens the selected date directly in Board with its map, including future
+dates. Selecting an uncollected date requests an isolated, read-only JunkWare
+collection across all four markets. Verified results are stored separately as
+`history/junkware/junkware_schedule_requested_DATE.json`; they never overwrite
+enriched reconciliation, payroll, or raw collector records. Source precedence
+uses the newest verified snapshot. A global request lock bounds collection; the
+UI distinguishes loading, queued, failed, and verified empty dates. Refresh day
+can request a new source check without posting operational messages.
+
+The appointment drawer can change Job to Estimate or Estimate to Job. An
+explicit checkbox can complete an estimate. The operation requires a live source
+version and durable request receipt, preserves other captured closeout fields,
+and verifies JunkWare after saving. Unknown results block another submission.
+A verified type/status result overlays older schedule data until a newer source
+snapshot arrives. Estimates show quoted amounts and do not require job payment.
+Appointment deep-link parameters are consumed after use so they cannot restore
+a stale JK search when returning to Schedule.

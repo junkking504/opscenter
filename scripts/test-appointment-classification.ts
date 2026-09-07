@@ -1,0 +1,45 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {randomUUID} from 'node:crypto';
+import {parseClassificationChange,verifyClassificationChange,recordAppointmentClassification,applyVerifiedClassifications} from '../lib/appointment-classification';
+import {parseScheduleOperation,executeScheduleOperation} from '../lib/desktop-schedule-operations';
+import type {DesktopAppointment} from '../lib/desktop-schedule';
+
+async function main() {
+  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'classification-test-'));
+  process.env.OPSCENTER_DATA_DIR=directory;
+  process.env.OPSCENTER_DESKTOP_OPERATIONS_DIR=path.join(directory,'receipts');
+  process.env.JOB_ROUTE_ASSIGNMENTS_FILE=path.join(directory,'assignments.json');
+  const date='2026-09-06';
+  try {
+    const values={appointmentType:'Estimate',completeEstimate:true,expectedSourceVersion:'b'.repeat(64)};
+    const change=parseClassificationChange(values);
+    assert.throws(()=>parseClassificationChange({...values,appointmentType:'Job'}),/required/);
+    assert.throws(()=>parseClassificationChange({...values,completeEstimate:'true'}),/required/);
+    assert.throws(()=>parseClassificationChange({...values,expectedSourceVersion:''}),/required/);
+    const before={appointmentType:{label:'Job',value:'2'},status:{label:'Confirmed',value:'1'},driver:{value:'9'},total:'628.00',payments:[],tip:'0',otherCharges:[]};
+    const after={...before,appointmentType:{label:'Estimate',value:'1'},status:{label:'Completed',value:'8'}};
+    verifyClassificationChange(before,after,change);
+    assert.throws(()=>verifyClassificationChange(before,{...after,total:'0'},change),/other appointment details/);
+    assert.throws(()=>verifyClassificationChange(before,{...after,status:before.status},change),/type and status/);
+    verifyClassificationChange(after,{...after,appointmentType:before.appointmentType},parseClassificationChange({...values,appointmentType:'Job',completeEstimate:false}));
+    recordAppointmentClassification(date,{appointmentId:'1234',appointmentType:'Estimate',status:'Completed',verifiedAt:'2026-09-07T17:00:00Z'});
+    const rows=[{appointmentId:'1234',appointmentType:'Job',status:'Confirmed'}];
+    assert.equal(applyVerifiedClassifications(date,rows,Date.parse('2026-09-07T16:00:00Z'))[0].appointmentType,'Estimate');
+    assert.equal(applyVerifiedClassifications(date,rows,Date.parse('2026-09-07T18:00:00Z'))[0].appointmentType,'Job','Newer source supersedes a verified local result');
+    const job={...rows[0],status:'Completed',recordId:`${date}:appointment:1234`,version:'a'.repeat(64)} as DesktopAppointment;
+    const operation=parseScheduleOperation({requestId:randomUUID(),date,recordId:job.recordId,expectedVersion:job.version,action:'classify',values});
+    assert.throws(()=>parseScheduleOperation({...operation,values:{...values,appointmentType:'Other'}}),/required/);
+    let writes=0;
+    const run=async()=>{writes++;return {status:200,body:{ok:true}};};
+    assert.equal((await executeScheduleOperation(operation,'actor',()=>job,run)).status,'verified');
+    await executeScheduleOperation(operation,'actor',()=>job,run);
+    assert.equal(writes,1,'Classification retries must not write twice');
+    await assert.rejects(executeScheduleOperation({...operation,requestId:randomUUID()},'actor',()=>({...job,status:'Canceled'}),run),/Canceled/);
+    await assert.rejects(executeScheduleOperation({...operation,requestId:randomUUID()},'actor',()=>({...job,version:'c'.repeat(64)}),run),/changed/);
+    console.log('Appointment classification passed: input validation, source read-back, field preservation, both directions, overlay precedence, closed-record support, and idempotency. No live writes.');
+  } finally {fs.rmSync(directory,{recursive:true,force:true});}
+}
+void main();

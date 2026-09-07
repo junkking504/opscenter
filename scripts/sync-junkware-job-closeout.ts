@@ -1,4 +1,5 @@
 import { closeoutSourceVersion, verifyCloseoutFields, verifyAddedCloseoutCharges } from '../lib/desktop-closeout-contract';
+import { parseClassificationChange, verifyClassificationChange, type ClassificationChange } from '../lib/appointment-classification';
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -340,11 +341,23 @@ function verifyCloseout(closeout: { status: { value: string }; [key: string]: un
 
 let writeStarted = false;
 let failureCode = 'closeout_unavailable';
+async function applyClassification(page: Page, change: ClassificationChange, before: Record<string,unknown>) {
+  const currentType = before.appointmentType as {value:string;options:Option[]};
+  const target = currentType.options.find(option=>option.label === change.appointmentType);
+  const status = before.status as {value:string;label:string};
+  if (!target || !['1','8'].includes(status.value)) throw new Error('This appointment cannot change type from its current source status.');
+  const save = page.locator('#ctl00_Content_SaveAppointmentBtn');
+  if (!(await save.count())) throw new Error('The JunkWare appointment save control is unavailable.');
+  await selectWithoutPostback(page,'#ctl00_Content_AppointmentTypeDD',target.value);
+  if (change.completeEstimate) await selectWithoutPostback(page,'#ctl00_Content_StatusDD','8');
+  writeStarted = true;
+  await Promise.all([page.waitForNavigation({waitUntil:'domcontentloaded',timeout:90_000}),save.click()]);
+}
 async function main(): Promise<void> {
   const appointmentId = argument("appointment");
   const mode = argument("mode") || "read";
   if (!/^\d{1,12}$/.test(appointmentId)) throw new Error("A valid JunkWare appointment ID is required.");
-  if (!/^(read|write)$/.test(mode)) throw new Error("The closeout action is not valid.");
+  if (!/^(read|write|classify)$/.test(mode)) throw new Error("The closeout action is not valid.");
   let browser: Browser | null = null;
   try {
     browser = await chromium.launch({ headless: true });
@@ -357,11 +370,17 @@ async function main(): Promise<void> {
     const targetUrl = `${ORIGIN}/franchise/appointment.aspx?id=${appointmentId}`;
     await ensureAuthenticated(page, targetUrl);
     const input = mode === "write" ? parsePayload() : null;
-    const before = input ? await capture(page) : undefined;
+    const classification = mode === 'classify' ? parseClassificationChange(JSON.parse(Buffer.from(argument('payload-base64'),'base64url').toString('utf8'))) : null;
+    const before = input || classification ? await capture(page) : undefined;
     if (input?.expectedSourceVersion && before && closeoutSourceVersion(before) !== input.expectedSourceVersion) { failureCode = 'source_version_conflict'; throw new Error('This JunkWare closeout changed. Reload and review it before saving.'); }
     if (input) { writeStarted = true; await applyCloseout(page, input, before!); }
+    if (classification && before) {
+      if (closeoutSourceVersion(before) !== classification.expectedSourceVersion) {failureCode='source_version_conflict';throw new Error('This JunkWare appointment changed. Reload and review it before saving.');}
+      await applyClassification(page,classification,before);
+    }
     const closeout = await capture(page);
     if (input) { verifyCloseout(closeout, input); verifyCloseoutFields(closeout, input, before); }
+    if (classification && before) verifyClassificationChange(before,closeout,classification);
     process.stdout.write(`${JSON.stringify({ ok: true, mode, appointmentId, closeout, verifiedAt: new Date().toISOString() })}\n`);
     await context.close();
   } finally {

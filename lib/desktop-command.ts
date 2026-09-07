@@ -1,5 +1,6 @@
 import { consolidateConfirmedVisitAlerts } from './confirmed-visit-alerts';
 import { buildCrewProgress } from './crew-progress';
+import { crewAppointmentFacts } from './crew-progress-details';
 import { sourceFreshness } from './source-freshness';
 import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
 import { readScheduleVisits } from './desktop-schedule-visits';
@@ -79,6 +80,24 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
       return presentAlert(alert, action);
   });
   function presentAlert(alert: ReturnType<typeof combinedCloseoutAlerts>[number], action?: WorkItem): DesktopCommandSnapshot['alerts'][number] {
+      if (alert.label === 'New Appointment') {
+        const reference = alert.title.match(/\bJK\d+\b/i)?.[0]?.toUpperCase();
+        const candidates = appointments.filter(job => job.jkNumber.toUpperCase() === reference);
+        if (candidates.length === 1) {
+          const customerFacts = crewAppointmentFacts(candidates[0]);
+          // Preserve source-only details when the current appointment snapshot is
+          // missing a field, and show notes/items without truncation.
+          alert = {...alert,facts:[...customerFacts.map(fact => {
+            const source = alert.facts.find(old=>old.label.toLowerCase() === fact.label.toLowerCase() || fact.label === 'Pickup items' && old.label === 'Items');
+            return source && /^(Not provided|Unavailable|Not listed|No notes available)$/.test(fact.value) ? {...fact,value:source.value,href:source.href} : fact;
+          }),...alert.facts.filter(fact=>!['customer','phone','email','service address','items','pickup items','appointment notes'].includes(fact.label.toLowerCase()))]};
+        }
+      }
+      if (alert.label === 'Photos Uploaded') {
+        const reference = alert.title.match(/\bJK\d+\b/i)?.[0]?.toUpperCase();
+        const candidates = appointments.filter(job => job.jkNumber.toUpperCase() === reference);
+        if (candidates.length === 1 && candidates[0].photos.length) alert = {...alert,photos:candidates[0].photos};
+      }
       if (['Job Closed', 'Estimate Closed'].includes(alert.label)) {
         const jk = alert.title.match(/\bJK\d+\b/i)?.[0]?.toUpperCase();
         const candidates = appointments.filter(job => job.jkNumber.toUpperCase() === jk && (/estimate/i.test(job.appointmentType) === (alert.label === 'Estimate Closed')));
@@ -87,7 +106,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
       }
       return {
         ...alert, timestamp: alert.timestamp,
-        priority: ['New Appointment','Arrival','Departure','Job Closed','Estimate Closed','Photos Uploaded','Payment Recorded','Clock In','Clock Out','Final Daily Pay','Fuel Receipt','Dump Receipt','Receipt Recorded'].includes(alert.label) ? 'watch' : alert.needsAction ? 'warning' : 'watch',
+        priority: ['New Appointment','Arrival','Departure','Duration','Job Closed','Estimate Closed','Photos Uploaded','Payment Recorded','Clock In','Clock Out','Final Daily Pay','Fuel Receipt','Dump Receipt','Receipt Recorded'].includes(alert.label) ? 'watch' : alert.needsAction ? 'warning' : 'watch',
         detail: '', source: 'Slack', action: 'Open Source', context: alert.next,
         workflowState: commandAlertState(action), version: action?.version || 0, actionId: action?.id,
       };

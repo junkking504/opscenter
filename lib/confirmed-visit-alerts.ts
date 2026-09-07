@@ -43,7 +43,7 @@ export function consolidateConfirmedVisitAlerts(alerts: OperationalAlert[], visi
         if (day(arrival) !== day(departure) || day(stamp) !== day(arrival)) continue;
         const first = minutes(clock(arrival))!, last = minutes(clock(departure))!;
         if (isDeparture ? reported < first || reported > last : reported !== first) continue;
-        candidates.set(`${alert.label}:${reference}:${truck}:${visit.appointment_id || ''}:${arrival}`,{stamp:isDeparture ? departure : arrival,start:arrival});
+        candidates.set(`${reference}:${truck}:${visit.appointment_id || ''}:${arrival}`,{stamp:departure,start:arrival});
       }
     }
     if (candidates.size !== 1) {unmatched.push(alert);continue;}
@@ -52,15 +52,16 @@ export function consolidateConfirmedVisitAlerts(alerts: OperationalAlert[], visi
     group.alerts.push(alert); groups.set(key,group);
   }
   for (const group of groups.values()) {
-    if (group.alerts.length === 1) {unmatched.push(group.alerts[0]);continue;}
     const ordered = [...group.alerts].sort((a,b) => (a.timestamp || '').localeCompare(b.timestamp || '') || a.id.localeCompare(b.id));
     const latest = ordered.at(-1)!;
-    const facts = latest.facts.filter(fact => ![latest.label.toLowerCase(),'on-site time','visit verification'].includes(fact.label.toLowerCase()));
-    const sourceMessageIds = [...new Set(ordered.flatMap(alert => alert.sourceMessageIds || [alert.id]))];
-    unmatched.push({...latest,id:ordered[0].id,sourceMessageIds,corrected:true,updatedAt:latest.updatedAt || latest.timestamp,
-      facts:[{label:latest.label,value:clock(group.stamp)},...facts,
-        ...(latest.label === 'Departure' ? [{label:'On-site time',value:`${Math.round((Date.parse(group.stamp)-Date.parse(group.start))/6000)/10} min`}] : []),
-        {label:'Visit verification',value:`${sourceMessageIds.length} source reports combined using one confirmed visit.`}],
+    const facts = latest.facts.filter(fact => !['arrival','departure','duration','on-site time','visit verification'].includes(fact.label.toLowerCase()));
+    const sourceMessageIds = [...new Set(ordered.flatMap(alert => [alert.id,...(alert.sourceMessageIds || [])]))];
+    const revised = ordered.filter(alert=>alert.label === 'Departure').length > 1 || ordered.some(alert=>alert.corrected);
+    unmatched.push({...latest,id:ordered[0].id,sourceMessageIds,label:'Duration',timestamp:group.stamp,detected:clock(group.stamp),corrected:revised,updatedAt:latest.updatedAt || latest.timestamp,
+      next:'Review the recorded time on site and closeout status.',
+      facts:[{label:'Duration',value:`${Math.round((Date.parse(group.stamp)-Date.parse(group.start))/6000)/10} min`},
+        {label:'Arrival',value:clock(group.start)},{label:'Departure',value:clock(group.stamp)},...facts,
+        ...(revised ? [{label:'Visit verification',value:`${sourceMessageIds.length} source reports combined using one confirmed visit.`}] : [])],
     });
   }
   return unmatched.sort((a,b) => (b.timestamp || '').localeCompare(a.timestamp || ''));

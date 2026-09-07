@@ -14,9 +14,9 @@ export function classifyCloseoutFailure(error: unknown): JunkwareCloseoutError {
   } catch { /* Unclassified failures may have followed a source write. */ }
   return new JunkwareCloseoutError('JunkWare could not confirm the closeout result. Inspect the source before retrying.', 'uncertain');
 }
-export async function junkwareJobCloseout(appointmentId: string, payload?: Record<string, unknown>) {
+export async function junkwareJobCloseout(appointmentId: string, payload?: Record<string, unknown>, mode?: 'classify') {
   if (!/^\d{1,12}$/.test(appointmentId)) throw new JunkwareCloseoutError('The JunkWare appointment ID is unavailable.', 'preflight');
-  const args = ['--import', 'tsx', path.join(process.cwd(), 'scripts', 'sync-junkware-job-closeout.ts'), '--appointment', appointmentId, '--mode', payload ? 'write' : 'read'];
+  const args = ['--import', 'tsx', path.join(process.cwd(), 'scripts', 'sync-junkware-job-closeout.ts'), '--appointment', appointmentId, '--mode', mode || (payload ? 'write' : 'read')];
   if (payload) args.push('--payload-base64', Buffer.from(JSON.stringify(payload)).toString('base64url'));
   try {
     const { stdout } = await execFileAsync(process.execPath, args, { cwd: process.cwd(), encoding: 'utf8', timeout: 180_000, maxBuffer: 2 * 1024 * 1024, env: { ...process.env } });

@@ -8,11 +8,12 @@ import { POST as assign } from '@/app/api/job-route-assignments/route';
 import { POST as cancel } from '@/app/api/job-cancellation/route';
 import { POST as callAhead } from '@/app/api/job-call-ahead/route';
 import { POST as closeout } from '@/app/api/job-closeout/route';
+import { POST as classify } from '@/app/api/desktop/schedule/classification/route';
 import { POST as note } from '@/app/api/junkware-appointment-note/route';
 
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
 export const dynamic = 'force-dynamic';
-const sources = { move: ['/api/job-route-assignments', assign], cancel: ['/api/job-cancellation', cancel], call_ahead: ['/api/job-call-ahead', callAhead], note: ['/api/junkware-appointment-note', note], closeout: ['/api/job-closeout', closeout] } as const;
+const sources = { move: ['/api/job-route-assignments', assign], cancel: ['/api/job-cancellation', cancel], call_ahead: ['/api/job-call-ahead', callAhead], note: ['/api/junkware-appointment-note', note], closeout: ['/api/job-closeout', closeout], classify: ['/api/job-closeout', classify] } as const;
 export async function GET(request: Request) {
   const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '');
   if (!actor) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
       const payload = operation.action === 'move' ? { truck: String(values.truck || ''), ...(Number.isInteger(values.appointmentStartMinutes) ? { appointmentStartMinutes: values.appointmentStartMinutes, durationHours: values.durationHours } : {}) }
         : operation.action === 'cancel' ? { cancellationReason: String(values.reason || ''), jkNumber: job.jkNumber, customerName: job.customerName }
         : operation.action === 'call_ahead' ? { status: values.called === true ? 'called' : 'not_called' }
-        : operation.action === 'closeout' ? { ...values, serviceDate: operation.date } : { note: String(values.note || '') };
+        : ['closeout','classify'].includes(operation.action) ? { ...values, serviceDate: operation.date } : { note: String(values.note || '') };
       const response = await handler(new Request(new URL(sourcePath, request.url), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, date: operation.date, appointmentId: job.appointmentId, jobKey: `appt:${job.appointmentId}` }) }));
       return { status: response.status, body: await response.json() };
     });

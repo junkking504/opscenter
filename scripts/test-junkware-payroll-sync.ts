@@ -6,9 +6,10 @@ import {randomUUID} from 'node:crypto';
 import {upsertPayrollCorrection} from '../lib/payroll-corrections';
 import {stagePayrollSync,readPayrollSync,payrollSyncForRequest,assertPayrollSyncEditable,type JunkwareShift} from '../lib/junkware-payroll-sync';
 import {executePayrollSourceSync,type TimesheetAdapter} from '../lib/junkware-payroll-execution';
-import {parseShift,junkwareDate} from './junkware-timesheets';
+import {parseShift,junkwareDate,isolatedJunkwareState} from './junkware-timesheets';
 const previous=process.env.OPSBOT_DATA_DIR,dir=fs.mkdtempSync(path.join(os.tmpdir(),'junkware-payroll-test-'));process.env.OPSBOT_DATA_DIR=dir;
 async function main(){try{
+ const storage={cookies:[{name:'ASP.NET_SessionId'},{name:'.ASPXAUTH'}],origins:[]};assert.deepEqual(isolatedJunkwareState(storage).cookies,[{name:'.ASPXAUTH'}]);assert.equal(storage.cookies.length,2,'Do not modify the collector authentication file');
  const shift=parseShift(['09/06/2026','07:04 AM','06:10 PM','$17.00','11:06 (11.1)','11:06 (11.1)','5:32 (5.53)','40:00 (40)','5:34 (5.57)','0:00 (0)','$236.05']);
  assert.equal(shift.workDate,'2026-09-06');assert.equal(shift.labor,236.05);assert.equal(shift.regularHours,5.53);assert.equal(shift.overtimeHours,5.57);
  assert.throws(()=>parseShift(['broken']),/columns/);assert.throws(()=>junkwareDate('2026-02-31'),/date/);

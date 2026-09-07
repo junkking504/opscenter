@@ -21,6 +21,8 @@ substituted for those fields. JunkWare recalculates pay. The source pay and
 regular/overtime hours are recorded in the verification evidence; OpsCenter's
 weekly calculation stays labeled as a calculation.
 
+Each browser reuses authentication with a fresh ASP.NET session, so collector
+franchise/date selections cannot share the payroll editing session.
 Synchronization uses a per-employee process lock and a durable submission marker
 written before the save. A fresh page load reopens the native employee and
 compares all three edited values. A lost navigation is followed by read-back.

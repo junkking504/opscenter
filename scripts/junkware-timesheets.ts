@@ -1,7 +1,7 @@
 import {execFileSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import {chromium,type Browser,type Page} from 'playwright';
+import {chromium,type Browser,type Page,type BrowserContextOptions} from 'playwright';
 import {normalizePayrollEmployeeKey,type PayrollCorrection} from '../lib/payroll-corrections';
 import type {JunkwareShift} from '../lib/junkware-payroll-sync';
 export const TIMESHEETS_URL='https://junkware.junk-king.com/franchise/accounting/timesheets.aspx';
@@ -18,11 +18,12 @@ export function parseShift(cells:string[]):JunkwareShift {
   return {workDate:dateKey(cells[0]),clockIn:sourceClock(cells[1]),clockOut:sourceClock(cells[2]),hourlyRate:money(cells[3]),hours:sourceHours(cells[4]),regularHours:sourceHours(cells[6]),overtimeHours:firstOT===null||secondOT===null?null:firstOT+secondOT,labor:cells[10].trim()&&Number.isFinite(money(cells[10]))?money(cells[10]):null};
 }
 function secret(name:string,service:string) {if(process.env[`${name}_BASE64`])return Buffer.from(process.env[`${name}_BASE64`]!,'base64').toString('utf8');if(process.env[name])return process.env[name]!;try{return execFileSync('security',['find-generic-password','-w','-s',service],{encoding:'utf8',stdio:['ignore','pipe','ignore'],timeout:10000}).trim();}catch{return '';}}
+export function isolatedJunkwareState(state:{cookies:Array<{name:string}>;[key:string]:unknown}) {return {...state,cookies:state.cookies.filter(cookie=>cookie.name!=='ASP.NET_SessionId')};}
 export async function openTimesheets():Promise<{browser:Browser;page:Page}> {
   const browser=await chromium.launch({headless:true});
   try {
     const file=path.join(process.env.OPSBOT_DATA_DIR||path.join(process.env.HOME||'','.openclaw','workspace','opsbot','data'),'protected','junkware_storage_state.json');
-    const context=await browser.newContext(fs.existsSync(file)?{storageState:file}:{}),page=await context.newPage();page.setDefaultTimeout(30000);
+    const context=await browser.newContext(fs.existsSync(file)?{storageState:isolatedJunkwareState(JSON.parse(fs.readFileSync(file,'utf8'))) as Exclude<BrowserContextOptions['storageState'],string|undefined>}:{}),page=await context.newPage();page.setDefaultTimeout(30000);
     await page.goto(TIMESHEETS_URL,{waitUntil:'domcontentloaded'});
     if(page.url().includes('/account/login.aspx')) {
       const username=secret('JUNKWARE_USERNAME','opsbot-junkware-username'),password=secret('JUNKWARE_PASSWORD','opsbot-junkware-password');
@@ -55,6 +56,7 @@ async function selectDay(page:Page,date:string,market?:string) {
   if(market&&await page.locator('#ctl00_FranchiseDD').inputValue()!==market){await page.locator('#ctl00_FranchiseDD').evaluate((node,value)=>{(node as HTMLSelectElement).value=value;},market);await postback(page,'ctl00$FranchiseDD');}
   const value=junkwareDate(date);await page.locator('#ctl00_Content_StartDateTB').fill(value);await page.locator('#ctl00_Content_EndDateTB').fill(value);
   await postback(page,'',{name:'ctl00$Content$SubmitBtn',value:'Submit'});
+  if(market&&await page.locator('#ctl00_FranchiseDD').inputValue()!==market)throw new Error('JunkWare did not confirm the selected franchise.');
   if(await page.locator('#ctl00_Content_StartDateTB').inputValue()!==value||await page.locator('#ctl00_Content_EndDateTB').inputValue()!==value)throw new Error('JunkWare did not confirm the selected day.');
 }
 async function findEmployee(page:Page,name:string):Promise<string|null> {

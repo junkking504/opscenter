@@ -22,7 +22,7 @@ export default function LiveCommand() {
     if (!response.ok) throw new Error(body.error || 'Command could not refresh.');
     if (run === generation.current) {
       setSnapshot(body);
-      setError(body.sources.alerts ? '' : 'Slack alerts are unavailable. This is not confirmation that there are no alerts.');
+      setError(body.sources.alerts ? '' : 'Operational alerts are unavailable. This is not confirmation that there are no alerts.');
     }
   }, [date]);
   useEffect(() => {

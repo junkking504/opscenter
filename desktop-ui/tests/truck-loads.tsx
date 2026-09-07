@@ -8,6 +8,7 @@ import '../workspace-density.css';
 
 const date='2026-09-06';
 const loads=[{truck:'Truck 2',label:'1/4 full',percent:25,needsVerification:false,note:''},{truck:'Truck 4',label:'1/2 full',percent:50,needsVerification:false,note:''},{truck:'Truck 6',label:'Verify load',percent:null,needsVerification:true,note:'Confirm the pickup order around the unload.'}];
+loads.push(...[1,8,9,10].map(number=>({truck:`Truck ${number}`,label:'Empty',percent:0,needsVerification:false,note:''})));
 // Read-only display fixture. No source writes, customer records, or external API calls.
 window.fetch=async(input,init)=>{
   const url=new URL(String(input),location.origin);

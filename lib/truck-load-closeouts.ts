@@ -1,6 +1,7 @@
 import { readJobRows, junkwareScheduleUpdatedAt } from './desktop-schedule-source';
 import { readScheduleVisits } from './desktop-schedule-visits';
 import { appointmentOnsiteTime } from './appointment-onsite-time';
+import { geofenceLoadResets, readGeofenceEntries } from './linxup-geofence-alerts';
 import { deriveTruckLoadStatus, junkwareJobLoadFraction, normalizeTruckLoadLabel, readTruckLoadStore, recordTruckLoadFromCloseout, type TruckLoadEvent, type TruckLoadStatus } from './truck-load-status';
 
 type LoadJob = Pick<ReturnType<typeof readJobRows>[number], 'appointmentId' | 'jkNumber' | 'truck' | 'appointmentType' | 'status' | 'closeout'>;
@@ -50,7 +51,8 @@ export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored:
 }
 
 export function readOperationalTruckLoads(date: string, trucks: string[] = [], jobs = readJobRows(date)) {
-  return deriveCloseoutTruckLoads(date,trucks,readTruckLoadStore().events,jobs,readScheduleVisits(date).visits,Date.parse(junkwareScheduleUpdatedAt(date) || '') || 0);
+  const events = [...readTruckLoadStore().events,...geofenceLoadResets(date,readGeofenceEntries(date).entries)];
+  return deriveCloseoutTruckLoads(date,trucks,events,jobs,readScheduleVisits(date).visits,Date.parse(junkwareScheduleUpdatedAt(date) || '') || 0);
 }
 
 /** A present-time observation/unload explicitly covers jobs already closed on that truck. */

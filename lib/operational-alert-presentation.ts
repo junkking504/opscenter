@@ -7,6 +7,7 @@ export type EssentialFact = { label: string; value: string; href?: string };
 
 export type OperationalAlert = {
   id: string;
+  source?: string;
   timestamp?: string;
   threadReply?: boolean;
   sourceMessageIds?: string[];

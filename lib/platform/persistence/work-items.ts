@@ -354,7 +354,7 @@ export async function saveCommandAlertWorkItem(input: DetectedWorkItemInput, con
       eventType: context.action === "acknowledge" ? "work.acknowledged.v1" : "work.added_to_control.v1",
       eventVersion: 1, aggregateType: "work_item", aggregateId: item.id,
       actorId: context.actorId, occurredAt: new Date().toISOString(), correlationId: context.correlationId,
-      payload: { alertId: input.entity.id, source: "Slack", created: Boolean(inserted.rows.length), fromStatus: current.status, toStatus: item.status, ownerActorId: item.ownerActorId || null, version: item.version },
+      payload: { alertId: input.entity.id, source: input.source, created: Boolean(inserted.rows.length), fromStatus: current.status, toStatus: item.status, ownerActorId: item.ownerActorId || null, version: item.version },
     });
     return item;
   });

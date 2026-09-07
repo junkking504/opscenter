@@ -66,8 +66,9 @@ function classifyAlert(message: SlackDigestMessage, lines: string[]): Pick<Opera
   const text = lines.join(" ");
   const heading = lines[0] || "";
   if (/reschedul/i.test(heading)) return { label: "Rescheduled", domain: "Schedule", owner: "Dispatch", next: "Confirm the updated route and appointment window.", needsAction: true };
-  if (/clock.?in/i.test(heading)) return { label: "Clock In", domain: "Krewe", owner: "Dispatch", next: "Confirm the crew assignment.", needsAction: false };
-  if (/clock.?out/i.test(heading)) return { label: "Clock Out", domain: "Krewe", owner: "Dispatch", next: "Review the completed shift.", needsAction: false };
+  if (/clock(?:ed)?[ -]?in/i.test(heading)) return { label: "Clock In", domain: "Krewe", owner: "Dispatch", next: "Confirm the crew assignment.", needsAction: false };
+  if (/clock(?:ed)?[ -]?out/i.test(heading)) return { label: "Clock Out", domain: "Krewe", owner: "Dispatch", next: "Review the completed shift.", needsAction: false };
+  if (/final(?:ized)? (?:daily )?pay/i.test(heading)) return { label: "Final Daily Pay", domain: "Krewe", owner: "Payroll", next: "Review the recorded final pay breakdown.", needsAction: false };
   if (/fuel|dump|receipt/i.test(heading)) return { label: /fuel/i.test(heading) ? "Fuel Receipt" : /dump/i.test(heading) ? "Dump Receipt" : "Receipt Recorded", domain: "Fleet", owner: "Fleet", next: "Review the recorded receipt.", needsAction: false };
   if (/cancel/i.test(heading)) return { label: "Cancellation", domain: "Schedule", owner: "Dispatch", next: "Review the reason and reuse the open capacity.", needsAction: true };
   if (/estimate.*closed|closed.*estimate/i.test(heading)) return { label: "Estimate Closed", domain: "Schedule", owner: "Dispatch", next: "Review the estimate outcome and follow-up.", needsAction: true };
@@ -85,6 +86,14 @@ function classifyAlert(message: SlackDigestMessage, lines: string[]): Pick<Opera
 }
 
 export function factsForAlert(message: SlackDigestMessage, lines: string[]): EssentialFact[] {
+  // Existing crew notifications use sentence headings and labelled fields.
+  // Keep their full operational facts when presenting historical messages.
+  if (/clock(?:ed)?[ -]?(?:in|out)|final(?:ized)? (?:daily )?pay/i.test(lines[0] || "")) {
+    return lines.flatMap((line): EssentialFact[] => {
+      const match = line.match(/^(Krewe member|Crew member|Employee|Clock in|Clock out|Hours|Total pay|Hourly pay|Tips|Bonuses|Other pay|Supplemental pay):\s*(.+)$/i);
+      return match ? [{label:match[1],value:match[2]}] : [];
+    });
+  }
   const labeledFacts = lines.flatMap((line): EssentialFact[] => {
     const match = line.match(/^(On-site time|Reason|Items|Arrival|Departure|Card verification|QuickBooks entry|Krewe|Crew|Driver|Navigator|Truck|Labor|Load|Bedload|CC 3%|Tips|Total|Payments?|Photos|Verification|Outcome|Quote|Previous|New):\s*(.+)$/i);
     return match ? [{ label: match[1], value: match[2] }] : [];
@@ -161,12 +170,17 @@ export function toOperationalAlert(message: SlackDigestMessage): OperationalAler
   const lines = cleanLines(message);
   const classification = classifyAlert(message, lines);
   const reference = jobNumber(message, lines);
+  const crewMember = classification.domain === "Krewe" ? findLine(lines, /^(Krewe member|Crew member|Employee):/i).replace(/^[^:]+:\s*/, "") : "";
   const truck = lines[0]?.match(/\bTruck\s*#?\s*\d+/i)?.[0]?.replace(/#\s*/, "")
     || (/closed|photo/i.test(lines[0] || "") ? message.channel.match(/truck[- ](\d+)/i)?.[1]?.replace(/^(\d+)$/, "Truck $1") : undefined);
   const linkedSource = message.rawText.match(/<(https?:\/\/[^>|]+|\/jobs[^>|]*)\|JK\d+>/i)?.[1];
   const linkedOpsCenter = message.rawText.match(/<(https:\/\/ops\.junk-king\.app(?:\/[^>|]*)?)\|[^>]+>/i)?.[1];
   const window = message.appointment?.appointmentTime || findLine(lines, /\b\d{1,2}:\d{2}\s*(?:AM|PM).*\b\d{1,2}:\d{2}\s*(?:AM|PM)\b/i);
   let href = message.opsCenterHref || message.appointment?.href || message.closeout?.href || linkedSource || linkedOpsCenter || (reference === "Operational alert" ? "/?commandView=monitor" : "/jobs");
+  if (classification.domain === "Krewe" && !message.opsCenterHref && !linkedSource && !linkedOpsCenter) {
+    const date = Number.isFinite(Date.parse(message.timestamp)) ? new Intl.DateTimeFormat('en-CA', {timeZone:'America/Chicago'}).format(new Date(message.timestamp)) : '';
+    href = `/crew${date ? `?date=${date}` : ''}`;
+  }
   // Keep OpsCenter records inside the current authenticated app (including an
   // isolated preview); external source links are left untouched.
   try {
@@ -188,7 +202,7 @@ export function toOperationalAlert(message: SlackDigestMessage): OperationalAler
       : undefined,
     photos: ["Job Closed", "Estimate Closed"].includes(classification.label) ? message.photos : undefined,
     detected: messageTime(message.timestamp),
-    title: reference === "Operational alert" ? (lines[0] || "Operational Alert") : truck ? `${truck} · ${reference}` : window ? `${reference} · ${window}` : reference,
+    title: reference === "Operational alert" ? (crewMember || lines[0] || "Operational Alert") : truck ? `${truck} · ${reference}` : window ? `${reference} · ${window}` : reference,
     facts: factsForAlert(message, lines),
     href,
   };

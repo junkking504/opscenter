@@ -86,7 +86,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
       }
       return {
         ...alert, timestamp: alert.timestamp,
-        priority: ['New Appointment','Arrival','Departure','Job Closed','Estimate Closed','Photos Uploaded','Payment Recorded','Clock In','Clock Out','Fuel Receipt','Dump Receipt','Receipt Recorded'].includes(alert.label) ? 'watch' : alert.needsAction ? 'warning' : 'watch',
+        priority: ['New Appointment','Arrival','Departure','Job Closed','Estimate Closed','Photos Uploaded','Payment Recorded','Clock In','Clock Out','Final Daily Pay','Fuel Receipt','Dump Receipt','Receipt Recorded'].includes(alert.label) ? 'watch' : alert.needsAction ? 'warning' : 'watch',
         detail: '', source: 'Slack', action: 'Open Source', context: alert.next,
         workflowState: commandAlertState(action), version: action?.version || 0, actionId: action?.id,
       };

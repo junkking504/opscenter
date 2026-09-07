@@ -28,6 +28,10 @@ thread read is explicitly marked incomplete. Shared review/follow-up writes wait
 for complete update history so a temporarily missing duplicate cannot create a
 second work item. Empty history is not evidence that operational work is done.
 
+Existing sentence-style crew clock-in/out and final-pay messages also use the
+same event layout, preserving the member, recorded times, hours, and pay fields.
+Their source action opens the corresponding operating day in Krewe.
+
 Command and the Slack digest combine delivery retries using the original event
 fingerprint while retaining the first source message ID, latest facts, and all
 source message aliases. In-place Slack edits and changed event facts are labeled

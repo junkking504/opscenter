@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { buildCrewProgress } from '../lib/crew-progress';
+import { toOperationalAlert } from '../lib/operational-alert-presentation';
 import { deduplicateOperationalUpdates } from '../lib/operational-update-dedup';
 import { fetchSlackDailyDigest, type SlackDigestMessage } from '../lib/slack-digest';
 import { fixtureSnapshot, job, alert, now } from './fixtures/crew-progress';
@@ -7,6 +8,15 @@ import { commandAlertWorkItemForSource } from '../lib/command-alert-workflow';
 import type { WorkItem } from '../lib/platform/contracts';
 
 const message = (id:string, timestamp:string, rawText:string, values:Partial<SlackDigestMessage> = {}): SlackDigestMessage => ({id,timestamp,rawText,text:rawText,channel:'#truck-2',threadReply:false,...values});
+const legacyClock = toOperationalAlert(message('clock','2026-09-07T00:13:00Z',':bust_in_silhouette: *Krewe clocked out*\n*Krewe member:* Example worker\n*Clock out:* 06:10 PM\n*Hours:* 8.25'));
+assert.equal(legacyClock.label,'Clock Out');
+assert.equal(legacyClock.title,'Example worker');
+assert.equal(legacyClock.facts.find(fact => fact.label === 'Hours')?.value,'8.25');
+assert.equal(legacyClock.href,'/crew?date=2026-09-06');
+const legacyPay = toOperationalAlert(message('pay','2026-09-07T00:13:00Z','*Final daily pay*\n*Krewe member:* Example worker\n*Total pay:* $210.00\n*Hourly pay:* $180.00\n*Tips:* $20.00\n*Bonuses:* $10.00\n*Other pay:* $0.00'));
+assert.equal(legacyPay.label,'Final Daily Pay');
+assert.equal(legacyPay.facts.length,6);
+assert.equal(legacyPay.needsAction,false);
 const first = message('first','2026-09-07T13:00:00Z','Arrival\nJK1000001\n_Alert ID: arrival:101:visit_one_');
 const retry = {...first,id:'retry',timestamp:'2026-09-07T13:01:00Z',channel:'#dispatch'};
 const distinct = {...first,id:'second-visit',timestamp:'2026-09-07T16:00:00Z',rawText:first.rawText.replace('visit_one','visit_two')};

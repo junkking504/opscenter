@@ -1,3 +1,4 @@
+import { summarizeAppointmentNotes } from './appointment-note-summary';
 import type { readJobRows } from './desktop-schedule-source';
 import type { EssentialFact } from './operational-alert-presentation';
 
@@ -7,13 +8,14 @@ const money = (amount: number) => amount.toLocaleString('en-US', {style:'currenc
 export function crewAppointmentFacts(job: Job): EssentialFact[] {
   const present = (value: string) => value.trim() && value.trim() !== '—' ? value.trim() : '';
   const phone = present(job.phone), email = present(job.customerEmail), address = present(job.address);
+  const notes = summarizeAppointmentNotes(job.appointmentNotes);
   return [
     {label:'Customer',value:present(job.customerName) || 'Not provided'},
     {label:'Phone',value:phone || 'Not provided',...(phone ? {href:`tel:${phone.replace(/[^\d+]/g,'')}`} : {})},
     {label:'Email',value:email || (job.customerEmailCollected ? 'Not provided' : 'Unavailable'),...(email ? {href:`mailto:${email}`} : {})},
     {label:'Service address',value:address || 'Not provided',...(address ? {href:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} : {})},
     {label:'Pickup items',value:(job.pickupItems?.length ? job.pickupItems : job.junkItems).join('; ') || 'Not listed'},
-    {label:'Appointment notes',value:job.appointmentNotes.join('\n') || 'No notes available'},
+    ...(notes.length ? [{label:'Key notes',value:notes.join(' · ')}] : []),
   ];
 }
 

@@ -1,3 +1,4 @@
+import { summarizeAppointmentNotes } from '../lib/appointment-note-summary';
 import { consolidateConfirmedVisitAlerts } from '../lib/confirmed-visit-alerts';
 import assert from 'node:assert/strict';
 import { buildCrewProgress } from '../lib/crew-progress';
@@ -104,8 +105,21 @@ const description = '2 king bed frames, one ceramic fountain and 14 bags';
 assert.deepEqual(appointmentPickupItems({job_description:description}),[description],'Original item descriptions retain quantities and unrecognized items');
 const customer = crewAppointmentFacts(job({customerEmail:'customer@example.test',phone:'555-010-0200',pickupItems:[description],appointmentNotes:['Use side gate.','Call before arrival.']}));
 assert.equal(customer.find(fact=>fact.label === 'Pickup items')?.value,description);
-assert.equal(customer.find(fact=>fact.label === 'Appointment notes')?.value,'Use side gate.\nCall before arrival.');
+assert.equal(customer.find(fact=>fact.label === 'Key notes')?.value,'Use side gate. · Call before arrival.');
 assert.equal(customer.find(fact=>fact.label === 'Email')?.href,'mailto:customer@example.test');
+assert.deepEqual(summarizeAppointmentNotes([
+  'Two beds in separate bedrooms. (9/5/2026 11:29:47 AM , Operator)',
+  'Customer called asking for an ETA. Sent a franchise notification. (9/5/2026 2:05:26 PM , Operator)',
+  'Appointment moved from 09/05/2026, 12:00 PM to 09/06/2026, 08:00 AM.',
+  'TOG–Junk King Customer Care Case Type: ETA/Status Resolution: Resolved Call Summary: I confirmed the appointment. The caller accepted the information and had no further requests. Action Details: ETA notification sent requesting callback between 8 and 10.',
+  'Customer called to confirm ETA, sent notification to team so they can call her to confirm the ETA, she is aware and agreed to wait.',
+  'Use side gate. Call 30 minutes before arrival.',
+  'Use side gate.',
+]), ['Two beds in separate bedrooms.', 'Use side gate.', 'Call 30 minutes before arrival.', 'Customer contacted the call center for an ETA.']);
+assert.deepEqual(summarizeAppointmentNotes(['Customer called for an ETA. Please leave the piano upstairs.']), ['Please leave the piano upstairs.', 'Customer requested an ETA.']);
+assert.deepEqual(summarizeAppointmentNotes(['Additional Lead Note Label: Website Note: What will be picking up?: 12 bags and a fountain, Service Type: Residential, Special Offer: boilerplate']), ['12 bags and a fountain']);
+assert.deepEqual(summarizeAppointmentNotes(['Do not remove the cabinet. Gate code 0012.', 'No elevator; use rear stairs.']), ['Do not remove the cabinet.', 'Gate code 0012.', 'No elevator; use rear stairs.']);
+
 
 async function main() {
   // All Slack calls are intercepted; no token, network or provider is used.

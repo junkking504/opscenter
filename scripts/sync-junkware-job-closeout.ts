@@ -371,7 +371,7 @@ async function applyClassification(page: Page, change: ClassificationChange, bef
     verifyClassificationChange(before,await capture(page),change,false);
     // A classification correction must not email photos as a side effect.
     const sendPictures=page.locator('#ctl00_Content_SendPicturesCB');
-    if(await sendPictures.isVisible()) await sendPictures.uncheck();
+    if(await sendPictures.count()) await sendPictures.evaluate(node=>{(node as HTMLInputElement).checked=false;});
     const submit = async (selector:string,eventTarget:string) => {
       const response=page.waitForResponse(value=>value.request().method()==='POST' && new URL(value.url()).pathname.toLowerCase()==='/franchise/appointment.aspx' && new URLSearchParams(value.request().postData() || '').get('__EVENTTARGET')===eventTarget,{timeout:30_000}).then(async value=>{await value.finished();return value.ok();},()=>false);
       await clickWithWebFormsCompletion(page,selector,'the appointment change');
@@ -389,7 +389,7 @@ async function applyClassification(page: Page, change: ClassificationChange, bef
         if(!change.estimateOutcome.noDiscountReason) throw new Error('JunkWare requires a reason why no discount was offered.');
         await fill(page,'#ctl00_Content_UENoDiscountTB',change.estimateOutcome.noDiscountReason);
       }
-      if(await sendPictures.isVisible()) await sendPictures.uncheck();
+      if(await sendPictures.count()) await sendPictures.evaluate(node=>{(node as HTMLInputElement).checked=false;});
       await submit('#ctl00_Content_UENoteOkBtn','ctl00$Content$UENoteOkBtn');
     }
     const messages=await page.locator('[id*="Validation"],[id*="Error"],.alert-danger').allTextContents();

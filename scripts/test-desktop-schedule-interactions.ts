@@ -1,8 +1,21 @@
 import assert from 'node:assert/strict';
-import { assignmentNeedsVerification, scheduleMoveRestriction, scheduleCustomerLabel, scheduleStatusTone, unavailableRoute, isClosed, scheduleMoveWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
-import { scheduleMoveProposal } from '../desktop-ui/schedule-drag';
+import { scheduleTruckNames, truckLabel, assignmentNeedsVerification, scheduleMoveRestriction, scheduleCustomerLabel, scheduleStatusTone, unavailableRoute, isClosed, scheduleMoveWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
+import { scheduleMoveProposal, scheduleDragScrollStep } from '../desktop-ui/schedule-drag';
 
 const job = { recordId: '2026-09-03:appointment:1234', appointmentId: '1234', jkNumber: 'JK1234567', truck: 'Truck 4', appointmentStartMinutes: 840, appointmentEndMinutes: 960, appointmentTime: '2:00 PM–4:00 PM', appointmentType: 'Estimate', status: 'Confirmed' } as ScheduleAppointment;
+const dispatchTrucks=['Truck 1','Truck 2','Truck 3','Truck 4','Truck 5','Truck 6','Truck 7','Truck 8','Truck 9','Unassigned'];
+const noGps={isToday:false,lastUpdatedAt:null,trucks:[]};
+assert.deepEqual(scheduleTruckNames({fleet:noGps,appointments:[]}),dispatchTrucks,'An empty planning day must retain every dispatch destination');
+assert.deepEqual(scheduleTruckNames({fleet:noGps,appointments:[{...job,truck:'Virtual Truck'}]}),dispatchTrucks,'Moving every appointment to Unassigned must not remove physical trucks');
+assert.deepEqual(scheduleTruckNames({fleet:noGps,appointments:[job]}),dispatchTrucks,'Unassigned stays available after its final appointment moves out');
+assert.deepEqual(scheduleTruckNames({fleet:noGps,appointments:[{...job,truck:'Truck# 12'},{...job,truck:'t2'}]}),[...dispatchTrucks.slice(0,-1),'Truck 12','Unassigned'],'Keep source-only trucks and deduplicate aliases');
+assert.equal(truckLabel('Truck 0'),'Unassigned');
+assert.equal(truckLabel(' Truck# 2 '),'Truck 2');
+assert.equal(scheduleDragScrollStep(350,0,700),0,'Dragging in the middle must not scroll');
+assert.equal(scheduleDragScrollStep(0,0,700),-14);
+assert.equal(scheduleDragScrollStep(700,0,700),14);
+assert.equal(scheduleDragScrollStep(750,0,700),0,'A pointer outside the viewport must not keep scrolling');
+assert.equal(scheduleDragScrollStep(220,200,600),-9,'Nested scroll areas use their visible edges');
 assert.deepEqual(scheduleMoveWindow(job, 960), { changed: true, supported: true, durationHours: 2, label: '4:00 PM–6:00 PM' });
 assert.equal(scheduleMoveWindow(job, null).label, job.appointmentTime);
 assert.equal(scheduleMoveWindow(job, 840).changed, false);

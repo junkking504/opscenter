@@ -78,7 +78,7 @@ export function buildCrewProgress(input: {
       return {
         id, jobNumber:job.jkNumber, truck:truckName(job.truck), crew:[job.driver,job.navigator,...(job.additionalCrew || [])].filter(Boolean).join(' · ') || 'Crew not recorded',
         territory:job.territory || 'Territory unavailable', window:job.appointmentTime || 'Time not recorded', status:estimate ? closed ? 'Estimate completed' : `Estimate · ${job.status}` : job.status || 'Status unavailable',
-        href:desktopAppointmentHref(job.jkNumber,input.date), customerFacts:crewAppointmentFacts(job), steps,
+        href:desktopAppointmentHref(job.jkNumber,job.sourceDate || input.date,job.appointmentId), customerFacts:crewAppointmentFacts(job), steps,
         next:canceled ? 'Review cancellation and the next stop.' : nextStep?.detail || (estimate ? 'Estimate completed. Review the quote and customer follow-up.' : 'All tracked steps recorded. Review photo coverage and payment verification.'),
         needsFollowUp:steps.some(s => s.state === 'missing'),
         updateIds:updates.sort((a,b) => (a.timestamp || '').localeCompare(b.timestamp || '')).map(alert => alert.id),

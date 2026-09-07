@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { JUNKWARE_DISPATCH_TRUCKS } from './junkware-trucks';
 
 export const JUNKWARE_FRANCHISES = [
   "Baton Rouge",
@@ -153,7 +154,7 @@ export function normalizeJunkwareAppointmentCreationInput(value: unknown): Junkw
   if (!validDate(date) || date < operatingDate()) throw new JunkwareAppointmentCreationError("Choose today or a future appointment date.", "invalid_appointment", "validation");
   if (!/^(?:0[8-9]|1[0-7]):00$/.test(startTime)) throw new JunkwareAppointmentCreationError("Choose a JunkWare appointment start time from 8:00 AM through 5:00 PM.", "invalid_appointment", "validation");
   if (!Number.isInteger(durationHours) || durationHours < 1 || durationHours > 12) throw new JunkwareAppointmentCreationError("Choose an appointment duration from 1 to 12 hours.", "invalid_appointment", "validation");
-  if (!/^Truck [1-9]$/.test(truck)) throw new JunkwareAppointmentCreationError("Choose a JunkWare truck.", "invalid_appointment", "validation");
+  if (!JUNKWARE_DISPATCH_TRUCKS.includes(truck)) throw new JunkwareAppointmentCreationError("Choose a JunkWare truck.", "invalid_appointment", "validation");
   if (!JUNKWARE_APPOINTMENT_TYPES.includes(appointmentType)) throw new JunkwareAppointmentCreationError("Choose Job or Estimate as the appointment category.", "invalid_appointment", "validation");
   if (business && !company) throw new JunkwareAppointmentCreationError("Company is required for a business customer.", "invalid_appointment", "validation");
   if (phone.length !== 10) throw new JunkwareAppointmentCreationError("Enter a 10-digit customer phone number.", "invalid_appointment", "validation");

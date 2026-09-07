@@ -15,7 +15,7 @@ import { scheduleTravelLayout } from './lib/schedule-travel-layout';
 import TruckCameraController from '../components/TruckCameraController';
 import ScheduleControls, { MoveConfirmation, type MoveProposal } from './schedule-controls';
 import { scheduleMoveProposal, useScheduleDrag } from './schedule-drag';
-import { resolveScheduleDeepLink, scheduleMatchesQuery, scheduleStatusTone, scheduleMoveRestriction, unavailableRoute, assignmentNeedsVerification, appointmentCategory, appointmentRegion, appointmentStatus, isClosed, timelinePlacement, timelineRange, territoryLabels, territoryOrder, truckLabel, type ScheduleAppointment, type ScheduleRouting, type ScheduleSnapshot } from './lib/schedule-contract';
+import { scheduleTruckNames, resolveScheduleDeepLink, scheduleMatchesQuery, scheduleStatusTone, scheduleMoveRestriction, unavailableRoute, assignmentNeedsVerification, appointmentCategory, appointmentRegion, appointmentStatus, isClosed, timelinePlacement, timelineRange, territoryLabels, territoryOrder, truckLabel, type ScheduleAppointment, type ScheduleRouting, type ScheduleSnapshot } from './lib/schedule-contract';
 import './live-schedule.css';
 import './schedule-board.css';
 
@@ -58,6 +58,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [routeState, setRouteState] = useState('Loading Route Estimates');
   const [now, setNow] = useState(new Date());
   const snapshot = snapshots[date];
+  const hasSnapshot = Boolean(snapshot);
   const boardLayoutRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const board = boardLayoutRef.current;
@@ -71,7 +72,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     window.addEventListener('resize', fit);
     fit();
     return () => { observer.disconnect(); window.removeEventListener('resize', fit); };
-  }, [Boolean(snapshot), mapOnly, view]);
+  }, [hasSnapshot, mapOnly, view]);
   const countsCallback = useRef(onCounts);
   countsCallback.current = onCounts;
   useEffect(() => {
@@ -104,6 +105,9 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   useEffect(() => { setSelectedId(null); setSelectedTruck(null); setDrawerId(null); setPendingMove(null); setScope('ALL'); setPriority(null); setFilter('all'); setSearchQuery(''); setLinkNotice(''); setRouting(null); }, [date, setDrawerId]);
   useEffect(() => {
     if (mapOnly || !snapshot || snapshot.date !== date || date !== baseDate || deepLinkApplied.current || operationBusyRef.current) return;
+    // A queued date can initially contain no appointments. Keep the navigation
+    // intent until the source has finished checking that day.
+    if (snapshot.sourceRequest?.state === 'queued' || snapshot.sourceRequest?.state === 'loading') return;
     deepLinkApplied.current = true;
     const params = new URLSearchParams(window.location.search);
     const target = resolveScheduleDeepLink(snapshot.appointments, params.get('q') || '', params.get('appointment') || '');
@@ -173,12 +177,12 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     return () => window.removeEventListener('keydown', escape);
   }, []);
   const truckDetails = snapshot?.fleet.trucks.find(truck => truckLabel(truck.truck) === selectedTruck);
-  const truckGpsAge = Date.now() - Date.parse(truckDetails?.lastGpsUpdate || '');
+  const truckGpsAge = now.getTime() - Date.parse(truckDetails?.lastGpsUpdate || '');
   const truckGpsLabel = Number.isFinite(truckGpsAge) && truckGpsAge >= 0 && truckGpsAge <= 180_000 ? 'Recent GPS' : 'Last Known Position';
   const truckJobs = jobs.filter(job => truckLabel(job.truck) === selectedTruck);
   const selected = jobs.find(job => job.recordId === selectedId);
   const drawer = jobs.find(job => job.recordId === drawerId);
-  const truckNames = [...new Set([...snapshot?.fleet.trucks.map(truck => truckLabel(truck.truck)) || [], ...jobs.map(job => truckLabel(job.truck))])].sort((a, b) => a === 'Unassigned' ? 1 : b === 'Unassigned' ? -1 : a.localeCompare(b, undefined, { numeric: true }));
+  const truckNames = scheduleTruckNames(snapshot);
   const range = timelineRange(jobs);
   const drag = useScheduleDrag(jobs, range, setPendingMove, date, operationBusy || Boolean(pendingMove), setDragNotice);
   const ticks = Array.from({ length: (range.end - range.start) / 60 }, (_, index) => range.start + index * 60);

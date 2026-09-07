@@ -1,4 +1,5 @@
 import type { AppointmentOnsiteTime } from '../../lib/appointment-onsite-time';
+import { JUNKWARE_DISPATCH_TRUCKS } from '../../lib/junkware-trucks';
 export type ScheduleAppointment = {
   recordId: string;
   version: string;
@@ -146,7 +147,13 @@ export function scheduleMoveWindow(job: Pick<ScheduleAppointment, 'appointmentSt
   const format = (minutes: number) => new Date(Date.UTC(2000, 0, 1, 0, minutes)).toLocaleTimeString('en-US', { timeZone: 'UTC', hour: 'numeric', minute: '2-digit' });
   return { changed, supported, durationHours: duration === null ? null : duration / 60, label: !changed ? job.appointmentTime || 'Time Not Set' : `${format(start!)}${duration === null ? '' : `–${format(start! + duration)}`}` };
 }
-export function truckLabel(value: string) { const match = value.match(/^(?:truck\s*#?\s*|t\s*|#\s*)?(\d+)$/i); return match ? `Truck ${Number(match[1])}` : !value || /unassigned|virtual|^—$/i.test(value) ? 'Unassigned' : value; }
+export function truckLabel(value: string) { const raw=value.trim(); const match = raw.match(/^(?:truck\s*#?\s*|t\s*|#\s*)?(\d+)$/i); return match ? Number(match[1])===0?'Unassigned':`Truck ${Number(match[1])}` : !raw || /unassigned|virtual|^—$/i.test(raw) ? 'Unassigned' : raw; }
+/** Empty trucks are still dispatch destinations. Source-only trucks are retained
+ * and Unassigned stays available even after its last appointment is assigned. */
+export function scheduleTruckNames(snapshot?: Pick<ScheduleSnapshot,'fleet'|'appointments'>): string[] {
+  return [...new Set([...JUNKWARE_DISPATCH_TRUCKS,...(snapshot?.fleet.trucks.map(truck=>truck.truck)||[]),...(snapshot?.appointments.map(job=>job.truck)||[]),'Unassigned'].map(truckLabel))]
+    .sort((a,b)=>a===b?0:a==='Unassigned'?1:b==='Unassigned'?-1:a.localeCompare(b,undefined,{numeric:true}));
+}
 export function timelineRange(jobs: ScheduleAppointment[]) {
   const timed = jobs.filter(job => job.hasScheduledTime && job.appointmentStartMinutes !== null && job.appointmentEndMinutes !== null);
   const start = Math.min(480, ...timed.map(job => Math.floor(job.appointmentStartMinutes! / 60) * 60));

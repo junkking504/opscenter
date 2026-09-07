@@ -7,6 +7,15 @@ import {
 } from "./lib/schedule-contract";
 import type { MoveProposal } from "./lib/schedule-contract";
 
+/** Scroll only near a visible edge, with bounded speed while a drag is held. */
+export function scheduleDragScrollStep(y: number, top: number, bottom: number) {
+  const edge=Math.min(48,(bottom-top)/4);
+  if(edge<=0 || y<top-8 || y>bottom+8) return 0;
+  if(y<top+edge) return -Math.ceil(14*Math.min(1,(top+edge-y)/edge));
+  if(y>bottom-edge) return Math.ceil(14*Math.min(1,(y-bottom+edge)/edge));
+  return 0;
+}
+
 export function scheduleMoveProposal(
   job: ScheduleAppointment,
   truck: string,
@@ -71,7 +80,16 @@ export function useScheduleDrag(
     let moved = false;
     const restriction = scheduleMoveRestriction(job);
     let proposal: MoveProposal | null = null;
+    let frame: number | null = null;
+    let lastPointer = {clientX:x,clientY:y};
+    const scrollParents: HTMLElement[] = [];
+    for(let parent=element.parentElement;parent;parent=parent.parentElement) {
+      if(/auto|scroll/.test(getComputedStyle(parent).overflowY) && parent.scrollHeight>parent.clientHeight) scrollParents.push(parent);
+    }
+    const page=document.scrollingElement as HTMLElement | null;
+    if(page && !scrollParents.includes(page)) scrollParents.push(page);
     const finish = () => {
+      if(frame!==null) window.cancelAnimationFrame(frame);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", cancel);
@@ -83,15 +101,7 @@ export function useScheduleDrag(
       setPreview(null);
       cleanup.current = null;
     };
-    const move = (pointer: PointerEvent) => {
-      if (pointer.pointerId !== pointerId) return;
-      if (!moved && Math.hypot(pointer.clientX - x, pointer.clientY - y) < 6) return;
-      if (!moved) element.focus({ preventScroll: true });
-      if (!moved && restriction) onBlocked?.(restriction);
-      moved = true;
-      suppressClick.current = true;
-      pointer.preventDefault();
-      if (restriction) return;
+    const updateProposal = (pointer: {clientX:number;clientY:number}) => {
       const row = document
         .elementFromPoint(pointer.clientX, pointer.clientY)
         ?.closest<HTMLElement>("[data-schedule-truck]");
@@ -118,6 +128,32 @@ export function useScheduleDrag(
       const start = Math.abs(pointer.clientX - x) < 20 ? job.appointmentStartMinutes : snapped;
       proposal = scheduleMoveProposal(job, truck, start, jobs);
       setPreview(proposal);
+    };
+    const scroll = () => {
+      for(const parent of scrollParents) {
+        const rect=parent.getBoundingClientRect();
+        const top=parent===page?0:Math.max(0,rect.top);
+        const bottom=parent===page?window.innerHeight:Math.min(window.innerHeight,rect.bottom);
+        if(parent!==page && (lastPointer.clientX<rect.left || lastPointer.clientX>rect.right)) continue;
+        const step=scheduleDragScrollStep(lastPointer.clientY,top,bottom);
+        const before=parent.scrollTop;
+        if(step) parent.scrollTop+=step;
+        if(parent.scrollTop!==before) {updateProposal(lastPointer);break;}
+      }
+      frame=window.requestAnimationFrame(scroll);
+    };
+    const move = (pointer: PointerEvent) => {
+      if (pointer.pointerId !== pointerId) return;
+      if (!moved && Math.hypot(pointer.clientX - x, pointer.clientY - y) < 6) return;
+      if (!moved) element.focus({ preventScroll: true });
+      if (!moved && restriction) onBlocked?.(restriction);
+      moved = true;
+      suppressClick.current = true;
+      pointer.preventDefault();
+      if (restriction) return;
+      lastPointer={clientX:pointer.clientX,clientY:pointer.clientY};
+      updateProposal(lastPointer);
+      if(frame===null) frame=window.requestAnimationFrame(scroll);
     };
     const up = (pointer: PointerEvent) => {
       if (pointer.pointerId !== pointerId) return;

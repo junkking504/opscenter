@@ -20,8 +20,8 @@ const LiveKrewe = lazy(() => import('../live-krewe'));
 const LiveFleet = lazy(() => import('../live-fleet'));
 const LiveMarketing = lazy(() => import('../live-marketing').then(module => ({ default: module.LiveMarketing })));
 const LiveFinance = lazy(() => import('../live-finance').then(module => ({ default: module.LiveFinance })));
-import LiveSearch, { desktopHref } from '../live-search';
-import { desktopAppointmentHref } from '../lib/desktop-links';
+import LiveSearch from '../live-search';
+import { desktopAlertHref, desktopAppointmentHref } from '../lib/desktop-links';
 import LiveSchedule, { dateForDay } from '../live-schedule';
 import CommandMap from '../command-map';
 import { AlertDetails, AlertPhotos } from '../components/alert-details';
@@ -3225,8 +3225,17 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     return <>{value.slice(0, start)}{renderJkLink(match[0], source, updated)}{value.slice(start + match[0].length)}</>;
   };
   const openAlertRecord = (item: WorkItem) => {
+    if (mutationBusyRef.current) return;
     setNotificationOpen(false);
-    if (live) { const href = liveAlert(item)?.href; if (href) window.open(desktopHref(href), '_blank', 'noopener,noreferrer'); return; }
+    if (live) {
+      const alert = liveAlert(item);
+      if (alert) {
+        const href = desktopAlertHref(alert, live.snapshot, window.location.origin);
+        if (new URL(href, window.location.origin).origin === window.location.origin) window.location.assign(href);
+        else window.open(href, '_blank', 'noopener,noreferrer');
+      }
+      return;
+    }
     const appointmentId = item.title.match(/JK\d{7}/)?.[0];
     if (appointmentId && openUnifiedJobRecord(appointmentId, item.source, item.detected)) return;
     openRecordDrawer({

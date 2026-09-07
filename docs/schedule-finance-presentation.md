@@ -6,6 +6,21 @@ appointment map pins use a check; cancellations use an X, retaining territory
 colors. The six summary metrics share the compact KPI height; Clear is an inline
 28px action and does not get its own metric row.
 
+Truck Schedule always includes the same Truck 1–9 destinations as New Appointment,
+plus any additional truck present in the source and an Unassigned row. The shared
+truck choices live in `lib/junkware-trucks.ts`; source labels are normalized and
+deduplicated. Empty trucks remain drop targets regardless of the selected date,
+appointment filters, or GPS availability. Moving all appointments into or out of
+Unassigned cannot remove the other destinations. Truck 0 is a virtual/unassigned
+alias. The appointment drawer uses the same destination list as the board.
+
+The timeline grows to fit all truck rows and stacked appointments so the outer
+panel cannot clip destinations. These planning rows do not establish GPS position,
+crew availability, load, or readiness; those remain separate source observations.
+Holding a drag near the visible page or panel edge scrolls at bounded speed;
+release, cancellation, Escape, and date changes stop scrolling with the drag.
+Moves still require the existing confirmation and verified JunkWare receipt.
+
 Route connectors use the existing proposed route order. Overlapping windows use
 vertical connectors between lanes; adjacent windows use a horizontal connector
 beneath the blocks. Clicking the estimate opens both appointments and the full
@@ -62,8 +77,13 @@ version and durable request receipt, preserves other captured closeout fields,
 and verifies JunkWare after saving. Unknown results block another submission.
 A verified type/status result overlays older schedule data until a newer source
 snapshot arrives. Estimates show quoted amounts and do not require job payment.
-Appointment deep-link parameters are consumed after use so they cannot restore
-a stale JK search when returning to Schedule.
+Command's Open record follows an internal link in the same tab and opens the
+appointment drawer on its source date. Explicit source appointment IDs take
+precedence, then a uniquely linked crew-progress appointment. Legacy
+`#job-jk…` anchors become Schedule searches; shared JK references remain a choice
+instead of selecting an arbitrary job or estimate. Appointment deep-link
+parameters wait through queued/loading source reads and are consumed after use
+so they cannot restore a stale JK search when returning to Schedule.
 
 When JunkWare requires an assignment to complete an estimate and its live editor
 has no truck selected, the type-change form requires an explicit completion-truck

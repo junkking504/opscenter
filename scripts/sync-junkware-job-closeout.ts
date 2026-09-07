@@ -369,6 +369,17 @@ async function main(): Promise<void> {
     page.setDefaultTimeout(45_000);
     const targetUrl = `${ORIGIN}/franchise/appointment.aspx?id=${appointmentId}`;
     await ensureAuthenticated(page, targetUrl);
+    if (mode === 'read' && argument('diagnostics') === 'classification') {
+      const diagnostics = await page.evaluate(() => ({
+        save: document.getElementById('ctl00_Content_SaveAppointmentBtn')?.outerHTML,
+        type: document.getElementById('ctl00_Content_AppointmentTypeDD')?.getAttribute('onchange'),
+        status: document.getElementById('ctl00_Content_StatusDD')?.getAttribute('onchange'),
+        validators: Array.from(document.querySelectorAll('[id*="Validator"], [id*="Validation"]')).map(node => ({id:node.id,text:node.textContent?.trim(),control:node.getAttribute('controltovalidate')})),
+        scripts: Array.from(document.scripts).filter(node=>!node.src).map(node=>node.textContent || '').filter(text=>/SaveAppointmentBtn|function (?:Validate|validate|Save|save)|Page_Validators/.test(text)),
+      }));
+      process.stdout.write(JSON.stringify({ok:true,diagnostics})+'\n');
+      await context.close(); return;
+    }
     const input = mode === "write" ? parsePayload() : null;
     const classification = mode === 'classify' ? parseClassificationChange(JSON.parse(Buffer.from(argument('payload-base64'),'base64url').toString('utf8'))) : null;
     const before = input || classification ? await capture(page) : undefined;

@@ -22,6 +22,20 @@ async function main() {
     const before={appointmentType:{label:'Job',value:'2'},status:{label:'Confirmed',value:'1'},driver:{value:'9'},total:'628.00',payments:[],tip:'0',otherCharges:[]};
     const after={...before,appointmentType:{label:'Estimate',value:'1'},status:{label:'Completed',value:'8'}};
     verifyClassificationChange(before,after,change);
+    const withTruck=parseClassificationChange({...values,truck:'Truck 6'});
+    verifyClassificationChange({...before,truck:''},{...after,truck:'Truck# 6'},withTruck);
+    assert.throws(()=>verifyClassificationChange({...before,truck:'Truck# 4'},{...after,truck:'Truck# 6'},withTruck),/existing assignment/);
+    assert.throws(()=>verifyClassificationChange({...before,truck:''},{...after,truck:'Truck# 4'},withTruck),/completion truck/);
+    assert.throws(()=>parseClassificationChange({...values,truck:'Truck 0'}),/valid truck/);
+    const estimateOutcome={reason:'Date/Time',explanation:'Pickup planned for a later date.',noDiscountReason:'The customer requested a later date.'};
+    const outcomeChange=parseClassificationChange({...values,estimateOutcome});
+    verifyClassificationChange({...before,appointmentNotes:['Existing note']},{...after,appointmentNotes:['Existing note','Date/Time: Pickup planned for a later date., no discount: The customer requested a later date. (9/7/2026, Operator)']},outcomeChange);
+    assert.throws(()=>verifyClassificationChange(before,{...after,appointmentNotes:[]},outcomeChange),/outcome notes/);
+    assert.throws(()=>verifyClassificationChange({...before,appointmentNotes:['Existing note']},{...after,appointmentNotes:['Date/Time: Pickup planned for a later date., no discount: The customer requested a later date. (9/7/2026, Operator)']},outcomeChange),/existing notes/);
+    assert.throws(()=>parseClassificationChange({...values,estimateOutcome:{...estimateOutcome,reason:'Unknown'}}),/outcome/);
+    assert.throws(()=>parseClassificationChange({...values,estimateOutcome:{...estimateOutcome,explanation:' '}}),/outcome/);
+    assert.throws(()=>parseClassificationChange({...values,appointmentType:'Job',completeEstimate:false,estimateOutcome}),/outcome/);
+
     assert.throws(()=>verifyClassificationChange(before,{...after,total:'0'},change),/other appointment details/);
     assert.throws(()=>verifyClassificationChange(before,{...after,status:before.status},change),/type and status/);
     verifyClassificationChange(after,{...after,appointmentType:before.appointmentType},parseClassificationChange({...values,appointmentType:'Job',completeEstimate:false}));

@@ -64,3 +64,11 @@ A verified type/status result overlays older schedule data until a newer source
 snapshot arrives. Estimates show quoted amounts and do not require job payment.
 Appointment deep-link parameters are consumed after use so they cannot restore
 a stale JK search when returning to Schedule.
+
+When JunkWare requires an assignment to complete an estimate and its live editor
+has no truck selected, the type-change form requires an explicit completion-truck
+selection. It never replaces an existing assignment. Source validation messages
+are surfaced directly; an unchanged full source read proves a rejected save,
+while a saved change is verified even if the WebForms navigation timed out.
+
+Completing an estimate also requires JunkWare’s unclosed-estimate outcome: Price/Budget, Date/Time, or Other plus an explanation. If there is no discount, its explanation is required too. The type control collects these facts before review; the adapter handles JunkWare’s second modal and verifies the saved outcome. An HTTP response opening that modal is not a completed save. Classification corrections disable the incidental Send Pictures email checkbox.

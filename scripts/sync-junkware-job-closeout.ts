@@ -1,3 +1,4 @@
+import { clickWithWebFormsCompletion, selectWithWebFormsPostback } from './junkware-webforms';
 import { closeoutSourceVersion, verifyCloseoutFields, verifyAddedCloseoutCharges } from '../lib/desktop-closeout-contract';
 import { parseClassificationChange, verifyClassificationChange, type ClassificationChange } from '../lib/appointment-classification';
 import { execFileSync } from "node:child_process";
@@ -86,7 +87,7 @@ async function ensureAuthenticated(page: Page, targetUrl: string): Promise<void>
   }
 }
 
-async function capture(page: Page): Promise<{ status: { value: string }; [key: string]: unknown }> {
+async function capture(page: Page): Promise<{ status: { value: string; label: string }; [key: string]: unknown }> {
   return page.evaluate(String.raw`(() => {
     const clean = (value) => String(value || "").replace(/\s+/g, " ").trim();
     const selectData = (id) => {
@@ -125,8 +126,10 @@ async function capture(page: Page): Promise<{ status: { value: string }; [key: s
       truck: truckSelect instanceof HTMLSelectElement
         ? clean(truckSelect.options[truckSelect.selectedIndex]?.textContent)
         : "",
+      truckOptions: truckSelect instanceof HTMLSelectElement ? Array.from(truckSelect.options).map(option=>({value:option.value,label:clean(option.textContent)})) : [],
       appointmentType: selectData("ctl00_Content_AppointmentTypeDD"),
       status: selectData("ctl00_Content_StatusDD"),
+      appointmentNotes: Array.from(document.querySelectorAll('[id*="NotesLV"][id$="NoteLbl"]')).map(node=>clean(node.textContent)),
       driver: { value: driver.value, label: driver.label },
       drivers: driver.options,
       navigators: navigators.map((select) => ({ value: select.value, label: select.options[select.selectedIndex]?.text.trim() || "" })),
@@ -151,7 +154,7 @@ async function capture(page: Page): Promise<{ status: { value: string }; [key: s
       balance: input("ctl00_Content_BalanceOwedHF"),
       total: clean(document.getElementById("ctl00_Content_TotalLbl")?.textContent),
     };
-  })()`) as Promise<{ status: { value: string }; [key: string]: unknown }>;
+  })()`) as Promise<{ status: { value: string; label: string }; [key: string]: unknown }>;
 }
 
 function cleanMoney(value: unknown): string {
@@ -346,12 +349,67 @@ async function applyClassification(page: Page, change: ClassificationChange, bef
   const target = currentType.options.find(option=>option.label === change.appointmentType);
   const status = before.status as {value:string;label:string};
   if (!target || !['1','8'].includes(status.value)) throw new Error('This appointment cannot change type from its current source status.');
-  const save = page.locator('#ctl00_Content_SaveAppointmentBtn');
-  if (!(await save.count())) throw new Error('The JunkWare appointment save control is unavailable.');
-  await selectWithoutPostback(page,'#ctl00_Content_AppointmentTypeDD',target.value);
-  if (change.completeEstimate) await selectWithoutPostback(page,'#ctl00_Content_StatusDD','8');
+  if ((change.completeEstimate || status.value === '8') && !before.truck && !change.truck) throw new Error('JunkWare requires a truck to complete this appointment. Select its completion truck and review the change.');
+  if (change.truck && before.truck) throw new Error('Use dispatch controls to change an existing truck assignment.');
+  const truck = change.truck ? (before.truckOptions as Option[]).find(option=>option.label.replace(/Truck#?\s*/i,'Truck ').trim() === change.truck) : null;
+  if (change.truck && !truck) throw new Error('The selected completion truck is unavailable in JunkWare.');
+  const completingEstimate = change.appointmentType === 'Estimate' && (change.completeEstimate || status.value === '8');
+  if (completingEstimate && !change.estimateOutcome) throw new Error('JunkWare requires an estimate outcome and explanation before completion.');
+  if (completingEstimate && !(Number(String(before.discount || '').replace(/[^0-9.-]/g,'')) > 0) && !change.estimateOutcome?.noDiscountReason) throw new Error('JunkWare requires an explanation for why no discount was offered.');
   writeStarted = true;
-  await Promise.all([page.waitForNavigation({waitUntil:'domcontentloaded',timeout:90_000}),save.click()]);
+  try {
+    await selectWithWebFormsPostback(page,'#ctl00_Content_AppointmentTypeDD',target.value,'the appointment type');
+    await page.waitForLoadState('networkidle',{timeout:15_000});
+    if (truck) await selectWithWebFormsPostback(page,'#ctl00_Content_TruckDD',truck.value,'the completion truck');
+    await page.waitForLoadState('networkidle',{timeout:15_000});
+    // Dependent postbacks can reset pending selections; submit all intended
+    // values together after they finish. Wait for the actual save response,
+    // not only a spinner that may still be hidden before the request starts.
+    await selectWithoutPostback(page,'#ctl00_Content_AppointmentTypeDD',target.value);
+    if (truck) await selectWithoutPostback(page,'#ctl00_Content_TruckDD',truck.value);
+    await selectWithoutPostback(page,'#ctl00_Content_StatusDD',change.completeEstimate ? '8' : status.value);
+    verifyClassificationChange(before,await capture(page),change,false);
+    // A classification correction must not email photos as a side effect.
+    const sendPictures=page.locator('#ctl00_Content_SendPicturesCB');
+    if(await sendPictures.isVisible()) await sendPictures.uncheck();
+    const submit = async (selector:string,eventTarget:string) => {
+      const response=page.waitForResponse(value=>value.request().method()==='POST' && new URL(value.url()).pathname.toLowerCase()==='/franchise/appointment.aspx' && new URLSearchParams(value.request().postData() || '').get('__EVENTTARGET')===eventTarget,{timeout:30_000}).then(async value=>{await value.finished();return value.ok();},()=>false);
+      await clickWithWebFormsCompletion(page,selector,'the appointment change');
+      if(!await response) throw new Error('JunkWare did not confirm the appointment save response.');
+      await page.waitForLoadState('networkidle',{timeout:15_000});
+    };
+    await submit('#ctl00_Content_SaveAppointmentBtn','ctl00$Content$SaveAppointmentBtn');
+    // Completed estimates require a second, explicit outcome form. The first
+    // successful HTTP response only opens this form and has not saved anything.
+    if(await page.locator('#ctl00_Content_UENoteOkBtn').isVisible()) {
+      if(!change.estimateOutcome) throw new Error('JunkWare requires estimate outcome notes before it can save.');
+      await selectWithoutPostback(page,'#ctl00_Content_UEReasonDD',change.estimateOutcome.reason);
+      await fill(page,'#ctl00_Content_UENoteTB',change.estimateOutcome.explanation);
+      if(await page.locator('#ctl00_Content_UENoDiscountTB').isVisible()) {
+        if(!change.estimateOutcome.noDiscountReason) throw new Error('JunkWare requires a reason why no discount was offered.');
+        await fill(page,'#ctl00_Content_UENoDiscountTB',change.estimateOutcome.noDiscountReason);
+      }
+      if(await sendPictures.isVisible()) await sendPictures.uncheck();
+      await submit('#ctl00_Content_UENoteOkBtn','ctl00$Content$UENoteOkBtn');
+    }
+    const messages=await page.locator('[id*="Validation"],[id*="Error"],.alert-danger').allTextContents();
+    if(messages.some(message=>message.trim())) throw new Error('JunkWare validation: '+messages.filter(message=>message.trim()).join(' ').slice(0,300));
+    // Always read a fresh appointment page, including after partial postbacks.
+    await page.goto(`${ORIGIN}/franchise/appointment.aspx?id=${argument('appointment')}`,{waitUntil:'domcontentloaded'});
+    verifyClassificationChange(before,await capture(page),change);
+  } catch (error) {
+    await page.goto(`${ORIGIN}/franchise/appointment.aspx?id=${argument('appointment')}`,{waitUntil:'domcontentloaded'});
+    const current = await capture(page);
+    if (closeoutSourceVersion(current) === closeoutSourceVersion(before)) {
+      writeStarted = false; failureCode = 'source_validation_rejected';
+      throw error;
+    }
+    // A transport/navigation problem is not proof that Save failed.
+    try {verifyClassificationChange(before,current,change);} catch {
+      try {verifyClassificationChange(before,current,{...change,appointmentType:(before.appointmentType as {label:'Job'|'Estimate'}).label,completeEstimate:false,truck:undefined,estimateOutcome:undefined});writeStarted=false;failureCode='source_validation_rejected';} catch {/* Other source changes remain uncertain. */}
+      throw new Error(`${error instanceof Error ? error.message : 'JunkWare did not confirm the save.'} Read-back: ${(current.appointmentType as {label:string}).label} / ${(current.status as {label:string}).label}.`);
+    }
+  }
 }
 async function main(): Promise<void> {
   const appointmentId = argument("appointment");
@@ -361,9 +419,11 @@ async function main(): Promise<void> {
   let browser: Browser | null = null;
   try {
     browser = await chromium.launch({ headless: true });
+    const storage = fs.existsSync(STORAGE_STATE) ? JSON.parse(fs.readFileSync(STORAGE_STATE,'utf8')) : undefined;
+    if (storage?.cookies) storage.cookies=storage.cookies.filter((cookie:{name:string})=>cookie.name!=='ASP.NET_SessionId');
     const context = await browser.newContext({
       viewport: { width: 1440, height: 1000 },
-      ...(fs.existsSync(STORAGE_STATE) ? { storageState: STORAGE_STATE } : {}),
+      ...(storage ? {storageState:storage} : {}),
     });
     const page = await context.newPage();
     page.setDefaultTimeout(45_000);
@@ -375,7 +435,7 @@ async function main(): Promise<void> {
         type: document.getElementById('ctl00_Content_AppointmentTypeDD')?.getAttribute('onchange'),
         status: document.getElementById('ctl00_Content_StatusDD')?.getAttribute('onchange'),
         validators: Array.from(document.querySelectorAll('[id*="Validator"], [id*="Validation"]')).map(node => ({id:node.id,text:node.textContent?.trim(),control:node.getAttribute('controltovalidate')})),
-        scripts: Array.from(document.scripts).filter(node=>!node.src).map(node=>node.textContent || '').filter(text=>/SaveAppointmentBtn|function (?:Validate|validate|Save|save)|Page_Validators/.test(text)),
+        completionFields: ['LoadSizeHF','BedloadSizeHF','HowHeardDD','TruckDD','AppointmentTypeDD','StatusDD','AppointmentDateTB'].map(suffix => { const node=document.querySelector<HTMLInputElement | HTMLSelectElement>(`[id$="${suffix}"]`); return {field:suffix,value:node?.value || '',disabled:node?.disabled,label:node instanceof HTMLSelectElement ? node.selectedOptions[0]?.textContent?.trim() : undefined}; }),
       }));
       process.stdout.write(JSON.stringify({ok:true,diagnostics})+'\n');
       await context.close(); return;

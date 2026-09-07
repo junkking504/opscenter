@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     if (!/^\d{1,12}$/.test(appointmentId) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('A valid date and appointment are required.');
     validated = true;
     const result = await withJunkwareAppointmentSyncLock(appointmentId,()=>junkwareJobCloseout(appointmentId,change,'classify'));
-    recordAppointmentClassification(date,{appointmentId,appointmentType:result.closeout.appointmentType.label,status:result.closeout.status.label,verifiedAt:result.verifiedAt});
+    recordAppointmentClassification(date,{appointmentId,appointmentType:result.closeout.appointmentType.label,status:result.closeout.status.label,verifiedAt:result.verifiedAt,...(change.truck ? {truck:change.truck} : {})});
     return Response.json(result,{headers:{'Cache-Control':'no-store'}});
   } catch(error) {
     const preflight = error instanceof JunkwareCloseoutError && error.stage === 'preflight';

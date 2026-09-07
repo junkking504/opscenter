@@ -18,8 +18,10 @@ A verified empty shift list permits inserting the manager's missed shift.
 The fields written are **Time In**, **Time Out / Date Out**, and the **shift
 Hourly Rate**. The employee-profile wage, tips, and calculated pay are not
 substituted for those fields. JunkWare recalculates pay. The source pay and
-regular/overtime hours are recorded in the verification evidence; OpsCenter's
-weekly calculation stays labeled as a calculation.
+regular/overtime hours are recorded in the verification evidence; OpsCenter uses the verified native hourly wage and regular/overtime hours while
+that result matches the correction and no later edit has changed its weekly
+basis. This preserves JunkWare's rounding. Without source confirmation,
+OpsCenter's weekly calculation stays labeled as a calculation.
 
 Each browser reuses authentication with a fresh ASP.NET session, so collector
 franchise/date selections cannot share the payroll editing session.

@@ -33,3 +33,15 @@ export function correctedCrewPay(input: {
   amounts.totalPay=components.every(value=>value!==null) ? round(amounts.labor+components.reduce<number>((sum,value)=>sum+value!,0)) : null;
   return {amounts,issue:amounts.totalPay===null?'Corrected hourly pay calculated; tips, bonuses, or supplemental pay need verification.':'',recalculated:true};
 }
+
+/** JunkWare rounds displayed regular/OT hours before extending wages. Use its
+ * verified shift result when available, rather than a slightly different local
+ * extension. Tips/bonuses remain their own source components. */
+export function verifiedJunkwareShiftPay(input:{amounts:CrewAmounts;isSalary:boolean;date:string;clockIn:string;clockOut:string;hourlyRate:number|null;latestCorrectionAt:number;sync:{status:string;verifiedAt?:string;after?:{workDate:string;clockIn:string;clockOut:string;hourlyRate:number;hours:number|null;regularHours:number|null;overtimeHours:number|null;labor:number|null}}|null}) {
+  const source=input.sync?.after;
+  if(input.isSalary||input.sync?.status!=='verified'||!input.sync.verifiedAt||Date.parse(input.sync.verifiedAt)<input.latestCorrectionAt||!source||source.workDate!==input.date||source.clockIn!==input.clockIn||source.clockOut!==input.clockOut||source.hourlyRate!==input.hourlyRate||!source.clockOut||source.labor===null||!Number.isFinite(source.labor))return null;
+  const amounts={...input.amounts,hours:source.hours,regularHours:source.regularHours,overtimeHours:source.overtimeHours,labor:source.labor};
+  const components=[amounts.tips,amounts.bonuses,amounts.supplemental];
+  amounts.totalPay=components.every(value=>value!==null)?round(source.labor+components.reduce<number>((sum,value)=>sum+value!,0)):null;
+  return {amounts,issue:amounts.totalPay===null?'JunkWare hourly pay verified; tips, bonuses, or supplemental pay need verification.':'',recalculated:false};
+}

@@ -10,7 +10,7 @@ import {assertPayrollSyncEditable,stagePayrollSync,payrollSyncForRequest,payroll
 import { manualBonusEntriesForEmployee, upsertManualBonusEntry } from '@/lib/manual-bonuses';
 import { opsRoleCan, type InteractiveOpsRole } from '@/lib/ops-roles';
 import { chicagoClockToDate } from '@/lib/live-pay';
-import { correctedCrewPay } from './corrected-crew-pay';
+import { correctedCrewPay,verifiedJunkwareShiftPay } from './corrected-crew-pay';
 import { chicagoDateKey, addDays } from '@/lib/report-dates';
 import { readKreweHours } from '@/lib/desktop-krewe-hours';
 import { nullableNumber as num, sumObserved, validDesktopDate, type CrewAmounts, type DesktopCrewMember, type DesktopKreweSnapshot, type KreweView, type CallInDecision, type DesktopLocalReceipt } from '../desktop-ui/lib/people-fleet-contract';
@@ -89,10 +89,14 @@ function dayMembers(date: string, payroll: boolean): DesktopCrewMember[] {
     const correction=payrollCorrectionForEmployee(date,name); const clockIn=correction?.clockIn || String(clock?.time_in || row.clock_in || row.time_in || row.clockIn || row.clock_in_display || row.timeIn || ''); const clockOut=correction ? correction.clockOut : String(clock?.time_out || row.clock_out || row.time_out || row.clockOut || row.clock_out_display || row.timeOut || '');
     const hourlyRate=correction?.hourlyRate ?? num(rate || row,['hourly_rate','hourly_rate_raw']);
     const week=hourHistory?.employees.find(employee=>employee.id===id)?.weeks.find(week=>week.start<=date&&week.end>=date);
-    const calculation=correctedCrewPay({date,clockIn,clockOut,hourlyRate,corrected:Boolean(correction),isSalary:Boolean(row.is_salary),amounts:fields(row),week,sourcePriorHours:num(row,['weekly_hours_before_shift'])});
-    const amounts=calculation.amounts;const sync=payrollSyncForCorrection(correction);
+    let calculation=correctedCrewPay({date,clockIn,clockOut,hourlyRate,corrected:Boolean(correction),isSalary:Boolean(row.is_salary),amounts:fields(row),week,sourcePriorHours:num(row,['weekly_hours_before_shift'])});
+    const sync=payrollSyncForCorrection(correction);
+    const latestCorrectionAt=Math.max(0,...weekDates.map(day=>Date.parse(payrollCorrectionForEmployee(day,name)?.updatedAt||'')||0));
+    const verifiedPay=verifiedJunkwareShiftPay({amounts:calculation.amounts,isSalary:Boolean(row.is_salary),date,clockIn,clockOut,hourlyRate,latestCorrectionAt,sync});
+    if(verifiedPay)calculation=verifiedPay;
+    const amounts=calculation.amounts;
     const working=workedOrAttributedToJobToday({...row,clock_in:clockIn}, {timeIn:clockIn}); const truck=Array.isArray(row.trucks)?row.trucks.join(', '):String(row.truck || row.assigned_truck || clock?.trucks || 'Unassigned');
-    const member: DesktopCrewMember={...amounts,id,name,initials:name.split(/\s+/).map(v=>v[0]).slice(0,2).join(''),role:Array.isArray(row.driver_trucks)&&row.driver_trucks.length?'Driver':String(row.role || 'Krewe'),truck,working,clockIn,clockOut,hourlyRate:payroll?hourlyRate:null,status:clockIn?clockOut?'Clocked out':'Clocked in':working?'Job attributed':'Off today',issue:working&&!clockIn?'Missing clock-in':date<chicagoDateKey()&&clockIn&&!clockOut?'Missing clock-out':calculation.issue||(sync&&['failed','uncertain'].includes(sync.status)?sync.message:''),version:desktopVersion({row,correction,bonuses:manualBonusEntriesForEmployee(date,name)}),correction:payroll?correction:null,payNote:calculation.recalculated?`Pay calculated in OpsCenter · ${payrollSyncMessage(sync)}`:'',junkwareSync:payroll&&sync?{status:sync.status,message:sync.message,verifiedAt:sync.verifiedAt}:null,days:[]};
+    const member: DesktopCrewMember={...amounts,id,name,initials:name.split(/\s+/).map(v=>v[0]).slice(0,2).join(''),role:Array.isArray(row.driver_trucks)&&row.driver_trucks.length?'Driver':String(row.role || 'Krewe'),truck,working,clockIn,clockOut,hourlyRate:payroll?hourlyRate:null,status:clockIn?clockOut?'Clocked out':'Clocked in':working?'Job attributed':'Off today',issue:working&&!clockIn?'Missing clock-in':date<chicagoDateKey()&&clockIn&&!clockOut?'Missing clock-out':calculation.issue||(sync&&['failed','uncertain'].includes(sync.status)?sync.message:''),version:desktopVersion({row,correction,bonuses:manualBonusEntriesForEmployee(date,name)}),correction:payroll?correction:null,payNote:verifiedPay?'Times, rate and hourly pay verified in JunkWare':calculation.recalculated?`Pay calculated in OpsCenter · ${payrollSyncMessage(sync)}`:'',junkwareSync:payroll&&sync?{status:sync.status,message:sync.message,verifiedAt:sync.verifiedAt}:null,days:[]};
     if(!payroll) for(const field of ['labor','tips','bonuses','supplemental','totalPay'] as const) member[field]=null;
     return member;
   });

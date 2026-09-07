@@ -96,7 +96,9 @@ An earlier edit also updates overtime allocation for later days in that week.
 Missing earlier hours or missing pay components remain unresolved instead of
 being treated as zero. Salaried pay is not converted to hourly wages.
 
-Calculated amounts are labeled as OpsCenter calculations. Clock-in, clock-out,
+Unconfirmed calculated amounts are labeled as OpsCenter calculations. Once
+verified, matching JunkWare hourly wages take precedence, including its rounding;
+local tips and bonus components are not implicitly certified by a timesheet save. Clock-in, clock-out,
 and the shift hourly rate are sent to JunkWare from both desktop editors and the
 legacy payroll-correction API. JunkWare calculates its own regular/overtime pay;
 OpsCenter does not submit a fabricated total or alter the employee profile wage.

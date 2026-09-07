@@ -95,7 +95,7 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
   const disabled = pending || Boolean(request) || !record?.canWrite;
   return <dialog className="krewe-day-editor" ref={dialog} aria-labelledby="krewe-day-title" onCancel={event => {event.preventDefault(); if (!busy.current) onClose();}}>
     <header><div><span>Work date · {date}</span><h2 id="krewe-day-title">{name}</h2></div><button type="button" disabled={pending} onClick={onClose} aria-label="Close day editor">×</button></header>
-    <p>Changes apply only to {date}. Original JunkWare records are preserved. Hours update from corrections; published payroll may need reconciliation.</p>
+    <p>Changes apply only to {date}. OpsCenter recalculates pay using available weekly hours. Changes are not sent to JunkWare.</p>
     {message && <p className="krewe-day-feedback" role="status">{message}</p>}
     {request && <button type="button" disabled={pending} onClick={() => void checkResult()}>Check saved result</button>}
     {!record && <><p>{pending ? 'Working…' : 'Load this day’s current record to edit.'}</p><button type="button" disabled={pending} onClick={() => void reload()}>Reload this day</button></>}

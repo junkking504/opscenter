@@ -73,6 +73,15 @@ The fixture is `/tests/crew-progress.html` on that local Vite server. It uses
 synthetic records and simulated review/Control actions; it cannot write to
 operational sources. This fixture is not included in the production entry point.
 
+Clock Out and Final Daily Pay for the same employee and operating day appear as
+one Clock Out alert, retaining clock-out time, hours, and the final pay breakdown.
+The original clock-out timestamp and identity remain stable when pay arrives later;
+reviews and owned Control follow-ups from either source carry forward. Missing
+clock-outs or ambiguous multiple shifts stay separate instead of guessing attendance.
+Manager views also show saved OpsCenter time/pay corrections in the combined
+alert, labeled as not synced to JunkWare. Source messages and published payroll
+values are not changed.
+
 Timeline entries use compact inline facts and clickable photo links. Arrival and
 departure times, payment references, tips, load sizes, and charges remain visible.
 The full appointment remains available through Open record. Uploaded JunkWare

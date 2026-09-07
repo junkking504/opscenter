@@ -1,4 +1,5 @@
 export type HoursDay = {
+  isSalary?: boolean;
   date: string; hours: number | null; regular: number; overtime: number;
   clockIn: string; clockOut: string; corrected: boolean;
   role: string; truck: string; jobs: number | null; jobRevenueWorked: number | null;

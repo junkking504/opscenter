@@ -13,6 +13,7 @@ import { buildCommandMapData, summarizeCommandSchedule } from '@/lib/command-map
 import { dailyRevenueTarget, operatingTargets } from '@/lib/operating-targets';
 import { readSlackDailyDigest } from '@/lib/slack-digest';
 import { combinedCloseoutAlerts } from '@/lib/combined-closeout-alerts';
+import { readCommandCrewCorrections } from './command-crew-corrections';
 import { buildDailyPaymentReconciliation } from '@/lib/payment-reconciliation';
 import { readCompletedJunkwareRows } from '@/lib/slack-closeout-details';
 import { commandAlertState, commandAlertWorkItemForSource } from '@/lib/command-alert-workflow';
@@ -77,7 +78,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const appointments = readJobRows(date);
   const sourceHealth = readDesktopSourceHealth(/^(admin|administrator|manager)$/i.test(actor.role));
   const geofences = readGeofenceEntries(date);
-  const alerts: DesktopCommandSnapshot['alerts'] = [...consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)), visits),...geofences.entries.map(entry=>geofenceOperationalAlert(entry,date))].map(alert => {
+  const alerts: DesktopCommandSnapshot['alerts'] = [...consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits),...geofences.entries.map(entry=>geofenceOperationalAlert(entry,date))].map(alert => {
       const action = commandAlertWorkItemForSource(workflow.items, alert);
       return presentAlert(alert, action);
   });

@@ -1,0 +1,16 @@
+.krewe-day-editor { margin: auto; width: min(620px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 18px; border: 1px solid #cbd4ce; border-radius: 10px; background: #fff; color: #223d2d; box-shadow: 0 12px 50px #0003; font-size: 14px; }
+.krewe-day-editor::backdrop { background: #12251dcc; }
+.krewe-day-editor > header { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.krewe-day-editor h2 { margin: 4px 0; font-size: 20px; }
+.krewe-day-editor h3 { margin: 12px 0 8px; font-size: 15px; }
+.krewe-day-editor p { font-size: 12px; line-height: 1.5; margin: 10px 0; }
+.krewe-day-editor form { border-top: 1px solid #d7e0d9; margin-top: 14px; }
+.krewe-day-editor fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 10px; }
+.krewe-day-editor label { display: grid; gap: 4px; min-width: 0; font-size: 12px; }
+.krewe-day-editor input { box-sizing: border-box; min-width: 0; width: 100%; height: 38px; border: 1px solid #a4b5a9; border-radius: 5px; padding: 7px; font-size: 14px; }
+.krewe-day-fields { display: grid; grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); gap: 10px; }
+.krewe-day-editor button, .hours-day-actions button { width: fit-content; cursor: pointer; border: 1px solid #738f7d; border-radius: 5px; padding: 7px 12px; background: #f2f6f2; color: #223d2d; font-size: 13px; }
+.krewe-day-editor button:disabled, .krewe-day-editor fieldset:disabled { opacity: .55; cursor: default; }
+.krewe-day-editor :focus-visible, .hours-day-actions button:focus-visible { outline: 2px solid #24663e; outline-offset: 2px; }
+.krewe-day-feedback { padding: 10px; background: #edf4ed; border-left: 3px solid #37784f; }
+.hours-day-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 8px 8px; }

@@ -40,16 +40,33 @@ The anchor must be the Monday that starts Week 1 of a pay period. Overtime is ca
 
 ## Management time-card corrections
 
-In **Krewe**, select the work date and open the employee's attendance details.
-**Edit time** can record a missed or incorrect clock-in or clock-out for the
-OpsCenter attendance and pay calculations. It is available beside every
-manager-facing employee/day hour entry: the daily Krewe view, pay-period and
-monthly attendance details, and the employee detail view. Time fields use the
-device's time picker, a usable correction reason is prefilled, and any missing
-required value is called out directly. A correction requires the corrected
-clock-in, the employee's hourly rate, and a reason; it records the signed-in
-OpsCenter user and time of each save or removal. The original JunkWare values
-remain visible in the editor and are never overwritten by this feature.
+In desktop **Krewe → Pay Period**, open either weekly breakdown. Every day
+has **Edit hours** and **Add bonus** for managers, including days with no source
+shift. The editor identifies the employee and work date, loads fresh day-specific
+values and write versions, and saves to that day rather than the period selector's
+date. A missing shift can use an employee established elsewhere in the same pay
+period; another day's clocks or rate are never copied into the blank record.
+
+A time correction requires a clock-in, positive hourly rate, and reason. The
+clock-out can remain open; unavailable historical hours remain flagged. A manual
+bonus requires a positive amount and reason. Saved corrections include the
+signed-in operator and timestamp; saved manual bonuses are read back in the day
+editor. The weekly hours refresh after a verified save and the open week remains
+in place. Published payroll can lag corrections and remains labeled separately.
+Future days remain marked Upcoming until their operating date.
+
+The editor pauses background refresh and uses the existing permission, stale
+version, receipt, and duplicate-request protections. An uncertain result blocks
+another save and retains its receipt ID for the browser session; use **Check
+saved result** before another change. Original JunkWare records are preserved.
+
+Desktop **Krewe → Today** includes only employees with a valid recorded clock-in
+for the selected operating date, including completed shifts and saved missed-shift
+corrections. Job attribution, revenue, or roster membership alone does not qualify.
+Its totals use this same roster. An empty holiday shows no clocked-in crew; missing
+source coverage remains a separate warning. The employee drawer retains its daily
+manager controls. Period and monthly records remain available independently of
+this attendance filter; payroll edits are accessible from the weekly breakdown.
 
 The employee-facing **My Pay** portal remains read-only. Managers make payroll
 corrections in Krewe, where the source value and correction audit are visible.

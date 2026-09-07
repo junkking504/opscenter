@@ -17,7 +17,17 @@ export default function LiveControl({ date, report, refresh: onRefresh, view = '
   const [snapshot, setSnapshot] = useState<ControlSnapshot | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [filter, setFilter] = useState(new URLSearchParams(window.location.search).get('controlFilter') === 'verification' ? 'verification' : 'needs_action');
+  const [filter, updateFilter] = useState(() => {
+    const requested = new URLSearchParams(window.location.search).get('controlFilter') || '';
+    return ['needs_action', 'waiting', 'verification', 'resolved', 'all', 'mine', 'approval', 'urgent'].includes(requested) ? requested : 'needs_action';
+  });
+  const setFilter = (value: string) => {
+    updateFilter(value);
+    const url = new URL(window.location.href);
+    url.searchParams.set('controlFilter', value);
+    window.history.replaceState(window.history.state, '', url);
+    document.getElementById('operating-decisions')?.scrollIntoView({ block: 'start' });
+  };
   const [reconciliation, setReconciliation] = useState<{ checked: string[]; skipped: Array<{date: string; reason: string}>; remaining: number } | null>(null);
   const [page, setPage] = useState(1);
   const [closeoutFilter, setCloseoutFilter] = useState('all');
@@ -39,6 +49,7 @@ export default function LiveControl({ date, report, refresh: onRefresh, view = '
   const originalFocus = useRef<HTMLElement | null>(null);
   const pendingItem = useRef<string | null>(new URLSearchParams(window.location.search).get('action'));
   const initialLink = useRef(pendingItem.current);
+  const pendingQueueScroll = useRef(window.location.hash === '#operating-decisions');
   const refresh = useCallback(async () => {
     const run = ++generation.current;
     const response = await fetch(`/api/desktop/control?date=${encodeURIComponent(date)}&page=${page}${initialLink.current ? `&action=${encodeURIComponent(initialLink.current)}` : ''}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(30000) });
@@ -53,6 +64,11 @@ export default function LiveControl({ date, report, refresh: onRefresh, view = '
     return () => { clearInterval(timer); generation.current += 1; };
   }, [refresh]);
   useEffect(() => { setSelectedId(null); setGateId(null); setReconciliation(null); requestRef.current = null; }, [date]);
+  useEffect(() => {
+    if (!snapshot || !pendingQueueScroll.current) return;
+    const queue = document.getElementById('operating-decisions');
+    if (queue) { queue.scrollIntoView({ block: 'start' }); pendingQueueScroll.current = false; }
+  }, [snapshot]);
   const selected = snapshot?.items.find(item => item.id === selectedId);
   const gate = snapshot ? [...snapshot.gates.start, ...snapshot.gates.close].find(item => item.id === gateId) : undefined;
   useEffect(() => {
@@ -149,7 +165,7 @@ export default function LiveControl({ date, report, refresh: onRefresh, view = '
       { label: 'Source health', value: snapshot.sources.filter(source => source.tone === 'healthy').length, detail: `${snapshot.sources.length} sources · current health`, tone: snapshot.sources.every(source => source.tone === 'healthy') ? 'healthy' : 'warning', progress: snapshot.sources.length ? snapshot.sources.filter(source => source.tone === 'healthy').length / snapshot.sources.length * 100 : 0 },
     ].map(signal => <article className={`signal-card ${signal.tone}`} key={signal.label}><div className="signal-heading"><span><Activity size={15} />{signal.label}</span><i className={`kpi-dot ${signal.tone}`} /></div><strong>{signal.value}</strong><div className="signal-meter"><i className={signal.tone} style={{ width: `${signal.progress}%` }} /></div><small>{signal.detail}</small></article>)}</section>
     <section className="watch-panel"><div className="section-title"><div><span className="section-kicker">{urgent.length} unresolved decisions</span><h2>Watchlist</h2></div></div><div className="monitor-watch-grid">{urgent.map(item => <article className="watch-row" key={item.id}><Badge variant="outline" className={`priority-badge ${tone(item)}`}>{item.category}</Badge><strong>{item.title}</strong><p>Recorded condition: {item.description}</p>{item.currentSource&&<p><strong>Latest source: {item.currentSource.status}</strong> · {timestamp(item.currentSource.observedAt)}. Decision remains open until reconciled.</p>}<small>Operating date {item.operatingDate} · Source evaluated {new Date(item.sourceObservedAt).toLocaleString('en-US',{timeZone:'America/Chicago'})}</small><Button variant="outline" size="sm" onClick={() => item.href ? window.location.assign(item.href) : navigate('Command')}>Review Source <ArrowRight /></Button></article>)}{!urgent.length && <div className="empty-state"><strong>No urgent decisions in the retrieved queue</strong><span>Review source health before concluding all operations are clear.</span></div>}</div></section>
-    {(waiting.length > 0 || verifying.length > 0) && <section className="watch-panel"><div className="section-title"><div><span className="section-kicker">Still Open · Not in the Urgent Watchlist</span><h2>Waiting and Verification</h2><p>{waiting.length} owned follow-ups · {verifying.length} decisions have newer closed appointment evidence.</p></div><a href={`/desktop?data=live&date=${encodeURIComponent(date)}&workspace=Command&commandView=today&controlFilter=verification#operating-decisions`}>Review in Control <ArrowRight size={13} /></a></div></section>}
+    {(waiting.length > 0 || verifying.length > 0) && <section className="watch-panel"><div className="section-title"><div><span className="section-kicker">Still Open · Not in the Urgent Watchlist</span><h2>Waiting and Verification</h2><p>{waiting.length} owned follow-ups · {verifying.length} decisions have newer closed appointment evidence.</p></div><a href={`/desktop?data=live&date=${encodeURIComponent(date)}&workspace=Command&commandView=today&controlFilter=${verifying.length ? 'verification' : 'waiting'}#operating-decisions`}>Review in Control <ArrowRight size={13} /></a></div></section>}
     <section className="health-panel compact-health-panel"><div className="section-title"><div><span className="section-kicker">Current source health · {timestamp(snapshot.generatedAt)}</span><h2>System Health</h2></div><Button variant="ghost" size="sm" onClick={() => void refresh().catch(error => setError(error.message))}>Refresh <ArrowRight /></Button></div><div className="source-health-strip">{snapshot.sources.map(source => <article className="monitor-source-row" key={source.name}><div className="source-identity"><strong>{source.name}</strong><small>{source.detail}</small></div><span className={`health-status ${source.tone}`}><i />{source.state}</span><span className="source-freshness">{timestamp(source.observedAt)}</span></article>)}</div></section>
   </div>;
   return <><div className="run-grid control-workspace">{notices}

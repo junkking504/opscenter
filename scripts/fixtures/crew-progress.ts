@@ -19,9 +19,9 @@ export function fixtureSnapshot(): DesktopCommandSnapshot {
     alert('arrival-one','Arrival','2026-09-07T13:05:00Z',{facts:[{label:'Arrival',value:'8:05 AM'}]}),
     alert('closed-one','Job Closed','2026-09-07T14:08:00Z',{facts:[{label:'Job total',value:'$450.00'},{label:'Payment',value:'Cash · $450.00'},{label:'Photos',value:'No uploads found'},{label:'On-site time',value:'65 min'}]}),
     alert('departure-one','Departure','2026-09-07T14:10:00Z',{facts:[{label:'Departure',value:'9:10 AM'}]}),
-    alert('new-two','New Appointment','2026-09-07T14:30:00Z',{title:'JK1000002 · 11:00 AM – 12:00 PM',facts:[{label:'Time',value:'11:00 AM – 12:00 PM'}],href:'/jobs?date=2026-09-07#job-jk1000002'}),
+    alert('new-two','New Appointment','2026-09-07T14:30:00Z',{title:'JK1000002 · 11:00 AM – 12:00 PM',photos:[{url:'/tests/fixture-photo.svg',category:'Before',fileName:'synthetic-pickup.svg'}],facts:[{label:'Time',value:'11:00 AM – 12:00 PM'}],href:'/jobs?date=2026-09-07#job-jk1000002'}),
     alert('arrival-three','Arrival','2026-09-07T15:05:00Z',{title:'Truck 3 · JK1000003',truck:'Truck 3',facts:[{label:'Arrival',value:'10:05 AM'}],href:'/jobs?date=2026-09-07#job-jk1000003'}),
-    alert('clock-in','Clock In','2026-09-07T12:30:00Z',{title:'Example driver',truck:undefined,domain:'Krewe',facts:[{label:'Krewe member',value:'Example driver'},{label:'Clock in',value:'7:30 AM'}]}),
+    alert('clock-in','Clock In','2026-09-07T14:20:00Z',{title:'Example driver',truck:undefined,domain:'Krewe',facts:[{label:'Krewe member',value:'Example driver'},{label:'Clock in',value:'9:20 AM'}]}),
   ].reverse();
   const combined = consolidateConfirmedVisitAlerts(alerts as unknown as OperationalAlert[],visits,now).map(update=>({...alerts.find(alert=>alert.id===update.id)!,...update}));
   return {date:'2026-09-07',generatedAt:new Date(now).toISOString(),actor:{displayName:'Preview operator',role:'manager'},kpis:[],sources:{alerts:true,metrics:true,workflow:true},alerts:combined,

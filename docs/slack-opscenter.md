@@ -2,22 +2,23 @@
 
 ## Crew progress in Command
 
-Command Alerts opens with operational updates grouped by truck and appointment.
-Every appointment in the available Schedule snapshot remains visible, including
-appointments that have not generated a Slack update. Each card shows its crew,
-window, territory, latest update, recorded steps, and next required action.
-The optional All updates view shows events newest first; each job's expanded
-history runs first to latest. Search, truck selection, and Follow-up only are
-local viewing controls. Reviewing an update never removes it from the history
-or marks a crew step complete. Control retains the existing shared follow-up
-workflow. The Operations Map follows the updates and keeps its existing controls.
+Command Alerts shows one timeline, newest first. Truck, appointment, attendance,
+receipt, fleet, and other operational updates are interleaved by event timestamp;
+truck/job grouping does not hide or reorder them. Updates without a usable time
+remain visible at the end. Search, truck selection, and Follow-up only narrow the
+same timeline. Every available alert remains eligible for display, even when it
+has no appointment match. A matched appointment's latest update retains a compact
+follow-up detail when recorded evidence shows an incomplete step. Reviewing an
+update keeps it in place and does not mark a crew step complete. Control retains
+the existing shared follow-up workflow. The Operations Map follows the timeline.
 
 Tracked evidence is confirmed arrival, uploaded photos, recorded payment, and
 JunkWare closeout. Once a confirmed departure is available, Duration combines
 arrival and departure into one update and milestone. Assignment is not a step.
 Payment lists tender, check reference or card last four, and applicable tips.
-Closeout lists load size and other charges. Appointment cards show available
-customer contact information, original pickup descriptions, and full notes.
+Closeout lists load size and other charges. New Appointment updates show available
+customer contact information, original pickup descriptions, and pertinent notes
+(items, special requests, and ETA contact), without the full call-center history.
 Compact inline facts retain all details; photos open in a keyboard-accessible dialog. Photo presence is
 not proof of before/after coverage; the application has no verified before/after
 requirement contract. Missing photos are flagged only after closeout with an
@@ -72,24 +73,11 @@ The fixture is `/tests/crew-progress.html` on that local Vite server. It uses
 synthetic records and simulated review/Control actions; it cannot write to
 operational sources. This fixture is not included in the production entry point.
 
-Appointment milestones use compact rows: two columns on desktop and one on
-narrow screens. Arrival/departure times, photo links, payment references, tips,
-load sizes, and charges remain visible. The status label opens its explanation
-with mouse or keyboard; completed steps no longer repeat “Recorded” or source
-boilerplate in the default view. Missing and unknown states remain explicit,
-and the next-required action and review history stay on the appointment.
-
-Command new-appointment tags reuse the Schedule territory color palette and
-territory classification (including Westbank within Jefferson Parish).
-New-appointment cards display their complete facts without a Details
-toggle. Their badge includes the source appointment territory, with the territory
-channel as a fallback when the appointment record is unavailable. Missing
-territory is explicitly labeled. Uploaded JunkWare job photos appear as linked
-thumbnails only on the Job Closed alert, outside its Details toggle, including
-uploads collected after closeout. Other alerts for the same appointment do not
-repeat the photos. Media uses the existing JunkWare URL
-allowlist; private Slack download URLs are not exposed. Photo availability still
-depends on the job collector having captured the upload.
+Timeline entries use compact inline facts and clickable photo links. Arrival and
+departure times, payment references, tips, load sizes, and charges remain visible.
+The full appointment remains available through Open record. Uploaded JunkWare
+photos use the existing URL allowlist; private Slack download URLs are not
+exposed. Photo availability depends on the job collector capturing the upload.
 
 OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. Confirmed LinxUp truck-arrival alerts are published separately by the one-minute LinxUp collector, immediately after visit matching. New appointments, reschedules, cancellations, and closeouts are checked by a persistent verified JunkWare schedule detector; it reads schedule pages only and does not wait for detail pages, GPS, payroll, QBO, Krewe Portal, marketing, or VPS work. It uses one browser because JunkWare serializes concurrent logins, but publishes each market immediately after that market is verified instead of waiting for the other three. A sweep starts five seconds after the preceding sweep completes. The production in-session sweep measured 17.2 seconds total and about 4.3 seconds per market, producing a roughly 22-second same-market read cadence before the five-second OpsCenter browser check. This targets about 30 seconds and keeps the operating requirement below 60 seconds. Slack is the action and escalation layer; OpsCenter remains the source of truth.
 

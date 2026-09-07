@@ -13,7 +13,7 @@ export function junkwareDate(date:string) {if(!/^\d{4}-\d{2}-\d{2}$/.test(date)|
 function dateKey(value:string) {const match=clean(value).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);if(!match)throw new Error('JunkWare shift date is unavailable.');return `${match[3]}-${match[1]}-${match[2]}`;}
 export function parseShift(cells:string[]):JunkwareShift {
   if(cells.length!==11||!Number.isFinite(money(cells[3])))throw new Error('JunkWare timesheet columns changed.');
-  if(!sourceClock(cells[1])||(cells[2].trim()&&!sourceClock(cells[2])))throw new Error('JunkWare shift times could not be read.');
+  if((cells[1].trim()&&!sourceClock(cells[1]))||(cells[2].trim()&&!sourceClock(cells[2])))throw new Error('JunkWare shift times could not be read.');
   const firstOT=sourceHours(cells[8]),secondOT=sourceHours(cells[9]);
   return {workDate:dateKey(cells[0]),clockIn:sourceClock(cells[1]),clockOut:sourceClock(cells[2]),hourlyRate:money(cells[3]),hours:sourceHours(cells[4]),regularHours:sourceHours(cells[6]),overtimeHours:firstOT===null||secondOT===null?null:firstOT+secondOT,labor:cells[10].trim()&&Number.isFinite(money(cells[10]))?money(cells[10]):null};
 }
@@ -100,7 +100,7 @@ export async function readShift(page:Page,date:string):Promise<{shift:JunkwareSh
 export async function prepareShift(page:Page,correction:PayrollCorrection,rowId:string|null,before:JunkwareShift|null=null) {
   const minutes=(clock:string)=>{const match=clock.match(/^(\d{2}):(\d{2}) (AM|PM)$/);if(!match)throw new Error('Enter valid shift times.');return Number(match[1])%12*60+Number(match[2])+(match[3]==='PM'?720:0);};
   if(correction.clockOut&&minutes(correction.clockOut)<=minutes(correction.clockIn))throw new Error('Use JunkWare to correct an overnight shift with its explicit clock-out date.');
-  if(before?.clockOut&&minutes(before.clockOut)<=minutes(before.clockIn))throw new Error('The source shift spans midnight. Review its dates in JunkWare.');
+  if(before?.clockIn&&before.clockOut&&minutes(before.clockOut)<=minutes(before.clockIn))throw new Error('The source shift spans midnight. Review its dates in JunkWare.');
   await linkPostback(page,rowId?`#${rowId.replace(/_ItemRow$/,'_EditButton')}`:'#time-entries [id$=_AddNewLink]');
   const date=junkwareDate(correction.workDate);
   if(before&&(sourceClock(await page.locator('#time-entries [id$=_TimeInTB]').inputValue())!==before.clockIn||sourceClock(await page.locator('#time-entries [id$=_TimeOutTB]').inputValue())!==before.clockOut||money(await page.locator('#time-entries [id$=_HourlyRateTB]').inputValue())!==before.hourlyRate))throw new Error('The JunkWare shift changed before saving. Refresh its current values.');

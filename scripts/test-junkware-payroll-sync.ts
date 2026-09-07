@@ -11,6 +11,7 @@ const previous=process.env.OPSBOT_DATA_DIR,dir=fs.mkdtempSync(path.join(os.tmpdi
 async function main(){try{
  const storage={cookies:[{name:'ASP.NET_SessionId'},{name:'.ASPXAUTH'}],origins:[]};assert.deepEqual(isolatedJunkwareState(storage).cookies,[{name:'.ASPXAUTH'}]);assert.equal(storage.cookies.length,2,'Do not modify the collector authentication file');
  const shift=parseShift(['09/06/2026','07:04 AM','06:10 PM','$17.00','11:06 (11.1)','11:06 (11.1)','5:32 (5.53)','40:00 (40)','5:34 (5.57)','0:00 (0)','$236.05']);
+ const placeholder=parseShift(['09/06/2026','','','$17.00','0:00 (0)','0:00 (0)','0:00 (0)','34:28 (34.47)','0:00 (0)','0:00 (0)','$0.00']);assert.equal(placeholder.clockIn,'');assert.equal(placeholder.hours,0);
  assert.equal(shift.workDate,'2026-09-06');assert.equal(shift.labor,236.05);assert.equal(shift.regularHours,5.53);assert.equal(shift.overtimeHours,5.57);
  assert.throws(()=>parseShift(['broken']),/columns/);assert.throws(()=>junkwareDate('2026-02-31'),/date/);
  const make=(name:string)=>{const correction=upsertPayrollCorrection({employeeName:name,workDate:'2026-09-06',clockIn:'7:15 AM',clockOut:'6:00 PM',hourlyRate:17,note:'Synthetic correction',updatedBy:'test@example.invalid'})!;const requestId=randomUUID();const row=stagePayrollSync(correction,requestId);assert.equal(payrollSyncForRequest(requestId)?.id,row.id);return row;};
@@ -31,6 +32,7 @@ async function main(){try{
  const already=make('Synthetic Already Matches');source=corrected;submits=0;const noWrite=await executePayrollSourceSync(already,adapter);assert.equal(noWrite.status,'verified');assert.equal(submits,0);
  const missing=make('Synthetic Missed Shift');source=null;let insertBefore:JunkwareShift|null|undefined;
  const inserted=await executePayrollSourceSync(missing,{...adapter,prepare:async before=>{insertBefore=before;},submit:async()=>{source=corrected;submits++;}});assert.equal(inserted.status,'verified');assert.equal(insertBefore,null);
+ const blank=make('Synthetic Blank Punch');source=placeholder;let blankBefore;const repaired=await executePayrollSourceSync(blank,{...adapter,prepare:async before=>{blankBefore=before;},submit:async()=>{source=corrected;}});assert.equal(repaired.status,'verified');assert.equal(blankBefore,placeholder,'Repair the existing blank row instead of inserting a duplicate');
  const ambiguous=make('Synthetic Multiple Shifts');submits=0;
  const failed=await executePayrollSourceSync(ambiguous,{...adapter,read:async()=>{throw new Error('Multiple shifts');},submit:async()=>{submits++;}});assert.equal(failed.status,'failed');assert.equal(submits,0);
  const wrong=make('Synthetic Wrong Rate');source={...corrected,hourlyRate:16};const wrongResult=await executePayrollSourceSync(wrong,adapter,true);assert.equal(wrongResult.status,'failed');assert.equal(submits,0);

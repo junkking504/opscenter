@@ -153,6 +153,7 @@ export default function PayrollDiscrepancyEditor({
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(String(payload?.error || "Unable to save correction."));
+      if(payload.sync?.status!=='verified'){setMessage(payload.sync?.message||'JunkWare verification pending. Check saved result before another change.');router.refresh();return;}
       dialogRef.current?.close();
       router.refresh();
     } catch (error) {
@@ -162,6 +163,13 @@ export default function PayrollDiscrepancyEditor({
     }
   }
 
+  async function checkSavedResult() {
+    setSaving(true);
+    try {const query=new URLSearchParams({date,employee:employeeName,verify:'1'});const response=await fetch(`/api/payroll-corrections?${query}`,{cache:'no-store'});const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Unable to check JunkWare.');setMessage(payload.sync?.message||'No JunkWare synchronization has been submitted.');router.refresh();}
+    catch(error){setMessage(error instanceof Error?error.message:'Unable to check JunkWare.');}
+    finally{setSaving(false);}
+  }
+
   async function removeCorrection() {
     if (!correction) return;
     setSaving(true);
@@ -169,7 +177,8 @@ export default function PayrollDiscrepancyEditor({
     try {
       const query = new URLSearchParams({ date, employee: employeeName });
       const response = await fetch(`/api/payroll-corrections?${query.toString()}`, { method: "DELETE" });
-      if (!response.ok) throw new Error("Unable to remove correction.");
+      const payload=await response.json();
+      if (!response.ok) throw new Error(payload.error||"Unable to remove correction.");
       dialogRef.current?.close();
       router.refresh();
     } catch (error) {
@@ -208,7 +217,7 @@ export default function PayrollDiscrepancyEditor({
           <strong>{correction ? "Time correction applied" : pay.valid ? "JunkWare time available" : pay.message}</strong>
           <span>
             {correction
-              ? "The corrected clock times below are being used for this employee’s attendance and pay calculations."
+              ? "Time and shift rate edits are sent to JunkWare. Check saved result for source verification. OpsCenter recalculates pay from available weekly records."
               : pay.valid
                 ? "OpsCenter is using the current JunkWare clock times shown below. You can override them when a punch is missed or incorrect."
                 : "OpsCenter cannot calculate attendance or hourly earnings until the missing or invalid shift value is corrected."}
@@ -292,8 +301,9 @@ export default function PayrollDiscrepancyEditor({
 
         <div className={styles.actions}>
           <button type="button" className="ops-refresh-button" disabled={saving} onClick={saveCorrection}>
-            {saving ? "Saving…" : "Save time"}
+            {saving ? "Saving…" : "Save to JunkWare"}
           </button>
+          <button type="button" disabled={saving} onClick={checkSavedResult}>Check saved result</button>
           {correction ? (
             <button type="button" className={`ops-button ${styles.remove}`} disabled={saving} onClick={removeCorrection}>
               Remove correction

@@ -28,6 +28,7 @@ without mixing live runtime data or secrets into Git.
 ## Integrations and operating areas
 
 - [Krewe Pay Portal](crew-pay-portal.md)
+- [JunkWare write-through](junkware-write-through.md)
 - [Payment reconciliation](payment-reconciliation.md)
 - [QuickBooks/Intuit production setup](qbo-intuit-production-setup.md)
 - [SearchKings integration](searchkings-integration.md)

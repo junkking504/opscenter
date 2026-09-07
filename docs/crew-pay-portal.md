@@ -58,7 +58,7 @@ Future days remain marked Upcoming until their operating date.
 The editor pauses background refresh and uses the existing permission, stale
 version, receipt, and duplicate-request protections. An uncertain result blocks
 another save and retains its receipt ID for the browser session; use **Check
-saved result** before another change. Original JunkWare records are preserved.
+saved result** before another change. Time corrections write the clock-in, clock-out, and per-shift hourly rate to JunkWare. A successful UI receipt requires a fresh JunkWare read-back of every field. See [JunkWare write-through](junkware-write-through.md) for the source contract.
 
 Desktop **Krewe → Today** includes only employees with a valid recorded clock-in
 for the selected operating date, including completed shifts and saved missed-shift
@@ -74,9 +74,10 @@ corrections in Krewe, where the source value and correction audit are visible.
 Corrections are durable operational state at
 `OPSBOT_DATA_DIR/payroll_corrections/payroll_corrections.json`. The Mac/VPS
 state sync treats this directory like the other operator-managed state, so a
-correction made in either served runtime is read back by the other. This is an
-OpsCenter payroll correction—not a write to JunkWare—so it should be used for
-confirmed exceptions and retained with its stated reason.
+correction made in either served runtime is read back by the other. Private
+JunkWare synchronization receipts live under the same directory in
+`junkware-sync/`. They retain the employee identity, before/after shift,
+submission marker, and verification time without rewriting collected exports.
 
 ## Activation sequence
 
@@ -95,6 +96,10 @@ An earlier edit also updates overtime allocation for later days in that week.
 Missing earlier hours or missing pay components remain unresolved instead of
 being treated as zero. Salaried pay is not converted to hourly wages.
 
-Calculated amounts are labeled as OpsCenter corrections and are not sent to
-JunkWare. Saving a correction writes only the local correction ledger and audit
-receipt; the collected payroll and JunkWare time records remain unchanged.
+Calculated amounts are labeled as OpsCenter calculations. Clock-in, clock-out,
+and the shift hourly rate are sent to JunkWare from both desktop editors and the
+legacy payroll-correction API. JunkWare calculates its own regular/overtime pay;
+OpsCenter does not submit a fabricated total or alter the employee profile wage.
+The source verification status is shown beside corrected pay and in Clock Out
+alerts. Manual bonuses have no field in the inspected JunkWare timesheet editor
+and remain explicitly labeled as OpsCenter bonus records.

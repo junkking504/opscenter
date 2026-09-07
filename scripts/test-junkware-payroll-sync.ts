@@ -1,0 +1,38 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {randomUUID} from 'node:crypto';
+import {upsertPayrollCorrection} from '../lib/payroll-corrections';
+import {stagePayrollSync,readPayrollSync,payrollSyncForRequest,assertPayrollSyncEditable,type JunkwareShift} from '../lib/junkware-payroll-sync';
+import {executePayrollSourceSync,type TimesheetAdapter} from '../lib/junkware-payroll-execution';
+import {parseShift,junkwareDate} from './junkware-timesheets';
+const previous=process.env.OPSBOT_DATA_DIR,dir=fs.mkdtempSync(path.join(os.tmpdir(),'junkware-payroll-test-'));process.env.OPSBOT_DATA_DIR=dir;
+async function main(){try{
+ const shift=parseShift(['09/06/2026','07:04 AM','06:10 PM','$17.00','11:06 (11.1)','11:06 (11.1)','5:32 (5.53)','40:00 (40)','5:34 (5.57)','0:00 (0)','$236.05']);
+ assert.equal(shift.workDate,'2026-09-06');assert.equal(shift.labor,236.05);assert.equal(shift.regularHours,5.53);assert.equal(shift.overtimeHours,5.57);
+ assert.throws(()=>parseShift(['broken']),/columns/);assert.throws(()=>junkwareDate('2026-02-31'),/date/);
+ const make=(name:string)=>{const correction=upsertPayrollCorrection({employeeName:name,workDate:'2026-09-06',clockIn:'7:15 AM',clockOut:'6:00 PM',hourlyRate:17,note:'Synthetic correction',updatedBy:'test@example.invalid'})!;const requestId=randomUUID();const row=stagePayrollSync(correction,requestId);assert.equal(payrollSyncForRequest(requestId)?.id,row.id);return row;};
+ const row=make('Synthetic Verified');let source:JunkwareShift|null=shift,submits=0,reloads=0;
+ const corrected={...shift,clockIn:row.correction.clockIn,clockOut:row.correction.clockOut,hourlyRate:17,hours:10.75,labor:227.12};
+ const adapter:TimesheetAdapter={resolve:async()=>({employeeId:'123',marketId:'399'}),read:async()=>source,prepare:async()=>{},submit:async()=>{submits++;assert.equal(readPayrollSync(row.id)?.phase,'submitted','Submission journal must precede the source write');source=corrected;throw new Error('Navigation interrupted');},reload:async()=>{reloads++;}};
+ assert.throws(()=>assertPayrollSyncEditable(row.correction.workDate,row.correction.employeeName),/unconfirmed/);
+ const verified=await executePayrollSourceSync(row,adapter);assert.equal(verified.status,'verified');assert.equal(submits,1);assert.equal(reloads,1);assert.equal(verified.after?.labor,227.12);assert.ok(verified.verifiedAt);
+ assert.doesNotThrow(()=>assertPayrollSyncEditable(row.correction.workDate,row.correction.employeeName));
+ await executePayrollSourceSync(verified,adapter);assert.equal(submits,1,'Replay must not submit again');
+ await executePayrollSourceSync(verified,adapter,true);assert.equal(submits,1,'Source verification must remain read-only');
+ const incomplete=make('Synthetic Uncertain');source=shift;submits=0;
+ const uncertain=await executePayrollSourceSync(incomplete,{...adapter,submit:async()=>{submits++;throw new Error('Lost connection');}});
+ assert.equal(uncertain.status,'uncertain');assert.equal(submits,1);
+ await executePayrollSourceSync(uncertain,{...adapter,submit:async()=>{submits++;}});assert.equal(submits,1,'Process restart cannot replay an uncertain write');
+ assert.throws(()=>assertPayrollSyncEditable(incomplete.correction.workDate,incomplete.correction.employeeName),/unconfirmed/);
+ source=corrected;const recovered=await executePayrollSourceSync(uncertain,adapter,true);assert.equal(recovered.status,'verified');assert.equal(submits,1);
+ const already=make('Synthetic Already Matches');source=corrected;submits=0;const noWrite=await executePayrollSourceSync(already,adapter);assert.equal(noWrite.status,'verified');assert.equal(submits,0);
+ const missing=make('Synthetic Missed Shift');source=null;let insertBefore:JunkwareShift|null|undefined;
+ const inserted=await executePayrollSourceSync(missing,{...adapter,prepare:async before=>{insertBefore=before;},submit:async()=>{source=corrected;submits++;}});assert.equal(inserted.status,'verified');assert.equal(insertBefore,null);
+ const ambiguous=make('Synthetic Multiple Shifts');submits=0;
+ const failed=await executePayrollSourceSync(ambiguous,{...adapter,read:async()=>{throw new Error('Multiple shifts');},submit:async()=>{submits++;}});assert.equal(failed.status,'failed');assert.equal(submits,0);
+ const wrong=make('Synthetic Wrong Rate');source={...corrected,hourlyRate:16};const wrongResult=await executePayrollSourceSync(wrong,adapter,true);assert.equal(wrongResult.status,'failed');assert.equal(submits,0);
+ console.log('JunkWare payroll synchronization passed: source parsing, stale/pending guards, all-field verification, missed shifts, duplicate replay, interrupted submission recovery, and read-only reconciliation.');
+}finally{if(previous===undefined)delete process.env.OPSBOT_DATA_DIR;else process.env.OPSBOT_DATA_DIR=previous;fs.rmSync(dir,{recursive:true,force:true});}}
+main().catch(error=>{console.error(error);process.exitCode=1;});

@@ -53,7 +53,7 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
     setDraft(previous => ({...previous,amount:'',bonusNote:'',note:''}));
     clearRequest();
     setRecord(null);
-    setMessage(`${saved.action === 'bonus' ? 'Bonus' : 'Time correction'} saved and verified for ${date}.`);
+    setMessage(`${saved.action === 'bonus' ? 'Bonus saved in OpsCenter' : 'Times and shift rate verified in JunkWare'} for ${date}.`);
     try { await load(); await onSaved(); }
     catch { setMessage(`Saved and verified for ${date}. Refresh the records to see updated hours and published pay.`); }
   }
@@ -69,7 +69,7 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
       if (body.receipt?.status === 'verified') await verified(saved);
       else if (body.receipt?.status === 'failed' || (!body.receipt && response.status >= 400 && response.status < 500)) {
         clearRequest(); setRecord(null); setMessage(body.error || 'Nothing was saved. Reload this day before trying again.');
-      } else setMessage('Save result is unconfirmed. Check saved result before making another change.');
+      } else setMessage(body.receipt?.message||'Save result is unconfirmed. Check saved result before making another change.');
     } catch { setMessage('Save result is unconfirmed. Check saved result before making another change.'); }
     finally { busy.current = false; setPending(false); }
   }
@@ -77,11 +77,11 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
     if (!request || busy.current) return;
     busy.current = true; setPending(true);
     try {
-      const response = await fetch(`/api/desktop/krewe?receipt=${request.id}`,{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(30_000)});
+      const response = await fetch(`/api/desktop/krewe?receipt=${request.id}&verify=1`,{credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(30_000)});
       const body = await response.json();
       if (response.ok && body.receipt?.status === 'verified') await verified(request);
-      else if (body.receipt?.status === 'failed') { clearRequest(); setRecord(null); setMessage('Nothing was saved. Reload this day before trying again.'); }
-      else setMessage('The saved result is still unconfirmed. Review the recorded state before another change.');
+      else if (body.receipt?.status === 'failed') { clearRequest(); setRecord(null); setMessage(body.receipt?.message||'The change was not confirmed. Reload this day before trying again.'); }
+      else setMessage(body.receipt?.message||'The saved result is still unconfirmed. Review the recorded state before another change.');
     } catch { setMessage('Saved result could not be checked. Try checking again when the connection returns.'); }
     finally { busy.current = false; setPending(false); }
   }
@@ -95,7 +95,7 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
   const disabled = pending || Boolean(request) || !record?.canWrite;
   return <dialog className="krewe-day-editor" ref={dialog} aria-labelledby="krewe-day-title" onCancel={event => {event.preventDefault(); if (!busy.current) onClose();}}>
     <header><div><span>Work date · {date}</span><h2 id="krewe-day-title">{name}</h2></div><button type="button" disabled={pending} onClick={onClose} aria-label="Close day editor">×</button></header>
-    <p>Changes apply only to {date}. OpsCenter recalculates pay using available weekly hours. Changes are not sent to JunkWare.</p>
+    <p>Time edits apply only to {date}. OpsCenter recalculates pay using available weekly hours. Times and the shift hourly rate are saved to JunkWare and verified.</p>
     {message && <p className="krewe-day-feedback" role="status">{message}</p>}
     {request && <button type="button" disabled={pending} onClick={() => void checkResult()}>Check saved result</button>}
     {!record && <><p>{pending ? 'Working…' : 'Load this day’s current record to edit.'}</p><button type="button" disabled={pending} onClick={() => void reload()}>Reload this day</button></>}
@@ -111,11 +111,12 @@ export default function KreweDayEditor({ date, periodDate, name, action, onClose
         </fieldset>
       </form>
       <form onSubmit={event => {event.preventDefault(); void save('bonus');}}>
-        <h3>Manual bonus</h3><fieldset disabled={disabled}>
+        <h3>Manual bonus</h3><p>OpsCenter bonus record. JunkWare timesheets do not provide a bonus field.</p><fieldset disabled={disabled}>
           <div className="krewe-day-fields"><label>Bonus amount<input type="number" min="0.01" step="0.01" required autoFocus={action === 'bonus'} value={draft.amount} onChange={e=>setDraft({...draft,amount:e.target.value})}/></label><label>Bonus reason<input required value={draft.bonusNote} onChange={e=>setDraft({...draft,bonusNote:e.target.value})}/></label></div>
           <button type="submit" disabled={!draft.bonusNote.trim() || !(Number(draft.amount)>0)}>Save bonus</button>
         </fieldset>
       </form>
+      {record.member.junkwareSync && <p role="status">{record.member.junkwareSync.message}</p>}
       {record.member.correction && <p>Last correction: {record.member.correction.note} · {record.member.correction.updatedBy} · {record.member.correction.updatedAt}</p>}
       {!!record.manualBonuses.length && <section aria-label="Saved manual bonuses"><h3>Saved manual bonuses · {date}</h3>{record.manualBonuses.map(bonus=><p key={bonus.entryId}><strong>{money(bonus.amount)}</strong> · {bonus.note}</p>)}</section>}
     </>}

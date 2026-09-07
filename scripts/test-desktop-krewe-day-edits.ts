@@ -43,7 +43,7 @@ try {
   assert.equal(payrollCorrectionForEmployee('2026-09-05',employee.name),null,'Anchor date must not be changed');
   assert.equal(readDesktopKrewe(missedDate,'today','admin').members[0].hours,4,'Correction-only shifts appear in Today');
   assert.equal(readKreweHours('2026-09-05').employees.find(row=>row.name===employee.name)?.weeks[0].days[2].hours,4);
-  assert.throws(()=>runDesktopKreweAction({...request,requestId:randomUUID()},'test@example.invalid','admin'),/record changed/);
+  assert.throws(()=>runDesktopKreweAction({...request,requestId:randomUUID()},'test@example.invalid','admin'),/unconfirmed JunkWare change/);
   assert.throws(()=>readDesktopKreweDay('2026-09-07',employee.name,'2026-09-05','admin'),/within/);
   assert.throws(()=>runDesktopKreweAction({...request,date:'2026-09-07',requestId:randomUUID()},'test@example.invalid','admin'),/within/);
   assert.throws(()=>readDesktopKreweDay(missedDate,'Unknown Person','2026-09-05','admin'),/not found/);
@@ -73,7 +73,7 @@ try {
   runDesktopKreweAction({date:'2026-09-06',name:employee.name,action:'correction',expectedVersion:before.member.actionVersions!.correction,requestId:randomUUID(),values:{clockIn:'7:15 AM',clockOut:'6:00 PM',hourlyRate:17,note:'Correct synthetic clocks'}},'test@example.invalid','admin');
   const after=readDesktopKrewe('2026-09-06','today','admin').members.find(row=>row.name===employee.name)!;
   assert.equal(after.labor,227.12); assert.equal(after.totalPay,264.1); assert.equal(after.issue,'');
-  assert.match(after.payNote!,/Not synced to JunkWare/);
+  assert.match(after.payNote!,/JunkWare verification pending/);
   assert.equal(readCommandCrewCorrections('2026-09-06','operator'),undefined,'Payroll corrections retain the manager access boundary');
   assert.equal(readCommandCrewCorrections('2026-09-06','Administrator')?.members.find(row=>row.name===employee.name)?.totalPay,264.1);
   const periodMember=readDesktopKrewe('2026-09-06','payperiod','admin').members.find(row=>row.name===employee.name)!;

@@ -39,16 +39,16 @@ window.fetch=async(input,init)=>{
     if(mode==='stale') return Response.json({error:'This record changed. Refresh and review the current values.'},{status:409});
     if(body.action==='correction') corrections.set(body.date,body.values);
     else bonuses.set(body.date,[...(bonuses.get(body.date)||[]),{entryId:body.requestId,...body.values}]);
-    receipts.set(body.requestId,'verified');
+    receipts.set(body.requestId,mode==='sync-pending'?'uncertain':'verified');
     if(mode==='lost') throw new TypeError('Synthetic lost response after save');
-    return Response.json({receipt:{status:'verified'}});
+    return Response.json({receipt:{status:mode==='sync-pending'?'uncertain':'verified',message:mode==='sync-pending'?'Saved in OpsCenter; JunkWare result unconfirmed.':'Clock-in, clock-out, and shift hourly rate verified in JunkWare.'}},{status:mode==='sync-pending'?202:200});
   }
   if(url.pathname==='/api/desktop/krewe/hours') return Response.json({date,start:dates[0],end:dates[13],generatedAt:new Date().toISOString(),missingDates:[],employees:[{id:base.id,name:base.name,total:dates.reduce((sum,day)=>sum+(corrections.has(day)?(toMinutes(dayMember(day).clockOut)-toMinutes(dayMember(day).clockIn))/60:day===missingDate?0:8),0),weeks:[0,7].map(offset=>{
     const days=dates.slice(offset,offset+7).map(day=>{const member=dayMember(day); const h=corrections.has(day)?(toMinutes(member.clockOut)-toMinutes(member.clockIn))/60:day===missingDate?null:8;return {date:day,hours:h,regular:h||0,overtime:0,clockIn:member.clockIn,clockOut:member.clockOut,corrected:corrections.has(day),role:member.role,truck:member.truck,jobs:member.jobs,jobRevenueWorked:member.revenue,status:h===null?'No Record':'Recorded'};});
     const total=days.reduce((sum,day)=>sum+(day.hours||0),0);return {start:dates[offset],end:dates[offset+6],total,regular:Math.min(40,total),overtime:Math.max(0,total-40),incomplete:days.some(day=>day.hours===null),days};
   })}]});
   if(url.pathname==='/api/desktop/krewe') {
-    if(url.searchParams.has('receipt'))return Response.json({receipt:{status:receipts.get(url.searchParams.get('receipt')!)||'uncertain'}});
+    if(url.searchParams.has('receipt'))return Response.json({receipt:{status:receipts.get(url.searchParams.get('receipt')!)||'uncertain',message:mode==='sync-pending'?'Saved in OpsCenter; JunkWare result unconfirmed.':'Clock-in, clock-out, and shift hourly rate verified in JunkWare.'}});
     if(url.searchParams.has('employee'))return Response.json({date,canWrite:mode!=='readonly',member:dayMember(date),manualBonuses:bonuses.get(date)||[]});
     return Response.json(snapshot(date,url.searchParams.get('view')||'today'));
   }

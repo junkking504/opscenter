@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import { buildRoutePlan, parsePlanOptions } from '../lib/desktop-route-plan';
+import { adjustRoute, proposeRoutes, routePlanSourceKey, type PlanOptions } from '../desktop-ui/lib/route-plan';
+import type { ScheduleAppointment, ScheduleSnapshot } from '../desktop-ui/lib/schedule-contract';
+
+const job=(id:string,patch:Partial<ScheduleAppointment>={}):ScheduleAppointment=>({recordId:id,appointmentId:id,version:'v1',jkNumber:'JK_SHARED',truck:'Truck 1',status:'Confirmed',appointmentType:'Job',appointmentStartMinutes:480,appointmentEndMinutes:540,hasScheduledTime:true,territory:'New Orleans',address:'Synthetic Street, New Orleans',location:{latitude:30,longitude:-90},...patch} as ScheduleAppointment);
+const snap=(appointments:ScheduleAppointment[]):ScheduleSnapshot=>({date:'2026-09-09',observedAt:null,appointments,fleet:{isToday:false,trucks:[],lastUpdatedAt:null}});
+const options:PlanOptions={trucks:['Truck 1','Truck 2'],area:'metro',start:480,serviceMinutes:45};
+async function main(){
+  const snapshot=snap([job('a'),job('b',{appointmentType:'Estimate'}),job('c',{truck:'Unassigned',territory:'Northshore'}),job('d',{truck:'Unassigned',territory:'Jefferson Parish'}),job('outside',{truck:'Unassigned',territory:'Baton Rouge'}),job('closed',{status:'Completed'}),job('pending',{junkwareSyncStatus:'pending'}),job('unidentified',{appointmentId:''})]);
+  const parsed=parsePlanOptions(options,snapshot);
+  const routes=proposeRoutes(snapshot.appointments,parsed);
+  assert.deepEqual(routes,[{truck:'Truck 1',appointmentIds:['a','b']},{truck:'Truck 2',appointmentIds:['c','d']}]);
+  assert.deepEqual(proposeRoutes([...snapshot.appointments].reverse(),parsed),routes,'Stable source order independent proposal');
+  let requests=0;
+  const provider=async(origins:unknown[],destinations:unknown[])=>{assert.equal(origins.length*destinations.length,1);requests++;return [{condition:'ROUTE_EXISTS',duration:'1200s',distanceMeters:1609.344}];};
+  const plan=await buildRoutePlan(snapshot,parsed,provider);
+  assert.equal(requests,2,'Exactly one billed element per consecutive pair, including shared JK and same window');
+  assert.equal(plan.routes[0].stops[1].arrival,545);
+  assert.deepEqual(plan.routes[0].stops[1].warnings,['Overlapping Windows','5 Min Late']);
+  assert.equal(plan.routes[1].stops[1].miles,1);
+  assert.equal(plan.excluded,3);
+  const reordered=adjustRoute(routes,'b','Truck 1',-1);
+  const moved=adjustRoute(reordered,'b','Truck 2');
+  assert.deepEqual(moved[1].appointmentIds,['c','d','b']);
+  assert.equal(new Set(moved.flatMap(r=>r.appointmentIds)).size,4);
+  assert.deepEqual(parsePlanOptions({...options,routes:moved},snapshot).routes,moved);
+  for (const patch of [{trucks:[]},{trucks:['Truck 1','Truck 1']},{trucks:['Unknown']},{serviceMinutes:0},{serviceMinutes:241},{start:1440},{area:'all'},{routes:[{truck:'Truck 1',appointmentIds:['a','a']},{truck:'Truck 2',appointmentIds:['c','d']}]},{routes:[{truck:'Truck 1',appointmentIds:['a']},{truck:'Truck 2',appointmentIds:['c','d']}]}]) assert.throws(()=>parsePlanOptions({...options,...patch},snapshot));
+  assert.throws(()=>parsePlanOptions(options,snap(Array.from({length:81},(_,i)=>job('many'+i)))));
+  const missing=snap([job('a'),job('b',{location:null}),job('c'),job('d',{appointmentStartMinutes:null,appointmentEndMinutes:null})]);
+  const unknown=await buildRoutePlan(missing,{...options,routes:[{truck:'Truck 1',appointmentIds:['a','b','c','d']},{truck:'Truck 2',appointmentIds:[]}]},provider);
+  assert.equal(unknown.routes[0].stops[1].travelMinutes,null);
+  assert.equal(unknown.routes[0].stops[1].arrival,null);
+  assert.equal(unknown.routes[0].stops[3].travelMinutes,20,'Downstream known leg is still shown');
+  assert.equal(unknown.routes[0].stops[3].arrival,null,'Do not invent downstream arrivals after a missing leg');
+  assert.ok(unknown.routes[0].stops[3].warnings.includes('Time Not Set'));
+  const failed=await buildRoutePlan(snapshot,options,async()=>{throw Error('timeout');});
+  assert.equal(failed.routes[0].stops[1].travelMinutes,null);
+  const malformed=await buildRoutePlan(snapshot,options,async()=>[{condition:'ROUTE_EXISTS',duration:'-2s',distanceMeters:0}]);
+  assert.equal(malformed.routes[0].stops[1].travelMinutes,null);
+  const original=routePlanSourceKey(snapshot.appointments);
+  assert.equal(original,routePlanSourceKey([...snapshot.appointments].reverse()));
+  assert.notEqual(original,routePlanSourceKey(snapshot.appointments.map(j=>j.recordId==='a'?{...j,version:'v2'}:j)));
+  assert.notEqual(original,routePlanSourceKey(snapshot.appointments.map(j=>j.recordId==='a'?{...j,location:null}:j)));
+  assert.deepEqual(routes[0].appointmentIds,['a','b'],'Adjusting a proposal must not mutate its source');
+  console.log('Route planner passed: multi-truck, metro territories, preserved assignments, same-window legs, manual ordering, late/overlap warnings, unavailable travel, stale inputs, and bounded provider calls.');
+}
+void main();

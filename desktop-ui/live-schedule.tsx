@@ -10,6 +10,7 @@ import { AlertPhotos } from './components/alert-details';
 import { ScheduleCalendar, ScheduleHistory, ScheduleFollowup } from './schedule-tabs';
 import ScheduleMap from './schedule-map';
 import ScheduleTravel from './schedule-travel';
+import ScheduleRoutePlan from './schedule-route-plan';
 import ScheduleRouteConnector from './schedule-route-connector';
 import { scheduleTravelLayout } from './lib/schedule-travel-layout';
 import TruckCameraController from '../components/TruckCameraController';
@@ -37,6 +38,13 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [refreshKey, setRefreshKey] = useState(0);
   const refreshSourceDate = useRef('');
   const [pendingMove, setPendingMove] = useState<MoveProposal | null>(null);
+  const plannerMove = useRef(false);
+  useEffect(() => {
+    if (pendingMove && plannerMove.current) {
+      document.querySelector('.live-schedule .schedule-move-confirmation')?.scrollIntoView({ block: 'center' });
+      plannerMove.current = false;
+    }
+  }, [pendingMove]);
   const refresh = () => setRefreshKey(value => value + 1);
   const [error, setError] = useState('');
   const [showMap, setShowMap] = useState(true);
@@ -258,6 +266,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     </div>
     {mapOnly && <div className="live-schedule-status">{snapshot.observedAt ? `Appointments updated ${new Date(snapshot.observedAt).toLocaleString('en-US', { timeZone: 'America/Chicago' })}` : 'Appointment update time unavailable'}</div>}
     {!mapOnly && <><div className="live-schedule-status">{snapshot.observedAt ? `JunkWare snapshot: ${new Date(snapshot.observedAt).toLocaleString('en-US', { timeZone: 'America/Chicago' })}` : 'JunkWare snapshot timestamp unavailable'} · {routeState || (displayLegs.length ? `${displayLegs.filter(leg => leg.source === 'google_live_traffic').length} of ${displayLegs.length} travel estimates available${routing?.calculatedAt ? ` · Calculated ${new Date(routing.calculatedAt).toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' })}` : ''}. Google current traffic; unavailable routes need verified locations and provider data.` : 'No consecutive assigned appointments to route.')} Appointment windows are not confirmed service durations.{jobs.some(job => !job.hasScheduledTime) && ` · ${jobs.filter(job => !job.hasScheduledTime).length} untimed appointments are listed below.`}</div>
+    <ScheduleRoutePlan key={date} snapshot={snapshot} busy={operationBusy || Boolean(pendingMove)} select={selectAppointment} review={(job,truck)=>{plannerMove.current=true;setPendingMove(scheduleMoveProposal(job,truck,job.appointmentStartMinutes,jobs));}} />
     <ScheduleTravel legs={displayLegs} jobs={jobs} select={selectAppointment} />
     <section className="appointment-register"><div className="section-title appointment-register-title"><div><span className="section-kicker">{visible.length} Shown · {selectedTruck || (scope === 'ALL' ? 'All Territories' : territoryLabels[scope.split(':')[0]] || scope)}</span><h2>All Appointments</h2></div>{filtered && <Button variant="outline" size="sm" onClick={reset}>Show All {jobs.length}</Button>}</div>
       <nav className="appointment-territory-toolbar" aria-label="Prioritize territory"><span>Territory Order</span>{groups.map(group => <button key={group.code} className={priority === group.code ? 'active' : ''} onClick={() => { setScope('ALL'); setPriority(group.code); }} title={`Move ${group.label} to the top`}><i className={slug(group.label)} />{group.code}<small>{group.jobs.length}</small></button>)}<button className="reset-order" onClick={reset} disabled={!priority && !filtered}>Reset Order</button></nav>

@@ -27,6 +27,36 @@ beneath the blocks. Clicking the estimate opens both appointments and the full
 minutes/miles. Booked windows are not moved, and traffic time is not described as
 verified visit order, service duration, or available buffer.
 
+## Route Planner
+
+Schedule's Route Planner sits below the simultaneous map and truck board. It
+builds one proposed route per selected truck (up to 12). Trucks with open work
+are preselected, not declared crew/load-ready. Current assignments remain on
+their trucks initially, including appointments outside the selected area.
+Unassigned New Orleans, Jefferson Parish, and Northshore appointments share one
+planning pool; Baton Rouge, Lafayette, and unclassified work are separate pools.
+Unassigned work is balanced by stop count. Windows determine initial sequence;
+geographic proximity breaks ties. This is a reviewable heuristic, not a claim of
+optimal routing. Closed, unverified, and unidentified appointments are excluded.
+
+Every consecutive appointment identity gets its own road leg, including shared
+JK numbers and overlapping time windows. Google supplies current-traffic minutes
+and miles; no straight-line travel fallback is displayed. Calls are one matrix
+element per leg, four concurrently, with a bounded two-minute cache. Proposals
+are capped at 80 appointments. Missing travel propagates unknown downstream
+arrival times even when later road legs are available. Arrival estimates assume
+the operator-entered first-stop start and service minutes; the first stop does
+not include travel from truck GPS, and windows are not treated as service times.
+
+Operators can reorder stops or move them between proposed trucks, then explicitly
+recalculate. Editing assumptions or a source/version/location change invalidates
+the displayed estimates and assignment review. The authenticated same-origin
+planning endpoint is read-only: no source assignments or stop order are saved.
+Review Assignment opens the existing individual JunkWare move confirmation,
+preserves the booked window, and requires the normal verified result. Historical
+proposals cannot apply assignments. No bulk apply or implied route-order write
+is provided. A source change requires a rebuilt proposal.
+
 Finance Trends shows each metric's month value, month-to-month (MTM) change, and
 year-over-year (YOY) change in the same column. August 2026 compares with August
 2025. In-progress months compare the same elapsed dates with the preceding month

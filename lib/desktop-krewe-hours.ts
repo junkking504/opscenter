@@ -82,7 +82,7 @@ export function buildKreweHours(date: string, sources: Map<string, AnyRecord | n
         const known = days.some(day => day.hours !== null);
         return { start, end: addDateKeyDays(start, 6), total: known ? round(days.reduce((sum, day) => sum + (day.hours ?? 0), 0)) : null,
           regular: round(allocation.reduce((sum, day) => sum + day.regularHours, 0)), overtime: round(allocation.reduce((sum, day) => sum + day.overtimeHours, 0)),
-          incomplete: days.some(day => !['Recorded', 'Upcoming'].includes(day.status)), days: days.map(day => ({ date: day.date, hours: day.hours, regular: day.regular, overtime: day.overtime, clockIn: day.clockIn, clockOut: day.clockOut, corrected: day.corrected, status: day.status, role: day.role, truck: day.truck, jobs: day.jobs, jobRevenueWorked: day.jobRevenueWorked })) };
+          incomplete: days.some(day => !['Recorded', 'Upcoming'].includes(day.status)), days: days.map(day => ({ date: day.date, isSalary: day.salary, hours: day.hours, regular: day.regular, overtime: day.overtime, clockIn: day.clockIn, clockOut: day.clockOut, corrected: day.corrected, status: day.status, role: day.role, truck: day.truck, jobs: day.jobs, jobRevenueWorked: day.jobRevenueWorked })) };
       });
       return { id, name, weeks, total: weeks.some(week => week.total !== null) ? round(weeks.reduce((sum, week) => sum + (week.total ?? 0), 0)) : null };
     }).filter(employee => (employee.total ?? 0) > 0 || employee.weeks.some(week => week.days.some(day => ['Hours Unavailable', 'Source Unavailable', 'Missing Clock-Out'].includes(day.status)))),

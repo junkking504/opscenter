@@ -66,6 +66,15 @@ try {
   await warehouse.getByRole('button',{name:'Open record',exact:true}).click();
   assert.match(await page.getByRole('status').last().textContent(),/workspace=Fleet/);
   await page.getByRole('button',{name:'Reset preview'}).click();
+  await page.getByRole('button',{name:'Simulate clock-out pay',exact:true}).click();
+  assert.deepEqual(await labels(),['Clock Out',...expected],'Final daily pay appears within one Clock Out alert');
+  const shift = timeline.locator('.crew-update').filter({hasText:'Clock Out'});
+  assert.match(await shift.innerText(),/6:10 PM[\s\S]*8.25[\s\S]*\$225.68[\s\S]*\$188.70[\s\S]*\$36.98[\s\S]*\$0.00/);
+  await shift.getByRole('button',{name:'Mark reviewed',exact:true}).click();
+  assert.equal(await shift.getByText('Reviewed',{exact:true}).count(),1);
+  await shift.getByRole('button',{name:'Open record',exact:true}).click();
+  assert.match(await page.getByRole('status').last().textContent(),/crew\?date=2026-09-07/);
+  await page.screenshot({path:`${directory}/clock-out-pay.png`,fullPage:true});
   await page.setViewportSize({width:390,height:844});
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true,'Mobile must not overflow horizontally');
   await page.screenshot({path:`${directory}/mobile.png`,fullPage:true});

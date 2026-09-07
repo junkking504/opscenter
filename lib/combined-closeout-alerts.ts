@@ -1,11 +1,12 @@
 import { toOperationalAlert, type OperationalAlert } from './operational-alert-presentation';
+import { applyClockOutCorrections, consolidateCrewClockOutAlerts } from './crew-clock-out-alerts';
 import { closeoutPaymentFacts } from './closeout-payment-verification';
 import type { SlackDigestMessage } from './slack-digest';
 import type { PaymentReconciliationView } from './payment-reconciliation';
 import type { AnyRecord } from './opsData';
 
-export function combinedCloseoutAlerts(messages: SlackDigestMessage[], completed: AnyRecord[], reconciliation: PaymentReconciliationView): OperationalAlert[] {
-  const presented = messages.map(toOperationalAlert);
+export function combinedCloseoutAlerts(messages: SlackDigestMessage[], completed: AnyRecord[], reconciliation: PaymentReconciliationView, crewCorrections?: Parameters<typeof applyClockOutCorrections>[1]): OperationalAlert[] {
+  const presented = applyClockOutCorrections(consolidateCrewClockOutAlerts(messages.map(toOperationalAlert)),crewCorrections);
   const jobKey = (alert: OperationalAlert) => alert.title.match(/\bJK\d+\b/i)?.[0].toUpperCase();
   const closeouts = new Map<string, OperationalAlert>();
   for (const alert of presented) {

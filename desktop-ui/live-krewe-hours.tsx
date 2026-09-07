@@ -45,7 +45,7 @@ export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh,
   return <section className="live-krewe-hours" aria-label="Pay-Period Hours and Pay">
     <header><div><h2>Pay-Period Hours and Pay</h2><p>{snapshot ? `${dayLabel(snapshot.start)} – ${dayLabel(snapshot.end)}, ${snapshot.end.slice(0, 4)}` : 'Employee Hours and Earnings'}</p></div><div className="hours-period-controls"><button disabled={loading || Boolean(editing)} onClick={() => changeDate(offsetDay(snapshot?.start || selectedDate, -14))} aria-label="Previous pay period">←</button><label>Pay-Period Date<input type="date" disabled={Boolean(editing)} value={selectedDate} onChange={event => { if (event.target.value) changeDate(event.target.value); }} /></label><button disabled={loading || Boolean(editing)} onClick={() => changeDate(offsetDay(snapshot?.start || selectedDate, 14))} aria-label="Next pay period">→</button><button disabled={loading || Boolean(editing)} onClick={() => { setRefresh(value => value + 1); void Promise.resolve(onRefresh?.()).catch(failure => setError(failure instanceof Error ? failure.message : 'Payroll could not refresh.')); }}>Refresh</button></div></header>
     <div className="hours-toolbar"><label>Find Employee<input type="search" value={search} placeholder="Search employees" onChange={event => setSearch(event.target.value)} /></label><a href={`/crew?section=pay-period&date=${selectedDate}`} target="_blank" rel="noopener noreferrer">Open Full Pay-Period Records ↗</a></div>
-    <p className="hours-source-note">Employees with zero hours are excluded from the pay-period list and totals. Open each week for daily time and pay records. Hours include recorded corrections; pay follows published payroll. Missing time records remain flagged for review.</p>
+    <p className="hours-source-note">Employees with zero hours are excluded from the pay-period list and totals. Open each week for daily time and pay records. Hours and pay include OpsCenter corrections when weekly records are complete. Corrections are not sent to JunkWare. Missing time records remain flagged for review.</p>
     {loading && <p role="status" className="hours-source-note">Loading Employee Hours…</p>}
     {(error||freshness.error) && <p role="alert" className="hours-source-note hours-attention">{error||freshness.error} · Last retrieved hours retained.</p>}
     {snapshot && <>
@@ -77,7 +77,7 @@ export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh,
         </article>;
       })}</div>
       {!employees.length && <p className="hours-source-note">{snapshot.employees.length ? 'No employees match your search.' : 'No employee records are available for this pay period.'}</p>}
-      <footer className="hours-source-note">{employees.length} Employees · Hours Updated {new Date(snapshot.generatedAt).toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' })} · Pay From Payroll Records</footer>
+      <footer className="hours-source-note">{employees.length} Employees · Hours Updated {new Date(snapshot.generatedAt).toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' })} · Payroll Records and OpsCenter Corrections</footer>
     </>}
     {editing && <KreweDayEditor {...editing} periodDate={selectedDate} onClose={() => setEditing(null)} onSaved={async () => { await Promise.all([freshness.refresh(), onRefresh?.()]); }} />}
   </section>;

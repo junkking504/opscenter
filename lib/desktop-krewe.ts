@@ -8,7 +8,8 @@ import { payPeriodForDate, payPeriodDates } from '@/lib/pay-period';
 import { payrollCorrectionForEmployee, payrollCorrectionsForDate, normalizePayrollEmployeeKey, upsertPayrollCorrection } from '@/lib/payroll-corrections';
 import { manualBonusEntriesForEmployee, upsertManualBonusEntry } from '@/lib/manual-bonuses';
 import { opsRoleCan, type InteractiveOpsRole } from '@/lib/ops-roles';
-import { calculateLivePay, chicagoClockToDate } from '@/lib/live-pay';
+import { chicagoClockToDate } from '@/lib/live-pay';
+import { correctedCrewPay } from './corrected-crew-pay';
 import { chicagoDateKey, addDays } from '@/lib/report-dates';
 import { readKreweHours } from '@/lib/desktop-krewe-hours';
 import { nullableNumber as num, sumObserved, validDesktopDate, type CrewAmounts, type DesktopCrewMember, type DesktopKreweSnapshot, type KreweView, type CallInDecision, type DesktopLocalReceipt } from '../desktop-ui/lib/people-fleet-contract';
@@ -73,6 +74,9 @@ function csvRows(date: string, suffix: string): AnyRecord[] {
 }
 function dayMembers(date: string, payroll: boolean): DesktopCrewMember[] {
   const metrics=readMetrics(date); const clocks=csvRows(date,'employees'); const rates=csvRows(date,'employee_rates');
+  const periodDates=payPeriodDates(date).dates;
+  const weekDates=periodDates.slice(periodDates.indexOf(date)<7?0:7).filter(day=>day<=date);
+  const hourHistory=weekDates.some(day=>Object.keys(payrollCorrectionsForDate(day)).length>0)?readKreweHours(date):null;
   const sourceRows=[...crewRows(metrics)]; for(const clock of clocks) if(!sourceRows.some(row=>keyOf(nameOf(row))===keyOf(nameOf(clock)))) sourceRows.push(clock);
   for(const row of Array.isArray(metrics?.payroll_records)?metrics.payroll_records:[]) if(!sourceRows.some(existing=>keyOf(nameOf(existing))===keyOf(nameOf(row)))) sourceRows.push(row);
   // A missed shift can be corrected even when the daily collector has no row.
@@ -80,13 +84,12 @@ function dayMembers(date: string, payroll: boolean): DesktopCrewMember[] {
   return sourceRows.filter(row=>nameOf(row)).map(row=>{
     const name=nameOf(row); const id=keyOf(name); const clock=clocks.find(item=>keyOf(nameOf(item))===id); const rate=rates.find(item=>keyOf(nameOf(item))===id);
     const correction=payrollCorrectionForEmployee(date,name); const clockIn=correction?.clockIn || String(clock?.time_in || row.clock_in || row.time_in || row.clockIn || row.clock_in_display || row.timeIn || ''); const clockOut=correction ? correction.clockOut : String(clock?.time_out || row.clock_out || row.time_out || row.clockOut || row.clock_out_display || row.timeOut || '');
-    const amounts=fields(row); const hourlyRate=correction?.hourlyRate ?? num(rate || row,['hourly_rate','hourly_rate_raw']);
-    // Weekly overtime cannot be inferred from a single shift. Only calculate when the source provides its prior-hours basis.
-    const prior=num(row,['weekly_hours_before_shift']);
-    if(correction && prior!==null) { const pay=calculateLivePay({date,clockIn,clockOut,hourlyRate,weeklyHoursBeforeShift:prior,tips:amounts.tips ?? 0,totalBonus:amounts.bonuses ?? 0,isSalary:Boolean(row.is_salary)}); amounts.hours=pay.workedHours; amounts.regularHours=pay.regularHours; amounts.overtimeHours=pay.overtimeHours; amounts.labor=pay.hourlyLaborCost; amounts.totalPay=pay.totalPay===null || amounts.supplemental===null ? null : pay.totalPay+amounts.supplemental; }
-    else if(correction) { amounts.hours=calculateLivePay({date,clockIn,clockOut,hourlyRate,weeklyHoursBeforeShift:0,tips:0,totalBonus:0}).workedHours; amounts.regularHours=null; amounts.overtimeHours=null; amounts.labor=null; amounts.totalPay=null; }
+    const hourlyRate=correction?.hourlyRate ?? num(rate || row,['hourly_rate','hourly_rate_raw']);
+    const week=hourHistory?.employees.find(employee=>employee.id===id)?.weeks.find(week=>week.start<=date&&week.end>=date);
+    const calculation=correctedCrewPay({date,clockIn,clockOut,hourlyRate,corrected:Boolean(correction),isSalary:Boolean(row.is_salary),amounts:fields(row),week,sourcePriorHours:num(row,['weekly_hours_before_shift'])});
+    const amounts=calculation.amounts;
     const working=workedOrAttributedToJobToday({...row,clock_in:clockIn}, {timeIn:clockIn}); const truck=Array.isArray(row.trucks)?row.trucks.join(', '):String(row.truck || row.assigned_truck || clock?.trucks || 'Unassigned');
-    const member: DesktopCrewMember={...amounts,id,name,initials:name.split(/\s+/).map(v=>v[0]).slice(0,2).join(''),role:Array.isArray(row.driver_trucks)&&row.driver_trucks.length?'Driver':String(row.role || 'Krewe'),truck,working,clockIn,clockOut,hourlyRate:payroll?hourlyRate:null,status:clockIn?clockOut?'Clocked out':'Clocked in':working?'Job attributed':'Off today',issue:working&&!clockIn?'Missing clock-in':date<chicagoDateKey()&&clockIn&&!clockOut?'Missing clock-out':correction&&prior===null?'Correction saved; weekly payroll calculation requires review':'',version:desktopVersion({row,correction,bonuses:manualBonusEntriesForEmployee(date,name)}),correction:payroll?correction:null,days:[]};
+    const member: DesktopCrewMember={...amounts,id,name,initials:name.split(/\s+/).map(v=>v[0]).slice(0,2).join(''),role:Array.isArray(row.driver_trucks)&&row.driver_trucks.length?'Driver':String(row.role || 'Krewe'),truck,working,clockIn,clockOut,hourlyRate:payroll?hourlyRate:null,status:clockIn?clockOut?'Clocked out':'Clocked in':working?'Job attributed':'Off today',issue:working&&!clockIn?'Missing clock-in':date<chicagoDateKey()&&clockIn&&!clockOut?'Missing clock-out':calculation.issue,version:desktopVersion({row,correction,bonuses:manualBonusEntriesForEmployee(date,name)}),correction:payroll?correction:null,payNote:calculation.recalculated?'Calculated in OpsCenter · Not synced to JunkWare':'',days:[]};
     if(!payroll) for(const field of ['labor','tips','bonuses','supplemental','totalPay'] as const) member[field]=null;
     return member;
   });
@@ -96,7 +99,7 @@ export function readDesktopKrewe(date: string, view: KreweView, role: Interactiv
   const payrollVisible=opsRoleCan(role,'finance.read'); if((view==='monthly'||view==='payperiod')&&!payrollVisible) throw new Error('Manager access is required for payroll.');
   const period=payPeriodForDate(date); const start=view==='monthly'?`${date.slice(0,7)}-01`:view==='payperiod'?period.start:date; const end=view==='payperiod'?(period.end<chicagoDateKey()?period.end:chicagoDateKey()):view==='monthly'&&date>chicagoDateKey()?chicagoDateKey():date;
   const grouped=new Map<string,DesktopCrewMember>(); const missingDates:string[]=[];
-  for(let cursor=start;cursor<=end;cursor=addDays(cursor,1)){ if(!readMetrics(cursor)) missingDates.push(cursor); for(const row of dayMembers(cursor,payrollVisible)){ const existing=grouped.get(row.id); const day={...Object.fromEntries(amountKeys.map(key=>[key,row[key]])) as CrewAmounts,date:cursor,clockIn:row.clockIn,clockOut:row.clockOut}; if(existing){existing.days.push(day);for(const key of amountKeys) existing[key]=sumObserved([existing[key],row[key]]);}else grouped.set(row.id,{...row,days:[day]}); } }
+  for(let cursor=start;cursor<=end;cursor=addDays(cursor,1)){ if(!readMetrics(cursor)) missingDates.push(cursor); for(const row of dayMembers(cursor,payrollVisible)){ const existing=grouped.get(row.id); const day={...Object.fromEntries(amountKeys.map(key=>[key,row[key]])) as CrewAmounts,date:cursor,clockIn:row.clockIn,clockOut:row.clockOut}; if(existing){existing.days.push(day);existing.payNote=row.payNote||existing.payNote;for(const key of amountKeys) existing[key]=sumObserved([existing[key],row[key]]);}else grouped.set(row.id,{...row,days:[day]}); } }
   // Use the same corrected-hours eligibility as the weekly employee cards.
   // Revenue, tips, or bonuses alone do not qualify a zero-hour roster entry.
   const eligibleIds=view==='payperiod'?new Set(readKreweHours(date).employees.map(employee=>employee.id)):null;

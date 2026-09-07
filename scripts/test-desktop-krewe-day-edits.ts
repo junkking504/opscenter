@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {readDesktopKrewe, readDesktopKreweDay, runDesktopKreweAction} from '../lib/desktop-krewe';
+import {readCommandCrewCorrections} from '../lib/command-crew-corrections';
 import {readKreweHours} from '../lib/desktop-krewe-hours';
 import {payPeriodDates} from '../lib/pay-period';
 import {payrollCorrectionForEmployee} from '../lib/payroll-corrections';
@@ -60,6 +61,24 @@ try {
   write('2026-09-02',[{...employee,name:'Payroll Only'}],true);
   assert.equal(readDesktopKreweDay('2026-09-03','Payroll Only','2026-09-05','admin').member.name,'Payroll Only');
   for(const date of period.dates) assert.equal(readDesktopKreweDay(date,employee.name,'2026-09-05','admin').date,date);
+  // A full week with explicit zero-hour off days supplies the overtime basis.
+  for(const date of ['2026-08-31','2026-09-01','2026-09-02','2026-09-03','2026-09-04','2026-09-05','2026-09-06']) write(date,[{...employee,hours_worked:0,clock_in:'',clock_out:'',hourly_pay:0,total_pay:0}]);
+  write('2026-08-31',[{...employee,hours_worked:11.6}]);
+  write('2026-09-01',[{...employee,hours_worked:11.07}]);
+  write('2026-09-03',[{...employee,hours_worked:11.8}]);
+  write('2026-09-06',[{...employee,hourly_rate:17,hours_worked:11.1,hourly_pay:188.7,tips:36.98,total_pay:225.68}]);
+  const before=readDesktopKreweDay('2026-09-06',employee.name,'2026-09-06','admin');
+  const sourceFile=path.join(metricsDirectory,'daily_metrics_2026-09-06.json');
+  const untouched=fs.readFileSync(sourceFile,'utf8');
+  runDesktopKreweAction({date:'2026-09-06',name:employee.name,action:'correction',expectedVersion:before.member.actionVersions!.correction,requestId:randomUUID(),values:{clockIn:'7:15 AM',clockOut:'6:00 PM',hourlyRate:17,note:'Correct synthetic clocks'}},'test@example.invalid','admin');
+  const after=readDesktopKrewe('2026-09-06','today','admin').members.find(row=>row.name===employee.name)!;
+  assert.equal(after.labor,227.12); assert.equal(after.totalPay,264.1); assert.equal(after.issue,'');
+  assert.match(after.payNote!,/Not synced to JunkWare/);
+  assert.equal(readCommandCrewCorrections('2026-09-06','operator'),undefined,'Payroll corrections retain the manager access boundary');
+  assert.equal(readCommandCrewCorrections('2026-09-06','Administrator')?.members.find(row=>row.name===employee.name)?.totalPay,264.1);
+  const periodMember=readDesktopKrewe('2026-09-06','payperiod','admin').members.find(row=>row.name===employee.name)!;
+  assert.equal(periodMember.days.find(day=>day.date==='2026-09-06')?.totalPay,264.1,'Weekly cards use the corrected daily pay');
+  assert.equal(fs.readFileSync(sourceFile,'utf8'),untouched,'Saving a correction does not rewrite collected JunkWare data');
   console.log('Krewe day edits passed: all 14 dates, missed shifts, isolated dates/rates/versions, bonus read-back and replay, payroll-only roster, role guards, and clock-in-only Today with holiday empty state.');
 } finally {
   process.chdir(originalDirectory);

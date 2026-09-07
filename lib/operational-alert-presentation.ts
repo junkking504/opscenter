@@ -7,6 +7,7 @@ export type EssentialFact = { label: string; value: string; href?: string };
 
 export type OperationalAlert = {
   id: string;
+  eventFingerprint?: string;
   source?: string;
   timestamp?: string;
   threadReply?: boolean;
@@ -193,6 +194,7 @@ export function toOperationalAlert(message: SlackDigestMessage): OperationalAler
   const channelTerritory = ({ "#new-orleans": "New Orleans", "#baton-rouge": "Baton Rouge", "#northshore": "Northshore" } as Record<string, string>)[message.channel];
   return {
     id: message.id,
+    eventFingerprint: message.eventFingerprint || message.rawText.match(/Alert ID:\s*([^\s*]+?)(?:_?\s*$)/im)?.[1],
     truck: message.channel.match(/truck[- ](\d+)/i)?.[1]?.replace(/^(\d+)$/, "Truck $1"),
     timestamp: message.timestamp,
     threadReply: message.threadReply,

@@ -86,3 +86,15 @@ confirmed exceptions and retained with its stated reason.
 4. Deploy OpsCenter with the `crew.junk-king.app` custom domain.
 5. Confirm a wrong password is rejected and the shared temporary password redirects to `/set-password`.
 6. Complete a controlled test user's setup and confirm the temporary password no longer works for that username.
+
+### Corrected pay in desktop Krewe
+
+Today and pay-period totals recalculate corrected hourly shifts using available
+records earlier in the same workweek, including earlier OpsCenter corrections.
+An earlier edit also updates overtime allocation for later days in that week.
+Missing earlier hours or missing pay components remain unresolved instead of
+being treated as zero. Salaried pay is not converted to hourly wages.
+
+Calculated amounts are labeled as OpsCenter corrections and are not sent to
+JunkWare. Saving a correction writes only the local correction ledger and audit
+receipt; the collected payroll and JunkWare time records remain unchanged.

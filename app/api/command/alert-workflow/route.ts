@@ -6,6 +6,8 @@ import { geofenceOperationalAlert, readGeofenceEntries } from "@/lib/linxup-geof
 import type { OperationalAlert } from "@/lib/operational-alert-presentation";
 import { toOperationalAlert } from "@/lib/operational-alert-presentation";
 import { combinedCloseoutAlerts } from '@/lib/combined-closeout-alerts';
+import { opsAuthRole } from '@/lib/auth';
+import { readCommandCrewCorrections } from '@/lib/command-crew-corrections';
 import { readCompletedJunkwareRows } from '@/lib/slack-closeout-details';
 import { buildDailyPaymentReconciliation } from '@/lib/payment-reconciliation';
 import { readSlackDailyDigest } from "@/lib/slack-digest";
@@ -59,7 +61,8 @@ export async function POST(request: Request) {
       const message = digest.messages.find(candidate=>candidate.id===body.alertId);
       if (!message) return NextResponse.json({ error: 'The source alert is unavailable. Refresh and try again.' }, { status: 404, headers });
       sourceObservedAt = message.timestamp;
-      alert = consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)), readScheduleVisits(date).visits).find(candidate=>candidate.id===message.id) || toOperationalAlert(message);
+      alert = consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,opsAuthRole(actor.externalIdentity))), readScheduleVisits(date).visits).find(candidate=>candidate.id===message.id || candidate.sourceMessageIds?.includes(message.id)) || toOperationalAlert(message);
+      if (alert.source==='OpsCenter' && alert.updatedAt) sourceObservedAt=alert.updatedAt;
     }
     const existingItems = await listCommandAlertWorkItems(date);
     const existing = commandAlertWorkItemForSource(existingItems, alert);

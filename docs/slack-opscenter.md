@@ -41,6 +41,12 @@ items and source messages are not deleted. Distinct visit IDs, photo-batch IDs,
 receipts, and thread replies remain separate. Legacy messages without an event
 fingerprint are preserved because identical wording alone cannot prove a retry.
 The existing Job Closed / Payment Recorded consolidation remains in place.
+Legacy arrival/departure revisions are also combined when exactly one confirmed,
+closed LinxUp interval matches the job, truck, operating day, and reported event
+clock. The departure uses the confirmed final exit and recorded duration, labels
+itself Updated, retains source aliases/review state, and shows the source-report
+count. Separate visits, ambiguous identities, unconfirmed or open visits, and
+clock-only overnight matches remain separate. No source message is deleted.
 
 This change affects OpsCenter presentation and shared action lookup. It does not
 change Slack posting, channel routing, notification cadence, or collector state.

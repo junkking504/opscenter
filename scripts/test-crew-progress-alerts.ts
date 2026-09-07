@@ -1,3 +1,4 @@
+import { consolidateConfirmedVisitAlerts } from '../lib/confirmed-visit-alerts';
 import assert from 'node:assert/strict';
 import { buildCrewProgress } from '../lib/crew-progress';
 import { toOperationalAlert } from '../lib/operational-alert-presentation';
@@ -60,6 +61,28 @@ const reviewed = {entity:{id:'first'},status:'acknowledged',version:2} as WorkIt
 const owned = {entity:{id:'retry'},status:'in_progress',ownerActorId:'operator',version:4} as WorkItem;
 assert.equal(commandAlertWorkItemForSource([reviewed,owned],{id:'first',sourceMessageIds:['first','retry']}),owned,'An owned follow-up survives a duplicate review mark');
 assert.equal(commandAlertWorkItemForSource([owned,reviewed],{id:'first',sourceMessageIds:['first','retry']}),owned,'Read and write selection cannot depend on database row order');
+
+const visit = {appointment_id:'101',jk_number:'JK1000001',truck_number:'Truck 2',match_confidence:'confirmed',visit_intervals:[{arrival:'2026-09-07T13:00:00Z',departure:'2026-09-07T13:20:00Z'}]};
+const departure = (id:string,time:string,reported:string) => ({...toOperationalAlert(message(id,time,`Truck 2 Departure\nJK1000001\n${reported}`)),truck:'Truck 2'});
+const reports = [departure('early','2026-09-07T13:05:00Z','8:05 AM'),departure('middle','2026-09-07T13:10:00Z','8:10 AM'),departure('final','2026-09-07T13:21:00Z','8:20 AM')];
+const consolidated = consolidateConfirmedVisitAlerts(reports,[visit],now);
+assert.equal(consolidated.length,1);
+assert.equal(consolidated[0].id,'early');
+assert.equal(consolidated[0].corrected,true);
+assert.deepEqual(consolidated[0].sourceMessageIds,['early','middle','final']);
+assert.equal(consolidated[0].facts.find(fact => fact.label === 'Departure')?.value,'8:20 AM');
+assert.equal(consolidated[0].facts.find(fact => fact.label === 'On-site time')?.value,'20 min');
+const priorReview = {...reviewed,entity:{id:'middle'}} as WorkItem;
+assert.equal(commandAlertWorkItemForSource([priorReview],consolidated[0]),priorReview,'A review on a provisional departure survives consolidation');
+assert.equal(consolidateConfirmedVisitAlerts([...reports,{...reports[0],id:'reply',threadReply:true}],[visit],now).length,2,'Thread replies remain separate');
+assert.equal(consolidateConfirmedVisitAlerts(reports,[],now).length,3,'No confirmed evidence means preserve all reports');
+assert.equal(consolidateConfirmedVisitAlerts(reports,[{...visit,pass_by_only:true}],now).length,3);
+assert.equal(consolidateConfirmedVisitAlerts(reports,[{...visit,visit_intervals:[{arrival:'2026-09-07T13:00:00Z'}]}],now).length,3,'Open visit cannot validate a departure');
+const second = {...visit,visit_intervals:[{arrival:'2026-09-07T14:00:00Z',departure:'2026-09-07T14:20:00Z'}]};
+assert.equal(consolidateConfirmedVisitAlerts([...reports,departure('return','2026-09-07T14:21:00Z','9:20 AM')],[visit,second],now).length,2,'A real return visit remains separate');
+assert.equal(consolidateConfirmedVisitAlerts(reports,[visit,{...visit,appointment_id:'ambiguous'}],now).length,3,'Ambiguous visit identity must remain separate');
+assert.equal(consolidateConfirmedVisitAlerts(reports,[{...visit,visit_intervals:[],visit_count:2,first_arrival:visit.visit_intervals[0].arrival,final_departure:visit.visit_intervals[0].departure}],now).length,3,'First and final timestamps cannot collapse multiple visits without intervals');
+assert.equal(consolidateConfirmedVisitAlerts(reports,[{...visit,truck_number:'Truck 3'}],now).length,3,'Different truck evidence cannot establish a revision');
 
 async function main() {
   // All Slack calls are intercepted; no token, network or provider is used.

@@ -8,6 +8,7 @@ export type EssentialFact = { label: string; value: string; href?: string };
 export type OperationalAlert = {
   id: string;
   timestamp?: string;
+  threadReply?: boolean;
   sourceMessageIds?: string[];
   corrected?: boolean;
   updatedAt?: string;
@@ -193,6 +194,7 @@ export function toOperationalAlert(message: SlackDigestMessage): OperationalAler
     id: message.id,
     truck: message.channel.match(/truck[- ](\d+)/i)?.[1]?.replace(/^(\d+)$/, "Truck $1"),
     timestamp: message.timestamp,
+    threadReply: message.threadReply,
     sourceMessageIds: message.sourceMessageIds,
     corrected: message.corrected,
     updatedAt: message.updatedAt,

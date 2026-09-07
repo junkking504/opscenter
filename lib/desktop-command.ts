@@ -1,3 +1,4 @@
+import { consolidateConfirmedVisitAlerts } from './confirmed-visit-alerts';
 import { buildCrewProgress } from './crew-progress';
 import { sourceFreshness } from './source-freshness';
 import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
@@ -73,7 +74,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const visits = visitSnapshot.visits;
   const appointments = readJobRows(date);
   const sourceHealth = readDesktopSourceHealth(/^(admin|administrator|manager)$/i.test(actor.role));
-  const alerts: DesktopCommandSnapshot['alerts'] = combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)).map(alert => {
+  const alerts: DesktopCommandSnapshot['alerts'] = consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)), visits).map(alert => {
       const action = commandAlertWorkItemForSource(workflow.items, alert);
       return presentAlert(alert, action);
   });

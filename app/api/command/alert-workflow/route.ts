@@ -1,3 +1,5 @@
+import { consolidateConfirmedVisitAlerts } from '@/lib/confirmed-visit-alerts';
+import { readScheduleVisits } from '@/lib/desktop-schedule-visits';
 import { NextResponse } from "next/server";
 import { COMMAND_ALERT_RULE, commandAlertWorkItemForSource } from "@/lib/command-alert-workflow";
 import { toOperationalAlert } from "@/lib/operational-alert-presentation";
@@ -46,7 +48,7 @@ export async function POST(request: Request) {
     if (digest.status !== 'ready') return NextResponse.json({ error: 'Update history is unavailable. Refresh before saving a review or follow-up.' }, { status: 503, headers });
     const message = digest.messages.find((candidate) => candidate.id === body.alertId);
     if (!message) return NextResponse.json({ error: "The source alert is unavailable. Refresh and try again." }, { status: 404, headers });
-    const alert = combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)).find(candidate => candidate.id === message.id) || toOperationalAlert(message);
+    const alert = consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date)), readScheduleVisits(date).visits).find(candidate => candidate.id === message.id) || toOperationalAlert(message);
     const existingItems = await listCommandAlertWorkItems(date);
     const existing = commandAlertWorkItemForSource(existingItems, alert);
     const category = alert.domain === "Finance" ? "Finance" : alert.domain === "Fleet" ? "Fleet" : alert.domain === "Krewe" ? "Crew" : "Jobs";

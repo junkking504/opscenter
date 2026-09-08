@@ -1,3 +1,4 @@
+import { streamlineOperationalAlerts } from './streamlined-operational-alerts';
 import { consolidateConfirmedVisitAlerts } from './confirmed-visit-alerts';
 import { buildCrewProgress } from './crew-progress';
 import { crewAppointmentFacts } from './crew-progress-details';
@@ -78,7 +79,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const appointments = readJobRows(date);
   const sourceHealth = readDesktopSourceHealth(/^(admin|administrator|manager)$/i.test(actor.role));
   const geofences = readGeofenceEntries(date);
-  const alerts: DesktopCommandSnapshot['alerts'] = [...consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits),...geofences.entries.map(entry=>geofenceOperationalAlert(entry,date))].map(alert => {
+  const alerts: DesktopCommandSnapshot['alerts'] = [...streamlineOperationalAlerts(consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits),appointments,date),...geofences.entries.map(entry=>geofenceOperationalAlert(entry,date))].map(alert => {
       const action = commandAlertWorkItemForSource(workflow.items, alert);
       return presentAlert(alert, action);
   });
@@ -90,7 +91,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
           const customerFacts = crewAppointmentFacts(candidates[0]);
           // Preserve source-only details when the current appointment snapshot is
           // missing a field, and show notes/items without truncation.
-          alert = {...alert,facts:[...customerFacts.map(fact => {
+          alert = {...alert,needsAction:!/^Truck\s*\d+/i.test(candidates[0].truck),facts:[...customerFacts.map(fact => {
             const source = alert.facts.find(old=>old.label.toLowerCase() === fact.label.toLowerCase() || fact.label === 'Pickup items' && old.label === 'Items');
             return source && /^(Not provided|Unavailable|Not listed|No notes available)$/.test(fact.value) ? {...fact,value:source.value,href:source.href} : fact;
           }),...alert.facts.filter(fact=>!['customer','phone','email','service address','items','pickup items','appointment notes'].includes(fact.label.toLowerCase()))]};
@@ -105,14 +106,23 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
         const jk = alert.title.match(/\bJK\d+\b/i)?.[0]?.toUpperCase();
         const candidates = appointments.filter(job => job.jkNumber.toUpperCase() === jk && (/estimate/i.test(job.appointmentType) === /estimate/i.test(alert.label)));
         const time = candidates.length === 1 ? appointmentOnsiteTime(candidates[0], visits) : {minutes:null,arrival:null,departure:null,label:'Unavailable · appointment match needed'};
-        alert = {...alert, facts:[...alert.facts.filter(f=>!/^On-site time$|^Arrival$|^Departure$/i.test(f.label)), ...onsiteTimeFacts(time)]};
+        alert = {...alert, facts:[...alert.facts.filter(f=>!/^On-site time$|^Duration$|^Arrival$|^Departure$/i.test(f.label)), ...onsiteTimeFacts(time)]};
       }
       return {
         ...alert, timestamp: alert.timestamp,
         priority: ['New Appointment','Arrival','Departure','Duration','Job Closed','Estimate Closed','Job Completed','Estimate Completed','Photos Uploaded','Payment Recorded','Clock In','Clock Out','Final Daily Pay','Fuel Receipt','Dump Receipt','Receipt Recorded'].includes(alert.label) ? 'watch' : alert.needsAction ? 'warning' : 'watch',
         detail: '', source: alert.source || 'Slack', action: 'Open Source', context: alert.next,
-        workflowState: commandAlertState(action), version: action?.version || 0, actionId: action?.id,
+        workflowState: action ? commandAlertState(action) : alert.resolved ? 'resolved' : 'active', version: action?.version || 0, actionId: action?.id,
       };
+  }
+  const crewProgress = buildCrewProgress({date,appointments,visits,alerts,
+      scheduleCurrent: sourceHealth.some(source => source.name === 'JunkWare' && source.tone === 'healthy' && sourceFreshness(source.observedAt,source.maxAgeSeconds).fresh),
+      visitsCurrent: sourceFreshness(visitSnapshot.observedAt,180).fresh,
+      updatesComplete: digest.status === 'ready' && digest.complete !== false && geofences.complete,
+    });
+  for (const job of crewProgress.jobs.filter(job=>job.needsFollowUp)) {
+    const latest = [...alerts].sort((a,b)=>(b.timestamp || '').localeCompare(a.timestamp || '')).find(alert=>job.updateIds.includes(alert.id));
+    if (latest) latest.needsAction = true;
   }
   return {
     date, generatedAt: new Date().toISOString(), actor,
@@ -123,10 +133,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
       {name:'Control',area:'Shared database connection',workspace:'Command',action:'Open decisions',state:workflow.available?'Connected':'Unavailable',tone:workflow.available?'healthy':'warning',observedAt:new Date().toISOString(),maxAgeSeconds:120}],
     sources: { metrics: Boolean(metrics), alerts: digest.status === 'ready' || geofences.available, workflow: workflow.available },
     alerts,
-    crewProgress: buildCrewProgress({date,appointments,visits,alerts,
-      scheduleCurrent: sourceHealth.some(source => source.name === 'JunkWare' && source.tone === 'healthy' && sourceFreshness(source.observedAt,source.maxAgeSeconds).fresh),
-      visitsCurrent: sourceFreshness(visitSnapshot.observedAt,180).fresh,
-      updatesComplete: digest.status === 'ready' && digest.complete !== false && geofences.complete,
-    }),
+    crewProgress,
+
   };
 }

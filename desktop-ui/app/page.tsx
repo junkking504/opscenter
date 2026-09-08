@@ -1,5 +1,6 @@
 'use client';
 
+import { requiresAlertAttention } from '../lib/alert-attention';
 import {
   Activity, ArrowLeft, ArrowRight, BarChart3, Bell, CalendarDays, Check, GripVertical,
   CircleDollarSign, Command, Copy, Gauge, MapPin, Megaphone, Search,
@@ -3033,7 +3034,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       return `${item.domain} ${item.source} ${item.title} ${item.detail} ${facts}`.toLowerCase().includes(normalized);
     });
   }, [query, workItems]);
-  const activeAlerts = workItems.filter((item) => live ? !['resolved', 'acknowledged'].includes(liveAlert(item)?.workflowState || '') : !completed.includes(item.id) && !alertOutcomes[item.id]);
+  const activeAlerts = workItems.filter((item) => live ? requiresAlertAttention(liveAlert(item)) : !completed.includes(item.id) && !alertOutcomes[item.id]);
   const sourceAttentionCount = connectedSources.filter((source) => source.tone !== 'healthy').length;
   const openSourceHealth = () => {
     setSourceHealthOpen(true);
@@ -4135,7 +4136,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
 
         <nav className="primary-nav" aria-label="Primary">
           <p className="nav-label">Workspaces</p>
-          {(live ? nav.filter(item => item.label !== 'Finance' || canFinance).map(item => ({ ...item, count: item.label === 'Command' ? workItems.length : 0 })) : nav).map((item) => {
+          {(live ? nav.filter(item => item.label !== 'Finance' || canFinance).map(item => ({ ...item, count: item.label === 'Command' ? activeAlerts.length : 0 })) : nav).map((item) => {
             const Icon = item.icon;
             return (
               <button key={item.label} className={activeNav === item.label ? 'nav-item active' : 'nav-item'} onClick={() => setActiveNav(item.label)}>
@@ -4175,11 +4176,11 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           <div className="topbar-actions">
             <div className="notification-center">
               {notificationOpen && <button className="notification-backdrop" aria-label="Close alerts" onClick={() => setNotificationOpen(false)} />}
-              <Button className="notification-trigger" variant="outline" size="lg" aria-label={live && !live.snapshot.sources.alerts ? 'Alert count unavailable' : `${activeAlerts.length} active alerts`} aria-expanded={notificationOpen} aria-controls="notification-panel" onClick={() => { setNotificationOpen((open) => !open); setSearchOpen(false); setOperatingDayOpen(false); setQuery(''); }}><Bell size={16} />{activeAlerts.length > 0 && <><span className="notification-dot" /><b>{activeAlerts.length}</b></>}</Button>
+              <Button className="notification-trigger" variant="outline" size="lg" aria-label={live && !live.snapshot.sources.alerts ? 'Alert count unavailable' : `${activeAlerts.length} alerts need attention`} aria-expanded={notificationOpen} aria-controls="notification-panel" onClick={() => { setNotificationOpen((open) => !open); setSearchOpen(false); setOperatingDayOpen(false); setQuery(''); }}><Bell size={16} />{activeAlerts.length > 0 && <><span className="notification-dot" /><b>{activeAlerts.length}</b></>}</Button>
               {notificationOpen && <aside className="notification-panel" id="notification-panel" role="dialog" aria-label="Alerts">
-                <header><div><span>Operational sources · OpsCenter format</span><strong>Alerts</strong><small>{activeAlerts.length} active · Essential operating information</small></div><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>Open Command <ArrowRight size={14} /></button></header>
+                <header><div><span>Operational sources · OpsCenter format</span><strong>Alerts</strong><small>{activeAlerts.length} need attention · Essential operating information</small></div><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>Open Command <ArrowRight size={14} /></button></header>
                 {activeAlerts.length ? <div className="notification-list">{activeAlerts.map((item) => { const linkedAction = linkedActionForAlert(item); return <article className={`notification-alert ${item.priority}`} key={item.id}><i className={`priority-mark ${item.priority}`} /><button className="notification-alert-open" onClick={() => openAlertRecord(item)}><div><span className={`notification-priority ${item.priority}`}>{item.label}</span><small>{item.domain} · {item.detected}</small><span className={`alert-workflow-status ${linkedAction ? 'in-control' : 'active'}`}>{linkedAction ? 'In Control' : 'Active'}</span></div><strong>{item.title}</strong><p>{item.detail}</p><footer><span>Owner · {item.owner}</span><b>{item.context}</b></footer></button><div className="notification-alert-controls"><button disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) acknowledgeAlert(item); }}>Acknowledge</button><button className="primary" disabled={mutationBusy} onClick={() => { if (!mutationBusyRef.current) addAlertToControl(item); }}>{linkedAction ? 'Manage Action' : 'Add to Control'}</button></div></article>; })}</div>
-                  : <div className="notification-empty">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Operational alerts unavailable</strong><p>Active alert counts are unknown until the source refreshes.</p></> : <><Check size={22} /><strong>No active alerts</strong><p>Acknowledged and resolved alerts remain visible on Command.</p></>}</div>}
+                  : <div className="notification-empty">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Operational alerts unavailable</strong><p>Active alert counts are unknown until the source refreshes.</p></> : <><Check size={22} /><strong>No alerts need attention</strong><p>Routine, reviewed and resolved updates remain visible on Command.</p></>}</div>}
                 <footer><span><ShieldCheck size={13} />Source and ownership stay attached</span><button onClick={() => { setActiveNav('Command'); setView('now'); setNotificationOpen(false); }}>View All Alerts</button></footer>
               </aside>}
             </div>
@@ -4192,7 +4193,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <div className="operating-day-options">
                   <article className={scheduleDay === 'today' ? 'active' : ''}>
                     <header><div><span>Sunday, August 31</span><strong>Today</strong><small>Live operating day</small></div><i>Live</i></header>
-                    <dl><div><dt>Appointments</dt><dd>{scheduleDayCounts.today}</dd></div><div><dt>Working Krewe</dt><dd>{workingKrewe.length}</dd></div><div><dt>Active Alerts</dt><dd>{activeAlerts.length}</dd></div></dl>
+                    <dl><div><dt>Appointments</dt><dd>{scheduleDayCounts.today}</dd></div><div><dt>Working Krewe</dt><dd>{workingKrewe.length}</dd></div><div><dt>Needs attention</dt><dd>{activeAlerts.length}</dd></div></dl>
                     <footer><button onClick={() => openOperatingContext('today', 'Schedule')}>Open Live Schedule <ArrowRight size={13} /></button><button onClick={() => openOperatingContext('today', 'Krewe')}>Open Today’s Krewe</button></footer>
                   </article>
                   <article className={scheduleDay === 'tomorrow' ? 'active' : ''}>
@@ -4250,7 +4251,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </div>
             {activeNav === 'Command' ? (
               <div className="view-switcher workspace-tabs" role="tablist" aria-label="Command views">
-                <button onClick={() => setView('now')} className={view === 'now' ? 'active' : ''}>Alerts <span className={live ? 'crew-update-count' : undefined}>{live && !live.snapshot.sources.alerts ? '—' : workItems.length}</span></button>
+                <button onClick={() => setView('now')} className={view === 'now' ? 'active' : ''}>Alerts <span className={live ? 'crew-update-count' : undefined}>{live && !live.snapshot.sources.alerts ? '—' : activeAlerts.length}</span></button>
                 <button onClick={() => setView('today')} className={view === 'today' ? 'active' : ''}>Control</button>
                 <button onClick={() => setView('monitor')} className={view === 'monitor' ? 'active' : ''}>Monitor</button>
               </div>

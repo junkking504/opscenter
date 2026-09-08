@@ -92,4 +92,6 @@ assert.equal(formatSlackAlert(events.find((event) => event.kind === "rescheduled
 ].join("\n"));
 assert.equal(events.filter((event) => event.fingerprint.includes("appt-5")).length, 0);
 assert.deepEqual(detectScheduleChanges(null, current), []);
+assert.deepEqual(detectScheduleChanges({...previous,date:'2026-08-16'},current),[],"Midnight rollover establishes a silent baseline");
+assert.deepEqual(detectScheduleChanges(current,{...current,appointments:[...current.appointments,{appt_id:'fresh',job_id:'JK4051999',job_status:'Scheduled',appointment_time:'5:00 PM'}]}).map(event=>event.kind),['new_appointment'],'Real additions after the baseline remain immediate');
 console.log("JunkWare schedule change detector tests passed.");

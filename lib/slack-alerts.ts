@@ -22,6 +22,7 @@ import {
 } from "@/lib/slack-closeout-details";
 import { formatSlackMessage, slackEscape, type SlackMessageField } from "@/lib/slack-message-format";
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
+import { junkwareJobPhotos } from "./junkware-job-details";
 import { closeoutCompactSummary } from "@/lib/closeout-compact-summary";
 
 export type SlackAlertSeverity = "critical" | "warning";
@@ -37,6 +38,8 @@ export type SlackAlertKind =
   | "stale_data"
   | "truck_departure"
   | "truck_arrival"
+  | "crew_summary"
+  | "schedule_summary"
   | "crew_clock_in"
   | "crew_clock_out"
   | "crew_daily_pay";
@@ -62,6 +65,7 @@ type ActiveSlackAlert = {
   threadTs: string;
   openedAt: string;
   lastSeenAt: string;
+  originalText?: string;
 };
 
 type SlackAlertState = {
@@ -81,6 +85,7 @@ type SlackAlertState = {
   deliveredTruckArrivalsByDate: Record<string, string[]>;
   truckCloseoutNotificationsInitializedAt: string;
   deliveredTruckCloseoutsByDate: Record<string, string[]>;
+  notificationMessages: Record<string, { channelId: string; ts: string; hash: string }>;
   closeoutMessages: Record<string, { channelId: string; ts: string; hash: string }>;
   paymentNotificationsInitializedAt: string;
   deliveredPaymentNotificationsByDate: Record<string, string[]>;
@@ -163,6 +168,7 @@ function emptyState(): SlackAlertState {
     deliveredTruckArrivalsByDate: {},
     truckCloseoutNotificationsInitializedAt: "",
     deliveredTruckCloseoutsByDate: {},
+    notificationMessages: {},
     closeoutMessages: {},
     paymentNotificationsInitializedAt: "",
     deliveredPaymentNotificationsByDate: {},
@@ -209,6 +215,7 @@ function readState(): SlackAlertState {
         payload?.deliveredTruckCloseoutsByDate && typeof payload.deliveredTruckCloseoutsByDate === "object"
           ? payload.deliveredTruckCloseoutsByDate
           : {},
+      notificationMessages: payload?.notificationMessages && typeof payload.notificationMessages === "object" ? payload.notificationMessages : {},
       closeoutMessages: payload?.closeoutMessages && typeof payload.closeoutMessages === "object" ? payload.closeoutMessages : {},
       paymentNotificationsInitializedAt: String(payload?.paymentNotificationsInitializedAt || ""),
       deliveredPaymentNotificationsByDate:
@@ -741,6 +748,8 @@ export function formatTruckCloseoutSlackNotification(
     kind === "estimate_closed"
       ? `*Total:* ${slackEscape(summary.total || "Not recorded")}`
       : `*Payment:* ${slackEscape(summary.payment || "Not recorded")}`,
+    ...onsiteTimeFacts(appointmentOnsiteTime({appointmentId:firstText(row,["appt_id","appointment_id"]),jkNumber:jobNumber,truck},readTruckArrivalVisitRows(date))).filter(fact=>!/^Unavailable|^Awaiting/.test(fact.value)).map(fact => `*${fact.label}:* ${slackEscape(fact.value)}`),
+    ...junkwareJobPhotos(row).map((photo,index) => `*Photo ${index + 1}:* <${photo.url}|${slackEscape(photo.category || photo.fileName || "Verified photo")}>`),
   ].filter(Boolean).join("\n");
 }
 
@@ -1171,8 +1180,45 @@ async function postSlackMessage(
 function closeoutMessageHash(alert: SlackOpsAlert): string {
   return createHash("sha256").update(formatSlackAlert(alert)).digest("hex");
 }
+// A stable notification identity owns one Slack message. Legacy deliveries with
+// no receipt stay suppressed; never repost them just to establish a receipt.
+async function syncNotificationMessages(state: SlackAlertState, alerts: SlackOpsAlert[], delivered: Set<string>, token: string, result: SlackAlertRunResult): Promise<void> {
+  for (const alert of alerts) {
+    const saved = state.notificationMessages[alert.fingerprint];
+    const hash = closeoutMessageHash(alert);
+    if (delivered.has(alert.fingerprint) && !saved) continue;
+    if (saved && (saved.channelId !== alert.channelId || saved.hash === hash)) continue;
+    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert), undefined, saved?.ts);
+    if (!response.ok || (!saved && !response.ts)) {
+      result.failures.push({fingerprint:alert.fingerprint,error:response.error || "Slack notification update failed"});
+      continue;
+    }
+    state.notificationMessages[alert.fingerprint] = {channelId:alert.channelId,ts:saved?.ts || response.ts!,hash};
+    delivered.add(alert.fingerprint);
+    if (!saved) result.posted.push(alert);
+  }
+  const dates = [...new Set(Object.keys(state.notificationMessages).map(key=>key.split(":")[1]))].sort().slice(-10);
+  state.notificationMessages = Object.fromEntries(Object.entries(state.notificationMessages).filter(([key])=>dates.includes(key.split(":")[1])));
+}
+
+export function summarizeCrewClockIns(date: string, alerts: SlackOpsAlert[]): SlackOpsAlert[] {
+  const clockIns = alerts.filter(alert=>alert.kind === 'crew_clock_in');
+  if (!clockIns.length) return alerts;
+  const fields = clockIns.map(alert => {
+    const text = alert.plainText || '';
+    const name = text.match(/\*?Krewe member:\*?\s*([^\n]+)/)?.[1] || '';
+    const time = text.match(/\*?Clock in:\*?\s*([^\n]+)/)?.[1] || '';
+    return {label:name,value:time};
+  }).filter(field=>field.label && field.value).sort((a,b)=>a.label.localeCompare(b.label));
+  if (!fields.length) return alerts.filter(alert=>alert.kind !== 'crew_clock_in');
+  return [...alerts.filter(alert=>alert.kind !== 'crew_clock_in'), {
+    ...clockIns[0],fingerprint:`crew_summary:${date}`,kind:'crew_summary',title:'Krewe Summary',
+    plainText:formatSlackMessage({icon:':busts_in_silhouette:',title:'Krewe Summary',fields}),
+  }];
+}
+
 function rememberCloseoutMessage(state: SlackAlertState, alert: SlackOpsAlert, ts: string): void {
-  if (alert.kind !== "job_closed") return;
+  if (alert.kind !== "job_closed" && alert.kind !== "estimate_closed") return;
   state.closeoutMessages[alert.fingerprint] = { channelId: alert.channelId, ts, hash: closeoutMessageHash(alert) };
   const dates = [...new Set(Object.keys(state.closeoutMessages).map(key => key.split(":")[1]))].sort().slice(-10);
   state.closeoutMessages = Object.fromEntries(Object.entries(state.closeoutMessages).filter(([key]) => dates.includes(key.split(":")[1])));
@@ -1180,7 +1226,7 @@ function rememberCloseoutMessage(state: SlackAlertState, alert: SlackOpsAlert, t
 // Fast schedule detection owns a separate state lock. Keep its receipt in a
 // separate file instead of racing the main alert-state writer.
 export function recordFastCloseoutMessage(dataDir: string, alert: SlackOpsAlert, ts: string): void {
-  if (alert.kind !== "job_closed") return;
+  if (alert.kind !== "job_closed" && alert.kind !== "estimate_closed") return;
   const file = path.join(dataDir, "slack", "closeout-receipts", `${createHash("sha256").update(alert.fingerprint).digest("hex")}.json`);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify({ channelId: alert.channelId, ts, hash: closeoutMessageHash(alert) }), { mode: 0o600 });
@@ -1191,6 +1237,19 @@ function fastCloseoutReceipt(alert: SlackOpsAlert): SlackAlertState["closeoutMes
     return JSON.parse(fs.readFileSync(path.join(dataDir, "slack", "closeout-receipts", `${createHash("sha256").update(alert.fingerprint).digest("hex")}.json`), "utf8"));
   } catch { return undefined; }
 }
+/** Only an unambiguous verified appointment and same truck channel may own photos. */
+export function closeoutMessageForPhotos(date: string, jobNumber: string, truck: string | undefined, channelId: string): string | undefined {
+  const rows = [...readCompletedJunkwareRows(date),...readClosedEstimateJunkwareRows(date)].filter(row=>firstText(row,['job_id','jk_number','job_number']).toUpperCase() === jobNumber.toUpperCase()
+    && normalizeSlackTruckNumber(closeoutTruck(row)) === normalizeSlackTruckNumber(truck || ''));
+  const appointments = new Map(rows.map(row=>[firstText(row,['appt_id','appointment_id']),row]));
+  if (appointments.size !== 1 || ![...appointments.keys()][0]) return undefined;
+  const row = [...appointments.values()][0];
+  const [alert] = isEstimateCloseoutRow(row) ? buildTruckEstimateCloseoutSlackNotifications(date,[row]) : buildTruckCloseoutSlackNotifications(date,[row]);
+  if (!alert || alert.channelId !== channelId) return undefined;
+  const receipt = readState().closeoutMessages[alert.fingerprint] || fastCloseoutReceipt(alert);
+  return receipt?.channelId === channelId ? receipt.ts : undefined;
+}
+
 async function refreshCloseoutMessages(state: SlackAlertState, alerts: SlackOpsAlert[], token: string, result: SlackAlertRunResult): Promise<void> {
   for (const alert of alerts) {
     const saved = state.closeoutMessages[alert.fingerprint] || fastCloseoutReceipt(alert);
@@ -1330,15 +1389,7 @@ async function runTruckArrivalSlackAlerts(options: {
     return result;
   }
 
-  for (const alert of pending) {
-    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
-    if (!response.ok || !response.ts) {
-      result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
-      continue;
-    }
-    delivered.add(alert.fingerprint);
-    result.posted.push(alert);
-  }
+  await syncNotificationMessages(state, allNotifications.filter(alert=>kinds.has(alert.kind)), delivered, token, result);
 
   state.deliveredTruckArrivalsByDate[date] = Array.from(delivered);
   state.deliveredTruckArrivalsByDate = pruneTruckArrivalDates(state.deliveredTruckArrivalsByDate);
@@ -1435,7 +1486,7 @@ export async function runSlackOpsAlerts(options?: {
   const incidents = collectIncidentAlerts(date);
   const feed = buildAddOnAppointmentFeed(date);
   const cancellationFeed = buildCancelledAppointmentFeed(date);
-  const allCrewNotifications = buildCrewSlackNotifications(date, crewRows(readMetrics(date)));
+  const allCrewNotifications = summarizeCrewClockIns(date, buildCrewSlackNotifications(date, crewRows(readMetrics(date))));
   const crewNotificationsInitialized = Boolean(state.crewNotificationsInitializedAt);
   const deliveredCrewNotifications = new Set(state.deliveredCrewNotificationsByDate[date] || []);
   const crewNotifications = crewNotificationsInitialized
@@ -1580,7 +1631,7 @@ export async function runSlackOpsAlerts(options?: {
     }
     const existing = state.active[alert.fingerprint];
     if (existing) {
-      state.active[alert.fingerprint] = { ...existing, lastSeenAt: now };
+      state.active[alert.fingerprint] = { ...existing, lastSeenAt: now, originalText: formatSlackAlert(alert) };
       result.unchanged += 1;
       continue;
     }
@@ -1597,6 +1648,7 @@ export async function runSlackOpsAlerts(options?: {
       threadTs: response.ts,
       openedAt: now,
       lastSeenAt: now,
+      originalText: formatSlackAlert(alert),
     };
     result.posted.push(alert);
   }
@@ -1610,7 +1662,8 @@ export async function runSlackOpsAlerts(options?: {
     const response = await postSlackMessage(
       token,
       active.channelId,
-      `:white_check_mark: *Resolved in OpsCenter*\n_${now}_`,
+      `:white_check_mark: *Resolved*\n${active.originalText || `*Incident:* ${slackEscape(active.kind.replace(/_/g, " "))}\n*Reference:* ${slackEscape(active.fingerprint)}`}\n*Recovered:* ${new Intl.DateTimeFormat("en-US", {timeZone:"America/Chicago",dateStyle:"medium",timeStyle:"short"}).format(new Date(now))} CT`,
+      undefined,
       active.threadTs,
     );
     if (!response.ok) {
@@ -1636,24 +1689,15 @@ export async function runSlackOpsAlerts(options?: {
     result.posted.push(alert);
   }
 
-  for (const alert of crewNotifications) {
-    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
-    if (!response.ok || !response.ts) {
-      result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
-      continue;
-    }
-    deliveredCrewNotifications.add(alert.fingerprint);
-    result.posted.push(alert);
-  }
-
-  for (const alert of truckArrivalNotifications) {
-    const response = await postSlackMessage(token, alert.channelId, formatSlackAlert(alert));
-    if (!response.ok || !response.ts) {
-      result.failures.push({ fingerprint: alert.fingerprint, error: response.error || "Slack did not return a message timestamp" });
-      continue;
-    }
-    deliveredTruckArrivals.add(alert.fingerprint);
-    result.posted.push(alert);
+  await syncNotificationMessages(state, allCrewNotifications, deliveredCrewNotifications, token, result);
+  await syncNotificationMessages(state, allTruckArrivalNotifications, deliveredTruckArrivals, token, result);
+  // The day's first snapshot is a baseline. Publish one summary during operations,
+  // while the separate detector continues delivering real same-day changes.
+  const hour = Number(new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'2-digit',hourCycle:'h23'}).format(new Date()));
+  const summaryFingerprint = `schedule_summary:${date}`;
+  if (date === chicagoDateKey() && hour >= 6 && feed.appointments.length && !state.notificationMessages[summaryFingerprint]) {
+    const summary: SlackOpsAlert = {fingerprint:summaryFingerprint,kind:'schedule_summary',lifecycle:'notification',severity:'warning',channelId:channel('command'),title:'Schedule Summary',detail:'',nextAction:'',href:'',plainText:formatSlackMessage({icon:':calendar:',title:'Schedule Summary',fields:[{label:'Operating day',value:date},{label:'Appointments',value:String(feed.appointments.length)},{label:'Schedule',value:'Open today’s schedule',href:`${origin()}/schedule?date=${date}`}]})};
+    await syncNotificationMessages(state,[summary],new Set(),token,result);
   }
 
   await refreshCloseoutMessages(state, allTruckCloseoutNotifications, token, result);

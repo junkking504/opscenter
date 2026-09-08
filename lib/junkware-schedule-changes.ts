@@ -129,7 +129,7 @@ function rowMap(rows: AnyRecord[]): Map<string, AnyRecord> {
 }
 
 export function detectScheduleChanges(previous: Snapshot | null, current: Snapshot): ScheduleChange[] {
-  if (!previous) return [];
+  if (!previous || previous.date !== current.date) return [];
   const priorAppointments = rowMap(previous.appointments);
   const priorCancelled = rowMap(previous.cancelled);
   const events: ScheduleChange[] = [];
@@ -325,7 +325,7 @@ export async function publishScheduleChanges(
   return withStateLock(dataDir, async () => {
     const state = readState(dataDir);
     const previous = scopeBaseline(state, scope);
-    if (!previous) {
+    if (!previous || previous.date !== snapshot.date) {
       writeState(dataDir, { ...state, snapshots: { ...state.snapshots, [scope]: snapshot } });
       return { baselined: true, posted: [], failed: [] };
     }

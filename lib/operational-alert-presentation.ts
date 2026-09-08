@@ -13,6 +13,7 @@ export type OperationalAlert = {
   threadReply?: boolean;
   sourceMessageIds?: string[];
   corrected?: boolean;
+  resolved?: boolean;
   updatedAt?: string;
   label: string;
   territory?: string;
@@ -68,27 +69,32 @@ function jobNumber(message: SlackDigestMessage, lines: string[]): string {
 function classifyAlert(message: SlackDigestMessage, lines: string[]): Pick<OperationalAlert, "label" | "domain" | "owner" | "next" | "needsAction"> {
   const text = lines.join(" ");
   const heading = lines[0] || "";
+  if (message.resolved || /^Resolved$/i.test(heading)) return {label:'Resolved',domain:'Command',owner:'Mission Control',next:'Recovered · No action required.',needsAction:false};
+  if (/^(Krewe|Schedule) Summary/i.test(heading)) return {label:/Krewe/i.test(heading)?'Krewe Summary':'Schedule Summary',domain:/Krewe/i.test(heading)?'Krewe':'Schedule',owner:'Dispatch',next:'Recorded · No action required.',needsAction:false};
   if (/reschedul/i.test(heading)) return { label: "Rescheduled", domain: "Schedule", owner: "Dispatch", next: "Confirm the updated route and appointment window.", needsAction: true };
   if (/clock(?:ed)?[ -]?in/i.test(heading)) return { label: "Clock In", domain: "Krewe", owner: "Dispatch", next: "Confirm the crew assignment.", needsAction: false };
   if (/clock(?:ed)?[ -]?out/i.test(heading)) return { label: "Clock Out", domain: "Krewe", owner: "Dispatch", next: "Review the completed shift.", needsAction: false };
   if (/final(?:ized)? (?:daily )?pay/i.test(heading)) return { label: "Final Daily Pay", domain: "Krewe", owner: "Payroll", next: "Review the recorded final pay breakdown.", needsAction: false };
   if (/fuel|dump|receipt/i.test(heading)) return { label: /fuel/i.test(heading) ? "Fuel Receipt" : /dump/i.test(heading) ? "Dump Receipt" : "Receipt Recorded", domain: "Fleet", owner: "Fleet", next: "Review the recorded receipt.", needsAction: false };
   if (/cancel/i.test(heading)) return { label: "Cancellation", domain: "Schedule", owner: "Dispatch", next: "Review the reason and reuse the open capacity.", needsAction: true };
-  if (/estimate.*(?:closed|completed)|(?:closed|completed).*estimate/i.test(heading)) return { label: "Estimate Completed", domain: "Schedule", owner: "Dispatch", next: "Review the estimate outcome and follow-up.", needsAction: true };
+  if (/estimate.*(?:closed|completed)|(?:closed|completed).*estimate/i.test(heading)) return { label: "Estimate Completed", domain: "Schedule", owner: "Dispatch", next: "Estimate outcome recorded.", needsAction: false };
   if (/depart/i.test(heading)) return { label: "Departure", domain: "Schedule", owner: "Dispatch", next: "Review the next stop and closeout status.", needsAction: false };
-  if (/payment recorded/i.test(heading)) return { label: "Payment Recorded", domain: "Finance", owner: "Finance", next: "Await closeout and verify the payment.", needsAction: true };
+  if (/payment recorded/i.test(heading)) return { label: "Payment Recorded", domain: "Finance", owner: "Finance", next: "Payment recorded; settlement verification is separate.", needsAction: false };
   if (/on[ -]?site|arriv/i.test(heading)) return { label: "Arrival", domain: "Schedule", owner: "Dispatch", next: "Confirm the route remains on plan.", needsAction: false };
   if (/photo/i.test(heading)) {
     const needsAction = /not verified|unverified|missing|pending/i.test(text) || !/\bverified\b/i.test(text);
     return { label: "Photos Uploaded", domain: "Schedule", owner: "Dispatch", next: needsAction ? "Verify required closeout photos." : "Complete · No action required.", needsAction };
   }
-  if (/job (?:closed|completed)/i.test(heading) || /closed|completed|closeout|payment|total/i.test(text) && message.closeout) return { label: "Job Completed", domain: "Finance", owner: "Finance", next: "Verify totals, payment, and closeout evidence.", needsAction: true };
+  if (/job (?:closed|completed)/i.test(heading) || /closed|completed|closeout|payment|total/i.test(text) && message.closeout) return { label: "Job Completed", domain: "Finance", owner: "Finance", next: "Closeout recorded.", needsAction: false };
   if (/new appointment/i.test(text) || message.appointment) return { label: "New Appointment", domain: "Schedule", owner: "Dispatch", next: "Place the appointment in the live route plan.", needsAction: true };
   if (/fleet|truck/i.test(message.channel)) return { label: "Fleet Update", domain: "Fleet", owner: "Fleet", next: "Review the truck record and required response.", needsAction: true };
   return { label: "Operational Update", domain: "Command", owner: "Mission Control", next: "Review the source record and assign the next action.", needsAction: true };
 }
 
 export function factsForAlert(message: SlackDigestMessage, lines: string[]): EssentialFact[] {
+  if (/^(Krewe|Schedule) Summary|^Resolved$/i.test(lines[0] || '') || message.resolved) {
+    return lines.slice(1).flatMap(line=> {const match=line.match(/^([^:]+):\s*(.+)$/);return match?[{label:match[1],value:match[2]}]:[{label:'Incident',value:line}];});
+  }
   // Existing crew notifications use sentence headings and labelled fields.
   // Keep their full operational facts when presenting historical messages.
   if (/clock(?:ed)?[ -]?(?:in|out)|final(?:ized)? (?:daily )?pay/i.test(lines[0] || "")) {
@@ -200,6 +206,7 @@ export function toOperationalAlert(message: SlackDigestMessage): OperationalAler
     threadReply: message.threadReply,
     sourceMessageIds: message.sourceMessageIds,
     corrected: message.corrected,
+    resolved: message.resolved || classification.label === "Resolved",
     updatedAt: message.updatedAt,
     ...classification,
     territory: classification.label === "New Appointment"

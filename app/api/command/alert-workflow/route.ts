@@ -1,3 +1,5 @@
+import { streamlineOperationalAlerts } from '@/lib/streamlined-operational-alerts';
+import { readJobRows } from '@/lib/desktop-schedule-source';
 import { consolidateConfirmedVisitAlerts } from '@/lib/confirmed-visit-alerts';
 import { readScheduleVisits } from '@/lib/desktop-schedule-visits';
 import { NextResponse } from "next/server";
@@ -61,7 +63,7 @@ export async function POST(request: Request) {
       const message = digest.messages.find(candidate=>candidate.id===body.alertId);
       if (!message) return NextResponse.json({ error: 'The source alert is unavailable. Refresh and try again.' }, { status: 404, headers });
       sourceObservedAt = message.timestamp;
-      alert = consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,opsAuthRole(actor.externalIdentity))), readScheduleVisits(date).visits).find(candidate=>candidate.id===message.id || candidate.sourceMessageIds?.includes(message.id)) || toOperationalAlert(message);
+      alert = streamlineOperationalAlerts(consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,opsAuthRole(actor.externalIdentity))), readScheduleVisits(date).visits),readJobRows(date),date).find(candidate=>candidate.id===message.id || candidate.sourceMessageIds?.includes(message.id)) || toOperationalAlert(message);
       if (alert.source==='OpsCenter' && alert.updatedAt) sourceObservedAt=alert.updatedAt;
     }
     const existingItems = await listCommandAlertWorkItems(date);

@@ -1,3 +1,4 @@
+import { closeoutMessageForPhotos } from './slack-alerts';
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -294,6 +295,7 @@ async function uploadSlackBatch(
   file: string,
   batch: WhatsAppPhotoSlackBatch,
   fetchImpl: typeof fetch,
+  threadTs?: string,
 ): Promise<{ payload: SlackApiResponse; retryAfterSeconds: number }> {
   const staged = new Map((batch.slackStagedFiles || []).map((entry) => [entry.messageId, entry]));
   let retryAfterSeconds = 0;
@@ -349,6 +351,7 @@ async function uploadSlackBatch(
       return { id: entry?.fileId, title: entry?.title };
     }),
     channel_id: channelId,
+    ...(threadTs ? {thread_ts:threadTs} : {}),
     initial_comment: formatWhatsAppPhotoSlackNotification(batch),
   }, fetchImpl);
   return {
@@ -384,16 +387,18 @@ export async function deliverWhatsAppPhotoSlackNotifications(options?: {
 
   for (const { file, batch } of eligibleBatches(options?.limit ?? 10, now)) {
     const channelId = truckSlackChannelId(batch.truck, fallbackChannelId);
+    const threadTs = closeoutMessageForPhotos(batch.jobDate,batch.jkNumber,batch.truck,channelId);
     result.attempted += 1;
     let responsePayload: SlackApiResponse = { ok: false, error: "Slack request failed" };
     let retryAfterSeconds = 0;
     if (attachmentsEnabled) {
-      const upload = await uploadSlackBatch(token, channelId, file, batch, fetchImpl);
+      const upload = await uploadSlackBatch(token, channelId, file, batch, fetchImpl, threadTs);
       responsePayload = upload.payload;
       retryAfterSeconds = upload.retryAfterSeconds;
     } else {
       const message = await slackApiRequest(token, "chat.postMessage", {
         channel: channelId,
+        ...(threadTs ? {thread_ts:threadTs} : {}),
         text: formatWhatsAppPhotoSlackNotification(batch),
         mrkdwn: true,
         unfurl_links: false,

@@ -1,4 +1,4 @@
-type VisitRecord = { onsite_minutes?: number; appointment_id?: string; appt_id?: string; jk_number?: string; job_id?: string; truck_number?: string | number; truck?: string; match_confidence?: string; pass_by_only?: boolean; first_arrival?: string; arrival_at?: string; final_departure?: string; departure_at?: string; visit_intervals?: Array<{arrival?: string; departure?: string | null}> };
+type VisitRecord = { onsite_minutes?: number; appointment_id?: string; appt_id?: string; jk_number?: string; job_id?: string; truck_number?: string | number; truck?: string; match_confidence?: string; pass_by_only?: boolean; first_arrival?: string; arrival_at?: string; final_departure?: string; departure_at?: string; visit_intervals?: Array<{arrival?: string; departure?: string | null; departure_confirmed?: boolean}> };
 
 export type AppointmentOnsiteTime = { minutes: number | null; arrival: string | null; departure: string | null; label: string };
 const truckKey = (value: unknown) => String(value || '').match(/\d+/)?.[0]?.replace(/^0+/, '') || '';
@@ -19,7 +19,7 @@ export function appointmentOnsiteTime(job: { appointmentId?: string; jkNumber?: 
     for (const interval of source) {
       const start = Date.parse(interval.arrival || '');
       if (!Number.isFinite(start) || start > now) { invalid = true; continue; }
-      if (!interval.departure) { pending = true; continue; }
+      if (!interval.departure || interval.departure_confirmed === false) { pending = true; continue; }
       const end = Date.parse(interval.departure);
       if (!Number.isFinite(end) || end <= start || end > now) { invalid = true; continue; }
       intervals.push([start, end]);

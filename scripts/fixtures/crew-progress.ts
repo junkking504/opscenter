@@ -1,3 +1,4 @@
+import { streamlineOperationalAlerts } from '../../lib/streamlined-operational-alerts';
 import { consolidateConfirmedVisitAlerts } from '../../lib/confirmed-visit-alerts';
 import type { OperationalAlert } from '../../lib/operational-alert-presentation';
 import { buildCrewProgress } from '../../lib/crew-progress';
@@ -12,7 +13,7 @@ export const job = (values: Partial<Parameters<typeof buildCrewProgress>[0]['app
 export const alert = (id: string, label: string, stamp: string, values: Partial<DesktopAlert> = {}): DesktopAlert => ({
   id,label,timestamp:stamp,detected:new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}).format(new Date(stamp)),domain:'Schedule',priority:'watch',title:'Truck 2 · JK1000001',truck:'Truck 2',detail:'',owner:'Dispatch',source:'Slack',action:'Open record',context:'Review crew progress.',facts:[],href:'/jobs?date=2026-09-07#job-jk1000001',needsAction:false,workflowState:'active',version:0,...values,
 });
-export function fixtureSnapshot(): DesktopCommandSnapshot {
+export function fixtureSnapshot(streamlined = false): DesktopCommandSnapshot {
   const appointments = [job(),job({photos:[{url:'/tests/fixture-photo.svg',category:'Before',fileName:'synthetic-pickup.svg'}],appointmentId:'102',jkNumber:'JK1000002',status:'Open',appointmentTime:'11:00 AM – 12:00 PM',appointmentStartMinutes:660,appointmentEndMinutes:720,closeout:null,paymentAmount:0,paymentType:'',completedAt:''}),job({appointmentId:'103',jkNumber:'JK1000003',truck:'Truck 3',status:'Open',territory:'Baton Rouge',appointmentTime:'10:00 AM – 11:00 AM',appointmentStartMinutes:600,appointmentEndMinutes:660,closeout:null,paymentAmount:0,paymentType:'',completedAt:''})];
   const visits = [{appointment_id:'101',jk_number:'JK1000001',visit_count:1,truck_number:2,match_confidence:'confirmed',first_arrival:'2026-09-07T13:05:00Z',final_departure:'2026-09-07T14:10:00Z'}, {appointment_id:'103',truck_number:3,match_confidence:'confirmed',first_arrival:'2026-09-07T15:05:00Z'}];
   const alerts = [
@@ -23,7 +24,10 @@ export function fixtureSnapshot(): DesktopCommandSnapshot {
     alert('arrival-three','Arrival','2026-09-07T15:05:00Z',{title:'Truck 3 · JK1000003',truck:'Truck 3',facts:[{label:'Arrival',value:'10:05 AM'}],href:'/jobs?date=2026-09-07#job-jk1000003'}),
     alert('clock-in','Clock In','2026-09-07T14:20:00Z',{title:'Example driver',truck:undefined,domain:'Krewe',facts:[{label:'Krewe member',value:'Example driver'},{label:'Clock in',value:'9:20 AM'}]}),
   ].reverse();
-  const combined = consolidateConfirmedVisitAlerts(alerts as unknown as OperationalAlert[],visits,now).map(update=>({...alerts.find(alert=>alert.id===update.id)!,...update}));
+  let combined = consolidateConfirmedVisitAlerts(alerts as unknown as OperationalAlert[],visits,now).map(update=>({...alerts.find(alert=>alert.id===update.id)!,...update}));
+  if (streamlined) combined = streamlineOperationalAlerts(combined as unknown as OperationalAlert[],appointments,'2026-09-07').map(update=>({...combined.find(alert=>alert.id===update.id)!,...update}));
+  const progress=buildCrewProgress({date:'2026-09-07',appointments,visits,alerts:combined,scheduleCurrent:true,visitsCurrent:true,updatesComplete:true,now});
+  if (streamlined) for (const job of progress.jobs.filter(job=>job.needsFollowUp)) {const latest=[...combined].sort((a,b)=>(b.timestamp||'').localeCompare(a.timestamp||'')).find(alert=>job.updateIds.includes(alert.id));if(latest) latest.needsAction=true;}
   return {date:'2026-09-07',generatedAt:new Date(now).toISOString(),actor:{displayName:'Preview operator',role:'manager'},kpis:[],sources:{alerts:true,metrics:true,workflow:true},alerts:combined,
-    crewProgress:buildCrewProgress({date:'2026-09-07',appointments,visits,alerts:combined,scheduleCurrent:true,visitsCurrent:true,updatesComplete:true,now})};
+    crewProgress:progress};
 }

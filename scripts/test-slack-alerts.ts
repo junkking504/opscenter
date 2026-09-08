@@ -15,6 +15,7 @@ import {
   buildCancellationSlackNotification,
   buildPaymentCloseoutSlackNotifications,
   buildCrewSlackNotifications,
+  summarizeCrewClockIns,
   buildTruckArrivalSlackNotifications,
   buildTruckDepartureSlackNotifications,
   recordFastCloseoutMessage,
@@ -732,6 +733,17 @@ try {
   assert.equal((await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['truck_arrival']})).posted.length,0);
   assert.deepEqual((await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['truck_departure']})).posted.map(a=>a.kind),['truck_departure']);
   assert.equal((await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['truck_departure']})).posted.length,0);
+  const departureReceipt = JSON.parse(fs.readFileSync(paymentStateFile,'utf8')).notificationMessages;
+  const receipt = Object.entries(departureReceipt).find(([key])=>key.startsWith('truck_departure:'))?.[1] as {ts:string};
+  fs.writeFileSync(arrivalVisitsFile,JSON.stringify({visits:[{...visit,first_arrival:'2026-08-12T18:47:43Z',visit_intervals:[{arrival:'2026-08-12T18:47:43Z',departure:'2026-08-12T19:15:00Z'}]}]}));
+  const postsBeforeCorrection = postedMessages.length;
+  await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['truck_departure']});
+  assert.equal(postedMessages.length,postsBeforeCorrection,'Corrected final departure updates its original message');
+  assert.equal(updates.at(-1)?.ts,receipt.ts);
+  assert.match(updates.at(-1)!.text,/2:15 PM/);
+  await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['truck_departure']});
+  assert.equal(updates.length,1,'An unchanged correction does not repeat');
+  updates.length=0;
   const currentVisitState = fs.readFileSync(paymentStateFile, "utf8");
   // Reproduce a late provider replay with a confirmed interval that has never
   // been delivered, so deduplication alone cannot make these assertions pass.
@@ -785,7 +797,8 @@ try {
   ]);
 
   const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });
-  assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), []);
+  assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), ["schedule_summary"]);
+  assert.match(postedMessages.pop()!, /Schedule Summary/);
   assert.deepEqual(postedMessages, [
     expectedNewCloseoutMessage,
     expectedNewEstimateCloseoutMessage,
@@ -805,6 +818,7 @@ try {
   delete receiptState.closeoutMessages[receiptAlert.fingerprint];
   fs.writeFileSync(paymentStateFile,JSON.stringify(receiptState));
   const originalPostCount=postedMessages.length;
+  updates.length=0;
   await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['job_closed']});
   assert.equal(postedMessages.length,originalPostCount);assert.equal(updates.length,1);assert.match(updates[0].text,/xx-2463/);assert.equal(updates[0].ts,'1000.1');
   await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['job_closed']});assert.equal(updates.length,1);
@@ -833,6 +847,9 @@ try {
     "*C:* Direct Closeout Customer  |  *D:* Direct Driver  |  *N:* Direct Navigator",
     "*Load:* $100.00 (1/6)",
     "*Payment:* $110.00 (xx-1503)",
+    "*On-site time:* 17.3 min",
+    "*Arrival:* 1:47 PM",
+    "*Departure:* 2:05 PM",
   ].join("\n"));
 
   const duplicateDirectCloseout = await publishVerifiedTruckCloseout({
@@ -961,6 +978,14 @@ try {
     process.chdir(priorWorkingDirectory);
     process.env.SLACK_OPSCENTER_STATE_FILE = paymentStateFile;
   }
+  const recoveryState=JSON.parse(fs.readFileSync(paymentStateFile,'utf8'));
+  recoveryState.active['stale_data:recovered-fixture']={fingerprint:'stale_data:recovered-fixture',kind:'stale_data',channelId:'C_TEST_COMMAND',threadTs:'1000.recovery',openedAt:'2026-08-12T10:00:00Z',lastSeenAt:'2026-08-12T10:00:00Z',originalText:'*JunkWare unavailable*\n*Source:* JunkWare schedule'};
+  fs.writeFileSync(paymentStateFile,JSON.stringify(recoveryState));
+  const recovered=await runSlackOpsAlerts({date:'2026-08-12'});
+  assert.ok(recovered.resolved.some(item=>item.threadTs==='1000.recovery'));
+  const recovery=updates.find(item=>item.ts==='1000.recovery');
+  assert.match(recovery!.text,/Resolved[\s\S]*JunkWare unavailable[\s\S]*Recovered:/);
+  assert.ok(!postedMessages.some(text=>/Resolved in OpsCenter/.test(text)),'Recovery never creates a detached alert');
 } finally {
   globalThis.fetch = originalFetch;
   delete process.env.SLACK_OPSCENTER_STATE_FILE;
@@ -1071,3 +1096,9 @@ main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
 }).finally(() => mock.timers.reset());
+
+const crewSummary = summarizeCrewClockIns('2026-08-12',buildCrewSlackNotifications('2026-08-12',[{name:'Example Person',clock_in:'8:00 AM'},{name:'Second Person',clock_in:'8:15 AM'}]));
+assert.equal(crewSummary.length,1);
+assert.equal(crewSummary[0].kind,'crew_summary');
+assert.match(formatSlackAlert(crewSummary[0]),/Example Person.*8:00 AM/);
+assert.match(formatSlackAlert(crewSummary[0]),/Second Person.*8:15 AM/);

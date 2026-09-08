@@ -95,6 +95,7 @@ type SlackHistoryResponse = {
 };
 
 export type SlackDigestMessage = {
+  resolved?: boolean;
   eventFingerprint?: string;
   sourceMessageIds?: string[];
   updatedAt?: string;
@@ -709,6 +710,17 @@ async function channelMessages(
           continue;
         }
         const item = digestMessage(channelId, reply, appointments, closeouts, date);
+        if (item && /Resolved in OpsCenter/i.test(reply.text || '') && (reply.user && reply.user === root.user)) {
+          const parent = messages.find(message=>message.id === `${channelId}:${root.ts}`);
+          if (parent) {
+            parent.resolved = true;
+            parent.sourceMessageIds = [...new Set([parent.id,...(parent.sourceMessageIds || []),item.id])];
+            parent.updatedAt = item.timestamp;
+            const recovered = new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',dateStyle:'medium',timeStyle:'short'}).format(new Date(item.timestamp));
+            parent.rawText += `\n*Recovered:* ${recovered} CT`;
+            continue;
+          }
+        }
         if (item) messages.push(item);
       }
       replyCursor = String(response.response_metadata?.next_cursor || "").trim();

@@ -5,7 +5,7 @@ type Visit = {
   truck_number?: string | number; truck?: string; match_confidence?: string; pass_by_only?: boolean;
   first_arrival?: string; final_departure?: string;
   visit_count?: number;
-  visit_intervals?: Array<{arrival?: string; departure?: string | null}>;
+  visit_intervals?: Array<{arrival?: string; departure?: string | null; departure_confirmed?: boolean}>;
 };
 const truckKey = (value: unknown) => String(value || '').match(/\d+/)?.[0]?.replace(/^0+/, '') || '';
 const day = (stamp: string) => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date(stamp));
@@ -37,7 +37,7 @@ export function consolidateConfirmedVisitAlerts(alerts: OperationalAlert[], visi
         : visit.visit_count === 1 ? [{arrival:visit.first_arrival,departure:visit.final_departure}] : [];
       for (const interval of intervals) {
         const start = Date.parse(interval.arrival || ''), end = Date.parse(interval.departure || '');
-        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || end > now) continue;
+        if (interval.departure_confirmed === false || !Number.isFinite(start) || !Number.isFinite(end) || end <= start || end > now) continue;
         const arrival = interval.arrival!, departure = interval.departure!;
         // Clock-only legacy messages cannot safely identify overnight visits.
         if (day(arrival) !== day(departure) || day(stamp) !== day(arrival)) continue;

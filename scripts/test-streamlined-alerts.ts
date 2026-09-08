@@ -1,0 +1,58 @@
+import { fetchSlackDailyDigest } from '../lib/slack-digest';
+import assert from 'node:assert/strict';
+import { streamlineOperationalAlerts, requiresAlertAttention } from '../lib/streamlined-operational-alerts';
+import { toOperationalAlert, type OperationalAlert } from '../lib/operational-alert-presentation';
+import { consolidateConfirmedVisitAlerts } from '../lib/confirmed-visit-alerts';
+import { appointmentOnsiteTime } from '../lib/appointment-onsite-time';
+import { job,alert,now } from './fixtures/crew-progress';
+const day='2026-09-07';
+const make=(id:string,label:string,time:string,values:Parameters<typeof alert>[3]={})=>({...alert(id,label,time,values),next:'Recorded'}) as OperationalAlert;
+const completed=job({bookedAt:'2026-09-06T18:00:00Z',photos:[{url:'https://example.invalid/photo.jpg',category:'Before',fileName:'photo.jpg'}]});
+const sources=[
+  make('opening','New Appointment','2026-09-07T05:00:02Z'),
+  make('fresh','New Appointment','2026-09-07T14:00:00Z'),
+  make('done','Job Completed','2026-09-07T14:08:00Z',{facts:[{label:'Payment',value:'Cash · $450.00'}]}),
+  make('duration','Duration','2026-09-07T14:10:00Z',{sourceMessageIds:['arrival','departure'],facts:[{label:'Duration',value:'65 min'}]}),
+  make('photos','Photos Uploaded','2026-09-07T14:11:00Z'),
+  make('clock-a','Clock In','2026-09-07T13:00:00Z',{title:'Example A',facts:[{label:'Clock in',value:'8:00 AM'}]}),
+  make('clock-b','Clock In','2026-09-07T13:02:00Z',{title:'Example B',facts:[{label:'Clock in',value:'8:02 AM'}]}),
+];
+const result=streamlineOperationalAlerts(sources,[completed],day);
+const done=result.find(row=>row.id==='done')!;
+assert.equal(result.filter(row=>row.label==='Job Completed').length,1);
+assert.deepEqual(done.sourceMessageIds,['done','duration','arrival','departure','photos']);
+assert.equal(done.photos?.length,1);
+assert.equal(done.facts.find(f=>f.label==='Duration')?.value,'65 min');
+assert.equal(result.filter(row=>row.label==='Krewe Summary').length,1);
+assert.deepEqual(result.find(row=>row.label==='Krewe Summary')?.facts,[{label:'Example A',value:'8:00 AM'},{label:'Example B',value:'8:02 AM'}]);
+assert.equal(result.find(row=>row.id==='opening')?.label,'Schedule Summary');
+assert.equal(result.find(row=>row.id==='fresh')?.label,'New Appointment');
+assert.equal(streamlineOperationalAlerts(sources,[{...completed,bookedAt:''}],day).find(row=>row.id==='opening')?.label,'New Appointment','Unknown booking dates remain visible');
+const ambiguous=streamlineOperationalAlerts(sources,[completed,{...completed,appointmentId:'other',appointmentType:'Estimate'}],day);
+assert.ok(ambiguous.some(row=>row.id==='duration'),'Ambiguous appointment retains duration');
+const multiple=streamlineOperationalAlerts([...sources,make('second-visit','Duration','2026-09-07T14:14:00Z')],[completed],day);
+assert.equal(multiple.filter(row=>row.label==='Duration').length,2,'Separate visits remain separate');
+const visit={appointment_id:'101',jk_number:'JK1000001',truck_number:2,match_confidence:'confirmed',visit_count:1,visit_intervals:[{arrival:'2026-09-07T13:05:00Z',departure:'2026-09-07T14:10:00Z',departure_confirmed:false}]};
+assert.equal(appointmentOnsiteTime(completed,[visit],now).minutes,null,'Unconfirmed exit never becomes final duration');
+assert.equal(consolidateConfirmedVisitAlerts([make('d','Departure','2026-09-07T14:10:00Z',{facts:[{label:'Departure',value:'9:10 AM'}]})],[visit],now)[0].label,'Departure');
+for(const state of ['acknowledged','resolved']) assert.equal(requiresAlertAttention({needsAction:true,workflowState:state}),false);
+assert.equal(requiresAlertAttention({needsAction:false,workflowState:'active'}),false);
+assert.equal(requiresAlertAttention({needsAction:false,workflowState:'in-control'}),true);
+assert.equal(requiresAlertAttention({needsAction:true,workflowState:'active'}),true);
+const recovery=toOperationalAlert({id:'incident',channel:'#data',timestamp:'2026-09-07T14:10:00Z',rawText:':white_check_mark: *Resolved*\n*Incident:* JunkWare stale\n*Recovered:* Sep 7, 2026, 9:10 AM CT',text:'',threadReply:false});
+assert.equal(recovery.needsAction,false);assert.equal(recovery.resolved,true);
+assert.ok(recovery.facts.some(f=>f.label==='Recovered'));
+console.log('Streamlined alerts passed: day baseline, current additions, summaries, completion evidence, ambiguous visits, source aliases and attention counts.');
+
+async function checkRecovery() {
+  const root={ts:'1788793200.000001',user:'BOT',text:'*JunkWare unavailable*\n*Source:* JunkWare schedule',reply_count:2};
+  const reply={ts:'1788793500.000001',thread_ts:root.ts,user:'BOT',text:':white_check_mark: *Resolved in OpsCenter*'};
+  const unrelated={ts:'1788793600.000001',thread_ts:root.ts,user:'OPERATOR',text:'Dispatch confirmed route'};
+  const digest=await fetchSlackDailyDigest('2026-09-07',{token:'xoxb-fixture',channelIds:['TEST'],appointments:[],completedRows:[],fetchImpl:async input=>Response.json({ok:true,messages:String(input).includes('conversations.history')?[root]:[root,reply,unrelated]})});
+  assert.equal(digest.messages.length,2,'Only the exact same-author recovery is folded into its parent');
+  const incident=digest.messages.find(item=>item.id===`TEST:${root.ts}`)!;
+  assert.equal(incident.resolved,true);
+  assert.ok(incident.sourceMessageIds?.includes(`TEST:${reply.ts}`));
+  assert.match(incident.rawText,/JunkWare unavailable[\s\S]*Recovered:/);
+}
+void checkRecovery().catch(error=>{console.error(error);process.exitCode=1;});

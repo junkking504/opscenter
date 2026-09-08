@@ -40,6 +40,7 @@
     "verify:junkware-schedule-changes": "node --import tsx scripts/test-junkware-schedule-changes.ts",
     "verify:junkware-fast-schedule": "node --import tsx scripts/test-junkware-fast-schedule.ts && node --import tsx scripts/test-junkware-under-60s.ts",
     "verify:corrected-crew-pay": "node --import tsx scripts/test-corrected-crew-pay.ts && node --import tsx scripts/test-desktop-krewe-day-edits.ts",
+    "verify:streamlined-alerts": "node --import tsx scripts/test-streamlined-alerts.ts",
     "verify:crew-progress": "node --import tsx scripts/test-crew-progress-alerts.ts && node --import tsx scripts/test-crew-clock-out-alerts.ts",
     "verify:crew-progress:browser": "node scripts/test-crew-progress-browser.mjs",
     "verify:slack-digest": "node --import tsx scripts/test-slack-digest.ts",

@@ -1,5 +1,39 @@
 # OpsCenter Slack alerts
 
+## Operational notification policy
+
+The fast schedule detector silently baselines each new Chicago operating day.
+Existing bookings do not become new-appointment alerts at midnight. The main
+publisher posts one Schedule Summary after 6 AM; actual additions, cancellations,
+and reschedules after the baseline continue immediately.
+
+Clock-ins use one updating Krewe Summary per day. Recorded clock-outs/final pay
+retain their existing combined shift record. Attendance summaries do not infer
+lateness or absent employees without an authoritative expected roster.
+
+Visit identities use appointment, truck, operating day and arrival timestamp.
+Delivery receipts let corrected departures update their original Slack message.
+Previously delivered visits without receipts remain suppressed. Historical-day
+GPS replays remain silent. An explicitly unconfirmed exit cannot establish a
+final duration.
+
+Completion messages include available verified photos, payment and confirmed
+onsite time; subsequent facts update the original completion. Photo batches
+attach in its thread only when a unique verified appointment and same-channel
+completion receipt exist. Otherwise the existing photo delivery remains visible.
+Command combines a unique completed appointment's photo/payment updates and one
+confirmed duration, retaining all review aliases. Multiple visits, a later open
+arrival, ambiguous matches and unverified photos remain visible separately.
+
+Only unresolved action-required updates and owned Control follow-ups count toward
+attention badges. Routine timeline entries require no review. Current verified
+missing steps flag the latest appointment update. Source-health uncertainty stays
+visible and does not manufacture an attendance or missing-step exception.
+
+Recovery updates the original incident in Slack with the recovered time in
+Chicago. Historical recovery replies are folded into their exact same-author
+parent incident in Command; unrelated thread replies remain independent.
+
 ## Command Slack alert cards
 
 In the OpsCenter Command alert timelines, including desktop Operational Updates
@@ -68,9 +102,8 @@ itself Updated, retains source aliases/review state, and shows the source-report
 count. Separate visits, ambiguous identities, unconfirmed or open visits, and
 clock-only overnight matches remain separate. No source message is deleted.
 
-This change affects OpsCenter presentation and shared action lookup. It does not
-change Slack posting, channel routing, notification cadence, or collector state.
-Outbound duplication needs delivery-specific evidence before changing a publisher.
+The operational notification policy above governs outbound delivery; presentation
+also preserves original source identities for shared action lookup.
 
 Local verification:
 

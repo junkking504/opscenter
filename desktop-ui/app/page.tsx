@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { DesktopLiveProps } from '@/lib/live-contract';
 import LiveControl from '../live-control';
+import MaintenanceMonitor from '../maintenance-monitor';
 import LivePhotoReview from '../live-photo-review';
 import { navigationValue, workspaceUrl } from '../lib/workspace-navigation';
 const LiveKrewe = lazy(() => import('../live-krewe'));
@@ -4626,6 +4627,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           )}
 
           {live && activeNav === 'Command' && view === 'today' && <LivePhotoReview canReview={canFinance} />}
+          {live && activeNav === 'Command' && view === 'monitor' && <MaintenanceMonitor />}
           {live && activeNav === 'Command' && view !== 'now' && <LiveControl date={live.snapshot.date} view={view} report={setActionFeedback} onNavigate={setActiveNav} onBusyChange={onBusyChange} />}
           <Suspense fallback={<div className="workspace-loading" role="status">Loading {activeNav}…</div>}>
           {live && activeNav === 'Krewe' && <LiveKrewe date={live.snapshot.date} view={kreweView} onViewChange={setKreweView} onBusyChange={onBusyChange} />}

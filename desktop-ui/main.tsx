@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import Home from './app/page';
 import LiveCommand from './live-command';
+import { installMaintenanceTelemetry } from './lib/maintenance-telemetry';
 import './app/globals.css';
 import './live-responsive.css';
 import './workspace-density.css';
@@ -19,6 +20,7 @@ if (!root) throw new Error('OpsCenter mount point is missing.');
 if (bootstrap.mode === 'reference') {
   createRoot(root).render(<Home />);
 } else if (bootstrap.mode === 'command-live') {
+  installMaintenanceTelemetry();
   createRoot(root).render(<LiveCommand />);
 } else {
   root.textContent = 'The desktop release is not ready. No operational changes were made.';

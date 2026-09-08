@@ -41,6 +41,7 @@ without mixing live runtime data or secrets into Git.
 - [JunkWare appointment creation](junkware-appointment-creation.md)
 - [Fleet Action Center](fleet-action-center.md)
 - [Operational readiness](operational-readiness.md)
+- [Background maintenance pilot](background-maintenance.md)
 
 ## Canonical topology
 

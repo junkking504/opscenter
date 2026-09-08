@@ -3,6 +3,7 @@ import { getOperationalReadiness } from '@/lib/operational-readiness';
 import { readSearchKingsSnapshot } from '@/lib/searchkings';
 import { readPodiumGoogleReviewsSnapshot } from '@/lib/podium-reviews';
 import { sourceFreshness } from '@/lib/source-freshness';
+import { maintenanceSnapshot } from '@/lib/maintenance-monitor';
 import type { DesktopSourceHealth } from '../desktop-ui/lib/live-contract';
 
 export function readDesktopSourceHealth(canFinance: boolean): DesktopSourceHealth[] {
@@ -13,6 +14,8 @@ export function readDesktopSourceHealth(canFinance: boolean): DesktopSourceHealt
     workspace:row.key==='linxup'?'Fleet':row.key==='qbo'?'Finance':'Schedule', action:'Review source',
     state:row.stateLabel,tone:row.status==='green'?'healthy':'warning',observedAt:row.lastSuccessfulAt,maxAgeSeconds:row.key==='linxup'?180:600,
   }));
+  const maintenance = maintenanceSnapshot();
+  rows.push({ name: 'OpsBot maintenance', area: 'Background observation · automatic repairs off', workspace: 'Command', action: 'Open maintenance', state: maintenance.fresh ? 'Observing' : 'Observation unavailable', tone: maintenance.fresh ? 'healthy' : 'warning', observedAt: maintenance.checkedAt, maxAgeSeconds: 180, href: '/desktop?data=live&workspace=Command&commandView=monitor' });
   const timed = (name: string, observedAt: string | null, maxAgeSeconds: number, area: string, workspace: string): DesktopSourceHealth => ({name,observedAt,maxAgeSeconds,area,workspace,action:'Review source',state:sourceFreshness(observedAt,maxAgeSeconds).fresh?'Current':observedAt?'Stale':'Unavailable',tone:sourceFreshness(observedAt,maxAgeSeconds).fresh?'healthy':'warning'});
   rows.push(timed('SearchKings',readSearchKingsSnapshot()?.fetchedAt||null,1200,'Lead demand · collection at least 15 minutes apart','Marketing'));
   rows.push(timed('Podium',readPodiumGoogleReviewsSnapshot()?.fetchedAt||null,1800,'Reviews · 15 minute collector','Marketing'));

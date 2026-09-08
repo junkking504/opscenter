@@ -16,6 +16,7 @@ export type OperationalReadiness = {
     available: boolean;
     oldestUnresolvedAt: string | null;
     olderThan24Hours: number;
+    oldestActiveAgeSeconds: number | null;
   };
   crewPortalSync: {
     ok: boolean;
@@ -103,6 +104,12 @@ export function getOperationalReadiness(dataDirectory = path.join(process.cwd(),
     try { return fs.readdirSync(path.join(photoRoot,name)).filter(file => file.endsWith('.json')).flatMap(file => { try { return [fs.statSync(path.join(photoRoot,name,file)).mtimeMs]; } catch { return []; } }); } catch { return []; }
   });
   const photoQueue = {
+    oldestActiveAgeSeconds: (() => {
+      const times = ['incoming', 'processing'].flatMap(name => {
+        try { return fs.readdirSync(path.join(photoRoot, name)).filter(file => file.endsWith('.json')).flatMap(file => { try { return [fs.statSync(path.join(photoRoot, name, file)).mtimeMs]; } catch { return []; } }); } catch { return []; }
+      });
+      return times.length ? Math.max(0, Math.floor((now - Math.min(...times)) / 1000)) : null;
+    })(),
     available,
     oldestUnresolvedAt: unresolvedTimes.length ? new Date(Math.min(...unresolvedTimes)).toISOString() : null,
     olderThan24Hours: unresolvedTimes.filter(time => now - time > 86400000).length,

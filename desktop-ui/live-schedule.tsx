@@ -204,6 +204,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     return () => window.removeEventListener('keydown', escape);
   }, []);
   const truckDetails = snapshot?.fleet.trucks.find(truck => truckLabel(truck.truck) === selectedTruck);
+  const selectedTruckLoad = snapshot?.truckLoads?.find(row => truckLabel(row.truck) === selectedTruck);
   const truckGpsAge = now.getTime() - Date.parse(truckDetails?.lastGpsUpdate || '');
   const truckGpsLabel = Number.isFinite(truckGpsAge) && truckGpsAge >= 0 && truckGpsAge <= 180_000 ? 'Recent GPS' : 'Last Known Position';
   const truckJobs = jobs.filter(job => truckLabel(job.truck) === selectedTruck);
@@ -259,6 +260,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
           {selectedTruck ? <section className="live-map-truck-details" aria-label={`${selectedTruck} details`}>
             <header><strong>{selectedTruck}</strong><button aria-label="Clear truck selection" onClick={() => setSelectedTruck(null)}>×</button></header>
             <dl><div><dt>Krewe</dt><dd>{[truckDetails?.driver, truckDetails?.navigator].filter(Boolean).join(' · ') || (truckJobs[0] ? crew(truckJobs[0]) : 'Crew Not Available')}</dd></div><div><dt>Status</dt><dd>{truckDetails?.operationalStatus || 'Not Available'} · {truckDetails?.serviceStatus || 'Service Status Not Available'}</dd></div><div><dt>Truck load</dt><dd>{snapshot.truckLoads?.find(row=>truckLabel(row.truck)===selectedTruck)?.label || 'Load not recorded'}</dd></div><div><dt>GPS</dt><dd>{truckDetails?.lastGpsUpdate ? new Date(truckDetails.lastGpsUpdate).toLocaleString('en-US', { timeZone: 'America/Chicago' }) : 'No GPS Timestamp'} · {truckDetails?.lastGpsUpdate ? truckGpsLabel : 'Position Unavailable'}</dd></div></dl>
+            {selectedTruckLoad?.note && <p>{selectedTruckLoad.note}</p>}
             {(!truckDetails || truckDetails.latitude === null || truckDetails.longitude === null) && <p>No current position is available in the fleet snapshot.</p>}
             <div className="live-map-truck-actions"><a href={`/desktop?data=live&workspace=Fleet&date=${date}&truck=${encodeURIComponent(selectedTruck)}`}>Open Fleet Record</a>{/^Truck \d+$/.test(selectedTruck) && <Button size="sm" data-truck-camera={Number(selectedTruck.replace('Truck ', ''))} aria-label={`View live video for ${selectedTruck}`}>View LinxUp Live Video</Button>}{truckDetails?.latitude != null && truckDetails?.longitude != null && <a href={`https://www.google.com/maps/search/?api=1&query=${truckDetails.latitude},${truckDetails.longitude}`} target="_blank" rel="noopener noreferrer">Open GPS in Maps</a>}</div>
             <div className="live-map-truck-jobs"><strong>{truckJobs.length} appointments</strong>{truckJobs.map(job => <button key={job.recordId} onClick={() => selectAppointment(job.recordId)}>{job.jkNumber} · {job.appointmentTime} · {appointmentStatus(job)}</button>)}</div>

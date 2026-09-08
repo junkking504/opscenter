@@ -1,0 +1,30 @@
+.ops-live .live-schedule .schedule-appointment.route-selected {
+  outline: 3px solid #174e77;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 5px #ffffffd9;
+  z-index: 8;
+}
+.ops-live .appointment-register-row.route-selected { box-shadow: inset 3px 0 #174e77; background: #edf5fb; }
+.ops-live .live-schedule-map .appointment-marker.route-selected .map-pin-symbol {
+  width: 24px; height: 24px; outline: 3px solid #174e77;
+  outline-offset: 3px; box-shadow: 0 0 0 8px #ffffffc9;
+}
+.ops-live .appointment-partner-badge {
+  display: inline-flex; width: fit-content; max-width: 100%; padding: 2px 5px;
+  border: 1px solid #a6b7c5; border-radius: 4px; background: #edf3f8;
+  color: #233e54; font-size: 10px; font-weight: 700; line-height: 1.3;
+}
+.ops-live .map-selected-appointment { display: grid; gap: 4px; padding: 5px 0 8px; font-size: 11px; line-height: 1.35; }
+.ops-live .map-selected-appointment p { margin: 0; color: #805014; }
+.ops-live .map-selected-appointment .google-maps-address { font-size: 11px; }
+.ops-live .live-schedule-map .live-map-pin .map-marker { position: relative; }
+.ops-live .map-partner-badge {
+  position: absolute; top: 25px; left: 50%; transform: translateX(-50%);
+  padding: 1px 3px; border: 1px solid #9cadbb; border-radius: 3px;
+  background: #fff; color: #233e54; font-size: 8px; font-weight: 800;
+  line-height: 10px; pointer-events: none;
+}
+.ops-live .live-truck-timeline .schedule-appointment > .schedule-partner-cue {
+  position: absolute; left: 5px; top: 6px; width: 7px; height: 7px;
+  border: 1px solid #fff; background: #233e54; transform: rotate(45deg);
+}

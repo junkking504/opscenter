@@ -1,3 +1,4 @@
+import { appointmentPartner } from '../lib/appointment-partner';
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -42,7 +43,7 @@ export default function ScheduleMap(props: Props) {
     const layer = markers.current;
     if (!view || !layer) return;
     const { appointments, trucks, selected, selectedTruck, scope, resetKey, date } = current.current;
-    type Pin = { id: string; coordinate: L.LatLngTuple; label: string; text: string; tooltipTitle: string; tooltipDetail: string; className: string; selected: boolean; select: () => void };
+    type Pin = { id: string; coordinate: L.LatLngTuple; label: string; text: string; partner?: string; tooltipTitle: string; tooltipDetail: string; className: string; selected: boolean; select: () => void };
     const pins: Pin[] = [];
     const appointmentBounds: L.LatLngTuple[] = [];
     appointments.forEach((job, index) => {
@@ -50,7 +51,7 @@ export default function ScheduleMap(props: Props) {
       const coordinate: L.LatLngTuple = [job.location.latitude, job.location.longitude];
       appointmentBounds.push(coordinate);
       pins.push({ id: `appointment:${job.recordId}`, coordinate,
-        tooltipTitle: job.jkNumber, tooltipDetail: job.appointmentTime, text: scheduleStatusTone(job) === 'completed' ? '✓' : scheduleStatusTone(job) === 'canceled' ? '×' : String(index + 1), label: `Open appointment ${job.jkNumber}, ${job.appointmentTime}, ${job.customerName}, ${appointmentStatus(job)}`,
+        partner: appointmentPartner(job)?.short, tooltipTitle: `${job.jkNumber}${appointmentPartner(job) ? ` · ${appointmentPartner(job)!.name}` : ''}`, tooltipDetail: `${job.customerName} · ${job.appointmentTime}`, text: scheduleStatusTone(job) === 'completed' ? '✓' : scheduleStatusTone(job) === 'canceled' ? '×' : String(index + 1), label: `Open appointment ${job.jkNumber}, ${job.appointmentTime}, ${job.customerName}, ${appointmentStatus(job)}${appointmentPartner(job) ? `, ${appointmentPartner(job)!.name}` : ''}`,
         className: `appointment-marker territory-${appointmentRegion(job).code.toLowerCase()} ${appointmentStatus(job).toLowerCase().replaceAll(' ', '-')}`,
         selected: selected === job.recordId, select: () => current.current.onSelect(job.recordId) });
     });
@@ -108,6 +109,7 @@ export default function ScheduleMap(props: Props) {
           symbol.querySelector('svg')!.append(number);
         } else symbol.textContent = pin.text;
         button.append(symbol);
+        if (pin.partner) { const badge = document.createElement('span'); badge.className = 'map-partner-badge'; badge.textContent = pin.partner; badge.setAttribute('aria-hidden', 'true'); button.append(badge); }
         button.dataset.mapPin = pin.id;
         button.setAttribute('aria-label', pin.label);
         button.setAttribute('aria-pressed', String(pin.selected));
@@ -117,9 +119,9 @@ export default function ScheduleMap(props: Props) {
         const title = document.createElement('strong'); title.textContent = pin.tooltipTitle;
         const detail = document.createElement('small'); detail.textContent = pin.tooltipDetail;
         tooltip.append(title, detail);
-        const marker = L.marker(coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize: [30, 30], iconAnchor: [15, 15] }), zIndexOffset: pin.selected ? 900 : 0 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: L.point(0, -12), opacity: 1 }).addTo(layer);
+        const marker = L.marker(coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize: [30, 30], iconAnchor: [15, 15] }), zIndexOffset: pin.selected ? 900 : 0 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: L.point(0, -12), opacity: 1, permanent: pin.selected }).addTo(layer);
         button.onfocus = () => marker.openTooltip();
-        button.onblur = () => marker.closeTooltip();
+        button.onblur = () => { if (!pin.selected) marker.closeTooltip(); };
         marker.on('tooltipopen', () => {
           const bubble = marker.getTooltip();
           const element = bubble?.getElement();
@@ -135,6 +137,7 @@ export default function ScheduleMap(props: Props) {
           bubble.options.offset = L.point(dx, -12 + dy);
           bubble.update();
         });
+        if (pin.selected) marker.openTooltip();
         if (activeId === pin.id) button.focus({ preventScroll: true });
       }
     };

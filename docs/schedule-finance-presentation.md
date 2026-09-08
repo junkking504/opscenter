@@ -6,6 +6,24 @@ appointment map pins use a check; cancellations use an X, retaining territory
 colors. The six summary metrics share the compact KPI height; Clear is an inline
 28px action and does not get its own metric row.
 
+Board appointment blocks and map locators share appointment selection: the map
+centers the selected verified pin, keeps its label visible, and outlines the
+matching block and register row. Details remain beside the map; Open appointment
+opens the full action drawer. Calendar and history retain their drawer behavior.
+Selecting a muted block clears filters that would otherwise hide its pin.
+An appointment without verified coordinates explicitly shows Verify Address.
+
+Amazon, Home Sweet Home, and DMTransportation are identified from explicit source
+business/customer labels by `lib/appointment-partner.ts`. The map uses AMZ/HSH/DMT
+badges, with full names in the selected details, register, drawer and hover labels.
+A small diamond marks partner schedule blocks while retaining text-free territory
+colors and status cues. Item brands and free-form notes do not establish partner
+identity. Alphabetic business prefixes are removed only for geocoding requests;
+the street, unit and ZIP remain intact, and results must still pass the original
+source house/street/ZIP, precision and non-partial-match checks. JunkWare source
+addresses and franchise ownership are unchanged. Regression coverage:
+`node --import tsx scripts/test-appointment-partner.ts`.
+
 Truck Schedule always includes the same Truck 1–9 destinations as New Appointment,
 plus any additional truck present in the source and an Unassigned row. The shared
 truck choices live in `lib/junkware-trucks.ts`; source labels are normalized and

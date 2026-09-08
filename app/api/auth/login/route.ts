@@ -14,8 +14,27 @@ import {
   trustedDeviceCookieOptionsForRequest,
   verifyOpsCredentials,
 } from "@/lib/auth";
+import {
+  clearLoginFailures,
+  clientAddress,
+  loginAllowed,
+  recordLoginFailure,
+} from "@/lib/login-rate-limit";
 
 const authDebug = process.env.OPS_AUTH_DEBUG === "1";
+
+async function buildLockedOutResponse(request: Request, next: string, json = false) {
+  if (json) {
+    return NextResponse.json(
+      { ok: false, error: "Too many failed sign-in attempts. Try again in 15 minutes." },
+      { status: 429, headers: { "Cache-Control": "no-store, max-age=0", "Retry-After": "900" } },
+    );
+  }
+  const url = new URL("/login", resolveRequestOrigin(request));
+  if (next) url.searchParams.set("next", next);
+  url.searchParams.set("error", "rate-limited");
+  return NextResponse.redirect(url, 303);
+}
 
 async function buildInvalidCredentialsResponse(request: Request, next: string, json = false) {
   if (json) {
@@ -76,13 +95,29 @@ export async function POST(request: Request) {
     redirectTarget = sanitizeAuthRedirectTarget(formData.get("next"));
   }
 
+  // The operator credential guards all payroll, financial and customer data and
+  // previously had no throttle, no lockout and no record of failed attempts -
+  // while the lower-value crew portal had all three.
+  const throttleIdentity = String(usernameRaw || "").trim().toLowerCase() || "blank";
+  if (!loginAllowed("ops", request.headers, throttleIdentity)) {
+    console.warn("[auth] operator sign-in blocked by rate limit", {
+      address: clientAddress(request.headers),
+      host: request.headers.get("host"),
+    });
+    return buildLockedOutResponse(request, redirectTarget, acceptsJson);
+  }
+
   if (!(await verifyOpsCredentials(usernameRaw, passwordRaw))) {
-    if (authDebug) {
-      console.info("[auth] rejected credentials", usernameRaw ? "username-present" : "username-blank");
-    }
+    recordLoginFailure("ops", request.headers, throttleIdentity);
+    console.warn("[auth] operator sign-in failed", {
+      address: clientAddress(request.headers),
+      host: request.headers.get("host"),
+      usernameProvided: Boolean(String(usernameRaw || "").trim()),
+    });
     return buildInvalidCredentialsResponse(request, redirectTarget, acceptsJson);
   }
 
+  clearLoginFailures("ops", request.headers, throttleIdentity);
   const email = opsAuthIdentity();
 
   const sessionValue = await createAuthSessionCookieValue(email);

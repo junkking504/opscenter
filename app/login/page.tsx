@@ -23,6 +23,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const error = firstParam(params.error);
   const next = firstParam(params.next);
   const invalidCredentials = error === "invalid-credentials";
+  const rateLimited = error === "rate-limited";
 
   return (
     <main className="ops-login-shell">
@@ -82,7 +83,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               />
             </label>
 
-            {invalidCredentials ? (
+            {rateLimited ? (
+              <div role="alert" className="ops-login-error">
+                Too many failed sign-in attempts. Try again in 15 minutes.
+              </div>
+            ) : invalidCredentials ? (
               <div role="alert" className="ops-login-error">
                 Invalid username or password.
               </div>
@@ -93,7 +98,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </button>
           </form>
 
-          <div className="ops-login-footnote">Authorized personnel only · This browser stays trusted for one year</div>
+          <div className="ops-login-footnote">Authorized personnel only · This browser stays trusted for 30 days</div>
         </div>
       </section>
     </main>

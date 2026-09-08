@@ -1,44 +1,28 @@
 import { normalizeCrewUsername } from "./crew-auth";
+import {
+  clearLoginFailures,
+  loginAllowed,
+  recordLoginFailure,
+} from "./login-rate-limit";
 
-type Attempt = { failures: number; blockedUntil: number; lastFailureAt: number };
+/**
+ * Crew login throttling now delegates to the durable, shared limiter. The old
+ * in-process Map was erased by every server restart, which under this deploy
+ * cadence meant there was effectively no lockout at all.
+ */
 
-const WINDOW_MS = 15 * 60 * 1000;
-const MAX_FAILURES = 8;
-const attempts = new Map<string, Attempt>();
-
-function clientAddress(headers: Headers): string {
-  return String(
-    headers.get("cf-connecting-ip")
-      || headers.get("x-forwarded-for")?.split(",")[0]
-      || headers.get("x-real-ip")
-      || "unknown",
-  ).trim().toLocaleLowerCase();
-}
-
-function attemptKey(headers: Headers, usernameValue: unknown): string {
-  return `${clientAddress(headers)}:${normalizeCrewUsername(usernameValue) || "invalid"}`;
+function identifier(usernameValue: unknown): string {
+  return normalizeCrewUsername(usernameValue) || "invalid";
 }
 
 export function crewLoginAllowed(headers: Headers, usernameValue: unknown, now = Date.now()): boolean {
-  const key = attemptKey(headers, usernameValue);
-  const attempt = attempts.get(key);
-  if (!attempt) return true;
-  if (attempt.blockedUntil > now) return false;
-  if (now - attempt.lastFailureAt > WINDOW_MS) attempts.delete(key);
-  return true;
+  return loginAllowed("crew", headers, identifier(usernameValue), now);
 }
 
 export function recordCrewLoginFailure(headers: Headers, usernameValue: unknown, now = Date.now()): void {
-  const key = attemptKey(headers, usernameValue);
-  const current = attempts.get(key);
-  const failures = !current || now - current.lastFailureAt > WINDOW_MS ? 1 : current.failures + 1;
-  attempts.set(key, {
-    failures,
-    lastFailureAt: now,
-    blockedUntil: failures >= MAX_FAILURES ? now + WINDOW_MS : 0,
-  });
+  recordLoginFailure("crew", headers, identifier(usernameValue), now);
 }
 
 export function clearCrewLoginFailures(headers: Headers, usernameValue: unknown): void {
-  attempts.delete(attemptKey(headers, usernameValue));
+  clearLoginFailures("crew", headers, identifier(usernameValue));
 }

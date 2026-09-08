@@ -4,8 +4,21 @@ import { normalizeInteractiveOpsRole, type InteractiveOpsRole } from "@/lib/ops-
 export const AUTH_SESSION_COOKIE = "opscenter_email_session";
 export const AUTH_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 export const AUTH_TRUSTED_DEVICE_COOKIE = "opscenter_trusted_device";
-export const AUTH_TRUSTED_DEVICE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
-export const AUTH_TRUSTED_DEVICE_REFRESH_AFTER_SECONDS = 60 * 60 * 24 * 30;
+
+function positiveDaysFromEnv(name: string, fallbackDays: number): number {
+  const value = Number(process.env[name]);
+  return (Number.isFinite(value) && value > 0 ? value : fallbackDays) * 60 * 60 * 24;
+}
+
+/**
+ * A 365-day trusted-device cookie that re-extended itself to a full year on any
+ * visit inside 30 days never expired in practice - on a shared operator
+ * credential, that meant a lost laptop or a departed employee kept access until
+ * somebody thought to rotate the password. Default to 30 days and let an
+ * operator raise it deliberately.
+ */
+export const AUTH_TRUSTED_DEVICE_MAX_AGE_SECONDS = positiveDaysFromEnv("OPS_TRUSTED_DEVICE_DAYS", 30);
+export const AUTH_TRUSTED_DEVICE_REFRESH_AFTER_SECONDS = Math.floor(AUTH_TRUSTED_DEVICE_MAX_AGE_SECONDS / 3);
 export const AUTH_LOGIN_PATH = "/login";
 export const AUTH_LOGOUT_PATH = "/api/auth/logout";
 export const LEGACY_AUTH_COOKIE_NAMES = [

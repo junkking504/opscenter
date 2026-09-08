@@ -130,7 +130,7 @@ async function initializeOpsSession(
   return response;
 }
 
-export async function middleware(request: NextRequest) {
+async function routeRequest(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
   const hostname = String(
     request.headers.get("x-forwarded-host") || request.headers.get("host") || request.nextUrl.host,
@@ -327,6 +327,65 @@ export async function middleware(request: NextRequest) {
     loginUrl.searchParams.set("next", nextPath);
   }
   return NextResponse.redirect(loginUrl);
+}
+
+/**
+ * Security headers.
+ *
+ * Neither middleware nor next.config set a single security header, on a surface
+ * that renders operator-supplied text (crew notes, repair descriptions, customer
+ * addresses) and issues long-lived auth cookies.
+ *
+ * The always-on headers below are behaviour-safe. Content-Security-Policy is
+ * shipped in Report-Only mode by default because this app loads third-party map
+ * tiles and HLS truck-camera streams, and a wrong policy would break them
+ * silently - exactly the failure mode this audit is trying to remove. Set
+ * OPS_CSP_ENFORCE=1 once the report shows no legitimate violations.
+ */
+function contentSecurityPolicy(): string {
+  const tileHost = String(process.env.NEXT_PUBLIC_MAP_TILE_URL || "")
+    .replace(/^(https:\/\/[^/]+).*$/, "$1")
+    || "https://tile.openstreetmap.org";
+  const extraConnect = String(process.env.OPS_CSP_EXTRA_CONNECT_SRC || "").trim();
+  const extraMedia = String(process.env.OPS_CSP_EXTRA_MEDIA_SRC || "").trim();
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    `img-src 'self' data: blob: ${tileHost} https://*.tile.openstreetmap.org`,
+    // Next.js ships inline bootstrap scripts and styles without nonce plumbing.
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self' data:",
+    `connect-src 'self' blob: ${extraConnect}`.trim(),
+    `media-src 'self' blob: data: ${extraMedia}`.trim(),
+  ].join("; ");
+}
+
+function withSecurityHeaders(request: NextRequest, response: NextResponse): NextResponse {
+  const headers = response.headers;
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("X-Frame-Options", "DENY");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+  headers.set("Cross-Origin-Opener-Policy", "same-origin");
+
+  const forwardedProto = String(request.headers.get("x-forwarded-proto") || request.nextUrl.protocol.replace(":", ""));
+  if (forwardedProto === "https") {
+    headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+
+  const policy = contentSecurityPolicy();
+  const enforce = /^(1|true|yes|on)$/i.test(String(process.env.OPS_CSP_ENFORCE || ""));
+  headers.set(enforce ? "Content-Security-Policy" : "Content-Security-Policy-Report-Only", policy);
+
+  return response;
+}
+
+export async function middleware(request: NextRequest) {
+  return withSecurityHeaders(request, await routeRequest(request));
 }
 
 export const config = {

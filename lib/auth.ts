@@ -454,6 +454,8 @@ export async function verifyTrustedDeviceCookie(
   const expiresAtMs = parseSeconds(payload.expiresAt);
   const issuedAtMs = parseSeconds(payload.issuedAt);
   if (!expiresAtMs || expiresAtMs <= Date.now() || !issuedAtMs) return null;
+  // Existing year-long cookies must obey a shortened trust policy too.
+  if (issuedAtMs + AUTH_TRUSTED_DEVICE_MAX_AGE_SECONDS * 1000 <= Date.now()) return null;
 
   const browserHash = await hashDeviceSignal(
     "browser",

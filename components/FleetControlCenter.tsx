@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- authenticated local photo endpoints are not compatible with the Next image optimizer */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { effectiveFleetChecklistDefinitions, type FleetChecklistCustomization } from "@/lib/fleet-checklist-definitions";
 import type { FleetChecklistEntry } from "@/lib/fleet-checklists";
@@ -239,6 +239,8 @@ export default function FleetControlCenter({
     }
   }
 
+  const issueSubmission = useRef<{ draft: IssueDraft; id: string } | null>(null);
+
   async function saveIssue() {
     if (!draft.truck || !draft.title.trim()) {
       setMessage("Truck and issue title are required.");
@@ -248,6 +250,10 @@ export default function FleetControlCenter({
       setMessage("Add a resolution note before closing the repair.");
       return;
     }
+    if (issueSubmission.current?.draft !== draft) {
+      issueSubmission.current = { draft, id: crypto.randomUUID() };
+    }
+    const submissionId = issueSubmission.current.id;
     setSaving(true);
     setMessage("");
     try {
@@ -256,6 +262,7 @@ export default function FleetControlCenter({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...draft,
+          submissionId,
           cost: draft.cost === "" ? null : Number(draft.cost),
           downtimeHours: draft.downtimeHours === "" ? null : Number(draft.downtimeHours),
         }),

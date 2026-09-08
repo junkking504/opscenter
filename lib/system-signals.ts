@@ -128,6 +128,11 @@ function dataRoots(): string[] {
 }
 
 function resolveDataPath(relative: string): string | null {
+  const configured = String(process.env.OPSCENTER_DATA_DIR || "").trim();
+  if (configured) {
+    const candidate = path.join(configured, relative.replace(/^data[\\/]/, ""));
+    return fs.existsSync(candidate) ? candidate : null;
+  }
   for (const root of dataRoots()) {
     const candidate = path.join(root, relative);
     if (fs.existsSync(candidate)) return candidate;
@@ -225,14 +230,14 @@ function trucksWithPositions(date: string): Set<string> | null {
     return null;
   }
 
-  const cached = locationCache.get(date);
+  const cached = locationCache.get(resolved);
   if (cached && cached.mtimeMs === mtimeMs) return cached.trucks;
 
   const payload = readJson<AnyRecord>(relative, `linxup location ${date}`);
   if (!payload) return null;
   const points = Array.isArray(payload.points) ? payload.points as AnyRecord[] : [];
   const trucks = new Set(points.map((point) => String(point.truck_number || "")).filter(Boolean));
-  locationCache.set(date, { mtimeMs, trucks });
+  locationCache.set(resolved, { mtimeMs, trucks });
   // Only the lookback window is ever consulted; do not grow without bound.
   if (locationCache.size > GPS_SILENT_LOOKBACK_DAYS * 2) {
     for (const key of Array.from(locationCache.keys()).sort().slice(0, locationCache.size - GPS_SILENT_LOOKBACK_DAYS)) {
@@ -530,11 +535,12 @@ export function backupSignal(): BackupSignal {
 
 export function collectSystemSignals(date = chicagoDateKey()): SystemSignals {
   const ttl = cacheTtlMs();
-  const cached = signalsCache.get(date);
+  const cacheKey = JSON.stringify([date, process.cwd(), process.env.OPSCENTER_DATA_DIR || ""]);
+  const cached = signalsCache.get(cacheKey);
   if (cached && ttl > 0 && Date.now() - cached.at < ttl) return cached.value;
 
   const value = computeSystemSignals(date);
-  signalsCache.set(date, { at: Date.now(), value });
+  signalsCache.set(cacheKey, { at: Date.now(), value });
   if (signalsCache.size > 8) {
     for (const key of Array.from(signalsCache.keys()).sort().slice(0, signalsCache.size - 4)) {
       signalsCache.delete(key);

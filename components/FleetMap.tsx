@@ -244,19 +244,20 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
     });
     // Tile failures were previously silent: no handler, no log, just a grey
     // rectangle. Surface them so an outage or a throttled tile host is visible.
-    let tileFailures = 0;
-    streetTiles.on("tileerror", () => {
-      tileFailures += 1;
-      if (tileFailures === 1) {
-        console.error("[map] base map tiles failed to load", { url: STREET_TILES });
+    const failedTiles = new Set<HTMLElement>();
+    streetTiles.on("tileerror", (event: { tile: HTMLElement }) => {
+      if (failedTiles.size === 0) {
+        console.error("[map] base map tiles failed to load");
       }
+      failedTiles.add(event.tile);
       setTilesUnavailable(true);
     });
-    streetTiles.on("tileload", () => {
-      if (tileFailures === 0) return;
-      tileFailures = 0;
-      setTilesUnavailable(false);
-    });
+    const clearFailedTile = (event: { tile: HTMLElement }) => {
+      failedTiles.delete(event.tile);
+      setTilesUnavailable(failedTiles.size > 0);
+    };
+    streetTiles.on("tileload", clearFailedTile);
+    streetTiles.on("tileunload", clearFailedTile);
     streetTiles.addTo(map);
 
     const markers = leaflet.layerGroup().addTo(map);
@@ -453,7 +454,7 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
           <div className="ops-map-with-status">
             {tilesUnavailable && (
               <p className="ops-map-tile-warning" role="status">
-                Base map tiles are not loading. Truck positions below are current; the map background is not.
+                Some base map tiles are not loading. Truck positions remain visible.
               </p>
             )}
             <div ref={mapNodeRef} className="ops-fleet-leaflet-map" aria-label="Fleet truck map" />

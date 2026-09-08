@@ -12,6 +12,7 @@ export type FleetIssueSeverity = (typeof FLEET_ISSUE_SEVERITIES)[number];
 
 export type FleetIssue = {
   issueId: string;
+  submissionId?: string;
   truck: string;
   title: string;
   description: string;
@@ -130,6 +131,7 @@ function parseIssue(value: unknown): FleetIssue | null {
   if (!truck || !title) return null;
   const status = statusValue(row.status);
   return {
+    submissionId: String(row.submissionId || "").trim().slice(0, 80),
     issueId: String(row.issueId || randomUUID()).trim(),
     truck,
     title,
@@ -235,45 +237,26 @@ export function syncFleetIssuesFromChecklist(entry: FleetChecklistEntry): FleetI
   return readFleetIssueStore();
 }
 
-// A double-submitted form used to create two identical open issues, and each
-// one opened its own out-of-service Slack thread that had to be resolved
-// separately. Treat a same-truck, same-title, same-description open issue
-// created moments ago as the same report.
+// A retry carries the same submission ID; a new report carries a new one.
+// Text and timing alone cannot distinguish separate reports of the same defect.
 const DUPLICATE_ISSUE_WINDOW_MS = 5 * 60 * 1000;
-
-function normalizedIssueText(value: unknown): string {
-  return String(value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
-}
-
-function recentDuplicateIndex(
-  issues: FleetIssue[],
-  truck: string,
-  title: string,
-  description: string,
-  nowMs: number,
-): number {
-  return issues.findIndex((issue) => issue.status !== "resolved"
-    && issue.truck === truck
-    && normalizedIssueText(issue.title) === normalizedIssueText(title)
-    && normalizedIssueText(issue.description) === normalizedIssueText(description)
-    && nowMs - Date.parse(issue.createdAt || "") < DUPLICATE_ISSUE_WINDOW_MS);
-}
 
 export function upsertFleetIssue(input: Record<string, unknown>): FleetIssue | null {
   const store = readFleetIssueStore();
   const issueId = String(input.issueId || "").trim();
-  let index = issueId ? store.issues.findIndex((issue) => issue.issueId === issueId) : -1;
-  let existing = index >= 0 ? store.issues[index] : null;
+  const index = issueId ? store.issues.findIndex((issue) => issue.issueId === issueId) : -1;
+  const existing = index >= 0 ? store.issues[index] : null;
   const truck = normalizeTruck(input.truck || existing?.truck);
   const title = String(input.title || existing?.title || "").trim().slice(0, 160);
   if (!truck || !title) return null;
   const description = String(input.description ?? existing?.description ?? "").trim().slice(0, 1000);
-  if (!issueId) {
-    const duplicate = recentDuplicateIndex(store.issues, truck, title, description, Date.now());
-    if (duplicate >= 0) {
-      index = duplicate;
-      existing = store.issues[duplicate];
-    }
+  const submissionId = String(input.submissionId || "").trim().slice(0, 80);
+  if (!issueId && submissionId) {
+    const duplicate = store.issues.find((issue) => issue.submissionId === submissionId
+      && Date.now() - Date.parse(issue.createdAt) >= 0
+      && Date.now() - Date.parse(issue.createdAt) < DUPLICATE_ISSUE_WINDOW_MS);
+    // Return the saved result without overwriting later edits to the issue.
+    if (duplicate) return duplicate;
   }
   const status = statusValue(input.status ?? existing?.status);
   const rawCost = input.cost ?? existing?.cost;
@@ -282,6 +265,7 @@ export function upsertFleetIssue(input: Record<string, unknown>): FleetIssue | n
   if (rawDowntime !== null && rawDowntime !== undefined && rawDowntime !== "" && nullableNonNegative(rawDowntime) === null) return null;
   const now = new Date().toISOString();
   const issue: FleetIssue = {
+    submissionId: existing?.submissionId || submissionId,
     issueId: existing?.issueId || randomUUID(),
     truck,
     title,

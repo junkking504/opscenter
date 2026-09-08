@@ -55,6 +55,7 @@ const SENSITIVE_WRITE_ROUTES = [
 ] as const;
 
 const PLATFORM_MANAGE_RESOURCE_PREFIXES = [
+  "/api/desktop/maintenance/recovery",
   "/api/integrations/podium/connect",
   "/api/integrations/podium/callback",
 ] as const;

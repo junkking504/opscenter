@@ -150,7 +150,14 @@ timeline. Warehouse entries keep the current load; transfer stations, landfills,
 and metal recycling yards reset it to empty. Known configured facility aliases
 are recognized; unknown geofences remain informational. Provider retries combine
 by truck, geofence, and actual entry time; later reentries remain distinct.
-Entry alerts support the same review/Control actions, with server-side source
+On `GEOFENCE_EXITED`, the entry card becomes a **Site Visit Completed** alert,
+ordered at departure time, with arrival, departure, and total time on site. The
+same entry identity preserves review/Control links. Separate visits stay separate;
+exact provider retries are deduplicated. Pairing uses truck and geofence name,
+plus the previous operating day's history for visits crossing midnight. Missing
+or ambiguous entry events produce a departure summary with duration unavailable.
+Only the original entry affects truck load; departure never applies another reset.
+Entry and completed-visit alerts support the same review/Control actions, with server-side source
 lookup and LinxUp provenance. No Slack post or source record mutation is made.
 Unavailable or partial LinxUp alert collections remain explicit in Source Health;
 stop rows and starting inside a geofence do not invent entry events.

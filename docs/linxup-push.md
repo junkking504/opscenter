@@ -126,3 +126,20 @@ Run `node --import tsx scripts/test-desktop-gps-route.ts` for date, truck,
 privacy, gap, stationary coverage, and missing-file contracts. The synthetic
 browser fixture at `desktop-ui/tests/gps-route.html` runs the production Leaflet
 component without operational API access; start it with the companion Vite config.
+
+## Appointment arrival and departure alerts
+
+Command derives appointment visit alerts directly from confirmed visit intervals,
+even when no Slack report was published. Arrival creates an **Arrival** alert; confirmed departure updates that visit to a
+**Departure** alert with recorded arrival, departure, and duration. Return visits
+stay separate until JunkWare confirms appointment closeout, then arrival,
+departure, and duration reports fold into the job or estimate completion card.
+Their source aliases preserve existing review and Control ownership. **Geofence**
+alerts and their compact `Onsite` format apply to facilities only.
+
+Uniquely matched older Slack arrival/departure reports remain review aliases.
+Pass-bys, unconfirmed matches, future timestamps, and unsegmented multiple visits
+cannot create completed visit durations. Conflicting departure records remain
+pending verification. Operational confirmations with GPS gaps are identified as
+such and never produce a precise duration. Validate with
+`npm run verify:appointment-visit-alerts` and `npm run verify:crew-progress`.

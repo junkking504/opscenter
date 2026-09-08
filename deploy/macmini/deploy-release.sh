@@ -29,8 +29,6 @@ BROWSER_KEEPALIVE_LABEL="com.openclaw.opsbot.browser-keepalive"
 JUNKWARE_MARKET_WATCHER_LABEL_PREFIX="com.openclaw.opsbot.junkware-schedule-watcher-"
 REQUESTED_REF="${1:-}"
 RESTART_WHATSAPP_PHOTO_WORKER="${OPSCENTER_RESTART_WHATSAPP_PHOTO_WORKER:-true}"
-RELEASE_RETENTION="${OPSCENTER_RELEASE_RETENTION:-8}"
-RELEASE_LSOF_TIMEOUT_SECONDS="${OPSCENTER_RELEASE_LSOF_TIMEOUT_SECONDS:-5}"
 RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS="${OPSCENTER_SERVICE_RESTART_TIMEOUT_SECONDS:-20}"
 PRODUCTION_REF="refs/remotes/origin/production"
 DEPLOY_LOCK_DIR="$DEPLOY_ROOT/.deploy-lock"
@@ -184,57 +182,6 @@ restart_release_bound_services() {
   restart_release_bound_collectors "$release"
 }
 
-release_has_live_process_reference() {
-  local candidate="$1"
-  local scan_output scan_error scan_pid scan_status=0 remaining referenced_pids
-
-  candidate="$(cd "$candidate" && pwd -P)" || {
-    echo "Skipping prune: unable to resolve the candidate release path safely." >&2
-    return 0
-  }
-
-  scan_output="$(mktemp "${TMPDIR:-/tmp}/opscenter-release-lsof.XXXXXX")" || {
-    echo "Skipping prune for $candidate: unable to create a bounded lsof scan." >&2
-    return 0
-  }
-  scan_error="$(mktemp "${TMPDIR:-/tmp}/opscenter-release-lsof-error.XXXXXX")" || {
-    rm -f "$scan_output"
-    echo "Skipping prune for $candidate: unable to create a bounded lsof scan." >&2
-    return 0
-  }
-
-  /usr/sbin/lsof -n -P -F p +D "$candidate" >"$scan_output" 2>"$scan_error" &
-  scan_pid=$!
-  remaining="$RELEASE_LSOF_TIMEOUT_SECONDS"
-  while kill -0 "$scan_pid" 2>/dev/null; do
-    if (( remaining == 0 )); then
-      kill "$scan_pid" 2>/dev/null || true
-      wait "$scan_pid" 2>/dev/null || true
-      rm -f "$scan_output" "$scan_error"
-      echo "Skipping prune for $candidate: lsof process-reference scan exceeded ${RELEASE_LSOF_TIMEOUT_SECONDS}s." >&2
-      return 0
-    fi
-    sleep 1
-    remaining=$((remaining - 1))
-  done
-  wait "$scan_pid" || scan_status=$?
-
-  if [[ -s "$scan_error" || ( "$scan_status" != "0" && "$scan_status" != "1" ) ]]; then
-    rm -f "$scan_output" "$scan_error"
-    echo "Skipping prune for $candidate: lsof process-reference scan could not complete safely." >&2
-    return 0
-  fi
-  referenced_pids="$(sed -n 's/^p//p' "$scan_output" | paste -sd, -)"
-  if [[ -n "$referenced_pids" ]]; then
-    rm -f "$scan_output" "$scan_error"
-    echo "Skipping prune for $candidate: it is still referenced by running process PID $referenced_pids." >&2
-    return 0
-  fi
-
-  rm -f "$scan_output" "$scan_error"
-  return 1
-}
-
 whatsapp_photo_worker_restart_enabled() {
   [[ "$RESTART_WHATSAPP_PHOTO_WORKER" == "1"
     || "$RESTART_WHATSAPP_PHOTO_WORKER" == "true"
@@ -251,21 +198,11 @@ activate_release() {
 }
 
 prune_superseded_releases() {
-  local protected_current="$1"
-  local protected_previous="$2"
-  local -a releases
-  local candidate
-  local retained=0
-
-  releases=("${(@f)$(/bin/ls -1dt "$RELEASES_DIR"/*(N/))}")
-  for candidate in "${releases[@]}"; do
-    if [[ "$candidate" == "$protected_current" || "$candidate" == "$protected_previous" || "$retained" -lt "$RELEASE_RETENTION" ]]; then
-      retained=$((retained + 1))
-      continue
-    fi
-    release_has_live_process_reference "$candidate" && continue
-    git -C "$REPOSITORY" worktree remove --force "$candidate"
-  done
+  # Cleanup failure must preserve files and report itself, not roll back a
+  # healthy application. The helper shares this deployment's lock.
+  python3 "$SCRIPT_DIR/workspace-retention.py" --apply --scope production \
+    --deployment-owner "$$" --protect "$1" --protect "$2" \
+    || echo "Workspace retention needs attention; see the cleanup error above." >&2
 }
 
 wait_for_login() {
@@ -297,14 +234,12 @@ restore_previous_release() {
 [[ -n "$REQUESTED_REF" ]] || fail "usage: $0 <pushed-git-ref-or-commit>"
 [[ "$(id -un)" == "$EXPECTED_USER" ]] || fail "run this while logged in as $EXPECTED_USER"
 [[ "$HOME" == "$EXPECTED_HOME" ]] || fail "HOME must be $EXPECTED_HOME"
-[[ "$RELEASE_RETENTION" == <-> && "$RELEASE_RETENTION" -ge 3 ]] || fail "OPSCENTER_RELEASE_RETENTION must be an integer of at least 3"
-[[ "$RELEASE_LSOF_TIMEOUT_SECONDS" == <-> && "$RELEASE_LSOF_TIMEOUT_SECONDS" -ge 1 ]] || fail "OPSCENTER_RELEASE_LSOF_TIMEOUT_SECONDS must be a positive integer"
 [[ "$RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS" == <-> && "$RELEASE_SERVICE_RESTART_TIMEOUT_SECONDS" -ge 1 ]] || fail "OPSCENTER_SERVICE_RESTART_TIMEOUT_SECONDS must be a positive integer"
 [[ -d "$REPOSITORY/.git" ]] || fail "run deploy/macmini/bootstrap-git-deployment.sh first"
 [[ -d "$DATA_DIR" ]] || fail "missing authoritative OpsBot data: $DATA_DIR"
 [[ -L "$APP_LINK" ]] || fail "$APP_LINK must be a symbolic link; run the Git bootstrap first"
 
-for command in git node npm curl launchctl lsof; do
+for command in git node npm curl launchctl lsof python3; do
   command -v "$command" >/dev/null 2>&1 || fail "required command is missing: $command"
 done
 

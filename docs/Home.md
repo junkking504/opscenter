@@ -41,6 +41,7 @@ without mixing live runtime data or secrets into Git.
 - [JunkWare appointment creation](junkware-appointment-creation.md)
 - [Fleet Action Center](fleet-action-center.md)
 - [Operational readiness](operational-readiness.md)
+- [Background maintenance pilot](background-maintenance.md)
 
 ## Canonical topology
 
@@ -66,6 +67,11 @@ without mixing live runtime data or secrets into Git.
 The split is deliberate. Git is the collaboration and editing surface. Runtime
 data and credentials remain outside Git. The local Home file and workspace
 launcher make both areas easy to reach without moving or duplicating them.
+
+## Workspace storage
+
+See [Workspace retention](workspace-retention.md) for release counts, paused-task
+cleanup, task completion and daily storage checks.
 
 ## Current working rules
 

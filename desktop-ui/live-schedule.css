@@ -140,3 +140,11 @@ body.schedule-pointer-drag, body.schedule-pointer-drag * { -webkit-user-select: 
 .appointment-type-control p { width: 100%; margin: 0; line-height: 1.4; }
 .appointment-type-control label { display: flex; align-items: center; gap: 6px; }
 .appointment-type-control select { min-height: 32px; border: 1px solid var(--border); border-radius: 5px; padding: 4px 8px; background: var(--background); }
+
+/* Current truck information comes before the independently scrolling route history. */
+.live-schedule .schedule-board-layout.map-open .schedule-map-panel.has-truck-card { grid-template-rows: auto minmax(200px, 1fr) auto auto; }
+.live-schedule .live-map-truck-card { padding: 6px 10px; border-bottom: 1px solid #d9e0dc; background: #fff; color: #20262b; scroll-margin-block: 12px; }
+.live-schedule .live-map-truck-card p { margin: 5px 0; }
+.live-schedule .live-map-truck-card header { gap: 10px; }
+.live-schedule .live-map-truck-card header button { min-width: 28px; min-height: 28px; cursor: pointer; }
+.live-schedule .schedule-board-layout.map-open .has-truck-card .schedule-map-controls { max-height: 140px; }

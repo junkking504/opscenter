@@ -1,0 +1,25 @@
+.maintenance-panel { margin: 0 0 24px; padding: 22px; border: 1px solid #d8dee6; border-radius: 14px; background: #fff; color: #172334; }
+.maintenance-panel > header, .maintenance-incidents article > header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.maintenance-panel h2 { font-size: 22px; margin: 5px 0 8px; }
+.maintenance-panel p { line-height: 1.55; margin: 8px 0; }
+.maintenance-panel small { display: block; color: #536174; line-height: 1.5; }
+.maintenance-state { border-radius: 7px; padding: 7px 10px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.maintenance-state.current { color: #17533a; background: #e7f5ee; }
+.maintenance-state.stale { color: #775016; background: #fff0d6; }
+.maintenance-metrics { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 18px; padding: 18px 0; margin: 14px 0; border-block: 1px solid #e3e7ec; }
+.maintenance-metrics span { display: block; font-size: 12px; color: #536174; margin-bottom: 5px; }
+.maintenance-metrics strong { font-size: 14px; }
+.maintenance-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.maintenance-filters button { padding: 8px 12px; border: 1px solid #cbd4df; border-radius: 7px; background: #fff; color: #23374d; cursor: pointer; }
+.maintenance-filters button[aria-pressed=true] { background: #edf3fa; border-color: #53749a; font-weight: 700; }
+.maintenance-incidents { display: grid; gap: 14px; }
+.maintenance-incidents article { padding: 16px; border: 1px solid #dce3eb; border-radius: 9px; overflow-wrap: anywhere; }
+.maintenance-incidents article > header > span { font-size: 12px; font-weight: 700; color: #70500f; }
+.maintenance-incidents details { margin-top: 12px; padding-top: 10px; border-top: 1px solid #e3e7ec; }
+.maintenance-incidents summary { cursor: pointer; font-weight: 600; color: #294d73; }
+.maintenance-panel button:focus-visible, .maintenance-panel summary:focus-visible { outline: 3px solid #315f98; outline-offset: 3px; }
+@media(max-width: 760px) { .maintenance-panel { padding: 16px; } .maintenance-metrics { grid-template-columns: 1fr; gap: 12px; } .maintenance-panel > header { flex-direction: column; } }
+
+.maintenance-recovery { padding: 16px; margin: 16px 0; border: 1px solid #cbd4df; border-radius: 9px; background: #f7f9fc; }
+.maintenance-recovery summary { cursor: pointer; margin-top: 12px; font-weight: 600; }
+.maintenance-recovery button:disabled { opacity: .6; cursor: wait; }

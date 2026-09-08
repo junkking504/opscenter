@@ -6,28 +6,45 @@ const reference = (alert: OperationalAlert) => alert.title.match(/\bJK\d+\b/i)?.
 const truckKey = (value?: string) => value?.match(/\d+/)?.[0]?.replace(/^0+/, '') || '';
 const day = (stamp?: string) => stamp && Number.isFinite(Date.parse(stamp)) ? new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date(stamp)) : '';
 const ids = (alerts: OperationalAlert[]) => [...new Set(alerts.flatMap(alert=>[alert.id,...(alert.sourceMessageIds || [])]))];
+const appointmentId = (alert: OperationalAlert) => {
+  try { return new URL(alert.href,'https://opscenter.invalid').searchParams.get('appointment'); } catch { return null; }
+};
 
 /** Presentation only: preserve source identities so existing reviews and owned
  * follow-ups survive consolidation. Ambiguous appointments and visits stay visible. */
 export function streamlineOperationalAlerts(input: OperationalAlert[], jobs: Job[], date: string): OperationalAlert[] {
   let alerts = input.map(alert=>({...alert}));
+  const closeoutId = (job: Job) => `appointment-closeout:${date}:${job.appointmentId}`;
+  // A verified JunkWare closeout can precede its Slack report. Do not leave
+  // visit alerts stranded while that message is waiting to be published.
+  for (const job of jobs) {
+    if (job.sourceDate !== date || !/complete|closed/i.test(job.status) || jobs.filter(other=>other.jkNumber === job.jkNumber).length !== 1) continue;
+    const related = alerts.filter(alert=>reference(alert) === job.jkNumber.toUpperCase() && !alert.threadReply);
+    if (related.some(alert=>/^(Job|Estimate) (Completed|Closed)$/.test(alert.label)) || !related.some(alert=>['Arrival','Departure','Duration'].includes(alert.label) && (!appointmentId(alert) || appointmentId(alert) === job.appointmentId))) continue;
+    const timestamp = [job.completedAt,job.closeoutObservedAt].find(stamp=>stamp && Number.isFinite(Date.parse(stamp)));
+    alerts.push({id:closeoutId(job),label:/estimate/i.test(job.appointmentType)?'Estimate Completed':'Job Completed',source:'JunkWare',timestamp,
+      title:job.jkNumber,truck:job.truck,territory:job.territory,domain:'Dispatch',owner:'Dispatch',needsAction:false,
+      detected:timestamp?new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}).format(new Date(timestamp)):'Time unavailable',
+      facts:[],next:'Closeout confirmed in JunkWare.',href:`/desktop?workspace=Schedule&date=${date}&appointment=${encodeURIComponent(job.appointmentId)}`});
+  }
   const removed = new Set<string>();
   for (const complete of alerts.filter(alert=>/^(Job|Estimate) (Completed|Closed)$/.test(alert.label) && !alert.threadReply)) {
     const matches = jobs.filter(job=>job.jkNumber.toUpperCase() === reference(complete) && job.sourceDate === date);
     if (matches.length !== 1 || !/complete|closed/i.test(matches[0].status)) continue;
     const job = matches[0];
     const related = alerts.filter(alert=>alert !== complete && (!alert.threadReply || alert.label === 'Photos Uploaded') && day(alert.timestamp) === date && reference(alert) === reference(complete)
-      && (['Payment Recorded','Photos Uploaded'].includes(alert.label) && !truckKey(alert.truck) || truckKey(alert.truck) && truckKey(alert.truck) === truckKey(job.truck)));
+      && (!appointmentId(alert) || appointmentId(alert) === job.appointmentId)
+      && (['Payment Recorded','Photos Uploaded'].includes(alert.label) && !truckKey(alert.truck) || truckKey(alert.truck) && truckKey(alert.truck) === truckKey(job.truck) || ['Arrival','Departure','Duration'].includes(alert.label) && appointmentId(alert) === job.appointmentId));
     const otherCompletions = related.filter(alert=>/^(Job|Estimate) (Completed|Closed)$/.test(alert.label));
     if (otherCompletions.length) continue;
-    const durations = related.filter(alert=>alert.label === 'Duration');
-    // A later return remains its own event. Only one closed visit, without an
-    // additional live arrival, can be folded into a completion.
-    const duration = durations.length === 1 && !related.some(alert=>alert.label === 'Arrival') ? durations : [];
+    const visits = related.filter(alert=>['Arrival','Departure','Duration'].includes(alert.label));
+    // Once JunkWare confirms closeout, visit reports belong to that completion.
+    // Keep every source alias so review and Control ownership survive the fold.
+    const duration = visits.length === 1 ? visits : [];
     const photos = related.filter(alert=>alert.label === 'Photos Uploaded' && !alert.needsAction && job.photos.length > 0);
     const payment = related.filter(alert=>alert.label === 'Payment Recorded');
-    const merged = [...duration,...photos,...payment];
-    complete.sourceMessageIds = ids([complete,...merged]);
+    const merged = [...visits,...photos,...payment];
+    complete.sourceMessageIds = [...new Set([...ids([complete,...merged]),closeoutId(job)])];
     complete.photos = job.photos.length ? job.photos : complete.photos;
     complete.facts = [...complete.facts,...duration.flatMap(alert=>alert.facts.filter(fact=>['Duration','Arrival','Departure'].includes(fact.label)
       && !complete.facts.some(existing=>existing.label === fact.label))),...payment.flatMap(alert=>alert.facts.filter(fact=>/^payments?$/i.test(fact.label)

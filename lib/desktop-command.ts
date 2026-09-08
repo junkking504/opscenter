@@ -1,11 +1,11 @@
 import { streamlineOperationalAlerts } from './streamlined-operational-alerts';
-import { consolidateConfirmedVisitAlerts } from './confirmed-visit-alerts';
+import { appointmentVisitAlerts } from './appointment-visit-alerts';
 import { buildCrewProgress } from './crew-progress';
 import { crewAppointmentFacts } from './crew-progress-details';
 import { sourceFreshness } from './source-freshness';
 import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
 import { readScheduleVisits } from './desktop-schedule-visits';
-import { geofenceOperationalAlert, readGeofenceEntries } from './linxup-geofence-alerts';
+import { geofenceTimelineAlerts, readGeofenceEntries } from './linxup-geofence-alerts';
 import { readJobRows } from './desktop-schedule-source';
 import { readDesktopSourceHealth } from '@/lib/desktop-source-health';
 import { readMetrics, completedJobs, crewRows, truckRows, money, type AnyRecord } from '@/lib/opsData';
@@ -79,7 +79,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const appointments = readJobRows(date);
   const sourceHealth = readDesktopSourceHealth(/^(admin|administrator|manager)$/i.test(actor.role));
   const geofences = readGeofenceEntries(date);
-  const alerts: DesktopCommandSnapshot['alerts'] = [...streamlineOperationalAlerts(consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits),appointments,date),...geofences.entries.map(entry=>geofenceOperationalAlert(entry,date))].map(alert => {
+  const alerts: DesktopCommandSnapshot['alerts'] = [...streamlineOperationalAlerts(appointmentVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits,appointments,date),appointments,date),...geofenceTimelineAlerts(date,geofences.entries,geofences.visits)].map(alert => {
       const action = commandAlertWorkItemForSource(workflow.items, alert);
       return presentAlert(alert, action);
   });
@@ -105,8 +105,12 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
       if (['Job Closed', 'Estimate Closed', 'Job Completed', 'Estimate Completed'].includes(alert.label)) {
         const jk = alert.title.match(/\bJK\d+\b/i)?.[0]?.toUpperCase();
         const candidates = appointments.filter(job => job.jkNumber.toUpperCase() === jk && (/estimate/i.test(job.appointmentType) === /estimate/i.test(alert.label)));
-        const time = candidates.length === 1 ? appointmentOnsiteTime(candidates[0], visits) : {minutes:null,arrival:null,departure:null,label:'Unavailable · appointment match needed'};
-        alert = {...alert, facts:[...alert.facts.filter(f=>!/^On-site time$|^Duration$|^Arrival$|^Departure$/i.test(f.label)), ...onsiteTimeFacts(time)]};
+        // Fold physical visit evidence even if the assignment changed later.
+        const time = candidates.length === 1 ? appointmentOnsiteTime({...candidates[0],truck:''}, visits) : {minutes:null,arrival:null,departure:null,label:'Unavailable · appointment match needed'};
+        const visitTrucks = candidates.length === 1 ? [...new Set(visits.filter(visit=>String(visit.appointment_id || visit.appt_id || '') === candidates[0].appointmentId && visit.match_confidence === 'confirmed' && !visit.pass_by_only)
+          .map(visit=>String(visit.truck_number || visit.truck || '').match(/\d+/)?.[0]).filter(Boolean))] : [];
+        const visitingTruck = visitTrucks.length === 1 && visitTrucks[0] !== candidates[0]?.truck.match(/\d+/)?.[0] ? [{label:'Visited by',value:`Truck ${visitTrucks[0]}`}] : [];
+        alert = {...alert, facts:[...alert.facts.filter(f=>!/^On-site time$|^Duration$|^Arrival$|^Departure$|^Visited by$/i.test(f.label)), ...onsiteTimeFacts(time),...visitingTruck]};
       }
       return {
         ...alert, timestamp: alert.timestamp,

@@ -1,0 +1,101 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { detectMaintenance, initialMaintenanceState, reconcileMaintenance, reserveMaintenanceCall, monthKey, MONTHLY_BUDGET_MICROS, CALL_RESERVATION_MICROS, readMaintenanceState, saveMaintenanceState, recordClientEvent, readClientEvents, maintenanceSnapshot } from '../lib/maintenance-monitor';
+import { diagnoseMaintenance } from '../lib/maintenance-diagnosis';
+import { recoverySnapshot, setRecoveryEnabled } from '../lib/maintenance-recovery';
+import { requiredOpsPermission, opsRoleCan } from '../lib/ops-roles';
+
+async function main() {
+  const now = Date.parse('2026-09-08T18:00:00Z');
+  const recoveryPermission = requiredOpsPermission('/api/desktop/maintenance/recovery', 'PATCH');
+  assert.equal(recoveryPermission.permission, 'platform.manage');
+  assert.equal(opsRoleCan('operator', recoveryPermission.permission), false);
+  assert.equal(opsRoleCan('manager', recoveryPermission.permission), false);
+  assert.equal(opsRoleCan('admin', recoveryPermission.permission), true);
+  const probes = { login: true, health: { ok: true, status: 'healthy', junkwareScheduleStale: false, junkwareScheduleAgeSeconds: 20, linxupStale: false, linxupFallbackActive: false, operatorStateWritable: true, platformKernel: { healthy: true } }, readiness: { ok: false, photoQueue: { available: true, counts: { review: 20, failed: 1, incoming: 0, processing: 0 }, oldestActiveAgeSeconds: null }, crewPortalSync: { ok: true } } };
+  const rows = detectMaintenance(probes, now);
+  assert.equal(rows.find(r => r.key === 'photo-review')?.kind, 'review');
+  assert.equal(rows.find(r => r.key === 'photo-processing')?.unhealthy, false, 'historical review backlog cannot imply stuck processing');
+  assert.equal(rows.find(r => r.key === 'availability')?.unhealthy, false, 'readiness 503 does not imply app outage');
+  const state = initialMaintenanceState();
+  reconcileMaintenance(state, rows, now);
+  assert.equal(state.incidents[0].status, 'confirming');
+  assert.equal(reconcileMaintenance(state, rows, now + 500), false);
+  reconcileMaintenance(state, rows, now + 60_000);
+  assert.equal(state.incidents[0].status, 'open');
+  const missing = detectMaintenance({ health: null, readiness: null, login: false }, now);
+  for (let i = 2; i < 6; i++) reconcileMaintenance(state, missing, now + i * 60_000);
+  assert.equal(state.incidents.find(i => i.key === 'photo-review')?.status, 'open', 'missing evidence must not resolve an incident');
+  const clear = structuredClone(probes); clear.readiness.photoQueue.counts.review = 0; clear.readiness.photoQueue.counts.failed = 0;
+  for (let i = 6; i < 9; i++) reconcileMaintenance(state, detectMaintenance(clear), now + i * 60_000);
+  assert.equal(state.incidents.find(i => i.key === 'photo-review')?.status, 'resolved');
+  for (let i = 9; i < 11; i++) reconcileMaintenance(state, rows, now + i * 60_000);
+  assert.equal(state.incidents.find(i => i.key === 'photo-review')?.occurrences, 2);
+
+  const budget = initialMaintenanceState();
+  for (let i = 0; i < MONTHLY_BUDGET_MICROS / CALL_RESERVATION_MICROS; i++) assert(reserveMaintenanceCall(budget, now));
+  assert.equal(reserveMaintenanceCall(budget, now), false);
+  assert.equal(budget.months[monthKey(now)].committedMicros, MONTHLY_BUDGET_MICROS);
+  assert(reserveMaintenanceCall(budget, Date.parse('2026-10-01T06:00:00Z')));
+  assert.equal(monthKey(Date.parse('2026-10-01T04:00:00Z')), '2026-09', 'budget uses Chicago calendar month');
+
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'opscenter-maintenance-test-'));
+  try {
+    assert.equal(recoverySnapshot(directory, now).enabled, false);
+    setRecoveryEnabled(directory, true);
+    assert.equal(recoverySnapshot(directory, now).enabled, true);
+    assert.equal(recoverySnapshot(directory, now).fresh, false);
+    const recoveryState = { version: 1, checkedAt: now / 1000, status: 'Process and login responding; monitoring', attempts: [now / 1000], receipts: [{ at: now / 1000, event: 'Start attempt reserved; outcome pending' }] };
+    fs.writeFileSync(path.join(directory, 'recovery.json'), JSON.stringify(recoveryState));
+    assert.equal(recoverySnapshot(directory, now).attemptsToday, 1);
+    assert.equal(recoverySnapshot(directory, now).fresh, true);
+    assert.equal(recoverySnapshot(directory, now + 181_000).fresh, false);
+    fs.writeFileSync(path.join(directory, 'recovery-error.json'), '{}');
+    assert.equal(recoverySnapshot(directory, now).available, false);
+    setRecoveryEnabled(directory, false);
+    assert.equal(recoverySnapshot(directory, now).enabled, false);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(directory, 'recovery.json'), 'utf8')), recoveryState, 'pause never resets attempt history');
+    saveMaintenanceState(budget, directory);
+    assert.equal(reserveMaintenanceCall(readMaintenanceState(directory), now), false, 'restart cannot reset budget');
+    assert.equal(recordClientEvent('../../escape', directory, now), false);
+    recordClientEvent('schedule', directory, now); recordClientEvent('schedule', directory, now + 1);
+    assert.equal(readClientEvents(directory).schedule.count, 1, 'reports are throttled');
+    recordClientEvent('schedule', directory, now + 31_000);
+    assert.equal(readClientEvents(directory).schedule.count, 2);
+    assert.equal(maintenanceSnapshot(now, directory).fresh, false, 'uninitialized worker cannot appear healthy');
+    fs.writeFileSync(path.join(directory, 'state.json'), '{broken');
+    assert.throws(() => readMaintenanceState(directory), /paused/);
+    assert.equal(maintenanceSnapshot(now, directory).available, false);
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+
+  const ai = initialMaintenanceState(); reconcileMaintenance(ai, rows, now); reconcileMaintenance(ai, rows, now + 60_000);
+  let calls = 0, saves = 0;
+  const diagnosis = { summary: 'Records await review.', likelyCause: 'The source reports held records; cause is unverified.', nextStep: 'Review exact appointment identity.', verification: 'Read back verified queue decisions.' };
+  const mock = (async (_url: unknown, init: RequestInit) => {
+    calls++; assert(saves > 0); assert.equal(ai.months[monthKey(now)].committedMicros, CALL_RESERVATION_MICROS);
+    const body = JSON.parse(String(init.body)); assert.equal(body.store, false); assert.equal(body.max_output_tokens, 2048); assert.equal(body.tools, undefined);
+    assert.equal(body.text.format.strict, true);
+    return Response.json({ status: 'completed', usage: { input_tokens: 1000, output_tokens: 200 }, output: [{ content: [{ type: 'output_text', text: JSON.stringify(diagnosis) }] }] });
+  }) as typeof fetch;
+  await diagnoseMaintenance(ai, 'test-key', () => { saves++; }, now + 60_000, mock);
+  assert.equal(ai.incidents[0].diagnosis?.summary, diagnosis.summary);
+  assert.equal(ai.months[monthKey(now)].committedMicros, 440);
+  await diagnoseMaintenance(ai, 'test-key', () => {}, now + 3_600_000, mock);
+  assert.equal(calls, 1, 'unchanged incidents do not repeatedly invoke AI');
+  const failure = initialMaintenanceState(); reconcileMaintenance(failure, rows, now); reconcileMaintenance(failure, rows, now + 60_000);
+  let failures = 0;
+  const unavailable = (async () => { failures++; throw new Error('raw-secret-must-not-escape'); }) as typeof fetch;
+  await diagnoseMaintenance(failure, 'test-key', () => {}, now + 60_000, unavailable);
+  assert.equal(failure.months[monthKey(now)].committedMicros, CALL_RESERVATION_MICROS, 'uncertain spend retains reservation');
+  assert(!JSON.stringify(failure).includes('raw-secret'));
+  await diagnoseMaintenance(failure, 'test-key', () => {}, now + 120_000, unavailable);
+  assert.equal(failures, 1, 'provider failures obey cooldown');
+  await diagnoseMaintenance(failure, 'test-key', () => {}, now + 3_660_000, unavailable);
+  await diagnoseMaintenance(failure, 'test-key', () => {}, now + 7_260_000, unavailable);
+  await diagnoseMaintenance(failure, 'test-key', () => {}, now + 10_860_000, unavailable);
+  assert.equal(failures, 3, 'attempts stop after three');
+  console.log('Maintenance tests passed: detection, confirmation, evidence loss, recovery, recurrence, privacy, durable budget, Chicago rollover, provider failure, and bounded retries.');
+}
+main().catch(error => { console.error(error); process.exitCode = 1; });

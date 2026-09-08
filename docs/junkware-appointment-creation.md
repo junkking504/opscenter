@@ -22,6 +22,40 @@ does not create completed-job production or revenue.
 
 ## Duplicate and retry safety
 
+### Desktop Prebooking Review
+
+The desktop **Review Appointment** action checks the selected date before
+showing the final booking review. `/api/desktop/schedule/creation/check` is an
+authenticated, same-origin, read-only POST so customer details stay out of URLs.
+It uses a JunkWare Schedule snapshot no more than five minutes old; missing or
+stale snapshots block review and direct the operator to refresh that date.
+
+Matching requires customer name or phone, the same service address, and
+overlapping windows. Matches cross franchise, truck, and Job/Estimate category
+boundaries without combining identities. Canceled bookings are excluded.
+Street-only input can match a full source address when ZIP agrees and no unit
+or building distinction is lost. This is a conservative warning, not proof
+that all duplicates have been found.
+
+Each match shows its JK reference, category, status, address, window, truck,
+and source franchise, with links to its exact OpsCenter record and JunkWare.
+Creating another appointment requires a checkbox and a reason of at least ten
+characters. The existing reason field carries that explanation into JunkWare
+notes. Nothing is automatically merged, canceled, or reassigned.
+
+The create endpoint recomputes a fingerprint of the normalized draft and
+matching source records inside the existing reservation lock, before reserving
+a new request or calling JunkWare. Changed facts or missing acknowledgement
+return 409 and require a new review. Existing saved requests return their
+receipt first, preserving verified/uncertain-result recovery. The existing
+identity reservation and upstream duplicate guards remain in place; snapshot
+review is not a guarantee against a simultaneous external JunkWare booking.
+
+Regression coverage: `npm run verify:duplicate-bookings` includes the prebooking
+guard; `node scripts/test-prebooking-browser.mjs` uses the synthetic fixture
+served by `desktop-ui/tests/duplicates.vite.config.ts` on port 3148. Live QA
+must stop before **Create in JunkWare** unless a test-safe booking is authorized.
+
 Each reviewed submission receives a UUID request ID. OpsCenter stores only the
 request fingerprint and sanitized verified result; it does not persist the
 customer payload in the idempotency record.

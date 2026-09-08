@@ -233,6 +233,13 @@ an explicit exit timestamp after arrival, not loss of GPS. Existing departures
 are baselined on first activation; subsequent departures use the same fast GPS
 publisher with distinct visit fingerprints and retry deduplication.
 
+Arrival and departure notifications are limited to the current America/Chicago
+operating day in both the focused GPS publisher and the full refresh publisher.
+Delayed GPS pushes may reconcile historical visits, but do not send historical
+arrivals or departures as new Slack alerts. A focused historical replay leaves
+live delivery state untouched; historical visit records remain available in
+OpsCenter.
+
 Within an expanded job history or All updates, Command event facts are visible
 inline. The truck/job card keeps current progress and next action visible before
 opening the history; the condensed duplicate summary is omitted.

@@ -43,7 +43,12 @@ export function proposeRoutes(jobs: ScheduleAppointment[], options: PlanOptions)
   }
   for (const job of unassigned) {
     const score=(group: typeof groups[number])=>Math.min(...group.jobs.map(anchor=>proximity(anchor,job))) + group.jobs.length*0.015;
-    const target = [...groups].sort((a,b) => (score(a)-score(b) || 0) || a.jobs.length-b.jobs.length || a.truck.localeCompare(b.truck))[0];
+    // Geography must not put nine new stops on one truck and leave the other
+    // with one distant stop. Bound new work by an equal-share stop count;
+    // pre-existing assignments are preserved even when already over that cap.
+    const capacity=Math.ceil(eligible.length/groups.length);
+    const available=groups.filter(g=>g.jobs.length<capacity);
+    const target = [...(available.length?available:groups)].sort((a,b) => (score(a)-score(b) || 0) || a.jobs.length-b.jobs.length || a.truck.localeCompare(b.truck))[0];
     if (target) target.jobs.push(job);
   }
   return groups.map(group=>({truck:group.truck,appointmentIds:ordered(group.jobs).map(j=>j.recordId)}));

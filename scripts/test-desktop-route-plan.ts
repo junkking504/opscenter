@@ -16,6 +16,8 @@ async function main(){
   const clustered=proposeRoutes(clusters,options);
   assert.ok(clustered.some(r=>r.appointmentIds.every(id=>id.startsWith('north'))&&r.appointmentIds.length===2),'Nearby Northshore stops should stay together');
   assert.ok(clustered.some(r=>r.appointmentIds.every(id=>id.startsWith('south'))&&r.appointmentIds.length===2),'Do not alternate distant clusters just to balance stop counts');
+  const uneven=[...Array.from({length:9},(_,i)=>job(`city${i}`,{truck:'Unassigned',location:{latitude:30+i*.002,longitude:-90}})),job('remote',{truck:'Unassigned',territory:'Northshore',location:{latitude:30.8,longitude:-90}})];
+  assert.deepEqual(proposeRoutes(uneven,options).map(r=>r.appointmentIds.length),[5,5],'A distant seed must not leave one truck idle while the other receives almost all work');
   let requests=0;
   const provider=async(origins:unknown[],destinations:unknown[])=>{assert.equal(origins.length*destinations.length,1);requests++;return [{condition:'ROUTE_EXISTS',duration:'1200s',distanceMeters:1609.344}];};
   const plan=await buildRoutePlan(snapshot,parsed,provider);

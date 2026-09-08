@@ -57,7 +57,7 @@ export default function ScheduleRoutePlan({snapshot,busy,select,review}: {snapsh
           <label>Assumed Minutes Per Stop<input type="number" min="5" max="240" disabled={loading||busy} value={service} onChange={e=>{setService(Number(e.target.value));changeOptions();}}/></label>
           <Button disabled={loading||busy||!trucks.length||!start||service<5||service>240} onClick={()=>calculate()}>{loading?'Calculating…':plan?'Rebuild Proposal':'Propose Routes'}</Button>
         </div>
-        <p>Existing assignments stay on their trucks initially, including other territories. Unassigned stops are grouped by nearby locations with a workload tie-break; booked windows guide the sequence. This is a starting proposal, not an optimized or verified route.</p>
+        <p>Existing assignments stay on their trucks initially, including other territories. Unassigned stops are grouped by nearby locations within a balanced stop-count limit; booked windows guide the sequence. This is a starting proposal, not an optimized or verified route.</p>
       </div>
       {error&&<p className="route-plan-notice" role="alert">{error}</p>}
       {stale&&<p className="route-plan-notice" role="status">The schedule changed. Rebuild the proposal before reviewing assignments.</p>}

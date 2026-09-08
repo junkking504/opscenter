@@ -20,7 +20,11 @@ if ! mkdir "$LOCK_DIR" 2>/dev/null; then
   echo "LinxUp refresh skipped because another LinxUp refresh is active."
   exit 0
 fi
+geofence_pid=""
 cleanup() {
+  # Keep the refresh lock until the bounded alert read also finishes. Its
+  # failure must not abort GPS processing or confirmed appointment alerts.
+  if [ -n "$geofence_pid" ]; then wait "$geofence_pid" || true; fi
   rmdir "$LOCK_DIR" 2>/dev/null || true
 }
 trap cleanup EXIT
@@ -39,6 +43,11 @@ fi
 
 cd "$OPSBOT_DIR"
 export PYTHONPYCACHEPREFIX="/private/tmp/opscenter-linxup-pycache"
+
+# Facility entries are a separate LinxUp feed from position push/polling.
+# Read them every minute without waiting for JunkWare's slower full refresh.
+python3 "$OPSCENTER_DIR/scripts/refresh-linxup-geofence-alerts.py" "$TARGET_DATE" "$OPSBOT_DIR" &
+geofence_pid=$!
 
 now_epoch=$(date +%s)
 map_mtime=0
@@ -69,4 +78,6 @@ if [[ "${SLACK_OPSCENTER_ALERTS_ENABLED:-false}" =~ ^(1|true|yes|on)$ ]]; then
   )
 fi
 
+wait "$geofence_pid" || true
+geofence_pid=""
 echo "LinxUp live refresh completed at $(TZ=America/Chicago date '+%Y-%m-%d %H:%M:%S %Z')."

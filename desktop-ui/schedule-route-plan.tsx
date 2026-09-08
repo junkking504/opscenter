@@ -9,6 +9,13 @@ const time = (minutes: number|null) => minutes===null ? 'Unknown' : `${minutes>=
 export default function ScheduleRoutePlan({snapshot,busy,select,review}: {snapshot:ScheduleSnapshot;busy:boolean;select:(id:string)=>void;review:(job:ScheduleAppointment,truck:string)=>void}) {
   const [open,setOpen]=useState(false);
   const [trucks,setTrucks]=useState(()=>[...new Set(snapshot.appointments.filter(planEligible).map(j=>truckLabel(j.truck)).filter(t=>t!=='Unassigned'))]);
+  const trucksInitialized=useRef(snapshot.appointments.length>0);
+  useEffect(()=>{
+    if(!trucksInitialized.current&&snapshot.appointments.length){
+      setTrucks([...new Set(snapshot.appointments.filter(planEligible).map(j=>truckLabel(j.truck)).filter(t=>t!=='Unassigned'))]);
+      trucksInitialized.current=true;
+    }
+  },[snapshot.appointments]);
   const [area,setArea]=useState('metro'); const [start,setStart]=useState('08:00'); const [service,setService]=useState(30);
   const [plan,setPlan]=useState<RoutePlan|null>(null); const [draft,setDraft]=useState<PlanRoute[]|null>(null);
   const [loading,setLoading]=useState(false); const [error,setError]=useState(''); const [dirty,setDirty]=useState(false);
@@ -20,7 +27,7 @@ export default function ScheduleRoutePlan({snapshot,busy,select,review}: {snapsh
   const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date());
   const historical=snapshot.date<today;
   const names=scheduleTruckNames(snapshot).filter(t=>t!=='Unassigned');
-  const changeOptions=()=>{setDirty(true);setDraft(null);};
+  const changeOptions=()=>{trucksInitialized.current=true;setDirty(true);setDraft(null);};
   const calculate=async (routes?:PlanRoute[])=>{
     if(loading||busy) return;
     request.current?.abort(); const controller=new AbortController(); request.current=controller;

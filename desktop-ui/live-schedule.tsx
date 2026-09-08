@@ -1,4 +1,4 @@
-import { appointmentPartner } from '../lib/appointment-partner';
+import { appointmentPartner, serviceAddressForGeocoding } from '../lib/appointment-partner';
 import { AppointmentClassification } from './appointment-classification';
 import { onsiteTimeFacts } from '../lib/appointment-onsite-time';
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
@@ -30,7 +30,7 @@ const slug = (value: string) => value.toLowerCase().replaceAll(' ', '-');
 const clock = (minutes: number) => `${Math.floor(minutes / 60) % 12 || 12}${minutes % 60 ? ':' + String(minutes % 60).padStart(2, '0') : ''} ${minutes >= 720 ? 'PM' : 'AM'}`;
 export const dateForDay = (base: string, day: Day) => { const date = new Date(`${base}T12:00:00Z`); if (day === 'tomorrow') date.setUTCDate(date.getUTCDate() + 1); return date.toISOString().slice(0, 10); };
 const crew = (job: ScheduleAppointment) => [job.driver, job.navigator, ...(job.additionalCrew || [])].filter(value => value && !/^—$|^unknown$/i.test(value)).join(' · ') || 'Crew Not Available';
-function Address({ value }: { value: string }) { return value ? <strong className="google-maps-address-shell"><a className="google-maps-address" target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`}>{value}</a></strong> : <span>Address Unavailable</span>; }
+function Address({ value }: { value: string }) { return value ? <strong className="google-maps-address-shell"><a className="google-maps-address" target="_blank" rel="noopener noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(serviceAddressForGeocoding(value))}`}>{value}</a></strong> : <span>Address Unavailable</span>; }
 function PartnerBadge({ job }: { job: ScheduleAppointment }) { const partner = appointmentPartner(job); return partner ? <span className="appointment-partner-badge">{partner.name}</span> : null; }
 function Phone({ value }: { value: string }) { const digits = value.replace(/\D/g, ''); return digits.length >= 7 ? <span className="phone-contact"><a className="phone-link" href={`tel:${digits.length === 10 ? '+1' : '+'}${digits}`}>{value}</a></span> : <small>Phone Unavailable</small>; }
 

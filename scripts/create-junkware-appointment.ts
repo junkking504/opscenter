@@ -195,7 +195,15 @@ async function chooseCustomer(page: Page, input: JunkwareAppointmentCreationInpu
   const newAccount = page.locator("#ctl00_Content_NewAccountBtn").first();
   if (!(await newAccount.count())) throw new Error("JunkWare did not provide a safe new-customer option after the customer search.");
   await clickWithWebFormsCompletion(page, "#ctl00_Content_NewAccountBtn", "the new customer selection");
-  await page.locator("#ctl00_Content_SaveAppointmentBtn").waitFor({ state: "attached", timeout: 30_000 });
+  // New Account is an ASP.NET partial postback. Its Save button is already
+  // present on the search view, so it cannot tell us that the customer form
+  // has finished rendering. Wait for the customer-type controls instead.
+  // Without this, a Residential booking can race ahead and report its own
+  // correctly selected radio button as unavailable.
+  await Promise.all([
+    page.locator("#ctl00_Content_SaveAppointmentBtn").waitFor({ state: "attached", timeout: 30_000 }),
+    page.locator("#ctl00_Content_BusinessYesNoRBL_1").waitFor({ state: "attached", timeout: 30_000 }),
+  ]);
   return "new";
 }
 

@@ -136,6 +136,7 @@ async function main() {
   assert.match(adapter, /ctl00_Content_AppointmentTypeDD/);
   assert.match(adapter, /ctl00_Content_AvailableTimesDD/);
   assert.match(adapter, /ctl00_Content_TruckDD/);
+  assert.match(adapter, /BusinessYesNoRBL_1.*waitFor\(\{ state: "attached"/);
 
   const component = fs.readFileSync(new URL("../components/AppointmentCreateDialog.tsx", import.meta.url), "utf8");
   assert.match(component, /The JK number appears only after JunkWare saves and OpsCenter reads the appointment back/);

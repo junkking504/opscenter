@@ -24,7 +24,8 @@ window.fetch=async(input,init)=>{
     if(truck==='Truck 2') points.forEach(point=>{point.latitude=30.001;point.longitude=-90.01;});
     const route:TruckGpsRoute={date,truck,status:'available',observedAt:`${date}T13:20:00Z`,coveredThrough:points.at(-1)!.timestamp,points,paths:[points.slice(0,3),points.slice(3)],gaps:1,rejected:0};
     if(date==='2026-09-07' || truck==='Truck 3') Object.assign(route,{status:'empty',coveredThrough:null,points:[],paths:[],gaps:0});
-    if(truck==='Truck 9') Object.assign(route,{status:'unavailable',observedAt:null,coveredThrough:null,points:[],paths:[],gaps:0});
+    if(truck==='Truck 9' && date==='2026-09-06') route.gapLinks=[[points[2],points[3]]];
+    if(truck==='Truck 8') Object.assign(route,{status:'unavailable',observedAt:null,coveredThrough:null,points:[],paths:[],gaps:0});
     return Response.json(route);
   }
   return Response.json({error:'No operational sources are enabled.'},{status:503});

@@ -7,6 +7,8 @@ export type TruckGpsRoute = {
   coveredThrough:string|null;
   points:GpsRoutePoint[];
   paths:GpsRoutePoint[][];
+  /** Direction between sparse observations, never a claimed road traveled. */
+  gapLinks?:GpsRoutePoint[][];
   gaps:number;
   rejected:number;
 };

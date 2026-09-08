@@ -27,11 +27,13 @@ const time=(stamp:string)=>new Date(stamp).toLocaleTimeString('en-US',{timeZone:
 export function GpsRouteSummary({date,truck,route,error,fit}:{date:string;truck:string;route:TruckGpsRoute|null;error:string;fit:()=>void}) {
   return <section className="schedule-gps-summary" aria-label={`${truck} recorded GPS route`}>
     <header><strong>Recorded GPS route</strong>{!!route?.points.length && <button type="button" onClick={fit}>Fit route</button>}</header>
+    {!!route?.gapLinks?.length && <p>Dashed links = GPS gaps, not roads driven. Dots mark recorded positions.</p>}
     <p>{date} · {truck}</p>
     {truck==='Unassigned'?<p>Select a truck to view its recorded GPS path.</p>:!route?<p role="status">{error || 'Loading recorded GPS…'}</p>:route.status==='unavailable'?<p>GPS history is unavailable for this date.</p>:route.status==='empty'?<p>No GPS observations recorded for this truck on this date.</p>:<>
       <p><b>{time(route.points[0].timestamp)} – {time(route.coveredThrough || route.points.at(-1)!.timestamp)}</b> · {route.points.length} observations{route.gaps?` · ${route.gaps} ${route.gaps===1?'gap':'gaps'}`:''}</p>
-      <p>Lines connect recorded GPS positions. Unobserved gaps are left open.{route.rejected?' Invalid observations were omitted.':''}</p>
-      {!route.paths.length && <p>Recorded positions are available, but there is no connected trail.</p>}
+      <p>Blue dots are recorded positions. Solid lines connect frequent reports.{route.rejected?' Invalid observations were omitted.':''}</p>
+      {!!route.gaps && <p>Long outages and impossible jumps remain disconnected.</p>}
+      {!route.paths.length && !route.gapLinks?.length && <p>Recorded positions are available, but there is no connected trail.</p>}
     </>}
     {route?.observedAt && <p>GPS collected {new Date(route.observedAt).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})} CT</p>}
     {route && error && <p role="status">{error} Showing the last retrieved history.</p>}

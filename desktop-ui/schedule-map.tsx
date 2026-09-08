@@ -177,8 +177,9 @@ export default function ScheduleMap(props: Props) {
     layer.clearLayers();
     if(!route || route.date!==props.date || route.truck!==props.selectedTruck || !route.points.length) {gpsFit.current='';return;}
     for(const points of route.paths) L.polyline(points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{color:'#2563a5',weight:3,opacity:.9,interactive:false,className:'schedule-gps-trail'}).addTo(layer);
+    for(const points of route.gapLinks || []) L.polyline(points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{color:'#2563a5',weight:3,opacity:.8,dashArray:'6 7',interactive:false,className:'schedule-gps-gap-link'}).addTo(layer);
     // Isolated observations stay visible without inventing a connecting route.
-    for(const point of route.points) L.circleMarker([point.latitude,point.longitude],{radius:2,color:'#2563a5',fillOpacity:.6,weight:0,interactive:false,className:'schedule-gps-point'}).addTo(layer);
+    for(const point of route.points) L.circleMarker([point.latitude,point.longitude],{radius:3,color:'#fff',fillColor:'#2563a5',fillOpacity:1,weight:1,interactive:false,className:'schedule-gps-point'}).addTo(layer);
     const endpoints=route.points.length===1?[[route.points[0],'Recorded position'] as const]:[[route.points[0],'First'] as const,[route.points.at(-1)!,'Last'] as const];
     for(const [point,label] of endpoints) {
       const text=document.createElement('span');text.textContent=label;

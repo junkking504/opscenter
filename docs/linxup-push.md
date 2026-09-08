@@ -82,10 +82,13 @@ Observation timestamps determine the America/Chicago operating date. Previous-da
 last-known positions in a daily file do not become travel on that file's date.
 Invalid coordinates, invalid/future timestamps, and duplicate positions are
 excluded. Recorded stationary `continuous_until` intervals preserve coverage.
-Connectors stop at observation gaps over five minutes or an implausible transition
-under the shared route-history speed/jitter rules. Isolated points remain visible.
-The blue lines join observed positions; they are not road-snapped directions or a
-complete account of unobserved travel. The summary shows coverage times, source
+At a conflicting timestamp, a valid V3 position takes precedence over a V2 poll;
+raw history remains unchanged. Solid connectors stop at observation gaps over five
+minutes. Plausible gaps of up to thirty minutes appear as dashed direction links,
+explicitly labeled as not the roads driven. Longer outages and implausible
+transitions under the shared speed/jitter rules remain disconnected. Blue dots
+mark exact observations, including isolated points. Neither line style is
+road-snapped directions or a complete account of unobserved travel. The summary shows coverage times, source
 collection time, and gaps so incomplete evidence stays visible.
 
 Implementation: `lib/desktop-gps-route.ts`,

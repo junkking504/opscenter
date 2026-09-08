@@ -12,7 +12,7 @@ const coordinate=(value:unknown)=>typeof value==='number'?value:typeof value==='
 
 /** GPS evidence is independent of appointments, assignments and daily payroll. */
 export function normalizeTruckGpsRoute(payload:unknown,date:string,truck:string,now=Date.now()):TruckGpsRoute {
-  const empty:TruckGpsRoute={date,truck,status:'unavailable',observedAt:null,coveredThrough:null,points:[],paths:[],gaps:0,rejected:0};
+  const empty:TruckGpsRoute={date,truck,status:'unavailable',observedAt:null,coveredThrough:null,points:[],paths:[],gapLinks:[],gaps:0,rejected:0};
   if(!payload || typeof payload!=='object' || !Array.isArray((payload as {points?:unknown}).points)) return empty;
   const source=payload as {points:unknown[];collection_timestamp?:unknown};
   const collected=stamp(source.collection_timestamp);
@@ -20,12 +20,24 @@ export function normalizeTruckGpsRoute(payload:unknown,date:string,truck:string,
   const observations:Array<GpsRoutePoint & {until:number}>=[];
   let rejected=0;
   const seen=new Map<string,GpsRoutePoint & {until:number}>();
+  // V2 polling can repeat an old coordinate with the current push timestamp.
+  // When both sources report the same instant, the primary V3 report wins.
+  // Raw history remains untouched; only conflicting fallback geometry is omitted.
+  const primaryTimes=new Set(source.points.flatMap(raw=>{
+    if(!raw || typeof raw!=='object') return [];
+    const row=raw as Record<string,unknown>,time=stamp(row.timestamp);
+    const lat=coordinate(row.latitude),lng=coordinate(row.longitude);
+    return row.delivery_source==='v3_position_push' && label(row.truck_number || row.truck || row.truckNumber)===truck
+      && Number.isFinite(time) && time<=now && Number.isFinite(lat) && Number.isFinite(lng)
+      && Math.abs(lat)<=90 && Math.abs(lng)<=180 && !(lat===0 && lng===0)?[time]:[];
+  }));
   for(const raw of source.points) {
     if(!raw || typeof raw!=='object') continue;
     const row=raw as Record<string,unknown>;
     if(label(row.truck_number || row.truck || row.truckNumber)!==truck) continue;
     const time=stamp(row.timestamp),latitude=coordinate(row.latitude),longitude=coordinate(row.longitude);
     if(!Number.isFinite(time) || time>now || !Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude)>90 || Math.abs(longitude)>180 || latitude===0 && longitude===0) {rejected++;continue;}
+    if(row.delivery_source==='v2_poll' && primaryTimes.has(time)) continue;
     // Daily files can include a last-known point from a previous date. It must
     // never appear as travel on the selected Central operating date.
     if(chicagoDateKey(new Date(time))!==date) continue;
@@ -41,17 +53,23 @@ export function normalizeTruckGpsRoute(payload:unknown,date:string,truck:string,
   // Do not imply a road traveled during an observation gap. Compression of a
   // stationary observation preserves its recorded coverage through `until`.
   const chunks:typeof observations[]=[];
+  const gapLinks:GpsRoutePoint[][]=[];
   for(const point of observations) {
     const current=chunks.at(-1),previous=current?.at(-1);
     const transitionStart=previous?Math.min(previous.until,Date.parse(point.timestamp)):0;
-    const gap=previous && (Date.parse(point.timestamp)-previous.until>5*60_000 || splitPlausibleRouteRuns([{...previous,timestamp:new Date(transitionStart).toISOString()},point]).length>1);
+    const elapsed=previous?Date.parse(point.timestamp)-previous.until:0;
+    const plausible=previous && splitPlausibleRouteRuns([{...previous,timestamp:new Date(transitionStart).toISOString()},point]).length===1;
+    const gap=previous && (elapsed>5*60_000 || !plausible);
+    // Sparse mobile reports still convey direction. Distinguish those links
+    // from a continuous trail, and never bridge long outages or impossible jumps.
+    if(previous && gap && plausible && elapsed<=30*60_000) gapLinks.push([previous,point]);
     if(!current || gap) chunks.push([point]);
     else current.push(point);
   }
   const runs=chunks;
   const clean=({timestamp,latitude,longitude}:GpsRoutePoint):GpsRoutePoint=>({timestamp,latitude,longitude});
   const coveredThrough=observations.length?new Date(Math.max(...observations.map(point=>point.until))).toISOString():null;
-  return {date,truck,status:observations.length?'available':'empty',observedAt,coveredThrough,points:observations.map(clean),paths:runs.filter(run=>run.length>1).map(run=>run.map(clean)),gaps:Math.max(0,runs.length-1),rejected};
+  return {date,truck,status:observations.length?'available':'empty',observedAt,coveredThrough,points:observations.map(clean),paths:runs.filter(run=>run.length>1).map(run=>run.map(clean)),gapLinks:gapLinks.map(run=>run.map(clean)),gaps:Math.max(0,runs.length-1),rejected};
 }
 
 export function readTruckGpsRoute(date:string,truck:string,root=process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data'),now=Date.now()):TruckGpsRoute {

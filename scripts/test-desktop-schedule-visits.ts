@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { scheduleVisitState as fullScheduleVisitState } from '../lib/desktop-schedule-visits';
 import { scheduleStatusTone } from '../desktop-ui/lib/schedule-contract';
 
-const scheduleVisitState = (...args: Parameters<typeof fullScheduleVisitState>) => { const {onsiteTime, ...state} = fullScheduleVisitState(...args); return state; };
+const scheduleVisitState = (...args: Parameters<typeof fullScheduleVisitState>) => { const {onsiteTime, onsiteTruck, ...state} = fullScheduleVisitState(...args); return state; };
 const now = Date.parse('2026-09-06T16:00:00Z');
 const recent = '2026-09-06T15:59:30Z';
 const trucks = [{ truck: 'Truck 4', lastGpsUpdate: recent }];
@@ -24,7 +24,11 @@ for (const invalid of [{ ...visit, match_confidence: 'ambiguous' }, { ...visit, 
 }
 assert.equal(scheduleVisitState(job, [visit], '2026-09-06T15:00:00Z', trucks, now).truckOnSite, false, 'Stale visit snapshots cannot claim live on-site status');
 assert.equal(scheduleVisitState(job, [visit], recent, [{ truck: 'Truck 4', lastGpsUpdate: '2026-09-06T15:00:00Z' }], now).truckOnSite, false, 'GPS must also be fresh');
-assert.deepEqual(scheduleVisitState({ ...job, truck: 'Truck 6' }, [visit], recent, trucks, now), { hasVisit: true, truckOnSite: false });
+assert.equal(scheduleVisitState(job, [visit], '2026-09-06T15:55:00Z', [{ truck: 'Truck 4', lastGpsUpdate: '2026-09-06T15:55:00Z' }], now).truckOnSite, true, 'A five-minute continuous GPS delay is still live on-site evidence.');
+const unassigned = fullScheduleVisitState({ ...job, truck: 'Unassigned' }, [visit], recent, trucks, now);
+assert.equal(unassigned.truckOnSite, true, 'A fresh confirmed GPS visit must remain visible while JunkWare has not assigned the appointment.');
+assert.equal(unassigned.onsiteTruck, 'Truck 4');
+assert.deepEqual(scheduleVisitState({ ...job, truck: 'Truck 6' }, [visit], recent, trucks, now), { hasVisit: true, truckOnSite: true });
 console.log('Schedule visit state passed: identity, confirmed visits, closed-state precedence, departure, truck matching, and freshness.');
 
 

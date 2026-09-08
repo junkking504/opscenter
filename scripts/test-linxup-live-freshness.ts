@@ -26,6 +26,7 @@ expect(health.includes("dataUpdatedAt"), "Health endpoint must expose combined d
 expect(sync.includes("health?.dataUpdatedAt || health?.updatedAt"), "Current pages must react to LinxUp-only refreshes");
 for (const command of [
   "collect_linxup_location_history.py",
+  "refresh-linxup-geofence-alerts.py",
   "seed_local_appointment_geocodes.py",
   "match_linxup_appointment_visits.py",
   "validate_linxup_appointment_visits.py",

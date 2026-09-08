@@ -140,7 +140,11 @@ OpsCenter checks operational alerts during each live-data refresh cycle, includi
 ## LinxUp facility entries
 
 Command also reads native LinxUp `GEOFENCE_ENTERED` events from the selected
-operating day's collected alert file, without requiring a Slack message. Entries
+operating day's collected alert file, without requiring a Slack message. The
+one-minute LinxUp runner refreshes this separate alert feed alongside GPS
+positions; geofence entry visibility no longer waits on the slower full refresh.
+The alert read has a 20-second timeout, retains the collector's existing history
+on failure, and cannot stop position/appointment-visit processing. Entries
 show truck, facility, entered time, and the load effect in the same newest-first
 timeline. Warehouse entries keep the current load; transfer stations, landfills,
 and metal recycling yards reset it to empty. Known configured facility aliases

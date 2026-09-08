@@ -1048,6 +1048,9 @@ export function buildTruckDepartureSlackNotifications(date: string, rows: AnyRec
   return buildTruckVisitSlackNotifications(date, rows, "truck_departure");
 }
 function allTruckVisitNotifications(date: string, state: SlackAlertState): SlackOpsAlert[] {
+  // Delayed GPS pushes still reconcile historical visits, but those visits
+  // must never become new field alerts when an old day is processed again.
+  if (date !== chicagoDateKey()) return [];
   const rows = readTruckArrivalVisitRows(date);
   const departures = buildTruckDepartureSlackNotifications(date, rows);
   if (!state.truckDepartureNotificationsInitializedAt) {
@@ -1296,6 +1299,8 @@ async function runTruckArrivalSlackAlerts(options: {
   kinds: ReadonlySet<SlackAlertKind>;
 }): Promise<SlackAlertRunResult> {
   const { date, dryRun, enabled, kinds } = options;
+  // Do not initialize or change live delivery state during historical replay.
+  if (date !== chicagoDateKey()) return slackAlertRunResult(date, dryRun, enabled, []);
   const state = readState();
   const allNotifications = allTruckVisitNotifications(date, state);
   const initialized = Boolean(state.truckArrivalNotificationsInitializedAt);

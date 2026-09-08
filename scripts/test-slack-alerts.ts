@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { mock } from "node:test";
 import {
   appointmentItemDescriptions,
   appointmentTerritory,
@@ -39,6 +40,7 @@ process.env.SLACK_OPS_PAYMENT_CHANNEL_ID = "C_TEST_PAYMENT";
 delete process.env.SLACK_OPS_CREW_CHANNEL_ID;
 
 async function main() {
+mock.timers.enable({ apis: ["Date"], now: new Date("2026-08-12T20:00:00Z") });
 assert.equal(appointmentTerritory({ normalized_territory: "Jefferson Parish", market: "New Orleans" }), "Jefferson Parish");
 assert.equal(appointmentTerritory({ territory: "Northshore" }), "Northshore");
 assert.equal(appointmentTerritory({ market: "Baton Rouge" }), "Baton Rouge");
@@ -730,6 +732,32 @@ try {
   assert.equal((await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['truck_arrival']})).posted.length,0);
   assert.deepEqual((await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['truck_departure']})).posted.map(a=>a.kind),['truck_departure']);
   assert.equal((await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['truck_departure']})).posted.length,0);
+  const currentVisitState = fs.readFileSync(paymentStateFile, "utf8");
+  // Reproduce a late provider replay with a confirmed interval that has never
+  // been delivered, so deduplication alone cannot make these assertions pass.
+  fs.writeFileSync(arrivalVisitsFile, JSON.stringify({ visits: [{
+    ...visit,
+    appointment_id: "historical-undelivered",
+    jk_number: "JK4051599",
+    first_arrival: "2026-08-12T18:00:00Z",
+    visit_intervals: [{ arrival: "2026-08-12T18:00:00Z", departure: "2026-08-12T19:00:00Z" }],
+  }] }));
+  const messagesBeforeReplay = postedMessages.length;
+  // Midnight UTC is still the same operating day in Chicago.
+  mock.timers.setTime(new Date("2026-08-13T04:59:59Z").getTime());
+  assert.equal((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["truck_arrival", "truck_departure"], dryRun: true })).preview.length, 2);
+  mock.timers.setTime(new Date("2026-08-13T05:00:00Z").getTime());
+  for (const dryRun of [false, true]) {
+    const replay = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["truck_arrival", "truck_departure"], dryRun });
+    assert.equal(replay.posted.length, 0);
+    assert.equal(replay.preview.length, 0);
+    assert.equal(fs.readFileSync(paymentStateFile, "utf8"), currentVisitState);
+    const fullReplay = await runSlackOpsAlerts({ date: "2026-08-12", dryRun: true });
+    assert.equal(fullReplay.preview.filter(alert => alert.kind === "truck_arrival" || alert.kind === "truck_departure").length, 0);
+  }
+  assert.equal(postedMessages.length, messagesBeforeReplay);
+  mock.timers.setTime(new Date("2026-08-12T20:00:00Z").getTime());
+  fs.writeFileSync(arrivalVisitsFile, JSON.stringify({visits:[{...visit,first_arrival:'2026-08-12T18:47:43Z',visit_intervals:[{arrival:'2026-08-12T18:47:43Z',departure:'2026-08-12T19:05:00Z'}]}]}));
   postedMessages.length = 0;
 
   const baselineRun = await runSlackOpsAlerts({ date: "2026-08-12" });
@@ -1042,4 +1070,4 @@ console.log("Slack appointment, truck arrival, payment closeout, and crew notifi
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
-});
+}).finally(() => mock.timers.reset());

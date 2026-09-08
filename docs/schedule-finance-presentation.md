@@ -45,6 +45,38 @@ beneath the blocks. Clicking the estimate opens both appointments and the full
 minutes/miles. Booked windows are not moved, and traffic time is not described as
 verified visit order, service duration, or available buffer.
 
+## Duplicate Booking Review
+
+Schedule checks the complete selected-day snapshot before route planning, regardless
+of map/search/territory filters. Potential duplicates require distinct source
+appointment IDs, an exact normalized service address (unit/building retained), a
+matching non-placeholder customer name or phone, and overlapping known windows.
+Punctuation and common street abbreviations are normalized; fuzzy/geographic
+matches are not inferred. Canceled records, two closed records, adjacent windows,
+and explicit source-linked estimate/job pairs are excluded. One completed record
+and one open record can still require review. Shared JK numbers are never merged.
+
+The compact review presents both JKs, categories, statuses, windows, trucks,
+service territories, and original franchises side by side. Open Appointment uses
+the exact record identity; Review in JunkWare opens each source record. Keep Both
+requires explicit confirmation and stores only an OpsCenter review decision.
+Kept pairs remain available via Show Kept Pairs and can be reopened. It does not
+cancel, reassign, hide from dispatch, merge, or send anything to JunkWare.
+
+Decisions live in external runtime data under `duplicate-booking-reviews/`, keyed
+by date and pair identity, with source-fact fingerprints and actor/time/revision.
+Fingerprint changes (customer/contact, address, window, type/status, JK, franchise,
+or truck) require a new review. GPS, refresh timestamps, and unrelated notes do
+not invalidate a decision. Authenticated same-origin operations-write access,
+server-side source revalidation, per-pair exclusive locks, atomic replace and
+read-back, and revision comparisons protect saves. Corrupt/unavailable storage
+shows an error and disables Keep Both; it never silently assumes approval.
+Lock contention fails closed; a crash-left lock requires operator investigation.
+
+Checks: `npm run verify:duplicate-bookings`; synthetic browser coverage in
+`scripts/test-duplicate-bookings-browser.mjs` against the isolated Vite fixture
+at port 3148. No real pair should be marked Keep Both merely to test the feature.
+
 ## Route Planner
 
 Dispatch service territory is resolved by the shared `lib/service-territory.ts`

@@ -1,0 +1,23 @@
+.schedule-duplicates { margin: 12px 0; border: 1px solid #d6bd7b; border-radius: 10px; background: #fffdf7; color: #242a2c; overflow: hidden; }
+.duplicate-check-clear { border-color: #d9ddda; background: #fff; }
+.duplicate-check-clear > header { padding: 10px 16px; }
+.duplicate-check-clear > header > span { font-size: 13px; color: #54635e; }
+.schedule-duplicates > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; }
+.schedule-duplicates h2 { margin: 0; font-size: 16px; font-weight: 700; }
+.schedule-duplicates h2 span { margin-left: 10px; font-size: 12px; color: #765718; }
+.schedule-duplicates p { margin: 5px 0 0; font-size: 13px; line-height: 1.5; }
+.schedule-duplicates > p { padding: 10px 16px; }
+.schedule-duplicates article { border-top: 1px solid #ded8c7; }
+.duplicate-pair-label { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 16px; font-size: 13px; }
+.duplicate-pair-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 0 16px 10px; }
+.duplicate-appointment { min-width: 0; display: flex; flex-direction: column; gap: 5px; padding: 12px; border: 1px solid #d9ddda; border-radius: 7px; background: white; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.duplicate-appointment > div:first-child { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.duplicate-reference { padding: 0; background: none; color: #a32431; font-size: 14px; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.duplicate-appointment a { color: #364e60; text-decoration: underline; }
+.duplicate-appointment dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0; }
+.duplicate-appointment dt { font-size: 11px; color: #606b68; font-weight: 600; }
+.duplicate-appointment dd { margin: 0; font-weight: 600; }
+.duplicate-record-actions, .schedule-duplicates footer { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.schedule-duplicates footer { padding: 0 16px 12px; font-size: 12px; }
+.schedule-duplicates footer > span { flex: 1; min-width: 180px; }
+@media (max-width: 800px) { .duplicate-pair-grid { grid-template-columns: 1fr; } .schedule-duplicates > header { align-items: flex-start; flex-wrap: wrap; } }

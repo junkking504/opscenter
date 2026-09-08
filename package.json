@@ -5,7 +5,8 @@
   "scripts": {
     "build:desktop": "node scripts/build-desktop-ui.mjs",
     "dev": "next dev",
-    "build": "npm run verify:service-territory && npm run build:desktop && next build --webpack",
+    "build": "npm run verify:service-territory && npm run verify:duplicate-bookings && npm run build:desktop && next build --webpack",
+    "verify:duplicate-bookings": "node --import tsx scripts/test-duplicate-bookings.ts",
     "verify:service-territory": "node --import tsx scripts/test-service-territory.ts",
     "start": "next start",
     "lint": "eslint .",

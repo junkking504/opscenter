@@ -61,11 +61,18 @@ def main():
                     os.killpg(child.pid, signal.SIGKILL)
                     child.wait()
                 code = 124
-            state.update(status='success' if code == 0 else 'failed', exitCode=code, finishedAt=now())
+            # rsync exit 24 means files vanished between the file list and the
+            # transfer. Under a live queue that is normal, not a backup failure;
+            # 17 of 485 runs previously reported "failed" for exactly this, and
+            # nothing distinguished them from a real failure.
+            succeeded = code in (0, 24)
+            state.update(status='success' if succeeded else 'failed', exitCode=code, finishedAt=now())
             if code == 0:
                 state['lastSuccessAt'] = state['finishedAt']
             save()
             print(f"Backup {state['status']} at {state['finishedAt']} (exit {code}).", flush=True)
+            if not succeeded:
+                print(f"Backup failure is unmonitored elsewhere; exit {code} needs review.", file=sys.stderr, flush=True)
             return code
         except Exception as error:
             if child and child.poll() is None:

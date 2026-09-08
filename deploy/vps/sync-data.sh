@@ -81,6 +81,12 @@ rsync -az --no-perms --omit-dir-times --timeout=30 -e "$RSYNC_RSH" --delay-updat
   --exclude '/raw/' \
   --exclude '/repairs/' \
   --exclude '/reports/' \
+  --exclude '/history/linxup/pending/' \
+  --exclude '/schedule-requests/' \
+  --exclude '*.tmp' \
+  --exclude '*.tmp-*' \
+  --exclude '.*.lock/' \
+  --exclude '*.lock/' \
   --exclude '/manual_bonuses/' \
   --exclude '/payroll_corrections/' \
   --exclude '/job-route-assignments/' \

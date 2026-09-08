@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.opscenter.storage-maintenance</string>
+
+    <!-- Rotates oversized logs and prunes merged LinxUp push receipts. Without
+         this the data volume fills and takes down every OpsCenter service at
+         once; it has already done so 389 times. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/missioncontrol/opscenter-v2/opscenter/scripts/prune-operational-storage.sh</string>
+        <string>--apply</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>3</integer>
+        <key>Minute</key>
+        <integer>20</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/missioncontrol/Library/Logs/OpsCenter/storage-maintenance.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/missioncontrol/Library/Logs/OpsCenter/storage-maintenance.err.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

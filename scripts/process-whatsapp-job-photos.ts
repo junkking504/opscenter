@@ -110,7 +110,19 @@ async function deliverCrewExpenseReplies(): Promise<{ sent: number; retried: num
         signal: AbortSignal.timeout(20_000),
       });
       const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
-      if (!response.ok || payload.error) throw new Error(`WhatsApp reply failed (${response.status}).`);
+      if (!response.ok || payload.error) {
+        // Flattening this to a bare status code left 31 permanently failed crew
+        // replies that nobody could diagnose - a 400 means the request was
+        // malformed, and the provider says how, but the reason was discarded.
+        const providerError = payload.error && typeof payload.error === "object"
+          ? payload.error as Record<string, unknown>
+          : null;
+        const detail = providerError
+          ? [providerError.message, providerError.error_user_msg, providerError.error_subcode, providerError.code]
+            .filter(Boolean).map(String).join(" | ")
+          : JSON.stringify(payload).slice(0, 300);
+        throw new Error(`WhatsApp reply failed (${response.status}): ${detail || "no detail returned"}`);
+      }
       finishCrewExpenseReply(claim.file, "sent", { metaMessageId: clean((payload.messages as Array<Record<string, unknown>> | undefined)?.[0]?.id) });
       results.sent += 1;
     } catch (error) {

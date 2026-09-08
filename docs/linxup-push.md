@@ -62,9 +62,12 @@ dwell evidence is present.
 ## Recorded daily GPS routes
 
 Schedule and the Command map offer a **Truck GPS route** selector. Selecting a
-truck row or current truck pin uses the same selection. The map fits that truck's
-recorded trail for the selected operating date and marks its first and last
-positions. **Fit route** restores the trail after manual zooming or panning;
+truck row or current truck pin uses the same selection. Clicking a truck centers the map on
+its latest available GPS marker at street level. Repeated clicks recenter it. The
+recorded trail stays visible, but arriving history never zooms away from the truck.
+For a historical date with no current marker, selection focuses the day's last
+recorded position. **Fit route** explicitly frames the full trail and its first and
+last positions after manual zooming or panning;
 background refresh does not reset the viewport. Dates, truck changes, and clearing
 selection remove the previous overlay. Unassigned has no physical GPS history.
 

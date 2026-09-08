@@ -208,6 +208,74 @@
   gap: 2px;
 }
 
+.ops-jobs-page .ops-completed-appointment-summary {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+}
+
+.ops-jobs-page .ops-completed-appointment-state,
+.ops-jobs-page .ops-completed-estimate-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  padding: 5px 8px;
+  border: 1px solid #198754;
+  border-radius: 999px;
+  background: #e7f8ee;
+  color: #0d5a35;
+  font-size: 0.6875rem;
+  font-weight: 950;
+  letter-spacing: 0.055em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.ops-jobs-page .ops-completed-appointment-state b,
+.ops-jobs-page .ops-completed-estimate-state b {
+  display: inline-grid;
+  width: 14px;
+  height: 14px;
+  place-items: center;
+  border-radius: 50%;
+  background: #117443;
+  color: #fff;
+  font-size: 0.625rem;
+}
+
+.ops-jobs-page .ops-completed-estimate-state {
+  border-color: #8f5ca8;
+  background: #faf0ff;
+  color: #653875;
+}
+
+.ops-jobs-page .ops-completed-estimate-state b { background: #7a438d; }
+
+.ops-jobs-page .ops-completed-appointment-payment {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+  padding-right: 1px;
+}
+
+.ops-jobs-page .ops-completed-appointment-payment > span {
+  color: #35614c;
+  font-size: 0.625rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.ops-jobs-page .ops-completed-appointment-payment > strong { font-size: 1.0625rem; }
+.ops-jobs-page .ops-completed-appointment-payment > small {
+  color: #596876;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
 .ops-jobs-page .ops-appointment-card-payment-line {
   display: flex;
   align-items: baseline;
@@ -1148,9 +1216,10 @@
     padding-top: 5px;
   }
 
-  .ops-jobs-page .ops-appointment-card-payment-summary { justify-items: start; }
+  .ops-jobs-page :is(.ops-appointment-card-payment-summary, .ops-completed-appointment-summary) { justify-items: start; }
   .ops-jobs-page .ops-appointment-card-payment-line { justify-content: flex-start; }
   .ops-jobs-page .ops-appointment-card-merchant-link { margin-left: 0; }
+  .ops-jobs-page .ops-completed-appointment-payment { justify-items: start; }
 
   .ops-jobs-page .ops-appointment-visit-summary { padding: 5px 7px; }
 

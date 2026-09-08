@@ -2174,17 +2174,28 @@ function recordedPaymentAmount(job: JobRow): number {
   return job.closeout?.payments.find((entry) => entry.amount > 0)?.amount || 0;
 }
 
+function completedJobPaidExcludingTips(job: JobRow): number {
+  // JunkWare's closeout total is the job sale before the separately recorded
+  // tip. Fall back to collected payment minus that tip when a detailed
+  // closeout has not reached the schedule snapshot yet.
+  if (job.closeout?.total && job.closeout.total > 0) return job.closeout.total;
+  const tip = Math.max(job.tipAmount || 0, job.closeout?.tip || 0);
+  return Math.max(0, recordedPaymentAmount(job) - tip);
+}
+
 function AppointmentCardPaymentSummary({ job }: { job: JobRow }) {
   const bucket = statusBucket(job);
-  const paymentAmount = recordedPaymentAmount(job);
-  const hasRecordedPayment = bucket === "Completed" && paymentAmount > 0;
-
-  if (hasRecordedPayment) {
+  if (bucket === "Completed") {
+    const jobPaid = completedJobPaidExcludingTips(job);
     return (
-      <div className="ops-appointment-card-payment-summary">
-        <div className="ops-appointment-card-payment-line">
-          <strong className="ops-appointment-card-revenue">{money(paymentAmount)}</strong>
-          <span className="ops-appointment-card-payment-reference">{appointmentPaymentTypeLabel(job, true)}</span>
+      <div className="ops-completed-appointment-summary">
+        <span className="ops-completed-appointment-state"><b aria-hidden="true">✓</b> Completed job</span>
+        <div className="ops-completed-appointment-payment">
+          <span>Job paid · tips excluded</span>
+          <strong className={jobPaid > 0 ? "ops-appointment-card-revenue" : "ops-outcome-unavailable"}>
+            {jobPaid > 0 ? money(jobPaid) : "Payment not recorded"}
+          </strong>
+          <small>{appointmentPaymentTypeLabel(job, true)}</small>
         </div>
         {paymentIsCard(job) ? (
           <a
@@ -2198,6 +2209,10 @@ function AppointmentCardPaymentSummary({ job }: { job: JobRow }) {
         ) : null}
       </div>
     );
+  }
+
+  if (bucket === "Estimate") {
+    return <span className="ops-completed-estimate-state"><b aria-hidden="true">✓</b> Estimate completed</span>;
   }
 
   return (
@@ -2222,9 +2237,9 @@ function AppointmentCardPaymentSummary({ job }: { job: JobRow }) {
 function cardStatusLabel(job: JobRow): string {
   switch (statusBucket(job)) {
     case "Completed":
-      return "Completed";
+      return "Completed job";
     case "Estimate":
-      return "Estimate";
+      return "Estimate completed";
     case "Open / Scheduled":
       return "Confirmed";
     case "Canceled":

@@ -9,6 +9,7 @@ import { fixtureSnapshot, job, alert, now } from './fixtures/crew-progress';
 import { commandAlertWorkItemForSource } from '../lib/command-alert-workflow';
 import { crewPaymentFacts, crewCloseoutFacts, crewAppointmentFacts } from '../lib/crew-progress-details';
 import { appointmentPickupItems } from '../lib/junkware-job-details';
+import { crewAlertCardPresentation } from '../desktop-ui/lib/crew-alert-presentation';
 import type { WorkItem } from '../lib/platform/contracts';
 
 const message = (id:string, timestamp:string, rawText:string, values:Partial<SlackDigestMessage> = {}): SlackDigestMessage => ({id,timestamp,rawText,text:rawText,channel:'#truck-2',threadReply:false,...values});
@@ -46,6 +47,13 @@ assert.deepEqual(fixture.crewProgress?.jobs[0].updateIds,['closed-one','arrival-
 assert.equal(fixture.crewProgress!.jobs[1].steps.filter(step => step.state === 'next').length,1);
 assert.match(fixture.crewProgress!.jobs[1].next,/arrival/i);
 assert.deepEqual(fixture.crewProgress?.unlinkedUpdateIds,['clock-in']);
+const fixtureNewJob = fixture.crewProgress!.jobs.find(job => job.jobNumber === 'JK1000002')!;
+assert.deepEqual(crewAlertCardPresentation(fixture.alerts.find(alert => alert.id === 'new-two')!,fixtureNewJob),{
+  kind:'new-appointment',label:'New Appointment',territory:'New Orleans',territoryTone:'new-orleans',jobNumber:'JK1000002',timeSlot:'11:00 AM – 12:00 PM',href:fixtureNewJob.href,
+});
+assert.equal(crewAlertCardPresentation(alert('cancel','Cancellation','2026-09-07T15:00:00Z',{title:'JK1000004 · 2:00 PM - 3:00 PM',territory:'Northshore'}))?.kind,'cancellation');
+assert.equal(crewAlertCardPresentation(alert('cancel','Cancellation','2026-09-07T15:00:00Z',{title:'JK1000004 · 2:00 PM - 3:00 PM',territory:'Northshore'}))?.territoryTone,'northshore');
+assert.equal(crewAlertCardPresentation(fixture.alerts.find(alert => alert.id === 'closed-one')!,fixture.crewProgress!.jobs[0])?.label,'Completed');
 const build = (appointments:Parameters<typeof buildCrewProgress>[0]['appointments'], options:Partial<Parameters<typeof buildCrewProgress>[0]> = {}) => buildCrewProgress({date:'2026-09-07',appointments,alerts:[],visits:[],scheduleCurrent:true,visitsCurrent:true,updatesComplete:true,now,...options});
 const step = (snapshot:ReturnType<typeof build>,label:string) => snapshot.jobs[0].steps.find(step => step.label === label)!;
 const stale = build([job()],{scheduleCurrent:false,visitsCurrent:false,updatesComplete:false});

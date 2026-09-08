@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react';
 import { ChevronRight, CircleHelp, Search, TriangleAlert } from 'lucide-react';
 import type { DesktopAlert, DesktopLiveProps } from '../lib/live-contract';
+import { crewAlertCardPresentation, type CrewAlertCardPresentation } from '../lib/crew-alert-presentation';
 import { CrewAlertPhotos } from './crew-alert-photos';
 import './crew-progress-alerts.css';
 
 const clock = (stamp?: string) => stamp && Number.isFinite(Date.parse(stamp)) ? new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}).format(new Date(stamp)) : 'Time unavailable';
 const eventTime = (alert: DesktopAlert) => Number.isFinite(Date.parse(alert.timestamp || '')) ? Date.parse(alert.timestamp!) : -Infinity;
 const factKey = (label: string) => label.toLowerCase().replace(/[^a-z]/g,'').replace(/^(items|pickupitems)$/, 'items').replace(/^(notes|appointmentnotes|keynotes)$/, 'notes');
+const territoryClass = (tone: CrewAlertCardPresentation['territoryTone']) => `crew-territory-${tone}`;
 
 export function CrewProgressAlerts({live, openAlert, openControl}: {live: DesktopLiveProps; openAlert: (alert: DesktopAlert) => void; openControl: () => void}) {
   const {snapshot} = live;
@@ -37,10 +39,11 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
     const customerKeys = new Set(customerFacts.map(fact => factKey(fact.label)));
     const facts = [...alert.facts.filter(fact => !customerKeys.has(factKey(fact.label))),...customerFacts];
     const followUpDetail = job?.needsFollowUp && latestJobUpdates.has(alert.id) ? job.next : '';
-    return <article key={alert.id} className={`crew-update${followUpDetail ? ' needs-follow-up' : ''}`}>
+    const presentation = crewAlertCardPresentation(alert, job);
+    return <article key={alert.id} className={`crew-update${presentation ? ` crew-update-${presentation.kind}` : ''}${followUpDetail ? ' needs-follow-up' : ''}`}>
     <div className="crew-update-time"><time dateTime={alert.timestamp}>{alert.label === 'Arrival' ? alert.facts.find(fact=>fact.label === 'Arrival')?.value || alert.detected : alert.detected}</time><span aria-hidden="true"/></div>
     <div className="crew-update-content">
-      <header><div><strong>{alert.label}</strong><span>{alert.title}{job && !alert.title.includes(job.truck) ? ` · ${job.truck}` : ''}</span></div>{alert.corrected && <em>Updated · {clock(alert.updatedAt)}</em>}</header>
+      <header><div>{presentation ? <div className="crew-event-header"><strong className="crew-update-label">{presentation.label}</strong><span aria-hidden="true">–</span><span className={`crew-territory-pill ${territoryClass(presentation.territoryTone)}`}>{presentation.territory}</span><span aria-hidden="true">–</span><a className="crew-event-job" href={presentation.href}>{presentation.jobNumber}</a><span aria-hidden="true">–</span><strong className="crew-event-window">{presentation.timeSlot}</strong></div> : <><strong className="crew-update-label">{alert.label}</strong><span>{alert.title}{job && !alert.title.includes(job.truck) ? ` · ${job.truck}` : ''}</span></>}</div>{alert.corrected && <em>Updated · {clock(alert.updatedAt)}</em>}</header>
       <dl>{facts.filter(fact=>!(/^(Krewe member|Crew member|Employee)$/i.test(fact.label) && fact.value === alert.title)).map((fact,index) => <div key={`${fact.label}-${index}`}><dt>{fact.label}</dt><dd>{fact.href ? <a href={fact.href}>{fact.value}</a> : fact.value}</dd></div>)}</dl>
       {followUpDetail && <p className="crew-update-follow-up"><TriangleAlert size={13}/><strong>Follow up:</strong> {followUpDetail}</p>}
       <footer><CrewAlertPhotos photos={alert.photos} title={alert.title}/><button type="button" onClick={() => openAlert(alert)}>Open record <ChevronRight size={13}/></button>

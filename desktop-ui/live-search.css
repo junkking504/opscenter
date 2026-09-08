@@ -1,3 +1,6 @@
+.topbar:has(.global-search.active) { backdrop-filter: none; }
+/* Blur creates a stacking context and contains fixed backdrops. Let open search
+   use its existing overlay layers above the schedule and its viewport backdrop. */
 .search-date-toolbar { padding: 10px 14px; border-bottom: 1px solid #d9ded9; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .search-date-toolbar > span { font-size: 13px; font-weight: 700; }
 .search-date-toolbar [role="group"] { display: flex; gap: 3px; border: 1px solid #d3d9d4; border-radius: 7px; padding: 3px; background: #eef1ee; }

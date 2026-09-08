@@ -65,6 +65,10 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [truckMapView, setTruckMapView] = useState<'location' | 'route'>('location');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const mapPanelRef = useRef<HTMLElement>(null);
+  const truckCardRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (selectedTruck && showMap && view === 'board') truckCardRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [selectedTruck, mapResetKey, showMap, view]);
   useEffect(() => {
     if (selectedId && showMap && view === 'board') mapPanelRef.current?.scrollIntoView({ block: 'nearest' });
   }, [selectedId, mapResetKey, showMap, view]);
@@ -249,20 +253,23 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     <div ref={boardLayoutRef} className={`schedule-board-layout${showMap ? ' map-open' : ''}`}>
       {showMap && <section ref={mapPanelRef} className="schedule-map-panel">
         <nav className="live-map-territories" aria-label="Focus map on territory"><button onClick={reset} aria-pressed={scope === 'ALL'}>All</button>{territoryOrder.filter(code => code !== 'UNK' || groups.some(group => group.code === code)).map(code => <button key={code} className={`territory-${code.toLowerCase()}`} aria-label={`Focus ${territoryLabels[code]}`} aria-pressed={scope === code} onClick={() => focusTerritory(code)} title={territoryLabels[code]}>{code}<small>{regions.filter(region => region.code === code).length}</small></button>)}</nav>
-        <div className="schedule-map-canvas">
+        <div className={`schedule-map-canvas${selectedTruck ? ' has-truck-card' : ''}`}>
           <ScheduleMap appointments={visible} trucks={snapshot.fleet.isToday ? snapshot.fleet.trucks : []} selected={selectedId} selectedTruck={selectedTruck} gpsRoute={gpsRoute} truckMapView={truckMapView} scope={scope} resetKey={mapResetKey} date={date} onSelect={selectAppointment} onSelectTruck={selectTruck} />
+          {selectedTruck && <section ref={truckCardRef} className="live-map-truck-details live-map-truck-card" aria-label={`${selectedTruck} details`}>
+            <header><strong>{selectedTruck}</strong><button aria-label="Clear truck selection" onClick={() => setSelectedTruck(null)}>×</button></header>
+            <dl><div><dt>Krewe</dt><dd>{[truckDetails?.driver, truckDetails?.navigator].filter(Boolean).join(' · ') || (truckJobs[0] ? crew(truckJobs[0]) : 'Crew Not Available')}</dd></div><div><dt>Status</dt><dd>{truckDetails?.operationalStatus || 'Not Available'} · {truckDetails?.serviceStatus || 'Service Status Not Available'}</dd></div><div><dt>Truck load</dt><dd>{snapshot.truckLoads?.find(row=>truckLabel(row.truck)===selectedTruck)?.label || 'Load not recorded'}</dd></div><div><dt>GPS</dt><dd>{truckDetails?.lastGpsUpdate ? new Date(truckDetails.lastGpsUpdate).toLocaleString('en-US', { timeZone: 'America/Chicago' }) : 'No GPS Timestamp'} · {truckDetails?.lastGpsUpdate ? truckGpsLabel : 'Position Unavailable'}</dd></div></dl>
+            {selectedTruckLoad?.note && <p>{selectedTruckLoad.note}</p>}
+            {(!truckDetails || truckDetails.latitude === null || truckDetails.longitude === null) && <p>No current position is available in the fleet snapshot.</p>}
+            <div className="live-map-truck-actions"><a href={`/desktop?data=live&workspace=Fleet&date=${date}&truck=${encodeURIComponent(selectedTruck)}`}>Open Fleet Record</a>{/^Truck \d+$/.test(selectedTruck) && <Button size="sm" data-truck-camera={Number(selectedTruck.replace('Truck ', ''))} aria-label={`View live video for ${selectedTruck}`}>View LinxUp Live Video</Button>}{truckDetails?.latitude != null && truckDetails?.longitude != null && <a href={`https://www.google.com/maps/search/?api=1&query=${truckDetails.latitude},${truckDetails.longitude}`} target="_blank" rel="noopener noreferrer">Open GPS in Maps</a>}</div>
+
+          </section>}
           <div className="map-focus-chip"><span>{filtered ? 'Filtered View' : 'Operating Footprint'}</span><strong>{selected ? `${selected.jkNumber} · ${selected.location ? 'Selected' : 'Verify Address'}` : selectedTruck || (scope === 'ALL' ? 'All Territories' : territoryLabels[scope.split(':')[0]] || scope)}</strong>{(filtered || selectedId || selectedTruck) && <div className="map-focus-actions"><button onClick={reset}>Reset</button></div>}</div>
           <div className="map-operation-summary"><span>{visible.length} appointments</span><span>{visible.filter(job => job.location).length} verified pins</span></div>
         </div>
         <aside className="schedule-map-controls"><label className="schedule-gps-picker">Truck GPS route<select aria-label="Truck GPS route" value={selectedTruck || ''} onChange={event=>event.target.value?selectTruck(event.target.value):setSelectedTruck(null)}><option value="">Select truck</option>{truckNames.map(truck=><option key={truck} value={truck}>{truck}</option>)}</select></label>{!selectedTruck && !selected && <><div><span className="section-kicker">{snapshot.fleet.isToday ? 'Live Map' : 'Planning Map'}</span><h2>{snapshot.fleet.isToday ? 'Dispatch Positions' : 'Appointment Coverage'}</h2></div>
           <div className="live-map-help">Select a truck to see its recorded GPS route; select an appointment for details. Escape resets the map.</div></>}
           {selectedTruck && <GpsRouteSummary date={date} truck={selectedTruck} route={gpsRoute} error={gpsRouteError} fit={()=>{setTruckMapView('route');setMapResetKey(value=>value+1);}} />}
-          {selectedTruck ? <section className="live-map-truck-details" aria-label={`${selectedTruck} details`}>
-            <header><strong>{selectedTruck}</strong><button aria-label="Clear truck selection" onClick={() => setSelectedTruck(null)}>×</button></header>
-            <dl><div><dt>Krewe</dt><dd>{[truckDetails?.driver, truckDetails?.navigator].filter(Boolean).join(' · ') || (truckJobs[0] ? crew(truckJobs[0]) : 'Crew Not Available')}</dd></div><div><dt>Status</dt><dd>{truckDetails?.operationalStatus || 'Not Available'} · {truckDetails?.serviceStatus || 'Service Status Not Available'}</dd></div><div><dt>Truck load</dt><dd>{snapshot.truckLoads?.find(row=>truckLabel(row.truck)===selectedTruck)?.label || 'Load not recorded'}</dd></div><div><dt>GPS</dt><dd>{truckDetails?.lastGpsUpdate ? new Date(truckDetails.lastGpsUpdate).toLocaleString('en-US', { timeZone: 'America/Chicago' }) : 'No GPS Timestamp'} · {truckDetails?.lastGpsUpdate ? truckGpsLabel : 'Position Unavailable'}</dd></div></dl>
-            {selectedTruckLoad?.note && <p>{selectedTruckLoad.note}</p>}
-            {(!truckDetails || truckDetails.latitude === null || truckDetails.longitude === null) && <p>No current position is available in the fleet snapshot.</p>}
-            <div className="live-map-truck-actions"><a href={`/desktop?data=live&workspace=Fleet&date=${date}&truck=${encodeURIComponent(selectedTruck)}`}>Open Fleet Record</a>{/^Truck \d+$/.test(selectedTruck) && <Button size="sm" data-truck-camera={Number(selectedTruck.replace('Truck ', ''))} aria-label={`View live video for ${selectedTruck}`}>View LinxUp Live Video</Button>}{truckDetails?.latitude != null && truckDetails?.longitude != null && <a href={`https://www.google.com/maps/search/?api=1&query=${truckDetails.latitude},${truckDetails.longitude}`} target="_blank" rel="noopener noreferrer">Open GPS in Maps</a>}</div>
+          {selectedTruck ? <section aria-label={`${selectedTruck} appointments`}>
             <div className="live-map-truck-jobs"><strong>{truckJobs.length} appointments</strong>{truckJobs.map(job => <button key={job.recordId} onClick={() => selectAppointment(job.recordId)}>{job.jkNumber} · {job.appointmentTime} · {appointmentStatus(job)}</button>)}</div>
           </section> : selected ? <section className="route-intelligence-panel" aria-label={`Selected appointment ${selected.jkNumber}`}>
             <header><div><span>Selected Appointment</span><strong>{selected.jkNumber} · {appointmentRegion(selected).area}</strong></div><div><button onClick={() => setDrawerId(selected.recordId)}>Open appointment</button><button aria-label="Clear appointment selection" onClick={() => setSelectedId(null)}>×</button></div></header>

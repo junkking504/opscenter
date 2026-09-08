@@ -1,0 +1,11 @@
+.appointment-create-body { border: 0; margin: 0; min-width: 0; }
+.prebooking-check { border: 1px solid #dec893; border-radius: 8px; padding: 14px; background: #fffcf3; display: grid; gap: 12px; font-size: 13px; line-height: 1.45; }
+.prebooking-check header, .prebooking-check label { display: grid; gap: 5px; }
+.prebooking-check header strong { font-size: 15px; }
+.prebooking-check small { font-size: 12px; color: #59615e; }
+.prebooking-check article { padding: 10px; background: white; border: 1px solid #dedfd9; border-radius: 6px; overflow-wrap: anywhere; }
+.prebooking-check article > div { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; margin-bottom: 6px; }
+.prebooking-check p { margin: 4px 0; }
+.prebooking-check a { display: inline-block; margin: 6px 14px 0 0; text-decoration: underline; font-size: 13px; font-weight: 600; }
+.prebooking-check label.prebooking-confirm { display: flex; align-items: flex-start; gap: 8px; font-weight: 600; }
+.prebooking-confirm input { margin-top: 3px; flex: 0 0 auto; }

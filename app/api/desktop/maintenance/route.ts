@@ -1,13 +1,16 @@
 import { cookies } from 'next/headers';
-import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
+import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie, opsAuthRole } from '@/lib/auth';
+import { opsRoleCan } from '@/lib/ops-roles';
+import { recoverySnapshot } from '@/lib/maintenance-recovery';
 import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
-import { maintenanceSnapshot, recordClientEvent } from '@/lib/maintenance-monitor';
+import { maintenanceDirectory, maintenanceSnapshot, recordClientEvent } from '@/lib/maintenance-monitor';
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
 async function authorized() { return verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || ''); }
 export async function GET() {
-  if (!await authorized()) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
-  return Response.json(maintenanceSnapshot(), { headers });
+  const session = await authorized();
+  if (!session) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
+  return Response.json({ ...maintenanceSnapshot(), recovery: recoverySnapshot(maintenanceDirectory()), canManageRecovery: opsRoleCan(opsAuthRole(session.email), 'platform.manage') }, { headers });
 }
 export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });

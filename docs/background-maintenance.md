@@ -1,11 +1,59 @@
-# Background maintenance observation pilot
+# Background maintenance pilot
 
 The separate `com.openclaw.opscenter.maintenance` LaunchAgent observes OpsCenter
 once a minute. Command > Monitor shows current and cleared conditions, measured
 evidence, AI suggestions, worker freshness, and monthly usage. Source Health
-also reports missing/stale observer heartbeats. All pilot behavior is observation
-only: there are no repair tools, shell execution by AI, source-system writes,
-automatic deployments, or outbound messages.
+also reports missing/stale observer heartbeats. AI remains advisory. A separate
+fixed Python policy can start a confirmed stopped OpsCenter process. There is no
+shell execution by AI, source-system repair, automatic deployment, or outbound message.
+
+## Automatic process recovery
+
+Command > Monitor includes an administrator-only enable/pause switch, worker
+freshness, daily attempt count, and recent recovery receipts. Recovery defaults
+off until explicitly enabled. The policy is persisted outside Git in the same
+maintenance directory as `recovery-policy.json`; missing/corrupt policy is off.
+Pausing blocks new attempts, but cannot undo a start command already issued.
+When the app is unavailable, the local emergency off switch is an atomic update
+of that file to `{"version":1,"enabled":false}`. Preserve the recovery ledger.
+
+The existing OS-locked Python observer runs recovery before the AI tick, so
+process recovery does not depend on the web server or the model. Launchd already
+has KeepAlive; this fallback only addresses a persistent stopped process. Three
+eligible checks at least 45 seconds apart are required; gaps over 150 seconds
+reset confirmation. Only the loaded, explicitly enabled production label
+`com.openclaw.opscenter`, registered with the production wrapper, is eligible.
+A PID, occupied/uncertain port 3000, unknown service state, live wrapper lock,
+known operational write lock or detached JunkWare writer blocks recovery.
+
+Before action the worker acquires the controller's `.deploy-lock` using atomic
+mkdir, then rechecks policy, active immutable release, and stopped evidence. A
+deployment holding that lock blocks recovery. A recovery holding it makes a new
+deployment fail safely and require a later retry. A crashed worker can leave the
+deployment lock for manual review; neither worker nor controller removes another
+owner's lock automatically.
+
+The only command is `launchctl kickstart gui/<uid>/com.openclaw.opscenter`, without
+`-k`. It cannot kill a running or naturally recovering server. It never bootstraps
+an unloaded service or enables a deliberately disabled one. The worker durably
+reserves one attempt per outage before invoking the command, with a 30-minute
+cooldown and two attempts per Chicago calendar day. Timeouts, crashes, and failed
+verification consume the attempt. Three healthy periodic process/login checks
+are required before a later outage can receive a new attempt. Pausing or restarting
+the observer does not reset limits.
+
+Verification requires a running process and three consecutive local `/login`
+HTTP 200 responses, sampled five seconds apart in at most five samples. This
+verifies process/login recovery only. Source freshness, readiness, and actual
+authenticated interactions retain their independent incident/verification paths.
+An unverified start is recorded for manual review and is not automatically retried.
+
+`recovery.json` and `recovery-initialized` preserve attempt history outside Git;
+invalid or missing initialized state fails closed. `recovery-error.json` reports
+fixed failure text without private command output. The latest 100 transitions
+are retained; the UI shows the latest 10. Do not delete these files to reset limits.
+The pilot does not automatically restart running unhealthy servers, collectors,
+databases, or tunnels, modify business records, or deploy code changes.
 
 ## Coverage and limits
 
@@ -77,10 +125,13 @@ contain status summaries only. A manual check uses the same locking launcher:
 local detection continues. To stop the pilot entirely, boot out only its label.
 Never reset the budget state. A stale heartbeat remains visible in Source Health.
 
-Validate with `npm run verify:maintenance`, operational-readiness checks, the
+Validate with `npm run verify:maintenance` (including isolated recovery fault
+tests), operational-readiness checks, the
 production build, and authenticated Command > Monitor verification. Fixtures
 must use isolated temporary state and mocked provider responses. No synthetic
-browser failures should be posted to production for testing.
+browser failures should be posted to production for testing. Do not intentionally
+stop production to exercise recovery; verify the control and healthy no-action
+path live and the outage/failure paths in isolated fixtures.
 
 References: [Responses structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
 and [API pricing](https://developers.openai.com/api/docs/pricing).

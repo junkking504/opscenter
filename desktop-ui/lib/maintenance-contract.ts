@@ -20,4 +20,11 @@ export type MaintenanceSnapshot = {
   available: boolean; fresh: boolean; checkedAt: string | null; mode: 'observe'; aiStatus: string;
   month: string; budgetUsd: number; committedUsd: number; estimatedUsd: number; calls: number;
   incidents: MaintenanceIncident[];
+  recovery?: MaintenanceRecovery;
+  canManageRecovery?: boolean;
+};
+export type MaintenanceRecovery = {
+  enabled: boolean; available: boolean; fresh: boolean; checkedAt: string | null;
+  status: string; attemptsToday: number;
+  receipts: Array<{ at: string; event: string }>;
 };

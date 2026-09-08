@@ -19,3 +19,7 @@
 .maintenance-incidents summary { cursor: pointer; font-weight: 600; color: #294d73; }
 .maintenance-panel button:focus-visible, .maintenance-panel summary:focus-visible { outline: 3px solid #315f98; outline-offset: 3px; }
 @media(max-width: 760px) { .maintenance-panel { padding: 16px; } .maintenance-metrics { grid-template-columns: 1fr; gap: 12px; } .maintenance-panel > header { flex-direction: column; } }
+
+.maintenance-recovery { padding: 16px; margin: 16px 0; border: 1px solid #cbd4df; border-radius: 9px; background: #f7f9fc; }
+.maintenance-recovery summary { cursor: pointer; margin-top: 12px; font-weight: 600; }
+.maintenance-recovery button:disabled { opacity: .6; cursor: wait; }

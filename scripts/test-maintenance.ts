@@ -4,9 +4,16 @@ import os from 'node:os';
 import path from 'node:path';
 import { detectMaintenance, initialMaintenanceState, reconcileMaintenance, reserveMaintenanceCall, monthKey, MONTHLY_BUDGET_MICROS, CALL_RESERVATION_MICROS, readMaintenanceState, saveMaintenanceState, recordClientEvent, readClientEvents, maintenanceSnapshot } from '../lib/maintenance-monitor';
 import { diagnoseMaintenance } from '../lib/maintenance-diagnosis';
+import { recoverySnapshot, setRecoveryEnabled } from '../lib/maintenance-recovery';
+import { requiredOpsPermission, opsRoleCan } from '../lib/ops-roles';
 
 async function main() {
   const now = Date.parse('2026-09-08T18:00:00Z');
+  const recoveryPermission = requiredOpsPermission('/api/desktop/maintenance/recovery', 'PATCH');
+  assert.equal(recoveryPermission.permission, 'platform.manage');
+  assert.equal(opsRoleCan('operator', recoveryPermission.permission), false);
+  assert.equal(opsRoleCan('manager', recoveryPermission.permission), false);
+  assert.equal(opsRoleCan('admin', recoveryPermission.permission), true);
   const probes = { login: true, health: { ok: true, status: 'healthy', junkwareScheduleStale: false, junkwareScheduleAgeSeconds: 20, linxupStale: false, linxupFallbackActive: false, operatorStateWritable: true, platformKernel: { healthy: true } }, readiness: { ok: false, photoQueue: { available: true, counts: { review: 20, failed: 1, incoming: 0, processing: 0 }, oldestActiveAgeSeconds: null }, crewPortalSync: { ok: true } } };
   const rows = detectMaintenance(probes, now);
   assert.equal(rows.find(r => r.key === 'photo-review')?.kind, 'review');
@@ -36,6 +43,20 @@ async function main() {
 
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'opscenter-maintenance-test-'));
   try {
+    assert.equal(recoverySnapshot(directory, now).enabled, false);
+    setRecoveryEnabled(directory, true);
+    assert.equal(recoverySnapshot(directory, now).enabled, true);
+    assert.equal(recoverySnapshot(directory, now).fresh, false);
+    const recoveryState = { version: 1, checkedAt: now / 1000, status: 'Process and login responding; monitoring', attempts: [now / 1000], receipts: [{ at: now / 1000, event: 'Start attempt reserved; outcome pending' }] };
+    fs.writeFileSync(path.join(directory, 'recovery.json'), JSON.stringify(recoveryState));
+    assert.equal(recoverySnapshot(directory, now).attemptsToday, 1);
+    assert.equal(recoverySnapshot(directory, now).fresh, true);
+    assert.equal(recoverySnapshot(directory, now + 181_000).fresh, false);
+    fs.writeFileSync(path.join(directory, 'recovery-error.json'), '{}');
+    assert.equal(recoverySnapshot(directory, now).available, false);
+    setRecoveryEnabled(directory, false);
+    assert.equal(recoverySnapshot(directory, now).enabled, false);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(directory, 'recovery.json'), 'utf8')), recoveryState, 'pause never resets attempt history');
     saveMaintenanceState(budget, directory);
     assert.equal(reserveMaintenanceCall(readMaintenanceState(directory), now), false, 'restart cannot reset budget');
     assert.equal(recordClientEvent('../../escape', directory, now), false);

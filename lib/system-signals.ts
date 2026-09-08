@@ -1,7 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { buildOperationalExceptions, type OperationalException } from "@/lib/operational-exceptions";
+import {
+  arrivalAlertCoverage,
+  buildOperationalExceptions,
+  type ArrivalAlertCoverage,
+  type OperationalException,
+} from "@/lib/operational-exceptions";
 import { chicagoDateKey } from "@/lib/report-dates";
 
 /**
@@ -64,10 +69,13 @@ export type BackupSignal = SignalDetail & {
   lastExitCode: number | null;
 };
 
+export type ArrivalCoverageSignal = SignalDetail & ArrivalAlertCoverage;
+
 export type SystemSignals = {
   status: SignalStatus;
   blocking: string[];
   exceptions: ExceptionSignal;
+  arrivalCoverage: ArrivalCoverageSignal;
   gpsCoverage: GpsCoverageSignal;
   queues: QueueSignal;
   storage: StorageSignal;
@@ -254,6 +262,41 @@ export function gpsCoverageSignal(date: string): GpsCoverageSignal {
 }
 
 /* ------------------------------------------------------------------ */
+/* Arrival alert coverage                                              */
+/* ------------------------------------------------------------------ */
+
+export function arrivalCoverageSignal(date: string): ArrivalCoverageSignal {
+  try {
+    const coverage = arrivalAlertCoverage(date);
+    const warnBelow = numberFromEnv("OPSCENTER_ARRIVAL_COVERAGE_WARN_PERCENT", 70);
+    const status: SignalStatus = coverage.coveragePercent === null
+      ? "ok"
+      : coverage.coveragePercent < warnBelow
+        ? "warn"
+        : "ok";
+    return {
+      status,
+      summary: coverage.coveragePercent === null
+        ? "No appointment visits recorded yet today"
+        : `${coverage.confirmed} of ${coverage.totalVisits} job visits can raise an arrival alert (${coverage.coveragePercent}%)`,
+      ...coverage,
+    };
+  } catch (error) {
+    report("arrival coverage", error);
+    return {
+      status: "unknown",
+      summary: "Arrival alert coverage could not be evaluated",
+      date,
+      totalVisits: 0,
+      confirmed: 0,
+      blocked: 0,
+      coveragePercent: null,
+      blockedReasons: {},
+    };
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Integration queues                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -392,6 +435,7 @@ export function backupSignal(): BackupSignal {
 
 export function collectSystemSignals(date = chicagoDateKey()): SystemSignals {
   const exceptions = exceptionSignal(date);
+  const arrivalCoverage = arrivalCoverageSignal(date);
   const gpsCoverage = gpsCoverageSignal(date);
   const queues = queueSignal();
   const storage = storageSignal();
@@ -399,6 +443,7 @@ export function collectSystemSignals(date = chicagoDateKey()): SystemSignals {
 
   const parts: Array<[string, SignalDetail]> = [
     ["exceptions", exceptions],
+    ["arrivalCoverage", arrivalCoverage],
     ["gpsCoverage", gpsCoverage],
     ["queues", queues],
     ["storage", storage],
@@ -414,6 +459,7 @@ export function collectSystemSignals(date = chicagoDateKey()): SystemSignals {
     status: blocking.length ? "critical" : degraded ? "warn" : "ok",
     blocking,
     exceptions,
+    arrivalCoverage,
     gpsCoverage,
     queues,
     storage,

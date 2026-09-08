@@ -1102,6 +1102,105 @@ function financeExceptions(metrics: AnyRecord, date: string): OperationalExcepti
   return exceptions;
 }
 
+
+/**
+ * Arrival-alert coverage.
+ *
+ * Truck arrival alerts only fire on a `confirmed` geofence dwell. Every other
+ * outcome was dropped in silence, so dispatch could not tell "no truck has
+ * arrived" from "we could not tell" - on a sampled day only 7 of 26 visits
+ * cleared the gate, and 11 of the misses were appointments with no physical
+ * truck assigned at all. Surface the blocked ones so the gap is visible and
+ * fixable instead of invisible.
+ */
+const ARRIVAL_COVERAGE_RULES: Record<string, { rule: string; title: string; reason: string }> = {
+  no_physical_truck_assignment: {
+    rule: "appointment_without_physical_truck_cannot_confirm_arrival",
+    title: "No truck assigned, so arrival cannot be confirmed",
+    reason: "This appointment has no physical truck assigned, so no tracker can be matched to it and no arrival alert can ever fire.",
+  },
+  missing_or_ambiguous_geocode: {
+    rule: "appointment_address_not_geocoded_cannot_confirm_arrival",
+    title: "Address not geocoded, so arrival cannot be confirmed",
+    reason: "This service address has no confirmed coordinates, so the geofence test cannot run and no arrival alert can fire.",
+  },
+  nearby_stop_outside_verified_geofence: {
+    rule: "truck_stopped_near_appointment_but_outside_geofence",
+    title: "Truck stopped nearby but outside the verified geofence",
+    reason: "A stop was recorded close to this appointment but outside the confirmed geofence, so the visit was not counted.",
+  },
+};
+
+function arrivalCoverageExceptions(date: string): OperationalException[] {
+  const payload = readJsonFile<AnyRecord>(
+    path.join("data", "history", "linxup", "appointment_visits", `linxup_appointment_visits_${date}.json`),
+  );
+  const visits = Array.isArray(payload?.visits) ? payload.visits as AnyRecord[] : [];
+  const exceptions: OperationalException[] = [];
+
+  for (const visit of visits) {
+    const confidence = String(visit.match_confidence || "").trim().toLowerCase();
+    if (confidence === "confirmed") continue;
+    const mapped = ARRIVAL_COVERAGE_RULES[String(visit.match_reason || "").trim()];
+    if (!mapped) continue;
+    const appointmentId = String(visit.appointment_id || visit.appointmentId || "").trim();
+    if (!appointmentId) continue;
+    const truck = String(visit.truck_number || "").trim();
+    exceptions.push({
+      id: `jobs-arrival-coverage-${mapped.rule}-${appointmentId}`,
+      rule: mapped.rule,
+      category: "Jobs",
+      severity: "warning",
+      entityType: "job",
+      entityId: appointmentId,
+      entityLabel: truck ? `${appointmentId} (${truck})` : appointmentId,
+      title: mapped.title,
+      reason: mapped.reason,
+      source: "linxup.appointment_visits",
+      timestamp: String(payload?.generated_at || payload?.collection_timestamp || ""),
+      href: `/jobs?date=${date}`,
+    });
+  }
+
+  return exceptions;
+}
+
+export type ArrivalAlertCoverage = {
+  date: string;
+  totalVisits: number;
+  confirmed: number;
+  blocked: number;
+  coveragePercent: number | null;
+  blockedReasons: Record<string, number>;
+};
+
+export function arrivalAlertCoverage(date: string): ArrivalAlertCoverage {
+  const payload = readJsonFile<AnyRecord>(
+    path.join("data", "history", "linxup", "appointment_visits", `linxup_appointment_visits_${date}.json`),
+  );
+  const visits = Array.isArray(payload?.visits) ? payload.visits as AnyRecord[] : [];
+  const blockedReasons: Record<string, number> = {};
+  let confirmed = 0;
+
+  for (const visit of visits) {
+    if (String(visit.match_confidence || "").trim().toLowerCase() === "confirmed") {
+      confirmed += 1;
+      continue;
+    }
+    const reason = String(visit.match_reason || "unknown").trim() || "unknown";
+    blockedReasons[reason] = (blockedReasons[reason] || 0) + 1;
+  }
+
+  return {
+    date,
+    totalVisits: visits.length,
+    confirmed,
+    blocked: visits.length - confirmed,
+    coveragePercent: visits.length ? Math.round((confirmed / visits.length) * 100) : null,
+    blockedReasons,
+  };
+}
+
 export function buildOperationalExceptions(date?: string | null): OperationalExceptionsReport {
   noStore();
   const resolvedDate = /^\d{4}-\d{2}-\d{2}$/.test(String(date || "")) ? String(date) : chicagoTodayIso();
@@ -1111,6 +1210,7 @@ export function buildOperationalExceptions(date?: string | null): OperationalExc
     ...jobsExceptions(metrics, resolvedDate),
     ...junkwarePhotoExceptions(resolvedDate),
     ...whatsappPhotoReviewExceptions(resolvedDate),
+    ...arrivalCoverageExceptions(resolvedDate),
     ...fleetExceptions(metrics, resolvedDate),
     ...financeExceptions(metrics, resolvedDate),
   ];

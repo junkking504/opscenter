@@ -1,5 +1,26 @@
 # Schedule and Finance presentation
 
+## All Appointments readability and payments
+
+The register separates appointment identity, customer/work, assignment,
+payment, and status into five readable columns; smaller screens use labeled
+stacked sections. Full notes stay in the appointment drawer, opened directly by
+View details. JK selection still focuses the map, and phone/address links keep
+their existing destinations. This does not change compact truck-board blocks.
+
+Job paid is the sum of recorded JunkWare payment rows minus the recorded tip,
+not the schedule's ambiguous payment/revenue/quote fallback. Tips and received
+totals remain separate, split methods show their amounts, and source balances
+are labeled due or credit. Billed/invoiced rows are not called paid. Estimates
+remain quoted amounts, never payment requirements. Missing or refreshing
+closeout details are explicitly unavailable/updating rather than assumed paid;
+inconsistent payment/tip values require review. These are JunkWare records,
+not bank-settlement or QuickBooks verification. The drawer uses the same labels.
+
+Validation: `node --import tsx scripts/test-schedule-payment.ts` and
+`node scripts/test-appointment-register-browser.mjs` (synthetic fixture on port
+3156) cover payment states, tip exclusion, detail opening, and 320–1440px layout.
+
 ## Appointment Search Across Dates
 
 Desktop launcher search includes all collected JunkWare Schedule dates rather

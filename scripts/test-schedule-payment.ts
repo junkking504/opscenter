@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { schedulePayment } from '../desktop-ui/lib/schedule-payment';
+import type { ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
+const base = { appointmentType: 'Job', status: 'Completed', paymentAmount: 999, tipAmount: 20, closeout: { total: 100, tip: 20, balance: 0, payments: [{method:'Cash',detail:'',amount:60},{method:'Credit Card',detail:'',amount:60}] } } as ScheduleAppointment;
+assert.equal(schedulePayment(base).amount, '$100.00');
+assert.ok(schedulePayment(base).details.includes('Tip $20.00 · received $120.00 incl. tip'));
+assert.equal(schedulePayment({...base, closeout:null}).amount, null, 'A listed revenue amount is not payment evidence');
+assert.equal(schedulePayment({...base, chargeDetailsPending:true}).label, 'Payment updating');
+assert.equal(schedulePayment({...base, closeout:{...base.closeout!,balance:30}}).balance, 'Balance due $30.00');
+assert.equal(schedulePayment({...base, closeout:{...base.closeout!,balance:-10}}).balance, 'Credit balance $10.00');
+assert.equal(schedulePayment({...base, appointmentType:'Estimate'}).label, 'Estimate quoted');
+assert.equal(schedulePayment({...base, closeout:{...base.closeout!, payments:[{method:'Billed',detail:'',amount:120}]}}).amount, null);
+assert.equal(schedulePayment({...base, closeout:{...base.closeout!, payments:[]}}).label, 'No payment recorded');
+assert.equal(schedulePayment({...base, closeout:{...base.closeout!, tip:150}}).label, 'Payment needs review');
+assert.equal(schedulePayment({...base, closeout:{...base.closeout!, tip:0,payments:[{method:'Cash',detail:'',amount:0}]}}).amount, null);
+console.log('Schedule payment presentation passed: tip exclusion, split tender, billed versus paid, quote, unknown/pending detail, balance due/credit and inconsistent values.');

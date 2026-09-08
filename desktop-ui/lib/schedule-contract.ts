@@ -38,6 +38,8 @@ export type ScheduleAppointment = {
   paymentType: string;
   paymentAmount: number;
   tipAmount: number;
+  chargeDetailsPending?: boolean;
+  closeout?: { total: number; tip: number; balance: number; payments: Array<{ method: string; detail: string; amount: number }> } | null;
   junkItems: string[];
   pickupItems?: string[];
   appointmentNotes: string[];

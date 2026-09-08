@@ -80,6 +80,9 @@ normal production deployment command.
 
 For production deployments:
 
+Run the launcher from the reviewed source checkout or task worktree. Its Git
+check supports both ordinary checkouts and linked worktrees.
+
 ```sh
 git fetch origin
 ./deploy/macmini/deploy-from-macbook.sh <mc-host> origin/production

@@ -45,7 +45,8 @@ for command in git ssh; do
   command -v "$command" >/dev/null 2>&1 || fail "required command is missing: $command"
 done
 
-[[ -d "$REPOSITORY_ROOT/.git" ]] || fail "$REPOSITORY_ROOT is not a Git checkout"
+[[ "$(git -C "$REPOSITORY_ROOT" rev-parse --is-inside-work-tree 2>/dev/null)" == "true" ]] \
+  || fail "$REPOSITORY_ROOT is not a Git checkout"
 [[ -f "$MC_SSH_KEY" ]] || fail "missing Mission Control SSH key: $MC_SSH_KEY"
 git -C "$REPOSITORY_ROOT" fetch --prune origin
 commit="$(git -C "$REPOSITORY_ROOT" rev-parse --verify "${REQUESTED_REF}^{commit}" 2>/dev/null || true)"

@@ -91,7 +91,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
           const customerFacts = crewAppointmentFacts(candidates[0]);
           // Preserve source-only details when the current appointment snapshot is
           // missing a field, and show notes/items without truncation.
-          alert = {...alert,needsAction:!/^Truck\s*\d+/i.test(candidates[0].truck),facts:[...customerFacts.map(fact => {
+          alert = {...alert,needsAction:!/^Truck\s*#?\s*\d+/i.test(candidates[0].truck),facts:[...customerFacts.map(fact => {
             const source = alert.facts.find(old=>old.label.toLowerCase() === fact.label.toLowerCase() || fact.label === 'Pickup items' && old.label === 'Items');
             return source && /^(Not provided|Unavailable|Not listed|No notes available)$/.test(fact.value) ? {...fact,value:source.value,href:source.href} : fact;
           }),...alert.facts.filter(fact=>!['customer','phone','email','service address','items','pickup items','appointment notes'].includes(fact.label.toLowerCase()))]};

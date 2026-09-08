@@ -56,3 +56,9 @@ async function checkRecovery() {
   assert.match(incident.rawText,/JunkWare unavailable[\s\S]*Recovered:/);
 }
 void checkRecovery().catch(error=>{console.error(error);process.exitCode=1;});
+
+const confirmed={...visit,visit_intervals:[{...visit.visit_intervals[0],departure_confirmed:true}]};
+assert.equal(consolidateConfirmedVisitAlerts([make('revised-arrival','Arrival','2026-09-07T13:35:00Z',{facts:[{label:'Arrival',value:'8:35 AM'}]})],[confirmed],now)[0].label,'Duration','Revised arrival inside one confirmed visit merges');
+assert.equal(consolidateConfirmedVisitAlerts([make('return-arrival','Arrival','2026-09-07T14:14:00Z',{facts:[{label:'Arrival',value:'9:14 AM'}]})],[confirmed],now)[0].label,'Arrival','A later return stays visible');
+const unlabeledPhotos=streamlineOperationalAlerts(sources.map(source=>source.id==='photos'?{...source,truck:undefined}:source),[completed],day);
+assert.ok(!unlabeledPhotos.some(source=>source.id==='photos'),'A verified photo with a unique appointment remains linkable without a legacy truck label');

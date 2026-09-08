@@ -17,7 +17,7 @@ export function streamlineOperationalAlerts(input: OperationalAlert[], jobs: Job
     if (matches.length !== 1 || !/complete|closed/i.test(matches[0].status)) continue;
     const job = matches[0];
     const related = alerts.filter(alert=>alert !== complete && (!alert.threadReply || alert.label === 'Photos Uploaded') && day(alert.timestamp) === date && reference(alert) === reference(complete)
-      && (alert.label === 'Payment Recorded' && !truckKey(alert.truck) || truckKey(alert.truck) && truckKey(alert.truck) === truckKey(job.truck)));
+      && (['Payment Recorded','Photos Uploaded'].includes(alert.label) && !truckKey(alert.truck) || truckKey(alert.truck) && truckKey(alert.truck) === truckKey(job.truck)));
     const otherCompletions = related.filter(alert=>/^(Job|Estimate) (Completed|Closed)$/.test(alert.label));
     if (otherCompletions.length) continue;
     const durations = related.filter(alert=>alert.label === 'Duration');

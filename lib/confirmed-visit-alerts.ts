@@ -24,7 +24,6 @@ export function consolidateConfirmedVisitAlerts(alerts: OperationalAlert[], visi
   const groups = new Map<string, {alerts: OperationalAlert[]; stamp: string; start: string}>();
   const unmatched: OperationalAlert[] = [];
   for (const alert of alerts) {
-    const isDeparture = alert.label === 'Departure';
     const stamp = alert.timestamp || '';
     const reference = alert.title.match(/\bJK\d+\b/i)?.[0]?.toUpperCase();
     const truck = truckKey(alert.truck || alert.title.match(/\bTruck\s*#?\s*\d+/i)?.[0]);
@@ -42,7 +41,9 @@ export function consolidateConfirmedVisitAlerts(alerts: OperationalAlert[], visi
         // Clock-only legacy messages cannot safely identify overnight visits.
         if (day(arrival) !== day(departure) || day(stamp) !== day(arrival)) continue;
         const first = minutes(clock(arrival))!, last = minutes(clock(departure))!;
-        if (isDeparture ? reported < first || reported > last : reported !== first) continue;
+        // Revised arrivals inside the same uniquely confirmed interval are
+        // also one visit. A later return outside that interval stays separate.
+        if (reported < first || reported > last) continue;
         candidates.set(`${reference}:${truck}:${visit.appointment_id || ''}:${arrival}`,{stamp:departure,start:arrival});
       }
     }

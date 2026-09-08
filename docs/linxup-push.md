@@ -86,16 +86,42 @@ last-known positions in a daily file do not become travel on that file's date.
 Invalid coordinates, invalid/future timestamps, and duplicate positions are
 excluded. Recorded stationary `continuous_until` intervals preserve coverage.
 At a conflicting timestamp, a valid V3 position takes precedence over a V2 poll;
-raw history remains unchanged. Solid connectors stop at observation gaps over five
-minutes. Plausible gaps of up to thirty minutes appear as dashed direction links,
-explicitly labeled as not the roads driven. Longer outages and implausible
-transitions under the shared speed/jitter rules remain disconnected. Blue dots
-mark exact observations, including isolated points. Neither line style is
-road-snapped directions or a complete account of unobserved travel. The summary shows coverage times, source
-collection time, and gaps so incomplete evidence stays visible.
+raw history remains unchanged. Blue dots and truck/appointment pins retain their
+exact source coordinates at every zoom level.
+
+Street geometry comes from Google Roads with interpolation. Solid lines require
+consecutive matched observations, no missing original index, nearby snapped
+endpoints, and no interpolation step over 300 meters. Sparse connections are
+dashed and explicitly estimated. When Roads cannot interpolate an eligible pair,
+Google Routes may supply an estimated driving connection. Neither source proves
+which roads were driven during missing telemetry. Outages over thirty minutes
+and implausible transitions remain disconnected; missing provider geometry never
+falls back to a straight chord. The summary reports unmatched connections.
+
+The authenticated `GET /api/desktop/schedule/gps/streets` reads the same source
+and requires its version from the GPS response, preventing a different source
+revision from being overlaid. The browser requests matching only when the source
+version changes and discards obsolete responses. Provider work is bounded to 20
+Roads batches and 40 route estimates, with four concurrent requests and a time
+budget; omitted segments stay visibly unmatched. Only simultaneous matching
+requests are deduplicated. Completed road geometry is held by the active browser
+view, never written to telemetry or persisted in a server cache.
+
+Schedule and Command use Google Map Tiles underneath Google-derived geometry.
+Authenticated `/api/desktop/map` requests validate tile coordinates and viewport
+bounds and proxy fixed Google endpoints through approved IPv4 egress. The
+existing `GOOGLE_MAPS_API_KEY` remains server-only and IP restricted; its allowlist
+includes Roads and Map Tiles alongside existing Geocoding, Places (New), and
+Routes APIs. Map session tokens are reused until their provider expiry; tile
+content is not persisted or prefetched. Google Maps text attribution and the
+escaped provider copyright for the current viewport are displayed. Failed map
+requests show an unavailable message and retry; Google geometry is never placed
+on a non-Google fallback basemap.
 
 Implementation: `lib/desktop-gps-route.ts`,
 `desktop-ui/schedule-gps-route.tsx`, and `desktop-ui/schedule-map.tsx`.
+Run `node --import tsx scripts/test-desktop-street-route.ts` for road matching,
+unmatched gaps, estimated fallback, source versions and proxy bounds.
 Run `node --import tsx scripts/test-desktop-gps-route.ts` for date, truck,
 privacy, gap, stationary coverage, and missing-file contracts. The synthetic
 browser fixture at `desktop-ui/tests/gps-route.html` runs the production Leaflet

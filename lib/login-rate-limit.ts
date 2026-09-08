@@ -51,9 +51,11 @@ function readState(): RateLimitState {
   }
 }
 
-function writeState(state: RateLimitState): void {
+// The caller's clock, not the wall clock: tests drive this with synthetic
+// timestamps, and pruning against Date.now() discarded entries the caller had
+// just written.
+function writeState(state: RateLimitState, now = Date.now()): void {
   const file = stateFile();
-  const now = Date.now();
   const live = Object.entries(state)
     .filter(([, attempt]) => now - attempt.lastFailureAt < WINDOW_MS || attempt.blockedUntil > now)
     .sort(([, left], [, right]) => right.lastFailureAt - left.lastFailureAt)
@@ -137,7 +139,7 @@ export function recordLoginFailure(
     }
   }
 
-  writeState(state);
+  writeState(state, now);
 }
 
 export function clearLoginFailures(

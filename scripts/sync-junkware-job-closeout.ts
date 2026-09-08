@@ -19,6 +19,7 @@ type OtherChargeInput = { typeValue: string; quantity: string; price: string; so
 type CloseoutInput = {
   expectedSourceVersion?: string;
   appointmentType?: string;
+  estimateOutcome?: { reason: 'Price/Budget' | 'Date/Time' | 'Other'; explanation: string; noDiscountReason?: string };
   driverId: string;
   navigatorIds: string[];
   loadQuantity: string;
@@ -223,6 +224,20 @@ function parsePayload(): CloseoutInput {
     if (!typeValue || !quantity || (!isPercentage && !price)) throw new Error("Each Other Charge needs a type, quantity, and price.");
     return { typeValue, quantity, price };
   });
+  const appointmentType = ["Job", "Estimate"].includes(String(row.appointmentType)) ? String(row.appointmentType) : undefined;
+  const rawOutcome = row.estimateOutcome;
+  let estimateOutcome: CloseoutInput['estimateOutcome'];
+  if (rawOutcome !== undefined) {
+    const outcome = rawOutcome && typeof rawOutcome === 'object' ? rawOutcome as Record<string, unknown> : null;
+    if (!outcome || appointmentType !== 'Estimate' || !['Price/Budget', 'Date/Time', 'Other'].includes(String(outcome.reason)) || typeof outcome.explanation !== 'string' || !outcome.explanation.trim() || outcome.explanation.length > 2000 || (outcome.noDiscountReason !== undefined && (typeof outcome.noDiscountReason !== 'string' || outcome.noDiscountReason.length > 2000))) {
+      throw new Error('An estimate outcome and explanation are required before JunkWare can close this estimate.');
+    }
+    estimateOutcome = {
+      reason: outcome.reason as 'Price/Budget' | 'Date/Time' | 'Other',
+      explanation: outcome.explanation.trim(),
+      ...(typeof outcome.noDiscountReason === 'string' && outcome.noDiscountReason.trim() ? { noDiscountReason: outcome.noDiscountReason.trim() } : {}),
+    };
+  }
   return {
     driverId: String(row.driverId || "").trim(),
     navigatorIds,
@@ -236,7 +251,8 @@ function parsePayload(): CloseoutInput {
     discount: cleanMoney(row.discount),
     tip: cleanMoney(row.tip),
     expectedSourceVersion: row.expectedSourceVersion ? String(row.expectedSourceVersion) : undefined,
-    appointmentType: ["Job", "Estimate"].includes(String(row.appointmentType)) ? String(row.appointmentType) : undefined,
+    appointmentType,
+    ...(estimateOutcome ? { estimateOutcome } : {}),
     jobCategoryId: String(row.jobCategoryId || "").trim(),
     actualStartHour: String(row.actualStartHour || "").trim(),
     actualStartMinute: String(row.actualStartMinute || "").trim(),
@@ -253,6 +269,14 @@ async function applyCloseout(page: Page, input: CloseoutInput, before: Record<st
   // JunkWare uses ASP.NET WebForms. Changing these selects with selectOption()
   // fires AutoPostBack and reloads the full appointment once per field. Set the
   // selected values directly so the final Save post submits them together.
+  const priorStatus = String((before.status as { value?: unknown } | undefined)?.value || '');
+  const completingEstimate = input.appointmentType === 'Estimate' && priorStatus !== '8';
+  if (completingEstimate && !input.estimateOutcome) {
+    throw new Error('An estimate outcome and explanation are required before JunkWare can close this estimate.');
+  }
+  if (completingEstimate && !(Number(input.discount) > 0) && !input.estimateOutcome?.noDiscountReason) {
+    throw new Error('JunkWare requires a reason why no discount was offered before closing this estimate.');
+  }
   if (input.appointmentType) {
     const options = await page.locator('#ctl00_Content_AppointmentTypeDD option').evaluateAll(elements => elements.map(element => ({ value: (element as HTMLOptionElement).value, label: element.textContent?.trim() || '' })));
     const selected = options.find(option => option.label.toLowerCase() === input.appointmentType!.toLowerCase());
@@ -321,12 +345,31 @@ async function applyCloseout(page: Page, input: CloseoutInput, before: Record<st
   // Capture final provider-calculated prices after all added charges/payment postbacks.
   const stagedCharges = verifyAddedCloseoutCharges(await capture(page), before, input.otherChargesToAdd, true);
   input.otherChargesToAdd.forEach((charge, index) => { if (charge.typeValue.split("|")[2] === "1") charge.sourceCalculatedPrice = String(stagedCharges[index].price ?? ""); });
-  const save = page.locator("#ctl00_Content_SaveAppointmentBtn");
-  if (!(await save.count())) throw new Error("The JunkWare closeout update control is unavailable.");
-  await Promise.all([
-    page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
-    save.click(),
-  ]);
+  const submit = async (selector: string, eventTarget: string, description: string) => {
+    const response = page.waitForResponse((value) => value.request().method() === 'POST'
+      && new URL(value.url()).pathname.toLowerCase() === '/franchise/appointment.aspx'
+      && new URLSearchParams(value.request().postData() || '').get('__EVENTTARGET') === eventTarget, { timeout: 30_000 })
+      .then(async (value) => { await value.finished(); return value.ok(); }, () => false);
+    await clickWithWebFormsCompletion(page, selector, description);
+    if (!await response) throw new Error(`JunkWare did not confirm ${description}.`);
+    await page.waitForLoadState('networkidle', { timeout: 15_000 });
+  };
+  await submit('#ctl00_Content_SaveAppointmentBtn', 'ctl00$Content$SaveAppointmentBtn', 'the closeout save');
+  // JunkWare opens a second form for completed estimates. The first save only
+  // presents that form; it does not complete the appointment yet.
+  if (await page.locator('#ctl00_Content_UENoteOkBtn').isVisible()) {
+    const outcome = input.estimateOutcome;
+    if (!outcome) throw new Error('An estimate outcome and explanation are required before JunkWare can close this estimate.');
+    await selectWithoutPostback(page, '#ctl00_Content_UEReasonDD', outcome.reason);
+    await fill(page, '#ctl00_Content_UENoteTB', outcome.explanation);
+    if (await page.locator('#ctl00_Content_UENoDiscountTB').isVisible()) {
+      if (!outcome.noDiscountReason) throw new Error('JunkWare requires a reason why no discount was offered before closing this estimate.');
+      await fill(page, '#ctl00_Content_UENoDiscountTB', outcome.noDiscountReason);
+    }
+    const sendPictures = page.locator('#ctl00_Content_SendPicturesCB');
+    if (await sendPictures.count()) await sendPictures.evaluate((node) => { (node as HTMLInputElement).checked = false; });
+    await submit('#ctl00_Content_UENoteOkBtn', 'ctl00$Content$UENoteOkBtn', 'the estimate outcome save');
+  }
 }
 
 function verifyCloseout(closeout: { status: { value: string }; [key: string]: unknown }, input: CloseoutInput): void {
@@ -341,6 +384,16 @@ function verifyCloseout(closeout: { status: { value: string }; [key: string]: un
   if (navigators.length !== input.navigatorIds.length || navigators.some((value, index) => value !== input.navigatorIds[index])) {
     throw new Error("JunkWare did not retain the selected navigators.");
   }
+}
+
+function verifyEstimateOutcome(closeout: Record<string, unknown>, before: Record<string, unknown>, input: CloseoutInput): void {
+  if (!input.estimateOutcome) return;
+  const previous = Array.isArray(before.appointmentNotes) ? before.appointmentNotes.map(String) : [];
+  const current = Array.isArray(closeout.appointmentNotes) ? closeout.appointmentNotes.map(String) : [];
+  const added = current.filter((note) => !previous.includes(note));
+  const { reason, explanation, noDiscountReason } = input.estimateOutcome;
+  const expected = `${reason}: ${explanation}${noDiscountReason ? `, no discount: ${noDiscountReason}` : ''}`.replace(/\s+/g, ' ').trim();
+  if (added.length !== 1 || !added[0].startsWith(`${expected} (`)) throw new Error('JunkWare did not retain the estimate outcome notes.');
 }
 
 let writeStarted = false;
@@ -451,7 +504,7 @@ async function main(): Promise<void> {
       await applyClassification(page,classification,before);
     }
     const closeout = await capture(page);
-    if (input) { verifyCloseout(closeout, input); verifyCloseoutFields(closeout, input, before); }
+    if (input) { verifyCloseout(closeout, input); verifyCloseoutFields(closeout, input, before); verifyEstimateOutcome(closeout, before!, input); }
     if (classification && before) verifyClassificationChange(before,closeout,classification);
     const warning = classification && before ? classificationCompletionTimeWarning(before,closeout,classification) : undefined;
     process.stdout.write(`${JSON.stringify({ ok: true, mode, appointmentId, closeout, ...(warning ? {warning} : {}), verifiedAt: new Date().toISOString() })}\n`);

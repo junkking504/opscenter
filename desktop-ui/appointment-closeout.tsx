@@ -47,6 +47,9 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [reviewing, setReviewing] = useState(false);
   const [category, setCategory] = useState(job.appointmentType.toLowerCase().includes('estimate') ? 'Estimate' : 'Job');
+  const [estimateReason, setEstimateReason] = useState('');
+  const [estimateExplanation, setEstimateExplanation] = useState('');
+  const [noDiscountReason, setNoDiscountReason] = useState('');
   const requestPending = useRef(false);
   const resolvedAppointmentId = appointmentId || String(appointmentUrl || "").match(/[?&]id=(\d{1,12})(?:&|$)/i)?.[1] || "";
   const [live, setLive] = useState<LiveCloseout | null>(null);
@@ -82,6 +85,9 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       setLive(payload.closeout);
       setSourceVersion(payload.sourceVersion || '');
       setCanWrite(payload.canWrite === true);
+      setEstimateReason('');
+      setEstimateExplanation('');
+      setNoDiscountReason('');
       setReceipt(null);
       setReviewing(false);
       setPendingOtherCharges([]);
@@ -166,6 +172,16 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       setError("Choose a payment method and enter an amount, or turn off Add payment.");
       return;
     }
+    const completingEstimate = category === 'Estimate' && live.status.value !== '8';
+    const noDiscountRequired = completingEstimate && !(Number(inputMoney(live.discount)) > 0);
+    if (completingEstimate && (!estimateReason || !estimateExplanation.trim())) {
+      setError('Choose why this remained an estimate and add the outcome notes before closing it.');
+      return;
+    }
+    if (noDiscountRequired && !noDiscountReason.trim()) {
+      setError('Add why no discount was offered before closing this estimate.');
+      return;
+    }
     if (!reviewing) { setReviewing(true); return; }
     requestPending.current = true;
     setSaving(true);
@@ -198,7 +214,11 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
           actualEndHour: live.actualEndHour.value,
           actualEndMinute: live.actualEndMinute.value,
           addPayment: addPayment ? { methodId: paymentMethod, amount: inputMoney(paymentAmount) } : null,
-        }, expectedSourceVersion: sourceVersion, appointmentType: category,
+        }, expectedSourceVersion: sourceVersion, appointmentType: category, ...(completingEstimate ? { estimateOutcome: {
+          reason: estimateReason,
+          explanation: estimateExplanation.trim(),
+          ...(noDiscountRequired ? { noDiscountReason: noDiscountReason.trim() } : {}),
+        } } : {}),
       }, requestId).catch(() => ({ requestId, status: 'uncertain', message: 'The closeout result could not be confirmed. Check Saved Result before another change.' } as Receipt));
       setReceipt(result);
       if (result.status !== 'verified' || !result.sourceResult?.closeout) return;
@@ -241,13 +261,20 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
         ) : (
           <>
             <fieldset className="desktop-closeout-fields" disabled={saving || Boolean(receipt && receipt.status !== 'failed')}>
-            <label><span>Final appointment category</span><select value={category} onChange={event => { setCategory(event.target.value); setReviewing(false); }}><option>Job</option><option>Estimate</option></select></label>
+            <label><span>Final appointment category</span><select value={category} onChange={event => { setCategory(event.target.value); setReviewing(false); setEstimateReason(''); setEstimateExplanation(''); setNoDiscountReason(''); }}><option>Job</option><option>Estimate</option></select></label>
             <div className="drawer-facts">
               <div><span>Junkware status</span><strong>{live.status.label || "Unavailable"}</strong></div>
               <div><span>Current total</span><strong>{live.total || "$0.00"}</strong></div>
               <div><span>Balance</span><strong>{live.balance || "0.00"}</strong></div>
             </div>
             {saving ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">Saving changes and checking them in JunkWare…</div> : null}
+
+            {category === 'Estimate' && live.status.value !== '8' ? <section className="appointment-create-section estimate-outcome-fields">
+              <h4>Estimate outcome required by JunkWare</h4>
+              <label><span>Why did this remain an estimate?</span><select value={estimateReason} onChange={event => { setEstimateReason(event.target.value); setReviewing(false); }}><option value="">Select reason</option><option>Price/Budget</option><option>Date/Time</option><option>Other</option></select></label>
+              <label><span>Outcome notes</span><textarea rows={2} maxLength={2000} value={estimateExplanation} onChange={event => { setEstimateExplanation(event.target.value); setReviewing(false); }} /></label>
+              {!(Number(inputMoney(live.discount)) > 0) ? <label><span>Why was no discount offered?</span><textarea rows={2} maxLength={2000} value={noDiscountReason} onChange={event => { setNoDiscountReason(event.target.value); setReviewing(false); }} /></label> : null}
+            </section> : null}
 
             <section className="appointment-create-section">
               <h4>Krewe Assigned to This Job</h4>

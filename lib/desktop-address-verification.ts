@@ -1,5 +1,6 @@
 import { get } from 'node:https';
 import type { PlanningLocation } from './planning-geocodes';
+import { serviceAddressForGeocoding } from './appointment-partner';
 
 type Component = { long_name: string; short_name: string; types: string[] };
 type Result = { partial_match?: boolean; address_components?: Component[]; geometry?: { location?: { lat: number; lng: number }; location_type?: string } };
@@ -66,6 +67,6 @@ export async function verifyDesktopAddress(address:string):Promise<AddressVerifi
   const prior=cache.get(address);if(prior&&prior.expires>Date.now())return prior.result;
   if(cache.size>=512)cache.delete(cache.keys().next().value!);
   const entry:{expires:number;result:Promise<AddressVerification>;verified?:AddressVerification}={expires:Date.now()+60_000,result:Promise.resolve({location:null,reason:'Checking Address'})};
-  entry.result=requestGeocode(address).then(payload=>{const verified=verifyGoogleAddress(address,payload);entry.verified=verified;entry.expires=Date.now()+(verified.location?86_400_000:300_000);return verified;});
+  entry.result=requestGeocode(serviceAddressForGeocoding(address)).then(payload=>{const verified=verifyGoogleAddress(address,payload);entry.verified=verified;entry.expires=Date.now()+(verified.location?86_400_000:300_000);return verified;});
   cache.set(address,entry);return entry.result;
 }

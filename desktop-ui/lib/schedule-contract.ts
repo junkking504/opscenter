@@ -1,3 +1,4 @@
+import { appointmentPartner } from '../../lib/appointment-partner';
 import { serviceTerritory } from '../../lib/service-territory';
 import type { AppointmentOnsiteTime } from '../../lib/appointment-onsite-time';
 import { JUNKWARE_DISPATCH_TRUCKS } from '../../lib/junkware-trucks';
@@ -164,7 +165,7 @@ export function scheduleFollowupFlags(job: ScheduleAppointment, jobs: ScheduleAp
 export function scheduleMatchesQuery(job: ScheduleAppointment, query: string): boolean {
   const normalized = query.trim().toLocaleLowerCase();
   if (!normalized) return true;
-  return [job.recordId, job.appointmentId, job.jkNumber, job.customerName, job.phone, job.address, job.territory, job.truck, job.driver, job.navigator]
+  return [appointmentPartner(job)?.name, appointmentPartner(job)?.short, job.recordId, job.appointmentId, job.jkNumber, job.customerName, job.phone, job.address, job.territory, job.truck, job.driver, job.navigator]
     .some(value => String(value || '').toLocaleLowerCase().includes(normalized));
 }
 export function resolveScheduleDeepLink(jobs: ScheduleAppointment[], queryValue: string, appointmentValue: string) {

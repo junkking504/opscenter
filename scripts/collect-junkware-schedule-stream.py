@@ -10,12 +10,14 @@ import argparse
 import importlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
+from urllib.parse import urlparse, parse_qs
 
 
 MARKETS = [
@@ -25,6 +27,76 @@ MARKETS = [
     ("484", "Junk King Jefferson Parish"),
 ]
 TIMEZONE = ZoneInfo("America/Chicago")
+
+
+def charge_signature(row):
+    return [str(row.get(key, "")) for key in ("truck", "appointment_type", "job_status", "revenue", "tip")]
+
+
+def enrich_closed_charges(collector, data_dir, date_iso, market_id, rows):
+    """Read changed completed charges without navigating the schedule tab.
+
+    At most one eight-second detail read per market sweep. Reuse only matching source
+    identities/signatures, and recheck unchanged charges every five minutes.
+    Failure leaves the schedule available and the charge visibly pending.
+    """
+    try:
+        previous = json.loads(snapshot_file(data_dir, market_id, date_iso).read_text())
+        cached = {str(row.get("appt_id")): row for row in previous.get("appointments", [])} if previous.get("date") == date_iso else {}
+    except (OSError, ValueError, TypeError):
+        cached = {}
+    reads = 0
+    ordered = sorted(rows, key=lambda row: str(cached.get(str(row.get("appt_id")), {}).get("closeout_attempted_at", cached.get(str(row.get("appt_id")), {}).get("closeout_verified_at", ""))))
+    for row in ordered:
+        if not re.match(r"^(completed|closed)\b", str(row.get("job_status", "")), re.I):
+            continue
+        identity = str(row.get("appt_id", ""))
+        if not re.fullmatch(r"\d{1,12}", identity):
+            continue
+        old = cached.get(identity, {})
+        stamp = str(old.get("closeout_verified_at", ""))
+        try:
+            age = time.time() - datetime.fromisoformat(stamp).timestamp()
+        except ValueError:
+            age = float("inf")
+        matching = old.get("closeout_signature") == charge_signature(row)
+        if matching and age >= 0 and isinstance(old.get("closeout"), dict):
+            for key in ("closeout", "closeout_verified_at", "closeout_signature"):
+                row[key] = old[key]
+            if age < 300:
+                continue
+        row["closeout_refresh_pending"] = True
+        row["closeout_attempted_at"] = old.get("closeout_attempted_at", "")
+        if reads >= 1:
+            continue
+        reads += 1
+        row["closeout_attempted_at"] = datetime.now(TIMEZONE).isoformat()
+        schedule_page = collector.page
+        detail_page = None
+        try:
+            detail_page = schedule_page.context.new_page()
+            collector.page = detail_page
+            detail_page.goto(f"https://junkware.junk-king.com/franchise/appointment.aspx?id={identity}", wait_until="domcontentloaded", timeout=8000)
+            detail = collector.evaluate(collector._JS_APPT_DETAILS)
+            source = urlparse(str(detail.get("url", "")))
+            source_date = str(detail.get("appointmentDate", ""))
+            parsed_date = next((datetime.strptime(source_date, fmt).date().isoformat() for fmt in ("%m/%d/%Y", "%Y-%m-%d") if re.fullmatch(r"\d{1,2}/\d{1,2}/\d{4}" if fmt.startswith("%m") else r"\d{4}-\d{2}-\d{2}", source_date)), "")
+            truck = collector.evaluate("() => document.getElementById('ctl00_Content_TruckDD')?.selectedOptions[0]?.textContent?.trim() || ''")
+            if source.hostname != "junkware.junk-king.com" or parse_qs(source.query).get("id") != [identity] or parsed_date != date_iso:
+                raise ValueError("Charge detail identity/date did not verify")
+            if not re.match(r"^(completed|closed)\b", str(detail.get("finalStatus", "")), re.I) or str(detail.get("finalAppointmentType", "")).lower() != str(row.get("appointment_type", "")).lower() or truck != row.get("truck"):
+                raise ValueError("Charge detail changed during schedule collection")
+            if not isinstance(detail.get("closeout"), dict) or not detail["closeout"].get("total"):
+                raise ValueError("Charge detail was incomplete")
+            row.update(closeout=detail["closeout"], closeout_verified_at=datetime.now(TIMEZONE).isoformat(), closeout_signature=charge_signature(row), closeout_refresh_pending=False)
+        except Exception as exc:
+            reason = str(exc) if isinstance(exc, ValueError) else type(exc).__name__
+            print(f"JunkWare charge detail {identity} pending: {reason}", file=sys.stderr, flush=True)
+        finally:
+            collector.page = schedule_page
+            if detail_page is not None:
+                detail_page.close()
+    return rows
 
 
 def appointment_rows(collector, data, market_name, source_url):
@@ -196,6 +268,7 @@ def publish_snapshot(opscenter_dir, data_dir, date_iso, market_id, target):
 def publish_market(collector, opscenter_dir, data_dir, date_iso, market_id, market_name, data):
     source_url = str(data.get("url", "") or collector.SCHEDULE_URL)
     appointments = appointment_rows(collector, data, market_name, source_url)
+    appointments = enrich_closed_charges(collector, data_dir, date_iso, market_id, appointments)
     cancelled = cancellation_rows(data, market_name, source_url)
     target = write_snapshot(data_dir, date_iso, market_id, market_name, appointments, cancelled, source_url)
     publish_snapshot(opscenter_dir, data_dir, date_iso, market_id, target)

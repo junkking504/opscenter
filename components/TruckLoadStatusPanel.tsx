@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { TruckLoadEvent, TruckLoadResetLocation, TruckLoadStatus } from "@/lib/truck-load-status";
+import type { TruckLoadEvent, TruckLoadResetLocation } from "@/lib/truck-load-status";
+import type { OperationalTruckLoad as TruckLoadStatus } from "@/lib/truck-load-closeouts";
 import styles from "@/components/TruckLoadStatusPanel.module.css";
 
 const STARTING_LOAD_OPTIONS = [
@@ -112,6 +113,7 @@ export default function TruckLoadStatusPanel({
                 </div>
                 <b>{status.needsVerification ? '—' : `${status.capacityPercent}%`}</b>
               </div>
+              {status.chargedLoadLabel && <p>Charged today: {status.chargedLoadLabel}</p>}
               {status.verificationNote && <p>{status.verificationNote}</p>}
               <div className={styles.meter} aria-label={status.needsVerification ? `${status.truck} load needs verification` : `${status.truck} is ${status.capacityPercent}% full`}>
                 <i style={{ width: meterWidth }} />
@@ -123,6 +125,7 @@ export default function TruckLoadStatusPanel({
                     <span>{eventLabel(status.lastEvent)}</span>
                     {status.lastEvent?.occurredAt ? <time dateTime={status.lastEvent.occurredAt}>{timeLabel(status.lastEvent.occurredAt)}</time> : null}
                   </div>
+                  {status.chargedLoadNote && <p>{status.chargedLoadNote}</p>}
                   {status.currentContents ? <p className={styles.contents}>{status.currentContents}</p> : null}
                   <label className={styles.startingLoad}>
                     <span>Start-of-day load</span>

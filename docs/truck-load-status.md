@@ -91,3 +91,28 @@ Load sizes use the fractions visible in JunkWare, including Minimum/1/12,
 eighths, sixths, quarters, thirds, halves, three-quarters, seven-eighths, and a
 full truck. If accumulated load exceeds one truck, OpsCenter keeps the amount
 visible as an over-capacity exception rather than hiding it by capping at 100%.
+
+## Charge reconciliation
+
+The persistent schedule stream reads one completed appointment's charge detail
+per market sweep (eight-second navigation bound) in a separate tab. It verifies
+appointment ID, date, truck, status and type before publishing the charge fields.
+A changed status, truck, revenue or tip invalidates the cached detail; unchanged
+charges are rechecked every five minutes. Failed reads remain pending and rotate
+behind other pending appointments. The schedule tab and source assignments are
+preserved. Newer verified charge details override an older full-collector detail;
+an unrelated schedule heartbeat cannot overwrite a newer verified closeout.
+
+Fleet and Schedule show the daily charged truck total, bedload total and the
+contributing JK numbers alongside the current onboard estimate. Blank quantity
+means one when a size is selected; explicit zero remains zero. Bedload units are
+kept separate from ordinary truck fractions and are reset with an unload.
+Summed fractions are shown exactly, including 5/12 and loads exceeding one truck.
+
+A completed charge without verifiable pickup timing stays in the daily total
+and audit, but is excluded from the confirmed onboard subtotal when an unload
+or observation makes ordering significant. It has no invented midnight time.
+The current load remains marked Verify load until timing can be reconciled;
+charged totals are never represented as proof of current physical capacity.
+Estimates and canceled appointments do not contribute. Missing charge details
+remain explicit exceptions; dollar amounts are never converted into volume.

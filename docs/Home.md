@@ -68,6 +68,11 @@ The split is deliberate. Git is the collaboration and editing surface. Runtime
 data and credentials remain outside Git. The local Home file and workspace
 launcher make both areas easy to reach without moving or duplicating them.
 
+## Workspace storage
+
+See [Workspace retention](workspace-retention.md) for release counts, paused-task
+cleanup, task completion and daily storage checks.
+
 ## Current working rules
 
 1. Start new work from the intended deployed/source commit in an isolated

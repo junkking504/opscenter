@@ -13,11 +13,14 @@ PREVIEW_RELEASES_DIR="$DEPLOY_ROOT/preview-releases"
 SHARED_LOGS="$EXPECTED_HOME/Library/Logs/OpsCenter"
 SHARED_CONFIG="$EXPECTED_HOME/Library/Application Support/OpsCenter"
 PREVIEW_ENV="$SHARED_CONFIG/macmini-preview.env"
+RETENTION_SCRIPT="$SHARED_CONFIG/deployment-control/workspace-retention.py"
 DATA_DIR="$EXPECTED_HOME/.openclaw/workspace/opsbot/data"
 PRODUCTION_LABEL="com.openclaw.opscenter"
 PREVIEW_LABEL="com.openclaw.opscenter.macmini-preview"
 INSTALLED_PREVIEW_PLIST="$EXPECTED_HOME/Library/LaunchAgents/com.openclaw.opscenter.macmini-preview.plist"
 REQUESTED_REF="${1:-}"
+DEPLOY_LOCK_DIR="$DEPLOY_ROOT/.deploy-lock"
+DEPLOY_LOCK_HELD=false
 ACTIVATED=false
 PREVIOUS_PREVIEW_TARGET=""
 PRODUCTION_TARGET=""
@@ -97,6 +100,20 @@ rollback_preview() {
   fi
 }
 
+release_deploy_lock() {
+  $DEPLOY_LOCK_HELD || return 0
+  rm -f "$DEPLOY_LOCK_DIR/owner"
+  rmdir "$DEPLOY_LOCK_DIR" 2>/dev/null || true
+  DEPLOY_LOCK_HELD=false
+}
+
+acquire_deploy_lock() {
+  mkdir "$DEPLOY_LOCK_DIR" 2>/dev/null || fail "another deployment or cleanup is running"
+  DEPLOY_LOCK_HELD=true
+  echo "pid=$$" > "$DEPLOY_LOCK_DIR/owner"
+  trap release_deploy_lock EXIT
+}
+
 deployment_exit() {
   local exit_code=$?
   if (( exit_code != 0 )); then
@@ -105,6 +122,7 @@ deployment_exit() {
       echo "CRITICAL: production link changed during preview deployment" >&2
     fi
   fi
+  release_deploy_lock
 }
 
 [[ -n "$REQUESTED_REF" ]] || fail "usage: $0 <pushed-git-ref-or-commit>"
@@ -118,10 +136,11 @@ deployment_exit() {
 service_loaded "$PRODUCTION_LABEL" || fail "production OpsCenter service must be loaded"
 service_loaded "$PREVIEW_LABEL" || fail "preview OpsCenter service must be loaded"
 
-for command in git node npm curl launchctl plutil; do
+for command in git node npm curl launchctl plutil python3; do
   command -v "$command" >/dev/null 2>&1 || fail "required command is missing: $command"
 done
 
+acquire_deploy_lock
 PRODUCTION_TARGET="$(readlink "$PRODUCTION_LINK")"
 [[ -d "$PRODUCTION_TARGET" ]] || fail "production link target is missing"
 wait_for_runtime 3000 "MISSION_CONTROL" "200" || fail "production runtime is not healthy enough for a preview deployment"
@@ -197,6 +216,11 @@ production_unchanged || fail "production link changed during preview activation"
 wait_for_runtime 3000 "MISSION_CONTROL" "200" || fail "production runtime changed during preview deployment"
 "$PREVIEW_LINK/deploy/macmini/verify-coexistence.sh" --require-preview-kernel
 
+# Retention runs only after both runtimes and coexistence checks pass.
+python3 "$RETENTION_SCRIPT" --apply --scope preview \
+  --deployment-owner "$$" --protect "$release" --protect "$PREVIOUS_PREVIEW_TARGET" \
+  || echo "Preview retention needs attention; see the cleanup error above." >&2
+release_deploy_lock
 trap - EXIT
 
 echo

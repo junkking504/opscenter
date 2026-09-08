@@ -91,7 +91,8 @@
     "alerts:slack": "node --import tsx scripts/publish-slack-alerts.ts",
     "verify:junkware-payroll": "node --import tsx scripts/test-junkware-payroll-sync.ts",
     "verify:junkware-payroll:browser": "node scripts/test-junkware-payroll-browser.mjs",
-    "verify:maintenance": "node --import tsx scripts/test-maintenance.ts && /usr/bin/python3 scripts/test-process-recovery.py"
+    "verify:maintenance": "node --import tsx scripts/test-maintenance.ts && /usr/bin/python3 scripts/test-process-recovery.py",
+    "verify:workspace-retention": "python3 scripts/test-workspace-retention.py"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

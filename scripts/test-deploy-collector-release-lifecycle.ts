@@ -58,26 +58,10 @@ assert.match(
   /runs_after.*-gt.*runs_before[\s\S]*?Restart began but launchctl did not return within/,
   "a timed-out restart must distinguish a confirmed launchd start from a real restart failure",
 );
-assert.match(
-  deployer,
-  /\/usr\/sbin\/lsof -n -P -F p \+D "\$candidate"/,
-  "pruning must inspect candidate cwd and open-file records without emitting paths",
-);
-assert.match(
-  deployer,
-  /RELEASE_LSOF_TIMEOUT_SECONDS="\$\{OPSCENTER_RELEASE_LSOF_TIMEOUT_SECONDS:-5\}"/,
-  "lsof pruning scan must have a bounded timeout",
-);
-assert.match(
-  deployer,
-  /Skipping prune for \$candidate: lsof process-reference scan exceeded/,
-  "a timed-out scan must preserve the release",
-);
-assert.match(
-  deployer,
-  /release_has_live_process_reference "\$candidate" && continue/,
-  "a referenced release must not reach worktree removal",
-);
+// Retention process, source-preservation and lock boundaries are exercised
+// with real Git fixtures in test-workspace-retention.py.
+assert.match(deployer, /workspace-retention\.py.*--apply --scope production/);
+assert.match(deployer, /--deployment-owner "\$\$"/);
 
 const activationIndex = deployer.indexOf('activate_release "$release"');
 const restartIndex = deployer.indexOf('restart_release_bound_services "$release"', activationIndex);

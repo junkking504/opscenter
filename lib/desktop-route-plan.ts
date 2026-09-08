@@ -1,6 +1,6 @@
 import { googleTrafficMatrix, type GoogleRouteMatrixElement, type Coordinates } from './job-route-proximity';
 import { planEligible, proposeRoutes, routeCandidates, routePlanSourceKey, routeAreas, type PlanOptions, type PlanRoute, type RoutePlan, type PlanStop } from '../desktop-ui/lib/route-plan';
-import { scheduleTruckNames, type ScheduleSnapshot } from '../desktop-ui/lib/schedule-contract';
+import { appointmentRegion, scheduleTruckNames, type ScheduleSnapshot } from '../desktop-ui/lib/schedule-contract';
 
 export class RoutePlanInputError extends Error {}
 const bad = (message: string): never => { throw new RoutePlanInputError(message); };
@@ -58,6 +58,10 @@ export async function buildRoutePlan(snapshot: ScheduleSnapshot, options: PlanOp
     let previousDeparture: number|null=options.start;
     for(let i=0;i<route.stops.length;i++) {
       const stop=route.stops[i]; const job=byId.get(stop.id)!; const previous=i ? byId.get(route.stops[i-1].id)! : null;
+      const region = appointmentRegion(job);
+      if (region.mismatch) stop.warnings.push('Service Territory Differs From JunkWare Franchise');
+      const serviceArea = ['NO', 'JP', 'NS'].includes(region.code) ? 'metro' : region.code;
+      if (serviceArea !== options.area) stop.warnings.push('Existing Assignment Outside Selected Route Area');
       if (!job.location && !stop.warnings.includes('Verify Address')) stop.warnings.push('Verify Address');
       if (job.appointmentStartMinutes===null || job.appointmentEndMinutes===null) stop.warnings.push('Time Not Set');
       if (previous && job.appointmentStartMinutes!==null && job.appointmentEndMinutes!==null && previous.appointmentStartMinutes!==null && previous.appointmentEndMinutes!==null && job.appointmentStartMinutes<previous.appointmentEndMinutes && previous.appointmentStartMinutes<job.appointmentEndMinutes) stop.warnings.push('Overlapping Windows');

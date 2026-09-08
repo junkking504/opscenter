@@ -26,6 +26,7 @@ export default function ScheduleRoutePlan({snapshot,busy,select,review}: {snapsh
   const stale=!!plan&&plan.sourceKey!==sourceKey;
   const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date());
   const historical=snapshot.date<today;
+  const locationReview = snapshot.appointments.filter(j => appointmentRegion(j).needsReview);
   const names=scheduleTruckNames(snapshot).filter(t=>t!=='Unassigned');
   const changeOptions=()=>{trucksInitialized.current=true;setDirty(true);setDraft(null);};
   const calculate=async (routes?:PlanRoute[])=>{
@@ -59,11 +60,12 @@ export default function ScheduleRoutePlan({snapshot,busy,select,review}: {snapsh
         </div>
         <p>Existing assignments stay on their trucks initially, including other territories. Unassigned stops are grouped by nearby locations within a balanced stop-count limit; booked windows guide the sequence. This is a starting proposal, not an optimized or verified route.</p>
       </div>
+      {!!locationReview.length && <p className="route-plan-notice" role="status">Location Review Required: {locationReview.map(j=>j.jkNumber || j.appointmentId).join(', ')}. These appointments are excluded from route proposals until the service locality is resolved. Review their addresses in All Appointments.</p>}
       {error&&<p className="route-plan-notice" role="alert">{error}</p>}
       {stale&&<p className="route-plan-notice" role="status">The schedule changed. Rebuild the proposal before reviewing assignments.</p>}
       {dirty&&plan&&!stale&&<p className="route-plan-notice" role="status">Proposal edited. {draft?<Button variant="outline" disabled={loading||busy} onClick={()=>calculate(draft)}>Recalculate Edited Routes</Button>:'Rebuild to use the new planning assumptions.'} Travel and arrival estimates are hidden until recalculated.</p>}
       {plan&&<>
-        <div className="route-plan-explainer"><strong>Proposal Only · Nothing Applied</strong><span>Google current traffic · Calculated {new Date(plan.calculatedAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})}. Planned arrivals assume the entered service time and start at the first stop—not at the truck’s GPS position. Missing travel makes downstream arrivals unknown.</span><span>{plan.excluded} closed, unverified, or unidentified appointments excluded. Stop order is not saved to JunkWare; Review Assignment changes only the truck after confirmation. Appointment windows stay unchanged.{historical?' Historical date: assignments cannot be applied from this proposal.':''}</span></div>
+        <div className="route-plan-explainer"><strong>Proposal Only · Nothing Applied</strong><span>Google current traffic · Calculated {new Date(plan.calculatedAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})}. Planned arrivals assume the entered service time and start at the first stop—not at the truck’s GPS position. Missing travel makes downstream arrivals unknown.</span><span>{plan.excluded} closed, unverified, unidentified, or location-review appointments excluded. Stop order is not saved to JunkWare; Review Assignment changes only the truck after confirmation. Appointment windows stay unchanged.{historical?' Historical date: assignments cannot be applied from this proposal.':''}</span></div>
         <div className="route-plan-routes">{(draft||plan.routes).map(route=>{
           const calculated=plan.routes.find(r=>r.truck===route.truck);
           const legs=calculated?.stops.slice(1)||[]; const allKnown=legs.every(s=>s.travelMinutes!==null); const warnings=calculated?.stops.filter(s=>s.warnings.length).length||0;

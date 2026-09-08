@@ -31,6 +31,7 @@ type JobRow = {
   phone: string;
   address: string;
   territory: string;
+  sourceTerritory?: string;
   appointmentType: string;
   status: string;
   truck: string;
@@ -699,6 +700,7 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
     phone,
     address,
     territory,
+    sourceTerritory: firstValue(row, ['franchise', 'market', 'territory', 'Franchise', 'Market', 'Territory']) || territory,
     appointmentType,
     status,
     truck: firstValue(row, ["truck", "assigned_truck", "truck_name"]) || "—",
@@ -953,6 +955,7 @@ function readJobRows(date: string): JobRow[] {
         customerEmailCollected: hasCustomerEmailField(sourceRow, row),
         phone,
         address,
+        sourceTerritory: sourceValue(['franchise', 'market', 'territory', 'Franchise', 'Market', 'Territory', 'normalized_territory']) || '—',
         territory: appointmentTerritoryForLocation(
           sourceValue([
             "normalized_territory",
@@ -1116,6 +1119,7 @@ function mergeFastScheduleRows(
       phone: present(fresh.phone) ? fresh.phone : existing.phone,
       address: present(fresh.address) && fresh.address !== "Address unavailable" ? fresh.address : existing.address,
       territory: present(fresh.territory) ? fresh.territory : existing.territory,
+      sourceTerritory: present(fresh.sourceTerritory || '') ? fresh.sourceTerritory : existing.sourceTerritory,
       appointmentType: present(fresh.appointmentType) ? fresh.appointmentType : existing.appointmentType,
       status: present(fresh.status) ? fresh.status : existing.status,
       truck: present(fresh.truck) ? fresh.truck : existing.truck,

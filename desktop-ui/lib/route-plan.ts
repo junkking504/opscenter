@@ -4,11 +4,11 @@ export type PlanRoute = { truck: string; appointmentIds: string[] };
 export type PlanOptions = { trucks: string[]; area: string; start: number; serviceMinutes: number; routes?: PlanRoute[] };
 export type PlanStop = { id: string; arrival: number | null; travelMinutes: number | null; miles: number | null; warnings: string[] };
 export type RoutePlan = { sourceKey: string; calculatedAt: string; routes: Array<PlanRoute & { stops: PlanStop[] }>; excluded: number };
-export const routeAreas = { metro: 'New Orleans · Jefferson Parish · Northshore', BR: 'Baton Rouge', LF: 'Lafayette', UNK: 'Unclassified' };
+export const routeAreas = { metro: 'New Orleans · Jefferson Parish · Northshore', BR: 'Baton Rouge', LF: 'Lafayette' };
 export function routePlanSourceKey(jobs: ScheduleAppointment[]) {
-  return JSON.stringify(jobs.map(j => [j.recordId, j.version, j.location, appointmentRegion(j).code, j.junkwareSyncStatus]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))));
+  return JSON.stringify(jobs.map(j => [j.recordId, j.version, j.address, j.location, appointmentRegion(j), j.junkwareSyncStatus]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))));
 }
-export function planEligible(job: ScheduleAppointment) { return !isClosed(job) && !assignmentNeedsVerification(job) && Boolean(job.appointmentId); }
+export function planEligible(job: ScheduleAppointment) { return !isClosed(job) && !assignmentNeedsVerification(job) && Boolean(job.appointmentId) && !appointmentRegion(job).needsReview; }
 export function routeArea(job: ScheduleAppointment) { const code = appointmentRegion(job).code; return ['NO','JP','NS'].includes(code) ? 'metro' : code; }
 export function routeCandidates(jobs: ScheduleAppointment[], options: PlanOptions) {
   return jobs.filter(j => planEligible(j) && (options.trucks.includes(truckLabel(j.truck)) || truckLabel(j.truck) === 'Unassigned' && routeArea(j) === options.area));

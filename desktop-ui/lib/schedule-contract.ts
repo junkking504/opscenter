@@ -1,3 +1,4 @@
+import { serviceTerritory } from '../../lib/service-territory';
 import type { AppointmentOnsiteTime } from '../../lib/appointment-onsite-time';
 import { JUNKWARE_DISPATCH_TRUCKS } from '../../lib/junkware-trucks';
 export type ScheduleAppointment = {
@@ -21,6 +22,7 @@ export type ScheduleAppointment = {
   phone: string;
   address: string;
   territory: string;
+  sourceTerritory?: string;
   appointmentType: string;
   status: string;
   hasVisit?: boolean;
@@ -82,29 +84,8 @@ export function unavailableRoute(leg: ScheduleRouteLeg, jobs: ScheduleAppointmen
 
 export const territoryLabels: Record<string, string> = { NO: 'New Orleans', JP: 'Jefferson Parish', NS: 'Northshore', BR: 'Baton Rouge', LF: 'Lafayette', UNK: 'Unclassified' };
 export const territoryOrder = ['NO', 'JP', 'NS', 'BR', 'LF', 'UNK'];
-export function appointmentRegion(job: Pick<ScheduleAppointment, 'address' | 'territory'>) {
-  const territory = job.territory.toLowerCase();
-  const location = job.address;
-  // Preserve source territory. Westbank remains an area within Jefferson Parish
-  // in the approved desktop presentation; the original source label is retained.
-  let code = /westbank|jefferson/.test(territory) ? 'JP' : /north.?shore/.test(territory) ? 'NS' : /baton/.test(territory) ? 'BR' : /lafayette/.test(territory) ? 'LF' : /new orleans/.test(territory) ? 'NO' : 'UNK';
-  const areas: Array<[RegExp, string, string, string]> = [
-    [/\b(?:gretna|harvey|marrero|terrytown|westwego|algiers)\b/i, 'WB', 'Westbank', 'JP'],
-    [/\b(?:chalmette|new orleans east)\b/i, 'EM', 'East Metro', 'NO'],
-    [/\b(?:laplace|la place)\b/i, 'RP', 'River Parishes', 'NO'],
-    [/\b(?:prairieville|gonzales)\b/i, 'ASC', 'Ascension', 'BR'],
-    [/\bdenham springs\b/i, 'LIV', 'Livingston', 'BR'],
-    [/\bcovington\b/i, 'COV', 'Covington', 'NS'], [/\bmandeville\b/i, 'MAN', 'Mandeville', 'NS'],
-    [/\bslidell\b/i, 'SLI', 'Slidell', 'NS'], [/\bhammond\b/i, 'HAM', 'Hammond', 'NS'],
-    [/\bmetairie\b/i, 'MET', 'Metairie', 'JP'], [/\bkenner\b/i, 'KEN', 'Kenner', 'JP'],
-    [/\bharahan\b/i, 'HAR', 'Harahan', 'JP'], [/\bnew orleans\b/i, 'NO', 'New Orleans', 'NO'],
-    [/\bbaton rouge\b/i, 'BR', 'Baton Rouge', 'BR'], [/\blafayette\s*,\s*(?:la\s*)?705\d{2}/i, 'LAF', 'Lafayette', 'LF'],
-  ];
-  // Prefer the service locality after the first comma, not street names.
-  const locality = location.includes(',') ? location.slice(location.indexOf(',') + 1) : '';
-  const area = areas.find(([pattern]) => pattern.test(locality));
-  if (area && code === 'UNK') code = area[3];
-  return { code, label: territoryLabels[code], areaCode: area?.[1] || (territory === 'westbank' ? 'WB' : 'UNK'), area: area?.[2] || (territory === 'westbank' ? 'Westbank' : 'Area Not Specified') };
+export function appointmentRegion(job: Pick<ScheduleAppointment, 'address' | 'territory' | 'sourceTerritory'>) {
+  return serviceTerritory(job.address, job.sourceTerritory || job.territory);
 }
 export function appointmentCategory(job: Pick<ScheduleAppointment, 'appointmentType'>) {
   return /estimate/i.test(job.appointmentType) ? 'Estimate' : /job|junk|removal/i.test(job.appointmentType) ? 'Job' : job.appointmentType || 'Unspecified';

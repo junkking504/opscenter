@@ -7,7 +7,7 @@ const job=(id:string,patch:Partial<ScheduleAppointment>={}):ScheduleAppointment=
 const snap=(appointments:ScheduleAppointment[]):ScheduleSnapshot=>({date:'2026-09-09',observedAt:null,appointments,fleet:{isToday:false,trucks:[],lastUpdatedAt:null}});
 const options:PlanOptions={trucks:['Truck 1','Truck 2'],area:'metro',start:480,serviceMinutes:45};
 async function main(){
-  const snapshot=snap([job('a'),job('b',{appointmentType:'Estimate'}),job('c',{truck:'Unassigned',territory:'Northshore'}),job('d',{truck:'Unassigned',territory:'Jefferson Parish'}),job('outside',{truck:'Unassigned',territory:'Baton Rouge'}),job('closed',{status:'Completed'}),job('pending',{junkwareSyncStatus:'pending'}),job('unidentified',{appointmentId:''})]);
+  const snapshot=snap([job('a'),job('b',{appointmentType:'Estimate'}),job('c',{truck:'Unassigned',territory:'Northshore',address:'Synthetic Street, Covington'}),job('d',{truck:'Unassigned',territory:'Jefferson Parish',address:'Synthetic Street, Metairie'}),job('outside',{truck:'Unassigned',territory:'Baton Rouge',address:'Synthetic Street, Baton Rouge'}),job('closed',{status:'Completed'}),job('pending',{junkwareSyncStatus:'pending'}),job('unidentified',{appointmentId:''})]);
   const parsed=parsePlanOptions(options,snapshot);
   const routes=proposeRoutes(snapshot.appointments,parsed);
   assert.deepEqual(routes,[{truck:'Truck 1',appointmentIds:['a','b']},{truck:'Truck 2',appointmentIds:['c','d']}]);

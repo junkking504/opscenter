@@ -29,12 +29,39 @@ verified visit order, service duration, or available buffer.
 
 ## Route Planner
 
+Dispatch service territory is resolved by the shared `lib/service-territory.ts`
+from the terminal service locality and reviewed ZIP rules, never from a franchise
+fallback. Map colors, register/area groups, calendar counts, and route selection
+share this resolver. Greenwell Springs/70739 belongs to BR/GWS; Lafayette belongs
+to LF. Known New Orleans postal aliases in Jefferson retain JP dispatch grouping.
+JunkWare franchise ownership is preserved independently as `sourceTerritory`;
+differences are shown beside the service address and in proposal warnings. No
+booking ownership, assignment, accounting attribution, or appointment identity
+is changed by geographic classification.
+
+Unknown localities, explicit out-of-state addresses, and conflicting reviewed
+city/ZIP classifications are Unclassified / Location Needs Review, never silently
+put into a franchise route pool. These stops remain visible on the schedule but
+are excluded from route proposals. Address classification does not establish a
+verified map pin: road estimates still require independently verified locations.
+Existing assigned stops in another known area are retained with an explicit
+outside-area warning. Address/franchise changes invalidate prior proposals, and
+server validation rejects injected out-of-area unassigned stops. Regression tests:
+`npm run verify:service-territory`, required by every production build.
+
+Reviewed geographic references: [Greenwell Springs facility](https://www.copart.com/locations/baton-rouge-la-50),
+[Jefferson Parish localities](https://www.jeffparish.gov/850/About-Jefferson-Parish),
+[Eastbank addresses](https://www.jeffparish.gov/Directory.aspx?did=37),
+[Walker](https://www.walker.la.us/For-Residents), and
+[Pearl River](https://www.crt.louisiana.gov/tourism/welcome-centers/pearl-river/).
+
 Schedule's Route Planner sits below the simultaneous map and truck board. It
 builds one proposed route per selected truck (up to 12). Trucks with open work
 are preselected, not declared crew/load-ready. Current assignments remain on
 their trucks initially, including appointments outside the selected area.
 Unassigned New Orleans, Jefferson Parish, and Northshore appointments share one
-planning pool; Baton Rouge, Lafayette, and unclassified work are separate pools.
+planning pool; Baton Rouge and Lafayette are separate pools. Unclassified
+locations are excluded from proposals and listed for location review.
 Empty trucks are seeded in distinct geographic clusters. Unassigned work stays
 near existing route stops, within an equal-share stop-count cap for new work.
 Existing assignments above that cap are retained, not silently redistributed.

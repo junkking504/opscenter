@@ -130,11 +130,12 @@ component without operational API access; start it with the companion Vite confi
 ## Appointment arrival and departure alerts
 
 Command derives appointment visit alerts directly from confirmed visit intervals,
-even when no Slack report was published. Arrival creates one **Geofence** alert with a pending departure; confirmed
-departure updates the same identity, showing `Geofence - Truck - Location` and
-`Onsite: duration | arrival - departure` with local times such as `1:37pm`. Each return visit stays separate, excluding
-time away. The recorded truck remains independent of the current assignment.
-Job closeout remains a separate JunkWare event.
+even when no Slack report was published. Arrival creates an **Arrival** alert; confirmed departure updates that visit to a
+**Departure** alert with recorded arrival, departure, and duration. Return visits
+stay separate until JunkWare confirms appointment closeout, then arrival,
+departure, and duration reports fold into the job or estimate completion card.
+Their source aliases preserve existing review and Control ownership. **Geofence**
+alerts and their compact `Onsite` format apply to facilities only.
 
 Uniquely matched older Slack arrival/departure reports remain review aliases.
 Pass-bys, unconfirmed matches, future timestamps, and unsegmented multiple visits

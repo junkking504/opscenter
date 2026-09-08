@@ -11,13 +11,13 @@ const run=(rows:Parameters<typeof appointmentVisitAlerts>[1],alerts:OperationalA
 const fact=(alert:OperationalAlert,label:string)=>alert.facts.find(f=>f.label===label)?.value;
 const closed=run([visit]);
 assert.equal(closed.length,1,'confirmed visit is visible without Slack');
-assert.equal(closed[0].label,'Geofence');
+assert.equal(closed[0].label,'Departure');
 assert.equal(fact(closed[0],'Time on site'),'20m 16s');
 assert.equal(closed[0].truck,'Truck 2','actual truck is independent of assignment');
 assert.match(closed[0].href,/appointment=101/);
 const open={...visit,visit_intervals:[{arrival:interval.arrival,departure:null,departure_confirmed:false}]};
 const arrived=run([open])[0];
-assert.equal(arrived.label,'Geofence');
+assert.equal(arrived.label,'Arrival');
 assert.equal(fact(arrived,'Departed'),'Awaiting confirmed departure');
 assert.equal(arrived.id,closed[0].id,'arrival identity survives departure');
 const returned=run([{...visit,visit_intervals:[interval,{arrival:'2026-09-08T15:00:00Z',departure:'2026-09-08T15:05:00Z',departure_confirmed:true}]}]);
@@ -31,8 +31,8 @@ assert.equal(run([{...visit,visit_count:2,visit_intervals:[],first_arrival:inter
 assert.equal(run([{...visit,visit_intervals:[{arrival:'invalid'}]}]).length,0);
 assert.equal(run([{...visit,visit_intervals:[{arrival:'2026-09-10T13:00:00Z'}]}]).length,0);
 assert.equal(run([visit],[],'2026-09-07').length,0);
-assert.equal(run([{...visit,visit_intervals:[{...interval,departure_confirmed:false}]}])[0].label,'Geofence');
-assert.equal(run([{...visit,visit_intervals:[{...interval,departure:'2026-09-10T14:00:00Z'}]}])[0].label,'Geofence');
+assert.equal(run([{...visit,visit_intervals:[{...interval,departure_confirmed:false}]}])[0].label,'Arrival');
+assert.equal(run([{...visit,visit_intervals:[{...interval,departure:'2026-09-10T14:00:00Z'}]}])[0].label,'Arrival');
 const conflict=run([visit,{...visit,visit_intervals:[{...interval,departure:'2026-09-08T13:22:00Z'}]}])[0];
 assert.equal(fact(conflict,'Time on site'),undefined);
 assert.match(fact(conflict,'Departed')!,/conflicting/);

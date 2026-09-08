@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto';
 import { consolidateConfirmedVisitAlerts } from './confirmed-visit-alerts';
 import type { OperationalAlert } from './operational-alert-presentation';
-import { geofenceOnsiteSummary } from './geofence-alert-summary';
 
 type Interval = {arrival?: string; departure?: string | null; departure_confirmed?: boolean};
 type Visit = {
@@ -73,11 +72,11 @@ export function appointmentVisitAlerts(input: OperationalAlert[], visits: Visit[
       id:`appointment-visit-${createHash('sha256').update(key).digest('hex').slice(0,24)}`,
       sourceMessageIds:[...new Set(aliases.flatMap(alert=>[alert.id,...(alert.sourceMessageIds || [])]))],
       source:visit.operational ? 'Operational confirmation' : 'LinxUp',
-      timestamp, updatedAt:timestamp, label:'Geofence',
+      timestamp, updatedAt:timestamp, label:end ? 'Departure' : 'Arrival',
       truck:`Truck ${visit.truck}`, territory:job?.territory, domain:'Dispatch', owner:'Dispatch',
       title:`Truck ${visit.truck} - ${visit.reference}${job?.customerName ? ` · ${job.customerName}` : ''}`,
       detected:clock(timestamp),needsAction:false,
-      facts:[{label:'Onsite',value:geofenceOnsiteSummary(end ? visit.operational ? 'Unavailable · GPS coverage gap' : duration(Date.parse(end)-Date.parse(visit.start)) : visit.conflict ? 'Pending verification' : 'Pending',visit.start,end)},
+      facts:[
         ...(end ? [
         {label:'Time on site',value:visit.operational ? 'Unavailable · GPS coverage gap' : duration(Date.parse(end)-Date.parse(visit.start))}] : []),
         {label:'Arrived',value:time(visit.start)},

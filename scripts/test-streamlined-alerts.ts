@@ -20,7 +20,7 @@ const sources=[
 const result=streamlineOperationalAlerts(sources,[completed],day);
 const done=result.find(row=>row.id==='done')!;
 assert.equal(result.filter(row=>row.label==='Job Completed').length,1);
-assert.deepEqual(done.sourceMessageIds,['done','duration','arrival','departure','photos']);
+assert.deepEqual(done.sourceMessageIds,['done','duration','arrival','departure','photos','appointment-closeout:2026-09-07:101']);
 assert.equal(done.photos?.length,1);
 assert.equal(done.facts.find(f=>f.label==='Duration')?.value,'65 min');
 assert.equal(result.filter(row=>row.label==='Krewe Summary').length,1);
@@ -31,7 +31,19 @@ assert.equal(streamlineOperationalAlerts(sources,[{...completed,bookedAt:''}],da
 const ambiguous=streamlineOperationalAlerts(sources,[completed,{...completed,appointmentId:'other',appointmentType:'Estimate'}],day);
 assert.ok(ambiguous.some(row=>row.id==='duration'),'Ambiguous appointment retains duration');
 const multiple=streamlineOperationalAlerts([...sources,make('second-visit','Duration','2026-09-07T14:14:00Z')],[completed],day);
-assert.equal(multiple.filter(row=>row.label==='Duration').length,2,'Separate visits remain separate');
+assert.equal(multiple.filter(row=>row.label==='Duration').length,0,'Closed appointment folds every visit');
+assert.ok(multiple.find(row=>row.id==='done')?.sourceMessageIds?.includes('second-visit'));
+const lifecycle=streamlineOperationalAlerts([make('arrived','Arrival','2026-09-07T13:05:00Z'),make('departed','Departure','2026-09-07T14:10:00Z'),sources[2]],[completed],day);
+assert.equal(lifecycle.length,1,'Closed job folds Arrival and Departure');
+assert.deepEqual(new Set(lifecycle[0].sourceMessageIds),new Set(['done','arrived','departed','appointment-closeout:2026-09-07:101']));
+const openLifecycle=streamlineOperationalAlerts([make('arrived','Arrival','2026-09-07T13:05:00Z'),make('departed','Departure','2026-09-07T14:10:00Z')],[{...completed,status:'Open'}],day);
+assert.equal(openLifecycle.length,2,'Open appointment retains visit alerts');
+const estimateLifecycle=streamlineOperationalAlerts([make('arrived','Arrival','2026-09-07T13:05:00Z'),make('departed','Departure','2026-09-07T14:10:00Z'),make('estimate-done','Estimate Completed','2026-09-07T14:12:00Z')],[{...completed,status:'Estimate Closed',appointmentType:'Estimate'}],day);
+assert.equal(estimateLifecycle.length,1,'Completed estimate folds visit alerts');
+const wrongAppointment=streamlineOperationalAlerts([sources[2],make('wrong-id','Departure','2026-09-07T14:10:00Z',{href:'/desktop?workspace=Schedule&appointment=1010'})],[completed],day);
+assert.ok(wrongAppointment.some(row=>row.id==='wrong-id'),'Explicit different appointment is never folded');
+const actualTruck=streamlineOperationalAlerts([sources[2],make('other-truck','Departure','2026-09-07T14:10:00Z',{truck:'Truck 9',href:'/desktop?workspace=Schedule&appointment=101'})],[completed],day);
+assert.ok(actualTruck[0].sourceMessageIds?.includes('other-truck'),'Exact appointment visit survives an assignment change');
 const visit={appointment_id:'101',jk_number:'JK1000001',truck_number:2,match_confidence:'confirmed',visit_count:1,visit_intervals:[{arrival:'2026-09-07T13:05:00Z',departure:'2026-09-07T14:10:00Z',departure_confirmed:false}]};
 assert.equal(appointmentOnsiteTime(completed,[visit],now).minutes,null,'Unconfirmed exit never becomes final duration');
 assert.equal(consolidateConfirmedVisitAlerts([make('d','Departure','2026-09-07T14:10:00Z',{facts:[{label:'Departure',value:'9:10 AM'}]})],[visit],now)[0].label,'Departure');
@@ -62,3 +74,9 @@ assert.equal(consolidateConfirmedVisitAlerts([make('revised-arrival','Arrival','
 assert.equal(consolidateConfirmedVisitAlerts([make('return-arrival','Arrival','2026-09-07T14:14:00Z',{facts:[{label:'Arrival',value:'9:14 AM'}]})],[confirmed],now)[0].label,'Arrival','A later return stays visible');
 const unlabeledPhotos=streamlineOperationalAlerts(sources.map(source=>source.id==='photos'?{...source,truck:undefined}:source),[completed],day);
 assert.ok(!unlabeledPhotos.some(source=>source.id==='photos'),'A verified photo with a unique appointment remains linkable without a legacy truck label');
+
+const sourceCloseout=streamlineOperationalAlerts([make('departure-only','Departure','2026-09-07T14:10:00Z')],[completed],day);
+assert.equal(sourceCloseout.length,1,'JunkWare closeout folds visits before Slack publication');
+assert.equal(sourceCloseout[0].label,'Job Completed');
+assert.equal(sourceCloseout[0].source,'JunkWare');
+assert.ok(sourceCloseout[0].sourceMessageIds?.includes('departure-only'));

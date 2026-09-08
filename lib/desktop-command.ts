@@ -5,7 +5,7 @@ import { crewAppointmentFacts } from './crew-progress-details';
 import { sourceFreshness } from './source-freshness';
 import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
 import { readScheduleVisits } from './desktop-schedule-visits';
-import { geofenceOperationalAlert, readGeofenceEntries } from './linxup-geofence-alerts';
+import { geofenceTimelineAlerts, readGeofenceEntries } from './linxup-geofence-alerts';
 import { readJobRows } from './desktop-schedule-source';
 import { readDesktopSourceHealth } from '@/lib/desktop-source-health';
 import { readMetrics, completedJobs, crewRows, truckRows, money, type AnyRecord } from '@/lib/opsData';
@@ -79,7 +79,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const appointments = readJobRows(date);
   const sourceHealth = readDesktopSourceHealth(/^(admin|administrator|manager)$/i.test(actor.role));
   const geofences = readGeofenceEntries(date);
-  const alerts: DesktopCommandSnapshot['alerts'] = [...streamlineOperationalAlerts(consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits),appointments,date),...geofences.entries.map(entry=>geofenceOperationalAlert(entry,date))].map(alert => {
+  const alerts: DesktopCommandSnapshot['alerts'] = [...streamlineOperationalAlerts(consolidateConfirmedVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits),appointments,date),...geofenceTimelineAlerts(date,geofences.entries,geofences.visits)].map(alert => {
       const action = commandAlertWorkItemForSource(workflow.items, alert);
       return presentAlert(alert, action);
   });

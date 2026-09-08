@@ -177,8 +177,10 @@ cutover. Production continues to use:
 
 Preview loads the existing `com.opscenter.google-maps-api-key` Keychain entry
 when `GOOGLE_MAPS_API_KEY` is unset, so its authenticated desktop map can use the
-server-side tile integration. It does not copy the key to an environment file or
-load unrelated production integration credentials.
+server-side tile integration. If that Keychain entry is absent, preview reads only
+the literal `GOOGLE_MAPS_API_KEY` value from protected `production.env` into memory.
+It never sources that file, copies the key to a new file, or loads unrelated
+production integration credentials.
 
 Preview uses a separate link and release tree:
 

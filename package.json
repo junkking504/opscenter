@@ -82,6 +82,7 @@
     "verify:fleet-gps": "node --import tsx scripts/test-fleet-gps.ts",
     "verify:fleet-actions": "node --import tsx scripts/test-fleet-maintenance-actions.ts",
     "verify:geofence-alerts": "node --import tsx scripts/test-geofence-alerts.ts",
+    "verify:appointment-visit-alerts": "node --import tsx scripts/test-appointment-visit-alerts.ts",
     "verify:truck-load-status:browser": "node scripts/test-truck-load-browser.mjs",
     "verify:truck-load-status": "node --import tsx scripts/test-truck-load-status.ts && node --import tsx scripts/test-truck-load-closeouts.ts && node --import tsx scripts/test-whatsapp-truck-loads.ts && node --import tsx scripts/test-truck-charge-reconciliation.ts && python3 scripts/test-junkware-charge-stream.py",
     "verify:linxup-freshness": "node --import tsx scripts/test-linxup-live-freshness.ts && node --import tsx scripts/test-linxup-authority.ts && node --import tsx scripts/test-linxup-push-v3.ts",

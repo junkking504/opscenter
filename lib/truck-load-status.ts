@@ -27,6 +27,7 @@ export type TruckLoadEvent = {
   truck: string;
   kind: TruckLoadEventKind;
   loadFraction: number;
+  bedloadFraction?: number;
   occurredAt: string;
   recordedAt: string;
   recordedBy: string;
@@ -46,6 +47,7 @@ export type TruckLoadStatus = {
   truck: string;
   startingLoadFraction: number;
   currentLoadFraction: number;
+  currentBedloadFraction?: number;
   currentLoadLabel: string;
   currentContents: string;
   capacityPercent: number;
@@ -109,6 +111,7 @@ function cleanEvent(value: unknown): TruckLoadEvent | null {
     truck,
     kind,
     loadFraction,
+    bedloadFraction: cleanFraction(row.bedloadFraction) ?? 0,
     occurredAt: String(row.occurredAt || "").trim(),
     recordedAt: String(row.recordedAt || "").trim(),
     recordedBy: String(row.recordedBy || "").trim().slice(0, 160),
@@ -193,25 +196,39 @@ function greatestCommonDivisor(a: number, b: number): number {
   return left || 1;
 }
 
-function nearestFraction(value: number): string {
-  const denominator = 24;
-  const numerator = Math.round(value * denominator);
-  if (numerator <= 0) return "0";
-  const divisor = greatestCommonDivisor(numerator, denominator);
-  return `${numerator / divisor}/${denominator / divisor}`;
+/** Preserve summed fractions (for example 1/3 + 1/12 = 5/12). */
+export function formatLoadAmount(value: number): string {
+  if (!Number.isFinite(value) || value < 0) return 'Unknown';
+  const numerator = Math.round(value * 48);
+  if (Math.abs(value - numerator / 48) > 0.000001) return value.toLocaleString('en-US', {maximumFractionDigits:3});
+  const gcd = (a:number,b:number):number => b ? gcd(b,a%b) : a;
+  const divisor = gcd(numerator,48);
+  return 48 / divisor === 1 ? String(numerator / divisor) : `${numerator / divisor}/${48 / divisor}`;
 }
 
 export function formatTruckLoadFraction(value: number): string {
   const load = Math.max(0, Number(value) || 0);
-  if (load < 1 / 48) return "Empty";
-  if (Math.abs(load - 1) < 1 / 48) return "Full truck";
+  if (load < 0.000001) return "Empty";
+  if (Math.abs(load - 1) < 0.000001) return "Full truck";
   if (load > 1) {
-    const fullTrucks = Math.floor(load + 1 / 48);
+    const fullTrucks = Math.floor(load);
     const remainder = load - fullTrucks;
-    if (Math.abs(remainder) < 1 / 48) return `${fullTrucks} full trucks`;
-    return `${fullTrucks === 1 ? "Full" : `${fullTrucks} full`} + ${nearestFraction(remainder)}`;
+    if (remainder < 0.000001) return `${fullTrucks} full trucks`;
+    return `${fullTrucks === 1 ? "Full" : `${fullTrucks} full`} + ${formatLoadAmount(remainder)}`;
   }
-  return `${nearestFraction(load)} full`;
+  return `${formatLoadAmount(load)} full`;
+}
+
+/** Bedload units stay separate from regular truck volume. */
+export function junkwareBedloadFraction(size: unknown, quantity: unknown): number | null {
+  const label = String(size || '').trim();
+  const countText = String(quantity ?? '').trim();
+  const count = countText ? Number(countText) : label ? 1 : 0;
+  if (!Number.isFinite(count) || count < 0 || count > 100) return null;
+  if (!count) return 0;
+  const fraction = label.match(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)/);
+  const unit = fraction ? Number(fraction[1]) / Number(fraction[2]) : /full/i.test(label) ? 1 : Number(label);
+  return label && Number.isFinite(unit) && unit >= 0 && unit <= 1 ? cleanFraction(unit * count) : null;
 }
 
 export function parseJunkwareLoadFraction(value: unknown): number | null {
@@ -235,6 +252,7 @@ export function parseJunkwareLoadFraction(value: unknown): number | null {
 }
 
 export function junkwareJobLoadFraction(loadSize: unknown, loadQuantity: unknown): number | null {
+  if (String(loadQuantity ?? '').trim() === '0') return 0;
   const perTruck = parseJunkwareLoadFraction(loadSize);
   if (perTruck === null) return null;
   const quantityText = String(loadQuantity ?? "").trim();
@@ -252,16 +270,20 @@ export function deriveTruckLoadStatus(date: string, truck: string, sourceEvents:
   const startingEvent = events.filter((event) => event.kind === "day_start").at(-1) || null;
   let currentLoadFraction = startingEvent?.loadFraction || 0;
   let currentContents = startingEvent?.contents || "";
+  let currentBedloadFraction = 0;
   for (const event of events) {
     if (event.kind === "day_start") continue;
     if (event.kind === "yard_reset") {
       currentLoadFraction = 0;
+      currentBedloadFraction = 0;
       currentContents = "";
     } else if (event.kind === "manual_snapshot") {
       currentLoadFraction = event.loadFraction;
+      currentBedloadFraction = event.bedloadFraction || 0;
       currentContents = event.contents;
     } else {
       currentLoadFraction += event.loadFraction;
+      currentBedloadFraction += event.bedloadFraction || 0;
       if (event.loadFraction > 0 && !currentContents) currentContents = "Contents not recorded";
       else if (event.loadFraction > 0 && !/additional job contents not recorded/i.test(currentContents)) {
         currentContents = `${currentContents}; additional job contents not recorded`;
@@ -274,7 +296,8 @@ export function deriveTruckLoadStatus(date: string, truck: string, sourceEvents:
     truck: normalizedTruck,
     startingLoadFraction: startingEvent?.loadFraction || 0,
     currentLoadFraction,
-    currentLoadLabel: formatTruckLoadFraction(currentLoadFraction),
+    currentBedloadFraction,
+    currentLoadLabel: currentBedloadFraction ? `${formatLoadAmount(currentLoadFraction)} truck + ${formatLoadAmount(currentBedloadFraction)} bedload` : formatTruckLoadFraction(currentLoadFraction),
     currentContents,
     capacityPercent: Math.round(currentLoadFraction * 100),
     isOverCapacity: currentLoadFraction > 1 + 1 / 48,
@@ -397,6 +420,8 @@ export function recordTruckLoadFromCloseout(input: {
   jobNumber?: string;
   loadSize: unknown;
   loadQuantity: unknown;
+  bedloadSize?: unknown;
+  bedloadQuantity?: unknown;
   verifiedAt?: string;
   recordedBy?: string;
 }): { updated: boolean; status: TruckLoadStatus | null; reason: string } {
@@ -410,8 +435,9 @@ export function recordTruckLoadFromCloseout(input: {
     return {updated:false,status:null,reason:'Only completed jobs add to the truck load.'};
   }
   const loadSize = String(input.loadSize || "").trim();
-  const loadFraction = estimate ? 0 : junkwareJobLoadFraction(loadSize, input.loadQuantity);
-  if (loadFraction === null) {
+  const loadFraction = estimate || (!loadSize && String(input.bedloadSize || '').trim() && !String(input.loadQuantity ?? '').trim()) ? 0 : junkwareJobLoadFraction(loadSize, input.loadQuantity);
+  const bedloadFraction = estimate ? 0 : junkwareBedloadFraction(input.bedloadSize, input.bedloadQuantity);
+  if (loadFraction === null || bedloadFraction === null) {
     return { updated: false, status: null, reason: "The JunkWare closeout did not contain a recognized load size." };
   }
 
@@ -430,6 +456,7 @@ export function recordTruckLoadFromCloseout(input: {
       truck: eventTruck,
       kind: "job_closeout",
       loadFraction,
+      bedloadFraction,
       occurredAt: coveredBy ? new Date(Date.parse(coveredBy.occurredAt)-1).toISOString() : existing?.occurredAt || String(input.verifiedAt || now),
       recordedAt: now,
       recordedBy: String(input.recordedBy || "JunkWare closeout").trim().slice(0, 160),

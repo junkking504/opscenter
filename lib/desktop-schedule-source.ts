@@ -52,6 +52,8 @@ type JobRow = {
   tipAmount: number;
   completedAt: string;
   closeout: JobCloseout | null;
+  closeoutObservedAt?: string;
+  chargeDetailsPending?: boolean;
   photos: JunkwareJobPhoto[];
   photoAuditAvailable: boolean;
   junkItems: string[];
@@ -415,7 +417,7 @@ function parseJobCloseout(row: Record<string, any>): JobCloseout | null {
     loadQuantity: String(raw.loadQuantity ?? '').trim() ? moneyNumber(raw.loadQuantity) : String(raw.loadSize || '').trim() ? 1 : 0,
     loadSize: String(raw.loadSize || "").trim(),
     loadPrice: moneyNumber(raw.loadPrice),
-    bedloadQuantity: moneyNumber(raw.bedloadQuantity),
+    bedloadQuantity: String(raw.bedloadQuantity ?? '').trim() ? moneyNumber(raw.bedloadQuantity) : String(raw.bedloadSize || '').trim() ? 1 : 0,
     bedloadSize: String(raw.bedloadSize || "").trim(),
     bedloadPrice: moneyNumber(raw.bedloadPrice),
     otherCharges,
@@ -718,7 +720,9 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
     paymentAmount,
     tipAmount: moneyNumber(firstValue(row, ["tip", "Tip", "customer_tip", "Customer Tip"]) || "0"),
     completedAt: firstValue(row, ["completed_at", "closed_at", "closeout_at", "checkout_at"]),
-    closeout: null,
+    closeout: parseJobCloseout(row),
+    chargeDetailsPending: String(row.closeout_refresh_pending) === 'true',
+    closeoutObservedAt: String(row.closeout_verified_at || row.collection_timestamp || ''),
     photos: junkwareJobPhotos(row),
     photoAuditAvailable: junkwarePhotoAuditAvailable(row),
     junkItems: junkItemKeywords(row),
@@ -1031,6 +1035,7 @@ function readJobRows(date: string): JobRow[] {
         ) || 0,
         completedAt: sourceValue(["completed_at", "closed_at", "closeout_at", "checkout_at"]) || firstValue(row, ["completed_at", "closed_at", "closeout_at", "checkout_at"]),
         closeout: parseJobCloseout(sourceRow),
+        closeoutObservedAt: String(sourceRow.closeout_verified_at || sourceRow.collection_timestamp || ''),
         photos: junkwareJobPhotos(sourceRow),
         photoAuditAvailable: junkwarePhotoAuditAvailable(sourceRow),
         junkItems: junkItemKeywords(sourceRow),
@@ -1106,6 +1111,9 @@ function mergeFastScheduleRows(
 
     return [{
       ...existing,
+      chargeDetailsPending: fresh.chargeDetailsPending,
+      closeout: fresh.closeout && Date.parse(fresh.closeoutObservedAt || '') >= (Date.parse(existing.closeoutObservedAt || '') || 0) ? fresh.closeout : existing.closeout,
+      closeoutObservedAt: fresh.closeout && Date.parse(fresh.closeoutObservedAt || '') >= (Date.parse(existing.closeoutObservedAt || '') || 0) ? fresh.closeoutObservedAt : existing.closeoutObservedAt,
       appointmentId: fresh.appointmentId || existing.appointmentId,
       jkNumber: present(fresh.jkNumber) ? fresh.jkNumber : existing.jkNumber,
       appointmentUrl: fresh.appointmentUrl || existing.appointmentUrl,

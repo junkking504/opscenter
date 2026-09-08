@@ -38,7 +38,9 @@ export function crewAlertCardPresentation(
 
   const jobNumber = job?.jobNumber || alert.title.match(/\bJK\d+\b/i)?.[0]?.toUpperCase();
   if (!jobNumber) return null;
-  const territory = job?.territory || alert.territory || 'Territory unavailable';
+  const territory = (job?.territory || alert.territory || 'Territory unavailable')
+    .replace(/^Junk King\s+/i, '')
+    .trim();
   const timeSlot = job?.window
     || appointmentWindow(alert.title)
     || alert.facts.find(fact => /^(?:Time|Window)$/i.test(fact.label))?.value

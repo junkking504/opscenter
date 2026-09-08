@@ -51,8 +51,10 @@ const fixtureNewJob = fixture.crewProgress!.jobs.find(job => job.jobNumber === '
 assert.deepEqual(crewAlertCardPresentation(fixture.alerts.find(alert => alert.id === 'new-two')!,fixtureNewJob),{
   kind:'new-appointment',label:'New Appointment',territory:'New Orleans',territoryTone:'new-orleans',jobNumber:'JK1000002',timeSlot:'11:00 AM – 12:00 PM',href:fixtureNewJob.href,
 });
-assert.equal(crewAlertCardPresentation(alert('cancel','Cancellation','2026-09-07T15:00:00Z',{title:'JK1000004 · 2:00 PM - 3:00 PM',territory:'Northshore'}))?.kind,'cancellation');
-assert.equal(crewAlertCardPresentation(alert('cancel','Cancellation','2026-09-07T15:00:00Z',{title:'JK1000004 · 2:00 PM - 3:00 PM',territory:'Northshore'}))?.territoryTone,'northshore');
+const cancellationCard = crewAlertCardPresentation(alert('cancel','Cancellation','2026-09-07T15:00:00Z',{title:'JK1000004 · 2:00 PM - 3:00 PM',territory:'Junk King Northshore'}));
+assert.equal(cancellationCard?.kind,'cancellation');
+assert.equal(cancellationCard?.territory,'Northshore');
+assert.equal(cancellationCard?.territoryTone,'northshore');
 assert.equal(crewAlertCardPresentation(fixture.alerts.find(alert => alert.id === 'closed-one')!,fixture.crewProgress!.jobs[0])?.label,'Completed');
 const build = (appointments:Parameters<typeof buildCrewProgress>[0]['appointments'], options:Partial<Parameters<typeof buildCrewProgress>[0]> = {}) => buildCrewProgress({date:'2026-09-07',appointments,alerts:[],visits:[],scheduleCurrent:true,visitsCurrent:true,updatesComplete:true,now,...options});
 const step = (snapshot:ReturnType<typeof build>,label:string) => snapshot.jobs[0].steps.find(step => step.label === label)!;

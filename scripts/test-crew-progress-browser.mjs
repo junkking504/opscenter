@@ -24,8 +24,12 @@ try {
   assert.match(await appointment.innerText(),/JK1000002[\s\S]*customer@example.invalid[\s\S]*Two queen mattresses[\s\S]*Use the side entrance/,'Appointment contact, items and pertinent notes remain visible');
   assert.match(await appointment.locator('.crew-event-header').innerText(),/^New Appointment[\s\S]*New Orleans[\s\S]*JK1000002[\s\S]*11:00 AM – 12:00 PM$/);
   assert.equal(await appointment.locator('.crew-event-job').getAttribute('href'),'/desktop?data=live&workspace=Schedule&scheduleView=board&scheduleDay=today&date=2026-09-07&appointment=102');
-  assert.equal(await appointment.evaluate(element => getComputedStyle(element).backgroundColor),'rgba(250, 204, 21, 0.5)');
+  assert.equal(await appointment.evaluate(element => getComputedStyle(element).backgroundColor),'rgba(250, 204, 21, 0.25)');
   assert.equal(await appointment.locator('.crew-territory-pill').evaluate(element => getComputedStyle(element).backgroundColor),'rgb(96, 165, 250)');
+  const territoryPill = appointment.locator('.crew-territory-pill');
+  await territoryPill.evaluate(element => element.className = 'crew-territory-pill crew-territory-northshore');
+  assert.equal(await territoryPill.evaluate(element => getComputedStyle(element).backgroundColor),'rgb(245, 208, 254)');
+  assert.equal(await territoryPill.evaluate(element => getComputedStyle(element).color),'rgb(17, 24, 39)');
   const duration = timeline.locator('.crew-update').filter({hasText:'Duration'});
   assert.match(await duration.innerText(),/8:05 AM[\s\S]*9:10 AM/,'Duration retains both confirmed times');
   assert.match(await duration.innerText(),/Follow up:[\s\S]*No uploaded photos/,'Latest appointment update keeps the missing-evidence action visible');

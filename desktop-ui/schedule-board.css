@@ -167,3 +167,9 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-shell { height: auto; }
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { flex: none; height: auto; overflow: visible; }
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { height: auto; }
+
+/* Selected truck details occupy their own row, outside the map and route scroller. */
+.ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open .schedule-map-panel.has-truck-card { grid-template-rows: auto minmax(200px, 1fr) auto auto; min-height: 520px; }
+@media (max-width: 900px) {
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open .schedule-map-panel.has-truck-card { height: auto; }
+}

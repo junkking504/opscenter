@@ -312,8 +312,9 @@ export function arrivalCoverageSignal(date: string): ArrivalCoverageSignal {
     return {
       status,
       summary: coverage.coveragePercent === null
-        ? "No appointment visits recorded yet today"
-        : `${coverage.confirmed} of ${coverage.totalVisits} job visits can raise an arrival alert (${coverage.coveragePercent}%)`,
+        ? "No delegated appointments recorded yet today"
+        : `${coverage.confirmed} of ${coverage.totalVisits} delegated visits confirmed for an arrival alert (${coverage.coveragePercent}%)`
+          + (coverage.awaitingDelegation ? `; ${coverage.awaitingDelegation} awaiting delegation` : ""),
       ...coverage,
     };
   } catch (error) {
@@ -323,6 +324,7 @@ export function arrivalCoverageSignal(date: string): ArrivalCoverageSignal {
       summary: "Arrival alert coverage could not be evaluated",
       date,
       totalVisits: 0,
+      awaitingDelegation: 0,
       confirmed: 0,
       blocked: 0,
       coveragePercent: null,

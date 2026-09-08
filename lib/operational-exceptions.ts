@@ -1106,19 +1106,22 @@ function financeExceptions(metrics: AnyRecord, date: string): OperationalExcepti
 /**
  * Arrival-alert coverage.
  *
- * Truck arrival alerts only fire on a `confirmed` geofence dwell. Every other
- * outcome was dropped in silence, so dispatch could not tell "no truck has
- * arrived" from "we could not tell" - on a sampled day only 7 of 26 visits
- * cleared the gate, and 11 of the misses were appointments with no physical
- * truck assigned at all. Surface the blocked ones so the gap is visible and
- * fixable instead of invisible.
+ * Truck arrival alerts only fire on a `confirmed` geofence dwell, and every
+ * other outcome was dropped in silence - dispatch could not tell "no truck has
+ * arrived" from "we could not tell".
+ *
+ * Scope matters here. Trucks are delegated through the day so the schedule can
+ * stay open for new bookings, so an appointment with no truck yet is the
+ * booking model working, not a fault; and the few still unassigned at end of
+ * day are cancellations. Counting either as a coverage miss would emit roughly
+ * ten false warnings a day and train people to ignore the channel.
+ *
+ * So coverage is measured only over *delegated* appointments - a truck is
+ * assigned, therefore an arrival alert is genuinely expected. On that basis it
+ * runs 43-73% (about 57% average), and nearly every miss is a silent tracker or
+ * an ungeocoded address rather than anything about assignment.
  */
 const ARRIVAL_COVERAGE_RULES: Record<string, { rule: string; title: string; reason: string }> = {
-  no_physical_truck_assignment: {
-    rule: "appointment_without_physical_truck_cannot_confirm_arrival",
-    title: "No truck assigned, so arrival cannot be confirmed",
-    reason: "This appointment has no physical truck assigned, so no tracker can be matched to it and no arrival alert can ever fire.",
-  },
   missing_or_ambiguous_geocode: {
     rule: "appointment_address_not_geocoded_cannot_confirm_arrival",
     title: "Address not geocoded, so arrival cannot be confirmed",
@@ -1141,11 +1144,13 @@ function arrivalCoverageExceptions(date: string): OperationalException[] {
   for (const visit of visits) {
     const confidence = String(visit.match_confidence || "").trim().toLowerCase();
     if (confidence === "confirmed") continue;
+    // Not yet delegated is not a miss - see the note above.
+    const truck = String(visit.truck_number || "").trim();
+    if (!truck) continue;
     const mapped = ARRIVAL_COVERAGE_RULES[String(visit.match_reason || "").trim()];
     if (!mapped) continue;
     const appointmentId = String(visit.appointment_id || visit.appointmentId || "").trim();
     if (!appointmentId) continue;
-    const truck = String(visit.truck_number || "").trim();
     exceptions.push({
       id: `jobs-arrival-coverage-${mapped.rule}-${appointmentId}`,
       rule: mapped.rule,
@@ -1167,7 +1172,10 @@ function arrivalCoverageExceptions(date: string): OperationalException[] {
 
 export type ArrivalAlertCoverage = {
   date: string;
+  /** Delegated appointments only - the ones an arrival alert is expected for. */
   totalVisits: number;
+  /** Not yet delegated. Expected under the open-schedule booking model. */
+  awaitingDelegation: number;
   confirmed: number;
   blocked: number;
   coveragePercent: number | null;
@@ -1178,7 +1186,10 @@ export function arrivalAlertCoverage(date: string): ArrivalAlertCoverage {
   const payload = readJsonFile<AnyRecord>(
     path.join("data", "history", "linxup", "appointment_visits", `linxup_appointment_visits_${date}.json`),
   );
-  const visits = Array.isArray(payload?.visits) ? payload.visits as AnyRecord[] : [];
+  const allVisits = Array.isArray(payload?.visits) ? payload.visits as AnyRecord[] : [];
+  // Only appointments that have actually been delegated to a truck can produce
+  // an arrival alert, so they are the only fair denominator.
+  const visits = allVisits.filter((visit) => String(visit.truck_number || "").trim());
   const blockedReasons: Record<string, number> = {};
   let confirmed = 0;
 
@@ -1194,6 +1205,7 @@ export function arrivalAlertCoverage(date: string): ArrivalAlertCoverage {
   return {
     date,
     totalVisits: visits.length,
+    awaitingDelegation: allVisits.length - visits.length,
     confirmed,
     blocked: visits.length - confirmed,
     coveragePercent: visits.length ? Math.round((confirmed / visits.length) * 100) : null,

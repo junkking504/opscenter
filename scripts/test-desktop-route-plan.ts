@@ -12,6 +12,10 @@ async function main(){
   const routes=proposeRoutes(snapshot.appointments,parsed);
   assert.deepEqual(routes,[{truck:'Truck 1',appointmentIds:['a','b']},{truck:'Truck 2',appointmentIds:['c','d']}]);
   assert.deepEqual(proposeRoutes([...snapshot.appointments].reverse(),parsed),routes,'Stable source order independent proposal');
+  const clusters=[job('south1',{truck:'Unassigned',location:{latitude:30,longitude:-90}}),job('north1',{truck:'Unassigned',territory:'Northshore',location:{latitude:30.8,longitude:-90}}),job('south2',{truck:'Unassigned',location:{latitude:30.01,longitude:-90}}),job('north2',{truck:'Unassigned',territory:'Northshore',location:{latitude:30.81,longitude:-90}})];
+  const clustered=proposeRoutes(clusters,options);
+  assert.ok(clustered.some(r=>r.appointmentIds.every(id=>id.startsWith('north'))&&r.appointmentIds.length===2),'Nearby Northshore stops should stay together');
+  assert.ok(clustered.some(r=>r.appointmentIds.every(id=>id.startsWith('south'))&&r.appointmentIds.length===2),'Do not alternate distant clusters just to balance stop counts');
   let requests=0;
   const provider=async(origins:unknown[],destinations:unknown[])=>{assert.equal(origins.length*destinations.length,1);requests++;return [{condition:'ROUTE_EXISTS',duration:'1200s',distanceMeters:1609.344}];};
   const plan=await buildRoutePlan(snapshot,parsed,provider);

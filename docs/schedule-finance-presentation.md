@@ -35,8 +35,9 @@ are preselected, not declared crew/load-ready. Current assignments remain on
 their trucks initially, including appointments outside the selected area.
 Unassigned New Orleans, Jefferson Parish, and Northshore appointments share one
 planning pool; Baton Rouge, Lafayette, and unclassified work are separate pools.
-Unassigned work is balanced by stop count. Windows determine initial sequence;
-geographic proximity breaks ties. This is a reviewable heuristic, not a claim of
+Empty trucks are seeded in distinct geographic clusters. Unassigned work stays
+near existing route stops, with a small stop-count penalty to discourage overload.
+Windows determine initial sequence; geographic proximity breaks ties. This is a reviewable heuristic, not a claim of
 optimal routing. Closed, unverified, and unidentified appointments are excluded.
 
 Every consecutive appointment identity gets its own road leg, including shared

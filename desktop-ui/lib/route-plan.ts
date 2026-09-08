@@ -32,8 +32,18 @@ function ordered(jobs: ScheduleAppointment[]) {
 export function proposeRoutes(jobs: ScheduleAppointment[], options: PlanOptions): PlanRoute[] {
   const eligible = routeCandidates(jobs, options);
   const groups = options.trucks.map(truck => ({ truck, jobs: eligible.filter(j=>truckLabel(j.truck)===truck) }));
-  for (const job of ordered(eligible.filter(j=>truckLabel(j.truck)==='Unassigned'))) {
-    const target = [...groups].sort((a,b) => a.jobs.length-b.jobs.length || (proximity(a.jobs.at(-1),job)-proximity(b.jobs.at(-1),job) || 0) || a.truck.localeCompare(b.truck))[0];
+  const unassigned = ordered(eligible.filter(j=>truckLabel(j.truck)==='Unassigned'));
+  // Seed empty trucks in different geographic clusters, then keep nearby work
+  // together. Existing assigned stops are anchors, never silently redistributed.
+  for (const group of groups.filter(g=>!g.jobs.length)) {
+    if (!unassigned.length) break;
+    const anchors=groups.flatMap(g=>g.jobs).filter(j=>j.location);
+    const seed=anchors.length ? [...unassigned].filter(j=>j.location).sort((a,b)=>Math.min(...anchors.map(j=>proximity(j,b)))-Math.min(...anchors.map(j=>proximity(j,a))) || a.recordId.localeCompare(b.recordId))[0] : unassigned[0];
+    const selected=seed||unassigned[0];group.jobs.push(selected);unassigned.splice(unassigned.indexOf(selected),1);
+  }
+  for (const job of unassigned) {
+    const score=(group: typeof groups[number])=>Math.min(...group.jobs.map(anchor=>proximity(anchor,job))) + group.jobs.length*0.015;
+    const target = [...groups].sort((a,b) => (score(a)-score(b) || 0) || a.jobs.length-b.jobs.length || a.truck.localeCompare(b.truck))[0];
     if (target) target.jobs.push(job);
   }
   return groups.map(group=>({truck:group.truck,appointmentIds:ordered(group.jobs).map(j=>j.recordId)}));

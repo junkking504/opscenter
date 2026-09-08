@@ -62,6 +62,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [selectedTruck, setSelectedTruck] = useState<string | null>(null);
   const {route:gpsRoute,error:gpsRouteError}=useTruckGpsRoute(date,selectedTruck);
   const [mapResetKey, setMapResetKey] = useState(0);
+  const [truckMapView, setTruckMapView] = useState<'location' | 'route'>('location');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const mapPanelRef = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -193,7 +194,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     const job = jobs.find(job => job.recordId === id);
     if (job && !match(job)) { setScope('ALL'); setFilter('all'); setSearchQuery(''); }
   };
-  const selectTruck = (truck: string) => { if (operationBusyRef.current) return; setScope('ALL'); setFilter('all'); setSearchQuery(''); setSelectedId(null); setSelectedTruck(truck); setMapResetKey(key => key + 1); setShowMap(true); };
+  const selectTruck = (truck: string) => { if (operationBusyRef.current) return; setTruckMapView('location'); setScope('ALL'); setFilter('all'); setSearchQuery(''); setSelectedId(null); setSelectedTruck(truck); setMapResetKey(key => key + 1); setShowMap(true); };
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented || operationBusyRef.current || [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].some(dialog => dialog.getClientRects().length > 0) || (event.target as HTMLElement).closest('input,textarea,select')) return;
@@ -248,13 +249,13 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       {showMap && <section ref={mapPanelRef} className="schedule-map-panel">
         <nav className="live-map-territories" aria-label="Focus map on territory"><button onClick={reset} aria-pressed={scope === 'ALL'}>All</button>{territoryOrder.filter(code => code !== 'UNK' || groups.some(group => group.code === code)).map(code => <button key={code} className={`territory-${code.toLowerCase()}`} aria-label={`Focus ${territoryLabels[code]}`} aria-pressed={scope === code} onClick={() => focusTerritory(code)} title={territoryLabels[code]}>{code}<small>{regions.filter(region => region.code === code).length}</small></button>)}</nav>
         <div className="schedule-map-canvas">
-          <ScheduleMap appointments={visible} trucks={snapshot.fleet.isToday ? snapshot.fleet.trucks : []} selected={selectedId} selectedTruck={selectedTruck} gpsRoute={gpsRoute} scope={scope} resetKey={mapResetKey} date={date} onSelect={selectAppointment} onSelectTruck={selectTruck} />
+          <ScheduleMap appointments={visible} trucks={snapshot.fleet.isToday ? snapshot.fleet.trucks : []} selected={selectedId} selectedTruck={selectedTruck} gpsRoute={gpsRoute} truckMapView={truckMapView} scope={scope} resetKey={mapResetKey} date={date} onSelect={selectAppointment} onSelectTruck={selectTruck} />
           <div className="map-focus-chip"><span>{filtered ? 'Filtered View' : 'Operating Footprint'}</span><strong>{selected ? `${selected.jkNumber} · ${selected.location ? 'Selected' : 'Verify Address'}` : selectedTruck || (scope === 'ALL' ? 'All Territories' : territoryLabels[scope.split(':')[0]] || scope)}</strong>{(filtered || selectedId || selectedTruck) && <div className="map-focus-actions"><button onClick={reset}>Reset</button></div>}</div>
           <div className="map-operation-summary"><span>{visible.length} appointments</span><span>{visible.filter(job => job.location).length} verified pins</span></div>
         </div>
         <aside className="schedule-map-controls"><label className="schedule-gps-picker">Truck GPS route<select aria-label="Truck GPS route" value={selectedTruck || ''} onChange={event=>event.target.value?selectTruck(event.target.value):setSelectedTruck(null)}><option value="">Select truck</option>{truckNames.map(truck=><option key={truck} value={truck}>{truck}</option>)}</select></label>{!selectedTruck && !selected && <><div><span className="section-kicker">{snapshot.fleet.isToday ? 'Live Map' : 'Planning Map'}</span><h2>{snapshot.fleet.isToday ? 'Dispatch Positions' : 'Appointment Coverage'}</h2></div>
           <div className="live-map-help">Select a truck to see its recorded GPS route; select an appointment for details. Escape resets the map.</div></>}
-          {selectedTruck && <GpsRouteSummary date={date} truck={selectedTruck} route={gpsRoute} error={gpsRouteError} fit={()=>setMapResetKey(value=>value+1)} />}
+          {selectedTruck && <GpsRouteSummary date={date} truck={selectedTruck} route={gpsRoute} error={gpsRouteError} fit={()=>{setTruckMapView('route');setMapResetKey(value=>value+1);}} />}
           {selectedTruck ? <section className="live-map-truck-details" aria-label={`${selectedTruck} details`}>
             <header><strong>{selectedTruck}</strong><button aria-label="Clear truck selection" onClick={() => setSelectedTruck(null)}>×</button></header>
             <dl><div><dt>Krewe</dt><dd>{[truckDetails?.driver, truckDetails?.navigator].filter(Boolean).join(' · ') || (truckJobs[0] ? crew(truckJobs[0]) : 'Crew Not Available')}</dd></div><div><dt>Status</dt><dd>{truckDetails?.operationalStatus || 'Not Available'} · {truckDetails?.serviceStatus || 'Service Status Not Available'}</dd></div><div><dt>Truck load</dt><dd>{snapshot.truckLoads?.find(row=>truckLabel(row.truck)===selectedTruck)?.label || 'Load not recorded'}</dd></div><div><dt>GPS</dt><dd>{truckDetails?.lastGpsUpdate ? new Date(truckDetails.lastGpsUpdate).toLocaleString('en-US', { timeZone: 'America/Chicago' }) : 'No GPS Timestamp'} · {truckDetails?.lastGpsUpdate ? truckGpsLabel : 'Position Unavailable'}</dd></div></dl>

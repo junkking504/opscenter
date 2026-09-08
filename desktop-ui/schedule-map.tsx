@@ -11,6 +11,7 @@ type Props = {
   appointments: ScheduleAppointment[]; trucks: ScheduleTruck[];
   selected: string | null; selectedTruck: string | null;
   gpsRoute?:TruckGpsRoute|null;
+  truckMapView?:'location'|'route';
   scope: string; resetKey: number; date: string;
   onSelect: (id: string) => void; onSelectTruck: (truck: string) => void;
 };
@@ -37,7 +38,7 @@ export default function ScheduleMap(props: Props) {
     return () => { observer.disconnect(); view.remove(); map.current = null; markers.current = null; gpsLayer.current=null;gpsFit.current='';fitted.current = ''; focused.current = ''; };
   }, []);
   // Avoid rebuilding marker DOM on unrelated parent renders, preserving keyboard focus.
-  const signature = JSON.stringify([props.appointments, props.trucks, props.selected, props.selectedTruck, props.scope, props.resetKey, props.date]);
+  const signature = JSON.stringify([props.appointments, props.trucks, props.selected, props.selectedTruck, props.scope, props.resetKey, props.date, props.truckMapView]);
   useEffect(() => {
     const view = map.current;
     const layer = markers.current;
@@ -77,9 +78,9 @@ export default function ScheduleMap(props: Props) {
     }
     const focusKey = selected ? `appointment:${selected}` : selectedTruck ? `truck:${selectedTruck}` : '';
     const focusVersion = `${focusKey}:${resetKey}`;
-    if (focusKey && focused.current !== focusVersion) {
+    if (focusKey && focused.current !== focusVersion && (selected || current.current.truckMapView !== 'route')) {
       const pin = pins.find(pin => pin.id === focusKey);
-      if (pin) view.setView(pin.coordinate, Math.max(view.getZoom(), 12), { animate: false });
+      if (pin) view.setView(pin.coordinate, Math.max(view.getZoom(), selectedTruck ? 15 : 12), { animate: false });
     }
     focused.current = focusVersion;
     const render = () => {
@@ -188,9 +189,18 @@ export default function ScheduleMap(props: Props) {
       // readable even when first and last positions overlap.
       L.marker([point.latitude,point.longitude],{keyboard:false,icon:L.divIcon({className:'schedule-gps-endpoint',html:text,iconSize:[40,22],iconAnchor:[20,label==='Last'?-3:25]}),zIndexOffset:500}).bindTooltip(tooltip).addTo(layer);
     }
-    const fitKey=`${route.date}:${route.truck}:${props.resetKey}`;
-    if(gpsFit.current!==fitKey) {view.fitBounds(route.points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{padding:[45,45],maxZoom:15,animate:false});gpsFit.current=fitKey;}
+    const fitKey=`${route.date}:${route.truck}:${props.resetKey}:${props.truckMapView || 'location'}`;
+    if(gpsFit.current!==fitKey) {
+      if(props.truckMapView==='route') view.fitBounds(route.points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{padding:[45,45],maxZoom:15,animate:false});
+      else if(!props.trucks.some(truck=>truckLabel(truck.truck)===route.truck && truck.latitude!=null && truck.longitude!=null)) {
+        // Historical days have no current truck marker. Focus the last recorded
+        // position for that day without letting history override today's marker.
+        const latest=route.points.at(-1)!;
+        view.setView([latest.latitude,latest.longitude],Math.max(view.getZoom(),15),{animate:false});
+      }
+      gpsFit.current=fitKey;
+    }
     return()=>{layer.clearLayers();};
-  },[props.gpsRoute,props.selectedTruck,props.date,props.resetKey]);
+  },[props.gpsRoute,props.selectedTruck,props.date,props.resetKey,props.truckMapView,props.trucks]);
   return <div ref={host} className="live-schedule-map" aria-label="Verified appointment locations and truck GPS" />;
 }

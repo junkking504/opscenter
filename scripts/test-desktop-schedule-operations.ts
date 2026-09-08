@@ -4,12 +4,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { DesktopAppointment } from '../lib/desktop-schedule';
+import { closeoutSourceVersion } from '../lib/desktop-closeout-contract';
 
 async function main() {
   const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'ops-desktop-operations-test-'));
   process.env.OPSCENTER_DESKTOP_OPERATIONS_DIR = path.join(temporary, 'receipts');
   process.env.JOB_ROUTE_ASSIGNMENTS_FILE = path.join(temporary, 'assignments.json');
-  const { executeScheduleOperation, parseScheduleOperation, readScheduleReceipt } = await import('../lib/desktop-schedule-operations');
+  const { executeScheduleOperation, parseScheduleOperation, readScheduleReceipt, reconcileCloseoutReceipt } = await import('../lib/desktop-schedule-operations');
   const { authorizeOpsRequest } = await import('../lib/ops-roles');
   const date = '2026-09-03';
   const job = { appointmentId: '1234', recordId: `${date}:appointment:1234`, version: 'a'.repeat(64), appointmentType: 'Estimate', status: 'Confirmed' } as DesktopAppointment;
@@ -64,6 +65,33 @@ async function main() {
     assert.equal((await readScheduleReceipt(abandoned.requestId))?.status, 'pending', 'An active request keeps its pending status');
     const persisted = await fs.readFile(path.join(temporary, 'receipts', `${verifiedOperation.requestId}.json`), 'utf8');
     assert.equal(persisted.includes('appointmentStartMinutes'), false, 'Do not store customer input in receipts');
+    let release!: () => void;
+    let started!: () => void;
+    const entered = new Promise<void>(resolve => { started = resolve; });
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const slowJob = { ...job, appointmentId: '3333', recordId: `${date}:appointment:3333` };
+    const fastJob = { ...job, appointmentId: '4444', recordId: `${date}:appointment:4444` };
+    const slow = executeScheduleOperation(operation({ recordId: slowJob.recordId }), 'test-operator', () => slowJob, async () => { started(); await gate; return {status:200,body:{ok:true}}; });
+    await entered;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const fast = await Promise.race([
+        executeScheduleOperation(operation({ recordId: fastJob.recordId }), 'test-operator', () => fastJob, async () => ({status:200,body:{ok:true}})),
+        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Unrelated appointment blocked by slow closeout')), 2000); }),
+      ]);
+      assert.equal(fast.status, 'verified');
+    } finally { clearTimeout(timer); release(); await slow; }
+    const baseline = { status: { value: '1' }, payments: [], otherCharges: [] };
+    const recoveryJob = { ...job, appointmentId: '5555', recordId: `${date}:appointment:5555` };
+    const recoveryOperation = operation({ action: 'closeout', recordId: recoveryJob.recordId, values: { expectedSourceVersion: closeoutSourceVersion(baseline) } });
+    await executeScheduleOperation(recoveryOperation, 'test-operator', () => recoveryJob, async () => { throw new Error('Lost response'); });
+    assert.equal(await reconcileCloseoutReceipt(recoveryOperation.requestId, 'other-actor', async () => { throw new Error('Must not read'); }), null);
+    assert.equal((await reconcileCloseoutReceipt(recoveryOperation.requestId, 'test-operator', async () => { throw new Error('Source down'); }))?.status, 'uncertain');
+    assert.equal((await reconcileCloseoutReceipt(recoveryOperation.requestId, 'test-operator', async () => ({ ...baseline, payments: [100] })))?.status, 'uncertain', 'Partial save stays protected');
+    const reconciled = await reconcileCloseoutReceipt(recoveryOperation.requestId, 'test-operator', async () => baseline);
+    assert.equal(reconciled?.status, 'failed');
+    assert.equal(reconciled?.priorResult?.status, 'uncertain', 'Keep original result for audit');
+    assert.equal((await readScheduleReceipt(recoveryOperation.requestId))?.status, 'failed');
     console.log('Schedule operations passed: input validation, roles, source versions, durable read-back, concurrent idempotency, separate estimate identity, closed-record safety, and unknown-result retry guard. No live writes performed.');
   } finally {
     await fs.rm(temporary, { recursive: true, force: true });

@@ -115,6 +115,11 @@ export async function clickWithWebFormsCompletion(
 ): Promise<void> {
   const control = page.locator(selector).first();
   if (!(await control.count())) throw new Error(`The JunkWare control is unavailable (${selector}).`);
+  const target = await control.evaluate(node => ({
+    name: (node as HTMLInputElement).name,
+    id: node.id,
+    eventTarget: `${node.getAttribute('href') || ''} ${node.getAttribute('onclick') || ''}`.match(/__doPostBack\(['"]([^'"]+)['"]/)?.[1],
+  }));
   let blockingMessage = "";
   let resolveDialog: ((message: string) => void) | null = null;
   const dialogMessage = new Promise<string>((resolve) => {
@@ -126,28 +131,23 @@ export async function clickWithWebFormsCompletion(
     resolveDialog?.(blockingMessage);
   };
   page.once("dialog", onDialog);
-  const navigation = page.waitForNavigation({
-    waitUntil: "domcontentloaded",
-    timeout: POSTBACK_TIMEOUT_MS,
-  }).then(
-    () => ({ kind: "navigation" as const }),
-    () => ({ kind: "timeout" as const }),
-  );
+  // Register before the click. An enabled button or hidden spinner alone can
+  // describe the page BEFORE its asynchronous request has even started.
+  const response = page.waitForResponse(value => {
+    if (value.request().method() !== 'POST' || new URL(value.url()).pathname !== new URL(page.url()).pathname) return false;
+    const fields = new URLSearchParams(value.request().postData() || '');
+    const eventTarget = fields.get('__EVENTTARGET');
+    return Boolean(eventTarget && [target.name, target.id, target.eventTarget].includes(eventTarget)) || Boolean(target.name && fields.has(target.name));
+  }, { timeout: POSTBACK_TIMEOUT_MS }).then(async value => {
+    const failure = await value.finished();
+    if (failure || !value.ok()) return { kind: 'timeout' as const };
+    return { kind: 'response' as const };
+  }, () => ({ kind: 'timeout' as const }));
 
   try {
     await control.click();
-    const partialPostback = page.waitForFunction((buttonSelector) => {
-      const button = document.querySelector<HTMLInputElement>(buttonSelector);
-      const spinner = document.querySelector<HTMLElement>("#page-spinner");
-      const spinnerHidden = !spinner || getComputedStyle(spinner).display === "none" || getComputedStyle(spinner).visibility === "hidden";
-      return Boolean(button && !button.disabled && spinnerHidden);
-    }, selector, { timeout: POSTBACK_TIMEOUT_MS }).then(
-      () => ({ kind: "partial" as const }),
-      () => ({ kind: "timeout" as const }),
-    );
     const outcome = await Promise.race([
-      navigation,
-      partialPostback,
+      response,
       dialogMessage.then((message) => ({ kind: "dialog" as const, message })),
     ]);
     if (blockingMessage) throw new Error(`JunkWare blocked ${description}: ${blockingMessage}`);
@@ -155,6 +155,11 @@ export async function clickWithWebFormsCompletion(
     if (outcome.kind === "timeout") {
       throw new Error(`JunkWare did not finish ${description} within 30 seconds.`);
     }
+    await page.waitForLoadState('domcontentloaded');
+    await page.waitForFunction(() => {
+      const runtime = window as unknown as { Sys?: { WebForms?: { PageRequestManager?: { getInstance(): { get_isInAsyncPostBack(): boolean } } } } };
+      return !runtime.Sys?.WebForms?.PageRequestManager?.getInstance().get_isInAsyncPostBack();
+    }, undefined, { timeout: POSTBACK_TIMEOUT_MS });
   } finally {
     page.off("dialog", onDialog);
   }

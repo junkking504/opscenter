@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "./components/ui/button";
+import { submitScheduleOperation } from './lib/schedule-operation-transport';
 import type { MoveProposal, ScheduleAppointment } from "./lib/schedule-contract";
 import {
   assignmentNeedsVerification,
@@ -22,31 +23,14 @@ export async function sendScheduleChange(
   values: Record<string, unknown>,
   requestId: string,
 ) {
-  const response = await fetch("/api/desktop/schedule/operations", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  return submitScheduleOperation({
       requestId,
       date,
       recordId: job.recordId,
       expectedVersion: job.version,
       action,
       values,
-    }),
-    signal: AbortSignal.timeout(150_000),
   });
-  const body = await response.json();
-  if (!body.receipt) {
-    if ([400, 401, 403, 404, 409, 422].includes(response.status))
-      return {
-        requestId,
-        status: "failed",
-        message: body.error || "The appointment change was rejected.",
-      } as Receipt;
-    throw new Error(body.error || "The appointment result could not be confirmed.");
-  }
-  return body.receipt as Receipt;
 }
 export function ChangeReceipt({ receipt, onCheck }: { receipt: Receipt; onCheck: () => void }) {
   return (
@@ -79,8 +63,8 @@ export function ChangeReceipt({ receipt, onCheck }: { receipt: Receipt; onCheck:
 }
 export async function checkScheduleChange(requestId: string) {
   const response = await fetch(
-    `/api/desktop/schedule/operations?requestId=${encodeURIComponent(requestId)}`,
-    { credentials: "same-origin", cache: "no-store" },
+    `/api/desktop/schedule/operations?requestId=${encodeURIComponent(requestId)}&reconcile=1`,
+    { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(210_000) },
   );
   const body = await response.json();
   if (!response.ok || !body.receipt)

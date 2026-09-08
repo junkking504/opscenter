@@ -9,6 +9,7 @@ type Option = { value: string; label: string };
 type OtherCharge = { label: string; quantity: string; price: string; total: string };
 type PendingOtherCharge = OtherCharge & { clientId: string; typeValue: string };
 type LiveCloseout = {
+  truck?: string;
   appointmentType?: { value: string; label: string; options: Option[] };
   status: { value: string; label: string };
   driver: Option;
@@ -101,7 +102,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       setEstimateReason('');
       setEstimateExplanation('');
       setNoDiscountReason('');
-      setReceipt(null);
+      setReceipt(payload.pendingReceipt || null);
       setReviewing(false);
       setPendingOtherCharges([]);
     } catch (loadError) {
@@ -192,6 +193,10 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
 
   async function save() {
     if (!live || !canWrite || requestPending.current || (receipt && receipt.status !== 'failed')) return;
+    if (!live.truck) {
+      setError('Assign a truck to this appointment before closing it, then reload from JunkWare.');
+      return;
+    }
     const navigatorIds = live.navigators.map((row) => row.value).filter(Boolean);
     if (!live.driver.value) {
       setError("Choose a driver before saving the closeout.");

@@ -32,19 +32,90 @@ function selectedKinds(): SlackAlertKind[] | undefined {
   return kinds as SlackAlertKind[];
 }
 
+// A plain mkdir lock with no owner and no expiry is a silent single point of
+// failure: if the publisher is killed mid-run - SIGKILL, a disk-full write, a
+// deploy restart - the directory outlives the process and every later run exits
+// 0 having posted nothing. Record the owner and reclaim demonstrably dead locks.
+const PUBLISH_LOCK_STALE_MS = Number(process.env.SLACK_PUBLISH_LOCK_STALE_MS) || 10 * 60 * 1000;
+
+type PublishLockOwner = { pid: number; startedAt: string };
+
+function readLockOwner(ownerFile: string): PublishLockOwner | null {
+  try {
+    const payload = JSON.parse(fs.readFileSync(ownerFile, "utf8")) as Partial<PublishLockOwner>;
+    const pid = Number(payload.pid);
+    if (!Number.isInteger(pid) || pid <= 0) return null;
+    return { pid, startedAt: String(payload.startedAt || "") };
+  } catch {
+    return null;
+  }
+}
+
+function processAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+function lockIsStale(lockDirectory: string, ownerFile: string): boolean {
+  const owner = readLockOwner(ownerFile);
+  if (owner) {
+    if (processAlive(owner.pid)) return false;
+    console.warn(`Reclaiming Slack alert publish lock held by dead process ${owner.pid}.`);
+    return true;
+  }
+  // No readable owner: fall back to age so a lock from an older build cannot
+  // wedge publishing forever.
+  try {
+    const age = Date.now() - fs.statSync(lockDirectory).mtimeMs;
+    if (age > PUBLISH_LOCK_STALE_MS) {
+      console.warn(`Reclaiming Slack alert publish lock with no owner after ${Math.round(age / 1000)}s.`);
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
 function withPublishLock<T>(callback: () => Promise<T>): Promise<T | undefined> {
   const stateFile = String(process.env.SLACK_OPSCENTER_STATE_FILE || "").trim()
     || path.join(process.cwd(), "data", "slack", "ops_alert_state.json");
   const lockDirectory = path.join(path.dirname(stateFile), ".ops_alert_publish.lock");
+  const ownerFile = path.join(lockDirectory, "owner.json");
   fs.mkdirSync(path.dirname(lockDirectory), { recursive: true });
-  try {
-    fs.mkdirSync(lockDirectory);
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "EEXIST") {
-      console.log("Slack alert publish skipped because another publisher is active.");
-      return Promise.resolve(undefined);
+
+  const acquire = (): boolean => {
+    try {
+      fs.mkdirSync(lockDirectory);
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      return false;
     }
-    throw error;
+  };
+
+  let acquired = acquire();
+  if (!acquired && lockIsStale(lockDirectory, ownerFile)) {
+    fs.rmSync(lockDirectory, { recursive: true, force: true });
+    acquired = acquire();
+  }
+  if (!acquired) {
+    console.log("Slack alert publish skipped because another publisher is active.");
+    return Promise.resolve(undefined);
+  }
+
+  try {
+    fs.writeFileSync(
+      ownerFile,
+      JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() }),
+      { encoding: "utf8", mode: 0o600 },
+    );
+  } catch (error) {
+    console.warn("Could not record Slack alert publish lock owner.", error instanceof Error ? error.message : error);
   }
 
   return callback().finally(() => {

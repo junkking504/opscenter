@@ -235,14 +235,46 @@ export function syncFleetIssuesFromChecklist(entry: FleetChecklistEntry): FleetI
   return readFleetIssueStore();
 }
 
+// A double-submitted form used to create two identical open issues, and each
+// one opened its own out-of-service Slack thread that had to be resolved
+// separately. Treat a same-truck, same-title, same-description open issue
+// created moments ago as the same report.
+const DUPLICATE_ISSUE_WINDOW_MS = 5 * 60 * 1000;
+
+function normalizedIssueText(value: unknown): string {
+  return String(value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function recentDuplicateIndex(
+  issues: FleetIssue[],
+  truck: string,
+  title: string,
+  description: string,
+  nowMs: number,
+): number {
+  return issues.findIndex((issue) => issue.status !== "resolved"
+    && issue.truck === truck
+    && normalizedIssueText(issue.title) === normalizedIssueText(title)
+    && normalizedIssueText(issue.description) === normalizedIssueText(description)
+    && nowMs - Date.parse(issue.createdAt || "") < DUPLICATE_ISSUE_WINDOW_MS);
+}
+
 export function upsertFleetIssue(input: Record<string, unknown>): FleetIssue | null {
   const store = readFleetIssueStore();
   const issueId = String(input.issueId || "").trim();
-  const index = issueId ? store.issues.findIndex((issue) => issue.issueId === issueId) : -1;
-  const existing = index >= 0 ? store.issues[index] : null;
+  let index = issueId ? store.issues.findIndex((issue) => issue.issueId === issueId) : -1;
+  let existing = index >= 0 ? store.issues[index] : null;
   const truck = normalizeTruck(input.truck || existing?.truck);
   const title = String(input.title || existing?.title || "").trim().slice(0, 160);
   if (!truck || !title) return null;
+  const description = String(input.description ?? existing?.description ?? "").trim().slice(0, 1000);
+  if (!issueId) {
+    const duplicate = recentDuplicateIndex(store.issues, truck, title, description, Date.now());
+    if (duplicate >= 0) {
+      index = duplicate;
+      existing = store.issues[duplicate];
+    }
+  }
   const status = statusValue(input.status ?? existing?.status);
   const rawCost = input.cost ?? existing?.cost;
   const rawDowntime = input.downtimeHours ?? existing?.downtimeHours;
@@ -253,7 +285,7 @@ export function upsertFleetIssue(input: Record<string, unknown>): FleetIssue | n
     issueId: existing?.issueId || randomUUID(),
     truck,
     title,
-    description: String(input.description ?? existing?.description ?? "").trim().slice(0, 1000),
+    description,
     severity: severityValue(input.severity ?? existing?.severity),
     status,
     owner: String(input.owner ?? existing?.owner ?? "").trim().slice(0, 100),

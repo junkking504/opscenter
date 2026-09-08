@@ -177,9 +177,31 @@ function emptyState(): SlackAlertState {
   };
 }
 
+/**
+ * A present-but-unreadable state file is not a first run.
+ *
+ * This used to fall into a bare catch that returned an empty state. The
+ * bootstrap branch in runSlackOpsAlerts then treats an empty state as "first
+ * ever run" and marks every currently-firing incident as suppressed and every
+ * one of today's arrivals as already delivered - permanently silencing them
+ * while still exiting 0. Refusing to guess is the only safe behaviour: bootstrap
+ * only when the file genuinely does not exist yet.
+ */
+export class SlackAlertStateUnreadable extends Error {}
+
 function readState(): SlackAlertState {
+  const file = stateFile();
+  let raw: string;
   try {
-    const payload = JSON.parse(fs.readFileSync(stateFile(), "utf8"));
+    raw = fs.readFileSync(file, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return emptyState();
+    throw new SlackAlertStateUnreadable(
+      `Slack alert state at ${file} could not be read: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  try {
+    const payload = JSON.parse(raw);
     return {
       version: 5,
       initializedAt: String(payload?.initializedAt || ""),
@@ -225,8 +247,11 @@ function readState(): SlackAlertState {
           ? payload.deliveredPaymentNotificationsByDate
           : {},
     };
-  } catch {
-    return emptyState();
+  } catch (error) {
+    throw new SlackAlertStateUnreadable(
+      `Slack alert state at ${file} is present but unparseable: ${error instanceof Error ? error.message : String(error)}. `
+      + "Refusing to re-bootstrap, which would suppress every open incident. Restore or remove the file deliberately.",
+    );
   }
 }
 
@@ -276,8 +301,22 @@ function writeState(state: SlackAlertState): void {
   const directory = path.dirname(file);
   fs.mkdirSync(directory, { recursive: true });
   const temporary = path.join(directory, `.ops_alert_state.${process.pid}.${Date.now()}.tmp`);
-  fs.writeFileSync(temporary, JSON.stringify(state, null, 2), { encoding: "utf8", mode: 0o600 });
-  fs.renameSync(temporary, file);
+  try {
+    // fsync before rename so a crash cannot leave a renamed-but-empty state
+    // file, and always clear the temp file: failed writes under a full disk
+    // previously left orphaned .tmp files behind indefinitely.
+    const handle = fs.openSync(temporary, "wx", 0o600);
+    try {
+      fs.writeFileSync(handle, JSON.stringify(state, null, 2));
+      fs.fsyncSync(handle);
+    } finally {
+      fs.closeSync(handle);
+    }
+    fs.renameSync(temporary, file);
+  } catch (error) {
+    fs.rmSync(temporary, { force: true });
+    throw error;
+  }
 }
 
 function pruneAppointmentDates(values: Record<string, string[]>): Record<string, string[]> {

@@ -79,6 +79,7 @@ type SlackAlertState = {
   deliveredCrewNotificationsByDate: Record<string, string[]>;
   truckDepartureNotificationsInitializedAt: string;
   truckArrivalNotificationsInitializedAt: string;
+  truckVisitFingerprintVersion: number;
   deliveredTruckArrivalsByDate: Record<string, string[]>;
   truckCloseoutNotificationsInitializedAt: string;
   deliveredTruckCloseoutsByDate: Record<string, string[]>;
@@ -160,6 +161,7 @@ function emptyState(): SlackAlertState {
     deliveredCrewNotificationsByDate: {},
     truckDepartureNotificationsInitializedAt: "",
     truckArrivalNotificationsInitializedAt: "",
+    truckVisitFingerprintVersion: 2,
     deliveredTruckArrivalsByDate: {},
     truckCloseoutNotificationsInitializedAt: "",
     deliveredTruckCloseoutsByDate: {},
@@ -199,6 +201,7 @@ function readState(): SlackAlertState {
           : {},
       truckDepartureNotificationsInitializedAt: String(payload?.truckDepartureNotificationsInitializedAt || ""),
       truckArrivalNotificationsInitializedAt: String(payload?.truckArrivalNotificationsInitializedAt || ""),
+      truckVisitFingerprintVersion: Number(payload?.truckVisitFingerprintVersion || 1),
       deliveredTruckArrivalsByDate:
         payload?.deliveredTruckArrivalsByDate && typeof payload.deliveredTruckArrivalsByDate === "object"
           ? payload.deliveredTruckArrivalsByDate
@@ -981,23 +984,29 @@ function buildTruckVisitSlackNotifications(date: string, rows: AnyRecord[], kind
       || "Unknown";
 
     const intervals = Array.isArray(row?.visit_intervals) && row.visit_intervals.length ? row.visit_intervals : [{ arrival: firstText(row, ["first_arrival", "arrival", "arrival_at"]), departure: firstText(row, ["final_departure", "departure", "departure_at"]) }];
-    const arrivals = intervals.flatMap((interval: AnyRecord) => {
+    const events = intervals.flatMap((interval: AnyRecord) => {
       const arrival = firstText(interval, ["arrival"]);
       const departure = firstText(interval, ["departure"]);
-      if (kind === "truck_arrival") return [arrival].filter(Boolean);
+      if (kind === "truck_arrival") return arrival ? [{ occurredAt: arrival, visitStartedAt: arrival }] : [];
       // A missing GPS observation is not a departure. Require a confirmed
       // visit interval with an explicit, chronologically valid exit time.
-      return Number.isFinite(Date.parse(arrival)) && Number.isFinite(Date.parse(departure)) && Date.parse(departure) > Date.parse(arrival) && Date.parse(departure) <= Date.now() ? [departure] : [];
+      return interval?.departure_confirmed !== false
+        && Number.isFinite(Date.parse(arrival))
+        && Number.isFinite(Date.parse(departure))
+        && Date.parse(departure) > Date.parse(arrival)
+        && Date.parse(departure) <= Date.now()
+        ? [{ occurredAt: departure, visitStartedAt: arrival }]
+        : [];
     });
 
-    for (const arrival of arrivals) {
-      if (!Number.isFinite(Date.parse(arrival))) continue;
+    for (const event of events) {
+      if (!Number.isFinite(Date.parse(event.occurredAt))) continue;
       const fingerprint = [
         kind,
         date,
         truckArrivalKeyPart(appointmentId),
         truckArrivalKeyPart(truck),
-        arrival,
+        event.visitStartedAt,
       ].join(":");
       if (seen.has(fingerprint)) continue;
       seen.add(fingerprint);
@@ -1007,11 +1016,11 @@ function buildTruckVisitSlackNotifications(date: string, rows: AnyRecord[], kind
       const plainText = [
         `:truck: *${slackEscape(title)}*`,
         `*<${href}|${slackEscape(jkNumber)}>*`,
-        formatTruckArrivalTime(arrival),
+        formatTruckArrivalTime(event.occurredAt),
         slackEscape(customerName),
         slackPhoneLink(phone),
         slackEscape(address),
-        ...(kind === "truck_departure" ? onsiteTimeFacts(appointmentOnsiteTime({appointmentId,truck},[{...row,visit_intervals:intervals.filter((interval: AnyRecord) => interval.departure === arrival)}])).filter(f=>f.label==='On-site time').map(f=>`*${f.label}:* ${slackEscape(f.value)}`) : []),
+        ...(kind === "truck_departure" ? onsiteTimeFacts(appointmentOnsiteTime({appointmentId,truck},[{...row,visit_intervals:intervals.filter((interval: AnyRecord) => firstText(interval,["arrival"]) === event.visitStartedAt)}])).filter(f=>f.label==='On-site time').map(f=>`*${f.label}:* ${slackEscape(f.value)}`) : []),
       ].filter(Boolean).join("\n");
       notifications.push({
         fingerprint,
@@ -1043,6 +1052,13 @@ function allTruckVisitNotifications(date: string, state: SlackAlertState): Slack
   if (!state.truckDepartureNotificationsInitializedAt) {
     state.truckDepartureNotificationsInitializedAt = new Date().toISOString();
     state.deliveredTruckArrivalsByDate[date] = [...(state.deliveredTruckArrivalsByDate[date] || []), ...departures.map(alert => alert.fingerprint)];
+  }
+  if (state.truckVisitFingerprintVersion < 2) {
+    state.truckVisitFingerprintVersion = 2;
+    state.deliveredTruckArrivalsByDate[date] = Array.from(new Set([
+      ...(state.deliveredTruckArrivalsByDate[date] || []),
+      ...departures.map(alert => alert.fingerprint),
+    ]));
   }
   return [...buildTruckArrivalSlackNotifications(date, rows), ...departures];
 }

@@ -578,6 +578,8 @@ assert.deepEqual(
 const visit={appointment_id:'503',jk_number:'JK4051503',truck_number:'Truck 6',visit_count:1,match_confidence:'confirmed',visit_intervals:[{arrival:'2026-08-12T18:00:00Z',departure:'2026-08-12T18:20:00Z'}]};
 assert.equal(buildTruckDepartureSlackNotifications('2026-08-12',[visit]).length,1);
 assert.match(formatSlackAlert(buildTruckDepartureSlackNotifications('2026-08-12',[visit])[0]), /On-site time:\* 20 min/);
+assert.equal(buildTruckDepartureSlackNotifications('2026-08-12',[{...visit,visit_intervals:[{...visit.visit_intervals[0],departure_confirmed:false}]}]).length,0,'Provisional interval endpoints must not publish as departures');
+assert.equal(buildTruckDepartureSlackNotifications('2026-08-12',[{...visit,visit_intervals:[{...visit.visit_intervals[0],departure:'2026-08-12T18:21:00Z'}]}])[0].fingerprint,buildTruckDepartureSlackNotifications('2026-08-12',[visit])[0].fingerprint,'Departure corrections retain one visit fingerprint');
 assert.match(formatSlackAlert(buildTruckDepartureSlackNotifications('2026-08-12',[{...visit,visit_intervals:[...visit.visit_intervals,{arrival:'2026-08-12T19:00:00Z',departure:null}]}])[0]), /On-site time:\* 20 min/);
 for(const invalid of [{...visit,match_confidence:'probable'},{...visit,pass_by_only:true},{...visit,visit_intervals:[{arrival:'2026-08-12T18:00:00Z',departure:null}]},{...visit,visit_intervals:[{arrival:'2026-08-12T18:00:00Z',departure:'2026-08-12T17:00:00Z'}]},{...visit,visit_intervals:[{arrival:'2026-08-12T18:00:00Z',departure:'2099-08-12T18:20:00Z'}]}]) assert.equal(buildTruckDepartureSlackNotifications('2026-08-12',[invalid]).length,0);
 assert.equal(buildTruckDepartureSlackNotifications('2026-08-12',[visit,visit]).length,1);

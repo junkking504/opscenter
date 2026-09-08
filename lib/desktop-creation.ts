@@ -44,7 +44,7 @@ async function writeReceipt(receipt: DesktopCreationReceipt) {
   const target = path.join(directory(), `${receipt.requestId}.json`), temporary = `${target}.${process.pid}.tmp`;
   await fs.writeFile(temporary, JSON.stringify(receipt), { mode: 0o600 }); await fs.rename(temporary, target);
 }
-export async function executeDesktopCreation(value: unknown, actor: string, create: (input: JunkwareAppointmentCreationInput) => Promise<{ result: JunkwareAppointmentCreationResult; replayed: boolean }> = createJunkwareAppointment): Promise<DesktopCreationReceipt> {
+export async function executeDesktopCreation(value: unknown, actor: string, create: (input: JunkwareAppointmentCreationInput) => Promise<{ result: JunkwareAppointmentCreationResult; replayed: boolean }> = createJunkwareAppointment, beforeReserve: (input:JunkwareAppointmentCreationInput)=>void = ()=>{}): Promise<DesktopCreationReceipt> {
   const input = normalizeJunkwareAppointmentCreationInput(value);
   const fingerprint = createHash('sha256').update(JSON.stringify(input)).digest('hex'), identity = desktopCreationIdentity(input);
   await fs.mkdir(directory(), { recursive: true, mode: 0o700 });
@@ -52,6 +52,7 @@ export async function executeDesktopCreation(value: unknown, actor: string, crea
     const previous = await readDesktopCreation(input.requestId, actor);
     if (previous) { if (previous.fingerprint !== fingerprint) throw new Error('This request ID belongs to a different booking.'); return { receipt: previous, execute: false }; }
     try { await fs.access(path.join(directory(), `${input.requestId}.json`)); throw new Error('This request ID belongs to a different booking.'); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+    beforeReserve(input);
     let receipt: DesktopCreationReceipt = { requestId: input.requestId, actor, fingerprint, identity, status: 'pending', updatedAt: new Date().toISOString() };
     for (const file of (await fs.readdir(directory())).filter(name => uuid.test(name.slice(0, -5)) && name.endsWith('.json'))) {
       const other = JSON.parse(await fs.readFile(path.join(directory(), file), 'utf8')) as DesktopCreationReceipt;

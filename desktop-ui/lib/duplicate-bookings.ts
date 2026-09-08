@@ -5,7 +5,7 @@ export type DuplicateDecision = { state: 'keep_both' | 'review'; actor: string; 
 export type DuplicateReview = { key: string; signature: string; fingerprint: string; decision: DuplicateDecision | null };
 const words = (value: string) => String(value || '').normalize('NFKC').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
 const validName = (value: string) => value.length >= 3 && !/^(?:unknown|unavailable|customer unavailable|customer|anonymous)$/.test(value);
-function addressKey(value: string) {
+export function addressKey(value: string) {
   const key = words(value).replace(/\b(?:st|rd|ave|blvd|ln|dr|ct|apt|apartment|building)\b/g, token => ({st:'street',rd:'road',ave:'avenue',blvd:'boulevard',ln:'lane',dr:'drive',ct:'court',apt:'unit',apartment:'unit',building:'bldg'}[token]!));
   // A missing address, street without a number, or placeholder is not a match.
   return /^\d+\w*\s+\S/.test(key) && key.length >= 12 ? key : '';

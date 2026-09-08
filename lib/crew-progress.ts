@@ -5,6 +5,7 @@ import { desktopAppointmentHref } from '../desktop-ui/lib/desktop-links';
 import { isClosedAppointment, isEstimateAppointment } from './job-audit-rules';
 import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
 import { crewPaymentFacts, crewCloseoutFacts, crewAppointmentFacts } from './crew-progress-details';
+import { closeoutCompactSummary } from './closeout-compact-summary';
 
 type Job = ReturnType<typeof readJobRows>[number];
 type Visit = { appointment_id?: string; appt_id?: string; truck_number?: string | number; truck?: string; match_confidence?: string; pass_by_only?: boolean; first_arrival?: string; arrival_at?: string; final_departure?: string; departure_at?: string; visit_intervals?: Array<{arrival?: string; departure?: string | null}> };
@@ -84,6 +85,7 @@ export function buildCrewProgress(input: {
         next:canceled ? 'Review cancellation and the next stop.' : nextStep?.detail || (estimate ? 'Estimate completed. Review the quote and customer follow-up.' : 'All tracked steps recorded. Review photo coverage and payment verification.'),
         needsFollowUp:steps.some(s => s.state === 'missing'),
         updateIds:updates.sort((a,b) => (a.timestamp || '').localeCompare(b.timestamp || '')).map(alert => alert.id),
+        completion:closeoutCompactSummary(job),
       };
     });
   return {

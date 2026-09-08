@@ -10,6 +10,7 @@ import { commandAlertWorkItemForSource } from '../lib/command-alert-workflow';
 import { crewPaymentFacts, crewCloseoutFacts, crewAppointmentFacts } from '../lib/crew-progress-details';
 import { appointmentPickupItems } from '../lib/junkware-job-details';
 import { crewAlertCardPresentation } from '../desktop-ui/lib/crew-alert-presentation';
+import { closeoutCompactSummary } from '../lib/closeout-compact-summary';
 import type { WorkItem } from '../lib/platform/contracts';
 
 const message = (id:string, timestamp:string, rawText:string, values:Partial<SlackDigestMessage> = {}): SlackDigestMessage => ({id,timestamp,rawText,text:rawText,channel:'#truck-2',threadReply:false,...values});
@@ -58,6 +59,9 @@ assert.equal(cancellationCard?.territoryTone,'northshore');
 assert.equal(crewAlertCardPresentation(fixture.alerts.find(alert => alert.id === 'closed-one')!,fixture.crewProgress!.jobs[0])?.label,'Job Completed');
 const estimateJob = {...fixture.crewProgress!.jobs[0],status:'Estimate completed'};
 assert.equal(crewAlertCardPresentation(alert('estimate-closed','Estimate Closed','2026-09-07T14:08:00Z'),estimateJob)?.label,'Estimate Completed');
+assert.deepEqual(closeoutCompactSummary(job({customerName:'Melissa Johnson',driver:'Lance Gerard',navigator:'Dajion Adams',closeout:{...job().closeout!,loadSize:'Minimum',loadPrice:128,otherCharges:[{name:'Labor',quantity:1,unitPrice:18,total:18},{name:'Misc',quantity:1,unitPrice:22,total:22},{name:'CC Surcharge (Card Present)',quantity:1,unitPrice:4.5,total:4.5}],total:172.5,payments:[{method:'Credit Card',detail:'4242424242423230',amount:172.5}]}})),{
+  customer:'Melissa Johnson',driver:'Lance Gerard',navigator:'Dajion Adams',load:'$128.00 (Minimum)',labor:'$18.00',misc:'$22.00',total:'$172.50',payment:'$172.50 (xx-3230)',
+});
 const build = (appointments:Parameters<typeof buildCrewProgress>[0]['appointments'], options:Partial<Parameters<typeof buildCrewProgress>[0]> = {}) => buildCrewProgress({date:'2026-09-07',appointments,alerts:[],visits:[],scheduleCurrent:true,visitsCurrent:true,updatesComplete:true,now,...options});
 const step = (snapshot:ReturnType<typeof build>,label:string) => snapshot.jobs[0].steps.find(step => step.label === label)!;
 const stale = build([job()],{scheduleCurrent:false,visitsCurrent:false,updatesComplete:false});

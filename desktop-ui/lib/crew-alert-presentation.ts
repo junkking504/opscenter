@@ -9,6 +9,8 @@ export type CrewAlertCardPresentation = {
   jobNumber: string;
   timeSlot: string;
   href: string;
+  truck?: string;
+  completion?: CrewProgressJob['completion'];
 };
 
 const territoryTones: Array<[RegExp, CrewAlertCardPresentation['territoryTone']]> = [
@@ -60,5 +62,9 @@ export function crewAlertCardPresentation(
     jobNumber,
     timeSlot,
     href: job?.href || alert.href,
+    ...(kind === 'completed' ? {
+      truck: [alert.truck,job?.truck].find(value => value && !/^unassigned$/i.test(value)),
+      completion: job?.completion,
+    } : {}),
   };
 }

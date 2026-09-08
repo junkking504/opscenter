@@ -269,6 +269,8 @@ const completedCloseoutRows = [
     job_id: "JK4051000",
     final_status: "Completed",
     truck: "Truck# 1",
+    normalized_territory: "Westbank",
+    appointment_time: "1:00 PM - 2:00 PM",
     customer_name: "Closeout Customer",
     driver_normalized_name: "Driver One",
     navigator_normalized_name: "Navigator One",
@@ -395,66 +397,36 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
       text: [
-        ":moneybag: *Job Completed*",
-        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051000|JK4051000>*",
-        "*Closeout Customer*",
-        "*Driver:* Driver One",
-        "*Navigator:* Navigator One",
-        "*Load:* $538.00 (1/2)",
-        "*Labor:* $225.00",
-        "*CC 3%:* $24.69",
-        "*Discount:* $30.00",
-        "*Tips:* $50.80",
-        "*Total:* $508.00",
-        "*Card Ending:* 3013",
-        "*On-site time:* Unavailable · no confirmed visit",
-        "*Payment:* Card ending 3013 ($558.80)",
-        "*Card verification:* Awaiting QuickBooks verification",
+        ":moneybag: *Job Completed - Westbank -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051000|JK4051000>* *- 1:00 PM - 2:00 PM - Truck 1*",
+        "*C:* Closeout Customer  |  *D:* Driver One  |  *N:* Navigator One",
+        "*Load:* $538.00 (1/2)  |  *Labor:* $225.00",
+        "*Payment:* $558.80 (xx-3013)",
       ].join("\n"),
     },
     {
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_6",
       text: [
-        ":moneybag: *Job Completed*",
-        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051001|JK4051001>*",
-        "*Check Customer*",
-        "*Driver:* Driver Six",
-        "*Navigator:* Navigator Six",
-        "*Tips:*",
-        "*Check:* #1487 ($198.00)",
-        "*On-site time:* Unavailable · no confirmed visit",
-        "*Payment:* Check #1487 ($198.00)",
+        ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051001|JK4051001>* *- Time unavailable - Truck 6*",
+        "*C:* Check Customer  |  *D:* Driver Six  |  *N:* Navigator Six",
+        "*Payment:* $198.00 (Check #1487)",
       ].join("\n"),
     },
     {
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
       text: [
-        ":moneybag: *Job Completed*",
-        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051003|JK4051003>*",
-        "*Payment Customer*",
-        "*Driver:* Driver Payment",
-        "*Navigator:* Navigator Payment",
-        "*Tips:* $15.00",
-        "*Card Ending:* 4242",
-        "*Cash:* ($50.00)",
-        "*On-site time:* Unavailable · no confirmed visit",
-        "*Payment:* Card ending 4242 ($100.00); Cash ($50.00)",
-        "*Card verification:* Awaiting QuickBooks verification",
+        ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051003|JK4051003>* *- Time unavailable - Truck 1*",
+        "*C:* Payment Customer  |  *D:* Driver Payment  |  *N:* Navigator Payment",
+        "*Payment:* $150.00 (2 payments)",
       ].join("\n"),
     },
     {
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_4",
       text: [
-        ":moneybag: *Job Completed*",
-        "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051005|JK4051005>*",
-        "*No Payment Customer*",
-        "*Driver:* Driver Four",
-        "*Navigator:* Navigator Four",
-        "*Tips:*",
-        "*On-site time:* Unavailable · no confirmed visit",
+        ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051005|JK4051005>* *- Time unavailable - Truck 4*",
+        "*C:* No Payment Customer  |  *D:* Driver Four  |  *N:* Navigator Four",
         "*Payment:* Not recorded",
       ].join("\n"),
     },
@@ -467,6 +439,8 @@ const completedEstimateRows = [{
   appointment_type: "Estimate",
   final_status: "Completed",
   truck: "Truck# 6",
+  normalized_territory: "Westbank",
+  appointment_time: "8:00 AM - 9:00 AM",
   customer_name: "Estimate Customer",
   driver_normalized_name: "Estimate Driver",
   navigator_normalized_name: "Estimate Navigator",
@@ -489,17 +463,10 @@ assert.deepEqual(
     kind: "estimate_closed",
     channelId: "C_TEST_TRUCK_6",
     text: [
-      ":moneybag: *Estimate Completed*",
-      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051006|JK4051006>*",
-      "*Estimate Customer*",
-      "*Driver:* Estimate Driver",
-      "*Navigator:* Estimate Navigator",
-      "*Load:* $328.00 (1/4)",
-      "*Mattress/Box Spring:* $60.00",
-      "*Discount:* $30.00",
-      "*Tips:*",
+      ":moneybag: *Estimate Completed - Westbank -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051006|JK4051006>* *- 8:00 AM - 9:00 AM - Truck 6*",
+      "*C:* Estimate Customer  |  *D:* Estimate Driver  |  *N:* Estimate Navigator",
+      "*Load:* $328.00 (1/4)  |  *Misc:* $60.00",
       "*Total:* $358.00",
-      "*On-site time:* Unavailable · no confirmed visit",
     ].join("\n"),
   }],
 );
@@ -676,6 +643,17 @@ const newEstimateCloseout = {
     payments: [],
   },
 };
+const expectedNewCloseoutMessage = [
+  ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|JK4051502>* *- Time unavailable - Truck 6*",
+  "*C:* New Closeout Customer  |  *D:* New Driver  |  *N:* New Navigator",
+  "*Payment:* $220.00 (Check #2201)",
+].join("\n");
+const expectedNewEstimateCloseoutMessage = [
+  ":moneybag: *Estimate Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051504|JK4051504>* *- Time unavailable - Truck 6*",
+  "*C:* New Estimate Customer  |  *D:* Estimate Driver  |  *N:* Estimate Navigator",
+  "*Load:* $180.00 (1/4)",
+  "*Total:* $180.00",
+].join("\n");
 const directCloseoutSource = {
   appt_id: "503",
   job_id: "JK4051503",
@@ -768,74 +746,21 @@ try {
   const focusedCloseoutRun = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["job_closed"] });
   assert.deepEqual(focusedCloseoutRun.posted.map((alert) => alert.kind), ["job_closed"]);
   assert.deepEqual(postedMessages, [
-    [
-      ":moneybag: *Job Completed*",
-      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|JK4051502>*",
-      "*New Closeout Customer*",
-      "*Driver:* New Driver",
-      "*Navigator:* New Navigator",
-      "*Tips:* $20.00",
-      "*Total:* $220.00",
-      "*Check:* #2201 ($220.00)",
-        "*On-site time:* Unavailable · no confirmed visit",
-        "*Payment:* Check #2201 ($220.00)",
-    ].join("\n"),
+    expectedNewCloseoutMessage,
   ]);
 
   const focusedEstimateCloseoutRun = await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["estimate_closed"] });
   assert.deepEqual(focusedEstimateCloseoutRun.posted.map((alert) => alert.kind), ["estimate_closed"]);
   assert.deepEqual(postedMessages, [
-    [
-      ":moneybag: *Job Completed*",
-      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|JK4051502>*",
-      "*New Closeout Customer*",
-      "*Driver:* New Driver",
-      "*Navigator:* New Navigator",
-      "*Tips:* $20.00",
-      "*Total:* $220.00",
-      "*Check:* #2201 ($220.00)",
-        "*On-site time:* Unavailable · no confirmed visit",
-        "*Payment:* Check #2201 ($220.00)",
-    ].join("\n"),
-    [
-      ":moneybag: *Estimate Completed*",
-      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051504|JK4051504>*",
-      "*New Estimate Customer*",
-      "*Driver:* Estimate Driver",
-      "*Navigator:* Estimate Navigator",
-      "*Load:* $180.00 (1/4)",
-      "*Tips:*",
-      "*Total:* $180.00",
-      "*On-site time:* Unavailable · no confirmed visit",
-    ].join("\n"),
+    expectedNewCloseoutMessage,
+    expectedNewEstimateCloseoutMessage,
   ]);
 
   const deliveryRun = await runSlackOpsAlerts({ date: "2026-08-12" });
   assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), []);
   assert.deepEqual(postedMessages, [
-    [
-      ":moneybag: *Job Completed*",
-      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|JK4051502>*",
-      "*New Closeout Customer*",
-      "*Driver:* New Driver",
-      "*Navigator:* New Navigator",
-      "*Tips:* $20.00",
-      "*Total:* $220.00",
-      "*Check:* #2201 ($220.00)",
-        "*On-site time:* Unavailable · no confirmed visit",
-        "*Payment:* Check #2201 ($220.00)",
-    ].join("\n"),
-    [
-      ":moneybag: *Estimate Completed*",
-      "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051504|JK4051504>*",
-      "*New Estimate Customer*",
-      "*Driver:* Estimate Driver",
-      "*Navigator:* Estimate Navigator",
-      "*Load:* $180.00 (1/4)",
-      "*Tips:*",
-      "*Total:* $180.00",
-      "*On-site time:* Unavailable · no confirmed visit",
-    ].join("\n"),
+    expectedNewCloseoutMessage,
+    expectedNewEstimateCloseoutMessage,
   ]);
 
   const dedupeRun = await runSlackOpsAlerts({ date: "2026-08-12" });
@@ -853,7 +778,7 @@ try {
   fs.writeFileSync(paymentStateFile,JSON.stringify(receiptState));
   const originalPostCount=postedMessages.length;
   await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['job_closed']});
-  assert.equal(postedMessages.length,originalPostCount);assert.equal(updates.length,1);assert.match(updates[0].text,/Card ending 2463/);assert.equal(updates[0].ts,'1000.1');
+  assert.equal(postedMessages.length,originalPostCount);assert.equal(updates.length,1);assert.match(updates[0].text,/xx-2463/);assert.equal(updates[0].ts,'1000.1');
   await runSlackOpsAlerts({date:'2026-08-12',onlyKinds:['job_closed']});assert.equal(updates.length,1);
   fs.writeFileSync(path.join(junkwareDirectory, "junkware_2026-08-12_raw.json"), JSON.stringify({
     scraped_at: "2026-08-12T14:06:00-05:00",
@@ -876,18 +801,10 @@ try {
   });
   assert.deepEqual(directCloseout, { attempted: true, posted: true, duplicate: false });
   assert.equal(postedMessages.at(-1), [
-    ":moneybag: *Job Completed*",
-    "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|JK4051503>*",
-    "*Direct Closeout Customer*",
-    "*Driver:* Direct Driver",
-    "*Navigator:* Direct Navigator",
+    ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|JK4051503>* *- Time unavailable - Truck 6*",
+    "*C:* Direct Closeout Customer  |  *D:* Direct Driver  |  *N:* Direct Navigator",
     "*Load:* $100.00 (1/6)",
-    "*Tips:* $10.00",
-    "*Total:* $110.00",
-    "*Card Ending:* 1503",
-    "*On-site time:* Unavailable · no confirmed visit",
-    "*Payment:* Card ending 1503 ($110.00)",
-    "*Card verification:* Awaiting QuickBooks verification",
+    "*Payment:* $110.00 (xx-1503)",
   ].join("\n"));
 
   const duplicateDirectCloseout = await publishVerifiedTruckCloseout({

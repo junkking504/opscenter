@@ -9,7 +9,7 @@ const errors = [];
 try {
   const page = await browser.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1});
   page.on('pageerror',error => errors.push(error.message));
-  await page.goto('http://127.0.0.1:3128/tests/crew-progress.html');
+  await page.goto(process.env.CREW_PROGRESS_PREVIEW_URL || 'http://127.0.0.1:3128/tests/crew-progress.html');
   await page.getByRole('heading',{name:'Operational updates',exact:true}).waitFor();
   const timeline = page.getByRole('region',{name:'All operational updates, newest first'});
   const labels = () => timeline.locator('.crew-update-label').allTextContents();
@@ -34,7 +34,8 @@ try {
   assert.match(await duration.innerText(),/8:05 AM[\s\S]*9:10 AM/,'Duration retains both confirmed times');
   assert.match(await duration.innerText(),/Follow up:[\s\S]*No uploaded photos/,'Latest appointment update keeps the missing-evidence action visible');
   const closed = timeline.locator('.crew-update-completed');
-  assert.match(await closed.locator('.crew-event-header').innerText(),/^Job Completed[\s\S]*New Orleans[\s\S]*JK1000001[\s\S]*8:00 AM – 9:00 AM$/);
+  assert.match(await closed.locator('.crew-event-header').innerText(),/^Job Completed[\s\S]*New Orleans[\s\S]*JK1000001[\s\S]*8:00 AM – 9:00 AM[\s\S]*Truck 2$/);
+  assert.match((await closed.locator('.crew-completed-summary').innerText()).replace(/\s+/g,' '),/^C: Example customer \| D: Example driver \| N: Example navigator Load: \$450\.00 \(Half truck\) Payment: \$450\.00 \(Cash\)$/);
   assert.equal(await closed.evaluate(element => getComputedStyle(element).backgroundColor),'rgba(34, 197, 94, 0.25)');
   await closed.getByRole('button',{name:'Mark reviewed',exact:true}).click();
   assert.deepEqual(await labels(),expected,'Review retains the event and chronology');
@@ -45,6 +46,12 @@ try {
   assert.match(await page.getByRole('status').last().textContent(),/Control/);
   await closed.getByRole('button',{name:'Open record',exact:true}).click();
   assert.match(await page.getByRole('status').last().textContent(),/job-jk1000001/);
+  await page.getByRole('button',{name:'Simulate estimate completed',exact:true}).click();
+  const estimate = timeline.locator('.crew-update-completed');
+  assert.match(await estimate.locator('.crew-event-header').innerText(),/^Estimate Completed[\s\S]*New Orleans[\s\S]*JK1000001[\s\S]*8:00 AM – 9:00 AM[\s\S]*Truck 2$/);
+  assert.match((await estimate.locator('.crew-completed-summary').innerText()).replace(/\s+/g,' '),/Total: \$450\.00$/);
+  assert.equal(await estimate.getByText('Payment:',{exact:true}).count(),0,'Estimates show a total, not payment language');
+  await page.getByRole('button',{name:'Reset preview'}).click();
   await page.screenshot({path:`${directory}/desktop.png`,fullPage:true});
   await page.getByRole('combobox',{name:'Filter by truck'}).selectOption('Truck 3');
   assert.deepEqual(await labels(),['Arrival']);

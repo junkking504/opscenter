@@ -1,11 +1,9 @@
 import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
-import { readScheduleVisits } from './desktop-schedule-visits';
 import fs from "fs";
 import { createHash } from "node:crypto";
-import { buildDailyPaymentReconciliation } from "./payment-reconciliation";
-import { closeoutPaymentFacts } from "./closeout-payment-verification";
 import path from "path";
 import {
+  appointmentTerritory,
   buildAddOnAppointmentFeed,
   buildCancelledAppointmentFeed,
   type AddOnAppointment,
@@ -21,10 +19,10 @@ import {
   isEstimateCloseoutRow,
   readClosedEstimateJunkwareRows,
   readCompletedJunkwareRows,
-  truckCloseoutDetails,
 } from "@/lib/slack-closeout-details";
 import { formatSlackMessage, slackEscape, type SlackMessageField } from "@/lib/slack-message-format";
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
+import { closeoutCompactSummary } from "@/lib/closeout-compact-summary";
 
 export type SlackAlertSeverity = "critical" | "warning";
 export type SlackAlertKind =
@@ -723,23 +721,26 @@ export function formatTruckCloseoutSlackNotification(
   const jobNumber = firstText(row, ["job_id", "jk_number", "job_number"]);
   if (!jobNumber) return null;
 
-  const closeout = truckCloseoutDetails(row);
-  const detailLines = parseSlackDetailLines(closeout?.lines || []).map(({ label, value }) => (
-    label === "Tips" && !value ? "*Tips:*" : `*${slackEscape(label)}:* ${slackEscape(value)}`
-  ));
-  const customer = closeoutCustomer(row);
-  const driver = closeoutCrewMember(row, "driver");
-  const navigator = closeoutCrewMember(row, "navigator");
+  const summary = closeoutCompactSummary(row);
+  const territory = appointmentTerritory(row);
+  const appointmentTime = firstText(row, ["appointment_time", "scheduled_time", "time_window"]) || "Time unavailable";
+  const rawTruck = closeoutTruck(row);
+  const truckNumber = normalizeSlackTruckNumber(rawTruck);
+  const truck = truckNumber ? `Truck ${truckNumber}` : rawTruck;
+  const title = closeoutAlertTitle(kind);
+  const chargeLine = [
+    summary.load ? `*Load:* ${slackEscape(summary.load)}` : "",
+    summary.labor ? `*Labor:* ${slackEscape(summary.labor)}` : "",
+    summary.misc ? `*Misc:* ${slackEscape(summary.misc)}` : "",
+  ].filter(Boolean).join("  |  ");
 
   return [
-    `:moneybag: *${closeoutAlertTitle(kind)}*`,
-    `*<${closeoutOpsHref(date, jobNumber)}|${slackEscape(jobNumber)}>*`,
-    customer ? `*${slackEscape(customer)}*` : "",
-    `*Driver:*${driver ? ` ${slackEscape(driver)}` : ""}`,
-    `*Navigator:*${navigator ? ` ${slackEscape(navigator)}` : ""}`,
-    ...detailLines,
-    ...onsiteTimeFacts(appointmentOnsiteTime({appointmentId:firstText(row,['appointment_id','appt_id','appointmentId']),jkNumber:jobNumber,truck:closeoutTruck(row)},readScheduleVisits(date).visits)).map(fact => `*${slackEscape(fact.label)}:* ${slackEscape(fact.value)}`),
-    ...(kind === "job_closed" ? closeoutPaymentFacts(row, buildDailyPaymentReconciliation(date)).map(fact => `*${slackEscape(fact.label)}:* ${slackEscape(fact.value)}`) : []),
+    `:moneybag: *${slackEscape(title)} - ${slackEscape(territory)} -* *<${closeoutOpsHref(date, jobNumber)}|${slackEscape(jobNumber)}>* *- ${slackEscape(appointmentTime)}${truck ? ` - ${slackEscape(truck)}` : ""}*`,
+    `*C:* ${slackEscape(summary.customer)}  |  *D:* ${slackEscape(summary.driver)}  |  *N:* ${slackEscape(summary.navigator)}`,
+    chargeLine,
+    kind === "estimate_closed"
+      ? `*Total:* ${slackEscape(summary.total || "Not recorded")}`
+      : `*Payment:* ${slackEscape(summary.payment || "Not recorded")}`,
   ].filter(Boolean).join("\n");
 }
 
@@ -1094,13 +1095,6 @@ function collectIncidentAlerts(date: string): SlackOpsAlert[] {
   }
 
   return alerts;
-}
-
-function parseSlackDetailLines(lines: string[]): Array<{ label: string; value: string }> {
-  return lines.flatMap((line) => {
-    const match = line.match(/^([^:]+):\s*(.*?)\.?$/);
-    return match ? [{ label: match[1], value: match[2] }] : [];
-  });
 }
 
 export function formatSlackAlert(alert: SlackOpsAlert): string {

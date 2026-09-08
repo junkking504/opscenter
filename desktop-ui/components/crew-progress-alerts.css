@@ -33,7 +33,7 @@
 .crew-update-content header span { color: var(--crew-muted); font-size: 12px; }
 .crew-update-content header em { font-size: 11px; color: #356685; font-style: normal; }
 .crew-event-header { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; color: #111827; line-height: 1.45; }
-.crew-event-header .crew-update-label,.crew-event-window { color: #111827; font-size: 14px; font-weight: 850; }
+.crew-event-header .crew-update-label,.crew-event-window,.crew-event-truck { color: #111827; font-size: 14px; font-weight: 850; }
 .crew-event-header .crew-territory-pill { display: inline-flex; align-items: center; min-height: 22px; padding: 2px 8px; border: 1px solid rgba(17,24,39,.18); border-radius: 999px; color: #111827; font-size: 12px; font-weight: 900; line-height: 1.2; }
 .crew-territory-new-orleans { background: #b0d2fd; }
 .crew-territory-jefferson { background: #96eadf; }
@@ -51,6 +51,10 @@
 .crew-update-content dt::after { content: ':'; }
 .crew-update-content dd { margin: 0; font-size: 13px; overflow-wrap: anywhere; white-space: pre-line; }
 .crew-update-content dd a { color: #14547a; text-decoration: underline; }
+.crew-completed-summary { display: grid; gap: 4px; margin: 6px 0; color: #263843; font-size: 13px; line-height: 1.45; }
+.crew-completed-summary p { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 5px; margin: 0; }
+.crew-completed-summary p>span { margin-inline: 6px; color: var(--crew-muted); }
+.crew-completed-summary strong { color: #182f3b; }
 .crew-update-content footer { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
 .crew-update-content footer button { padding: 3px 0; border: 0; background: transparent; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; min-height: 24px; }
 .crew-update-content footer span { margin-right: auto; font-size: 11px; color: var(--crew-muted); }

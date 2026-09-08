@@ -19,6 +19,7 @@ export type CrewProgressJob = {
   next: string;
   needsFollowUp: boolean;
   updateIds: string[];
+  completion: import('../../lib/closeout-compact-summary').CloseoutCompactSummary;
 };
 export type CrewProgressSnapshot = {
   jobs: CrewProgressJob[];

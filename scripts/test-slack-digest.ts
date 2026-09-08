@@ -257,19 +257,10 @@ async function main() {
       "2026-08-14",
     ),
     [
-      ":moneybag: *Job Completed*",
-      "*<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052579|JK4052579>*",
-      "*Legacy Customer*",
-      "*Driver:* Legacy Driver",
-      "*Navigator:* Legacy Navigator",
+      ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052579|JK4052579>* *- Time unavailable*",
+      "*C:* Legacy Customer  |  *D:* Legacy Driver  |  *N:* Legacy Navigator",
       "*Load:* $388.00 (1/3)",
-      "*Discount:* $30.00",
-      "*Tips:* $71.60",
-      "*Total:* $358.00",
-      "*Card Ending:* 9896",
-        "*On-site time:* Unavailable · no confirmed visit",
-      "*Payment:* Card ending 9896 ($429.60)",
-      "*Card verification:* Awaiting QuickBooks verification",
+      "*Payment:* $429.60 (xx-9896)",
     ].join("\n"),
   );
   assert.equal(
@@ -307,15 +298,10 @@ async function main() {
       "2026-08-14",
     ),
     [
-      ":moneybag: *Estimate Completed*",
-      "*<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4053000|JK4053000>*",
-      "*Closed Estimate Customer*",
-      "*Driver:* Estimate Driver",
-      "*Navigator:* Estimate Navigator",
+      ":moneybag: *Estimate Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4053000|JK4053000>* *- Time unavailable*",
+      "*C:* Closed Estimate Customer  |  *D:* Estimate Driver  |  *N:* Estimate Navigator",
       "*Load:* $180.00 (1/4)",
-      "*Tips:*",
       "*Total:* $180.00",
-      "*On-site time:* Unavailable · no confirmed visit",
     ].join("\n"),
   );
 

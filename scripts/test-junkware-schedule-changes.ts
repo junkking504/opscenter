@@ -72,30 +72,17 @@ const events = detectScheduleChanges(previous, current);
 assert.deepEqual(events.map((event) => event.kind).sort(), ["cancelled", "estimate_closed", "job_closed", "new_appointment", "rescheduled"]);
 assert.equal(events.find((event) => event.kind === "job_closed")?.alert.channelId, "C_TEST_TRUCK_6");
 assert.equal(formatSlackAlert(events.find((event) => event.kind === "job_closed")!.alert), [
-  ":moneybag: *Job Completed*",
-  "*<https://ops.junk-king.app/jobs?date=2026-08-17#job-jk4051001|JK4051001>*",
-  "*Test Customer*",
-  "*Driver:* Test Driver",
-  "*Navigator:* Test Navigator",
+  ":moneybag: *Job Completed - Baton Rouge -* *<https://ops.junk-king.app/jobs?date=2026-08-17#job-jk4051001|JK4051001>* *- 9:00 AM - Truck 6*",
+  "*C:* Test Customer  |  *D:* Test Driver  |  *N:* Test Navigator",
   "*Load:* $500.00 (1/4)",
-  "*Tips:*",
-  "*Total:* $500.00",
-  "*Card Ending:* 1234",
-  "*On-site time:* Unavailable · no confirmed visit",
-  "*Payment:* Card ending 1234 ($500.00)",
-  "*Card verification:* Awaiting QuickBooks verification",
+  "*Payment:* $500.00 (xx-1234)",
 ].join("\n"));
 assert.equal(events.find((event) => event.kind === "estimate_closed")?.alert.channelId, "C_TEST_TRUCK_6");
 assert.equal(formatSlackAlert(events.find((event) => event.kind === "estimate_closed")!.alert), [
-  ":moneybag: *Estimate Completed*",
-  "*<https://ops.junk-king.app/jobs?date=2026-08-17#job-jk4051006|JK4051006>*",
-  "*Estimate Customer*",
-  "*Driver:* Estimate Driver",
-  "*Navigator:* Estimate Navigator",
+  ":moneybag: *Estimate Completed - Baton Rouge -* *<https://ops.junk-king.app/jobs?date=2026-08-17#job-jk4051006|JK4051006>* *- 4:00 PM - Truck 6*",
+  "*C:* Estimate Customer  |  *D:* Estimate Driver  |  *N:* Estimate Navigator",
   "*Load:* $180.00 (1/4)",
-  "*Tips:*",
   "*Total:* $180.00",
-  "*On-site time:* Unavailable · no confirmed visit",
 ].join("\n"));
 assert.equal(formatSlackAlert(events.find((event) => event.kind === "rescheduled")!.alert), [
   ":warning: *Rescheduled*",

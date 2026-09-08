@@ -354,10 +354,11 @@ function closeoutForSlackAlert(
   date: string,
 ): SlackDigestMessage["closeout"] | undefined {
   const plainText = slackTextToPlainText(rawText);
-  const match = plainText.match(/^(?:✅|💰)\s*(?:Job|Estimate) (?:Closed|Completed)\s*\n(?:Job:\s*)?(JK\d+)/i)
-    || plainText.match(/^✅\s*(JK\d+)\s+closed out\./i);
-  if (!match) return undefined;
-  const row = lookup.get(match[1].toLowerCase()) || {};
+  const isCloseout = /^(?:✅|💰)\s*(?:Job|Estimate) (?:Closed|Completed)\b/i.test(plainText)
+    || /^✅\s*JK\d+\s+closed out\./i.test(plainText);
+  const jobNumber = legacyJobNumber(rawText);
+  if (!isCloseout || !jobNumber) return undefined;
+  const row = lookup.get(jobNumber.toLowerCase()) || {};
   const details = truckCloseoutDetails(row);
   if (!details) return undefined;
   return {
@@ -519,11 +520,10 @@ export function normalizedLegacyCloseoutDigestText(
   date: string,
 ): string {
   const plainText = slackTextToPlainText(rawText);
-  const legacyMatch = plainText.match(/^(?:✅|💰)\s*(?:Job|Estimate) (?:Closed|Completed)\s*\n(?:Job:\s*)?(JK\d+)/i)
-    || plainText.match(/^✅\s*(JK\d+)\s+closed out\.?/i);
-  if (!legacyMatch) return rawText;
-
-  const jobNumber = legacyMatch[1];
+  const isCloseout = /^(?:✅|💰)\s*(?:Job|Estimate) (?:Closed|Completed)\b/i.test(plainText)
+    || /^✅\s*JK\d+\s+closed out\.?/i.test(plainText);
+  const jobNumber = legacyJobNumber(rawText);
+  if (!isCloseout || !jobNumber) return rawText;
   const row = closeouts.get(jobNumber.toLowerCase());
   const estimate = /^\s*(?:✅|💰)\s*Estimate (?:Closed|Completed)\b/i.test(plainText);
   if (row) return formatTruckCloseoutSlackNotification(date, row, estimate ? "estimate_closed" : "job_closed") || rawText;

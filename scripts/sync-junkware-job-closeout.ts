@@ -118,6 +118,11 @@ async function capture(page: Page): Promise<{ status: { value: string; label: st
       };
     });
     const pageText = clean(document.body?.innerText || document.body?.textContent);
+    const inlineScripts = Array.from(document.scripts).map((script) => script.textContent || '').join('\n');
+    const priceList = (name) => {
+      const match = inlineScripts.match(new RegExp('var\\s+' + name + '\\s*=\\s*new\\s+Array\\(([^)]*)\\)', 'i'));
+      return match ? match[1].split(',').map((value) => Number(value.trim())).filter((value) => Number.isFinite(value) && value >= 0) : [];
+    };
     const jobNumber = pageText.match(/\bJK\d+\b/i)?.[0]?.toUpperCase() || "";
     const truckSelect =
       document.getElementById("ctl00_Content_TruckDD") ||
@@ -138,9 +143,11 @@ async function capture(page: Page): Promise<{ status: { value: string; label: st
       navigatorOptions: firstNavigator ? Array.from(firstNavigator.options).map((option) => ({ value: option.value, label: option.text.trim() })) : driver.options,
       loadQuantity: input("ctl00_Content_LoadSizeTruckQtyTB"),
       loadSize: selectData("ctl00_Content_LoadSizeDD"),
+      loadPrices: priceList('Prices'),
       loadPrice: input("ctl00_Content_BillingAmountTB"),
       bedloadQuantity: input("ctl00_Content_BedloadTruckQtyTB"),
       bedloadSize: selectData("ctl00_Content_BedloadDD"),
+      bedloadPrices: priceList('BedloadPrices'),
       bedloadPrice: input("ctl00_Content_BedLoadPriceTB"),
       otherChargeOptions: selectData("ctl00_Content_OtherChargeDD").options,
       otherCharges,

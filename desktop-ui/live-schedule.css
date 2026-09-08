@@ -37,6 +37,9 @@
 .live-schedule .live-schedule-error { color: #9f202b; }
 .live-schedule .appointment-register-row .route-leg-inline { display: block; margin-top: 3px; font-weight: 650; color: #3f5c4b; }
 .live-schedule .appointment-register-row .route-leg-inline.late { color: #9f202b; }
+.live-schedule .selected-appointment-proximity,
+.live-schedule .appointment-register-row .appointment-nearest-truck { display: block; color: #174e77; font-weight: 750; }
+.live-schedule .selected-appointment-proximity { margin-top: 2px; }
 .live-schedule .record-drawer { z-index: 1100; }
 .live-schedule .record-drawer-backdrop { z-index: 1099; }
 .live-schedule .live-truck-timeline .schedule-drag-preview { position: absolute; inset-block: 0; height: auto; }

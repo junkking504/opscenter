@@ -71,11 +71,18 @@ export type BackupSignal = SignalDetail & {
 
 export type ArrivalCoverageSignal = SignalDetail & ArrivalAlertCoverage;
 
+export type GeocoderSignal = SignalDetail & {
+  ambiguousAddresses: number;
+  totalAddresses: number;
+  paidFallbackConfigured: boolean | null;
+};
+
 export type SystemSignals = {
   status: SignalStatus;
   blocking: string[];
   exceptions: ExceptionSignal;
   arrivalCoverage: ArrivalCoverageSignal;
+  geocoder: GeocoderSignal;
   gpsCoverage: GpsCoverageSignal;
   queues: QueueSignal;
   storage: StorageSignal;
@@ -334,6 +341,57 @@ export function arrivalCoverageSignal(date: string): ArrivalCoverageSignal {
 }
 
 /* ------------------------------------------------------------------ */
+/* Geocoder                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The Google Geocoding fallback is wired into every failure path in the OpsBot
+ * geocoder, but with no API key it returns "not configured" and the caller
+ * discards that reason - so a paid fallback that had never once run looked
+ * exactly like a paid fallback that was running and failing. An unresolved
+ * address is both a missing map pin and an arrival that can never confirm, so
+ * whether the fallback is actually configured belongs in health.
+ */
+export function geocoderSignal(): GeocoderSignal {
+  const payload = readJson<AnyRecord>(path.join("data", "cache", "appointment_geocodes.json"), "geocode cache");
+  const addresses = payload && typeof payload.addresses === "object"
+    ? payload.addresses as Record<string, AnyRecord>
+    : null;
+  if (!addresses) {
+    return {
+      status: "unknown",
+      summary: "Geocode cache could not be read",
+      ambiguousAddresses: 0,
+      totalAddresses: 0,
+      paidFallbackConfigured: null,
+    };
+  }
+
+  const rows = Object.values(addresses);
+  const ambiguous = rows.filter((row) => String(row.match_confidence || "").toLowerCase() !== "confirmed");
+  const recent = ambiguous
+    .slice()
+    .sort((left, right) => String(left.collection_timestamp || "").localeCompare(String(right.collection_timestamp || "")))
+    .slice(-25);
+  // Only meaningful once the collector propagates the fallback's own reason.
+  const sawNotConfigured = recent.some((row) => String(row.reason || "").includes("google_geocoding_not_configured"));
+  const paidFallbackConfigured = recent.length === 0 ? null : !sawNotConfigured;
+
+  const ambiguousPercent = rows.length ? Math.round((ambiguous.length / rows.length) * 100) : 0;
+  const warnPercent = numberFromEnv("OPSCENTER_GEOCODE_AMBIGUOUS_WARN_PERCENT", 8);
+
+  return {
+    status: sawNotConfigured ? "critical" : ambiguousPercent >= warnPercent ? "warn" : "ok",
+    summary: sawNotConfigured
+      ? "Paid geocoding fallback is not configured; addresses are failing with no fallback attempted"
+      : `${ambiguous.length} of ${rows.length} cached addresses have no usable coordinates (${ambiguousPercent}%)`,
+    ambiguousAddresses: ambiguous.length,
+    totalAddresses: rows.length,
+    paidFallbackConfigured,
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /* Integration queues                                                  */
 /* ------------------------------------------------------------------ */
 
@@ -489,6 +547,7 @@ function computeSystemSignals(date: string): SystemSignals {
   const exceptions = exceptionSignal(date);
   const arrivalCoverage = arrivalCoverageSignal(date);
   const gpsCoverage = gpsCoverageSignal(date);
+  const geocoder = geocoderSignal();
   const queues = queueSignal();
   const storage = storageSignal();
   const backup = backupSignal();
@@ -497,6 +556,7 @@ function computeSystemSignals(date: string): SystemSignals {
     ["exceptions", exceptions],
     ["arrivalCoverage", arrivalCoverage],
     ["gpsCoverage", gpsCoverage],
+    ["geocoder", geocoder],
     ["queues", queues],
     ["storage", storage],
     ["backup", backup],
@@ -513,6 +573,7 @@ function computeSystemSignals(date: string): SystemSignals {
     exceptions,
     arrivalCoverage,
     gpsCoverage,
+    geocoder,
     queues,
     storage,
     backup,

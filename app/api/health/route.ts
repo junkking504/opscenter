@@ -10,6 +10,7 @@ import {
   type VerifiedJunkwareScheduleSnapshot,
 } from "@/lib/junkware-fast-schedule";
 import { getKernelDatabaseHealth } from "@/lib/platform/persistence/health";
+import { collectSystemSignals } from "@/lib/system-signals";
 import {
   LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS,
   isLinxupV3Position,
@@ -70,6 +71,10 @@ function latestV3PositionAt(file: string): string | null {
 export async function GET(request: Request) {
   const runtime = getOpsRuntime();
   const platformKernel = await getKernelDatabaseHealth();
+  // Freshness and writability are necessary but not sufficient. A service is
+  // not healthy while trucks are dark, critical exceptions are open, queues are
+  // weeks deep, or the disk is about to fill.
+  const signals = collectSystemSignals();
   const metricsDirectory = path.join(process.cwd(), "data", "history", "daily_metrics");
   const expectedMetricsDate = chicagoDateKey();
   const requestedDate = new URL(request.url).searchParams.get("date") || "";
@@ -123,7 +128,7 @@ export async function GET(request: Request) {
 
   if (!metricsFile) {
     return NextResponse.json(
-      { ok: false, status: "missing-data", runtime, metricsDate: targetDate, latestMetricsDate, ...assignmentHealth },
+      { ok: false, status: "missing-data", runtime, metricsDate: targetDate, latestMetricsDate, signals, ...assignmentHealth },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
@@ -188,7 +193,8 @@ export async function GET(request: Request) {
       && !junkwareScheduleStale
       && assignmentStoreWritable
       && operatorStateWritable
-      && platformKernel.healthy;
+      && platformKernel.healthy
+      && signals.status !== "critical";
     return NextResponse.json(
       {
         ok: healthy,
@@ -204,9 +210,13 @@ export async function GET(request: Request) {
               ? "operator-storage-unwritable"
               : !platformKernel.healthy
                 ? "platform-kernel-unhealthy"
-                : linxupFallbackActive
-                  ? "degraded-linxup-v3-fallback"
-                  : monitorsCurrentDate ? "healthy" : "available",
+                : signals.status === "critical"
+                  ? "operational-signals-critical"
+                  : linxupFallbackActive
+                    ? "degraded-linxup-v3-fallback"
+                    : signals.status === "warn"
+                      ? "degraded-operational-signals"
+                      : monitorsCurrentDate ? "healthy" : "available",
         runtime,
         metricsDate,
         latestMetricsDate,
@@ -224,7 +234,9 @@ export async function GET(request: Request) {
         linxupDeliveryMode,
         linxupFallbackActive,
         linxupPushQueue: linxupPushQueueStatus(linxupDataRoot()),
-        degraded: linxupFallbackActive,
+        signals,
+        blocking: signals.blocking,
+        degraded: linxupFallbackActive || signals.status === "warn",
         junkwareScheduleUpdatedAt: junkwareSchedule?.updatedAt || null,
         junkwareScheduleAgeSeconds,
         junkwareScheduleStale,
@@ -234,7 +246,7 @@ export async function GET(request: Request) {
     );
   } catch {
     return NextResponse.json(
-      { ok: false, status: "unreadable-data", runtime, metricsDate: targetDate, latestMetricsDate, ...assignmentHealth },
+      { ok: false, status: "unreadable-data", runtime, metricsDate: targetDate, latestMetricsDate, signals, ...assignmentHealth },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }

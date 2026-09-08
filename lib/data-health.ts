@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { unstable_noStore as noStore } from "next/cache";
 import { chicagoDateKey } from "@/lib/report-dates";
+import { collectSystemSignals, type SystemSignals } from "@/lib/system-signals";
 
 export type DataHealthLevel = "green" | "yellow" | "red";
 export type DataHealthOverall = "Healthy" | "Partial" | "Attention Required";
@@ -25,6 +26,8 @@ export type DataHealthSource = {
 
 export type DataHealthReport = {
   overall: DataHealthOverall;
+  signals: SystemSignals;
+  blocking: string[];
   asOf: string | null;
   asOfLabel: string;
   sources: Record<DataHealthSourceKey, DataHealthSource>;
@@ -361,8 +364,15 @@ export function getDataHealthReport(): DataHealthReport {
   };
 
   const statuses = Object.values(sources).map((source) => source.status);
+  // Source freshness alone said "Healthy" while trucks were dark and critical
+  // exceptions were open. Operational signals now carry the same weight.
+  const signals = collectSystemSignals();
   const overall: DataHealthOverall =
-    statuses.includes("red") ? "Attention Required" : statuses.includes("yellow") ? "Partial" : "Healthy";
+    statuses.includes("red") || signals.status === "critical"
+      ? "Attention Required"
+      : statuses.includes("yellow") || signals.status === "warn" || signals.status === "unknown"
+        ? "Partial"
+        : "Healthy";
 
   const timestamps = Object.values(sources)
     .map((source) => source.lastSuccessfulAt)
@@ -382,12 +392,19 @@ export function getDataHealthReport(): DataHealthReport {
     ...(junkware.status === "yellow" ? ["JunkWare data older than 10 minutes."] : []),
     ...(linxup.status === "yellow" ? ["Linxup data older than 10 minutes."] : []),
     ...(qbo.status !== "green" ? [`QBO is ${qbo.stateLabel.toLowerCase()}.`] : []),
+    ...(signals.gpsCoverage.status !== "ok" ? [signals.gpsCoverage.summary] : []),
+    ...(signals.exceptions.status === "critical" ? [signals.exceptions.summary] : []),
+    ...(signals.queues.status !== "ok" ? [signals.queues.summary] : []),
+    ...(signals.storage.status !== "ok" ? [signals.storage.summary] : []),
+    ...(signals.backup.status !== "ok" ? [signals.backup.summary] : []),
   ];
 
   const fallbackValues: string[] = [];
 
   return {
     overall,
+    signals,
+    blocking: signals.blocking,
     asOf,
     asOfLabel,
     sources,

@@ -28,3 +28,17 @@
   position: absolute; left: 5px; top: 6px; width: 7px; height: 7px;
   border: 1px solid #fff; background: #233e54; transform: rotate(45deg);
 }
+.ops-live .map-overlap-count {
+  position: absolute; top: -3px; right: -5px; min-width: 15px; height: 15px;
+  padding: 0 3px; border: 1px solid #fff; border-radius: 8px;
+  background: #233e54; color: #fff; font-size: 9px; line-height: 13px;
+  font-weight: 700; pointer-events: none;
+}
+.ops-live .map-locator-choices { display: grid; gap: 4px; max-height: 180px; overflow: auto; }
+.ops-live .map-locator-choices > strong { font-size: 11px; }
+.ops-live .map-locator-choices button {
+  display: grid; gap: 2px; padding: 6px; border: 1px solid #d5ddd7;
+  border-radius: 4px; background: #fff; color: #233e54; text-align: left; cursor: pointer;
+}
+.ops-live .map-locator-choices button:focus-visible { outline: 2px solid #174e77; outline-offset: -2px; }
+.ops-live .map-locator-choices small { font-size: 10px; }

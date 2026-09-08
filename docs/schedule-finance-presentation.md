@@ -13,6 +13,14 @@ opens the full action drawer. Calendar and history retain their drawer behavior.
 Selecting a muted block clears filters that would otherwise hide its pin.
 An appointment without verified coordinates explicitly shows Verify Address.
 
+Truck and appointment markers use their source coordinates at every zoom level.
+Screen-space collision avoidance never displaces them or draws offset leader
+lines. Overlapping hit targets show a count badge; clicking opens a list of the
+nearby trucks and appointments at that zoom so each remains selectable. Selecting
+one uses the same schedule/map selection without relocating any other marker.
+Amber truck markers retain the existing last-known GPS distinction. Regression:
+`node --import tsx scripts/test-desktop-map-navigation.ts`.
+
 Amazon, Home Sweet Home, and DMTransportation are identified from explicit source
 business/customer labels by `lib/appointment-partner.ts`. The map uses AMZ/HSH/DMT
 badges, with full names in the selected details, register, drawer and hover labels.

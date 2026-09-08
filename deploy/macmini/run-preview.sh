@@ -35,6 +35,16 @@ fi
 
 load_environment_file "$ENV_FILE"
 
+# The desktop street map uses the same server-side tile integration in preview.
+# Load only its existing Keychain entry; other production integration secrets
+# remain outside this preview wrapper and no value is written to an env file.
+if [[ -z "${GOOGLE_MAPS_API_KEY:-}" ]]; then
+  preview_google_key="$(/usr/bin/security find-generic-password \
+    -a opscenter -s com.opscenter.google-maps-api-key -w 2>/dev/null)" || preview_google_key=""
+  [[ -z "$preview_google_key" ]] || export GOOGLE_MAPS_API_KEY="$preview_google_key"
+  unset preview_google_key
+fi
+
 mkdir -p "$APP_DIR/logs"
 
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then

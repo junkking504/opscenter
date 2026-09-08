@@ -175,6 +175,11 @@ cutover. Production continues to use:
 /Users/missioncontrol/opscenter-v2/opscenter
 ```
 
+Preview loads the existing `com.opscenter.google-maps-api-key` Keychain entry
+when `GOOGLE_MAPS_API_KEY` is unset, so its authenticated desktop map can use the
+server-side tile integration. It does not copy the key to an environment file or
+load unrelated production integration credentials.
+
 Preview uses a separate link and release tree:
 
 ```text
@@ -323,9 +328,12 @@ cd /Users/missioncontrol/opscenter-v2/opscenter
 ```
 
 This verifies that production and preview are distinct localhost listeners,
-report their expected runtimes, use protected environment files, and keep the
-new platform kernel disabled in production. It does not require production
-services to be unloaded.
+report their expected runtimes, and use protected environment files. Enabled
+kernels must report healthy runtime state and database names matching their
+runtime-specific configuration. Preview uses `opscenter_preview`; when both
+kernels are enabled their database names must differ. Production may remain
+enabled. The preview PostgreSQL socket/cluster checks remain required with
+`--require-preview-kernel`. No production services or configuration are changed.
 
 When validating the isolated preview database and kernel, add:
 

@@ -127,10 +127,12 @@ check_login 3100 "preview OpsCenter" "200|307"
 [[ -f "$PRODUCTION_ENV" ]] && check_mode "$PRODUCTION_ENV" 600 "production environment"
 [[ -f "$PREVIEW_ENV" ]] && check_mode "$PREVIEW_ENV" 600 "preview environment"
 
-if [[ -f "$PRODUCTION_ENV" ]] && grep -q '^OPSCENTER_KERNEL_ENABLED=1$' "$PRODUCTION_ENV"; then
-  fail "production platform kernel must remain disabled during preview validation"
+kernel_options=()
+$REQUIRE_PREVIEW_KERNEL && kernel_options+=(--require-preview-kernel)
+if python3 "$(dirname "$0")/verify-kernel-isolation.py" "${kernel_options[@]}"; then
+  pass "production and preview kernel configuration and runtime isolation verified"
 else
-  pass "production platform kernel is not enabled"
+  fail "production and preview kernel isolation could not be verified"
 fi
 
 if $REQUIRE_PREVIEW_KERNEL; then

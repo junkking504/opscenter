@@ -15,13 +15,6 @@ window.fetch=async(input,init)=>{
   if(init?.method && init.method!=='GET') return Response.json({error:'Writes disabled.'},{status:403});
   if(url.pathname==='/api/desktop/schedule') return Response.json({date,observedAt:null,appointments:[],fleet:{isToday:false,lastUpdatedAt:null,trucks:[]}});
   if(url.pathname==='/api/desktop/schedule/routes') return Response.json({date,calculatedAt:null,legs:[],closest:[],appointmentId:null});
-  if(url.pathname==='/api/desktop/map')return Response.json({copyright:'Synthetic map fixture · no live map data'});
-  if(url.pathname==='/api/desktop/schedule/gps/streets'){
-    const sourceVersion=url.searchParams.get('version') || '';
-    if(delay)await new Promise(resolve=>setTimeout(resolve,3500));
-    const shift=url.searchParams.get('truck')==='Truck 6'?.1:0;
-    return Response.json({sourceVersion,status:'available',unmatched:0,paths:[{kind:'matched',points:[{latitude:30.001+shift,longitude:-90.01},{latitude:30.003+shift,longitude:-90.01},{latitude:30.003+shift,longitude:-90.007}]},{kind:'estimated',points:[{latitude:30.003+shift,longitude:-90.007},{latitude:30.007+shift,longitude:-90.007},{latitude:30.007+shift,longitude:-90.01}]}]});
-  }
   if(url.pathname==='/api/desktop/schedule/gps') {
     const truck=url.searchParams.get('truck') || '';
     if(delay) await new Promise(resolve=>setTimeout(resolve,3500));

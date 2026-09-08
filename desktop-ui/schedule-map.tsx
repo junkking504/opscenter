@@ -1,4 +1,3 @@
-import {installGoogleStreetMap} from './google-street-map';
 import { appointmentPartner } from '../lib/appointment-partner';
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
@@ -30,13 +29,16 @@ export default function ScheduleMap(props: Props) {
     if (!host.current) return;
     const view = L.map(host.current, { zoomControl: true, scrollWheelZoom: true }).setView([30.14, -90.5], 8);
     view.attributionControl.setPrefix(false);
-    const removeStreetMap=installGoogleStreetMap(view);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 20, maxNativeZoom: 19, updateWhenIdle: true, keepBuffer: 1,
+    }).addTo(view);
     map.current = view;
     gpsLayer.current=L.layerGroup().addTo(view);
     markers.current = L.layerGroup().addTo(view);
     const observer = new ResizeObserver(() => view.invalidateSize());
     observer.observe(host.current);
-    return () => { removeStreetMap(); observer.disconnect(); view.remove(); map.current = null; markers.current = null; gpsLayer.current=null;gpsFit.current='';fitted.current = ''; focused.current = ''; };
+    return () => { observer.disconnect(); view.remove(); map.current = null; markers.current = null; gpsLayer.current=null;gpsFit.current='';fitted.current = ''; focused.current = ''; };
   }, []);
   // Avoid rebuilding marker DOM on unrelated parent renders, preserving keyboard focus.
   const signature = JSON.stringify([props.appointments, props.trucks, props.selected, props.selectedTruck, props.scope, props.resetKey, props.date, props.truckMapView]);
@@ -178,7 +180,8 @@ export default function ScheduleMap(props: Props) {
     if(!view || !layer) return;
     layer.clearLayers();
     if(!route || route.date!==props.date || route.truck!==props.selectedTruck || !route.points.length) {gpsFit.current='';return;}
-    for(const path of route.streets?.paths || []) L.polyline(path.points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{color:'#2563a5',weight:3,opacity:.9,...(path.kind==='estimated'?{dashArray:'6 7'}:{}),interactive:false,className:path.kind==='estimated'?'schedule-gps-gap-link':'schedule-gps-trail'}).addTo(layer);
+    for(const points of route.paths) L.polyline(points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{color:'#2563a5',weight:3,opacity:.9,interactive:false,className:'schedule-gps-trail'}).addTo(layer);
+    for(const points of route.gapLinks || []) L.polyline(points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{color:'#2563a5',weight:3,opacity:.8,dashArray:'6 7',interactive:false,className:'schedule-gps-gap-link'}).addTo(layer);
     // Isolated observations stay visible without inventing a connecting route.
     for(const point of route.points) L.circleMarker([point.latitude,point.longitude],{radius:3,color:'#fff',fillColor:'#2563a5',fillOpacity:1,weight:1,interactive:false,className:'schedule-gps-point'}).addTo(layer);
     const endpoints=route.points.length===1?[[route.points[0],'Recorded position'] as const]:[[route.points[0],'First'] as const,[route.points.at(-1)!,'Last'] as const];

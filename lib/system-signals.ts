@@ -86,6 +86,21 @@ type AnyRecord = Record<string, unknown>;
 
 const GPS_SILENT_LOOKBACK_DAYS = 14;
 
+/**
+ * These signals are read on page renders and on every alert publish, while the
+ * work behind them - the exception engine, up to two weeks of daily GPS files,
+ * directory scans over queues thousands of entries deep - is far too expensive
+ * to repeat per request. Cache the whole set briefly, and cache each day's
+ * location file against its mtime so one read is shared across every truck.
+ */
+function cacheTtlMs(): number {
+  const value = Number(process.env.OPSCENTER_SIGNAL_CACHE_MS);
+  return Number.isFinite(value) && value >= 0 ? value : 30_000;
+}
+
+const signalsCache = new Map<string, { at: number; value: SystemSignals }>();
+const locationCache = new Map<string, { mtimeMs: number; trucks: Set<string> }>();
+
 function numberFromEnv(name: string, fallback: number): number {
   const value = Number(process.env[name]);
   return Number.isFinite(value) && value > 0 ? value : fallback;
@@ -191,13 +206,33 @@ function activeMappings(date: string): VehicleMapping[] {
 }
 
 function trucksWithPositions(date: string): Set<string> | null {
-  const payload = readJson<AnyRecord>(
-    path.join("data", "history", "linxup", `linxup_location_${date}.json`),
-    `linxup location ${date}`,
-  );
+  const relative = path.join("data", "history", "linxup", `linxup_location_${date}.json`);
+  const resolved = resolveDataPath(relative);
+  if (!resolved) return null;
+
+  let mtimeMs = 0;
+  try {
+    mtimeMs = fs.statSync(resolved).mtimeMs;
+  } catch (error) {
+    report(`linxup location ${date} stat`, error);
+    return null;
+  }
+
+  const cached = locationCache.get(date);
+  if (cached && cached.mtimeMs === mtimeMs) return cached.trucks;
+
+  const payload = readJson<AnyRecord>(relative, `linxup location ${date}`);
   if (!payload) return null;
   const points = Array.isArray(payload.points) ? payload.points as AnyRecord[] : [];
-  return new Set(points.map((point) => String(point.truck_number || "")).filter(Boolean));
+  const trucks = new Set(points.map((point) => String(point.truck_number || "")).filter(Boolean));
+  locationCache.set(date, { mtimeMs, trucks });
+  // Only the lookback window is ever consulted; do not grow without bound.
+  if (locationCache.size > GPS_SILENT_LOOKBACK_DAYS * 2) {
+    for (const key of Array.from(locationCache.keys()).sort().slice(0, locationCache.size - GPS_SILENT_LOOKBACK_DAYS)) {
+      locationCache.delete(key);
+    }
+  }
+  return trucks;
 }
 
 function daysSilentFor(truck: string, date: string): number | null {
@@ -434,6 +469,21 @@ export function backupSignal(): BackupSignal {
 /* ------------------------------------------------------------------ */
 
 export function collectSystemSignals(date = chicagoDateKey()): SystemSignals {
+  const ttl = cacheTtlMs();
+  const cached = signalsCache.get(date);
+  if (cached && ttl > 0 && Date.now() - cached.at < ttl) return cached.value;
+
+  const value = computeSystemSignals(date);
+  signalsCache.set(date, { at: Date.now(), value });
+  if (signalsCache.size > 8) {
+    for (const key of Array.from(signalsCache.keys()).sort().slice(0, signalsCache.size - 4)) {
+      signalsCache.delete(key);
+    }
+  }
+  return value;
+}
+
+function computeSystemSignals(date: string): SystemSignals {
   const exceptions = exceptionSignal(date);
   const arrivalCoverage = arrivalCoverageSignal(date);
   const gpsCoverage = gpsCoverageSignal(date);

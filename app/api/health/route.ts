@@ -71,9 +71,9 @@ function latestV3PositionAt(file: string): string | null {
 export async function GET(request: Request) {
   const runtime = getOpsRuntime();
   const platformKernel = await getKernelDatabaseHealth();
-  // Freshness and writability are necessary but not sufficient. A service is
-  // not healthy while trucks are dark, critical exceptions are open, queues are
-  // weeks deep, or the disk is about to fill.
+  // Reported alongside liveness so one call shows both, but deliberately not
+  // folded into `ok`: this endpoint is a deploy gate and a container
+  // healthcheck, and "a truck is dark" must not restart the web service.
   const signals = collectSystemSignals();
   const metricsDirectory = path.join(process.cwd(), "data", "history", "daily_metrics");
   const expectedMetricsDate = chicagoDateKey();
@@ -193,8 +193,7 @@ export async function GET(request: Request) {
       && !junkwareScheduleStale
       && assignmentStoreWritable
       && operatorStateWritable
-      && platformKernel.healthy
-      && signals.status !== "critical";
+      && platformKernel.healthy;
     return NextResponse.json(
       {
         ok: healthy,
@@ -210,13 +209,9 @@ export async function GET(request: Request) {
               ? "operator-storage-unwritable"
               : !platformKernel.healthy
                 ? "platform-kernel-unhealthy"
-                : signals.status === "critical"
-                  ? "operational-signals-critical"
-                  : linxupFallbackActive
-                    ? "degraded-linxup-v3-fallback"
-                    : signals.status === "warn"
-                      ? "degraded-operational-signals"
-                      : monitorsCurrentDate ? "healthy" : "available",
+                : linxupFallbackActive
+                  ? "degraded-linxup-v3-fallback"
+                  : monitorsCurrentDate ? "healthy" : "available",
         runtime,
         metricsDate,
         latestMetricsDate,
@@ -234,9 +229,13 @@ export async function GET(request: Request) {
         linxupDeliveryMode,
         linxupFallbackActive,
         linxupPushQueue: linxupPushQueueStatus(linxupDataRoot()),
+        // Informational only. Deploy gates and container healthchecks read
+        // `ok` here and must not flap because a truck is dark or a queue is
+        // deep; the operational verdict lives at /api/operational-status.
         signals,
+        operationalStatus: signals.status,
         blocking: signals.blocking,
-        degraded: linxupFallbackActive || signals.status === "warn",
+        degraded: linxupFallbackActive,
         junkwareScheduleUpdatedAt: junkwareSchedule?.updatedAt || null,
         junkwareScheduleAgeSeconds,
         junkwareScheduleStale,

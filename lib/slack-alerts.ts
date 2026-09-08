@@ -1218,7 +1218,15 @@ function collectIncidentAlerts(date: string): SlackOpsAlert[] {
   // which is how Trucks #1 and #7 went unreported for two weeks. Alert on the
   // tracker itself, independent of whether it was scheduled to work.
   if (slackAlertKindEnabled("tracker_silent")) {
+    // A truck already flagged out of service is expected to be quiet; a second
+    // alert saying so is noise on a channel that needs to stay trustworthy.
+    const outOfService = new Set(
+      readFleetIssueStore().issues
+        .filter((issue) => issue.severity === "out_of_service" && issue.status !== "resolved")
+        .map((issue) => normalizeSlackTruckNumber(issue.truck)),
+    );
     for (const tracker of gpsCoverageSignal(date).silentTrackers) {
+      if (outOfService.has(normalizeSlackTruckNumber(tracker.truck))) continue;
       if ((tracker.daysSilent ?? 0) >= trackerSilentThresholdDays()) {
         alerts.push(trackerSilentAlert(tracker));
       }

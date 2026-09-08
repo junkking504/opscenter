@@ -43,17 +43,19 @@ rotate_logs() {
     note "rotate  $(human "$size")  $log"
     reclaimed=$(( reclaimed + size ))
     if (( APPLY )); then
-      # Rotate in place: copy-truncate keeps the writing process's fd valid, so
-      # long-running collectors do not need a restart.
+      # Shift existing generations down before creating a new one, oldest first,
+      # then drop anything past LOG_KEEP.
+      rm -f "$log.$LOG_KEEP.gz"
+      local generation=$(( LOG_KEEP - 1 ))
+      while (( generation >= 1 )); do
+        [[ -f "$log.$generation.gz" ]] && mv -f "$log.$generation.gz" "$log.$(( generation + 1 )).gz"
+        generation=$(( generation - 1 ))
+      done
+      # Copy-truncate keeps the writing process's fd valid, so long-running
+      # collectors do not need a restart.
       cp "$log" "$log.1"
       : > "$log"
       gzip -f "$log.1"
-      # Trim old generations.
-      local generation=$(( LOG_KEEP + 1 ))
-      while [[ -f "$log.$generation.gz" ]]; do
-        rm -f "$log.$generation.gz"
-        generation=$(( generation + 1 ))
-      done
     fi
   done < <(find "$dir" -maxdepth 2 -type f -name '*.log' -print0)
 }

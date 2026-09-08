@@ -196,7 +196,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const selectTruck = (truck: string) => { if (operationBusyRef.current) return; setScope('ALL'); setFilter('all'); setSearchQuery(''); setSelectedId(null); setSelectedTruck(truck); setMapResetKey(key => key + 1); setShowMap(true); };
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape' || event.defaultPrevented || operationBusyRef.current || document.querySelector('[role="dialog"]') || (event.target as HTMLElement).closest('input,textarea,select')) return;
+      if (event.key !== 'Escape' || event.defaultPrevented || operationBusyRef.current || [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].some(dialog => dialog.getClientRects().length > 0) || (event.target as HTMLElement).closest('input,textarea,select')) return;
       setScope('ALL'); setFilter('all'); setSearchQuery(''); setSelectedId(null); setSelectedTruck(null); setMapResetKey(key => key + 1);
     };
     window.addEventListener('keydown', escape);

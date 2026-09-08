@@ -1,5 +1,31 @@
 # Schedule and Finance presentation
 
+## Appointment Search Across Dates
+
+Desktop launcher search includes all collected JunkWare Schedule dates rather
+than the last 30 metrics dates up to the selected day. **All** is the default;
+**Upcoming** includes today onward in America/Chicago, and **Past** means before
+today. The selected operating day still supplies Krewe and Fleet results.
+
+Dates are discovered from canonical raw/CSV, verified fast/requested, and
+market-watcher filenames. Appointment results use `readJobRows`, preserving
+Schedule source precedence, cancellations, and distinct appointment identities.
+A file name alone does not establish coverage: rows or a verified observation
+are required. Search does not request new JunkWare collection or modify bookings.
+
+Results show customer/JK, date, time, category, source status, and truck, with
+exact date plus appointment-ID links. Same-JK appointments stay separate.
+Coverage identifies the collected date range, warns of unloaded dates, and
+does not imply a new live vendor search. A 15-second process cache bounds repeated
+index reads; source timestamps and missing-data states remain Schedule's concern.
+
+Ten appointment results load initially; Show More adds 20, up to 100, followed
+by an explicit refine-search message. Loading, unavailable, and no-match states
+are distinct. Aborted/older responses cannot overwrite a newer query or filter.
+`npm run verify:global-search` covers ranking, dates and identities;
+`node scripts/test-search-dates-browser.mjs` uses synthetic browser fixtures on
+port 3148 via `desktop-ui/tests/duplicates.vite.config.ts`.
+
 Schedule divides desktop space equally between geography and the truck timeline.
 Below 900px it stacks the panels to retain readable appointment blocks. Completed
 appointment map pins use a check; cancellations use an X, retaining territory

@@ -1,0 +1,14 @@
+.search-date-toolbar { padding: 10px 14px; border-bottom: 1px solid #d9ded9; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.search-date-toolbar > span { font-size: 13px; font-weight: 700; }
+.search-date-toolbar [role="group"] { display: flex; gap: 3px; border: 1px solid #d3d9d4; border-radius: 7px; padding: 3px; background: #eef1ee; }
+.search-date-toolbar button { min-width: 76px; min-height: 32px; border: 0; border-radius: 5px; padding: 5px 10px; background: transparent; font-size: 13px; color: #46514a; }
+.search-date-toolbar button[aria-pressed="true"] { background: #242a2d; color: white; font-weight: 700; }
+.search-date-toolbar small { flex-basis: 100%; font-size: 12px; color: #66716a; }
+.cross-date-search .global-search-group > div > button { grid-template-columns: minmax(0,1fr) 16px; }
+.cross-date-search .global-search-group > div > button > div { min-width: 0; display: grid; gap: 4px; }
+.cross-date-search .global-search-group strong { font-size: 13px; }
+.cross-date-search .global-search-group span { font-size: 12px; overflow-wrap: anywhere; }
+.cross-date-search .global-search-group small { font-size: 11px; color: #66716a; }
+.cross-date-search .global-search-results-body > p { font-size: 13px; margin: 10px 7px; line-height: 1.45; }
+.cross-date-search .global-search-results-body > p.search-coverage { font-size: 12px; color: #66716a; }
+.search-show-more { width: 100%; min-height: 34px; background: white; border: 1px solid #ccd3cd; border-radius: 6px; font-size: 13px; }

@@ -1,6 +1,10 @@
 import { buildFleetMapPayload } from "@/lib/fleet-map";
-import { availableDates, crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
+import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
 import { crewMemberHref, fleetTruckHref, jobScheduleHref } from "@/lib/related-record-links";
+import fs from 'node:fs';
+import path from 'node:path';
+import {readJobRows,junkwareScheduleUpdatedAt} from './desktop-schedule-source';
+import {chicagoDateKey} from './report-dates';
 
 export type GlobalSearchResultType = "job" | "crew" | "truck";
 
@@ -12,9 +16,10 @@ export type GlobalSearchResult = {
   source: string;
   href: string;
   searchText: string;
+  appointmentDate?: string;
 };
 
-const RECENT_JOB_DATES = 30;
+export type AppointmentSearchScope = 'all'|'upcoming'|'past';
 const RESULTS_PER_TYPE = 5;
 
 function text(value: unknown): string {
@@ -66,29 +71,31 @@ export function searchGlobalIndex(
     });
 }
 
-function jobResult(row: AnyRecord, date: string): GlobalSearchResult | null {
-  const appointmentId = first(row, ["appt_id", "appointment_id"]);
-  const jkNumber = first(row, ["job_id", "jk_number", "job_number"]);
-  const customer = first(row, ["customer_name", "customer", "name"]);
+export function jobResult(row: AnyRecord, date: string): GlobalSearchResult | null {
+  const appointmentId = first(row, ["appointmentId", "appt_id", "appointment_id"]);
+  const jkNumber = first(row, ["jkNumber", "job_id", "jk_number", "job_number"]);
+  const customer = first(row, ["customerName", "customer_name", "customer", "name"]);
   if (!appointmentId && !jkNumber && !customer) return null;
   const phone = first(row, ["customer_phone", "phone"]);
   const address = first(row, ["service_address", "address"]);
-  const time = first(row, ["appointment_time", "time"]);
+  const time = first(row, ["appointmentTime", "appointment_time", "time"]);
   const status = first(row, ["job_status", "appointment_status", "status"]);
   const truck = first(row, ["truck", "assigned_truck", "truck_number"]);
   const driver = first(row, ["driver_normalized_name", "driver_name", "driver"]);
   const navigator = first(row, ["navigator_normalized_name", "navigator_name", "navigator"]);
   const title = customer && jkNumber ? `${customer} · ${jkNumber}` : customer || jkNumber || `Appointment ${appointmentId}`;
-  const detail = [date, time, status, truck].filter(Boolean).join(" · ");
+  const category=first(row,['appointmentType','appointment_type']);
+  const detail = [date, time || 'Time Unavailable', category, status || 'Status Unavailable', truck || 'Unassigned'].filter(Boolean).join(" · ");
   const routeQuery = jkNumber || customer || appointmentId;
   return {
     id: `job:${date}:${appointmentId || jkNumber || customer}`,
     type: "job",
+    appointmentDate: date,
     title,
     subtitle: detail,
     source: "JunkWare appointment",
     href: jobScheduleHref(date, routeQuery, appointmentId),
-    searchText: [title, phone, address, status, truck, driver, navigator, appointmentId].join(" "),
+    searchText: [title, date, phone, phone.replace(/\D/g,''), address, status, truck, driver, navigator, appointmentId].join(" "),
   };
 }
 
@@ -108,14 +115,30 @@ function crewResult(row: AnyRecord, date: string): GlobalSearchResult | null {
   };
 }
 
+export function orderSearchDates(dates:string[],today:string) {
+  const valid=[...new Set(dates)].filter(date=>/^\d{4}-\d{2}-\d{2}$/.test(date)&&Number.isFinite(Date.parse(date))&&new Date(date+'T12:00:00Z').toISOString().slice(0,10)===date);
+  return [...valid.filter(date=>date>=today).sort(),...valid.filter(date=>date<today).sort().reverse()];
+}
+export function availableScheduleSearchDates(dataDir=process.env.OPSBOT_DATA_DIR||path.join(process.env.HOME||'','.openclaw','workspace','opsbot','data')) {
+  const directory=path.join(dataDir,'history','junkware'),dates=new Set<string>();
+  const scan=(dir:string)=>{try{for(const file of fs.readdirSync(dir)){
+    const match=file.match(/^junkware_(?:(?:live|completed)_(\d{4}-\d{2}-\d{2})_summary\.csv|schedule_(?:fast|requested)_(\d{4}-\d{2}-\d{2})\.json|(\d{4}-\d{2}-\d{2})_raw\.json)$/);
+    if(match)dates.add(match[1]||match[2]||match[3]);
+  }}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}};
+  scan(directory);for(const market of ['352','477','399','484'])scan(path.join(directory,'schedule-watchers',market));
+  return [...dates];
+}
+let appointmentsCache:{at:number;today:string;dates:string[];rows:GlobalSearchResult[]}|null=null;
+function appointmentIndex(today:string){
+  if(appointmentsCache?.today===today&&Date.now()-appointmentsCache.at<15000)return appointmentsCache;
+  const candidates=orderSearchDates(availableScheduleSearchDates(),today),dates:string[]=[];
+  // Use Schedule's normalized JunkWare records; metrics do not establish coverage.
+  const rows=candidates.flatMap(date=>{const jobs=readJobRows(date);if(jobs.length||junkwareScheduleUpdatedAt(date))dates.push(date);return jobs.flatMap(row=>jobResult(row,date)||[]);});
+  return appointmentsCache={at:Date.now(),today,dates,rows};
+}
 export function buildGlobalSearchIndex(date: string): GlobalSearchResult[] {
   const currentMetrics = readMetrics(date);
-  const jobDates = availableDates().filter((candidate) => candidate <= date).slice(0, RECENT_JOB_DATES);
-  const jobs = jobDates.flatMap((jobDate) => {
-    const metrics = readMetrics(jobDate);
-    const appointments = Array.isArray(metrics?.appointments) ? metrics.appointments : [];
-    return appointments.flatMap((row: AnyRecord) => jobResult(row, jobDate) || []);
-  });
+  const jobs = appointmentIndex(chicagoDateKey()).rows;
 
   const crew = crewRows(currentMetrics).flatMap((row) => crewResult(row, date) || []);
   const fleet = buildFleetMapPayload(date);
@@ -132,6 +155,16 @@ export function buildGlobalSearchIndex(date: string): GlobalSearchResult[] {
   return [...trucks, ...crew, ...jobs];
 }
 
-export function buildGlobalSearchResults(query: string, date: string): GlobalSearchResult[] {
-  return searchGlobalIndex(buildGlobalSearchIndex(date), query);
+export function scopeSearchResults(index:GlobalSearchResult[],scope:AppointmentSearchScope,today:string){
+  return index.filter(result=>result.type!=='job'||scope==='all'||Boolean(result.appointmentDate&&(scope==='upcoming'?result.appointmentDate>=today:result.appointmentDate<today)));
+}
+export function buildGlobalSearchResults(query: string, date: string,scope:AppointmentSearchScope='all'): GlobalSearchResult[] {
+  return searchGlobalIndex(scopeSearchResults(buildGlobalSearchIndex(date),scope,chicagoDateKey()), query);
+}
+export function buildGlobalSearchResponse(query:string,date:string,scope:AppointmentSearchScope='all',limit=10){
+  const today=chicagoDateKey(),ranked=searchGlobalIndex(scopeSearchResults(buildGlobalSearchIndex(date),scope,today),query,Infinity);
+  const jobs=ranked.filter(row=>row.type==='job'),others=ranked.filter(row=>row.type!=='job');
+  const visible=new Set([...jobs.slice(0,limit),...others.filter((row,index)=>others.slice(0,index).filter(other=>other.type===row.type).length<5)].map(row=>row.id));
+  const dates=appointmentIndex(today).dates.filter(date=>scope==='all'||(scope==='upcoming'?date>=today:date<today)).sort();
+  return {results:ranked.filter(row=>visible.has(row.id)),appointmentTotal:jobs.length,hasMore:jobs.length>limit,today,coverage:{dateCount:dates.length,from:dates[0]||null,to:dates.at(-1)||null}};
 }

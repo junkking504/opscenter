@@ -47,7 +47,7 @@ assert.equal(completedAlert.facts.find(f=>f.label==='Time on site')?.value,'15m 
 assert.equal(completedAlert.timestamp,new Date(exited.occurred_at).toISOString());
 assert.equal(completedAlert.id,geofenceEntries(date,[entered])[0].id,'Departure keeps the entry review identity');
 assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered]),visits).length,1,'Departure upgrades entry to one overall visit card');
-assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered]),[])[0].label,'Geofence Entry','Open visits still alert on entry');
+assert.equal(geofenceTimelineAlerts(date,geofenceEntries(date,[entered]),[])[0].label,'Geofence','Open visits still alert on entry');
 const review={entity:{id:completedAlert.id},status:'acknowledged',version:1} as WorkItem;
 assert.equal(commandAlertWorkItemForSource([review],completedAlert),review);
 const laterVisit=geofenceVisits(date,[entered,exited,row('Gentilly','2026-09-06T19:00:00Z'),row('Gentilly','2026-09-06T19:30:00Z',{alert_type:'GEOFENCE_EXITED'})]);

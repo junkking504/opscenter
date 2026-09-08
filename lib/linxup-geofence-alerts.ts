@@ -3,6 +3,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import type {OperationalAlert} from './operational-alert-presentation';
 import type {TruckLoadEvent} from './truck-load-status';
+import {geofenceOnsiteSummary} from './geofence-alert-summary';
 
 type SourceRow = Record<string, unknown>;
 export type GeofenceEntry = {
@@ -58,9 +59,10 @@ export function readGeofenceEntries(date: string) {
 
 export function geofenceOperationalAlert(entry: GeofenceEntry, date: string): OperationalAlert {
   const detected = new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}).format(new Date(entry.timestamp));
-  return {id:entry.id,timestamp:entry.timestamp,label:'Geofence Entry',source:'LinxUp',domain:'Fleet',truck:entry.truck,
-    detected,title:`${entry.truck} · ${entry.name}`,owner:'Fleet',needsAction:false,
-    facts:[{label:'Location',value:entry.name},{label:'Facility',value:entry.facility},{label:'Entered',value:detected},
+  return {id:entry.id,timestamp:entry.timestamp,label:'Geofence',source:'LinxUp',domain:'Fleet',truck:entry.truck,
+    detected,title:`${entry.truck} - ${entry.name}`,owner:'Fleet',needsAction:false,
+    facts:[{label:'Onsite',value:geofenceOnsiteSummary('Pending',entry.timestamp,null)},
+      {label:'Location',value:entry.name},{label:'Facility',value:entry.facility},{label:'Entered',value:detected},
       {label:'Truck load',value:entry.resetLocation ? 'Reset to empty on entry' : 'Unchanged'}],
     next:entry.resetLocation ? 'Truck assumed empty on entry. Later completed jobs add to the load.' : 'Location update only; truck load is unchanged.',
     href:`/desktop?workspace=Fleet&date=${encodeURIComponent(date)}&truck=${encodeURIComponent(entry.truck.replace('Truck ','Truck# '))}`};
@@ -120,10 +122,12 @@ const siteDuration=(seconds:number)=>{
 };
 export function geofenceVisitAlert(visit:GeofenceVisit,date:string):OperationalAlert {
   const time=(stamp:string)=>new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',second:'2-digit'}).format(new Date(stamp));
-  return {id:visit.id,timestamp:visit.departedAt,label:'Site Visit Completed',source:'LinxUp',domain:'Fleet',truck:visit.truck,
+  const duration=visit.durationSeconds===null?'Unavailable · entry not confirmed':siteDuration(visit.durationSeconds);
+  return {id:visit.id,timestamp:visit.departedAt,label:'Geofence',source:'LinxUp',domain:'Fleet',truck:visit.truck,
     detected:new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}).format(new Date(visit.departedAt)),
-    title:`${visit.truck} · ${visit.name}`,owner:'Fleet',needsAction:false,
-    facts:[{label:'Time on site',value:visit.durationSeconds===null?'Unavailable · entry not confirmed':siteDuration(visit.durationSeconds)},
+    title:`${visit.truck} - ${visit.name}`,owner:'Fleet',needsAction:false,
+    facts:[{label:'Onsite',value:geofenceOnsiteSummary(duration,visit.enteredAt,visit.departedAt)},
+      {label:'Time on site',value:duration},
       {label:'Arrived',value:visit.enteredAt?time(visit.enteredAt):'Entry not confirmed'},
       {label:'Departed',value:time(visit.departedAt)},{label:'Location',value:visit.name}],
     next:visit.durationSeconds===null?'Departure recorded; a matching entry is unavailable or ambiguous.':'Completed visit duration from LinxUp entry and exit events.',

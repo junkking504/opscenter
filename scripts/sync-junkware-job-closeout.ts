@@ -1,4 +1,5 @@
 import { clickWithWebFormsCompletion, selectWithWebFormsPostback } from './junkware-webforms';
+import { CloseoutNotAppliedError, saveAndVerifyCloseout } from '../lib/closeout-save-verification';
 import { closeoutSourceVersion, verifyCloseoutFields, verifyAddedCloseoutCharges } from '../lib/desktop-closeout-contract';
 import { classificationCompletionTimeWarning, parseClassificationChange, verifyClassificationChange, type ClassificationChange } from '../lib/appointment-classification';
 import { execFileSync } from "node:child_process";
@@ -183,13 +184,7 @@ function cleanCount(value: unknown): string {
 }
 
 async function selectWithPostback(page: Page, selector: string, value: string): Promise<void> {
-  const control = page.locator(selector);
-  if (!(await control.count())) throw new Error(`A JunkWare closeout control is unavailable (${selector}).`);
-  if (await control.inputValue() === value) return;
-  await Promise.all([
-    page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
-    control.selectOption(value),
-  ]);
+  await selectWithWebFormsPostback(page, selector, value, 'the closeout selection');
 }
 
 async function selectWithoutPostback(page: Page, selector: string, value: string): Promise<void> {
@@ -290,26 +285,26 @@ async function applyCloseout(page: Page, input: CloseoutInput, before: Record<st
     if (!selected) throw new Error('The selected JunkWare appointment category is unavailable.');
     await selectWithPostback(page, '#ctl00_Content_AppointmentTypeDD', selected.value);
   }
-  await selectWithoutPostback(page, "#ctl00_Content_StatusDD", "8");
-
   const currentNavigatorCount = await page.locator('select[id*="AppointmentTechniciansLV"][id$="NavigatorDD"]').count();
-  if (currentNavigatorCount !== input.navigatorIds.length) {
-    await fill(page, "#ctl00_Content_AdditionalNavigatorsTB", String(input.navigatorIds.length));
+  // JunkWare keeps one blank placeholder when no navigator is assigned.
+  const requestedNavigatorRows = Math.max(1, input.navigatorIds.length);
+  if (currentNavigatorCount !== requestedNavigatorRows) {
+    await fill(page, "#ctl00_Content_AdditionalNavigatorsTB", String(requestedNavigatorRows));
     // JunkWare can apply this as an ASP.NET partial postback. Waiting only for
     // a full navigation leaves a closeout blocked for 90 seconds when removing
     // its default empty navigator row.
     await clickWithWebFormsCompletion(page, "#ctl00_Content_AdditionalNavigatorsBtn", "the navigator count update");
     const updatedNavigatorCount = await page.locator('select[id*="AppointmentTechniciansLV"][id$="NavigatorDD"]').count();
-    if (updatedNavigatorCount !== input.navigatorIds.length) throw new Error("JunkWare did not apply the requested navigator count.");
+    if (updatedNavigatorCount !== requestedNavigatorRows) throw new Error("JunkWare did not apply the requested navigator count.");
   }
 
   const driver = page.locator("#ctl00_Content_DriverDD");
   if (!(await driver.count())) throw new Error("The JunkWare driver control is unavailable.");
   await selectWithoutPostback(page, "#ctl00_Content_DriverDD", input.driverId);
 
-  for (let index = 0; index < input.navigatorIds.length; index += 1) {
+  for (let index = 0; index < requestedNavigatorRows; index += 1) {
     const selector = `#ctl00_Content_AppointmentTechniciansLV_ctrl${index}_NavigatorDD`;
-    await selectWithoutPostback(page, selector, input.navigatorIds[index]);
+    await selectWithoutPostback(page, selector, input.navigatorIds[index] || '');
   }
 
   await fill(page, "#ctl00_Content_LoadSizeTruckQtyTB", input.loadQuantity);
@@ -334,10 +329,7 @@ async function applyCloseout(page: Page, input: CloseoutInput, before: Record<st
       await fill(page, "#ctl00_Content_OCQtyTB", charge.quantity);
       await fill(page, "#ctl00_Content_OCPriceTB", charge.price);
     }
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
-      page.locator("#ctl00_Content_OCAddBtn").click(),
-    ]);
+    await clickWithWebFormsCompletion(page, '#ctl00_Content_OCAddBtn', 'the additional charge');
     const [savedCharge] = verifyAddedCloseoutCharges(await capture(page), beforeCharge, [charge], true);
     if (isPercentage) charge.sourceCalculatedPrice = String(savedCharge.price ?? "");
   }
@@ -345,25 +337,18 @@ async function applyCloseout(page: Page, input: CloseoutInput, before: Record<st
   if (input.addPayment?.methodId && input.addPayment.amount) {
     await selectWithPostback(page, "#ctl00_Content_PaymentMethodDD", input.addPayment.methodId);
     await fill(page, "#ctl00_Content_PaymentAmountTB", input.addPayment.amount);
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
-      page.locator("#ctl00_Content_AddPaymentBtn").click(),
-    ]);
+    await clickWithWebFormsCompletion(page, '#ctl00_Content_AddPaymentBtn', 'the payment entry');
   }
 
   // Capture final provider-calculated prices after all added charges/payment postbacks.
   const stagedCharges = verifyAddedCloseoutCharges(await capture(page), before, input.otherChargesToAdd, true);
   input.otherChargesToAdd.forEach((charge, index) => { if (charge.typeValue.split("|")[2] === "1") charge.sourceCalculatedPrice = String(stagedCharges[index].price ?? ""); });
-  const submit = async (selector: string, eventTarget: string, description: string) => {
-    const response = page.waitForResponse((value) => value.request().method() === 'POST'
-      && new URL(value.url()).pathname.toLowerCase() === '/franchise/appointment.aspx'
-      && new URLSearchParams(value.request().postData() || '').get('__EVENTTARGET') === eventTarget, { timeout: 30_000 })
-      .then(async (value) => { await value.finished(); return value.ok(); }, () => false);
+  const submit = async (selector: string, description: string) => {
     await clickWithWebFormsCompletion(page, selector, description);
-    if (!await response) throw new Error(`JunkWare did not confirm ${description}.`);
-    await page.waitForLoadState('networkidle', { timeout: 15_000 });
   };
-  await submit('#ctl00_Content_SaveAppointmentBtn', 'ctl00$Content$SaveAppointmentBtn', 'the closeout save');
+  // Dependent postbacks can reset status. Stage completion only after them.
+  await selectWithoutPostback(page, '#ctl00_Content_StatusDD', '8');
+  await submit('#ctl00_Content_SaveAppointmentBtn', 'the closeout save');
   // JunkWare opens a second form for completed estimates. The first save only
   // presents that form; it does not complete the appointment yet.
   if (await page.locator('#ctl00_Content_UENoteOkBtn').isVisible()) {
@@ -377,7 +362,7 @@ async function applyCloseout(page: Page, input: CloseoutInput, before: Record<st
     }
     const sendPictures = page.locator('#ctl00_Content_SendPicturesCB');
     if (await sendPictures.count()) await sendPictures.evaluate((node) => { (node as HTMLInputElement).checked = false; });
-    await submit('#ctl00_Content_UENoteOkBtn', 'ctl00$Content$UENoteOkBtn', 'the estimate outcome save');
+    await submit('#ctl00_Content_UENoteOkBtn', 'the estimate outcome save');
   }
 }
 
@@ -507,7 +492,20 @@ async function main(): Promise<void> {
     const classification = mode === 'classify' ? parseClassificationChange(JSON.parse(Buffer.from(argument('payload-base64'),'base64url').toString('utf8'))) : null;
     const before = input || classification ? await capture(page) : undefined;
     if (input?.expectedSourceVersion && before && closeoutSourceVersion(before) !== input.expectedSourceVersion) { failureCode = 'source_version_conflict'; throw new Error('This JunkWare closeout changed. Reload and review it before saving.'); }
-    if (input) { writeStarted = true; await applyCloseout(page, input, before!); }
+    if (input) {
+      if (!before?.truck) { failureCode = 'completion_truck_required'; throw new Error('Assign a truck in JunkWare before closing this appointment.'); }
+      writeStarted = true;
+      try {
+        await saveAndVerifyCloseout(before!, () => applyCloseout(page, input, before!), async () => {
+          await ensureAuthenticated(page, targetUrl);
+          return capture(page);
+        }, persisted => { verifyCloseout(persisted, input); verifyCloseoutFields(persisted, input, before); verifyEstimateOutcome(persisted, before!, input); });
+      }
+      catch (error) {
+        if (error instanceof CloseoutNotAppliedError) { writeStarted = false; failureCode = 'source_closeout_not_applied'; }
+        throw error;
+      }
+    }
     if (classification && before) {
       if (closeoutSourceVersion(before) !== classification.expectedSourceVersion) {failureCode='source_version_conflict';throw new Error('This JunkWare appointment changed. Reload and review it before saving.');}
       await applyClassification(page,classification,before);

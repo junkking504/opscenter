@@ -3,10 +3,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import type { DesktopAppointment } from '@/lib/desktop-schedule';
-import { withJobRouteAssignmentSyncLock } from '@/lib/job-route-assignments';
+import { withScheduleOperationLock } from '@/lib/job-route-assignments';
+import { closeoutSourceVersion } from '@/lib/desktop-closeout-contract';
 
 export type ScheduleOperation = { requestId: string; date: string; recordId: string; expectedVersion: string; action: 'move' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify'; values: Record<string, unknown> };
-export type ScheduleReceipt = { requestId: string; actor: string; action: ScheduleOperation['action']; recordId: string; date: string; fingerprint: string; status: 'pending' | 'verified' | 'failed' | 'uncertain'; updatedAt: string; message: string; sourceResult?: Record<string, unknown> };
+export type ScheduleReceipt = { requestId: string; actor: string; action: ScheduleOperation['action']; recordId: string; date: string; fingerprint: string; expectedCloseoutSourceVersion?: string; status: 'pending' | 'verified' | 'failed' | 'uncertain'; updatedAt: string; message: string; sourceResult?: Record<string, unknown>; priorResult?: { status: string; message: string; updatedAt: string } };
 const directory = () => process.env.OPSCENTER_DESKTOP_OPERATIONS_DIR || path.join(process.cwd(), 'data', 'desktop-operations');
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export function parseScheduleOperation(value: unknown): ScheduleOperation {
@@ -69,7 +70,7 @@ async function writeReceipt(receipt: ScheduleReceipt) {
   await fs.rename(temporary, target);
 }
 export async function executeScheduleOperation(operation: ScheduleOperation, actor: string, load: () => DesktopAppointment | undefined, run: (job: DesktopAppointment) => Promise<{ status: number; body: Record<string, unknown> }>): Promise<ScheduleReceipt> {
-  return withJobRouteAssignmentSyncLock(async () => {
+  return withScheduleOperationLock(`request-${operation.requestId}`, () => withScheduleOperationLock(`appointment-${operation.recordId.split(':appointment:')[1]}`, async () => {
     const fingerprint = createHash('sha256').update(JSON.stringify(operation)).digest('hex');
     const existing = await readScheduleReceipt(operation.requestId);
     if (existing) {
@@ -86,6 +87,7 @@ export async function executeScheduleOperation(operation: ScheduleOperation, act
     if (/complete|closed/i.test(job.status) && !['note', 'closeout', 'classify'].includes(operation.action)) throw new Error('Closed appointments cannot be changed through dispatch controls.');
     if (operation.action === 'move' && job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified') throw new Error('This appointment has an unverified change to its assignment. Verify it in JunkWare before another move.');
     let receipt: ScheduleReceipt = { requestId: operation.requestId, actor, action: operation.action, date: operation.date, recordId: operation.recordId, fingerprint, status: 'pending', updatedAt: new Date().toISOString(), message: 'Source verification in progress. Do not submit another change.' };
+    if (operation.action === 'closeout') receipt.expectedCloseoutSourceVersion = String(operation.values.expectedSourceVersion);
     await writeReceipt(receipt);
     try {
       const result = await run(job);
@@ -97,5 +99,24 @@ export async function executeScheduleOperation(operation: ScheduleOperation, act
     }
     await writeReceipt(receipt);
     return receipt;
+  }));
+}
+
+/** Checking a saved result never replays the write. Only an identical, freshly
+ * reopened source baseline proves that an interrupted closeout was not saved. */
+export async function reconcileCloseoutReceipt(id: string, actor: string, readSource: (appointmentId: string) => Promise<Record<string, unknown>>): Promise<ScheduleReceipt | null> {
+  const initial = await readScheduleReceipt(id);
+  if (!initial || initial.actor !== actor) return null;
+  if (initial.action !== 'closeout' || initial.status !== 'uncertain' || !initial.expectedCloseoutSourceVersion) return initial;
+  return withScheduleOperationLock(`appointment-${initial.recordId.split(':appointment:')[1]}`, async () => {
+    const receipt = await readScheduleReceipt(id);
+    if (!receipt || receipt.status !== 'uncertain') return receipt;
+    let source: Record<string, unknown>;
+    try { source = await readSource(receipt.recordId.split(':appointment:')[1]); }
+    catch { return receipt; } // Source unavailable is not proof of failure.
+    if (closeoutSourceVersion(source) !== receipt.expectedCloseoutSourceVersion) return receipt;
+    const reconciled: ScheduleReceipt = { ...receipt, priorResult: {status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt}, status:'failed', updatedAt:new Date().toISOString(), message:'JunkWare confirms this closeout was not saved. Reload the closeout, review it, and try again.' };
+    await writeReceipt(reconciled);
+    return reconciled;
   });
 }

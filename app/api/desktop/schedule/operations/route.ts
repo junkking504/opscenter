@@ -3,7 +3,9 @@ import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { authorizeOpsRequest } from '@/lib/ops-roles';
 import { readDesktopSchedule } from '@/lib/desktop-schedule';
-import { executeScheduleOperation, parseScheduleOperation, readScheduleReceipt } from '@/lib/desktop-schedule-operations';
+import { executeScheduleOperation, parseScheduleOperation, readScheduleReceipt, reconcileCloseoutReceipt } from '@/lib/desktop-schedule-operations';
+import { withJunkwareAppointmentSyncLock } from '@/lib/job-route-assignments';
+import { junkwareJobCloseout } from '@/lib/junkware-job-closeout';
 import { POST as assign } from '@/app/api/job-route-assignments/route';
 import { POST as cancel } from '@/app/api/job-cancellation/route';
 import { POST as callAhead } from '@/app/api/job-call-ahead/route';
@@ -17,7 +19,12 @@ const sources = { move: ['/api/job-route-assignments', assign], cancel: ['/api/j
 export async function GET(request: Request) {
   const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '');
   if (!actor) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
-  const receipt = await readScheduleReceipt(new URL(request.url).searchParams.get('requestId') || '');
+  const parameters = new URL(request.url).searchParams;
+  const requestId = parameters.get('requestId') || '';
+  const receipt = parameters.get('reconcile') === '1' ? await reconcileCloseoutReceipt(requestId, actor.email, async id => {
+    const result = await withJunkwareAppointmentSyncLock(id, () => junkwareJobCloseout(id));
+    return result.closeout;
+  }) : await readScheduleReceipt(requestId);
   if (!receipt || receipt.actor !== actor.email) return Response.json({ error: 'Change receipt not found.' }, { status: 404, headers });
   return Response.json({ receipt }, { headers });
 }

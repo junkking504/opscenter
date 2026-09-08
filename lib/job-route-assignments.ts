@@ -131,6 +131,13 @@ export async function withJunkwareAppointmentSyncLock<T>(appointmentId: string, 
   return withJunkwareSyncLock(path.join(APPOINTMENT_SYNC_LOCKS_DIRECTORY, `${appointmentId}.lock`), callback);
 }
 
+// Receipt coordination is separate from source synchronization so downstream
+// handlers can take the source lock without reacquiring their own lock.
+export async function withScheduleOperationLock<T>(key: string, callback: () => Promise<T>): Promise<T> {
+  if (!/^(?:appointment-\d{1,12}|request-[0-9a-f-]{36})$/i.test(key)) throw new Error('Invalid schedule operation lock.');
+  return withJunkwareSyncLock(path.join(path.dirname(STORE_FILE), '.schedule-operation-locks', `${key}.lock`), callback);
+}
+
 function emptyStore(): JobRouteAssignmentStore {
   return { version: 1, updatedAt: "", entries: [] };
 }

@@ -1,7 +1,7 @@
 import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { cookies } from "next/headers";
 import { execFileSync } from "node:child_process";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
 import { withJunkwareAppointmentSyncLock } from "@/lib/job-route-assignments";
 import { junkwareJobCloseout, JunkwareCloseoutError } from "@/lib/junkware-job-closeout";
@@ -75,9 +75,11 @@ export async function POST(request: Request) {
     const closeout = result && typeof result === "object" && "closeout" in result && result.closeout && typeof result.closeout === "object"
       ? result.closeout as Record<string, unknown>
       : {};
-    const truckLoadStatus = updateVerifiedCloseoutLoad(String(_serviceDate || ""), id, closeout, String((result as Record<string, unknown>).verifiedAt || ""), authSession.email);
-    const slackNotification = await publishVerifiedCloseout(result as Record<string, unknown>, id);
-    return NextResponse.json({ ...result, truckLoadStatus, slackNotification }, { headers: { "Cache-Control": "no-store, max-age=0" } });
+    let truckLoadStatus;
+    try { truckLoadStatus = updateVerifiedCloseoutLoad(String(_serviceDate || ""), id, closeout, String((result as Record<string, unknown>).verifiedAt || ""), authSession.email); }
+    catch { truckLoadStatus = { updated:false, reason:'Closeout saved; truck load reconciliation is pending.' }; }
+    after(async () => { await publishVerifiedCloseout(result as Record<string, unknown>, id); });
+    return NextResponse.json({ ...result, truckLoadStatus, slackNotification: { status:'pending' } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
     const preflight = error instanceof JunkwareCloseoutError && error.stage === "preflight";
     return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "JunkWare could not save the closeout.", stage: preflight ? "preflight" : "uncertain", code: error instanceof JunkwareCloseoutError ? error.code : "closeout_unavailable" }, { status: preflight ? 409 : 502 });

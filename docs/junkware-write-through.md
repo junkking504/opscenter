@@ -41,6 +41,41 @@ through the same verified path.
 
 ## Current edit paths
 
+### Schedule closeout reliability
+
+Closeout postbacks wait for the matching WebForms POST and completion of the
+ASP.NET partial update. An idle spinner or enabled button is not completion
+evidence. A blank navigator placeholder is retained when no navigator is
+assigned, and completed status is staged after dependent postbacks. A truck
+assignment is required before starting a closeout.
+
+Every closeout save reopens the source appointment, including after a transport
+error, and verifies status, crew, category, amounts, added charges/payments, and
+estimate outcome notes. A matching saved record succeeds without submitting
+twice. An unchanged baseline establishes that the closeout was not applied;
+partial or unreadable results remain uncertain and protected against replay.
+
+Schedule operations have per-request and per-appointment process locks rather
+than one global lock across all appointments. Source-specific locks remain in
+place. The browser submits once and, if the response is lost, checks the durable
+receipt for up to ten minutes from submission. It never automatically retries
+the write. Reopening a closeout surfaces an unresolved receipt for its actor.
+**Check Saved Result** may reopen JunkWare for an uncertain closeout with a stored
+baseline hash. Only an identical baseline releases that receipt as not applied,
+while preserving its original result. Legacy receipts without a baseline and
+partial saves still require source review; age alone never clears them.
+
+Slack closeout publication runs after the verified HTTP response, using the
+existing publication/deduplication path. A truck-load reconciliation failure is
+reported separately and does not turn a verified JunkWare save into a failure.
+
+Regression checks (synthetic, no live source writes):
+
+- `node --import tsx scripts/test-junkware-webforms-completion.ts`
+- `node --import tsx scripts/test-closeout-reliability.ts`
+- `node --import tsx scripts/test-desktop-schedule-operations.ts`
+- `node --import tsx scripts/test-desktop-booking-closeout.ts`
+
 | OpsCenter edit | Source behavior |
 | --- | --- |
 | Appointment creation | Existing JunkWare creation and verification adapter |

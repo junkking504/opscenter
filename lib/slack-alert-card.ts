@@ -4,7 +4,7 @@ export type SlackAlertCardKind = "new-appointment" | "cancellation" | "completed
 
 export type SlackAlertCardPresentation = {
   kind: SlackAlertCardKind;
-  label: "New Appointment" | "Cancellation" | "Completed";
+  label: "New Appointment" | "Cancellation" | "Estimate Completed" | "Job Completed";
   territory: string;
   territoryTone: "new-orleans" | "jefferson" | "westbank" | "east-metro" | "northshore" | "baton-rouge" | "lafayette" | "unknown";
   jobNumber: string;
@@ -47,7 +47,7 @@ function bodyWithoutHeader(lines: string[], jobNumber: string, timeSlot?: string
   let removedTime = !timeSlot;
   return lines.filter((line) => {
     const plain = plainLine(line);
-    if (!removedTitle && /^(?:New Appointment|New same-day appointment|Cancellation|Appointment cancelled|Job Closed|Estimate Closed)\b/i.test(plain)) {
+    if (!removedTitle && /^(?:New Appointment|New same-day appointment|Cancellation|Appointment cancelled|Job (?:Closed|Completed)|Estimate (?:Closed|Completed))\b/i.test(plain)) {
       removedTitle = true;
       return false;
     }
@@ -89,10 +89,13 @@ export function slackAlertCardPresentation(
     "appointmentTime" in source ? source.appointmentTime : "Time unavailable",
   ).trim() || "Time unavailable";
   const lines = slackAlertDisplayLines(message.rawText);
+  const completedLabel = /\bEstimate (?:Closed|Completed)\b/i.test(plainLine(lines[0] || ""))
+    ? "Estimate Completed"
+    : "Job Completed";
 
   return {
     kind,
-    label: kind === "new-appointment" ? "New Appointment" : kind === "cancellation" ? "Cancellation" : "Completed",
+    label: kind === "new-appointment" ? "New Appointment" : kind === "cancellation" ? "Cancellation" : completedLabel,
     territory,
     territoryTone: territoryTone(territory),
     jobNumber: source.jobNumber,

@@ -74,7 +74,7 @@ function classifyAlert(message: SlackDigestMessage, lines: string[]): Pick<Opera
   if (/final(?:ized)? (?:daily )?pay/i.test(heading)) return { label: "Final Daily Pay", domain: "Krewe", owner: "Payroll", next: "Review the recorded final pay breakdown.", needsAction: false };
   if (/fuel|dump|receipt/i.test(heading)) return { label: /fuel/i.test(heading) ? "Fuel Receipt" : /dump/i.test(heading) ? "Dump Receipt" : "Receipt Recorded", domain: "Fleet", owner: "Fleet", next: "Review the recorded receipt.", needsAction: false };
   if (/cancel/i.test(heading)) return { label: "Cancellation", domain: "Schedule", owner: "Dispatch", next: "Review the reason and reuse the open capacity.", needsAction: true };
-  if (/estimate.*closed|closed.*estimate/i.test(heading)) return { label: "Estimate Closed", domain: "Schedule", owner: "Dispatch", next: "Review the estimate outcome and follow-up.", needsAction: true };
+  if (/estimate.*(?:closed|completed)|(?:closed|completed).*estimate/i.test(heading)) return { label: "Estimate Completed", domain: "Schedule", owner: "Dispatch", next: "Review the estimate outcome and follow-up.", needsAction: true };
   if (/depart/i.test(heading)) return { label: "Departure", domain: "Schedule", owner: "Dispatch", next: "Review the next stop and closeout status.", needsAction: false };
   if (/payment recorded/i.test(heading)) return { label: "Payment Recorded", domain: "Finance", owner: "Finance", next: "Await closeout and verify the payment.", needsAction: true };
   if (/on[ -]?site|arriv/i.test(heading)) return { label: "Arrival", domain: "Schedule", owner: "Dispatch", next: "Confirm the route remains on plan.", needsAction: false };
@@ -82,7 +82,7 @@ function classifyAlert(message: SlackDigestMessage, lines: string[]): Pick<Opera
     const needsAction = /not verified|unverified|missing|pending/i.test(text) || !/\bverified\b/i.test(text);
     return { label: "Photos Uploaded", domain: "Schedule", owner: "Dispatch", next: needsAction ? "Verify required closeout photos." : "Complete · No action required.", needsAction };
   }
-  if (/job closed/i.test(heading) || /closed|closeout|payment|total/i.test(text) && message.closeout) return { label: "Job Closed", domain: "Finance", owner: "Finance", next: "Verify totals, payment, and closeout evidence.", needsAction: true };
+  if (/job (?:closed|completed)/i.test(heading) || /closed|completed|closeout|payment|total/i.test(text) && message.closeout) return { label: "Job Completed", domain: "Finance", owner: "Finance", next: "Verify totals, payment, and closeout evidence.", needsAction: true };
   if (/new appointment/i.test(text) || message.appointment) return { label: "New Appointment", domain: "Schedule", owner: "Dispatch", next: "Place the appointment in the live route plan.", needsAction: true };
   if (/fleet|truck/i.test(message.channel)) return { label: "Fleet Update", domain: "Fleet", owner: "Fleet", next: "Review the truck record and required response.", needsAction: true };
   return { label: "Operational Update", domain: "Command", owner: "Mission Control", next: "Review the source record and assign the next action.", needsAction: true };
@@ -205,7 +205,7 @@ export function toOperationalAlert(message: SlackDigestMessage): OperationalAler
     territory: classification.label === "New Appointment"
       ? (sourceTerritory && !/unknown|unavailable/i.test(sourceTerritory) ? sourceTerritory : channelTerritory) || "Territory unavailable"
       : undefined,
-    photos: ["Job Closed", "Estimate Closed"].includes(classification.label) ? message.photos : undefined,
+    photos: ["Job Closed", "Estimate Closed", "Job Completed", "Estimate Completed"].includes(classification.label) ? message.photos : undefined,
     detected: messageTime(message.timestamp),
     title: reference === "Operational alert" ? (crewMember || lines[0] || "Operational Alert") : truck ? `${truck} · ${reference}` : window ? `${reference} · ${window}` : reference,
     facts: factsForAlert(message, lines),

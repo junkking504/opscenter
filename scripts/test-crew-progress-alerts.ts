@@ -55,7 +55,9 @@ const cancellationCard = crewAlertCardPresentation(alert('cancel','Cancellation'
 assert.equal(cancellationCard?.kind,'cancellation');
 assert.equal(cancellationCard?.territory,'Northshore');
 assert.equal(cancellationCard?.territoryTone,'northshore');
-assert.equal(crewAlertCardPresentation(fixture.alerts.find(alert => alert.id === 'closed-one')!,fixture.crewProgress!.jobs[0])?.label,'Completed');
+assert.equal(crewAlertCardPresentation(fixture.alerts.find(alert => alert.id === 'closed-one')!,fixture.crewProgress!.jobs[0])?.label,'Job Completed');
+const estimateJob = {...fixture.crewProgress!.jobs[0],status:'Estimate completed'};
+assert.equal(crewAlertCardPresentation(alert('estimate-closed','Estimate Closed','2026-09-07T14:08:00Z'),estimateJob)?.label,'Estimate Completed');
 const build = (appointments:Parameters<typeof buildCrewProgress>[0]['appointments'], options:Partial<Parameters<typeof buildCrewProgress>[0]> = {}) => buildCrewProgress({date:'2026-09-07',appointments,alerts:[],visits:[],scheduleCurrent:true,visitsCurrent:true,updatesComplete:true,now,...options});
 const step = (snapshot:ReturnType<typeof build>,label:string) => snapshot.jobs[0].steps.find(step => step.label === label)!;
 const stale = build([job()],{scheduleCurrent:false,visitsCurrent:false,updatesComplete:false});

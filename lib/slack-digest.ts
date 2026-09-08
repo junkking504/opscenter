@@ -354,7 +354,7 @@ function closeoutForSlackAlert(
   date: string,
 ): SlackDigestMessage["closeout"] | undefined {
   const plainText = slackTextToPlainText(rawText);
-  const match = plainText.match(/^(?:✅|💰)\s*(?:Job|Estimate) Closed\s*\n(?:Job:\s*)?(JK\d+)/i)
+  const match = plainText.match(/^(?:✅|💰)\s*(?:Job|Estimate) (?:Closed|Completed)\s*\n(?:Job:\s*)?(JK\d+)/i)
     || plainText.match(/^✅\s*(JK\d+)\s+closed out\./i);
   if (!match) return undefined;
   const row = lookup.get(match[1].toLowerCase()) || {};
@@ -519,16 +519,16 @@ export function normalizedLegacyCloseoutDigestText(
   date: string,
 ): string {
   const plainText = slackTextToPlainText(rawText);
-  const legacyMatch = plainText.match(/^(?:✅|💰)\s*(?:Job|Estimate) Closed\s*\n(?:Job:\s*)?(JK\d+)/i)
+  const legacyMatch = plainText.match(/^(?:✅|💰)\s*(?:Job|Estimate) (?:Closed|Completed)\s*\n(?:Job:\s*)?(JK\d+)/i)
     || plainText.match(/^✅\s*(JK\d+)\s+closed out\.?/i);
   if (!legacyMatch) return rawText;
 
   const jobNumber = legacyMatch[1];
   const row = closeouts.get(jobNumber.toLowerCase());
-  const estimate = /^\s*(?:✅|💰)\s*Estimate Closed\b/i.test(plainText);
+  const estimate = /^\s*(?:✅|💰)\s*Estimate (?:Closed|Completed)\b/i.test(plainText);
   if (row) return formatTruckCloseoutSlackNotification(date, row, estimate ? "estimate_closed" : "job_closed") || rawText;
   return [
-    `:moneybag: *${estimate ? "Estimate Closed" : "Job Closed"}*`,
+    `:moneybag: *${estimate ? "Estimate Completed" : "Job Completed"}*`,
     `*<${legacyJobHref(rawText, jobNumber, date)}|${slackEscape(jobNumber)}>*`,
     "*Driver:*",
     "*Navigator:*",
@@ -603,7 +603,7 @@ function digestMessage(
     appointment.items.length ? `Items: ${appointment.items.join("; ")}` : "",
     appointment.nextAction ? `Next: ${appointment.nextAction}` : "",
   ].filter(Boolean).join("\n") : closeout ? [
-    "✅ Job Closed",
+    /^\s*(?:✅|💰)\s*Estimate (?:Closed|Completed)\b/i.test(plainText) ? "✅ Estimate Completed" : "✅ Job Completed",
     `Job: ${closeout.jobNumber}`,
     ...closeout.lines,
   ].join("\n") : plainText;

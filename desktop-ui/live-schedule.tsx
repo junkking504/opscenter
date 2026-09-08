@@ -65,9 +65,8 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [truckMapView, setTruckMapView] = useState<'location' | 'route'>('location');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const mapPanelRef = useRef<HTMLElement>(null);
-  const truckCardRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (selectedTruck && showMap && view === 'board') truckCardRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (selectedTruck && showMap && view === 'board') mapPanelRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [selectedTruck, mapResetKey, showMap, view]);
   useEffect(() => {
     if (selectedId && showMap && view === 'board') mapPanelRef.current?.scrollIntoView({ block: 'nearest' });
@@ -257,7 +256,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
           <div className="map-focus-chip"><span>{filtered ? 'Filtered View' : 'Operating Footprint'}</span><strong>{selected ? `${selected.jkNumber} · ${selected.location ? 'Selected' : 'Verify Address'}` : selectedTruck || (scope === 'ALL' ? 'All Territories' : territoryLabels[scope.split(':')[0]] || scope)}</strong>{(filtered || selectedId || selectedTruck) && <div className="map-focus-actions"><button onClick={reset}>Reset</button></div>}</div>
           <div className="map-operation-summary"><span>{visible.length} appointments</span><span>{visible.filter(job => job.location).length} verified pins</span></div>
         </div>
-          {selectedTruck && <section ref={truckCardRef} className="live-map-truck-details live-map-truck-card" aria-label={`${selectedTruck} details`}>
+          {selectedTruck && <section className="live-map-truck-details live-map-truck-card" aria-label={`${selectedTruck} details`}>
             <header><strong>{selectedTruck}</strong><button aria-label="Clear truck selection" onClick={() => setSelectedTruck(null)}>×</button></header>
             <dl><div><dt>Krewe</dt><dd>{[truckDetails?.driver, truckDetails?.navigator].filter(Boolean).join(' · ') || (truckJobs[0] ? crew(truckJobs[0]) : 'Crew Not Available')}</dd></div><div><dt>Status</dt><dd>{truckDetails?.operationalStatus || 'Not Available'} · {truckDetails?.serviceStatus || 'Service Status Not Available'}</dd></div><div><dt>Truck load</dt><dd>{snapshot.truckLoads?.find(row=>truckLabel(row.truck)===selectedTruck)?.label || 'Load not recorded'}</dd></div><div><dt>GPS</dt><dd>{truckDetails?.lastGpsUpdate ? new Date(truckDetails.lastGpsUpdate).toLocaleString('en-US', { timeZone: 'America/Chicago' }) : 'No GPS Timestamp'} · {truckDetails?.lastGpsUpdate ? truckGpsLabel : 'Position Unavailable'}</dd></div></dl>
 

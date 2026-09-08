@@ -30,7 +30,9 @@ export function buildCrewProgress(input: {
   const matches = (alert: DesktopAlert) => {
     const candidates = jobs.filter(([, job]) => job.jkNumber.toUpperCase() === jk(alert));
     if (candidates.length <= 1) return candidates;
-    if (['Job Closed', 'Estimate Closed'].includes(alert.label)) return candidates.filter(([, job]) => isEstimateAppointment(job.appointmentType) === (alert.label === 'Estimate Closed'));
+    if (['Job Closed', 'Estimate Closed', 'Job Completed', 'Estimate Completed'].includes(alert.label)) {
+      return candidates.filter(([, job]) => isEstimateAppointment(job.appointmentType) === /estimate/i.test(alert.label));
+    }
     return candidates;
   };
   const progressJobs = jobs.map(([id, job]) => {

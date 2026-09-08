@@ -437,9 +437,9 @@
   border-bottom: 1px solid #e8eae7;
 }
 
-.newAppointmentMessage { background-color: rgba(250, 204, 21, 0.5); }
-.cancellationMessage { background-color: rgba(239, 68, 68, 0.5); }
-.completedMessage { background-color: rgba(34, 197, 94, 0.5); }
+.newAppointmentMessage { background-color: rgba(250, 204, 21, 0.25); }
+.cancellationMessage { background-color: rgba(239, 68, 68, 0.25); }
+.completedMessage { background-color: rgba(34, 197, 94, 0.25); }
 
 .digestMessage:last-child { border-bottom: 0; }
 .digestMessage time { padding-top: 1px; color: var(--oc-text-muted); font-size: 0.75rem; font-weight: 800; }
@@ -481,14 +481,14 @@
   line-height: 1.2;
 }
 
-.territoryNewOrleans { background: #60a5fa; }
-.territoryJefferson { background: #2dd4bf; }
-.territoryWestbank { background: #fbbf24; }
-.territoryEastMetro { background: #fde047; }
-.territoryNorthshore { background: #d946ef; }
-.territoryBatonRouge { background: #f87171; }
-.territoryLafayette { background: #00e13c; }
-.territoryUnknown { background: #8b929d; }
+.territoryNewOrleans { background: #b0d2fd; }
+.territoryJefferson { background: #96eadf; }
+.territoryWestbank { background: #fddf92; }
+.territoryEastMetro { background: #fef0a3; }
+.territoryNorthshore { background: #fae8ff; }
+.territoryBatonRouge { background: #fcb8b8; }
+.territoryLafayette { background: #d1f39a; }
+.territoryUnknown { background: #c5c9ce; }
 
 .alertJobLink {
   color: #064f9d;

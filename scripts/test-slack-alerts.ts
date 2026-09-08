@@ -395,7 +395,7 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
       text: [
-        ":moneybag: *Job Closed*",
+        ":moneybag: *Job Completed*",
         "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051000|JK4051000>*",
         "*Closeout Customer*",
         "*Driver:* Driver One",
@@ -416,7 +416,7 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_6",
       text: [
-        ":moneybag: *Job Closed*",
+        ":moneybag: *Job Completed*",
         "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051001|JK4051001>*",
         "*Check Customer*",
         "*Driver:* Driver Six",
@@ -431,7 +431,7 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
       text: [
-        ":moneybag: *Job Closed*",
+        ":moneybag: *Job Completed*",
         "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051003|JK4051003>*",
         "*Payment Customer*",
         "*Driver:* Driver Payment",
@@ -448,7 +448,7 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_4",
       text: [
-        ":moneybag: *Job Closed*",
+        ":moneybag: *Job Completed*",
         "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051005|JK4051005>*",
         "*No Payment Customer*",
         "*Driver:* Driver Four",
@@ -489,7 +489,7 @@ assert.deepEqual(
     kind: "estimate_closed",
     channelId: "C_TEST_TRUCK_6",
     text: [
-      ":moneybag: *Estimate Closed*",
+      ":moneybag: *Estimate Completed*",
       "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051006|JK4051006>*",
       "*Estimate Customer*",
       "*Driver:* Estimate Driver",
@@ -769,7 +769,7 @@ try {
   assert.deepEqual(focusedCloseoutRun.posted.map((alert) => alert.kind), ["job_closed"]);
   assert.deepEqual(postedMessages, [
     [
-      ":moneybag: *Job Closed*",
+      ":moneybag: *Job Completed*",
       "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|JK4051502>*",
       "*New Closeout Customer*",
       "*Driver:* New Driver",
@@ -786,7 +786,7 @@ try {
   assert.deepEqual(focusedEstimateCloseoutRun.posted.map((alert) => alert.kind), ["estimate_closed"]);
   assert.deepEqual(postedMessages, [
     [
-      ":moneybag: *Job Closed*",
+      ":moneybag: *Job Completed*",
       "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|JK4051502>*",
       "*New Closeout Customer*",
       "*Driver:* New Driver",
@@ -798,7 +798,7 @@ try {
         "*Payment:* Check #2201 ($220.00)",
     ].join("\n"),
     [
-      ":moneybag: *Estimate Closed*",
+      ":moneybag: *Estimate Completed*",
       "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051504|JK4051504>*",
       "*New Estimate Customer*",
       "*Driver:* Estimate Driver",
@@ -814,7 +814,7 @@ try {
   assert.deepEqual(deliveryRun.posted.map((alert) => alert.kind), []);
   assert.deepEqual(postedMessages, [
     [
-      ":moneybag: *Job Closed*",
+      ":moneybag: *Job Completed*",
       "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|JK4051502>*",
       "*New Closeout Customer*",
       "*Driver:* New Driver",
@@ -826,7 +826,7 @@ try {
         "*Payment:* Check #2201 ($220.00)",
     ].join("\n"),
     [
-      ":moneybag: *Estimate Closed*",
+      ":moneybag: *Estimate Completed*",
       "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051504|JK4051504>*",
       "*New Estimate Customer*",
       "*Driver:* Estimate Driver",
@@ -876,7 +876,7 @@ try {
   });
   assert.deepEqual(directCloseout, { attempted: true, posted: true, duplicate: false });
   assert.equal(postedMessages.at(-1), [
-    ":moneybag: *Job Closed*",
+    ":moneybag: *Job Completed*",
     "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|JK4051503>*",
     "*Direct Closeout Customer*",
     "*Driver:* Direct Driver",

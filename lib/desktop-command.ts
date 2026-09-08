@@ -101,15 +101,15 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
         const candidates = appointments.filter(job => job.jkNumber.toUpperCase() === reference);
         if (candidates.length === 1 && candidates[0].photos.length) alert = {...alert,photos:candidates[0].photos};
       }
-      if (['Job Closed', 'Estimate Closed'].includes(alert.label)) {
+      if (['Job Closed', 'Estimate Closed', 'Job Completed', 'Estimate Completed'].includes(alert.label)) {
         const jk = alert.title.match(/\bJK\d+\b/i)?.[0]?.toUpperCase();
-        const candidates = appointments.filter(job => job.jkNumber.toUpperCase() === jk && (/estimate/i.test(job.appointmentType) === (alert.label === 'Estimate Closed')));
+        const candidates = appointments.filter(job => job.jkNumber.toUpperCase() === jk && (/estimate/i.test(job.appointmentType) === /estimate/i.test(alert.label)));
         const time = candidates.length === 1 ? appointmentOnsiteTime(candidates[0], visits) : {minutes:null,arrival:null,departure:null,label:'Unavailable · appointment match needed'};
         alert = {...alert, facts:[...alert.facts.filter(f=>!/^On-site time$|^Arrival$|^Departure$/i.test(f.label)), ...onsiteTimeFacts(time)]};
       }
       return {
         ...alert, timestamp: alert.timestamp,
-        priority: ['New Appointment','Arrival','Departure','Duration','Job Closed','Estimate Closed','Photos Uploaded','Payment Recorded','Clock In','Clock Out','Final Daily Pay','Fuel Receipt','Dump Receipt','Receipt Recorded'].includes(alert.label) ? 'watch' : alert.needsAction ? 'warning' : 'watch',
+        priority: ['New Appointment','Arrival','Departure','Duration','Job Closed','Estimate Closed','Job Completed','Estimate Completed','Photos Uploaded','Payment Recorded','Clock In','Clock Out','Final Daily Pay','Fuel Receipt','Dump Receipt','Receipt Recorded'].includes(alert.label) ? 'watch' : alert.needsAction ? 'warning' : 'watch',
         detail: '', source: alert.source || 'Slack', action: 'Open Source', context: alert.next,
         workflowState: commandAlertState(action), version: action?.version || 0, actionId: action?.id,
       };

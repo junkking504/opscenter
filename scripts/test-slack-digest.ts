@@ -27,9 +27,9 @@ async function main() {
   assert.match(clientSource, /tel:/);
   assert.match(clientSource, /slackAlertCardPresentation\(message\)/);
   const cssSource = fs.readFileSync(new URL("../components/CommandBrief.module.css", import.meta.url), "utf8");
-  assert.match(cssSource, /\.newAppointmentMessage\s*\{\s*background-color:\s*rgba\(250, 204, 21, 0\.5\)/);
-  assert.match(cssSource, /\.cancellationMessage\s*\{\s*background-color:\s*rgba\(239, 68, 68, 0\.5\)/);
-  assert.match(cssSource, /\.completedMessage\s*\{\s*background-color:\s*rgba\(34, 197, 94, 0\.5\)/);
+  assert.match(cssSource, /\.newAppointmentMessage\s*\{\s*background-color:\s*rgba\(250, 204, 21, 0\.25\)/);
+  assert.match(cssSource, /\.cancellationMessage\s*\{\s*background-color:\s*rgba\(239, 68, 68, 0\.25\)/);
+  assert.match(cssSource, /\.completedMessage\s*\{\s*background-color:\s*rgba\(34, 197, 94, 0\.25\)/);
 
   const newAppointmentCard = slackAlertCardPresentation({
     id: "new",
@@ -111,6 +111,7 @@ async function main() {
     },
   });
   assert.equal(completedCard?.kind, "completed");
+  assert.equal(completedCard?.label, "Job Completed");
   assert.equal(completedCard?.territoryTone, "baton-rouge");
   assert.deepEqual(completedCard?.bodyLines, ["*Customer Name*", "*Total:* $248.00"]);
 
@@ -256,7 +257,7 @@ async function main() {
       "2026-08-14",
     ),
     [
-      ":moneybag: *Job Closed*",
+      ":moneybag: *Job Completed*",
       "*<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052579|JK4052579>*",
       "*Legacy Customer*",
       "*Driver:* Legacy Driver",
@@ -278,7 +279,7 @@ async function main() {
       "2026-08-14",
     ),
     [
-      ":moneybag: *Job Closed*",
+      ":moneybag: *Job Completed*",
       "*<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4052999|JK4052999>*",
       "*Driver:*",
       "*Navigator:*",
@@ -306,7 +307,7 @@ async function main() {
       "2026-08-14",
     ),
     [
-      ":moneybag: *Estimate Closed*",
+      ":moneybag: *Estimate Completed*",
       "*<https://ops.junk-king.app/jobs?date=2026-08-14#job-jk4053000|JK4053000>*",
       "*Closed Estimate Customer*",
       "*Driver:* Estimate Driver",
@@ -497,7 +498,7 @@ async function main() {
   }
 
   const estimateClosed = toOperationalAlert({ ...photoDigest.messages[1], rawText: "Estimate Closed\nJK4000001" });
-  assert.equal(estimateClosed.label, "Estimate Closed");
+  assert.equal(estimateClosed.label, "Estimate Completed");
   assert.equal(estimateClosed.photos?.length, 1, "Closed estimates show their matched appointment photos");
   assert.equal(estimateClosed.photos?.[0].category, "After");
   console.log("Slack digest verification passed.");

@@ -3,15 +3,16 @@
 ## Command Slack alert cards
 
 In the OpsCenter Command alert timelines, including desktop Operational Updates
-and the legacy Slack Alerts digest, New Appointment, Cancellation, and Completed
+and the legacy Slack Alerts digest, New Appointment, Cancellation, and completed
 cards use one compact header: event name, territory pill, linked JK number, and
 appointment time slot. The territory pill reuses the Schedule
-territory color with bold black text. New Appointment cards have a 50% yellow
-background, Cancellation cards have a 50% red background, and Completed cards
-have a 50% green background. The alpha applies to the background color only so
+territory hue with a lighter tint and bold black text. New Appointment cards have
+a muted yellow background, Cancellation cards have a muted red background, and
+completed cards have a muted green background. The alpha applies to the background color only so
 the alert text and links remain fully opaque and readable. The JK link opens the
 appointment on the Schedule. This is a presentation rule only; it does not alter
-Slack publishing, delivery fallback, deduplication, channel routing, or cadence.
+delivery fallback, deduplication, channel routing, or cadence. The completion
+titles are shared by the Slack publisher and both OpsCenter alert renderers.
 
 ## Crew progress in Command
 
@@ -143,8 +144,9 @@ Truck channels intentionally contain field execution events, not bookings or sch
 
 OpsCenter-generated alert messages use the same compact scan pattern: an event icon and bold heading,
 followed by one fact per labelled line. Alerts with a follow-up include `Next`
-and an `Open in OpsCenter` link at the end. Closeouts use the fixed `Job Closed`
-heading; the bold linked JK number follows directly, then `Load`, `Labor`, `CC 3%`,
+and an `Open in OpsCenter` link at the end. Job closeouts use the fixed `Job Completed`
+heading, while completed estimates use `Estimate Completed`. In each case, the
+bold linked JK number follows directly, then `Load`, `Labor`, `CC 3%`,
 `Tips`, `Total`, and payment facts as available. Load shows the price before its
 size, a zero-value Tips line remains visibly labelled, and `Card Ending` contains
 only the unbolded last four digits. This
@@ -234,7 +236,7 @@ publisher with distinct visit fingerprints and retry deduplication.
 Within an expanded job history or All updates, Command event facts are visible
 inline. The truck/job card keeps current progress and next action visible before
 opening the history; the condensed duplicate summary is omitted.
-Photos appear only on Job Closed and Estimate Closed alerts, and in the closed
+Photos appear only on Job Completed and Estimate Completed alerts, and in the closed
 appointment’s Schedule record. Source and workflow action buttons remain
 available without expanding an alert.
 

@@ -712,7 +712,7 @@ function closeoutCrewMember(row: AnyRecord, role: "driver" | "navigator"): strin
 type TruckCloseoutAlertKind = "job_closed" | "estimate_closed";
 
 function closeoutAlertTitle(kind: TruckCloseoutAlertKind): string {
-  return kind === "estimate_closed" ? "Estimate Closed" : "Job Closed";
+  return kind === "estimate_closed" ? "Estimate Completed" : "Job Completed";
 }
 
 export function formatTruckCloseoutSlackNotification(

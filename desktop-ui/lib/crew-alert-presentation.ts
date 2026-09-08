@@ -3,7 +3,7 @@ import type { DesktopAlert } from './live-contract';
 
 export type CrewAlertCardPresentation = {
   kind: 'new-appointment' | 'cancellation' | 'completed';
-  label: 'New Appointment' | 'Cancellation' | 'Completed';
+  label: 'New Appointment' | 'Cancellation' | 'Estimate Completed' | 'Job Completed';
   territory: string;
   territoryTone: 'new-orleans' | 'jefferson' | 'westbank' | 'east-metro' | 'northshore' | 'baton-rouge' | 'lafayette' | 'unknown';
   jobNumber: string;
@@ -31,7 +31,7 @@ export function crewAlertCardPresentation(
     ? 'new-appointment'
     : alert.label === 'Cancellation'
       ? 'cancellation'
-      : ['Job Closed', 'Estimate Closed', 'Completed'].includes(alert.label)
+      : ['Job Closed', 'Estimate Closed', 'Job Completed', 'Estimate Completed', 'Completed'].includes(alert.label)
         ? 'completed'
         : null;
   if (!kind) return null;
@@ -48,7 +48,13 @@ export function crewAlertCardPresentation(
 
   return {
     kind,
-    label: kind === 'new-appointment' ? 'New Appointment' : kind === 'cancellation' ? 'Cancellation' : 'Completed',
+    label: kind === 'new-appointment'
+      ? 'New Appointment'
+      : kind === 'cancellation'
+        ? 'Cancellation'
+        : alert.label === 'Estimate Closed' || alert.label === 'Estimate Completed' || /estimate/i.test(job?.status || '')
+          ? 'Estimate Completed'
+          : 'Job Completed',
     territory,
     territoryTone: territoryTones.find(([pattern]) => pattern.test(territory))?.[1] || 'unknown',
     jobNumber,

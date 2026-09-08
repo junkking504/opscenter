@@ -4356,7 +4356,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                           <div className="next-step"><span>{outcome ? 'Verified' : 'Next'}</span><strong>{outcome?.resolution || item.context}</strong>{outcome && <em>{outcome.source} · {outcome.time}</em>}</div>
                         </div>
                         </AlertDetails>
-                        {['Job Closed', 'Estimate Closed'].includes(item.label) && <AlertPhotos photos={item.photos} />}
+                        {['Job Closed', 'Estimate Closed', 'Job Completed', 'Estimate Completed'].includes(item.label) && <AlertPhotos photos={item.photos} />}
                       </div>
                     </article>
                   ); }) : <div className="empty-state">{live && !live.snapshot.sources.alerts ? <><Activity size={22} /><strong>Operational alerts unavailable</strong><span>Alert counts are unknown until the source refreshes. This does not confirm that there are no alerts.</span></> : <><Check size={22} /><strong>No alerts in this view</strong><span>Choose another workflow state or clear the search.</span></>}</div>}

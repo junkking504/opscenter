@@ -38,6 +38,7 @@ export type SlackAlertKind =
   | "fleet_down"
   | "stale_data"
   | "tracker_silent"
+  | "payroll_exception"
   | "truck_departure"
   | "truck_arrival"
   | "crew_summary"
@@ -1144,6 +1145,38 @@ function allTruckVisitNotifications(date: string, state: SlackAlertState): Slack
   return [...buildTruckArrivalSlackNotifications(date, rows), ...departures];
 }
 
+/**
+ * Critical pay-affecting exceptions.
+ *
+ * The exception engine was already detecting "Salaried employee treated as
+ * hourly", "Stored total earnings mismatch" and similar, correctly, every few
+ * minutes - and nothing did anything with them. Two were open and unseen at the
+ * time of the audit. These change what somebody is paid, so they belong in a
+ * channel rather than only on a page nobody has open.
+ */
+const PAYROLL_CRITICAL_RULES = new Set([
+  "salaried_employee_incorrectly_treated_as_hourly",
+  "stored_total_earnings_does_not_match_formula",
+  "employee_with_hours_but_zero_hourly_pay",
+  "active_hourly_employee_missing_verified_or_fallback_rate",
+  "employee_assigned_to_job_but_missing_from_attendance",
+  "payroll_expense_does_not_match_total_payroll",
+]);
+
+function payrollExceptionAlert(exception: OperationalException): SlackOpsAlert {
+  return {
+    fingerprint: `payroll_exception:${exception.id}`,
+    kind: "payroll_exception",
+    lifecycle: "incident",
+    severity: "critical",
+    channelId: channel("crew"),
+    title: exception.title,
+    detail: `${exception.entityLabel}: ${exception.reason}`,
+    nextAction: "Correct the record before payroll is exported, or record why the exception is expected.",
+    href: absoluteOpsHref(exception.href || "/krewe"),
+  };
+}
+
 function collectIncidentAlerts(date: string): SlackOpsAlert[] {
   const report = buildOperationalExceptions(date);
   const alerts: SlackOpsAlert[] = [];
@@ -1159,6 +1192,13 @@ function collectIncidentAlerts(date: string): SlackOpsAlert[] {
       && slackAlertKindEnabled("late_job")
     ) {
       alerts.push(exceptionAlert(exception, "late_job"));
+    }
+    if (
+      exception.severity === "critical"
+      && PAYROLL_CRITICAL_RULES.has(exception.rule)
+      && slackAlertKindEnabled("payroll_exception")
+    ) {
+      alerts.push(payrollExceptionAlert(exception));
     }
   }
 

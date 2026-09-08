@@ -295,10 +295,12 @@ async function applyCloseout(page: Page, input: CloseoutInput, before: Record<st
   const currentNavigatorCount = await page.locator('select[id*="AppointmentTechniciansLV"][id$="NavigatorDD"]').count();
   if (currentNavigatorCount !== input.navigatorIds.length) {
     await fill(page, "#ctl00_Content_AdditionalNavigatorsTB", String(input.navigatorIds.length));
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
-      page.locator("#ctl00_Content_AdditionalNavigatorsBtn").click(),
-    ]);
+    // JunkWare can apply this as an ASP.NET partial postback. Waiting only for
+    // a full navigation leaves a closeout blocked for 90 seconds when removing
+    // its default empty navigator row.
+    await clickWithWebFormsCompletion(page, "#ctl00_Content_AdditionalNavigatorsBtn", "the navigator count update");
+    const updatedNavigatorCount = await page.locator('select[id*="AppointmentTechniciansLV"][id$="NavigatorDD"]').count();
+    if (updatedNavigatorCount !== input.navigatorIds.length) throw new Error("JunkWare did not apply the requested navigator count.");
   }
 
   const driver = page.locator("#ctl00_Content_DriverDD");

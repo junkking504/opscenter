@@ -18,10 +18,13 @@ async function main() {
   process.env.OPSBOT_DATA_DIR = opsbotDirectory;
   process.env.JUNKWARE_APPOINTMENT_CREATION_STUB = "1";
   process.env.JUNKWARE_APPOINTMENT_CREATION_STUB_JK = "JK4999123";
+  process.env.JUNKWARE_APPOINTMENT_RECOVERY_TIMEOUT_MS = "1";
+  process.env.JUNKWARE_APPOINTMENT_RECOVERY_POLL_MS = "0";
 
   const {
     createJunkwareAppointment,
     normalizeJunkwareAppointmentCreationInput,
+    sourceAppointment,
   } = await import("@/lib/junkware-appointment-creation");
 
   const input = {
@@ -97,8 +100,12 @@ async function main() {
       phone: "504-555-0199",
       address: "100 Test Street",
       appointment_time: "9:00 AM",
+      appointment_type: "Estimate",
+      truck: "Truck# 2",
     }],
   }));
+
+  assert.deepEqual(sourceAppointment(normalized), { appointmentId: "4100000", jkNumber: "JK4113178" });
 
   const replayedAfterSourceRefresh = await createJunkwareAppointment(input);
   assert.equal(replayedAfterSourceRefresh.replayed, true);
@@ -114,6 +121,14 @@ async function main() {
     duplicateOverrideReason: "Customer requested a separate second pickup.",
   });
   assert.equal(override.result.jkNumber, "JK4999123");
+
+  const recoveredAfterSaveTimeoutInput = { ...input, requestId: randomUUID(), duplicateOverrideReason: "Source reconciliation after JunkWare save timeout." };
+  process.env.JUNKWARE_APPOINTMENT_CREATION_STUB_FAILURE_STAGE = "saving";
+  const recoveredAfterSaveTimeout = await createJunkwareAppointment(recoveredAfterSaveTimeoutInput);
+  assert.equal(recoveredAfterSaveTimeout.replayed, false);
+  assert.equal(recoveredAfterSaveTimeout.result.jkNumber, "JK4113178");
+  assert.equal(recoveredAfterSaveTimeout.result.customerMode, "recovered");
+  delete process.env.JUNKWARE_APPOINTMENT_CREATION_STUB_FAILURE_STAGE;
 
   fs.rmSync(path.join(historyDirectory, `junkware_${input.date}_raw.json`), { force: true });
   const retryableInput = { ...input, requestId: randomUUID(), phone: "5045550188" };

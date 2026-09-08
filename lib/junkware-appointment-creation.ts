@@ -54,7 +54,7 @@ export type JunkwareAppointmentCreationResult = {
   durationHours: number;
   truck: string;
   appointmentType: JunkwareAppointmentType;
-  customerMode: "existing" | "new";
+  customerMode: "existing" | "new" | "recovered";
   verifiedAt: string;
 };
 
@@ -272,7 +272,11 @@ async function withCreationLock<T>(callback: () => Promise<T>): Promise<T> {
 }
 
 function normalizeAddress(value: unknown): string {
-  return clean(value, 240).toLowerCase().replace(/[^a-z0-9]/g, "");
+  return normalized(value, 240);
+}
+
+function normalized(value: unknown, maximum = 80): string {
+  return clean(value, maximum).toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
 function time24(value: unknown): string {
@@ -286,7 +290,12 @@ function time24(value: unknown): string {
   return `${String(hour).padStart(2, "0")}:${twelveHour[2]}`;
 }
 
-function duplicateAppointment(input: JunkwareAppointmentCreationInput): { jkNumber: string; appointmentId: string } | null {
+type SourceAppointment = {
+  jkNumber: string;
+  appointmentId: string;
+};
+
+export function sourceAppointment(input: JunkwareAppointmentCreationInput): SourceAppointment | null {
   const dataDirectory = String(process.env.OPSBOT_DATA_DIR || "").trim()
     || path.join(process.env.HOME || "", ".openclaw", "workspace", "opsbot", "data");
   const source = path.join(dataDirectory, "history", "junkware", `junkware_${input.date}_raw.json`);
@@ -300,15 +309,58 @@ function duplicateAppointment(input: JunkwareAppointmentCreationInput): { jkNumb
       if (/cancel/i.test(clean(row.job_status || row.status, 40))) return false;
       return digits(row.phone || row.customer_phone) === input.phone
         && normalizeAddress(row.address || row.service_address || row.appointment_address) === normalizeAddress(input.serviceAddress)
-        && time24(row.appointment_time || row.start_time) === input.startTime;
+        && time24(row.appointment_time || row.start_time) === input.startTime
+        && normalizedAppointmentType(row) === normalized(input.appointmentType)
+        && normalizedTruck(row) === normalized(input.truck);
     });
-    return match ? {
-      jkNumber: clean(match.job_id || match.jk_number, 40),
-      appointmentId: clean(match.appt_id || match.appointment_id, 20),
+    const jkNumber = clean(match?.job_id || match?.jk_number, 40);
+    const appointmentId = clean(match?.appt_id || match?.appointment_id, 20);
+    return match && /^JK\d{4,12}$/i.test(jkNumber) && /^\d+$/.test(appointmentId) ? {
+      jkNumber: jkNumber.toUpperCase(),
+      appointmentId,
     } : null;
   } catch {
     return null;
   }
+}
+
+function normalizedAppointmentType(row: Record<string, unknown>): string {
+  return normalized(row.final_appointment_type || row.appointment_type || row.job_type);
+}
+
+function normalizedTruck(row: Record<string, unknown>): string {
+  return normalized(row.assigned_truck || row.truck || row.truck_number);
+}
+
+function recoveredResult(input: JunkwareAppointmentCreationInput, source: SourceAppointment): JunkwareAppointmentCreationResult {
+  return {
+    appointmentId: source.appointmentId,
+    jkNumber: source.jkNumber,
+    appointmentUrl: `https://junkware.junk-king.com/franchise/appointment.aspx?id=${encodeURIComponent(source.appointmentId)}`,
+    franchise: input.franchise,
+    date: input.date,
+    startTime: input.startTime,
+    durationHours: input.durationHours,
+    truck: input.truck,
+    appointmentType: input.appointmentType,
+    customerMode: "recovered",
+    verifiedAt: new Date().toISOString(),
+  };
+}
+
+async function recoverSavedAppointment(input: JunkwareAppointmentCreationInput): Promise<JunkwareAppointmentCreationResult | null> {
+  // JunkWare sometimes persists the form but never navigates the browser. Its
+  // schedule collector is the authoritative read-back in that case. Poll only
+  // after a save/verification failure; this path never writes another record.
+  const configuredTimeout = Number(process.env.JUNKWARE_APPOINTMENT_RECOVERY_TIMEOUT_MS || 75_000);
+  const configuredPoll = Number(process.env.JUNKWARE_APPOINTMENT_RECOVERY_POLL_MS || 3_000);
+  const deadline = Date.now() + Math.max(0, configuredTimeout);
+  do {
+    const source = sourceAppointment(input);
+    if (source) return recoveredResult(input, source);
+    await new Promise((resolve) => setTimeout(resolve, Math.max(0, configuredPoll)));
+  } while (Date.now() < deadline);
+  return null;
 }
 
 function parseScriptFailure(stderr: string): JunkwareAppointmentCreationError {
@@ -409,7 +461,7 @@ export async function createJunkwareAppointment(value: unknown): Promise<{ resul
         "verifying",
       );
     }
-    const duplicate = duplicateAppointment(input);
+    const duplicate = sourceAppointment(input);
     if (duplicate && input.duplicateOverrideReason.length < 10) {
       const reference = duplicate.jkNumber || "an existing appointment";
       throw new JunkwareAppointmentCreationError(
@@ -449,6 +501,13 @@ export async function createJunkwareAppointment(value: unknown): Promise<{ resul
         ? error
         : new JunkwareAppointmentCreationError(error instanceof Error ? error.message : "JunkWare could not create the appointment.");
       const uncertain = failure.stage === "saving" || failure.stage === "verifying";
+      if (uncertain) {
+        const recovered = await recoverSavedAppointment(input);
+        if (recovered) {
+          writeRecord({ ...creating, status: "verified", updatedAt: new Date().toISOString(), result: recovered });
+          return { result: recovered, replayed: false };
+        }
+      }
       writeRecord({
         ...creating,
         status: uncertain ? "uncertain" : "failed",

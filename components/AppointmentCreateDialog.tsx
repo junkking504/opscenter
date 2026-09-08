@@ -43,7 +43,7 @@ type CreationResult = {
   durationHours: number;
   truck: string;
   appointmentType: "Job" | "Estimate";
-  customerMode: "existing" | "new";
+  customerMode: "existing" | "new" | "recovered";
   verifiedAt: string;
 };
 
@@ -286,7 +286,7 @@ export default function AppointmentCreateDialog({ selectedDate }: { selectedDate
                   <strong>{result.jkNumber}</strong>
                   <p>{result.appointmentType} · {result.date} · {timeLabel(result.startTime, result.durationHours)} · {result.truck}</p>
                   <div>
-                    <span>Customer</span><strong>{result.customerMode === "existing" ? "Matched to existing customer" : "New customer record"}</strong>
+                    <span>Customer</span><strong>{result.customerMode === "existing" ? "Matched to existing customer" : result.customerMode === "recovered" ? "Recovered from JunkWare source" : "New customer record"}</strong>
                     <span>Read-back</span><strong>JK number, customer, address, date, time, category, franchise, and truck match</strong>
                     <span>Schedule</span><strong>Appears after the next JunkWare source refresh</strong>
                   </div>

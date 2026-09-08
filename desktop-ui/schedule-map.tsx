@@ -81,7 +81,15 @@ export default function ScheduleMap(props: Props) {
     const focusVersion = `${focusKey}:${resetKey}`;
     if (focusKey && focused.current !== focusVersion && (selected || current.current.truckMapView !== 'route')) {
       const pin = pins.find(pin => pin.id === focusKey);
-      if (pin) view.setView(pin.coordinate, Math.max(view.getZoom(), selectedTruck ? 15 : 12), { animate: false });
+      if (pin) {
+        view.setView(pin.coordinate, Math.max(view.getZoom(), selectedTruck ? 15 : 12), { animate: false });
+        // Center the truck in the visible map below its current-information card.
+        const card = host.current?.parentElement?.querySelector('.live-map-truck-card');
+        if (selectedTruck && card && host.current) {
+          const covered = card.getBoundingClientRect().bottom - host.current.getBoundingClientRect().top;
+          view.panBy([0, -Math.min(covered / 2, host.current.clientHeight / 3)], { animate: false });
+        }
+      }
     }
     focused.current = focusVersion;
     const render = () => {

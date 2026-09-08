@@ -7,6 +7,11 @@ import {
   summarizeCommandChanges,
 } from "@/lib/command-change-digest";
 import type { SlackDailyDigest } from "@/lib/slack-digest";
+import {
+  slackAlertCardPresentation,
+  slackAlertDisplayLines,
+  type SlackAlertCardPresentation,
+} from "@/lib/slack-alert-card";
 import styles from "./CommandBrief.module.css";
 
 const POLL_INTERVAL_MS = 15_000;
@@ -93,11 +98,25 @@ function renderSlackInline(value: string): ReactNode[] {
   return tokens;
 }
 
-function slackDisplayLines(rawText: string): string[] {
-  return String(rawText || "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line && !/^_?Alert ID:/i.test(line));
+function eventMessageClass(presentation: SlackAlertCardPresentation | null): string {
+  if (!presentation) return "";
+  if (presentation.kind === "new-appointment") return styles.newAppointmentMessage;
+  if (presentation.kind === "cancellation") return styles.cancellationMessage;
+  return styles.completedMessage;
+}
+
+function territoryClass(tone: SlackAlertCardPresentation["territoryTone"]): string {
+  const classes: Record<SlackAlertCardPresentation["territoryTone"], string> = {
+    "new-orleans": styles.territoryNewOrleans,
+    jefferson: styles.territoryJefferson,
+    westbank: styles.territoryWestbank,
+    "east-metro": styles.territoryEastMetro,
+    northshore: styles.territoryNorthshore,
+    "baton-rouge": styles.territoryBatonRouge,
+    lafayette: styles.territoryLafayette,
+    unknown: styles.territoryUnknown,
+  };
+  return classes[tone];
 }
 
 export default function SlackAlertsDigest({
@@ -297,21 +316,45 @@ export default function SlackAlertsDigest({
         </div>
       ) : (
         <div className={styles.digestList} aria-label="Slack messages, newest first" aria-live="polite">
-          {visibleMessages.map((message) => (
-            <article className={styles.digestMessage} key={message.id}>
-              <time dateTime={message.timestamp}>{messageTime(message.timestamp)}</time>
-              <div>
-                <strong className={styles.digestChannel}>
-                  {message.channel}{message.threadReply ? " · Reply" : ""}
-                </strong>
-                <div className={styles.digestSlackMessage}>
-                  {slackDisplayLines(message.rawText).map((line, index) => (
-                    <p key={`${message.id}-${index}`}>{renderSlackInline(line)}</p>
-                  ))}
+          {visibleMessages.map((message) => {
+            const presentation = slackAlertCardPresentation(message);
+            const lines = presentation?.bodyLines || slackAlertDisplayLines(message.rawText);
+            return (
+              <article
+                className={[styles.digestMessage, eventMessageClass(presentation)].filter(Boolean).join(" ")}
+                key={message.id}
+              >
+                <time dateTime={message.timestamp}>{messageTime(message.timestamp)}</time>
+                <div>
+                  <strong className={styles.digestChannel}>
+                    {message.channel}{message.threadReply ? " · Reply" : ""}
+                  </strong>
+                  {presentation ? (
+                    <div className={styles.alertHeader}>
+                      <strong>{presentation.label}</strong>
+                      <span aria-hidden="true">–</span>
+                      <span className={`${styles.territoryPill} ${territoryClass(presentation.territoryTone)}`}>
+                        {presentation.territory}
+                      </span>
+                      <span aria-hidden="true">–</span>
+                      <Link className={styles.alertJobLink} href={presentation.href}>
+                        {presentation.jobNumber}
+                      </Link>
+                      <span aria-hidden="true">–</span>
+                      <strong>{presentation.timeSlot}</strong>
+                    </div>
+                  ) : null}
+                  {lines.length ? (
+                    <div className={styles.digestSlackMessage}>
+                      {lines.map((line, index) => (
+                        <p key={`${message.id}-${index}`}>{renderSlackInline(line)}</p>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
     </section>

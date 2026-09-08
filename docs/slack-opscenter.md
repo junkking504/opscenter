@@ -1,5 +1,17 @@
 # OpsCenter Slack alerts
 
+## Command Slack alert cards
+
+In the OpsCenter Slack Alerts digest, New Appointment, Cancellation, and
+Completed cards use one compact header: event name, territory pill, linked JK
+number, and appointment time slot. The territory pill reuses the Schedule
+territory color with bold black text. New Appointment cards have a 50% yellow
+background, Cancellation cards have a 50% red background, and Completed cards
+have a 50% green background. The alpha applies to the background color only so
+the alert text and links remain fully opaque and readable. The JK link opens the
+appointment on the Schedule. This is a presentation rule only; it does not alter
+Slack publishing, delivery fallback, deduplication, channel routing, or cadence.
+
 ## Crew progress in Command
 
 Command Alerts shows one timeline, newest first. Truck, appointment, attendance,

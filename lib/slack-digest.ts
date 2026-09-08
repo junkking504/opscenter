@@ -1,6 +1,7 @@
 import { deduplicateOperationalUpdates } from './operational-update-dedup';
 import { execFileSync } from "node:child_process";
 import {
+  appointmentTerritory,
   buildAddOnAppointmentFeed,
   buildCancelledAppointmentFeed,
   type AddOnAppointment,
@@ -120,6 +121,8 @@ export type SlackDigestMessage = {
   };
   closeout?: {
     jobNumber: string;
+    territory?: string;
+    appointmentTime?: string;
     lines: string[];
     href: string;
   };
@@ -337,6 +340,14 @@ function closeoutLookup(rows: AnyRecord[]): Map<string, AnyRecord> {
   return lookup;
 }
 
+function closeoutText(row: AnyRecord, keys: string[], fallback: string): string {
+  for (const key of keys) {
+    const value = String(row?.[key] ?? "").replace(/\s+/g, " ").trim();
+    if (value) return value;
+  }
+  return fallback;
+}
+
 function closeoutForSlackAlert(
   rawText: string,
   lookup: Map<string, AnyRecord>,
@@ -351,6 +362,12 @@ function closeoutForSlackAlert(
   if (!details) return undefined;
   return {
     jobNumber: details.jobNumber,
+    territory: appointmentTerritory(row),
+    appointmentTime: closeoutText(
+      row,
+      ["appointment_time", "scheduled_time", "time_window"],
+      "Time unavailable",
+    ),
     lines: details.lines,
     href: `/jobs?date=${encodeURIComponent(date)}#job-${details.jobNumber.toLowerCase()}`,
   };

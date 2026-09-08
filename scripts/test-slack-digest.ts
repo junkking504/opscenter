@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { toOperationalAlert } from "@/lib/operational-alert-presentation";
+import { slackAlertCardPresentation } from "@/lib/slack-alert-card";
 import {
   fetchSlackDailyDigest,
   isOperationalSlackDigestMessage,
@@ -24,7 +25,94 @@ async function main() {
   assert.match(clientSource, /function renderSlackInline/);
   assert.match(clientSource, /message\.rawText/);
   assert.match(clientSource, /tel:/);
-  assert.doesNotMatch(clientSource, /message\.closeout/);
+  assert.match(clientSource, /slackAlertCardPresentation\(message\)/);
+  const cssSource = fs.readFileSync(new URL("../components/CommandBrief.module.css", import.meta.url), "utf8");
+  assert.match(cssSource, /\.newAppointmentMessage\s*\{\s*background-color:\s*rgba\(250, 204, 21, 0\.5\)/);
+  assert.match(cssSource, /\.cancellationMessage\s*\{\s*background-color:\s*rgba\(239, 68, 68, 0\.5\)/);
+  assert.match(cssSource, /\.completedMessage\s*\{\s*background-color:\s*rgba\(34, 197, 94, 0\.5\)/);
+
+  const newAppointmentCard = slackAlertCardPresentation({
+    id: "new",
+    timestamp: "2026-09-08T13:00:00.000Z",
+    channel: "#new-orleans",
+    rawText: ":warning: *New Appointment*\n<https://ops.junk-king.app/jobs?date=2026-09-08#job-jk4080609|JK4080609>\n01:00 PM - 02:00 PM\n*Jeremy Cannell*\n<tel:+19852013122|(985) 201-3122>",
+    text: "New Appointment",
+    threadReply: false,
+    appointment: {
+      title: "New Appointment",
+      jobNumber: "JK4080609",
+      territory: "New Orleans",
+      customerName: "Jeremy Cannell",
+      phone: "(985) 201-3122",
+      appointmentTime: "01:00 PM - 02:00 PM",
+      address: "7831 Plum St New Orleans, LA 70118",
+      items: [],
+      href: "/jobs?date=2026-09-08#job-jk4080609",
+      nextAction: "",
+    },
+  });
+  assert.deepEqual(newAppointmentCard && {
+    kind: newAppointmentCard.kind,
+    label: newAppointmentCard.label,
+    territory: newAppointmentCard.territory,
+    territoryTone: newAppointmentCard.territoryTone,
+    jobNumber: newAppointmentCard.jobNumber,
+    href: newAppointmentCard.href,
+    timeSlot: newAppointmentCard.timeSlot,
+    bodyLines: newAppointmentCard.bodyLines,
+  }, {
+    kind: "new-appointment",
+    label: "New Appointment",
+    territory: "New Orleans",
+    territoryTone: "new-orleans",
+    jobNumber: "JK4080609",
+    href: "/jobs?date=2026-09-08#job-jk4080609",
+    timeSlot: "01:00 PM - 02:00 PM",
+    bodyLines: ["*Jeremy Cannell*", "<tel:+19852013122|(985) 201-3122>"],
+  });
+
+  const cancellationCard = slackAlertCardPresentation({
+    id: "cancelled",
+    timestamp: "2026-09-08T14:00:00.000Z",
+    channel: "#northshore",
+    rawText: ":x: *Cancellation*\n*<https://ops.junk-king.app/jobs?date=2026-09-08#job-jk4080611|JK4080611>*\n09:00 AM - 10:00 AM\nJoan Coffenverg\n*Reason:* Customer no longer needs service",
+    text: "Cancellation",
+    threadReply: false,
+    appointment: {
+      title: "Cancellation",
+      jobNumber: "JK4080611",
+      territory: "Northshore",
+      customerName: "Joan Coffenverg",
+      phone: "(480) 299-1867",
+      appointmentTime: "09:00 AM - 10:00 AM",
+      address: "320 De Zaire Dr Madisonville, LA 70447",
+      items: [],
+      href: "/jobs?date=2026-09-08#job-jk4080611",
+      nextAction: "",
+    },
+  });
+  assert.equal(cancellationCard?.kind, "cancellation");
+  assert.equal(cancellationCard?.territoryTone, "northshore");
+  assert.deepEqual(cancellationCard?.bodyLines, ["Joan Coffenverg", "*Reason:* Customer no longer needs service"]);
+
+  const completedCard = slackAlertCardPresentation({
+    id: "closed",
+    timestamp: "2026-09-08T20:00:00.000Z",
+    channel: "#truck-9",
+    rawText: ":moneybag: *Job Closed*\n*<https://ops.junk-king.app/jobs?date=2026-09-08#job-jk4080610|JK4080610>*\n*Customer Name*\n*Total:* $248.00",
+    text: "Job Closed",
+    threadReply: false,
+    closeout: {
+      jobNumber: "JK4080610",
+      territory: "Baton Rouge",
+      appointmentTime: "03:00 PM - 04:00 PM",
+      lines: ["Customer Name", "Total: $248.00"],
+      href: "/jobs?date=2026-09-08#job-jk4080610",
+    },
+  });
+  assert.equal(completedCard?.kind, "completed");
+  assert.equal(completedCard?.territoryTone, "baton-rouge");
+  assert.deepEqual(completedCard?.bodyLines, ["*Customer Name*", "*Total:* $248.00"]);
 
   assert.equal(
     slackTextToPlainText(":warning: *New alert*\n<https://ops.junk-king.app/jobs|Open in OpsCenter>\n_Alert ID: test:123_"),
@@ -320,6 +408,8 @@ async function main() {
       job_id: "JK4052579",
       truck: "Truck# 8",
       customer_name: "Legacy Customer",
+      normalized_territory: "Baton Rouge",
+      appointment_time: "03:00 PM - 04:00 PM",
       driver_normalized_name: "Legacy Driver",
       navigator_normalized_name: "Legacy Navigator",
       revenue: "$358.00",
@@ -350,6 +440,8 @@ async function main() {
   assert.equal(digest.messages[1].appointment?.jobNumber, "JK4052608");
   assert.match(digest.messages[1].rawText, /^:x: \*Cancellation\*/);
   assert.equal(digest.messages[2].closeout?.jobNumber, "JK4052579");
+  assert.equal(digest.messages[2].closeout?.territory, "Baton Rouge");
+  assert.equal(digest.messages[2].closeout?.appointmentTime, "03:00 PM - 04:00 PM");
   assert.deepEqual(digest.messages[2].closeout?.lines, [
     "Load: $388.00 (1/3).",
     "Discount: $30.00.",

@@ -10,7 +10,14 @@ import relatedStyles from "@/components/RelatedRecords.module.css";
 
 type LeafletModule = typeof import("leaflet");
 
-const STREET_TILES = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+// OpenStreetMap deprecated the {s} subdomain scheme; the plain host is the
+// documented endpoint. OSM publishes tiles only to z19 - requesting z20 without
+// maxNativeZoom made every tile 404 and the map render blank at the exact zoom
+// dispatch uses to check a driveway.
+const STREET_TILES = process.env.NEXT_PUBLIC_MAP_TILE_URL
+  || "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const STREET_MAX_ZOOM = 20;
+const STREET_MAX_NATIVE_ZOOM = Number(process.env.NEXT_PUBLIC_MAP_TILE_MAX_NATIVE_ZOOM) || 19;
 const STREET_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 function normalizeTruckLabel(value: string | null | undefined): string {
@@ -175,6 +182,7 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
   const searchParams = useSearchParams();
   const mapNodeRef = useRef<HTMLDivElement | null>(null);
   const [leaflet, setLeaflet] = useState<LeafletModule | null>(null);
+  const [tilesUnavailable, setTilesUnavailable] = useState(false);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any>(null);
   const routeRef = useRef<any>(null);
@@ -229,10 +237,27 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
       attributionControl: true,
     });
 
-    leaflet.tileLayer(STREET_TILES, {
+    const streetTiles = leaflet.tileLayer(STREET_TILES, {
       attribution: STREET_ATTRIBUTION,
-      maxZoom: 20,
-    }).addTo(map);
+      maxZoom: STREET_MAX_ZOOM,
+      maxNativeZoom: STREET_MAX_NATIVE_ZOOM,
+    });
+    // Tile failures were previously silent: no handler, no log, just a grey
+    // rectangle. Surface them so an outage or a throttled tile host is visible.
+    let tileFailures = 0;
+    streetTiles.on("tileerror", () => {
+      tileFailures += 1;
+      if (tileFailures === 1) {
+        console.error("[map] base map tiles failed to load", { url: STREET_TILES });
+      }
+      setTilesUnavailable(true);
+    });
+    streetTiles.on("tileload", () => {
+      if (tileFailures === 0) return;
+      tileFailures = 0;
+      setTilesUnavailable(false);
+    });
+    streetTiles.addTo(map);
 
     const markers = leaflet.layerGroup().addTo(map);
     const routes = leaflet.layerGroup().addTo(map);
@@ -425,7 +450,14 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
 
       <div className="ops-fleet-map-shell">
         {payload.trucksWithCoordinates > 0 || payload.routeHistoryAvailable ? (
-          <div ref={mapNodeRef} className="ops-fleet-leaflet-map" aria-label="Fleet truck map" />
+          <div className="ops-map-with-status">
+            {tilesUnavailable && (
+              <p className="ops-map-tile-warning" role="status">
+                Base map tiles are not loading. Truck positions below are current; the map background is not.
+              </p>
+            )}
+            <div ref={mapNodeRef} className="ops-fleet-leaflet-map" aria-label="Fleet truck map" />
+          </div>
         ) : (
           <div className="ops-fleet-map-empty">GPS history unavailable</div>
         )}

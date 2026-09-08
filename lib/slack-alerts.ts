@@ -10,6 +10,7 @@ import {
   type CancelledAppointment,
 } from "@/lib/add-on-notifications";
 import { getDataHealthReport, type DataHealthSource } from "@/lib/data-health";
+import { gpsCoverageSignal, type SilentTracker } from "@/lib/system-signals";
 import { readFleetIssueStore, type FleetIssue } from "@/lib/fleet-issues";
 import { buildOperationalExceptions, type OperationalException } from "@/lib/operational-exceptions";
 import { crewRows, readMetrics, type AnyRecord } from "@/lib/opsData";
@@ -36,6 +37,7 @@ export type SlackAlertKind =
   | "late_job"
   | "fleet_down"
   | "stale_data"
+  | "tracker_silent"
   | "truck_departure"
   | "truck_arrival"
   | "crew_summary"
@@ -345,6 +347,12 @@ export function slackAlertKindEnabled(kind: SlackAlertKind): boolean {
   return kind !== "late_job" && kind !== "unassigned_crew" && kind !== "job_closed_payment";
 }
 
+// One quiet day can be a parked truck. Two is a device or mapping problem.
+function trackerSilentThresholdDays(): number {
+  const value = Number(process.env.OPSCENTER_TRACKER_SILENT_DAYS);
+  return Number.isFinite(value) && value > 0 ? value : 2;
+}
+
 function origin(): string {
   return String(process.env.SLACK_OPSCENTER_BASE_URL || "https://ops.junk-king.app").replace(/\/$/, "");
 }
@@ -409,6 +417,27 @@ function staleDataAlert(source: DataHealthSource): SlackOpsAlert {
       : `${source.label} has not refreshed for ${age}. ${source.details}`,
     nextAction: "Check the collector and source login, then verify that a current file reaches OpsCenter.",
     href: absoluteOpsHref("/"),
+  };
+}
+
+function trackerSilentAlert(tracker: SilentTracker): SlackOpsAlert {
+  const days = tracker.daysSilent;
+  const duration = days === null
+    ? "an unknown number of days"
+    : days >= 1
+      ? `${days} day${days === 1 ? "" : "s"}`
+      : "today";
+  return {
+    fingerprint: `tracker_silent:${tracker.trackerId || tracker.truck}`,
+    kind: "tracker_silent",
+    lifecycle: "incident",
+    severity: "critical",
+    channelId: channel("fleet"),
+    title: `${tracker.truck} has sent no GPS for ${duration}`,
+    detail: "The tracker is mapped and active in OpsCenter but LinxUp has delivered no positions for it. "
+      + "Route history, arrival alerts and mileage for this truck are unavailable until it reports.",
+    nextAction: "Check the tracker hardware and its status in the LinxUp account, then confirm the vehicle map entry is still correct.",
+    href: absoluteOpsHref("/fleet"),
   };
 }
 
@@ -1104,6 +1133,17 @@ function collectIncidentAlerts(date: string): SlackOpsAlert[] {
   for (const key of ["junkware", "linxup"] as const) {
     const source = health.sources[key];
     if (source.status === "red") alerts.push(staleDataAlert(source));
+  }
+
+  // A truck that is dark AND has no jobs assigned raises no other exception,
+  // which is how Trucks #1 and #7 went unreported for two weeks. Alert on the
+  // tracker itself, independent of whether it was scheduled to work.
+  if (slackAlertKindEnabled("tracker_silent")) {
+    for (const tracker of gpsCoverageSignal(date).silentTrackers) {
+      if ((tracker.daysSilent ?? 0) >= trackerSilentThresholdDays()) {
+        alerts.push(trackerSilentAlert(tracker));
+      }
+    }
   }
 
   return alerts;

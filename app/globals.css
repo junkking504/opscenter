@@ -9897,3 +9897,33 @@ a.ops-appointment-card-address:hover {
     overflow: visible;
   }
 }
+
+/* Base map tile failures used to be invisible: no handler, no message, just a
+   grey rectangle. This banner makes a tile outage or a throttled tile host
+   legible without hiding the live truck and job markers drawn above it. */
+.ops-map-with-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  height: 100%;
+  min-height: 0;
+}
+
+.ops-map-tile-warning {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--ops-warning-text, #7a4b00);
+  background: var(--ops-warning-surface, #fff4e0);
+  border-bottom: 1px solid var(--ops-warning-border, #e8c893);
+}
+
+@media (prefers-color-scheme: dark) {
+  .ops-map-tile-warning {
+    color: var(--ops-warning-text, #f2c879);
+    background: var(--ops-warning-surface, #33270f);
+    border-bottom-color: var(--ops-warning-border, #4d3b18);
+  }
+}

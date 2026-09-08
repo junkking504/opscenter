@@ -91,7 +91,14 @@ type FleetLiveStatusPayload = {
   trucks: JobsMapTruck[];
 };
 
-const STREET_TILES = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+// OpenStreetMap deprecated the {s} subdomain scheme; the plain host is the
+// documented endpoint. OSM publishes tiles only to z19 - requesting z20 without
+// maxNativeZoom made every tile 404 and the map render blank at the exact zoom
+// dispatch uses to check a driveway.
+const STREET_TILES = process.env.NEXT_PUBLIC_MAP_TILE_URL
+  || "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const STREET_MAX_ZOOM = 20;
+const STREET_MAX_NATIVE_ZOOM = Number(process.env.NEXT_PUBLIC_MAP_TILE_MAX_NATIVE_ZOOM) || 19;
 const STREET_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 const LINXUP_POLL_INTERVAL_MS = 30_000;
 const LINXUP_SITE_RADIUS_METERS = 125;
@@ -672,6 +679,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
   const routesRef = useRef<any>(null);
   const defaultMapDateRef = useRef("");
   const [leaflet, setLeaflet] = useState<LeafletModule | null>(null);
+  const [tilesUnavailable, setTilesUnavailable] = useState(false);
   const [mapZoom, setMapZoom] = useState(DEFAULT_DISPATCH_MAP_ZOOM);
   const [selectedKey, setSelectedKey] = useState("");
   const [selectedTruckName, setSelectedTruckName] = useState("");
@@ -1285,10 +1293,27 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
       keyboard: true,
       attributionControl: true,
     });
-    leaflet.tileLayer(STREET_TILES, {
+    const streetTiles = leaflet.tileLayer(STREET_TILES, {
       attribution: STREET_ATTRIBUTION,
-      maxZoom: 20,
-    }).addTo(map);
+      maxZoom: STREET_MAX_ZOOM,
+      maxNativeZoom: STREET_MAX_NATIVE_ZOOM,
+    });
+    // Tile failures were previously silent: no handler, no log, just a grey
+    // rectangle. Surface them so an outage or a throttled tile host is visible.
+    let tileFailures = 0;
+    streetTiles.on("tileerror", () => {
+      tileFailures += 1;
+      if (tileFailures === 1) {
+        console.error("[map] base map tiles failed to load", { url: STREET_TILES });
+      }
+      setTilesUnavailable(true);
+    });
+    streetTiles.on("tileload", () => {
+      if (tileFailures === 0) return;
+      tileFailures = 0;
+      setTilesUnavailable(false);
+    });
+    streetTiles.addTo(map);
     // Keep live truck icons above appointment pins and count circles regardless
     // of the marker's latitude-derived Leaflet z-index.
     const truckMarkerPane = map.getPane(TRUCK_MARKER_PANE) || map.createPane(TRUCK_MARKER_PANE);
@@ -1683,7 +1708,14 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
 
       <div className={`ops-jobs-map-workspace${scheduleView ? " has-schedule" : ""}`}>
         <div className="ops-jobs-map-shell">
-          <div ref={mapNodeRef} className="ops-jobs-leaflet-map" aria-label="Map of job locations" />
+          <div className="ops-map-with-status">
+            {tilesUnavailable && (
+              <p className="ops-map-tile-warning" role="status">
+                Base map tiles are not loading. Job pins and truck positions are current; the map background is not.
+              </p>
+            )}
+            <div ref={mapNodeRef} className="ops-jobs-leaflet-map" aria-label="Map of job locations" />
+          </div>
           {locatedJobs.length === 0 ? (
             <div className="ops-jobs-map-empty">No verified job locations are available for this view.</div>
           ) : null}

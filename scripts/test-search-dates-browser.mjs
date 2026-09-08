@@ -5,6 +5,10 @@ try{
  const page=await browser.newPage({viewport:{width:1280,height:900}});await page.goto('http://127.0.0.1:3148/tests/search-dates.html');
  const search=page.getByRole('textbox',{name:'Search records or run an OpsCenter command'});await search.fill('Synthetic');
  await page.getByText('10 of 12',{exact:true}).waitFor();
+ const firstResult=page.getByRole('button',{name:/Synthetic Customer · JK1000000/});
+ assert.equal(await firstResult.evaluate(el=>{const r=el.getBoundingClientRect();return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));}),true,'Search results must paint above the Schedule board');
+ const backdrop=page.getByRole('button',{name:'Close search',exact:true});
+ const backdropBox=await backdrop.boundingBox();assert.ok(backdropBox&&backdropBox.height>=900,'Search backdrop must cover the viewport, not only the blurred header');
  await page.getByRole('button',{name:'Upcoming',exact:true}).click();await page.getByText('10 of 12',{exact:true}).waitFor();
  assert.equal(await page.getByRole('button',{name:'Upcoming',exact:true}).getAttribute('aria-pressed'),'true');
  await page.getByRole('button',{name:'Show More Appointments'}).click();await page.getByText('12 of 12',{exact:true}).waitFor();

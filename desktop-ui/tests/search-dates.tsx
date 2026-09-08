@@ -12,4 +12,7 @@ window.fetch=async input=>{
  const found=scope==='past'?[]:rows;
  return Response.json({results:found.slice(0,limit),appointmentTotal:found.length,hasMore:found.length>limit,today:'2026-09-08',coverage:{dateCount:2,from:scope==='past'?'2026-08-31':'2026-09-08',to:scope==='past'?'2026-08-31':'2026-09-09'}});
 };
-createRoot(document.getElementById('root')!).render(<main style={{margin:'40px 30px',width:700}}><LiveSearch date="2026-09-01" navigate={()=>{}} disabled={false} finance={true}/></main>);
+createRoot(document.getElementById('root')!).render(<main className="ops-live" style={{margin:'40px 30px',width:1000}}>
+ <header className="topbar"><LiveSearch date="2026-09-01" navigate={()=>{}} disabled={false} finance={true}/></header>
+ <section aria-label="Synthetic Schedule Board" style={{position:'relative',zIndex:6,height:650,background:'#dce6de'}}>Synthetic Schedule Board</section>
+</main>);

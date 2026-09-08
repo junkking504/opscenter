@@ -2221,8 +2221,8 @@ function AppointmentCardPaymentSummary({ job }: { job: JobRow }) {
       {bucket === "Canceled" ? null : (
         <>
           <div className="ops-appointment-card-amount">
-            <strong className={`ops-appointment-card-revenue${bucket === "Open / Scheduled" && job.paymentAmount > 0 ? " quoted" : ""}${job.paymentAmount > 0 || bucket === "Completed" || bucket === "Estimate" ? "" : " unavailable"}`}>
-              {job.paymentAmount > 0 || bucket === "Completed" || bucket === "Estimate" ? money(job.paymentAmount) : "$--.--"}
+            <strong className={`ops-appointment-card-revenue${bucket === "Open / Scheduled" && job.paymentAmount > 0 ? " quoted" : ""}${job.paymentAmount > 0 ? "" : " unavailable"}`}>
+              {job.paymentAmount > 0 ? money(job.paymentAmount) : "$--.--"}
             </strong>
           </div>
           <span className={job.paymentType !== "—" || job.closeout?.payments.length ? "ops-appointment-card-payment-reference" : "ops-outcome-unavailable"}>

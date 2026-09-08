@@ -15,6 +15,13 @@ window.fetch=async(input,init)=>{
   if(init?.method && init.method!=='GET') return Response.json({error:'Writes disabled.'},{status:403});
   if(url.pathname==='/api/desktop/schedule') return Response.json({date,observedAt:null,appointments:[],fleet:{isToday:false,lastUpdatedAt:null,trucks:[]}});
   if(url.pathname==='/api/desktop/schedule/routes') return Response.json({date,calculatedAt:null,legs:[],closest:[],appointmentId:null});
+  if(url.pathname==='/api/desktop/map')return Response.json({copyright:'Synthetic map fixture · no live map data'});
+  if(url.pathname==='/api/desktop/schedule/gps/streets'){
+    const sourceVersion=url.searchParams.get('version') || '';
+    if(delay)await new Promise(resolve=>setTimeout(resolve,3500));
+    const shift=url.searchParams.get('truck')==='Truck 6'?.1:0;
+    return Response.json({sourceVersion,status:'available',unmatched:0,paths:[{kind:'matched',points:[{latitude:30.001+shift,longitude:-90.01},{latitude:30.003+shift,longitude:-90.01},{latitude:30.003+shift,longitude:-90.007}]},{kind:'estimated',points:[{latitude:30.003+shift,longitude:-90.007},{latitude:30.007+shift,longitude:-90.007},{latitude:30.007+shift,longitude:-90.01}]}]});
+  }
   if(url.pathname==='/api/desktop/schedule/gps') {
     const truck=url.searchParams.get('truck') || '';
     if(delay) await new Promise(resolve=>setTimeout(resolve,3500));
@@ -22,7 +29,7 @@ window.fetch=async(input,init)=>{
     const shift=truck==='Truck 6'?.1:0;
     const points=[0,1,2,15,16].map((minute,index)=>({timestamp:`${date}T13:${String(minute).padStart(2,'0')}:00Z`,latitude:30.001+shift+index*.002,longitude:-90.01+(index%3)*.003}));
     if(truck==='Truck 2') points.forEach(point=>{point.latitude=30.001;point.longitude=-90.01;});
-    const route:TruckGpsRoute={date,truck,status:'available',observedAt:`${date}T13:20:00Z`,coveredThrough:points.at(-1)!.timestamp,points,paths:[points.slice(0,3),points.slice(3)],gaps:1,rejected:0};
+    const route:TruckGpsRoute={sourceVersion:`${date}:${truck}`,date,truck,status:'available',observedAt:`${date}T13:20:00Z`,coveredThrough:points.at(-1)!.timestamp,points,paths:[points.slice(0,3),points.slice(3)],gaps:1,rejected:0};
     if(date==='2026-09-07' || truck==='Truck 3') Object.assign(route,{status:'empty',coveredThrough:null,points:[],paths:[],gaps:0});
     if(truck==='Truck 9' && date==='2026-09-06') route.gapLinks=[[points[2],points[3]]];
     if(truck==='Truck 8') Object.assign(route,{status:'unavailable',observedAt:null,coveredThrough:null,points:[],paths:[],gaps:0});

@@ -30,6 +30,17 @@ sharing, and historical context.
 - Manual rollback is a separate, explicitly authorized operation. Do not move
   `origin/production` backward or deploy a non-forward commit as a workaround.
 
+## Task storage lifecycle
+
+- Reuse one task worktree per task; additional copies need a concrete reason.
+- When finished, stop only the temporary preview servers this task started.
+- After shipping and verifying the task, run the installed retention command
+  from outside its worktree with `--apply --scope worktrees --complete <path>`.
+- Keep local changes and unshipped commits. Do not force removal or delete Git
+  branches to satisfy a storage budget.
+- Follow [Workspace retention](docs/workspace-retention.md) for commands,
+  seven-day paused-task cleanup, release retention, and skipped-item reports.
+
 ## Runtime boundary
 
 OpsCenter intentionally keeps runtime state outside Git:

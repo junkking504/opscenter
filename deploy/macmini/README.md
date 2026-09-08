@@ -44,7 +44,10 @@ After activation, the controller restarts every loaded release-bound collector
 and watcher with a bounded timeout. A restart failure restores the prior
 release. Superseded releases are pruned only after a bounded `lsof` scan proves
 that no running process still references them; the active and immediately
-previous releases are always protected.
+previous releases are always protected. The shared retention helper keeps three
+production releases and two previews, with explained exceptions for live
+processes and recent builds. See [Workspace retention](../../docs/workspace-retention.md)
+for the task-completion command and seven-day generated-file cleanup.
 
 Release-bound LaunchAgents invoke their scripts through the stable macOS
 `/bin/bash` or `/bin/zsh` executable. This keeps macOS Background Task

@@ -265,3 +265,19 @@ JunkWare can fill entirely blank actual-time controls with the scheduled window 
 ## Alert note summaries
 
 Appointment alerts show pertinent note details: removal items, access constraints, special requests, and customer ETA contact. Repeated ETA calls become one detail; operator timestamps, routine rescheduling logs, resolved call-center case boilerplate, and promotional boilerplate are omitted. Extraction preserves concrete instructions and negation, deduplicates repeated details, and leaves the complete source notes available in the appointment record. This changes presentation only.
+# Prior estimate on a booked job
+
+The Schedule payload resolves `sourceEstimateAppointmentId` against the exact
+estimate appointment ID in JunkWare's historical raw snapshots, independent of
+the selected Schedule day. It never links by customer name, phone, or JK number.
+All Appointments shows the original estimate total, load summary, source date,
+source link, and photo count beside (not instead of) current payment information.
+The job detail shows the linked estimate's gallery even before completion.
+Job photos also render before completion; copied estimate images are not repeated.
+Missing quote/photo evidence is labeled unavailable rather than inferred from
+today's job charges. This is read-only presentation: no charges, payments, or
+JunkWare media are copied or modified. Archive parsing is cached per file and
+invalidated when the source file changes.
+
+Validation: `node --import tsx scripts/test-schedule-source-estimate.ts` and
+`node scripts/test-appointment-register-browser.mjs` (synthetic local fixture).

@@ -2,6 +2,11 @@ import { appointmentPartner } from '../../lib/appointment-partner';
 import { serviceTerritory } from '../../lib/service-territory';
 import type { AppointmentOnsiteTime } from '../../lib/appointment-onsite-time';
 import { JUNKWARE_DISPATCH_TRUCKS } from '../../lib/junkware-trucks';
+export type SourceEstimate = {
+  appointmentId: string; jkNumber: string; date: string; total: number | null;
+  chargeSummary: string; observedAt: string; photoAuditAvailable: boolean;
+  photos: Array<{ url: string; category: string; fileName: string }>;
+};
 export type ScheduleAppointment = {
   recordId: string;
   version: string;
@@ -10,6 +15,7 @@ export type ScheduleAppointment = {
   junkwareSyncError?: string;
   appointmentId: string;
   sourceEstimateAppointmentId?: string;
+  sourceEstimate?: SourceEstimate | null;
   photoAuditAvailable?: boolean;
   photos?: Array<{ url: string; category: string; fileName: string }>;
   jkNumber: string;

@@ -337,3 +337,5 @@ Validation: `node --import tsx scripts/test-schedule-source-estimate.ts` and
 `node scripts/test-appointment-register-browser.mjs` (synthetic local fixture).
 
 Alias evidence: [FMOL General Surgery](https://www.fmolhs.org/locations/greater-baton-rouge/our-lady-of-the-lake-physician-group-general-surgery---ascension) and [FMOL Thoracic Surgery](https://www.fmolhs.org/locations/greater-baton-rouge/our-lady-of-the-lake-physician-group-thoracic-surgery---ascension). These are documentation sources, not runtime geocoding providers.
+
+Deployment startup allowance: a cold all-market JunkWare initialization measured 211.5 seconds on September 9. The detector installer permits up to five minutes for startup while still requiring a verified completion timestamp newer than its restart. Normal polling and data-freshness thresholds are unchanged.

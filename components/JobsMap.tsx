@@ -293,8 +293,8 @@ function formatTravelTime(minutes: number | null | undefined): string {
 
 function proximityText(proximity: JobTruckProximity): string {
   const stale = /stale|offline|historical/i.test(proximity.gpsFreshness);
-  const prefix = proximity.source === "google_live_traffic" ? "" : "~";
-  const timing = proximity.source === "google_live_traffic" ? "with traffic" : "estimated";
+  const prefix = proximity.source === "osm_road_estimate" ? "" : "~";
+  const timing = proximity.source === "osm_road_estimate" ? "road estimate" : "estimated";
   return `${prefix}${Number(proximity.miles || 0).toFixed(1)} mi · ${formatTravelTime(proximity.travelMinutes)} ${timing}${stale ? " · stale GPS" : ""}`;
 }
 

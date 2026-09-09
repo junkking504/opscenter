@@ -174,9 +174,12 @@ Windows determine initial sequence; geographic proximity breaks ties. This is a 
 optimal routing. Closed, unverified, and unidentified appointments are excluded.
 
 Every consecutive appointment identity gets its own road leg, including shared
-JK numbers and overlapping time windows. Google supplies current-traffic minutes
-and miles; no straight-line travel fallback is displayed. Calls are one matrix
-element per leg, four concurrently, with a bounded two-minute cache. Proposals
+JK numbers and overlapping time windows. Schedule connectors, closest-truck
+comparisons and route proposals use OpenStreetMap/OSRM road minutes and miles
+through `lib/osm-travel-matrix.ts`, without live traffic. They share the GPS road
+provider rate limit and bounded cache described in [LinxUp GPS](linxup-push.md).
+Each adjacent pair uses one road request. No straight-line or zero-time fallback
+is fabricated when coordinates or provider metrics are missing. Proposals
 are capped at 80 appointments. Missing travel propagates unknown downstream
 arrival times even when later road legs are available. Arrival estimates assume
 the operator-entered first-stop start and service minutes; the first stop does

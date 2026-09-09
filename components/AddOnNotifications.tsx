@@ -25,7 +25,7 @@ type TruckProximity = {
   miles: number | null;
   travelMinutes: number | null;
   status: string;
-  source: "google_live_traffic" | "estimated";
+  source: "osm_road_estimate" | "estimated";
   gpsFreshness: string;
   gpsUpdatedAt: string | null;
 };
@@ -37,7 +37,7 @@ type StoredNotification = FeedAppointment & {
   nearestTruck: string | null;
   nearestMiles: number | null;
   nearestTravelMinutes: number | null;
-  proximitySource: "google_live_traffic" | "estimated" | null;
+  proximitySource: "osm_road_estimate" | "estimated" | null;
   gpsFreshness: string | null;
   read: boolean;
 };
@@ -90,7 +90,7 @@ function travelTimeLabel(minutes: number | null): string {
 
 function nearestLabel(notification: StoredNotification): string {
   if (!notification.nearestTruck || notification.nearestMiles == null) return "Closest truck unavailable";
-  const prefix = notification.proximitySource === "google_live_traffic" ? "" : "~";
+  const prefix = notification.proximitySource === "osm_road_estimate" ? "" : "~";
   return `${notification.nearestTruck} is closest · ${prefix}${notification.nearestMiles.toFixed(1)} mi · ${travelTimeLabel(notification.nearestTravelMinutes)}`;
 }
 

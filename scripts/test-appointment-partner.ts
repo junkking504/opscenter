@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { appointmentPartner, serviceAddressForGeocoding } from '../lib/appointment-partner';
-import { verifyGoogleAddress } from '../lib/desktop-address-verification';
+import { verifyAddressResult } from '../lib/desktop-address-verification';
 import { scheduleMatchesQuery, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
 
 const address = 'Amazon Mattress Removal 100 Example Blvd 251 NEW ORLEANS, LA 70123';
@@ -20,8 +20,8 @@ for (const input of ['100 Example Blvd 251 NEW ORLEANS, LA 70123', 'Amazon Mattr
 assert.equal(scheduleMatchesQuery(job, 'AMZ'), true);
 const component = (type: string, value: string) => ({ types: [type], long_name: value, short_name: value });
 const result = { address_components: [component('street_number', '100'), component('route', 'Example Boulevard'), component('postal_code', '70123'), component('administrative_area_level_1', 'LA'), component('country', 'US')], geometry: { location: { lat: 29.95, lng: -90.1 }, location_type: 'ROOFTOP' } };
-assert.ok(verifyGoogleAddress(address, { status: 'OK', results: [result] }).location, 'Verify against the unmodified source address');
-assert.equal(verifyGoogleAddress(address, { status: 'OK', results: [{ ...result, partial_match: true }] }).location, null);
-assert.equal(verifyGoogleAddress(address.replace('100', '101'), { status: 'OK', results: [result] }).location, null);
-assert.equal(verifyGoogleAddress(address.replace('70123', '70124'), { status: 'OK', results: [result] }).location, null);
+assert.ok(verifyAddressResult(address, { status: 'OK', results: [result] }).location, 'Verify against the unmodified source address');
+assert.equal(verifyAddressResult(address, { status: 'OK', results: [{ ...result, partial_match: true }] }).location, null);
+assert.equal(verifyAddressResult(address.replace('100', '101'), { status: 'OK', results: [result] }).location, null);
+assert.equal(verifyAddressResult(address.replace('70123', '70124'), { status: 'OK', results: [result] }).location, null);
 console.log('Partner identity, exact service-address normalization, search, and geocode safety passed.');

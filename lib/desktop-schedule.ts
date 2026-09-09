@@ -1,10 +1,11 @@
+import {osmTravelMatrix} from './osm-travel-matrix';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { readJobRows, separateCancellationContact, junkwareScheduleUpdatedAt, type JobRow } from '@/lib/desktop-schedule-source';
 import { buildFleetMapPayload } from '@/lib/fleet-map';
 import { planningLocation } from '@/lib/planning-geocodes';
-import { googleTrafficMatrix, type GoogleRouteMatrixElement, type Coordinates } from '@/lib/job-route-proximity';
+import { type RoadMatrixElement, type Coordinates } from '@/lib/job-route-proximity';
 import { LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS } from '@/lib/linxup-authority';
 import type { ClosestTruck, ScheduleTruck } from '../desktop-ui/lib/schedule-contract';
 import { readJobRouteAssignmentOverrides } from '@/lib/job-route-assignments';
@@ -24,7 +25,7 @@ export type DesktopRouteLeg = {
   travelMinutes: number | null;
   miles: number | null;
   bufferMinutes: number | null;
-  source: 'google_live_traffic' | 'unavailable';
+  source: 'google_live_traffic' | 'osm_road_estimate' | 'unavailable';
 };
 
 function geocodes(): Record<string, Record<string, unknown>> {
@@ -75,7 +76,7 @@ export function readDesktopSchedule(date: string) {
   };
 }
 
-type MatrixProvider = (origins: Coordinates[], destinations: Coordinates[]) => Promise<GoogleRouteMatrixElement[] | null>;
+type MatrixProvider = (origins: Coordinates[], destinations: Coordinates[]) => Promise<RoadMatrixElement[] | null>;
 
 export async function readVerifiedDesktopSchedule(date: string) {
   const snapshot = readDesktopSchedule(date);
@@ -109,12 +110,12 @@ export function scheduleRoutePairs(appointments: DesktopAppointment[]): DesktopR
   });
 }
 
-export async function calculateDesktopRouteLegs(appointments: DesktopAppointment[], provider: MatrixProvider = googleTrafficMatrix): Promise<DesktopRouteLeg[]> {
+export async function calculateDesktopRouteLegs(appointments: DesktopAppointment[], provider: MatrixProvider = osmTravelMatrix): Promise<DesktopRouteLeg[]> {
   const legs = scheduleRoutePairs(appointments);
   const byId = new Map(appointments.map(job => [job.recordId, job]));
   const located = legs.filter(leg => byId.get(leg.fromAppointmentId)?.location && byId.get(leg.toAppointmentId)?.location);
   // Only adjacent appointment pairs are needed, not an N x N matrix of
-  // unrelated appointments. Bill one element per leg, with bounded concurrency.
+  // unrelated appointments. Request one road leg per pair, using the shared provider rate limit.
   for (let start = 0; start < located.length; start += 4) {
     await Promise.all(located.slice(start, start + 4).map(async leg => {
       const matrix = await provider([byId.get(leg.fromAppointmentId)!.location!], [byId.get(leg.toAppointmentId)!.location!]).catch(() => null);
@@ -126,13 +127,13 @@ export async function calculateDesktopRouteLegs(appointments: DesktopAppointment
       leg.travelMinutes = Math.ceil(seconds / 60);
       leg.miles = Math.round(meters / 1609.344 * 10) / 10;
       leg.bufferMinutes = leg.gapMinutes === null ? null : leg.gapMinutes - leg.travelMinutes;
-      leg.source = 'google_live_traffic';
+      leg.source = 'osm_road_estimate';
     }));
   }
   return legs;
 }
 
-export async function calculateClosestTrucks(appointment: DesktopAppointment, trucks: ScheduleTruck[], isToday: boolean, provider: MatrixProvider = googleTrafficMatrix, now = Date.now()): Promise<ClosestTruck[]> {
+export async function calculateClosestTrucks(appointment: DesktopAppointment, trucks: ScheduleTruck[], isToday: boolean, provider: MatrixProvider = osmTravelMatrix, now = Date.now()): Promise<ClosestTruck[]> {
   const rows: ClosestTruck[] = trucks.map(truck => {
     const updated = Date.parse(truck.lastGpsUpdate || '');
     const located = truck.latitude !== null && truck.longitude !== null && Number.isFinite(truck.latitude) && Number.isFinite(truck.longitude);

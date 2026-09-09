@@ -35,33 +35,7 @@ fi
 
 load_environment_file "$ENV_FILE"
 
-# The desktop street map uses the same server-side tile integration in preview.
-# Load only its existing Keychain entry; other production integration secrets
-# remain outside this preview wrapper and no value is written to an env file.
-if [[ -z "${GOOGLE_MAPS_API_KEY:-}" ]]; then
-  preview_google_key="$(/usr/bin/security find-generic-password \
-    -a opscenter -s com.opscenter.google-maps-api-key -w 2>/dev/null)" || preview_google_key=""
-  if [[ -z "$preview_google_key" ]]; then
-    # Some installations retain this one map credential in production.env.
-    # Parse only its literal value; never source production configuration.
-    preview_google_key="$(python3 - "$EXPECTED_HOME/Library/Application Support/OpsCenter/production.env" <<'PYKEY'
-import pathlib, sys
-try:
-    for line in pathlib.Path(sys.argv[1]).read_text().splitlines():
-        if line.startswith('GOOGLE_MAPS_API_KEY='):
-            value = line.partition('=')[2].strip()
-            if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
-                value = value[1:-1]
-            print(value, end='')
-            break
-except OSError:
-    pass
-PYKEY
-)" || preview_google_key=""
-  fi
-  [[ -z "$preview_google_key" ]] || export GOOGLE_MAPS_API_KEY="$preview_google_key"
-  unset preview_google_key
-fi
+# Mapping and routing use providers that need no Google billing credentials.
 
 mkdir -p "$APP_DIR/logs"
 

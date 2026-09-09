@@ -134,3 +134,18 @@ cannot create completed visit durations. Conflicting departure records remain
 pending verification. Operational confirmations with GPS gaps are identified as
 such and never produce a precise duration. Validate with
 `npm run verify:appointment-visit-alerts` and `npm run verify:crew-progress`.
+
+## Mapping billing boundary
+
+OpsCenter does not call Google Maps Platform APIs. Schedule and legacy road
+estimates use OSRM; precise address verification uses Census, and reverse
+address lookup uses OpenStreetMap. Plain Google Maps address/directions links
+remain available: these links contain no account API key. Review/marketing
+integrations are unrelated to this mapping boundary.
+
+`node scripts/test-no-google-map-billing.mjs` is part of the production build
+and rejects Google Maps API endpoints/SDKs in executable source. Production and
+preview wrappers no longer load the Maps Keychain credential. The idempotent
+`scripts/disable-opsbot-google-geocoding.py --apply` migration retires the
+separate OpsBot collector's Google fallback without altering appointment data
+or existing verified geocodes. Missing matches remain unavailable.

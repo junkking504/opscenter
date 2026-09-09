@@ -1,4 +1,5 @@
-import { googleTrafficMatrix, type GoogleRouteMatrixElement, type Coordinates } from './job-route-proximity';
+import {osmTravelMatrix} from './osm-travel-matrix';
+import { type RoadMatrixElement, type Coordinates } from './job-route-proximity';
 import { planEligible, proposeRoutes, routeCandidates, routePlanSourceKey, routeAreas, type PlanOptions, type PlanRoute, type RoutePlan, type PlanStop } from '../desktop-ui/lib/route-plan';
 import { appointmentRegion, scheduleTruckNames, type ScheduleSnapshot } from '../desktop-ui/lib/schedule-contract';
 
@@ -24,30 +25,30 @@ export function parsePlanOptions(value: unknown, snapshot: ScheduleSnapshot): Pl
   }
   return options;
 }
-type Provider = (origins: Coordinates[], destinations: Coordinates[])=>Promise<GoogleRouteMatrixElement[]|null>;
+type Provider = (origins: Coordinates[], destinations: Coordinates[])=>Promise<RoadMatrixElement[]|null>;
 const cache = new Map<string,{expires:number; value:Promise<{minutes:number;miles:number}|null>}>();
 async function roadLeg(from: Coordinates, to: Coordinates, provider: Provider) {
   const key=JSON.stringify([from,to]); const cached=cache.get(key);
-  if (provider===googleTrafficMatrix && cached && cached.expires>Date.now()) return cached.value;
+  if (provider===osmTravelMatrix && cached && cached.expires>Date.now()) return cached.value;
   const value=provider([from],[to]).then(matrix=>{
     const row=matrix?.find(r=>(r.originIndex??0)===0&&(r.destinationIndex??0)===0);
     const seconds = row && typeof row.duration==='string' && /^\d+(?:\.\d+)?s$/.test(row.duration) ? Number(row.duration.slice(0,-1)) : NaN;
     if (!row || row.status?.code || row.condition!=='ROUTE_EXISTS' || !Number.isFinite(seconds) || seconds<0 || typeof row.distanceMeters!=='number' || !Number.isFinite(row.distanceMeters) || row.distanceMeters<0) return null;
     return {minutes:Math.ceil(seconds/60),miles:Math.round(row.distanceMeters/1609.344*10)/10};
   }).catch(()=>null);
-  if (provider===googleTrafficMatrix) {
+  if (provider===osmTravelMatrix) {
     for (const [k,v] of cache) if (v.expires<=Date.now()) cache.delete(k);
     if (cache.size>=512) cache.delete(cache.keys().next().value!);
     cache.set(key,{expires:Date.now()+120_000,value});
   }
   return value;
 }
-export async function buildRoutePlan(snapshot: ScheduleSnapshot, options: PlanOptions, provider: Provider=googleTrafficMatrix): Promise<RoutePlan> {
+export async function buildRoutePlan(snapshot: ScheduleSnapshot, options: PlanOptions, provider: Provider=osmTravelMatrix): Promise<RoutePlan> {
   const routes=options.routes||proposeRoutes(snapshot.appointments,options);
   const byId=new Map(snapshot.appointments.map(j=>[j.recordId,j]));
   const planned=routes.map(route=>({...route,stops:route.appointmentIds.map(id=>({id,arrival:null,travelMinutes:null,miles:null,warnings:[]} as PlanStop))}));
   const pairs=planned.flatMap(route=>route.stops.slice(1).map((stop,i)=>({stop,from:byId.get(route.stops[i].id)!,to:byId.get(stop.id)!})));
-  // One billed element per adjacent pair, four in flight. Same-window stops
+  // One road request per adjacent pair, with shared rate limiting. Same-window stops
   // are separate pairs; no N x N matrix and no straight-line ETA fallback.
   for(let offset=0;offset<pairs.length;offset+=4) await Promise.all(pairs.slice(offset,offset+4).map(async ({stop,from,to})=>{
     if (!from.location||!to.location) { stop.warnings.push('Verify Address'); return; }

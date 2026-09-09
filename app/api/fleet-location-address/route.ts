@@ -13,23 +13,6 @@ function validCoordinate(value: unknown, minimum: number, maximum: number): numb
   return Number.isFinite(parsed) && parsed >= minimum && parsed <= maximum ? parsed : null;
 }
 
-async function googleAddress(latitude: number, longitude: number): Promise<string | null> {
-  const key = process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_ROUTES_API_KEY;
-  if (!key) return null;
-  const params = new URLSearchParams({ latlng: `${latitude},${longitude}`, key });
-  try {
-    const response = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?${params}`, {
-      signal: AbortSignal.timeout(8_000),
-      cache: "no-store",
-    });
-    if (!response.ok) return null;
-    const payload = await response.json();
-    return String(payload?.results?.[0]?.formatted_address || "").trim() || null;
-  } catch {
-    return null;
-  }
-}
-
 async function openStreetMapAddress(latitude: number, longitude: number): Promise<string | null> {
   const params = new URLSearchParams({
     lat: String(latitude),
@@ -78,7 +61,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ address: cached.address }, { headers: { "Cache-Control": "private, max-age=300" } });
   }
 
-  const address = await googleAddress(latitude, longitude) || await openStreetMapAddress(latitude, longitude);
+  const address = await openStreetMapAddress(latitude, longitude);
   addressCache.set(cacheKey, { address, expiresAt: Date.now() + CACHE_TTL_MS });
   return NextResponse.json(
     { address, coordinates: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}` },

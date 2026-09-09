@@ -2,7 +2,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
-import { requestGoogleRouteMatrix } from "@/lib/google-routes-transport";
+import {osmTravelMatrix} from "./osm-travel-matrix";
 
 export type Coordinates = { latitude: number; longitude: number };
 
@@ -29,8 +29,8 @@ export type JobRouteProximityInput = {
 export type JobTruckProximity = {
   miles: number | null;
   travelMinutes: number | null;
-  status: "available" | "job_location_unavailable" | "truck_gps_unavailable";
-  source: "google_live_traffic" | "estimated";
+  status: "available" | "job_location_unavailable" | "truck_gps_unavailable" | "routing_unavailable";
+  source: "osm_road_estimate" | "estimated";
   gpsFreshness: string;
   gpsUpdatedAt: string | null;
 };
@@ -38,7 +38,7 @@ export type JobTruckProximity = {
 export type JobRouteProximityPayload = {
   date: string;
   fleetUpdatedAt: string | null;
-  routingProvider: "google_live_traffic" | "estimated";
+  routingProvider: "osm_road_estimate" | "estimated";
   routingUpdatedAt: string | null;
   distances: Record<string, Record<string, JobTruckProximity>>;
 };
@@ -254,7 +254,7 @@ function distanceMiles(from: Coordinates, to: Coordinates): number {
   return 3958.8 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-export type GoogleRouteMatrixElement = {
+export type RoadMatrixElement = {
   originIndex?: number;
   destinationIndex?: number;
   distanceMeters?: number;
@@ -263,43 +263,11 @@ export type GoogleRouteMatrixElement = {
   status?: { code?: number; message?: string };
 };
 
-function googleRoutesApiKey(): string {
-  return String(
-    process.env.GOOGLE_MAPS_ROUTES_API_KEY
-      || process.env.GOOGLE_MAPS_API_KEY
-      || "",
-  ).trim();
-}
-
 function durationMinutes(value: unknown): number | null {
   const match = String(value || "").match(/^([0-9]+(?:\.[0-9]+)?)s$/);
   if (!match) return null;
   const seconds = Number(match[1]);
   return Number.isFinite(seconds) ? Math.max(1, Math.ceil(seconds / 60)) : null;
-}
-
-export async function googleTrafficMatrix(
-  origins: Coordinates[],
-  destinations: Coordinates[],
-): Promise<GoogleRouteMatrixElement[] | null> {
-  const apiKey = googleRoutesApiKey();
-  if (!apiKey || !origins.length || !destinations.length || origins.length * destinations.length > 625) return null;
-
-  try {
-    const payload = await requestGoogleRouteMatrix(apiKey, JSON.stringify({
-        origins: origins.map((coordinates) => ({
-          waypoint: { location: { latLng: coordinates } },
-        })),
-        destinations: destinations.map((coordinates) => ({
-          waypoint: { location: { latLng: coordinates } },
-        })),
-        travelMode: "DRIVE",
-        routingPreference: "TRAFFIC_AWARE",
-      }));
-    return Array.isArray(payload) ? payload as GoogleRouteMatrixElement[] : null;
-  } catch {
-    return null;
-  }
 }
 
 export async function buildJobRouteProximity(
@@ -319,25 +287,25 @@ export async function buildJobRouteProximity(
   const locatedJobs = jobs
     .map((job) => ({ job, coordinates: jobCoordinates.get(job.jobKey) || null }))
     .filter((entry): entry is typeof entry & { coordinates: Coordinates } => Boolean(entry.coordinates));
-  const googleMatrix = await googleTrafficMatrix(
+  const roadMatrix = await osmTravelMatrix(
     locatedTrucks.map((entry) => entry.coordinates),
     locatedJobs.map((entry) => entry.coordinates),
   );
-  const googleRoutes = new Map<string, { miles: number; travelMinutes: number }>();
+  const roadRoutes = new Map<string, { miles: number; travelMinutes: number }>();
 
-  for (const element of googleMatrix || []) {
+  for (const element of roadMatrix || []) {
     const origin = locatedTrucks[Number(element.originIndex || 0)];
     const destination = locatedJobs[Number(element.destinationIndex || 0)];
     const minutes = durationMinutes(element.duration);
     const meters = Number(element.distanceMeters);
     const statusCode = Number(element.status?.code || 0);
     if (!origin || !destination || statusCode || element.condition !== "ROUTE_EXISTS" || !Number.isFinite(meters) || minutes == null) continue;
-    googleRoutes.set(`${destination.job.jobKey}|${origin.truckName}`, {
+    roadRoutes.set(`${destination.job.jobKey}|${origin.truckName}`, {
       miles: Number((meters / 1609.344).toFixed(1)),
       travelMinutes: minutes,
     });
   }
-  const hasGoogleTraffic = googleRoutes.size > 0;
+  const hasRoadEstimates = roadRoutes.size > 0;
 
   for (const job of jobs) {
     distances[job.jobKey] = {};
@@ -354,14 +322,14 @@ export async function buildJobRouteProximity(
       } else if (!truckLocation) {
         distances[job.jobKey][truckName] = { ...base, miles: null, travelMinutes: null, status: "truck_gps_unavailable", source: "estimated" };
       } else {
-        const googleRoute = googleRoutes.get(`${job.jobKey}|${truckName}`);
-        const miles = googleRoute?.miles ?? Number(distanceMiles(truckLocation, jobLocation).toFixed(1));
+        const roadRoute = roadRoutes.get(`${job.jobKey}|${truckName}`);
+        const miles = roadRoute?.miles ?? null;
         distances[job.jobKey][truckName] = {
           ...base,
           miles,
-          travelMinutes: googleRoute?.travelMinutes ?? Math.ceil((miles * 1.2 * 60) / 28 + 5),
-          status: "available",
-          source: googleRoute ? "google_live_traffic" : "estimated",
+          travelMinutes: roadRoute?.travelMinutes ?? null,
+          status: roadRoute ? "available" : "routing_unavailable",
+          source: roadRoute ? "osm_road_estimate" : "estimated",
         };
       }
     }
@@ -370,8 +338,8 @@ export async function buildJobRouteProximity(
   return {
     date,
     fleetUpdatedAt: fleet?.lastUpdatedAt || null,
-    routingProvider: hasGoogleTraffic ? "google_live_traffic" : "estimated",
-    routingUpdatedAt: hasGoogleTraffic ? new Date().toISOString() : null,
+    routingProvider: hasRoadEstimates ? "osm_road_estimate" : "estimated",
+    routingUpdatedAt: hasRoadEstimates ? new Date().toISOString() : null,
     distances,
   };
 }

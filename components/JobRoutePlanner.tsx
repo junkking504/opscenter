@@ -93,8 +93,8 @@ function proximityText(proximity: JobTruckProximity | undefined, loading: boolea
   if (!proximity || proximity.status === "truck_gps_unavailable") return "GPS unavailable";
   if (proximity.status === "job_location_unavailable") return "job location unavailable";
   const stale = /stale|offline|historical/i.test(proximity.gpsFreshness);
-  const prefix = proximity.source === "google_live_traffic" ? "" : "~";
-  const timing = proximity.source === "google_live_traffic" ? "with traffic" : "estimated";
+  const prefix = proximity.source === "osm_road_estimate" ? "" : "~";
+  const timing = proximity.source === "osm_road_estimate" ? "road estimate" : "estimated";
   return `${prefix}${Number(proximity.miles || 0).toFixed(1)} mi · ${formatTravelTime(proximity.travelMinutes)} ${timing}${stale ? " · stale GPS" : ""}`;
 }
 
@@ -288,11 +288,11 @@ export default function JobRoutePlanner({
           ? "Checking each truck’s latest position before assignments are enabled…"
           : proximityError
             ? `${proximityError} Assignment is still available, but distance could not be verified.`
-            : proximity?.routingProvider === "google_live_traffic"
-              ? `Road mileage and ETA use Google live traffic from each truck’s latest Linxup GPS position · GPS updated ${formatGpsTime(proximity?.fleetUpdatedAt)}`
-              : `Approximate proximity uses each truck’s latest Linxup GPS position; road miles and live traffic will appear once Google Routes is configured · GPS updated ${formatGpsTime(proximity?.fleetUpdatedAt)}`}
-        {proximity?.routingProvider === "google_live_traffic" ? (
-          <small className="ops-route-google-attribution">Powered by Google, ©{new Date().getFullYear()} Google</small>
+            : proximity?.routingProvider === "osm_road_estimate"
+              ? `Road mileage and ETA use OpenStreetMap estimates without live traffic from each truck’s latest Linxup GPS position · GPS updated ${formatGpsTime(proximity?.fleetUpdatedAt)}`
+              : `Road estimates are unavailable; no travel time is assumed · GPS updated ${formatGpsTime(proximity?.fleetUpdatedAt)}`}
+        {proximity?.routingProvider === "osm_road_estimate" ? (
+          <small className="ops-route-google-attribution">Routing: OpenStreetMap / OSRM · No live traffic</small>
         ) : null}
       </div>
 

@@ -116,9 +116,6 @@ export default function ScheduleMap(props: Props) {
         button.setAttribute('aria-pressed', String(pin.selected));
         L.DomEvent.disableClickPropagation(button);
         if (nearby.length > 1) {
-          const count = document.createElement('span');
-          count.className = 'map-overlap-count'; count.textContent = String(nearby.length);
-          count.setAttribute('aria-hidden', 'true'); button.append(count);
           button.setAttribute('aria-haspopup', 'true');
         }
         button.onclick = event => {

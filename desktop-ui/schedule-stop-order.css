@@ -1,3 +1,4 @@
+.ops-live .schedule-board-layout.map-open .schedule-stop-order-trigger { display: inline-flex; align-items: center; }
 .ops-live .schedule-stop-order-trigger { padding: 4px 8px; border: 1px solid #a9b8b1; border-radius: 4px; background: white; color: #26372e; font-size: 11px; white-space: nowrap; cursor: pointer; }
 .ops-live .schedule-stop-order { box-sizing: border-box; margin: auto; width: min(620px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 16px; background: white; color: #26372e; border: 1px solid #a9b8b1; border-radius: 8px; box-shadow: 0 8px 35px #17212b35; font-size: 13px; }
 .ops-live .schedule-stop-order::backdrop { background: #182a224a; }

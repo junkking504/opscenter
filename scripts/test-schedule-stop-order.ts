@@ -16,6 +16,9 @@ async function main() {
     const jobs=[1,2,3,4].map(id=>({recordId:`2026-09-09:appointment:${id}`,appointmentId:String(id),version:'1',address:'100 Example St New Orleans LA 70125',status:'Confirmed',truck:'Truck 8',appointmentStartMinutes:480,appointmentEndMinutes:540,hasScheduledTime:true,location:{latitude:30,longitude:-90+id/100},jkNumber:`JK${id}`} as DesktopAppointment));
     const read=()=>applyStopOrders('2026-09-09',jobs);
     const group=stopGroups(read())[0], ids=group.map(job=>job.recordId);
+    assert.equal(stopOrderSourceKey(group),stopOrderSourceKey(group.map(job=>({...job,version:'new-note',status:'Completed',address:'100 Example St, New Orleans, 70125'}))),'Cosmetic feed formatting and unrelated updates must not invalidate an order draft');
+    assert.notEqual(stopOrderSourceKey(group),stopOrderSourceKey(group.map(job=>({...job,address:'200 Example St New Orleans LA 70125'}))),'A changed service address must invalidate the draft');
+    assert.notEqual(stopOrderSourceKey(group),stopOrderSourceKey(group.map(job=>({...job,status:'Canceled'}))),'Cancellation must invalidate the draft');
     const input={date:'2026-09-09',groupKey:stopGroupKey(group[0]),sourceKey:stopOrderSourceKey(group),ids:[ids[0],ids[3],ids[1],ids[2]],actor:'test'};
     assert(!isStopPermutation(group,[ids[0],ids[0],ids[2],ids[3]]));
     assert(!isStopPermutation(group,[...ids.slice(0,3),'foreign']));

@@ -30,7 +30,7 @@ export default function ScheduleStopOrder({snapshot,busy,saved,onBusyChange}: {s
     if (action === 'save') { saving.current = true; onBusyChange(true); }
     try {
       const response = await fetch('/api/desktop/schedule/order',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({date:snapshot.date,groupKey,sourceKey,ids,action}),signal:AbortSignal.any([abort.signal,AbortSignal.timeout(60_000)])});
-      const body = await response.json();
+      const body = await response.json().catch(()=>{throw new Error('The server response was unavailable. Try again after the schedule refreshes.');});
       if (!response.ok) throw new Error(body.error || 'Stop order unavailable.');
       if (abort.signal.aborted) return;
       if (action === 'save') { saved(body.snapshot); dialog.current?.close(); setGroup(null); }

@@ -275,6 +275,9 @@ chosen first stop and greedily follows the shortest verified road distances.
 Road-table requests allow up to 15 seconds for the existing provider to respond;
 individual route requests retain their five-second limit. The final remaining
 stop needs no extra comparison; the draft preview still verifies its travel leg.
+Draft conflict checks compare appointment membership, truck/window, cancellation,
+service address and saved order. Equivalent address punctuation/state formatting
+and unrelated note/payment updates do not interrupt a dispatcher's draft.
 Every draft shows its own adjacent travel estimates. **Save Order** persists the
 sequence in shared runtime `data/schedule-stop-order/<date>/<group-hash>.json`;
 no JunkWare assignment, booked time, completion or visit record is written.

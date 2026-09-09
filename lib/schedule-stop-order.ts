@@ -19,7 +19,11 @@ export function stopGroups<T extends OrderedStop>(jobs: T[]): T[][] {
   return [...groups.values()].filter(group => group.length > 1).map(group => group.sort(compareStops));
 }
 export function stopOrderSourceKey(jobs: OrderedStop[]) {
-  return JSON.stringify([...jobs].sort((a,b)=>a.recordId.localeCompare(b.recordId)).map(job=>[job.recordId,job.version,stopGroupKey(job),job.status,job.address,job.stopOrder ?? null]));
+  // The fast feed and detailed feed format the same address differently.
+  // Protect the inputs this operation changes/uses, without treating notes,
+  // payments or a cosmetic address refresh as a competing stop-order edit.
+  const addressKey = (address: string) => address.toLowerCase().replace(/[.,]/g,' ').replace(/\b(?:la|louisiana)\s+(?=\d{5}\b)/g,'').replace(/\s+/g,' ').trim();
+  return JSON.stringify([...jobs].sort((a,b)=>a.recordId.localeCompare(b.recordId)).map(job=>[job.recordId,stopGroupKey(job),/cancel/i.test(job.status),addressKey(job.address),job.stopOrder ?? null]));
 }
 export function isStopPermutation(jobs: OrderedStop[], ids: unknown): ids is string[] {
   return Array.isArray(ids) && ids.length === jobs.length && new Set(ids).size === ids.length && ids.every(id=>typeof id === 'string' && jobs.some(job=>job.recordId === id));

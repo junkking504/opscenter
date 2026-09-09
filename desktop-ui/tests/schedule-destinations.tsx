@@ -13,14 +13,15 @@ let releaseVerification:(()=>void)|undefined;
 const assignments=new Map<string,string>();
 const writes:Array<{date:string;recordId:string;action:string;values:{truck:string}}>=[];
 function appointments(date:string):ScheduleAppointment[] {
-  return Array.from({length:scenario==='empty'?0:scenario==='dense'?24:1},(_,index)=>{
+  return Array.from({length:scenario==='empty'?0:scenario==='dense'?24:scenario==='same-time'?4:1},(_,index)=>{
     const recordId=`${date}:appointment:${1001+index}`;
     return {recordId,appointmentId:String(1001+index),version:'a'.repeat(64),callAhead:'not_called',jkNumber:`JK100${String(1001+index)}`,appointmentUrl:'',appointmentTime:'9:00 AM–10:00 AM',appointmentStartMinutes:540,appointmentEndMinutes:600,hasScheduledTime:true,customerName:`Example appointment ${index+1}`,customerEmail:'',phone:'',address:'',territory:'Baton Rouge',appointmentType:'Job',status:'Confirmed',truck:assignments.get(recordId)||'Virtual Truck',driver:'',navigator:'',paymentType:'',paymentAmount:0,tipAmount:0,junkItems:[],appointmentNotes:[],cancellationReason:'',location:null};
-  });
+  }).map(job=>scenario==='same-time'?{...job,truck:'Truck 8',appointmentTime:'8:00 AM–9:00 AM',appointmentStartMinutes:480,appointmentEndMinutes:540}:job);
 }
 window.fetch=async(input,init)=>{
   const url=new URL(String(input),location.origin),date=url.searchParams.get('date') || '2026-09-08';
   if(init?.method==='POST') {
+    if(url.pathname==='/api/desktop/schedule/order' && JSON.parse(String(init.body)).action==='preview') return Response.json({ids:JSON.parse(String(init.body)).ids,legs:[]});
     if(url.pathname!=='/api/desktop/schedule/operations') return Response.json({error:'No other writes are enabled.'},{status:403});
     const body=JSON.parse(String(init.body));
     writes.push(body);

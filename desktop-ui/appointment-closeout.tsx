@@ -1,5 +1,7 @@
 "use client";
 
+import { paymentReferenceLabel, validateCloseoutPayment } from "../lib/closeout-payment";
+
 import { useEffect, useRef, useState } from "react";
 import type { ScheduleAppointment } from './lib/schedule-contract';
 import { sendScheduleChange, checkScheduleChange, ChangeReceipt, type Receipt } from './schedule-controls';
@@ -28,6 +30,7 @@ type LiveCloseout = {
   otherCharges: OtherCharge[];
   discount: string;
   tip: string;
+  howHeard?: { value: string; label: string; options: Option[] };
   jobCategory: { value: string; label: string; options: Option[] };
   actualStartHour: { value: string; label: string; options: Option[] };
   actualStartMinute: { value: string; label: string; options: Option[] };
@@ -74,6 +77,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   const [addPayment, setAddPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
   const [otherChargeType, setOtherChargeType] = useState("");
   const [otherChargeQuantity, setOtherChargeQuantity] = useState("1");
   const [otherChargePrice, setOtherChargePrice] = useState("");
@@ -97,6 +101,11 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       const payload = await response.json();
       if (!response.ok || !payload?.closeout) throw new Error(payload?.error || "The Junkware closeout could not be loaded.");
       setLive(payload.closeout);
+      setAddPayment(false);
+      setPaymentMethod("");
+      setPaymentAmount("");
+      setPaymentReference("");
+      setCategory(payload.closeout.appointmentType?.label === 'Estimate' ? 'Estimate' : 'Job');
       setSourceVersion(payload.sourceVersion || '');
       setCanWrite(payload.canWrite === true);
       setEstimateReason('');
@@ -173,6 +182,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       setError("Choose an Other Charge and enter its quantity and price.");
       return;
     }
+    setReviewing(false);
     setPendingOtherCharges((current) => [...current, {
       clientId: `${Date.now()}-${current.length}`,
       typeValue: option.value,
@@ -188,6 +198,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   }
 
   function removePendingOtherCharge(clientId: string) {
+    setReviewing(false);
     setPendingOtherCharges((current) => current.filter((charge) => charge.clientId !== clientId));
   }
 
@@ -206,9 +217,14 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       setError("Each assigned person can only appear once on the job.");
       return;
     }
-    if (addPayment && (!paymentMethod || !inputMoney(paymentAmount))) {
-      setError("Choose a payment method and enter an amount, or turn off Add payment.");
-      return;
+    if (![live.actualStartHour.value, live.actualStartMinute.value, live.actualEndHour.value, live.actualEndMinute.value].every(Boolean)) {
+      setError('Enter actual start and finish times before reviewing the closeout.'); return;
+    }
+    if (live.howHeard && !live.howHeard.value) { setError('Choose how the customer heard about us.'); return; }
+    if (!inputMoney(live.loadPrice) && !inputMoney(live.bedloadPrice)) { setError('Enter a load or bedload price.'); return; }
+    if (addPayment) {
+      const paymentError = validateCloseoutPayment({ methodId: paymentMethod, amount: inputMoney(paymentAmount), reference: paymentReference.trim() }, live.paymentMethods);
+      if (paymentError) { setError(paymentError); return; }
     }
     const completingEstimate = category === 'Estimate' && live.status.value !== '8';
     const noDiscountRequired = completingEstimate && !(Number(inputMoney(live.discount)) > 0);
@@ -220,7 +236,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       setError('Add why no discount was offered before closing this estimate.');
       return;
     }
-    if (!reviewing) { setReviewing(true); return; }
+    if (otherChargeType) { setError("Add the pending Other Charge or clear its selection before reviewing."); return; }
+    if (!reviewing) { setError(""); setReviewing(true); return; }
     requestPending.current = true;
     setSaving(true);
     setError("");
@@ -247,11 +264,12 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
           discount: inputMoney(live.discount),
           tip: inputMoney(live.tip),
           jobCategoryId: live.jobCategory.value,
+          ...(live.howHeard ? { howHeardId: live.howHeard.value } : {}),
           actualStartHour: live.actualStartHour.value,
           actualStartMinute: live.actualStartMinute.value,
           actualEndHour: live.actualEndHour.value,
           actualEndMinute: live.actualEndMinute.value,
-          addPayment: addPayment ? { methodId: paymentMethod, amount: inputMoney(paymentAmount) } : null,
+          addPayment: addPayment ? { methodId: paymentMethod, amount: inputMoney(paymentAmount), reference: paymentReference.trim() } : null,
         }, expectedSourceVersion: sourceVersion, appointmentType: category, ...(completingEstimate ? { estimateOutcome: {
           reason: estimateReason,
           explanation: estimateExplanation.trim(),
@@ -282,7 +300,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   async function check() {
     if (!receipt || requestPending.current) return;
     requestPending.current = true; setSaving(true);
-    try { const result = await checkScheduleChange(receipt.requestId); setReceipt(result); if (result.status === 'verified') saved(); }
+    try { const result = await checkScheduleChange(receipt.requestId); setReceipt(result); if (result.status === 'verified') { if (result.sourceResult?.closeout) setLive(result.sourceResult.closeout as LiveCloseout); setAddPayment(false); setPaymentMethod(''); setPaymentAmount(''); setPaymentReference(''); setPendingOtherCharges([]); saved(); } }
     catch { setError('Saved result unavailable. Do not repeat this closeout.'); }
     finally { requestPending.current = false; setSaving(false); }
   }
@@ -298,12 +316,12 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
           </button>
         ) : (
           <>
-            <fieldset className="desktop-closeout-fields" disabled={saving || Boolean(receipt && receipt.status !== 'failed')}>
+            <fieldset onChange={() => setReviewing(false)} className="desktop-closeout-fields" disabled={saving || Boolean(receipt && receipt.status !== 'failed')}>
             <label><span>Final appointment category</span><select value={category} onChange={event => { setCategory(event.target.value); setReviewing(false); setEstimateReason(''); setEstimateExplanation(''); setNoDiscountReason(''); }}><option>Job</option><option>Estimate</option></select></label>
             <div className="drawer-facts">
               <div><span>Junkware status</span><strong>{live.status.label || "Unavailable"}</strong></div>
-              <div><span>Current total</span><strong>{live.total || "$0.00"}</strong></div>
-              <div><span>Balance</span><strong>{live.balance || "0.00"}</strong></div>
+              <div><span>Current total</span><strong>{live.total || "Unavailable"}</strong></div>
+              <div><span>Balance</span><strong>{live.balance || "Unavailable"}</strong></div>
             </div>
             {saving ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">Saving changes and checking them in JunkWare…</div> : null}
 
@@ -350,6 +368,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
                 <label><span>Discount</span><input value={live.discount} inputMode="decimal" onChange={(event) => update("discount", event.target.value)} /></label>
                 <label><span>Tip</span><input value={live.tip} inputMode="decimal" onChange={(event) => update("tip", event.target.value)} /></label>
                 <label><span>Job category</span><select value={live.jobCategory.value} onChange={(event) => updateSelect("jobCategory", event.target.value)}>{live.jobCategory.options.map((option) => <option key={`category-${option.value}`} value={option.value}>{option.label || "Choose category"}</option>)}</select></label>
+                {live.howHeard && <label><span>How heard</span><select value={live.howHeard.value} onChange={event => update("howHeard", { ...live.howHeard!, value: event.target.value })}>{live.howHeard.options.map(option => <option key={option.value} value={option.value}>{option.label || "Choose how heard"}</option>)}</select></label>}
               </div>
               <div className="ops-closeout-other-charges">
                 <h5>Other Charges</h5>
@@ -393,25 +412,29 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               <h4>Actual Job Time</h4>
               <div className="ops-closeout-time-grid">
                 <span>Started</span>
-                <select value={live.actualStartHour.value} onChange={(event) => updateSelect("actualStartHour", event.target.value)}>{live.actualStartHour.options.map((option) => <option key={`sh-${option.value}`} value={option.value}>{option.label}</option>)}</select>
-                <select value={live.actualStartMinute.value} onChange={(event) => updateSelect("actualStartMinute", event.target.value)}>{live.actualStartMinute.options.map((option) => <option key={`sm-${option.value}`} value={option.value}>{option.label}</option>)}</select>
+                <select aria-label="Actual start hour" value={live.actualStartHour.value} onChange={(event) => updateSelect("actualStartHour", event.target.value)}>{live.actualStartHour.options.map((option) => <option key={`sh-${option.value}`} value={option.value}>{option.label || "Hour"}</option>)}</select>
+                <select aria-label="Actual start minute" value={live.actualStartMinute.value} onChange={(event) => updateSelect("actualStartMinute", event.target.value)}>{live.actualStartMinute.options.map((option) => <option key={`sm-${option.value}`} value={option.value}>{option.label || "Minute"}</option>)}</select>
                 <span>Finished</span>
-                <select value={live.actualEndHour.value} onChange={(event) => updateSelect("actualEndHour", event.target.value)}>{live.actualEndHour.options.map((option) => <option key={`eh-${option.value}`} value={option.value}>{option.label}</option>)}</select>
-                <select value={live.actualEndMinute.value} onChange={(event) => updateSelect("actualEndMinute", event.target.value)}>{live.actualEndMinute.options.map((option) => <option key={`em-${option.value}`} value={option.value}>{option.label}</option>)}</select>
+                <select aria-label="Actual finish hour" value={live.actualEndHour.value} onChange={(event) => updateSelect("actualEndHour", event.target.value)}>{live.actualEndHour.options.map((option) => <option key={`eh-${option.value}`} value={option.value}>{option.label || "Hour"}</option>)}</select>
+                <select aria-label="Actual finish minute" value={live.actualEndMinute.value} onChange={(event) => updateSelect("actualEndMinute", event.target.value)}>{live.actualEndMinute.options.map((option) => <option key={`em-${option.value}`} value={option.value}>{option.label || "Minute"}</option>)}</select>
               </div>
             </section>
 
             <section className="appointment-create-section">
               <h4>Payments</h4>
               {live.payments.length ? <div className="ops-closeout-payments">{live.payments.map((payment, index) => <div key={`payment-${index}`}><span>{payment.description}</span><strong>{payment.amount}</strong></div>)}</div> : <p>No payment has been entered in Junkware.</p>}
-              <label className="ops-closeout-payment-toggle"><input type="checkbox" checked={addPayment} onChange={(event) => setAddPayment(event.target.checked)} /> <span>Add a payment</span></label>
+              <label className="ops-closeout-payment-toggle"><input type="checkbox" checked={addPayment} disabled={!live.paymentMethods.some(option => option.value)} onChange={(event) => setAddPayment(event.target.checked)} /> <span>Add a payment</span></label>
               {addPayment ? <div className="ops-closeout-payment-entry">
-                <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>{live.paymentMethods.map((option) => <option key={`payment-method-${option.value}`} value={option.value}>{option.label || "Choose method"}</option>)}</select>
-                <input value={paymentAmount} inputMode="decimal" placeholder="Amount" onChange={(event) => setPaymentAmount(event.target.value)} />
+                <label><span>Payment method</span><select aria-label="Payment method" value={paymentMethod} onChange={(event) => { setPaymentMethod(event.target.value); setPaymentReference(""); }}>
+                  <option value="">Choose method</option>{live.paymentMethods.filter(option => option.value).map((option) => <option key={`payment-method-${option.value}`} value={option.value}>{option.label}</option>)}
+                </select></label>
+                <label><span>Payment amount</span><input aria-label="Payment amount" value={paymentAmount} inputMode="decimal" placeholder="Amount" onChange={(event) => setPaymentAmount(event.target.value)} /></label>
+                {paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod)) && <label><span>{paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}</span><input aria-label={paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))} value={paymentReference} maxLength={/card/i.test(paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))) ? 4 : 30} onChange={event => setPaymentReference(event.target.value)} /></label>}
+                <p>Records payment information in JunkWare. Card charges processed through JunkWare are added automatically; record a card payment here only if it was already collected elsewhere. Billed means payment is still owed.</p>
               </div> : null}
             </section>
 
-            {reviewing && <p role="status">Review all amounts, category, assigned Krewe and payment fields above. Confirmation closes the appointment in JunkWare and can publish its normal closeout alert.</p>}
+            {reviewing && <div role="status"><p>Review all amounts, category, assigned Krewe and payment fields above. Confirmation closes the appointment in JunkWare and can publish its normal closeout alert.</p><p>{addPayment ? `Payment to record: ${live.paymentMethods.find(option => option.value === paymentMethod)?.label} · $${Number(inputMoney(paymentAmount)).toFixed(2)}${paymentReference ? ` · ${paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}: ${paymentReference}` : ''}` : 'No new payment will be recorded.'}</p></div>}
             {!canWrite && <p role="status">Your role can read this closeout. A manager must save changes.</p>}
             <div className="ops-closeout-editor-actions">
               <button type="button" className="ops-button" onClick={save} disabled={saving || !canWrite}>{saving ? "Saving and checking JunkWare…" : reviewing ? `Confirm ${category} Closeout in JunkWare` : "Review Closeout"}</button>

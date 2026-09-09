@@ -19,7 +19,7 @@ function addedRows(before: Row[], after: Row[], key: (row: Row) => string): Row[
 function paymentMethod(row: Row, source: Row): string {
   if (row.methodId) return String(row.methodId);
   const description = normalized(row.description);
-  const candidates = (Array.isArray(source.paymentMethods) ? source.paymentMethods as Row[] : []).filter(option => option.value && normalized(option.label) && (description === normalized(option.label) || description.startsWith(`${normalized(option.label)} `))).sort((a, b) => normalized(b.label).length - normalized(a.label).length);
+  const candidates = (Array.isArray(source.paymentMethods) ? source.paymentMethods as Row[] : []).filter(option => option.value && normalized(option.label) && (description === normalized(option.label) || (description.startsWith(`${normalized(option.label)} `) || description.startsWith(`${normalized(option.label)},`)))).sort((a, b) => normalized(b.label).length - normalized(a.label).length);
   if (!candidates.length || candidates.length > 1 && normalized(candidates[0].label) === normalized(candidates[1].label)) throw new Error('The added payment method could not be verified from the source row.');
   return String(candidates[0].value);
 }
@@ -51,6 +51,7 @@ export function verifyCloseoutFields(closeout: Row, input: Row, before?: Row): v
   for (const [key, inputKey] of [['loadSize', 'loadSize'], ['bedloadSize', 'bedloadSize'], ['jobCategory', 'jobCategoryId'], ['actualStartHour', 'actualStartHour'], ['actualStartMinute', 'actualStartMinute'], ['actualEndHour', 'actualEndHour'], ['actualEndMinute', 'actualEndMinute']]) {
     const actual = closeout[key] as { value?: unknown } | undefined; if (String(actual?.value ?? '') !== String(input[inputKey] ?? '')) throw new Error(`JunkWare did not retain ${key}.`);
   }
+  if (input.howHeardId !== undefined && String((closeout.howHeard as Row | undefined)?.value ?? '') !== String(input.howHeardId)) throw new Error('JunkWare did not retain how the customer heard about us.');
   if (input.appointmentType && normalized((closeout.appointmentType as Row | undefined)?.label) !== normalized(input.appointmentType)) throw new Error('JunkWare did not retain the appointment category.');
   if (input.addPayment) {
     if (!before) throw new Error('The payment needs a source baseline before verification.');
@@ -58,6 +59,11 @@ export function verifyCloseoutFields(closeout: Row, input: Row, before?: Row): v
     const added = addedRows(rows(before, 'payments'), rows(closeout, 'payments'), key), request = input.addPayment as Row;
     if (added.length !== 1 || !sameAmount(added[0].amount, request.amount)) throw new Error('The added payment amount did not match the source read-back.');
     if (!request.methodId || paymentMethod(added[0], before) !== String(request.methodId)) throw new Error('JunkWare did not retain the requested payment method.');
+    if (request.reference) {
+      const method = (before.paymentMethods as Row[]).find(option => String(option.value) === String(request.methodId));
+      const tail = normalized(added[0].description).slice(normalized(method?.label).length).replace(/^[\s,#*]+/, '');
+      if (tail !== normalized(request.reference)) throw new Error('JunkWare did not retain the payment reference.');
+    }
   } else if (before) {
     const key = (row: Row) => JSON.stringify([normalized(row.description), amount(row.amount)]);
     if (addedRows(rows(before, 'payments'), rows(closeout, 'payments'), key).length) throw new Error('An unexpected payment appeared during closeout.');

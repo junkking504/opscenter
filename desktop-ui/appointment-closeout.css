@@ -84,7 +84,7 @@
 .ops-live .ops-closeout-payments > div > span { color: #7b847f; font-size: 9px; font-weight: 730; text-transform: uppercase; letter-spacing: .06em; }
 .ops-live .appointment-closeout-body .ops-closeout-payment-toggle { display: flex; justify-content: flex-start; gap: 8px; }
 .ops-live .appointment-closeout-body input[type='checkbox'] { width: 14px; height: 14px; margin: 0; flex: 0 0 auto; accent-color: #a8202d; }
-.ops-live .ops-closeout-payment-entry { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 7px 12px; }
+.ops-live .ops-closeout-payment-entry { display: block; }
 .ops-live .ops-closeout-charge-list > div { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px; border-bottom: 1px solid #e6e9e5; }
 .ops-live .ops-closeout-charge-list > div > span:first-child { flex: 1; }
 .ops-live .ops-closeout-charge-list small { display: block; color: #7b847f; }

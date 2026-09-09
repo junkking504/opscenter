@@ -43,6 +43,26 @@ through the same verified path.
 
 ### Schedule closeout reliability
 
+Confirmed appointments omit JunkWare's payment panel. The source reader stages
+Completed on the unsaved form to obtain that appointment's payment methods,
+existing payments and balance, then reopens the appointment and requires its
+saved baseline to be unchanged. Its returned status, crew, times and charges
+remain the saved values. A read never clicks Add Payment or Save. The write
+adapter stages Completed before filling the draft so payment controls exist.
+
+Closeout records the source payment method, positive amount, and check number
+or four trailing card digits when applicable. It does not charge a card.
+JunkWare-processed cards add their own payment rows; manual card entry is only
+for a payment already collected elsewhere. Billed remains an unpaid receivable.
+Final read-back requires exactly one new row with the requested method, amount
+and reference while preserving prior rows. Missing balances show Unavailable,
+and changing payment or added-charge fields invalidates the prior review.
+Actual start/finish times must be entered explicitly rather than accepting
+JunkWare defaults. How heard is editable when the required source value is
+missing. Native load-size change handlers update hidden size fields before the
+operator's explicit prices and discount are restored.
+
+
 Closeout postbacks wait for the matching WebForms POST and completion of the
 ASP.NET partial update. An idle spinner or enabled button is not completion
 evidence. A blank navigator placeholder is retained when no navigator is
@@ -73,6 +93,8 @@ Regression checks (synthetic, no live source writes):
 
 - `node --import tsx scripts/test-junkware-webforms-completion.ts`
 - `node --import tsx scripts/test-closeout-reliability.ts`
+- `node --import tsx scripts/test-closeout-payments.ts`
+- `node --import tsx scripts/test-closeout-payment-ui.ts` (after `build:desktop`)
 - `node --import tsx scripts/test-desktop-schedule-operations.ts`
 - `node --import tsx scripts/test-desktop-booking-closeout.ts`
 

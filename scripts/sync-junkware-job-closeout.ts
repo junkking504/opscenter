@@ -1,3 +1,6 @@
+import { pathToFileURL } from 'node:url';
+import { captureCloseoutSource } from './junkware-closeout-source';
+import { validateCloseoutPayment, paymentReferenceLabel } from '../lib/closeout-payment';
 import { clickWithWebFormsCompletion, selectWithWebFormsPostback } from './junkware-webforms';
 import { CloseoutNotAppliedError, saveAndVerifyCloseout } from '../lib/closeout-save-verification';
 import { closeoutSourceVersion, verifyCloseoutFields, verifyAddedCloseoutCharges } from '../lib/desktop-closeout-contract';
@@ -33,11 +36,12 @@ type CloseoutInput = {
   discount: string;
   tip: string;
   jobCategoryId: string;
+  howHeardId?: string;
   actualStartHour: string;
   actualStartMinute: string;
   actualEndHour: string;
   actualEndMinute: string;
-  addPayment?: { methodId: string; amount: string } | null;
+  addPayment?: { methodId: string; amount: string; reference?: string } | null;
 };
 
 function argument(name: string): string {
@@ -89,7 +93,7 @@ async function ensureAuthenticated(page: Page, targetUrl: string): Promise<void>
   }
 }
 
-async function capture(page: Page): Promise<{ status: { value: string; label: string }; [key: string]: unknown }> {
+export async function capture(page: Page): Promise<{ status: { value: string; label: string }; [key: string]: unknown }> {
   return page.evaluate(String.raw`(() => {
     const clean = (value) => String(value || "").replace(/\s+/g, " ").trim();
     const selectData = (id) => {
@@ -155,6 +159,7 @@ async function capture(page: Page): Promise<{ status: { value: string; label: st
       discount: input("ctl00_Content_DiscountsTB"),
       tip: input("ctl00_Content_TipsTB"),
       jobCategory: selectData("ctl00_Content_JobCategoryDD"),
+      howHeard: selectData("ctl00_Content_HowHeardDD"),
       actualStartHour: selectData("ctl00_Content_ActualStartHourDD"),
       actualStartMinute: selectData("ctl00_Content_ActualStartMinuteDD"),
       actualEndHour: selectData("ctl00_Content_ActualEndHourDD"),
@@ -166,6 +171,8 @@ async function capture(page: Page): Promise<{ status: { value: string; label: st
     };
   })()`) as Promise<{ status: { value: string; label: string }; [key: string]: unknown }>;
 }
+
+async function captureSource(page: Page) { return captureCloseoutSource(page, capture); }
 
 function cleanMoney(value: unknown): string {
   const cleaned = String(value ?? "").replace(/[^0-9.-]/g, "");
@@ -256,18 +263,20 @@ function parsePayload(): CloseoutInput {
     appointmentType,
     ...(estimateOutcome ? { estimateOutcome } : {}),
     jobCategoryId: String(row.jobCategoryId || "").trim(),
+    ...(row.howHeardId !== undefined ? { howHeardId: String(row.howHeardId || "").trim() } : {}),
     actualStartHour: String(row.actualStartHour || "").trim(),
     actualStartMinute: String(row.actualStartMinute || "").trim(),
     actualEndHour: String(row.actualEndHour || "").trim(),
     actualEndMinute: String(row.actualEndMinute || "").trim(),
     addPayment: row.addPayment && typeof row.addPayment === "object" ? {
       methodId: String((row.addPayment as Record<string, unknown>).methodId || "").trim(),
-      amount: cleanMoney((row.addPayment as Record<string, unknown>).amount),
+      amount: String((row.addPayment as Record<string, unknown>).amount ?? "").replace(/[$,\s]/g, ""),
+      reference: String((row.addPayment as Record<string, unknown>).reference || "").trim(),
     } : null,
   };
 }
 
-async function applyCloseout(page: Page, input: CloseoutInput, before: Record<string, unknown>): Promise<void> {
+export async function applyCloseout(page: Page, input: CloseoutInput, before: Record<string, unknown>): Promise<void> {
   // JunkWare uses ASP.NET WebForms. Changing these selects with selectOption()
   // fires AutoPostBack and reloads the full appointment once per field. Set the
   // selected values directly so the final Save post submits them together.
@@ -285,6 +294,7 @@ async function applyCloseout(page: Page, input: CloseoutInput, before: Record<st
     if (!selected) throw new Error('The selected JunkWare appointment category is unavailable.');
     await selectWithPostback(page, '#ctl00_Content_AppointmentTypeDD', selected.value);
   }
+  await selectWithPostback(page, '#ctl00_Content_StatusDD', '8');
   const currentNavigatorCount = await page.locator('select[id*="AppointmentTechniciansLV"][id$="NavigatorDD"]').count();
   // JunkWare keeps one blank placeholder when no navigator is assigned.
   const requestedNavigatorRows = Math.max(1, input.navigatorIds.length);
@@ -309,13 +319,18 @@ async function applyCloseout(page: Page, input: CloseoutInput, before: Record<st
 
   await fill(page, "#ctl00_Content_LoadSizeTruckQtyTB", input.loadQuantity);
   await selectWithoutPostback(page, "#ctl00_Content_LoadSizeDD", input.loadSize);
+  // Native size handlers maintain the hidden load used by source validation.
+  // Run them before restoring the operator's explicit prices and discount.
+  await page.locator('#ctl00_Content_LoadSizeDD').dispatchEvent('change');
   await fill(page, "#ctl00_Content_BillingAmountTB", input.loadPrice);
   await fill(page, "#ctl00_Content_BedloadTruckQtyTB", input.bedloadQuantity);
   await selectWithoutPostback(page, "#ctl00_Content_BedloadDD", input.bedloadSize);
+  await page.locator('#ctl00_Content_BedloadDD').dispatchEvent('change');
   await fill(page, "#ctl00_Content_BedLoadPriceTB", input.bedloadPrice);
   await fill(page, "#ctl00_Content_DiscountsTB", input.discount);
   await fill(page, "#ctl00_Content_TipsTB", input.tip);
   await selectWithoutPostback(page, "#ctl00_Content_JobCategoryDD", input.jobCategoryId);
+  if (input.howHeardId !== undefined) await selectWithoutPostback(page, "#ctl00_Content_HowHeardDD", input.howHeardId);
   await selectWithoutPostback(page, "#ctl00_Content_ActualStartHourDD", input.actualStartHour);
   await selectWithoutPostback(page, "#ctl00_Content_ActualStartMinuteDD", input.actualStartMinute);
   await selectWithoutPostback(page, "#ctl00_Content_ActualEndHourDD", input.actualEndHour);
@@ -336,6 +351,8 @@ async function applyCloseout(page: Page, input: CloseoutInput, before: Record<st
 
   if (input.addPayment?.methodId && input.addPayment.amount) {
     await selectWithPostback(page, "#ctl00_Content_PaymentMethodDD", input.addPayment.methodId);
+    const method = (before.paymentMethods as Option[]).find(option => option.value === input.addPayment!.methodId);
+    if (paymentReferenceLabel(method)) await fill(page, "#ctl00_Content_PaymentDescrTB", input.addPayment.reference || "");
     await fill(page, "#ctl00_Content_PaymentAmountTB", input.addPayment.amount);
     await clickWithWebFormsCompletion(page, '#ctl00_Content_AddPaymentBtn', 'the payment entry');
   }
@@ -416,7 +433,11 @@ async function applyClassification(page: Page, change: ClassificationChange, bef
     await selectWithoutPostback(page,'#ctl00_Content_AppointmentTypeDD',target.value);
     if (truck) await selectWithoutPostback(page,'#ctl00_Content_TruckDD',truck.value);
     await selectWithoutPostback(page,'#ctl00_Content_StatusDD',change.completeEstimate ? '8' : status.value);
-    verifyClassificationChange(before,await capture(page),change,false);
+    const staged = await capture(page);
+    // Payment controls may be absent on the unsaved Confirmed form. Do not
+    // reopen it here: doing so would discard the classification being reviewed.
+    const stagedPaymentFields = (staged.paymentMethods as unknown[]).length ? {} : { paymentMethods: before.paymentMethods, payments: before.payments, balance: before.balance };
+    verifyClassificationChange(before,{ ...staged, ...stagedPaymentFields },change,false);
     // A classification correction must not email photos as a side effect.
     const sendPictures=page.locator('#ctl00_Content_SendPicturesCB');
     if(await sendPictures.count()) await sendPictures.evaluate(node=>{(node as HTMLInputElement).checked=false;});
@@ -444,10 +465,10 @@ async function applyClassification(page: Page, change: ClassificationChange, bef
     if(messages.some(message=>message.trim())) throw new Error('JunkWare validation: '+messages.filter(message=>message.trim()).join(' ').slice(0,300));
     // Always read a fresh appointment page, including after partial postbacks.
     await page.goto(`${ORIGIN}/franchise/appointment.aspx?id=${argument('appointment')}`,{waitUntil:'domcontentloaded'});
-    verifyClassificationChange(before,await capture(page),change);
+    verifyClassificationChange(before,await captureSource(page),change);
   } catch (error) {
     await page.goto(`${ORIGIN}/franchise/appointment.aspx?id=${argument('appointment')}`,{waitUntil:'domcontentloaded'});
-    const current = await capture(page);
+    const current = await captureSource(page);
     if (closeoutSourceVersion(current) === closeoutSourceVersion(before)) {
       writeStarted = false; failureCode = 'source_validation_rejected';
       throw error;
@@ -490,15 +511,23 @@ async function main(): Promise<void> {
     }
     const input = mode === "write" ? parsePayload() : null;
     const classification = mode === 'classify' ? parseClassificationChange(JSON.parse(Buffer.from(argument('payload-base64'),'base64url').toString('utf8'))) : null;
-    const before = input || classification ? await capture(page) : undefined;
+    const before = input || classification ? await captureSource(page) : undefined;
     if (input?.expectedSourceVersion && before && closeoutSourceVersion(before) !== input.expectedSourceVersion) { failureCode = 'source_version_conflict'; throw new Error('This JunkWare closeout changed. Reload and review it before saving.'); }
     if (input) {
       if (!before?.truck) { failureCode = 'completion_truck_required'; throw new Error('Assign a truck in JunkWare before closing this appointment.'); }
+      if (!input.driverId || input.navigatorIds.includes(input.driverId)) throw new Error('Choose a driver and assign each person only once.');
+      if (![input.actualStartHour, input.actualStartMinute, input.actualEndHour, input.actualEndMinute].every(Boolean)) throw new Error('Enter actual start and finish times before reviewing the closeout.');
+      if (!(input.howHeardId ?? (before!.howHeard as Option)?.value)) throw new Error('Choose how the customer heard about us before closing the appointment.');
+      if (!input.loadPrice && !input.bedloadPrice) throw new Error('Enter a load or bedload price before closing the appointment.');
+      if (input.addPayment) {
+        const paymentError = validateCloseoutPayment(input.addPayment, before!.paymentMethods as Option[]);
+        if (paymentError) throw new Error(paymentError);
+      }
       writeStarted = true;
       try {
         await saveAndVerifyCloseout(before!, () => applyCloseout(page, input, before!), async () => {
           await ensureAuthenticated(page, targetUrl);
-          return capture(page);
+          return captureSource(page);
         }, persisted => { verifyCloseout(persisted, input); verifyCloseoutFields(persisted, input, before); verifyEstimateOutcome(persisted, before!, input); });
       }
       catch (error) {
@@ -510,7 +539,7 @@ async function main(): Promise<void> {
       if (closeoutSourceVersion(before) !== classification.expectedSourceVersion) {failureCode='source_version_conflict';throw new Error('This JunkWare appointment changed. Reload and review it before saving.');}
       await applyClassification(page,classification,before);
     }
-    const closeout = await capture(page);
+    const closeout = await captureSource(page);
     if (input) { verifyCloseout(closeout, input); verifyCloseoutFields(closeout, input, before); verifyEstimateOutcome(closeout, before!, input); }
     if (classification && before) verifyClassificationChange(before,closeout,classification);
     const warning = classification && before ? classificationCompletionTimeWarning(before,closeout,classification) : undefined;
@@ -521,7 +550,7 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error) => {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch((error) => {
   process.stderr.write(`${JSON.stringify({ error: error instanceof Error ? error.message : 'JunkWare closeout failed.', stage: writeStarted ? 'uncertain' : 'preflight', code: failureCode })}\n`);
   process.exitCode = 1;
 });

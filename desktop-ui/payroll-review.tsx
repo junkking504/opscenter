@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { KreweHoursSnapshot } from './lib/krewe-hours-contract';
 import type { DesktopKreweSnapshot } from './lib/people-fleet-contract';
 import { buildPayrollReview, payrollReviewCsv, reviewedPayrollRows } from './lib/payroll-review';
+import { PAYROLL_REPORT_RECIPIENTS, preparePayrollReportEmail, payrollReportMailto } from './lib/payroll-report-email';
 import './payroll-review.css';
 
 const money = (value: number | null) => value === null ? '—' : value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
@@ -31,6 +32,14 @@ export default function PayrollReview({ hours, payroll, unavailable, pending, se
   }, [changed]);
   const visible = rows.filter(row => row.name.toLowerCase().includes(search.toLowerCase()) && (filter === 'all' || filter === 'flags' && row.issues.length || filter === 'reviewed' && reviewed.includes(row)));
   const canReview = !warnings.length && !pending;
+  function emailReport() {
+    if (!canReview || !reviewed.length) return;
+    try {
+      const message = preparePayrollReportEmail({ rows: reviewed, start: hours.start, end: hours.end, retrievedAt: hours.generatedAt, totalEmployeeCount: rows.length, warnings });
+      window.location.assign(payrollReportMailto(message));
+      setNotice('Finish sending in your mail app. The message includes the reviewed employee totals; CSV export is available separately. No email has been sent by OpsCenter.');
+    } catch (error) { setNotice(error instanceof Error ? error.message : 'The email could not be prepared.'); }
+  }
   function download(isReviewed: boolean) {
     const selected = isReviewed ? reviewed : rows;
     if (!selected.length || pending || isReviewed && !canReview) return;
@@ -41,7 +50,8 @@ export default function PayrollReview({ hours, payroll, unavailable, pending, se
     setNotice(`Exported ${selected.length} ${isReviewed ? 'reviewed' : 'draft'} employee rows. ${isReviewed && selected.length < rows.length ? `${rows.length - selected.length} unreviewed employees were excluded.` : ''}`);
   }
   return <section className="payroll-review" aria-label="Payroll review">
-    <header><div><h3>Payroll Review</h3><p>Review the recorded hours and earnings, then export the employees you have checked.</p></div><div className="payroll-review-actions"><button disabled={!rows.length || pending} onClick={() => download(false)}>Export draft ({rows.length})</button><button className="payroll-export-reviewed" disabled={!reviewed.length || !canReview} onClick={() => download(true)}>Export reviewed ({reviewed.length})</button></div></header>
+    <header><div><h3>Payroll Review</h3><p>Review the recorded hours and earnings, then share the employees you have checked.</p></div><div className="payroll-review-actions"><button disabled={!rows.length || pending} onClick={() => download(false)}>Export draft ({rows.length})</button><button disabled={!reviewed.length || !canReview} onClick={() => download(true)}>Export reviewed ({reviewed.length})</button><button className="payroll-export-reviewed" disabled={!reviewed.length || !canReview} onClick={emailReport}>Email reviewed report ({reviewed.length})</button></div></header>
+    <details className="payroll-email-recipients"><summary>Email to operations managers</summary><p>{PAYROLL_REPORT_RECIPIENTS.join(', ')}</p><p>Email opens a message in your mail app. Choose the sending mailbox and press Send there. It includes employee totals in the message; no automatic delivery is scheduled.</p></details>
     <div className="payroll-review-toolbar"><label>Show<select value={filter} onChange={event => setFilter(event.target.value)}><option value="all">All employees ({rows.length})</option><option value="flags">Needs attention ({flagged.length})</option><option value="reviewed">Reviewed ({reviewed.length})</option></select></label><span>{reviewed.length} of {rows.length} reviewed · {flagged.length} need attention</span></div>
     {warnings.map(warning => <p className="payroll-review-warning" key={warning}>{warning}</p>)}
     <div className="payroll-review-scroll" tabIndex={0} role="region" aria-label="Employee payroll totals"><table><thead><tr><th scope="col">Reviewed</th><th scope="col">Employee</th><th scope="col">Week 1</th><th scope="col">Week 2</th><th scope="col">Reg / OT hrs</th><th scope="col">Hourly pay</th><th scope="col">Tips</th><th scope="col">Bonuses</th><th scope="col">Supplemental</th><th scope="col">Total pay</th><th scope="col">Review</th></tr></thead><tbody>{visible.map(row => <tr key={row.id} className={row.issues.length ? 'payroll-row-flagged' : ''}>

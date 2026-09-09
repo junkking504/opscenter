@@ -15,7 +15,7 @@ const normalizeRouteName = (text: string) => normalize(text).replace(/\bS NORMAN
 function matchesStreet(requested: string, house: string, street: string, city: string, zip: string) {
   // FMOL publishes both Clare and Claire for this Gonzales building. Scope
   // the alias to the verified house/locality; never fuzzy-match other streets.
-  // https://www.fmolhs.org/locations/greater-baton-rouge/our-lady-of-the-lake-physician-group-thoracic-surgery---ascension
+  // Evidence links are in docs/schedule-finance-presentation.md.
   const canonical = (value: string) => {
     const text = normalizeRouteName(value);
     return house === '1014' && normalize(city) === 'GONZALES' && zip === '70737' && /\bGONZALES\b/.test(normalize(requested))

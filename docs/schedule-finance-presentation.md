@@ -324,3 +324,5 @@ invalidated when the source file changes.
 
 Validation: `node --import tsx scripts/test-schedule-source-estimate.ts` and
 `node scripts/test-appointment-register-browser.mjs` (synthetic local fixture).
+
+Alias evidence: [FMOL General Surgery](https://www.fmolhs.org/locations/greater-baton-rouge/our-lady-of-the-lake-physician-group-general-surgery---ascension) and [FMOL Thoracic Surgery](https://www.fmolhs.org/locations/greater-baton-rouge/our-lady-of-the-lake-physician-group-thoracic-surgery---ascension). These are documentation sources, not runtime geocoding providers.

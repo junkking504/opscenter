@@ -17,6 +17,14 @@
 .ops-live .map-selected-appointment { display: grid; gap: 4px; padding: 5px 0 8px; font-size: 11px; line-height: 1.35; }
 .ops-live .map-selected-appointment p { margin: 0; color: #805014; }
 .ops-live .map-selected-appointment .google-maps-address { font-size: 11px; }
+/* The selected summary grows below the map; only the truck comparison scrolls. */
+.ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open .schedule-map-panel:has(.map-selected-appointment) { height: auto; grid-template-rows: auto minmax(200px, 1fr) auto; }
+.ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open .schedule-map-controls:has(.map-selected-appointment) { max-height: none; overflow: visible; }
+.ops-live .live-schedule.schedule-dispatch .schedule-map-controls > .route-intelligence-panel:has(.map-selected-appointment) { flex: 0 0 auto; }
+.ops-live .live-schedule.schedule-dispatch .route-intelligence-panel:has(.map-selected-appointment) > header { flex-wrap: wrap; }
+.ops-live .live-schedule.schedule-dispatch .map-selected-appointment { min-width: 0; padding: 8px; overflow-wrap: anywhere; }
+.ops-live .live-schedule.schedule-dispatch .map-selected-appointment > * { min-width: 0; white-space: normal; }
+.ops-live .live-schedule.schedule-dispatch .map-selected-appointment p { display: block; }
 .ops-live .live-schedule-map .live-map-pin .map-marker { position: relative; }
 .ops-live .map-partner-badge {
   position: absolute; top: 25px; left: 50%; transform: translateX(-50%);

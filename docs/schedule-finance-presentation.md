@@ -321,6 +321,14 @@ controls. Closing it preserves the selected appointment and dispatch position;
 opening details performs no appointment write. The existing below-map action
 uses the same label. No list search or list scrolling is required.
 
+The selected appointment summary below the Schedule map grows with its content
+instead of inheriting the compact 130px map-control cap. Address, work, status,
+closest-truck summary and address-verification warnings wrap and remain visible.
+Only the longer truck-comparison list has an inner scroll area. The map retains
+at least 200px of height; narrow screens use normal page scrolling rather than
+clipping the summary. `scripts/test-selected-appointment-layout-browser.mjs`
+checks this at 320–1440px with long synthetic details and eight truck candidates.
+
 The Schedule payload resolves `sourceEstimateAppointmentId` against the exact
 estimate appointment ID in JunkWare's historical raw snapshots, independent of
 the selected Schedule day. It never links by customer name, phone, or JK number.

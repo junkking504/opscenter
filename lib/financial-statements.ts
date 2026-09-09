@@ -13,8 +13,11 @@ function validRecord(value: unknown): value is FinancialStatement {
   const month = (v: unknown) => typeof v === 'string' && /^20\d{2}-(0[1-9]|1[0-2])$/.test(v);
   const row = (v: FinancialStatement['rows'][number]) => v && text(v.label) && text(v.cell) && (v.formula === null || text(v.formula)) && (v.cents === null || Number.isSafeInteger(v.cents));
   return text(r.id) && /^[a-f0-9]{64}$/.test(r.sourceId) && text(r.sourceName) && text(r.company) && text(r.sheet)
-    && r.sourceKind === 'workbook' && month(r.month) && month(r.reportThrough) && r.month <= r.reportThrough
-    && ['Draft', 'Unreviewed'].includes(r.status) && ['Accrual', 'Cash', 'Unspecified'].includes(r.basis)
+    && ['workbook', 'qbo'].includes(r.sourceKind) && month(r.month) && month(r.reportThrough) && r.month <= r.reportThrough
+    && ['Draft', 'Unreviewed', 'Current books'].includes(r.status) && ['Accrual', 'Cash', 'Unspecified'].includes(r.basis)
+    && (r.periodEnd === undefined || typeof r.periodEnd === 'string' && /^20\d{2}-\d{2}-\d{2}$/.test(r.periodEnd) && r.periodEnd.startsWith(r.month))
+    && (r.observedAt === undefined || typeof r.observedAt === 'string' && Number.isFinite(Date.parse(r.observedAt)))
+    && (r.sourceKind !== 'qbo' || !!r.periodEnd && !!r.observedAt)
     && !!r.totals && statementMetrics.every(([key]) => Number.isSafeInteger(r.totals[key]))
     && Array.isArray(r.rows) && r.rows.length < 1000 && r.rows.every(row)
     && Array.isArray(r.supplemental) && r.supplemental.length < 1000 && r.supplemental.every(row)

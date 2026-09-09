@@ -66,6 +66,16 @@ export async function getQboCompanyInfo(environment: IntuitEnvironment): Promise
   return (body.CompanyInfo || body) as Record<string, unknown>;
 }
 
+/** Explicit, read-only report collection; no polling or accounting writes. */
+export async function getQboProfitAndLoss(environment: IntuitEnvironment, start: string, end: string): Promise<Record<string, unknown>> {
+  const valid = (date: string) => /^20\d{2}-\d{2}-\d{2}$/.test(date) && new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) === date;
+  if (!valid(start) || !valid(end) || start > end || start.slice(0, 4) !== end.slice(0, 4)) throw new Error('A valid single-year report period is required.');
+  const envelope = await getValidQboTokenEnvelope();
+  const url = new URL(`${accountingBase(environment)}/v3/company/${encodeURIComponent(envelope.realmId)}/reports/ProfitAndLoss`);
+  for (const [key, value] of Object.entries({ start_date: start, end_date: end, accounting_method: 'Accrual', summarize_column_by: 'Month', minorversion: MINOR_VERSION })) url.searchParams.set(key, value);
+  return jsonOrError(await apiFetch(url.toString(), { signal: AbortSignal.timeout(30_000) }), 'QBO Profit and Loss report');
+}
+
 function queryRows(body: Record<string, unknown>, entity: string): Record<string, unknown>[] {
   const response = body.QueryResponse;
   if (!response || typeof response !== "object") return [];

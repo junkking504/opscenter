@@ -41,21 +41,42 @@ draft labels and do not invent prior-year comparisons.
 
 ## QuickBooks
 
-The existing Accounting OAuth client reads company identity, card Payments and
-SalesReceipts. It does not yet collect P&L, balance-sheet, or cash-flow reports.
-QBO's Reports API can provide these using explicit date ranges and accounting
-basis. Keep API reports separately sourced from accountant drafts, and compare
-them before assigning precedence to adjustments. Do not silently overwrite a
-reviewed statement when current books change.
+The existing Accounting OAuth client now also supports an explicit, read-only
+P&L collection through the Reports API. After verifying the app is on Intuit's
+no-charge Builder tier, load the existing protected QBO configuration and run:
 
-Before enabling additional API request volume, verify the app's Intuit partner
-tier and enforce the spending controls. No additional QBO polling or metered
-feature is enabled by the workbook import. See [Spending controls](spending-controls.md)
-and [QBO setup](qbo-intuit-production-setup.md).
+```sh
+node --import tsx scripts/collect-qbo-financial-statements.ts --through YYYY-MM-DD --company 'Exact connected company name'
+```
+
+The same operation is available through **Refresh QuickBooks reports** in the
+Finance overview. The same-origin POST endpoint requires `finance.read` and
+always requests today's Chicago date, independent of the displayed historical
+month. A private filesystem lock serializes refreshes, and a persisted successful
+refresh receipt prevents repeated requests for 15 minutes. A crashed lock must
+be reviewed against its recorded owner PID before removal. Failed API reads
+preserve the last report snapshots and leave a visible refresh error.
+
+An uncached refresh makes one company-identity request and two report requests, each with a
+bounded timeout and the existing single authentication retry. It requests
+accrual P&Ls grouped by month for January through the specified day, plus the
+same prior-year period. Partial months retain exact end dates. No polling,
+LaunchAgent, automation or accounting write is installed. Recheck the Intuit
+tier before subsequent collections; do not upgrade the account or allow paid
+overages. See [Spending controls](spending-controls.md).
+
+The normalized source ID is stable by company, year, environment and basis.
+Raw report snapshots are preserved separately by content SHA256. The Finance
+source selector keeps QBO reports and accountant drafts separate and defaults
+to QBO when available. Current books are explicitly not a reviewed close; a
+complete period's API coverage does not establish bookkeeping completeness.
+Matching YTD comparisons require matching report cutoffs. Balance-sheet and
+cash-flow reports are not collected by this P&L workflow.
 
 ## Verification
 
 - `python3 scripts/test-financial-statement-import.py`
 - `node --import tsx scripts/test-financial-statements.ts`
+- `node --import tsx scripts/test-qbo-financial-statements.ts`
 - Desktop TypeScript, application TypeScript, lint, production build, and the
   authenticated Finance month/version/detail controls.

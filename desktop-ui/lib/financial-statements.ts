@@ -7,9 +7,9 @@ export const statementMetrics = [
 export type StatementMetric = typeof statementMetrics[number][0];
 export type StatementRow = { label: string; cents: number | null; cell: string; formula: string | null };
 export type FinancialStatement = {
-  id: string; sourceId: string; sourceKind: 'workbook'; sourceName: string; sheet: string;
+  id: string; sourceId: string; sourceKind: 'workbook' | 'qbo'; sourceName: string; sheet: string;
   company: string; month: string; reportThrough: string; basis: 'Accrual' | 'Cash' | 'Unspecified';
-  status: 'Draft' | 'Unreviewed'; totals: Record<StatementMetric, number>; rows: StatementRow[];
+  status: 'Draft' | 'Unreviewed' | 'Current books'; periodEnd?: string; observedAt?: string; totals: Record<StatementMetric, number>; rows: StatementRow[];
   supplemental: StatementRow[]; annotations: Array<{ cell: string; text: string }>; warnings: string[];
 };
 export type StatementData = { available: boolean; error: string | null; importedAt: string | null; records: FinancialStatement[] };

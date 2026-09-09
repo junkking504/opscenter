@@ -18,7 +18,9 @@ export async function POST(request: Request) {
     if (text.length > 32_000) throw new Error('Request too large.');
     const body = JSON.parse(text);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(body.date || '') || !Number.isFinite(Date.parse(body.date+'T12:00:00Z')) || new Date(body.date+'T12:00:00Z').toISOString().slice(0,10) !== body.date || typeof body.groupKey !== 'string' || typeof body.sourceKey !== 'string' || !['preview','nearest','save'].includes(body.action)) throw new Error('Invalid stop order request.');
-    const snapshot = await readVerifiedDesktopSchedule(body.date);
+    // Saving a local sequence needs source/conflict checks, not geocoding or
+    // road requests. Keep external lookups exclusively on preview/suggestion.
+    const snapshot = body.action === 'save' ? readDesktopSchedule(body.date) : await readVerifiedDesktopSchedule(body.date);
     const group = stopGroups(snapshot.appointments).find(group=>stopGroupKey(group[0]) === body.groupKey);
     if (!group || stopOrderSourceKey(group) !== body.sourceKey) throw new StopOrderConflict('The schedule or stop order changed. Refresh and review the current stops.');
     if (!isStopPermutation(group,body.ids)) throw new Error('Include every appointment in this time slot exactly once.');

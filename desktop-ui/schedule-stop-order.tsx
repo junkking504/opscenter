@@ -14,15 +14,20 @@ export default function ScheduleStopOrder({snapshot,busy,saved,onBusyChange}: {s
   const [refresh,setRefresh] = useState(0);
   const active = useRef<AbortController | null>(null);
   const saving = useRef(false);
+  const previewTimer = useRef<number | null>(null);
+  const cancelPreview = () => { if (previewTimer.current !== null) window.clearTimeout(previewTimer.current); previewTimer.current = null; };
   const sourceKey = group ? stopOrderSourceKey(group) : '';
   const groupKey = group ? stopGroupKey(group[0]) : '';
   const current = groups.find(group=>stopGroupKey(group[0]) === groupKey);
   const stale = Boolean(group && (!current || stopOrderSourceKey(current) !== sourceKey));
   const draftKey = JSON.stringify(ids);
   const changed = Boolean(group && draftKey !== JSON.stringify(group.map(job=>job.recordId)));
-  const choose = (next: ScheduleAppointment[]) => { active.current?.abort(); setGroup(next); setIds(next.map(job=>job.recordId)); setLegs([]); setMessage(''); setRefresh(n=>n+1); };
-  const close = () => { if (saving.current) return; active.current?.abort(); dialog.current?.close(); setGroup(null); setWorking(''); };
+  const choose = (next: ScheduleAppointment[]) => { if (saving.current) return; cancelPreview(); active.current?.abort(); setGroup(next); setIds(next.map(job=>job.recordId)); setLegs([]); setMessage(''); setRefresh(n=>n+1); };
+  const close = () => { if (saving.current) return; cancelPreview(); active.current?.abort(); dialog.current?.close(); setGroup(null); setWorking(''); };
   const request = async (action: 'preview'|'nearest'|'save') => {
+    // A debounced preview must never replace a user-requested save/suggestion.
+    if (saving.current) return;
+    cancelPreview();
     active.current?.abort();
     const abort = new AbortController(); active.current = abort;
     setWorking(action); setMessage('');
@@ -42,14 +47,16 @@ export default function ScheduleStopOrder({snapshot,busy,saved,onBusyChange}: {s
     }
   };
   useEffect(()=>{
-    if (!group || stale) { active.current?.abort(); setLegs([]); return; }
+    cancelPreview();
+    if (!group || stale) { if (!saving.current) active.current?.abort(); setLegs([]); return; }
+    if (saving.current) return;
     setLegs([]);
-    const timer = window.setTimeout(()=>void request('preview'),350);
-    return ()=>{window.clearTimeout(timer); active.current?.abort();};
+    previewTimer.current = window.setTimeout(()=>void request('preview'),350);
+    return ()=>{cancelPreview(); if (!saving.current) active.current?.abort();};
     // Only a changed draft or refreshed source should request new road legs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[sourceKey,draftKey,stale,refresh]);
-  useEffect(()=>()=>active.current?.abort(),[]);
+  useEffect(()=>()=>{cancelPreview(); active.current?.abort();},[]);
   if (!groups.length && !group) return null;
   return <>
     <button type="button" className="schedule-stop-order-trigger" disabled={busy} onClick={()=>{choose(groups[0]);dialog.current?.showModal();}}>Stop Order</button>
@@ -58,7 +65,7 @@ export default function ScheduleStopOrder({snapshot,busy,saved,onBusyChange}: {s
       <p>Move stops up or down. Times and truck assignments stay the same. Save to update the schedule and travel estimates.</p>
       {group && <>
         <label>Truck and time slot<select aria-label="Stop order time slot" value={groupKey} disabled={working === 'save'} onChange={event=>{const next=groups.find(group=>stopGroupKey(group[0]) === event.target.value);if(next)choose(next);}}>{groups.map(group=><option key={stopGroupKey(group[0])} value={stopGroupKey(group[0])}>{group[0].truck} · {group[0].appointmentTime} · {group.length} stops</option>)}</select></label>
-        {stale && <p role="alert">The schedule or saved order changed. <button onClick={()=>{if(current)choose(current);else close();}}>Refresh stops</button></p>}
+        {stale && <p role="alert">The schedule or saved order changed. <button disabled={working === 'save'} onClick={()=>{if(current)choose(current);else close();}}>Refresh stops</button></p>}
         <ol>{ids.map((id,index)=>{
           const job=group.find(job=>job.recordId === id)!;
           const leg=legs.find(leg=>leg.toAppointmentId === id && leg.fromAppointmentId === ids[index-1]);

@@ -5,11 +5,14 @@ const browser=await chromium.launch({headless:true});
 try {
  const page=await browser.newPage();
  let saves=0;
+ let saveDelay=0;
+ const actions=[];
  await page.route('**/api/desktop/schedule/order',async route=>{
   const body=route.request().postDataJSON();
+  actions.push(body.action);
   const ids=body.action==='nearest'?[body.ids[0],...body.ids.slice(1).reverse()]:body.ids;
   const jobs=ids.map((recordId,index)=>({recordId,appointmentId:recordId.split(':').at(-1),version:'1',jkNumber:'JK'+recordId.split(':').at(-1),customerName:'Example',address:'100 Example St New Orleans LA 70125',truck:'Truck 8',status:'Confirmed',appointmentStartMinutes:480,appointmentEndMinutes:540,appointmentTime:'8:00 AM–9:00 AM',stopOrder:index,location:{latitude:30,longitude:-90}}));
-  if(body.action==='save')saves++;
+  if(body.action==='save'){saves++;await new Promise(resolve=>setTimeout(resolve,saveDelay));}
   await route.fulfill({json:body.action==='save'?{saved:true,snapshot:{date:body.date,observedAt:null,fleet:{isToday:false,trucks:[]},appointments:jobs}}:{ids,legs:ids.slice(1).map((id,index)=>({fromAppointmentId:ids[index],toAppointmentId:id,travelMinutes:10+index,miles:5+index}))}});
  });
  for(const width of [1280,390]) {
@@ -35,5 +38,16 @@ try {
   assert.equal(await page.locator('output').textContent(),'JK1,JK3,JK2','Cancel cannot save a suggestion');
  }
  assert.equal(saves,2);
- console.log('Stop order browser passed at 390px and 1280px: arrows, save/read-back, nearest suggestion, cancel and dialog bounds. Synthetic API only.');
+ saveDelay=900;
+ await page.goto(process.env.STOP_ORDER_TEST_URL || 'http://127.0.0.1:3157/tests/stop-order.html');
+ await page.getByRole('button',{name:'Stop Order',exact:true}).click();
+ await page.getByRole('dialog').getByText('10 min · 5 mi from previous stop',{exact:true}).waitFor();
+ const beforeSave=actions.length;
+ await page.getByRole('button',{name:'Move JK3 up',exact:true}).click();
+ await page.getByRole('button',{name:'Save Order',exact:true}).click();
+ await page.getByText('JK1,JK3,JK2',{exact:true}).waitFor({timeout:4000});
+ assert.equal(await page.getByRole('dialog').count(),0,'A pending travel preview must never cancel Save Order');
+ assert.deepEqual(actions.slice(beforeSave),['save'],'Saving must cancel the queued preview');
+ assert.equal(saves,3,'Exactly one save per explicit Save Order click');
+ console.log('Stop order browser passed at 390px and 1280px: arrows, save/read-back, nearest suggestion, cancel, dialog bounds and delayed save without preview interruption. Synthetic API only.');
 } finally {await browser.close();}

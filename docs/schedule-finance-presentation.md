@@ -281,6 +281,9 @@ and unrelated note/payment updates do not interrupt a dispatcher's draft.
 Every draft shows its own adjacent travel estimates. **Save Order** persists the
 sequence in shared runtime `data/schedule-stop-order/<date>/<group-hash>.json`;
 no JunkWare assignment, booked time, completion or visit record is written.
+Saving cancels queued travel previews and cannot be interrupted by a preview or
+source refresh. Its endpoint uses local schedule reads and the same locked
+conflict checks without waiting for address verification or road lookups.
 The board stack and routing use the same comparator and invalidate route caches
 on a saved order change. New appointments append to a saved group; another date,
 truck or window never inherits that group's order. Source/version and saved-order
@@ -312,6 +315,7 @@ Existing verified source geocodes are retained. Census supplies lookups without
 Google Maps API calls or billing credentials.
 
 Validation: `scripts/test-schedule-stop-order.ts`,
+`scripts/test-stop-order-route.ts`, `scripts/test-stop-order-browser.mjs`,
 `scripts/test-desktop-address-verification.ts`, and the existing schedule,
 travel-layout, partner, planning-geocode and route-planner checks.
 # Prior estimate on a booked job

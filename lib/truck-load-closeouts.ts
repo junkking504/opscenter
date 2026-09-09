@@ -1,16 +1,18 @@
 import { readJobRows, junkwareScheduleUpdatedAt } from './desktop-schedule-source';
 import { readScheduleVisits } from './desktop-schedule-visits';
 import { appointmentOnsiteTime } from './appointment-onsite-time';
+import {readTruckCompletionEvidence} from './truck-load-completion-evidence';
 import { geofenceLoadResets, readGeofenceEntries } from './linxup-geofence-alerts';
 import { deriveTruckLoadStatus, junkwareJobLoadFraction, normalizeTruckLoadLabel, junkwareBedloadFraction, formatLoadAmount, readTruckLoadStore, recordTruckLoadFromCloseout, type TruckLoadEvent, type TruckLoadStatus } from './truck-load-status';
 
-type LoadJob = Pick<ReturnType<typeof readJobRows>[number], 'appointmentId' | 'jkNumber' | 'truck' | 'appointmentType' | 'status' | 'closeout' | 'closeoutObservedAt' | 'chargeDetailsPending'>;
+type LoadJob = Pick<ReturnType<typeof readJobRows>[number], 'appointmentId' | 'jkNumber' | 'truck' | 'appointmentType' | 'status' | 'closeout' | 'closeoutObservedAt' | 'chargeDetailsPending'> & {completionObservedAt?:string};
 export type OperationalTruckLoad = TruckLoadStatus & {
   needsVerification: boolean; verificationNote: string;
   chargedTruckFraction: number; chargedBedloadFraction: number; chargedJobCount: number;
   chargesComplete: boolean;
   chargedLoadLabel: string; chargedLoadNote: string;
   unplacedAppointmentIds: string[];
+  displayLoadLabel: string;
 };
 
 export function truckChargeSummary(load: OperationalTruckLoad): string {
@@ -49,7 +51,13 @@ export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored:
     const visit = appointmentOnsiteTime(job, visits);
     // Schedule "completed_at" can be the scheduled window end, so it is not
     // evidence that a load belongs before or after an unload/observation.
-    const coveredBy = events.filter(event=>event.truck === truck && ['yard_reset','manual_snapshot'].includes(event.kind) && event.coveredAppointmentIds?.includes(id)).sort((a,b)=>a.occurredAt.localeCompare(b.occurredAt)).at(-1);
+    const completedBy = Date.parse(job.completionObservedAt || '');
+    const coveredBy = events.filter(event=> {
+      if (event.truck !== truck || !['yard_reset','manual_snapshot'].includes(event.kind)) return false;
+      // A posted completed-job receipt proves the load predates a later reset,
+      // but does not prove pickup occurred after any earlier reset.
+      return event.coveredAppointmentIds?.includes(id) || (!existing?.occurredAt && !visit.departure && Number.isFinite(completedBy) && completedBy < Date.parse(event.occurredAt));
+    }).sort((a,b)=>a.occurredAt.localeCompare(b.occurredAt)).at(-1);
     const occurredAt = coveredBy ? new Date(Date.parse(coveredBy.occurredAt)-1).toISOString() : existing?.occurredAt || visit.departure || '';
     if (!occurredAt && events.some(event => event.truck === truck && ['yard_reset','manual_snapshot'].includes(event.kind))) {
       unplaced.add(id);
@@ -58,7 +66,7 @@ export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored:
     events = events.filter(event => event !== existing);
     events.push({eventId:`job-closeout:${id}`,date,truck,kind:'job_closeout',loadFraction:fraction,bedloadFraction,
       occurredAt,recordedAt:chargeObservedAt ? new Date(chargeObservedAt).toISOString() : '',
-      recordedBy:'JunkWare completed job',appointmentId:id,jobNumber:job.jkNumber,
+      recordedBy:coveredBy && job.completionObservedAt && !coveredBy.coveredAppointmentIds?.includes(id) ? `JunkWare completed by ${job.completionObservedAt}; covered by later load reset or observation` : 'JunkWare completed job',appointmentId:id,jobNumber:job.jkNumber,
       loadSize:job.closeout!.loadSize,loadQuantity:String(job.closeout!.loadQuantity),contents:'',resetLocation:'',
       appointmentType:job.appointmentType,appointmentStatus:job.status});
   }
@@ -73,6 +81,7 @@ export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored:
     return {...status,events:truckEvents.slice().sort((a,b)=>b.occurredAt.localeCompare(a.occurredAt)),
       // Unknown-time charges stay in the audit and daily sum, never at an invented midnight.
       needsVerification:issues.has(truck),verificationNote:[...(issues.get(truck) || [])].join(' '),
+      displayLoadLabel:!status.events.length ? (issues.has(truck) ? 'Load pending' : 'Load not recorded') : `${status.currentLoadLabel}${issues.has(truck) ? ' · provisional' : ''}`,
       chargesComplete:!incomplete.has(truck),chargedTruckFraction,chargedBedloadFraction,chargedJobCount:charges.length,
       chargedLoadLabel:`${formatLoadAmount(chargedTruckFraction)} truck${chargedBedloadFraction ? ` + ${formatLoadAmount(chargedBedloadFraction)} bedload` : ''}`,
       chargedLoadNote:charges.map(event=>`${event.jobNumber || event.appointmentId}: ${formatLoadAmount(event.loadFraction)} truck${event.bedloadFraction ? ` + ${formatLoadAmount(event.bedloadFraction)} bedload` : ''}`).join('; '),
@@ -83,7 +92,8 @@ export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored:
 
 export function readOperationalTruckLoads(date: string, trucks: string[] = [], jobs = readJobRows(date)) {
   const events = [...readTruckLoadStore().events,...geofenceLoadResets(date,readGeofenceEntries(date).entries)];
-  return deriveCloseoutTruckLoads(date,trucks,events,jobs,readScheduleVisits(date).visits,Date.parse(junkwareScheduleUpdatedAt(date) || '') || 0);
+  const completions = readTruckCompletionEvidence(date,jobs);
+  return deriveCloseoutTruckLoads(date,trucks,events,jobs.map(job=>({...job,completionObservedAt:completions.get(job.appointmentId)})),readScheduleVisits(date).visits,Date.parse(junkwareScheduleUpdatedAt(date) || '') || 0);
 }
 
 /** A present-time observation/unload explicitly covers jobs already closed on that truck. */

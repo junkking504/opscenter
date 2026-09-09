@@ -85,7 +85,12 @@ fraction and capacity meter.
 Confirmed visit departure or an existing closeout event places an added load
 before or after an unload or observation. The schedule's `completed_at` field
 can contain the appointment window end and is not used as actual pickup time.
-If ordering matters and cannot be verified, the UI displays **Verify load**.
+An existing completed-job delivery receipt for the same appointment, day, and
+truck can also prove that the job was completed before a later unload or load
+observation. This uses local receipt metadata and sends no messages. The receipt
+does not establish an exact pickup time or place a pickup after an earlier dump.
+If ordering matters and cannot be verified, the UI keeps the known count visible
+and labels it **provisional**, with the unresolved job identified in its notes.
 Manual Fleet/API unloads and load observations retain the IDs of jobs already
 closed on that truck, so those loads remain covered even if their visit times
 are missing or their closeouts are later corrected. A saved starting load is
@@ -117,7 +122,7 @@ Summed fractions are shown exactly, including 5/12 and loads exceeding one truck
 A completed charge without verifiable pickup timing stays in the daily total
 and audit, but is excluded from the confirmed onboard subtotal when an unload
 or observation makes ordering significant. It has no invented midnight time.
-The current load remains marked Verify load until timing can be reconciled;
+The current load remains marked provisional until timing can be reconciled;
 charged totals are never represented as proof of current physical capacity.
 Estimates and canceled appointments do not contribute. Missing charge details
 remain explicit exceptions; dollar amounts are never converted into volume.

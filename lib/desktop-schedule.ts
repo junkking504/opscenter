@@ -72,8 +72,8 @@ export function readDesktopSchedule(date: string) {
     observedAt: junkwareScheduleUpdatedAt(date),
     appointments: applyStopOrders(date, appointments),
     truckLoads: readOperationalTruckLoads(date, [...fleet.trucks.map(truck=>truck.truck),...appointments.map(job=>job.truck)], sourceAppointments).map(load=>({
-      truck:load.truck, label:load.needsVerification ? 'Verify load' : load.events.length ? load.currentLoadLabel : 'Load not recorded',
-      percent:load.needsVerification || !load.events.length ? null : load.capacityPercent,
+      truck:load.truck, label:load.displayLoadLabel,
+      percent:!load.events.length ? null : load.capacityPercent,
       needsVerification:load.needsVerification, note:[truckChargeSummary(load),load.verificationNote || (load.isOverCapacity ? 'Over capacity · verify an unload or the recorded loads.' : load.currentContents)].filter(Boolean).join(' '),
     })),
     fleet,

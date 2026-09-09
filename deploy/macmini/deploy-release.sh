@@ -295,6 +295,8 @@ if [[ -f "$SLACK_ENV" ]]; then
 fi
 
 cd "$release"
+# The reviewed gate lives outside this release and cannot be replaced by a branch.
+node "$HOME/Library/Application Support/OpsCenter/deployment-control/verify-spending-boundary.mjs" "$release"
 npm ci
 npx playwright install chromium
 

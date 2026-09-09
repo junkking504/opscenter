@@ -34,7 +34,7 @@ for command in git ssh; do
   command -v "$command" >/dev/null 2>&1 || fail "required command is missing: $command"
 done
 
-[[ -d "$REPOSITORY_ROOT/.git" ]] || fail "$REPOSITORY_ROOT is not a Git checkout"
+git -C "$REPOSITORY_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1 || fail "$REPOSITORY_ROOT is not a Git checkout"
 [[ -f "$MC_SSH_KEY" ]] || fail "missing Mission Control SSH key: $MC_SSH_KEY"
 commit="$(git -C "$REPOSITORY_ROOT" rev-parse --verify "${REQUESTED_REF}^{commit}" 2>/dev/null || true)"
 [[ -n "$commit" ]] || fail "cannot resolve local Git ref: $REQUESTED_REF"
@@ -56,5 +56,4 @@ ssh_options=(-i "$MC_SSH_KEY" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectT
 ssh "${ssh_options[@]}" "$ssh_target" /usr/bin/true
 
 echo "Deploying pushed commit $commit to the isolated Mission Control preview..."
-ssh "${ssh_options[@]}" "$ssh_target" /bin/zsh -s -- "$commit" \
-  < "$SCRIPT_DIR/deploy-preview-release.sh"
+ssh "${ssh_options[@]}" "$ssh_target" "/bin/zsh '/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-control/deploy-preview-release.sh' '$commit'"

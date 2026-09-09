@@ -15,6 +15,7 @@ without mixing live runtime data or secrets into Git.
 | Understand prior decisions | [Context and History](CONTEXT_AND_HISTORY.md) |
 | Review architecture | [Platform Kernel Architecture](PLATFORM_KERNEL_ARCHITECTURE.md) |
 | Work with an integration | Use the integration index below |
+| Approve or prevent usage charges | [Spending controls](spending-controls.md) |
 
 ## Product and architecture
 

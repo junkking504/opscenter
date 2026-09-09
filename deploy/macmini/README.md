@@ -65,6 +65,11 @@ Before deploying, commit and push the intended code, integrate it into
 Installing the controller does not build, activate, restart, or deploy
 OpsCenter. It is a separate authorization boundary from deployment.
 
+Both launchers use installed controllers. They run the externally reviewed
+spending gate before dependency installation. Controller installation preserves
+the separately installed spending checker and allowlist; a routine release must
+not approve new charges. See [Spending controls](../../docs/spending-controls.md).
+
 For the first setup, supply MC's Bonjour name, DNS name, or address:
 
 ```sh

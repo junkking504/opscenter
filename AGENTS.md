@@ -71,3 +71,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+# Spending approval
+
+Read `docs/spending-controls.md` before adding an external service, provider SDK,
+AI call, paid feature, background polling, or changing request volume. A request
+to implement or deploy a feature and the presence of credentials do not approve
+new usage charges. Obtain explicit approval of provider, feature and maximum
+spend before enabling a new metered path. Never raise limits, restore Google
+Maps billing, remove spending gates, or update the externally installed spending
+allowlist as part of a routine deployment. Tests must mock paid providers.

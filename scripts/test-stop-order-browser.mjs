@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { chromium } from 'playwright';
 const browser=await chromium.launch({headless:true});
 try {
@@ -14,6 +15,7 @@ try {
  for(const width of [1280,390]) {
   await page.setViewportSize({width,height:800});
   await page.goto('http://127.0.0.1:3157/tests/stop-order.html');
+  await page.addStyleTag({content:fs.readFileSync('desktop-ui/app/globals.css','utf8')});
   await page.getByRole('button',{name:'Stop Order',exact:true}).click();
   const modal=page.getByRole('dialog');
   await modal.getByText('10 min · 5 mi from previous stop',{exact:true}).waitFor();

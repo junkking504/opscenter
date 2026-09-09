@@ -36,3 +36,26 @@
 }
 .ops-live .map-locator-choices button:focus-visible { outline: 2px solid #174e77; outline-offset: -2px; }
 .ops-live .map-locator-choices small { font-size: 10px; }
+
+/* Full record access stays on the dispatch surface, outside scrollable details. */
+.ops-live .live-schedule .dispatch-full-details {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 36px; padding: 7px 12px; border: 1px solid #174e77;
+  border-radius: 6px; background: #174e77; color: #fff;
+  font-size: 13px; font-weight: 750; line-height: 1.3; cursor: pointer;
+}
+.ops-live .live-schedule .dispatch-full-details:focus-visible { outline: 3px solid #daa929; outline-offset: 3px; }
+.ops-live .live-schedule .dispatch-full-details:disabled { opacity: .55; cursor: default; }
+.ops-live .live-schedule .map-focus-chip:has(.dispatch-full-details) { max-width: calc(100% - 20px); }
+.ops-live .live-schedule .map-focus-chip:has(.dispatch-full-details) .map-focus-actions { grid-column: 1 / -1; grid-row: auto; display: flex; flex-wrap: wrap; align-items: center; margin-top: 5px; }
+.ops-live .live-schedule .schedule-selected-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 12px; min-width: 0; }
+.ops-live .live-schedule .schedule-selected-actions > span { font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.ops-live .live-schedule .schedule-board-shell > .section-title:has(.schedule-selected-actions) { flex: 0 0 auto; min-height: 48px; height: auto; padding: 7px 10px; gap: 8px; flex-wrap: wrap; }
+.ops-live .live-schedule .schedule-board-actions:has(.schedule-selected-actions) { min-width: 0; flex: 1; }
+.ops-live .live-schedule .schedule-board-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ops-live .live-schedule .schedule-stop-order-trigger { min-height: 36px; font-size: 13px; padding: 7px 12px; }
+.ops-live .live-schedule .schedule-board-shell > .section-title:has(.schedule-stop-order-trigger) { min-height: 48px; height: auto; flex: 0 0 auto; padding: 7px 10px; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 540px) {
+  .ops-live .live-schedule .schedule-selected-actions { justify-content: flex-start; }
+  .ops-live .live-schedule .schedule-selected-actions > span { flex-basis: 100%; }
+}

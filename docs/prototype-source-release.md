@@ -2,6 +2,18 @@
 
 ## Workspace navigation performance (September 9)
 
+Requested-day schedule readers run under a separate supervisor with a 175-second
+deadline, inside the application's existing 180-second limit. A private process
+group lets the supervisor stop a hung reader and its browser children without
+entering Playwright cleanup. It also stops them if the application owner exits.
+The worker has an independent deadline in case its supervisor is forcibly stopped.
+A process-held file lock, inherited by the worker, prevents overlapping source
+reads even when the older JSON request marker expires. Verified snapshot writes
+and complete-market checks are unchanged; a timeout preserves existing data.
+Synthetic subprocess tests cover timeouts, hung cleanup, child termination,
+owner loss, forced supervisor loss, locking, and private scratch cleanup, and
+run as part of the production build. No external collection occurs in tests.
+
 Marketing normalizes each review and appointment name once per read and excludes
 appointments outside the existing 90-day window before matching. Suggestion
 ranking and manual attribution rules are unchanged. Finance reuses each monthly

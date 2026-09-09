@@ -33,12 +33,13 @@ def charge_signature(row):
     return [str(row.get(key, "")) for key in ("truck", "appointment_type", "job_status", "revenue", "tip")]
 
 
-def enrich_closed_charges(collector, data_dir, date_iso, market_id, rows):
+def enrich_closed_charges(collector, data_dir, date_iso, market_id, rows, *, read_limit=1):
     """Read changed completed charges without navigating the schedule tab.
 
     At most one eight-second detail read per market sweep. Reuse only matching source
     identities/signatures, and recheck unchanged charges every five minutes.
     Failure leaves the schedule available and the charge visibly pending.
+    Initialization uses read_limit=0 to retain matching verified details locally.
     """
     try:
         previous = json.loads(snapshot_file(data_dir, market_id, date_iso).read_text())
@@ -61,13 +62,14 @@ def enrich_closed_charges(collector, data_dir, date_iso, market_id, rows):
             age = float("inf")
         matching = old.get("closeout_signature") == charge_signature(row)
         if matching and age >= 0 and isinstance(old.get("closeout"), dict):
-            for key in ("closeout", "closeout_verified_at", "closeout_signature"):
-                row[key] = old[key]
+            for key in ("closeout", "closeout_verified_at", "closeout_signature", "closeout_attempted_at"):
+                if key in old:
+                    row[key] = old[key]
             if age < 300:
                 continue
         row["closeout_refresh_pending"] = True
         row["closeout_attempted_at"] = old.get("closeout_attempted_at", "")
-        if reads >= 1:
+        if reads >= read_limit:
             continue
         reads += 1
         row["closeout_attempted_at"] = datetime.now(TIMEZONE).isoformat()
@@ -302,6 +304,9 @@ def initialize(collector, opscenter_dir, data_dir, date_iso):
     for market_id, market_name in MARKETS:
         market_appointments = [row for row in appointments if str(row.get("market", "")) == market_name]
         market_cancelled = [row for row in cancelled if str(row.get("market", "")) == market_name]
+        # A schedule baseline has no charge detail. Preserve matching verified
+        # closeouts before replacing the files that hold the detail cache.
+        market_appointments = enrich_closed_charges(collector, data_dir, date_iso, market_id, market_appointments, read_limit=0)
         target = write_snapshot(data_dir, date_iso, market_id, market_name, market_appointments, market_cancelled, source_url)
         publish_snapshot(opscenter_dir, data_dir, date_iso, market_id, target)
 

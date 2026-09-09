@@ -187,6 +187,8 @@ fi
 [[ -L "$release/logs" ]] || ln -s "$SHARED_LOGS" "$release/logs"
 
 cd "$release"
+# The reviewed gate lives outside this release and cannot be replaced by a branch.
+node "$HOME/Library/Application Support/OpsCenter/deployment-control/verify-spending-boundary.mjs" "$release"
 npm ci
 NEXT_DIST_DIR="tmp/macmini-preview-next" npm run build
 

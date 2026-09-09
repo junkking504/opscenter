@@ -5,7 +5,6 @@ USER_HOME="${HOME:?HOME must be set}"
 APP_DIR="${OPSCENTER_APP_DIR:-$USER_HOME/opscenter-v2/opscenter}"
 ENV_FILE="${OPSCENTER_ENV_FILE:-}"
 SLACK_ENV_FILE="${OPSCENTER_SLACK_ENV_FILE:-$USER_HOME/Library/Application Support/OpsCenter/slack.env}"
-OPENAI_ENV_FILE="${OPSCENTER_OPENAI_ENV_FILE:-$USER_HOME/opscenter-v2/.env.openai.local}"
 LOCK_DIR="/tmp/com.openclaw.opscenter.whatsapp-photos.lock"
 PID_FILE="$LOCK_DIR/pid"
 LOG_PREFIX="[whatsapp-photo-worker]"
@@ -26,11 +25,8 @@ if [[ -f "$SLACK_ENV_FILE" ]]; then
   set +a
 fi
 
-if [[ -f "$OPENAI_ENV_FILE" ]]; then
-  set -a
-  source "$OPENAI_ENV_FILE"
-  set +a
-fi
+# This worker has no approved metered AI feature. Do not inherit a general key.
+unset OPENAI_API_KEY ANTHROPIC_API_KEY GOOGLE_MAPS_API_KEY GOOGLE_MAPS_ROUTES_API_KEY
 
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
   existing_pid=""

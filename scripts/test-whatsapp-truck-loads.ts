@@ -129,27 +129,12 @@ fs.writeFileSync(photoFile, Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
 process.env.OPENAI_API_KEY = `sk-${"x".repeat(40)}`;
 process.env.OPSBOT_TRUCK_VISION_MODEL = "gpt-5.4-mini";
 const originalFetch = global.fetch;
-let requestBody: Record<string, unknown> = {};
-global.fetch = (async (_input: string | URL | Request, init?: RequestInit) => {
-  assert.match(String(new Headers(init?.headers).get("authorization")), /^Bearer sk-/);
-  requestBody = JSON.parse(String(init?.body || "{}")) as Record<string, unknown>;
-  return new Response(JSON.stringify({
-    output_text: JSON.stringify({
-      load_label: "1/2",
-      contents: "mostly junk with some metal",
-      confidence: 0.78,
-      visible_enough: true,
-      notes: "Cargo walls are visible.",
-    }),
-  }), { status: 200, headers: { "Content-Type": "application/json" } });
-}) as typeof fetch;
+let providerCalls = 0;
+global.fetch = (async () => { providerCalls++; throw new Error("Unapproved provider request"); }) as typeof fetch;
 void (async () => {
   try {
-    const analyzed = await analyzeTruckLoadPhoto(photoFile);
-    assert.equal(analyzed.loadFraction, 1 / 2);
-    assert.equal(analyzed.contents, "mostly junk with some metal");
-    assert.equal(requestBody?.model, "gpt-5.4-mini");
-    assert.equal(requestBody?.store, false);
+    await assert.rejects(analyzeTruckLoadPhoto(photoFile), /spending approval/);
+    assert.equal(providerCalls, 0, "A configured key must not enable paid photo analysis");
   } finally {
     global.fetch = originalFetch;
     fs.rmSync(testRoot, { recursive: true, force: true });

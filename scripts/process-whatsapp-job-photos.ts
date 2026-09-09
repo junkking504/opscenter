@@ -36,6 +36,7 @@ import {
   updateCrewExpenseTransaction,
 } from "@/lib/whatsapp-crew-expenses";
 import { sendCrewExpenseSlackNotification } from "@/lib/whatsapp-crew-expense-slack";
+import { METERED_USAGE_BLOCKED } from "@/lib/metered-usage-policy";
 import { analyzeTruckLoadPhoto } from "@/lib/truck-load-photo-analysis";
 import {
   recordTruckLoadPhotoAnalysis,
@@ -311,6 +312,13 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
     return "completed";
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (stage === "analyzing" && message === METERED_USAGE_BLOCKED) {
+      finishWhatsAppImage(claim.file, "review", { review: {
+        reason: "spending_approval_required",
+        detail: "Automatic truck-photo estimates are paused. Enter the truck fullness and contents manually.",
+      } });
+      return "review";
+    }
     if (stage === "uploading") {
       finishWhatsAppImage(claim.file, "review", {
         match: matchedJob,

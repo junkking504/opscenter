@@ -1,10 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { APPROVED_MODEL, APPROVED_MONTHLY_MICROS } from './metered-usage-policy';
 import type { MaintenanceObservation, MaintenanceState, MaintenanceSnapshot } from '../desktop-ui/lib/maintenance-contract';
 
-export const MONTHLY_BUDGET_MICROS = 10_000_000;
+export const MONTHLY_BUDGET_MICROS = APPROVED_MONTHLY_MICROS;
 export const CALL_RESERVATION_MICROS = 20_000;
-export const MODEL = 'gpt-5.6-luna';
+export const MODEL = APPROVED_MODEL;
 export const maintenanceDirectory = () => path.join(process.env.OPSBOT_DATA_DIR || path.join(process.env.HOME || '', '.openclaw/workspace/opsbot/data'), 'integrations/opscenter-maintenance');
 export const monthKey = (now: number) => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit' }).format(new Date(now));
 export function initialMaintenanceState(): MaintenanceState {
@@ -14,11 +15,11 @@ export function readMaintenanceState(directory = maintenanceDirectory()): Mainte
   try {
     const state = JSON.parse(fs.readFileSync(path.join(directory, 'state.json'), 'utf8')) as MaintenanceState;
     // A damaged ledger must stop analysis, never silently reset the budget.
-    if (state.version !== 1 || !Array.isArray(state.incidents) || !Array.isArray(state.receipts) || !state.months ||
-        Object.values(state.months).some(m => !m || ['committedMicros','estimatedMicros','calls','inputTokens','outputTokens'].some(k => !Number.isSafeInteger(m[k as keyof typeof m]) || m[k as keyof typeof m] < 0))) throw new Error('Invalid maintenance state');
+    if (state.version !== 1 || !Array.isArray(state.incidents) || !Array.isArray(state.receipts) || !state.months || typeof state.months !== 'object' || Array.isArray(state.months) ||
+        Object.values(state.months).some(m => !m || typeof m !== 'object' || Array.isArray(m) || ['committedMicros','estimatedMicros','calls','inputTokens','outputTokens'].some(k => !Number.isSafeInteger(m[k as keyof typeof m]) || m[k as keyof typeof m] < 0))) throw new Error('Invalid maintenance state');
     return state;
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return initialMaintenanceState();
+    // Missing history is not a new budget: preserve a fail-closed boundary.
     throw new Error('Maintenance state needs review; AI spending is paused.');
   }
 }
@@ -114,7 +115,9 @@ export function reconcileMaintenance(state: MaintenanceState, observations: Main
 export function reserveMaintenanceCall(state: MaintenanceState, now = Date.now()): boolean {
   const month = monthKey(now);
   const ledger = state.months[month] ||= { committedMicros: 0, estimatedMicros: 0, calls: 0, inputTokens: 0, outputTokens: 0 };
-  if (ledger.committedMicros + CALL_RESERVATION_MICROS > MONTHLY_BUDGET_MICROS) return false;
+  if (!Number.isSafeInteger(ledger.committedMicros) || ledger.committedMicros < 0
+    || !Number.isSafeInteger(ledger.calls) || ledger.calls < 0
+    || ledger.calls >= 500 || ledger.committedMicros + CALL_RESERVATION_MICROS > MONTHLY_BUDGET_MICROS) return false;
   ledger.committedMicros += CALL_RESERVATION_MICROS; ledger.calls += 1; return true;
 }
 export function readClientEvents(directory = maintenanceDirectory()): Record<string, { at: number; count: number }> {

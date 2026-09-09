@@ -36,7 +36,7 @@ release_install_lock() {
 trap release_install_lock EXIT
 
 mkdir -p "$CONTROLLER_DIR"
-for source_name in workspace-retention.py release-lineage.sh deploy-release.sh; do
+for source_name in workspace-retention.py release-lineage.sh deploy-release.sh deploy-preview-release.sh; do
   destination="$CONTROLLER_DIR/$source_name"
   temporary="$CONTROLLER_DIR/.${source_name}.new.$$"
   git -C "$REPOSITORY" show "${commit}:deploy/macmini/$source_name" > "$temporary" \

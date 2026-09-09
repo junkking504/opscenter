@@ -165,6 +165,22 @@ const initialNameSuggestions = assignmentModule.podiumReviewNameSuggestions([{
 }]);
 assert.equal(initialNameSuggestions["review-initial"]?.[0]?.jkNumber, "JK4067001");
 assert.equal(initialNameSuggestions["review-initial"]?.[0]?.matchKind, "name_initial");
+for (const [authorName, kind] of [
+  ['Customer Google', 'exact_name'],
+  ['Dr. Góogle Customer Jr.', 'exact_name'],
+  ['Google Middle Customer', 'exact_first_last'],
+  ['G. Customer', 'name_initial'],
+] as const) {
+  const result = assignmentModule.podiumReviewNameSuggestions([{uid:'variant', authorName, createdAt:'2026-08-31T15:00:00Z', locationName:'Junk King New Orleans'}]);
+  assert.equal(result.variant?.[0]?.matchKind, kind, authorName);
+  assert.equal(result.variant?.[0]?.jkNumber, 'JK4067001');
+}
+const outsideWindow = assignmentModule.podiumReviewNameSuggestions([
+  {uid:'before-service',authorName:'Google Customer',createdAt:'2026-01-01T15:00:00Z',locationName:''},
+  {uid:'after-window',authorName:'Google Customer',createdAt:'2027-01-01T15:00:00Z',locationName:''},
+  {uid:'invalid-date',authorName:'Google Customer',createdAt:'invalid',locationName:''},
+]);
+assert.deepEqual(outsideWindow, {'before-service':[], 'after-window':[], 'invalid-date':[]});
 const noNameSuggestions = assignmentModule.podiumReviewNameSuggestions([{
   uid: "review-unmatched-name",
   authorName: "Unrelated Reviewer",

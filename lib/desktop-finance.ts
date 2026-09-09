@@ -16,10 +16,19 @@ const sumField = (entries: AnyRecord[], field: string): number | null => !entrie
 function recyclingFile() { return path.join(commercialDirectory(), 'recycling-store'); }
 function readRecycling(): RecyclingRecord[] { try { const store = JSON.parse(fs.readFileSync(recyclingFile(), 'utf8')); if (store.schemaVersion !== 1 || !Array.isArray(store.records)) throw new CommercialActionError('Recycling store requires recovery.'); return store.records; } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error; } }
 export function readDesktopFinance(date: string): FinanceData {
+  // Request-local reuse keeps headlines and trends on the same source read,
+  // without retaining financial data or write versions across refreshes.
+  const summaries = new Map<string, ReturnType<typeof buildMonthlySummary>>();
+  const readSummary = (selectedDate: string) => {
+    const key = selectedDate.slice(0, 7);
+    let summary = summaries.get(key);
+    if (!summary) { summary = buildMonthlySummary(selectedDate); summaries.set(key, summary); }
+    return summary;
+  };
   const metrics = readMetrics(date);
-  const monthly = buildMonthlySummary(date);
-  const trend = buildFinanceTrendSummary(date);
-  const trends = trend.months.map(month => { const summary = buildMonthlySummary(`${month.monthKey}-01`); const published = summary.entries.map(entry => entry.metrics); return { ...month, missingDates: summary.range.missingDates, totalOperatingExpenses: sumField(published, 'total_expenses'), estimatedOperatingProfit: sumField(published, 'net_profit') }; });
+  const monthly = readSummary(date);
+  const trend = buildFinanceTrendSummary(date, readSummary);
+  const trends = trend.months.map(month => { const summary = readSummary(`${month.monthKey}-01`); const published = summary.entries.map(entry => entry.metrics); return { ...month, missingDates: summary.range.missingDates, totalOperatingExpenses: sumField(published, 'total_expenses'), estimatedOperatingProfit: sumField(published, 'net_profit') }; });
   const resaleFile = path.join(process.cwd(), 'data', 'finance', 'resale_items.json');
   if (fs.existsSync(resaleFile)) { const payload = JSON.parse(fs.readFileSync(resaleFile, 'utf8')); if (payload.version !== 1 || !Array.isArray(payload.items)) throw new CommercialActionError('Resale source needs recovery.'); }
   const resale = readResaleStore();

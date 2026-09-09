@@ -1,5 +1,22 @@
 # Approved Desktop Source Release
 
+## Workspace navigation performance (September 9)
+
+Marketing normalizes each review and appointment name once per read and excludes
+appointments outside the existing 90-day window before matching. Suggestion
+ranking and manual attribution rules are unchanged. Finance reuses each monthly
+summary within one response for headlines, trends, and coverage. Neither
+optimization retains source data or write versions between requests.
+
+Command pauses periodic reads in hidden tabs and resumes when visible. Focus,
+reconnection, and timer events do not start overlapping background reads or
+compete with an active alert write. Explicit post-write read-back still runs.
+
+Before release, identical source outputs were verified while review suggestion
+preparation fell from 2,834 ms to 339 ms and Finance from 1,279 ms to 629 ms.
+These are server-function timings; public browser request timings also include
+network transport and competing server work.
+
 The approved interface is the actual prototype, not a second implementation of
 its design. `desktop-ui/app/page.tsx`, `desktop-ui/app/globals.css`, and its four UI
 primitives were imported directly from the approved source. `approved-source.json`

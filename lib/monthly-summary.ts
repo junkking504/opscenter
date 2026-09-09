@@ -305,14 +305,14 @@ function dailyEstimatedOperatingProfit(metrics: AnyRecord): number {
  * JunkWare monthly authority where it exists; expense and profit remain the
  * aggregate of the published daily finance records that produced them.
  */
-export function buildFinanceTrendSummary(selectedDate: string): FinanceTrendSummary {
+export function buildFinanceTrendSummary(selectedDate: string, readSummary = buildMonthlySummary): FinanceTrendSummary {
   const selectedMonthKey = monthKey(selectedDate);
   const keys = Array.from(new Set(availableDates().map(monthKey)))
     .filter((key) => key <= selectedMonthKey)
     .sort();
 
   const months = keys.map((key) => {
-    const summary = buildMonthlySummary(`${key}-01`);
+    const summary = readSummary(`${key}-01`);
     return {
       monthKey: key,
       monthDisplay: summary.range.monthDisplay,
@@ -334,7 +334,7 @@ export function buildFinanceTrendSummary(selectedDate: string): FinanceTrendSumm
 
   const selectedMonth = months.find((month) => month.monthKey === selectedMonthKey)
     ?? (() => {
-      const summary = buildMonthlySummary(selectedDate);
+      const summary = readSummary(selectedDate);
       return {
         monthKey: summary.range.monthKey,
         monthDisplay: summary.range.monthDisplay,

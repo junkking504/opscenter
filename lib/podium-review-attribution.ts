@@ -227,17 +227,19 @@ function nameParts(value: string): string[] {
     .filter((part) => part && !ignoredNameParts.has(part));
 }
 
+function preparedName(value: string) {
+  const parts = nameParts(value);
+  return { parts, sorted: [...parts].sort().join(" ") };
+}
+
 function nameMatchKind(
-  reviewerName: string,
-  customerName: string,
+  reviewerName: ReturnType<typeof preparedName>,
+  customerName: ReturnType<typeof preparedName>,
 ): PodiumReviewNameSuggestion["matchKind"] | null {
-  const reviewer = nameParts(reviewerName);
-  const customer = nameParts(customerName);
+  const reviewer = reviewerName.parts;
+  const customer = customerName.parts;
   if (reviewer.length < 2 || customer.length < 2) return null;
-  if (reviewer.join(" ") === customer.join(" ")) return "exact_name";
-  const reviewerSorted = [...reviewer].sort().join(" ");
-  const customerSorted = [...customer].sort().join(" ");
-  if (reviewerSorted === customerSorted) return "exact_name";
+  if (reviewerName.sorted === customerName.sorted) return "exact_name";
   const reviewerFirst = reviewer[0];
   const reviewerLast = reviewer.at(-1) || "";
   const customerFirst = customer[0];
@@ -275,19 +277,23 @@ export function buildPodiumReviewNameSuggestionMap(
   dataDir: string,
   reviews: PodiumReviewNameSuggestionInput[],
 ): Record<string, PodiumReviewNameSuggestion[]> {
-  const appointments = readAppointments(dataDir).filter((candidate) => candidate.crew.length > 0 && candidate.customerName);
+  // Normalize each name once per source read, rather than once per review pair.
+  // Nothing survives this call: the next refresh observes newly published data.
+  const appointments = readAppointments(dataDir)
+    .filter((candidate) => candidate.crew.length > 0 && candidate.customerName)
+    .map((candidate) => ({ candidate, name: preparedName(candidate.customerName) }));
   return Object.fromEntries(reviews.map((review) => {
     const reviewDate = dateKey(review.createdAt);
     const earliestDate = reviewDate ? dateDaysBefore(reviewDate, 90) : "";
+    const reviewerName = preparedName(review.authorName);
     const suggestions = reviewDate ? appointments
-      .map((candidate) => ({
+      .filter(({ candidate }) => candidate.date >= earliestDate && candidate.date <= reviewDate)
+      .map(({ candidate, name }) => ({
         candidate,
-        matchKind: nameMatchKind(review.authorName, candidate.customerName),
+        matchKind: nameMatchKind(reviewerName, name),
       }))
       .filter((entry): entry is { candidate: AppointmentCandidate; matchKind: PodiumReviewNameSuggestion["matchKind"] } =>
-        Boolean(entry.matchKind)
-        && entry.candidate.date >= earliestDate
-        && entry.candidate.date <= reviewDate)
+        Boolean(entry.matchKind))
       .sort((left, right) => {
         const matchRank = { exact_name: 3, exact_first_last: 2, name_initial: 1 } as const;
         return matchRank[right.matchKind] - matchRank[left.matchKind]

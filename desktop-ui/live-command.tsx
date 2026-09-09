@@ -15,26 +15,31 @@ export default function LiveCommand() {
   const [pendingAlertId, setPendingAlertId] = useState<string | null>(null);
   const pendingRef = useRef(false);
   const generation = useRef(0);
+  const readsPending = useRef(0);
   const refresh = useCallback(async () => {
-    const run = ++generation.current;
-    const response = await fetch(`/api/desktop/command?date=${encodeURIComponent(date)}`, { cache: 'no-store', credentials: 'same-origin', signal: AbortSignal.timeout(30_000) });
-    const body = await response.json();
-    if (response.status === 401) {
-      window.location.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
-      return;
-    }
-    if (!response.ok) throw new Error(body.error || 'Command could not refresh.');
-    if (run === generation.current) {
-      setSnapshot(body);
-      setError(body.sources.alerts ? '' : 'Operational alerts are unavailable. This is not confirmation that there are no alerts.');
-    }
+    readsPending.current += 1;
+    try {
+      const run = ++generation.current;
+      const response = await fetch(`/api/desktop/command?date=${encodeURIComponent(date)}`, { cache: 'no-store', credentials: 'same-origin', signal: AbortSignal.timeout(30_000) });
+      const body = await response.json();
+      if (response.status === 401) {
+        window.location.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+        return;
+      }
+      if (!response.ok) throw new Error(body.error || 'Command could not refresh.');
+      if (run === generation.current) {
+        setSnapshot(body);
+        setError(body.sources.alerts ? '' : 'Operational alerts are unavailable. This is not confirmation that there are no alerts.');
+      }
+    } finally { readsPending.current -= 1; }
   }, [date]);
   useEffect(() => {
-    const load = () => { setClock(Date.now()); if (!explicitDate && !workspaceBusy.current && !pendingRef.current && date !== currentDay()) { generation.current += 1; setSnapshot(null); setDate(currentDay()); return; } void refresh().catch(() => setError('Live data could not refresh. The last verified snapshot remains visible.')); };
+    const load = () => { if (document.visibilityState === 'hidden' || readsPending.current > 0 || pendingRef.current) return; setClock(Date.now()); if (!explicitDate && !workspaceBusy.current && date !== currentDay()) { generation.current += 1; setSnapshot(null); setDate(currentDay()); return; } void refresh().catch(() => setError('Live data could not refresh. The last verified snapshot remains visible.')); };
     load();
     const timer = window.setInterval(load, 30_000);
     window.addEventListener('focus',load); window.addEventListener('online',load);
-    return () => { window.clearInterval(timer); window.removeEventListener('focus',load); window.removeEventListener('online',load); generation.current += 1; };
+    document.addEventListener('visibilitychange',load);
+    return () => { window.clearInterval(timer); window.removeEventListener('focus',load); window.removeEventListener('online',load); document.removeEventListener('visibilitychange',load); generation.current += 1; };
   }, [refresh,date]);
 
   const onAlertAction = async (alertId: string, action: 'acknowledge' | 'add_to_control') => {

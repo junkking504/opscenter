@@ -68,7 +68,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const mapPanelRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (selectedTruck && showMap && view === 'board') mapPanelRef.current?.querySelector('.schedule-map-canvas')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (selectedTruck && showMap && view === 'board') mapPanelRef.current?.scrollIntoView({ block: 'start', inline: 'nearest' });
   }, [selectedTruck, mapResetKey, showMap, view]);
   useEffect(() => {
     if (selectedId && showMap && view === 'board') mapPanelRef.current?.scrollIntoView({ block: 'nearest' });
@@ -260,11 +260,10 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         </div>
           {selectedTruck && <section className="live-map-truck-details live-map-truck-card" aria-label={`${selectedTruck} details`}>
             <header><strong>{selectedTruck}</strong><button aria-label="Clear truck selection" onClick={() => setSelectedTruck(null)}>×</button></header>
+            <div className="live-map-truck-actions"><a href={`/desktop?data=live&workspace=Fleet&date=${date}&truck=${encodeURIComponent(selectedTruck)}`}>Open Fleet Record</a>{/^Truck \d+$/.test(selectedTruck) && <Button size="sm" data-truck-camera={Number(selectedTruck.replace('Truck ', ''))} aria-label={`View live video for ${selectedTruck}`}>View LinxUp Live Video</Button>}{truckDetails?.latitude != null && truckDetails?.longitude != null && <a href={`https://www.google.com/maps/search/?api=1&query=${truckDetails.latitude},${truckDetails.longitude}`} target="_blank" rel="noopener noreferrer">Open GPS in Maps</a>}</div>
             <dl><div><dt>Krewe</dt><dd>{[truckDetails?.driver, truckDetails?.navigator].filter(Boolean).join(' · ') || (truckJobs[0] ? crew(truckJobs[0]) : 'Crew Not Available')}</dd></div><div><dt>Status</dt><dd>{truckDetails?.operationalStatus || 'Not Available'} · {truckDetails?.serviceStatus || 'Service Status Not Available'}</dd></div><div><dt>Truck load</dt><dd>{snapshot.truckLoads?.find(row=>truckLabel(row.truck)===selectedTruck)?.label || 'Load not recorded'}</dd></div><div><dt>GPS</dt><dd>{truckDetails?.lastGpsUpdate ? new Date(truckDetails.lastGpsUpdate).toLocaleString('en-US', { timeZone: 'America/Chicago' }) : 'No GPS Timestamp'} · {truckDetails?.lastGpsUpdate ? truckGpsLabel : 'Position Unavailable'}</dd></div></dl>
 
             {(!truckDetails || truckDetails.latitude === null || truckDetails.longitude === null) && <p>No current position is available in the fleet snapshot.</p>}
-            <div className="live-map-truck-actions"><a href={`/desktop?data=live&workspace=Fleet&date=${date}&truck=${encodeURIComponent(selectedTruck)}`}>Open Fleet Record</a>{/^Truck \d+$/.test(selectedTruck) && <Button size="sm" data-truck-camera={Number(selectedTruck.replace('Truck ', ''))} aria-label={`View live video for ${selectedTruck}`}>View LinxUp Live Video</Button>}{truckDetails?.latitude != null && truckDetails?.longitude != null && <a href={`https://www.google.com/maps/search/?api=1&query=${truckDetails.latitude},${truckDetails.longitude}`} target="_blank" rel="noopener noreferrer">Open GPS in Maps</a>}</div>
-
           </section>}
         <aside className="schedule-map-controls"><label className="schedule-gps-picker">Truck GPS route<select aria-label="Truck GPS route" value={selectedTruck || ''} onChange={event=>event.target.value?selectTruck(event.target.value):setSelectedTruck(null)}><option value="">Select truck</option>{truckNames.map(truck=><option key={truck} value={truck}>{truck}</option>)}</select></label>{!selectedTruck && !selected && <><div><span className="section-kicker">{snapshot.fleet.isToday ? 'Live Map' : 'Planning Map'}</span><h2>{snapshot.fleet.isToday ? 'Dispatch Positions' : 'Appointment Coverage'}</h2></div>
           <div className="live-map-help">Select a truck to see its recorded GPS route; select an appointment for details. Escape resets the map.</div></>}

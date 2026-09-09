@@ -177,8 +177,11 @@ export default function ScheduleMap(props: Props) {
     if(!view || !layer) return;
     layer.clearLayers();
     if(!route || route.date!==props.date || route.truck!==props.selectedTruck || !route.points.length) {gpsFit.current='';return;}
-    for(const points of route.paths) L.polyline(points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{color:'#2563a5',weight:3,opacity:.9,interactive:false,className:'schedule-gps-trail'}).addTo(layer);
-    for(const points of route.gapLinks || []) L.polyline(points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{color:'#2563a5',weight:3,opacity:.8,dashArray:'6 7',interactive:false,className:'schedule-gps-gap-link'}).addTo(layer);
+    // Only road geometry gets connecting lines. Provider outages never restore
+    // straight chords through blocks; source dots remain at their exact fixes.
+    if(route.streets && route.streets.sourceVersion===route.sourceVersion)for(const path of route.streets.paths) {
+      L.polyline(path.points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{color:'#2563a5',weight:3,opacity:.9,dashArray:path.kind==='estimated'?'6 7':undefined,interactive:false,className:path.kind==='estimated'?'schedule-gps-gap-link':'schedule-gps-trail'}).addTo(layer);
+    }
     // Isolated observations stay visible without inventing a connecting route.
     for(const point of route.points) L.circleMarker([point.latitude,point.longitude],{radius:3,color:'#fff',fillColor:'#2563a5',fillOpacity:1,weight:1,interactive:false,className:'schedule-gps-point'}).addTo(layer);
     const endpoints=route.points.length===1?[[route.points[0],'Recorded position'] as const]:[[route.points[0],'First'] as const,[route.points.at(-1)!,'Last'] as const];

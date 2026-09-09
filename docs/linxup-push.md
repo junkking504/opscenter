@@ -94,12 +94,22 @@ Native tiles stop at zoom 19 and are enlarged at zoom 20 so close inspection
 never requests nonexistent tiles. Truck and appointment markers retain their
 source coordinates. The map has no Google billing dependency.
 
-GPS trails render the recorded LinxUp paths. Solid lines connect frequent reports;
-dashed links identify plausible GPS gaps, not verified roads driven. Long outages
-and impossible jumps remain disconnected. The browser no longer requests Google
-street matching. The former `/api/desktop/map` and
-`/api/desktop/schedule/gps/streets` endpoints return HTTP 410 without contacting
-Google, including for browsers left open on an older release.
+GPS trail lines follow OpenStreetMap road geometry through the FOSSGIS OSRM
+service. The authenticated `/api/desktop/schedule/gps/streets` endpoint uses the
+same truck/date/source version as the recorded GPS endpoint. Only coordinates
+are sent to the provider, never truck IDs, timestamps or appointment details.
+Requests are serialized at less than one per second and reused in bounded,
+in-memory caches (successful geometry up to 24 hours; transport failures two
+minutes). No background fleet-wide road matching runs. FOSSGIS is a public,
+best-effort service; see its [usage/privacy policy](https://routing.openstreetmap.de/about.html).
+The map includes OSRM/FOSSGIS attribution and a map correction link.
+
+Solid lines indicate confidently matched, frequent reports. Dashed lines follow
+estimated road routes between sparse/ambiguous reports. Both are inference from
+GPS, not proof of exact roads driven. Long outages, impossible jumps, rejected
+snaps and unavailable road geometry remain disconnected, with original GPS dots
+visible. There is no straight-line fallback and no Google routing request. The
+former `/api/desktop/map` endpoints remain retired with HTTP 410.
 
 Implementation: `lib/desktop-gps-route.ts`,
 `desktop-ui/schedule-gps-route.tsx`, and `desktop-ui/schedule-map.tsx`.

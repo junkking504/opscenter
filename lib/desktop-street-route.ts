@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import type {GpsRoutePoint,RoadCoordinate,StreetRoute,TruckGpsRoute} from '../desktop-ui/lib/gps-route-contract';
-import {googleMapJson} from './google-map-transport';
+import {osmStreetJson} from './osm-street-transport';
 
 export function gpsSourceVersion(route:TruckGpsRoute) {return createHash('sha256').update(JSON.stringify([route.date,route.truck,route.points,route.paths,route.gapLinks])).digest('hex').slice(0,24);}
 export function meters(a:RoadCoordinate,b:RoadCoordinate){
@@ -18,71 +18,86 @@ export function eligibleStreetEdges(route:TruckGpsRoute) {
   }
   return edges;
 }
-// Only neighboring reported points may be connected. A missing originalIndex
-// means Roads could not match that observation, not permission to bridge it.
-export function snappedStreetEdges(payload:unknown,source:GpsRoutePoint[]) {
-  const result=new Map<number,RoadCoordinate[]>();
-  const snapped=(payload as {snappedPoints?:unknown[]}|null)?.snappedPoints;
-  if(!Array.isArray(snapped))return result;
-  let start:number|null=null,points:RoadCoordinate[]=[];
-  for(const raw of snapped){
-    const value=raw as {location?:unknown;originalIndex?:unknown};
-    if(!coordinate(value?.location)){start=null;points=[];continue;}
-    const location={latitude:value.location.latitude,longitude:value.location.longitude};
-    points.push(location);
-    if(value.originalIndex===undefined)continue;
-    const index=value.originalIndex;
-    if(typeof index!=='number' || !Number.isInteger(index) || !source[index]){start=null;points=[];continue;}
-    if(start!==null && index===start+1 && points.length>1 && meters(source[start],points[0])<=150 && meters(source[index],location)<=150 && points.every((p,i)=>!i || meters(points[i-1],p)<=300))result.set(start,points);
-    start=index;points=[location];
+type OsrmLeg={steps?:{geometry?:{coordinates?:unknown}}[]};
+type OsrmMatch={confidence?:number;legs?:OsrmLeg[]};
+type OsrmTrace={matchings_index:number;waypoint_index:number;alternatives_count?:number};
+export function roadCoordinates(raw:unknown,a:RoadCoordinate,b:RoadCoordinate):RoadCoordinate[]|null {
+  if(!Array.isArray(raw) || raw.length<2 || raw.length>20000)return null;
+  const points=raw.map(p=>Array.isArray(p)?{longitude:p[0],latitude:p[1]}:null);
+  if(!points.every(coordinate))return null;
+  if(meters(a,points[0])>150 || meters(b,points.at(-1)!)>150)return null;
+  const distance=points.reduce((sum,p,i)=>sum+(i?meters(points[i-1],p):0),0);
+  return distance<=Math.max(2000,meters(a,b)*6)?points:null;
+}
+function legCoordinates(leg:OsrmLeg|undefined,a:RoadCoordinate,b:RoadCoordinate) {
+  if(!Array.isArray(leg?.steps) || !leg.steps.length)return null;
+  const joined:unknown[]=[];
+  for(const step of leg.steps){
+    const raw=step.geometry?.coordinates;
+    if(!Array.isArray(raw) || !raw.length)return null;
+    // Separate provider steps must actually meet; do not add connector chords.
+    if(joined.length && JSON.stringify(joined.at(-1))!==JSON.stringify(raw[0]))return null;
+    joined.push(...raw);
+  }
+  return roadCoordinates(joined,a,b);
+}
+export function matchedStreetEdges(payload:unknown,source:GpsRoutePoint[]) {
+  const result=new Map<number,StreetRoute['paths'][number]>();
+  const data=payload as {code?:string;tracepoints?:(OsrmTrace|null)[];matchings?:OsrmMatch[]}|null;
+  if(data?.code!=='Ok' || !Array.isArray(data.tracepoints) || data.tracepoints.length!==source.length || !Array.isArray(data.matchings))return result;
+  for(let i=0;i<source.length-1;i++){
+    const a=data.tracepoints[i],b=data.tracepoints[i+1];
+    // Null/outlier observations and distinct sub-traces are never bridged.
+    if(!a || !b || !Number.isInteger(a.matchings_index) || !Number.isInteger(a.waypoint_index) || a.waypoint_index<0 || a.matchings_index!==b.matchings_index || b.waypoint_index!==a.waypoint_index+1)continue;
+    const match=data.matchings[a.matchings_index],points=legCoordinates(match?.legs?.[a.waypoint_index],source[i],source[i+1]);
+    if(!points)continue;
+    const confident=(match?.confidence || 0)>=.7 && a.alternatives_count===0 && b.alternatives_count===0;
+    const frequent=meters(source[i],source[i+1])<=300 && Date.parse(source[i+1].timestamp)-Date.parse(source[i].timestamp)<=90_000;
+    result.set(i,{kind:confident && frequent?'matched':'estimated',points});
   }
   return result;
 }
-export function routeCoordinates(payload:unknown,a:RoadCoordinate,b:RoadCoordinate):RoadCoordinate[]|null {
-  const geometry=(payload as {routes?:{polyline?:{geoJsonLinestring?:{coordinates?:unknown}}}[]}|null)?.routes?.[0]?.polyline?.geoJsonLinestring?.coordinates;
-  if(!Array.isArray(geometry) || geometry.length<2 || geometry.length>20000)return null;
-  const points=geometry.map(p=>Array.isArray(p)?{latitude:p[1],longitude:p[0]}:null);
-  if(!points.every(coordinate))return null;
-  if(meters(a,points[0])>200 || meters(b,points.at(-1)!)>200)return null;
-  const direct=meters(a,b),length=points.reduce((sum,p,i)=>sum+(i?meters(points[i-1],p):0),0);
-  // Reject implausible detours instead of suggesting a distant accessible road.
-  return length<=Math.max(2000,direct*6)?points:null;
-}
-type Json=typeof googleMapJson;
-export async function buildStreetRoute(route:TruckGpsRoute,send:Json=googleMapJson):Promise<StreetRoute>{
-  const sourceVersion=gpsSourceVersion(route),eligible=eligibleStreetEdges(route),matched=new Map<number,RoadCoordinate[]>();
-  const paths:StreetRoute['paths']=[],deadline=Date.now()+16_000;
-  // Bound work; any omitted edges are explicitly counted as unmatched.
-  const batches=Array.from({length:Math.min(20,Math.ceil(Math.max(0,route.points.length-1)/99))},(_,i)=>i*99);
-  let cursor=0;
-  await Promise.all(Array.from({length:4},async()=>{while(cursor<batches.length && Date.now()<deadline){
-    const offset=batches[cursor++],points=route.points.slice(offset,offset+100);
-    if(!points.slice(0,-1).some((_,i)=>eligible.has(offset+i)))continue;
-    const params=new URLSearchParams({path:points.map(p=>`${p.latitude},${p.longitude}`).join('|'),interpolate:'true'});
-    const response=await send('roads.googleapis.com',`/v1/snapToRoads?${params}`);
-    for(const [index,path] of snappedStreetEdges(response,points))if(eligible.has(offset+index))matched.set(offset+index,path);
-  }}));
-  const missing:number[]=[];
-  for(const i of eligible){
-    const a=route.points[i],b=route.points[i+1],path=matched.get(i);
-    if(path){paths.push({kind:meters(a,b)>300 || Date.parse(b.timestamp)-Date.parse(a.timestamp)>300_000?'estimated':'matched',points:path});}
-    else if(meters(a,b)>30)missing.push(i);
+export async function buildStreetRoute(route:TruckGpsRoute,send:typeof osmStreetJson=osmStreetJson):Promise<StreetRoute>{
+  const sourceVersion=gpsSourceVersion(route),eligible=eligibleStreetEdges(route),matched=new Map<number,StreetRoute['paths'][number]>();
+  const deadline=Date.now()+16_000;
+  const runs:number[][]=[];
+  // Exclude long/impossible gaps before asking the matcher to infer any route.
+  for(const edge of [...eligible].sort((a,b)=>a-b)){
+    const run=runs.at(-1);
+    if(run?.at(-1)===edge)run.push(edge+1);else runs.push([edge,edge+1]);
   }
-  cursor=0;let restored=0;
-  await Promise.all(Array.from({length:4},async()=>{while(cursor<Math.min(40,missing.length) && Date.now()<deadline){
-    const i=missing[cursor++],a=route.points[i],b=route.points[i+1];
-    // Send coordinates only, never timestamps or operational metadata.
-    const body={origin:{location:{latLng:{latitude:a.latitude,longitude:a.longitude}}},destination:{location:{latLng:{latitude:b.latitude,longitude:b.longitude}}},travelMode:'DRIVE',routingPreference:'TRAFFIC_UNAWARE',polylineQuality:'HIGH_QUALITY',polylineEncoding:'GEO_JSON_LINESTRING'};
-    const path=routeCoordinates(await send('routes.googleapis.com','/directions/v2:computeRoutes',body,'routes.polyline.geoJsonLinestring'),a,b);
-    if(path){paths.push({kind:'estimated',points:path});restored++;}
-  }}));
-  const unmatched=missing.length-restored;
+  // The public service accepts ten trace coordinates per request.
+  for(const run of runs)for(let offset=0;offset<run.length-1 && Date.now()<deadline;offset+=9){
+    const indices=run.slice(offset,offset+10),points=indices.map(i=>route.points[i]);
+    // Provider receives only coordinates, never truck IDs, dates or job details.
+    const coords=points.map(p=>`${p.longitude},${p.latitude}`).join(';');
+    const params=new URLSearchParams({steps:'true',geometries:'geojson',overview:'false',tidy:'false',gaps:'split',radiuses:points.map(()=>'25').join(';')});
+    const response=await send(`match/v1/driving/${coords}?${params}`);
+    for(const [i,path] of matchedStreetEdges(response,points))matched.set(indices[i],path);
+  }
+  const missing=[...eligible].filter(i=>!matched.has(i) && meters(route.points[i],route.points[i+1])>30);
+  // Sparse observations may not match. A road route between them is explicitly
+  // estimated, and never a claim that these were the exact streets driven.
+  for(const i of missing){
+    if(Date.now()>=deadline)break;
+    const a=route.points[i],b=route.points[i+1];
+    const response=await send(`route/v1/driving/${a.longitude},${a.latitude};${b.longitude},${b.latitude}?overview=full&geometries=geojson&alternatives=false&radiuses=150;150`) as {code?:string;routes?:{geometry?:{coordinates?:unknown}}[]}|null;
+    const points=response?.code==='Ok'?roadCoordinates(response.routes?.[0]?.geometry?.coordinates,a,b):null;
+    if(points)matched.set(i,{kind:'estimated',points});
+  }
+  const paths=[...matched].sort(([a],[b])=>a-b).map(([,path])=>path),unmatched=missing.filter(i=>!matched.has(i)).length;
   return {sourceVersion,status:paths.length?(unmatched?'partial':'available'):'unavailable',paths,unmatched};
 }
-// Deduplicate simultaneous viewers only. Completed Google geometry is not
-// persisted or cached; the active browser view holds its current response.
 const pending=new Map<string,Promise<StreetRoute>>();
+const completed=new Map<string,{until:number;route:StreetRoute}>();
 export function readStreetRoute(route:TruckGpsRoute){
-  const key=gpsSourceVersion(route),existing=pending.get(key);if(existing)return existing;
-  const request=buildStreetRoute(route).finally(()=>pending.delete(key));pending.set(key,request);return request;
+  const key=gpsSourceVersion(route),cached=completed.get(key);
+  if(cached && cached.until>Date.now())return Promise.resolve(cached.route);
+  const existing=pending.get(key);if(existing)return existing;
+  const request=buildStreetRoute(route).then(result=>{
+    completed.set(key,{route:result,until:Date.now()+(result.status==='available'?24*60*60_000:60_000)});
+    while(completed.size>32)completed.delete(completed.keys().next().value!);
+    return result;
+  }).finally(()=>pending.delete(key));
+  pending.set(key,request);return request;
 }

@@ -5,15 +5,20 @@ try {
   const page=await browser.newPage();
   for(const width of [1440,1024,768,390,320]) {
     await page.setViewportSize({width,height:1000});
-    await page.goto('http://127.0.0.1:3156/tests/schedule-destinations.html');
+    await page.goto('http://127.0.0.1:3156/tests/schedule-destinations.html?scenario=same-time');
     const block=page.locator('[data-schedule-appointment]').first();
     await block.waitFor();
+    const orderButton=page.getByRole('button',{name:'Stop Order',exact:true});
+    await orderButton.click();
+    const orderDialog=page.getByRole('dialog',{name:'Order Same-Time Appointments',exact:true});
+    assert.equal(await orderDialog.locator('.stop-order-row').count(),4,'all four same-time stops available with map open');
+    await orderDialog.getByRole('button',{name:'Cancel',exact:true}).click();
     const baselineWidth=await page.evaluate(()=>document.documentElement.scrollWidth);
     await block.click();
     const mapDetails=page.getByRole('button',{name:'Full details for JK1001001 from map',exact:true});
     const boardDetails=page.getByRole('button',{name:'Full details for JK1001001 from truck schedule',exact:true});
     await mapDetails.waitFor();await boardDetails.waitFor();
-    for(const button of [mapDetails,boardDetails]) {
+    for(const button of [mapDetails,boardDetails,orderButton]) {
       const r=await button.boundingBox();assert.ok(r.height>=36,'large click target');
       assert.ok(r.x>=0&&r.x+r.width<=width+1,'button fits width');
     }

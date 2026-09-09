@@ -53,7 +53,7 @@
 .ops-live .live-schedule .schedule-board-shell > .section-title:has(.schedule-selected-actions) { flex: 0 0 auto; min-height: 48px; height: auto; padding: 7px 10px; gap: 8px; flex-wrap: wrap; }
 .ops-live .live-schedule .schedule-board-actions:has(.schedule-selected-actions) { min-width: 0; flex: 1; }
 .ops-live .live-schedule .schedule-board-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.ops-live .live-schedule .schedule-stop-order-trigger { min-height: 36px; font-size: 13px; padding: 7px 12px; }
+.ops-live .live-schedule .schedule-board-actions > .schedule-stop-order-trigger { display: inline-flex; align-items: center; min-height: 36px; font-size: 13px; padding: 7px 12px; }
 .ops-live .live-schedule .schedule-board-shell > .section-title:has(.schedule-stop-order-trigger) { min-height: 48px; height: auto; flex: 0 0 auto; padding: 7px 10px; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 540px) {
   .ops-live .live-schedule .schedule-selected-actions { justify-content: flex-start; }

@@ -7,6 +7,12 @@ export const PAYROLL_REPORT_RECIPIENTS = [
   'robert.mclaughlin@junk-king.com',
 ] as const;
 
+export function payrollReportMailto(message: ReturnType<typeof preparePayrollReportEmail>) {
+  const uri = `mailto:${message.to.join(',')}?subject=${encodeURIComponent(message.subject)}&body=${encodeURIComponent(message.text)}`;
+  if (uri.length > 24000) throw new Error('This report is too large to open in the mail app. Export the reviewed CSV and attach it to an email to the listed managers.');
+  return uri;
+}
+
 export function preparePayrollReportEmail(input: {
   rows: PayrollReviewRow[]; start: string; end: string; retrievedAt: string;
   totalEmployeeCount: number; warnings: string[];

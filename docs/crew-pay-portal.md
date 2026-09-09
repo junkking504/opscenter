@@ -140,3 +140,15 @@ and never stored in Git or posted to a payroll provider.
 
 Verification: `npm run verify:payroll-review`; isolated browser fixture:
 `desktop-ui/tests/payroll-review.html` (fictional records only).
+
+### Email to operations managers
+
+**Email reviewed report** opens the operator's mail application with the three
+explicitly requested operations-manager recipients, period, reviewed employee
+hours/earnings and source link filled in. The reviewer chooses the sending
+mailbox and presses Send in that application. OpsCenter does not claim delivery
+or schedule automatic messages. The report is in the message body; the CSV can
+be exported separately if an attachment is needed. Partial employee selections
+are identified in the subject and body. Oversized messages are rejected with
+instructions to use the CSV instead. No new mail provider or background service
+is introduced, and no test report is sent to the real recipients.

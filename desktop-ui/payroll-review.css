@@ -29,3 +29,5 @@
 .hours-day-evidence p { margin: 4px 0; }
 
 .payroll-ot-hours { display: block; padding-top: 4px; color: #68796c; }
+.payroll-email-recipients { padding: 10px 16px; border-bottom: 1px solid #e0e7e2; color: #465d4e; font-size: 12px; }
+.payroll-email-recipients p { margin: 7px 0 0; overflow-wrap: anywhere; }

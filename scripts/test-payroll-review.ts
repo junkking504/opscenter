@@ -48,7 +48,7 @@ assert.ok(draft.includes('"\'=HYPERLINK(""bad"")"')); assert.match(draft, /Draft
 assert.equal(JSON.stringify(payroll), original, 'Review never changes pay records');
 console.log('Payroll review passed: both weeks, source totals, discrepancies, nulls, correction status, review invalidation, CSV escaping and read-only source preservation.');
 
-import { preparePayrollReportEmail, PAYROLL_REPORT_RECIPIENTS } from '../desktop-ui/lib/payroll-report-email';
+import { preparePayrollReportEmail, PAYROLL_REPORT_RECIPIENTS, payrollReportMailto } from '../desktop-ui/lib/payroll-report-email';
 const email = preparePayrollReportEmail({ ...options, rows: [row], totalEmployeeCount: 2 });
 assert.deepEqual(email.to, [...PAYROLL_REPORT_RECIPIENTS]);
 assert.match(email.subject, /^PARTIAL /); assert.match(email.text, /1 unreviewed employees are excluded/);
@@ -57,3 +57,8 @@ assert.equal(email.attachment.content, csv, 'Email attachment uses the exact rev
 assert.throws(() => preparePayrollReportEmail({ ...options, rows: [flagged], totalEmployeeCount: 1 }), /Resolve/);
 assert.throws(() => preparePayrollReportEmail({ ...options, rows: [], totalEmployeeCount: 1 }), /Review at least/);
 console.log('Payroll email preparation passed: approved recipients, exact reviewed attachment, partial-scope disclosure and flagged-row rejection. No email sent.');
+
+const mailto = new URL(payrollReportMailto(email));
+assert.equal(mailto.protocol, "mailto:"); assert.equal(mailto.pathname, email.to.join(","));
+assert.equal(mailto.searchParams.get("subject"), email.subject); assert.equal(mailto.searchParams.get("body"), email.text);
+assert.throws(() => payrollReportMailto({ ...email, text: "x".repeat(25000) }), /too large/);

@@ -5,7 +5,8 @@
   "scripts": {
     "build:desktop": "node scripts/build-desktop-ui.mjs",
     "dev": "next dev",
-    "build": "npm run verify:spending && node scripts/test-no-google-map-billing.mjs && npm run verify:service-territory && npm run verify:duplicate-bookings && npm run verify:global-search && npm run build:desktop && next build --webpack",
+    "build": "npm run verify:spending && node scripts/test-no-google-map-billing.mjs && npm run verify:service-territory && npm run verify:duplicate-bookings && npm run verify:global-search && npm run verify:requested-schedule && npm run build:desktop && next build --webpack",
+    "verify:requested-schedule": "node --import tsx scripts/test-requested-schedule-day.ts && python3 scripts/test-requested-schedule-lifecycle.py",
     "verify:duplicate-bookings": "node --import tsx scripts/test-duplicate-bookings.ts && node --import tsx scripts/test-prebooking-duplicates.ts",
     "verify:service-territory": "node --import tsx scripts/test-service-territory.ts",
     "start": "next start",

@@ -308,3 +308,19 @@ Google Maps API calls or billing credentials.
 Validation: `scripts/test-schedule-stop-order.ts`,
 `scripts/test-desktop-address-verification.ts`, and the existing schedule,
 travel-layout, partner, planning-geocode and route-planner checks.
+# Prior estimate on a booked job
+
+The Schedule payload resolves `sourceEstimateAppointmentId` against the exact
+estimate appointment ID in JunkWare's historical raw snapshots, independent of
+the selected Schedule day. It never links by customer name, phone, or JK number.
+All Appointments shows the original estimate total, load summary, source date,
+source link, and photo count beside (not instead of) current payment information.
+The job detail shows the linked estimate's gallery even before completion.
+Job photos also render before completion; copied estimate images are not repeated.
+Missing quote/photo evidence is labeled unavailable rather than inferred from
+today's job charges. This is read-only presentation: no charges, payments, or
+JunkWare media are copied or modified. Archive parsing is cached per file and
+invalidated when the source file changes.
+
+Validation: `node --import tsx scripts/test-schedule-source-estimate.ts` and
+`node scripts/test-appointment-register-browser.mjs` (synthetic local fixture).

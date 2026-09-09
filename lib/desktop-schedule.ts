@@ -1,6 +1,7 @@
 import { compareStops } from './schedule-stop-order';
 import { applyStopOrders } from './desktop-stop-order-store';
 import {osmTravelMatrix} from './osm-travel-matrix';
+import { readSourceEstimates } from './schedule-source-estimate';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -45,6 +46,7 @@ export function readDesktopSchedule(date: string) {
   const fleet = buildFleetMapPayload(date) || { date, isToday: false, trucks: [], lastUpdatedAt: null };
   const visits = readScheduleVisits(date);
   const sourceAppointments = readJobRows(date);
+  const estimates = readSourceEstimates(sourceAppointments.map(job => job.sourceEstimateAppointmentId), date);
   const appointments: DesktopAppointment[] = sourceAppointments.map((rawSource, index) => {
     const source = separateCancellationContact(rawSource);
     const override = overrides.get(`appt:${source.appointmentId}`);
@@ -58,7 +60,7 @@ export function readDesktopSchedule(date: string) {
     } : source;
     const callAhead = calls.get(jobCallAheadLookupKey(date, `appt:${job.appointmentId}`)) || 'not_called';
     return {
-    ...job, callAhead, ...scheduleVisitState(job, visits.visits, visits.observedAt, fleet.isToday ? fleet.trucks : []),
+    ...job, sourceEstimate: estimates.get(job.sourceEstimateAppointmentId) || null, callAhead, ...scheduleVisitState(job, visits.visits, visits.observedAt, fleet.isToday ? fleet.trucks : []),
     version: createHash('sha256').update(JSON.stringify([job.appointmentId, job.truck, job.appointmentStartMinutes, job.appointmentEndMinutes, job.status, job.appointmentType, job.appointmentNotes, job.cancellationReason, callAhead, job.closeout, job.driver, job.navigator, job.additionalCrew])).digest('hex'),
     // A JK reference can span multiple appointments. Never use it as the
     // mutation identity or combine separate estimate/job appointments by JK.

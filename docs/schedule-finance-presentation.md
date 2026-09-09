@@ -267,6 +267,17 @@ JunkWare can fill entirely blank actual-time controls with the scheduled window 
 Appointment alerts show pertinent note details: removal items, access constraints, special requests, and customer ETA contact. Repeated ETA calls become one detail; operator timestamps, routine rescheduling logs, resolved call-center case boilerplate, and promotional boilerplate are omitted. Extraction preserves concrete instructions and negation, deduplicates repeated details, and leaves the complete source notes available in the appointment record. This changes presentation only.
 # Prior estimate on a booked job
 
+## Direct dispatch access to full appointment details
+
+Selecting an appointment on the map or Truck Schedule keeps its locator and
+schedule block selected. Prominent **Full details** buttons appear on the map's
+selection label and in the Truck Schedule header, outside the scrollable
+map-information panel. They open the same full appointment drawer used by All
+Appointments, including notes, payments, source estimate/photos and closeout
+controls. Closing it preserves the selected appointment and dispatch position;
+opening details performs no appointment write. The existing below-map action
+uses the same label. No list search or list scrolling is required.
+
 The Schedule payload resolves `sourceEstimateAppointmentId` against the exact
 estimate appointment ID in JunkWare's historical raw snapshots, independent of
 the selected Schedule day. It never links by customer name, phone, or JK number.

@@ -113,6 +113,13 @@ behind other pending appointments. The schedule tab and source assignments are
 preserved. Newer verified charge details override an older full-collector detail;
 an unrelated schedule heartbeat cannot overwrite a newer verified closeout.
 
+Collector initialization preserves previously verified charge details when the
+appointment, service day, truck, type, status, revenue and tip still match. It
+must not replace a confirmed load with an empty detail field during a restart.
+This recovery reuses local data without additional requests. Expired details
+keep their original verification time and remain provisional until the regular
+bounded refresh; changed source signatures invalidate the cached details.
+
 Fleet and Schedule show the daily charged truck total, bedload total and the
 contributing JK numbers alongside the current onboard estimate. Blank quantity
 means one when a size is selected; explicit zero remains zero. Bedload units are

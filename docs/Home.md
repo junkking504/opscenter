@@ -31,6 +31,7 @@ without mixing live runtime data or secrets into Git.
 - [Krewe Pay Portal](crew-pay-portal.md)
 - [JunkWare write-through](junkware-write-through.md)
 - [Payment reconciliation](payment-reconciliation.md)
+- [Accounting financial statements](financial-statements.md)
 - [QuickBooks/Intuit production setup](qbo-intuit-production-setup.md)
 - [SearchKings integration](searchkings-integration.md)
 - [Podium Google Reviews integration](podium-google-reviews.md)

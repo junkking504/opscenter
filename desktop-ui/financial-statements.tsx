@@ -10,7 +10,7 @@ export function FinancialStatements({ data, date, onRefresh }: { data?: Statemen
   const [refreshMessage, setRefreshMessage] = useState("");
   async function refreshQbo() {
     setRefreshing(true);setRefreshMessage("Refreshing QuickBooks reports…");
-    try { const response = await fetch("/api/desktop/finance/statements", {method:"POST",credentials:"same-origin",signal:AbortSignal.timeout(90000)}); const result = await response.json(); if (!response.ok) throw new Error(result.error || "Report refresh failed.");setRefreshMessage(result.message);onRefresh?.(); }
+    try { const response = await fetch("/api/desktop/finance/statements", {method:"POST",credentials:"same-origin",signal:AbortSignal.timeout(90000)}); const result = await response.json().catch(() => ({error: "QuickBooks refresh is temporarily unavailable. Previous statements retained."})); if (!response.ok || typeof result.message !== "string") throw new Error(result.error || "Report refresh failed. Previous statements retained.");setRefreshMessage(result.message);onRefresh?.(); }
     catch (error) {setRefreshMessage(error instanceof Error ? error.message : "QBO refresh failed. Previous statements retained.");}
     finally {setRefreshing(false);}
   }

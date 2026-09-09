@@ -62,7 +62,7 @@ export async function getQboCompanyInfo(environment: IntuitEnvironment): Promise
   const envelope = await getValidQboTokenEnvelope();
   const realmId = encodeURIComponent(envelope.realmId);
   const url = `${accountingBase(environment)}/v3/company/${realmId}/companyinfo/${realmId}?minorversion=${MINOR_VERSION}`;
-  const body = await jsonOrError(await apiFetch(url), "QBO company verification");
+  const body = await jsonOrError(await apiFetch(url, { signal: AbortSignal.timeout(30_000) }), "QBO company verification");
   return (body.CompanyInfo || body) as Record<string, unknown>;
 }
 

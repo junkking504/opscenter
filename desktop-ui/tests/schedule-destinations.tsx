@@ -9,6 +9,7 @@ import '../workspace-density.css';
 // Every request and move is synthetic and stays in memory in this browser tab.
 const scenario=new URLSearchParams(location.search).get('scenario') || 'unassigned';
 const result=new URLSearchParams(location.search).get('result') || 'verified';
+const longDetails=new URLSearchParams(location.search).get('details')==='long';
 let releaseVerification:(()=>void)|undefined;
 const assignments=new Map<string,string>();
 const writes:Array<{date:string;recordId:string;action:string;values:{truck:string}}>=[];
@@ -16,7 +17,8 @@ function appointments(date:string):ScheduleAppointment[] {
   return Array.from({length:scenario==='empty'?0:scenario==='dense'?24:scenario==='same-time'?4:1},(_,index)=>{
     const recordId=`${date}:appointment:${1001+index}`;
     return {recordId,appointmentId:String(1001+index),version:'a'.repeat(64),callAhead:'not_called',jkNumber:`JK100${String(1001+index)}`,appointmentUrl:'',appointmentTime:'9:00 AM–10:00 AM',appointmentStartMinutes:540,appointmentEndMinutes:600,hasScheduledTime:true,customerName:`Example appointment ${index+1}`,customerEmail:'',phone:'',address:'',territory:'Baton Rouge',appointmentType:'Job',status:'Confirmed',truck:assignments.get(recordId)||'Virtual Truck',driver:'',navigator:'',paymentType:'',paymentAmount:0,tipAmount:0,junkItems:[],appointmentNotes:[],cancellationReason:'',location:null};
-  }).map(job=>scenario==='same-time'?{...job,truck:'Truck 8',appointmentTime:'8:00 AM–9:00 AM',appointmentStartMinutes:480,appointmentEndMinutes:540}:job);
+  }).map(job=>scenario==='same-time'?{...job,truck:'Truck 8',appointmentTime:'8:00 AM–9:00 AM',appointmentStartMinutes:480,appointmentEndMinutes:540}:job)
+    .map(job=>longDetails?{...job,address:'100 Example Boulevard, Building Three, Second Floor, Suite 237, New Orleans, LA 70130',junkItems:['Sofa, mattress, bookcases, and boxes stored in the upstairs room; use the side entrance.']}:job);
 }
 window.fetch=async(input,init)=>{
   const url=new URL(String(input),location.origin),date=url.searchParams.get('date') || '2026-09-08';
@@ -37,7 +39,7 @@ window.fetch=async(input,init)=>{
     return Response.json({receipt:{requestId:url.searchParams.get('requestId'),status:'verified',message:'Synthetic saved result verified.'}});
   }
   if(url.pathname==='/api/desktop/schedule')return Response.json({date,observedAt:'2026-09-07T21:00:00Z',sourceRequest:{state:'ready',message:''},appointments:appointments(date),fleet:{isToday:false,lastUpdatedAt:null,trucks:[]}});
-  if(url.pathname==='/api/desktop/schedule/routes')return Response.json({date,calculatedAt:null,legs:[],closest:[],appointmentId:null});
+  if(url.pathname==='/api/desktop/schedule/routes')return Response.json({date,calculatedAt:null,legs:[],closest:longDetails?Array.from({length:8},(_,index)=>({truck:`Truck ${index+1}`,status:'available',minutes:10+index,miles:5+index,gpsUpdatedAt:null})):[],appointmentId:longDetails?url.searchParams.get('appointment'):null});
   return Response.json({error:'No operational sources are enabled in this fixture.'},{status:503});
 };
 function Fixture(){

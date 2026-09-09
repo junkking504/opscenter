@@ -14,6 +14,14 @@ The separate Krewe Portal remains the `crew` boundary. The `service` and `agent`
 
 The signed session resolves its role on every request. Page navigation is filtered for usability, while middleware is the security boundary:
 
+When Cloudflare Access identity login is not configured, OpsCenter accepts only
+the configured shared username's identity in session and trusted-device cookies.
+Remembered identities from the retired email-login flow must sign in again with
+the shared credentials; they do not become additional Operator accounts. The
+desktop returns to sign-in when its session is rejected. When Access login is
+configured, a valid shared-account session takes precedence over a different
+Access email so the shared login cannot be silently downgraded after sign-in.
+
 - Finance and the Krewe pay-period/monthly payroll views require `manager` or `admin` access. Daily Krewe remains available to operators with compensation fields removed.
 - Payroll corrections, manual bonuses, resale inventory, and QBO controls require `manager` or `admin` access.
 - Cancellation, closeout writes, template changes, and all authenticated `DELETE` requests require `manager` or `admin` access.

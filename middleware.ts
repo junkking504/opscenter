@@ -10,6 +10,7 @@ import {
   createTrustedDeviceCookieValue,
   isValidJunkKingEmail,
   opsAuthRole,
+  opsAuthIdentity,
   publicAuthRoute,
   protectedApiRoute,
   shouldRefreshTrustedDevice,
@@ -235,7 +236,7 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
     const accessEmail = accessAssertion ? await verifyOpsAccessJwt(accessAssertion) : null;
     const rememberedEmail = session?.email || trustedDevice?.email || null;
 
-    if (accessEmail && isValidJunkKingEmail(accessEmail) && accessEmail !== rememberedEmail) {
+    if (accessEmail && isValidJunkKingEmail(accessEmail) && accessEmail !== rememberedEmail && rememberedEmail !== opsAuthIdentity()) {
       return initializeOpsSession(request, accessEmail, {
         rememberDevice: true,
         redirect: request.method === "GET" || request.method === "HEAD",

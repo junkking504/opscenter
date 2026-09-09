@@ -19,6 +19,10 @@ export default function LiveCommand() {
     const run = ++generation.current;
     const response = await fetch(`/api/desktop/command?date=${encodeURIComponent(date)}`, { cache: 'no-store', credentials: 'same-origin', signal: AbortSignal.timeout(30_000) });
     const body = await response.json();
+    if (response.status === 401) {
+      window.location.replace(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      return;
+    }
     if (!response.ok) throw new Error(body.error || 'Command could not refresh.');
     if (run === generation.current) {
       setSnapshot(body);

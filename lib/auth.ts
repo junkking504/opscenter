@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { normalizeInteractiveOpsRole, type InteractiveOpsRole } from "@/lib/ops-roles";
+import { opsAccessConfigured } from "@/lib/cloudflare-access";
 
 export const AUTH_SESSION_COOKIE = "opscenter_email_session";
 export const AUTH_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
@@ -60,6 +61,7 @@ export type AuthSessionRejectionReason =
   | "session_signature_mismatch"
   | "session_payload_unreadable"
   | "session_identity_invalid"
+  | "session_identity_retired"
   | "session_expired"
   | "session_issued_at_invalid";
 
@@ -215,6 +217,12 @@ async function constantTimeStringEqual(left: string, right: string): Promise<boo
 export function opsAuthIdentity(): string {
   const username = normalizeAuthUsername(process.env.OPS_AUTH_USERNAME);
   return username ? `${username}@junk-king.com` : "";
+}
+
+// In shared-login mode, an old email session is not another account. Require
+// the current shared credentials instead of silently giving it Operator access.
+function allowedSessionIdentity(identity: string): boolean {
+  return identity === opsAuthIdentity() || opsAccessConfigured();
 }
 
 export function opsAuthDisplayName(identityValue: unknown): string {
@@ -450,6 +458,7 @@ export async function verifyTrustedDeviceCookie(
     payload = null;
   }
   if (!payload || payload.version !== 1 || !isValidJunkKingEmail(payload.email) || !payload.deviceId) return null;
+  if (!allowedSessionIdentity(normalizeAuthEmail(payload.email))) return null;
 
   const expiresAtMs = parseSeconds(payload.expiresAt);
   const issuedAtMs = parseSeconds(payload.issuedAt);
@@ -514,6 +523,9 @@ export async function inspectAuthSessionCookie(cookieValue: string | null | unde
   if (!payload) return { session: null, reason: "session_payload_unreadable" };
   if (payload.version !== 1 || !isValidJunkKingEmail(payload.email)) {
     return { session: null, reason: "session_identity_invalid" };
+  }
+  if (!allowedSessionIdentity(normalizeAuthEmail(payload.email))) {
+    return { session: null, reason: "session_identity_retired" };
   }
 
   const expiresAtMs = parseSeconds(payload.expiresAt);

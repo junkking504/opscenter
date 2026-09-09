@@ -36,7 +36,7 @@ export default function PayrollReview({ hours, payroll, unavailable, pending, se
     if (!canReview || !reviewed.length) return;
     try {
       const message = preparePayrollReportEmail({ rows: reviewed, start: hours.start, end: hours.end, retrievedAt: hours.generatedAt, totalEmployeeCount: rows.length, warnings });
-      window.location.href = payrollReportMailto(message);
+      window.location.assign(payrollReportMailto(message));
       setNotice('Finish sending in your mail app. The message includes the reviewed employee totals; CSV export is available separately. No email has been sent by OpsCenter.');
     } catch (error) { setNotice(error instanceof Error ? error.message : 'The email could not be prepared.'); }
   }

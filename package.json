@@ -22,6 +22,7 @@
     "sync:crew-portal": "tsx scripts/sync-crew-portal-data.ts",
     "verify:monthly": "node --import tsx scripts/verify-monthly-reporting.ts",
     "verify:monthly-labels": "node --import tsx scripts/test-monthly-labels.ts",
+    "verify:payroll-review": "node --import tsx scripts/test-payroll-review.ts && node --import tsx scripts/test-desktop-krewe-hours.ts && node --import tsx scripts/test-krewe-pay-breakdown.ts",
     "verify:pay-period": "node --import tsx scripts/test-pay-period.ts",
     "verify:job-audits": "node --import tsx scripts/test-job-audit-rules.ts",
     "verify:searchkings": "node --import tsx scripts/test-searchkings.ts",

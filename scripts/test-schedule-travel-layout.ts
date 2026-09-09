@@ -17,3 +17,9 @@ const gap = scheduleTravelLayout([jobs[0],jobs[2]],[leg('a','c',60)],range).conn
 assert.equal(gap.width,60/range.duration,'Separated windows keep the actual gap bounds');
 assert.equal(scheduleTravelLayout(jobs,[leg('unknown','c',0)],range).connectors.length,0);
 console.log('Travel layout passed: shared/adjacent/gapped windows, direction, bounds and preserved appointment placement.');
+// Source row order can differ from the stable same-window route proposal.
+const tiedJobs=['a','b','c','d'].map(id=>job(id,480,540));
+const tiedLegs=[leg('a','b',-60),leg('b','c',-60),leg('c','d',-60)];
+const tied=scheduleTravelLayout([tiedJobs[2],tiedJobs[0],tiedJobs[3],tiedJobs[1]],tiedLegs,timelineRange(tiedJobs));
+assert.deepEqual(tied.placed.map(p=>p.job.recordId),['a','b','c','d']);
+assert.equal(new Set(tied.connectors.map(c=>c.top+c.labelTop)).size,3,'Each overlapping ETA must have its own clickable row');

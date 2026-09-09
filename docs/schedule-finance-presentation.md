@@ -16,6 +16,12 @@ remain quoted amounts, never payment requirements. Missing or refreshing
 closeout details are explicitly unavailable/updating rather than assumed paid;
 inconsistent payment/tip values require review. These are JunkWare records,
 not bank-settlement or QuickBooks verification. The drawer uses the same labels.
+When a Job has a saved charge total but no recorded payment, the register and
+drawer show **Saved charges**, the amount, and **No payment recorded in JunkWare**.
+Open appointments also say **Appointment not closed**; saved charges use amber,
+not paid green. A blank source balance is not converted into a balance due or a
+claim of payment. This exposes payment-follow-up context without closing the
+appointment, creating an invoice, or changing source charges.
 
 Validation: `node --import tsx scripts/test-schedule-payment.ts` and
 `node scripts/test-appointment-register-browser.mjs` (synthetic fixture on port

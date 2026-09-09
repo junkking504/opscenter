@@ -1,4 +1,4 @@
-import { appointmentCategory, type ScheduleAppointment } from './schedule-contract';
+import { appointmentCategory, isClosed, type ScheduleAppointment } from './schedule-contract';
 
 const dollars = (value: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
 export function schedulePayment(job: ScheduleAppointment) {
@@ -11,11 +11,13 @@ export function schedulePayment(job: ScheduleAppointment) {
   const valid = [source.tip, source.balance, received, ...payments.map(row => row.amount)].every(Number.isFinite) && received >= 0 && source.tip >= 0;
   if (!valid || (received > 0 && source.tip > received)) return { tone: 'unknown', label: 'Payment needs review', amount: null, details: ['Payment and tip amounts do not reconcile'], balance: null };
   const net = Math.round(Math.max(0, received - source.tip) * 100) / 100;
+  const savedCharges = received === 0 && !billed.length && Number.isFinite(source.total) && source.total > 0;
   return {
-    tone: source.balance > 0 ? 'due' : received > 0 ? 'paid' : 'unknown',
-    label: received > 0 ? 'Job paid · excluding tips' : billed.length ? 'Billed · not confirmed paid' : 'No payment recorded',
-    amount: received > 0 ? dollars(net) : null,
+    tone: source.balance > 0 ? 'due' : received > 0 ? 'paid' : savedCharges ? 'saved' : 'unknown',
+    label: received > 0 ? 'Job paid · excluding tips' : billed.length ? 'Billed · not confirmed paid' : savedCharges ? 'Saved charges' : 'No payment recorded',
+    amount: received > 0 ? dollars(net) : savedCharges ? dollars(source.total) : null,
     details: [
+      ...(savedCharges ? ['No payment recorded in JunkWare', ...(!isClosed(job) ? ['Appointment not closed'] : [])] : []),
       ...new Set(payments.map(row => `${row.method.trim() || 'Method not recorded'}${payments.length > 1 ? ` · ${dollars(row.amount)} received` : ''}`)),
       ...(source.tip > 0 && received > 0 ? [`Tip ${dollars(source.tip)} · received ${dollars(received)} incl. tip`] : []),
       ...(billed.length ? [`Billed ${dollars(billed.reduce((sum, row) => sum + row.amount, 0))}`] : []),

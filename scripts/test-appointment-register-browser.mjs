@@ -22,7 +22,13 @@ try {
     const quoted=page.getByRole('cell',{name:'Payment for JK10007',exact:true});
     assert.match(await quoted.innerText(),/Prior estimate · \$1,200.00/);
     assert.match(await quoted.innerText(),/No payment recorded/);
-    assert.ok(!(await quoted.innerText()).includes('$1,350'),'current job charge cannot replace original quote');
+    assert.match(await quoted.innerText(),/Saved charges\s*\$1,350.00/,'Current charges remain distinct from prior estimate');
+    const saved=page.getByRole('cell',{name:'Payment for JK10008',exact:true});
+    assert.match(await saved.innerText(),/Saved charges\s*\$1,264.84/);
+    assert.match(await saved.innerText(),/No payment recorded in JunkWare/);
+    assert.match(await saved.innerText(),/Appointment not closed/);
+    assert.doesNotMatch(await saved.innerText(),/Job paid|Balance due|Balance \$0.00/);
+    assert.equal(await saved.locator('.register-payment-amount').evaluate(el=>getComputedStyle(el).color),'rgb(128, 80, 0)','Saved amount is amber, not paid green');
     assert.equal(await quoted.getByRole('link').getAttribute('href'),'https://junkware.junk-king.com/franchise/appointment.aspx?id=123');
     await page.getByRole('button',{name:'View details for JK10007',exact:true}).click();
     await page.getByRole('img',{name:'Before job photo'}).waitFor();

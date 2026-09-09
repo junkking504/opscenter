@@ -17,10 +17,12 @@
 .live-schedule .readable-appointment .register-payment { border-left: 3px solid #bbc8c0; padding: 8px 12px; background: #f5f7f5; border-radius: 5px; }
 .live-schedule .readable-appointment .payment-paid { border-color: #258052; background: #eff8f2; }
 .live-schedule .readable-appointment .payment-due { border-color: #ba790b; background: #fff6e4; }
+.live-schedule .readable-appointment .payment-saved { border-color: #ba790b; background: #fff6e4; }
 .live-schedule .readable-appointment .payment-quote { border-color: #8963ac; background: #f7f2fb; }
 .live-schedule .readable-appointment .register-payment-label { font-size: 12px; font-weight: 700; line-height: 1.4; }
 .live-schedule .readable-appointment .register-payment-amount { color: #163e29; font-size: 23px; font-weight: 800; line-height: 1.25; font-variant-numeric: tabular-nums; }
 .live-schedule .readable-appointment .payment-quote .register-payment-amount { color: #60417d; }
+.live-schedule .readable-appointment .payment-saved .register-payment-amount { color: #805000; }
 .live-schedule .readable-appointment .register-payment-balance { font-size: 12px; font-weight: 750; line-height: 1.5; }
 .live-schedule .readable-appointment .payment-due .register-payment-balance { color: #805000; }
 .live-schedule .readable-appointment .appointment-state { font-size: 12px; line-height: 1.4; white-space: normal; padding: 5px 8px; }

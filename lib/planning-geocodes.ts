@@ -1,3 +1,5 @@
+import { cachedAddressVerification } from './desktop-address-verification';
+import { serviceAddressForGeocoding } from './appointment-partner';
 import crypto from "node:crypto";
 
 export type PlanningLocation = {
@@ -47,7 +49,7 @@ function canonicalAddress(address: string): string {
 }
 
 function canonicalStreetAddress(address: string): string {
-  const canonical = canonicalAddress(address);
+  const canonical = canonicalAddress(serviceAddressForGeocoding(address));
   // The fast schedule may include a business name before the service street
   // (for example, a storage facility name). A street address must begin at its
   // first street-number token, so use that stable portion for the final exact
@@ -91,5 +93,5 @@ export function planningLocation(
   const uniqueLocations = Array.from(new Map(
     locations.map((location) => [`${location.latitude},${location.longitude}`, location]),
   ).values());
-  return uniqueLocations.length === 1 ? uniqueLocations[0] : null;
+  return uniqueLocations.length === 1 ? uniqueLocations[0] : cachedAddressVerification(address)?.location || null;
 }

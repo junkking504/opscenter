@@ -1,3 +1,4 @@
+import { planningLocation } from './planning-geocodes';
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
@@ -216,10 +217,7 @@ function loadGeocodeCache(): Record<string, AnyRecord> {
 
 function geocodeForAddress(address: string): AnyRecord | null {
   const cache = loadGeocodeCache();
-  const hashed = addressHash(address);
-  const entry = cache[hashed];
-  if (!entry) return null;
-  return entry;
+  return planningLocation(address,cache);
 }
 
 function loadVehicleMap(): AnyRecord {

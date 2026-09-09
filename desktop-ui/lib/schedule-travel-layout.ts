@@ -1,9 +1,10 @@
+import { compareStops } from '../../lib/schedule-stop-order';
 import { timelinePlacement, type ScheduleAppointment, type ScheduleRouteLeg } from './schedule-contract';
 
 type Range = Parameters<typeof timelinePlacement>[1];
 export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: ScheduleRouteLeg[], range: Range) {
   const lanes: number[] = [];
-  const placed = [...jobs].sort((a, b) => (a.appointmentStartMinutes ?? Infinity) - (b.appointmentStartMinutes ?? Infinity) || a.recordId.localeCompare(b.recordId, undefined, { numeric: true })).flatMap(job => {
+  const placed = [...jobs].sort(compareStops).flatMap(job => {
     const position = timelinePlacement(job, range);
     if (!position) return [];
     let lane = lanes.findIndex(end => end <= job.appointmentStartMinutes!);

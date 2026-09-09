@@ -1,3 +1,5 @@
+import ScheduleStopOrder from './schedule-stop-order';
+import { compareStops } from '../lib/schedule-stop-order';
 import { appointmentPartner, serviceAddressForGeocoding } from '../lib/appointment-partner';
 import { AppointmentClassification } from './appointment-classification';
 import { onsiteTimeFacts } from '../lib/appointment-onsite-time';
@@ -146,7 +148,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     setSearchQuery(target.query); setLinkNotice(target.notice);
     if (target.recordId) { setSelectedId(target.recordId); setDrawerId(target.recordId); }
   }, [snapshot, date, baseDate, setDrawerId, mapOnly]);
-  const routingKey = snapshot ? JSON.stringify(snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.location])) : '';
+  const routingKey = snapshot ? JSON.stringify(snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.location])) : '';
   useEffect(() => {
     if (!routingKey || (mapOnly && !selectedId)) return;
     const abort = new AbortController();
@@ -212,7 +214,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const truckDetails = snapshot?.fleet.trucks.find(truck => truckLabel(truck.truck) === selectedTruck);
   const truckGpsAge = now.getTime() - Date.parse(truckDetails?.lastGpsUpdate || '');
   const truckGpsLabel = Number.isFinite(truckGpsAge) && truckGpsAge >= 0 && truckGpsAge <= 180_000 ? 'Recent GPS' : 'Last Known Position';
-  const truckJobs = jobs.filter(job => truckLabel(job.truck) === selectedTruck);
+  const truckJobs = jobs.filter(job => truckLabel(job.truck) === selectedTruck).sort(compareStops);
   const selected = jobs.find(job => job.recordId === selectedId);
   const drawer = jobs.find(job => job.recordId === drawerId);
   const truckNames = scheduleTruckNames(snapshot);
@@ -280,7 +282,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
           </section> : <div className="map-status-list"><span><i className={snapshot.fleet.isToday ? 'healthy' : 'warning'} />{snapshot.fleet.isToday ? 'Truck markers show GPS; amber marks last-known positions' : 'Planning day · Current GPS is not a planned truck origin'}</span><span>{visible.filter(job => !job.location).length} appointments need verified coordinates</span><span>Pins stay at their recorded coordinates. A number badge lets you choose nearby locators.</span></div>}
         </aside>
       </section>}
-      {!mapOnly && <div className="schedule-board-shell"><div className="section-title"><div><span className="section-kicker">{day === 'today' ? 'Today' : 'Tomorrow'} · JunkWare Snapshot</span><h2>Truck Schedule</h2></div><div className="schedule-board-actions"><span className="schedule-drag-help"><GripVertical size={13} />Drag Appointment → Truck + Time</span></div></div>
+      {!mapOnly && <div className="schedule-board-shell"><div className="section-title"><div><span className="section-kicker">{day === 'today' ? 'Today' : 'Tomorrow'} · JunkWare Snapshot</span><h2>Truck Schedule</h2></div><div className="schedule-board-actions"><ScheduleStopOrder key={date} snapshot={snapshot} busy={operationBusy || Boolean(pendingMove)} onBusyChange={onOperationBusyChange} saved={updated=>{setSnapshots(prior=>({...prior,[date]:updated}));refresh();}} /><span className="schedule-drag-help"><GripVertical size={13} />Drag Appointment → Truck + Time</span></div></div>
         <div className="schedule-board-scroll"><div className={`schedule-board ${truckNames.length >= 10 ? 'ultra' : truckNames.length >= 7 ? 'compact' : 'comfortable'}`} style={{ '--schedule-hour-count': ticks.length } as CSSProperties}>
           <div className="schedule-time-row" style={{ gridTemplateColumns: `104px repeat(${ticks.length}, minmax(0, 1fr))` }}><span>Route</span>{ticks.map(tick => <span key={tick}>{clock(tick)}</span>)}</div>
           {date === today && progress >= 0 && progress <= 1 && <div className="schedule-now-line" style={{ left: `calc(${progress * 100}% + ${(1 - progress) * 104}px)` }} aria-label={`Current time ${clock(nowMinutes)}`}><span>{clock(nowMinutes)}</span></div>}

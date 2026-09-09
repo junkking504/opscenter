@@ -4,6 +4,8 @@ import type { KreweHoursSnapshot } from './lib/krewe-hours-contract';
 import type { DesktopKreweSnapshot } from './lib/people-fleet-contract';
 import { payForDays, payBreakdownDifference, type PayBreakdown } from './lib/krewe-pay-breakdown';
 import './live-krewe-hours.css';
+import { recordedPayrollClock } from './lib/payroll-review';
+import PayrollReview from './payroll-review';
 import KreweDayEditor from './krewe-day-editor';
 
 const dayLabel = (date: string) => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric' });
@@ -22,38 +24,46 @@ function PayWarning({ pay }: { pay: PayBreakdown }) {
   if (difference !== null && Math.abs(difference) > .01) return <p className="hours-record-warning">Source Total Differs By {money(difference)} · Review Payroll</p>;
   return null;
 }
-export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh, onEditingChange }: { date: string; onDateChange?: (date: string) => void; payroll?: DesktopKreweSnapshot; onRefresh?: () => void | Promise<void>; onEditingChange?: (editing: boolean) => void }) {
+export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh, onEditingChange, sourceError, sourcePending }: { date: string; onDateChange?: (date: string) => void; payroll?: DesktopKreweSnapshot; onRefresh?: () => void | Promise<void>; onEditingChange?: (editing: boolean) => void; sourceError?: string; sourcePending?: boolean }) {
   const [editing, setEditing] = useState<{date:string;name:string;action:'correction'|'bonus'} | null>(null);
   const isEditing = Boolean(editing);
   useEffect(() => { onEditingChange?.(isEditing); return () => onEditingChange?.(false); },[isEditing,onEditingChange]);
   const [selectedDate, setSelectedDate] = useState(date);
   const changeDate = (next: string) => { setSelectedDate(next); onDateChange?.(next); };
-  const [snapshot, setSnapshot] = useState<KreweHoursSnapshot | null>(null);
+  const [legacySnapshot, setSnapshot] = useState<KreweHoursSnapshot | null>(null);
+  const sharedHours = payroll?.date === selectedDate ? payroll.hoursSnapshot : undefined;
+  const snapshot = sharedHours || legacySnapshot;
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
   const [search, setSearch] = useState('');
   useEffect(() => { setSnapshot(null); },[selectedDate]);
   const load = useCallback(async (signal:AbortSignal) => {
+    if (sharedHours) return;
     const response = await fetch(`/api/desktop/krewe/hours?date=${selectedDate}`, {credentials:'same-origin',cache:'no-store',signal});
     const body=await response.json(); if(!response.ok)throw new Error(body.error||'Employee hours are unavailable.');
     if(!signal.aborted){setSnapshot(body);setError('');}
-  },[selectedDate]);
-  const freshness=useWorkspaceRefresh(load,`${selectedDate}:${refresh}`,Boolean(editing));
-  const loading=freshness.pending;
+  },[selectedDate,sharedHours]);
+  const freshness=useWorkspaceRefresh(load,`${selectedDate}:${refresh}`,Boolean(editing) || Boolean(sharedHours));
+  const loading=sharedHours ? Boolean(sourcePending) : freshness.pending;
   const employees = snapshot?.employees.filter(employee => employee.name.toLowerCase().includes(search.toLowerCase())) || [];
   const payMembers = new Map((payroll?.date === selectedDate ? payroll.members : []).map(member => [member.id, member]));
   return <section className="live-krewe-hours" aria-label="Pay-Period Hours and Pay">
-    <header><div><h2>Pay-Period Hours and Pay</h2><p>{snapshot ? `${dayLabel(snapshot.start)} – ${dayLabel(snapshot.end)}, ${snapshot.end.slice(0, 4)}` : 'Employee Hours and Earnings'}</p></div><div className="hours-period-controls"><button disabled={loading || Boolean(editing)} onClick={() => changeDate(offsetDay(snapshot?.start || selectedDate, -14))} aria-label="Previous pay period">←</button><label>Pay-Period Date<input type="date" disabled={Boolean(editing)} value={selectedDate} onChange={event => { if (event.target.value) changeDate(event.target.value); }} /></label><button disabled={loading || Boolean(editing)} onClick={() => changeDate(offsetDay(snapshot?.start || selectedDate, 14))} aria-label="Next pay period">→</button><button disabled={loading || Boolean(editing)} onClick={() => { setRefresh(value => value + 1); void Promise.resolve(onRefresh?.()).catch(failure => setError(failure instanceof Error ? failure.message : 'Payroll could not refresh.')); }}>Refresh</button></div></header>
+    <header><div><h2>Pay-Period Hours and Pay</h2><p>{snapshot ? `${dayLabel(snapshot.start)} – ${dayLabel(snapshot.end)}, ${snapshot.end.slice(0, 4)}` : 'Employee Hours and Earnings'}</p></div><div className="hours-period-controls"><button disabled={loading || Boolean(editing)} onClick={() => changeDate(offsetDay(snapshot?.start || selectedDate, -14))} aria-label="Previous pay period">←</button><label>Pay-Period Date<input type="date" disabled={Boolean(editing)} value={selectedDate} onChange={event => { if (event.target.value) changeDate(event.target.value); }} /></label><button disabled={loading || Boolean(editing)} onClick={() => changeDate(offsetDay(snapshot?.start || selectedDate, 14))} aria-label="Next pay period">→</button><button disabled={loading || Boolean(editing)} onClick={() => { if (!sharedHours) setRefresh(value => value + 1); void Promise.resolve(onRefresh?.()).catch(failure => setError(failure instanceof Error ? failure.message : 'Payroll could not refresh.')); }}>Refresh</button></div></header>
     <div className="hours-toolbar"><label>Find Employee<input type="search" value={search} placeholder="Search employees" onChange={event => setSearch(event.target.value)} /></label><a href={`/crew?section=pay-period&date=${selectedDate}`} target="_blank" rel="noopener noreferrer">Open Full Pay-Period Records ↗</a></div>
     <p className="hours-source-note">Employees with zero hours are excluded from the pay-period list and totals. Open each week for daily time and pay records. Hours and pay include OpsCenter corrections when weekly records are complete. Time and shift-rate corrections are sent to JunkWare; each save shows its verification status. Missing time records remain flagged for review.</p>
     {loading && <p role="status" className="hours-source-note">Loading Employee Hours…</p>}
     {(error||freshness.error) && <p role="alert" className="hours-source-note hours-attention">{error||freshness.error} · Last retrieved hours retained.</p>}
     {snapshot && <>
       {snapshot.missingDates.length > 0 && <p className="hours-source-note hours-attention">Daily Source Unavailable: {snapshot.missingDates.map(dayLabel).join(', ')}. Totals include available records only.</p>}
+      {payroll && <PayrollReview search={search} hours={snapshot} payroll={payroll} unavailable={sourceError || error || freshness.error} pending={loading || Boolean(editing)} onOpen={id => {
+        const card = document.getElementById(`payroll-source-${id}`);
+        card?.querySelectorAll('details').forEach(detail => { detail.open = true; });
+        card?.scrollIntoView({ behavior: 'smooth', block: 'start' }); card?.focus({ preventScroll: true });
+      }} />}
       <div className="hours-employee-cards">{employees.map(employee => {
         const days = payMembers.get(employee.id)?.days || [];
         const periodPay = payForDays(days, snapshot.start, snapshot.end);
-        return <article className="hours-employee-card" key={employee.id} aria-label={employee.name}>
+        return <article className="hours-employee-card" key={employee.id} id={`payroll-source-${employee.id}`} tabIndex={-1} aria-label={employee.name}>
           <header><h3>{employee.name}</h3><span>Pay-Period Totals · {dayLabel(snapshot.start)} – {dayLabel(snapshot.end)}</span></header>
           <div className="hours-total-grid"><Fact label="Total Hours" note={`${hours(employee.weeks.reduce((sum, week) => sum + week.regular, 0))} regular · ${hours(employee.weeks.reduce((sum, week) => sum + week.overtime, 0))} OT`}>{hours(employee.total)}</Fact>{payroll && <PayFacts pay={periodPay} />}</div>
           {payroll && <PayWarning pay={periodPay} />}
@@ -64,10 +74,12 @@ export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh,
               <div className="hours-week-content"><h4>Week {index + 1} Totals</h4><div className="hours-total-grid"><Fact label="Hours" note={`${hours(week.regular)} regular · ${hours(week.overtime)} OT`}>{hours(week.total)}</Fact>{payroll && <PayFacts pay={weekPay} />}</div>{payroll && <PayWarning pay={weekPay} />}
                 <h4>Daily Totals</h4><div className="hours-daily-records" aria-label={`Week ${index + 1} daily breakdowns`}>{week.days.map(day => {
                   const pay = payForDays(days, day.date, day.date);
+                  const evidence = days.find(record => record.date === day.date);
                   return <section className="hours-day-card" key={day.date} aria-label={`${day.date} daily totals`}>
-                    <div className="hours-day-grid"><Fact label="Date" note={`${day.status}${day.corrected ? ' · Corrected' : ''}`}>{day.date}</Fact><Fact label="Clock In">{day.clockIn || '—'}</Fact><Fact label="Clock Out">{day.clockOut || '—'}</Fact><Fact label="Hours" note={day.overtime > 0 ? `${hours(day.overtime)} OT` : undefined}>{hours(day.hours)}</Fact><Fact label="Role">{day.role}</Fact><Fact label="Truck">{day.truck}</Fact>
+                    <div className="hours-day-grid"><Fact label="Date" note={`${day.status}${day.corrected ? ' · Corrected' : ''}`}>{day.date}</Fact><Fact label="Clock In">{recordedPayrollClock(day.clockIn) || recordedPayrollClock(evidence?.clockIn) || day.clockIn || '—'}</Fact><Fact label="Clock Out">{recordedPayrollClock(day.clockOut) || recordedPayrollClock(evidence?.clockOut) || day.clockOut || '—'}</Fact><Fact label="Hours" note={day.overtime > 0 ? `${hours(day.overtime)} OT` : undefined}>{hours(day.hours)}</Fact><Fact label="Role">{day.role}</Fact><Fact label="Truck">{day.truck}</Fact>
                       <Fact label="Jobs">{day.jobs ?? '—'}</Fact><Fact label="Job Revenue Worked">{money(day.jobRevenueWorked)}</Fact>{payroll && <PayFacts pay={pay} />}
                     </div>{payroll && day.status !== 'Upcoming' && day.status !== 'No Record' && <PayWarning pay={pay} />}
+                  {evidence && <div className="hours-day-evidence"><p>{evidence.payNote || 'Recorded daily payroll'}{evidence.sourceAt ? ` · Source observed ${evidence.sourceAt}` : ' · Source time unavailable'}</p>{evidence.hourlyRate != null && <p>Shift rate: {money(evidence.hourlyRate)}</p>}{evidence.correctionNote && <p>Correction: {evidence.correctionNote} · {evidence.correctionBy || 'Actor unavailable'} · JunkWare {evidence.syncStatus || 'not verified'}</p>}{evidence.manualBonuses?.map(bonus => <p key={bonus.entryId}>Manual bonus: {money(bonus.amount)} · {bonus.note}</p>)}</div>}
                   {payroll?.canWrite && <div className="hours-day-actions"><button type="button" onClick={() => setEditing({date:day.date,name:employee.name,action:'correction'})}>Edit hours</button><button type="button" onClick={() => setEditing({date:day.date,name:employee.name,action:'bonus'})}>Add bonus</button></div>}
                   </section>;
                 })}</div>

@@ -105,3 +105,38 @@ OpsCenter does not submit a fabricated total or alter the employee profile wage.
 The source verification status is shown beside corrected pay and in Clock Out
 alerts. Manual bonuses have no field in the inspected JunkWare timesheet editor
 and remain explicitly labeled as OpsCenter bonus records.
+
+## Desktop payroll review
+
+Krewe → Pay Period adds a payroll review table above the existing two-week and
+per-day records. It uses the same daily earnings as the employee cards and the
+same weekly hours allocation. Hourly pay includes the recorded overtime wages;
+tips, bonuses and supplemental pay remain separate components. No deductions,
+net-pay calculation or payroll-provider submission is introduced.
+
+The pay-period response now carries its hours snapshot with the earnings, so the
+review and cards use one server response rather than independently refreshed
+hours and pay requests. Per-day evidence includes source observation time,
+shift rate, correction notes/actor and JunkWare synchronization status, plus
+manual bonus notes. Payroll role restrictions remain unchanged.
+
+Flags identify missing sources, missing employee/time/pay records, unfinished
+shifts, hour disagreements, component/total mismatches, negative pay and
+unverified corrections. Unknown amounts remain unavailable, including in the
+CSV. The zero-hour employee filter remains; excluded employees with recorded
+pay are called out separately and block reviewed export.
+
+Review checkboxes are available for completed periods with complete daily
+sources and unflagged employees. Marks are local to the current screen session;
+a change to the supporting record clears its mark. They are not payroll
+approval records and do not change any source data. Failed refreshes disable
+reviewed export. A draft export includes every listed employee and all flags;
+a reviewed export includes only checked employees, and explicitly reports any
+excluded unreviewed employees. Search/table filters do not change export scope.
+Exports contain period dates, both weeks' hours, regular/OT hours, each earnings
+component, total pay before deductions, review status, flags and retrieval time.
+CSV text cells are escaped against formulas. Files are generated in the browser
+and never stored in Git or posted to a payroll provider.
+
+Verification: `npm run verify:payroll-review`; isolated browser fixture:
+`desktop-ui/tests/payroll-review.html` (fictional records only).

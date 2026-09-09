@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {deriveCloseoutTruckLoads} from '../lib/truck-load-closeouts';
+import {readTruckCompletionEvidence} from '../lib/truck-load-completion-evidence';
+import {createHash} from 'node:crypto';
 import {formatLoadAmount, formatTruckLoadFraction, junkwareBedloadFraction, type TruckLoadEvent} from '../lib/truck-load-status';
 
 const date='2026-09-08';
@@ -22,6 +24,34 @@ assert.equal(placed.currentLoadFraction,1.125);
 assert.equal(placed.currentBedloadFraction,.25);
 assert.equal(placed.isOverCapacity,true);
 assert.equal(placed.needsVerification,false);
+const laterReset={...reset,occurredAt:`${date}T18:00:00Z`};
+const completionBeforeReset={...jobs[0],completionObservedAt:`${date}T17:00:00Z`};
+const bounded=deriveCloseoutTruckLoads(date,['3'],[laterReset],[completionBeforeReset])[0];
+assert.equal(bounded.needsVerification,false,'Completion observed before a later unload is covered without inventing GPS');
+assert.equal(bounded.currentLoadFraction,0);
+assert.equal(bounded.chargedTruckFraction,.375);
+assert.match(bounded.events.find(e=>e.kind==='job_closeout')!.recordedBy,/completed by.*covered by later/);
+assert.equal(deriveCloseoutTruckLoads(date,['3'],[reset],[completionBeforeReset])[0].needsVerification,true,'Completion observed after a reset does not prove pickup was after it');
+const partial=deriveCloseoutTruckLoads(date,['3'],[reset],jobs,visits.slice(0,1))[0];
+assert.equal(partial.currentLoadFraction,.375);
+assert.equal(partial.displayLoadLabel,'3/8 full · provisional','Known contribution remains visible while another job is unresolved');
+const gpsAfter=deriveCloseoutTruckLoads(date,['3'],[laterReset],[completionBeforeReset],[{...visits[0],final_departure:`${date}T19:00:00Z`}])[0];
+assert.equal(gpsAfter.currentLoadFraction,.375,'Actual departure evidence takes precedence over a completion receipt');
+
+const evidenceRoot=fs.mkdtempSync(path.join(os.tmpdir(),'truck-completion-evidence-'));
+try {
+  const dir=path.join(evidenceRoot,'slack');fs.mkdirSync(path.join(dir,'closeout-receipts'),{recursive:true});
+  const key=`job_closed:${date}:appt-1001`;
+  const stamp=String(Date.parse(`${date}T17:00:00Z`)/1000)+'.000001';
+  const receipt={channelId:'C0BPQGARS1K',ts:stamp,hash:'fixture'};
+  fs.writeFileSync(path.join(dir,'ops_alert_state.json'),JSON.stringify({closeoutMessages:{[key]:receipt}}));
+  assert.equal(readTruckCompletionEvidence(date,[jobs[0]],evidenceRoot).get('1001'),`${date}T17:00:00.000Z`);
+  assert.equal(readTruckCompletionEvidence(date,[{...jobs[0],truck:'Truck# 9'}],evidenceRoot).size,0,'Wrong truck channel cannot cover a load');
+  assert.equal(readTruckCompletionEvidence('2026-09-09',[jobs[0]],evidenceRoot).size,0,'Wrong service day is excluded');
+  fs.writeFileSync(path.join(dir,'ops_alert_state.json'),'{}');
+  fs.writeFileSync(path.join(dir,'closeout-receipts',createHash('sha256').update(key).digest('hex')+'.json'),JSON.stringify(receipt));
+  assert.equal(readTruckCompletionEvidence(date,[jobs[0]],evidenceRoot).size,1,'Fast collector receipts use the same identity guard');
+} finally {fs.rmSync(evidenceRoot,{recursive:true,force:true});}
 const emptied=deriveCloseoutTruckLoads(date,['3'],[{...reset,occurredAt:`${date}T18:00:00Z`,coveredAppointmentIds:['1001','1002']}],jobs)[0];
 assert.equal(emptied.currentLoadFraction,0);
 assert.equal(emptied.currentBedloadFraction,0);

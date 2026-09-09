@@ -2,6 +2,13 @@
 
 ## Workspace navigation performance (September 9)
 
+Marketing prepares its displayed lead/review rows only when a new snapshot
+arrives, and recomputes the selected-day review subset when that day changes.
+The one-second freshness clock no longer reformats every source row. Marketing
+and Finance share reusable currency/date formatters with fixed Chicago time;
+this retains formatting rules without constructing a formatter per table cell.
+Screen/source timestamps and live request behavior are unchanged.
+
 Requested-day schedule readers run under a separate supervisor with a 175-second
 deadline, inside the application's existing 180-second limit. A private process
 group lets the supervisor stop a hung reader and its browser children without

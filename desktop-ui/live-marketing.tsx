@@ -1,5 +1,5 @@
 import { useWorkspaceRefresh, WorkspaceFreshness } from './workspace-freshness';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Check, PhoneCall, Play, ShieldCheck, Star, X } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Badge } from './components/ui/badge';
@@ -9,6 +9,7 @@ export type LiveMarketingProps = { date: string; view?: string; report?: (messag
 const safeUrl = (url: string) => /^https?:\/\//i.test(url) ? url : undefined;
 const safeRate = (n: number, d: number | null) => d ? (100 * n / d).toFixed(1) : '—';
 const safeRatio = (n: number, d: number) => d ? (n / d).toFixed(2) : '—';
+const operatingDayFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' });
 const label = (status: string) => status === 'needs_follow_up' ? 'Needs follow-up' : status === 'unqualified' ? 'Not qualified' : status === 'booked' || status === 'recovered' ? 'Booked' : 'Lost';
 function PhoneContact({ phone }: { phone: string }) { return phone ? <a href={`tel:${phone.replace(/[^+\d]/g, '')}`}>{phone}</a> : <span>Phone unavailable</span>; }
 const renderJkLink = (jk: string) => jk ? <a href={`/schedule?job=${encodeURIComponent(jk)}`}>{jk}</a> : <span>No appointment selected</span>;
@@ -44,15 +45,15 @@ export function LiveMarketing({ date, view, report, onViewChange, onBusyChange }
   }
   const editLead = (id: string) => setDraft(data?.leads.find(lead => lead.id === id) || null);
   const confirmMarketingReview = (id: string) => { const review = data?.reviews.find(review => review.id === id); if (review) void mutate({ action: 'review.assign', recordId: id, expectedVersion: review.version, values: { appointmentId: selections[id] ?? review.attribution?.appointmentId ?? '' } }); };
-  if (!data) return <section className="marketing-workspace"><WorkspaceFreshness state={freshness}/><div className="marketing-empty" role="status">{error || freshness.error || 'Loading Marketing sources…'}</div></section>;
-  const marketingLeads = data.leads.map(lead => ({ ...lead, status: label(lead.status), age: commercialDate(lead.calledAt), lastContact: lead.contacted ? `Franchise contacted · ${commercialDate(lead.updatedAt)}` : 'No recorded franchise contact', callDuration: 'Source' }));
+  const marketingLeads = useMemo(() => (data?.leads ?? []).map(lead => ({ ...lead, status: label(lead.status), age: commercialDate(lead.calledAt), lastContact: lead.contacted ? `Franchise contacted · ${commercialDate(lead.updatedAt)}` : 'No recorded franchise contact', callDuration: 'Source' })), [data]);
   const marketingRecoveryLeads = marketingLeads.filter(lead => ['Lost', 'Needs follow-up', 'Contacted'].includes(lead.status));
   const marketingLostCount = marketingLeads.filter(lead => lead.status === 'Lost').length;
   const visibleMarketingLeads = marketingLeads.filter(lead => marketingLeadFilter === 'all' || marketingLeadFilter === 'lost' ? marketingLeadFilter === 'all' || lead.status === 'Lost' : marketingLeadFilter === 'followup' ? lead.status === 'Needs follow-up' : ['Lost', 'Needs follow-up', 'Contacted'].includes(lead.status));
-  const marketingReviews = data.reviews.map(review => ({ ...review, status: review.attribution?.status === 'matched' ? 'Attributed' : 'Needs attribution', age: commercialDate(review.createdAt), selectedAppointment: review.attribution?.appointmentId || '', jk: review.attribution?.jkNumber || '' }));
+  const marketingReviews = useMemo(() => (data?.reviews ?? []).map(review => ({ ...review, status: review.attribution?.status === 'matched' ? 'Attributed' : 'Needs attribution', age: commercialDate(review.createdAt), selectedAppointment: review.attribution?.appointmentId || '', jk: review.attribution?.jkNumber || '' })), [data]);
   const marketingReviewCount = marketingReviews.filter(review => review.status !== 'Attributed').length;
-  const todaysMarketingReviews = marketingReviews.filter(review => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date(review.createdAt)) === date);
+  const todaysMarketingReviews = useMemo(() => marketingReviews.filter(review => operatingDayFormatter.format(new Date(review.createdAt)) === date), [marketingReviews, date]);
   const todaysReviewAverage = todaysMarketingReviews.length ? todaysMarketingReviews.reduce((sum, review) => sum + review.stars, 0) / todaysMarketingReviews.length : null;
+  if (!data) return <section className="marketing-workspace"><WorkspaceFreshness state={freshness}/><div className="marketing-empty" role="status">{error || freshness.error || 'Loading Marketing sources…'}</div></section>;
   const marketingTotals = data.totals, marketingSources = data.sources;
   return <>
     <WorkspaceFreshness state={freshness} sourceAt={data.fetchedAt} budgetMinutes={20}/>

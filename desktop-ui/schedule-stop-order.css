@@ -1,0 +1,16 @@
+.ops-live .schedule-stop-order-trigger { padding: 4px 8px; border: 1px solid #a9b8b1; border-radius: 4px; background: white; color: #26372e; font-size: 11px; white-space: nowrap; cursor: pointer; }
+.ops-live .schedule-stop-order { margin: auto; width: min(620px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 16px; background: white; color: #26372e; border: 1px solid #a9b8b1; border-radius: 8px; box-shadow: 0 8px 35px #17212b35; font-size: 13px; }
+.ops-live .schedule-stop-order::backdrop { background: #182a224a; }
+.ops-live .schedule-stop-order header, .ops-live .schedule-stop-order footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.ops-live .schedule-stop-order h2 { font-size: 16px; margin: 0; }
+.ops-live .schedule-stop-order p { font-size: 12px; line-height: 1.5; margin: 10px 0; }
+.ops-live .schedule-stop-order button { padding: 6px 10px; border: 1px solid #a9b8b1; background: #f4f7f5; color: #26372e; border-radius: 4px; cursor: pointer; }
+.ops-live .schedule-stop-order button:disabled { opacity: .45; cursor: default; }
+.ops-live .schedule-stop-order select { display: block; width: 100%; margin: 5px 0 12px; padding: 7px; border: 1px solid #a9b8b1; background: white; }
+.ops-live .schedule-stop-order ol { list-style: none; margin: 0 0 14px; padding: 0; }
+.ops-live .stop-order-row { display: flex; align-items: center; gap: 10px; border: 1px solid #d5dfd9; padding: 10px; border-radius: 5px; }
+.ops-live .stop-order-row > div:not(.stop-order-arrows) { flex: 1; min-width: 0; display: grid; gap: 4px; overflow-wrap: anywhere; }
+.ops-live .stop-order-row span, .ops-live .stop-order-row small { font-size: 11px; }
+.ops-live .stop-order-arrows { display: flex; gap: 4px; }
+.ops-live .stop-order-travel { display: block; margin: 6px 0 6px 28px; color: #406751; font-size: 11px; }
+.ops-live .schedule-stop-order footer { justify-content: flex-end; border-top: 1px solid #d5dfd9; padding-top: 12px; }

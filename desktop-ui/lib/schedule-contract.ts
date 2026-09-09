@@ -5,6 +5,7 @@ import { JUNKWARE_DISPATCH_TRUCKS } from '../../lib/junkware-trucks';
 export type ScheduleAppointment = {
   recordId: string;
   version: string;
+  stopOrder?: number;
   callAhead: 'called' | 'not_called';
   junkwareSyncStatus?: 'pending' | 'verified' | 'manual_correction';
   junkwareSyncError?: string;

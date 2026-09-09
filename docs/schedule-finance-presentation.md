@@ -265,3 +265,46 @@ JunkWare can fill entirely blank actual-time controls with the scheduled window 
 ## Alert note summaries
 
 Appointment alerts show pertinent note details: removal items, access constraints, special requests, and customer ETA contact. Repeated ETA calls become one detail; operator timestamps, routine rescheduling logs, resolved call-center case boilerplate, and promotional boilerplate are omitted. Extraction preserves concrete instructions and negation, deduplicates repeated details, and leaves the complete source notes available in the appointment record. This changes presentation only.
+
+
+## Saved order within a time slot
+
+Truck Schedule's **Stop Order** control edits one truck and exact booked window.
+Arrows change the draft sequence; **Suggest nearest after first stop** keeps the
+chosen first stop and greedily follows the shortest verified road distances.
+Every draft shows its own adjacent travel estimates. **Save Order** persists the
+sequence in shared runtime `data/schedule-stop-order/<date>/<group-hash>.json`;
+no JunkWare assignment, booked time, completion or visit record is written.
+The board stack and routing use the same comparator and invalidate route caches
+on a saved order change. New appointments append to a saved group; another date,
+truck or window never inherits that group's order. Source/version and saved-order
+checks reject stale requests under a per-group atomic-write lock. Missing road
+results or locations never generate a geographic-distance ETA. The nearest-stop
+suggestion is bounded to 12 stops and is not a global route optimization.
+
+## Shared full-field address verification
+
+`lib/desktop-address-verification.ts` processes the entire source field for every
+lookup. It tries the full business/street/suite/locality text first, followed by
+a unique street candidate and an explicitly unit-free query if needed. Every
+provider response is checked against the original field's house, street and ZIP;
+business and suite numbers cannot become the house number. Multiple street
+addresses or ambiguous provider matches stay unresolved. Source text is retained.
+The Gonzales hospital's 1014 W St Clare/Claire Blvd spelling alias is limited to
+that house and locality; FMOL publishes both spellings in its general-surgery and
+thoracic-surgery location directories. No generic fuzzy street matching is used.
+
+Verified results are atomically cached by the full original field for 24 hours
+(failures five minutes) in `data/cache/service-address-verifications/`. Schedule,
+Command map, Fleet planning locations and legacy proximity use these same checks.
+The separately owned OpsBot collector is connected through the idempotent
+`scripts/install-shared-address-verifier.py --apply` migration after deployment;
+its stdin-only bridge runs `scripts/resolve-service-address.ts` from the active
+release, then writes the existing appointment-geocode cache for visit detection.
+It never falls back to an unchecked location when shared verification fails.
+Existing verified source geocodes are retained. Census supplies lookups without
+Google Maps API calls or billing credentials.
+
+Validation: `scripts/test-schedule-stop-order.ts`,
+`scripts/test-desktop-address-verification.ts`, and the existing schedule,
+travel-layout, partner, planning-geocode and route-planner checks.

@@ -147,8 +147,10 @@ Verification: `npm run verify:payroll-review`; isolated browser fixture:
 explicitly requested operations-manager recipients, period, reviewed employee
 hours/earnings and source link filled in. The reviewer chooses the sending
 mailbox and presses Send in that application. OpsCenter does not claim delivery
-or schedule automatic messages. The report is in the message body; the CSV can
+for that manually composed message. The report is in the message body; the CSV can
 be exported separately if an attachment is needed. Partial employee selections
 are identified in the subject and body. Oversized messages are rejected with
-instructions to use the CSV instead. No new mail provider or background service
-is introduced, and no test report is sent to the real recipients.
+instructions to use the CSV instead. The separate [scheduled payroll delivery](payroll-report-delivery.md) sends the
+full report with flags at 8 a.m. Central on the Monday after each biweekly
+period ends. It uses the existing Mail account through the Codex schedule.
+No test report is sent to the real recipients.

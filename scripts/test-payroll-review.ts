@@ -62,3 +62,35 @@ const mailto = new URL(payrollReportMailto(email));
 assert.equal(mailto.protocol, "mailto:"); assert.equal(mailto.pathname, email.to.join(","));
 assert.equal(mailto.searchParams.get("subject"), email.subject); assert.equal(mailto.searchParams.get("body"), email.text);
 assert.throws(() => payrollReportMailto({ ...email, text: "x".repeat(25000) }), /too large/);
+
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { payrollReportDue, reservePayrollDelivery, confirmPayrollDelivery } from '../lib/payroll-report-schedule';
+const scheduled = preparePayrollReportEmail({ ...options, rows: [row, flagged], totalEmployeeCount: 2, mode: 'scheduled', warnings: ['Daily sources unavailable: 2026-08-25.'] });
+assert.match(scheduled.subject, /^FOR REVIEW /);
+assert.match(scheduled.text, /2 employees with recorded hours; 1 have review flags/);
+assert.match(scheduled.text, /REVIEW:.*Pay breakdown incomplete/);
+assert.match(scheduled.text, /ATTENTION: Daily sources unavailable/);
+assert.match(scheduled.text, /Tips Unavailable/);
+assert.match(scheduled.attachment.content, /Draft - not reviewed/);
+assert.match(scheduled.attachment.filename, /for-review.csv$/);
+assert.throws(() => preparePayrollReportEmail({ ...options, rows: [row], totalEmployeeCount: 2, mode: 'scheduled' }), /every report row/);
+assert.equal(payrollReportDue(new Date('2026-09-21T12:59:59Z')), null);
+assert.deepEqual(payrollReportDue(new Date('2026-09-21T13:00:00Z')), { start: '2026-09-07', end: '2026-09-20' });
+assert.equal(payrollReportDue(new Date('2026-09-14T13:00:00Z')), null, 'Off-period Monday must not send');
+assert.equal(payrollReportDue(new Date('2026-09-20T13:00:00Z')), null);
+assert.equal(payrollReportDue(new Date('2026-09-22T13:00:00Z')), null);
+assert.equal(payrollReportDue(new Date('2026-11-02T13:59:59Z')), null);
+assert.deepEqual(payrollReportDue(new Date('2026-11-02T14:00:00Z')), { start: '2026-10-19', end: '2026-11-01' }, 'Still 8 Central after DST ends');
+const receipts = fs.mkdtempSync(path.join(os.tmpdir(), 'payroll-receipt-test-'));
+try {
+  reservePayrollDelivery(receipts, scheduled.subject);
+  assert.throws(() => reservePayrollDelivery(receipts, scheduled.subject), /EEXIST/, 'Concurrent or uncertain attempts never resend');
+  assert.throws(() => confirmPayrollDelivery(receipts, ''), /evidence/);
+  confirmPayrollDelivery(receipts, 'Synthetic Sent-folder evidence');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(receipts, 'delivery.json'), 'utf8')).status, 'sent');
+  assert.throws(() => reservePayrollDelivery(receipts, scheduled.subject), /EEXIST/);
+  assert.throws(() => confirmPayrollDelivery(receipts, 'another receipt'), /reserved/);
+} finally { fs.rmSync(receipts, { recursive: true }); }
+console.log('Scheduled payroll passed: complete flagged report, missing values, Monday/biweekly/DST boundaries, exclusive reservation and verified-only receipts. No email sent.');

@@ -43,6 +43,19 @@ async function main() {
     assert.equal(getOperationalReadiness(temporaryRoot, now - 86400000).crewPortalSync.ok, false);
     fs.rmdirSync(path.join(temporaryRoot,'integrations','whatsapp-job-photos','incoming'));
     assert.equal(getOperationalReadiness(temporaryRoot, now).photoQueue.ok, false);
+    process.env.OPSCENTER_DATA_DIR = temporaryRoot;
+    const { geocoderSignal } = await import('../lib/system-signals');
+    writeJson(path.join(temporaryRoot, 'cache', 'appointment_geocodes.json'), {addresses: {
+      unresolved: {match_confidence: 'ambiguous', reason: 'google_geocoding_not_configured'},
+    }});
+    assert.equal(geocoderSignal().status, 'warn');
+    assert.match(geocoderSignal().summary, /need coordinate review/);
+    assert.doesNotMatch(geocoderSignal().summary, /paid|fallback|configure/i);
+    writeJson(path.join(temporaryRoot, 'cache', 'appointment_geocodes.json'), {addresses: {
+      resolved: {match_confidence: 'confirmed'},
+    }});
+    assert.equal(geocoderSignal().status, 'ok');
+    assert.equal(geocoderSignal().paidFallbackConfigured, false);
     console.log("Operational readiness checks passed.");
   } finally {
     fs.rmSync(temporaryRoot, { recursive: true, force: true });

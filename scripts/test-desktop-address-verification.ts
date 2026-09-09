@@ -28,3 +28,12 @@ assert(verifyCensusAddress('100 Example St New Orleans LA 70125',{result:{addres
 assert.equal(verifyCensusAddress('101 Example St New Orleans LA 70125',{result:{addressMatches:[censusMatch]}}).location,null);
 assert.equal(verifyCensusAddress('100 Example St New Orleans LA 70124',{result:{addressMatches:[censusMatch]}}).location,null);
 assert.equal(verifyCensusAddress('100 Example St New Orleans LA 70125',{result:{addressMatches:[censusMatch,censusMatch]}}).location,null);
+const hospital={matchedAddress:'1014 W ST CLAIRE BLVD, GONZALES, LA, 70737',addressComponents:{zip:'70737',state:'LA',city:'GONZALES'},coordinates:{x:-90.931727047708,y:30.208176890499}};
+const full='Our Lady Of The Lake St. Elizabeth 1014 W St Clare Blvd Suite 3110 Gonzales, LA 70737';
+assert.ok(verifyCensusAddress(full,{result:{addressMatches:[hospital]}}).location,'Read business, house, suite, locality and ZIP together');
+assert.equal(verifyCensusAddress(full.replace('1014','1015'),{result:{addressMatches:[hospital]}}).location,null);
+assert.equal(verifyCensusAddress(full.replace('70737','70734'),{result:{addressMatches:[hospital]}}).location,null);
+assert.equal(verifyCensusAddress(full.replace(' W St',' E St'),{result:{addressMatches:[hospital]}}).location,null);
+assert.equal(verifyCensusAddress(full.replace('Gonzales','Other City'),{result:{addressMatches:[hospital]}}).location,null,'Alias must not cross localities');
+assert.ok(verifyCensusAddress('Business 84 Location 2, 100 Example St Suite 3 New Orleans LA 70125',{result:{addressMatches:[censusMatch]}}).location,'Business/unit numbers must not replace the street number');
+assert.equal(verifyCensusAddress('100 Example St New Orleans LA 70125 or 200 Other St New Orleans LA 70125',{result:{addressMatches:[censusMatch]}}).location,null,'Two street addresses require review');

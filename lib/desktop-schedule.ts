@@ -1,3 +1,5 @@
+import { compareStops } from './schedule-stop-order';
+import { applyStopOrders } from './desktop-stop-order-store';
 import {osmTravelMatrix} from './osm-travel-matrix';
 import { readSourceEstimates } from './schedule-source-estimate';
 import fs from 'node:fs';
@@ -15,7 +17,7 @@ import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-a
 import { readScheduleVisits, scheduleVisitState } from '@/lib/desktop-schedule-visits';
 import { readOperationalTruckLoads, truckChargeSummary } from './truck-load-closeouts';
 
-export type DesktopAppointment = JobRow & { recordId: string; version: string; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
+export type DesktopAppointment = JobRow & { recordId: string; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
   truck: string;
   fromAppointmentId: string;
@@ -68,7 +70,7 @@ export function readDesktopSchedule(date: string) {
   return {
     date,
     observedAt: junkwareScheduleUpdatedAt(date),
-    appointments,
+    appointments: applyStopOrders(date, appointments),
     truckLoads: readOperationalTruckLoads(date, [...fleet.trucks.map(truck=>truck.truck),...appointments.map(job=>job.truck)], sourceAppointments).map(load=>({
       truck:load.truck, label:load.needsVerification ? 'Verify load' : load.events.length ? load.currentLoadLabel : 'Load not recorded',
       percent:load.needsVerification || !load.events.length ? null : load.capacityPercent,
@@ -97,9 +99,8 @@ export function scheduleRoutePairs(appointments: DesktopAppointment[]): DesktopR
     trucks.set(truck, rows);
   }
   return [...trucks.entries()].flatMap(([truck, jobs]) => {
-    // Same-window stops retain separate appointment identities. A stable tie
-    // break makes this a reproducible proposal, not an asserted dispatch order.
-    jobs.sort((a, b) => (a.appointmentStartMinutes ?? Infinity) - (b.appointmentStartMinutes ?? Infinity) || a.recordId.localeCompare(b.recordId, undefined, { numeric: true }));
+    // Use the saved stack order; stable identity order is the default.
+    jobs.sort(compareStops);
     return jobs.slice(1).map((to, index) => {
       const from = jobs[index];
       return {
@@ -182,7 +183,7 @@ export async function readDesktopScheduleRouting(date: string, recordId: string 
   const snapshot = await readVerifiedDesktopSchedule(date);
   const target = recordId ? snapshot.appointments.find(job => job.recordId === recordId) : undefined;
   if (recordId && !target) return null;
-  const legs = await cachedRouting(['legs', date, snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.location])], () => calculateDesktopRouteLegs(snapshot.appointments));
+  const legs = await cachedRouting(['legs', date, snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.location])], () => calculateDesktopRouteLegs(snapshot.appointments));
   // Refresh GPS eligibility before every comparison; cached travel must never
   // promote a now-stale truck to a live nearest-truck recommendation.
   const now = Date.now();

@@ -1,3 +1,5 @@
+import { verifyDesktopAddress } from './desktop-address-verification';
+import { planningLocation } from './planning-geocodes';
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
@@ -46,7 +48,6 @@ export type JobRouteProximityPayload = {
 const PRIVATE_CACHE_FILE = path.join(process.cwd(), "data", "job-route-geocodes", "geocodes.json");
 const PRIVATE_CACHE_FILE_MODE = process.env.OPSCENTER_RUNTIME === "VPS" ? 0o660 : 0o600;
 const RETRY_FAILED_AFTER_MS = 6 * 60 * 60 * 1000;
-const GEOCODER_USER_AGENT = "JunkKing-OpsCenter-RoutePlanner/1.0";
 
 function normalizeAddress(value: string): string {
   return String(value || "").replace(/\s+/g, " ").replace(/\s*,\s*/g, ", ").trim().toUpperCase();
@@ -122,61 +123,6 @@ function writePrivateStore(newEntries: Record<string, CachedGeocode>): void {
   fs.renameSync(temporaryFile, PRIVATE_CACHE_FILE);
 }
 
-async function geocodeWithCensus(address: string): Promise<Coordinates | null> {
-  const params = new URLSearchParams({
-    address,
-    benchmark: "Public_AR_Current",
-    vintage: "Current_Current",
-    format: "json",
-  });
-  try {
-    const response = await fetch(`https://geocoding.geo.census.gov/geocoder/geographies/onelineaddress?${params}`, {
-      headers: { "User-Agent": GEOCODER_USER_AGENT },
-      signal: AbortSignal.timeout(12_000),
-      cache: "no-store",
-    });
-    if (!response.ok) return null;
-    const payload = await response.json();
-    const matches = payload?.result?.addressMatches;
-    if (!Array.isArray(matches) || matches.length !== 1) return null;
-    return validCoordinates(matches[0]?.coordinates?.y, matches[0]?.coordinates?.x);
-  } catch {
-    return null;
-  }
-}
-
-async function geocodeWithNominatim(address: string): Promise<Coordinates | null> {
-  const params = new URLSearchParams({
-    q: address,
-    format: "jsonv2",
-    addressdetails: "1",
-    limit: "2",
-    countrycodes: "us",
-  });
-  try {
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?${params}`, {
-      headers: { "User-Agent": GEOCODER_USER_AGENT },
-      signal: AbortSignal.timeout(12_000),
-      cache: "no-store",
-    });
-    if (!response.ok) return null;
-    const results = await response.json();
-    if (!Array.isArray(results) || !results.length) return null;
-    const top = results[0];
-    const kind = String(top?.type || "").toLowerCase();
-    if (["city", "town", "village", "postcode", "county", "administrative"].includes(kind)) return null;
-    if (results.length > 1) {
-      const first = validCoordinates(top?.lat, top?.lon);
-      const second = validCoordinates(results[1]?.lat, results[1]?.lon);
-      if (!first || !second) return null;
-      if (Math.abs(first.latitude - second.latitude) > 0.0011 || Math.abs(first.longitude - second.longitude) > 0.0015) return null;
-    }
-    return validCoordinates(top?.lat, top?.lon);
-  } catch {
-    return null;
-  }
-}
-
 async function resolveJobCoordinates(jobs: JobRouteProximityInput[]): Promise<Map<string, Coordinates | null>> {
   const trusted = readTrustedGeocodes();
   const privateStore = readPrivateStore();
@@ -190,20 +136,20 @@ async function resolveJobCoordinates(jobs: JobRouteProximityInput[]): Promise<Ma
       continue;
     }
     const hash = addressHash(job.address);
-    const trustedCoordinates = validCoordinates(trusted[hash]?.latitude, trusted[hash]?.longitude);
+    const trustedCoordinates = planningLocation(job.address,trusted);
     if (trustedCoordinates) {
       results.set(job.jobKey, trustedCoordinates);
       continue;
     }
 
     const cached = privateStore.addresses[hash];
-    const cachedCoordinates = validCoordinates(cached?.latitude, cached?.longitude);
+    const cachedCoordinates = cached?.source === 'Verified full address / Census' ? validCoordinates(cached.latitude,cached.longitude) : null;
     if (cachedCoordinates) {
       results.set(job.jobKey, cachedCoordinates);
       continue;
     }
     const checkedAt = cached?.checkedAt ? new Date(cached.checkedAt).getTime() : 0;
-    if (checkedAt && Date.now() - checkedAt < RETRY_FAILED_AFTER_MS) {
+    if (cached?.source === 'Verified full address / Census' && checkedAt && Date.now() - checkedAt < RETRY_FAILED_AFTER_MS) {
       results.set(job.jobKey, null);
       continue;
     }
@@ -212,21 +158,12 @@ async function resolveJobCoordinates(jobs: JobRouteProximityInput[]): Promise<Ma
 
   const censusResults = await Promise.all(unresolved.map(async (job) => ({
     ...job,
-    coordinates: await geocodeWithCensus(job.address),
+    coordinates: (await verifyDesktopAddress(job.address)).location,
   })));
   const newCacheEntries: Record<string, CachedGeocode> = {};
-  let lastNominatimRequestAt = 0;
-
   for (const result of censusResults) {
-    let coordinates = result.coordinates;
-    let source = "US Census Geocoder";
-    if (!coordinates) {
-      const delay = Math.max(0, 1_100 - (Date.now() - lastNominatimRequestAt));
-      if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
-      lastNominatimRequestAt = Date.now();
-      coordinates = await geocodeWithNominatim(result.address);
-      source = "Nominatim/OpenStreetMap";
-    }
+    const coordinates = result.coordinates;
+    const source = 'Verified full address / Census';
     results.set(result.jobKey, coordinates);
     newCacheEntries[result.hash] = {
       latitude: coordinates?.latitude ?? null,

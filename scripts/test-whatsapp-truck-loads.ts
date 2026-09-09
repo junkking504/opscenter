@@ -9,6 +9,8 @@ import {
   ingestTruckLoadText,
   recordTruckLoadPhotoAnalysis,
   truckLoadPhotoRequest,
+  ingestTruckLoadCaption,
+  parseTruckLoadSnapshot,
 } from "@/lib/whatsapp-truck-loads";
 import { claimCrewExpenseReply, queuedCrewExpenseReplies } from "@/lib/whatsapp-crew-expenses";
 import type { WhatsAppImageMessage, WhatsAppTextMessage } from "@/lib/whatsapp-job-photo-queue";
@@ -85,6 +87,28 @@ const imageMessage: WhatsAppImageMessage = {
 assert.equal(truckLoadPhotoRequest(imageMessage, "")?.truck, "Truck# 6");
 assert.equal(truckLoadPhotoRequest({ ...imageMessage, caption: "6" }, "")?.truck, "Truck# 6");
 assert.equal(truckLoadPhotoRequest({ ...imageMessage, caption: "JK4051234 before photo" }, ""), null);
+
+for (const [caption, fraction, contents] of [
+  ["Truck 3 1/2 truck Junk", 0.5, "Junk"],
+  ["Truck 3 Full truck Junk", 1, "Junk"],
+  ["T3 .5 BRT some metal, mostly junk", 0.5, "some metal, mostly junk"],
+  ["#3 3pu household junk", 0.5, "household junk"],
+  ["Truck 3\n50% Junk", 0.5, "Junk"],
+] as const) {
+  const parsed = parseTruckLoadSnapshot(caption);
+  assert.equal(parsed.truck, "Truck# 3");
+  assert.equal(parsed.loadFraction, fraction);
+  assert.equal(parsed.contents, contents);
+  assert.equal(parsed.recognized, true);
+}
+const captionMessage = { ...imageMessage, messageId: "explicit-caption", caption: "Truck 3 1/2 truck Junk", receivedAt: "2026-08-31T22:00:00.000Z" };
+assert.equal(ingestTruckLoadCaption(captionMessage).status, "updated");
+assert.equal(ingestTruckLoadCaption(captionMessage).status, "duplicate");
+assert.equal(readTruckLoadStatuses("2026-08-31").find(row => row.truck === "Truck# 3")?.currentLoadFraction, 0.5);
+assert.equal(readTruckLoadStatuses("2026-08-31").find(row => row.truck === "Truck# 3")?.currentContents, "Junk");
+for (const caption of ["Truck 3", "Truck 3 1/2 truck", "JK4051234 Truck 3 1/2 truck Junk", "Truck 3 150% Junk"]) {
+  assert.equal(ingestTruckLoadCaption({ ...imageMessage, caption }).status, "ignored");
+}
 
 recordTruckLoadPhotoAnalysis(imageMessage, "Truck 6", {
   loadFraction: 3 / 4,

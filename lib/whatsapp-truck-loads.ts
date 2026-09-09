@@ -105,19 +105,32 @@ function isTruckIdentifierOnly(text: string): boolean {
   return /^(?:truck(?:[ \t]+status)?[ \t]*#?[ \t]*\d{1,3}|t[ \t]*#?[ \t]*\d{1,3}|#[ \t]*\d{1,3}|\d{1,3})$/i.test(value);
 }
 
-function parseSnapshot(text: string): { truck: string; loadFraction: number | null; contents: string; recognized: boolean } {
+export function parseTruckLoadSnapshot(text: string): { truck: string; loadFraction: number | null; contents: string; recognized: boolean } {
   const lines = String(text || "").split(/\r?\n/).map((line) => clean(line, 500)).filter(Boolean);
   const truck = truckFromText(text);
-  const loadLine = lines.find((line) => loadFromLine(line) !== null) || "";
+  const identifierLine = lines.findIndex(line => truckFromText(line) === truck);
+  const body = lines.map((line, index) => index === identifierLine
+    ? line.replace(/^(?:truck(?:[ \t]+status)?[ \t]*#?[ \t]*\d{1,3}|t[ \t]*#?[ \t]*\d{1,3}|#[ \t]*\d{1,3}|\d{1,3})(?=[\s,:;-]|$)[\s,:;-]*/i, "")
+    : line);
+  const loadLine = body.find((line) => loadFromLine(line) !== null) || "";
   const loadFraction = loadLine ? loadFromLine(loadLine) : null;
-  const contents = lines
-    .filter((line) => line !== loadLine)
+  // Keep contents on the same line as the load, including WhatsApp captions.
+  const loadPrefix = /^(?:(?:empty|minimum|full)(?:\s+(?:truck|brt|load))?|\d+(?:\.\d+)?\s*%|\d+\s*\/\s*\d+(?:\s*(?:trucks?|brt))?|(?:\d+(?:\.\d+)?|\.\d+)\s*(?:brt|trucks?|pickups?(?:\s+trucks?)?|loads?|p\s*u))(?=[\s,:;-]|$)[\s,:;-]*/i;
+  const contents = body
+    .map((line) => line === loadLine ? (loadPrefix.test(line) ? line.replace(loadPrefix, "") : "") : line)
     .filter((line) => !truckFromText(line))
     .filter((line) => !/^(?:truck|load)\s+status\s*:?!?$/i.test(line))
     .map((line) => line.replace(/^contents?\s*:\s*/i, ""))
+    .filter(Boolean)
     .join("; ")
     .slice(0, 500);
-  return { truck, loadFraction, contents, recognized: Boolean(truck && (loadLine || /\b(?:truck|load)\s+status\b/i.test(text))) };
+  return { truck, loadFraction, contents, recognized: Boolean(!extractJkNumber(text) && truck && (loadLine || /\b(?:truck|load)\s+status\b/i.test(text))) };
+}
+
+export function ingestTruckLoadCaption(message: WhatsAppImageMessage): TruckLoadIngestResult {
+  const snapshot = parseTruckLoadSnapshot(message.caption);
+  if (!snapshot.recognized || snapshot.loadFraction === null || !snapshot.contents) return { status: "ignored" };
+  return ingestTruckLoadText({ ...message, text: message.caption });
 }
 
 function contentsKind(contents: string): "junk" | "metal" | "mixed" | "unknown" {
@@ -276,7 +289,7 @@ export function ingestTruckLoadText(message: WhatsAppTextMessage): TruckLoadInge
     return { status: "reset", truck: status.truck };
   }
 
-  const snapshot = parseSnapshot(text);
+  const snapshot = parseTruckLoadSnapshot(text);
   if (!snapshot.recognized) return { status: "ignored" };
   if (snapshot.loadFraction === null || !snapshot.contents) {
     enqueueOpsBotReply(message, [

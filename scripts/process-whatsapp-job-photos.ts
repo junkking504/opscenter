@@ -41,6 +41,7 @@ import {
   recordTruckLoadPhotoAnalysis,
   recordTruckLoadPhotoFailure,
   truckLoadPhotoRequest,
+  ingestTruckLoadCaption,
 } from "@/lib/whatsapp-truck-loads";
 
 function clean(value: unknown): string {
@@ -191,6 +192,13 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
   try {
     const receivedAt = new Date(claim.message.receivedAt);
     if (Number.isNaN(receivedAt.getTime())) throw new Error("The WhatsApp message timestamp is invalid.");
+    // A complete dispatcher caption is an observation, not a vision estimate
+    // or a job upload. It does not depend on sender-to-truck mapping or media.
+    const captionLoad = ingestTruckLoadCaption(claim.message);
+    if (captionLoad.status !== "ignored") {
+      finishWhatsAppImage(claim.file, "completed", { truckLoadStatus: captionLoad, source: "explicit_truck_load_caption" });
+      return "completed";
+    }
     const date = chicagoDateKey(receivedAt);
     const metrics = readMetrics(date);
     const appointments = Array.isArray(metrics?.appointments) ? metrics.appointments as AnyRecord[] : [];

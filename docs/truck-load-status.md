@@ -29,6 +29,11 @@ answers how full each physical truck is right now.
    variations also work for photo captions, confirmations, and yard resets.
    OpsBot replies with the recorded status and shows the contents on the
    Schedule.
+   A single line such as `Truck 3 1/2 truck Junk` also works as a text message
+   or photo caption. A complete caption records the dispatcher's stated load
+   before media download, without running vision or matching a customer job.
+   An exact JK reference keeps the photo in the job-photo workflow. A caption
+   with only a truck identifier continues to request an advisory photo estimate.
 4. When a truck unloads, the dispatcher taps **Dumped** or **Metal yard**, or
    reports the reset to OpsBot. A dump expense resets the truck only after that
    expense is verified in JunkWare. The event retains the day's audit trail.

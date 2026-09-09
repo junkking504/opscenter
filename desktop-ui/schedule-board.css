@@ -168,8 +168,16 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { flex: none; height: auto; overflow: visible; }
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { height: auto; }
 
-/* Selected truck details occupy their own row, outside the map and route scroller. */
-.ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open .schedule-map-panel.has-truck-card { grid-template-rows: auto minmax(200px, 1fr) auto auto; min-height: 520px; }
-@media (max-width: 900px) {
-  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open .schedule-map-panel.has-truck-card { height: auto; }
+/* Map height is independent of the selected truck and its route details.
+ * Information extends the page below the map instead of consuming its area. */
+.ops-live .live-schedule.schedule-workspace .schedule-board-layout.map-open > .schedule-map-panel {
+  display: flex; flex-direction: column; align-self: start; height: auto; min-height: 0;
+}
+.ops-live .live-schedule.schedule-workspace .schedule-board-layout.map-open .schedule-map-canvas {
+  flex: none; height: clamp(360px, 55vh, 560px); min-height: 360px;
+  border-right: 0; border-bottom: 1px solid var(--border);
+}
+.ops-live .live-schedule.schedule-workspace .schedule-map-panel > .live-map-truck-card,
+.ops-live .live-schedule.schedule-workspace .schedule-map-panel > .schedule-map-controls {
+  flex: none;
 }

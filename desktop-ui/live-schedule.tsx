@@ -68,7 +68,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const mapPanelRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    if (selectedTruck && showMap && view === 'board') mapPanelRef.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (selectedTruck && showMap && view === 'board') mapPanelRef.current?.querySelector('.schedule-map-canvas')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [selectedTruck, mapResetKey, showMap, view]);
   useEffect(() => {
     if (selectedId && showMap && view === 'board') mapPanelRef.current?.scrollIntoView({ block: 'nearest' });

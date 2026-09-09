@@ -17,7 +17,9 @@ export function osmStreetJson(path:string):Promise<unknown> {
     try {
       const response=await fetch(`https://routing.openstreetmap.de/routed-car/${path}`,{
         headers:{'User-Agent':'OpsCenter/1.0 (https://ops.junk-king.app)'},
-        signal:AbortSignal.timeout(5000),cache:'no-store',redirect:'error',
+        // Road tables can take longer than an individual route even for a few
+        // stops. Keep the request bounded without discarding valid tables at 5s.
+        signal:AbortSignal.timeout(path.startsWith('table/')?15000:5000),cache:'no-store',redirect:'error',
       });
       if(response.ok)value=await response.json();
     } catch { /* Keep unavailable road sections disconnected. */ }

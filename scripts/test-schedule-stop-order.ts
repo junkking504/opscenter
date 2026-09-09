@@ -37,6 +37,8 @@ async function main() {
     const nearer=await nearestStopOrder(jobs,async(_,destinations)=>destinations.map((point,index)=>({originIndex:0,destinationIndex:index,distanceMeters:1000*(1-point.longitude/100),duration:'600s',condition:'ROUTE_EXISTS'})));
     assert.equal(nearer[0].recordId,ids[0],'Keep the chosen first stop');
     assert.equal(nearer[1].recordId,ids[3],'Use road distance rather than input or straight-line order');
+    assert.deepEqual(await nearestStopOrder([],async()=>{throw new Error('Unexpected lookup');}),[]);
+    assert.deepEqual(await nearestStopOrder(jobs.slice(0,2),async()=>{throw new Error('No choice remains');}),jobs.slice(0,2));
     await assert.rejects(()=>nearestStopOrder(jobs,async()=>null));
     await assert.rejects(()=>nearestStopOrder(jobs.map(job=>({...job,location:null}))));
     console.log('Stop order passed: persistence, source conflicts, permutation safety, unchanged bookings, day/window isolation, matching ETA layout, road-nearest suggestion and unavailable inputs.');

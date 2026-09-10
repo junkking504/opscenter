@@ -3,7 +3,7 @@
 ## Selected appointment at a glance
 
 Selecting an appointment from the truck schedule, map, or register now opens one
-summary above the map and truck board. It shows customer/JK, category/status,
+summary beside the map and truck board on desktop, and above them on narrow screens. It shows customer/JK, category/status,
 customer window, assignment, address/phone, pickup work, and a bounded source-note
 excerpt. The remaining notes, photos, payments and editing controls stay in the
 same Full details drawer. Closing that drawer preserves selection; Escape clears
@@ -348,7 +348,7 @@ travel-layout, partner, planning-geocode and route-planner checks.
 
 ## Direct dispatch access to full appointment details
 
-The selected-job summary above the map and truck schedule owns the **Full details** action. See [Selected appointment at a glance](#selected-appointment-at-a-glance) for the current interaction and validation contract. Closing the full drawer preserves the selected appointment and dispatch position.
+The selected-job summary beside the map and truck schedule on desktop (above them on narrow screens) owns the **Full details** action. See [Selected appointment at a glance](#selected-appointment-at-a-glance) for the current interaction and validation contract. Closing the full drawer preserves the selected appointment and dispatch position.
 
 The Schedule payload resolves `sourceEstimateAppointmentId` against the exact
 estimate appointment ID in JunkWare's historical raw snapshots, independent of
@@ -371,11 +371,28 @@ Deployment startup allowance: a cold all-market JunkWare initialization measured
 
 ## Schedule control hierarchy
 
-- **Primary action:** solid brand-red **Add Appointment**, with a plus icon, opens the existing reviewed creation drawer. It does not change booking or assignment behavior.
-- **View navigation:** underlined workspace tabs; the current day uses a neutral segmented selector. These are separate from actions.
+- **Primary action:** compact 32px-high scarlet (`#a43b35`, matching Schedule Lab) **Add Appointment** at the upper-right of the Schedule header, with a plus icon, opens the existing reviewed creation drawer. It does not change booking or assignment behavior.
+- **View navigation:** underlined workspace tabs; the current day uses a neutral segmented selector. These sit on a row below the title and primary action, separate from the search and view settings.
 - **View settings:** the Map switch exposes its checked state and keeps its label stable. Search and Refresh day use quieter styling.
 - **Filters and cards:** counts remain neutral until selected, with a blue selection cue shared by the selected appointment and its summary. Unassigned is an ordinary planning state; Verify Address uses amber when records need review, with no warning color at zero.
 - **Guidance:** a pale yellow closest-truck panel distinguishes one available suggestion from selection or assignment; address and assignment review use amber with explicit labels.
 - **Supporting actions:** Full details uses an outlined button; inline source-note links reveal more context. Keyboard focus remains visible.
 
 This first application is scoped to the live Schedule workspace. Controls wrap at narrow widths rather than compressing their labels. The dispatch browser check covers the booking-drawer entry, map switch, selected filter state, and visible primary action at 320–1440px without submitting a booking.
+
+On desktop (1000px and wider), selecting a job opens its summary in a right-hand pane without moving the map or truck schedule down. The map height follows the available viewport; full job history can scroll within the detail pane. Narrow screens retain the stacked summary. The appointment grid preserves its readable row heights on unusually dense days instead of hiding destinations.
+
+
+### Selected truck position and overlapping locators
+
+The desktop truck card resolves the selected GPS point through Fleet's existing
+OpenStreetMap address endpoint and displays its report time, age and reported
+ignition. A recent collector refresh does not make an old position current.
+Address lookups are limited to the selected point; unavailable addresses remain
+explicit. Public Google Maps links do not call Google APIs.
+
+Overlapping appointment/truck icons receive deterministic screen offsets with
+leader lines to their unchanged geographic anchors. Each icon selects its own
+record directly. Zooming apart removes offsets; map focus uses true coordinates.
+Reviewed service-complex corrections belong in the runtime geocode cache with
+source, precision and previous-value provenance; they do not verify a unit rooftop.

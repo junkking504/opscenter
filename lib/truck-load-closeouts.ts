@@ -1,4 +1,6 @@
 import { readJobRows, junkwareScheduleUpdatedAt } from './desktop-schedule-source';
+import fs from 'node:fs';
+import path from 'node:path';
 import { readScheduleVisits } from './desktop-schedule-visits';
 import { appointmentOnsiteTime } from './appointment-onsite-time';
 import {readTruckCompletionEvidence} from './truck-load-completion-evidence';
@@ -13,19 +15,28 @@ export type OperationalTruckLoad = TruckLoadStatus & {
   chargedLoadLabel: string; chargedLoadNote: string;
   unplacedAppointmentIds: string[];
   displayLoadLabel: string;
+  carriedFromDate?: string;
 };
 
 export function truckChargeSummary(load: OperationalTruckLoad): string {
-  return `${load.chargesComplete ? 'Charged today' : 'Known charges today'}: ${load.chargedLoadLabel}. ${load.chargedLoadNote}`;
+  return `${load.carriedFromDate ? `Starting load carried from ${load.carriedFromDate}. ` : ''}${load.chargesComplete ? 'Charged today' : 'Known charges today'}: ${load.chargedLoadLabel}. ${load.chargedLoadNote}`;
 }
 
 /** Read projection only: include source closeouts without rewriting the operational ledger. */
-export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored: TruckLoadEvent[], jobs: LoadJob[], visits: Parameters<typeof appointmentOnsiteTime>[1] = [], sourceObservedAt = 0): OperationalTruckLoad[] {
+export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored: TruckLoadEvent[], jobs: LoadJob[], visits: Parameters<typeof appointmentOnsiteTime>[1] = [], sourceObservedAt = 0, previous: OperationalTruckLoad[] = []): OperationalTruckLoad[] {
   let events = stored.filter(event => event.date === date);
+  for (const prior of previous) {
+    if (!prior.events.length || events.some(event=>event.truck===prior.truck && event.kind==='day_start')) continue;
+    events.push({eventId:`carry:${date}:${prior.truck}`,date,truck:prior.truck,kind:'day_start',loadFraction:prior.currentLoadFraction,bedloadFraction:prior.currentBedloadFraction || 0,occurredAt:`${date}T00:00:00`,recordedAt:prior.lastEvent?.recordedAt || '',recordedBy:`Carried forward from ${prior.date}`,appointmentId:'',jobNumber:'',loadSize:prior.currentLoadLabel,loadQuantity:'',contents:prior.currentContents,resetLocation:''});
+  }
   const unplaced = new Set<string>();
   const incomplete = new Set<string>();
   const issues = new Map<string, Set<string>>();
   const issue = (truck: string, message: string) => {const notes = issues.get(truck) || new Set<string>(); notes.add(message); issues.set(truck, notes);};
+  for (const prior of previous) {
+    const absoluteToday = stored.some(event=>event.date===date && event.truck===prior.truck && ['day_start','yard_reset','manual_snapshot'].includes(event.kind));
+    if (prior.needsVerification && !absoluteToday) issue(prior.truck,`Unresolved carried load: ${prior.verificationNote}`);
+  }
   const byId = new Map<string, LoadJob[]>();
   for (const job of jobs) if (/^\d{1,12}$/.test(job.appointmentId)) byId.set(job.appointmentId, [...(byId.get(job.appointmentId) || []), job]);
   for (const [id, copies] of byId) {
@@ -86,14 +97,42 @@ export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored:
       chargedLoadLabel:`${formatLoadAmount(chargedTruckFraction)} truck${chargedBedloadFraction ? ` + ${formatLoadAmount(chargedBedloadFraction)} bedload` : ''}`,
       chargedLoadNote:charges.map(event=>`${event.jobNumber || event.appointmentId}: ${formatLoadAmount(event.loadFraction)} truck${event.bedloadFraction ? ` + ${formatLoadAmount(event.bedloadFraction)} bedload` : ''}`).join('; '),
       unplacedAppointmentIds:pending,
+      ...(truckEvents.some(event=>event.eventId===`carry:${date}:${truck}`) ? {carriedFromDate:previous.find(load=>load.truck===truck)?.date} : {}),
     };
   });
 }
 
-export function readOperationalTruckLoads(date: string, trucks: string[] = [], jobs = readJobRows(date)) {
-  const events = [...readTruckLoadStore().events,...geofenceLoadResets(date,readGeofenceEntries(date).entries)];
+function readLoadDay(date: string, trucks: string[], stored: TruckLoadEvent[], previous: OperationalTruckLoad[], jobs = readJobRows(date)) {
+  const events = [...stored,...geofenceLoadResets(date,readGeofenceEntries(date).entries)];
   const completions = readTruckCompletionEvidence(date,jobs);
-  return deriveCloseoutTruckLoads(date,trucks,events,jobs.map(job=>({...job,completionObservedAt:completions.get(job.appointmentId)})),readScheduleVisits(date).visits,Date.parse(junkwareScheduleUpdatedAt(date) || '') || 0);
+  return deriveCloseoutTruckLoads(date,trucks,events,jobs.map(job=>({...job,completionObservedAt:completions.get(job.appointmentId)})),readScheduleVisits(date).visits,Date.parse(junkwareScheduleUpdatedAt(date) || '') || 0,previous);
+}
+
+const historyCache = new Map<string,{at:number;loads:OperationalTruckLoad[]}>();
+
+export function readOperationalTruckLoads(date: string, trucks: string[] = [], jobs = readJobRows(date)) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return [];
+  const store=readTruckLoadStore();
+  const root=process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data');
+  const names=[...new Set([...trucks,...store.events.map(event=>event.truck)])];
+  const key=JSON.stringify([root,date,store.updatedAt]);
+  const cached=historyCache.get(key);
+  let previous=cached && Date.now()-cached.at<30_000 ? cached.loads : null;
+  if (!previous) {
+    const dates=new Set(store.events.map(event=>event.date).filter(day=>day<date));
+    const trackingStart=[...dates].sort()[0];
+    for (const directory of [path.join(root,'history','junkware'),path.join(root,'history','linxup','alerts'),...['352','477','399','484'].map(market=>path.join(root,'history','junkware','schedule-watchers',market))]) {
+      try {for (const file of fs.readdirSync(directory)) {
+        const day=file.match(/(\d{4}-\d{2}-\d{2})/)?.[1];
+        if (day && day<date && (!trackingStart || day>=trackingStart) && /(?:completed_.*_summary\.csv|_raw\.json|linxup_alerts_.*\.json|schedule_(?:fast|requested)_.*\.json)$/.test(file)) dates.add(day);
+      }} catch { /* Available history is replayed without external requests. */ }
+    }
+    previous=[];
+    for (const day of [...dates].sort()) previous=readLoadDay(day,[],store.events,previous);
+    historyCache.clear();
+    historyCache.set(key,{at:Date.now(),loads:previous});
+  }
+  return readLoadDay(date,names,store.events,previous,jobs).map(load=>load.events.length ? load : {...load,needsVerification:true,displayLoadLabel:'Load unknown',verificationNote:'No load baseline or unload is recorded. A current observation is required to establish onboard capacity.'});
 }
 
 /** A present-time observation/unload explicitly covers jobs already closed on that truck. */

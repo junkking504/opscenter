@@ -1021,8 +1021,10 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const [scheduleDay, setScheduleDay] = useState<ScheduleDay>(() => live ? navigationValue(window.location.search, 'scheduleDay', ['today', 'tomorrow'], 'today') : 'today');
   const [liveScheduleCounts, setLiveScheduleCounts] = useState({ today: 0, tomorrow: 0 });
   const operatingDateHeading = live ? new Date((activeNav === 'Schedule' ? dateForDay(live.snapshot.date, scheduleDay) : live.snapshot.date) + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric' }) : 'Sunday, August 31';
+  const [scheduleActionHost, setScheduleActionHost] = useState<HTMLDivElement | null>(null);
   const [scheduleView, setScheduleViewValue] = useState<'board' | 'calendar' | 'followup' | 'history' | 'estimates'>(() => live ? navigationValue(window.location.search, 'scheduleView', ['board', 'calendar', 'followup', 'history', 'estimates'], 'board') : 'board');
   const setScheduleView = (value: 'board' | 'calendar' | 'followup' | 'history' | 'estimates') => {
+
     if (mutationBusyRef.current) return;
     setScheduleViewValue(value);
   };
@@ -4218,7 +4220,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         </header>
 
         <div className={activeNav === 'Schedule' ? 'workspace schedule-mode' : 'workspace'}>
-          <div className="workspace-heading" onClickCapture={event => { if (mutationBusyRef.current) { event.preventDefault(); event.stopPropagation(); } }}>
+          <div className={`workspace-heading${activeNav === 'Schedule' && live ? ' schedule-workspace-heading' : ''}`} onClickCapture={event => { if (mutationBusyRef.current) { event.preventDefault(); event.stopPropagation(); } }}>
             <div>
               <span className="eyebrow">{live ? operatingDateHeading : activeNav === 'Schedule' && scheduleView === 'calendar'
                 ? selectedCalendarDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
@@ -4267,6 +4269,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   <button className={scheduleView === 'followup' ? 'active' : ''} onClick={() => setScheduleView('followup')}>Follow-Up {!live && <span>{activeFollowups.length}</span>}</button>
                   <button className={scheduleView === 'history' ? 'active' : ''} onClick={() => setScheduleView('history')}>History {!live && <span>{scheduleDayHistory.length}</span>}</button>
                 </div>
+                {live && <div className="schedule-primary-action" ref={setScheduleActionHost} />}
               </div>
             ) : activeNav === 'Krewe' ? (
               <div className="krewe-heading-actions">
@@ -4640,7 +4643,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           {live && activeNav === 'Finance' && canFinance && <LiveFinance date={live.snapshot.date} view={financeView} onViewChange={setFinanceView} onBusyChange={onBusyChange} />}
           </Suspense>
           {activeNav === 'Schedule' && live && scheduleView === 'estimates' && <Estimates onBusyChange={onBusyChange} />}
-          {activeNav === 'Schedule' && live && scheduleView !== 'estimates' && <LiveSchedule baseDate={live.snapshot.date} day={scheduleDay} view={scheduleView} onDayChange={setScheduleDay} onCounts={setLiveScheduleCounts} report={setActionFeedback} onBusyChange={onBusyChange} onOpenDate={date => {setScheduleView('board');setScheduleDay('today');live.onDateChange(date, 'Schedule');}} />}
+          {activeNav === 'Schedule' && live && scheduleView !== 'estimates' && <LiveSchedule actionHost={scheduleActionHost} baseDate={live.snapshot.date} day={scheduleDay} view={scheduleView} onDayChange={setScheduleDay} onCounts={setLiveScheduleCounts} report={setActionFeedback} onBusyChange={onBusyChange} onOpenDate={date => {setScheduleView('board');setScheduleDay('today');live.onDateChange(date, 'Schedule');}} />}
+
           {activeNav === 'Schedule' && !live && (
             <section className="schedule-workspace">
               <div className="schedule-control-bar">

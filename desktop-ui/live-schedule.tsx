@@ -1,3 +1,4 @@
+import { TruckPosition } from './truck-position';
 import ScheduleAppointmentSummary, { closestAvailableTruck } from './schedule-appointment-summary';
 import ScheduleStopOrder from './schedule-stop-order';
 import { compareStops } from '../lib/schedule-stop-order';
@@ -5,6 +6,7 @@ import { appointmentPartner, serviceAddressForGeocoding } from '../lib/appointme
 import { AppointmentClassification } from './appointment-classification';
 import { onsiteTimeFacts } from '../lib/appointment-onsite-time';
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowRight, Check, GripVertical, Plus, X } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
@@ -32,7 +34,7 @@ import { SourceEstimateSummary } from './source-estimate';
 import {GpsRouteSummary,useTruckGpsRoute} from './schedule-gps-route';
 
 type Day = 'today' | 'tomorrow';
-type Props = { mapOnly?: boolean; view?: 'board' | 'calendar' | 'followup' | 'history'; onOpenDate?: (date: string) => void; onBusyChange?: (busy: boolean) => void; baseDate: string; day: Day; onDayChange: (day: Day) => void; onCounts?: (counts: Record<Day, number>) => void; report: (message: string) => void };
+type Props = { actionHost?: HTMLElement | null; mapOnly?: boolean; view?: 'board' | 'calendar' | 'followup' | 'history'; onOpenDate?: (date: string) => void; onBusyChange?: (busy: boolean) => void; baseDate: string; day: Day; onDayChange: (day: Day) => void; onCounts?: (counts: Record<Day, number>) => void; report: (message: string) => void };
 const money = (value: number) => Number.isFinite(value) ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value) : 'Unavailable';
 const slug = (value: string) => value.toLowerCase().replaceAll(' ', '-');
 const clock = (minutes: number) => `${Math.floor(minutes / 60) % 12 || 12}${minutes % 60 ? ':' + String(minutes % 60).padStart(2, '0') : ''} ${minutes >= 720 ? 'PM' : 'AM'}`;
@@ -42,7 +44,7 @@ function Address({ value }: { value: string }) { return value ? <strong classNam
 function PartnerBadge({ job }: { job: ScheduleAppointment }) { const partner = appointmentPartner(job); return partner ? <span className="appointment-partner-badge">{partner.name}</span> : null; }
 function Phone({ value }: { value: string }) { const digits = value.replace(/\D/g, ''); return digits.length >= 7 ? <span className="phone-contact"><a className="phone-link" href={`tel:${digits.length === 10 ? '+1' : '+'}${digits}`}>{value}</a></span> : <small>Phone Unavailable</small>; }
 
-export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, report, view = 'board', onOpenDate, onBusyChange, mapOnly = false }: Props) {
+export default function LiveSchedule({ actionHost, baseDate, day, onDayChange, onCounts, report, view = 'board', onOpenDate, onBusyChange, mapOnly = false }: Props) {
   const date = dateForDay(baseDate, day);
   const [creationOpen, setCreationOpen] = useState(false);
   const [snapshots, setSnapshots] = useState<Record<string, ScheduleSnapshot>>({});
@@ -73,12 +75,16 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const mapPanelRef = useRef<HTMLElement>(null);
   const selectedSummaryRef = useRef<HTMLDivElement>(null);
+  const dispatchSurfaceRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (selectedTruck && showMap && view === 'board') mapPanelRef.current?.scrollIntoView({ block: 'start', inline: 'nearest' });
   }, [selectedTruck, mapResetKey, showMap, view]);
   useEffect(() => {
-    if (selectedId && view === 'board') selectedSummaryRef.current?.scrollIntoView({ block: 'nearest' });
-  }, [selectedId, mapResetKey, showMap, view]);
+    if (!selectedId || view !== 'board') return;
+    const target = !mapOnly && window.innerWidth >= 1000 ? dispatchSurfaceRef.current : selectedSummaryRef.current;
+    if (target && target.getBoundingClientRect().top < 0) target.scrollIntoView({ block: 'start' });
+    else if (target && target.getBoundingClientRect().top > window.innerHeight - 100) target.scrollIntoView({ block: 'start' });
+  }, [selectedId, mapResetKey, showMap, view, mapOnly]);
   const [drawerId, setDrawerIdValue] = useState<string | null>(null);
   const [operationBusy, setOperationBusy] = useState(false);
   const operationBusyRef = useRef(false);
@@ -95,14 +101,16 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     if (!board || mapOnly || view !== 'board') return;
     const fit = () => {
       const pageTop = board.getBoundingClientRect().top + window.scrollY;
-      board.style.setProperty('--schedule-available-height', `${Math.max(180, Math.min(520, window.innerHeight - pageTop - 12))}px`);
+      const height = `${Math.max(240, window.innerHeight - pageTop - 16)}px`;
+      board.style.setProperty('--schedule-available-height', height);
+      dispatchSurfaceRef.current?.style.setProperty('--schedule-available-height', height);
     };
     const observer = new ResizeObserver(fit);
     document.querySelectorAll('.topbar, .workspace-heading, .schedule-control-bar, .schedule-summary-strip').forEach(element => observer.observe(element));
     window.addEventListener('resize', fit);
     fit();
     return () => { observer.disconnect(); window.removeEventListener('resize', fit); };
-  }, [hasSnapshot, mapOnly, view]);
+  }, [hasSnapshot, mapOnly, view, selectedId, showMap]);
   const countsCallback = useRef(onCounts);
   countsCallback.current = onCounts;
   useEffect(() => {
@@ -244,11 +252,13 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   };
   const safeSourceHref = (job: ScheduleAppointment) => { try { const url = new URL(job.appointmentUrl); return /^https?:$/.test(url.protocol) ? url.href : null; } catch { return null; } };
 
+  const addAppointmentAction = <Button className="schedule-add-appointment" size="sm" disabled={operationBusy} onClick={() => setCreationOpen(true)}><Plus aria-hidden="true" />Add Appointment</Button>;
   if (!snapshot) return <section className="empty-state" role="status"><strong>{error || 'Loading Schedule from JunkWare…'}</strong><span>No sample appointments are used.</span></section>;
   return <TruckCameraController className="live-schedule-camera"><section className={`schedule-workspace live-schedule${mapOnly ? ' command-map-content' : ' schedule-dispatch'}`}>
+    {!mapOnly && actionHost && createPortal(addAppointmentAction, actionHost)}
     {!mapOnly && <div className="schedule-control-bar">
       <div className="day-switcher" role="group" aria-label="Schedule day">{(['today', 'tomorrow'] as const).map(key => <button key={key} aria-pressed={day === key} disabled={operationBusy} onClick={() => onDayChange(key)} className={day === key ? 'active' : ''}>{baseDate === new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date()) ? (key === 'today' ? 'Today' : 'Tomorrow') : dateForDay(baseDate,key)} <span>{snapshots[dateForDay(baseDate, key)]?.appointments.length ?? '—'}</span></button>)}</div>
-      <div className="schedule-control-actions"><Input aria-label="Filter source appointments" style={{ width: 220, maxWidth: '30vw' }} placeholder="Search appointments" value={searchQuery} maxLength={200} disabled={operationBusy} onChange={event => { setSearchQuery(event.target.value); setLinkNotice(''); }} /><button type="button" className="schedule-map-toggle" role="switch" aria-label="Show map" aria-checked={showMap} onClick={() => setShowMap(value => !value)}><span className="schedule-toggle-track" aria-hidden="true"><span /></span>Map</button><Button variant="ghost" className="schedule-refresh-action" size="sm" disabled={operationBusy || ['loading','queued'].includes(snapshot?.sourceRequest?.state || '')} onClick={() => {refreshSourceDate.current=date;refresh();}}>Refresh day</Button><Button className="schedule-add-appointment" size="sm" disabled={operationBusy} onClick={() => setCreationOpen(true)}><Plus aria-hidden="true" />Add Appointment</Button></div>
+      <div className="schedule-control-actions"><Input aria-label="Filter source appointments" style={{ width: 220, maxWidth: '30vw' }} placeholder="Search appointments" value={searchQuery} maxLength={200} disabled={operationBusy} onChange={event => { setSearchQuery(event.target.value); setLinkNotice(''); }} /><button type="button" className="schedule-map-toggle" role="switch" aria-label="Show map" aria-checked={showMap} onClick={() => setShowMap(value => !value)}><span className="schedule-toggle-track" aria-hidden="true"><span /></span>Map</button><Button variant="ghost" className="schedule-refresh-action" size="sm" disabled={operationBusy || ['loading','queued'].includes(snapshot?.sourceRequest?.state || '')} onClick={() => {refreshSourceDate.current=date;refresh();}}>Refresh day</Button>{!actionHost && addAppointmentAction}</div>
     </div>}
     {snapshot.sourceRequest?.state !== 'ready' && snapshot.sourceRequest?.message && <p className="live-schedule-status" role="status">{snapshot.sourceRequest.message} {snapshot.appointments.length ? 'Showing the available records while the date is checked.' : 'The appointment count is not yet verified.'}</p>}
     {linkNotice && <p className="live-schedule-status" role="status">{linkNotice}</p>}
@@ -256,7 +266,8 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       ['all', 'Scheduled', jobs.length], ['completed', 'Completed Jobs', jobs.filter(job => appointmentStatus(job) === 'Completed').length], ['estimates', 'Closed Estimates', jobs.filter(job => appointmentStatus(job) === 'Estimate Closed').length], ['open', 'Open', jobs.filter(job => !isClosed(job)).length], ['unassigned', 'Unassigned', jobs.filter(job => truckLabel(job.truck) === 'Unassigned').length], ['verify', 'Verify Address', jobs.filter(job => !job.location).length],
     ].map(([key, label, count]) => <button key={key} aria-pressed={filter === key} className={`schedule-summary-button${filter === key ? ' active' : ''}${key === 'verify' && Number(count) > 0 ? ' attention' : ''}`} onClick={() => setFilter(filter === key ? 'all' : String(key))}><span>{label}</span><strong>{count}</strong></button>)}<button className="schedule-summary-clear" disabled={!filtered && !priority} onClick={reset}>Clear</button></div>}
     {error && <div className="live-schedule-status live-schedule-error" role="alert">{error}</div>}
-    {selected && <div ref={selectedSummaryRef}><ScheduleAppointmentSummary job={selected} closest={closestTruckFor(selected)} loading={routeState === 'Loading Route Estimates' || !routeState && routing?.appointmentId !== selected.recordId} isToday={snapshot.fleet.isToday} busy={operationBusy} open={() => setDrawerId(selected.recordId)} clear={() => setSelectedId(null)} /></div>}
+    <div ref={dispatchSurfaceRef} className={`schedule-dispatch-surface${selected ? ' has-selected-job' : ''}`}>
+    {selected && <div className="schedule-selected-job-pane" ref={selectedSummaryRef}><ScheduleAppointmentSummary job={selected} closest={closestTruckFor(selected)} loading={routeState === 'Loading Route Estimates' || !routeState && routing?.appointmentId !== selected.recordId} isToday={snapshot.fleet.isToday} busy={operationBusy} open={() => setDrawerId(selected.recordId)} clear={() => setSelectedId(null)} /></div>}
     <div ref={boardLayoutRef} className={`schedule-board-layout${showMap ? ' map-open' : ''}`}>
       {showMap && <section ref={mapPanelRef} className={`schedule-map-panel${selectedTruck ? ' has-truck-card' : ''}`}>
         <nav className="live-map-territories" aria-label="Focus map on territory"><button onClick={reset} aria-pressed={scope === 'ALL'}>All</button>{territoryOrder.filter(code => code !== 'UNK' || groups.some(group => group.code === code)).map(code => <button key={code} className={`territory-${code.toLowerCase()}`} aria-label={`Focus ${territoryLabels[code]}`} aria-pressed={scope === code} onClick={() => focusTerritory(code)} title={territoryLabels[code]}>{code}<small>{regions.filter(region => region.code === code).length}</small></button>)}</nav>
@@ -268,7 +279,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
           {selectedTruck && <section className="live-map-truck-details live-map-truck-card" aria-label={`${selectedTruck} details`}>
             <header><strong>{selectedTruck}</strong><button aria-label="Clear truck selection" onClick={() => setSelectedTruck(null)}>×</button></header>
             <div className="live-map-truck-actions"><a href={`/desktop?data=live&workspace=Fleet&date=${date}&truck=${encodeURIComponent(selectedTruck)}`}>Open Fleet Record</a>{/^Truck \d+$/.test(selectedTruck) && <Button size="sm" data-truck-camera={Number(selectedTruck.replace('Truck ', ''))} aria-label={`View live video for ${selectedTruck}`}>View LinxUp Live Video</Button>}{truckDetails?.latitude != null && truckDetails?.longitude != null && <a href={`https://www.google.com/maps/search/?api=1&query=${truckDetails.latitude},${truckDetails.longitude}`} target="_blank" rel="noopener noreferrer">Open GPS in Maps</a>}</div>
-            <dl><div><dt>Krewe</dt><dd>{[truckDetails?.driver, truckDetails?.navigator].filter(Boolean).join(' · ') || (truckJobs[0] ? crew(truckJobs[0]) : 'Crew Not Available')}</dd></div><div><dt>Status</dt><dd>{truckDetails?.operationalStatus || 'Not Available'} · {truckDetails?.serviceStatus || 'Service Status Not Available'}</dd></div><div><dt>Truck load</dt><dd>{snapshot.truckLoads?.find(row=>truckLabel(row.truck)===selectedTruck)?.label || 'Load not recorded'}</dd></div><div><dt>GPS</dt><dd>{truckDetails?.lastGpsUpdate ? new Date(truckDetails.lastGpsUpdate).toLocaleString('en-US', { timeZone: 'America/Chicago' }) : 'No GPS Timestamp'} · {truckDetails?.lastGpsUpdate ? truckGpsLabel : 'Position Unavailable'}</dd></div></dl>
+            <dl><TruckPosition truck={truckDetails} /><div><dt>Krewe</dt><dd>{[truckDetails?.driver, truckDetails?.navigator].filter(Boolean).join(' · ') || (truckJobs[0] ? crew(truckJobs[0]) : 'Crew Not Available')}</dd></div><div><dt>Status</dt><dd>{truckDetails?.operationalStatus || 'Not Available'}{truckDetails?.serviceStatus && truckDetails.serviceStatus !== 'Unavailable' ? ` · ${truckDetails.serviceStatus}` : ''}</dd></div><div><dt>Truck load</dt><dd>{snapshot.truckLoads?.find(row=>truckLabel(row.truck)===selectedTruck)?.label || 'Load not recorded'}</dd></div><div><dt>GPS</dt><dd>{truckDetails?.lastGpsUpdate ? new Date(truckDetails.lastGpsUpdate).toLocaleString('en-US', { timeZone: 'America/Chicago' }) : 'No GPS Timestamp'} · {truckDetails?.lastGpsUpdate ? truckGpsLabel : 'Position Unavailable'}{truckGpsLabel === 'Last Known Position' && Number.isFinite(truckGpsAge) && truckGpsAge > 0 ? ` · ${Math.floor(truckGpsAge / 60_000)}m since report` : ''}{truckDetails?.ignition && truckDetails.ignition !== 'Unavailable' ? ` · Last ignition: ${truckDetails.ignition}` : ''}</dd></div></dl>
 
             {(!truckDetails || truckDetails.latitude === null || truckDetails.longitude === null) && <p>No current position is available in the fleet snapshot.</p>}
           </section>}
@@ -277,7 +288,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
           {selectedTruck && <GpsRouteSummary date={date} truck={selectedTruck} route={gpsRoute} error={gpsRouteError} fit={()=>{setTruckMapView('route');setMapResetKey(value=>value+1);}} />}
           {selectedTruck ? <section aria-label={`${selectedTruck} appointments`}>
             <div className="live-map-truck-jobs"><strong>{truckJobs.length} appointments</strong>{truckJobs.map(job => <button key={job.recordId} onClick={() => selectAppointment(job.recordId)}>{job.jkNumber} · {job.appointmentTime} · {appointmentStatus(job)}</button>)}</div>
-          </section> : selected ? null : <div className="map-status-list"><span><i className={snapshot.fleet.isToday ? 'healthy' : 'warning'} />{snapshot.fleet.isToday ? 'Truck markers show GPS; amber marks last-known positions' : 'Planning day · Current GPS is not a planned truck origin'}</span><span>{visible.filter(job => !job.location).length} appointments need verified coordinates</span><span>Pins stay at their recorded coordinates. A number badge lets you choose nearby locators.</span></div>}
+          </section> : selected ? null : <div className="map-status-list"><span><i className={snapshot.fleet.isToday ? 'healthy' : 'warning'} />{snapshot.fleet.isToday ? 'Truck markers show GPS; amber marks last-known positions' : 'Planning day · Current GPS is not a planned truck origin'}</span><span>{visible.filter(job => !job.location).length} appointments need verified coordinates</span><span>Overlapping icons are separated; short lines mark their exact locations.</span></div>}
         </aside>
       </section>}
       {!mapOnly && <div className="schedule-board-shell"><div className="section-title"><div><span className="section-kicker">{day === 'today' ? 'Today' : 'Tomorrow'} · JunkWare Snapshot</span><h2>Truck Schedule</h2></div><div className="schedule-board-actions"><ScheduleStopOrder key={date} snapshot={snapshot} busy={operationBusy || Boolean(pendingMove)} onBusyChange={onOperationBusyChange} saved={updated=>{setSnapshots(prior=>({...prior,[date]:updated}));refresh();}} /><span className="schedule-drag-help"><GripVertical size={13} />Drag Appointment → Truck + Time</span></div></div>
@@ -291,7 +302,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
             const ghost = drag.preview?.truck === truck ? drag.preview : null;
             const ghostStart = ghost?.start ?? ghost?.job.appointmentStartMinutes;
             const ghostDuration = ghost?.job.appointmentStartMinutes !== null && ghost?.job.appointmentEndMinutes != null ? ghost.job.appointmentEndMinutes - ghost.job.appointmentStartMinutes! : 60;
-            return <div className="schedule-truck-row" data-schedule-truck={truck} key={truck} style={{ flex: `0 0 ${load ? Math.max(46,rowHeight) : rowHeight}px` }}><button type="button" className="schedule-truck-cell" aria-label={`Select ${truck} on map`} aria-pressed={selectedTruck === truck} onClick={() => selectTruck(truck)}><i className={['blue', 'red', 'gold', 'purple'][index % 4]} /><strong>{truck}</strong><span>{rowJobs[0] ? crew(rowJobs[0]) : 'No Scheduled Work'}</span>{load && <small className={`schedule-truck-load${load.needsVerification || (load.percent ?? 0) > 100 ? ' warning' : ''}`} title={load.note}>{load.label}</small>}</button><div className="live-truck-timeline">
+            return <div className="schedule-truck-row" data-schedule-truck={truck} key={truck} style={{ flex: `0 var(--schedule-row-shrink, 0) ${load ? Math.max(46,rowHeight) : rowHeight}px`, '--schedule-row-min-height': `${rowJobs.length ? rowHeight : 24}px` } as CSSProperties}><button type="button" className="schedule-truck-cell" aria-label={`Select ${truck} on map`} aria-pressed={selectedTruck === truck} onClick={() => selectTruck(truck)}><i className={['blue', 'red', 'gold', 'purple'][index % 4]} /><strong>{truck}</strong><span>{rowJobs[0] ? crew(rowJobs[0]) : 'No Scheduled Work'}</span>{load && <small className={`schedule-truck-load${load.needsVerification || (load.percent ?? 0) > 100 ? ' warning' : ''}`} title={load.note}>{load.label}</small>}</button><div className="live-truck-timeline">
               {placed.map(({ job, position, lane }) => <div key={job.recordId} className={`schedule-appointment status-${scheduleStatusTone(job)} territory-${appointmentRegion(job).code.toLowerCase()} ${slug(appointmentCategory(job))} ${slug(appointmentStatus(job))}${filtered ? match(job) ? ' scope-match' : ' scope-muted' : ''}${selectedId === job.recordId ? ' route-selected' : ''}${drag.preview?.job.recordId === job.recordId ? ' is-dragging' : ''}`} style={{ left: `${position.left * 100}%`, width: `calc(${position.width * 100}% - 2px)`, top: `${lane * laneStep + 2}px`, height: 22 }} role="button" aria-pressed={selectedId === job.recordId} data-schedule-appointment={job.recordId} tabIndex={0} aria-roledescription={isClosed(job) || assignmentNeedsVerification(job) || operationBusy ? undefined : "draggable appointment"} onPointerDown={event => drag.begin(event, job)} aria-label={`${job.jkNumber} · ${job.customerName} · ${job.appointmentTime} · ${appointmentStatus(job)}${appointmentPartner(job) ? ` · ${appointmentPartner(job)!.name}` : ''}`} aria-description={scheduleMoveRestriction(job) || "Drag to change truck or time; click to show the job summary and highlight its map location."} onClick={() => { if (!drag.suppressClick.current) selectAppointment(job.recordId); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectAppointment(job.recordId); } }} title={`${job.jkNumber} · ${job.customerName} · ${job.appointmentTime} · ${appointmentRegion(job).label} · ${appointmentStatus(job)}${appointmentPartner(job) ? ` · ${appointmentPartner(job)!.name}` : ''}${scheduleMoveRestriction(job) ? ` · ${scheduleMoveRestriction(job)}` : ""}`}>{appointmentPartner(job) && <span className="schedule-partner-cue" title={appointmentPartner(job)!.name} aria-hidden="true" />}{!isClosed(job) && !assignmentNeedsVerification(job) && <GripVertical className="schedule-grip" size={9} aria-hidden="true" />}<em title={appointmentStatus(job)} className={`schedule-block-status status-${scheduleStatusTone(job)}`}>
                 {scheduleStatusTone(job) === 'completed' ? <Check size={12} strokeWidth={3} aria-hidden="true" /> : scheduleStatusTone(job) === 'canceled' ? <X size={12} strokeWidth={3} aria-hidden="true" /> : scheduleStatusTone(job) === 'visited' ? <b aria-hidden="true">?</b> : null}
                 </em></div>)}
@@ -303,6 +314,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       </div>}
       {dragNotice && <div className="schedule-drag-notice" role="status"><span>{dragNotice}</span><button type="button" aria-label="Dismiss drag notice" onClick={() => setDragNotice('')}>×</button></div>}
       {pendingMove && <MoveConfirmation key={`${pendingMove.job.recordId}:${pendingMove.truck}:${pendingMove.start}`} move={pendingMove} date={date} cancel={() => setPendingMove(null)} saved={() => { setPendingMove(null); refresh(); }} onBusyChange={onOperationBusyChange} />}
+    </div>
     </div>
     {mapOnly && <div className="live-schedule-status">{snapshot.observedAt ? `Appointments updated ${new Date(snapshot.observedAt).toLocaleString('en-US', { timeZone: 'America/Chicago' })}` : 'Appointment update time unavailable'}</div>}
     {!mapOnly && <><div className="live-schedule-status">{snapshot.observedAt ? `JunkWare snapshot: ${new Date(snapshot.observedAt).toLocaleString('en-US', { timeZone: 'America/Chicago' })}` : 'JunkWare snapshot timestamp unavailable'} · {routeState || (displayLegs.length ? `${displayLegs.filter(leg => leg.travelMinutes !== null).length} of ${displayLegs.length} travel estimates available${routing?.calculatedAt ? ` · Calculated ${new Date(routing.calculatedAt).toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' })}` : ''}. OpenStreetMap road estimates · No live traffic.` : 'No consecutive assigned appointments to route.')} Appointment windows are not confirmed service durations.{jobs.some(job => !job.hasScheduledTime) && ` · ${jobs.filter(job => !job.hasScheduledTime).length} untimed appointments are listed below.`}</div>

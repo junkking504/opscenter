@@ -7,8 +7,11 @@ answers how full each physical truck is right now.
 
 ## Daily flow
 
-1. A dispatcher selects each truck's start-of-day load. The selection is saved
-   immediately and can be corrected without creating duplicate starting events.
+1. Each truck's remaining load carries into the next day automatically,
+   including weekends and bedloads. Midnight does not empty a truck. A dispatcher
+   can override the starting baseline or record a current observation when needed.
+   A truck with no load evidence is shown as **Load unknown**, with an action to
+   establish its baseline; it is not silently assumed empty.
 2. Every completed **Job** contributes its selected JunkWare load size to the
    assigned physical truck. Two separate 1/4-truck jobs produce 1/2 truck.
    Estimates, open appointments, and canceled appointments add no load. A blank
@@ -95,7 +98,18 @@ Manual Fleet/API unloads and load observations retain the IDs of jobs already
 closed on that truck, so those loads remain covered even if their visit times
 are missing or their closeouts are later corrected. A saved starting load is
 the day's baseline; without one, completed job contributions accumulate from
-zero. No recorded load evidence is shown as **Load not recorded**.
+zero when there is no earlier evidence. Historical loads are replayed across
+available days from the ledger's tracking period, with a short read cache.
+Carried volume is a starting baseline and is never added to today's charged
+total. A current observation, explicit starting load, or unload establishes a
+new baseline; unresolved earlier ordering remains provisional until reconciled
+or superseded by an absolute load observation/reset.
+
+Command automatically creates **Load tracking** action items for unknown loads,
+completed jobs missing recognized sizes, unresolved pickup ordering, conflicting
+closeouts and over-capacity totals. Fleet shows the same exceptions above its
+load cards. These checks run during normal source refresh and publish no external
+messages. Routine charge rechecks keep known counts visible as provisional.
 
 Load sizes use the fractions visible in JunkWare, including Minimum/1/12,
 eighths, sixths, quarters, thirds, halves, three-quarters, seven-eighths, and a

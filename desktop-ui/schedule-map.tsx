@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import './appointment-presence.css';
 import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract';
 import { appointmentRegion, appointmentStatus, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
-import { nearbyMapPins, territoryMapCenters } from './lib/schedule-map-layout';
+import { separateMapPins, territoryMapCenters } from './lib/schedule-map-layout';
 import type {TruckGpsRoute} from './lib/gps-route-contract';
 
 type Props = {
@@ -90,10 +90,13 @@ export default function ScheduleMap(props: Props) {
     const render = () => {
       const activeId = host.current?.contains(document.activeElement) ? (document.activeElement as HTMLElement)?.dataset.mapPin : undefined;
       layer.clearLayers();
-      const points = pins.map(pin => ({ id: pin.id, ...view.latLngToLayerPoint(pin.coordinate) }));
+      const positions = new Map(separateMapPins(pins.map(pin => ({ id: pin.id, ...view.latLngToLayerPoint(pin.coordinate) }))).map(point => [point.id, point]));
       for (const pin of pins) {
-        const nearbyIds = new Set(nearbyMapPins(points, pin.id).map(point => point.id));
-        const nearby = pins.filter(candidate => nearbyIds.has(candidate.id));
+        const { x, y, dx: offsetX, dy: offsetY } = positions.get(pin.id)!;
+        const displaced = Math.hypot(offsetX, offsetY) > 1;
+        if (displaced) L.polyline([pin.coordinate, view.layerPointToLatLng(L.point(x + offsetX, y + offsetY))], {
+          color: '#496678', weight: 1.5, opacity: .9, interactive: false, className: 'map-pin-location-line',
+        }).addTo(layer);
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `map-marker ${pin.className}${pin.selected ? ' route-selected' : ''}`;
@@ -113,41 +116,16 @@ export default function ScheduleMap(props: Props) {
         button.append(symbol);
         if (pin.partner) { const badge = document.createElement('span'); badge.className = 'map-partner-badge'; badge.textContent = pin.partner; badge.setAttribute('aria-hidden', 'true'); button.append(badge); }
         button.dataset.mapPin = pin.id;
-        button.setAttribute('aria-label', `${pin.label}${nearby.length > 1 ? `, ${nearby.length} nearby locators` : ''}`);
+        button.setAttribute('aria-label', pin.label);
         button.setAttribute('aria-pressed', String(pin.selected));
         L.DomEvent.disableClickPropagation(button);
-        if (nearby.length > 1) {
-          button.setAttribute('aria-haspopup', 'true');
-        }
-        button.onclick = event => {
-          event.stopPropagation();
-          if (nearby.length === 1) { view.closePopup(); pin.select(); return; }
-          const choices = document.createElement('div');
-          choices.className = 'map-locator-choices';
-          choices.style.maxHeight = `${Math.max(80, Math.min(180, (host.current?.clientHeight || 260) - 80))}px`;
-          choices.setAttribute('role', 'group'); choices.setAttribute('aria-label', 'Nearby locators');
-          const heading = document.createElement('strong'); heading.textContent = `${nearby.length} nearby locators`;
-          choices.append(heading);
-          for (const candidate of nearby) {
-            const choice = document.createElement('button'); choice.type = 'button';
-            choice.setAttribute('aria-label', candidate.label);
-            const title = document.createElement('strong'); title.textContent = candidate.tooltipTitle;
-            const detail = document.createElement('small'); detail.textContent = candidate.tooltipDetail;
-            choice.append(title, detail);
-            choice.onclick = event => { event.stopPropagation(); view.closePopup(); candidate.select(); };
-            choices.append(choice);
-          }
-          L.DomEvent.disableClickPropagation(choices);
-          L.DomEvent.disableScrollPropagation(choices);
-          L.popup({ className: 'map-locator-popup', autoPan: true, autoPanPadding: L.point(12, 12), maxWidth: 240 })
-            .setLatLng(pin.coordinate).setContent(choices).openOn(view);
-          choices.querySelector('button')?.focus({ preventScroll: true });
-        };
+        button.onclick = event => { event.stopPropagation(); view.closePopup(); pin.select(); };
         const tooltip = document.createElement('span');
         const title = document.createElement('strong'); title.textContent = pin.tooltipTitle;
         const detail = document.createElement('small'); detail.textContent = pin.tooltipDetail;
         tooltip.append(title, detail);
-        const marker = L.marker(pin.coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize: [30, 30], iconAnchor: [15, 15] }), zIndexOffset: pin.selected ? 900 : 0 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: L.point(0, -12), opacity: 1, permanent: pin.selected }).addTo(layer);
+        if (displaced) { const note = document.createElement('small'); note.textContent = 'Line marks exact location'; tooltip.append(note); }
+        const marker = L.marker(pin.coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize: [30, 30], iconAnchor: [15 - offsetX, 15 - offsetY] }), zIndexOffset: pin.selected ? 900 : 0 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: L.point(offsetX, offsetY - 12), opacity: 1, permanent: pin.selected }).addTo(layer);
         button.onfocus = () => marker.openTooltip();
         button.onblur = () => { if (!pin.selected) marker.closeTooltip(); };
         marker.on('tooltipopen', () => {
@@ -155,14 +133,14 @@ export default function ScheduleMap(props: Props) {
           const element = bubble?.getElement();
           const canvas = host.current;
           if (!bubble || !element || !canvas) return;
-          bubble.options.offset = L.point(0, -12);
+          bubble.options.offset = L.point(offsetX, offsetY - 12);
           element.style.maxWidth = `${Math.max(80, Math.min(150, canvas.clientWidth - 16))}px`;
           bubble.update();
           const bounds = canvas.getBoundingClientRect();
           const rect = element.getBoundingClientRect();
           const dx = Math.max(bounds.left + 6 - rect.left, Math.min(0, bounds.right - 6 - rect.right));
           const dy = Math.max(bounds.top + 6 - rect.top, Math.min(0, bounds.bottom - 6 - rect.bottom));
-          bubble.options.offset = L.point(dx, -12 + dy);
+          bubble.options.offset = L.point(offsetX + dx, offsetY - 12 + dy);
           bubble.update();
         });
         if (pin.selected) marker.openTooltip();

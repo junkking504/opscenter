@@ -1,4 +1,4 @@
-import { nextTruckStop, freshTruckGps, truckProgressGpsState, type TruckProgress } from './schedule-next-stop';
+import { nextTruckStop, currentOnsiteTruckGps, truckProgressGpsState, type TruckProgress } from './schedule-next-stop';
 import { osmTravelMatrix } from './osm-travel-matrix';
 import { truckLabel, type ScheduleTruck } from '../desktop-ui/lib/schedule-contract';
 import type { DesktopAppointment } from './desktop-schedule';
@@ -14,7 +14,7 @@ export async function calculateTruckProgress(jobs:DesktopAppointment[], trucks:S
     if (!plan) continue;
     const truck=trucks.find(t=>truckLabel(t.truck)===name);
     let status=plan.state;
-    if (status==='on_site' && !freshTruckGps(truck,now)) status='last_seen';
+    if (status==='on_site' && !currentOnsiteTruckGps(truck,now)) status='last_seen';
     const gpsState=truckProgressGpsState(truck,now);
     if (status==='next') status=gpsState!=='fresh' ? gpsState : !plan.job.location ? 'address_unverified' : 'routing_unavailable';
     const row:TruckProgress={truck:name,appointmentId:plan.job.recordId,appointmentVersion:plan.job.version,status,minutes:null,miles:null,gpsAt:truck?.lastGpsUpdate || null,calculatedAt:new Date(now).toISOString(),arrivalAt:null};

@@ -1,4 +1,4 @@
-import { freshTruckGps, nextTruckStop, truckProgressGpsState, type TruckProgress } from '../lib/schedule-next-stop';
+import { currentOnsiteTruckGps, freshTruckGps, nextTruckStop, truckProgressGpsState, type TruckProgress } from '../lib/schedule-next-stop';
 import { parkedTruckObservation } from '../lib/truck-gps-status';
 import { truckLabel, type ScheduleSnapshot } from './lib/schedule-contract';
 import './schedule-truck-progress.css';
@@ -10,7 +10,7 @@ export default function ScheduleTruckProgress({truck,snapshot,progress,now,selec
   const result=progress?.find(p=>p.truck===truckLabel(truck) && p.appointmentId===plan.job.recordId && p.appointmentVersion===plan.job.version);
   let status=plan.state;
   const gpsState=truckProgressGpsState(gps,now);
-  if(status==='on_site' && !freshTruckGps(gps,now)) status='last_seen';
+  if(status==='on_site' && !currentOnsiteTruckGps(gps,now)) status='last_seen';
   if(status==='next') status=gpsState!=='fresh' ? gpsState : !plan.job.location ? 'address_unverified' : result?.status==='parked' ? 'checking' : result?.status || 'checking';
   if(status==='available' && (!result || !freshTruckGps({...gps!,lastGpsUpdate:result.gpsAt},now) || !Number.isFinite(result.minutes) || result.minutes===null || result.minutes<0 || Date.parse(result.arrivalAt || '')<now)) status='checking';
   const between=plan.between && gpsState!=='parked';

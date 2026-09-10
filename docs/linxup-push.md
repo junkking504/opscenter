@@ -78,6 +78,12 @@ those remain tied to the explicit entry feed. No extra provider polling is added
 Delivery still depends on LinxUp sending the observation and network/processing
 time; OpsCenter adds no arrival dwell or screen-refresh wait.
 
+An engine-off, zero-speed report inside the job geofence keeps **On Site**
+through the existing 75-minute parked heartbeat window, matching the truck
+marker's hourly-reporting semantics. A newer position elsewhere or a confirmed
+departure prevents that parked report from retaining on-site status. A missed
+parked heartbeat becomes last reported; the displayed GPS timestamp is unchanged.
+
 ## Recorded daily GPS routes
 
 Schedule and the Command map offer a **Truck GPS route** selector. Selecting a

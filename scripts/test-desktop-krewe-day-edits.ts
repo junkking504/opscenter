@@ -9,6 +9,7 @@ import {readKreweHours} from '../lib/desktop-krewe-hours';
 import {payPeriodDates} from '../lib/pay-period';
 import {payrollCorrectionForEmployee} from '../lib/payroll-corrections';
 import {manualBonusEntriesForEmployee} from '../lib/manual-bonuses';
+import {clockDurationLabel} from '../desktop-ui/lib/krewe-clock-duration';
 
 const originalDirectory=process.cwd();
 const originalData=process.env.OPSBOT_DATA_DIR;
@@ -57,6 +58,18 @@ try {
   const closed=clockSnapshot.members.find(row=>row.name==='Closed Shift')!;
   assert.equal(closed.status,'Clocked out');
   assert.equal(closed.clockOut,'04:00 PM');
+  const openClock=clockSnapshot.members.find(row=>row.name==='CSV Open')!;
+  const afternoon=Date.parse(`${clockDate}T14:37:00-05:00`);
+  assert.equal(openClock.clockInAt,Date.parse(`${clockDate}T08:00:00-05:00`),'Clock timestamps use Chicago time');
+  assert.equal(clockDurationLabel(openClock,clockDate,afternoon),'6h 37m on clock');
+  assert.equal(clockDurationLabel(openClock,clockDate,afternoon+60_000),'6h 38m on clock','Open shifts advance without a source request');
+  assert.equal(clockDurationLabel(closed,clockDate,afternoon),'8h 00m total');
+  assert.equal(clockDurationLabel(closed,clockDate,afternoon+86_400_000),'8h 00m total','Completed shifts stop at clock-out');
+  assert.equal(clockDurationLabel(openClock,clockDate,afternoon+86_400_000),'Missing clock-out','Historical open shifts must not accrue into today');
+  assert.equal(clockDurationLabel({...openClock,clockInAt:null},clockDate,afternoon),'Hours unavailable');
+  assert.equal(clockDurationLabel({...openClock,clockInAt:afternoon+60_000},clockDate,afternoon),'Hours need review');
+  assert.equal(clockDurationLabel({...closed,clockOutAt:closed.clockInAt!+19*3_600_000},clockDate,afternoon),'Hours need review');
+  assert.equal(clockDurationLabel({...openClock,clockOut:'Unknown'},clockDate,afternoon),'Hours unavailable');
   assert.equal(readDesktopKrewe(clockDate,'today','operator').members.find(row=>row.name==='CSV Open')?.status,'Clocked in');
   fs.unlinkSync(clockFile);
   write(clockDate,[]);

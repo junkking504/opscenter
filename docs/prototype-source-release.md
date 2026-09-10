@@ -353,6 +353,11 @@ clock-out field, then metrics when that field is absent. A collected blank
 stays an open shift; the metrics label `On Shift` is normalized to an empty
 clock-out rather than treated as a recorded punch. This applies to the Today
 roster, ranking, and employee detail without changing source timesheets.
+The Today time column and employee detail also show elapsed hours and minutes
+from the Chicago clock-in. Open shifts count through the current time using
+the existing local freshness tick; completed shifts stop at their clock-out.
+Missing historical clock-outs and invalid durations remain review states.
+Elapsed punch time does not replace published payroll hours or earnings.
 
 Validation: payroll breakdown and weekly-hours regression tests, production
 build, and authenticated preview checks of independent weekly expansion and

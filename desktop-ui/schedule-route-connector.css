@@ -1,5 +1,7 @@
 .ops-live .schedule-route-connector { position: absolute; z-index: 3; pointer-events: none; container-type: inline-size; color: #406751; }
 .ops-live .schedule-route-connector.unavailable { color: #895b08; }
+.ops-live .route-connector-path { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ops-live .route-connector-path polyline { fill: none; stroke: currentColor; stroke-width: 2; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
 .ops-live .route-connector-line { position: absolute; inset: 0; border-top: 2px dotted currentColor; }
 .ops-live .route-connector-arrow { position: absolute; right: -1px; top: -8px; font: 700 12px/14px sans-serif; background: #fff; }
 .ops-live .route-connector-label { position: absolute; inset-inline: 2px; height: 13px; min-height: 0; min-width: 0; padding: 0 1px; border: 0; border-radius: 2px; background: #fffffff2; color: inherit; font: 650 8px/13px sans-serif; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: auto; cursor: pointer; }

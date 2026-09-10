@@ -11,8 +11,8 @@ export default function ScheduleRouteConnector({ connector: c, jobs, select }: {
   const orderLabel = c.from.job.stopOrder !== undefined || c.to.job.stopOrder !== undefined ? 'Saved stop order' : 'Proposed order';
   const label = `${leg.fromJk} → ${leg.toJk}: ${estimate} · ${orderLabel}`;
   return <>
-    <div className={`schedule-route-connector ${c.vertical ? 'vertical' : 'horizontal'}${c.reverse ? ' reverse' : ''}${leg.travelMinutes === null ? ' unavailable' : ''}`} style={{ left: `${c.left * 100}%`, width: `${c.width * 100}%`, top: c.top, height: c.height }}>
-      <i className="route-connector-line" aria-hidden="true" /><i className="route-connector-arrow" aria-hidden="true">{c.vertical ? c.reverse ? '↑' : '↓' : c.reverse ? '←' : '→'}</i>
+    <div className={`schedule-route-connector ${c.vertical ? 'vertical' : 'horizontal'}${c.reverse ? ' reverse' : ''}${leg.travelMinutes === null ? ' unavailable' : ''}`} data-route-from={leg.fromAppointmentId} data-route-to={leg.toAppointmentId} style={{ left: `${c.left * 100}%`, width: `${c.width * 100}%`, top: c.top, height: c.height }}>
+      {c.path ? <svg className="route-connector-path" viewBox={`0 0 100 ${c.height}`} preserveAspectRatio="none" aria-hidden="true"><polyline points={c.path} /></svg> : <i className="route-connector-line" aria-hidden="true" />}<i className="route-connector-arrow" style={c.path ? { top: c.arrowTop } : undefined} aria-hidden="true">{c.vertical ? c.reverse ? '↑' : '↓' : c.reverse ? '←' : '→'}</i>
       <button type="button" className="route-connector-label" style={{ top: c.labelTop }} popoverTarget={id} title={label} aria-label={label}>
         {leg.travelMinutes === null ? <span>ETA ?</span> : <><span>{leg.travelMinutes}m</span>{leg.miles !== null && <span className="route-connector-miles"> · {leg.miles}mi</span>}</>}
       </button>

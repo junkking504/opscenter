@@ -78,9 +78,6 @@
 .ops-live .schedule-dispatch .schedule-block-status.status-canceled > svg { color: #111; }
 .ops-live .schedule-dispatch .schedule-appointment.canceled::after { content: none; }
 .ops-live .schedule-dispatch .schedule-appointment.canceled { box-shadow: none; }
-.ops-live .schedule-dispatch .schedule-on-site-light { flex: 0 0 7px; width: 7px; height: 7px; border-radius: 50%; background: #ef233c; box-shadow: 0 0 0 2px #ef233c33; animation: schedule-on-site-blink 1.15s ease-in-out infinite; }
-@keyframes schedule-on-site-blink { 0%, 100% { opacity: 1; } 50% { opacity: .28; } }
-@media (prefers-reduced-motion: reduce) { .ops-live .schedule-dispatch .schedule-on-site-light { animation: none; } }
 
 /* Fit the entire dispatch surface to the actual space below the page controls. */
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout,

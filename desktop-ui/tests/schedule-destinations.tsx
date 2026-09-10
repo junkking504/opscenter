@@ -15,10 +15,11 @@ let releaseVerification:(()=>void)|undefined;
 const assignments=new Map<string,string>();
 const writes:Array<{date:string;recordId:string;action:string;values:{truck:string}}>=[];
 function appointments(date:string):ScheduleAppointment[] {
-  return Array.from({length:scenario==='empty'?0:scenario==='dense'?24:scenario==='same-time'?4:1},(_,index)=>{
+  return Array.from({length:scenario==='empty'?0:scenario==='dense'?24:scenario==='same-time'?4:scenario==='on-site'?3:1},(_,index)=>{
     const recordId=`${date}:appointment:${1001+index}`;
     return {recordId,appointmentId:String(1001+index),version:'a'.repeat(64),callAhead:'not_called',jkNumber:`JK100${String(1001+index)}`,appointmentUrl:'',appointmentTime:'9:00 AM–10:00 AM',appointmentStartMinutes:540,appointmentEndMinutes:600,hasScheduledTime:true,customerName:`Example appointment ${index+1}`,customerEmail:'',phone:'',address:'',territory:'Baton Rouge',appointmentType:'Job',status:'Confirmed',truck:assignments.get(recordId)||'Virtual Truck',driver:'',navigator:'',paymentType:'',paymentAmount:0,tipAmount:0,junkItems:[],appointmentNotes:[],cancellationReason:'',location:null};
   }).map(job=>scenario==='same-time'?{...job,truck:'Truck 8',appointmentTime:'8:00 AM–9:00 AM',appointmentStartMinutes:480,appointmentEndMinutes:540}:job)
+    .map((job,index)=>scenario==='on-site'?{...job,truck:'Truck 8',address:'100 Example St Baton Rouge LA 70802',location:{latitude:30.45+index*.04,longitude:-91.18},truckOnSite:index<2,status:index===1?'Completed':'Confirmed'}:job)
     .map(job=>longDetails?{...job,address:'100 Example Boulevard, Building Three, Second Floor, Suite 237, New Orleans, LA 70130',junkItems:['Sofa, mattress, bookcases, and boxes stored in the upstairs room; use the side entrance.'],phone:'(555) 010-1001',appointmentNotes:['Use the side entrance. Call before arrival.','Additional source history remains in full details.'],location:routeMode==='address'?null:{latitude:30,longitude:-90}}:job);
 }
 window.fetch=async(input,init)=>{

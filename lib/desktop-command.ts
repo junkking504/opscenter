@@ -1,3 +1,4 @@
+import { readEstimateSummary } from './estimate-follow-up';
 import { streamlineOperationalAlerts } from './streamlined-operational-alerts';
 import { appointmentVisitAlerts } from './appointment-visit-alerts';
 import { buildCrewProgress } from './crew-progress';
@@ -138,6 +139,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
     sources: { metrics: Boolean(metrics), alerts: digest.status === 'ready' || geofences.available, workflow: workflow.available },
     alerts,
     crewProgress,
+    estimates: readEstimateSummary(),
 
   };
 }

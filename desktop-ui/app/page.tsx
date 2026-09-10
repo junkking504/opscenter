@@ -1,5 +1,7 @@
 'use client';
 
+import Estimates, { EstimateCommandSummary } from '../estimates';
+
 import { requiresAlertAttention } from '../lib/alert-attention';
 import {
   Activity, ArrowLeft, ArrowRight, BarChart3, Bell, CalendarDays, Check, GripVertical,
@@ -69,7 +71,7 @@ type RecordNavigationEntry = {
     operatingDate: string;
     calendarDateDraft: string;
     scheduleDay: ScheduleDay;
-    scheduleView: 'board' | 'calendar' | 'followup' | 'history';
+    scheduleView: 'board' | 'calendar' | 'followup' | 'history' | 'estimates';
     scheduleScope: string;
     scheduleStatusFilter: ScheduleStatusFilter;
     followupFilter: 'all' | 'estimates' | 'closed' | 'unclosed' | 'photos';
@@ -1019,8 +1021,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const [scheduleDay, setScheduleDay] = useState<ScheduleDay>(() => live ? navigationValue(window.location.search, 'scheduleDay', ['today', 'tomorrow'], 'today') : 'today');
   const [liveScheduleCounts, setLiveScheduleCounts] = useState({ today: 0, tomorrow: 0 });
   const operatingDateHeading = live ? new Date((activeNav === 'Schedule' ? dateForDay(live.snapshot.date, scheduleDay) : live.snapshot.date) + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric' }) : 'Sunday, August 31';
-  const [scheduleView, setScheduleViewValue] = useState<'board' | 'calendar' | 'followup' | 'history'>(() => live ? navigationValue(window.location.search, 'scheduleView', ['board', 'calendar', 'followup', 'history'], 'board') : 'board');
-  const setScheduleView = (value: 'board' | 'calendar' | 'followup' | 'history') => {
+  const [scheduleView, setScheduleViewValue] = useState<'board' | 'calendar' | 'followup' | 'history' | 'estimates'>(() => live ? navigationValue(window.location.search, 'scheduleView', ['board', 'calendar', 'followup', 'history', 'estimates'], 'board') : 'board');
+  const setScheduleView = (value: 'board' | 'calendar' | 'followup' | 'history' | 'estimates') => {
     if (mutationBusyRef.current) return;
     setScheduleViewValue(value);
   };
@@ -1113,7 +1115,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const currentPageLabel = activeNav === 'Command'
     ? `Command · ${view === 'now' ? 'Alerts' : view === 'today' ? 'Control' : 'Monitor'}`
     : activeNav === 'Schedule'
-      ? `Schedule · ${scheduleView === 'board' ? 'Board' : scheduleView === 'calendar' ? 'Calendar' : scheduleView === 'followup' ? 'Follow-Up' : 'History'}`
+      ? `Schedule · ${scheduleView === 'board' ? 'Board' : scheduleView === 'calendar' ? 'Calendar' : scheduleView === 'estimates' ? 'Estimates' : scheduleView === 'followup' ? 'Follow-Up' : 'History'}`
       : activeNav === 'Krewe'
         ? `Krewe · ${kreweView === 'today' ? 'Today' : kreweView === 'callin' ? 'Call-In Plan' : kreweView === 'payperiod' ? 'Pay Period' : 'Monthly'}`
         : activeNav === 'Fleet'
@@ -4223,7 +4225,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 : activeNav === 'Schedule' && scheduleDay === 'tomorrow' ? 'Monday, September 1' : operatingDateHeading}</span>
               <h1>{activeNav}</h1>
               <p>{activeNav === 'Schedule'
-                ? scheduleView === 'calendar' ? 'Review appointment volume, territory coverage, and archived operating days.'
+                ? scheduleView === 'estimates' ? 'Turn customer quotes into booked work with ownership and a dated next action.' : scheduleView === 'calendar' ? 'Review appointment volume, territory coverage, and archived operating days.'
                   : scheduleDay === 'today' ? 'Live truck assignments, appointment windows, and open capacity.' : 'Build tomorrow’s routes before the operating day begins.'
                 : activeNav === 'Krewe' ? kreweView === 'today'
                   ? 'Attendance, production, earnings, driving, assignments, and manager actions.'
@@ -4261,6 +4263,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <div className="schedule-view-switcher workspace-tabs" role="tablist" aria-label="Schedule views">
                   <button className={scheduleView === 'board' ? 'active' : ''} onClick={() => setScheduleView('board')}>Board <span>{live ? liveScheduleCounts[scheduleDay] : scheduledAppointments.length}</span></button>
                   <button className={scheduleView === 'calendar' ? 'active' : ''} onClick={() => setScheduleView('calendar')}>Calendar</button>
+                  {live && <button className={scheduleView === 'estimates' ? 'active' : ''} onClick={() => setScheduleView('estimates')}>Estimates</button>}
                   <button className={scheduleView === 'followup' ? 'active' : ''} onClick={() => setScheduleView('followup')}>Follow-Up {!live && <span>{activeFollowups.length}</span>}</button>
                   <button className={scheduleView === 'history' ? 'active' : ''} onClick={() => setScheduleView('history')}>History {!live && <span>{scheduleDayHistory.length}</span>}</button>
                 </div>
@@ -4311,6 +4314,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             ))}
           </section>}
 
+          {activeNav === 'Command' && live && <EstimateCommandSummary summary={live.snapshot.estimates} />}
           {activeNav === 'Command' && view === 'now' && live && <CrewProgressAlerts live={live} openAlert={openAlertRecord} openControl={() => {setActiveNav('Command');setView('today');}} />}
 
           {activeNav === 'Command' && view === 'now' && !Boolean(live) && (
@@ -4635,7 +4639,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           {live && activeNav === 'Marketing' && <LiveMarketing date={live.snapshot.date} view={marketingView} onViewChange={setMarketingView} onBusyChange={onBusyChange} />}
           {live && activeNav === 'Finance' && canFinance && <LiveFinance date={live.snapshot.date} view={financeView} onViewChange={setFinanceView} onBusyChange={onBusyChange} />}
           </Suspense>
-          {activeNav === 'Schedule' && live && <LiveSchedule baseDate={live.snapshot.date} day={scheduleDay} view={scheduleView} onDayChange={setScheduleDay} onCounts={setLiveScheduleCounts} report={setActionFeedback} onBusyChange={onBusyChange} onOpenDate={date => {setScheduleView('board');setScheduleDay('today');live.onDateChange(date, 'Schedule');}} />}
+          {activeNav === 'Schedule' && live && scheduleView === 'estimates' && <Estimates onBusyChange={onBusyChange} />}
+          {activeNav === 'Schedule' && live && scheduleView !== 'estimates' && <LiveSchedule baseDate={live.snapshot.date} day={scheduleDay} view={scheduleView} onDayChange={setScheduleDay} onCounts={setLiveScheduleCounts} report={setActionFeedback} onBusyChange={onBusyChange} onOpenDate={date => {setScheduleView('board');setScheduleDay('today');live.onDateChange(date, 'Schedule');}} />}
           {activeNav === 'Schedule' && !live && (
             <section className="schedule-workspace">
               <div className="schedule-control-bar">

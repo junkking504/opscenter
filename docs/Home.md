@@ -40,6 +40,7 @@ without mixing live runtime data or secrets into Git.
 - [WhatsApp job photos](whatsapp-job-photos.md)
 - [LinxUp live GPS push](linxup-push.md)
 - [Truck load status](truck-load-status.md)
+- [Estimate follow-up](estimate-follow-up.md)
 - [JunkWare appointment creation](junkware-appointment-creation.md)
 - [Fleet Action Center](fleet-action-center.md)
 - [Operational readiness](operational-readiness.md)

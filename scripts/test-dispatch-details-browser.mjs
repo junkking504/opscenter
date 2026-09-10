@@ -11,7 +11,7 @@ try {
     const add=page.getByRole('button',{name:'Add Appointment',exact:true});
     await add.waitFor();
     const addBox=await add.boundingBox();
-    assert.ok(addBox.x>=0 && addBox.x+addBox.width<=width+1 && addBox.height>=36,'primary action fits');
+    assert.ok(addBox.x>=0 && addBox.x+addBox.width<=width+1 && addBox.height>=32&&addBox.height<=34,'compact primary action fits');
     assert.equal(await add.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(164, 59, 53)');
     assert.equal(await page.locator('.schedule-primary-action .schedule-add-appointment').count(),1,'one header action');
     assert.equal(await page.locator('.schedule-control-actions .schedule-add-appointment').count(),0,'creation separate from view settings');

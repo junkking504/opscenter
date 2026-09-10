@@ -41,6 +41,7 @@ export type DesktopCommandSnapshot = {
   actor: { displayName: string; role: string };
   kpis: DesktopKpi[];
   alerts: DesktopAlert[];
+  estimates?: import('./estimate-contract').EstimateSummary;
   crewProgress?: import('./crew-progress-contract').CrewProgressSnapshot;
   sourceHealth?: DesktopSourceHealth[];
   sources: { metrics: boolean; alerts: boolean; workflow: boolean };

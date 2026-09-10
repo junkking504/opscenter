@@ -371,7 +371,7 @@ Deployment startup allowance: a cold all-market JunkWare initialization measured
 
 ## Schedule control hierarchy
 
-- **Primary action:** solid scarlet (`#a43b35`, matching Schedule Lab) **Add Appointment** at the upper-right of the Schedule header, with a plus icon, opens the existing reviewed creation drawer. It does not change booking or assignment behavior.
+- **Primary action:** compact 32px-high scarlet (`#a43b35`, matching Schedule Lab) **Add Appointment** at the upper-right of the Schedule header, with a plus icon, opens the existing reviewed creation drawer. It does not change booking or assignment behavior.
 - **View navigation:** underlined workspace tabs; the current day uses a neutral segmented selector. These sit on a row below the title and primary action, separate from the search and view settings.
 - **View settings:** the Map switch exposes its checked state and keeps its label stable. Search and Refresh day use quieter styling.
 - **Filters and cards:** counts remain neutral until selected, with a blue selection cue shared by the selected appointment and its summary. Unassigned is an ordinary planning state; Verify Address uses amber when records need review, with no warning color at zero.

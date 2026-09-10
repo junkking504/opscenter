@@ -10,7 +10,7 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-control-actions { flex: 1; width: auto; min-width: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; align-items: center; }
 .ops-live .live-schedule.schedule-dispatch .schedule-control-actions input { flex: 1 1 140px; width: 220px !important; min-width: 90px; max-width: 260px !important; height: 36px; font-size: 12px; padding: 7px 10px; background: #fff; }
 .ops-live .live-schedule.schedule-dispatch .schedule-control-actions button { height: 36px; min-height: 36px; padding: 7px 10px; font-size: 12px; }
-.ops-live .schedule-add-appointment { color: #fff; background: #a43b35; border: 1px solid #a43b35; display: inline-flex; gap: 6px; align-items: center; min-height: 38px; height: 38px; padding: 8px 14px; font-size: 13px; font-weight: 750; border-radius: 6px; box-shadow: 0 1px 2px #51101a20; }
+.ops-live .schedule-add-appointment { color: #fff; background: #a43b35; border: 1px solid #a43b35; display: inline-flex; gap: 6px; align-items: center; min-height: 32px; height: 32px; padding: 5px 10px; font-size: 12px; font-weight: 750; border-radius: 6px; box-shadow: 0 1px 2px #51101a20; }
 .ops-live .schedule-add-appointment:hover:not(:disabled) { background: #89312c; border-color: #89312c; }
 .ops-live .live-schedule.schedule-dispatch .schedule-control-actions .schedule-refresh-action { color: #526571; background: transparent; border-color: transparent; }
 .ops-live .live-schedule.schedule-dispatch .schedule-control-actions .schedule-refresh-action:hover:not(:disabled) { background: #edf0f2; }
@@ -53,7 +53,7 @@
 .ops-live .schedule-primary-action .schedule-add-appointment:focus-visible { outline: 2px solid #174e77; outline-offset: 3px; }
 @media (max-width: 650px) {
   .ops-live .workspace .workspace-heading.schedule-workspace-heading { gap: 8px; }
-  .ops-live .schedule-workspace-heading .schedule-add-appointment { min-height: 38px; padding: 8px 10px; font-size: 12px; }
+  .ops-live .schedule-workspace-heading .schedule-add-appointment { min-height: 32px; height: 32px; padding: 5px 8px; font-size: 11px; }
   .ops-live .schedule-workspace-heading .schedule-view-switcher button { flex: 1 0 auto; min-width: 64px; width: auto; padding: 0 7px; }
 }
 

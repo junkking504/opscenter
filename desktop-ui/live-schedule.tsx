@@ -6,7 +6,6 @@ import { appointmentPartner, serviceAddressForGeocoding } from '../lib/appointme
 import { AppointmentClassification } from './appointment-classification';
 import { onsiteTimeFacts } from '../lib/appointment-onsite-time';
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { createPortal } from 'react-dom';
 import { ArrowRight, Check, GripVertical, Plus, X } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
@@ -34,7 +33,7 @@ import { SourceEstimateSummary } from './source-estimate';
 import {GpsRouteSummary,useTruckGpsRoute} from './schedule-gps-route';
 
 type Day = 'today' | 'tomorrow';
-type Props = { actionHost?: HTMLElement | null; mapOnly?: boolean; view?: 'board' | 'calendar' | 'followup' | 'history'; onOpenDate?: (date: string) => void; onBusyChange?: (busy: boolean) => void; baseDate: string; day: Day; onDayChange: (day: Day) => void; onCounts?: (counts: Record<Day, number>) => void; report: (message: string) => void };
+type Props = { mapOnly?: boolean; view?: 'board' | 'calendar' | 'followup' | 'history'; onOpenDate?: (date: string) => void; onBusyChange?: (busy: boolean) => void; baseDate: string; day: Day; onDayChange: (day: Day) => void; onCounts?: (counts: Record<Day, number>) => void; report: (message: string) => void };
 const money = (value: number) => Number.isFinite(value) ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value) : 'Unavailable';
 const slug = (value: string) => value.toLowerCase().replaceAll(' ', '-');
 const clock = (minutes: number) => `${Math.floor(minutes / 60) % 12 || 12}${minutes % 60 ? ':' + String(minutes % 60).padStart(2, '0') : ''} ${minutes >= 720 ? 'PM' : 'AM'}`;
@@ -44,7 +43,7 @@ function Address({ value }: { value: string }) { return value ? <strong classNam
 function PartnerBadge({ job }: { job: ScheduleAppointment }) { const partner = appointmentPartner(job); return partner ? <span className="appointment-partner-badge">{partner.name}</span> : null; }
 function Phone({ value }: { value: string }) { const digits = value.replace(/\D/g, ''); return digits.length >= 7 ? <span className="phone-contact"><a className="phone-link" href={`tel:${digits.length === 10 ? '+1' : '+'}${digits}`}>{value}</a></span> : <small>Phone Unavailable</small>; }
 
-export default function LiveSchedule({ actionHost, baseDate, day, onDayChange, onCounts, report, view = 'board', onOpenDate, onBusyChange, mapOnly = false }: Props) {
+export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, report, view = 'board', onOpenDate, onBusyChange, mapOnly = false }: Props) {
   const date = dateForDay(baseDate, day);
   const [creationOpen, setCreationOpen] = useState(false);
   const [snapshots, setSnapshots] = useState<Record<string, ScheduleSnapshot>>({});
@@ -259,10 +258,9 @@ export default function LiveSchedule({ actionHost, baseDate, day, onDayChange, o
   const addAppointmentAction = <Button className="schedule-add-appointment" size="sm" disabled={operationBusy} onClick={() => setCreationOpen(true)}><Plus aria-hidden="true" />Add Appointment</Button>;
   if (!snapshot) return <section className="empty-state" role="status"><strong>{error || 'Loading Schedule from JunkWare…'}</strong><span>No sample appointments are used.</span></section>;
   return <TruckCameraController className="live-schedule-camera"><section className={`schedule-workspace live-schedule${mapOnly ? ' command-map-content' : ' schedule-dispatch'}`}>
-    {!mapOnly && actionHost && createPortal(addAppointmentAction, actionHost)}
     {!mapOnly && <div className="schedule-control-bar">
       <div className="day-switcher" role="group" aria-label="Schedule day">{(['today', 'tomorrow'] as const).map(key => <button key={key} aria-pressed={day === key} disabled={operationBusy} onClick={() => onDayChange(key)} className={day === key ? 'active' : ''}>{baseDate === new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date()) ? (key === 'today' ? 'Today' : 'Tomorrow') : dateForDay(baseDate,key)} <span>{snapshots[dateForDay(baseDate, key)]?.appointments.length ?? '—'}</span></button>)}</div>
-      <div className="schedule-control-actions"><Input aria-label="Filter source appointments" style={{ width: 220, maxWidth: '30vw' }} placeholder="Search appointments" value={searchQuery} maxLength={200} disabled={operationBusy} onChange={event => { setSearchQuery(event.target.value); setLinkNotice(''); }} /><button type="button" className="schedule-map-toggle" role="switch" aria-label="Show map" aria-checked={showMap} onClick={() => setShowMap(value => !value)}><span className="schedule-toggle-track" aria-hidden="true"><span /></span>Map</button><Button variant="ghost" className="schedule-refresh-action" size="sm" disabled={operationBusy || ['loading','queued'].includes(snapshot?.sourceRequest?.state || '')} onClick={() => {refreshSourceDate.current=date;refresh();}}>Refresh day</Button>{!actionHost && addAppointmentAction}</div>
+      <div className="schedule-control-actions"><div className="schedule-search-actions"><Input aria-label="Filter source appointments" style={{ width: 220, maxWidth: '30vw' }} placeholder="Search appointments" value={searchQuery} maxLength={200} disabled={operationBusy} onChange={event => { setSearchQuery(event.target.value); setLinkNotice(''); }} />{addAppointmentAction}</div><button type="button" className="schedule-map-toggle" role="switch" aria-label="Show map" aria-checked={showMap} onClick={() => setShowMap(value => !value)}><span className="schedule-toggle-track" aria-hidden="true"><span /></span>Map</button><Button variant="ghost" className="schedule-refresh-action" size="sm" disabled={operationBusy || ['loading','queued'].includes(snapshot?.sourceRequest?.state || '')} onClick={() => {refreshSourceDate.current=date;refresh();}}>Refresh day</Button></div>
     </div>}
     {snapshot.sourceRequest?.state !== 'ready' && snapshot.sourceRequest?.message && <p className="live-schedule-status" role="status">{snapshot.sourceRequest.message} {snapshot.appointments.length ? 'Showing the available records while the date is checked.' : 'The appointment count is not yet verified.'}</p>}
     {linkNotice && <p className="live-schedule-status" role="status">{linkNotice}</p>}

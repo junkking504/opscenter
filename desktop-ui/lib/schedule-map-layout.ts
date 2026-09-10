@@ -12,21 +12,16 @@ export function nearbyMapPins(points: MapPinPoint[], id: string, hitRadius = 30)
 }
 
 export function separateMapPins(points: MapPinPoint[], spacing = 44) {
-  const placed: Array<MapPinPoint & { dx: number; dy: number }> = [];
-  for (const point of [...points].sort((a, b) => a.id.localeCompare(b.id))) {
-    let dx = 0, dy = 0;
-    const free = () => placed.every(other => Math.hypot(point.x + dx - other.x - other.dx, point.y + dy - other.y - other.dy) >= spacing);
-    // Increasing rings guarantee room even for many trucks parked together.
-    for (let ring = 1; !free(); ring++) {
-      const count = ring * 8;
-      for (let step = 0; step < count; step++) {
-        const angle = step * Math.PI * 2 / count;
-        dx = Math.cos(angle) * spacing * ring;
-        dy = Math.sin(angle) * spacing * ring;
-        if (free()) break;
-      }
-    }
-    placed.push({ ...point, dx, dy });
-  }
-  return placed;
+  // Only a single truck/appointment pair may separate at close zoom. Never
+  // fan an entire parking lot or regional cluster across the map.
+  return [...points].sort((a,b)=>a.id.localeCompare(b.id)).map(point=>{
+    const nearby=nearbyMapPins(points,point.id,spacing);
+    const pair=point.id.startsWith('truck:') && nearby.length===2 && nearby.some(p=>p.id.startsWith('appointment:'));
+    if(!pair) return {...point,dx:0,dy:0};
+    const other=nearby.find(p=>p.id!==point.id)!;
+    const dx=other.x+spacing-point.x;
+    const clear=points.every(p=>p.id===point.id || Math.hypot(point.x+dx-p.x,point.y-p.y)>=spacing);
+    return {...point,dx:clear && Math.abs(dx)<=spacing?dx:0,dy:0};
+  });
+
 }

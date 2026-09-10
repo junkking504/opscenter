@@ -5,7 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import './appointment-presence.css';
 import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract';
 import { appointmentRegion, appointmentStatus, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
-import { separateMapPins, territoryMapCenters } from './lib/schedule-map-layout';
+import { nearbyMapPins, separateMapPins, territoryMapCenters } from './lib/schedule-map-layout';
 import type {TruckGpsRoute} from './lib/gps-route-contract';
 
 type Props = {
@@ -90,7 +90,8 @@ export default function ScheduleMap(props: Props) {
     const render = () => {
       const activeId = host.current?.contains(document.activeElement) ? (document.activeElement as HTMLElement)?.dataset.mapPin : undefined;
       layer.clearLayers();
-      const positions = new Map(separateMapPins(pins.map(pin => ({ id: pin.id, ...view.latLngToLayerPoint(pin.coordinate) }))).map(point => [point.id, point]));
+      const anchors = pins.map(pin => ({ id: pin.id, ...view.latLngToLayerPoint(pin.coordinate) }));
+      const positions = new Map((view.getZoom() >= 15 ? separateMapPins(anchors) : anchors.map(p => ({...p,dx:0,dy:0}))).map(point => [point.id, point]));
       for (const pin of pins) {
         const { x, y, dx: offsetX, dy: offsetY } = positions.get(pin.id)!;
         const displaced = Math.hypot(offsetX, offsetY) > 1;
@@ -119,13 +120,26 @@ export default function ScheduleMap(props: Props) {
         button.setAttribute('aria-label', pin.label);
         button.setAttribute('aria-pressed', String(pin.selected));
         L.DomEvent.disableClickPropagation(button);
-        button.onclick = event => { event.stopPropagation(); view.closePopup(); pin.select(); };
+        const nearby = nearbyMapPins([...positions.values()].map(p=>({id:p.id,x:p.x+p.dx,y:p.y+p.dy})),pin.id);
+        button.onclick = event => {
+          event.stopPropagation(); view.closePopup();
+          if(nearby.length<2) { pin.select(); return; }
+          const choices=document.createElement('div'); choices.className='map-locator-choices';
+          choices.style.maxHeight='160px'; choices.setAttribute('aria-label','Nearby locators');
+          for(const point of nearby) {
+            const candidate=pins.find(p=>p.id===point.id)!;
+            const choice=document.createElement('button'); choice.type='button'; choice.textContent=`${candidate.tooltipTitle} · ${candidate.tooltipDetail}`;
+            choice.onclick=e=>{e.stopPropagation();view.closePopup();candidate.select();};choices.append(choice);
+          }
+          L.DomEvent.disableClickPropagation(choices); L.DomEvent.disableScrollPropagation(choices);
+          L.popup({className:'map-locator-popup',maxWidth:240}).setLatLng(pin.coordinate).setContent(choices).openOn(view);
+        };
         const tooltip = document.createElement('span');
         const title = document.createElement('strong'); title.textContent = pin.tooltipTitle;
         const detail = document.createElement('small'); detail.textContent = pin.tooltipDetail;
         tooltip.append(title, detail);
         if (displaced) { const note = document.createElement('small'); note.textContent = 'Line marks exact location'; tooltip.append(note); }
-        const marker = L.marker(pin.coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize: [30, 30], iconAnchor: [15 - offsetX, 15 - offsetY] }), zIndexOffset: pin.selected ? 900 : 0 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: L.point(offsetX, offsetY - 12), opacity: 1, permanent: pin.selected }).addTo(layer);
+        const marker = L.marker(pin.coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize: [30, 30], iconAnchor: [15 - offsetX, 15 - offsetY] }), zIndexOffset: pin.selected ? 1900 : 1000 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: L.point(offsetX, offsetY - 12), opacity: 1, permanent: pin.selected }).addTo(layer);
         button.onfocus = () => marker.openTooltip();
         button.onblur = () => { if (!pin.selected) marker.closeTooltip(); };
         marker.on('tooltipopen', () => {
@@ -164,7 +178,7 @@ export default function ScheduleMap(props: Props) {
     // Isolated observations stay visible without inventing a connecting route.
     for(const point of route.points) L.circleMarker([point.latitude,point.longitude],{radius:3,color:'#fff',fillColor:'#2563a5',fillOpacity:1,weight:1,interactive:false,className:'schedule-gps-point'}).addTo(layer);
     const endpoints=route.points.length===1?[[route.points[0],'Recorded position'] as const]:[[route.points[0],'First'] as const,[route.points.at(-1)!,'Last'] as const];
-    for(const [point,label] of endpoints) {
+    for(const [point,label] of props.truckMapView === 'route' ? endpoints : []) {
       const text=document.createElement('span');text.textContent=label;
       const tooltip=document.createElement('span');tooltip.textContent=`${label} GPS · ${new Date(point.timestamp).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})}`;
       // Routes commonly return to the same yard. Keep both endpoint labels

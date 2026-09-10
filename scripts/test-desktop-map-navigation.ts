@@ -22,11 +22,8 @@ console.log('Exact map location, overlap chooser and refresh-navigation contract
 const layout = separateMapPins(crowded);
 assert.equal(JSON.stringify(crowded), source);
 assert.deepEqual(separateMapPins([...crowded].reverse()), layout);
-for (const a of layout) {
-  const original = crowded.find(p => p.id === a.id)!;
-  assert.equal(a.x, original.x); assert.equal(a.y, original.y);
-  for (const b of layout) if (a.id !== b.id) assert.ok(Math.hypot(a.x + a.dx - b.x - b.dx, a.y + a.dy - b.y - b.dy) >= 44 - 1e-8, 'Every icon and selected border remains separate');
-}
+assert.ok(layout.every(p=>p.dx===0 && p.dy===0),'Crowded regional groups must never fan across the map');
+const pair=separateMapPins([{id:'appointment:1',x:1,y:1},{id:'truck:6',x:1,y:1}]);
+assert.equal(pair[0].dx,0);assert.equal(pair[1].dx,44);
 assert.deepEqual(separateMapPins([{id:'alone',x:123,y:456}]),[{id:'alone',x:123,y:456,dx:0,dy:0}]);
-assert.equal(separateMapPins([{id:'appointment:1',x:1,y:1},{id:'truck:6',x:1,y:1}]).length,2);
-console.log('Crowded locators retain exact anchors, separate hit targets and stable offsets.');
+console.log('Crowded locators stay anchored; only a close truck/appointment pair receives a bounded offset.');

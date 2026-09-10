@@ -383,19 +383,28 @@ This first application is scoped to the live Schedule workspace. Controls wrap a
 On desktop (1000px and wider), selecting a job opens its summary in a right-hand pane without moving the map or truck schedule down. The map height follows the available viewport; full job history can scroll within the detail pane. Narrow screens retain the stacked summary. The appointment grid preserves its readable row heights on unusually dense days instead of hiding destinations.
 
 
-### Selected truck position and overlapping locators
+### Selected truck position, trips and overlapping locators
 
-The desktop truck card resolves the selected GPS point through Fleet's existing
-OpenStreetMap address endpoint and displays its report time, age and reported
-ignition. Reverse-geocoded addresses are labeled Near because the closest mapped
-address does not verify the exact building or unit. A recent collector refresh does not make an old position current.
-Address lookups are limited to the selected point; unavailable addresses remain
-explicit. Public Google Maps links do not call Google APIs.
+The desktop truck card prefers LinxUp's recorded destination address when it is
+within 30 metres of the last GPS fix. Otherwise it resolves only the selected
+point through Fleet's existing OpenStreetMap endpoint and labels the result Near.
+Report time, age and reported ignition stay visible. A collector refresh does not
+make an old fix current. No Google APIs are used.
 
-Overlapping appointment/truck icons receive deterministic screen offsets with
-leader lines to their unchanged geographic anchors. Each icon selects its own
-record directly. Locator icons stay above GPS route labels, and route endpoint
-labels appear only when fitting the route. Zooming apart removes offsets; map
-focus uses true coordinates.
-Reviewed service-complex corrections belong in the runtime geocode cache with
-source, precision and previous-value provenance; they do not verify a unit rooftop.
+Regional maps keep every geographic anchor unchanged. A single overlapping
+truck/appointment pair may separate by at most 44 pixels at zoom 15 or closer,
+with a short line to the original point. Larger clusters offer a choice of
+records without spreading markers. Appointment and truck icons stay above routes.
+
+Trips come from LinxUp trip records, ordered by departure on the selected Central
+date. Zero-mile ignition cycles at the same location are excluded. The list shows
+only trip number, origin, destination and departure/arrival time. Selecting a trip
+fits its recorded extent and shows matching numbered A/B endpoints. Road geometry
+uses the existing street routing; unavailable roads never become straight chords.
+
+A confirmed visit without a departure takes precedence over another truck's ETA.
+Fresh GPS shows On site; once the GPS ages out, Last reported on site preserves the
+truck and latest inside-report timestamp without claiming a current fix or pulsing.
+A recorded departure clears that indication; completed/canceled states take priority.
+Reviewed service-complex corrections stay in runtime cache with source, precision
+and previous-value provenance; they do not verify an exact unit rooftop.

@@ -1,6 +1,6 @@
 import { ArrowRight, MapPin, Phone, Clock3, Truck, X } from 'lucide-react';
 import { appointmentPartner, serviceAddressForGeocoding } from '../lib/appointment-partner';
-import { appointmentCategory, appointmentStatus, assignmentNeedsVerification, scheduleCustomerLabel, truckLabel, type ScheduleAppointment, type ClosestTruck } from './lib/schedule-contract';
+import { appointmentCategory, appointmentStatus, isClosed, assignmentNeedsVerification, scheduleCustomerLabel, truckLabel, type ScheduleAppointment, type ClosestTruck } from './lib/schedule-contract';
 import { schedulePayment } from './lib/schedule-payment';
 import './schedule-appointment-summary.css';
 
@@ -14,6 +14,7 @@ export default function ScheduleAppointmentSummary({job,closest,loading,isToday,
 }) {
   const partner = appointmentPartner(job);
   const status = appointmentStatus(job);
+  const onsite = isToday && !isClosed(job) ? job.truckOnSite ? job.onsiteTruck || truckLabel(job.truck) : job.lastSeenOnsiteTruck : undefined;
   const items = (job.pickupItems?.length ? job.pickupItems : job.junkItems).join(' · ');
   const notes = job.appointmentNotes.map(note => note.trim()).filter(Boolean);
   const note = status === 'Canceled' && job.cancellationReason ? job.cancellationReason : notes[0];
@@ -29,7 +30,7 @@ export default function ScheduleAppointmentSummary({job,closest,loading,isToday,
       {note && <div className="selected-job-note"><b>{status === 'Canceled' ? 'Canceled' : 'Source note'}</b><span>{excerpt(note,180)}</span><button onClick={open} disabled={busy}>{notes.length>1?`All ${notes.length} notes`:'Read note'}</button></div>}
     </div>
     <aside className="selected-job-next">
-      <div className={`selected-job-closest${isToday && job.location && !loading && closest ? ' has-suggestion' : isToday && !job.location ? ' needs-review' : ''}`} aria-live="polite"><span>Closest truck now</span>{!isToday ? <strong>Available for today only</strong> : !job.location ? <strong>Verify address first</strong> : loading ? <strong>Checking distance…</strong> : closest ? <><strong>{truckLabel(closest.truck)} <span>{closest.minutes} min · {closest.miles} mi</span></strong><small>Recent GPS · road estimate. Check availability before assigning.</small></> : <><strong>Unavailable</strong><small>No current GPS and road estimate available.</small></>}</div>
+      <div className={`selected-job-closest${onsite ? '' : isToday && job.location && !loading && closest ? ' has-suggestion' : isToday && !job.location ? ' needs-review' : ''}`} aria-live="polite"><span>{onsite ? job.truckOnSite ? 'On site' : 'Last reported on site' : 'Closest truck now'}</span>{onsite ? <><strong>{onsite}</strong>{!job.truckOnSite && <small>No departure recorded{job.lastSeenOnsiteAt ? ` · Last GPS ${new Date(job.lastSeenOnsiteAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})}` : ''}. Awaiting a fresh position.</small>}</> : !isToday ? <strong>Available for today only</strong> : !job.location ? <strong>Verify address first</strong> : loading ? <strong>Checking distance…</strong> : closest ? <><strong>{truckLabel(closest.truck)} <span>{closest.minutes} min · {closest.miles} mi</span></strong><small>Recent GPS · road estimate. Check availability before assigning.</small></> : <><strong>Unavailable</strong><small>No current GPS and road estimate available.</small></>}</div>
       <div className="selected-job-secondary"><span>{job.callAhead === 'called' ? 'Call ahead recorded' : 'Call ahead not recorded'}</span>{payment.amount && <span>{payment.label} · {payment.amount}</span>}</div>
       <button className="dispatch-full-details" aria-label={`Full details for ${job.jkNumber}`} disabled={busy} onClick={open}>Full details{photos>0?` · ${photos} photos`:''}<ArrowRight size={14} /></button>
     </aside>

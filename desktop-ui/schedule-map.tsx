@@ -13,6 +13,7 @@ type Props = {
   selected: string | null; selectedTruck: string | null;
   gpsRoute?:TruckGpsRoute|null;
   truckMapView?:'location'|'route';
+  selectedTripId?:string|null; onSelectTrip?:(id:string)=>void;
   scope: string; resetKey: number; date: string;
   onSelect: (id: string) => void; onSelectTruck: (truck: string) => void;
 };
@@ -42,7 +43,7 @@ export default function ScheduleMap(props: Props) {
     return () => { observer.disconnect(); view.remove(); map.current = null; markers.current = null; gpsLayer.current=null;gpsFit.current='';fitted.current = ''; focused.current = ''; };
   }, []);
   // Avoid rebuilding marker DOM on unrelated parent renders, preserving keyboard focus.
-  const signature = JSON.stringify([props.appointments, props.trucks, props.selected, props.selectedTruck, props.scope, props.resetKey, props.date, props.truckMapView]);
+  const signature = JSON.stringify([props.appointments, props.trucks, props.selected, props.selectedTruck, props.scope, props.resetKey, props.date, props.truckMapView, props.selectedTripId, props.gpsRoute?.trips]);
   useEffect(() => {
     const view = map.current;
     const layer = markers.current;
@@ -71,6 +72,17 @@ export default function ScheduleMap(props: Props) {
         className: `truck-marker${fresh ? '' : ' stale'}`, selected: selectedTruck === name,
         select: () => current.current.onSelectTruck(name) });
     });
+    if(current.current.truckMapView === 'route' && current.current.gpsRoute?.truck === selectedTruck) {
+      for(const trip of current.current.gpsRoute.trips || []) {
+        if(current.current.selectedTripId && current.current.selectedTripId !== trip.id) continue;
+        for(const [endpoint,letter] of [[trip.from,'A'],[trip.to,'B']] as const) pins.push({
+          id:`trip:${trip.id}:${letter}`,coordinate:[endpoint.latitude,endpoint.longitude],
+          text:`${trip.number}${letter}`,label:`Show trip ${trip.number} ${letter==='A'?'start':'stop'}, ${endpoint.address}`,
+          tooltipTitle:`Trip ${trip.number} · ${letter==='A'?'Start':'Stop'}`,tooltipDetail:endpoint.address,
+          className:'trip-marker',selected:false,select:()=>current.current.onSelectTrip?.(trip.id),
+        });
+      }
+    }
     const fitKey = `${date}:${scope}:${resetKey}:${appointments.map(job => job.recordId).sort().join('|')}`;
     if (fitted.current !== fitKey) {
       view.closePopup();
@@ -91,11 +103,11 @@ export default function ScheduleMap(props: Props) {
       const activeId = host.current?.contains(document.activeElement) ? (document.activeElement as HTMLElement)?.dataset.mapPin : undefined;
       layer.clearLayers();
       const anchors = pins.map(pin => ({ id: pin.id, ...view.latLngToLayerPoint(pin.coordinate) }));
-      const positions = new Map((view.getZoom() >= 15 ? separateMapPins(anchors) : anchors.map(p => ({...p,dx:0,dy:0}))).map(point => [point.id, point]));
+      const positions = new Map((view.getZoom() >= 15 ? separateMapPins(anchors) : anchors.map(p => ({...p,dx:0,dy:0}))).map(point => [point.id, point.id.startsWith('trip:') ? {...point,dy:-32} : point]));
       for (const pin of pins) {
         const { x, y, dx: offsetX, dy: offsetY } = positions.get(pin.id)!;
         const displaced = Math.hypot(offsetX, offsetY) > 1;
-        if (displaced) L.polyline([pin.coordinate, view.layerPointToLatLng(L.point(x + offsetX, y + offsetY))], {
+        if (displaced && !pin.id.startsWith('trip:')) L.polyline([pin.coordinate, view.layerPointToLatLng(L.point(x + offsetX, y + offsetY))], {
           color: '#496678', weight: 1.5, opacity: .9, interactive: false, className: 'map-pin-location-line',
         }).addTo(layer);
         const button = document.createElement('button');
@@ -138,8 +150,8 @@ export default function ScheduleMap(props: Props) {
         const title = document.createElement('strong'); title.textContent = pin.tooltipTitle;
         const detail = document.createElement('small'); detail.textContent = pin.tooltipDetail;
         tooltip.append(title, detail);
-        if (displaced) { const note = document.createElement('small'); note.textContent = 'Line marks exact location'; tooltip.append(note); }
-        const marker = L.marker(pin.coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize: [30, 30], iconAnchor: [15 - offsetX, 15 - offsetY] }), zIndexOffset: pin.selected ? 1900 : 1000 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: L.point(offsetX, offsetY - 12), opacity: 1, permanent: pin.selected }).addTo(layer);
+        if (displaced && !pin.id.startsWith('trip:')) { const note = document.createElement('small'); note.textContent = 'Line marks exact location'; tooltip.append(note); }
+        const marker = L.marker(pin.coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize: [30, 30], iconAnchor: [15 - offsetX, 15 - offsetY] }), zIndexOffset: pin.selected ? 1900 : 1000 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: L.point(offsetX, offsetY - 12), opacity: 1, permanent: pin.selected && current.current.truckMapView !== 'route' }).addTo(layer);
         button.onfocus = () => marker.openTooltip();
         button.onblur = () => { if (!pin.selected) marker.closeTooltip(); };
         marker.on('tooltipopen', () => {
@@ -157,7 +169,7 @@ export default function ScheduleMap(props: Props) {
           bubble.options.offset = L.point(offsetX + dx, offsetY - 12 + dy);
           bubble.update();
         });
-        if (pin.selected) marker.openTooltip();
+        if (pin.selected && current.current.truckMapView !== 'route') marker.openTooltip();
         if (activeId === pin.id) button.focus({ preventScroll: true });
       }
     };
@@ -169,7 +181,7 @@ export default function ScheduleMap(props: Props) {
     const view=map.current,layer=gpsLayer.current,route=props.gpsRoute;
     if(!view || !layer) return;
     layer.clearLayers();
-    if(!route || route.date!==props.date || route.truck!==props.selectedTruck || !route.points.length) {gpsFit.current='';return;}
+    if(!route || route.date!==props.date || route.truck!==props.selectedTruck || (!route.points.length && !route.trips?.length)) {gpsFit.current='';return;}
     // Only road geometry gets connecting lines. Provider outages never restore
     // straight chords through blocks; source dots remain at their exact fixes.
     if(route.streets && route.streets.sourceVersion===route.sourceVersion)for(const path of route.streets.paths) {
@@ -177,17 +189,13 @@ export default function ScheduleMap(props: Props) {
     }
     // Isolated observations stay visible without inventing a connecting route.
     for(const point of route.points) L.circleMarker([point.latitude,point.longitude],{radius:3,color:'#fff',fillColor:'#2563a5',fillOpacity:1,weight:1,interactive:false,className:'schedule-gps-point'}).addTo(layer);
-    const endpoints=route.points.length===1?[[route.points[0],'Recorded position'] as const]:[[route.points[0],'First'] as const,[route.points.at(-1)!,'Last'] as const];
-    for(const [point,label] of props.truckMapView === 'route' ? endpoints : []) {
-      const text=document.createElement('span');text.textContent=label;
-      const tooltip=document.createElement('span');tooltip.textContent=`${label} GPS · ${new Date(point.timestamp).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})}`;
-      // Routes commonly return to the same yard. Keep both endpoint labels
-      // readable even when first and last positions overlap.
-      L.marker([point.latitude,point.longitude],{keyboard:false,icon:L.divIcon({className:'schedule-gps-endpoint',html:text,iconSize:[40,22],iconAnchor:[20,label==='Last'?-3:25]}),zIndexOffset:500}).bindTooltip(tooltip).addTo(layer);
-    }
-    const fitKey=`${route.date}:${route.truck}:${props.resetKey}:${props.truckMapView || 'location'}`;
+    const fitKey=`${route.date}:${route.truck}:${props.resetKey}:${props.truckMapView || 'location'}:${props.selectedTripId || ''}`;
     if(gpsFit.current!==fitKey) {
-      if(props.truckMapView==='route') view.fitBounds(route.points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{padding:[45,45],maxZoom:15,animate:false});
+      if(props.truckMapView==='route') {
+        const trip=route.trips?.find(trip=>trip.id===props.selectedTripId);
+        const points=trip?[trip.from,...route.points.filter(p=>p.timestamp>=trip.departure && p.timestamp<=trip.arrival),trip.to]:route.trips?.length?route.trips.flatMap(trip=>[trip.from,trip.to]):route.points;
+        if(points.length) view.fitBounds(points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{padding:[45,45],maxZoom:15,animate:false});
+      }
       else if(!props.trucks.some(truck=>truckLabel(truck.truck)===route.truck && truck.latitude!=null && truck.longitude!=null)) {
         // Historical days have no current truck marker. Focus the last recorded
         // position for that day without letting history override today's marker.
@@ -197,6 +205,6 @@ export default function ScheduleMap(props: Props) {
       gpsFit.current=fitKey;
     }
     return()=>{layer.clearLayers();};
-  },[props.gpsRoute,props.selectedTruck,props.date,props.resetKey,props.truckMapView,props.trucks]);
+  },[props.gpsRoute,props.selectedTruck,props.date,props.resetKey,props.truckMapView,props.trucks,props.selectedTripId]);
   return <div ref={host} className="live-schedule-map" aria-label="Verified appointment locations and truck GPS" />;
 }

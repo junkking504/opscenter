@@ -71,6 +71,8 @@ export default function LiveSchedule({ actionHost, baseDate, day, onDayChange, o
   const [selectedTruck, setSelectedTruck] = useState<string | null>(null);
   const {route:gpsRoute,error:gpsRouteError}=useTruckGpsRoute(date,selectedTruck);
   const [mapResetKey, setMapResetKey] = useState(0);
+  const [selectedGpsTrip, setSelectedGpsTrip] = useState<string|null>(null);
+  const showGpsTrip = (id:string|null) => { setSelectedGpsTrip(id); setTruckMapView('route'); setMapResetKey(value=>value+1); };
   const [truckMapView, setTruckMapView] = useState<'location' | 'route'>('location');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const mapPanelRef = useRef<HTMLElement>(null);
@@ -213,7 +215,7 @@ export default function LiveSchedule({ actionHost, baseDate, day, onDayChange, o
     const job = jobs.find(job => job.recordId === id);
     if (job && !match(job)) { setScope('ALL'); setFilter('all'); setSearchQuery(''); }
   };
-  const selectTruck = (truck: string) => { if (operationBusyRef.current) return; setTruckMapView('location'); setScope('ALL'); setFilter('all'); setSearchQuery(''); setSelectedId(null); setSelectedTruck(truck); setMapResetKey(key => key + 1); setShowMap(true); };
+  const selectTruck = (truck: string) => { if (operationBusyRef.current) return; setSelectedGpsTrip(null); setTruckMapView('location'); setScope('ALL'); setFilter('all'); setSearchQuery(''); setSelectedId(null); setSelectedTruck(truck); setMapResetKey(key => key + 1); setShowMap(true); };
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented || operationBusyRef.current || [...document.querySelectorAll<HTMLElement>('[role="dialog"]')].some(dialog => dialog.getClientRects().length > 0) || (event.target as HTMLElement).closest('input,textarea,select')) return;
@@ -272,7 +274,7 @@ export default function LiveSchedule({ actionHost, baseDate, day, onDayChange, o
       {showMap && <section ref={mapPanelRef} className={`schedule-map-panel${selectedTruck ? ' has-truck-card' : ''}`}>
         <nav className="live-map-territories" aria-label="Focus map on territory"><button onClick={reset} aria-pressed={scope === 'ALL'}>All</button>{territoryOrder.filter(code => code !== 'UNK' || groups.some(group => group.code === code)).map(code => <button key={code} className={`territory-${code.toLowerCase()}`} aria-label={`Focus ${territoryLabels[code]}`} aria-pressed={scope === code} onClick={() => focusTerritory(code)} title={territoryLabels[code]}>{code}<small>{regions.filter(region => region.code === code).length}</small></button>)}</nav>
         <div className="schedule-map-canvas">
-          <ScheduleMap appointments={visible} trucks={snapshot.fleet.isToday ? snapshot.fleet.trucks : []} selected={selectedId} selectedTruck={selectedTruck} gpsRoute={gpsRoute} truckMapView={truckMapView} scope={scope} resetKey={mapResetKey} date={date} onSelect={selectAppointment} onSelectTruck={selectTruck} />
+          <ScheduleMap appointments={visible} trucks={snapshot.fleet.isToday ? snapshot.fleet.trucks : []} selected={selectedId} selectedTruck={selectedTruck} gpsRoute={gpsRoute} selectedTripId={selectedGpsTrip} onSelectTrip={showGpsTrip} truckMapView={truckMapView} scope={scope} resetKey={mapResetKey} date={date} onSelect={selectAppointment} onSelectTruck={selectTruck} />
           <div className="map-focus-chip"><span>{filtered ? 'Filtered View' : 'Operating Footprint'}</span><strong>{selected ? `${selected.jkNumber} · ${selected.location ? 'Selected' : 'Verify Address'}` : selectedTruck || (scope === 'ALL' ? 'All Territories' : territoryLabels[scope.split(':')[0]] || scope)}</strong>{(filtered || selectedId || selectedTruck) && <div className="map-focus-actions"><button onClick={reset}>Reset</button></div>}</div>
           <div className="map-operation-summary"><span>{visible.length} appointments</span><span>{visible.filter(job => job.location).length} verified pins</span></div>
         </div>
@@ -283,12 +285,12 @@ export default function LiveSchedule({ actionHost, baseDate, day, onDayChange, o
 
             {(!truckDetails || truckDetails.latitude === null || truckDetails.longitude === null) && <p>No current position is available in the fleet snapshot.</p>}
           </section>}
-        <aside className="schedule-map-controls"><label className="schedule-gps-picker">Truck GPS route<select aria-label="Truck GPS route" value={selectedTruck || ''} onChange={event=>event.target.value?selectTruck(event.target.value):setSelectedTruck(null)}><option value="">Select truck</option>{truckNames.map(truck=><option key={truck} value={truck}>{truck}</option>)}</select></label>{!selectedTruck && !selected && <><div><span className="section-kicker">{snapshot.fleet.isToday ? 'Live Map' : 'Planning Map'}</span><h2>{snapshot.fleet.isToday ? 'Dispatch Positions' : 'Appointment Coverage'}</h2></div>
+        <aside className="schedule-map-controls"><label className="schedule-gps-picker">Truck trips<select aria-label="Truck trips" value={selectedTruck || ''} onChange={event=>event.target.value?selectTruck(event.target.value):setSelectedTruck(null)}><option value="">Select truck</option>{truckNames.map(truck=><option key={truck} value={truck}>{truck}</option>)}</select></label>{!selectedTruck && !selected && <><div><span className="section-kicker">{snapshot.fleet.isToday ? 'Live Map' : 'Planning Map'}</span><h2>{snapshot.fleet.isToday ? 'Dispatch Positions' : 'Appointment Coverage'}</h2></div>
           <div className="live-map-help">Select a truck to see its recorded GPS route; select an appointment for details. Escape resets the map.</div></>}
-          {selectedTruck && <GpsRouteSummary date={date} truck={selectedTruck} route={gpsRoute} error={gpsRouteError} fit={()=>{setTruckMapView('route');setMapResetKey(value=>value+1);}} />}
+          {selectedTruck && <GpsRouteSummary date={date} truck={selectedTruck} route={gpsRoute} error={gpsRouteError} selectedTrip={selectedGpsTrip} showTrip={showGpsTrip} />}
           {selectedTruck ? <section aria-label={`${selectedTruck} appointments`}>
             <div className="live-map-truck-jobs"><strong>{truckJobs.length} appointments</strong>{truckJobs.map(job => <button key={job.recordId} onClick={() => selectAppointment(job.recordId)}>{job.jkNumber} · {job.appointmentTime} · {appointmentStatus(job)}</button>)}</div>
-          </section> : selected ? null : <div className="map-status-list"><span><i className={snapshot.fleet.isToday ? 'healthy' : 'warning'} />{snapshot.fleet.isToday ? 'Truck markers show GPS; amber marks last-known positions' : 'Planning day · Current GPS is not a planned truck origin'}</span><span>{visible.filter(job => !job.location).length} appointments need verified coordinates</span><span>Overlapping icons are separated; short lines mark their exact locations.</span></div>}
+          </section> : selected ? null : <div className="map-status-list"><span><i className={snapshot.fleet.isToday ? 'healthy' : 'warning'} />{snapshot.fleet.isToday ? 'Truck markers show GPS; amber marks last-known positions' : 'Planning day · Current GPS is not a planned truck origin'}</span><span>{visible.filter(job => !job.location).length} appointments need verified coordinates</span><span>Locations stay anchored. Select overlapping locators to choose a truck or appointment.</span></div>}
         </aside>
       </section>}
       {!mapOnly && <div className="schedule-board-shell"><div className="section-title"><div><span className="section-kicker">{day === 'today' ? 'Today' : 'Tomorrow'} · JunkWare Snapshot</span><h2>Truck Schedule</h2></div><div className="schedule-board-actions"><ScheduleStopOrder key={date} snapshot={snapshot} busy={operationBusy || Boolean(pendingMove)} onBusyChange={onOperationBusyChange} saved={updated=>{setSnapshots(prior=>({...prior,[date]:updated}));refresh();}} /><span className="schedule-drag-help"><GripVertical size={13} />Drag Appointment → Truck + Time</span></div></div>

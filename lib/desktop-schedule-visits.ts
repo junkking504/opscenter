@@ -6,7 +6,7 @@ import { truckLabel, type ScheduleTruck } from '../desktop-ui/lib/schedule-contr
 import type { AnyRecord } from '@/lib/opsData';
 
 // Keep the server-side Schedule status in step with the Dispatch map. A
-// five-minute reporting gap is still recent, continuous LinxUp evidence;
+// ten-minute reporting gap is still recent, continuous LinxUp evidence;
 // older positions must not be shown as current on-site work.
 const LIVE_GPS_MAX_AGE_MS = 10 * 60_000;
 
@@ -42,6 +42,13 @@ export function scheduleVisitState(
     const departure = latest ? latest.departure : row.final_departure || row.departure_at;
     return Number.isFinite(Date.parse(arrival || '')) && Date.parse(arrival) <= now && !departure;
   }) : undefined;
+  const openVisit = confirmed.find(row => {
+    const latest = [...(Array.isArray(row.visit_intervals) ? row.visit_intervals : [])].sort((a,b)=>Date.parse(b.arrival)-Date.parse(a.arrival))[0];
+    return Number.isFinite(Date.parse(latest?.arrival || row.first_arrival || '')) && !(latest ? latest.departure : row.final_departure || row.departure_at);
+  });
+  const lastSeenOnsiteTruck = !activeVisit && openVisit ? truckLabel(String(openVisit.truck_number || openVisit.truck || '')) : undefined;
+  const lastSeenOnsiteAt = lastSeenOnsiteTruck ? [...(openVisit!.source_timestamps || []), ...(openVisit!.visit_intervals || []).flatMap((interval:AnyRecord)=>interval.source_timestamps || [interval.arrival])]
+    .filter(stamp=>Number.isFinite(Date.parse(stamp)) && Date.parse(stamp)<=now).sort((a,b)=>Date.parse(b)-Date.parse(a))[0] || openVisit!.first_arrival : undefined;
   const onsiteTruck = activeVisit ? truckLabel(String(activeVisit.truck_number || activeVisit.truck || '')) : undefined;
-  return { hasVisit: confirmed.length > 0, truckOnSite: Boolean(activeVisit), onsiteTruck, onsiteTime: appointmentOnsiteTime(job, visits, now) };
+  return { hasVisit: confirmed.length > 0, truckOnSite: Boolean(activeVisit), onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, onsiteTime: appointmentOnsiteTime(job, visits, now) };
 }

@@ -34,6 +34,8 @@ export type ScheduleAppointment = {
   appointmentType: string;
   status: string;
   hasVisit?: boolean;
+  lastSeenOnsiteTruck?: string;
+  lastSeenOnsiteAt?: string;
   truckOnSite?: boolean;
   // The physically verified truck can differ from the pending JunkWare assignment.
   onsiteTruck?: string;
@@ -104,10 +106,11 @@ export function appointmentRegion(job: Pick<ScheduleAppointment, 'address' | 'te
 export function appointmentCategory(job: Pick<ScheduleAppointment, 'appointmentType'>) {
   return /estimate/i.test(job.appointmentType) ? 'Estimate' : /job|junk|removal/i.test(job.appointmentType) ? 'Job' : job.appointmentType || 'Unspecified';
 }
-export function appointmentStatus(job: Pick<ScheduleAppointment, 'appointmentType' | 'status' | 'hasVisit' | 'truckOnSite'>) {
+export function appointmentStatus(job: Pick<ScheduleAppointment, 'appointmentType' | 'status' | 'hasVisit' | 'truckOnSite' | 'lastSeenOnsiteTruck'>) {
   if (/cancel/i.test(job.status)) return 'Canceled';
   if (/complete|closed/i.test(job.status)) return appointmentCategory(job) === 'Estimate' ? 'Estimate Closed' : 'Completed';
   if (job.truckOnSite) return 'On Site';
+  if (job.lastSeenOnsiteTruck) return 'Last reported on site';
   if (job.hasVisit) return 'Visited · Closeout Pending';
   return job.status || 'Status Unavailable';
 }

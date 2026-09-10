@@ -19,7 +19,7 @@ export function separateMapPins(points: MapPinPoint[], spacing = 44) {
     const pair=point.id.startsWith('truck:') && nearby.length===2 && nearby.some(p=>p.id.startsWith('appointment:'));
     if(!pair) return {...point,dx:0,dy:0};
     const other=nearby.find(p=>p.id!==point.id)!;
-    const dx=other.x+spacing-point.x;
+    const dx=other.x+(point.x>=other.x?spacing:-spacing)-point.x;
     const clear=points.every(p=>p.id===point.id || Math.hypot(point.x+dx-p.x,point.y-p.y)>=spacing);
     return {...point,dx:clear && Math.abs(dx)<=spacing?dx:0,dy:0};
   });

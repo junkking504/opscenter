@@ -3,7 +3,12 @@
 .schedule-gps-summary strong { font-size: 12px; }
 .ops-live .live-schedule .schedule-map-controls .schedule-gps-summary p { display: block; margin: 0; font-size: 11px; line-height: 1.4; }
 .ops-live .live-schedule .schedule-map-controls .schedule-gps-summary button { border: 1px solid #9bb6cc; border-radius: 4px; padding: 3px 7px; background: white; font: inherit; font-size: 11px; cursor: pointer; }
-.schedule-gps-endpoint { background: transparent; border: none; }
-.schedule-gps-endpoint span { display: inline-block; padding: 3px 5px; border: 1px solid white; border-radius: 4px; color: white; background: #2563a5; box-shadow: 0 1px 3px #0004; font: 700 10px/1.2 sans-serif; white-space: nowrap; }
 .schedule-gps-picker { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 600; }
 .schedule-gps-picker select { min-width: 0; padding: 4px 6px; border: 1px solid #aebecb; border-radius: 4px; background: white; font: inherit; }
+
+.schedule-trip-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.ops-live .live-schedule .schedule-map-controls .schedule-trip-list button { display: flex; gap: 7px; width: 100%; text-align: left; padding: 7px; line-height: 1.4; }
+.schedule-trip-list button[aria-pressed="true"] { outline: 2px solid #2563a5; outline-offset: -2px; }
+.schedule-trip-list small { display: block; color: #52606b; margin-top: 3px; }
+.ops-live .live-schedule-map .trip-marker .map-pin-symbol { min-width: 25px; height: 22px; padding: 2px; border: 1px solid white; border-radius: 4px; background: #2563a5; color: white; font-size: 10px; }
+.ops-live .live-schedule-map .trip-marker::after { content: ''; position: absolute; top: 26px; left: 14px; width: 2px; height: 21px; background: #2563a5; pointer-events: none; }

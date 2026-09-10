@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { scheduleVisitState as fullScheduleVisitState } from '../lib/desktop-schedule-visits';
 import { scheduleStatusTone } from '../desktop-ui/lib/schedule-contract';
 
-const scheduleVisitState = (...args: Parameters<typeof fullScheduleVisitState>) => { const {onsiteTime, onsiteTruck, ...state} = fullScheduleVisitState(...args); return state; };
+const scheduleVisitState = (...args: Parameters<typeof fullScheduleVisitState>) => { const {onsiteTime, onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, ...state} = fullScheduleVisitState(...args); return state; };
 const now = Date.parse('2026-09-06T16:00:00Z');
 const recent = '2026-09-06T15:59:30Z';
 const trucks = [{ truck: 'Truck 4', lastGpsUpdate: recent }];
@@ -36,3 +36,8 @@ const cancelledContact = separateCancellationContact({customerName:'Preview Cust
 assert.equal(cancelledContact.customerName,'Preview Customer');
 assert.equal(cancelledContact.cancellationReason,'Cancelled via phone; no longer needed.');
 assert.ok(cancelledContact.appointmentNotes.includes(cancelledContact.cancellationReason));
+
+const lastSeen=fullScheduleVisitState(job,[visit],recent,[{truck:'Truck 4',lastGpsUpdate:'2026-09-06T15:00:00Z'}],now);
+assert.equal(lastSeen.truckOnSite,false);
+assert.equal(lastSeen.lastSeenOnsiteTruck,'Truck 4','An open visit must not disappear when the GPS report ages out');
+assert.equal(fullScheduleVisitState(job,[{...visit,visit_intervals:[{arrival:visit.first_arrival,departure:recent}]}],recent,trucks,now).lastSeenOnsiteTruck,undefined,'A recorded departure clears last-reported onsite state');

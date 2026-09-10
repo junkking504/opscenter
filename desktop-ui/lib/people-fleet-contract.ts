@@ -1,3 +1,4 @@
+import { truckGpsStatus } from '../../lib/truck-gps-status';
 import type { KreweHoursSnapshot } from './krewe-hours-contract';
 export type KreweView = 'today' | 'callin' | 'payperiod' | 'monthly';
 export type CrewDayEvidence = { issue?: string; payNote?: string; sourceAt?: string | null; hourlyRate?: number | null; syncStatus?: 'pending' | 'verified' | 'failed' | 'uncertain' | null; correctionNote?: string; correctionBy?: string; manualBonuses?: Array<{ entryId: string; amount: number; note: string }> };
@@ -12,7 +13,7 @@ export type DesktopLocalReceipt = { requestId: string; action: string; entity: s
 export type FleetIssueRow = { issueId: string; truck: string; title: string; description: string; severity: string; status: string; owner: string; dueDate: string; resolution: string; cost: number | null; downtimeHours: number | null; updatedAt: string; version: string };
 export type FleetMaintenanceRow = { recordId: string; truck: string; serviceDate: string; status: string; serviceType: string; description: string; odometer: number | null; cost: number | null; vendor: string; nextServiceDate: string; nextServiceOdometer: number | null; notes: string; version: string };
 export type DesktopChecklist = { version: string; inspector: string; definitions: Array<{ itemId: string; label: string; guidance: string }>; answers: Array<{ itemId: string; status: string; notes: string }> };
-export type DesktopFleetTruck = { id: string; label: string; vehicle: string; readiness: string; operatingStatus: string; driver: string; navigator: string; assignment: string; location: string; gpsAt: string | null; gpsFreshness: string; odometer: string; serviceStatus: string; nextService: string; checklist: string; loadPercent: number | null; loadLabel?: string; loadNote: string; loadVersion: string; checklistVersion: string; checklists: Record<'daily' | 'weekly' | 'monthly', DesktopChecklist>; checklistDefinitions: Array<{ itemId: string; label: string; guidance: string }>; answers: Array<{ itemId: string; status: string; notes: string }>; jobs: number | null; revenue: number | null; miles: number | null; idleMinutes: number | null; driverScore: number | null };
+export type DesktopFleetTruck = { id: string; label: string; vehicle: string; readiness: string; operatingStatus: string; driver: string; navigator: string; assignment: string; location: string; gpsAt: string | null; speed?: number | null; ignition?: string | null; gpsFreshness: string; odometer: string; serviceStatus: string; nextService: string; checklist: string; loadPercent: number | null; loadLabel?: string; loadNote: string; loadVersion: string; checklistVersion: string; checklists: Record<'daily' | 'weekly' | 'monthly', DesktopChecklist>; checklistDefinitions: Array<{ itemId: string; label: string; guidance: string }>; answers: Array<{ itemId: string; status: string; notes: string }>; jobs: number | null; revenue: number | null; miles: number | null; idleMinutes: number | null; driverScore: number | null };
 export type DesktopFleetSnapshot = { date: string; report: string; sourceUpdatedAt: string | null; sourceAvailable: boolean; canWrite: boolean; trucks: DesktopFleetTruck[]; issues: FleetIssueRow[]; maintenance: FleetMaintenanceRow[]; reportRows: Array<{ truck: string; jobsCompleted: number; revenue: number; miles: number; idleTimeMinutes: number; averageDriverScore: number | null }>; reportCoverageDays: number; warnings: string[] };
 export function validDesktopDate(value: string): boolean { return /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(`${value}T12:00:00Z`)) && new Date(`${value}T12:00:00Z`).toISOString().slice(0, 10) === value; }
 export function nullableNumber(row: Record<string, unknown>, keys: string[]): number | null { for (const key of keys) { const value = row[key]; if (value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value))) return Number(value); } return null; }
@@ -46,12 +47,8 @@ export function uniqueTruckMatch<T extends { id: string; label: string }>(trucks
 }
 
 /** Re-evaluate point age even when the last server snapshot is retained after a failure. */
-export function displayedGpsFreshness(timestamp: string | null, selectedDate: string, now: number): string {
+export function displayedGpsFreshness(timestamp: string | null, selectedDate: string, now: number, observation: {speed?: number | null; ignition?: string | null} = {}): string {
   if (!timestamp || !Number.isFinite(Date.parse(timestamp))) return 'GPS unavailable';
   if (selectedDate !== new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(now)) return 'Historical GPS';
-  const age=(now-Date.parse(timestamp))/60000;
-  if(age<0)return 'GPS unavailable';
-  if(age<=3)return 'Live GPS';
-  if(age<=120)return 'GPS Stale';
-  return 'Offline';
+  return truckGpsStatus({...observation,lastGpsUpdate:timestamp},now).freshness;
 }

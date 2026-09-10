@@ -30,7 +30,8 @@ export function isLinxupV3Position(point: LinxupPointLike): boolean {
 
 function latestPoint<T extends LinxupPointLike>(points: T[]): T | null {
   return points.reduce<T | null>((latest, point) => (
-    !latest || timestampMs(point) > timestampMs(latest) ? point : latest
+    !latest || timestampMs(point) > timestampMs(latest)
+      || timestampMs(point) === timestampMs(latest) && isLinxupV3Position(point) && !isLinxupV3Position(latest) ? point : latest
   ), null);
 }
 

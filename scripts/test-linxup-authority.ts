@@ -65,3 +65,8 @@ assert.deepEqual(selectAuthoritativeLinxupPoint([], now), {
 });
 
 console.log("LinxUp V3 authority checks passed.");
+
+const sameTimePoll = {...v2, timestamp:'2026-08-31T16:50:00.000Z'};
+for (const points of [[sameTimePoll, staleV3],[staleV3, sameTimePoll]]) {
+  assert.equal(selectAuthoritativeLinxupPoint(points,now).point,staleV3,'Equal-time parked observations keep V3 ignition after live authority expires.');
+}

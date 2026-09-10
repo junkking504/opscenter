@@ -149,3 +149,18 @@ preview wrappers no longer load the Maps Keychain credential. The idempotent
 `scripts/disable-opsbot-google-geocoding.py --apply` migration retires the
 separate OpsBot collector's Google fallback without altering appointment data
 or existing verified geocodes. Missing matches remain unavailable.
+
+## Truck status and parked heartbeats
+
+Schedule, Command map markers and Fleet distinguish motion from report age.
+A zero-speed report with explicit ignition OFF displays Parked (and the known
+facility, when applicable). The hourly parked reporting cadence has a bounded
+75-minute heartbeat window; reports older than three minutes are labelled
+`Parked report`, never `Live GPS`. Every detail retains the provider timestamp
+and report age. A missed parked heartbeat becomes stale; reports over two hours
+old remain Offline. Moving or engine-on observations retain the three-minute
+freshness limit. Missing speed or ignition cannot establish parked/idling, and
+positive speed takes priority over a conflicting ignition flag or old yard stop.
+Parked heartbeat tolerance does not extend live ETA or on-site eligibility.
+Mapped trucks without observations remain listed as GPS unavailable, including
+when they have no assignments. GPS inventory does not depend on daily metrics.

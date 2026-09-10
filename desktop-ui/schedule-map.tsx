@@ -1,3 +1,4 @@
+import { truckGpsStatus } from '../lib/truck-gps-status';
 import { appointmentPartner } from '../lib/appointment-partner';
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
@@ -43,7 +44,7 @@ export default function ScheduleMap(props: Props) {
     return () => { observer.disconnect(); view.remove(); map.current = null; markers.current = null; gpsLayer.current=null;gpsFit.current='';fitted.current = ''; focused.current = ''; };
   }, []);
   // Avoid rebuilding marker DOM on unrelated parent renders, preserving keyboard focus.
-  const signature = JSON.stringify([props.appointments, props.trucks, props.selected, props.selectedTruck, props.scope, props.resetKey, props.date, props.truckMapView, props.selectedTripId, props.gpsRoute?.trips]);
+  const signature = JSON.stringify([props.trucks.map(truck => truckGpsStatus(truck).label), props.appointments, props.trucks, props.selected, props.selectedTruck, props.scope, props.resetKey, props.date, props.truckMapView, props.selectedTripId, props.gpsRoute?.trips]);
   useEffect(() => {
     const view = map.current;
     const layer = markers.current;
@@ -64,11 +65,11 @@ export default function ScheduleMap(props: Props) {
     trucks.forEach(truck => {
       if (truck.latitude === null || truck.longitude === null) return;
       const name = truckLabel(truck.truck);
-      const age = Date.now() - Date.parse(truck.lastGpsUpdate || '');
-      const fresh = Number.isFinite(age) && age >= 0 && age <= 180_000;
+      const gps = truckGpsStatus(truck);
+      const fresh = !gps.stale;
       pins.push({ id: `truck:${name}`, coordinate: [truck.latitude, truck.longitude], text: name.replace('Truck ', 'T'),
-        tooltipTitle: name, tooltipDetail: fresh ? 'Recent GPS' : 'Last known GPS',
-        label: `Select ${name}, ${fresh ? 'Recent GPS' : 'Last Known Position'}`,
+        tooltipTitle: name, tooltipDetail: gps.label,
+        label: `Select ${name}, ${gps.label}`,
         className: `truck-marker${fresh ? '' : ' stale'}`, selected: selectedTruck === name,
         select: () => current.current.onSelectTruck(name) });
     });

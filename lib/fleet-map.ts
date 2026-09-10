@@ -1,3 +1,4 @@
+import { parkedTruckObservation, truckGpsStatus } from './truck-gps-status';
 import { planningLocation } from './planning-geocodes';
 import {lastLinxupAddress} from './linxup-trips';
 import crypto from "crypto";
@@ -314,6 +315,7 @@ export function classifyOperationalStatus({
   const latestLocation = latest && Number.isFinite(Number(latest.latitude)) && Number.isFinite(Number(latest.longitude))
     ? { latitude: Number(latest.latitude), longitude: Number(latest.longitude) }
     : null;
+  if (typeof latest?.speed === "number" && latest.speed > 0) return "Driving";
   // Appointment visits are historical evidence: a visit's recorded departure
   // must never be reclassified as a current job merely because a later GPS
   // point is close to the same address. Current on-site status is established
@@ -324,18 +326,19 @@ export function classifyOperationalStatus({
         .find((stop) => stop.kind !== "Unknown" && stop.kind !== "At Job" && distanceMeters(latestLocation, stop) <= 150)
     : null;
   const namedLocationCode = operationalLocationCodeFromName(currentStop?.label);
-  if (namedLocationCode) return namedLocationCode;
+  if (namedLocationCode) return parkedTruckObservation(latest || {}) ? `Parked · ${namedLocationCode}` : namedLocationCode;
   const coordinateLocationCode = latestLocation && Number(latest?.speed || 0) <= 15
     ? operationalLocationCodeAt(latestLocation)
     : null;
-  if (coordinateLocationCode) return coordinateLocationCode;
-  if (latest && Number(latest.speed || 0) > 0) return "Driving";
+  if (coordinateLocationCode) return parkedTruckObservation(latest || {}) ? `Parked · ${coordinateLocationCode}` : coordinateLocationCode;
+  if (parkedTruckObservation(latest || {})) return "Parked";
   if (currentStop) return currentStop.kind;
-  if (latest && Number(latest.speed || 0) === 0) return "Idle";
+  if (latest?.speed === 0) return String(latest.ignition || "").toUpperCase() === "ON" ? "Idle" : "Stopped";
   return "Unknown";
 }
 
 export function operationalStatusForFreshness(status: string, freshness: string): string {
+  if (freshness === "GPS unavailable" || freshness === "GPS history unavailable") return freshness;
   if (freshness === "GPS Stale") return "GPS Stale";
   if (freshness === "Offline") return "Offline";
   return status;
@@ -345,7 +348,11 @@ export function freshnessLabel({
   hasPayload,
   latestTimestamp,
   selectedDate,
+  speed,
+  ignition,
 }: {
+  speed?: number | null;
+  ignition?: string | null;
   hasPayload: boolean;
   latestTimestamp: string | null;
   selectedDate: string;
@@ -353,11 +360,7 @@ export function freshnessLabel({
   if (!hasPayload) return "GPS history unavailable";
   if (!latestTimestamp) return "GPS unavailable";
   if (selectedDate !== chicagoDateKey()) return "Historical GPS";
-  const ageMinutes = (Date.now() - new Date(latestTimestamp).getTime()) / 60000;
-  if (!Number.isFinite(ageMinutes) || ageMinutes < 0) return "GPS unavailable";
-  if (ageMinutes <= 3) return "Live GPS";
-  if (ageMinutes <= STALE_THRESHOLD_MINUTES) return "GPS Stale";
-  return "Offline";
+  return truckGpsStatus({lastGpsUpdate: latestTimestamp, speed, ignition}).freshness;
 }
 
 function supportedStopKind(stop: AnyRecord): FleetMapStop["kind"] | null {
@@ -479,7 +482,7 @@ function buildTruckRecord({
       latitude: Number(row.latitude),
       longitude: Number(row.longitude),
       speed: row.speed == null ? null : Number(row.speed),
-      ignition: row.ignition_state ? String(row.ignition_state) : null,
+      ignition: /^(ON|OFF)$/i.test(String(row.ignition_state || "").trim()) ? String(row.ignition_state).trim().toUpperCase() : null,
       heading: row.heading ? String(row.heading) : null,
       sourceRecordId: row.source_record_id ? String(row.source_record_id) : null,
       deliverySource: String(row.delivery_source || "").toLowerCase() === "v3_position_push"
@@ -555,6 +558,8 @@ function buildTruckRecord({
   const freshness = freshnessLabel({
     hasPayload: Boolean(locationPayload),
     latestTimestamp,
+    speed: lastPoint?.speed,
+    ignition: lastPoint?.ignition,
     selectedDate: date,
   });
   const lastReportedOperationalStatus = classifyOperationalStatus({
@@ -644,14 +649,17 @@ function buildTruckRecord({
 
 export function buildFleetMapPayload(date: string, selectedTruckRaw?: string | null): FleetMapPayload | null {
   const daily = loadDaily(date);
-  if (!daily) return null;
   const locationPayload = loadLocationPayload(date);
   const vehicleMap = loadVehicleMap();
+  if (!daily && !locationPayload) return null;
   const selectedDateIsToday = date === chicagoDateKey();
   const truckSet = new Set<string>();
-  for (const row of daily.truckScoreRows || []) if (isRealTruckLabel(row.truck)) truckSet.add(normalizeTruckLabel(row.truck));
-  for (const row of daily.truckRows || []) if (isRealTruckLabel(row.truck)) truckSet.add(normalizeTruckLabel(row.truck));
-  for (const row of daily.appointments || []) {
+  for (const mapping of vehicleMap.mappings || []) {
+    if (mapping.status === "active" && isRealTruckLabel(mapping.junkware_truck_number)) truckSet.add(normalizeTruckLabel(mapping.junkware_truck_number));
+  }
+  for (const row of daily?.truckScoreRows || []) if (isRealTruckLabel(row.truck)) truckSet.add(normalizeTruckLabel(row.truck));
+  for (const row of daily?.truckRows || []) if (isRealTruckLabel(row.truck)) truckSet.add(normalizeTruckLabel(row.truck));
+  for (const row of daily?.appointments || []) {
     const label = normalizeTruckLabel(row.truck || row.assigned_truck);
     if (isRealTruckLabel(label)) truckSet.add(label);
   }

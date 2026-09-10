@@ -58,7 +58,7 @@ export function buildFleetMaintenanceActions({ today, truckOptions, entries, cus
 
   if (fleetMap?.isToday) {
     for (const truck of fleetMap.trucks) {
-      if (truck.freshnessLabel === "Live GPS") continue;
+      if (["Live GPS", "Parked report"].includes(truck.freshnessLabel)) continue;
       actions.push({ id: `telemetry:${truck.truck}`, kind: "telemetry", priority: truck.freshnessLabel === "Offline" ? "urgent" : "watch", truck: truck.truck, title: truck.freshnessLabel === "Offline" ? "Tracker has stopped reporting" : "GPS freshness needs review", detail: `${truck.freshnessLabel}${truck.lastGpsUpdate ? ` · Last report ${truck.lastGpsUpdate}` : ""}`, actionLabel: "View live map" });
     }
     for (const truck of fleetMap.trucksWithoutCoordinates) actions.push({ id: `mapping:${truck}`, kind: "mapping", priority: "watch", truck, title: "Tracker-to-truck mapping needs verification", detail: "GPS totals may exist, but this truck has no verified map coordinate.", actionLabel: "View live map" });

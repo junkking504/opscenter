@@ -58,6 +58,7 @@ export type ScheduleAppointment = {
 export type ScheduleTruck = {
   lastKnownAddress?: string|null;
   ignition?: string;
+  speed?: number | null;
   truck: string;
   latitude: number | null;
   longitude: number | null;

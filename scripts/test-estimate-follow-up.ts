@@ -14,6 +14,8 @@ const source = (id: string, extra: Record<string,unknown> = {}) => ({ appt_id:id
 const write = (date: string, rows: unknown[]) => fs.writeFileSync(path.join(history,`junkware_${date}_raw.json`),JSON.stringify({appointments:rows,completed:[],cancelled:[],scraped_at:`${date}T18:00:00Z`}));
 const actor = {email:'synthetic@example.test',role:'operator' as const};
 try {
+  const legacyFile=path.join(history,'junkware_2026-07-11_raw.json');
+  fs.writeFileSync(legacyFile,JSON.stringify({completed:[source('099',{appointment_date:'2026-07-11'})]}));
   write('2026-08-12',[source('100'),source('101'),source('102'),source('103'),source('104'),source('105',{phone:'5045550100'}),source('106',{final_status:'Confirmed'}),source('107',{final_status:'Cancelled'}),source('108',{closeout:{total:''}})]);
   write('2026-09-10',[
     source('201',{appointment_type:'Job',appointment_date:today,source_estimate_appointment_id:'101',collection_timestamp:'2026-09-10T12:00:00Z'}),
@@ -35,6 +37,7 @@ try {
   assert.equal(get('108').quote,null,'missing quote is not zero');
   assert.equal(get('106'),undefined,'not-yet-given estimate excluded');
   assert.equal(get('107'),undefined,'canceled estimate excluded');
+  assert.equal(get('099').status,'verify_booking','older archives may omit empty buckets');
   const change={requestId:randomUUID(),id:'100',expectedVersion:get('100').version,status:'waiting',owner:'Synthetic Owner',nextFollowup:'2026-09-09',reason:'Waiting on customer approval',note:'Called customer; agreed to check tomorrow.',contacted:true};
   assert.throws(()=>parseEstimateChange({...change,owner:''}),/one owner/);
   assert.throws(()=>parseEstimateChange({...change,nextFollowup:'2026-02-30'}),/valid follow-up date/);
@@ -56,6 +59,6 @@ try {
   fs.writeFileSync(store,'broken');assert.throws(()=>readEstimateFollowups(today),/Saved follow-up history is unavailable/);assert.throws(()=>saveEstimateFollowup(change,actor,today),/Saved follow-up history is unavailable/);
   fs.unlinkSync(store);fs.mkdirSync(path.join(directory,'estimate-follow-up/.write-lock'));assert.throws(()=>saveEstimateFollowup(change,actor,today),/requires recovery/);fs.rmdirSync(path.join(directory,'estimate-follow-up/.write-lock'));
   fs.writeFileSync(file,'broken');snapshot=readEstimateFollowups(today);assert.equal(snapshot.coverage.unreadable,1);assert.equal(get('101').status,'verify_booking','unreadable file does not reuse stale cached conversion');
-  fs.writeFileSync(path.join(history,'junkware_2026-08-12_raw.json'),'broken');assert.throws(()=>readEstimateFollowups(today),/All estimate history files/);
+  fs.writeFileSync(legacyFile,'broken');fs.writeFileSync(path.join(history,'junkware_2026-08-12_raw.json'),'broken');assert.throws(()=>readEstimateFollowups(today),/All estimate history files/);
   console.log('Estimate follow-ups PASS: cross-date and in-place conversions, cancellations, ambiguous matching, missing quotes, ownership/dates, durable contact history, actor-bound retries, conflicts, lost/converted precedence, corruption and crash locks. Synthetic only.');
 } finally { if (previous === undefined) delete process.env.OPSBOT_DATA_DIR; else process.env.OPSBOT_DATA_DIR=previous; fs.rmSync(directory,{recursive:true,force:true}); }

@@ -1,3 +1,4 @@
+import { subscribeArrivalUpdates } from './lib/arrival-updates';
 import { truckGpsStatus } from '../lib/truck-gps-status';
 import ScheduleTruckProgress from './schedule-truck-progress';
 import { nextTruckStop } from '../lib/schedule-next-stop';
@@ -120,8 +121,9 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   useEffect(() => {
     const abort = new AbortController();
     let pending = false;
+    let reloadQueued = false;
     const load = async () => {
-      if (pending) return;
+      if (pending) { reloadQueued = true; return; }
       pending = true;
       try {
         const result = await Promise.all((mapOnly ? ['today'] as const : ['today', 'tomorrow'] as const).map(async key => {
@@ -138,11 +140,12 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         if (!mapOnly) countsCallback.current?.({ today: result[0].appointments.length, tomorrow: result[1].appointments.length });
         setError('');
       } catch { if (!abort.signal.aborted) setError('Schedule could not refresh. Any visible records are the last retrieved snapshot, not a confirmed live update.'); }
-      finally { pending = false; }
+      finally { pending = false; if (reloadQueued && !abort.signal.aborted) { reloadQueued = false; void load(); } }
     };
     void load();
+    const unsubscribe = subscribeArrivalUpdates(() => { setNow(new Date()); void load(); });
     const interval = window.setInterval(() => { setNow(new Date()); void load(); }, 15_000);
-    return () => { abort.abort(); window.clearInterval(interval); };
+    return () => { unsubscribe(); abort.abort(); window.clearInterval(interval); };
   }, [baseDate, refreshKey, mapOnly]);
   useEffect(() => { setSelectedId(null); setSelectedTruck(null); setDrawerId(null); setPendingMove(null); setScope('ALL'); setPriority(null); setFilter('all'); setSearchQuery(''); setLinkNotice(''); setRouting(null); }, [date, setDrawerId]);
   useEffect(() => {

@@ -74,7 +74,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const appointments = readJobRows(date);
   const sourceHealth = readDesktopSourceHealth(/^(admin|administrator|manager)$/i.test(actor.role));
   const geofences = readGeofenceEntries(date);
-  const alerts: DesktopCommandSnapshot['alerts'] = [...streamlineOperationalAlerts(appointmentVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits,appointments,date),appointments,date),...geofenceTimelineAlerts(date,geofences.entries,geofences.visits),...truckLoadTrackingAlerts(date)].map(alert => {
+  const alerts: DesktopCommandSnapshot['alerts'] = [...streamlineOperationalAlerts(appointmentVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits,appointments,date),appointments,date),...geofenceTimelineAlerts(date,geofences.arrivals,geofences.visits),...truckLoadTrackingAlerts(date)].map(alert => {
       const action = commandAlertWorkItemForSource(workflow.items, alert);
       return presentAlert(alert, action);
   });

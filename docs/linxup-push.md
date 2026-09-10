@@ -53,11 +53,30 @@ payloads return a non-success response so LinxUp retains and retries them;
 OpsCenter must never acknowledge a position that it silently discards.
 
 The authoritative push path removes OpsCenter's polling delay. The timestamp remains the tracker’s
-reported `date`, and confirmed job arrivals still require the existing
-two-point, two-minute, 125-meter dwell evidence rule. A historical appointment
-visit, or a later isolated GPS point at the same address, must never be shown
-as a current on-site state; Schedule labels it only after fresh, continuous
-dwell evidence is present.
+reported `date`. Schedule and the Command map show **On Site** on the first
+current GPS report within 125 meters of one eligible appointment, including
+an unassigned appointment. There is no arrival dwell timer and no dependency
+on route-history or visit-ledger catch-up. Ambiguous nearby jobs or trucks,
+unverified addresses, closed jobs, and stale positions cannot create a current
+arrival. The authenticated `/api/desktop/events` stream refreshes Schedule and
+Command when normalized GPS, visits, or facility arrivals change, without
+waiting for their fallback polling timers. A source update received during a
+screen request causes an immediate follow-up read.
+
+Both push and minute reconciliation run `match-linxup-instant-arrivals.py`:
+one point, zero dwell minutes, with existing verified geocodes and tracker
+mappings. Pre-policy visits (before September 10, 2026, 3:33 PM Chicago) keep
+the former two-point/two-minute qualification so this change does not replay
+earlier drive-bys as new notifications. Departure evidence remains separate.
+
+A positive V3 `geofence.name` is also saved in a separate local observation
+stream. Command announces the first facility report without waiting for the
+V2 alert collector. Repeated reports do not duplicate arrivals; explicit V2
+entry/exit events reconcile them. An absent geofence field never invents a
+departure. Position-only facility reports do not create automatic load resets;
+those remain tied to the explicit entry feed. No extra provider polling is added.
+Delivery still depends on LinxUp sending the observation and network/processing
+time; OpsCenter adds no arrival dwell or screen-refresh wait.
 
 ## Recorded daily GPS routes
 

@@ -120,4 +120,16 @@ writeJson(locationFile, {
   },
   points,
 });
+// Preserve explicit provider facility membership separately from V2 entry/exit
+// events. A missing geofence field is not proof of departure or a load reset.
+const geofence = payload.geofence as RecordValue | undefined;
+if (geofence && typeof geofence.name === 'string' && geofence.name.trim()) {
+  const file = path.join(history, 'geofence_positions', `${serviceDate}.json`);
+  const prior = readJson(file);
+  const observations = Array.isArray(prior.observations) ? prior.observations as RecordValue[] : [];
+  const observation = { truck_number: point.truck_number, occurred_at: point.timestamp, geofence_name: geofence.name.trim() };
+  writeJson(file, { date: serviceDate, observedAt: receivedAt, observations: [
+    ...observations.filter(row => row.truck_number !== observation.truck_number || row.occurred_at !== observation.occurred_at), observation,
+  ] });
+}
 console.log(JSON.stringify({ accepted: true, normalized: true, serviceDate, truck: mapping.junkware_truck_number }));

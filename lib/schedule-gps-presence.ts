@@ -10,8 +10,8 @@ const distance = (a: Coordinates, b: Coordinates) => {
 };
 
 // Current Schedule data can lead the slower visit ledger after a dispatch move.
-// Require continuous physical dwell at one eligible appointment; never infer
-// presence from an assignment, one GPS point, or a road ETA.
+// Show physical presence on the first GPS report at one eligible appointment.
+// Visit-duration accounting remains in the separately confirmed visit ledger.
 export function currentGpsPresence(job: PresenceJob, trucks: PresenceTruck[], appointments: PresenceJob[], now = Date.now()) {
   const clock = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
   const minute = Number(clock.find(p => p.type === 'hour')?.value) * 60 + Number(clock.find(p => p.type === 'minute')?.value);
@@ -21,27 +21,14 @@ export function currentGpsPresence(job: PresenceJob, trucks: PresenceTruck[], ap
   if (!job.location || /cancel|completed|closed/i.test(job.status || '')) return undefined;
   const candidates = trucks.flatMap(truck => {
     const stamp = Date.parse(truck.lastGpsUpdate || '');
-    if (!Number.isFinite(stamp) || stamp > now + 60_000 || now - stamp > 12 * 3600_000 || truck.latitude == null || truck.longitude == null) return [];
+    if (!Number.isFinite(stamp) || stamp > now + 60_000 || now - stamp > 12 * 3600_000 || truck.latitude == null || truck.longitude == null || !Number.isFinite(truck.latitude) || !Number.isFinite(truck.longitude)) return [];
     const position = { latitude: truck.latitude, longitude: truck.longitude };
     if (!eligible(job, truck) || distance(position, job.location!) > 125) return [];
     const nearby = appointments.filter(row => eligible(row, truck) && distance(position, row.location!) <= 125);
     if (nearby.length !== 1 || nearby[0].appointmentId !== job.appointmentId) return [];
-    const points = (truck.routePoints || []).map(point => ({ ...point, time: Date.parse(point.timestamp) }))
-      .filter(point => Number.isFinite(point.time) && point.time <= now + 60_000 && now - point.time < 12 * 3600_000)
-      .sort((a, b) => a.time - b.time);
-    const latest = points.at(-1);
-    if (!latest || now - latest.time > 12 * 3600_000 || distance(latest, job.location!) > 125) return [];
-    let arrival = latest.time, count = 1;
-    for (let i = points.length - 2; i >= 0; i--) {
-      const point = points[i];
-      if (distance(point, job.location!) > 125 || (arrival - point.time > 5 * 60_000 && Date.parse(point.continuousUntil || '') < arrival)) break;
-      // Missing continuity must not bridge a long reporting outage.
-      if (arrival - point.time > 5 * 60_000 && !Number.isFinite(Date.parse(point.continuousUntil || ''))) break;
-      if (point.time < arrival) count++;
-      arrival = point.time;
-    }
-    return count >= 2 && latest.time - arrival >= 2 * 60_000
-      ? [{ truck: truckLabel(truck.truck), arrival: new Date(arrival).toISOString(), observedAt: latest.timestamp, current: now - stamp <= 10 * 60_000 && now - latest.time <= 10 * 60_000 }] : [];
+    // The current position is authoritative even when route history and the
+    // visit ledger have not caught up. Do not wait for a second report or dwell.
+    return [{ truck: truckLabel(truck.truck), arrival: new Date(stamp).toISOString(), observedAt: truck.lastGpsUpdate!, current: now - stamp <= 10 * 60_000 }];
   });
   return candidates.length === 1 ? candidates[0] : undefined;
 }

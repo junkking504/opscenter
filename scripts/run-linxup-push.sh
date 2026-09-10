@@ -32,7 +32,7 @@ for target_date in $target_dates; do
 [[ "$target_date" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || exit 64
 cd "$OPSBOT_DIR"
 python3 scripts/seed_local_appointment_geocodes.py --date "$target_date"
-python3 scripts/match_linxup_appointment_visits.py --date "$target_date"
+python3 "$OPSCENTER_DIR/scripts/match-linxup-instant-arrivals.py" --date "$target_date"
 python3 scripts/validate_linxup_appointment_visits.py --date "$target_date"
 
 if [ -f "$OPSCENTER_DIR/.env.slack.local" ]; then

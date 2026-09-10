@@ -1,3 +1,4 @@
+import { subscribeArrivalUpdates } from './lib/arrival-updates';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Home from './app/page';
 import type { DesktopCommandSnapshot } from './lib/live-contract';
@@ -34,12 +35,14 @@ export default function LiveCommand() {
     } finally { readsPending.current -= 1; }
   }, [date]);
   useEffect(() => {
-    const load = () => { if (document.visibilityState === 'hidden' || readsPending.current > 0 || pendingRef.current) return; setClock(Date.now()); if (!explicitDate && !workspaceBusy.current && date !== currentDay()) { generation.current += 1; setSnapshot(null); setDate(currentDay()); return; } void refresh().catch(() => setError('Live data could not refresh. The last verified snapshot remains visible.')); };
+    let disposed = false, queued = false;
+    const load = () => { if (disposed || document.visibilityState === 'hidden' || pendingRef.current) return; if (readsPending.current > 0) { queued = true; return; } setClock(Date.now()); if (!explicitDate && !workspaceBusy.current && date !== currentDay()) { generation.current += 1; setSnapshot(null); setDate(currentDay()); return; } void refresh().catch(() => setError('Live data could not refresh. The last verified snapshot remains visible.')).finally(() => { if (queued && !disposed) { queued = false; load(); } }); };
     load();
+    const unsubscribe = subscribeArrivalUpdates(load);
     const timer = window.setInterval(load, 30_000);
     window.addEventListener('focus',load); window.addEventListener('online',load);
     document.addEventListener('visibilitychange',load);
-    return () => { window.clearInterval(timer); window.removeEventListener('focus',load); window.removeEventListener('online',load); document.removeEventListener('visibilitychange',load); generation.current += 1; };
+    return () => { disposed = true; unsubscribe(); window.clearInterval(timer); window.removeEventListener('focus',load); window.removeEventListener('online',load); document.removeEventListener('visibilitychange',load); generation.current += 1; };
   }, [refresh,date]);
 
   const onAlertAction = async (alertId: string, action: 'acknowledge' | 'add_to_control') => {

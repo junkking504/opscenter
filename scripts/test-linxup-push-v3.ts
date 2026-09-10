@@ -24,6 +24,7 @@ const officialPayload = {
   speed: 17,
   heading: "NE",
   engineOn: true,
+  geofence: {name: 'Synthetic facility', geofenceId: 123},
   tracker: { trackerId: 12345, name: "Truck 2" },
 };
 const normalized = normalizeLinxupV3Position(officialPayload, now);
@@ -70,6 +71,8 @@ try {
   expect(rawFiles.length === 1, "V3 ingestion must retain one provider payload for audit");
   const raw = JSON.parse(fs.readFileSync(path.join(temporaryRoot, "history", "linxup", "push", date, rawFiles[0]), "utf8"));
   expect(raw.payload?.date === officialPayload.date, "Raw audit record must retain the provider's official date field");
+  const facilities = JSON.parse(fs.readFileSync(path.join(temporaryRoot, 'history', 'linxup', 'geofence_positions', `${date}.json`), 'utf8'));
+  expect(facilities.observations.length === 1 && facilities.observations[0].geofence_name === 'Synthetic facility', 'The first V3 facility report must persist immediately for Command arrivals');
 
   const unmappedFile = path.join(temporaryRoot, "unmapped-v3-position.json");
   fs.writeFileSync(unmappedFile, JSON.stringify({

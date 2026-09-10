@@ -9,6 +9,7 @@ type SourceRow = Record<string, unknown>;
 export type GeofenceEntry = {
   id: string; truck: string; name: string; facility: string; timestamp: string;
   resetLocation: 'dump' | 'metal_yard' | null;
+  positionObserved?: boolean;
 };
 
 export function geofenceFacility(name: string): Pick<GeofenceEntry, 'facility' | 'resetLocation'> {
@@ -40,20 +41,62 @@ export function geofenceEntries(date: string, rows: SourceRow[], now = Date.now(
   return [...entries.values()].sort((a,b)=>b.timestamp.localeCompare(a.timestamp));
 }
 
+/** A positive V3 facility report can announce arrival before the V2 alert feed.
+ * Only explicit entry/exit events close or reconcile it; missing fields do not.
+ */
+export function geofencePositionArrivals(date: string, observations: SourceRow[], sourceRows: SourceRow[], now = Date.now()): GeofenceEntry[] {
+  const projected = new Map<string, GeofenceEntry>();
+  const active = new Map<string, string | null>();
+  const events = [
+    ...sourceRows.map(row => ({row, position: false})),
+    ...observations.map(row => ({row: {...row, alert_type: 'geofence_entered'} as SourceRow, position: true})),
+  ].sort((a,b) => Date.parse(String(a.row.occurred_at)) - Date.parse(String(b.row.occurred_at)) || Number(a.position) - Number(b.position));
+  for (const {row, position} of events) {
+    const type = String(row.alert_type_normalized || row.alert_type || '').toLowerCase();
+    if (!['geofence_entered', 'geofence_exited'].includes(type)) continue;
+    const stamp = Date.parse(String(row.occurred_at || ''));
+    if (!Number.isFinite(stamp) || stamp > now) continue;
+    const day = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Chicago'}).format(stamp);
+    const entry = geofenceEntries(day, [{...row, alert_type: 'geofence_entered'}], now)[0];
+    if (!entry) continue;
+    const key = `${entry.truck}|${entry.name.toLowerCase()}`;
+    if (!position) {
+      const pending = active.get(key);
+      if (pending) projected.delete(pending);
+      if (type === 'geofence_exited') active.delete(key);
+      else active.set(key, null);
+    } else if (!active.has(key)) {
+      active.set(key, entry.id);
+      if (day === date) projected.set(entry.id, {...entry, resetLocation: null, positionObserved: true});
+    }
+  }
+  return [...projected.values()];
+}
+
 export function readGeofenceEntries(date: string) {
-  const unavailable = {entries:[] as GeofenceEntry[],visits:[] as GeofenceVisit[],available:false,complete:false,observedAt:''};
+  const unavailable = {entries:[] as GeofenceEntry[],arrivals:[] as GeofenceEntry[],visits:[] as GeofenceVisit[],available:false,complete:false,observedAt:''};
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return unavailable;
   const root = process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data');
   try {
-    const data = JSON.parse(fs.readFileSync(path.join(root,'history','linxup','alerts',`linxup_alerts_${date}.json`),'utf8'));
-    if (data.date !== date || !Array.isArray(data.alerts)) return unavailable;
+    let data: SourceRow = {};
+    try { data = JSON.parse(fs.readFileSync(path.join(root,'history','linxup','alerts',`linxup_alerts_${date}.json`),'utf8')); } catch { /* V3 arrivals remain available independently. */ }
+    const available = data.date === date && Array.isArray(data.alerts);
+    const rows: SourceRow[] = available ? data.alerts as SourceRow[] : [];
     const previousDate=new Date(Date.parse(date+'T12:00:00Z')-86_400_000).toISOString().slice(0,10);
     let previous:SourceRow[]=[];
     try{
       const prior=JSON.parse(fs.readFileSync(path.join(root,'history','linxup','alerts',`linxup_alerts_${previousDate}.json`),'utf8'));
       if(prior.date===previousDate && Array.isArray(prior.alerts))previous=prior.alerts;
     }catch{ /* Missing entry history leaves departure duration unavailable. */ }
-    return {entries:geofenceEntries(date,data.alerts),visits:geofenceVisits(date,[...previous,...data.alerts]),available:true,complete:data.pagination_completed === true && data.validation_status === 'passed',observedAt:String(data.collection_timestamp || '')};
+    let observations: SourceRow[] = [];
+    for (const day of [previousDate, date]) {
+      try {
+        const positions = JSON.parse(fs.readFileSync(path.join(root,'history','linxup','geofence_positions',`${day}.json`),'utf8'));
+        if (positions.date === day && Array.isArray(positions.observations)) observations.push(...positions.observations);
+      } catch { /* Position observations supplement the existing alert feed. */ }
+    }
+    const entries = geofenceEntries(date, rows);
+    return {entries,arrivals:[...entries,...geofencePositionArrivals(date,observations,[...previous,...rows])],visits:geofenceVisits(date,[...previous,...rows]),available,complete:available && data.pagination_completed === true && data.validation_status === 'passed',observedAt:String(data.collection_timestamp || '')};
   } catch { return unavailable; }
 }
 
@@ -63,6 +106,7 @@ export function geofenceOperationalAlert(entry: GeofenceEntry, date: string): Op
     detected,title:`${entry.truck} - ${entry.name}`,owner:'Fleet',needsAction:false,
     facts:[{label:'Onsite',value:geofenceOnsiteSummary('Pending',entry.timestamp,null)},
       {label:'Location',value:entry.name},{label:'Facility',value:entry.facility},{label:'Entered',value:detected},
+      ...(entry.positionObserved ? [{label:'Arrival source',value:'Live GPS facility report'}] : []),
       {label:'Truck load',value:entry.resetLocation ? 'Reset to empty on entry' : 'Unchanged'}],
     next:entry.resetLocation ? 'Truck assumed empty on entry. Later completed jobs add to the load.' : 'Location update only; truck load is unchanged.',
     href:`/desktop?workspace=Fleet&date=${encodeURIComponent(date)}&truck=${encodeURIComponent(entry.truck.replace('Truck ','Truck# '))}`};

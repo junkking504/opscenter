@@ -28,7 +28,7 @@ for (const command of [
   "collect_linxup_location_history.py",
   "refresh-linxup-geofence-alerts.py",
   "seed_local_appointment_geocodes.py",
-  "match_linxup_appointment_visits.py",
+  "match-linxup-instant-arrivals.py",
   "validate_linxup_appointment_visits.py",
 ]) {
   expect(runner.includes(command), `Live refresh must run ${command}`);
@@ -43,7 +43,7 @@ expect(installer.includes('sleep 2'), "Installer must allow launchd to release t
 expect(pushLibrary.includes("LINXUP_PUSH_BEARER_TOKEN"), "LinxUp push must require its independent bearer token");
 expect(fs.readFileSync(path.join(root, "scripts/ingest-linxup-push.ts"), "utf8").includes('delivery_source: "v3_position_push"'), "V3 positions must retain their authoritative delivery source");
 expect(pushRunner.includes("collect_linxup_location_history.py") === false, "LinxUp push must not poll the V2 collector");
-expect(pushRunner.includes("match_linxup_appointment_visits.py"), "LinxUp push must recompute the affected appointment visit directly");
+expect(pushRunner.includes("match-linxup-instant-arrivals.py"), "LinxUp push must recompute the affected appointment visit directly");
 expect(pushRunner.includes("--only truck_arrival"), "LinxUp push must publish confirmed arrivals immediately");
 
 console.log("LinxUp live freshness checks passed.");

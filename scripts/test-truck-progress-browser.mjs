@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import {chromium} from 'playwright';
+const browser=await chromium.launch({headless:true});
+try {
+ const page=await browser.newPage({viewport:{width:1440,height:900}});
+ await page.clock.install({time:new Date()});
+ await page.goto(`${process.env.DISPATCH_FIXTURE_URL || 'http://127.0.0.1:3167'}/tests/schedule-destinations.html?scenario=route-stack&progress=1`);
+ const progress=page.locator('[data-schedule-truck="Truck 9"] .schedule-truck-progress');
+ await page.getByRole('button',{name:/Truck 9 · Between appointments:.*12 min/}).waitFor();
+ assert.match(await progress.innerText(),/Between jobs.*12 min/s);
+ assert.equal(await page.locator('[data-schedule-truck="Unassigned"] .schedule-truck-progress').count(),0);
+ await page.getByRole('button',{name:'Move truck closer',exact:true}).click();
+ await page.clock.fastForward(121000);
+ await page.getByRole('button',{name:/Truck 9 · Between appointments:.*5 min/}).waitFor();
+ await progress.click();
+ await page.locator('.schedule-appointment-summary').waitFor();
+ assert.match(await page.locator('.schedule-appointment-summary').innerText(),/JK1001002/);
+ const board=await page.locator('.schedule-board-shell').boundingBox();
+ assert.ok(board.y+board.height<=901,'Truck status and selected details preserve the desktop dispatch viewport');
+ await page.screenshot({path:'/tmp/truck-progress-preview.png'});
+ await page.getByRole('button',{name:'Truck arrives',exact:true}).click();
+ await page.clock.fastForward(16000);
+ await page.getByRole('button',{name:/Truck 9 · On site:/}).waitFor();
+ assert.doesNotMatch(await progress.innerText(),/min/);
+ await page.getByRole('button',{name:'GPS stops reporting',exact:true}).click();
+ await page.clock.fastForward(16000);
+ await page.getByRole('button',{name:/Truck 9 .*GPS stale/}).waitFor();
+ assert.doesNotMatch(await progress.innerText(),/5 min|12 min/);
+ assert.equal(await page.locator('#fixture-writes').innerText(),'Writes: 0');
+ console.log('Truck progress browser PASS: 12 -> 5 minutes, next-stop details, on-site arrival, stale GPS removes ETA, viewport fit, no writes.');
+} finally {await browser.close();}

@@ -107,7 +107,7 @@
 
 /* Command keeps its five daily metrics on one row. */
 .ops-live .metric-strip.command-metrics {
-  grid-template-columns: repeat(5, max-content);
+  grid-template-columns: repeat(5, 220px);
   width: max-content; max-width: 100%; overflow-x: auto; padding-bottom: 3px;
 }
 .ops-live .command-metrics > button.kpi-card {

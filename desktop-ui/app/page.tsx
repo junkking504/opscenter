@@ -4262,7 +4262,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             ) : activeNav === 'Schedule' ? (
               <div className="schedule-heading-actions">
                 <div className="schedule-view-switcher workspace-tabs" role="tablist" aria-label="Schedule views">
-                  <button className={scheduleView === 'board' ? 'active' : ''} onClick={() => setScheduleView('board')}>Board <span>{live ? liveScheduleCounts[scheduleDay] : scheduledAppointments.length}</span></button>
+                  <button className={scheduleView === 'board' ? 'active' : ''} onClick={() => setScheduleView('board')}>Board {(!live || scheduleView !== 'estimates') && <span>{live ? liveScheduleCounts[scheduleDay] : scheduledAppointments.length}</span>}</button>
                   <button className={scheduleView === 'calendar' ? 'active' : ''} onClick={() => setScheduleView('calendar')}>Calendar</button>
                   {live && <button className={scheduleView === 'estimates' ? 'active' : ''} onClick={() => setScheduleView('estimates')}>Estimates</button>}
                   <button className={scheduleView === 'followup' ? 'active' : ''} onClick={() => setScheduleView('followup')}>Follow-Up {!live && <span>{activeFollowups.length}</span>}</button>

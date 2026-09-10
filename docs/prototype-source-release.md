@@ -3,7 +3,8 @@
 ## Command daily metrics (September 10)
 
 Command displays Today’s Jobs, Revenue, Labor, Revenue Per Hour (RPH), and
-Average Job Size (AJS) in one desktop row. Revenue includes revenue per
+Average Job Size (AJS) in one content-sized desktop row. All headline values share the same font size.
+Revenue includes revenue per
 producing truck as a secondary value. Labor emphasizes current payroll as a
 percentage of revenue, with payroll dollars beneath it. Narrow screens keep
 one horizontally scrollable row.

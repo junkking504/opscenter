@@ -107,21 +107,15 @@
 
 /* Command keeps its five daily metrics on one row. */
 .ops-live .metric-strip.command-metrics {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(5, max-content);
+  width: max-content; max-width: 100%; overflow-x: auto; padding-bottom: 3px;
 }
 .ops-live .command-metrics > button.kpi-card {
-  height: 88px; min-height: 88px; overflow: hidden; gap: 2px;
+  height: 88px; min-height: 88px; min-width: 156px; overflow: hidden; gap: 2px;
 }
-.ops-live .command-metrics > button.labor-kpi > strong { font-size: 26px; }
 .ops-live .command-metrics .kpi-secondary {
   font-size: 11px; font-weight: 600; line-height: 1.15;
   text-transform: none; letter-spacing: 0;
 }
 .ops-live .command-metrics .kpi-heading { min-height: 12px; }
 .ops-live .command-metrics > button > small { white-space: normal; }
-@media (max-width: 1000px) {
-  .ops-live .metric-strip.command-metrics {
-    grid-template-columns: repeat(5, minmax(180px, 1fr));
-    overflow-x: auto; padding-bottom: 3px;
-  }
-}

@@ -300,7 +300,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   async function check() {
     if (!receipt || requestPending.current) return;
     requestPending.current = true; setSaving(true);
-    try { const result = await checkScheduleChange(receipt.requestId); setReceipt(result); if (result.status === 'verified') { if (result.sourceResult?.closeout) setLive(result.sourceResult.closeout as LiveCloseout); setAddPayment(false); setPaymentMethod(''); setPaymentAmount(''); setPaymentReference(''); setPendingOtherCharges([]); saved(); } }
+    try { const result = await checkScheduleChange(receipt.requestId); setReceipt(result); if (result.status === 'verified') { if (result.action && result.action !== 'closeout') { setReceipt(null); setLive(null); setSourceVersion(''); setCanWrite(false); } else if (result.sourceResult?.closeout) setLive(result.sourceResult.closeout as LiveCloseout); setAddPayment(false); setPaymentMethod(''); setPaymentAmount(''); setPaymentReference(''); setPendingOtherCharges([]); saved(); } }
     catch { setError('Saved result unavailable. Do not repeat this closeout.'); }
     finally { requestPending.current = false; setSaving(false); }
   }
@@ -443,7 +443,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             </fieldset>
           </>
         )}
-        {receipt && <ChangeReceipt receipt={receipt} onCheck={() => { void check(); }} />}
+        {receipt && <>{receipt.action && receipt.action !== 'closeout' && <p role="alert">An earlier {receipt.action === 'move' ? 'assignment change' : 'appointment change'} is awaiting verification. This is not a closeout result. Check the saved result before closing or recording payment.</p>}<ChangeReceipt receipt={receipt} onCheck={() => { void check(); }} /></>}
         {message ? <div className="ops-closeout-editor-message success">{message}</div> : null}
         {error ? <div className="ops-closeout-editor-message error">{error}</div> : null}
       </div>

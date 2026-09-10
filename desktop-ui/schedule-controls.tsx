@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import './schedule-controls.css';
 import { Button } from "./components/ui/button";
 import { submitScheduleOperation } from './lib/schedule-operation-transport';
 import type { MoveProposal, ScheduleAppointment } from "./lib/schedule-contract";
@@ -11,6 +12,7 @@ import {
 
 export type { MoveProposal } from "./lib/schedule-contract";
 export type Receipt = {
+  action?: 'move' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify';
   sourceResult?: Record<string, unknown>;
   requestId: string;
   status: "pending" | "verified" | "failed" | "uncertain";
@@ -281,10 +283,19 @@ export default function ScheduleControls({
   return (
     <section className="drawer-dispatch-controls">
       <div className="drawer-control-heading">
-        <span>Dispatch Controls</span>
-        <strong>Update the Live Plan</strong>
-        <small>Changes are verified in JunkWare. Call-ahead is recorded in OpsCenter.</small>
+        <strong>Appointment Notes</strong>
+        <small>Notes are saved to this appointment in JunkWare.</small>
       </div>
+      <div className="drawer-note-row">
+        <label className="drawer-cancel-field">
+          <span>Add Appointment Note</span>
+          <textarea value={note} onChange={event => setNote(event.target.value)} maxLength={2000} disabled={blocked} />
+        </label>
+        <Button className="drawer-cancel-action" variant="outline" disabled={blocked || !note.trim()} onClick={() => { void run("note", { note }); }}>Save Note in JunkWare</Button>
+      </div>
+      <details className="drawer-secondary-controls">
+      <summary>Assignment, call-ahead &amp; cancellation</summary>
+      <small>Assignment changes are verified in JunkWare. Call-ahead is recorded in OpsCenter.</small>
       {assignmentNeedsVerification(job) && (
         <p className="drawer-action-feedback" role="status">
           Assignment Not Verified in JunkWare. Check the source before another move.
@@ -349,27 +360,6 @@ export default function ScheduleControls({
           </div>
         </>
       )}
-      <div className="drawer-note-row">
-        <label className="drawer-cancel-field">
-          <span>Add Appointment Note</span>
-          <textarea
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            maxLength={2000}
-            disabled={blocked}
-          />
-        </label>
-        <Button
-          className="drawer-cancel-action"
-          variant="outline"
-          disabled={blocked || !note.trim()}
-          onClick={() => {
-            void run("note", { note });
-          }}
-        >
-          Save Note in JunkWare
-        </Button>
-      </div>
       {!isClosed(job) && (
         <div className="drawer-cancel-row">
           <label className="drawer-cancel-field">
@@ -420,6 +410,7 @@ export default function ScheduleControls({
           )}
         </div>
       )}
+      </details>
       {receipt && (
         <ChangeReceipt
           receipt={receipt}

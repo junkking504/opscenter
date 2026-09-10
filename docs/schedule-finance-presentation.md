@@ -1,5 +1,21 @@
 # Schedule and Finance presentation
 
+## Appointment drawer action priority
+
+Appointment Closeout precedes Appointment Notes. Note entry and its JunkWare
+save button remain visible; truck/window changes, Call Ahead and cancellation
+are retained in a collapsed secondary section instead of Update the Live Plan.
+This changes placement only, not source-write safeguards.
+
+An unresolved earlier move is identified as an assignment blocker in closeout,
+never as a closeout result. Check Saved Result reads JunkWare's saved date,
+truck and booked window without submitting a move or payment. An exact match
+clears the receipt and matching local override under existing locks. A differing
+source or newer local plan stays unresolved and is shown for operator review.
+Resolving a move resets the closeout editor so the operator must reload current
+source data before a new review. `scripts/test-move-reconciliation.ts` covers
+this boundary; the dispatch browser test checks section order and note access.
+
 ## Selected appointment at a glance
 
 Selecting an appointment from the truck schedule, map, or register now opens one

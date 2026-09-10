@@ -4,6 +4,16 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
+export type SavedJunkwareAssignment = { appointmentId: string; truck: string; date: string; appointmentStartMinutes: number; appointmentEndMinutes: number; verifiedAt: string };
+/** Fresh source read only: never replay a pending schedule move. */
+export async function readJunkwareTruckAssignment(appointmentId: string): Promise<SavedJunkwareAssignment> {
+  if (!/^\d{1,12}$/.test(appointmentId)) throw new Error('A valid appointment ID is required.');
+  const {stdout} = await execFileAsync(process.execPath, ['--import','tsx',path.join(process.cwd(),'scripts/sync-junkware-truck-assignment.ts'),'--appointment',appointmentId,'--read-assignment'], {cwd:process.cwd(),timeout:180_000,maxBuffer:2*1024*1024,env:{...process.env}});
+  const result = JSON.parse(stdout.trim());
+  if (!result.ok || result.mode !== 'read-assignment' || result.appointmentId !== appointmentId || typeof result.truck !== 'string' || (result.truck && !/^Truck [1-9][0-9]?$/.test(result.truck)) || !/^\d{4}-\d{2}-\d{2}$/.test(result.date) || !Number.isInteger(result.appointmentStartMinutes) || !Number.isInteger(result.appointmentEndMinutes) || result.appointmentStartMinutes < 0 || result.appointmentEndMinutes > 1440 || result.appointmentEndMinutes <= result.appointmentStartMinutes || !Number.isFinite(Date.parse(result.verifiedAt))) throw new Error('JunkWare did not return a verified saved assignment.');
+  return result;
+}
+
 export type JunkwareTruckAssignmentResult = {
   appointmentId: string;
   previousTruck: string;

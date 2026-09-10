@@ -19,7 +19,17 @@ async function main(){
   if(width===390) await page.screenshot({path:'/tmp/closeout-payment-mobile.png',fullPage:true});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'No mobile horizontal overflow');
   await method.selectOption('2');assert.equal(await page.getByRole('textbox',{name:'Card last four',exact:true}).count(),0);await page.getByRole('button',{name:'Reload from JunkWare',exact:true}).click();await page.getByRole('checkbox',{name:'Add a payment'}).waitFor();await expect(page.getByRole('checkbox',{name:'Add a payment'})).not.toBeChecked();await page.close();}
- assert.equal(posts,0,'Review, edits and reload must never submit a closeout');console.log('Closeout UI passed at 390px and 1280px: four methods, check/card references, validation, payment review, edit invalidation, reload resets, no overflow and no save requests.');
+ const blockedPage=await browser.newPage();
+ const moveReceipt={requestId:'fixture-move',action:'move',status:'uncertain',message:'Earlier assignment change remains unresolved.'};
+ await blockedPage.route('**/api/desktop/schedule/closeout?*',route=>route.fulfill({json:{closeout:fixture,sourceVersion:'a'.repeat(64),canWrite:true,pendingReceipt:moveReceipt}}));
+ await blockedPage.route('**/api/desktop/schedule/operations?*',route=>route.fulfill({json:{receipt:{...moveReceipt,status:'verified',message:'JunkWare confirms the saved truck and appointment window.'}}}));
+ await blockedPage.goto(url);await blockedPage.getByText('Close out this job',{exact:true}).click();await blockedPage.getByRole('button',{name:'Open JunkWare closeout',exact:true}).click();
+ await expect(blockedPage.getByRole('alert')).toContainText('This is not a closeout result');
+ await expect(blockedPage.getByRole('button',{name:'Review Closeout',exact:true})).toBeDisabled();
+ await blockedPage.getByRole('button',{name:'Check Saved Result',exact:true}).click();
+ await expect(blockedPage.getByRole('button',{name:'Open JunkWare closeout',exact:true})).toBeEnabled();
+ await blockedPage.close();
+ assert.equal(posts,0,'Review, edits, reload and assignment verification must never submit a closeout');console.log('Closeout UI passed at 390px and 1280px: payment review, validation, reload resets, earlier move blocker and safe verified-move reload, no overflow or save requests.');
  }finally{await browser.close();await new Promise<void>(r=>server.close(()=>r()));}
 }
 void main();

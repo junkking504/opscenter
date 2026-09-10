@@ -3,7 +3,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import type { DesktopAppointment } from '@/lib/desktop-schedule';
-import { withScheduleOperationLock } from '@/lib/job-route-assignments';
+import { withScheduleOperationLock, readJobRouteAssignmentOverrides, saveJobRouteAssignment } from '@/lib/job-route-assignments';
+import type { SavedJunkwareAssignment } from '@/lib/junkware-truck-assignment';
 import { closeoutSourceVersion } from '@/lib/desktop-closeout-contract';
 
 export type ScheduleOperation = { requestId: string; date: string; recordId: string; expectedVersion: string; action: 'move' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify'; values: Record<string, unknown> };
@@ -116,6 +117,38 @@ export async function reconcileCloseoutReceipt(id: string, actor: string, readSo
     catch { return receipt; } // Source unavailable is not proof of failure.
     if (closeoutSourceVersion(source) !== receipt.expectedCloseoutSourceVersion) return receipt;
     const reconciled: ScheduleReceipt = { ...receipt, priorResult: {status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt}, status:'failed', updatedAt:new Date().toISOString(), message:'JunkWare confirms this closeout was not saved. Reload the closeout, review it, and try again.' };
+    await writeReceipt(reconciled);
+    return reconciled;
+  });
+}
+
+/** A fresh, exact source match can resolve an old move without replaying it.
+ * Mismatches and missing evidence remain blocked; no booking/payment is written. */
+export async function reconcileMoveReceipt(id: string, actor: string, readSource: (appointmentId: string) => Promise<SavedJunkwareAssignment>): Promise<ScheduleReceipt | null> {
+  const initial = await readScheduleReceipt(id);
+  if (!initial || initial.actor !== actor) return null;
+  if (initial.action !== 'move' || initial.status !== 'uncertain') return initial;
+  return withScheduleOperationLock(`appointment-${initial.recordId.split(':appointment:')[1]}`, async () => {
+    const receipt = await readScheduleReceipt(id);
+    if (!receipt || receipt.status !== 'uncertain') return receipt;
+    const expected = receipt.sourceResult?.assignment as Record<string, unknown> | undefined;
+    const appointmentId = receipt.recordId.split(':appointment:')[1];
+    if (!expected || expected.appointmentId !== appointmentId || expected.date !== receipt.date || typeof expected.truck !== 'string') return receipt;
+    let source: SavedJunkwareAssignment;
+    try { source = await readSource(appointmentId); } catch { return receipt; }
+    const matches = (row: {truck:unknown;appointmentStartMinutes?:unknown;appointmentEndMinutes?:unknown}) => row.truck === expected.truck && (expected.appointmentStartMinutes === undefined || row.appointmentStartMinutes === expected.appointmentStartMinutes) && (expected.appointmentEndMinutes === undefined || row.appointmentEndMinutes === expected.appointmentEndMinutes);
+    if (source.appointmentId !== appointmentId || !Number.isFinite(Date.parse(source.verifiedAt))) return receipt;
+    if (source.date !== receipt.date || !matches(source)) {
+      const clock = (minutes:number) => `${Math.floor(minutes/60)%12||12}:${String(minutes%60).padStart(2,'0')} ${minutes>=720?'PM':'AM'}`;
+      const checked: ScheduleReceipt = {...receipt,updatedAt:new Date().toISOString(),message:`Earlier assignment change is still unresolved. JunkWare currently shows ${source.date}, ${source.truck || 'Unassigned'}, ${clock(source.appointmentStartMinutes)}–${clock(source.appointmentEndMinutes)}. This does not match the requested move; no closeout or payment was submitted by this check.`,sourceResult:{...receipt.sourceResult,assignmentReadback:source}};
+      await writeReceipt(checked);
+      return checked;
+    }
+    const current = readJobRouteAssignmentOverrides(receipt.date).get(`appt:${appointmentId}`);
+    if (!current || !matches(current)) return receipt;
+    const assignment = saveJobRouteAssignment({...current,expectedUpdatedAt:current.updatedAt,junkwareSyncStatus:'verified',junkwareSyncError:'',junkwareVerifiedAt:source.verifiedAt});
+    if (!assignment) return receipt;
+    const reconciled: ScheduleReceipt = {...receipt,status:'verified',updatedAt:new Date().toISOString(),message:'JunkWare confirms the saved truck and appointment window. No move or closeout was resubmitted.',priorResult:{status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt},sourceResult:{...receipt.sourceResult,junkwareSynced:true,assignment}};
     await writeReceipt(reconciled);
     return reconciled;
   });

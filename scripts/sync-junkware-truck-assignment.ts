@@ -198,14 +198,15 @@ async function externalBookingMetadata(page: Page): Promise<ExternalBookingMetad
 async function main(): Promise<void> {
   const appointmentId = argument("appointment");
   const inspect = process.argv.includes("--inspect");
+  const readOnly = process.argv.includes("--read-assignment");
   const autoVirtualExternal = process.argv.includes("--auto-virtual-external");
   const requestedTruck = normalizedTruck(argument("truck"));
   const hasRequestedStart = process.argv.includes("--start-minutes");
   const requestedStartMinutes = hasRequestedStart ? Number(argument("start-minutes")) : null;
   const durationHours = hasRequestedStart ? Number(argument("duration-hours") || "1") : 1;
-  if (inspect && autoVirtualExternal) throw new Error("Inspection and automatic assignment cannot run together.");
+  if ((inspect || readOnly) && (autoVirtualExternal || process.argv.includes('--truck') || hasRequestedStart)) throw new Error("Read-only inspection cannot include assignment changes.");
   if (!/^\d{1,12}$/.test(appointmentId)) throw new Error("A valid numeric appointment ID is required.");
-  if (!inspect && !autoVirtualExternal && !process.argv.includes("--truck")) throw new Error("A truck or unassigned state is required.");
+  if (!inspect && !readOnly && !autoVirtualExternal && !process.argv.includes("--truck")) throw new Error("A truck or unassigned state is required.");
   if (hasRequestedStart && (
     !Number.isInteger(requestedStartMinutes)
     || Number(requestedStartMinutes) < 0
@@ -217,7 +218,7 @@ async function main(): Promise<void> {
   }
 
   const lockPath = assignmentLockPath(appointmentId);
-  const lock = inspect ? null : acquireLock(lockPath);
+  const lock = inspect || readOnly ? null : acquireLock(lockPath);
   let browser: Browser | null = null;
   try {
     browser = await chromium.launch({ headless: true });
@@ -229,6 +230,16 @@ async function main(): Promise<void> {
     page.setDefaultTimeout(45_000);
     const targetUrl = `${JUNKWARE_ORIGIN}/franchise/appointment.aspx?id=${appointmentId}`;
     await ensureAuthenticated(page, targetUrl);
+    if (readOnly) {
+      const truck = await assignedTruck(page);
+      const start = clockMinutes(await page.locator('#ctl00_Content_StartTimeTB').inputValue());
+      const duration = Number(await page.locator('#ctl00_Content_DurationDD').inputValue());
+      const date = junkwareDateKey(await page.locator('#ctl00_Content_AppointmentDateTB').inputValue());
+      if (start === null || !Number.isFinite(duration) || duration <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('The saved JunkWare assignment is unavailable.');
+      process.stdout.write(JSON.stringify({ok:true,mode:'read-assignment',appointmentId,truck,date,appointmentStartMinutes:start,appointmentEndMinutes:start+duration*60,verifiedAt:new Date().toISOString()})+'\n');
+      await context.close();
+      return;
+    }
 
     let automaticBooking: ExternalBookingMetadata | null = null;
     if (autoVirtualExternal) {

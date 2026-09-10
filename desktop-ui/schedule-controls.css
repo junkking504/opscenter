@@ -1,0 +1,4 @@
+.ops-live .drawer-secondary-controls { margin-top: 12px; border-top: 1px solid #dce2dc; }
+.ops-live .drawer-secondary-controls > summary { padding: 12px 0; font-size: 12px; font-weight: 700; cursor: pointer; }
+.ops-live .drawer-secondary-controls > small { display: block; margin-bottom: 12px; color: #58675f; }
+.ops-live .drawer-secondary-controls > summary:focus-visible { outline: 2px solid #576e60; outline-offset: 2px; }

@@ -1,0 +1,14 @@
+/* Pulse only the border; keep the territory fill, text and selection visible. */
+.ops-live .appointment-marker.status-on-site .map-pin-symbol { position: relative; }
+.ops-live .schedule-appointment.status-on-site::after,
+.ops-live .appointment-marker.status-on-site .map-pin-symbol::after {
+  content: ''; position: absolute; inset: 0; border: 2px solid #ef233c;
+  border-radius: inherit; pointer-events: none; z-index: 2;
+  animation: appointment-on-site-border 1.6s ease-in-out infinite;
+}
+.ops-live .appointment-marker.status-on-site .map-pin-symbol::after { inset: -2px; }
+@keyframes appointment-on-site-border { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) {
+  .ops-live .schedule-appointment.status-on-site::after,
+  .ops-live .appointment-marker.status-on-site .map-pin-symbol::after { animation: none; opacity: 1; }
+}

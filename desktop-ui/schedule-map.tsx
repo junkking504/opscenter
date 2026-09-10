@@ -27,6 +27,8 @@ export default function ScheduleMap(props: Props) {
   current.current = props;
   const fitted = useRef('');
   const focused = useRef('');
+  const autoFit = useRef<(() => void) | null>(null);
+  const manualViewport = useRef(false);
   useEffect(() => {
     if (!host.current) return;
     const view = L.map(host.current, { zoomControl: true, scrollWheelZoom: true }).setView([30.14, -90.5], 8);
@@ -38,9 +40,24 @@ export default function ScheduleMap(props: Props) {
     map.current = view;
     gpsLayer.current=L.layerGroup().addTo(view);
     markers.current = L.layerGroup().addTo(view);
-    const observer = new ResizeObserver(() => view.invalidateSize());
+    // The Schedule panel changes height after its first layout. Fit against
+    // the final container size, but never undo a dispatcher's own pan/zoom.
+    const stopAutoFit = () => { manualViewport.current = true; };
+    const element = host.current;
+    element.addEventListener('wheel', stopAutoFit, { passive: true });
+    element.addEventListener('keydown', stopAutoFit);
+    element.addEventListener('pointerdown', stopAutoFit);
+    view.on('dragstart', stopAutoFit);
+    let frame = 0;
+    const observer = new ResizeObserver(() => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        view.invalidateSize({ pan: false });
+        if (!manualViewport.current && !current.current.selected && !current.current.selectedTruck) autoFit.current?.();
+      });
+    });
     observer.observe(host.current);
-    return () => { observer.disconnect(); view.remove(); map.current = null; markers.current = null; gpsLayer.current=null;gpsFit.current='';fitted.current = ''; focused.current = ''; };
+    return () => { cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener('wheel', stopAutoFit); element.removeEventListener('keydown', stopAutoFit); element.removeEventListener('pointerdown', stopAutoFit); autoFit.current = null; view.remove(); map.current = null; markers.current = null; gpsLayer.current=null;gpsFit.current='';fitted.current = ''; focused.current = ''; };
   }, []);
   // Avoid rebuilding marker DOM on unrelated parent renders, preserving keyboard focus.
   const signature = JSON.stringify([props.appointments, props.trucks, props.selected, props.selectedTruck, props.scope, props.resetKey, props.date, props.truckMapView, props.selectedTripId, props.gpsRoute?.trips]);
@@ -84,12 +101,17 @@ export default function ScheduleMap(props: Props) {
       }
     }
     const fitKey = `${date}:${scope}:${resetKey}:${appointments.map(job => job.recordId).sort().join('|')}`;
-    if (fitted.current !== fitKey) {
-      view.closePopup();
-      const bounds = scope === 'ALL' ? pins.map(pin => pin.coordinate) : appointmentBounds;
-      if (bounds.length) view.fitBounds(bounds, { padding: [65, 65], maxZoom: 12, animate: false });
+    autoFit.current = () => {
+      const bounds = scope === 'ALL' ? pins.filter(pin => !pin.id.startsWith('trip:')).map(pin => pin.coordinate) : appointmentBounds;
+      if (bounds.length) view.fitBounds(bounds, { padding: [28, 28], maxZoom: 12, animate: false });
       else if (territoryMapCenters[scope.split(':')[0]]) view.setView(territoryMapCenters[scope.split(':')[0]], 11, { animate: false });
       else view.setView([30.14, -90.5], 8, { animate: false });
+    };
+    if (fitted.current !== fitKey) {
+      view.closePopup();
+      manualViewport.current = false;
+      view.invalidateSize({ pan: false });
+      autoFit.current();
       fitted.current = fitKey;
     }
     const focusKey = selected ? `appointment:${selected}` : selectedTruck ? `truck:${selectedTruck}` : '';

@@ -408,3 +408,33 @@ truck and latest inside-report timestamp without claiming a current fix or pulsi
 A recorded departure clears that indication; completed/canceled states take priority.
 Reviewed service-complex corrections stay in runtime cache with source, precision
 and previous-value provenance; they do not verify an exact unit rooftop.
+
+## Automatic map inputs and current GPS presence
+
+The existing minute LinxUp refresh runs `refresh-schedule-map-inputs.ts` before
+visit matching. It copies the current all-market verified Schedule snapshot to
+the matcher's supplemental source only when newer and fresh. Pending dispatch
+writes are not promoted to JunkWare truth. Every collected upcoming date enters
+a bounded address queue automatically: four unique missing addresses per cycle,
+six hours between unresolved retries, shared Census verification and durable
+cache reuse. No Google API or additional paid provider is enabled.
+
+Source-backed corrections are stored outside Git in
+`cache/service-address-reviews/<normalized-address-sha256>.json`; they retain the
+entire original field, verified address, coordinates, precision and source URLs.
+They take precedence over older geocodes in maps and propagate into the visit
+cache. Unknown or conflicting addresses remain unverified, never city centroids.
+
+Schedule also reconciles recent continuous GPS dwell against current verified
+pins: two distinct reports spanning at least two minutes inside 125 meters,
+no uncovered gap over five minutes, and latest GPS at most ten minutes old.
+A matching assigned truck can arrive early. Other trucks require an eligible
+appointment window. Multiple eligible nearby appointments or trucks remain
+ambiguous. This presence read does not change assignments or manufacture ledger
+arrival/departure events; the existing visit collector owns those events. Its
+minute run uses the same two-report/two-minute dwell threshold and includes
+arrivals up to four hours before the booked window; verified tracker, address,
+coverage, and ambiguity checks remain in force.
+
+The default map refits after its panel finishes resizing, with 28-pixel padding.
+Manual pan/zoom and selected appointment/truck views are preserved.

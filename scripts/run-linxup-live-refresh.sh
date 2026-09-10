@@ -60,8 +60,10 @@ fi
 
 python3 scripts/collect_linxup_location_history.py --date "$TARGET_DATE"
 drain_push_queue
+# Keep visit matching and automatic address checks aligned with the live board.
+(cd "$OPSCENTER_DIR" && OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" OPSBOT_DATA_DIR="$OPSBOT_DIR/data" node --import tsx scripts/refresh-schedule-map-inputs.ts "$TARGET_DATE") || echo "Schedule map inputs pending; retaining previous verified data." >&2
 python3 scripts/seed_local_appointment_geocodes.py --date "$TARGET_DATE"
-python3 scripts/match_linxup_appointment_visits.py --date "$TARGET_DATE"
+python3 scripts/match_linxup_appointment_visits.py --date "$TARGET_DATE" --before-minutes 240 --minimum-dwell-minutes 2 --minimum-inside-points 2
 python3 scripts/validate_linxup_appointment_visits.py --date "$TARGET_DATE"
 
 if [ -f "$OPSCENTER_DIR/.env.slack.local" ]; then

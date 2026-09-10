@@ -1,3 +1,4 @@
+import { currentGpsPresence } from './schedule-gps-presence';
 import { compareStops } from './schedule-stop-order';
 import { applyStopOrders } from './desktop-stop-order-store';
 import {osmTravelMatrix} from './osm-travel-matrix';
@@ -67,6 +68,12 @@ export function readDesktopSchedule(date: string) {
     recordId: job.appointmentId ? `${date}:appointment:${job.appointmentId}` : `${date}:unverified:${index}`,
     location: planningLocation(job.address, pins) || cachedAddressVerification(job.address)?.location || null,
   }; });
+  // Reconcile against the current effective address/time, including a pending
+  // dispatch move, without modifying JunkWare or inventing a ledger event.
+  if (fleet.isToday) for (const job of appointments) {
+    const presence = currentGpsPresence(job, fleet.trucks, appointments);
+    if (presence) Object.assign(job, { hasVisit: true, truckOnSite: true, onsiteTruck: presence.truck, lastSeenOnsiteTruck: undefined, lastSeenOnsiteAt: undefined });
+  }
   return {
     date,
     observedAt: junkwareScheduleUpdatedAt(date),
@@ -86,6 +93,8 @@ export async function readVerifiedDesktopSchedule(date: string) {
   const snapshot = readDesktopSchedule(date);
   const missing = snapshot.appointments.filter(job=>!job.location && job.address && job.address!=='—' && !cachedAddressVerification(job.address)).slice(0,12);
   for(let offset=0;offset<missing.length;offset+=4) await Promise.all(missing.slice(offset,offset+4).map(async job=>{job.location=(await verifyDesktopAddress(job.address)).location;}));
+  // Newly verified locations participate in presence detection immediately.
+  if (missing.length) return readDesktopSchedule(date);
   return snapshot;
 }
 

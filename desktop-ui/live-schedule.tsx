@@ -5,7 +5,7 @@ import { appointmentPartner, serviceAddressForGeocoding } from '../lib/appointme
 import { AppointmentClassification } from './appointment-classification';
 import { onsiteTimeFacts } from '../lib/appointment-onsite-time';
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { ArrowRight, Check, GripVertical, X } from 'lucide-react';
+import { ArrowRight, Check, GripVertical, Plus, X } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import AppointmentCreation from './appointment-creation';
@@ -25,6 +25,7 @@ import { scheduleTruckNames, resolveScheduleDeepLink, scheduleMatchesQuery, sche
 import './live-schedule.css';
 import './schedule-board.css';
 import './schedule-selection.css';
+import './schedule-hierarchy.css';
 import { AppointmentRegisterRow } from './appointment-register-row';
 import { schedulePayment } from './lib/schedule-payment';
 import { SourceEstimateSummary } from './source-estimate';
@@ -246,14 +247,14 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   if (!snapshot) return <section className="empty-state" role="status"><strong>{error || 'Loading Schedule from JunkWare…'}</strong><span>No sample appointments are used.</span></section>;
   return <TruckCameraController className="live-schedule-camera"><section className={`schedule-workspace live-schedule${mapOnly ? ' command-map-content' : ' schedule-dispatch'}`}>
     {!mapOnly && <div className="schedule-control-bar">
-      <div className="day-switcher" role="tablist" aria-label="Schedule day">{(['today', 'tomorrow'] as const).map(key => <button key={key} disabled={operationBusy} onClick={() => onDayChange(key)} className={day === key ? 'active' : ''}>{baseDate === new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date()) ? (key === 'today' ? 'Today' : 'Tomorrow') : dateForDay(baseDate,key)} <span>{snapshots[dateForDay(baseDate, key)]?.appointments.length ?? '—'}</span></button>)}</div>
-      <div className="schedule-control-actions"><Input aria-label="Filter source appointments" style={{ width: 220, maxWidth: '30vw' }} placeholder="Search appointments" value={searchQuery} maxLength={200} disabled={operationBusy} onChange={event => { setSearchQuery(event.target.value); setLinkNotice(''); }} /><Button variant="outline" size="sm" onClick={() => setShowMap(value => !value)}>{showMap ? 'Hide Map' : 'Show Map'}</Button><Button variant="outline" size="sm" disabled={operationBusy || ['loading','queued'].includes(snapshot?.sourceRequest?.state || '')} onClick={() => {refreshSourceDate.current=date;refresh();}}>Refresh day</Button><Button size="sm" disabled={operationBusy} onClick={() => setCreationOpen(true)}>New Appointment</Button></div>
+      <div className="day-switcher" role="group" aria-label="Schedule day">{(['today', 'tomorrow'] as const).map(key => <button key={key} aria-pressed={day === key} disabled={operationBusy} onClick={() => onDayChange(key)} className={day === key ? 'active' : ''}>{baseDate === new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date()) ? (key === 'today' ? 'Today' : 'Tomorrow') : dateForDay(baseDate,key)} <span>{snapshots[dateForDay(baseDate, key)]?.appointments.length ?? '—'}</span></button>)}</div>
+      <div className="schedule-control-actions"><Input aria-label="Filter source appointments" style={{ width: 220, maxWidth: '30vw' }} placeholder="Search appointments" value={searchQuery} maxLength={200} disabled={operationBusy} onChange={event => { setSearchQuery(event.target.value); setLinkNotice(''); }} /><button type="button" className="schedule-map-toggle" role="switch" aria-label="Show map" aria-checked={showMap} onClick={() => setShowMap(value => !value)}><span className="schedule-toggle-track" aria-hidden="true"><span /></span>Map</button><Button variant="ghost" className="schedule-refresh-action" size="sm" disabled={operationBusy || ['loading','queued'].includes(snapshot?.sourceRequest?.state || '')} onClick={() => {refreshSourceDate.current=date;refresh();}}>Refresh day</Button><Button className="schedule-add-appointment" size="sm" disabled={operationBusy} onClick={() => setCreationOpen(true)}><Plus aria-hidden="true" />Add Appointment</Button></div>
     </div>}
     {snapshot.sourceRequest?.state !== 'ready' && snapshot.sourceRequest?.message && <p className="live-schedule-status" role="status">{snapshot.sourceRequest.message} {snapshot.appointments.length ? 'Showing the available records while the date is checked.' : 'The appointment count is not yet verified.'}</p>}
     {linkNotice && <p className="live-schedule-status" role="status">{linkNotice}</p>}
     {view === 'board' && <>{!mapOnly && <div className="schedule-summary-strip">{[
       ['all', 'Scheduled', jobs.length], ['completed', 'Completed Jobs', jobs.filter(job => appointmentStatus(job) === 'Completed').length], ['estimates', 'Closed Estimates', jobs.filter(job => appointmentStatus(job) === 'Estimate Closed').length], ['open', 'Open', jobs.filter(job => !isClosed(job)).length], ['unassigned', 'Unassigned', jobs.filter(job => truckLabel(job.truck) === 'Unassigned').length], ['verify', 'Verify Address', jobs.filter(job => !job.location).length],
-    ].map(([key, label, count]) => <button key={key} className={`schedule-summary-button${filter === key ? ' active' : ''}${key === 'unassigned' || key === 'verify' ? ' attention' : ''}`} onClick={() => setFilter(filter === key ? 'all' : String(key))}><span>{label}</span><strong>{count}</strong></button>)}<button className="schedule-summary-clear" disabled={!filtered && !priority} onClick={reset}>Clear</button></div>}
+    ].map(([key, label, count]) => <button key={key} aria-pressed={filter === key} className={`schedule-summary-button${filter === key ? ' active' : ''}${key === 'verify' && Number(count) > 0 ? ' attention' : ''}`} onClick={() => setFilter(filter === key ? 'all' : String(key))}><span>{label}</span><strong>{count}</strong></button>)}<button className="schedule-summary-clear" disabled={!filtered && !priority} onClick={reset}>Clear</button></div>}
     {error && <div className="live-schedule-status live-schedule-error" role="alert">{error}</div>}
     {selected && <div ref={selectedSummaryRef}><ScheduleAppointmentSummary job={selected} closest={closestTruckFor(selected)} loading={routeState === 'Loading Route Estimates' || !routeState && routing?.appointmentId !== selected.recordId} isToday={snapshot.fleet.isToday} busy={operationBusy} open={() => setDrawerId(selected.recordId)} clear={() => setSelectedId(null)} /></div>}
     <div ref={boardLayoutRef} className={`schedule-board-layout${showMap ? ' map-open' : ''}`}>

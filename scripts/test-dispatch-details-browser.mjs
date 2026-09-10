@@ -8,6 +8,27 @@ try {
     await page.setViewportSize({width,height:1000});
     await page.goto(`${base}/tests/schedule-destinations.html?scenario=same-time&details=long`);
     await page.locator('.day-switcher button').first().click();
+    const add=page.getByRole('button',{name:'Add Appointment',exact:true});
+    await add.waitFor();
+    const addBox=await add.boundingBox();
+    assert.ok(addBox.x>=0 && addBox.x+addBox.width<=width+1 && addBox.height>=36,'primary action fits');
+    assert.equal(await add.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(200, 35, 51)');
+    await add.click();
+    const booking=page.getByRole('dialog',{name:'New Appointment',exact:true});
+    await booking.waitFor();
+    await booking.getByRole('button',{name:'Close',exact:true}).first().click();
+    const mapSwitch=page.getByRole('switch',{name:'Show map',exact:true});
+    assert.equal(await mapSwitch.getAttribute('aria-checked'),'true');
+    await mapSwitch.click();
+    assert.equal(await page.locator('.schedule-map-panel').count(),0);
+    assert.equal(await mapSwitch.getAttribute('aria-checked'),'false');
+    await mapSwitch.press('Space');
+    await page.locator('.schedule-map-panel').waitFor();
+    assert.equal(await mapSwitch.getAttribute('aria-checked'),'true');
+    assert.equal(await page.locator('.schedule-summary-button').first().getAttribute('aria-pressed'),'true');
+    const metrics=page.locator('.schedule-summary-strip');
+    assert.ok(await metrics.evaluate(el=>el.scrollWidth<=el.clientWidth+1),'all count filters fit without horizontal scrolling');
+    if(width===1440||width===390)await page.screenshot({path:`/tmp/schedule-hierarchy-${width}.png`});
     const block=page.locator('[data-schedule-appointment]').first();
     await block.waitFor();
     const orderButton=page.getByRole('button',{name:'Stop Order',exact:true});
@@ -20,6 +41,7 @@ try {
     const summary=page.getByRole('region',{name:'Selected job JK1001001',exact:true});
     await summary.waitFor();
     await page.waitForFunction(()=>document.querySelector('.selected-job-closest')?.textContent.includes('10 min'));
+    assert.equal(await summary.locator('.selected-job-closest.has-suggestion').count(),1);
     assert.match(await summary.innerText(),/Example appointment 1/);
     assert.match(await summary.innerText(),/Sofa, mattress/);
     assert.match(await summary.innerText(),/Use the side entrance/);
@@ -58,5 +80,5 @@ try {
   await page.goto(`${base}/tests/schedule-destinations.html?details=long`);
   await page.locator('[data-schedule-appointment]').first().click();
   assert.match(await page.locator('.selected-job-closest').innerText(),/Available for today only/);
-  console.log('Dispatch glance PASS: summary visible above board/map, one closest truck, stale/failed/address/future states, contact and source work/notes, 320–1440px, full drawer, Escape, zero writes.');
+  console.log('Schedule hierarchy and dispatch glance PASS: Add Appointment drawer, map switch, filter state, summary visible above board/map, one closest truck, stale/failed/address/future states, contact and source work/notes, 320–1440px, full drawer, Escape, zero writes.');
 } finally {await browser.close();}

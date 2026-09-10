@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import type { DesktopLiveProps } from '@/lib/live-contract';
+import type { DesktopKpi, DesktopLiveProps } from '@/lib/live-contract';
 import LiveControl from '../live-control';
 import MaintenanceMonitor from '../maintenance-monitor';
 import LivePhotoReview from '../live-photo-review';
@@ -292,11 +292,7 @@ const launcherCommands: LauncherCommand[] = [
   { id: 'source-health', label: 'View Source Health', description: 'Check source freshness and connection status.', workspace: 'Monitor', keywords: 'source health systems connected freshness monitor', icon: ShieldCheck },
 ];
 
-const commandKpis = [
-  { label: 'Completed jobs', value: '2', detail: 'Goal: 8.4 jobs', progress: 24, tone: 'critical' },
-  { label: 'Active trucks', value: '2', detail: '2 of 9 producing revenue', progress: 22, tone: 'healthy' },
-  { label: 'Revenue / truck', value: '$379.56', detail: 'Goal: $2,739.73', progress: 14, tone: 'critical' },
-  { label: 'Profit / job', value: '$25.55', detail: 'Goal: $130.00', progress: 20, tone: 'critical' },
+const commandKpis: DesktopKpi[] = [
   {
     label: 'Today’s jobs', value: '16', detail: '2 jobs · 0 estimates · 14 unclosed', progress: 100, tone: 'warning',
     segments: [
@@ -305,9 +301,10 @@ const commandKpis = [
       { label: 'Unclosed', value: 87.5, tone: 'critical' },
     ],
   },
-  { label: 'Revenue plan', value: '$759.11', detail: '14% of $5,479.45', progress: 14, tone: 'critical' },
-  { label: 'Labor', value: '$552.33', detail: '9.1% projected · Goal: under 16%', progress: 57, tone: 'healthy' },
-  { label: 'Crew coverage', value: '10', detail: 'Clocked in or assigned to jobs', progress: 100, tone: 'healthy' },
+  { label: 'Revenue', value: '$759.11', secondaryValue: '$379.56 / truck', detail: '14% of $5,479.45', progress: 14, tone: 'critical' },
+  { label: 'Labor', value: '72.8%', secondaryValue: '$552.33 payroll', detail: 'Goal: under 16%', progress: 100, tone: 'critical' },
+  { label: 'Revenue Per Hour (RPH)', value: '$30.36', detail: '25.0 labor hours', progress: 100, tone: 'healthy' },
+  { label: 'Average Job Size (AJS)', value: '$379.56', detail: 'Goal: $650.00', progress: 58, tone: 'critical' },
 ];
 
 const referenceWorkItems: WorkItem[] = [
@@ -1317,7 +1314,6 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const commandClosedEstimates = addedClosedEstimates;
   const commandUnclosedAppointments = Math.max(0, 14 - addedCompletedJobs - addedClosedEstimates);
   const commandKpiRows = live?.snapshot.kpis ?? commandKpis.map((kpi) => {
-    if (kpi.label === 'Completed jobs') return { ...kpi, value: String(commandCompletedJobs) };
     if (kpi.label !== 'Today’s jobs') return kpi;
     return {
       ...kpi,
@@ -3920,7 +3916,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       setFleetView(label === 'Revenue / truck' ? 'reports' : 'overview');
       return;
     }
-    if (label === 'Profit / job' || label === 'Revenue plan') {
+    if (label === 'Revenue' || label === 'Average Job Size (AJS)') {
       setActiveNav('Finance');
       setFinanceView('overview');
       return;
@@ -3928,8 +3924,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     setActiveNav('Krewe');
     setKreweView('today');
     setScheduleDay('today');
-    setOperatingDate('2026-08-31');
-    setCalendarDateDraft('2026-08-31');
+    setOperatingDate(live?.snapshot.date || '2026-08-31');
+    setCalendarDateDraft(live?.snapshot.date || '2026-08-31');
   };
   const alertNeedsControl = (item: WorkItem) => alertWorkflowStatus(item) === 'Active';
   const addAlertToControl = (item: WorkItem) => {
@@ -4300,11 +4296,12 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
 
           {live?.error && <p className="appointment-create-error" role="alert">{live.error}</p>}
 
-          {activeNav === 'Command' && <section className="metric-strip" aria-label="Today at a glance">
+          {activeNav === 'Command' && <section className="metric-strip command-metrics" aria-label="Today at a glance">
             {commandKpiRows.map((kpi) => (
-              <button type="button" className={`kpi-card ${kpi.tone}`} disabled={mutationBusy} onClick={() => openCommandKpi(kpi.label)} aria-label={`Open ${kpi.label} details`} key={kpi.label}>
+              <button type="button" className={`kpi-card ${kpi.tone}${kpi.label === 'Labor' ? ' labor-kpi' : ''}`} disabled={mutationBusy} onClick={() => openCommandKpi(kpi.label)} aria-label={`Open ${kpi.label} details`} key={kpi.label}>
                 <div className="kpi-heading"><span>{kpi.label}</span><span className="kpi-card-affordance"><i className={`kpi-dot ${kpi.tone}`} /><ArrowRight size={12} /></span></div>
                 <strong>{kpi.value}</strong>
+                {kpi.secondaryValue && <span className="kpi-secondary">{kpi.secondaryValue}</span>}
                 <div className="kpi-meter" role="progressbar" aria-label={`${kpi.label}: ${kpi.detail}`} aria-valuenow={kpi.progress} aria-valuemin={0} aria-valuemax={100}>
                   {kpi.segments ? kpi.segments.map((segment) => (
                     <i key={segment.label} className={segment.tone} style={{ width: `${segment.value}%` }} title={`${segment.label}: ${segment.value}%`} />

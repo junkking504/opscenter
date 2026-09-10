@@ -25,8 +25,22 @@ assert.equal(desktopReleaseMode('MAC_MINI_PREVIEW', 'reference', 'http://localho
 assert.equal(desktopReleaseMode('MAC_MINI_PREVIEW', 'reference', 'http://localhost:3104/desktop?data=reference'), 'reference');
 assert.equal(desktopReleaseMode('MAC_MINI_PREVIEW', 'reference', 'https://ops.junk-king.app/desktop?data=reference'), 'command-live');
 const missing = desktopCommandKpis(null, null, 0);
-assert.equal(missing.length, 8);
+assert.equal(missing.length, 5);
 assert.ok(missing.every(kpi => kpi.value === '—'), 'An unavailable source must never be displayed as zero or a prototype value');
+const metrics = { total_revenue: 1200, total_payroll: 180, completed_jobs: 3, revenue_by_truck: { 'Truck 3': 800, 'Truck 9': 400 }, employee_leaderboard: [{ hours_worked: 4 }, { hours_for_rph: 6, hours_worked: 8 }] };
+const cards = desktopCommandKpis(metrics, null, 2);
+assert.deepEqual(cards.map(card => card.label), ['Today’s jobs', 'Revenue', 'Labor', 'Revenue Per Hour (RPH)', 'Average Job Size (AJS)']);
+assert.equal(cards[1].value, '$1,200.00');
+assert.equal(cards[1].secondaryValue, '$600.00 / truck');
+assert.equal(cards[2].value, '15.0%');
+assert.equal(cards[2].secondaryValue, '$180.00 payroll');
+assert.equal(cards[3].value, '$120.00', 'RPH uses total revenue divided by total labor hours');
+assert.equal(cards[4].value, '$400.00', 'AJS uses completed jobs, excluding estimates and open appointments');
+for (const employee_leaderboard of [[], [{ hours_worked: 0 }], [{ hours_worked: 2 }, {}]]) {
+  assert.equal(desktopCommandKpis({ ...metrics, employee_leaderboard }, null, 2)[3].value, '—');
+}
+assert.equal(desktopCommandKpis({ ...metrics, completed_jobs: 0 }, null, 2)[4].value, '—');
+assert.equal(desktopCommandKpis({ ...metrics, total_revenue: 0 }, null, 2)[2].value, '—');
 const schedule = { scheduled: 12, completedJobs: 4, closedEstimates: 2, closed: 6, unclosed: 6 };
 const jobs = desktopCommandKpis(null, schedule, 0).find(kpi => kpi.label === 'Today’s jobs')!;
 assert.equal(jobs.value, '12');

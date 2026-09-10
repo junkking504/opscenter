@@ -2,6 +2,7 @@ export type DesktopSourceHealth = { name: string; area: string; workspace: strin
 export type DesktopKpi = {
   label: string;
   value: string;
+  secondaryValue?: string;
   detail: string;
   progress: number;
   tone: 'healthy' | 'warning' | 'critical';

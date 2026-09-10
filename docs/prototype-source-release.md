@@ -1,5 +1,20 @@
 # Approved Desktop Source Release
 
+## Command daily metrics (September 10)
+
+Command displays Today’s Jobs, Revenue, Labor, Revenue Per Hour (RPH), and
+Average Job Size (AJS) in one desktop row. Revenue includes revenue per
+producing truck as a secondary value. Labor emphasizes current payroll as a
+percentage of revenue, with payroll dollars beneath it. Narrow screens keep
+one horizontally scrollable row.
+
+RPH divides the daily revenue by summed employee labor hours, using each
+employee's published `hours_for_rph` when available, then worked hours. Missing
+or nonpositive total hours leave RPH unavailable. AJS divides the same revenue
+by completed revenue jobs; estimates and open appointments do not enter its
+denominator. Zero completed jobs leave AJS unavailable. Existing revenue, payroll,
+schedule, and producing-truck sources remain authoritative.
+
 ## Workspace navigation performance (September 9)
 
 Marketing prepares its displayed lead/review rows only when a new snapshot

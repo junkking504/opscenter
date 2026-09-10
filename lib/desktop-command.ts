@@ -11,7 +11,6 @@ import {truckLoadTrackingAlerts} from './truck-load-tracking-alerts';
 import { readJobRows } from './desktop-schedule-source';
 import { readDesktopSourceHealth } from '@/lib/desktop-source-health';
 import { readMetrics, completedJobs, crewRows, truckRows, money, type AnyRecord } from '@/lib/opsData';
-import { workedOrAttributedToJobToday } from '@/lib/crew-attendance';
 import { buildCommandMapData, summarizeCommandSchedule } from '@/lib/command-map-data';
 import { dailyRevenueTarget, operatingTargets } from '@/lib/operating-targets';
 import { readSlackDailyDigest } from '@/lib/slack-digest';
@@ -31,41 +30,35 @@ function number(value: unknown): number | null {
 }
 const progress = (actual: number | null, target: number) => actual == null || target <= 0 ? 0 : Math.max(0, Math.min(100, actual / target * 100));
 const amount = (value: number | null) => value == null ? '—' : money(value);
-const count = (value: number | null) => value == null ? '—' : String(value);
 const tone = (value: number | null, target: number): DesktopKpi['tone'] => value == null || target <= 0 ? 'warning' : value >= target ? 'healthy' : 'critical';
 
-// The cards retain the approved labels and layout; missing evidence is not zero.
-export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnType<typeof summarizeCommandSchedule> | null, visibleTrucks: number): DesktopKpi[] {
+// Keep the daily metrics together; missing evidence is not zero.
+export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnType<typeof summarizeCommandSchedule> | null, _visibleTrucks: number): DesktopKpi[] {
   const crew = metrics ? crewRows(metrics) : [];
   const trucks = metrics ? truckRows(metrics) : [];
-  const activeCrew = metrics ? crew.filter(row => workedOrAttributedToJobToday(row)).length : null;
   const activeTrucks = metrics ? trucks.filter(truck => Number(truck.revenue) > 0).length : null;
   const revenue = number(metrics?.total_revenue ?? metrics?.gross_revenue);
   const payroll = number(metrics?.total_payroll ?? metrics?.payroll);
-  const profit = number(metrics?.net_profit);
   const jobs = metrics ? completedJobs(metrics) : null;
   const plan = dailyRevenueTarget();
-  const jobsGoal = plan / operatingTargets.averageJobSize;
   const revenuePerTruck = revenue != null && activeTrucks ? revenue / activeTrucks : null;
-  const revenuePerTruckGoal = activeTrucks ? plan / activeTrucks : 0;
-  const profitPerJob = profit != null && jobs ? profit / jobs : null;
-  const profitPerJobGoal = operatingTargets.averageJobSize * operatingTargets.minOperatingMarginPercent / 100;
+  const crewHours = crew.map(row => number(row.hours_for_rph ?? row.hours_worked ?? row.employee_hours ?? row.hours ?? row.total_hours ?? row.clocked_hours ?? row.labor_hours));
+  const laborHours = crewHours.length && crewHours.every(hours => hours != null && hours >= 0)
+    ? crewHours.reduce<number>((total, hours) => total + (hours ?? 0), 0) : null;
+  const revenuePerHour = revenue != null && laborHours != null && laborHours > 0 ? revenue / laborHours : null;
+  const averageJobSize = revenue != null && jobs != null && jobs > 0 ? revenue / jobs : null;
   const payrollPercent = payroll != null && revenue != null && revenue > 0 ? payroll / revenue * 100 : null;
-  const totalTrucks = Math.max(visibleTrucks, trucks.length);
   const scheduleCount = schedule?.scheduled || 0;
   return [
-    { label: 'Completed jobs', value: count(jobs), detail: `Goal: ${jobsGoal.toFixed(1)} jobs`, progress: progress(jobs, jobsGoal), tone: tone(jobs, jobsGoal) },
-    { label: 'Active trucks', value: count(activeTrucks), detail: activeTrucks == null ? 'Source unavailable' : `${activeTrucks} of ${totalTrucks} producing revenue`, progress: progress(activeTrucks, totalTrucks), tone: activeTrucks ? 'healthy' : 'warning' },
-    { label: 'Revenue / truck', value: amount(revenuePerTruck), detail: revenuePerTruckGoal ? `Goal: ${money(revenuePerTruckGoal)}` : 'Waiting for producing trucks', progress: progress(revenuePerTruck, revenuePerTruckGoal), tone: tone(revenuePerTruck, revenuePerTruckGoal) },
-    { label: 'Profit / job', value: amount(profitPerJob), detail: `Goal: ${money(profitPerJobGoal)}`, progress: progress(profitPerJob, profitPerJobGoal), tone: tone(profitPerJob, profitPerJobGoal) },
     { label: 'Today’s jobs', value: schedule ? String(schedule.scheduled) : '—', detail: schedule ? `${schedule.completedJobs} completed jobs · ${schedule.closedEstimates} closed estimates · ${schedule.unclosed} open` : 'Schedule source unavailable', progress: schedule ? 100 : 0, tone: schedule && schedule.unclosed === 0 ? 'healthy' : 'warning', segments: schedule ? [
       { label: 'Completed Jobs', value: progress(schedule.completedJobs, scheduleCount), tone: 'healthy' },
       { label: 'Closed Estimates', value: progress(schedule.closedEstimates, scheduleCount), tone: 'warning' },
       { label: 'Unclosed', value: progress(schedule.unclosed, scheduleCount), tone: 'critical' },
     ] : undefined },
-    { label: 'Revenue plan', value: amount(revenue), detail: revenue == null ? 'Revenue source unavailable' : `${Math.round(revenue / plan * 100)}% of ${money(plan)}`, progress: progress(revenue, plan), tone: tone(revenue, plan) },
-    { label: 'Labor', value: amount(payroll), detail: payrollPercent == null ? 'Percentage unavailable · Waiting for source' : `${payrollPercent.toFixed(1)}% current · Goal: under ${operatingTargets.maxPayrollPercent}%`, progress: progress(payrollPercent, operatingTargets.maxPayrollPercent), tone: payrollPercent == null ? 'warning' : payrollPercent < operatingTargets.maxPayrollPercent ? 'healthy' : 'critical' },
-    { label: 'Crew coverage', value: count(activeCrew), detail: 'Clocked in or attributed to jobs', progress: progress(activeCrew, crew.length), tone: activeCrew ? 'healthy' : 'warning' },
+    { label: 'Revenue', value: amount(revenue), secondaryValue: `${amount(revenuePerTruck)} / truck`, detail: revenue == null ? 'Revenue source unavailable' : `${Math.round(revenue / plan * 100)}% of ${money(plan)}`, progress: progress(revenue, plan), tone: tone(revenue, plan) },
+    { label: 'Labor', value: payrollPercent == null ? '—' : `${payrollPercent.toFixed(1)}%`, secondaryValue: `${amount(payroll)} payroll`, detail: payrollPercent == null ? 'Percentage unavailable · Waiting for source' : `Goal: under ${operatingTargets.maxPayrollPercent}%`, progress: progress(payrollPercent, operatingTargets.maxPayrollPercent), tone: payrollPercent == null ? 'warning' : payrollPercent < operatingTargets.maxPayrollPercent ? 'healthy' : 'critical' },
+    { label: 'Revenue Per Hour (RPH)', value: amount(revenuePerHour), detail: revenuePerHour == null ? 'Waiting for revenue and labor hours' : `${laborHours!.toFixed(1)} labor hours`, progress: revenuePerHour == null ? 0 : 100, tone: revenuePerHour == null ? 'warning' : 'healthy' },
+    { label: 'Average Job Size (AJS)', value: amount(averageJobSize), detail: `Goal: ${money(operatingTargets.averageJobSize)}`, progress: progress(averageJobSize, operatingTargets.averageJobSize), tone: tone(averageJobSize, operatingTargets.averageJobSize) },
   ];
 }
 

@@ -270,7 +270,7 @@ export function deriveTruckLoadStatus(date: string, truck: string, sourceEvents:
   const startingEvent = events.filter((event) => event.kind === "day_start").at(-1) || null;
   let currentLoadFraction = startingEvent?.loadFraction || 0;
   let currentContents = startingEvent?.contents || "";
-  let currentBedloadFraction = 0;
+  let currentBedloadFraction = startingEvent?.bedloadFraction || 0;
   for (const event of events) {
     if (event.kind === "day_start") continue;
     if (event.kind === "yard_reset") {

@@ -72,7 +72,8 @@ export function readDesktopSchedule(date: string) {
   // dispatch move, without modifying JunkWare or inventing a ledger event.
   if (fleet.isToday) for (const job of appointments) {
     const presence = currentGpsPresence(job, fleet.trucks, appointments);
-    if (presence) Object.assign(job, { hasVisit: true, truckOnSite: true, onsiteTruck: presence.truck, lastSeenOnsiteTruck: undefined, lastSeenOnsiteAt: undefined });
+    if (presence?.current) Object.assign(job, { hasVisit: true, truckOnSite: true, onsiteTruck: presence.truck, lastSeenOnsiteTruck: undefined, lastSeenOnsiteAt: undefined });
+    else if (presence && !job.truckOnSite) Object.assign(job, { hasVisit: true, truckOnSite: false, onsiteTruck: undefined, lastSeenOnsiteTruck: presence.truck, lastSeenOnsiteAt: presence.observedAt });
   }
   return {
     date,

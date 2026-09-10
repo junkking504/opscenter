@@ -21,7 +21,7 @@ export function currentGpsPresence(job: PresenceJob, trucks: PresenceTruck[], ap
   if (!job.location || /cancel|completed|closed/i.test(job.status || '')) return undefined;
   const candidates = trucks.flatMap(truck => {
     const stamp = Date.parse(truck.lastGpsUpdate || '');
-    if (!Number.isFinite(stamp) || stamp > now + 60_000 || now - stamp > 10 * 60_000 || truck.latitude == null || truck.longitude == null) return [];
+    if (!Number.isFinite(stamp) || stamp > now + 60_000 || now - stamp > 12 * 3600_000 || truck.latitude == null || truck.longitude == null) return [];
     const position = { latitude: truck.latitude, longitude: truck.longitude };
     if (!eligible(job, truck) || distance(position, job.location!) > 125) return [];
     const nearby = appointments.filter(row => eligible(row, truck) && distance(position, row.location!) <= 125);
@@ -30,7 +30,7 @@ export function currentGpsPresence(job: PresenceJob, trucks: PresenceTruck[], ap
       .filter(point => Number.isFinite(point.time) && point.time <= now + 60_000 && now - point.time < 12 * 3600_000)
       .sort((a, b) => a.time - b.time);
     const latest = points.at(-1);
-    if (!latest || now - latest.time > 10 * 60_000 || distance(latest, job.location!) > 125) return [];
+    if (!latest || now - latest.time > 12 * 3600_000 || distance(latest, job.location!) > 125) return [];
     let arrival = latest.time, count = 1;
     for (let i = points.length - 2; i >= 0; i--) {
       const point = points[i];
@@ -41,7 +41,7 @@ export function currentGpsPresence(job: PresenceJob, trucks: PresenceTruck[], ap
       arrival = point.time;
     }
     return count >= 2 && latest.time - arrival >= 2 * 60_000
-      ? [{ truck: truckLabel(truck.truck), arrival: new Date(arrival).toISOString(), observedAt: latest.timestamp }] : [];
+      ? [{ truck: truckLabel(truck.truck), arrival: new Date(arrival).toISOString(), observedAt: latest.timestamp, current: now - stamp <= 10 * 60_000 && now - latest.time <= 10 * 60_000 }] : [];
   });
   return candidates.length === 1 ? candidates[0] : undefined;
 }

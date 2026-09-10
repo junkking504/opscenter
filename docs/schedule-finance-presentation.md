@@ -428,7 +428,10 @@ cache. Unknown or conflicting addresses remain unverified, never city centroids.
 Schedule also reconciles recent continuous GPS dwell against current verified
 pins: two distinct reports spanning at least two minutes inside 125 meters,
 no uncovered gap over five minutes, and latest GPS at most ten minutes old.
-A matching assigned truck can arrive early. Other trucks require an eligible
+A matching assigned truck can arrive early. If the latest parked report ages
+beyond ten minutes, the same dwell remains last-reported-on-site (up to twelve
+hours within the current service day); it never gains a live pulse. A newer
+position outside the appointment clears this fallback. Other trucks require an eligible
 appointment window. Multiple eligible nearby appointments or trucks remain
 ambiguous. This presence read does not change assignments or manufacture ledger
 arrival/departure events; the existing visit collector owns those events. Its

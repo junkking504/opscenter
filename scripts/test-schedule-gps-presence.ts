@@ -6,7 +6,8 @@ const points = [0,1,2,3].map(i => ({ ...job.location, timestamp: new Date(now - 
 const truck = { truck: 'Truck# 3', ...job.location, lastGpsUpdate: points.at(-1)!.timestamp, routePoints: points };
 assert.equal(currentGpsPresence(job, [truck], [job], now)?.truck, 'Truck 3');
 assert.equal(currentGpsPresence(job, [{ ...truck, routePoints: points.slice(-1) }], [job], now), undefined, 'One nearby point is a drive-by, not a visit');
-assert.equal(currentGpsPresence(job, [truck], [job], now + 11*60_000), undefined, 'Do not claim stale GPS is current');
+assert.equal(currentGpsPresence(job, [truck], [job], now + 11*60_000)?.current, false, 'Preserve stale dwell as last reported, never current');
+assert.equal(currentGpsPresence(job, [truck], [job], now + 13*3600_000), undefined, 'Old history must not become today current presence');
 assert.equal(currentGpsPresence(job, [truck], [job, { ...job, appointmentId: 'two' }], now), undefined, 'Two nearby appointments cannot be assigned the same inferred visit');
 assert.equal(currentGpsPresence(job, [truck, { ...truck, truck: 'Truck 6' }], [job], now), undefined, 'Multiple trucks need resolved visit evidence');
 assert.equal(currentGpsPresence(job, [{ ...truck, latitude: 30.4 }], [job], now), undefined, 'Current position outside clears fallback');

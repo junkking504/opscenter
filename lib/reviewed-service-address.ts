@@ -1,3 +1,4 @@
+import { fullFieldStreetAddress } from './appointment-partner';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
@@ -5,7 +6,7 @@ import type { PlanningLocation } from './planning-geocodes';
 
 // Reviewed evidence is runtime data, preserved across releases. Scope each
 // correction to the entire original field, including house, locality and ZIP.
-export const reviewedAddressIdentity = (address: string) => address.toUpperCase().replace(/\b(?:LA|LOUISIANA)\s+(?=\d{5}\b)/g, '').replace(/[^A-Z0-9#]+/g, ' ').trim();
+export const reviewedAddressIdentity = (address: string) => fullFieldStreetAddress(address).toUpperCase().replace(/\b(?:LA|LOUISIANA)\s+(?=\d{5}\b)/g, '').replace(/[^A-Z0-9#]+/g, ' ').trim();
 export function reviewedServiceAddress(address: string): { location: PlanningLocation; reason: string; verifiedAddress: string } | undefined {
   const identity = reviewedAddressIdentity(address);
   const root = process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.env.HOME || '', '.openclaw/workspace/opsbot/data');

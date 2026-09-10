@@ -15,6 +15,7 @@ try {
   const row = {schema:1,status:'verified',originalAddress:address,verifiedAddress:address,location:{latitude:29.95,longitude:-90.1},sources:['https://example.org/verified-property']};
   fs.writeFileSync(file,JSON.stringify(row));
   assert.deepEqual(reviewedServiceAddress('100 Example St New Orleans 70125')?.location,row.location);
+  assert.deepEqual(reviewedServiceAddress('Example Business 100 Example St New Orleans LA 70125')?.location,row.location);
   assert.equal(reviewedServiceAddress('101 Example St New Orleans 70125'),undefined);
   assert.deepEqual(planningLocation(address,{old:{normalized_address:address,match_confidence:'confirmed',house_street_verified:true,latitude:30.1,longitude:-90.2}}),row.location,'Recorded correction takes precedence over stale cache');
   for (const bad of [{...row,status:'pending'},{...row,sources:[]},{...row,location:{latitude:40,longitude:-80}},{...row,originalAddress:'101 Example St New Orleans 70125'}]) {

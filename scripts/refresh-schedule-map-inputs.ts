@@ -33,7 +33,7 @@ async function main() {
     const date = file.match(/(\d{4}-\d{2}-\d{2})/)?.[1];
     if (date && date >= target) dates.add(date);
   }
-  const addresses = [...new Set([...dates].sort().flatMap(date => readJobRows(date).map(job => job.address)).filter(address => address && address !== '—'))];
+  const addresses = [...new Set([...dates].sort().flatMap(date => [...readJobRows(date).map(job => job.address), ...(readVerifiedJunkwareScheduleSnapshot(root, date)?.appointments || []).map(row => String(row.address || ''))]).filter(address => address && address !== '—'))];
   // Reviewed corrections must also reach the independently consumed visit
   // cache, even when an older collector still holds a conflicting entry.
   for (const address of addresses) {

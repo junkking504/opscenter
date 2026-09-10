@@ -28,6 +28,7 @@ try {
   const summary=page.getByRole('region',{name:'Selected job JK1001001',exact:true});
   assert.match(await summary.innerText(),/Canceled/);
   assert.doesNotMatch(await summary.innerText(),/Verify address first|Closest truck now|Checking distance/);
+  assert.doesNotMatch(await page.locator('.register-status').allTextContents().then(rows=>rows.join(' ')),/Closest truck|checking current distance/,'Canceled register status does not imply a pending address or route lookup');
   await summary.getByRole('button',{name:'Full details for JK1001001',exact:true}).click();
   await page.locator('.record-drawer').waitFor();
   assert.match(await page.locator('#fixture-writes').innerText(),/Writes: 0/);

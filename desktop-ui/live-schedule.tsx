@@ -251,7 +251,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     return closestAvailableTruck(routing.closest);
   };
   const closestTruckText = (job: ScheduleAppointment) => {
-    if (selectedId !== job.recordId) return '';
+    if (selectedId !== job.recordId || /cancel/i.test(job.status)) return '';
     if (snapshot?.fleet.isToday && !isClosed(job) && job.truckOnSite) return `${job.onsiteTruck || truckLabel(job.truck)} on site`;
     if (snapshot?.fleet.isToday && !isClosed(job) && job.lastSeenOnsiteTruck) return `${job.lastSeenOnsiteTruck} last reported on site · Awaiting fresh GPS`;
     if (routeState || routing?.appointmentId !== job.recordId) return 'Closest truck: checking current distance…';

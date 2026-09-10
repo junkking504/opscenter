@@ -33,6 +33,34 @@ try {
   assert.equal(readDesktopKrewe('2026-09-07','today','admin').missingDates.length,0);
   assert.ok(readDesktopKrewe('2026-09-05','payperiod','admin').members.some(row=>row.name==='Job Only'),'Today filtering must not remove period/month records');
 
+  // A blank JunkWare clock-out is an open shift, even if metrics carry a
+  // display label or an older clock-out. Only a recorded time closes it.
+  const clockDate='2026-09-07';
+  write(clockDate,[
+    {...employee,name:'CSV Open',clock_out:'On Shift'},
+    {...employee,name:'CSV Reopened',clock_out:'04:00 PM'},
+    {...employee,name:'Metrics Open',clock_out:'On Shift'},
+    {...employee,name:'Closed Shift'},
+  ]);
+  const clockDirectory=path.join(directory,'data/history/junkware');
+  fs.mkdirSync(clockDirectory,{recursive:true});
+  const clockFile=path.join(clockDirectory,`junkware_employees_${clockDate}_summary.csv`);
+  fs.writeFileSync(clockFile,'name,time_in,time_out\nCSV Open,08:00 AM,\nCSV Reopened,08:00 AM,\nClosed Shift,08:00 AM,04:00 PM\n');
+  const clockSnapshot=readDesktopKrewe(clockDate,'today','admin');
+  for(const name of ['CSV Open','CSV Reopened','Metrics Open']) {
+    const member=clockSnapshot.members.find(row=>row.name===name)!;
+    assert.equal(member.status,'Clocked in',name);
+    assert.equal(member.clockOut,'',`${name}: display text must not become a clock-out`);
+    assert.equal(member.days[0].clockOut,'');
+    assert.equal(member.issue,'Missing clock-out','Past open shifts retain the review flag');
+  }
+  const closed=clockSnapshot.members.find(row=>row.name==='Closed Shift')!;
+  assert.equal(closed.status,'Clocked out');
+  assert.equal(closed.clockOut,'04:00 PM');
+  assert.equal(readDesktopKrewe(clockDate,'today','operator').members.find(row=>row.name==='CSV Open')?.status,'Clocked in');
+  fs.unlinkSync(clockFile);
+  write(clockDate,[]);
+
   const missedDate='2026-08-26';
   const missed=readDesktopKreweDay(missedDate,employee.name,'2026-09-05','admin');
   assert.equal(missed.member.clockIn,''); assert.equal(missed.member.hourlyRate,null,'Never borrow another day’s rate');

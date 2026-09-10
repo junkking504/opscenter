@@ -348,6 +348,12 @@ cards and reconciliation totals, even if their roster row has attributed jobs
 or pay. Eligibility uses corrected period hours. Unavailable hours and missing
 clock-outs remain reviewable rather than being silently treated as zero.
 
+Krewe attendance uses a saved correction first, then the collected JunkWare
+clock-out field, then metrics when that field is absent. A collected blank
+stays an open shift; the metrics label `On Shift` is normalized to an empty
+clock-out rather than treated as a recorded punch. This applies to the Today
+roster, ranking, and employee detail without changing source timesheets.
+
 Validation: payroll breakdown and weekly-hours regression tests, production
 build, and authenticated preview checks of independent weekly expansion and
 the daily card layout passed before release.

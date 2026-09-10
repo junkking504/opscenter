@@ -86,7 +86,11 @@ function dayMembers(date: string, payroll: boolean): DesktopCrewMember[] {
   for(const correction of Object.values(payrollCorrectionsForDate(date))) if(!sourceRows.some(row=>keyOf(nameOf(row))===keyOf(correction.employeeName))) sourceRows.push({name:correction.employeeName});
   return sourceRows.filter(row=>nameOf(row)).map(row=>{
     const name=nameOf(row); const id=keyOf(name); const clock=clocks.find(item=>keyOf(nameOf(item))===id); const rate=rates.find(item=>keyOf(nameOf(item))===id);
-    const correction=payrollCorrectionForEmployee(date,name); const clockIn=correction?.clockIn || String(clock?.time_in || row.clock_in || row.time_in || row.clockIn || row.clock_in_display || row.timeIn || ''); const clockOut=correction ? correction.clockOut : String(clock?.time_out || row.clock_out || row.time_out || row.clockOut || row.clock_out_display || row.timeOut || '');
+    const correction=payrollCorrectionForEmployee(date,name); const clockIn=correction?.clockIn || String(clock?.time_in || row.clock_in || row.time_in || row.clockIn || row.clock_in_display || row.timeIn || '');
+    // A collected blank is an open shift, not permission to fall back to a
+    // metrics display label or an older clock-out. Corrections remain first.
+    const sourceClockOut=String(correction ? correction.clockOut : clock?.time_out ?? row.clock_out ?? row.time_out ?? row.clockOut ?? row.clock_out_display ?? row.timeOut ?? '').trim();
+    const clockOut=/^on\s+shift$/i.test(sourceClockOut)?'':sourceClockOut;
     const hourlyRate=correction?.hourlyRate ?? num(rate || row,['hourly_rate','hourly_rate_raw']);
     const week=hourHistory?.employees.find(employee=>employee.id===id)?.weeks.find(week=>week.start<=date&&week.end>=date);
     let calculation=correctedCrewPay({date,clockIn,clockOut,hourlyRate,corrected:Boolean(correction),isSalary:Boolean(row.is_salary),amounts:fields(row),week,sourcePriorHours:num(row,['weekly_hours_before_shift'])});

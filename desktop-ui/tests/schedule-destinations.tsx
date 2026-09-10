@@ -24,6 +24,7 @@ function appointments(date:string):ScheduleAppointment[] {
 }
 window.fetch=async(input,init)=>{
   const url=new URL(String(input),location.origin),date=url.searchParams.get('date') || '2026-09-08';
+  if(url.pathname==='/api/fleet-location-address') return Response.json({address:'100 Example St, Baton Rouge, Louisiana, 70802'});
   if(init?.method==='POST') {
     if(url.pathname==='/api/desktop/schedule/order' && JSON.parse(String(init.body)).action==='preview') return Response.json({ids:JSON.parse(String(init.body)).ids,legs:[]});
     if(url.pathname!=='/api/desktop/schedule/operations') return Response.json({error:'No other writes are enabled.'},{status:403});
@@ -40,7 +41,7 @@ window.fetch=async(input,init)=>{
     assignments.set(body.recordId,body.values.truck);
     return Response.json({receipt:{requestId:url.searchParams.get('requestId'),status:'verified',message:'Synthetic saved result verified.'}});
   }
-  if(url.pathname==='/api/desktop/schedule')return Response.json({date,observedAt:'2026-09-07T21:00:00Z',sourceRequest:{state:'ready',message:''},appointments:appointments(date),fleet:{isToday:longDetails && date==='2026-09-07',lastUpdatedAt:null,trucks:[]}});
+  if(url.pathname==='/api/desktop/schedule')return Response.json({date,observedAt:'2026-09-07T21:00:00Z',sourceRequest:{state:'ready',message:''},appointments:appointments(date),fleet:{isToday:scenario==='on-site' || longDetails && date==='2026-09-07',lastUpdatedAt:null,trucks:scenario==='on-site'?[{truck:'Truck 8',latitude:30.45,longitude:-91.18,lastGpsUpdate:new Date(Date.now()-300_000).toISOString(),freshnessLabel:'GPS Stale',operationalStatus:'GPS Stale',ignition:'OFF',driver:'Example Driver',navigator:'Example Navigator',serviceStatus:'Unavailable'}]:[]}});
   if(url.pathname==='/api/desktop/schedule/routes' && routeMode==='failed') return Response.json({error:'Synthetic unavailable routing'},{status:503});
   if(url.pathname==='/api/desktop/schedule/routes')return Response.json({date,calculatedAt:null,legs:[],closest:longDetails?Array.from({length:8},(_,index)=>({truck:`Truck ${index+1}`,status:routeMode==='stale'?'stale_gps':'available',minutes:10+index,miles:5+index,gpsUpdatedAt:null})):[],appointmentId:longDetails?url.searchParams.get('appointment'):null});
   return Response.json({error:'No operational sources are enabled in this fixture.'},{status:503});
@@ -50,7 +51,7 @@ function Fixture(){
   const [day,setDay]=useState<'today'|'tomorrow'>('tomorrow');
   const [,setVersion]=useState(0);
   useEffect(()=>{const update=()=>setVersion(value=>value+1);window.addEventListener('fixture-write',update);return()=>window.removeEventListener('fixture-write',update);},[]);
-  return <main className="ops-live" style={{padding:12}}><h1 style={{fontSize:16}}>Dispatch check · synthetic {scenario} day · no GPS records</h1><p id="fixture-writes" role="status">Writes: {writes.length}{writes.length?` · ${writes.at(-1)!.date} · ${writes.at(-1)!.recordId} → ${writes.at(-1)!.values.truck || 'Unassigned'}`:''}</p>{releaseVerification && <button onClick={()=>{releaseVerification?.();releaseVerification=undefined;}}>Release Verified Receipt</button>}<div className="workspace"><div className="workspace-heading schedule-workspace-heading"><div><span className="eyebrow">Synthetic preview</span><h1>Schedule</h1></div><div className="schedule-heading-actions"><div className="schedule-view-switcher workspace-tabs" role="group" aria-label="Schedule views"><button className="active">Board</button><button>Calendar</button><button>Follow-Up</button><button>History</button></div><div className="schedule-primary-action" ref={setActionHost}/></div></div></div><LiveSchedule actionHost={actionHost} baseDate="2026-09-07" day={day} onDayChange={setDay} report={()=>{}}/></main>;
+  return <main className="ops-live" style={{padding:12}}><h1 style={{fontSize:16}}>Dispatch check · synthetic {scenario} day · synthetic GPS only</h1><p id="fixture-writes" role="status">Writes: {writes.length}{writes.length?` · ${writes.at(-1)!.date} · ${writes.at(-1)!.recordId} → ${writes.at(-1)!.values.truck || 'Unassigned'}`:''}</p>{releaseVerification && <button onClick={()=>{releaseVerification?.();releaseVerification=undefined;}}>Release Verified Receipt</button>}<div className="workspace"><div className="workspace-heading schedule-workspace-heading"><div><span className="eyebrow">Synthetic preview</span><h1>Schedule</h1></div><div className="schedule-heading-actions"><div className="schedule-view-switcher workspace-tabs" role="group" aria-label="Schedule views"><button className="active">Board</button><button>Calendar</button><button>Follow-Up</button><button>History</button></div><div className="schedule-primary-action" ref={setActionHost}/></div></div></div><LiveSchedule actionHost={actionHost} baseDate="2026-09-07" day={day} onDayChange={setDay} report={()=>{}}/></main>;
 }
 const root=createRoot(document.getElementById('root')!);
 root.render(<Fixture/>);

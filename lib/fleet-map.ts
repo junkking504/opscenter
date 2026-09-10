@@ -585,11 +585,7 @@ function buildTruckRecord({
     longitude: lastPoint?.longitude ?? null,
     speed: lastPoint?.speed ?? null,
     ignition:
-      lastPoint?.speed != null && Number(lastPoint.speed) > 0
-        ? "On"
-        : routeStops.length > 0
-          ? "Off"
-          : "Unavailable",
+      lastPoint?.ignition?.trim() || (lastPoint?.speed != null && Number(lastPoint.speed) > 0 ? "On" : "Unavailable"),
     heading: lastPoint?.heading ?? null,
     lastGpsUpdate: latestTimestamp,
     gpsDeliveryMode: authority.mode,

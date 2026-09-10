@@ -56,8 +56,11 @@ function readSources(today: string) {
       let cached = fileCache.get(file);
       if (cached?.signature !== signature) {
         const payload = JSON.parse(fs.readFileSync(file, 'utf8'));
-        if (!Array.isArray(payload.appointments) || !Array.isArray(payload.completed) || !Array.isArray(payload.cancelled)) throw new Error('Incomplete archive');
-        const rows = ['appointments', 'completed', 'cancelled'].flatMap(key => payload[key] as Raw[]).flatMap(row => sourceRow(row, name.slice(9, 19), text(payload.scraped_at)) || []);
+        const buckets = ['appointments', 'completed', 'cancelled'];
+        // Older archives omit empty buckets. Retain their available records;
+        // malformed present buckets still fail instead of implying emptiness.
+        if (!buckets.some(key => Array.isArray(payload[key])) || buckets.some(key => payload[key] !== undefined && !Array.isArray(payload[key]))) throw new Error('Invalid archive');
+        const rows = buckets.flatMap(key => (payload[key] || []) as Raw[]).flatMap(row => sourceRow(row, name.slice(9, 19), text(payload.scraped_at)) || []);
         cached = { signature, rows }; fileCache.set(file, cached);
       }
       cached.rows.forEach(accept);

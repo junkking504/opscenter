@@ -5,6 +5,11 @@ overdue follow-ups, callbacks due today, unassigned estimates, and booking revie
 Counts cover the current and prior calendar months plus every estimate with saved
 OpsCenter follow-up history; All available history exposes older records.
 
+Sort by orders the full filtered queue by follow-up priority, estimate appointment
+date, quote amount, customer name, or next follow-up date. Each field supports
+both directions. Missing amounts and dates remain last; zero-dollar quotes are
+known values. The selected sort is retained in the page URL across reloads.
+
 The queue reads existing JunkWare raw daily archives and the verified current /
 next-day schedule observations. It starts from completed Estimate appointments,
 chooses the latest observation per appointment ID, and matches non-canceled Jobs

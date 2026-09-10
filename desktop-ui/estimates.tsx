@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AlertPhotos } from './components/alert-details';
 import { estimateHref, estimateInScope, estimateLabels, type EstimateChange, type EstimateDisposition, type EstimateRow, type EstimateSnapshot, type EstimateSummary } from './lib/estimate-contract';
+import { compareEstimates, estimateSortOptions, parseEstimateSort, type EstimateSort } from './lib/estimate-sort';
 import './estimates.css';
 
 const money = (value: number | null) => value == null ? 'Quote unavailable' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
@@ -21,6 +22,7 @@ export default function Estimates({ onBusyChange }: { onBusyChange?: (busy: bool
   const [loading, setLoading] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>(() => { const value = new URLSearchParams(window.location.search).get('estimateFilter') || 'needs'; return [...filters.map(item => item[0]),'overdue','due','unassigned'].includes(value) ? value as Filter : 'needs'; });
+  const [sort, setSort] = useState<EstimateSort>(() => parseEstimateSort(new URLSearchParams(window.location.search).get('estimateSort')));
   const [scope, setScope] = useState('recent');
   const [query, setQuery] = useState('');
   const [owner, setOwner] = useState('all');
@@ -39,19 +41,20 @@ export default function Estimates({ onBusyChange }: { onBusyChange?: (busy: bool
     finally { if (run === sequence.current) setLoading(false); }
   }
   useEffect(() => { void load().catch(() => {}); return () => { sequence.current += 1; }; }, []);
-  useEffect(() => { setLimit(50); }, [filter,query,owner,scope]);
+  useEffect(() => { setLimit(50); }, [filter,query,owner,scope,sort]);
   const changeBusy = (value: boolean) => { setBusy(value); onBusyChange?.(value); };
   const selectFilter = (value: Filter) => { setFilter(value); const url = new URL(window.location.href); url.searchParams.set('estimateFilter',value); window.history.replaceState({},'',url); };
+  const selectSort = (value: EstimateSort) => { setSort(value); const url = new URL(window.location.href); url.searchParams.set('estimateSort',value); window.history.replaceState({},'',url); };
   const scoped = snapshot?.rows.filter(row => scope === 'all' || estimateInScope(row,snapshot.recentStart)) || [];
   const searched = scoped.filter(row => (owner === 'all' || owner === 'unassigned' ? owner === 'all' || !row.followup.owner : row.followup.owner === owner) && [row.customer,row.jk,row.phone,row.address,row.territory,row.followup.reason,...row.notes].join(' ').toLowerCase().includes(query.trim().toLowerCase()));
-  const rows = searched.filter(row => matches(row,filter));
+  const rows = searched.filter(row => matches(row,filter)).sort((a,b) => compareEstimates(a,b,sort));
   const picked = snapshot?.rows.find(row => row.id === selected);
   return <section className="estimate-workspace" aria-label="Estimates across dates">
     <header className="estimate-heading"><div><span className="estimate-kicker">Customer follow-up · across dates</span><h2>Estimates</h2><p>Quotes given to customers, their next action, and the jobs they become.</p></div><button disabled={busy || loading} onClick={() => void load().catch(() => {})}>{loading ? 'Loading…' : 'Reload records'}</button></header>
     {error && <p className="estimate-error" role="alert">{error} {snapshot && 'The previous snapshot remains visible.'}</p>}
     {notice && <p className="estimate-save-message" role="status">{notice}</p>}
     {!snapshot && !error && <p role="status">Reading estimate history…</p>}
-    {snapshot && <><div className="estimate-toolbar"><label>Estimate dates<select value={scope} disabled={busy} onChange={event => setScope(event.target.value)}><option value="recent">Since {snapshot.recentStart} + tracked</option><option value="all">All available history</option></select></label><label>Search<input type="search" placeholder="Customer, JK, phone or notes" value={query} onChange={event => setQuery(event.target.value)} /></label><label>Owner<select value={owner} onChange={event => setOwner(event.target.value)}><option value="all">All owners</option><option value="unassigned">Unassigned</option>{[...new Set(snapshot.rows.map(row => row.followup.owner).filter(Boolean))].sort().map(value => <option key={value}>{value}</option>)}</select></label></div>
+    {snapshot && <><div className="estimate-toolbar"><label>Estimate dates<select value={scope} disabled={busy} onChange={event => setScope(event.target.value)}><option value="recent">Since {snapshot.recentStart} + tracked</option><option value="all">All available history</option></select></label><label>Search<input type="search" placeholder="Customer, JK, phone or notes" value={query} onChange={event => setQuery(event.target.value)} /></label><label>Owner<select value={owner} onChange={event => setOwner(event.target.value)}><option value="all">All owners</option><option value="unassigned">Unassigned</option>{[...new Set(snapshot.rows.map(row => row.followup.owner).filter(Boolean))].sort().map(value => <option key={value}>{value}</option>)}</select></label><label>Sort by<select aria-label="Sort estimates by" value={sort} onChange={event => selectSort(parseEstimateSort(event.target.value))}>{estimateSortOptions.map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label></div>
       <nav className="estimate-filters" aria-label="Estimate status">{filters.map(([value,label]) => <button key={value} aria-pressed={filter === value} onClick={() => selectFilter(value)}>{label}<b>{searched.filter(row => matches(row,value)).length}</b></button>)}{['overdue','due','unassigned'].includes(filter) && <button aria-pressed="true" onClick={() => selectFilter('needs')}>{filter === 'due' ? 'Due today' : filter === 'overdue' ? 'Overdue' : 'Unassigned'} · Clear ×</button>}</nav>
       <p className="estimate-coverage">{snapshot.coverage.files} saved source days · Read {stamp(snapshot.generatedAt)}. Booking checks span dates; missing links need review because history can be incomplete or stale.{snapshot.coverage.unreadable > 0 && ` ${snapshot.coverage.unreadable} source files could not be read.`} Quote amounts are not revenue.</p>
       {picked && <EstimateDetail key={`${picked.id}:${picked.version}`} row={picked} canWrite={snapshot.canWrite && !error} actor={snapshot.actor} busyChange={changeBusy} close={() => setSelected(null)} reload={load} saved={() => setNotice(`Follow-up for ${picked.jk || picked.id} saved and verified.`)} />}

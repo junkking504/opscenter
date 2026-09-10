@@ -23,6 +23,7 @@ function appointments(date:string):ScheduleAppointment[] {
 }
 window.fetch=async(input,init)=>{
   const url=new URL(String(input),location.origin),date=url.searchParams.get('date') || '2026-09-08';
+  if(url.pathname==='/api/fleet-location-address') return Response.json({address:'100 Example St, Baton Rouge, Louisiana, 70802'});
   if(init?.method==='POST') {
     if(url.pathname==='/api/desktop/schedule/order' && JSON.parse(String(init.body)).action==='preview') return Response.json({ids:JSON.parse(String(init.body)).ids,legs:[]});
     if(url.pathname!=='/api/desktop/schedule/operations') return Response.json({error:'No other writes are enabled.'},{status:403});
@@ -39,7 +40,7 @@ window.fetch=async(input,init)=>{
     assignments.set(body.recordId,body.values.truck);
     return Response.json({receipt:{requestId:url.searchParams.get('requestId'),status:'verified',message:'Synthetic saved result verified.'}});
   }
-  if(url.pathname==='/api/desktop/schedule')return Response.json({date,observedAt:'2026-09-07T21:00:00Z',sourceRequest:{state:'ready',message:''},appointments:appointments(date),fleet:{isToday:false,lastUpdatedAt:null,trucks:[]}});
+  if(url.pathname==='/api/desktop/schedule')return Response.json({date,observedAt:'2026-09-07T21:00:00Z',sourceRequest:{state:'ready',message:''},appointments:appointments(date),fleet:{isToday:scenario==='on-site',lastUpdatedAt:null,trucks:scenario==='on-site'?[{truck:'Truck 8',latitude:30.45,longitude:-91.18,lastGpsUpdate:new Date(Date.now()-300_000).toISOString(),freshnessLabel:'GPS Stale',operationalStatus:'GPS Stale',ignition:'OFF',driver:'Example Driver',navigator:'Example Navigator',serviceStatus:'Unavailable'}]:[]}});
   if(url.pathname==='/api/desktop/schedule/routes')return Response.json({date,calculatedAt:null,legs:[],closest:longDetails?Array.from({length:8},(_,index)=>({truck:`Truck ${index+1}`,status:'available',minutes:10+index,miles:5+index,gpsUpdatedAt:null})):[],appointmentId:longDetails?url.searchParams.get('appointment'):null});
   return Response.json({error:'No operational sources are enabled in this fixture.'},{status:503});
 };

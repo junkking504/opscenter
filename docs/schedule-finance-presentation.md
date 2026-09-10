@@ -363,3 +363,18 @@ Validation: `node --import tsx scripts/test-schedule-source-estimate.ts` and
 Alias evidence: [FMOL General Surgery](https://www.fmolhs.org/locations/greater-baton-rouge/our-lady-of-the-lake-physician-group-general-surgery---ascension) and [FMOL Thoracic Surgery](https://www.fmolhs.org/locations/greater-baton-rouge/our-lady-of-the-lake-physician-group-thoracic-surgery---ascension). These are documentation sources, not runtime geocoding providers.
 
 Deployment startup allowance: a cold all-market JunkWare initialization measured 211.5 seconds on September 9. The detector installer permits up to five minutes for startup while still requiring a verified completion timestamp newer than its restart. Normal polling and data-freshness thresholds are unchanged.
+
+
+### Selected truck position and overlapping locators
+
+The desktop truck card resolves the selected GPS point through Fleet's existing
+OpenStreetMap address endpoint and displays its report time, age and reported
+ignition. A recent collector refresh does not make an old position current.
+Address lookups are limited to the selected point; unavailable addresses remain
+explicit. Public Google Maps links do not call Google APIs.
+
+Overlapping appointment/truck icons receive deterministic screen offsets with
+leader lines to their unchanged geographic anchors. Each icon selects its own
+record directly. Zooming apart removes offsets; map focus uses true coordinates.
+Reviewed service-complex corrections belong in the runtime geocode cache with
+source, precision and previous-value provenance; they do not verify a unit rooftop.

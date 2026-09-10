@@ -26,3 +26,4 @@ assert.equal(correctedCrewPay({...input,corrected:false,week:missingEarlier,sour
 assert.equal(correctedCrewPay({...input,clockOut:'05:00 AM'}).amounts.totalPay,null);
 assert.equal(correctedCrewPay({...input,week:{...week,days:week.days.map(d=>({...d,corrected:false,hours:0}))}}).amounts.totalPay,219.73,'A known zero-hour week remains straight-time');
 console.log('Corrected pay passed: weekly overtime, later-day impact, source preservation, missing history/components, salary and invalid time.');
+assert.match(correctedCrewPay({...input,corrected:false,week:missingEarlier}).issue,/correction on 2026-08-31/, 'Later-day warnings identify the actual correction date');

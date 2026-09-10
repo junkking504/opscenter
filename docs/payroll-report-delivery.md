@@ -72,3 +72,15 @@ Validation: `npm run verify:payroll-review` covers scheduled flagged output,
 nulls, off-period Mondays, time-of-day and daylight-saving boundaries, and
 exclusive reservations with verified-only completion. Paid providers are not
 used in tests.
+
+### Review flags and shared source gaps
+
+Missing daily snapshots are period-level warnings, not employee errors or a
+reason to include an otherwise zero-hour roster entry. Employee-specific unknown
+hours and missing clock-outs remain eligible for review. Reviewed exports remain
+blocked while shared source dates are missing; draft CSVs preserve those gaps.
+Employee review items are grouped by work date, retaining specific causes instead
+of separately counting incomplete daily and period totals caused by the same
+problem. Failed JunkWare corrections show the verifier's reason. A later day's
+pay warning identifies the earlier correction date; unverified pay remains
+unavailable until the supporting weekly records and correction are resolved.

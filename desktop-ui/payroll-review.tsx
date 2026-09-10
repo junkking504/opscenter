@@ -18,7 +18,7 @@ export default function PayrollReview({ hours, payroll, unavailable, pending, se
   const missing = [...new Set([...hours.missingDates, ...payroll.missingDates])].sort();
   const warnings = [
     ...(hours.end >= today ? ['This pay period is still in progress. Export a draft for the recorded amounts so far.'] : []),
-    ...(missing.length ? [`Daily sources unavailable: ${missing.join(', ')}.`] : []),
+    ...(missing.length ? [`Shared source gap: ${missing.join(', ')}. Totals cover available records only; reviewed export waits for these dates.`] : []),
     ...(payroll.excludedPayNames?.length ? [`Zero-hour employees have recorded pay and are excluded from totals: ${payroll.excludedPayNames.join(', ')}. Review their time records.`] : []),
     ...(unavailable ? ['Refresh failed. Retrieve current records before exporting reviewed totals.'] : []),
   ];
@@ -58,7 +58,7 @@ export default function PayrollReview({ hours, payroll, unavailable, pending, se
       <td><input type="checkbox" aria-label={`Reviewed ${row.name}`} checked={reviewed.includes(row)} disabled={!canReview || row.issues.length > 0} onChange={event => setMarks(previous => ({ ...previous, [row.id]: event.target.checked ? row.signature : '' }))} /></td>
       <th scope="row"><button onClick={() => onOpen(row.id)}>{row.name}</button><small>{hoursText(row.hours)} total hrs</small></th>
       <td>{hoursText(row.weeks[0]?.hours ?? null)}</td><td>{hoursText(row.weeks[1]?.hours ?? null)}</td><td>{hoursText(row.regular)} reg<small className="payroll-ot-hours">{hoursText(row.overtime)} OT</small></td><td>{money(row.pay.labor)}</td><td>{money(row.pay.tips)}</td><td>{money(row.pay.bonuses)}</td><td>{money(row.pay.supplemental)}</td><td><strong>{money(row.pay.totalPay)}</strong></td>
-      <td>{row.issues.length ? <details><summary>{row.issues.length} flags</summary><ul>{row.issues.map(issue => <li key={`${issue.date}:${issue.message}`}>{issue.date && <strong>{issue.date}: </strong>}{issue.message}</li>)}</ul></details> : <span>{reviewed.includes(row) ? 'Reviewed' : 'Ready to review'}</span>}<button onClick={() => onOpen(row.id)}>Source days</button></td>
+      <td>{row.issues.length ? <details><summary>{row.issues.length} {row.issues.length === 1 ? 'item' : 'items'} to review</summary><ul>{row.issues.map(issue => <li key={`${issue.date}:${issue.message}`}>{issue.date && <strong>{issue.date}: </strong>}{issue.message}</li>)}</ul></details> : <span>{reviewed.includes(row) ? 'Reviewed' : missing.length ? 'Awaiting shared source' : warnings.length ? 'Draft · no employee issues' : 'Ready to review'}</span>}<button onClick={() => onOpen(row.id)}>Source days</button></td>
     </tr>)}</tbody></table></div>
     {!visible.length && <p className="payroll-review-note">No employees in this view.</p>}
     <footer className="payroll-review-note">Review marks apply to this session and clear when the supporting records change. Export reviewed includes only checked employees; draft includes all listed employees and flags. Amounts are before deductions. A review does not submit payroll or change pay records.</footer>

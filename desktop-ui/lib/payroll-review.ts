@@ -6,6 +6,7 @@ export type PayrollReviewRow = {
   id: string; name: string; hours: number | null; regular: number; overtime: number;
   pay: PayBreakdown; weeks: Array<{ start: string; end: string; hours: number | null; pay: PayBreakdown }>;
   issues: Array<{ date: string; message: string }>; signature: string;
+  sourceMissingDates: string[];
 };
 const known = (value: number | null | undefined): value is number => typeof value === 'number' && Number.isFinite(value);
 const cents = (value: number) => Math.round(value * 100);
@@ -18,6 +19,7 @@ export function recordedPayrollClock(value: string | undefined): string {
 export function buildPayrollReview(hours: KreweHoursSnapshot, payroll: DesktopKreweSnapshot): PayrollReviewRow[] {
   if (hours.date !== payroll.date || hours.start !== payroll.start || payroll.view !== 'payperiod') return [];
   const members = new Map(payroll.members.map(member => [member.id, member]));
+  const sourceMissingDates = [...new Set([...hours.missingDates, ...payroll.missingDates])].sort();
   return hours.employees.map(employee => {
     const member = members.get(employee.id);
     const days = (member?.days || []).filter(day => day.date >= hours.start && day.date <= hours.end);
@@ -28,7 +30,9 @@ export function buildPayrollReview(hours: KreweHoursSnapshot, payroll: DesktopKr
       if (day.status === 'Upcoming') return;
       const clockIn = recordedPayrollClock(day.clockIn) || recordedPayrollClock(payDay?.clockIn);
       const clockOut = recordedPayrollClock(day.clockOut) || recordedPayrollClock(payDay?.clockOut);
-      if (['Source Unavailable', 'Hours Unavailable', 'No Record'].includes(day.status) || !clockOut && ['Missing Clock-Out', 'On Shift'].includes(day.status)) add(day.date, day.status);
+      // Shared source gaps are reported once for the period. An absent employee
+      // on an otherwise collected day is not evidence of a missed shift.
+      if (day.status === 'Hours Unavailable') add(day.date, day.status);
       // An absent employee row does not establish a missed shift. Flag it when
       // job, clock, pay or correction evidence says this employee worked.
       const activity = (day.hours ?? 0) > 0 || (day.jobs ?? 0) > 0 || !!clockIn || !!clockOut || day.corrected ||
@@ -42,19 +46,27 @@ export function buildPayrollReview(hours: KreweHoursSnapshot, payroll: DesktopKr
         if (difference !== null && Math.abs(cents(difference)) > 1) add(day.date, 'Pay total does not match its components');
         if (Object.values(pay).some(value => known(value) && value < 0)) add(day.date, 'Negative pay amount requires review');
         if (known(day.hours) && known(payDay.hours) && Math.abs(day.hours - payDay.hours) > .02) add(day.date, 'Time and pay records disagree on hours');
-        if (payDay.issue) add(day.date, payDay.issue);
-        if (payDay.syncStatus && payDay.syncStatus !== 'verified') add(day.date, `JunkWare correction ${payDay.syncStatus}`);
+        if (payDay.issue && !(/^Missing clock/i.test(payDay.issue) && activity && (!clockIn || !clockOut))) add(day.date, payDay.issue);
+        if (payDay.syncStatus && payDay.syncStatus !== 'verified' && !payDay.issue?.startsWith('JunkWare correction ')) add(day.date, `JunkWare correction ${payDay.syncStatus}`);
         if (day.corrected && !payDay.syncStatus) add(day.date, 'Correction not verified in JunkWare');
       }
     };
     employee.weeks.forEach(week => week.days.forEach(day => reviewDay(day, byDate.get(day.date))));
     if (!member) add('', 'Employee pay records unavailable');
     const pay = payForDays(days, hours.start, hours.end);
-    if (Object.values(pay).some(value => !known(value))) add('', 'Period earnings incomplete');
+    if (Object.values(pay).some(value => !known(value)) && !issues.length) add('', 'Period earnings incomplete');
     if (!known(employee.total)) add('', 'Period hours unavailable');
-    const row = { id: employee.id, name: employee.name, hours: employee.total,
+    // Count workdays requiring action, retaining independent details while
+    // dropping a generic incomplete-pay symptom when a cause is available.
+    const groupedIssues = [...new Set(issues.map(issue => issue.date))].map(date => {
+      const messages = issues.filter(issue => issue.date === date).map(issue => issue.message);
+      const correctionExplainsPay = messages.some(message => /^(JunkWare correction |Corrected pay pending:|Pay pending:)/.test(message));
+      const details = correctionExplainsPay ? messages.filter(message => message !== 'Pay breakdown incomplete') : messages;
+      return { date, message: details.join(' · ') };
+    });
+    const row = { id: employee.id, name: employee.name, hours: employee.total, sourceMissingDates,
       regular: employee.weeks.reduce((sum, week) => sum + week.regular, 0), overtime: employee.weeks.reduce((sum, week) => sum + week.overtime, 0), pay,
-      weeks: employee.weeks.map(week => ({ start: week.start, end: week.end, hours: week.total, pay: payForDays(days, week.start, week.end) })), issues };
+      weeks: employee.weeks.map(week => ({ start: week.start, end: week.end, hours: week.total, pay: payForDays(days, week.start, week.end) })), issues: groupedIssues };
     // Refresh timestamps alone do not erase a review; changes to its actual
     // evidence, correction status, dates, or totals do. Nothing persists in storage.
     const evidence = days.map(({ sourceAt: _sourceAt, ...day }) => day);
@@ -63,7 +75,7 @@ export function buildPayrollReview(hours: KreweHoursSnapshot, payroll: DesktopKr
 }
 
 export function reviewedPayrollRows(rows: PayrollReviewRow[], marks: Record<string, string>) {
-  return rows.filter(row => !row.issues.length && marks[row.id] === row.signature);
+  return rows.filter(row => !row.sourceMissingDates.length && !row.issues.length && marks[row.id] === row.signature);
 }
 
 /** Quoted cells still need formula-injection protection in spreadsheet apps. */
@@ -72,8 +84,8 @@ function csvCell(value: string | number | null) {
   return `"${(/^[\s\uFEFF]*[=+@-]/.test(text) && typeof value !== 'number' ? `'${text}` : text).replace(/"/g, '""')}"`;
 }
 export function payrollReviewCsv(input: { rows: PayrollReviewRow[]; start: string; end: string; retrievedAt: string; reviewed: boolean; warnings: string[] }) {
-  if (input.reviewed && (input.warnings.length || input.rows.some(row => row.issues.length))) throw new Error('Resolve the review flags before exporting reviewed totals.');
+  if (input.reviewed && (input.warnings.length || input.rows.some(row => row.sourceMissingDates.length || row.issues.length))) throw new Error('Resolve the review flags before exporting reviewed totals.');
   const headers = ['Employee', 'Employee key', 'Period start', 'Period end', 'Week 1 hours', 'Week 2 hours', 'Total hours', 'Regular hours', 'Overtime hours', 'Hourly pay', 'Tips', 'Bonuses', 'Supplemental pay', 'Total pay before deductions', 'Review status', 'Flags', 'Snapshot retrieved at'];
   return '\uFEFF' + [headers, ...input.rows.map(row => [row.name, row.id, input.start, input.end, row.weeks[0]?.hours ?? null, row.weeks[1]?.hours ?? null, row.hours, row.regular, row.overtime, row.pay.labor, row.pay.tips, row.pay.bonuses, row.pay.supplemental, row.pay.totalPay,
-    input.reviewed ? 'Reviewed in this session' : 'Draft - not reviewed', [...input.warnings, ...row.issues.map(issue => `${issue.date} ${issue.message}`.trim())].join('; '), input.retrievedAt])].map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
+    input.reviewed ? 'Reviewed in this session' : 'Draft - not reviewed', [...input.warnings, ...(row.sourceMissingDates.length ? [`Period source unavailable: ${row.sourceMissingDates.join(', ')}`] : []), ...row.issues.map(issue => `${issue.date} ${issue.message}`.trim())].join('; '), input.retrievedAt])].map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
 }

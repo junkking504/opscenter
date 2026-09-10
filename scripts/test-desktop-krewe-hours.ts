@@ -53,3 +53,9 @@ assert.equal(eligible.employees.find(row => row.name === 'Unknown Hours')?.total
 const addedHours = { employeeName: 'Zero Hours', clockIn: '8:00 AM', clockOut: '9:00 AM' } as PayrollCorrection;
 assert.ok(buildKreweHours('2026-09-05', zeroHours, new Map([[period.start, { 'zero hours': addedHours }]]), now).employees.some(row => row.name === 'Zero Hours'));
 console.log('Desktop Krewe hours: weekly boundaries, OT, corrections, missing/future weeks, open shifts, source priority, and source preservation passed.');
+
+const gapWithZeroRoster = new Map([...zeroHours].filter(([date]) => date !== period.start));
+const gapRoster = buildKreweHours('2026-09-05', gapWithZeroRoster, new Map(), now);
+assert.ok(!gapRoster.employees.some(row => row.name === 'Zero Hours'), 'A shared source gap must not bring zero-hour roster entries back');
+assert.ok(gapRoster.employees.some(row => row.name === 'Unknown Hours'), 'Employee-specific missing hours still require review');
+assert.deepEqual(gapRoster.missingDates, [period.start], 'The missing source stays visible at period level');

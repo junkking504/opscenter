@@ -23,7 +23,12 @@ export function correctedCrewPay(input: {
   const prior = complete ? priorDays!.reduce((sum,day)=>sum+(day.isSalary?0:day.hours!),0)
     : !earlierCorrection ? input.sourcePriorHours : null;
   const unavailable = (issue:string) => ({amounts:{...amounts,regularHours:null,overtimeHours:null,labor:null,totalPay:null},issue,recalculated:false});
-  if (prior===null || !Number.isFinite(prior) || prior<0) return unavailable('Correction saved; earlier weekly hours are unavailable.');
+  if (prior===null || !Number.isFinite(prior) || prior<0) {
+    const correctionDate = priorDays?.find(day=>day.corrected)?.date;
+    return unavailable(input.corrected
+      ? 'Corrected pay pending: earlier weekly hours are unavailable.'
+      : `Pay pending: the correction on ${correctionDate} affects this week; earlier weekly hours are unavailable.`);
+  }
   if (amounts.hours===null || !input.hourlyRate || input.hourlyRate<=0) return unavailable('Correction saved; shift hours or hourly rate require review.');
   const [,pay]=calculateWeeklyOvertime([{hours:prior,hourlyRate:input.hourlyRate},{hours:amounts.hours,hourlyRate:input.hourlyRate}]);
   amounts.regularHours=round(pay.regularHours);

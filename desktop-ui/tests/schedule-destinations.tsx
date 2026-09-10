@@ -10,6 +10,7 @@ import '../workspace-density.css';
 const scenario=new URLSearchParams(location.search).get('scenario') || 'unassigned';
 const result=new URLSearchParams(location.search).get('result') || 'verified';
 const longDetails=new URLSearchParams(location.search).get('details')==='long';
+const routeMode=new URLSearchParams(location.search).get('routes') || 'available';
 let releaseVerification:(()=>void)|undefined;
 const assignments=new Map<string,string>();
 const writes:Array<{date:string;recordId:string;action:string;values:{truck:string}}>=[];
@@ -18,7 +19,7 @@ function appointments(date:string):ScheduleAppointment[] {
     const recordId=`${date}:appointment:${1001+index}`;
     return {recordId,appointmentId:String(1001+index),version:'a'.repeat(64),callAhead:'not_called',jkNumber:`JK100${String(1001+index)}`,appointmentUrl:'',appointmentTime:'9:00 AM–10:00 AM',appointmentStartMinutes:540,appointmentEndMinutes:600,hasScheduledTime:true,customerName:`Example appointment ${index+1}`,customerEmail:'',phone:'',address:'',territory:'Baton Rouge',appointmentType:'Job',status:'Confirmed',truck:assignments.get(recordId)||'Virtual Truck',driver:'',navigator:'',paymentType:'',paymentAmount:0,tipAmount:0,junkItems:[],appointmentNotes:[],cancellationReason:'',location:null};
   }).map(job=>scenario==='same-time'?{...job,truck:'Truck 8',appointmentTime:'8:00 AM–9:00 AM',appointmentStartMinutes:480,appointmentEndMinutes:540}:job)
-    .map(job=>longDetails?{...job,address:'100 Example Boulevard, Building Three, Second Floor, Suite 237, New Orleans, LA 70130',junkItems:['Sofa, mattress, bookcases, and boxes stored in the upstairs room; use the side entrance.']}:job);
+    .map(job=>longDetails?{...job,address:'100 Example Boulevard, Building Three, Second Floor, Suite 237, New Orleans, LA 70130',junkItems:['Sofa, mattress, bookcases, and boxes stored in the upstairs room; use the side entrance.'],phone:'(555) 010-1001',appointmentNotes:['Use the side entrance. Call before arrival.','Additional source history remains in full details.'],location:routeMode==='address'?null:{latitude:30,longitude:-90}}:job);
 }
 window.fetch=async(input,init)=>{
   const url=new URL(String(input),location.origin),date=url.searchParams.get('date') || '2026-09-08';
@@ -38,8 +39,9 @@ window.fetch=async(input,init)=>{
     assignments.set(body.recordId,body.values.truck);
     return Response.json({receipt:{requestId:url.searchParams.get('requestId'),status:'verified',message:'Synthetic saved result verified.'}});
   }
-  if(url.pathname==='/api/desktop/schedule')return Response.json({date,observedAt:'2026-09-07T21:00:00Z',sourceRequest:{state:'ready',message:''},appointments:appointments(date),fleet:{isToday:false,lastUpdatedAt:null,trucks:[]}});
-  if(url.pathname==='/api/desktop/schedule/routes')return Response.json({date,calculatedAt:null,legs:[],closest:longDetails?Array.from({length:8},(_,index)=>({truck:`Truck ${index+1}`,status:'available',minutes:10+index,miles:5+index,gpsUpdatedAt:null})):[],appointmentId:longDetails?url.searchParams.get('appointment'):null});
+  if(url.pathname==='/api/desktop/schedule')return Response.json({date,observedAt:'2026-09-07T21:00:00Z',sourceRequest:{state:'ready',message:''},appointments:appointments(date),fleet:{isToday:longDetails && date==='2026-09-07',lastUpdatedAt:null,trucks:[]}});
+  if(url.pathname==='/api/desktop/schedule/routes' && routeMode==='failed') return Response.json({error:'Synthetic unavailable routing'},{status:503});
+  if(url.pathname==='/api/desktop/schedule/routes')return Response.json({date,calculatedAt:null,legs:[],closest:longDetails?Array.from({length:8},(_,index)=>({truck:`Truck ${index+1}`,status:routeMode==='stale'?'stale_gps':'available',minutes:10+index,miles:5+index,gpsUpdatedAt:null})):[],appointmentId:longDetails?url.searchParams.get('appointment'):null});
   return Response.json({error:'No operational sources are enabled in this fixture.'},{status:503});
 };
 function Fixture(){

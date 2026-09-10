@@ -1,5 +1,25 @@
 # Schedule and Finance presentation
 
+## Selected appointment at a glance
+
+Selecting an appointment from the truck schedule, map, or register now opens one
+summary above the map and truck board. It shows customer/JK, category/status,
+customer window, assignment, address/phone, pickup work, and a bounded source-note
+excerpt. The remaining notes, photos, payments and editing controls stay in the
+same Full details drawer. Closing that drawer preserves selection; Escape clears
+selection. Compact appointment block colors and drag behavior are unchanged.
+
+The summary displays only the first eligible result from the existing closest
+truck ranking. It does not render the full candidate list or assign a truck.
+Current-day, verified-coordinate, valid-estimate and source-identity checks remain
+in force. Failed routing settles to Unavailable; future days do not suggest a
+truck from today's GPS. No new provider calls or polling intervals are introduced.
+
+Validation: `scripts/test-dispatch-details-browser.mjs` with the synthetic
+`desktop-ui/tests/dispatch-details.vite.config.ts` server checks 320–1440px,
+summary visibility, single-candidate display, unavailable/future states, drawer
+and Escape behavior, and zero appointment writes.
+
 ## All Appointments readability and payments
 
 The register separates appointment identity, customer/work, assignment,

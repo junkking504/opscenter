@@ -408,3 +408,5 @@ truck and latest inside-report timestamp without claiming a current fix or pulsi
 A recorded departure clears that indication; completed/canceled states take priority.
 Reviewed service-complex corrections stay in runtime cache with source, precision
 and previous-value provenance; they do not verify an exact unit rooftop.
+
+Route arrows across a time gap attach to the source and destination appointment lanes, with a bend when those lanes differ. An incoming route to a same-time stack points to its actual next stop, rather than the bottom of the truck row. Saved stop order and appointment times remain the source of the route and stack sequence.

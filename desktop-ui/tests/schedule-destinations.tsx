@@ -16,10 +16,11 @@ let releaseVerification:(()=>void)|undefined;
 const assignments=new Map<string,string>();
 const writes:Array<{date:string;recordId:string;action:string;values:{truck:string}}>=[];
 function appointments(date:string):ScheduleAppointment[] {
-  return Array.from({length:scenario==='empty'?0:scenario==='dense'?24:scenario==='same-time'?4:scenario==='on-site'?3:1},(_,index)=>{
+  return Array.from({length:scenario==='empty'?0:scenario==='dense'?24:scenario==='same-time'?4:['on-site','route-stack'].includes(scenario)?3:1},(_,index)=>{
     const recordId=`${date}:appointment:${1001+index}`;
     return {recordId,appointmentId:String(1001+index),version:'a'.repeat(64),callAhead:'not_called',jkNumber:`JK100${String(1001+index)}`,appointmentUrl:'',appointmentTime:'9:00 AM–10:00 AM',appointmentStartMinutes:540,appointmentEndMinutes:600,hasScheduledTime:true,customerName:`Example appointment ${index+1}`,customerEmail:'',phone:'',address:'',territory:'Baton Rouge',appointmentType:'Job',status:'Confirmed',truck:assignments.get(recordId)||'Virtual Truck',driver:'',navigator:'',paymentType:'',paymentAmount:0,tipAmount:0,junkItems:[],appointmentNotes:[],cancellationReason:'',location:null};
   }).map(job=>scenario==='same-time'?{...job,truck:'Truck 8',appointmentTime:'8:00 AM–9:00 AM',appointmentStartMinutes:480,appointmentEndMinutes:540}:job)
+    .map((job,index)=>scenario==='route-stack'?{...job,truck:'Truck 9',status:index===0?'Completed':'Confirmed',stopOrder:index,appointmentStartMinutes:index===0?540:660,appointmentEndMinutes:index===0?600:720,appointmentTime:index===0?'9:00 AM–10:00 AM':'11:00 AM–12:00 PM'}:job)
     .map((job,index)=>scenario==='on-site'?{...job,truck:'Truck 8',address:'100 Example St Baton Rouge LA 70802',location:{latitude:30.45+index*.04,longitude:-91.18},truckOnSite:index<2 && !stalePresence,lastSeenOnsiteTruck:stalePresence && index===0?'Truck 8':undefined,lastSeenOnsiteAt:stalePresence?'2026-09-08T14:30:00Z':undefined,status:index===1?'Completed':'Confirmed'}:job)
     .map(job=>longDetails?{...job,address:'100 Example Boulevard, Building Three, Second Floor, Suite 237, New Orleans, LA 70130',junkItems:['Sofa, mattress, bookcases, and boxes stored in the upstairs room; use the side entrance.'],phone:'(555) 010-1001',appointmentNotes:['Use the side entrance. Call before arrival.','Additional source history remains in full details.'],location:routeMode==='address'?null:{latitude:30,longitude:-90}}:job);
 }
@@ -49,6 +50,11 @@ window.fetch=async(input,init)=>{
     return Response.json({receipt:{requestId:url.searchParams.get('requestId'),status:'verified',message:'Synthetic saved result verified.'}});
   }
   if(url.pathname==='/api/desktop/schedule')return Response.json({date,observedAt:'2026-09-07T21:00:00Z',sourceRequest:{state:'ready',message:''},appointments:appointments(date),fleet:{isToday:scenario==='on-site' || longDetails && date==='2026-09-07',lastUpdatedAt:null,trucks:scenario==='on-site'?[{truck:'Truck 8',latitude:30.45,longitude:-91.18,lastGpsUpdate:new Date(Date.now()-300_000).toISOString(),freshnessLabel:'GPS Stale',operationalStatus:'GPS Stale',ignition:'OFF',driver:'Example Driver',navigator:'Example Navigator',serviceStatus:'Unavailable'}]:[]}});
+  if(url.pathname==='/api/desktop/schedule/routes' && scenario==='route-stack') {
+    const jobs=appointments(date);
+    const legs=[0,1].map(i=>({truck:'Truck 9',fromAppointmentId:jobs[i].recordId,toAppointmentId:jobs[i+1].recordId,fromJk:jobs[i].jkNumber,toJk:jobs[i+1].jkNumber,fromEndMinutes:jobs[i].appointmentEndMinutes,toStartMinutes:jobs[i+1].appointmentStartMinutes,gapMinutes:i===0?60:-60,travelMinutes:i===0?31:29,miles:i===0?16.2:20.8,status:'available'}));
+    return Response.json({date,calculatedAt:null,legs,closest:[],appointmentId:null});
+  }
   if(url.pathname==='/api/desktop/schedule/routes' && routeMode==='failed') return Response.json({error:'Synthetic unavailable routing'},{status:503});
   if(url.pathname==='/api/desktop/schedule/routes')return Response.json({date,calculatedAt:null,legs:[],closest:scenario==='on-site'?[{truck:'Truck 9',status:'available',minutes:62,miles:48.4,gpsUpdatedAt:null}]:longDetails?Array.from({length:8},(_,index)=>({truck:`Truck ${index+1}`,status:routeMode==='stale'?'stale_gps':'available',minutes:10+index,miles:5+index,gpsUpdatedAt:null})):[],appointmentId:longDetails || scenario==='on-site'?url.searchParams.get('appointment'):null});
   return Response.json({error:'No operational sources are enabled in this fixture.'},{status:503});

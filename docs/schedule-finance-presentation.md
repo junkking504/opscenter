@@ -426,3 +426,27 @@ Reviewed service-complex corrections stay in runtime cache with source, precisio
 and previous-value provenance; they do not verify an exact unit rooftop.
 
 Route arrows across a time gap attach to the source and destination appointment lanes, with a bend when those lanes differ. An incoming route to a same-time stack points to its actual next stop, rather than the bottom of the truck row. Saved stop order and appointment times remain the source of the route and stack sequence.
+
+## Truck progress between appointments
+
+Today's assigned truck rows show their next open stop in saved order, with the
+remaining road travel and estimated arrival time from that truck's recent GPS.
+A confirmed recorded departure advances the next-stop view without changing the
+appointment status. The row says Between jobs only when a departure is recorded;
+otherwise it says Next. Neither label confirms the driver's destination.
+On-site observations take priority; ambiguous visits and pending assignments
+require review. Unassigned appointments never receive automatic truck assignments.
+
+The existing routing request refreshes every two minutes and when appointment,
+assignment, visit, or order inputs change. Each active truck requests only its
+own next-stop road route through the existing shared non-Google limiter/cache.
+GPS older than three minutes, missing coordinates, unverified addresses, invalid
+provider metrics and provider failures produce explicit unavailable states.
+The UI also rechecks freshness as snapshots arrive, removes an expired ETA, and
+opens the exact next appointment when the status is clicked. The tooltip includes
+the GPS observation time and no-live-traffic limitation. These are road estimates,
+not driver-confirmed destinations or traffic-aware promises.
+
+Synthetic regression: `scripts/test-truck-progress.ts` and
+`scripts/test-truck-progress-browser.mjs` cover changing position/ETA, saved stack
+order, departure, on-site arrival, stale GPS, missing/failed sources, and no writes.

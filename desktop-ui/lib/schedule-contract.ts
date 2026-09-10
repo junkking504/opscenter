@@ -87,7 +87,7 @@ export type ClosestTruck = {
   truck: string; gpsUpdatedAt: string | null; minutes: number | null; miles: number | null;
   status: 'available' | 'stale_gps' | 'gps_unavailable' | 'address_unverified' | 'routing_unavailable' | 'not_live_day';
 };
-export type ScheduleRouting = { date: string; calculatedAt: string; legs: ScheduleRouteLeg[]; closest: ClosestTruck[]; appointmentId: string | null };
+export type ScheduleRouting = { truckProgress?: import('../../lib/schedule-next-stop').TruckProgress[]; date: string; calculatedAt: string; legs: ScheduleRouteLeg[]; closest: ClosestTruck[]; appointmentId: string | null };
 
 export function unavailableRoute(leg: ScheduleRouteLeg, jobs: ScheduleAppointment[]) {
   const missing = [leg.fromAppointmentId, leg.toAppointmentId]

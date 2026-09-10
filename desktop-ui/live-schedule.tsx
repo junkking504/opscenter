@@ -1,3 +1,5 @@
+import ScheduleTruckProgress from './schedule-truck-progress';
+import { nextTruckStop } from '../lib/schedule-next-stop';
 import { TruckPosition } from './truck-position';
 import ScheduleAppointmentSummary, { closestAvailableTruck } from './schedule-appointment-summary';
 import ScheduleStopOrder from './schedule-stop-order';
@@ -102,7 +104,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     if (!board || mapOnly || view !== 'board') return;
     const fit = () => {
       const pageTop = board.getBoundingClientRect().top + window.scrollY;
-      const height = `${Math.max(240, window.innerHeight - pageTop - 16)}px`;
+      const height = `${Math.max(240, window.innerHeight - pageTop - 8)}px`;
       board.style.setProperty('--schedule-available-height', height);
       dispatchSurfaceRef.current?.style.setProperty('--schedule-available-height', height);
     };
@@ -160,7 +162,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     setSearchQuery(target.query); setLinkNotice(target.notice);
     if (target.recordId) { setSelectedId(target.recordId); setDrawerId(target.recordId); }
   }, [snapshot, date, baseDate, setDrawerId, mapOnly]);
-  const routingKey = snapshot ? JSON.stringify(snapshot.appointments.map(job => [job.recordId, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.location])) : '';
+  const routingKey = snapshot ? JSON.stringify(snapshot.appointments.map(job => [job.recordId, job.version, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.location, job.junkwareSyncStatus, job.truckOnSite, job.onsiteTruck, job.lastSeenOnsiteTruck, job.onsiteTime?.departure])) : '';
   useEffect(() => {
     if (!routingKey || (mapOnly && !selectedId)) return;
     const abort = new AbortController();
@@ -300,7 +302,9 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
           {truckNames.map((truck, index) => {
             const rowJobs = jobs.filter(job => truckLabel(job.truck) === truck).sort((a, b) => (a.appointmentStartMinutes ?? Infinity) - (b.appointmentStartMinutes ?? Infinity));
             const load = snapshot.truckLoads?.find(row=>truckLabel(row.truck)===truck);
-            const { placed, laneStep, rowHeight, connectors } = scheduleTravelLayout(rowJobs, displayLegs.filter(leg => truckLabel(leg.truck) === truck), range);
+            const { placed, laneStep, rowHeight: travelHeight, connectors } = scheduleTravelLayout(rowJobs, displayLegs.filter(leg => truckLabel(leg.truck) === truck), range);
+            const hasProgress=Boolean(nextTruckStop(jobs,truck,snapshot.fleet.isToday,now.getTime()));
+            const rowHeight=travelHeight+(hasProgress?(connectors.some(c=>!c.vertical && !c.path)?22:10):0);
             const ghost = drag.preview?.truck === truck ? drag.preview : null;
             const ghostStart = ghost?.start ?? ghost?.job.appointmentStartMinutes;
             const ghostDuration = ghost?.job.appointmentStartMinutes !== null && ghost?.job.appointmentEndMinutes != null ? ghost.job.appointmentEndMinutes - ghost.job.appointmentStartMinutes! : 60;
@@ -309,6 +313,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
                 {scheduleStatusTone(job) === 'completed' ? <Check size={12} strokeWidth={3} aria-hidden="true" /> : scheduleStatusTone(job) === 'canceled' ? <X size={12} strokeWidth={3} aria-hidden="true" /> : scheduleStatusTone(job) === 'visited' ? <b aria-hidden="true">?</b> : null}
                 </em></div>)}
               {connectors.map(connector => <ScheduleRouteConnector key={`${connector.leg.fromAppointmentId}:${connector.leg.toAppointmentId}`} connector={connector} jobs={jobs} select={selectAppointment} />)}
+              {hasProgress && <ScheduleTruckProgress truck={truck} snapshot={snapshot} progress={routing?.date===date?routing.truckProgress:undefined} now={now.getTime()} select={selectAppointment} />}
               {ghost && ghostStart != null && <div className={`schedule-drag-preview${ghost.conflicts.length ? ' conflict' : ''}`} style={{ left: `${(ghostStart - range.start) / range.duration * 100}%`, width: `${ghostDuration / range.duration * 100}%` }}><strong>{ghost.job.jkNumber}</strong><small>{clock(ghostStart)} · {ghost.conflicts.length ? `Conflicts ${ghost.conflicts.join(', ')}` : 'Drop to Review'}</small></div>}
             </div></div>;
           })}

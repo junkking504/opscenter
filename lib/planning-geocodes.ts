@@ -1,3 +1,4 @@
+import { reviewedServiceAddress } from './reviewed-service-address';
 import { cachedAddressVerification } from './desktop-address-verification';
 import { serviceAddressForGeocoding } from './appointment-partner';
 import crypto from "node:crypto";
@@ -77,6 +78,7 @@ export function planningLocation(
   geocodes: Record<string, Record<string, unknown>>,
 ): PlanningLocation | null {
   if (!address || address === "—") return null;
+  const reviewed = reviewedServiceAddress(address); if (reviewed) return reviewed.location;
   for (const hash of planningAddressHashes(address)) {
     const location = serviceAreaLocation(geocodes[hash]);
     if (location) return location;

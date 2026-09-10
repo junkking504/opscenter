@@ -1,3 +1,4 @@
+import { reviewedServiceAddress } from './reviewed-service-address';
 import type { PlanningLocation } from './planning-geocodes';
 import { fullFieldStreetAddress, serviceStreetCandidates } from './appointment-partner';
 import fs from 'node:fs';
@@ -77,6 +78,7 @@ async function requestGeocode(address:string):Promise<unknown> {
 const cache=new Map<string,{expires:number;result:Promise<AddressVerification>;verified?:AddressVerification}>();
 const cacheFile = (address: string) => path.join(process.env.SERVICE_ADDRESS_CACHE_DIR || path.join(process.cwd(),'data','cache','service-address-verifications'),createHash('sha256').update(address).digest('hex')+'.json');
 export function cachedAddressVerification(address:string) {
+  const reviewed = reviewedServiceAddress(address); if (reviewed) return reviewed;
   const row=cache.get(address);
   if(row && row.expires>Date.now()) return row.verified;
   try {
@@ -94,7 +96,8 @@ export function addressQueries(address: string) {
   // Keep suite/business context in the original and first attempts. Only the
   // routing query may omit an explicit unit; validation always uses full input.
   const withoutUnit=street.replace(/\b(?:suite|ste|unit|apt|apartment|floor|fl)\.?\s+[A-Z0-9-]+\b\s*,?\s*/ig,' ').replace(/\s+/g,' ').trim();
-  return [...new Set([full,street,withoutUnit])];
+  const withState = /\b(?:LA|LOUISIANA)\s+\d{5}/i.test(withoutUnit) ? withoutUnit : withoutUnit.replace(/[,\s]+(\d{5}(?:-\d{4})?)$/, ', LA $1');
+  return [...new Set([full,street,withoutUnit,withState])];
 }
 export async function verifyDesktopAddress(address:string):Promise<AddressVerification> {
   if(serviceStreetCandidates(address).length>1) return {location:null,reason:'Multiple Street Addresses In Source Field'};

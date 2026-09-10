@@ -1,5 +1,25 @@
 # Schedule and Finance presentation
 
+## Selected appointment at a glance
+
+Selecting an appointment from the truck schedule, map, or register now opens one
+summary beside the map and truck board on desktop, and above them on narrow screens. It shows customer/JK, category/status,
+customer window, assignment, address/phone, pickup work, and a bounded source-note
+excerpt. The remaining notes, photos, payments and editing controls stay in the
+same Full details drawer. Closing that drawer preserves selection; Escape clears
+selection. Compact appointment block colors and drag behavior are unchanged.
+
+The summary displays only the first eligible result from the existing closest
+truck ranking. It does not render the full candidate list or assign a truck.
+Current-day, verified-coordinate, valid-estimate and source-identity checks remain
+in force. Failed routing settles to Unavailable; future days do not suggest a
+truck from today's GPS. No new provider calls or polling intervals are introduced.
+
+Validation: `scripts/test-dispatch-details-browser.mjs` with the synthetic
+`desktop-ui/tests/dispatch-details.vite.config.ts` server checks 320–1440px,
+summary visibility, single-candidate display, unavailable/future states, drawer
+and Escape behavior, and zero appointment writes.
+
 ## All Appointments readability and payments
 
 The register separates appointment identity, customer/work, assignment,
@@ -328,22 +348,7 @@ travel-layout, partner, planning-geocode and route-planner checks.
 
 ## Direct dispatch access to full appointment details
 
-Selecting an appointment on the map or Truck Schedule keeps its locator and
-schedule block selected. Prominent **Full details** buttons appear on the map's
-selection label and in the Truck Schedule header, outside the scrollable
-map-information panel. They open the same full appointment drawer used by All
-Appointments, including notes, payments, source estimate/photos and closeout
-controls. Closing it preserves the selected appointment and dispatch position;
-opening details performs no appointment write. The existing below-map action
-uses the same label. No list search or list scrolling is required.
-
-The selected appointment summary below the Schedule map grows with its content
-instead of inheriting the compact 130px map-control cap. Address, work, status,
-closest-truck summary and address-verification warnings wrap and remain visible.
-Only the longer truck-comparison list has an inner scroll area. The map retains
-at least 200px of height; narrow screens use normal page scrolling rather than
-clipping the summary. `scripts/test-selected-appointment-layout-browser.mjs`
-checks this at 320–1440px with long synthetic details and eight truck candidates.
+The selected-job summary beside the map and truck schedule on desktop (above them on narrow screens) owns the **Full details** action. See [Selected appointment at a glance](#selected-appointment-at-a-glance) for the current interaction and validation contract. Closing the full drawer preserves the selected appointment and dispatch position.
 
 The Schedule payload resolves `sourceEstimateAppointmentId` against the exact
 estimate appointment ID in JunkWare's historical raw snapshots, independent of
@@ -363,6 +368,19 @@ Validation: `node --import tsx scripts/test-schedule-source-estimate.ts` and
 Alias evidence: [FMOL General Surgery](https://www.fmolhs.org/locations/greater-baton-rouge/our-lady-of-the-lake-physician-group-general-surgery---ascension) and [FMOL Thoracic Surgery](https://www.fmolhs.org/locations/greater-baton-rouge/our-lady-of-the-lake-physician-group-thoracic-surgery---ascension). These are documentation sources, not runtime geocoding providers.
 
 Deployment startup allowance: a cold all-market JunkWare initialization measured 211.5 seconds on September 9. The detector installer permits up to five minutes for startup while still requiring a verified completion timestamp newer than its restart. Normal polling and data-freshness thresholds are unchanged.
+
+## Schedule control hierarchy
+
+- **Primary action:** solid scarlet (`#a43b35`, matching Schedule Lab) **Add Appointment** at the upper-right of the Schedule header, with a plus icon, opens the existing reviewed creation drawer. It does not change booking or assignment behavior.
+- **View navigation:** underlined workspace tabs; the current day uses a neutral segmented selector. These sit on a row below the title and primary action, separate from the search and view settings.
+- **View settings:** the Map switch exposes its checked state and keeps its label stable. Search and Refresh day use quieter styling.
+- **Filters and cards:** counts remain neutral until selected, with a blue selection cue shared by the selected appointment and its summary. Unassigned is an ordinary planning state; Verify Address uses amber when records need review, with no warning color at zero.
+- **Guidance:** a pale yellow closest-truck panel distinguishes one available suggestion from selection or assignment; address and assignment review use amber with explicit labels.
+- **Supporting actions:** Full details uses an outlined button; inline source-note links reveal more context. Keyboard focus remains visible.
+
+This first application is scoped to the live Schedule workspace. Controls wrap at narrow widths rather than compressing their labels. The dispatch browser check covers the booking-drawer entry, map switch, selected filter state, and visible primary action at 320–1440px without submitting a booking.
+
+On desktop (1000px and wider), selecting a job opens its summary in a right-hand pane without moving the map or truck schedule down. The map height follows the available viewport; full job history can scroll within the detail pane. Narrow screens retain the stacked summary. The appointment grid preserves its readable row heights on unusually dense days instead of hiding destinations.
 
 
 ### Selected truck position and overlapping locators

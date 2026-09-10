@@ -1,0 +1,50 @@
+/* One readable selected-job surface, ahead of dispatch geography and controls. */
+.ops-live .schedule-appointment-summary {
+  display: grid; grid-template-columns: minmax(0,1fr) minmax(210px,.32fr); gap: 16px;
+  border: 1px solid #bdcdd7; border-left: 4px solid #174e77; border-radius: 8px;
+  background: #fff; color: #243943; padding: 14px 16px; margin-bottom: 10px;
+  scroll-margin-top: 12px; font-size: 13px; line-height: 1.45;
+}
+.ops-live .selected-job-main, .ops-live .selected-job-next { min-width: 0; }
+.ops-live .selected-job-main > header { display: flex; align-items: flex-start; gap: 10px; }
+.ops-live .selected-job-heading { flex: 1; min-width: 0; }
+.ops-live .selected-job-heading > span { font-size: 11px; font-weight: 650; color: #617681; }
+.ops-live .selected-job-heading h2 { font-size: 20px; line-height: 1.25; margin: 3px 0 7px; font-weight: 750; overflow-wrap: anywhere; }
+.ops-live .selected-job-status { flex-shrink: 0; padding: 3px 7px; border: 1px solid #d3ded7; background: #f2f6f3; border-radius: 4px; font-size: 12px; font-weight: 650; }
+.ops-live .selected-job-clear { border: 0; background: transparent; padding: 5px; color: #516672; cursor: pointer; }
+.ops-live .selected-job-facts, .ops-live .selected-job-contact { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+.ops-live .selected-job-facts { font-weight: 650; }
+.ops-live .selected-job-facts > span, .ops-live .selected-job-contact > a { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.ops-live .selected-job-contact { margin: 7px 0 9px; }
+.ops-live .selected-job-contact > a { color: #174e77; text-decoration: none; overflow-wrap: anywhere; }
+.ops-live .selected-job-contact > a:hover { text-decoration: underline; }
+.ops-live .selected-job-contact svg, .ops-live .selected-job-facts svg { flex-shrink: 0; }
+.ops-live .selected-job-work, .ops-live .selected-job-note { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 7px; min-width: 0; }
+.ops-live .selected-job-work > span, .ops-live .selected-job-note > span { overflow-wrap: anywhere; flex: 1 1 180px; }
+.ops-live .selected-job-work > b, .ops-live .selected-job-note > b { font-size: 11px; color: #62737c; }
+.ops-live .selected-job-note { margin-top: 6px; font-size: 12px; color: #51626b; }
+.ops-live .selected-job-work > button, .ops-live .selected-job-note > button { padding: 0; border: 0; background: none; font-size: 12px; font-weight: 650; color: #174e77; text-decoration: underline; cursor: pointer; }
+.ops-live .selected-job-next { display: flex; flex-direction: column; gap: 9px; border-left: 1px solid #e0e7eb; padding-left: 16px; }
+.ops-live .selected-job-closest { display: grid; gap: 3px; }
+.ops-live .selected-job-closest > span { font-size: 11px; font-weight: 650; color: #657983; }
+.ops-live .selected-job-closest > strong { font-size: 15px; color: #174e77; display: flex; flex-wrap: wrap; gap: 4px 8px; }
+.ops-live .selected-job-closest > strong > span { font-size: 13px; }
+.ops-live .selected-job-closest > small { font-size: 11px; color: #657680; line-height: 1.4; }
+.ops-live .selected-job-secondary { display: grid; gap: 3px; color: #5d707a; font-size: 11px; }
+.ops-live .selected-job-next > .dispatch-full-details { margin-top: auto; align-self: flex-start; }
+.ops-live .selected-job-warning { color: #835508; font-size: 12px; }
+.ops-live .selected-job-main button:focus-visible { outline: 2px solid #174e77; outline-offset: 3px; }
+@media (max-width: 650px) {
+  .ops-live .schedule-appointment-summary { grid-template-columns: minmax(0,1fr); gap: 10px; padding: 12px; }
+  .ops-live .selected-job-heading h2 { font-size: 18px; }
+  .ops-live .selected-job-main > header { flex-wrap: wrap; gap: 5px; }
+  .ops-live .selected-job-heading { flex: 1 1 140px; }
+  .ops-live .selected-job-next { border-left: 0; border-top: 1px solid #e0e7eb; padding: 9px 0 0; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; }
+  .ops-live .selected-job-next > .dispatch-full-details { grid-column: 2; grid-row: 1 / span 2; margin: 0; max-width: 145px; }
+  .ops-live .selected-job-secondary { grid-column: 1; }
+  .ops-live .selected-job-closest > strong { font-size: 14px; }
+}
+@media (max-width: 360px) {
+  .ops-live .selected-job-next { grid-template-columns: minmax(0,1fr); }
+  .ops-live .selected-job-next > .dispatch-full-details { grid-column: 1; grid-row: auto; }
+}

@@ -1,43 +1,99 @@
 import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 const browser=await chromium.launch({headless:true});
+const base=process.env.DISPATCH_FIXTURE_URL || 'http://127.0.0.1:3156';
 try {
   const page=await browser.newPage();
-  for(const width of [1440,1024,768,390,320]) {
-    await page.setViewportSize({width,height:1000});
-    await page.goto('http://127.0.0.1:3156/tests/schedule-destinations.html?scenario=same-time');
+  for(const [width,height] of [[1440,900],[1280,768],[1024,768],[768,1000],[390,1000],[320,1000]]) {
+    await page.setViewportSize({width,height});
+    await page.goto(`${base}/tests/schedule-destinations.html?scenario=same-time&details=long`);
+    await page.locator('.day-switcher button').first().click();
+    const add=page.getByRole('button',{name:'Add Appointment',exact:true});
+    await add.waitFor();
+    const addBox=await add.boundingBox();
+    assert.ok(addBox.x>=0 && addBox.x+addBox.width<=width+1 && addBox.height>=36,'primary action fits');
+    assert.equal(await add.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(164, 59, 53)');
+    assert.equal(await page.locator('.schedule-primary-action .schedule-add-appointment').count(),1,'one header action');
+    assert.equal(await page.locator('.schedule-control-actions .schedule-add-appointment').count(),0,'creation separate from view settings');
+    const headerTitle=await page.locator('.schedule-workspace-heading h1').boundingBox();
+    assert.ok(addBox.x>headerTitle.x && Math.abs(addBox.y-headerTitle.y)<45,'action aligns beside title');
+    await add.click();
+    const booking=page.getByRole('dialog',{name:'New Appointment',exact:true});
+    await booking.waitFor();
+    await booking.getByRole('button',{name:'Close',exact:true}).first().click();
+    const mapSwitch=page.getByRole('switch',{name:'Show map',exact:true});
+    assert.equal(await mapSwitch.getAttribute('aria-checked'),'true');
+    await mapSwitch.click();
+    assert.equal(await page.locator('.schedule-map-panel').count(),0);
+    assert.equal(await mapSwitch.getAttribute('aria-checked'),'false');
+    await mapSwitch.press('Space');
+    await page.locator('.schedule-map-panel').waitFor();
+    assert.equal(await mapSwitch.getAttribute('aria-checked'),'true');
+    assert.equal(await page.locator('.schedule-summary-button').first().getAttribute('aria-pressed'),'true');
+    const metrics=page.locator('.schedule-summary-strip');
+    assert.ok(await metrics.evaluate(el=>el.scrollWidth<=el.clientWidth+1),'all count filters fit without horizontal scrolling');
+    if(width===1440||width===390)await page.screenshot({path:`/tmp/schedule-hierarchy-${width}.png`});
     const block=page.locator('[data-schedule-appointment]').first();
     await block.waitFor();
     const orderButton=page.getByRole('button',{name:'Stop Order',exact:true});
     await orderButton.click();
     const orderDialog=page.getByRole('dialog',{name:'Order Same-Time Appointments',exact:true});
-    assert.equal(await orderDialog.locator('.stop-order-row').count(),4,'all four same-time stops available with map open');
+    assert.equal(await orderDialog.locator('.stop-order-row').count(),4);
     await orderDialog.getByRole('button',{name:'Cancel',exact:true}).click();
     const baselineWidth=await page.evaluate(()=>document.documentElement.scrollWidth);
+    const boardTopBefore=await page.locator('.schedule-board-layout').evaluate(el=>el.getBoundingClientRect().top);
     await block.click();
-    const mapDetails=page.getByRole('button',{name:'Full details for JK1001001 from map',exact:true});
-    const boardDetails=page.getByRole('button',{name:'Full details for JK1001001 from truck schedule',exact:true});
-    await mapDetails.waitFor();await boardDetails.waitFor();
-    for(const button of [mapDetails,boardDetails,orderButton]) {
-      const r=await button.boundingBox();assert.ok(r.height>=36,'large click target');
-      assert.ok(r.x>=0&&r.x+r.width<=width+1,'button fits width');
+    const summary=page.getByRole('region',{name:'Selected job JK1001001',exact:true});
+    await summary.waitFor();
+    await page.waitForFunction(()=>document.querySelector('.selected-job-closest')?.textContent.includes('10 min'));
+    assert.equal(await summary.locator('.selected-job-closest.has-suggestion').count(),1);
+    assert.match(await summary.innerText(),/Example appointment 1/);
+    assert.match(await summary.innerText(),/Sofa, mattress/);
+    assert.match(await summary.innerText(),/Use the side entrance/);
+    assert.equal(await summary.locator('a[href^="tel:"]').count(),1);
+    assert.equal(await page.locator('.route-candidate-row').count(),0,'no full truck comparison');
+    assert.match(await summary.locator('.selected-job-closest').innerText(),/Truck 1/);
+    assert.doesNotMatch(await summary.locator('.selected-job-closest').innerText(),/Truck [2-8]/,'only one closest truck');
+    const geometry=await page.evaluate(()=>{const summary=document.querySelector('.schedule-appointment-summary').getBoundingClientRect(),layout=document.querySelector('.schedule-board-layout').getBoundingClientRect();return {top:summary.top,bottom:summary.bottom,next:layout.top};});
+    assert.ok(geometry.top>=-1&&geometry.bottom<=height+1,`summary visible after selection: ${JSON.stringify(geometry)}`);
+    if(width>=1000) assert.ok(Math.abs(geometry.top-geometry.next)<2,'summary beside dispatch, not above it');
+    else assert.ok(geometry.bottom<=geometry.next+1,'narrow layout summary precedes map and board');
+    if(width>=1000) {
+      assert.ok(Math.abs(geometry.next-boardTopBefore)<2,'selection does not push dispatch down');
+      assert.ok(await page.locator('.schedule-board-scroll').evaluate(el=>el.scrollHeight<=el.clientHeight+1),'all truck rows fit without internal scrolling on the test day');
+      for(const selector of ['.schedule-map-panel','.schedule-board-shell']) {
+        const rect=await page.locator(selector).boundingBox();
+        assert.ok(rect.y>=0&&rect.y+rect.height<=height+1,`${selector} fully visible at ${width}x${height}: ${JSON.stringify(rect)}`);
+      }
     }
-    await boardDetails.click();
+    const full=summary.getByRole('button',{name:'Full details for JK1001001',exact:true});
+    const r=await full.boundingBox();assert.ok(r.height>=36&&r.x>=0&&r.x+r.width<=width+1,'full details button fits');
+    if(width>=1000)assert.ok(r.y>=0&&r.y+r.height<=height+1,'full details remains in viewport');
+    await full.click();
     await page.getByRole('dialog',{name:'JK1001001',exact:true}).waitFor();
     await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).first().click();
-    assert.equal(await block.getAttribute('aria-pressed'),'true','closing preserves dispatch selection');
-    await page.getByRole('button',{name:'Synthetic map marker JK1001001',exact:true}).click();
-    await mapDetails.click();
-    await page.getByRole('dialog',{name:'JK1001001',exact:true}).waitFor();
+    assert.equal(await block.getAttribute('aria-pressed'),'true');
+    await page.getByRole('button',{name:'Synthetic map marker JK1001002',exact:true}).click();
+    await page.getByRole('region',{name:'Selected job JK1001002',exact:true}).waitFor();
+    await page.getByRole('button',{name:'Full details for JK1001002',exact:true}).click();
+    await page.getByRole('dialog',{name:'JK1001002',exact:true}).waitFor();
     await page.keyboard.press('Escape');
     assert.equal(await page.getByRole('dialog').count(),0);
-    assert.equal(await block.getAttribute('aria-pressed'),'true');
-    assert.equal(await page.locator('#fixture-writes').innerText(),'Writes: 0','details must never trigger writes');
-    const overflow=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth,elements:[...document.querySelectorAll('*')].filter(el=>el.getBoundingClientRect().right>innerWidth+1).slice(0,12).map(el=>[el.tagName,el.className,el.getBoundingClientRect().right])}));
-    assert.ok(overflow.scroll<=Math.max(width,baselineWidth)+1,JSON.stringify(overflow));
-    if(width===1440||width===390)await page.screenshot({path:`/tmp/dispatch-details-${width}.png`,fullPage:true});
+    assert.equal(await page.locator('#fixture-writes').innerText(),'Writes: 0');
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth)<=Math.max(width,baselineWidth)+1,'selection introduces no overflow');
+    if(width===1440||width===390)await page.screenshot({path:`/tmp/dispatch-glance-${width}.png`,fullPage:true});
     await page.keyboard.press('Escape');
-    await page.waitForFunction(()=>!document.querySelector('.dispatch-full-details'));
+    await page.waitForFunction(()=>!document.querySelector('.schedule-appointment-summary'));
   }
-  console.log('Dispatch details PASS: map and timeline open same full drawer, 320–1440px controls, close preserves selection, Escape resets, zero writes. Synthetic only.');
+  for(const [mode,text] of [['stale','Unavailable'],['failed','Unavailable'],['address','Verify address first']]) {
+    await page.goto(`${base}/tests/schedule-destinations.html?details=long&routes=${mode}`);
+    await page.locator('.day-switcher button').first().click();
+    await page.locator('[data-schedule-appointment]').first().click();
+    await page.waitForFunction(text=>document.querySelector('.selected-job-closest strong')?.textContent===text,text);
+    assert.equal(await page.locator('#fixture-writes').innerText(),'Writes: 0');
+  }
+  await page.goto(`${base}/tests/schedule-destinations.html?details=long`);
+  await page.locator('[data-schedule-appointment]').first().click();
+  assert.match(await page.locator('.selected-job-closest').innerText(),/Available for today only/);
+  console.log('Schedule hierarchy and dispatch glance PASS: Add Appointment drawer, map switch, filter state, summary beside dispatch on desktop without pushing either panel down, one closest truck, stale/failed/address/future states, contact and source work/notes, 320–1440px, full drawer, Escape, zero writes.');
 } finally {await browser.close();}

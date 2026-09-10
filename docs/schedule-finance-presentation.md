@@ -387,12 +387,15 @@ On desktop (1000px and wider), selecting a job opens its summary in a right-hand
 
 The desktop truck card resolves the selected GPS point through Fleet's existing
 OpenStreetMap address endpoint and displays its report time, age and reported
-ignition. A recent collector refresh does not make an old position current.
+ignition. Reverse-geocoded addresses are labeled Near because the closest mapped
+address does not verify the exact building or unit. A recent collector refresh does not make an old position current.
 Address lookups are limited to the selected point; unavailable addresses remain
 explicit. Public Google Maps links do not call Google APIs.
 
 Overlapping appointment/truck icons receive deterministic screen offsets with
 leader lines to their unchanged geographic anchors. Each icon selects its own
-record directly. Zooming apart removes offsets; map focus uses true coordinates.
+record directly. Locator icons stay above GPS route labels, and route endpoint
+labels appear only when fitting the route. Zooming apart removes offsets; map
+focus uses true coordinates.
 Reviewed service-complex corrections belong in the runtime geocode cache with
 source, precision and previous-value provenance; they do not verify a unit rooftop.

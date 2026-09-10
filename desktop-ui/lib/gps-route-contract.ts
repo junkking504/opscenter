@@ -1,5 +1,11 @@
 export type GpsRoutePoint = {timestamp:string;latitude:number;longitude:number};
+export type GpsTrip = {
+  id:string; number:number; departure:string; arrival:string;
+  from:{latitude:number;longitude:number;address:string};
+  to:{latitude:number;longitude:number;address:string};
+};
 export type TruckGpsRoute = {
+  trips?:GpsTrip[];
   sourceVersion?:string;
   streets?:StreetRoute;
   date:string;

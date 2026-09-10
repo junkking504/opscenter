@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {normalizeGpsTrips,lastLinxupAddress} from '../lib/linxup-trips';
+const now=Date.parse('2026-09-10T18:00:00Z'),start=Date.parse('2026-09-10T13:00:00Z');
+const trip={personName:'Truck #6',tripUUID:'first',startDateTime:start,endDateTime:start+1800000,startLatitude:30.4,startLongitude:-91.1,endLatitude:30.5,endLongitude:-90.9,startAddress:'100 Example St, Baton Rouge, LA, USA',endAddress:'200 Sample Ave, Walker, LA, USA',distanceMilesDetailed:15};
+const idle={...trip,tripUUID:'idle',startDateTime:start+3600000,endDateTime:start+3900000,startLatitude:trip.endLatitude,startLongitude:trip.endLongitude,distanceMilesDetailed:0};
+const data={trips:[idle,trip,{...trip},{...trip,tripUUID:'other',personName:'Truck #9'},{...trip,tripUUID:'future',endDateTime:now+1},{...trip,tripUUID:'invalid',startLatitude:null}]};
+const trips=normalizeGpsTrips(data,'2026-09-10','Truck 6',now);
+assert.equal(trips.length,1);assert.equal(trips[0].number,1);assert.equal(trips[0].from.address,'100 Example St, Baton Rouge, LA');
+assert.equal(normalizeGpsTrips(data,'2026-09-11','Truck 6',now).length,0);
+assert.equal(lastLinxupAddress(data,'Truck 6',{timestamp:new Date(start+4000000).toISOString(),latitude:30.5,longitude:-90.9},now),'200 Sample Ave, Walker, LA');
+assert.equal(lastLinxupAddress(data,'Truck 6',{timestamp:new Date(start+4000000).toISOString(),latitude:31,longitude:-91},now),null);
+assert.equal(lastLinxupAddress(data,'Truck 6',{timestamp:new Date(start-1).toISOString(),latitude:30.5,longitude:-90.9},now),null);
+console.log('Numbered trips: truck/day isolation, chronological order, duplicates, parked ignition cycles, invalid/future records, and GPS-address proximity passed.');

@@ -54,6 +54,7 @@ export type ScheduleAppointment = {
   location: { latitude: number; longitude: number } | null;
 };
 export type ScheduleTruck = {
+  lastKnownAddress?: string|null;
   ignition?: string;
   truck: string;
   latitude: number | null;

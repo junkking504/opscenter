@@ -1,4 +1,5 @@
 import { planningLocation } from './planning-geocodes';
+import {lastLinxupAddress} from './linxup-trips';
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
@@ -38,6 +39,7 @@ export type FleetMapStop = {
 };
 
 export type FleetTruckMapRecord = {
+  lastKnownAddress?:string|null;
   truck: string;
   trackerId: string | null;
   vehicleName: string | null;
@@ -575,6 +577,7 @@ function buildTruckRecord({
 
   return {
     truck,
+    lastKnownAddress: lastLinxupAddress(locationPayload, truck.replace(/^Truck#\s*/, 'Truck '), lastPoint),
     trackerId: mapEntry?.linxup_tracker_id || lastPoint?.trackerId || null,
     vehicleName: mapEntry?.linxup_vehicle_name || lastPoint?.truck || null,
     yearMakeModel:

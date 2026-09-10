@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import {normalizeGpsTrips} from './linxup-trips';
 import path from 'node:path';
 import {chicagoDateKey} from './chicago-date';
 import {splitPlausibleRouteRuns} from './job-route-history';
@@ -69,7 +70,8 @@ export function normalizeTruckGpsRoute(payload:unknown,date:string,truck:string,
   const runs=chunks;
   const clean=({timestamp,latitude,longitude}:GpsRoutePoint):GpsRoutePoint=>({timestamp,latitude,longitude});
   const coveredThrough=observations.length?new Date(Math.max(...observations.map(point=>point.until))).toISOString():null;
-  return {date,truck,status:observations.length?'available':'empty',observedAt,coveredThrough,points:observations.map(clean),paths:runs.filter(run=>run.length>1).map(run=>run.map(clean)),gapLinks:gapLinks.map(run=>run.map(clean)),gaps:Math.max(0,runs.length-1),rejected};
+  const trips=normalizeGpsTrips(payload,date,truck,now);
+  return {date,truck,trips,status:observations.length || trips.length?'available':'empty',observedAt,coveredThrough,points:observations.map(clean),paths:runs.filter(run=>run.length>1).map(run=>run.map(clean)),gapLinks:gapLinks.map(run=>run.map(clean)),gaps:Math.max(0,runs.length-1),rejected};
 }
 
 export function readTruckGpsRoute(date:string,truck:string,root=process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data'),now=Date.now()):TruckGpsRoute {

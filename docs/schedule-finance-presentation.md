@@ -482,3 +482,13 @@ not driver-confirmed destinations or traffic-aware promises.
 Synthetic regression: `scripts/test-truck-progress.ts` and
 `scripts/test-truck-progress-browser.mjs` cover changing position/ETA, saved stack
 order, departure, on-site arrival, stale GPS, missing/failed sources, and no writes.
+
+The next-stop strip also uses the shared parked heartbeat rule: a valid zero-speed,
+ignition-OFF report within 75 minutes displays a neutral **Parked · 30m ago**
+status. Its original timestamp remains visible in the tooltip. Parked reports do
+not trigger routing requests or show an arrival clock, and the customer remains
+labelled **Next** rather than implying travel has begun. A recent moving or
+engine-on report restores ETA eligibility. Older moving reports display **Last
+position** with their age; overdue parked reports display **Last parked** with
+their age. Neither confirms current motion. Missing/invalid telemetry remains
+**GPS unavailable**. Parked tolerance never extends current on-site evidence.

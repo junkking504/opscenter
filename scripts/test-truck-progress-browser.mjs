@@ -24,8 +24,20 @@ try {
  assert.doesNotMatch(await progress.innerText(),/min/);
  await page.getByRole('button',{name:'GPS stops reporting',exact:true}).click();
  await page.clock.fastForward(16000);
- await page.getByRole('button',{name:/Truck 9 .*GPS stale/}).waitFor();
+ await page.getByRole('button',{name:/Truck 9 .*Last position/}).waitFor();
  assert.doesNotMatch(await progress.innerText(),/5 min|12 min/);
+ await page.getByRole('button',{name:'Truck parked 30 minutes',exact:true}).click();
+ await page.clock.fastForward(16000);
+ await page.getByRole('button',{name:/Truck 9 · Next scheduled stop:.*Parked · 30m ago/}).waitFor();
+ assert.doesNotMatch(await progress.innerText(),/GPS stale|Between jobs|5 min|12 min/);
+ assert.match(await progress.getAttribute('title'),/zero speed, ignition off/);
+ await page.screenshot({path:'/tmp/truck-parked-preview.png'});
+ await page.getByRole('button',{name:'Parked report overdue',exact:true}).click();
+ await page.clock.fastForward(16000);
+ await page.getByRole('button',{name:/Truck 9 .*Last parked · 1h 20m ago/}).waitFor();
+ await page.getByRole('button',{name:'Move truck closer',exact:true}).click();
+ await page.clock.fastForward(121000);
+ await page.getByRole('button',{name:/Truck 9 · Between appointments:.*5 min/}).waitFor();
  assert.equal(await page.locator('#fixture-writes').innerText(),'Writes: 0');
  console.log('Truck progress browser PASS: 12 -> 5 minutes, next-stop details, on-site arrival, stale GPS removes ETA, viewport fit, no writes.');
 } finally {await browser.close();}

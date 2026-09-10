@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { nextTruckStop } from '../lib/schedule-next-stop';
+import { nextTruckStop, truckProgressGpsState } from '../lib/schedule-next-stop';
 import { calculateTruckProgress } from '../lib/desktop-truck-progress';
 import type { DesktopAppointment } from '../lib/desktop-schedule';
 import type { ScheduleTruck } from '../desktop-ui/lib/schedule-contract';
@@ -20,6 +20,17 @@ const get=(j=jobs,t=[gps],live=true,p:Parameters<typeof calculateTruckProgress>[
 let result=await get();
 assert.equal(calls,1);assert.equal(result.length,1);assert.equal(result[0].appointmentId,'z-first');assert.equal(result[0].minutes,12);assert.equal(result[0].arrivalAt,'2026-09-10T16:12:00.000Z');
 result=await get(jobs,[{...gps,lastGpsUpdate:new Date(now-181000).toISOString()}]);assert.equal(result[0].status,'stale_gps');assert.equal(calls,1);
+const parked={...gps,speed:0,ignition:'OFF',lastGpsUpdate:new Date(now-30*60000).toISOString()};
+assert.equal((await get(jobs,[parked]))[0].status,'parked');
+assert.equal(calls,1,'Parked heartbeat does not authorize a live ETA request');
+assert.equal(truckProgressGpsState({...parked,lastGpsUpdate:gps.lastGpsUpdate},now),'parked');
+assert.equal(truckProgressGpsState({...parked,speed:25},now),'stale_gps','Conflicting motion cannot be parked');
+assert.equal(truckProgressGpsState({...parked,ignition:'ON'},now),'stale_gps','Old idling report cannot be parked');
+assert.equal(truckProgressGpsState({...parked,speed:null},now),'stale_gps');
+assert.equal(truckProgressGpsState({...parked,latitude:NaN},now),'gps_unavailable');
+assert.equal(truckProgressGpsState({...parked,lastGpsUpdate:new Date(now-75*60000).toISOString()},now),'parked');
+assert.equal(truckProgressGpsState({...parked,lastGpsUpdate:new Date(now-75*60000-1).toISOString()},now),'stale_gps');
+assert.equal((await get([job('onsite',{truckOnSite:true}),second],[parked]))[0].status,'last_seen','Parked tolerance cannot extend on-site certainty');
 await get(jobs,[{...gps,lastGpsUpdate:new Date(now+1000).toISOString()}]);assert.equal(calls,1,'Future GPS cannot generate an ETA');
 assert.deepEqual(await get(jobs,[gps],false),[]);
 assert.equal((await get([job('pending',{junkwareSyncStatus:'pending',stopOrder:0}),second]))[0].status,'unverified');assert.equal(calls,1,'Do not skip the unverified first stop');

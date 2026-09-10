@@ -6,3 +6,4 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-truck-progress.last_seen,
 .ops-live .live-schedule.schedule-dispatch .schedule-truck-progress.unverified { background: #fff6dd; color: #755b18; }
 .ops-live .schedule-truck-progress:focus-visible { outline: 2px solid #174e77; outline-offset: 1px; }
+.ops-live .live-schedule.schedule-dispatch .schedule-truck-progress.parked-report { background: #f0f2f1; color: #46544c; }

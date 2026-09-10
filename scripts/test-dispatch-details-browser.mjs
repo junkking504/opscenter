@@ -13,10 +13,11 @@ try {
     const addBox=await add.boundingBox();
     assert.ok(addBox.x>=0 && addBox.x+addBox.width<=width+1 && addBox.height>=32&&addBox.height<=34,'compact primary action fits');
     assert.equal(await add.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(164, 59, 53)');
-    assert.equal(await page.locator('.schedule-primary-action .schedule-add-appointment').count(),1,'one header action');
-    assert.equal(await page.locator('.schedule-control-actions .schedule-add-appointment').count(),0,'creation separate from view settings');
-    const headerTitle=await page.locator('.schedule-workspace-heading h1').boundingBox();
-    assert.ok(addBox.x>headerTitle.x && Math.abs(addBox.y-headerTitle.y)<45,'action aligns beside title');
+    assert.equal(await page.locator('.schedule-search-actions .schedule-add-appointment').count(),1,'one action beside appointment search');
+    assert.equal(await page.locator('.schedule-workspace-heading .schedule-add-appointment').count(),0,'no duplicate header action');
+    const searchBox=await page.getByRole('textbox',{name:'Filter source appointments',exact:true}).boundingBox();
+    assert.ok(Math.abs(addBox.x-(searchBox.x+searchBox.width)-8)<2,'action immediately follows search');
+    assert.ok(Math.abs((addBox.y+addBox.height/2)-(searchBox.y+searchBox.height/2))<2,'search and creation share a row');
     await add.click();
     const booking=page.getByRole('dialog',{name:'New Appointment',exact:true});
     await booking.waitFor();

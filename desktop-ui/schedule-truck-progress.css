@@ -1,0 +1,8 @@
+.ops-live .live-schedule.schedule-dispatch .schedule-truck-progress { position: absolute; bottom: 2px; left: 3px; right: 3px; height: 19px; min-height: 19px; display: flex; align-items: center; gap: 6px; padding: 1px 5px; border: 0; border-radius: 3px; background: #edf4f8; color: #254b64; font-size: 10px; line-height: 15px; text-align: left; cursor: pointer; z-index: 4; }
+.ops-live .schedule-truck-progress .truck-progress-customer { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.ops-live .schedule-truck-progress strong { flex-shrink: 0; font-size: 10px; font-weight: 700; }
+.ops-live .live-schedule.schedule-dispatch .schedule-truck-progress.on_site { background: #eaf3ed; color: #27633b; }
+.ops-live .live-schedule.schedule-dispatch .schedule-truck-progress.stale_gps,
+.ops-live .live-schedule.schedule-dispatch .schedule-truck-progress.last_seen,
+.ops-live .live-schedule.schedule-dispatch .schedule-truck-progress.unverified { background: #fff6dd; color: #755b18; }
+.ops-live .schedule-truck-progress:focus-visible { outline: 2px solid #174e77; outline-offset: 1px; }

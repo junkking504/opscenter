@@ -3,7 +3,8 @@ import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { authorizeOpsRequest } from '@/lib/ops-roles';
 import { readDesktopSchedule } from '@/lib/desktop-schedule';
-import { executeScheduleOperation, parseScheduleOperation, readScheduleReceipt, reconcileCloseoutReceipt } from '@/lib/desktop-schedule-operations';
+import { executeScheduleOperation, parseScheduleOperation, readScheduleReceipt, reconcileCloseoutReceipt, reconcileMoveReceipt } from '@/lib/desktop-schedule-operations';
+import { readJunkwareTruckAssignment } from '@/lib/junkware-truck-assignment';
 import { withJunkwareAppointmentSyncLock } from '@/lib/job-route-assignments';
 import { junkwareJobCloseout } from '@/lib/junkware-job-closeout';
 import { POST as assign } from '@/app/api/job-route-assignments/route';
@@ -21,10 +22,13 @@ export async function GET(request: Request) {
   if (!actor) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
   const parameters = new URL(request.url).searchParams;
   const requestId = parameters.get('requestId') || '';
-  const receipt = parameters.get('reconcile') === '1' ? await reconcileCloseoutReceipt(requestId, actor.email, async id => {
+  let receipt = parameters.get('reconcile') === '1' ? await reconcileCloseoutReceipt(requestId, actor.email, async id => {
     const result = await withJunkwareAppointmentSyncLock(id, () => junkwareJobCloseout(id));
     return result.closeout;
   }) : await readScheduleReceipt(requestId);
+  if (parameters.get('reconcile') === '1' && receipt?.actor === actor.email && receipt.action === 'move' && authorizeOpsRequest(actor.role, '/api/job-route-assignments', 'POST').allowed) {
+    receipt = await reconcileMoveReceipt(requestId, actor.email, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id)));
+  }
   if (!receipt || receipt.actor !== actor.email) return Response.json({ error: 'Change receipt not found.' }, { status: 404, headers });
   return Response.json({ receipt }, { headers });
 }

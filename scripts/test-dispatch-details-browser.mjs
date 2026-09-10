@@ -72,6 +72,16 @@ try {
     if(width>=1000)assert.ok(r.y>=0&&r.y+r.height<=height+1,'full details remains in viewport');
     await full.click();
     await page.getByRole('dialog',{name:'JK1001001',exact:true}).waitFor();
+    const drawer=page.getByRole('dialog',{name:'JK1001001',exact:true});
+    const sections=await drawer.evaluate(el=>({closeout:el.querySelector('.appointment-closeout-panel').getBoundingClientRect().top,note:el.querySelector('.drawer-note-row').getBoundingClientRect().top,secondary:el.querySelector('.drawer-secondary-controls').getBoundingClientRect().top}));
+    assert.ok(sections.closeout<sections.note && sections.note<sections.secondary,'Closeout, essential note, then secondary dispatch controls');
+    assert.equal(await drawer.locator('.drawer-secondary-controls').getAttribute('open'),null);
+    assert.equal(await drawer.getByRole('combobox',{name:'Truck Assignment',exact:true}).count(),0,'Assignment controls start collapsed');
+    await drawer.getByRole('textbox',{name:'Add Appointment Note',exact:true}).fill('Synthetic note only');
+    assert.equal(await drawer.getByRole('button',{name:'Save Note in JunkWare',exact:true}).isEnabled(),true,'Note entry remains immediately accessible');
+    await drawer.getByText('Assignment, call-ahead & cancellation',{exact:true}).click();
+    await drawer.getByRole('combobox',{name:'Truck Assignment',exact:true}).waitFor();
+    assert.equal(await drawer.getByRole('button',{name:'Mark Call Ahead',exact:true}).isEnabled(),true);
     await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).first().click();
     assert.equal(await block.getAttribute('aria-pressed'),'true');
     await page.getByRole('button',{name:'Synthetic map marker JK1001002',exact:true}).click();

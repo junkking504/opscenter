@@ -1,3 +1,4 @@
+import EstimateCharges from './estimate-charges';
 import { useEffect, useRef, useState } from 'react';
 import { AlertPhotos } from './components/alert-details';
 import { estimateHref, estimateInScope, estimateLabels, type EstimateChange, type EstimateDisposition, type EstimateRow, type EstimateSnapshot, type EstimateSummary } from './lib/estimate-contract';
@@ -99,7 +100,7 @@ function EstimateDetail({ row, canWrite, actor, close, reload, busyChange, saved
     finally { setBusy(false); busyChange(false); }
   }
   return <section id="estimate-detail" className="estimate-detail" aria-label={`Estimate details for ${row.jk}`}><header><div><span className="estimate-kicker">{row.jk} · Appointment {row.id}</span><h3>{row.customer}</h3><p>{money(row.quote)} quoted · {row.pricing || 'Itemized pricing unavailable'}</p></div><button ref={first} disabled={busy} onClick={close}>Close details</button></header>
-    <div className="estimate-detail-grid"><div className="estimate-evidence"><p>{row.address}</p><p>Estimate appointment: {row.date} · Source: {row.sourceStatus} · Observed {stamp(row.observedAt)}</p>
+    <div className="estimate-detail-grid"><div className="estimate-evidence"><EstimateCharges row={row} /><p>{row.address}</p><p>Estimate appointment: {row.date} · Source: {row.sourceStatus} · Observed {stamp(row.observedAt)}</p>
       <div className="estimate-links">{row.phone.replace(/\D/g,'').length >= 7 && <a href={`tel:${row.phone.replace(/\D/g,'')}`}>Call {row.phone}</a>}{row.email && <a href={`mailto:${row.email}`}>Email customer</a>}<a href={estimateHref(row.id)} target="_blank" rel="noopener noreferrer">Open estimate in JunkWare ↗</a></div>
       {row.bookings.length > 0 ? <section><h4>Linked jobs</h4>{row.bookings.map(job => <p key={job.id}><a href={`/desktop?workspace=Schedule&scheduleView=board&date=${job.date}&appointment=${job.id}`}>{job.jk || job.id} · {job.date}</a> · {job.status} · Observed {stamp(job.observedAt)}</p>)}</section> : <><p>No active source-linked job found. Confirm the current booking in JunkWare before contacting the customer.</p><a className="estimate-book" href={estimateHref(row.id)} target="_blank" rel="noopener noreferrer">Schedule job in JunkWare ↗</a><small>Start from this estimate to retain its quote and relationship. Reload after JunkWare has synced; Converted requires a linked job in the source.</small></>}
       {row.possibleBookings.length > 0 && <section><h4>Possible matching jobs — not confirmed conversions</h4>{row.possibleBookings.map(job => <p key={job.id}><a href={estimateHref(job.id)} target="_blank" rel="noopener noreferrer">{job.jk || job.id} · {job.date}</a> · {job.status}</p>)}</section>}

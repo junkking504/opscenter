@@ -62,3 +62,13 @@
 .estimate-command b { font-size: 20px; }
 @media (max-width: 1100px) { .estimate-list-heading, .estimate-row { grid-template-columns: 1.2fr 1.2fr 1fr; } .estimate-list-heading span:last-child { display:none; } .estimate-row-actions { grid-column: 1 / -1; flex-direction: row !important; align-items: center; gap: 16px !important; } .estimate-row-actions a { margin: 0; } }
 @media (max-width: 760px) { .estimate-workspace { padding: 12px; } .estimate-heading { flex-wrap: wrap; } .estimate-list-heading { display:none; } .estimate-row { grid-template-columns: 1fr; gap: 12px; padding: 18px 0; } .estimate-row-actions { flex-wrap: wrap; } .estimate-toolbar label { width: 100%; } .estimate-detail { padding: 12px; } .estimate-detail-grid { grid-template-columns: 1fr; gap: 20px; } .estimate-command { align-items: flex-start; flex-direction: column; padding: 14px; } .estimate-command nav { gap: 12px 20px; flex-wrap: wrap; } }
+
+.estimate-charges { margin: 0 0 18px; padding: 14px; background: #fff; border: 1px solid #dce2e8; border-radius: 6px; }
+.estimate-charges table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.estimate-charges th, .estimate-charges td { padding: 8px 4px; border-bottom: 1px solid #e3e8ee; text-align: right; vertical-align: top; }
+.estimate-charges th:first-child { text-align: left; overflow-wrap: anywhere; }
+.estimate-charges tbody th { font-weight: 500; }
+.estimate-charges thead th { color: #627083; font-size: 11px; }
+.estimate-charges tfoot th, .estimate-charges tfoot td { font-weight: 700; border-bottom: 0; color: #71528b; }
+.estimate-charges small { margin-top: 8px; }
+@media (max-width: 480px) { .estimate-charges { padding: 8px; } .estimate-charges th, .estimate-charges td { padding: 6px 2px; font-size: 11px; } }

@@ -55,3 +55,12 @@ day is selected; its label identifies the cross-date scope.
 Validation: `npm run verify:estimates`, desktop type/build, focused browser tests,
 and the normal production build. Browser fixtures use synthetic records and
 mocked API responses; no customer record or source appointment is changed by QA.
+
+Estimate details show an expanded itemized-charge table before the address,
+booking links and notes. It uses the same saved estimate observation as the quote,
+including load/bedload quantities and saved line totals, other-charge quantities
+and unit prices, discount and tip when recorded, and the quoted total. Load prices
+are already extended totals and are not multiplied by quantity. Missing prices
+stay unavailable; a total-only quote does not imply an itemized breakdown. These
+are estimate charges, not payments or revenue. Charge changes invalidate the
+follow-up source version alongside quote/notes changes. No new provider requests.

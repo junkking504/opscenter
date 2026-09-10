@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { estimateCharges } from '../lib/estimate-charges';
+assert.deepEqual(estimateCharges(null),{items:[],discount:null,tip:null});
+assert.deepEqual(estimateCharges({total:1200}).items,[],'Never invent items from a total');
+const charges=estimateCharges({loadSize:'Full',loadQuantity:2,loadPrice:'$1,000.00',bedloadSize:'None',otherCharges:[null,{name:'Labor',quantity:4,unitPrice:'$75.00',total:'$300.00'},{name:'Unknown price',total:''}],discount:'$100',tip:'0.00'});
+assert.equal(charges.items.length,3);
+assert.deepEqual(charges.items[0],{name:'Load · size Full',quantity:'2',unitPrice:null,total:1000});
+assert.deepEqual(charges.items[1],{name:'Labor',quantity:'4',unitPrice:75,total:300});
+assert.equal(charges.items[2].total,null);
+assert.equal(charges.tip,0);
+assert.equal(charges.discount,100);
+assert.equal(estimateCharges({loadPrice:'0'}).items[0].total,0);
+assert.equal(estimateCharges({loadSize:'Full',loadPrice:'bad'}).items[0].total,null);
+console.log('Estimate charges PASS: saved line totals, quantities/rates, discounts, zero and missing/malformed charges.');

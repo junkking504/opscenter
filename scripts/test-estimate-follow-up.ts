@@ -10,7 +10,7 @@ const previous = process.env.OPSBOT_DATA_DIR;
 process.env.OPSBOT_DATA_DIR = directory;
 const history = path.join(directory,'history/junkware'); fs.mkdirSync(history,{recursive:true});
 const today = '2026-09-10';
-const source = (id: string, extra: Record<string,unknown> = {}) => ({ appt_id:id,job_id:`JK${id}`,customer_name:`Synthetic ${id}`,phone:'',appointment_date:'2026-08-12',appointment_type:'Estimate',final_status:'Completed',collection_timestamp:'2026-08-12T12:00:00Z',closeout:{total:'$500.00'},appointment_notes:['Quote given.'],...extra });
+const source = (id: string, extra: Record<string,unknown> = {}) => ({ appt_id:id,job_id:`JK${id}`,customer_name:`Synthetic ${id}`,phone:'',appointment_date:'2026-08-12',appointment_type:'Estimate',final_status:'Completed',collection_timestamp:'2026-08-12T12:00:00Z',closeout:{loadQuantity:'2',loadSize:'Full',loadPrice:'$400.00',otherCharges:[{name:'Labor',quantity:'2',unitPrice:'$75.00',total:'$150.00'}],discount:'$50.00',total:'$500.00'},appointment_notes:['Quote given.'],...extra });
 const write = (date: string, rows: unknown[]) => fs.writeFileSync(path.join(history,`junkware_${date}_raw.json`),JSON.stringify({appointments:rows,completed:[],cancelled:[],scraped_at:`${date}T18:00:00Z`}));
 const actor = {email:'synthetic@example.test',role:'operator' as const};
 try {
@@ -26,6 +26,10 @@ try {
   ]);
   let snapshot=readEstimateFollowups(today);
   const get=(id:string)=>snapshot.rows.find(row=>row.id===id)!;
+  assert.deepEqual(get('100').charges?.items.map(item=>item.total),[400,150]);
+  assert.equal(get('100').charges?.discount,50);
+  assert.equal(get('100').charges?.items[0].unitPrice,null,'Load price is already a line total');
+  assert.equal(get('100').charges?.items[1].unitPrice,75);
   assert.equal(get('101').status,'converted','cross-date explicit link counts');
   assert.equal(get('103').status,'converted','same appointment converted in place counts');
   assert.equal(get('102').status,'verify_booking','canceled booking returns for review');

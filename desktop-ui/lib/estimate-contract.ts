@@ -1,3 +1,4 @@
+import type { EstimateCharges } from '../../lib/estimate-charges';
 export type EstimateDisposition = 'needs_follow_up' | 'verify_booking' | 'waiting' | 'lost';
 export type EstimateStatus = EstimateDisposition | 'converted';
 export const estimateLabels: Record<EstimateStatus, string> = { needs_follow_up: 'Needs follow-up', verify_booking: 'Verify booking', waiting: 'Waiting on customer', lost: 'Lost / no longer needed', converted: 'Converted' };
@@ -7,7 +8,7 @@ export type EstimateBooking = { id: string; jk: string; date: string; status: st
 export type EstimateRow = {
   id: string; jk: string; customer: string; phone: string; email: string; address: string; territory: string;
   date: string; quote: number | null; observedAt: string | null; sourceStatus: string; notes: string[];
-  photos: Array<{ url: string; category: string; fileName: string }>; pricing: string;
+  photos: Array<{ url: string; category: string; fileName: string }>; pricing: string; charges?: EstimateCharges;
   status: EstimateStatus; followup: EstimateFollowup; history: EstimateEvent[]; tracked: boolean;
   bookings: EstimateBooking[]; canceledBookings: EstimateBooking[]; possibleBookings: EstimateBooking[];
   version: string; ageDays: number; overdue: boolean; dueToday: boolean;

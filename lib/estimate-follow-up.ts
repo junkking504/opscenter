@@ -1,3 +1,4 @@
+import { estimateCharges, type EstimateCharges } from './estimate-charges';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -8,7 +9,7 @@ import { opsRoleCan, type InteractiveOpsRole } from './ops-roles';
 import { estimateSummary, type EstimateBooking, type EstimateChange, type EstimateEvent, type EstimateFollowup, type EstimateRow, type EstimateSnapshot } from '../desktop-ui/lib/estimate-contract';
 
 type Raw = Record<string, unknown>;
-type Source = { id: string; jk: string; customer: string; phone: string; email: string; address: string; territory: string; date: string; type: string; status: string; estimateId: string; quote: number | null; notes: string[]; photos: EstimateRow['photos']; pricing: string; observedAt: string | null; order: number };
+type Source = { id: string; jk: string; customer: string; phone: string; email: string; address: string; territory: string; date: string; type: string; status: string; estimateId: string; quote: number | null; notes: string[]; photos: EstimateRow['photos']; pricing: string; charges: EstimateCharges; observedAt: string | null; order: number };
 type Store = { schema: 1; records: Record<string, EstimateEvent[]> };
 const text = (value: unknown) => String(value ?? '').trim();
 const hash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -33,7 +34,7 @@ function sourceRow(row: Raw, day: string, observed: string): Source | null {
   if (!validEstimateDate(date)) return null;
   const notes = Array.isArray(row.appointment_notes) ? row.appointment_notes.map(text).filter(Boolean) : [];
   for (const key of ['franchise_notes', 'customer_notes', 'additional_notes']) if (text(row[key]) && !notes.includes(text(row[key]))) notes.push(text(row[key]));
-  return { id, jk: text(row.job_id || row.jk_number), customer: text(row.customer_name), phone: text(row.phone), email: text(row.customerEmail || row.customer_email), address: text(row.address), territory: text(row.normalized_territory || row.territory || row.market), date, type: text(row.final_appointment_type || row.appointment_type), status: text(row.final_status || row.job_status), estimateId: text(row.source_estimate_appointment_id), quote: amount(charges.total), notes, photos: junkwareJobPhotos(row), pricing: [text(charges.loadSize) && `${text(charges.loadQuantity) || '1'} × ${text(charges.loadSize)}`, text(charges.bedloadSize) && !/^none$/i.test(text(charges.bedloadSize)) && `${text(charges.bedloadQuantity) || '1'} × ${text(charges.bedloadSize)}`, ...(Array.isArray(charges.otherCharges) ? charges.otherCharges.map(value => text((value as Raw).name)).filter(Boolean) : [])].filter(Boolean).join(' · '), observedAt: at, order: at ? Date.parse(at) : 0 };
+  return { id, jk: text(row.job_id || row.jk_number), customer: text(row.customer_name), phone: text(row.phone), email: text(row.customerEmail || row.customer_email), address: text(row.address), territory: text(row.normalized_territory || row.territory || row.market), date, type: text(row.final_appointment_type || row.appointment_type), status: text(row.final_status || row.job_status), estimateId: text(row.source_estimate_appointment_id), quote: amount(charges.total), charges: estimateCharges(charges), notes, photos: junkwareJobPhotos(row), pricing: [text(charges.loadSize) && `${text(charges.loadQuantity) || '1'} × ${text(charges.loadSize)}`, text(charges.bedloadSize) && !/^none$/i.test(text(charges.bedloadSize)) && `${text(charges.bedloadQuantity) || '1'} × ${text(charges.bedloadSize)}`, ...(Array.isArray(charges.otherCharges) ? charges.otherCharges.map(value => text((value as Raw).name)).filter(Boolean) : [])].filter(Boolean).join(' · '), observedAt: at, order: at ? Date.parse(at) : 0 };
 }
 
 // Cache projected rows per file. Routine local reads do not reparse all archives
@@ -120,8 +121,8 @@ export function readEstimateFollowups(today = chicagoDateKey()): EstimateSnapsho
     const status = bookings.length ? 'converted' : followup.status;
     const source = isEstimate(current) ? current : estimate;
     // Observation timestamps do not invalidate a user's draft on each sweep.
-    const version = hash({ source: { id, date: source.date, type: current.type, status: current.status, quote: source.quote, notes: source.notes, bookings: unique.map(row => [row.id,row.type,row.status,row.date]) }, history });
-    rows.push({ id, jk: source.jk, customer: source.customer, phone: source.phone, email: source.email, address: source.address, territory: source.territory, date: source.date, quote: source.quote, observedAt: source.observedAt, sourceStatus: source.status, notes: source.notes, photos: source.photos, pricing: source.pricing, status, followup, history, tracked: history.length > 0, bookings, canceledBookings: unique.filter(canceled).map(booking), possibleBookings, version, ageDays: Math.max(0, Math.round((Date.parse(today)-Date.parse(source.date))/86400000)), overdue: status !== 'converted' && status !== 'lost' && Boolean(followup.nextFollowup) && followup.nextFollowup < today, dueToday: status !== 'converted' && status !== 'lost' && followup.nextFollowup === today });
+    const version = hash({ source: { id, date: source.date, type: current.type, status: current.status, quote: source.quote, charges: source.charges, notes: source.notes, bookings: unique.map(row => [row.id,row.type,row.status,row.date]) }, history });
+    rows.push({ id, jk: source.jk, customer: source.customer, phone: source.phone, email: source.email, address: source.address, territory: source.territory, date: source.date, quote: source.quote, observedAt: source.observedAt, sourceStatus: source.status, notes: source.notes, photos: source.photos, pricing: source.pricing, charges: source.charges, status, followup, history, tracked: history.length > 0, bookings, canceledBookings: unique.filter(canceled).map(booking), possibleBookings, version, ageDays: Math.max(0, Math.round((Date.parse(today)-Date.parse(source.date))/86400000)), overdue: status !== 'converted' && status !== 'lost' && Boolean(followup.nextFollowup) && followup.nextFollowup < today, dueToday: status !== 'converted' && status !== 'lost' && followup.nextFollowup === today });
   }
   rows.sort((a,b) => Number(b.overdue)-Number(a.overdue) || Number(b.dueToday)-Number(a.dueToday) || b.date.localeCompare(a.date) || a.id.localeCompare(b.id));
   return { today, generatedAt: new Date().toISOString(), recentStart: recent.toISOString().slice(0,10), rows, coverage, canWrite: false, actor: '' };

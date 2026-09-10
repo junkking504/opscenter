@@ -16,6 +16,15 @@ Resolving a move resets the closeout editor so the operator must reload current
 source data before a new review. `scripts/test-move-reconciliation.ts` covers
 this boundary; the dispatch browser test checks section order and note access.
 
+## Schedule loading and canceled addresses
+
+The Schedule snapshot returns source records and cached coordinates immediately.
+External address verification runs only in the separate routing/preview path, so
+an unresolved address cannot delay the board or hide a newly recorded cancellation.
+Canceled appointments remain visible in the schedule and history, but are excluded
+from address verification requests, the Verify Address filter/count, and route legs.
+Missing coordinates on active appointments still require verification for travel.
+
 ## Selected appointment at a glance
 
 Selecting an appointment from the truck schedule, map, or register now opens one

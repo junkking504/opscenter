@@ -12,7 +12,7 @@ import { buildFleetMapPayload } from '@/lib/fleet-map';
 import { planningLocation } from '@/lib/planning-geocodes';
 import { type RoadMatrixElement, type Coordinates } from '@/lib/job-route-proximity';
 import { LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS } from '@/lib/linxup-authority';
-import type { ClosestTruck, ScheduleTruck } from '../desktop-ui/lib/schedule-contract';
+import { needsScheduleAddressVerification, type ClosestTruck, type ScheduleTruck } from '../desktop-ui/lib/schedule-contract';
 import { readJobRouteAssignmentOverrides } from '@/lib/job-route-assignments';
 import { jobCallAheadLookupKey, readJobCallAheadStatuses } from '@/lib/job-call-ahead';
 import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-address-verification';
@@ -93,7 +93,7 @@ type MatrixProvider = (origins: Coordinates[], destinations: Coordinates[]) => P
 
 export async function readVerifiedDesktopSchedule(date: string) {
   const snapshot = readDesktopSchedule(date);
-  const missing = snapshot.appointments.filter(job=>!job.location && job.address && job.address!=='—' && !cachedAddressVerification(job.address)).slice(0,12);
+  const missing = snapshot.appointments.filter(job=>needsScheduleAddressVerification(job) && job.address && job.address!=='—' && !cachedAddressVerification(job.address)).slice(0,12);
   for(let offset=0;offset<missing.length;offset+=4) await Promise.all(missing.slice(offset,offset+4).map(async job=>{job.location=(await verifyDesktopAddress(job.address)).location;}));
   // Newly verified locations participate in presence detection immediately.
   if (missing.length) return readDesktopSchedule(date);
@@ -148,6 +148,7 @@ export async function calculateDesktopRouteLegs(appointments: DesktopAppointment
 }
 
 export async function calculateClosestTrucks(appointment: DesktopAppointment, trucks: ScheduleTruck[], isToday: boolean, provider: MatrixProvider = osmTravelMatrix, now = Date.now()): Promise<ClosestTruck[]> {
+  if (/cancel/i.test(appointment.status)) return [];
   const rows: ClosestTruck[] = trucks.map(truck => {
     const updated = Date.parse(truck.lastGpsUpdate || '');
     const located = truck.latitude !== null && truck.longitude !== null && Number.isFinite(truck.latitude) && Number.isFinite(truck.longitude);

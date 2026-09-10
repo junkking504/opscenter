@@ -122,6 +122,7 @@ export function scheduleStatusTone(job: Pick<ScheduleAppointment, 'status' | 'ha
   if (job.hasVisit || /visited/i.test(job.status)) return 'visited';
   return 'waiting';
 }
+export function needsScheduleAddressVerification(job: Pick<ScheduleAppointment, 'status' | 'location'>) { return !/cancel/i.test(job.status) && !job.location; }
 export function isClosed(job: Pick<ScheduleAppointment, 'appointmentType' | 'status'>) { return /complete|closed|cancel/i.test(job.status); }
 export function assignmentNeedsVerification(job: Pick<ScheduleAppointment, 'junkwareSyncStatus'>) { return Boolean(job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified'); }
 export function scheduleMoveRestriction(job: ScheduleAppointment) {

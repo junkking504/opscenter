@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { calculateDesktopRouteLegs, scheduleRoutePairs, type DesktopAppointment } from '../lib/desktop-schedule';
+import { needsScheduleAddressVerification } from '../desktop-ui/lib/schedule-contract';
+import { calculateClosestTrucks, calculateDesktopRouteLegs, scheduleRoutePairs, type DesktopAppointment } from '../lib/desktop-schedule';
 
 function appointment(id: string, start: number, end: number, patch: Partial<DesktopAppointment> = {}): DesktopAppointment {
   return { recordId: id, appointmentId: id, jkNumber: 'JK1234567', truck: 'Truck 2', hasScheduledTime: true, appointmentStartMinutes: start, appointmentEndMinutes: end, status: 'Confirmed', location: { latitude: 30, longitude: -90 }, ...patch } as DesktopAppointment;
@@ -7,6 +8,13 @@ function appointment(id: string, start: number, end: number, patch: Partial<Desk
 
 async function main() {
   const jobs = [appointment('estimate-1', 480, 540, { appointmentType: 'Estimate' }), appointment('job-2', 555, 615), appointment('job-3', 600, 660), appointment('cancelled', 700, 760, { status: 'Canceled' })];
+  for (const status of ['Canceled', 'Cancelled by Dispatcher']) {
+    const canceled = appointment('canceled-missing-address', 550, 600, {status, location:null});
+    assert.deepEqual(await calculateClosestTrucks(canceled, [], true, async()=>{throw Error('Canceled appointments must not request closest trucks');}),[]);
+    assert.equal(needsScheduleAddressVerification(canceled),false,'Canceled records do not request geocoding or count as address attention');
+    assert.deepEqual(scheduleRoutePairs([jobs[0],canceled,jobs[1]]).map(leg=>[leg.fromAppointmentId,leg.toAppointmentId]),[['estimate-1','job-2']],'A canceled unverified stop cannot interrupt the truck route');
+  }
+  assert.equal(needsScheduleAddressVerification({...jobs[1],location:null}),true,'Active unverified work remains visible for address review');
   const pairs = scheduleRoutePairs(jobs);
   assert.equal(pairs.length, 2);
   assert.equal(pairs[0].fromAppointmentId, 'estimate-1');

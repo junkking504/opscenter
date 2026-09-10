@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { chicagoDateKey } from '@/lib/report-dates';
-import { readVerifiedDesktopSchedule } from '@/lib/desktop-schedule';
+import { readDesktopSchedule } from '@/lib/desktop-schedule';
 import {requestScheduleDay} from '@/lib/requested-schedule-day';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,8 @@ export async function GET(request: Request) {
     return Response.json({ error: 'A valid operating date is required.' }, { status: 400, headers });
   }
   try {
-    const snapshot=await readVerifiedDesktopSchedule(date);
+    // Render source truth immediately; the separate routing request verifies addresses.
+    const snapshot=readDesktopSchedule(date);
     const params=new URL(request.url).searchParams;
     const sourceRequest=params.get('load')==='1' ? requestScheduleDay(date,snapshot.observedAt,snapshot.appointments.length>0,params.get('refresh')==='1') : undefined;
     return Response.json({...snapshot,sourceRequest}, { headers });

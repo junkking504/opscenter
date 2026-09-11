@@ -11,14 +11,15 @@ try {
     const canceledRow=page.locator('.readable-appointment').filter({has:page.getByRole('button',{name:'JK10006',exact:true})});
     assert.equal(await canceledRow.locator('.register-customer > strong').innerText(),'Synthetic Customer');
     assert.doesNotMatch(await canceledRow.locator('.register-customer').innerText(),/cancel|Followup/i);
-    assert.match(await canceledRow.locator('.register-cancellation-reason').innerText(),/Cancellation reason\s+Customer requested cancellation/);
+    assert.match(await canceledRow.locator('.register-cancellation-reason').innerText(),/Cancellation reason\s*:?\s*Customer requested cancellation/);
     assert.match(await page.getByRole('cell',{name:'Payment for JK10001',exact:true}).innerText(),/\$100.00/);
     assert.match(await page.getByRole('cell',{name:'Payment for JK10002',exact:true}).innerText(),/Balance due \$50.00/);
     assert.match(await page.getByRole('cell',{name:'Payment for JK10003',exact:true}).innerText(),/Estimate quoted/);
     assert.match(await page.getByRole('cell',{name:'Payment for JK10005',exact:true}).innerText(),/Billed · not confirmed paid/);
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth+1),`${width}: no page overflow`);
+    if (width > 1150) assert.ok(await page.locator('.readable-appointment').nth(5).evaluate(row=>row.getBoundingClientRect().bottom <= 720), `${width}: six appointment rows fit in a 720px desktop view`);
     const geometry=await page.locator('.readable-appointment').nth(1).evaluate(row=>({cells:[...row.children].map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom};}),amountSize:parseFloat(getComputedStyle(row.querySelector('.register-payment-amount')).fontSize)}));
-    assert.ok(geometry.amountSize>=22);
+    assert.ok(geometry.amountSize >= (width > 1150 ? 17 : 22));
     for(let i=0;i<geometry.cells.length;i++)for(let j=i+1;j<geometry.cells.length;j++){const a=geometry.cells[i],b=geometry.cells[j];assert.ok(!(a.x<b.right&&b.x<a.right&&a.y<b.bottom&&b.y<a.bottom),`${width}: cells do not overlap`);}
     await page.getByRole('button',{name:'JK10001',exact:true}).click();
     await page.getByRole('button',{name:'View details for JK10001',exact:true}).click();

@@ -31,6 +31,43 @@
 .live-schedule .readable-appointment .register-route { color: #53615a; }
 .live-schedule .readable-appointment .register-mobile-label { display: none; }
 .live-schedule .readable-appointment button:focus-visible { outline: 2px solid #1a638d; outline-offset: 4px; }
+.live-schedule .readable-appointment .register-payment-summary { display: flex; flex-direction: column; gap: 3px; }
+.live-schedule .readable-appointment .register-note-count { font-size: 11px; font-weight: 500; }
+/* Keep six or more appointments in the desktop register's first screen. */
+@media (min-width: 1151px) {
+  .live-schedule .appointment-register-title { min-height: 40px; padding: 5px 12px; }
+  .live-schedule .appointment-territory-toolbar { padding: 3px 11px; }
+  .live-schedule .appointment-territory-heading { min-height: 26px; padding-block: 3px; }
+  .live-schedule .appointment-area-heading { min-height: 22px; padding-block: 2px; }
+  .live-schedule .appointment-territory-group + .appointment-territory-group { border-top-width: 3px; }
+  .live-schedule .appointment-register-head, .live-schedule .readable-appointment { grid-template-columns: minmax(110px,.9fr) minmax(200px,2fr) minmax(110px,1fr) minmax(185px,1.4fr) minmax(150px,1.25fr); gap: 12px; padding: 6px 12px; }
+  .live-schedule .appointment-register-head { padding-block: 5px; font-size: 10px; }
+  .live-schedule .readable-appointment { min-height: 64px; }
+  .live-schedule .readable-appointment > div { gap: 2px; }
+  .live-schedule .readable-appointment strong, .live-schedule .readable-appointment button, .live-schedule .readable-appointment .register-customer > strong { font-size: 13px; line-height: 1.25; }
+  .live-schedule .readable-appointment .jk-record-link { font-size: 13px !important; }
+  .live-schedule .readable-appointment small, .live-schedule .readable-appointment a, .live-schedule .readable-appointment .register-work, .live-schedule .readable-appointment .register-payment-detail, .live-schedule .readable-appointment .register-payment-balance { font-size: 12px; line-height: 1.25; }
+  .live-schedule .readable-appointment .register-customer { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 3px 8px; }
+  .live-schedule .readable-appointment .register-customer > strong { grid-column: 1; }
+  .live-schedule .readable-appointment .register-customer > a[href^="tel:"] { grid-column: 2; grid-row: 1; }
+  .live-schedule .readable-appointment .register-customer > small:not(.register-warning) { display: none; }
+  .live-schedule .readable-appointment .register-address, .live-schedule .readable-appointment .register-work, .live-schedule .readable-appointment .register-warning { grid-column: 1 / -1; }
+  .live-schedule .readable-appointment .register-address { font-size: 12px; line-height: 1.25; }
+  .live-schedule .readable-appointment .register-work { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin: 0; }
+  .live-schedule .readable-appointment .register-payment { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 2px 8px; padding: 4px 7px; }
+  .live-schedule .readable-appointment .register-payment-label { font-size: 11px; line-height: 1.25; }
+  .live-schedule .readable-appointment .register-payment-amount { grid-column: 2; grid-row: 1; font-size: 17px; line-height: 1.15; }
+  .live-schedule .readable-appointment .register-payment:has(.source-estimate) .register-payment-amount { grid-row: 2; }
+  .live-schedule .readable-appointment .register-payment-summary { grid-column: 1 / -1; display: block; font-size: 12px; line-height: 1.25; }
+  .live-schedule .readable-appointment .register-payment-summary > span + span::before { content: ' · '; }
+  .live-schedule .readable-appointment .register-payment .source-estimate { grid-column: 1 / -1; padding: 0; gap: 2px; }
+  .live-schedule .readable-appointment .register-payment .source-estimate > strong { font-size: 12px; }
+  .live-schedule .readable-appointment .appointment-state { font-size: 11px; padding: 2px 6px; }
+  .live-schedule .readable-appointment .register-open { min-height: 24px; margin: 0; white-space: nowrap; }
+  .live-schedule .readable-appointment .register-route, .live-schedule .readable-appointment .register-cancellation-reason { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
+  .live-schedule .readable-appointment .register-cancellation-reason br { display: none; }
+  .live-schedule .readable-appointment .register-cancellation-reason b::after { content: ': '; }
+}
 @media (max-width: 1150px) {
   .live-schedule .appointment-register-head { display: none; }
   .live-schedule .readable-appointment { grid-template-columns: minmax(0,1fr) minmax(0,1.5fr) minmax(0,1.2fr); }

@@ -17,7 +17,7 @@ import {
   PhoneCall, Play, ShieldCheck, Star, Truck, Users, Wrench, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -970,10 +970,26 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const setActiveNav = (value: string) => {
     if (mutationBusyRef.current) { setActionFeedback('Wait for the current action result before changing workspaces.'); return; }
     if (live && value === 'Finance' && !canFinance) return;
+    if (value === 'Schedule' && value !== activeNav) {
+      setScheduleViewValue('board');
+      setScheduleDayValue('today');
+      // Returning through workspace navigation opens the default board. Direct
+      // appointment links still apply when the page is first opened.
+      const url = new URL(window.location.href);
+      for (const key of ['appointment', 'q', 'truck']) url.searchParams.delete(key);
+      window.history.replaceState(window.history.state, '', url);
+    }
     if (value !== activeNav) startWorkspaceNavigation(value);
     void preloadWorkspace[value]?.().catch(() => {});
     setActiveNavValue(value);
   };
+  const previousWorkspace = useRef(activeNav);
+  useLayoutEffect(() => {
+    if (activeNav === 'Schedule' && previousWorkspace.current !== activeNav) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }
+    previousWorkspace.current = activeNav;
+  }, [activeNav]);
   const commandReady = Boolean(live && !live.snapshot.loading);
   useEffect(() => { if (activeNav === 'Command' && commandReady) workspaceReady('Command'); }, [activeNav,commandReady]);
   const [view, setViewValue] = useState<'now' | 'today' | 'monitor'>(() => {

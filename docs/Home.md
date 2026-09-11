@@ -38,6 +38,7 @@ without mixing live runtime data or secrets into Git.
 - [Slack and OpsCenter](slack-opscenter.md)
 - [Schedule connectors and Finance comparisons](schedule-finance-presentation.md)
 - [WhatsApp job photos](whatsapp-job-photos.md)
+- [OpsBot Resale photos and sales](whatsapp-resale.md)
 - [LinxUp live GPS push](linxup-push.md)
 - [Truck load status](truck-load-status.md)
 - [Estimate follow-up](estimate-follow-up.md)

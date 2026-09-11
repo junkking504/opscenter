@@ -1,0 +1,4 @@
+.resale-photo-cover { display: grid; gap: 4px; margin-top: 8px; text-align: left; color: inherit; cursor: pointer; }
+.resale-photo-cover img { width: 104px; height: 80px; object-fit: cover; border-radius: 6px; }
+.resale-photo-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; grid-column: 1 / -1; }
+.resale-photo-gallery img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; }

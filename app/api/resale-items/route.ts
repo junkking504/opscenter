@@ -25,7 +25,8 @@ export async function GET() {
     );
   }
 
-  return NextResponse.json(readResaleStore(), { headers: noStoreHeaders });
+  const { items, updatedAt } = readResaleStore();
+  return NextResponse.json({ version: 1, items, updatedAt }, { headers: noStoreHeaders });
 }
 
 export async function POST(request: Request) {

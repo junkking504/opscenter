@@ -1,3 +1,4 @@
+import { ingestResaleText } from "@/lib/whatsapp-resale";
 import { NextResponse } from "next/server";
 import {
   enqueueWhatsAppImage,
@@ -57,18 +58,20 @@ export async function POST(request: Request) {
     return noStore({ ok: false, error: "Unexpected WhatsApp phone number." }, 403);
   }
 
-  const closeoutResults = parsed.texts.map((text) => ingestJobCloseoutText(text));
-  const truckLoadResults = parsed.texts.map((text, index) => closeoutResults[index].status === "ignored"
+  const resaleResults = parsed.texts.map((text) => ingestResaleText(text));
+  const closeoutResults = parsed.texts.map((text, index) => resaleResults[index].status === "ignored" ? ingestJobCloseoutText(text) : { status: "ignored" as const });
+  const truckLoadResults = parsed.texts.map((text, index) => resaleResults[index].status === "ignored" && closeoutResults[index].status === "ignored"
     ? ingestTruckLoadText(text)
     : { status: "ignored" as const });
 
   const expenseResults = parsed.texts.map((text, index) => {
     recordWhatsAppTextContext(text);
-    return closeoutResults[index].status === "ignored" && truckLoadResults[index].status === "ignored"
+    return resaleResults[index].status === "ignored" && closeoutResults[index].status === "ignored" && truckLoadResults[index].status === "ignored"
       ? ingestCrewExpenseText(text)
       : { status: "ignored" as const };
   });
   const resultsByMessage = new Map(parsed.texts.map((text, index) => [text.messageId, {
+    resale: resaleResults[index].status,
     closeout: closeoutResults[index].status,
     truckLoad: truckLoadResults[index].status,
     expense: expenseResults[index].status,
@@ -100,6 +103,7 @@ export async function POST(request: Request) {
     enqueued,
     duplicates,
     textContexts: parsed.texts.length,
+    resale: resaleResults.map(result => result.status),
     crewExpenses: {
       prompted: expenseResults.filter((result) => result.status === "prompted").length,
       collecting: expenseResults.filter((result) => result.status === "collecting").length,

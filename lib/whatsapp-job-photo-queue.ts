@@ -15,7 +15,7 @@ export type WhatsAppImageMessage = {
   sha256: string;
   caption: string;
   enqueuedAt: string;
-  matchingContext?: { version: 1; text: string; sourceMessageIds: string[]; capturedAt: string; reviewReason?: "ambiguous_context" };
+  matchingContext?: { version: 1; text: string; sourceMessageIds: string[]; capturedAt: string; resale?: { text: string; messageId: string }; reviewReason?: "ambiguous_context" };
 };
 
 export type WhatsAppTextMessage = {
@@ -100,7 +100,7 @@ function parseImage(message: MetaMessage, phoneNumberId: string): WhatsAppImageM
     mediaId,
     mimeType: clean(message.image?.mime_type),
     sha256: clean(message.image?.sha256),
-    caption: clean(message.image?.caption).slice(0, 2_000),
+    caption: String(message.image?.caption || "").trim().slice(0, 2_000),
     enqueuedAt: new Date().toISOString(),
   };
 }
@@ -109,7 +109,7 @@ function parseText(message: MetaMessage, phoneNumberId: string): WhatsAppTextMes
   if (clean(message.type) !== "text") return null;
   const messageId = clean(message.id);
   const senderPhone = normalizePhone(message.from);
-  const text = clean(message.text?.body).slice(0, 2_000);
+  const text = String(message.text?.body || "").trim().slice(0, 2_000);
   if (!messageId || !senderPhone || !text) return null;
   return { messageId, senderPhone, receivedAt: safeTimestamp(message.timestamp), phoneNumberId, text };
 }
@@ -183,7 +183,7 @@ export function recordWhatsAppTextContext(message: WhatsAppTextMessage): void {
   writeJsonAtomic(target, { version: 1, ...message });
 }
 
-export function recentWhatsAppPhotoContext(senderPhone: string, receivedAt: Date, maxAgeMinutes = 10, phoneNumberId?: string, excludedMessageId?: string): { text: string; sourceMessageIds: string[]; reviewReason?: "ambiguous_context" } {
+export function recentWhatsAppPhotoContext(senderPhone: string, receivedAt: Date, maxAgeMinutes = 10, phoneNumberId?: string, excludedMessageId?: string): { text: string; sourceMessageIds: string[]; resale?: { text: string; messageId: string }; reviewReason?: "ambiguous_context" } {
   const photoAt = receivedAt.getTime(), minimum = photoAt - maxAgeMinutes * 60_000;
   if (!Number.isFinite(photoAt) || !Number.isFinite(minimum)) return { text: '', sourceMessageIds: [] };
   const candidates = new Map<string, WhatsAppTextMessage>();
@@ -226,8 +226,9 @@ export function recentWhatsAppPhotoContext(senderPhone: string, receivedAt: Date
     if (identities.length) break;
     if (selected.length >= 20) return { text: '', sourceMessageIds: [], reviewReason: 'ambiguous_context' };
   }
+  const resale = selected.find(row => /^resale\b/i.test(row.text.trim()));
   /* Context is ordered newest first; category modifiers retain their JK. */
-  return { text: [selected.find(modifier), ...selected.filter(row => !modifier(row))].filter((row): row is WhatsAppTextMessage => Boolean(row)).map(row => clean(row.text)).join(' ').slice(0, 2_000), sourceMessageIds: selected.map(row => row.messageId) };
+  return { ...(resale ? { resale: { text: resale.text, messageId: resale.messageId } } : {}), text: [selected.find(modifier), ...selected.filter(row => !modifier(row))].filter((row): row is WhatsAppTextMessage => Boolean(row)).map(row => /^resale\b/i.test(row.text.trim()) ? row.text : clean(row.text)).join(" ").slice(0, 2_000), sourceMessageIds: selected.map(row => row.messageId) };
 }
 
 export function recentWhatsAppText(senderPhone: string, receivedAt: Date, maxAgeMinutes = 10, phoneNumberId?: string, excludedMessageId?: string): string {

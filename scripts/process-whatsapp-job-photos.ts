@@ -1,3 +1,4 @@
+import { processResaleImage } from "@/lib/whatsapp-resale";
 import { downloadWhatsAppImage } from "@/lib/whatsapp-photo-media";
 import { execFileSync } from "node:child_process";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
@@ -193,6 +194,12 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
   try {
     const receivedAt = new Date(claim.message.receivedAt);
     if (Number.isNaN(receivedAt.getTime())) throw new Error("The WhatsApp message timestamp is invalid.");
+    const resale = await processResaleImage(claim.message);
+    if (resale) {
+      const outcome = resale.status === "review" ? "review" : "completed";
+      finishWhatsAppImage(claim.file, outcome, { resale });
+      return outcome;
+    }
     // A complete dispatcher caption is an observation, not a vision estimate
     // or a job upload. It does not depend on sender-to-truck mapping or media.
     const captionLoad = ingestTruckLoadCaption(claim.message);

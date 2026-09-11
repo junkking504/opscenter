@@ -271,7 +271,9 @@ export default function ResaleInventory({ initialItems }: { initialItems: Resale
               {visibleItems.map((item) => (
                 <tr key={item.itemId}>
                   <td>
+                    <small className="ops-table-subline">{item.itemNumber}</small>
                     <strong>{item.itemName}</strong>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{item.photos?.map(photo => <a key={photo.photoId} href={`/api/resale-items/photos/${photo.photoId}`} target="_blank" rel="noreferrer"><img src={`/api/resale-items/photos/${photo.photoId}`} alt={item.itemName} loading="lazy" width={80} height={80} style={{ objectFit: "cover", borderRadius: 6 }} /></a>)}</div>
                     <small className="ops-table-subline">{[item.source, item.marketplace, item.acquiredDate].filter(Boolean).join(" · ") || "Details not added yet"}</small>
                     {item.notes ? <small className="ops-table-subline ops-resale-note">{item.notes}</small> : null}
                   </td>

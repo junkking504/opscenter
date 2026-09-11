@@ -8,6 +8,8 @@ export type ResaleStatus = (typeof RESALE_STATUSES)[number];
 
 export type ResaleItem = {
   itemId: string;
+  itemNumber?: string;
+  photos?: ResalePhoto[];
   itemName: string;
   acquiredDate: string;
   source: string;
@@ -21,7 +23,12 @@ export type ResaleItem = {
   updatedAt: string;
 };
 
+export type ResalePhoto = { photoId: string; mimeType: string; receivedAt: string };
+export type ResaleReceipt = { status: "saved" | "sold" | "review"; itemId?: string; reply: string };
+
 export type ResaleStore = {
+  nextItemNumber?: number;
+  messages?: Record<string, ResaleReceipt>;
   version: 1;
   updatedAt: string;
   items: ResaleItem[];
@@ -61,6 +68,8 @@ function normalizeItem(value: Record<string, unknown>): ResaleItem | null {
 
   return {
     itemId: String(value.itemId || randomUUID()).trim(),
+    itemNumber: /^RS-\d{4,}$/.test(String(value.itemNumber)) ? String(value.itemNumber) : undefined,
+    photos: Array.isArray(value.photos) ? value.photos.filter((photo): photo is ResalePhoto => Boolean(photo && /^[a-f0-9]{64}$/.test(photo.photoId) && ["image/jpeg", "image/png"].includes(photo.mimeType))) : [],
     itemName,
     acquiredDate: safeDate(value.acquiredDate),
     source: String(value.source || "").trim(),
@@ -86,24 +95,29 @@ function sortItems(items: ResaleItem[]): ResaleItem[] {
   });
 }
 
-export function readResaleStore(): ResaleStore {
+function readRawResaleStore(): ResaleStore {
   try {
     const filePath = storePath();
     if (!fs.existsSync(filePath)) return { version: 1, updatedAt: "", items: [] };
     const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    if (parsed?.version !== 1 || !Array.isArray(parsed.items)) throw new Error("Resale inventory requires recovery.");
     const items = Array.isArray(parsed?.items)
       ? parsed.items
           .map((item: Record<string, unknown>) => normalizeItem(item))
           .filter(Boolean) as ResaleItem[]
       : [];
 
+    if (items.length !== parsed.items.length) throw new Error("Resale inventory contains an invalid item and requires recovery.");
     return {
       version: 1,
+      nextItemNumber: Number(parsed.nextItemNumber) || 1,
+      messages: parsed.messages || {},
       updatedAt: String(parsed?.updatedAt || ""),
       items: sortItems(items),
     };
-  } catch {
-    return { version: 1, updatedAt: "", items: [] };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { version: 1, updatedAt: "", items: [] };
+    throw error;
   }
 }
 
@@ -121,43 +135,71 @@ function writeResaleStore(store: ResaleStore): void {
   fs.renameSync(temporaryFile, filePath);
 }
 
+// All web and worker mutations share this lock and one atomic snapshot.
+export function mutateResaleStore<T>(change: (store: ResaleStore) => T): T {
+  const lock = `${storePath()}.lock`;
+  fs.mkdirSync(path.dirname(lock), { recursive: true });
+  let descriptor: number | undefined;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    try { descriptor = fs.openSync(lock, "wx", 0o600); break; }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+    }
+  }
+  if (descriptor === undefined) throw new Error("Resale inventory is busy or requires lock recovery. Try again.");
+  try {
+    const store = readRawResaleStore();
+    const before = JSON.stringify(store);
+    store.nextItemNumber = Math.max(store.nextItemNumber || 1, ...store.items.map(item => Number(item.itemNumber?.slice(3) || 0) + 1));
+    const seen = new Set<string>();
+    for (const item of store.items) {
+      if (!item.itemNumber || seen.has(item.itemNumber)) item.itemNumber = allocateResaleNumber(store);
+      seen.add(item.itemNumber);
+    }
+    store.messages ||= {};
+    const result = change(store);
+    if (JSON.stringify(store) !== before) {
+      store.updatedAt = new Date().toISOString();
+      writeResaleStore(store);
+    }
+    return result;
+  } finally { fs.closeSync(descriptor); fs.unlinkSync(lock); }
+}
+
+export function allocateResaleNumber(store: ResaleStore): string {
+  const number = store.nextItemNumber || 1;
+  store.nextItemNumber = number + 1;
+  return `RS-${String(number).padStart(4, "0")}`;
+}
+
+export function readResaleStore(): ResaleStore {
+  return mutateResaleStore(store => store);
+}
+
 export function upsertResaleItem(input: ResaleItemInput): ResaleItem | null {
   const normalized = normalizeItem(input as unknown as Record<string, unknown>);
   if (!normalized) return null;
-
-  const now = new Date().toISOString();
-  const store = readResaleStore();
-  const requestedId = String(input.itemId || "").trim();
-  const existingIndex = requestedId
-    ? store.items.findIndex((item) => item.itemId === requestedId)
-    : -1;
-  const existing = existingIndex >= 0 ? store.items[existingIndex] : null;
-  const saved: ResaleItem = {
-    ...normalized,
-    itemId: existing?.itemId || requestedId || randomUUID(),
-    createdAt: existing?.createdAt || now,
-    updatedAt: now,
-  };
-
-  if (existingIndex >= 0) store.items.splice(existingIndex, 1, saved);
-  else store.items.push(saved);
-
-  writeResaleStore({ version: 1, updatedAt: now, items: store.items });
-  return saved;
+  return mutateResaleStore(store => {
+    const now = new Date().toISOString();
+    const existing = store.items.find(item => item.itemId === input.itemId);
+    const saved: ResaleItem = {
+      ...normalized,
+      itemId: existing?.itemId || input.itemId || randomUUID(),
+      itemNumber: existing?.itemNumber || allocateResaleNumber(store),
+      photos: existing?.photos || [],
+      createdAt: existing?.createdAt || now,
+      updatedAt: now,
+    };
+    store.items = store.items.filter(item => item.itemId !== saved.itemId).concat(saved);
+    return saved;
+  });
 }
 
 export function deleteResaleItem(itemId: string): boolean {
-  const id = String(itemId || "").trim();
-  if (!id) return false;
-
-  const store = readResaleStore();
-  const remaining = store.items.filter((item) => item.itemId !== id);
-  if (remaining.length === store.items.length) return false;
-
-  writeResaleStore({
-    version: 1,
-    updatedAt: new Date().toISOString(),
-    items: remaining,
+  return mutateResaleStore(store => {
+    const before = store.items.length;
+    store.items = store.items.filter(item => item.itemId !== itemId);
+    return store.items.length !== before;
   });
-  return true;
 }

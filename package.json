@@ -34,6 +34,7 @@
     "verify:appointment-block-selection": "node --import tsx scripts/test-appointment-block-selection.ts",
     "verify:closeout-label-contrast": "node scripts/test-closeout-label-contrast.mjs",
     "verify:junkware-booking-date": "node --import tsx scripts/test-junkware-booking-date.ts",
+    "verify:whatsapp-resale": "node --import tsx scripts/test-whatsapp-resale.ts",
     "verify:whatsapp-job-photos": "node --import tsx scripts/test-whatsapp-job-photos.ts && node --import tsx scripts/test-whatsapp-photo-context.ts && node --import tsx scripts/test-whatsapp-photo-media.ts",
     "verify:whatsapp-crew-expenses": "node --import tsx scripts/test-whatsapp-crew-expenses.ts",
     "verify:whatsapp-job-closeouts": "node --import tsx scripts/test-whatsapp-job-closeouts.ts",

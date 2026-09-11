@@ -41,7 +41,7 @@ export function NavigationDiagnostics() {
   const request = resources.filter(entry => /\/api\/desktop\/(fleet|finance|marketing|krewe|schedule|command)\?/.test(entry.name)).at(-1);
   return <aside aria-label="Navigation timings" style={{position:'fixed',right:8,bottom:8,zIndex:10000,background:'#fff',color:'#17251d',border:'1px solid #829084',padding:10,maxWidth:400,fontSize:12}}>
     <strong>Navigation timings · this browser</strong>
-    <p>Document wait: {Math.round(navigation?.responseStart || 0)} ms · Slowest asset: {Math.round(Math.max(0,...assets.map(entry => entry.duration)))} ms{request ? ` · Last data request: ${Math.round(request.duration)} ms` : ''}</p>
+    <p>Document wait: {navigation?.responseStart ? `${Math.round(navigation.responseStart)} ms` : 'unavailable'} · Slowest asset: {Math.round(Math.max(0,...assets.map(entry => entry.duration)))} ms{request ? ` · Last data request: ${Math.round(request.duration)} ms` : ''}</p>
     <ul>{samples.map((sample,index) => <li key={index}>{sample}</li>)}</ul>
   </aside>;
 }

@@ -1,6 +1,9 @@
 'use client';
 import { WorkspaceBoundary } from '../workspace-boundary';
 import { cachedWorkspace, fetchWorkspace } from '../lib/workspace-cache';
+import { preloadableWorkspace } from '../lib/preloadable-workspace';
+import type { LiveMarketingProps } from '../live-marketing';
+import type { LiveFinanceProps } from '../live-finance';
 import { NavigationDiagnostics, startWorkspaceNavigation, workspaceReady } from '../navigation-performance';
 
 import Estimates, { EstimateCommandSummary } from '../estimates';
@@ -14,7 +17,7 @@ import {
   PhoneCall, Play, ShieldCheck, Star, Truck, Users, Wrench, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,14 +28,10 @@ import LiveControl from '../live-control';
 import MaintenanceMonitor from '../maintenance-monitor';
 import LivePhotoReview from '../live-photo-review';
 import { navigationValue, workspaceUrl } from '../lib/workspace-navigation';
-const loadLiveKrewe = () => import('../live-krewe');
-const LiveKrewe = lazy(loadLiveKrewe);
-const loadLiveFleet = () => import('../live-fleet');
-const LiveFleet = lazy(loadLiveFleet);
-const loadLiveMarketing = () => import('../live-marketing').then(module => ({ default: module.LiveMarketing }));
-const LiveMarketing = lazy(loadLiveMarketing);
-const loadLiveFinance = () => import('../live-finance').then(module => ({ default: module.LiveFinance }));
-const LiveFinance = lazy(loadLiveFinance);
+const { Component: LiveKrewe, preload: loadLiveKrewe } = preloadableWorkspace(() => import('../live-krewe'));
+const { Component: LiveFleet, preload: loadLiveFleet } = preloadableWorkspace(() => import('../live-fleet'));
+const { Component: LiveMarketing, preload: loadLiveMarketing } = preloadableWorkspace<LiveMarketingProps>(() => import('../live-marketing').then(module => ({ default: module.LiveMarketing })));
+const { Component: LiveFinance, preload: loadLiveFinance } = preloadableWorkspace<LiveFinanceProps>(() => import('../live-finance').then(module => ({ default: module.LiveFinance })));
 import LiveSearch from '../live-search';
 import { desktopAlertHref, desktopAppointmentHref } from '../lib/desktop-links';
 import LiveSchedule, { dateForDay } from '../live-schedule';

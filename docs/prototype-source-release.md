@@ -458,6 +458,8 @@ time warms Fleet, Marketing, Krewe, and permitted Finance read models one at a
 time. These endpoints only read existing local sources; Schedule collection and
 provider requests are excluded. Warm reads share in-flight work with navigation
 and stop scheduling while the tab is hidden or an operational action is busy.
+Preloaded modules render synchronously on their first visit; they do not pass
+through another Suspense fallback after their code has already arrived.
 
 A missing hashed desktop JS/CSS asset is served from retained immutable releases
 when available. This does not change release retention. If a workspace still
@@ -476,6 +478,13 @@ retained-asset restrictions. The synthetic browser fixture is
 `desktop-ui/tests/navigation-speed.html?workspace=Fleet&performance=1`: Command
 is deliberately stalled and Fleet takes 1.2 seconds. Cached return transitions
 measured 17–24 ms in the in-app browser; production Safari is verified separately.
+`node --import tsx desktop-ui/tests/preloadable-workspace.test.ts` verifies a
+warmed first render does not suspend, concurrent imports are shared, and an
+unsuccessful background preload can retry. In live Safari, the HTML/code preload
+pass reduced one full Fleet load from 5,181 ms to 1,910 ms. Command and Schedule
+transitions measured 33 ms and 52 ms. First warmed Marketing, Finance, and Krewe
+visits still incurred a 345–369 ms Suspense delay, motivating the synchronous
+preloaded-module path. These are individual measurements, not percentiles.
 
 The read-only Finance comparison against the same September 11 runtime produced
 identical serialized output. Daily metric file reads fell from 847 to 520; one

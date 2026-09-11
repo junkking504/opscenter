@@ -12,7 +12,7 @@ import {
 
 export type { MoveProposal } from "./lib/schedule-contract";
 export type Receipt = {
-  action?: 'move' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify';
+  action?: 'move' | 'reschedule' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify';
   sourceResult?: Record<string, unknown>;
   requestId: string;
   status: "pending" | "verified" | "failed" | "uncertain";

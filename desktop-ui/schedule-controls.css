@@ -7,3 +7,9 @@
 .ops-live .drawer-cancel-row > h3 { color: #912e32; font-size: 14px; }
 .ops-live .drawer-cancel-row > p { color: #635758; font-size: 12px; }
 .ops-live .record-drawer-actions .drawer-cancel-shortcut { grid-column: 1 / -1; color: #912e32; border-color: #d4a7aa; background: #fffafa; }
+.ops-live .drawer-reschedule { padding: 12px; margin: 12px 0; border: 1px solid #b6cddd; border-radius: 8px; background: #f5faff; scroll-margin-block: 12px; }
+.ops-live .drawer-reschedule h3 { margin: 0 0 8px; font-size: 16px; }
+.ops-live .drawer-reschedule p { margin: 8px 0; font-size: 14px; }
+.ops-live .drawer-reschedule input { width: 100%; min-width: 0; padding: 8px; border: 1px solid #cdd6d0; border-radius: 6px; font: inherit; background: white; }
+.ops-live .drawer-reschedule-review { padding-top: 12px; border-top: 1px solid #b6cddd; }
+.ops-live .record-drawer-actions .drawer-reschedule-shortcut { grid-column: 1 / -1; }

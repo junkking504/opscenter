@@ -41,6 +41,28 @@ through the same verified path.
 
 ## Current edit paths
 
+### Rescheduling from appointment details
+
+The persistent **Reschedule Appointment** action opens a visible date/time
+editor. Review shows the original and destination windows before an explicit
+confirmation. It preserves the current truck and duration; customer and Krewe
+messages remain separate. Canceled/closed appointments and unresolved assignment
+changes cannot be rescheduled.
+
+The governed reschedule operation uses the exact source appointment ID,
+version, shared per-appointment lock and durable request receipt. The adapter
+checks JunkWare's current date, time, duration, truck and status, refreshes
+date-dependent availability, and saves once. It reopens the source even after
+a failed save response and requires the requested window with unchanged truck,
+duration and status. Pre-save rejections are correctable; uncertain submissions
+block further changes. **Check Saved Result** performs only an exact source
+read-back, never another save. Destination/source day collection remains
+separate from source-write verification; the receipt exposes a destination-day
+navigation action while schedule snapshots refresh.
+
+Synthetic checks: scripts/test-reschedule-browser.mjs,
+scripts/test-reschedule-source.ts, and scripts/test-reschedule-operations.ts.
+
 ### Schedule closeout reliability
 
 Confirmed appointments omit JunkWare's payment panel. The source reader stages

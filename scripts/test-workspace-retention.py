@@ -44,11 +44,19 @@ class RetentionTests(unittest.TestCase):
         r.git(self.repo, 'worktree', 'add', '--detach', str(p), 'HEAD')
         if group in ('releases', 'preview-releases'):
             (p / '.opscenter-release').write_text('commit=' + r.git(p, 'rev-parse', 'HEAD').strip() + '\n')
+            build = p / ('.next' if group == 'releases' else 'tmp/macmini-preview-next')
+            build.mkdir(parents=True); (build / 'BUILD_ID').write_text('built')
+            (p / 'node_modules/next').mkdir(parents=True)
+            (p / 'node_modules/next/package.json').write_text('{}')
+            (p / 'node_modules/.package-lock.json').write_text('{"packages":{"node_modules/next":{}}}')
+            if group == 'releases':
+                with (self.root / 'deployment-history.tsv').open('a') as f:
+                    f.write('date\t' + name + '\t' + name + '\tforward\n')
         return p
 
     def generated(self, p, name='node_modules'):
         target = p / name
-        target.mkdir(parents=True)
+        target.mkdir(parents=True, exist_ok=True)
         (target / 'generated').write_text('rebuildable\n')
         return target
 
@@ -156,6 +164,7 @@ class RetentionTests(unittest.TestCase):
         (p/'tsconfig.json').write_text('{"compilerOptions":{},"include":["source.ts","tmp/macmini-preview-next/dev/types/**/*.ts"]}')
         e=self.engine()
         self.assertEqual(set(e.preview_build_edits(p)),{'next-env.d.ts','tsconfig.json'})
+        e.remove_generated(p,e.generated(p),True)
         e.retire(p,[],True,release=True)
         self.assertFalse(p.exists())
 
@@ -208,6 +217,21 @@ class RetentionTests(unittest.TestCase):
         r.git(p,'add','-f','public/desktop-assets/generated');r.git(p,'add','.');r.git(p,'commit','-qm','tracked assets')
         self.engine().execute(True,'worktrees')
         self.assertTrue(target.exists())
+
+    def test_failed_new_build_cannot_displace_successful_rollbacks(self):
+        older=self.add('releases','good-old');newer=self.add('releases','good-new')
+        failed=self.add('releases','failed-newest')
+        history=self.root/'deployment-history.tsv'
+        history.write_text('\n'.join(history.read_text().splitlines()[:-1])+'\n')
+        self.engine().execute(True,'production')
+        self.assertTrue(older.exists());self.assertTrue(newer.exists());self.assertFalse(failed.exists())
+
+    def test_partially_cleaned_release_cannot_be_rollback(self):
+        good=self.add('releases','good');other=self.add('releases','also-good')
+        partial=self.add('releases','partial-newest')
+        (partial/'node_modules/next/package.json').unlink()
+        self.engine().execute(True,'production')
+        self.assertTrue(good.exists());self.assertTrue(other.exists());self.assertFalse(partial.exists())
 
     def test_locked_and_unregistered_worktrees_preserved(self):
         p=self.add('worktrees','locked');target=self.generated(p)

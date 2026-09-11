@@ -20,7 +20,10 @@ becomes eligible as soon as it is superseded, even on the same day. Only
 incomplete builds receive a 24-hour grace period. Older incomplete builds lose
 generated caches but retain source, and do not consume a rollback slot. These
 exceptions can temporarily exceed the counts; reports explain why. No process
-is killed by the cleanup tool.
+is killed by the cleanup tool. Production rollback slots follow successful
+deployment history and require an intact build and dependency inventory. Failed
+builds and releases whose caches were partially cleared cannot displace a usable
+rollback. Active releases remain protected regardless of those checks.
 
 ## One installed command
 

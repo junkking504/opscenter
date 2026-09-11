@@ -145,6 +145,8 @@ class Retention:
                 # Repeat path/ignore/tracked checks immediately before deletion.
                 if target not in self.generated(path):
                     raise RuntimeError('Generated target changed: ' + str(target))
+                if path.parent in (self.root / 'releases', self.root / 'preview-releases'):
+                    (path / '.retention-cache-cleared').touch()
                 shutil.rmtree(target)
             self.event(target, 'remove-generated' if apply else 'would-remove-generated',
                        'ignored dependencies or compiled build; source retained')
@@ -158,7 +160,7 @@ class Retention:
             target = path / relative
             if any(inside(target, p) for p in generated):
                 continue
-            if release and relative == '.opscenter-release' and target.is_file() and not target.is_symlink():
+            if release and relative in ('.opscenter-release', '.retention-cache-cleared') and target.is_file() and not target.is_symlink():
                 continue
             if release and relative in ('data', 'logs', '.env.slack.local') and target.is_symlink():
                 expected = {'data': Path('/Users/missioncontrol/.openclaw/workspace/opsbot/data'),
@@ -221,9 +223,9 @@ class Retention:
             # git checks tracked and untracked files again. Expected release-only
             # metadata/symlinks can be removed explicitly without following them.
             if release:
-                for name in ('.opscenter-release', 'data', 'logs', '.env.slack.local'):
+                for name in ('.opscenter-release', '.retention-cache-cleared', 'data', 'logs', '.env.slack.local'):
                     p = path / name
-                    if p.is_symlink() or (name == '.opscenter-release' and p.is_file()):
+                    if p.is_symlink() or (name in ('.opscenter-release', '.retention-cache-cleared') and p.is_file()):
                         p.unlink()
             git(self.repo, 'worktree', 'remove', str(path))  # never --force / prune
         self.event(path, 'remove-worktree' if apply else 'would-remove-worktree',
@@ -246,13 +248,40 @@ class Retention:
                 return False
             record = dict(line.split('=', 1) for line in marker.read_text().splitlines() if '=' in line)
             return record.get('commit') == git(path, 'rev-parse', 'HEAD').strip()
+        def rollback_ready(path):
+            if not completed_build(path) or (path / '.retention-cache-cleared').exists():
+                return False
+            build = '.next/BUILD_ID' if group == 'releases' else 'tmp/macmini-preview-next/BUILD_ID'
+            if not (path / build).is_file():
+                return False
+            try:
+                packages = json.loads((path / 'node_modules/.package-lock.json').read_text())['packages']
+                # A prior interrupted cleanup must not be promoted to rollback.
+                return bool(packages) and all(
+                    not Path(name).is_absolute() and '..' not in Path(name).parts and
+                    (path / name / 'package.json').is_file() for name in packages)
+            except (OSError, ValueError, KeyError, TypeError):
+                return False
         releases = sorted((p for p in parent.iterdir() if p.is_dir() and not p.is_symlink()),
                           key=release_time, reverse=True)
         selected = [p for p in releases if p in self.protected or p in extra_protected]
-        for p in releases:
+        order = releases
+        history = (Path('/Users/missioncontrol/Library/Application Support/OpsCenter/deployment-history.tsv')
+                   if self.root == HOST_ROOT else self.root / 'deployment-history.tsv')
+        if group == 'releases' and history.is_file():
+            successful = []
+            for line in reversed(history.read_text().splitlines()):
+                fields = line.split('\t')
+                if len(fields) == 4 and fields[3] == 'forward':
+                    for sha in (fields[2], fields[1]):
+                        p = parent / sha
+                        if p in releases and p not in successful:
+                            successful.append(p)
+            order = successful
+        for p in order:
             if len(selected) >= keep:
                 break
-            if p not in selected and completed_build(p):
+            if p not in selected and rollback_ready(p):
                 selected.append(p)
         self.protected.update(selected)
         for path in releases:

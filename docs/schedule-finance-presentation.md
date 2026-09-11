@@ -285,20 +285,35 @@ preserves the booked window, and requires the normal verified result. Historical
 proposals cannot apply assignments. No bulk apply or implied route-order write
 is provided. A source change requires a rebuilt proposal.
 
-Finance Trends shows each metric's month value, month-to-month (MTM) change, and
-year-over-year (YOY) change in the same column. August 2026 compares with August
-2025. In-progress months compare the same elapsed dates with the preceding month
-and the same month last year; each comparison independently clamps both periods
-to the shorter month's day count. Full months compare full months, including
-February in leap years. Exact dates are visible and comparison values are in
-metric tooltips.
+## Finance Trends
 
-Each comparison uses complete published monthly values when available, otherwise
-requires every daily record and required metric. Missing prior-year history or
-fields remain unavailable, never zero. Average job and margin use aggregate
-revenue/jobs/profit, not averages of daily ratios. Operating profit remains an
-estimate. Margin changes are percentage points; zero comparison denominators are
-labeled without infinity. YTD totals are no longer shown in Finance Trends.
+Trends opens with month / YTD, month and comparison controls. The operating day
+sets the initial month; changing the reporting month is local to Trends. YTD
+compares January through the chosen month with the same period last year.
+Revenue, completed jobs and weighted average job value lead, followed by a
+numeric explanation of revenue movement, a full-month comparison chart, operating
+estimates, and expandable newest-first history and source coverage.
+
+Every delta must describe the displayed amount. Full-month revenue and jobs use
+verified JunkWare monthly authority when available, even when daily history is
+incomplete. Partial-month comparisons require every daily record and required
+field in the matching elapsed dates, clamped to the shorter month. They never
+substitute a full prior month for partial dates. A daily subtotal differing from
+the displayed monthly authority cannot produce a headline percentage. Gaps are
+unavailable rather than zero, and YTD requires every included month. Average job
+value is aggregate revenue divided by jobs, never an average of monthly ratios.
+
+Costs and profit require complete daily coverage. Published operating profit
+retains its source value; it is not recomputed from the reconciled monthly
+headline. Margin divides that profit by published daily sales. The daily sales,
+known recycling income, costs and published profit are visible together. Any
+difference between headline revenue and daily sales is explicitly shown for
+reconciliation. These estimates are distinct from QBO financial statements.
+Margin changes use percentage points and zero baselines never yield infinity.
+
+Regression checks: `node --import tsx scripts/test-finance-performance.ts` and
+`node --import tsx scripts/test-finance-trend-comparison.ts`. The local synthetic
+browser fixture is `desktop-ui/tests/finance-trends.html`.
 
 ## Historical collection
 

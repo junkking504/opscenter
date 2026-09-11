@@ -37,7 +37,18 @@ export function readDesktopFinance(date: string): FinanceData {
   const metrics = readDaily(date);
   const monthly = readSummary(date);
   const trend = buildFinanceTrendSummary(date, readSummary);
-  const trends = trend.months.map(month => { const summary = readSummary(`${month.monthKey}-01`); const published = summary.entries.map(entry => entry.metrics); return { ...month, missingDates: summary.range.missingDates, totalOperatingExpenses: sumField(published, 'total_expenses'), estimatedOperatingProfit: sumField(published, 'net_profit') }; });
+  const trends = trend.months.map(month => {
+    const summary = readSummary(`${month.monthKey}-01`);
+    const published = summary.entries.map(entry => entry.metrics);
+    const covered = summary.range.missingDates.length === 0;
+    return { ...month, missingDates: summary.range.missingDates,
+      reportingComplete: !summary.range.isCurrentMonth && Boolean(summary.authority || month.complete),
+      revenueCovered: Boolean(summary.authority || covered),
+      operatingRevenue: covered ? sumField(published.map(row => ({ value: row.sales ?? row.total_revenue ?? row.gross_revenue })), 'value') : null,
+      recyclingIncome: covered ? sumField(published, 'recycling_income') : null,
+      totalOperatingExpenses: covered ? sumField(published, 'total_expenses') : null,
+      estimatedOperatingProfit: covered ? sumField(published, 'net_profit') : null };
+  });
   const resaleFile = path.join(process.cwd(), 'data', 'finance', 'resale_items.json');
   if (fs.existsSync(resaleFile)) { const payload = JSON.parse(fs.readFileSync(resaleFile, 'utf8')); if (payload.version !== 1 || !Array.isArray(payload.items)) throw new CommercialActionError('Resale source needs recovery.'); }
   const resale = readResaleStore();
@@ -58,7 +69,7 @@ export function readDesktopFinance(date: string): FinanceData {
       const profit = summary.range.missingDates.length ? null : sumField(rows, 'net_profit');
       return { revenue: authority.grossRevenue, jobs: authority.completedJobs,
         averageJob: authority.completedJobs > 0 ? authority.grossRevenue / authority.completedJobs : null,
-        costs, profit, margin: profit != null && authority.grossRevenue !== 0 ? profit / authority.grossRevenue * 100 : null };
+        costs, profit, margin: (() => { const sales = sumField(rows.map(row => ({ value: row.sales ?? row.total_revenue ?? row.gross_revenue })), 'value'); return profit != null && sales != null && sales > 0 ? profit / sales * 100 : null; })() };
     }), reconciliation: desktopPayments(date, buildDailyPaymentReconciliation(date), readJunkwarePaymentRows(date)), resale: resale.items.map(item => ({ ...item, version: commercialVersion(item) })), resaleUpdatedAt: resale.updatedAt || null,
     recycling, recyclingVersion: commercialVersion(recycling), recyclingIncomeRows: (Array.isArray(metrics?.truck_record_financial_rows) ? metrics.truck_record_financial_rows : []).map((row: AnyRecord) => ({ truck: String(row.truck || row.truck_name || 'Unassigned'), value: finite(row.recycling_income) })).filter((row: { truck: string; value: number | null }): row is { truck: string; value: number } => row.value != null && row.value !== 0) };
 }

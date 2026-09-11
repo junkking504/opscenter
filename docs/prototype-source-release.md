@@ -442,6 +442,11 @@ the same height, while History's filter-only controls use the compact tab height
 
 ## Workspace navigation performance
 
+Entering Schedule from another workspace opens the Board at the top of the
+page with its default map and selection state. The shared operating date is
+preserved. Initial appointment deep links still open their requested record;
+workspace navigation clears old appointment, search, and truck URL targets.
+
 The authenticated `/desktop` document includes only the verified actor and
 operating date in its bootstrap. It does not wait for a Command snapshot.
 The selected workspace starts its own read immediately; Command information

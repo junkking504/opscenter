@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 import { currentOperatingDay, isOperatingDay, operatingDayLabel, shiftOperatingDay } from './lib/operating-day';
 import './operating-day-bar.css';
@@ -7,9 +7,20 @@ export default function OperatingDayBar({ date, disabled, onChange }: {
   date: string; disabled: boolean; onChange: (date: string) => void;
 }) {
   const [draft, setDraft] = useState(date);
+  const barRef = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const bar = barRef.current;
+    const content = bar?.parentElement;
+    if (!bar || !content) return;
+    const measure = () => content.style.setProperty('--viewing-day-height', `${bar.getBoundingClientRect().height}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    return () => { observer.disconnect(); content.style.removeProperty('--viewing-day-height'); };
+  }, []);
   const today = currentOperatingDay();
   const context = date === today ? 'Today' : date < today ? 'Historical day' : 'Upcoming day';
-  return <section className="viewing-day-bar" aria-label="Viewing day">
+  return <section ref={barRef} className="viewing-day-bar" aria-label="Viewing day">
     <div className="viewing-day-context">
       <CalendarDays size={20} aria-hidden="true" />
       <div><span>Viewing day <b className={date === today ? 'current' : ''}>{context}</b></span><strong>{operatingDayLabel(date)}</strong></div>

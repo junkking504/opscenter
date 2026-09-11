@@ -18,15 +18,16 @@ try {
       const empty=rows.filter(e=>!e.querySelector('[data-schedule-appointment]'));
       const header=rect(document.querySelector('.schedule-time-row'));
       const board=rect(document.querySelector('.schedule-board'));
-      const line=rect(document.querySelector('.schedule-now-line'));
-      return {emptyHeights:empty.map(e=>rect(e).height),headerBottom:header.bottom,lineTop:line.top,lineBottom:line.bottom,lastBottom:rect(rows.at(-1)).bottom,boardBottom:board.bottom,
+      const lines=[...document.querySelectorAll('.schedule-now-line')];
+      const line=rect(lines[0]);
+      return {emptyHeights:empty.map(e=>rect(e).height),headerBottom:header.bottom,lineTop:line.top,lineBottom:rect(lines.at(-1)).bottom,lastBottom:rect(rows.at(-1)).bottom,boardBottom:board.bottom,
         aligned:rows.every(e=>Math.abs(rect(e.querySelector('.schedule-truck-cell')).right-rect(e.querySelector('.live-truck-timeline')).left)<1),
         contained:rows.every(e=>[...e.querySelectorAll('[data-schedule-appointment]')].every(b=>rect(b).top>=rect(e).top && rect(b).bottom<=rect(e).bottom+1))};
     });
     assert.ok(Math.max(...geometry.emptyHeights)-Math.min(...geometry.emptyHeights)<1,'Empty rows align regardless of load availability');
     assert.ok(geometry.aligned && geometry.contained,`Headers, timelines and blocks align: ${JSON.stringify(geometry)}`);
     assert.ok(Math.abs(geometry.lineTop-geometry.headerBottom)<1,'Time line starts below time header');
-    assert.ok(geometry.lineBottom<=geometry.lastBottom+1,'Time line does not extend into blank panel space');
+    assert.ok(Math.abs(geometry.lineBottom-geometry.lastBottom)<1,'Time line spans every row, including overflowing dense rows, without extending into blank space');
     if(width>=1000) assert.ok(Math.abs(geometry.lastBottom-geometry.boardBottom)<1 || geometry.lastBottom>geometry.boardBottom,'Rows use available panel height');
     if(width===1920||width===390)await page.screenshot({path:`/tmp/schedule-alignment-${width}.png`});
     await page.locator('[data-schedule-appointment]').first().click();

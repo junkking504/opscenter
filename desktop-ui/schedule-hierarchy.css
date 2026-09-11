@@ -90,5 +90,16 @@
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout > .schedule-board-shell { height: var(--schedule-available-height); min-height: 0; }
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { flex: 1; min-height: 0; height: 0; overflow: auto; }
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { height: 100%; }
-  .ops-live .live-schedule.schedule-dispatch .schedule-truck-row { --schedule-row-shrink: 1; min-height: var(--schedule-row-min-height); }
+  .ops-live .live-schedule.schedule-dispatch .schedule-truck-row { --schedule-row-grow: 1; --schedule-row-shrink: 1; min-height: var(--schedule-row-min-height); }
 }
+
+/* The line belongs to the hourly grid, not the header or empty panel space. */
+.ops-live .live-schedule.schedule-dispatch .schedule-now-line { top: 22px; }
+.ops-live .live-schedule.schedule-dispatch .schedule-now-line::after,
+.ops-live .live-schedule.schedule-dispatch .schedule-now-line > span { display: none; }
+.ops-live .schedule-appointments-jump { position: sticky; bottom: 8px; z-index: 10; display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; min-height: 44px; margin-top: 8px; padding: 9px 14px; border: 1px solid #afc3d1; border-radius: 8px; background: #edf5fb; color: #174e77; box-shadow: 0 2px 6px #17212b18; font-size: 13px; cursor: pointer; }
+.ops-live .schedule-appointments-jump > span { display: inline-flex; align-items: center; gap: 8px; }
+.ops-live .schedule-appointments-jump strong > span { margin-left: 6px; font-weight: 500; }
+.ops-live .schedule-appointments-jump:focus-visible { outline: 3px solid #174e77; outline-offset: 2px; }
+.ops-live #schedule-all-appointments { scroll-margin-top: 12px; }
+.ops-live #schedule-all-appointments:focus { outline: 2px solid #174e77; outline-offset: 2px; }

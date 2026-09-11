@@ -115,6 +115,15 @@ than falling back to prototype records or simulated successes.
   performance. Finance: reconciliation, payments, resale inventory and an
   OpsCenter-owned recycling evidence ledger. Recycling entries do not claim a QBO
   posting, and payment changes without a supported source writer remain read-only.
+  Metal recycling is income: paid runs total recorded yard payments, while open
+  runs retain expected payouts and ticket references. Published Truck Records
+  income remains separate from manually recorded receipts to prevent duplicates.
+  `readMetrics` adapts the proven legacy OpsBot calculation (which included metal
+  proceeds in `other_expense`) through `lib/recycling-income.ts`: it removes the
+  proceeds from costs and includes them in net income. Job sales and royalties
+  retain their existing basis. This read-time adapter also covers historical
+  snapshots; it does not rewrite OpsBot files or QBO books. Missing or incompatible
+  source rows are left unadjusted rather than estimating their amounts.
 
 Source mutations require authenticated roles, same-origin checks (including the
 trusted proxy origin), actor-bound request IDs, current source versions, and

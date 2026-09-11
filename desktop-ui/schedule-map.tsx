@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import './appointment-presence.css';
 import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract';
 import { appointmentRegion, appointmentStatus, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
-import { separateMapPins, territoryMapCenters } from './lib/schedule-map-layout';
+import { territoryMapCenters } from './lib/schedule-map-layout';
 import type {TruckGpsRoute} from './lib/gps-route-contract';
 
 type Props = {
@@ -126,18 +126,9 @@ export default function ScheduleMap(props: Props) {
     const render = () => {
       const activeId = host.current?.contains(document.activeElement) ? (document.activeElement as HTMLElement)?.dataset.mapPin : undefined;
       layer.clearLayers();
-      const anchors = pins.map(pin => ({ id: pin.id, ...view.latLngToLayerPoint(pin.coordinate) }));
-      const topLeft = view.containerPointToLayerPoint([0, 0]);
-      const bottomRight = view.containerPointToLayerPoint(view.getSize());
-      const positions = new Map(separateMapPins(anchors, {
-        left: topLeft.x, top: topLeft.y, right: bottomRight.x, bottom: bottomRight.y,
-      }).map(point => [point.id, point]));
       for (const pin of pins) {
-        const { x, y, dx: offsetX, dy: offsetY } = positions.get(pin.id)!;
-        const displaced = Math.hypot(offsetX, offsetY) > 1;
-        if (displaced && !pin.id.startsWith('trip:')) L.polyline([pin.coordinate, view.layerPointToLatLng(L.point(x + offsetX, y + offsetY))], {
-          color: '#496678', weight: 1.5, opacity: .9, interactive: false, className: 'map-pin-location-line',
-        }).addTo(layer);
+        // Keep the center of every icon on the source coordinate at every zoom.
+        const iconSize: L.PointTuple = pin.id.startsWith('truck:') ? [26, 20] : pin.id.startsWith('trip:') ? [42, 34] : [16, 16];
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `map-marker ${pin.className}${pin.selected ? ' route-selected' : ''}`;
@@ -165,8 +156,7 @@ export default function ScheduleMap(props: Props) {
         const title = document.createElement('strong'); title.textContent = pin.tooltipTitle;
         const detail = document.createElement('small'); detail.textContent = pin.tooltipDetail;
         tooltip.append(title, detail);
-        if (displaced && !pin.id.startsWith('trip:')) { const note = document.createElement('small'); note.textContent = 'Line marks exact location'; tooltip.append(note); }
-        const marker = L.marker(pin.coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize: [42, 34], iconAnchor: [21 - offsetX, 17 - offsetY] }), zIndexOffset: pin.selected ? 1900 : 1000 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: L.point(offsetX, offsetY - 12), opacity: 1, permanent: false }).addTo(layer);
+        const marker = L.marker(pin.coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize, iconAnchor: [iconSize[0] / 2, iconSize[1] / 2] }), zIndexOffset: pin.selected ? 1900 : 1000 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: L.point(0, -10), opacity: 1, permanent: false }).addTo(layer);
         button.onfocus = () => marker.openTooltip();
         button.onblur = () => marker.closeTooltip();
         marker.on('tooltipopen', () => {
@@ -174,14 +164,14 @@ export default function ScheduleMap(props: Props) {
           const element = bubble?.getElement();
           const canvas = host.current;
           if (!bubble || !element || !canvas) return;
-          bubble.options.offset = L.point(offsetX, offsetY - 12);
+          bubble.options.offset = L.point(0, -10);
           element.style.maxWidth = `${Math.max(80, Math.min(150, canvas.clientWidth - 16))}px`;
           bubble.update();
           const bounds = canvas.getBoundingClientRect();
           const rect = element.getBoundingClientRect();
           const dx = Math.max(bounds.left + 6 - rect.left, Math.min(0, bounds.right - 6 - rect.right));
           const dy = Math.max(bounds.top + 6 - rect.top, Math.min(0, bounds.bottom - 6 - rect.bottom));
-          bubble.options.offset = L.point(offsetX + dx, offsetY - 12 + dy);
+          bubble.options.offset = L.point(dx, -10 + dy);
           bubble.update();
         });
         if (activeId === pin.id) button.focus({ preventScroll: true });

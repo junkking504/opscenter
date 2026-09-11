@@ -14,7 +14,7 @@ async function main() {
   assert.equal(opsRoleCan('operator', recoveryPermission.permission), false);
   assert.equal(opsRoleCan('manager', recoveryPermission.permission), false);
   assert.equal(opsRoleCan('admin', recoveryPermission.permission), true);
-  const probes = { login: true, health: { ok: true, status: 'healthy', junkwareScheduleStale: false, junkwareScheduleAgeSeconds: 20, linxupStale: false, linxupFallbackActive: false, operatorStateWritable: true, platformKernel: { healthy: true } }, readiness: { ok: false, photoQueue: { available: true, counts: { review: 20, failed: 1, incoming: 0, processing: 0 }, oldestActiveAgeSeconds: null }, crewPortalSync: { ok: true } } };
+  const probes = { login: true, workflows: { schedule: true, fleet: true }, health: { signals: Object.fromEntries(['exceptions','gpsCoverage','arrivalCoverage','geocoder','queues','storage','backup'].map(key => [key,{ status: 'ok' }])), ok: true, status: 'healthy', junkwareScheduleStale: false, junkwareScheduleAgeSeconds: 20, linxupStale: false, linxupFallbackActive: false, operatorStateWritable: true, platformKernel: { healthy: true } }, readiness: { ok: false, photoQueue: { available: true, counts: { review: 20, failed: 1, incoming: 0, processing: 0 }, oldestActiveAgeSeconds: null }, crewPortalSync: { ok: true } } };
   const rows = detectMaintenance(probes, now);
   assert.equal(rows.find(r => r.key === 'photo-review')?.kind, 'review');
   assert.equal(rows.find(r => r.key === 'photo-processing')?.unhealthy, false, 'historical review backlog cannot imply stuck processing');

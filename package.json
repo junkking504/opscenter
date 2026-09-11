@@ -95,7 +95,7 @@
     "verify:junkware-payroll:browser": "node scripts/test-junkware-payroll-browser.mjs",
     "verify:kernel-isolation": "python3 scripts/test-kernel-isolation.py",
     "verify:reliability-audit": "node --import tsx scripts/test-reliability-audit.ts",
-    "verify:maintenance": "node --import tsx scripts/test-maintenance.ts && /usr/bin/python3 scripts/test-process-recovery.py",
+    "verify:maintenance": "node --import tsx scripts/test-maintenance.ts && node --import tsx scripts/test-maintenance-reliability.ts && node --import tsx scripts/test-maintenance-http.ts && node --import tsx scripts/test-maintenance-telemetry.ts && /usr/bin/python3 scripts/test-process-recovery.py",
     "verify:workspace-retention": "python3 scripts/test-workspace-retention.py",
     "verify:spending": "node scripts/verify-spending-boundary.mjs && node --import tsx scripts/test-metered-usage-policy.ts && node scripts/test-spending-boundary.mjs",
     "verify:estimates": "node --import tsx scripts/test-estimate-follow-up.ts"

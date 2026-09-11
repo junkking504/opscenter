@@ -1,9 +1,9 @@
 # Background maintenance pilot
 
 The separate `com.openclaw.opscenter.maintenance` LaunchAgent observes OpsCenter
-once a minute. Command > Monitor shows current and cleared conditions, measured
+once a minute. A system-issues notice appears across live workspaces, and Command > Monitor shows current and cleared conditions, measured
 evidence, AI suggestions, worker freshness, and monthly usage. Source Health
-also reports missing/stale observer heartbeats. AI remains advisory. A separate
+also reports missing/stale observer heartbeats, unresolved technical incidents, and unavailable AI. A recent heartbeat alone cannot make maintenance healthy. AI remains advisory. A separate
 fixed Python policy can start a confirmed stopped OpsCenter process. There is no
 shell execution by AI, source-system repair, automatic deployment, or outbound message.
 
@@ -64,19 +64,50 @@ Crew Portal publication, and photo queues. Incoming/processing age is separate
 from historical review/failed records. Human review is a separate condition,
 not a service outage. Missing evidence cannot clear an existing incident.
 
-Authenticated live desktop sessions submit only four fixed browser categories:
-JavaScript runtime errors and failed Schedule, Command, or Control requests.
-No URLs, query strings, stacks, messages, customer records, or request/response
-bodies are submitted. Reports are throttled on the client and server. These
-reports cover active browser sessions only; no reports do not verify a working
-interaction. The pilot does not yet proactively drive authenticated browsers,
-parse server logs, monitor every integration, or prepare code patches.
+The health response's operational signals are also consumed: critical exceptions,
+tracker and arrival coverage, address verification coverage, integration queues,
+disk capacity and backups. Missing/unknown signal evidence requires attention.
+Only fixed titles, statuses and allowlisted numeric fields enter maintenance
+state and AI inputs; raw signal summaries and record identities are excluded.
 
-Two observations at least 45 seconds apart confirm an incident. Three clear
-observations clear it. A repeated unresolved condition gets one AI assessment;
-numeric count/age changes do not trigger repeated paid requests. A recurrence
-after clearance starts a new assessment. Failed AI requests wait at least one
-hour globally and stop after three attempts per incident. At most two calls run per tick.
+Every five minutes a child process (15-second timeout) runs the real local
+Schedule and Fleet data-view builders against cached files. Missing required
+source evidence, malformed response contracts and exceptions are failures.
+These checks do not call routing/geocoding providers, authenticate synthetic
+users, or exercise writes. They establish data-view assembly, not full browser
+interaction success. The Command read path is not invoked in this child because
+it can refresh Slack; the pilot does not add that request volume.
+
+Authenticated browser sessions report a closed operation vocabulary covering
+Schedule, Command, Control, Fleet, Krewe, Finance and Marketing. Schedule closeout,
+creation, operations, routes, planning and stop-order failures remain distinct.
+Only the operation, HTTP method/status, fixed failure kind, timestamp and bounded
+count are retained. No raw URL, query, identifier, body, error message or stack is
+submitted. HTTP 5xx, authentication failures, network/timeouts and malformed
+primary read contracts are reported while a session can authenticate the report.
+Explicit request cancellation and ordinary input-validation responses are excluded.
+The monitor cannot collect browser failures when no session is active.
+
+Two bad checks confirm a condition. Three healthy source checks clear technical
+conditions. Browser incidents move to **Interaction verification required** when
+reports stop; silence cannot resolve them. An authorized operator can mark an
+interaction verified after reproducing it and reading back its result. The server
+compares the exact failure timestamp, rejects stale verification, and returns
+pending-observer. The worker confirms no newer failure on three observations
+before displaying it cleared. Historical browser incidents that were cleared
+only by silence return to the verification queue. This records operator verification;
+it does not claim an automated browser test passed.
+
+Reopened incidents preserve the prior AI assessment and attempt history for
+24 hours, so repeatedly fluctuating conditions do not repeatedly spend on the same
+diagnosis. A failed provider request imposes a global cooldown; at most two calls
+run in one tick and at most three attempts are made per condition in a day.
+Unknown HTTP 429 responses wait six hours; explicit rate limits wait one hour.
+Only allowlisted provider error codes are retained. Known quota, authentication,
+or model-access failures pause AI for operator investigation instead of repeatedly
+retrying. Their failure status persists until successful analysis or explicit
+review/resumption; an idle tick is not evidence of provider recovery. Do not reset
+usage or the incident ledger to resolve a provider problem.
 
 ## AI and budget
 

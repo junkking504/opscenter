@@ -53,10 +53,10 @@
   ],
   "protectedFiles": {
     "lib/metered-usage-policy.ts": "33db8285ea172afe27fc50d9b35198a45c09fb8b0e7ebb0dcbe6e7b8bf8c8673",
-    "lib/maintenance-diagnosis.ts": "95d1a7c7a2725d803588490efb168945a9cb676e6e9b82d063c8b469236f46c8",
-    "lib/maintenance-monitor.ts": "e6d43bd72503ca0b88c6a96af5d7d6fd2876a04dd68ba3afa8c7288653907f9d",
+    "lib/maintenance-diagnosis.ts": "62161edda774f81cf13ff8408e2714b307b65c88bfbfdaee4ecbed5a75ef047c",
+    "lib/maintenance-monitor.ts": "a9bd78ccb69f50ebfddd8b613bc2609ab1fd4e13edfb72b4e63e6398e8f9779d",
     "lib/truck-load-photo-analysis.ts": "7ccecba856fb8ee6e54e0a4c0e65c20f17c6ec268421cf18b566fe924013e3b1",
-    "scripts/observe-opscenter.ts": "c78a3bee84507b0ed469397901343a6fdde8b3e12dc1b4fb7b2071816953763c",
+    "scripts/observe-opscenter.ts": "6db03154a30b0c13f77429793a10f4287aa85ed76c783abcb731c04e638121fb",
     "scripts/run-opscenter-observer.py": "ad493f10f8036e9dfe7ca47311f8b52f364d498ec3798175fc853169cb553da7",
     "scripts/run-whatsapp-photo-worker.sh": "23db3a954ac2d5541575450f368b5d2854b94a15432fc9bbe01aa0fcbaf6b587"
   }

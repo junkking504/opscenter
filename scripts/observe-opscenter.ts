@@ -1,6 +1,8 @@
 import fs from 'node:fs';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import path from 'node:path';
-import { detectMaintenance, maintenanceDirectory, readClientEvents, readMaintenanceState, reconcileMaintenance, saveMaintenanceState } from '../lib/maintenance-monitor';
+import { detectMaintenance, readClientVerifications, maintenanceDirectory, readClientEvents, readMaintenanceState, reconcileMaintenance, saveMaintenanceState } from '../lib/maintenance-monitor';
 import { diagnoseMaintenance } from '../lib/maintenance-diagnosis';
 
 // One finite run per launchd interval. Re-resolving the release each run avoids
@@ -21,7 +23,16 @@ async function main() {
     };
     const [health, readiness, login] = await Promise.all([probe('/api/health'), probe('/api/readiness'), probe('/login', false)]);
     const now = Date.now();
-    if (!reconcileMaintenance(state, detectMaintenance({ health, readiness, login: typeof login === 'boolean' ? login : null, clientEvents: readClientEvents(directory) }, now), now)) return;
+    if (!state.workflowCheck || now - state.workflowCheck.at >= 300_000 || now < state.workflowCheck.at) {
+      let results: Record<string, boolean | null> = { schedule: null, fleet: null };
+      try {
+        const { stdout } = await promisify(execFile)(process.execPath, ['--import', 'tsx', 'scripts/check-maintenance-workflows.ts'], { cwd: process.cwd(), timeout: 15_000, maxBuffer: 16_384 });
+        const value = JSON.parse(stdout);
+        results = Object.fromEntries(['schedule','fleet'].map(key => [key, typeof value[key] === 'boolean' ? value[key] : null]));
+      } catch { /* Timeout/unreadable data is reported, never treated as a pass. */ }
+      state.workflowCheck = { at: now, results };
+    }
+    if (!reconcileMaintenance(state, detectMaintenance({ health, readiness, login: typeof login === 'boolean' ? login : null, clientEvents: readClientEvents(directory), verifications: readClientVerifications(directory), workflows: state.workflowCheck.results }, now), now)) return;
     const persist = () => saveMaintenanceState(state, directory);
     persist();
     let apiKey = process.env.OPENAI_API_KEY || '';
@@ -35,6 +46,6 @@ async function main() {
     }
     if (process.env.OPSCENTER_MAINTENANCE_AI_DISABLED === 'true') { state.aiStatus = 'AI disabled; observation continues'; persist(); }
     else await diagnoseMaintenance(state, apiKey, persist, now);
-    console.log(JSON.stringify({ mode: 'observe', checkedAt: state.checkedAt, open: state.incidents.filter(i => i.status === 'open').length, aiStatus: state.aiStatus }));
+    console.log(JSON.stringify({ mode: 'observe', checkedAt: state.checkedAt, open: state.incidents.filter(i => i.status === 'open' || i.status === 'verification-needed').length, aiStatus: state.aiStatus }));
 }
 main().catch(() => { console.error('Maintenance observation failed; no repair was attempted. Check worker storage and configuration.'); process.exitCode = 1; });

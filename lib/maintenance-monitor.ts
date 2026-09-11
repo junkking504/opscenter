@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { maintenanceOperations, validClientEvidence, type ClientEvent, type ClientEvidence } from '../desktop-ui/lib/maintenance-evidence';
 import path from 'node:path';
 import { APPROVED_MODEL, APPROVED_MONTHLY_MICROS } from './metered-usage-policy';
 import type { MaintenanceObservation, MaintenanceState, MaintenanceSnapshot } from '../desktop-ui/lib/maintenance-contract';
@@ -47,7 +48,7 @@ type ObjectValue = Record<string, unknown>;
 const object = (value: unknown): ObjectValue => value && typeof value === 'object' && !Array.isArray(value) ? value as ObjectValue : {};
 const bool = (value: unknown): boolean | null => typeof value === 'boolean' ? value : null;
 const count = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.floor(value) : null;
-export type MaintenanceProbes = { health: unknown; readiness: unknown; login: boolean | null; clientEvents?: Record<string, { at: number; count: number }> };
+export type MaintenanceProbes = { health: unknown; readiness: unknown; login: boolean | null; clientEvents?: Record<string, ClientEvent | { at: number; count: number }>; verifications?: Record<string, number>; workflows?: Record<string, boolean | null> };
 export function detectMaintenance(probes: MaintenanceProbes, now = Date.now()): MaintenanceObservation[] {
   const h = object(probes.health), r = object(probes.readiness), q = object(r.photoQueue), counts = object(q.counts), sync = object(r.crewPortalSync);
   const rows: MaintenanceObservation[] = [];
@@ -73,14 +74,39 @@ export function detectMaintenance(probes: MaintenanceProbes, now = Date.now()): 
   // Age only incoming/processing records, never the historical review backlog.
   const oldestActive = count(q.oldestActiveAgeSeconds);
   add('photo-processing', 'Photo processing is delayed', 'Command', incoming === null || processing === null || (incoming + processing > 0 && oldestActive === null) ? null : incoming + processing > 0 && oldestActive! > 600, `${incoming ?? 'Unknown'} incoming; ${processing ?? 'unknown'} processing; oldest active age ${oldestActive ?? 'unknown'} seconds.`, 'Inspect the dedicated photo worker and pending records; do not replay uncertain uploads.');
+  const signals = object(h.signals);
+  const signalChecks = [
+    ['exceptions', 'Critical operational exceptions', 'Command'], ['gpsCoverage', 'Tracker coverage', 'Fleet'],
+    ['arrivalCoverage', 'Arrival alert coverage', 'Schedule'], ['geocoder', 'Address verification coverage', 'Schedule'],
+    ['queues', 'Integration queues', 'Command'], ['storage', 'Disk capacity', 'Command'], ['backup', 'Backup freshness', 'Command'],
+  ];
+  for (const [key, title, area] of signalChecks) {
+    const signal = object(signals[key]);
+    const status = ['ok','warn','critical','unknown'].includes(String(signal.status)) ? String(signal.status) : 'unknown';
+    // Deliberately exclude raw summary strings and record/employee/customer identifiers.
+    const numeric = Object.entries(signal).filter(([name, value]) => ['critical','warning','total','mappedTrackers','reportingTrackers','ambiguousAddresses','totalAddresses','freeBytes','totalBytes','usedPercent','ageMinutes','lastExitCode'].includes(name) && typeof value === 'number' && Number.isFinite(value));
+    const evidence = `${title}: ${status}. ${numeric.map(([name, value]) => `${name}: ${value}`).join('; ')}`;
+    add(`signal-${key}`, title, area, status !== 'ok', evidence, 'Open the operational source, investigate the recorded condition, and verify the source after correction.');
+  }
+  for (const key of ['schedule','fleet']) {
+    const result = probes.workflows?.[key];
+    add(`workflow-${key}`, `${key === 'schedule' ? 'Schedule' : 'Fleet'} data view check`, key === 'schedule' ? 'Schedule' : 'Fleet', result !== true,
+      result === true ? 'The local data view built successfully with its required source and response fields.' : 'The local data view failed, timed out, or lacks required source evidence.',
+      'Check the affected workspace and source files. This checks data assembly; authenticated clicks and writes require separate verification.');
+  }
   for (const key of CLIENT_EVENT_KEYS) {
     const event = probes.clientEvents?.[key];
     const active = Boolean(event && now >= event.at && now - event.at < 600_000);
-    add(`client-${key}`, key === 'javascript' ? 'Browser reported a runtime error' : `${key} requests reported failures`, key === 'schedule' ? 'Schedule' : 'Command', active, active ? `${event!.count} browser reports in the current reporting window.` : 'No recent browser failure reports.', 'Reproduce the affected live interaction and inspect its request or browser error. Absence of reports does not prove browser recovery.');
+    const detail = event as Partial<ClientEvent> | undefined;
+    const verified = Boolean(event && probes.verifications?.[key] === event.at);
+    add(`client-${key}`, `${maintenanceOperations[key]} failure`, key.startsWith('schedule') ? 'Schedule' : key === 'javascript' ? 'Command' : key[0].toUpperCase() + key.slice(1),
+      active && !verified, event ? `${detail?.method || 'Browser'} ${maintenanceOperations[key]}: ${detail?.failure || 'failure reported'}${detail?.status ? ` (HTTP ${detail.status})` : ''}. ${event.count} report(s).` : 'No browser report recorded.',
+      'Reproduce this specific interaction and verify its result. Then mark the interaction verified. Silence does not establish recovery.');
+    Object.assign(rows[rows.length - 1], { verificationRequired: true, verified });
   }
   return rows;
 }
-export const CLIENT_EVENT_KEYS = ['javascript', 'schedule', 'command', 'control'] as const;
+export const CLIENT_EVENT_KEYS = Object.keys(maintenanceOperations) as Array<keyof typeof maintenanceOperations>;
 export function reconcileMaintenance(state: MaintenanceState, observations: MaintenanceObservation[], now = Date.now()) {
   const at = new Date(now).toISOString();
   // Multiple manual invocations cannot count as independent minute observations.
@@ -94,18 +120,23 @@ export function reconcileMaintenance(state: MaintenanceState, observations: Main
       state.incidents.push(incident);
     }
     if (observation.unhealthy) {
-      if (incident.status === 'resolved') {
-        Object.assign(incident, { firstSeenAt: at, resolvedAt: null, status: 'confirming', badChecks: 0, attempts: 0, attemptedAt: undefined, diagnosis: undefined, diagnosisAt: undefined, diagnosisStatus: undefined, occurrences: incident.occurrences + 1 });
+      if (incident.status === 'resolved' || incident.status === 'verification-needed') {
+        Object.assign(incident, { firstSeenAt: at, resolvedAt: null, status: 'confirming', badChecks: 0, verifiedAt: undefined, assessmentRefreshDue: Boolean(incident.attemptedAt && now - Date.parse(incident.attemptedAt) >= 86_400_000), occurrences: incident.occurrences + 1 });
       }
-      Object.assign(incident, observation, { lastSeenAt: at, badChecks: incident.badChecks + 1, goodChecks: 0 });
+      Object.assign(incident, observation, { verifiedAt: undefined, lastSeenAt: at, badChecks: incident.badChecks + 1, goodChecks: 0 });
       if (incident.badChecks >= 2 && incident.status === 'confirming') {
         incident.status = 'open'; state.receipts.push({ at, incident: incident.key, event: 'Confirmed on consecutive observations' });
       }
     } else {
+      if (observation.verificationRequired && !observation.verified && !incident.verifiedAt) {
+        Object.assign(incident, { status: 'verification-needed', verificationRequired: true, nextStep: observation.nextStep, goodChecks: 0, badChecks: 0 });
+        continue;
+      }
+      if (observation.verified) incident.verifiedAt = at;
       incident.badChecks = 0; incident.goodChecks += 1;
       if (incident.goodChecks >= 3 && incident.status !== 'resolved') {
         incident.status = 'resolved'; incident.resolvedAt = at;
-        state.receipts.push({ at, incident: incident.key, event: incident.key.startsWith('client-') ? 'No recent browser reports; interaction recovery not verified' : 'Condition cleared on three observations; no repair performed' });
+        state.receipts.push({ at, incident: incident.key, event: incident.key.startsWith('client-') ? 'Operator marked interaction verified; no newer browser failure reported' : 'Condition cleared on three observations; no repair performed' });
       }
     }
   }
@@ -120,21 +151,39 @@ export function reserveMaintenanceCall(state: MaintenanceState, now = Date.now()
     || ledger.calls >= 500 || ledger.committedMicros + CALL_RESERVATION_MICROS > MONTHLY_BUDGET_MICROS) return false;
   ledger.committedMicros += CALL_RESERVATION_MICROS; ledger.calls += 1; return true;
 }
-export function readClientEvents(directory = maintenanceDirectory()): Record<string, { at: number; count: number }> {
-  const result: Record<string, { at: number; count: number }> = {};
+export function readClientEvents(directory = maintenanceDirectory()): Record<string, ClientEvent> {
+  const result: Record<string, ClientEvent> = {};
   for (const key of CLIENT_EVENT_KEYS) {
-    try { const item = JSON.parse(fs.readFileSync(path.join(directory, `${key}.json`), 'utf8')); if (Number.isFinite(item.at) && Number.isSafeInteger(item.count) && item.count > 0) result[key] = item; } catch { /* no reports */ }
+    try {
+      const item = JSON.parse(fs.readFileSync(path.join(directory, `${key}.json`), 'utf8'));
+      const evidence = { category: key, ...Object.fromEntries(['failure','method','status'].filter(k => item[k] !== undefined).map(k => [k, item[k]])) };
+      if (Number.isFinite(item.at) && Number.isSafeInteger(item.count) && item.count > 0 && validClientEvidence(evidence)) result[key] = { ...evidence, at: item.at, count: item.count };
+    } catch { /* Unknown reports never supply evidence of recovery. */ }
   }
   return result;
 }
-export function recordClientEvent(key: string, directory = maintenanceDirectory(), now = Date.now()) {
-  if (!(CLIENT_EVENT_KEYS as readonly string[]).includes(key)) return false;
+export function recordClientEvent(value: string | ClientEvidence, directory = maintenanceDirectory(), now = Date.now()) {
+  const evidence = typeof value === 'string' ? { category: value } : value;
+  if (!validClientEvidence(evidence)) return false;
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const target = path.join(directory, `${key}.json`);
-  let previous: { at: number; count: number } = { at: 0, count: 0 };
+  const target = path.join(directory, `${evidence.category}.json`);
+  let previous = { at: 0, count: 0 };
   try { previous = JSON.parse(fs.readFileSync(target, 'utf8')); } catch { /* first report */ }
   if (now - previous.at < 30_000) return true;
   const temporary = `${target}.${process.pid}.tmp`;
-  fs.writeFileSync(temporary, JSON.stringify({ at: now, count: now - previous.at < 600_000 ? Math.min((previous.count || 0) + 1, 1000) : 1 }), { mode: 0o600 });
+  fs.writeFileSync(temporary, JSON.stringify({ ...evidence, at: now, count: now - previous.at < 600_000 ? Math.min((previous.count || 0) + 1, 1000) : 1 }), { mode: 0o600 });
+  fs.renameSync(temporary, target); return true;
+}
+export function readClientVerifications(directory = maintenanceDirectory()): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const key of CLIENT_EVENT_KEYS) {
+    try { const value = JSON.parse(fs.readFileSync(path.join(directory, `${key}.verified.json`), 'utf8')); if (Number.isFinite(value.failureAt)) result[key] = value.failureAt; } catch { /* Not verified. */ }
+  }
+  return result;
+}
+export function verifyClientInteraction(key: string, failureAt: number, directory = maintenanceDirectory(), actor = 'operator') {
+  if (!CLIENT_EVENT_KEYS.includes(key as keyof typeof maintenanceOperations) || readClientEvents(directory)[key]?.at !== failureAt) return false;
+  const target = path.join(directory, `${key}.verified.json`), temporary = `${target}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, JSON.stringify({ failureAt, verifiedAt: new Date().toISOString(), actor }), { mode: 0o600 });
   fs.renameSync(temporary, target); return true;
 }

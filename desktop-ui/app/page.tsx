@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import type { DesktopKpi, DesktopLiveProps } from '@/lib/live-contract';
 import LiveControl from '../live-control';
+import MaintenanceNotice from '../maintenance-notice';
 import MaintenanceMonitor from '../maintenance-monitor';
 import LivePhotoReview from '../live-photo-review';
 import { navigationValue, workspaceUrl } from '../lib/workspace-navigation';
@@ -4215,6 +4216,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         </header>
 
         <div className={activeNav === 'Schedule' ? 'workspace schedule-mode' : 'workspace'}>
+          {live && <MaintenanceNotice onOpen={() => { if (!mutationBusyRef.current) { setActiveNav('Command'); setView('monitor'); } }} />}
           <div className={`workspace-heading${activeNav === 'Schedule' && live ? ' schedule-workspace-heading' : ''}`} onClickCapture={event => { if (mutationBusyRef.current) { event.preventDefault(); event.stopPropagation(); } }}>
             <div>
               <span className="eyebrow">{live ? operatingDateHeading : activeNav === 'Schedule' && scheduleView === 'calendar'

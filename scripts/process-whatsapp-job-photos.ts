@@ -1,3 +1,4 @@
+import { processRecyclingImage } from "@/lib/whatsapp-recycling";
 import { processResaleImage } from "@/lib/whatsapp-resale";
 import { downloadWhatsAppImage } from "@/lib/whatsapp-photo-media";
 import { execFileSync } from "node:child_process";
@@ -194,6 +195,8 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
   try {
     const receivedAt = new Date(claim.message.receivedAt);
     if (Number.isNaN(receivedAt.getTime())) throw new Error("The WhatsApp message timestamp is invalid.");
+    const recycling = await processRecyclingImage(claim.message);
+    if (recycling) { finishWhatsAppImage(claim.file, "completed", { recycling }); return "completed"; }
     const resale = await processResaleImage(claim.message);
     if (resale) {
       const outcome = resale.status === "review" ? "review" : "completed";

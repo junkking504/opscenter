@@ -1,0 +1,3 @@
+export type RecyclingReceiptLine = { date: string; ticket: string; material: string; weightLb: number | null; amount: number | null; photoId?: string };
+export type RecyclingReceiptPhoto = { photoId: string; mimeType: string; receivedAt: string; text: string; rows: RecyclingReceiptLine[]; total: number | null; warnings: string[] };
+export type RecyclingReceiptDraft = { id: string; version: string; receivedAt: string; updatedAt: string; status: 'review' | 'recorded'; photos: RecyclingReceiptPhoto[]; yard: string; rows: RecyclingReceiptLine[]; total: number | null; warnings: string[]; recordIds?: string[] };

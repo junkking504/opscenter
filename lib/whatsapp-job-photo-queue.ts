@@ -15,7 +15,7 @@ export type WhatsAppImageMessage = {
   sha256: string;
   caption: string;
   enqueuedAt: string;
-  matchingContext?: { version: 1; text: string; sourceMessageIds: string[]; capturedAt: string; resale?: { text: string; messageId: string }; reviewReason?: "ambiguous_context" };
+  matchingContext?: { version: 1; text: string; sourceMessageIds: string[]; capturedAt: string; recycling?: { text: string; messageId: string }; resale?: { text: string; messageId: string }; reviewReason?: "ambiguous_context" };
 };
 
 export type WhatsAppTextMessage = {
@@ -183,7 +183,7 @@ export function recordWhatsAppTextContext(message: WhatsAppTextMessage): void {
   writeJsonAtomic(target, { version: 1, ...message });
 }
 
-export function recentWhatsAppPhotoContext(senderPhone: string, receivedAt: Date, maxAgeMinutes = 10, phoneNumberId?: string, excludedMessageId?: string): { text: string; sourceMessageIds: string[]; resale?: { text: string; messageId: string }; reviewReason?: "ambiguous_context" } {
+export function recentWhatsAppPhotoContext(senderPhone: string, receivedAt: Date, maxAgeMinutes = 10, phoneNumberId?: string, excludedMessageId?: string): { text: string; sourceMessageIds: string[]; recycling?: { text: string; messageId: string }; resale?: { text: string; messageId: string }; reviewReason?: "ambiguous_context" } {
   const photoAt = receivedAt.getTime(), minimum = photoAt - maxAgeMinutes * 60_000;
   if (!Number.isFinite(photoAt) || !Number.isFinite(minimum)) return { text: '', sourceMessageIds: [] };
   const candidates = new Map<string, WhatsAppTextMessage>();
@@ -226,9 +226,10 @@ export function recentWhatsAppPhotoContext(senderPhone: string, receivedAt: Date
     if (identities.length) break;
     if (selected.length >= 20) return { text: '', sourceMessageIds: [], reviewReason: 'ambiguous_context' };
   }
+  const recycling = selected.find(row => /^recycling\b/i.test(row.text.trim()));
   const resale = selected.find(row => /^resale\b/i.test(row.text.trim()));
   /* Context is ordered newest first; category modifiers retain their JK. */
-  return { ...(resale ? { resale: { text: resale.text, messageId: resale.messageId } } : {}), text: [selected.find(modifier), ...selected.filter(row => !modifier(row))].filter((row): row is WhatsAppTextMessage => Boolean(row)).map(row => /^resale\b/i.test(row.text.trim()) ? row.text : clean(row.text)).join(" ").slice(0, 2_000), sourceMessageIds: selected.map(row => row.messageId) };
+  return { ...(recycling ? { recycling: { text: recycling.text, messageId: recycling.messageId } } : {}), ...(resale ? { resale: { text: resale.text, messageId: resale.messageId } } : {}), text: [selected.find(modifier), ...selected.filter(row => !modifier(row))].filter((row): row is WhatsAppTextMessage => Boolean(row)).map(row => /^resale\b/i.test(row.text.trim()) ? row.text : clean(row.text)).join(" ").slice(0, 2_000), sourceMessageIds: selected.map(row => row.messageId) };
 }
 
 export function recentWhatsAppText(senderPhone: string, receivedAt: Date, maxAgeMinutes = 10, phoneNumberId?: string, excludedMessageId?: string): string {

@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { splitRecyclingStatement } from '../lib/recycling-statement';
+import { recyclingMonth } from '../desktop-ui/lib/recycling-month';
+import type { RecyclingRecord } from '../desktop-ui/lib/commercial-contract';
+const source = { id:'source',version:'v',date:'2026-09-11',status:'Paid',realizedValue:12.34,material:'Metal',owner:'Test',sourceJob:'Test',yard:'Yard',paymentReference:'Cash',ticket:'1,2',expectedValue:null,note:'',quantity:'30 lb',updatedAt:'' } as RecyclingRecord;
+const statement={amount_usd:'12.34',payment_received_date:'2026-09-11',unique_ticket_count:2,net_commodity_weight_lb:30,rows:[{date:'2026-08-01',ticket:'1',commodity:'Steel',printed_net_lb:10,amount_usd:'5.00'},{date:'2026-08-02',ticket:'2',commodity:'Copper',printed_net_lb:20,amount_usd:'7.34'},{date:'2026-08-02',ticket:'2',commodity:'WEIGHT DEDUCTION',printed_net_lb:5,amount_usd:'0.00'}]};
+const rows=splitRecyclingStatement(source,statement,'2026-09-11T10:00:00Z');
+assert.equal(rows.length,2);assert.deepEqual(rows.map(r=>r.realizedValue),[5,7.34]);assert.equal(rows[1].netWeightLb,20);
+assert.equal(recyclingMonth(rows,'2026-08').runValue,12.34);assert.equal(recyclingMonth(rows,'2026-08').receivedValue,0);assert.equal(recyclingMonth(rows,'2026-09').receivedValue,12.34);assert.equal(recyclingMonth(rows,'2026-09').runs.length,0);
+assert.equal(new Set(rows.map(row=>row.id)).size,2);assert.deepEqual(splitRecyclingStatement(source,statement,'2026-09-11T10:00:00Z'),rows);
+assert.throws(()=>splitRecyclingStatement(source,{...statement,amount_usd:'12.35'},''));
+assert.throws(()=>splitRecyclingStatement(source,{...statement,unique_ticket_count:3},''));
+assert.equal(recyclingMonth([{...rows[0],paymentDate:undefined}],'2026-08').missingPaymentDates,1);
+assert.equal(recyclingMonth([{...rows[0],status:'Submitted',expectedValue:null}],'2026-08').runValue,null);
+console.log('Monthly recycling: dated splits, exact totals, deductions, payment month, missing evidence and stable IDs passed.');

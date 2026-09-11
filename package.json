@@ -100,6 +100,7 @@
     "verify:workspace-retention": "python3 scripts/test-workspace-retention.py",
     "verify:spending": "node scripts/verify-spending-boundary.mjs && node --import tsx scripts/test-metered-usage-policy.ts && node scripts/test-spending-boundary.mjs",
     "verify:estimates": "node --import tsx scripts/test-estimate-follow-up.ts",
+    "verify:recycling": "node --import tsx scripts/test-recycling-income.ts && node --import tsx scripts/test-recycling-monthly.ts && node --import tsx scripts/test-whatsapp-recycling.ts",
     "verify:merchant-evidence": "node --import tsx scripts/test-merchant-center-evidence.ts && python3 scripts/test-merchant-center-snapshot.py && python3 scripts/test-merchant-refresh-runner.py"
   },
   "dependencies": {

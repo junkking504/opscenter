@@ -35,11 +35,11 @@ export function readDesktopMarketing(date: string, role: InteractiveOpsRole): Ma
     jobChange: comparisonAvailable ? `Matched appointments: last 7 days ${recent} · prior 7 days ${previous}` : 'Prior 7-day comparison unavailable' };
 }
 /** Registered local action definitions: writes retain attribution and immutable receipts. */
-export const COMMERCIAL_ACTIONS = { 'lead.update': 'operations.write', 'review.assign': 'sensitive.write', 'resale.save': 'sensitive.write', 'recycling.save': 'sensitive.write' } as const;
+export const COMMERCIAL_ACTIONS = { 'lead.update': 'operations.write', 'review.assign': 'sensitive.write', 'resale.save': 'sensitive.write', 'recycling.save': 'sensitive.write', 'recycling.receipt.record': 'sensitive.write' } as const;
 export function parseCommercialOperation(body: unknown): CommercialOperation {
   if (!body || typeof body !== 'object') throw new CommercialActionError('A typed change is required.');
   const value = body as CommercialOperation;
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.requestId) || !validCommercialDate(value.date) || !Object.hasOwn(COMMERCIAL_ACTIONS, value.action) || typeof value.recordId !== 'string' || !value.recordId || value.recordId.length > 200 || !/^[a-f0-9]{64}$/.test(value.expectedVersion) || !value.values || typeof value.values !== 'object' || JSON.stringify(value.values).length > 12000) throw new CommercialActionError('A valid record, date, version, action, and request ID are required.');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.requestId) || !validCommercialDate(value.date) || !Object.hasOwn(COMMERCIAL_ACTIONS, value.action) || typeof value.recordId !== 'string' || !value.recordId || value.recordId.length > 200 || !/^[a-f0-9]{64}$/.test(value.expectedVersion) || !value.values || typeof value.values !== 'object' || JSON.stringify(value.values).length > (value.action === 'recycling.receipt.record' ? 80000 : 12000)) throw new CommercialActionError('A valid record, date, version, action, and request ID are required.');
   return value;
 }
 function receiptFile(id: string) { return path.join(commercialDirectory(), `${id}.json`); }
@@ -61,7 +61,7 @@ export function executeCommercialOperation(operation: CommercialOperation, actor
       if (receipt?.recordId === operation.recordId && receipt.action === operation.action && receipt.status !== 'verified') throw new CommercialActionError('This record has an unverified change. Inspect its saved receipt before another change.');
     }
     if (loadVersion() !== operation.expectedVersion) throw new CommercialActionError('The record changed. Refresh and review the current version.');
-    const fields = operation.action === 'lead.update' ? ['status', 'reason', 'note', 'contacted'] : operation.action === 'review.assign' ? ['appointmentId'] : operation.action === 'resale.save' ? ['itemName', 'source', 'acquiredDate', 'status', 'cost', 'askingPrice', 'soldPrice', 'marketplace', 'notes'] : ['material', 'sourceJob', 'yard', 'quantity', 'owner', 'ticket', 'paymentReference', 'note', 'status', 'expectedValue', 'realizedValue'];
+    const fields = operation.action === 'lead.update' ? ['status', 'reason', 'note', 'contacted'] : operation.action === 'review.assign' ? ['appointmentId'] : operation.action === 'resale.save' ? ['itemName', 'source', 'acquiredDate', 'status', 'cost', 'askingPrice', 'soldPrice', 'marketplace', 'notes'] : operation.action === 'recycling.receipt.record' ? ['rows', 'total', 'reviewed', 'yard', 'paid', 'paymentDate', 'paymentReference'] : ['runDate', 'paymentDate', 'material', 'sourceJob', 'yard', 'quantity', 'owner', 'ticket', 'paymentReference', 'note', 'status', 'expectedValue', 'realizedValue'];
     const input = Object.fromEntries(fields.map(key => [key, operation.values[key]]));
     let receipt: CommercialReceipt = { expectedVersion: operation.expectedVersion, input, permission: COMMERCIAL_ACTIONS[operation.action], authority: 'opscenter_authoritative', requestId: operation.requestId, recordId: operation.recordId, action: operation.action, actor: actor.email, fingerprint, status: 'pending', updatedAt: new Date().toISOString(), message: 'Verifying saved OpsCenter state.' };
     writeReceipt(receipt);

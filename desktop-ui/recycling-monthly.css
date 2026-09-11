@@ -1,0 +1,26 @@
+.recycling-monthly { display: grid; gap: 18px; min-width: 0; }
+.recycling-month-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; }
+.recycling-month-controls label { display: grid; gap: 4px; font-size: 12px; }
+.recycling-month-controls input { min-height: 34px; padding: 5px 8px; border: 1px solid var(--border, #d5d9df); border-radius: 6px; background: var(--background, white); color: inherit; }
+.recycling-day { border-top: 1px solid var(--border, #d5d9df); }
+.recycling-day > header { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--muted, #f3f5f7); }
+.recycling-day > header h4 { font-weight: 700; }
+.recycling-day > header > strong { margin-left: auto; }
+.recycling-run { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.4fr) minmax(140px, .7fr) auto; gap: 16px; padding: 16px; align-items: center; }
+.recycling-run + .recycling-run { border-top: 1px solid var(--border, #d5d9df); }
+.recycling-run > div, .recycling-payments small { display: grid; gap: 4px; }
+.recycling-run small, .recycling-run span, .recycling-payments small { font-size: 12px; color: var(--muted-foreground, #59616d); }
+.recycling-run strong, .recycling-run small, .recycling-payments span { overflow-wrap: anywhere; }
+.recycling-payments > article { display: grid; grid-template-columns: 170px minmax(0, 1fr) auto; gap: 16px; padding: 12px 16px; border-top: 1px solid var(--border, #d5d9df); }
+@media (max-width: 760px) { .recycling-run { grid-template-columns: minmax(0, 1fr); gap: 10px; } .recycling-run button { justify-self: start; } .recycling-payments > article { grid-template-columns: minmax(0, 1fr); } }
+.recycling-receipt-card { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 14px 16px; border-top: 1px solid var(--border, #d5d9df); }
+.recycling-receipt-card > div { flex: 1; display: grid; gap: 4px; }
+.recycling-receipt-editor { display: grid; gap: 16px; padding: 16px; border-top: 1px solid var(--border, #d5d9df); }
+.recycling-receipt-editor > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.recycling-receipt-editor label { display: grid; gap: 5px; font-size: 12px; }
+.recycling-receipt-editor input:not([type=checkbox]) { width: 100%; min-width: 0; min-height: 36px; padding: 6px 8px; border: 1px solid var(--border, #d5d9df); border-radius: 6px; color: inherit; background: var(--background, white); }
+.recycling-receipt-photos { display: flex; gap: 12px; overflow-x: auto; }
+.recycling-receipt-photos img { height: 180px; width: auto; max-width: none; border-radius: 6px; }
+.recycling-receipt-lines > div { display: grid; grid-template-columns: 140px 110px minmax(0,1fr) 110px 110px auto; align-items: end; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--border, #d5d9df); }
+.recycling-receipt-editor .recycling-checkbox { display: flex; align-items: center; gap: 8px; }
+@media(max-width: 1100px) { .recycling-receipt-lines > div { grid-template-columns: repeat(2,minmax(0,1fr)); } }

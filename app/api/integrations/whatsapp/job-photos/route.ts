@@ -1,3 +1,4 @@
+import { ingestRecyclingText } from "@/lib/whatsapp-recycling";
 import { ingestResaleText } from "@/lib/whatsapp-resale";
 import { NextResponse } from "next/server";
 import {
@@ -58,7 +59,8 @@ export async function POST(request: Request) {
     return noStore({ ok: false, error: "Unexpected WhatsApp phone number." }, 403);
   }
 
-  const resaleResults = parsed.texts.map((text) => ingestResaleText(text));
+  const recyclingResults = parsed.texts.map((text) => ingestRecyclingText(text));
+  const resaleResults = parsed.texts.map((text, index) => recyclingResults[index].status === "ignored" ? ingestResaleText(text) : { status: "recycling" as const });
   const closeoutResults = parsed.texts.map((text, index) => resaleResults[index].status === "ignored" ? ingestJobCloseoutText(text) : { status: "ignored" as const });
   const truckLoadResults = parsed.texts.map((text, index) => resaleResults[index].status === "ignored" && closeoutResults[index].status === "ignored"
     ? ingestTruckLoadText(text)
@@ -71,6 +73,7 @@ export async function POST(request: Request) {
       : { status: "ignored" as const };
   });
   const resultsByMessage = new Map(parsed.texts.map((text, index) => [text.messageId, {
+    recycling: recyclingResults[index].status,
     resale: resaleResults[index].status,
     closeout: closeoutResults[index].status,
     truckLoad: truckLoadResults[index].status,
@@ -103,6 +106,7 @@ export async function POST(request: Request) {
     enqueued,
     duplicates,
     textContexts: parsed.texts.length,
+    recycling: recyclingResults.map(result => result.status),
     resale: resaleResults.map(result => result.status),
     crewExpenses: {
       prompted: expenseResults.filter((result) => result.status === "prompted").length,

@@ -15,9 +15,9 @@ export function MerchantReportSummary({ report }: { report?: MerchantReport }) {
       <a href="https://merchantcenter.intuit.com/msc/portal/reporting">Open Merchant Center</a></div>
     {report?.available && report.issue && <p role="status">{report.issue}</p>}
     <div className="finance-recovery-ledger-summary"><article><span>{report?.complete ? 'Approved card sales' : 'Approved sales observed · partial'}</span><strong>{money(report?.approvedTotal ?? null)}</strong><small>{report?.available ? `${report.approvedCount} approved transactions` : 'Unavailable'}</small></article>
-      <article><span>Evidence coverage</span><strong>{!report?.available ? 'Not collected' : report.complete ? 'Full day' : 'Partial'}</strong><small>QBO totals above remain separate</small></article>
+      <article><span>Evidence coverage</span><strong>{!report?.available ? 'Not collected' : report.complete ? 'Full day' : 'Partial'}</strong><small>Matched approvals count as verified payments</small></article>
       <article><span>Processor records needing a job match</span><strong>{report?.available ? report.unmatched.length : '—'}</strong><small>Review source references below</small></article></div>
     {!!report?.unmatched.length && <div className="finance-close-list">{report.unmatched.map(({transaction:t,qboTransactionId,reason}) => <article key={t.transactionId}><div><strong>{t.customer || t.jkNumber || 'Customer unavailable'}</strong><small>{reason}</small></div><span>{money(t.amount)} · card {t.cardLastFour || 'unavailable'} · {t.status}</span><div><a href={merchantLink(t.transactionId)}>Merchant {t.transactionId}</a><small>QBO {qboTransactionId || 'not matched'}</small></div></article>)}</div>}
-    <footer>Processor approval does not establish a bank deposit or a QBO posting. Missing or stale Merchant Center evidence stays visible; it never clears an accounting exception.</footer>
+    <footer>A matched Merchant Center approval verifies the payment. QBO posting is tracked separately. Coverage and observation times describe the evidence available.</footer>
   </section>;
 }

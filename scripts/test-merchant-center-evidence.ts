@@ -4,6 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { validateMerchantSnapshot, readMerchantSnapshot, reconcileMerchantEvidence, type MerchantSnapshot } from '../lib/merchant-center-evidence';
 import type { PaymentByJobRow, PaymentReconciliation } from '../lib/payment-reconciliation';
+import { paymentVerification, verifiedPayments } from '../desktop-ui/lib/payment-verification';
+import type { FinanceData } from '../desktop-ui/lib/commercial-contract';
 const date = '2026-09-10', observedAt = '2026-09-11T16:00:00Z', now = Date.parse(observedAt);
 const row: PaymentByJobRow = { date, jkNumber:'JK4000001',customer:'Example Person',paymentMethod:'Credit Card',cardLastFour:'1234',paidAmount:120,revenueAmount:120,tipAmount:0,qboTransactionId:null,qboTransactionType:null,qboStatus:null,reconciliation:'Missing in QBO' };
 const transaction = {date,transactionId:'processor-1',amount:120,cardLastFour:'1234',customer:'Example Person',jkNumber:'JK4000001',status:'Approved',transactionType:'Sale',fee:4,observedAt};
@@ -20,6 +22,29 @@ assert.equal(result.paymentsByJob[0].qboTransactionId,null,'Approval cannot inve
 assert.equal(result.paymentsByJob[0].reconciliation,'Missing in QBO','Accounting exception remains');
 assert.equal(result.processor.approvedTotal,120);
 assert.equal(result.processor.unmatched.length,0);
+const view = (rows = result.paymentsByJob): FinanceData['reconciliation'] => ({
+ status:'needs_review', generatedAt:observedAt, merchantCenterAvailable:true, merchantCenterFresh:true,
+ summary:{junkware_count:1,junkware_total:120,merchant_center_total:0,matched_count:0,net_difference:-120,exception_count:1},
+ paymentsByJob:rows,exceptions:[{date,type:'Missing in QBO',reference:row.jkNumber,customer:row.customer,junkwareAmount:120,merchantAmount:null}],
+});
+const verifiedView = view();
+assert.equal(verifiedPayments(verifiedView).total,120);
+assert.equal(verifiedPayments(verifiedView).difference,0,'Merchant approval clears the operational payment difference');
+assert.equal(verifiedPayments(verifiedView).unresolvedCount,0);
+assert.equal(paymentVerification(result.paymentsByJob[0],true),'Verified · Merchant Center');
+assert.equal(verifiedView.summary.net_difference,-120,'QBO accounting gap remains separately available');
+assert.equal(verifiedView.exceptions.length,1);
+assert.equal(verifiedPayments(view(run([{...row,qboTransactionId:'qbo-1',reconciliation:'Matched'}]).paymentsByJob)).total,120,'Both sources count the payment once');
+assert.equal(verifiedPayments(view(run([row],{...snapshot,complete:false}).paymentsByJob)).difference,0,'Partial detail evidence can verify the exact payment');
+assert.equal(verifiedPayments(view(reconcileMerchantEvidence([row],null,snapshot,null,now+25*3600_000).paymentsByJob)).difference,0,'Historical approval remains verified with its observation timestamp');
+for (const state of ['Declined','Voided','Unknown']) {
+ assert.equal(verifiedPayments(view(run([row],{...snapshot,transactions:[{...transaction,status:state}]}).paymentsByJob)).difference,-120);
+}
+assert.equal(verifiedPayments(view(run([row,row]).paymentsByJob)).unresolvedCount,2,'Ambiguous duplicate claims cannot verify either payment');
+assert.equal(verifiedPayments(view(run([row],null).paymentsByJob)).difference,-120);
+assert.equal(verifiedPayments({...view([{...row,reconciliation:'Matched',qboTransactionId:'qbo-1'}]),merchantCenterFresh:false}).unresolvedCount,1,'Unavailable current QBO evidence is not promoted');
+assert.equal(verifiedPayments({...view(),paymentsByJob:[...result.paymentsByJob,{...row,tender:'cash',paidAmount:50,reconciliation:'Recorded'}]}).total,120,'Cash is excluded from card verification');
+assert.equal(verifiedPayments({...view([]),status:'not_collected'}).difference,null,'No collected rows must not imply a balanced day');
 assert.equal(run([{...row,paidAmount:121}]).paymentsByJob[0].processor?.state,'not_found','Never clear unequal totals');
 assert.equal(run([{...row,cardLastFour:'4321'}]).paymentsByJob[0].processor?.state,'not_found','Conflicting card blocks JK match');
 assert.equal(run([{...row,jkNumber:'JK4000002'}]).paymentsByJob[0].processor?.state,'not_found','Conflicting job blocks amount/card match');

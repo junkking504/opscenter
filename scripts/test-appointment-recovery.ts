@@ -40,6 +40,13 @@ async function main() {
         assert.equal((resolved?.sourceResult?.assignment as typeof pending).appointmentStartMinutes,660,'Retain attempted move in audit');
         assert.equal(readJobRouteAssignmentOverrides(op.date).get(`appt:${id}`)?.appointmentStartMinutes,780);
         assert.equal(readJobRouteAssignmentOverrides(op.date).get(`appt:${id}`)?.junkwareSyncStatus,'verified');
+        const refreshed=await reconcileMoveReceipt(requestId,'tester',async()=>({...source,truck:'Truck 3',status:'Completed'}));
+        assert.equal(refreshed?.status,'failed');
+        assert.equal(readJobRouteAssignmentOverrides(op.date).get(`appt:${id}`)?.truck,'Truck 3','A repeat source-only check can refresh its own reconciled assignment');
+        const current=readJobRouteAssignmentOverrides(op.date).get(`appt:${id}`)!;
+        saveJobRouteAssignment({...current,truck:'Truck 4'});
+        await reconcileMoveReceipt(requestId,'tester',async()=>source);
+        assert.equal(readJobRouteAssignmentOverrides(op.date).get(`appt:${id}`)?.truck,'Truck 4','Do not overwrite a later dispatch action');
       }
     }
     assert.equal(writes,1,'Recovery never writes to JunkWare');

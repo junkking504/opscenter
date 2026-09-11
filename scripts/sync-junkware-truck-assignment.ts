@@ -1,4 +1,4 @@
-import { moveOnDailySchedule } from './junkware-dispatch-move';
+import { moveOnDailySchedule, readSavedDispatchTruck } from './junkware-dispatch-move';
 import { capture as captureCloseout } from './sync-junkware-job-closeout';
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -117,14 +117,7 @@ function outputTruck(label: string): string {
 }
 
 async function assignedTruck(page: Page): Promise<string> {
-  const truckSelect = page.locator("#ctl00_Content_TruckDD");
-  if ((await truckSelect.count()) !== 1) throw new Error("The JunkWare truck assignment control has changed.");
-  const label = await truckSelect.evaluate((select) => {
-    const containerText = select.parentElement?.innerText || select.parentElement?.textContent || "";
-    const match = containerText.match(/Assigned:\s*(Truck#?\s*\d+)/i);
-    return match?.[1] || "";
-  });
-  return outputTruck(label);
+  return readSavedDispatchTruck(page);
 }
 
 function clockMinutes(value: string): number | null {

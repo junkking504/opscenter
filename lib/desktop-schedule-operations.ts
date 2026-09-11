@@ -135,10 +135,11 @@ export async function reconcileCloseoutReceipt(id: string, actor: string, readSo
 export async function reconcileMoveReceipt(id: string, actor: string, readSource: (appointmentId: string) => Promise<SavedJunkwareAssignment>): Promise<ScheduleReceipt | null> {
   const initial = await readScheduleReceipt(id);
   if (!initial || initial.actor !== actor) return null;
-  if (initial.action !== 'move' || initial.status !== 'uncertain') return initial;
+  const canCheck = (value:ScheduleReceipt) => value.action === 'move' && (value.status === 'uncertain' || (value.status === 'failed' && value.sourceResult?.assignmentReconciled === true));
+  if (!canCheck(initial)) return initial;
   return withScheduleOperationLock(`appointment-${initial.recordId.split(':appointment:')[1]}`, async () => {
     const receipt = await readScheduleReceipt(id);
-    if (!receipt || receipt.status !== 'uncertain') return receipt;
+    if (!receipt || !canCheck(receipt)) return receipt;
     const expected = receipt.sourceResult?.assignment as Record<string, unknown> | undefined;
     const appointmentId = receipt.recordId.split(':appointment:')[1];
     if (!expected || expected.appointmentId !== appointmentId || expected.date !== receipt.date || typeof expected.truck !== 'string') return receipt;
@@ -146,13 +147,16 @@ export async function reconcileMoveReceipt(id: string, actor: string, readSource
     try { source = await readSource(appointmentId); } catch { return receipt; }
     const matches = (row: {truck:unknown;appointmentStartMinutes?:unknown;appointmentEndMinutes?:unknown}) => row.truck === expected.truck && (expected.appointmentStartMinutes === undefined || row.appointmentStartMinutes === expected.appointmentStartMinutes) && (expected.appointmentEndMinutes === undefined || row.appointmentEndMinutes === expected.appointmentEndMinutes);
     if (source.appointmentId !== appointmentId || !Number.isFinite(Date.parse(source.verifiedAt))) return receipt;
-    if (source.date !== receipt.date || !matches(source)) {
+    const previousReadback = receipt.status === 'failed' ? receipt.sourceResult?.reconciledAssignment as typeof expected : undefined;
+    if (previousReadback || source.date !== receipt.date || !matches(source)) {
       const clock = (minutes:number) => `${Math.floor(minutes/60)%12||12}:${String(minutes%60).padStart(2,'0')} ${minutes>=720?'PM':'AM'}`;
       // A rejected time slot is terminal, even if JunkWare saved the truck first.
       // Adopt only a fresh same-day read, and preserve the attempted move in its receipt.
       const current = readJobRouteAssignmentOverrides(receipt.date).get(`appt:${appointmentId}`);
       const rejectedTime = /\b(?:0?[1-9]|1[0-2]):[0-5]\d [AP]M is not available for this JunkWare appointment\./i.test(String(expected.junkwareSyncError || ''));
-      if (rejectedTime && source.date === receipt.date && current && matches(current) && current.updatedAt === expected.updatedAt) {
+      const prior = previousReadback || expected;
+      const unchanged = current && current.truck === prior.truck && current.appointmentStartMinutes === prior.appointmentStartMinutes && current.appointmentEndMinutes === prior.appointmentEndMinutes && current.updatedAt === prior.updatedAt;
+      if (rejectedTime && source.date === receipt.date && unchanged) {
         const assignment = saveJobRouteAssignment({...current, expectedUpdatedAt: current.updatedAt, truck: source.truck, appointmentStartMinutes: source.appointmentStartMinutes, appointmentEndMinutes: source.appointmentEndMinutes, appointmentTime: `${clock(source.appointmentStartMinutes)} - ${clock(source.appointmentEndMinutes)}`, junkwareSyncStatus: 'verified', junkwareSyncError: '', junkwareVerifiedAt: source.verifiedAt});
         if (assignment) {
           const resolved: ScheduleReceipt = {...receipt, status:'failed', updatedAt:new Date().toISOString(), message:`JunkWare rejected the requested time. Schedule now shows its saved assignment: ${source.truck || 'Unassigned'}, ${clock(source.appointmentStartMinutes)}–${clock(source.appointmentEndMinutes)}. Review this assignment before continuing. No move or payment was resubmitted.`, priorResult:{status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt}, sourceResult:{...receipt.sourceResult, assignmentReadback:source, assignmentReconciled:true, reconciledAssignment:assignment}};
@@ -160,6 +164,7 @@ export async function reconcileMoveReceipt(id: string, actor: string, readSource
           return resolved;
         }
       }
+      if (previousReadback) return receipt;
       const checked: ScheduleReceipt = {...receipt,updatedAt:new Date().toISOString(),message:`Earlier assignment change is still unresolved. JunkWare currently shows ${source.date}, ${source.truck || 'Unassigned'}, ${clock(source.appointmentStartMinutes)}–${clock(source.appointmentEndMinutes)}. This does not match the requested move; no closeout or payment was submitted by this check.`,sourceResult:{...receipt.sourceResult,assignmentReadback:source}};
       await writeReceipt(checked);
       return checked;

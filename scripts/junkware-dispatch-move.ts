@@ -1,4 +1,20 @@
 import type { Page } from '@playwright/test';
+export async function readSavedDispatchTruck(page:Page):Promise<string> {
+  const select=page.locator('#ctl00_Content_TruckDD');
+  if(await select.count()!==1) throw new Error('The JunkWare truck assignment control has changed.');
+  return select.evaluate(element=>{
+    const control=element as HTMLSelectElement;
+    const text=control.parentElement?.innerText || control.parentElement?.textContent || '';
+    const assigned=text.match(/Assigned:\s*(Truck#?\s*\d+)/i);
+    const completed=/complete|closed/i.test(document.querySelector<HTMLSelectElement>('#ctl00_Content_StatusDD')?.selectedOptions[0]?.textContent || '');
+    // Completed records omit the separate dispatch-assignment label. Their saved
+    // truck is the selected option; open records can select a different truck
+    // while the Assigned label still identifies their actual dispatch lane.
+    const label=assigned?.[1] || (completed ? control.selectedOptions[0]?.textContent || '' : '');
+    const number=label.match(/truck\s*#?\s*(\d+)/i)?.[1];
+    return number ? `Truck ${number}` : '';
+  });
+}
 export type DispatchSource = {appointmentId:string;date:string;truck:string;start:number;duration:number;status:string;protectedCloseout:unknown};
 /** Use the same move endpoint as JunkWare's draggable daily schedule blocks.
  * Never stage Completed/Confirmed or click the appointment/payment Save form. */

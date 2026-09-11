@@ -1,6 +1,8 @@
 'use client';
 
 import Estimates, { EstimateCommandSummary } from '../estimates';
+import OperatingDayBar from '../operating-day-bar';
+import { currentOperatingDay } from '../lib/operating-day';
 
 import { requiresAlertAttention } from '../lib/alert-attention';
 import {
@@ -1016,9 +1018,17 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const [customerNoteDraft, setCustomerNoteDraft] = useState('');
   const [drawer, setDrawer] = useState<DrawerRecord | null>(null);
   const [copiedJk, setCopiedJk] = useState<string | null>(null);
-  const [scheduleDay, setScheduleDay] = useState<ScheduleDay>(() => live ? navigationValue(window.location.search, 'scheduleDay', ['today', 'tomorrow'], 'today') : 'today');
+  const [scheduleDay, setScheduleDayValue] = useState<ScheduleDay>('today');
+  const setScheduleDay = (day: ScheduleDay) => {
+    if (mutationBusyRef.current) return;
+    if (live) {
+      if (day !== 'today') live.onDateChange(dateForDay(live.snapshot.date, day));
+      return;
+    }
+    setScheduleDayValue(day);
+  };
   const [liveScheduleCounts, setLiveScheduleCounts] = useState({ today: 0, tomorrow: 0 });
-  const operatingDateHeading = live ? new Date((activeNav === 'Schedule' ? dateForDay(live.snapshot.date, scheduleDay) : live.snapshot.date) + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric' }) : 'Sunday, August 31';
+  const operatingDateHeading = live ? new Date(live.snapshot.date + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : 'Sunday, August 31';
   const [scheduleView, setScheduleViewValue] = useState<'board' | 'calendar' | 'followup' | 'history' | 'estimates'>(() => live ? navigationValue(window.location.search, 'scheduleView', ['board', 'calendar', 'followup', 'history', 'estimates'], 'board') : 'board');
   const setScheduleView = (value: 'board' | 'calendar' | 'followup' | 'history' | 'estimates') => {
 
@@ -4186,7 +4196,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               </aside>}
             </div>
             <div className="live-chip"><span />{live ? 'Command checked · ' + new Date(live.snapshot.generatedAt).toLocaleTimeString('en-US', {timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}) : 'Live · 10:24 AM'}</div>
-            {live ? <div className="operating-day-center"><label className="operating-day-trigger"><CalendarDays size={14} /><input aria-label="Choose operating day" type="date" disabled={mutationBusy} value={activeNav === 'Schedule' ? dateForDay(live.snapshot.date, scheduleDay) : live.snapshot.date} onChange={event => { if (event.target.value) live.onDateChange(event.target.value, activeNav); }} /></label></div> : <div className="operating-day-center">
+            {!live && <div className="operating-day-center">
               {operatingDayOpen && <button className="operating-day-backdrop" aria-label="Close operating day" onClick={() => setOperatingDayOpen(false)} />}
               <Button className="operating-day-trigger" variant="outline" size="lg" aria-label="Choose operating day" aria-expanded={operatingDayOpen} aria-controls="operating-day-panel" onClick={() => { setOperatingDayOpen((open) => !open); setSearchOpen(false); setNotificationOpen(false); setQuery(''); }}><CalendarDays size={14} />{operatingDateLabel}</Button>
               {operatingDayOpen && <aside className="operating-day-panel" id="operating-day-panel" role="dialog" aria-label="Operating day">
@@ -4214,6 +4224,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           }
           </div>
         </header>
+        {live && <OperatingDayBar date={live.snapshot.date} disabled={mutationBusy} onChange={date => live.onDateChange(date)} />}
 
         <div className={activeNav === 'Schedule' ? 'workspace schedule-mode' : 'workspace'}>
           {live && <MaintenanceNotice onOpen={() => { if (!mutationBusyRef.current) { setActiveNav('Command'); setView('monitor'); } }} />}
@@ -4225,7 +4236,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               <h1>{activeNav}</h1>
               <p>{activeNav === 'Schedule'
                 ? scheduleView === 'estimates' ? 'Turn customer quotes into booked work with ownership and a dated next action.' : scheduleView === 'calendar' ? 'Review appointment volume, territory coverage, and archived operating days.'
-                  : scheduleDay === 'today' ? 'Live truck assignments, appointment windows, and open capacity.' : 'Build tomorrow’s routes before the operating day begins.'
+                  : live ? 'Truck assignments, appointment windows, and open capacity for the viewing day.' : scheduleDay === 'today' ? 'Live truck assignments, appointment windows, and open capacity.' : 'Build tomorrow’s routes before the operating day begins.'
                 : activeNav === 'Krewe' ? kreweView === 'today'
                   ? 'Attendance, production, earnings, driving, assignments, and manager actions.'
                   : kreweView === 'callin' ? 'Plan tomorrow’s coverage and record each availability decision.'
@@ -4298,10 +4309,10 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
 
           {live?.error && <p className="appointment-create-error" role="alert">{live.error}</p>}
 
-          {activeNav === 'Command' && <section className="metric-strip command-metrics" aria-label="Today at a glance">
+          {activeNav === 'Command' && <section className="metric-strip command-metrics" aria-label={live ? `${operatingDateHeading} at a glance` : 'Today at a glance'}>
             {commandKpiRows.map((kpi) => (
-              <button type="button" className={`kpi-card ${kpi.tone}${kpi.label === 'Labor' ? ' labor-kpi' : ''}`} disabled={mutationBusy} onClick={() => openCommandKpi(kpi.label)} aria-label={`Open ${kpi.label} details`} key={kpi.label}>
-                <div className="kpi-heading"><span>{kpi.label}</span><span className="kpi-card-affordance"><i className={`kpi-dot ${kpi.tone}`} /><ArrowRight size={12} /></span></div>
+              <button type="button" className={`kpi-card ${kpi.tone}${kpi.label === 'Labor' ? ' labor-kpi' : ''}`} disabled={mutationBusy} onClick={() => openCommandKpi(kpi.label)} aria-label={`Open ${live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label} details`} key={kpi.label}>
+                <div className="kpi-heading"><span>{live && live.snapshot.date !== currentOperatingDay() && kpi.label === 'Today’s jobs' ? 'Day’s jobs' : kpi.label}</span><span className="kpi-card-affordance"><i className={`kpi-dot ${kpi.tone}`} /><ArrowRight size={12} /></span></div>
                 <strong>{kpi.value}</strong>
                 {kpi.secondaryValue && <span className="kpi-secondary">{kpi.secondaryValue}</span>}
                 <div className="kpi-meter" role="progressbar" aria-label={`${kpi.label}: ${kpi.detail}`} aria-valuenow={kpi.progress} aria-valuemin={0} aria-valuemax={100}>

@@ -11,6 +11,9 @@
 .viewing-day-controls button:hover:not(:disabled) { background: #dceaf0; border-color: #607d8c; }
 .viewing-day-controls :focus-visible { outline: 2px solid #205f82; outline-offset: 2px; }
 .viewing-day-controls button:disabled { opacity: .45; cursor: default; }
+.ops-live .ops-content #schedule-all-appointments,
+.ops-live .ops-content .schedule-map-panel,
+.ops-live .ops-content .schedule-selected-job-pane { scroll-margin-top: calc(var(--viewing-day-height, 0px) + 12px); }
 @media (max-width: 700px) {
   .viewing-day-bar { padding: 8px; gap: 6px; }
   .viewing-day-context strong { font-size: 14px; }

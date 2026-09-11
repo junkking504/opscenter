@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import type { WorkspaceBootstrap } from '../desktop-ui/lib/workspace-bootstrap';
 
 export function desktopReferenceAllowed(runtime: string | undefined, enabled: string | undefined, requestUrl: string): boolean {
   const hostname = new URL(requestUrl).hostname;
@@ -13,9 +14,9 @@ export function desktopReleaseMode(runtime: string | undefined, enabled: string 
     ? 'reference' : 'command-live';
 }
 
-export async function desktopReferenceDocument(mode: 'reference' | 'command-live' = 'reference'): Promise<string> {
+export async function desktopReferenceDocument(mode: 'reference' | 'command-live' = 'reference', workspace?: WorkspaceBootstrap): Promise<string> {
   const template = await fs.readFile(path.join(process.cwd(), 'public', 'desktop-assets', 'index.html'), 'utf8');
   const placeholder = '__OPS_DESKTOP_BOOTSTRAP__';
   if (template.split(placeholder).length !== 2) throw new Error('Invalid desktop build bootstrap.');
-  return template.replace(placeholder, JSON.stringify({ mode }));
+  return template.replace(placeholder, () => JSON.stringify({ mode, workspace }).replace(/</g, '\\u003c'));
 }

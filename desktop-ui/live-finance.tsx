@@ -1,3 +1,6 @@
+import { workspaceReady } from './navigation-performance';
+import { useWorkspaceSnapshot } from './use-workspace-snapshot';
+import { fetchWorkspace } from './lib/workspace-cache';
 import { FinancialStatements } from "./financial-statements";
 import FinanceTrends from './finance-trends';
 import { useWorkspaceRefresh, WorkspaceFreshness } from './workspace-freshness';
@@ -12,17 +15,19 @@ const change = (current: number | null, prior: number | null) => current == null
 const emptyVersion = '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945';
 export function LiveFinance({ date, view, report, onViewChange, onBusyChange }: LiveFinanceProps) {
   const [comparisonMode,setComparisonMode] = useState<'matched'|'full'>('matched');
-  const [data, setData] = useState<FinanceData | null>(null), [error, setError] = useState(''), [revision, setRevision] = useState(0), [localView, setLocalView] = useState<FinanceView>('overview');
+  const snapshotKey = `/api/desktop/finance?date=${date}`;
+  const [data, setData] = useWorkspaceSnapshot<FinanceData>(snapshotKey);
+  const [error, setError] = useState(''), [revision, setRevision] = useState(0), [localView, setLocalView] = useState<FinanceView>('overview');
   const financeView = (view && ['overview', 'payments', 'resale', 'recycling', 'trends'].includes(view) ? view : localView) as FinanceView;
   const setFinanceView = (next: FinanceView) => { setLocalView(next); onViewChange?.(next); };
   const [feedback, setFeedback] = useState(''), [busy, setBusy] = useState(false), [resale, setResale] = useState<ResaleRecord | null>(null), [recycling, setRecycling] = useState<RecyclingRecord | null>(null), [payment, setPayment] = useState<FinanceData['reconciliation']['paymentsByJob'][number] | null>(null);
-  useEffect(() => { setData(null); setError(''); setResale(null); setRecycling(null); setPayment(null); }, [date]);
+  useEffect(() => { setError(''); setResale(null); setRecycling(null); setPayment(null); }, [date]);
   const loadSnapshot = useCallback(async (signal: AbortSignal) => {
-    const response = await fetch(`/api/desktop/finance?date=${date}`, {signal,cache:'no-store',credentials:'same-origin'});
-    const payload = await response.json(); if (!response.ok) throw new Error(payload.error || 'Finance could not refresh.');
+    const payload = await fetchWorkspace<FinanceData>(snapshotKey, signal);
     if (!signal.aborted) setData(payload);
-  }, [date]);
-  const freshness = useWorkspaceRefresh(loadSnapshot,`${date}:${revision}`,busy || Boolean(resale || recycling || payment));
+  }, [snapshotKey, setData]);
+  useEffect(() => { if (data) workspaceReady('Finance'); }, [data]);
+  const freshness = useWorkspaceRefresh(loadSnapshot,`${date}:${revision}`,busy || Boolean(resale || recycling || payment),30_000,snapshotKey);
 
   useEffect(() => { const escape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !busy) { setResale(null); setRecycling(null); setPayment(null); } }; window.addEventListener('keydown', escape); return () => window.removeEventListener('keydown', escape); }, [busy]);
   useEffect(() => { if (!(resale || recycling || payment)) return; const prior = document.activeElement as HTMLElement | null; document.querySelector<HTMLElement>('[aria-labelledby="finance-record-title"] button')?.focus(); return () => { if (prior?.isConnected) prior.focus({ preventScroll: true }); }; }, [resale?.itemId, recycling?.id, payment?.jkNumber]);

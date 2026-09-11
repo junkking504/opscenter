@@ -19,14 +19,19 @@ function readRecycling(): RecyclingRecord[] { try { const store = JSON.parse(fs.
 export function readDesktopFinance(date: string): FinanceData {
   // Request-local reuse keeps headlines and trends on the same source read,
   // without retaining financial data or write versions across refreshes.
+  const daily = new Map<string, AnyRecord | null>();
+  const readDaily = (day: string) => {
+    if (!daily.has(day)) daily.set(day, readMetrics(day));
+    return daily.get(day)!;
+  };
   const summaries = new Map<string, ReturnType<typeof buildMonthlySummary>>();
   const readSummary = (selectedDate: string) => {
     const key = selectedDate.slice(0, 7);
     let summary = summaries.get(key);
-    if (!summary) { summary = buildMonthlySummary(selectedDate); summaries.set(key, summary); }
+    if (!summary) { summary = buildMonthlySummary(selectedDate, readDaily); summaries.set(key, summary); }
     return summary;
   };
-  const metrics = readMetrics(date);
+  const metrics = readDaily(date);
   const monthly = readSummary(date);
   const trend = buildFinanceTrendSummary(date, readSummary);
   const trends = trend.months.map(month => { const summary = readSummary(`${month.monthKey}-01`); const published = summary.entries.map(entry => entry.metrics); return { ...month, missingDates: summary.range.missingDates, totalOperatingExpenses: sumField(published, 'total_expenses'), estimatedOperatingProfit: sumField(published, 'net_profit') }; });
@@ -37,14 +42,14 @@ export function readDesktopFinance(date: string): FinanceData {
   const markets = [...new Set(monthly.entries.flatMap(entry => [...Object.keys(entry.metrics.revenue_by_market || {}), ...Object.keys(entry.metrics.jobs_by_market || {})]))];
   const marketSum = (territory: string, key: string) => { const values = monthly.entries.map(entry => finite(entry.metrics[key]?.[territory])); return values.every(value => value == null) ? null : values.reduce<number>((sum, value) => sum + (value ?? 0), 0); };
 
-  return { statements: readFinancialStatements(), comparison:financePeriodComparison(monthly.range.dataThroughDate,readMetrics), date, available: Boolean(metrics), generatedAt: metrics?.generated_at || metrics?.updated_at || null,
+  return { statements: readFinancialStatements(), comparison:financePeriodComparison(monthly.range.dataThroughDate,readDaily), date, available: Boolean(metrics), generatedAt: metrics?.generated_at || metrics?.updated_at || null,
     daily: { revenue: finite(metrics?.sales ?? metrics?.truck_record_financial_summary?.sales ?? metrics?.total_revenue ?? metrics?.gross_revenue), costs: finite(metrics?.total_expenses), profit: finite(metrics?.net_profit), recyclingExpense: finite(metrics?.recycling_expense ?? metrics?.truck_record_financial_summary?.recycling_expense) },
     month: { label: monthly.range.monthDisplay, through: monthly.range.dataThroughDate, complete: monthly.range.complete, missingDates: monthly.range.missingDates, revenue: monthly.entries.length || monthly.authority ? monthly.grossRevenue : null, jobs: monthly.entries.length || monthly.authority ? monthly.completedJobs : null, costs: sumField(monthly.entries.map(entry => entry.metrics), 'total_expenses'), profit: sumField(monthly.entries.map(entry => entry.metrics), 'net_profit'), source: monthly.revenueSource },
     territories: markets.map(territory => ({ territory, jobs: marketSum(territory, 'jobs_by_market'), revenue: marketSum(territory, 'revenue_by_market') })), costs: [['Payroll', 'total_payroll'], ['Dump Expense', 'dump_expense'], ['Fuel Expense', 'fuel_expense'], ['Recycling Expense', 'recycling_expense'], ['Other Expense', 'other_expense']].map(([category, key]) => ({ category, amount: sumField(monthly.entries.map(entry => entry.metrics), key), source: 'Published daily metrics' })),
-    trends, trendComparisons: financeTrendComparisons(trends, readMetrics, key => {
+    trends, trendComparisons: financeTrendComparisons(trends, readDaily, key => {
       const authority = readMonthlyAuthority(`${key}-01`);
       if (!authority) return null;
-      const summary = buildMonthlySummary(`${key}-01`);
+      const summary = readSummary(`${key}-01`);
       const rows = summary.entries.map(entry => entry.metrics);
       const costs = summary.range.missingDates.length ? null : sumField(rows, 'total_expenses');
       const profit = summary.range.missingDates.length ? null : sumField(rows, 'net_profit');

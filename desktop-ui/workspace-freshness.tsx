@@ -1,11 +1,12 @@
+import { cachedWorkspace } from './lib/workspace-cache';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from './components/ui/button';
 
 /** One bounded request at a time; failures retain the last snapshot. Drafts pause background reads. */
-export function useWorkspaceRefresh(load: (signal: AbortSignal) => Promise<void>, key: string, paused = false, intervalMs = 30_000) {
+export function useWorkspaceRefresh(load: (signal: AbortSignal) => Promise<void>, key: string, paused = false, intervalMs = 30_000, snapshotKey?: string) {
   const current = useRef({ load, paused }); current.current = { load, paused };
   const flight = useRef<{ controller: AbortController; promise: Promise<void> } | null>(null);
-  const [receivedAt, setReceivedAt] = useState<number | null>(null);
+  const [receivedAt, setReceivedAt] = useState<number | null>(() => snapshotKey ? cachedWorkspace(snapshotKey)?.receivedAt ?? null : null);
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
   const [now, setNow] = useState(Date.now);
@@ -22,7 +23,7 @@ export function useWorkspaceRefresh(load: (signal: AbortSignal) => Promise<void>
     return task.promise;
   }, []);
   useEffect(() => {
-    setReceivedAt(null); setError('');
+    setReceivedAt(snapshotKey ? cachedWorkspace(snapshotKey)?.receivedAt ?? null : null); setError('');
     const poll = () => { if (!current.current.paused && document.visibilityState !== 'hidden') void refresh().catch(() => {}); };
     // Initial load also runs for a background tab; subsequent polling resumes on focus.
     if (!current.current.paused) void refresh().catch(() => {});
@@ -30,7 +31,7 @@ export function useWorkspaceRefresh(load: (signal: AbortSignal) => Promise<void>
     const tick = window.setInterval(() => setNow(Date.now()), 1000);
     window.addEventListener('focus', poll); window.addEventListener('online', poll); document.addEventListener('visibilitychange', poll);
     return () => { window.clearInterval(timer); window.clearInterval(tick); window.removeEventListener('focus', poll); window.removeEventListener('online', poll); document.removeEventListener('visibilitychange', poll); flight.current?.controller.abort(); flight.current = null; };
-  }, [key, refresh, intervalMs]);
+  }, [key, refresh, intervalMs, snapshotKey]);
   const wasPaused = useRef(paused);
   useEffect(() => { if (paused) { flight.current?.controller.abort(); flight.current=null; setPending(false); } if (wasPaused.current && !paused) void refresh().catch(() => {}); wasPaused.current = paused; }, [paused, refresh]);
   return { refresh, receivedAt, error, pending, now, paused };

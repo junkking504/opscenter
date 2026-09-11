@@ -1,3 +1,6 @@
+import { workspaceReady } from './navigation-performance';
+import { useWorkspaceSnapshot } from './use-workspace-snapshot';
+import { fetchWorkspace } from './lib/workspace-cache';
 import { useWorkspaceRefresh, WorkspaceFreshness } from './workspace-freshness';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
@@ -17,11 +20,13 @@ export default function LiveKrewe({date,view,report,onBusyChange}:DesktopWorkspa
   const [periodSelection,setPeriodSelection]=useState({base:date,date});
   const selectedDate=view==='monthly'&&report&&/^\d{4}-\d{2}/.test(report)?`${report.slice(0,7)}-${new Date(Number(report.slice(0,4)),Number(report.slice(5,7)),0).getDate()}`:view==='payperiod'&&periodSelection.base===date?periodSelection.date:date;
   const [editingDay,setEditingDay]=useState(false);
-  const [snapshot,setSnapshot]=useState<DesktopKreweSnapshot|null>(null);const [error,setError]=useState('');const [pending,setPending]=useState(false);const [active,setActive]=useState<DesktopCrewMember|null>(null);const [filter,setFilter]=useState('all');const [draft,setDraft]=useState({clockIn:'',clockOut:'',hourlyRate:'',note:'',amount:'',bonusNote:''});const busy=useRef(false);const generation=useRef(0);const opener=useRef<HTMLElement|null>(null);const drawer=useRef<HTMLElement|null>(null);
-  const loadSnapshot=useCallback(async(signal:AbortSignal)=>{const run=++generation.current;const response=await fetch(`/api/desktop/krewe?date=${encodeURIComponent(selectedDate)}&view=${view}`,{cache:'no-store',credentials:'same-origin',signal});const body=await response.json();if(!response.ok)throw new Error(body.error||'Krewe could not refresh.');if(run===generation.current&&!signal.aborted){setSnapshot(body);setActive(previous=>previous?body.members.find((member:DesktopCrewMember)=>member.id===previous.id)||null:null);}},[selectedDate,view]);
+  const snapshotKey=`/api/desktop/krewe?date=${encodeURIComponent(selectedDate)}&view=${view}`;
+  const [snapshot,setSnapshot]=useWorkspaceSnapshot<DesktopKreweSnapshot>(snapshotKey);const [error,setError]=useState('');const [pending,setPending]=useState(false);const [active,setActive]=useState<DesktopCrewMember|null>(null);const [filter,setFilter]=useState('all');const [draft,setDraft]=useState({clockIn:'',clockOut:'',hourlyRate:'',note:'',amount:'',bonusNote:''});const busy=useRef(false);const generation=useRef(0);const opener=useRef<HTMLElement|null>(null);const drawer=useRef<HTMLElement|null>(null);
+  const loadSnapshot=useCallback(async(signal:AbortSignal)=>{const run=++generation.current;const body=await fetchWorkspace<DesktopKreweSnapshot>(snapshotKey,signal);if(run===generation.current&&!signal.aborted){setSnapshot(body);setActive(previous=>previous?body.members.find((member:DesktopCrewMember)=>member.id===previous.id)||null:null);}},[snapshotKey,setSnapshot]);
   const invalidate=useCallback(()=>{generation.current+=1;},[]);
-  useEffect(()=>{setSnapshot(null);setActive(null);setError('');return invalidate;},[selectedDate,view,invalidate]);
-  const freshness=useWorkspaceRefresh(loadSnapshot,`${selectedDate}:${view}`,Boolean(active)||pending||editingDay);
+  useEffect(()=>{setActive(null);setError('');return invalidate;},[selectedDate,view,invalidate]);
+  useEffect(() => { if (snapshot) workspaceReady('Krewe'); }, [snapshot]);
+  const freshness=useWorkspaceRefresh(loadSnapshot,`${selectedDate}:${view}`,Boolean(active)||pending||editingDay,30_000,snapshotKey);
   const refresh=freshness.refresh;
   const workspaceBusy=Boolean(active)||pending||editingDay;
   useEffect(()=>{onBusyChange?.(workspaceBusy);return()=>onBusyChange?.(false);},[workspaceBusy,onBusyChange]);

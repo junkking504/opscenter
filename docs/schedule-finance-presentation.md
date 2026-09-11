@@ -34,7 +34,10 @@ call-center narratives, stay visible and unabridged; unknown formats remain
 intact. Source order is preserved within each group. Add Appointment Note is
 separate from the saved notes and remains below closeout.
 
-Appointment Closeout precedes Appointment Notes. Note entry and its JunkWare
+Appointment Closeout is a single disclosure control at the top of the appointment
+drawer body, directly below its header and before record details. It starts
+collapsed for each appointment and loads the JunkWare form on the first click;
+there is no second open button. Note entry and its JunkWare
 save button remain visible; truck/window changes, Call Ahead and cancellation
 are retained in a collapsed secondary section instead of Update the Live Plan.
 This changes placement only, not source-write safeguards.

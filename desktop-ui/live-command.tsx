@@ -1,10 +1,13 @@
 import { subscribeArrivalUpdates } from './lib/arrival-updates';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Home from './app/page';
+import { currentOperatingDay, isOperatingDay, normalizeOperatingDayUrl, operatingDayUrl } from './lib/operating-day';
 import type { DesktopCommandSnapshot } from './lib/live-contract';
 
-const currentDay = () => new Intl.DateTimeFormat('en-CA', {timeZone:'America/Chicago'}).format(new Date());
-const explicitDate = new URLSearchParams(window.location.search).get('date');
+const currentDay = currentOperatingDay;
+const initialUrl = normalizeOperatingDayUrl(window.location.href);
+if (initialUrl.href !== window.location.href) window.history.replaceState(window.history.state, '', initialUrl);
+const explicitDate = initialUrl.searchParams.get('date');
 
 export default function LiveCommand() {
   const [date,setDate] = useState(() => explicitDate || currentDay());
@@ -80,5 +83,5 @@ export default function LiveCommand() {
     }
   };
   if (!snapshot) return <main className="empty-state" role="status"><strong>{error || 'Loading Command from live sources…'}</strong><span>No sample records are used.</span></main>;
-  return <Home key={snapshot.date} live={{ onBusyChange: onWorkspaceBusy, snapshot, error, pendingAlertId, onAlertAction, onDateChange: (nextDate, workspace) => { const url = new URL(window.location.href); url.searchParams.set('date', nextDate); url.searchParams.set('scheduleDay','today'); if (workspace) url.searchParams.set('workspace', workspace); if (workspace === 'Schedule') { url.searchParams.set('scheduleView','board'); url.searchParams.delete('q'); url.searchParams.delete('appointment'); } window.location.assign(url.href); } }} />;
+  return <Home key={snapshot.date} live={{ onBusyChange: onWorkspaceBusy, snapshot, error, pendingAlertId, onAlertAction, onDateChange: (nextDate, workspace) => { if (workspaceBusy.current || pendingRef.current || !isOperatingDay(nextDate)) return; window.location.assign(operatingDayUrl(window.location.href, nextDate, workspace).href); } }} />;
 }

@@ -8,7 +8,7 @@ export function AlertDetails({ children }: { children: ReactNode }) {
 
 function AlertPhoto({ photo }: { photo: NonNullable<DesktopAlert['photos']>[number] }) {
   const [failed, setFailed] = useState(false);
-  return <a href={photo.url} target="_blank" rel="noopener noreferrer" aria-label={`Open ${photo.category.toLowerCase()} photo: ${photo.fileName}`}>
+  return <a href={photo.url} target="_self" rel="noopener noreferrer" aria-label={`Open ${photo.category.toLowerCase()} photo: ${photo.fileName}`}>
     {failed ? <span className="alert-photo-unavailable">Preview unavailable · Open photo</span>
       : <img src={photo.url} alt={`${photo.category} job photo`} loading="lazy" decoding="async" onError={() => setFailed(true)} />}
     <span>{photo.category} photo</span>

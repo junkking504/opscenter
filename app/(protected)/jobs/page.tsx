@@ -2201,7 +2201,7 @@ function AppointmentCardPaymentSummary({ job }: { job: JobRow }) {
           <a
             className="ops-appointment-card-address ops-appointment-card-merchant-link"
             href="https://merchantcenter.intuit.com/msc/portal/home"
-            target="_blank"
+            target="_self"
             rel="noopener noreferrer"
           >
             View in Merchant Center
@@ -2464,7 +2464,7 @@ function JobPhotoDetails({ job }: { job: JobRow }) {
   const photoLink = (photo: JunkwareJobPhoto, index: number, label: string) => (
     <a
       href={photo.url}
-      target="_blank"
+      target="_self"
       rel="noopener noreferrer"
       className="ops-job-photo"
       key={`${photo.url}-${index}`}
@@ -2672,7 +2672,7 @@ function AppointmentMoreDetails({
       <div className={detailGridClassName}>
         <div className="ops-appointment-detail-full">
           <span>Address</span>
-          <strong>{job.address && job.address !== "—" ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`} target="_blank" rel="noopener noreferrer">{job.address}</a> : "Unavailable"}</strong>
+          <strong>{job.address && job.address !== "—" ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`} target="_self" rel="noopener noreferrer">{job.address}</a> : "Unavailable"}</strong>
         </div>
         <div>
           <span>Phone</span>
@@ -2785,7 +2785,7 @@ function ClosedEstimateFollowupCard({ job, bookedJob }: { job: JobRow; bookedJob
           <div className="ops-closed-estimate-eyebrow">Closed estimate · {safeText(job.sourceDate)}</div>
           <div className="ops-closed-estimate-title">
             {job.appointmentUrl ? (
-              <a className="ops-jk-number clickable" href={job.appointmentUrl} target="_blank" rel="noopener noreferrer">{safeText(job.jkNumber)}</a>
+              <a className="ops-jk-number clickable" href={job.appointmentUrl} target="_self" rel="noopener noreferrer">{safeText(job.jkNumber)}</a>
             ) : <strong>{safeText(job.jkNumber)}</strong>}
             <span className={`ops-status-tag compact ${statusBadgeClass(statusBucket(job))}`}>{appointmentStatusLabel(job)}</span>
           </div>
@@ -2807,8 +2807,8 @@ function ClosedEstimateFollowupCard({ job, bookedJob }: { job: JobRow; bookedJob
       <div className="ops-closed-estimate-actions" aria-label={`Contact ${safeText(job.customerName)}`}>
         {phoneHref ? <a href={phoneHref}>Call {safeText(job.phone)}</a> : <span>Phone unavailable</span>}
         {hasEmail ? <a href={`mailto:${job.customerEmail}`}>Email customer</a> : <span>Email unavailable</span>}
-        {hasAddress ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`} target="_blank" rel="noopener noreferrer">Open address</a> : <span>Address unavailable</span>}
-        {job.appointmentUrl ? <a href={job.appointmentUrl} target="_blank" rel="noopener noreferrer">Open in JunkWare</a> : null}
+        {hasAddress ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`} target="_self" rel="noopener noreferrer">Open address</a> : <span>Address unavailable</span>}
+        {job.appointmentUrl ? <a href={job.appointmentUrl} target="_self" rel="noopener noreferrer">Open in JunkWare</a> : null}
       </div>
 
       <div className="ops-closed-estimate-facts">
@@ -3422,7 +3422,7 @@ export default async function JobsPage({
                     <tbody>{openEstimateJobs.map((job) => {
                       const bucket = statusBucket(job);
                       const booked = safeText(job.bookedAt);
-                      return <tr key={`${job.appointmentId || job.jkNumber}-${job.sourceDate}`}><td>{booked === "—" ? `Seen ${job.sourceDate}` : booked}</td><td><span className={`ops-status-tag compact ${statusBadgeClass(bucket)}`}>{appointmentStatusLabel(job)}</span></td><td>{job.appointmentUrl ? <a className="ops-jk-number clickable" href={job.appointmentUrl} target="_blank" rel="noopener noreferrer">{safeText(job.jkNumber)}</a> : safeText(job.jkNumber)}</td><td>{safeText(job.customerName)}</td><td>{safeText(job.address)} <small>{normalizeTerritory(job.territory)}</small></td></tr>;
+                      return <tr key={`${job.appointmentId || job.jkNumber}-${job.sourceDate}`}><td>{booked === "—" ? `Seen ${job.sourceDate}` : booked}</td><td><span className={`ops-status-tag compact ${statusBadgeClass(bucket)}`}>{appointmentStatusLabel(job)}</span></td><td>{job.appointmentUrl ? <a className="ops-jk-number clickable" href={job.appointmentUrl} target="_self" rel="noopener noreferrer">{safeText(job.jkNumber)}</a> : safeText(job.jkNumber)}</td><td>{safeText(job.customerName)}</td><td>{safeText(job.address)} <small>{normalizeTerritory(job.territory)}</small></td></tr>;
                     })}</tbody>
                   </table>
                 </div>
@@ -3454,7 +3454,7 @@ export default async function JobsPage({
                         <td><span className={`ops-status-tag compact ${statusBadgeClass(bucket)}`}>{appointmentStatusLabel(job)}</span></td>
                         <td>
                           {job.appointmentUrl ? (
-                            <a className="ops-jk-number clickable" href={job.appointmentUrl} target="_blank" rel="noopener noreferrer">{safeText(job.jkNumber)}</a>
+                            <a className="ops-jk-number clickable" href={job.appointmentUrl} target="_self" rel="noopener noreferrer">{safeText(job.jkNumber)}</a>
                           ) : safeText(job.jkNumber)}
                         </td>
                         <td>{safeText(job.customerName)}</td>
@@ -3580,7 +3580,7 @@ export default async function JobsPage({
                       <article key={`${event.appointmentId || event.jkNumber}-${event.fromDate}-${event.fromTime}-${event.toDate}-${event.toTime}`}>
                         <div className="ops-job-activity-title">
                           {event.appointmentUrl ? (
-                            <a href={event.appointmentUrl} target="_blank" rel="noopener noreferrer">{safeText(event.jkNumber)}</a>
+                            <a href={event.appointmentUrl} target="_self" rel="noopener noreferrer">{safeText(event.jkNumber)}</a>
                           ) : <strong>{safeText(event.jkNumber)}</strong>}
                           {event.customerName ? <span>{event.customerName}</span> : null}
                         </div>
@@ -3607,7 +3607,7 @@ export default async function JobsPage({
                       <article key={`${event.appointmentId || event.jkNumber}-${index}`}>
                         <div className="ops-job-activity-title">
                           {event.appointmentUrl ? (
-                            <a href={event.appointmentUrl} target="_blank" rel="noopener noreferrer">{safeText(event.jkNumber)}</a>
+                            <a href={event.appointmentUrl} target="_self" rel="noopener noreferrer">{safeText(event.jkNumber)}</a>
                           ) : <strong>{safeText(event.jkNumber)}</strong>}
                           {event.customerName ? <span>{event.customerName}</span> : null}
                         </div>
@@ -3995,7 +3995,7 @@ export default async function JobsPage({
                                       <a
                                         className="ops-jk-number clickable"
                                         href={job.appointmentUrl}
-                                        target="_blank"
+                                        target="_self"
                                         rel="noopener noreferrer"
                                       >
                                         {safeText(job.jkNumber)}
@@ -4008,7 +4008,7 @@ export default async function JobsPage({
                                     <a
                                       className="ops-appointment-card-customer ops-appointment-link"
                                       href={job.appointmentUrl}
-                                      target="_blank"
+                                      target="_self"
                                       rel="noopener noreferrer"
                                     >
                                       {safeText(job.customerName)}
@@ -4020,7 +4020,7 @@ export default async function JobsPage({
                                     <a
                                       className={`ops-appointment-card-address ${appointmentToneClass(territory, job.address)}`}
                                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`}
-                                      target="_blank"
+                                      target="_self"
                                       rel="noopener noreferrer"
                                     >
                                       {job.address}
@@ -4268,7 +4268,7 @@ export default async function JobsPage({
                                     <a
                                       className="ops-jk-number clickable"
                                       href={job.appointmentUrl}
-                                      target="_blank"
+                                      target="_self"
                                       rel="noopener noreferrer"
                                     >
                                       {safeText(job.jkNumber)}
@@ -4281,7 +4281,7 @@ export default async function JobsPage({
                                   <a
                                     className="ops-appointment-card-customer ops-appointment-link"
                                     href={job.appointmentUrl}
-                                    target="_blank"
+                                    target="_self"
                                     rel="noopener noreferrer"
                                   >
                                     {safeText(job.customerName)}
@@ -4293,7 +4293,7 @@ export default async function JobsPage({
                                   <a
                                     className={`ops-appointment-card-address ${appointmentToneClass(territory, job.address)}`}
                                     href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`}
-                                    target="_blank"
+                                    target="_self"
                                     rel="noopener noreferrer"
                                   >
                                     {job.address}

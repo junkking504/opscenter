@@ -389,7 +389,7 @@ export default function LostLeadTracker({
                       <a
                         className="ops-mini-link"
                         href={lead.searchKingsUrl}
-                        target="_blank"
+                        target="_self"
                         rel="noreferrer"
                       >
                         Open in SearchKings

@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import './appointment-presence.css';
 import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract';
 import { appointmentColorClass, appointmentStatus, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
-import { locatorSize, separateMapLocators, territoryMapCenters } from './lib/schedule-map-layout';
+import { locatorSize, territoryMapCenters } from './lib/schedule-map-layout';
 import type {TruckGpsRoute} from './lib/gps-route-contract';
 
 type Props = {
@@ -126,24 +126,12 @@ export default function ScheduleMap(props: Props) {
     const render = () => {
       const activeId = host.current?.contains(document.activeElement) ? (document.activeElement as HTMLElement)?.dataset.mapPin : undefined;
       const size = locatorSize(view.getZoom());
-      const iconSize: L.PointTuple = [size + 24, size + 24];
+      const iconSize: L.PointTuple = [size + 12, size + 12];
       const viewport = view.getSize();
       const visiblePins = pins.map(pin => ({ pin, point: view.latLngToContainerPoint(pin.coordinate) }))
         .filter(({ point }) => point.x >= 0 && point.y >= 0 && point.x <= viewport.x && point.y <= viewport.y);
-      const { positions, overflow, overflowPoint } = separateMapLocators(visiblePins.map(({ pin, point }) => ({ id: pin.id, x: point.x, y: point.y })), iconSize[0], viewport);
       layer.clearLayers();
-      for (const { pin, point } of visiblePins) {
-        const position = positions.get(pin.id);
-        if (!position) continue;
-        const offset = L.point(position.x - point.x, position.y - point.y);
-        if (offset.distanceTo(L.point(0, 0)) > 1) {
-          const end = view.containerPointToLatLng([position.x, position.y]);
-          for (const casing of [true, false]) L.polyline([pin.coordinate, end], {
-            color: casing ? '#fff' : '#475569', weight: casing ? 4 : 1.5, opacity: 1,
-            interactive: false, className: 'map-locator-connector',
-          }).addTo(layer);
-          L.circleMarker(pin.coordinate, { radius: 3, color: '#fff', weight: 1, fillColor: '#475569', fillOpacity: 1, interactive: false, className: 'map-locator-origin' }).addTo(layer);
-        }
+      for (const { pin } of visiblePins) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `map-marker ${pin.className}${pin.selected ? ' route-selected' : ''}`;
@@ -173,9 +161,9 @@ export default function ScheduleMap(props: Props) {
         const title = document.createElement('strong'); title.textContent = pin.tooltipTitle;
         const detail = document.createElement('small'); detail.textContent = pin.tooltipDetail;
         tooltip.append(title, detail);
-        // Keep Leaflet's marker on the true coordinate; only its icon anchor moves.
-        const tooltipOffset = L.point(offset.x, offset.y - size / 2 - 6);
-        const marker = L.marker(pin.coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize, iconAnchor: [iconSize[0] / 2 - offset.x, iconSize[1] / 2 - offset.y] }), zIndexOffset: pin.selected ? 1900 : 1000 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: tooltipOffset, opacity: 1, permanent: false }).addTo(layer);
+        // The visible icon center is always its exact source coordinate.
+        const tooltipOffset = L.point(0, -size / 2 - 6);
+        const marker = L.marker(pin.coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize, iconAnchor: [iconSize[0] / 2, iconSize[1] / 2] }), zIndexOffset: pin.selected ? 1900 : 1000 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: tooltipOffset, opacity: 1, permanent: false }).addTo(layer);
         button.onfocus = () => marker.openTooltip();
         button.onblur = () => marker.closeTooltip();
         marker.on('tooltipopen', () => {
@@ -195,31 +183,7 @@ export default function ScheduleMap(props: Props) {
         });
         if (activeId === pin.id) button.focus({ preventScroll: true });
       }
-      if (overflow.length) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'map-marker map-locator-overflow';
-        button.dataset.mapPin = 'overflow';
-        button.textContent = `+${overflow.length}`;
-        button.setAttribute('aria-label', `Choose from ${overflow.length} more map locations`);
-        L.DomEvent.disableClickPropagation(button);
-        const coordinate = view.containerPointToLatLng([overflowPoint.x, overflowPoint.y]);
-        button.onclick = event => {
-          event.stopPropagation();
-          const choices = document.createElement('div');
-          choices.className = 'map-locator-choices';
-          for (const { pin } of visiblePins.filter(({ pin }) => overflow.includes(pin.id))) {
-            const choice = document.createElement('button');
-            choice.type = 'button';
-            choice.textContent = `${pin.tooltipTitle} · ${pin.tooltipDetail}`;
-            choice.onclick = () => { view.closePopup(); pin.select(); };
-            choices.append(choice);
-          }
-          L.popup({ maxWidth: 260 }).setLatLng(coordinate).setContent(choices).openOn(view);
-        };
-        L.marker(coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize, iconAnchor: [iconSize[0] / 2, iconSize[1] / 2] }), zIndexOffset: 2000 }).addTo(layer);
-        if (activeId === 'overflow') button.focus({ preventScroll: true });
-      }
+
     };
     render();
     view.on('zoomend moveend resize', render);

@@ -151,13 +151,12 @@ opens the full action drawer. Calendar and history retain their drawer behavior.
 Selecting a muted block clears filters that would otherwise hide its pin.
 An appointment without verified coordinates explicitly shows Verify Address.
 
-Truck and appointment locators use comparable visual sizes at each zoom level.
-Their Leaflet positions retain the source coordinates. When click targets would
-overlap, the icons move apart in screen space and a thin connector and source dot
-identify the exact location. Selection does not shrink appointment pins or change
-the layout order. Layout is recalculated after zoom, pan, resize and GPS refresh.
-If the viewport cannot fit every target, a separate count button lists the
-remaining locations so none become inaccessible behind another icon.
+Truck and appointment locators use the same zoom scale: small at overview zoom,
+larger at street zoom. The visible icon center stays exactly on its source
+coordinate, including after selection, zoom, pan, resize and GPS refresh. Never
+shift icons, invent a cluster centroid, or draw locator connector lines.
+Every appointment and truck keeps its own locator. Do not combine locations into
+clusters, counts or chooser buttons, even when their coordinates coincide.
 Amber truck markers retain the existing last-known GPS distinction. Regression:
 `node --import tsx scripts/test-schedule-map-layout.ts` and
 `node --import tsx scripts/test-desktop-map-navigation.ts`.

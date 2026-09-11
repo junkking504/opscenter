@@ -34,6 +34,23 @@ Zero-dollar weight deductions are excluded from commodity weight totals; weights
 are not deducted twice. Missing weights remain unknown. Photos remain available
 through a Finance-role-protected route; source rows and review state remain stored.
 
+## Slack alerts
+
+The existing WhatsApp photo worker delivers metal recycling alerts to `#payment`
+(`SLACK_OPS_PAYMENT_CHANNEL_ID`) when OpsCenter Slack alerts are enabled. One
+message belongs to each receipt: incoming pages update its review notice, and
+recording the receipt updates that message with the run dates, daily amounts,
+total revenue, and separately recorded payment date. Manual runs also alert.
+Edits update the original message; repeated worker cycles do not repost it.
+The existing recorded statement is announced once when this feature starts.
+Private photos remain in Finance behind login; Slack includes the Finance link.
+
+Delivery receipts live in `desktop-commercial/slack-deliveries.json`, independent
+of the selected operating day and release. A separate process-owner lock prevents
+overlapping delivery; unreadable delivery history stops publishing. Failed Slack
+requests retain their pending state for retry by the existing worker. No new
+service or polling loop is added. Verification: `node --import tsx scripts/test-recycling-slack.ts`.
+
 ## Integrity and storage
 
 `data/desktop-commercial/recycling-store` holds active records, receipt drafts,

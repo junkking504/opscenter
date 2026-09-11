@@ -1,4 +1,5 @@
 import { processRecyclingImage } from "@/lib/whatsapp-recycling";
+import { deliverRecyclingSlackAlerts } from "@/lib/recycling-slack";
 import { processResaleImage } from "@/lib/whatsapp-resale";
 import { downloadWhatsAppImage } from "@/lib/whatsapp-photo-media";
 import { execFileSync } from "node:child_process";
@@ -353,14 +354,18 @@ async function main(): Promise<void> {
     results[result] += 1;
   }
   loadSlackBotToken();
+  const recyclingSlack = await deliverRecyclingSlackAlerts().catch(error => ({
+    posted: 0, updated: 0, failures: [error instanceof Error ? error.message : String(error)], preview: [],
+  }));
   const crewExpenseTransactions = await processCrewExpenseTransactions();
   const slack = await deliverWhatsAppPhotoSlackNotifications();
   const photoQueue = whatsappQueueCounts();
   const photoConfirmations = queueVerifiedWhatsAppJobPhotoBatchConfirmations();
   const expenseReplies = await deliverCrewExpenseReplies();
   const processedCount = Object.values(results).reduce((sum, count) => sum + count, 0);
-  if (processedCount || slack.attempted || photoConfirmations.queued || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {
-    process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: photoQueue, slack, photoConfirmations, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
+  if (processedCount || recyclingSlack.posted || recyclingSlack.updated || recyclingSlack.failures.length || slack.attempted || photoConfirmations.queued || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {
+    const { preview: _preview, ...recyclingDelivery } = recyclingSlack;
+    process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: photoQueue, recyclingSlack: recyclingDelivery, slack, photoConfirmations, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
   }
 }
 

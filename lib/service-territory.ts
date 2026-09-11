@@ -1,7 +1,7 @@
 // Dispatch geography is not franchise ownership. Keep this pure/shared so the
 // browser, calendar and server-side planner cannot classify the same stop differently.
 export const serviceTerritoryLabels: Record<string, string> = {
-  NO: 'New Orleans', JP: 'Jefferson Parish', NS: 'Northshore',
+  NO: 'New Orleans', JP: 'Jefferson Parish', NS: 'Northshore', RP: 'River Parishes',
   BR: 'Baton Rouge', LF: 'Lafayette', UNK: 'Unclassified',
 };
 type Area = { code: string; areaCode: string; area: string };
@@ -13,9 +13,14 @@ const rules: Array<[string, string, string, string]> = [
   ['lafayette', 'LF', 'LAF', 'Lafayette'],
   ['algiers|avondale|barataria|belle chasse|bridge city|crown point|estelle|gretna|harvey|jean lafitte|lafitte|marrero|terrytown|timberlane|waggaman|westwego|woodmere', 'JP', 'WB', 'Westbank'],
   ['chalmette|new orleans east', 'NO', 'EM', 'East Metro'],
-  ['laplace|la place', 'NO', 'RP', 'River Parishes'],
+  ['laplace|la place|luling|lulling|destrehan|hahnville|boutte|norco|st\\.? rose|saint rose|montz|reserve|garyville|edgard|wallace|vacherie|lutcher|gramercy|paradis|des allemands|killona|taft', 'RP', 'RP', 'River Parishes'],
   ['covington', 'NS', 'COV', 'Covington'], ['mandeville', 'NS', 'MAN', 'Mandeville'],
   ['slidell', 'NS', 'SLI', 'Slidell'], ['hammond', 'NS', 'HAM', 'Hammond'],
+  ['ponchatoula|bedico', 'NS', 'PON', 'Ponchatoula / Bedico'],
+  ['robert|natalbany|tickfaw|independence|amite(?: city)?|loranger|kentwood|roseland|tangipahoa', 'NS', 'TAN', 'Tangipahoa'],
+  ['folsom', 'NS', 'FOL', 'Folsom'], ['madisonville', 'NS', 'MAD', 'Madisonville'],
+  ['abita springs', 'NS', 'ABI', 'Abita Springs'], ['lacombe', 'NS', 'LAC', 'Lacombe'],
+  ['bush', 'NS', 'BUS', 'Bush'],
   ['pearl river', 'NS', 'PR', 'Pearl River'],
   ['metairie', 'JP', 'MET', 'Metairie'], ['kenner', 'JP', 'KEN', 'Kenner'],
   ['harahan', 'JP', 'HAR', 'Harahan'], ['new orleans', 'NO', 'NO', 'New Orleans'],

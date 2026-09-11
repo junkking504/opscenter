@@ -30,6 +30,9 @@
 /* Area colors deliberately override parish colors on individual appointments. */
 .ops-live .live-schedule .territory-wb { --territory-color: #fbbf24 !important; }
 .ops-live .live-schedule .territory-em { --territory-color: #facc15 !important; }
+.ops-live .territory-rp { --territory-color: #9ca3af !important; }
+.ops-live .appointment-territory-group.river-parishes { --territory-accent: #9ca3af; }
+.ops-live .appointment-territory-toolbar button > i.river-parishes { background: #9ca3af; }
 .live-schedule .live-truck-timeline .schedule-appointment.scope-match { position: absolute; }
 .live-schedule .live-truck-timeline .schedule-route-leg { position: absolute; margin: 0; bottom: 1px; height: 16px; }
 .live-schedule .schedule-route-leg small { display: none; }

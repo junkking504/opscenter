@@ -5,7 +5,8 @@ try {
   const page=await browser.newPage();
   // Real rendering, synthetic appointments, and no external map/provider requests.
   await page.route('**/*', route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
-  const colors=['#fbbf24','#fbbf24','#facc15','#facc15','#2dd4bf','#60a5fa','#fbbf24','#facc15'];
+  const colors=['#fbbf24','#fbbf24','#facc15','#facc15','#2dd4bf','#60a5fa','#fbbf24','#facc15','#d946ef','#d946ef','#9ca3af','#9ca3af'];
+  const areas=['Westbank','Westbank','East Metro','East Metro','Metairie','New Orleans','Westbank','East Metro','Ponchatoula / Bedico','Hammond','River Parishes','River Parishes'];
   for(const width of [1280,390]) {
     await page.setViewportSize({width,height:900});
     await page.goto('http://127.0.0.1:3156/tests/schedule-destinations.html?areas=1');
@@ -19,7 +20,7 @@ try {
       await block.click();
       const summary=page.getByRole('region',{name:`Selected job ${jk}`,exact:true});
       assert.equal((await summary.evaluate(e=>getComputedStyle(e).getPropertyValue('--territory-color'))).trim(),colors[index]);
-      assert.equal(await summary.locator('.selected-job-area').innerText(),[0,1,6].includes(index)?'Westbank':[2,3,7].includes(index)?'East Metro':index===4?'Metairie':'New Orleans');
+      assert.equal(await summary.locator('.selected-job-area').innerText(),areas[index]);
       assert.equal(await marker.getAttribute('aria-pressed'),'true');
       await summary.getByRole('button',{name:'Clear appointment selection'}).click();
       await marker.click();
@@ -30,6 +31,12 @@ try {
     assert.equal(await page.locator('.appointment-marker.status-completed .map-pin-symbol').innerText(),'✓');
     assert.equal(await page.locator('.appointment-marker.status-canceled .map-pin-symbol').innerText(),'×');
     assert.match(await page.locator('#fixture-writes').innerText(),/Writes: 0/);
+    await page.getByRole('button',{name:'Focus River Parishes',exact:true}).click();
+    assert.equal(await page.locator('.appointment-register-row').count(),2,'River Parishes has its own working filter');
+    assert.equal(await page.locator('.appointment-territory-group.river-parishes').count(),1);
+    assert.equal(await page.locator('.live-map-territories').evaluate(e=>e.scrollWidth<=e.clientWidth+1),true,'Territory controls fit');
+    await page.getByRole('button',{name:'Focus Northshore',exact:true}).click();
+    assert.equal(await page.locator('.appointment-register-row').count(),2,'Hammond and Ponchatoula belong to Northshore');
   }
   console.log('Schedule area colors passed at desktop/mobile widths: Westbank, postal aliases, East Metro, parish controls, board/map selection, status preservation and zero writes.');
 } finally { await browser.close(); }

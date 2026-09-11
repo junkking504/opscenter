@@ -544,6 +544,23 @@ their age. Neither confirms current motion. Missing/invalid telemetry remains
 
 ## Dispatch area colors
 
+Northshore includes Hammond, Ponchatoula/Bedico and nearby Tangipahoa communities
+(Robert, Natalbany, Tickfaw, Independence, Amite, Loranger, Kentwood, Roseland and
+Tangipahoa), plus the existing St. Tammany cities and Folsom, Madisonville, Abita
+Springs, Lacombe and Bush. These are explicit service-locality matches, not a
+franchise or broad ZIP-prefix inference.
+
+River Parishes (`RP`) is a separate gray (`#9ca3af`) dispatch designation for
+LaPlace, Luling (including the source spelling “Lulling”), Destrehan, Hahnville,
+Boutte, Norco, St. Rose, Montz, Reserve, Garyville, Edgard, Wallace, Vacherie,
+Lutcher, Gramercy, Paradis, Des Allemands, Killona and Taft. It appears separately
+in the map filter, appointment list, calendar counts and route-area contract.
+Westwego, Waggaman and Avondale remain Westbank/orange; Kenner/Metairie remain
+Jefferson Parish. JunkWare franchise values and service addresses are unchanged.
+Regional references: [Tangipahoa communities](https://www.louisiana.gov/local-louisiana/tangipahoa-parish),
+[Northshore communities](https://www.visitthenorthshore.com/plan-your-visit/maps/),
+[River Parishes](https://lariverparishes.com/mardi-gras-river-style-2026/).
+
 Individual appointment blocks, map markers and selected-card accents use the
 shared `appointmentColorClass` rule: Westbank is amber-orange (`#fbbf24`), East
 Metro (New Orleans East/Chalmette) is yellow (`#facc15`). Other areas retain their

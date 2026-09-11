@@ -15,5 +15,4 @@
 .ops-live .live-schedule .schedule-map-controls .schedule-trip-list button { display: flex; gap: 7px; width: 100%; text-align: left; padding: 7px; line-height: 1.4; }
 .schedule-trip-list button[aria-pressed="true"] { outline: 2px solid #2563a5; outline-offset: -2px; }
 .schedule-trip-list small { display: block; color: #52606b; margin-top: 3px; }
-.ops-live .live-schedule-map .trip-marker .map-pin-symbol { min-width: 25px; height: 22px; padding: 2px; border: 1px solid white; border-radius: 4px; background: #2563a5; color: white; font-size: 10px; }
-.ops-live .live-schedule-map .trip-marker::after { content: ''; position: absolute; top: 26px; left: 14px; width: 2px; height: 21px; background: #2563a5; pointer-events: none; }
+.ops-live .live-schedule-map .trip-marker .map-pin-symbol { min-width: var(--map-locator-size, 20px); height: var(--map-locator-size, 20px); padding: 2px; border: 1px solid white; border-radius: 4px; background: #2563a5; color: white; font-size: 10px; }

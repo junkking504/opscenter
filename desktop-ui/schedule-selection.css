@@ -6,7 +6,7 @@
 }
 .ops-live .appointment-register-row.route-selected { box-shadow: inset 3px 0 #174e77; background: #edf5fb; }
 .ops-live .live-schedule-map .appointment-marker.route-selected .map-pin-symbol {
-  width: 14px; height: 14px; outline: 2px solid #174e77;
+  outline: 2px solid #174e77;
   outline-offset: 1px; box-shadow: 0 0 0 3px #ffffffc9;
 }
 .ops-live .appointment-partner-badge {
@@ -27,7 +27,7 @@
 .ops-live .live-schedule.schedule-dispatch .map-selected-appointment p { display: block; }
 .ops-live .live-schedule-map .live-map-pin .map-marker { position: relative; }
 .ops-live .map-partner-badge {
-  position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  position: absolute; top: calc(50% + var(--map-locator-size, 20px) / 2 - 2px); left: 50%; transform: translateX(-50%);
   padding: 1px 3px; border: 1px solid #9cadbb; border-radius: 3px;
   background: #fff; color: #233e54; font-size: 8px; font-weight: 800;
   line-height: 10px; pointer-events: none;

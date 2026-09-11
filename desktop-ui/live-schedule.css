@@ -97,12 +97,14 @@
 .live-schedule-map .live-map-pin { pointer-events: none; }
 .live-schedule-map .live-map-pin .map-marker { position: static; transform: none; display: grid; place-items: center; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; outline: 0; background: transparent; box-shadow: none; pointer-events: auto; cursor: pointer; }
 .live-schedule-map .map-pin-symbol { display: grid; place-items: center; position: relative; pointer-events: none; }
-.live-schedule-map .appointment-marker .map-pin-symbol { --territory-color: inherit; width: var(--appointment-pin-size, 20px); height: var(--appointment-pin-size, 20px); border: 2px solid #fff; border-radius: 50%; background: var(--territory-color, #89918d); color: #17212b; font-size: var(--appointment-pin-font, 10px); line-height: 1; font-weight: 800; box-shadow: 0 0 0 1px #17212b80, 0 2px 5px #17212b66; }
+.live-schedule-map .live-map-pin .map-locator-overflow { border: 2px solid white; border-radius: 50%; background: #334155; color: white; font-size: 13px; font-weight: 800; box-shadow: 0 1px 4px #17212b66; }
+.live-schedule-map .live-map-pin .map-locator-overflow:focus-visible { outline: 2px solid #174e77; outline-offset: 2px; }
+.live-schedule-map .appointment-marker .map-pin-symbol { --territory-color: inherit; width: var(--map-locator-size, 20px); height: var(--map-locator-size, 20px); border: 2px solid #fff; border-radius: 50%; background: var(--territory-color, #89918d); color: #17212b; font-size: var(--map-locator-font, 10px); line-height: 1; font-weight: 800; box-shadow: 0 0 0 1px #17212b80, 0 2px 5px #17212b66; }
 .live-schedule-map .completed .map-pin-symbol { border-style: double; border-width: 2px; }
 .live-schedule-map .canceled .map-pin-symbol { opacity: .65; }
-.live-schedule-map .truck-marker .map-pin-symbol { width: 24px; height: 18px; filter: drop-shadow(0 1px 1px #17212b66); }
+.live-schedule-map .truck-marker .map-pin-symbol { width: calc(var(--map-locator-size, 20px) * 1.25); height: var(--map-locator-size, 20px); filter: drop-shadow(0 1px 1px #17212b66); }
 .live-schedule-map .truck-marker.stale .map-pin-symbol { outline: 2px dashed #a87818; outline-offset: 1px; border-radius: 4px; }
-.live-schedule-map .truck-marker svg { display: block; width: 24px; height: 18px; fill: none; stroke: #26313a; stroke-width: 1; stroke-linejoin: round; }
+.live-schedule-map .truck-marker svg { display: block; width: 100%; height: 100%; fill: none; stroke: #26313a; stroke-width: 1; stroke-linejoin: round; }
 .live-schedule-map .truck-marker .truck-dump-body { fill: #ca3038; }
 .live-schedule-map .truck-marker .truck-body-rails { stroke: #8e1f29; }
 .live-schedule-map .truck-marker .truck-cab { fill: #fff; }
@@ -113,7 +115,7 @@
 .live-schedule-map .truck-marker .truck-wheel { fill: #b8c1c7; stroke: none; }
 .live-schedule-map .truck-marker svg text { fill: #fff; stroke: none; font: 800 12px sans-serif; }
 .live-schedule-map .route-selected .map-pin-symbol, .live-schedule-map button:focus-visible .map-pin-symbol { outline: 2px solid #20262b; outline-offset: 2px; border-radius: 4px; }
-.live-schedule-map .appointment-marker.route-selected .map-pin-symbol, .live-schedule-map .appointment-marker:focus-visible .map-pin-symbol { width: calc(var(--appointment-pin-size, 20px) + 4px); height: calc(var(--appointment-pin-size, 20px) + 4px); border-radius: 50%; }
+.live-schedule-map .appointment-marker.route-selected .map-pin-symbol, .live-schedule-map .appointment-marker:focus-visible .map-pin-symbol { border-radius: 50%; }
 
 /* Compact shared map details on Command and Schedule. */
 .ops-live .live-schedule .schedule-map-controls { padding: 7px 9px; gap: 4px 8px; }

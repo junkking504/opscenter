@@ -151,12 +151,15 @@ opens the full action drawer. Calendar and history retain their drawer behavior.
 Selecting a muted block clears filters that would otherwise hide its pin.
 An appointment without verified coordinates explicitly shows Verify Address.
 
-Truck and appointment markers use their source coordinates at every zoom level.
-Screen-space collision avoidance never displaces them or draws offset leader
-lines. Overlapping hit targets show a count badge; clicking opens a list of the
-nearby trucks and appointments at that zoom so each remains selectable. Selecting
-one uses the same schedule/map selection without relocating any other marker.
+Truck and appointment locators use comparable visual sizes at each zoom level.
+Their Leaflet positions retain the source coordinates. When click targets would
+overlap, the icons move apart in screen space and a thin connector and source dot
+identify the exact location. Selection does not shrink appointment pins or change
+the layout order. Layout is recalculated after zoom, pan, resize and GPS refresh.
+If the viewport cannot fit every target, a separate count button lists the
+remaining locations so none become inaccessible behind another icon.
 Amber truck markers retain the existing last-known GPS distinction. Regression:
+`node --import tsx scripts/test-schedule-map-layout.ts` and
 `node --import tsx scripts/test-desktop-map-navigation.ts`.
 
 Amazon, Home Sweet Home, and DMTransportation are identified from explicit source

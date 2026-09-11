@@ -56,8 +56,8 @@ absent check number is explicitly unavailable.
 
 Recorded Payments includes displayed card, cash, and check tenders. Cash/check
 rows are marked Recorded, with no claim that a bank deposit or QBO match has been
-verified. Card Payments and Card Difference retain the existing card-only QBO
-reconciliation. Job Difference compares all closeout tenders with job revenue
+verified. Verified Card Payments and Unverified Payment Difference use the
+combined QBO/processor verification described below. Job Difference compares all closeout tenders with job revenue
 plus tip; split-tender tips are not invented or repeated per payment.
 
 
@@ -65,8 +65,14 @@ plus tip; split-tender tips are not invented or repeated per payment.
 
 Finance → Payments shows three separate facts: the payment recorded against a
 JunkWare job, its Merchant Center processing evidence, and its QBO accounting
-match. QBO totals/differences and open accounting exceptions do not change merely
-because Merchant Center approved a charge. The payment drawer labels QBO IDs as
+match. An exact, uniquely matched Merchant Center approval verifies the payment
+and clears its amount from the operational Unverified Payment Difference, even
+when QBO has no record. A QBO match also verifies a payment when that source is
+available and fresh. Verified Card Payments sums each job payment once, including
+when both sources match. Cash/check rows stay Recorded. The operational difference
+is verified card payments minus recorded card payments; unmatched source records
+remain visible in their source panels. QBO totals/differences and exceptions stay
+in the separately labeled QBO Accounting section. The payment drawer labels QBO IDs as
 QBO references and shows a separate Merchant Center transaction link, amount,
 status, fee, and observation timestamp.
 
@@ -84,7 +90,9 @@ matching are required. Conflicting job/card references block a match. Ambiguous
 records stay separate. Missing rows are only called absent from an export when
 that export declares complete day coverage. Individual detail observations stay
 partial. Evidence older than 15 minutes for today or 24 hours for historical days
-is marked for refresh; it is not silently presented as current.
+is marked for refresh; it is not silently presented as current. An observed
+approval continues to verify its matched payment as historical evidence; newer
+void/decline observations supersede it and remove processor verification.
 
 The existing live-refresh loop starts `run-merchant-center-refresh.py` separately
 from its QBO work. This runner uses its own lock, a 180-second process deadline,

@@ -11,7 +11,7 @@ async function main(){
  const server=createServer(async(req,res)=>{if(req.method==='POST'){posts++;res.writeHead(400);res.end('{}');return;}if(req.url?.includes('/api/desktop/schedule/closeout')){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({closeout:fixture,sourceVersion:'a'.repeat(64),canWrite:true}));return;}if(req.url==='/app.js'){res.setHeader('Content-Type','text/javascript');res.end(js);return;}res.setHeader('Content-Type','text/html');res.end(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;font-family:Arial}*{box-sizing:border-box}${css}</style></head><body><div id="root"></div><script src="/app.js"></script></body></html>`);});
  await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const url=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
  const browser=await chromium.launch({headless:true});
- try{for(const width of [390,1280]){const page=await browser.newPage({viewport:{width,height:844}});await page.goto(url);await page.getByText('Close out this job',{exact:true}).click();await page.getByRole('button',{name:'Open JunkWare closeout',exact:true}).click();await page.getByRole('checkbox',{name:'Add a payment'}).check();
+ try{for(const width of [390,1280]){const page=await browser.newPage({viewport:{width,height:844}});await page.goto(url);await page.getByText('Appointment Closeout',{exact:true}).click();await page.getByRole('checkbox',{name:'Add a payment'}).check();
   const methods=page.getByRole('group',{name:'Payment method',exact:true});assert.equal(await methods.getByRole('radio').count(),4);
   const method={selectOption:async(value:string)=>{const labels:Record<string,string>={'1':'Billed','2':'Cash','3':'Credit Card','4':'Check'};const radio=methods.getByRole('radio',{name:labels[value],exact:true});await radio.click();await expect(radio).toBeChecked();}};
   await method.selectOption('4');await page.getByRole('textbox',{name:'Payment amount',exact:true}).fill('1200');await page.getByRole('textbox',{name:'Check number',exact:true}).fill('009924');await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await page.getByRole('button',{name:'Confirm Job Closeout in JunkWare',exact:true}).waitFor();assert.ok((await page.getByRole('status').textContent())?.includes('Check number: 009924'));
@@ -24,11 +24,11 @@ async function main(){
  const moveReceipt={requestId:'fixture-move',action:'move',status:'uncertain',message:'Earlier assignment change remains unresolved.'};
  await blockedPage.route('**/api/desktop/schedule/closeout?*',route=>route.fulfill({json:{closeout:fixture,sourceVersion:'a'.repeat(64),canWrite:true,pendingReceipt:moveReceipt}}));
  await blockedPage.route('**/api/desktop/schedule/operations?*',route=>route.fulfill({json:{receipt:{...moveReceipt,status:'verified',message:'JunkWare confirms the saved truck and appointment window.'}}}));
- await blockedPage.goto(url);await blockedPage.getByText('Close out this job',{exact:true}).click();await blockedPage.getByRole('button',{name:'Open JunkWare closeout',exact:true}).click();
+ await blockedPage.goto(url);await blockedPage.getByText('Appointment Closeout',{exact:true}).click();
  await expect(blockedPage.getByRole('alert').last()).toContainText('This is not a closeout result');
  await expect(blockedPage.getByRole('button',{name:'Review Closeout',exact:true})).toBeDisabled();
  await blockedPage.getByRole('button',{name:'Check Saved Result',exact:true}).click();
- await expect(blockedPage.getByRole('button',{name:'Open JunkWare closeout',exact:true})).toBeEnabled();
+ await expect(blockedPage.getByRole('button',{name:'Reload from JunkWare',exact:true})).toBeEnabled();
  await blockedPage.close();
  assert.equal(posts,0,'Review, edits, reload and assignment verification must never submit a closeout');console.log('Closeout UI passed at 390px and 1280px: payment review, validation, reload resets, earlier move blocker and safe verified-move reload, no overflow or save requests.');
  }finally{await browser.close();await new Promise<void>(r=>server.close(()=>r()));}

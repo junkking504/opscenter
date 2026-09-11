@@ -313,7 +313,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
         {!live ? (
           loading ? <p role="status">Loading current JunkWare closeout…</p> : error ? (
             <button type="button" className="ops-button" onClick={load} disabled={!resolvedAppointmentId}>Retry loading closeout</button>
-          ) : null
+          ) : message ? <button type="button" className="ops-button" onClick={load} disabled={saving || !resolvedAppointmentId}>Reload from JunkWare</button> : null
         ) : (
           <>
             {receipt && ['pending', 'uncertain'].includes(receipt.status) && <p role="alert">Payment entry is locked while an earlier {receipt.action === 'move' ? 'assignment change' : 'appointment change'} is unresolved. Use Check Saved Result below to load the saved JunkWare result.</p>}

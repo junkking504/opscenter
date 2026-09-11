@@ -33,6 +33,10 @@ console.log('Schedule visit state passed: identity, confirmed visits, closed-sta
 
 
 const cancelledContact = separateCancellationContact({customerName:'Preview Customer 5045550123 123 Main St New Orleans, LA 70115 Cancelled via phone; no longer needed. Followup',phone:'(504) 555-0123',address:'123 Main St, New Orleans, 70115',status:'Canceled',cancellationReason:'Preview Customer 5045550123 123 Main St New Orleans, LA 70115 Cancelled via phone; no longer needed. Followup',appointmentNotes:[] as string[]});
+const requestedCancel = separateCancellationContact({customerName:'Example Customer 9855550123 28010 E Example Dr PONCHATOULA, LA 70454 SMS - Customer requested to cancel. No reason provided. Followup',phone:'(985) 555-0123',address:'28010 E Example Dr, Ponchatoula, 70454',status:'Cancelled',cancellationReason:'Example Customer 9855550123 28010 E Example Dr PONCHATOULA, LA 70454 SMS - Customer requested to cancel. No reason provided. Followup',appointmentNotes:[] as string[]});
+assert.equal(requestedCancel.customerName,'Example Customer');
+assert.equal(requestedCancel.cancellationReason,'SMS - Customer requested to cancel. No reason provided.');
+assert.equal(requestedCancel.appointmentNotes[0],requestedCancel.cancellationReason);
 assert.equal(cancelledContact.customerName,'Preview Customer');
 assert.equal(cancelledContact.cancellationReason,'Cancelled via phone; no longer needed.');
 assert.ok(cancelledContact.appointmentNotes.includes(cancelledContact.cancellationReason));

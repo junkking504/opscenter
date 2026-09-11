@@ -10,6 +10,9 @@ try {
     await page.locator('.day-switcher button').first().click();
     const add=page.getByRole('button',{name:'Add Appointment',exact:true});
     await add.waitFor();
+    assert.equal(await page.locator('.schedule-duplicates').count(),0,'No standalone duplicate booking panel');
+    assert.equal(await page.getByRole('heading',{name:'Route Planner',exact:true}).count(),0,'Truck board replaces the separate route planner');
+    assert.equal(await page.getByRole('button',{name:'Plan Routes',exact:true}).count(),0);
     const addBox=await add.boundingBox();
     assert.ok(addBox.x>=0 && addBox.x+addBox.width<=width+1 && addBox.height>=32&&addBox.height<=34,'compact primary action fits');
     assert.equal(await add.evaluate(el=>getComputedStyle(el).backgroundColor),'rgb(164, 59, 53)');
@@ -73,6 +76,9 @@ try {
     await full.click();
     await page.getByRole('dialog',{name:'JK1001001',exact:true}).waitFor();
     const drawer=page.getByRole('dialog',{name:'JK1001001',exact:true});
+    assert.equal(await drawer.getByRole('region',{name:'Appointment notes',exact:true}).count(),1,'Saved notes have a dedicated section');
+    assert.equal(await drawer.locator('.appointment-note-list > li').count(),2,'Each source note is separate');
+    assert.equal(await drawer.locator('.appointment-note-list p').first().evaluate(el=>getComputedStyle(el).fontWeight),'400','Notes are not a bold wall of text');
     const sections=await drawer.evaluate(el=>({closeout:el.querySelector('.appointment-closeout-panel').getBoundingClientRect().top,note:el.querySelector('.drawer-note-row').getBoundingClientRect().top,secondary:el.querySelector('.drawer-secondary-controls').getBoundingClientRect().top}));
     assert.ok(sections.closeout<sections.note && sections.note<sections.secondary,'Closeout, essential note, then secondary dispatch controls');
     assert.equal(await drawer.locator('.drawer-secondary-controls').getAttribute('open'),null);

@@ -330,7 +330,7 @@ export function separateCancellationContact<T extends Pick<JobRow, 'customerName
   const raw = job.customerName.trim();
   let customerName = raw;
   // Only split an obviously contaminated cancellation cell, never ordinary names.
-  const contaminated = /cancel(?:led|ed|lation)|called to cancel/i.test(raw);
+  const contaminated = /\bcancel(?:led|ed|lation)?\b/i.test(raw);
   if (contaminated) {
     const phoneDigits = job.phone.replace(/\D/g, '').replace(/^1(?=\d{10}$)/, '');
     const phonePattern = phoneDigits.length === 10 ? new RegExp(phoneDigits.split('').join('[\\s().+-]*')) : null;

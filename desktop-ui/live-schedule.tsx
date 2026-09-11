@@ -104,8 +104,8 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     if (!board || mapOnly || view !== 'board') return;
     const fit = () => {
       const pageTop = board.getBoundingClientRect().top + window.scrollY;
-      // Reserve a visible 44px list jump banner plus its gap below dispatch.
-      const height = `${Math.max(240, window.innerHeight - pageTop - 60)}px`;
+      // Reserve the 44px list jump banner, its 8px top gap, and 24px below it.
+      const height = `${Math.max(240, window.innerHeight - pageTop - 76)}px`;
       board.style.setProperty('--schedule-available-height', height);
       dispatchSurfaceRef.current?.style.setProperty('--schedule-available-height', height);
     };

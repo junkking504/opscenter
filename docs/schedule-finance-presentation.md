@@ -1,6 +1,24 @@
 # Schedule and Finance presentation
 
+## Schedule planning surface
+
+The truck schedule board is the main visual planning surface. The standalone
+Duplicate Booking Check and Route Planner panels were removed from Schedule on
+September 11, 2026. Stop Order, board assignment moves, map selection, travel
+information, and full appointment details remain available. Appointment-creation
+duplicate safeguards and existing saved review decisions are unchanged. The
+retained duplicate-review and route-planning modules below document their
+contracts; they are no longer mounted or requested by the Schedule board.
+
 ## Appointment drawer action priority
+
+Saved appointment notes have their own full-width section, with regular-weight
+text and one entry per source note. Recognized trailing date/author attribution
+appears above the entry. Only entries beginning `Appointment moved from` are
+grouped into expandable Schedule-change history. Other notes, including
+call-center narratives, stay visible and unabridged; unknown formats remain
+intact. Source order is preserved within each group. Add Appointment Note is
+separate from the saved notes and remains below closeout.
 
 Appointment Closeout precedes Appointment Notes. Note entry and its JunkWare
 save button remain visible; truck/window changes, Call Ahead and cancellation
@@ -46,6 +64,11 @@ summary visibility, single-candidate display, unavailable/future states, drawer
 and Escape behavior, and zero appointment writes.
 
 ## All Appointments readability and payments
+
+Canceled customer headings exclude the appended contact/reason text from source
+cancellation rows, including the wording "requested to cancel". Cancellation
+reason has its own label under status, not customer information. OpsCenter status
+labels use U.S. "Canceled"; verbatim source reasons and notes retain their wording.
 
 The register separates appointment identity, customer/work, assignment,
 payment, and status into five readable columns; smaller screens use labeled
@@ -151,7 +174,7 @@ beneath the blocks. Clicking the estimate opens both appointments and the full
 minutes/miles. Booked windows are not moved, and traffic time is not described as
 verified visit order, service duration, or available buffer.
 
-## Duplicate Booking Review
+## Duplicate Booking Review (retained module, not shown on Schedule)
 
 Schedule checks the complete selected-day snapshot before route planning, regardless
 of map/search/territory filters. Potential duplicates require distinct source
@@ -183,7 +206,7 @@ Checks: `npm run verify:duplicate-bookings`; synthetic browser coverage in
 `scripts/test-duplicate-bookings-browser.mjs` against the isolated Vite fixture
 at port 3148. No real pair should be marked Keep Both merely to test the feature.
 
-## Route Planner
+## Route Planner (retained module, not shown on Schedule)
 
 Dispatch service territory is resolved by the shared `lib/service-territory.ts`
 from the terminal service locality and reviewed ZIP rules, never from a franchise

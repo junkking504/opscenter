@@ -283,7 +283,7 @@ export default function ScheduleControls({
   return (
     <section className="drawer-dispatch-controls">
       <div className="drawer-control-heading">
-        <strong>Appointment Notes</strong>
+        <strong>Add Appointment Note</strong>
         <small>Notes are saved to this appointment in JunkWare.</small>
       </div>
       <div className="drawer-note-row">

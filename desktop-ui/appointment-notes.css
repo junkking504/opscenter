@@ -1,0 +1,11 @@
+.appointment-source-notes { min-width: 0; padding: 16px; border: 1px solid #d4dcd8; border-radius: 10px; background: #fff; color: #26322d; }
+.appointment-source-notes h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 15px; font-weight: 700; }
+.appointment-source-notes h3 > span { padding: 2px 7px; border-radius: 10px; background: #edf2ef; font-size: 12px; }
+.appointment-note-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.appointment-note-list article { border-left: 3px solid #b6c9bf; padding: 10px 12px; background: #f6f8f7; border-radius: 0 6px 6px 0; min-width: 0; }
+.appointment-note-list header { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; font-size: 12px; line-height: 1.5; color: #52665b; overflow-wrap: anywhere; }
+.appointment-note-list p { margin: 0; font-size: 14px; line-height: 1.65; font-weight: 400; white-space: pre-wrap; overflow-wrap: anywhere; }
+.appointment-note-history { margin-top: 16px; border-top: 1px solid #d4dcd8; }
+.appointment-note-history summary { padding: 12px 0; font-size: 13px; font-weight: 600; cursor: pointer; }
+.appointment-note-history summary:focus-visible { outline: 2px solid #205c7e; outline-offset: 2px; }
+.appointment-notes-empty { margin: 0; font-size: 13px; color: #52665b; }

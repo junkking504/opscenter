@@ -8,6 +8,10 @@ try {
     await page.setViewportSize({width,height:1000});
     await page.goto('http://127.0.0.1:3156/tests/appointment-register.html');
     await page.getByRole('cell',{name:'Payment for JK10001',exact:true}).waitFor();
+    const canceledRow=page.locator('.readable-appointment').filter({has:page.getByRole('button',{name:'JK10006',exact:true})});
+    assert.equal(await canceledRow.locator('.register-customer > strong').innerText(),'Synthetic Customer');
+    assert.doesNotMatch(await canceledRow.locator('.register-customer').innerText(),/cancel|Followup/i);
+    assert.match(await canceledRow.locator('.register-cancellation-reason').innerText(),/Cancellation reason\s+Customer requested cancellation/);
     assert.match(await page.getByRole('cell',{name:'Payment for JK10001',exact:true}).innerText(),/\$100.00/);
     assert.match(await page.getByRole('cell',{name:'Payment for JK10002',exact:true}).innerText(),/Balance due \$50.00/);
     assert.match(await page.getByRole('cell',{name:'Payment for JK10003',exact:true}).innerText(),/Estimate quoted/);

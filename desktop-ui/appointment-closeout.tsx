@@ -88,8 +88,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   useEffect(() => { onBusyChange(loading || saving); return () => onBusyChange(false); }, [loading, saving, onBusyChange]);
   if (/cancel(?:ed|led)/i.test(initialStatus)) return null;
 
-  async function load() {
-    if (receipt && ['pending', 'uncertain'].includes(receipt.status)) return;
+  async function load(reconciled = false) {
+    if (!reconciled && receipt && ['pending', 'uncertain'].includes(receipt.status)) return;
     if (!resolvedAppointmentId) {
       setError("This job does not have a Junkware appointment link yet.");
       return;
@@ -99,7 +99,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     setMessage("");
     try {
       const response = await fetch(`/api/desktop/schedule/closeout?appointmentId=${encodeURIComponent(resolvedAppointmentId)}`, { cache: "no-store" });
-      const payload = await response.json();
+      const payload = await response.json().catch(() => { throw new Error(`Closeout could not be loaded (HTTP ${response.status}). Retry loading the saved appointment.`); });
       if (!response.ok || !payload?.closeout) throw new Error(payload?.error || "The Junkware closeout could not be loaded.");
       setLive(payload.closeout);
       setAddPayment(false);
@@ -301,7 +301,18 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   async function check() {
     if (!receipt || requestPending.current) return;
     requestPending.current = true; setSaving(true);
-    try { const result = await checkScheduleChange(receipt.requestId); setReceipt(result); if (result.status === 'verified' || (result.action === 'move' && result.status === 'failed' && result.sourceResult?.assignmentReconciled)) { if (result.action && result.action !== 'closeout') { setMessage(result.message); setReceipt(null); setLive(null); setSourceVersion(''); setCanWrite(false); } else if (result.sourceResult?.closeout) setLive(result.sourceResult.closeout as LiveCloseout); setAddPayment(false); setPaymentMethod(''); setPaymentAmount(''); setPaymentReference(''); setPendingOtherCharges([]); saved(); } }
+    try {
+      const result = await checkScheduleChange(receipt.requestId);
+      setReceipt(result);
+      if (result.status === 'verified' || result.status === 'failed') {
+        if (result.action && result.action !== 'closeout') {
+          setReceipt(null); setLive(null); setSourceVersion(''); setCanWrite(false);
+          await load(true);
+        } else if (result.sourceResult?.closeout) setLive(result.sourceResult.closeout as LiveCloseout);
+        setAddPayment(false); setPaymentMethod(''); setPaymentAmount(''); setPaymentReference(''); setPendingOtherCharges([]);
+        saved();
+      }
+    }
     catch { setError('Saved result unavailable. Do not repeat this closeout.'); }
     finally { requestPending.current = false; setSaving(false); }
   }
@@ -310,18 +321,18 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     <details className="appointment-closeout-panel" data-appointment-id={resolvedAppointmentId} aria-busy={loading || saving} onToggle={event => { if (event.currentTarget.open && !live && !loading && !saving) void load(); }}>
       <summary>Appointment Closeout</summary>
       <div className="appointment-closeout-body">
+        {receipt && <>{receipt.action && receipt.action !== 'closeout' && ['pending', 'uncertain'].includes(receipt.status) && <p role="alert">Closeout is locked until the earlier {receipt.action === 'move' ? 'assignment change' : 'appointment change'} is checked in JunkWare. This is not a closeout result.</p>}<ChangeReceipt receipt={receipt} onCheck={() => { void check(); }} /></>}
         {!live ? (
           loading ? <p role="status">Loading current JunkWare closeout…</p> : error ? (
-            <button type="button" className="ops-button" onClick={load} disabled={!resolvedAppointmentId}>Retry loading closeout</button>
-          ) : message ? <button type="button" className="ops-button" onClick={load} disabled={saving || !resolvedAppointmentId}>Reload from JunkWare</button> : null
+            <button type="button" className="ops-button" onClick={() => void load()} disabled={!resolvedAppointmentId}>Retry loading closeout</button>
+          ) : message ? <button type="button" className="ops-button" onClick={() => void load()} disabled={saving || !resolvedAppointmentId}>Reload from JunkWare</button> : null
         ) : (
           <>
-            {receipt && ['pending', 'uncertain'].includes(receipt.status) && <p role="alert">Payment entry is locked while an earlier {receipt.action === 'move' ? 'assignment change' : 'appointment change'} is unresolved. Use Check Saved Result below to load the saved JunkWare result.</p>}
             <fieldset onChange={() => setReviewing(false)} className="desktop-closeout-fields" disabled={saving || Boolean(receipt && receipt.status !== 'failed')}>
             <label><span>Final appointment category</span><select value={category} onChange={event => { setCategory(event.target.value); setReviewing(false); setEstimateReason(''); setEstimateExplanation(''); setNoDiscountReason(''); }}><option>Job</option><option>Estimate</option></select></label>
             <div className="drawer-facts">
               <div><span>Junkware status</span><strong>{live.status.label || "Unavailable"}</strong></div>
-              <div><span>Current total</span><strong>{live.total || "Unavailable"}</strong></div>
+              <div><span>Saved total</span><strong>{live.total || "Unavailable"}</strong></div>
               <div><span>Balance</span><strong>{live.balance || "Unavailable"}</strong></div>
             </div>
             {saving ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">Saving changes and checking them in JunkWare…</div> : null}
@@ -360,8 +371,9 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             <section className="appointment-create-section">
               <h4>Job Charges</h4>
               <div className="appointment-closeout-grid">
-                <label><span>Truck quantity</span><input value={live.loadQuantity} inputMode="decimal" onChange={(event) => updateLoadQuantity(event.target.value)} /></label>
+                <label><span>Full trucks</span><input value={live.loadQuantity} inputMode="decimal" onChange={(event) => updateLoadQuantity(event.target.value)} /></label>
                 <label><span>Load size</span><select value={live.loadSize.value} onChange={(event) => updateLoadSize(event.target.value)}>{live.loadSize.options.map((option) => <option key={`load-${option.value}`} value={option.value}>{option.label || "Full truck / none"}</option>)}</select></label>
+                <p>For half a truck (3/6), enter 0 full trucks and select 3 (1/2). Enter the quoted load price before discount.</p>
                 <label><span>Load price</span><input value={live.loadPrice} inputMode="decimal" onChange={(event) => update("loadPrice", event.target.value)} /></label>
                 <label><span>Bedload quantity</span><input value={live.bedloadQuantity} inputMode="decimal" onChange={(event) => updateBedloadQuantity(event.target.value)} /></label>
                 <label><span>Bedload size</span><select value={live.bedloadSize.value} onChange={(event) => updateBedloadSize(event.target.value)}>{live.bedloadSize.options.map((option) => <option key={`bed-${option.value}`} value={option.value}>{option.label || "None"}</option>)}</select></label>
@@ -436,16 +448,15 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               </div> : null}
             </section>
 
-            {reviewing && <div role="status"><p>Review all amounts, category, assigned Krewe and payment fields above. Confirmation closes the appointment in JunkWare and can publish its normal closeout alert.</p><p>{addPayment ? `Payment to record: ${live.paymentMethods.find(option => option.value === paymentMethod)?.label} · $${Number(inputMoney(paymentAmount)).toFixed(2)}${paymentReference ? ` · ${paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}: ${paymentReference}` : ''}` : 'No new payment will be recorded.'}</p></div>}
+            {reviewing && <div role="status"><p>Review {category} closeout: {live.loadQuantity || '0'} full trucks{live.loadSize.value ? ` + ${live.loadSize.value}` : ''}. Load price ${Number(inputMoney(live.loadPrice)).toFixed(2)}, discount ${Number(inputMoney(live.discount)).toFixed(2)}.</p><p>Review all amounts, assigned Krewe and payment fields above. Confirmation saves the completed appointment in JunkWare and can publish its normal closeout alert.</p><p>{addPayment ? `Payment to record: ${live.paymentMethods.find(option => option.value === paymentMethod)?.label} · $${Number(inputMoney(paymentAmount)).toFixed(2)}${paymentReference ? ` · ${paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}: ${paymentReference}` : ''}` : 'No new payment will be recorded.'}</p></div>}
             {!canWrite && <p role="status">Your role can read this closeout. A manager must save changes.</p>}
             <div className="ops-closeout-editor-actions">
               <button type="button" className="ops-button" onClick={save} disabled={saving || !canWrite}>{saving ? "Saving and checking JunkWare…" : reviewing ? `Confirm ${category} Closeout in JunkWare` : "Review Closeout"}</button>
-              <button type="button" className="ops-button subtle" onClick={load} disabled={saving || loading || Boolean(receipt && receipt.status !== "failed")}>Reload from JunkWare</button>
             </div>
             </fieldset>
+            <button type="button" className="ops-button subtle" onClick={() => void load()} disabled={saving || loading || Boolean(receipt && ['pending', 'uncertain'].includes(receipt.status))}>Reload from JunkWare</button>
           </>
         )}
-        {receipt && <>{receipt.action && receipt.action !== 'closeout' && <p role="alert">An earlier {receipt.action === 'move' ? 'assignment change' : 'appointment change'} is awaiting verification. This is not a closeout result. Check the saved result before closing or recording payment.</p>}<ChangeReceipt receipt={receipt} onCheck={() => { void check(); }} /></>}
         {message ? <div className="ops-closeout-editor-message success">{message}</div> : null}
         {error ? <div className="ops-closeout-editor-message error">{error}</div> : null}
       </div>

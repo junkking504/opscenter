@@ -65,12 +65,21 @@ scripts/test-reschedule-source.ts, and scripts/test-reschedule-operations.ts.
 
 ### Schedule closeout reliability
 
-Confirmed appointments omit JunkWare's payment panel. The source reader stages
-Completed on the unsaved form to obtain that appointment's payment methods,
+Confirmed appointments and Estimates omit JunkWare's payment panel. The source reader stages
+Job and Completed on the unsaved form when needed to obtain that appointment's payment methods,
 existing payments and balance, then reopens the appointment and requires its
 saved baseline to be unchanged. Its returned status, crew, times and charges
 remain the saved values. A read never clicks Add Payment or Save. The write
 adapter stages Completed before filling the draft so payment controls exist.
+
+Closeout shows an unresolved operation and **Check Saved Result** above the
+disabled fields. A terminal earlier operation reloads the current closeout and
+its source version automatically. A verified closeout requires **Reload from
+JunkWare** before editing again; this read remains available outside the locked
+fields. Missing/non-JSON gateway responses show a retryable loading error.
+Full-truck quantity is separate from the partial load size: half a truck means
+0 full trucks plus JunkWare's `3 (1/2)` option, equivalent to 3/6. The load price
+is entered before the separate discount; the header labels the saved total.
 
 Closeout records the source payment method, positive amount, and check number
 or four trailing card digits when applicable. It does not charge a card.

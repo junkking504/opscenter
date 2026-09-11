@@ -20,16 +20,42 @@ async function main(){
   if(width===390) await page.screenshot({path:'/tmp/closeout-payment-mobile.png',fullPage:true});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'No mobile horizontal overflow');
   await method.selectOption('2');assert.equal(await page.getByRole('textbox',{name:'Card last four',exact:true}).count(),0);await page.getByRole('button',{name:'Reload from JunkWare',exact:true}).click();await page.getByRole('checkbox',{name:'Add a payment'}).waitFor();await expect(page.getByRole('checkbox',{name:'Add a payment'})).not.toBeChecked();await page.close();}
- const blockedPage=await browser.newPage();
+ const blockedPage=await browser.newPage({viewport:{width:390,height:844}});
+ let reconciled=false;
  const moveReceipt={requestId:'fixture-move',action:'move',status:'uncertain',message:'Earlier assignment change remains unresolved.'};
- await blockedPage.route('**/api/desktop/schedule/closeout?*',route=>route.fulfill({json:{closeout:fixture,sourceVersion:'a'.repeat(64),canWrite:true,pendingReceipt:moveReceipt}}));
- await blockedPage.route('**/api/desktop/schedule/operations?*',route=>route.fulfill({json:{receipt:{...moveReceipt,status:'verified',message:'JunkWare confirms the saved truck and appointment window.'}}}));
+ await blockedPage.route('**/api/desktop/schedule/closeout?*',route=>route.fulfill({json:{closeout:fixture,sourceVersion:'a'.repeat(64),canWrite:true,pendingReceipt:reconciled?null:moveReceipt}}));
+ await blockedPage.route('**/api/desktop/schedule/operations?*',route=>{reconciled=true;return route.fulfill({json:{receipt:{...moveReceipt,status:'verified',message:'JunkWare confirms the saved truck and appointment window.'}}});});
  await blockedPage.goto(url);await blockedPage.getByText('Appointment Closeout',{exact:true}).click();
  await expect(blockedPage.getByRole('alert').last()).toContainText('This is not a closeout result');
  await expect(blockedPage.getByRole('button',{name:'Review Closeout',exact:true})).toBeDisabled();
- await blockedPage.getByRole('button',{name:'Check Saved Result',exact:true}).click();
+ const check=blockedPage.getByRole('button',{name:'Check Saved Result',exact:true});
+ assert.ok((await check.boundingBox())!.y<844,'Recovery action is visible before the disabled fields on a phone');
+ await check.click();
  await expect(blockedPage.getByRole('button',{name:'Reload from JunkWare',exact:true})).toBeEnabled();
+ await expect(blockedPage.getByRole('combobox',{name:'Final appointment category'})).toBeEnabled();
+ await blockedPage.getByRole('combobox',{name:'Final appointment category'}).selectOption('Estimate');
+ await expect(blockedPage.getByRole('combobox',{name:'Final appointment category'})).toHaveValue('Estimate');
+ await blockedPage.getByRole('textbox',{name:'Load price',exact:true}).fill('508');
+ await blockedPage.getByRole('textbox',{name:'Discount',exact:true}).fill('20');
+ await expect(blockedPage.getByRole('textbox',{name:'Load price',exact:true})).toHaveValue('508');
  await blockedPage.close();
+ const gatewayPage=await browser.newPage();
+ await gatewayPage.route('**/api/desktop/schedule/closeout?*',route=>route.fulfill({status:502,contentType:'text/html',body:'<html>Bad gateway</html>'}));
+ await gatewayPage.goto(url);await gatewayPage.getByText('Appointment Closeout',{exact:true}).click();
+ await expect(gatewayPage.getByText('Closeout could not be loaded (HTTP 502). Retry loading the saved appointment.',{exact:true})).toBeVisible();
+ await gatewayPage.close();
+ const savedPage=await browser.newPage();let savedPosts=0;
+ await savedPage.route('**/api/desktop/schedule/operations',route=>{savedPosts++;return route.fulfill({json:{receipt:{requestId:'fixture-save',action:'closeout',status:'verified',message:'Saved in JunkWare',sourceResult:{closeout:{...fixture,status:field('8','Completed')}}}}});});
+ await savedPage.goto(url);await savedPage.getByText('Appointment Closeout',{exact:true}).click();
+ await savedPage.getByRole('button',{name:'Review Closeout',exact:true}).click();
+ await savedPage.getByRole('button',{name:'Confirm Job Closeout in JunkWare',exact:true}).click();
+ await expect(savedPage.getByText('Change Verified',{exact:true})).toBeVisible();
+ await expect(savedPage.getByRole('combobox',{name:'Final appointment category'})).toBeDisabled();
+ await expect(savedPage.getByRole('button',{name:'Reload from JunkWare',exact:true})).toBeEnabled();
+ await savedPage.getByRole('button',{name:'Reload from JunkWare',exact:true}).click();
+ await expect(savedPage.getByRole('combobox',{name:'Final appointment category'})).toBeEnabled();
+ assert.equal(savedPosts,1,'Reload after a verified save never repeats it');
+ await savedPage.close();
  assert.equal(posts,0,'Review, edits, reload and assignment verification must never submit a closeout');console.log('Closeout UI passed at 390px and 1280px: payment review, validation, reload resets, earlier move blocker and safe verified-move reload, no overflow or save requests.');
  }finally{await browser.close();await new Promise<void>(r=>server.close(()=>r()));}
 }

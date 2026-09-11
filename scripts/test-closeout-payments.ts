@@ -29,7 +29,7 @@ function html(fields:URLSearchParams) {
   ${['ActualStartHourDD','ActualEndHourDD'].map(k=>select(k,[{value:'',label:''},{value:'12',label:'12 PM'},{value:'13',label:'01 PM'}])).join('')}
   ${['ActualStartMinuteDD','ActualEndMinuteDD'].map(k=>select(k,[{value:'',label:''},{value:'00',label:'00'}])).join('')}
   <span id="ctl00_Content_TotalLbl">$1,200.00</span>
-  ${status==='8'?`${select('PaymentMethodDD',[{value:'',label:''},...methods])}${['3','4'].includes(value('PaymentMethodDD'))?control('PaymentDescrTB'):''}${control('PaymentAmountTB')}${submit('AddPaymentBtn')}<input id="ctl00_Content_BalanceOwedHF" value="${1200-pending.reduce((s,p)=>s+Number(p.amount),0)}"><table>${pending.map((p,i)=>`<tr id="ctl00_Content_PaymentsLV_ctrl${i}_ItemRow"><td>${esc(p.description)}</td><td>${p.amount}</td></tr>`).join('')}</table>`:''}
+  ${status==='8' && value('AppointmentTypeDD')==='2'?`${select('PaymentMethodDD',[{value:'',label:''},...methods])}${['3','4'].includes(value('PaymentMethodDD'))?control('PaymentDescrTB'):''}${control('PaymentAmountTB')}${submit('AddPaymentBtn')}<input id="ctl00_Content_BalanceOwedHF" value="${1200-pending.reduce((s,p)=>s+Number(p.amount),0)}"><table>${pending.map((p,i)=>`<tr id="ctl00_Content_PaymentsLV_ctrl${i}_ItemRow"><td>${esc(p.description)}</td><td>${p.amount}</td></tr>`).join('')}</table>`:''}
   <input id="ctl00_Content_LoadSizeHF" name="ctl00$Content$LoadSizeHF" value="${value('LoadSizeHF')}">
   ${submit('SaveAppointmentBtn')}</form><script>document.getElementById('ctl00_Content_LoadSizeDD').addEventListener('change',()=>{ document.getElementById('ctl00_Content_LoadSizeHF').value=document.getElementById('ctl00_Content_LoadSizeTruckQtyTB').value;document.getElementById('ctl00_Content_BillingAmountTB').value='999'; });</script></body></html>`;
 }
@@ -67,6 +67,27 @@ async function main() {
       assert.equal(persisted.get('ctl00$Content$LoadSizeHF'),'1');assert.equal(result.status.value,'8');assert.equal((result.driver as {value:string}).value,'d');assert.equal(saves,1);assert.equal(adds,1);assert.equal((result.payments as unknown[]).length,2);
       if(addPayment.reference) assert.throws(()=>verifyCloseoutFields(result,{...request,addPayment:{...addPayment,reference:'9999'}},before),/reference/);
       assert.throws(()=>verifyCloseoutFields({...result,payments:[...payments,payments[1]]},request,before),/payment amount/);
+    }
+    for (const status of ['1', '8']) {
+      persisted = new URLSearchParams({'ctl00$Content$StatusDD':status,'ctl00$Content$AppointmentTypeDD':'1','ctl00$Content$BillingAmountTB':'508','ctl00$Content$DiscountsTB':'20'});
+      payments=[];adds=0;saves=0;
+      await page.goto(url);
+      const baseline=await capture(page);
+      const estimate=await captureCloseoutSource(page,capture);
+      assert.equal(estimate.status.value,status);
+      assert.equal((estimate.appointmentType as {label:string}).label,'Estimate');
+      assert.equal(estimate.loadPrice,'508');assert.equal(estimate.discount,'20');
+      assert.equal((estimate.paymentMethods as unknown[]).length,5);
+      assert.equal(closeoutSourceVersion(await capture(page)),closeoutSourceVersion(baseline));
+      assert.equal(saves,0);assert.equal(adds,0,'Estimate discovery never saves or adds a payment');
+      assert.equal(closeoutSourceVersion(await captureCloseoutSource(page,capture)),closeoutSourceVersion(estimate));
+      if (status === '8') {
+        const request={...input,appointmentType:'Estimate',loadPrice:'508',discount:'20'};
+        const result=await saveAndVerifyCloseout(estimate,()=>applyCloseout(page,request,estimate),async()=>{await page.goto(url);return captureCloseoutSource(page,capture);},result=>verifyCloseoutFields(result,request,estimate));
+        assert.equal(result.status.value,'8');assert.equal((result.appointmentType as {label:string}).label,'Estimate');
+        assert.equal(result.loadPrice,'508');assert.equal(result.discount,'20');
+        assert.equal(saves,1);assert.equal(adds,0,'Editing a completed estimate preserves no-payment state');
+      }
     }
     for(const amount of ['','0','-1','NaN','1.001','1000001']) assert.ok(validateCloseoutPayment({methodId:'2',amount},methods));
     assert.ok(validateCloseoutPayment({methodId:'unknown',amount:'1'},methods));

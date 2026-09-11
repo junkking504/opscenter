@@ -229,7 +229,7 @@ async function main(): Promise<void> {
     if(readDispatch) {
       const date=junkwareDateKey(await page.locator('#ctl00_Content_AppointmentDateTB').inputValue());
       await openAppointmentDispatch(page,appointmentId,date,d=>ensureAuthenticated(page,`${JUNKWARE_ORIGIN}/franchise/daily-schedule.aspx?d=${d}`));
-      const result=await page.locator(`#aid-${appointmentId}`).evaluate(element=>({draggable:element.classList.contains('draggable'),appointment:element.textContent,franchise:(document.querySelector('#ctl00_FranchiseDD') as HTMLSelectElement)?.selectedOptions[0]?.textContent}));
+      const result=await page.locator(`#aid-${appointmentId}`).evaluate(element=>({draggable:element.classList.contains('draggable'),appointment:element.textContent,franchises:Array.from((document.querySelector('#ctl00_Content_ServiceProviderGroupLB') as HTMLSelectElement)?.selectedOptions || []).map(o=>o.textContent),lanes:Array.from(document.querySelectorAll('table.schedule-table th')).map(h=>({label:h.textContent,truckId:h.querySelector<HTMLInputElement>('.truck-id')?.value})),column:element.closest('td')?.cellIndex}));
       process.stdout.write(JSON.stringify({ok:true,mode:'read-dispatch',appointmentId,date,...result})+'\n');
       await context.close();return;
     }

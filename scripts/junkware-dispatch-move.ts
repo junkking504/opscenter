@@ -1,5 +1,4 @@
 import type { Page } from '@playwright/test';
-import {selectWithWebFormsPostback} from './junkware-webforms';
 export async function readSavedDispatchTruck(page:Page):Promise<string> {
   const select=page.locator('#ctl00_Content_TruckDD');
   if(await select.count()!==1) throw new Error('The JunkWare truck assignment control has changed.');
@@ -19,10 +18,24 @@ export async function readSavedDispatchTruck(page:Page):Promise<string> {
 export type DispatchSource = {appointmentId:string;date:string;truck:string;start:number;duration:number;status:string;protectedCloseout:unknown};
 export async function openAppointmentDispatch(page:Page,appointmentId:string,date:string,openSchedule:(date:string)=>Promise<void>) {
   await openSchedule(date);
-  if(await page.locator(`#aid-${appointmentId}`).count()) return;
-  const franchises=await page.locator('#ctl00_FranchiseDD').evaluateAll(controls=>controls.flatMap(control=>Array.from((control as HTMLSelectElement).options).filter(option=>option.value && !option.selected).map(option=>option.value)));
+  const filter='#ctl00_Content_ServiceProviderGroupLB';
+  const groups=await page.locator(filter).evaluateAll(controls=>controls.flatMap(control=>Array.from((control as HTMLSelectElement).options).filter(option=>option.value).map(option=>({value:option.value,selected:option.selected}))));
+  if(await page.locator(`#aid-${appointmentId}`).count() && groups.filter(group=>group.selected).length<=1) return;
+  const franchises=groups.sort((a,b)=>Number(b.selected)-Number(a.selected)).map(group=>group.value);
   for(const franchise of franchises) {
-    await selectWithWebFormsPostback(page,'#ctl00_FranchiseDD',franchise,'the dispatch franchise');
+    await Promise.all([
+      page.waitForNavigation({waitUntil:'domcontentloaded',timeout:30_000}),
+      page.locator(filter).evaluate((element,value)=>{
+        const select=element as HTMLSelectElement;
+        const form=select.form;
+        const button=document.querySelector<HTMLInputElement>('#ctl00_Content_SelectServiceProvidersBtn');
+        const target=form?.elements.namedItem('__EVENTTARGET');
+        if(!form || !button?.name || !(target instanceof HTMLInputElement)) throw new Error('JunkWare dispatch preflight: the franchise filter changed. No move was submitted.');
+        select.value=value;
+        target.value=button.name;
+        HTMLFormElement.prototype.submit.call(form);
+      },franchise),
+    ]);
     await openSchedule(date);
     if(await page.locator(`#aid-${appointmentId}`).count()) return;
   }
@@ -39,17 +52,18 @@ export async function moveOnDailySchedule(page:Page,input:{appointmentId:string;
   if(!Number.isInteger(start) || start<0 || start%60!==0 || start+before.duration*60>1440) throw new Error('A valid hourly dispatch window is required.');
   if(before.truck===input.truck && before.start===start) return {before,after:before,changed:false};
   await openAppointmentDispatch(page,input.appointmentId,before.date,openSchedule);
-  const target=await page.evaluate(({appointmentId,truck})=>{
+  const target=await page.evaluate(({appointmentId,truck,keepVirtualLane})=>{
     const appointment=document.getElementById(`aid-${appointmentId}`);
     if(!appointment?.classList.contains('draggable')) throw new Error('This appointment is not draggable in the source daily schedule.');
     const label=truck ? 'Truck# '+truck.match(/\d+/)?.[0] : 'Virtual Truck';
     const headers=Array.from(document.querySelectorAll<HTMLTableCellElement>('table.schedule-table th'));
-    const header=headers.find(h=>(h.textContent || '').replace(/\s+/g,' ').trim()===label);
+    const currentHeader=headers[appointment.closest('td')?.cellIndex ?? -1];
+    const header=keepVirtualLane && /virtual truck/i.test(currentHeader?.textContent || '') ? currentHeader : headers.find(h=>(h.textContent || '').replace(/\s+/g,' ').trim()===label);
     const truckId=header?.querySelector<HTMLInputElement>('.truck-id')?.value || '';
     const userId=document.querySelector<HTMLInputElement>("[id$='UserIDHF']")?.value || '';
     if(!/^\d+$/.test(truckId) || !/^\d+$/.test(userId)) throw new Error('The requested JunkWare dispatch lane is unavailable.');
     return {truckId,userId};
-  },input);
+  },{...input,keepVirtualLane:!before.truck && !input.truck});
   let error='';
   try {
     await page.evaluate(async({appointmentId,truckId,startTime,userId})=>{

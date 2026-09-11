@@ -4,7 +4,7 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-export type SavedJunkwareAssignment = { appointmentId: string; truck: string; date: string; appointmentStartMinutes: number; appointmentEndMinutes: number; verifiedAt: string };
+export type SavedJunkwareAssignment = { appointmentId: string; truck: string; date: string; appointmentStartMinutes: number; appointmentEndMinutes: number; verifiedAt: string; status?: string };
 /** Fresh source read only: never replay a pending schedule move. */
 export async function readJunkwareTruckAssignment(appointmentId: string): Promise<SavedJunkwareAssignment> {
   if (!/^\d{1,12}$/.test(appointmentId)) throw new Error('A valid appointment ID is required.');
@@ -29,6 +29,7 @@ export async function syncJunkwareTruckAssignment(input: {
   truck: string;
   appointmentStartMinutes?: number;
   durationHours?: number;
+  expectedDate?: string;
 }): Promise<JunkwareTruckAssignmentResult> {
   const appointmentId = String(input.appointmentId || "").trim();
   const truck = String(input.truck || "").trim();
@@ -67,6 +68,7 @@ export async function syncJunkwareTruckAssignment(input: {
       "--truck",
       truck || "unassigned",
     ];
+    if (input.expectedDate) args.push('--expected-date', input.expectedDate);
     if (appointmentStartMinutes !== undefined) {
       args.push("--start-minutes", String(appointmentStartMinutes), "--duration-hours", String(durationHours));
     }

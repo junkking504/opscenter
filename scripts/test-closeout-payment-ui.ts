@@ -12,7 +12,8 @@ async function main(){
  await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const url=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
  const browser=await chromium.launch({headless:true});
  try{for(const width of [390,1280]){const page=await browser.newPage({viewport:{width,height:844}});await page.goto(url);await page.getByText('Close out this job',{exact:true}).click();await page.getByRole('button',{name:'Open JunkWare closeout',exact:true}).click();await page.getByRole('checkbox',{name:'Add a payment'}).check();
-  const method=page.getByRole('combobox',{name:'Payment method',exact:true});assert.equal(await method.locator('option').count(),5);
+  const methods=page.getByRole('group',{name:'Payment method',exact:true});assert.equal(await methods.getByRole('radio').count(),4);
+  const method={selectOption:async(value:string)=>{const labels:Record<string,string>={'1':'Billed','2':'Cash','3':'Credit Card','4':'Check'};const radio=methods.getByRole('radio',{name:labels[value],exact:true});await radio.click();await expect(radio).toBeChecked();}};
   await method.selectOption('4');await page.getByRole('textbox',{name:'Payment amount',exact:true}).fill('1200');await page.getByRole('textbox',{name:'Check number',exact:true}).fill('009924');await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await page.getByRole('button',{name:'Confirm Job Closeout in JunkWare',exact:true}).waitFor();assert.ok((await page.getByRole('status').textContent())?.includes('Check number: 009924'));
   await page.getByRole('textbox',{name:'Payment amount',exact:true}).fill('1199');await page.getByRole('button',{name:'Review Closeout',exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'Confirm Job Closeout in JunkWare',exact:true}).count(),0);
   await method.selectOption('3');const ref=page.getByRole('textbox',{name:'Card last four',exact:true});assert.equal(await ref.inputValue(),'');await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await page.getByText('Enter only the four trailing card digits for the recorded payment.',{exact:true}).waitFor();await ref.fill('6004');await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await page.getByRole('button',{name:'Confirm Job Closeout in JunkWare',exact:true}).waitFor();
@@ -24,7 +25,7 @@ async function main(){
  await blockedPage.route('**/api/desktop/schedule/closeout?*',route=>route.fulfill({json:{closeout:fixture,sourceVersion:'a'.repeat(64),canWrite:true,pendingReceipt:moveReceipt}}));
  await blockedPage.route('**/api/desktop/schedule/operations?*',route=>route.fulfill({json:{receipt:{...moveReceipt,status:'verified',message:'JunkWare confirms the saved truck and appointment window.'}}}));
  await blockedPage.goto(url);await blockedPage.getByText('Close out this job',{exact:true}).click();await blockedPage.getByRole('button',{name:'Open JunkWare closeout',exact:true}).click();
- await expect(blockedPage.getByRole('alert')).toContainText('This is not a closeout result');
+ await expect(blockedPage.getByRole('alert').last()).toContainText('This is not a closeout result');
  await expect(blockedPage.getByRole('button',{name:'Review Closeout',exact:true})).toBeDisabled();
  await blockedPage.getByRole('button',{name:'Check Saved Result',exact:true}).click();
  await expect(blockedPage.getByRole('button',{name:'Open JunkWare closeout',exact:true})).toBeEnabled();

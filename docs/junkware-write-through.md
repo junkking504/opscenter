@@ -145,3 +145,30 @@ Validation: `verify:junkware-payroll`, `verify:corrected-crew-pay`,
 `verify:junkware-payroll:browser`, `verify:crew-progress`, `verify:ops-auth`, and
 production build. Browser fixtures use synthetic data and make no source writes.
 Live source confirmation is separate from these automated checks.
+
+## Dispatch recovery and canceled appointments
+
+The appointment drawer offers **Restore Appointment** for canceled appointments,
+with date/time review and a separate confirmation. It changes the original
+appointment to Confirmed, preserves truck and duration, reopens JunkWare for
+status/date/time verification, and refreshes both day lists. A pending or
+uncertain restore cannot be submitted again, including from another day/tab.
+Saved-result recovery requires the restored status as well as its schedule.
+
+Completed appointments can move within the dispatch day. Manual dispatch uses
+JunkWare's Daily Schedule `MoveAppointment` action, including earlier hours,
+instead of the appointment editor's future-only available-time menu. The source
+appointment must be draggable; its duration, completed status, assigned Krewe,
+charges, actual work times, and recorded payments are compared after reopening.
+A lost response causes read-back, never a second submission. Canceled appointments
+must be restored first. Dispatch moves preserve duration.
+
+For a rejected time change with a retained pending override, **Check Saved Result**
+can recover the current same-day JunkWare assignment. This only resolves a known
+unavailable-time rejection when the override still matches that exact request.
+The failed move and prior receipt remain in the audit record; current truck/time
+come from a fresh source read. Unknown failures and changed overrides stay held.
+Payment entry explains this lock and uses directly clickable method choices.
+
+Validation: `test-appointment-recovery.ts`, `test-junkware-dispatch-move.ts`,
+`test-reschedule-source.ts`, and `test-closeout-payment-ui.ts` use synthetic data.

@@ -1,3 +1,5 @@
+import { moveOnDailySchedule } from './junkware-dispatch-move';
+import { capture as captureCloseout } from './sync-junkware-job-closeout';
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -236,7 +238,7 @@ async function main(): Promise<void> {
       const duration = Number(await page.locator('#ctl00_Content_DurationDD').inputValue());
       const date = junkwareDateKey(await page.locator('#ctl00_Content_AppointmentDateTB').inputValue());
       if (start === null || !Number.isFinite(duration) || duration <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error('The saved JunkWare assignment is unavailable.');
-      process.stdout.write(JSON.stringify({ok:true,mode:'read-assignment',appointmentId,truck,date,appointmentStartMinutes:start,appointmentEndMinutes:start+duration*60,verifiedAt:new Date().toISOString()})+'\n');
+      process.stdout.write(JSON.stringify({ok:true,mode:'read-assignment',appointmentId,truck,date,status:(await page.locator('#ctl00_Content_StatusDD option:checked').textContent() || '').trim(),appointmentStartMinutes:start,appointmentEndMinutes:start+duration*60,verifiedAt:new Date().toISOString()})+'\n');
       await context.close();
       return;
     }
@@ -317,6 +319,20 @@ async function main(): Promise<void> {
         assignedTruck: await assignedTruck(page),
         ...controls,
       })}\n`);
+      await context.close();
+      return;
+    }
+
+    if (!autoVirtualExternal) {
+      const result = await moveOnDailySchedule(page, {appointmentId,truck:requestedTruck,start:requestedStartMinutes ?? undefined,duration:hasRequestedStart?durationHours:undefined,expectedDate:argument('expected-date') || undefined}, async () => {
+        const closeout = await captureCloseout(page);
+        const start = clockMinutes(await page.locator('#ctl00_Content_StartTimeTB').inputValue());
+        const duration = Number(await page.locator('#ctl00_Content_DurationDD').inputValue());
+        if(start===null || !Number.isInteger(duration) || duration<=0) throw new Error('The saved source appointment window is unavailable.');
+        const protectedCloseout = Object.fromEntries(['jobNumber','status','appointmentType','driver','navigators','loadQuantity','loadSize','loadPrice','bedloadQuantity','bedloadSize','bedloadPrice','jobCategory','howHeard','otherCharges','payments','discount','tip','balance','total','actualStartHour','actualStartMinute','actualEndHour','actualEndMinute'].map(key=>[key,closeout[key]]));
+        return {appointmentId,date:junkwareDateKey(await page.locator('#ctl00_Content_AppointmentDateTB').inputValue()),truck:await assignedTruck(page),start,duration,status:closeout.status.label,protectedCloseout};
+      }, date=>ensureAuthenticated(page, `${JUNKWARE_ORIGIN}/franchise/daily-schedule.aspx?d=${date}`), ()=>ensureAuthenticated(page,targetUrl));
+      process.stdout.write(JSON.stringify({ok:true,mode:'assign',appointmentId,previousTruck:result.before.truck,truck:result.after.truck,previousAppointmentStartMinutes:result.before.start,appointmentStartMinutes:result.after.start,changed:result.changed,verifiedAt:new Date().toISOString()})+'\n');
       await context.close();
       return;
     }

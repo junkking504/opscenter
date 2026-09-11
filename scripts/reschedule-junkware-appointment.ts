@@ -87,7 +87,7 @@ function clockValue(minutes: number): string {
   return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
 }
 
-export async function rescheduleOnPage(page: Page, input: {appointmentId:string;date:string;appointmentStartMinutes:number;expectedDate:string;expectedAppointmentStartMinutes:number;expectedEndMinutes:number;expectedTruck:string}, reopen:()=>Promise<void>) {
+export async function rescheduleOnPage(page: Page, input: {appointmentId:string;date:string;appointmentStartMinutes:number;expectedDate:string;expectedAppointmentStartMinutes:number;expectedEndMinutes:number;expectedTruck:string;restore?:boolean}, reopen:()=>Promise<void>) {
   const {appointmentId,date,appointmentStartMinutes,expectedDate,expectedAppointmentStartMinutes,expectedEndMinutes,expectedTruck}=input;
   let submitted=false;
   const read=async()=>{
@@ -99,17 +99,23 @@ export async function rescheduleOnPage(page: Page, input: {appointmentId:string;
   };
   try {
     const before=await read();
-    if (/cancel|complete|closed/i.test(before.status)) throw new Error("This appointment is already canceled or closed.");
+    if (input.restore ? !/^cancel(?:ed|led)$/i.test(before.status) : /cancel|complete|closed/i.test(before.status)) throw new Error(input.restore ? "Only canceled appointments can be restored." : "This appointment is already canceled or closed.");
+    const targetStatus = input.restore ? 'Confirmed' : before.status;
     if (before.date!==expectedDate || before.appointmentStartMinutes!==expectedAppointmentStartMinutes || before.appointmentEndMinutes!==expectedEndMinutes || before.truck!==expectedTruck) throw new Error("The JunkWare date, time, duration or truck changed. Refresh before rescheduling.");
     const duration=expectedEndMinutes-expectedAppointmentStartMinutes;
+    if (input.restore) {
+      const option = page.locator('#ctl00_Content_StatusDD option', {hasText:/^Confirmed$/i});
+      if (await option.count() !== 1) throw new Error('The JunkWare Confirmed status is unavailable.');
+      await selectWithWebFormsPostback(page, '#ctl00_Content_StatusDD', await option.getAttribute('value') || '', 'the unsaved appointment restoration');
+    }
     await setInputWithWebFormsPostback(page,"#ctl00_Content_AppointmentDateTB",displayDate(date),"the appointment date selection");
     const timeValue=clockValue(appointmentStartMinutes);
-    if (!(await page.locator('#ctl00_Content_AvailableTimesDD option[value="'+timeValue+'"]').count())) throw new Error("That time is not available in JunkWare for the selected date.");
     if (clockMinutes(await page.locator("#ctl00_Content_StartTimeTB").inputValue())!==appointmentStartMinutes) {
+      if (!(await page.locator('#ctl00_Content_AvailableTimesDD option[value="'+timeValue+'"]').count())) throw new Error("That time is not available in JunkWare for the selected date.");
       await selectWithWebFormsPostback(page,"#ctl00_Content_AvailableTimesDD",timeValue,"the appointment time selection");
     }
     const staged=await read();
-    if(staged.date!==date || staged.appointmentStartMinutes!==appointmentStartMinutes || staged.appointmentEndMinutes!==appointmentStartMinutes+duration || staged.truck!==expectedTruck || staged.status!==before.status) throw new Error("JunkWare did not retain the requested date and time while preserving the truck, duration and status.");
+    if(staged.date!==date || staged.appointmentStartMinutes!==appointmentStartMinutes || staged.appointmentEndMinutes!==appointmentStartMinutes+duration || staged.truck!==expectedTruck || staged.status!==targetStatus) throw new Error("JunkWare did not retain the requested date and time while preserving the truck, duration and status.");
     await sanitizeJunkwareCustomerEmail(page);
     submitted=true;
     let saveError='';
@@ -118,8 +124,8 @@ export async function rescheduleOnPage(page: Page, input: {appointmentId:string;
     // Reopen even after a lost save response. Never click Save twice.
     await reopen();
     const saved=await read();
-    if(saved.date!==date || saved.appointmentStartMinutes!==appointmentStartMinutes || saved.appointmentEndMinutes!==appointmentStartMinutes+duration || saved.truck!==expectedTruck || saved.status!==before.status) throw new Error(saveError || "JunkWare has not verified the requested reschedule.");
-    return {ok:true,mode:"reschedule",appointmentId,...saved,submitted,verifiedAt:new Date().toISOString()};
+    if(saved.date!==date || saved.appointmentStartMinutes!==appointmentStartMinutes || saved.appointmentEndMinutes!==appointmentStartMinutes+duration || saved.truck!==expectedTruck || saved.status!==targetStatus) throw new Error(saveError || "JunkWare has not verified the requested reschedule.");
+    return {ok:true,mode:input.restore?"restore":"reschedule",appointmentId,...saved,submitted,verifiedAt:new Date().toISOString()};
   } catch(error) {
     return {ok:false,submitted,error:error instanceof Error?error.message:"The reschedule could not be verified."};
   }
@@ -152,7 +158,7 @@ async function main(): Promise<void> {
     const targetUrl = `${ORIGIN}/franchise/appointment.aspx?id=${appointmentId}`;
     await ensureAuthenticated(page, targetUrl);
 
-    const result=await rescheduleOnPage(page,{appointmentId,date,appointmentStartMinutes,expectedDate,expectedAppointmentStartMinutes,expectedEndMinutes,expectedTruck},()=>ensureAuthenticated(page,targetUrl));
+    const result=await rescheduleOnPage(page,{appointmentId,date,appointmentStartMinutes,expectedDate,expectedAppointmentStartMinutes,expectedEndMinutes,expectedTruck,restore:process.argv.includes("--restore")},()=>ensureAuthenticated(page,targetUrl));
     process.stdout.write(JSON.stringify(result)+"\n");
     await context.close();
   } finally {

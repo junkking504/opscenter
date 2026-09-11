@@ -48,7 +48,7 @@ assert.equal(unavailableRoute(route, [{ ...job, location: { latitude: 30, longit
 assert.equal(unavailableRoute(route, [{ ...job, location: { latitude: 30, longitude: -90 } }, sharedJk]).label, "Verify Address");
 
 assert.equal(scheduleMoveRestriction(job), null);
-assert.match(scheduleMoveRestriction({ ...job, appointmentType: "Job", status: "Completed" })!, /Completed appointments/);
+assert.equal(scheduleMoveRestriction({ ...job, appointmentType: "Job", status: "Completed" }), null);
 assert.match(scheduleMoveRestriction({ ...job, status: "Canceled" })!, /Canceled appointments/);
 assert.match(scheduleMoveRestriction({ ...job, junkwareSyncStatus: "pending" })!, /Verify the previous assignment/);
 

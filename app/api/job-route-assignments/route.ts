@@ -86,6 +86,7 @@ export async function POST(request: Request) {
       truck,
       appointmentStartMinutes,
       durationHours,
+      expectedDate: date,
     }));
   } catch (error) {
     const detail = error instanceof Error ? error.message : "JunkWare could not verify the assignment.";

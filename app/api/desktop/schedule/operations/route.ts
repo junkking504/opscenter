@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     receipt = await reconcileMoveReceipt(requestId, actor.email, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id)));
   }
   if (!receipt || receipt.actor !== actor.email) return Response.json({ error: 'Change receipt not found.' }, { status: 404, headers });
-  if(parameters.get('reconcile')==='1' && receipt.action==='reschedule' && authorizeOpsRequest(actor.role,'/api/job-route-assignments','POST').allowed) receipt=await reconcileRescheduleReceipt(requestId,actor.email,id=>withJunkwareAppointmentSyncLock(id,()=>readJunkwareTruckAssignment(id)));
+  if(parameters.get('reconcile')==='1' && ['reschedule','restore'].includes(receipt.action) && authorizeOpsRequest(actor.role,'/api/job-route-assignments','POST').allowed) receipt=await reconcileRescheduleReceipt(requestId,actor.email,id=>withJunkwareAppointmentSyncLock(id,()=>readJunkwareTruckAssignment(id)));
   return Response.json({ receipt }, { headers });
 }
 export async function POST(request: Request) {
@@ -41,10 +41,10 @@ export async function POST(request: Request) {
   if (!isDesktopWriteOriginAllowed(request)) return Response.json({ error: 'Cross-site changes are not allowed.' }, { status: 403, headers });
   try {
     const operation = parseScheduleOperation(await request.json());
-    const [sourcePath, handler] = sources[operation.action === 'reschedule' ? 'move' : operation.action];
+    const [sourcePath, handler] = sources[operation.action === 'reschedule' || operation.action === 'restore' ? 'move' : operation.action];
     if (!authorizeOpsRequest(actor.role, sourcePath, 'POST').allowed) return Response.json({ error: 'Your role does not include this action.' }, { status: 403, headers });
     const receipt = await executeScheduleOperation(operation, actor.email, () => readDesktopSchedule(operation.date).appointments.find(job => job.recordId === operation.recordId), async job => {
-      if(operation.action==='reschedule') return rescheduleAppointment(job,operation.date,operation.values);
+      if(['reschedule','restore'].includes(operation.action)) return rescheduleAppointment(job,operation.date,operation.values,operation.action==='restore');
       const values = operation.values;
       const payload = operation.action === 'move' ? { truck: String(values.truck || ''), ...(Number.isInteger(values.appointmentStartMinutes) ? { appointmentStartMinutes: values.appointmentStartMinutes, durationHours: values.durationHours } : {}) }
         : operation.action === 'cancel' ? { cancellationReason: String(values.reason || ''), jkNumber: job.jkNumber, customerName: job.customerName }

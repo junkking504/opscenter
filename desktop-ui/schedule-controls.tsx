@@ -12,7 +12,7 @@ import {
 
 export type { MoveProposal } from "./lib/schedule-contract";
 export type Receipt = {
-  action?: 'move' | 'reschedule' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify';
+  action?: 'move' | 'reschedule' | 'restore' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify';
   sourceResult?: Record<string, unknown>;
   requestId: string;
   status: "pending" | "verified" | "failed" | "uncertain";
@@ -301,7 +301,7 @@ export default function ScheduleControls({
           Assignment Not Verified in JunkWare. Check the source before another move.
         </p>
       )}
-      {!isClosed(job) && (
+      {!/cancel/i.test(job.status) && (
         <>
           <div className="drawer-control-fields">
             <label>
@@ -348,7 +348,7 @@ export default function ScheduleControls({
             >
               Review Assignment Change
             </Button>
-            <Button
+            {!isClosed(job) && <Button
               variant="outline"
               disabled={blocked}
               onClick={() => {
@@ -356,7 +356,7 @@ export default function ScheduleControls({
               }}
             >
               {job.callAhead === "called" ? "Clear Call Ahead" : "Mark Call Ahead"}
-            </Button>
+            </Button>}
           </div>
         </>
       )}

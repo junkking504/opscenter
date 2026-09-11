@@ -126,7 +126,7 @@ export function needsScheduleAddressVerification(job: Pick<ScheduleAppointment, 
 export function isClosed(job: Pick<ScheduleAppointment, 'appointmentType' | 'status'>) { return /complete|closed|cancel/i.test(job.status); }
 export function assignmentNeedsVerification(job: Pick<ScheduleAppointment, 'junkwareSyncStatus'>) { return Boolean(job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified'); }
 export function scheduleMoveRestriction(job: ScheduleAppointment) {
-  if (isClosed(job)) return `${appointmentStatus(job)} appointments cannot be moved through dispatch.`;
+  if (/cancel/i.test(job.status)) return 'Canceled appointments must be restored before moving through dispatch.';
   if (assignmentNeedsVerification(job)) return 'Verify the previous assignment change in JunkWare before moving this appointment again.';
   return null;
 }

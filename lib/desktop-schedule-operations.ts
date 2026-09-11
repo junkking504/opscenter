@@ -8,7 +8,7 @@ import { withScheduleOperationLock, readJobRouteAssignmentOverrides, saveJobRout
 import type { SavedJunkwareAssignment } from '@/lib/junkware-truck-assignment';
 import { closeoutSourceVersion } from '@/lib/desktop-closeout-contract';
 
-export type ScheduleOperation = { requestId: string; date: string; recordId: string; expectedVersion: string; action: 'move' | 'reschedule' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify'; values: Record<string, unknown> };
+export type ScheduleOperation = { requestId: string; date: string; recordId: string; expectedVersion: string; action: 'move' | 'reschedule' | 'restore' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify'; values: Record<string, unknown> };
 export type ScheduleReceipt = { requestId: string; actor: string; action: ScheduleOperation['action']; recordId: string; date: string; fingerprint: string; expectedCloseoutSourceVersion?: string; status: 'pending' | 'verified' | 'failed' | 'uncertain'; updatedAt: string; message: string; sourceResult?: Record<string, unknown>; priorResult?: { status: string; message: string; updatedAt: string } };
 const directory = () => process.env.OPSCENTER_DESKTOP_OPERATIONS_DIR || path.join(process.cwd(), 'data', 'desktop-operations');
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -19,7 +19,7 @@ export function parseScheduleOperation(value: unknown): ScheduleOperation {
   const recordId = String(body.recordId || '');
   const expectedVersion = String(body.expectedVersion || '');
   const action = String(body.action || '') as ScheduleOperation['action'];
-  if (!uuid.test(requestId) || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) !== date || !recordId.startsWith(`${date}:appointment:`) || recordId.length > 100 || !/^[a-f0-9]{64}$/.test(expectedVersion) || !['move', 'reschedule', 'call_ahead', 'cancel', 'note', 'closeout', 'classify'].includes(action)) throw new Error('A valid appointment, source version, operating date, and request ID are required.');
+  if (!uuid.test(requestId) || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(date)) || new Date(`${date}T12:00:00Z`).toISOString().slice(0, 10) !== date || !recordId.startsWith(`${date}:appointment:`) || recordId.length > 100 || !/^[a-f0-9]{64}$/.test(expectedVersion) || !['move', 'reschedule', 'restore', 'call_ahead', 'cancel', 'note', 'closeout', 'classify'].includes(action)) throw new Error('A valid appointment, source version, operating date, and request ID are required.');
   const values = body.values && typeof body.values === 'object' ? body.values as Record<string, unknown> : {};
   if (JSON.stringify(values).length > 10_000) throw new Error('The appointment change is too large.');
   if (!new RegExp(`^${date}:appointment:[0-9]{1,12}$`).test(recordId)) throw new Error('A valid source appointment ID is required.');
@@ -36,7 +36,7 @@ export function parseScheduleOperation(value: unknown): ScheduleOperation {
     } else if (values.durationHours !== undefined) throw new Error('A start time is required to change the appointment duration.');
   }
   if (action === 'classify') parseClassificationChange(values);
-  if (action === 'reschedule' && (!validRescheduleDate(values.destinationDate) || typeof values.appointmentStartMinutes !== 'number' || !Number.isInteger(values.appointmentStartMinutes) || values.appointmentStartMinutes < 0 || values.appointmentStartMinutes >= 1440 || values.appointmentStartMinutes % 60 !== 0)) throw new Error('A valid destination date and hourly appointment time are required.');
+  if (['reschedule','restore'].includes(action) && (!validRescheduleDate(values.destinationDate) || typeof values.appointmentStartMinutes !== 'number' || !Number.isInteger(values.appointmentStartMinutes) || values.appointmentStartMinutes < 0 || values.appointmentStartMinutes >= 1440 || values.appointmentStartMinutes % 60 !== 0)) throw new Error('A valid destination date and hourly appointment time are required.');
   return { requestId, date, recordId, expectedVersion, action, values };
 }
 export async function readScheduleReceipt(id: string): Promise<ScheduleReceipt | null> {
@@ -86,16 +86,17 @@ export async function executeScheduleOperation(operation: ScheduleOperation, act
     if (pending) throw new Error(`This appointment has an unverified change (${pending.requestId}). Check its saved result and JunkWare before another change.`);
     const job = load();
     if (!job || job.version !== operation.expectedVersion) throw new Error('This appointment changed. Refresh and review the current source record.');
-    if (operation.action === 'reschedule') {
-      rescheduleTarget(job, operation.date, operation.values);
+    if (['reschedule','restore'].includes(operation.action)) {
+      rescheduleTarget(job, operation.date, operation.values, operation.action === 'restore');
       if (job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified') throw new Error('This appointment has an unverified change. Check its saved result before rescheduling.');
     }
-    if (/cancel/i.test(job.status) && operation.action !== 'note') throw new Error('Canceled appointments cannot be changed through dispatch controls.');
-    if (/complete|closed/i.test(job.status) && !['note', 'closeout', 'classify'].includes(operation.action)) throw new Error('Closed appointments cannot be changed through dispatch controls.');
+    if (operation.action === 'restore' && !/cancel/i.test(job.status)) throw new Error('Only canceled appointments can be restored. Refresh the source record.');
+    if (/cancel/i.test(job.status) && !['note','restore'].includes(operation.action)) throw new Error('Canceled appointments cannot be changed through dispatch controls.');
+    if (/complete|closed/i.test(job.status) && !['note', 'closeout', 'classify', 'move'].includes(operation.action)) throw new Error('Closed appointments cannot be changed through dispatch controls.');
     if (operation.action === 'move' && job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified') throw new Error('This appointment has an unverified change to its assignment. Verify it in JunkWare before another move.');
     let receipt: ScheduleReceipt = { requestId: operation.requestId, actor, action: operation.action, date: operation.date, recordId: operation.recordId, fingerprint, status: 'pending', updatedAt: new Date().toISOString(), message: 'Source verification in progress. Do not submit another change.' };
     if (operation.action === 'closeout') receipt.expectedCloseoutSourceVersion = String(operation.values.expectedSourceVersion);
-    if (operation.action === 'reschedule') receipt.sourceResult = {expected:rescheduleTarget(job,operation.date,operation.values)};
+    if (['reschedule','restore'].includes(operation.action)) receipt.sourceResult = {expected:rescheduleTarget(job,operation.date,operation.values,operation.action === 'restore')};
     await writeReceipt(receipt);
     try {
       const result = await run(job);
@@ -147,6 +148,18 @@ export async function reconcileMoveReceipt(id: string, actor: string, readSource
     if (source.appointmentId !== appointmentId || !Number.isFinite(Date.parse(source.verifiedAt))) return receipt;
     if (source.date !== receipt.date || !matches(source)) {
       const clock = (minutes:number) => `${Math.floor(minutes/60)%12||12}:${String(minutes%60).padStart(2,'0')} ${minutes>=720?'PM':'AM'}`;
+      // A rejected time slot is terminal, even if JunkWare saved the truck first.
+      // Adopt only a fresh same-day read, and preserve the attempted move in its receipt.
+      const current = readJobRouteAssignmentOverrides(receipt.date).get(`appt:${appointmentId}`);
+      const rejectedTime = /\b(?:0?[1-9]|1[0-2]):[0-5]\d [AP]M is not available for this JunkWare appointment\./i.test(String(expected.junkwareSyncError || ''));
+      if (rejectedTime && source.date === receipt.date && current && matches(current) && current.updatedAt === expected.updatedAt) {
+        const assignment = saveJobRouteAssignment({...current, expectedUpdatedAt: current.updatedAt, truck: source.truck, appointmentStartMinutes: source.appointmentStartMinutes, appointmentEndMinutes: source.appointmentEndMinutes, appointmentTime: `${clock(source.appointmentStartMinutes)} - ${clock(source.appointmentEndMinutes)}`, junkwareSyncStatus: 'verified', junkwareSyncError: '', junkwareVerifiedAt: source.verifiedAt});
+        if (assignment) {
+          const resolved: ScheduleReceipt = {...receipt, status:'failed', updatedAt:new Date().toISOString(), message:`JunkWare rejected the requested time. Schedule now shows its saved assignment: ${source.truck || 'Unassigned'}, ${clock(source.appointmentStartMinutes)}–${clock(source.appointmentEndMinutes)}. Review this assignment before continuing. No move or payment was resubmitted.`, priorResult:{status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt}, sourceResult:{...receipt.sourceResult, assignmentReadback:source, assignmentReconciled:true, reconciledAssignment:assignment}};
+          await writeReceipt(resolved);
+          return resolved;
+        }
+      }
       const checked: ScheduleReceipt = {...receipt,updatedAt:new Date().toISOString(),message:`Earlier assignment change is still unresolved. JunkWare currently shows ${source.date}, ${source.truck || 'Unassigned'}, ${clock(source.appointmentStartMinutes)}–${clock(source.appointmentEndMinutes)}. This does not match the requested move; no closeout or payment was submitted by this check.`,sourceResult:{...receipt.sourceResult,assignmentReadback:source}};
       await writeReceipt(checked);
       return checked;
@@ -165,7 +178,7 @@ export async function reconcileMoveReceipt(id: string, actor: string, readSource
 export async function reconcileRescheduleReceipt(id: string, actor: string, readSource: (appointmentId:string)=>Promise<SavedJunkwareAssignment>): Promise<ScheduleReceipt|null> {
   const initial=await readScheduleReceipt(id);
   if (!initial || initial.actor!==actor) return null;
-  if(initial.action!=='reschedule' || initial.status!=='uncertain') return initial;
+  if(!['reschedule','restore'].includes(initial.action) || initial.status!=='uncertain') return initial;
   return withScheduleOperationLock('appointment-'+initial.recordId.split(':appointment:')[1],async()=>{
     const receipt=await readScheduleReceipt(id);
     if(!receipt || receipt.status!=='uncertain') return receipt;
@@ -173,8 +186,8 @@ export async function reconcileRescheduleReceipt(id: string, actor: string, read
     if(!expected || expected.appointmentId!==receipt.recordId.split(':appointment:')[1] || !validRescheduleDate(expected.date)) return receipt;
     let source:SavedJunkwareAssignment;
     try{source=await readSource(String(expected.appointmentId));}catch{return receipt;}
-    if(!Number.isFinite(Date.parse(source.verifiedAt)) || !['appointmentId','date','truck','appointmentStartMinutes','appointmentEndMinutes'].every(key=>source[key as keyof SavedJunkwareAssignment]===expected[key])) return receipt;
-    const verified:ScheduleReceipt={...receipt,status:'verified',updatedAt:new Date().toISOString(),message:'JunkWare verified the rescheduled date, time and truck. No change was resubmitted.',priorResult:{status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt},sourceResult:{...receipt.sourceResult,junkware:source}};
+    if((receipt.action==='restore' && source.status!=='Confirmed') || !Number.isFinite(Date.parse(source.verifiedAt)) || !['appointmentId','date','truck','appointmentStartMinutes','appointmentEndMinutes'].every(key=>source[key as keyof SavedJunkwareAssignment]===expected[key])) return receipt;
+    const verified:ScheduleReceipt={...receipt,status:'verified',updatedAt:new Date().toISOString(),message:receipt.action==='restore'?'JunkWare verified the restored appointment, date, time and truck. No change was resubmitted.':'JunkWare verified the rescheduled date, time and truck. No change was resubmitted.',priorResult:{status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt},sourceResult:{...receipt.sourceResult,junkware:source}};
     await writeReceipt(verified);
     return verified;
   });

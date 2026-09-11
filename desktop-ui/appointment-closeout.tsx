@@ -2,7 +2,7 @@
 
 import { paymentReferenceLabel, validateCloseoutPayment } from "../lib/closeout-payment";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ScheduleAppointment } from './lib/schedule-contract';
 import { sendScheduleChange, checkScheduleChange, ChangeReceipt, type Receipt } from './schedule-controls';
 import './appointment-closeout.css';
@@ -59,6 +59,7 @@ function automaticSizePrice(size: string, quantity: string, options: Option[], p
 
 export default function AppointmentCloseout({ job, date: serviceDate, saved, onBusyChange }: { job: ScheduleAppointment; date: string; saved: () => void; onBusyChange: (busy: boolean) => void }) {
   const { appointmentId, appointmentUrl, status: initialStatus } = job;
+  const paymentGroupId = useId();
   const [sourceVersion, setSourceVersion] = useState('');
   const [canWrite, setCanWrite] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
@@ -300,7 +301,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   async function check() {
     if (!receipt || requestPending.current) return;
     requestPending.current = true; setSaving(true);
-    try { const result = await checkScheduleChange(receipt.requestId); setReceipt(result); if (result.status === 'verified') { if (result.action && result.action !== 'closeout') { setReceipt(null); setLive(null); setSourceVersion(''); setCanWrite(false); } else if (result.sourceResult?.closeout) setLive(result.sourceResult.closeout as LiveCloseout); setAddPayment(false); setPaymentMethod(''); setPaymentAmount(''); setPaymentReference(''); setPendingOtherCharges([]); saved(); } }
+    try { const result = await checkScheduleChange(receipt.requestId); setReceipt(result); if (result.status === 'verified' || (result.action === 'move' && result.status === 'failed' && result.sourceResult?.assignmentReconciled)) { if (result.action && result.action !== 'closeout') { setMessage(result.message); setReceipt(null); setLive(null); setSourceVersion(''); setCanWrite(false); } else if (result.sourceResult?.closeout) setLive(result.sourceResult.closeout as LiveCloseout); setAddPayment(false); setPaymentMethod(''); setPaymentAmount(''); setPaymentReference(''); setPendingOtherCharges([]); saved(); } }
     catch { setError('Saved result unavailable. Do not repeat this closeout.'); }
     finally { requestPending.current = false; setSaving(false); }
   }
@@ -316,6 +317,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
           </button>
         ) : (
           <>
+            {receipt && ['pending', 'uncertain'].includes(receipt.status) && <p role="alert">Payment entry is locked while an earlier {receipt.action === 'move' ? 'assignment change' : 'appointment change'} is unresolved. Use Check Saved Result below to load the saved JunkWare result.</p>}
             <fieldset onChange={() => setReviewing(false)} className="desktop-closeout-fields" disabled={saving || Boolean(receipt && receipt.status !== 'failed')}>
             <label><span>Final appointment category</span><select value={category} onChange={event => { setCategory(event.target.value); setReviewing(false); setEstimateReason(''); setEstimateExplanation(''); setNoDiscountReason(''); }}><option>Job</option><option>Estimate</option></select></label>
             <div className="drawer-facts">
@@ -424,10 +426,11 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               <h4>Payments</h4>
               {live.payments.length ? <div className="ops-closeout-payments">{live.payments.map((payment, index) => <div key={`payment-${index}`}><span>{payment.description}</span><strong>{payment.amount}</strong></div>)}</div> : <p>No payment has been entered in Junkware.</p>}
               <label className="ops-closeout-payment-toggle"><input type="checkbox" checked={addPayment} disabled={!live.paymentMethods.some(option => option.value)} onChange={(event) => setAddPayment(event.target.checked)} /> <span>Add a payment</span></label>
+              {!live.paymentMethods.some(option => option.value) && <p role="alert">Payment methods could not be loaded. Reload from JunkWare to try again.</p>}
               {addPayment ? <div className="ops-closeout-payment-entry">
-                <label><span>Payment method</span><select aria-label="Payment method" value={paymentMethod} onChange={(event) => { setPaymentMethod(event.target.value); setPaymentReference(""); }}>
-                  <option value="">Choose method</option>{live.paymentMethods.filter(option => option.value).map((option) => <option key={`payment-method-${option.value}`} value={option.value}>{option.label}</option>)}
-                </select></label>
+                <fieldset className="ops-closeout-payment-methods"><legend>Payment method</legend>
+                  {live.paymentMethods.filter(option => option.value).map(option => <label key={option.value}><input type="radio" name={paymentGroupId} value={option.value} checked={paymentMethod === option.value} onChange={() => { setPaymentMethod(option.value); setPaymentReference(""); setReviewing(false); }} /><span>{option.label}</span></label>)}
+                </fieldset>
                 <label><span>Payment amount</span><input aria-label="Payment amount" value={paymentAmount} inputMode="decimal" placeholder="Amount" onChange={(event) => setPaymentAmount(event.target.value)} /></label>
                 {paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod)) && <label><span>{paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}</span><input aria-label={paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))} value={paymentReference} maxLength={/card/i.test(paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))) ? 4 : 30} onChange={event => setPaymentReference(event.target.value)} /></label>}
                 <p>Records payment information in JunkWare. Card charges processed through JunkWare are added automatically; record a card payment here only if it was already collected elsewhere. Billed means payment is still owed.</p>

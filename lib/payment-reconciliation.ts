@@ -1,4 +1,6 @@
 import fs from "fs";
+import { readMerchantSnapshot, reconcileMerchantEvidence } from "./merchant-center-evidence";
+import type { MerchantEvidence, MerchantReport } from "../desktop-ui/lib/merchant-evidence-contract";
 import path from "path";
 import { chicagoDateKey } from "@/lib/chicago-date";
 
@@ -100,6 +102,7 @@ export type PaymentExceptionRow = {
 };
 
 export type PaymentByJobRow = {
+  processor?: MerchantEvidence;
   date: string;
   jkNumber: string;
   customer: string;
@@ -115,6 +118,7 @@ export type PaymentByJobRow = {
 };
 
 export type PaymentReconciliationView = {
+  processor?: MerchantReport;
   status: "balanced" | "needs_review" | "merchant_data_missing" | "merchant_data_stale" | "not_collected";
   summary: PaymentReconciliationSummary;
   exceptions: PaymentExceptionRow[];
@@ -311,8 +315,11 @@ function paymentByJobRows(payload: PaymentReconciliation): PaymentByJobRow[] {
 
 export function buildDailyPaymentReconciliation(date: string): PaymentReconciliationView {
   const payload = readPaymentReconciliation(date);
+  const merchant = readMerchantSnapshot(date);
+  const evidence = reconcileMerchantEvidence(payload ? paymentByJobRows(payload) : [], payload, merchant.snapshot, merchant.issue);
   if (!payload) {
     return {
+      processor: evidence.processor,
       status: "not_collected",
       summary: { ...EMPTY_SUMMARY },
       exceptions: [],
@@ -333,7 +340,7 @@ export function buildDailyPaymentReconciliation(date: string): PaymentReconcilia
     status: merchantCenterAvailable && !merchantCenterFresh ? "merchant_data_stale" : payload.status,
     summary,
     exceptions: exceptionRows(payload),
-    paymentsByJob: paymentByJobRows(payload),
+    ...evidence,
     generatedAt: payload.generated_at || null,
     merchantCenterAvailable,
     merchantCenterFresh,

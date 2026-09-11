@@ -1,6 +1,6 @@
 # JunkWare and QuickBooks Online reconciliation
 
-OpsCenter compares the credit-card ledger in JunkWare **Accounting → Update QuickBooks** with card transactions already present in the connected **QuickBooks Online** company. The Finance page shows the result in daily and monthly views. Merchant Center is not part of this workflow.
+OpsCenter compares the credit-card ledger in JunkWare **Accounting → Update QuickBooks** with card transactions already present in the connected **QuickBooks Online** company. The Finance page shows the result in daily and monthly views. Merchant Center is an independent processor-evidence source alongside this accounting comparison. Its approval never substitutes for a QBO posting or verifies bank settlement.
 
 ## Finance navigation
 
@@ -59,3 +59,47 @@ rows are marked Recorded, with no claim that a bank deposit or QBO match has bee
 verified. Card Payments and Card Difference retain the existing card-only QBO
 reconciliation. Job Difference compares all closeout tenders with job revenue
 plus tip; split-tender tips are not invented or repeated per payment.
+
+
+## Merchant Center processing evidence
+
+Finance → Payments shows three separate facts: the payment recorded against a
+JunkWare job, its Merchant Center processing evidence, and its QBO accounting
+match. QBO totals/differences and open accounting exceptions do not change merely
+because Merchant Center approved a charge. The payment drawer labels QBO IDs as
+QBO references and shows a separate Merchant Center transaction link, amount,
+status, fee, and observation timestamp.
+
+Processor snapshots live in `data/imports/merchant_center/junk_krewe/`, separate
+from the legacy-named QBO import directory above. Never point the Merchant Center
+collector at the QBO directory. Schema 1 snapshots identify Junk Krewe account
+ending 4618, source, day, observation time, coverage, and normalized transactions.
+Only explicit approved/captured/settled/funded/deposited/paid Sale or Charge rows
+count toward gross approved sales; refunds, voids, failures, and unknown statuses
+remain source evidence and do not count as approved sales. These totals are not
+net settlement totals.
+
+Exact cents, same date, corroborating job/card/customer identity, and one-to-one
+matching are required. Conflicting job/card references block a match. Ambiguous
+records stay separate. Missing rows are only called absent from an export when
+that export declares complete day coverage. Individual detail observations stay
+partial. Evidence older than 15 minutes for today or 24 hours for historical days
+is marked for refresh; it is not silently presented as current.
+
+The existing live-refresh loop starts `run-merchant-center-refresh.py` separately
+from its QBO work. This runner uses its own lock, a 180-second process deadline,
+one due export per invocation, and a 30-minute failure backoff. It revisits today,
+yesterday, and unresolved days in the current month. It calls the existing
+read-only Merchant Center export collector using its persistent browser session.
+An expired Intuit sign-in is a collection issue; it preserves prior evidence and
+cannot prevent QBO/JunkWare collection. The browser session must be authenticated
+before automatic collection can succeed. Credentials are not copied from Safari.
+This path does not request a new Payments API scope, post a payment, or charge a
+card.
+
+For a verified transaction detail observed separately, use schema 1 with
+`collector: "merchant-center-detail"`, `complete: false`, and its actual observation
+time, then run `node --import tsx scripts/import-merchant-center-evidence.ts <file>`.
+Keep evidence and provenance outside Git. This adds processor evidence only; it
+cannot repair QBO or JunkWare. A later complete export supersedes older details.
+Run `npm run verify:merchant-evidence` for source-isolation and matching checks.

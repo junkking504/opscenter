@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import './appointment-presence.css';
 import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract';
 import { appointmentRegion, appointmentStatus, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
-import { groupMapPins, territoryMapCenters } from './lib/schedule-map-layout';
+import { separateMapPins, territoryMapCenters } from './lib/schedule-map-layout';
 import type {TruckGpsRoute} from './lib/gps-route-contract';
 
 type Props = {
@@ -127,42 +127,12 @@ export default function ScheduleMap(props: Props) {
       const activeId = host.current?.contains(document.activeElement) ? (document.activeElement as HTMLElement)?.dataset.mapPin : undefined;
       layer.clearLayers();
       const anchors = pins.map(pin => ({ id: pin.id, ...view.latLngToLayerPoint(pin.coordinate) }));
-      const groups = groupMapPins(anchors);
-      const hidden = new Set<string>();
-      const positions = new Map(anchors.map(p=>[p.id,{...p,dx:0,dy:0}]));
-      for (const group of groups) {
-        if (group.members.length === 2 && view.getZoom() >= 15) {
-          group.members.forEach((p,index)=>positions.set(p.id,{...p,dx:group.x+(index===0?-24:24)-p.x,dy:group.y-p.y}));
-        } else if (group.members.length > 1) {
-          group.members.forEach(p=>hidden.add(p.id));
-          const members = group.members.map(p=>pins.find(pin=>pin.id===p.id)!);
-          const trucks = members.filter(p=>p.id.startsWith('truck:')).length;
-          const appointments = members.filter(p=>p.id.startsWith('appointment:')).length;
-          const badge = document.createElement('button'); badge.type='button'; badge.className=`map-locator-group${members.some(pin=>pin.selected)?' route-selected':''}`;
-          badge.setAttribute('aria-label',`Expand ${appointments} appointments and ${trucks} trucks at nearby locations`);
-          badge.dataset.mapGroup=group.members.map(p=>p.id).join('|');
-          if (appointments) { const jobs=document.createElement('span'); jobs.className='map-group-appointments';jobs.textContent=String(appointments);badge.append(jobs); }
-          if (trucks) { const vehicle=document.createElement('span');vehicle.className='truck-marker';vehicle.innerHTML=dumpTruckMapSvg;const count=document.createElement('b');count.textContent=String(trucks);vehicle.append(count);badge.append(vehicle); }
-          if (!appointments && !trucks) badge.textContent=`${members.length} trip points`;
-          const openChoices = () => {
-            const choices=document.createElement('div'); choices.className='map-locator-choices';choices.setAttribute('aria-label','Nearby locators');
-            for(const pin of members) { const choice=document.createElement('button');choice.type='button';choice.textContent=`${pin.tooltipTitle} · ${pin.tooltipDetail}`;choice.onclick=e=>{e.stopPropagation();view.closePopup();pin.select();};choices.append(choice); }
-            L.DomEvent.disableClickPropagation(choices);L.DomEvent.disableScrollPropagation(choices);
-            L.popup({className:'map-locator-popup',maxWidth:260}).setLatLng(view.layerPointToLatLng([group.x,group.y])).setContent(choices).openOn(view);
-          };
-          L.DomEvent.disableClickPropagation(badge);
-          badge.onclick=event=>{
-            event.stopPropagation();view.closePopup();
-            const bounds=L.latLngBounds(members.map(p=>p.coordinate));
-            const zoom=Math.min(18,view.getBoundsZoom(bounds,false,L.point(90,90)));
-            if (zoom>view.getZoom()) view.setView(bounds.getCenter(),zoom,{animate:false});
-            else openChoices();
-          };
-          L.marker(view.layerPointToLatLng([group.x,group.y]),{keyboard:false,icon:L.divIcon({className:'live-map-pin',html:badge,iconSize:[86,38],iconAnchor:[43,19]}),zIndexOffset:1100}).addTo(layer);
-        }
-      }
+      const topLeft = view.containerPointToLayerPoint([0, 0]);
+      const bottomRight = view.containerPointToLayerPoint(view.getSize());
+      const positions = new Map(separateMapPins(anchors, {
+        left: topLeft.x, top: topLeft.y, right: bottomRight.x, bottom: bottomRight.y,
+      }).map(point => [point.id, point]));
       for (const pin of pins) {
-        if (hidden.has(pin.id)) continue;
         const { x, y, dx: offsetX, dy: offsetY } = positions.get(pin.id)!;
         const displaced = Math.hypot(offsetX, offsetY) > 1;
         if (displaced && !pin.id.startsWith('trip:')) L.polyline([pin.coordinate, view.layerPointToLatLng(L.point(x + offsetX, y + offsetY))], {

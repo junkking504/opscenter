@@ -20,6 +20,8 @@ const areaCases=new URLSearchParams(location.search).has('areas') ? [
   ['New Orleans, LA 70128','New Orleans'], ['Chalmette, LA 70043','Jefferson Parish'],
   ['Metairie, LA 70001','Jefferson Parish'], ['New Orleans, LA 70122','New Orleans'],
   ['New Orleans, LA 70114','Jefferson Parish'], ['New Orleans, LA 70128','New Orleans'],
+  ['Ponchatoula, LA 70454','New Orleans'], ['Hammond, LA 70403','New Orleans'],
+  ['LaPlace, LA 70068','New Orleans'], ['Luling, LA 70070','Jefferson Parish'],
 ] : null;
 let releaseVerification:(()=>void)|undefined;
 const assignments=new Map<string,string>();

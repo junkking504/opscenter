@@ -4,7 +4,7 @@ export type PlanRoute = { truck: string; appointmentIds: string[] };
 export type PlanOptions = { trucks: string[]; area: string; start: number; serviceMinutes: number; routes?: PlanRoute[] };
 export type PlanStop = { id: string; arrival: number | null; travelMinutes: number | null; miles: number | null; warnings: string[] };
 export type RoutePlan = { sourceKey: string; calculatedAt: string; routes: Array<PlanRoute & { stops: PlanStop[] }>; excluded: number };
-export const routeAreas = { metro: 'New Orleans · Jefferson Parish · Northshore', BR: 'Baton Rouge', LF: 'Lafayette' };
+export const routeAreas = { metro: 'New Orleans · Jefferson Parish · Northshore', RP: 'River Parishes', BR: 'Baton Rouge', LF: 'Lafayette' };
 export function routePlanSourceKey(jobs: ScheduleAppointment[]) {
   return JSON.stringify(jobs.map(j => [j.recordId, j.version, j.stopOrder, j.address, j.location, appointmentRegion(j), j.junkwareSyncStatus]).sort((a,b)=>String(a[0]).localeCompare(String(b[0]))));
 }

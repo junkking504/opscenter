@@ -16,6 +16,21 @@ const cases: Array<[string, string, string, string]> = [
   ['100 Example Rd, Denham Springs, LA 70726', 'New Orleans', 'BR', 'LIV'],
   ['100 Example Rd, Gonzales, LA 70737', 'New Orleans', 'BR', 'ASC'],
   ['100 Example Rd, Covington, LA 70433', 'New Orleans', 'NS', 'COV'],
+  ['100 Example Rd, Ponchatoula, LA 70454', 'New Orleans', 'NS', 'PON'],
+  ['100 Example Rd, Hammond, LA 70403', 'New Orleans', 'NS', 'HAM'],
+  ['100 Example Rd, Bedico, LA 70454', 'New Orleans', 'NS', 'PON'],
+  ['100 Example Rd, Folsom, LA 70437', 'New Orleans', 'NS', 'FOL'],
+  ['100 Example Rd, Robert, LA 70455', 'New Orleans', 'NS', 'TAN'],
+  ['100 Example Rd, LaPlace, LA 70068', 'New Orleans', 'RP', 'RP'],
+  ['100 Example Rd, La Place, LA 70068', 'Jefferson Parish', 'RP', 'RP'],
+  ['100 Example Rd, Luling, LA 70070', 'Jefferson Parish', 'RP', 'RP'],
+  ['100 Example Rd, Lulling, LA 70070', 'Jefferson Parish', 'RP', 'RP'],
+  ['100 Example Rd, St. Rose, LA 70087', 'Jefferson Parish', 'RP', 'RP'],
+  ['100 Example Rd, Destrehan, LA 70047', 'Jefferson Parish', 'RP', 'RP'],
+  ['100 Example Rd, Reserve, LA 70084', 'New Orleans', 'RP', 'RP'],
+  ['100 LaPlace Rd, New Orleans, LA 70122', 'Jefferson Parish', 'NO', 'NO'],
+  ['100 Hammond Rd, Metairie, LA 70001', 'New Orleans', 'JP', 'MET'],
+  ['100 Example Rd, Hammond, IN 46320', 'Northshore', 'UNK', 'UNK'],
   ['100 Example Rd, Metairie, LA 70001', 'Baton Rouge', 'JP', 'MET'],
   ['100 Example Rd, Harvey, LA 70058', 'New Orleans', 'JP', 'WB'],
   ['100 Example Rd, New Orleans, LA 70114', 'New Orleans', 'JP', 'WB'],
@@ -52,6 +67,9 @@ for (const [address, source, code, area] of cases) {
   assert.equal(appointmentColorClass({address, territory: source}), `territory-${(['WB','EM'].includes(area) ? area : code).toLowerCase()}`, address);
 }
 const job = (id: string, address: string, territory: string) => ({ recordId: id, appointmentId: id, version: 'v1', jkNumber: 'JK_SYNTHETIC', address, territory, truck: 'Unassigned', status: 'Confirmed', appointmentType: 'Job', location: null, appointmentStartMinutes: 720 } as ScheduleAppointment);
+const newAreas = [job('pon','100 Example Rd, Ponchatoula, LA 70454','New Orleans'),job('ham','100 Example Rd, Hammond, LA 70403','New Orleans'),job('lap','100 Example Rd, LaPlace, LA 70068','New Orleans'),job('lul','100 Example Rd, Luling, LA 70070','Jefferson Parish')];
+assert.deepEqual(desktopCalendarDay('2026-09-11',null,newAreas).territories,{NS:2,RP:2});
+assert.deepEqual(proposeRoutes(newAreas,{trucks:['Truck 1'],area:'RP',start:480,serviceMinutes:30}).flatMap(r=>r.appointmentIds).sort(),['lap','lul']);
 const greenwell = job('greenwell-no', cases[0][0], 'New Orleans');
 const sameAddress = { ...greenwell, recordId: 'greenwell-br', appointmentId: 'greenwell-br', territory: 'Baton Rouge' };
 const metro = job('metro', cases[5][0], 'Baton Rouge');

@@ -99,8 +99,8 @@ export function unavailableRoute(leg: ScheduleRouteLeg, jobs: ScheduleAppointmen
     : { label: 'ETA Unavailable', detail: 'The route provider has not returned a travel estimate.' };
 }
 
-export const territoryLabels: Record<string, string> = { NO: 'New Orleans', JP: 'Jefferson Parish', NS: 'Northshore', BR: 'Baton Rouge', LF: 'Lafayette', UNK: 'Unclassified' };
-export const territoryOrder = ['NO', 'JP', 'NS', 'BR', 'LF', 'UNK'];
+export const territoryLabels: Record<string, string> = { NO: 'New Orleans', JP: 'Jefferson Parish', NS: 'Northshore', RP: 'River Parishes', BR: 'Baton Rouge', LF: 'Lafayette', UNK: 'Unclassified' };
+export const territoryOrder = ['NO', 'JP', 'NS', 'RP', 'BR', 'LF', 'UNK'];
 export function appointmentRegion(job: Pick<ScheduleAppointment, 'address' | 'territory' | 'sourceTerritory'>) {
   return serviceTerritory(job.address, job.sourceTerritory || job.territory);
 }

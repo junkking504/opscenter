@@ -188,11 +188,19 @@ export default function ScheduleMap(props: Props) {
     if(!route || route.date!==props.date || route.truck!==props.selectedTruck || (!route.points.length && !route.trips?.length)) {gpsFit.current='';return;}
     // Only road geometry gets connecting lines. Provider outages never restore
     // straight chords through blocks; source dots remain at their exact fixes.
-    if(route.streets && route.streets.sourceVersion===route.sourceVersion)for(const path of route.streets.paths) {
-      L.polyline(path.points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{color:'#2563a5',weight:3,opacity:.9,dashArray:path.kind==='estimated'?'6 7':undefined,interactive:false,className:path.kind==='estimated'?'schedule-gps-gap-link':'schedule-gps-trail'}).addTo(layer);
+    const streetPaths=route.streets?.sourceVersion===route.sourceVersion?route.streets?.paths || []:[];
+    // Paint every white casing first so adjacent segments do not cover each
+    // other's color. Estimated sections keep their dashed road geometry.
+    for(const casing of [true,false])for(const path of streetPaths) {
+      const estimated=path.kind==='estimated';
+      L.polyline(path.points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{
+        color:casing?'#fff':estimated?'#b45309':'#174fd1',weight:casing?9:5,opacity:1,
+        lineCap:'round',lineJoin:'round',dashArray:estimated?'12 10':undefined,interactive:false,
+        className:casing?'schedule-gps-route-casing':estimated?'schedule-gps-gap-link':'schedule-gps-trail'
+      }).addTo(layer);
     }
     // Isolated observations stay visible without inventing a connecting route.
-    for(const point of route.points) L.circleMarker([point.latitude,point.longitude],{radius:3,color:'#fff',fillColor:'#2563a5',fillOpacity:1,weight:1,interactive:false,className:'schedule-gps-point'}).addTo(layer);
+    for(const point of route.points) L.circleMarker([point.latitude,point.longitude],{radius:streetPaths.length?1.75:3,color:'#fff',fillColor:'#174fd1',fillOpacity:1,weight:streetPaths.length?.75:1,interactive:false,className:'schedule-gps-point'}).addTo(layer);
     const fitKey=`${route.date}:${route.truck}:${props.resetKey}:${props.truckMapView || 'location'}:${props.selectedTripId || ''}`;
     if(gpsFit.current!==fitKey) {
       if(props.truckMapView==='route') {

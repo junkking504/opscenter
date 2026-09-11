@@ -42,6 +42,8 @@ class RetentionTests(unittest.TestCase):
     def add(self, group, name):
         p = self.root / group / name
         r.git(self.repo, 'worktree', 'add', '--detach', str(p), 'HEAD')
+        if group in ('releases', 'preview-releases'):
+            (p / '.opscenter-release').write_text('commit=' + r.git(p, 'rev-parse', 'HEAD').strip() + '\n')
         return p
 
     def generated(self, p, name='node_modules'):
@@ -166,6 +168,46 @@ class RetentionTests(unittest.TestCase):
         self.assertIsNone(e.preview_build_edits(p))
         e.retire(p,[],True,release=True)
         self.assertTrue(p.exists())
+
+    def test_same_day_completed_releases_obey_count(self):
+        for i in range(8):
+            p=self.add('releases','today-'+str(i));self.generated(p)
+        e=self.engine();e.now=time.time()
+        e.execute(True,'production')
+        self.assertEqual(len(list((self.root/'releases').iterdir())),3)
+        self.assertTrue(self.production.exists())
+
+    def test_incomplete_build_keeps_source_and_does_not_take_rollback_slot(self):
+        for i in range(3): self.add('releases','built-'+str(i))
+        p=self.add('releases','unfinished');(p/'.opscenter-release').unlink()
+        target=self.generated(p)
+        e=self.engine();e.now=time.time()
+        e.execute(True,'production')
+        self.assertTrue(p.exists());self.assertTrue(target.exists())
+        self.assertEqual(len(list((self.root/'releases').iterdir())),4)
+        self.engine().execute(True,'production')
+        self.assertTrue(p.exists());self.assertFalse(target.exists())
+
+    def test_declared_desktop_build_output_is_cleaned(self):
+        p=self.add('worktrees','desktop-bundle')
+        (p/'desktop-ui').mkdir()
+        (p/'desktop-ui/vite.opscenter.config.ts').write_text("outDir: fileURLToPath(new URL('../public/desktop-assets', import.meta.url)), emptyOutDir: true")
+        with (p/'.gitignore').open('a') as f:f.write('/public/desktop-assets/\n')
+        r.git(p,'add','.');r.git(p,'commit','-qm','declare generated desktop output')
+        target=self.generated(p,'public/desktop-assets')
+        self.engine().execute(True,'worktrees')
+        self.assertFalse(target.exists());self.assertTrue((p/'desktop-ui/vite.opscenter.config.ts').exists())
+
+    def test_undeclared_desktop_files_and_tracked_assets_are_kept(self):
+        p=self.add('worktrees','custom-assets');target=self.generated(p,'public/desktop-assets')
+        self.engine().execute(True,'worktrees')
+        self.assertTrue(target.exists())
+        (p/'desktop-ui').mkdir()
+        (p/'desktop-ui/vite.opscenter.config.ts').write_text("outDir: fileURLToPath(new URL('../public/desktop-assets', import.meta.url)), emptyOutDir: true")
+        with (p/'.gitignore').open('a') as f:f.write('/public/desktop-assets/\n')
+        r.git(p,'add','-f','public/desktop-assets/generated');r.git(p,'add','.');r.git(p,'commit','-qm','tracked assets')
+        self.engine().execute(True,'worktrees')
+        self.assertTrue(target.exists())
 
     def test_locked_and_unregistered_worktrees_preserved(self):
         p=self.add('worktrees','locked');target=self.generated(p)

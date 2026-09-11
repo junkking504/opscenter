@@ -93,6 +93,14 @@ class Retention:
             candidates.extend(p for p in parent.iterdir() if p.name == 'node_modules'
                               or p.name == '.next' or p.name.startswith('.next-'))
         candidates.append(path / 'tmp/macmini-preview-next')
+        # Vite explicitly owns this ignored output directory and empties it on
+        # every desktop build. Require that declaration in the committed tree.
+        config_path = 'desktop-ui/vite.opscenter.config.ts'
+        config = run('git', '-C', path, 'show', 'HEAD:' + config_path)
+        if (config.returncode == 0 and
+                "new URL('../public/desktop-assets', import.meta.url)" in config.stdout and
+                'emptyOutDir: true' in config.stdout):
+            candidates.append(path / 'public/desktop-assets')
         valid = []
         for target in candidates:
             if not target.is_dir() or target.is_symlink() or target.resolve() != target:
@@ -232,13 +240,19 @@ class Retention:
             if marker.is_file() and not marker.is_symlink():
                 created = max(created, marker.stat().st_mtime)
             return created
+        def completed_build(path):
+            marker = path / '.opscenter-release'
+            if marker.is_symlink() or not marker.is_file():
+                return False
+            record = dict(line.split('=', 1) for line in marker.read_text().splitlines() if '=' in line)
+            return record.get('commit') == git(path, 'rev-parse', 'HEAD').strip()
         releases = sorted((p for p in parent.iterdir() if p.is_dir() and not p.is_symlink()),
                           key=release_time, reverse=True)
         selected = [p for p in releases if p in self.protected or p in extra_protected]
         for p in releases:
             if len(selected) >= keep:
                 break
-            if p not in selected:
+            if p not in selected and completed_build(p):
                 selected.append(p)
         self.protected.update(selected)
         for path in releases:
@@ -246,12 +260,16 @@ class Retention:
             if reason:
                 self.event(path, 'keep', reason)
                 continue
-            if self.now - release_time(path) < DAY:
-                self.event(path, 'keep', 'release created or deployed within 24 hours')
+            complete = completed_build(path)
+            if not complete and self.now - release_time(path) < DAY:
+                self.event(path, 'keep', 'incomplete build created within 24 hours')
                 continue
             generated = self.generated(path)
             if self.remove_generated(path, generated, apply):
-                self.retire(path, [] if apply else generated, apply, release=True)
+                if complete:
+                    self.retire(path, [] if apply else generated, apply, release=True)
+                else:
+                    self.event(path, 'keep', 'incomplete build: source retained after cache cleanup')
 
     def execute(self, apply=False, scope='all', complete=None, protect=()):
         paths = self.scan()  # a failed scan blocks the entire run

@@ -14,9 +14,13 @@ terminate another task.
 | Completed tasks | Explicit completion checks production ancestry and local files before removal |
 
 Running processes, locked worktrees, active release links and explicitly
-protected rollback paths are always kept. Releases created or deployed within 24 hours are
-also kept to protect new build attempts. These exceptions can temporarily exceed
-the counts; reports explain why. No process is killed by the cleanup tool.
+protected rollback paths are always kept. A completed build is identified by its
+release marker matching Git HEAD; it
+becomes eligible as soon as it is superseded, even on the same day. Only
+incomplete builds receive a 24-hour grace period. Older incomplete builds lose
+generated caches but retain source, and do not consume a rollback slot. These
+exceptions can temporarily exceed the counts; reports explain why. No process
+is killed by the cleanup tool.
 
 ## One installed command
 
@@ -35,7 +39,9 @@ symlinks or delete branches, secrets, personal files or unknown ignored files.
 
 A paused task's source stays in place even when it contains unfinished edits or
 unshipped commits. Only recognized, Git-ignored, untracked `node_modules`,
-`.next*`, and `tmp/macmini-preview-next` build directories are disposable. Reuse
+`.next*`, and `tmp/macmini-preview-next` build directories are disposable.
+The ignored `public/desktop-assets` directory is also disposable when the
+committed Vite configuration explicitly declares that output with `emptyOutDir: true`; tracked assets and undeclared directories remain protected. Reuse
 requires `npm ci` in the relevant package directory and its normal build command.
 
 ## Finish a task

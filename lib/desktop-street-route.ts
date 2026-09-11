@@ -85,7 +85,7 @@ export async function buildStreetRoute(route:TruckGpsRoute,send:typeof osmStreet
     const points=response?.code==='Ok'?roadCoordinates(response.routes?.[0]?.geometry?.coordinates,a,b):null;
     if(points)matched.set(i,{kind:'estimated',points});
   }
-  const paths=[...matched].sort(([a],[b])=>a-b).map(([,path])=>path),unmatched=missing.filter(i=>!matched.has(i)).length;
+  const paths=[...matched].sort(([a],[b])=>a-b).map(([sourceEdge,path])=>({...path,sourceEdge})),unmatched=missing.filter(i=>!matched.has(i)).length;
   return {sourceVersion,status:paths.length?(unmatched?'partial':'available'):'unavailable',paths,unmatched};
 }
 const pending=new Map<string,Promise<StreetRoute>>();

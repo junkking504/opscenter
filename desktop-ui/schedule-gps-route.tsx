@@ -1,6 +1,7 @@
 import {useEffect,useState} from 'react';
 import type {StreetRoute,TruckGpsRoute} from './lib/gps-route-contract';
 import './schedule-gps-route.css';
+import {gpsTripColor,gpsTripDisplay} from './lib/gps-trip-display';
 
 export function useTruckGpsRoute(date:string,truck:string|null) {
   const key=truck && /^Truck [1-9]\d*$/.test(truck)?`${date}:${truck}`:'';
@@ -43,16 +44,20 @@ export function useTruckGpsRoute(date:string,truck:string|null) {
 const time=(stamp:string)=>new Date(stamp).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'});
 export function GpsRouteSummary({truck,route,error,selectedTrip,showTrip}:{date:string;truck:string;route:TruckGpsRoute|null;error:string;selectedTrip:string|null;showTrip:(id:string|null)=>void}) {
   const trips=route?.trips || [];
-  const streetPaths=route?.streets?.sourceVersion===route?.sourceVersion?route?.streets?.paths || []:[];
+  const display=route?gpsTripDisplay(route,selectedTrip):null;
+  const estimated=display?.paths.some(path=>path.kind==='estimated' || path.kind==='gap');
+  const recorded=display?.paths.some(path=>path.kind==='recorded');
   return <section className="schedule-gps-summary" aria-label={`${truck} trips`}>
     <header><strong>Trips</strong>{trips.length>0 && <button type="button" onClick={()=>showTrip(null)}>Show all trips</button>}</header>
     {!!route?.points.length && <div className="schedule-gps-legend" aria-label="Route legend">
-      {streetPaths.some(path=>path.kind==='matched') && <span><i className="gps-legend-route" aria-hidden="true"/>Road-aligned GPS</span>}
-      {streetPaths.some(path=>path.kind==='estimated') && <span><i className="gps-legend-estimated" aria-hidden="true"/>Estimated connection</span>}
-      <span><i className="gps-legend-point" aria-hidden="true"/>GPS report</span>
+      <span><i className="gps-legend-route" aria-hidden="true"/>Solid lines · colors match trip numbers</span>
+      {display?.isolated.length ? <span><i className="gps-legend-point" aria-hidden="true"/>Isolated GPS report</span>:null}
     </div>}
-    {!!route?.points.length && route.streets?.status==='unavailable' && <p>Road alignment unavailable · showing recorded GPS points.</p>}
-    {!route?<p role="status">{error || 'Loading trips…'}</p>:!trips.length?<p>{route.status==='unavailable'?'Trip history unavailable.':'No trips recorded yet.'}</p>:<ol className="schedule-trip-list">{trips.map(trip=><li key={trip.id}><button type="button" aria-pressed={selectedTrip===trip.id} aria-label={`Show trip ${trip.number}: ${trip.from.address || 'Start'} to ${trip.to.address || 'Stop'}`} onClick={()=>showTrip(trip.id)}><b>{trip.number}.</b><span>{trip.from.address || 'Start location'} <span aria-hidden="true">→</span> {trip.to.address || 'Stop location'}<small>{time(trip.departure)} – {time(trip.arrival)}</small></span></button></li>)}</ol>}
+    {recorded && <p>Lines connect recorded GPS positions; the exact streets between reports are unverified.</p>}
+    {estimated && <p>Includes estimated connections between GPS reports. Hover a line for details.</p>}
+    {!!route?.gaps && <p>GPS coverage has gaps; long outages remain disconnected.</p>}
+    {!!route?.points.length && route.streets?.status==='unavailable' && <p>Road alignment unavailable · showing recorded GPS connections.</p>}
+    {!route?<p role="status">{error || 'Loading trips…'}</p>:!trips.length?<p>{route.status==='unavailable'?'Trip history unavailable.':'No trips recorded yet.'}</p>:<ol className="schedule-trip-list">{trips.map(trip=><li key={trip.id}><button type="button" aria-pressed={selectedTrip===trip.id} aria-label={`Show trip ${trip.number}: ${trip.from.address || 'Start'} to ${trip.to.address || 'Stop'}`} onClick={()=>showTrip(trip.id)}><b className="schedule-trip-number" style={{backgroundColor:gpsTripColor(trip.number)}}>{trip.number}</b><span>{trip.from.address || 'Start location'} <span aria-hidden="true">→</span> {trip.to.address || 'Stop location'}<small>{time(trip.departure)} – {time(trip.arrival)}</small></span></button></li>)}</ol>}
     {route && error && <p role="status">Trip history could not refresh.</p>}
   </section>;
 }

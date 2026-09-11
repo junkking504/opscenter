@@ -9,6 +9,7 @@ import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract
 import { appointmentColorClass, appointmentStatus, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
 import { locatorSize, territoryMapCenters } from './lib/schedule-map-layout';
 import type {TruckGpsRoute} from './lib/gps-route-contract';
+import {gpsTripColor,gpsTripDisplay,unassignedGpsColor} from './lib/gps-trip-display';
 
 type Props = {
   appointments: ScheduleAppointment[]; trucks: ScheduleTruck[];
@@ -68,7 +69,7 @@ export default function ScheduleMap(props: Props) {
     const layer = markers.current;
     if (!view || !layer) return;
     const { appointments, trucks, selected, selectedTruck, scope, resetKey, date } = current.current;
-    type Pin = { id: string; coordinate: L.LatLngTuple; label: string; text: string; partner?: string; tooltipTitle: string; tooltipDetail: string; className: string; selected: boolean; select: () => void };
+    type Pin = { id: string; coordinate: L.LatLngTuple; label: string; text: string; color?: string; partner?: string; tooltipTitle: string; tooltipDetail: string; className: string; selected: boolean; select: () => void };
     const pins: Pin[] = [];
     const appointmentBounds: L.LatLngTuple[] = [];
     appointments.forEach((job, index) => {
@@ -98,7 +99,7 @@ export default function ScheduleMap(props: Props) {
           id:`trip:${trip.id}:${letter}`,coordinate:[endpoint.latitude,endpoint.longitude],
           text:`${trip.number}${letter}`,label:`Show trip ${trip.number} ${letter==='A'?'start':'stop'}, ${endpoint.address}`,
           tooltipTitle:`Trip ${trip.number} · ${letter==='A'?'Start':'Stop'}`,tooltipDetail:endpoint.address,
-          className:'trip-marker',selected:false,select:()=>current.current.onSelectTrip?.(trip.id),
+          className:'trip-marker',color:gpsTripColor(trip.number),selected:current.current.selectedTripId===trip.id,select:()=>current.current.onSelectTrip?.(trip.id),
         });
       }
     }
@@ -136,6 +137,7 @@ export default function ScheduleMap(props: Props) {
         button.type = 'button';
         button.className = `map-marker ${pin.className}${pin.selected ? ' route-selected' : ''}`;
         button.style.setProperty('--map-locator-size', `${size}px`);
+        if(pin.color)button.style.setProperty('--trip-color',pin.color);
         button.style.setProperty('--map-locator-font', `${Math.round(size * .48)}px`);
         const symbol = document.createElement('span');
         symbol.className = 'map-pin-symbol';
@@ -194,21 +196,25 @@ export default function ScheduleMap(props: Props) {
     if(!view || !layer) return;
     layer.clearLayers();
     if(!route || route.date!==props.date || route.truck!==props.selectedTruck || (!route.points.length && !route.trips?.length)) {gpsFit.current='';return;}
-    // Only road geometry gets connecting lines. Provider outages never restore
-    // straight chords through blocks; source dots remain at their exact fixes.
-    const streetPaths=route.streets?.sourceVersion===route.sourceVersion?route.streets?.paths || []:[];
-    // Paint every white casing first so adjacent segments do not cover each
-    // other's color. Estimated sections keep their dashed road geometry.
-    for(const casing of [true,false])for(const path of streetPaths) {
-      const estimated=path.kind==='estimated';
-      L.polyline(path.points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{
-        color:casing?'#fff':estimated?'#b45309':'#174fd1',weight:casing?11:7,opacity:1,
-        lineCap:'round',lineJoin:'round',dashArray:estimated?'12 10':undefined,interactive:false,
-        className:casing?'schedule-gps-route-casing':estimated?'schedule-gps-gap-link':'schedule-gps-trail'
+    const {paths,isolated}=gpsTripDisplay(route,props.selectedTripId);
+    // Paint all casings first, then continuous trip colors. Sparse GPS links
+    // remain explicitly estimated in the tooltip and summary.
+    for(const casing of [true,false])for(const path of paths) {
+      const line=L.polyline(path.points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{
+        color:casing?'#fff':path.color,weight:casing?9:5,opacity:1,
+        lineCap:'round',lineJoin:'round',interactive:!casing,
+        className:casing?'schedule-gps-route-casing':'schedule-gps-trail'
       }).addTo(layer);
+      if(!casing) {
+        const label=document.createElement('span');
+        const source=path.kind==='matched'?'Road-aligned GPS':path.kind==='estimated'?'Estimated road connection':path.kind==='gap'?'Estimated connection across sparse GPS reports':'Recorded GPS connection · street path unverified';
+        label.textContent=`${path.trip?`Trip ${path.trip.number}`:'GPS outside recorded trips'} · ${source}`;
+        line.bindTooltip(label,{sticky:true});
+        if(path.trip)line.on('click',()=>current.current.onSelectTrip?.(path.trip!.id));
+      }
     }
-    // Isolated observations stay visible without inventing a connecting route.
-    for(const point of route.points) L.circleMarker([point.latitude,point.longitude],{radius:streetPaths.length?3:5,color:'#fff',fillColor:'#174fd1',fillOpacity:1,weight:streetPaths.length?1:2,interactive:false,className:'schedule-gps-point'}).addTo(layer);
+    // Keep isolated fixes visible without white dots breaking up solid lines.
+    for(const point of isolated) L.circleMarker([point.latitude,point.longitude],{radius:3,color:'#fff',fillColor:unassignedGpsColor,fillOpacity:1,weight:1,interactive:false,className:'schedule-gps-point'}).addTo(layer);
     const fitKey=`${route.date}:${route.truck}:${props.resetKey}:${props.truckMapView || 'location'}:${props.selectedTripId || ''}`;
     if(gpsFit.current!==fitKey) {
       if(props.truckMapView==='route') {

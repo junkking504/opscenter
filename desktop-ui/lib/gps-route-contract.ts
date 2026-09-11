@@ -24,6 +24,6 @@ export type RoadCoordinate={latitude:number;longitude:number};
 export type StreetRoute={
   sourceVersion:string;
   status:'available'|'partial'|'unavailable';
-  paths:{kind:'matched'|'estimated';points:RoadCoordinate[]}[];
+  paths:{kind:'matched'|'estimated';points:RoadCoordinate[];sourceEdge?:number}[];
   unmatched:number;
 };

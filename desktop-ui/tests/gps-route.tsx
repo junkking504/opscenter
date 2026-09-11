@@ -18,7 +18,7 @@ window.fetch=async(input,init)=>{
   if(url.pathname==='/api/desktop/schedule/gps/streets') {
     const shift=url.searchParams.get('truck')==='Truck 6'?.1:0;
     const points=[0,1,2,3,4].map(index=>({latitude:30.001+shift+index*.002,longitude:-90.01+(index%3)*.003}));
-    return Response.json({sourceVersion:url.searchParams.get('version'),status:'available',unmatched:0,paths:[{kind:'matched',points:points.slice(0,3)},{kind:'estimated',points:points.slice(3)}]});
+    return Response.json({sourceVersion:url.searchParams.get('version'),status:'available',unmatched:0,paths:[{kind:'matched',sourceEdge:0,points:points.slice(0,2)},{kind:'matched',sourceEdge:1,points:points.slice(1,3)},{kind:'estimated',sourceEdge:3,points:points.slice(3)}]});
   }
   if(url.pathname==='/api/desktop/schedule/gps') {
     const truck=url.searchParams.get('truck') || '';
@@ -28,7 +28,7 @@ window.fetch=async(input,init)=>{
     const points=[0,1,2,15,16].map((minute,index)=>({timestamp:`${date}T13:${String(minute).padStart(2,'0')}:00Z`,latitude:30.001+shift+index*.002,longitude:-90.01+(index%3)*.003}));
     if(truck==='Truck 2') points.forEach(point=>{point.latitude=30.001;point.longitude=-90.01;});
     const route:TruckGpsRoute={sourceVersion:`${date}:${truck}`,date,truck,status:'available',observedAt:`${date}T13:20:00Z`,coveredThrough:points.at(-1)!.timestamp,points,paths:[points.slice(0,3),points.slice(3)],gaps:1,rejected:0};
-    route.trips=[{id:'synthetic-trip',number:1,departure:points[0].timestamp,arrival:points.at(-1)!.timestamp,from:{...points[0],address:'Synthetic start'},to:{...points.at(-1)!,address:'Synthetic stop'}}];
+    route.trips=[{id:'synthetic-trip',number:1,departure:points[0].timestamp,arrival:points[2].timestamp,from:{...points[0],address:'Synthetic start'},to:{...points[2],address:'Synthetic stop'}},{id:'synthetic-trip-2',number:2,departure:points[3].timestamp,arrival:points[4].timestamp,from:{...points[3],address:'Second start'},to:{...points[4],address:'Second stop'}}];
     if(date==='2026-09-07' || truck==='Truck 3') Object.assign(route,{status:'empty',coveredThrough:null,points:[],paths:[],trips:[],gaps:0});
     if(truck==='Truck 9' && date==='2026-09-06') route.gapLinks=[[points[2],points[3]]];
     if(truck==='Truck 8') Object.assign(route,{status:'unavailable',observedAt:null,coveredThrough:null,points:[],paths:[],trips:[],gaps:0});

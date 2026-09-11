@@ -111,7 +111,7 @@ last-known positions in a daily file do not become travel on that file's date.
 Invalid coordinates, invalid/future timestamps, and duplicate positions are
 excluded. Recorded stationary `continuous_until` intervals preserve coverage.
 At a conflicting timestamp, a valid V3 position takes precedence over a V2 poll;
-raw history remains unchanged. Blue dots and truck/appointment pins retain their
+raw history remains unchanged. Isolated GPS dots and truck/appointment pins retain their
 exact source coordinates at every zoom level.
 
 Schedule and Command use OpenStreetMap tiles, with OpenStreetMap attribution.
@@ -119,7 +119,7 @@ Native tiles stop at zoom 19 and are enlarged at zoom 20 so close inspection
 never requests nonexistent tiles. Truck and appointment markers retain their
 source coordinates. The map has no Google billing dependency.
 
-GPS trail lines follow OpenStreetMap road geometry through the FOSSGIS OSRM
+GPS trail lines prefer OpenStreetMap road geometry through the FOSSGIS OSRM
 service. The authenticated `/api/desktop/schedule/gps/streets` endpoint uses the
 same truck/date/source version as the recorded GPS endpoint. Only coordinates
 are sent to the provider, never truck IDs, timestamps or appointment details.
@@ -129,12 +129,17 @@ minutes). No background fleet-wide road matching runs. FOSSGIS is a public,
 best-effort service; see its [usage/privacy policy](https://routing.openstreetmap.de/about.html).
 The map includes OSRM/FOSSGIS attribution and a map correction link.
 
-Solid lines indicate confidently matched, frequent reports. Dashed lines follow
-estimated road routes between sparse/ambiguous reports. Both are inference from
-GPS, not proof of exact roads driven. Long outages, impossible jumps, rejected
-snaps and unavailable road geometry remain disconnected, with original GPS dots
-visible. There is no straight-line fallback and no Google routing request. The
-former `/api/desktop/map` endpoints remain retired with HTTP 410.
+All trip routes use solid lines. Chronological trip numbers have distinct colors
+shared by their lines, list badges, and start/stop markers. Source-edge timestamps
+assign road geometry to trips, including repeat visits to the same street.
+Selecting a trip isolates its geometry without changing its number or color.
+When road alignment is missing, eligible recorded GPS connections remain visible
+as solid lines, with text explaining that the intervening streets are unverified.
+Sparse connections and estimated road geometry are identified in the summary and
+line tooltip. Long outages and impossible jumps stay disconnected; isolated fixes
+remain dots. GPS outside recorded trips uses gray. No new routing requests or
+Google services are introduced. The former `/api/desktop/map` endpoints remain
+retired with HTTP 410.
 
 Implementation: `lib/desktop-gps-route.ts`,
 `desktop-ui/schedule-gps-route.tsx`, and `desktop-ui/schedule-map.tsx`.

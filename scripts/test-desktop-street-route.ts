@@ -25,6 +25,7 @@ async function main(){
   const p=path.split('/driving/')[1].split('?')[0].split(';').map((p,i)=>{const [longitude,latitude]=p.split(',').map(Number);return {longitude,latitude,timestamp:points[i].timestamp};});
   assert.equal(p.length,2,'do not send excluded gaps for road inference');return payload(p);
  });
+ assert.deepEqual(result.paths.map(path=>path.sourceEdge),[0,2],'Geometry retains its source edge for trip colors');
  assert.equal(calls,2);assert.equal(result.paths.length,2);assert.equal(result.status,'available');assert(result.paths.every(p=>p.kind==='matched'));
  assert.equal(JSON.stringify(route),original,'exact GPS coordinates unchanged');
  assert.notEqual(gpsSourceVersion(route),gpsSourceVersion({...route,truck:'Truck 6'}));

@@ -305,16 +305,15 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     catch { setError('Saved result unavailable. Do not repeat this closeout.'); }
     finally { requestPending.current = false; setSaving(false); }
   }
-  const completed = /complete|closed/i.test(live?.status.label || initialStatus);
 
   return (
-    <details className="appointment-closeout-panel" data-appointment-id={resolvedAppointmentId} aria-busy={loading || saving}>
-      <summary>{completed ? "Edit closeout or Krewe" : "Close out this job"}</summary>
+    <details className="appointment-closeout-panel" data-appointment-id={resolvedAppointmentId} aria-busy={loading || saving} onToggle={event => { if (event.currentTarget.open && !live && !loading && !saving) void load(); }}>
+      <summary>Appointment Closeout</summary>
       <div className="appointment-closeout-body">
         {!live ? (
-          <button type="button" className="ops-button" onClick={load} disabled={loading || !resolvedAppointmentId}>
-            {loading ? "Loading current JunkWare closeout…" : "Open JunkWare closeout"}
-          </button>
+          loading ? <p role="status">Loading current JunkWare closeout…</p> : error ? (
+            <button type="button" className="ops-button" onClick={load} disabled={!resolvedAppointmentId}>Retry loading closeout</button>
+          ) : null
         ) : (
           <>
             {receipt && ['pending', 'uncertain'].includes(receipt.status) && <p role="alert">Payment entry is locked while an earlier {receipt.action === 'move' ? 'assignment change' : 'appointment change'} is unresolved. Use Check Saved Result below to load the saved JunkWare result.</p>}

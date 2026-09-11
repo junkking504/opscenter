@@ -15,12 +15,13 @@ import time
 from datetime import date, datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
+from merchant_center_snapshot import build_snapshot
 
 
 TIMEZONE = ZoneInfo("America/Chicago")
 OPSBOT_ROOT = Path.home() / ".openclaw" / "workspace" / "opsbot"
 DEFAULT_IMPORT_DIR = (
-    OPSBOT_ROOT / "data" / "imports" / "intuit_merchant_center" / "junk_krewe"
+    OPSBOT_ROOT / "data" / "imports" / "merchant_center" / "junk_krewe"
 )
 DEFAULT_OPENCLAW = Path.home() / ".npm-global" / "bin" / "openclaw"
 DEFAULT_BROWSER_PROFILE = "openclaw"
@@ -35,6 +36,7 @@ def atomic_write(path: Path, content: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(f"{path.suffix}.{os.getpid()}.{time.time_ns()}.tmp")
     temporary.write_bytes(content)
+    temporary.chmod(0o600)
     temporary.replace(path)
 
 
@@ -276,6 +278,8 @@ def main() -> int:
     args = parse_args()
     target_date = date.fromisoformat(args.date).isoformat()
     output_dir = Path(args.output_dir).expanduser().resolve()
+    if "intuit_merchant_center" in output_dir.parts:
+        raise RuntimeError("Refusing the QBO import directory; Merchant Center evidence must be stored separately.")
     output = output_dir / f"transactions-{target_date}.csv"
     metadata_output = output_dir / f"transactions-{target_date}.json"
 
@@ -292,25 +296,12 @@ def main() -> int:
             Path(args.openclaw).expanduser(),
             str(args.browser_profile),
         )
-        transaction_count, transaction_total = parse_export(content, target_date)
         collected_at = datetime.now(TIMEZONE).isoformat()
+        snapshot = build_snapshot(content, target_date, account_label, collected_at)
+        transaction_count = len(snapshot['transactions'])
+        transaction_total = round(sum(t['amount'] for t in snapshot['transactions']), 2)
         atomic_write(output, content)
-        atomic_write(
-            metadata_output,
-            (json.dumps(
-                {
-                    "date": target_date,
-                    "collected_at": collected_at,
-                    "account_name": EXPECTED_ACCOUNT_NAME,
-                    "account_number_last_four": EXPECTED_ACCOUNT_LAST_FOUR,
-                    "account_label": account_label,
-                    "transaction_count": transaction_count,
-                    "transaction_total": transaction_total,
-                    "source": REPORTING_URL,
-                },
-                indent=2,
-            ) + "\n").encode("utf-8"),
-        )
+        atomic_write(metadata_output, (json.dumps(snapshot, indent=2) + "\n").encode('utf-8'))
 
     print(json.dumps(
         {

@@ -65,7 +65,7 @@ export default function PaymentReconciliationPanel({
           </div>
           <div className="ops-reconciliation-links">
             <Link href={QBO_STATUS_URL}>Check QBO connection</Link>
-            <Link href={JUNKWARE_URL} target="_blank" rel="noreferrer">Open JunkWare ledger</Link>
+            <Link href={JUNKWARE_URL} target="_self" rel="noreferrer">Open JunkWare ledger</Link>
           </div>
         </div>
       ) : null}

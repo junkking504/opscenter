@@ -845,7 +845,7 @@ export default async function MarketingPage({
                           </span>
                           <div className="ops-marketing-review-attribution-actions">
                             {review.attribution.appointmentUrl ? (
-                              <a className="ops-mini-link" href={review.attribution.appointmentUrl} target="_blank" rel="noreferrer">
+                              <a className="ops-mini-link" href={review.attribution.appointmentUrl} target="_self" rel="noreferrer">
                                 Open appointment
                               </a>
                             ) : null}
@@ -865,7 +865,7 @@ export default async function MarketingPage({
                           {review.needsResponse ? "Needs response" : review.responseCount ? "Responded" : "No response needed"}
                         </span>
                         {review.url ? (
-                          <a className="ops-mini-link" href={review.url} target="_blank" rel="noreferrer">
+                          <a className="ops-mini-link" href={review.url} target="_self" rel="noreferrer">
                             Open Google review
                           </a>
                         ) : null}

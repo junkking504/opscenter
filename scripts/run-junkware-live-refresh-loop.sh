@@ -240,6 +240,10 @@ do
       fi
     done
 
+    # Processor reporting runs independently; a sign-in failure cannot block QBO or JunkWare.
+    # The runner locks itself, collects one due day, and backs off after a failure.
+    OPSBOT_DATA_DIR="$OPSBOT_DIR/data" python3 "$OPSCENTER_DIR/scripts/run-merchant-center-refresh.py" >/dev/null 2>&1 &
+
     for PAYMENT_DATE in "$TODAY" "$YESTERDAY"
     do
       if npm --prefix "$OPSCENTER_DIR" run collect:qbo -- --date "$PAYMENT_DATE"; then

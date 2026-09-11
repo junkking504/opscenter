@@ -118,7 +118,7 @@ export function LiveMarketing({ date, view, report, onViewChange, onBusyChange }
                   <div><strong>{lead.customer}</strong><PhoneContact phone={lead.phone} /><small>{lead.territory} · {lead.source}</small></div>
                   <div className="live-lead-need"><p>{lead.intent}</p><small>{lead.reason}</small></div>
                   <strong>{moneyValue(lead.quotedValue)}</strong>
-                  <a className="marketing-recording" href={safeUrl(lead.sourceUrl)} target="_blank" rel="noreferrer"><Play size={12} />Open Source</a>
+                  <a className="marketing-recording" href={safeUrl(lead.sourceUrl)} target="_self" rel="noreferrer"><Play size={12} />Open Source</a>
                   <div><strong>{lead.lastContact}</strong><small>Inbound call · {lead.age}</small></div>
                   <span className={`marketing-lead-status ${lead.status.toLowerCase().replaceAll(' ', '-')}`}>{lead.status}</span>
                   <div className="marketing-outcome-actions"><a href={`tel:+1${lead.phone.replace(/\D/g, '')}`}><PhoneCall size={12} />Call</a><button onClick={() => editLead(lead.id)}>Update</button></div>

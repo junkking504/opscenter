@@ -384,13 +384,13 @@ export default function AppointmentCreateDialog({ selectedDate }: { selectedDate
               {mode === "verified" && result ? (
                 <>
                   <button type="button" onClick={() => setOpen(false)}>Close</button>
-                  <a href={result.appointmentUrl} target="_blank" rel="noreferrer">Open in JunkWare ↗</a>
+                  <a href={result.appointmentUrl} target="_self" rel="noreferrer">Open in JunkWare ↗</a>
                   <a className="primary" href={`/jobs?date=${encodeURIComponent(result.date)}&q=${encodeURIComponent(result.jkNumber)}`}>Refresh Schedule →</a>
                 </>
               ) : mode === "uncertain" ? (
                 <>
                   <button type="button" onClick={() => setOpen(false)}>Close</button>
-                  <a href="https://junkware.junk-king.com/franchise/schedule.aspx" target="_blank" rel="noreferrer">Search JunkWare ↗</a>
+                  <a href="https://junkware.junk-king.com/franchise/schedule.aspx" target="_self" rel="noreferrer">Search JunkWare ↗</a>
                 </>
               ) : (
                 <>

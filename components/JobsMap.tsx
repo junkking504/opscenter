@@ -1618,7 +1618,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
             <small>Open closeout controls</small>
           </button>
           {selectedJob.appointmentUrl ? (
-            <a href={selectedJob.appointmentUrl} target="_blank" rel="noreferrer">Open in JunkWare</a>
+            <a href={selectedJob.appointmentUrl} target="_self" rel="noreferrer">Open in JunkWare</a>
           ) : null}
         </div>
       </article>
@@ -1672,7 +1672,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                 </div>
                 <div className="ops-jobs-map-verification-actions">
                   <button type="button" onClick={() => showAppointmentInQueue(job)}>Show card</button>
-                  {job.appointmentUrl ? <a href={job.appointmentUrl} target="_blank" rel="noreferrer">Verify in JunkWare</a> : null}
+                  {job.appointmentUrl ? <a href={job.appointmentUrl} target="_self" rel="noreferrer">Verify in JunkWare</a> : null}
                 </div>
               </article>
             ))}

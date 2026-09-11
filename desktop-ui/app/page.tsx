@@ -565,7 +565,7 @@ function GoogleMapsAddress({ address }: { address: string }) {
       <a
         className="google-maps-address"
         href={googleMapsHref(address)}
-        target="_blank"
+        target="_self"
         rel="noreferrer noopener"
         aria-label={`Open ${address} in Google Maps`}
         title="Open in Google Maps"
@@ -3276,8 +3276,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       const alert = liveAlert(item);
       if (alert) {
         const href = desktopAlertHref(alert, live.snapshot, window.location.origin);
-        if (new URL(href, window.location.origin).origin === window.location.origin) window.location.assign(href);
-        else window.open(href, '_blank', 'noopener,noreferrer');
+        window.location.assign(href);
       }
       return;
     }

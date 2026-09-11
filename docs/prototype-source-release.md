@@ -493,3 +493,12 @@ measurements, separate from browser navigation. The legacy approved-prototype
 checksum test already fails on the base release's unchanged global CSS; the
 current CSS architecture check passes. The source-dependent monthly production
 audit requires runtime data and is not an isolated-worktree test.
+
+
+## Same-tab navigation (September 11, 2026)
+
+Ordinary page and record navigation stays in the current browser tab. This
+includes full payroll records, appointment references, photos, maps, and external
+source links from the desktop workspace and older detail pages. Links explicitly
+target the current tab; programmatic source navigation uses the current window.
+The browser Back button returns from a source page to OpsCenter.

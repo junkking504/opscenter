@@ -323,7 +323,7 @@ export default function JobRoutePlanner({
                   {draggedJobKey ? <small>{proximityText(truckProximity(draggedJobKey, truck), proximityLoading)}</small> : null}
                 </div>
                 {directionsUrl(stops) ? (
-                  <a href={directionsUrl(stops)} target="_blank" rel="noopener noreferrer">
+                  <a href={directionsUrl(stops)} target="_self" rel="noopener noreferrer">
                     {stops.length > 1 ? "Open route" : "Open stop"}
                   </a>
                 ) : null}

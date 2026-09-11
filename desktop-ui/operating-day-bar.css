@@ -1,0 +1,18 @@
+.viewing-day-bar { position: sticky; top: 0; z-index: 40; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 8px 24px; border-bottom: 1px solid #b8c9cf; background: #edf4f6; color: #20333f; }
+.viewing-day-context { display: flex; align-items: center; gap: 10px; }
+.viewing-day-context span { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.viewing-day-context strong { display: block; margin-top: 2px; font-size: 16px; line-height: 1.3; }
+.viewing-day-context b { padding: 2px 6px; border-radius: 4px; color: #754510; background: #ffedcf; font-size: 9px; }
+.viewing-day-context b.current { color: #235a45; background: #d9ebdf; }
+.viewing-day-controls, .viewing-day-controls form { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.viewing-day-controls button, .viewing-day-controls input { min-height: 36px; border: 1px solid #b5c4cc; border-radius: 5px; background: #fff; color: #20333f; font: inherit; font-size: 12px; }
+.viewing-day-controls button { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; padding: 0 8px; cursor: pointer; }
+.viewing-day-controls input { width: 137px; min-width: 0; padding: 4px 6px; }
+.viewing-day-controls button:hover:not(:disabled) { background: #dceaf0; border-color: #607d8c; }
+.viewing-day-controls :focus-visible { outline: 2px solid #205f82; outline-offset: 2px; }
+.viewing-day-controls button:disabled { opacity: .45; cursor: default; }
+@media (max-width: 700px) {
+  .viewing-day-bar { padding: 8px; gap: 6px; }
+  .viewing-day-context strong { font-size: 14px; }
+  .viewing-day-controls button, .viewing-day-controls input { min-height: 40px; }
+}

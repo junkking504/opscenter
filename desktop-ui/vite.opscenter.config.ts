@@ -12,6 +12,7 @@ export default defineConfig({
   resolve: { dedupe: ['react', 'react-dom'], alias: { '@': fileURLToPath(new URL('.', import.meta.url)) } },
   css: { postcss: { plugins: [tailwindcss()] } },
   build: {
+    manifest: true,
     outDir: fileURLToPath(new URL('../public/desktop-assets', import.meta.url)),
     emptyOutDir: true,
     sourcemap: false,

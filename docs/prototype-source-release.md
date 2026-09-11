@@ -452,8 +452,12 @@ uncached; no business data is written to browser storage.
 Schedule publishes each verified day's response as it arrives so tomorrow's
 collection cannot delay today's board. Finance reuses daily source reads within
 one request across its monthly and comparison calculations, with no financial
-cache carried across server requests. Workspace code preloads on navigation
-focus/hover, without prefetching provider data.
+cache carried across server requests. The initial HTML preloads the selected workspace code and its shared dependencies.
+Hashed assets use immutable browser caching. After the first Command read, idle
+time warms Fleet, Marketing, Krewe, and permitted Finance read models one at a
+time. These endpoints only read existing local sources; Schedule collection and
+provider requests are excluded. Warm reads share in-flight work with navigation
+and stop scheduling while the tab is hidden or an operational action is busy.
 
 A missing hashed desktop JS/CSS asset is served from retained immutable releases
 when available. This does not change release retention. If a workspace still

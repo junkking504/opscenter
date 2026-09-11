@@ -4,6 +4,7 @@ const entries = new Map<string, Entry>();
 const maxEntries = 16;
 const maxAgeMs = 5 * 60_000;
 let generation = 0;
+const requests = new Map<string, Promise<unknown>>();
 
 export function cachedWorkspace<T>(key: string): { value: T; receivedAt: number } | undefined {
   const entry = entries.get(key);
@@ -13,11 +14,30 @@ export function cachedWorkspace<T>(key: string): { value: T; receivedAt: number 
   return entry as { value: T; receivedAt: number };
 }
 
-export function clearWorkspaceCache() { generation++; entries.clear(); }
+export function clearWorkspaceCache() { generation++; entries.clear(); requests.clear(); }
 
 /** Always performs a fresh authenticated read. Cache is only for immediate display. */
 export async function fetchWorkspace<T>(url: string, signal: AbortSignal, key = url): Promise<T> {
+  signal.throwIfAborted();
+  let task = requests.get(key) as Promise<T> | undefined;
+  if (!task) {
+    // A navigation abort cancels its subscriber, not another view's shared read.
+    task = retrieveWorkspace<T>(url, key);
+    requests.set(key, task);
+    const completed = () => { if (requests.get(key) === task) requests.delete(key); };
+    void task.then(completed, completed);
+  }
+  return new Promise<T>((resolve, reject) => {
+    if (signal.aborted) { reject(signal.reason); return; }
+    const aborted = () => reject(signal.reason);
+    signal.addEventListener('abort', aborted, { once: true });
+    void task.then(value => { signal.removeEventListener('abort', aborted); if (!signal.aborted) resolve(value); }, error => { signal.removeEventListener('abort', aborted); reject(error); });
+  });
+}
+
+async function retrieveWorkspace<T>(url: string, key: string): Promise<T> {
   const started = generation;
+  const signal = AbortSignal.timeout(30_000);
   const response = await fetch(url, { cache: 'no-store', credentials: 'same-origin', signal });
   if (response.status === 401 || response.status === 403) clearWorkspaceCache();
   const body = await response.json();

@@ -35,8 +35,13 @@ export function NavigationDiagnostics() {
   const [, update] = useState(0);
   useEffect(() => { const notify = () => update(value => value + 1); listeners.add(notify); return () => { listeners.delete(notify); }; }, []);
   if (!enabled) return null;
+  const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+  const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+  const assets = resources.filter(entry => entry.name.includes('/desktop-assets/assets/'));
+  const request = resources.filter(entry => /\/api\/desktop\/(fleet|finance|marketing|krewe|schedule|command)\?/.test(entry.name)).at(-1);
   return <aside aria-label="Navigation timings" style={{position:'fixed',right:8,bottom:8,zIndex:10000,background:'#fff',color:'#17251d',border:'1px solid #829084',padding:10,maxWidth:400,fontSize:12}}>
     <strong>Navigation timings · this browser</strong>
+    <p>Document wait: {Math.round(navigation?.responseStart || 0)} ms · Slowest asset: {Math.round(Math.max(0,...assets.map(entry => entry.duration)))} ms{request ? ` · Last data request: ${Math.round(request.duration)} ms` : ''}</p>
     <ul>{samples.map((sample,index) => <li key={index}>{sample}</li>)}</ul>
   </aside>;
 }

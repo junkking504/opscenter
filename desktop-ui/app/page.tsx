@@ -1,5 +1,6 @@
 'use client';
 import { WorkspaceBoundary } from '../workspace-boundary';
+import { cachedWorkspace, fetchWorkspace } from '../lib/workspace-cache';
 import { NavigationDiagnostics, startWorkspaceNavigation, workspaceReady } from '../navigation-performance';
 
 import Estimates, { EstimateCommandSummary } from '../estimates';
@@ -974,7 +975,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     void preloadWorkspace[value]?.().catch(() => {});
     setActiveNavValue(value);
   };
-  useEffect(() => { if (activeNav === 'Command' && live && !live.snapshot.loading) workspaceReady('Command'); }, [activeNav,live?.snapshot]);
+  const commandReady = Boolean(live && !live.snapshot.loading);
+  useEffect(() => { if (activeNav === 'Command' && commandReady) workspaceReady('Command'); }, [activeNav,commandReady]);
   const [view, setViewValue] = useState<'now' | 'today' | 'monitor'>(() => {
     if (!live) return 'now';
     const params = new URLSearchParams(window.location.search);
@@ -1045,6 +1047,28 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     if (mutationBusyRef.current) return;
     setScheduleViewValue(value);
   };
+  const warmDate = live?.snapshot.date;
+  const warmLoading = live?.snapshot.loading;
+  useEffect(() => {
+    if (!warmDate || warmLoading || mutationBusy) return;
+    const abort = new AbortController();
+    const date = warmDate;
+    const params = new URLSearchParams(window.location.search);
+    const warm = async () => {
+      // Only existing local read models; no Schedule collection or provider calls.
+      for (const name of ['Fleet', 'Marketing', 'Krewe', ...(canFinance ? ['Finance'] : [])]) {
+        if (abort.signal.aborted || document.visibilityState === 'hidden') return;
+        if (name === activeNav) continue;
+        const endpoint = name.toLowerCase();
+        const view = name === 'Fleet' ? `&view=${encodeURIComponent(params.get('fleetView') || 'overview')}` : name === 'Krewe' ? `&view=${encodeURIComponent(params.get('kreweView') || 'today')}` : '';
+        const key = `/api/desktop/${endpoint}?date=${encodeURIComponent(date)}${view}`;
+        if (cachedWorkspace(key)) continue;
+        try { await preloadWorkspace[name](); await fetchWorkspace(key, abort.signal); } catch { /* Foreground refresh owns user-visible errors. */ }
+      }
+    };
+    const timer = window.setTimeout(() => { void warm(); }, 1000);
+    return () => { window.clearTimeout(timer); abort.abort(); };
+  }, [warmDate, warmLoading, activeNav, canFinance, mutationBusy]);
   const [followupFilter, setFollowupFilter] = useState<'all' | 'estimates' | 'closed' | 'unclosed' | 'photos'>('all');
   const [historyFilter, setHistoryFilter] = useState<ScheduleHistoryFilter>('all');
   const [newAppointmentOpen, setNewAppointmentOpenValue] = useState(false);

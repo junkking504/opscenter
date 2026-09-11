@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { cachedWorkspace, clearWorkspaceCache, fetchWorkspace } from '../desktop-ui/lib/workspace-cache';
 import { workspaceShell } from '../desktop-ui/lib/workspace-bootstrap';
+import { desktopWorkspacePreloads } from '../lib/desktop-release';
 import { readRetainedDesktopAsset } from '../lib/desktop-retained-assets';
 
 async function main() {
@@ -32,7 +33,8 @@ async function main() {
     let complete!: (response: Response) => void;
     globalThis.fetch = () => new Promise(resolve => { complete = resolve; });
     const pending = fetchWorkspace('/api/desktop/fleet?date=A', signal);
-    clearWorkspaceCache(); complete(Response.json({version:'before write'})); await pending;
+    const shared = fetchWorkspace('/api/desktop/fleet?date=A', signal);
+    clearWorkspaceCache(); complete(Response.json({version:'before write'})); assert.deepEqual(await pending,await shared,'Concurrent foreground and warm reads share one response');
     assert.equal(cachedWorkspace('/api/desktop/fleet?date=A'), undefined, 'In-flight reads cannot repopulate a cache invalidated by a write');
     globalThis.fetch = async () => Response.json({version:3});
     await fetchWorkspace('/api/desktop/fleet?date=A', signal);
@@ -49,6 +51,15 @@ async function main() {
     assert.equal(shell.sources.alerts,false); assert.equal(shell.generatedAt,'');
     console.log('PASS: date isolation, original freshness, revalidation, failure retention, authorization loss, write races, TTL, LRU, aborts, truthful bootstrap');
   } finally { globalThis.fetch = originalFetch; Date.now = originalNow; clearWorkspaceCache(); }
+  const preloads = desktopWorkspacePreloads({
+    'live-fleet.tsx': {file:'assets/live-fleet-abcdefgh.js',imports:['shared','index.html'],css:['assets/fleet-abcdefgh.css']},
+    shared:{file:'assets/shared-abcdefgh.js',imports:['live-fleet.tsx']},
+    'index.html':{file:'assets/index-abcdefgh.js'},
+  },'Fleet');
+  assert.ok(preloads.includes('live-fleet-abcdefgh.js') && preloads.includes('shared-abcdefgh.js') && preloads.includes('stylesheet'));
+  assert.ok(!preloads.includes('index-abcdefgh.js'));
+  assert.equal(desktopWorkspacePreloads({},'<script>'), '');
+  console.log('PASS: selected workspace preload, shared dependencies, cycles, stylesheet hints, unknown workspace');
   const temp = await fs.mkdtemp(path.join(os.tmpdir(),'ops-asset-test-'));
   try {
     const old = path.join(temp,'releases','a'.repeat(40));

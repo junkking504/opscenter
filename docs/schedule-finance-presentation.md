@@ -1,5 +1,12 @@
 # Schedule and Finance presentation
 
+The dispatch board reserves bottom space for an `All Appointments` jump banner.
+It remains reachable on narrow screens and clears board filters before scrolling
+and focusing the complete register. Empty truck rows use the same base height
+whether load data is present or missing, and share spare panel height. The
+current-time line starts beneath the hour header. Busy rows retain lane space
+and remain scrollable within constrained desktop panels.
+
 ## Schedule planning surface
 
 The truck schedule board is the main visual planning surface. The standalone

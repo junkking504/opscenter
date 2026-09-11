@@ -1,3 +1,4 @@
+import { dumpTruckMapSvg } from './lib/truck-map-icon';
 import { truckGpsStatus } from '../lib/truck-gps-status';
 import { appointmentPartner } from '../lib/appointment-partner';
 import { useEffect, useRef } from 'react';
@@ -6,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import './appointment-presence.css';
 import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract';
 import { appointmentRegion, appointmentStatus, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
-import { nearbyMapPins, separateMapPins, territoryMapCenters } from './lib/schedule-map-layout';
+import { groupMapPins, territoryMapCenters } from './lib/schedule-map-layout';
 import type {TruckGpsRoute} from './lib/gps-route-contract';
 
 type Props = {
@@ -126,8 +127,42 @@ export default function ScheduleMap(props: Props) {
       const activeId = host.current?.contains(document.activeElement) ? (document.activeElement as HTMLElement)?.dataset.mapPin : undefined;
       layer.clearLayers();
       const anchors = pins.map(pin => ({ id: pin.id, ...view.latLngToLayerPoint(pin.coordinate) }));
-      const positions = new Map((view.getZoom() >= 15 ? separateMapPins(anchors) : anchors.map(p => ({...p,dx:0,dy:0}))).map(point => [point.id, point.id.startsWith('trip:') ? {...point,dy:-32} : point]));
+      const groups = groupMapPins(anchors);
+      const hidden = new Set<string>();
+      const positions = new Map(anchors.map(p=>[p.id,{...p,dx:0,dy:0}]));
+      for (const group of groups) {
+        if (group.members.length === 2 && view.getZoom() >= 15) {
+          group.members.forEach((p,index)=>positions.set(p.id,{...p,dx:group.x+(index===0?-24:24)-p.x,dy:group.y-p.y}));
+        } else if (group.members.length > 1) {
+          group.members.forEach(p=>hidden.add(p.id));
+          const members = group.members.map(p=>pins.find(pin=>pin.id===p.id)!);
+          const trucks = members.filter(p=>p.id.startsWith('truck:')).length;
+          const appointments = members.filter(p=>p.id.startsWith('appointment:')).length;
+          const badge = document.createElement('button'); badge.type='button'; badge.className=`map-locator-group${members.some(pin=>pin.selected)?' route-selected':''}`;
+          badge.setAttribute('aria-label',`Expand ${appointments} appointments and ${trucks} trucks at nearby locations`);
+          badge.dataset.mapGroup=group.members.map(p=>p.id).join('|');
+          if (appointments) { const jobs=document.createElement('span'); jobs.className='map-group-appointments';jobs.textContent=String(appointments);badge.append(jobs); }
+          if (trucks) { const vehicle=document.createElement('span');vehicle.className='truck-marker';vehicle.innerHTML=dumpTruckMapSvg;const count=document.createElement('b');count.textContent=String(trucks);vehicle.append(count);badge.append(vehicle); }
+          if (!appointments && !trucks) badge.textContent=`${members.length} trip points`;
+          const openChoices = () => {
+            const choices=document.createElement('div'); choices.className='map-locator-choices';choices.setAttribute('aria-label','Nearby locators');
+            for(const pin of members) { const choice=document.createElement('button');choice.type='button';choice.textContent=`${pin.tooltipTitle} · ${pin.tooltipDetail}`;choice.onclick=e=>{e.stopPropagation();view.closePopup();pin.select();};choices.append(choice); }
+            L.DomEvent.disableClickPropagation(choices);L.DomEvent.disableScrollPropagation(choices);
+            L.popup({className:'map-locator-popup',maxWidth:260}).setLatLng(view.layerPointToLatLng([group.x,group.y])).setContent(choices).openOn(view);
+          };
+          L.DomEvent.disableClickPropagation(badge);
+          badge.onclick=event=>{
+            event.stopPropagation();view.closePopup();
+            const bounds=L.latLngBounds(members.map(p=>p.coordinate));
+            const zoom=Math.min(18,view.getBoundsZoom(bounds,false,L.point(90,90)));
+            if (zoom>view.getZoom()) view.setView(bounds.getCenter(),zoom,{animate:false});
+            else openChoices();
+          };
+          L.marker(view.layerPointToLatLng([group.x,group.y]),{keyboard:false,icon:L.divIcon({className:'live-map-pin',html:badge,iconSize:[86,38],iconAnchor:[43,19]}),zIndexOffset:1100}).addTo(layer);
+        }
+      }
       for (const pin of pins) {
+        if (hidden.has(pin.id)) continue;
         const { x, y, dx: offsetX, dy: offsetY } = positions.get(pin.id)!;
         const displaced = Math.hypot(offsetX, offsetY) > 1;
         if (displaced && !pin.id.startsWith('trip:')) L.polyline([pin.coordinate, view.layerPointToLatLng(L.point(x + offsetX, y + offsetY))], {
@@ -141,10 +176,10 @@ export default function ScheduleMap(props: Props) {
         symbol.setAttribute('aria-hidden', 'true');
         if (pin.id.startsWith('truck:')) {
           // Static icon geometry; the truck number is inserted as text, never HTML.
-          symbol.innerHTML = '<svg viewBox="0 0 28 24" focusable="false"><rect x="1" y="3" width="15" height="14" rx="2"/><path d="M16 8h5l5 5v4H16z"/><path class="truck-window" d="M18 10h2l3 3h-5z"/><circle cx="6" cy="18" r="3"/><circle cx="21" cy="18" r="3"/></svg>';
+          symbol.innerHTML = dumpTruckMapSvg;
           const number = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-          number.setAttribute('x', '8.5');
-          number.setAttribute('y', '13.5');
+          number.setAttribute('x', '17');
+          number.setAttribute('y', '18');
           number.setAttribute('text-anchor', 'middle');
           number.textContent = pin.text.replace(/^T/, '');
           symbol.querySelector('svg')!.append(number);
@@ -155,28 +190,15 @@ export default function ScheduleMap(props: Props) {
         button.setAttribute('aria-label', pin.label);
         button.setAttribute('aria-pressed', String(pin.selected));
         L.DomEvent.disableClickPropagation(button);
-        const nearby = nearbyMapPins([...positions.values()].map(p=>({id:p.id,x:p.x+p.dx,y:p.y+p.dy})),pin.id);
-        button.onclick = event => {
-          event.stopPropagation(); view.closePopup();
-          if(nearby.length<2) { pin.select(); return; }
-          const choices=document.createElement('div'); choices.className='map-locator-choices';
-          choices.style.maxHeight='160px'; choices.setAttribute('aria-label','Nearby locators');
-          for(const point of nearby) {
-            const candidate=pins.find(p=>p.id===point.id)!;
-            const choice=document.createElement('button'); choice.type='button'; choice.textContent=`${candidate.tooltipTitle} · ${candidate.tooltipDetail}`;
-            choice.onclick=e=>{e.stopPropagation();view.closePopup();candidate.select();};choices.append(choice);
-          }
-          L.DomEvent.disableClickPropagation(choices); L.DomEvent.disableScrollPropagation(choices);
-          L.popup({className:'map-locator-popup',maxWidth:240}).setLatLng(pin.coordinate).setContent(choices).openOn(view);
-        };
+        button.onclick = event => { event.stopPropagation(); view.closePopup(); pin.select(); };
         const tooltip = document.createElement('span');
         const title = document.createElement('strong'); title.textContent = pin.tooltipTitle;
         const detail = document.createElement('small'); detail.textContent = pin.tooltipDetail;
         tooltip.append(title, detail);
         if (displaced && !pin.id.startsWith('trip:')) { const note = document.createElement('small'); note.textContent = 'Line marks exact location'; tooltip.append(note); }
-        const marker = L.marker(pin.coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize: [30, 30], iconAnchor: [15 - offsetX, 15 - offsetY] }), zIndexOffset: pin.selected ? 1900 : 1000 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: L.point(offsetX, offsetY - 12), opacity: 1, permanent: pin.selected && current.current.truckMapView !== 'route' }).addTo(layer);
+        const marker = L.marker(pin.coordinate, { keyboard: false, icon: L.divIcon({ className: 'live-map-pin', html: button, iconSize: [42, 34], iconAnchor: [21 - offsetX, 17 - offsetY] }), zIndexOffset: pin.selected ? 1900 : 1000 }).bindTooltip(tooltip, { className: 'live-map-tooltip', direction: 'top', offset: L.point(offsetX, offsetY - 12), opacity: 1, permanent: false }).addTo(layer);
         button.onfocus = () => marker.openTooltip();
-        button.onblur = () => { if (!pin.selected) marker.closeTooltip(); };
+        button.onblur = () => marker.closeTooltip();
         marker.on('tooltipopen', () => {
           const bubble = marker.getTooltip();
           const element = bubble?.getElement();
@@ -192,7 +214,6 @@ export default function ScheduleMap(props: Props) {
           bubble.options.offset = L.point(offsetX + dx, offsetY - 12 + dy);
           bubble.update();
         });
-        if (pin.selected && current.current.truckMapView !== 'route') marker.openTooltip();
         if (activeId === pin.id) button.focus({ preventScroll: true });
       }
     };

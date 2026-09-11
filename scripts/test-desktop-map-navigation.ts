@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { nearbyMapPins, separateMapPins } from '../desktop-ui/lib/schedule-map-layout';
+import { nearbyMapPins, separateMapPins, groupMapPins } from '../desktop-ui/lib/schedule-map-layout';
 import { navigationValue, workspaceUrl } from '../desktop-ui/lib/workspace-navigation';
 const crowded = Array.from({ length: 14 }, (_, i) => ({ id: `${i < 10 ? 'appointment' : 'truck'}:${i}`, x: 200 + i % 3, y: 200 + i % 2 }));
 const source = JSON.stringify(crowded);
@@ -27,3 +27,14 @@ const pair=separateMapPins([{id:'appointment:1',x:1,y:1},{id:'truck:6',x:1,y:1}]
 assert.equal(pair[0].dx,0);assert.equal(pair[1].dx,44);
 assert.deepEqual(separateMapPins([{id:'alone',x:123,y:456}]),[{id:'alone',x:123,y:456,dx:0,dy:0}]);
 console.log('Crowded locators stay anchored; only a close truck/appointment pair receives a bounded offset.');
+
+for (const points of [crowded, [...crowded,...crowded.map(p=>({...p,id:p.id+'far',x:p.x+105}))], [{id:'appointment:1',x:0,y:0},{id:'truck:3',x:0,y:0}], Array.from({length:40},(_,i)=>({id:String(i),x:(i%8)*45,y:Math.floor(i/8)*40}))]) {
+  const original=JSON.stringify(points), groups=groupMapPins(points);
+  assert.equal(JSON.stringify(points),original);
+  assert.deepEqual(groupMapPins([...points].reverse()),groups);
+  assert.equal(groups.flatMap(g=>g.members).length,points.length,'No locator is dropped');
+  for(let i=0;i<groups.length;i++) for(let j=i+1;j<groups.length;j++) {
+    const a=groups[i],b=groups[j];assert(Math.abs(a.x-b.x)>=(a.width+b.width)/2+4 || Math.abs(a.y-b.y)>=(a.height+b.height)/2+4,'Rendered footprints must never overlap');
+  }
+}
+console.log('Non-overlapping group footprints passed for pairs, dense yards, adjoining clusters and refresh order.');

@@ -25,3 +25,26 @@ export function separateMapPins(points: MapPinPoint[], spacing = 44) {
   });
 
 }
+
+// Recheck rendered footprints so a group badge cannot cover its neighbors.
+export function groupMapPins(points: MapPinPoint[]) {
+  const groups = [...points].sort((a,b)=>a.id.localeCompare(b.id)).map(point=>[point]);
+  const footprint = (members: MapPinPoint[]) => ({
+    x: members.reduce((n,p)=>n+p.x,0)/members.length,
+    y: members.reduce((n,p)=>n+p.y,0)/members.length,
+    width: members.length===1 ? 46 : members.length===2 ? 94 : 90,
+    height: 42,
+  });
+  let merged = true;
+  while (merged) {
+    merged = false;
+    outer: for (let i=0;i<groups.length;i++) for (let j=i+1;j<groups.length;j++) {
+      const a=footprint(groups[i]), b=footprint(groups[j]);
+      if (Math.abs(a.x-b.x)<(a.width+b.width)/2+4 && Math.abs(a.y-b.y)<(a.height+b.height)/2+4) {
+        groups[i]=[...groups[i],...groups[j]].sort((a,b)=>a.id.localeCompare(b.id));
+        groups.splice(j,1); merged=true; break outer;
+      }
+    }
+  }
+  return groups.map(members=>({...footprint(members), members}));
+}

@@ -24,22 +24,29 @@ async function main() {
     await assert.rejects(executeScheduleOperation({...op,requestId:randomUUID()},'tester',()=>job,run),/unverified/);
     assert.equal((await reconcileRescheduleReceipt(op.requestId,'tester',async()=>({...expected,status:'Cancelled',verifiedAt:new Date().toISOString()})))?.status,'uncertain');
     assert.equal((await reconcileRescheduleReceipt(op.requestId,'tester',async()=>({...expected,verifiedAt:new Date().toISOString()})))?.status,'verified');
-    for(const test of ['rejected','unknown','other-day','newer-override']) {
-      const id=String(2000+['rejected','unknown','other-day','newer-override'].indexOf(test));
+    for(const test of ['rejected','preflight','unknown','other-day','newer-override']) {
+      const id=String(2000+['rejected','preflight','unknown','other-day','newer-override'].indexOf(test));
       const requestId=randomUUID();
-      const pending=saveJobRouteAssignment({date:op.date,jobKey:`appt:${id}`,appointmentId:id,truck:'Truck 1',appointmentStartMinutes:660,appointmentEndMinutes:720,junkwareSyncStatus:'pending',junkwareSyncError:test==='unknown'?'Save response lost':'11:00 AM is not available for this JunkWare appointment.'})!;
+      const pending=saveJobRouteAssignment({date:op.date,jobKey:`appt:${id}`,appointmentId:id,truck:'Truck 1',appointmentStartMinutes:660,appointmentEndMinutes:720,junkwareSyncStatus:'pending',junkwareSyncError:test==='unknown'?'Save response lost':test==='preflight'?'page.evaluate: Error: This appointment is not draggable in the source daily schedule.':'11:00 AM is not available for this JunkWare appointment.'})!;
       const receipt={requestId,actor:'tester',action:'move',date:op.date,recordId:`${op.date}:appointment:${id}`,status:'uncertain',fingerprint:'test',updatedAt:new Date().toISOString(),message:'Save not verified',sourceResult:{assignment:pending}};
       await fs.writeFile(path.join(dir,requestId+'.json'),JSON.stringify(receipt));
       if(test==='newer-override')saveJobRouteAssignment({...pending,truck:'Truck 3'});
       const source={appointmentId:id,date:test==='other-day'?'2026-09-12':op.date,truck:'Truck 1',appointmentStartMinutes:780,appointmentEndMinutes:840,verifiedAt:new Date().toISOString()};
       assert.equal(await reconcileMoveReceipt(requestId,'other',async()=>source),null);
       const resolved=await reconcileMoveReceipt(requestId,'tester',async()=>source);
-      assert.equal(resolved?.status,test==='rejected'?'failed':'uncertain',test);
-      if(test==='rejected') {
+      assert.equal(resolved?.status,['rejected','preflight'].includes(test)?'failed':'uncertain',test);
+      if(['rejected','preflight'].includes(test)) {
         assert.equal(resolved?.sourceResult?.assignmentReconciled,true);
         assert.equal((resolved?.sourceResult?.assignment as typeof pending).appointmentStartMinutes,660,'Retain attempted move in audit');
         assert.equal(readJobRouteAssignmentOverrides(op.date).get(`appt:${id}`)?.appointmentStartMinutes,780);
         assert.equal(readJobRouteAssignmentOverrides(op.date).get(`appt:${id}`)?.junkwareSyncStatus,'verified');
+        const refreshed=await reconcileMoveReceipt(requestId,'tester',async()=>({...source,truck:'Truck 3',status:'Completed'}));
+        assert.equal(refreshed?.status,'failed');
+        assert.equal(readJobRouteAssignmentOverrides(op.date).get(`appt:${id}`)?.truck,'Truck 3','A repeat source-only check can refresh its own reconciled assignment');
+        const current=readJobRouteAssignmentOverrides(op.date).get(`appt:${id}`)!;
+        saveJobRouteAssignment({...current,truck:'Truck 4'});
+        await reconcileMoveReceipt(requestId,'tester',async()=>source);
+        assert.equal(readJobRouteAssignmentOverrides(op.date).get(`appt:${id}`)?.truck,'Truck 4','Do not overwrite a later dispatch action');
       }
     }
     assert.equal(writes,1,'Recovery never writes to JunkWare');

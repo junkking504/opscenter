@@ -1,4 +1,4 @@
-import { moveOnDailySchedule } from './junkware-dispatch-move';
+import { moveOnDailySchedule, readSavedDispatchTruck, openAppointmentDispatch } from './junkware-dispatch-move';
 import { capture as captureCloseout } from './sync-junkware-job-closeout';
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -117,14 +117,7 @@ function outputTruck(label: string): string {
 }
 
 async function assignedTruck(page: Page): Promise<string> {
-  const truckSelect = page.locator("#ctl00_Content_TruckDD");
-  if ((await truckSelect.count()) !== 1) throw new Error("The JunkWare truck assignment control has changed.");
-  const label = await truckSelect.evaluate((select) => {
-    const containerText = select.parentElement?.innerText || select.parentElement?.textContent || "";
-    const match = containerText.match(/Assigned:\s*(Truck#?\s*\d+)/i);
-    return match?.[1] || "";
-  });
-  return outputTruck(label);
+  return readSavedDispatchTruck(page);
 }
 
 function clockMinutes(value: string): number | null {
@@ -201,14 +194,15 @@ async function main(): Promise<void> {
   const appointmentId = argument("appointment");
   const inspect = process.argv.includes("--inspect");
   const readOnly = process.argv.includes("--read-assignment");
+  const readDispatch = process.argv.includes('--read-dispatch');
   const autoVirtualExternal = process.argv.includes("--auto-virtual-external");
   const requestedTruck = normalizedTruck(argument("truck"));
   const hasRequestedStart = process.argv.includes("--start-minutes");
   const requestedStartMinutes = hasRequestedStart ? Number(argument("start-minutes")) : null;
   const durationHours = hasRequestedStart ? Number(argument("duration-hours") || "1") : 1;
-  if ((inspect || readOnly) && (autoVirtualExternal || process.argv.includes('--truck') || hasRequestedStart)) throw new Error("Read-only inspection cannot include assignment changes.");
+  if ((inspect || readOnly || readDispatch) && (autoVirtualExternal || process.argv.includes('--truck') || hasRequestedStart)) throw new Error("Read-only inspection cannot include assignment changes.");
   if (!/^\d{1,12}$/.test(appointmentId)) throw new Error("A valid numeric appointment ID is required.");
-  if (!inspect && !readOnly && !autoVirtualExternal && !process.argv.includes("--truck")) throw new Error("A truck or unassigned state is required.");
+  if (!inspect && !readOnly && !readDispatch && !autoVirtualExternal && !process.argv.includes("--truck")) throw new Error("A truck or unassigned state is required.");
   if (hasRequestedStart && (
     !Number.isInteger(requestedStartMinutes)
     || Number(requestedStartMinutes) < 0
@@ -220,7 +214,7 @@ async function main(): Promise<void> {
   }
 
   const lockPath = assignmentLockPath(appointmentId);
-  const lock = inspect || readOnly ? null : acquireLock(lockPath);
+  const lock = inspect || readOnly || readDispatch ? null : acquireLock(lockPath);
   let browser: Browser | null = null;
   try {
     browser = await chromium.launch({ headless: true });
@@ -232,6 +226,13 @@ async function main(): Promise<void> {
     page.setDefaultTimeout(45_000);
     const targetUrl = `${JUNKWARE_ORIGIN}/franchise/appointment.aspx?id=${appointmentId}`;
     await ensureAuthenticated(page, targetUrl);
+    if(readDispatch) {
+      const date=junkwareDateKey(await page.locator('#ctl00_Content_AppointmentDateTB').inputValue());
+      await openAppointmentDispatch(page,appointmentId,date,d=>ensureAuthenticated(page,`${JUNKWARE_ORIGIN}/franchise/daily-schedule.aspx?d=${d}`));
+      const result=await page.locator(`#aid-${appointmentId}`).evaluate(element=>({draggable:element.classList.contains('draggable'),appointment:element.textContent,franchise:(document.querySelector('#ctl00_FranchiseDD') as HTMLSelectElement)?.selectedOptions[0]?.textContent}));
+      process.stdout.write(JSON.stringify({ok:true,mode:'read-dispatch',appointmentId,date,...result})+'\n');
+      await context.close();return;
+    }
     if (readOnly) {
       const truck = await assignedTruck(page);
       const start = clockMinutes(await page.locator('#ctl00_Content_StartTimeTB').inputValue());

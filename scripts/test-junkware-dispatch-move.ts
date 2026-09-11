@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
 import {chromium} from '@playwright/test';
-import {moveOnDailySchedule,type DispatchSource} from './junkware-dispatch-move';
+import {moveOnDailySchedule,readSavedDispatchTruck,type DispatchSource} from './junkware-dispatch-move';
 async function main(){
  let state:DispatchSource, posts=0, mode='', posted:Record<string,unknown>={};
  const server=createServer(async(req,res)=>{
@@ -17,6 +17,17 @@ async function main(){
  await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+(server.address() as {port:number}).port;
  const browser=await chromium.launch({headless:true});
  try{
+  const readPage=await browser.newPage();
+  for(const [status,label,selected,expected] of [
+   ['Completed','','Truck# 3','Truck 3'],
+   ['Completed','','',''],
+   ['Confirmed','Assigned: Truck# 1','Truck# 3','Truck 1'],
+   ['Confirmed','','Truck# 3',''],
+  ]){
+   await readPage.setContent(`<select id="ctl00_Content_StatusDD"><option>${status}</option></select><div><select id="ctl00_Content_TruckDD"><option>${selected}</option></select>${label}</div>`);
+   assert.equal(await readSavedDispatchTruck(readPage),expected,`${status}: ${label || 'no assignment label'}`);
+  }
+  await readPage.close();
   for(const test of ['completed','confirmed','lost','mismatch','payment-change','status-change','canceled','wrong-date','duration-change','not-draggable','unassigned']){
    mode=test;posts=0;
    state={appointmentId:'1234',date:'2026-09-11',truck:'Truck 1',start:780,duration:1,status:test==='canceled'?'Canceled':test==='confirmed'?'Confirmed':'Completed',protectedCloseout:{payments:[{method:'Check',amount:'388.00',reference:'00123'}],total:'388.00',status:test}};

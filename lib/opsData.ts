@@ -1,4 +1,5 @@
 import fs from "fs";
+import { normalizeRecyclingIncome } from "@/lib/recycling-income";
 import path from "path";
 import { applyManualBonusesToMetrics } from "@/lib/manual-bonuses";
 import { addDays, chicagoDateKey } from "@/lib/report-dates";
@@ -131,7 +132,7 @@ export function readMetrics(date: string): AnyRecord | null {
       if (fs.existsSync(file)) {
         const metrics = JSON.parse(fs.readFileSync(file, "utf8"));
         return applyAppointmentAssignmentOverrides(
-          applyStandingDriverAttributionRules(applyManualBonusesToMetrics(metrics, date)),
+          applyStandingDriverAttributionRules(applyManualBonusesToMetrics(normalizeRecyclingIncome(metrics), date)),
           date
         );
       }

@@ -166,7 +166,7 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
   const payroll = sumValues(entries.map((entry) => entry.metrics), ["total_payroll", "payroll"]) || regularPay + bonuses;
   const dumpExpense = sumValues(entries.map((entry) => entry.metrics), ["dump_expense"]);
   const fuelExpense = sumValues(entries.map((entry) => entry.metrics), ["fuel_expense"]);
-  const recyclingExpense = sumValues(entries.map((entry) => entry.metrics), ["recycling_expense"]);
+  const recyclingIncome = sumValues(entries.map((entry) => entry.metrics), ["recycling_income"]);
   const otherExpense = sumValues(entries.map((entry) => entry.metrics), ["other_expense"]);
   const junkKingRoyalties = sumValues(entries.map((entry) => entry.metrics), ["junk_king_royalties"]);
   const callCenterRoyalties = sumValues(entries.map((entry) => entry.metrics), ["call_center_royalties"]);
@@ -211,7 +211,6 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
     expenseByCategory.set("Payroll", (expenseByCategory.get("Payroll") || 0) + Number(entry.metrics.total_payroll || entry.metrics.payroll || 0));
     expenseByCategory.set("Dump Expense", (expenseByCategory.get("Dump Expense") || 0) + Number(entry.metrics.dump_expense || truckExpenses.dump_expense || 0));
     expenseByCategory.set("Fuel Expense", (expenseByCategory.get("Fuel Expense") || 0) + Number(entry.metrics.fuel_expense || truckExpenses.fuel_expense || 0));
-    expenseByCategory.set("Recycling Expense", (expenseByCategory.get("Recycling Expense") || 0) + Number(entry.metrics.recycling_expense || truckExpenses.recycling_expense || 0));
     expenseByCategory.set("Other Expense", (expenseByCategory.get("Other Expense") || 0) + Number(entry.metrics.other_expense || truckExpenses.other_expense || 0));
   }
 
@@ -267,17 +266,17 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
           <div className="ops-card-header compact">
             <div>
               <div className="ops-section-title">Recycling</div>
-              <div className="ops-muted">Monthly recycling expense recorded in the published daily finance records.</div>
+              <div className="ops-muted">Monthly recycling income recorded in the published daily finance records.</div>
             </div>
-            <strong className="ops-kpi-value">{money(recyclingExpense)}</strong>
+            <strong className="ops-kpi-value">{money(recyclingIncome)}</strong>
           </div>
           <table className="ops-table">
-            <thead><tr><th>Date</th><th>Recycling Expense</th></tr></thead>
+            <thead><tr><th>Date</th><th>Recycling Income</th></tr></thead>
             <tbody>
-              {entries.map((entry) => ({ date: entry.date, value: Number(entry.metrics.recycling_expense || entry.metrics.truck_record_financial_summary?.recycling_expense || 0) }))
+              {entries.map((entry) => ({ date: entry.date, value: Number(entry.metrics.recycling_income || entry.metrics.truck_record_financial_summary?.recycling_income || 0) }))
                 .filter((entry) => entry.value !== 0)
                 .map((entry) => <tr key={entry.date}><td>{entry.date}</td><td className="ops-money">{money(entry.value)}</td></tr>)}
-              {recyclingExpense === 0 ? <tr><td colSpan={2} className="ops-muted">No recycling expense is recorded for this month.</td></tr> : null}
+              {recyclingIncome === 0 ? <tr><td colSpan={2} className="ops-muted">No recycling income is recorded for this month.</td></tr> : null}
             </tbody>
           </table>
         </section>
@@ -318,7 +317,6 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
             <div><span>Bonuses</span><strong>{money(bonuses)}</strong></div>
             <div><span>Dump Expense</span><strong>{money(dumpExpense)}</strong></div>
             <div><span>Fuel Expense</span><strong>{money(fuelExpense)}</strong></div>
-            <div><span>Recycling Expense</span><strong>{money(recyclingExpense)}</strong></div>
             <div><span>Other Operating Expenses</span><strong>{money(otherExpense)}</strong></div>
             <div><span>Junk King Royalties — 8%</span><strong>{money(junkKingRoyalties)}</strong></div>
             <div><span>Call Center Royalties — 5%</span><strong>{money(callCenterRoyalties)}</strong></div>
@@ -603,7 +601,7 @@ async function renderFinancePageForRole({
   const dailyRecyclingRows = (Array.isArray(metrics?.truck_record_financial_rows) ? metrics.truck_record_financial_rows : [])
     .map((row: AnyRecord) => ({
       truck: String(row.truck || row.truck_name || "Unassigned"),
-      value: Number(row.recycling_expense || 0),
+      value: Number(row.recycling_income || 0),
     }))
     .filter((row: { truck: string; value: number }) => row.value !== 0);
   const dailySection = requestedSection === "reconciliation" ? "payments" : requestedSection;
@@ -778,15 +776,15 @@ async function renderFinancePageForRole({
           <div className="ops-card-header compact">
             <div>
               <div className="ops-section-title">Recycling</div>
-              <div className="ops-muted">Daily recycling costs remain separate from resale inventory.</div>
+              <div className="ops-muted">Income received from metal recycling yards.</div>
             </div>
-            <strong className="ops-kpi-value">{money(toNumber(metrics?.recycling_expense ?? financeSummary.recycling_expense))}</strong>
+            <strong className="ops-kpi-value">{money(toNumber(metrics?.recycling_income ?? financeSummary.recycling_income))}</strong>
           </div>
           <table className="ops-table">
-            <thead><tr><th>Truck</th><th>Recycling Expense</th></tr></thead>
+            <thead><tr><th>Truck</th><th>Recycling Income</th></tr></thead>
             <tbody>
               {dailyRecyclingRows.map((row: { truck: string; value: number }) => <tr key={row.truck}><td><strong>{row.truck}</strong></td><td className="ops-money">{money(row.value)}</td></tr>)}
-              {dailyRecyclingRows.length === 0 ? <tr><td colSpan={2} className="ops-muted">No truck-level recycling expense is recorded for this date.</td></tr> : null}
+              {dailyRecyclingRows.length === 0 ? <tr><td colSpan={2} className="ops-muted">No truck-level recycling income is recorded for this date.</td></tr> : null}
             </tbody>
           </table>
         </section>

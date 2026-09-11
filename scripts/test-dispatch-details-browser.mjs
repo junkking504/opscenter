@@ -85,7 +85,16 @@ try {
     assert.equal(await drawer.getByRole('combobox',{name:'Truck Assignment',exact:true}).count(),0,'Assignment controls start collapsed');
     await drawer.getByRole('textbox',{name:'Add Appointment Note',exact:true}).fill('Synthetic note only');
     assert.equal(await drawer.getByRole('button',{name:'Save Note in JunkWare',exact:true}).isEnabled(),true,'Note entry remains immediately accessible');
-    await drawer.getByText('Assignment, call-ahead & cancellation',{exact:true}).click();
+    assert.equal(await drawer.getByRole('region',{name:'Cancel Appointment',exact:true}).locator('xpath=ancestor::details').count(),0,'Cancellation is not buried in a disclosure');
+    await drawer.getByRole('button',{name:'Cancel Appointment',exact:true}).click();
+    assert.equal(await drawer.getByRole('textbox',{name:'Cancellation Reason',exact:true}).evaluate(el=>document.activeElement===el),true,'Footer shortcut focuses cancellation');
+    assert.equal(await drawer.getByRole('button',{name:'Review Cancellation',exact:true}).isEnabled(),false,'A cancellation reason is required');
+    await drawer.getByRole('textbox',{name:'Cancellation Reason',exact:true}).fill('Synthetic test reason');
+    await drawer.getByRole('button',{name:'Review Cancellation',exact:true}).click();
+    assert.equal(await drawer.getByRole('button',{name:'Confirm Cancellation',exact:true}).isVisible(),true);
+    await drawer.getByRole('button',{name:'Keep Appointment',exact:true}).click();
+    assert.equal(await drawer.getByRole('button',{name:'Confirm Cancellation',exact:true}).count(),0,'Backing out does not cancel');
+    await drawer.getByText('Assignment & call-ahead',{exact:true}).click();
     await drawer.getByRole('combobox',{name:'Truck Assignment',exact:true}).waitFor();
     assert.equal(await drawer.getByRole('button',{name:'Mark Call Ahead',exact:true}).isEnabled(),true);
     await page.getByRole('dialog').getByRole('button',{name:'Close',exact:true}).first().click();

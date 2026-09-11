@@ -294,7 +294,7 @@ export default function ScheduleControls({
         <Button className="drawer-cancel-action" variant="outline" disabled={blocked || !note.trim()} onClick={() => { void run("note", { note }); }}>Save Note in JunkWare</Button>
       </div>
       <details className="drawer-secondary-controls">
-      <summary>Assignment, call-ahead &amp; cancellation</summary>
+      <summary>Assignment &amp; call-ahead</summary>
       <small>Assignment changes are verified in JunkWare. Call-ahead is recorded in OpsCenter.</small>
       {assignmentNeedsVerification(job) && (
         <p className="drawer-action-feedback" role="status">
@@ -360,11 +360,15 @@ export default function ScheduleControls({
           </div>
         </>
       )}
+      </details>
       {!isClosed(job) && (
-        <div className="drawer-cancel-row">
+        <section className="drawer-cancel-row" id="appointment-cancellation" aria-label="Cancel Appointment">
+          <h3>Cancel Appointment</h3>
+          <p>Record the reason, then confirm cancellation in JunkWare.</p>
           <label className="drawer-cancel-field">
             <span>Cancellation Reason</span>
             <input
+              id="appointment-cancellation-reason"
               value={reason}
               onChange={(event) => {
                 setReason(event.target.value);
@@ -381,7 +385,7 @@ export default function ScheduleControls({
             disabled={blocked || !reason.trim()}
             onClick={() => setConfirmCancel(true)}
           >
-            Record Cancellation
+            Review Cancellation
           </Button>
           {confirmCancel && (
             <div className="drawer-cancel-confirmation" role="alert">
@@ -408,9 +412,8 @@ export default function ScheduleControls({
               </div>
             </div>
           )}
-        </div>
+        </section>
       )}
-      </details>
       {receipt && (
         <ChangeReceipt
           receipt={receipt}

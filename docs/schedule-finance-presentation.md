@@ -1,5 +1,12 @@
 # Schedule and Finance presentation
 
+Cancellation remains a first-class appointment action: open an appointment and
+use the persistent `Cancel Appointment` footer shortcut. It focuses a dedicated,
+visible cancellation section outside the assignment disclosure. A reason and
+separate review/confirmation are required; existing JunkWare verification and
+no-replay protections remain unchanged. Closed/canceled records do not expose
+the action.
+
 The dispatch board reserves bottom space for an `All Appointments` jump banner.
 It remains reachable on narrow screens and clears board filters before scrolling
 and focusing the complete register. Empty truck rows use the same base height

@@ -2,3 +2,8 @@
 .ops-live .drawer-secondary-controls > summary { padding: 12px 0; font-size: 12px; font-weight: 700; cursor: pointer; }
 .ops-live .drawer-secondary-controls > small { display: block; margin-bottom: 12px; color: #58675f; }
 .ops-live .drawer-secondary-controls > summary:focus-visible { outline: 2px solid #576e60; outline-offset: 2px; }
+.ops-live .drawer-cancel-row { margin-top: 16px; padding: 12px; border: 1px solid #e0b5b5; border-radius: 8px; background: #fffafa; scroll-margin-block: 12px; }
+.ops-live .drawer-cancel-row > h3, .ops-live .drawer-cancel-row > p { grid-column: 1 / -1; margin: 0 0 8px; }
+.ops-live .drawer-cancel-row > h3 { color: #912e32; font-size: 14px; }
+.ops-live .drawer-cancel-row > p { color: #635758; font-size: 12px; }
+.ops-live .record-drawer-actions .drawer-cancel-shortcut { grid-column: 1 / -1; color: #912e32; border-color: #d4a7aa; background: #fffafa; }

@@ -17,12 +17,14 @@ const longDetails=new URLSearchParams(location.search).get('details')==='long';
 const routeMode=new URLSearchParams(location.search).get('routes') || 'available';
 let releaseVerification:(()=>void)|undefined;
 const assignments=new Map<string,string>();
+const cancellations=new Set<string>();
 const writes:Array<{date:string;recordId:string;action:string;values:{truck:string}}>=[];
 function appointments(date:string):ScheduleAppointment[] {
   return Array.from({length:scenario==='empty'?0:scenario==='dense'?24:scenario==='same-time'?4:['on-site','route-stack'].includes(scenario)?3:1},(_,index)=>{
     const recordId=`${date}:appointment:${1001+index}`;
     return {recordId,appointmentId:String(1001+index),version:'a'.repeat(64),callAhead:'not_called',jkNumber:`JK100${String(1001+index)}`,appointmentUrl:'',appointmentTime:'9:00 AM–10:00 AM',appointmentStartMinutes:540,appointmentEndMinutes:600,hasScheduledTime:true,customerName:`Example appointment ${index+1}`,customerEmail:'',phone:'',address:'',territory:'Baton Rouge',appointmentType:'Job',status:'Confirmed',truck:assignments.get(recordId)||'Virtual Truck',driver:'',navigator:'',paymentType:'',paymentAmount:0,tipAmount:0,junkItems:[],appointmentNotes:[],cancellationReason:'',location:null};
-  }).map(job=>scenario==='same-time'?{...job,truck:'Truck 8',appointmentTime:'8:00 AM–9:00 AM',appointmentStartMinutes:480,appointmentEndMinutes:540}:job)
+  }).map(job=>cancellations.has(job.recordId)?{...job,status:'Canceled'}:job)
+    .map(job=>scenario==='same-time'?{...job,truck:'Truck 8',appointmentTime:'8:00 AM–9:00 AM',appointmentStartMinutes:480,appointmentEndMinutes:540}:job)
     .map((job,index)=>scenario==='route-stack'?{...job,truck:'Truck 9',status:index===0?'Completed':'Confirmed',stopOrder:index,...(progressEnabled?{location:{latitude:30,longitude:-90},truckOnSite:index===1&&progressStage==='onsite',onsiteTruck:index===1&&progressStage==='onsite'?'Truck 9':undefined,onsiteTime:index===0?{minutes:20,arrival:new Date(Date.now()-3600000).toISOString(),departure:new Date(Date.now()-1200000).toISOString(),label:'20 min'}:undefined}:{}),appointmentStartMinutes:index===0?540:660,appointmentEndMinutes:index===0?600:720,appointmentTime:index===0?'9:00 AM–10:00 AM':'11:00 AM–12:00 PM'}:job)
     .map((job,index)=>scenario==='on-site'?{...job,truck:'Truck 8',address:'100 Example St Baton Rouge LA 70802',location:{latitude:30.45+index*.04,longitude:-91.18},truckOnSite:index<2 && !stalePresence,lastSeenOnsiteTruck:stalePresence && index===0?'Truck 8':undefined,lastSeenOnsiteAt:stalePresence?'2026-09-08T14:30:00Z':undefined,status:index===1?'Completed':'Confirmed'}:job)
     .map(job=>longDetails?{...job,address:'100 Example Boulevard, Building Three, Second Floor, Suite 237, New Orleans, LA 70130',junkItems:['Sofa, mattress, bookcases, and boxes stored in the upstairs room; use the side entrance.'],phone:'(555) 010-1001',appointmentNotes:['Use the side entrance. Call before arrival.','Additional source history remains in full details.'],location:routeMode==='address'?null:{latitude:30,longitude:-90}}:job);
@@ -43,7 +45,10 @@ window.fetch=async(input,init)=>{
     writes.push(body);
     if(result==='held') await new Promise<void>(resolve=>{releaseVerification=resolve;window.dispatchEvent(new Event('fixture-write'));});
     const status=result==='held'?'verified':result;
-    if(status==='verified') assignments.set(body.recordId,body.values.truck);
+    if(status==='verified') {
+      if(body.action==='cancel') cancellations.add(body.recordId);
+      else if(body.action==='move') assignments.set(body.recordId,body.values.truck);
+    }
     window.dispatchEvent(new Event('fixture-write'));
     return Response.json({receipt:{requestId:body.requestId,status,message:`Synthetic move result: ${status}.`}});
   }

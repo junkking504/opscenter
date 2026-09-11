@@ -111,3 +111,23 @@ time, then run `node --import tsx scripts/import-merchant-center-evidence.ts <fi
 Keep evidence and provenance outside Git. This adds processor evidence only; it
 cannot repair QBO or JunkWare. A later complete export supersedes older details.
 Run `npm run verify:merchant-evidence` for source-isolation and matching checks.
+
+## Browser session continuity
+
+The five-minute OpsBot browser keepalive must probe OpenClaw gateway health
+before starting it. Never force-restart a healthy gateway: doing so destroys
+active browser targets and can interrupt Merchant Center exports. Pin JunkWare
+navigation to the keepalive's own tab instead of the currently selected tab.
+
+The maintained keepalive source is
+`deploy/macmini/runtime/browser_keepalive.sh`; its existing installed entrypoint
+is `~/.openclaw/workspace/opsbot/scripts/browser_keepalive.sh`. Install this
+script separately from the immutable web release, preserving the live script
+for rollback and checking for concurrent edits. No LaunchAgent path or interval
+change is needed. Test with `python3 scripts/test-browser-keepalive.py`.
+
+After sign-in recovery, verify an account-pinned export and the normal runner.
+A successful direct export does not clear an earlier runner failure by itself.
+Only release the retry cooldown after fresh evidence has been verified, and
+let the runner record its own success or failure. Exported pending transactions
+remain pending; session recovery does not establish approval or bank settlement.

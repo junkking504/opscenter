@@ -7,6 +7,7 @@ export function AppointmentReschedule({job,date,saved,onBusyChange,onOpenDate}:{
   const [destination,setDestination]=useState(date);
   const [start,setStart]=useState(job.appointmentStartMinutes===null?'':String(job.appointmentStartMinutes));
   const [review,setReview]=useState(false);
+  const [reviewVersion,setReviewVersion]=useState('');
   const [busy,setBusy]=useState(false);
   const [receipt,setReceipt]=useState<Receipt|null>(null);
   const [error,setError]=useState('');
@@ -16,12 +17,13 @@ export function AppointmentReschedule({job,date,saved,onBusyChange,onOpenDate}:{
   const validDate=/^\d{4}-\d{2}-\d{2}$/.test(destination) && Number.isFinite(Date.parse(destination)) && new Date(destination+'T12:00:00Z').toISOString().slice(0,10)===destination;
   const valid=validDate && start!=='' && Number(start)%60===0 && duration>0 && duration<=720 && duration%60===0 && Number(start)+duration<=1440 && (destination!==date || Number(start)!==job.appointmentStartMinutes);
   const blocked=busy || Boolean(receipt && receipt.status!=='failed') || assignmentNeedsVerification(job);
+  const reviewChanged=review && reviewVersion!==job.version;
   const confirm=async()=>{
-    if(inFlight.current || blocked || !valid) return;
+    if(inFlight.current || blocked || !valid || reviewChanged) return;
     inFlight.current=true;setBusy(true);setError('');
     const requestId=crypto.randomUUID();
     try {
-      const result=await sendScheduleChange(job,date,'reschedule',{destinationDate:destination,appointmentStartMinutes:Number(start)},requestId);
+      const result=await sendScheduleChange({...job,version:reviewVersion},date,'reschedule',{destinationDate:destination,appointmentStartMinutes:Number(start)},requestId);
       setReceipt(result);
       if(result.status==='verified') saved(destination);
     } catch(error) {setReceipt({requestId,status:'uncertain',message:error instanceof Error?error.message:'Check the saved result before trying again.'});}
@@ -42,12 +44,13 @@ export function AppointmentReschedule({job,date,saved,onBusyChange,onOpenDate}:{
     <p>The truck and appointment length stay the same. Customer and Krewe messages are separate.</p>
     {(!duration || duration%60!==0) && <p role="alert">The source appointment window needs review in JunkWare before rescheduling.</p>}
     {assignmentNeedsVerification(job) && <p role="alert">Check the unverified assignment change before rescheduling.</p>}
-    {!review && !receipt && <Button variant="outline" disabled={blocked || !valid} onClick={()=>setReview(true)}>Review Reschedule</Button>}
+    {!review && !receipt && <Button variant="outline" disabled={blocked || !valid} onClick={()=>{setReviewVersion(job.version);setReview(true);}}>Review Reschedule</Button>}
     {review && !receipt && <div className="drawer-reschedule-review" role="group" aria-label="Review reschedule">
       <strong>{job.jkNumber} · {job.customerName}</strong>
       <p>From {date} · {job.appointmentTime}<br/>To {destination} · {scheduleMoveWindow(job,Number(start)).label}</p>
       <p>Confirming changes this appointment in JunkWare.</p>
-      <div className="drawer-quick-actions"><Button variant="outline" disabled={busy} onClick={()=>setReview(false)}>Keep Appointment</Button><Button disabled={blocked || !valid} onClick={()=>void confirm()}>{busy?'Verifying in JunkWare…':'Confirm Reschedule'}</Button></div>
+      {reviewChanged && <p role="alert">This appointment changed during review. Choose Keep Appointment, then review the current details again.</p>}
+      <div className="drawer-quick-actions"><Button variant="outline" disabled={busy} onClick={()=>setReview(false)}>Keep Appointment</Button><Button disabled={blocked || !valid || reviewChanged} onClick={()=>void confirm()}>{busy?'Verifying in JunkWare…':'Confirm Reschedule'}</Button></div>
     </div>}
     {receipt && <ChangeReceipt receipt={receipt} onCheck={()=>{if(inFlight.current)return;inFlight.current=true;setBusy(true);void checkScheduleChange(receipt.requestId).then(value=>{setReceipt(value);if(value.status==='verified')saved(destination);}).catch(error=>setError(error.message)).finally(()=>{setBusy(false);inFlight.current=false;});}}/>}
     {receipt?.status==='failed' && <Button variant="outline" onClick={()=>{setReceipt(null);setReview(false);}}>Review and Correct</Button>}

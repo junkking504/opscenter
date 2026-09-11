@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { serviceTerritory } from '../lib/service-territory';
-import { appointmentRegion, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
+import { appointmentColorClass, appointmentRegion, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
 import { proposeRoutes, routePlanSourceKey, planEligible } from '../desktop-ui/lib/route-plan';
 import { buildRoutePlan, parsePlanOptions } from '../lib/desktop-route-plan';
 import { desktopCalendarDay } from '../lib/desktop-schedule-calendar';
@@ -26,6 +26,16 @@ const cases: Array<[string, string, string, string]> = [
   ['100 Example Rd, Walker, 70785', 'New Orleans', 'BR', 'LIV'],
   ['100 Example Rd, Chalmette, LA 70043', 'Westbank', 'NO', 'EM'],
   ['100 Example Rd, New Orleans East, LA 70128', 'Westbank', 'NO', 'EM'],
+  ['100 Example Blvd New Orleans, LA 70114', 'Jefferson Parish', 'JP', 'WB'],
+  ['100 Example Rd New Orleans, LA 70131', 'New Orleans', 'JP', 'WB'],
+  ['100 Example Rd, New Orleans, LA 70128', 'New Orleans', 'NO', 'EM'],
+  ['100 Example Rd, New Orleans, 70127-1234', 'New Orleans', 'NO', 'EM'],
+  ['100 Example Rd, New Orleans, LA 70129', 'New Orleans', 'NO', 'EM'],
+  ['100 Example Rd, New Orleans, LA 70126', 'New Orleans', 'NO', 'EM'],
+  ['100 Example Rd, 70043', 'New Orleans', 'NO', 'EM'],
+  ['70128 Westwego St, Metairie, LA 70001', 'Westbank', 'JP', 'MET'],
+  ['100 Chalmette St, New Orleans, LA 70122', 'Westbank', 'NO', 'NO'],
+  ['100 Example Rd, New Orleans East, LA 70114', 'New Orleans', 'UNK', 'UNK'],
   ['100 Example Rd, New Orleans, LA 70739', 'New Orleans', 'UNK', 'UNK'],
   ['100 Example Rd, Lafayette, IN 47901', 'Baton Rouge', 'UNK', 'UNK'],
   ['100 Example Rd, Lafayette, CA', 'Baton Rouge', 'UNK', 'UNK'],
@@ -39,6 +49,7 @@ for (const [address, source, code, area] of cases) {
   assert.equal(result.areaCode, area, address);
   assert.equal(result.sourceTerritory, source);
   assert.equal(result.needsReview, code === 'UNK');
+  assert.equal(appointmentColorClass({address, territory: source}), `territory-${(['WB','EM'].includes(area) ? area : code).toLowerCase()}`, address);
 }
 const job = (id: string, address: string, territory: string) => ({ recordId: id, appointmentId: id, version: 'v1', jkNumber: 'JK_SYNTHETIC', address, territory, truck: 'Unassigned', status: 'Confirmed', appointmentType: 'Job', location: null, appointmentStartMinutes: 720 } as ScheduleAppointment);
 const greenwell = job('greenwell-no', cases[0][0], 'New Orleans');

@@ -541,3 +541,18 @@ engine-on report restores ETA eligibility. Older moving reports display **Last
 position** with their age; overdue parked reports display **Last parked** with
 their age. Neither confirms current motion. Missing/invalid telemetry remains
 **GPS unavailable**. Parked tolerance never extends current on-site evidence.
+
+## Dispatch area colors
+
+Individual appointment blocks, map markers and selected-card accents use the
+shared `appointmentColorClass` rule: Westbank is amber-orange (`#fbbf24`), East
+Metro (New Orleans East/Chalmette) is yellow (`#facc15`). Other areas retain their
+territory palette. These cues never overwrite JunkWare franchise ownership or
+the parish-level grouping/filter. The selected card also names the service area.
+
+The existing East Metro presentation ZIP set (70043, 70126–70129) now refines the
+generic New Orleans postal city in the shared service-area classifier. It is a
+dispatch zone, not a precise neighborhood boundary: 70126 also covers Gentilly.
+See the [City's food-access report](https://nola.gov/nola/media/Health-Department/Images/Making-Groceries-10-3.pdf).
+ZIP matching is terminal-only; street names cannot activate the override, and
+out-of-state or conflicting service locations remain unclassified.

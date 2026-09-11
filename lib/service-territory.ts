@@ -30,6 +30,10 @@ const zipAreas: Record<string, Area> = {
   '70123': { code: 'JP', areaCode: 'EB', area: 'Eastbank' },
   ...Object.fromEntries(['70037','70053','70056','70058','70072','70094','70114','70131'].map(zip =>
     [zip, { code: 'JP', areaCode: 'WB', area: 'Westbank' }])),
+  // Preserve the established East Metro dispatch zone from JobsMap. This is a
+  // presentation area, not a precise neighborhood boundary (70126 also spans Gentilly).
+  ...Object.fromEntries(['70043','70126','70127','70128','70129'].map(zip =>
+    [zip, { code: 'NO', areaCode: 'EM', area: 'East Metro' }])),
 };
 export function sourceTerritoryCode(value: string) {
   return /westbank|jefferson/i.test(value) ? 'JP' : /north.?shore/i.test(value) ? 'NS'
@@ -54,7 +58,8 @@ export function serviceTerritory(address: string, sourceTerritory = '') {
     // New Orleans postal city includes Algiers: the established Westbank ZIPs
     // intentionally refine this postal-city alias into JP/WB for dispatch.
     && !(cityArea.code === 'NO' && cityArea.areaCode === 'NO' && zipArea.code === 'JP'));
-  const area = outsideState || conflict ? null : cityArea && zipArea?.code === cityArea.code ? cityArea : zipArea || cityArea;
+  const postalCityRefinement = cityArea?.areaCode === 'NO' && zipArea?.areaCode === 'EM';
+  const area = outsideState || conflict ? null : postalCityRefinement ? zipArea : cityArea && zipArea?.code === cityArea.code ? cityArea : zipArea || cityArea;
   const sourceCode = sourceTerritoryCode(sourceTerritory);
   const mismatch = Boolean(area && sourceCode !== 'UNK' && sourceCode !== area.code);
   return {

@@ -1,6 +1,6 @@
 import { ArrowRight, MapPin, Phone, Clock3, Truck, X } from 'lucide-react';
 import { appointmentPartner, serviceAddressForGeocoding } from '../lib/appointment-partner';
-import { appointmentCategory, appointmentStatus, isClosed, assignmentNeedsVerification, scheduleCustomerLabel, truckLabel, type ScheduleAppointment, type ClosestTruck } from './lib/schedule-contract';
+import { appointmentCategory, appointmentStatus, appointmentRegion, appointmentColorClass, isClosed, assignmentNeedsVerification, scheduleCustomerLabel, truckLabel, type ScheduleAppointment, type ClosestTruck } from './lib/schedule-contract';
 import { schedulePayment } from './lib/schedule-payment';
 import './schedule-appointment-summary.css';
 
@@ -21,8 +21,9 @@ export default function ScheduleAppointmentSummary({job,closest,loading,isToday,
   const phone = job.phone.replace(/\D/g, '');
   const payment = schedulePayment(job);
   const photos = new Set([...(job.photos || []), ...(job.sourceEstimate?.photos || [])].map(photo => photo.url.split('?')[0])).size;
-  return <section className="schedule-appointment-summary" aria-label={`Selected job ${job.jkNumber}`}>
+  return <section className={`schedule-appointment-summary ${appointmentColorClass(job)}`} aria-label={`Selected job ${job.jkNumber}`}>
     <div className="selected-job-main">
+      <span className="selected-job-area">{appointmentRegion(job).area}</span>
       <header><div className="selected-job-heading"><span>{job.jkNumber} · {appointmentCategory(job)}</span><h2>{scheduleCustomerLabel(job)}</h2></div><span className="selected-job-status">{status}</span><button className="selected-job-clear" aria-label="Clear appointment selection" disabled={busy} onClick={clear}><X size={17} /></button></header>
       <div className="selected-job-facts"><span><Clock3 size={14} />{job.appointmentTime || 'Time not set'}</span><span><Truck size={14} />{truckLabel(job.truck)}</span>{job.truckOnSite && job.onsiteTruck && truckLabel(job.onsiteTruck) !== truckLabel(job.truck) && <span>{truckLabel(job.onsiteTruck)} on site</span>}{partner && <span className="appointment-partner-badge">{partner.name}</span>}{assignmentNeedsVerification(job) && <strong className="selected-job-warning">Assignment not verified</strong>}</div>
       <div className="selected-job-contact">{job.address ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(serviceAddressForGeocoding(job.address))}`} target="_self" rel="noopener noreferrer"><MapPin size={14} />{job.address}</a> : <span>Address unavailable</span>}{phone.length >= 7 && <a href={`tel:+${phone.length === 10 ? '1' : ''}${phone}`}><Phone size={14} />{job.phone}</a>}</div>

@@ -15,15 +15,22 @@ const stalePresence=new URLSearchParams(location.search).get('presence')==='stal
 const result=new URLSearchParams(location.search).get('result') || 'verified';
 const longDetails=new URLSearchParams(location.search).get('details')==='long';
 const routeMode=new URLSearchParams(location.search).get('routes') || 'available';
+const areaCases=new URLSearchParams(location.search).has('areas') ? [
+  ['New Orleans, LA 70114','Jefferson Parish'], ['Westwego, LA 70094','New Orleans'],
+  ['New Orleans, LA 70128','New Orleans'], ['Chalmette, LA 70043','Jefferson Parish'],
+  ['Metairie, LA 70001','Jefferson Parish'], ['New Orleans, LA 70122','New Orleans'],
+  ['New Orleans, LA 70114','Jefferson Parish'], ['New Orleans, LA 70128','New Orleans'],
+] : null;
 let releaseVerification:(()=>void)|undefined;
 const assignments=new Map<string,string>();
 const cancellations=new Set<string>();
 const writes:Array<{date:string;recordId:string;action:string;values:{truck:string}}>=[];
 function appointments(date:string):ScheduleAppointment[] {
-  return Array.from({length:scenario==='empty'?0:scenario==='dense'?24:scenario==='same-time'?4:['on-site','route-stack'].includes(scenario)?3:1},(_,index)=>{
+  return Array.from({length:areaCases?.length ?? (scenario==='empty'?0:scenario==='dense'?24:scenario==='same-time'?4:['on-site','route-stack'].includes(scenario)?3:1)},(_,index)=>{
     const recordId=`${date}:appointment:${1001+index}`;
     return {recordId,appointmentId:String(1001+index),version:'a'.repeat(64),callAhead:'not_called',jkNumber:`JK100${String(1001+index)}`,appointmentUrl:'',appointmentTime:'9:00 AM–10:00 AM',appointmentStartMinutes:540,appointmentEndMinutes:600,hasScheduledTime:true,customerName:`Example appointment ${index+1}`,customerEmail:'',phone:'',address:'',territory:'Baton Rouge',appointmentType:'Job',status:'Confirmed',truck:assignments.get(recordId)||'Virtual Truck',driver:'',navigator:'',paymentType:'',paymentAmount:0,tipAmount:0,junkItems:[],appointmentNotes:[],cancellationReason:'',location:null};
-  }).map(job=>scenario==='completed'?{...job,status:'Completed',truck:'Truck 8'}:job)
+  }).map((job,index)=>areaCases?{...job,address:`100 Example Rd ${areaCases[index][0]}`,territory:areaCases[index][1],location:{latitude:29.9+index*.035,longitude:-90.1},status:index===6?'Canceled':index===7?'Completed':'Confirmed'}:job)
+    .map(job=>scenario==='completed'?{...job,status:'Completed',truck:'Truck 8'}:job)
     .map(job=>scenario==='canceled'?{...job,status:'Canceled'}:job)
     .map(job=>cancellations.has(job.recordId)?{...job,status:'Canceled'}:job)
     .map(job=>scenario==='same-time'?{...job,truck:'Truck 8',appointmentTime:'8:00 AM–9:00 AM',appointmentStartMinutes:480,appointmentEndMinutes:540}:job)

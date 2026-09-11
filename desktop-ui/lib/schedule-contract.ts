@@ -104,6 +104,11 @@ export const territoryOrder = ['NO', 'JP', 'NS', 'BR', 'LF', 'UNK'];
 export function appointmentRegion(job: Pick<ScheduleAppointment, 'address' | 'territory' | 'sourceTerritory'>) {
   return serviceTerritory(job.address, job.sourceTerritory || job.territory);
 }
+// Color is a dispatch-area cue, not franchise ownership or territory grouping.
+export function appointmentColorClass(job: Pick<ScheduleAppointment, 'address' | 'territory' | 'sourceTerritory'>) {
+  const region = appointmentRegion(job);
+  return `territory-${(['WB', 'EM'].includes(region.areaCode) ? region.areaCode : region.code).toLowerCase()}`;
+}
 export function appointmentCategory(job: Pick<ScheduleAppointment, 'appointmentType'>) {
   return /estimate/i.test(job.appointmentType) ? 'Estimate' : /job|junk|removal/i.test(job.appointmentType) ? 'Job' : job.appointmentType || 'Unspecified';
 }

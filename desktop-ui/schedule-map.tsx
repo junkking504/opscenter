@@ -6,7 +6,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './appointment-presence.css';
 import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract';
-import { appointmentRegion, appointmentStatus, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
+import { appointmentColorClass, appointmentStatus, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
 import { territoryMapCenters } from './lib/schedule-map-layout';
 import type {TruckGpsRoute} from './lib/gps-route-contract';
 
@@ -77,7 +77,7 @@ export default function ScheduleMap(props: Props) {
       appointmentBounds.push(coordinate);
       pins.push({ id: `appointment:${job.recordId}`, coordinate,
         partner: appointmentPartner(job)?.short, tooltipTitle: `${job.jkNumber}${appointmentPartner(job) ? ` · ${appointmentPartner(job)!.name}` : ''}`, tooltipDetail: `${job.customerName} · ${job.appointmentTime}`, text: scheduleStatusTone(job) === 'completed' ? '✓' : scheduleStatusTone(job) === 'canceled' ? '×' : String(index + 1), label: `Open appointment ${job.jkNumber}, ${job.appointmentTime}, ${job.customerName}, ${appointmentStatus(job)}${appointmentPartner(job) ? `, ${appointmentPartner(job)!.name}` : ''}`,
-        className: `appointment-marker status-${scheduleStatusTone(job)} territory-${appointmentRegion(job).code.toLowerCase()} ${appointmentStatus(job).toLowerCase().replaceAll(' ', '-')}`,
+        className: `appointment-marker status-${scheduleStatusTone(job)} ${appointmentColorClass(job)} ${appointmentStatus(job).toLowerCase().replaceAll(' ', '-')}`,
         selected: selected === job.recordId, select: () => current.current.onSelect(job.recordId) });
     });
     trucks.forEach(truck => {

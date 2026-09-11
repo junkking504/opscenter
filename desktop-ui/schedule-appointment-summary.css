@@ -1,11 +1,12 @@
 /* One readable selected-job surface, ahead of dispatch geography and controls. */
 .ops-live .schedule-appointment-summary {
   display: grid; grid-template-columns: minmax(0,1fr) minmax(210px,.32fr); gap: 16px;
-  border: 1px solid #bdcdd7; border-left: 4px solid #174e77; border-radius: 8px;
+  border: 1px solid #bdcdd7; border-left: 4px solid var(--territory-color, #89918d); border-radius: 8px;
   background: #fff; color: #243943; padding: 14px 16px; margin-bottom: 10px;
   scroll-margin-top: 12px; font-size: 13px; line-height: 1.45;
 }
 .ops-live .selected-job-main, .ops-live .selected-job-next { min-width: 0; }
+.ops-live .selected-job-area { display: block; margin-bottom: 4px; color: #516672; font-size: 11px; font-weight: 750; }
 .ops-live .selected-job-main > header { display: flex; align-items: flex-start; gap: 10px; }
 .ops-live .selected-job-heading { flex: 1; min-width: 0; }
 .ops-live .selected-job-heading > span { font-size: 11px; font-weight: 650; color: #617681; }

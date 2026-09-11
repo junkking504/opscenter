@@ -429,3 +429,67 @@ workspace loading state that preserves the surrounding navigation. This removes
 about 114 kB of JavaScript from the initial bundle (before compression); it is
 not a measured page-load-time claim. Monitor and Follow-Up KPI variants share
 the same height, while History's filter-only controls use the compact tab height.
+
+
+## Workspace navigation performance
+
+The authenticated `/desktop` document includes only the verified actor and
+operating date in its bootstrap. It does not wait for a Command snapshot.
+The selected workspace starts its own read immediately; Command information
+loads independently, and unavailable alerts are never presented as zero.
+
+Fleet, Krewe, Marketing, Finance, and Schedule retain recent snapshots in a
+shared, memory-only cache (16 entries, five-minute reuse limit). Cache keys
+include the date and the view when that view changes the response. Returning
+to a workspace displays its last retrieved records, then performs the existing
+authenticated refresh. Original source and screen-retrieval timestamps remain
+unchanged on a cache hit. GPS warnings continue to be evaluated against current
+time. Cache entries are cleared before and after operational writes, including
+uncertain failures, and on authorization failures. In-flight pre-invalidation
+reads cannot repopulate the cache. API responses and save verification remain
+uncached; no business data is written to browser storage.
+
+Schedule publishes each verified day's response as it arrives so tomorrow's
+collection cannot delay today's board. Finance reuses daily source reads within
+one request across its monthly and comparison calculations, with no financial
+cache carried across server requests. The initial HTML preloads the selected workspace code and its shared dependencies.
+Hashed assets use immutable browser caching. After the first Command read, idle
+time warms Fleet, Marketing, Krewe, and permitted Finance read models one at a
+time. These endpoints only read existing local sources; Schedule collection and
+provider requests are excluded. Warm reads share in-flight work with navigation
+and stop scheduling while the tab is hidden or an operational action is busy.
+Preloaded modules render synchronously on their first visit; they do not pass
+through another Suspense fallback after their code has already arrived.
+
+A missing hashed desktop JS/CSS asset is served from retained immutable releases
+when available. This does not change release retention. If a workspace still
+cannot load or render, its error boundary preserves the sidebar and offers an
+explicit reload. Source checkouts cannot scan neighboring worktrees for assets.
+
+Append `performance=1` to an authenticated desktop URL to show local navigation
+timings. Measurements run from document navigation (first page) or the workspace
+click to a paint opportunity after records render. These are browser diagnostics,
+not field Core Web Vitals or a guarantee for every network. No timing data is
+uploaded. Remove the parameter to hide the panel.
+
+Validation: `node --import tsx scripts/test-workspace-navigation.ts` covers cache
+isolation, freshness, expiration, invalidation races, authorization loss, and
+retained-asset restrictions. The synthetic browser fixture is
+`desktop-ui/tests/navigation-speed.html?workspace=Fleet&performance=1`: Command
+is deliberately stalled and Fleet takes 1.2 seconds. Cached return transitions
+measured 17–24 ms in the in-app browser; production Safari is verified separately.
+`node --import tsx desktop-ui/tests/preloadable-workspace.test.ts` verifies a
+warmed first render does not suspend, concurrent imports are shared, and an
+unsuccessful background preload can retry. In live Safari, the HTML/code preload
+pass reduced one full Fleet load from 5,181 ms to 1,910 ms. Command and Schedule
+transitions measured 33 ms and 52 ms. First warmed Marketing, Finance, and Krewe
+visits still incurred a 345–369 ms Suspense delay, motivating the synchronous
+preloaded-module path. These are individual measurements, not percentiles.
+
+The read-only Finance comparison against the same September 11 runtime produced
+identical serialized output. Daily metric file reads fell from 847 to 520; one
+server-function sample improved from 960 ms to 622 ms. These are server-function
+measurements, separate from browser navigation. The legacy approved-prototype
+checksum test already fails on the base release's unchanged global CSS; the
+current CSS architecture check passes. The source-dependent monthly production
+audit requires runtime data and is not an isolated-worktree test.

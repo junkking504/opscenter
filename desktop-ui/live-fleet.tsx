@@ -1,3 +1,6 @@
+import { workspaceReady } from './navigation-performance';
+import { useWorkspaceSnapshot } from './use-workspace-snapshot';
+import { fetchWorkspace } from './lib/workspace-cache';
 import { useWorkspaceRefresh, WorkspaceFreshness } from './workspace-freshness';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Truck, X } from 'lucide-react';
@@ -14,11 +17,13 @@ type Drawer={kind:'truck'|'issue'|'checklist'|'maintenance';truck:DesktopFleetTr
 export default function LiveFleet({date,view,report,onViewChange,onBusyChange}:DesktopWorkspaceProps<FleetView>){
   const deepLinkApplied=useRef('');
   const selectedDate=view==='reports'&&report&&/^\d{4}-\d{2}/.test(report)?`${report.slice(0,7)}-01`:date;
-  const [snapshot,setSnapshot]=useState<DesktopFleetSnapshot|null>(null);const [error,setError]=useState('');const [pending,setPending]=useState(false);const [active,setActive]=useState<Drawer|null>(null);const [filter,setFilter]=useState('all');const [issueFilter,setIssueFilter]=useState('active');const [serviceTruck,setServiceTruck]=useState('');const [draft,setDraft]=useState<Record<string,string>>({});const [answers,setAnswers]=useState<Record<string,{status:string;notes:string}>>({});const busy=useRef(false);const generation=useRef(0);const opener=useRef<HTMLElement|null>(null);const drawer=useRef<HTMLElement|null>(null);
-  const loadSnapshot=useCallback(async(signal:AbortSignal)=>{const run=++generation.current;const response=await fetch(`/api/desktop/fleet?date=${encodeURIComponent(selectedDate)}&view=${view}`,{cache:'no-store',credentials:'same-origin',signal});const body=await response.json();if(!response.ok)throw new Error(body.error||'Fleet could not refresh.');if(run===generation.current&&!signal.aborted){setSnapshot(body);setActive(previous=>{if(!previous)return null;const truck=body.trucks.find((row:DesktopFleetTruck)=>row.id===previous.truck.id);return truck?{...previous,truck,issue:previous.issue?body.issues.find((row:FleetIssueRow)=>row.issueId===previous.issue?.issueId):undefined,record:previous.record?body.maintenance.find((row:FleetMaintenanceRow)=>row.recordId===previous.record?.recordId):undefined}:null;});}},[selectedDate,view]);
+  const snapshotKey=`/api/desktop/fleet?date=${encodeURIComponent(selectedDate)}&view=${view}`;
+  const [snapshot,setSnapshot]=useWorkspaceSnapshot<DesktopFleetSnapshot>(snapshotKey);const [error,setError]=useState('');const [pending,setPending]=useState(false);const [active,setActive]=useState<Drawer|null>(null);const [filter,setFilter]=useState('all');const [issueFilter,setIssueFilter]=useState('active');const [serviceTruck,setServiceTruck]=useState('');const [draft,setDraft]=useState<Record<string,string>>({});const [answers,setAnswers]=useState<Record<string,{status:string;notes:string}>>({});const busy=useRef(false);const generation=useRef(0);const opener=useRef<HTMLElement|null>(null);const drawer=useRef<HTMLElement|null>(null);
+  const loadSnapshot=useCallback(async(signal:AbortSignal)=>{const run=++generation.current;const body=await fetchWorkspace<DesktopFleetSnapshot>(snapshotKey,signal);if(run===generation.current&&!signal.aborted){setSnapshot(body);setActive(previous=>{if(!previous)return null;const truck=body.trucks.find((row:DesktopFleetTruck)=>row.id===previous.truck.id);return truck?{...previous,truck,issue:previous.issue?body.issues.find((row:FleetIssueRow)=>row.issueId===previous.issue?.issueId):undefined,record:previous.record?body.maintenance.find((row:FleetMaintenanceRow)=>row.recordId===previous.record?.recordId):undefined}:null;});}},[snapshotKey,setSnapshot]);
   const invalidate=useCallback(()=>{generation.current+=1;},[]);
-  useEffect(()=>{setSnapshot(null);setActive(null);setError('');return invalidate;},[selectedDate,view,invalidate]);
-  const freshness=useWorkspaceRefresh(loadSnapshot,`${selectedDate}:${view}`,Boolean(active)||pending);
+  useEffect(()=>{setActive(null);setError('');return invalidate;},[selectedDate,view,invalidate]);
+  useEffect(() => { if (snapshot) workspaceReady('Fleet'); }, [snapshot]);
+  const freshness=useWorkspaceRefresh(loadSnapshot,`${selectedDate}:${view}`,Boolean(active)||pending,30_000,snapshotKey);
   const refresh=freshness.refresh;
   useEffect(()=>{onBusyChange?.(Boolean(active)||pending);return()=>onBusyChange?.(false);},[Boolean(active),pending,onBusyChange]);
   const dialogKey=active?`${active.truck.id}:${active.kind}`:'';

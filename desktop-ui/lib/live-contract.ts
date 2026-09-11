@@ -37,6 +37,7 @@ export type DesktopAlert = {
 };
 
 export type DesktopCommandSnapshot = {
+  loading?: boolean;
   date: string;
   generatedAt: string;
   actor: { displayName: string; role: string };

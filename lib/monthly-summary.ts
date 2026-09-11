@@ -262,11 +262,11 @@ export function readMonthlyAuthority(selectedDate: string): MonthlyAuthority | n
  * Every page that reports a monthly total must consume this summary instead of
  * independently choosing between the reconciled dashboard and daily records.
  */
-export function buildMonthlySummary(selectedDate: string): MonthlySummary {
+export function buildMonthlySummary(selectedDate: string, readDaily = readMetrics): MonthlySummary {
   const range = buildMonthlyRange(selectedDate);
   const entries = range.dates
     .map((date) => {
-      const metrics = readMetrics(date);
+      const metrics = readDaily(date);
       return metrics ? { date, metrics } : null;
     })
     .filter((entry): entry is MonthlyMetricsEntry => Boolean(entry));

@@ -3,23 +3,25 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Home from './app/page';
 import { currentOperatingDay, isOperatingDay, normalizeOperatingDayUrl, operatingDayUrl } from './lib/operating-day';
 import type { DesktopCommandSnapshot } from './lib/live-contract';
+import { workspaceShell, type WorkspaceBootstrap } from './lib/workspace-bootstrap';
 
 const currentDay = currentOperatingDay;
 const initialUrl = normalizeOperatingDayUrl(window.location.href);
 if (initialUrl.href !== window.location.href) window.history.replaceState(window.history.state, '', initialUrl);
 const explicitDate = initialUrl.searchParams.get('date');
 
-export default function LiveCommand() {
-  const [date,setDate] = useState(() => explicitDate || currentDay());
+export default function LiveCommand({ bootstrap }: { bootstrap?: WorkspaceBootstrap } = {}) {
+  const [date,setDate] = useState(() => bootstrap?.date || explicitDate || currentDay());
   const workspaceBusy = useRef(false);
   const onWorkspaceBusy = useCallback((busy:boolean) => {workspaceBusy.current=busy;},[]);
-  const [snapshot, setSnapshot] = useState<DesktopCommandSnapshot | null>(null);
+  const [snapshot, setSnapshot] = useState<DesktopCommandSnapshot | null>(() => bootstrap ? workspaceShell(bootstrap) : null);
   const [, setClock] = useState(Date.now);
   const [error, setError] = useState('');
   const [pendingAlertId, setPendingAlertId] = useState<string | null>(null);
   const pendingRef = useRef(false);
   const generation = useRef(0);
   const readsPending = useRef(0);
+  const commandReceived = useRef(false);
   const refresh = useCallback(async () => {
     readsPending.current += 1;
     try {
@@ -32,6 +34,7 @@ export default function LiveCommand() {
       }
       if (!response.ok) throw new Error(body.error || 'Command could not refresh.');
       if (run === generation.current) {
+        commandReceived.current = true;
         setSnapshot(body);
         setError(body.sources.alerts ? '' : 'Operational alerts are unavailable. This is not confirmation that there are no alerts.');
       }
@@ -39,14 +42,14 @@ export default function LiveCommand() {
   }, [date]);
   useEffect(() => {
     let disposed = false, queued = false;
-    const load = () => { if (disposed || document.visibilityState === 'hidden' || pendingRef.current) return; if (readsPending.current > 0) { queued = true; return; } setClock(Date.now()); if (!explicitDate && !workspaceBusy.current && date !== currentDay()) { generation.current += 1; setSnapshot(null); setDate(currentDay()); return; } void refresh().catch(() => setError('Live data could not refresh. The last verified snapshot remains visible.')).finally(() => { if (queued && !disposed) { queued = false; load(); } }); };
+    const load = () => { if (disposed || document.visibilityState === 'hidden' || pendingRef.current) return; if (readsPending.current > 0) { queued = true; return; } setClock(Date.now()); if (!explicitDate && !workspaceBusy.current && date !== currentDay()) { generation.current += 1; commandReceived.current = false; setSnapshot(bootstrap ? workspaceShell({...bootstrap,date:currentDay()}) : null); setDate(currentDay()); return; } void refresh().catch(() => setError(commandReceived.current ? 'Live data could not refresh. The last verified snapshot remains visible.' : 'Command sources could not load. Other workspaces remain available.')).finally(() => { if (queued && !disposed) { queued = false; load(); } }); };
     load();
     const unsubscribe = subscribeArrivalUpdates(load);
     const timer = window.setInterval(load, 30_000);
     window.addEventListener('focus',load); window.addEventListener('online',load);
     document.addEventListener('visibilitychange',load);
     return () => { disposed = true; unsubscribe(); window.clearInterval(timer); window.removeEventListener('focus',load); window.removeEventListener('online',load); document.removeEventListener('visibilitychange',load); generation.current += 1; };
-  }, [refresh,date]);
+  }, [refresh,date,bootstrap]);
 
   const onAlertAction = async (alertId: string, action: 'acknowledge' | 'add_to_control') => {
     if (pendingRef.current) return;

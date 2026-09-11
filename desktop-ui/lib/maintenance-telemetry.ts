@@ -1,3 +1,4 @@
+import { clearWorkspaceCache, invalidatesWorkspaceCache } from './workspace-cache';
 // Fixed categories only; no raw errors, URLs, request bodies, or customer data.
 export function installMaintenanceTelemetry() {
   const original = window.fetch.bind(window);
@@ -10,12 +11,15 @@ export function installMaintenanceTelemetry() {
   window.addEventListener('error', () => report('javascript'));
   window.addEventListener('unhandledrejection', event => { if (event.reason?.name !== 'AbortError') report('javascript'); });
   window.fetch = async (input, init) => {
+    const invalidates = invalidatesWorkspaceCache(input, init);
+    if (invalidates) clearWorkspaceCache();
     let category = '';
     try {
       const url = new URL(input instanceof Request ? input.url : String(input), window.location.href);
       if (url.origin === window.location.origin) category = url.pathname.match(/^\/api\/desktop\/(schedule|command|control)(?:\/|$)/)?.[1] || '';
     } catch { /* preserve fetch's original validation */ }
-    try { const response = await original(input, init); if (category && response.status >= 500) report(category); return response; }
+    try { const response = await original(input, init); if (response.status === 401 || response.status === 403) clearWorkspaceCache(); if (category && response.status >= 500) report(category); return response; }
     catch (error) { if (category && !(error instanceof DOMException && error.name === 'AbortError')) report(category); throw error; }
+    finally { if (invalidates) clearWorkspaceCache(); }
   };
 }

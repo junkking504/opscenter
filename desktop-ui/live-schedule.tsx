@@ -1,3 +1,5 @@
+import { workspaceReady } from './navigation-performance';
+import { cachedWorkspace, fetchWorkspace } from './lib/workspace-cache';
 import { subscribeArrivalUpdates } from './lib/arrival-updates';
 import { truckGpsStatus } from '../lib/truck-gps-status';
 import ScheduleTruckProgress from './schedule-truck-progress';
@@ -49,7 +51,7 @@ function Phone({ value }: { value: string }) { const digits = value.replace(/\D/
 export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, report, view = 'board', onOpenDate, onBusyChange, mapOnly = false }: Props) {
   const date = dateForDay(baseDate, day);
   const [creationOpen, setCreationOpen] = useState(false);
-  const [snapshots, setSnapshots] = useState<Record<string, ScheduleSnapshot>>({});
+  const [snapshots, setSnapshots] = useState<Record<string, ScheduleSnapshot>>(() => Object.fromEntries([baseDate,dateForDay(baseDate,'tomorrow')].flatMap(date => { const cached=cachedWorkspace<ScheduleSnapshot>(`/api/desktop/schedule?date=${date}&load=1`); return cached ? [[date,cached.value]] : []; })));
   const [refreshKey, setRefreshKey] = useState(0);
   const refreshSourceDate = useRef('');
   const [pendingMove, setPendingMove] = useState<MoveProposal | null>(null);
@@ -92,6 +94,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [now, setNow] = useState(new Date());
   const snapshot = snapshots[date];
   const hasSnapshot = Boolean(snapshot);
+  useEffect(() => { if (snapshot && !mapOnly) workspaceReady('Schedule'); }, [snapshot,mapOnly]);
   const boardLayoutRef = useRef<HTMLDivElement>(null);
   const appointmentRegisterRef = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -124,10 +127,11 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
           const dayDate = dateForDay(baseDate, key);
           const force = refreshSourceDate.current === dayDate;
           if (force) refreshSourceDate.current = '';
-          const response = await fetch(`/api/desktop/schedule?date=${dayDate}&load=1${force?'&refresh=1':''}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.any([abort.signal, AbortSignal.timeout(30_000)]) });
-          const body = await response.json();
-          if (!response.ok) throw new Error(body.error || 'Schedule could not refresh.');
-          return body as ScheduleSnapshot;
+          const cacheKey = `/api/desktop/schedule?date=${dayDate}&load=1`;
+          const body = await fetchWorkspace<ScheduleSnapshot>(`${cacheKey}${force?'&refresh=1':''}`, AbortSignal.any([abort.signal, AbortSignal.timeout(30_000)]), cacheKey);
+          // Publish each verified day as it arrives. Tomorrow must not block today.
+          if (!abort.signal.aborted) setSnapshots(previous => ({...previous,[body.date]:body}));
+          return body;
         }));
         if (abort.signal.aborted) return;
         setSnapshots(Object.fromEntries(result.map(value => [value.date, value])));

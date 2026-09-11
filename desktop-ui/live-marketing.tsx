@@ -1,3 +1,6 @@
+import { workspaceReady } from './navigation-performance';
+import { useWorkspaceSnapshot } from './use-workspace-snapshot';
+import { fetchWorkspace } from './lib/workspace-cache';
 import { useWorkspaceRefresh, WorkspaceFreshness } from './workspace-freshness';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowRight, Check, PhoneCall, Play, ShieldCheck, Star, X } from 'lucide-react';
@@ -14,19 +17,21 @@ const label = (status: string) => status === 'needs_follow_up' ? 'Needs follow-u
 function PhoneContact({ phone }: { phone: string }) { return phone ? <a href={`tel:${phone.replace(/[^+\d]/g, '')}`}>{phone}</a> : <span>Phone unavailable</span>; }
 const renderJkLink = (jk: string) => jk ? <a href={`/schedule?job=${encodeURIComponent(jk)}`}>{jk}</a> : <span>No appointment selected</span>;
 export function LiveMarketing({ date, view, report, onViewChange, onBusyChange }: LiveMarketingProps) {
-  const [data, setData] = useState<MarketingData | null>(null), [error, setError] = useState(''), [revision, setRevision] = useState(0);
+  const snapshotKey = `/api/desktop/marketing?date=${date}`;
+  const [data, setData] = useWorkspaceSnapshot<MarketingData>(snapshotKey);
+  const [error, setError] = useState(''), [revision, setRevision] = useState(0);
   const [localView, setLocalView] = useState<MarketingView>('overview');
   const marketingView = (view && ['overview', 'leads', 'reviews', 'performance'].includes(view) ? view : localView) as MarketingView;
   const setMarketingView = (next: MarketingView) => { setLocalView(next); onViewChange?.(next); };
   const [marketingLeadFilter, setMarketingLeadFilter] = useState<'recover' | 'lost' | 'followup' | 'all'>('recover');
   const [actionFeedback, setActionFeedback] = useState(''), [busy, setBusy] = useState(false), [draft, setDraft] = useState<Lead | null>(null), [selections, setSelections] = useState<Record<string, string>>({});
-  useEffect(() => { setData(null); setError(''); setDraft(null); }, [date]);
+  useEffect(() => { setError(''); setDraft(null); }, [date]);
   const loadSnapshot = useCallback(async (signal: AbortSignal) => {
-    const response = await fetch(`/api/desktop/marketing?date=${date}`, {signal,cache:'no-store',credentials:'same-origin'});
-    const payload = await response.json(); if (!response.ok) throw new Error(payload.error || 'Marketing could not refresh.');
+    const payload = await fetchWorkspace<MarketingData>(snapshotKey, signal);
     if (!signal.aborted) setData(payload);
-  }, [date]);
-  const freshness = useWorkspaceRefresh(loadSnapshot,`${date}:${revision}`,busy || Boolean(draft) || Object.keys(selections).length > 0);
+  }, [snapshotKey, setData]);
+  useEffect(() => { if (data) workspaceReady('Marketing'); }, [data]);
+  const freshness = useWorkspaceRefresh(loadSnapshot,`${date}:${revision}`,busy || Boolean(draft) || Object.keys(selections).length > 0,30_000,snapshotKey);
 
   useEffect(() => { if (!draft) return; const prior = document.activeElement as HTMLElement | null; document.querySelector<HTMLElement>('[aria-labelledby="commercial-lead-title"] button')?.focus(); return () => { if (prior?.isConnected) prior.focus({ preventScroll: true }); }; }, [draft?.id]);
   useEffect(() => { const listener = (event: KeyboardEvent) => { if (event.key === 'Escape' && !busy) setDraft(null); }; window.addEventListener('keydown', listener); return () => window.removeEventListener('keydown', listener); }, [busy]);

@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import {selectWithWebFormsPostback} from './junkware-webforms';
 export async function readSavedDispatchTruck(page:Page):Promise<string> {
   const select=page.locator('#ctl00_Content_TruckDD');
   if(await select.count()!==1) throw new Error('The JunkWare truck assignment control has changed.');
@@ -16,6 +17,17 @@ export async function readSavedDispatchTruck(page:Page):Promise<string> {
   });
 }
 export type DispatchSource = {appointmentId:string;date:string;truck:string;start:number;duration:number;status:string;protectedCloseout:unknown};
+export async function openAppointmentDispatch(page:Page,appointmentId:string,date:string,openSchedule:(date:string)=>Promise<void>) {
+  await openSchedule(date);
+  if(await page.locator(`#aid-${appointmentId}`).count()) return;
+  const franchises=await page.locator('#ctl00_FranchiseDD').evaluateAll(controls=>controls.flatMap(control=>Array.from((control as HTMLSelectElement).options).filter(option=>option.value && !option.selected).map(option=>option.value)));
+  for(const franchise of franchises) {
+    await selectWithWebFormsPostback(page,'#ctl00_FranchiseDD',franchise,'the dispatch franchise');
+    await openSchedule(date);
+    if(await page.locator(`#aid-${appointmentId}`).count()) return;
+  }
+  throw new Error('JunkWare dispatch preflight: this appointment was not found on its saved day. No move was submitted.');
+}
 /** Use the same move endpoint as JunkWare's draggable daily schedule blocks.
  * Never stage Completed/Confirmed or click the appointment/payment Save form. */
 export async function moveOnDailySchedule(page:Page,input:{appointmentId:string;truck:string;start?:number;duration?:number;expectedDate?:string},read:()=>Promise<DispatchSource>,openSchedule:(date:string)=>Promise<void>,reopen:()=>Promise<void>) {
@@ -26,7 +38,7 @@ export async function moveOnDailySchedule(page:Page,input:{appointmentId:string;
   if(input.duration!==undefined && input.duration!==before.duration) throw new Error('Dispatch moves preserve appointment duration. Reload the source window.');
   if(!Number.isInteger(start) || start<0 || start%60!==0 || start+before.duration*60>1440) throw new Error('A valid hourly dispatch window is required.');
   if(before.truck===input.truck && before.start===start) return {before,after:before,changed:false};
-  await openSchedule(before.date);
+  await openAppointmentDispatch(page,input.appointmentId,before.date,openSchedule);
   const target=await page.evaluate(({appointmentId,truck})=>{
     const appointment=document.getElementById(`aid-${appointmentId}`);
     if(!appointment?.classList.contains('draggable')) throw new Error('This appointment is not draggable in the source daily schedule.');

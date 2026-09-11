@@ -154,12 +154,13 @@ export async function reconcileMoveReceipt(id: string, actor: string, readSource
       // Adopt only a fresh same-day read, and preserve the attempted move in its receipt.
       const current = readJobRouteAssignmentOverrides(receipt.date).get(`appt:${appointmentId}`);
       const rejectedTime = /\b(?:0?[1-9]|1[0-2]):[0-5]\d [AP]M is not available for this JunkWare appointment\./i.test(String(expected.junkwareSyncError || ''));
+      const rejectedPreflight = /This appointment is not draggable in the source daily schedule\.|JunkWare dispatch preflight:/.test(String(expected.junkwareSyncError || ''));
       const prior = previousReadback || expected;
       const unchanged = current && current.truck === prior.truck && current.appointmentStartMinutes === prior.appointmentStartMinutes && current.appointmentEndMinutes === prior.appointmentEndMinutes && current.updatedAt === prior.updatedAt;
-      if (rejectedTime && source.date === receipt.date && unchanged) {
+      if ((rejectedTime || rejectedPreflight) && source.date === receipt.date && unchanged) {
         const assignment = saveJobRouteAssignment({...current, expectedUpdatedAt: current.updatedAt, truck: source.truck, appointmentStartMinutes: source.appointmentStartMinutes, appointmentEndMinutes: source.appointmentEndMinutes, appointmentTime: `${clock(source.appointmentStartMinutes)} - ${clock(source.appointmentEndMinutes)}`, junkwareSyncStatus: 'verified', junkwareSyncError: '', junkwareVerifiedAt: source.verifiedAt});
         if (assignment) {
-          const resolved: ScheduleReceipt = {...receipt, status:'failed', updatedAt:new Date().toISOString(), message:`JunkWare rejected the requested time. Schedule now shows its saved assignment: ${source.truck || 'Unassigned'}, ${clock(source.appointmentStartMinutes)}–${clock(source.appointmentEndMinutes)}. Review this assignment before continuing. No move or payment was resubmitted.`, priorResult:{status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt}, sourceResult:{...receipt.sourceResult, assignmentReadback:source, assignmentReconciled:true, reconciledAssignment:assignment}};
+          const resolved: ScheduleReceipt = {...receipt, status:'failed', updatedAt:new Date().toISOString(), message:`${rejectedTime ? 'JunkWare rejected the requested time.' : 'The assignment stopped before a JunkWare move was submitted.'} Schedule now shows its saved assignment: ${source.truck || 'Unassigned'}, ${clock(source.appointmentStartMinutes)}–${clock(source.appointmentEndMinutes)}. Review this assignment before continuing. No move or payment was resubmitted.`, priorResult:{status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt}, sourceResult:{...receipt.sourceResult, assignmentReadback:source, assignmentReconciled:true, reconciledAssignment:assignment}};
           await writeReceipt(resolved);
           return resolved;
         }

@@ -125,13 +125,16 @@ export default function ScheduleMap(props: Props) {
     focused.current = focusVersion;
     const render = () => {
       const activeId = host.current?.contains(document.activeElement) ? (document.activeElement as HTMLElement)?.dataset.mapPin : undefined;
+      const appointmentSize = view.getZoom() >= 16 ? 32 : view.getZoom() >= 13 ? 26 : 20;
       layer.clearLayers();
       for (const pin of pins) {
         // Keep the center of every icon on the source coordinate at every zoom.
-        const iconSize: L.PointTuple = pin.id.startsWith('truck:') ? [26, 20] : pin.id.startsWith('trip:') ? [42, 34] : [16, 16];
+        const iconSize: L.PointTuple = pin.id.startsWith('truck:') ? [26, 20] : pin.id.startsWith('trip:') ? [42, 34] : [appointmentSize + 12, appointmentSize + 12];
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `map-marker ${pin.className}${pin.selected ? ' route-selected' : ''}`;
+        button.style.setProperty('--appointment-pin-size', `${appointmentSize}px`);
+        button.style.setProperty('--appointment-pin-font', `${Math.round(appointmentSize * .48)}px`);
         const symbol = document.createElement('span');
         symbol.className = 'map-pin-symbol';
         symbol.setAttribute('aria-hidden', 'true');
@@ -194,13 +197,13 @@ export default function ScheduleMap(props: Props) {
     for(const casing of [true,false])for(const path of streetPaths) {
       const estimated=path.kind==='estimated';
       L.polyline(path.points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{
-        color:casing?'#fff':estimated?'#b45309':'#174fd1',weight:casing?9:5,opacity:1,
+        color:casing?'#fff':estimated?'#b45309':'#174fd1',weight:casing?11:7,opacity:1,
         lineCap:'round',lineJoin:'round',dashArray:estimated?'12 10':undefined,interactive:false,
         className:casing?'schedule-gps-route-casing':estimated?'schedule-gps-gap-link':'schedule-gps-trail'
       }).addTo(layer);
     }
     // Isolated observations stay visible without inventing a connecting route.
-    for(const point of route.points) L.circleMarker([point.latitude,point.longitude],{radius:streetPaths.length?1.75:3,color:'#fff',fillColor:'#174fd1',fillOpacity:1,weight:streetPaths.length?.75:1,interactive:false,className:'schedule-gps-point'}).addTo(layer);
+    for(const point of route.points) L.circleMarker([point.latitude,point.longitude],{radius:streetPaths.length?3:5,color:'#fff',fillColor:'#174fd1',fillOpacity:1,weight:streetPaths.length?1:2,interactive:false,className:'schedule-gps-point'}).addTo(layer);
     const fitKey=`${route.date}:${route.truck}:${props.resetKey}:${props.truckMapView || 'location'}:${props.selectedTripId || ''}`;
     if(gpsFit.current!==fitKey) {
       if(props.truckMapView==='route') {

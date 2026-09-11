@@ -7,9 +7,9 @@
 .schedule-gps-picker select { min-width: 0; padding: 4px 6px; border: 1px solid #aebecb; border-radius: 4px; background: white; font: inherit; }
 .schedule-gps-legend { display: flex; flex-wrap: wrap; gap: 5px 12px; padding: 5px 0; color: #334155; font-size: 11px; }
 .schedule-gps-legend span { display: inline-flex; align-items: center; gap: 5px; }
-.gps-legend-route, .gps-legend-estimated { width: 22px; border-top: 4px solid #174fd1; }
-.gps-legend-estimated { border-top: 4px dashed #b45309; }
-.gps-legend-point { width: 6px; height: 6px; border-radius: 50%; background: #174fd1; }
+.gps-legend-route, .gps-legend-estimated { width: 26px; border-top: 6px solid #174fd1; }
+.gps-legend-estimated { border-top: 6px dashed #b45309; }
+.gps-legend-point { width: 10px; height: 10px; border: 1px solid #fff; box-shadow: 0 0 0 1px #174fd1; border-radius: 50%; background: #174fd1; }
 
 .schedule-trip-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .ops-live .live-schedule .schedule-map-controls .schedule-trip-list button { display: flex; gap: 7px; width: 100%; text-align: left; padding: 7px; line-height: 1.4; }

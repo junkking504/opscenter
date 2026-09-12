@@ -8,19 +8,23 @@ export function schedulePayment(job: ScheduleAppointment) {
   const billed = source.payments.filter(row => /\bbill(?:ed|ing)?\b|invoice|accounts? receivable/i.test(row.method));
   const payments = source.payments.filter(row => !billed.includes(row));
   const received = Math.round(payments.reduce((sum, row) => sum + row.amount, 0) * 100) / 100;
-  const valid = [source.tip, source.balance, received, ...payments.map(row => row.amount)].every(Number.isFinite) && received >= 0 && source.tip >= 0;
+  const valid = [source.tip, source.balance, received, ...source.payments.map(row => row.amount), ...(billed.length ? [source.total] : [])].every(Number.isFinite) && received >= 0 && source.tip >= 0 && (!billed.length || source.total >= source.tip && billed.every(row => row.amount >= 0));
   if (!valid || (received > 0 && source.tip > received)) return { tone: 'unknown', label: 'Payment needs review', amount: null, details: ['Payment and tip amounts do not reconcile'], balance: null };
   const net = Math.round(Math.max(0, received - source.tip) * 100) / 100;
+  if (billed.length) return {
+    tone: 'revenue', label: 'Billed · daily revenue', amount: dollars(Math.round((source.total - source.tip) * 100) / 100),
+    details: [received > 0 ? `Collected ${dollars(net)} · excluding tips` : 'Payment not yet collected', ...(source.tip > 0 && received > 0 ? [`Tip ${dollars(source.tip)} · received ${dollars(received)} incl. tip`] : [])],
+    balance: source.balance > 0 ? `Balance due ${dollars(source.balance)}` : source.balance < 0 ? `Credit balance ${dollars(Math.abs(source.balance))}` : null,
+  };
   const savedCharges = received === 0 && !billed.length && Number.isFinite(source.total) && source.total > 0;
   return {
     tone: source.balance > 0 ? 'due' : received > 0 ? 'paid' : savedCharges ? 'saved' : 'unknown',
-    label: received > 0 ? 'Job paid · excluding tips' : billed.length ? 'Billed · not confirmed paid' : savedCharges ? 'Saved charges' : 'No payment recorded',
+    label: received > 0 ? 'Job paid · excluding tips' : savedCharges ? 'Saved charges' : 'No payment recorded',
     amount: received > 0 ? dollars(net) : savedCharges ? dollars(source.total) : null,
     details: [
       ...(savedCharges ? ['No payment recorded in JunkWare', ...(!isClosed(job) ? ['Appointment not closed'] : [])] : []),
       ...new Set(payments.map(row => `${row.method.trim() || 'Method not recorded'}${payments.length > 1 ? ` · ${dollars(row.amount)} received` : ''}`)),
       ...(source.tip > 0 && received > 0 ? [`Tip ${dollars(source.tip)} · received ${dollars(received)} incl. tip`] : []),
-      ...(billed.length ? [`Billed ${dollars(billed.reduce((sum, row) => sum + row.amount, 0))}`] : []),
     ],
     balance: source.balance > 0 ? `Balance due ${dollars(source.balance)}` : source.balance < 0 ? `Credit balance ${dollars(Math.abs(source.balance))}` : received > 0 ? 'Balance $0.00' : null,
   };

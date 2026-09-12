@@ -737,3 +737,20 @@ seven-day expiry, 8 MiB per-file maximum and 32-file retention bound the cache.
 Unreadable or corrupt files fall back to normal matching. Cached road segments
 still require identical adjacent source observations and currently eligible edges;
 source corrections, changed truck/date and excluded gaps cannot reuse old geometry.
+
+### Travel estimates on the board
+
+The Truck Schedule connectors show travel minutes and distance between stops,
+with Stop Order beside the board. The duplicate Travel Between Appointments
+panel below the board is removed; the All Appointments register follows the
+board and its source timestamp.
+
+Billed jobs show **Billed · daily revenue** and their saved job total prominently
+in All Appointments. Collection is a separate detail. Mixed billing and collected
+payments use the job total once, excluding tips, rather than adding invoice and
+collection rows together. Estimates remain quotes. This presentation does not
+change the published daily revenue totals or create a payment.
+
+Completed job badges include confirmed GPS time on site, rounded to whole
+minutes. Missing or incomplete visit evidence displays **Time unavailable**;
+scheduled appointment duration is not substituted for actual time on site.

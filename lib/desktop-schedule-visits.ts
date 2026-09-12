@@ -1,3 +1,4 @@
+import { parkedTruckObservation } from './truck-gps-status';
 import { appointmentOnsiteTime } from './appointment-onsite-time';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -61,5 +62,6 @@ export function scheduleVisitState(
   const lastSeenOnsiteAt = lastSeenOnsiteTruck ? [...(openVisit!.source_timestamps || []), ...(openVisit!.visit_intervals || []).flatMap((interval:AnyRecord)=>interval.source_timestamps || [interval.arrival])]
     .filter(stamp=>Number.isFinite(Date.parse(stamp)) && Date.parse(stamp)<=now).sort((a,b)=>Date.parse(b)-Date.parse(a))[0] || openVisit!.first_arrival : undefined;
   const onsiteTruck = activeVisit ? truckLabel(String(activeVisit.truck_number || activeVisit.truck || '')) : undefined;
-  return { hasVisit: confirmed.length > 0, truckOnSite: Boolean(activeVisit), onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, onsiteTime: appointmentOnsiteTime(job, visits, now) };
+  const onsiteObservation = onsiteTruck ? trucks.find(truck => truckLabel(truck.truck) === onsiteTruck) : undefined;
+  return { onsiteGpsAt: onsiteObservation?.lastGpsUpdate || undefined, onsiteGpsParked: onsiteObservation ? parkedTruckObservation(onsiteObservation) : undefined, hasVisit: confirmed.length > 0, truckOnSite: Boolean(activeVisit), onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, onsiteTime: appointmentOnsiteTime(job, visits, now) };
 }

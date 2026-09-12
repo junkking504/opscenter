@@ -1,6 +1,7 @@
 import type { FleetMapPoint } from './fleet-map';
 import type { Coordinates } from './job-route-proximity';
 import { truckLabel } from '../desktop-ui/lib/schedule-contract';
+import { parkedTruckObservation, PARKED_GPS_MAX_AGE_MS } from './truck-gps-status';
 import { LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS } from './linxup-authority';
 
 type PresenceJob = { truck?: string; appointmentId: string; location?: Coordinates | null; status?: string; appointmentStartMinutes?: number | null; appointmentEndMinutes?: number | null; onsiteTime?: {departure?: string | null} };
@@ -18,7 +19,7 @@ export function gpsPositionAtAppointment(location: Coordinates | null | undefine
     typeof point.latitude === 'number' && Number.isFinite(point.latitude) && Math.abs(point.latitude) <= 90 &&
     typeof point.longitude === 'number' && Number.isFinite(point.longitude) && Math.abs(point.longitude) <= 180;
   if (!location || !valid(location) || !valid(truck) || !Number.isFinite(stamp) || stamp > now + 60_000) return undefined;
-  const maxAge = LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS * 1000;
+  const maxAge = parkedTruckObservation(truck) ? PARKED_GPS_MAX_AGE_MS : LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS * 1000;
   return { stamp, inside: distance(location, { latitude: truck.latitude!, longitude: truck.longitude! }) <= 125, current: now - stamp <= maxAge };
 }
 
@@ -43,9 +44,9 @@ export function currentGpsPresence(job: PresenceJob, trucks: PresenceTruck[], ap
     if (nearby.length !== 1 || nearby[0].appointmentId !== job.appointmentId) return [];
     // The current position is authoritative even when route history and the
     // visit ledger have not caught up. Do not wait for a second report or dwell.
-    // A parked heartbeat describes the last observation, not continued presence.
-    // Aging it preserves last-seen evidence without inventing a departure.
-    return [{ truck: truckLabel(truck.truck), arrival: new Date(stamp).toISOString(), observedAt: truck.lastGpsUpdate!, current: observation.current }];
+    // Engine-off reports use the established hourly parked cadence. The latest
+    // coordinates must still be inside; an open ledger cannot override them.
+    return [{ truck: truckLabel(truck.truck), arrival: new Date(stamp).toISOString(), observedAt: truck.lastGpsUpdate!, current: observation.current, parked: parkedTruckObservation(truck) }];
   });
   return candidates.length === 1 ? candidates[0] : undefined;
 }

@@ -9,8 +9,8 @@ assert.equal(currentGpsPresence(job, [{ ...truck, routePoints: points.slice(-1) 
 assert.equal(currentGpsPresence(job, [{ ...truck, routePoints: [] }], [job], now)?.current, true, 'Route history and the visit ledger must not delay a current arrival');
 assert.equal(currentGpsPresence(job, [truck], [job], now + 11*60_000)?.current, false, 'Preserve stale position as last reported, never current');
 const parked = {...truck, speed: 0, ignition: 'OFF'};
-assert.equal(currentGpsPresence(job, [parked], [job], now + 42*60_000)?.current, false, 'A parked report cannot prove presence between hourly reports');
-assert.equal(currentGpsPresence(job, [parked], [job], now + 75*60_000)?.current, false, 'Parked marker tolerance never extends current presence');
+assert.equal(currentGpsPresence(job, [parked], [job], now + 42*60_000)?.current, true, 'Engine-off GPS at the unique job remains on site within parked cadence');
+assert.equal(currentGpsPresence(job, [parked], [job], now + 75*60_000)?.current, true, 'The normal parked heartbeat includes the 75-minute boundary');
 assert.equal(currentGpsPresence(job, [parked], [job], now + 76*60_000)?.current, false, 'A missed parked heartbeat remains last reported, not current');
 assert.equal(currentGpsPresence(job, [{...parked, ignition:'ON'}], [job], now + 42*60_000)?.current, false, 'An idling truck does not receive the engine-off reporting allowance');
 assert.equal(currentGpsPresence(job, [{...parked, latitude:30.4}], [job], now + 42*60_000), undefined, 'A newer stopped position elsewhere is not still on site');
@@ -30,4 +30,10 @@ assert.equal(currentGpsPresence(early, [truck], [early], now)?.truck, 'Truck 3',
 assert.equal(currentGpsPresence({ ...early, truck: 'Unassigned' }, [truck], [{ ...early, truck: 'Unassigned' }], now), undefined, 'An unrelated early pass must not become an appointment arrival');
 
 assert.equal(currentGpsPresence(job, [parked], [job], now + 3*60_000)?.current, true);
-assert.equal(currentGpsPresence(job, [parked], [job], now + 3*60_000 + 1)?.current, false, 'Current presence expires at three minutes even with ignition off');
+assert.equal(currentGpsPresence(job, [parked], [job], now + 3*60_000 + 1)?.current, true, 'Engine-off presence follows the hourly cadence');
+
+const reassigned={...job,truck:'Truck 9'};
+const observed=currentGpsPresence(reassigned,[{...parked,truck:'Truck 8'},{...parked,truck:'Truck 9',latitude:30.4}],[reassigned],now+24*60_000);
+assert.equal(observed?.truck,'Truck 8','Physical parked presence wins over the booked truck');
+assert.equal(observed?.parked,true);
+assert.equal(observed?.observedAt,parked.lastGpsUpdate,'Keep original GPS time visible');

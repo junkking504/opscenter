@@ -19,7 +19,7 @@ import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-a
 import { readScheduleVisits, scheduleVisitState } from '@/lib/desktop-schedule-visits';
 import { readOperationalTruckLoads, truckChargeSummary } from './truck-load-closeouts';
 
-export type DesktopAppointment = JobRow & { recordId: string; mapAddress?: string; addressCheckPending?: boolean; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
+export type DesktopAppointment = JobRow & { recordId: string; mapAddress?: string; addressCheckPending?: boolean; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
   truck: string;
   fromAppointmentId: string;
@@ -77,7 +77,7 @@ export function readDesktopSchedule(date: string) {
   // dispatch move, without modifying JunkWare or inventing a ledger event.
   if (fleet.isToday) for (const job of appointments) {
     const presence = currentGpsPresence(job, fleet.trucks, appointments);
-    if (presence?.current) Object.assign(job, { hasVisit: true, truckOnSite: true, onsiteTruck: presence.truck, lastSeenOnsiteTruck: undefined, lastSeenOnsiteAt: undefined });
+    if (presence?.current) Object.assign(job, { hasVisit: true, truckOnSite: true, onsiteTruck: presence.truck, onsiteGpsAt: presence.observedAt, onsiteGpsParked: presence.parked, lastSeenOnsiteTruck: undefined, lastSeenOnsiteAt: undefined });
     else if (presence && !job.truckOnSite) Object.assign(job, { hasVisit: true, truckOnSite: false, onsiteTruck: undefined, lastSeenOnsiteTruck: presence.truck, lastSeenOnsiteAt: presence.observedAt });
   }
   return {

@@ -46,3 +46,11 @@ export function onsiteTimeFacts(time: AppointmentOnsiteTime) {
     ...(time.arrival ? [{label:'Arrival',value:clock(time.arrival)}] : []),
     ...(time.departure ? [{label:'Departure',value:clock(time.departure)}] : [])];
 }
+
+export function completedOnsiteClockRange(time: AppointmentOnsiteTime | undefined) {
+  if (!time || time.minutes === null || !Number.isFinite(time.minutes) || !time.arrival || !time.departure) return null;
+  const start = Date.parse(time.arrival), end = Date.parse(time.departure);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
+  const format = new Intl.DateTimeFormat('en-US', {timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'});
+  return `Started ${format.format(start)} · Finished ${format.format(end)}`;
+}

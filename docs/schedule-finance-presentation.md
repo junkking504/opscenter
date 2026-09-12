@@ -708,13 +708,15 @@ Unlinked alerts do not infer an appointment match.
 
 ## Current presence and route refreshes
 
-Current on-site badges require valid GPS inside the 125-meter appointment fence
-and no more than three minutes old, including ignition-OFF reports. Older parked
-observations retain last-seen evidence, but cannot claim continued presence.
+Current on-site badges require valid GPS inside the 125-meter appointment fence.
+Moving, idle or unknown-motion reports expire after three minutes. Zero-speed,
+ignition-OFF reports follow the existing hourly parked cadence, with a 75-minute
+maximum age. The selected appointment shows the original parked GPS timestamp.
+A missed parked heartbeat becomes last-seen evidence; it does not invent departure.
 A newer position elsewhere clears the last-on-site badge while preserving visit
 history and its recorded duration; no departure time is invented.
 
-Truck icons use a separate 22–28 pixel height and larger fleet numbers across
+Truck icons use a separate 20–24 pixel height and larger fleet numbers across
 map zoom levels. Their centers remain on the source GPS coordinates.
 Road alignment survives a GPS refresh only for edges with identical timestamps
 and coordinates at both ends. Late history insertion remaps edge indexes; changed
@@ -772,3 +774,7 @@ to use the booked duration; resizing the display never reschedules a job.
 Validation: `npx tsx scripts/test-schedule-actual-blocks.ts`,
 `npx tsx scripts/test-schedule-travel-layout.ts`, and
 `npx tsx scripts/test-appointment-onsite-time.ts`.
+
+Completed jobs show explicit Started and Finished clock times in the register
+and selected summary when confirmed timestamps are available. These are separate
+from the unchanged booked appointment window.

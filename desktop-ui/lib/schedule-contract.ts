@@ -41,6 +41,8 @@ export type ScheduleAppointment = {
   truckOnSite?: boolean;
   // The physically verified truck can differ from the pending JunkWare assignment.
   onsiteTruck?: string;
+  onsiteGpsAt?: string;
+  onsiteGpsParked?: boolean;
   onsiteTime?: AppointmentOnsiteTime;
   truck: string;
   driver: string;

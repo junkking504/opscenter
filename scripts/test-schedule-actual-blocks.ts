@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { appointmentOnsiteTime } from '../lib/appointment-onsite-time';
+import { appointmentOnsiteTime, completedOnsiteClockRange } from '../lib/appointment-onsite-time';
 import { timelineWindow, timelinePlacement, timelineRange, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
 import { scheduleTravelLayout } from '../desktop-ui/lib/schedule-travel-layout';
 import { scheduleMoveProposal } from '../desktop-ui/schedule-drag';
@@ -35,3 +35,6 @@ assert.equal(timelineWindow(overnight)?.end,1450,'Departure after midnight stays
 assert.equal(timelineRange([overnight]).end,1500);
 assert.equal(timelineWindow({...split,onsiteTime:{...split.onsiteTime,intervals:undefined}})?.actual,false,'Older summed duration cannot fill time away');
 console.log('Actual blocks passed: arrival, width, split visits, overlap lanes, booked fallback, day boundaries and source preservation.');
+
+assert.equal(completedOnsiteClockRange(completed.onsiteTime),'Started 9:36 AM · Finished 10:40 AM');
+assert.equal(completedOnsiteClockRange({...completed.onsiteTime,minutes:null}),null);

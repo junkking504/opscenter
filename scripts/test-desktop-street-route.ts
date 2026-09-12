@@ -45,6 +45,16 @@ async function main(){
  const corrected={...route,points:points.map((p,i)=>i===0?{...p,latitude:p.latitude+.01}:p)};
  assert.deepEqual(reusableStreetProgress(corrected,{source:route,result})?.paths.map(p=>p.sourceEdge),[2],'Corrected GPS invalidates its old road geometry');
  assert.equal(reusableStreetProgress({...route,truck:'Truck 6'},{source:route,result}),undefined,'Never reuse another truck history');
+ const batchRoute={...route,points:points.slice(0,3),paths:[points.slice(0,3)],gapLinks:[]};
+ let batchCalls=0;
+ const batchResult=await buildStreetRoute(batchRoute,async path=>{
+   batchCalls++;
+   if(path.startsWith('match/'))return {code:'NoMatch'};
+   assert.equal(path.split('/driving/')[1].split('?')[0].split(';').length,3,'Sparse fallback batches adjacent fixes together');
+   return {code:'Ok',routes:[{legs:payload(points.slice(0,3)).matchings[0].legs}]};
+ });
+ assert.equal(batchCalls,2,'One failed match and one road request cover multiple edges');
+ assert.deepEqual(batchResult.paths.map(p=>[p.sourceEdge,p.kind]),[[0,'estimated'],[1,'estimated']]);
  const ambiguous=payload(points);ambiguous.matchings[0].confidence=.2;
  assert([...matchedStreetEdges(ambiguous,points).values()].every(p=>p.kind==='estimated'));
  let release!:()=>void,queuedCalls=0;

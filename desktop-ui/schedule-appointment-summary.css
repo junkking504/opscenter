@@ -49,3 +49,10 @@
   .ops-live .selected-job-next { grid-template-columns: minmax(0,1fr); }
   .ops-live .selected-job-next > .dispatch-full-details { grid-column: 1; grid-row: auto; }
 }
+
+.ops-live .selected-job-payment { display: grid; gap: 4px; min-width: 0; padding: 10px; border: 1px solid #cbdcd5; border-radius: 6px; background: #f2f8f5; overflow-wrap: anywhere; }
+.ops-live .selected-job-payment > span { font-size: 12px; font-weight: 650; color: #37554a; }
+.ops-live .selected-job-payment > strong { font-size: 24px; line-height: 1.2; font-weight: 750; color: #183e30; font-variant-numeric: tabular-nums; }
+.ops-live .selected-job-payment > small { font-size: 11px; line-height: 1.4; color: #51626b; }
+.ops-live .selected-job-payment.tone-quote { background: #f2f6fb; border-color: #c8d8e8; }
+.ops-live .selected-job-payment.tone-due, .ops-live .selected-job-payment.tone-unknown { background: #fff9eb; border-color: #e5d4a8; }

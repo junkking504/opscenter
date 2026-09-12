@@ -78,6 +78,13 @@ excerpt. The remaining notes, photos, payments and editing controls stay in the
 same Full details drawer. Closing that drawer preserves selection; Escape clears
 selection. Compact appointment block colors and drag behavior are unchanged.
 
+Completed jobs and closed estimates show a prominent payment or quote card in
+the summary, including the recorded method, tip, and balance when available.
+It uses the same payment interpretation as All Appointments: billed revenue
+remains distinct from collection, estimates remain quotes, and missing payment
+evidence stays unavailable. Closed appointments omit the closest-truck and
+call-ahead prompts.
+
 The summary displays only the first eligible result from the existing closest
 truck ranking. It does not render the full candidate list or assign a truck.
 Current-day, verified-coordinate, valid-estimate and source-identity checks remain

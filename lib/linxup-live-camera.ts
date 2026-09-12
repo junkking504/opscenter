@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { chromium, type BrowserContext, type Page } from "playwright";
 import { parseTruckNumberFromLabel, truckCameraLabel } from "@/lib/linxup-truck-label";
+import { readLinxupPortalCameraInventory, type PortalCameraTracker } from "@/lib/linxup-camera-inventory";
 
 const PORTAL_URL = "https://app03.linxup.com/ng/portal/index.html#mappage";
 const LOGIN_URL = "https://app.linxup.com/authentication/linxup";
@@ -25,7 +26,6 @@ export type LinxupCameraStream = {
   durationSeconds: number;
 };
 
-type PortalTracker = { vehicleName: string; hardwareId: string };
 type PortalStreamResponse = {
   channels?: Array<{ channel?: number; urls?: Array<{ url?: string }> }>;
 };
@@ -161,31 +161,18 @@ async function serialized<T>(operation: () => Promise<T>): Promise<T> {
   }
 }
 
-async function portalTrackers(page: Page): Promise<PortalTracker[]> {
-  return page.evaluate(async () => {
-    type ExtRecord = { data?: Record<string, unknown> };
-    type ExtStore = {
-      isLoaded?: () => boolean;
-      load?: (options: { callback: () => void }) => void;
-      getData?: () => { items?: ExtRecord[]; getSource?: () => { items?: ExtRecord[] } };
-    };
-    type ExtApi = { StoreManager?: { lookup?: (name: string) => ExtStore | undefined } };
-    const ext = (globalThis as unknown as { Ext?: ExtApi }).Ext;
-    const store = ext?.StoreManager?.lookup?.("mapVehicleLocationStore");
-    if (!store) return [];
-    if (store.isLoaded && !store.isLoaded() && store.load) {
-      await new Promise<void>((resolve) => store.load?.({ callback: resolve }));
-    }
-    const data = store.getData?.();
-    const records = data?.getSource?.().items || data?.items || [];
-    return records.map((record) => ({
-      vehicleName: String(record.data?.vehicleName || ""),
-      hardwareId: String(record.data?.dashCamVendorDeviceId || ""),
-    })).filter((record) => record.vehicleName && record.hardwareId);
-  });
+async function portalTrackers(page: Page): Promise<PortalCameraTracker[]> {
+  try {
+    return await page.evaluate(readLinxupPortalCameraInventory);
+  } catch {
+    // The next explicit retry reloads/authenticates the portal instead of reusing
+    // an expired or broken page indefinitely. Do not retry a stream-start write.
+    cameraState().pagePromise = undefined;
+    throw new LinxupCameraError("STREAM_UNAVAILABLE", "Could not refresh camera assignments from LinxUp. Try again.");
+  }
 }
 
-function trackerForTruck(trackers: PortalTracker[], truck: number): PortalTracker | null {
+function trackerForTruck(trackers: PortalCameraTracker[], truck: number): PortalCameraTracker | null {
   return trackers.find((tracker) => parseTruckNumberFromLabel(tracker.vehicleName) === truck) || null;
 }
 
@@ -230,6 +217,9 @@ export async function startLinxupCameraStream(truck: number): Promise<LinxupCame
     const page = await portalPage();
     const tracker = trackerForTruck(await portalTrackers(page), truck);
     if (!tracker) {
+      throw new LinxupCameraError("CAMERA_NOT_FOUND", `${truckCameraLabel(truck)} was not found in the current LinxUp tracker list.`);
+    }
+    if (!tracker.hardwareId) {
       throw new LinxupCameraError("CAMERA_NOT_FOUND", `${truckCameraLabel(truck)} does not currently have a LinxUp camera assigned.`);
     }
 

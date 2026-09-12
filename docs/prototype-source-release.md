@@ -149,6 +149,10 @@ files stay outside Git and immutable release directories.
 - The desktop reuses `TruckCameraController`; Vite deduplicates React so the
   shared component uses the desktop renderer. Playback still depends on the
   truck having an assigned and available LinxUp camera.
+- Each explicit camera request refreshes LinxUp's unfiltered tracker inventory.
+  A failed or timed-out lookup is unavailable, not proof of an unassigned camera;
+  the next explicit retry reloads the portal session. Stream starts are not
+  automatically retried, and selecting a truck alone does not start video.
 - Live Krewe, Fleet, and Marketing tables use scoped compact styles and local
   horizontal scrolling at narrow widths. Command alerts disclose full facts
   through Details without changing workflow state.

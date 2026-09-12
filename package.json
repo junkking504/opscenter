@@ -70,7 +70,7 @@
     "verify:css-architecture": "node --import tsx scripts/test-css-architecture.ts",
     "verify:driving-score-policy": "node --import tsx scripts/test-driving-score-policy.ts",
     "verify:accessibility": "node scripts/test-accessibility.mjs",
-    "verify:linxup-camera": "node --import tsx scripts/test-linxup-camera.ts",
+    "verify:linxup-camera": "node --import tsx scripts/test-linxup-camera.ts && node --import tsx scripts/test-linxup-camera-inventory.ts",
     "verify:job-route-history": "node --import tsx scripts/test-job-route-history.ts",
     "verify:dispatch-map-marker-separation": "node --import tsx scripts/test-dispatch-map-marker-separation.ts",
     "verify:dispatch-map-manual-zoom": "node --import tsx scripts/test-dispatch-map-manual-zoom.ts",

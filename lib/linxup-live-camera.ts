@@ -189,14 +189,14 @@ async function extAjax<T>(page: Page, options: { url: string; method: "POST"; js
         jsonData: request.jsonData,
         params: request.params,
         timeout: 30_000,
-        success: (response: AjaxResponse) => {
+        success(response: AjaxResponse) {
           try {
             resolve(JSON.parse(String(response.responseText || "{}")) as T);
           } catch {
             resolve({} as T);
           }
         },
-        failure: (response: AjaxResponse) => reject(new Error(`LinxUp request failed (${response.status || "unknown"}).`)),
+        failure(response: AjaxResponse) { reject(new Error(`LinxUp request failed (${response.status || "unknown"}).`)); },
       });
     });
   }, options);

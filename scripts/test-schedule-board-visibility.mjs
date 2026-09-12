@@ -28,6 +28,12 @@ for (const engine of [chromium, webkit]) {
           });
           assert.deepEqual(geometry.clipped,[],`${engine.name()} ${width} ${scenario} map=${map}: every row and block fits its panel`);
           assert.ok(geometry.innerOverflow<=1,`No appointments hidden in an inner scrolling panel: ${JSON.stringify(geometry)}`);
+          if (width>=1000) {
+            // Initial-view acceptance: not just reachable after a page scroll.
+            await page.evaluate(()=>window.scrollTo(0,0));
+            assert.ok(await page.locator('[data-schedule-appointment]').evaluateAll(blocks=>blocks.every(el=>{const r=el.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;})),'Every appointment visible without scrolling');
+            assert.ok(await page.locator('.schedule-appointments-jump').evaluate(el=>el.getBoundingClientRect().bottom<=innerHeight),'List shortcut visible with the full board');
+          }
           const last=page.locator('[data-schedule-appointment]').last();
           await last.click();
           await page.getByRole('region',{name:`Selected job JK100${1000+count}`,exact:true}).waitFor();

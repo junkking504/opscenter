@@ -12,6 +12,7 @@ export function appointmentOnsiteTime(job: { appointmentId?: string; jkNumber?: 
     && (!truckKey(job.truck) || truckKey(row.truck_number || row.truck) === truckKey(job.truck)));
   if (!matched.length || new Set(matched.map(row=>truckKey(row.truck_number || row.truck))).size > 1) return unavailable;
   const intervals: Array<[number, number]> = [];
+  const arrivals: number[] = [];
   let pending = false;
   let invalid = false;
   for (const row of matched) {
@@ -19,13 +20,14 @@ export function appointmentOnsiteTime(job: { appointmentId?: string; jkNumber?: 
     for (const interval of source) {
       const start = Date.parse(interval.arrival || '');
       if (!Number.isFinite(start) || start > now) { invalid = true; continue; }
+      arrivals.push(start);
       if (!interval.departure || interval.departure_confirmed === false) { pending = true; continue; }
       const end = Date.parse(interval.departure);
       if (!Number.isFinite(end) || end <= start || end > now) { invalid = true; continue; }
       intervals.push([start, end]);
     }
   }
-  if (pending) return { ...unavailable, label: 'Awaiting recorded departure' };
+  if (pending) return { ...unavailable, arrival: !invalid && arrivals.length ? new Date(Math.min(...arrivals)).toISOString() : null, label: 'Awaiting recorded departure' };
   if (invalid || !intervals.length) return { ...unavailable, label: 'Unavailable · incomplete visit timestamps' };
   // Merge overlapping or duplicated observations; exclude time away between visits.
   const merged: Array<[number, number]> = [];

@@ -10,7 +10,7 @@ import { saveAndVerifyCloseout } from '../lib/closeout-save-verification';
 const methods = [{value:'1',label:'Billed'}, {value:'2',label:'Cash'}, {value:'3',label:'Credit Card'}, {value:'4',label:'Check'}];
 const input = { appointmentType:'Job', driverId:'d', navigatorIds:[] as string[], loadQuantity:'1',loadSize:'',loadPrice:'1200.00',bedloadQuantity:'',bedloadSize:'',bedloadPrice:'',otherChargesToAdd:[],discount:'',tip:'',jobCategoryId:'',actualStartHour:'12',actualStartMinute:'00',actualEndHour:'13',actualEndMinute:'00' };
 type Payment = {description:string;amount:string};
-let persisted = new URLSearchParams(), payments:Payment[] = [], pending:Payment[] = [], saves = 0, adds = 0;
+let persisted = new URLSearchParams(), payments:Payment[] = [], pending:Payment[] = [], saves = 0, adds = 0, truckPosts = 0;
 const esc = (s:string) => s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 function html(fields:URLSearchParams) {
   const value = (key:string) => fields.get(`ctl00$Content$${key}`) || (key==='StartTimeTB'?'09:00 AM':key==='AppointmentDateTB'?'09/12/2026':'');
@@ -39,7 +39,7 @@ async function main() {
     let body='';for await(const part of req) body+=part;
     const fields=req.method==='POST'?new URLSearchParams(body):new URLSearchParams(persisted);
     // Truck postbacks can refresh scheduling defaults. A closeout must restore the saved window.
-    if (req.method==='POST' && fields.get('__EVENTTARGET')==='ctl00$Content$TruckDD') { fields.set('ctl00$Content$StartTimeTB','11:00 AM'); fields.set('ctl00$Content$AppointmentDateTB','09/13/2026'); }
+    if (req.method==='POST' && fields.get('__EVENTTARGET')==='ctl00$Content$TruckDD') { truckPosts++; fields.set('ctl00$Content$StartTimeTB','11:00 AM'); fields.set('ctl00$Content$AppointmentDateTB','09/13/2026'); }
     if(req.method==='GET') pending=payments.map(p=>({...p}));
     if(req.method==='POST' && fields.has('ctl00$Content$AddPaymentBtn')) {
       adds++;
@@ -56,7 +56,7 @@ async function main() {
     const page=await browser.newPage();
     for(const method of methods) {
       persisted=new URLSearchParams({'ctl00$Content$StatusDD':'1','ctl00$Content$AppointmentTypeDD':'2','ctl00$Content$LoadSizeTruckQtyTB':'1','ctl00$Content$BillingAmountTB':'1200.00'});
-      payments=[{description:'Cash',amount:'100.00'}];adds=0;saves=0;
+      payments=[{description:'Cash',amount:'100.00'}];adds=0;saves=0;truckPosts=0;
       await page.goto(url);
       const before=await captureCloseoutSource(page,capture);
       assert.equal(before.status.value,'1');assert.equal((await capture(page)).status.value,'1');
@@ -67,6 +67,7 @@ async function main() {
       assert.equal(validateCloseoutPayment(addPayment,methods),'');
       const request={...input,addPayment};
       const result=await saveAndVerifyCloseout(before,()=>applyCloseout(page,request,before),async()=>{await page.goto(url);return captureCloseoutSource(page,capture);},result=>verifyCloseoutFields(result,request,before));
+      assert.equal(truckPosts,0,'Keeping the saved truck must not issue a scheduling postback from its blank picker');
       assert.equal(persisted.get('ctl00$Content$LoadSizeHF'),'1');assert.equal(result.status.value,'8');assert.equal((result.driver as {value:string}).value,'d');assert.equal(saves,1);assert.equal(adds,1);assert.equal((result.payments as unknown[]).length,2);
       if(addPayment.reference) assert.throws(()=>verifyCloseoutFields(result,{...request,addPayment:{...addPayment,reference:'9999'}},before),/reference/);
       assert.throws(()=>verifyCloseoutFields({...result,payments:[...payments,payments[1]]},request,before),/payment amount/);
@@ -96,7 +97,7 @@ async function main() {
     }
     for (const status of ['1', '8']) {
       persisted = new URLSearchParams({'ctl00$Content$StatusDD':status,'ctl00$Content$AppointmentTypeDD':'1','ctl00$Content$BillingAmountTB':'508','ctl00$Content$DiscountsTB':'20'});
-      payments=[];adds=0;saves=0;
+      payments=[];adds=0;saves=0;truckPosts=0;
       await page.goto(url);
       const baseline=await capture(page);
       const estimate=await captureCloseoutSource(page,capture);

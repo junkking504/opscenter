@@ -195,7 +195,8 @@ function cleanCount(value: unknown): string {
 }
 
 async function selectWithPostback(page: Page, selector: string, value: string): Promise<void> {
-  await selectWithWebFormsPostback(page, selector, value, 'the closeout selection');
+  const label: Record<string,string> = {AppointmentTypeDD:'category',StatusDD:'status',TruckDD:'truck',OtherChargeDD:'charge',PaymentMethodDD:'payment method'};
+  await selectWithWebFormsPostback(page, selector, value, `the closeout ${label[selector.replace('#ctl00_Content_', '')] || 'field'} selection`);
 }
 
 async function selectWithoutPostback(page: Page, selector: string, value: string): Promise<void> {
@@ -307,7 +308,10 @@ export async function applyCloseout(page: Page, input: CloseoutInput, before: Re
     await selectWithPostback(page, '#ctl00_Content_AppointmentTypeDD', selected.value);
   }
   await selectWithPostback(page, '#ctl00_Content_StatusDD', targetStatus);
-  if (truckOption) await selectWithPostback(page, '#ctl00_Content_TruckDD', truckOption.value);
+  // An open appointment can have a blank picker beside its saved Assigned label.
+  // Reposting that same truck needlessly reloads scheduling availability and may
+  // time out. Preserve it in the final save; only reload for an actual truck change.
+  if (truckOption && truck !== String(before.truck || '')) await selectWithPostback(page, '#ctl00_Content_TruckDD', truckOption.value);
   const currentNavigatorCount = await page.locator('select[id*="AppointmentTechniciansLV"][id$="NavigatorDD"]').count();
   // JunkWare keeps one blank placeholder when no navigator is assigned.
   const requestedNavigatorRows = Math.max(1, input.navigatorIds.length);

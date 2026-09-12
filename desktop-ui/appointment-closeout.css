@@ -1,12 +1,31 @@
-/* Match the label/value rows in the appointment drawer above this editor. */
+/* The closeout is the first action in the drawer; give the disclosure a clear target. */
+.ops-live .appointment-closeout-panel { border: 1px solid #aa2230; border-radius: 8px; overflow: hidden; }
 .ops-live .appointment-closeout-panel > summary {
-  padding: 11px 12px;
-  color: #202529;
-  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 56px;
+  padding: 12px 14px;
+  background: #a8202d;
+  color: #fff;
+  font-size: 14px;
   font-weight: 750;
   cursor: pointer;
+  list-style: none;
 }
-.ops-live .appointment-closeout-panel[open] > summary { border-bottom: 1px solid #e6e9e5; }
+.ops-live .appointment-closeout-panel > summary::-webkit-details-marker { display: none; }
+.ops-live .appointment-closeout-panel > summary:hover { background: #8d1b27; }
+.ops-live .appointment-closeout-panel > summary:focus-visible { outline: 3px solid #e5b34c; outline-offset: -3px; }
+.ops-live .closeout-summary-action { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.ops-live .closeout-summary-chevron { font-size: 22px; line-height: 1; }
+.ops-live .closeout-hide-label, .ops-live .appointment-closeout-panel[open] .closeout-open-label { display: none; }
+.ops-live .appointment-closeout-panel[open] .closeout-hide-label { display: inline; }
+.ops-live .appointment-closeout-panel[open] .closeout-summary-chevron { transform: rotate(180deg); }
+.ops-live .ops-closeout-totals { padding: 12px; border: 1px solid #ced8d0; border-radius: 6px; background: #f3f6f2; }
+.ops-live .ops-closeout-totals > div { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; font-size: 12px; }
+.ops-live .ops-closeout-totals > div:first-child { font-size: 15px; font-weight: 750; }
+.ops-live .ops-closeout-totals small { display: block; margin: 3px 0 10px; color: #57655b; }
 .ops-live .appointment-closeout-body { padding: 10px; font-size: 11px; line-height: 1.35; }
 .ops-live .appointment-closeout-body label {
   display: grid;

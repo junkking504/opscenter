@@ -65,6 +65,24 @@ scripts/test-reschedule-source.ts, and scripts/test-reschedule-operations.ts.
 
 ### Schedule closeout reliability
 
+The drawer's first disclosure has a prominent **Appointment Closeout · Open/Hide**
+control. The charges section ends with a draft subtotal before discount and tip,
+plus the resulting total. Percentage fees are marked as estimates; JunkWare's
+saved amount remains authoritative.
+
+Empty actual-time pairs default from confirmed GPS visit timestamps for the
+same assigned truck and operating day, rounded to JunkWare's available minute
+options. Arrival can be used while departure remains pending. Saved times and
+manual edits are preserved; **Use GPS times** explicitly replaces the available
+time pairs. Changing trucks clears untouched GPS defaults from the prior truck.
+No scheduled window or current clock time is substituted for a recorded visit.
+
+Preserving the saved truck skips its redundant scheduling postback, even when
+JunkWare's open-appointment picker is blank beside an Assigned label. The final
+save still submits the truck and verifies its read-back. Selection failures now
+identify whether category, status, truck, charge, or payment method stalled.
+
+
 Confirmed appointments and Estimates omit JunkWare's payment panel. The source reader stages
 Job and Completed on the unsaved form when needed to obtain that appointment's payment methods,
 existing payments and balance, then reopens the appointment and requires its

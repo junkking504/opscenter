@@ -418,10 +418,34 @@ business and suite numbers cannot become the house number. Multiple street
 addresses or ambiguous provider matches stay unresolved. Source text is retained.
 The Gonzales hospital's 1014 W St Clare/Claire Blvd spelling alias is limited to
 that house and locality; FMOL publishes both spellings in its general-surgery and
-thoracic-surgery location directories. No generic fuzzy street matching is used.
+thoracic-surgery location directories.
+
+For a single Census address match, automatic verification also accepts one
+inserted/missing letter or adjacent letter transposition in one alphabetic street
+name token of at least six letters (both spellings). House number, complete city,
+Louisiana state when supplied, ZIP, road type, directions and all other tokens
+must match. Short names, substitutions, multiple changed tokens, multiple results
+and invalid coordinates remain unresolved. This bounded correction uses the same
+existing lookup, without additional providers or requests. It preserves the
+original source address and records the returned `matchedAddress` and correction
+reason in the shared verification cache. Normal matches and accepted corrections
+need no manual verification. Remaining unresolved locations use the existing
+address-review flow; a single geocoder result is not by itself sufficient proof.
+
+Census sometimes returns spaced/unspaced street aliases twice. They count as one
+location only when house, street name (ignoring spaces), all directional/type
+components, city/state/ZIP, TIGER road segment and side, and exact coordinates
+agree. Each alias still goes through full address validation against the source;
+at least one must pass. Missing road identity, nearby but different points or
+different addresses remain ambiguous. This prevents duplicate provider records
+from forcing unnecessary manual review.
 
 Verified results are atomically cached by the full original field for 24 hours
-(failures five minutes) in `data/cache/service-address-verifications/`. Schedule,
+(failures five minutes) in `data/cache/service-address-verifications/`.
+Cache schema 2 immediately retries old schema-1 failures under the new policy;
+still-current successful schema-1 entries remain usable. Expired successful
+entries are rechecked automatically rather than requiring manual confirmation.
+Schedule,
 Command map, Fleet planning locations and legacy proximity use these same checks.
 The separately owned OpsBot collector is connected through the idempotent
 `scripts/install-shared-address-verifier.py --apply` migration after deployment;

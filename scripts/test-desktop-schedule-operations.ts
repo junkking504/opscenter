@@ -35,7 +35,7 @@ async function main() {
     await assert.rejects(executeScheduleOperation(verifiedOperation, 'another-operator', () => job, success), /different change/);
     await assert.rejects(executeScheduleOperation({ ...verifiedOperation, values: { truck: 'Truck 2' } }, 'test-operator', () => job, success), /different change/);
     await assert.rejects(executeScheduleOperation(operation(), 'test-operator', () => ({ ...job, version: 'b'.repeat(64) }), success), /changed/);
-    await assert.rejects(executeScheduleOperation(operation(), 'test-operator', () => ({ ...job, status: 'Closed' }), success), /Closed/);
+    await assert.rejects(executeScheduleOperation(operation({ action: 'cancel', values: { reason: 'Synthetic cancellation' } }), 'test-operator', () => ({ ...job, status: 'Closed' }), success), /Closed/);
     await assert.rejects(executeScheduleOperation(operation({ action: 'closeout', values: { expectedSourceVersion: 'a'.repeat(64) } }), 'test-operator', () => ({ ...job, status: 'Canceled' }), success), /Canceled/);
     await assert.rejects(executeScheduleOperation(operation(), 'test-operator', () => ({ ...job, junkwareSyncStatus: 'pending' }), success), /unverified change/);
     await assert.rejects(executeScheduleOperation(operation(), 'test-operator', () => ({ ...job, junkwareSyncStatus: 'manual_correction' }), success), /unverified change/);

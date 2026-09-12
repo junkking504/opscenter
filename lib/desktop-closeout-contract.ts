@@ -47,6 +47,10 @@ export function verifyAddedCloseoutCharges(closeout: Row, before: Row, requested
   });
 }
 export function verifyCloseoutFields(closeout: Row, input: Row, before?: Row): void {
+  const truckName = (value: unknown) => String(value || '').replace(/Truck#?\s*/i, 'Truck ').trim();
+  const expectedTruck = input.truck === undefined ? before?.truck : input.truck;
+  if (expectedTruck !== undefined && truckName(closeout.truck) !== truckName(expectedTruck)) throw new Error('JunkWare did not retain the selected truck.');
+  if (before?.appointmentWindow && JSON.stringify(closeout.appointmentWindow) !== JSON.stringify(before.appointmentWindow)) throw new Error('JunkWare changed the appointment window while saving.');
   for (const key of ['loadQuantity', 'loadPrice', 'bedloadQuantity', 'bedloadPrice', 'discount', 'tip']) if (!sameAmount(closeout[key], input[key])) throw new Error(`JunkWare did not retain ${key}.`);
   for (const [key, inputKey] of [['loadSize', 'loadSize'], ['bedloadSize', 'bedloadSize'], ['jobCategory', 'jobCategoryId'], ['actualStartHour', 'actualStartHour'], ['actualStartMinute', 'actualStartMinute'], ['actualEndHour', 'actualEndHour'], ['actualEndMinute', 'actualEndMinute']]) {
     const actual = closeout[key] as { value?: unknown } | undefined; if (String(actual?.value ?? '') !== String(input[inputKey] ?? '')) throw new Error(`JunkWare did not retain ${key}.`);

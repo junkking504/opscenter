@@ -107,3 +107,10 @@
 .ops-live .appointment-closeout-body .ops-closeout-payment-methods input { width: 16px; min-height: 16px; flex: 0 0 16px; margin: 0; accent-color: #a8202d; }
 .ops-live .appointment-closeout-body .ops-closeout-payment-methods label:has(input:checked) { border-color: #a8202d; background: #fff4f4; }
 .ops-live .appointment-closeout-body .ops-closeout-payment-methods label > span { color: #202529; font-size: 11px; text-transform: none; letter-spacing: 0; }
+
+.ops-live .ops-closeout-status-options { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; margin: 8px 12px; padding: 8px; border: 1px solid #dce2dc; border-radius: 5px; }
+.ops-live .ops-closeout-status-options legend { padding: 0 4px; font-weight: 700; }
+.ops-live .appointment-closeout-body .ops-closeout-status-options label { display: flex; flex: 1 1 100px; gap: 8px; min-height: 44px; padding: 8px; border: 1px solid #dce2dc; border-radius: 5px; cursor: pointer; }
+.ops-live .appointment-closeout-body .ops-closeout-status-options input { width: 16px; min-height: 16px; flex: 0 0 16px; margin: 0; accent-color: #a8202d; }
+.ops-live .appointment-closeout-body .ops-closeout-status-options label:has(input:checked) { border-color: #a8202d; background: #fff4f4; }
+.ops-live .appointment-closeout-body .ops-closeout-status-options label > span { color: #202529; font-size: 11px; text-transform: none; letter-spacing: 0; }

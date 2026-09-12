@@ -75,6 +75,7 @@ export async function POST(request: Request) {
     const closeout = result && typeof result === "object" && "closeout" in result && result.closeout && typeof result.closeout === "object"
       ? result.closeout as Record<string, unknown>
       : {};
+    if ((closeout.status as { value?: string })?.value !== '8') return NextResponse.json(result, { headers: { "Cache-Control": "no-store, max-age=0" } });
     let truckLoadStatus;
     try { truckLoadStatus = updateVerifiedCloseoutLoad(String(_serviceDate || ""), id, closeout, String((result as Record<string, unknown>).verifiedAt || ""), authSession.email); }
     catch { truckLoadStatus = { updated:false, reason:'Closeout saved; truck load reconciliation is pending.' }; }

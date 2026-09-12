@@ -13,7 +13,7 @@ type Payment = {description:string;amount:string};
 let persisted = new URLSearchParams(), payments:Payment[] = [], pending:Payment[] = [], saves = 0, adds = 0;
 const esc = (s:string) => s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 function html(fields:URLSearchParams) {
-  const value = (key:string) => fields.get(`ctl00$Content$${key}`) || '';
+  const value = (key:string) => fields.get(`ctl00$Content$${key}`) || (key==='StartTimeTB'?'09:00 AM':key==='AppointmentDateTB'?'09/12/2026':'');
   const control = (key:string) => `<input id="ctl00_Content_${key}" name="ctl00$Content$${key}" value="${esc(value(key))}">`;
   const select = (key:string, options:{value:string;label:string}[]) => `<select id="ctl00_Content_${key}" name="ctl00$Content$${key}">${options.map(o=>`<option value="${o.value}" ${value(key)===o.value?'selected':''}>${o.label}</option>`).join('')}</select>`;
   const submit = (key:string) => `<input type="submit" id="ctl00_Content_${key}" name="ctl00$Content$${key}" value="${key}">`;
@@ -21,7 +21,8 @@ function html(fields:URLSearchParams) {
   return `<!doctype html><html><body>JKTEST1234<form method="post"><input name="__EVENTTARGET"><input name="__EVENTARGUMENT">
   ${select('StatusDD',[{value:'1',label:'Confirmed'},{value:'8',label:'Completed'}])}
   ${select('AppointmentTypeDD',[{value:'2',label:'Job'},{value:'1',label:'Estimate'}])}
-  ${select('TruckDD',[{value:'t',label:'Truck 1'}])}
+  <div>${select('TruckDD',[{value:'',label:''},{value:'t',label:'Truck# 1'},{value:'u',label:'Truck# 6'}])}${status==='1' ? 'Assigned: '+(persisted.get('ctl00$Content$TruckDD')==='u'?'Truck# 6':'Truck# 1') : ''}</div>
+  ${control('AppointmentDateTB')}${control('StartTimeTB')}${select('DurationDD',[{value:'1',label:'1 hour'}])}
   ${select('DriverDD',[{value:'d',label:'Synthetic Driver'}])}
   ${select('AppointmentTechniciansLV_ctrl0_NavigatorDD',[{value:'',label:''}])}
   ${['LoadSizeTruckQtyTB','BillingAmountTB','BedloadTruckQtyTB','BedLoadPriceTB','DiscountsTB','TipsTB'].map(control).join('')}
@@ -37,6 +38,8 @@ async function main() {
   const server = createServer(async(req,res)=>{
     let body='';for await(const part of req) body+=part;
     const fields=req.method==='POST'?new URLSearchParams(body):new URLSearchParams(persisted);
+    // Truck postbacks can refresh scheduling defaults. A closeout must restore the saved window.
+    if (req.method==='POST' && fields.get('__EVENTTARGET')==='ctl00$Content$TruckDD') { fields.set('ctl00$Content$StartTimeTB','11:00 AM'); fields.set('ctl00$Content$AppointmentDateTB','09/13/2026'); }
     if(req.method==='GET') pending=payments.map(p=>({...p}));
     if(req.method==='POST' && fields.has('ctl00$Content$AddPaymentBtn')) {
       adds++;
@@ -67,6 +70,29 @@ async function main() {
       assert.equal(persisted.get('ctl00$Content$LoadSizeHF'),'1');assert.equal(result.status.value,'8');assert.equal((result.driver as {value:string}).value,'d');assert.equal(saves,1);assert.equal(adds,1);assert.equal((result.payments as unknown[]).length,2);
       if(addPayment.reference) assert.throws(()=>verifyCloseoutFields(result,{...request,addPayment:{...addPayment,reference:'9999'}},before),/reference/);
       assert.throws(()=>verifyCloseoutFields({...result,payments:[...payments,payments[1]]},request,before),/payment amount/);
+    }
+    for (const targetStatus of ['1', '8'] as const) {
+      persisted = new URLSearchParams({'ctl00$Content$StatusDD':'1','ctl00$Content$AppointmentTypeDD':'2','ctl00$Content$BillingAmountTB':'1200.00','ctl00$Content$StartTimeTB':'09:00 AM','ctl00$Content$AppointmentDateTB':'09/12/2026'});
+      payments=[]; adds=0; saves=0;
+      await page.goto(url);
+      const baseline=await captureCloseoutSource(page,capture);
+      assert.equal(baseline.truck,'Truck 1','Assigned label wins when the open appointment dropdown is blank');
+      const request={...input,targetStatus,truck:'Truck 6'};
+      const result=await saveAndVerifyCloseout(baseline,()=>applyCloseout(page,request,baseline),async()=>{await page.goto(url);return captureCloseoutSource(page,capture);},result=>verifyCloseoutFields(result,request,baseline));
+      assert.equal(result.status.value,targetStatus);assert.equal(result.truck,'Truck 6');
+      assert.equal(saves,1);assert.equal(adds,0);
+      assert.throws(()=>verifyCloseoutFields({...result,truck:'Truck 1'},request,baseline),/selected truck/);
+      assert.throws(()=>verifyCloseoutFields({...result,appointmentWindow:{startTime:'10:00 AM',durationHours:'1'}},request,baseline),/appointment window/);
+    }
+    for (const [status, assigned, selected, expected] of [
+      ['1','Assigned: Truck# 6','','Truck 6'],
+      ['1','Assigned: Truck# 6','Truck# 1','Truck 6'],
+      ['1','','Truck# 1',''],
+      ['8','','Truck# 6','Truck 6'],
+      ['8','','',''],
+    ]) {
+      await page.setContent(`<select id="ctl00_Content_StatusDD"><option value="${status}">${status==='8'?'Completed':'Confirmed'}</option></select><div><select id="ctl00_Content_TruckDD"><option>${selected}</option></select>${assigned}</div>`);
+      assert.equal((await capture(page)).truck,expected);
     }
     for (const status of ['1', '8']) {
       persisted = new URLSearchParams({'ctl00$Content$StatusDD':status,'ctl00$Content$AppointmentTypeDD':'1','ctl00$Content$BillingAmountTB':'508','ctl00$Content$DiscountsTB':'20'});

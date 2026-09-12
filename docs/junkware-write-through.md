@@ -97,8 +97,23 @@ operator's explicit prices and discount are restored.
 Closeout postbacks wait for the matching WebForms POST and completion of the
 ASP.NET partial update. An idle spinner or enabled button is not completion
 evidence. A blank navigator placeholder is retained when no navigator is
-assigned, and completed status is staged after dependent postbacks. A truck
-assignment is required before starting a closeout.
+assigned, and completed status is staged after dependent postbacks. Closeout reads an open appointment's saved **Assigned** truck label before its
+completion dropdown; Completed records use the selected dropdown when the label
+is absent. A blank completion dropdown does not mean that dispatch is unassigned.
+
+**Status** offers Confirmed, Completed and Cancelled. Confirmed saves the reviewed
+crew, truck and draft charges without publishing completion or adding truck load;
+Completed requires the full closeout and payment validation. Cancelling uses the
+existing reason/review/verified cancellation operation and does not submit other
+draft fields. A Completed source record cannot be reopened or cancelled through
+these controls. Selecting a status or truck never submits a change.
+
+The source-backed **Truck** selector sits directly above Krewe assignment and
+starts with the saved assignment. The reviewed truck is staged with the source
+form and reapplied after dependent postbacks. Final read-back requires the chosen
+status and truck and preserves the appointment window. Completion requires a truck.
+Payments and new additional charges require Completed; existing source rows are
+preserved. Changing either selector invalidates the prior review.
 
 Every closeout save reopens the source appointment, including after a transport
 error, and verifies status, crew, category, amounts, added charges/payments, and

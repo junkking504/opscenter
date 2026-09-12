@@ -22,6 +22,8 @@ type Option = { value: string; label: string };
 type OtherChargeInput = { typeValue: string; quantity: string; price: string; sourceCalculatedPrice?: string };
 type CloseoutInput = {
   expectedSourceVersion?: string;
+  targetStatus?: "1" | "8";
+  truck?: string;
   appointmentType?: string;
   estimateOutcome?: { reason: 'Price/Budget' | 'Date/Time' | 'Other'; explanation: string; noDiscountReason?: string };
   driverId: string;
@@ -132,14 +134,16 @@ export async function capture(page: Page): Promise<{ status: { value: string; la
     const truckSelect =
       document.getElementById("ctl00_Content_TruckDD") ||
       document.querySelector('select[id$="TruckDD"], select[id*="Truck"][id$="DD"]');
+    const assigned = clean(truckSelect?.parentElement?.innerText || truckSelect?.parentElement?.textContent).match(/Assigned:\s*(Truck#?\s*\d+)/i)?.[1];
+    const selectedTruck = truckSelect instanceof HTMLSelectElement ? clean(truckSelect.selectedOptions[0]?.textContent) : '';
+    const truckLabel = assigned || (selectData("ctl00_Content_StatusDD").value === '8' ? selectedTruck : '');
+    const truckNumber = truckLabel.match(/truck\s*#?\s*(\d+)/i)?.[1];
     return {
       jobNumber,
-      truck: truckSelect instanceof HTMLSelectElement
-        ? clean(truckSelect.options[truckSelect.selectedIndex]?.textContent)
-        : "",
+      truck: truckNumber ? 'Truck ' + truckNumber : '',
       truckOptions: truckSelect instanceof HTMLSelectElement ? Array.from(truckSelect.options).map(option=>({value:option.value,label:clean(option.textContent)})) : [],
       appointmentType: selectData("ctl00_Content_AppointmentTypeDD"),
-      appointmentWindow: {startTime:input('ctl00_Content_StartTimeTB'),durationHours:selectData('ctl00_Content_DurationDD').value},
+      appointmentWindow: {date:input('ctl00_Content_AppointmentDateTB'),startTime:input('ctl00_Content_StartTimeTB'),durationHours:selectData('ctl00_Content_DurationDD').value},
       status: selectData("ctl00_Content_StatusDD"),
       appointmentNotes: Array.from(document.querySelectorAll('[id*="NotesLV"][id$="NoteLbl"]')).map(node=>clean(node.textContent)),
       driver: { value: driver.value, label: driver.label },
@@ -219,6 +223,8 @@ function parsePayload(): CloseoutInput {
   try { payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")); } catch { throw new Error("The closeout details are not valid."); }
   if (!payload || typeof payload !== "object") throw new Error("The closeout details are not valid.");
   const row = payload as Record<string, unknown>;
+  if (row.targetStatus !== undefined && !['1', '8'].includes(row.targetStatus as string)) throw new Error('Choose Confirmed or Completed; cancellations use the cancellation review.');
+  if (row.truck !== undefined && !/^Truck [1-9][0-9]?$/.test(String(row.truck))) throw new Error('Choose a valid truck for this appointment.');
   const navigatorIds = Array.isArray(row.navigatorIds) ? row.navigatorIds.map(String).map((value) => value.trim()).filter(Boolean) : [];
   if (navigatorIds.length > 50 || new Set(navigatorIds).size !== navigatorIds.length) throw new Error("The crew assignment contains duplicates or too many people.");
   const rawOtherCharges = Array.isArray(row.otherChargesToAdd) ? row.otherChargesToAdd : [];
@@ -248,6 +254,8 @@ function parsePayload(): CloseoutInput {
     };
   }
   return {
+    targetStatus: row.targetStatus === '1' ? '1' : '8',
+    ...(row.truck !== undefined ? { truck: String(row.truck) } : {}),
     driverId: String(row.driverId || "").trim(),
     navigatorIds,
     loadQuantity: cleanCount(row.loadQuantity),
@@ -281,7 +289,11 @@ export async function applyCloseout(page: Page, input: CloseoutInput, before: Re
   // fires AutoPostBack and reloads the full appointment once per field. Set the
   // selected values directly so the final Save post submits them together.
   const priorStatus = String((before.status as { value?: unknown } | undefined)?.value || '');
-  const completingEstimate = input.appointmentType === 'Estimate' && priorStatus !== '8';
+  const targetStatus = input.targetStatus || '8';
+  const completingEstimate = targetStatus === '8' && input.appointmentType === 'Estimate' && priorStatus !== '8';
+  const truck = input.truck || String(before.truck || '');
+  const truckOption = (before.truckOptions as Option[] || []).find(option => option.value && option.label.replace(/Truck#?\s*/i, 'Truck ').trim() === truck);
+  if (truck && !truckOption) throw new Error('The selected truck is unavailable in JunkWare.');
   if (completingEstimate && !input.estimateOutcome) {
     throw new Error('An estimate outcome and explanation are required before JunkWare can close this estimate.');
   }
@@ -294,7 +306,8 @@ export async function applyCloseout(page: Page, input: CloseoutInput, before: Re
     if (!selected) throw new Error('The selected JunkWare appointment category is unavailable.');
     await selectWithPostback(page, '#ctl00_Content_AppointmentTypeDD', selected.value);
   }
-  await selectWithPostback(page, '#ctl00_Content_StatusDD', '8');
+  await selectWithPostback(page, '#ctl00_Content_StatusDD', targetStatus);
+  if (truckOption) await selectWithPostback(page, '#ctl00_Content_TruckDD', truckOption.value);
   const currentNavigatorCount = await page.locator('select[id*="AppointmentTechniciansLV"][id$="NavigatorDD"]').count();
   // JunkWare keeps one blank placeholder when no navigator is assigned.
   const requestedNavigatorRows = Math.max(1, input.navigatorIds.length);
@@ -364,7 +377,12 @@ export async function applyCloseout(page: Page, input: CloseoutInput, before: Re
     await clickWithWebFormsCompletion(page, selector, description);
   };
   // Dependent postbacks can reset status. Stage completion only after them.
-  await selectWithoutPostback(page, '#ctl00_Content_StatusDD', '8');
+  const window = before.appointmentWindow as { date?: string; startTime?: string; durationHours?: string } | undefined;
+  if (window?.date) await fill(page, '#ctl00_Content_AppointmentDateTB', window.date);
+  if (window?.startTime) await fill(page, '#ctl00_Content_StartTimeTB', window.startTime);
+  if (window?.durationHours) await selectWithoutPostback(page, '#ctl00_Content_DurationDD', window.durationHours);
+  if (truckOption) await selectWithoutPostback(page, '#ctl00_Content_TruckDD', truckOption.value);
+  await selectWithoutPostback(page, '#ctl00_Content_StatusDD', targetStatus);
   await submit('#ctl00_Content_SaveAppointmentBtn', 'the closeout save');
   // JunkWare opens a second form for completed estimates. The first save only
   // presents that form; it does not complete the appointment yet.
@@ -384,7 +402,7 @@ export async function applyCloseout(page: Page, input: CloseoutInput, before: Re
 }
 
 function verifyCloseout(closeout: { status: { value: string }; [key: string]: unknown }, input: CloseoutInput): void {
-  if (closeout.status.value !== "8") throw new Error("JunkWare did not retain the completed status.");
+  if (closeout.status.value !== (input.targetStatus || "8")) throw new Error("JunkWare did not retain the selected status.");
   const driver = closeout.driver && typeof closeout.driver === "object"
     ? String((closeout.driver as Record<string, unknown>).value || "")
     : "";
@@ -514,11 +532,14 @@ async function main(): Promise<void> {
     const before = input || classification ? await captureSource(page) : undefined;
     if (input?.expectedSourceVersion && before && closeoutSourceVersion(before) !== input.expectedSourceVersion) { failureCode = 'source_version_conflict'; throw new Error('This JunkWare closeout changed. Reload and review it before saving.'); }
     if (input) {
-      if (!before?.truck) { failureCode = 'completion_truck_required'; throw new Error('Assign a truck in JunkWare before closing this appointment.'); }
-      if (!input.driverId || input.navigatorIds.includes(input.driverId)) throw new Error('Choose a driver and assign each person only once.');
-      if (![input.actualStartHour, input.actualStartMinute, input.actualEndHour, input.actualEndMinute].every(Boolean)) throw new Error('Enter actual start and finish times before reviewing the closeout.');
-      if (!(input.howHeardId ?? (before!.howHeard as Option)?.value)) throw new Error('Choose how the customer heard about us before closing the appointment.');
-      if (!input.loadPrice && !input.bedloadPrice) throw new Error('Enter a load or bedload price before closing the appointment.');
+      const completing = input.targetStatus !== '1';
+      if (!['1', '8'].includes(String(before?.status.value)) || (before?.status.value === '8' && !completing)) throw new Error('This saved appointment cannot change to that status here. Reload from JunkWare.');
+      if (!completing && (input.addPayment || input.otherChargesToAdd.length)) throw new Error('Select Completed before adding a payment or additional charge.');
+      if (completing && !input.truck && !before?.truck) { failureCode = 'completion_truck_required'; throw new Error('Assign a truck in JunkWare before closing this appointment.'); }
+      if ((completing && !input.driverId) || input.navigatorIds.includes(input.driverId)) throw new Error('Choose a driver and assign each person only once.');
+      if (completing && ![input.actualStartHour, input.actualStartMinute, input.actualEndHour, input.actualEndMinute].every(Boolean)) throw new Error('Enter actual start and finish times before reviewing the closeout.');
+      if (completing && !(input.howHeardId ?? (before!.howHeard as Option)?.value)) throw new Error('Choose how the customer heard about us before closing the appointment.');
+      if (completing && !input.loadPrice && !input.bedloadPrice) throw new Error('Enter a load or bedload price before closing the appointment.');
       if (input.addPayment) {
         const paymentError = validateCloseoutPayment(input.addPayment, before!.paymentMethods as Option[]);
         if (paymentError) throw new Error(paymentError);

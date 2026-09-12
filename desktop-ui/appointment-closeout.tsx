@@ -12,6 +12,7 @@ type OtherCharge = { label: string; quantity: string; price: string; total: stri
 type PendingOtherCharge = OtherCharge & { clientId: string; typeValue: string };
 type LiveCloseout = {
   truck?: string;
+  truckOptions?: Option[];
   appointmentType?: { value: string; label: string; options: Option[] };
   status: { value: string; label: string };
   driver: Option;
@@ -60,6 +61,10 @@ function automaticSizePrice(size: string, quantity: string, options: Option[], p
 export default function AppointmentCloseout({ job, date: serviceDate, saved, onBusyChange }: { job: ScheduleAppointment; date: string; saved: () => void; onBusyChange: (busy: boolean) => void }) {
   const { appointmentId, appointmentUrl, status: initialStatus } = job;
   const paymentGroupId = useId();
+  const statusGroupId = useId();
+  const [targetStatus, setTargetStatus] = useState('1');
+  const [truck, setTruck] = useState('');
+  const [cancellationReason, setCancellationReason] = useState('');
   const [sourceVersion, setSourceVersion] = useState('');
   const [canWrite, setCanWrite] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
@@ -102,6 +107,9 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       const payload = await response.json().catch(() => { throw new Error(`Closeout could not be loaded (HTTP ${response.status}). Retry loading the saved appointment.`); });
       if (!response.ok || !payload?.closeout) throw new Error(payload?.error || "The Junkware closeout could not be loaded.");
       setLive(payload.closeout);
+      setTargetStatus(payload.closeout.status.value);
+      setTruck(payload.closeout.truck || '');
+      setCancellationReason('');
       setAddPayment(false);
       setPaymentMethod("");
       setPaymentAmount("");
@@ -205,12 +213,26 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
 
   async function save() {
     if (!live || !canWrite || requestPending.current || (receipt && receipt.status !== 'failed')) return;
-    if (!live.truck) {
-      setError('Assign a truck to this appointment before closing it, then reload from JunkWare.');
+    if (targetStatus === '9') {
+      if (!cancellationReason.trim()) { setError('Enter a cancellation reason before reviewing.'); return; }
+      if (!reviewing) { setError(''); setReviewing(true); return; }
+      requestPending.current = true; setSaving(true); setError('');
+      const requestId = crypto.randomUUID();
+      try {
+        const result = await sendScheduleChange(job, serviceDate, 'cancel', { reason: cancellationReason.trim() }, requestId);
+        setReceipt(result);
+        if (result.status === 'verified') { setMessage('Cancellation saved and verified in JunkWare.'); saved(); }
+      } catch { setReceipt({ requestId, action: 'cancel', status: 'uncertain', message: 'Check Saved Result before another change.' }); }
+      finally { requestPending.current = false; setSaving(false); }
+      return;
+    }
+    const completing = targetStatus === '8';
+    if ((completing || live.truck) && !truck) {
+      setError('Choose the truck above Krewe Assigned to This Job.');
       return;
     }
     const navigatorIds = live.navigators.map((row) => row.value).filter(Boolean);
-    if (!live.driver.value) {
+    if (completing && !live.driver.value) {
       setError("Choose a driver before saving the closeout.");
       return;
     }
@@ -218,16 +240,17 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       setError("Each assigned person can only appear once on the job.");
       return;
     }
-    if (![live.actualStartHour.value, live.actualStartMinute.value, live.actualEndHour.value, live.actualEndMinute.value].every(Boolean)) {
+    if (completing && ![live.actualStartHour.value, live.actualStartMinute.value, live.actualEndHour.value, live.actualEndMinute.value].every(Boolean)) {
       setError('Enter actual start and finish times before reviewing the closeout.'); return;
     }
-    if (live.howHeard && !live.howHeard.value) { setError('Choose how the customer heard about us.'); return; }
-    if (!inputMoney(live.loadPrice) && !inputMoney(live.bedloadPrice)) { setError('Enter a load or bedload price.'); return; }
+    if (completing && live.howHeard && !live.howHeard.value) { setError('Choose how the customer heard about us.'); return; }
+    if (completing && !inputMoney(live.loadPrice) && !inputMoney(live.bedloadPrice)) { setError('Enter a load or bedload price.'); return; }
     if (addPayment) {
       const paymentError = validateCloseoutPayment({ methodId: paymentMethod, amount: inputMoney(paymentAmount), reference: paymentReference.trim() }, live.paymentMethods);
       if (paymentError) { setError(paymentError); return; }
     }
-    const completingEstimate = category === 'Estimate' && live.status.value !== '8';
+    if (!completing && (addPayment || pendingOtherCharges.length)) { setError('Select Completed to save the payment or additional charges in this draft.'); return; }
+    const completingEstimate = completing && category === 'Estimate' && live.status.value !== '8';
     const noDiscountRequired = completingEstimate && !(Number(inputMoney(live.discount)) > 0);
     if (completingEstimate && (!estimateReason || !estimateExplanation.trim())) {
       setError('Choose why this remained an estimate and add the outcome notes before closing it.');
@@ -248,6 +271,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       const result = await sendScheduleChange(job, serviceDate, 'closeout', {
         ...{
           appointmentId: resolvedAppointmentId,
+          targetStatus,
+          ...(truck ? { truck } : {}),
           serviceDate,
           driverId: live.driver.value,
           navigatorIds,
@@ -281,6 +306,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       if (result.status !== 'verified' || !result.sourceResult?.closeout) return;
       const payload = result.sourceResult as { closeout: LiveCloseout; truckLoadStatus?: { updated?: boolean; status?: { truck?: string; currentLoadLabel?: string }; reason?: string } };
       setLive(payload.closeout);
+      setTargetStatus(payload.closeout.status.value);
+      setTruck(payload.closeout.truck || '');
       setAddPayment(false);
       setPaymentMethod("");
       setPaymentAmount("");
@@ -308,7 +335,10 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
         if (result.action && result.action !== 'closeout') {
           setReceipt(null); setLive(null); setSourceVersion(''); setCanWrite(false);
           await load(true);
-        } else if (result.sourceResult?.closeout) setLive(result.sourceResult.closeout as LiveCloseout);
+        } else if (result.sourceResult?.closeout) {
+          const source = result.sourceResult.closeout as LiveCloseout;
+          setLive(source); setTargetStatus(source.status.value); setTruck(source.truck || '');
+        }
         setAddPayment(false); setPaymentMethod(''); setPaymentAmount(''); setPaymentReference(''); setPendingOtherCharges([]);
         saved();
       }
@@ -329,6 +359,13 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
         ) : (
           <>
             <fieldset onChange={() => setReviewing(false)} className="desktop-closeout-fields" disabled={saving || Boolean(receipt && receipt.status !== 'failed')}>
+            <fieldset className="ops-closeout-status-options"><legend>Status</legend>
+              {[['1', 'Confirmed'], ['8', 'Completed'], ['9', 'Cancelled']].map(([value, label]) => <label key={value}><input type="radio" name={statusGroupId} value={value} checked={targetStatus === value} disabled={live.status.value === '8' && value !== '8'} onChange={() => { setTargetStatus(value); setReviewing(false); setError(''); }} /><span>{label}</span></label>)}
+            </fieldset>
+            {targetStatus === '9' ? <section className="appointment-create-section">
+              <label><span>Cancellation reason</span><textarea aria-label="Closeout cancellation reason" maxLength={500} rows={2} value={cancellationReason} onChange={event => { setCancellationReason(event.target.value); setReviewing(false); }} /></label>
+              <p>Cancellation saves only the status and reason. Charges, payments and crew edits in this draft are not submitted.</p>
+            </section> : <>
             <label><span>Final appointment category</span><select value={category} onChange={event => { setCategory(event.target.value); setReviewing(false); setEstimateReason(''); setEstimateExplanation(''); setNoDiscountReason(''); }}><option>Job</option><option>Estimate</option></select></label>
             <div className="drawer-facts">
               <div><span>Junkware status</span><strong>{live.status.label || "Unavailable"}</strong></div>
@@ -337,7 +374,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             </div>
             {saving ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">Saving changes and checking them in JunkWare…</div> : null}
 
-            {category === 'Estimate' && live.status.value !== '8' ? <section className="appointment-create-section estimate-outcome-fields">
+            {targetStatus === '8' && category === 'Estimate' && live.status.value !== '8' ? <section className="appointment-create-section estimate-outcome-fields">
               <h4>Estimate outcome required by JunkWare</h4>
               <label><span>Why did this remain an estimate?</span><select value={estimateReason} onChange={event => { setEstimateReason(event.target.value); setReviewing(false); }}><option value="">Select reason</option><option>Price/Budget</option><option>Date/Time</option><option>Other</option></select></label>
               <label><span>Outcome notes</span><textarea rows={2} maxLength={2000} value={estimateExplanation} onChange={event => { setEstimateExplanation(event.target.value); setReviewing(false); }} /></label>
@@ -345,6 +382,11 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             </section> : null}
 
             <section className="appointment-create-section">
+              <label><span>Truck</span><select aria-label="Appointment truck" value={truck} onChange={event => { setTruck(event.target.value); setReviewing(false); }}>
+                <option value="">Select truck</option>
+                {(live.truckOptions || []).filter(option => option.value && /truck\s*#?\s*\d+/i.test(option.label)).map(option => { const label = option.label.replace(/Truck#?\s*/i, 'Truck ').trim(); return <option key={option.value} value={label}>{label}</option>; })}
+                {truck && !(live.truckOptions || []).some(option => option.label.replace(/Truck#?\s*/i, 'Truck ').trim() === truck) && <option value={truck}>{truck}</option>}
+              </select></label>
               <h4>Krewe Assigned to This Job</h4>
               <label>
                 <span>Driver</span>
@@ -448,10 +490,12 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               </div> : null}
             </section>
 
-            {reviewing && <div role="status"><p>Review {category} closeout: {live.loadQuantity || '0'} full trucks{live.loadSize.value ? ` + ${live.loadSize.value}` : ''}. Load price ${Number(inputMoney(live.loadPrice)).toFixed(2)}, discount ${Number(inputMoney(live.discount)).toFixed(2)}.</p><p>Review all amounts, assigned Krewe and payment fields above. Confirmation saves the completed appointment in JunkWare and can publish its normal closeout alert.</p><p>{addPayment ? `Payment to record: ${live.paymentMethods.find(option => option.value === paymentMethod)?.label} · $${Number(inputMoney(paymentAmount)).toFixed(2)}${paymentReference ? ` · ${paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}: ${paymentReference}` : ''}` : 'No new payment will be recorded.'}</p></div>}
+            </>}
+            {reviewing && targetStatus === '9' && <div role="status"><p>Review cancellation of {job.jkNumber}: {cancellationReason.trim()}</p></div>}
+            {reviewing && targetStatus !== '9' && <div role="status"><p>{live.status.label} → {targetStatus === '8' ? 'Completed' : 'Confirmed'} · {live.truck || 'Unassigned'} → {truck || 'Unassigned'}</p><p>Review {category} closeout: {live.loadQuantity || '0'} full trucks{live.loadSize.value ? ` + ${live.loadSize.value}` : ''}. Load price ${Number(inputMoney(live.loadPrice)).toFixed(2)}, discount ${Number(inputMoney(live.discount)).toFixed(2)}.</p><p>Review all amounts, assigned Krewe and payment fields above. Confirmation saves this appointment in JunkWare.{targetStatus === '8' ? ' Completion can publish its normal closeout alert.' : ' The appointment stays Confirmed.'}</p><p>{addPayment ? `Payment to record: ${live.paymentMethods.find(option => option.value === paymentMethod)?.label} · $${Number(inputMoney(paymentAmount)).toFixed(2)}${paymentReference ? ` · ${paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}: ${paymentReference}` : ''}` : 'No new payment will be recorded.'}</p></div>}
             {!canWrite && <p role="status">Your role can read this closeout. A manager must save changes.</p>}
             <div className="ops-closeout-editor-actions">
-              <button type="button" className="ops-button" onClick={save} disabled={saving || !canWrite}>{saving ? "Saving and checking JunkWare…" : reviewing ? `Confirm ${category} Closeout in JunkWare` : "Review Closeout"}</button>
+              <button type="button" className="ops-button" onClick={save} disabled={saving || !canWrite}>{saving ? "Saving and checking JunkWare…" : targetStatus === '9' ? reviewing ? 'Confirm Cancellation in JunkWare' : 'Review Cancellation' : targetStatus === '1' ? reviewing ? 'Confirm Changes in JunkWare' : 'Review Changes' : reviewing ? `Confirm ${category} Closeout in JunkWare` : "Review Closeout"}</button>
             </div>
             </fieldset>
             <button type="button" className="ops-button subtle" onClick={() => void load()} disabled={saving || loading || Boolean(receipt && ['pending', 'uncertain'].includes(receipt.status))}>Reload from JunkWare</button>

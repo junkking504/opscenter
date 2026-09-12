@@ -4275,7 +4275,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         </header>
         {live && <OperatingDayBar date={live.snapshot.date} disabled={mutationBusy} onChange={date => live.onDateChange(date)} />}
 
-        <div className={activeNav === 'Schedule' ? 'workspace schedule-mode' : 'workspace'}>
+        <div className={activeNav === 'Schedule' ? 'workspace schedule-mode' : activeNav === 'Command' && view === 'now' && live ? 'workspace command-now-mode' : 'workspace'}>
           <div className={`workspace-heading${activeNav === 'Schedule' && live ? ' schedule-workspace-heading' : ''}`} onClickCapture={event => { if (mutationBusyRef.current) { event.preventDefault(); event.stopPropagation(); } }}>
             <div>
               <span className="eyebrow">{live ? operatingDateHeading : activeNav === 'Schedule' && scheduleView === 'calendar'
@@ -4374,9 +4374,17 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           </section>}
 
           {activeNav === 'Command' && live?.snapshot.loading && !live.error && <div className="workspace-loading" role="status">{live.error || 'Loading Command records…'}</div>}
-          {activeNav === 'Command' && view === 'now' && live && !live.snapshot.loading && <CrewProgressAlerts live={live} openAlert={openAlertRecord} openControl={() => {setActiveNav('Command');setView('today');}} />}
+          {activeNav === 'Command' && view === 'now' && live && !live.snapshot.loading && <div className="command-overview">
+            <div className="command-feed">
+              <CrewProgressAlerts live={live} openAlert={openAlertRecord} openControl={() => {setActiveNav('Command');setView('today');}} />
+              <EstimateCommandSummary summary={live.snapshot.estimates} />
+            </div>
+            <aside className="command-map-column" aria-label="Appointment and truck map">
+              <CommandMap date={live.snapshot.date} busy={mutationBusy} report={setActionFeedback} onBusyChange={onBusyChange} openSchedule={() => { if (mutationBusyRef.current) return; setScheduleDay('today'); setScheduleView('board'); setActiveNav('Schedule'); }} />
+            </aside>
+          </div>}
 
-          {activeNav === 'Command' && live && !live.snapshot.loading && <EstimateCommandSummary summary={live.snapshot.estimates} />}
+          {activeNav === 'Command' && view !== 'now' && live && !live.snapshot.loading && <EstimateCommandSummary summary={live.snapshot.estimates} />}
 
           {activeNav === 'Command' && view === 'now' && !Boolean(live) && (
             <div className="command-grid">
@@ -4432,7 +4440,6 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </div>
           )}
 
-          {activeNav === 'Command' && view === 'now' && live && !live.snapshot.loading && <CommandMap date={live.snapshot.date} busy={mutationBusy} report={setActionFeedback} onBusyChange={onBusyChange} openSchedule={() => { if (mutationBusyRef.current) return; setScheduleDay('today'); setScheduleView('board'); setActiveNav('Schedule'); }} />}
 
           {activeNav === 'Command' && view === 'today' && !live && (
             <div className="run-grid control-workspace">

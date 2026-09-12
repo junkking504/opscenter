@@ -22,6 +22,7 @@ export type TruckGpsRoute = {
 };
 export type RoadCoordinate={latitude:number;longitude:number};
 export type StreetRoute={
+  retryAfterMs?:number;
   sourceVersion:string;
   status:'available'|'partial'|'unavailable';
   paths:{kind:'matched'|'estimated';points:RoadCoordinate[];sourceEdge?:number}[];

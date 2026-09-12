@@ -720,3 +720,20 @@ Road alignment survives a GPS refresh only for edges with identical timestamps
 and coordinates at both ends. Late history insertion remaps edge indexes; changed
 or split edges await new alignment. Exact streets cannot be recovered from missing
 telemetry: inferred road sections remain labelled as estimates.
+
+
+### Road alignment delivery and durable cache
+
+Road alignment keeps its existing 16-second work slices, provider rate limit,
+and 60-second cooldown after a slice. The browser follows the server's retry hint:
+five seconds while a slice is pending, then the remaining cooldown. A new GPS
+version cannot bypass the per-truck cooldown. Completed road lines therefore reach
+the viewer promptly without faster provider polling.
+
+Successful progress survives application restarts under the runtime data directory
+at `cache/street-routes-v1`. Atomic, mode-0600 files contain GPS provenance and
+geometry, excluding trip addresses and crew data. A checksummed versioned envelope,
+seven-day expiry, 8 MiB per-file maximum and 32-file retention bound the cache.
+Unreadable or corrupt files fall back to normal matching. Cached road segments
+still require identical adjacent source observations and currently eligible edges;
+source corrections, changed truck/date and excluded gaps cannot reuse old geometry.

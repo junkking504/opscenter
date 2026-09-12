@@ -2,6 +2,7 @@ import {createHash} from 'node:crypto';
 import type {GpsRoutePoint,RoadCoordinate,StreetRoute,TruckGpsRoute} from '../desktop-ui/lib/gps-route-contract';
 import {osmStreetJson} from './osm-street-transport';
 import {reuseStreetPaths} from '../desktop-ui/lib/gps-street-progress';
+import {loadStreetProgress,saveStreetProgress,streetRouteCacheDirectory,type SavedStreetProgress} from './street-route-cache';
 
 export function gpsSourceVersion(route:TruckGpsRoute) {return createHash('sha256').update(JSON.stringify([route.date,route.truck,route.points,route.paths,route.gapLinks])).digest('hex').slice(0,24);}
 export function meters(a:RoadCoordinate,b:RoadCoordinate){
@@ -114,17 +115,24 @@ export async function buildStreetRoute(route:TruckGpsRoute,send:typeof osmStreet
 }
 const pending=new Map<string,Promise<StreetProgress>>();
 const completed=new Map<string,{until:number;route:StreetProgress}>();
-const latest=new Map<string,{source:TruckGpsRoute;result:StreetProgress}>();
+const latest=new Map<string,SavedStreetProgress>();
 export function reusableStreetProgress(source:TruckGpsRoute,previous?:{source:TruckGpsRoute;result:StreetProgress}):StreetProgress|undefined {
   if(!previous || previous.source.date!==source.date || previous.source.truck!==source.truck)return undefined;
   const paths=reuseStreetPaths(source,previous.source,previous.result.paths);
   return {...previous.result,sourceVersion:gpsSourceVersion(source),paths};
 }
-export function readStreetRoute(route:TruckGpsRoute,send:typeof osmStreetJson=osmStreetJson){
+export function readStreetRoute(route:TruckGpsRoute,send:typeof osmStreetJson=osmStreetJson,directory=send===osmStreetJson?streetRouteCacheDirectory():undefined){
   const key=gpsSourceVersion(route),cached=completed.get(key);
-  if(cached && cached.until>Date.now())return Promise.resolve(cached.route);
+  const now=Date.now();
+  if(cached && cached.until>now)return Promise.resolve({...cached.route,retryAfterMs:cached.route.status==='available'?60_000:Math.max(5000,cached.until-now)});
   const truckKey=`${route.date}:${route.truck}`;
-  const previous=cached?.route || reusableStreetProgress(route,latest.get(truckKey));
+  // Mocked provider tests never touch the live cache.
+  if(!latest.has(truckKey) && directory) {
+    const saved=loadStreetProgress(directory,route.date,route.truck);
+    if(saved)latest.set(truckKey,saved);
+  }
+  const saved=latest.get(truckKey);
+  const previous=cached?.route || reusableStreetProgress(route,saved);
   const eligible=eligibleStreetEdges(route);
   const paths=(previous?.paths || []).filter(path=>path.sourceEdge!==undefined && eligible.has(path.sourceEdge));
   const aligned=new Set(paths.map(path=>path.sourceEdge));
@@ -133,15 +141,17 @@ export function readStreetRoute(route:TruckGpsRoute,send:typeof osmStreetJson=os
   // The public matcher shares a rate-limited queue with road ETAs. Never make
   // the browser wait for that queue or discard all progress at its timeout.
   // Only a viewer request starts a bounded slice; there is no fleet-wide loop.
-  if(!pending.has(truckKey)) {
+  if(!pending.has(truckKey) && now>=(saved?.retryAt || 0) && (unmatched>0 || !paths.length && eligible.size>0)) {
     const request=buildStreetRoute(route,send,previous).then(result=>{
-      latest.set(truckKey,{source:route,result});
+      const saved={source:route,result,retryAt:Date.now()+60_000};
+      latest.set(truckKey,saved);
+      if(directory)saveStreetProgress(directory,saved);
       while(latest.size>32)latest.delete(latest.keys().next().value!);
       completed.set(key,{route:result,until:Date.now()+(result.status==='available'?24*60*60_000:60_000)});
       while(completed.size>32)completed.delete(completed.keys().next().value!);
       return result;
-    }).catch(()=>visible).finally(()=>pending.delete(truckKey));
+    }).catch(()=>{latest.set(truckKey,{source:route,result:visible,retryAt:Date.now()+60_000});return visible;}).finally(()=>pending.delete(truckKey));
     pending.set(truckKey,request);
   }
-  return Promise.resolve(visible);
+  return Promise.resolve({...visible,retryAfterMs:pending.has(truckKey)?5000:Math.max(5000,Math.min(60_000,(saved?.retryAt || now+60_000)-now))});
 }

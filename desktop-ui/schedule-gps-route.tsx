@@ -35,21 +35,23 @@ export function useTruckGpsRoute(date:string,truck:string|null) {
   const version=state.key===key?state.route?.sourceVersion:undefined;
   useEffect(()=>{
     if(!key || !version || !truck)return;
-    const abort=new AbortController();let pending=false;
+    const abort=new AbortController();let pending=false,timer:number|undefined;
     const load=async()=>{
       if(pending)return;pending=true;
+      let retryAfterMs=60_000;
       const requestedSource=source.current;
       try {
         const response=await fetch(`/api/desktop/schedule/gps/streets?${new URLSearchParams({date,truck,version})}`,{credentials:'same-origin',cache:'no-store',signal:AbortSignal.any([abort.signal,AbortSignal.timeout(25_000)])});
         const value=await response.json() as StreetRoute;
+        if(response.ok && value.sourceVersion===version && Number.isFinite(value.retryAfterMs))retryAfterMs=Math.max(5000,Math.min(60_000,value.retryAfterMs!));
         if(response.ok && value.sourceVersion===version && Array.isArray(value.paths) && !abort.signal.aborted && requestedSource?.sourceVersion===version)setStreets(old=>({key,value:{...value,paths:[...new Map([
           ...(old.key===key && old.value?.sourceVersion===version ? old.value.paths : []),...value.paths,
         ].map(path=>[path.sourceEdge,path])).values()]}}));
       } catch {if(!abort.signal.aborted)setStreets(old=>old.key===key && old.value?.sourceVersion===version ? old : {key,value:{sourceVersion:version,status:'unavailable',paths:[],unmatched:0}});}
-      finally {pending=false;}
+      finally {pending=false;if(!abort.signal.aborted)timer=window.setTimeout(()=>void load(),retryAfterMs);}
     };
-    void load();const timer=window.setInterval(()=>void load(),60_000);
-    return()=>{abort.abort();window.clearInterval(timer);};
+    void load();
+    return()=>{abort.abort();window.clearTimeout(timer);};
   },[key,version,date,truck]);
   return state.key===key?{...state,route:state.route?{...state.route,streets:streets.key===key && streets.value?.sourceVersion===version?streets.value || undefined:undefined}:null}:{key,route:null,error:''};
 }

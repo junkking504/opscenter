@@ -25,7 +25,7 @@ for (const invalid of [{ ...visit, match_confidence: 'ambiguous' }, { ...visit, 
 }
 assert.equal(scheduleVisitState(job, [visit], '2026-09-06T15:00:00Z', trucks, now).truckOnSite, false, 'Stale visit snapshots cannot claim live on-site status');
 assert.equal(scheduleVisitState(job, [visit], recent, [{ truck: 'Truck 4', lastGpsUpdate: '2026-09-06T15:00:00Z' }], now).truckOnSite, false, 'GPS must also be fresh');
-assert.equal(scheduleVisitState(job, [visit], '2026-09-06T15:55:00Z', [{ ...trucks[0], lastGpsUpdate: '2026-09-06T15:55:00Z' }], now).truckOnSite, true, 'A five-minute continuous GPS delay is still live on-site evidence.');
+assert.equal(scheduleVisitState(job, [visit], '2026-09-06T15:55:00Z', [{ ...trucks[0], lastGpsUpdate: '2026-09-06T15:55:00Z' }], now).truckOnSite, false, 'A five-minute GPS delay cannot establish current presence.');
 const unassigned = fullScheduleVisitState({ ...job, truck: 'Unassigned' }, [visit], recent, trucks, now);
 assert.equal(unassigned.truckOnSite, true, 'A fresh confirmed GPS visit must remain visible while JunkWare has not assigned the appointment.');
 assert.equal(unassigned.onsiteTruck, 'Truck 4');
@@ -78,7 +78,7 @@ for (const invalid of [
 assert.equal(fullScheduleVisitState({ ...job, location: null }, [ledger], recent, trucks, now).truckOnSite, false, 'An unverified job location cannot establish current presence');
 assert.equal(fullScheduleVisitState(job, [ledger], recent, [], now).truckOnSite, false, 'Historical day without current trucks cannot claim current presence');
 const parked = { ...trucks[0], speed: 0, ignition: 'OFF' };
-assert.equal(fullScheduleVisitState(job, [ledger], new Date(now + 42 * 60_000).toISOString(), [parked], now + 42 * 60_000).truckOnSite, true, 'A valid onsite parked report remains current between hourly heartbeats');
+assert.equal(fullScheduleVisitState(job, [ledger], new Date(now + 42 * 60_000).toISOString(), [parked], now + 42 * 60_000).truckOnSite, false, 'An old parked report remains historical evidence only');
 const returned = { ...ledger, visit_intervals: [
   { arrival: visit.first_arrival, departure: '2026-09-06T15:55:00Z' },
   { arrival: '2026-09-06T15:59:00Z', departure: null },

@@ -1,7 +1,7 @@
 import type { FleetMapPoint } from './fleet-map';
 import type { Coordinates } from './job-route-proximity';
 import { truckLabel } from '../desktop-ui/lib/schedule-contract';
-import { parkedTruckObservation, PARKED_GPS_MAX_AGE_MS } from './truck-gps-status';
+import { LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS } from './linxup-authority';
 
 type PresenceJob = { truck?: string; appointmentId: string; location?: Coordinates | null; status?: string; appointmentStartMinutes?: number | null; appointmentEndMinutes?: number | null; onsiteTime?: {departure?: string | null} };
 export type PresenceTruck = { truck: string; lastGpsUpdate: string | null; latitude?: number | null; longitude?: number | null; speed?: number | null; ignition?: string | null; routePoints?: Pick<FleetMapPoint, 'timestamp' | 'latitude' | 'longitude' | 'continuousUntil'>[] };
@@ -10,7 +10,7 @@ const distance = (a: Coordinates, b: Coordinates) => {
   return 12_742_000 * Math.asin(Math.sqrt(Math.sin(dLat / 2) ** 2 + Math.cos(a.latitude * rad) * Math.cos(b.latitude * rad) * Math.sin(dLon / 2) ** 2));
 };
 
-// Use the same coordinate and heartbeat rules for inferred arrivals and open
+// Use the same coordinate and live freshness rules for inferred arrivals and open
 // ledger visits. A fresh timestamp alone does not locate a truck at a job.
 export function gpsPositionAtAppointment(location: Coordinates | null | undefined, truck: PresenceTruck, now = Date.now()) {
   const stamp = Date.parse(truck.lastGpsUpdate || '');
@@ -18,7 +18,7 @@ export function gpsPositionAtAppointment(location: Coordinates | null | undefine
     typeof point.latitude === 'number' && Number.isFinite(point.latitude) && Math.abs(point.latitude) <= 90 &&
     typeof point.longitude === 'number' && Number.isFinite(point.longitude) && Math.abs(point.longitude) <= 180;
   if (!location || !valid(location) || !valid(truck) || !Number.isFinite(stamp) || stamp > now + 60_000) return undefined;
-  const maxAge = parkedTruckObservation(truck) ? PARKED_GPS_MAX_AGE_MS : 10 * 60_000;
+  const maxAge = LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS * 1000;
   return { stamp, inside: distance(location, { latitude: truck.latitude!, longitude: truck.longitude! }) <= 125, current: now - stamp <= maxAge };
 }
 
@@ -43,8 +43,8 @@ export function currentGpsPresence(job: PresenceJob, trucks: PresenceTruck[], ap
     if (nearby.length !== 1 || nearby[0].appointmentId !== job.appointmentId) return [];
     // The current position is authoritative even when route history and the
     // visit ledger have not caught up. Do not wait for a second report or dwell.
-    // Engine-off trackers report hourly. Use the same parked heartbeat window
-    // as the truck marker; elapsed time alone must not imply a departure.
+    // A parked heartbeat describes the last observation, not continued presence.
+    // Aging it preserves last-seen evidence without inventing a departure.
     return [{ truck: truckLabel(truck.truck), arrival: new Date(stamp).toISOString(), observedAt: truck.lastGpsUpdate!, current: observation.current }];
   });
   return candidates.length === 1 ? candidates[0] : undefined;

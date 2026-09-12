@@ -9,8 +9,8 @@ assert.equal(currentGpsPresence(job, [{ ...truck, routePoints: points.slice(-1) 
 assert.equal(currentGpsPresence(job, [{ ...truck, routePoints: [] }], [job], now)?.current, true, 'Route history and the visit ledger must not delay a current arrival');
 assert.equal(currentGpsPresence(job, [truck], [job], now + 11*60_000)?.current, false, 'Preserve stale position as last reported, never current');
 const parked = {...truck, speed: 0, ignition: 'OFF'};
-assert.equal(currentGpsPresence(job, [parked], [job], now + 42*60_000)?.current, true, 'A parked truck stays on site between hourly reports');
-assert.equal(currentGpsPresence(job, [parked], [job], now + 75*60_000)?.current, true, 'Use the same parked heartbeat limit as the map marker');
+assert.equal(currentGpsPresence(job, [parked], [job], now + 42*60_000)?.current, false, 'A parked report cannot prove presence between hourly reports');
+assert.equal(currentGpsPresence(job, [parked], [job], now + 75*60_000)?.current, false, 'Parked marker tolerance never extends current presence');
 assert.equal(currentGpsPresence(job, [parked], [job], now + 76*60_000)?.current, false, 'A missed parked heartbeat remains last reported, not current');
 assert.equal(currentGpsPresence(job, [{...parked, ignition:'ON'}], [job], now + 42*60_000)?.current, false, 'An idling truck does not receive the engine-off reporting allowance');
 assert.equal(currentGpsPresence(job, [{...parked, latitude:30.4}], [job], now + 42*60_000), undefined, 'A newer stopped position elsewhere is not still on site');
@@ -28,3 +28,6 @@ console.log('GPS presence: immediate arrival, delayed history, stale GPS, ambigu
 const early = { ...job, truck: 'Truck# 3', appointmentStartMinutes: 780, appointmentEndMinutes: 840 };
 assert.equal(currentGpsPresence(early, [truck], [early], now)?.truck, 'Truck 3', 'An assigned crew physically onsite may arrive more than ninety minutes early');
 assert.equal(currentGpsPresence({ ...early, truck: 'Unassigned' }, [truck], [{ ...early, truck: 'Unassigned' }], now), undefined, 'An unrelated early pass must not become an appointment arrival');
+
+assert.equal(currentGpsPresence(job, [parked], [job], now + 3*60_000)?.current, true);
+assert.equal(currentGpsPresence(job, [parked], [job], now + 3*60_000 + 1)?.current, false, 'Current presence expires at three minutes even with ignition off');

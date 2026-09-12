@@ -1,12 +1,14 @@
-import {useEffect,useState} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import type {StreetRoute,TruckGpsRoute} from './lib/gps-route-contract';
 import './schedule-gps-route.css';
 import {gpsTripColor,gpsTripDisplay} from './lib/gps-trip-display';
+import {reuseStreetPaths} from './lib/gps-street-progress';
 
 export function useTruckGpsRoute(date:string,truck:string|null) {
   const key=truck && /^Truck [1-9]\d*$/.test(truck)?`${date}:${truck}`:'';
   const [streets,setStreets]=useState<{key:string;value:StreetRoute|null}>({key:'',value:null});
   const [state,setState]=useState<{key:string;route:TruckGpsRoute|null;error:string}>({key:'',route:null,error:''});
+  const source=useRef<TruckGpsRoute|null>(null);
   useEffect(()=>{
     if(!key || !truck) return;
     const abort=new AbortController();let pending=false;
@@ -16,7 +18,14 @@ export function useTruckGpsRoute(date:string,truck:string|null) {
         const response=await fetch(`/api/desktop/schedule/gps?${new URLSearchParams({date,truck})}`,{credentials:'same-origin',cache:'no-store',signal:AbortSignal.any([abort.signal,AbortSignal.timeout(20_000)])});
         const route=await response.json() as TruckGpsRoute;
         if(!response.ok || route.date!==date || route.truck!==truck || !Array.isArray(route.points) || !Array.isArray(route.paths)) throw new Error('GPS history could not be retrieved.');
-        if(!abort.signal.aborted) setState({key,route,error:''});
+        if(!abort.signal.aborted) {
+          const previous=source.current;
+          source.current=route;
+          // Preserve proven road geometry while alignment catches up to new GPS.
+          if(previous && route.sourceVersion) setStreets(old=>old.key===key && old.value && old.value.sourceVersion===previous.sourceVersion
+            ? {key,value:{...old.value,sourceVersion:route.sourceVersion!,paths:reuseStreetPaths(route,previous,old.value.paths),status:old.value.sourceVersion===route.sourceVersion?old.value.status:'partial'}} : old);
+          setState({key,route,error:''});
+        }
       } catch {if(!abort.signal.aborted) setState(old=>({key,route:old.key===key?old.route:null,error:'GPS history could not refresh.'}));}
       finally {pending=false;}
     };
@@ -29,10 +38,13 @@ export function useTruckGpsRoute(date:string,truck:string|null) {
     const abort=new AbortController();let pending=false;
     const load=async()=>{
       if(pending)return;pending=true;
+      const requestedSource=source.current;
       try {
         const response=await fetch(`/api/desktop/schedule/gps/streets?${new URLSearchParams({date,truck,version})}`,{credentials:'same-origin',cache:'no-store',signal:AbortSignal.any([abort.signal,AbortSignal.timeout(25_000)])});
         const value=await response.json() as StreetRoute;
-        if(response.ok && value.sourceVersion===version && Array.isArray(value.paths) && !abort.signal.aborted)setStreets({key,value});
+        if(response.ok && value.sourceVersion===version && Array.isArray(value.paths) && !abort.signal.aborted && requestedSource?.sourceVersion===version)setStreets(old=>({key,value:{...value,paths:[...new Map([
+          ...(old.key===key && old.value?.sourceVersion===version ? old.value.paths : []),...value.paths,
+        ].map(path=>[path.sourceEdge,path])).values()]}}));
       } catch {if(!abort.signal.aborted)setStreets(old=>old.key===key && old.value?.sourceVersion===version ? old : {key,value:{sourceVersion:version,status:'unavailable',paths:[],unmatched:0}});}
       finally {pending=false;}
     };

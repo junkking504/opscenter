@@ -704,3 +704,19 @@ pickup items and notes. Completion cards retain their load/payment/visit summary
 and add address, contact and work context. Equivalent event fields (such as
 Location and Service address) are not repeated or replaced by current details.
 Unlinked alerts do not infer an appointment match.
+
+
+## Current presence and route refreshes
+
+Current on-site badges require valid GPS inside the 125-meter appointment fence
+and no more than three minutes old, including ignition-OFF reports. Older parked
+observations retain last-seen evidence, but cannot claim continued presence.
+A newer position elsewhere clears the last-on-site badge while preserving visit
+history and its recorded duration; no departure time is invented.
+
+Truck icons use a separate 32–44 pixel height and larger fleet numbers across
+map zoom levels. Their centers remain on the source GPS coordinates.
+Road alignment survives a GPS refresh only for edges with identical timestamps
+and coordinates at both ends. Late history insertion remaps edge indexes; changed
+or split edges await new alignment. Exact streets cannot be recovered from missing
+telemetry: inferred road sections remain labelled as estimates.

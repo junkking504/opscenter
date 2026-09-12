@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import {reuseStreetPaths} from '../desktop-ui/lib/gps-street-progress';
+import {gpsTripDisplay} from '../desktop-ui/lib/gps-trip-display';
+import type {TruckGpsRoute} from '../desktop-ui/lib/gps-route-contract';
+
+const points=[0,1,2,3].map(i=>({timestamp:new Date(Date.UTC(2026,8,12,13,i)).toISOString(),latitude:30+i*.001,longitude:-90}));
+const source:TruckGpsRoute={date:'2026-09-12',truck:'Truck 6',status:'available',sourceVersion:'old',observedAt:null,coveredThrough:null,points:points.slice(1,3),paths:[points.slice(1,3)],gaps:0,rejected:0};
+const paths=[{sourceEdge:0,kind:'estimated' as const,points:[points[1],{latitude:30.0015,longitude:-89.9998},points[2]]}];
+const refreshed={...source,sourceVersion:'new',points,paths:[points]};
+const retained=reuseStreetPaths(refreshed,source,paths);
+assert.equal(retained[0].sourceEdge,1,'Late insertion remaps a road segment to its unchanged observations');
+assert.deepEqual(retained[0].points,paths[0].points,'Keep the actual road bends');
+assert.equal(gpsTripDisplay({...refreshed,streets:{sourceVersion:'new',paths:retained,status:'partial',unmatched:2}}).paths.length,1,'A GPS refresh keeps previously aligned streets visible');
+const changed={...refreshed,points:points.map((p,i)=>i===2?{...p,longitude:-90.1}:p)};
+assert.deepEqual(reuseStreetPaths(changed,source,paths),[],'Changed coordinates invalidate geometry');
+assert.deepEqual(reuseStreetPaths({...refreshed,truck:'Truck 9'},source,paths),[]);
+assert.deepEqual(reuseStreetPaths({...refreshed,date:'2026-09-13'},source,paths),[]);
+const middle={...points[1],timestamp:'2026-09-12T13:01:30.000Z'};
+assert.deepEqual(reuseStreetPaths({...source,points:[points[1],middle,points[2]]},source,paths),[],'A new observation splitting an edge requires fresh alignment');
+console.log('Road refresh continuity passed: late insertion, visible geometry, identity, coordinate corrections and split edges.');

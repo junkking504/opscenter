@@ -20,8 +20,7 @@ export function freshTruckGps(truck:Pick<ScheduleTruck,'lastGpsUpdate'|'latitude
   const at=Date.parse(truck?.lastGpsUpdate || '');
   return Boolean(truck && truck.latitude!==null && truck.longitude!==null && Number.isFinite(truck.latitude) && Number.isFinite(truck.longitude) && Math.abs(truck.latitude)<=90 && Math.abs(truck.longitude)<=180 && Number.isFinite(at) && at<=now && now-at<=LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS*1000);
 }
-// Parked heartbeat tolerance retains GPS-established on-site presence, but
-// never makes an older position eligible for a live ETA.
+// Parked heartbeat tolerance labels the last observation, not current presence.
 export function truckProgressGpsState(truck:ScheduleTruck|undefined, now=Date.now()) {
   const at=Date.parse(truck?.lastGpsUpdate || '');
   if (!truck || truck.latitude==null || truck.longitude==null || !Number.isFinite(truck.latitude) || !Number.isFinite(truck.longitude) || Math.abs(truck.latitude)>90 || Math.abs(truck.longitude)>180 || !Number.isFinite(at) || at>now) return 'gps_unavailable';
@@ -31,5 +30,5 @@ export function truckProgressGpsState(truck:ScheduleTruck|undefined, now=Date.no
 export type TruckProgress = {truck:string; appointmentId:string; appointmentVersion:string; status:string; minutes:number|null; miles:number|null; gpsAt:string|null; calculatedAt:string; arrivalAt:string|null};
 
 export function currentOnsiteTruckGps(truck:ScheduleTruck|undefined, now=Date.now()) {
-  return freshTruckGps(truck,now) || truckProgressGpsState(truck,now)==='parked';
+  return freshTruckGps(truck,now);
 }

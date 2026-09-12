@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import './appointment-presence.css';
 import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract';
 import { appointmentColorClass, appointmentStatus, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
-import { locatorSize, territoryMapCenters } from './lib/schedule-map-layout';
+import { locatorSize, truckLocatorSize, territoryMapCenters } from './lib/schedule-map-layout';
 import type {TruckGpsRoute} from './lib/gps-route-contract';
 import { centeredExtent } from './lib/truck-map-viewport';
 import {gpsTripColor,gpsTripDisplay,unassignedGpsColor} from './lib/gps-trip-display';
@@ -129,13 +129,14 @@ export default function ScheduleMap(props: Props) {
     focused.current = focusVersion;
     const render = () => {
       const activeId = host.current?.contains(document.activeElement) ? (document.activeElement as HTMLElement)?.dataset.mapPin : undefined;
-      const size = locatorSize(view.getZoom());
-      const iconSize: L.PointTuple = [size + 12, size + 12];
       const viewport = view.getSize();
       const visiblePins = pins.map(pin => ({ pin, point: view.latLngToContainerPoint(pin.coordinate) }))
         .filter(({ point }) => point.x >= 0 && point.y >= 0 && point.x <= viewport.x && point.y <= viewport.y);
       layer.clearLayers();
       for (const { pin } of visiblePins) {
+        const isTruck = pin.id.startsWith('truck:');
+        const size = isTruck ? truckLocatorSize(view.getZoom()) : locatorSize(view.getZoom());
+        const iconSize: L.PointTuple = [isTruck ? size * 1.5 + 8 : size + 12, size + 12];
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `map-marker ${pin.className}${pin.selected ? ' route-selected' : ''}`;
@@ -150,7 +151,7 @@ export default function ScheduleMap(props: Props) {
           symbol.innerHTML = dumpTruckMapSvg;
           const number = document.createElementNS('http://www.w3.org/2000/svg', 'text');
           number.setAttribute('x', '17');
-          number.setAttribute('y', '18');
+          number.setAttribute('y', '19');
           number.setAttribute('text-anchor', 'middle');
           number.textContent = pin.text.replace(/^T/, '');
           symbol.querySelector('svg')!.append(number);

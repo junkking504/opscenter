@@ -8,7 +8,7 @@ import { gpsPositionAtAppointment, type PresenceTruck } from './schedule-gps-pre
 import type { Coordinates } from './job-route-proximity';
 
 // Ledger collection freshness is separate from the truck observation's
-// coordinates and motion-dependent heartbeat window.
+// coordinates and live freshness window.
 const LIVE_GPS_MAX_AGE_MS = 10 * 60_000;
 
 export function readScheduleVisits(date: string): { visits: AnyRecord[]; observedAt: string } {

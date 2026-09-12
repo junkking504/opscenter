@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import type {GpsRoutePoint,RoadCoordinate,StreetRoute,TruckGpsRoute} from '../desktop-ui/lib/gps-route-contract';
 import {osmStreetJson} from './osm-street-transport';
+import {reuseStreetPaths} from '../desktop-ui/lib/gps-street-progress';
 
 export function gpsSourceVersion(route:TruckGpsRoute) {return createHash('sha256').update(JSON.stringify([route.date,route.truck,route.points,route.paths,route.gapLinks])).digest('hex').slice(0,24);}
 export function meters(a:RoadCoordinate,b:RoadCoordinate){
@@ -116,12 +117,7 @@ const completed=new Map<string,{until:number;route:StreetProgress}>();
 const latest=new Map<string,{source:TruckGpsRoute;result:StreetProgress}>();
 export function reusableStreetProgress(source:TruckGpsRoute,previous?:{source:TruckGpsRoute;result:StreetProgress}):StreetProgress|undefined {
   if(!previous || previous.source.date!==source.date || previous.source.truck!==source.truck)return undefined;
-  const paths=previous.result.paths.filter(path=>{
-    const i=path.sourceEdge;
-    return i!==undefined && source.points[i] && source.points[i+1]
-      && pointKey(source.points[i])===pointKey(previous.source.points[i])
-      && pointKey(source.points[i+1])===pointKey(previous.source.points[i+1]);
-  });
+  const paths=reuseStreetPaths(source,previous.source,previous.result.paths);
   return {...previous.result,sourceVersion:gpsSourceVersion(source),paths};
 }
 export function readStreetRoute(route:TruckGpsRoute,send:typeof osmStreetJson=osmStreetJson){

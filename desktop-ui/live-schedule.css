@@ -100,7 +100,7 @@
 .live-schedule-map .appointment-marker .map-pin-symbol { --territory-color: inherit; width: var(--map-locator-size, 20px); height: var(--map-locator-size, 20px); border: 2px solid #fff; border-radius: 50%; background: var(--territory-color, #89918d); color: #17212b; font-size: var(--map-locator-font, 10px); line-height: 1; font-weight: 800; box-shadow: 0 0 0 1px #17212b80, 0 2px 5px #17212b66; }
 .live-schedule-map .completed .map-pin-symbol { border-style: double; border-width: 2px; }
 .live-schedule-map .canceled .map-pin-symbol { opacity: .65; }
-.live-schedule-map .truck-marker .map-pin-symbol { width: calc(var(--map-locator-size, 20px) * 1.25); height: var(--map-locator-size, 20px); filter: drop-shadow(0 1px 1px #17212b66); }
+.live-schedule-map .truck-marker .map-pin-symbol { width: calc(var(--map-locator-size, 32px) * 1.5); height: var(--map-locator-size, 32px); filter: drop-shadow(0 1px 1px #17212b66); }
 .live-schedule-map .truck-marker.stale .map-pin-symbol { outline: 2px dashed #a87818; outline-offset: 1px; border-radius: 4px; }
 .live-schedule-map .truck-marker svg { display: block; width: 100%; height: 100%; fill: none; stroke: #26313a; stroke-width: 1; stroke-linejoin: round; }
 .live-schedule-map .truck-marker .truck-dump-body { fill: #ca3038; }
@@ -111,7 +111,7 @@
 .live-schedule-map .truck-marker .truck-headlight { fill: #ffe8a6; stroke: none; }
 .live-schedule-map .truck-marker .truck-tire { fill: #18212a; stroke: #fff; stroke-width: .6; }
 .live-schedule-map .truck-marker .truck-wheel { fill: #b8c1c7; stroke: none; }
-.live-schedule-map .truck-marker svg text { fill: #fff; stroke: none; font: 800 12px sans-serif; }
+.live-schedule-map .truck-marker svg text { fill: #fff; stroke: #8e1f29; stroke-width: .5; paint-order: stroke; font: 800 15px sans-serif; }
 .live-schedule-map .route-selected .map-pin-symbol, .live-schedule-map button:focus-visible .map-pin-symbol { outline: 2px solid #20262b; outline-offset: 2px; border-radius: 4px; }
 .live-schedule-map .appointment-marker.route-selected .map-pin-symbol, .live-schedule-map .appointment-marker:focus-visible .map-pin-symbol { border-radius: 50%; }
 

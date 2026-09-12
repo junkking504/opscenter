@@ -6,3 +6,7 @@ export const territoryMapCenters: Record<string, [number, number]> = {
 export function locatorSize(zoom: number) {
   return Math.max(10, Math.min(36, 10 + (zoom - 10) * 4));
 }
+
+export function truckLocatorSize(zoom: number) {
+  return Math.max(32, Math.min(44, 32 + (zoom - 10) * 2));
+}

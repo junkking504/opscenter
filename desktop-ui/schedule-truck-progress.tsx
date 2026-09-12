@@ -20,7 +20,7 @@ export default function ScheduleTruckProgress({truck,snapshot,progress,now,selec
   const parkedLabel=`Parked · ${ageLabel}`;
   const messages:Record<string,string>={ambiguous:'Check current stop',unverified:'Verify assignment',untimed:'Time not set',gps_unavailable:'GPS unavailable',parked:parkedLabel,stale_gps:`${gps && parkedTruckObservation(gps)?'Last parked':'Last position'} · ${ageLabel}`,address_unverified:'Verify address',routing_unavailable:'ETA unavailable',checking:'Updating ETA',last_seen:gpsState==='parked'?parkedLabel:'Awaiting GPS'};
   const time=result?.arrivalAt?new Date(result.arrivalAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}):'';
-  const eta=status==='available'?`${result!.minutes} min · ${time}`:messages[status] || '';
+  const eta=status==='on_site' && gpsState==='parked' ? parkedLabel : status==='available'?`${result!.minutes} min · ${time}`:messages[status] || '';
   const gpsAt=status==='available'?result?.gpsAt:gps?.lastGpsUpdate;
   const observed=gpsAt?`GPS ${new Date(gpsAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit',second:'2-digit'})}`:'No GPS position';
   const explanation=gpsState==='parked'?'Last report: zero speed, ignition off. Within the parked reporting window; departure is not confirmed. ETA resumes with a recent non-parked report.':status==='stale_gps'?'Position report is older than the reporting window. Current motion is unconfirmed; live ETA is unavailable.':status==='available'?'Road estimate from GPS if continuing to the next scheduled stop, without live traffic. Destination is not confirmed.':'';

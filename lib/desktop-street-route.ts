@@ -143,11 +143,14 @@ export function readStreetRoute(route:TruckGpsRoute,send:typeof osmStreetJson=os
   // Only a viewer request starts a bounded slice; there is no fleet-wide loop.
   if(!pending.has(truckKey) && now>=(saved?.retryAt || 0) && (unmatched>0 || !paths.length && eligible.size>0)) {
     const request=buildStreetRoute(route,send,previous).then(result=>{
-      const saved={source:route,result,retryAt:Date.now()+60_000};
+      // Continue useful work on the next viewer poll; reserve the longer
+      // cooldown for a slice that could not align any additional edges.
+      const retryMs=result.paths.length>paths.length && result.status==='partial'?5000:60_000;
+      const saved={source:route,result,retryAt:Date.now()+retryMs};
       latest.set(truckKey,saved);
       if(directory)saveStreetProgress(directory,saved);
       while(latest.size>32)latest.delete(latest.keys().next().value!);
-      completed.set(key,{route:result,until:Date.now()+(result.status==='available'?24*60*60_000:60_000)});
+      completed.set(key,{route:result,until:Date.now()+(result.status==='available'?24*60*60_000:retryMs)});
       while(completed.size>32)completed.delete(completed.keys().next().value!);
       return result;
     }).catch(()=>{latest.set(truckKey,{source:route,result:visible,retryAt:Date.now()+60_000});return visible;}).finally(()=>pending.delete(truckKey));

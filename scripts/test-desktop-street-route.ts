@@ -67,6 +67,35 @@ async function main(){
  assert.equal(queuedCalls,1,'Repeated viewers do not duplicate a pending road build');
  release();await new Promise(resolve=>setImmediate(resolve));
  assert.equal((await readStreetRoute(queuedRoute,queuedSend)).paths.length,2,'Completed background geometry is available on the next read');
+ const actualNow=Date.now; let clock=actualNow(),progressCalls=0;
+ try {
+  Date.now=()=>clock;
+  const progressiveRoute={...route,truck:'Truck 18'};
+  const progressSend=async(path:string)=>{
+   progressCalls++; clock+=17_000;
+   const p=path.split('/driving/')[1].split('?')[0].split(';').map((p,i)=>{const [longitude,latitude]=p.split(',').map(Number);return {longitude,latitude,timestamp:points[i].timestamp};});
+   return payload(p);
+  };
+  await readStreetRoute(progressiveRoute,progressSend);
+  await new Promise(resolve=>setImmediate(resolve));
+  const partial=await readStreetRoute(progressiveRoute,progressSend);
+  assert.equal(partial.status,'partial');assert.equal(partial.paths.length,1);
+  assert.equal(partial.retryAfterMs,5000,'Successful partial slices continue after five seconds');
+  assert.equal(progressCalls,1,'The continuation delay still coalesces viewers');
+  clock+=5001;
+  await readStreetRoute(progressiveRoute,progressSend);
+  await new Promise(resolve=>setImmediate(resolve));
+  assert.equal((await readStreetRoute(progressiveRoute,progressSend)).paths.length,2,'Next viewer poll finishes remaining route geometry');
+  const unavailableRoute={...route,truck:'Truck 19'};
+  let failures=0;
+  const unavailable=async()=>{failures++;return null;};
+  await readStreetRoute(unavailableRoute,unavailable);
+  await new Promise(resolve=>setImmediate(resolve));
+  const failureCalls=failures;
+  assert.equal((await readStreetRoute(unavailableRoute,unavailable)).retryAfterMs,60000,'Provider failures retain the full cooldown');
+  clock+=5001;await readStreetRoute(unavailableRoute,unavailable);
+  assert.equal(failures,failureCalls,'Polling cannot retry a failed provider early');
+ } finally {Date.now=actualNow;}
  const actualFetch=globalThis.fetch,starts:number[]=[];
  try {
   globalThis.fetch=async input=>{assert(String(input).startsWith('https://routing.openstreetmap.de/'));starts.push(Date.now());return Response.json({code:'Ok'});};

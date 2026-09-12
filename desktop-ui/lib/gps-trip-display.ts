@@ -28,7 +28,9 @@ export function gpsTripDisplay(route:TruckGpsRoute,selectedTripId?:string|null) 
     const a=route.points[index],b=route.points[index+1],trip=edgeTrip(route.trips || [],a,b);
     if(selectedTripId && trip?.id!==selectedTripId)continue;
     const street=streets.get(index);
-    paths.push({points:street?.points || [a,b],kind:street?.kind || kind,trip,color:trip?gpsTripColor(trip.number):unassignedGpsColor,sourceEdge:index});
+    // Unmatched fixes remain points; a straight chord is not a road route.
+    if(!street)continue;
+    paths.push({points:street.points,kind:street.kind,trip,color:trip?gpsTripColor(trip.number):unassignedGpsColor,sourceEdge:index});
     connected.add(index);connected.add(index+1);
   }
   const selected=route.trips?.find(trip=>trip.id===selectedTripId);

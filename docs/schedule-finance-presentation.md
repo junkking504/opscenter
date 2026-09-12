@@ -685,3 +685,22 @@ six-hour no-match cooldown. No open browser or manual verification is required.
 `verify:service-addresses` now runs during every production build and covers
 spelling correction, duplicate aliases, exact-building fallback, postal mismatch,
 unsafe alternatives, cache reuse and rate limits using synthetic mocked data.
+
+## Command desktop map
+
+Command Alerts uses the available workspace width at 1280 CSS pixels and above.
+The operational timeline stays on the left and the existing appointments/trucks
+map sits on the right, directly below the five daily metrics. The map column
+stays visible during timeline scrolling; its details can scroll within the
+viewport. Selecting a truck uses nearest scrolling to preserve the Command view.
+Below that breakpoint, the feed, estimate summary and map retain their stacked
+order. The existing Show/Hide Map preference, selected operating date, individual
+markers, GPS freshness labels and Schedule navigation remain in use. This is one
+map instance with the existing source refresh behavior.
+
+Alert cards retain their recorded event facts and append available source-linked
+appointment context: window, recorded crew, customer/contact, service address,
+pickup items and notes. Completion cards retain their load/payment/visit summary
+and add address, contact and work context. Equivalent event fields (such as
+Location and Service address) are not repeated or replaced by current details.
+Unlinked alerts do not infer an appointment match.

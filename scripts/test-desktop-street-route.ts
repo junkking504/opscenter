@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {buildStreetRoute,eligibleStreetEdges,gpsSourceVersion,matchedStreetEdges,roadCoordinates} from '../lib/desktop-street-route';
+import {buildStreetRoute,eligibleStreetEdges,gpsSourceVersion,matchedStreetEdges,roadCoordinates,reusableStreetProgress} from '../lib/desktop-street-route';
 import {osmStreetJson} from '../lib/osm-street-transport';
 import type {GpsRoutePoint,TruckGpsRoute} from '../desktop-ui/lib/gps-route-contract';
 
@@ -36,6 +36,15 @@ async function main(){
   return {code:'Ok',routes:[{geometry:{coordinates:[p[0],[p[0][0]+.0001,(p[0][1]+p[1][1])/2],p[1]]}}]};
  });
  assert.equal(estimated.paths.length,2);assert(estimated.paths.every(p=>p.kind==='estimated'));
+ let retryCalls=0;
+ const resumed=await buildStreetRoute(route,async path=>{retryCalls++;return payload(points.slice(2));},{...result,status:'partial',paths:result.paths.slice(0,1),unmatched:1,nextEdge:2});
+ assert.equal(retryCalls,1,'Retain successful road edges instead of rematching them');
+ assert.deepEqual(resumed.paths.map(path=>path.sourceEdge),[0,2],'Partial reads accumulate road coverage');
+ const growing={...route,points:[...points,{...points[3],timestamp:'2026-09-08T13:04:00Z'}]};
+ assert.equal(reusableStreetProgress(growing,{source:route,result})?.paths.length,2,'New reports retain unchanged historical road geometry');
+ const corrected={...route,points:points.map((p,i)=>i===0?{...p,latitude:p.latitude+.01}:p)};
+ assert.deepEqual(reusableStreetProgress(corrected,{source:route,result})?.paths.map(p=>p.sourceEdge),[2],'Corrected GPS invalidates its old road geometry');
+ assert.equal(reusableStreetProgress({...route,truck:'Truck 6'},{source:route,result}),undefined,'Never reuse another truck history');
  const ambiguous=payload(points);ambiguous.matchings[0].confidence=.2;
  assert([...matchedStreetEdges(ambiguous,points).values()].every(p=>p.kind==='estimated'));
  const actualFetch=globalThis.fetch,starts:number[]=[];

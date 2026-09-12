@@ -4290,7 +4290,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   : kreweView === 'callin' ? 'Plan tomorrow’s coverage and record each availability decision.'
                     : kreweView === 'payperiod' ? 'Reconcile hours, production, earnings, and exceptions across the current pay period.'
                       : 'Review monthly labor, production, payroll, and individual performance.'
-                : activeNav === 'Fleet' ? fleetView === 'overview'
+                : activeNav === 'Fleet' ? fleetView === 'scores' ? 'Daily driving scores, event deductions, and driver attribution.' : fleetView === 'overview'
                   ? 'Vehicle readiness, live work, load status, service risk, and next actions.'
                   : fleetView === 'maintenance' ? 'Daily inspections and repair work orders with accountable ownership.'
                     : fleetView === 'service' ? 'Mileage and date-based preventive-service planning by truck.'

@@ -6,17 +6,17 @@
 .ops-live .schedule-dispatch .schedule-board-layout.map-open .schedule-map-controls { display: flex; flex-direction: column; max-height: 180px; overflow-y: auto; }
 .ops-live .schedule-dispatch .schedule-board-shell { height: auto; display: block; min-width: 0; }
 .ops-live .schedule-dispatch .schedule-board-scroll { height: auto; max-height: 680px; overflow: auto; overscroll-behavior: contain; padding-right: 32px; }
-.ops-live .schedule-dispatch .schedule-board-layout .schedule-board { display: block; height: auto; width: 100%; position: relative; --schedule-route-width: 104px; }
+.ops-live .schedule-dispatch .schedule-board-layout .schedule-board { display: block; height: auto; width: 100%; position: relative; --schedule-route-width: 152px; }
 .ops-live .schedule-dispatch .schedule-time-row { position: sticky; top: 0; z-index: 6; height: 22px; background: #f1f4f1; }
 .ops-live .schedule-dispatch .schedule-time-row > span { padding: 4px 6px; font-size: 9px; }
 .ops-live .schedule-dispatch .schedule-time-row > span:first-child { position: sticky; left: 0; z-index: 7; background: #f1f4f1; border-right: 1px solid var(--border); }
 .ops-live .schedule-dispatch .schedule-truck-row { min-height: 44px; }
-.ops-live .schedule-dispatch .schedule-truck-cell { position: sticky; width: 104px; inset: auto; left: 0; height: 100%; padding: 4px 6px; grid-template-columns: 5px minmax(0, 1fr); column-gap: 7px; }
-.ops-live .schedule-dispatch .schedule-truck-cell strong { font-size: 10px; }
+.ops-live .schedule-dispatch .schedule-truck-cell { position: sticky; width: var(--schedule-route-width); inset: auto; left: 0; height: 100%; padding: 4px 6px; grid-template-columns: 5px minmax(0, 1fr); column-gap: 7px; }
+.ops-live .schedule-dispatch .schedule-truck-cell strong { font-size: 12px; line-height: 16px; }
 .ops-live .schedule-dispatch .schedule-truck-cell span { display: block; font-size: 9px; line-height: 1.25; }
-.ops-live .schedule-dispatch .schedule-truck-cell .schedule-truck-load { display: block; grid-column: 2; font-size: 9px; line-height: 1.2; font-weight: 700; color: #266345; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ops-live .schedule-dispatch .schedule-truck-cell .schedule-truck-load { display: block; grid-column: 2; margin-top: 0; font-size: 11px; line-height: 14px; font-weight: 700; color: #266345; white-space: normal; overflow-wrap: anywhere; }
 .ops-live .schedule-dispatch .schedule-truck-cell .schedule-truck-load.warning { color: #835508; }
-.ops-live .schedule-dispatch .live-truck-timeline { left: 104px; }
+.ops-live .schedule-dispatch .live-truck-timeline { left: var(--schedule-route-width); }
 .ops-live .schedule-dispatch .live-truck-timeline .schedule-appointment { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 1px; bottom: auto; margin: 0 1px; min-height: 58px; padding: 3px; opacity: 1; border-radius: 5px; }
 .ops-live .schedule-dispatch .schedule-appointment > .schedule-block-status { display: flex; align-items: center; gap: 3px; flex: 0 0 auto; margin: 0; color: #344b55; font-size: 8px; line-height: 10px; }
 .ops-live .schedule-dispatch .schedule-block-status svg { flex-shrink: 0; }
@@ -90,7 +90,7 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { flex: 1; min-height: 0; height: 0; overflow: visible; }
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .ops-live .live-schedule.schedule-dispatch .schedule-time-row { flex: 0 0 22px; position: relative; }
-.ops-live .live-schedule.schedule-dispatch .schedule-truck-row { min-height: 0; }
+.ops-live .live-schedule.schedule-dispatch .schedule-truck-row { min-height: max(68px, var(--schedule-row-min-height)); }
 .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell { padding: 2px 5px; align-content: center; gap: 2px 5px; overflow: hidden; }
 .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 8px; }
 .ops-live .live-schedule.schedule-dispatch .live-truck-timeline .schedule-appointment { min-height: 0; padding: 2px 3px; justify-content: center; border-radius: 4px; }

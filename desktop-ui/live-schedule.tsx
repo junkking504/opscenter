@@ -108,15 +108,6 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       const height = `${Math.max(240, window.innerHeight - pageTop - 76)}px`;
       board.style.setProperty('--schedule-available-height', height);
       dispatchSurfaceRef.current?.style.setProperty('--schedule-available-height', height);
-      const timeline = board.querySelector<HTMLElement>('.schedule-board');
-      const title = board.querySelector<HTMLElement>('.schedule-board-shell > .section-title');
-      if (timeline && title) {
-        // Fit every lane together; shrinking only the row boxes clips their
-        // absolutely positioned appointments and travel connectors.
-        const naturalHeight = [...timeline.children].reduce((sum, row) => sum + (row as HTMLElement).offsetHeight, 0);
-        const scale = window.innerWidth >= 1000 ? Math.min(1, Math.max(1, parseFloat(height) - title.offsetHeight - 8) / Math.max(1, naturalHeight)) : 1;
-        board.style.setProperty('--schedule-board-scale', String(scale));
-      }
     };
     const observer = new ResizeObserver(fit);
     document.querySelectorAll('.topbar, .viewing-day-bar, .workspace-heading, .schedule-control-bar, .schedule-summary-strip, .schedule-board-shell > .section-title').forEach(element => observer.observe(element));
@@ -311,13 +302,13 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       </section>}
       {!mapOnly && <div className="schedule-board-shell"><div className="section-title"><div><span className="section-kicker">{date} · JunkWare Snapshot</span><h2>Truck Schedule</h2></div><div className="schedule-board-actions"><ScheduleStopOrder key={date} snapshot={snapshot} busy={operationBusy || Boolean(pendingMove)} onBusyChange={onOperationBusyChange} saved={updated=>{setSnapshots(prior=>({...prior,[date]:updated}));refresh();}} /><span className="schedule-drag-help"><GripVertical size={13} />Drag Appointment → Truck + Time</span></div></div>
         <div className="schedule-board-scroll"><div className={`schedule-board ${truckNames.length >= 10 ? 'ultra' : truckNames.length >= 7 ? 'compact' : 'comfortable'}`} style={{ '--schedule-hour-count': ticks.length } as CSSProperties}>
-          <div className="schedule-time-row" style={{ gridTemplateColumns: `104px repeat(${ticks.length}, minmax(0, 1fr))` }}><span>Route</span>{ticks.map(tick => <span key={tick}>{clock(tick)}</span>)}</div>
+          <div className="schedule-time-row" style={{ gridTemplateColumns: `var(--schedule-route-width) repeat(${ticks.length}, minmax(0, 1fr))` }}><span>Route</span>{ticks.map(tick => <span key={tick}>{clock(tick)}</span>)}</div>
           {truckNames.map((truck, index) => {
             const rowJobs = jobs.filter(job => truckLabel(job.truck) === truck).sort((a, b) => (a.appointmentStartMinutes ?? Infinity) - (b.appointmentStartMinutes ?? Infinity));
             const load = snapshot.truckLoads?.find(row=>truckLabel(row.truck)===truck);
             const { placed, laneStep, rowHeight: travelHeight, connectors } = scheduleTravelLayout(rowJobs, displayLegs.filter(leg => truckLabel(leg.truck) === truck), range);
             const hasProgress=Boolean(nextTruckStop(jobs,truck,snapshot.fleet.isToday,now.getTime()));
-            const rowHeight=rowJobs.length ? Math.max(46,travelHeight+(hasProgress?(connectors.some(c=>!c.vertical && !c.path)?22:10):0)) : 32;
+            const rowHeight=rowJobs.length ? Math.max(56,travelHeight+(hasProgress?(connectors.some(c=>!c.vertical && !c.path)?22:10):0)) : 56;
             const ghost = drag.preview?.truck === truck ? drag.preview : null;
             const ghostStart = ghost?.start ?? ghost?.job.appointmentStartMinutes;
             const ghostDuration = ghost?.job.appointmentStartMinutes !== null && ghost?.job.appointmentEndMinutes != null ? ghost.job.appointmentEndMinutes - ghost.job.appointmentStartMinutes! : 60;

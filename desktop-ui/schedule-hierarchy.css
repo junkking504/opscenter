@@ -87,10 +87,10 @@
   .ops-live .schedule-dispatch .selected-job-heading { grid-column: 1; grid-row: 1; }
   .ops-live .schedule-dispatch .selected-job-clear { grid-column: 2; grid-row: 1; margin: 0; }
   .ops-live .schedule-dispatch .selected-job-status { grid-column: 1; grid-row: 2; justify-self: start; }
-  /* Fit the complete grid as one unit, including connector/status gutters. */
-  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout > .schedule-board-shell { height: var(--schedule-available-height); min-height: 0; }
+  /* Preserve readable truck labels; taller boards use the page scroll. */
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout > .schedule-board-shell { height: auto; min-height: var(--schedule-available-height); }
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { flex: none; height: auto; overflow: visible; }
-  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { height: auto; zoom: var(--schedule-board-scale, 1); width: 100%; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { height: auto; width: 100%; }
   .ops-live .live-schedule.schedule-dispatch .schedule-truck-row { --schedule-row-grow: 0; --schedule-row-shrink: 0; min-height: var(--schedule-row-min-height); }
 }
 

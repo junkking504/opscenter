@@ -53,6 +53,7 @@ export function verifyCloseoutFields(closeout: Row, input: Row, before?: Row): v
   if (before?.appointmentWindow && JSON.stringify(closeout.appointmentWindow) !== JSON.stringify(before.appointmentWindow)) throw new Error('JunkWare changed the appointment window while saving.');
   for (const key of ['loadQuantity', 'loadPrice', 'bedloadQuantity', 'bedloadPrice', 'discount', 'tip']) if (!sameAmount(closeout[key], input[key])) throw new Error(`JunkWare did not retain ${key}.`);
   for (const [key, inputKey] of [['loadSize', 'loadSize'], ['bedloadSize', 'bedloadSize'], ['jobCategory', 'jobCategoryId'], ['actualStartHour', 'actualStartHour'], ['actualStartMinute', 'actualStartMinute'], ['actualEndHour', 'actualEndHour'], ['actualEndMinute', 'actualEndMinute']]) {
+    if (key === 'jobCategory' && input.appointmentType === 'Estimate' && !((closeout[key] as Row | undefined)?.options as unknown[] | undefined)?.length) continue;
     const actual = closeout[key] as { value?: unknown } | undefined; if (String(actual?.value ?? '') !== String(input[inputKey] ?? '')) throw new Error(`JunkWare did not retain ${key}.`);
   }
   if (input.howHeardId !== undefined && String((closeout.howHeard as Row | undefined)?.value ?? '') !== String(input.howHeardId)) throw new Error('JunkWare did not retain how the customer heard about us.');

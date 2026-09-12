@@ -1,7 +1,7 @@
 import { pathToFileURL } from 'node:url';
 import { captureCloseoutSource } from './junkware-closeout-source';
 import { validateCloseoutPayment, paymentReferenceLabel } from '../lib/closeout-payment';
-import { clickWithWebFormsCompletion, selectWithWebFormsPostback } from './junkware-webforms';
+import { clickWithWebFormsCompletion, selectWithWebFormsCompletion, selectWithWebFormsPostback } from './junkware-webforms';
 import { CloseoutNotAppliedError, saveAndVerifyCloseout } from '../lib/closeout-save-verification';
 import { closeoutSourceVersion, verifyCloseoutFields, verifyAddedCloseoutCharges } from '../lib/desktop-closeout-contract';
 import { classificationCompletionTimeWarning, parseClassificationChange, verifyClassificationChange, type ClassificationChange } from '../lib/appointment-classification';
@@ -196,7 +196,7 @@ function cleanCount(value: unknown): string {
 
 async function selectWithPostback(page: Page, selector: string, value: string): Promise<void> {
   const label: Record<string,string> = {AppointmentTypeDD:'category',StatusDD:'status',TruckDD:'truck',OtherChargeDD:'charge',PaymentMethodDD:'payment method'};
-  await selectWithWebFormsPostback(page, selector, value, `the closeout ${label[selector.replace('#ctl00_Content_', '')] || 'field'} selection`);
+  await selectWithWebFormsCompletion(page, selector, value, `the closeout ${label[selector.replace('#ctl00_Content_', '')] || 'field'} selection`);
 }
 
 async function selectWithoutPostback(page: Page, selector: string, value: string): Promise<void> {
@@ -286,9 +286,8 @@ function parsePayload(): CloseoutInput {
 }
 
 export async function applyCloseout(page: Page, input: CloseoutInput, before: Record<string, unknown>): Promise<void> {
-  // JunkWare uses ASP.NET WebForms. Changing these selects with selectOption()
-  // fires AutoPostBack and reloads the full appointment once per field. Set the
-  // selected values directly so the final Save post submits them together.
+  // Category, status, charge and payment changes need JunkWare's native full or
+  // partial postback. Other fields are filled locally before the final Save.
   const priorStatus = String((before.status as { value?: unknown } | undefined)?.value || '');
   const targetStatus = input.targetStatus || '8';
   const completingEstimate = targetStatus === '8' && input.appointmentType === 'Estimate' && priorStatus !== '8';
@@ -346,7 +345,10 @@ export async function applyCloseout(page: Page, input: CloseoutInput, before: Re
   await fill(page, "#ctl00_Content_BedLoadPriceTB", input.bedloadPrice);
   await fill(page, "#ctl00_Content_DiscountsTB", input.discount);
   await fill(page, "#ctl00_Content_TipsTB", input.tip);
-  await selectWithoutPostback(page, "#ctl00_Content_JobCategoryDD", input.jobCategoryId);
+  // JunkWare removes Job Category when the appointment becomes an Estimate.
+  if (input.appointmentType !== "Estimate" || await page.locator("#ctl00_Content_JobCategoryDD").count()) {
+    await selectWithoutPostback(page, "#ctl00_Content_JobCategoryDD", input.jobCategoryId);
+  }
   if (input.howHeardId !== undefined) await selectWithoutPostback(page, "#ctl00_Content_HowHeardDD", input.howHeardId);
   await selectWithoutPostback(page, "#ctl00_Content_ActualStartHourDD", input.actualStartHour);
   await selectWithoutPostback(page, "#ctl00_Content_ActualStartMinuteDD", input.actualStartMinute);

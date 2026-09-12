@@ -108,16 +108,18 @@ export async function setInputWithWebFormsPostback(
   }, value), description);
 }
 
-export async function clickWithWebFormsCompletion(
+async function completeWebFormsAction(
   page: Page,
   selector: string,
   description: string,
+  action: () => Promise<unknown>,
 ): Promise<void> {
   const control = page.locator(selector).first();
   if (!(await control.count())) throw new Error(`The JunkWare control is unavailable (${selector}).`);
   const target = await control.evaluate(node => ({
     name: (node as HTMLInputElement).name,
     id: node.id,
+    submitsValue: (node instanceof HTMLInputElement && ['submit', 'image'].includes(node.type)) || (node instanceof HTMLButtonElement && node.type === 'submit'),
     eventTarget: `${node.getAttribute('href') || ''} ${node.getAttribute('onclick') || ''}`.match(/__doPostBack\(['"]([^'"]+)['"]/)?.[1],
   }));
   let blockingMessage = "";
@@ -135,9 +137,17 @@ export async function clickWithWebFormsCompletion(
   // describe the page BEFORE its asynchronous request has even started.
   const response = page.waitForResponse(value => {
     if (value.request().method() !== 'POST' || new URL(value.url()).pathname !== new URL(page.url()).pathname) return false;
-    const fields = new URLSearchParams(value.request().postData() || '');
+    const body = value.request().postData() || '';
+    const fields = new URLSearchParams(body);
+    if (value.request().headers()['content-type']?.includes('multipart/form-data')) {
+      for (const part of body.split(/--[^\r\n]+\r\n/)) {
+        const name = part.match(/Content-Disposition:[^\r\n]*name="([^"]+)"/i)?.[1];
+        const content = part.split('\r\n\r\n')[1];
+        if (name && content !== undefined) fields.set(name, content.split('\r\n')[0]);
+      }
+    }
     const eventTarget = fields.get('__EVENTTARGET');
-    return Boolean(eventTarget && [target.name, target.id, target.eventTarget].includes(eventTarget)) || Boolean(target.name && fields.has(target.name));
+    return Boolean(eventTarget && [target.name, target.id, target.eventTarget].includes(eventTarget)) || Boolean(target.submitsValue && target.name && fields.has(target.name));
   }, { timeout: POSTBACK_TIMEOUT_MS }).then(async value => {
     const failure = await value.finished();
     if (failure || !value.ok()) return { kind: 'timeout' as const };
@@ -145,7 +155,7 @@ export async function clickWithWebFormsCompletion(
   }, () => ({ kind: 'timeout' as const }));
 
   try {
-    await control.click();
+    await action();
     const outcome = await Promise.race([
       response,
       dialogMessage.then((message) => ({ kind: "dialog" as const, message })),
@@ -163,4 +173,18 @@ export async function clickWithWebFormsCompletion(
   } finally {
     page.off("dialog", onDialog);
   }
+}
+
+export async function clickWithWebFormsCompletion(page: Page, selector: string, description: string): Promise<void> {
+  await completeWebFormsAction(page, selector, description, () => page.locator(selector).first().click());
+}
+
+/** Native change runs JunkWare's own delayed postback outside strict evaluation.
+ * Charge and payment selectors use partial postbacks, so navigation alone is not completion. */
+export async function selectWithWebFormsCompletion(page: Page, selector: string, value: string, description: string): Promise<void> {
+  const control = page.locator(selector).first();
+  if (!(await control.count())) throw new Error(`The JunkWare control is unavailable (${selector}).`);
+  if (await control.inputValue() === value) return;
+  await completeWebFormsAction(page, selector, description, () => control.selectOption(value));
+  if (await page.locator(selector).first().inputValue() !== value) throw new Error(`JunkWare did not retain ${description}.`);
 }

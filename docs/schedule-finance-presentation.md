@@ -11,9 +11,12 @@ The dispatch board reserves bottom space for an `All Appointments` jump banner.
 It remains reachable on narrow screens and clears board filters before scrolling
 and focusing the complete register. Empty truck rows use the same base height
 whether load data is present or missing. The current-time line starts beneath
-the hour header. The board grows with every appointment lane and truck-status
-row, including Unassigned; only the map and detail pane use a viewport height
-cap. Dense days use page scrolling, not a clipped or internally scrolling board.
+the hour header. Desktop fits the complete grid (rows, appointment lanes and
+travel/status gutters together) into the available viewport, without an inner
+scrollbar. Empty truck rows use 32px before fitting. The map uses the full same
+height allowance, without the former 600px cap. Duplicate date/introduction
+copy is omitted on desktop, with Schedule and its tabs sharing one row.
+Phones keep natural-height lanes and page scrolling instead of tiny targets.
 `scripts/test-schedule-board-visibility.mjs` checks row/block containment and
 last-appointment selection in Chromium and WebKit with the map on and off.
 Map and register territory selectors have 38px targets, legible counts and

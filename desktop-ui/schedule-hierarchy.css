@@ -73,8 +73,8 @@
   .ops-live .schedule-dispatch .selected-job-work > span,
   .ops-live .schedule-dispatch .selected-job-note > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; flex-basis: 100%; }
   .ops-live .schedule-dispatch .selected-job-next { border-left: 0; border-top: 1px solid #e0e7eb; padding: 8px 0 0; gap: 8px; }
-  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open > .schedule-map-panel { height: min(600px,var(--schedule-available-height)); min-height: 240px; }
-  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open .schedule-map-canvas { flex: 1; height: auto; min-height: 160px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open > .schedule-map-panel { height: var(--schedule-available-height); min-height: 0; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open .schedule-map-canvas { flex: 1; height: auto; min-height: 0; }
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open .schedule-map-controls { max-height: none; }
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open:has(.has-truck-card) > .schedule-map-panel { height: auto; }
   .ops-live .live-schedule.schedule-dispatch .schedule-map-panel.has-truck-card .schedule-map-canvas { flex: none; height: 360px; }
@@ -87,13 +87,30 @@
   .ops-live .schedule-dispatch .selected-job-heading { grid-column: 1; grid-row: 1; }
   .ops-live .schedule-dispatch .selected-job-clear { grid-column: 2; grid-row: 1; margin: 0; }
   .ops-live .schedule-dispatch .selected-job-status { grid-column: 1; grid-row: 2; justify-self: start; }
-  /* Only the map and detail pane fit the viewport. The board must contain all
-   * appointment lanes, including Unassigned, even when they exceed that space.
-   * Use page scrolling and the sticky list shortcut, not a hidden inner row. */
-  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout > .schedule-board-shell { height: auto; min-height: 0; }
+  /* Fit the complete grid as one unit, including connector/status gutters. */
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout > .schedule-board-shell { height: var(--schedule-available-height); min-height: 0; }
   .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { flex: none; height: auto; overflow: visible; }
-  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { height: auto; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { height: auto; zoom: var(--schedule-board-scale, 1); width: 100%; }
   .ops-live .live-schedule.schedule-dispatch .schedule-truck-row { --schedule-row-grow: 0; --schedule-row-shrink: 0; min-height: var(--schedule-row-min-height); }
+}
+
+/* The shared operating-day bar already carries the date. Reclaim duplicate
+ * heading copy for the map, without changing workspace navigation or actions. */
+@media (min-width: 1000px) {
+  .ops-live:has(.schedule-dispatch) .topbar { height: 40px; min-height: 40px; padding-block: 4px; }
+  .ops-live:has(.schedule-dispatch) .viewing-day-bar { padding-block: 4px; }
+  .ops-live:has(.schedule-dispatch) .viewing-day-context > div { display: flex; align-items: center; gap: 10px; }
+  .ops-live:has(.schedule-dispatch) .viewing-day-context strong { font-size: 14px; margin-top: 0; }
+  .ops-live:has(.schedule-dispatch) .workspace { padding-top: 8px; }
+  .ops-live:has(.schedule-dispatch) .workspace .schedule-workspace-heading { grid-template-columns: auto minmax(0,1fr); gap: 8px 18px; margin-bottom: 8px; }
+  .ops-live:has(.schedule-dispatch) .schedule-workspace-heading .schedule-view-switcher { grid-column: 2; grid-row: 1; }
+  .ops-live:has(.schedule-dispatch) .schedule-workspace-heading .eyebrow,
+  .ops-live:has(.schedule-dispatch) .schedule-workspace-heading > div:first-child > p { display: none; }
+  .ops-live:has(.schedule-dispatch) .schedule-workspace-heading h1 { font-size: 20px; margin-bottom: 0; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-control-bar { padding-block: 4px; margin-bottom: 6px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-summary-strip { margin-bottom: 8px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-summary-strip > button { min-height: 46px; padding-block: 5px; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell > span { display: none; }
 }
 
 /* The line belongs to the hourly grid, not the header or empty panel space. */

@@ -9,16 +9,17 @@ import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract
 import { appointmentColorClass, appointmentStatus, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
 import { locatorSize, territoryMapCenters } from './lib/schedule-map-layout';
 import type {TruckGpsRoute} from './lib/gps-route-contract';
+import { centeredExtent } from './lib/truck-map-viewport';
 import {gpsTripColor,gpsTripDisplay,unassignedGpsColor} from './lib/gps-trip-display';
 
 type Props = {
   appointments: ScheduleAppointment[]; trucks: ScheduleTruck[];
   selected: string | null; selectedTruck: string | null;
   gpsRoute?:TruckGpsRoute|null;
-  truckMapView?:'location'|'route';
+  truckMapView?:'location'|'route'|'overview';
   selectedTripId?:string|null; onSelectTrip?:(id:string)=>void;
   scope: string; resetKey: number; date: string;
-  onSelect: (id: string) => void; onSelectTruck: (truck: string) => void;
+  onSelect: (id: string) => void; onSelectTruck: (truck: string, view?: 'location' | 'overview') => void;
 };
 export default function ScheduleMap(props: Props) {
   const host = useRef<HTMLDivElement>(null);
@@ -26,6 +27,7 @@ export default function ScheduleMap(props: Props) {
   const markers = useRef<L.LayerGroup | null>(null);
   const gpsLayer=useRef<L.LayerGroup|null>(null);
   const gpsFit=useRef('');
+  const truckClickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const current = useRef(props);
   current.current = props;
   const fitted = useRef('');
@@ -60,7 +62,7 @@ export default function ScheduleMap(props: Props) {
       });
     });
     observer.observe(host.current);
-    return () => { cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener('wheel', stopAutoFit); element.removeEventListener('keydown', stopAutoFit); element.removeEventListener('pointerdown', stopAutoFit); autoFit.current = null; view.remove(); map.current = null; markers.current = null; gpsLayer.current=null;gpsFit.current='';fitted.current = ''; focused.current = ''; };
+    return () => { if (truckClickTimer.current) clearTimeout(truckClickTimer.current); cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener('wheel', stopAutoFit); element.removeEventListener('keydown', stopAutoFit); element.removeEventListener('pointerdown', stopAutoFit); autoFit.current = null; view.remove(); map.current = null; markers.current = null; gpsLayer.current=null;gpsFit.current='';fitted.current = ''; focused.current = ''; };
   }, []);
   // Avoid rebuilding marker DOM on unrelated parent renders, preserving keyboard focus.
   const signature = JSON.stringify([props.trucks.map(truck => truckGpsStatus(truck).label), props.appointments, props.trucks, props.selected, props.selectedTruck, props.scope, props.resetKey, props.date, props.truckMapView, props.selectedTripId, props.gpsRoute?.trips]);
@@ -69,7 +71,7 @@ export default function ScheduleMap(props: Props) {
     const layer = markers.current;
     if (!view || !layer) return;
     const { appointments, trucks, selected, selectedTruck, scope, resetKey, date } = current.current;
-    type Pin = { id: string; coordinate: L.LatLngTuple; label: string; text: string; color?: string; partner?: string; tooltipTitle: string; tooltipDetail: string; className: string; selected: boolean; select: () => void };
+    type Pin = { id: string; coordinate: L.LatLngTuple; label: string; text: string; color?: string; partner?: string; tooltipTitle: string; tooltipDetail: string; className: string; selected: boolean; select: () => void; zoom?: () => void };
     const pins: Pin[] = [];
     const appointmentBounds: L.LatLngTuple[] = [];
     appointments.forEach((job, index) => {
@@ -90,7 +92,8 @@ export default function ScheduleMap(props: Props) {
         tooltipTitle: name, tooltipDetail: gps.label,
         label: `Select ${name}, ${gps.label}`,
         className: `truck-marker${fresh ? '' : ' stale'}`, selected: selectedTruck === name,
-        select: () => current.current.onSelectTruck(name) });
+        select: () => current.current.onSelectTruck(name, 'overview'),
+        zoom: () => current.current.onSelectTruck(name, 'location') });
     });
     if(current.current.truckMapView === 'route' && current.current.gpsRoute?.truck === selectedTruck) {
       for(const trip of current.current.gpsRoute.trips || []) {
@@ -121,7 +124,7 @@ export default function ScheduleMap(props: Props) {
     const focusVersion = `${focusKey}:${resetKey}`;
     if (focusKey && focused.current !== focusVersion && (selected || current.current.truckMapView !== 'route')) {
       const pin = pins.find(pin => pin.id === focusKey);
-      if (pin) view.setView(pin.coordinate, Math.max(view.getZoom(), selectedTruck ? 15 : 12), { animate: false });
+      if (pin) view.setView(pin.coordinate, selectedTruck ? (current.current.truckMapView === 'location' ? 19 : 15) : Math.max(view.getZoom(), 12), { animate: false });
     }
     focused.current = focusVersion;
     const render = () => {
@@ -158,7 +161,19 @@ export default function ScheduleMap(props: Props) {
         button.setAttribute('aria-label', pin.label);
         button.setAttribute('aria-pressed', String(pin.selected));
         L.DomEvent.disableClickPropagation(button);
-        button.onclick = event => { event.stopPropagation(); view.closePopup(); pin.select(); };
+        button.onclick = event => {
+          event.stopPropagation(); view.closePopup();
+          if (truckClickTimer.current) clearTimeout(truckClickTimer.current);
+          // Keep the marker under the pointer until a mouse double-click can
+          // finish. Keyboard activation remains immediate.
+          if (pin.zoom && event.detail > 0) truckClickTimer.current = setTimeout(pin.select, 350);
+          else pin.select();
+        };
+        if (pin.zoom) button.ondblclick = event => {
+          event.preventDefault(); event.stopPropagation();
+          if (truckClickTimer.current) clearTimeout(truckClickTimer.current);
+          pin.zoom!();
+        };
         const tooltip = document.createElement('span');
         const title = document.createElement('strong'); title.textContent = pin.tooltipTitle;
         const detail = document.createElement('small'); detail.textContent = pin.tooltipDetail;
@@ -217,7 +232,21 @@ export default function ScheduleMap(props: Props) {
     for(const point of isolated) L.circleMarker([point.latitude,point.longitude],{radius:3,color:'#fff',fillColor:unassignedGpsColor,fillOpacity:1,weight:1,interactive:false,className:'schedule-gps-point'}).addTo(layer);
     const fitKey=`${route.date}:${route.truck}:${props.resetKey}:${props.truckMapView || 'location'}:${props.selectedTripId || ''}`;
     if(gpsFit.current!==fitKey) {
-      if(props.truckMapView==='route') {
+      if(props.truckMapView==='overview') {
+        const truck=props.trucks.find(truck=>truckLabel(truck.truck)===route.truck && truck.latitude!=null && truck.longitude!=null);
+        const latest=truck ? {latitude:truck.latitude!,longitude:truck.longitude!} : route.points.at(-1) || route.trips?.at(-1)?.to;
+        if(latest) {
+          const center=L.latLng(latest.latitude,latest.longitude);
+          // Include every bend in the rendered trail, not just trip endpoints.
+          // Reflect the extent around the current GPS fix in projected space
+          // so fitting the routes never shifts the truck off center.
+          const points=[...paths.flatMap(path=>path.points),...isolated,...(route.trips || []).flatMap(trip=>[trip.from,trip.to])];
+          const extent=centeredExtent(view.project(center,0),points.map(point=>view.project([point.latitude,point.longitude],0)));
+          const bounds=L.latLngBounds(view.unproject(L.point(extent.min.x,extent.min.y),0),view.unproject(L.point(extent.max.x,extent.max.y),0));
+          view.setView(center,Math.min(15,view.getBoundsZoom(bounds,false,L.point(90,90))),{animate:false});
+        }
+      }
+      else if(props.truckMapView==='route') {
         const trip=route.trips?.find(trip=>trip.id===props.selectedTripId);
         const points=trip?[trip.from,...route.points.filter(p=>p.timestamp>=trip.departure && p.timestamp<=trip.arrival),trip.to]:route.trips?.length?route.trips.flatMap(trip=>[trip.from,trip.to]):route.points;
         if(points.length) view.fitBounds(points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{padding:[45,45],maxZoom:15,animate:false});
@@ -225,8 +254,8 @@ export default function ScheduleMap(props: Props) {
       else if(!props.trucks.some(truck=>truckLabel(truck.truck)===route.truck && truck.latitude!=null && truck.longitude!=null)) {
         // Historical days have no current truck marker. Focus the last recorded
         // position for that day without letting history override today's marker.
-        const latest=route.points.at(-1)!;
-        view.setView([latest.latitude,latest.longitude],Math.max(view.getZoom(),15),{animate:false});
+        const latest=route.points.at(-1) || route.trips?.at(-1)?.to;
+        if(latest) view.setView([latest.latitude,latest.longitude],19,{animate:false});
       }
       gpsFit.current=fitKey;
     }

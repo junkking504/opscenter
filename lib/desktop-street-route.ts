@@ -57,12 +57,21 @@ export function matchedStreetEdges(payload:unknown,source:GpsRoutePoint[]) {
   }
   return result;
 }
-export async function buildStreetRoute(route:TruckGpsRoute,send:typeof osmStreetJson=osmStreetJson):Promise<StreetRoute>{
+type StreetProgress = StreetRoute & {nextEdge?:number};
+export async function buildStreetRoute(route:TruckGpsRoute,send:typeof osmStreetJson=osmStreetJson,previous?:StreetProgress):Promise<StreetProgress>{
   const sourceVersion=gpsSourceVersion(route),eligible=eligibleStreetEdges(route),matched=new Map<number,StreetRoute['paths'][number]>();
+  if(previous?.sourceVersion===sourceVersion)for(const path of previous.paths) {
+    if(path.sourceEdge!==undefined && eligible.has(path.sourceEdge))matched.set(path.sourceEdge,path);
+  }
+  let nextEdge=previous?.sourceVersion===sourceVersion ? previous.nextEdge || 0 : 0;
   const deadline=Date.now()+16_000;
   const runs:number[][]=[];
   // Exclude long/impossible gaps before asking the matcher to infer any route.
-  for(const edge of [...eligible].sort((a,b)=>a-b)){
+  const remaining=[...eligible].filter(edge=>!matched.has(edge));
+  // Rotate past slow or failed batches on the next read, while retaining every
+  // successful edge. The same early failure must not starve the later trips.
+  const ordered=remaining.sort((a,b)=>(a<nextEdge?1:0)-(b<nextEdge?1:0)||a-b);
+  for(const edge of ordered){
     const run=runs.at(-1);
     if(run?.at(-1)===edge)run.push(edge+1);else runs.push([edge,edge+1]);
   }
@@ -74,6 +83,7 @@ export async function buildStreetRoute(route:TruckGpsRoute,send:typeof osmStreet
     const params=new URLSearchParams({steps:'true',geometries:'geojson',overview:'false',tidy:'false',gaps:'split',radiuses:points.map(()=>'25').join(';')});
     const response=await send(`match/v1/driving/${coords}?${params}`);
     for(const [i,path] of matchedStreetEdges(response,points))matched.set(indices[i],path);
+    nextEdge=indices.at(-1)!%Math.max(1,route.points.length-1);
   }
   const missing=[...eligible].filter(i=>!matched.has(i) && meters(route.points[i],route.points[i+1])>30);
   // Sparse observations may not match. A road route between them is explicitly
@@ -86,15 +96,30 @@ export async function buildStreetRoute(route:TruckGpsRoute,send:typeof osmStreet
     if(points)matched.set(i,{kind:'estimated',points});
   }
   const paths=[...matched].sort(([a],[b])=>a-b).map(([sourceEdge,path])=>({...path,sourceEdge})),unmatched=missing.filter(i=>!matched.has(i)).length;
-  return {sourceVersion,status:paths.length?(unmatched?'partial':'available'):'unavailable',paths,unmatched};
+  return {sourceVersion,status:paths.length?(unmatched?'partial':'available'):'unavailable',paths,unmatched,nextEdge};
 }
-const pending=new Map<string,Promise<StreetRoute>>();
-const completed=new Map<string,{until:number;route:StreetRoute}>();
+const pending=new Map<string,Promise<StreetProgress>>();
+const completed=new Map<string,{until:number;route:StreetProgress}>();
+const latest=new Map<string,{source:TruckGpsRoute;result:StreetProgress}>();
+export function reusableStreetProgress(source:TruckGpsRoute,previous?:{source:TruckGpsRoute;result:StreetProgress}):StreetProgress|undefined {
+  if(!previous || previous.source.date!==source.date || previous.source.truck!==source.truck)return undefined;
+  const paths=previous.result.paths.filter(path=>{
+    const i=path.sourceEdge;
+    return i!==undefined && source.points[i] && source.points[i+1]
+      && pointKey(source.points[i])===pointKey(previous.source.points[i])
+      && pointKey(source.points[i+1])===pointKey(previous.source.points[i+1]);
+  });
+  return {...previous.result,sourceVersion:gpsSourceVersion(source),paths};
+}
 export function readStreetRoute(route:TruckGpsRoute){
   const key=gpsSourceVersion(route),cached=completed.get(key);
   if(cached && cached.until>Date.now())return Promise.resolve(cached.route);
   const existing=pending.get(key);if(existing)return existing;
-  const request=buildStreetRoute(route).then(result=>{
+  const truckKey=`${route.date}:${route.truck}`;
+  const previous=cached?.route || reusableStreetProgress(route,latest.get(truckKey));
+  const request=buildStreetRoute(route,osmStreetJson,previous).then(result=>{
+    latest.set(truckKey,{source:route,result});
+    while(latest.size>32)latest.delete(latest.keys().next().value!);
     completed.set(key,{route:result,until:Date.now()+(result.status==='available'?24*60*60_000:60_000)});
     while(completed.size>32)completed.delete(completed.keys().next().value!);
     return result;

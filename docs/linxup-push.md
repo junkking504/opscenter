@@ -87,9 +87,10 @@ parked heartbeat becomes last reported; the displayed GPS timestamp is unchanged
 ## Recorded daily GPS routes
 
 Schedule and the Command map offer a **Truck GPS route** selector. Selecting a
-truck row or current truck pin uses the same selection. Clicking a truck centers the map on
-its latest available GPS marker at street level. Repeated clicks recenter it. The
-recorded trail stays visible, but arriving history never zooms away from the truck.
+truck row or current truck pin uses the same selection. Clicking a truck centers its latest GPS fix and fits all of the selected day's
+recorded routes around that location. Repeated single clicks restore this overview.
+Double-clicking the map truck keeps the same fix centered and zooms to street
+level (19); arriving route data does not undo the precise-location view.
 For a historical date with no current marker, selection focuses the day's last
 recorded position. **Fit route** explicitly frames the full trail and its first and
 last positions after manual zooming or panning;
@@ -133,8 +134,11 @@ All trip routes use solid lines. Chronological trip numbers have distinct colors
 shared by their lines, list badges, and start/stop markers. Source-edge timestamps
 assign road geometry to trips, including repeat visits to the same street.
 Selecting a trip isolates its geometry without changing its number or color.
-When road alignment is missing, eligible recorded GPS connections remain visible
-as solid lines, with text explaining that the intervening streets are unverified.
+When road alignment is missing, GPS fixes remain individual points; no straight
+lines are drawn across unverified streets. Partial road matching retains successful
+source edges and resumes beyond slow or failed batches on subsequent reads so
+later trips are not starved. The existing request rate and refresh cadence remain
+unchanged.
 Sparse connections and estimated road geometry are identified in the summary and
 line tooltip. Long outages and impossible jumps stay disconnected; isolated fixes
 remain dots. GPS outside recorded trips uses gray. No new routing requests or

@@ -33,7 +33,7 @@ export function useTruckGpsRoute(date:string,truck:string|null) {
         const response=await fetch(`/api/desktop/schedule/gps/streets?${new URLSearchParams({date,truck,version})}`,{credentials:'same-origin',cache:'no-store',signal:AbortSignal.any([abort.signal,AbortSignal.timeout(25_000)])});
         const value=await response.json() as StreetRoute;
         if(response.ok && value.sourceVersion===version && Array.isArray(value.paths) && !abort.signal.aborted)setStreets({key,value});
-      } catch {if(!abort.signal.aborted)setStreets({key,value:{sourceVersion:version,status:'unavailable',paths:[],unmatched:0}});}
+      } catch {if(!abort.signal.aborted)setStreets(old=>old.key===key && old.value?.sourceVersion===version ? old : {key,value:{sourceVersion:version,status:'unavailable',paths:[],unmatched:0}});}
       finally {pending=false;}
     };
     void load();const timer=window.setInterval(()=>void load(),60_000);
@@ -46,17 +46,19 @@ export function GpsRouteSummary({truck,route,error,selectedTrip,showTrip}:{date:
   const trips=route?.trips || [];
   const display=route?gpsTripDisplay(route,selectedTrip):null;
   const estimated=display?.paths.some(path=>path.kind==='estimated' || path.kind==='gap');
-  const recorded=display?.paths.some(path=>path.kind==='recorded');
+  const roadStatus=route?.streets?.status;
+  const unmatched=route?.streets?.unmatched || 0;
   return <section className="schedule-gps-summary" aria-label={`${truck} trips`}>
     <header><strong>Trips</strong>{trips.length>0 && <button type="button" onClick={()=>showTrip(null)}>Show all trips</button>}</header>
     {!!route?.points.length && <div className="schedule-gps-legend" aria-label="Route legend">
       <span><i className="gps-legend-route" aria-hidden="true"/>Solid lines · colors match trip numbers</span>
-      {display?.isolated.length ? <span><i className="gps-legend-point" aria-hidden="true"/>Isolated GPS report</span>:null}
+      {display?.isolated.length ? <span><i className="gps-legend-point" aria-hidden="true"/>Recorded GPS position</span>:null}
     </div>}
-    {recorded && <p>Lines connect recorded GPS positions; the exact streets between reports are unverified.</p>}
-    {estimated && <p>Includes estimated connections between GPS reports. Hover a line for details.</p>}
+    {estimated && <p>Road routes include inferred sections between GPS reports. Hover a line for details.</p>}
     {!!route?.gaps && <p>GPS coverage has gaps; long outages remain disconnected.</p>}
-    {!!route?.points.length && route.streets?.status==='unavailable' && <p>Road alignment unavailable · showing recorded GPS connections.</p>}
+    {!!route?.points.length && !roadStatus && <p role="status">Loading road routes… Recorded GPS positions are shown.</p>}
+    {!!route?.points.length && roadStatus==='unavailable' && <p>Road routes unavailable · recorded GPS positions are shown.</p>}
+    {roadStatus==='partial' && <p>{unmatched} GPS sections awaiting road alignment.</p>}
     {!route?<p role="status">{error || 'Loading trips…'}</p>:!trips.length?<p>{route.status==='unavailable'?'Trip history unavailable.':'No trips recorded yet.'}</p>:<ol className="schedule-trip-list">{trips.map(trip=><li key={trip.id}><button type="button" aria-pressed={selectedTrip===trip.id} aria-label={`Show trip ${trip.number}: ${trip.from.address || 'Start'} to ${trip.to.address || 'Stop'}`} onClick={()=>showTrip(trip.id)}><b className="schedule-trip-number" style={{backgroundColor:gpsTripColor(trip.number)}}>{trip.number}</b><span>{trip.from.address || 'Start location'} <span aria-hidden="true">→</span> {trip.to.address || 'Stop location'}<small>{time(trip.departure)} – {time(trip.arrival)}</small></span></button></li>)}</ol>}
     {route && error && <p role="status">Trip history could not refresh.</p>}
   </section>;

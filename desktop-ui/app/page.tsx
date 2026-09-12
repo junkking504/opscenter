@@ -4374,8 +4374,9 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           </section>}
 
           {activeNav === 'Command' && live?.snapshot.loading && !live.error && <div className="workspace-loading" role="status">{live.error || 'Loading Command records…'}</div>}
-          {activeNav === 'Command' && live && !live.snapshot.loading && <EstimateCommandSummary summary={live.snapshot.estimates} />}
           {activeNav === 'Command' && view === 'now' && live && !live.snapshot.loading && <CrewProgressAlerts live={live} openAlert={openAlertRecord} openControl={() => {setActiveNav('Command');setView('today');}} />}
+
+          {activeNav === 'Command' && live && !live.snapshot.loading && <EstimateCommandSummary summary={live.snapshot.estimates} />}
 
           {activeNav === 'Command' && view === 'now' && !Boolean(live) && (
             <div className="command-grid">

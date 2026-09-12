@@ -29,6 +29,8 @@ export type ScheduleAppointment = {
   customerEmail: string;
   phone: string;
   address: string;
+  mapAddress?: string;
+  addressCheckPending?: boolean;
   territory: string;
   sourceTerritory?: string;
   appointmentType: string;

@@ -647,3 +647,41 @@ appointment containment, and the schedule footer boundary. This is a bounded
 viewport regression matrix; authenticated live Safari checks remain required.
 The pure allocation checks run with
 `node --import tsx scripts/test-schedule-viewport-layout.ts`.
+
+
+### Automatic building fallback and postal corrections
+
+Census remains the first lookup. A missing or rejected result now continues to
+the existing OpenStreetMap service through `lib/osm-service-address.ts`. Genuine
+multiple Census locations remain blocked. The fallback sends only the service
+street and city/state, without customer names, units, notes or the source ZIP.
+It requires one unique mapped house/building (rank 30), exact house/street/city,
+Louisiana/US, a valid small bounding box and in-area coordinates. Street/area
+centers, different cities, changed street directions/types and competing objects
+are rejected. A ZIP correction within the same three-digit postal region is
+allowed only with that exact building match. The original JunkWare address is
+unchanged; the selected card shows the verified map address and the cache retains
+provider, OSM object link, returned address and reason. This verifies the building,
+not a particular apartment entrance.
+
+`lib/osm-address-transport.ts` shares durable caching and reservations between
+forward lookups and the existing Fleet reverse lookup. One request is admitted
+in the first five seconds of a 20-second slot; this keeps starts at least 15
+seconds apart across processes on Mission Control, with 8-second HTTP timeouts.
+A bounded wait lets minute-based processing enter a slot instead of repeatedly
+missing it. The full verification stays within the collector bridge deadline.
+Successful verification lasts seven days; OSM no-results are cached six hours,
+provider failures one minute. Rate deferrals remain pending and retry automatically.
+Set `OPSCENTER_OSM_ADDRESS_LOOKUPS=off` to disable this service immediately; no
+Google API, new provider, SDK, subscription or metered feature is enabled.
+The OSM attribution remains on the map. See the
+[Nominatim usage policy](https://operations.osmfoundation.org/policies/nominatim/):
+single-machine processing, caching, identifying User-Agent, no autocomplete or
+systematic area scans, and conservative request limits are required.
+
+The existing upcoming-date queue resets failed-attempt cooldowns when the address
+policy version changes. Rate/provider deferrals get a short retry, not the
+six-hour no-match cooldown. No open browser or manual verification is required.
+`verify:service-addresses` now runs during every production build and covers
+spelling correction, duplicate aliases, exact-building fallback, postal mismatch,
+unsafe alternatives, cache reuse and rate limits using synthetic mocked data.

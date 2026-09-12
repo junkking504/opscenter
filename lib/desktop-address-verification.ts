@@ -1,4 +1,5 @@
 import { reviewedServiceAddress } from './reviewed-service-address';
+import { verifyOsmAddressFallback } from './osm-service-address';
 import { hasMinorStreetCorrection } from './address-spelling-correction';
 import { sameCensusAddress, type CensusAddressMatch } from './census-address-matches';
 import type { PlanningLocation } from './planning-geocodes';
@@ -10,7 +11,8 @@ import { createHash, randomUUID } from 'node:crypto';
 type Component = { long_name: string; short_name: string; types: string[] };
 type Result = { partial_match?: boolean; address_components?: Component[]; geometry?: { location?: { lat: number; lng: number }; location_type?: string } };
 type Payload = { status?: string; results?: Result[] };
-export type AddressVerification = { location: PlanningLocation | null; reason: string; matchedAddress?: string };
+export const ADDRESS_VERIFICATION_POLICY = 3;
+export type AddressVerification = { location: PlanningLocation | null; reason: string; matchedAddress?: string; source?: string; sourceUrl?: string; retryAfterMs?: number };
 const aliases: Record<string,string> = { STREET:'ST',ROAD:'RD',AVENUE:'AVE',DRIVE:'DR',LANE:'LN',COURT:'CT',BOULEVARD:'BLVD',HIGHWAY:'HWY',PLACE:'PL',PARKWAY:'PKWY',TERRACE:'TER',CIRCLE:'CIR',TRAIL:'TRL',NORTH:'N',SOUTH:'S',EAST:'E',WEST:'W' };
 const normalize = (text: string) => text.toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim().split(/\s+/).map(word=>aliases[word]||word).join(' ');
 const normalizeRouteName = (text: string) => normalize(text).replace(/\bS NORMAN FRANCIS PKWY\b/g, 'S NORMAN C FRANCIS PKWY');
@@ -93,15 +95,15 @@ async function requestGeocode(address:string):Promise<unknown> {
 
 const cache=new Map<string,{expires:number;result:Promise<AddressVerification>;verified?:AddressVerification}>();
 const cacheFile = (address: string) => path.join(process.env.SERVICE_ADDRESS_CACHE_DIR || path.join(process.cwd(),'data','cache','service-address-verifications'),createHash('sha256').update(address).digest('hex')+'.json');
-export function cachedAddressVerification(address:string) {
+export function cachedAddressVerification(address:string):AddressVerification|undefined {
   const reviewed = reviewedServiceAddress(address); if (reviewed) return reviewed;
   const row=cache.get(address);
   if(row && row.expires>Date.now()) return row.verified;
   try {
     const stored=JSON.parse(fs.readFileSync(cacheFile(address),'utf8'));
-    if(![1,2].includes(stored.schema) || stored.address !== address || stored.expires <= Date.now()) return undefined;
+    if(![1,2,3].includes(stored.schema) || stored.address !== address || stored.expires <= Date.now()) return undefined;
     // Reconsider failures from the old exact-spelling policy immediately.
-    if(stored.schema === 1 && !stored.verified?.location) return undefined;
+    if(stored.schema < ADDRESS_VERIFICATION_POLICY && !stored.verified?.location) return undefined;
     const point=stored.verified?.location;
     if(point && (!Number.isFinite(point.latitude) || !Number.isFinite(point.longitude) || point.latitude<29 || point.latitude>31.3 || point.longitude< -93 || point.longitude> -89.4)) return undefined;
     cache.set(address,{expires:stored.expires,verified:stored.verified,result:Promise.resolve(stored.verified)});
@@ -125,13 +127,19 @@ export async function verifyDesktopAddress(address:string):Promise<AddressVerifi
   const entry:{expires:number;result:Promise<AddressVerification>;verified?:AddressVerification}={expires:Date.now()+60_000,result:Promise.resolve({location:null,reason:'Checking Address'})};
   entry.result=(async()=>{
     let verified:AddressVerification={location:null,reason:'Precise Service Location Unavailable'};
+    let ambiguous=false;
+    const started=Date.now();
     for(const query of addressQueries(address)) {
+      if(Date.now()-started>=16000)break;
       verified=verifyCensusAddress(address,await requestGeocode(query));
+      if(verified.reason==='Multiple Address Matches')ambiguous=true;
       if(verified.location) break;
     }
-    entry.verified=verified;entry.expires=Date.now()+(verified.location?86_400_000:300_000);
+    if(!verified.location && !ambiguous)verified=await verifyOsmAddressFallback(address,Math.max(0,27000-(Date.now()-started)-8000));
+    if(!verified.location && ambiguous)verified={location:null,reason:'Multiple Address Matches'};
+    entry.verified=verified;entry.expires=Date.now()+(verified.retryAfterMs || (verified.location?7*86_400_000:300_000));
     const file=cacheFile(address), temporary=file+'.'+randomUUID()+'.tmp';
-    try {fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(temporary,JSON.stringify({schema:2,address,expires:entry.expires,verified}),{mode:0o660});fs.chmodSync(temporary,0o660);fs.renameSync(temporary,file);} catch {try{fs.unlinkSync(temporary);}catch{/* Cache failure must not fabricate or discard verification. */}}
+    try {fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(temporary,JSON.stringify({schema:ADDRESS_VERIFICATION_POLICY,address,expires:entry.expires,verified}),{mode:0o660});fs.chmodSync(temporary,0o660);fs.renameSync(temporary,file);} catch {try{fs.unlinkSync(temporary);}catch{/* Cache failure must not fabricate or discard verification. */}}
     return verified;
   })();
   cache.set(address,entry);return entry.result;

@@ -1,12 +1,12 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
+import { osmAddressJson } from '@/lib/osm-address-transport';
 
 type CachedAddress = { address: string | null; expiresAt: number };
 
 const addressCache = new Map<string, CachedAddress>();
 const CACHE_TTL_MS = 10 * 60_000;
-const USER_AGENT = "JunkKing-OpsCenter-FleetMap/1.0";
 
 function validCoordinate(value: unknown, minimum: number, maximum: number): number | null {
   const parsed = Number(value);
@@ -22,13 +22,8 @@ async function openStreetMapAddress(latitude: number, longitude: number): Promis
     zoom: "18",
   });
   try {
-    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${params}`, {
-      headers: { "User-Agent": USER_AGENT },
-      signal: AbortSignal.timeout(8_000),
-      cache: "no-store",
-    });
-    if (!response.ok) return null;
-    const payload = await response.json();
+    const result = await osmAddressJson('reverse',params);
+    const payload = result.payload as {display_name?:string}|null;
     return String(payload?.display_name || "").trim() || null;
   } catch {
     return null;
@@ -62,7 +57,7 @@ export async function POST(request: Request) {
   }
 
   const address = await openStreetMapAddress(latitude, longitude);
-  addressCache.set(cacheKey, { address, expiresAt: Date.now() + CACHE_TTL_MS });
+  if(address)addressCache.set(cacheKey, { address, expiresAt: Date.now() + CACHE_TTL_MS });
   return NextResponse.json(
     { address, coordinates: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}` },
     { headers: { "Cache-Control": "private, max-age=300" } },

@@ -19,7 +19,7 @@ import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-a
 import { readScheduleVisits, scheduleVisitState } from '@/lib/desktop-schedule-visits';
 import { readOperationalTruckLoads, truckChargeSummary } from './truck-load-closeouts';
 
-export type DesktopAppointment = JobRow & { recordId: string; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
+export type DesktopAppointment = JobRow & { recordId: string; mapAddress?: string; addressCheckPending?: boolean; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
   truck: string;
   fromAppointmentId: string;
@@ -60,6 +60,7 @@ export function readDesktopSchedule(date: string) {
       hasScheduledTime: override.appointmentStartMinutes !== undefined || source.hasScheduledTime,
       junkwareSyncStatus: override.junkwareSyncStatus, junkwareSyncError: override.junkwareSyncError,
     } : source;
+    const addressCheck = cachedAddressVerification(job.address);
     const callAhead = calls.get(jobCallAheadLookupKey(date, `appt:${job.appointmentId}`)) || 'not_called';
     return {
     ...job, sourceEstimate: estimates.get(job.sourceEstimateAppointmentId) || null, callAhead, ...scheduleVisitState(job, visits.visits, visits.observedAt, fleet.isToday ? fleet.trucks : []),
@@ -67,7 +68,9 @@ export function readDesktopSchedule(date: string) {
     // A JK reference can span multiple appointments. Never use it as the
     // mutation identity or combine separate estimate/job appointments by JK.
     recordId: job.appointmentId ? `${date}:appointment:${job.appointmentId}` : `${date}:unverified:${index}`,
-    location: planningLocation(job.address, pins) || cachedAddressVerification(job.address)?.location || null,
+    location: planningLocation(job.address, pins) || addressCheck?.location || null,
+    mapAddress: addressCheck && 'matchedAddress' in addressCheck ? addressCheck.matchedAddress : undefined,
+    addressCheckPending: addressCheck?.reason === 'Automatic Address Check Pending',
   }; });
   // Reconcile against the current effective address/time, including a pending
   // dispatch move, without modifying JunkWare or inventing a ledger event.

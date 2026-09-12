@@ -37,3 +37,61 @@ assert.equal(verifyCensusAddress(full.replace(' W St',' E St'),{result:{addressM
 assert.equal(verifyCensusAddress(full.replace('Gonzales','Other City'),{result:{addressMatches:[hospital]}}).location,null,'Alias must not cross localities');
 assert.ok(verifyCensusAddress('Business 84 Location 2, 100 Example St Suite 3 New Orleans LA 70125',{result:{addressMatches:[censusMatch]}}).location,'Business/unit numbers must not replace the street number');
 assert.equal(verifyCensusAddress('100 Example St New Orleans LA 70125 or 200 Other St New Orleans LA 70125',{result:{addressMatches:[censusMatch]}}).location,null,'Two street addresses require review');
+
+// Synthetic address fixture: a unique provider match with a minor name typo.
+const spellingMatch={...censusMatch,matchedAddress:'100 PENROSE ST, NEW ORLEANS, LA, 70125'};
+const spellingPayload={result:{addressMatches:[spellingMatch]}};
+for (const name of ['Pensrose','Penrsoe','Penrse']) {
+  const verified=verifyCensusAddress(`100 ${name} Street New Orleans LA 70125`,spellingPayload);
+  assert.ok(verified.location,`${name} is a single insertion, transposition or omission`);
+  assert.equal(verified.matchedAddress,spellingMatch.matchedAddress);
+}
+assert.ok(verifyCensusAddress('Business 100 Pensrose Street Apt 2 New Orleans, LA 70125-1234',spellingPayload).location);
+assert.ok(verifyCensusAddress('100 Pensrose Street, New Orleans, 70125',spellingPayload).location);
+for (const input of [
+  '101 Pensrose St New Orleans LA 70125',
+  '100 Pensrose St New Orleans LA 70124',
+  '100 Pensrose St Other City LA 70125',
+  '100 Pensrose St New Orleans MS 70125',
+  '100 Pensrose Rd New Orleans LA 70125',
+  '100 N Pensrose St New Orleans LA 70125',
+  '100 Pendose St New Orleans LA 70125',
+  '100 Pensrrose St New Orleans LA 70125',
+  '100 Penrose Heights St New Orleans LA 70125',
+  '100 Pensrose St New Orleans LA 70125 or 200 Other St New Orleans LA 70125',
+]) assert.equal(verifyCensusAddress(input,spellingPayload).location,null,input);
+assert.equal(verifyCensusAddress('100 Pensrose St New Orleans LA 70125',{result:{addressMatches:[spellingMatch,spellingMatch]}}).location,null);
+assert.equal(verifyCensusAddress('100 Pensrose St New Orleans LA 70125',{result:{addressMatches:[{...spellingMatch,coordinates:{x:0,y:0}}]}}).location,null);
+const shortMatch={...censusMatch,matchedAddress:'100 OAK ST, NEW ORLEANS, LA, 70125'};
+assert.equal(verifyCensusAddress('100 Oaks St New Orleans LA 70125',{result:{addressMatches:[shortMatch]}}).location,null,'Short street names are not typo-corrected');
+console.log('Automatic spelling correction passed: exact locality/number/ZIP/type/direction guards, ambiguous matches and invalid points.');
+
+async function verifyAutomaticCache() {
+  const fs=await import('node:fs'),os=await import('node:os'),path=await import('node:path');
+  const {createHash}=await import('node:crypto');
+  const {verifyDesktopAddress}=await import('../lib/desktop-address-verification');
+  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'address-correction-test-'));
+  const previousDirectory=process.env.SERVICE_ADDRESS_CACHE_DIR,previousFetch=globalThis.fetch;
+  const address='100 Pensrose Street New Orleans LA 70125';
+  const file=path.join(directory,createHash('sha256').update(address).digest('hex')+'.json');
+  let calls=0;
+  try {
+    process.env.SERVICE_ADDRESS_CACHE_DIR=directory;
+    fs.writeFileSync(file,JSON.stringify({schema:1,address,expires:Date.now()+300000,verified:{location:null,reason:'Address Needs Exact House, Street, And ZIP Match'}}));
+    globalThis.fetch=async()=>{calls++;return new Response(JSON.stringify(spellingPayload));};
+    const first=await verifyDesktopAddress(address);
+    assert.ok(first.location,'Old cached rejection is reconsidered automatically');
+    assert.deepEqual(await verifyDesktopAddress(address),first);
+    assert.equal(calls,1,'Accepted correction is reused without another provider request');
+    const saved=JSON.parse(fs.readFileSync(file,'utf8'));
+    assert.equal(saved.schema,2);
+    assert.equal(saved.address,address,'Source spelling is retained');
+    assert.deepEqual(saved.verified,first,'Matched spelling and point persist atomically');
+  } finally {
+    globalThis.fetch=previousFetch;
+    if(previousDirectory===undefined)delete process.env.SERVICE_ADDRESS_CACHE_DIR;else process.env.SERVICE_ADDRESS_CACHE_DIR=previousDirectory;
+    fs.rmSync(directory,{recursive:true,force:true});
+  }
+  console.log('Automatic retry, source preservation and correction caching passed.');
+}
+verifyAutomaticCache().catch(error=>{console.error(error);process.exitCode=1;});

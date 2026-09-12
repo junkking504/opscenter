@@ -1,4 +1,5 @@
 import { reviewedServiceAddress } from './reviewed-service-address';
+import { hasMinorStreetCorrection } from './address-spelling-correction';
 import type { PlanningLocation } from './planning-geocodes';
 import { fullFieldStreetAddress, serviceStreetCandidates } from './appointment-partner';
 import fs from 'node:fs';
@@ -8,7 +9,7 @@ import { createHash, randomUUID } from 'node:crypto';
 type Component = { long_name: string; short_name: string; types: string[] };
 type Result = { partial_match?: boolean; address_components?: Component[]; geometry?: { location?: { lat: number; lng: number }; location_type?: string } };
 type Payload = { status?: string; results?: Result[] };
-export type AddressVerification = { location: PlanningLocation | null; reason: string };
+export type AddressVerification = { location: PlanningLocation | null; reason: string; matchedAddress?: string };
 const aliases: Record<string,string> = { STREET:'ST',ROAD:'RD',AVENUE:'AVE',DRIVE:'DR',LANE:'LN',COURT:'CT',BOULEVARD:'BLVD',HIGHWAY:'HWY',PLACE:'PL',PARKWAY:'PKWY',TERRACE:'TER',CIRCLE:'CIR',TRAIL:'TRL',NORTH:'N',SOUTH:'S',EAST:'E',WEST:'W' };
 const normalize = (text: string) => text.toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim().split(/\s+/).map(word=>aliases[word]||word).join(' ');
 const normalizeRouteName = (text: string) => normalize(text).replace(/\bS NORMAN FRANCIS PKWY\b/g, 'S NORMAN C FRANCIS PKWY');
@@ -61,11 +62,20 @@ export function verifyCensusAddress(address:string,payload:unknown):AddressVerif
   const match=matches[0],street=String(match.matchedAddress || '').split(',')[0].trim().match(/^(\d+[A-Z]?)\s+(.+)$/i);
   if(!street)return {location:null,reason:'Address Needs Exact House, Street, And ZIP Match'};
   const component=(type:string,value:string)=>({types:[type],long_name:value,short_name:value});
-  return verifyAddressResult(address,{status:'OK',results:[{address_components:[
+  const payloadForVerification: Payload = {status:'OK',results:[{address_components:[
     component('street_number',street[1]),component('route',street[2]),
     component('postal_code',match.addressComponents?.zip || ''),component('locality',match.addressComponents?.city || ''),
     component('administrative_area_level_1',match.addressComponents?.state || ''),component('country','US'),
-  ],geometry:{location:{lat:match.coordinates?.y ?? NaN,lng:match.coordinates?.x ?? NaN},location_type:'RANGE_INTERPOLATED'}}]});
+  ],geometry:{location:{lat:match.coordinates?.y ?? NaN,lng:match.coordinates?.x ?? NaN},location_type:'RANGE_INTERPOLATED'}}]};
+  const exact = verifyAddressResult(address,payloadForVerification);
+  if (exact.location || exact.reason !== 'Address Needs Exact House, Street, And ZIP Match') return exact;
+  if (serviceStreetCandidates(address).length > 1) return exact;
+  const requested = normalize(fullFieldStreetAddress(address)).replace(/ (\d{5}) \d{4}$/, ' $1');
+  if (!hasMinorStreetCorrection(requested,normalize(street[1]),normalize(street[2]),normalize(match.addressComponents?.city || ''),match.addressComponents?.zip || '')) return exact;
+  // Only Census's single full-address match gets this spelling tolerance. All
+  // coordinate, state, country and precision checks still run on its result.
+  const corrected = verifyAddressResult(match.matchedAddress || '',payloadForVerification);
+  return corrected.location ? {...corrected,reason:'Minor Street Spelling Correction Verified',matchedAddress:match.matchedAddress} : exact;
 }
 async function requestGeocode(address:string):Promise<unknown> {
   try {
@@ -83,7 +93,9 @@ export function cachedAddressVerification(address:string) {
   if(row && row.expires>Date.now()) return row.verified;
   try {
     const stored=JSON.parse(fs.readFileSync(cacheFile(address),'utf8'));
-    if(stored.schema !== 1 || stored.address !== address || stored.expires <= Date.now()) return undefined;
+    if(![1,2].includes(stored.schema) || stored.address !== address || stored.expires <= Date.now()) return undefined;
+    // Reconsider failures from the old exact-spelling policy immediately.
+    if(stored.schema === 1 && !stored.verified?.location) return undefined;
     const point=stored.verified?.location;
     if(point && (!Number.isFinite(point.latitude) || !Number.isFinite(point.longitude) || point.latitude<29 || point.latitude>31.3 || point.longitude< -93 || point.longitude> -89.4)) return undefined;
     cache.set(address,{expires:stored.expires,verified:stored.verified,result:Promise.resolve(stored.verified)});
@@ -113,7 +125,7 @@ export async function verifyDesktopAddress(address:string):Promise<AddressVerifi
     }
     entry.verified=verified;entry.expires=Date.now()+(verified.location?86_400_000:300_000);
     const file=cacheFile(address), temporary=file+'.'+randomUUID()+'.tmp';
-    try {fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(temporary,JSON.stringify({schema:1,address,expires:entry.expires,verified}),{mode:0o660});fs.chmodSync(temporary,0o660);fs.renameSync(temporary,file);} catch {try{fs.unlinkSync(temporary);}catch{/* Cache failure must not fabricate or discard verification. */}}
+    try {fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(temporary,JSON.stringify({schema:2,address,expires:entry.expires,verified}),{mode:0o660});fs.chmodSync(temporary,0o660);fs.renameSync(temporary,file);} catch {try{fs.unlinkSync(temporary);}catch{/* Cache failure must not fabricate or discard verification. */}}
     return verified;
   })();
   cache.set(address,entry);return entry.result;

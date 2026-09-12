@@ -63,15 +63,16 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
   };
 
   return <section className="crew-alerts" aria-labelledby="crew-alert-title" id="live-alert-list">
-    <header className="crew-alert-heading"><div><span className="crew-eyebrow">Crew execution · {snapshot.date}</span><h2 id="crew-alert-title">Operational updates</h2><p>All crew, appointment, and truck updates in one timeline.</p></div><div className="crew-alert-counts"><strong>{jobs.length}</strong> appointments<span>·</span><strong>{snapshot.sources.alerts ? snapshot.alerts.length : '—'}</strong> updates</div></header>
-    {(!progress?.scheduleCurrent || !progress?.visitsCurrent || !progress?.updatesComplete) && <div className="crew-source-notice" role="status"><CircleHelp size={16}/><span>{!progress ? 'Progress evidence is unavailable. Source updates remain visible.' : [!progress.scheduleCurrent && 'Schedule is unavailable or stale.', !progress.visitsCurrent && 'Visit data is unavailable or stale.', !progress.updatesComplete && 'Update history is incomplete.'].filter(Boolean).join(' ')} Available updates remain visible.</span></div>}
+    <div className="crew-alert-controls">
+    <header className="crew-alert-heading"><h2 id="crew-alert-title">Operational updates</h2><div className="crew-alert-counts"><strong>{snapshot.sources.alerts ? snapshot.alerts.length : '—'}</strong> updates<span>· Newest first</span></div></header>
     <div className="crew-alert-toolbar">
       <label className="crew-truck-filter">Truck<select aria-label="Filter by truck" value={truck} onChange={event => setTruck(event.target.value)}><option value="all">All trucks</option>{trucks.map(label => <option key={label}>{label}</option>)}</select></label>
       <label className="crew-alert-search"><Search size={15}/><input type="search" aria-label="Search operational updates" placeholder="Search job, crew, or update" value={query} onChange={event => setQuery(event.target.value)}/></label>
       <button type="button" className="crew-follow-filter" aria-pressed={followUp} onClick={() => setFollowUp(!followUp)}>Follow-up only</button>
       {(truck !== 'all' || query || followUp) && <button type="button" className="crew-clear" onClick={() => {setTruck('all');setQuery('');setFollowUp(false);}}>Clear filters</button>}
     </div>
-    <div className="crew-timeline-order"><strong>Newest first</strong><span>Reviewed updates stay in this timeline.</span></div>
+    </div>
+    {(!progress?.scheduleCurrent || !progress?.visitsCurrent || !progress?.updatesComplete) && <div className="crew-source-notice" role="status"><CircleHelp size={16}/><span>{!progress ? 'Progress evidence is unavailable. Source updates remain visible.' : [!progress.scheduleCurrent && 'Schedule is unavailable or stale.', !progress.visitsCurrent && 'Visit data is unavailable or stale.', !progress.updatesComplete && 'Update history is incomplete.'].filter(Boolean).join(' ')} Available updates remain visible.</span></div>}
     <section className="crew-all-updates" aria-label="All operational updates, newest first">{visibleUpdates.length ? visibleUpdates.map(renderUpdate) : <p className="crew-empty">{snapshot.sources.alerts ? 'No updates match these filters.' : 'Update history is unavailable.'}</p>}</section>
     {!snapshot.sources.workflow && <p className="crew-workflow-notice">Review and follow-up actions are unavailable while Control is disconnected. Updates remain visible.</p>}
   </section>;

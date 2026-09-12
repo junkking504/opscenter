@@ -161,15 +161,55 @@ export function scheduleTruckNames(snapshot?: Pick<ScheduleSnapshot,'fleet'|'app
   return [...new Set([...JUNKWARE_DISPATCH_TRUCKS,...(snapshot?.fleet.trucks.map(truck=>truck.truck)||[]),...(snapshot?.appointments.map(job=>job.truck)||[]),'Unassigned'].map(truckLabel))]
     .sort((a,b)=>a===b?0:a==='Unassigned'?1:b==='Unassigned'?-1:a.localeCompare(b,undefined,{numeric:true}));
 }
+/** Completed blocks use confirmed visit intervals; source appointment windows remain unchanged. */
+export function timelineWindow(job: ScheduleAppointment) {
+  const time = job.onsiteTime;
+  if (appointmentStatus(job) === 'Completed' && time && time.minutes !== null && Number.isFinite(time.minutes) && time.minutes > 0 && time.arrival && time.departure) {
+    const source = time.intervals?.length ? time.intervals : [{ arrival: time.arrival, departure: time.departure }];
+    const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+    const local = (value: string) => {
+      const ms = Date.parse(value);
+      if (!Number.isFinite(ms)) return null;
+      const parts = Object.fromEntries(formatter.formatToParts(ms).map(p => [p.type,p.value]));
+      return { date: `${parts.year}-${parts.month}-${parts.day}`, minute: +parts.hour * 60 + +parts.minute + +parts.second / 60 };
+    };
+    const first = local(time.arrival);
+    const day = /^\d{4}-\d{2}-\d{2}:/.test(job.recordId) ? job.recordId.slice(0,10) : first?.date;
+    const intervals = source.map(row => {
+      const arrival = local(row.arrival), departure = local(row.departure);
+      if (!arrival || !departure || !day || arrival.date !== day) return null;
+      const end = departure.minute + (Date.parse(departure.date) - Date.parse(day)) / 86400000 * 1440;
+      return end > arrival.minute && end <= 2880 ? { start: arrival.minute, end } : null;
+    });
+    if (intervals.every((row): row is {start:number;end:number} => row !== null)) {
+      const ordered = intervals.sort((a,b) => a.start - b.start);
+      const minutes = ordered.reduce((sum,row) => sum + row.end - row.start, 0);
+      if (Math.abs(minutes - time.minutes) <= 0.11 && ordered.every((row,i) => !i || row.start >= ordered[i-1].end)) {
+        return { actual: true, start: ordered[0].start, end: ordered.at(-1)!.end, intervals: ordered,
+          label: `${time.minutes < 1 ? '<1' : Math.round(time.minutes)} min on site${ordered.length > 1 ? ` · ${ordered.length} visits` : ''}` };
+      }
+    }
+  }
+  if (!job.hasScheduledTime || job.appointmentStartMinutes === null || job.appointmentEndMinutes === null) return null;
+  return { actual: false, start: job.appointmentStartMinutes, end: job.appointmentEndMinutes,
+    intervals: [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes}], label: 'Booked window' };
+}
 export function timelineRange(jobs: ScheduleAppointment[]) {
-  const timed = jobs.filter(job => job.hasScheduledTime && job.appointmentStartMinutes !== null && job.appointmentEndMinutes !== null);
-  const start = Math.min(480, ...timed.map(job => Math.floor(job.appointmentStartMinutes! / 60) * 60));
-  const end = Math.max(1020, ...timed.map(job => Math.ceil(job.appointmentEndMinutes! / 60) * 60));
+  const windows = jobs.flatMap(job => {
+    const display = timelineWindow(job);
+    const booked = job.hasScheduledTime && job.appointmentStartMinutes !== null && job.appointmentEndMinutes !== null
+      ? [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes}] : [];
+    return display ? [...booked,display] : booked;
+  });
+  const start = Math.min(480, ...windows.map(row => Math.floor(row.start / 60) * 60));
+  const end = Math.max(1020, ...windows.map(row => Math.ceil(row.end / 60) * 60));
   return { start, end, duration: end - start };
 }
 export function timelinePlacement(job: ScheduleAppointment, range: ReturnType<typeof timelineRange>) {
-  if (!job.hasScheduledTime || job.appointmentStartMinutes === null || job.appointmentEndMinutes === null) return null;
-  return { left: (job.appointmentStartMinutes - range.start) / range.duration, width: Math.max(0, job.appointmentEndMinutes - job.appointmentStartMinutes) / range.duration };
+  const window = timelineWindow(job);
+  if (!window) return null;
+  const place = (row: {start:number;end:number}) => ({ left: (row.start - range.start) / range.duration, width: Math.max(0,row.end-row.start) / range.duration });
+  return { ...window, ...place(window), segments: window.intervals.map(place) };
 }
 
 export type ScheduleFollowupFlags = { estimates: boolean; closed: boolean; unclosed: boolean; photos: boolean; linkedBooking: ScheduleAppointment | null };

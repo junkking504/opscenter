@@ -754,3 +754,21 @@ change the published daily revenue totals or create a payment.
 Completed job badges include confirmed GPS time on site, rounded to whole
 minutes. Missing or incomplete visit evidence displays **Time unavailable**;
 scheduled appointment duration is not substituted for actual time on site.
+
+### Completed blocks show actual visits
+
+Truck Schedule positions completed jobs at confirmed GPS arrival and sizes each
+block through departure. Separate confirmed visits appear as separate segments;
+time away is left empty. The axis includes recorded visits outside booked hours,
+and overlapping actual visits use separate lanes. Missing, incomplete, mismatched
+or inconsistent visit evidence keeps the booked window. Open jobs and estimates
+continue to use their booked windows.
+
+The source on-site summary exposes its merged confirmed intervals for this
+rendering; totals still exclude gaps and duplicate GPS observations. Hover text
+and the selected appointment retain the original booking. Drag review continues
+to use the booked duration; resizing the display never reschedules a job.
+
+Validation: `npx tsx scripts/test-schedule-actual-blocks.ts`,
+`npx tsx scripts/test-schedule-travel-layout.ts`, and
+`npx tsx scripts/test-appointment-onsite-time.ts`.

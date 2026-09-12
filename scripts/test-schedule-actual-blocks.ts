@@ -1,0 +1,37 @@
+import assert from 'node:assert/strict';
+import { appointmentOnsiteTime } from '../lib/appointment-onsite-time';
+import { timelineWindow, timelinePlacement, timelineRange, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
+import { scheduleTravelLayout } from '../desktop-ui/lib/schedule-travel-layout';
+import { scheduleMoveProposal } from '../desktop-ui/schedule-drag';
+const job = {recordId:'2026-09-12:appointment:1',appointmentId:'1',jkNumber:'JK1',truck:'Truck 4',appointmentType:'Job',status:'Completed',hasScheduledTime:true,appointmentTime:'9–10 AM',appointmentStartMinutes:540,appointmentEndMinutes:600} as ScheduleAppointment;
+const visit = (arrival:string,departure:string) => ({arrival,departure});
+const evidence = (intervals:ReturnType<typeof visit>[]) => appointmentOnsiteTime(job,[{appointment_id:'1',truck:'Truck 4',match_confidence:'confirmed',visit_intervals:intervals}],Date.parse('2026-09-13T07:00:00Z'));
+const completed = {...job,onsiteTime:evidence([visit('2026-09-12T14:36:38Z','2026-09-12T15:40:13Z')])};
+const before = JSON.stringify(completed);
+const range = timelineRange([completed]);
+const actual = timelinePlacement(completed,range)!;
+assert.equal(actual.actual,true);
+assert.ok(Math.abs(actual.start - (9*60+36+38/60)) < 1e-8,'Actual arrival, not booked start');
+assert.ok(Math.abs(actual.width*range.duration-63.5833333)<0.001,'Width reflects recorded interval');
+assert.equal(actual.label,'64 min on site');
+assert.equal(JSON.stringify(completed),before,'Display must not change booked source data');
+assert.equal(scheduleMoveProposal(completed,'Truck 6',null,[]).start,null,'Truck-only move keeps original booking');
+assert.equal(scheduleMoveProposal(completed,'Truck 6',660,[]).job.appointmentEndMinutes,600,'Move source retains booked duration');
+const shorter={...job,recordId:'2026-09-12:appointment:2',onsiteTime:evidence([visit('2026-09-12T14:45:00Z','2026-09-12T15:00:00Z')])};
+const overlap=scheduleTravelLayout([completed,shorter],[],range);
+assert.notEqual(overlap.placed[0].lane,overlap.placed[1].lane,'Actual overlap gets separate lanes');
+const split={...job,onsiteTime:evidence([visit('2026-09-12T14:00:00Z','2026-09-12T14:15:00Z'),visit('2026-09-12T15:00:00Z','2026-09-12T15:30:00Z')])};
+const splitPosition=timelinePlacement(split,range)!;
+assert.equal(splitPosition.segments.length,2);
+assert.equal(splitPosition.segments.reduce((sum,row)=>sum+row.width*range.duration,0),45,'Time away remains a gap');
+for(const patch of [{status:'Confirmed'},{status:'Canceled'},{appointmentType:'Estimate'},{onsiteTime:undefined},{onsiteTime:{...completed.onsiteTime,departure:null,minutes:null}},{onsiteTime:{...completed.onsiteTime,minutes:NaN}},{recordId:'2026-09-11:appointment:1'}]) {
+ const fallback=timelineWindow({...completed,...patch});
+ assert.equal(fallback?.actual,false); assert.equal(fallback?.start,540); assert.equal(fallback?.end,600);
+}
+const early={...job,onsiteTime:evidence([visit('2026-09-12T12:00:00Z','2026-09-12T12:30:00Z')])};
+assert.equal(timelineRange([early]).start,420,'Include actual visits outside booked range');
+const overnight={...job,onsiteTime:evidence([visit('2026-09-13T04:50:00Z','2026-09-13T05:10:00Z')])};
+assert.equal(timelineWindow(overnight)?.end,1450,'Departure after midnight stays on the correct end of the timeline');
+assert.equal(timelineRange([overnight]).end,1500);
+assert.equal(timelineWindow({...split,onsiteTime:{...split.onsiteTime,intervals:undefined}})?.actual,false,'Older summed duration cannot fill time away');
+console.log('Actual blocks passed: arrival, width, split visits, overlap lanes, booked fallback, day boundaries and source preservation.');

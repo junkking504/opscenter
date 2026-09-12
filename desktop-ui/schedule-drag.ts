@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   truckLabel,
+  timelineWindow,
   scheduleMoveRestriction,
   type ScheduleAppointment,
   type timelineRange,
@@ -118,7 +119,9 @@ export function useScheduleDrag(
           ? job.appointmentEndMinutes - job.appointmentStartMinutes
           : 60;
       const rawStart =
-        range.start + ((pointer.clientX - rect.left - grabOffset) / rect.width) * range.duration;
+        timelineWindow(job)?.actual && job.appointmentStartMinutes !== null
+          ? job.appointmentStartMinutes + ((pointer.clientX - x) / rect.width) * range.duration
+          : range.start + ((pointer.clientX - rect.left - grabOffset) / rect.width) * range.duration;
       const snapped = Math.max(
         range.start,
         Math.min(range.end - duration, Math.round(rawStart / 60) * 60),

@@ -1,23 +1,23 @@
 import { compareStops } from '../../lib/schedule-stop-order';
-import { timelinePlacement, type ScheduleAppointment, type ScheduleRouteLeg } from './schedule-contract';
+import { timelinePlacement, timelineWindow, type ScheduleAppointment, type ScheduleRouteLeg } from './schedule-contract';
 
 type Range = Parameters<typeof timelinePlacement>[1];
 type ConnectorGeometry = { reverse: boolean; left: number; width: number; top: number; height: number; labelTop: number; path?: string; arrowTop?: number };
 export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: ScheduleRouteLeg[], range: Range) {
   const lanes: number[] = [];
-  const placed = [...jobs].sort(compareStops).flatMap(job => {
+  const placed = [...jobs].sort((a,b) => (timelineWindow(a)?.start ?? Infinity) - (timelineWindow(b)?.start ?? Infinity) || compareStops(a,b)).flatMap(job => {
     const position = timelinePlacement(job, range);
     if (!position) return [];
-    let lane = lanes.findIndex(end => end <= job.appointmentStartMinutes!);
+    let lane = lanes.findIndex(end => end <= position.start);
     if (lane < 0) lane = lanes.length;
-    lanes[lane] = job.appointmentEndMinutes!;
+    lanes[lane] = position.end;
     return [{ job, position, lane }];
   });
   const pairs = legs.flatMap(leg => {
     const from = placed.find(item => item.job.recordId === leg.fromAppointmentId);
     const to = placed.find(item => item.job.recordId === leg.toAppointmentId);
     if (!from || !to) return [];
-    const overlap = Math.min(from.job.appointmentEndMinutes!, to.job.appointmentEndMinutes!) > Math.max(from.job.appointmentStartMinutes!, to.job.appointmentStartMinutes!);
+    const overlap = Math.min(from.position.end, to.position.end) > Math.max(from.position.start, to.position.start);
     return [{ leg, from, to, vertical: overlap && from.lane !== to.lane }];
   });
   const laneStep = pairs.some(pair => pair.vertical) ? 38 : 24;

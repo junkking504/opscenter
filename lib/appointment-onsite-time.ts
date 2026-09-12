@@ -1,6 +1,6 @@
 type VisitRecord = { onsite_minutes?: number; appointment_id?: string; appt_id?: string; jk_number?: string; job_id?: string; truck_number?: string | number; truck?: string; match_confidence?: string; pass_by_only?: boolean; first_arrival?: string; arrival_at?: string; final_departure?: string; departure_at?: string; visit_intervals?: Array<{arrival?: string; departure?: string | null; departure_confirmed?: boolean}> };
 
-export type AppointmentOnsiteTime = { minutes: number | null; arrival: string | null; departure: string | null; label: string };
+export type AppointmentOnsiteTime = { minutes: number | null; arrival: string | null; departure: string | null; label: string; intervals?: Array<{ arrival: string; departure: string }> };
 const truckKey = (value: unknown) => String(value || '').match(/\d+/)?.[0]?.replace(/^0+/, '') || '';
 export function appointmentOnsiteTime(job: { appointmentId?: string; jkNumber?: string; truck?: string }, visits: VisitRecord[], now = Date.now()): AppointmentOnsiteTime {
   const unavailable = { minutes: null, arrival: null, departure: null, label: 'Unavailable · no confirmed visit' };
@@ -37,7 +37,7 @@ export function appointmentOnsiteTime(job: { appointmentId?: string; jkNumber?: 
     else merged.push([...interval]);
   }
   const minutes = Math.round(merged.reduce((sum,[start,end])=>sum+end-start,0) / 6000) / 10;
-  return { minutes, arrival: new Date(merged[0][0]).toISOString(), departure: new Date(merged.at(-1)![1]).toISOString(), label: `${minutes} min${merged.length > 1 ? ` · ${merged.length} visits` : ''}` };
+  return { minutes, intervals: merged.map(([start,end]) => ({ arrival: new Date(start).toISOString(), departure: new Date(end).toISOString() })), arrival: new Date(merged[0][0]).toISOString(), departure: new Date(merged.at(-1)![1]).toISOString(), label: `${minutes} min${merged.length > 1 ? ` · ${merged.length} visits` : ''}` };
 }
 
 export function onsiteTimeFacts(time: AppointmentOnsiteTime) {

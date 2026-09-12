@@ -87,10 +87,13 @@
   .ops-live .schedule-dispatch .selected-job-heading { grid-column: 1; grid-row: 1; }
   .ops-live .schedule-dispatch .selected-job-clear { grid-column: 2; grid-row: 1; margin: 0; }
   .ops-live .schedule-dispatch .selected-job-status { grid-column: 1; grid-row: 2; justify-self: start; }
-  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout > .schedule-board-shell { height: var(--schedule-available-height); min-height: 0; }
-  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { flex: 1; min-height: 0; height: 0; overflow: auto; }
-  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { height: 100%; }
-  .ops-live .live-schedule.schedule-dispatch .schedule-truck-row { --schedule-row-grow: 1; --schedule-row-shrink: 1; min-height: var(--schedule-row-min-height); }
+  /* Only the map and detail pane fit the viewport. The board must contain all
+   * appointment lanes, including Unassigned, even when they exceed that space.
+   * Use page scrolling and the sticky list shortcut, not a hidden inner row. */
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout > .schedule-board-shell { height: auto; min-height: 0; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { flex: none; height: auto; overflow: visible; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { height: auto; }
+  .ops-live .live-schedule.schedule-dispatch .schedule-truck-row { --schedule-row-grow: 0; --schedule-row-shrink: 0; min-height: var(--schedule-row-min-height); }
 }
 
 /* The line belongs to the hourly grid, not the header or empty panel space. */
@@ -104,3 +107,26 @@
 .ops-live .schedule-appointments-jump:focus-visible { outline: 3px solid #174e77; outline-offset: 2px; }
 .ops-live #schedule-all-appointments { scroll-margin-top: 12px; }
 .ops-live #schedule-all-appointments:focus { outline: 2px solid #174e77; outline-offset: 2px; }
+
+/* Territory navigation is an operating control, not a miniature map legend. */
+.ops-live .live-schedule.schedule-dispatch .live-map-territories { gap: 6px; padding: 8px; }
+.ops-live .live-schedule.schedule-dispatch .live-map-territories button { min-height: 38px; min-width: 50px; padding: 6px 10px; gap: 7px; font-size: 13px; border-bottom-width: 4px; background: color-mix(in srgb, var(--territory-color) 12%, #fff); }
+.ops-live .live-schedule.schedule-dispatch .live-map-territories button[aria-pressed="true"] { color: #fff; background: #25323a; box-shadow: 0 0 0 2px #25323a; }
+.ops-live .live-schedule.schedule-dispatch .live-map-territories small { font-size: 11px; opacity: 1; padding: 1px 5px; border-radius: 4px; background: #ffffffb3; color: #25323a; }
+.ops-live .live-schedule .appointment-territory-toolbar { gap: 8px; padding: 10px 12px; flex-wrap: wrap; }
+.ops-live .live-schedule .appointment-territory-toolbar > span { font-size: 11px; color: #40515b; }
+.ops-live .live-schedule .appointment-territory-toolbar button { min-height: 38px; padding: 6px 10px; gap: 7px; font-size: 13px; }
+.ops-live .live-schedule .appointment-territory-toolbar button > i { width: 12px; height: 12px; }
+.ops-live .live-schedule .appointment-territory-toolbar button > small { font-size: 11px; }
+.ops-live .live-schedule .appointment-territory-heading { min-height: 54px; padding: 9px 12px; border-left: 5px solid var(--territory-accent); background: color-mix(in srgb, var(--territory-accent) 17%, #fff); flex-wrap: wrap; gap: 6px 12px; }
+.ops-live .live-schedule .appointment-territory-heading > div { min-width: 0; }
+.ops-live .live-schedule .appointment-territory-heading i { width: 12px; height: 12px; flex-shrink: 0; }
+.ops-live .live-schedule .appointment-territory-heading button { min-height: 34px; font-size: 12px; padding: 5px 8px; }
+.ops-live .live-schedule .appointment-territory-heading .territory-record-link { font-size: 16px; text-align: left; }
+.ops-live .live-schedule .appointment-territory-heading > span { font-size: 11px; color: #40515b; }
+.ops-live .live-schedule .appointment-area-heading { min-height: 38px; flex-wrap: wrap; gap: 5px 10px; }
+.ops-live .live-schedule .appointment-area-heading button { min-height: 28px; font-size: 11px; }
+.ops-live .live-schedule .appointment-area-heading .area-record-link { font-size: 13px; }
+.ops-live .live-schedule .live-map-territories button:focus-visible,
+.ops-live .live-schedule .appointment-territory-toolbar button:focus-visible,
+.ops-live .live-schedule .appointment-territory-heading button:focus-visible { outline: 3px solid #174e77; outline-offset: 3px; }

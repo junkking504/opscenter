@@ -162,7 +162,7 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout,
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout.map-open { height: auto; }
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-shell { height: auto; }
-.ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { flex: none; height: auto; overflow: visible; }
+.ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { flex: none; height: auto; max-height: none; overflow: visible; }
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { height: auto; }
 
 /* Map height is independent of the selected truck and its route details.

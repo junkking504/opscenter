@@ -65,7 +65,7 @@ try {
     if(width>=1000) {
       assert.ok(Math.abs(geometry.next-boardTopBefore)<2,'selection does not push dispatch down');
       assert.ok(await page.locator('.schedule-board-scroll').evaluate(el=>el.scrollHeight<=el.clientHeight+1 || getComputedStyle(el).overflowY==='auto'),'Dense rows remain reachable when space is reserved for the list banner');
-      for(const selector of ['.schedule-map-panel','.schedule-board-shell']) {
+      for(const selector of ['.schedule-map-panel']) {
         const rect=await page.locator(selector).boundingBox();
         assert.ok(rect.y>=0&&rect.y+rect.height<=height+1,`${selector} fully visible at ${width}x${height}: ${JSON.stringify(rect)}`);
       }

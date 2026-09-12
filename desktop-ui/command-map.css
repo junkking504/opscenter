@@ -18,3 +18,20 @@
   .command-map-content .schedule-board-layout.map-open .schedule-map-canvas { border-right: 0; border-bottom: 1px solid var(--border); }
   .command-map-content .schedule-board-layout.map-open .schedule-map-controls { max-height: 190px; }
 }
+
+/* Keep alerts and the same live map together on wide Command screens. */
+.command-overview { display: grid; gap: 12px; align-items: start; }
+.command-feed, .command-map-column { min-width: 0; }
+.command-feed > .crew-alerts { margin-top: 0; }
+.command-feed > .estimate-command { margin-top: 12px; flex-wrap: wrap; }
+.command-feed > .estimate-command nav { flex-wrap: wrap; }
+@media (min-width: 1280px) {
+  .ops-live .workspace.command-now-mode { max-width: none; }
+  .ops-live .command-now-mode .command-metrics { width: 100%; grid-template-columns: repeat(5, minmax(156px, 1fr)); }
+  .command-overview { grid-template-columns: minmax(0, 1.25fr) minmax(380px, 1fr); }
+  .command-map-column { position: sticky; top: 12px; max-height: calc(100dvh - 24px); overflow-y: auto; }
+  .command-map-column .command-map { margin-bottom: 0; }
+  .ops-live .command-map-column .live-schedule .schedule-board-layout.map-open .schedule-map-canvas {
+    height: clamp(280px, 42dvh, 560px); min-height: 280px;
+  }
+}

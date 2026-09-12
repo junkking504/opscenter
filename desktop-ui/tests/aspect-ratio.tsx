@@ -13,12 +13,20 @@ const amounts={hours:4,regularHours:4,overtimeHours:0,jobs:2,revenue:640,labor:8
 const members=Array.from({length:8},(_,i)=>({...amounts,id:`crew-${i}`,name:`Synthetic Crew Member ${i+1}`,initials:'SC',role:'Driver',truck:`Truck ${i+1}`,working:true,clockIn:'8:00 AM',clockOut:'',hourlyRate:20,status:'Clocked in',issue:'',version:'a',correction:null,days:[{...amounts,date,clockIn:'8:00 AM',clockOut:''}]}));
 const trucks=loads.map((load,i)=>({id:String(i+1),label:load.truck,vehicle:'Isuzu NPR',readiness:'ready',operatingStatus:'Parked',driver:'Synthetic driver',navigator:'Synthetic navigator',assignment:'Example territory',location:'Synthetic location',gpsAt:stamp,speed:0,ignition:'OFF',gpsFreshness:'Recent',odometer:'120,000 mi',serviceStatus:'Available',nextService:'Oil and filter',checklist:'Complete',loadPercent:33,loadLabel:load.label,loadNote:'Synthetic',loadVersion:'a',checklistVersion:'a',checklists:{},checklistDefinitions:[],answers:[],jobs:2,revenue:640,miles:45,idleMinutes:8,driverScore:90}));
 const leads=Array.from({length:12},(_,i)=>({id:String(i),version:'a',customer:`Synthetic customer ${i}`,phone:'504-555-0100',territory:'New Orleans',intent:'Furniture and household items from a garage cleanout',quotedValue:450,status:'Open',reason:'Follow-up requested',note:'Synthetic record',contacted:false,calledAt:stamp,updatedAt:stamp,source:'SearchKings',sourceUrl:'',appointmentId:null,jk:null,completed:false,revenue:0}));
+const commandMap = new URLSearchParams(location.search).has('commandMap');
+const mapTrucks = [2,3,4,6,8,9].map((truck,index)=>({truck:`Truck ${truck}`,latitude:29.94+index*.09,longitude:-90.05-index*.15,lastGpsUpdate:stamp,speed:0,ignition:'OFF',operationalStatus:'Parked',driver:'Synthetic driver',navigator:'Synthetic navigator'}));
+if(commandMap) {
+  command.kpis = ['Today’s jobs','Revenue','Labor','Revenue Per Hour (RPH)','Average Job Size (AJS)'].map(label=>({label,value:label==='Today’s jobs'?'18':'$450.00',detail:'Synthetic metric',progress:50,tone:'healthy'}));
+  if(command.crewProgress) command.crewProgress.jobs.forEach(row=>{row.updateIds=row.updateIds.flatMap(id=>Array.from({length:5},(_,index)=>`${id}-${index}`));});
+  scheduleJobs.forEach((row,index)=>Object.assign(row,{location:{latitude:29.92+(index%6)*.07,longitude:-90.02-Math.floor(index/6)*.18}}));
+  command.alerts = Array.from({length:5},(_,index)=>command.alerts.map(row=>({...row,id:`${row.id}-${index}`}))).flat();
+}
 // Synthetic API data only; every write is blocked.
 window.fetch=async(input,init)=>{
  if(init?.method && init.method!=='GET')return Response.json({error:'Read-only fixture'},{status:403});
  const url=new URL(String(input),location.origin), selected=url.searchParams.get('date')||date;
  const snapshots:Record<string,unknown>={
- schedule:{date:selected,observedAt:stamp,appointments:scheduleJobs,truckLoads:loads,fleet:{isToday:true,lastUpdatedAt:stamp,trucks:[]}},
+ schedule:{date:selected,observedAt:stamp,appointments:scheduleJobs,truckLoads:loads,fleet:{isToday:true,lastUpdatedAt:stamp,trucks:commandMap?mapTrucks:[]}},
  krewe:{date,start:date,end:date,view:'today',sourceUpdatedAt:stamp,missingDates:[],payrollVisible:true,canWrite:false,members,totals:amounts,callIn:null},
  fleet:{date,report:'overview',sourceUpdatedAt:stamp,sourceAvailable:true,canWrite:false,trucks,issues:[],maintenance:[],reportRows:[],reportCoverageDays:1,warnings:[]},
  marketing:{date,range:'month',fetchedAt:stamp,available:true,error:null,canAssignReviews:false,leads,reviews:[],reviewAvailable:true,reviewFetchedAt:stamp,reviewError:null,totals:{calls:40,qualified:30,bookings:20,revenue:9000,cost:600,completed:12},sources:[{source:'SearchKings',calls:40,qualified:30,bookings:20,completed:12,revenue:9000,cost:600}],jobChange:'Synthetic'},

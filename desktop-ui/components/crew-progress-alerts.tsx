@@ -1,3 +1,4 @@
+import { crewAlertContext } from '../lib/crew-alert-context';
 import { requiresAlertAttention } from '../lib/alert-attention';
 import { useMemo, useState } from 'react';
 import { ChevronRight, CircleHelp, Search, TriangleAlert } from 'lucide-react';
@@ -42,6 +43,7 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
     const facts = [...sourceFacts.filter(fact => !customerKeys.has(factKey(fact.label))),...customerFacts];
     const followUpDetail = job?.needsFollowUp && latestJobUpdates.has(alert.id) ? job.next : '';
     const presentation = crewAlertCardPresentation(alert, job);
+    const appointmentContext = crewAlertContext(alert, job, presentation?.kind === 'completed');
     return <article key={alert.id} className={`crew-update${presentation ? ` crew-update-${presentation.kind}` : ''}${followUpDetail ? ' needs-follow-up' : ''}`}>
     <div className="crew-update-time"><time dateTime={alert.timestamp}>{alert.label === 'Arrival' ? alert.facts.find(fact=>fact.label === 'Arrival')?.value || alert.detected : alert.detected}</time><span aria-hidden="true"/></div>
     <div className="crew-update-content">
@@ -52,6 +54,7 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
         <p><strong>{presentation.label === 'Estimate Completed' ? 'Total' : 'Payment'}:</strong> {presentation.label === 'Estimate Completed' ? presentation.completion.total || 'Not recorded' : presentation.completion.payment || 'Not recorded'}</p>
         <p>{facts.filter(fact=>/^(On-site time|Duration|Arrival|Departure|Visited by)$/i.test(fact.label) && !(fact.label === 'Duration' && facts.some(other=>other.label === 'On-site time'))).map((fact,index)=><span key={fact.label}>{index > 0 && <span aria-hidden="true">|</span>}<strong>{fact.label}:</strong> {fact.value}</span>)}</p>
       </div> : <dl>{facts.filter(fact=>!(/^(Krewe member|Crew member|Employee)$/i.test(fact.label) && fact.value === alert.title)).map((fact,index) => <div key={`${fact.label}-${index}`}><dt>{fact.label}</dt><dd>{fact.href ? <a href={fact.href}>{fact.value}</a> : fact.value}</dd></div>)}</dl>}
+      {appointmentContext.length > 0 && <dl className="crew-appointment-context" aria-label="Current appointment details">{appointmentContext.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd>{'href' in fact && fact.href ? <a href={fact.href}>{fact.value}</a> : fact.value}</dd></div>)}</dl>}
       {followUpDetail && <p className="crew-update-follow-up"><TriangleAlert size={13}/><strong>Follow up:</strong> {followUpDetail}</p>}
       <footer><CrewAlertPhotos photos={alert.photos} title={alert.title}/><button type="button" onClick={() => openAlert(alert)}>Open record <ChevronRight size={13}/></button>
         <span>{alert.workflowState === 'in-control' ? 'Follow-up in Control' : alert.workflowState === 'acknowledged' ? 'Reviewed' : alert.workflowState === 'resolved' ? 'Follow-up resolved' : ''}</span>

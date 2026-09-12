@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { crewAlertContext } from '../desktop-ui/lib/crew-alert-context';
+import { fixtureSnapshot } from './fixtures/crew-progress';
+const snapshot=fixtureSnapshot(), job=snapshot.crewProgress!.jobs[0], alert=snapshot.alerts[0];
+const event={...alert,label:'Arrival',facts:[{label:'Location',value:'Original event address'},{label:'Arrival',value:'10:05 AM'}]};
+const context=crewAlertContext(event,job);
+assert.ok(context.some(fact=>fact.label==='Customer'));
+assert.ok(context.some(fact=>fact.label==='Pickup items'));
+assert.ok(context.some(fact=>fact.label==='Recorded crew'));
+assert.ok(context.some(fact=>fact.label==='Appointment window'));
+assert.ok(!context.some(fact=>fact.label==='Service address'),'Recorded location takes precedence over current appointment address');
+assert.equal(event.facts[0].value,'Original event address');
+assert.deepEqual(crewAlertContext(event),[],'No guessed appointment context');
+assert.deepEqual(crewAlertContext({...event,label:'New Appointment'},job),[],'New appointment already renders full customer details');
+const completed=crewAlertContext({...event,label:'Job Completed'},job,true);
+assert.ok(completed.some(fact=>fact.label==='Phone'));
+assert.ok(!completed.some(fact=>fact.label==='Customer'),'Completion summary already includes customer');
+console.log('Alert context passed: linked job detail, event precedence, equivalent field dedupe and unlinked events.');

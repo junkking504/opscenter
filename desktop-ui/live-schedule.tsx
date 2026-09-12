@@ -79,8 +79,8 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const selectedSummaryRef = useRef<HTMLDivElement>(null);
   const dispatchSurfaceRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (selectedTruck && showMap && view === 'board') mapPanelRef.current?.scrollIntoView({ block: 'start', inline: 'nearest' });
-  }, [selectedTruck, mapResetKey, showMap, view]);
+    if (selectedTruck && showMap && view === 'board') mapPanelRef.current?.scrollIntoView({ block: mapOnly ? 'nearest' : 'start', inline: 'nearest' });
+  }, [selectedTruck, mapResetKey, showMap, view, mapOnly]);
   useEffect(() => {
     if (!selectedId || view !== 'board') return;
     const target = !mapOnly && window.innerWidth >= 1000 ? dispatchSurfaceRef.current : selectedSummaryRef.current;

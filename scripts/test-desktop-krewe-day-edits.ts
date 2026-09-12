@@ -7,7 +7,8 @@ import {readDesktopKrewe, readDesktopKreweDay, runDesktopKreweAction} from '../l
 import {readCommandCrewCorrections} from '../lib/command-crew-corrections';
 import {readKreweHours} from '../lib/desktop-krewe-hours';
 import {payPeriodDates} from '../lib/pay-period';
-import {payrollCorrectionForEmployee} from '../lib/payroll-corrections';
+import {payrollCorrectionForEmployee, upsertPayrollCorrection} from '../lib/payroll-corrections';
+import {stagePayrollSync, writePayrollSync, payrollSyncForCorrection} from '../lib/junkware-payroll-sync';
 import {manualBonusEntriesForEmployee} from '../lib/manual-bonuses';
 import {clockDurationLabel} from '../desktop-ui/lib/krewe-clock-duration';
 
@@ -120,6 +121,36 @@ try {
   const periodMember=readDesktopKrewe('2026-09-06','payperiod','admin').members.find(row=>row.name===employee.name)!;
   assert.equal(periodMember.days.find(day=>day.date==='2026-09-06')?.totalPay,264.1,'Weekly cards use the corrected daily pay');
   assert.equal(fs.readFileSync(sourceFile,'utf8'),untouched,'Saving a correction does not rewrite collected JunkWare data');
+  // Rejected zero-hour edits must not mask a completed source shift or
+  // poison the next day's overtime basis. Keep their audit and receipt intact.
+  const rejectedName='Synthetic Rejected Edit';
+  for (const date of ['2026-09-11','2026-09-12']) {
+    write(date,[{...employee,name:rejectedName}]);
+    const correction=upsertPayrollCorrection({employeeName:rejectedName,workDate:date,clockIn:'08:00 AM',clockOut:'08:00 AM',hourlyRate:20,note:'Synthetic accidental edit'})!;
+    const sync=stagePayrollSync(correction);
+    writePayrollSync({...sync,status:'failed',phase:'reading',message:'Rejected before submission'});
+  }
+  const rejected=readDesktopKrewe('2026-09-12','today','admin').members.find(row=>row.name===rejectedName)!;
+  assert.equal(rejected.clockOut,'04:00 PM');
+  assert.equal(rejected.hours,8);
+  assert.equal(rejected.labor,160);
+  assert.equal(rejected.issue,'','Failed prior edits must not demand weekly recalculation');
+  assert.equal(rejected.correction,null);
+  assert.equal(readKreweHours('2026-09-12').employees.find(row=>row.name===rejectedName)?.weeks[0].days[5].corrected,false);
+  assert.equal(readDesktopKrewe('2026-09-12','payperiod','admin').members.find(row=>row.name===rejectedName)?.days.find(day=>day.date==='2026-09-12')?.hours,8);
+  const retained=payrollCorrectionForEmployee('2026-09-12',rejectedName)!;
+  assert.equal(retained.clockOut,'08:00 AM','Retain the original audit record');
+  const failedSync=payrollSyncForCorrection(retained)!;
+  assert.equal(failedSync.status,'failed','Reading the timesheet never retries or rewrites a receipt');
+  for (const status of ['pending','uncertain'] as const) {
+    writePayrollSync({...failedSync,status,updatedAt:new Date().toISOString()});
+    assert.equal(readDesktopKrewe('2026-09-12','today','admin').members.find(row=>row.name===rejectedName)?.clockOut,'08:00 AM','Unresolved outcomes remain visible');
+  }
+  writePayrollSync({...failedSync,submittedAt:new Date().toISOString(),phase:'submitted'});
+  assert.equal(readDesktopKrewe('2026-09-12','today','admin').members.find(row=>row.name===rejectedName)?.clockOut,'08:00 AM','Never dismiss an edit with submission evidence');
+  writePayrollSync(failedSync);
+  write('2026-09-11',[{...employee,name:rejectedName,clock_out:''}]);
+  assert.equal(readDesktopKrewe('2026-09-11','today','admin').members.find(row=>row.name===rejectedName)?.issue,'Missing clock-out','Actual source exceptions remain visible');
   console.log('Krewe day edits passed: all 14 dates, missed shifts, isolated dates/rates/versions, bonus read-back and replay, payroll-only roster, role guards, and clock-in-only Today with holiday empty state.');
 } finally {
   process.chdir(originalDirectory);

@@ -33,6 +33,13 @@ read-only until the outcome is established. An unconfirmed source result blocks
 another correction for that shift and appears under Needs Attention. There is
 no automatic bulk backfill of historical corrections.
 
+A failed edit rejected before submission remains in the correction ledger and
+request receipt, but does not override source clocks, hours, rates, or weekly
+pay calculations. Krewe uses the collected JunkWare timesheet again; actual
+missing punches still appear for review. Pending and uncertain submissions
+remain active and require verification. No source writes or retries happen
+when reading a timesheet.
+
 The source journal lives at
 `OPSBOT_DATA_DIR/payroll_corrections/junkware-sync/`. Keep it outside Git along
 with the original correction ledger. A source-side edit cannot be undone by

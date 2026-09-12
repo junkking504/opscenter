@@ -1,10 +1,11 @@
+import {appliedPayrollCorrectionForEmployee} from './applied-payroll-corrections';
 import fs from "fs";
 import path from "path";
 import { applyManualBonusesToMetrics } from "@/lib/manual-bonuses";
 import { calculateWeeklyOvertime } from "@/lib/overtime";
 import { payPeriodDates } from "@/lib/pay-period";
 import { employeeJobRevenueWorked } from "@/lib/opsData";
-import { payrollCorrectionForEmployee, type PayrollCorrection } from "@/lib/payroll-corrections";
+import { type PayrollCorrection } from "@/lib/payroll-corrections";
 
 export type CrewDayMetric = {
   date: string;
@@ -442,7 +443,7 @@ function dailyCrewMetric(date: string, employee: string, metrics: Record<string,
   const sourceClockIn = String(row.clock_in || row.time_in || row.clockIn || row.timeIn || "").trim();
   const sourceClockOut = String(row.clock_out || row.time_out || row.clockOut || row.timeOut || "").trim();
   const sourceHourlyRate = num(row.hourly_rate) || null;
-  const correction = payrollCorrectionForEmployee(date, employee);
+  const correction = appliedPayrollCorrectionForEmployee(date, employee);
   const clockIn = correction?.clockIn || sourceClockIn;
   const clockOut = correction?.clockOut || sourceClockOut;
   const hourlyRate = correction?.hourlyRate || sourceHourlyRate;

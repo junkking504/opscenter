@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {buildStreetRoute,eligibleStreetEdges,gpsSourceVersion,matchedStreetEdges,roadCoordinates,reusableStreetProgress} from '../lib/desktop-street-route';
+import {buildStreetRoute,eligibleStreetEdges,gpsSourceVersion,matchedStreetEdges,roadCoordinates,reusableStreetProgress,readStreetRoute} from '../lib/desktop-street-route';
 import {osmStreetJson} from '../lib/osm-street-transport';
 import type {GpsRoutePoint,TruckGpsRoute} from '../desktop-ui/lib/gps-route-contract';
 
@@ -47,6 +47,16 @@ async function main(){
  assert.equal(reusableStreetProgress({...route,truck:'Truck 6'},{source:route,result}),undefined,'Never reuse another truck history');
  const ambiguous=payload(points);ambiguous.matchings[0].confidence=.2;
  assert([...matchedStreetEdges(ambiguous,points).values()].every(p=>p.kind==='estimated'));
+ let release!:()=>void,queuedCalls=0;
+ const gate=new Promise<void>(resolve=>{release=resolve;});
+ const queuedRoute={...route,truck:'Truck 17'};
+ const queuedSend=async(path:string)=>{queuedCalls++;await gate;const p=path.split('/driving/')[1].split('?')[0].split(';').map((p,i)=>{const [longitude,latitude]=p.split(',').map(Number);return {longitude,latitude,timestamp:points[i].timestamp};});return payload(p);};
+ const immediate=await readStreetRoute(queuedRoute,queuedSend);
+ assert.equal(immediate.status,'partial','A slow provider returns visible pending coverage immediately');
+ await readStreetRoute(queuedRoute,queuedSend);
+ assert.equal(queuedCalls,1,'Repeated viewers do not duplicate a pending road build');
+ release();await new Promise(resolve=>setImmediate(resolve));
+ assert.equal((await readStreetRoute(queuedRoute,queuedSend)).paths.length,2,'Completed background geometry is available on the next read');
  const actualFetch=globalThis.fetch,starts:number[]=[];
  try {
   globalThis.fetch=async input=>{assert(String(input).startsWith('https://routing.openstreetmap.de/'));starts.push(Date.now());return Response.json({code:'Ok'});};

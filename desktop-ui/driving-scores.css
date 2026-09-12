@@ -1,0 +1,21 @@
+.ops-live .driving-score-badge { display: grid; gap: 4px; width: 100%; min-width: 0; padding: 7px; text-align: left; white-space: normal; border: 1px solid #d4ddd8; border-radius: 6px; background: #f5f8f5; color: #243b32; }
+.ops-live .driving-score-badge strong { font-size: 12px; }
+.ops-live .driving-score-badge small { font-size: 10px; line-height: 1.4; }
+.ops-live .live-krewe .krewe-performance-head, .ops-live .live-krewe .krewe-performance-row { min-width: 1120px; grid-template-columns: minmax(145px, 1.3fr) 98px 110px 110px 130px 80px 70px 70px 80px 52px; }
+.ops-live .driving-score-details, .ops-live .fleet-driving-scores, .ops-live .driving-period-summary { min-width: 0; padding: 16px; background: #fff; border: 1px solid #dce3dd; border-radius: 8px; font-size: 12px; }
+.ops-live .driving-score-details p, .ops-live .fleet-driving-scores p, .ops-live .driving-period-summary p { margin: 8px 0; line-height: 1.5; }
+.ops-live .driving-score-details h3, .ops-live .driving-period-summary h3 { font-size: 16px; margin: 0 0 8px; }
+.ops-live .driving-score-details article { padding-block: 12px; border-top: 1px solid #dce3dd; }
+.ops-live .driving-score-details h4 { font-size: 13px; margin: 0 0 8px; }
+.ops-live .driving-score-value { font-size: 22px; }
+.ops-live .driving-score-details dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px; margin: 12px 0; }
+.ops-live .driving-score-details dd { margin: 4px 0 0; font-weight: 700; }
+.ops-live .driving-score-details table, .ops-live .driving-period-summary table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.ops-live .driving-score-details th, .ops-live .driving-score-details td, .ops-live .driving-period-summary th, .ops-live .driving-period-summary td { text-align: left; vertical-align: top; padding: 8px 5px; border-bottom: 1px solid #e5e9e5; white-space: normal; }
+.ops-live .driving-table-scroll { overflow-x: auto; }
+.ops-live .driving-period-summary > .driving-table-scroll > table { min-width: 680px; }
+.ops-live .driving-score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr)); gap: 12px; align-items: start; }
+.ops-live .driving-score-grid > details { border: 1px solid #dce3dd; border-radius: 8px; }
+.ops-live .driving-score-grid summary { display: grid; gap: 8px; padding: 14px; cursor: pointer; }
+.ops-live .driving-score-grid summary b { font-size: 20px; }
+.ops-live .driving-period-summary summary { cursor: pointer; }

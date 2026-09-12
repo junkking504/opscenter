@@ -200,7 +200,7 @@ type CallInCandidate = {
   memberId: string; rank: number; suggestedRole: string; reason: string; projectedHours: number;
   recentRph: number; recentJobs: number; overtimeRisk?: boolean; status: CallInStatus;
 };
-type FleetView = 'overview' | 'maintenance' | 'service' | 'reports';
+type FleetView = 'scores' | 'overview' | 'maintenance' | 'service' | 'reports';
 type FleetReadiness = 'Ready' | 'Attention' | 'Out of service';
 type FleetTruck = {
   id: string; label: string; vehicle: string; readiness: FleetReadiness; operatingStatus: string; driver: string; navigator: string;
@@ -1112,7 +1112,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const [kreweMonth, setKreweMonth] = useState<'august' | 'july'>('august');
   const [timeCorrection, setTimeCorrection] = useState({ clockIn: '', clockOut: '', reason: '' });
   const [bonusEntry, setBonusEntry] = useState({ amount: '', reason: '' });
-  const [fleetView, setFleetViewValue] = useState<FleetView>(() => live ? navigationValue(window.location.search, 'fleetView', ['overview', 'maintenance', 'service', 'reports'], 'overview') : 'overview');
+  const [fleetView, setFleetViewValue] = useState<FleetView>(() => live ? navigationValue(window.location.search, 'fleetView', ['overview', 'scores', 'maintenance', 'service', 'reports'], 'overview') : 'overview');
   const setFleetView = (value: FleetView) => { if (!mutationBusyRef.current) setFleetViewValue(value); };
   const [fleetTruckRows, setFleetTruckRows] = useState<FleetTruck[]>(live ? [] : fleetTrucks);
   const [fleetIssues, setFleetIssues] = useState<FleetIssue[]>(live ? [] : initialFleetIssues);
@@ -1177,7 +1177,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       : activeNav === 'Krewe'
         ? `Krewe · ${kreweView === 'today' ? 'Today' : kreweView === 'callin' ? 'Call-In Plan' : kreweView === 'payperiod' ? 'Pay Period' : 'Monthly'}`
         : activeNav === 'Fleet'
-          ? `Fleet · ${fleetView === 'overview' ? 'Overview' : fleetView === 'maintenance' ? 'Maintenance' : fleetView === 'service' ? 'Service' : 'Reports'}`
+          ? `Fleet · ${fleetView === 'scores' ? 'Driving Scores' : fleetView === 'overview' ? 'Overview' : fleetView === 'maintenance' ? 'Maintenance' : fleetView === 'service' ? 'Service' : 'Reports'}`
           : activeNav === 'Marketing'
             ? `Marketing · ${marketingView === 'overview' ? 'Overview' : marketingView === 'leads' ? 'Leads' : marketingView === 'reviews' ? 'Reviews' : 'Performance'}`
             : `Finance · ${financeView === 'overview' ? 'Overview' : financeView === 'payments' ? 'Payments' : financeView === 'resale' ? 'Resale' : financeView === 'recycling' ? 'Recycling' : 'Trends'}`;
@@ -4290,7 +4290,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   : kreweView === 'callin' ? 'Plan tomorrow’s coverage and record each availability decision.'
                     : kreweView === 'payperiod' ? 'Reconcile hours, production, earnings, and exceptions across the current pay period.'
                       : 'Review monthly labor, production, payroll, and individual performance.'
-                : activeNav === 'Fleet' ? fleetView === 'overview'
+                : activeNav === 'Fleet' ? fleetView === 'scores' ? 'Daily driving scores, event deductions, and driver attribution.' : fleetView === 'overview'
                   ? 'Vehicle readiness, live work, load status, service risk, and next actions.'
                   : fleetView === 'maintenance' ? 'Daily inspections and repair work orders with accountable ownership.'
                     : fleetView === 'service' ? 'Mileage and date-based preventive-service planning by truck.'
@@ -4337,7 +4337,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             ) : activeNav === 'Fleet' ? (
               <div className="fleet-heading-actions">
                 <div className="fleet-view-switcher workspace-tabs" role="tablist" aria-label="Fleet views">
-                  {([['overview', 'Overview'], ['maintenance', 'Maintenance'], ['service', 'Service'], ['reports', 'Reports']] as const).map(([key, label]) => <button className={fleetView === key ? 'active' : ''} onClick={() => setFleetView(key)} role="tab" aria-selected={fleetView === key} key={key}>{label}{!live && key === 'maintenance' && <span>{activeFleetIssues.length}</span>}</button>)}
+                  {([['overview', 'Overview'], ['scores', 'Driving Scores'], ['maintenance', 'Maintenance'], ['service', 'Service'], ['reports', 'Reports']] as const).map(([key, label]) => <button className={fleetView === key ? 'active' : ''} onClick={() => setFleetView(key)} role="tab" aria-selected={fleetView === key} key={key}>{label}{!live && key === 'maintenance' && <span>{activeFleetIssues.length}</span>}</button>)}
                 </div>
               </div>
             ) : activeNav === 'Marketing' ? (

@@ -27,3 +27,5 @@ if (bootstrap.mode === 'reference') {
 } else {
   root.textContent = 'The desktop release is not ready. No operational changes were made.';
 }
+
+import './driving-scores.css';

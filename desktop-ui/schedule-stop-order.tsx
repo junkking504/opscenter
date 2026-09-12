@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { stopGroups, stopGroupKey, stopOrderSourceKey } from '../lib/schedule-stop-order';
+import { stopGroupsForTruck, stopGroupKey, stopOrderSourceKey } from '../lib/schedule-stop-order';
 import type { ScheduleAppointment, ScheduleRouteLeg, ScheduleSnapshot } from './lib/schedule-contract';
 import './schedule-stop-order.css';
 
-export default function ScheduleStopOrder({snapshot,busy,saved,onBusyChange}: {snapshot: ScheduleSnapshot; busy: boolean; saved: (snapshot: ScheduleSnapshot)=>void; onBusyChange: (busy: boolean)=>void}) {
+export default function ScheduleStopOrder({snapshot,truck,selectedAppointmentId,busy,saved,onBusyChange}: {snapshot: ScheduleSnapshot; truck: string | null; selectedAppointmentId: string | null; busy: boolean; saved: (snapshot: ScheduleSnapshot)=>void; onBusyChange: (busy: boolean)=>void}) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const groups = stopGroups(snapshot.appointments);
+  const groups = stopGroupsForTruck(snapshot.appointments,truck,selectedAppointmentId);
   const [group,setGroup] = useState<ScheduleAppointment[] | null>(null);
   const [ids,setIds] = useState<string[]>([]);
   const [legs,setLegs] = useState<ScheduleRouteLeg[]>([]);
@@ -26,7 +26,7 @@ export default function ScheduleStopOrder({snapshot,busy,saved,onBusyChange}: {s
   const close = () => { if (saving.current) return; cancelPreview(); active.current?.abort(); dialog.current?.close(); setGroup(null); setWorking(''); };
   const request = async (action: 'preview'|'nearest'|'save') => {
     // A debounced preview must never replace a user-requested save/suggestion.
-    if (saving.current) return;
+    if (saving.current || !group || stale) return;
     cancelPreview();
     active.current?.abort();
     const abort = new AbortController(); active.current = abort;
@@ -57,14 +57,14 @@ export default function ScheduleStopOrder({snapshot,busy,saved,onBusyChange}: {s
     // eslint-disable-next-line react-hooks/exhaustive-deps
   },[sourceKey,draftKey,stale,refresh]);
   useEffect(()=>()=>{cancelPreview(); active.current?.abort();},[]);
-  if (!groups.length && !group) return null;
   return <>
-    <button type="button" className="schedule-stop-order-trigger" disabled={busy} onClick={()=>{choose(groups[0]);dialog.current?.showModal();}}>Stop Order</button>
+    <button type="button" className="schedule-stop-order-trigger" disabled={busy || !truck} title={truck ? `Order stops for ${truck}` : "Select a truck or an assigned appointment first"} onClick={()=>{if(groups[0])choose(groups[0]);dialog.current?.showModal();}}>Stop Order</button>
     <dialog ref={dialog} className="schedule-stop-order" aria-labelledby="stop-order-title" onCancel={event=>{event.preventDefault();close();}}>
-      <header><h2 id="stop-order-title">Order Same-Time Appointments</h2><button type="button" aria-label="Close stop order" disabled={working === 'save'} onClick={close}>×</button></header>
-      <p>Move stops up or down. Times and truck assignments stay the same. Save to update the schedule and travel estimates.</p>
+      <header><h2 id="stop-order-title">{truck} · Stop Order</h2><button type="button" aria-label="Close stop order" disabled={working === 'save'} onClick={close}>×</button></header>
+      <p>Order appointments in the same time slot. Move stops up or down. Times and truck assignments stay the same. Save to update the schedule and travel estimates.</p>
+      {!group && <><p>No same-time appointments to reorder on {truck}.</p><footer><button type="button" onClick={close}>Close</button></footer></>}
       {group && <>
-        <label>Truck and time slot<select aria-label="Stop order time slot" value={groupKey} disabled={working === 'save'} onChange={event=>{const next=groups.find(group=>stopGroupKey(group[0]) === event.target.value);if(next)choose(next);}}>{groups.map(group=><option key={stopGroupKey(group[0])} value={stopGroupKey(group[0])}>{group[0].truck} · {group[0].appointmentTime} · {group.length} stops</option>)}</select></label>
+        <label>Time slot<select aria-label="Stop order time slot" value={groupKey} disabled={working === 'save'} onChange={event=>{const next=groups.find(group=>stopGroupKey(group[0]) === event.target.value);if(next)choose(next);}}>{groups.map(group=><option key={stopGroupKey(group[0])} value={stopGroupKey(group[0])}>{group[0].truck} · {group[0].appointmentTime} · {group.length} stops</option>)}</select></label>
         {stale && <p role="alert">The schedule or saved order changed. <button disabled={working === 'save'} onClick={()=>{if(current)choose(current);else close();}}>Refresh stops</button></p>}
         <ol>{ids.map((id,index)=>{
           const job=group.find(job=>job.recordId === id)!;

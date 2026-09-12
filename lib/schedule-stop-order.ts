@@ -18,6 +18,11 @@ export function stopGroups<T extends OrderedStop>(jobs: T[]): T[][] {
   }
   return [...groups.values()].filter(group => group.length > 1).map(group => group.sort(compareStops));
 }
+export function stopGroupsForTruck<T extends OrderedStop>(jobs: T[], truck: string | null, selectedId?: string | null): T[][] {
+  if (!truck) return [];
+  const groups = stopGroups(jobs.filter(job => stopTruck(job.truck) === stopTruck(truck)));
+  return groups.sort((a,b) => Number(b.some(job => job.recordId === selectedId)) - Number(a.some(job => job.recordId === selectedId)) || compareStops(a[0],b[0]));
+}
 export function stopOrderSourceKey(jobs: OrderedStop[]) {
   // The fast feed and detailed feed format the same address differently.
   // Protect the inputs this operation changes/uses, without treating notes,

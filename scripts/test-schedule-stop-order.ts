@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { stopGroups, stopGroupKey, stopOrderSourceKey, isStopPermutation } from '../lib/schedule-stop-order';
+import { stopGroups, stopGroupsForTruck, stopGroupKey, stopOrderSourceKey, isStopPermutation } from '../lib/schedule-stop-order';
 import { applyStopOrders, saveStopOrder, StopOrderConflict } from '../lib/desktop-stop-order-store';
 import { calculateDesktopRouteLegs, type DesktopAppointment } from '../lib/desktop-schedule';
 import { nearestStopOrder } from '../lib/desktop-stop-order';
@@ -14,6 +14,13 @@ async function main() {
   process.env.SCHEDULE_STOP_ORDER_DIR=directory;
   try {
     const jobs=[1,2,3,4].map(id=>({recordId:`2026-09-09:appointment:${id}`,appointmentId:String(id),version:'1',address:'100 Example St New Orleans LA 70125',status:'Confirmed',truck:'Truck 8',appointmentStartMinutes:480,appointmentEndMinutes:540,hasScheduledTime:true,location:{latitude:30,longitude:-90+id/100},jkNumber:`JK${id}`} as DesktopAppointment));
+    const otherTruck=jobs.map(job=>({...job,recordId:job.recordId+'6',truck:'Truck 6'}));
+    const later=jobs.map(job=>({...job,recordId:job.recordId+'late',appointmentStartMinutes:600,appointmentEndMinutes:660}));
+    const fleet=[...otherTruck,...jobs,...later];
+    assert.deepEqual(stopGroupsForTruck(fleet,'truck #8').flat().map(job=>job.truck),Array(8).fill('Truck 8'),'Only the selected truck is eligible, regardless of source ordering');
+    assert.equal(stopGroupsForTruck(fleet,'Truck 8',later[0].recordId)[0][0].appointmentStartMinutes,600,'Open the selected appointment time slot first');
+    assert.equal(stopGroupsForTruck(fleet,'Truck 4').length,0,'An empty truck must not fall back to another truck');
+    assert.equal(stopGroupsForTruck(fleet,null).length,0,'No selection must not silently choose the first truck');
     const read=()=>applyStopOrders('2026-09-09',jobs);
     const group=stopGroups(read())[0], ids=group.map(job=>job.recordId);
     assert.equal(stopOrderSourceKey(group),stopOrderSourceKey(group.map(job=>({...job,version:'new-note',status:'Completed',address:'100 Example St, New Orleans, 70125'}))),'Cosmetic feed formatting and unrelated updates must not invalidate an order draft');

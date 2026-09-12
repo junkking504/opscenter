@@ -1,7 +1,7 @@
 .panel {
-  display: flex;
+  display: grid;
   min-width: 0;
-  align-items: center;
+  align-items: start;
   gap: 12px;
   margin: 0;
   padding: 9px 10px;
@@ -12,8 +12,7 @@
 }
 
 .heading {
-  width: 178px;
-  flex: 0 0 178px;
+  width: 100%;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -40,7 +39,7 @@
 .heading span {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .message {
@@ -51,28 +50,28 @@
 }
 
 .grid {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  align-items: start;
   min-width: 0;
-  flex: 1 1 auto;
-  gap: 6px;
-  padding-bottom: 1px;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scrollbar-width: thin;
+  gap: 10px;
 }
 
 .truck {
   position: relative;
   display: grid;
-  width: 126px;
-  min-width: 126px;
-  flex: 0 0 126px;
-  gap: 5px;
-  padding: 7px 8px 6px;
+  align-content: start;
+  min-width: 0;
+  gap: 10px;
+  padding: 12px;
   border: 1px solid #d9e1ec;
   border-radius: 7px;
   background: #f8fafc;
 }
+.truck > p { margin: 0; font-size: 12px; line-height: 1.45; }
+.verification { font-size: 12px; line-height: 1.45; }
+.verification summary { cursor: pointer; color: #8a591c; font-weight: 700; }
+.verification p { margin: 8px 0 0; }
 
 .truck[aria-busy="true"] {
   opacity: .68;
@@ -122,7 +121,7 @@
 .controls > summary {
   color: #526070;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 12px;
   font-weight: 800;
   line-height: 1.2;
   list-style: none;
@@ -136,11 +135,9 @@
 }
 
 .controlPopover {
-  position: absolute;
-  z-index: 40;
-  top: calc(100% + 5px);
-  right: 0;
-  width: 248px;
+  position: static;
+  width: 100%;
+  box-sizing: border-box;
   display: grid;
   gap: 8px;
   padding: 10px;
@@ -248,18 +245,7 @@
     text-align: left;
   }
 
-  .grid {
-    display: flex;
-    margin-inline: -11px;
-    padding: 0 11px 4px;
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
-  }
-
-  .truck {
-    flex: 0 0 min(78vw, 270px);
-    scroll-snap-align: start;
-  }
+  .grid { grid-template-columns: 1fr; }
 
   .controlPopover {
     position: static;

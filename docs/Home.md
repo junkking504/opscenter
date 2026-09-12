@@ -41,6 +41,7 @@ without mixing live runtime data or secrets into Git.
 - [WhatsApp job photos](whatsapp-job-photos.md)
 - [OpsBot Resale photos and sales](whatsapp-resale.md)
 - [LinxUp live GPS push](linxup-push.md)
+- [Driving scores](driving-scores.md)
 - [Truck load status](truck-load-status.md)
 - [Estimate follow-up](estimate-follow-up.md)
 - [JunkWare appointment creation](junkware-appointment-creation.md)

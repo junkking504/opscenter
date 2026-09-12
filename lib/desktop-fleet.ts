@@ -1,3 +1,4 @@
+import { readDesktopDrivingScores } from './desktop-driving-scores';
 import fs from 'node:fs';
 import path from 'node:path';
 import { buildFleetMapPayload } from '@/lib/fleet-map';
@@ -21,7 +22,7 @@ export function readDesktopFleet(date:string, report:string, role:InteractiveOps
   const loads=readOperationalTruckLoads(date,[...(map?.trucks.map(row=>row.truck)||[]),...issues.map(row=>row.truck),...maintenance.map(row=>row.truck),...entries.map(row=>row.truck)]);
   const names=[...new Set([...(map?.trucks.map(row=>row.truck)||[]),...issues.map(row=>row.truck),...maintenance.map(row=>row.truck),...entries.map(row=>row.truck),...loads.map(row=>row.truck)].map(normalizeTruckLoadLabel).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
   const storedLoads=readTruckLoadStatuses(date,names); const summary=report==='reports'?buildFleetMonthlySummary(date):null;
-  return {date,report,sourceUpdatedAt:map?.lastUpdatedAt||null,sourceAvailable:Boolean(map),canWrite:opsRoleCan(role,'operations.write'),trucks:names.map(name=>{
+  return {date,report,drivingScores:report==='scores'?readDesktopDrivingScores(date):undefined,sourceUpdatedAt:map?.lastUpdatedAt||null,sourceAvailable:Boolean(map),canWrite:opsRoleCan(role,'operations.write'),trucks:names.map(name=>{
     const source=map?.trucks.find(row=>normalizeTruckLoadLabel(row.truck)===name); const checklist=entries.find(row=>normalizeTruckLoadLabel(row.truck)===name&&row.cadence==='daily'&&row.periodKey===date)||null; const load=loads.find(row=>normalizeTruckLoadLabel(row.truck)===name)||null; const repairs=issues.filter(row=>normalizeTruckLoadLabel(row.truck)===name&&row.status!=='resolved'); const definitions=effectiveFleetChecklistDefinitions(name,'daily',customizations);
     const checklistFor=(cadence:FleetChecklistCadence)=>{const entry=entries.find(row=>normalizeTruckLoadLabel(row.truck)===name&&row.cadence===cadence&&row.periodKey===fleetChecklistPeriodKey(date,cadence))||null;return {version:desktopVersion(entry),inspector:entry?.inspector||'',definitions:effectiveFleetChecklistDefinitions(name,cadence,customizations),answers:entry?.answers||[]};};
     const complete=Boolean(checklist?.completedAt&&checklist.inspector&&definitions.every(def=>checklist.answers.some(answer=>answer.itemId===def.itemId)));

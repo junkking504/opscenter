@@ -66,6 +66,26 @@ const shortMatch={...censusMatch,matchedAddress:'100 OAK ST, NEW ORLEANS, LA, 70
 assert.equal(verifyCensusAddress('100 Oaks St New Orleans LA 70125',{result:{addressMatches:[shortMatch]}}).location,null,'Short street names are not typo-corrected');
 console.log('Automatic spelling correction passed: exact locality/number/ZIP/type/direction guards, ambiguous matches and invalid points.');
 
+const duplicateBase={...censusMatch,matchedAddress:'100 PEACHTREE CT, NEW ORLEANS, LA, 70125',
+  addressComponents:{...censusMatch.addressComponents,streetName:'PEACHTREE',suffixType:'CT'},
+  tigerLine:{tigerLineId:'test-road-segment',side:'R'}};
+const spacedAlias={...duplicateBase,matchedAddress:'100 PEACH TREE CT, NEW ORLEANS, LA, 70125',addressComponents:{...duplicateBase.addressComponents,streetName:'PEACH TREE'}};
+const aliasAddress='100 Peachtree Ct New Orleans LA 70125';
+assert.ok(verifyCensusAddress(aliasAddress,{result:{addressMatches:[spacedAlias,duplicateBase]}}).location,'Spaced street aliases at the same physical address are one location');
+assert.ok(verifyCensusAddress(aliasAddress,{result:{addressMatches:[duplicateBase,spacedAlias]}}).location,'Provider ordering does not affect verification');
+for(const other of [
+  {...spacedAlias,coordinates:{x:-90.10001,y:29.95}},
+  {...spacedAlias,tigerLine:{...spacedAlias.tigerLine,side:'L'}},
+  {...spacedAlias,tigerLine:{...spacedAlias.tigerLine,tigerLineId:'other-segment'}},
+  {...spacedAlias,matchedAddress:'101 PEACH TREE CT, NEW ORLEANS, LA, 70125'},
+  {...spacedAlias,addressComponents:{...spacedAlias.addressComponents,streetName:'OTHER'}},
+  {...spacedAlias,addressComponents:{...spacedAlias.addressComponents,preDirection:'N'}},
+  {...spacedAlias,addressComponents:{...spacedAlias.addressComponents,suffixType:'ST'}},
+  {...spacedAlias,addressComponents:{...spacedAlias.addressComponents,zip:'70124'}},
+  {...spacedAlias,tigerLine:undefined},
+]) assert.equal(verifyCensusAddress(aliasAddress,{result:{addressMatches:[duplicateBase,other]}}).location,null,'Distinct or insufficiently identified candidates remain ambiguous');
+console.log('Duplicate Census aliases passed: same point/road/side/address only; true ambiguity still rejected.');
+
 async function verifyAutomaticCache() {
   const fs=await import('node:fs'),os=await import('node:os'),path=await import('node:path');
   const {createHash}=await import('node:crypto');

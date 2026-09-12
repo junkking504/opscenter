@@ -1,5 +1,6 @@
 import { reviewedServiceAddress } from './reviewed-service-address';
 import { hasMinorStreetCorrection } from './address-spelling-correction';
+import { sameCensusAddress, type CensusAddressMatch } from './census-address-matches';
 import type { PlanningLocation } from './planning-geocodes';
 import { fullFieldStreetAddress, serviceStreetCandidates } from './appointment-partner';
 import fs from 'node:fs';
@@ -57,8 +58,13 @@ export function verifyAddressResult(address: string, payload: Payload): AddressV
 }
 
 export function verifyCensusAddress(address:string,payload:unknown):AddressVerification {
-  const matches=(payload as {result?:{addressMatches?:Array<{matchedAddress?:string;addressComponents?:{zip?:string;state?:string;city?:string};coordinates?:{x?:number;y?:number}}>}}|null)?.result?.addressMatches;
-  if(!Array.isArray(matches) || matches.length!==1)return {location:null,reason:'Precise Service Location Unavailable'};
+  const matches=(payload as {result?:{addressMatches?:CensusAddressMatch[]}}|null)?.result?.addressMatches;
+  if(!Array.isArray(matches) || !matches.length)return {location:null,reason:'Precise Service Location Unavailable'};
+  if(matches.length > 1) {
+    if(!sameCensusAddress(matches))return {location:null,reason:'Multiple Address Matches'};
+    const verified=matches.map(match=>verifyCensusAddress(address,{result:{addressMatches:[match]}}));
+    return verified.find(result=>result.location && !result.matchedAddress) || verified.find(result=>result.location) || verified[0];
+  }
   const match=matches[0],street=String(match.matchedAddress || '').split(',')[0].trim().match(/^(\d+[A-Z]?)\s+(.+)$/i);
   if(!street)return {location:null,reason:'Address Needs Exact House, Street, And ZIP Match'};
   const component=(type:string,value:string)=>({types:[type],long_name:value,short_name:value});

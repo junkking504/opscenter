@@ -432,6 +432,14 @@ reason in the shared verification cache. Normal matches and accepted corrections
 need no manual verification. Remaining unresolved locations use the existing
 address-review flow; a single geocoder result is not by itself sufficient proof.
 
+Census sometimes returns spaced/unspaced street aliases twice. They count as one
+location only when house, street name (ignoring spaces), all directional/type
+components, city/state/ZIP, TIGER road segment and side, and exact coordinates
+agree. Each alias still goes through full address validation against the source;
+at least one must pass. Missing road identity, nearby but different points or
+different addresses remain ambiguous. This prevents duplicate provider records
+from forcing unnecessary manual review.
+
 Verified results are atomically cached by the full original field for 24 hours
 (failures five minutes) in `data/cache/service-address-verifications/`.
 Cache schema 2 immediately retries old schema-1 failures under the new policy;

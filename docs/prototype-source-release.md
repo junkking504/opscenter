@@ -472,9 +472,11 @@ collection cannot delay today's board. Finance reuses daily source reads within
 one request across its monthly and comparison calculations, with no financial
 cache carried across server requests. The initial HTML preloads the selected workspace code and its shared dependencies.
 Hashed assets use immutable browser caching. After the first Command read, idle
-time warms Fleet, Marketing, Krewe, and permitted Finance read models one at a
-time. These endpoints only read existing local sources; Schedule collection and
-provider requests are excluded. Warm reads share in-flight work with navigation
+time warms the saved Schedule board, Fleet, Marketing, Krewe, and permitted
+Finance read models one at a time. Schedule warming omits `load=1`, reading the
+existing snapshot without requesting collection. Opening Schedule still performs
+its usual source request. These endpoints only read existing local sources;
+provider requests are excluded. Identical warm reads share in-flight work with navigation
 and stop scheduling while the tab is hidden or an operational action is busy.
 Preloaded modules render synchronously on their first visit; they do not pass
 through another Suspense fallback after their code has already arrived.
@@ -503,6 +505,11 @@ pass reduced one full Fleet load from 5,181 ms to 1,910 ms. Command and Schedule
 transitions measured 33 ms and 52 ms. First warmed Marketing, Finance, and Krewe
 visits still incurred a 345–369 ms Suspense delay, motivating the synchronous
 preloaded-module path. These are individual measurements, not percentiles.
+The final module check measured first prepared visits at Marketing 27 ms,
+Finance 41 ms, and Krewe 41 ms, with a full Fleet page load of 2,047 ms.
+Schedule's first visit still took 1,910 ms before adding the saved-board warm
+read. Source-refresh requests are kept distinct from saved-board requests, and
+late background responses cannot replace snapshots from newer foreground reads.
 
 The read-only Finance comparison against the same September 11 runtime produced
 identical serialized output. Daily metric file reads fell from 847 to 520; one

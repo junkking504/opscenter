@@ -36,6 +36,18 @@ async function main() {
     const shared = fetchWorkspace('/api/desktop/fleet?date=A', signal);
     clearWorkspaceCache(); complete(Response.json({version:'before write'})); assert.deepEqual(await pending,await shared,'Concurrent foreground and warm reads share one response');
     assert.equal(cachedWorkspace('/api/desktop/fleet?date=A'), undefined, 'In-flight reads cannot repopulate a cache invalidated by a write');
+    const readers = new Map<string, (response: Response) => void>();
+    globalThis.fetch = input => new Promise(resolve => { readers.set(String(input), resolve); });
+    const warmUrl = '/api/desktop/schedule?date=A';
+    const sourceUrl = `${warmUrl}&load=1`;
+    const warmRead = fetchWorkspace(warmUrl, signal, sourceUrl);
+    const sourceRead = fetchWorkspace(sourceUrl, signal, sourceUrl);
+    assert.equal(readers.size, 2, 'A saved-board read cannot swallow the foreground source request');
+    readers.get(sourceUrl)!(Response.json({ version: 'source-refresh' }));
+    await sourceRead;
+    readers.get(warmUrl)!(Response.json({ version: 'older-warm-read' }));
+    await warmRead;
+    assert.equal(cachedWorkspace<{version:string}>(sourceUrl)!.value.version, 'source-refresh', 'A late background response cannot overwrite a newer foreground snapshot');
     globalThis.fetch = async () => Response.json({version:3});
     await fetchWorkspace('/api/desktop/fleet?date=A', signal);
     time += 5 * 60_000 + 1;

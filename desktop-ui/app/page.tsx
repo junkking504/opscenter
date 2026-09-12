@@ -1070,15 +1070,16 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     const date = warmDate;
     const params = new URLSearchParams(window.location.search);
     const warm = async () => {
-      // Only existing local read models; no Schedule collection or provider calls.
-      for (const name of ['Fleet', 'Marketing', 'Krewe', ...(canFinance ? ['Finance'] : [])]) {
+      // Only existing local read models; Schedule omits load=1 to avoid collection.
+      for (const name of ['Schedule', 'Fleet', 'Marketing', 'Krewe', ...(canFinance ? ['Finance'] : [])]) {
         if (abort.signal.aborted || document.visibilityState === 'hidden') return;
         if (name === activeNav) continue;
         const endpoint = name.toLowerCase();
         const view = name === 'Fleet' ? `&view=${encodeURIComponent(params.get('fleetView') || 'overview')}` : name === 'Krewe' ? `&view=${encodeURIComponent(params.get('kreweView') || 'today')}` : '';
-        const key = `/api/desktop/${endpoint}?date=${encodeURIComponent(date)}${view}`;
+        const url = `/api/desktop/${endpoint}?date=${encodeURIComponent(date)}${view}`;
+        const key = name === 'Schedule' ? `${url}&load=1` : url;
         if (cachedWorkspace(key)) continue;
-        try { await preloadWorkspace[name](); await fetchWorkspace(key, abort.signal); } catch { /* Foreground refresh owns user-visible errors. */ }
+        try { await preloadWorkspace[name]?.(); await fetchWorkspace(url, abort.signal, key); } catch { /* Foreground refresh owns user-visible errors. */ }
       }
     };
     const timer = window.setTimeout(() => { void warm(); }, 1000);

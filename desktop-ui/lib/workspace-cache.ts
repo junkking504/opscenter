@@ -5,6 +5,7 @@ const maxEntries = 16;
 const maxAgeMs = 5 * 60_000;
 let generation = 0;
 const requests = new Map<string, Promise<unknown>>();
+const latestReads = new Map<string, object>();
 
 export function cachedWorkspace<T>(key: string): { value: T; receivedAt: number } | undefined {
   const entry = entries.get(key);
@@ -14,17 +15,19 @@ export function cachedWorkspace<T>(key: string): { value: T; receivedAt: number 
   return entry as { value: T; receivedAt: number };
 }
 
-export function clearWorkspaceCache() { generation++; entries.clear(); requests.clear(); }
+export function clearWorkspaceCache() { generation++; entries.clear(); requests.clear(); latestReads.clear(); }
 
 /** Always performs a fresh authenticated read. Cache is only for immediate display. */
 export async function fetchWorkspace<T>(url: string, signal: AbortSignal, key = url): Promise<T> {
   signal.throwIfAborted();
-  let task = requests.get(key) as Promise<T> | undefined;
+  // A display-only warm read must never swallow an explicit source refresh.
+  const requestKey = JSON.stringify([key, url]);
+  let task = requests.get(requestKey) as Promise<T> | undefined;
   if (!task) {
     // A navigation abort cancels its subscriber, not another view's shared read.
     task = retrieveWorkspace<T>(url, key);
-    requests.set(key, task);
-    const completed = () => { if (requests.get(key) === task) requests.delete(key); };
+    requests.set(requestKey, task);
+    const completed = () => { if (requests.get(requestKey) === task) requests.delete(requestKey); };
     void task.then(completed, completed);
   }
   return new Promise<T>((resolve, reject) => {
@@ -37,18 +40,22 @@ export async function fetchWorkspace<T>(url: string, signal: AbortSignal, key = 
 
 async function retrieveWorkspace<T>(url: string, key: string): Promise<T> {
   const started = generation;
+  const token = {};
+  latestReads.set(key, token);
+  try {
   const signal = AbortSignal.timeout(30_000);
   const response = await fetch(url, { cache: 'no-store', credentials: 'same-origin', signal });
   if (response.status === 401 || response.status === 403) clearWorkspaceCache();
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || 'Workspace could not refresh.');
   signal.throwIfAborted();
-  if (started === generation) {
+  if (started === generation && latestReads.get(key) === token) {
     entries.delete(key);
     entries.set(key, { value: body, receivedAt: Date.now() });
     while (entries.size > maxEntries) entries.delete(entries.keys().next().value!);
   }
   return body as T;
+  } finally { if (latestReads.get(key) === token) latestReads.delete(key); }
 }
 
 /** Invalidate related views before AND after writes, including uncertain outcomes. */

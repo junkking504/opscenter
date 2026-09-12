@@ -83,6 +83,19 @@ export async function buildStreetRoute(route:TruckGpsRoute,send:typeof osmStreet
     const params=new URLSearchParams({steps:'true',geometries:'geojson',overview:'false',tidy:'false',gaps:'split',radiuses:points.map(()=>'25').join(';')});
     const response=await send(`match/v1/driving/${coords}?${params}`);
     for(const [i,path] of matchedStreetEdges(response,points))matched.set(indices[i],path);
+    // Resolve sparse batches before proceeding to the next match request.
+    // Otherwise a long day's matching attempts consume every time slice and
+    // the road-routing fallback never runs. One multi-stop request supplies
+    // per-edge road geometry instead of a request for every missing edge.
+    if(indices.slice(0,-1).some(i=>!matched.has(i)) && Date.now()<deadline) {
+      const options=new URLSearchParams({steps:'true',geometries:'geojson',overview:'false',alternatives:'false',radiuses:points.map(()=>'150').join(';')});
+      const roads=await send(`route/v1/driving/${coords}?${options}`) as {code?:string;routes?:{legs?:OsrmLeg[]}[]}|null;
+      if(roads?.code==='Ok')for(let i=0;i<indices.length-1;i++) {
+        if(matched.has(indices[i]))continue;
+        const geometry=legCoordinates(roads.routes?.[0]?.legs?.[i],points[i],points[i+1]);
+        if(geometry)matched.set(indices[i],{kind:'estimated',points:geometry});
+      }
+    }
     nextEdge=indices.at(-1)!%Math.max(1,route.points.length-1);
   }
   const missing=[...eligible].filter(i=>!matched.has(i) && meters(route.points[i],route.points[i+1])>30);

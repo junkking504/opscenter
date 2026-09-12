@@ -1,5 +1,7 @@
 "use client";
 
+import { closeoutGpsTimes, closeoutChargesSummary, type CloseoutTimeKey } from '../lib/closeout-draft-summary';
+import { onsiteTimeFacts } from '../lib/appointment-onsite-time';
 import { paymentReferenceLabel, validateCloseoutPayment } from "../lib/closeout-payment";
 
 import { useEffect, useId, useRef, useState } from "react";
@@ -74,6 +76,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   const [estimateExplanation, setEstimateExplanation] = useState('');
   const [noDiscountReason, setNoDiscountReason] = useState('');
   const requestPending = useRef(false);
+  const gpsDefaults = useRef<Partial<Record<CloseoutTimeKey,string>>>({});
   const resolvedAppointmentId = appointmentId || String(appointmentUrl || "").match(/[?&]id=(\d{1,12})(?:&|$)/i)?.[1] || "";
   const [live, setLive] = useState<LiveCloseout | null>(null);
   const [loading, setLoading] = useState(false);
@@ -106,7 +109,16 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       const response = await fetch(`/api/desktop/schedule/closeout?appointmentId=${encodeURIComponent(resolvedAppointmentId)}`, { cache: "no-store" });
       const payload = await response.json().catch(() => { throw new Error(`Closeout could not be loaded (HTTP ${response.status}). Retry loading the saved appointment.`); });
       if (!response.ok || !payload?.closeout) throw new Error(payload?.error || "The Junkware closeout could not be loaded.");
-      setLive(payload.closeout);
+      const source = payload.closeout as LiveCloseout;
+      const suggestions = closeoutGpsTimes(job.onsiteTime, job.truck, source.truck || '', serviceDate, source);
+      gpsDefaults.current = {};
+      const withTimes = {...source};
+      for (const pair of [['actualStartHour','actualStartMinute'],['actualEndHour','actualEndMinute']] as const) {
+        if (pair.every(key => !source[key].value && suggestions[key] !== undefined)) {
+          for (const key of pair) { withTimes[key] = {...source[key],value:suggestions[key]!};gpsDefaults.current[key]=suggestions[key]; }
+        }
+      }
+      setLive(withTimes);
       setTargetStatus(payload.closeout.status.value);
       setTruck(payload.closeout.truck || '');
       setCancellationReason('');
@@ -137,6 +149,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
 
   function updateSelect(key: "loadSize" | "bedloadSize" | "jobCategory" | "actualStartHour" | "actualStartMinute" | "actualEndHour" | "actualEndMinute", value: string) {
     setReviewing(false);
+    if (key.startsWith('actualStart')) { delete gpsDefaults.current.actualStartHour; delete gpsDefaults.current.actualStartMinute; }
+    if (key.startsWith('actualEnd')) { delete gpsDefaults.current.actualEndHour; delete gpsDefaults.current.actualEndMinute; }
     setLive((current) => current ? { ...current, [key]: { ...current[key], value } } : current);
   }
 
@@ -347,9 +361,14 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     finally { requestPending.current = false; setSaving(false); }
   }
 
+  const totals = live ? closeoutChargesSummary(live, pendingOtherCharges) : null;
+  const gpsTimes = live ? closeoutGpsTimes(job.onsiteTime, job.truck, truck, serviceDate, live) : {};
+  const hasGpsTimes = Object.keys(gpsTimes).length > 0;
+  const money = (amount:number) => Number.isFinite(amount) ? new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(amount) : 'Check amounts';
+
   return (
     <details className="appointment-closeout-panel" data-appointment-id={resolvedAppointmentId} aria-busy={loading || saving} onToggle={event => { if (event.currentTarget.open && !live && !loading && !saving) void load(); }}>
-      <summary>Appointment Closeout</summary>
+      <summary><span className="closeout-summary-title">Appointment Closeout</span><span className="closeout-summary-action" aria-hidden="true"><span className="closeout-open-label">Open</span><span className="closeout-hide-label">Hide</span><span className="closeout-summary-chevron">⌄</span></span></summary>
       <div className="appointment-closeout-body">
         {receipt && <>{receipt.action && receipt.action !== 'closeout' && ['pending', 'uncertain'].includes(receipt.status) && <p role="alert">Closeout is locked until the earlier {receipt.action === 'move' ? 'assignment change' : 'appointment change'} is checked in JunkWare. This is not a closeout result.</p>}<ChangeReceipt receipt={receipt} onCheck={() => { void check(); }} /></>}
         {!live ? (
@@ -382,7 +401,13 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             </section> : null}
 
             <section className="appointment-create-section">
-              <label><span>Truck</span><select aria-label="Appointment truck" value={truck} onChange={event => { setTruck(event.target.value); setReviewing(false); }}>
+              <label><span>Truck</span><select aria-label="Appointment truck" value={truck} onChange={event => {
+                setTruck(event.target.value); setReviewing(false);
+                setLive(current => { if (!current) return current; const next={...current};
+                  for (const key of Object.keys(gpsDefaults.current) as CloseoutTimeKey[]) if (next[key].value===gpsDefaults.current[key]) next[key]={...next[key],value:''};
+                  gpsDefaults.current={}; return next;
+                });
+              }}>
                 <option value="">Select truck</option>
                 {(live.truckOptions || []).filter(option => option.value && /truck\s*#?\s*\d+/i.test(option.label)).map(option => { const label = option.label.replace(/Truck#?\s*/i, 'Truck ').trim(); return <option key={option.value} value={label}>{label}</option>; })}
                 {truck && !(live.truckOptions || []).some(option => option.label.replace(/Truck#?\s*/i, 'Truck ').trim() === truck) && <option value={truck}>{truck}</option>}
@@ -463,8 +488,16 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               </div>
             </section>
 
+            {totals && <div className="ops-closeout-totals" aria-label="Draft charge totals" aria-live="polite">
+              <div><span>Subtotal</span><strong>{money(totals.subtotal)}</strong></div>
+              <small>Before discount and tip{totals.estimated ? ' · Percentage fees estimated' : ''}</small>
+              <div><span>Total after discount and tip</span><strong>{money(totals.total)}</strong></div>
+            </div>}
             <section className="appointment-create-section">
               <h4>Actual Job Time</h4>
+              {hasGpsTimes ? <><p>Truck GPS: {onsiteTimeFacts(job.onsiteTime!).filter(fact=>fact.label!=='On-site time').map(fact=>`${fact.label} ${fact.value}`).join(' · ')}. Rounded to JunkWare’s available minutes.</p>
+                <button type="button" className="ops-button subtle" onClick={()=>{setReviewing(false);gpsDefaults.current={...gpsTimes};setLive(current=>{if(!current)return current;const next={...current};for(const key of Object.keys(gpsTimes) as CloseoutTimeKey[])next[key]={...next[key],value:gpsTimes[key]!};return next;});}}>Use GPS times</button></> : <p>Confirmed GPS visit times are unavailable for this truck. Enter the actual job times.</p>}
+              {hasGpsTimes && !gpsTimes.actualEndHour && <p>GPS departure has not been recorded. Enter the finish time when confirmed.</p>}
               <div className="ops-closeout-time-grid">
                 <span>Started</span>
                 <select aria-label="Actual start hour" value={live.actualStartHour.value} onChange={(event) => updateSelect("actualStartHour", event.target.value)}>{live.actualStartHour.options.map((option) => <option key={`sh-${option.value}`} value={option.value}>{option.label || "Hour"}</option>)}</select>

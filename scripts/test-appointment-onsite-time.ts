@@ -15,6 +15,7 @@ assert.equal(appointmentOnsiteTime({jkNumber:job.jkNumber},[row,{...row,appointm
 for (const departure of [null,'invalid','2026-09-06T12:00:00Z','2026-09-06T21:00:00Z']) assert.equal(appointmentOnsiteTime(job,[{...row,visit_intervals:[{...interval,departure}]}],now).minutes,null);
 assert.match(appointmentOnsiteTime(job,[{...row,visit_intervals:[{...interval,departure:null}]}],now).label,/Awaiting/);
 assert.equal(appointmentOnsiteTime(job,[{...row,visit_intervals:[],first_arrival:interval.arrival,final_departure:interval.departure,onsite_minutes:0}],now).minutes,21.5,'Explicit timestamps take precedence over a placeholder zero');
+assert.equal(appointmentOnsiteTime(job,[{...row,visit_intervals:[{...interval,departure:null}]}],now).arrival,new Date(interval.arrival).toISOString(),'Confirmed arrival remains available while departure is pending');
 console.log('On-site duration passed: recorded intervals, multiple visits, duplicate/overlap handling, identity, truck, and missing timestamp guards.');
 
 // Exercise the formatter against a real source-file boundary without publishing.
@@ -35,7 +36,9 @@ try {
   assert.ok(message); assert.match(message,/On-site time:\* 21.5 min/);assert.match(message,/Arrival:\* 8:26 AM/);assert.match(message,/Departure:\* 8:47 AM/);
  }
  fs.writeFileSync(file,JSON.stringify({date:'2026-09-06',visits:[{...row,visit_intervals:[{...interval,departure:null}]}]}));
- assert.match(formatTruckCloseoutSlackNotification('2026-09-06',{appt_id:'123',job_id:job.jkNumber,truck:job.truck,closeout:{}}) || '',/Awaiting recorded departure/);
+ const pendingMessage=formatTruckCloseoutSlackNotification('2026-09-06',{appt_id:'123',job_id:job.jkNumber,truck:job.truck,closeout:{}}) || '';
+ assert.match(pendingMessage,/Arrival:\* 8:26 AM/);
+ assert.doesNotMatch(pendingMessage,/Departure:\*|On-site time:\*/,'An open visit must not publish a finished duration or departure');
 } finally {
  if(prior===undefined) delete process.env.OPSCENTER_DATA_DIR; else process.env.OPSCENTER_DATA_DIR=prior;
  fs.rmSync(directory,{recursive:true,force:true});

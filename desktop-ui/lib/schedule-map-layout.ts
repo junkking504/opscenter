@@ -8,5 +8,5 @@ export function locatorSize(zoom: number) {
 }
 
 export function truckLocatorSize(zoom: number) {
-  return Math.max(32, Math.min(44, 32 + (zoom - 10) * 2));
+  return Math.max(22, Math.min(28, 22 + (zoom - 10)));
 }

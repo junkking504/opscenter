@@ -714,7 +714,7 @@ observations retain last-seen evidence, but cannot claim continued presence.
 A newer position elsewhere clears the last-on-site badge while preserving visit
 history and its recorded duration; no departure time is invented.
 
-Truck icons use a separate 32–44 pixel height and larger fleet numbers across
+Truck icons use a separate 22–28 pixel height and larger fleet numbers across
 map zoom levels. Their centers remain on the source GPS coordinates.
 Road alignment survives a GPS refresh only for edges with identical timestamps
 and coordinates at both ends. Late history insertion remaps edge indexes; changed

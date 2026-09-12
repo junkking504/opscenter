@@ -623,3 +623,27 @@ dispatch zone, not a precise neighborhood boundary: 70126 also covers Gentilly.
 See the [City's food-access report](https://nola.gov/nola/media/Health-Department/Images/Making-Groceries-10-3.pdf).
 ZIP matching is terminal-only; street names cannot activate the override, and
 out-of-state or conflicting service locations remain unclassified.
+
+## Viewport height and aspect ratio
+
+The dispatch board allocates the height below the page controls to appointment
+lanes while keeping the truck-name/load column at its normal text size. Each
+row has a measured label-height floor; only the lane contents scale, with a
+65% lower bound. The timeline's horizontal positions remain aligned with the
+hourly grid. When a very short window or unusually dense day cannot fit above
+that floor, the document scrolls normally. The All Appointments jump stays in
+document flow and never floats over lower truck rows.
+
+All six workspaces share a sidebar sized to the dynamic viewport height. Its
+navigation and account/source controls remain scrollable in short windows;
+below 600px high, reduced vertical padding and a non-sticky operating-day bar
+preserve usable content space.
+
+`desktop-ui/tests/aspect-ratio-audit.html` exercises populated synthetic
+Command, Schedule, Krewe, Fleet, Marketing, and Finance views at 1920×1080,
+1525×768, 1405×768, 1366×600, 1024×768, 768×1024, 844×390, 390×844, and 320×568.
+It checks document overflow, navigation clipping, truck-label containment,
+appointment containment, and the schedule footer boundary. This is a bounded
+viewport regression matrix; authenticated live Safari checks remain required.
+The pure allocation checks run with
+`node --import tsx scripts/test-schedule-viewport-layout.ts`.

@@ -93,3 +93,16 @@
   background: color-mix(in srgb, var(--territory-color, #89918d) 26%, #fff);
   color: #202529;
 }
+
+/* Height is independent of width: landscape phones and short desktop windows
+   must retain access to all six workspaces and the account/source controls. */
+.ops-live .ops-sidebar { height: 100dvh; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.ops-live .ops-sidebar > * { flex-shrink: 0; }
+@media (max-height: 600px) {
+  .ops-live .ops-sidebar { padding-block: 12px; }
+  .ops-live .brand-lockup { padding-bottom: 12px; }
+  .ops-live .primary-nav { padding-top: 12px; }
+  .ops-live .sidebar-footer { padding-top: 8px; }
+  .ops-live .user-row { margin-top: 8px; }
+  .ops-live .viewing-day-bar { position: relative; }
+}

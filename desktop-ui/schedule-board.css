@@ -90,7 +90,7 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board-scroll { flex: 1; min-height: 0; height: 0; overflow: visible; }
 .ops-live .live-schedule.schedule-dispatch .schedule-board-layout .schedule-board { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .ops-live .live-schedule.schedule-dispatch .schedule-time-row { flex: 0 0 22px; position: relative; }
-.ops-live .live-schedule.schedule-dispatch .schedule-truck-row { min-height: max(68px, var(--schedule-row-min-height)); }
+.ops-live .live-schedule.schedule-dispatch .schedule-truck-row { min-height: var(--schedule-row-height, var(--schedule-row-min-height)); }
 .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell { padding: 2px 5px; align-content: center; gap: 2px 5px; overflow: hidden; }
 .ops-live .live-schedule.schedule-dispatch .schedule-truck-cell span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 8px; }
 .ops-live .live-schedule.schedule-dispatch .live-truck-timeline .schedule-appointment { min-height: 0; padding: 2px 3px; justify-content: center; border-radius: 4px; }
@@ -178,3 +178,6 @@
 .ops-live .live-schedule.schedule-workspace .schedule-map-panel > .schedule-map-controls {
   flex: none;
 }
+
+/* Only lane content scales; the label column and hourly grid stay full size. */
+.ops-live .schedule-dispatch .schedule-timeline-content { position: relative; width: calc(100% / var(--schedule-timeline-scale, 1)); height: calc(100% / var(--schedule-timeline-scale, 1)); zoom: var(--schedule-timeline-scale, 1); }

@@ -23,6 +23,7 @@ import { ScheduleCalendar, ScheduleHistory, ScheduleFollowup } from './schedule-
 import ScheduleMap from './schedule-map';
 import ScheduleTravel from './schedule-travel';
 import ScheduleRouteConnector from './schedule-route-connector';
+import { scheduleViewportLayout } from './lib/schedule-viewport-layout';
 import { scheduleTravelLayout } from './lib/schedule-travel-layout';
 import TruckCameraController from '../components/TruckCameraController';
 import ScheduleControls, { MoveConfirmation, type MoveProposal } from './schedule-controls';
@@ -108,6 +109,22 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
       const height = `${Math.max(240, window.innerHeight - pageTop - 76)}px`;
       board.style.setProperty('--schedule-available-height', height);
       dispatchSurfaceRef.current?.style.setProperty('--schedule-available-height', height);
+      const rows = [...board.querySelectorAll<HTMLElement>('[data-schedule-truck]')];
+      const title = board.querySelector<HTMLElement>('.schedule-board-shell > .section-title');
+      const header = board.querySelector<HTMLElement>('.schedule-time-row');
+      const natural = rows.map(row => Number(row.dataset.naturalHeight));
+      const labels = rows.map(row => {
+        const cell = row.querySelector<HTMLElement>('.schedule-truck-cell')!;
+        const style = getComputedStyle(cell);
+        const content = [...cell.querySelectorAll<HTMLElement>('strong, span, small')].filter(label => getComputedStyle(label).display !== 'none');
+        return Math.ceil(content.reduce((sum, label) => sum + label.offsetHeight, 0) + Math.max(0, content.length - 1) * (parseFloat(style.rowGap) || 0) + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom) + 2);
+      });
+      const available = parseFloat(height) - (title?.offsetHeight || 0) - (header?.offsetHeight || 0) - 8;
+      const layout = window.innerWidth >= 1000 ? scheduleViewportLayout(natural, labels, available) : { scale: 1, heights: natural.map((value, i) => Math.max(value, labels[i])) };
+      rows.forEach((row, index) => {
+        row.style.setProperty('--schedule-row-height', `${layout.heights[index]}px`);
+        row.style.setProperty('--schedule-timeline-scale', String(layout.scale));
+      });
     };
     const observer = new ResizeObserver(fit);
     document.querySelectorAll('.topbar, .viewing-day-bar, .workspace-heading, .schedule-control-bar, .schedule-summary-strip, .schedule-board-shell > .section-title').forEach(element => observer.observe(element));
@@ -308,19 +325,19 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
             const load = snapshot.truckLoads?.find(row=>truckLabel(row.truck)===truck);
             const { placed, laneStep, rowHeight: travelHeight, connectors } = scheduleTravelLayout(rowJobs, displayLegs.filter(leg => truckLabel(leg.truck) === truck), range);
             const hasProgress=Boolean(nextTruckStop(jobs,truck,snapshot.fleet.isToday,now.getTime()));
-            const rowHeight=rowJobs.length ? Math.max(56,travelHeight+(hasProgress?(connectors.some(c=>!c.vertical && !c.path)?22:10):0)) : 56;
+            const rowHeight=rowJobs.length ? Math.max(36,travelHeight+(hasProgress?(connectors.some(c=>!c.vertical && !c.path)?22:10):0)) : 36;
             const ghost = drag.preview?.truck === truck ? drag.preview : null;
             const ghostStart = ghost?.start ?? ghost?.job.appointmentStartMinutes;
             const ghostDuration = ghost?.job.appointmentStartMinutes !== null && ghost?.job.appointmentEndMinutes != null ? ghost.job.appointmentEndMinutes - ghost.job.appointmentStartMinutes! : 60;
-            return <div className="schedule-truck-row" data-schedule-truck={truck} key={truck} style={{ flex: `var(--schedule-row-grow, 0) var(--schedule-row-shrink, 0) ${rowHeight}px`, '--schedule-row-min-height': `${rowHeight}px` } as CSSProperties}><button type="button" className="schedule-truck-cell" aria-label={`Select ${truck} on map`} aria-pressed={selectedTruck === truck} onClick={() => selectTruck(truck)}><i className={['blue', 'red', 'gold', 'purple'][index % 4]} /><strong>{truck}</strong><span>{rowJobs[0] ? crew(rowJobs[0]) : 'No Scheduled Work'}</span>{load && <small className={`schedule-truck-load${load.needsVerification || (load.percent ?? 0) > 100 ? ' warning' : ''}`} title={load.note}>{load.label}</small>}</button><div className="live-truck-timeline">
+            return <div className="schedule-truck-row" data-schedule-truck={truck} data-natural-height={rowHeight} key={truck} style={{ flex: `0 0 var(--schedule-row-height, ${rowHeight}px)`, '--schedule-row-min-height': `${rowHeight}px` } as CSSProperties}><button type="button" className="schedule-truck-cell" aria-label={`Select ${truck} on map`} aria-pressed={selectedTruck === truck} onClick={() => selectTruck(truck)}><i className={['blue', 'red', 'gold', 'purple'][index % 4]} /><strong>{truck}</strong><span>{rowJobs[0] ? crew(rowJobs[0]) : 'No Scheduled Work'}</span>{load && <small className={`schedule-truck-load${load.needsVerification || (load.percent ?? 0) > 100 ? ' warning' : ''}`} title={load.note}>{load.label}</small>}</button><div className="live-truck-timeline">
               {date === today && progress >= 0 && progress <= 1 && <div className="schedule-now-line" style={{left:`${progress * 100}%`}} aria-label={index === 0 ? `Current time ${clock(nowMinutes)}` : undefined} aria-hidden={index !== 0} />}
-              {placed.map(({ job, position, lane }) => <div key={job.recordId} className={`schedule-appointment status-${scheduleStatusTone(job)} ${appointmentColorClass(job)} ${slug(appointmentCategory(job))} ${slug(appointmentStatus(job))}${filtered ? match(job) ? ' scope-match' : ' scope-muted' : ''}${selectedId === job.recordId ? ' route-selected' : ''}${drag.preview?.job.recordId === job.recordId ? ' is-dragging' : ''}`} style={{ left: `${position.left * 100}%`, width: `calc(${position.width * 100}% - 2px)`, top: `${lane * laneStep + 2}px`, height: 22 }} role="button" aria-pressed={selectedId === job.recordId} data-schedule-appointment={job.recordId} tabIndex={0} aria-roledescription={scheduleMoveRestriction(job) || operationBusy ? undefined : "draggable appointment"} onPointerDown={event => drag.begin(event, job)} aria-label={`${job.jkNumber} · ${job.customerName} · ${job.appointmentTime} · ${appointmentStatus(job)}${appointmentPartner(job) ? ` · ${appointmentPartner(job)!.name}` : ''}`} aria-description={scheduleMoveRestriction(job) || "Drag to change truck or time; click to show the job summary and highlight its map location."} onClick={() => { if (!drag.suppressClick.current) selectAppointment(job.recordId); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectAppointment(job.recordId); } }} title={`${job.jkNumber} · ${job.customerName} · ${job.appointmentTime} · ${appointmentRegion(job).label} · ${appointmentStatus(job)}${appointmentPartner(job) ? ` · ${appointmentPartner(job)!.name}` : ''}${scheduleMoveRestriction(job) ? ` · ${scheduleMoveRestriction(job)}` : ""}`}>{appointmentPartner(job) && <span className="schedule-partner-cue" title={appointmentPartner(job)!.name} aria-hidden="true" />}{!scheduleMoveRestriction(job) && <GripVertical className="schedule-grip" size={9} aria-hidden="true" />}<em title={appointmentStatus(job)} className={`schedule-block-status status-${scheduleStatusTone(job)}`}>
+              <div className="schedule-timeline-content">{placed.map(({ job, position, lane }) => <div key={job.recordId} className={`schedule-appointment status-${scheduleStatusTone(job)} ${appointmentColorClass(job)} ${slug(appointmentCategory(job))} ${slug(appointmentStatus(job))}${filtered ? match(job) ? ' scope-match' : ' scope-muted' : ''}${selectedId === job.recordId ? ' route-selected' : ''}${drag.preview?.job.recordId === job.recordId ? ' is-dragging' : ''}`} style={{ left: `${position.left * 100}%`, width: `calc(${position.width * 100}% - 2px)`, top: `${lane * laneStep + 2}px`, height: 22 }} role="button" aria-pressed={selectedId === job.recordId} data-schedule-appointment={job.recordId} tabIndex={0} aria-roledescription={scheduleMoveRestriction(job) || operationBusy ? undefined : "draggable appointment"} onPointerDown={event => drag.begin(event, job)} aria-label={`${job.jkNumber} · ${job.customerName} · ${job.appointmentTime} · ${appointmentStatus(job)}${appointmentPartner(job) ? ` · ${appointmentPartner(job)!.name}` : ''}`} aria-description={scheduleMoveRestriction(job) || "Drag to change truck or time; click to show the job summary and highlight its map location."} onClick={() => { if (!drag.suppressClick.current) selectAppointment(job.recordId); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); selectAppointment(job.recordId); } }} title={`${job.jkNumber} · ${job.customerName} · ${job.appointmentTime} · ${appointmentRegion(job).label} · ${appointmentStatus(job)}${appointmentPartner(job) ? ` · ${appointmentPartner(job)!.name}` : ''}${scheduleMoveRestriction(job) ? ` · ${scheduleMoveRestriction(job)}` : ""}`}>{appointmentPartner(job) && <span className="schedule-partner-cue" title={appointmentPartner(job)!.name} aria-hidden="true" />}{!scheduleMoveRestriction(job) && <GripVertical className="schedule-grip" size={9} aria-hidden="true" />}<em title={appointmentStatus(job)} className={`schedule-block-status status-${scheduleStatusTone(job)}`}>
                 {scheduleStatusTone(job) === 'completed' ? <Check size={12} strokeWidth={3} aria-hidden="true" /> : scheduleStatusTone(job) === 'canceled' ? <X size={12} strokeWidth={3} aria-hidden="true" /> : scheduleStatusTone(job) === 'visited' ? <b aria-hidden="true">?</b> : null}
                 </em></div>)}
               {connectors.map(connector => <ScheduleRouteConnector key={`${connector.leg.fromAppointmentId}:${connector.leg.toAppointmentId}`} connector={connector} jobs={jobs} select={selectAppointment} />)}
               {hasProgress && <ScheduleTruckProgress truck={truck} snapshot={snapshot} progress={routing?.date===date?routing.truckProgress:undefined} now={now.getTime()} select={selectAppointment} />}
               {ghost && ghostStart != null && <div className={`schedule-drag-preview${ghost.conflicts.length ? ' conflict' : ''}`} style={{ left: `${(ghostStart - range.start) / range.duration * 100}%`, width: `${ghostDuration / range.duration * 100}%` }}><strong>{ghost.job.jkNumber}</strong><small>{clock(ghostStart)} · {ghost.conflicts.length ? `Conflicts ${ghost.conflicts.join(', ')}` : 'Drop to Review'}</small></div>}
-            </div></div>;
+            </div></div></div>;
           })}
         </div></div>
       </div>}

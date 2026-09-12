@@ -39,6 +39,7 @@ async function main(): Promise<void> {
   assert.equal(
     classifyJunkwareAssignmentFailure(new Error("JunkWare did not finish the truck assignment within 30 seconds.")), "pending");
 
+  for(const message of ['The requested JunkWare dispatch lane is unavailable.','JunkWare dispatch preflight: the requested truck lane is unavailable. No move was submitted.'])assert.equal(classifyJunkwareAssignmentFailure(new Error(message)),'manual_correction');
   console.log("JunkWare assignment email and retry classification checks passed.");
 }
 

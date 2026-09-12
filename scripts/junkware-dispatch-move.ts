@@ -16,28 +16,43 @@ export async function readSavedDispatchTruck(page:Page):Promise<string> {
   });
 }
 export type DispatchSource = {appointmentId:string;date:string;truck:string;start:number;duration:number;status:string;protectedCloseout:unknown};
-export async function openAppointmentDispatch(page:Page,appointmentId:string,date:string,openSchedule:(date:string)=>Promise<void>) {
+export async function openAppointmentDispatch(page:Page,appointmentId:string,date:string,openSchedule:(date:string)=>Promise<void>,targetTruck?:string) {
   await openSchedule(date);
   const filter='#ctl00_Content_ServiceProviderGroupLB';
   const groups=await page.locator(filter).evaluateAll(controls=>controls.flatMap(control=>Array.from((control as HTMLSelectElement).options).filter(option=>option.value).map(option=>({value:option.value,selected:option.selected}))));
-  if(await page.locator(`#aid-${appointmentId}`).count() && groups.filter(group=>group.selected).length<=1) return;
-  const franchises=groups.sort((a,b)=>Number(b.selected)-Number(a.selected)).map(group=>group.value);
-  for(const franchise of franchises) {
+  const hasAppointment=async()=>await page.locator(`#aid-${appointmentId}`).count()===1;
+  const hasTarget=async()=>!targetTruck || page.locator('table.schedule-table th').evaluateAll((headers,truck)=>headers.some(header=>(header.textContent || '').replace(/\s+/g,' ').trim()===`Truck# ${truck.match(/\d+/)?.[0]}`),targetTruck);
+  const applyGroups=async(values:string[])=>{
     await Promise.all([
       page.waitForNavigation({waitUntil:'domcontentloaded',timeout:30_000}),
-      page.locator(filter).evaluate((element,value)=>{
+      page.locator(filter).evaluate((element,values)=>{
         const select=element as HTMLSelectElement;
         const form=select.form;
         const button=document.querySelector<HTMLInputElement>('#ctl00_Content_SelectServiceProvidersBtn');
         const target=form?.elements.namedItem('__EVENTTARGET');
         if(!form || !button?.name || !(target instanceof HTMLInputElement)) throw new Error('JunkWare dispatch preflight: the franchise filter changed. No move was submitted.');
-        select.value=value;
+        for(const option of select.options)option.selected=values.includes(option.value);
         target.value=button.name;
         HTMLFormElement.prototype.submit.call(form);
-      },franchise),
+      },values),
     ]);
     await openSchedule(date);
-    if(await page.locator(`#aid-${appointmentId}`).count()) return;
+  };
+  const includeDestination=async()=>{
+    if(await hasTarget())return true;
+    // A New Orleans appointment can be dispatched to a Jefferson Parish truck.
+    // Keep the source appointment visible while exposing every destination lane.
+    if(targetTruck && groups.length>1) {
+      await applyGroups(groups.map(group=>group.value));
+      if(await hasAppointment() && await hasTarget())return true;
+    }
+    throw new Error('JunkWare dispatch preflight: the requested truck lane is unavailable in the accessible franchises. No move was submitted.');
+  };
+  if(await hasAppointment() && (targetTruck || groups.filter(group=>group.selected).length<=1)) {await includeDestination();return;}
+  const franchises=groups.sort((a,b)=>Number(b.selected)-Number(a.selected)).map(group=>group.value);
+  for(const franchise of franchises) {
+    await applyGroups([franchise]);
+    if(await hasAppointment()) {await includeDestination();return;}
   }
   throw new Error('JunkWare dispatch preflight: this appointment was not found on its saved day. No move was submitted.');
 }
@@ -51,17 +66,19 @@ export async function moveOnDailySchedule(page:Page,input:{appointmentId:string;
   if(input.duration!==undefined && input.duration!==before.duration) throw new Error('Dispatch moves preserve appointment duration. Reload the source window.');
   if(!Number.isInteger(start) || start<0 || start%60!==0 || start+before.duration*60>1440) throw new Error('A valid hourly dispatch window is required.');
   if(before.truck===input.truck && before.start===start) return {before,after:before,changed:false};
-  await openAppointmentDispatch(page,input.appointmentId,before.date,openSchedule);
+  await openAppointmentDispatch(page,input.appointmentId,before.date,openSchedule,input.truck);
   const target=await page.evaluate(({appointmentId,truck,keepVirtualLane})=>{
     const appointment=document.getElementById(`aid-${appointmentId}`);
     if(!appointment?.classList.contains('draggable')) throw new Error('This appointment is not draggable in the source daily schedule.');
     const label=truck ? 'Truck# '+truck.match(/\d+/)?.[0] : 'Virtual Truck';
-    const headers=Array.from(document.querySelectorAll<HTMLTableCellElement>('table.schedule-table th'));
+    const headers=Array.from(appointment.closest('table.schedule-table')?.querySelectorAll<HTMLTableCellElement>('th') || []);
     const currentHeader=headers[appointment.closest('td')?.cellIndex ?? -1];
+    const matches=headers.filter(h=>(h.textContent || '').replace(/\s+/g,' ').trim()===label);
+    if(truck && new Set(matches.map(h=>h.querySelector<HTMLInputElement>('.truck-id')?.value)).size>1) throw new Error('JunkWare dispatch preflight: the requested truck lane is ambiguous. No move was submitted.');
     const header=keepVirtualLane && /virtual truck/i.test(currentHeader?.textContent || '') ? currentHeader : headers.find(h=>(h.textContent || '').replace(/\s+/g,' ').trim()===label);
     const truckId=header?.querySelector<HTMLInputElement>('.truck-id')?.value || '';
     const userId=document.querySelector<HTMLInputElement>("[id$='UserIDHF']")?.value || '';
-    if(!/^\d+$/.test(truckId) || !/^\d+$/.test(userId)) throw new Error('The requested JunkWare dispatch lane is unavailable.');
+    if(!/^\d+$/.test(truckId) || !/^\d+$/.test(userId)) throw new Error('JunkWare dispatch preflight: the requested lane or dispatcher identity is unavailable. No move was submitted.');
     return {truckId,userId};
   },{...input,keepVirtualLane:!before.truck && !input.truck});
   let error='';

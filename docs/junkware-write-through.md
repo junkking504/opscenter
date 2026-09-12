@@ -232,3 +232,13 @@ Payment entry explains this lock and uses directly clickable method choices.
 
 Validation: `test-appointment-recovery.ts`, `test-junkware-dispatch-move.ts`,
 `test-reschedule-source.ts`, and `test-closeout-payment-ui.ts` use synthetic data.
+
+A named destination truck may belong to a different franchise from the source
+appointment. Dispatch preflight first finds the appointment, then expands the
+accessible franchise selection when needed so both it and the requested truck
+are present. It resolves the truck ID from that live schedule table and rejects
+ambiguous or unavailable lanes before submitting. Unassigned moves retain the
+single-franchise lookup to avoid choosing another franchise's virtual truck.
+Known dispatch-preflight rejections stop background retries; Check Saved Result
+also recognizes the earlier `requested JunkWare dispatch lane is unavailable`
+error and reconciles the original attempt against a fresh source read.

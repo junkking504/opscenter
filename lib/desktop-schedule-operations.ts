@@ -1,3 +1,4 @@
+import { JUNKWARE_DISPATCH_PREFLIGHT_REJECTION } from './junkware-assignment-failure';
 import { parseClassificationChange } from './appointment-classification';
 import { validRescheduleDate, rescheduleTarget } from './appointment-reschedule';
 import fs from 'node:fs/promises';
@@ -154,7 +155,7 @@ export async function reconcileMoveReceipt(id: string, actor: string, readSource
       // Adopt only a fresh same-day read, and preserve the attempted move in its receipt.
       const current = readJobRouteAssignmentOverrides(receipt.date).get(`appt:${appointmentId}`);
       const rejectedTime = /\b(?:0?[1-9]|1[0-2]):[0-5]\d [AP]M is not available for this JunkWare appointment\./i.test(String(expected.junkwareSyncError || ''));
-      const rejectedPreflight = /This appointment is not draggable in the source daily schedule\.|JunkWare dispatch preflight:/.test(String(expected.junkwareSyncError || ''));
+      const rejectedPreflight = JUNKWARE_DISPATCH_PREFLIGHT_REJECTION.test(String(expected.junkwareSyncError || ''));
       const prior = previousReadback || expected;
       const unchanged = current && current.truck === prior.truck && current.appointmentStartMinutes === prior.appointmentStartMinutes && current.appointmentEndMinutes === prior.appointmentEndMinutes && current.updatedAt === prior.updatedAt;
       if ((rejectedTime || rejectedPreflight) && source.date === receipt.date && unchanged) {

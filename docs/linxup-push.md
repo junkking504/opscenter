@@ -84,6 +84,16 @@ marker's hourly-reporting semantics. A newer position elsewhere or a confirmed
 departure prevents that parked report from retaining on-site status. A missed
 parked heartbeat becomes last reported; the displayed GPS timestamp is unchanged.
 
+An open visit ledger is historical evidence, not a current position. Schedule
+checks the matched truck's valid coordinates against the effective appointment
+location before showing **On Site**, using the same 125-meter geofence and
+heartbeat rules as immediate GPS presence. A newer outside report clears both
+**On Site** and **Last reported on site**, while retaining **Visited · Closeout
+Pending** and the recorded visit intervals/duration. Collection time cannot
+override the tracker's observation time. Missing/invalid GPS or an unverified
+appointment location cannot establish current presence or invent a departure.
+
+
 ## Recorded daily GPS routes
 
 Schedule and the Command map offer a **Truck GPS route** selector. Selecting a

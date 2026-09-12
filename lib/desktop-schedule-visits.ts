@@ -2,12 +2,13 @@ import { appointmentOnsiteTime } from './appointment-onsite-time';
 import fs from 'node:fs';
 import path from 'node:path';
 import { withAppointmentVisitConfirmations } from '@/lib/appointment-visit-confirmations';
-import { truckLabel, type ScheduleTruck } from '../desktop-ui/lib/schedule-contract';
+import { truckLabel } from '../desktop-ui/lib/schedule-contract';
 import type { AnyRecord } from '@/lib/opsData';
+import { gpsPositionAtAppointment, type PresenceTruck } from './schedule-gps-presence';
+import type { Coordinates } from './job-route-proximity';
 
-// Keep the server-side Schedule status in step with the Dispatch map. A
-// ten-minute reporting gap is still recent, continuous LinxUp evidence;
-// older positions must not be shown as current on-site work.
+// Ledger collection freshness is separate from the truck observation's
+// coordinates and motion-dependent heartbeat window.
 const LIVE_GPS_MAX_AGE_MS = 10 * 60_000;
 
 export function readScheduleVisits(date: string): { visits: AnyRecord[]; observedAt: string } {
@@ -20,8 +21,8 @@ export function readScheduleVisits(date: string): { visits: AnyRecord[]; observe
 }
 
 export function scheduleVisitState(
-  job: { appointmentId: string; truck: string }, visits: AnyRecord[], observedAt: string,
-  trucks: Pick<ScheduleTruck, 'truck' | 'lastGpsUpdate'>[], now = Date.now(),
+  job: { appointmentId: string; truck: string; location?: Coordinates | null }, visits: AnyRecord[], observedAt: string,
+  trucks: PresenceTruck[], now = Date.now(),
 ) {
   const fresh = (stamp: string | null) => { const age = now - Date.parse(stamp || ''); return age >= -60_000 && age <= LIVE_GPS_MAX_AGE_MS; };
   const confirmed = visits.filter(row => job.appointmentId && String(row.appointment_id || row.appt_id || '') === job.appointmentId
@@ -32,18 +33,28 @@ export function scheduleVisitState(
     // can lag (or remain Unassigned), so do not hide a current, confirmed
     // visit merely because it does not yet agree with the schedule field.
     const visitTruck = truckLabel(String(row.truck_number || row.truck || ''));
-    const truckFresh = visitTruck !== 'Unassigned' && trucks.some(truck => truckLabel(truck.truck) === visitTruck && fresh(truck.lastGpsUpdate));
-    if (!truckFresh) return false;
+    const truck = trucks.find(truck => visitTruck !== 'Unassigned' && truckLabel(truck.truck) === visitTruck);
+    const position = truck && gpsPositionAtAppointment(job.location, truck, now);
+    if (!position?.inside || !position.current) return false;
     const intervals = (Array.isArray(row.visit_intervals) ? row.visit_intervals : [])
       .filter((interval: AnyRecord) => Number.isFinite(Date.parse(interval.arrival || '')))
       .sort((a: AnyRecord, b: AnyRecord) => Date.parse(b.arrival) - Date.parse(a.arrival));
     const latest = intervals[0];
     const arrival = latest?.arrival || row.first_arrival || row.arrival_at;
     const departure = latest ? latest.departure : row.final_departure || row.departure_at;
-    return Number.isFinite(Date.parse(arrival || '')) && Date.parse(arrival) <= now && !departure;
+    return Number.isFinite(Date.parse(arrival || '')) && Date.parse(arrival) <= now && position.stamp >= Date.parse(arrival) && !departure;
   }) : undefined;
   const openVisit = confirmed.find(row => {
     const latest = [...(Array.isArray(row.visit_intervals) ? row.visit_intervals : [])].sort((a,b)=>Date.parse(b.arrival)-Date.parse(a.arrival))[0];
+    const visitTruck = truckLabel(String(row.truck_number || row.truck || ''));
+    const truck = trucks.find(truck => visitTruck !== 'Unassigned' && truckLabel(truck.truck) === visitTruck);
+    const position = truck && gpsPositionAtAppointment(job.location, truck, now);
+    const lastInside = Math.max(...[...(row.source_timestamps || []), ...(latest?.source_timestamps || []), latest?.arrival || row.first_arrival || row.arrival_at]
+      .map(stamp => Date.parse(stamp || '')).filter(stamp => Number.isFinite(stamp) && stamp <= now));
+    // A newer position outside supersedes the open ledger, even if that GPS
+    // report has since aged. Retain the visit and its recorded duration; do not
+    // synthesize a departure or keep a misleading last-on-site badge.
+    if (position && !position.inside && position.stamp > lastInside) return false;
     return Number.isFinite(Date.parse(latest?.arrival || row.first_arrival || '')) && !(latest ? latest.departure : row.final_departure || row.departure_at);
   });
   const lastSeenOnsiteTruck = !activeVisit && openVisit ? truckLabel(String(openVisit.truck_number || openVisit.truck || '')) : undefined;

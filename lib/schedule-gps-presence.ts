@@ -10,6 +10,18 @@ const distance = (a: Coordinates, b: Coordinates) => {
   return 12_742_000 * Math.asin(Math.sqrt(Math.sin(dLat / 2) ** 2 + Math.cos(a.latitude * rad) * Math.cos(b.latitude * rad) * Math.sin(dLon / 2) ** 2));
 };
 
+// Use the same coordinate and heartbeat rules for inferred arrivals and open
+// ledger visits. A fresh timestamp alone does not locate a truck at a job.
+export function gpsPositionAtAppointment(location: Coordinates | null | undefined, truck: PresenceTruck, now = Date.now()) {
+  const stamp = Date.parse(truck.lastGpsUpdate || '');
+  const valid = (point: { latitude?: number | null; longitude?: number | null }) =>
+    typeof point.latitude === 'number' && Number.isFinite(point.latitude) && Math.abs(point.latitude) <= 90 &&
+    typeof point.longitude === 'number' && Number.isFinite(point.longitude) && Math.abs(point.longitude) <= 180;
+  if (!location || !valid(location) || !valid(truck) || !Number.isFinite(stamp) || stamp > now + 60_000) return undefined;
+  const maxAge = parkedTruckObservation(truck) ? PARKED_GPS_MAX_AGE_MS : 10 * 60_000;
+  return { stamp, inside: distance(location, { latitude: truck.latitude!, longitude: truck.longitude! }) <= 125, current: now - stamp <= maxAge };
+}
+
 // Current Schedule data can lead the slower visit ledger after a dispatch move.
 // Show physical presence on the first GPS report at one eligible appointment.
 // Visit-duration accounting remains in the separately confirmed visit ledger.
@@ -21,19 +33,19 @@ export function currentGpsPresence(job: PresenceJob, trucks: PresenceTruck[], ap
     (row.appointmentEndMinutes == null || minute <= row.appointmentEndMinutes + 360)));
   if (!job.location || /cancel|completed|closed/i.test(job.status || '')) return undefined;
   const candidates = trucks.flatMap(truck => {
-    const stamp = Date.parse(truck.lastGpsUpdate || '');
-    if (!Number.isFinite(stamp) || stamp > now + 60_000 || now - stamp > 12 * 3600_000 || truck.latitude == null || truck.longitude == null || !Number.isFinite(truck.latitude) || !Number.isFinite(truck.longitude)) return [];
+    const observation = gpsPositionAtAppointment(job.location, truck, now);
+    if (!observation?.inside || now - observation.stamp > 12 * 3600_000) return [];
+    const { stamp } = observation;
     if (Date.parse(job.onsiteTime?.departure || '') >= stamp) return [];
-    const position = { latitude: truck.latitude, longitude: truck.longitude };
-    if (!eligible(job, truck) || distance(position, job.location!) > 125) return [];
+    const position = { latitude: truck.latitude!, longitude: truck.longitude! };
+    if (!eligible(job, truck)) return [];
     const nearby = appointments.filter(row => eligible(row, truck) && distance(position, row.location!) <= 125);
     if (nearby.length !== 1 || nearby[0].appointmentId !== job.appointmentId) return [];
     // The current position is authoritative even when route history and the
     // visit ledger have not caught up. Do not wait for a second report or dwell.
     // Engine-off trackers report hourly. Use the same parked heartbeat window
     // as the truck marker; elapsed time alone must not imply a departure.
-    const maxAge = parkedTruckObservation(truck) ? PARKED_GPS_MAX_AGE_MS : 10 * 60_000;
-    return [{ truck: truckLabel(truck.truck), arrival: new Date(stamp).toISOString(), observedAt: truck.lastGpsUpdate!, current: now - stamp <= maxAge }];
+    return [{ truck: truckLabel(truck.truck), arrival: new Date(stamp).toISOString(), observedAt: truck.lastGpsUpdate!, current: observation.current }];
   });
   return candidates.length === 1 ? candidates[0] : undefined;
 }

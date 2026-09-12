@@ -10,6 +10,13 @@
 .hours-toolbar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; padding: 8px 12px 0; }
 .hours-toolbar label { display: flex; align-items: center; gap: 8px; }
 .hours-toolbar a { font-size: 13px; color: #305c43; text-decoration: underline; }
+@media (max-width: 600px) {
+  .hours-toolbar label { width: 100%; flex-wrap: wrap; }
+  .hours-toolbar input { flex: 1 1 160px; min-width: 0; max-width: 100%; }
+  .hours-period-controls { width: 100%; }
+  .hours-period-controls label { min-width: 0; }
+  .hours-period-controls input { min-width: 0; max-width: 100%; }
+}
 .hours-source-note { margin: 0; padding: 6px 12px; font-size: 12px; line-height: 1.4; color: #607066; }
 .hours-table-wrap { overflow-x: auto; }
 .live-krewe-hours table { width: 100%; min-width: 520px; border-collapse: collapse; table-layout: fixed; font-size: 14px; }

@@ -9,8 +9,10 @@
 .payroll-review-toolbar { padding: 12px 16px; justify-content: space-between; font-size: 12px; color: #465d4e; }
 .payroll-review-toolbar label { display: flex; align-items: center; gap: 8px; }
 .payroll-review-warning { margin: 0 16px 10px; padding: 10px 12px; border-left: 3px solid #ae7715; background: #fff7e5; color: #705013; font-size: 12px; }
-.payroll-review-scroll { overflow-x: auto; }
-.payroll-review table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.payroll-review-scroll { min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+/* Override the enclosing hours panel's fixed table layout. Each payroll
+   column needs its content width, with overflow contained in this scroller. */
+.payroll-review .payroll-review-scroll table { width: 100%; min-width: 1100px; table-layout: auto; border-collapse: collapse; font-size: 12px; }
 .payroll-review th, .payroll-review td { padding: 12px 9px; border-block: 1px solid #e0e7e2; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .payroll-review thead th { background: #f7f9f7; color: #506257; font-size: 11px; font-weight: 650; }
 .payroll-review th:first-child, .payroll-review td:first-child { text-align: center; }

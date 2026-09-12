@@ -111,18 +111,28 @@ export function reusableStreetProgress(source:TruckGpsRoute,previous?:{source:Tr
   });
   return {...previous.result,sourceVersion:gpsSourceVersion(source),paths};
 }
-export function readStreetRoute(route:TruckGpsRoute){
+export function readStreetRoute(route:TruckGpsRoute,send:typeof osmStreetJson=osmStreetJson){
   const key=gpsSourceVersion(route),cached=completed.get(key);
   if(cached && cached.until>Date.now())return Promise.resolve(cached.route);
-  const existing=pending.get(key);if(existing)return existing;
   const truckKey=`${route.date}:${route.truck}`;
   const previous=cached?.route || reusableStreetProgress(route,latest.get(truckKey));
-  const request=buildStreetRoute(route,osmStreetJson,previous).then(result=>{
-    latest.set(truckKey,{source:route,result});
-    while(latest.size>32)latest.delete(latest.keys().next().value!);
-    completed.set(key,{route:result,until:Date.now()+(result.status==='available'?24*60*60_000:60_000)});
-    while(completed.size>32)completed.delete(completed.keys().next().value!);
-    return result;
-  }).finally(()=>pending.delete(key));
-  pending.set(key,request);return request;
+  const eligible=eligibleStreetEdges(route);
+  const paths=(previous?.paths || []).filter(path=>path.sourceEdge!==undefined && eligible.has(path.sourceEdge));
+  const aligned=new Set(paths.map(path=>path.sourceEdge));
+  const unmatched=[...eligible].filter(i=>!aligned.has(i) && meters(route.points[i],route.points[i+1])>30).length;
+  const visible:StreetProgress={sourceVersion:key,paths,unmatched,status:unmatched?'partial':paths.length?'available':'unavailable'};
+  // The public matcher shares a rate-limited queue with road ETAs. Never make
+  // the browser wait for that queue or discard all progress at its timeout.
+  // Only a viewer request starts a bounded slice; there is no fleet-wide loop.
+  if(!pending.has(truckKey)) {
+    const request=buildStreetRoute(route,send,previous).then(result=>{
+      latest.set(truckKey,{source:route,result});
+      while(latest.size>32)latest.delete(latest.keys().next().value!);
+      completed.set(key,{route:result,until:Date.now()+(result.status==='available'?24*60*60_000:60_000)});
+      while(completed.size>32)completed.delete(completed.keys().next().value!);
+      return result;
+    }).catch(()=>visible).finally(()=>pending.delete(truckKey));
+    pending.set(truckKey,request);
+  }
+  return Promise.resolve(visible);
 }

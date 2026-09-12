@@ -65,6 +65,24 @@ scripts/test-reschedule-source.ts, and scripts/test-reschedule-operations.ts.
 
 ### Schedule closeout reliability
 
+While closeout is open, its fixed drawer footer owns the primary **Review** and
+**Confirm in JunkWare** action. Status/category, truck/crew and actual visit times
+come first, followed by charges, subtotal/discount/tip and payments. Review moves
+to an itemized summary with the exact payment reference and any difference from
+the draft balance. An amount above that balance must be acknowledged before
+confirmation. Editing a field invalidates review; a failed save preserves the
+draft and returns to Review. Pending or uncertain receipts expose **Check Saved
+Result** instead of another submission. **Back to appointment** restores the
+usual drawer actions.
+
+Closeout dropdowns dispatch their native change handlers and await the matching
+POST plus WebForms completion, supporting both full and partial page updates.
+Forcing a form submission and waiting only for navigation can miss the partial
+Other Charge update. Estimate forms omit Job Category; OpsCenter hides that
+job-only field and skips its absent control only for an Estimate. Jobs continue
+to require the field and its saved read-back.
+
+
 The drawer's first disclosure has a prominent **Appointment Closeout · Open/Hide**
 control. The charges section ends with a draft subtotal before discount and tip,
 plus the resulting total. Percentage fees are marked as estimates; JunkWare's

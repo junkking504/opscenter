@@ -5,10 +5,10 @@ import { chromium, expect } from '@playwright/test';
 const field=(value='',label='',options=[{value:'',label:''}])=>({value,label,options});
 const fixture={truck:'Truck 1',truckOptions:[{value:'t',label:'Truck# 1'},{value:'u',label:'Truck# 6'}],status:field('1','Confirmed'),appointmentType:field('2','Job'),driver:{value:'d',label:'Fixture Driver'},drivers:[{value:'d',label:'Fixture Driver'}],navigators:[],navigatorOptions:[],loadQuantity:'1',loadSize:field(),loadPrices:[],loadPrice:'1200',bedloadQuantity:'',bedloadSize:field(),bedloadPrices:[],bedloadPrice:'',otherChargeOptions:[],otherCharges:[],discount:'',tip:'',jobCategory:field(),howHeard:field('ref','Referral',[{value:'ref',label:'Referral'}]),actualStartHour:field('12','12 PM',[{value:'12',label:'12 PM'}]),actualStartMinute:field('00','00',[{value:'00',label:'00'}]),actualEndHour:field('13','1 PM',[{value:'13',label:'1 PM'}]),actualEndMinute:field('00','00',[{value:'00',label:'00'}]),paymentMethods:[{value:'1',label:'Billed'},{value:'2',label:'Cash'},{value:'3',label:'Credit Card'},{value:'4',label:'Check'}],payments:[],balance:'1200.00',total:'$1,200.00'};
 async function main(){
- const output=await build({stdin:{contents:`import React from 'react';import{createRoot}from'react-dom/client';import Closeout from './desktop-ui/appointment-closeout';createRoot(document.getElementById('root')).render(<div className="ops-live"><Closeout job={{appointmentId:'1234',appointmentUrl:'https://example.invalid/appointment/1234',status:'Confirmed',appointmentType:'Job',truck:'Truck 1',onsiteTime:{arrival:'2026-09-09T14:26:24Z',departure:'2026-09-09T14:49:00Z',minutes:23,label:'23 min'},id:'2026-09-09:appointment:1234',sourceVersion:'${'a'.repeat(64)}'}} date="2026-09-09" saved={()=>{}} onBusyChange={()=>{}}/></div>);`,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,outdir:'fixture',jsx:'automatic',alias:{react:process.cwd()+'/desktop-ui/node_modules/react','react-dom':process.cwd()+'/desktop-ui/node_modules/react-dom'}});
+ const output=await build({stdin:{contents:`import React from 'react';import{createRoot}from'react-dom/client';import Closeout from './desktop-ui/appointment-closeout';createRoot(document.getElementById('root')).render(<div className="ops-live job-record-drawer"><main className="fixture-scroll"><Closeout job={{appointmentId:'1234',appointmentUrl:'https://example.invalid/appointment/1234',status:'Confirmed',appointmentType:'Job',truck:'Truck 1',onsiteTime:{arrival:'2026-09-09T14:26:24Z',departure:'2026-09-09T14:49:00Z',minutes:23,label:'23 min'},id:'2026-09-09:appointment:1234',sourceVersion:'${'a'.repeat(64)}'}} date="2026-09-09" saved={()=>{}} onBusyChange={()=>{}}/></main><footer className="record-drawer-actions"><div className="closeout-footer-slot"/><button>Reschedule Appointment</button><button>Cancel Appointment</button></footer></div>);`,resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,outdir:'fixture',jsx:'automatic',alias:{react:process.cwd()+'/desktop-ui/node_modules/react','react-dom':process.cwd()+'/desktop-ui/node_modules/react-dom'}});
  const js=output.outputFiles.find(f=>f.path.endsWith('.js'))!.text,css=output.outputFiles.find(f=>f.path.endsWith('.css'))!.text;
  let posts=0;
- const server=createServer(async(req,res)=>{if(req.method==='POST'){posts++;res.writeHead(400);res.end('{}');return;}if(req.url?.includes('/api/desktop/schedule/closeout')){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({closeout:fixture,sourceVersion:'a'.repeat(64),canWrite:true}));return;}if(req.url==='/app.js'){res.setHeader('Content-Type','text/javascript');res.end(js);return;}res.setHeader('Content-Type','text/html');res.end(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;font-family:Arial}*{box-sizing:border-box}${css}</style></head><body><div id="root"></div><script src="/app.js"></script></body></html>`);});
+ const server=createServer(async(req,res)=>{if(req.method==='POST'){posts++;res.writeHead(400);res.end('{}');return;}if(req.url?.includes('/api/desktop/schedule/closeout')){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({closeout:fixture,sourceVersion:'a'.repeat(64),canWrite:true}));return;}if(req.url==='/app.js'){res.setHeader('Content-Type','text/javascript');res.end(js);return;}res.setHeader('Content-Type','text/html');res.end(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;font-family:Arial}*{box-sizing:border-box}.job-record-drawer{height:100dvh;max-width:560px;margin-left:auto;display:flex;flex-direction:column}.fixture-scroll{flex:1;overflow:auto;min-height:0}.record-drawer-actions{padding:12px;border-top:1px solid #ddd;flex-shrink:0}${css}</style></head><body><div id="root"></div><script src="/app.js"></script></body></html>`);});
  await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const url=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
  const browser=await chromium.launch({headless:true});
  try{for(const width of [390,1280]){const page=await browser.newPage({viewport:{width,height:844}});await page.goto(url);await page.getByText('Appointment Closeout',{exact:true}).click();await page.getByRole('radio',{name:'Completed',exact:true}).check();await page.getByRole('checkbox',{name:'Add a payment'}).check();
@@ -50,6 +50,32 @@ async function main(){
   await page.screenshot({path:`/tmp/closeout-summary-${width}.png`,fullPage:true});
   await page.close();
  }
+ for (const width of [390,1280]) {
+  const page=await browser.newPage({viewport:{width,height:844}});let writes=0;
+  await page.route('**/api/desktop/schedule/operations',route=>{writes++;return route.fulfill({json:{receipt:{requestId:'failed',action:'closeout',status:'failed',message:'Source rejected this change.'}}});});
+  await page.goto(url);await page.locator('summary').click();
+  await page.getByRole('radio',{name:'Completed',exact:true}).check();
+  await page.getByRole('checkbox',{name:'Add a payment'}).check();
+  await page.getByRole('radio',{name:'Cash',exact:true}).check();
+  await page.getByRole('textbox',{name:'Payment amount',exact:true}).fill('1211');
+  const footer=page.locator('.closeout-footer-slot');
+  const primary=footer.getByRole('button',{name:'Review Closeout',exact:true});
+  const box=(await primary.boundingBox())!;assert.ok(box.height>=48 && box.y+box.height<=844,'Primary action stays in the visible drawer footer');
+  await expect(page.getByRole('button',{name:'Reschedule Appointment',exact:true})).toBeHidden();
+  await primary.click();assert.equal(writes,0);
+  await expect(page.getByLabel('Closeout review')).toContainText('$11.00 above the draft balance');
+  await expect(page.getByLabel('Closeout review')).toContainText('12:00 PM – 1:00 PM');
+  await footer.getByRole('button',{name:'Confirm Job Closeout in JunkWare',exact:true}).click();assert.equal(writes,0,'Payment difference requires review before submission');
+  await page.getByRole('checkbox',{name:'I checked this payment difference'}).check();
+  await page.screenshot({path:`/tmp/closeout-workflow-review-${width}.png`});
+  await footer.getByRole('button',{name:'Confirm Job Closeout in JunkWare',exact:true}).click();
+  await expect(primary).toBeVisible();assert.equal(writes,1,'Failed save returns to review without retrying');
+  await expect(page.getByRole('textbox',{name:'Payment amount',exact:true})).toHaveValue('1211');
+  await primary.click();await expect(page.getByRole('checkbox',{name:'I checked this payment difference'})).not.toBeChecked();
+  await footer.getByRole('button',{name:'Back to appointment',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Reschedule Appointment',exact:true})).toBeVisible();
+  await page.close();
+ }
  const blockedPage=await browser.newPage({viewport:{width:390,height:844}});
  let reconciled=false;
  const moveReceipt={requestId:'fixture-move',action:'move',status:'uncertain',message:'Earlier assignment change remains unresolved.'};
@@ -57,8 +83,8 @@ async function main(){
  await blockedPage.route('**/api/desktop/schedule/operations?*',route=>{reconciled=true;return route.fulfill({json:{receipt:{...moveReceipt,status:'verified',message:'JunkWare confirms the saved truck and appointment window.'}}});});
  await blockedPage.goto(url);await blockedPage.getByText('Appointment Closeout',{exact:true}).click();
  await expect(blockedPage.getByRole('alert').last()).toContainText('This is not a closeout result');
- await expect(blockedPage.getByRole('button',{name:'Review Changes',exact:true})).toBeDisabled();
- const check=blockedPage.getByRole('button',{name:'Check Saved Result',exact:true});
+ await expect(blockedPage.getByRole('combobox',{name:'Final appointment category'})).toBeDisabled();
+ const check=blockedPage.locator('.closeout-footer-slot').getByRole('button',{name:'Check Saved Result',exact:true});
  assert.ok((await check.boundingBox())!.y<844,'Recovery action is visible before the disabled fields on a phone');
  await check.click();
  await expect(blockedPage.getByRole('button',{name:'Reload from JunkWare',exact:true})).toBeEnabled();

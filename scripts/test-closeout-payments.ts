@@ -15,7 +15,7 @@ const esc = (s:string) => s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace
 function html(fields:URLSearchParams) {
   const value = (key:string) => fields.get(`ctl00$Content$${key}`) || (key==='StartTimeTB'?'09:00 AM':key==='AppointmentDateTB'?'09/12/2026':'');
   const control = (key:string) => `<input id="ctl00_Content_${key}" name="ctl00$Content$${key}" value="${esc(value(key))}">`;
-  const select = (key:string, options:{value:string;label:string}[]) => `<select id="ctl00_Content_${key}" name="ctl00$Content$${key}">${options.map(o=>`<option value="${o.value}" ${value(key)===o.value?'selected':''}>${o.label}</option>`).join('')}</select>`;
+  const select = (key:string, options:{value:string;label:string}[]) => `<select id="ctl00_Content_${key}" name="ctl00$Content$${key}" ${['StatusDD','AppointmentTypeDD','TruckDD','PaymentMethodDD'].includes(key)?`onchange="this.form.elements.namedItem('__EVENTTARGET').value=this.name;this.form.submit()"`:""}>${options.map(o=>`<option value="${o.value}" ${value(key)===o.value?'selected':''}>${o.label}</option>`).join('')}</select>`;
   const submit = (key:string) => `<input type="submit" id="ctl00_Content_${key}" name="ctl00$Content$${key}" value="${key}">`;
   const status = value('StatusDD');
   return `<!doctype html><html><body>JKTEST1234<form method="post"><input name="__EVENTTARGET"><input name="__EVENTARGUMENT">
@@ -26,7 +26,7 @@ function html(fields:URLSearchParams) {
   ${select('DriverDD',[{value:'d',label:'Synthetic Driver'}])}
   ${select('AppointmentTechniciansLV_ctrl0_NavigatorDD',[{value:'',label:''}])}
   ${['LoadSizeTruckQtyTB','BillingAmountTB','BedloadTruckQtyTB','BedLoadPriceTB','DiscountsTB','TipsTB'].map(control).join('')}
-  ${['LoadSizeDD','BedloadDD','JobCategoryDD','OtherChargeDD'].map(k=>select(k,[{value:'',label:''}])).join('')}
+  ${['LoadSizeDD','BedloadDD',...(value('AppointmentTypeDD')==='1'?[]:['JobCategoryDD']),'OtherChargeDD'].map(k=>select(k,[{value:'',label:''}])).join('')}
   ${['ActualStartHourDD','ActualEndHourDD'].map(k=>select(k,[{value:'',label:''},{value:'12',label:'12 PM'},{value:'13',label:'01 PM'}])).join('')}
   ${['ActualStartMinuteDD','ActualEndMinuteDD'].map(k=>select(k,[{value:'',label:''},{value:'00',label:'00'}])).join('')}
   <span id="ctl00_Content_TotalLbl">$1,200.00</span>
@@ -85,6 +85,14 @@ async function main() {
       assert.throws(()=>verifyCloseoutFields({...result,truck:'Truck 1'},request,baseline),/selected truck/);
       assert.throws(()=>verifyCloseoutFields({...result,appointmentWindow:{startTime:'10:00 AM',durationHours:'1'}},request,baseline),/appointment window/);
     }
+    persisted = new URLSearchParams({'ctl00$Content$StatusDD':'1','ctl00$Content$AppointmentTypeDD':'2','ctl00$Content$BillingAmountTB':'478'});
+    payments=[];await page.goto(url);
+    const job=await captureCloseoutSource(page,capture);
+    const estimateRequest={...input,appointmentType:'Estimate',loadPrice:'478',jobCategoryId:'job-only',estimateOutcome:{reason:'Date/Time' as const,explanation:'Booking for Monday',noDiscountReason:'Customer requested another day'}};
+    const converted=await saveAndVerifyCloseout(job,()=>applyCloseout(page,estimateRequest,job),async()=>{await page.goto(url);return captureCloseoutSource(page,capture);},result=>verifyCloseoutFields(result,estimateRequest,job));
+    assert.equal((converted.jobCategory as {options:unknown[]}).options.length,0,'Estimate omits the Job Category control');
+    assert.equal((converted.appointmentType as {label:string}).label,'Estimate');
+    assert.throws(()=>verifyCloseoutFields({...converted,appointmentType:{label:'Job'}},{...estimateRequest,appointmentType:'Job'},job),/jobCategory/,'Missing job field is still an error for Jobs');
     for (const [status, assigned, selected, expected] of [
       ['1','Assigned: Truck# 6','','Truck 6'],
       ['1','Assigned: Truck# 6','Truck# 1','Truck 6'],
@@ -109,7 +117,7 @@ async function main() {
       assert.equal(saves,0);assert.equal(adds,0,'Estimate discovery never saves or adds a payment');
       assert.equal(closeoutSourceVersion(await captureCloseoutSource(page,capture)),closeoutSourceVersion(estimate));
       if (status === '8') {
-        const request={...input,appointmentType:'Estimate',loadPrice:'508',discount:'20'};
+        const request={...input,appointmentType:'Estimate',loadPrice:'508',discount:'20',jobCategoryId:'old-job-only-value'};
         const result=await saveAndVerifyCloseout(estimate,()=>applyCloseout(page,request,estimate),async()=>{await page.goto(url);return captureCloseoutSource(page,capture);},result=>verifyCloseoutFields(result,request,estimate));
         assert.equal(result.status.value,'8');assert.equal((result.appointmentType as {label:string}).label,'Estimate');
         assert.equal(result.loadPrice,'508');assert.equal(result.discount,'20');

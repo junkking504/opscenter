@@ -4,6 +4,7 @@ import { closeoutGpsTimes, closeoutChargesSummary, type CloseoutTimeKey } from '
 import { onsiteTimeFacts } from '../lib/appointment-onsite-time';
 import { paymentReferenceLabel, validateCloseoutPayment } from "../lib/closeout-payment";
 
+import { createPortal } from 'react-dom';
 import { useEffect, useId, useRef, useState } from "react";
 import type { ScheduleAppointment } from './lib/schedule-contract';
 import { sendScheduleChange, checkScheduleChange, ChangeReceipt, type Receipt } from './schedule-controls';
@@ -62,6 +63,12 @@ function automaticSizePrice(size: string, quantity: string, options: Option[], p
 
 export default function AppointmentCloseout({ job, date: serviceDate, saved, onBusyChange }: { job: ScheduleAppointment; date: string; saved: () => void; onBusyChange: (busy: boolean) => void }) {
   const { appointmentId, appointmentUrl, status: initialStatus } = job;
+  const panel = useRef<HTMLDetailsElement>(null);
+  const reviewPanel = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [actionHost, setActionHost] = useState<Element | null>(null);
+  const [differenceReviewed, setDifferenceReviewed] = useState(false);
+  useEffect(() => { setActionHost(panel.current?.closest('.job-record-drawer')?.querySelector('.closeout-footer-slot') || null); }, []);
   const paymentGroupId = useId();
   const statusGroupId = useId();
   const [targetStatus, setTargetStatus] = useState('1');
@@ -71,6 +78,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   const [canWrite, setCanWrite] = useState(false);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [reviewing, setReviewing] = useState(false);
+  useEffect(() => { if (reviewing) { reviewPanel.current?.scrollIntoView({block:'start',behavior:'instant'}); reviewPanel.current?.focus({preventScroll:true}); } }, [reviewing]);
   const [category, setCategory] = useState(job.appointmentType.toLowerCase().includes('estimate') ? 'Estimate' : 'Job');
   const [estimateReason, setEstimateReason] = useState('');
   const [estimateExplanation, setEstimateExplanation] = useState('');
@@ -275,7 +283,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       return;
     }
     if (otherChargeType) { setError("Add the pending Other Charge or clear its selection before reviewing."); return; }
-    if (!reviewing) { setError(""); setReviewing(true); return; }
+    if (!reviewing) { setError(""); setDifferenceReviewed(false); setReviewing(true); return; }
+    if (paymentDifference > 0.01 && !differenceReviewed) { setError('Review the payment difference before confirming.'); return; }
     requestPending.current = true;
     setSaving(true);
     setError("");
@@ -303,7 +312,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
           })),
           discount: inputMoney(live.discount),
           tip: inputMoney(live.tip),
-          jobCategoryId: live.jobCategory.value,
+          jobCategoryId: category === 'Estimate' ? '' : live.jobCategory.value,
           ...(live.howHeard ? { howHeardId: live.howHeard.value } : {}),
           actualStartHour: live.actualStartHour.value,
           actualStartMinute: live.actualStartMinute.value,
@@ -317,6 +326,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
         } } : {}),
       }, requestId).catch(() => ({ requestId, status: 'uncertain', message: 'The closeout result could not be confirmed. Check Saved Result before another change.' } as Receipt));
       setReceipt(result);
+      if (result.status === 'failed') { setReviewing(false); setDifferenceReviewed(false); }
       if (result.status !== 'verified' || !result.sourceResult?.closeout) return;
       const payload = result.sourceResult as { closeout: LiveCloseout; truckLoadStatus?: { updated?: boolean; status?: { truck?: string; currentLoadLabel?: string }; reason?: string } };
       setLive(payload.closeout);
@@ -366,8 +376,20 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   const hasGpsTimes = Object.keys(gpsTimes).length > 0;
   const money = (amount:number) => Number.isFinite(amount) ? new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(amount) : 'Check amounts';
 
+  const pendingReceipt = Boolean(receipt && ['pending','uncertain'].includes(receipt.status));
+  const verified = receipt?.status === 'verified';
+  const draftBalance = totals && live ? totals.total-live.payments.filter(payment=>!/^billed/i.test(payment.description)).reduce((sum,payment)=>sum+Number(inputMoney(payment.amount)),0) : 0;
+  const paymentDifference = addPayment && targetStatus !== '9' ? Number(inputMoney(paymentAmount))-draftBalance : 0;
+  const timeLabel = (hour:string,minute:string) => hour && minute ? `${Number(hour)%12 || 12}:${minute.padStart(2,'0')} ${Number(hour)>=12?'PM':'AM'}` : 'Not entered';
+  const actions = expanded && live ? <div className="closeout-primary-actions">
+    <div className="closeout-action-context"><strong>{pendingReceipt ? 'Check the previous save' : verified ? 'Saved and verified' : reviewing ? 'Ready to confirm' : 'Review before saving'}</strong>{totals && targetStatus!=='9' && <span>{money(totals.total)}{totals.estimated ? ' estimated' : ''}</span>}</div>
+    {error && <p role="alert">{error}</p>}
+    <button type="button" className="ops-button closeout-primary-button" onClick={()=>void (pendingReceipt ? check() : verified ? load() : save())} disabled={saving || loading || (!pendingReceipt && !verified && !canWrite)}>{saving ? "Saving and checking JunkWare…" : pendingReceipt ? 'Check Saved Result' : verified ? 'Reload saved closeout' : targetStatus === '9' ? reviewing ? 'Confirm Cancellation in JunkWare' : 'Review Cancellation' : targetStatus === '1' ? reviewing ? 'Confirm Changes in JunkWare' : 'Review Changes' : reviewing ? `Confirm ${category} Closeout in JunkWare` : "Review Closeout"}</button>
+    <div className="closeout-secondary-actions">{reviewing && <button type="button" onClick={()=>{setReviewing(false);setDifferenceReviewed(false);}} disabled={saving}>Edit details</button>}<button type="button" onClick={()=>{if(panel.current)panel.current.open=false;}} disabled={saving || loading}>Back to appointment</button></div>
+  </div> : null;
+
   return (
-    <details className="appointment-closeout-panel" data-appointment-id={resolvedAppointmentId} aria-busy={loading || saving} onToggle={event => { if (event.currentTarget.open && !live && !loading && !saving) void load(); }}>
+    <details ref={panel} className="appointment-closeout-panel" data-appointment-id={resolvedAppointmentId} aria-busy={loading || saving} onToggle={event => { setExpanded(event.currentTarget.open); if (event.currentTarget.open && !live && !loading && !saving) void load(); }}>
       <summary><span className="closeout-summary-title">Appointment Closeout</span><span className="closeout-summary-action" aria-hidden="true"><span className="closeout-open-label">Open</span><span className="closeout-hide-label">Hide</span><span className="closeout-summary-chevron">⌄</span></span></summary>
       <div className="appointment-closeout-body">
         {receipt && <>{receipt.action && receipt.action !== 'closeout' && ['pending', 'uncertain'].includes(receipt.status) && <p role="alert">Closeout is locked until the earlier {receipt.action === 'move' ? 'assignment change' : 'appointment change'} is checked in JunkWare. This is not a closeout result.</p>}<ChangeReceipt receipt={receipt} onCheck={() => { void check(); }} /></>}
@@ -377,7 +399,27 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
           ) : message ? <button type="button" className="ops-button" onClick={() => void load()} disabled={saving || !resolvedAppointmentId}>Reload from JunkWare</button> : null
         ) : (
           <>
-            <fieldset onChange={() => setReviewing(false)} className="desktop-closeout-fields" disabled={saving || Boolean(receipt && receipt.status !== 'failed')}>
+            <fieldset onChange={() => { setReviewing(false); setDifferenceReviewed(false); }} className="desktop-closeout-fields" disabled={saving || Boolean(receipt && receipt.status !== 'failed')}>
+            {reviewing && <div ref={reviewPanel} tabIndex={-1} className="closeout-review" role="status" aria-label="Closeout review">
+              <h3>{targetStatus === '9' ? 'Review cancellation' : 'Review closeout'}</h3>
+              <p>{job.jkNumber} · {job.customerName}</p>
+              <div className="closeout-review-facts"><div><span>Status</span><strong>{live.status.label} → {targetStatus === '8' ? 'Completed' : targetStatus === '9' ? 'Cancelled' : 'Confirmed'}</strong></div>
+              {targetStatus !== '9' && <><div><span>Category</span><strong>{category}</strong></div><div><span>Truck</span><strong>{live.truck || 'Unassigned'} → {truck || 'Unassigned'}</strong></div><div><span>Krewe</span><strong>{[live.driver.label,...live.navigators.filter(person=>person.value).map(person=>person.label)].filter(Boolean).join(' · ') || 'Not assigned'}</strong></div><div><span>Actual job time</span><strong>{timeLabel(live.actualStartHour.value,live.actualStartMinute.value)} – {timeLabel(live.actualEndHour.value,live.actualEndMinute.value)}</strong></div></>}
+              </div>
+              {targetStatus === '9' ? <p>{cancellationReason.trim()}</p> : <>
+              <div className="closeout-review-facts"><div><span>Load · {live.loadQuantity || '0'} full trucks{live.loadSize.value ? ` + ${live.loadSize.value}` : ''}</span><strong>{money(Number(inputMoney(live.loadPrice)))}</strong></div>
+                {Number(inputMoney(live.bedloadPrice)) > 0 && <div><span>Bedload</span><strong>{money(Number(inputMoney(live.bedloadPrice)))}</strong></div>}
+                {[...live.otherCharges,...pendingOtherCharges].map((charge,index)=><div key={index}><span>{charge.label} · {charge.quantity || '1'}{index>=live.otherCharges.length ? ' (to add)' : ''}</span><strong>{'typeValue' in charge && String(charge.typeValue).split('|')[2]==='1' ? 'Calculated by JunkWare' : money(charge.total ? Number(inputMoney(charge.total)) : Number(charge.quantity || '1')*Number(inputMoney(charge.price)))}</strong></div>)}
+                <div><span>Subtotal</span><strong>{money(totals!.subtotal)}</strong></div><div><span>Discount</span><strong>−{money(Number(inputMoney(live.discount)))}</strong></div><div><span>Tip</span><strong>{money(Number(inputMoney(live.tip)))}</strong></div><div className="closeout-review-total"><span>Total{totals!.estimated ? ' (estimated)' : ''}</span><strong>{money(totals!.total)}</strong></div>
+              </div>
+              <div className="closeout-review-facts">{live.payments.map((payment,index)=><div key={index}><span>Already recorded · {payment.description}</span><strong>{payment.amount}</strong></div>)}</div>
+              <p>{addPayment ? `Payment to record: ${live.paymentMethods.find(option => option.value === paymentMethod)?.label} · ${money(Number(inputMoney(paymentAmount)))}${paymentReference ? ` · ${paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}: ${paymentReference}` : ''}` : 'No new payment will be recorded.'}</p>
+              {addPayment && Math.abs(paymentDifference)>0.01 && <div className="closeout-payment-difference"><strong>{paymentDifference>0 ? `${money(paymentDifference)} above the draft balance` : `${money(-paymentDifference)} remains after this entry`}</strong><p>Draft balance {money(draftBalance)} · Payment entered {money(Number(inputMoney(paymentAmount)))}. Check charges, tip and payment amount{totals!.estimated ? '; percentage fees are estimates' : ''}.</p>{paymentDifference>0 && <label><input type="checkbox" checked={differenceReviewed} onChange={event=>{event.stopPropagation();setDifferenceReviewed(event.target.checked);setError('');}}/><span>I checked this payment difference</span></label>}</div>}
+              {category==='Estimate' && targetStatus==='8' && <p>Estimate outcome: {estimateReason} · {estimateExplanation}{noDiscountReason ? ` · No discount: ${noDiscountReason}` : ''}</p>}
+              </>}
+              <p className="closeout-confirm-note">Confirmation saves this {targetStatus==='9' ? 'cancellation' : 'appointment'} in JunkWare.{targetStatus==='8' ? ' Completion may send the normal closeout alert.' : ''}</p>
+            </div>}
+            <p className="closeout-step-note">{reviewing ? 'Review the summary above, or edit any field below.' : '1. Job details and charges → 2. Review → 3. Confirm in JunkWare'}</p>
             <fieldset className="ops-closeout-status-options"><legend>Status</legend>
               {[['1', 'Confirmed'], ['8', 'Completed'], ['9', 'Cancelled']].map(([value, label]) => <label key={value}><input type="radio" name={statusGroupId} value={value} checked={targetStatus === value} disabled={live.status.value === '8' && value !== '8'} onChange={() => { setTargetStatus(value); setReviewing(false); setError(''); }} /><span>{label}</span></label>)}
             </fieldset>
@@ -436,6 +478,21 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             </section>
 
             <section className="appointment-create-section">
+              <h4>Actual Job Time</h4>
+              {hasGpsTimes ? <><p>Truck GPS: {onsiteTimeFacts(job.onsiteTime!).filter(fact=>fact.label!=='On-site time').map(fact=>`${fact.label} ${fact.value}`).join(' · ')}. Rounded to JunkWare’s available minutes.</p>
+                <button type="button" className="ops-button subtle" onClick={()=>{setReviewing(false);gpsDefaults.current={...gpsTimes};setLive(current=>{if(!current)return current;const next={...current};for(const key of Object.keys(gpsTimes) as CloseoutTimeKey[])next[key]={...next[key],value:gpsTimes[key]!};return next;});}}>Use GPS times</button></> : <p>Confirmed GPS visit times are unavailable for this truck. Enter the actual job times.</p>}
+              {hasGpsTimes && !gpsTimes.actualEndHour && <p>GPS departure has not been recorded. Enter the finish time when confirmed.</p>}
+              <div className="ops-closeout-time-grid">
+                <span>Started</span>
+                <select aria-label="Actual start hour" value={live.actualStartHour.value} onChange={(event) => updateSelect("actualStartHour", event.target.value)}>{live.actualStartHour.options.map((option) => <option key={`sh-${option.value}`} value={option.value}>{option.label || "Hour"}</option>)}</select>
+                <select aria-label="Actual start minute" value={live.actualStartMinute.value} onChange={(event) => updateSelect("actualStartMinute", event.target.value)}>{live.actualStartMinute.options.map((option) => <option key={`sm-${option.value}`} value={option.value}>{option.label || "Minute"}</option>)}</select>
+                <span>Finished</span>
+                <select aria-label="Actual finish hour" value={live.actualEndHour.value} onChange={(event) => updateSelect("actualEndHour", event.target.value)}>{live.actualEndHour.options.map((option) => <option key={`eh-${option.value}`} value={option.value}>{option.label || "Hour"}</option>)}</select>
+                <select aria-label="Actual finish minute" value={live.actualEndMinute.value} onChange={(event) => updateSelect("actualEndMinute", event.target.value)}>{live.actualEndMinute.options.map((option) => <option key={`em-${option.value}`} value={option.value}>{option.label || "Minute"}</option>)}</select>
+              </div>
+            </section>
+
+            <section className="appointment-create-section">
               <h4>Job Charges</h4>
               <div className="appointment-closeout-grid">
                 <label><span>Full trucks</span><input value={live.loadQuantity} inputMode="decimal" onChange={(event) => updateLoadQuantity(event.target.value)} /></label>
@@ -445,9 +502,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
                 <label><span>Bedload quantity</span><input value={live.bedloadQuantity} inputMode="decimal" onChange={(event) => updateBedloadQuantity(event.target.value)} /></label>
                 <label><span>Bedload size</span><select value={live.bedloadSize.value} onChange={(event) => updateBedloadSize(event.target.value)}>{live.bedloadSize.options.map((option) => <option key={`bed-${option.value}`} value={option.value}>{option.label || "None"}</option>)}</select></label>
                 <label><span>Bedload price</span><input value={live.bedloadPrice} inputMode="decimal" onChange={(event) => update("bedloadPrice", event.target.value)} /></label>
-                <label><span>Discount</span><input value={live.discount} inputMode="decimal" onChange={(event) => update("discount", event.target.value)} /></label>
-                <label><span>Tip</span><input value={live.tip} inputMode="decimal" onChange={(event) => update("tip", event.target.value)} /></label>
-                <label><span>Job category</span><select value={live.jobCategory.value} onChange={(event) => updateSelect("jobCategory", event.target.value)}>{live.jobCategory.options.map((option) => <option key={`category-${option.value}`} value={option.value}>{option.label || "Choose category"}</option>)}</select></label>
+                {category === 'Job' && <label><span>Job category</span><select value={live.jobCategory.value} onChange={(event) => updateSelect("jobCategory", event.target.value)}>{live.jobCategory.options.map((option) => <option key={`category-${option.value}`} value={option.value}>{option.label || "Choose category"}</option>)}</select></label>}
                 {live.howHeard && <label><span>How heard</span><select value={live.howHeard.value} onChange={event => update("howHeard", { ...live.howHeard!, value: event.target.value })}>{live.howHeard.options.map(option => <option key={option.value} value={option.value}>{option.label || "Choose how heard"}</option>)}</select></label>}
               </div>
               <div className="ops-closeout-other-charges">
@@ -491,23 +546,10 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             {totals && <div className="ops-closeout-totals" aria-label="Draft charge totals" aria-live="polite">
               <div><span>Subtotal</span><strong>{money(totals.subtotal)}</strong></div>
               <small>Before discount and tip{totals.estimated ? ' · Percentage fees estimated' : ''}</small>
+                <label><span>Discount</span><input value={live.discount} inputMode="decimal" onChange={(event) => update("discount", event.target.value)} /></label>
+                <label><span>Tip</span><input value={live.tip} inputMode="decimal" onChange={(event) => update("tip", event.target.value)} /></label>
               <div><span>Total after discount and tip</span><strong>{money(totals.total)}</strong></div>
             </div>}
-            <section className="appointment-create-section">
-              <h4>Actual Job Time</h4>
-              {hasGpsTimes ? <><p>Truck GPS: {onsiteTimeFacts(job.onsiteTime!).filter(fact=>fact.label!=='On-site time').map(fact=>`${fact.label} ${fact.value}`).join(' · ')}. Rounded to JunkWare’s available minutes.</p>
-                <button type="button" className="ops-button subtle" onClick={()=>{setReviewing(false);gpsDefaults.current={...gpsTimes};setLive(current=>{if(!current)return current;const next={...current};for(const key of Object.keys(gpsTimes) as CloseoutTimeKey[])next[key]={...next[key],value:gpsTimes[key]!};return next;});}}>Use GPS times</button></> : <p>Confirmed GPS visit times are unavailable for this truck. Enter the actual job times.</p>}
-              {hasGpsTimes && !gpsTimes.actualEndHour && <p>GPS departure has not been recorded. Enter the finish time when confirmed.</p>}
-              <div className="ops-closeout-time-grid">
-                <span>Started</span>
-                <select aria-label="Actual start hour" value={live.actualStartHour.value} onChange={(event) => updateSelect("actualStartHour", event.target.value)}>{live.actualStartHour.options.map((option) => <option key={`sh-${option.value}`} value={option.value}>{option.label || "Hour"}</option>)}</select>
-                <select aria-label="Actual start minute" value={live.actualStartMinute.value} onChange={(event) => updateSelect("actualStartMinute", event.target.value)}>{live.actualStartMinute.options.map((option) => <option key={`sm-${option.value}`} value={option.value}>{option.label || "Minute"}</option>)}</select>
-                <span>Finished</span>
-                <select aria-label="Actual finish hour" value={live.actualEndHour.value} onChange={(event) => updateSelect("actualEndHour", event.target.value)}>{live.actualEndHour.options.map((option) => <option key={`eh-${option.value}`} value={option.value}>{option.label || "Hour"}</option>)}</select>
-                <select aria-label="Actual finish minute" value={live.actualEndMinute.value} onChange={(event) => updateSelect("actualEndMinute", event.target.value)}>{live.actualEndMinute.options.map((option) => <option key={`em-${option.value}`} value={option.value}>{option.label || "Minute"}</option>)}</select>
-              </div>
-            </section>
-
             <section className="appointment-create-section">
               <h4>Payments</h4>
               {live.payments.length ? <div className="ops-closeout-payments">{live.payments.map((payment, index) => <div key={`payment-${index}`}><span>{payment.description}</span><strong>{payment.amount}</strong></div>)}</div> : <p>No payment has been entered in Junkware.</p>}
@@ -524,19 +566,16 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             </section>
 
             </>}
-            {reviewing && targetStatus === '9' && <div role="status"><p>Review cancellation of {job.jkNumber}: {cancellationReason.trim()}</p></div>}
-            {reviewing && targetStatus !== '9' && <div role="status"><p>{live.status.label} → {targetStatus === '8' ? 'Completed' : 'Confirmed'} · {live.truck || 'Unassigned'} → {truck || 'Unassigned'}</p><p>Review {category} closeout: {live.loadQuantity || '0'} full trucks{live.loadSize.value ? ` + ${live.loadSize.value}` : ''}. Load price ${Number(inputMoney(live.loadPrice)).toFixed(2)}, discount ${Number(inputMoney(live.discount)).toFixed(2)}.</p><p>Review all amounts, assigned Krewe and payment fields above. Confirmation saves this appointment in JunkWare.{targetStatus === '8' ? ' Completion can publish its normal closeout alert.' : ' The appointment stays Confirmed.'}</p><p>{addPayment ? `Payment to record: ${live.paymentMethods.find(option => option.value === paymentMethod)?.label} · $${Number(inputMoney(paymentAmount)).toFixed(2)}${paymentReference ? ` · ${paymentReferenceLabel(live.paymentMethods.find(option => option.value === paymentMethod))}: ${paymentReference}` : ''}` : 'No new payment will be recorded.'}</p></div>}
             {!canWrite && <p role="status">Your role can read this closeout. A manager must save changes.</p>}
-            <div className="ops-closeout-editor-actions">
-              <button type="button" className="ops-button" onClick={save} disabled={saving || !canWrite}>{saving ? "Saving and checking JunkWare…" : targetStatus === '9' ? reviewing ? 'Confirm Cancellation in JunkWare' : 'Review Cancellation' : targetStatus === '1' ? reviewing ? 'Confirm Changes in JunkWare' : 'Review Changes' : reviewing ? `Confirm ${category} Closeout in JunkWare` : "Review Closeout"}</button>
-            </div>
             </fieldset>
             <button type="button" className="ops-button subtle" onClick={() => void load()} disabled={saving || loading || Boolean(receipt && ['pending', 'uncertain'].includes(receipt.status))}>Reload from JunkWare</button>
           </>
         )}
         {message ? <div className="ops-closeout-editor-message success">{message}</div> : null}
-        {error ? <div className="ops-closeout-editor-message error">{error}</div> : null}
+        {error && !live ? <div className="ops-closeout-editor-message error">{error}</div> : null}
+        {!actionHost && actions}
       </div>
+      {actionHost && actions && createPortal(actions, actionHost)}
     </details>
   );
 }

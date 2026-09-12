@@ -979,9 +979,17 @@ try {
     process.env.SLACK_OPSCENTER_STATE_FILE = paymentStateFile;
   }
   const recoveryState=JSON.parse(fs.readFileSync(paymentStateFile,'utf8'));
+  for (const employee of ['robert mclaughlin', 'eugene dabezies']) {
+    const fingerprint = `payroll_exception:crew-${employee}-salary-as-hourly`;
+    recoveryState.active[fingerprint] = {fingerprint, kind:'payroll_exception', channelId:'C_TEST_COMMAND', threadTs:`ignored-${employee}`, openedAt:'2026-08-12T10:00:00Z', lastSeenAt:'2026-08-12T10:00:00Z'};
+  }
   recoveryState.active['stale_data:recovered-fixture']={fingerprint:'stale_data:recovered-fixture',kind:'stale_data',channelId:'C_TEST_COMMAND',threadTs:'1000.recovery',openedAt:'2026-08-12T10:00:00Z',lastSeenAt:'2026-08-12T10:00:00Z',originalText:'*JunkWare unavailable*\n*Source:* JunkWare schedule'};
   fs.writeFileSync(paymentStateFile,JSON.stringify(recoveryState));
   const recovered=await runSlackOpsAlerts({date:'2026-08-12'});
+  assert.ok(!recovered.resolved.some(item => item.threadTs.startsWith('ignored-')));
+  assert.ok(!updates.some(item => item.ts.startsWith('ignored-')), 'Ignored warnings must retire without a Slack recovery message');
+  const retiredState = JSON.parse(fs.readFileSync(paymentStateFile, 'utf8'));
+  assert.ok(!Object.keys(retiredState.active).some(key => /^payroll_exception:crew-(robert mclaughlin|eugene dabezies)-salary-as-hourly$/.test(key)));
   assert.ok(recovered.resolved.some(item=>item.threadTs==='1000.recovery'));
   const recovery=updates.find(item=>item.ts==='1000.recovery');
   assert.match(recovery!.text,/Resolved[\s\S]*JunkWare unavailable[\s\S]*Recovered:/);

@@ -1,4 +1,5 @@
 import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
+import { isIgnoredIncidentFingerprint } from "@/lib/ignored-operational-alerts";
 import fs from "fs";
 import { createHash } from "node:crypto";
 import path from "path";
@@ -1735,7 +1736,8 @@ export async function runSlackOpsAlerts(options?: {
     state.deliveredPaymentNotificationsByDate = prunePaymentNotificationDates(state.deliveredPaymentNotificationsByDate);
   }
   for (const [fingerprint, active] of Object.entries(state.active)) {
-    if (!slackAlertKindEnabled(active.kind)) delete state.active[fingerprint];
+    // Retire ignored warnings silently instead of bringing them up as resolved.
+    if (!slackAlertKindEnabled(active.kind) || isIgnoredIncidentFingerprint(fingerprint)) delete state.active[fingerprint];
   }
   if (!state.initializedAt) {
     state.initializedAt = now;

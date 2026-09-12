@@ -5,6 +5,7 @@ import { readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoClockToDate } from "@/lib/live-pay";
 import { isClosedAppointment, isEstimateAppointment, shouldFlagMissingPaymentType } from "@/lib/job-audit-rules";
 import { money } from "@/lib/money";
+import { isIgnoredOperationalException } from "@/lib/ignored-operational-alerts";
 
 export type ExceptionSeverity = "critical" | "warning" | "info";
 export type ExceptionCategory = "Crew" | "Jobs" | "Fleet" | "Finance";
@@ -180,6 +181,7 @@ function addException(
   seen: Set<string>,
   exception: OperationalException,
 ): void {
+  if (isIgnoredOperationalException(exception)) return;
   const key = `${exception.category}|${exception.rule}|${exception.entityType}|${exception.entityId}`;
   if (seen.has(key)) return;
   seen.add(key);

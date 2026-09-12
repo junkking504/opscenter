@@ -2,6 +2,14 @@
 
 ## Operational notification policy
 
+Since 2026-09-12, Mission Control permanently ignores the “Salaried employee
+treated as hourly” warning for Robert McLaughlin and Eugene Dabezies. The shared
+exception engine omits only this employee/rule combination on every date. The
+Slack publisher retires existing incidents silently, and Command filters old
+copies out of its timeline. These warnings require no review or follow-up.
+Payroll values, other rules, and other employees are unchanged. The policy lives
+in `lib/ignored-operational-alerts.ts`.
+
 The fast schedule detector silently baselines each new Chicago operating day.
 Existing bookings do not become new-appointment alerts at midnight. The main
 publisher posts one Schedule Summary after 6 AM; actual additions, cancellations,

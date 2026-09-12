@@ -1,4 +1,5 @@
 import { deduplicateOperationalUpdates } from './operational-update-dedup';
+import { isIgnoredOperationalSlackText } from './ignored-operational-alerts';
 import { execFileSync } from "node:child_process";
 import {
   appointmentTerritory,
@@ -83,6 +84,7 @@ export function isOperationalSlackDigestMessage(message: SlackMessagePayload): b
   if (IGNORED_SYSTEM_SUBTYPES.has(subtype)) return false;
   const text = String(message.text || "").trim();
   if (!text) return false;
+  if (isIgnoredOperationalSlackText(text)) return false;
   return !/^(?:<@[^>]+>|\S+)\s+(?:renamed|joined|left|archived|unarchived)\s+(?:the\s+)?channel\b/i.test(text);
 }
 

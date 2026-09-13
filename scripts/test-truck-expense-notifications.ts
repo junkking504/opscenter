@@ -1,0 +1,46 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {chicagoDateKey} from '../lib/chicago-date';
+import {readTruckExpenses,truckExpenseTimelineAlerts,truckExpenseSlackNotifications,mergeTruckExpenseAlerts} from '../lib/truck-expense-notifications';
+import {formatSlackAlert} from '../lib/slack-alerts';
+import {toOperationalAlert} from '../lib/operational-alert-presentation';
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'truck-expenses-'));
+process.env.OPSCENTER_DATA_DIR=root;
+const date=chicagoDateKey();
+const dir=path.join(root,'history','junkware','expenses',date,'477');
+fs.mkdirSync(dir,{recursive:true});
+const row={id:'a'.repeat(32),date,market:'477',truck:'Truck# 9',kind:'dump',transactionAt:`${date}T08:50:00-05:00`,location:'Test dump',receipt:'123',amount:187.85,notify:false};
+const write=(entries:unknown[],patch={})=>fs.writeFileSync(path.join(dir,'9.json'),JSON.stringify({date,market:'477',truck:'Truck# 9',verified:true,entries,...patch}));
+try {
+ write([row]);
+ assert.equal(readTruckExpenses(date).length,1);
+ assert.equal(truckExpenseTimelineAlerts(date)[0].needsAction,false,'Routine expense is not an incident');
+ assert.equal(truckExpenseTimelineAlerts(date)[0].timestamp,row.transactionAt);
+ assert.equal(truckExpenseSlackNotifications(date).length,0,'Initial entries are silently baselined for Slack');
+ write([{...row,notify:true},{...row,id:'b'.repeat(32),kind:'fuel',amount:75.12,notify:true}]);
+ const messages=truckExpenseSlackNotifications(date);
+ assert.equal(messages.length,2);
+ assert.ok(messages.every(m=>m.channelId && m.lifecycle==='notification'));
+ const rawText=formatSlackAlert(messages[0]);
+ assert.match(rawText,/187.85/);assert.match(rawText,/8:50 AM/);assert.match(rawText,/Test dump/);
+ const parsed=toOperationalAlert({id:'slack:1',channel:'#truck-9',timestamp:new Date().toISOString(),rawText,text:rawText,threadReply:false});
+ assert.equal(parsed.eventFingerprint,messages[0].fingerprint,'Shared identity prevents a second Command card for Slack delivery');
+ assert.equal(parsed.needsAction,false);
+ const merged=mergeTruckExpenseAlerts([parsed],truckExpenseTimelineAlerts(date));
+ assert.equal(merged.length,2);assert.ok(merged[0].sourceMessageIds?.includes('slack:1'));
+ const receipts=path.join(root,'integrations','whatsapp-crew-expenses','transactions-completed');fs.mkdirSync(receipts,{recursive:true});
+ fs.writeFileSync(path.join(receipts,'fixture.json'),JSON.stringify({stage:'slack_sent',record:{date,truck:'Truck 9',kind:'dump',cost:187.85,location:'Test dump',reportedAt:row.transactionAt},slack:{channel:'TRUCK',ts:'123.456'}}));
+ assert.equal(truckExpenseSlackNotifications(date).length,1,'OpsBot already owns the matching expense notification');
+ assert.deepEqual(truckExpenseTimelineAlerts(date)[0].sourceMessageIds,['TRUCK:123.456']);
+
+ const fingerprint=messages[0].fingerprint;
+ write([{...row,amount:200,notify:true}]);
+ assert.equal(truckExpenseSlackNotifications(date)[0].fingerprint,fingerprint,'Amount edits update the original notification');
+ write([row],{verified:false});assert.equal(readTruckExpenses(date).length,0);
+ write([{...row,truck:'Truck# 6'}]);assert.equal(readTruckExpenses(date).length,0);
+ write([{...row,date:'2000-01-01'}]);assert.equal(readTruckExpenses(date).length,0);
+ write([{...row,amount:NaN}]);assert.equal(readTruckExpenses(date).length,0);
+ console.log('Truck expense notification checks passed.');
+} finally {fs.rmSync(root,{recursive:true,force:true});}

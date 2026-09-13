@@ -92,6 +92,15 @@ An existing completed-job delivery receipt for the same appointment, day, and
 truck can also prove that the job was completed before a later unload or load
 observation. This uses local receipt metadata and sends no messages. The receipt
 does not establish an exact pickup time or place a pickup after an earlier dump.
+When an unload precedes a completed job's appointment-window start, and an
+existing completion receipt follows that start on the same operating day,
+OpsCenter infers the pickup after the unload. This is an operating estimate
+from the combined sequence, not an exact pickup timestamp. Confirmed visit or
+saved closeout timing takes precedence. A reset/observation between the window
+start and completion, conflicting visit evidence, or missing window/receipt
+keeps the order unresolved. Later unloads still clear the inferred contribution.
+The projection retains the inference evidence separately from actual event times;
+no source records, ledger entries, or notifications are written by this inference.
 If ordering matters and cannot be verified, the UI keeps the known count visible
 and labels it **provisional**, with the unresolved job identified in its notes.
 Manual Fleet/API unloads and load observations retain the IDs of jobs already

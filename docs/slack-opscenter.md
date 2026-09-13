@@ -304,3 +304,28 @@ time with arrival/departure clocks. The duration sums confirmed visit intervals,
 merges overlapping observations, and excludes time away between visits. Missing,
 ambiguous, or incomplete timestamps remain unavailable; an open visit awaits its
 recorded departure. Departure alerts include the recorded duration as well.
+
+## Dump and fuel expense entries
+
+Individual JunkWare truck expenses appear as routine Dump Expense and Fuel Expense
+notifications in Command, with truck, transaction time, location, amount and receipt
+reference when supplied. They do not increase action-required attention counts.
+The transaction time is not described as the record's creation/save time.
+
+The existing authenticated schedule stream reads the Truck Records page in a
+separate tab, with at most one truck detail per market per minute. Changed daily
+totals take priority; unchanged entries are rechecked after five minutes. Each
+snapshot verifies the date, market, truck and expense table. Failed reads retain
+prior verified entries. No additional login, paid provider, expense submission or
+separate background service is introduced. Snapshots live under
+`data/history/junkware/expenses/<date>/<market>/<truck>.json`.
+
+Each truck's first snapshot is a silent Slack baseline, including empty totals.
+Subsequent new entries notify its configured truck channel through the existing
+full Slack publisher. Historical days remain silent. Stable entry fingerprints
+keep refreshes from reposting; amount corrections update the original message.
+Time/location/receipt changes form a new identity when JunkWare provides no stable
+record ID. Identical same-time rows retain separate occurrence identities.
+Confirmed OpsBot expense transactions already own their delivery and are not
+posted again. Command combines matching source and Slack entries, retaining
+message aliases and the recorded transaction time.

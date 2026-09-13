@@ -329,6 +329,7 @@ def main() -> None:
     sys.path.insert(0, str(scripts_dir))
     collector = importlib.import_module("collect_junkware_daily")
     collector._PERSIST_STORAGE_STATE = False
+    from junkware_expense_stream import collect_expense_entries
 
     date_iso = args.date or datetime.now(TIMEZONE).date().isoformat()
     try:
@@ -354,6 +355,10 @@ def main() -> None:
                 market_started = time.time()
                 data = collect_selected_market(collector, date_iso, market_id, market_name)
                 publish_market(collector, opscenter_dir, data_dir, date_iso, market_id, market_name, data)
+                try:
+                    collect_expense_entries(collector, data_dir, date_iso, market_id)
+                except Exception as exc:
+                    print(f"JunkWare expense detail {market_id} pending: {type(exc).__name__}", file=sys.stderr, flush=True)
                 durations[market_id] = round(time.time() - market_started, 1)
             write_health(data_dir, started_at, started_epoch, durations)
     finally:

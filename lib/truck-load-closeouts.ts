@@ -1,3 +1,4 @@
+import { chicagoDateKey } from './chicago-date';
 import { readJobRows, junkwareScheduleUpdatedAt } from './desktop-schedule-source';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -7,7 +8,7 @@ import {readTruckCompletionEvidence} from './truck-load-completion-evidence';
 import { geofenceLoadResets, readGeofenceEntries } from './linxup-geofence-alerts';
 import { deriveTruckLoadStatus, junkwareJobLoadFraction, normalizeTruckLoadLabel, junkwareBedloadFraction, formatLoadAmount, readTruckLoadStore, recordTruckLoadFromCloseout, type TruckLoadEvent, type TruckLoadStatus } from './truck-load-status';
 
-type LoadJob = Pick<ReturnType<typeof readJobRows>[number], 'appointmentId' | 'jkNumber' | 'truck' | 'appointmentType' | 'status' | 'closeout' | 'closeoutObservedAt' | 'chargeDetailsPending'> & {completionObservedAt?:string};
+type LoadJob = Pick<ReturnType<typeof readJobRows>[number], 'appointmentId' | 'jkNumber' | 'truck' | 'appointmentType' | 'status' | 'closeout' | 'closeoutObservedAt' | 'chargeDetailsPending'> & {completionObservedAt?:string; appointmentStartMinutes?:number | null};
 export type OperationalTruckLoad = TruckLoadStatus & {
   needsVerification: boolean; verificationNote: string;
   chargedTruckFraction: number; chargedBedloadFraction: number; chargedJobCount: number;
@@ -20,6 +21,31 @@ export type OperationalTruckLoad = TruckLoadStatus & {
 
 export function truckChargeSummary(load: OperationalTruckLoad): string {
   return `${load.carriedFromDate ? `Starting load carried from ${load.carriedFromDate}. ` : ''}${load.chargesComplete ? 'Charged today' : 'Known charges today'}: ${load.chargedLoadLabel}. ${load.chargedLoadNote}`;
+}
+
+/** Infer relative order, never an exact pickup time. A completion receipt alone
+ * is insufficient: the appointment must also be scheduled after the reset. */
+function inferredPickupOrder(date: string, job: LoadJob, truck: string, events: TruckLoadEvent[], visit: ReturnType<typeof appointmentOnsiteTime>, visits: Parameters<typeof appointmentOnsiteTime>[1]) {
+  const completedBy = Date.parse(job.completionObservedAt || '');
+  const start = job.appointmentStartMinutes;
+  if (!Number.isFinite(completedBy) || completedBy > Date.now() || chicagoDateKey(new Date(completedBy)) !== date
+    || start == null || !Number.isFinite(start) || start < 0 || start >= 1440) return undefined;
+  const minute = (stamp: number) => {
+    const parts = new Intl.DateTimeFormat('en-US', {timeZone:'America/Chicago',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(new Date(stamp));
+    const part = (name: string) => Number(parts.find(p=>p.type===name)?.value);
+    return part('hour')*60 + part('minute') + part('second')/60;
+  };
+  if (minute(completedBy) < start) return undefined;
+  const resets = events.filter(event=>event.truck===truck && ['yard_reset','manual_snapshot'].includes(event.kind));
+  const before = resets.filter(event=>Number.isFinite(Date.parse(event.occurredAt)) && Date.parse(event.occurredAt)<completedBy)
+    .sort((a,b)=>Date.parse(b.occurredAt)-Date.parse(a.occurredAt));
+  const reset = before[0];
+  if (!reset || reset.kind !== 'yard_reset' || chicagoDateKey(new Date(reset.occurredAt)) !== date || minute(Date.parse(reset.occurredAt)) >= start) return undefined;
+  // Invalid resets and observations inside the candidate interval keep ordering unresolved.
+  if (resets.some(event=>!Number.isFinite(Date.parse(event.occurredAt)) || Date.parse(event.occurredAt)===completedBy)) return undefined;
+  const hasVisitEvidence = visits.some(row=>String(row.appointment_id || row.appt_id || '')===job.appointmentId && row.match_confidence==='confirmed' && !row.pass_by_only);
+  if (hasVisitEvidence && (!visit.arrival || Date.parse(visit.arrival)<=Date.parse(reset.occurredAt) || Date.parse(visit.arrival)>completedBy)) return undefined;
+  return {inferredOrderAt:new Date(completedBy).toISOString(), orderingEvidence:`Pickup inferred after ${reset.recordedBy || 'recorded unload'}: appointment window starts after the reset and completion was observed later. Exact pickup time unavailable.`};
 }
 
 /** Read projection only: include source closeouts without rewriting the operational ledger. */
@@ -70,13 +96,14 @@ export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored:
       return event.coveredAppointmentIds?.includes(id) || (!existing?.occurredAt && !visit.departure && Number.isFinite(completedBy) && completedBy < Date.parse(event.occurredAt));
     }).sort((a,b)=>a.occurredAt.localeCompare(b.occurredAt)).at(-1);
     const occurredAt = coveredBy ? new Date(Date.parse(coveredBy.occurredAt)-1).toISOString() : existing?.occurredAt || visit.departure || '';
-    if (!occurredAt && events.some(event => event.truck === truck && ['yard_reset','manual_snapshot'].includes(event.kind))) {
+    const inferred = !occurredAt ? inferredPickupOrder(date,job,truck,events,visit,visits) : undefined;
+    if (!occurredAt && !inferred && events.some(event => event.truck === truck && ['yard_reset','manual_snapshot'].includes(event.kind))) {
       unplaced.add(id);
       issue(truck, `${job.jkNumber}: billed load retained; confirm whether pickup was before or after the unload or load observation.`);
     }
     events = events.filter(event => event !== existing);
     events.push({eventId:`job-closeout:${id}`,date,truck,kind:'job_closeout',loadFraction:fraction,bedloadFraction,
-      occurredAt,recordedAt:chargeObservedAt ? new Date(chargeObservedAt).toISOString() : '',
+      occurredAt,...inferred,recordedAt:chargeObservedAt ? new Date(chargeObservedAt).toISOString() : '',
       recordedBy:coveredBy && job.completionObservedAt && !coveredBy.coveredAppointmentIds?.includes(id) ? `JunkWare completed by ${job.completionObservedAt}; covered by later load reset or observation` : 'JunkWare completed job',appointmentId:id,jobNumber:job.jkNumber,
       loadSize:job.closeout!.loadSize,loadQuantity:String(job.closeout!.loadQuantity),contents:'',resetLocation:'',
       appointmentType:job.appointmentType,appointmentStatus:job.status});
@@ -89,7 +116,7 @@ export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored:
     const chargedBedloadFraction = charges.reduce((sum,event)=>sum+(event.bedloadFraction || 0),0);
     const pending = [...unplaced].filter(id=>charges.some(event=>event.appointmentId === id));
     const status = deriveTruckLoadStatus(date,truck,truckEvents.filter(event=>!unplaced.has(event.appointmentId)));
-    return {...status,events:truckEvents.slice().sort((a,b)=>b.occurredAt.localeCompare(a.occurredAt)),
+    return {...status,events:truckEvents.slice().sort((a,b)=>(b.occurredAt || b.inferredOrderAt || "").localeCompare(a.occurredAt || a.inferredOrderAt || "")),
       // Unknown-time charges stay in the audit and daily sum, never at an invented midnight.
       needsVerification:issues.has(truck),verificationNote:[...(issues.get(truck) || [])].join(' '),
       displayLoadLabel:!status.events.length ? (issues.has(truck) ? 'Load pending' : 'Load not recorded') : `${status.currentLoadLabel}${issues.has(truck) ? ' · provisional' : ''}`,

@@ -358,7 +358,7 @@ def main() -> None:
                 try:
                     collect_expense_entries(collector, data_dir, date_iso, market_id)
                 except Exception as exc:
-                    print(f"JunkWare expense detail {market_id} pending: {type(exc).__name__}", file=sys.stderr, flush=True)
+                    print(f"JunkWare expense detail {market_id} pending: {str(exc) if isinstance(exc, ValueError) else type(exc).__name__}", file=sys.stderr, flush=True)
                 durations[market_id] = round(time.time() - market_started, 1)
             write_health(data_dir, started_at, started_epoch, durations)
     finally:

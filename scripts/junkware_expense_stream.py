@@ -28,11 +28,11 @@ DETAIL_JS = r'''() => {
 def normalize_entries(detail, date, market, truck):
     if (detail.get('url', '').split('?')[0] != URL or detail.get('date') != datetime.fromisoformat(date).strftime('%m/%d/%Y')
             or str(detail.get('market')) != str(market) or detail.get('truck') != truck or not detail.get('found')):
-        raise ValueError('Expense date, market, truck or table did not verify')
+        raise ValueError(f"Expense identity did not verify: date={detail.get('date')!r}, market={detail.get('market')!r}, truck={detail.get('truck')!r}, table={detail.get('found')!r}")
     result, occurrences = [], {}
     for row in detail.get('rows', []):
         if len(row) != 5:
-            raise ValueError('Expense row is incomplete')
+            raise ValueError(f'Expense row is incomplete: {len(row)} cells')
         category, clock, receipt, location, amount = row
         kind = 'dump' if re.fullmatch('dumps?', category, re.I) else 'fuel'
         stamp = datetime.strptime(f'{date} {clock}', '%Y-%m-%d %I:%M %p').replace(tzinfo=ZONE).isoformat()

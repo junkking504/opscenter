@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { APPROVED_MODEL, APPROVED_MONTHLY_MICROS } from './metered-usage-policy';
+import { addressResearchApproved, ADDRESS_RESEARCH_LIMIT_MICROS } from './metered-usage-policy';
 import type { MaintenanceObservation, MaintenanceState, MaintenanceSnapshot } from '../desktop-ui/lib/maintenance-contract';
 
 export const MONTHLY_BUDGET_MICROS = APPROVED_MONTHLY_MICROS;
@@ -17,6 +18,12 @@ export function readMaintenanceState(directory = maintenanceDirectory()): Mainte
     // A damaged ledger must stop analysis, never silently reset the budget.
     if (state.version !== 1 || !Array.isArray(state.incidents) || !Array.isArray(state.receipts) || !state.months || typeof state.months !== 'object' || Array.isArray(state.months) ||
         Object.values(state.months).some(m => !m || typeof m !== 'object' || Array.isArray(m) || ['committedMicros','estimatedMicros','calls','inputTokens','outputTokens'].some(k => !Number.isSafeInteger(m[k as keyof typeof m]) || m[k as keyof typeof m] < 0))) throw new Error('Invalid maintenance state');
+    const research = state.addressResearch;
+    if ((!research && fs.existsSync(path.join(directory, 'address-research-initialized')))
+      || (research && (research.version !== 1 || !research.items || typeof research.items !== 'object' || Array.isArray(research.items)
+        || Object.entries(research.items).some(([id, row]) => !/^[a-f0-9]{64}$/.test(id) || !row || typeof row.address !== 'string'
+          || !Array.isArray(row.dates) || !['queued','ready','researching','resolved','unresolved','provider_error','inactive'].includes(row.status)
+          || ['attempts','committedMicros','estimatedMicros'].some(k => !Number.isSafeInteger(row[k as keyof typeof row]) || Number(row[k as keyof typeof row]) < 0))))) throw new Error('Invalid address research ledger');
     return state;
   } catch (error) {
     // Missing history is not a new budget: preserve a fail-closed boundary.
@@ -41,7 +48,15 @@ export function maintenanceSnapshot(now = Date.now(), directory = maintenanceDir
   return { available: Boolean(state.checkedAt), fresh: age >= 0 && age < 180_000, checkedAt: state.checkedAt,
     mode: 'observe', aiStatus: state.aiStatus, month, budgetUsd: 10,
     committedUsd: (usage?.committedMicros || 0) / 1e6, estimatedUsd: (usage?.estimatedMicros || 0) / 1e6,
-    calls: usage?.calls || 0, incidents: state.incidents };
+    calls: usage?.calls || 0, incidents: state.incidents,
+    addressResearch: { enabled: addressResearchApproved(), checkedAt: state.addressResearch?.checkedAt || null,
+      status: state.addressResearch?.status || 'Waiting for the address worker', perAddressUsd: ADDRESS_RESEARCH_LIMIT_MICROS / 1e6,
+      pending: Object.values(state.addressResearch?.items || {}).filter(r => ['queued','ready','researching'].includes(r.status)).length,
+      resolved: Object.values(state.addressResearch?.items || {}).filter(r => r.status === 'resolved').length,
+      unresolved: Object.values(state.addressResearch?.items || {}).filter(r => ['unresolved','provider_error'].includes(r.status)).length,
+      items: Object.entries(state.addressResearch?.items || {}).map(([id, r]) => ({ ...r, id })).filter(r => r.status !== 'inactive')
+        .sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,30),
+    } };
 }
 type ObjectValue = Record<string, unknown>;
 const object = (value: unknown): ObjectValue => value && typeof value === 'object' && !Array.isArray(value) ? value as ObjectValue : {};

@@ -15,6 +15,21 @@ export type MaintenanceState = {
   incidents: MaintenanceIncident[];
   months: Record<string, { committedMicros: number; estimatedMicros: number; calls: number; inputTokens: number; outputTokens: number }>;
   receipts: Array<{ at: string; incident: string; event: string }>;
+  addressResearch?: AddressResearchState;
+};
+export type AddressResearchItem = {
+  address: string; dates: string[]; firstSeenAt: string; updatedAt: string;
+  status: 'queued' | 'ready' | 'researching' | 'resolved' | 'unresolved' | 'provider_error' | 'inactive';
+  attempts: number; committedMicros: number; estimatedMicros: number;
+  reason: string; candidate?: string; sources?: string[]; responseId?: string;
+};
+export type AddressResearchState = {
+  version: 1; checkedAt: string | null; status: string; items: Record<string, AddressResearchItem>;
+};
+export type AddressResearchSnapshot = {
+  enabled: boolean; checkedAt: string | null; status: string; perAddressUsd: number;
+  pending: number; resolved: number; unresolved: number;
+  items: Array<AddressResearchItem & { id: string }>;
 };
 export type MaintenanceSnapshot = {
   available: boolean; fresh: boolean; checkedAt: string | null; mode: 'observe'; aiStatus: string;
@@ -22,6 +37,7 @@ export type MaintenanceSnapshot = {
   incidents: MaintenanceIncident[];
   recovery?: MaintenanceRecovery;
   canManageRecovery?: boolean;
+  addressResearch?: AddressResearchSnapshot;
 };
 export type MaintenanceRecovery = {
   enabled: boolean; available: boolean; fresh: boolean; checkedAt: string | null;

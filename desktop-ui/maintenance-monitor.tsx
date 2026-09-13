@@ -7,7 +7,7 @@ export default function MaintenanceMonitor() {
   const [snapshot, setSnapshot] = useState<MaintenanceSnapshot | null>(null);
   const [error, setError] = useState('');
   const [history, setHistory] = useState(false);
-  const [clock, setClock] = useState(Date.now());
+  const [clock, setClock] = useState(() => Date.now());
   const [savingRecovery, setSavingRecovery] = useState(false);
   const [recoveryError, setRecoveryError] = useState('');
   async function toggleRecovery() {
@@ -43,6 +43,17 @@ export default function MaintenanceMonitor() {
     {snapshot && <>
       <div className="maintenance-metrics"><div><span>Last observation</span><strong>{timestamp(snapshot.checkedAt)}</strong></div><div><span>AI status</span><strong>{snapshot.aiStatus}</strong></div><div><span>Monthly AI usage · {snapshot.month}</span><strong>{snapshot.available ? `$${snapshot.estimatedUsd.toFixed(3)} estimated · ${snapshot.calls} calls` : 'Unavailable'}</strong><small>{snapshot.available ? `$${snapshot.committedUsd.toFixed(3)} including reserved or uncertain usage / $${snapshot.budgetUsd} limit` : 'Budget state has not been verified.'}</small></div></div>
       {!fresh && <p role="status">The worker has not supplied a current observation. This does not establish that OpsCenter is healthy.</p>}
+      {snapshot.addressResearch && <div className="maintenance-recovery" aria-label="Automatic address investigation">
+        <strong>Address investigation · {snapshot.addressResearch.enabled ? 'Enabled' : 'Paused'}</strong>
+        <p role="status">{snapshot.addressResearch.status}</p>
+        <small>{snapshot.addressResearch.pending} queued · {snapshot.addressResearch.resolved} resolved · {snapshot.addressResearch.unresolved} without a verified location</small>
+        <small>Up to ${snapshot.addressResearch.perAddressUsd.toFixed(2)} per address, included in the shared ${snapshot.budgetUsd} monthly limit.</small>
+        <details><summary>Address work and evidence</summary>{snapshot.addressResearch.items.length ? snapshot.addressResearch.items.map(item => <div key={item.id}>
+          <p><strong>{item.address}</strong><small>{item.status.replaceAll('_',' ')} · {item.reason}</small>
+            <small>${(item.estimatedMicros / 1e6).toFixed(4)} estimated · ${(item.committedMicros / 1e6).toFixed(2)} used or reserved · {timestamp(item.updatedAt)}</small></p>
+          {item.sources?.map(url => <a key={url} href={url} target="_self" rel="noreferrer">Source evidence</a>)}
+        </div>) : <p>No address investigations recorded.</p>}</details>
+      </div>}
       {snapshot.recovery && <div className="maintenance-recovery">
         <strong>Automatic process recovery · {snapshot.recovery.enabled ? 'Enabled' : 'Paused'}</strong>
         <p>Starts OpsCenter only after three checks confirm it is stopped. One attempt per outage, a 30-minute cooldown, and at most two attempts per day. Running processes stay untouched.</p>

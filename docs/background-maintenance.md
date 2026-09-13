@@ -3,7 +3,8 @@
 The separate `com.openclaw.opscenter.maintenance` LaunchAgent observes OpsCenter
 once a minute. Command > Monitor shows current and cleared conditions, measured
 evidence, AI suggestions, worker freshness, and monthly usage. Source Health
-also reports missing/stale observer heartbeats. AI remains advisory. A separate
+also reports missing/stale observer heartbeats. AI diagnoses remain advisory. Address research uses independently validated
+source evidence as described below. A separate
 fixed Python policy can start a confirmed stopped OpsCenter process. There is no
 shell execution by AI, source-system repair, automatic deployment, or outbound message.
 
@@ -89,7 +90,7 @@ input, 2,048 maximum output tokens and a 25 second request timeout. AI text is
 shown as a suggestion, never verified cause or completed repair.
 
 The worker enforces a $10 calendar-month budget in America/Chicago, independent
-of any provider dashboard alerts. It durably reserves $0.02 before every call.
+of any provider dashboard alerts. It durably reserves $0.02 before each diagnosis call.
 That exceeds the bounded request cost at the pinned standard prices of $0.20
 per million input tokens and $1.20 per million output tokens (including reasoning).
 Validated usage settles the reservation; uncertain usage keeps the full charge
@@ -104,6 +105,39 @@ execution. Writes use fsync and atomic rename; a corrupt ledger fails closed.
 Do not delete the ledger as a recovery method: doing so discards spending history.
 The most recent 200 transition/request receipts are retained. Browser counters
 contain fixed categories, timestamps and bounded counts only.
+
+## Automatic address investigation
+
+The same OS-locked observer scans active appointments in collected upcoming
+Schedule days. It keeps a durable queue in `state.json.addressResearch`, deduplicated
+by full premises address across dates and suite variants. Formatting-only retries
+use the existing geocoder first. One address step runs per tick; research and
+AI diagnosis do not run together in the same tick.
+
+With the separate spending approval, an unresolved address gets one Luna research
+request with one web search. The full 10-cent lifetime allowance is reserved in
+the existing $10 monthly ledger before sending. A crash, timeout or quota failure
+consumes that attempt and retains uncertain cost; another appointment or month
+cannot reset it. Provider failures apply the existing one-hour shared cooldown.
+The initialization marker prevents silently recreating a missing research ledger.
+Never delete queue history or markers to retry paid work.
+
+The model receives only the service address, not the customer's name or phone.
+Its suggestion cannot directly create a pin. The verifier requires the same house,
+street, city and ZIP, then either the existing independent geocoder or published
+postal-address-plus-coordinate evidence from a government or official FMOL Health
+facility page. Official pages use bounded, non-executing JSON-LD parsing, public
+DNS, HTTPS, no redirects and exact premises matching. Conflicting coordinates,
+incomplete addresses and unsupported evidence remain unresolved automatically.
+Published facility coordinates are premises evidence, not a claimed entrance.
+
+Verified evidence is atomically written to the existing shared service-address
+review cache and read back. The next Schedule refresh consumes it. Conflicting
+existing reviews cannot be overwritten. No JunkWare record is changed. Command >
+Monitor shows queue status, evidence, estimated cost and reserved budget. This
+worker does not create code patches, deploy changes, contact customers or ask the
+operator to manually verify an address. A genuinely unlocatable address can remain
+pending; the worker does not invent a location.
 
 ## Installation and operations
 

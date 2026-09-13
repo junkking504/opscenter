@@ -111,7 +111,7 @@ try {
     await page.keyboard.press('Escape');
     await page.waitForFunction(()=>!document.querySelector('.schedule-appointment-summary'));
   }
-  for(const [mode,text] of [['stale','Unavailable'],['failed','Unavailable'],['address','Verify address first']]) {
+  for(const [mode,text] of [['stale','Unavailable'],['failed','Unavailable'],['address','Precise location unavailable']]) {
     await page.goto(`${base}/tests/schedule-destinations.html?details=long&routes=${mode}`);
     await page.locator('.day-switcher button').first().click();
     await page.locator('[data-schedule-appointment]').first().click();

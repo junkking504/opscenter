@@ -99,7 +99,7 @@ export function unavailableRoute(leg: ScheduleRouteLeg, jobs: ScheduleAppointmen
     .map(id => jobs.find(job => job.recordId === id))
     .filter(job => !job?.location);
   return missing.length
-    ? { label: 'Verify Address', detail: `Travel time needs verified coordinates for ${missing.map(job => job?.jkNumber || 'the appointment').join(' and ')}.` }
+    ? { label: 'Location pending', detail: `OpsCenter automatically resolves verified coordinates for ${missing.map(job => job?.jkNumber || 'the appointment').join(' and ')}.` }
     : { label: 'ETA Unavailable', detail: 'The route provider has not returned a travel estimate.' };
 }
 

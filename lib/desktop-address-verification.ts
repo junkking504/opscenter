@@ -11,7 +11,7 @@ import { createHash, randomUUID } from 'node:crypto';
 type Component = { long_name: string; short_name: string; types: string[] };
 type Result = { partial_match?: boolean; address_components?: Component[]; geometry?: { location?: { lat: number; lng: number }; location_type?: string } };
 type Payload = { status?: string; results?: Result[] };
-export const ADDRESS_VERIFICATION_POLICY = 3;
+export const ADDRESS_VERIFICATION_POLICY = 4;
 export type AddressVerification = { location: PlanningLocation | null; reason: string; matchedAddress?: string; source?: string; sourceUrl?: string; retryAfterMs?: number };
 const aliases: Record<string,string> = { STREET:'ST',ROAD:'RD',AVENUE:'AVE',DRIVE:'DR',LANE:'LN',COURT:'CT',BOULEVARD:'BLVD',HIGHWAY:'HWY',PLACE:'PL',PARKWAY:'PKWY',TERRACE:'TER',CIRCLE:'CIR',TRAIL:'TRL',NORTH:'N',SOUTH:'S',EAST:'E',WEST:'W' };
 const normalize = (text: string) => text.toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim().split(/\s+/).map(word=>aliases[word]||word).join(' ');
@@ -101,7 +101,7 @@ export function cachedAddressVerification(address:string):AddressVerification|un
   if(row && row.expires>Date.now()) return row.verified;
   try {
     const stored=JSON.parse(fs.readFileSync(cacheFile(address),'utf8'));
-    if(![1,2,3].includes(stored.schema) || stored.address !== address || stored.expires <= Date.now()) return undefined;
+    if(!Number.isInteger(stored.schema) || stored.schema < 1 || stored.schema > ADDRESS_VERIFICATION_POLICY || stored.address !== address || stored.expires <= Date.now()) return undefined;
     // Reconsider failures from the old exact-spelling policy immediately.
     if(stored.schema < ADDRESS_VERIFICATION_POLICY && !stored.verified?.location) return undefined;
     const point=stored.verified?.location;

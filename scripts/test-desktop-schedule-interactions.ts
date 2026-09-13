@@ -45,7 +45,7 @@ console.log('Schedule interaction contracts passed: full windows, source duratio
 const route = { fromAppointmentId: job.recordId, toAppointmentId: sharedJk.recordId } as Parameters<typeof unavailableRoute>[0];
 assert.match(unavailableRoute(route, [job, sharedJk]).detail, /verified coordinates/);
 assert.equal(unavailableRoute(route, [{ ...job, location: { latitude: 30, longitude: -90 } }, { ...sharedJk, location: { latitude: 30.1, longitude: -90.1 } }]).label, "ETA Unavailable");
-assert.equal(unavailableRoute(route, [{ ...job, location: { latitude: 30, longitude: -90 } }, sharedJk]).label, "Verify Address");
+assert.equal(unavailableRoute(route, [{ ...job, location: { latitude: 30, longitude: -90 } }, sharedJk]).label, "Location pending");
 
 assert.equal(scheduleMoveRestriction(job), null);
 assert.equal(scheduleMoveRestriction({ ...job, appointmentType: "Job", status: "Completed" }), null);

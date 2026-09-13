@@ -22,7 +22,7 @@ try {
   await page.getByRole('button',{name:'Refresh day',exact:true}).click();
   const block=page.locator('[data-schedule-appointment]').first();
   await page.waitForFunction(()=>document.querySelector('[data-schedule-appointment]')?.getAttribute('aria-label')?.includes('Canceled'));
-  const verify=page.getByRole('button',{name:/Verify Address/}).first();
+  const verify=page.getByRole('button',{name:/Location pending/}).first();
   assert.match(await verify.innerText(),/3/,'Only the three active unverified appointments count');
   await block.click();
   const summary=page.getByRole('region',{name:'Selected job JK1001001',exact:true});

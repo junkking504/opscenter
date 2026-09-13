@@ -313,7 +313,8 @@ reference when supplied. They do not increase action-required attention counts.
 The transaction time is not described as the record's creation/save time.
 
 The existing authenticated schedule stream reads the Truck Records page in a
-separate tab, with at most one truck detail per market per minute. Changed daily
+separate tab, with at most one truck detail after each complete schedule sweep,
+rotating markets and never reading a market more than once per minute. Changed daily
 totals take priority; unchanged entries are rechecked after five minutes. Each
 snapshot verifies the date, market, truck and expense table. Failed reads retain
 prior verified entries. No additional login, paid provider, expense submission or

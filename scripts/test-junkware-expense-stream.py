@@ -5,9 +5,10 @@ from pathlib import Path
 spec=importlib.util.spec_from_file_location('expenses',Path(__file__).with_name('junkware_expense_stream.py'))
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 date='2026-09-13'
-detail=dict(url=m.URL,date='09/13/2026',market='477',truck='Truck# 9',found=True,rows=[['Dumps','08:50 AM','','Test dump','$187.85'],['Gas','09:00 AM','','Test fuel','$75.12']])
+detail=dict(url=m.URL,date='09/13/2026',market='477',truck='Truck# 9',found=True,rows=[['Dumps','08:50 AM','','Test dump','187.85edit'],['Gas','09:00 AM','','Test fuel','$75.12']])
 rows=m.normalize_entries(detail,date,'477','Truck# 9')
 assert [r['kind'] for r in rows]==['dump','fuel']
+assert rows[0]['amount']==187.85, 'Inline Edit action must not become part of the amount'
 assert rows[0]['transactionAt']=='2026-09-13T08:50:00-05:00'
 for patch in [dict(date='09/12/2026'),dict(market='352'),dict(truck='Truck# 6'),dict(found=False),dict(url='https://junkware.junk-king.com/account/login.aspx')]:
  try:m.normalize_entries({**detail,**patch},date,'477','Truck# 9');raise AssertionError('Wrong identity accepted')

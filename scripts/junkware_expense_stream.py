@@ -11,8 +11,15 @@ from zoneinfo import ZoneInfo
 ZONE = ZoneInfo('America/Chicago')
 URL = 'https://junkware.junk-king.com/franchise/accounting/truck-records.aspx'
 LAST_ATTEMPT = {}
+LAST_TRUCK_ATTEMPT = {}
 DETAIL_JS = r'''() => {
- const text = el => (el?.textContent || '').replace(/\s+/g,' ').trim();
+ const text = el => {
+   const copy=el?.cloneNode(true);
+   for (const control of copy?.querySelectorAll('a,button') || []) {
+     if (/^(edit|delete|remove)$/i.test((control.textContent || '').trim())) control.remove();
+   }
+   return (copy?.textContent || '').replace(/\s+/g,' ').trim();
+ };
  const tables = [...document.querySelectorAll('table')];
  const table = tables.find(t => [...t.querySelectorAll('tr')].some(r => {
    const h=[...r.children].map(text); return h.includes('Category') && h.includes('Time') && h.includes('Location') && h.includes('Amount');
@@ -36,6 +43,11 @@ def normalize_entries(detail, date, market, truck):
         category, clock, receipt, location, amount = row
         kind = 'dump' if re.fullmatch('dumps?', category, re.I) else 'fuel'
         stamp = datetime.strptime(f'{date} {clock}', '%Y-%m-%d %I:%M %p').replace(tzinfo=ZONE).isoformat()
+        # JunkWare appends its inline edit action directly to the amount cell.
+        # Accept only that known action suffix; never strip arbitrary characters.
+        amount = re.sub(r'\s*edit\s*$', '', amount, flags=re.I)
+        if not re.fullmatch(r'\$?\s*\d[\d,]*(?:\.\d{1,2})?\s*', amount):
+            raise ValueError('Expense amount did not parse')
         value = float(re.sub(r'[$,\s]', '', amount))
         if not math.isfinite(value) or value <= 0:
             raise ValueError('Expense amount must be positive')
@@ -91,10 +103,11 @@ def collect_expense_entries(collector, data_dir, date, market):
             age = time.time()-datetime.fromisoformat(old['observedAt']).timestamp() if old.get('observedAt') else 1e10
             if old.get('signature') == signature and age < 300:
                 continue
-            candidates.append((old.get('signature') == signature, old.get('observedAt', ''), truck, target, signature))
+            candidates.append((old.get('signature') == signature, LAST_TRUCK_ATTEMPT.get((key,truck), -1e10), old.get('observedAt', ''), truck, target, signature))
         if not candidates:
             return
-        _, _, truck, target, signature = sorted(candidates)[0]
+        _, _, _, truck, target, signature = sorted(candidates)[0]
+        LAST_TRUCK_ATTEMPT[(key,truck)] = time.monotonic()
         cell = page.get_by_role('cell', name=truck, exact=True)
         if cell.count() != 1:
             raise ValueError('Expense truck row is ambiguous')

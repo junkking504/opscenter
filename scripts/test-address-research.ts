@@ -98,6 +98,14 @@ async function main() {
   const denied = readyState(); await investigateAddresses(denied, 'synthetic-key', () => {}, { ...deps, approved: () => false }); assert.equal(paid, 1);
   const paused = readyState(); paused.aiRetryAfter = new Date(now+3600000).toISOString(); await investigateAddresses(paused, 'synthetic-key', () => {}, deps); assert.equal(paid,1);
 
+
+  const otherAddress = '200 Other Street, Baton Rouge, LA 70808'; let freeLookups = 0;
+  await investigateAddresses(paused, 'synthetic-key', () => {}, { ...deps,
+    candidates: [...candidates, { address: otherAddress, dates: ['2026-09-16'], located: false }],
+    lookup: async () => { freeLookups++; return { location: null, reason: 'no match' }; } });
+  assert.equal(freeLookups, 1, 'A paid address in cooldown cannot block another free lookup');
+  assert.equal(paid, 1);
+
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'address-research-test-'));
   try {
     saveMaintenanceState(state, directory); fs.writeFileSync(path.join(directory,'address-research-initialized'),'1');

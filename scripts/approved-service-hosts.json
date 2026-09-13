@@ -61,7 +61,7 @@
     "scripts/run-whatsapp-photo-worker.sh": "23db3a954ac2d5541575450f368b5d2854b94a15432fc9bbe01aa0fcbaf6b587",
     "lib/address-research-store.ts": "ff2b53beef003bdfef5dfee17f84d9b9f69546faa061ecb2e150285fff03a293",
     "lib/address-research-evidence.ts": "c7239471bddec79d83bc910416a3c91ae5da9236eecd4caa22f8d0a8f120ae89",
-    "lib/address-research.ts": "f58f1276aa8824e1777e089f0bea94d948a57c0741b53c1d9230fa8e007b8ba1",
+    "lib/address-research.ts": "876d06164a934187f28408fae205ae4fdde9ab5a599b156f3ee1b808f21b3924",
     "lib/address-research-provider.ts": "8e2c57afbfbcb6038eb9256686d6003d64c5ff5803f952a0bd2119a02d7d4559",
     "lib/address-research-source.ts": "9f57dcc68b3c109d6575a087e0c769d5e4d4e962db260836012ff947179222cf",
     "scripts/verify-spending-boundary.mjs": "7d5b78d88c581e558aee21ea80a640f101ffd840bac88097e13d572a99c0801b"

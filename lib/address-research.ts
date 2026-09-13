@@ -61,7 +61,10 @@ export async function investigateAddresses(state: MaintenanceState, apiKey: stri
   }
   for (const [key, row] of Object.entries(queue.items)) if (!groups.has(key)) row.status = 'inactive';
   const pending = Object.entries(queue.items).filter(([,r]) => ['queued','ready'].includes(r.status))
-    .sort(([,a],[,b]) => (a.dates[0] || '').localeCompare(b.dates[0] || '') || a.firstSeenAt.localeCompare(b.firstSeenAt));
+    // Free lookups continue while paid work is cooling down. Rotate deferred
+    // lookups by last attempt so one unavailable provider cannot hold the queue.
+    .sort(([,a],[,b]) => Number(b.status === 'queued') - Number(a.status === 'queued')
+      || a.updatedAt.localeCompare(b.updatedAt) || (a.dates[0] || '').localeCompare(b.dates[0] || ''));
   queue.status = pending.length ? `${pending.length} addresses queued for investigation` : 'No new addresses awaiting investigation';
   persist();
   if (!approved()) { queue.status = 'Address investigation paused: spending approval required'; persist(); return false; }

@@ -2,7 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import L from 'leaflet';
 import ScheduleMap from '../schedule-map';
-import type {ScheduleTruck} from '../lib/schedule-contract';
+import type {ScheduleTruck, ScheduleAppointment} from '../lib/schedule-contract';
 import type {TruckGpsRoute} from '../lib/gps-route-contract';
 import '../app/globals.css';
 import '../live-schedule.css';
@@ -14,9 +14,11 @@ const route:TruckGpsRoute={sourceVersion:'fixture',streets:{sourceVersion:'fixtu
 let map:L.Map;
 L.Map.addInitHook(function(this:L.Map){map=this;});
 function Fixture() {
- const [selected,setSelected]=useState<string|null>(null),[mode,setMode]=useState<'location'|'overview'>('overview'),[reset,setReset]=useState(0),[loaded,setLoaded]=useState(false),[metrics,setMetrics]=useState('Loading map');
+ const [selected,setSelected]=useState<string|null>(null),[mode,setMode]=useState<'location'|'overview'|'route'>('overview'),[reset,setReset]=useState(0),[loaded,setLoaded]=useState(false),[metrics,setMetrics]=useState('Loading map'),[snapshot,setSnapshot]=useState(0);
+ const appointments=snapshot ? [{recordId:`synthetic-${snapshot}`,jkNumber:'Synthetic refresh',appointmentTime:'',customerName:'Fixture',status:'Confirmed',territory:'NO',address:'New Orleans, LA',location:{latitude:29.95,longitude:-90.07},appointmentNotes:[],junkItems:[]} as ScheduleAppointment] : [];
+ const selectTruck=()=>{setSelected('Truck 6');setMode('overview');setReset(n=>n+1);};
  useEffect(()=>{const timer=setInterval(()=>{if(!map)return;const center=map.getCenter();setMetrics(`Zoom ${map.getZoom()} · Truck centered: ${center.distanceTo([truck.latitude!,truck.longitude!])<1?'PASS':'NO'} · Full trail visible: ${points.every(p=>map.getBounds().contains([p.latitude,p.longitude]))?'PASS':'NO'}`);},100);return()=>clearInterval(timer);},[]);
  useEffect(()=>{if(selected){const timer=setTimeout(()=>setLoaded(true),700);return()=>clearTimeout(timer);}},[selected]);
- return <main className="ops-live" style={{padding:20}}><h1>Truck click focus · synthetic GPS</h1><p>Click Truck 6 for its centered full trail; double-click for zoom 19. Route loads after selection.</p><div style={{width:700,maxWidth:'95vw',height:440,position:'relative'}}><ScheduleMap appointments={[]} trucks={[truck]} selected={null} selectedTruck={selected} gpsRoute={loaded?route:null} truckMapView={mode} scope="ALL" resetKey={reset} date={date} onSelect={()=>{}} onSelectTruck={(name,view='overview')=>{setSelected(name);setMode(view);setReset(n=>n+1);}}/></div><p>{mode} · {loaded?'Routes loaded':'Routes pending'}</p><p>{metrics}</p><button onClick={()=>{setSelected(null);setLoaded(false);setReset(n=>n+1);}}>Reset and unload routes</button></main>;
+ return <main className="ops-live" style={{padding:20}}><h1>Truck click focus · synthetic GPS</h1><p>Click the marker or schedule row: zoom 15 must remain after delayed history and snapshot refresh. Double-click zooms to 19; Show all trips fits the trail.</p><div style={{width:700,maxWidth:'95vw',height:440,position:'relative'}}><ScheduleMap appointments={appointments} trucks={[truck]} selected={null} selectedTruck={selected} gpsRoute={loaded?route:null} truckMapView={mode} scope="ALL" resetKey={reset} date={date} onSelect={()=>{}} onSelectTruck={(name,view='overview')=>{setSelected(name);setMode(view);setReset(n=>n+1);}}/></div><button onClick={selectTruck}>Select Truck 6 from schedule</button><button onClick={()=>{setMode('route');setReset(n=>n+1);}}>Show all trips</button><button onClick={()=>{setSnapshot(n=>n+1);}}>Refresh appointment snapshot</button><p>{mode} · {loaded?'Routes loaded':'Routes pending'}</p><p>{metrics}</p><button onClick={()=>{setSelected(null);setLoaded(false);setReset(n=>n+1);}}>Reset and unload routes</button></main>;
 }
 createRoot(document.getElementById('root')!).render(<Fixture/>);

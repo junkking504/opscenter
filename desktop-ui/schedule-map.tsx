@@ -9,7 +9,6 @@ import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract
 import { appointmentColorClass, appointmentStatus, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
 import { locatorSize, truckLocatorSize, territoryMapCenters } from './lib/schedule-map-layout';
 import type {TruckGpsRoute} from './lib/gps-route-contract';
-import { centeredExtent } from './lib/truck-map-viewport';
 import {gpsTripColor,gpsTripDisplay,unassignedGpsColor} from './lib/gps-trip-display';
 
 type Props = {
@@ -117,7 +116,8 @@ export default function ScheduleMap(props: Props) {
       view.closePopup();
       manualViewport.current = false;
       view.invalidateSize({ pan: false });
-      autoFit.current();
+      // A refreshed appointment set must not replace the selected truck/job view.
+      if (!selected && !selectedTruck) autoFit.current();
       fitted.current = fitKey;
     }
     const focusKey = selected ? `appointment:${selected}` : selectedTruck ? `truck:${selectedTruck}` : '';
@@ -235,17 +235,10 @@ export default function ScheduleMap(props: Props) {
     if(gpsFit.current!==fitKey) {
       if(props.truckMapView==='overview') {
         const truck=props.trucks.find(truck=>truckLabel(truck.truck)===route.truck && truck.latitude!=null && truck.longitude!=null);
-        const latest=truck ? {latitude:truck.latitude!,longitude:truck.longitude!} : route.points.at(-1) || route.trips?.at(-1)?.to;
-        if(latest) {
-          const center=L.latLng(latest.latitude,latest.longitude);
-          // Include every bend in the rendered trail, not just trip endpoints.
-          // Reflect the extent around the current GPS fix in projected space
-          // so fitting the routes never shifts the truck off center.
-          const points=[...paths.flatMap(path=>path.points),...isolated,...(route.trips || []).flatMap(trip=>[trip.from,trip.to])];
-          const extent=centeredExtent(view.project(center,0),points.map(point=>view.project([point.latitude,point.longitude],0)));
-          const bounds=L.latLngBounds(view.unproject(L.point(extent.min.x,extent.min.y),0),view.unproject(L.point(extent.max.x,extent.max.y),0));
-          view.setView(center,Math.min(15,view.getBoundsZoom(bounds,false,L.point(90,90))),{animate:false});
-        }
+        // Live selection already centered the truck. Loading its history paints
+        // the trail without replacing that view or a subsequent manual pan.
+        const latest=!truck && (route.points.at(-1) || route.trips?.at(-1)?.to);
+        if(latest && !manualViewport.current) view.setView([latest.latitude,latest.longitude],15,{animate:false});
       }
       else if(props.truckMapView==='route') {
         const trip=route.trips?.find(trip=>trip.id===props.selectedTripId);

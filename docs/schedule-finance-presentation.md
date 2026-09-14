@@ -167,6 +167,12 @@ opens the full action drawer. Calendar and history retain their drawer behavior.
 Selecting a muted block clears filters that would otherwise hide its pin.
 An appointment without verified coordinates explicitly shows Verify Address.
 
+Selecting a truck from its map locator or schedule row centers its current GPS
+position at street zoom. Delayed route history and appointment refreshes retain
+that viewport, including a subsequent manual pan. Only an explicit trip selection
+or Show all trips fits the historical route extent. The synthetic delayed-history
+regression is `desktop-ui/tests/truck-map-focus.html`.
+
 Truck and appointment locators use the same zoom scale: small at overview zoom,
 larger at street zoom. The visible icon center stays exactly on its source
 coordinate, including after selection, zoom, pan, resize and GPS refresh. Never

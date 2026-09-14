@@ -84,3 +84,23 @@ test('an open but stalled primary connection falls back within the probe deadlin
   try{const start=Date.now();assert.equal(await(await fetch(base)).text(),'recovery');assert.ok(Date.now()-start<1000);}
   finally{await close(gateway);await close(primary);await close(standby);}
 });
+
+
+test('cold standby health can take longer without delaying healthy primary traffic',async()=>{
+  let available=true;
+  const primary=http.createServer((req,res)=>{if(available)res.end('primary');else req.socket.destroy();});
+  const standby=http.createServer((req,res)=>{if(req.url==='/api/health')setTimeout(()=>res.end(JSON.stringify(recoveryHealth)),150);else res.end('recovery');});
+  const gateway=createContinuityProxy({primary:await listen(primary),standby:await listen(standby),timeout:20,recoveryTimeout:300,probeCacheMs:0});
+  const base=await listen(gateway);
+  try{let start=Date.now();assert.equal(await(await fetch(base)).text(),'primary');assert.ok(Date.now()-start<120);available=false;assert.equal(await(await fetch(base)).text(),'recovery');}
+  finally{await close(gateway);await close(primary);await close(standby);}
+});
+
+test('readiness reuse expires and refuses a changed writable standby',async()=>{
+  let writable=false, checks=0;
+  const origin=http.createServer((req,res)=>{if(req.url==='/login'){res.writeHead(503);res.end();}else if(req.url==='/api/health'){checks++;res.end(JSON.stringify({...recoveryHealth,assignmentStoreWritable:writable}));}else res.end('snapshot');});
+  const url=await listen(origin), gateway=createContinuityProxy({primary:url,standby:url,probeCacheMs:0,standbyCacheMs:60});
+  const base=await listen(gateway);
+  try{assert.equal((await fetch(base)).status,200);await Promise.all([fetch(base),fetch(base),fetch(base)]);assert.equal(checks,1);writable=true;await new Promise(resolve=>setTimeout(resolve,80));assert.equal((await fetch(base)).status,503);assert.equal(checks,2);}
+  finally{await close(gateway);await close(origin);}
+});

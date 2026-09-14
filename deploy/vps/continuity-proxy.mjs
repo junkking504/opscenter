@@ -38,23 +38,25 @@ function json(res, status, value) {
   res.writeHead(status, {'content-type': 'application/json', 'cache-control': 'no-store'});
   res.end(JSON.stringify(value));
 }
-function probe(origin, path, timeout, recovery = false) {
+function probe(origin, path, timeout, recovery = false, report = () => {}) {
   return new Promise(resolve => {
-    const request = http.get(new URL(path, origin), {headers: {'connection': 'close'}}, response => {
+    const request = http.get(new URL(path, origin), {agent: false, headers: {'connection': 'close'}}, response => {
       if (!recovery) {response.resume(); resolve(response.statusCode >= 200 && response.statusCode < 400); return;}
       let body='';
       response.on('data', chunk => {body+=chunk; if(body.length>256*1024) request.destroy();});
       response.on('error',()=>resolve(false));
       response.on('end',()=>{
-        try {const health=JSON.parse(body);resolve(health.runtime==='VPS'
+        try {const health=JSON.parse(body);const valid=health.runtime==='VPS'
           && health.platformKernel?.healthy===true
           && health.platformKernel?.databaseName==='opscenter_recovery_20260914'
-          && health.assignmentStoreWritable===false && health.operatorStateWritable===false);}
+          && health.assignmentStoreWritable===false && health.operatorStateWritable===false;
+          if(!valid) report({category:'readiness',kernelHealthy:health.platformKernel?.healthy===true,readOnly:health.assignmentStoreWritable===false&&health.operatorStateWritable===false});
+          resolve(valid);}
         catch {resolve(false);}
       });
     });
     request.setTimeout(timeout, () => request.destroy());
-    request.on('error', () => resolve(false));
+    request.on('error', error => {if(recovery)report({category:'transport',code:error.code || 'unknown'});resolve(false);});
   });
 }
 const banner = `<div id="ops-continuity-notice" role="status" style="position:fixed;inset:0 0 auto;z-index:2147483647;background:#ffdd57;color:#171717;padding:10px 16px;font:600 14px/1.4 system-ui;text-align:center">Recovery view — Mission Control is unavailable. Showing the last synchronized records. Changes and source refreshes are paused. Reload after Mission Control recovers.</div><style>html{padding-top:60px!important}</style>`;
@@ -64,18 +66,30 @@ export function createContinuityProxy(options = {}) {
   const standby = options.standby || 'http://127.0.0.1:3001';
   const timeout = options.timeout || 2500;
   const snapshotFile = options.snapshotFile;
-  let currentCheck;
+  let currentCheck, currentStandbyCheck;
+  let standbyObservedAt = 0, standbyReady = false;
+  function standbyCheck() {
+    if (standbyReady && Date.now() - standbyObservedAt < (options.standbyCacheMs ?? 15000)) return Promise.resolve(true);
+    return currentStandbyCheck ||= probe(standby, '/api/health', options.recoveryTimeout ?? 10000, true, options.onReadinessFailure)
+      .then(ready => {standbyReady = ready; standbyObservedAt = Date.now(); return ready;})
+      .finally(() => {currentStandbyCheck = null;});
+  }
   let lastCheck = 0;
   let state = {primary: false, standby: false, checkedAt: null};
   async function check() {
     if (currentCheck) return currentCheck;
     if (Date.now() - lastCheck < (options.probeCacheMs ?? 2000)) return state;
-    currentCheck = Promise.all([probe(primary, '/login', timeout), probe(standby, '/api/health', timeout, true)])
-      .then(([primaryReady, standbyReady]) => {
-        lastCheck = Date.now();
-        state = {primary: primaryReady, standby: standbyReady, checkedAt: new Date().toISOString()};
-        return state;
-      }).finally(() => {currentCheck = null;});
+    const recovery = standbyCheck();
+    currentCheck = probe(primary, '/login', timeout).then(async primaryReady => {
+      // Cold source reads can delay standby health. Never make a healthy primary
+      // wait for that independent check; recovery still requires a current result.
+      const standbyReady = primaryReady ? state.standby : await recovery;
+      lastCheck = Date.now();
+      const next = {primary: primaryReady, standby: standbyReady, checkedAt: new Date().toISOString()};
+      state = next;
+      if (primaryReady) void recovery.then(ready => {if (state === next) state.standby = ready;});
+      return state;
+    }).finally(() => {currentCheck = null;});
     return currentCheck;
   }
   const server = http.createServer(async (req, res) => {
@@ -94,7 +108,7 @@ export function createContinuityProxy(options = {}) {
     delete headers.connection; delete headers['proxy-connection'];
     // Transform only uncompressed recovery HTML. Preserve host and auth headers.
     if (recovering) headers['accept-encoding'] = 'identity';
-    const upstream = http.request({hostname: target.hostname, port: target.port, method: req.method, path: targetPath, headers}, response => {
+    const upstream = http.request({agent: false, hostname: target.hostname, port: target.port, method: req.method, path: targetPath, headers}, response => {
       const responseHeaders = {...response.headers, 'x-opscenter-continuity': recovering ? 'read-only-recovery' : 'primary'};
       if (recovering) responseHeaders['cache-control'] = 'private, no-store';
       if (recovering && req.method === 'GET' && String(response.headers['content-type']).includes('text/html') && response.statusCode === 200) {
@@ -124,6 +138,6 @@ export function createContinuityProxy(options = {}) {
   return server;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const server = createContinuityProxy({primary: process.env.CONTINUITY_PRIMARY, standby: process.env.CONTINUITY_STANDBY, snapshotFile: process.env.CONTINUITY_SNAPSHOT_FILE});
+  const server = createContinuityProxy({primary: process.env.CONTINUITY_PRIMARY, standby: process.env.CONTINUITY_STANDBY, snapshotFile: process.env.CONTINUITY_SNAPSHOT_FILE, onReadinessFailure: reason => console.warn('Standby readiness rejected', JSON.stringify(reason))});
   server.listen(Number(process.env.CONTINUITY_PORT || 3002), '127.0.0.1', () => console.log('Continuity gateway listening on loopback; automatic recovery is read-only.'));
 }

@@ -36,6 +36,7 @@ export type MaintenanceSnapshot = {
   available: boolean; fresh: boolean; checkedAt: string | null; mode: 'observe'; aiStatus: string;
   month: string; budgetUsd: number; committedUsd: number; estimatedUsd: number; calls: number;
   incidents: MaintenanceIncident[];
+  continuity?: import('./continuity-contract').ContinuitySnapshot;
   recovery?: MaintenanceRecovery;
   canManageRecovery?: boolean;
   addressResearch?: AddressResearchSnapshot;

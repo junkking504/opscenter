@@ -52,7 +52,8 @@ def main():
         state_path = CONTROL / 'database-publish.json'
         try:
             previous = json.loads(state_path.read_text())
-            status['lastSuccessAt'] = previous.get('lastSuccessAt')
+            for key in ('lastSuccessAt', 'fileLastSuccessAt', 'financialStatementsSyncedAt'):
+                status[key] = previous.get(key)
         except (ValueError, FileNotFoundError):
             pass
         def save():

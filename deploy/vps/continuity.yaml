@@ -21,7 +21,7 @@ services:
         max-file: '3'
 
   app:
-    image: opscenter:continuity-readers-20260914
+    image: opscenter:continuity-monitor-20260914
     restart: unless-stopped
     init: true
     # Match the mirror owner: source snapshots intentionally retain private modes.
@@ -41,6 +41,7 @@ services:
       OPSCENTER_KERNEL_ENABLED: '1'
       OPSCENTER_LINXUP_MAX_AGE_SECONDS: '900'
       OPSCENTER_JUNKWARE_SCHEDULE_MAX_AGE_SECONDS: '900'
+      OPSCENTER_CONTINUITY_MONITOR_FILE: /var/lib/opscenter/continuity-monitor/monitor.json
       OPSCENTER_FINANCIAL_STATEMENTS_DIR: /var/lib/opscenter/financial-statements
       QBO_TOKEN_STORE_DIR: /var/lib/opscenter/qbo
       NODE_USE_ENV_PROXY: '1'
@@ -51,6 +52,7 @@ services:
     volumes:
       - /srv/opscenter/data:/app/data:ro
       - /srv/opscenter/qbo:/var/lib/opscenter/qbo:ro
+      - /home/opscenter/continuity-monitor/state:/var/lib/opscenter/continuity-monitor:ro
       - /srv/opscenter/continuity-20260912/financial-statements:/var/lib/opscenter/financial-statements:ro
       - /srv/opscenter/continuity-20260912/auth:/var/lib/opscenter/continuity-auth
     read_only: true

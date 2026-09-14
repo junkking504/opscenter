@@ -1,0 +1,17 @@
+[Unit]
+Description=OpsCenter independent read-only continuity observer
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+User=opscenter
+Group=opscenter
+SupplementaryGroups=docker
+ExecStart=/usr/bin/python3 /home/opscenter/continuity-monitor/observe.py
+TimeoutStartSec=45
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/home/opscenter/continuity-monitor/state

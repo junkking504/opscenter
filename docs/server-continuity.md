@@ -110,7 +110,7 @@ The source for the Docker-authorized Compose wrapper is
 
 The candidate lives under `/srv/opscenter/continuity-20260912`; the date names the
 retained task directory, not its current application version. Runtime app image
-`opscenter:continuity-readers-20260914` was built from the current production application
+`opscenter:continuity-monitor-20260914` was built from the current production application
 plus the continuity Docker configuration. Preserve the image ID and source SHA
 in the acceptance record whenever replacing it.
 
@@ -131,7 +131,7 @@ authentication egress allowlist. Independently verify:
 
 Do not label ordinary data-sync success as healthy failover. Application release
 updates must also rebuild and retest the standby; file and database publication
-do not deploy code. Automated release-parity monitoring remains a separate task.
+do not deploy code. The independent observer below detects release drift; it does not automatically deploy code.
 
 ## Writable promotion is not implemented
 
@@ -155,3 +155,46 @@ Use `docker buildx build --load` rather than the deprecated legacy builder.
 The runtime image separates stable dependencies from application files and
 omits Vite build dependencies and the Next build cache. No Docker daemon storage
 configuration or paid capacity was changed.
+
+## Independent continuity monitoring
+
+Command > Monitor includes Server continuity. The VPS systemd timer
+`opscenter-continuity-monitor.timer` invokes the Python observer every 60 seconds,
+even when Mission Control is unavailable. Source lives in
+`deploy/vps/continuity-monitor.py`; the installed script is
+`/home/opscenter/continuity-monitor/observe.py`. Its private state directory is
+mounted read-only in the standby app. The timer and service definitions live
+beside the script in source; install them under `/etc/systemd/system`, verify
+with `systemd-analyze verify`, reload systemd, then enable only this timer.
+The observer uses the existing opscenter user's Docker inspection authority.
+
+Mission Control's `com.opscenter.continuity-monitor` LaunchAgent exchanges
+sanitized release and backup receipts every 60 seconds. Its source script and
+plist live under `deploy/macmini/`; its installed script and `monitor.json`
+are in `~/Library/Application Support/OpsCenter/continuity-control/`.
+The collector uses the existing VPS SSH identity. An exchange failure preserves
+the prior observation but marks it unavailable; it never substitutes success.
+The VPS app reads the independent local evidence when the Mac is unavailable.
+
+Ten checks cover the monitoring link, exact primary/VPS source revision parity,
+read-only standby app/database identity, gateway readiness, primary relay,
+public login and structured database readiness, operational file backup,
+accounting-statement backup, independent database receipt, and VPS disk.
+Evidence older than three minutes or future-dated is unknown. Backup snapshots
+older than ten minutes and the latest failed publication need attention.
+Disk warnings begin at 90% used or less than 5 GiB available.
+
+Two bad observations at least 45 seconds apart confirm an incident; three
+successful observations clear it. Unknown evidence never clears an incident.
+The private `monitor.json` ledger retains occurrence counts and the most recent
+100 transition receipts. Corrupt history is preserved for review. Do not delete
+it to reset incident history. While a previous incident awaits its third good
+check, the UI says recovery is being confirmed.
+
+These deterministic checks make no AI/provider calls and send no Slack/email
+messages. They display evidence and next checks, without repairs or writable
+promotion. Public probes originate outside Mission Control but on the VPS;
+they do not constitute a third independent availability monitor or an
+end-to-end Cloudflare ingress configuration audit. Authenticated workflow QA
+remains a separate acceptance requirement. Run `npm run verify:continuity`;
+the normal application build includes these regression tests.

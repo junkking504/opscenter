@@ -1,3 +1,4 @@
+import ContinuityMonitor from './continuity-monitor';
 import { useEffect, useState } from 'react';
 import type { MaintenanceIncident, MaintenanceSnapshot } from './lib/maintenance-contract';
 import './maintenance-monitor.css';
@@ -66,6 +67,7 @@ export default function MaintenanceMonitor() {
   return <section className="maintenance-panel" aria-labelledby="maintenance-title">
     <header><div><span className="section-kicker">OpsBot · maintenance pilot</span><h2 id="maintenance-title">Background maintenance</h2><p>Detects conditions and suggests next steps. Process recovery has its own bounded controls below.</p></div><span className={`maintenance-state ${fresh ? 'current' : 'stale'}`}>{fresh ? 'Monitoring' : snapshot ? 'Monitor needs attention' : 'Loading status…'}</span></header>
     {error && <p role="alert">{error}</p>}
+    <ContinuityMonitor snapshot={snapshot?.continuity} clock={clock} />
     {snapshot && <>
       <div className="maintenance-metrics"><div><span>Last observation</span><strong>{timestamp(snapshot.checkedAt)}</strong></div><div><span>AI status</span><strong>{snapshot.aiStatus}</strong></div><div><span>Monthly AI usage · {snapshot.month}</span><strong>{snapshot.available ? `$${snapshot.estimatedUsd.toFixed(3)} estimated · ${snapshot.calls} calls` : 'Unavailable'}</strong><small>{snapshot.available ? `$${snapshot.committedUsd.toFixed(3)} including reserved or uncertain usage / $${snapshot.budgetUsd} limit` : 'Budget state has not been verified.'}</small></div></div>
       {!fresh && <p role="status">The worker has not supplied a current observation. This does not establish that OpsCenter is healthy.</p>}

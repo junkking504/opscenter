@@ -184,3 +184,11 @@ incident or spending history. Historical browser incidents cleared only by silen
 reopen for review. Unknown and already-verified conditions cannot queue AI calls.
 This is an administrator attestation, not an automatic browser test. Do not record
 recovery from a build, health response, or a different interaction.
+
+## Server continuity
+
+Command > Monitor also shows the independent VPS observer described in
+[Server continuity](server-continuity.md#independent-continuity-monitoring).
+It has its own durable evidence and incident history and never enters this
+pilot's AI queue or spending ledger. Its read-only checks continue on the VPS
+when Mission Control is unavailable.

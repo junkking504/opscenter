@@ -69,3 +69,14 @@ console.log('Parked heartbeat regression passed: established dwell, hourly conti
 const engineOn = {...hourly,ignition:'ON',lastGpsUpdate:new Date(now+61*60_000).toISOString()};
 assert.equal(currentGpsPresence(job,[engineOn],[job],now+62*60_000)?.current,true,'Starting the engine at the same site does not invent a departure');
 assert.equal(currentGpsPresence(job,[engineOn],[job],now+65*60_000)?.current,false,'Engine-on reports still require fresh motion telemetry');
+
+const shutdownPoint = {...job.location,timestamp:new Date(now-7_000).toISOString(),speed:0,ignition:'ON'};
+const shutdown = {...parked,routePoints:[shutdownPoint]};
+assert.equal(currentGpsPresence(job,[shutdown],[job],now+10*60_000)?.current,true,'Stationary engine shutdown establishes arrival without waiting for an hourly heartbeat');
+assert.equal(currentGpsPresence(job,[shutdown],[job],now)?.arrival,shutdownPoint.timestamp,'Use the observed stationary arrival, not wall-clock elapsed time');
+assert.equal(currentGpsPresence(job,[{...shutdown,lastGpsUpdate:hourlyStamp,routePoints:[shutdownPoint,{...job.location,timestamp:truck.lastGpsUpdate,speed:0,ignition:'OFF'}]}],[job],afterHeartbeat)?.current,true,'Hourly parked reports retain a shutdown-established arrival');
+for (const previous of [{...shutdownPoint,speed:20},{...shutdownPoint,ignition:'OFF'}, {...shutdownPoint,latitude:30.4}, {...shutdownPoint,timestamp:new Date(now-6*60_000).toISOString()}]) {
+  assert.equal(currentGpsPresence(job,[{...shutdown,routePoints:[previous]}],[job],now),undefined,'Moving, sparse, distant or repeated OFF reports cannot establish an initial shutdown arrival');
+}
+assert.equal(currentGpsPresence(job,[shutdown],[job,{...job,appointmentId:'neighbor'}],now),undefined,'Shutdown arrival retains appointment ambiguity checks');
+assert.equal(currentGpsPresence({...job,onsiteTime:{departure:truck.lastGpsUpdate}},[shutdown],[job],now),undefined,'A recorded departure cannot be undone by an older shutdown');

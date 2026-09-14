@@ -820,3 +820,9 @@ Dragging a planned appointment with a pending assignment receipt explains the
 restriction instead of silently ignoring the gesture. Recorded visit blocks
 remain anchored to physical history. Route dots identify GPS fixes still awaiting
 road geometry; aligned road paths are solid and retain their trip colors.
+
+A stationary ignition ON-to-OFF transition within the verified premise radius
+establishes arrival using the preceding stationary fix. Both fixes must be within
+30 meters and five minutes of each other; normal appointment ambiguity and
+departure checks still apply. This avoids waiting for an hourly parked heartbeat
+when shutdown occurs before two minutes of GPS dwell have accumulated.

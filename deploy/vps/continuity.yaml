@@ -21,7 +21,7 @@ services:
         max-file: '3'
 
   app:
-    image: opscenter:continuity-20260912
+    image: opscenter:continuity-20260914
     restart: unless-stopped
     init: true
     group_add: ['1000']
@@ -40,9 +40,16 @@ services:
       OPSCENTER_LINXUP_MAX_AGE_SECONDS: '900'
       OPSCENTER_JUNKWARE_SCHEDULE_MAX_AGE_SECONDS: '900'
       QBO_TOKEN_STORE_DIR: /var/lib/opscenter/qbo
+      OPSCENTER_LOGIN_RATE_LIMIT_FILE: /var/lib/opscenter/continuity-auth/login-attempts.json
     volumes:
-      - /srv/opscenter/data:/app/data:ro
+      - /srv/opscenter/continuity-20260912/data:/app/data:ro
       - /srv/opscenter/qbo:/var/lib/opscenter/qbo:ro
+      - /srv/opscenter/continuity-20260912/auth:/var/lib/opscenter/continuity-auth
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
     ports:
       - '127.0.0.1:3001:3000'
     command: [/bin/sh, -lc, 'umask 0007 && exec npm run start -- -H 0.0.0.0 -p 3000']
@@ -57,3 +64,9 @@ services:
       options:
         max-size: 10m
         max-file: '3'
+
+# The candidate can reach only its isolated database. It cannot send external
+# requests, retries, notifications or provider calls while restore QA runs.
+networks:
+  default:
+    internal: true

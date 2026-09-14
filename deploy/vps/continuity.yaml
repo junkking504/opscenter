@@ -1,0 +1,59 @@
+name: opscenter-continuity
+
+services:
+  database:
+    image: postgres:18.4-alpine
+    restart: unless-stopped
+    env_file:
+      - path: /etc/opscenter/continuity-database.env
+        format: raw
+    volumes:
+      - /srv/opscenter/continuity-database:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U opscenter_admin -d opscenter_production']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  app:
+    image: opscenter:continuity-20260912
+    restart: unless-stopped
+    init: true
+    group_add: ['1000']
+    depends_on:
+      database:
+        condition: service_healthy
+    env_file:
+      - path: /etc/opscenter/continuity-app.env
+        format: raw
+    environment:
+      NODE_ENV: production
+      OPSCENTER_RUNTIME: VPS
+      OPSBOT_DATA_DIR: /app/data
+      OPSCENTER_DATA_DIR: /app/data
+      OPSCENTER_KERNEL_ENABLED: '1'
+      OPSCENTER_LINXUP_MAX_AGE_SECONDS: '900'
+      OPSCENTER_JUNKWARE_SCHEDULE_MAX_AGE_SECONDS: '900'
+      QBO_TOKEN_STORE_DIR: /var/lib/opscenter/qbo
+    volumes:
+      - /srv/opscenter/data:/app/data:ro
+      - /srv/opscenter/qbo:/var/lib/opscenter/qbo:ro
+    ports:
+      - '127.0.0.1:3001:3000'
+    command: [/bin/sh, -lc, 'umask 0007 && exec npm run start -- -H 0.0.0.0 -p 3000']
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/login',{redirect:'manual'}).then(r=>{if(r.status>=400)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'

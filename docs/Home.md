@@ -48,6 +48,7 @@ without mixing live runtime data or secrets into Git.
 - [Fleet Action Center](fleet-action-center.md)
 - [Operational readiness](operational-readiness.md)
 - [Background maintenance pilot](background-maintenance.md)
+- [Server continuity recovery](server-continuity.md)
 
 ## Canonical topology
 

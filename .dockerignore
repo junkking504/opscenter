@@ -1,4 +1,6 @@
 .git
+.auth
+artifacts
 .next
 .next-*
 .open-next

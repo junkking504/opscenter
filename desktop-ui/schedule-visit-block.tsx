@@ -18,14 +18,14 @@ export default function ScheduleVisitBlock({job,truck,position,segmentIndex,top,
   const time=position.actual ? `${clock(interval.start)}–${interval.ongoing?'now':clock(interval.end)} · ${minutes<1?'<1':Math.round(minutes)} min on site` : `${job.appointmentTime} · Planned booked window`;
   const label=`${job.jkNumber} · ${job.customerName} · ${truck} · ${time} · ${state}${partner?` · ${partner.name}`:''}`;
   return <div className={`schedule-appointment status-${tone} ${appointmentColorClass(job)} ${appointmentCategory(job).toLowerCase()}${muted?' scope-muted':''}${matched?' scope-match':''}${selected?' route-selected':''}${dragging?' is-dragging':''}`}
-    style={{left:`${segment.left*100}%`,width:`max(22px, ${segment.width*100}%)`,top,height:22}}
+    style={{left:`${segment.left*100}%`,width:`max(${partner?34:22}px, ${segment.width*100}%)`,top,height:22}}
     role="button" tabIndex={0} aria-pressed={selected} aria-label={label} title={`${label}. ${description}`}
     aria-roledescription={movable?'draggable appointment':undefined} data-schedule-appointment={job.recordId} data-time-basis={position.actual?'actual':'booked'}
     data-visit-truck={position.actual?truck:undefined} data-visit-start={interval.start} data-visit-end={interval.end}
     onPointerDown={movable?onPointerDown:undefined} onClick={onSelect} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onSelect();}}}>
     {partner && <span className="schedule-partner-cue" title={partner.name} aria-hidden="true"/>}
     {movable && <GripVertical className="schedule-grip" size={9} aria-hidden="true"/>}
-    <em title={state} className={`schedule-block-status status-${tone}`}>
+    <em title={state} style={partner?{paddingLeft:12,boxSizing:"border-box"}:undefined} className={`schedule-block-status status-${tone}`}>
       {tone==='completed'?<Check size={12} strokeWidth={3} aria-hidden="true"/>:tone==='canceled'?<X size={12} strokeWidth={3} aria-hidden="true"/>:tone==='visited'?<b aria-hidden="true">?</b>:null}
     </em>
   </div>;

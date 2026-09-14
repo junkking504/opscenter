@@ -1,3 +1,4 @@
+export type ScheduleTruckVisit = { truck: string; arrival: string; departure: string | null; observedThrough: string; currentUntil?: string };
 import { appointmentPartner } from '../../lib/appointment-partner';
 import { serviceTerritory } from '../../lib/service-territory';
 import type { AppointmentOnsiteTime } from '../../lib/appointment-onsite-time';
@@ -44,6 +45,7 @@ export type ScheduleAppointment = {
   onsiteGpsAt?: string;
   onsiteGpsParked?: boolean;
   onsiteTime?: AppointmentOnsiteTime;
+  truckVisits?: ScheduleTruckVisit[];
   truck: string;
   driver: string;
   navigator: string;
@@ -160,13 +162,33 @@ export function truckLabel(value: string) { const raw=value.trim(); const match 
 /** Empty trucks are still dispatch destinations. Source-only trucks are retained
  * and Unassigned stays available even after its last appointment is assigned. */
 export function scheduleTruckNames(snapshot?: Pick<ScheduleSnapshot,'fleet'|'appointments'>): string[] {
-  return [...new Set([...JUNKWARE_DISPATCH_TRUCKS,...(snapshot?.fleet.trucks.map(truck=>truck.truck)||[]),...(snapshot?.appointments.map(job=>job.truck)||[]),'Unassigned'].map(truckLabel))]
+  return [...new Set([...JUNKWARE_DISPATCH_TRUCKS,...(snapshot?.fleet.trucks.map(truck=>truck.truck)||[]),...(snapshot?.appointments.flatMap(job=>[job.truck,...(job.truckVisits || []).map(v=>v.truck)])||[]),'Unassigned'].map(truckLabel))]
     .sort((a,b)=>a===b?0:a==='Unassigned'?1:b==='Unassigned'?-1:a.localeCompare(b,undefined,{numeric:true}));
 }
 /** Completed blocks use confirmed visit intervals; source appointment windows remain unchanged. */
-export function timelineWindow(job: ScheduleAppointment) {
+export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.truck || ''), now = Date.now()) {
+  if (job.truckVisits?.length) {
+    const day = job.recordId.slice(0,10);
+    const local = (value: string) => {
+      const stamp = Date.parse(value);
+      if (!Number.isFinite(stamp)) return NaN;
+      const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).formatToParts(stamp).map(p=>[p.type,p.value]));
+      return (Date.parse(`${parts.year}-${parts.month}-${parts.day}`)-Date.parse(day))/86400000*1440 + +parts.hour*60 + +parts.minute + +parts.second/60;
+    };
+    const intervals = job.truckVisits.filter(v=>truckLabel(v.truck)===truckLabel(truck)).flatMap(visit=>{
+      const ongoing = Boolean(visit.currentUntil && now <= Date.parse(visit.currentUntil));
+      const start = Math.max(0,local(visit.arrival));
+      const end = Math.min(2880,local(ongoing ? new Date(now).toISOString() : visit.departure || visit.observedThrough));
+      return Number.isFinite(start) && Number.isFinite(end) && end>start ? [{start,end,ongoing,complete:Boolean(visit.departure)}] : [];
+    }).sort((a,b)=>a.start-b.start);
+    if (!intervals.length) return null;
+    const minutes = intervals.reduce((sum,v)=>sum+v.end-v.start,0);
+    return {actual:true,start:intervals[0].start,end:intervals.at(-1)!.end,intervals,
+      label:`${minutes<1?'<1':Math.round(minutes)} min on site${intervals.some(v=>v.ongoing)?' · ongoing':intervals.some(v=>!v.complete)?' · departure unconfirmed':''}${intervals.length>1?` · ${intervals.length} visits`:''}`};
+  }
+  if (truckLabel(job.truck || '')!==truckLabel(truck)) return null;
   const time = job.onsiteTime;
-  if (appointmentStatus(job) === 'Completed' && time && time.minutes !== null && Number.isFinite(time.minutes) && time.minutes > 0 && time.arrival && time.departure) {
+  if (!/cancel/i.test(job.status) && time && time.minutes !== null && Number.isFinite(time.minutes) && time.minutes > 0 && time.arrival && time.departure) {
     const source = time.intervals?.length ? time.intervals : [{ arrival: time.arrival, departure: time.departure }];
     const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
     const local = (value: string) => {
@@ -187,18 +209,21 @@ export function timelineWindow(job: ScheduleAppointment) {
       const ordered = intervals.sort((a,b) => a.start - b.start);
       const minutes = ordered.reduce((sum,row) => sum + row.end - row.start, 0);
       if (Math.abs(minutes - time.minutes) <= 0.11 && ordered.every((row,i) => !i || row.start >= ordered[i-1].end)) {
-        return { actual: true, start: ordered[0].start, end: ordered.at(-1)!.end, intervals: ordered,
+        return { actual: true, start: ordered[0].start, end: ordered.at(-1)!.end, intervals: ordered.map(row=>({...row,ongoing:false,complete:true})),
           label: `${time.minutes < 1 ? '<1' : Math.round(time.minutes)} min on site${ordered.length > 1 ? ` · ${ordered.length} visits` : ''}` };
       }
     }
   }
   if (!job.hasScheduledTime || job.appointmentStartMinutes === null || job.appointmentEndMinutes === null) return null;
   return { actual: false, start: job.appointmentStartMinutes, end: job.appointmentEndMinutes,
-    intervals: [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes}], label: 'Booked window' };
+    intervals: [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes,ongoing:false,complete:false}], label: 'Planned · booked window' };
 }
-export function timelineRange(jobs: ScheduleAppointment[]) {
+export function timelineRange(jobs: ScheduleAppointment[], now = Date.now()) {
   const windows = jobs.flatMap(job => {
-    const display = timelineWindow(job);
+    if (job.truckVisits?.length) return [...new Set(job.truckVisits.map(v=>v.truck))].flatMap(truck=>{
+      const window=timelineWindow(job,truck,now); return window?[window]:[];
+    });
+    const display = timelineWindow(job,undefined,now);
     const booked = job.hasScheduledTime && job.appointmentStartMinutes !== null && job.appointmentEndMinutes !== null
       ? [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes}] : [];
     return display ? [...booked,display] : booked;
@@ -207,8 +232,8 @@ export function timelineRange(jobs: ScheduleAppointment[]) {
   const end = Math.max(1020, ...windows.map(row => Math.ceil(row.end / 60) * 60));
   return { start, end, duration: end - start };
 }
-export function timelinePlacement(job: ScheduleAppointment, range: ReturnType<typeof timelineRange>) {
-  const window = timelineWindow(job);
+export function timelinePlacement(job: ScheduleAppointment, range: ReturnType<typeof timelineRange>, truck?: string, now = Date.now()) {
+  const window = timelineWindow(job, truck, now);
   if (!window) return null;
   const place = (row: {start:number;end:number}) => ({ left: (row.start - range.start) / range.duration, width: Math.max(0,row.end-row.start) / range.duration });
   return { ...window, ...place(window), segments: window.intervals.map(place) };

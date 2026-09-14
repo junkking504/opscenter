@@ -1,3 +1,4 @@
+import { scheduleTruckVisits, type ScheduleTruckVisit } from './schedule-visit-intervals';
 import { currentGpsPresence } from './schedule-gps-presence';
 import { calculateTruckProgress } from './desktop-truck-progress';
 import { compareStops } from './schedule-stop-order';
@@ -19,7 +20,7 @@ import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-a
 import { readScheduleVisits, scheduleVisitState } from '@/lib/desktop-schedule-visits';
 import { readOperationalTruckLoads, truckChargeSummary } from './truck-load-closeouts';
 
-export type DesktopAppointment = JobRow & { recordId: string; mapAddress?: string; addressCheckPending?: boolean; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
+export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
   truck: string;
   fromAppointmentId: string;
@@ -80,6 +81,7 @@ export function readDesktopSchedule(date: string) {
     if (presence?.current) Object.assign(job, { hasVisit: true, truckOnSite: true, onsiteTruck: presence.truck, onsiteGpsAt: presence.observedAt, onsiteGpsParked: presence.parked, lastSeenOnsiteTruck: undefined, lastSeenOnsiteAt: undefined });
     else if (presence && !job.truckOnSite) Object.assign(job, { hasVisit: true, truckOnSite: false, onsiteTruck: undefined, lastSeenOnsiteTruck: presence.truck, lastSeenOnsiteAt: presence.observedAt });
   }
+  for (const job of appointments) job.truckVisits = scheduleTruckVisits(job, visits.visits, fleet.isToday ? fleet.trucks : [], appointments);
   return {
     date,
     observedAt: junkwareScheduleUpdatedAt(date),

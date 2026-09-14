@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import { scheduleTruckVisits } from '../lib/schedule-visit-intervals';
+import { timelinePlacement, timelineRange, timelineWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
+import { scheduleTravelLayout } from '../desktop-ui/lib/schedule-travel-layout';
+const now=Date.parse('2026-09-14T18:00:00Z');
+const location={latitude:30,longitude:-90};
+const job={recordId:'2026-09-14:appointment:1',appointmentId:'1',jkNumber:'JK1',truck:'Truck 8',status:'Confirmed',appointmentType:'Job',appointmentStartMinutes:480,appointmentEndMinutes:540,hasScheduledTime:true,location} as ScheduleAppointment;
+const ledger=[
+  {appointment_id:'1',truck_number:'Truck 8',match_confidence:'confirmed',visit_intervals:[{arrival:'2026-09-14T14:00:00Z',departure:'2026-09-14T15:00:00Z'},{arrival:'2026-09-14T16:00:00Z',departure:'2026-09-14T16:15:00Z'}]},
+  {appointment_id:'1',truck_number:'Truck 3',match_confidence:'confirmed',visit_intervals:[{arrival:'2026-09-14T17:00:00Z',departure:null,source_timestamps:['2026-09-14T17:58:00Z']}]},
+];
+const truck={truck:'Truck 3',...location,lastGpsUpdate:'2026-09-14T18:00:00Z',speed:0,ignition:'ON',routePoints:[0,1,2,3].map(i=>({...location,timestamp:new Date(now-(3-i)*60_000).toISOString()}))};
+const original=JSON.stringify({job,ledger,truck});
+const visits=scheduleTruckVisits(job,ledger,[truck],[job],now);
+const shown={...job,truckVisits:visits};
+const range=timelineRange([shown],now);
+assert.equal(visits.length,3);
+const old=timelinePlacement(shown,range,'Truck 8',now)!;
+assert.equal(old.start,540,'Recorded arrival replaces the 8 AM booking');
+assert.equal(old.segments.length,2,'Separate trips retain the time-away gap');
+assert.equal(old.segments.reduce((sum,p)=>sum+p.width*range.duration,0),75);
+const active=timelinePlacement(shown,range,'Truck 3',now)!;
+assert.equal(active.start,720,'Other truck uses its own arrival');
+assert.equal(active.end,780,'Active visit grows to now');
+assert.equal(timelineWindow(shown,'Truck 3',now+60_000)?.end,781);
+assert.equal(timelineWindow(shown,'Truck 9',now),null,'Do not repeat a booked block on unrelated trucks');
+assert.equal(scheduleTravelLayout([shown],[],range,'Truck 3',now).placed.length,1);
+assert.equal(scheduleTravelLayout([shown],[],range,'Truck 8',now).placed[0].position.segments.length,2);
+assert.equal(timelineWindow({...shown,truck:'Truck 9'},'Truck 9',now),null,'Assignment change cannot move prior physical visits');
+const stale={...shown,truckVisits:scheduleTruckVisits(job,ledger,[],[job],now)};
+assert.equal(timelineWindow(stale,'Truck 3',now)?.end,778,'Unconfirmed departure stops at recorded evidence, not now');
+assert.equal(timelineWindow(stale,'Truck 3',now)?.intervals[0].complete,false);
+assert.equal(scheduleTruckVisits(job,[...ledger,ledger[0]],[],[job],now).length,3,'Duplicate visits do not inflate time');
+for(const changed of [{...ledger[0],appointment_id:'2'},{...ledger[0],match_confidence:'ambiguous'},{...ledger[0],pass_by_only:true}]) assert.equal(scheduleTruckVisits(job,[changed],[],[job],now).length,0);
+const instant={...ledger[0],visit_intervals:[{arrival:'2026-09-14T14:00:00Z',departure:null}]};
+assert.equal(scheduleTruckVisits(job,[instant],[],[job],now).length,0,'No measured duration retains planned fallback');
+const closed={...job,status:'Completed'};
+assert.ok(scheduleTruckVisits(closed,ledger,[truck],[closed],now).every(v=>!v.currentUntil),'Closed work cannot keep growing');
+const future={...ledger[0],visit_intervals:[{arrival:'2026-09-14T19:00:00Z',departure:'2026-09-14T20:00:00Z'}]};
+assert.equal(scheduleTruckVisits(job,[future],[],[job],now).length,0);
+assert.equal(timelineWindow({...job,truckVisits:[]},'Truck 8',now)?.actual,false,'Unvisited appointments remain explicitly planned');
+assert.equal(JSON.stringify({job,ledger,truck}),original,'Rendering cannot mutate booking, GPS or visit history');
+console.log('Truck visit blocks passed: per-truck intervals, split trips, active growth, stale stop, assignment changes, duplicates, identity, invalid evidence and unchanged sources.');

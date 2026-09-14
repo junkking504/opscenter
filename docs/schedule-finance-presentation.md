@@ -789,3 +789,20 @@ Validation: `npx tsx scripts/test-schedule-actual-blocks.ts`,
 Completed jobs show explicit Started and Finished clock times in the register
 and selected summary when confirmed timestamps are available. These are separate
 from the unchanged booked appointment window.
+
+
+## Truck visit blocks
+
+The Truck Schedule uses each truck's confirmed GPS visit intervals, regardless
+of the appointment's booked truck, appointment type, or closeout status. A job
+visited by multiple trucks appears on each truck's row using that truck's own
+arrival and departure. Return visits remain separate blocks, leaving time away
+blank. Overlapping duplicate observations for the same truck are merged.
+
+An active qualified visit grows from its arrival to now within the existing
+GPS/parked presence policy. An open visit without current presence stops at the
+last recorded inside observation and says departure is unconfirmed. It does not
+invent a departure or change recorded duration. Recorded blocks cannot be dragged;
+clicking any visit opens the original appointment. Appointments with no usable
+visit times retain a dashed planned window. Booked assignment, time, closeout,
+visit accounting and source records remain unchanged.

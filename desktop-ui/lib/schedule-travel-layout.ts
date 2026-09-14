@@ -3,10 +3,10 @@ import { timelinePlacement, timelineWindow, type ScheduleAppointment, type Sched
 
 type Range = Parameters<typeof timelinePlacement>[1];
 type ConnectorGeometry = { reverse: boolean; left: number; width: number; top: number; height: number; labelTop: number; path?: string; arrowTop?: number };
-export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: ScheduleRouteLeg[], range: Range) {
+export function scheduleTravelLayout(jobs: ScheduleAppointment[], legs: ScheduleRouteLeg[], range: Range, truck?: string, now = Date.now()) {
   const lanes: number[] = [];
-  const placed = [...jobs].sort((a,b) => (timelineWindow(a)?.start ?? Infinity) - (timelineWindow(b)?.start ?? Infinity) || compareStops(a,b)).flatMap(job => {
-    const position = timelinePlacement(job, range);
+  const placed = [...jobs].sort((a,b) => (timelineWindow(a,truck,now)?.start ?? Infinity) - (timelineWindow(b,truck,now)?.start ?? Infinity) || compareStops(a,b)).flatMap(job => {
+    const position = timelinePlacement(job, range, truck, now);
     if (!position) return [];
     let lane = lanes.findIndex(end => end <= position.start);
     if (lane < 0) lane = lanes.length;

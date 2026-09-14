@@ -24,7 +24,7 @@ const split={...job,onsiteTime:evidence([visit('2026-09-12T14:00:00Z','2026-09-1
 const splitPosition=timelinePlacement(split,range)!;
 assert.equal(splitPosition.segments.length,2);
 assert.equal(splitPosition.segments.reduce((sum,row)=>sum+row.width*range.duration,0),45,'Time away remains a gap');
-for(const patch of [{status:'Confirmed'},{status:'Canceled'},{appointmentType:'Estimate'},{onsiteTime:undefined},{onsiteTime:{...completed.onsiteTime,departure:null,minutes:null}},{onsiteTime:{...completed.onsiteTime,minutes:NaN}},{recordId:'2026-09-11:appointment:1'}]) {
+for(const patch of [{status:'Canceled'},{onsiteTime:undefined},{onsiteTime:{...completed.onsiteTime,departure:null,minutes:null}},{onsiteTime:{...completed.onsiteTime,minutes:NaN}},{recordId:'2026-09-11:appointment:1'}]) {
  const fallback=timelineWindow({...completed,...patch});
  assert.equal(fallback?.actual,false); assert.equal(fallback?.start,540); assert.equal(fallback?.end,600);
 }
@@ -38,3 +38,6 @@ console.log('Actual blocks passed: arrival, width, split visits, overlap lanes, 
 
 assert.equal(completedOnsiteClockRange(completed.onsiteTime),'Started 9:36 AM · Finished 10:40 AM');
 assert.equal(completedOnsiteClockRange({...completed.onsiteTime,minutes:null}),null);
+
+assert.equal(timelineWindow({...completed,status:'Confirmed'})?.actual,true,'Recorded visits control placement before closeout');
+assert.equal(timelineWindow({...completed,appointmentType:'Estimate'})?.actual,true,'Estimate visits use actual times too');

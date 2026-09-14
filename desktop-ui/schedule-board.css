@@ -184,3 +184,7 @@
 
 .ops-live .schedule-dispatch .schedule-time-basis { display: block; color: #607069; font-size: 10px; line-height: 1.2; }
 .ops-live .live-schedule.schedule-dispatch .live-truck-timeline .schedule-appointment[data-time-basis="actual"] { padding-inline: 0; border-left-width: 1px; }
+
+/* Planned windows remain distinct from measured truck visits. */
+.ops-live .live-schedule.schedule-dispatch .live-truck-timeline .schedule-appointment[data-time-basis="booked"] { border-style: dashed; }
+.ops-live .live-schedule.schedule-dispatch .live-truck-timeline .schedule-appointment[data-time-basis="actual"] { margin-inline: 0; }

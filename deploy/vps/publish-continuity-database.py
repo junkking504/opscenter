@@ -75,6 +75,17 @@ def main():
                 status['fileLastSuccessAt'] = json.loads((data / 'backup-sync/status.json').read_text()).get('lastSuccessAt')
             except (ValueError, FileNotFoundError):
                 status['fileLastSuccessAt'] = None
+            # Imported accounting statements live outside OpsBot's data tree.
+            # Mirror only their JSON snapshots, never workbook originals or credentials.
+            statements = Path.home() / 'Library/Application Support/OpsCenter/financial-statements'
+            if not statements.is_dir():
+                raise ValueError('Financial statement snapshot directory is unavailable')
+            import shlex
+            statement_sync = subprocess.run(['rsync', '-rlt', '--delete-delay', '--timeout=30',
+                '--include=*.json', '--exclude=*', '-e', shlex.join(SSH[:-1]),
+                str(statements) + '/', SSH[-1] + ':/srv/opscenter/continuity-20260912/financial-statements/'],
+                capture_output=True, check=True, timeout=60)
+            status['financialStatementsSyncedAt'] = now()
             with tempfile.TemporaryDirectory(prefix='restore-', dir=CONTROL) as temp:
                 dump = Path(temp) / 'standby.dump'
                 subprocess.run([str(PG / 'pg_dump'), '-h', str(SOCKET), '-p', '55433', '-U', 'opscenter_production_app', '-d', 'opscenter_production', '--format=custom', '--no-owner', '--no-privileges', '-f', str(dump)], check=True, capture_output=True, timeout=60)

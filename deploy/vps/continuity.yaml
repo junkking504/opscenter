@@ -41,6 +41,7 @@ services:
       OPSCENTER_KERNEL_ENABLED: '1'
       OPSCENTER_LINXUP_MAX_AGE_SECONDS: '900'
       OPSCENTER_JUNKWARE_SCHEDULE_MAX_AGE_SECONDS: '900'
+      OPSCENTER_FINANCIAL_STATEMENTS_DIR: /var/lib/opscenter/financial-statements
       QBO_TOKEN_STORE_DIR: /var/lib/opscenter/qbo
       NODE_USE_ENV_PROXY: '1'
       HTTPS_PROXY: http://auth-egress:3128
@@ -50,6 +51,7 @@ services:
     volumes:
       - /srv/opscenter/data:/app/data:ro
       - /srv/opscenter/qbo:/var/lib/opscenter/qbo:ro
+      - /srv/opscenter/continuity-20260912/financial-statements:/var/lib/opscenter/financial-statements:ro
       - /srv/opscenter/continuity-20260912/auth:/var/lib/opscenter/continuity-auth
     read_only: true
     tmpfs:

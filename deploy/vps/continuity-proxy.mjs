@@ -64,18 +64,27 @@ export function createContinuityProxy(options = {}) {
   const standby = options.standby || 'http://127.0.0.1:3001';
   const timeout = options.timeout || 2500;
   const snapshotFile = options.snapshotFile;
-  let currentCheck;
+  let currentCheck, currentStandbyCheck;
+  function standbyCheck() {
+    return currentStandbyCheck ||= probe(standby, '/api/health', options.recoveryTimeout ?? 10000, true)
+      .finally(() => {currentStandbyCheck = null;});
+  }
   let lastCheck = 0;
   let state = {primary: false, standby: false, checkedAt: null};
   async function check() {
     if (currentCheck) return currentCheck;
     if (Date.now() - lastCheck < (options.probeCacheMs ?? 2000)) return state;
-    currentCheck = Promise.all([probe(primary, '/login', timeout), probe(standby, '/api/health', timeout, true)])
-      .then(([primaryReady, standbyReady]) => {
-        lastCheck = Date.now();
-        state = {primary: primaryReady, standby: standbyReady, checkedAt: new Date().toISOString()};
-        return state;
-      }).finally(() => {currentCheck = null;});
+    const recovery = standbyCheck();
+    currentCheck = probe(primary, '/login', timeout).then(async primaryReady => {
+      // Cold source reads can delay standby health. Never make a healthy primary
+      // wait for that independent check; recovery still requires a current result.
+      const standbyReady = primaryReady ? state.standby : await recovery;
+      lastCheck = Date.now();
+      const next = {primary: primaryReady, standby: standbyReady, checkedAt: new Date().toISOString()};
+      state = next;
+      if (primaryReady) void recovery.then(ready => {if (state === next) state.standby = ready;});
+      return state;
+    }).finally(() => {currentCheck = null;});
     return currentCheck;
   }
   const server = http.createServer(async (req, res) => {

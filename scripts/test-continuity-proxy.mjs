@@ -84,3 +84,14 @@ test('an open but stalled primary connection falls back within the probe deadlin
   try{const start=Date.now();assert.equal(await(await fetch(base)).text(),'recovery');assert.ok(Date.now()-start<1000);}
   finally{await close(gateway);await close(primary);await close(standby);}
 });
+
+
+test('cold standby health can take longer without delaying healthy primary traffic',async()=>{
+  let available=true;
+  const primary=http.createServer((req,res)=>{if(available)res.end('primary');else req.socket.destroy();});
+  const standby=http.createServer((req,res)=>{if(req.url==='/api/health')setTimeout(()=>res.end(JSON.stringify(recoveryHealth)),150);else res.end('recovery');});
+  const gateway=createContinuityProxy({primary:await listen(primary),standby:await listen(standby),timeout:20,recoveryTimeout:300,probeCacheMs:0});
+  const base=await listen(gateway);
+  try{let start=Date.now();assert.equal(await(await fetch(base)).text(),'primary');assert.ok(Date.now()-start<120);available=false;assert.equal(await(await fetch(base)).text(),'recovery');}
+  finally{await close(gateway);await close(primary);await close(standby);}
+});

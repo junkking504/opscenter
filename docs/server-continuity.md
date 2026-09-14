@@ -52,6 +52,10 @@ login-throttle state is retained on the VPS.
 - No standby collectors, payment workers, assignment retries, or notification
   publishers run. Data freshness stops advancing when Mission Control stops.
 
+The gateway allows up to ten seconds for standby readiness during a cold
+source load. A healthy primary returns without waiting for that independent
+check; unavailable or incorrectly writable recovery still fails closed.
+
 The existing Playwright runtime includes Node 24, which supports
 `NODE_USE_ENV_PROXY=1` for fetch and HTTP proxy routing. See [Node's proxy
 configuration](https://nodejs.org/en/learn/http/enterprise-network-configuration).
@@ -75,6 +79,9 @@ restore QA before that binding is activated.
 `com.opscenter.continuity-database`. Its installed copy lives in
 `~/Library/Application Support/OpsCenter/continuity-control/`. It reads the
 production database through the existing restricted app role and local socket.
+Imported accounting-statement JSON snapshots are also mirrored from their
+separate Application Support directory into a read-only mount. Workbook
+originals and credentials are excluded from this additional transfer.
 Temporary dumps are private and removed; the nightly 14-backup retention is
 unchanged.
 

@@ -21,10 +21,12 @@ services:
         max-file: '3'
 
   app:
-    image: opscenter:continuity-5330c4d3-20260914
+    image: opscenter:continuity-readers-20260914
     restart: unless-stopped
     init: true
-    group_add: ['1000']
+    # Match the mirror owner: source snapshots intentionally retain private modes.
+    user: '1000:1000'
+    group_add: ['1001']
     depends_on:
       database:
         condition: service_healthy

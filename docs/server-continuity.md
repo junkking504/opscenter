@@ -36,7 +36,11 @@ login-throttle state is retained on the VPS.
 `deploy/vps/continuity.yaml` uses these boundaries:
 
 - Application operational files and QBO state are mounted read-only; the root
-  filesystem is read-only and Linux capabilities are dropped.
+  filesystem is read-only and Linux capabilities are dropped. The app runs as
+  UID 1000, matching the mirror owner, so private source snapshots remain
+  readable without broadening their permissions. Finance inventory reads do
+  not acquire mutation locks or allocate legacy item numbers; the next
+  authorized mutation performs that migration.
 - `opscenter_recovery_20260914` is isolated from the retained old database and
   from Mission Control. `opscenter_standby_reader` has schema usage and SELECT
   privileges, no table writes or schema creation, and read-only transactions
@@ -96,7 +100,7 @@ The source for the Docker-authorized Compose wrapper is
 
 The candidate lives under `/srv/opscenter/continuity-20260912`; the date names the
 retained task directory, not its current application version. Runtime app image
-`opscenter:continuity-5330c4d3-20260914` was built from the current production application
+`opscenter:continuity-readers-20260914` was built from the current production application
 plus the continuity Docker configuration. Preserve the image ID and source SHA
 in the acceptance record whenever replacing it.
 

@@ -20,14 +20,23 @@ async function main() {
     assert.equal(parseResaleMessage('T1 dump $40'), null);
     assert.deepEqual(parseResaleMessage('resale\r\nOak dresser\r\n$1,200.50\r\nSOLD'), { item: 'Oak dresser', price: 1200.5, sold: true });
     for (const invalid of ['Resale\nOak dresser\n-10', 'Resale\nOak dresser\n$1,2', 'Resale\nOak dresser\n100\nmaybe', 'Resale Oak dresser 100', 'Resale\nOak dresser\n100.999']) assert.ok('error' in parseResaleMessage(invalid)!);
-    // Existing records gain stable numbers without losing fields.
+    // Reads preserve the exact snapshot; the next mutation migrates legacy numbers.
     fs.mkdirSync('data/finance', { recursive: true });
     fs.writeFileSync('data/finance/resale_items.json', JSON.stringify({ version: 1, updatedAt: '', items: [{ itemId: 'legacy', itemName: 'Legacy table', askingPrice: 90, status: 'listed', notes: 'original note' }] }));
-    assert.equal(readResaleStore().items[0].itemNumber, 'RS-0001');
+    const legacyBytes = fs.readFileSync('data/finance/resale_items.json', 'utf8');
+    const originalOpen = fs.openSync;
+    fs.openSync = ((file: fs.PathLike, flags: string | number, ...args: unknown[]) => {
+      if (flags !== 'r') throw new Error('Read attempted a write or lock');
+      return (originalOpen as Function)(file, flags, ...args);
+    }) as typeof fs.openSync;
+    try { assert.equal(readResaleStore().items[0].itemNumber, undefined); }
+    finally { fs.openSync = originalOpen; }
+    assert.equal(fs.readFileSync('data/finance/resale_items.json', 'utf8'), legacyBytes);
     assert.equal(readResaleStore().items[0].notes, 'original note');
     const create = text('create', 'Resale\nOak dresser\n150');
     const saved = ingestResaleText(create);
     assert.equal(saved.status, 'saved');
+    assert.equal(readResaleStore().items.find(row => row.itemId === 'legacy')?.itemNumber, 'RS-0001');
     assert.deepEqual(ingestResaleText(create), saved);
     const item = readResaleStore().items.find(item => item.itemName === 'Oak dresser')!;
     assert.equal(item.itemNumber, 'RS-0002');

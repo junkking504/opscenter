@@ -13,7 +13,7 @@ const READ_APIS = new Set([
   '/api/desktop/maintenance', '/api/health',
 ]);
 const AUTH_APIS = new Set(['/api/auth/login', '/api/auth/logout']);
-const READER_PARAMS = new Set(['date', 'view', 'employee', 'periodDate', 'page', 'truck', 'job', 'jobId', 'appointmentId', 'month', 'year', 'from', 'to', 'q']);
+const READER_PARAMS = new Set(['date', 'view', 'employee', 'periodDate', 'page', 'truck', 'job', 'jobId', 'appointmentId', 'appointment', 'month', 'year', 'from', 'to', 'q']);
 export function standbyRequest(method, rawUrl) {
   let url;
   try { url = new URL(rawUrl, 'http://127.0.0.1'); } catch { return null; }

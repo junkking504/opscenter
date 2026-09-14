@@ -174,7 +174,9 @@ export function allocateResaleNumber(store: ResaleStore): string {
 }
 
 export function readResaleStore(): ResaleStore {
-  return mutateResaleStore(store => store);
+  // Reading must work on a read-only standby and must not migrate inventory.
+  // Number allocation and legacy repair remain inside the mutation lock.
+  return readRawResaleStore();
 }
 
 export function upsertResaleItem(input: ResaleItemInput): ResaleItem | null {

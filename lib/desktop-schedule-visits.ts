@@ -65,5 +65,17 @@ export function scheduleVisitState(
     .filter(stamp=>Number.isFinite(Date.parse(stamp)) && Date.parse(stamp)<=now).sort((a,b)=>Date.parse(b)-Date.parse(a))[0] || openVisit!.first_arrival : undefined;
   const onsiteTruck = activeVisit ? truckLabel(String(activeVisit.truck_number || activeVisit.truck || '')) : undefined;
   const onsiteObservation = onsiteTruck ? trucks.find(truck => truckLabel(truck.truck) === onsiteTruck) : undefined;
-  return { onsiteGpsAt: onsiteObservation?.lastGpsUpdate || undefined, onsiteGpsParked: onsiteObservation ? parkedTruckObservation(onsiteObservation) : undefined, hasVisit: confirmed.length > 0, truckOnSite: Boolean(activeVisit), onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, onsiteTime: appointmentOnsiteTime(job, visits, now) };
+  const hasDepartedVisit = confirmed.some(row => {
+    const intervals = row.visit_intervals?.length ? row.visit_intervals : [{arrival:row.first_arrival || row.arrival_at,departure:row.final_departure || row.departure_at}];
+    if (intervals.some((interval: AnyRecord) => interval.departure_confirmed !== false
+      && Number.isFinite(Date.parse(interval.arrival)) && Date.parse(interval.departure) >= Date.parse(interval.arrival)
+      && Date.parse(interval.departure) <= now)) return true;
+    const truck = trucks.find(t => truckLabel(t.truck) === truckLabel(String(row.truck_number || row.truck || '')));
+    const position = truck && gpsPositionAtAppointment(job.location, truck, now);
+    const insideTimes = [...(row.source_timestamps || []), ...intervals.flatMap((interval: AnyRecord) => [interval.arrival,...(interval.source_timestamps || [])])]
+      .map((stamp: string) => Date.parse(stamp)).filter((stamp: number) => Number.isFinite(stamp) && stamp <= now);
+    // A later position elsewhere proves departure without inventing its clock time.
+    return Boolean(position && !position.inside && insideTimes.length && position.stamp > Math.max(...insideTimes));
+  });
+  return { onsiteGpsAt: onsiteObservation?.lastGpsUpdate || undefined, onsiteGpsParked: onsiteObservation ? parkedTruckObservation(onsiteObservation) : undefined, hasVisit: confirmed.length > 0, hasDepartedVisit, truckOnSite: Boolean(activeVisit), onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, onsiteTime: appointmentOnsiteTime(job, visits, now) };
 }

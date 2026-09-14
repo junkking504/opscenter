@@ -6,8 +6,8 @@ type Observation = Omit<ParkedPoint, 'timestamp'> & { lastGpsUpdate: string | nu
 
 function shutdownArrival(location: { latitude?: number | null; longitude?: number | null }, point: ParkedPoint, previous?: ParkedPoint) {
   const stamp = Date.parse(point.timestamp);
-  if (parkedTruckObservation(point) && previous?.speed === 0 && previous.ignition === 'ON'
-    && stamp - Date.parse(previous.timestamp) <= GPS_MAX_POINT_GAP_MS
+  if (parkedTruckObservation(point) && typeof previous?.speed === 'number' && previous.speed >= 0 && previous.speed <= 2 && previous.ignition === 'ON'
+    && stamp > Date.parse(previous.timestamp) && stamp - Date.parse(previous.timestamp) <= GPS_MAX_POINT_GAP_MS
     && gpsDistanceMeters(location, previous) <= GPS_SITE_RADIUS_METERS
     && gpsDistanceMeters(previous, point) <= 30) return { arrival: Date.parse(previous.timestamp), stamp };
 }

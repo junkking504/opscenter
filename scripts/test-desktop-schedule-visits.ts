@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { scheduleVisitState as fullScheduleVisitState } from '../lib/desktop-schedule-visits';
 import { appointmentStatus, scheduleStatusTone } from '../desktop-ui/lib/schedule-contract';
 
-const scheduleVisitState = (...args: Parameters<typeof fullScheduleVisitState>) => { const {onsiteGpsAt, onsiteGpsParked, onsiteTime, onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, ...state} = fullScheduleVisitState(...args); return state; };
+const scheduleVisitState = (...args: Parameters<typeof fullScheduleVisitState>) => { const {hasDepartedVisit, onsiteGpsAt, onsiteGpsParked, onsiteTime, onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, ...state} = fullScheduleVisitState(...args); return state; };
 const now = Date.parse('2026-09-06T16:00:00Z');
 const recent = '2026-09-06T15:59:30Z';
 const location = { latitude: 29.97, longitude: -90.07 };
@@ -18,7 +18,7 @@ assert.equal(scheduleStatusTone({ status: 'Completed', ...active }), 'completed'
 assert.equal(scheduleStatusTone({ status: 'Canceled', ...active }), 'canceled');
 const departed = scheduleVisitState(job, [{ ...visit, visit_intervals: [{ arrival: visit.first_arrival, departure: recent }] }], recent, trucks, now);
 assert.deepEqual(departed, { hasVisit: true, truckOnSite: false });
-assert.equal(scheduleStatusTone({ status: 'Confirmed', ...departed }), 'visited');
+assert.equal(scheduleStatusTone({ status: 'Confirmed', ...departed, hasDepartedVisit: true }), 'visited');
 assert.equal(scheduleStatusTone({ status: 'Confirmed' }), 'waiting');
 assert.deepEqual(scheduleVisitState({ ...job, appointmentId: '5678' }, [visit], recent, trucks, now), { hasVisit: false, truckOnSite: false }, 'Separate appointments sharing a JK must not share visit state');
 for (const invalid of [{ ...visit, match_confidence: 'ambiguous' }, { ...visit, pass_by_only: true }]) {
@@ -91,3 +91,15 @@ console.log('GPS versus ledger passed: away, stale, missing/invalid, parked, ret
 assert.equal(fullScheduleVisitState(job,[ledger],new Date(now+42*60_000).toISOString(),[{...parked,latitude:30.4}],now+42*60_000).truckOnSite,false,'Parked at another location cannot preserve an old on-site ledger');
 
 assert.equal(fullScheduleVisitState(job,[ledger],recent,[{...trucks[0],routePoints:[]}],now).truckOnSite,false,'An open ledger and one fix cannot manufacture continuous dwell');
+
+assert.equal(lastSeen.hasDepartedVisit,false,'Aging GPS is not a departure');
+assert.equal(away.hasDepartedVisit,true,'Later GPS elsewhere proves departure');
+assert.equal(fullScheduleVisitState(job,[{...visit,visit_intervals:[{arrival:visit.first_arrival,departure:recent,departure_confirmed:false}]}],recent,[],now).hasDepartedVisit,false,'An unconfirmed departure timestamp cannot establish Visited');
+assert.equal(appointmentStatus({status:'Confirmed',appointmentType:'Job',hasVisit:true,hasDepartedVisit:false}),'Departure unconfirmed');
+assert.equal(scheduleStatusTone({status:'Confirmed',hasVisit:true,hasDepartedVisit:false}),'waiting','An arrival alone must not receive Visited styling');
+const nearStop = { ...parked, routePoints:[{...location,timestamp:'2026-09-06T15:58:31Z',speed:1,ignition:'ON'}] };
+const shortVisit = {...visit,first_arrival:'2026-09-06T15:58:31Z',visit_intervals:[{arrival:'2026-09-06T15:58:31Z',departure:null}]};
+const retained = fullScheduleVisitState(job,[shortVisit],new Date(now+25*60_000).toISOString(),[nearStop],now+25*60_000);
+assert.equal(retained.truckOnSite,true,'A 1 mph arrival followed by nearby engine shutdown remains on site between hourly reports');
+assert.equal(retained.hasDepartedVisit,false);
+assert.equal(appointmentStatus({status:'Confirmed',appointmentType:'Job',...retained}),'On Site');

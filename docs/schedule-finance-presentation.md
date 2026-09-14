@@ -827,6 +827,18 @@ establishes arrival using the preceding stationary fix. Both fixes must be withi
 departure checks still apply. This avoids waiting for an hourly parked heartbeat
 when shutdown occurs before two minutes of GPS dwell have accumulated.
 
+The preceding ignition-on fix may report parking speed up to 2 mph; the final
+engine-off fix must report zero speed. GPS positions must still agree within
+30 meters. An established stop stays On Site through the parked reporting
+interval, and its truck block grows from arrival. Higher speed, movement away,
+ambiguous jobs and missed heartbeat limits retain their existing checks.
+
+Visited means arrival followed by departure. Schedule now carries departure
+evidence separately from arrival history: a confirmed departure or a later GPS
+position outside the premise permits Visited. Aging or missing GPS alone does
+not. An unresolved open visit says Last reported on site or Departure unconfirmed;
+it cannot acquire Visited styling solely because arrival history exists.
+
 
 ## Shared service address corrections
 

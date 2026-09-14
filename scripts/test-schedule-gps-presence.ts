@@ -80,3 +80,12 @@ for (const previous of [{...shutdownPoint,speed:20},{...shutdownPoint,ignition:'
 }
 assert.equal(currentGpsPresence(job,[shutdown],[job,{...job,appointmentId:'neighbor'}],now),undefined,'Shutdown arrival retains appointment ambiguity checks');
 assert.equal(currentGpsPresence({...job,onsiteTime:{departure:truck.lastGpsUpdate}},[shutdown],[job],now),undefined,'A recorded departure cannot be undone by an older shutdown');
+
+for (const speed of [1,2]) {
+  const creeping = {...shutdown,routePoints:[{...shutdownPoint,speed}]};
+  assert.equal(currentGpsPresence(job,[creeping],[job],now+25*60_000)?.current,true,'Parking-speed arrival followed by engine shutdown establishes on-site presence');
+}
+for (const speed of [-1,3,NaN]) {
+  assert.equal(currentGpsPresence(job,[{...shutdown,routePoints:[{...shutdownPoint,speed}]}],[job],now),undefined,'Invalid or faster motion cannot qualify as shutdown dwell');
+}
+assert.equal(currentGpsPresence(job,[{...shutdown,routePoints:[{...shutdownPoint,speed:1,latitude:job.location.latitude+0.0005}]}],[job],now),undefined,'Parking-speed fixes more than 30 meters apart cannot establish a stop');

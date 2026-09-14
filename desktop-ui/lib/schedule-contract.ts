@@ -38,6 +38,7 @@ export type ScheduleAppointment = {
   appointmentType: string;
   status: string;
   hasVisit?: boolean;
+  hasDepartedVisit?: boolean;
   lastSeenOnsiteTruck?: string;
   lastSeenOnsiteAt?: string;
   truckOnSite?: boolean;
@@ -120,19 +121,20 @@ export function appointmentColorClass(job: Pick<ScheduleAppointment, 'address' |
 export function appointmentCategory(job: Pick<ScheduleAppointment, 'appointmentType'>) {
   return /estimate/i.test(job.appointmentType) ? 'Estimate' : /job|junk|removal/i.test(job.appointmentType) ? 'Job' : job.appointmentType || 'Unspecified';
 }
-export function appointmentStatus(job: Pick<ScheduleAppointment, 'appointmentType' | 'status' | 'hasVisit' | 'truckOnSite' | 'lastSeenOnsiteTruck'>) {
+export function appointmentStatus(job: Pick<ScheduleAppointment, 'appointmentType' | 'status' | 'hasVisit' | 'hasDepartedVisit' | 'truckOnSite' | 'lastSeenOnsiteTruck'>) {
   if (/cancel/i.test(job.status)) return 'Canceled';
   if (/complete|closed/i.test(job.status)) return appointmentCategory(job) === 'Estimate' ? 'Estimate Closed' : 'Completed';
   if (job.truckOnSite) return 'On Site';
   if (job.lastSeenOnsiteTruck) return 'Last reported on site';
-  if (job.hasVisit) return 'Visited · Closeout Pending';
+  if (job.hasDepartedVisit) return 'Visited · Closeout Pending';
+  if (job.hasVisit) return 'Departure unconfirmed';
   return job.status || 'Status Unavailable';
 }
-export function scheduleStatusTone(job: Pick<ScheduleAppointment, 'status' | 'hasVisit' | 'truckOnSite'>) {
+export function scheduleStatusTone(job: Pick<ScheduleAppointment, 'status' | 'hasVisit' | 'hasDepartedVisit' | 'truckOnSite'>) {
   if (/cancel/i.test(job.status)) return 'canceled';
   if (/complete|closed/i.test(job.status)) return 'completed';
   if (job.truckOnSite || /on[ _-]?site|on location/i.test(job.status)) return 'on-site';
-  if (job.hasVisit || /visited/i.test(job.status)) return 'visited';
+  if (job.hasDepartedVisit || (!job.hasVisit && /visited/i.test(job.status))) return 'visited';
   return 'waiting';
 }
 export function needsScheduleAddressVerification(job: Pick<ScheduleAppointment, 'status' | 'location'>) { return !/cancel/i.test(job.status) && !job.location; }

@@ -40,4 +40,9 @@ const future={...ledger[0],visit_intervals:[{arrival:'2026-09-14T19:00:00Z',depa
 assert.equal(scheduleTruckVisits(job,[future],[],[job],now).length,0);
 assert.equal(timelineWindow({...job,truckVisits:[]},'Truck 8',now)?.actual,false,'Unvisited appointments remain explicitly planned');
 assert.equal(JSON.stringify({job,ledger,truck}),original,'Rendering cannot mutate booking, GPS or visit history');
+const shortArrival={...truck,speed:0,ignition:'OFF',routePoints:[{...location,timestamp:'2026-09-14T17:59:01Z',speed:1,ignition:'ON'}]};
+const shortLedger=[{...ledger[1],visit_intervals:[{arrival:'2026-09-14T17:59:01Z',departure:null,source_timestamps:['2026-09-14T18:00:00Z']}]}];
+const shortActive={...job,truckVisits:scheduleTruckVisits(job,shortLedger,[shortArrival],[job],now+25*60_000)};
+assert.equal(timelineWindow(shortActive,'Truck 3',now+25*60_000)?.end,805,'Parking-speed shutdown keeps the actual block growing through the parked reporting interval');
+assert.equal(timelineWindow(shortActive,'Truck 3',now+25*60_000)?.intervals[0].complete,false,'An active truck visit never receives the departed checkmark');
 console.log('Truck visit blocks passed: per-truck intervals, split trips, active growth, stale stop, assignment changes, duplicates, identity, invalid evidence and unchanged sources.');

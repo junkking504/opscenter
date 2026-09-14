@@ -18,7 +18,7 @@
 .recycling-receipt-editor { display: grid; gap: 16px; padding: 16px; border-top: 1px solid var(--border, #d5d9df); }
 .recycling-receipt-editor > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .recycling-receipt-editor label { display: grid; gap: 5px; font-size: 12px; }
-.recycling-receipt-editor input:not([type=checkbox]) { width: 100%; min-width: 0; min-height: 36px; padding: 6px 8px; border: 1px solid var(--border, #d5d9df); border-radius: 6px; color: inherit; background: var(--background, white); }
+.recycling-receipt-editor select, .recycling-receipt-editor input:not([type=checkbox]) { width: 100%; min-width: 0; min-height: 36px; padding: 6px 8px; border: 1px solid var(--border, #d5d9df); border-radius: 6px; color: inherit; background: var(--background, white); }
 .recycling-receipt-photos { display: flex; gap: 12px; overflow-x: auto; }
 .recycling-receipt-photos img { height: 180px; width: auto; max-width: none; border-radius: 6px; }
 .recycling-receipt-lines > div { display: grid; grid-template-columns: 140px 110px minmax(0,1fr) 110px 110px auto; align-items: end; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--border, #d5d9df); }

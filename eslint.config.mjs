@@ -14,6 +14,9 @@ export default defineConfig([
   },
   globalIgnores([
     ".next/**",
+    // Vite replaces these compiled bundles during a build. Lint their source
+    // under desktop-ui instead of racing generated files or double-reporting it.
+    "public/desktop-assets/**",
     "tmp/**",
     "node_modules/**",
     "workerd-dist/**",

@@ -3,10 +3,10 @@ import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { authorizeOpsRequest } from '@/lib/ops-roles';
 import { readDesktopSchedule } from '@/lib/desktop-schedule';
-import { executeScheduleOperation, parseScheduleOperation, readScheduleReceipt, reconcileCloseoutReceipt, reconcileMoveReceipt } from '@/lib/desktop-schedule-operations';
+import { executeScheduleOperation, parseScheduleOperation, readScheduleReceipt, reconcileCloseoutReceipt, reconcileMoveReceipt, PendingScheduleOperationError } from '@/lib/desktop-schedule-operations';
 import { readJunkwareTruckAssignment } from '@/lib/junkware-truck-assignment';
 import { rescheduleAppointment } from '@/lib/appointment-reschedule';
-import { reconcileRescheduleReceipt } from '@/lib/desktop-schedule-operations';
+import { reconcileRescheduleReceipt, reconcileStaleRescheduleForAppointment, assertRecoveredScheduleMatches } from '@/lib/desktop-schedule-operations';
 import { withJunkwareAppointmentSyncLock } from '@/lib/job-route-assignments';
 import { junkwareJobCloseout } from '@/lib/junkware-job-closeout';
 import { POST as assign } from '@/app/api/job-route-assignments/route';
@@ -43,7 +43,12 @@ export async function POST(request: Request) {
     const operation = parseScheduleOperation(await request.json());
     const [sourcePath, handler] = sources[operation.action === 'reschedule' || operation.action === 'restore' ? 'move' : operation.action];
     if (!authorizeOpsRequest(actor.role, sourcePath, 'POST').allowed) return Response.json({ error: 'Your role does not include this action.' }, { status: 403, headers });
-    const receipt = await executeScheduleOperation(operation, actor.email, () => readDesktopSchedule(operation.date).appointments.find(job => job.recordId === operation.recordId), async job => {
+    const recovered = await reconcileStaleRescheduleForAppointment(operation.recordId, actor.email, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id)));
+    const receipt = await executeScheduleOperation(operation, actor.email, () => {
+      const job=readDesktopSchedule(operation.date).appointments.find(job => job.recordId === operation.recordId);
+      assertRecoveredScheduleMatches(job,operation.date,recovered);
+      return job;
+    }, async job => {
       if(['reschedule','restore'].includes(operation.action)) return rescheduleAppointment(job,operation.date,operation.values,operation.action==='restore');
       const values = operation.values;
       const payload = operation.action === 'move' ? { truck: String(values.truck || ''), ...(Number.isInteger(values.appointmentStartMinutes) ? { appointmentStartMinutes: values.appointmentStartMinutes, durationHours: values.durationHours } : {}) }
@@ -55,6 +60,9 @@ export async function POST(request: Request) {
     });
     return Response.json({ receipt }, { status: receipt.status === 'verified' ? 200 : receipt.status === 'failed' ? 422 : 202, headers });
   } catch (error) {
+    if (error instanceof PendingScheduleOperationError) {
+      return Response.json({ error: error.message, ...(error.receipt.actor === actor.email ? { receipt: error.receipt } : {}) }, { status: 409, headers });
+    }
     const message = error instanceof Error ? error.message : 'The appointment operation is unavailable.';
     const conflict = /changed|request ID already|Closed appointments|Canceled appointments|unverified change/.test(message);
     const invalid = /required|too large/.test(message);

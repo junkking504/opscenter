@@ -1,6 +1,7 @@
+import {appliedPayrollCorrectionsForDate} from './applied-payroll-corrections';
 import { readMetrics, employeeJobRevenueWorked, type AnyRecord } from '@/lib/opsData';
 import { payPeriodDates, addDateKeyDays } from '@/lib/pay-period';
-import { normalizePayrollEmployeeKey, payrollCorrectionsForDate, type PayrollCorrection } from '@/lib/payroll-corrections';
+import { normalizePayrollEmployeeKey, type PayrollCorrection } from '@/lib/payroll-corrections';
 import { chicagoClockToDate, MAX_SHIFT_SECONDS } from '@/lib/live-pay';
 import { chicagoDateKey } from '@/lib/report-dates';
 import { calculateWeeklyOvertime } from '@/lib/overtime';
@@ -93,5 +94,5 @@ export function buildKreweHours(date: string, sources: Map<string, AnyRecord | n
 
 export function readKreweHours(date: string): KreweHoursSnapshot {
   const days = payPeriodDates(date).dates;
-  return buildKreweHours(date, new Map(days.map(day => [day, readMetrics(day)])), new Map(days.map(day => [day, payrollCorrectionsForDate(day)])));
+  return buildKreweHours(date, new Map(days.map(day => [day, readMetrics(day)])), new Map(days.map(day => [day, appliedPayrollCorrectionsForDate(day)])));
 }

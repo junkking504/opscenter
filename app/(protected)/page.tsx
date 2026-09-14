@@ -633,7 +633,7 @@ export default async function DashboardPage({
   const staleCommandTrucks = commandMap?.truckLocations.filter((truck) => /stale|offline|historical/i.test(truck.freshness)).length || 0;
   const commandExceptions: CommandBriefException[] = [
     ...(commandMapCoverage?.needsVerification ? [{
-      label: "Verify addresses",
+      label: "Locations pending",
       detail: `${commandMapCoverage.needsVerification} appointment${commandMapCoverage.needsVerification === 1 ? "" : "s"} not mapped`,
       status: "off-track" as const,
       href: `/jobs?date=${date}#jobs-map`,

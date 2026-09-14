@@ -23,3 +23,9 @@
 .maintenance-recovery { padding: 16px; margin: 16px 0; border: 1px solid #cbd4df; border-radius: 9px; background: #f7f9fc; }
 .maintenance-recovery summary { cursor: pointer; margin-top: 12px; font-weight: 600; }
 .maintenance-recovery button:disabled { opacity: .6; cursor: wait; }
+
+.maintenance-incidents label { display: block; font-weight: 600; }
+.maintenance-incidents textarea { display: block; width: 100%; min-height: 90px; margin: 8px 0; padding: 8px; border: 1px solid #cbd4df; border-radius: 7px; resize: vertical; }
+.maintenance-incidents button { padding: 8px 12px; border: 1px solid #cbd4df; border-radius: 7px; background: #fff; color: #23374d; cursor: pointer; }
+.maintenance-incidents button:disabled { opacity: .6; cursor: default; }
+.maintenance-incidents textarea:focus-visible { outline: 3px solid #315f98; outline-offset: 3px; }

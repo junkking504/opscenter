@@ -29,6 +29,9 @@ export type TruckLoadEvent = {
   loadFraction: number;
   bedloadFraction?: number;
   occurredAt: string;
+  /** Read-projection ordering only; never presented as an actual pickup time. */
+  inferredOrderAt?: string;
+  orderingEvidence?: string;
   recordedAt: string;
   recordedBy: string;
   appointmentId: string;
@@ -130,7 +133,7 @@ function cleanEvent(value: unknown): TruckLoadEvent | null {
 function eventOrder(a: TruckLoadEvent, b: TruckLoadEvent): number {
   if (a.kind === "day_start" && b.kind !== "day_start") return -1;
   if (b.kind === "day_start" && a.kind !== "day_start") return 1;
-  return a.occurredAt.localeCompare(b.occurredAt) || a.recordedAt.localeCompare(b.recordedAt) || a.eventId.localeCompare(b.eventId);
+  return (a.occurredAt || a.inferredOrderAt || "").localeCompare(b.occurredAt || b.inferredOrderAt || "") || a.recordedAt.localeCompare(b.recordedAt) || a.eventId.localeCompare(b.eventId);
 }
 
 export function readTruckLoadStore(): TruckLoadStore {

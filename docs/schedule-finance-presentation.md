@@ -429,15 +429,19 @@ thoracic-surgery location directories.
 
 For a single Census address match, automatic verification also accepts one
 inserted/missing letter or adjacent letter transposition in one alphabetic street
-name token of at least six letters (both spellings). House number, complete city,
+name token of at least six letters (both spellings). A single duplicated letter
+is also accepted when both spellings have at least five letters. House number, complete city,
 Louisiana state when supplied, ZIP, road type, directions and all other tokens
 must match. Short names, substitutions, multiple changed tokens, multiple results
 and invalid coordinates remain unresolved. This bounded correction uses the same
 existing lookup, without additional providers or requests. It preserves the
 original source address and records the returned `matchedAddress` and correction
 reason in the shared verification cache. Normal matches and accepted corrections
-need no manual verification. Remaining unresolved locations use the existing
-address-review flow; a single geocoder result is not by itself sufficient proof.
+need no manual verification. Remaining unresolved locations stay in the automatic
+retry queue. Schedule shows "Location pending" or "Precise location unavailable"
+instead of asking the operator to verify an address; missing locations still do
+not produce a fabricated pin, ETA or arrival. A single geocoder result is not by
+itself sufficient proof.
 
 Census sometimes returns spaced/unspaced street aliases twice. They count as one
 location only when house, street name (ignoring spaces), all directional/type
@@ -447,10 +451,10 @@ at least one must pass. Missing road identity, nearby but different points or
 different addresses remain ambiguous. This prevents duplicate provider records
 from forcing unnecessary manual review.
 
-Verified results are atomically cached by the full original field for 24 hours
+Verified results are atomically cached by the full original field for seven days
 (failures five minutes) in `data/cache/service-address-verifications/`.
-Cache schema 2 immediately retries old schema-1 failures under the new policy;
-still-current successful schema-1 entries remain usable. Expired successful
+Cache schema 4 immediately retries older failures under the new policy;
+still-current successful older entries remain usable. Expired successful
 entries are rechecked automatically rather than requiring manual confirmation.
 Schedule,
 Command map, Fleet planning locations and legacy proximity use these same checks.
@@ -715,13 +719,13 @@ Unlinked alerts do not infer an appointment match.
 
 ## Current presence and route refreshes
 
-Current on-site badges require valid GPS inside the 125-meter appointment fence.
-Moving, idle or unknown-motion reports expire after three minutes. Zero-speed,
-ignition-OFF reports follow the existing hourly parked cadence, with a 75-minute
-maximum age. The selected appointment shows the original parked GPS timestamp.
-A missed parked heartbeat becomes last-seen evidence; it does not invent departure.
-A newer position elsewhere clears the last-on-site badge while preserving visit
-history and its recorded duration; no departure time is invented.
+Current on-site badges follow the shared [GPS presence contract](linxup-push.md):
+125 meters, two minutes of continuous source-backed dwell and a latest observation
+no older than three minutes, including parked trucks. A single report, missing
+route evidence or an older open visit cannot establish current presence. An away
+point or recorded departure breaks dwell. Last-known parked markers retain their
+separate heartbeat semantics and original timestamps. No departure is invented.
+
 
 Truck icons use a separate 20–24 pixel height and larger fleet numbers across
 map zoom levels. Their centers remain on the source GPS coordinates.

@@ -33,6 +33,13 @@ read-only until the outcome is established. An unconfirmed source result blocks
 another correction for that shift and appears under Needs Attention. There is
 no automatic bulk backfill of historical corrections.
 
+A failed edit rejected before submission remains in the correction ledger and
+request receipt, but does not override source clocks, hours, rates, or weekly
+pay calculations. Krewe uses the collected JunkWare timesheet again; actual
+missing punches still appear for review. Pending and uncertain submissions
+remain active and require verification. No source writes or retries happen
+when reading a timesheet.
+
 The source journal lives at
 `OPSBOT_DATA_DIR/payroll_corrections/junkware-sync/`. Keep it outside Git along
 with the original correction ledger. A source-side edit cannot be undone by
@@ -242,3 +249,19 @@ single-franchise lookup to avoid choosing another franchise's virtual truck.
 Known dispatch-preflight rejections stop background retries; Check Saved Result
 also recognizes the earlier `requested JunkWare dispatch lane is unavailable`
 error and reconciles the original attempt against a fresh source read.
+
+### Expired reschedule recovery
+
+An unresolved reschedule or restoration follows the source appointment across
+operating days. Before a new authorized change, the API automatically reopens an
+uncertain reschedule older than ten minutes (beyond the source writer timeout).
+An exact match verifies the original request. A fresh, complete saved appointment
+with different values produces a `reconciled` receipt: the current source schedule
+is recorded, the original outcome remains unknown in `priorResult`, and the old
+request is never replayed. The next change still requires its normal source
+version and JunkWare preflight. Active writes, missing source evidence, and
+uncertain moves/payments keep their existing protections.
+
+If a request remains blocked, the response returns the blocking receipt to its
+own actor so Check Saved Result targets the original ID rather than the rejected
+new request. Recovery never submits a move, reschedule, payment, or message.

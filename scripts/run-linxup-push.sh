@@ -5,17 +5,9 @@ PAYLOAD_FILE="${1:---drain}"
 USER_HOME="${HOME:?HOME must be set}"
 OPSBOT_DIR="${OPSBOT_DIR:-$USER_HOME/.openclaw/workspace/opsbot}"
 OPSCENTER_DIR="${OPSCENTER_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
-LOCK_DIR="$OPSBOT_DIR/tmp/linxup_live_refresh.lock"
-
-mkdir -p "$OPSBOT_DIR/tmp"
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  # Receiver has already persisted the event. The minute collector will drain
-  # it under this same lock; contention is not a failed webhook delivery.
-  [[ "$PAYLOAD_FILE" == "--drain" ]] && exit 0
-  exit 75
+if [[ -z "${OPSCENTER_LINXUP_LOCK_FD:-}" ]]; then
+  exec /usr/bin/python3 "$(dirname "$0")/run-linxup-locked.py" push "$@"
 fi
-cleanup() { rmdir "$LOCK_DIR" 2>/dev/null || true; }
-trap cleanup EXIT
 
 cd "$OPSCENTER_DIR"
 export OPSCENTER_DATA_DIR="${OPSCENTER_DATA_DIR:-$OPSBOT_DIR/data}"

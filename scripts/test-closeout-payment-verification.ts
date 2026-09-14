@@ -21,10 +21,14 @@ const msg=(id:string,text:string):SlackDigestMessage=>({id,rawText:text,text,tim
 const closed={...msg('closeout',':moneybag: *Job Closed*\nJK4079177'),closeout:{jobNumber:'JK4079177',lines:['Total: $203.94','Tips: $40.79'],href:'/jobs'},photos:[{url:'/photo.jpg',category:'After',fileName:'photo.jpg'}]} as SlackDigestMessage;
 const payment=msg('payment',':credit_card: *Payment recorded*\n*Job:* JK4079177\n*Payment:* Card ending 2463 ($244.73)');
 const combined=combinedCloseoutAlerts([payment,closed], [row],view);
+assert.equal(combined[0].label,'Job Completed','The current display label must still consolidate closeout payments');
 assert.equal(combined.length,1);assert.equal(combined[0].id,'closeout');assert.equal(combined[0].photos?.length,1);
 assert.equal(combined[0].facts.find(f=>f.label==='Job total')?.value,'$203.94');
 assert.equal(combined[0].facts.find(f=>f.label==='Tips')?.value,'$40.79');
 assert.equal(combined[0].facts.find(f=>f.label==='Card verification')?.value,'Verified against QuickBooks');
+const estimate = msg('estimate', ':memo: *Estimate Closed*\nJK4079177');
+assert.equal(combinedCloseoutAlerts([estimate,payment,closed],[row],view).length,2,'An estimate outcome is not a duplicate job closeout');
+assert.deepEqual(new Set(combined[0].sourceMessageIds),new Set(['closeout','payment']),'Both underlying source receipts remain available');
 assert.equal(combinedCloseoutAlerts([payment],[],view).length,1,'Do not lose a payment before closeout arrives');
 assert.equal(combinedCloseoutAlerts([closed,{...closed,id:'duplicate'}],[row],view).length,1);
 for(const label of ['On-site','Arrival','Departure']) assert.equal(toOperationalAlert(msg(label,`:truck: *Truck 4 ${label}*\nJK4079177\n12:00 PM\nCustomer`)).label,label==='On-site'?'Arrival':label);

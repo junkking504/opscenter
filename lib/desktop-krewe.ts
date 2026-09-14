@@ -6,7 +6,8 @@ import { crewRows, readMetrics, type AnyRecord } from '@/lib/opsData';
 import { workedOrAttributedToJobToday } from '@/lib/crew-attendance';
 import { buildCrewCallInPlan } from '@/lib/crew-call-in-recommendations';
 import { payPeriodForDate, payPeriodDates } from '@/lib/pay-period';
-import { payrollCorrectionForEmployee, payrollCorrectionsForDate, normalizePayrollEmployeeKey, upsertPayrollCorrection } from '@/lib/payroll-corrections';
+import { payrollCorrectionForEmployee, normalizePayrollEmployeeKey, upsertPayrollCorrection } from '@/lib/payroll-corrections';
+import {appliedPayrollCorrectionForEmployee, appliedPayrollCorrectionsForDate} from './applied-payroll-corrections';
 import {assertPayrollSyncEditable,stagePayrollSync,payrollSyncForRequest,payrollSyncForCorrection,payrollSyncMessage} from './junkware-payroll-sync';
 import { manualBonusEntriesForEmployee, upsertManualBonusEntry } from '@/lib/manual-bonuses';
 import { opsRoleCan, type InteractiveOpsRole } from '@/lib/ops-roles';
@@ -81,14 +82,14 @@ function dayMembers(date: string, payroll: boolean): DesktopCrewMember[] {
   const metrics=readMetrics(date); const clocks=csvRows(date,'employees'); const rates=csvRows(date,'employee_rates');
   const periodDates=payPeriodDates(date).dates;
   const weekDates=periodDates.slice(periodDates.indexOf(date)<7?0:7).filter(day=>day<=date);
-  const hourHistory=weekDates.some(day=>Object.keys(payrollCorrectionsForDate(day)).length>0)?readKreweHours(date):null;
+  const hourHistory=weekDates.some(day=>Object.keys(appliedPayrollCorrectionsForDate(day)).length>0)?readKreweHours(date):null;
   const sourceRows=[...crewRows(metrics)]; for(const clock of clocks) if(!sourceRows.some(row=>keyOf(nameOf(row))===keyOf(nameOf(clock)))) sourceRows.push(clock);
   for(const row of Array.isArray(metrics?.payroll_records)?metrics.payroll_records:[]) if(!sourceRows.some(existing=>keyOf(nameOf(existing))===keyOf(nameOf(row)))) sourceRows.push(row);
   // A missed shift can be corrected even when the daily collector has no row.
-  for(const correction of Object.values(payrollCorrectionsForDate(date))) if(!sourceRows.some(row=>keyOf(nameOf(row))===keyOf(correction.employeeName))) sourceRows.push({name:correction.employeeName});
+  for(const correction of Object.values(appliedPayrollCorrectionsForDate(date))) if(!sourceRows.some(row=>keyOf(nameOf(row))===keyOf(correction.employeeName))) sourceRows.push({name:correction.employeeName});
   return sourceRows.filter(row=>nameOf(row)).map(row=>{
     const name=nameOf(row); const id=keyOf(name); const clock=clocks.find(item=>keyOf(nameOf(item))===id); const rate=rates.find(item=>keyOf(nameOf(item))===id);
-    const correction=payrollCorrectionForEmployee(date,name); const clockIn=correction?.clockIn || String(clock?.time_in || row.clock_in || row.time_in || row.clockIn || row.clock_in_display || row.timeIn || '');
+    const correction=appliedPayrollCorrectionForEmployee(date,name); const clockIn=correction?.clockIn || String(clock?.time_in || row.clock_in || row.time_in || row.clockIn || row.clock_in_display || row.timeIn || '');
     // A collected blank is an open shift, not permission to fall back to a
     // metrics display label or an older clock-out. Corrections remain first.
     const sourceClockOut=String(correction ? correction.clockOut : clock?.time_out ?? row.clock_out ?? row.time_out ?? row.clockOut ?? row.clock_out_display ?? row.timeOut ?? '').trim();
@@ -97,7 +98,7 @@ function dayMembers(date: string, payroll: boolean): DesktopCrewMember[] {
     const week=hourHistory?.employees.find(employee=>employee.id===id)?.weeks.find(week=>week.start<=date&&week.end>=date);
     let calculation=correctedCrewPay({date,clockIn,clockOut,hourlyRate,corrected:Boolean(correction),isSalary:Boolean(row.is_salary),amounts:fields(row),week,sourcePriorHours:num(row,['weekly_hours_before_shift'])});
     const sync=payrollSyncForCorrection(correction);
-    const latestCorrectionAt=Math.max(0,...weekDates.map(day=>Date.parse(payrollCorrectionForEmployee(day,name)?.updatedAt||'')||0));
+    const latestCorrectionAt=Math.max(0,...weekDates.map(day=>Date.parse(appliedPayrollCorrectionForEmployee(day,name)?.updatedAt||'')||0));
     const verifiedPay=verifiedJunkwareShiftPay({amounts:calculation.amounts,isSalary:Boolean(row.is_salary),date,clockIn,clockOut,hourlyRate,latestCorrectionAt,sync});
     if(verifiedPay)calculation=verifiedPay;
     const amounts=calculation.amounts;

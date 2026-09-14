@@ -10,7 +10,7 @@ export async function diagnoseMaintenance(state: MaintenanceState, apiKey: strin
   if (state.aiStatus.startsWith('AI paused: unexpected usage')) return;
   if (state.aiRetryAfter && now < Date.parse(state.aiRetryAfter)) { persist(); return; }
   state.aiStatus = 'Ready · observation only';
-  const pending = state.incidents.filter(i => i.status === 'open' && !i.diagnosis && i.attempts < 3 && (!i.attemptedAt || now - Date.parse(i.attemptedAt) >= 3_600_000)).slice(0, 2);
+  const pending = state.incidents.filter(i => i.status === 'open' && i.unhealthy === true && !i.diagnosis && i.attempts < 3 && (!i.attemptedAt || now - Date.parse(i.attemptedAt) >= 3_600_000)).slice(0, 2);
   for (const incident of pending) {
     if (!approved()) { state.aiStatus = 'AI paused: spending approval required'; break; }
     const input = JSON.stringify({ title: incident.title, area: incident.area, kind: incident.kind, evidence: incident.evidence, confirmedChecks: incident.badChecks, runbook: incident.nextStep });
@@ -59,6 +59,6 @@ export async function diagnoseMaintenance(state: MaintenanceState, apiKey: strin
     state.receipts = state.receipts.slice(-200); persist();
     if (state.aiStatus.startsWith('AI paused:')) break;
   }
-  if (state.incidents.some(i => i.status === 'open' && !i.diagnosis && i.attempts >= 3)) state.aiStatus = 'Some diagnoses unavailable after three attempts; monitoring continues';
+  if (state.incidents.some(i => i.status === 'open' && i.unhealthy === true && !i.diagnosis && i.attempts >= 3)) state.aiStatus = 'Some diagnoses unavailable after three attempts; monitoring continues';
   persist();
 }

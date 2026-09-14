@@ -1,3 +1,4 @@
+import { truckExpenseSlackNotifications } from './truck-expense-notifications';
 import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
 import { isIgnoredIncidentFingerprint } from "@/lib/ignored-operational-alerts";
 import fs from "fs";
@@ -29,6 +30,7 @@ import { closeoutCompactSummary } from "@/lib/closeout-compact-summary";
 
 export type SlackAlertSeverity = "critical" | "warning";
 export type SlackAlertKind =
+  | "truck_expense"
   | "add_on"
   | "cancellation"
   | "job_closed"
@@ -1614,6 +1616,7 @@ export async function runSlackOpsAlerts(options?: {
   const incidents = collectIncidentAlerts(date);
   const feed = buildAddOnAppointmentFeed(date);
   const cancellationFeed = buildCancelledAppointmentFeed(date);
+  const expenseNotifications = truckExpenseSlackNotifications(date);
   const allCrewNotifications = summarizeCrewClockIns(date, buildCrewSlackNotifications(date, crewRows(readMetrics(date))));
   const crewNotificationsInitialized = Boolean(state.crewNotificationsInitializedAt);
   const deliveredCrewNotifications = new Set(state.deliveredCrewNotificationsByDate[date] || []);
@@ -1679,6 +1682,7 @@ export async function runSlackOpsAlerts(options?: {
   ];
   const notifications = notificationDeliveries.map(({ alert }) => alert);
   const preview = [
+    ...expenseNotifications,
     ...incidents,
     ...notifications,
     ...(truckArrivalNotificationsInitialized ? truckArrivalNotifications : allTruckArrivalNotifications),
@@ -1818,6 +1822,7 @@ export async function runSlackOpsAlerts(options?: {
     result.posted.push(alert);
   }
 
+  await syncNotificationMessages(state, expenseNotifications, new Set(), token, result);
   await syncNotificationMessages(state, allCrewNotifications, deliveredCrewNotifications, token, result);
   await syncNotificationMessages(state, allTruckArrivalNotifications, deliveredTruckArrivals, token, result);
   // The day's first snapshot is a baseline. Publish one summary during operations,

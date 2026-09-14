@@ -1,6 +1,8 @@
+import { readClientRecovery, type ClientRecovery } from './maintenance-client-recovery';
 import fs from 'node:fs';
 import path from 'node:path';
 import { APPROVED_MODEL, APPROVED_MONTHLY_MICROS } from './metered-usage-policy';
+import { addressResearchApproved, ADDRESS_RESEARCH_LIMIT_MICROS } from './metered-usage-policy';
 import type { MaintenanceObservation, MaintenanceState, MaintenanceSnapshot } from '../desktop-ui/lib/maintenance-contract';
 
 export const MONTHLY_BUDGET_MICROS = APPROVED_MONTHLY_MICROS;
@@ -17,6 +19,12 @@ export function readMaintenanceState(directory = maintenanceDirectory()): Mainte
     // A damaged ledger must stop analysis, never silently reset the budget.
     if (state.version !== 1 || !Array.isArray(state.incidents) || !Array.isArray(state.receipts) || !state.months || typeof state.months !== 'object' || Array.isArray(state.months) ||
         Object.values(state.months).some(m => !m || typeof m !== 'object' || Array.isArray(m) || ['committedMicros','estimatedMicros','calls','inputTokens','outputTokens'].some(k => !Number.isSafeInteger(m[k as keyof typeof m]) || m[k as keyof typeof m] < 0))) throw new Error('Invalid maintenance state');
+    const research = state.addressResearch;
+    if ((!research && fs.existsSync(path.join(directory, 'address-research-initialized')))
+      || (research && (research.version !== 1 || !research.items || typeof research.items !== 'object' || Array.isArray(research.items)
+        || Object.entries(research.items).some(([id, row]) => !/^[a-f0-9]{64}$/.test(id) || !row || typeof row.address !== 'string'
+          || !Array.isArray(row.dates) || !['queued','ready','researching','resolved','unresolved','provider_error','inactive'].includes(row.status)
+          || ['attempts','committedMicros','estimatedMicros'].some(k => !Number.isSafeInteger(row[k as keyof typeof row]) || Number(row[k as keyof typeof row]) < 0))))) throw new Error('Invalid address research ledger');
     return state;
   } catch (error) {
     // Missing history is not a new budget: preserve a fail-closed boundary.
@@ -41,13 +49,21 @@ export function maintenanceSnapshot(now = Date.now(), directory = maintenanceDir
   return { available: Boolean(state.checkedAt), fresh: age >= 0 && age < 180_000, checkedAt: state.checkedAt,
     mode: 'observe', aiStatus: state.aiStatus, month, budgetUsd: 10,
     committedUsd: (usage?.committedMicros || 0) / 1e6, estimatedUsd: (usage?.estimatedMicros || 0) / 1e6,
-    calls: usage?.calls || 0, incidents: state.incidents };
+    calls: usage?.calls || 0, incidents: state.incidents,
+    addressResearch: { enabled: addressResearchApproved(), checkedAt: state.addressResearch?.checkedAt || null,
+      status: state.addressResearch?.status || 'Waiting for the address worker', perAddressUsd: ADDRESS_RESEARCH_LIMIT_MICROS / 1e6,
+      pending: Object.values(state.addressResearch?.items || {}).filter(r => ['queued','ready','researching'].includes(r.status)).length,
+      resolved: Object.values(state.addressResearch?.items || {}).filter(r => r.status === 'resolved').length,
+      unresolved: Object.values(state.addressResearch?.items || {}).filter(r => ['unresolved','provider_error'].includes(r.status)).length,
+      items: Object.entries(state.addressResearch?.items || {}).map(([id, r]) => ({ ...r, id })).filter(r => r.status !== 'inactive')
+        .sort((a,b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0,30),
+    } };
 }
 type ObjectValue = Record<string, unknown>;
 const object = (value: unknown): ObjectValue => value && typeof value === 'object' && !Array.isArray(value) ? value as ObjectValue : {};
 const bool = (value: unknown): boolean | null => typeof value === 'boolean' ? value : null;
 const count = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.floor(value) : null;
-export type MaintenanceProbes = { health: unknown; readiness: unknown; login: boolean | null; clientEvents?: Record<string, { at: number; count: number }> };
+export type MaintenanceProbes = { health: unknown; readiness: unknown; login: boolean | null; clientEvents?: Record<string, { at: number; count: number; recovery?: ClientRecovery }> };
 export function detectMaintenance(probes: MaintenanceProbes, now = Date.now()): MaintenanceObservation[] {
   const h = object(probes.health), r = object(probes.readiness), q = object(r.photoQueue), counts = object(q.counts), sync = object(r.crewPortalSync);
   const rows: MaintenanceObservation[] = [];
@@ -75,8 +91,14 @@ export function detectMaintenance(probes: MaintenanceProbes, now = Date.now()): 
   add('photo-processing', 'Photo processing is delayed', 'Command', incoming === null || processing === null || (incoming + processing > 0 && oldestActive === null) ? null : incoming + processing > 0 && oldestActive! > 600, `${incoming ?? 'Unknown'} incoming; ${processing ?? 'unknown'} processing; oldest active age ${oldestActive ?? 'unknown'} seconds.`, 'Inspect the dedicated photo worker and pending records; do not replay uncertain uploads.');
   for (const key of CLIENT_EVENT_KEYS) {
     const event = probes.clientEvents?.[key];
+    const recovery = event?.recovery;
+    const verified = Boolean(event && recovery && recovery.failureAt === event.at && recovery.verifiedAt > event.at && recovery.verifiedAt <= now);
     const active = Boolean(event && now >= event.at && now - event.at < 600_000);
-    add(`client-${key}`, key === 'javascript' ? 'Browser reported a runtime error' : `${key} requests reported failures`, key === 'schedule' ? 'Schedule' : 'Command', active, active ? `${event!.count} browser reports in the current reporting window.` : 'No recent browser failure reports.', 'Reproduce the affected live interaction and inspect its request or browser error. Absence of reports does not prove browser recovery.');
+    add(`client-${key}`, key === 'javascript' ? 'Browser reported a runtime error' : `${key} requests reported failures`, key === 'schedule' ? 'Schedule' : 'Command', verified ? false : active ? true : null,
+      verified ? `Administrator verified the affected interaction: ${recovery!.evidence}` : active ? `${event!.count} browser reports in the current reporting window.` : 'No recent browser reports; recovery is awaiting interaction verification.',
+      verified ? 'The recorded verification applies only to this failure. A newer report requires another check.' : 'Reproduce the affected authenticated interaction, then record the successful check. Absence of reports does not prove recovery.');
+    rows.at(-1)!.clientFailureAt = event?.at;
+    rows.at(-1)!.recoveryVerifiedAt = verified ? recovery!.verifiedAt : undefined;
   }
   return rows;
 }
@@ -87,7 +109,18 @@ export function reconcileMaintenance(state: MaintenanceState, observations: Main
   if (state.checkedAt && now - Date.parse(state.checkedAt) < 45_000) return false;
   for (const observation of observations) {
     let incident = state.incidents.find(item => item.key === observation.key);
-    if (observation.unhealthy === null) { if (incident) incident.goodChecks = 0; continue; }
+    if (observation.unhealthy === null) {
+      if (incident) {
+        Object.assign(incident, observation, { goodChecks: 0 });
+        // Earlier versions cleared browser incidents on silence. Restore these
+        // to review without resetting diagnosis attempts or creating new spend.
+        if (incident.key.startsWith('client-') && incident.status === 'resolved' && !incident.recoveryVerifiedAt) {
+          incident.status = 'open'; incident.resolvedAt = null;
+          state.receipts.push({ at, incident: incident.key, event: 'Browser recovery awaiting verification; silence is not successful acceptance' });
+        }
+      }
+      continue;
+    }
     if (!incident && !observation.unhealthy) continue;
     if (!incident) {
       incident = { ...observation, status: 'confirming', firstSeenAt: at, lastSeenAt: at, resolvedAt: null, badChecks: 0, goodChecks: 0, occurrences: 1, attempts: 0 };
@@ -102,10 +135,11 @@ export function reconcileMaintenance(state: MaintenanceState, observations: Main
         incident.status = 'open'; state.receipts.push({ at, incident: incident.key, event: 'Confirmed on consecutive observations' });
       }
     } else {
+      Object.assign(incident, observation);
       incident.badChecks = 0; incident.goodChecks += 1;
       if (incident.goodChecks >= 3 && incident.status !== 'resolved') {
         incident.status = 'resolved'; incident.resolvedAt = at;
-        state.receipts.push({ at, incident: incident.key, event: incident.key.startsWith('client-') ? 'No recent browser reports; interaction recovery not verified' : 'Condition cleared on three observations; no repair performed' });
+        state.receipts.push({ at, incident: incident.key, event: incident.key.startsWith('client-') ? 'Affected interaction verified by an administrator after the last browser report' : 'Condition cleared on three observations; no repair performed' });
       }
     }
   }
@@ -120,10 +154,10 @@ export function reserveMaintenanceCall(state: MaintenanceState, now = Date.now()
     || ledger.calls >= 500 || ledger.committedMicros + CALL_RESERVATION_MICROS > MONTHLY_BUDGET_MICROS) return false;
   ledger.committedMicros += CALL_RESERVATION_MICROS; ledger.calls += 1; return true;
 }
-export function readClientEvents(directory = maintenanceDirectory()): Record<string, { at: number; count: number }> {
-  const result: Record<string, { at: number; count: number }> = {};
+export function readClientEvents(directory = maintenanceDirectory()): Record<string, { at: number; count: number; recovery?: ClientRecovery }> {
+  const result: Record<string, { at: number; count: number; recovery?: ClientRecovery }> = {};
   for (const key of CLIENT_EVENT_KEYS) {
-    try { const item = JSON.parse(fs.readFileSync(path.join(directory, `${key}.json`), 'utf8')); if (Number.isFinite(item.at) && Number.isSafeInteger(item.count) && item.count > 0) result[key] = item; } catch { /* no reports */ }
+    try { const item = JSON.parse(fs.readFileSync(path.join(directory, `${key}.json`), 'utf8')); if (Number.isFinite(item.at) && Number.isSafeInteger(item.count) && item.count > 0) result[key] = { at: item.at, count: item.count, recovery: readClientRecovery(key, directory) }; } catch { /* no reports */ }
   }
   return result;
 }
@@ -133,8 +167,10 @@ export function recordClientEvent(key: string, directory = maintenanceDirectory(
   const target = path.join(directory, `${key}.json`);
   let previous: { at: number; count: number } = { at: 0, count: 0 };
   try { previous = JSON.parse(fs.readFileSync(target, 'utf8')); } catch { /* first report */ }
-  if (now - previous.at < 30_000) return true;
+  if (!Number.isSafeInteger(now)) return false;
+  const stamp = Math.max(now, Number.isSafeInteger(previous.at) ? previous.at + 1 : now);
+  const count = now - previous.at < 30_000 ? previous.count || 1 : now - previous.at < 600_000 ? Math.min((previous.count || 0) + 1, 1000) : 1;
   const temporary = `${target}.${process.pid}.tmp`;
-  fs.writeFileSync(temporary, JSON.stringify({ at: now, count: now - previous.at < 600_000 ? Math.min((previous.count || 0) + 1, 1000) : 1 }), { mode: 0o600 });
+  fs.writeFileSync(temporary, JSON.stringify({ at: stamp, count }), { mode: 0o600 });
   fs.renameSync(temporary, target); return true;
 }

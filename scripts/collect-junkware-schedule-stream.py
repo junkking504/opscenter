@@ -329,6 +329,7 @@ def main() -> None:
     sys.path.insert(0, str(scripts_dir))
     collector = importlib.import_module("collect_junkware_daily")
     collector._PERSIST_STORAGE_STATE = False
+    from junkware_expense_stream import collect_expense_entries
 
     date_iso = args.date or datetime.now(TIMEZONE).date().isoformat()
     try:
@@ -339,6 +340,7 @@ def main() -> None:
         if args.once:
             return
 
+        expense_market_index = 0
         while True:
             time.sleep(max(1.0, args.watch_interval))
             current_date = args.date or datetime.now(TIMEZONE).date().isoformat()
@@ -355,6 +357,14 @@ def main() -> None:
                 data = collect_selected_market(collector, date_iso, market_id, market_name)
                 publish_market(collector, opscenter_dir, data_dir, date_iso, market_id, market_name, data)
                 durations[market_id] = round(time.time() - market_started, 1)
+            # Bound expense work to one market after the schedule has published.
+            # Four extra detail passes must not delay every schedule sweep.
+            expense_market_id = MARKETS[expense_market_index % len(MARKETS)][0]
+            expense_market_index += 1
+            try:
+                collect_expense_entries(collector, data_dir, date_iso, expense_market_id)
+            except Exception as exc:
+                print(f"JunkWare expense detail {expense_market_id} pending: {str(exc) if isinstance(exc, ValueError) else type(exc).__name__}", file=sys.stderr, flush=True)
             write_health(data_dir, started_at, started_epoch, durations)
     finally:
         collector.close_browser()

@@ -7,7 +7,8 @@ const scheduleVisitState = (...args: Parameters<typeof fullScheduleVisitState>) 
 const now = Date.parse('2026-09-06T16:00:00Z');
 const recent = '2026-09-06T15:59:30Z';
 const location = { latitude: 29.97, longitude: -90.07 };
-const trucks = [{ truck: 'Truck 4', lastGpsUpdate: recent, ...location }];
+const routePoints = [0,1,2,3].map(i => ({...location,timestamp:new Date(Date.parse(recent)-(3-i)*60_000).toISOString()}));
+const trucks = [{ truck: 'Truck 4', lastGpsUpdate: recent, ...location, routePoints }];
 const job = { appointmentId: '1234', truck: 'Truck# 4', location };
 const visit = { appointment_id: '1234', jk_number: 'JK4000001', truck_number: 'Truck 4', match_confidence: 'confirmed', visit_count: 1, first_arrival: '2026-09-06T15:50:00Z', visit_intervals: [{ arrival: '2026-09-06T15:50:00Z', departure: null }] };
 const active = scheduleVisitState(job, [visit], recent, trucks, now);
@@ -78,13 +79,15 @@ for (const invalid of [
 assert.equal(fullScheduleVisitState({ ...job, location: null }, [ledger], recent, trucks, now).truckOnSite, false, 'An unverified job location cannot establish current presence');
 assert.equal(fullScheduleVisitState(job, [ledger], recent, [], now).truckOnSite, false, 'Historical day without current trucks cannot claim current presence');
 const parked = { ...trucks[0], speed: 0, ignition: 'OFF' };
-assert.equal(fullScheduleVisitState(job, [ledger], new Date(now + 42 * 60_000).toISOString(), [parked], now + 42 * 60_000).truckOnSite, true, 'An engine-off report still at the job remains within parked cadence');
+assert.equal(fullScheduleVisitState(job, [ledger], new Date(now + 42 * 60_000).toISOString(), [parked], now + 42 * 60_000).truckOnSite, false, 'Parked cadence cannot establish current on-site presence');
 const returned = { ...ledger, visit_intervals: [
   { arrival: visit.first_arrival, departure: '2026-09-06T15:55:00Z' },
   { arrival: '2026-09-06T15:59:00Z', departure: null },
 ] };
-assert.equal(fullScheduleVisitState(job, [returned], recent, trucks, now).truckOnSite, true, 'A current inside fix supports a return visit');
+assert.equal(fullScheduleVisitState(job, [returned], recent, trucks, now).truckOnSite, false, 'A return visit needs new dwell after its arrival');
 assert.equal(fullScheduleVisitState(job, [returned], recent, [{ ...trucks[0], lastGpsUpdate: '2026-09-06T15:58:00Z' }], now).truckOnSite, false, 'An older fix cannot validate a later return arrival');
 console.log('GPS versus ledger passed: away, stale, missing/invalid, parked, return visits, and immutable history.');
 
 assert.equal(fullScheduleVisitState(job,[ledger],new Date(now+42*60_000).toISOString(),[{...parked,latitude:30.4}],now+42*60_000).truckOnSite,false,'Parked at another location cannot preserve an old on-site ledger');
+
+assert.equal(fullScheduleVisitState(job,[ledger],recent,[{...trucks[0],routePoints:[]}],now).truckOnSite,false,'An open ledger and one fix cannot manufacture continuous dwell');

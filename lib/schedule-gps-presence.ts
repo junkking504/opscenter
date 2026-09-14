@@ -1,30 +1,20 @@
-import type { FleetMapPoint } from './fleet-map';
 import type { Coordinates } from './job-route-proximity';
 import { truckLabel } from '../desktop-ui/lib/schedule-contract';
-import { parkedTruckObservation, PARKED_GPS_MAX_AGE_MS } from './truck-gps-status';
-import { LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS } from './linxup-authority';
+import { parkedTruckObservation } from './truck-gps-status';
+import { gpsDistanceMeters as distance, gpsDwellAtPosition, validGpsCoordinates, GPS_PRESENCE_MAX_AGE_MS, GPS_SITE_RADIUS_METERS, type DwellPoint } from './gps-presence-policy';
 
 type PresenceJob = { truck?: string; appointmentId: string; location?: Coordinates | null; status?: string; appointmentStartMinutes?: number | null; appointmentEndMinutes?: number | null; onsiteTime?: {departure?: string | null} };
-export type PresenceTruck = { truck: string; lastGpsUpdate: string | null; latitude?: number | null; longitude?: number | null; speed?: number | null; ignition?: string | null; routePoints?: Pick<FleetMapPoint, 'timestamp' | 'latitude' | 'longitude' | 'continuousUntil'>[] };
-const distance = (a: Coordinates, b: Coordinates) => {
-  const rad = Math.PI / 180, dLat = (a.latitude - b.latitude) * rad, dLon = (a.longitude - b.longitude) * rad;
-  return 12_742_000 * Math.asin(Math.sqrt(Math.sin(dLat / 2) ** 2 + Math.cos(a.latitude * rad) * Math.cos(b.latitude * rad) * Math.sin(dLon / 2) ** 2));
-};
-
+export type PresenceTruck = { truck: string; lastGpsUpdate: string | null; latitude?: number | null; longitude?: number | null; speed?: number | null; ignition?: string | null; routePoints?: DwellPoint[] };
 // Use the same coordinate and live freshness rules for inferred arrivals and open
 // ledger visits. A fresh timestamp alone does not locate a truck at a job.
 export function gpsPositionAtAppointment(location: Coordinates | null | undefined, truck: PresenceTruck, now = Date.now()) {
   const stamp = Date.parse(truck.lastGpsUpdate || '');
-  const valid = (point: { latitude?: number | null; longitude?: number | null }) =>
-    typeof point.latitude === 'number' && Number.isFinite(point.latitude) && Math.abs(point.latitude) <= 90 &&
-    typeof point.longitude === 'number' && Number.isFinite(point.longitude) && Math.abs(point.longitude) <= 180;
-  if (!location || !valid(location) || !valid(truck) || !Number.isFinite(stamp) || stamp > now + 60_000) return undefined;
-  const maxAge = parkedTruckObservation(truck) ? PARKED_GPS_MAX_AGE_MS : LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS * 1000;
-  return { stamp, inside: distance(location, { latitude: truck.latitude!, longitude: truck.longitude! }) <= 125, current: now - stamp <= maxAge };
+  if (!location || !validGpsCoordinates(location) || !validGpsCoordinates(truck) || !Number.isFinite(stamp) || stamp > now) return undefined;
+  return { stamp, inside: distance(location, truck) <= GPS_SITE_RADIUS_METERS, current: now - stamp <= GPS_PRESENCE_MAX_AGE_MS };
 }
 
 // Current Schedule data can lead the slower visit ledger after a dispatch move.
-// Show physical presence on the first GPS report at one eligible appointment.
+// Require continuous dwell at one eligible appointment before current presence.
 // Visit-duration accounting remains in the separately confirmed visit ledger.
 export function currentGpsPresence(job: PresenceJob, trucks: PresenceTruck[], appointments: PresenceJob[], now = Date.now()) {
   const clock = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
@@ -37,16 +27,15 @@ export function currentGpsPresence(job: PresenceJob, trucks: PresenceTruck[], ap
     const observation = gpsPositionAtAppointment(job.location, truck, now);
     if (!observation?.inside || now - observation.stamp > 12 * 3600_000) return [];
     const { stamp } = observation;
+    const departedAt = Date.parse(job.onsiteTime?.departure || '');
+    const dwell = gpsDwellAtPosition(job.location!, truck, truck.routePoints || [], Number.isFinite(departedAt) ? departedAt : -Infinity);
+    if (!dwell) return [];
     if (Date.parse(job.onsiteTime?.departure || '') >= stamp) return [];
     const position = { latitude: truck.latitude!, longitude: truck.longitude! };
     if (!eligible(job, truck)) return [];
-    const nearby = appointments.filter(row => eligible(row, truck) && distance(position, row.location!) <= 125);
+    const nearby = appointments.filter(row => eligible(row, truck) && distance(position, row.location!) <= GPS_SITE_RADIUS_METERS);
     if (nearby.length !== 1 || nearby[0].appointmentId !== job.appointmentId) return [];
-    // The current position is authoritative even when route history and the
-    // visit ledger have not caught up. Do not wait for a second report or dwell.
-    // Engine-off reports use the established hourly parked cadence. The latest
-    // coordinates must still be inside; an open ledger cannot override them.
-    return [{ truck: truckLabel(truck.truck), arrival: new Date(stamp).toISOString(), observedAt: truck.lastGpsUpdate!, current: observation.current, parked: parkedTruckObservation(truck) }];
+    return [{ truck: truckLabel(truck.truck), arrival: new Date(dwell.arrival).toISOString(), observedAt: truck.lastGpsUpdate!, current: observation.current, parked: parkedTruckObservation(truck) }];
   });
   return candidates.length === 1 ? candidates[0] : undefined;
 }

@@ -18,7 +18,7 @@ export default function ScheduleTruckProgress({truck,snapshot,progress,now,selec
   const age=Math.max(0,Math.floor((now-Date.parse(gps?.lastGpsUpdate || ''))/60000));
   const ageLabel=age<1?'just now':age<60?`${age}m ago`:`${Math.floor(age/60)}h ${age%60}m ago`;
   const parkedLabel=`Parked · ${ageLabel}`;
-  const messages:Record<string,string>={ambiguous:'Check current stop',unverified:'Verify assignment',untimed:'Time not set',gps_unavailable:'GPS unavailable',parked:parkedLabel,stale_gps:`${gps && parkedTruckObservation(gps)?'Last parked':'Last position'} · ${ageLabel}`,address_unverified:'Verify address',routing_unavailable:'ETA unavailable',checking:'Updating ETA',last_seen:gpsState==='parked'?parkedLabel:'Awaiting GPS'};
+  const messages:Record<string,string>={ambiguous:'Check current stop',unverified:'Verify assignment',untimed:'Time not set',gps_unavailable:'GPS unavailable',parked:parkedLabel,stale_gps:`${gps && parkedTruckObservation(gps)?'Last parked':'Last position'} · ${ageLabel}`,address_unverified:'Location pending',routing_unavailable:'ETA unavailable',checking:'Updating ETA',last_seen:gpsState==='parked'?parkedLabel:'Awaiting GPS'};
   const time=result?.arrivalAt?new Date(result.arrivalAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}):'';
   const eta=status==='on_site' && gpsState==='parked' ? parkedLabel : status==='available'?`${result!.minutes} min · ${time}`:messages[status] || '';
   const gpsAt=status==='available'?result?.gpsAt:gps?.lastGpsUpdate;

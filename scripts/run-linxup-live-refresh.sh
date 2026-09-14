@@ -5,7 +5,9 @@ USER_HOME="${HOME:?HOME must be set}"
 OPSBOT_DIR="${OPSBOT_DIR:-$USER_HOME/.openclaw/workspace/opsbot}"
 OPSCENTER_DIR="${OPSCENTER_DIR:-$USER_HOME/opscenter-v2/opscenter}"
 TARGET_DATE="${1:-$(TZ=America/Chicago date +%F)}"
-LOCK_DIR="$OPSBOT_DIR/tmp/linxup_live_refresh.lock"
+if [[ -z "${OPSCENTER_LINXUP_LOCK_FD:-}" ]]; then
+  exec /usr/bin/python3 "$(dirname "$0")/run-linxup-locked.py" refresh "$@"
+fi
 MAP_FILE="$OPSBOT_DIR/data/config/linxup_vehicle_map.json"
 MAP_REFRESH_SECONDS="${LINXUP_MAP_REFRESH_SECONDS:-900}"
 
@@ -16,16 +18,11 @@ MAP_REFRESH_SECONDS="${LINXUP_MAP_REFRESH_SECONDS:-900}"
 
 mkdir -p "$OPSBOT_DIR/tmp" "$OPSBOT_DIR/logs"
 
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  echo "LinxUp refresh skipped because another LinxUp refresh is active."
-  exit 0
-fi
 geofence_pid=""
 cleanup() {
   # Keep the refresh lock until the bounded alert read also finishes. Its
   # failure must not abort GPS processing or confirmed appointment alerts.
   if [ -n "$geofence_pid" ]; then wait "$geofence_pid" || true; fi
-  rmdir "$LOCK_DIR" 2>/dev/null || true
 }
 trap cleanup EXIT
 

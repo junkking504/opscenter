@@ -66,6 +66,22 @@ const shortMatch={...censusMatch,matchedAddress:'100 OAK ST, NEW ORLEANS, LA, 70
 assert.equal(verifyCensusAddress('100 Oaks St New Orleans LA 70125',{result:{addressMatches:[shortMatch]}}).location,null,'Short street names are not typo-corrected');
 console.log('Automatic spelling correction passed: exact locality/number/ZIP/type/direction guards, ambiguous matches and invalid points.');
 
+// Synthetic short-name fixture: only duplicated letters extend the existing
+// policy below six letters, and all full-address guards still apply.
+const shortDuplicate={...censusMatch,matchedAddress:'100 MAPLE ST, NEW ORLEANS, LA, 70125'};
+const shortDuplicatePayload={result:{addressMatches:[shortDuplicate]}};
+assert.ok(verifyCensusAddress('100 Mapple St New Orleans LA 70125',shortDuplicatePayload).location);
+assert.ok(verifyCensusAddress('100 Maple St New Orleans LA 70125',{result:{addressMatches:[{...shortDuplicate,matchedAddress:'100 MAPPLE ST, NEW ORLEANS, LA, 70125'}]}}).location);
+for(const input of [
+  '100 Maples St New Orleans LA 70125', '100 Mapel St New Orleans LA 70125',
+  '101 Mapple St New Orleans LA 70125', '100 Mapple St New Orleans LA 70124',
+  '100 Mapple St Other City LA 70125', '100 Mapple Rd New Orleans LA 70125',
+  '100 N Mapple St New Orleans LA 70125', '100 Mapple St New Orleans MS 70125',
+]) assert.equal(verifyCensusAddress(input,shortDuplicatePayload).location,null,input);
+assert.equal(verifyCensusAddress('100 Mapple St New Orleans LA 70125',{result:{addressMatches:[shortDuplicate,{...shortDuplicate,coordinates:{x:-90.2,y:30}}]}}).location,null);
+assert.equal(verifyCensusAddress('100 Elmm St New Orleans LA 70125',{result:{addressMatches:[{...shortDuplicate,matchedAddress:'100 ELM ST, NEW ORLEANS, LA, 70125'}]}}).location,null);
+console.log('Repeated-letter correction passed with short-name, identity and ambiguity guards.');
+
 const duplicateBase={...censusMatch,matchedAddress:'100 PEACHTREE CT, NEW ORLEANS, LA, 70125',
   addressComponents:{...censusMatch.addressComponents,streetName:'PEACHTREE',suffixType:'CT'},
   tigerLine:{tigerLineId:'test-road-segment',side:'R'}};
@@ -97,14 +113,14 @@ async function verifyAutomaticCache() {
   let calls=0;
   try {
     process.env.SERVICE_ADDRESS_CACHE_DIR=directory;
-    fs.writeFileSync(file,JSON.stringify({schema:1,address,expires:Date.now()+300000,verified:{location:null,reason:'Address Needs Exact House, Street, And ZIP Match'}}));
+    fs.writeFileSync(file,JSON.stringify({schema:3,address,expires:Date.now()+300000,verified:{location:null,reason:'Address Needs Exact House, Street, And ZIP Match'}}));
     globalThis.fetch=async()=>{calls++;return new Response(JSON.stringify(spellingPayload));};
     const first=await verifyDesktopAddress(address);
     assert.ok(first.location,'Old cached rejection is reconsidered automatically');
     assert.deepEqual(await verifyDesktopAddress(address),first);
     assert.equal(calls,1,'Accepted correction is reused without another provider request');
     const saved=JSON.parse(fs.readFileSync(file,'utf8'));
-    assert.equal(saved.schema,3);
+    assert.equal(saved.schema,4);
     assert.equal(saved.address,address,'Source spelling is retained');
     assert.deepEqual(saved.verified,first,'Matched spelling and point persist atomically');
   } finally {

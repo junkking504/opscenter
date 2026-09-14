@@ -20,6 +20,13 @@ async function main() {
   await assert.rejects(saveAndVerifyCloseout(before, async () => {}, async () => { throw new Error('Source unavailable'); }, verify), /Source unavailable/);
 
   const payload = { requestId: 'synthetic-request' };
+  for (const status of ['pending','uncertain']) {
+    let calls=0;
+    const old={requestId:'earlier-request',status,message:'Earlier change needs checking'};
+    const conflict=await submitScheduleOperation(payload,{fetch:(async()=>{calls++;return Response.json({receipt:old},{status:409});}) as typeof fetch});
+    assert.deepEqual(conflict,old,'A blocked new request must expose the original recovery receipt');
+    assert.equal(calls,1,'Do not poll the rejected new UUID');
+  }
   for (const scenario of ['lost-response', 'pending-response', 'gateway-html', 'missing-receipt', 'rejected', 'uncertain', 'never-finishes']) {
     let posts = 0, reads = 0, time = 0;
     const result = await submitScheduleOperation(payload, {

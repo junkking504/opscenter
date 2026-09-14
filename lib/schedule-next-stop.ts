@@ -1,6 +1,7 @@
 import { compareStops } from './schedule-stop-order';
 import { assignmentNeedsVerification, isClosed, truckLabel, type ScheduleAppointment, type ScheduleTruck } from '../desktop-ui/lib/schedule-contract';
 import { LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS } from './linxup-authority';
+import { GPS_PRESENCE_MAX_AGE_MS, validGpsCoordinates } from './gps-presence-policy';
 import { truckGpsStatus } from './truck-gps-status';
 
 type Stop = Pick<ScheduleAppointment,'recordId'|'truck'|'status'|'appointmentType'|'appointmentStartMinutes'|'appointmentEndMinutes'|'stopOrder'|'junkwareSyncStatus'|'truckOnSite'|'onsiteTruck'|'lastSeenOnsiteTruck'|'onsiteTime'|'location'>;
@@ -30,5 +31,6 @@ export function truckProgressGpsState(truck:ScheduleTruck|undefined, now=Date.no
 export type TruckProgress = {truck:string; appointmentId:string; appointmentVersion:string; status:string; minutes:number|null; miles:number|null; gpsAt:string|null; calculatedAt:string; arrivalAt:string|null};
 
 export function currentOnsiteTruckGps(truck:ScheduleTruck|undefined, now=Date.now()) {
-  return freshTruckGps(truck,now) || truckProgressGpsState(truck,now) === 'parked';
+  const at = Date.parse(truck?.lastGpsUpdate || '');
+  return Boolean(truck && validGpsCoordinates(truck) && Number.isFinite(at) && at <= now && now - at <= GPS_PRESENCE_MAX_AGE_MS);
 }

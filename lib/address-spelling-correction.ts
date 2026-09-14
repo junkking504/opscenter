@@ -4,6 +4,14 @@
 const protectedTokens = new Set(['ST','RD','AVE','DR','LN','CT','BLVD','HWY','PL','PKWY','TER','CIR','TRL','N','S','E','W','NE','NW','SE','SW','NORTH','SOUTH','EAST','WEST','SAINT']);
 
 function minorTypo(left: string, right: string): boolean {
+  // A duplicated letter in a five-letter name is a narrower correction than
+  // arbitrary short-name edits. Keep locality/house/type guards at the caller.
+  if (/^[A-Z]{5,}$/.test(left) && /^[A-Z]{5,}$/.test(right) && Math.abs(left.length - right.length) === 1) {
+    const [longer, shorter] = left.length > right.length ? [left, right] : [right, left];
+    if (!protectedTokens.has(left) && !protectedTokens.has(right)
+      && [...longer].some((letter, index) => index > 0 && letter === longer[index - 1]
+        && longer.slice(0, index) + longer.slice(index + 1) === shorter)) return true;
+  }
   if (!/^[A-Z]{6,}$/.test(left) || !/^[A-Z]{6,}$/.test(right)) return false;
   if (protectedTokens.has(left) || protectedTokens.has(right)) return false;
   if (Math.abs(left.length - right.length) === 1) {

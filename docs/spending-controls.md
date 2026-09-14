@@ -12,8 +12,7 @@ do not grant spending approval. Free credits and budget alerts are not caps.
 - Automatic truck-photo AI estimates are blocked. Their queue items go to human
   review without repeated provider retries. Manual fullness/content entries and
   ordinary appointment photo uploads remain available.
-- The previously approved maintenance pilot is the sole metered application
-  feature: OpenAI `gpt-5.6-luna`, standard service tier, no tools/images,
+- The maintenance diagnosis pilot remains approved: OpenAI `gpt-5.6-luna`, standard service tier, no tools/images,
   2,048 output tokens and a bounded text request. Maximum $10 per Chicago
   calendar month and 500 attempts per month, whichever stops it first.
   The worker serializes execution, durably reserves $0.02 before each attempt,
@@ -22,11 +21,40 @@ do not grant spending approval. Free credits and budget alerts are not caps.
 
 The approval file is outside releases at
 `~/Library/Application Support/OpsCenter/spending-policy.json`. Version 1 uses
-`default: "deny"`, a global `paused` switch, and one approval named
+`default: "deny"`, a global `paused` switch, and an approval named
 `maintenance-diagnosis` with id `maintenance-pilot-20260908`, `enabled: true`,
 provider `openai`, model `gpt-5.6-luna`, and `monthlyBudgetMicros: 10000000`.
 Setting `paused: true` stops new maintenance AI requests while observation
 continues. No environment flag or API key can create an approval.
+
+## Address investigation approval — September 13, 2026
+
+The user approved extending the existing worker and OpenAI credential to research
+unresolved service addresses. This shares the existing $10 monthly ledger and
+500-attempt limit; it does not add another $10 budget. Each canonical address
+gets at most one paid attempt over its lifetime, including suite variants,
+different appointments and future months. The worker reserves the entire $0.10
+allowance durably before sending the request. Unknown usage keeps that reservation.
+
+The additional approval is `address-investigation`, id
+`address-investigation-20260913`, enabled, provider `openai`, model
+`gpt-5.6-luna`, `monthlyBudgetMicros: 10000000`,
+`sharedBudget: "maintenance-diagnosis"`, `perAddressBudgetMicros: 100000`,
+`maxAttemptsPerAddress: 1`, `maxSearchCalls: 1`, `maxOutputTokens: 2048`.
+All fields must match; the existing global pause applies to both features.
+
+Each request uses standard tier, low reasoning, one built-in web search with low
+context, no conversation continuation and at most 10 KB of serialized input.
+At the reviewed prices, settlement includes $0.01 per search plus $0.20/M input
+and $1.20/M output tokens. The search context is limited to 128K tokens by the
+provider; the 10-cent reservation exceeds this bounded request's expected cost.
+Unexpected model or usage pauses further AI requests. These are application
+controls, not a provider account-wide billing guarantee. No paid retry, automatic
+code repair, new provider, Google API or subscription is authorized here.
+
+The reviewed spending gate and hashes must be installed together for this
+explicitly approved feature, preserving the existing policy and budget history.
+Tests use mocked providers and isolated state only.
 
 ## Deployment boundary
 

@@ -23,7 +23,7 @@ export function spendingViolations(root, manifest) {
       if (entry.isDirectory()) { scan(full); continue; }
       if (!/\.(?:ts|tsx|js|mjs|cjs|py|sh)$/.test(entry.name) || /^test[-.]/.test(entry.name) || excluded.has(entry.name)) continue;
       const source = fs.readFileSync(full, 'utf8');
-      if (metered.test(source) && relative !== 'lib/maintenance-diagnosis.ts') failures.push(`${relative}: unapproved metered provider`);
+      if (metered.test(source) && !['lib/maintenance-diagnosis.ts', 'lib/address-research-provider.ts'].includes(relative)) failures.push(`${relative}: unapproved metered provider`);
       for (const match of source.matchAll(/https?:\/\/([a-zA-Z0-9.-]+)/g)) {
         if (!manifest.hosts.includes(match[1])) failures.push(`${relative}: new external host ${match[1]} needs spending review`);
       }
@@ -39,6 +39,10 @@ export function spendingViolations(root, manifest) {
     if (!diagnosis.includes(required)) failures.push(`Maintenance spending control missing: ${required}`);
   }
   const photo = fs.readFileSync(path.join(root, 'lib/truck-load-photo-analysis.ts'), 'utf8');
+  const research = fs.readFileSync(path.join(root, 'lib/address-research-provider.ts'), 'utf8');
+  for (const required of ['validateAddressResearchRequest(body)', "service_tier: 'default'", 'max_tool_calls: 1']) {
+    if (!research.includes(required)) failures.push(`Address research spending control missing: ${required}`);
+  }
   if (!photo.includes('throw new Error(METERED_USAGE_BLOCKED)')) failures.push('Unapproved photo analysis must remain blocked');
   return [...new Set(failures)];
 }

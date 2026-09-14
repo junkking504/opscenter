@@ -51,7 +51,7 @@ export async function buildRoutePlan(snapshot: ScheduleSnapshot, options: PlanOp
   // One road request per adjacent pair, with shared rate limiting. Same-window stops
   // are separate pairs; no N x N matrix and no straight-line ETA fallback.
   for(let offset=0;offset<pairs.length;offset+=4) await Promise.all(pairs.slice(offset,offset+4).map(async ({stop,from,to})=>{
-    if (!from.location||!to.location) { stop.warnings.push('Verify Address'); return; }
+    if (!from.location||!to.location) { stop.warnings.push('Location pending'); return; }
     const leg=await roadLeg(from.location,to.location,provider);
     if (leg) {stop.travelMinutes=leg.minutes;stop.miles=leg.miles;} else stop.warnings.push('Travel Unavailable');
   }));
@@ -63,7 +63,7 @@ export async function buildRoutePlan(snapshot: ScheduleSnapshot, options: PlanOp
       if (region.mismatch) stop.warnings.push('Service Territory Differs From JunkWare Franchise');
       const serviceArea = ['NO', 'JP', 'NS'].includes(region.code) ? 'metro' : region.code;
       if (serviceArea !== options.area) stop.warnings.push('Existing Assignment Outside Selected Route Area');
-      if (!job.location && !stop.warnings.includes('Verify Address')) stop.warnings.push('Verify Address');
+      if (!job.location && !stop.warnings.includes('Location pending')) stop.warnings.push('Location pending');
       if (job.appointmentStartMinutes===null || job.appointmentEndMinutes===null) stop.warnings.push('Time Not Set');
       if (previous && job.appointmentStartMinutes!==null && job.appointmentEndMinutes!==null && previous.appointmentStartMinutes!==null && previous.appointmentEndMinutes!==null && job.appointmentStartMinutes<previous.appointmentEndMinutes && previous.appointmentStartMinutes<job.appointmentEndMinutes) stop.warnings.push('Overlapping Windows');
       const earliest: number|null = previousDeparture===null || i>0 && stop.travelMinutes===null ? null : previousDeparture + (stop.travelMinutes??0);

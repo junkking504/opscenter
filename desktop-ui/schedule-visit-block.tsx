@@ -22,7 +22,7 @@ export default function ScheduleVisitBlock({job,truck,position,segmentIndex,top,
     role="button" tabIndex={0} aria-pressed={selected} aria-label={label} title={`${label}. ${description}`}
     aria-roledescription={movable?'draggable appointment':undefined} data-schedule-appointment={job.recordId} data-time-basis={position.actual?'actual':'booked'}
     data-visit-truck={position.actual?truck:undefined} data-visit-start={interval.start} data-visit-end={interval.end}
-    onPointerDown={movable?onPointerDown:undefined} onClick={onSelect} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onSelect();}}}>
+    onPointerDown={!position.actual && !busy?onPointerDown:undefined} onClick={onSelect} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();onSelect();}}}>
     {partner && <span className="schedule-partner-cue" title={partner.name} aria-hidden="true"/>}
     {movable && <GripVertical className="schedule-grip" size={9} aria-hidden="true"/>}
     <em title={state} style={partner?{paddingLeft:12,boxSizing:"border-box"}:undefined} className={`schedule-block-status status-${tone}`}>

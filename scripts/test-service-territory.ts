@@ -57,6 +57,11 @@ const cases: Array<[string, string, string, string]> = [
   ['100 Example Rd, Unknown City, LA 99999', 'New Orleans', 'UNK', 'UNK'],
   ['100 Greenwell Springs Road', 'New Orleans', 'UNK', 'UNK'],
   ['', 'New Orleans', 'UNK', 'UNK'],
+  ['100 Example Dr SAINT GABRIEL, LA 70776', 'Baton Rouge', 'BR', 'IBV'],
+  ['100 Example Dr, St. Gabriel, LA 70776', 'Baton Rouge', 'BR', 'IBV'],
+  ['100 Example Dr, 70776', 'Baton Rouge', 'BR', 'IBV'],
+  ['100 Saint Gabriel Dr, New Orleans, LA 70122', 'New Orleans', 'NO', 'NO'],
+  ['100 Example Dr, St Gabriel, LA 70114', 'Baton Rouge', 'UNK', 'UNK'],
 ];
 for (const [address, source, code, area] of cases) {
   const result = serviceTerritory(address, source);

@@ -10,6 +10,7 @@ const rules: Array<[string, string, string, string]> = [
   ['denham springs|walker', 'BR', 'LIV', 'Livingston'],
   ['prairieville|gonzales', 'BR', 'ASC', 'Ascension'],
   ['baton rouge', 'BR', 'BR', 'Baton Rouge'],
+  ['saint gabriel|st\\.? gabriel', 'BR', 'IBV', 'Iberville'],
   ['lafayette', 'LF', 'LAF', 'Lafayette'],
   ['algiers|avondale|barataria|belle chasse|bridge city|crown point|estelle|gretna|harvey|jean lafitte|lafitte|marrero|terrytown|timberlane|waggaman|westwego|woodmere', 'JP', 'WB', 'Westbank'],
   ['chalmette|new orleans east', 'NO', 'EM', 'East Metro'],
@@ -29,6 +30,7 @@ const rules: Array<[string, string, string, string]> = [
 // Explicit, reviewed ZIPs only. Do not extrapolate an entire ZIP prefix into a
 // territory. Add unfamiliar localities here with regression coverage after review.
 const zipAreas: Record<string, Area> = {
+  '70776': { code: 'BR', areaCode: 'IBV', area: 'Iberville' },
   '70739': { code: 'BR', areaCode: 'GWS', area: 'Greenwell Springs' },
   '70508': { code: 'LF', areaCode: 'LAF', area: 'Lafayette' },
   '70121': { code: 'JP', areaCode: 'EB', area: 'Eastbank' },

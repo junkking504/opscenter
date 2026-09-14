@@ -66,7 +66,7 @@ export function GpsRouteSummary({truck,route,error,selectedTrip,showTrip}:{date:
     <header><strong>Trips</strong>{trips.length>0 && <button type="button" onClick={()=>showTrip(null)}>Show all trips</button>}</header>
     {!!route?.points.length && <div className="schedule-gps-legend" aria-label="Route legend">
       <span><i className="gps-legend-route" aria-hidden="true"/>Solid lines · colors match trip numbers</span>
-      {display?.isolated.length ? <span><i className="gps-legend-point" aria-hidden="true"/>Recorded GPS position</span>:null}
+      {display?.isolated.length ? <span><i className="gps-legend-point" aria-hidden="true"/>{roadStatus==='partial'?'Dots · GPS awaiting road alignment':'Dots · recorded GPS positions'}</span>:null}
     </div>}
     {estimated && <p>Road routes include inferred sections between GPS reports. Hover a line for details.</p>}
     {!!route?.gaps && <p>GPS coverage has gaps; long outages remain disconnected.</p>}

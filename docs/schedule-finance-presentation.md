@@ -810,3 +810,13 @@ visit accounting and source records remain unchanged.
 Short visit blocks have a 22px minimum display width so the status check mark fits;
 blocks with an Amazon marker reserve 34px to keep both symbols separate.
 Their left edge stays at arrival; the tooltip retains the measured duration.
+
+Saint Gabriel (including St. Gabriel and ZIP 70776) belongs to the Baton Rouge
+dispatch territory, Iberville area, based on the city and parish geography.
+Source: https://cityofstgabriel.us/community/page/about-city-st-gabriel
+Unknown building coordinates remain independent of this territory classification.
+
+Dragging a planned appointment with a pending assignment receipt explains the
+restriction instead of silently ignoring the gesture. Recorded visit blocks
+remain anchored to physical history. Route dots identify GPS fixes still awaiting
+road geometry; aligned road paths are solid and retain their trip colors.

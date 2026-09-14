@@ -13,7 +13,12 @@ answers how full each physical truck is right now.
    A truck with no load evidence is shown as **Load unknown**, with an action to
    establish its baseline; it is not silently assumed empty.
 2. Every completed **Job** contributes its selected JunkWare load size to the
-   assigned physical truck. Two separate 1/4-truck jobs produce 1/2 truck.
+   physical truck. When exactly one truck has a confirmed arrival and departure
+   for that appointment on that day, the load follows that truck even if
+   JunkWare names a different route or remains unassigned. The load detail shows
+   both the GPS carrier and the recorded assignment; source records are unchanged.
+   Ambiguous multi-truck visits, pass-bys, and incomplete visits do not override
+   the source assignment. Two separate 1/4-truck jobs produce 1/2 truck.
    Estimates, open appointments, and canceled appointments add no load. A blank
    load quantity is treated as one load; an explicit zero stays zero. Saving
    the same appointment again replaces its contribution instead of adding it

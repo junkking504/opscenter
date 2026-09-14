@@ -23,6 +23,20 @@ export function truckChargeSummary(load: OperationalTruckLoad): string {
   return `${load.carriedFromDate ? `Starting load carried from ${load.carriedFromDate}. ` : ''}${load.chargesComplete ? 'Charged today' : 'Known charges today'}: ${load.chargedLoadLabel}. ${load.chargedLoadNote}`;
 }
 
+/** A single confirmed arrival/departure identifies the physical carrier even
+ * when JunkWare still names a different route. Never divide a multi-truck job. */
+function physicalCloseoutTruck(date: string, job: LoadJob, visits: Parameters<typeof appointmentOnsiteTime>[1]) {
+  const matches = visits.filter(row=>String(row.appointment_id || row.appt_id || '')===job.appointmentId
+    && row.match_confidence==='confirmed' && !row.pass_by_only);
+  const trucks = [...new Set(matches.map(row=>normalizeTruckLoadLabel(row.truck_number || row.truck)))];
+  if (trucks.length!==1 || !/^Truck# [1-9]\d*$/.test(trucks[0])) return undefined;
+  const truck = trucks[0];
+  const visit = appointmentOnsiteTime({...job,truck},matches);
+  if (!visit.arrival || !visit.departure || chicagoDateKey(new Date(visit.arrival))!==date
+    || chicagoDateKey(new Date(visit.departure))!==date) return undefined;
+  return {truck,visit};
+}
+
 /** Infer relative order, never an exact pickup time. A completion receipt alone
  * is insufficient: the appointment must also be scheduled after the reset. */
 function inferredPickupOrder(date: string, job: LoadJob, truck: string, events: TruckLoadEvent[], visit: ReturnType<typeof appointmentOnsiteTime>, visits: Parameters<typeof appointmentOnsiteTime>[1]) {
@@ -58,6 +72,7 @@ export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored:
   const unplaced = new Set<string>();
   const incomplete = new Set<string>();
   const issues = new Map<string, Set<string>>();
+  const carrierNotes = new Map<string,string>();
   const issue = (truck: string, message: string) => {const notes = issues.get(truck) || new Set<string>(); notes.add(message); issues.set(truck, notes);};
   for (const prior of previous) {
     const absoluteToday = stored.some(event=>event.date===date && event.truck===prior.truck && ['day_start','yard_reset','manual_snapshot'].includes(event.kind));
@@ -66,17 +81,28 @@ export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored:
   const byId = new Map<string, LoadJob[]>();
   for (const job of jobs) if (/^\d{1,12}$/.test(job.appointmentId)) byId.set(job.appointmentId, [...(byId.get(job.appointmentId) || []), job]);
   for (const [id, copies] of byId) {
-    const job = copies[0], truck = normalizeTruckLoadLabel(job.truck);
+    const job = copies[0];
+    const completedJob = /^job$/i.test(job.appointmentType) && /^(?:completed|closed)\b/i.test(job.status);
+    const carrier = completedJob ? physicalCloseoutTruck(date,job,visits) : undefined;
+    const assignedTruck = normalizeTruckLoadLabel(job.truck);
+    const truck = carrier?.truck || assignedTruck;
     if (!/^Truck# [1-9]\d*$/.test(truck)) continue;
     if (copies.some(copy => JSON.stringify([copy.truck,copy.appointmentType,copy.status,copy.closeout]) !== JSON.stringify([job.truck,job.appointmentType,job.status,job.closeout]))) {
       for (const copy of copies) { incomplete.add(normalizeTruckLoadLabel(copy.truck)); issue(normalizeTruckLoadLabel(copy.truck), `${job.jkNumber}: conflicting closeout records.`); }
       continue;
     }
     const existing = events.find(event => event.kind === 'job_closeout' && event.appointmentId === id);
+    const carrierNote = carrier && truck!==assignedTruck
+      ? `GPS-confirmed pickup by ${truck}; JunkWare assignment: ${assignedTruck || 'Unassigned'}` : '';
+    if (carrierNote) carrierNotes.set(id,carrierNote);
     // A fresh verified save wins until the collected schedule catches up.
     const chargeObservedAt = Date.parse(job.closeoutObservedAt || '') || sourceObservedAt;
-    if (existing && (!chargeObservedAt || Date.parse(existing.recordedAt) >= chargeObservedAt)) continue;
-    const completedJob = /^job$/i.test(job.appointmentType) && /^(?:completed|closed)\b/i.test(job.status);
+    if (existing && (!chargeObservedAt || Date.parse(existing.recordedAt) >= chargeObservedAt)) {
+      // Keep the newer verified amount while reconciling its physical carrier.
+      if (carrier && existing.truck!==truck) events = events.map(event=>event===existing
+        ? {...event,truck,occurredAt:carrier.visit.departure!,recordedBy:`${event.recordedBy}; ${carrierNote}`} : event);
+      continue;
+    }
     if (!completedJob) {
       if (/^estimate$/i.test(job.appointmentType) || /cancel/i.test(job.status) || /^job$/i.test(job.appointmentType)) events = events.filter(event => event !== existing);
       continue;
@@ -85,7 +111,8 @@ export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored:
     const fraction = job.closeout && junkwareJobLoadFraction(job.closeout.loadSize, job.closeout.loadQuantity);
     const bedloadFraction = job.closeout && junkwareBedloadFraction(job.closeout.bedloadSize, job.closeout.bedloadQuantity);
     if (fraction === null || bedloadFraction === null) { incomplete.add(truck); issue(truck, `${job.jkNumber}: charge details pending; billed load is not yet included.`); continue; }
-    const visit = appointmentOnsiteTime(job, visits);
+    const physicalJob = {...job,truck};
+    const visit = carrier?.visit || appointmentOnsiteTime(physicalJob, visits);
     // Schedule "completed_at" can be the scheduled window end, so it is not
     // evidence that a load belongs before or after an unload/observation.
     const completedBy = Date.parse(job.completionObservedAt || '');
@@ -95,8 +122,8 @@ export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored:
       // but does not prove pickup occurred after any earlier reset.
       return event.coveredAppointmentIds?.includes(id) || (!existing?.occurredAt && !visit.departure && Number.isFinite(completedBy) && completedBy < Date.parse(event.occurredAt));
     }).sort((a,b)=>a.occurredAt.localeCompare(b.occurredAt)).at(-1);
-    const occurredAt = coveredBy ? new Date(Date.parse(coveredBy.occurredAt)-1).toISOString() : existing?.occurredAt || visit.departure || '';
-    const inferred = !occurredAt ? inferredPickupOrder(date,job,truck,events,visit,visits) : undefined;
+    const occurredAt = coveredBy ? new Date(Date.parse(coveredBy.occurredAt)-1).toISOString() : (existing?.truck===truck ? existing.occurredAt : '') || visit.departure || '';
+    const inferred = !occurredAt ? inferredPickupOrder(date,physicalJob,truck,events,visit,visits) : undefined;
     if (!occurredAt && !inferred && events.some(event => event.truck === truck && ['yard_reset','manual_snapshot'].includes(event.kind))) {
       unplaced.add(id);
       issue(truck, `${job.jkNumber}: billed load retained; confirm whether pickup was before or after the unload or load observation.`);
@@ -122,7 +149,7 @@ export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored:
       displayLoadLabel:!status.events.length ? (issues.has(truck) ? 'Load pending' : 'Load not recorded') : `${status.currentLoadLabel}${issues.has(truck) ? ' · provisional' : ''}`,
       chargesComplete:!incomplete.has(truck),chargedTruckFraction,chargedBedloadFraction,chargedJobCount:charges.length,
       chargedLoadLabel:`${formatLoadAmount(chargedTruckFraction)} truck${chargedBedloadFraction ? ` + ${formatLoadAmount(chargedBedloadFraction)} bedload` : ''}`,
-      chargedLoadNote:charges.map(event=>`${event.jobNumber || event.appointmentId}: ${formatLoadAmount(event.loadFraction)} truck${event.bedloadFraction ? ` + ${formatLoadAmount(event.bedloadFraction)} bedload` : ''}`).join('; '),
+      chargedLoadNote:charges.map(event=>`${event.jobNumber || event.appointmentId}: ${formatLoadAmount(event.loadFraction)} truck${event.bedloadFraction ? ` + ${formatLoadAmount(event.bedloadFraction)} bedload` : ''}${carrierNotes.has(event.appointmentId) ? ` (${carrierNotes.get(event.appointmentId)})` : ''}`).join('; '),
       unplacedAppointmentIds:pending,
       ...(truckEvents.some(event=>event.eventId===`carry:${date}:${truck}`) ? {carriedFromDate:previous.find(load=>load.truck===truck)?.date} : {}),
     };

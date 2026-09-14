@@ -80,6 +80,7 @@ export type ScheduleSnapshot = {
   date: string;
   observedAt: string | null;
   sourceRequest?: {state:'ready'|'loading'|'queued'|'failed';message:string};
+  assignmentRecoveryNotices?: Array<{requestId:string;recordId:string;message:string}>;
   appointments: ScheduleAppointment[];
   truckLoads?: Array<{truck:string;label:string;percent:number|null;needsVerification:boolean;note:string}>;
   fleet: { isToday: boolean; trucks: ScheduleTruck[]; lastUpdatedAt: string | null };

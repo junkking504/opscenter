@@ -3,6 +3,11 @@ import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { chicagoDateKey } from '@/lib/report-dates';
 import { readDesktopSchedule } from '@/lib/desktop-schedule';
 import {requestScheduleDay} from '@/lib/requested-schedule-day';
+import { after } from 'next/server';
+import { authorizeOpsRequest } from '@/lib/ops-roles';
+import { automaticallyCheckMove, scheduleMoveRecovery } from '@/lib/desktop-schedule-operations';
+import { withJunkwareAppointmentSyncLock } from '@/lib/job-route-assignments';
+import { readJunkwareTruckAssignment } from '@/lib/junkware-truck-assignment';
 
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
@@ -19,7 +24,15 @@ export async function GET(request: Request) {
     const snapshot=readDesktopSchedule(date);
     const params=new URL(request.url).searchParams;
     const sourceRequest=params.get('load')==='1' ? requestScheduleDay(date,snapshot.observedAt,snapshot.appointments.length>0,params.get('refresh')==='1') : undefined;
-    return Response.json({...snapshot,sourceRequest}, { headers });
+    const recovery = authorizeOpsRequest(session.role, '/api/job-route-assignments', 'POST').allowed ? await scheduleMoveRecovery(date, session.email) : {candidate: null, notices: []};
+    if (recovery.candidate) {
+      const id = recovery.candidate;
+      after(async () => {
+        try { await automaticallyCheckMove(id, session.email, appointmentId => withJunkwareAppointmentSyncLock(appointmentId, () => readJunkwareTruckAssignment(appointmentId))); }
+        catch { /* Keep the durable receipt and drag lock if recovery is unavailable. */ }
+      });
+    }
+    return Response.json({...snapshot,sourceRequest,assignmentRecoveryNotices:recovery.notices}, { headers });
   } catch {
     return Response.json({ error: 'Schedule source unavailable.' }, { status: 503, headers });
   }

@@ -8,6 +8,8 @@ import '../workspace-density.css';
 
 // Every request and move is synthetic and stays in memory in this browser tab.
 const scenario=new URLSearchParams(location.search).get('scenario') || 'unassigned';
+const recoveryStartedAt = Date.now();
+const recoveryMessage = 'The assignment stopped before a JunkWare move was submitted. Schedule now shows its saved assignment: Truck 8, 11:00 AM–12:00 PM.';
 const progressEnabled=new URLSearchParams(location.search).has('progress');
 let progressStage='approaching';
 const progressGps=()=>new Date(Date.now()-(progressStage==='parked'?1800000:progressStage==='parked-overdue'?4800000:progressStage==='stale'?300000:20000)).toISOString();
@@ -32,6 +34,7 @@ function appointments(date:string):ScheduleAppointment[] {
     const recordId=`${date}:appointment:${1001+index}`;
     return {recordId,appointmentId:String(1001+index),version:'a'.repeat(64),callAhead:'not_called',jkNumber:`JK100${String(1001+index)}`,appointmentUrl:'',appointmentTime:'9:00 AM–10:00 AM',appointmentStartMinutes:540,appointmentEndMinutes:600,hasScheduledTime:true,customerName:`Example appointment ${index+1}`,customerEmail:'',phone:'',address:'',territory:'Baton Rouge',appointmentType:'Job',status:'Confirmed',truck:assignments.get(recordId)||'Virtual Truck',driver:'',navigator:'',paymentType:'',paymentAmount:0,tipAmount:0,junkItems:[],appointmentNotes:[],cancellationReason:'',location:null};
   }).map((job,index)=>areaCases?{...job,address:`100 Example Rd ${areaCases[index][0]}`,territory:areaCases[index][1],location:{latitude:29.9+index*.035,longitude:-90.1},status:index===6?'Canceled':index===7?'Completed':'Confirmed'}:job)
+    .map(job=>scenario==='auto-recovery'?{...job,truck:Date.now()-recoveryStartedAt<20000?'Truck 9':'Truck 8',appointmentTime:Date.now()-recoveryStartedAt<20000?'3:00 PM–4:00 PM':'11:00 AM–12:00 PM',appointmentStartMinutes:Date.now()-recoveryStartedAt<20000?900:660,appointmentEndMinutes:Date.now()-recoveryStartedAt<20000?960:720,junkwareSyncStatus:Date.now()-recoveryStartedAt<20000?'manual_correction':'verified'}:job)
     .map(job=>scenario==='completed'?{...job,status:'Completed',truck:'Truck 8'}:job)
     .map(job=>scenario==='canceled'?{...job,status:'Canceled'}:job)
     .map(job=>cancellations.has(job.recordId)?{...job,status:'Canceled'}:job)
@@ -65,11 +68,12 @@ window.fetch=async(input,init)=>{
     return Response.json({receipt:{requestId:body.requestId,status,message:`Synthetic move result: ${status}.`}});
   }
   if(url.pathname==='/api/desktop/schedule/operations' && writes.length){
+    if (scenario==='auto-recovery') return Response.json({receipt:{requestId:url.searchParams.get('requestId'),status:'failed',message:recoveryMessage,sourceResult:{assignmentReconciled:true}}});
     const body=writes.at(-1)!;
     assignments.set(body.recordId,body.values.truck);
     return Response.json({receipt:{requestId:url.searchParams.get('requestId'),status:'verified',message:'Synthetic saved result verified.'}});
   }
-  if(url.pathname==='/api/desktop/schedule')return Response.json({date,observedAt:'2026-09-07T21:00:00Z',sourceRequest:{state:'ready',message:''},appointments:appointments(date),truckLoads:new URLSearchParams(location.search).has('loads')?[{truck:'Truck 1',label:'Full truck',note:'Synthetic load'},{truck:'Truck 3',label:'Full + 1/6',note:'Synthetic load'}]:undefined,fleet:{isToday:progressEnabled || scenario==='on-site' || longDetails && date==='2026-09-07',lastUpdatedAt:null,trucks:progressEnabled?[{truck:'Truck 9',latitude:30.45,longitude:-91.18,lastGpsUpdate:progressGps(),speed:progressStage.startsWith('parked')?0:25,ignition:progressStage.startsWith('parked')?'OFF':'ON',freshnessLabel:'Recent GPS',operationalStatus:'Available',driver:'Example driver',navigator:'',serviceStatus:'Available'}]:scenario==='on-site'?[{truck:'Truck 8',latitude:30.45,longitude:-91.18,lastGpsUpdate:new Date(Date.now()-300_000).toISOString(),freshnessLabel:'GPS Stale',operationalStatus:'GPS Stale',ignition:'OFF',driver:'Example Driver',navigator:'Example Navigator',serviceStatus:'Unavailable'}]:[]}});
+  if(url.pathname==='/api/desktop/schedule')return Response.json({date,observedAt:'2026-09-07T21:00:00Z',sourceRequest:{state:'ready',message:''},assignmentRecoveryNotices:scenario==='auto-recovery' && Date.now()-recoveryStartedAt>=20000?[{requestId:'synthetic-recovery',recordId:date+':appointment:1001',message:recoveryMessage}]:[],appointments:appointments(date),truckLoads:new URLSearchParams(location.search).has('loads')?[{truck:'Truck 1',label:'Full truck',note:'Synthetic load'},{truck:'Truck 3',label:'Full + 1/6',note:'Synthetic load'}]:undefined,fleet:{isToday:progressEnabled || scenario==='on-site' || longDetails && date==='2026-09-07',lastUpdatedAt:null,trucks:progressEnabled?[{truck:'Truck 9',latitude:30.45,longitude:-91.18,lastGpsUpdate:progressGps(),speed:progressStage.startsWith('parked')?0:25,ignition:progressStage.startsWith('parked')?'OFF':'ON',freshnessLabel:'Recent GPS',operationalStatus:'Available',driver:'Example driver',navigator:'',serviceStatus:'Available'}]:scenario==='on-site'?[{truck:'Truck 8',latitude:30.45,longitude:-91.18,lastGpsUpdate:new Date(Date.now()-300_000).toISOString(),freshnessLabel:'GPS Stale',operationalStatus:'GPS Stale',ignition:'OFF',driver:'Example Driver',navigator:'Example Navigator',serviceStatus:'Unavailable'}]:[]}});
   if(url.pathname==='/api/desktop/schedule/routes' && scenario==='route-stack') {
     const jobs=appointments(date);
     const legs=[0,1].map(i=>({truck:'Truck 9',fromAppointmentId:jobs[i].recordId,toAppointmentId:jobs[i+1].recordId,fromJk:jobs[i].jkNumber,toJk:jobs[i+1].jkNumber,fromEndMinutes:jobs[i].appointmentEndMinutes,toStartMinutes:jobs[i+1].appointmentStartMinutes,gapMinutes:i===0?60:-60,travelMinutes:i===0?31:29,miles:i===0?16.2:20.8,status:'available'}));

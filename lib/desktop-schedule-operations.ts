@@ -10,7 +10,7 @@ import type { SavedJunkwareAssignment } from '@/lib/junkware-truck-assignment';
 import { closeoutSourceVersion } from '@/lib/desktop-closeout-contract';
 
 export type ScheduleOperation = { requestId: string; date: string; recordId: string; expectedVersion: string; action: 'move' | 'reschedule' | 'restore' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify'; values: Record<string, unknown> };
-export type ScheduleReceipt = { requestId: string; actor: string; action: ScheduleOperation['action']; recordId: string; date: string; fingerprint: string; expectedCloseoutSourceVersion?: string; status: 'pending' | 'verified' | 'failed' | 'uncertain' | 'reconciled'; updatedAt: string; message: string; sourceResult?: Record<string, unknown>; priorResult?: { status: string; message: string; updatedAt: string } };
+export type ScheduleReceipt = { requestId: string; actor: string; action: ScheduleOperation['action']; recordId: string; date: string; fingerprint: string; expectedCloseoutSourceVersion?: string; status: 'pending' | 'verified' | 'failed' | 'uncertain' | 'reconciled'; updatedAt: string; message: string; sourceResult?: Record<string, unknown>; automaticMoveCheck?: { attempts: number; checkedAt: string }; priorResult?: { status: string; message: string; updatedAt: string } };
 export class PendingScheduleOperationError extends Error {
   constructor(public readonly receipt: ScheduleReceipt) {
     super('This appointment has an unverified change. Check its saved result before another change.');
@@ -152,7 +152,8 @@ export async function reconcileMoveReceipt(id: string, actor: string, readSource
     let source: SavedJunkwareAssignment;
     try { source = await readSource(appointmentId); } catch { return receipt; }
     const matches = (row: {truck:unknown;appointmentStartMinutes?:unknown;appointmentEndMinutes?:unknown}) => row.truck === expected.truck && (expected.appointmentStartMinutes === undefined || row.appointmentStartMinutes === expected.appointmentStartMinutes) && (expected.appointmentEndMinutes === undefined || row.appointmentEndMinutes === expected.appointmentEndMinutes);
-    if (source.appointmentId !== appointmentId || !Number.isFinite(Date.parse(source.verifiedAt))) return receipt;
+    const checkedAt = Date.parse(source.verifiedAt);
+    if (source.appointmentId !== appointmentId || !Number.isFinite(checkedAt) || checkedAt < Date.now() - 60_000 || checkedAt > Date.now() + 5_000 || !Number.isInteger(source.appointmentStartMinutes) || !Number.isInteger(source.appointmentEndMinutes) || source.appointmentStartMinutes < 0 || source.appointmentEndMinutes > 1440 || source.appointmentEndMinutes <= source.appointmentStartMinutes || (source.truck !== '' && !/^Truck [1-9][0-9]?$/.test(source.truck))) return receipt;
     const previousReadback = receipt.status === 'failed' ? receipt.sourceResult?.reconciledAssignment as typeof expected : undefined;
     if (previousReadback || source.date !== receipt.date || !matches(source)) {
       const clock = (minutes:number) => `${Math.floor(minutes/60)%12||12}:${String(minutes%60).padStart(2,'0')} ${minutes>=720?'PM':'AM'}`;
@@ -177,13 +178,54 @@ export async function reconcileMoveReceipt(id: string, actor: string, readSource
       return checked;
     }
     const current = readJobRouteAssignmentOverrides(receipt.date).get(`appt:${appointmentId}`);
-    if (!current || !matches(current)) return receipt;
+    if (!current || !matches(current) || current.updatedAt !== expected.updatedAt) return receipt;
     const assignment = saveJobRouteAssignment({...current,expectedUpdatedAt:current.updatedAt,junkwareSyncStatus:'verified',junkwareSyncError:'',junkwareVerifiedAt:source.verifiedAt});
     if (!assignment) return receipt;
     const reconciled: ScheduleReceipt = {...receipt,status:'verified',updatedAt:new Date().toISOString(),message:'JunkWare confirms the saved truck and appointment window. No move or closeout was resubmitted.',priorResult:{status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt},sourceResult:{...receipt.sourceResult,junkwareSynced:true,assignment}};
     await writeReceipt(reconciled);
     return reconciled;
   });
+}
+
+/** At most three source reads per move, separated by five minutes. Reserve the
+ * attempt durably before reading so concurrent tabs and restarts cannot replay it.
+ * Only the existing source reconciliation may unlock an assignment; never submit. */
+export async function automaticallyCheckMove(id: string, actor: string, readSource: (appointmentId: string) => Promise<SavedJunkwareAssignment>): Promise<ScheduleReceipt | null> {
+  if (!uuid.test(id)) return null;
+  const reserved = await withScheduleOperationLock(`request-${id}`, async () => {
+    const initial = await readScheduleReceipt(id);
+    if (!initial || initial.actor !== actor || !automaticMoveCheckDue(initial)) return false;
+    return withScheduleOperationLock(`appointment-${initial.recordId.split(':appointment:')[1]}`, async () => {
+      const receipt = await readScheduleReceipt(id);
+      if (!receipt || !automaticMoveCheckDue(receipt)) return false;
+      await writeReceipt({...receipt, automaticMoveCheck: {attempts: (receipt.automaticMoveCheck?.attempts || 0) + 1, checkedAt: new Date().toISOString()}});
+      return true;
+    });
+  });
+  if (reserved) return reconcileMoveReceipt(id, actor, readSource);
+  const receipt = await readScheduleReceipt(id);
+  return receipt?.actor === actor ? receipt : null;
+}
+
+function automaticMoveCheckDue(receipt: ScheduleReceipt): boolean {
+  if (receipt.action !== 'move' || receipt.status !== 'uncertain' || !receipt.sourceResult?.assignment) return false;
+  const previous = receipt.automaticMoveCheck;
+  return !previous || Number.isInteger(previous.attempts) && previous.attempts >= 1 && previous.attempts < 3 && Number.isFinite(Date.parse(previous.checkedAt)) && Date.now() - Date.parse(previous.checkedAt) >= 5 * 60_000;
+}
+
+/** Recovery is attached to ordinary Schedule refresh, including old receipts.
+ * One candidate per refresh bounds work and leaves normal schedule reads fast. */
+export async function scheduleMoveRecovery(date: string, actor: string) {
+  let names: string[];
+  try { names = await fs.readdir(directory()); } catch { return {candidate: null, notices: []}; }
+  const receipts = (await Promise.all(names.filter(name => name.endsWith('.json')).map(name => readScheduleReceipt(name.slice(0, -5)).catch(() => null))))
+    .filter((receipt): receipt is ScheduleReceipt => Boolean(receipt && receipt.actor === actor && receipt.date === date && receipt.action === 'move'));
+  const candidate = receipts.filter(automaticMoveCheckDue)
+    .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))[0]?.requestId || null;
+  const current = readJobRouteAssignmentOverrides(date);
+  const notices = receipts.filter(receipt => receipt.status === 'failed' && receipt.automaticMoveCheck && receipt.sourceResult?.assignmentReconciled === true && Date.now() - Date.parse(receipt.updatedAt) < 5 * 60_000 && current.get(`appt:${receipt.recordId.split(':appointment:')[1]}`)?.updatedAt === (receipt.sourceResult.reconciledAssignment as {updatedAt?: string})?.updatedAt)
+    .map(receipt => ({requestId: receipt.requestId, recordId: receipt.recordId, message: receipt.message}));
+  return {candidate, notices};
 }
 
 /** Read-only recovery for cross-date changes; never repeats the source write. */

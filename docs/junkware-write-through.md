@@ -265,3 +265,21 @@ uncertain moves/payments keep their existing protections.
 If a request remains blocked, the response returns the blocking receipt to its
 own actor so Check Saved Result targets the original ID rather than the rejected
 new request. Recovery never submits a move, reschedule, payment, or message.
+
+### Automatic dispatch recovery
+
+A move receipt is checked against fresh JunkWare assignment data automatically
+when its submission finishes without verification, when its result is polled,
+and during ordinary Schedule refresh for the signed-in operator's day. Schedule
+refresh returns immediately and checks at most one eligible receipt after its
+response. Attempts are reserved durably: at most three per receipt, five minutes
+apart, including across tabs and restarts. Manual **Check Saved Result** remains
+available after this budget is exhausted.
+
+Recovery never replays a move or changes a source booking/payment. An exact
+source match confirms the saved move. A known pre-submission rejection or rejected
+time restores the fresh same-day source assignment only if the local assignment
+has not changed since that attempt. Unknown mismatches, unavailable/stale reads,
+other dates and newer dispatch decisions stay protected. Attempted values and
+the failure remain in the audit receipt; the board briefly explains an automatic
+restoration and enables dragging once its refreshed source assignment is verified.

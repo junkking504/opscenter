@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { authorizeOpsRequest } from '@/lib/ops-roles';
 import { readDesktopSchedule } from '@/lib/desktop-schedule';
-import { executeScheduleOperation, parseScheduleOperation, readScheduleReceipt, reconcileCloseoutReceipt, reconcileMoveReceipt, PendingScheduleOperationError } from '@/lib/desktop-schedule-operations';
+import { automaticallyCheckMove, executeScheduleOperation, parseScheduleOperation, readScheduleReceipt, reconcileCloseoutReceipt, reconcileMoveReceipt, PendingScheduleOperationError } from '@/lib/desktop-schedule-operations';
 import { readJunkwareTruckAssignment } from '@/lib/junkware-truck-assignment';
 import { rescheduleAppointment } from '@/lib/appointment-reschedule';
 import { reconcileRescheduleReceipt, reconcileStaleRescheduleForAppointment, assertRecoveredScheduleMatches } from '@/lib/desktop-schedule-operations';
@@ -32,6 +32,9 @@ export async function GET(request: Request) {
     receipt = await reconcileMoveReceipt(requestId, actor.email, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id)));
   }
   if (!receipt || receipt.actor !== actor.email) return Response.json({ error: 'Change receipt not found.' }, { status: 404, headers });
+  if (parameters.get('reconcile') !== '1' && receipt.action === 'move' && authorizeOpsRequest(actor.role, '/api/job-route-assignments', 'POST').allowed) {
+    receipt = await automaticallyCheckMove(requestId, actor.email, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id))) || receipt;
+  }
   if(parameters.get('reconcile')==='1' && ['reschedule','restore'].includes(receipt.action) && authorizeOpsRequest(actor.role,'/api/job-route-assignments','POST').allowed) receipt=await reconcileRescheduleReceipt(requestId,actor.email,id=>withJunkwareAppointmentSyncLock(id,()=>readJunkwareTruckAssignment(id)));
   return Response.json({ receipt }, { headers });
 }
@@ -44,7 +47,7 @@ export async function POST(request: Request) {
     const [sourcePath, handler] = sources[operation.action === 'reschedule' || operation.action === 'restore' ? 'move' : operation.action];
     if (!authorizeOpsRequest(actor.role, sourcePath, 'POST').allowed) return Response.json({ error: 'Your role does not include this action.' }, { status: 403, headers });
     const recovered = await reconcileStaleRescheduleForAppointment(operation.recordId, actor.email, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id)));
-    const receipt = await executeScheduleOperation(operation, actor.email, () => {
+    let receipt = await executeScheduleOperation(operation, actor.email, () => {
       const job=readDesktopSchedule(operation.date).appointments.find(job => job.recordId === operation.recordId);
       assertRecoveredScheduleMatches(job,operation.date,recovered);
       return job;
@@ -58,6 +61,7 @@ export async function POST(request: Request) {
       const response = await handler(new Request(new URL(sourcePath, request.url), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, date: operation.date, appointmentId: job.appointmentId, jobKey: `appt:${job.appointmentId}` }) }));
       return { status: response.status, body: await response.json() };
     });
+    if (receipt.action === 'move') receipt = await automaticallyCheckMove(receipt.requestId, actor.email, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id))) || receipt;
     return Response.json({ receipt }, { status: receipt.status === 'verified' ? 200 : receipt.status === 'failed' ? 422 : 202, headers });
   } catch (error) {
     if (error instanceof PendingScheduleOperationError) {

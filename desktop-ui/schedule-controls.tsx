@@ -102,6 +102,21 @@ export function MoveConfirmation({
     onBusyChange(busy);
     return () => onBusyChange(false);
   }, [busy, onBusyChange]);
+  useEffect(() => {
+    if (!receipt || !['pending', 'uncertain'].includes(receipt.status)) return;
+    const abort = new AbortController();
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/desktop/schedule/operations?requestId=${encodeURIComponent(receipt.requestId)}`, {credentials:'same-origin', cache:'no-store', signal:AbortSignal.any([abort.signal, AbortSignal.timeout(15_000)])});
+        const body = await response.json();
+        if (!abort.signal.aborted && response.ok && body.receipt) setReceipt(body.receipt);
+      } catch { /* Keep the existing receipt; never repeat the submission. */ }
+      if (!abort.signal.aborted) timer = setTimeout(poll, 5_000);
+    };
+    timer = setTimeout(poll, 5_000);
+    return () => { abort.abort(); clearTimeout(timer); };
+  }, [receipt?.requestId, receipt?.status]);
   const window = scheduleMoveWindow(move.job, move.start);
   const confirm = async () => {
     if (busy || receipt) return;
@@ -220,7 +235,7 @@ export function MoveConfirmation({
         </footer>
       )}
       {error && <p role="alert">{error}</p>}
-      {receipt?.status === 'reconciled' && <Button variant="outline" disabled={busy} onClick={saved}>Review Current Schedule</Button>}
+      {(receipt?.status === 'verified' || receipt?.status === 'reconciled' || receipt?.sourceResult?.assignmentReconciled === true) && <Button variant="outline" disabled={busy} onClick={saved}>Review Current Schedule</Button>}
     </section>
   );
 }

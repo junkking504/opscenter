@@ -54,7 +54,10 @@ login-throttle state is retained on the VPS.
 
 The gateway allows up to ten seconds for standby readiness during a cold
 source load. A healthy primary returns without waiting for that independent
-check; unavailable or incorrectly writable recovery still fails closed.
+check. A successful standby result is reused for at most 15 seconds to avoid
+repeating expensive health reads during a screen load, then revalidated;
+unavailable or incorrectly writable recovery still fails closed. Upstream
+requests use separate connections, with no retry after submission.
 
 The existing Playwright runtime includes Node 24, which supports
 `NODE_USE_ENV_PROXY=1` for fetch and HTTP proxy routing. See [Node's proxy

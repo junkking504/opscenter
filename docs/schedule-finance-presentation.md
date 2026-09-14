@@ -703,6 +703,14 @@ six-hour no-match cooldown. No open browser or manual verification is required.
 spelling correction, duplicate aliases, exact-building fallback, postal mismatch,
 unsafe alternatives, cache reuse and rate limits using synthetic mocked data.
 
+## Command completion attribution
+
+Completion headings use the truck from the uniquely matched, completed JunkWare
+appointment. A saved truck correction updates the heading and truck filter while
+retaining the original event ID, timestamp, payments, and historical arrival
+events. Missing, ambiguous, open, or unassigned source records do not rewrite the
+completion heading. Regression: `node --import tsx scripts/test-command-closeout-truck.ts`.
+
 ## Command desktop map
 
 Command Alerts uses the available workspace width at 1280 CSS pixels and above.

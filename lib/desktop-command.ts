@@ -1,3 +1,4 @@
+import { withSavedCloseoutTruck } from './command-closeout-truck';
 import { truckExpenseTimelineAlerts, mergeTruckExpenseAlerts } from './truck-expense-notifications';
 import { readEstimateSummary } from './estimate-follow-up';
 import { streamlineOperationalAlerts } from './streamlined-operational-alerts';
@@ -101,6 +102,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
       if (['Job Closed', 'Estimate Closed', 'Job Completed', 'Estimate Completed'].includes(alert.label)) {
         const jk = alert.title.match(/\bJK\d+\b/i)?.[0]?.toUpperCase();
         const candidates = appointments.filter(job => job.jkNumber.toUpperCase() === jk && (/estimate/i.test(job.appointmentType) === /estimate/i.test(alert.label)));
+        alert = withSavedCloseoutTruck(alert, candidates);
         // Fold physical visit evidence even if the assignment changed later.
         const time = candidates.length === 1 ? appointmentOnsiteTime({...candidates[0],truck:''}, visits) : {minutes:null,arrival:null,departure:null,label:'Unavailable · appointment match needed'};
         const visitTrucks = candidates.length === 1 ? [...new Set(visits.filter(visit=>String(visit.appointment_id || visit.appt_id || '') === candidates[0].appointmentId && visit.match_confidence === 'confirmed' && !visit.pass_by_only)

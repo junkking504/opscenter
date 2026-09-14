@@ -826,3 +826,25 @@ establishes arrival using the preceding stationary fix. Both fixes must be withi
 30 meters and five minutes of each other; normal appointment ambiguity and
 departure checks still apply. This avoids waiting for an hourly parked heartbeat
 when shutdown occurs before two minutes of GPS dwell have accumulated.
+
+
+## Shared service address corrections
+
+Census and the OpenStreetMap building fallback share street aliases and the
+existing bounded minor-spelling correction rules. House numbers, road types,
+directions, locality and ZIP must agree for a spelling correction; competing
+buildings remain unresolved. Parkway abbreviations, Saint/St, numbered Louisiana
+highways and repeated city/ZIP fields are normalized in lookup queries. Building
+and unit labels are omitted only from routing queries.
+
+Verified corrections feed map links, appointment summaries, the register, drawer,
+Stop Order, route review and address search. Source apartment/suite/building
+identifiers remain visible when a provider returns only the street address.
+JunkWare's original record and dispatch version remain unchanged. Reviewed
+evidence also supplies the displayed address. Policy 5 retries older failed
+lookups through the existing bounded worker; verified caches persist outside
+source checkouts and releases. Provider budgets and paid-service gates do not
+change.
+
+Validation: `npm run verify:service-addresses`, `npm run verify:service-territory`,
+`npm run verify:spending`, `npm run build:desktop`, and TypeScript checking.

@@ -37,6 +37,12 @@ assert.equal(verifyOsmServiceAddress(original,[building,{...building,osm_id:2}])
 assert.equal(verifyOsmServiceAddress(original.replace('LA','MS'),[building]).location,null);
 assert.equal(verifyOsmServiceAddress('100 Example Dr Baton Rouge LA 70810 or 200 Elsewhere St Baton Rouge LA 70810',[building]).location,null);
 assert.equal(osmServiceAddressQuery('Missing service address'),null);
+const typoAddress='100 Exmaple Dr Baton Rouge LA 70808';
+assert.ok(verifyOsmServiceAddress(typoAddress,[building]).location,'Fallback accepts the same verified minor correction as Census');
+for(const bad of [typoAddress.replace('100','101'),typoAddress.replace('Dr','Rd'),typoAddress.replace('Dr','N Dr'),typoAddress.replace('70808','70810'),typoAddress.replace('Baton Rouge','Other City')]) {
+  assert.equal(verifyOsmServiceAddress(bad,[building]).location,null,'A spelling correction cannot also change house/type/direction/ZIP/locality');
+}
+assert.equal(verifyOsmServiceAddress(typoAddress,[building,{...building,osm_id:2}]).location,null,'Spelling tolerance never discards competing buildings');
 
 async function main() {
   const temp=fs.mkdtempSync(path.join(os.tmpdir(),'osm-address-test-'));

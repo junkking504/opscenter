@@ -1,3 +1,4 @@
+import {appointmentServiceAddress} from '../../lib/service-address-format';
 export type ScheduleTruckVisit = { truck: string; arrival: string; departure: string | null; observedThrough: string; currentUntil?: string };
 import { appointmentPartner } from '../../lib/appointment-partner';
 import { serviceTerritory } from '../../lib/service-territory';
@@ -108,11 +109,11 @@ export function unavailableRoute(leg: ScheduleRouteLeg, jobs: ScheduleAppointmen
 
 export const territoryLabels: Record<string, string> = { NO: 'New Orleans', JP: 'Jefferson Parish', NS: 'Northshore', RP: 'River Parishes', BR: 'Baton Rouge', LF: 'Lafayette', UNK: 'Unclassified' };
 export const territoryOrder = ['NO', 'JP', 'NS', 'RP', 'BR', 'LF', 'UNK'];
-export function appointmentRegion(job: Pick<ScheduleAppointment, 'address' | 'territory' | 'sourceTerritory'>) {
-  return serviceTerritory(job.address, job.sourceTerritory || job.territory);
+export function appointmentRegion(job: Pick<ScheduleAppointment, 'address' | 'mapAddress' | 'territory' | 'sourceTerritory'>) {
+  return serviceTerritory(appointmentServiceAddress(job), job.sourceTerritory || job.territory);
 }
 // Color is a dispatch-area cue, not franchise ownership or territory grouping.
-export function appointmentColorClass(job: Pick<ScheduleAppointment, 'address' | 'territory' | 'sourceTerritory'>) {
+export function appointmentColorClass(job: Pick<ScheduleAppointment, 'address' | 'mapAddress' | 'territory' | 'sourceTerritory'>) {
   const region = appointmentRegion(job);
   return `territory-${(['WB', 'EM'].includes(region.areaCode) ? region.areaCode : region.code).toLowerCase()}`;
 }
@@ -258,7 +259,7 @@ export function scheduleFollowupFlags(job: ScheduleAppointment, jobs: ScheduleAp
 export function scheduleMatchesQuery(job: ScheduleAppointment, query: string): boolean {
   const normalized = query.trim().toLocaleLowerCase();
   if (!normalized) return true;
-  return [appointmentPartner(job)?.name, appointmentPartner(job)?.short, job.recordId, job.appointmentId, job.jkNumber, job.customerName, job.phone, job.address, job.territory, job.truck, job.driver, job.navigator]
+  return [appointmentPartner(job)?.name, appointmentPartner(job)?.short, job.recordId, job.appointmentId, job.jkNumber, job.customerName, job.phone, job.address, job.mapAddress, job.territory, job.truck, job.driver, job.navigator]
     .some(value => String(value || '').toLocaleLowerCase().includes(normalized));
 }
 export function resolveScheduleDeepLink(jobs: ScheduleAppointment[], queryValue: string, appointmentValue: string) {

@@ -1,3 +1,4 @@
+import {appointmentServiceAddress} from '../lib/service-address-format';
 import { useEffect, useRef, useState } from 'react';
 import { stopGroupsForTruck, stopGroupKey, stopOrderSourceKey } from '../lib/schedule-stop-order';
 import type { ScheduleAppointment, ScheduleRouteLeg, ScheduleSnapshot } from './lib/schedule-contract';
@@ -71,7 +72,7 @@ export default function ScheduleStopOrder({snapshot,truck,selectedAppointmentId,
           const leg=legs.find(leg=>leg.toAppointmentId === id && leg.fromAppointmentId === ids[index-1]);
           return <li key={id}>
             {index > 0 && <small className="stop-order-travel">{stale ? 'Refresh stops to calculate travel' : working === 'preview' || working === 'nearest' ? 'Calculating road travel…' : leg?.travelMinutes != null ? `${leg.travelMinutes} min · ${leg.miles} mi from previous stop` : !job.location || !group.find(job=>job.recordId === ids[index-1])?.location ? 'Location pending · automatic lookup' : 'Travel estimate unavailable'}</small>}
-            <div className="stop-order-row"><b>{index+1}</b><div><strong>{job.jkNumber} · {job.customerName}</strong><span>{job.address}</span><small>{job.status}</small></div><div className="stop-order-arrows">{[-1,1].map(direction=><button key={direction} aria-label={`Move ${job.jkNumber} ${direction<0?'up':'down'}`} disabled={stale || working === 'save' || working === 'nearest' || index+direction<0 || index+direction>=ids.length} onClick={()=>{const next=[...ids];[next[index],next[index+direction]]=[next[index+direction],next[index]];setIds(next);}}>{direction<0?'↑':'↓'}</button>)}</div></div>
+            <div className="stop-order-row"><b>{index+1}</b><div><strong>{job.jkNumber} · {job.customerName}</strong><span>{appointmentServiceAddress(job)}</span><small>{job.status}</small></div><div className="stop-order-arrows">{[-1,1].map(direction=><button key={direction} aria-label={`Move ${job.jkNumber} ${direction<0?'up':'down'}`} disabled={stale || working === 'save' || working === 'nearest' || index+direction<0 || index+direction>=ids.length} onClick={()=>{const next=[...ids];[next[index],next[index+direction]]=[next[index+direction],next[index]];setIds(next);}}>{direction<0?'↑':'↓'}</button>)}</div></div>
           </li>;
         })}</ol>
         <button type="button" disabled={stale || working === 'save' || working === 'nearest' || ids.length>12 || group.some(job=>!job.location)} onClick={()=>void request('nearest')}>{working === 'nearest' ? 'Finding nearest stops…' : 'Suggest nearest after first stop'}</button>

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { reviewedServiceAddress, reviewedAddressIdentity } from '../lib/reviewed-service-address';
 import { planningLocation } from '../lib/planning-geocodes';
+import {cachedAddressVerification} from '../lib/desktop-address-verification';
 const root = fs.mkdtempSync(path.join(os.tmpdir(),'address-review-test-'));
 const prior = process.env.OPSCENTER_DATA_DIR;
 process.env.OPSCENTER_DATA_DIR = root;
@@ -14,6 +15,7 @@ try {
   const file = path.join(dir,createHash('sha256').update(reviewedAddressIdentity(address)).digest('hex')+'.json');
   const row = {schema:1,status:'verified',originalAddress:address,verifiedAddress:address,location:{latitude:29.95,longitude:-90.1},sources:['https://example.org/verified-property']};
   fs.writeFileSync(file,JSON.stringify(row));
+  assert.equal(cachedAddressVerification(address)?.matchedAddress,row.verifiedAddress,'Reviewed spelling reaches the same display field as provider corrections');
   assert.deepEqual(reviewedServiceAddress('100 Example St New Orleans 70125')?.location,row.location);
   assert.deepEqual(reviewedServiceAddress('Example Business 100 Example St New Orleans LA 70125')?.location,row.location);
   assert.equal(reviewedServiceAddress('101 Example St New Orleans 70125'),undefined);

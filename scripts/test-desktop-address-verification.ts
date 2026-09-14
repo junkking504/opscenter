@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import { verifyAddressResult,verifyCensusAddress } from '../lib/desktop-address-verification';
+import {addressQueries} from '../lib/desktop-address-verification';
+import {appointmentServiceAddress,normalizeServiceAddress} from '../lib/service-address-format';
+import {serviceStreetCandidates} from '../lib/appointment-partner';
 const component=(type:string,value:string)=>({types:[type],long_name:value,short_name:value});
 const result={address_components:[component('street_number','100'),component('route','Example Street'),component('postal_code','70125'),component('administrative_area_level_1','LA'),component('country','US')],geometry:{location:{lat:29.95,lng:-90.1},location_type:'ROOFTOP'}};
 const payload={status:'OK',results:[result]};
@@ -120,7 +123,7 @@ async function verifyAutomaticCache() {
     assert.deepEqual(await verifyDesktopAddress(address),first);
     assert.equal(calls,1,'Accepted correction is reused without another provider request');
     const saved=JSON.parse(fs.readFileSync(file,'utf8'));
-    assert.equal(saved.schema,4);
+    assert.equal(saved.schema,5);
     assert.equal(saved.address,address,'Source spelling is retained');
     assert.deepEqual(saved.verified,first,'Matched spelling and point persist atomically');
   } finally {
@@ -130,4 +133,18 @@ async function verifyAutomaticCache() {
   }
   console.log('Automatic retry, source preservation and correction caching passed.');
 }
+assert.equal(serviceStreetCandidates('100 LA-16 Denham Springs, LA 70726').length,1);
+assert.equal(serviceStreetCandidates('100 LA-16 Denham Springs LA 70726 or 200 Example St Kenner LA 70065').length,2);
+assert.equal(serviceStreetCandidates('100 S Example Pky Apt 156 New Orleans 70123').length,1);
+assert.equal(addressQueries('100 Example Rd Bldg 1, Greenwell Springs, 70739')[0],'100 Example Rd Greenwell Springs, LA 70739');
+assert.equal(addressQueries('100 S Example Pky, Apt 156, New Orleans, 70123')[0],'100 S Example Pkwy, New Orleans, LA 70123');
+assert.equal(addressQueries('100 Example Dr, Kenner, La 70065 Kenner, LA 70065')[0],'100 Example Dr, Kenner, La 70065');
+assert.equal(normalizeServiceAddress('LA-16'),normalizeServiceAddress('Louisiana Highway 16'));
+const saint={...censusMatch,matchedAddress:'100 SAINT EXAMPLE ST, NEW ORLEANS, LA, 70125'};
+assert.ok(verifyCensusAddress('100 St Example St New Orleans LA 70125',{result:{addressMatches:[saint]}}).location);
+const parkway={...censusMatch,matchedAddress:'100 S EXAMPLE PKWY, NEW ORLEANS, LA, 70125'};
+assert.ok(verifyCensusAddress('100 S Example Pky Apt 156 New Orleans LA 70125',{result:{addressMatches:[parkway]}}).location);
+assert.equal(appointmentServiceAddress({address:'Business 100 Exmaple Rd, Apt 156, New Orleans, LA 70125',mapAddress:'100 Example Road, New Orleans, LA 70125'}),'100 Example Road, Apt 156, New Orleans, LA 70125');
+assert.equal(appointmentServiceAddress({address:'100 Exmaple Rd Apt 156 New Orleans LA 70125'}),'100 Exmaple Rd Apt 156 New Orleans LA 70125','Unverified spelling stays intact');
+console.log('Address formatting passed: building/unit preservation, parkway/highway/Saint aliases, repeated locality and corrected display.');
 verifyAutomaticCache().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1,4 +1,5 @@
 import { reviewedServiceAddress } from './reviewed-service-address';
+import { cleanServiceQuery, normalizeServiceAddress } from './service-address-format';
 import { verifyOsmAddressFallback } from './osm-service-address';
 import { hasMinorStreetCorrection } from './address-spelling-correction';
 import { sameCensusAddress, type CensusAddressMatch } from './census-address-matches';
@@ -11,10 +12,9 @@ import { createHash, randomUUID } from 'node:crypto';
 type Component = { long_name: string; short_name: string; types: string[] };
 type Result = { partial_match?: boolean; address_components?: Component[]; geometry?: { location?: { lat: number; lng: number }; location_type?: string } };
 type Payload = { status?: string; results?: Result[] };
-export const ADDRESS_VERIFICATION_POLICY = 4;
+export const ADDRESS_VERIFICATION_POLICY = 5;
 export type AddressVerification = { location: PlanningLocation | null; reason: string; matchedAddress?: string; source?: string; sourceUrl?: string; retryAfterMs?: number };
-const aliases: Record<string,string> = { STREET:'ST',ROAD:'RD',AVENUE:'AVE',DRIVE:'DR',LANE:'LN',COURT:'CT',BOULEVARD:'BLVD',HIGHWAY:'HWY',PLACE:'PL',PARKWAY:'PKWY',TERRACE:'TER',CIRCLE:'CIR',TRAIL:'TRL',NORTH:'N',SOUTH:'S',EAST:'E',WEST:'W' };
-const normalize = (text: string) => text.toUpperCase().replace(/[^A-Z0-9]+/g,' ').trim().split(/\s+/).map(word=>aliases[word]||word).join(' ');
+const normalize = normalizeServiceAddress;
 const normalizeRouteName = (text: string) => normalize(text).replace(/\bS NORMAN FRANCIS PKWY\b/g, 'S NORMAN C FRANCIS PKWY');
 
 function matchesStreet(requested: string, house: string, street: string, city: string, zip: string) {
@@ -76,7 +76,8 @@ export function verifyCensusAddress(address:string,payload:unknown):AddressVerif
     component('administrative_area_level_1',match.addressComponents?.state || ''),component('country','US'),
   ],geometry:{location:{lat:match.coordinates?.y ?? NaN,lng:match.coordinates?.x ?? NaN},location_type:'RANGE_INTERPOLATED'}}]};
   const exact = verifyAddressResult(address,payloadForVerification);
-  if (exact.location || exact.reason !== 'Address Needs Exact House, Street, And ZIP Match') return exact;
+  if (exact.location) return {...exact,matchedAddress:match.matchedAddress};
+  if (exact.reason !== 'Address Needs Exact House, Street, And ZIP Match') return exact;
   if (serviceStreetCandidates(address).length > 1) return exact;
   const requested = normalize(fullFieldStreetAddress(address)).replace(/ (\d{5}) \d{4}$/, ' $1');
   if (!hasMinorStreetCorrection(requested,normalize(street[1]),normalize(street[2]),normalize(match.addressComponents?.city || ''),match.addressComponents?.zip || '')) return exact;
@@ -94,9 +95,9 @@ async function requestGeocode(address:string):Promise<unknown> {
 }
 
 const cache=new Map<string,{expires:number;result:Promise<AddressVerification>;verified?:AddressVerification}>();
-const cacheFile = (address: string) => path.join(process.env.SERVICE_ADDRESS_CACHE_DIR || path.join(process.cwd(),'data','cache','service-address-verifications'),createHash('sha256').update(address).digest('hex')+'.json');
+const cacheFile = (address: string) => path.join(process.env.SERVICE_ADDRESS_CACHE_DIR || path.join(process.env.OPSBOT_DATA_DIR || path.join(process.env.HOME || '', '.openclaw/workspace/opsbot/data'),'cache','service-address-verifications'),createHash('sha256').update(address).digest('hex')+'.json');
 export function cachedAddressVerification(address:string):AddressVerification|undefined {
-  const reviewed = reviewedServiceAddress(address); if (reviewed) return reviewed;
+  const reviewed = reviewedServiceAddress(address); if (reviewed) return {...reviewed,matchedAddress:reviewed.verifiedAddress};
   const row=cache.get(address);
   if(row && row.expires>Date.now()) return row.verified;
   try {
@@ -113,11 +114,11 @@ export function cachedAddressVerification(address:string):AddressVerification|un
 export function addressQueries(address: string) {
   const full=address.replace(/\s+/g,' ').replace(/\s*,\s*/g,', ').trim();
   const street=fullFieldStreetAddress(full);
-  // Keep suite/business context in the original and first attempts. Only the
-  // routing query may omit an explicit unit; validation always uses full input.
-  const withoutUnit=street.replace(/\b(?:suite|ste|unit|apt|apartment|floor|fl)\.?\s+[A-Z0-9-]+\b\s*,?\s*/ig,' ').replace(/\s+/g,' ').trim();
+  // Try the normalized routing query first; retain the original as a fallback.
+  // Only queries omit explicit units; validation always uses the full input.
+  const withoutUnit=cleanServiceQuery(street);
   const withState = /\b(?:LA|LOUISIANA)\s+\d{5}/i.test(withoutUnit) ? withoutUnit : withoutUnit.replace(/[,\s]+(\d{5}(?:-\d{4})?)$/, ', LA $1');
-  return [...new Set([full,street,withoutUnit,withState])];
+  return [...new Set([withState,full,street,withoutUnit])];
 }
 export async function verifyDesktopAddress(address:string):Promise<AddressVerification> {
   if(serviceStreetCandidates(address).length>1) return {location:null,reason:'Multiple Street Addresses In Source Field'};

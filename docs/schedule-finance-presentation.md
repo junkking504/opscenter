@@ -806,3 +806,6 @@ invent a departure or change recorded duration. Recorded blocks cannot be dragge
 clicking any visit opens the original appointment. Appointments with no usable
 visit times retain a dashed planned window. Booked assignment, time, closeout,
 visit accounting and source records remain unchanged.
+
+Short visit blocks have a 22px minimum display width so the status check mark fits.
+Their left edge stays at arrival; the tooltip retains the measured duration.

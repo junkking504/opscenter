@@ -21,7 +21,7 @@ services:
         max-file: '3'
 
   app:
-    image: opscenter:continuity-20260914
+    image: opscenter:continuity-5330c4d3-20260914
     restart: unless-stopped
     init: true
     group_add: ['1000']
@@ -40,9 +40,13 @@ services:
       OPSCENTER_LINXUP_MAX_AGE_SECONDS: '900'
       OPSCENTER_JUNKWARE_SCHEDULE_MAX_AGE_SECONDS: '900'
       QBO_TOKEN_STORE_DIR: /var/lib/opscenter/qbo
+      NODE_USE_ENV_PROXY: '1'
+      HTTPS_PROXY: http://auth-egress:3128
+      HTTP_PROXY: http://auth-egress:3128
+      NO_PROXY: localhost,127.0.0.1,database
       OPSCENTER_LOGIN_RATE_LIMIT_FILE: /var/lib/opscenter/continuity-auth/login-attempts.json
     volumes:
-      - /srv/opscenter/continuity-20260912/data:/app/data:ro
+      - /srv/opscenter/data:/app/data:ro
       - /srv/opscenter/qbo:/var/lib/opscenter/qbo:ro
       - /srv/opscenter/continuity-20260912/auth:/var/lib/opscenter/continuity-auth
     read_only: true
@@ -65,8 +69,52 @@ services:
         max-size: 10m
         max-file: '3'
 
-# The candidate can reach only its isolated database. It cannot send external
-# requests, retries, notifications or provider calls while restore QA runs.
+  auth-egress:
+    image: node:22-bookworm-slim
+    restart: unless-stopped
+    init: true
+    user: '1000:1000'
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    networks: [default, auth-outbound]
+    env_file:
+      - path: /etc/opscenter/continuity-auth-egress.env
+        format: raw
+    volumes:
+      - /srv/opscenter/continuity-20260912/continuity-auth-egress.mjs:/opt/continuity-auth-egress.mjs:ro
+    command: [node, /opt/continuity-auth-egress.mjs]
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  gateway:
+    image: node:22-bookworm-slim
+    profiles: [gateway]
+    restart: unless-stopped
+    init: true
+    network_mode: host
+    user: '1000:1000'
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    volumes:
+      - /srv/opscenter/continuity-20260912/continuity-proxy.mjs:/opt/continuity-proxy.mjs:ro
+      - /srv/opscenter/continuity-20260912/status:/state:ro
+    environment:
+      CONTINUITY_SNAPSHOT_FILE: /state/database-sync.json
+    command: [node, /opt/continuity-proxy.mjs]
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+# The candidate reaches its isolated database and the exact Access issuer via
+# a restricted TLS proxy. All other external requests are denied.
 networks:
   default:
     internal: true
+  auth-outbound: {}

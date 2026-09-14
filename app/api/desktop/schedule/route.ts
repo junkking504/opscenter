@@ -8,6 +8,7 @@ import { authorizeOpsRequest } from '@/lib/ops-roles';
 import { automaticallyCheckMove, scheduleMoveRecovery } from '@/lib/desktop-schedule-operations';
 import { withJunkwareAppointmentSyncLock } from '@/lib/job-route-assignments';
 import { readJunkwareTruckAssignment } from '@/lib/junkware-truck-assignment';
+import {recordNextPickupSourceNote,pickupSourceNoteNotices} from '@/lib/truck-pickup-source-notes';
 
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
@@ -32,7 +33,11 @@ export async function GET(request: Request) {
         catch { /* Keep the durable receipt and drag lock if recovery is unavailable. */ }
       });
     }
-    return Response.json({...snapshot,sourceRequest,assignmentRecoveryNotices:recovery.notices}, { headers });
+    if (authorizeOpsRequest(session.role, '/api/job-route-assignments', 'POST').allowed) after(async()=>{
+      try { await recordNextPickupSourceNote(date,session.email); }
+      catch { /* Source-note receipts preserve uncertain writes across refreshes. */ }
+    });
+    return Response.json({...snapshot,sourceRequest,assignmentRecoveryNotices:[...recovery.notices,...pickupSourceNoteNotices(date,snapshot.appointments)]}, { headers });
   } catch {
     return Response.json({ error: 'Schedule source unavailable.' }, { status: 503, headers });
   }

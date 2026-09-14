@@ -24,6 +24,16 @@ answers how full each physical truck is right now.
    the same appointment again replaces its contribution instead of adding it
    twice. Converting a completed job to an estimate retracts that contribution;
    converting a completed estimate to a job adds it once.
+
+   Authorized Schedule refreshes also record an evidence note in JunkWare for
+   current-day completed pickups with one confirmed physical carrier that differs
+   from the recorded assignment. The note includes the physical truck, GPS arrival
+   and departure, and saved pickup size. One durable reservation per appointment
+   and carrier prevents duplicate notes. The writer verifies the appointment date,
+   checks for the existing note, and reloads JunkWare to verify the save. Uncertain
+   writes are displayed for verification and are never automatically resubmitted;
+   a later collected copy of the saved note resolves the receipt. This annotates
+   the completed record without changing its billing, crew, status or source truck.
 3. OpsBot accepts a current snapshot as three plain-text lines:
 
        Truck 9

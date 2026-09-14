@@ -25,7 +25,7 @@ export function truckChargeSummary(load: OperationalTruckLoad): string {
 
 /** A single confirmed arrival/departure identifies the physical carrier even
  * when JunkWare still names a different route. Never divide a multi-truck job. */
-function physicalCloseoutTruck(date: string, job: LoadJob, visits: Parameters<typeof appointmentOnsiteTime>[1]) {
+export function physicalCloseoutTruck(date: string, job: LoadJob, visits: Parameters<typeof appointmentOnsiteTime>[1]) {
   const matches = visits.filter(row=>String(row.appointment_id || row.appt_id || '')===job.appointmentId
     && row.match_confidence==='confirmed' && !row.pass_by_only);
   const trucks = [...new Set(matches.map(row=>normalizeTruckLoadLabel(row.truck_number || row.truck)))];

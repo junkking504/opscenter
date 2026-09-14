@@ -20,6 +20,8 @@ export function validJunkwareAppointmentNote(value: unknown): string {
 export async function addJunkwareAppointmentNote(input: {
   appointmentId: string;
   note: string;
+  ifAbsent?: boolean;
+  expectedDate?: string;
 }): Promise<JunkwareAppointmentNoteResult> {
   const appointmentId = String(input.appointmentId || "").trim();
   const note = validJunkwareAppointmentNote(input.note);
@@ -38,6 +40,8 @@ export async function addJunkwareAppointmentNote(input: {
       appointmentId,
       "--note-base64",
       Buffer.from(note, "utf8").toString("base64url"),
+      ...(input.ifAbsent ? ['--if-absent'] : []),
+      ...(input.expectedDate ? ['--expected-date',input.expectedDate] : []),
     ], {
       cwd: process.cwd(),
       encoding: "utf8",

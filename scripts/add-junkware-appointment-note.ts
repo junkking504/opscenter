@@ -108,6 +108,13 @@ async function main(): Promise<void> {
     const page = await context.newPage();
     page.setDefaultTimeout(45_000);
     await ensureAuthenticated(page, targetUrl);
+    const expectedDate = argument('expected-date');
+    if (expectedDate) {
+      const raw = await page.locator('#ctl00_Content_AppointmentDateTB').inputValue();
+      const parts = raw.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      const savedDate = parts ? `${parts[3]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}` : '';
+      if (savedDate!==expectedDate) throw new Error('The appointment date changed. No note was submitted.');
+    }
     if (inspect) {
       await openNoteEditor(page);
       process.stdout.write(`${JSON.stringify({ ok: true, mode: "inspect-note", appointmentId })}\n`);
@@ -115,6 +122,11 @@ async function main(): Promise<void> {
       return;
     }
     const before = await appointmentNoteCount(page, note);
+    if (before && process.argv.includes('--if-absent')) {
+      process.stdout.write(`${JSON.stringify({ok:true,mode:'add-note',appointmentId,alreadyPresent:true,verifiedAt:new Date().toISOString()})}\n`);
+      await context.close();
+      return;
+    }
     await addNote(page, note);
     await ensureAuthenticated(page, targetUrl);
     const after = await appointmentNoteCount(page, note);

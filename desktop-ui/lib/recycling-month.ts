@@ -6,6 +6,12 @@ export function recyclingMonth(records: RecyclingRecord[], month: string) {
   const sum = (values: Array<number | null>) => values.some(value => value == null) ? null : values.reduce<number>((total, value) => total + Math.round(value! * 100), 0) / 100;
   return {
     runs, received,
+    deliveries: runs.filter(run => run.deliveryReceiptId),
+    unmatched: runs.filter(run => run.deliveryReceiptId && !run.statementId),
+    matched: runs.filter(run => run.deliveryReceiptId && run.statementId),
+    statementOnly: runs.filter(run => run.statementId && !run.deliveryReceiptId),
+    weightExceptions: runs.filter(run => run.deliveryReceiptId && run.statementId && (run.netWeightLb == null || run.statementWeightLb == null || Math.abs(run.netWeightLb - run.statementWeightLb) > .005)),
+    deliveryWeight: sum(runs.filter(run => run.deliveryReceiptId).map(run => run.netWeightLb ?? null)),
     runValue: sum(runs.map(run => run.status === 'Paid' ? run.realizedValue : run.expectedValue)),
     paidValue: sum(runs.filter(run => run.status === 'Paid').map(run => run.realizedValue)),
     receivedValue: sum(received.map(run => run.realizedValue)),

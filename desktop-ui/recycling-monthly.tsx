@@ -3,6 +3,7 @@ import { Button } from './components/ui/button';
 import { commercialMoney as money, commercialDate, type RecyclingRecord } from './lib/commercial-contract';
 import { adjacentRecyclingMonth, recyclingMonth } from './lib/recycling-month';
 import './recycling-monthly.css';
+import { recyclingMatchStatus } from './lib/recycling-reconciliation';
 
 export function RecyclingMonthly({ records, date, onAdd, onReview }: { records: RecyclingRecord[]; date: string; onAdd: (date: string) => void; onReview: (record: RecyclingRecord) => void }) {
   const [month, updateMonth] = useState(() => {
@@ -18,26 +19,36 @@ export function RecyclingMonthly({ records, date, onAdd, onReview }: { records: 
   const summary = recyclingMonth(records, month);
   const label = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${month}-01T12:00:00Z`));
   return <section className="recycling-monthly" aria-label="Monthly recycling breakdown">
-    <header className="section-title"><div><span className="section-kicker">Metal recycling</span><h2>{label} Runs</h2><p>All recorded runs by run or yard ticket date. Payment dates are tracked separately.</p></div><div className="recycling-month-controls">
+    <header className="section-title"><div><span className="section-kicker">Metal recycling</span><h2>{label} Runs</h2><p>Match every delivered ticket against the monthly cash-out. This month follows the delivery date; cash received has its own date.</p></div><div className="recycling-month-controls">
       <Button variant="outline" size="sm" aria-label="Previous recycling month" onClick={() => setMonth(adjacentRecyclingMonth(month, -1))}>Previous</Button>
       <label>Month<input type="month" aria-label="Recycling month" value={month} onChange={event => { if (/^\d{4}-(0[1-9]|1[0-2])$/.test(event.target.value)) setMonth(event.target.value); }} /></label>
       <Button variant="outline" size="sm" aria-label="Next recycling month" onClick={() => setMonth(adjacentRecyclingMonth(month, 1))}>Next</Button>
       <Button size="sm" onClick={() => onAdd(date.startsWith(month) ? date : `${month}-01`)}>Add Run</Button>
     </div></header>
     <div className="finance-recovery-kpis" aria-label="Monthly recycling summary">
-      <article><span>Recorded Runs</span><strong>{summary.runs.length}</strong><small>{summary.days.length} recorded days</small></article>
-      <article><span>Run Value</span><strong>{money(summary.runValue)}</strong><small>Value of {label} runs</small></article>
+      <article><span>Recorded Entries</span><strong>{summary.runs.length}</strong><small>{summary.days.length} recorded days</small></article>
+      <article><span>Run Value</span><strong>{money(summary.runValue)}</strong><small>{summary.unmatched.length ? 'Some deliveries await cash-out pricing' : `Value of ${label} runs`}</small></article>
       <article><span>Paid Run Value</span><strong>{money(summary.paidValue)}</strong><small>Paid to date for this month’s runs</small></article>
       <article><span>Open Runs</span><strong>{summary.runs.filter(run => run.status !== 'Paid').length}</strong><small>Awaiting yard or payment</small></article>
       <article><span>Payments Received</span><strong>{money(summary.receivedValue)}</strong><small>Received during {label}, including earlier runs</small></article>
     </div>
+    <section className="finance-recovery-ledger" aria-label="Monthly cash-out reconciliation">
+      <div className="section-title"><div><h3>Monthly Cash-out Reconciliation</h3><p>Every delivery should appear on the yard’s cash-out statement. Missing tickets remain open; weight differences remain visible even after payment.</p></div></div>
+      <div className="finance-recovery-kpis">
+        <article><span>Delivery tickets</span><strong>{summary.deliveries.length}</strong><small>{summary.deliveryWeight == null ? 'Weight incomplete' : `${summary.deliveryWeight.toLocaleString('en-US')} lb delivered`}</small></article>
+        <article><span>Awaiting cash-out match</span><strong>{summary.unmatched.length}</strong><small>{summary.unmatched.map(run=>'#'+run.ticket).join(', ') || 'No unmatched delivery tickets'}</small></article>
+        <article><span>Matched tickets</span><strong>{summary.matched.length}</strong><small>{summary.matched.filter(run=>run.status!=='Paid').length} still awaiting payment</small></article>
+        <article><span>Weight exceptions</span><strong>{summary.weightExceptions.length}</strong><small>Compare delivery and statement weights</small></article>
+        <article><span>Statement only</span><strong>{summary.statementOnly.length}</strong><small>Entries without linked delivery tickets</small></article>
+      </div>
+    </section>
     <section className="finance-recycling-shell"><div className="section-title"><div><h3>Daily Run Breakdown</h3><p>Each daily total includes the records listed beneath it.</p></div></div>
       {summary.days.map(day => <section className="recycling-day" key={day.date} aria-label={`Recycling runs ${day.date}`}>
         <header><h4>{commercialDate(day.date)}, {day.date.slice(0, 4)}</h4><span>{day.entries.length} {day.entries.length === 1 ? 'entry' : 'entries'}</span><strong>{money(day.value)}</strong></header>
         {day.entries.map(run => <article className="recycling-run" key={run.id}>
-          <div><strong>{run.material}</strong><small>{run.yard || 'Awaiting yard'} · {run.owner}</small><small>{run.quantity}</small></div>
+          <div><strong>{run.material}</strong><small>{run.yard || 'Awaiting yard'} · {run.owner}</small><small>{run.quantity}</small><small>{recyclingMatchStatus(run)}</small></div>
           <div><span>Tickets</span><strong>{run.ticket || 'Awaiting ticket'}</strong><small>{/^JK\d+$/i.test(run.sourceJob) ? <a href={`/schedule?date=${run.date}&job=${encodeURIComponent(run.sourceJob)}`}>{run.sourceJob}</a> : run.sourceJob}</small></div>
-          <div><span>Run value</span><strong>{money(run.status === 'Paid' ? run.realizedValue : run.expectedValue)}</strong><small>{run.status === 'Paid' ? `Paid ${run.paymentDate ? commercialDate(run.paymentDate) + ', ' + run.paymentDate.slice(0, 4) : '· payment date not recorded'}` : run.status}</small></div>
+          <div><span>Run value</span><strong>{run.expectedValue == null && run.realizedValue == null ? 'Awaiting valuation' : money(run.status === 'Paid' ? run.realizedValue : run.expectedValue)}</strong><small>{run.status === 'Paid' ? `Paid ${run.paymentDate ? commercialDate(run.paymentDate) + ', ' + run.paymentDate.slice(0, 4) : '· payment date not recorded'}` : run.status}</small></div>
           <Button variant="outline" size="sm" onClick={() => onReview(run)}>Record / Review</Button>
         </article>)}
       </section>)}

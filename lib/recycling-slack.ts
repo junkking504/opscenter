@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { readRecyclingData, recyclingDirectory } from './recycling-receipt-store';
+import { recyclingMatchStatus } from '../desktop-ui/lib/recycling-reconciliation';
 import { formatSlackMessage } from './slack-message-format';
 import type { RecyclingRecord } from '../desktop-ui/lib/commercial-contract';
 
@@ -17,10 +18,21 @@ export function buildRecyclingSlackAlerts(store: ReturnType<typeof readRecycling
   const alerts: Alert[] = [];
   const groups = new Map<string, RecyclingRecord[]>();
   for (const row of store.records) {
+    if (row.deliveryReceiptId && !row.statementId) continue;
     const key = row.statementId || row.id;
     groups.set(key, [...(groups.get(key) || []), row]);
   }
   for (const draft of store.receiptDrafts || []) {
+    if (draft.status === 'recorded' && draft.kind === 'delivery') {
+      const deliveries = store.records.filter(row => row.deliveryReceiptId === draft.id);
+      alerts.push({ id: `receipt:${draft.id}`, text: formatSlackMessage({
+        icon: ':recycle:', title: 'Metal Recycling · Delivery Recorded',
+        fields: [{ label: 'Yard', value: draft.yard }, { label: 'Tickets', value: deliveries.map(row => '#' + row.ticket).join(', ') }],
+        body: deliveries.map(row => `${row.date}: ${row.quantity} · ${recyclingMatchStatus(row)}`).join('\n'),
+        nextAction: 'Compare each delivery against the monthly cash-out in Finance → Recycling.', href: link(deliveries[0]?.date.slice(0, 7) || ''),
+      }) });
+      continue;
+    }
     if (draft.status !== 'review') continue;
     const dates = draft.rows.map(row => row.date).filter(Boolean).sort();
     alerts.push({ id: `receipt:${draft.id}`, text: formatSlackMessage({

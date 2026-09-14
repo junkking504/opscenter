@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import path from 'node:path';
 import type { RecyclingReceiptLine } from '../desktop-ui/lib/recycling-receipts';
 export type OcrBox = { text: string; confidence: number; x: number; y: number; width: number; height: number };
+import { parseRecyclingPurchaseTicket } from './recycling-purchase-ticket';
 const run = promisify(execFile);
 export async function recognizeRecyclingReceipt(file: string): Promise<OcrBox[]> {
   if (process.platform !== 'darwin') throw new Error('Local receipt recognition requires Mission Control macOS.');
@@ -12,6 +13,8 @@ export async function recognizeRecyclingReceipt(file: string): Promise<OcrBox[]>
 const money = (text: string) => { const match = text.match(/^\$?([\d,]+\.\d{2})$/); return match ? Number(match[1].replaceAll(',', '')) : null; };
 export function parseRecyclingOcr(boxes: OcrBox[]) {
   const text = boxes.map(box => box.text).join('\n');
+  const delivery = parseRecyclingPurchaseTicket(text);
+  if (delivery.length) return { text, rows: delivery, total: null, yard: boxes.find(box => /metal recycling/i.test(box.text))?.text || '', warnings: ['Check the ticket date, number and net weight against the photo. Delivery value stays unknown until the monthly cash-out.'] };
   const rows: RecyclingReceiptLine[] = [], warnings = ['Check all receipt pages and extracted fields against the photos before recording.'];
   const dateBoxes = boxes.filter(box => /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(box.text.trim()) && box.x < .3).sort((a,b) => b.y-a.y);
   const totalHeader = boxes.find(box => /^total$/i.test(box.text.trim()));

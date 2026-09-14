@@ -3,10 +3,20 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import type { RecyclingRecord } from '../desktop-ui/lib/commercial-contract';
 import type { RecyclingReceiptDraft, RecyclingReceiptPhoto } from '../desktop-ui/lib/recycling-receipts';
+import { parseRecyclingPurchaseTicket } from './recycling-purchase-ticket';
 export const recyclingVersion = (value: unknown) => crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 export const recyclingDirectory = () => process.env.OPSCENTER_DESKTOP_COMMERCIAL_DIR || path.join(process.cwd(), 'data', 'desktop-commercial');
 export function readRecyclingData(): { schemaVersion: number; records: RecyclingRecord[]; receiptDrafts?: RecyclingReceiptDraft[]; [key:string]: unknown } {
-  try { const store = JSON.parse(fs.readFileSync(path.join(recyclingDirectory(), 'recycling-store'), 'utf8')); if (store.schemaVersion !== 1 || !Array.isArray(store.records)) throw new Error('Recycling store requires recovery'); return store; }
+  try { const store = JSON.parse(fs.readFileSync(path.join(recyclingDirectory(), 'recycling-store'), 'utf8')); if (store.schemaVersion !== 1 || !Array.isArray(store.records)) throw new Error('Recycling store requires recovery'); for (const draft of store.receiptDrafts || []) {
+      if (draft.status !== 'review') continue;
+      const recovered = draft.photos.flatMap((photo: RecyclingReceiptPhoto) => parseRecyclingPurchaseTicket(photo.text).map(row => ({ ...row, photoId: photo.photoId })));
+      if (recovered.length === draft.photos.length && draft.total == null && (!draft.rows.length || draft.rows.every((row: import('../desktop-ui/lib/recycling-receipts').RecyclingReceiptLine) => row.amount == null))) {
+        draft.kind = 'delivery';
+        if (!draft.rows.length) draft.rows = recovered;
+        draft.warnings = ['Check the ticket date, number and net weight against the photo. Delivery value stays unknown until the monthly cash-out.'];
+      }
+    }
+    return store; }
   catch(error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { schemaVersion: 1, records: [] }; throw error; }
 }
 export function writeRecyclingData(store: ReturnType<typeof readRecyclingData>) {

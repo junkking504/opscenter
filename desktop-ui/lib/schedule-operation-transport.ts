@@ -1,6 +1,6 @@
 export type OperationReceipt = {
   requestId: string;
-  status: 'pending' | 'verified' | 'failed' | 'uncertain';
+  status: 'pending' | 'verified' | 'failed' | 'uncertain' | 'reconciled';
   message: string;
   sourceResult?: Record<string, unknown>;
 };
@@ -20,6 +20,9 @@ export async function submitScheduleOperation(
       body: JSON.stringify(payload), signal: AbortSignal.timeout(210_000),
     });
     const body = await response.json();
+    // A conflict may belong to an older request, including on another day.
+    // Keep its ID so recovery checks that receipt, never the rejected new UUID.
+    if (response.status === 409 && body.receipt) return body.receipt;
     if (body.receipt && body.receipt.status !== 'pending') return body.receipt;
     if (!body.receipt && [400, 401, 403, 404, 409, 422].includes(response.status)) {
       return { requestId: payload.requestId, status: 'failed', message: body.error || 'The appointment change was rejected.' };

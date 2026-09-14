@@ -15,7 +15,7 @@ export type Receipt = {
   action?: 'move' | 'reschedule' | 'restore' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify';
   sourceResult?: Record<string, unknown>;
   requestId: string;
-  status: "pending" | "verified" | "failed" | "uncertain";
+  status: "pending" | "verified" | "failed" | "uncertain" | "reconciled";
   message: string;
 };
 export async function sendScheduleChange(
@@ -43,7 +43,7 @@ export function ChangeReceipt({ receipt, onCheck }: { receipt: Receipt; onCheck:
       <header>
         <div>
           <span>
-            {receipt.status === "verified"
+            {receipt.status === "reconciled" ? "Current Schedule Verified" : receipt.status === "verified"
               ? "Change Verified"
               : receipt.status === "failed"
                 ? "Change Not Applied"
@@ -188,12 +188,15 @@ export function MoveConfirmation({
         <ChangeReceipt
           receipt={receipt}
           onCheck={() => {
-            void checkScheduleChange(requestId)
+            if (busy) return;
+            setBusy(true);
+            void checkScheduleChange(receipt.requestId)
               .then((value) => {
                 setReceipt(value);
                 if (value.status === "verified") saved();
               })
-              .catch((failure) => setError(failure.message));
+              .catch((failure) => setError(failure.message))
+              .finally(() => setBusy(false));
           }}
         />
       ) : (
@@ -217,6 +220,7 @@ export function MoveConfirmation({
         </footer>
       )}
       {error && <p role="alert">{error}</p>}
+      {receipt?.status === 'reconciled' && <Button variant="outline" disabled={busy} onClick={saved}>Review Current Schedule</Button>}
     </section>
   );
 }
@@ -251,7 +255,7 @@ export default function ScheduleControls({
     return () => onBusyChange(false);
   }, [busy, onBusyChange]);
   const run = async (action: string, values: Record<string, unknown>) => {
-    if (busy || (receipt && receipt.status !== "verified" && receipt.status !== "failed")) return;
+    if (busy || (receipt && !['verified','failed','reconciled'].includes(receipt.status))) return;
     const requestId = crypto.randomUUID();
     setBusy(true);
     setError("");

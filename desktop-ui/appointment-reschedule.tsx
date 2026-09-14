@@ -57,6 +57,7 @@ export function AppointmentReschedule({job,date,saved,onBusyChange,onOpenDate}:{
     </div>}
     {receipt && <ChangeReceipt receipt={receipt} onCheck={()=>{if(inFlight.current)return;inFlight.current=true;setBusy(true);void checkScheduleChange(receipt.requestId).then(value=>{setReceipt(value);if(value.status==='verified')saved(destination);}).catch(error=>setError(error.message)).finally(()=>{setBusy(false);inFlight.current=false;});}}/>}
     {receipt?.status==='failed' && <Button variant="outline" onClick={()=>{setReceipt(null);setReview(false);}}>Review and Correct</Button>}
+    {receipt?.status==='reconciled' && <Button variant="outline" onClick={()=>{const source=receipt.sourceResult?.junkware as {date?:string}|undefined;saved(source?.date || date);setReceipt(null);setReview(false);}}>Review Current Schedule</Button>}
     {receipt?.status==='verified' && <><p>{restore?'The restoration is verified.':'The reschedule is verified.'} The day lists are refreshing from JunkWare.</p>{onOpenDate && <Button onClick={()=>onOpenDate(destination)}>{restore?'View Restored Day →':'View Rescheduled Day →'}</Button>}</>}
     {error && <p role="alert">{error}</p>}
   </section>;

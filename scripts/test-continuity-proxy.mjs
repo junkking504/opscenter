@@ -3,6 +3,8 @@ import http from 'node:http';
 import test from 'node:test';
 import {createContinuityProxy, standbyRequest} from '../deploy/vps/continuity-proxy.mjs';
 
+const recoveryHealth={runtime:'VPS',platformKernel:{healthy:true,databaseName:'opscenter_recovery_20260914'},assignmentStoreWritable:false,operatorStateWritable:false};
+
 async function listen(server) {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   return `http://127.0.0.1:${server.address().port}`;
@@ -13,14 +15,14 @@ test('recovery denies writes, hooks, actions, GET verification and unknown route
   for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']) assert.equal(standbyRequest(method, '/api/desktop/schedule/operations'), null);
   for (const url of ['/api/desktop/schedule/creation/check', '/api/integrations/linxup/push', '/api/desktop/control', '/api/new-read-or-write-route', '/crew/pay', '/api/%2564esktop/finance']) assert.equal(standbyRequest('GET', url), null);
   assert.equal(standbyRequest('GET','/api/desktop/schedule?date=2026-09-14&load=1&refresh=1'),'/api/desktop/schedule?date=2026-09-14');
-  assert.equal(standbyRequest('GET','/api/desktop/krewe?employee=Example&verify=1&receipt=x'), '/api/desktop/krewe?employee=Example');
+  assert.equal(standbyRequest('GET','/api/desktop/krewe?employee=Example&verify=1&receipt=x'), null);
   assert.equal(standbyRequest('POST','/api/auth/login'),'/api/auth/login');
 });
 
 test('primary -> isolated recovery -> primary; writes never reach recovery', async () => {
   let available = true; const seenPrimary = [], seenStandby = [];
   const primary = http.createServer((req,res) => {seenPrimary.push([req.method, req.url]); if (!available) {req.socket.destroy(); return;} res.end('primary');});
-  const standby = http.createServer((req,res) => {seenStandby.push([req.method, req.url, req.headers.cookie]); if(req.url==='/') {res.setHeader('content-type','text/html');res.end('<html><body><main>Schedule</main></body></html>');} else res.end('standby');});
+  const standby = http.createServer((req,res) => {seenStandby.push([req.method, req.url, req.headers.cookie]); if(req.url==='/') {res.setHeader('content-type','text/html');res.end('<html><body><main>Schedule</main></body></html>');} else if(req.url==='/api/health')res.end(JSON.stringify(recoveryHealth));else res.end('standby');});
   const primaryUrl = await listen(primary), standbyUrl = await listen(standby);
   const gateway = createContinuityProxy({primary:primaryUrl,standby:standbyUrl,probeCacheMs:0,timeout:100});
   const base = await listen(gateway);
@@ -58,4 +60,27 @@ test('authentication egress permits only the exact existing issuer on TLS',async
   assert.throws(()=>createAuthEgress('example.com'));
   const server=createAuthEgress('example.cloudflareaccess.com');const base=await listen(server);
   try{assert.equal((await fetch(base)).status,403);}finally{await close(server);}
+});
+
+test('a responding login cannot qualify an unhealthy or writable standby',async()=>{
+  for(const health of [
+    {...recoveryHealth,platformKernel:{...recoveryHealth.platformKernel,healthy:false}},
+    {...recoveryHealth,assignmentStoreWritable:true},
+    {...recoveryHealth,platformKernel:{...recoveryHealth.platformKernel,databaseName:'unexpected'}},
+  ]) {
+    const origin=http.createServer((req,res)=>{if(req.url==='/login'){res.writeHead(503);res.end('primary unavailable');}else res.end(JSON.stringify(health));});
+    const url=await listen(origin),gateway=createContinuityProxy({primary:url,standby:url,probeCacheMs:0,timeout:100});
+    const base=await listen(gateway);
+    try{assert.equal((await fetch(base)).status,503);const status=await(await fetch(base+'/api/continuity/status')).json();assert.equal(status.standbyReady,false);}
+    finally{await close(gateway);await close(origin);}
+  }
+});
+
+test('an open but stalled primary connection falls back within the probe deadline',async()=>{
+  const primary=http.createServer(()=>{});
+  const standby=http.createServer((req,res)=>res.end(req.url==='/api/health'?JSON.stringify(recoveryHealth):'recovery'));
+  const gateway=createContinuityProxy({primary:await listen(primary),standby:await listen(standby),timeout:40,probeCacheMs:0});
+  const base=await listen(gateway);
+  try{const start=Date.now();assert.equal(await(await fetch(base)).text(),'recovery');assert.ok(Date.now()-start<1000);}
+  finally{await close(gateway);await close(primary);await close(standby);}
 });

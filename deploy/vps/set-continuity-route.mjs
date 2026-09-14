@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+const port=process.argv[2];
+if(!['3000','3002','3003'].includes(port))throw Error('Unsupported continuity target');
+const file='/config/config.yml',before=fs.readFileSync(file,'utf8');
+const match=/^([ \t]*-[ \t]+hostname:[ \t]+ops\.junk-king\.app[ \t]*\r?\n[ \t]*service:[ \t]*)http:\/\/127\.0\.0\.1:(3000|3002|3003)([ \t]*\r?$)/gm;
+if([...before.matchAll(match)].length!==1)throw Error('Expected exactly one known OpsCenter route');
+const after=before.replace(match,(_all,prefix,_old,suffix)=>prefix+'http://127.0.0.1:'+port+suffix);
+const backup='/config/config.before-continuity-20260914.yml';if(!fs.existsSync(backup))fs.copyFileSync(file,backup);
+const temp=file+'.continuity-pending';const fd=fs.openSync(temp,'w',fs.statSync(file).mode & 0o777);fs.writeFileSync(fd,after);fs.fsyncSync(fd);fs.closeSync(fd);fs.renameSync(temp,file);
+console.log(JSON.stringify({port,beforeSha256:crypto.createHash('sha256').update(before).digest('hex'),afterSha256:crypto.createHash('sha256').update(after).digest('hex')}));

@@ -54,6 +54,11 @@ configuration](https://nodejs.org/en/learn/http/enterprise-network-configuration
 Cloudflare replicas provide connector availability rather than database
 ownership or origin-state replication. See [Tunnel availability](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/tunnel-availability/).
 
+The loopback app port is published by a narrow TCP ingress companion because
+Docker does not publish host ports directly from an internal-only network. The
+companion forwards only to `app:3000`; it has no application credentials or data
+mounts. The app itself remains on the internal network.
+
 ## Snapshot publication
 
 Existing file synchronization remains primary-to-VPS. The snapshot publisher
@@ -91,7 +96,7 @@ The source for the Docker-authorized Compose wrapper is
 
 The candidate lives under `/srv/opscenter/continuity-20260912`; the date names the
 retained task directory, not its current application version. Runtime app image
-`opscenter:continuity-20260914` was built from the current production application
+`opscenter:continuity-5330c4d3-20260914` was built from the current production application
 plus the continuity Docker configuration. Preserve the image ID and source SHA
 in the acceptance record whenever replacing it.
 
@@ -126,3 +131,13 @@ Changing the gateway or mounting data read-write is not sufficient fencing.
 Keep recovery view-only until that protocol is implemented and tested. The
 read-only ownership guard is a safeguard for this mode, not a distributed lease
 that proves the Mac has stopped writing.
+
+## Build maintenance
+
+The VPS user has Docker Buildx v0.37.1 installed under
+`~/.docker/cli-plugins/docker-buildx`, verified against the SHA256 published in
+the [official Docker release](https://github.com/docker/buildx/releases/tag/v0.37.1).
+Use `docker buildx build --load` rather than the deprecated legacy builder.
+The runtime image separates stable dependencies from application files and
+omits Vite build dependencies and the Next build cache. No Docker daemon storage
+configuration or paid capacity was changed.

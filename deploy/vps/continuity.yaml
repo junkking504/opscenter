@@ -54,8 +54,6 @@ services:
       - /tmp:size=128m,mode=1777
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]
-    ports:
-      - '127.0.0.1:3001:3000'
     command: [/bin/sh, -lc, 'umask 0007 && exec npm run start -- -H 0.0.0.0 -p 3000']
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:3000/login',{redirect:'manual'}).then(r=>{if(r.status>=400)process.exit(1)}).catch(()=>process.exit(1))"]
@@ -63,6 +61,29 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  app-ingress:
+    image: node:22-bookworm-slim
+    restart: unless-stopped
+    init: true
+    user: '1000:1000'
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    networks: [default, auth-outbound]
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:3001:3000'
+    volumes:
+      - /srv/opscenter/continuity-20260912/continuity-auth-egress.mjs:/opt/continuity-auth-egress.mjs:ro
+    command: [node, /opt/continuity-auth-egress.mjs, --ingress]
     logging:
       driver: json-file
       options:

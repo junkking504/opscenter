@@ -24,6 +24,7 @@ export function standbyRequest(method, rawUrl) {
   if (!['GET', 'HEAD'].includes(method)) return null;
   if (pathname.startsWith('/api/')) {
     if (!READ_APIS.has(pathname)) return null;
+    if (['verify','receipt','receiptId','requestId','action','run','retry'].some(key=>url.searchParams.has(key))) return null;
     // Several GET endpoints can request collection or verify/retry writes.
     for (const key of [...url.searchParams.keys()]) if (!READER_PARAMS.has(key)) url.searchParams.delete(key);
     return url.pathname + url.search;
@@ -37,10 +38,20 @@ function json(res, status, value) {
   res.writeHead(status, {'content-type': 'application/json', 'cache-control': 'no-store'});
   res.end(JSON.stringify(value));
 }
-function probe(origin, path, timeout) {
+function probe(origin, path, timeout, recovery = false) {
   return new Promise(resolve => {
     const request = http.get(new URL(path, origin), {headers: {'connection': 'close'}}, response => {
-      response.resume(); resolve(response.statusCode >= 200 && response.statusCode < 400);
+      if (!recovery) {response.resume(); resolve(response.statusCode >= 200 && response.statusCode < 400); return;}
+      let body='';
+      response.on('data', chunk => {body+=chunk; if(body.length>256*1024) request.destroy();});
+      response.on('error',()=>resolve(false));
+      response.on('end',()=>{
+        try {const health=JSON.parse(body);resolve(health.runtime==='VPS'
+          && health.platformKernel?.healthy===true
+          && health.platformKernel?.databaseName==='opscenter_recovery_20260914'
+          && health.assignmentStoreWritable===false && health.operatorStateWritable===false);}
+        catch {resolve(false);}
+      });
     });
     request.setTimeout(timeout, () => request.destroy());
     request.on('error', () => resolve(false));
@@ -59,7 +70,7 @@ export function createContinuityProxy(options = {}) {
   async function check() {
     if (currentCheck) return currentCheck;
     if (Date.now() - lastCheck < (options.probeCacheMs ?? 2000)) return state;
-    currentCheck = Promise.all([probe(primary, '/login', timeout), probe(standby, '/login', timeout)])
+    currentCheck = Promise.all([probe(primary, '/login', timeout), probe(standby, '/api/health', timeout, true)])
       .then(([primaryReady, standbyReady]) => {
         lastCheck = Date.now();
         state = {primary: primaryReady, standby: standbyReady, checkedAt: new Date().toISOString()};
@@ -72,7 +83,7 @@ export function createContinuityProxy(options = {}) {
     if (req.url === '/api/continuity/status' && ['GET','HEAD'].includes(req.method)) {
       let snapshot = null;
       try { snapshot = JSON.parse(fs.readFileSync(snapshotFile, 'utf8')); } catch { /* Unknown stays unknown. */ }
-      return json(res, 200, {mode: targetState.primary ? 'primary' : targetState.standby ? 'read-only-recovery' : 'unavailable', checkedAt: targetState.checkedAt, snapshotAt: snapshot?.snapshotAt || null});
+      return json(res, 200, {mode: targetState.primary ? 'primary' : targetState.standby ? 'read-only-recovery' : 'unavailable', checkedAt: targetState.checkedAt, primaryReachable: targetState.primary, standbyReady: targetState.standby, snapshotAt: snapshot?.snapshotAt || null});
     }
     const recovering = !targetState.primary;
     if (recovering && !targetState.standby) return json(res, 503, {error: 'OpsCenter is unavailable. No operation was submitted by this gateway.'});
@@ -97,7 +108,7 @@ export function createContinuityProxy(options = {}) {
         response.on('error', () => { if (!res.headersSent) json(res, 502, {error:'Recovery page could not be loaded.'}); else res.destroy(); });
       } else { res.writeHead(response.statusCode, responseHeaders); response.pipe(res); response.on('error', () => res.destroy()); }
     });
-    upstream.setTimeout(options.requestTimeout || 60000, () => upstream.destroy(new Error('Origin timeout')));
+    upstream.setTimeout(options.requestTimeout || 180000, () => upstream.destroy(new Error('Origin timeout')));
     upstream.on('error', () => {
       lastCheck = 0;
       // A reset can occur after an operation commits. Never retry on either origin.

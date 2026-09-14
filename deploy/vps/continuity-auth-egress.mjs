@@ -20,4 +20,16 @@ export function createAuthEgress(host) {
   });
   return server;
 }
-if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) createAuthEgress(process.env.CONTINUITY_AUTH_HOST).listen(3128,'0.0.0.0');
+function createAppIngress() {
+  return net.createServer(socket => {
+    const upstream=net.connect(3000,'app');
+    socket.setTimeout(90000,()=>socket.destroy());upstream.setTimeout(90000,()=>upstream.destroy());
+    socket.on('error',()=>upstream.destroy());upstream.on('error',()=>socket.destroy());
+    socket.on('close',()=>upstream.destroy());upstream.on('close',()=>socket.destroy());
+    socket.pipe(upstream);upstream.pipe(socket);
+  });
+}
+if(process.argv[1] && import.meta.url===pathToFileURL(process.argv[1]).href) {
+  if(process.argv.includes('--ingress')) createAppIngress().listen(3000,'0.0.0.0');
+  else createAuthEgress(process.env.CONTINUITY_AUTH_HOST).listen(3128,'0.0.0.0');
+}

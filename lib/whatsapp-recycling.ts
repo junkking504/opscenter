@@ -8,7 +8,7 @@ import { parseRecyclingOcr, recognizeRecyclingReceipt } from './recycling-receip
 export const isRecyclingMessage = (text: string) => /^recycling(?:\s|$)/i.test(text.trim());
 export function ingestRecyclingText(message: WhatsAppTextMessage) {
   if (!isRecyclingMessage(message.text)) return { status: 'ignored' as const };
-  enqueueOpsBotReply(message, 'Send receipt photos next, within 10 minutes. Send Recycling again before a different receipt. Photos will appear in Finance → Recycling for review; no income is recorded until you confirm the breakdown.', 'recycling-intake');
+  enqueueOpsBotReply(message, 'Send receipt photos next, within 10 minutes. Send Recycling again before a different receipt. Photos will appear in Finance → Recycling for review; review delivery tickets without a price, then match the monthly cash-out.', 'recycling-intake');
   return { status: 'review' as const };
 }
 export async function processRecyclingImage(message: WhatsAppImageMessage, download = downloadWhatsAppImage, recognize = recognizeRecyclingReceipt, reply = true) {
@@ -30,6 +30,7 @@ export async function processRecyclingImage(message: WhatsAppImageMessage, downl
   try { parsed = parseRecyclingOcr(await recognize(target)); }
   catch { parsed = { text: '', rows: [], total: null, yard: '', warnings: ['Text recognition could not complete. The original photo is saved for manual review.'] }; }
   const draft = appendRecyclingReceiptPhoto(id, { photoId, mimeType, receivedAt: message.receivedAt, text: parsed.text, rows: parsed.rows, total: parsed.total, warnings: parsed.warnings }, parsed.yard);
-  if (reply) enqueueOpsBotReply(message, `Recycling receipt saved: ${draft.photos.length} photo(s), ${draft.rows.length} extracted line(s). Review the dates, tickets, amounts and payment date in Finance → Recycling before recording daily runs.`, 'recycling-photo');
+  if (reply && draft.kind === 'delivery') enqueueOpsBotReply(message, `Delivery ticket saved for review: ${draft.rows.map(row => '#' + row.ticket + ' · ' + row.weightLb + ' lb').join('; ')}. Open Finance → Recycling to confirm the delivery. No price is needed; payment is reconciled with the monthly cash-out.`, 'recycling-photo');
+  else if (reply) enqueueOpsBotReply(message, `Recycling receipt saved: ${draft.photos.length} photo(s), ${draft.rows.length} extracted line(s). Review the dates, tickets, amounts and payment date in Finance → Recycling before recording daily runs.`, 'recycling-photo');
   return { status: 'review' as const, draftId: draft.id };
 }

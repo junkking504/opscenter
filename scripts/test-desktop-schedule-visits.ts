@@ -79,7 +79,7 @@ for (const invalid of [
 assert.equal(fullScheduleVisitState({ ...job, location: null }, [ledger], recent, trucks, now).truckOnSite, false, 'An unverified job location cannot establish current presence');
 assert.equal(fullScheduleVisitState(job, [ledger], recent, [], now).truckOnSite, false, 'Historical day without current trucks cannot claim current presence');
 const parked = { ...trucks[0], speed: 0, ignition: 'OFF' };
-assert.equal(fullScheduleVisitState(job, [ledger], new Date(now + 42 * 60_000).toISOString(), [parked], now + 42 * 60_000).truckOnSite, false, 'Parked cadence cannot establish current on-site presence');
+assert.equal(fullScheduleVisitState(job, [ledger], new Date(now + 42 * 60_000).toISOString(), [parked], now + 42 * 60_000).truckOnSite, true, 'Parked cadence retains an established on-site visit');
 const returned = { ...ledger, visit_intervals: [
   { arrival: visit.first_arrival, departure: '2026-09-06T15:55:00Z' },
   { arrival: '2026-09-06T15:59:00Z', departure: null },

@@ -53,8 +53,8 @@ payloads return a non-success response so LinxUp retains and retries them;
 OpsCenter must never acknowledge a position that it silently discards.
 
 The authoritative push path removes OpsCenter's polling delay. The timestamp
-remains the tracker's reported `date`. Current on-site beacons in Schedule and the
-Command map now share `lib/gps-presence-policy.ts`: valid coordinates within
+remains the tracker's reported `date`. Initial on-site dwell qualification in Schedule and the
+Command map shares `lib/gps-presence-policy.ts`: valid coordinates within
 125 meters, at least two minutes of continuous source-backed dwell, and an
 observation no older than three minutes. A first point cannot prove dwell.
 Uncovered gaps over five minutes, a newer away point or a recorded departure
@@ -81,13 +81,19 @@ Delivery still depends on LinxUp sending the observation and network/processing
 time. Facility notifications have their own event policy; they do not prove a
 current appointment beacon.
 
-A parked truck can retain its last-known marker through the existing 75-minute
-heartbeat window, but cannot retain a current on-site beacon beyond three minutes.
-An open visit ledger is historical evidence. Current presence additionally needs
-valid coordinates and dwell after the latest arrival/departure boundary. A newer
-outside report clears current presence while retaining the visit's recorded
-intervals. Missing or stale evidence never invents a departure. Truck-progress
-cards use the same current freshness limit and fall back to last seen.
+Schedule retains an established on-site visit while the truck is stopped with
+explicit ignition OFF and its last report is within the existing 75-minute
+parked heartbeat window. The appointment, map beacon and truck-progress row show
+On site while keeping the actual parked GPS time visible. Successive parked
+heartbeats within 30 meters can retain earlier qualified dwell across the hourly
+reporting interval; sparse heartbeats alone cannot establish a new visit.
+A newer outside position, intervening movement, recorded departure,
+closed appointment, or missed heartbeat prevents retained current presence.
+Starting the engine at the same position does not invent departure; moving and
+engine-on trucks still use the three-minute freshness limit. These Schedule
+retention rules supersede the earlier parked three-minute cutoff; Command's
+strict current-dwell policy remains separate. No visit duration, source timestamp,
+JunkWare status, assignment, notification or ETA freshness is rewritten.
 
 
 ## Recorded daily GPS routes

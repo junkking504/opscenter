@@ -1,4 +1,4 @@
-import { gpsDwellAtPosition } from './gps-presence-policy';
+import { onsiteGpsDwell } from './parked-onsite-presence';
 import { parkedTruckObservation } from './truck-gps-status';
 import { appointmentOnsiteTime } from './appointment-onsite-time';
 import fs from 'node:fs';
@@ -45,7 +45,7 @@ export function scheduleVisitState(
     const arrival = latest?.arrival || row.first_arrival || row.arrival_at;
     const departure = latest ? latest.departure : row.final_departure || row.departure_at;
     return Number.isFinite(Date.parse(arrival || '')) && Date.parse(arrival) <= now && position.stamp >= Date.parse(arrival) && !departure
-      && Boolean(gpsDwellAtPosition(job.location!, truck!, truck!.routePoints || [], Date.parse(arrival)));
+      && Boolean(onsiteGpsDwell(job.location!, truck!, truck!.routePoints || [], Date.parse(arrival)));
   }) : undefined;
   const openVisit = confirmed.find(row => {
     const latest = [...(Array.isArray(row.visit_intervals) ? row.visit_intervals : [])].sort((a,b)=>Date.parse(b.arrival)-Date.parse(a.arrival))[0];

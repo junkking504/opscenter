@@ -1,16 +1,17 @@
+import { onsiteGpsDwell, onsiteGpsMaxAge, type ParkedPoint } from './parked-onsite-presence';
 import type { Coordinates } from './job-route-proximity';
 import { truckLabel } from '../desktop-ui/lib/schedule-contract';
 import { parkedTruckObservation } from './truck-gps-status';
-import { gpsDistanceMeters as distance, gpsDwellAtPosition, validGpsCoordinates, GPS_PRESENCE_MAX_AGE_MS, GPS_SITE_RADIUS_METERS, type DwellPoint } from './gps-presence-policy';
+import { gpsDistanceMeters as distance, validGpsCoordinates, GPS_SITE_RADIUS_METERS } from './gps-presence-policy';
 
 type PresenceJob = { truck?: string; appointmentId: string; location?: Coordinates | null; status?: string; appointmentStartMinutes?: number | null; appointmentEndMinutes?: number | null; onsiteTime?: {departure?: string | null} };
-export type PresenceTruck = { truck: string; lastGpsUpdate: string | null; latitude?: number | null; longitude?: number | null; speed?: number | null; ignition?: string | null; routePoints?: DwellPoint[] };
+export type PresenceTruck = { truck: string; lastGpsUpdate: string | null; latitude?: number | null; longitude?: number | null; speed?: number | null; ignition?: string | null; routePoints?: ParkedPoint[] };
 // Use the same coordinate and live freshness rules for inferred arrivals and open
 // ledger visits. A fresh timestamp alone does not locate a truck at a job.
 export function gpsPositionAtAppointment(location: Coordinates | null | undefined, truck: PresenceTruck, now = Date.now()) {
   const stamp = Date.parse(truck.lastGpsUpdate || '');
   if (!location || !validGpsCoordinates(location) || !validGpsCoordinates(truck) || !Number.isFinite(stamp) || stamp > now) return undefined;
-  return { stamp, inside: distance(location, truck) <= GPS_SITE_RADIUS_METERS, current: now - stamp <= GPS_PRESENCE_MAX_AGE_MS };
+  return { stamp, inside: distance(location, truck) <= GPS_SITE_RADIUS_METERS, current: now - stamp <= onsiteGpsMaxAge(truck) };
 }
 
 // Current Schedule data can lead the slower visit ledger after a dispatch move.
@@ -28,7 +29,7 @@ export function currentGpsPresence(job: PresenceJob, trucks: PresenceTruck[], ap
     if (!observation?.inside || now - observation.stamp > 12 * 3600_000) return [];
     const { stamp } = observation;
     const departedAt = Date.parse(job.onsiteTime?.departure || '');
-    const dwell = gpsDwellAtPosition(job.location!, truck, truck.routePoints || [], Number.isFinite(departedAt) ? departedAt : -Infinity);
+    const dwell = onsiteGpsDwell(job.location!, truck, truck.routePoints || [], Number.isFinite(departedAt) ? departedAt : -Infinity);
     if (!dwell) return [];
     if (Date.parse(job.onsiteTime?.departure || '') >= stamp) return [];
     const position = { latitude: truck.latitude!, longitude: truck.longitude! };

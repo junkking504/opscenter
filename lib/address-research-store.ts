@@ -26,19 +26,26 @@ export function publishAddressEvidence(original: string, evidence: AddressEviden
   const id = createHash('sha256').update(reviewedAddressIdentity(original)).digest('hex');
   const directory = path.join(root, 'cache/service-address-reviews'), file = path.join(directory, id + '.json');
   fs.mkdirSync(directory, {recursive: true});
-  let prior;
-  try { prior = JSON.parse(fs.readFileSync(file,'utf8')); } catch { if (fs.existsSync(file)) throw new Error('Existing address evidence is unreadable'); }
-  if (prior?.status === 'verified') {
-    if (prior.location?.latitude !== point.latitude || prior.location?.longitude !== point.longitude) throw new Error('Existing verified address evidence conflicts');
-    return;
-  }
+  const verifyExisting = () => {
+    const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+    if (saved.schema !== 1 || saved.status !== 'verified' || reviewedAddressIdentity(saved.originalAddress || '') !== reviewedAddressIdentity(original)
+      || saved.location?.latitude !== point.latitude || saved.location?.longitude !== point.longitude
+      || !Array.isArray(saved.sources) || !saved.sources.length || !saved.sources.every((source: unknown) => typeof source === 'string' && /^https:\/\//.test(source))) {
+      throw new Error('Existing address evidence conflicts or needs review');
+    }
+  };
+  if (fs.existsSync(file)) { verifyExisting(); return; }
   const record = { schema: 1, status: 'verified', originalAddress: original, verifiedAddress: evidence.matchedAddress || original,
     location: point, sources: evidence.sources, reason: evidence.reason, precision: evidence.precision || 'verified-service-premises',
     source: evidence.source || 'Independent address verifier', verifiedAt: new Date().toISOString(), actor: 'address-investigation-worker' };
   const temporary = file + '.' + randomUUID() + '.tmp';
   const fd = fs.openSync(temporary, 'wx', 0o660);
   try { fs.writeFileSync(fd, JSON.stringify(record)); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
-  fs.renameSync(temporary, file);
-  const saved = JSON.parse(fs.readFileSync(file,'utf8'));
-  if (JSON.stringify(saved.location) !== JSON.stringify(point) || saved.originalAddress !== original) throw new Error('Address save could not be verified');
+  try {
+    // Atomic create-if-absent: another writer cannot be overwritten between
+    // checking existing evidence and publication. Corrections require review.
+    try { fs.linkSync(temporary, file); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error; }
+    verifyExisting();
+  } finally { fs.unlinkSync(temporary); }
 }

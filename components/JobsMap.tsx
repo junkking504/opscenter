@@ -1,4 +1,5 @@
 "use client";
+import { gpsDwellAtPosition, GPS_PRESENCE_MAX_AGE_MS, GPS_SITE_RADIUS_METERS, GPS_MINIMUM_DWELL_MS } from '@/lib/gps-presence-policy';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
@@ -101,10 +102,9 @@ const STREET_MAX_ZOOM = 20;
 const STREET_MAX_NATIVE_ZOOM = Number(process.env.NEXT_PUBLIC_MAP_TILE_MAX_NATIVE_ZOOM) || 19;
 const STREET_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 const LINXUP_POLL_INTERVAL_MS = 30_000;
-const LINXUP_SITE_RADIUS_METERS = 125;
-const LINXUP_MINIMUM_DWELL_MS = 2 * 60_000;
-const LINXUP_MAX_POINT_GAP_MS = 5 * 60_000;
-const LINXUP_FRESHNESS_MS = 10 * 60_000;
+const LINXUP_SITE_RADIUS_METERS = GPS_SITE_RADIUS_METERS;
+const LINXUP_MINIMUM_DWELL_MS = GPS_MINIMUM_DWELL_MS;
+
 const APPOINTMENT_SELECTION_EVENT = "ops:select-appointment";
 const APPOINTMENT_ON_SITE_EVENT = "ops:appointment-on-site";
 // Dispatch opens with every operating territory comfortably inside the narrow
@@ -161,31 +161,9 @@ function truckHasConfirmedDwellAtJob(
   truck: JobsMapTruck,
   now: number,
 ): boolean {
-  const points = truck.recentPoints
-    .map((point) => ({
-      ...point,
-      time: Date.parse(point.timestamp),
-      continuousUntilTime: Date.parse(String(point.continuousUntil || "")),
-    }))
-    .filter((point) => Number.isFinite(point.time) && Number.isFinite(point.latitude) && Number.isFinite(point.longitude))
-    .sort((a, b) => a.time - b.time);
-  const latest = points[points.length - 1];
-  if (!latest || latest.time > now + 2 * 60_000 || now - latest.time > LINXUP_FRESHNESS_MS) return false;
-  if (distanceMeters(latest, job) > LINXUP_SITE_RADIUS_METERS) return false;
-
-  const trailingInside = [latest];
-  for (let index = points.length - 2; index >= 0; index -= 1) {
-    const point = points[index];
-    const newer = trailingInside[0];
-    if (distanceMeters(point, job) > LINXUP_SITE_RADIUS_METERS) break;
-    const continuousStopCoversGap = Number.isFinite(point.continuousUntilTime)
-      && point.continuousUntilTime >= newer.time;
-    if (newer.time - point.time > LINXUP_MAX_POINT_GAP_MS && !continuousStopCoversGap) break;
-    trailingInside.unshift(point);
-  }
-
-  return trailingInside.length >= 2
-    && latest.time - trailingInside[0].time >= LINXUP_MINIMUM_DWELL_MS;
+  const stamp = Date.parse(truck.lastGpsUpdate || '');
+  if (!Number.isFinite(stamp) || stamp > now || now - stamp > GPS_PRESENCE_MAX_AGE_MS) return false;
+  return Boolean(gpsDwellAtPosition(job, truck, truck.recentPoints));
 }
 
 export function anyTruckIsCurrentlyAtJob(job: JobsMapPoint, trucks: JobsMapTruck[], now = Date.now()): boolean {

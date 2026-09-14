@@ -330,3 +330,12 @@ record ID. Identical same-time rows retain separate occurrence identities.
 Confirmed OpsBot expense transactions already own their delivery and are not
 posted again. Command combines matching source and Slack entries, retaining
 message aliases and the recorded transaction time.
+
+### Closeout label compatibility
+
+Command closeout consolidation recognizes both the historical `Job Closed` and
+current `Job Completed` presentation labels. Related payment facts and source
+message IDs remain attached to the canonical closeout. Estimate outcomes stay
+separate. `verify:closeout-reliability` covers label changes, duplicate closeouts,
+missing closeouts, preserved photos/tips and transaction-level QBO verification.
+This consolidates the display; it does not prove exactly-once external delivery.

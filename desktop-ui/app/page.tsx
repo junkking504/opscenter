@@ -17,7 +17,7 @@ import {
   PhoneCall, Play, ShieldCheck, Star, Truck, Users, Wrench, X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Suspense, useCallback, useId, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -952,6 +952,9 @@ const initialAuditEvents: AuditEvent[] = [
 const preloadWorkspace: Record<string, () => Promise<unknown>> = { Krewe: loadLiveKrewe, Fleet: loadLiveFleet, Marketing: loadLiveMarketing, Finance: loadLiveFinance };
 
 export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
+  const prototypeReceiptScope = useId();
+  const prototypeReceiptSequence = useRef(0);
+  const nextPrototypeReceiptId = (prefix: string) => `${prefix}-${prototypeReceiptScope}-${++prototypeReceiptSequence.current}`;
   const workItems: WorkItem[] = live?.snapshot.alerts ?? referenceWorkItems;
   const liveAlert = (item: WorkItem) => live?.snapshot.alerts.find(alert => alert.id === item.id);
   const [workspaceMutationBusy, setWorkspaceMutationBusy] = useState(false);
@@ -1002,11 +1005,12 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     if (mutationBusyRef.current) return;
     setViewValue(value);
   };
+  const [scheduleNow, setScheduleNow] = useState<Date | null>(null);
   const connectedSources = live ? (live.snapshot.sourceHealth || []).map(source => {
-    const age = source.observedAt ? (Date.now()-Date.parse(source.observedAt))/1000 : NaN;
+    const age = source.observedAt ? ((scheduleNow?.getTime() ?? NaN)-Date.parse(source.observedAt))/1000 : NaN;
     const stale = !Number.isFinite(age) || age < -60 || age > source.maxAgeSeconds;
     return {...source, state:source.tone==='healthy'&&stale?'Stale / unavailable':source.state, tone:source.tone==='healthy'&&stale?'warning':source.tone,
-      freshness:source.observedAt ? `${new Date(source.observedAt).toLocaleString('en-US',{timeZone:'America/Chicago'})} · ${Math.max(0,Math.floor(age/60))} min ago` : 'No verified observation'};
+      freshness:source.observedAt ? `${new Date(source.observedAt).toLocaleString('en-US',{timeZone:'America/Chicago'})} · ${Number.isFinite(age) ? `${Math.max(0,Math.floor(age/60))} min ago` : 'Age unavailable'}` : 'No verified observation'};
   }) : referenceConnectedSources;
 
   const [query, setQuery] = useState('');
@@ -1142,7 +1146,6 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const [handledFollowups, setHandledFollowups] = useState<string[]>([]);
   const [selectedCalendarDay, setSelectedCalendarDay] = useState(31);
   const [showScheduleMap, setShowScheduleMap] = useState(true);
-  const [scheduleNow, setScheduleNow] = useState<Date | null>(null);
   const [scheduleScope, setScheduleScope] = useState('ALL');
   const [scheduleStatusFilter, setScheduleStatusFilter] = useState<ScheduleStatusFilter>('all');
   const [territoryPriority, setTerritoryPriority] = useState<string | null>(null);
@@ -2541,7 +2544,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     ].filter(Boolean);
     appendScheduleHistory({ type: 'Status', jk: movingJob.jk, change: `Change submitted for source verification · ${changes.join(' · ')}` });
     const nextReceipt: ScheduleChangeReceipt = {
-      id: `SCR-${Date.now()}`,
+      id: nextPrototypeReceiptId('SCR'),
       day: scheduleDay,
       appointmentId: movingJob.jk,
       customer: movingJob.customer,
@@ -2647,7 +2650,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     const timeChanged = activeAppointment.time !== targetTime;
     const callAheadChanged = appointmentChangeDraft.callAhead !== (activeAppointment.state === 'Call ahead');
     const nextReceipt: ScheduleChangeReceipt = {
-      id: `SCR-${Date.now()}`,
+      id: nextPrototypeReceiptId('SCR'),
       day: scheduleDay,
       appointmentId: activeAppointment.jk,
       customer: activeAppointment.customer,
@@ -2730,7 +2733,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     }));
     setAppointmentCloseoutReceipts((receipts) => ({ ...receipts, [activeAppointment.jk]: receipt }));
     if (finalCategory === 'Estimate' && appointmentCloseoutDraft.estimateOutcome === 'Follow-Up Required') {
-      const actionId = `AQ-EST-${Date.now()}`;
+      const actionId = nextPrototypeReceiptId('AQ-EST');
       setActionQueue((items) => [{
         id: actionId,
         workspace: 'Schedule',
@@ -3087,14 +3090,12 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     { label: 'Jobs', value: activeKrewe.jobs == null ? '—' : String(activeKrewe.jobs) }, { label: 'Credited revenue', value: moneyValue(activeKrewe.revenue) },
   ] : drawer?.facts || [];
 
-  const visibleWork = useMemo(() => {
-    const normalized = query.trim().toLowerCase();
-    return workItems.filter((item) => {
-      if (!normalized) return true;
-      const facts = item.facts.map((fact) => `${fact.label} ${fact.value}`).join(' ');
-      return `${item.domain} ${item.source} ${item.title} ${item.detail} ${facts}`.toLowerCase().includes(normalized);
-    });
-  }, [query, workItems]);
+  const normalizedWorkQuery = query.trim().toLowerCase();
+  const visibleWork = workItems.filter((item) => {
+    if (!normalizedWorkQuery) return true;
+    const facts = item.facts.map((fact) => `${fact.label} ${fact.value}`).join(' ');
+    return `${item.domain} ${item.source} ${item.title} ${item.detail} ${facts}`.toLowerCase().includes(normalizedWorkQuery);
+  });
   const activeAlerts = workItems.filter((item) => live ? requiresAlertAttention(liveAlert(item)) : !completed.includes(item.id) && !alertOutcomes[item.id]);
   const sourceAttentionCount = connectedSources.filter((source) => source.tone !== 'healthy').length;
   const openSourceHealth = () => {

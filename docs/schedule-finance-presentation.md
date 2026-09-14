@@ -719,13 +719,13 @@ Unlinked alerts do not infer an appointment match.
 
 ## Current presence and route refreshes
 
-Current on-site badges require valid GPS inside the 125-meter appointment fence.
-Moving, idle or unknown-motion reports expire after three minutes. Zero-speed,
-ignition-OFF reports follow the existing hourly parked cadence, with a 75-minute
-maximum age. The selected appointment shows the original parked GPS timestamp.
-A missed parked heartbeat becomes last-seen evidence; it does not invent departure.
-A newer position elsewhere clears the last-on-site badge while preserving visit
-history and its recorded duration; no departure time is invented.
+Current on-site badges follow the shared [GPS presence contract](linxup-push.md):
+125 meters, two minutes of continuous source-backed dwell and a latest observation
+no older than three minutes, including parked trucks. A single report, missing
+route evidence or an older open visit cannot establish current presence. An away
+point or recorded departure breaks dwell. Last-known parked markers retain their
+separate heartbeat semantics and original timestamps. No departure is invented.
+
 
 Truck icons use a separate 20–24 pixel height and larger fleet numbers across
 map zoom levels. Their centers remain on the source GPS coordinates.

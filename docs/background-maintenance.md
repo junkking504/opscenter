@@ -169,3 +169,18 @@ path live and the outage/failure paths in isolated fixtures.
 
 References: [Responses structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs)
 and [API pricing](https://developers.openai.com/api/docs/pricing).
+
+## Browser recovery evidence
+
+Silence after a browser failure is unknown, even after its ten-minute reporting
+window expires. An existing incident remains open until an administrator repeats
+the affected signed-in interaction successfully and records the action and result
+in Command > Monitor. The receipt must match the exact latest failure timestamp.
+Three healthy observer checks then clear it; a newer failure invalidates the
+receipt, including failures inside the server's count-throttle window.
+
+Receipts live in separate `verified-<category>.json` files. They never rewrite
+incident or spending history. Historical browser incidents cleared only by silence
+reopen for review. Unknown and already-verified conditions cannot queue AI calls.
+This is an administrator attestation, not an automatic browser test. Do not record
+recovery from a build, health response, or a different interaction.

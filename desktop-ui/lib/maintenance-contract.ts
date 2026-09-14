@@ -1,6 +1,7 @@
 export type MaintenanceObservation = {
   key: string; title: string; area: string; kind: 'technical' | 'review';
   unhealthy: boolean | null; evidence: string; nextStep: string;
+  clientFailureAt?: number; recoveryVerifiedAt?: number;
 };
 export type MaintenanceDiagnosis = { summary: string; likelyCause: string; nextStep: string; verification: string };
 export type MaintenanceIncident = MaintenanceObservation & {

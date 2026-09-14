@@ -52,16 +52,18 @@ the older `positionDate` spelling. Invalid, future-dated, or unmapped position
 payloads return a non-success response so LinxUp retains and retries them;
 OpsCenter must never acknowledge a position that it silently discards.
 
-The authoritative push path removes OpsCenter's polling delay. The timestamp remains the tracker’s
-reported `date`. Schedule and the Command map show **On Site** on the first
-current GPS report within 125 meters of one eligible appointment, including
-an unassigned appointment. There is no arrival dwell timer and no dependency
-on route-history or visit-ledger catch-up. Ambiguous nearby jobs or trucks,
-unverified addresses, closed jobs, and stale positions cannot create a current
-arrival. The authenticated `/api/desktop/events` stream refreshes Schedule and
-Command when normalized GPS, visits, or facility arrivals change, without
-waiting for their fallback polling timers. A source update received during a
-screen request causes an immediate follow-up read.
+The authoritative push path removes OpsCenter's polling delay. The timestamp
+remains the tracker's reported `date`. Current on-site beacons in Schedule and the
+Command map now share `lib/gps-presence-policy.ts`: valid coordinates within
+125 meters, at least two minutes of continuous source-backed dwell, and an
+observation no older than three minutes. A first point cannot prove dwell.
+Uncovered gaps over five minutes, a newer away point or a recorded departure
+break the interval; an explicit source `continuousUntil` can cover a gap.
+Ambiguous nearby appointments, unverified addresses and closed jobs cannot
+create current presence. The desktop event stream still refreshes the screens
+when source evidence changes. These rules supersede the earlier instant-beacon
+and 75-minute parked-beacon policies. They do not replay historical notifications.
+
 
 Both push and minute reconciliation run `match-linxup-instant-arrivals.py`:
 one point, zero dwell minutes, with existing verified geocodes and tracker
@@ -76,22 +78,16 @@ entry/exit events reconcile them. An absent geofence field never invents a
 departure. Position-only facility reports do not create automatic load resets;
 those remain tied to the explicit entry feed. No extra provider polling is added.
 Delivery still depends on LinxUp sending the observation and network/processing
-time; OpsCenter adds no arrival dwell or screen-refresh wait.
+time. Facility notifications have their own event policy; they do not prove a
+current appointment beacon.
 
-An engine-off, zero-speed report inside the job geofence keeps **On Site**
-through the existing 75-minute parked heartbeat window, matching the truck
-marker's hourly-reporting semantics. A newer position elsewhere or a confirmed
-departure prevents that parked report from retaining on-site status. A missed
-parked heartbeat becomes last reported; the displayed GPS timestamp is unchanged.
-
-An open visit ledger is historical evidence, not a current position. Schedule
-checks the matched truck's valid coordinates against the effective appointment
-location before showing **On Site**, using the same 125-meter geofence and
-heartbeat rules as immediate GPS presence. A newer outside report clears both
-**On Site** and **Last reported on site**, while retaining **Visited · Closeout
-Pending** and the recorded visit intervals/duration. Collection time cannot
-override the tracker's observation time. Missing/invalid GPS or an unverified
-appointment location cannot establish current presence or invent a departure.
+A parked truck can retain its last-known marker through the existing 75-minute
+heartbeat window, but cannot retain a current on-site beacon beyond three minutes.
+An open visit ledger is historical evidence. Current presence additionally needs
+valid coordinates and dwell after the latest arrival/departure boundary. A newer
+outside report clears current presence while retaining the visit's recorded
+intervals. Missing or stale evidence never invents a departure. Truck-progress
+cards use the same current freshness limit and fall back to last seen.
 
 
 ## Recorded daily GPS routes
@@ -230,3 +226,25 @@ its directory to unlock processing; doing so could allow concurrent writers.
 The HTTP receiver continues to accept and durably queue updates when a processor
 is busy. Validate crash, child inheritance, contention, timeout and legacy
 migration with `scripts/test-linxup-process-lock.py` and push-queue fixtures.
+
+## Concurrent appointment geocode publication
+
+The separately owned OpsBot geocoder and local seed writer both use
+`geocode_cache_transaction.merge_geocode_cache`. They capture a deep copy of
+their starting cache, then take one shared file lock and compare changed keys
+against the latest stored values. Disjoint changes merge; a conflicting change
+fails for a fresh read. Unchanged old entries cannot overwrite newer records.
+Damaged cache data and attempted deletion fail closed. Publication uses a unique
+temporary file, fsync and atomic replacement while holding the lock.
+
+The reviewed migration is `scripts/install-geocode-cache-transaction.py`.
+Generate its manifest with `--review PATH`, inspect it, then apply the unchanged
+manifest with `--apply --review PATH`. It installs the shared helper first,
+backs up the exact prior source files, rejects changed sources and does not run
+collectors or rewrite business records. New writers must use this transaction;
+restoring an old writer can reintroduce the race. Provider behavior is unchanged.
+
+Reviewed per-premise evidence uses an atomic create-if-absent publication. Two
+conflicting proposals cannot replace one another; a coordinate correction needs
+explicit review. Both stores have independent-process conflict regression tests
+under `npm run verify:address-research`.

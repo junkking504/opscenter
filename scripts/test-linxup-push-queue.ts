@@ -39,7 +39,8 @@ try {
   assert.equal(result.remaining,0);
   fs.rmdirSync(path.join(bot,'tmp','linxup_live_refresh.lock'));
   execFileSync('/bin/bash',['scripts/run-linxup-push.sh','--drain'],{env:{...process.env,OPSBOT_DIR:bot,OPSCENTER_DIR:process.cwd(),OPSCENTER_DATA_DIR:root,SLACK_OPSCENTER_ALERTS_ENABLED:'true'}});
-  assert.equal(fs.existsSync(path.join(bot,'tmp','linxup_live_refresh.lock')),false,'Empty drain must release its lock without invoking downstream actions');
+  assert.equal(fs.existsSync(path.join(bot,'tmp','linxup_live_refresh.lock','worker.lock')),true,'Stable OS lock inode survives an empty drain');
+  execFileSync('/bin/bash',['scripts/run-linxup-push.sh','--drain'],{env:{...process.env,OPSBOT_DIR:bot,OPSCENTER_DIR:process.cwd(),OPSCENTER_DATA_DIR:root}}); // Released OS lock is immediately reusable.
   const date=result.dates[0];
   const snapshotPath=path.join(root,'history','linxup',`linxup_location_${date}.json`);
   let snapshot=JSON.parse(fs.readFileSync(snapshotPath,'utf8'));

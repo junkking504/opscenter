@@ -212,3 +212,21 @@ positive speed takes priority over a conflicting ignition flag or old yard stop.
 Parked heartbeat tolerance does not extend live ETA or on-site eligibility.
 Mapped trucks without observations remain listed as GPS unavailable, including
 when they have no assignments. GPS inventory does not depend on daily metrics.
+
+## Crash-safe GPS processing lock
+
+Push processing and minute polling share `scripts/run-linxup-locked.py`. It holds
+an OS file lock on `tmp/linxup_live_refresh.lock/worker.lock`, inherited by the
+worker process. The directory and inode stay in place; their existence is not
+proof that a processor is running. A stopped process releases its lock, while a
+still-running child retains exclusivity. Each processing run has a five-minute
+deadline and an isolated process group; timeout stops only that run and retains
+unprocessed queue entries. Polling frequency and provider usage do not increase.
+
+A legacy empty mkdir lock is deliberately not stolen automatically during the
+transition. Confirm that no live poll/push/normalization process owns it before
+removing only the empty directory. Never delete the new `worker.lock` file or
+its directory to unlock processing; doing so could allow concurrent writers.
+The HTTP receiver continues to accept and durably queue updates when a processor
+is busy. Validate crash, child inheritance, contention, timeout and legacy
+migration with `scripts/test-linxup-process-lock.py` and push-queue fixtures.

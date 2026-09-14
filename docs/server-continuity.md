@@ -198,3 +198,23 @@ they do not constitute a third independent availability monitor or an
 end-to-end Cloudflare ingress configuration audit. Authenticated workflow QA
 remains a separate acceptance requirement. Run `npm run verify:continuity`;
 the normal application build includes these regression tests.
+
+### Resource-bounded image builds
+
+Use `deploy/vps/build-continuity-image.sh <commit> <continuity-image-tag>` from
+the source checkout. It resolves the commit itself, streams that exact Git
+archive, serializes builds, and checks the built OCI revision. It builds only;
+Compose activation and signed-in acceptance remain separate steps.
+
+The helper uses the dedicated `opscenter-continuity-bounded` Docker-container
+builder, with an enforced 1,792 MiB memory/swap ceiling and one CPU quota.
+It verifies Docker's actual container limits before starting. The default VPS
+Docker backend accepted per-build resource flags without applying them during
+September 14 testing; do not rely on those flags alone. An unbounded dependency
+installation exhausted host memory and interrupted standby readiness.
+
+The builder is task infrastructure, not another OpsCenter writer. Stop it when
+idle with `docker buildx stop opscenter-continuity-bounded`. Its private build
+cache can be pruned with `docker buildx prune --builder
+opscenter-continuity-bounded --force` after the completed image is loaded and
+verified. Never use a global volume/system prune as a substitute.

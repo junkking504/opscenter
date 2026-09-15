@@ -1,5 +1,13 @@
 # Approved Desktop Source Release
 
+## OpsCenter icons
+
+The desktop document and Next.js page metadata use `/opscenter-icon.svg`, the
+gold-and-red dispatch pin from `components/OpsCenterLogo.tsx`. This replaces the
+prototype's blue placeholder favicon. `/opscenter-apple-icon.png` is its 180px
+render for Apple home screens. Both static brand assets are available before
+login. The inspection app retains its own route-specific icon metadata.
+
 ## Workspace display names
 
 Primary navigation uses Command, Control, Crew, Convoy, Capital, Campaign, in

@@ -9,6 +9,10 @@ export const metadata: Metadata = {
   },
   description: "OpsCenter for Junk King | Louisiana",
   applicationName: "OpsCenter",
+  icons: {
+    icon: { url: "/opscenter-icon.svg?v=1", type: "image/svg+xml" },
+    apple: { url: "/opscenter-apple-icon.png?v=1", sizes: "180x180", type: "image/png" },
+  },
   appleWebApp: {
     capable: true,
     title: "OpsCenter",

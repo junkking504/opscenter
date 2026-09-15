@@ -69,7 +69,10 @@ All POST handlers require JSON, bounded bodies and same-origin browser requests.
 ## OpsCenter review
 
 Fleet links to Morning inspections. Managers can filter reports by date and
-truck, open original reports and photos, and print open reports. The summary
+truck and status, select original reports and photos, and print the selected report.
+The list places Do not operate reports first, then reported problems, missing
+trucks and clear reports. All original reports remain available, including
+multiple reports for a truck; the counts label reports separately from trucks. The summary
 distinguishes trucks with a five-point report from trucks without one; a missing
 report does not establish that a truck was scheduled to operate.
 The historical daily/weekly/monthly checklist records remain separate. The
@@ -85,3 +88,24 @@ TypeScript and production build checks. Use synthetic paired phones to test the
 exact mobile flow, draft recovery, failed receipt recovery, repeat submission,
 photo preservation, and management read-back. Production acceptance additionally
 requires both the public phone origin and authenticated management view.
+
+## Approved phone design
+
+The Figma Truck Check design (file `nVwyzBhzVXidJcf5gdja7m`) is implemented
+with the existing CSS module and a locally hosted Inter variable font (OFL
+license in `public/fonts`). There is no external font request. The phone uses
+large bottom actions, five labeled progress segments and direct fuel choices.
+Good-and-next records one explicit result and advances; a short double-tap
+guard prevents one tap sequence from accepting two different sections.
+A problem opens a dedicated note/photo form with the section retained.
+
+The final operating decision is a separate step, followed by editable review
+and initials. No problems remains unavailable when a problem exists. Changing
+a result clears the previous operating decision. Existing step-6 review drafts
+continue to work; the new decision screen uses step 7. Uncertain submissions
+show a separate receipt-pending screen and preserve the existing immutable
+report recovery process. Success offers a full submitted-report read-back.
+
+The fixed Figma frames become naturally scrolling content with sticky bottom
+actions in the app, preserving access on short screens, enlarged text and open
+phone keyboards. The Figma sample data is not loaded into the app.

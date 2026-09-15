@@ -149,6 +149,32 @@
   .app h1 { font-size: 29px; }
   .checks { padding: 16px; }
 }
+/* Compact phone layout keeps routine checks above the browser toolbar.
+   Natural document scrolling remains available for zoom, keyboards and notes. */
+.phoneApp .inspectionBrand { flex-direction: row; align-items: center; gap: 12px; padding: max(10px, env(safe-area-inset-top)) max(16px, calc((100vw - 648px)/2)) 10px; }
+.phoneApp .brandLogo { width: 132px; height: 30px; flex-shrink: 0; }
+.phoneApp .brandName { flex: 1; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; font-size: 12px; line-height: 16px; }
+.phoneApp .phoneContent { padding: 16px; gap: 12px; }
+.phoneApp h1 { font-size: 26px; }
+.phoneApp .actionBar { gap: 6px; padding: 8px 16px max(8px, env(safe-area-inset-bottom)); }
+.phoneApp .actionBar > button { min-height: 48px; padding: 10px 12px; }
+.phoneApp .actionBar .backButton { min-height: 44px; }
+.phoneApp .inputCard { padding: 12px; }
+.phoneApp .phoneContent form { gap: 10px; }
+.phoneApp .checkHeading { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.phoneApp .checkHeading h1 { font-size: 23px; line-height: 1.25; letter-spacing: -.4px; }
+.checkHeading .eyebrow { flex-shrink: 0; }
+.phoneApp[data-check] .phoneContent { gap: 10px; padding-top: 12px; padding-bottom: 12px; }
+.phoneApp .checks { padding: 12px; gap: 10px; }
+.phoneApp .checks li { padding-left: 26px; line-height: 1.35; }
+.phoneApp .checks li::before { font-size: 13px; color: var(--inspection-muted); top: 2px; }
+.phoneApp .fuel legend { margin-bottom: 6px; }
+.fuel legend span { font-weight: 400; text-transform: none; }
+.phoneApp .fuel button { min-height: 44px; padding: 8px 4px; }
+.phoneApp .checkActions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 4px 8px; }
+.checkActions .actionMeta { grid-column: 1 / -1; }
+.phoneApp .checkActions > button { font-size: 15px; }
+.checkActions .goodButton { display: flex; align-items: center; justify-content: center; gap: 8px; }
 @media print {
   .noPrint, .brand, .actionBar { display: none !important; }
   .app { background: #fff; min-height: 0; }

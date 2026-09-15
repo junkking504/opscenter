@@ -51,7 +51,7 @@ async function main() {
     await page.getByLabel("Odometer · miles").fill("125040");
     await page.getByRole("button", { name: "Start inspection" }).click();
     await page.getByRole("button", { name: "✓ Good — next check", exact: true }).dblclick();
-    await page.getByRole("heading", { name: "Check every wheel." }).waitFor();
+    await page.getByRole("heading", { name: "Wheels & tires" }).waitFor();
     // Changing trucks mid-draft requires an explicit reset; cancel preserves the draft.
     await page.getByRole("button", { name: "← Back", exact: true }).click();
     await page.getByRole("button", { name: "← Back", exact: true }).click();
@@ -85,7 +85,7 @@ async function main() {
     // Wait for the actual IndexedDB write before testing a reload.
     await page.waitForFunction(async () => new Promise<boolean>(resolve => { const open = indexedDB.open("junk-king-truck-inspection", 1); open.onsuccess = () => { const db = open.result; const req = db.transaction("drafts").objectStore("drafts").getAll(); req.onsuccess = () => { const ok = req.result.some(d => d.fuel === "1/2" && d.answers.some((a: {id:string;status:string}) => a.id === "dashboard" && a.status === "good")); db.close(); resolve(ok); }; }; }));
     await page.reload();
-    await page.getByRole("heading", { name: "Test the essentials." }).waitFor();
+    await page.getByRole("heading", { name: "Truck & dump body" }).waitFor();
     await page.locator("header").getByText("Truck 4", { exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "✓ Good — next check", exact: true }).isDisabled(), true);
     await page.getByRole("button", { name: "Truck fullness 3/4", exact: true }).click();
@@ -188,6 +188,35 @@ async function main() {
     await page.getByLabel("Odometer · miles").fill("125050");
     await page.getByRole("button", { name: "Start inspection" }).click();
     for (let step = 1; step <= 5; step++) {
+      // iPhone screenshot width with Safari's expanded browser bars excluded.
+      for (const viewport of [{ width: 393, height: 650 }, { width: 375, height: 650 }]) {
+        await page.setViewportSize(viewport);
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.locator("main[data-check] ol li").last().waitFor();
+        const geometry = await page.evaluate(() => {
+          const main = document.querySelector("main[data-check]")!;
+          const actions = main.querySelector('button[class*="goodButton"]')!.parentElement!;
+          const fields = [...main.querySelectorAll("ol li, fieldset button")].map(el => el.getBoundingClientRect());
+          return { height: document.documentElement.scrollHeight, viewport: innerHeight,
+            width: document.documentElement.scrollWidth, viewportWidth: innerWidth,
+            contentBottom: Math.max(...fields.map(r => r.bottom)), actionsTop: actions.getBoundingClientRect().top,
+            targets: [...actions.querySelectorAll("button"), ...main.querySelectorAll("fieldset button")].map(el => el.getBoundingClientRect().height) };
+        });
+        assert.ok(geometry.height <= geometry.viewport + 1, `check ${step} fits ${viewport.width}px: ${JSON.stringify(geometry)}`);
+        assert.ok(geometry.width <= geometry.viewportWidth, `check ${step} has no horizontal scrolling`);
+        assert.ok(geometry.contentBottom <= geometry.actionsTop, `check ${step} is not covered by actions`);
+        assert.ok(geometry.targets.every(height => height >= 44), "phone tap targets stay at least 44px tall");
+      }
+      await page.setViewportSize({ width: 393, height: 650 });
+      await page.screenshot({ path: `/tmp/five-point-inspection-review/compact-check-${step}.png` });
+      if (step === 4) {
+        await page.locator("main").evaluate(el => { (el as HTMLElement).style.fontSize = "24px"; });
+        await page.locator("ol li").last().scrollIntoViewIfNeeded();
+        assert.equal(await page.locator("ol li").count(), 5, "large text keeps every safety check");
+        assert.ok(await page.evaluate(() => document.documentElement.scrollHeight > innerHeight), "large text can scroll instead of being clipped");
+        await page.locator("main").evaluate(el => { (el as HTMLElement).style.removeProperty("font-size"); });
+        await page.evaluate(() => window.scrollTo(0, 0));
+      }
       if (step === 4) await page.getByRole("button", { name: "Truck fullness Empty", exact: true }).click();
       if (step === 3) await page.getByRole("button", { name: "Fuel tank Full", exact: true }).click();
       await page.waitForTimeout(500);

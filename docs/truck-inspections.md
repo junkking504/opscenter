@@ -149,16 +149,21 @@ continue to work; the new decision screen uses step 7. Uncertain submissions
 show a separate receipt-pending screen and preserve the existing immutable
 report recovery process. Success offers a full submitted-report read-back.
 
-The fixed Figma frames become naturally scrolling content with sticky bottom
-actions in the app, preserving access on short screens, enlarged text and open
-phone keyboards. The Figma sample data is not loaded into the app.
+The five routine checklist screens use a compact section heading, the complete
+checklist and side-by-side Good / Report a problem actions. Browser acceptance
+checks each section at 393 × 650 and 375 × 650 usable pixels (excluding phone
+browser bars): no page scrolling, no covered checklist or level choices, and
+tap targets at least 44 pixels tall. Fuel and cargo fullness remain required.
+Natural scrolling remains available for enlarged text, smaller screens, open
+keyboards, photos and longer reports. The Figma sample data is not loaded into
+the app.
 
 ## App identity
 
 The banner and installed app are named Five Point Inspection. A gear-and-wrench
 icon uses Junk King red `#EC2027`, gold `#E2C675`, black and white, with the
 existing Junk King wordmark and its green recycling symbol. The banner displays
-the existing vector brand asset above the app name. The SVG
+the existing vector brand asset beside the app name and selected truck. The SVG
 source is `lib/truck-inspection-icon.ts`; PNG home-screen variants are 180, 192
 and 512 pixels. The 512-pixel icon has an opaque background and safe margins for
 launcher masks. The page supplies its own Apple touch icon and favicon.

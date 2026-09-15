@@ -119,13 +119,6 @@ export default function TruckInspectionApp() {
   const complete = draft && INSPECTION_SECTIONS.every(s => draft.answers.some(a => a.id === s.id && (a.status === "good" || (a.status === "problem" && a.notes.trim()))));
   const missingSectionLevel = (section?.id === "dashboard" && !draft?.fuel) || (section?.id === "operation" && !draft?.loadLevel);
   const canSend = draft && context?.trucks.includes(draft.truck) && complete && draft.inspector.trim() && /^\d{1,8}$/.test(draft.odometer) && draft.fuel && draft.loadLevel && draft.initials.trim() && draft.status && !(problemCount && draft.status === "clear") && !(draft.status === "reported" && !problemCount) && !(draft.status === "stop" && !problemCount && !draft.notes.trim());
-  const presentation = section ? {
-    "walk-around": ["Start outside.", "Walk all the way around the truck before choosing a result."],
-    "wheels-tires": ["Check every wheel.", "Look closely at all tires, lug nuts and rims."],
-    dashboard: ["Check the cab.", "Start the truck. Watch and listen for anything unusual."],
-    operation: ["Test the essentials.", "Complete these checks safely before leaving the yard."],
-    cleanliness: ["Ready for customers.", "Leave the cab and truck clean and organized."],
-  }[section.id] : null;
   function nextSection(good: boolean, eventTime: number) {
     if (!draft || !section || busy || draft.sent || missingSectionLevel) return;
     if (!good && (!answer || (answer.status === "problem" && !answer.notes.trim()))) return;
@@ -148,7 +141,7 @@ export default function TruckInspectionApp() {
     <div className={styles.photos}>{report.photos.map((p, i) => <figure key={i}><img src={p.data} alt={`${INSPECTION_SECTIONS.find(s => s.id === p.section)?.label} inspection photo ${i + 1}`} /></figure>)}</div>
     <p className={styles.reference}>Report reference: {report.requestId}</p>
   </>;
-  return <main className={`${styles.app} ${styles.phoneApp}`}>
+  return <main className={`${styles.app} ${styles.phoneApp}`} data-check={section && !draft?.problemEditing && !receipt && !draft?.sent ? section.id : undefined}>
     <header className={`${styles.brand} ${styles.inspectionBrand}`}><img className={styles.brandLogo} src="/truck-inspection/brand-logo.svg" width="182" height="40" alt="Junk King" /><div className={styles.brandName}><b>Five Point Inspection</b>{(receipt?.truck || draft?.truck) && <span>{receipt?.truck || draft?.truck}</span>}</div></header>
     <div className={styles.phoneShell}>
       {!context || !draft ? <section className={styles.phoneContent}><div className={styles.eyebrow}>FIVE POINT INSPECTION</div><h1>Morning inspection</h1><p>{error || "Connecting to OpsCenter…"}</p>{error && <button onClick={() => { setError(""); void load(); }}>Try again</button>}</section>
@@ -180,18 +173,17 @@ export default function TruckInspectionApp() {
               <label className={styles.inputCard}>Odometer · miles<input inputMode="numeric" pattern="[0-9]{1,8}" value={draft.odometer} onChange={e => change({ odometer: e.target.value })} required maxLength={8} placeholder="Enter the mileage" /></label>
             </form><p className={styles.muted}>Choose the truck you are inspecting today. Any company phone can be used for any truck.</p>
           </> : section ? <>
-            <div className={styles.eyebrow}>{draft.step} OF 5 · {section.label}</div>
+            <div className={styles.checkHeading}><h1 ref={heading} tabIndex={-1}>{draft.problemEditing ? "What needs attention?" : section.label}</h1><span className={styles.eyebrow}>{draft.step} of 5</span></div>
             <div className={styles.progress} aria-label={`Check ${draft.step} of 5`}>{INSPECTION_SECTIONS.map((s, i) => <span key={s.id} data-current={i + 1 === draft.step} data-result={draft.answers.find(a => a.id === s.id)?.status || ""} />)}</div>
-            <h1 ref={heading} tabIndex={-1}>{draft.problemEditing ? "What needs attention?" : presentation?.[0]}</h1>
-            <p className={styles.intro}>{draft.problemEditing ? `Tell OpsCenter what you found during ${section.label.toLowerCase()}. Add a photo if it helps.` : presentation?.[1]}</p>
+            {draft.problemEditing && <p className={styles.intro}>Tell OpsCenter what you found during {section.label.toLowerCase()}. Add a photo if it helps.</p>}
             {!draft.problemEditing ? <ol className={styles.checks}>{section.checks.map(check => <li key={check}>{check}</li>)}</ol> : <>
               <label className={styles.inputCard}>What did you find?<textarea required maxLength={1000} value={answer?.notes || ""} placeholder="Include the location and what looks wrong." onChange={e => change({ answers: draft.answers.map(a => a.id === section.id ? { ...a, notes: e.target.value } : a) })} /></label>
               <label className={styles.photoButton}>＋ Take or add a photo<input type="file" accept="image/*" capture="environment" disabled={busy || draft.photos.length >= 3} onChange={e => { void addPhoto(e.target.files?.[0], section.id); e.target.value = ""; }} /></label><p className={styles.muted}>Optional · Up to 3 photos per report</p>
               <div className={styles.photos}>{draft.photos.map((p, index) => p.section === section.id && <figure key={index}><img src={p.data} alt={`${section.label} problem photo`} /><button aria-label={`Remove photo ${index + 1}`} disabled={busy} onClick={() => change({ photos: draft.photos.filter((_, i) => i !== index) })}>Remove</button></figure>)}</div>
             </>}
-            {section.id === "dashboard" && <fieldset className={styles.fuel}><legend>Fuel tank level</legend><div>{INSPECTION_LEVELS.map((f, i) => <button type="button" key={f} aria-label={`Fuel tank ${f}`} aria-pressed={draft.fuel === f} onClick={() => change({ fuel: f })}>{["Empty", "¼", "½", "¾", "Full"][i]}</button>)}</div></fieldset>}
-            {section.id === "operation" && <fieldset className={styles.fuel}><legend>Truck fullness</legend><p className={styles.muted}>How much of the truck’s cargo space is already filled?</p><div>{INSPECTION_LEVELS.map((level, i) => <button type="button" key={level} aria-label={`Truck fullness ${level}`} aria-pressed={draft.loadLevel === level} onClick={() => change({ loadLevel: level })}>{["Empty", "¼", "½", "¾", "Full"][i]}</button>)}</div></fieldset>}
-            {!draft.problemEditing && <p className={styles.muted}>Check every item above, then choose.{section.id === "dashboard" && !draft.fuel ? " Select the fuel-tank level to continue." : section.id === "operation" && !draft.loadLevel ? " Select truck fullness to continue." : ""}</p>}
+            {section.id === "dashboard" && <fieldset className={styles.fuel}><legend>Fuel tank level <span>· required</span></legend><div>{INSPECTION_LEVELS.map((f, i) => <button type="button" key={f} aria-label={`Fuel tank ${f}`} aria-pressed={draft.fuel === f} onClick={() => change({ fuel: f })}>{["Empty", "¼", "½", "¾", "Full"][i]}</button>)}</div></fieldset>}
+            {section.id === "operation" && <fieldset className={styles.fuel}><legend>Truck fullness <span>· cargo space filled</span></legend><div>{INSPECTION_LEVELS.map((level, i) => <button type="button" key={level} aria-label={`Truck fullness ${level}`} aria-pressed={draft.loadLevel === level} onClick={() => change({ loadLevel: level })}>{["Empty", "¼", "½", "¾", "Full"][i]}</button>)}</div></fieldset>}
+
           </> : draft.step === 7 ? <>
             <div className={styles.eyebrow}>FINAL OPERATING STATUS</div><h1 ref={heading} tabIndex={-1}>Can this truck operate?</h1><p className={styles.intro}>Choose based on the inspection. Your choice is included in the report.</p>
             <fieldset className={styles.statusChoices}><legend className={styles.srOnly}>Final operating status</legend>{Object.entries(INSPECTION_STATUSES).map(([value, label]) => <label className={styles.radio} key={value}><input type="radio" name="final-status" value={value} checked={draft.status === value} disabled={(value === "clear" && problemCount > 0) || (value === "reported" && !problemCount)} onChange={() => change({ status: value as InspectionStatus })} />{label}</label>)}</fieldset>
@@ -206,11 +198,11 @@ export default function TruckInspectionApp() {
             {draft.status === "stop" && <p className={styles.stop}>Do not operate the truck. Contact your supervisor.</p>}<p className={styles.muted}>{draft.photos.length} photo{draft.photos.length === 1 ? "" : "s"} included</p>
           </>}{errors}
         </section>
-        <div className={styles.actionBar}>
+        <div className={`${styles.actionBar} ${section && !draft.problemEditing ? styles.checkActions : ""}`}>
           {draft.step === 0 ? <button form="start-inspection" className={styles.primary} disabled={!draft.truck}>Start inspection →</button>
           : section ? <>
             {draft.problemEditing ? <><button className={styles.primary} disabled={busy || !answer?.notes.trim() || missingSectionLevel} onClick={e => nextSection(false, e.timeStamp)}>Save problem & continue →</button><button onClick={() => change({ problemEditing: false })} disabled={busy}>Back to {section.label.toLowerCase()}</button></>
-            : <><button className={styles.goodButton} disabled={busy || missingSectionLevel} onClick={e => nextSection(true, e.timeStamp)}>✓ Good — {draft.returnToReview ? "review" : draft.step === 5 ? "finish checks" : "next check"}</button><button disabled={busy} onClick={() => change({ problemEditing: true, answers: [...draft.answers.filter(a => a.id !== section.id), { id: section.id, status: "problem", notes: answer?.notes || "" }], status: "" })}>! Report a problem</button></>}
+            : <><button className={styles.goodButton} disabled={busy || missingSectionLevel} onClick={e => nextSection(true, e.timeStamp)}>✓ Good <span className={styles.srOnly}>— {draft.returnToReview ? "review" : draft.step === 5 ? "finish checks" : "next check"}</span><span aria-hidden="true">→</span></button><button disabled={busy} onClick={() => change({ problemEditing: true, answers: [...draft.answers.filter(a => a.id !== section.id), { id: section.id, status: "problem", notes: answer?.notes || "" }], status: "" })}>! Report a problem</button></>}
             <div className={styles.actionMeta}>{back(draft.returnToReview ? 6 : draft.step - 1)}{saveStatus}</div>
           </> : draft.step === 7 ? <><button className={styles.primary} disabled={!draft.status || (draft.status === "stop" && !problemCount && !draft.notes.trim())} onClick={() => change({ step: 6 })}>Review report →</button><div className={styles.actionMeta}>{back(complete ? 6 : 5)}{saveStatus}</div></>
           : <><button className={styles.primary} disabled={busy || !canSend} onClick={() => void submit()}>Send to OpsCenter</button><p className={styles.muted}>Wait for your receipt before closing.</p><div className={styles.actionMeta}>{back(7, "Operating status")}{saveStatus}</div></>}

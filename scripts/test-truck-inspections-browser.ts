@@ -147,12 +147,14 @@ async function main() {
     assert.equal((await stranger.request.get(`${base}/api/truck-inspection?requestId=${saved.reports[0].requestId}`)).status(), 401);
     await stranger.request.post(`${base}/api/truck-inspection`, { data: { action: "connect", connectionToken: "c".repeat(64) } });
     assert.equal((await (await stranger.request.get(`${base}/api/truck-inspection?requestId=${saved.reports[0].requestId}`)).json()).report, null, "a second phone selecting the same truck cannot read the first phone’s report");
-    const inspectHeaders = { "x-forwarded-host": "inspect.junk-king.app" };
-    for (const inspectionPath of ["/", "/truck-inspection", "/truck-inspection/manifest.webmanifest", "/api/truck-inspection"]) {
+    const inspectHeaders = { "x-forwarded-host": "inspect.junk-king.app", "x-forwarded-proto": "https" };
+    for (const inspectionPath of ["/truck-inspection", "/truck-inspection/manifest.webmanifest", "/api/truck-inspection"]) {
       const response = await fetch(`${base}${inspectionPath}`, { headers: inspectHeaders, redirect: "manual" });
       assert.equal(response.status, 200, `inspection origin serves ${inspectionPath}`);
-      if (inspectionPath === "/") assert.match(await response.text(), /Truck Inspection/);
     }
+    const inspectRoot = await fetch(`${base}/`, { headers: inspectHeaders, redirect: "manual" });
+    assert.equal(inspectRoot.status, 307);
+    assert.equal(inspectRoot.headers.get("location"), "https://inspect.junk-king.app/truck-inspection");
     for (const blockedPath of ["/fleet-inspections", "/api/fleet-inspections", "/login", "/api/auth/login", "/api/integrations/linxup/push", "/api/integrations/whatsapp/job-photos"]) {
       assert.equal((await fetch(`${base}${blockedPath}`, { headers: inspectHeaders, redirect: "manual" })).status, 404, `inspection origin blocks ${blockedPath}`);
     }

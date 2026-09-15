@@ -148,7 +148,7 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
 
   // Dedicated public inspection origin: never expose management or webhooks here.
   if (hostname === "inspect.junk-king.app") {
-    if (pathname === "/") return NextResponse.rewrite(new URL("/truck-inspection", request.url));
+    if (pathname === "/") return NextResponse.redirect(new URL("https://inspect.junk-king.app/truck-inspection"));
     if (INSPECTION_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
     return new NextResponse("Not Found", { status: 404 });
   }

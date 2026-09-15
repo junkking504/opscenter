@@ -68,7 +68,7 @@ removed. Users should keep the page open if device storage is unavailable.
 
 ## Access boundary
 
-The dedicated public `inspect.junk-king.app` origin rewrites `/` to the inspection
+The dedicated public `inspect.junk-king.app` origin redirects `/` to the inspection
 page and permits only the exact inspection page, manifest, icon,
 `/api/truck-inspection` and Next assets. Management, authentication and webhook
 routes return 404 on this origin. OpsCenter's Truck Check entry redirects here.

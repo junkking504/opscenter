@@ -91,8 +91,8 @@ async function main() {
     await page.waitForFunction(async () => new Promise<boolean>(resolve => { const open = indexedDB.open("junk-king-truck-inspection", 1); open.onsuccess = () => { const db = open.result; const req = db.transaction("drafts").objectStore("drafts").getAll(); req.onsuccess = () => { const ok = req.result.some(d => d.loadLevel === "3/4" && d.fuel === "1/2"); db.close(); resolve(ok); }; }; }));
     await page.reload();
     assert.equal(await page.getByRole("button", { name: "Truck fullness 3/4", exact: true }).getAttribute("aria-pressed"), "true");
-    await page.getByRole("button", { name: "Truck fullness 3/4", exact: true }).scrollIntoViewIfNeeded();
-    await page.screenshot({ path: "/tmp/five-point-inspection-review/mobile-fullness.png", fullPage: true });
+    await page.getByRole("button", { name: "Truck fullness 3/4", exact: true }).click();
+    await page.screenshot({ path: "/tmp/five-point-inspection-review/mobile-fullness.png" });
     await page.getByRole("button", { name: "✓ Good — next check", exact: true }).click();
     await page.waitForTimeout(500);
     await page.getByRole("button", { name: "✓ Good — finish checks", exact: true }).click();

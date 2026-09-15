@@ -86,3 +86,17 @@ data/operator/podium_review_assignments.json
 The assignment record excludes the customer name, phone, email, and Podium
 invitation identifier. Confirmed assignments override collector attribution and
 remain editable from the attributed review card after later Podium refreshes.
+
+## Campaign review navigation
+
+The desktop Reviews tab lists the collected reviews newest first across all
+locations, with 20 reviews per page. Search includes reviewer, text, confirmed
+JK number, appointment ID, and recorded crew. Location and exact-rating filters
+combine with quick filters for low ratings (1–3 stars), Podium-reported response
+needs, and reviews awaiting attribution. Counts cover the latest 100 collected
+Google reviews per location, not every review in the location's lifetime total.
+
+Confirmed reviews display the JK number and the crew stored in the appointment
+attribution. Missing crew is shown as “Crew not recorded”; reviewer text and
+unconfirmed name suggestions never provide employee credit. Attribution controls
+expand on each review and retain the existing explicit confirmation workflow.

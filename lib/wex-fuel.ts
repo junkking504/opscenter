@@ -53,6 +53,16 @@ export type WexFuelFinanceData = {
   transactions: WexFuelTransaction[];
 };
 
+export function includeWexDailyExpense<T extends { costs: number | null; profit: number | null }>(daily: T, wex: WexFuelFinanceData): T {
+  if (!wex.available || wex.selectedDate.count === 0) return daily;
+  const amount = wex.selectedDate.netCost;
+  return {
+    ...daily,
+    costs: daily.costs == null ? null : Number((daily.costs + amount).toFixed(2)),
+    profit: daily.profit == null ? null : Number((daily.profit - amount).toFixed(2)),
+  };
+}
+
 const requiredHeaders = [
   'Transaction Date', 'Transaction Time', 'Post Date', 'Card Number', 'Trans ID',
   'Emboss Line 2', 'Custom Vehicle/Asset ID', 'Units', 'Unit of Measure', 'Unit Cost',

@@ -11,8 +11,11 @@ reviews the request for Fleet Management API credentials.
   authorization stage.
 - WEX `Trans ID` is the stable identity. Reimporting the same export is
   idempotent, and conflicting rows with the same ID fail closed.
-- WEX purchases appear beside Finance costs. They are not added to the published
-  JunkWare expense totals, because that could count the same fuel twice.
+- The selected day's posted WEX net cost is added once to Company Costs and
+  subtracted once from Estimated Net. The WEX amount remains visible beside the
+  daily totals so the adjustment is auditable.
+- Month-to-date published costs retain their existing source boundary until the
+  daily WEX coverage is complete for that reporting period.
 - The UI shows the import time and the latest transaction date covered by the
   export. A saved snapshot is not represented as a fresh portal read.
 

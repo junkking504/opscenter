@@ -1,3 +1,4 @@
+import { ageFinanceKpi, dailyFinanceEvidence, combineFinanceEvidence } from './daily-finance-freshness';
 import { withSavedCloseoutTruck } from './command-closeout-truck';
 import { assumedDumpExpenseAlerts } from './dump-expenses';
 import { truckExpenseTimelineAlerts, mergeTruckExpenseAlerts } from './truck-expense-notifications';
@@ -33,12 +34,13 @@ const amount = (value: number | null) => value == null ? '—' : money(value);
 const tone = (value: number | null, target: number): DesktopKpi['tone'] => value == null || target <= 0 ? 'warning' : value >= target ? 'healthy' : 'critical';
 
 // Keep the daily metrics together; missing evidence is not zero.
-export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnType<typeof summarizeCommandSchedule> | null, _visibleTrucks: number, wex?: WexFuelFinanceData): DesktopKpi[] {
+export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnType<typeof summarizeCommandSchedule> | null, _visibleTrucks: number, wex?: WexFuelFinanceData, date = String(metrics?.date || ''), now = Date.now()): DesktopKpi[] {
   const finance = buildDailyFinanceSummary(metrics, wex);
+  const evidence = dailyFinanceEvidence(metrics, finance, date, wex);
   const plan = dailyRevenueTarget();
   const payrollPercent = finance.labor != null && finance.revenue != null && finance.revenue > 0 ? finance.labor / finance.revenue * 100 : null;
   const scheduleCount = schedule?.scheduled || 0;
-  return [
+  const cards: DesktopKpi[] = [
     { label: 'Today’s jobs', value: schedule ? String(schedule.scheduled) : '—', detail: schedule ? `${schedule.completedJobs} completed jobs · ${schedule.closedEstimates} closed estimates · ${schedule.unclosed} open` : 'Schedule source unavailable', progress: schedule ? 100 : 0, tone: schedule && schedule.unclosed === 0 ? 'healthy' : 'warning', segments: schedule ? [
       { label: 'Completed Jobs', value: progress(schedule.completedJobs, scheduleCount), tone: 'healthy' },
       { label: 'Closed Estimates', value: progress(schedule.closedEstimates, scheduleCount), tone: 'warning' },
@@ -49,6 +51,15 @@ export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnTy
     { label: 'Dump + Fuel', value: finance.dumps == null || finance.fuel == null ? '—' : amount(finance.dumps + finance.fuel), secondaryValue: `Dumps ${amount(finance.dumps)} · Fuel ${amount(finance.fuel)}`, detail: finance.fuelSource === 'wex' ? 'Fuel from posted WEX transactions' : finance.dumps == null || finance.fuel == null ? 'Expense source incomplete' : 'Published daily expenses', progress: finance.dumps == null || finance.fuel == null ? 0 : 100, tone: finance.dumps == null || finance.fuel == null ? 'warning' : 'healthy' },
     { label: 'Net', value: amount(finance.net), detail: finance.net == null ? 'Net source unavailable' : 'After all recorded daily costs', progress: finance.net == null || finance.revenue == null || finance.revenue <= 0 ? 0 : progress(finance.net, finance.revenue), tone: finance.net == null ? 'warning' : finance.net >= 0 ? 'healthy' : 'critical' },
   ];
+  return cards.map((card, index) => {
+    if (index === 0) return card;
+    const field = (['revenue', 'labor', 'dumps', 'net'] as const)[index - 1];
+    const recorded = field === 'dumps' ? finance.dumps == null || finance.fuel == null ? null : finance.dumps + finance.fuel : finance[field];
+    const source = field === 'dumps' ? combineFinanceEvidence(evidence.dumps, evidence.fuel) : evidence[field];
+    // A fresh labor amount remains valid even with zero or unavailable revenue.
+    if (field === 'labor' && payrollPercent == null) card.detail = 'Recorded payroll · revenue ratio unavailable';
+    return ageFinanceKpi({ ...card, financeEvidence: { date, recorded, evidence: source, currentDetail: card.detail, ratioEvidence: field === 'labor' ? evidence.revenue : undefined } }, now);
+  });
 }
 
 export async function readDesktopCommand(date: string, actor: DesktopCommandSnapshot['actor']): Promise<DesktopCommandSnapshot> {
@@ -116,7 +127,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   }
   return {
     date, generatedAt: new Date().toISOString(), actor,
-    kpis: desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0, wexFuel),
+    kpis: desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0, wexFuel, date),
     sourceHealth: [...sourceHealth,
       {name:'LinxUp geofences',area:'Facility entries and automatic load resets',workspace:'Fleet',action:'Open Fleet',state:geofences.available ? geofences.complete ? 'Available' : 'Incomplete' : 'Unavailable',tone:geofences.available && geofences.complete ? 'healthy' : 'warning',observedAt:geofences.observedAt || null,maxAgeSeconds:180},
       {name:'Slack',area:'Operational alerts',workspace:'Command',action:'Open alerts',state:digest.status==='ready'?(digest.complete === false ? 'Incomplete' : 'Current'):'Unavailable',tone:digest.status==='ready' && digest.complete !== false ?'healthy':'warning',observedAt:digest.refreshedAt,maxAgeSeconds:120},

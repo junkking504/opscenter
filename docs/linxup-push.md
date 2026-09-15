@@ -1,5 +1,8 @@
 # LinxUp live GPS push
 
+For V2 certificate failures, retained snapshots, and the guarded runtime source
+installer, see [Collection failure recovery](linxup-collection-failure-recovery.md).
+
 LinxUp V3 Position Push posts directly to the protected OpsCenter receiver:
 
 ```text

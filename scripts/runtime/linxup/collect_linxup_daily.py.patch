@@ -1,0 +1,43 @@
+--- collect_linxup_daily.py
++++ collect_linxup_daily.py
+@@ -11 +11 @@
+-from linxup_common import keychain_secret
++from linxup_common import LinxupError, keychain_secret
+@@ -27,0 +28,2 @@
++from linxup_collection_safety import request_json as verified_request_json, run_collector
++
+@@ -29,12 +31 @@
+-    data = None
+-    headers = {
+-        "Authorization": f"Bearer {api_key}",
+-        "Accept": "application/json",
+-    }
+-    if body is not None:
+-        data = json.dumps(body).encode("utf-8")
+-        headers["Content-Type"] = "application/json"
+-
+-    req = urllib.request.Request(url, data=data, headers=headers, method=method)
+-    with urllib.request.urlopen(req, timeout=45) as response:
+-        return json.loads(response.read().decode("utf-8"))
++    return verified_request_json(url, api_key, method, body, max_attempts=1, timeout=45)
+@@ -162 +153 @@
+-            errors.append(f"{name}: {type(exc).__name__}")
++            errors.append(f"{name}: {str(exc) if isinstance(exc, LinxupError) else type(exc).__name__}")
+@@ -165 +156,3 @@
+-    raw_path.write_text(json.dumps(raw, indent=2), encoding="utf-8")
++    if errors:
++        raise LinxupError("; ".join(errors))
++
+@@ -251 +244,2 @@
+-    with summary_path.open("w", newline="", encoding="utf-8") as handle:
++    temporary_summary = summary_path.with_suffix(summary_path.suffix + ".tmp")
++    with temporary_summary.open("w", newline="", encoding="utf-8") as handle:
+@@ -280,0 +275,5 @@
++    temporary_summary.replace(summary_path)
++    temporary_raw = raw_path.with_suffix(raw_path.suffix + ".tmp")
++    temporary_raw.write_text(json.dumps(raw, indent=2), encoding="utf-8")
++    temporary_raw.replace(raw_path)
++
+@@ -294 +293 @@
+-    main()
++    raise SystemExit(run_collector("daily", main))

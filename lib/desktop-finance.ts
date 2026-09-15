@@ -1,5 +1,6 @@
 import { readRecyclingData } from './recycling-receipt-store';
 import { readDumpExpenses } from './dump-expenses';
+import { readFuelReconciliation } from './fuel-reconciliation';
 import { recordReviewedRecyclingReceipt } from './recycling-receipt-review';
 import { readFinancialStatements } from "./financial-statements";
 import { desktopPayments } from './desktop-payments';
@@ -22,7 +23,7 @@ const sumField = (entries: AnyRecord[], field: string): number | null => !entrie
 function recyclingFile() { return path.join(commercialDirectory(), 'recycling-store'); }
 function readRecyclingStore(): { schemaVersion: number; records: RecyclingRecord[]; [key: string]: unknown } { try { const store = JSON.parse(fs.readFileSync(recyclingFile(), 'utf8')); if (store.schemaVersion !== 1 || !Array.isArray(store.records)) throw new CommercialActionError('Recycling store requires recovery.'); return store; } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { schemaVersion: 1, records: [] }; throw error; } }
 function readRecycling(): RecyclingRecord[] { return readRecyclingStore().records; }
-export function readDesktopFinance(date: string): FinanceData & { dailyBreakdown: DailyFinanceSummary; wexFuel: ReturnType<typeof readWexFuelFinance>; dumpExpenses: ReturnType<typeof readDumpExpenses> } {
+export function readDesktopFinance(date: string): FinanceData & { fuelReconciliation: ReturnType<typeof readFuelReconciliation>; dailyBreakdown: DailyFinanceSummary; wexFuel: ReturnType<typeof readWexFuelFinance>; dumpExpenses: ReturnType<typeof readDumpExpenses> } {
   // Request-local reuse keeps headlines and trends on the same source read,
   // without retaining financial data or write versions across refreshes.
   const daily = new Map<string, AnyRecord | null>();
@@ -60,9 +61,10 @@ export function readDesktopFinance(date: string): FinanceData & { dailyBreakdown
   const marketSum = (territory: string, key: string) => { const values = monthly.entries.map(entry => finite(entry.metrics[key]?.[territory])); return values.every(value => value == null) ? null : values.reduce<number>((sum, value) => sum + (value ?? 0), 0); };
   const wexFuel = readWexFuelFinance(date);
   const dailyBreakdown = buildDailyFinanceSummary(metrics, wexFuel);
+  const fuelReconciliation = readFuelReconciliation(date, wexFuel);
   const dailySummary = { revenue: dailyBreakdown.revenue, costs: dailyBreakdown.totalCosts, profit: dailyBreakdown.net, recyclingIncome: finite(metrics?.recycling_income ?? metrics?.truck_record_financial_summary?.recycling_income) };
 
-  return { dumpExpenses: readDumpExpenses(date), dailyBreakdown, recyclingReceipts: readRecyclingData().receiptDrafts || [], statements: readFinancialStatements(), wexFuel, comparison:financePeriodComparison(monthly.range.dataThroughDate,readDaily), date, available: Boolean(metrics), generatedAt: metrics?.generated_at || metrics?.updated_at || null,
+  return { fuelReconciliation, dumpExpenses: readDumpExpenses(date), dailyBreakdown, recyclingReceipts: readRecyclingData().receiptDrafts || [], statements: readFinancialStatements(), wexFuel, comparison:financePeriodComparison(monthly.range.dataThroughDate,readDaily), date, available: Boolean(metrics), generatedAt: metrics?.generated_at || metrics?.updated_at || null,
     daily: dailySummary,
     month: { label: monthly.range.monthDisplay, through: monthly.range.dataThroughDate, complete: monthly.range.complete, missingDates: monthly.range.missingDates, revenue: monthly.entries.length || monthly.authority ? monthly.grossRevenue : null, jobs: monthly.entries.length || monthly.authority ? monthly.completedJobs : null, costs: sumField(monthly.entries.map(entry => entry.metrics), 'total_expenses'), profit: sumField(monthly.entries.map(entry => entry.metrics), 'net_profit'), source: monthly.revenueSource },
     territories: markets.map(territory => ({ territory, jobs: marketSum(territory, 'jobs_by_market'), revenue: marketSum(territory, 'revenue_by_market') })), costs: [['Payroll', 'total_payroll'], ['Dump Expense', 'dump_expense'], ['Fuel Expense', 'fuel_expense'], ['Other Expense', 'other_expense']].map(([category, key]) => ({ category, amount: sumField(monthly.entries.map(entry => entry.metrics), key), source: 'Published daily metrics' })),

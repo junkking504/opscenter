@@ -170,7 +170,26 @@ export function parseWexPostedCsv(input: string): WexFuelTransaction[] {
 }
 
 export function importWexPostedCsv(sourceFile: string, outputFile = wexFuelSnapshotFile(), now = new Date()): WexFuelSnapshot {
-  const transactions = parseWexPostedCsv(fs.readFileSync(sourceFile, 'utf8'));
+  const incoming = parseWexPostedCsv(fs.readFileSync(sourceFile, 'utf8'));
+  fs.mkdirSync(path.dirname(outputFile), { recursive: true, mode: 0o700 });
+  const lock = `${outputFile}.import-lock`;
+  const descriptor = fs.openSync(lock, 'wx', 0o600);
+  try {
+  let prior: WexFuelTransaction[] = [];
+  try {
+    const saved = JSON.parse(fs.readFileSync(outputFile, 'utf8'));
+    if (!validSnapshot(saved)) throw new Error('Existing WEX snapshot is invalid; recover it before importing.');
+    prior = saved.transactions;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+  const merged = new Map<string, WexFuelTransaction>();
+  for (const transaction of [...prior, ...incoming]) {
+    const existing = merged.get(transaction.transactionId);
+    if (existing && JSON.stringify(existing) !== JSON.stringify(transaction)) throw new Error(`WEX transaction ${transaction.transactionId} conflicts with saved evidence; review both exports.`);
+    merged.set(transaction.transactionId, transaction);
+  }
+  const transactions = [...merged.values()].sort((left, right) => `${right.transactionDate} ${right.transactionTime}`.localeCompare(`${left.transactionDate} ${left.transactionTime}`));
   const dates = transactions.map(transaction => transaction.transactionDate).sort();
   const snapshot: WexFuelSnapshot = {
     schemaVersion: 1,
@@ -189,6 +208,10 @@ export function importWexPostedCsv(sourceFile: string, outputFile = wexFuelSnaps
   fs.renameSync(temporary, outputFile);
   fs.chmodSync(outputFile, 0o600);
   return snapshot;
+  } finally {
+    fs.closeSync(descriptor);
+    fs.unlinkSync(lock);
+  }
 }
 
 function validSnapshot(value: unknown): value is WexFuelSnapshot {

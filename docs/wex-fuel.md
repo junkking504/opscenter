@@ -24,6 +24,42 @@ reviews the request for Fleet Management API credentials.
 
 ## Import
 
+Imports merge by transaction ID and preserve prior purchases outside the new
+export's date range. Conflicting saved IDs stop the import before replacement.
+A single-writer lock prevents concurrent imports. A lock left by an interrupted
+process requires operator investigation; never delete it while an importer runs.
+
+## Reconciliation and entry alerts
+
+Capital's Fuel Reconciliation compares individual verified JunkWare fuel entries
+with posted WEX purchases for the selected purchase date (not the posting date).
+Both source amounts remain visible. A match requires an exact normalized truck
+and date plus either the same receipt/ticket or a compatible merchant and a
+recorded time within 30 minutes. Each side must have exactly one candidate.
+Equal totals alone cannot match purchases. Multiple candidates remain for review.
+Repeated reports with the same truck, time, receipt, location and amount remain
+visible as possible duplicates, including observations under different markets.
+Their combined reported total stays unavailable until source identity is resolved.
+
+The comparison uses WEX Total Fuel Cost, with Net Cost shown separately. Net Cost
+can be used as the comparison only when the fuel portion is absent and non-fuel
+cost is explicitly zero. Differences remain unresolved; reconciliation never
+edits JunkWare, QBO or published daily amounts. Unmatched reports say Awaiting
+WEX match because posting delay, another payment method or missing coverage may
+explain the absence. An unmatched WEX purchase is not proof of an unreported
+expense when JunkWare detail coverage is incomplete.
+
+Reported fuel entries keep the existing JunkWare/OpsBot alert path to the truck's
+Slack channel and Command timeline. Entry alerts do not wait for a WEX match.
+The publisher records delivery identity to avoid repeated alerts; OpsBot-owned
+deliveries suppress a duplicate source alert. Initial historical snapshots are
+silently baselined. Reconciliation adds no external polling or message publisher.
+
+Validation: `npm run verify:wex-fuel`, truck expense notification checks,
+TypeScript, desktop build and production build.
+
+## Import command
+
 From a source checkout:
 
 ```sh

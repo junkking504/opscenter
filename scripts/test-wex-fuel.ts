@@ -60,6 +60,17 @@ assert.deepEqual(buildDailyFinanceSummary({ sales: 461.94, total_payroll: 65.07,
   fuelSource: 'wex', wexIncludedSeparately: true,
 }, 'posted WEX fills a zero published fuel field once');
 assert.equal(readWexFuelFinance('2026-09-13', path.join(root, 'missing.json')).status, 'missing');
+fs.writeFileSync(source, csv([row('three', '09/14/2026', '20.00')]));
+assert.equal(importWexPostedCsv(source, output).transactionCount, 3, 'incremental imports preserve historical purchases');
+assert.equal(importWexPostedCsv(source, output).transactionCount, 3, 'repeat imports do not duplicate saved purchases');
+const beforeConflict = fs.readFileSync(output, 'utf8');
+fs.writeFileSync(source, csv([row('three', '09/14/2026', '25.00')]));
+assert.throws(() => importWexPostedCsv(source, output), /conflicts with saved evidence/);
+assert.equal(fs.readFileSync(output, 'utf8'), beforeConflict, 'conflicts preserve the verified snapshot');
+assert.equal(fs.existsSync(`${output}.import-lock`), false, 'failed imports release the lock');
+fs.writeFileSync(`${output}.import-lock`, '');
+assert.throws(() => importWexPostedCsv(source, output), /EEXIST/, 'concurrent imports stop before modifying evidence');
+assert.equal(fs.readFileSync(output, 'utf8'), beforeConflict);
 fs.rmSync(root, { recursive: true, force: true });
 
 console.log('WEX fuel import tests passed.');

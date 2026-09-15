@@ -20,6 +20,6 @@ export function readVisitTrackingAgent(date: string) {
   const appointmentVisits = reconcileAppointmentPositions(trackAppointmentVisits(date,appointments.visits),locations,fleet?.trucks || []);
   return {agentId:VISIT_TRACKING_AGENT,date,
     visits:[...geofences.trackedVisits,...appointmentVisits],
-    sourceHealth:{...geofences.sourceHealth,appointmentsObservedAt:appointments.observedAt},
+    sourceHealth:{...geofences.sourceHealth,gpsObservedAt:fleet?.lastUpdatedAt || '',appointmentsObservedAt:appointments.observedAt},
     complete:geofences.complete && !!appointments.observedAt};
 }

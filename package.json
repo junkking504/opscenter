@@ -17,6 +17,8 @@
     "deploy": "opennextjs-cloudflare build && wrangler deploy",
     "preview": "opennextjs-cloudflare build && wrangler dev",
     "scrape:junkware": "tsx scripts/scrapers/junkware-smoke.ts",
+    "import:wex-fuel": "node --import tsx scripts/import-wex-transactions.ts",
+    "verify:wex-fuel": "node --import tsx scripts/test-wex-fuel.ts",
     "metrics:daily": "tsx scripts/pipelines/build-daily-metrics.ts",
     "reconcile:payments": "python3 scripts/collect-payment-reconciliation.py",
     "collect:qbo": "tsx scripts/collect-qbo-transactions.ts",

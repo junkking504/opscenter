@@ -2,13 +2,8 @@ import { createHash } from 'node:crypto';
 import { consolidateConfirmedVisitAlerts } from './confirmed-visit-alerts';
 import type { OperationalAlert } from './operational-alert-presentation';
 
-type Interval = {arrival?: string; departure?: string | null; departure_confirmed?: boolean};
-type Visit = {
-  appointment_id?: string; appt_id?: string; jk_number?: string; job_id?: string;
-  truck_number?: string | number; truck?: string; match_confidence?: string; pass_by_only?: boolean;
-  first_arrival?: string; final_departure?: string; visit_count?: number; visit_intervals?: Interval[];
-  operational_confirmation?: boolean;
-};
+import {trackAppointmentVisits, type AppointmentVisitSource as Visit} from './visit-tracking-agent';
+
 type Appointment = {appointmentId: string; jkNumber: string; customerName: string; address: string; territory: string};
 const truckKey = (value: unknown) => String(value || '').match(/\d+/)?.[0]?.replace(/^0+/, '') || '';
 const day = (stamp: string) => new Intl.DateTimeFormat('en-CA', {timeZone:'America/Chicago'}).format(new Date(stamp));
@@ -24,26 +19,11 @@ const duration = (milliseconds: number) => {
  * A return visit gets its own identity and never includes time away from the site.
  */
 export function appointmentVisitAlerts(input: OperationalAlert[], visits: Visit[], appointments: Appointment[], date: string, now = Date.now()): OperationalAlert[] {
-  const candidates = new Map<string, {reference: string; truck: string; appointment: string; start: string; end: string | null; operational: boolean; conflict: boolean}>();
-  for (const visit of visits) {
-    if (visit.match_confidence !== 'confirmed' || visit.pass_by_only) continue;
-    const reference = String(visit.jk_number || visit.job_id || '').toUpperCase();
-    const truck = truckKey(visit.truck_number || visit.truck), appointment = String(visit.appointment_id || visit.appt_id || '');
-    if (!/^JK\d+$/.test(reference) || !truck || !appointment) continue;
-    const intervals = visit.visit_intervals?.length ? visit.visit_intervals : visit.visit_count === 1 ? [{arrival:visit.first_arrival,departure:visit.final_departure}] : [];
-    for (const interval of intervals) {
-      const startMs = Date.parse(interval.arrival || ''), endMs = Date.parse(interval.departure || '');
-      if (!Number.isFinite(startMs) || startMs > now) continue;
-      const start = new Date(startMs).toISOString();
-      const end = interval.departure_confirmed !== false && Number.isFinite(endMs) && endMs > startMs && endMs <= now ? new Date(endMs).toISOString() : null;
-      if (day(end || start) !== date) continue;
-      const key = JSON.stringify([appointment,reference,truck,start]);
-      const previous = candidates.get(key);
-      // Conflicting duplicate records cannot establish a precise departure.
-      candidates.set(key,{reference,truck,appointment,start,end,operational:!!visit.operational_confirmation || !!previous?.operational,
-        conflict:!!previous?.conflict || !!previous && previous.end !== end});
-    }
-  }
+  const candidates = new Map(trackAppointmentVisits(date,visits,now).map(visit=>[
+    JSON.stringify([visit.appointmentId,visit.jobNumber,truckKey(visit.truck),visit.enteredAt]),
+    {reference:visit.jobNumber!,truck:truckKey(visit.truck),appointment:visit.appointmentId!,start:visit.enteredAt!,end:visit.departedAt,
+      operational:visit.arrivalSource === 'operational_confirmation',conflict:!!visit.conflict},
+  ]));
   const sources = consolidateConfirmedVisitAlerts(input, [...candidates.values()].filter(visit=>!visit.operational && !visit.conflict).map(visit=>({
     appointment_id:visit.appointment,jk_number:visit.reference,truck_number:visit.truck,match_confidence:'confirmed',visit_count:1,
     visit_intervals:[{arrival:visit.start,departure:visit.end,departure_confirmed:!!visit.end}],

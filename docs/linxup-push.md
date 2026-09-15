@@ -77,7 +77,7 @@ earlier drive-bys as new notifications. Departure evidence remains separate.
 A positive V3 `geofence.name` is also saved in a separate local observation
 stream. Command announces the first facility report without waiting for the
 V2 alert collector. Repeated reports do not duplicate arrivals; explicit V2
-entry/exit events reconcile them. An absent geofence field never invents a
+entry/exit events reconcile them. The [visit-tracking agent](visit-tracking-agents.md) also closes a visit from a later positive report at a different known facility, retaining explicit departure bounds. An absent geofence field never invents a
 departure. Position-only facility reports do not create automatic load resets;
 those remain tied to the explicit entry feed. No extra provider polling is added.
 Delivery still depends on LinxUp sending the observation and network/processing

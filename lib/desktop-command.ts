@@ -13,7 +13,7 @@ import { geofenceTimelineAlerts, readGeofenceEntries } from './linxup-geofence-a
 import {truckLoadTrackingAlerts} from './truck-load-tracking-alerts';
 import { readJobRows } from './desktop-schedule-source';
 import { readDesktopSourceHealth } from '@/lib/desktop-source-health';
-import { readMetrics, completedJobs, crewRows, truckRows, money, type AnyRecord } from '@/lib/opsData';
+import { readMetrics, money, type AnyRecord } from '@/lib/opsData';
 import { buildCommandMapData, summarizeCommandSchedule } from '@/lib/command-map-data';
 import { dailyRevenueTarget, operatingTargets } from '@/lib/operating-targets';
 import { readSlackDailyDigest } from '@/lib/slack-digest';
@@ -21,36 +21,22 @@ import { combinedCloseoutAlerts } from '@/lib/combined-closeout-alerts';
 import { readCommandCrewCorrections } from './command-crew-corrections';
 import { buildDailyPaymentReconciliation } from '@/lib/payment-reconciliation';
 import { readCompletedJunkwareRows } from '@/lib/slack-closeout-details';
+import { buildDailyFinanceSummary } from '@/lib/daily-finance-summary';
+import { readWexFuelFinance, type WexFuelFinanceData } from '@/lib/wex-fuel';
 import { commandAlertState, commandAlertWorkItemForSource } from '@/lib/command-alert-workflow';
 import { listCommandAlertWorkItems } from '@/lib/platform/persistence/work-items';
 import type { WorkItem } from '@/lib/platform/contracts';
 import type { DesktopKpi, DesktopCommandSnapshot } from '../desktop-ui/lib/live-contract';
 
-function number(value: unknown): number | null {
-  if (value == null || value === '') return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
 const progress = (actual: number | null, target: number) => actual == null || target <= 0 ? 0 : Math.max(0, Math.min(100, actual / target * 100));
 const amount = (value: number | null) => value == null ? '—' : money(value);
 const tone = (value: number | null, target: number): DesktopKpi['tone'] => value == null || target <= 0 ? 'warning' : value >= target ? 'healthy' : 'critical';
 
 // Keep the daily metrics together; missing evidence is not zero.
-export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnType<typeof summarizeCommandSchedule> | null, _visibleTrucks: number): DesktopKpi[] {
-  const crew = metrics ? crewRows(metrics) : [];
-  const trucks = metrics ? truckRows(metrics) : [];
-  const activeTrucks = metrics ? trucks.filter(truck => Number(truck.revenue) > 0).length : null;
-  const revenue = number(metrics?.total_revenue ?? metrics?.gross_revenue);
-  const payroll = number(metrics?.total_payroll ?? metrics?.payroll);
-  const jobs = metrics ? completedJobs(metrics) : null;
+export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnType<typeof summarizeCommandSchedule> | null, _visibleTrucks: number, wex?: WexFuelFinanceData): DesktopKpi[] {
+  const finance = buildDailyFinanceSummary(metrics, wex);
   const plan = dailyRevenueTarget();
-  const revenuePerTruck = revenue != null && activeTrucks ? revenue / activeTrucks : null;
-  const crewHours = crew.map(row => number(row.hours_for_rph ?? row.hours_worked ?? row.employee_hours ?? row.hours ?? row.total_hours ?? row.clocked_hours ?? row.labor_hours));
-  const laborHours = crewHours.length && crewHours.every(hours => hours != null && hours >= 0)
-    ? crewHours.reduce<number>((total, hours) => total + (hours ?? 0), 0) : null;
-  const revenuePerHour = revenue != null && laborHours != null && laborHours > 0 ? revenue / laborHours : null;
-  const averageJobSize = revenue != null && jobs != null && jobs > 0 ? revenue / jobs : null;
-  const payrollPercent = payroll != null && revenue != null && revenue > 0 ? payroll / revenue * 100 : null;
+  const payrollPercent = finance.labor != null && finance.revenue != null && finance.revenue > 0 ? finance.labor / finance.revenue * 100 : null;
   const scheduleCount = schedule?.scheduled || 0;
   return [
     { label: 'Today’s jobs', value: schedule ? String(schedule.scheduled) : '—', detail: schedule ? `${schedule.completedJobs} completed jobs · ${schedule.closedEstimates} closed estimates · ${schedule.unclosed} open` : 'Schedule source unavailable', progress: schedule ? 100 : 0, tone: schedule && schedule.unclosed === 0 ? 'healthy' : 'warning', segments: schedule ? [
@@ -58,15 +44,16 @@ export function desktopCommandKpis(metrics: AnyRecord | null, schedule: ReturnTy
       { label: 'Closed Estimates', value: progress(schedule.closedEstimates, scheduleCount), tone: 'warning' },
       { label: 'Unclosed', value: progress(schedule.unclosed, scheduleCount), tone: 'critical' },
     ] : undefined },
-    { label: 'Revenue', value: amount(revenue), secondaryValue: `${amount(revenuePerTruck)} / truck`, detail: revenue == null ? 'Revenue source unavailable' : `${Math.round(revenue / plan * 100)}% of ${money(plan)}`, progress: progress(revenue, plan), tone: tone(revenue, plan) },
-    { label: 'Labor', value: payrollPercent == null ? '—' : `${payrollPercent.toFixed(1)}%`, secondaryValue: `${amount(payroll)} payroll`, detail: payrollPercent == null ? 'Percentage unavailable · Waiting for source' : `Goal: under ${operatingTargets.maxPayrollPercent}%`, progress: progress(payrollPercent, operatingTargets.maxPayrollPercent), tone: payrollPercent == null ? 'warning' : payrollPercent < operatingTargets.maxPayrollPercent ? 'healthy' : 'critical' },
-    { label: 'Revenue Per Hour (RPH)', value: amount(revenuePerHour), detail: revenuePerHour == null ? 'Waiting for revenue and labor hours' : `${laborHours!.toFixed(1)} labor hours`, progress: revenuePerHour == null ? 0 : 100, tone: revenuePerHour == null ? 'warning' : 'healthy' },
-    { label: 'Average Job Size (AJS)', value: amount(averageJobSize), detail: `Goal: ${money(operatingTargets.averageJobSize)}`, progress: progress(averageJobSize, operatingTargets.averageJobSize), tone: tone(averageJobSize, operatingTargets.averageJobSize) },
+    { label: 'Revenue', value: amount(finance.revenue), detail: finance.revenue == null ? 'Revenue source unavailable' : `${Math.round(finance.revenue / plan * 100)}% of ${money(plan)}`, progress: progress(finance.revenue, plan), tone: tone(finance.revenue, plan) },
+    { label: 'Labor', value: amount(finance.labor), secondaryValue: payrollPercent == null ? undefined : `${payrollPercent.toFixed(1)}% of revenue`, detail: payrollPercent == null ? 'Labor source unavailable' : `Goal: under ${operatingTargets.maxPayrollPercent}%`, progress: progress(payrollPercent, operatingTargets.maxPayrollPercent), tone: payrollPercent == null ? 'warning' : payrollPercent < operatingTargets.maxPayrollPercent ? 'healthy' : 'critical' },
+    { label: 'Dump + Fuel', value: finance.dumps == null || finance.fuel == null ? '—' : amount(finance.dumps + finance.fuel), secondaryValue: `Dumps ${amount(finance.dumps)} · Fuel ${amount(finance.fuel)}`, detail: finance.fuelSource === 'wex' ? 'Fuel from posted WEX transactions' : finance.dumps == null || finance.fuel == null ? 'Expense source incomplete' : 'Published daily expenses', progress: finance.dumps == null || finance.fuel == null ? 0 : 100, tone: finance.dumps == null || finance.fuel == null ? 'warning' : 'healthy' },
+    { label: 'Net', value: amount(finance.net), detail: finance.net == null ? 'Net source unavailable' : 'After all recorded daily costs', progress: finance.net == null || finance.revenue == null || finance.revenue <= 0 ? 0 : progress(finance.net, finance.revenue), tone: finance.net == null ? 'warning' : finance.net >= 0 ? 'healthy' : 'critical' },
   ];
 }
 
 export async function readDesktopCommand(date: string, actor: DesktopCommandSnapshot['actor']): Promise<DesktopCommandSnapshot> {
   const metrics = readMetrics(date);
+  const wexFuel = readWexFuelFinance(date);
   const map = metrics ? buildCommandMapData(date) : null;
   const [digest, workflow] = await Promise.all([
     readSlackDailyDigest(date),
@@ -129,7 +116,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   }
   return {
     date, generatedAt: new Date().toISOString(), actor,
-    kpis: desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0),
+    kpis: desktopCommandKpis(metrics, map ? summarizeCommandSchedule(map.jobs) : null, map?.truckLocations.length || 0, wexFuel),
     sourceHealth: [...sourceHealth,
       {name:'LinxUp geofences',area:'Facility entries and automatic load resets',workspace:'Fleet',action:'Open Fleet',state:geofences.available ? geofences.complete ? 'Available' : 'Incomplete' : 'Unavailable',tone:geofences.available && geofences.complete ? 'healthy' : 'warning',observedAt:geofences.observedAt || null,maxAgeSeconds:180},
       {name:'Slack',area:'Operational alerts',workspace:'Command',action:'Open alerts',state:digest.status==='ready'?(digest.complete === false ? 'Incomplete' : 'Current'):'Unavailable',tone:digest.status==='ready' && digest.complete !== false ?'healthy':'warning',observedAt:digest.refreshedAt,maxAgeSeconds:120},

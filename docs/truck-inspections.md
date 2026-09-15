@@ -72,8 +72,12 @@ The dedicated public `inspect.junk-king.app` origin rewrites `/` to the inspecti
 page and permits only the exact inspection page, manifest, icon,
 `/api/truck-inspection` and Next assets. Management, authentication and webhook
 routes return 404 on this origin. OpsCenter's Truck Check entry redirects here.
-The hostname requires its own DNS record and tunnel ingress to the existing
-OpsCenter service; no new Worker, cloud subscription or metered provider is used.
+The hostname uses a proxied CNAME to the existing `opscenter-mission-control`
+tunnel (`30d8a080-e2d1-4452-b463-4ba2ba8e57ba`). Its dedicated local ingress in
+`~/.cloudflared/opscenter-mission-control.yml` forwards only this hostname to
+the existing OpsCenter service at `http://127.0.0.1:3000`. Existing ops/hooks DNS
+records and the shared tunnel remain unchanged. No new Worker, cloud
+subscription or metered provider is used.
 
 The old `hooks.junk-king.app/truck-inspection` address remains usable for existing
 drafts and receipt recovery. Browser storage and phone cookies belong to their

@@ -1,3 +1,4 @@
+import type {TrackedVisit} from './visit-tracking-agent';
 import { onsiteGpsDwell } from './parked-onsite-presence';
 import { parkedTruckObservation } from './truck-gps-status';
 import { appointmentOnsiteTime } from './appointment-onsite-time';
@@ -24,13 +25,16 @@ export function readScheduleVisits(date: string): { visits: AnyRecord[]; observe
 
 export function scheduleVisitState(
   job: { appointmentId: string; truck: string; location?: Coordinates | null }, visits: AnyRecord[], observedAt: string,
-  trucks: PresenceTruck[], now = Date.now(),
+  trucks: PresenceTruck[], now = Date.now(), tracked?: TrackedVisit[],
 ) {
+  const trackedForJob = tracked?.filter(visit=>visit.kind === 'appointment' && visit.appointmentId === job.appointmentId);
+  const bounded = (row: AnyRecord) => trackedForJob?.find(visit=>(visit.departureBounds || visit.supersededAt) && truckLabel(visit.truck) === truckLabel(String(row.truck_number || row.truck || '')) && Date.parse([...(row.visit_intervals || [])].sort((a:AnyRecord,b:AnyRecord)=>Date.parse(b.arrival)-Date.parse(a.arrival))[0]?.arrival || row.first_arrival || '') === Date.parse(visit.enteredAt || ''));
   const fresh = (stamp: string | null) => { const age = now - Date.parse(stamp || ''); return age >= -60_000 && age <= LIVE_GPS_MAX_AGE_MS; };
   const confirmed = visits.filter(row => job.appointmentId && String(row.appointment_id || row.appt_id || '') === job.appointmentId
     && row.match_confidence === 'confirmed' && !row.pass_by_only
     && (Number(row.visit_count) > 0 || Number.isFinite(Date.parse(row.first_arrival || row.arrival_at || ''))));
   const activeVisit = fresh(observedAt) ? confirmed.find(row => {
+    if (bounded(row)) return false;
     // GPS is the evidence of where a crew is working. JunkWare's assignment
     // can lag (or remain Unassigned), so do not hide a current, confirmed
     // visit merely because it does not yet agree with the schedule field.
@@ -48,6 +52,7 @@ export function scheduleVisitState(
       && Boolean(onsiteGpsDwell(job.location!, truck!, truck!.routePoints || [], Date.parse(arrival)));
   }) : undefined;
   const openVisit = confirmed.find(row => {
+    if (bounded(row)) return false;
     const latest = [...(Array.isArray(row.visit_intervals) ? row.visit_intervals : [])].sort((a,b)=>Date.parse(b.arrival)-Date.parse(a.arrival))[0];
     const visitTruck = truckLabel(String(row.truck_number || row.truck || ''));
     const truck = trucks.find(truck => visitTruck !== 'Unassigned' && truckLabel(truck.truck) === visitTruck);
@@ -65,7 +70,7 @@ export function scheduleVisitState(
     .filter(stamp=>Number.isFinite(Date.parse(stamp)) && Date.parse(stamp)<=now).sort((a,b)=>Date.parse(b)-Date.parse(a))[0] || openVisit!.first_arrival : undefined;
   const onsiteTruck = activeVisit ? truckLabel(String(activeVisit.truck_number || activeVisit.truck || '')) : undefined;
   const onsiteObservation = onsiteTruck ? trucks.find(truck => truckLabel(truck.truck) === onsiteTruck) : undefined;
-  const hasDepartedVisit = confirmed.some(row => {
+  const hasDepartedVisit = trackedForJob ? trackedForJob.some(visit=>!!visit.departedAt) : confirmed.some(row => {
     const intervals = row.visit_intervals?.length ? row.visit_intervals : [{arrival:row.first_arrival || row.arrival_at,departure:row.final_departure || row.departure_at}];
     if (intervals.some((interval: AnyRecord) => interval.departure_confirmed !== false
       && Number.isFinite(Date.parse(interval.arrival)) && Date.parse(interval.departure) >= Date.parse(interval.arrival)
@@ -77,5 +82,8 @@ export function scheduleVisitState(
     // A later position elsewhere proves departure without inventing its clock time.
     return Boolean(position && !position.inside && insideTimes.length && position.stamp > Math.max(...insideTimes));
   });
-  return { onsiteGpsAt: onsiteObservation?.lastGpsUpdate || undefined, onsiteGpsParked: onsiteObservation ? parkedTruckObservation(onsiteObservation) : undefined, hasVisit: confirmed.length > 0, hasDepartedVisit, truckOnSite: Boolean(activeVisit), onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, onsiteTime: appointmentOnsiteTime(job, visits, now) };
+  const boundedDeparture = trackedForJob?.filter(visit=>visit.departureBounds).sort((a,b)=>(b.departedAt || '').localeCompare(a.departedAt || ''))[0];
+  const hasSuperseded = trackedForJob?.some(visit=>!!visit.supersededAt);
+  const onsiteTime = boundedDeparture ? {minutes:null,arrival:boundedDeparture.enteredAt,departure:null,label:'Departure confirmed · exact time unavailable'} : hasSuperseded ? {minutes:null,arrival:trackedForJob?.[0]?.enteredAt || null,departure:null,label:'Recorded GPS segments · departure timing incomplete'} : appointmentOnsiteTime(job, visits, now);
+  return { onsiteGpsAt: onsiteObservation?.lastGpsUpdate || undefined, onsiteGpsParked: onsiteObservation ? parkedTruckObservation(onsiteObservation) : undefined, hasVisit: confirmed.length > 0, hasDepartedVisit, truckOnSite: Boolean(activeVisit), onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, onsiteTime };
 }

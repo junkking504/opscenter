@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { consolidateConfirmedVisitAlerts } from './confirmed-visit-alerts';
 import type { OperationalAlert } from './operational-alert-presentation';
 
-import {trackAppointmentVisits, type AppointmentVisitSource as Visit} from './visit-tracking-agent';
+import {trackAppointmentVisits, type AppointmentVisitSource as Visit, type TrackedVisit} from './visit-tracking-agent';
 
 type Appointment = {appointmentId: string; jkNumber: string; customerName: string; address: string; territory: string};
 const truckKey = (value: unknown) => String(value || '').match(/\d+/)?.[0]?.replace(/^0+/, '') || '';
@@ -18,13 +18,13 @@ const duration = (milliseconds: number) => {
  * Keep the arrival identity through departure, and preserve legacy review aliases.
  * A return visit gets its own identity and never includes time away from the site.
  */
-export function appointmentVisitAlerts(input: OperationalAlert[], visits: Visit[], appointments: Appointment[], date: string, now = Date.now()): OperationalAlert[] {
-  const candidates = new Map(trackAppointmentVisits(date,visits,now).map(visit=>[
+export function appointmentVisitAlerts(input: OperationalAlert[], visits: Visit[], appointments: Appointment[], date: string, now = Date.now(), tracked?: TrackedVisit[]): OperationalAlert[] {
+  const candidates = new Map((tracked || trackAppointmentVisits(date,visits,now)).filter(visit=>visit.kind === 'appointment').map(visit=>[
     JSON.stringify([visit.appointmentId,visit.jobNumber,truckKey(visit.truck),visit.enteredAt]),
     {reference:visit.jobNumber!,truck:truckKey(visit.truck),appointment:visit.appointmentId!,start:visit.enteredAt!,end:visit.departedAt,
-      operational:visit.arrivalSource === 'operational_confirmation',conflict:!!visit.conflict},
+      operational:visit.arrivalSource === 'operational_confirmation',conflict:!!visit.conflict,bounds:visit.departureBounds,supersededAt:visit.supersededAt},
   ]));
-  const sources = consolidateConfirmedVisitAlerts(input, [...candidates.values()].filter(visit=>!visit.operational && !visit.conflict).map(visit=>({
+  const sources = consolidateConfirmedVisitAlerts(input, [...candidates.values()].filter(visit=>!visit.operational && !visit.conflict && !visit.bounds && !visit.supersededAt).map(visit=>({
     appointment_id:visit.appointment,jk_number:visit.reference,truck_number:visit.truck,match_confidence:'confirmed',visit_count:1,
     visit_intervals:[{arrival:visit.start,departure:visit.end,departure_confirmed:!!visit.end}],
   })), now);
@@ -34,7 +34,7 @@ export function appointmentVisitAlerts(input: OperationalAlert[], visits: Visit[
     const truck = truckKey(alert.truck || alert.title.match(/\bTruck\s*#?\s*\d+/i)?.[0]);
     const fact = (label: string) => alert.facts.find(f=>f.label.toLowerCase() === label.toLowerCase())?.value.replace(/\s*(?:CT|CDT|CST)$/i,'').trim();
     const matches = !alert.threadReply && ['Arrival','Duration'].includes(alert.label) && Number.isFinite(Date.parse(stamp))
-      ? [...candidates].filter(([,visit])=> !visit.conflict && !visit.operational && visit.reference === reference && visit.truck === truck
+      ? [...candidates].filter(([,visit])=> !visit.conflict && !visit.operational && !visit.bounds && !visit.supersededAt && visit.reference === reference && visit.truck === truck
         && day(stamp) === day(visit.start) && (!visit.end || day(visit.end) === day(visit.start))
         && fact('Arrival') === clock(visit.start)
         && (alert.label === 'Arrival' || visit.end && fact('Departure') === clock(visit.end))) : [];
@@ -52,18 +52,19 @@ export function appointmentVisitAlerts(input: OperationalAlert[], visits: Visit[
       id:`appointment-visit-${createHash('sha256').update(key).digest('hex').slice(0,24)}`,
       sourceMessageIds:[...new Set(aliases.flatMap(alert=>[alert.id,...(alert.sourceMessageIds || [])]))],
       source:visit.operational ? 'Operational confirmation' : 'LinxUp',
-      timestamp, updatedAt:timestamp, label:end ? 'Departure' : 'Arrival',
+      timestamp, updatedAt:timestamp, label:end ? 'Departure' : visit.supersededAt ? 'Visit segment' : 'Arrival',
       truck:`Truck ${visit.truck}`, territory:job?.territory, domain:'Dispatch', owner:'Dispatch',
       title:`Truck ${visit.truck} - ${visit.reference}${job?.customerName ? ` · ${job.customerName}` : ''}`,
       detected:clock(timestamp),needsAction:false,
       facts:[
         ...(end ? [
-        {label:'Time on site',value:visit.operational ? 'Unavailable · GPS coverage gap' : duration(Date.parse(end)-Date.parse(visit.start))}] : []),
+        {label:'Time on site',value:visit.bounds ? 'Unavailable · departure bounded by GPS' : visit.operational ? 'Unavailable · GPS coverage gap' : duration(Date.parse(end)-Date.parse(visit.start))}] : []),
         {label:'Arrived',value:time(visit.start)},
-        {label:'Departed',value:end ? time(end) : visit.conflict ? 'Awaiting verification · conflicting records' : 'Awaiting confirmed departure'},
+        {label:'Departed',value:visit.supersededAt ? 'Earlier GPS segment; departure time unavailable' : visit.bounds ? `After ${time(visit.bounds.after)} · by ${time(visit.bounds.by)}` : end ? time(end) : visit.conflict ? 'Awaiting verification · conflicting records' : 'Awaiting confirmed departure'},
         ...(job?.address ? [{label:'Location',value:job.address}] : []),
+        ...(visit.bounds ? [{label:'Departure source',value:'Two later GPS positions outside the verified appointment location; exact exit time unavailable'}] : []),
         ...(visit.operational ? [{label:'Visit verification',value:'Operationally confirmed; precise GPS visit timing is unavailable.'}] : [])],
-      next:end ? 'Visit recorded. Appointment closeout is tracked separately.' : 'Arrival recorded; this alert updates when departure is confirmed.',
+      next:visit.supersededAt ? 'A later GPS visit segment was recorded. Departure from this earlier segment is unconfirmed.' : end ? 'Visit recorded. Appointment closeout is tracked separately.' : 'Arrival recorded; this alert updates when departure is confirmed.',
       href:`/desktop?workspace=Schedule&date=${encodeURIComponent(date)}&appointment=${encodeURIComponent(visit.appointment)}`,
     });
   }

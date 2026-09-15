@@ -59,3 +59,16 @@ try {
   assert.equal(read.trackedVisits.find(v=>v.name==='Gentilly')?.departureSource,'later_facility','failed native feed does not block current local V3 evidence');
 } finally {if(previous===undefined) delete process.env.OPSCENTER_DATA_DIR;else process.env.OPSCENTER_DATA_DIR=previous;fs.rmSync(root,{recursive:true,force:true});}
 console.log('PASS visit tracking agent: bounded departures, source recovery, identities, repeats, aliases, midnight, appointment revisions and freshness');
+// A real drive away and return to the same dump creates two visits even when
+// the separate native alert feed is unavailable throughout.
+const facilityPoint=(stamp:string)=>point('Stranco',stamp,'8');
+const gps=(stamp:string,latitude=30,longitude=-90)=>({truck_number:'8',timestamp:stamp,latitude,longitude});
+const firstAt='2026-09-15T14:00:00Z',returnAt='2026-09-15T16:00:00Z';
+const positions=[gps(firstAt),gps('2026-09-15T14:10:00Z',30.1),gps('2026-09-15T14:11:00Z',30.11),gps(returnAt)];
+const separated=trackedGeofenceVisits(date,[facilityPoint(firstAt),facilityPoint(returnAt)],[],now,positions);
+assert.equal(separated.length,2);assert.equal(new Set(separated.map(v=>v.id)).size,2);
+assert.equal(separated.find(v=>v.enteredAt==='2026-09-15T14:00:00.000Z')!.departureSource,'later_position');
+assert.equal(trackedGeofenceVisits(date,[],[],now,positions).length,0,'outside coordinates never invent a facility arrival or reset');
+const insideLandfill=[gps(firstAt),gps('2026-09-15T14:10:00Z',30.01),gps('2026-09-15T14:11:00Z',30.02)];
+assert.equal(trackedGeofenceVisits(date,[facilityPoint(firstAt)],[],now,insideLandfill)[0].departedAt,null,'travel 1–2km inside a large facility must not infer exit');
+assert.equal(trackedGeofenceVisits(date,[facilityPoint(firstAt),facilityPoint('2026-09-15T14:10:00Z'),facilityPoint('2026-09-15T14:11:00Z')],[],now,positions).length,1,'affirmative facility membership overrides distant coordinate heuristic');

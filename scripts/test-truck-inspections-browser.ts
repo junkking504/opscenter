@@ -77,7 +77,7 @@ async function main() {
     await page.getByLabel("What did you find?").fill("Synthetic test: tire damage recorded offline.");
     await page.getByRole("button", { name: "Save problem & continue" }).click();
     assert.equal(await page.getByRole("button", { name: "✓ Good — next check", exact: true }).isDisabled(), true);
-    await page.getByRole("button", { name: "Fuel 1/2", exact: true }).click();
+    await page.getByRole("button", { name: "Fuel tank 1/2", exact: true }).click();
     await page.waitForTimeout(500);
     await page.getByRole("button", { name: "✓ Good — next check", exact: true }).click();
     await mobile.setOffline(false);
@@ -86,6 +86,13 @@ async function main() {
     await page.reload();
     await page.getByRole("heading", { name: "Test the essentials." }).waitFor();
     await page.locator("header").getByText("Truck 4", { exact: true }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "✓ Good — next check", exact: true }).isDisabled(), true);
+    await page.getByRole("button", { name: "Truck fullness 3/4", exact: true }).click();
+    await page.waitForFunction(async () => new Promise<boolean>(resolve => { const open = indexedDB.open("junk-king-truck-inspection", 1); open.onsuccess = () => { const db = open.result; const req = db.transaction("drafts").objectStore("drafts").getAll(); req.onsuccess = () => { const ok = req.result.some(d => d.loadLevel === "3/4" && d.fuel === "1/2"); db.close(); resolve(ok); }; }; }));
+    await page.reload();
+    assert.equal(await page.getByRole("button", { name: "Truck fullness 3/4", exact: true }).getAttribute("aria-pressed"), "true");
+    await page.getByRole("button", { name: "Truck fullness 3/4", exact: true }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: "/tmp/five-point-inspection-review/mobile-fullness.png", fullPage: true });
     await page.getByRole("button", { name: "✓ Good — next check", exact: true }).click();
     await page.waitForTimeout(500);
     await page.getByRole("button", { name: "✓ Good — finish checks", exact: true }).click();
@@ -98,7 +105,7 @@ async function main() {
     await page.getByLabel("Your initials", { exact: true }).fill("TD");
     // Editing a result returns to review and requires a new operating decision.
     await page.getByRole("button", { name: "Edit Dashboard check", exact: true }).click();
-    assert.equal(await page.getByRole("button", { name: "Fuel 1/2", exact: true }).getAttribute("aria-pressed"), "true");
+    assert.equal(await page.getByRole("button", { name: "Fuel tank 1/2", exact: true }).getAttribute("aria-pressed"), "true");
     await page.waitForTimeout(500);
     await page.getByRole("button", { name: "✓ Good — review", exact: true }).click();
     assert.equal(await page.getByRole("button", { name: "Send to OpsCenter", exact: true }).isDisabled(), true);
@@ -127,6 +134,9 @@ async function main() {
     assert.equal(saved.reports[0].answers[1].notes, "Synthetic test: tire damage recorded offline.");
     assert.equal(saved.reports[0].inspector, "Test Driver");
     assert.equal(saved.reports[0].truck, "Truck 4");
+    assert.equal(saved.reports[0].loadLevel, "3/4");
+    assert.equal(saved.reports[0].fuel, "1/2");
+    assert.equal(saved.reports[0].version, 2);
     const duplicate = await mobile.request.post(`${base}/api/truck-inspection`, { data: { action: "submit", report: saved.reports[0] } });
     assert.equal(duplicate.status(), 200);
     assert.equal((await mobile.request.post(`${base}/api/truck-inspection`, { data: { action: "submit", report: { ...saved.reports[0], truck: "Truck 8" } } })).status(), 409);
@@ -142,6 +152,9 @@ async function main() {
     await management.getByRole("button", { name: "Refresh reports" }).click();
     await management.getByRole("button", { name: /Truck 4 · Test Driver/ }).click();
     await management.getByRole("region", { name: "Selected inspection report" }).getByText("Synthetic test: tire damage recorded offline.", { exact: true }).waitFor();
+    const levels = await management.getByRole("region", { name: "Selected inspection report" }).locator("dl").innerText();
+    assert.match(levels, /Truck fullness\s+3\/4/);
+    assert.match(levels, /Fuel tank\s+1\/2/);
     await management.getByRole("combobox", { name: /^Status/ }).selectOption("missing");
     assert.equal(await management.getByRole("button", { name: /Truck 4 · Test Driver/ }).count(), 0);
     await management.getByRole("combobox", { name: /^Status/ }).selectOption("stop");
@@ -154,7 +167,8 @@ async function main() {
     await page.getByLabel("Odometer · miles").fill("125050");
     await page.getByRole("button", { name: "Start inspection" }).click();
     for (let step = 1; step <= 5; step++) {
-      if (step === 3) await page.getByRole("button", { name: "Fuel Full", exact: true }).click();
+      if (step === 4) await page.getByRole("button", { name: "Truck fullness Empty", exact: true }).click();
+      if (step === 3) await page.getByRole("button", { name: "Fuel tank Full", exact: true }).click();
       await page.waitForTimeout(500);
       await page.getByRole("button", { name: step === 5 ? "✓ Good — finish checks" : "✓ Good — next check", exact: true }).click();
     }
@@ -168,6 +182,8 @@ async function main() {
     await page.getByRole("heading", { name: "✓ No problems reported", exact: true }).waitFor();
     const afterClear = await (await manager.request.get(`${base}/api/fleet-inspections?date=${inspectionDate()}`)).json();
     assert.equal(afterClear.reports.length, 2);
+    assert.equal(afterClear.reports.find((r: {status:string}) => r.status === "clear").loadLevel, "Empty");
+    assert.equal(afterClear.reports.find((r: {status:string}) => r.status === "clear").fuel, "Full");
     assert.equal(afterClear.reports.find((r: {status:string}) => r.status === "clear").truck, "Truck 8");
     assert.equal(afterClear.reports.find((r: {status:string}) => r.status === "clear").deviceId, connected.device.deviceId);
     assert.deepEqual(afterClear.reports.find((r: {requestId:string}) => r.requestId === saved.reports[0].requestId), saved.reports[0], "switching trucks must preserve the original report");
@@ -180,7 +196,7 @@ async function main() {
     assert.equal((await (await mobile.request.get(`${base}/api/truck-inspection`)).json()).device, null);
     assert.equal((await mobile.request.get(`${base}/api/truck-inspection?requestId=${saved.reports[0].requestId}`)).status(), 401);
     assert.deepEqual(errors, []);
-    console.log("Browser acceptance passed: per-inspection truck selection, same phone with two trucks, immutable original report, required truck and invalid truck rejection, no crew directory, Figma mobile layout, double-tap guard, required fuel, operating decision reset on edit, stop receipt, status filters, five checks, problem note/photo, offline draft reload, lost acknowledgement recovery, duplicate safety, report read-back, revoked device and management isolation.");
+    console.log("Browser acceptance passed: required independent truck fullness and fuel tank, preserved levels on reload and receipt, per-inspection truck selection, same phone with two trucks, immutable original report, required truck and invalid truck rejection, no crew directory, Figma mobile layout, double-tap guard, required fuel, operating decision reset on edit, stop receipt, status filters, five checks, problem note/photo, offline draft reload, lost acknowledgement recovery, duplicate safety, report read-back, revoked device and management isolation.");
   } finally {
     await browser.close();
     server.kill("SIGTERM");

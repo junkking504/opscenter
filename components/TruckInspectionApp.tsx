@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { INSPECTION_SECTIONS, INSPECTION_STATUSES, inspectionDate, type InspectionDevice, type InspectionStatus, type InspectionSectionId, type TruckInspectionInput, type TruckInspectionReport } from "@/lib/truck-inspection";
+import { INSPECTION_SECTIONS, INSPECTION_STATUSES, INSPECTION_LEVELS, inspectionDate, type InspectionDevice, type InspectionStatus, type InspectionSectionId, type TruckInspectionInput, type TruckInspectionReport } from "@/lib/truck-inspection";
 import { inspectionDraft } from "@/lib/truck-inspection-draft";
 import styles from "./truck-inspection.module.css";
 
 type Draft = Omit<TruckInspectionInput, "status"> & { status: InspectionStatus | ""; step: number; sent: boolean; problemEditing?: boolean; returnToReview?: boolean };
 type Context = { device: InspectionDevice; trucks: string[]; inspectors: string[]; date: string };
 const CONNECTION_KEY = "truck-inspection-connection";
-function emptyDraft(): Draft { return { requestId: crypto.randomUUID(), truck: "", inspector: "", odometer: "", fuel: "", startedAt: new Date().toISOString(), answers: [], photos: [], status: "", notes: "", initials: "", step: 0, sent: false }; }
+function emptyDraft(): Draft { return { requestId: crypto.randomUUID(), truck: "", inspector: "", odometer: "", fuel: "", loadLevel: "", startedAt: new Date().toISOString(), answers: [], photos: [], status: "", notes: "", initials: "", step: 0, sent: false }; }
 async function api(url: string, body?: unknown) {
   const response = await fetch(url, { method: body ? "POST" : "GET", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined, cache: "no-store", signal: AbortSignal.timeout(25_000) });
   const value = await response.json();
@@ -117,7 +117,8 @@ export default function TruckInspectionApp() {
   const answer = draft?.answers.find(a => a.id === section?.id);
   const problemCount = draft?.answers.filter(a => a.status === "problem").length || 0;
   const complete = draft && INSPECTION_SECTIONS.every(s => draft.answers.some(a => a.id === s.id && (a.status === "good" || (a.status === "problem" && a.notes.trim()))));
-  const canSend = draft && context?.trucks.includes(draft.truck) && complete && draft.inspector.trim() && /^\d{1,8}$/.test(draft.odometer) && draft.fuel && draft.initials.trim() && draft.status && !(problemCount && draft.status === "clear") && !(draft.status === "reported" && !problemCount) && !(draft.status === "stop" && !problemCount && !draft.notes.trim());
+  const missingSectionLevel = (section?.id === "dashboard" && !draft?.fuel) || (section?.id === "operation" && !draft?.loadLevel);
+  const canSend = draft && context?.trucks.includes(draft.truck) && complete && draft.inspector.trim() && /^\d{1,8}$/.test(draft.odometer) && draft.fuel && draft.loadLevel && draft.initials.trim() && draft.status && !(problemCount && draft.status === "clear") && !(draft.status === "reported" && !problemCount) && !(draft.status === "stop" && !problemCount && !draft.notes.trim());
   const presentation = section ? {
     "walk-around": ["Start outside.", "Walk all the way around the truck before choosing a result."],
     "wheels-tires": ["Check every wheel.", "Look closely at all tires, lug nuts and rims."],
@@ -126,7 +127,7 @@ export default function TruckInspectionApp() {
     cleanliness: ["Ready for customers.", "Leave the cab and truck clean and organized."],
   }[section.id] : null;
   function nextSection(good: boolean, eventTime: number) {
-    if (!draft || !section || busy || draft.sent || (section.id === "dashboard" && !draft.fuel)) return;
+    if (!draft || !section || busy || draft.sent || missingSectionLevel) return;
     if (!good && (!answer || (answer.status === "problem" && !answer.notes.trim()))) return;
     // A double tap must not mark two different inspection sections good.
     if (good && eventTime - lastAdvance.current < 450) return;
@@ -141,7 +142,7 @@ export default function TruckInspectionApp() {
   const back = (step: number, label = "Back") => <button className={styles.backButton} disabled={busy} onClick={() => change({ step, problemEditing: false })}>← {label}</button>;
   const saveStatus = <span className={styles.saved} role="status">{saved || "Saving on this phone…"}</span>;
   const reportBody = (report: TruckInspectionReport) => <>
-    <dl className={styles.summary}><dt>Inspector</dt><dd>{report.inspector}</dd><dt>Mileage</dt><dd>{Number(report.odometer).toLocaleString()} mi</dd><dt>Fuel</dt><dd>{report.fuel}</dd><dt>Received</dt><dd>{new Date(report.receivedAt).toLocaleString()}</dd><dt>Initials</dt><dd>{report.initials}</dd></dl>
+    <dl className={styles.summary}><dt>Inspector</dt><dd>{report.inspector}</dd><dt>Mileage</dt><dd>{Number(report.odometer).toLocaleString()} mi</dd><dt>Truck fullness</dt><dd>{report.loadLevel || "Not recorded"}</dd><dt>Fuel tank</dt><dd>{report.fuel}</dd><dt>Received</dt><dd>{new Date(report.receivedAt).toLocaleString()}</dd><dt>Initials</dt><dd>{report.initials}</dd></dl>
     {report.answers.map(a => <div className={styles.reviewRow} key={a.id}><div><strong>{INSPECTION_SECTIONS.find(s => s.id === a.id)?.label}</strong><p>{a.status === "good" ? "✓ Good" : "! Problem"}</p>{a.notes && <p>{a.notes}</p>}</div></div>)}
     {report.notes && <p>{report.notes}</p>}
     <div className={styles.photos}>{report.photos.map((p, i) => <figure key={i}><img src={p.data} alt={`${INSPECTION_SECTIONS.find(s => s.id === p.section)?.label} inspection photo ${i + 1}`} /></figure>)}</div>
@@ -155,7 +156,7 @@ export default function TruckInspectionApp() {
         <section className={styles.phoneContent}>
           <div className={styles.received}>✓ RECEIVED BY OPSCENTER</div><h1 ref={heading} tabIndex={-1}>Report received.</h1><p className={styles.intro}>Your morning inspection is recorded.</p>
           <div className={styles.decisionCard} data-status={receipt.status}><h2>{receipt.status === "stop" ? "! Do not operate" : receipt.status === "clear" ? "✓ No problems reported" : "Problem reported"}</h2><p>{receipt.status === "stop" ? "Keep the truck parked. Contact your supervisor about the reported condition." : receipt.status === "clear" ? "All five inspection sections were marked good." : "You marked the truck safe to operate. The problem is recorded for OpsCenter."}</p></div>
-          <div className={styles.card}><h2>{receipt.truck} · {receipt.inspector}</h2><p>Received {new Date(receipt.receivedAt).toLocaleString()}</p><p className={styles.muted}>{Number(receipt.odometer).toLocaleString()} miles · Fuel {receipt.fuel}<br />5 checks · {receipt.answers.filter(a => a.status === "problem").length} problems · {receipt.photos.length} photos</p></div>
+          <div className={styles.card}><h2>{receipt.truck} · {receipt.inspector}</h2><p>Received {new Date(receipt.receivedAt).toLocaleString()}</p><p className={styles.muted}>{Number(receipt.odometer).toLocaleString()} miles<br />Truck fullness: {receipt.loadLevel || "Not recorded"} · Fuel tank: {receipt.fuel}<br />5 checks · {receipt.answers.filter(a => a.status === "problem").length} problems · {receipt.photos.length} photos</p></div>
           {showReport && <section className={styles.card} aria-label="Submitted report">{reportBody(receipt)}</section>}
           {errors}
         </section>
@@ -188,15 +189,16 @@ export default function TruckInspectionApp() {
               <label className={styles.photoButton}>＋ Take or add a photo<input type="file" accept="image/*" capture="environment" disabled={busy || draft.photos.length >= 3} onChange={e => { void addPhoto(e.target.files?.[0], section.id); e.target.value = ""; }} /></label><p className={styles.muted}>Optional · Up to 3 photos per report</p>
               <div className={styles.photos}>{draft.photos.map((p, index) => p.section === section.id && <figure key={index}><img src={p.data} alt={`${section.label} problem photo`} /><button aria-label={`Remove photo ${index + 1}`} disabled={busy} onClick={() => change({ photos: draft.photos.filter((_, i) => i !== index) })}>Remove</button></figure>)}</div>
             </>}
-            {section.id === "dashboard" && <fieldset className={styles.fuel}><legend>Fuel level</legend><div>{["Empty", "1/4", "1/2", "3/4", "Full"].map((f, i) => <button type="button" key={f} aria-label={`Fuel ${f}`} aria-pressed={draft.fuel === f} onClick={() => change({ fuel: f })}>{["Empty", "¼", "½", "¾", "Full"][i]}</button>)}</div></fieldset>}
-            {!draft.problemEditing && <p className={styles.muted}>Check every item above, then choose.{section.id === "dashboard" && !draft.fuel ? " Select the fuel level to continue." : ""}</p>}
+            {section.id === "dashboard" && <fieldset className={styles.fuel}><legend>Fuel tank level</legend><div>{INSPECTION_LEVELS.map((f, i) => <button type="button" key={f} aria-label={`Fuel tank ${f}`} aria-pressed={draft.fuel === f} onClick={() => change({ fuel: f })}>{["Empty", "¼", "½", "¾", "Full"][i]}</button>)}</div></fieldset>}
+            {section.id === "operation" && <fieldset className={styles.fuel}><legend>Truck fullness</legend><p className={styles.muted}>How much of the truck’s cargo space is already filled?</p><div>{INSPECTION_LEVELS.map((level, i) => <button type="button" key={level} aria-label={`Truck fullness ${level}`} aria-pressed={draft.loadLevel === level} onClick={() => change({ loadLevel: level })}>{["Empty", "¼", "½", "¾", "Full"][i]}</button>)}</div></fieldset>}
+            {!draft.problemEditing && <p className={styles.muted}>Check every item above, then choose.{section.id === "dashboard" && !draft.fuel ? " Select the fuel-tank level to continue." : section.id === "operation" && !draft.loadLevel ? " Select truck fullness to continue." : ""}</p>}
           </> : draft.step === 7 ? <>
             <div className={styles.eyebrow}>FINAL OPERATING STATUS</div><h1 ref={heading} tabIndex={-1}>Can this truck operate?</h1><p className={styles.intro}>Choose based on the inspection. Your choice is included in the report.</p>
             <fieldset className={styles.statusChoices}><legend className={styles.srOnly}>Final operating status</legend>{Object.entries(INSPECTION_STATUSES).map(([value, label]) => <label className={styles.radio} key={value}><input type="radio" name="final-status" value={value} checked={draft.status === value} disabled={(value === "clear" && problemCount > 0) || (value === "reported" && !problemCount)} onChange={() => change({ status: value as InspectionStatus })} />{label}</label>)}</fieldset>
             <p className={styles.muted}>{problemCount ? "A problem was reported. No problems is unavailable." : "Choose Do not operate if the truck should stay parked."}</p>
             <label>Additional notes{draft.status === "stop" && !problemCount ? " · required" : " · optional"}<textarea maxLength={2000} value={draft.notes} onChange={e => change({ notes: e.target.value })} /></label>
           </> : <>
-            <div className={styles.eyebrow}>{complete ? "ALL 5 CHECKS COMPLETE" : "COMPLETE EVERY CHECK"}</div><h1 ref={heading} tabIndex={-1}>Review & send.</h1><p className={styles.intro}>{draft.truck} · {draft.inspector}<br />{Number(draft.odometer).toLocaleString()} miles · Fuel {draft.fuel || "not selected"}</p>
+            <div className={styles.eyebrow}>{complete ? "ALL 5 CHECKS COMPLETE" : "COMPLETE EVERY CHECK"}</div><h1 ref={heading} tabIndex={-1}>Review & send.</h1><p className={styles.intro}>{draft.truck} · {draft.inspector}<br />{Number(draft.odometer).toLocaleString()} miles<br />Truck fullness: {draft.loadLevel || "not selected"} · Fuel tank: {draft.fuel || "not selected"}</p>
             <div className={styles.card}>{INSPECTION_SECTIONS.map((s, i) => { const a = draft.answers.find(a => a.id === s.id); return <div className={styles.reviewRow} key={s.id}><div><strong>{s.label}</strong><p data-status={a?.status === "problem" ? "reported" : "clear"}>{a?.status === "good" ? "✓ Good" : `! ${a?.notes || "Not checked"}`}</p></div><button aria-label={`Edit ${s.label}`} disabled={busy} onClick={() => change({ step: i + 1, returnToReview: true, problemEditing: false })}>Edit</button></div>; })}</div>
             <button className={styles.statusSummary} data-status={draft.status} onClick={() => change({ step: 7 })}><span>OPERATING STATUS · CHANGE</span><strong>{draft.status ? INSPECTION_STATUSES[draft.status] : "Choose operating status"}</strong></button>
             {draft.notes && <p>{draft.notes}</p>}
@@ -207,8 +209,8 @@ export default function TruckInspectionApp() {
         <div className={styles.actionBar}>
           {draft.step === 0 ? <button form="start-inspection" className={styles.primary} disabled={!draft.truck}>Start inspection →</button>
           : section ? <>
-            {draft.problemEditing ? <><button className={styles.primary} disabled={busy || !answer?.notes.trim() || (section.id === "dashboard" && !draft.fuel)} onClick={e => nextSection(false, e.timeStamp)}>Save problem & continue →</button><button onClick={() => change({ problemEditing: false })} disabled={busy}>Back to {section.label.toLowerCase()}</button></>
-            : <><button className={styles.goodButton} disabled={busy || (section.id === "dashboard" && !draft.fuel)} onClick={e => nextSection(true, e.timeStamp)}>✓ Good — {draft.returnToReview ? "review" : draft.step === 5 ? "finish checks" : "next check"}</button><button disabled={busy} onClick={() => change({ problemEditing: true, answers: [...draft.answers.filter(a => a.id !== section.id), { id: section.id, status: "problem", notes: answer?.notes || "" }], status: "" })}>! Report a problem</button></>}
+            {draft.problemEditing ? <><button className={styles.primary} disabled={busy || !answer?.notes.trim() || missingSectionLevel} onClick={e => nextSection(false, e.timeStamp)}>Save problem & continue →</button><button onClick={() => change({ problemEditing: false })} disabled={busy}>Back to {section.label.toLowerCase()}</button></>
+            : <><button className={styles.goodButton} disabled={busy || missingSectionLevel} onClick={e => nextSection(true, e.timeStamp)}>✓ Good — {draft.returnToReview ? "review" : draft.step === 5 ? "finish checks" : "next check"}</button><button disabled={busy} onClick={() => change({ problemEditing: true, answers: [...draft.answers.filter(a => a.id !== section.id), { id: section.id, status: "problem", notes: answer?.notes || "" }], status: "" })}>! Report a problem</button></>}
             <div className={styles.actionMeta}>{back(draft.returnToReview ? 6 : draft.step - 1)}{saveStatus}</div>
           </> : draft.step === 7 ? <><button className={styles.primary} disabled={!draft.status || (draft.status === "stop" && !problemCount && !draft.notes.trim())} onClick={() => change({ step: 6 })}>Review report →</button><div className={styles.actionMeta}>{back(complete ? 6 : 5)}{saveStatus}</div></>
           : <><button className={styles.primary} disabled={busy || !canSend} onClick={() => void submit()}>Send to OpsCenter</button><p className={styles.muted}>Wait for your receipt before closing.</p><div className={styles.actionMeta}>{back(7, "Operating status")}{saveStatus}</div></>}

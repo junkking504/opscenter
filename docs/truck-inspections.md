@@ -8,7 +8,8 @@ selected truck, answers and photos. Changing its truck after checks or photos
 have been entered asks before clearing the unfinished checklist and creating a
 new report reference; cancelling preserves the draft.
 
-Each morning, the inspector checks five sections, records fuel, chooses a final
+Each morning, the inspector checks five sections, records truck fullness and
+fuel-tank level, chooses a final
 operating status and initials the report. Names and truck selections are
 self-reported, not proof of identity or company ownership. The public phone API
 does not expose the crew roster.
@@ -28,6 +29,14 @@ truck-specific pressure table requires confirmation against fleet requirements.
 Equipment guidance covers winches and DEF where fitted. Selecting Good confirms
 the applicable checks in a section, not that every truck has every accessory.
 
+Truck fullness is required in Truck & dump body (step 4); fuel-tank level is
+required in Dashboard (step 3). Both offer Empty, 1/4, 1/2, 3/4 and Full, with
+no default selection. Fullness describes occupied cargo space at inspection
+time, not the number of loads hauled. Both values survive draft recovery and
+appear separately in review, the saved receipt and the printable OpsCenter
+report. These observations do not change the separate calculated Fleet load
+state or fuel-purchase records.
+
 ## Storage and verification
 
 OpsCenter owns the inspection record. Reports live in protected runtime storage
@@ -35,6 +44,10 @@ at `data/fleet/truck-inspections`, outside the release checkout via its existing
 data mount. `OPS_TRUCK_INSPECTION_DIR` can override this for isolated tests.
 Each report is immutable, includes its schema version, device, selected truck,
 declared inspector, initials, start time, receipt time, answers and photographs.
+New reports use schema version 2 and require both levels. Historical version-1
+reports without fullness display Not recorded; replaying their original request
+returns the unchanged receipt. An unfinished old draft must record fullness
+before its first submission.
 The inspection date is the Chicago date at the recorded start time. Late reports
 retain their original date. Drafts older than seven days cannot be submitted.
 

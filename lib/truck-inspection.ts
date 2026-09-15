@@ -16,13 +16,15 @@ export const INSPECTION_STATUSES = {
 export type InspectionStatus = keyof typeof INSPECTION_STATUSES;
 export type InspectionAnswer = { id: InspectionSectionId; status: "good" | "problem"; notes: string };
 export type InspectionPhoto = { section: InspectionSectionId; data: string };
+export const INSPECTION_LEVELS = ["Empty", "1/4", "1/2", "3/4", "Full"] as const;
 export type TruckInspectionInput = {
   requestId: string; truck: string; inspector: string; odometer: string; fuel: string;
+  loadLevel?: string;
   startedAt: string; answers: InspectionAnswer[]; photos: InspectionPhoto[];
   status: InspectionStatus; notes: string; initials: string;
 };
 export type TruckInspectionReport = TruckInspectionInput & {
-  version: 1; truck: string; deviceId: string; receivedAt: string; inspectionDate: string;
+  version: 1 | 2; truck: string; deviceId: string; receivedAt: string; inspectionDate: string;
 };
 export type InspectionDevice = { deviceId: string; truck?: string; label: string; expiresAt: string; createdAt: string; selfSelected?: boolean };
 export function inspectionDate(date = new Date()): string {
@@ -35,7 +37,7 @@ function text(value: unknown, label: string, max: number, required = false): str
   if (typeof value !== "string" || value.length > max || (required && !value.trim())) throw new InspectionError(`Enter ${label}.`);
   return value.trim();
 }
-export function validateTruckInspection(raw: unknown, now = new Date()): TruckInspectionInput {
+export function validateTruckInspection(raw: unknown, now = new Date(), allowLegacyLoad = false): TruckInspectionInput {
   if (!raw || typeof raw !== "object") throw new InspectionError("Enter an inspection.");
   const v = raw as Record<string, unknown>;
   if (typeof v.truck !== "string" || !JUNKWARE_DISPATCH_TRUCKS.includes(v.truck)) throw new InspectionError("Choose the truck for this inspection.");
@@ -44,7 +46,9 @@ export function validateTruckInspection(raw: unknown, now = new Date()): TruckIn
   const odometer = text(v.odometer, "the mileage", 9, true);
   if (!/^\d{1,8}$/.test(odometer)) throw new InspectionError("Enter mileage as a whole number.");
   const fuel = text(v.fuel, "the fuel level", 20, true);
-  if (!["Empty", "1/4", "1/2", "3/4", "Full"].includes(fuel)) throw new InspectionError("Choose the fuel level.");
+  if (!(INSPECTION_LEVELS as readonly string[]).includes(fuel)) throw new InspectionError("Choose the fuel-tank level.");
+  const loadLevel = v.loadLevel;
+  if (!(allowLegacyLoad && loadLevel === undefined) && (typeof loadLevel !== "string" || !(INSPECTION_LEVELS as readonly string[]).includes(loadLevel))) throw new InspectionError("Record truck fullness. Refresh the inspection app if this field is missing.");
   const startedAt = text(v.startedAt, "the start time", 30, true);
   const start = Date.parse(startedAt);
   if (!Number.isFinite(start) || start > now.getTime() + 300_000 || start < now.getTime() - 7 * 86400_000) throw new InspectionError("This draft is over seven days old or has an invalid start time. Start a new inspection.");
@@ -65,5 +69,5 @@ export function validateTruckInspection(raw: unknown, now = new Date()): TruckIn
     if (!p || typeof p !== "object" || !INSPECTION_SECTIONS.some(s => s.id === p.section) || typeof p.data !== "string" || p.data.length > 1_000_000 || !/^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/=]+$/.test(p.data)) throw new InspectionError("Use a JPEG photo under 750 KB.");
     return { section: p.section, data: p.data };
   });
-  return { requestId: v.requestId, truck: v.truck, inspector, odometer, fuel, startedAt, answers, status: v.status as InspectionStatus, notes, initials, photos };
+  return { requestId: v.requestId, truck: v.truck, inspector, odometer, fuel, ...(loadLevel === undefined ? {} : { loadLevel: loadLevel as string }), startedAt, answers, status: v.status as InspectionStatus, notes, initials, photos };
 }

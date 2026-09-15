@@ -1,0 +1,10 @@
+/* Source times and retained amounts must remain visible on compact KPI cards. */
+.ops-live .command-metrics .kpi-card small,
+.ops-live .finance-capital-metrics .kpi-card small,
+.ops-live .finance-kpi-strip > button > small {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
+}

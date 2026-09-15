@@ -37,12 +37,12 @@ export function useWorkspaceRefresh(load: (signal: AbortSignal) => Promise<void>
   return { refresh, receivedAt, error, pending, now, paused };
 }
 
-export function WorkspaceFreshness({ state, sourceAt, budgetMinutes = 10 }: { state: ReturnType<typeof useWorkspaceRefresh>; sourceAt?: string | null; budgetMinutes?: number }) {
+export function WorkspaceFreshness({ state, sourceAt, budgetMinutes = 10, sourceLabel = 'Source observed', statusLabel }: { state: ReturnType<typeof useWorkspaceRefresh>; sourceAt?: string | null; budgetMinutes?: number; sourceLabel?: string; statusLabel?: string }) {
   const age = sourceAt ? (state.now - Date.parse(sourceAt)) / 60000 : NaN;
   const stale = !Number.isFinite(age) || age < -1 || age > budgetMinutes;
   const time = (value: string | number) => new Date(value).toLocaleString('en-US', {timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',second:'2-digit'});
   return <div className="workspace-freshness" role="status" aria-live="polite" style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',padding:'4px 0',fontSize:10}}>
-    <span>{sourceAt ? `Source observed ${time(sourceAt)}` : 'Source time unavailable'} · {stale ? 'Check source freshness' : 'Within source freshness window'}</span>
+    <span>{sourceAt ? `${sourceLabel} ${time(sourceAt)}` : 'Source time unavailable'} · {statusLabel || (stale ? 'Check source freshness' : 'Within source freshness window')}</span>
     <span>{state.receivedAt ? `Screen retrieved ${time(state.receivedAt)}` : 'No successful screen refresh yet'}</span>
     {state.paused && <span>Background refresh paused while editing or reviewing a record.</span>}
     {state.error && <strong>Refresh failed. Last retrieved data retained. {state.error}</strong>}

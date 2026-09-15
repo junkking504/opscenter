@@ -32,6 +32,38 @@ by completed revenue jobs; estimates and open appointments do not enter its
 denominator. Zero completed jobs leave AJS unavailable. Existing revenue, payroll,
 schedule, and producing-truck sources remain authoritative.
 
+## Daily finance freshness (September 15)
+
+Command and Capital interpret daily financial source evidence through
+`lib/daily-finance-freshness.ts`. The publication contract is
+`source_freshness.version = 1`, with `metrics.revenue`, `metrics.payroll`,
+`metrics.costs`, `metrics.net`, and `sources.junkware_truck_records`. Each entry
+has `status` (`current`, `stale`, or `missing`) and source observation `as_of`.
+Publication `generated_at` never overrides this contract. Legacy snapshots use
+their dated publication time only when no source contract exists.
+
+Today's source budget is ten minutes. Stale or unavailable inputs remove the
+headline amount, preserve the last recorded amount and source time in visible
+card detail, and suppress progress/healthy indicators. A fresh numeric zero
+remains zero. Historical observations are labeled snapshots and do not become
+stale merely because time passed; explicit stale/missing status still applies.
+Earlier-day and invalid/future timestamps cannot establish today's values.
+
+Revenue depends on its own source. Payroll, disposal/fuel, costs, and net keep
+separate evidence; aggregate costs/net also require their component inputs.
+WEX substitution retains its existing single-addition rule and requires posted
+coverage and source time. Month cost/net headlines and cost categories remain
+unavailable with missing days or stale cost inputs. QBO accounting and payment
+verification retain their independent evidence.
+
+Both browsers re-age retained daily data during failed refreshes without adding
+source collection requests. Capital distinguishes publication time from per-card
+source age. Compact cards wrap source detail so timestamps remain visible.
+
+Validation: `node --import tsx scripts/test-daily-finance-freshness.ts`,
+`node --import tsx scripts/test-wex-fuel.ts`, root TypeScript, and
+`npm run build:desktop`.
+
 ## Workspace navigation performance (September 9)
 
 Marketing prepares its displayed lead/review rows only when a new snapshot

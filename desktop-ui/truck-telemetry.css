@@ -1,0 +1,7 @@
+.truck-telemetry dd > strong { font-size: 16px; font-variant-numeric: tabular-nums; }
+.truck-telemetry dd > small { display: block; color: #59635e; }
+.live-schedule-map .truck-speed-badge { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); padding: 1px 4px; border-radius: 3px; background: #fff; color: #182b23; border: 1px solid #54675c; font: 700 10px/14px system-ui, sans-serif; white-space: nowrap; pointer-events: none; }
+.live-schedule-map .truck-marker.stale .truck-speed-badge { color: #78520d; border-color: #b88021; }
+.live-schedule-map .truck-follow-control { position: absolute; z-index: 1000; left: 10px; bottom: 24px; padding: 6px 9px; border: 1px solid #68776e; border-radius: 4px; background: #fff; color: #243e30; font: 600 12px/18px system-ui, sans-serif; box-shadow: 0 1px 4px #0002; cursor: pointer; }
+.live-schedule-map .truck-follow-control[aria-pressed="true"] { background: #e7f3ea; }
+.live-schedule-map .truck-follow-control:focus-visible { outline: 3px solid #2463b3; outline-offset: 2px; }

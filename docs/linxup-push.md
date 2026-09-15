@@ -202,6 +202,16 @@ or existing verified geocodes. Missing matches remain unavailable.
 
 ## Truck status and parked heartbeats
 
+Schedule and Command display the observation's reported mph on truck markers
+and in the selected truck details, with a ticking report age. Missing or invalid
+speed remains unavailable; an observation older than three minutes is labelled
+last reported speed, including parked heartbeats. Selecting a truck follows its
+received GPS positions at the current zoom. Manual pan or zoom pauses following;
+the Follow control resumes it. Viewing recorded trips does not follow the live
+truck. Positions advance only when a real report arrives; motion is not predicted
+between reports. The existing source-change stream and 15-second local snapshot
+fallback are unchanged. No provider polling or reporting settings are changed.
+
 Schedule, Command map markers and Fleet distinguish motion from report age.
 A zero-speed report with explicit ignition OFF displays Parked (and the known
 facility, when applicable). The hourly parked reporting cadence has a bounded

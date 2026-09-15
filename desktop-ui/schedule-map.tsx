@@ -1,7 +1,9 @@
 import { dumpTruckMapSvg } from './lib/truck-map-icon';
 import { truckGpsStatus } from '../lib/truck-gps-status';
 import { appointmentPartner } from '../lib/appointment-partner';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { truckTelemetry } from './lib/truck-telemetry';
+import './truck-telemetry.css';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './appointment-presence.css';
@@ -33,6 +35,10 @@ export default function ScheduleMap(props: Props) {
   const focused = useRef('');
   const autoFit = useRef<(() => void) | null>(null);
   const manualViewport = useRef(false);
+  const [following, setFollowing] = useState(true);
+  useEffect(() => {
+    setFollowing(Boolean(props.selectedTruck) && props.truckMapView !== 'route');
+  }, [props.selectedTruck, props.resetKey, props.date, props.truckMapView]);
   useEffect(() => {
     if (!host.current) return;
     const view = L.map(host.current, { zoomControl: true, scrollWheelZoom: true }).setView([30.14, -90.5], 8);
@@ -46,7 +52,11 @@ export default function ScheduleMap(props: Props) {
     markers.current = L.layerGroup().addTo(view);
     // The Schedule panel changes height after its first layout. Fit against
     // the final container size, but never undo a dispatcher's own pan/zoom.
-    const stopAutoFit = () => { manualViewport.current = true; };
+    const stopAutoFit = (event?: { target?: unknown }) => {
+      if (event?.target instanceof Element && event.target.closest('.truck-follow-control')) return;
+      manualViewport.current = true;
+      setFollowing(false);
+    };
     const element = host.current;
     element.addEventListener('wheel', stopAutoFit, { passive: true });
     element.addEventListener('keydown', stopAutoFit);
@@ -64,13 +74,13 @@ export default function ScheduleMap(props: Props) {
     return () => { if (truckClickTimer.current) clearTimeout(truckClickTimer.current); cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener('wheel', stopAutoFit); element.removeEventListener('keydown', stopAutoFit); element.removeEventListener('pointerdown', stopAutoFit); autoFit.current = null; view.remove(); map.current = null; markers.current = null; gpsLayer.current=null;gpsFit.current='';fitted.current = ''; focused.current = ''; };
   }, []);
   // Avoid rebuilding marker DOM on unrelated parent renders, preserving keyboard focus.
-  const signature = JSON.stringify([props.trucks.map(truck => truckGpsStatus(truck).label), props.appointments, props.trucks, props.selected, props.selectedTruck, props.scope, props.resetKey, props.date, props.truckMapView, props.selectedTripId, props.gpsRoute?.trips]);
+  const signature = JSON.stringify([props.trucks.map(truck => [truckGpsStatus(truck).label, truckTelemetry(truck).recent]), props.appointments, props.trucks, props.selected, props.selectedTruck, props.scope, props.resetKey, props.date, props.truckMapView, props.selectedTripId, props.gpsRoute?.trips]);
   useEffect(() => {
     const view = map.current;
     const layer = markers.current;
     if (!view || !layer) return;
     const { appointments, trucks, selected, selectedTruck, scope, resetKey, date } = current.current;
-    type Pin = { id: string; coordinate: L.LatLngTuple; label: string; text: string; color?: string; partner?: string; tooltipTitle: string; tooltipDetail: string; className: string; selected: boolean; select: () => void; zoom?: () => void };
+    type Pin = { id: string; coordinate: L.LatLngTuple; label: string; text: string; speed?: string; color?: string; partner?: string; tooltipTitle: string; tooltipDetail: string; className: string; selected: boolean; select: () => void; zoom?: () => void };
     const pins: Pin[] = [];
     const appointmentBounds: L.LatLngTuple[] = [];
     appointments.forEach((job, index) => {
@@ -86,10 +96,12 @@ export default function ScheduleMap(props: Props) {
       if (truck.latitude === null || truck.longitude === null) return;
       const name = truckLabel(truck.truck);
       const gps = truckGpsStatus(truck);
+      const telemetry = truckTelemetry(truck);
       const fresh = !gps.stale;
       pins.push({ id: `truck:${name}`, coordinate: [truck.latitude, truck.longitude], text: name.replace('Truck ', 'T'),
-        tooltipTitle: name, tooltipDetail: gps.label,
-        label: `Select ${name}, ${gps.label}`,
+        speed: telemetry.markerLabel,
+        tooltipTitle: name, tooltipDetail: `${gps.label} · ${telemetry.markerLabel}`,
+        label: `Select ${name}, ${gps.label}, ${telemetry.markerLabel}`,
         className: `truck-marker${fresh ? '' : ' stale'}`, selected: selectedTruck === name,
         select: () => current.current.onSelectTruck(name, 'overview'),
         zoom: () => current.current.onSelectTruck(name, 'location') });
@@ -127,6 +139,13 @@ export default function ScheduleMap(props: Props) {
       if (pin) view.setView(pin.coordinate, selectedTruck ? (current.current.truckMapView === 'location' ? 19 : 15) : Math.max(view.getZoom(), 12), { animate: false });
     }
     focused.current = focusVersion;
+    // Follow only received fixes. Never extrapolate motion between GPS reports.
+    // Manual pan/zoom pauses following; the control explicitly resumes it.
+    const tracked = trucks.find(truck => truckLabel(truck.truck) === selectedTruck);
+    if (following && !selected && current.current.truckMapView !== 'route'
+      && tracked?.latitude != null && tracked.longitude != null && truckTelemetry(tracked).recent) {
+      view.panTo([tracked.latitude, tracked.longitude], { animate: false });
+    }
     const render = () => {
       const activeId = host.current?.contains(document.activeElement) ? (document.activeElement as HTMLElement)?.dataset.mapPin : undefined;
       const viewport = view.getSize();
@@ -157,6 +176,7 @@ export default function ScheduleMap(props: Props) {
           symbol.querySelector('svg')!.append(number);
         } else symbol.textContent = pin.text;
         button.append(symbol);
+        if (pin.speed) { const speed = document.createElement('span'); speed.className = 'truck-speed-badge'; speed.textContent = pin.speed; speed.setAttribute('aria-hidden', 'true'); button.append(speed); }
         if (pin.partner) { const badge = document.createElement('span'); badge.className = 'map-partner-badge'; badge.textContent = pin.partner; badge.setAttribute('aria-hidden', 'true'); button.append(badge); }
         button.dataset.mapPin = pin.id;
         button.setAttribute('aria-label', pin.label);
@@ -206,7 +226,7 @@ export default function ScheduleMap(props: Props) {
     render();
     view.on('zoomend moveend resize', render);
     return () => { view.off('zoomend moveend resize', render); };
-  }, [signature]);
+  }, [signature, following]);
   useEffect(()=>{
     const view=map.current,layer=gpsLayer.current,route=props.gpsRoute;
     if(!view || !layer) return;
@@ -255,5 +275,14 @@ export default function ScheduleMap(props: Props) {
     }
     return()=>{layer.clearLayers();};
   },[props.gpsRoute,props.selectedTruck,props.date,props.resetKey,props.truckMapView,props.trucks,props.selectedTripId]);
-  return <div ref={host} className="live-schedule-map" aria-label="Verified appointment locations and truck GPS" />;
+  const canFollow = props.selectedTruck && !props.selected && props.truckMapView !== 'route'
+    && props.trucks.some(truck => truckLabel(truck.truck) === props.selectedTruck && truck.latitude != null && truck.longitude != null);
+  return <div ref={host} className="live-schedule-map" aria-label="Verified appointment locations and truck GPS">
+    {canFollow && <button type="button" className="truck-follow-control" aria-pressed={following}
+      onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}
+      onDoubleClick={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); setFollowing(value => !value); }}
+      title="Keep the selected truck centered as GPS reports arrive. Pan or zoom to pause.">
+      {following ? 'Following' : 'Follow'} {props.selectedTruck}
+    </button>}
+  </div>;
 }

@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+import { browseReviews, defaultReviewFilters, recordedReviewCrew } from '../desktop-ui/lib/review-browser';
+import type { Review } from '../desktop-ui/lib/commercial-contract';
+
+const review = (id: string, values: Partial<Review> = {}): Review => ({ id, version: 'v1', customer: 'Sample customer', location: 'Market A', excerpt: 'Sample feedback', stars: 5, createdAt: '2026-09-01T12:00:00Z', sourceUrl: '', attribution: null, candidates: [], ...values });
+const rows = [review('old'), review('negative', { stars: 1, location: 'Market B', createdAt: '2026-09-15T12:00:00Z', needsResponse: true }), review('credited', { stars: 3, createdAt: '2026-09-14T12:00:00Z', needsResponse: false, attribution: { status: 'matched', jkNumber: 'JK123', crew: ['Crew Alpha', 'Crew Beta'] } })];
+assert.deepEqual(browseReviews(rows, defaultReviewFilters).rows.map(r => r.id), ['negative', 'credited', 'old'], 'Reviews must be newest first across locations.');
+assert.deepEqual(browseReviews(rows, { ...defaultReviewFilters, queue: 'low', location: 'Market B', rating: '1' }).rows.map(r => r.id), ['negative']);
+assert.equal(browseReviews(rows, { ...defaultReviewFilters, queue: 'response' }).total, 1, 'Unknown response state must not count as needing response.');
+assert.equal(browseReviews(rows, { ...defaultReviewFilters, query: 'crew beta' }).rows[0].id, 'credited');
+assert.equal(browseReviews(rows, { ...defaultReviewFilters, query: 'jk123' }).rows[0].id, 'credited');
+assert.equal(browseReviews(rows, { ...defaultReviewFilters, queue: 'unassigned' }).total, 2);
+assert.deepEqual(recordedReviewCrew(review('unconfirmed', { attribution: { status: 'ambiguous', crew: ['Do not credit'] } })), [], 'Unconfirmed attribution cannot give crew credit.');
+assert.deepEqual(recordedReviewCrew(review('no-crew', { attribution: { status: 'matched' } })), []);
+const many = Array.from({ length: 42 }, (_, i) => review(String(i).padStart(3, '0')));
+assert.equal(browseReviews(many, defaultReviewFilters, 3).rows.length, 2);
+assert.equal(browseReviews(rows, defaultReviewFilters, 3).page, 1, 'A shrinking snapshot must clamp the page.');
+assert.equal(browseReviews(rows, { ...defaultReviewFilters, query: 'absent review' }).start, 0);
+assert.equal(browseReviews(rows, { ...defaultReviewFilters, order: 'oldest' }).rows[0].id, 'old');
+assert.equal(rows[0].id, 'old', 'Browsing must not reorder the source.');
+console.log('Review navigation checks passed.');

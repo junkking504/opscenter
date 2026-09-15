@@ -1,9 +1,10 @@
+import { ReviewBrowser } from './review-browser';
 import { workspaceReady } from './navigation-performance';
 import { useWorkspaceSnapshot } from './use-workspace-snapshot';
 import { fetchWorkspace } from './lib/workspace-cache';
 import { useWorkspaceRefresh, WorkspaceFreshness } from './workspace-freshness';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Check, PhoneCall, Play, ShieldCheck, Star, X } from 'lucide-react';
+import { ArrowRight, Check, PhoneCall, Play, ShieldCheck, X } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Badge } from './components/ui/badge';
 import { commercialMoney as moneyValue, commercialDate, type MarketingData, type MarketingView, type Lead, type CommercialOperation, type CommercialReceipt } from './lib/commercial-contract';
@@ -125,16 +126,7 @@ export function LiveMarketing({ date, view, report, onViewChange, onBusyChange }
                 </article>) : <div className="marketing-empty"><strong>No leads match this view.</strong><span>Change the filter or clear the global search.</span></div>}</div>
               </section>}
 
-              {marketingView === 'reviews' && data.reviewAvailable && <section className="marketing-reviews-shell">
-                <div className="section-title"><div><span className="section-kicker">Podium · {marketingReviewCount} need confirmation</span><h2>Review Attribution</h2><p>Name matches are proposals only. Confirm or reassign the JK number before crediting the review.</p></div><Badge variant="outline">{new Set(marketingReviews.map(review => review.location)).size} source locations</Badge></div>
-                <div className="marketing-review-summary"><article><span>Reviews Loaded</span><strong>{marketingReviews.length}</strong><small>Read-only Podium source</small></article><article><span>Need Attribution</span><strong>{marketingReviewCount}</strong><small>Manager confirmation required</small></article><article><span>Attributed</span><strong>{marketingReviews.length - marketingReviewCount}</strong><small>Verified source / manager attribution</small></article><article><span>Average Rating</span><strong>{marketingReviews.length ? (marketingReviews.reduce((sum, review) => sum + review.stars, 0) / marketingReviews.length).toFixed(1) : 'Unavailable'}</strong><small>Current review set</small></article></div>
-                <div className="marketing-review-grid">{marketingReviews.map((review) => <article className={review.status === 'Attributed' ? 'attributed' : ''} key={review.id}>
-                  <div className="marketing-review-heading"><div><span className="review-stars">{Array.from({ length: review.stars }).map((_, index) => <Star fill="currentColor" size={12} key={index} />)}</span><strong>{review.customer}</strong><small>{review.location} · {review.age}</small></div><Badge variant="outline">{review.status}</Badge></div>
-                  <p>“{review.excerpt}”</p>
-                  <div className="marketing-review-match"><span>Proposed JunkWare appointment</span><input aria-label="Completed appointment ID" placeholder="Source appointment ID" value={selections[review.id] ?? review.selectedAppointment} onChange={event => setSelections(current => ({ ...current, [review.id]: event.target.value }))} list={`review-${review.id}`} /><datalist id={`review-${review.id}`}>{review.candidates.map(candidate => <option key={candidate.appointmentId} value={candidate.appointmentId}>{candidate.label}</option>)}</datalist><div className="marketing-review-job-link">Open {renderJkLink(review.jk || review.selectedAppointment)}</div><small>{review.candidates.length} conservative name-match candidate{review.candidates.length === 1 ? '' : 's'} · Completed jobs only</small></div>
-                  {review.status === 'Attributed' && <div className="review-confirmed"><Check size={14} />Attributed as {renderJkLink(review.jk || review.selectedAppointment)}</div>}<Button disabled={busy || !data.canAssignReviews || !(selections[review.id] ?? review.selectedAppointment)} size="sm" onClick={() => confirmMarketingReview(review.id)}>Confirm / Reassign Match</Button>
-                </article>)}</div>
-              </section>}
+              {marketingView === 'reviews' && data.reviewAvailable && <ReviewBrowser reviews={data.reviews} canAssign={data.canAssignReviews} busy={busy} selections={selections} onSelect={(id, appointment) => setSelections(current => ({ ...current, [id]: appointment }))} onConfirm={confirmMarketingReview} />}
 
               {marketingView === 'performance' && data.available && <section className="marketing-performance-shell">
                 <div className="section-title"><div><span className="section-kicker">{data.range} · Source comparison</span><h2>Marketing Performance</h2><p>Calls and demand remain separate from JunkWare-authoritative bookings and completed revenue.</p></div><Badge variant="outline">Selected month</Badge></div>

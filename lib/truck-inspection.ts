@@ -1,3 +1,4 @@
+import { JUNKWARE_DISPATCH_TRUCKS } from "./junkware-trucks";
 /** Five section answers from the supplied Junk King daily inspection forms. */
 export const INSPECTION_SECTIONS = [
   { id: "walk-around", label: "Walk-around", checks: ["Look under and around the truck for fluid leaks.", "Check for loose wires, hoses, chains, tarp parts and equipment.", "Check the body, doors, latches and exterior for damage or loose items.", "Make sure the area around the truck is clear before moving."] },
@@ -16,14 +17,14 @@ export type InspectionStatus = keyof typeof INSPECTION_STATUSES;
 export type InspectionAnswer = { id: InspectionSectionId; status: "good" | "problem"; notes: string };
 export type InspectionPhoto = { section: InspectionSectionId; data: string };
 export type TruckInspectionInput = {
-  requestId: string; inspector: string; odometer: string; fuel: string;
+  requestId: string; truck: string; inspector: string; odometer: string; fuel: string;
   startedAt: string; answers: InspectionAnswer[]; photos: InspectionPhoto[];
   status: InspectionStatus; notes: string; initials: string;
 };
 export type TruckInspectionReport = TruckInspectionInput & {
   version: 1; truck: string; deviceId: string; receivedAt: string; inspectionDate: string;
 };
-export type InspectionDevice = { deviceId: string; truck: string; label: string; expiresAt: string; createdAt: string };
+export type InspectionDevice = { deviceId: string; truck?: string; label: string; expiresAt: string; createdAt: string; selfSelected?: boolean };
 export function inspectionDate(date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }
@@ -37,6 +38,7 @@ function text(value: unknown, label: string, max: number, required = false): str
 export function validateTruckInspection(raw: unknown, now = new Date()): TruckInspectionInput {
   if (!raw || typeof raw !== "object") throw new InspectionError("Enter an inspection.");
   const v = raw as Record<string, unknown>;
+  if (typeof v.truck !== "string" || !JUNKWARE_DISPATCH_TRUCKS.includes(v.truck)) throw new InspectionError("Choose the truck for this inspection.");
   if (typeof v.requestId !== "string" || !/^[a-f0-9-]{36}$/.test(v.requestId)) throw new InspectionError("Start a new inspection.");
   const inspector = text(v.inspector, "the inspector's name", 100, true);
   const odometer = text(v.odometer, "the mileage", 9, true);
@@ -63,5 +65,5 @@ export function validateTruckInspection(raw: unknown, now = new Date()): TruckIn
     if (!p || typeof p !== "object" || !INSPECTION_SECTIONS.some(s => s.id === p.section) || typeof p.data !== "string" || p.data.length > 1_000_000 || !/^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/=]+$/.test(p.data)) throw new InspectionError("Use a JPEG photo under 750 KB.");
     return { section: p.section, data: p.data };
   });
-  return { requestId: v.requestId, inspector, odometer, fuel, startedAt, answers, status: v.status as InspectionStatus, notes, initials, photos };
+  return { requestId: v.requestId, truck: v.truck, inspector, odometer, fuel, startedAt, answers, status: v.status as InspectionStatus, notes, initials, photos };
 }

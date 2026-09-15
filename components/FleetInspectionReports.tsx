@@ -13,8 +13,6 @@ export default function FleetInspectionReports() {
   const [date, setDate] = useState(inspectionDate());
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
-  const [truck, setTruck] = useState(""); const [label, setLabel] = useState("");
-  const [pairing, setPairing] = useState<{ code: string; expiresAt: string; truck: string } | null>(null);
   const [filter, setFilter] = useState(""); const [statusFilter, setStatusFilter] = useState("");
   const [selected, setSelected] = useState(""); const [manageOpen, setManageOpen] = useState(false);
   const generation = useRef(0); const detail = useRef<HTMLElement>(null);
@@ -53,15 +51,13 @@ export default function FleetInspectionReports() {
               {INSPECTION_SECTIONS.map(s => { const a = report.answers.find(a => a.id === s.id); return <div className={styles.reviewRow} key={s.id}><div><strong>{s.label}</strong><p className={styles.rowStatus} data-status={a?.status === "problem" ? "reported" : "clear"}>{a?.status === "good" ? "✓ Good" : "! Problem"}</p>{a?.notes && <p>{a.notes}</p>}</div></div>; })}
               {report.notes && <p><b>Additional notes:</b> {report.notes}</p>}
               <h3>Photos</h3>{!report.photos.length && <p className={styles.muted}>No photos attached.</p>}<div className={styles.photos}>{report.photos.map((p,i) => <figure key={i}><a href={p.data} download={`${report.truck}-${p.section}-${i+1}.jpg`}><img src={p.data} alt={`${INSPECTION_SECTIONS.find(s => s.id === p.section)?.label} inspection photo ${i+1}`} /></a><figcaption>{INSPECTION_SECTIONS.find(s => s.id === p.section)?.label}</figcaption></figure>)}</div>
-              <p className={styles.reference}>Submitted report · Read only<br />Received from a phone assigned to {report.truck}. Inspector name and initials were entered on the shared phone.<br />Report reference: {report.requestId}</p>
+              <p className={styles.reference}>Submitted report · Read only<br />Truck, inspector name and initials were entered for this inspection on a shared company phone.<br />Report reference: {report.requestId}</p>
               <button className={styles.noPrint} onClick={() => window.print()}>Print report</button>
             </>}
           </section>
         </div>
-      {snapshot.canManage && <details id="phone-management" className={`${styles.card} ${styles.noPrint}`} open={manageOpen} onToggle={e => setManageOpen(e.currentTarget.open)}><summary><strong>Manage truck phones</strong></summary><p>Connect each phone once. The phone can submit and check its own inspection reports; it cannot open management records.</p>
-        <form onSubmit={async e => { e.preventDefault(); const result = await action({ action: "pair", truck, label }); if (result) setPairing(result); }}><label>Assigned truck<select required value={truck} onChange={e => setTruck(e.target.value)}><option value="">Choose truck</option>{snapshot.trucks.map(t => <option key={t}>{t}</option>)}</select></label><label>Phone name<input required maxLength={100} placeholder="Truck 4 company phone" value={label} onChange={e => setLabel(e.target.value)} /></label><button className={styles.primary} disabled={busy}>Create one-time setup code</button></form>
-        {pairing && <section><h3>{pairing.truck} setup code</h3><p className={styles.setupCode}>{pairing.code}</p><p>On the truck phone, open <a href={`https://hooks.junk-king.app/truck-inspection#setup=${pairing.code}`}>Truck Check setup</a>, connect the phone, then add the page to the home screen. You can also enter the code manually.</p><p className={styles.muted}>Single use · Expires {new Date(pairing.expiresAt).toLocaleString()}. Keep the code private. If the setup result is uncertain, create a new code.</p></section>}
-        <h3>Connected phones</h3>{snapshot.devices.length === 0 && <p>No phones connected yet.</p>}{snapshot.devices.map(d => <div className={styles.reviewRow} key={d.deviceId}><div><strong>{d.truck} · {d.label}</strong><p>Connected {new Date(d.createdAt).toLocaleDateString()} · Expires {new Date(d.expiresAt).toLocaleDateString()}</p></div><button disabled={busy} onClick={() => void action({ action: "revoke", deviceId: d.deviceId })}>Disconnect</button></div>)}
+      {snapshot.canManage && <details id="phone-management" className={`${styles.card} ${styles.noPrint}`} open={manageOpen} onToggle={e => setManageOpen(e.currentTarget.open)}><summary><strong>Manage truck phones</strong></summary><p>On any company phone, open <a href="https://hooks.junk-king.app/truck-inspection">Truck Check</a> and choose the truck at the start of each inspection. Phones can move between trucks.</p><p className={styles.muted}>The phone connection keeps drafts and receipts together; it does not assign the phone to a truck. Disconnect ends the current connection.</p>
+        <h3>Connected phones</h3>{snapshot.devices.length === 0 && <p>No phones connected yet.</p>}{snapshot.devices.map(d => <div className={styles.reviewRow} key={d.deviceId}><div><strong>Company phone · {d.deviceId.slice(0, 6)}</strong><p>Available for any truck<br />Connected {new Date(d.createdAt).toLocaleDateString()} · Expires {new Date(d.expiresAt).toLocaleDateString()}</p></div><button disabled={busy} onClick={() => void action({ action: "revoke", deviceId: d.deviceId })}>Disconnect</button></div>)}
       </details>}      </>}
     </div>
   </main>;

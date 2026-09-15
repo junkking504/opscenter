@@ -43,6 +43,17 @@ export function pairInspectionPhone(rawCode: unknown, now = new Date()) {
   writeOnce(path.join(directory("devices"), `${hash(token)}.json`), device);
   return { token, device };
 }
+/** A phone keeps its receipt identity across inspections of different trucks. */
+export function connectInspectionPhone(token: unknown, now = new Date()) {
+  if (typeof token !== "string" || !/^[a-f0-9]{64}$/.test(token)) throw new InspectionError("Reload this page and try again.");
+  const file = path.join(directory("devices"), `${hash(token)}.json`);
+  const deviceId = randomUUID();
+  const device: InspectionDevice = { deviceId, label: `Company phone · ${deviceId.slice(0, 6)}`, createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + 180 * 86400_000).toISOString() };
+  writeOnce(file, device);
+  const saved = inspectionDevice(token, now);
+  if (!saved) throw new InspectionError("This phone connection has expired or was disconnected. Reload to connect again.", 403);
+  return { token, device: saved };
+}
 export function inspectionDevice(token: string, now = new Date()): InspectionDevice | null {
   if (!/^[a-f0-9]{64}$/.test(token)) return null;
   const device = read<InspectionDevice>(path.join(directory("devices"), `${hash(token)}.json`));
@@ -75,9 +86,11 @@ function indexReport(file: string, report: TruckInspectionReport) {
   try { fs.linkSync(file, destination); const fd = fs.openSync(path.dirname(destination), "r"); try { fs.fsyncSync(fd); } finally { fs.closeSync(fd); } } catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
 }
 export function submitTruckInspection(raw: unknown, device: InspectionDevice, now = new Date()): TruckInspectionReport {
-  const input = validateTruckInspection(raw, now);
+  // Old loaded clients omit truck. Preserve their original assignment while they finish.
+  const compatible = raw && typeof raw === "object" && !("truck" in raw) && device.truck ? { ...raw, truck: device.truck } : raw;
+  const input = validateTruckInspection(compatible, now);
   const file = reportFile(device.deviceId, input.requestId);
-  const report: TruckInspectionReport = { ...input, version: 1, truck: device.truck, deviceId: device.deviceId, receivedAt: now.toISOString(), inspectionDate: inspectionDate(new Date(input.startedAt)) };
+  const report: TruckInspectionReport = { ...input, version: 1, deviceId: device.deviceId, receivedAt: now.toISOString(), inspectionDate: inspectionDate(new Date(input.startedAt)) };
   writeOnce(file, report);
   const saved = read<TruckInspectionReport>(file);
   if (!saved) throw new Error("Inspection save could not be verified.");

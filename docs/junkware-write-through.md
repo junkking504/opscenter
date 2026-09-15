@@ -268,6 +268,16 @@ new request. Recovery never submits a move, reschedule, payment, or message.
 
 ### Automatic dispatch recovery
 
+Interactive truck moves and assignment read-back reuse authentication with a
+fresh ASP.NET session, avoiding the collector's session lock and franchise/day
+selection. Automatic recovery after a save or receipt poll runs after the HTTP
+response; the existing three-attempt budget and five-minute spacing still apply.
+Explicit **Check Saved Result** continues to wait for its source read. A move
+confirmed by polling closes its confirmation and refreshes the board immediately,
+just like a move confirmed in the original response. Uncertain results remain
+protected against resubmission. `scripts/test-schedule-move-latency.ts` covers
+the session boundary and all three UI completion paths with synthetic data.
+
 A move receipt is checked against fresh JunkWare assignment data automatically
 when its submission finishes without verification, when its result is polled,
 and during ordinary Schedule refresh for the signed-in operator's day. Schedule

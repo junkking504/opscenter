@@ -1,5 +1,6 @@
 import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { cookies } from 'next/headers';
+import { after } from 'next/server';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { authorizeOpsRequest } from '@/lib/ops-roles';
 import { readDesktopSchedule } from '@/lib/desktop-schedule';
@@ -19,6 +20,12 @@ import { POST as note } from '@/app/api/junkware-appointment-note/route';
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
 export const dynamic = 'force-dynamic';
 const sources = { move: ['/api/job-route-assignments', assign], cancel: ['/api/job-cancellation', cancel], call_ahead: ['/api/job-call-ahead', callAhead], note: ['/api/junkware-appointment-note', note], closeout: ['/api/job-closeout', closeout], classify: ['/api/job-closeout', classify] } as const;
+function checkMoveAfterResponse(requestId: string, actor: string) {
+  after(async () => {
+    try { await automaticallyCheckMove(requestId, actor, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id))); }
+    catch { /* Preserve the durable receipt; later reads can recover without replaying the move. */ }
+  });
+}
 export async function GET(request: Request) {
   const actor = await verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || '');
   if (!actor) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
@@ -33,7 +40,7 @@ export async function GET(request: Request) {
   }
   if (!receipt || receipt.actor !== actor.email) return Response.json({ error: 'Change receipt not found.' }, { status: 404, headers });
   if (parameters.get('reconcile') !== '1' && receipt.action === 'move' && authorizeOpsRequest(actor.role, '/api/job-route-assignments', 'POST').allowed) {
-    receipt = await automaticallyCheckMove(requestId, actor.email, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id))) || receipt;
+    if (receipt.status === 'uncertain') checkMoveAfterResponse(requestId, actor.email);
   }
   if(parameters.get('reconcile')==='1' && ['reschedule','restore'].includes(receipt.action) && authorizeOpsRequest(actor.role,'/api/job-route-assignments','POST').allowed) receipt=await reconcileRescheduleReceipt(requestId,actor.email,id=>withJunkwareAppointmentSyncLock(id,()=>readJunkwareTruckAssignment(id)));
   return Response.json({ receipt }, { headers });
@@ -47,7 +54,7 @@ export async function POST(request: Request) {
     const [sourcePath, handler] = sources[operation.action === 'reschedule' || operation.action === 'restore' ? 'move' : operation.action];
     if (!authorizeOpsRequest(actor.role, sourcePath, 'POST').allowed) return Response.json({ error: 'Your role does not include this action.' }, { status: 403, headers });
     const recovered = await reconcileStaleRescheduleForAppointment(operation.recordId, actor.email, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id)));
-    let receipt = await executeScheduleOperation(operation, actor.email, () => {
+    const receipt = await executeScheduleOperation(operation, actor.email, () => {
       const job=readDesktopSchedule(operation.date).appointments.find(job => job.recordId === operation.recordId);
       assertRecoveredScheduleMatches(job,operation.date,recovered);
       return job;
@@ -61,7 +68,7 @@ export async function POST(request: Request) {
       const response = await handler(new Request(new URL(sourcePath, request.url), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, date: operation.date, appointmentId: job.appointmentId, jobKey: `appt:${job.appointmentId}` }) }));
       return { status: response.status, body: await response.json() };
     });
-    if (receipt.action === 'move') receipt = await automaticallyCheckMove(receipt.requestId, actor.email, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id))) || receipt;
+    if (receipt.action === 'move' && receipt.status === 'uncertain') checkMoveAfterResponse(receipt.requestId, actor.email);
     return Response.json({ receipt }, { status: receipt.status === 'verified' ? 200 : receipt.status === 'failed' ? 422 : 202, headers });
   } catch (error) {
     if (error instanceof PendingScheduleOperationError) {

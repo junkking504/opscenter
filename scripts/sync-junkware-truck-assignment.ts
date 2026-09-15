@@ -1,4 +1,5 @@
 import { moveOnDailySchedule, readSavedDispatchTruck, openAppointmentDispatch } from './junkware-dispatch-move';
+import { assignmentSessionState } from './junkware-assignment-session';
 import { capture as captureCloseout } from './sync-junkware-job-closeout';
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -220,7 +221,7 @@ async function main(): Promise<void> {
     browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({
       viewport: { width: 1440, height: 1000 },
-      ...(fs.existsSync(STORAGE_STATE) ? { storageState: STORAGE_STATE } : {}),
+      ...(fs.existsSync(STORAGE_STATE) ? { storageState: assignmentSessionState(JSON.parse(fs.readFileSync(STORAGE_STATE, 'utf8'))) } : {}),
     });
     const page = await context.newPage();
     page.setDefaultTimeout(45_000);

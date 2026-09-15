@@ -91,6 +91,11 @@ export function MoveConfirmation({
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [error, setError] = useState("");
   const cancelButton = useRef<HTMLButtonElement>(null);
+  const savedRef = useRef(saved);
+  savedRef.current = saved;
+  useEffect(() => {
+    if (receipt?.status === 'verified') savedRef.current();
+  }, [receipt?.status]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     cancelButton.current?.focus({ preventScroll: true });
@@ -136,7 +141,6 @@ export function MoveConfirmation({
         requestId,
       );
       setReceipt(result);
-      if (result.status === "verified") saved();
     } catch (failure) {
       setReceipt({
         requestId,
@@ -208,7 +212,6 @@ export function MoveConfirmation({
             void checkScheduleChange(receipt.requestId)
               .then((value) => {
                 setReceipt(value);
-                if (value.status === "verified") saved();
               })
               .catch((failure) => setError(failure.message))
               .finally(() => setBusy(false));

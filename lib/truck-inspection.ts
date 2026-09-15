@@ -23,7 +23,7 @@ export type TruckInspectionInput = {
 export type TruckInspectionReport = TruckInspectionInput & {
   version: 1; truck: string; deviceId: string; receivedAt: string; inspectionDate: string;
 };
-export type InspectionDevice = { deviceId: string; truck: string; label: string; expiresAt: string; createdAt: string };
+export type InspectionDevice = { deviceId: string; truck: string; label: string; expiresAt: string; createdAt: string; selfSelected?: boolean };
 export function inspectionDate(date = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
 }

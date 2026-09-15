@@ -43,6 +43,18 @@ export function pairInspectionPhone(rawCode: unknown, now = new Date()) {
   writeOnce(path.join(directory("devices"), `${hash(token)}.json`), device);
   return { token, device };
 }
+/** The dedicated phone declares its truck; its random key makes connection retries idempotent. */
+export function connectInspectionPhone(truck: unknown, token: unknown, now = new Date()) {
+  if (typeof truck !== "string" || !JUNKWARE_DISPATCH_TRUCKS.includes(truck)) throw new InspectionError("Choose a truck.");
+  if (typeof token !== "string" || !/^[a-f0-9]{64}$/.test(token)) throw new InspectionError("Reload this page and choose the truck again.");
+  const file = path.join(directory("devices"), `${hash(token)}.json`);
+  const device: InspectionDevice = { deviceId: randomUUID(), truck, label: `${truck} company phone`, createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + 180 * 86400_000).toISOString(), selfSelected: true };
+  writeOnce(file, device);
+  const saved = inspectionDevice(token, now);
+  if (!saved) throw new InspectionError("This phone connection has expired or was disconnected. Reload to connect again.", 403);
+  if (saved.truck !== truck) throw new InspectionError(`This phone is already connected to ${saved.truck}.`, 409);
+  return { token, device: saved };
+}
 export function inspectionDevice(token: string, now = new Date()): InspectionDevice | null {
   if (!/^[a-f0-9]{64}$/.test(token)) return null;
   const device = read<InspectionDevice>(path.join(directory("devices"), `${hash(token)}.json`));

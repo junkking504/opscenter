@@ -1,12 +1,12 @@
 # Five-point morning inspections
 
-The company truck phone opens `/truck-inspection`. A manager creates a
-single-use setup code in `/fleet-inspections`, assigning the phone to one truck.
-The phone remembers that assignment for 180 days. Each morning, the inspector
+The dedicated company truck phone opens `/truck-inspection` and chooses its
+truck once. No setup code or employee login is required. The phone remembers
+that selection for 180 days, unless browser data is cleared or the connection
+is disconnected. Existing connected phones keep their truck and drafts. Each morning, the inspector
 enters their own name and mileage, checks five sections, records fuel, chooses
 a final operating status and initials the report. Names are declarations on a
-shared company device, not proof of an individual login. Crew roster names are
-suggestions; an inspector whose name is not listed can enter their name.
+shared company device, not proof of an individual login. Inspectors enter their names directly; the public phone API does not expose the crew roster.
 
 ## Source forms
 
@@ -57,13 +57,23 @@ No new Worker, DNS record, tunnel, KV namespace, cloud subscription or provider
 request is required. OpsCenter's management origin serves `/fleet-inspections`.
 The Crew Portal and its authentication are not modified.
 
-Setup requires a manager's existing OpsCenter session. Setup codes contain 96
-random bits, expire after 24 hours and can be consumed once. The resulting
-phone cookie contains 256 random bits, is HTTP-only, SameSite Strict, and Secure
-over HTTPS. Only its hash is stored. It grants submission and receipt access for
-that device and truck, and the active crew names; no payroll, management,
-other-device report, truck reassignment or deletion access. Managers can revoke
-devices. Reconnect a new phone through a new code; revoke the old phone.
+An unconnected phone receives only the fixed dispatch truck choices. A connection
+POST validates the selected truck and installs a 256-bit random, HTTP-only,
+SameSite Strict cookie that is Secure over HTTPS. The browser generates and
+retains the random connection key until a successful connection is verified;
+retries reuse the key and return the same device. Only its hash is stored on the
+server. An existing active connection cannot be reassigned by a connect POST.
+It grants submission and receipt access for that device only, with no crew
+roster, payroll, management, other-device reports or deletion access.
+
+Truck selection is a declaration on the phone, not manager approval or proof
+that the device is company-owned. Anyone with the public app link can create
+an inspection-only connection. Report content still requires supervisor review;
+submission does not authorize dispatch or resolve a stop condition. Management
+stays behind the existing OpsCenter sign-in and role checks. Disconnect revokes
+the current connection, not the physical phone; the phone can connect again.
+Existing code-paired cookies and legacy pairing endpoints remain compatible,
+but neither the phone nor management UI asks for or generates setup codes.
 All POST handlers require JSON, bounded bodies and same-origin browser requests.
 
 ## OpsCenter review
@@ -84,7 +94,7 @@ repair resolution, email or Slack delivery is fabricated by submission.
 ## Validation
 
 Run `npm run verify:truck-inspections`, relevant authentication/role tests,
-TypeScript and production build checks. Use synthetic paired phones to test the
+TypeScript and production build checks. Use synthetic connected phones to test the
 exact mobile flow, draft recovery, failed receipt recovery, repeat submission,
 photo preservation, and management read-back. Production acceptance additionally
 requires both the public phone origin and authenticated management view.

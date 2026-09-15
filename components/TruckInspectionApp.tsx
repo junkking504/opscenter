@@ -6,6 +6,7 @@ import styles from "./truck-inspection.module.css";
 
 type Draft = Omit<TruckInspectionInput, "status"> & { status: InspectionStatus | ""; step: number; sent: boolean; problemEditing?: boolean; returnToReview?: boolean };
 type Context = { device: InspectionDevice; inspectors: string[]; date: string };
+const CONNECTION_KEY = "truck-inspection-connection";
 function emptyDraft(): Draft { return { requestId: crypto.randomUUID(), inspector: "", odometer: "", fuel: "", startedAt: new Date().toISOString(), answers: [], photos: [], status: "", notes: "", initials: "", step: 0, sent: false }; }
 async function api(url: string, body?: unknown) {
   const response = await fetch(url, { method: body ? "POST" : "GET", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined, cache: "no-store", signal: AbortSignal.timeout(25_000) });
@@ -33,7 +34,9 @@ export default function TruckInspectionApp() {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [receipt, setReceipt] = useState<TruckInspectionReport | null>(null);
   const [setup, setSetup] = useState(false);
-  const [code, setCode] = useState("");
+  const [truck, setTruck] = useState("");
+  const [trucks, setTrucks] = useState<string[]>([]);
+  const connection = useRef<{ truck: string; token: string } | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState("");
@@ -45,12 +48,19 @@ export default function TruckInspectionApp() {
   const heading = useRef<HTMLHeadingElement>(null);
   async function load() {
     try {
-      const data: Context = await api("/api/truck-inspection"); setContext(data); setSetup(false);
+      const data = await api("/api/truck-inspection");
+      if (!data.device) {
+        setContext(null); setTrucks(data.trucks || []); setSetup(true);
+        try { const pending = JSON.parse(localStorage.getItem(CONNECTION_KEY) || "null"); if (pending && data.trucks.includes(pending.truck) && /^[a-f0-9]{64}$/.test(pending.token)) { connection.current = pending; setTruck(pending.truck); } } catch { /* Connection also works when storage is unavailable. */ }
+        return false;
+      }
+      setContext(data); setSetup(false);
       try { const stored = await inspectionDraft<Draft>(data.device.deviceId, "read"); setDraft(stored || emptyDraft()); }
       catch { setSaved("Phone storage unavailable. Keep this page open until OpsCenter receives the report."); setDraft(emptyDraft()); }
-    } catch (e) { if ((e as { status?: number }).status === 401) setSetup(true); else setError("Cannot connect to OpsCenter. Reconnect and try again."); }
+      return true;
+    } catch { setError("Cannot connect to OpsCenter. Reconnect and try again."); return false; }
   }
-  useEffect(() => { const setupCode = new URLSearchParams(location.hash.slice(1)).get("setup"); if (setupCode) { setCode(setupCode); history.replaceState(null, "", location.pathname); } void load(); const update = () => setOnline(navigator.onLine); update(); window.addEventListener("online", update); window.addEventListener("offline", update); return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); }; }, []);
+  useEffect(() => { if (location.hash) history.replaceState(null, "", location.pathname); void load(); const update = () => setOnline(navigator.onLine); update(); window.addEventListener("online", update); window.addEventListener("offline", update); return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); }; }, []);
   useEffect(() => {
     if (!draft || !context || receipt) return;
     const next = draft;
@@ -61,10 +71,14 @@ export default function TruckInspectionApp() {
   }, [draft, context, receipt]);
   useEffect(() => { heading.current?.focus(); }, [draft?.step, draft?.problemEditing, draft?.sent, receipt]);
   function change(values: Partial<Draft>) { setDraft(previous => previous && !previous.sent ? { ...previous, ...values } : previous); setError(""); }
-  async function pair(event: React.FormEvent) {
+  async function connect(event: React.FormEvent) {
     event.preventDefault(); if (mutex.current) return; mutex.current = true; setBusy(true); setError("");
-    try { await api("/api/truck-inspection", { action: "pair", code: code.trim() }); await load(); }
-    catch (e) { setError((e as Error).message); } finally { mutex.current = false; setBusy(false); }
+    try {
+      if (!connection.current || connection.current.truck !== truck) connection.current = { truck, token: Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, "0")).join("") };
+      try { localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection.current)); } catch { /* The HTTP-only cookie still remembers a successful connection. */ }
+      await api("/api/truck-inspection", { action: "connect", truck, connectionToken: connection.current.token });
+      if (await load()) { try { localStorage.removeItem(CONNECTION_KEY); } catch { /* No pending connection to recover. */ } connection.current = null; }
+    } catch (e) { setError((e as Error).message); if ((e as { status?: number }).status === 403) { connection.current = null; try { localStorage.removeItem(CONNECTION_KEY); } catch { /* Retry with a fresh connection. */ } } } finally { mutex.current = false; setBusy(false); }
   }
   async function confirmReport(report: TruckInspectionReport) {
     if (!context || !draft || report.requestId !== draft.requestId || report.deviceId !== context.device.deviceId || report.truck !== context.device.truck || !report.receivedAt) throw new Error("The receipt did not match this report. Check the saved result.");
@@ -135,12 +149,12 @@ export default function TruckInspectionApp() {
     <div className={styles.phoneShell}>
       {setup ? <>
         <section className={styles.phoneContent}>
-          <div className={styles.eyebrow}>ONE-TIME PHONE SETUP</div><h1 ref={heading} tabIndex={-1}>Connect this phone.</h1>
-          <p className={styles.intro}>Enter the setup code from your manager to assign this phone to its truck.</p>
-          <form id="phone-setup" onSubmit={pair}><label className={styles.inputCard}>Setup code<input autoCapitalize="none" autoCorrect="off" autoComplete="off" value={code} onChange={e => setCode(e.target.value)} required maxLength={24} placeholder="Paste code here" /></label></form>
-          <p className={styles.intro}>You only do this once. After setup, the phone remembers its truck.</p>{errors}
+          <div className={styles.eyebrow}>COMPANY TRUCK PHONE</div><h1 ref={heading} tabIndex={-1}>Which truck is this?</h1>
+          <p className={styles.intro}>Choose the truck this phone stays with.</p>
+          <form id="phone-setup" onSubmit={connect}><label className={styles.inputCard}>This phone’s truck<select required disabled={busy} value={truck} onChange={e => setTruck(e.target.value)}><option value="">Choose truck</option>{trucks.map(t => <option key={t}>{t}</option>)}</select></label></form>
+          <p className={styles.intro}>This phone will remember the truck for future morning inspections.</p>{errors}
         </section>
-        <div className={styles.actionBar}><button form="phone-setup" className={styles.primary} disabled={busy || !code.trim()}>{busy ? "Connecting…" : "Connect truck phone →"}</button><p className={styles.muted}>Your manager creates codes in OpsCenter.</p></div>
+        <div className={styles.actionBar}><button form="phone-setup" className={styles.primary} disabled={busy || !truck}>{busy ? "Saving truck…" : "Use this truck →"}</button><p className={styles.muted}>No setup code or employee login needed.</p></div>
       </> : !context || !draft ? <section className={styles.phoneContent}><div className={styles.eyebrow}>TRUCK CHECK</div><h1>Morning inspection</h1><p>{error || "Connecting to OpsCenter…"}</p>{error && <button onClick={() => { setError(""); void load(); }}>Try again</button>}</section>
       : receipt ? <>
         <section className={styles.phoneContent}>

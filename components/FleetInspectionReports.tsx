@@ -13,8 +13,6 @@ export default function FleetInspectionReports() {
   const [date, setDate] = useState(inspectionDate());
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState(""); const [busy, setBusy] = useState(false);
-  const [truck, setTruck] = useState(""); const [label, setLabel] = useState("");
-  const [pairing, setPairing] = useState<{ code: string; expiresAt: string; truck: string } | null>(null);
   const [filter, setFilter] = useState(""); const [statusFilter, setStatusFilter] = useState("");
   const [selected, setSelected] = useState(""); const [manageOpen, setManageOpen] = useState(false);
   const generation = useRef(0); const detail = useRef<HTMLElement>(null);
@@ -58,10 +56,8 @@ export default function FleetInspectionReports() {
             </>}
           </section>
         </div>
-      {snapshot.canManage && <details id="phone-management" className={`${styles.card} ${styles.noPrint}`} open={manageOpen} onToggle={e => setManageOpen(e.currentTarget.open)}><summary><strong>Manage truck phones</strong></summary><p>Connect each phone once. The phone can submit and check its own inspection reports; it cannot open management records.</p>
-        <form onSubmit={async e => { e.preventDefault(); const result = await action({ action: "pair", truck, label }); if (result) setPairing(result); }}><label>Assigned truck<select required value={truck} onChange={e => setTruck(e.target.value)}><option value="">Choose truck</option>{snapshot.trucks.map(t => <option key={t}>{t}</option>)}</select></label><label>Phone name<input required maxLength={100} placeholder="Truck 4 company phone" value={label} onChange={e => setLabel(e.target.value)} /></label><button className={styles.primary} disabled={busy}>Create one-time setup code</button></form>
-        {pairing && <section><h3>{pairing.truck} setup code</h3><p className={styles.setupCode}>{pairing.code}</p><p>On the truck phone, open <a href={`https://hooks.junk-king.app/truck-inspection#setup=${pairing.code}`}>Truck Check setup</a>, connect the phone, then add the page to the home screen. You can also enter the code manually.</p><p className={styles.muted}>Single use · Expires {new Date(pairing.expiresAt).toLocaleString()}. Keep the code private. If the setup result is uncertain, create a new code.</p></section>}
-        <h3>Connected phones</h3>{snapshot.devices.length === 0 && <p>No phones connected yet.</p>}{snapshot.devices.map(d => <div className={styles.reviewRow} key={d.deviceId}><div><strong>{d.truck} · {d.label}</strong><p>Connected {new Date(d.createdAt).toLocaleDateString()} · Expires {new Date(d.expiresAt).toLocaleDateString()}</p></div><button disabled={busy} onClick={() => void action({ action: "revoke", deviceId: d.deviceId })}>Disconnect</button></div>)}
+      {snapshot.canManage && <details id="phone-management" className={`${styles.card} ${styles.noPrint}`} open={manageOpen} onToggle={e => setManageOpen(e.currentTarget.open)}><summary><strong>Manage truck phones</strong></summary><p>On each dedicated phone, open <a href="https://hooks.junk-king.app/truck-inspection">Truck Check</a> and choose its truck once. The phone remembers it for future inspections.</p><p className={styles.muted}>Truck selections and inspector names are entered on the phone. Disconnect ends the current connection; the phone can choose its truck again.</p>
+        <h3>Connected phones</h3>{snapshot.devices.length === 0 && <p>No phones connected yet.</p>}{snapshot.devices.map(d => <div className={styles.reviewRow} key={d.deviceId}><div><strong>{d.label}</strong><p>{d.truck} · {d.selfSelected ? "Selected on phone" : "Manager assigned"}<br />Connected {new Date(d.createdAt).toLocaleDateString()} · Expires {new Date(d.expiresAt).toLocaleDateString()}</p></div><button disabled={busy} onClick={() => void action({ action: "revoke", deviceId: d.deviceId })}>Disconnect</button></div>)}
       </details>}      </>}
     </div>
   </main>;

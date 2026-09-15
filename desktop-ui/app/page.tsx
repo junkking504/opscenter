@@ -4192,7 +4192,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
     <main className={live ? 'ops-app ops-live' : 'ops-app'}>
       <aside className="ops-sidebar">
         <div className="brand-lockup">
-          <div className="brand-mark"><MapPin size={23} strokeWidth={2.3} /><span /></div>
+          <img className="brand-mark opscenter-brand-image" src="/opscenter-logo.png?v=2" alt="OpsCenter" width={39} height={39} />
           <div><strong>OpsCenter</strong><small>Junk King Louisiana</small></div>
         </div>
 

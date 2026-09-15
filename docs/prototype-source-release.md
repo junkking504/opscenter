@@ -2,11 +2,13 @@
 
 ## OpsCenter icons
 
-The desktop document and Next.js page metadata use `/opscenter-icon.svg`, the
-gold-and-red dispatch pin from `components/OpsCenterLogo.tsx`. This replaces the
-prototype's blue placeholder favicon. `/opscenter-apple-icon.png` is its 180px
-render for Apple home screens. Both static brand assets are available before
-login. The inspection app retains its own route-specific icon metadata.
+The desktop sidebar, login page and legacy shells use `/opscenter-logo.png`,
+the approved red-and-gold circuit artwork with the JK crown. The 32px
+`/opscenter-favicon.png` and `/favicon.ico` serve browser tabs; the 180px
+`/opscenter-apple-icon.png` serves Apple home screens. `/opscenter.webmanifest`
+selects the 192px and 512px app icons for installation. These assets are public
+before login and use versioned URLs. The prior SVG URL carries the same artwork
+for compatibility. The inspection app retains its own route-specific identity.
 
 ## Workspace display names
 

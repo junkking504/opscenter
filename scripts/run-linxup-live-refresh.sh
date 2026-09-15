@@ -31,7 +31,11 @@ trap cleanup EXIT
 drain_push_queue() {
   (cd "$OPSCENTER_DIR" && OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" node --import tsx scripts/drain-linxup-push.ts)
 }
-drain_push_queue
+drain_push_queue || echo "GPS push drain pending; continuing independent address recovery." >&2
+# Address recovery is independent of GPS transport. A failed push drain,
+# connectivity probe, tracker-map request or history poll must not skip it.
+# Keep visit matching and automatic address checks aligned with the live board.
+(cd "$OPSCENTER_DIR" && OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" OPSBOT_DATA_DIR="$OPSBOT_DIR/data" node --import tsx scripts/refresh-schedule-map-inputs.ts "$TARGET_DATE") || echo "Schedule map inputs pending; retaining previous verified data." >&2
 
 if ! /usr/sbin/scutil -r www.awaregps.com 2>/dev/null | /usr/bin/grep -q '^Reachable'; then
   echo "LinxUp refresh deferred until network connectivity returns."
@@ -57,8 +61,6 @@ fi
 
 python3 scripts/collect_linxup_location_history.py --date "$TARGET_DATE"
 drain_push_queue
-# Keep visit matching and automatic address checks aligned with the live board.
-(cd "$OPSCENTER_DIR" && OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" OPSBOT_DATA_DIR="$OPSBOT_DIR/data" node --import tsx scripts/refresh-schedule-map-inputs.ts "$TARGET_DATE") || echo "Schedule map inputs pending; retaining previous verified data." >&2
 python3 scripts/seed_local_appointment_geocodes.py --date "$TARGET_DATE"
 python3 "$OPSCENTER_DIR/scripts/match-linxup-instant-arrivals.py" --date "$TARGET_DATE"
 python3 scripts/validate_linxup_appointment_visits.py --date "$TARGET_DATE"

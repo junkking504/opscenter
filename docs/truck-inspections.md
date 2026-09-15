@@ -161,10 +161,9 @@ the app.
 ## App identity
 
 The banner and installed app are named Five Point Inspection. A gear-and-wrench
-icon uses Junk King red `#EC2027`, gold `#E2C675`, black and white, with the
-official Junk King crown, extracted from the existing vector brand artwork.
-The icon omits the wordmark and tagline. Versioned crown-icon URLs allow browsers
-to load the new artwork. The banner displays
+icon uses Junk King red `#EC2027`, gold `#E2C675`, black and white.
+The icon contains only the gear and wrench, with no crown, wordmark or tagline.
+Versioned gear-and-wrench URLs allow browsers to load the new artwork. The banner displays
 the existing vector brand asset beside the app name and selected truck. The SVG
 source is `lib/truck-inspection-icon.ts`; PNG home-screen variants are 180, 192
 and 512 pixels. The 512-pixel icon has an opaque background and safe margins for

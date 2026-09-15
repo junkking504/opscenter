@@ -18,6 +18,14 @@ else
   target_dates=$(node -e 'const p=JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); console.log(new Intl.DateTimeFormat("en-CA",{timeZone:"America/Chicago",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(Number(p.date ?? p.positionDate))))' "$PAYLOAD_FILE")
 fi
 
+run_operational_agents() {
+  for agent_date in $target_dates; do
+    OPSCENTER_DATA_DIR="$OPSCENTER_DATA_DIR" /usr/bin/python3 "$OPSCENTER_DIR/scripts/run-operational-agents.py" "$agent_date" || echo "Operational agents pending; GPS updates retained." >&2
+  done
+}
+# Run with the completed local V3 normalization even if appointment matching fails.
+trap run_operational_agents EXIT
+
 cd "$OPSBOT_DIR"
 export PYTHONPYCACHEPREFIX="/private/tmp/opscenter-linxup-pycache"
 for target_date in $target_dates; do

@@ -5,7 +5,11 @@ import path from 'node:path';
 import { readScheduleVisits } from './desktop-schedule-visits';
 import { appointmentOnsiteTime } from './appointment-onsite-time';
 import {readTruckCompletionEvidence} from './truck-load-completion-evidence';
-import { geofenceLoadResets, readGeofenceEntries } from './linxup-geofence-alerts';
+import { readGeofenceEntries } from './linxup-geofence-alerts';
+import {readDumpFeePolicy} from './dump-expenses';
+import {readOperationalTruckExpenses} from './truck-expense-notifications';
+import {readExpenseUnloadLinks,withoutDuplicateExpenseUnloads} from './expense-unload-links';
+import {runUnloadCostAgent} from './unload-cost-agent';
 import { deriveTruckLoadStatus, junkwareJobLoadFraction, normalizeTruckLoadLabel, junkwareBedloadFraction, formatLoadAmount, readTruckLoadStore, recordTruckLoadFromCloseout, type TruckLoadEvent, type TruckLoadStatus } from './truck-load-status';
 
 type LoadJob = Pick<ReturnType<typeof readJobRows>[number], 'appointmentId' | 'jkNumber' | 'truck' | 'appointmentType' | 'status' | 'closeout' | 'closeoutObservedAt' | 'chargeDetailsPending'> & {completionObservedAt?:string; appointmentStartMinutes?:number | null};
@@ -157,7 +161,10 @@ export function deriveCloseoutTruckLoads(date: string, trucks: string[], stored:
 }
 
 function readLoadDay(date: string, trucks: string[], stored: TruckLoadEvent[], previous: OperationalTruckLoad[], jobs = readJobRows(date)) {
-  const events = [...stored,...geofenceLoadResets(date,readGeofenceEntries(date).entries)];
+  const visits=readGeofenceEntries(date).trackedVisits;
+  const expenses=readOperationalTruckExpenses(date);
+  const result=runUnloadCostAgent(date,visits,expenses,readDumpFeePolicy());
+  const events = [...withoutDuplicateExpenseUnloads(stored,result.records,readExpenseUnloadLinks(date,expenses)),...result.unloads];
   const completions = readTruckCompletionEvidence(date,jobs);
   return deriveCloseoutTruckLoads(date,trucks,events,jobs.map(job=>({...job,completionObservedAt:completions.get(job.appointmentId)})),readScheduleVisits(date).visits,Date.parse(junkwareScheduleUpdatedAt(date) || '') || 0,previous);
 }
@@ -175,10 +182,10 @@ export function readOperationalTruckLoads(date: string, trucks: string[] = [], j
   if (!previous) {
     const dates=new Set(store.events.map(event=>event.date).filter(day=>day<date));
     const trackingStart=[...dates].sort()[0];
-    for (const directory of [path.join(root,'history','junkware'),path.join(root,'history','linxup','alerts'),...['352','477','399','484'].map(market=>path.join(root,'history','junkware','schedule-watchers',market))]) {
+    for (const directory of [path.join(root,'history','junkware'),path.join(root,'history','linxup','alerts'),path.join(root,'history','linxup','geofence_positions'),...['352','477','399','484'].map(market=>path.join(root,'history','junkware','schedule-watchers',market))]) {
       try {for (const file of fs.readdirSync(directory)) {
         const day=file.match(/(\d{4}-\d{2}-\d{2})/)?.[1];
-        if (day && day<date && (!trackingStart || day>=trackingStart) && /(?:completed_.*_summary\.csv|_raw\.json|linxup_alerts_.*\.json|schedule_(?:fast|requested)_.*\.json)$/.test(file)) dates.add(day);
+        if (day && day<date && (!trackingStart || day>=trackingStart) && /(?:completed_.*_summary\.csv|_raw\.json|linxup_alerts_.*\.json|\d{4}-\d{2}-\d{2}\.json|schedule_(?:fast|requested)_.*\.json)$/.test(file)) dates.add(day);
       }} catch { /* Available history is replayed without external requests. */ }
     }
     previous=[];

@@ -89,7 +89,7 @@
     "verify:junkware-appointment-creation": "node --import tsx scripts/test-junkware-appointment-creation.ts",
     "verify:fleet-gps": "node --import tsx scripts/test-fleet-gps.ts",
     "verify:fleet-actions": "node --import tsx scripts/test-fleet-maintenance-actions.ts",
-    "verify:dump-expenses": "node --import tsx scripts/test-dump-expenses.ts",
+    "verify:dump-expenses": "node --import tsx scripts/test-dump-expenses.ts && node --import tsx scripts/test-unload-cost-agent.ts && node --import tsx scripts/test-operational-agents.ts",
     "verify:geofence-alerts": "node --import tsx scripts/test-geofence-alerts.ts",
     "verify:appointment-visit-alerts": "node --import tsx scripts/test-appointment-visit-alerts.ts",
     "verify:truck-load-status:browser": "node scripts/test-truck-load-browser.mjs",

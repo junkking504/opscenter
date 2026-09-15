@@ -46,6 +46,7 @@ without mixing live runtime data or secrets into Git.
 - [Driving scores](driving-scores.md)
 - [Truck load status](truck-load-status.md)
 - [Assumed dump expenses](dump-expenses.md)
+- [Visit and unload/cost agents](operational-agents.md)
 - [Estimate follow-up](estimate-follow-up.md)
 - [JunkWare appointment creation](junkware-appointment-creation.md)
 - [Fleet Action Center](fleet-action-center.md)

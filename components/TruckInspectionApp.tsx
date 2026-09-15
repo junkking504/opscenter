@@ -5,9 +5,9 @@ import { inspectionDraft } from "@/lib/truck-inspection-draft";
 import styles from "./truck-inspection.module.css";
 
 type Draft = Omit<TruckInspectionInput, "status"> & { status: InspectionStatus | ""; step: number; sent: boolean; problemEditing?: boolean; returnToReview?: boolean };
-type Context = { device: InspectionDevice; inspectors: string[]; date: string };
+type Context = { device: InspectionDevice; trucks: string[]; inspectors: string[]; date: string };
 const CONNECTION_KEY = "truck-inspection-connection";
-function emptyDraft(): Draft { return { requestId: crypto.randomUUID(), inspector: "", odometer: "", fuel: "", startedAt: new Date().toISOString(), answers: [], photos: [], status: "", notes: "", initials: "", step: 0, sent: false }; }
+function emptyDraft(): Draft { return { requestId: crypto.randomUUID(), truck: "", inspector: "", odometer: "", fuel: "", startedAt: new Date().toISOString(), answers: [], photos: [], status: "", notes: "", initials: "", step: 0, sent: false }; }
 async function api(url: string, body?: unknown) {
   const response = await fetch(url, { method: body ? "POST" : "GET", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined, cache: "no-store", signal: AbortSignal.timeout(25_000) });
   const value = await response.json();
@@ -33,10 +33,7 @@ export default function TruckInspectionApp() {
   const [context, setContext] = useState<Context | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [receipt, setReceipt] = useState<TruckInspectionReport | null>(null);
-  const [setup, setSetup] = useState(false);
-  const [truck, setTruck] = useState("");
-  const [trucks, setTrucks] = useState<string[]>([]);
-  const connection = useRef<{ truck: string; token: string } | null>(null);
+  const connection = useRef<{ token: string } | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState("");
@@ -48,17 +45,27 @@ export default function TruckInspectionApp() {
   const heading = useRef<HTMLHeadingElement>(null);
   async function load() {
     try {
-      const data = await api("/api/truck-inspection");
+      let data = await api("/api/truck-inspection");
       if (!data.device) {
-        setContext(null); setTrucks(data.trucks || []); setSetup(true);
-        try { const pending = JSON.parse(localStorage.getItem(CONNECTION_KEY) || "null"); if (pending && data.trucks.includes(pending.truck) && /^[a-f0-9]{64}$/.test(pending.token)) { connection.current = pending; setTruck(pending.truck); } } catch { /* Connection also works when storage is unavailable. */ }
-        return false;
+        try { const pending = JSON.parse(localStorage.getItem(CONNECTION_KEY) || "null"); if (pending && /^[a-f0-9]{64}$/.test(pending.token)) connection.current = pending; } catch { /* The connection also works without localStorage. */ }
+        if (!connection.current) connection.current = { token: Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, "0")).join("") };
+        try { localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection.current)); } catch { /* The HTTP-only cookie remembers a successful connection. */ }
+        await api("/api/truck-inspection", { action: "connect", connectionToken: connection.current.token });
+        data = await api("/api/truck-inspection");
+        if (!data.device) throw new Error("The browser did not keep the phone connection.");
       }
-      setContext(data); setSetup(false);
-      try { const stored = await inspectionDraft<Draft>(data.device.deviceId, "read"); setDraft(stored || emptyDraft()); }
-      catch { setSaved("Phone storage unavailable. Keep this page open until OpsCenter receives the report."); setDraft(emptyDraft()); }
-      return true;
-    } catch { setError("Cannot connect to OpsCenter. Reconnect and try again."); return false; }
+      try { localStorage.removeItem(CONNECTION_KEY); } catch { /* No pending connection to recover. */ }
+      connection.current = null;
+      setContext(data);
+      try {
+        const stored = await inspectionDraft<Draft>(data.device.deviceId, "read");
+        // Preserve the truck on unfinished drafts from the old phone-assignment flow.
+        setDraft(stored ? { ...stored, truck: stored.truck ?? (stored.step > 0 ? data.device.truck || "" : "") } : emptyDraft());
+      } catch { setSaved("Phone storage unavailable. Keep this page open until OpsCenter receives the report."); setDraft(emptyDraft()); }
+    } catch (e) {
+      if ((e as { status?: number }).status === 403) { connection.current = null; try { localStorage.removeItem(CONNECTION_KEY); } catch { /* Retry with a fresh connection. */ } }
+      setError("Cannot connect to OpsCenter. Reconnect and try again.");
+    }
   }
   useEffect(() => { if (location.hash) history.replaceState(null, "", location.pathname); void load(); const update = () => setOnline(navigator.onLine); update(); window.addEventListener("online", update); window.addEventListener("offline", update); return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); }; }, []);
   useEffect(() => {
@@ -71,17 +78,13 @@ export default function TruckInspectionApp() {
   }, [draft, context, receipt]);
   useEffect(() => { heading.current?.focus(); }, [draft?.step, draft?.problemEditing, draft?.sent, receipt]);
   function change(values: Partial<Draft>) { setDraft(previous => previous && !previous.sent ? { ...previous, ...values } : previous); setError(""); }
-  async function connect(event: React.FormEvent) {
-    event.preventDefault(); if (mutex.current) return; mutex.current = true; setBusy(true); setError("");
-    try {
-      if (!connection.current || connection.current.truck !== truck) connection.current = { truck, token: Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, "0")).join("") };
-      try { localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection.current)); } catch { /* The HTTP-only cookie still remembers a successful connection. */ }
-      await api("/api/truck-inspection", { action: "connect", truck, connectionToken: connection.current.token });
-      if (await load()) { try { localStorage.removeItem(CONNECTION_KEY); } catch { /* No pending connection to recover. */ } connection.current = null; }
-    } catch (e) { setError((e as Error).message); if ((e as { status?: number }).status === 403) { connection.current = null; try { localStorage.removeItem(CONNECTION_KEY); } catch { /* Retry with a fresh connection. */ } } } finally { mutex.current = false; setBusy(false); }
+  function chooseTruck(truck: string) {
+    if (!draft || truck === draft.truck) return;
+    if ((draft.answers.length || draft.photos.length) && !window.confirm("Changing trucks starts a new inspection and clears this unfinished checklist. Continue?")) return;
+    setDraft({ ...emptyDraft(), truck, inspector: draft.inspector }); setError("");
   }
   async function confirmReport(report: TruckInspectionReport) {
-    if (!context || !draft || report.requestId !== draft.requestId || report.deviceId !== context.device.deviceId || report.truck !== context.device.truck || !report.receivedAt) throw new Error("The receipt did not match this report. Check the saved result.");
+    if (!context || !draft || report.requestId !== draft.requestId || report.deviceId !== context.device.deviceId || report.truck !== draft.truck || !report.receivedAt) throw new Error("The receipt did not match this report. Check the saved result.");
     setReceipt(report); setError("");
     await saveSequence.current;
     await inspectionDraft(context.device.deviceId, "remove").catch(() => undefined);
@@ -114,7 +117,7 @@ export default function TruckInspectionApp() {
   const answer = draft?.answers.find(a => a.id === section?.id);
   const problemCount = draft?.answers.filter(a => a.status === "problem").length || 0;
   const complete = draft && INSPECTION_SECTIONS.every(s => draft.answers.some(a => a.id === s.id && (a.status === "good" || (a.status === "problem" && a.notes.trim()))));
-  const canSend = draft && complete && draft.inspector.trim() && /^\d{1,8}$/.test(draft.odometer) && draft.fuel && draft.initials.trim() && draft.status && !(problemCount && draft.status === "clear") && !(draft.status === "reported" && !problemCount) && !(draft.status === "stop" && !problemCount && !draft.notes.trim());
+  const canSend = draft && context?.trucks.includes(draft.truck) && complete && draft.inspector.trim() && /^\d{1,8}$/.test(draft.odometer) && draft.fuel && draft.initials.trim() && draft.status && !(problemCount && draft.status === "clear") && !(draft.status === "reported" && !problemCount) && !(draft.status === "stop" && !problemCount && !draft.notes.trim());
   const presentation = section ? {
     "walk-around": ["Start outside.", "Walk all the way around the truck before choosing a result."],
     "wheels-tires": ["Check every wheel.", "Look closely at all tires, lug nuts and rims."],
@@ -145,17 +148,9 @@ export default function TruckInspectionApp() {
     <p className={styles.reference}>Report reference: {report.requestId}</p>
   </>;
   return <main className={`${styles.app} ${styles.phoneApp}`}>
-    <header className={styles.brand}><span>JUNK KING</span><span className={styles.brandDivider}>/</span><b>{context?.device.truck || "TRUCK CHECK"}</b></header>
+    <header className={styles.brand}><span>JUNK KING</span><span className={styles.brandDivider}>/</span><b>{receipt?.truck || draft?.truck || "TRUCK CHECK"}</b></header>
     <div className={styles.phoneShell}>
-      {setup ? <>
-        <section className={styles.phoneContent}>
-          <div className={styles.eyebrow}>COMPANY TRUCK PHONE</div><h1 ref={heading} tabIndex={-1}>Which truck is this?</h1>
-          <p className={styles.intro}>Choose the truck this phone stays with.</p>
-          <form id="phone-setup" onSubmit={connect}><label className={styles.inputCard}>This phone’s truck<select required disabled={busy} value={truck} onChange={e => setTruck(e.target.value)}><option value="">Choose truck</option>{trucks.map(t => <option key={t}>{t}</option>)}</select></label></form>
-          <p className={styles.intro}>This phone will remember the truck for future morning inspections.</p>{errors}
-        </section>
-        <div className={styles.actionBar}><button form="phone-setup" className={styles.primary} disabled={busy || !truck}>{busy ? "Saving truck…" : "Use this truck →"}</button><p className={styles.muted}>No setup code or employee login needed.</p></div>
-      </> : !context || !draft ? <section className={styles.phoneContent}><div className={styles.eyebrow}>TRUCK CHECK</div><h1>Morning inspection</h1><p>{error || "Connecting to OpsCenter…"}</p>{error && <button onClick={() => { setError(""); void load(); }}>Try again</button>}</section>
+      {!context || !draft ? <section className={styles.phoneContent}><div className={styles.eyebrow}>TRUCK CHECK</div><h1>Morning inspection</h1><p>{error || "Connecting to OpsCenter…"}</p>{error && <button onClick={() => { setError(""); void load(); }}>Try again</button>}</section>
       : receipt ? <>
         <section className={styles.phoneContent}>
           <div className={styles.received}>✓ RECEIVED BY OPSCENTER</div><h1 ref={heading} tabIndex={-1}>Report received.</h1><p className={styles.intro}>Your morning inspection is recorded.</p>
@@ -169,7 +164,7 @@ export default function TruckInspectionApp() {
         <section className={styles.phoneContent}>
           <div className={styles.eyebrow}>AWAITING OPSCENTER</div><h1 ref={heading} tabIndex={-1}>{busy ? "Sending your report…" : "Receipt not confirmed."}</h1>
           <p className={styles.intro}>We haven’t confirmed a receipt from OpsCenter. Keep this phone open and check your connection.</p>
-          <div className={styles.card}><h2>{context.device.truck} · Inspection</h2><p>5 checks completed<br />{draft.inspector} · {Number(draft.odometer).toLocaleString()} miles</p><p className={styles.muted}>Your answers are kept with this report.</p></div>
+          <div className={styles.card}><h2>{draft.truck} · Inspection</h2><p>5 checks completed<br />{draft.inspector} · {Number(draft.odometer).toLocaleString()} miles</p><p className={styles.muted}>Your answers are kept with this report.</p></div>
           {draft.status === "stop" && <div className={styles.decisionCard} data-status="stop"><h2>! Do not operate</h2><p>The reported condition still applies. Contact your supervisor.</p></div>}{errors}
         </section>
         <div className={styles.actionBar}><button className={styles.primary} disabled={busy} onClick={() => void checkResult()}>Check saved result</button><button disabled={busy} onClick={() => void submit()}>Send same report</button><p className={styles.muted}>Use this report. No need to start again.</p>{saveStatus}</div>
@@ -177,11 +172,12 @@ export default function TruckInspectionApp() {
         <section className={styles.phoneContent}>
           {!online && <p className={styles.offline}>No connection. Continue checking the truck; reconnect to send.</p>}
           {draft.step === 0 ? <>
-            <div className={styles.eyebrow}>{inspectionDate(new Date(draft.startedAt))} · {context.device.truck}</div><h1 ref={heading} tabIndex={-1}>Morning, crew.</h1><p className={styles.intro}>Complete your truck’s five-point check before the day begins.</p>
-            <form id="start-inspection" onSubmit={e => { e.preventDefault(); if (draft.inspector.trim() && /^\d{1,8}$/.test(draft.odometer)) change({ step: 1, startedAt: new Date().toISOString() }); }}>
+            <div className={styles.eyebrow}>{inspectionDate(new Date(draft.startedAt))} · {draft.truck}</div><h1 ref={heading} tabIndex={-1}>Morning, crew.</h1><p className={styles.intro}>Complete your truck’s five-point check before the day begins.</p>
+            <form id="start-inspection" onSubmit={e => { e.preventDefault(); if (context.trucks.includes(draft.truck) && draft.inspector.trim() && /^\d{1,8}$/.test(draft.odometer)) change({ step: 1, startedAt: new Date().toISOString() }); }}>
+              <label className={styles.inputCard}>Truck for this inspection<select required value={draft.truck} onChange={e => chooseTruck(e.target.value)}><option value="">Choose truck</option>{context.trucks.map(t => <option key={t}>{t}</option>)}</select></label>
               <label className={styles.inputCard}>Your name<input list="inspection-crew" value={draft.inspector} onChange={e => change({ inspector: e.target.value })} required maxLength={100} autoComplete="off" placeholder="Your name or initials" /></label><datalist id="inspection-crew">{context.inspectors.map(name => <option key={name} value={name} />)}</datalist>
               <label className={styles.inputCard}>Odometer · miles<input inputMode="numeric" pattern="[0-9]{1,8}" value={draft.odometer} onChange={e => change({ odometer: e.target.value })} required maxLength={8} placeholder="Enter the mileage" /></label>
-            </form><p className={styles.muted}>Assigned to {context.device.truck}<br />A different driver can use this phone each day.</p>
+            </form><p className={styles.muted}>Choose the truck you are inspecting today. Any company phone can be used for any truck.</p>
           </> : section ? <>
             <div className={styles.eyebrow}>{draft.step} OF 5 · {section.label}</div>
             <div className={styles.progress} aria-label={`Check ${draft.step} of 5`}>{INSPECTION_SECTIONS.map((s, i) => <span key={s.id} data-current={i + 1 === draft.step} data-result={draft.answers.find(a => a.id === s.id)?.status || ""} />)}</div>
@@ -200,7 +196,7 @@ export default function TruckInspectionApp() {
             <p className={styles.muted}>{problemCount ? "A problem was reported. No problems is unavailable." : "Choose Do not operate if the truck should stay parked."}</p>
             <label>Additional notes{draft.status === "stop" && !problemCount ? " · required" : " · optional"}<textarea maxLength={2000} value={draft.notes} onChange={e => change({ notes: e.target.value })} /></label>
           </> : <>
-            <div className={styles.eyebrow}>{complete ? "ALL 5 CHECKS COMPLETE" : "COMPLETE EVERY CHECK"}</div><h1 ref={heading} tabIndex={-1}>Review & send.</h1><p className={styles.intro}>{context.device.truck} · {draft.inspector}<br />{Number(draft.odometer).toLocaleString()} miles · Fuel {draft.fuel || "not selected"}</p>
+            <div className={styles.eyebrow}>{complete ? "ALL 5 CHECKS COMPLETE" : "COMPLETE EVERY CHECK"}</div><h1 ref={heading} tabIndex={-1}>Review & send.</h1><p className={styles.intro}>{draft.truck} · {draft.inspector}<br />{Number(draft.odometer).toLocaleString()} miles · Fuel {draft.fuel || "not selected"}</p>
             <div className={styles.card}>{INSPECTION_SECTIONS.map((s, i) => { const a = draft.answers.find(a => a.id === s.id); return <div className={styles.reviewRow} key={s.id}><div><strong>{s.label}</strong><p data-status={a?.status === "problem" ? "reported" : "clear"}>{a?.status === "good" ? "✓ Good" : `! ${a?.notes || "Not checked"}`}</p></div><button aria-label={`Edit ${s.label}`} disabled={busy} onClick={() => change({ step: i + 1, returnToReview: true, problemEditing: false })}>Edit</button></div>; })}</div>
             <button className={styles.statusSummary} data-status={draft.status} onClick={() => change({ step: 7 })}><span>OPERATING STATUS · CHANGE</span><strong>{draft.status ? INSPECTION_STATUSES[draft.status] : "Choose operating status"}</strong></button>
             {draft.notes && <p>{draft.notes}</p>}
@@ -209,7 +205,7 @@ export default function TruckInspectionApp() {
           </>}{errors}
         </section>
         <div className={styles.actionBar}>
-          {draft.step === 0 ? <button form="start-inspection" className={styles.primary}>Start inspection →</button>
+          {draft.step === 0 ? <button form="start-inspection" className={styles.primary} disabled={!draft.truck}>Start inspection →</button>
           : section ? <>
             {draft.problemEditing ? <><button className={styles.primary} disabled={busy || !answer?.notes.trim() || (section.id === "dashboard" && !draft.fuel)} onClick={e => nextSection(false, e.timeStamp)}>Save problem & continue →</button><button onClick={() => change({ problemEditing: false })} disabled={busy}>Back to {section.label.toLowerCase()}</button></>
             : <><button className={styles.goodButton} disabled={busy || (section.id === "dashboard" && !draft.fuel)} onClick={e => nextSection(true, e.timeStamp)}>✓ Good — {draft.returnToReview ? "review" : draft.step === 5 ? "finish checks" : "next check"}</button><button disabled={busy} onClick={() => change({ problemEditing: true, answers: [...draft.answers.filter(a => a.id !== section.id), { id: section.id, status: "problem", notes: answer?.notes || "" }], status: "" })}>! Report a problem</button></>}

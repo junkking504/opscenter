@@ -1,12 +1,17 @@
 # Five-point morning inspections
 
-The dedicated company truck phone opens `/truck-inspection` and chooses its
-truck once. No setup code or employee login is required. The phone remembers
-that selection for 180 days, unless browser data is cleared or the connection
-is disconnected. Existing connected phones keep their truck and drafts. Each morning, the inspector
-enters their own name and mileage, checks five sections, records fuel, chooses
-a final operating status and initials the report. Names are declarations on a
-shared company device, not proof of an individual login. Inspectors enter their names directly; the public phone API does not expose the crew roster.
+Any company phone opens `/truck-inspection`. The inspector selects the truck
+at the start of each inspection, then enters their name and mileage. There is
+no setup code, employee login or fixed phone-to-truck assignment. A new report
+starts with no truck selected. Reloading an unfinished draft preserves its
+selected truck, answers and photos. Changing its truck after checks or photos
+have been entered asks before clearing the unfinished checklist and creating a
+new report reference; cancelling preserves the draft.
+
+Each morning, the inspector checks five sections, records fuel, chooses a final
+operating status and initials the report. Names and truck selections are
+self-reported, not proof of identity or company ownership. The public phone API
+does not expose the crew roster.
 
 ## Source forms
 
@@ -28,7 +33,7 @@ the applicable checks in a section, not that every truck has every accessory.
 OpsCenter owns the inspection record. Reports live in protected runtime storage
 at `data/fleet/truck-inspections`, outside the release checkout via its existing
 data mount. `OPS_TRUCK_INSPECTION_DIR` can override this for isolated tests.
-Each report is immutable, includes its schema version, device, assigned truck,
+Each report is immutable, includes its schema version, device, selected truck,
 declared inspector, initials, start time, receipt time, answers and photographs.
 The inspection date is the Chicago date at the recorded start time. Late reports
 retain their original date. Drafts older than seven days cannot be submitted.
@@ -57,23 +62,28 @@ No new Worker, DNS record, tunnel, KV namespace, cloud subscription or provider
 request is required. OpsCenter's management origin serves `/fleet-inspections`.
 The Crew Portal and its authentication are not modified.
 
-An unconnected phone receives only the fixed dispatch truck choices. A connection
-POST validates the selected truck and installs a 256-bit random, HTTP-only,
-SameSite Strict cookie that is Secure over HTTPS. The browser generates and
-retains the random connection key until a successful connection is verified;
-retries reuse the key and return the same device. Only its hash is stored on the
-server. An existing active connection cannot be reassigned by a connect POST.
-It grants submission and receipt access for that device only, with no crew
-roster, payroll, management, other-device reports or deletion access.
+The browser connects automatically with a random 256-bit key and a Secure,
+HTTP-only, SameSite Strict cookie over HTTPS. The key is retained locally until
+connection is confirmed so a retry returns the same device. Only its hash is
+stored on the server. This connection identifies the phone for drafts and
+receipt retrieval for 180 days; it does not assign a truck. Each report supplies
+an explicit truck validated against the dispatch truck list. A phone can submit
+successive reports for different trucks and retrieve its own receipts. Another
+phone cannot retrieve those receipts, even when selecting the same truck.
+Changing a submitted report's truck with the same request ID is rejected.
 
-Truck selection is a declaration on the phone, not manager approval or proof
-that the device is company-owned. Anyone with the public app link can create
-an inspection-only connection. Report content still requires supervisor review;
-submission does not authorize dispatch or resolve a stop condition. Management
-stays behind the existing OpsCenter sign-in and role checks. Disconnect revokes
-the current connection, not the physical phone; the phone can connect again.
-Existing code-paired cookies and legacy pairing endpoints remain compatible,
-but neither the phone nor management UI asks for or generates setup codes.
+Existing phone cookies, report files and unfinished drafts remain compatible.
+A pre-update loaded client that omits the truck can finish using its legacy
+phone assignment. The updated app restores that truck only on an existing
+unfinished legacy draft; new inspections always require a fresh selection.
+Existing saved reports already contain their truck and are never reassigned.
+Legacy pairing endpoints remain compatible but are not offered in the UI.
+
+Anyone with the public app link can create an inspection-only connection. It
+has no crew roster, payroll, management or report deletion access. Management
+still requires the existing OpsCenter sign-in and role checks. Disconnect ends
+the current connection, not access by a physical phone; it can connect again.
+Report submission does not authorize dispatch or resolve a stop condition.
 All POST handlers require JSON, bounded bodies and same-origin browser requests.
 
 ## OpsCenter review

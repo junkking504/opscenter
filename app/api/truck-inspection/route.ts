@@ -7,7 +7,7 @@ import { inspectionResponse, inspectionFailure, inspectionRequestBody } from "@/
 export const runtime = "nodejs";
 async function phone() {
   const device = inspectionDevice((await cookies()).get(INSPECTION_DEVICE_COOKIE)?.value || "");
-  if (!device) throw new InspectionError("Choose this phone’s truck to begin.", 401);
+  if (!device) throw new InspectionError("Reconnect this phone to continue.", 401);
   return device;
 }
 export async function GET(request: Request) {
@@ -15,9 +15,9 @@ export async function GET(request: Request) {
     const requestId = new URL(request.url).searchParams.get("requestId");
     const device = inspectionDevice((await cookies()).get(INSPECTION_DEVICE_COOKIE)?.value || "");
     if (!device && !requestId) return inspectionResponse({ device: null, trucks: JUNKWARE_DISPATCH_TRUCKS });
-    if (!device) throw new InspectionError("Choose this phone’s truck to begin.", 401);
+    if (!device) throw new InspectionError("Reconnect this phone to continue.", 401);
     if (requestId) return inspectionResponse({ report: findTruckInspection(device.deviceId, requestId) });
-    return inspectionResponse({ device, date: inspectionDate(), inspectors: [] });
+    return inspectionResponse({ device, trucks: JUNKWARE_DISPATCH_TRUCKS, date: inspectionDate(), inspectors: [] });
   } catch (error) { return inspectionFailure(error); }
 }
 export async function POST(request: Request) {
@@ -27,10 +27,10 @@ export async function POST(request: Request) {
       const existingToken = (await cookies()).get(INSPECTION_DEVICE_COOKIE)?.value || "";
       const existing = inspectionDevice(existingToken);
       if (existing) {
-        if (body.action !== "connect" || existing.truck !== body.truck) throw new InspectionError(`This phone is already connected to ${existing.truck}.`, 409);
+        if (body.action !== "connect") throw new InspectionError("This phone is already connected.", 409);
         return inspectionResponse({ device: existing });
       }
-      const { token, device } = body.action === "connect" ? connectInspectionPhone(body.truck, body.connectionToken) : pairInspectionPhone(body.code);
+      const { token, device } = body.action === "connect" ? connectInspectionPhone(body.connectionToken) : pairInspectionPhone(body.code);
       const response = NextResponse.json({ device }, { headers: { "Cache-Control": "no-store, max-age=0" } });
       response.cookies.set(INSPECTION_DEVICE_COOKIE, token, { httpOnly: true, sameSite: "strict", secure: (request.headers.get("x-forwarded-proto") || new URL(request.url).protocol.replace(":", "")) === "https", path: "/", expires: new Date(device.expiresAt) });
       return response;

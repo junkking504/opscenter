@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { importWexPostedCsv, parseCsv, parseWexPostedCsv, readWexFuelFinance } from '../lib/wex-fuel';
+import { importWexPostedCsv, includeWexDailyExpense, parseCsv, parseWexPostedCsv, readWexFuelFinance } from '../lib/wex-fuel';
 
 assert.deepEqual(parseCsv('a,b\n"hello, world","say ""hi"""\n'), [['a', 'b'], ['hello, world', 'say "hi"']]);
 
@@ -50,6 +50,9 @@ assert.equal(finance.available, true);
 assert.deepEqual(finance.selectedDate, { count: 1, gallons: 19.26, netCost: 75.12 });
 assert.deepEqual(finance.month, { count: 2, gallons: 38.52, netCost: 144.57 });
 assert.equal(finance.transactions[0].transactionId, 'one');
+assert.deepEqual(includeWexDailyExpense({ costs: 388.10, profit: 73.84 }, finance), { costs: 463.22, profit: -1.28 });
+assert.deepEqual(includeWexDailyExpense({ costs: null, profit: null }, finance), { costs: null, profit: null });
+assert.deepEqual(includeWexDailyExpense({ costs: 388.10, profit: 73.84 }, readWexFuelFinance('2026-09-11', output)), { costs: 388.10, profit: 73.84 });
 assert.equal(readWexFuelFinance('2026-09-13', path.join(root, 'missing.json')).status, 'missing');
 fs.rmSync(root, { recursive: true, force: true });
 

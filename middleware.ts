@@ -146,6 +146,18 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
     return NextResponse.next();
   }
 
+  // Dedicated public inspection origin: never expose management or webhooks here.
+  if (hostname === "inspect.junk-king.app") {
+    if (pathname === "/") return NextResponse.rewrite(new URL("/truck-inspection", request.url));
+    if (INSPECTION_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
+    return new NextResponse("Not Found", { status: 404 });
+  }
+
+  // OpsCenter's same-origin entry link opens the dedicated phone app.
+  if (hostname === "ops.junk-king.app" && pathname === "/truck-inspection") {
+    return NextResponse.redirect(new URL("https://inspect.junk-king.app/"));
+  }
+
   if (isSmsHostname) {
     if (
       pathname === JUNKWARE_SMS_API_PREFIX

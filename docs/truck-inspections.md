@@ -1,6 +1,6 @@
 # Five-point morning inspections
 
-Any company phone opens `/truck-inspection`. The inspector selects the truck
+Any company phone opens `https://inspect.junk-king.app/`. The inspector selects the truck
 at the start of each inspection, then enters their name and mileage. There is
 no setup code, employee login or fixed phone-to-truck assignment. A new report
 starts with no truck selected. Reloading an unfinished draft preserves its
@@ -68,11 +68,17 @@ removed. Users should keep the page open if device storage is unavailable.
 
 ## Access boundary
 
-The existing public `hooks.junk-king.app` origin serves only the exact inspection
-page, manifest, icon and `/api/truck-inspection` routes, plus the existing
-webhook routes and Next assets. Its management routes remain unavailable.
-No new Worker, DNS record, tunnel, KV namespace, cloud subscription or provider
-request is required. OpsCenter's management origin serves `/fleet-inspections`.
+The dedicated public `inspect.junk-king.app` origin rewrites `/` to the inspection
+page and permits only the exact inspection page, manifest, icon,
+`/api/truck-inspection` and Next assets. Management, authentication and webhook
+routes return 404 on this origin. OpsCenter's Truck Check entry redirects here.
+The hostname requires its own DNS record and tunnel ingress to the existing
+OpsCenter service; no new Worker, cloud subscription or metered provider is used.
+
+The old `hooks.junk-king.app/truck-inspection` address remains usable for existing
+drafts and receipt recovery. Browser storage and phone cookies belong to their
+origin; they are not copied across domains. Saved reports remain in OpsCenter.
+Existing webhook routes are unchanged. OpsCenter's management origin serves `/fleet-inspections`.
 The Crew Portal and its authentication are not modified.
 
 The browser connects automatically with a random 256-bit key and a Secure,

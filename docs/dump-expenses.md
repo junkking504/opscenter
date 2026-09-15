@@ -1,7 +1,7 @@
 # Assumed dump expenses
 
 Effective September 15, 2026, OpsCenter projects one assumed dump expense when
-LinxUp reports a native geofence entry at a landfill, transfer station or dump.
+the visit-tracking agent establishes a positive facility arrival at a landfill, transfer station or dump.
 The user supplied these minimums:
 
 | Facility | Minimum |
@@ -20,34 +20,67 @@ weight, receipt number, provider payment or fee is fabricated.
 
 ## Replacement rule
 
-- The assumption appears on entry. Its replacement window stays open while onsite.
-- An explicit exit sets the deadline to exactly 60 minutes after departure.
-- A verified JunkWare dump expense with a recorded transaction time from entry
-  through that deadline, inclusive, replaces the assumption. The source's recorded
-  transaction time is the available matching evidence; collection time is not
-  submission time. A delayed collection can therefore reconcile an on-time record.
-- Match the physical truck and facility, including the configured aliases. A blank
-  source location matches only one unambiguous eligible visit. Fuel and different
-  trucks or facilities cannot replace the expense.
-- One source expense replaces one assumption. When same-facility visit windows
-  overlap, a named expense matches the latest eligible entry. Repeated entry
-  reports before an exit and exact provider retries produce only one assumption.
-- After the deadline the minimum stays assumed. A late actual remains its own
-  source record; it does not automatically replace the earlier assumption.
-- Neighboring-day local snapshots support midnight departures and receipts. The
-  replacement retains the entry day's record, including when its actual expense
-  is on the next day. Incomplete exit evidence never invents a timeout.
+- The unload/cost agent consumes the visit agent's normalized facility visits.
+  Native entries and positive GPS facility reports both qualify. One stable visit
+  identity produces one unload at its original arrival and one assumed minimum.
+- A verified actual replaces the assumption whenever it is recorded; there is
+  no sixty-minute expiry. Late collection or manual entry backdated to the visit's
+  operating day reconciles normally.
+- Match truck, facility aliases, and operating date. A later same-day actual can
+  replace a unique earlier visit. Precise onsite transaction timing distinguishes
+  repeated named-facility visits. A blank location requires one eligible visit.
+- Matching must be mutually unique: two competing actuals or ambiguous repeat
+  visits require review. No first-wins or closest-amount guess is made.
+- A visit genuinely spanning midnight can match an actual on its departure day
+  (within a maximum 36-hour visit). Other-day expenses do not silently attach to
+  an old open visit. They need an explicit source association.
+- Replacing an assumed cost retains the visit identity and unload timestamp. A
+  later expense cannot create a second unload or erase later pickups. An existing
+  OpsBot expense unload is suppressed in the load read projection only when its
+  completed message transaction explicitly matches the actual and that actual
+  matches this visit. Unrelated manual unloads remain untouched.
+
+## Two trucks at the same facility
+
+Each physical truck keeps its own visit, unload and assumed cost. Equal costs,
+site and transaction time across different trucks never identify one expense.
+Different receipt numbers preserve both actual costs. Two actuals competing for
+one recorded truck's visit require review and leave the other truck's assumption
+intact. The same nonblank receipt recorded on different trucks at the same facility
+and operating date is an ownership conflict; actual and combined totals remain
+unavailable until receipt or crew evidence resolves it. GPS co-location alone
+cannot identify a swapped receipt assignment, so source truck ownership is never
+automatically reassigned.
+
+## Repeated market views and facility names
+
+JunkWare can show the complete truck expense table under multiple markets while
+its summary allocates the cost between markets. Operational views collapse those
+copies only when complete row identities and amounts agree, each market has one
+copy per identity, and verified market allocation totals sum exactly to the full
+truck table total. The known `--` marker means zero allocation; arbitrary missing
+text does not. This proof applies separately to dump and fuel rows. Same-market
+repeated rows and mismatched/correcting snapshots stay available for review.
+Potential duplicate expenses make the actual and combined dump totals unavailable,
+so duplicate rows cannot inflate a headline total.
+
+Original expense IDs, market IDs and raw location spelling are retained as
+provenance. Command merges the original event fingerprints into one operational
+card. Raw expense collection and Slack notification identities remain unchanged.
+The observed exact spelling `Gentillt` displays as **Gentilly** and matches the
+Gentilly visit; there is no general fuzzy facility matching or source edit.
 
 ## Presentation and authority
 
 Command displays an **Assumed dump expense** card until a qualifying actual
 replaces it. Finance's **Dump Expenses** section displays the same records and
-actual, assumed and combined operational totals. The existing Finance refresh
-reconciles the projection; this adds no polling or external provider requests.
+actual, assumed and combined operational totals. The existing Finance refresh reconciles the projection, and the two local
+[operational agents](operational-agents.md) also run while the UI is closed.
+This adds no provider polling or external requests.
 Actual source expense notifications keep their existing behavior; assumptions
 send no new messages.
 
-The projection lives in `lib/dump-expense-policy.ts` and `lib/dump-expenses.ts`,
+The projection lives in `lib/unload-cost-agent.ts` and `lib/dump-expenses.ts`,
 derived on read from retained LinxUp and verified JunkWare history. It does not
 write assumptions into JunkWare or QBO or alter published accounting totals.
 The stable entry identity survives reloads and actual replacement. There is no

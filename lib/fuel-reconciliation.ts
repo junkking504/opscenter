@@ -1,5 +1,5 @@
 import type { FuelReconciliation, FuelReconciliationRow } from '../desktop-ui/lib/fuel-reconciliation-contract';
-import { readTruckExpenses, type TruckExpense } from './truck-expense-notifications';
+import { readOperationalTruckExpenses, type TruckExpense } from './truck-expense-notifications';
 import { readWexFuelFinance, type WexFuelFinanceData, type WexFuelTransaction } from './wex-fuel';
 
 const truckKey = (value: string) => value.trim().match(/^(?:Truck\s*#?\s*)?0*(\d+)$/i)?.[1] || null;
@@ -72,5 +72,5 @@ export function reconcileFuel(date: string, wex: WexFuelFinanceData, entries: Tr
 }
 
 export function readFuelReconciliation(date: string, wex = readWexFuelFinance(date)) {
-  return reconcileFuel(date, wex, readTruckExpenses(date));
+  return reconcileFuel(date, wex, readOperationalTruckExpenses(date));
 }

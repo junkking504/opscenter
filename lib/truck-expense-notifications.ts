@@ -5,8 +5,9 @@ import type {OperationalAlert} from './operational-alert-presentation';
 import type {SlackOpsAlert} from './slack-alerts';
 import {formatSlackMessage} from './slack-message-format';
 import {truckSlackChannelId} from './slack-truck-channels';
+import {dumpAllocation, consolidateOperationalDumpExpenses, type DumpAllocation} from './dump-expense-identity';
 
-export type TruckExpense = {id:string;date:string;market:string;truck:string;kind:'dump'|'fuel';transactionAt:string;location:string;receipt:string;amount:number;notify:boolean};
+export type TruckExpense = {id:string;date:string;market:string;truck:string;kind:'dump'|'fuel';transactionAt:string;location:string;receipt:string;amount:number;notify:boolean; dumpAllocation?:DumpAllocation; fuelAllocation?:DumpAllocation; sourceObservedAt?:string; sourceLocation?:string; sourceExpenseIds?:string[]; sourceMarkets?:string[]; reconciliationNote?:string};
 function opsBotExpenseDeliveries(entries:TruckExpense[]) {
   const root=process.env.WHATSAPP_CREW_EXPENSE_STATE_DIR || path.join(process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data'),'integrations','whatsapp-crew-expenses');
   const matches=new Map<string,string | null>();
@@ -38,26 +39,33 @@ export function readTruckExpenses(date:string):TruckExpense[] {
       try {
         const data=JSON.parse(fs.readFileSync(path.join(directory,file),'utf8'));
         if (data.date!==date || data.market!==market || data.verified!==true || data.truck!==`Truck# ${file.slice(0,-5)}`) continue;
+        const verified:TruckExpense[]=[];
         for (const entry of data.entries || []) {
           if (entry.date!==date || entry.market!==market || entry.truck!==data.truck || !/^[a-f0-9]{32}$/.test(entry.id)
             || !['dump','fuel'].includes(entry.kind) || !Number.isFinite(entry.amount) || entry.amount<=0 || !Number.isFinite(Date.parse(entry.transactionAt))
             || chicagoDateKey(new Date(entry.transactionAt))!==date) continue;
-          entries.push({...entry,location:String(entry.location || ''),receipt:String(entry.receipt || ''),notify:entry.notify===true});
+          verified.push({...entry,location:String(entry.location || ''),receipt:String(entry.receipt || ''),notify:entry.notify===true,sourceObservedAt:String(data.observedAt || '')});
         }
+        const allocation=dumpAllocation(verified,data.signature?.[0]);
+        if (verified.filter(row=>row.kind==='dump').length!==(data.entries || []).filter((row:TruckExpense)=>row.kind==='dump').length) allocation.unique=false;
+        const fuel=dumpAllocation(verified,data.signature?.[1],'fuel');
+        if (verified.filter(row=>row.kind==='fuel').length!==(data.entries || []).filter((row:TruckExpense)=>row.kind==='fuel').length) fuel.unique=false;
+        entries.push(...verified.map(row=>row.kind==='dump'?{...row,dumpAllocation:allocation}:{...row,fuelAllocation:fuel}));
       } catch { /* Retain independently verified trucks when another source is unavailable. */ }
     }
   }
   return [...new Map(entries.map(entry=>[entry.id,entry])).values()];
 }
+export const readOperationalTruckExpenses=(date:string)=>consolidateOperationalDumpExpenses(readTruckExpenses(date));
 export const expenseFingerprint=(entry:TruckExpense)=>`truck_expense:${entry.date}:${entry.id}`;
 const clock=(value:string)=>new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}).format(new Date(value));
 export function truckExpenseTimelineAlerts(date:string):OperationalAlert[] {
-  const entries=readTruckExpenses(date), deliveries=opsBotExpenseDeliveries(entries);
-  return entries.map(entry=>({sourceMessageIds:deliveries.get(entry.id)?[deliveries.get(entry.id)!]:[],id:expenseFingerprint(entry),eventFingerprint:expenseFingerprint(entry),timestamp:entry.transactionAt,source:'JunkWare',
+  const entries=readOperationalTruckExpenses(date), deliveries=opsBotExpenseDeliveries(entries.map(entry=>({...entry,location:entry.sourceLocation || entry.location})));
+  return entries.map(entry=>({sourceMessageIds:[...(deliveries.get(entry.id)?[deliveries.get(entry.id)!]:[]),...(entry.sourceExpenseIds || []).map(id=>expenseFingerprint({...entry,id}))],id:expenseFingerprint(entry),eventFingerprint:expenseFingerprint(entry),timestamp:entry.transactionAt,source:'JunkWare',
     label:entry.kind==='dump'?'Dump Expense':'Fuel Expense',domain:'Fleet',owner:'Fleet',truck:entry.truck.replace('#',''),detected:clock(entry.transactionAt),
-    title:`${entry.truck.replace('#','')} · ${entry.kind==='dump'?'Dump':'Fuel'} expense`,needsAction:false,
+    title:`${entry.truck.replace('#','')} · ${entry.kind==='dump'?'Dump':'Fuel'} expense`,needsAction:!!entry.reconciliationNote,
     facts:[{label:'Amount',value:`$${entry.amount.toFixed(2)}`},{label:'Location',value:entry.location || 'Not recorded'},{label:'Recorded transaction time',value:clock(entry.transactionAt)},...(entry.receipt?[{label:'Receipt',value:entry.receipt}]:[])],
-    next:'Expense recorded in JunkWare.',href:'https://junkware.junk-king.com/franchise/accounting/truck-records.aspx'}));
+    next:entry.reconciliationNote || 'Expense recorded in JunkWare.',href:'https://junkware.junk-king.com/franchise/accounting/truck-records.aspx'}));
 }
 export function truckExpenseSlackNotifications(date:string):SlackOpsAlert[] {
   if (date!==chicagoDateKey()) return [];
@@ -77,6 +85,7 @@ function truckExpenseTimelineAlertsFromEntry(entry:TruckExpense) {
 }
 
 export function mergeTruckExpenseAlerts(alerts:OperationalAlert[], expenses:OperationalAlert[]):OperationalAlert[] {
-  return [...alerts.filter(alert=>!expenses.some(expense=>expense.eventFingerprint===alert.eventFingerprint || expense.sourceMessageIds?.includes(alert.id))),
-    ...expenses.map(expense=>({...expense,sourceMessageIds:[...new Set([...(expense.sourceMessageIds || []),...alerts.filter(alert=>alert.eventFingerprint===expense.eventFingerprint).flatMap(alert=>[alert.id,...(alert.sourceMessageIds || [])])])]}))];
+  const matches=(alert:OperationalAlert,expense:OperationalAlert)=>expense.eventFingerprint===alert.eventFingerprint || expense.sourceMessageIds?.includes(alert.id) || (!!alert.eventFingerprint && expense.sourceMessageIds?.includes(alert.eventFingerprint));
+  return [...alerts.filter(alert=>!expenses.some(expense=>matches(alert,expense))),
+    ...expenses.map(expense=>({...expense,sourceMessageIds:[...new Set([...(expense.sourceMessageIds || []),...alerts.filter(alert=>matches(alert,expense)).flatMap(alert=>[alert.id,...(alert.sourceMessageIds || [])])])]}))];
 }

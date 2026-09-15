@@ -3,7 +3,7 @@ import { commercialMoney as money } from './lib/commercial-contract';
 const labels: Record<FuelMatchStatus, string> = { matched: 'Matched', amount_difference: 'Amount difference', ambiguous: 'Review match', awaiting_wex: 'Awaiting WEX match', wex_only: 'No reported match' };
 export function FuelReconciliation({ data }: { data?: FuelData }) {
   if (!data) return null;
-  return <section className="finance-cost-shell" aria-label="Fuel reconciliation" id="fuel-reconciliation">
+  return <section className="finance-cost-shell finance-fuel-reconciliation" aria-label="Fuel reconciliation" id="fuel-reconciliation">
     <div className="section-title"><div><span className="section-kicker">{data.date} · WEX and reported expenses</span><h2>Fuel Reconciliation</h2>
       <p>{data.matchedCount} matched · {data.differenceCount} amount differences. Pending matches remain open until source evidence is available.</p></div></div>
     <p>Reported detail {money(data.reportedTotal)} · WEX fuel {money(data.wexFuelTotal)}. These are separate source totals and are not added together.</p>

@@ -4,6 +4,7 @@ import {createHash} from 'node:crypto';
 import type {OperationalAlert} from './operational-alert-presentation';
 import type {TruckLoadEvent} from './truck-load-status';
 import {geofenceOnsiteSummary} from './geofence-alert-summary';
+import {trackGeofenceVisits, visitDay, type GeofenceTransition, type TrackedVisit} from './visit-tracking-agent';
 
 type SourceRow = Record<string, unknown>;
 export type GeofenceEntry = {
@@ -41,40 +42,38 @@ export function geofenceEntries(date: string, rows: SourceRow[], now = Date.now(
   return [...entries.values()].sort((a,b)=>b.timestamp.localeCompare(a.timestamp));
 }
 
-/** A positive V3 facility report can announce arrival before the V2 alert feed.
- * Only explicit entry/exit events close or reconcile it; missing fields do not.
- */
-export function geofencePositionArrivals(date: string, observations: SourceRow[], sourceRows: SourceRow[], now = Date.now()): GeofenceEntry[] {
-  const projected = new Map<string, GeofenceEntry>();
-  const active = new Map<string, string | null>();
-  const events = [
-    ...sourceRows.map(row => ({row, position: false})),
-    ...observations.map(row => ({row: {...row, alert_type: 'geofence_entered'} as SourceRow, position: true})),
-  ].sort((a,b) => Date.parse(String(a.row.occurred_at)) - Date.parse(String(b.row.occurred_at)) || Number(a.position) - Number(b.position));
-  for (const {row, position} of events) {
-    const type = String(row.alert_type_normalized || row.alert_type || '').toLowerCase();
-    if (!['geofence_entered', 'geofence_exited'].includes(type)) continue;
-    const stamp = Date.parse(String(row.occurred_at || ''));
-    if (!Number.isFinite(stamp) || stamp > now) continue;
-    const day = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Chicago'}).format(stamp);
-    const entry = geofenceEntries(day, [{...row, alert_type: 'geofence_entered'}], now)[0];
-    if (!entry) continue;
-    const key = `${entry.truck}|${entry.name.toLowerCase()}`;
-    if (!position) {
-      const pending = active.get(key);
-      if (pending) projected.delete(pending);
-      if (type === 'geofence_exited') active.delete(key);
-      else active.set(key, null);
-    } else if (!active.has(key)) {
-      active.set(key, entry.id);
-      if (day === date) projected.set(entry.id, {...entry, resetLocation: null, positionObserved: true});
-    }
+/** Strict provider normalization shared by the ongoing visit-tracking agent. */
+export function trackedGeofenceVisits(date: string, observations: SourceRow[], sourceRows: SourceRow[], now = Date.now(), locationRows: SourceRow[] = []): TrackedVisit[] {
+  const transitions: GeofenceTransition[] = [];
+  const positions = new Map<string,{latitude:number;longitude:number}>();
+  for (const row of locationRows) {
+    const stamp=Date.parse(String(row.timestamp || ''));
+    const normalized=Number.isFinite(stamp) && stamp <= now ? geofenceEntries(visitDay(new Date(stamp).toISOString()),[{...row,geofence_name:'GPS position',occurred_at:row.timestamp,alert_type:'geofence_entered'}],now)[0] : undefined;
+    if (!normalized || typeof row.latitude !== 'number' || typeof row.longitude !== 'number' || !Number.isFinite(row.latitude) || !Number.isFinite(row.longitude)) continue;
+    const position={latitude:row.latitude,longitude:row.longitude};
+    positions.set(`${normalized.truck}|${normalized.timestamp}`,position);
+    transitions.push({...normalized,...position,type:'coordinate'});
   }
-  return [...projected.values()];
+  for (const {row, position} of [...sourceRows.map(row=>({row,position:false})), ...observations.map(row=>({row,position:true}))]) {
+    const values = [row.alert_type,row.alert_type_normalized].map(value=>String(value || '').toLowerCase());
+    const type = position ? 'position' : values.includes('geofence_entered') ? 'entry' : values.includes('geofence_exited') ? 'exit' : null;
+    const stamp = Date.parse(String(row.occurred_at || ''));
+    if (!type || !Number.isFinite(stamp) || stamp > now) continue;
+    const entry = geofenceEntries(visitDay(new Date(stamp).toISOString()), [{...row,alert_type:'geofence_entered'}], now)[0];
+    if (entry) transitions.push({...entry,...positions.get(`${entry.truck}|${entry.timestamp}`),type});
+  }
+  return trackGeofenceVisits(date,transitions,now);
+}
+
+/** Compatibility arrival adapter. Downstream business effects consume trackedVisits. */
+export function geofencePositionArrivals(date: string, observations: SourceRow[], sourceRows: SourceRow[], now = Date.now()): GeofenceEntry[] {
+  const nativeIds = new Set(geofenceEntries(date,sourceRows,now).map(entry=>entry.id));
+  return trackedGeofenceVisits(date,observations,sourceRows,now).filter(visit=>!visit.departedAt && visit.enteredAt && !visit.entryIds.some(id=>nativeIds.has(id)))
+    .map(visit=>({id:visit.id,truck:visit.truck,name:visit.name,timestamp:visit.enteredAt!,facility:visit.facility!,resetLocation:null,positionObserved:true}));
 }
 
 export function readGeofenceEntries(date: string) {
-  const unavailable = {entries:[] as GeofenceEntry[],arrivals:[] as GeofenceEntry[],visits:[] as GeofenceVisit[],available:false,complete:false,observedAt:''};
+  const unavailable = {entries:[] as GeofenceEntry[],arrivals:[] as GeofenceEntry[],visits:[] as GeofenceVisit[],trackedVisits:[] as TrackedVisit[],sourceHealth:{alerts:'missing',alertsObservedAt:'',positionsObservedAt:''},available:false,complete:false,observedAt:''};
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return unavailable;
   const root = process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data');
   try {
@@ -89,14 +88,32 @@ export function readGeofenceEntries(date: string) {
       if(prior.date===previousDate && Array.isArray(prior.alerts))previous=prior.alerts;
     }catch{ /* Missing entry history leaves departure duration unavailable. */ }
     let observations: SourceRow[] = [];
+    const locationRows: SourceRow[] = [];
     for (const day of [previousDate, date]) {
+      try {
+        const points=JSON.parse(fs.readFileSync(path.join(root,'history','linxup',`linxup_location_${day}.json`),'utf8'));
+        if (points.date === day && Array.isArray(points.points)) locationRows.push(...points.points);
+      } catch { /* Coordinates only supplement positive facility evidence. */ }
       try {
         const positions = JSON.parse(fs.readFileSync(path.join(root,'history','linxup','geofence_positions',`${day}.json`),'utf8'));
         if (positions.date === day && Array.isArray(positions.observations)) observations.push(...positions.observations);
       } catch { /* Position observations supplement the existing alert feed. */ }
     }
     const entries = geofenceEntries(date, rows);
-    return {entries,arrivals:[...entries,...geofencePositionArrivals(date,observations,[...previous,...rows])],visits:geofenceVisits(date,[...previous,...rows]),available,complete:available && data.pagination_completed === true && data.validation_status === 'passed',observedAt:String(data.collection_timestamp || '')};
+    const trackedVisits = trackedGeofenceVisits(date,observations,[...previous,...rows],Date.now(),locationRows);
+    const arrivals: GeofenceEntry[] = trackedVisits.filter(visit=>!visit.departedAt).map(visit=>({
+      id:visit.id,truck:visit.truck,name:visit.name,timestamp:visit.firstObservedAt,facility:visit.facility!,
+      resetLocation:null,positionObserved:visit.arrivalSource === 'live_position'}));
+    const visits: GeofenceVisit[] = trackedVisits.filter(visit=>!!visit.departedAt).map(visit=>({...visit,departedAt:visit.departedAt!}));
+    let status: SourceRow = {};
+    try { status = JSON.parse(fs.readFileSync(path.join(root,'history','linxup','alerts',`linxup_alerts_${date}_status.json`),'utf8')); } catch { /* Legacy snapshots have no attempt status. */ }
+    const observedAt = String(data.collection_timestamp || '');
+    const failed = status.date === date && (status.source_status === 'failed' || status.validation_status === 'failed');
+    const stale = date === visitDay(new Date().toISOString()) && (!Number.isFinite(Date.parse(observedAt)) || Date.now()-Date.parse(observedAt) > 30*60*1000);
+    const positionsObservedAt = observations.map(row=>String(row.occurred_at || '')).filter(stamp=>Number.isFinite(Date.parse(stamp)) && Date.parse(stamp)<=Date.now()).sort().at(-1) || '';
+    return {entries,arrivals,visits,trackedVisits,available,
+      complete:available && !failed && !stale && data.pagination_completed === true && data.validation_status === 'passed',observedAt,
+      sourceHealth:{alerts:failed ? 'failed' : stale ? 'stale' : available ? 'available' : 'missing',alertsObservedAt:observedAt,positionsObservedAt}};
   } catch { return unavailable; }
 }
 
@@ -123,6 +140,7 @@ export function geofenceLoadResets(date: string, entries: GeofenceEntry[]): Truc
 export type GeofenceVisit = {
   id:string; truck:string; name:string; enteredAt:string|null; departedAt:string;
   durationSeconds:number|null; entryIds:string[];
+  departureSource?: TrackedVisit['departureSource']; departureBounds?: TrackedVisit['departureBounds']; arrivalSource?: TrackedVisit['arrivalSource'];
 };
 
 /** Pair source transitions, never stops or inferred positions. */
@@ -166,15 +184,18 @@ const siteDuration=(seconds:number)=>{
 };
 export function geofenceVisitAlert(visit:GeofenceVisit,date:string):OperationalAlert {
   const time=(stamp:string)=>new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',second:'2-digit'}).format(new Date(stamp));
-  const duration=visit.durationSeconds===null?'Unavailable · entry not confirmed':siteDuration(visit.durationSeconds);
+  const bounds = visit.departureBounds;
+  const duration=bounds ? 'Departure time bounded by GPS' : visit.durationSeconds===null?'Unavailable · entry not confirmed':`${visit.arrivalSource === 'live_position' ? 'At least ' : ''}${siteDuration(visit.durationSeconds)}`;
   return {id:visit.id,timestamp:visit.departedAt,label:'Geofence',source:'LinxUp',domain:'Fleet',truck:visit.truck,
     detected:new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}).format(new Date(visit.departedAt)),
     title:`${visit.truck} - ${visit.name}`,owner:'Fleet',needsAction:false,
-    facts:[{label:'Onsite',value:geofenceOnsiteSummary(duration,visit.enteredAt,visit.departedAt)},
+    facts:[{label:'Onsite',value:bounds ? `${duration} | after ${time(bounds.after)} · by ${time(bounds.by)}` : geofenceOnsiteSummary(duration,visit.enteredAt,visit.departedAt)},
       {label:'Time on site',value:duration},
       {label:'Arrived',value:visit.enteredAt?time(visit.enteredAt):'Entry not confirmed'},
-      {label:'Departed',value:time(visit.departedAt)},{label:'Location',value:visit.name}],
-    next:visit.durationSeconds===null?'Departure recorded; a matching entry is unavailable or ambiguous.':'Completed visit duration from LinxUp entry and exit events.',
+      {label:'Departed',value:bounds ? `After ${time(bounds.after)} · by ${time(bounds.by)}` : time(visit.departedAt)},{label:'Location',value:visit.name},
+      ...(bounds ? [{label:'Departure source',value:visit.departureSource === 'later_position' ? 'Corroborated GPS positions away from the facility; exact exit time unavailable' : 'Later positive GPS report at another facility; exact exit time unavailable'}] : []),
+      ...(visit.arrivalSource === 'live_position' ? [{label:'Arrival source',value:'First positive live GPS facility report'}] : [])],
+    next:bounds ? 'Departure established by later location evidence. Exit time is bounded by the last onsite report and a later position elsewhere.' : visit.durationSeconds===null?'Departure recorded; a matching entry is unavailable or ambiguous.':visit.arrivalSource === 'live_position' ? 'Observed onsite time from the first live facility report through the native exit; exact arrival time is unavailable.' : 'Completed visit duration from LinxUp entry and exit events.',
     href:`/desktop?workspace=Fleet&date=${encodeURIComponent(date)}&truck=${encodeURIComponent(visit.truck.replace('Truck ','Truck# '))}`};
 }
 

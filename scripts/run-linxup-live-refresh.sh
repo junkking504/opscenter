@@ -19,10 +19,14 @@ MAP_REFRESH_SECONDS="${LINXUP_MAP_REFRESH_SECONDS:-900}"
 mkdir -p "$OPSBOT_DIR/tmp" "$OPSBOT_DIR/logs"
 
 geofence_pid=""
+run_operational_agents() {
+  OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" /usr/bin/python3 "$OPSCENTER_DIR/scripts/run-operational-agents.py" "$TARGET_DATE" || echo "Operational agents pending; source refresh continues." >&2
+}
 cleanup() {
   # Keep the refresh lock until the bounded alert read also finishes. Its
   # failure must not abort GPS processing or confirmed appointment alerts.
   if [ -n "$geofence_pid" ]; then wait "$geofence_pid" || true; fi
+  run_operational_agents
 }
 trap cleanup EXIT
 
@@ -32,6 +36,9 @@ drain_push_queue() {
   (cd "$OPSCENTER_DIR" && OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" node --import tsx scripts/drain-linxup-push.ts)
 }
 drain_push_queue || echo "GPS push drain pending; continuing independent address recovery." >&2
+# Reconcile visits and late actual expenses every existing minute tick, even
+# while the UI is closed or the independent V2 certificate/network is failing.
+run_operational_agents
 # Address recovery is independent of GPS transport. A failed push drain,
 # connectivity probe, tracker-map request or history poll must not skip it.
 # Keep visit matching and automatic address checks aligned with the live board.

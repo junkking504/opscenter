@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { geofenceEntries, geofenceVisits } from '../lib/linxup-geofence-alerts';
-import { projectDumpExpenses, parseDumpFeePolicy } from '../lib/dump-expense-policy';
+import { geofenceEntries, trackedGeofenceVisits } from '../lib/linxup-geofence-alerts';
+import { parseDumpFeePolicy } from '../lib/dump-expense-policy';
 import { defaultDumpFeePolicy, readDumpExpenses, assumedDumpExpenseAlerts } from '../lib/dump-expenses';
+import {runUnloadCostAgent} from '../lib/unload-cost-agent';
 import type { TruckExpense } from '../lib/truck-expense-notifications';
 
 const date = '2026-09-15';
@@ -15,7 +16,7 @@ const source = [transition('entered', '10:00'), transition('exited', '10:30')];
 const actual = (time: string, patch: Partial<TruckExpense> = {}): TruckExpense => ({ id: 'a'.repeat(32), date, truck: 'Truck# 9', market: '477', kind: 'dump', transactionAt: at(time), location: 'Gentilly Landfill', amount: 70, receipt: '', notify: false, ...patch });
 const project = (expenses: TruckExpense[] = [], rows = source, clock = now) => {
   const days = [date, '2026-09-16'];
-  return projectDumpExpenses(date, days.flatMap(day => geofenceEntries(day, rows, clock)), days.flatMap(day => geofenceVisits(day, rows, clock)), expenses, defaultDumpFeePolicy, clock);
+  return runUnloadCostAgent(date, days.flatMap(day => trackedGeofenceVisits(day, [], rows, clock)), expenses, defaultDumpFeePolicy, clock).records;
 };
 assert.ok(parseDumpFeePolicy(defaultDumpFeePolicy));
 assert.equal(parseDumpFeePolicy({ ...defaultDumpFeePolicy, defaultMinimumFee: -1 }), null);
@@ -24,7 +25,7 @@ assert.equal(project()[0].amount, 44);
 assert.equal(project()[0].status, 'assumed');
 assert.equal(project([], source, Date.parse(at('10:15')))[0].window, 'onsite');
 assert.equal(project([], source, Date.parse(at('11:00')))[0].window, 'open');
-assert.equal(project()[0].window, 'closed');
+assert.equal(project()[0].window, 'open', 'Actual replacement never expires');
 for (const time of ['10:00', '10:15', '10:30', '11:29', '11:30']) {
   const records = project([actual(time)]);
   assert.equal(records.length, 1, time);
@@ -32,8 +33,8 @@ for (const time of ['10:00', '10:15', '10:30', '11:29', '11:30']) {
   assert.equal(records[0].amount, 70);
   assert.equal(records[0].id, project()[0].id, 'Replacement retains visit identity');
 }
-assert.equal(project([actual('11:31')]).length, 2, 'After deadline, actual is separate');
-assert.equal(project([actual('11:30', { transactionAt: `${date}T11:30:00.001-05:00` })]).length, 2, 'One millisecond late does not replace');
+assert.equal(project([actual('22:31')]).length, 1, 'Late same-day actual replaces unique visit');
+assert.equal(project([actual('11:30', { transactionAt: `${date}T11:30:00.001-05:00` })]).length, 1, 'No artificial sixty-minute cutoff');
 assert.equal(project([actual('09:59')]).length, 2, 'Before arrival cannot replace');
 assert.equal(project([actual('11:00', { truck: 'Truck# 8' })])[0].status, 'actual');
 assert.ok(project([actual('11:00', { truck: 'Truck# 8' })]).some(record => record.status === 'assumed'));
@@ -45,8 +46,9 @@ assert.equal(project([], [...source, ...source]).length, 1, 'Geofence retries de
 assert.equal(project([], [transition('entered', '10:00'), transition('entered', '10:01'), transition('exited', '10:30')]).length, 1, 'Repeated entry before an exit is one visit');
 const twice = [...source, transition('entered', '11:00'), transition('exited', '11:10')];
 const matched = project([actual('11:15')], twice);
-assert.equal(matched.length, 2);
-assert.equal(matched.find(record => record.status === 'actual')?.enteredAt, new Date(at('11:00')).toISOString(), 'One expense replaces the most recent eligible visit');
+assert.equal(matched.length, 3);
+assert.ok(matched.every(record=>record.reconciliationNote), 'Late actual after repeated visits is ambiguous');
+assert.equal(project([actual('11:05')],twice).find(record=>record.status==='actual')?.enteredAt,new Date(at('11:00')).toISOString(),'Precise onsite time identifies one visit');
 assert.equal(project([actual('11:15', { location: '' })], twice).length, 3, 'Ambiguous location cannot remove either assumption');
 assert.equal(project([], [transition('exited', '10:30')]).length, 0, 'Exit alone cannot invent a charged entry');
 assert.equal(project([], [transition('entered', '10:00', 'Warehouse')]).length, 0);
@@ -56,8 +58,8 @@ for (const [name, fee] of [['STS', 85], ['BRL', 44], ['BR Landfilll', 44], ['RBL
 assert.equal(project([actual('11:00', { location: 'EBR' })], [transition('entered', '10:00', 'BR Landfilll'), transition('exited', '10:30', 'BR Landfilll')])[0].status, 'actual', 'Observed LinxUp spelling matches the Baton Rouge expense alias');
 const overnight = [transition('entered', '23:30'), transition('exited', '00:10', 'GL', '9', '2026-09-16')];
 assert.equal(project([actual('00:59', { date: '2026-09-16', transactionAt: at('00:59', '2026-09-16') })], overnight)[0].status, 'actual');
-assert.equal(project([actual('01:11', { date: '2026-09-16', transactionAt: at('01:11', '2026-09-16') })], overnight)[0].status, 'assumed');
-assert.equal(projectDumpExpenses('2026-09-14', geofenceEntries('2026-09-14', [transition('entered', '10:00', 'GL', '9', '2026-09-14')], now), [], [], defaultDumpFeePolicy, now).length, 0, 'No retroactive assumptions before the requested rule');
+assert.equal(project([actual('01:11', { date: '2026-09-16', transactionAt: at('01:11', '2026-09-16') })], overnight)[0].status, 'actual');
+assert.equal(runUnloadCostAgent('2026-09-14', trackedGeofenceVisits('2026-09-14', [], [transition('entered', '10:00', 'GL', '9', '2026-09-14')], now), [], defaultDumpFeePolicy, now).records.length, 0, 'No retroactive assumptions before the requested rule');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dump-expenses-'));
 const originalRoot = process.env.OPSCENTER_DATA_DIR;

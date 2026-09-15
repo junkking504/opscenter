@@ -1,0 +1,74 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {trackedGeofenceVisits,readGeofenceEntries,geofenceVisitAlert} from '../lib/linxup-geofence-alerts';
+import {trackAppointmentVisits} from '../lib/visit-tracking-agent';
+const date='2026-09-15', now=Date.parse('2026-09-16T04:00:00Z');
+const point=(name:string,stamp:string,truck='4')=>({truck_number:truck,geofence_name:name,occurred_at:stamp});
+const arrival=point('Gentilly','2026-09-15T18:49:39Z'), last=point('Gentilly','2026-09-15T19:02:59Z');
+const warehouse=point('Warehouse','2026-09-15T19:15:14Z');
+const project=(points:ReturnType<typeof point>[],rows:Record<string,unknown>[]=[])=>(trackedGeofenceVisits(date,points,rows,now));
+const native=(p:ReturnType<typeof point>,type='entered')=>({...p,alert_type:`geofence_${type}`});
+const result=project([warehouse,last,arrival,last]);
+const dump=result.find(v=>v.name==='Gentilly')!;
+assert.equal(result.length,2);
+assert.equal(dump.departureSource,'later_facility');
+assert.deepEqual(dump.departureBounds,{after:new Date(last.occurred_at).toISOString(),by:new Date(warehouse.occurred_at).toISOString()});
+assert.equal(dump.durationSeconds,null,'GPS bounds never claim an exact site duration');
+const alert=geofenceVisitAlert({...dump,departedAt:dump.departedAt!},date);
+assert.match(alert.facts.find(f=>f.label==='Onsite')!.value,/after.*by/,'compact Command summary shows bounds');
+assert.equal(project([arrival,last])[0].departedAt,null,'no missing-field inference');
+assert.equal(project([arrival,point('',warehouse.occurred_at)])[0].departedAt,null);
+assert.equal(project([arrival,point('Unrecognized geofence',warehouse.occurred_at)]).find(v=>v.name==='Gentilly')!.departedAt,null,'unknown overlapping zone is not another known facility');
+assert.equal(project([arrival,point('GL',last.occurred_at)]).length,1,'known facility aliases stay one visit');
+assert.equal(project([arrival,point('Warehouse',warehouse.occurred_at,'9')])[1].departedAt,null,'other truck cannot close visit');
+assert.equal(project([arrival,point('Warehouse','2026-09-17T10:00:00Z')])[0].departedAt,null,'future point rejected');
+const returnVisit=project([arrival,warehouse,point('Gentilly','2026-09-15T20:00:00Z')]);
+assert.equal(returnVisit.filter(v=>v.name==='Gentilly').length,2,'return after known departure is a new visit');
+assert.equal(new Set(returnVisit.map(v=>v.id)).size,3);
+const supplemented=project([arrival,last,warehouse],[native(point('Gentilly','2026-09-15T18:50:00Z'))]);
+assert.equal(supplemented.find(v=>v.name==='Gentilly')!.id,dump.id,'later native arrival retains V3 episode identity');
+assert.equal(supplemented.find(v=>v.name==='Gentilly')!.arrivalSource,'live_position','first observation provenance retained');
+const exact=project([arrival,last,warehouse],[native(point('Gentilly','2026-09-15T19:04:00Z'),'exited')]).find(v=>v.name==='Gentilly')!;
+assert.equal(exact.id,dump.id);assert.equal(exact.departureSource,'native_geofence');assert.equal(exact.departureBounds,null);
+const contradicted=project([arrival,last,warehouse],[native(point('Gentilly','2026-09-15T19:30:00Z'),'exited')]);
+assert.equal(contradicted.filter(v=>v.name==='Gentilly').length,1,'late contradictory native exit does not create a second expense episode');
+assert.equal(contradicted.find(v=>v.name==='Gentilly')!.conflict,true);
+const repeated=project([],[native(arrival),native(last),native(point('Gentilly','2026-09-15T19:04:00Z'),'exited')])[0];
+assert.equal(repeated.durationSeconds,null);assert.equal(repeated.firstObservedAt,new Date(arrival.occurred_at).toISOString(),'ambiguous native timing preserves original operational arrival anchor');
+const midnight=trackedGeofenceVisits(date,[point('Gentilly','2026-09-15T04:50:00Z'),point('Warehouse','2026-09-15T05:05:00Z')],[],now);
+assert.equal(midnight.find(v=>v.name==='Gentilly')!.departureBounds?.after,'2026-09-15T04:50:00.000Z');
+const appointment={appointment_id:'100',jk_number:'JK100',truck_number:'4',match_confidence:'confirmed',visit_intervals:[{arrival:'2026-09-15T16:00:00Z',departure:'2026-09-15T16:20:00Z'}]};
+const open={...appointment,visit_intervals:[{arrival:'2026-09-15T16:00:00Z'}]};
+for (const rows of [[open,appointment],[appointment,open]]) {
+  const visits=trackAppointmentVisits(date,rows,now);assert.equal(visits.length,1);assert.equal(visits[0].departedAt,'2026-09-15T16:20:00.000Z','closed interval supersedes stale arrival regardless of input order');
+}
+assert.equal(trackAppointmentVisits(date,[{...appointment,match_confidence:'possible'}],now).length,0);
+assert.equal(trackAppointmentVisits(date,[{...appointment,pass_by_only:true}],now).length,0);
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'visit-tracking-'));
+const previous=process.env.OPSCENTER_DATA_DIR;process.env.OPSCENTER_DATA_DIR=root;
+try {
+  const dir=path.join(root,'history','linxup','alerts');fs.mkdirSync(dir,{recursive:true});
+  fs.writeFileSync(path.join(dir,`linxup_alerts_${date}.json`),JSON.stringify({date,alerts:[native(arrival)],collection_timestamp:'2026-09-15T13:16:00Z',pagination_completed:true,validation_status:'passed'}));
+  fs.writeFileSync(path.join(dir,`linxup_alerts_${date}_status.json`),JSON.stringify({date,source_status:'failed'}));
+  const positions=path.join(root,'history','linxup','geofence_positions');fs.mkdirSync(positions,{recursive:true});
+  fs.writeFileSync(path.join(positions,`${date}.json`),JSON.stringify({date,observations:[arrival,last,warehouse]}));
+  const read=readGeofenceEntries(date);
+  assert.equal(read.complete,false);assert.equal(read.sourceHealth.alerts,'failed');
+  assert.equal(read.trackedVisits.find(v=>v.name==='Gentilly')?.departureSource,'later_facility','failed native feed does not block current local V3 evidence');
+} finally {if(previous===undefined) delete process.env.OPSCENTER_DATA_DIR;else process.env.OPSCENTER_DATA_DIR=previous;fs.rmSync(root,{recursive:true,force:true});}
+console.log('PASS visit tracking agent: bounded departures, source recovery, identities, repeats, aliases, midnight, appointment revisions and freshness');
+// A real drive away and return to the same dump creates two visits even when
+// the separate native alert feed is unavailable throughout.
+const facilityPoint=(stamp:string)=>point('Stranco',stamp,'8');
+const gps=(stamp:string,latitude=30,longitude=-90)=>({truck_number:'8',timestamp:stamp,latitude,longitude});
+const firstAt='2026-09-15T14:00:00Z',returnAt='2026-09-15T16:00:00Z';
+const positions=[gps(firstAt),gps('2026-09-15T14:10:00Z',30.1),gps('2026-09-15T14:11:00Z',30.11),gps(returnAt)];
+const separated=trackedGeofenceVisits(date,[facilityPoint(firstAt),facilityPoint(returnAt)],[],now,positions);
+assert.equal(separated.length,2);assert.equal(new Set(separated.map(v=>v.id)).size,2);
+assert.equal(separated.find(v=>v.enteredAt==='2026-09-15T14:00:00.000Z')!.departureSource,'later_position');
+assert.equal(trackedGeofenceVisits(date,[],[],now,positions).length,0,'outside coordinates never invent a facility arrival or reset');
+const insideLandfill=[gps(firstAt),gps('2026-09-15T14:10:00Z',30.01),gps('2026-09-15T14:11:00Z',30.02)];
+assert.equal(trackedGeofenceVisits(date,[facilityPoint(firstAt)],[],now,insideLandfill)[0].departedAt,null,'travel 1–2km inside a large facility must not infer exit');
+assert.equal(trackedGeofenceVisits(date,[facilityPoint(firstAt),facilityPoint('2026-09-15T14:10:00Z'),facilityPoint('2026-09-15T14:11:00Z')],[],now,positions).length,1,'affirmative facility membership overrides distant coordinate heuristic');

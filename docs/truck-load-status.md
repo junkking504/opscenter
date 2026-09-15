@@ -73,20 +73,21 @@ The production WhatsApp worker loads `OPENAI_API_KEY` from the host-only
 repository and must never be committed. `OPSBOT_TRUCK_VISION_MODEL` can override
 the default `gpt-5.4-mini` model.
 
-A LinxUp **GEOFENCE_ENTERED** event at a transfer station, landfill, or metal
-recycling yard automatically resets the load to empty under the operating rule.
-Later completed jobs add to that new load. Warehouse entries remain informational
-and never reset the load. Ordinary GPS points, stop/ignition records, exits, and
-unknown geofences do not reset it. Native entries and their reset effects share
-one stable event ID, so refreshes and delivery retries do not repeat a reset.
-The source event remains visible in Command's chronological timeline. The reset
-is a read projection from the collected LinxUp event; it does not assert a paid
-dump receipt or create a JunkWare payment.
+A normalized facility arrival at a transfer station, landfill, or metal recycling
+yard resets the projected load to empty under the operating rule. Native LinxUp
+entries and positive live GPS facility reports both qualify. Later completed jobs
+add to that new load. Warehouse entries, ordinary GPS points, stop/ignition
+records, exits, and unknown geofences do not reset it. Each visit has one stable
+unload identity, so refreshes and delivery retries do not repeat a reset.
+The source visit remains visible in Command's chronological timeline. This
+read projection does not assert a paid receipt or create a JunkWare payment.
 
-The separate [dump expense rule](dump-expenses.md) assumes the configured minimum
-fee on landfill/transfer-station/dump entry and replaces it with a matching
-actual expense recorded through one hour after exit. These operational cost
-assumptions do not create another load reset.
+The [dump expense rule](dump-expenses.md) assumes the configured minimum fee on
+arrival and replaces it with an actual whenever the actual uniquely matches the
+visit. The unload stays at original arrival; cost replacement never creates a
+second reset. A verified OpsBot expense transaction that explicitly links an
+existing saved expense reset to that same matched visit is collapsed in the read
+projection. Manual unloads and uncertain source links remain intact.
 
 ## Runtime data and API
 

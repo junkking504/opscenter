@@ -44,6 +44,7 @@ without mixing live runtime data or secrets into Git.
 - [WEX fleet fuel](wex-fuel.md)
 - [Driving scores](driving-scores.md)
 - [Truck load status](truck-load-status.md)
+- [Assumed dump expenses](dump-expenses.md)
 - [Estimate follow-up](estimate-follow-up.md)
 - [JunkWare appointment creation](junkware-appointment-creation.md)
 - [Fleet Action Center](fleet-action-center.md)

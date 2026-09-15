@@ -83,6 +83,11 @@ The source event remains visible in Command's chronological timeline. The reset
 is a read projection from the collected LinxUp event; it does not assert a paid
 dump receipt or create a JunkWare payment.
 
+The separate [dump expense rule](dump-expenses.md) assumes the configured minimum
+fee on landfill/transfer-station/dump entry and replaces it with a matching
+actual expense recorded through one hour after exit. These operational cost
+assumptions do not create another load reset.
+
 ## Runtime data and API
 
 - Store: `data/fleet/truck_load_status.json` (the production `data` symlink

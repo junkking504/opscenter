@@ -16,7 +16,7 @@ export function geofenceFacility(name: string): Pick<GeofenceEntry, 'facility' |
   // Warehouse entry is informational: it never establishes an empty truck.
   if (/warehouse|\b(?:NOHQ|BRHQ)\b|junk[ -]*king.*(?:yard|hq)/i.test(name)) return {facility:'Junk King warehouse',resetLocation:null};
   if (/transfer|stranco|green meadow|mengel|^(?:STS|GMTS)$/i.test(name)) return {facility:'Transfer station',resetLocation:'dump'};
-  if (/landfill|gentilly|river\s*birch|^dump$|^(?:GL|RBL|BRL)$/i.test(name)) return {facility:'Landfill',resetLocation:'dump'};
+  if (/landfill|gentilly|river\s*birch|\bdump\b|^(?:GL|RBL|BRL|EBR)$/i.test(name)) return {facility:'Landfill',resetLocation:'dump'};
   if (/\bEMR\b|scrap|metal.*(?:recycl|yard)|recycl.*metal/i.test(name)) return {facility:'Metal recycling yard',resetLocation:'metal_yard'};
   return {facility:'Geofenced area',resetLocation:null};
 }

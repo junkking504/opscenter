@@ -1,0 +1,113 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import { chromium } from "playwright";
+import { AUTH_SESSION_COOKIE, createAuthSessionCookieValue, opsAuthIdentity } from "../lib/auth";
+import { inspectionDate } from "../lib/truck-inspection";
+
+async function main() {
+  const state = fs.mkdtempSync(path.join(os.tmpdir(), "inspection-browser-"));
+  const generatedFiles = ["next-env.d.ts", "tsconfig.json"].map(file => ({ file, content: fs.readFileSync(file, "utf8") }));
+  const base = "http://127.0.0.1:3198";
+  const settings = { OPS_AUTH_USERNAME: "inspectiontest", OPS_AUTH_SESSION_SECRET: randomBytes(32).toString("hex"), OPS_AUTH_ROLE: "admin", OPS_AUTH_ROLE_BINDINGS: "", OPS_ACCESS_AUD: "", OPS_ACCESS_TEAM_DOMAIN: "", OPS_CREW_ACCESS_TEAM_DOMAIN: "", OPS_CREW_ROSTER_JSON: JSON.stringify([{ username: "test.driver", employee: "Test Driver", active: true }]), OPS_TRUCK_INSPECTION_DIR: state, NEXT_DIST_DIR: ".next-inspection-preview", NEXT_TELEMETRY_DISABLED: "1" };
+  Object.assign(process.env, settings);
+  const output = fs.openSync("/tmp/five-point-preview.log", "w");
+  const server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev", "--webpack", "--hostname", "127.0.0.1", "--port", "3198"], { cwd: process.cwd(), env: { ...process.env, ...settings }, stdio: ["ignore", output, output] });
+  const browser = await chromium.launch({ headless: true });
+  try {
+    let ready = false;
+    for (let i = 0; i < 60; i++) { try { const r = await fetch(`${base}/truck-inspection`); if (r.ok) { ready = true; break; } } catch {} await new Promise(r => setTimeout(r, 1000)); }
+    assert.equal(ready, true, "preview must be ready");
+    const manager = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
+    await manager.addCookies([{ name: AUTH_SESSION_COOKIE, value: await createAuthSessionCookieValue(opsAuthIdentity()), url: base }]);
+    const management = await manager.newPage();
+    await management.goto(`${base}/fleet-inspections`);
+    await management.getByText("Manage truck phones", { exact: true }).click();
+    await management.getByLabel("Assigned truck").selectOption("Truck 4");
+    await management.getByLabel("Phone name").fill("Synthetic browser phone");
+    await management.getByRole("button", { name: "Create one-time setup code" }).click();
+    await management.getByRole("heading", { name: "Truck 4 setup code" }).waitFor();
+    const setupLink = await management.getByRole("link", { name: "Truck Check setup" }).getAttribute("href");
+    const code = new URLSearchParams(new URL(setupLink!).hash.slice(1)).get("setup")!;
+    const mobile = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const page = await mobile.newPage(); const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await page.goto(`${base}/truck-inspection#setup=${code}`);
+    await page.getByRole("button", { name: "Connect truck phone" }).click();
+    await page.getByLabel("Your name", { exact: true }).fill("Test Driver");
+    await page.getByLabel("Odometer · miles").fill("125040");
+    await page.getByRole("button", { name: "Start inspection" }).click();
+    await page.getByRole("button", { name: "✓ Good", exact: true }).click();
+    await page.getByRole("button", { name: "Next check" }).click();
+    await page.getByRole("button", { name: "! Problem", exact: true }).click();
+    await page.getByLabel("What did you find?").fill("Synthetic test: tire damage requires supervisor review.");
+    const photo = await page.screenshot({ clip: { x: 0, y: 0, width: 200, height: 120 } });
+    await page.locator('input[type="file"]').setInputFiles({ name: "test-photo.png", mimeType: "image/png", buffer: photo });
+    await page.getByRole("img", { name: "Wheels & tires problem photo" }).waitFor();
+    await page.getByText("Draft saved on this phone", { exact: true }).waitFor();
+    await mobile.setOffline(true);
+    await page.getByLabel("What did you find?").fill("Synthetic test: tire damage recorded offline.");
+    await page.getByRole("button", { name: "Next check" }).click();
+    await page.getByLabel("Fuel level").selectOption("1/2");
+    await page.getByRole("button", { name: "✓ Good", exact: true }).click();
+    await mobile.setOffline(false);
+    // Wait for the actual IndexedDB write before testing a reload.
+    await page.waitForFunction(async () => new Promise<boolean>(resolve => { const open = indexedDB.open("junk-king-truck-inspection", 1); open.onsuccess = () => { const db = open.result; const req = db.transaction("drafts").objectStore("drafts").getAll(); req.onsuccess = () => { const ok = req.result.some(d => d.fuel === "1/2" && d.answers.some((a: {id:string;status:string}) => a.id === "dashboard" && a.status === "good")); db.close(); resolve(ok); }; }; }));
+    await page.reload();
+    await page.getByRole("heading", { name: "Dashboard check" }).waitFor();
+    assert.equal(await page.getByLabel("Fuel level").inputValue(), "1/2");
+    await page.getByRole("button", { name: "Next check" }).click();
+    await page.getByRole("button", { name: "✓ Good", exact: true }).click();
+    await page.getByRole("button", { name: "Next check" }).click();
+    await page.getByRole("button", { name: "✓ Good", exact: true }).click();
+    await page.getByRole("button", { name: "Review report" }).click();
+    await page.getByLabel("Safe to operate — problem reported", { exact: true }).check();
+    await page.getByLabel("Your initials", { exact: true }).fill("TD");
+    assert.equal(await page.getByRole("radio", { name: "No problems", exact: true }).isDisabled(), true);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+    await page.screenshot({ path: "/tmp/five-point-inspection-review/mobile-review.png", fullPage: true });
+    let lost = false;
+    await page.route("**/api/truck-inspection", async route => {
+      if (route.request().method() === "POST" && route.request().postDataJSON().action === "submit" && !lost) { lost = true; const received = await route.fetch(); assert.equal(received.status(), 200); await route.abort("failed"); }
+      else await route.continue();
+    });
+    await page.getByRole("button", { name: "Send to OpsCenter", exact: true }).click();
+    await page.getByRole("button", { name: "Check saved result", exact: true }).waitFor();
+    await page.getByRole("button", { name: "Check saved result", exact: true }).click();
+    await page.getByText("✓ RECEIVED BY OPSCENTER", { exact: true }).waitFor();
+    await page.screenshot({ path: "/tmp/five-point-inspection-review/mobile-receipt.png", fullPage: true });
+    const reportResponse = await manager.request.get(`${base}/api/fleet-inspections?date=${inspectionDate()}`);
+    const saved = await reportResponse.json();
+    assert.equal(saved.reports.length, 1);
+    assert.equal(saved.reports[0].photos.length, 1);
+    assert.equal(saved.reports[0].answers[1].notes, "Synthetic test: tire damage recorded offline.");
+    assert.equal(saved.reports[0].inspector, "Test Driver");
+    assert.equal(saved.reports[0].truck, "Truck 4");
+    const duplicate = await mobile.request.post(`${base}/api/truck-inspection`, { data: { action: "submit", report: saved.reports[0] } });
+    assert.equal(duplicate.status(), 200);
+    assert.equal((await duplicate.json()).report.receivedAt, saved.reports[0].receivedAt);
+    assert.equal((await mobile.request.get(`${base}/api/fleet-inspections`)).status(), 401);
+    const stranger = await browser.newContext();
+    assert.equal((await stranger.request.get(`${base}/api/truck-inspection`)).status(), 401);
+    const hooksManagement = await fetch(`${base}/fleet-inspections`, { headers: { "x-forwarded-host": "hooks.junk-king.app" } });
+    assert.equal(hooksManagement.status, 404);
+    await management.getByRole("button", { name: "Refresh reports" }).click();
+    await management.getByText("Truck 4 · Test Driver", { exact: true }).click();
+    await management.screenshot({ path: "/tmp/five-point-inspection-review/management-report.png", fullPage: true });
+    await manager.request.post(`${base}/api/fleet-inspections`, { data: { action: "revoke", deviceId: saved.devices[0].deviceId } });
+    assert.equal((await mobile.request.get(`${base}/api/truck-inspection`)).status(), 401);
+    assert.deepEqual(errors, []);
+    console.log("Browser acceptance passed: manager setup, phone pairing, five checks, problem note/photo, offline draft reload, lost acknowledgement recovery, duplicate safety, report read-back, revoked device and management isolation.");
+  } finally {
+    await browser.close();
+    server.kill("SIGTERM");
+    await new Promise<void>(resolve => { if (server.exitCode !== null) resolve(); else server.once("exit", () => resolve()); });
+    fs.closeSync(output);
+    for (const item of generatedFiles) fs.writeFileSync(item.file, item.content);
+    fs.rmSync(state, { recursive: true, force: true });
+  }
+}
+void main().catch(error => { console.error(error); process.exitCode = 1; });

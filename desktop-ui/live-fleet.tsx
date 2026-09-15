@@ -50,6 +50,7 @@ export default function LiveFleet({date,view,report,onViewChange,onBusyChange}:D
   const activeChecklist=active?.truck.checklists[(draft.cadence||'daily') as 'daily'|'weekly'|'monthly'];
   const field=(key:string,label:string,type='text')=><label key={key}><span>{label}</span><Input type={type} value={draft[key]||''} onChange={event=>setDraft({...draft,[key]:event.target.value})}/></label>;
   return <section className={`fleet-workspace live-fleet fleet-view-${view}`}>
+    <a href="/fleet-inspections" className="fleet-inspection-report-link">Morning inspections · Truck phone reports and setup →</a>
     <WorkspaceFreshness state={freshness} sourceAt={snapshot.sourceUpdatedAt} budgetMinutes={3}/>
     {error&&<p className="drawer-action-feedback" role="status">{error}</p>}{lastRequest&&<Button variant="outline" size="sm" disabled={pending} onClick={()=>void checkSavedResult()}>Check Saved Result</Button>}{snapshot.warnings.map(warning=><p className="fleet-source-note" role="status" style={{borderLeftColor:"#b7791f"}} key={warning}>{warning.startsWith("Unmapped Linxup vehicle:") ? `LinxUp vehicle “${warning.split(":").slice(1).join(":").trim()}” has no OpsCenter truck mapping. Review the source mapping before relying on its telemetry.` : warning}</p>)}
     {view==='scores'&&<FleetDrivingScores rows={snapshot.drivingScores||[]}/>}

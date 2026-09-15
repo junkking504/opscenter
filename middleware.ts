@@ -35,6 +35,7 @@ import {
 import { JUNKWARE_SMS_API_PREFIX } from "@/lib/junkware-sms-constants";
 import { WHATSAPP_JOB_PHOTO_API_PREFIX } from "@/lib/whatsapp-job-photo-constants";
 import { LINXUP_PUSH_API_PREFIX } from "@/lib/linxup-push-constants";
+import { INSPECTION_PUBLIC_PATHS } from "@/lib/truck-inspection-http";
 
 const authDebug = process.env.OPS_AUTH_DEBUG === "1";
 
@@ -151,6 +152,7 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
       || pathname.startsWith(`${JUNKWARE_SMS_API_PREFIX}/`)
       || pathname === WHATSAPP_JOB_PHOTO_API_PREFIX
       || pathname === LINXUP_PUSH_API_PREFIX
+      || INSPECTION_PUBLIC_PATHS.includes(pathname)
     ) {
       return NextResponse.next();
     }

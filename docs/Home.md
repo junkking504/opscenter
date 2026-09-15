@@ -46,6 +46,7 @@ without mixing live runtime data or secrets into Git.
 - [Estimate follow-up](estimate-follow-up.md)
 - [JunkWare appointment creation](junkware-appointment-creation.md)
 - [Fleet Action Center](fleet-action-center.md)
+- [Truck phone inspections](truck-inspections.md)
 - [Operational readiness](operational-readiness.md)
 - [Background maintenance pilot](background-maintenance.md)
 - [Server continuity recovery](server-continuity.md)

@@ -116,7 +116,11 @@ house/street/locality/ZIP and unknown trailing text remain intact. Raw source
 snapshots are preserved. Direct verification and cache consumers apply the same
 rule, so existing evidence survives source action-label changes. Verification
 policy 6 immediately reconsiders prior negative results under the existing
-bounded refresh cadence. `verify:service-addresses`, also required by the build,
+bounded refresh cadence. The minute runner drains queued GPS first, then checks
+addresses even if that drain failed, before connectivity probes and LinxUp
+requests. GPS transport or certificate failures cannot suppress address recovery. A failed address check retains prior
+evidence and still permits GPS processing. Fault-injection tests exercise both
+failure paths. `verify:service-addresses`, also required by the build,
 covers source sweeps, geography, research identity, verified-cache reuse,
 provider queries, and rejection of conflicting premises.
 

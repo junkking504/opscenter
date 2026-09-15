@@ -1,3 +1,4 @@
+import {readVisitTrackingAgent} from './visit-tracking-reader';
 import { scheduleTruckVisits, type ScheduleTruckVisit } from './schedule-visit-intervals';
 import { currentGpsPresence } from './schedule-gps-presence';
 import { calculateTruckProgress } from './desktop-truck-progress';
@@ -48,6 +49,7 @@ export function readDesktopSchedule(date: string) {
   const calls = readJobCallAheadStatuses();
   const fleet = buildFleetMapPayload(date) || { date, isToday: false, trucks: [], lastUpdatedAt: null };
   const visits = readScheduleVisits(date);
+  const tracked = readVisitTrackingAgent(date);
   const sourceAppointments = readJobRows(date);
   const estimates = readSourceEstimates(sourceAppointments.map(job => job.sourceEstimateAppointmentId), date);
   const appointments: DesktopAppointment[] = sourceAppointments.map((rawSource, index) => {
@@ -65,7 +67,7 @@ export function readDesktopSchedule(date: string) {
     const location = planningLocation(job.address, pins) || addressCheck?.location || null;
     const callAhead = calls.get(jobCallAheadLookupKey(date, `appt:${job.appointmentId}`)) || 'not_called';
     return {
-    ...job, sourceEstimate: estimates.get(job.sourceEstimateAppointmentId) || null, callAhead, ...scheduleVisitState({ ...job, location }, visits.visits, visits.observedAt, fleet.isToday ? fleet.trucks : []),
+    ...job, sourceEstimate: estimates.get(job.sourceEstimateAppointmentId) || null, callAhead, ...scheduleVisitState({ ...job, location }, visits.visits, visits.observedAt, fleet.isToday ? fleet.trucks : [], Date.now(), tracked.visits),
     version: createHash('sha256').update(JSON.stringify([job.appointmentId, job.truck, job.appointmentStartMinutes, job.appointmentEndMinutes, job.status, job.appointmentType, job.appointmentNotes, job.cancellationReason, callAhead, job.closeout, job.driver, job.navigator, job.additionalCrew])).digest('hex'),
     // A JK reference can span multiple appointments. Never use it as the
     // mutation identity or combine separate estimate/job appointments by JK.

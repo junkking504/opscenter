@@ -9,6 +9,7 @@ import { buildCrewProgress } from './crew-progress';
 import { crewAppointmentFacts } from './crew-progress-details';
 import { sourceFreshness } from './source-freshness';
 import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
+import {readVisitTrackingAgent} from './visit-tracking-reader';
 import { readScheduleVisits } from './desktop-schedule-visits';
 import { geofenceTimelineAlerts, readGeofenceEntries } from './linxup-geofence-alerts';
 import {truckLoadTrackingAlerts} from './truck-load-tracking-alerts';
@@ -75,7 +76,8 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
   const appointments = readJobRows(date);
   const sourceHealth = readDesktopSourceHealth(/^(admin|administrator|manager)$/i.test(actor.role));
   const geofences = readGeofenceEntries(date);
-  const alerts: DesktopCommandSnapshot['alerts'] = mergeTruckExpenseAlerts([...streamlineOperationalAlerts(appointmentVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits,appointments,date),appointments,date),...geofenceTimelineAlerts(date,geofences.arrivals,geofences.visits),...truckLoadTrackingAlerts(date),...assumedDumpExpenseAlerts(date)],truckExpenseTimelineAlerts(date)).map(alert => {
+  const tracked = readVisitTrackingAgent(date);
+  const alerts: DesktopCommandSnapshot['alerts'] = mergeTruckExpenseAlerts([...streamlineOperationalAlerts(appointmentVisitAlerts(combinedCloseoutAlerts(digest.messages, readCompletedJunkwareRows(date), buildDailyPaymentReconciliation(date), readCommandCrewCorrections(date,actor.role)), visits,appointments,date,Date.now(),tracked.visits),appointments,date),...geofenceTimelineAlerts(date,geofences.arrivals,geofences.visits),...truckLoadTrackingAlerts(date),...assumedDumpExpenseAlerts(date)],truckExpenseTimelineAlerts(date)).map(alert => {
       const action = commandAlertWorkItemForSource(workflow.items, alert);
       return presentAlert(alert, action);
   });

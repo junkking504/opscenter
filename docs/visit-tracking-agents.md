@@ -52,3 +52,30 @@ for downstream source precedence and actual-expense reconciliation.
 
 Validation: `npm run verify:visit-tracking-agent`,
 `npm run verify:geofence-alerts`, `npm run verify:appointment-visit-alerts`.
+
+## Coordinate reconciliation and separate visit segments
+
+When positive facility reports have matching timestamped GPS coordinates, the
+tracking agent can also establish departure from two later fixes more than five
+kilometres from that observed facility position, at least one minute apart, with
+no gap greater than five minutes between corroborating fixes. Positive same-site
+membership takes precedence over this conservative geometric fallback. A later
+return starts another facility episode; intervening coordinates never create an
+arrival, unload or expense. This handles repeated dump visits separated by job
+visits even when the native alert feed is unavailable.
+
+For an already-confirmed appointment, the shared reader uses verified service
+coordinates and two later GPS fixes beyond twice the normal site radius, at least
+one minute apart. It bounds the departure without changing the collector's raw
+intervals or physical-closeout truck attribution. Command and Schedule consume
+that shared projection. A lone fix, boundary jitter, unknown/ambiguous address,
+wrong truck or future timestamp cannot establish departure.
+
+Each appointment interval's reconciliation stops before the next recorded
+interval starts. If a prior interval has no proven departure, it is shown as
+**Earlier GPS segment; departure time unavailable**, rather than an active
+arrival awaiting departure. A later segment does not prove continuous presence
+through a gap, and no exact onsite duration is created from inferred bounds.
+Source-confirmed zero-duration visits remain closed observations.
+
+Additional validation: `node --import tsx scripts/test-appointment-position-tracking.ts`.

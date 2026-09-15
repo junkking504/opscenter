@@ -1,4 +1,5 @@
 import { fullFieldStreetAddress, serviceStreetCandidates } from './appointment-partner';
+import { cleanJunkwareAddressText } from './junkware-address-text';
 import { osmAddressJson } from './osm-address-transport';
 import type { AddressVerification } from './desktop-address-verification';
 import {cleanServiceQuery,normalizeServiceAddress} from './service-address-format';
@@ -6,6 +7,7 @@ import {hasMinorStreetCorrection} from './address-spelling-correction';
 
 const normalize=normalizeServiceAddress;
 export function osmServiceAddressQuery(address:string):string|null {
+  address = cleanJunkwareAddressText(address);
   if(serviceStreetCandidates(address).length!==1)return null;
   // Only the service address goes to OSM, never customer names, notes, business
   // prefixes, phone numbers or unit identifiers. Keep the city; omit ZIP to
@@ -15,6 +17,7 @@ export function osmServiceAddressQuery(address:string):string|null {
 }
 type OsmAddress = {lat?:string;lon?:string;osm_type?:string;osm_id?:number;place_rank?:number;category?:string;type?:string;boundingbox?:string[];address?:Record<string,string>};
 export function verifyOsmServiceAddress(address:string,payload:unknown):AddressVerification {
+  address = cleanJunkwareAddressText(address);
   const unavailable={location:null,reason:'No Exact Building Match'};
   const query=osmServiceAddressQuery(address);
   if(!query || !Array.isArray(payload) || !payload.length)return unavailable;

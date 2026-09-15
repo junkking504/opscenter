@@ -123,7 +123,7 @@ async function verifyAutomaticCache() {
     assert.deepEqual(await verifyDesktopAddress(address),first);
     assert.equal(calls,1,'Accepted correction is reused without another provider request');
     const saved=JSON.parse(fs.readFileSync(file,'utf8'));
-    assert.equal(saved.schema,5);
+    assert.equal(saved.schema,6);
     assert.equal(saved.address,address,'Source spelling is retained');
     assert.deepEqual(saved.verified,first,'Matched spelling and point persist atomically');
   } finally {

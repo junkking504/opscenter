@@ -9,6 +9,7 @@ import { appointmentNotes, appointmentPickupItems, junkItemKeywords, junkwareJob
 import { junkwareBookedAt } from "@/lib/junkware-booking-date";
 import { currentJunkwareScheduleSnapshot, readVerifiedJunkwareScheduleSnapshot, canonicalJunkwareUpdatedAtMs } from "@/lib/junkware-fast-schedule";
 import { applyVerifiedClassifications } from './appointment-classification';
+import { cleanJunkwareAddressText } from './junkware-address-text';
 
 const OPSBOT_DATA_DIR =
   process.env.OPSBOT_DATA_DIR ||
@@ -283,10 +284,10 @@ function normalizeAddressLine(row: Record<string, string>): string {
   const zip = firstValue(row, ["zip", "zipcode", "postal_code", "Zip", "ZIP"]);
 
   const cityState = [city, state ? [state, zip].filter(Boolean).join(" ") : zip].filter(Boolean).join(", ");
-  const parts = [street, cityState].filter(Boolean);
+  const parts = [cleanJunkwareAddressText(street), cityState].filter(Boolean);
 
   if (!parts.length) return "Address unavailable";
-  return parts.join(", ");
+  return cleanJunkwareAddressText(parts.join(", "));
 }
 
 function addressFromCancellationText(value: string): string {

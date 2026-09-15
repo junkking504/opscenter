@@ -1,3 +1,4 @@
+import { cleanJunkwareAddressText } from './junkware-address-text';
 // Dispatch geography is not franchise ownership. Keep this pure/shared so the
 // browser, calendar and server-side planner cannot classify the same stop differently.
 export const serviceTerritoryLabels: Record<string, string> = {
@@ -48,7 +49,7 @@ export function sourceTerritoryCode(value: string) {
       : /new orleans/i.test(value) ? 'NO' : 'UNK';
 }
 export function serviceTerritory(address: string, sourceTerritory = '') {
-  const normalized = address.trim().replace(/\s+/g, ' ');
+  const normalized = cleanJunkwareAddressText(address);
   const zip = normalized.match(/(?:^|[\s,])(\d{5})(?:-\d{4})?\s*(?:,?\s*(?:USA|United States))?$/i)?.[1];
   const state = normalized.match(/(?:,\s*|\s)([a-z]{2}|Louisiana)(?:\s+\d{5}(?:-\d{4})?)?\s*(?:,?\s*(?:USA|United States))?$/i)?.[1];
   // Some source addresses use "street city, LA ZIP", others "street, city, ZIP".

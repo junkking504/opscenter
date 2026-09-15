@@ -149,7 +149,7 @@ export default function TruckInspectionApp() {
     <p className={styles.reference}>Report reference: {report.requestId}</p>
   </>;
   return <main className={`${styles.app} ${styles.phoneApp}`}>
-    <header className={styles.brand}><span>JUNK KING</span><span className={styles.brandDivider}>/</span><div className={styles.brandName}><b>Five Point Inspection</b>{(receipt?.truck || draft?.truck) && <span>{receipt?.truck || draft?.truck}</span>}</div></header>
+    <header className={`${styles.brand} ${styles.inspectionBrand}`}><img className={styles.brandLogo} src="/truck-inspection/brand-logo.svg" width="182" height="40" alt="Junk King" /><div className={styles.brandName}><b>Five Point Inspection</b>{(receipt?.truck || draft?.truck) && <span>{receipt?.truck || draft?.truck}</span>}</div></header>
     <div className={styles.phoneShell}>
       {!context || !draft ? <section className={styles.phoneContent}><div className={styles.eyebrow}>FIVE POINT INSPECTION</div><h1>Morning inspection</h1><p>{error || "Connecting to OpsCenter…"}</p>{error && <button onClick={() => { setError(""); void load(); }}>Try again</button>}</section>
       : receipt ? <>

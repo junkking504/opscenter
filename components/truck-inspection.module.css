@@ -1,5 +1,5 @@
 .app {
-  --inspection-red: #be0b30;
+  --inspection-red: #c91c22;
   --inspection-ink: #242323;
   --inspection-muted: #68635f;
   --inspection-paper: #f5f4f0;
@@ -31,7 +31,9 @@
 .app [hidden] { display: none !important; }
 .brand { display: flex; align-items: center; gap: 16px; background: var(--inspection-ink); color: #fff; padding: 24px max(24px, calc((100vw - 632px)/2)); font-size: 14px; line-height: 20px; font-weight: 700; text-transform: uppercase; }
 .brandDivider { opacity: .6; }
-.brandName { display: grid; gap: 4px; min-width: 0; }
+.inspectionBrand { flex-direction: column; align-items: stretch; gap: 12px; padding-top: 18px; padding-bottom: 16px; background: #171717; border-bottom: 2px solid #e2c675; }
+.brandLogo { display: block; width: 182px; height: 40px; max-width: 100%; }
+.brandName { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
 .brandName > span { font-size: 12px; font-weight: 500; text-transform: none; }
 .eyebrow, .received { font-size: 13px; font-weight: 600; line-height: 18px; color: var(--inspection-muted); text-transform: uppercase; }
 .received { color: var(--inspection-green); }

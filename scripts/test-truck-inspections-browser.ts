@@ -153,6 +153,12 @@ async function main() {
       const response = await fetch(`${base}${inspectionPath}`, { headers: inspectHeaders, redirect: "manual" });
       assert.equal(response.status, 200, `inspection origin serves ${inspectionPath}`);
     }
+    const iconManifest = await (await fetch(`${base}/truck-inspection/manifest.webmanifest`, { headers: inspectHeaders })).json();
+    for (const icon of iconManifest.icons) assert.equal((await fetch(`${base}${icon.src}`, { headers: inspectHeaders })).status, 200);
+    const appleIcon = await page.locator('link[rel="apple-touch-icon"]').getAttribute("href");
+    assert.ok(appleIcon?.startsWith("/truck-inspection/"));
+    assert.equal((await fetch(`${base}${appleIcon}`, { headers: inspectHeaders })).status, 200);
+    assert.equal((await fetch(`${base}/truck-inspection/brand-logo.svg`, { headers: inspectHeaders })).status, 200);
     const inspectRoot = await fetch(`${base}/`, { headers: inspectHeaders, redirect: "manual" });
     assert.equal(inspectRoot.status, 307);
     assert.equal(inspectRoot.headers.get("location"), "https://inspect.junk-king.app/truck-inspection");

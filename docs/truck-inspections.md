@@ -156,7 +156,9 @@ phone keyboards. The Figma sample data is not loaded into the app.
 ## App identity
 
 The banner and installed app are named Five Point Inspection. A gear-and-wrench
-icon uses the app palette: red `#be0b30`, charcoal `#242323` and white. The SVG
+icon uses Junk King red `#EC2027`, gold `#E2C675`, black and white, with the
+existing Junk King wordmark and its green recycling symbol. The banner displays
+the existing vector brand asset above the app name. The SVG
 source is `lib/truck-inspection-icon.ts`; PNG home-screen variants are 180, 192
 and 512 pixels. The 512-pixel icon has an opaque background and safe margins for
 launcher masks. The page supplies its own Apple touch icon and favicon.

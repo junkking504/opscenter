@@ -1,3 +1,4 @@
+import { cleanJunkwareAddressText } from './junkware-address-text';
 type PartnerSource = { address: string; customerName: string };
 
 // Partner identity belongs to the source business label, never an item brand
@@ -25,10 +26,12 @@ export function serviceStreetCandidates(address: string): number[] {
 // Public address links and duplicate checks retain their conservative handling
 // of numeric business labels. Full-field verification examines candidates too.
 export function serviceAddressForGeocoding(address: string): string {
+  address = cleanJunkwareAddressText(address);
   const candidates = serviceStreetCandidates(address);
   return candidates.length === 1 && !/\d/.test(address.slice(0,candidates[0])) && /\b\d{5}(?:-\d{4})?\s*$/.test(address) ? address.slice(candidates[0]).trim() : address;
 }
 export function fullFieldStreetAddress(address: string): string {
+  address = cleanJunkwareAddressText(address);
   const candidates = serviceStreetCandidates(address);
   return candidates.length === 1 && /\b\d{5}(?:-\d{4})?\s*$/.test(address) ? address.slice(candidates[0]).trim() : address;
 }

@@ -1,4 +1,5 @@
 import { reviewedServiceAddress } from './reviewed-service-address';
+import { cleanJunkwareAddressText } from './junkware-address-text';
 import { cleanServiceQuery, normalizeServiceAddress } from './service-address-format';
 import { verifyOsmAddressFallback } from './osm-service-address';
 import { hasMinorStreetCorrection } from './address-spelling-correction';
@@ -12,7 +13,7 @@ import { createHash, randomUUID } from 'node:crypto';
 type Component = { long_name: string; short_name: string; types: string[] };
 type Result = { partial_match?: boolean; address_components?: Component[]; geometry?: { location?: { lat: number; lng: number }; location_type?: string } };
 type Payload = { status?: string; results?: Result[] };
-export const ADDRESS_VERIFICATION_POLICY = 5;
+export const ADDRESS_VERIFICATION_POLICY = 6;
 export type AddressVerification = { location: PlanningLocation | null; reason: string; matchedAddress?: string; source?: string; sourceUrl?: string; retryAfterMs?: number };
 const normalize = normalizeServiceAddress;
 const normalizeRouteName = (text: string) => normalize(text).replace(/\bS NORMAN FRANCIS PKWY\b/g, 'S NORMAN C FRANCIS PKWY');
@@ -40,6 +41,7 @@ function matchesStreet(requested: string, house: string, street: string, city: s
 
 // Match returned components, never a city centroid or a nearby street/house.
 export function verifyAddressResult(address: string, payload: Payload): AddressVerification {
+  address = cleanJunkwareAddressText(address);
   if(serviceStreetCandidates(address).length>1) return {location:null,reason:'Multiple Street Addresses In Source Field'};
   if(payload.status!=='OK') return {location:null,reason:`Geocoding ${payload.status || 'Unavailable'}`};
   if(payload.results?.length!==1) return {location:null,reason:'Multiple Address Matches'};
@@ -60,6 +62,7 @@ export function verifyAddressResult(address: string, payload: Payload): AddressV
 }
 
 export function verifyCensusAddress(address:string,payload:unknown):AddressVerification {
+  address = cleanJunkwareAddressText(address);
   const matches=(payload as {result?:{addressMatches?:CensusAddressMatch[]}}|null)?.result?.addressMatches;
   if(!Array.isArray(matches) || !matches.length)return {location:null,reason:'Precise Service Location Unavailable'};
   if(matches.length > 1) {
@@ -97,6 +100,7 @@ async function requestGeocode(address:string):Promise<unknown> {
 const cache=new Map<string,{expires:number;result:Promise<AddressVerification>;verified?:AddressVerification}>();
 const cacheFile = (address: string) => path.join(process.env.SERVICE_ADDRESS_CACHE_DIR || path.join(process.env.OPSBOT_DATA_DIR || path.join(process.env.HOME || '', '.openclaw/workspace/opsbot/data'),'cache','service-address-verifications'),createHash('sha256').update(address).digest('hex')+'.json');
 export function cachedAddressVerification(address:string):AddressVerification|undefined {
+  address = cleanJunkwareAddressText(address);
   const reviewed = reviewedServiceAddress(address); if (reviewed) return {...reviewed,matchedAddress:reviewed.verifiedAddress};
   const row=cache.get(address);
   if(row && row.expires>Date.now()) return row.verified;
@@ -112,7 +116,7 @@ export function cachedAddressVerification(address:string):AddressVerification|un
   } catch { return undefined; }
 }
 export function addressQueries(address: string) {
-  const full=address.replace(/\s+/g,' ').replace(/\s*,\s*/g,', ').trim();
+  const full=cleanJunkwareAddressText(address).replace(/\s*,\s*/g,', ');
   const street=fullFieldStreetAddress(full);
   // Try the normalized routing query first; retain the original as a fallback.
   // Only queries omit explicit units; validation always uses the full input.
@@ -121,6 +125,7 @@ export function addressQueries(address: string) {
   return [...new Set([withState,full,street,withoutUnit])];
 }
 export async function verifyDesktopAddress(address:string):Promise<AddressVerification> {
+  address = cleanJunkwareAddressText(address);
   if(serviceStreetCandidates(address).length>1) return {location:null,reason:'Multiple Street Addresses In Source Field'};
   const disk=cachedAddressVerification(address); if(disk) return disk;
   const prior=cache.get(address);if(prior&&prior.expires>Date.now())return prior.result;

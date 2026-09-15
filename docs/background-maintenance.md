@@ -108,6 +108,18 @@ contain fixed categories, timestamps and bounded counts only.
 
 ## Automatic address investigation
 
+Schedule normalizes flattened JunkWare address cells before territory matching,
+verified-cache lookup and research discovery. An action-only suffix (`Followup`,
+`SMS`, `More Details` and labeled follow-up variants) after a complete ZIP is
+removed by the shared `cleanJunkwareAddressText` parser. Business names, units,
+house/street/locality/ZIP and unknown trailing text remain intact. Raw source
+snapshots are preserved. Direct verification and cache consumers apply the same
+rule, so existing evidence survives source action-label changes. Verification
+policy 6 immediately reconsiders prior negative results under the existing
+bounded refresh cadence. `verify:service-addresses`, also required by the build,
+covers source sweeps, geography, research identity, verified-cache reuse,
+provider queries, and rejection of conflicting premises.
+
 The same OS-locked observer scans active appointments in collected upcoming
 Schedule days. It keeps a durable queue in `state.json.addressResearch`, deduplicated
 by full premises address across dates and suite variants. Formatting-only retries

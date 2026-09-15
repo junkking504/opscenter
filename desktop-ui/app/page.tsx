@@ -3978,7 +3978,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       setFleetView(label === 'Revenue / truck' ? 'reports' : 'overview');
       return;
     }
-    if (label === 'Revenue' || label === 'Average Job Size (AJS)') {
+    if (label === 'Revenue' || label === 'Dump + Fuel' || label === 'Net') {
       setActiveNav('Finance');
       setFinanceView('overview');
       return;

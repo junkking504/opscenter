@@ -11,9 +11,12 @@ reviews the request for Fleet Management API credentials.
   authorization stage.
 - WEX `Trans ID` is the stable identity. Reimporting the same export is
   idempotent, and conflicting rows with the same ID fail closed.
-- The selected day's posted WEX net cost is added once to Company Costs and
-  subtracted once from Estimated Net. The WEX amount remains visible beside the
-  daily totals so the adjustment is auditable.
+- Published daily fuel expense remains authoritative when present. The selected
+  day's posted WEX net cost fills a missing or zero published fuel field once;
+  it is not added again when published expenses already contain fuel.
+- Capital and Command show the same selected-day Revenue, Labor, combined Dump
+  + Fuel card with individual dump and fuel totals, and Net. WEX transaction
+  detail remains visible in Capital so the fuel total is auditable.
 - Month-to-date published costs retain their existing source boundary until the
   daily WEX coverage is complete for that reporting period.
 - The UI shows the import time and the latest transaction date covered by the

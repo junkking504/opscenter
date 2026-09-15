@@ -11,7 +11,7 @@ export const defaultDumpFeePolicy: DumpFeePolicy = {
   facilities: [
     { name: 'Gentilly', aliases: ['Gentilly Landfill', 'GL'], minimumFee: 44 },
     { name: 'Stranco', aliases: ['Stranco Transfer Station', 'STS'], minimumFee: 85 },
-    { name: 'Baton Rouge Landfill', aliases: ['BRL', 'EBR', 'EBR Landfill'], minimumFee: 44 },
+    { name: 'Baton Rouge Landfill', aliases: ['BRL', 'EBR', 'EBR Landfill', 'BR Landfill', 'BR Landfilll'], minimumFee: 44 },
     { name: 'River Birch', aliases: ['River Birch Landfill', 'RBL'], minimumFee: 47 },
   ],
 };

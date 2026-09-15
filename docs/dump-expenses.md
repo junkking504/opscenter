@@ -11,6 +11,9 @@ The user supplied these minimums:
 | Baton Rouge Landfill (BRL / EBR) | $44.00 |
 | River Birch Landfill (RBL) | $47.00 |
 
+The observed LinxUp spelling `BR Landfilll` and `BR Landfill` also resolve to
+Baton Rouge Landfill; the source spelling is retained on the visit record.
+
 Other disposal facilities show **Minimum fee needed** and an incomplete combined
 total. Warehouse and metal-recycling entries never create dump expenses. No
 weight, receipt number, provider payment or fee is fabricated.

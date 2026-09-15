@@ -110,17 +110,35 @@ class SourcePublication:
     def json_stamp(self, path):
         try:
             payload = json.loads(path.read_text(encoding='utf-8'))
+            if payload.get('collection_errors') or payload.get('source_status') == 'failed':
+                return None
+            responses = payload.get('responses', {})
+            if isinstance(responses, dict) and any(isinstance(row, dict) and row.get('error') for row in responses.values()):
+                return None
             return next((stamp for key in ('scraped_at', 'collected_at', 'collection_timestamp', 'retrieved_at')
                          if (stamp := timestamp(payload.get(key)))), None)
         except (OSError, ValueError):
             return None
 
     def read_failures(self):
+        failures = set()
         try:
             path = Path(os.environ.get('OPSCENTER_COLLECTOR_HEALTH_FILE') or self.root / 'data/health/collector_failures.json')
-            return {item['id'] for item in json.loads(path.read_text()).get('conditions', [])}
+            failures.update(item['id'] for item in json.loads(path.read_text()).get('conditions', []))
         except (OSError, ValueError, KeyError):
-            return set()
+            pass
+        linxup = self.root / 'data/history/linxup'
+        for collector, path in [
+            ('linxup', linxup / f'linxup_{self.date}_status.json'),
+            ('linxup_live', linxup / f'linxup_location_{self.date}_status.json'),
+            ('linxup_alerts', linxup / f'alerts/linxup_alerts_{self.date}_status.json'),
+        ]:
+            try:
+                if json.loads(path.read_text()).get('source_status') == 'failed':
+                    failures.add(collector)
+            except (OSError, ValueError):
+                pass
+        return failures
 
     def add(self, key, path, captured, collector, require_stamp=False):
         if key.startswith('junkware_'):

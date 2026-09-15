@@ -75,6 +75,17 @@ class PublicationTests(unittest.TestCase):
             atomic_json(target, SourcePublication(self.root, self.date).apply({'total_revenue': 0}))
         self.assertEqual(json.loads(target.read_text())['total_revenue'], 999)
 
+    def test_legacy_empty_error_snapshot_is_not_current_gps(self):
+        linxup = self.root / 'data/history/linxup'
+        atomic_json(linxup / f'linxup_{self.date}_raw.json', {
+            'retrieved_at': datetime.now(timezone.utc).isoformat(),
+            'responses': {'history': {'error': 'certificate expired'}}})
+        (linxup / f'linxup_{self.date}_summary.csv').write_text('truck,miles\n')
+        atomic_json(linxup / f'linxup_{self.date}_status.json', {'source_status': 'failed'})
+        publication = SourcePublication(self.root, self.date)
+        self.assertEqual(publication.sources['linxup_summary']['status'], 'stale')
+        self.assertIsNone(publication.sources['linxup_summary']['as_of'])
+
     def test_missing_completed_and_mixed_capture_fail_closed(self):
         path = self.root / f'data/history/junkware/junkware_completed_{self.date}_summary.csv'
         original = path.read_text()

@@ -31,6 +31,8 @@
 .app [hidden] { display: none !important; }
 .brand { display: flex; align-items: center; gap: 16px; background: var(--inspection-ink); color: #fff; padding: 24px max(24px, calc((100vw - 632px)/2)); font-size: 14px; line-height: 20px; font-weight: 700; text-transform: uppercase; }
 .brandDivider { opacity: .6; }
+.brandName { display: grid; gap: 4px; min-width: 0; }
+.brandName > span { font-size: 12px; font-weight: 500; text-transform: none; }
 .eyebrow, .received { font-size: 13px; font-weight: 600; line-height: 18px; color: var(--inspection-muted); text-transform: uppercase; }
 .received { color: var(--inspection-green); }
 .intro { color: var(--inspection-muted); font-size: 16px; line-height: 1.4; }

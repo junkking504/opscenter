@@ -152,3 +152,11 @@ report recovery process. Success offers a full submitted-report read-back.
 The fixed Figma frames become naturally scrolling content with sticky bottom
 actions in the app, preserving access on short screens, enlarged text and open
 phone keyboards. The Figma sample data is not loaded into the app.
+
+## App identity
+
+The banner and installed app are named Five Point Inspection. A gear-and-wrench
+icon uses the app palette: red `#be0b30`, charcoal `#242323` and white. The SVG
+source is `lib/truck-inspection-icon.ts`; PNG home-screen variants are 180, 192
+and 512 pixels. The 512-pixel icon has an opaque background and safe margins for
+launcher masks. The page supplies its own Apple touch icon and favicon.

@@ -37,6 +37,7 @@ async function main() {
     assert.ok(unconnected.trucks.includes("Truck 4"));
     await page.goto(`${base}/truck-inspection`);
     await page.getByRole("heading", { name: "Morning, crew." }).waitFor();
+    await page.screenshot({ path: "/tmp/five-point-inspection-review/mobile-home.png", fullPage: true });
     assert.equal(await page.getByRole("button", { name: "Start inspection" }).isDisabled(), true);
     const connected = await (await mobile.request.get(`${base}/api/truck-inspection`)).json();
     assert.equal(connected.device.truck, undefined);
@@ -148,7 +149,7 @@ async function main() {
     await stranger.request.post(`${base}/api/truck-inspection`, { data: { action: "connect", connectionToken: "c".repeat(64) } });
     assert.equal((await (await stranger.request.get(`${base}/api/truck-inspection?requestId=${saved.reports[0].requestId}`)).json()).report, null, "a second phone selecting the same truck cannot read the first phone’s report");
     const inspectHeaders = { "x-forwarded-host": "inspect.junk-king.app", "x-forwarded-proto": "https" };
-    for (const inspectionPath of ["/truck-inspection", "/truck-inspection/manifest.webmanifest", "/api/truck-inspection"]) {
+    for (const inspectionPath of ["/truck-inspection", "/truck-inspection/manifest.webmanifest", "/truck-inspection/gear-wrench-180.png", "/truck-inspection/gear-wrench-192.png", "/truck-inspection/gear-wrench-512.png", "/api/truck-inspection"]) {
       const response = await fetch(`${base}${inspectionPath}`, { headers: inspectHeaders, redirect: "manual" });
       assert.equal(response.status, 200, `inspection origin serves ${inspectionPath}`);
     }

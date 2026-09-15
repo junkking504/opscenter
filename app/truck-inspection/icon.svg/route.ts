@@ -1,1 +1,2 @@
-export function GET() { return new Response('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="36" fill="#be0b30"/><path d="M46 98l32 32 69-72" fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/></svg>', { headers: { "Content-Type": "image/svg+xml" } }); }
+import { INSPECTION_ICON_SVG } from "@/lib/truck-inspection-icon";
+export function GET() { return new Response(INSPECTION_ICON_SVG, { headers: { "Content-Type": "image/svg+xml", "Cache-Control": "public, max-age=3600" } }); }

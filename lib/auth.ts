@@ -606,7 +606,7 @@ export async function requireAuthSession(request: Request): Promise<AuthSession 
 
 export function publicAuthRoute(pathname: string): boolean {
   // The truck-phone surface has its own narrowly scoped device authentication.
-  if (["/truck-inspection", "/truck-inspection/manifest.webmanifest", "/truck-inspection/icon.svg", "/api/truck-inspection"].includes(pathname)) return true;
+  if (["/truck-inspection", "/truck-inspection/manifest.webmanifest", "/truck-inspection/icon.svg", "/truck-inspection/gear-wrench-180.png", "/truck-inspection/gear-wrench-192.png", "/truck-inspection/gear-wrench-512.png", "/api/truck-inspection"].includes(pathname)) return true;
   if (pathname === AUTH_LOGIN_PATH || pathname === AUTH_LOGOUT_PATH) return true;
   return AUTH_PUBLIC_FILES.includes(pathname as (typeof AUTH_PUBLIC_FILES)[number]) ||
     AUTH_PUBLIC_ROUTES.includes(pathname as (typeof AUTH_PUBLIC_ROUTES)[number]) ||

@@ -149,9 +149,9 @@ export default function TruckInspectionApp() {
     <p className={styles.reference}>Report reference: {report.requestId}</p>
   </>;
   return <main className={`${styles.app} ${styles.phoneApp}`}>
-    <header className={styles.brand}><span>JUNK KING</span><span className={styles.brandDivider}>/</span><b>{receipt?.truck || draft?.truck || "TRUCK CHECK"}</b></header>
+    <header className={styles.brand}><span>JUNK KING</span><span className={styles.brandDivider}>/</span><div className={styles.brandName}><b>Five Point Inspection</b>{(receipt?.truck || draft?.truck) && <span>{receipt?.truck || draft?.truck}</span>}</div></header>
     <div className={styles.phoneShell}>
-      {!context || !draft ? <section className={styles.phoneContent}><div className={styles.eyebrow}>TRUCK CHECK</div><h1>Morning inspection</h1><p>{error || "Connecting to OpsCenter…"}</p>{error && <button onClick={() => { setError(""); void load(); }}>Try again</button>}</section>
+      {!context || !draft ? <section className={styles.phoneContent}><div className={styles.eyebrow}>FIVE POINT INSPECTION</div><h1>Morning inspection</h1><p>{error || "Connecting to OpsCenter…"}</p>{error && <button onClick={() => { setError(""); void load(); }}>Try again</button>}</section>
       : receipt ? <>
         <section className={styles.phoneContent}>
           <div className={styles.received}>✓ RECEIVED BY OPSCENTER</div><h1 ref={heading} tabIndex={-1}>Report received.</h1><p className={styles.intro}>Your morning inspection is recorded.</p>

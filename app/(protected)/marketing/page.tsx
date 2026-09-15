@@ -152,7 +152,7 @@ export default async function MarketingPage({
   return (
     <div className="ops-dashboard ops-marketing-page">
       <PageHeader
-        title="Marketing"
+        title="Campaign"
         subtitle={
           section === "reviews"
             ? "Newest Google reviews from Podium"

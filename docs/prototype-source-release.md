@@ -1,5 +1,13 @@
 # Approved Desktop Source Release
 
+## Workspace display names
+
+Primary navigation uses Command, Control, Crew, Convoy, Capital, Campaign, in
+that order. The desktop heading, mobile workspace selector, launcher, and
+legacy page navigation use these names. Internal workspace keys, existing URLs,
+permissions, and saved navigation state retain their original identifiers.
+
+
 ## Command daily metrics (September 10)
 
 Command displays Today’s Jobs, Revenue, Labor, Revenue Per Hour (RPH), and

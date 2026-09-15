@@ -1,4 +1,5 @@
 'use client';
+import { workspaceLabel } from '../lib/workspace-labels';
 import { WorkspaceBoundary } from '../workspace-boundary';
 import { cachedWorkspace, fetchWorkspace } from '../lib/workspace-cache';
 import { preloadableWorkspace } from '../lib/preloadable-workspace';
@@ -285,8 +286,8 @@ const nav = [
   { label: 'Schedule', icon: CalendarDays, count: 18 },
   { label: 'Krewe', icon: Users, count: 2 },
   { label: 'Fleet', icon: Truck, count: 7 },
-  { label: 'Marketing', icon: Megaphone, count: 16 },
   { label: 'Finance', icon: CircleDollarSign, count: 3 },
+  { label: 'Marketing', icon: Megaphone, count: 16 },
 ];
 
 const launcherCommands: LauncherCommand[] = [
@@ -3443,7 +3444,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const visibleLauncherCommands = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return launcherCommands;
-    return launcherCommands.filter((command) => `${command.label} ${command.description} ${command.workspace} ${command.keywords}`.toLowerCase().includes(normalized));
+    return launcherCommands.filter((command) => `${command.label} ${command.description} ${command.workspace} ${workspaceLabel(command.workspace)} ${command.keywords}`.toLowerCase().includes(normalized));
   }, [query]);
 
   const closeGlobalSearch = () => {
@@ -4202,7 +4203,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             const Icon = item.icon;
             return (
               <button key={item.label} className={activeNav === item.label ? 'nav-item active' : 'nav-item'} onPointerEnter={() => { void preloadWorkspace[item.label]?.().catch(() => {}); }} onFocus={() => { void preloadWorkspace[item.label]?.().catch(() => {}); }} onClick={() => setActiveNav(item.label)}>
-                <Icon size={17} /><span>{item.label}</span>{item.count ? <em>{item.count}</em> : null}
+                <Icon size={17} /><span>{workspaceLabel(item.label)}</span>{item.count ? <em>{item.count}</em> : null}
               </button>
             );
           })}
@@ -4215,7 +4216,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       </aside>
 
       <section className="ops-content">
-        {live && <nav className="live-mobile-navigation" aria-label="Mobile workspaces"><label>Workspace<select aria-label="Choose workspace" value={activeNav} disabled={mutationBusy} onChange={event => setActiveNav(event.target.value)}>{nav.filter(item => item.label !== 'Finance' || canFinance).map(item => <option key={item.label}>{item.label}</option>)}</select></label></nav>}
+        {live && <nav className="live-mobile-navigation" aria-label="Mobile workspaces"><label>Workspace<select aria-label="Choose workspace" value={activeNav} disabled={mutationBusy} onChange={event => setActiveNav(event.target.value)}>{nav.filter(item => item.label !== 'Finance' || canFinance).map(item => <option key={item.label} value={item.label}>{workspaceLabel(item.label)}</option>)}</select></label></nav>}
         <header className="topbar">
           {live ? <LiveSearch date={live.snapshot.date} navigate={setActiveNav} disabled={mutationBusy} finance={canFinance} /> : <div className="global-search-shell">
             {searchOpen && <button className="global-search-backdrop" aria-label="Close search" onClick={closeGlobalSearch} />}
@@ -4227,9 +4228,9 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             {searchOpen && <section className="global-search-panel" id="global-search-results" role="dialog" aria-label="OpsCenter launcher">
               <header><div><span>OpsCenter Launcher</span><strong>{query.trim() ? `${visibleLauncherCommands.length + globalSearchResults.length} match${visibleLauncherCommands.length + globalSearchResults.length === 1 ? '' : 'es'} across commands and records` : 'Run a command or find a record'}</strong></div><small>Press Enter to open the first match</small></header>
               {visibleLauncherCommands.length || globalSearchResults.length ? <div className="global-search-results-body">
-                {visibleLauncherCommands.length > 0 && <section className="launcher-command-group"><header><strong>{query.trim() ? 'Matching Commands' : 'Quick Actions'}</strong><span>{visibleLauncherCommands.length}</span></header><div className="launcher-command-grid">{visibleLauncherCommands.map((command) => { const LauncherIcon = command.icon; return <button onClick={() => runLauncherCommand(command.id)} key={command.id}><i><LauncherIcon size={15} /></i><div><strong>{command.label}</strong><small>{command.description}</small></div><span>{command.workspace}</span><ArrowRight size={14} /></button>; })}</div></section>}
+                {visibleLauncherCommands.length > 0 && <section className="launcher-command-group"><header><strong>{query.trim() ? 'Matching Commands' : 'Quick Actions'}</strong><span>{visibleLauncherCommands.length}</span></header><div className="launcher-command-grid">{visibleLauncherCommands.map((command) => { const LauncherIcon = command.icon; return <button onClick={() => runLauncherCommand(command.id)} key={command.id}><i><LauncherIcon size={15} /></i><div><strong>{command.label}</strong><small>{command.description}</small></div><span>{workspaceLabel(command.workspace)}</span><ArrowRight size={14} /></button>; })}</div></section>}
                 {query.trim().length < 2 && <div className="global-search-record-hint"><Search size={15} /><div><strong>Find Any Operating Record</strong><span>Type a customer, territory, area, JK number, Krewe member, truck, lead, payment, resale item, or recycling record.</span></div></div>}
-                {globalSearchResults.length > 0 && <div className="global-search-groups">{(['Customers', 'Schedule', 'Krewe', 'Fleet', 'Marketing', 'Finance'] as const).map((group) => { const groupResults = globalSearchResults.filter((result) => result.group === group); if (!groupResults.length) return null; return <section className="global-search-group" key={group}><header><strong>{group}</strong><span>{groupResults.length}</span></header><div>{groupResults.map((result) => <button onClick={() => openGlobalSearchResult(result)} key={result.key}><i>{group.slice(0, 1)}</i><div><strong>{result.title}</strong><span>{result.subtitle}</span><small>{result.context}</small></div><div className="global-search-result-state"><strong>{result.status}</strong><small>{result.source}</small></div><ArrowRight size={15} /></button>)}</div></section>; })}</div>}
+                {globalSearchResults.length > 0 && <div className="global-search-groups">{(['Customers', 'Schedule', 'Krewe', 'Fleet', 'Marketing', 'Finance'] as const).map((group) => { const groupResults = globalSearchResults.filter((result) => result.group === group); if (!groupResults.length) return null; return <section className="global-search-group" key={group}><header><strong>{workspaceLabel(group)}</strong><span>{groupResults.length}</span></header><div>{groupResults.map((result) => <button onClick={() => openGlobalSearchResult(result)} key={result.key}><i>{group.slice(0, 1)}</i><div><strong>{result.title}</strong><span>{result.subtitle}</span><small>{result.context}</small></div><div className="global-search-result-state"><strong>{result.status}</strong><small>{result.source}</small></div><ArrowRight size={15} /></button>)}</div></section>; })}</div>}
               </div> : <div className="global-search-empty"><Search size={22} /><strong>No commands or records found</strong><p>Try a JK number, customer surname, truck, workspace, or action such as payment reconciliation.</p></div>}
               <footer><span><kbd>↵</kbd> Run first match</span><span><kbd>Esc</kbd> Close and clear</span><strong>Actions open the authoritative workspace</strong></footer>
             </section>}
@@ -4283,7 +4284,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               <span className="eyebrow">{live ? operatingDateHeading : activeNav === 'Schedule' && scheduleView === 'calendar'
                 ? selectedCalendarDate.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' })
                 : activeNav === 'Schedule' && scheduleDay === 'tomorrow' ? 'Monday, September 1' : operatingDateHeading}</span>
-              <h1>{activeNav}</h1>
+              <h1>{workspaceLabel(activeNav)}</h1>
               <p>{activeNav === 'Schedule'
                 ? scheduleView === 'estimates' ? 'Turn customer quotes into booked work with ownership and a dated next action.' : scheduleView === 'calendar' ? 'Review appointment volume, territory coverage, and archived operating days.'
                   : live ? 'Truck assignments, appointment windows, and open capacity for the viewing day.' : scheduleDay === 'today' ? 'Live truck assignments, appointment windows, and open capacity.' : 'Build tomorrow’s routes before the operating day begins.'
@@ -4320,7 +4321,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               </div>
             ) : activeNav === 'Schedule' ? (
               <div className="schedule-heading-actions">
-                <div className="schedule-view-switcher workspace-tabs" role="tablist" aria-label="Schedule views">
+                <div className="schedule-view-switcher workspace-tabs" role="tablist" aria-label="Control views">
                   <button className={scheduleView === 'board' ? 'active' : ''} onClick={() => setScheduleView('board')}>Board {(!live || scheduleView !== 'estimates') && <span>{live ? liveScheduleCounts[scheduleDay] : scheduledAppointments.length}</span>}</button>
                   <button className={scheduleView === 'calendar' ? 'active' : ''} onClick={() => setScheduleView('calendar')}>Calendar</button>
                   {live && <button className={scheduleView === 'estimates' ? 'active' : ''} onClick={() => setScheduleView('estimates')}>Estimates</button>}
@@ -4330,7 +4331,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               </div>
             ) : activeNav === 'Krewe' ? (
               <div className="krewe-heading-actions">
-                <div className="krewe-view-switcher workspace-tabs" role="tablist" aria-label="Krewe views">
+                <div className="krewe-view-switcher workspace-tabs" role="tablist" aria-label="Crew views">
                   {([
                     ['today', 'Today'], ['callin', 'Call-in plan'], ['payperiod', 'Pay period'], ['monthly', 'Monthly'],
                   ] as const).map(([key, label]) => <button className={kreweView === key ? 'active' : ''} onClick={() => { setKreweView(key); if (key === 'today') changeScheduleDay('today'); if (key === 'callin') changeScheduleDay('tomorrow'); }} role="tab" aria-selected={kreweView === key} key={key}>{label}{!live && key === 'today' && <span>{live ? '—' : workingKrewe.length}</span>}</button>)}
@@ -4338,19 +4339,19 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               </div>
             ) : activeNav === 'Fleet' ? (
               <div className="fleet-heading-actions">
-                <div className="fleet-view-switcher workspace-tabs" role="tablist" aria-label="Fleet views">
+                <div className="fleet-view-switcher workspace-tabs" role="tablist" aria-label="Convoy views">
                   {([['overview', 'Overview'], ['scores', 'Driving Scores'], ['maintenance', 'Maintenance'], ['service', 'Service'], ['reports', 'Reports']] as const).map(([key, label]) => <button className={fleetView === key ? 'active' : ''} onClick={() => setFleetView(key)} role="tab" aria-selected={fleetView === key} key={key}>{label}{!live && key === 'maintenance' && <span>{activeFleetIssues.length}</span>}</button>)}
                 </div>
               </div>
             ) : activeNav === 'Marketing' ? (
               <div className="marketing-heading-actions">
-                <div className="marketing-view-switcher workspace-tabs" role="tablist" aria-label="Marketing views">
+                <div className="marketing-view-switcher workspace-tabs" role="tablist" aria-label="Campaign views">
                   {([['overview', 'Overview'], ['leads', 'Lead Recovery'], ['reviews', 'Reviews'], ['performance', 'Performance']] as const).map(([key, label]) => <button className={marketingView === key ? 'active' : ''} onClick={() => { setMarketingView(key); setActionFeedback(''); }} role="tab" aria-selected={marketingView === key} key={key}>{label}{!live && key === 'leads' && marketingRecoveryLeads.length > 0 && <span>{marketingRecoveryLeads.length}</span>}{!live && key === 'reviews' && marketingReviewCount > 0 && <span>{marketingReviewCount}</span>}</button>)}
                 </div>
               </div>
             ) : activeNav === 'Finance' ? (
               <div className="finance-heading-actions">
-                <div className="finance-view-switcher workspace-tabs" role="tablist" aria-label="Finance views">
+                <div className="finance-view-switcher workspace-tabs" role="tablist" aria-label="Capital views">
                   {([['overview', 'Overview'], ['payments', 'Payments'], ['resale', 'Resale'], ['recycling', 'Recycling'], ['trends', 'Trends']] as const).map(([key, label]) => <button className={financeView === key ? 'active' : ''} onClick={() => { setFinanceView(key); setActionFeedback(''); }} role="tab" aria-selected={financeView === key} key={key}>{label}{!live && key === 'overview' && financeCloseSteps.length < 6 && <span>{6 - financeCloseSteps.length}</span>}{!live && key === 'payments' && financeDifference > 0 && <span>{financePayments.filter((payment) => payment.status !== 'Matched').length}</span>}{key === 'resale' && financeResaleAttention > 0 && <span>{financeResaleAttention}</span>}{key === 'recycling' && financeRecyclingAttention > 0 && <span>{financeRecyclingAttention}</span>}</button>)}
                 </div>
               </div>
@@ -4703,7 +4704,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           {live && activeNav === 'Command' && view === 'today' && <LivePhotoReview canReview={canFinance} />}
           {live && activeNav === 'Command' && view === 'monitor' && <MaintenanceMonitor />}
           {live && activeNav === 'Command' && view !== 'now' && <LiveControl date={live.snapshot.date} view={view} report={setActionFeedback} onNavigate={setActiveNav} onBusyChange={onBusyChange} />}
-          <WorkspaceBoundary key={activeNav}><Suspense fallback={<div className="workspace-loading" role="status">Loading {activeNav}…</div>}>
+          <WorkspaceBoundary key={activeNav}><Suspense fallback={<div className="workspace-loading" role="status">Loading {workspaceLabel(activeNav)}…</div>}>
           {live && activeNav === 'Krewe' && <LiveKrewe date={live.snapshot.date} view={kreweView} onViewChange={setKreweView} onBusyChange={onBusyChange} />}
           {live && activeNav === 'Fleet' && <LiveFleet date={live.snapshot.date} view={fleetView} onViewChange={setFleetView} onBusyChange={onBusyChange} />}
           {live && activeNav === 'Marketing' && <LiveMarketing date={live.snapshot.date} view={marketingView} onViewChange={setMarketingView} onBusyChange={onBusyChange} />}
@@ -5504,7 +5505,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </section>
           )}
 
-          <footer className="command-footer"><span><ShieldCheck size={15} /> {live ? `${activeNav} · Source timestamps and unavailable inputs are shown in each view` : activeNav === 'Schedule' ? 'JunkWare schedule and LinxUp locations connected' : activeNav === 'Krewe' ? 'JunkWare attendance and schedule assignments connected' : activeNav === 'Fleet' ? 'LinxUp telemetry, Fleet maintenance, and Schedule assignments connected' : activeNav === 'Marketing' ? 'SearchKings calls, JunkWare appointments, and Podium reviews connected' : activeNav === 'Finance' ? 'Truck Records, JunkWare closeouts, and QBO reconciliation connected' : live ? 'Source-backed Command · Live integration preview' : 'JunkWare, LinxUp, QBO, and SearchKings connected'}</span><button onClick={openSourceHealth}>View Source Health {sourceAttentionCount > 0 && <b>{sourceAttentionCount}</b>}<ArrowRight size={14} /></button></footer>
+          <footer className="command-footer"><span><ShieldCheck size={15} /> {live ? `${workspaceLabel(activeNav)} · Source timestamps and unavailable inputs are shown in each view` : activeNav === 'Schedule' ? 'JunkWare schedule and LinxUp locations connected' : activeNav === 'Krewe' ? 'JunkWare attendance and schedule assignments connected' : activeNav === 'Fleet' ? 'LinxUp telemetry, Fleet maintenance, and Schedule assignments connected' : activeNav === 'Marketing' ? 'SearchKings calls, JunkWare appointments, and Podium reviews connected' : activeNav === 'Finance' ? 'Truck Records, JunkWare closeouts, and QBO reconciliation connected' : live ? 'Source-backed Command · Live integration preview' : 'JunkWare, LinxUp, QBO, and SearchKings connected'}</span><button onClick={openSourceHealth}>View Source Health {sourceAttentionCount > 0 && <b>{sourceAttentionCount}</b>}<ArrowRight size={14} /></button></footer>
         </div>
       </section>
       {sourceHealthOpen && (

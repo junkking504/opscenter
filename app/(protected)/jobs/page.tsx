@@ -3314,7 +3314,7 @@ export default async function JobsPage({
   return (
     <div className={`ops-dashboard ops-jobs-page${isDispatchWorkspace ? " is-dispatch" : ""}`}>
       <PageHeader
-        title={isOpenEstimatesWorkspace ? "Estimates" : isClosedEstimatesWorkspace ? "Closed estimates" : isUnclosedWorkspace ? "Unclosed jobs" : "Schedule"}
+        title={isOpenEstimatesWorkspace ? "Estimates" : isClosedEstimatesWorkspace ? "Closed estimates" : isUnclosedWorkspace ? "Unclosed jobs" : "Control"}
         subtitle={isFollowupWorkspace
           ? isOpenEstimatesWorkspace
             ? `${closedEstimateJobs.length} closed · ${openEstimateJobs.length} open · customer contact, pricing, notes, and photos in one place.`

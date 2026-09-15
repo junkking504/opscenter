@@ -240,7 +240,7 @@ function renderMaintenancePage({
   return (
     <div className="ops-dashboard ops-maintenance-page">
       <PageHeader
-        title="Fleet Maintenance"
+        title="Convoy Maintenance"
         subtitle="Service history, repair costs, and upcoming maintenance for every truck"
         date={date}
         showDateSelector={false}
@@ -335,7 +335,7 @@ function renderJulySummaryPage({
   return (
     <div className="ops-dashboard ops-fleet-monthly-dashboard">
       <PageHeader
-        title="Fleet"
+        title="Convoy"
         subtitle={`Monthly summary for ${monthKey} · Data through ${latestAvailableDate || "Unavailable"} with drill-down to daily Fleet views.`}
         date={latestAvailableDate || "2026-07-01"}
         showDateSelector={false}
@@ -817,7 +817,7 @@ export default async function FleetPage({
   return (
     <div className="ops-dashboard">
       <PageHeader
-        title="Fleet"
+        title="Convoy"
         subtitle="Truck-level revenue, jobs, average job size, and expenses"
         date={date}
         lastUpdated={metrics?.generated_at}

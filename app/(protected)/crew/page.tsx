@@ -1095,7 +1095,7 @@ function renderMonthlyCrewPage({
   return (
     <div className="ops-dashboard ops-crew-dashboard">
       <PageHeader
-        title="Krewe"
+        title="Crew"
         subtitle={`Monthly summary for ${month.monthDisplay} · ${month.warningLabel} · Data through ${month.dataThroughLabel}`}
         date={date}
         showDateSelector={false}
@@ -1654,7 +1654,7 @@ export default async function CrewPage({
     <div className="ops-dashboard ops-crew-dashboard">
       {isCurrentDay ? <CrewDataRefresh enabled /> : null}
       <PageHeader
-        title="Krewe"
+        title="Crew"
         subtitle={canViewPayroll
           ? "Individual revenue, assignment clarity, hourly pay, tips, bonuses, and total earnings"
           : "Daily assignments, production, attendance, and driving details"}

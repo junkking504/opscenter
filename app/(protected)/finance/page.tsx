@@ -217,7 +217,7 @@ function renderMonthlyFinancePage(date: string, metrics: AnyRecord | null, reque
   return (
     <div className="ops-dashboard ops-finance-page">
       <PageHeader
-        title="Finance"
+        title="Capital"
         subtitle={`Monthly summary for ${range.monthDisplay} · ${range.warningLabel} · Data through ${range.dataThroughLabel}`}
         date={date}
         showDateSelector={false}
@@ -613,7 +613,7 @@ async function renderFinancePageForRole({
     <div className="ops-dashboard ops-finance-page">
       <CrewDataRefresh enabled={isLivePaymentWindow} />
       <PageHeader
-        title="Finance"
+        title="Capital"
         subtitle="Daily close from Truck Records, JunkWare payments, and QuickBooks Online"
         date={date}
         lastUpdated={metrics?.generated_at}

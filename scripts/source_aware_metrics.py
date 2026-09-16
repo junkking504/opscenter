@@ -48,6 +48,14 @@ def completed_total(rows):
                 and 'estimate' not in str(row.get('appointment_type', '')).lower()), Decimal(0))
 
 
+def employee_key(value):
+    name = ' '.join(str(value or '').split())
+    if ',' in name:
+        last, first = (part.strip() for part in name.split(',', 1))
+        name = first if first.casefold() == last.casefold() else f'{first} {last}'
+    return ' '.join(name.split()).casefold()
+
+
 class SourcePublication:
     def __init__(self, root, date, now=None):
         self.root, self.date = Path(root), date
@@ -86,10 +94,12 @@ class SourcePublication:
         self.add('junkware_employees', base / f'junkware_employees_{date}_summary.csv', captured, 'junkware')
         self.add('junkware_truck_records', base / f'junkware_truck_records_{date}.csv', captured, 'junkware')
         rates = base / f'junkware_employee_rates_{date}.csv'
+        self.rate_path, self.rate_rows = rates, []
         rate_stamps = []
         if rates.exists():
             with rates.open(newline='', encoding='utf-8-sig') as handle:
-                rate_stamps = [timestamp(row.get('collected_at')) for row in csv.DictReader(handle)]
+                self.rate_rows = list(csv.DictReader(handle))
+                rate_stamps = [timestamp(row.get('collected_at')) for row in self.rate_rows]
         rate_stamp = min(rate_stamps) if rate_stamps and all(rate_stamps) else None
         self.add('junkware_rates', rates, rate_stamp, 'junkware_timesheets', require_stamp=True)
         linxup = self.root / 'data/history/linxup'
@@ -170,6 +180,43 @@ class SourcePublication:
                 'dependencies': dependencies,
                 **({'reason': 'One or more required inputs are unavailable or stale'} if status != 'current' else {})}
 
+    def scope_payroll_rates(self, records):
+        """Only rates used by the published payroll can block its freshness."""
+        hourly = [row for row in records if not row.get('is_salary')]
+        if not hourly:
+            self.sources['junkware_rates'] = {
+                'status': 'current', 'as_of': self.employee_as_of,
+                'reason': 'No hourly rates required by this payroll'}
+            return
+        used, invalid = [], False
+        for record in hourly:
+            key = employee_key(record.get('name'))
+            matches = [row for row in self.rate_rows if key and key == employee_key(
+                row.get('normalized_name') or row.get('employee_name') or row.get('name'))]
+            if not matches:
+                self.sources['junkware_rates'] = {
+                    'status': 'missing', 'as_of': None,
+                    'reason': 'A payroll employee has no dated rate evidence'}
+                return
+            used.extend(matches)
+            try:
+                invalid |= (record.get('hourly_rate_source') != 'verified_current'
+                            or any(row.get('status') != 'verified_current'
+                                   or money(row.get('hourly_rate')) <= 0
+                                   or money(row.get('hourly_rate')) != money(record.get('hourly_rate'))
+                                   for row in matches))
+            except ValueError:
+                invalid = True
+        stamps = [timestamp(row.get('collected_at')) for row in used]
+        # Check every used timestamp, including a future timestamp hidden by min().
+        invalid |= any(stamp and stamp > self.now for stamp in stamps)
+        self.add('junkware_rates', self.rate_path,
+                 min(stamps) if stamps and all(stamps) else None,
+                 'junkware_timesheets', require_stamp=True)
+        if invalid:
+            self.sources['junkware_rates']['status'] = 'stale'
+            self.sources['junkware_rates']['reason'] = 'A payroll rate is not verified current or does not match its evidence'
+
     def apply(self, metrics):
         # A concurrent collector must not mix two source generations.
         for path, digest in self.fingerprints.items():
@@ -185,13 +232,11 @@ class SourcePublication:
             self.add('junkware_employees', actual_path, self.json_stamp(actual_path), 'junkware', require_stamp=True)
             self.sources['junkware_employees']['status'] = 'stale'
             self.sources['junkware_employees']['reason'] = 'Processor used a legacy employee fallback'
-        if metrics.get('inputs', {}).get('missing_hourly_rates'):
+        if isinstance(metrics.get('payroll_records'), list):
+            self.scope_payroll_rates(metrics['payroll_records'])
+        elif metrics.get('inputs', {}).get('missing_hourly_rates'):
             self.sources['junkware_rates']['status'] = 'stale'
             self.sources['junkware_rates']['reason'] = 'One or more employee rates are missing'
-        # Prior/fallback rates can be useful estimates; they are never current payroll.
-        if any(row.get('hourly_rate_source') not in ('verified_current', 'salary')
-               for row in metrics.get('payroll_records', []) if not row.get('is_salary')):
-            self.sources['junkware_rates']['status'] = 'stale'
         dependencies = {
             'revenue': ['junkware_completed'],
             'payroll': ['junkware_completed', 'junkware_employees', 'junkware_rates'],
@@ -206,4 +251,19 @@ class SourcePublication:
                                      'metrics': {key: self.group(value) for key, value in dependencies.items()}}
         metrics['generated_at'] = self.now.isoformat()
         metrics['payroll_as_of'] = self.group(dependencies['payroll'])['as_of']
+        # These fields were built before the processor knew its final payroll
+        # roster. Keep their cutoff consistent with the scoped source contract.
+        def update_cutoffs(value):
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    if key == 'payroll_as_of':
+                        value[key] = metrics['payroll_as_of']
+                    else:
+                        update_cutoffs(child)
+            elif isinstance(value, list):
+                for child in value:
+                    update_cutoffs(child)
+        update_cutoffs(metrics)
+        if str(metrics.get('provisional_reason', '')).startswith('Day in progress; payroll counted through '):
+            metrics['provisional_reason'] = f"Day in progress; payroll counted through {metrics['payroll_as_of']}"
         return metrics

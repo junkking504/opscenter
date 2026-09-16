@@ -126,6 +126,65 @@ class PublicationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'changed during'):
             publication.apply({'total_revenue': 4262.98})
 
+    def payroll_fixture(self, active_stamp=None, active_status='verified_current', active_rate='20'):
+        stamp = active_stamp if active_stamp is not None else (datetime.now(timezone.utc) - timedelta(seconds=2)).isoformat()
+        path = self.root / f'data/history/junkware/junkware_employee_rates_{self.date}.csv'
+        with path.open('w', newline='') as handle:
+            writer = csv.writer(handle)
+            writer.writerow(['employee_name', 'hourly_rate', 'collected_at', 'status'])
+            writer.writerow(['Person, Test', active_rate, stamp, active_status])
+            writer.writerow(['Unused Person', '15', '', 'fallback_prior'])
+            writer.writerow(['Old Person', '17', '2020-01-01T00:00:00Z', 'fallback_prior'])
+        return {'total_revenue': 4262.98, 'inputs': {'missing_hourly_rates': ['Unused Person']},
+                'payroll_records': [{'name': 'Test Person', 'hourly_rate': 20,
+                                     'hourly_rate_source': 'verified_current', 'payroll_as_of': None},
+                                    {'name': 'Salary Person', 'is_salary': True}],
+                'employee_leaderboard': [{'name': 'Test Person', 'payroll_as_of': None}],
+                'provisional_reason': 'Day in progress; payroll counted through None'}
+
+    def test_scoped_payroll_uses_actual_rate_evidence_and_updates_cutoffs(self):
+        metrics = self.payroll_fixture()
+        result = SourcePublication(self.root, self.date).apply(metrics)
+        evidence = result['source_freshness']
+        self.assertEqual(evidence['metrics']['payroll']['status'], 'current')
+        self.assertEqual(evidence['metrics']['net']['status'], 'current')
+        self.assertIsNotNone(result['payroll_as_of'])
+        self.assertEqual(result['payroll_records'][0]['payroll_as_of'], result['payroll_as_of'])
+        self.assertEqual(result['employee_leaderboard'][0]['payroll_as_of'], result['payroll_as_of'])
+        self.assertNotIn('None', result['provisional_reason'])
+
+    def test_required_bad_rate_evidence_still_blocks_payroll(self):
+        for changes in [dict(active_stamp=''), dict(active_stamp='2020-01-01T00:00:00Z'),
+                        dict(active_status='fallback_prior'), dict(active_rate='19'),
+                        dict(active_stamp=(datetime.now(timezone.utc) + timedelta(hours=1)).isoformat())]:
+            with self.subTest(changes=changes):
+                metrics = self.payroll_fixture(**changes)
+                result = SourcePublication(self.root, self.date).apply(metrics)
+                self.assertNotEqual(result['source_freshness']['metrics']['payroll']['status'], 'current')
+                self.assertEqual(result['source_freshness']['metrics']['revenue']['status'], 'current')
+
+    def test_missing_required_employee_or_fallback_rate_blocks_payroll(self):
+        for changes in [{'name': 'Missing Person'}, {'hourly_rate_source': 'verified_prior'}]:
+            metrics = self.payroll_fixture()
+            metrics['payroll_records'][0].update(changes)
+            result = SourcePublication(self.root, self.date).apply(metrics)
+            self.assertNotEqual(result['source_freshness']['metrics']['payroll']['status'], 'current')
+
+    def test_rate_collector_failure_and_concurrent_change_still_block(self):
+        metrics = self.payroll_fixture()
+        atomic_json(self.root / 'data/health/collector_failures.json', {'conditions': [{'id': 'junkware_timesheets'}]})
+        result = SourcePublication(self.root, self.date).apply(metrics)
+        self.assertEqual(result['source_freshness']['metrics']['payroll']['status'], 'stale')
+        publication = SourcePublication(self.root, self.date)
+        self.payroll_fixture(active_rate='21')
+        with self.assertRaisesRegex(ValueError, 'changed during'):
+            publication.apply(metrics)
+
+    def test_salary_only_or_empty_payroll_needs_no_hourly_rate(self):
+        for records in [[], [{'name': 'Salary Person', 'is_salary': True}]]:
+            result = SourcePublication(self.root, self.date).apply({'total_revenue': 4262.98, 'payroll_records': records})
+            self.assertEqual(result['source_freshness']['metrics']['payroll']['status'], 'current')
+
     @unittest.skipUnless(ARGS.opsbot_root, 'Pass --opsbot-root to exercise live runner source with mocked collectors')
     def test_actual_runner_gps_and_junkware_failure_boundaries(self):
         scripts = self.root / 'scripts'

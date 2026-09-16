@@ -42,8 +42,13 @@ them after publication. Historical records do not expire just through wall-clock
 aging, but explicit source failures and missing inputs remain visible.
 
 JunkWare source time is the minimum of its verified raw `scraped_at` and the
-particular CSV's existing file time. Rate time comes from the rate rows, including
-retained older rows. LinxUp uses its source capture timestamp. Unknown rate/GPS
+particular CSV's existing file time. Payroll rate time comes only from the rate
+rows required by the final hourly payroll roster. An unused former employee's
+retained rate cannot block today's payroll. Every required rate must match its
+dated employee evidence, amount, verified-current status and valid timestamp;
+missing, fallback, old or future evidence still blocks current payroll. Salary
+and empty payrolls require no hourly rates. Per-record payroll cutoffs are updated
+to the same final source timestamp. LinxUp uses its source capture timestamp. Unknown rate/GPS
 capture times are never replaced by publication time. QBO's existing summary
 file time is a local source-file observation, not a processor refresh claim.
 

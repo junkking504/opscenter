@@ -20,3 +20,14 @@ verification and accounting income remain separate.
 
 Design reference: Mobbin QuickBooks business overview and Monarch cash-flow
 hierarchy. Figma's tools were unavailable in this session; no Figma file was created.
+
+All seven Capital views share the same green summary cards, page hierarchy,
+source panels and responsive controls. Payments adds tender/verification filters
+and job/customer/reference search. Resale adds status filters and inventory
+cards. Payment rows become labeled cards on phones. Accounting, recycling and
+trends retain their period/source selectors and detailed evidence disclosures.
+The selected-day operational summary is a collapsed panel below specialist views.
+
+The local `desktop-ui/tests/capital-hub.html` fixture uses synthetic records for
+all-tab visual review, payment and resale filters, source switching and mobile
+layouts. It replaces fetch locally and never contacts a financial provider.

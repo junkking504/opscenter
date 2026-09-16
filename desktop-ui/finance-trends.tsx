@@ -1,5 +1,6 @@
 'use client';
 
+import { CapitalPageHeader } from './capital-ui';
 import { useRef, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { FinanceData } from './lib/commercial-contract';
@@ -42,8 +43,8 @@ export default function FinanceTrends({ data }: { data: FinanceData }) {
   const currentMonth = key === data.date.slice(0, 7);
   const monthTitle = view.month?.reportingComplete || view.month?.complete ? 'Full month' : currentMonth ? 'Month to date' : 'Available history';
   const selectMonth = (month: string) => setSelection({ date: data.date, month });
-  return <section ref={section} className="finance-performance" aria-label="Finance Trends">
-    <header className="finance-performance-heading"><div><span className="section-kicker">Finance Trends</span><h2>Business performance</h2><p>Revenue, job volume and the changes behind them.</p></div></header>
+  return <section ref={section} className="finance-performance capital-page" aria-label="Finance Trends">
+    <CapitalPageHeader eyebrow="PERFORMANCE & TRENDS" title="Understand what drives growth" description="Compare revenue, job volume and profitability across reporting periods."/>
     <div className="finance-performance-controls">
       <label>Period<select value={scope} onChange={event => setScope(event.target.value as PerformanceScope)}><option value="month">{monthTitle}</option><option value="ytd">Year to date</option></select></label>
       <label>{scope === 'ytd' ? 'Through month' : 'Month'}<select value={key} onChange={event => selectMonth(event.target.value)}>{!view.month && <option value={key}>{monthLabel(key)} · no history</option>}{ordered.map(month => <option key={month.monthKey} value={month.monthKey}>{month.monthDisplay}</option>)}</select></label>
@@ -65,7 +66,7 @@ export default function FinanceTrends({ data }: { data: FinanceData }) {
       <div className="finance-performance-chart" role="img" aria-label={`${metrics.find(m => m.key === chartMetric)?.label} by full calendar month, ${year} and ${year - 1}. Exact amounts are in monthly history.`}>
         <ResponsiveContainer width="100%" height="100%"><BarChart data={chart} margin={{ top: 12, right: 4, bottom: 0, left: 0 }} accessibilityLayer>
           <CartesianGrid vertical={false} stroke="var(--border)" /><XAxis dataKey="month" tickLine={false} axisLine={false} minTickGap={15} /><YAxis width={62} tickLine={false} axisLine={false} tickFormatter={value => chartMetric === 'jobs' ? String(value) : Math.abs(value) >= 1000 ? `$${value / 1000}k` : `$${value}`} /><Tooltip formatter={value => format(chartMetric, typeof value === 'number' ? value : null)} contentStyle={{ background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', borderRadius: 8 }} />
-          <Bar name={String(year)} dataKey="current" fill="#3476a8" radius={[3, 3, 0, 0]} isAnimationActive={false} /><Bar name={String(year - 1)} dataKey="prior" fill="#9daebc" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+          <Bar name={String(year)} dataKey="current" fill="#477661" radius={[3, 3, 0, 0]} isAnimationActive={false} /><Bar name={String(year - 1)} dataKey="prior" fill="#b3c8b8" radius={[3, 3, 0, 0]} isAnimationActive={false} />
         </BarChart></ResponsiveContainer>
       </div>
     </section>

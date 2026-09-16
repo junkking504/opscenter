@@ -14,20 +14,38 @@ Call recordings are not copied into OpsCenter. The snapshot contains call metada
 
 ## Desktop lead navigation
 
-Campaign's Lead Recovery view shows counted queues for recovery, lost,
-follow-up, booked/recovered, and all calls. Search covers names, formatted or
-unformatted phone numbers, call summaries, notes, territory, source, reasons,
-and matched JK numbers. Territory and recorded-contact filters combine with
-the selected queue. Queue totals describe the loaded month, while the result
-count reflects all active filters.
+Campaign opens to **Follow up**, a searchable queue beside the selected
+customer's conversation. The old `overview` and `leads` URL values both open
+this view; `reviews` and `performance` retain their existing URL values with
+visible labels **Reviews** and **Results**.
 
-The list starts with the newest calls and ten records per page. Operators can
-choose oldest calls, lost leads first, or highest quoted value, and display
-10, 25, or 50 records. Filters reset pagination; live data updates clamp the
-current page if its records disappear. Source and appointment links open a
-new tab so the working list stays in place. Outcome updates retain the existing
-review drawer and write-through receipt flow. These controls only browse the
-existing snapshot and add no provider requests.
+Search covers names, phone numbers, summaries, notes, territory, source,
+reasons, and matched JK numbers. Territory and recorded-contact filters combine
+with outcome queues. The queue starts with the newest unmatched/follow-up calls,
+eight records per page. Operators can also sort oldest first or by quoted value.
+Counts describe the loaded month. Filters reset pagination and live updates
+clamp it. Age-based internal `lost` records display **No booking matched**;
+only an explicit `customer_declined` reason displays **Customer declined**.
+Missing quotes display **Not recorded**, never zero.
+
+The conversation panel offers call/source links, booking context, and an inline
+outcome form. A review dialog shows the outcome, contact flag, reason and note
+before saving. Drafts pause background refresh and navigation. Verified receipts
+clear the draft and reload the data; uncertain saves block another write and
+expose **Check saved result** using the original receipt, without replaying it.
+A definite preflight rejection permits editing. Matched JunkWare booking state
+is preserved. On narrow screens the queue and selected conversation are separate
+views with a back button that preserves filters.
+
+**Results** shows completed revenue, the call-to-completion stages and a territory
+comparison. Revenue uses completed JunkWare appointments; ad-spend return is not
+profit. These controls use the existing snapshot and 30-second screen refresh;
+there are no new provider requests or subscriptions.
+
+Synthetic interaction fixture: run `npx vite --config tests/campaign.vite.config.ts`
+from `desktop-ui`, then open `/tests/campaign.html`. The fixture intercepts its
+API calls in memory and includes an uncertain-save/read-back scenario; it must
+never use production records for save tests.
 
 ## Collector setup
 

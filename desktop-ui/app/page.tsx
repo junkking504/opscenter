@@ -34,6 +34,7 @@ const { Component: LiveFleet, preload: loadLiveFleet } = preloadableWorkspace(()
 const { Component: LiveMarketing, preload: loadLiveMarketing } = preloadableWorkspace<LiveMarketingProps>(() => import('../live-marketing').then(module => ({ default: module.LiveMarketing })));
 const { Component: LiveFinance, preload: loadLiveFinance } = preloadableWorkspace<LiveFinanceProps>(() => import('../live-finance').then(module => ({ default: module.LiveFinance })));
 import LiveSearch from '../live-search';
+import SecondBrain from '../second-brain';
 import { desktopAlertHref, desktopAppointmentHref } from '../lib/desktop-links';
 import LiveSchedule, { dateForDay } from '../live-schedule';
 import CommandMap from '../command-map';
@@ -1184,7 +1185,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         : activeNav === 'Fleet'
           ? `Fleet · ${fleetView === 'scores' ? 'Driving Scores' : fleetView === 'overview' ? 'Overview' : fleetView === 'maintenance' ? 'Maintenance' : fleetView === 'service' ? 'Service' : 'Reports'}`
           : activeNav === 'Marketing'
-            ? `Marketing · ${marketingView === 'overview' ? 'Overview' : marketingView === 'leads' ? 'Leads' : marketingView === 'reviews' ? 'Reviews' : 'Performance'}`
+            ? `Campaign · ${marketingView === 'reviews' ? 'Reviews' : marketingView === 'performance' ? 'Results' : 'Follow up'}`
             : `Finance · ${financeView === 'overview' ? 'Overview' : financeView === 'payments' ? 'Payments' : financeView === 'resale' ? 'Resale' : financeView === 'recycling' ? 'Recycling' : financeView === 'accounting' ? 'Accounting' : financeView === 'expenses' ? 'Expenses' : 'Trends'}`;
   const currentRecordLabel = drawer
     ? drawer.customerId ? `Customer · ${drawer.title}`
@@ -4237,6 +4238,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           </div>
           }
           <div className="topbar-actions">
+            {live && <SecondBrain workspace={activeNav} disabled={mutationBusy} navigate={setActiveNav} />}
             <div className="notification-center">
               {notificationOpen && <button className="notification-backdrop" aria-label="Close alerts" onClick={() => setNotificationOpen(false)} />}
               <Button className="notification-trigger" variant="outline" size="lg" aria-label={live && !live.snapshot.sources.alerts ? 'Alert count unavailable' : `${activeAlerts.length} alerts need attention`} aria-expanded={notificationOpen} aria-controls="notification-panel" onClick={() => { setNotificationOpen((open) => !open); setSearchOpen(false); setOperatingDayOpen(false); setQuery(''); }}><Bell size={16} />{activeAlerts.length > 0 && <><span className="notification-dot" /><b>{activeAlerts.length}</b></>}</Button>
@@ -4298,11 +4300,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   : fleetView === 'maintenance' ? 'Daily inspections and repair work orders with accountable ownership.'
                     : fleetView === 'service' ? 'Mileage and date-based preventive-service planning by truck.'
                       : 'Monthly production, driving, downtime, and fleet cost signals.'
-                : activeNav === 'Marketing' ? marketingView === 'overview'
-                  ? 'Lead recovery, review attribution, booking performance, and immediate marketing actions.'
-                  : marketingView === 'leads' ? 'Recover SearchKings leads with contact context, quoted value, and outcome controls.'
-                    : marketingView === 'reviews' ? 'Confirm or reassign each review to a completed JunkWare appointment.'
-                      : 'Compare calls, qualified demand, bookings, completed jobs, revenue, and acquisition cost.'
+                : activeNav === 'Marketing' ? 'Turn interest into booked work. Give great service its credit.'
                 : activeNav === 'Finance' ? financeView === 'overview'
                   ? 'Performance, payments and financial decisions. All in one place.'
                   : financeView === 'accounting' ? 'QuickBooks books, accountant statements and source-backed financial reports.'
@@ -4348,7 +4346,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             ) : activeNav === 'Marketing' ? (
               <div className="marketing-heading-actions">
                 <div className="marketing-view-switcher workspace-tabs" role="tablist" aria-label="Campaign views">
-                  {([['overview', 'Overview'], ['leads', 'Lead Recovery'], ['reviews', 'Reviews'], ['performance', 'Performance']] as const).map(([key, label]) => <button className={marketingView === key ? 'active' : ''} onClick={() => { setMarketingView(key); setActionFeedback(''); }} role="tab" aria-selected={marketingView === key} key={key}>{label}{!live && key === 'leads' && marketingRecoveryLeads.length > 0 && <span>{marketingRecoveryLeads.length}</span>}{!live && key === 'reviews' && marketingReviewCount > 0 && <span>{marketingReviewCount}</span>}</button>)}
+                  {(live ? [['overview', 'Follow up'], ['reviews', 'Reviews'], ['performance', 'Results']] as const : [['overview', 'Overview'], ['leads', 'Lead Recovery'], ['reviews', 'Reviews'], ['performance', 'Performance']] as const).map(([key, label]) => <button className={(marketingView === key || Boolean(live && key === 'overview' && marketingView === 'leads')) ? 'active' : ''} onClick={() => { setMarketingView(key); setActionFeedback(''); }} role="tab" aria-selected={marketingView === key || Boolean(live && key === 'overview' && marketingView === 'leads')} key={key}>{label}{!live && key === 'leads' && marketingRecoveryLeads.length > 0 && <span>{marketingRecoveryLeads.length}</span>}{!live && key === 'reviews' && marketingReviewCount > 0 && <span>{marketingReviewCount}</span>}</button>)}
                 </div>
               </div>
             ) : activeNav === 'Finance' ? (

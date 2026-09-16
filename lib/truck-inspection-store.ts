@@ -6,7 +6,7 @@ import { JUNKWARE_DISPATCH_TRUCKS } from "./junkware-trucks";
 
 export const INSPECTION_DEVICE_COOKIE = "ops_truck_inspection";
 const hash = (v: string) => createHash("sha256").update(v).digest("hex");
-const root = () => process.env.OPS_TRUCK_INSPECTION_DIR || path.join(process.cwd(), "data", "fleet", "truck-inspections");
+const root = () => process.env.OPS_TRUCK_INSPECTION_DIR || path.join(process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(), "data"), "fleet", "truck-inspections");
 function directory(name: string): string {
   const dir = path.join(root(), name); fs.mkdirSync(dir, { recursive: true, mode: 0o700 }); return dir;
 }
@@ -104,9 +104,15 @@ export function submitTruckInspection(raw: unknown, device: InspectionDevice, no
 }
 export function listTruckInspections(date: string): TruckInspectionReport[] {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new InspectionError("Choose an inspection date.");
-  const dateDirectory = directory(`dates/${date}`);
+  const dateDirectory = path.join(root(), "dates", date);
+  if (!fs.existsSync(dateDirectory)) return [];
   return fs.readdirSync(dateDirectory).filter(f => /^[a-f0-9]{64}\.json$/.test(f)).flatMap(f => {
     const r = read<TruckInspectionReport>(path.join(dateDirectory, f));
     return r?.inspectionDate === date ? [r] : [];
   }).sort((a,b) => b.receivedAt.localeCompare(a.receivedAt));
+}
+export function truckInspectionDates(): string[] {
+  const dates = path.join(root(), "dates");
+  if (!fs.existsSync(dates)) return [];
+  return fs.readdirSync(dates).filter(date => /^\d{4}-\d{2}-\d{2}$/.test(date)).sort();
 }

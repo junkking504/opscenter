@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "verify:inspection-slack": "node --import tsx scripts/test-inspection-slack.ts",
+    "verify:inspection-fleet": "node --import tsx scripts/test-inspection-fleet.ts",
     "verify:truck-inspections": "node --import tsx scripts/test-truck-inspections.ts",
     "verify:truck-inspections:browser": "node --import tsx scripts/test-truck-inspections-browser.ts",
     "build:desktop": "node scripts/build-desktop-ui.mjs",

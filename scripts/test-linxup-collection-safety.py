@@ -205,6 +205,26 @@ class SafetyTests(unittest.TestCase):
         installer.install(self.root, True)
         self.assertEqual(len(list((self.root / 'backups').iterdir())), 1)
 
+    def test_installer_upgrades_previous_reviewed_host_without_changing_behavior(self):
+        runtime = self.root / 'scripts'
+        runtime.mkdir()
+        previous = json.loads((SOURCE / 'previous-installed-sha256.json').read_text())
+        for name, expected in previous.items():
+            current = (Path(collector_sources.name) / name).read_bytes()
+            old = current.replace(b'https://app03.linxup.com/ibis/rest/api/v2',
+                                  b'https://www.awaregps.com/ibis/rest/api/v2')
+            self.assertEqual(installer.digest(old), expected)
+            (runtime / name).write_bytes(old)
+        (runtime / 'linxup_collection_safety.py').write_bytes((SOURCE / 'linxup_collection_safety.py').read_bytes())
+        installer.install(self.root, True)
+        for name in previous:
+            self.assertEqual((runtime / name).read_bytes(), (Path(collector_sources.name) / name).read_bytes())
+        self.assertEqual(daily.BASE_URL, 'https://app03.linxup.com/ibis/rest/api/v2')
+        self.assertEqual(alerts.V2_BASE_URL, daily.BASE_URL)
+        self.assertEqual(history.V2_BASE_URL, daily.BASE_URL)
+        installer.install(self.root, True)
+        self.assertEqual(len(list((self.root / 'backups').iterdir())), 1)
+
     def test_installer_rejects_drift_before_any_write_and_is_idempotent(self):
         spec = importlib.util.spec_from_file_location('installer', SOURCE.parents[1] / 'install-linxup-collection-safety.py')
         installer = importlib.util.module_from_spec(spec)

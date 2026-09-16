@@ -18,7 +18,7 @@ def digest(value):
 
 
 def patched_source(name, old):
-    """Apply only the reviewed delta; endpoint/configuration remain in OpsBot."""
+    """Apply only the reviewed delta; including the account-documented API host."""
     with tempfile.TemporaryDirectory(prefix="linxup-source-check-") as directory:
         staged = Path(directory) / name
         staged.write_bytes(old)
@@ -30,6 +30,7 @@ def patched_source(name, old):
 def install(root, apply=False):
     baseline = json.loads((SOURCE / "baseline-sha256.json").read_text())
     installed = json.loads((SOURCE / "installed-sha256.json").read_text())
+    previous = json.loads((SOURCE / "previous-installed-sha256.json").read_text())
     names = ["linxup_collection_safety.py", *baseline]
     changes = []
     for name in names:
@@ -38,9 +39,12 @@ def install(root, apply=False):
         if name in installed and old is not None and digest(old) == installed[name]:
             continue
         if name in baseline:
-            if old is None or digest(old) != baseline[name]:
+            if old is None or digest(old) not in (baseline[name], previous.get(name)):
                 raise RuntimeError(f"Unreviewed runtime drift: {name}; inspect and reconcile before installing")
-            new = patched_source(name, old)
+            original = (SOURCE.parents[1] / "fixtures" / "linxup" / name).read_bytes()
+            if digest(original) != baseline[name]:
+                raise RuntimeError(f"Reviewed baseline hash mismatch: {name}")
+            new = patched_source(name, original)
             if digest(new) != installed[name]:
                 raise RuntimeError(f"Reviewed patch hash mismatch: {name}")
         else:

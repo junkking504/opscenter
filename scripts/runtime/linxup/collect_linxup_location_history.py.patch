@@ -1,5 +1,8 @@
 --- collect_linxup_location_history.py
 +++ collect_linxup_location_history.py
+@@ -33 +33 @@
+-V2_BASE_URL = "https://www.awaregps.com/ibis/rest/api/v2"
++V2_BASE_URL = "https://app03.linxup.com/ibis/rest/api/v2"
 @@ -38,21 +38 @@
 -def request_json(url: str, token: str, method: str = "GET", body: Any = None) -> Any:
 -    encoded = None if body is None else json.dumps(body).encode("utf-8")

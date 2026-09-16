@@ -1,3 +1,5 @@
+import KnowledgeTroubleshootingPanel from './knowledge-troubleshooting';
+import type { MaintenanceSnapshot } from './lib/maintenance-contract';
 import { useEffect, useRef, useState } from 'react';
 import { BookOpen, Plus, X } from 'lucide-react';
 import { KNOWLEDGE_KINDS, KNOWLEDGE_WORKSPACES, KNOWLEDGE_OUTCOMES, outcomeLabel, knowledgeStatus, searchKnowledge, relatedKnowledge, type KnowledgeAction, type KnowledgeDraft, type KnowledgeEntry, type KnowledgeSnapshot } from './lib/knowledge-contract';
@@ -19,6 +21,9 @@ export default function SecondBrain({ workspace, disabled, navigate }: { workspa
   const [status, setStatus] = useState('all');
   const [outcome, setOutcome] = useState('all');
   const [pageSize, setPageSize] = useState(40);
+  const [troubleshooting, setTroubleshooting] = useState<MaintenanceSnapshot | null>(null);
+  const [troubleError, setTroubleError] = useState('');
+  const [showTroubleshooting, setShowTroubleshooting] = useState(() => new URLSearchParams(window.location.search).get('knowledge') === 'troubleshoot');
   const [selectedId, setSelectedId] = useState<string | null>(() => new URLSearchParams(window.location.search).get('knowledge'));
   const [draft, setDraft] = useState<KnowledgeDraft | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
@@ -38,7 +43,7 @@ export default function SecondBrain({ workspace, disabled, navigate }: { workspa
     if (id) url.searchParams.set('knowledge', id); else url.searchParams.delete('knowledge');
     window.history.replaceState({}, '', url);
   }
-  function select(id: string | null) { setSelectedId(id); setReviewing(false); setVerification(''); setError(''); link(id || '1'); content.current?.scrollTo(0, 0); }
+  function select(id: string | null) { setShowTroubleshooting(false); setSelectedId(id); setReviewing(false); setVerification(''); setError(''); link(id || '1'); content.current?.scrollTo(0, 0); }
   async function load() {
     const response = await fetch('/api/desktop/knowledge', { cache: 'no-store', signal: AbortSignal.timeout(15000) });
     if (!response.ok) throw new Error('Unable to load knowledge. Check your session and try again.');
@@ -56,6 +61,21 @@ export default function SecondBrain({ workspace, disabled, navigate }: { workspa
     }).catch(reason => { if (active) setError(reason.message); });
     return () => { active = false; element?.close(); };
   }, [open]);
+  useEffect(() => {
+    if (!open || !showTroubleshooting || !snapshot?.canManage) return;
+    let active = true;
+    const controller = new AbortController();
+    const refresh = async () => {
+      try {
+        const response = await fetch('/api/desktop/maintenance', { cache: 'no-store', signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]) });
+        if (!response.ok) throw new Error('Observer evidence could not refresh.');
+        const value = await response.json() as MaintenanceSnapshot;
+        if (active) { setTroubleshooting(value); setTroubleError(''); }
+      } catch { if (active) setTroubleError('Observer evidence could not refresh. Previous observations may be stale.'); }
+    };
+    void refresh(); const timer = window.setInterval(() => void refresh(), 30000);
+    return () => { active = false; controller.abort(); window.clearInterval(timer); };
+  }, [open, showTroubleshooting, snapshot?.canManage]);
   function close(force = false) {
     if (locked) return;
     if (!force && (draft || reviewing)) { setDiscard(true); return; }
@@ -118,7 +138,12 @@ export default function SecondBrain({ workspace, disabled, navigate }: { workspa
         {(error || snapshot?.error) && <div className="brain-message" role="alert">{error || snapshot?.error}{!locked && <button onClick={() => { setError(''); void load().catch(reason => setError(reason.message)); }}>Reload library</button>}</div>}
         {notice && <p role="status" className="brain-notice">{notice}</p>}
         {uncertain && <div className="brain-message"><p>The save result needs a read-back. Your draft is preserved.</p><div className="brain-actions"><button disabled={pending} onClick={() => void checkSaved()}>Check saved result</button><button disabled={pending} onClick={() => void submit(uncertain)}>Retry same request</button></div></div>}
-        {draft ? <form className="brain-editor" onSubmit={event => { event.preventDefault(); void submit({ action: 'save', id: editId!, expectedVersion: editVersion, requestId: crypto.randomUUID(), draft }); }}>
+        {showTroubleshooting && !entry && !draft && snapshot?.canManage ? <>
+          <button onClick={() => { setShowTroubleshooting(false); link('1'); }}>← Back to library</button>
+          {troubleError && <p className="brain-message" role="alert">{troubleError}</p>}
+          {!troubleshooting && <p role="status">Reading current observer evidence…</p>}
+          <KnowledgeTroubleshootingPanel snapshot={troubleshooting?.troubleshooting} stale={Boolean(troubleError)} onOpen={id => select(id)} />
+        </> : draft ? <form className="brain-editor" onSubmit={event => { event.preventDefault(); void submit({ action: 'save', id: editId!, expectedVersion: editVersion, requestId: crypto.randomUUID(), draft }); }}>
           <h3>{editVersion ? 'Edit knowledge' : 'Capture knowledge'}</h3><p>Saved notes are shared with managers and administrators. Do not include passwords, tokens, or unnecessary personal details.</p>
           <fieldset disabled={locked || !canWrite}>
             <label>Title<input required maxLength={160} value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} /></label>
@@ -149,6 +174,7 @@ export default function SecondBrain({ workspace, disabled, navigate }: { workspa
           {entry.history.length > 0 && <details className="brain-history"><summary>Revision history ({entry.history.length})</summary><ol>{[...entry.history].reverse().map(row => <li key={row.version}>Revision {row.version} · {row.action} · {date(row.at)} · {row.actor}</li>)}</ol></details>}
         </article> : <>
           {snapshot?.canManage && <div className="brain-learning"><strong>{snapshot.entries.filter(item => item.learning && item.status !== 'archived').length} records learned from available history</strong><p>Search across discussions, issue families, and prevention lessons. Historical outcomes and current verification are tracked separately. Unavailable conversations are not included.</p></div>}
+          {snapshot?.canManage && <button onClick={() => { setSelectedId(null); setShowTroubleshooting(true); link('troubleshoot'); }}>Troubleshoot current issues</button>}
           <div className="brain-toolbar"><label className="brain-search">Search knowledge<input type="search" placeholder="Try closeout, photos, or source…" value={query} maxLength={200} onChange={e => { setQuery(e.target.value); setPageSize(40); }} /></label>{canWrite && <button className="brain-primary" onClick={() => edit()}><Plus size={16} />Capture knowledge</button>}</div>
           <div className="brain-fields brain-filters"><label>Workspace<select value={scope} onChange={e => { setScope(e.target.value); setPageSize(40); }}>{KNOWLEDGE_WORKSPACES.map(value => <option key={value} value={value}>{value === 'All' ? 'All workspaces' : workspaceLabel(value)}</option>)}</select></label><label>Type<select value={kind} onChange={e => { setKind(e.target.value); setPageSize(40); }}><option value="all">All types</option>{KNOWLEDGE_KINDS.map(value => <option key={value} value={value}>{kindLabel[value]}</option>)}</select></label><label>Status<select value={status} onChange={e => { setStatus(e.target.value); setPageSize(40); }}><option value="all">Active entries</option><option value="review">Needs review / review due</option><option value="verified">Verified</option><option value="documented">Documented guides</option><option value="archived">Archived</option></select></label><label>Historical outcome<select value={outcome} onChange={e => { setOutcome(e.target.value); setPageSize(40); }}><option value="all">All outcomes</option>{KNOWLEDGE_OUTCOMES.map(value => <option key={value} value={value}>{outcomeLabel[value]}</option>)}</select></label></div>
           {!snapshot ? <p role="status">{error ? 'Knowledge could not be loaded.' : 'Loading knowledge…'}</p> : <><p className="brain-count" role="status">{rows.length} {rows.length === 1 ? 'entry' : 'entries'}{scope !== 'All' ? ` relevant to ${workspaceLabel(scope)}` : ' across OpsCenter'} · Search includes steps, source references, and owners.</p>

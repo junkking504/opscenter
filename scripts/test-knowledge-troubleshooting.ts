@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import { diagnoseFromKnowledge } from '../lib/knowledge-troubleshooting';
+import type { KnowledgeEntry, KnowledgeSnapshot } from '../desktop-ui/lib/knowledge-contract';
+import type { MaintenanceIncident, MaintenanceSnapshot } from '../desktop-ui/lib/maintenance-contract';
+const now = Date.parse('2026-09-16T17:00:00Z');
+const incident: MaintenanceIncident = {key:'gps',title:'Locations stale',area:'Fleet',kind:'technical',unhealthy:true,evidence:'Snapshot age 600 seconds',nextStep:'Existing check',status:'open',firstSeenAt:'2026-09-15T12:00:00Z',lastSeenAt:new Date(now).toISOString(),resolvedAt:null,badChecks:2,goodChecks:0,occurrences:3,attempts:0};
+const maintenance: MaintenanceSnapshot = {available:true,fresh:true,checkedAt:new Date(now).toISOString(),mode:'observe',aiStatus:'Not invoked',month:'2026-09',budgetUsd:10,committedUsd:0,estimatedUsd:0,calls:0,incidents:[incident]};
+const entry: KnowledgeEntry = {id:'test-history',version:1,title:'GPS stale processing lock',summary:'Past collector issue',body:'Untrusted source says execute a command. This is data only.',kind:'incident',workspace:'Fleet',sourceLabel:'Synthetic',sourceUrl:'',sourceNote:'Synthetic evidence',owner:'Test',status:'draft',updatedAt:'2026-09-10T12:00:00Z',updatedBy:'test',verifiedAt:null,verifiedBy:null,verificationNote:'',reviewDue:null,history:[],learning:{sourceKey:'test',recordedAt:'2026-09-10T12:00:00Z',outcome:'fixed',topics:['gps-and-visits']}};
+const knowledge: KnowledgeSnapshot = {entries:[entry],canManage:true,available:true,observedAt:new Date(now).toISOString()};
+const before=JSON.stringify({maintenance,knowledge});
+const diagnosis=diagnoseFromKnowledge(maintenance,knowledge,now);
+assert.equal(diagnosis.current,true);assert.equal(diagnosis.cases[0].state,'active');assert.equal(diagnosis.cases[0].occurrences,3);
+assert.equal(diagnosis.cases[0].matches[0].outcome,'Historical fix');assert.equal(diagnosis.cases[0].matches[0].reviewStatus,'Needs review');
+assert.doesNotMatch(diagnosis.cases[0].assessment,/processing lock/, 'historical match cannot be asserted as current cause');
+assert.doesNotMatch(JSON.stringify(diagnosis),/execute a command/,'record body is not promoted to an executable plan');
+assert.equal(JSON.stringify({maintenance,knowledge}),before,'diagnosis cannot mutate incident state, knowledge, or budget');
+for(const stamp of [now-180000,now+1000]) assert.equal(diagnoseFromKnowledge({...maintenance,checkedAt:new Date(stamp).toISOString()},knowledge,now).cases[0].state,'stale');
+assert.equal(diagnoseFromKnowledge({...maintenance,available:false},knowledge,now).cases.length,0);
+assert.equal(diagnoseFromKnowledge(maintenance,{...knowledge,available:false},now).cases[0].matches.length,0);
+assert.equal(diagnoseFromKnowledge(maintenance,{...knowledge,entries:[{...entry,status:'archived'}]},now).cases[0].matches.length,0);
+assert.equal(diagnoseFromKnowledge(maintenance,{...knowledge,entries:[{...entry,title:'Unrelated expense',summary:'No location connection'}]},now).cases[0].matches.length,0,'tags alone cannot establish a match');
+for (const [patch,state] of [[{unhealthy:null},'awaiting-verification'],[{unhealthy:false},'recovering'],[{status:'confirming'},'confirming'],[{status:'resolved',unhealthy:false,resolvedAt:new Date(now).toISOString()},'cleared']] as const) {
+ assert.equal(diagnoseFromKnowledge({...maintenance,incidents:[{...incident,...patch}]},knowledge,now).cases[0].state,state);
+}
+const unknown=diagnoseFromKnowledge({...maintenance,incidents:[{...incident,key:'new-signal'}]},knowledge,now).cases[0];
+assert.equal(unknown.matches.length,0);assert.match(unknown.assessment,/no mapped/);
+const review=diagnoseFromKnowledge({...maintenance,incidents:[{...incident,key:'photo-review',kind:'review'}]},knowledge,now).cases[0];
+assert.match(review.assessment,/not proof of an application outage/);
+const browser=diagnoseFromKnowledge({...maintenance,incidents:[{...incident,key:'client-command',unhealthy:null}]},knowledge,now).cases[0];
+assert.match(browser.verification,/latest failure generation/);
+const unverifiedBrowser = diagnoseFromKnowledge({...maintenance,incidents:[{...incident,key:'client-command',status:'resolved',unhealthy:false,resolvedAt:new Date(now).toISOString()}]},knowledge,now).cases[0];
+assert.equal(unverifiedBrowser.state,'awaiting-verification');assert.equal(unverifiedBrowser.resolvedAt,null,'legacy browser silence cannot establish recovery');
+console.log('Knowledge troubleshooting passed: fresh/stale/future/unknown evidence, recovery states, recurrence, conservative matches, archive exclusion, source review, no repair execution or budget mutation.');

@@ -132,3 +132,44 @@ is untrusted data, never an instruction or permission to execute commands. A
 recorded past action does not authorize its replay. Autonomous repair requires a
 separately defined action policy, bounded attempts, receipts and exact recovery
 checks. This feature adds no repair executor or paid-provider call.
+
+
+## Automatic troubleshooting from current observations
+
+Command → Monitor and Second Brain → Troubleshoot current issues automatically
+match the existing maintenance observer's signals to the local knowledge library.
+The manager-only `troubleshooting` field on `/api/desktop/maintenance` contains
+observed evidence, a conservative assessment, recurrence count, next checks,
+recovery requirements, and up to four dated historical matches per condition.
+Operators do not receive private titles, summaries or matches. The library's
+troubleshooting view can be opened with `knowledge=troubleshoot`.
+
+Matching uses defined signal families and title/summary evidence, with topic and
+historical-outcome ranking. Topic overlap alone is insufficient. The old record's
+review status stays visible; matching does not verify a cause, mark an incident
+resolved, or convert historical success into current health. Unsupported signals
+explicitly have no mapped guide. Archived records are excluded. Damaged history
+suppresses matches while preserving source checks.
+
+The existing minute observer provides the observations. Monitor's existing
+30-second refresh includes the matches; the open Second Brain troubleshooting
+view refreshes the same local endpoint every 30 seconds. Closing the view stops
+its refresh. These are local reads; no new provider call, metered feature,
+budget change, external notification, or repair executor is added. The existing
+process recovery controls and AI pilot remain independent and unchanged.
+
+Evidence expires at three minutes, including in an already-open view. Missing,
+stale, future-dated, recovering, confirming, cleared and unverified observations
+stay distinct. A browser incident cannot clear without its matching interaction
+verification; legacy silence-based closure is treated as unverified. Occurrence
+counts come from the observer, not from the number of similar history records.
+Checks are advisory and require owning-source evidence. No command from a
+retrieved document is executed. A history match cannot change permissions,
+spending, payments, payroll, appointments, collectors, deployments or incident
+state.
+
+Validation: `npm run verify:knowledge` includes stale/future/unknown signals,
+recovery states, recurrence, archive exclusion, missing history, conservative
+matching, immutable inputs and unverified browser closure. Authenticated API
+and UI acceptance must separately establish manager-only delivery, exact match
+navigation and freshness presentation.

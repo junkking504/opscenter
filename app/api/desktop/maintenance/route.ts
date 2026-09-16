@@ -1,3 +1,4 @@
+import { knowledgeTroubleshooting } from '@/lib/knowledge-troubleshooting';
 import { continuitySnapshot } from '@/lib/continuity-monitor';
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie, opsAuthRole } from '@/lib/auth';
@@ -11,7 +12,9 @@ async function authorized() { return verifyAuthSessionCookie((await cookies()).g
 export async function GET() {
   const session = await authorized();
   if (!session) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });
-  return Response.json({ ...maintenanceSnapshot(), continuity: continuitySnapshot(), recovery: recoverySnapshot(maintenanceDirectory()), canManageRecovery: opsRoleCan(opsAuthRole(session.email), 'platform.manage') }, { headers });
+  const snapshot = maintenanceSnapshot();
+  const canReadKnowledge = opsRoleCan(opsAuthRole(session.email), 'sensitive.write');
+  return Response.json({ ...snapshot, ...(canReadKnowledge ? { troubleshooting: knowledgeTroubleshooting(snapshot) } : {}), continuity: continuitySnapshot(), recovery: recoverySnapshot(maintenanceDirectory()), canManageRecovery: opsRoleCan(opsAuthRole(session.email), 'platform.manage') }, { headers });
 }
 export async function POST(request: Request) {
   if (!await authorized()) return Response.json({ error: 'Authentication required.' }, { status: 401, headers });

@@ -33,6 +33,7 @@ export type AddressResearchSnapshot = {
   items: Array<AddressResearchItem & { id: string }>;
 };
 export type MaintenanceSnapshot = {
+  troubleshooting?: import('./knowledge-troubleshooting-contract').KnowledgeTroubleshooting;
   available: boolean; fresh: boolean; checkedAt: string | null; mode: 'observe'; aiStatus: string;
   month: string; budgetUsd: number; committedUsd: number; estimatedUsd: number; calls: number;
   incidents: MaintenanceIncident[];

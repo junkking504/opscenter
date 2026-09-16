@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "verify:knowledge": "node --import tsx scripts/test-knowledge.ts && node --import tsx scripts/test-knowledge-import.ts",
+    "verify:knowledge": "node --import tsx scripts/test-knowledge.ts && node --import tsx scripts/test-knowledge-import.ts && node --import tsx scripts/test-knowledge-troubleshooting.ts",
     "verify:inspection-slack": "node --import tsx scripts/test-inspection-slack.ts",
     "verify:inspection-fleet": "node --import tsx scripts/test-inspection-fleet.ts",
     "verify:truck-inspections": "node --import tsx scripts/test-truck-inspections.ts",

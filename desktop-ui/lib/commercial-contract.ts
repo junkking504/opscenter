@@ -1,7 +1,7 @@
 import type { TrendComparison } from '../../lib/finance-trend-comparison';
 /** Browser-safe commercial projections. Source IDs remain distinct from JK references. */
 export type MarketingView = 'overview' | 'leads' | 'reviews' | 'performance';
-export type FinanceView = 'overview' | 'payments' | 'resale' | 'recycling' | 'trends';
+export type FinanceView = 'overview' | 'payments' | 'resale' | 'recycling' | 'trends' | 'accounting' | 'expenses';
 export type CommercialOperation = { requestId: string; date: string; action: 'lead.update' | 'review.assign' | 'resale.save' | 'recycling.save' | 'recycling.receipt.record'; recordId: string; expectedVersion: string; values: Record<string, unknown> };
 export type CommercialReceipt = { requestId: string; recordId: string; action: CommercialOperation['action']; actor: string; fingerprint: string; expectedVersion?: string; input?: Record<string, unknown>; permission?: string; authority?: 'opscenter_authoritative'; status: 'pending' | 'verified' | 'uncertain'; updatedAt: string; message: string };
 export type Lead = { id: string; version: string; customer: string; phone: string; territory: string; intent: string; quotedValue: number | null; status: string; reason: string; note: string; contacted: boolean; calledAt: string; updatedAt: string; source: string; sourceUrl: string; appointmentId: string | null; jk: string | null; completed: boolean; revenue: number | null };

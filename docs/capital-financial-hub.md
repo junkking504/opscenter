@@ -31,3 +31,7 @@ The selected-day operational summary is a collapsed panel below specialist views
 The local `desktop-ui/tests/capital-hub.html` fixture uses synthetic records for
 all-tab visual review, payment and resale filters, source switching and mobile
 layouts. It replaces fetch locally and never contacts a financial provider.
+
+Capital follows the shared OpsCenter density scale: 8px section gaps, 68px
+minimum summary cards, 20px metric values and compact rows. Source labels may
+grow a card when needed, so smaller spacing never clips freshness evidence.

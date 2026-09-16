@@ -34,6 +34,7 @@ without mixing live runtime data or secrets into Git.
 - [JunkWare write-through](junkware-write-through.md)
 - [Payment reconciliation](payment-reconciliation.md)
 - [Metal recycling revenue](recycling-revenue.md)
+- [Capital financial hub](capital-financial-hub.md)
 - [Accounting financial statements](financial-statements.md)
 - [QuickBooks/Intuit production setup](qbo-intuit-production-setup.md)
 - [SearchKings integration](searchkings-integration.md)

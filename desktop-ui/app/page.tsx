@@ -228,7 +228,7 @@ type MarketingReview = {
   id: string; customer: string; location: string; stars: number; age: string; excerpt: string;
   selectedAppointment: string; candidates: string[]; status: 'Needs attribution' | 'Attributed';
 };
-type FinanceView = 'overview' | 'payments' | 'resale' | 'recycling' | 'trends';
+type FinanceView = 'overview' | 'payments' | 'resale' | 'recycling' | 'trends' | 'accounting' | 'expenses';
 type FinancePaymentStatus = 'Matched' | 'Needs review' | 'Unmatched';
 type FinancePayment = {
   id: string; customer: string; truck: string; jobTotal: number; paymentAmount: number; adjustment: number;
@@ -1135,7 +1135,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   const [marketingLeads, setMarketingLeads] = useState<MarketingLead[]>(live ? [] : initialMarketingLeads);
   const [marketingReviews, setMarketingReviews] = useState<MarketingReview[]>(live ? [] : initialMarketingReviews);
   const [marketingLeadFilter, setMarketingLeadFilter] = useState<'recover' | 'lost' | 'followup' | 'all'>('recover');
-  const [financeView, setFinanceViewValue] = useState<FinanceView>(() => live ? navigationValue(window.location.search, 'financeView', ['overview', 'payments', 'resale', 'recycling', 'trends'], 'overview') : 'overview');
+  const [financeView, setFinanceViewValue] = useState<FinanceView>(() => live ? navigationValue(window.location.search, 'financeView', ['overview', 'payments', 'resale', 'recycling', 'trends', 'accounting', 'expenses'], 'overview') : 'overview');
   const setFinanceView = (value: FinanceView) => { if (!mutationBusyRef.current) setFinanceViewValue(value); };
   useEffect(() => {
     if (!live) return;
@@ -1186,7 +1186,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
           ? `Fleet · ${fleetView === 'scores' ? 'Driving Scores' : fleetView === 'overview' ? 'Overview' : fleetView === 'maintenance' ? 'Maintenance' : fleetView === 'service' ? 'Service' : 'Reports'}`
           : activeNav === 'Marketing'
             ? `Marketing · ${marketingView === 'overview' ? 'Overview' : marketingView === 'leads' ? 'Leads' : marketingView === 'reviews' ? 'Reviews' : 'Performance'}`
-            : `Finance · ${financeView === 'overview' ? 'Overview' : financeView === 'payments' ? 'Payments' : financeView === 'resale' ? 'Resale' : financeView === 'recycling' ? 'Recycling' : 'Trends'}`;
+            : `Finance · ${financeView === 'overview' ? 'Overview' : financeView === 'payments' ? 'Payments' : financeView === 'resale' ? 'Resale' : financeView === 'recycling' ? 'Recycling' : financeView === 'accounting' ? 'Accounting' : financeView === 'expenses' ? 'Expenses' : 'Trends'}`;
   const currentRecordLabel = drawer
     ? drawer.customerId ? `Customer · ${drawer.title}`
       : drawer.fleetIssueId ? `Maintenance · ${drawer.title}`
@@ -4306,7 +4306,9 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                     : marketingView === 'reviews' ? 'Confirm or reassign each review to a completed JunkWare appointment.'
                       : 'Compare calls, qualified demand, bookings, completed jobs, revenue, and acquisition cost.'
                 : activeNav === 'Finance' ? financeView === 'overview'
-                  ? 'See month-to-date performance, today’s numbers, and the daily close in one operating view.'
+                  ? 'Performance, payments and financial decisions. All in one place.'
+                  : financeView === 'accounting' ? 'QuickBooks books, accountant statements and source-backed financial reports.'
+                  : financeView === 'expenses' ? 'Review disposal costs, fuel purchases and their source evidence.'
                   : financeView === 'payments' ? 'Review every job payment and reconcile differences without losing source detail.'
                     : financeView === 'resale' ? 'Manage resale custody, listing status, disposition, and realized value.'
                       : financeView === 'recycling' ? 'Track recycling loads, yard tickets, payments, and realized value.'
@@ -4354,7 +4356,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             ) : activeNav === 'Finance' ? (
               <div className="finance-heading-actions">
                 <div className="finance-view-switcher workspace-tabs" role="tablist" aria-label="Capital views">
-                  {([['overview', 'Overview'], ['payments', 'Payments'], ['resale', 'Resale'], ['recycling', 'Recycling'], ['trends', 'Trends']] as const).map(([key, label]) => <button className={financeView === key ? 'active' : ''} onClick={() => { setFinanceView(key); setActionFeedback(''); }} role="tab" aria-selected={financeView === key} key={key}>{label}{!live && key === 'overview' && financeCloseSteps.length < 6 && <span>{6 - financeCloseSteps.length}</span>}{!live && key === 'payments' && financeDifference > 0 && <span>{financePayments.filter((payment) => payment.status !== 'Matched').length}</span>}{key === 'resale' && financeResaleAttention > 0 && <span>{financeResaleAttention}</span>}{key === 'recycling' && financeRecyclingAttention > 0 && <span>{financeRecyclingAttention}</span>}</button>)}
+                  {([['overview', 'Overview'], ['payments', 'Payments'], ...(live ? [['expenses', 'Expenses'], ['accounting', 'Accounting']] as const : []), ['resale', 'Resale'], ['recycling', 'Recycling'], ['trends', 'Trends']] as const).map(([key, label]) => <button className={financeView === key ? 'active' : ''} onClick={() => { setFinanceView(key); setActionFeedback(''); }} role="tab" aria-selected={financeView === key} key={key}>{label}{!live && key === 'overview' && financeCloseSteps.length < 6 && <span>{6 - financeCloseSteps.length}</span>}{!live && key === 'payments' && financeDifference > 0 && <span>{financePayments.filter((payment) => payment.status !== 'Matched').length}</span>}{key === 'resale' && financeResaleAttention > 0 && <span>{financeResaleAttention}</span>}{key === 'recycling' && financeRecyclingAttention > 0 && <span>{financeRecyclingAttention}</span>}</button>)}
                 </div>
               </div>
             ) : null}

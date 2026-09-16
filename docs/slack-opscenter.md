@@ -44,17 +44,20 @@ parent incident in Command; unrelated thread replies remain independent.
 
 ## Command Slack alert cards
 
-In the OpsCenter Command alert timelines, including desktop Operational Updates
-and the legacy Slack Alerts digest, New Appointment, Cancellation, and completed
-cards use one compact header: event name, territory pill, linked JK number, and
-appointment time slot. The territory pill reuses the Schedule
-territory hue with a lighter tint and bold black text. New Appointment cards have
-a muted yellow background, Cancellation cards have a muted red background, and
-completed cards have a muted green background. The alpha applies to the background color only so
-the alert text and links remain fully opaque and readable. The JK link opens the
-appointment on the Schedule. This is a presentation rule only; it does not alter
-delivery fallback, deduplication, channel routing, or cadence. The completion
-titles are shared by the Slack publisher and both OpsCenter alert renderers.
+Desktop Operational Updates uses a two-line appointment header: the event name
+and linked JK number first, then the territory pill, appointment window and truck.
+Correction time sits separately. Completed jobs use a light green background and
+estimates use light lavender, with matching left borders and explicit event labels.
+Their shared detail layout aligns customer, crew, charges, visit evidence, contact
+information, service address, pickup items and notes. Long values wrap within their
+own rows. Jobs emphasize **Payment**; estimates emphasize **Estimate total**.
+
+The legacy Slack Alerts digest keeps its compact single-line header and muted
+yellow New Appointment, red Cancellation and green completion backgrounds.
+Territory pills reuse Schedule hues. Text and links remain fully opaque, and JK
+links open the appointment on Schedule. Completion titles remain shared with the
+Slack publisher. These presentation rules do not change delivery, deduplication,
+channel routing, cadence, source values or follow-up state.
 
 ## Crew progress in Command
 

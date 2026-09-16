@@ -231,6 +231,14 @@ entire appointment window; a timeout never triggers an automatic resubmission.
 `scripts/test-closeout-payments.ts` covers hidden scheduling controls, truck
 postbacks that change defaults, and locked-field rejection using synthetic data.
 
+When completing an estimate, the first Save opens JunkWare's required outcome
+form. Closeout waits for that form to become visible before entering the reviewed
+reason and notes and submitting its confirmation once. An HTTP response alone
+does not prove the modal is ready or the estimate is saved. If the form does not
+appear, report any source validation and perform the existing fresh read-back;
+never silently skip the second step or repeat the first Save. The browser fixture
+delays the form after the first response and verifies one outcome submission.
+
 The appointment drawer offers **Restore Appointment** for canceled appointments,
 with date/time review and a separate confirmation. It changes the original
 appointment to Confirmed, preserves truck and duration, reopens JunkWare for

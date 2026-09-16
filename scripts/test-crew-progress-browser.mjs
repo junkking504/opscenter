@@ -22,7 +22,7 @@ try {
   await page.getByRole('button',{name:'Close photos'}).click();
   const appointment = timeline.locator('.crew-update').filter({hasText:'New Appointment'});
   assert.match(await appointment.innerText(),/JK1000002[\s\S]*customer@example.invalid[\s\S]*Two queen mattresses[\s\S]*Use the side entrance/,'Appointment contact, items and pertinent notes remain visible');
-  assert.match(await appointment.locator('.crew-event-header').innerText(),/^New Appointment[\s\S]*New Orleans[\s\S]*JK1000002[\s\S]*11:00 AM – 12:00 PM$/);
+  assert.match(await appointment.locator('.crew-event-header').innerText(),/^New Appointment[\s\S]*JK1000002[\s\S]*New Orleans[\s\S]*11:00 AM – 12:00 PM$/);
   assert.equal(await appointment.locator('.crew-event-job').getAttribute('href'),'/desktop?data=live&workspace=Schedule&scheduleView=board&scheduleDay=today&date=2026-09-07&appointment=102');
   assert.equal(await appointment.evaluate(element => getComputedStyle(element).backgroundColor),'rgba(250, 204, 21, 0.125)');
   assert.equal(await appointment.locator('.crew-territory-pill').evaluate(element => getComputedStyle(element).backgroundColor),'rgb(176, 210, 253)');
@@ -34,9 +34,9 @@ try {
   assert.match(await duration.innerText(),/8:05 AM[\s\S]*9:10 AM/,'Duration retains both confirmed times');
   assert.match(await duration.innerText(),/Follow up:[\s\S]*No uploaded photos/,'Latest appointment update keeps the missing-evidence action visible');
   const closed = timeline.locator('.crew-update-completed');
-  assert.match(await closed.locator('.crew-event-header').innerText(),/^Job Completed[\s\S]*New Orleans[\s\S]*JK1000001[\s\S]*8:00 AM – 9:00 AM[\s\S]*Truck 2$/);
-  assert.match((await closed.locator('.crew-completed-summary').innerText()).replace(/\s+/g,' '),/^C: Example customer \| D: Example driver \| N: Example navigator Load: \$450\.00 \(Half truck\) Payment: \$450\.00 \(Cash\)[\s\S]*On-site time: 65 min/);
-  assert.equal(await closed.evaluate(element => getComputedStyle(element).backgroundColor),'rgba(34, 197, 94, 0.25)');
+  assert.match(await closed.locator('.crew-event-header').innerText(),/^Job Completed[\s\S]*JK1000001[\s\S]*New Orleans[\s\S]*8:00 AM – 9:00 AM[\s\S]*Truck 2$/);
+  assert.match((await closed.locator('.crew-completed-summary').innerText()).replace(/\s+/g,' '),/^Customer Example customer Crew Driver: Example driver Navigator: Example navigator Charges Load: \$450\.00 \(Half truck\) Payment \$450\.00 \(Cash\)[\s\S]*On-site time 65 min/);
+  assert.equal(await closed.evaluate(element => getComputedStyle(element).backgroundColor),'rgb(237, 248, 240)');
   await closed.getByRole('button',{name:'Mark reviewed',exact:true}).click();
   assert.deepEqual(await labels(),expected,'Review retains the event and chronology');
   assert.equal(await closed.getByText('Reviewed',{exact:true}).count(),1);
@@ -48,9 +48,10 @@ try {
   assert.match(await page.getByRole('status').last().textContent(),/job-jk1000001/);
   await page.getByRole('button',{name:'Simulate estimate completed',exact:true}).click();
   const estimate = timeline.locator('.crew-update-completed');
-  assert.match(await estimate.locator('.crew-event-header').innerText(),/^Estimate Completed[\s\S]*New Orleans[\s\S]*JK1000001[\s\S]*8:00 AM – 9:00 AM[\s\S]*Truck 2$/);
-  assert.match((await estimate.locator('.crew-completed-summary').innerText()).replace(/\s+/g,' '),/Total: \$450\.00/);
-  assert.equal(await estimate.getByText('Payment:',{exact:true}).count(),0,'Estimates show a total, not payment language');
+  assert.match(await estimate.locator('.crew-event-header').innerText(),/^Estimate Completed[\s\S]*JK1000001[\s\S]*New Orleans[\s\S]*8:00 AM – 9:00 AM[\s\S]*Truck 2$/);
+  assert.match((await estimate.locator('.crew-completed-summary').innerText()).replace(/\s+/g,' '),/Estimate total \$450\.00/);
+  assert.equal(await estimate.getByText('Payment',{exact:true}).count(),0,'Estimates show a total, not payment language');
+  assert.equal(await estimate.evaluate(element => getComputedStyle(element).backgroundColor),'rgb(244, 240, 251)');
   await page.getByRole('button',{name:'Reset preview'}).click();
   await page.screenshot({path:`${directory}/desktop.png`,fullPage:true});
   await page.getByRole('combobox',{name:'Filter by truck'}).selectOption('Truck 3');

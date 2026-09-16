@@ -6,7 +6,7 @@ import path from 'node:path';
 import { buildFleetMapPayload } from '@/lib/fleet-map';
 import { buildFleetMonthlySummary } from '@/lib/fleet-history';
 import { readFleetMaintenanceStore, upsertFleetMaintenanceRecord } from '@/lib/fleet-maintenance';
-import { readFleetIssueStore, upsertFleetIssue, syncFleetIssuesFromChecklist } from '@/lib/fleet-issues';
+import { readFleetIssueStore, deleteFleetIssue, upsertFleetIssue, syncFleetIssuesFromChecklist } from '@/lib/fleet-issues';
 import { readFleetChecklistStore, upsertFleetChecklist } from '@/lib/fleet-checklists';
 import { effectiveFleetChecklistDefinitions, fleetChecklistPeriodKey, type FleetChecklistCadence } from '@/lib/fleet-checklist-definitions';
 import { readFleetChecklistTemplateStore } from '@/lib/fleet-checklist-templates';
@@ -36,11 +36,14 @@ export function readDesktopFleet(date:string, report:string, role:InteractiveOps
 export function runDesktopFleetAction(body:Record<string,unknown>,actor:string,role:InteractiveOpsRole) {
   if(!opsRoleCan(role,'operations.write')) throw new Error('Your role cannot update Fleet.');
   const date=String(body.date||'');const truck=normalizeTruckLoadLabel(body.truck);const action=String(body.action||'');const values=(body.values||{}) as Record<string,unknown>;
-  if(!validDesktopDate(date)||!/^Truck#?\s*\d+$/.test(truck)||!['maintenance','issue','checklist','load_start','load_reset','load_snapshot'].includes(action)) throw new Error('A valid truck, date, and action are required.');
-  if(!readDesktopFleet(date,'overview',role).trucks.some(row=>row.id===truck)) throw new Error('Truck is not present in current source records.');
+  if(!validDesktopDate(date)||!/^Truck#?\s*\d+$/.test(truck)||!['maintenance','issue','issue_delete','checklist','load_start','load_reset','load_snapshot'].includes(action)) throw new Error('A valid truck, date, and action are required.');
+  const deletedSource=action==='issue_delete'?readFleetIssueStore(true).issues.find(row=>row.issueId===String(values.issueId||'')&&row.deletedAt):null;
+  if(deletedSource&&normalizeTruckLoadLabel(deletedSource.truck)!==truck) throw new Error('Record belongs to another truck.');
+  if(!deletedSource&&!readDesktopFleet(date,'overview',role).trucks.some(row=>row.id===truck)) throw new Error('Truck is not present in current source records.');
   const cadence=String(values.cadence||'daily') as FleetChecklistCadence; if(action==='checklist'&&!['daily','weekly','monthly'].includes(cadence)) throw new Error('Choose a valid checklist frequency.');
   const recordId=String(values.recordId||'');const issueId=String(values.issueId||'');
-  const current=()=>action==='maintenance'?readFleetMaintenanceStore().records.find(row=>row.recordId===recordId)||null:action==='issue'?readFleetIssueStore().issues.find(row=>row.issueId===issueId)||null:action==='checklist'?readFleetChecklistStore().entries.find(row=>normalizeTruckLoadLabel(row.truck)===truck&&row.cadence===cadence&&row.periodKey===fleetChecklistPeriodKey(date,cadence))||null:readTruckLoadStatus(date,truck);
+  const current=()=>action==='maintenance'?readFleetMaintenanceStore().records.find(row=>row.recordId===recordId)||null:(action==='issue'||action==='issue_delete')?readFleetIssueStore().issues.find(row=>row.issueId===issueId)||null:action==='checklist'?readFleetChecklistStore().entries.find(row=>normalizeTruckLoadLabel(row.truck)===truck&&row.cadence===cadence&&row.periodKey===fleetChecklistPeriodKey(date,cadence))||null:readTruckLoadStatus(date,truck);
+  if(action==='issue_delete'&&!issueId) throw new Error('Choose a repair to delete.');
   const source=current(); if(source && 'truck' in source && normalizeTruckLoadLabel(source.truck)!==normalizeTruckLoadLabel(truck)) throw new Error('Record belongs to another truck.');
   if(action==='issue' && values.status==='resolved'&&!String(values.resolution||'').trim()) throw new Error('A resolution is required before closing a repair.');
   if(action==='maintenance'&&(!validDesktopDate(String(values.serviceDate||date))||!String(values.serviceType||'').trim()||!['scheduled','completed'].includes(String(values.status)))) throw new Error('Service date, type, and status are required.');
@@ -51,8 +54,9 @@ export function runDesktopFleetAction(body:Record<string,unknown>,actor:string,r
     const answers=Array.isArray(values.answers)?values.answers as Array<Record<string,unknown>>:[]; const definitions=effectiveFleetChecklistDefinitions(truck,cadence,readFleetChecklistTemplateStore().customizations);
     if(!String(values.inspector||'').trim()||!definitions.every(def=>answers.some(answer=>answer.itemId===def.itemId&&['pass','attention','na'].includes(String(answer.status))))) throw new Error('Answer every inspection item and provide the inspector name.');
   }
-  return executeDesktopLocalAction({requestId:String(body.requestId||''),action:`fleet.${action}`,entity:`fleet:${truck}:${action.startsWith('load')?'load':action}:${action==='maintenance'||action==='issue'?'records':action==='checklist'?`${cadence}:${fleetChecklistPeriodKey(date,cadence)}`:date}`,expectedVersion:String(body.expectedVersion||''),values},actor,current,()=>{
+  return executeDesktopLocalAction({requestId:String(body.requestId||''),action:`fleet.${action}`,entity:`fleet:${truck}:${action.startsWith('load')?'load':action==='issue_delete'?'issue':action}:${action==='maintenance'||action==='issue'||action==='issue_delete'?'records':action==='checklist'?`${cadence}:${fleetChecklistPeriodKey(date,cadence)}`:date}`,expectedVersion:String(body.expectedVersion||''),values},actor,current,()=>{
     if(action==='maintenance') return upsertFleetMaintenanceRecord({recordId:recordId||`desktop-${body.requestId}`,truck,serviceDate:String(values.serviceDate||date),status:String(values.status),serviceType:String(values.serviceType),description:String(values.description||''),odometer:values.odometer,cost:values.cost,vendor:String(values.vendor||''),nextServiceDate:String(values.nextServiceDate||''),nextServiceOdometer:values.nextServiceOdometer,notes:String(values.notes||'')});
+    if(action==='issue_delete') return deleteFleetIssue(issueId,actor);
     if(action==='issue') return upsertFleetIssue({...values,issueId:issueId||`desktop-${body.requestId}`,truck});
     if(action==='checklist'){const entry=upsertFleetChecklist({truck,cadence,inspectionDate:date,inspector:String(values.inspector),odometer:values.odometer,answers:values.answers,submittedByEmail:actor});if(entry)syncFleetIssuesFromChecklist(entry);return entry;}
     if(action==='load_snapshot') return recordTruckLoadSnapshot({date,truck,coveredAppointmentIds:completedTruckJobIds(date,truck),loadFraction:values.loadFraction,contents:String(values.contents),messageId:`desktop-${body.requestId}`,recordedBy:actor}).status;
@@ -60,6 +64,7 @@ export function runDesktopFleetAction(body:Record<string,unknown>,actor:string,r
     return resetTruckLoad({date,truck,coveredAppointmentIds:completedTruckJobIds(date,truck),location:String(values.location) as 'dump'|'metal_yard',recordedBy:actor,eventId:String(body.requestId)});
   },result=>{
     if(action==='maintenance') return readFleetMaintenanceStore().records.some(row=>desktopVersion(row)===desktopVersion(result));
+    if(action==='issue_delete') return !readFleetIssueStore().issues.some(row=>row.issueId===issueId)&&readFleetIssueStore(true).issues.some(row=>row.issueId===issueId&&Boolean(row.deletedAt)&&desktopVersion(row)===desktopVersion(result));
     if(action==='issue') return readFleetIssueStore().issues.some(row=>desktopVersion(row)===desktopVersion(result));
     return desktopVersion(current())===desktopVersion(result);
   });

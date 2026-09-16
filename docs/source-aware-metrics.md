@@ -66,8 +66,19 @@ known anchors in `run_opscenter_refresh.sh` and `process_daily_metrics.py`, and
 installs `source_aware_metrics.py` beside the processor. It refuses unknown
 source shapes before changing any file and is idempotent.
 
+The refresh entrypoint also uses `run-opsbot-refresh-locked.py`. Its inherited
+OS lock remains held while the worker runs, and its ten-minute deadline stops
+only that run's process group. A recognizable symlink at the existing
+`tmp/opscenter_refresh.lock` path preserves exclusion with history tools that
+still use `mkdir`. After a crash, the next OS-lock owner can remove that managed
+marker and retry. An ordinary directory from a legacy or history operation is
+never stolen; an abandoned legacy directory requires confirming its worker is
+gone before removing the empty directory. The permanent `.worker` lock inode
+must never be removed. Busy attempts exit 75 rather than reporting success.
+
 ```sh
 python3 scripts/test-source-aware-metrics.py --opsbot-root /Users/missioncontrol/.openclaw/workspace/opsbot
+python3 scripts/test-opsbot-refresh-lock.py
 python3 scripts/install-source-aware-metrics.py
 # Acquire the existing OpsBot tmp/opscenter_refresh.lock directory between runs.
 # Then install the committed source and release the lock in a finally/trap.

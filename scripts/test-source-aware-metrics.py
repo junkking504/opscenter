@@ -196,6 +196,7 @@ class PublicationTests(unittest.TestCase):
         source = source.replace('LINXUP_LIVE_REFRESH="/Users/missioncontrol/opscenter-v2/opscenter/scripts/run-linxup-live-refresh.sh"', 'LINXUP_LIVE_REFRESH="/nonexistent-test-refresh"')
         runner = scripts / 'run_opscenter_refresh.sh'
         runner.write_text(source)
+        shutil.copy2(Path(__file__).with_name('run-opsbot-refresh-locked.py'), scripts / 'run-opsbot-refresh-locked.py')
         # The hardening stub records the same durable failure contract and never
         # performs DNS or a provider request.
         (scripts / 'data-collection-hardening.sh').write_text('''run_hardened_source() {

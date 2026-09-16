@@ -6,6 +6,10 @@ import type {TruckLoadEvent} from './truck-load-status';
 import {geofenceOnsiteSummary} from './geofence-alert-summary';
 import {trackGeofenceVisits, visitDay, type GeofenceTransition, type TrackedVisit} from './visit-tracking-agent';
 
+// Reuse ICU formatters across GPS observations; constructing one per point
+// blocks every request while historical visit evidence is replayed.
+const geofenceDayFormatter = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'});
+
 type SourceRow = Record<string, unknown>;
 export type GeofenceEntry = {
   id: string; truck: string; name: string; facility: string; timestamp: string;
@@ -31,7 +35,7 @@ export function geofenceEntries(date: string, rows: SourceRow[], now = Date.now(
     const time = Date.parse(String(row.occurred_at || ''));
     if (!name || !match || Number(match[1]) < 1 || !Number.isFinite(time) || time > now) continue;
     const timestamp = new Date(time).toISOString();
-    const localDate = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(time));
+    const localDate = geofenceDayFormatter.format(new Date(time));
     if (localDate !== date) continue;
     const truck = `Truck ${Number(match[1])}`;
     // Provider retries do not create another entry/reset; real reentries at
@@ -153,7 +157,7 @@ export function geofenceVisits(date:string,rows:SourceRow[],now=Date.now()):Geof
     if(!type)continue;
     const time=Date.parse(String(row.occurred_at || ''));
     if(!Number.isFinite(time) || time>now)continue;
-    const day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(time));
+    const day=geofenceDayFormatter.format(new Date(time));
     // Reuse strict truck/name validation and the existing entry identity.
     const entry=geofenceEntries(day,[{...row,alert_type:'GEOFENCE_ENTERED'}],now)[0];
     if(!entry)continue;
@@ -169,7 +173,7 @@ export function geofenceVisits(date:string,rows:SourceRow[],now=Date.now()):Geof
       continue;
     }
     const pending=active.get(key);active.delete(key);
-    const day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(event.timestamp));
+    const day=geofenceDayFormatter.format(new Date(event.timestamp));
     if(day!==date)continue;
     const enteredAt=pending && !pending.ambiguous?pending.entry.timestamp:null;
     const seconds=enteredAt?(Date.parse(event.timestamp)-Date.parse(enteredAt))/1000:null;

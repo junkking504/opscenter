@@ -18,7 +18,8 @@ export type GeofenceTransition = {
   facility: string; resetLocation: 'dump' | 'metal_yard' | null;
   type: 'entry' | 'exit' | 'position' | 'coordinate'; latitude?: number; longitude?: number;
 };
-export const visitDay = (stamp: string) => new Intl.DateTimeFormat('en-CA', {timeZone:'America/Chicago'}).format(new Date(stamp));
+const visitDayFormatter = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Chicago'});
+export const visitDay = (stamp: string) => visitDayFormatter.format(new Date(stamp));
 
 // Names are provider facility identities. Only known distinct disposal/warehouse
 // facilities reconcile departures; an arbitrary or overlapping named zone cannot.

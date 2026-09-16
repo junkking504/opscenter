@@ -92,7 +92,7 @@
     "verify:fleet-gps": "node --import tsx scripts/test-fleet-gps.ts",
     "verify:fleet-actions": "node --import tsx scripts/test-fleet-maintenance-actions.ts",
     "verify:dump-expenses": "node --import tsx scripts/test-dump-expenses.ts && node --import tsx scripts/test-unload-cost-agent.ts && node --import tsx scripts/test-operational-agents.ts",
-    "verify:geofence-alerts": "node --import tsx scripts/test-geofence-alerts.ts",
+    "verify:geofence-alerts": "node --import tsx scripts/test-geofence-alerts.ts && node --import tsx scripts/test-geofence-read-performance.ts",
     "verify:appointment-visit-alerts": "node --import tsx scripts/test-appointment-visit-alerts.ts",
     "verify:truck-load-status:browser": "node scripts/test-truck-load-browser.mjs",
     "verify:truck-load-status": "node --import tsx scripts/test-truck-load-status.ts && node --import tsx scripts/test-truck-load-closeouts.ts && node --import tsx scripts/test-truck-pickup-source-notes.ts && node --import tsx scripts/test-truck-load-sequence.ts && node --import tsx scripts/test-truck-expense-notifications.ts && python3 scripts/test-junkware-expense-stream.py && node --import tsx scripts/test-whatsapp-truck-loads.ts && node --import tsx scripts/test-truck-charge-reconciliation.ts && node --import tsx scripts/test-truck-load-carry-forward.ts && python3 scripts/test-junkware-charge-stream.py",

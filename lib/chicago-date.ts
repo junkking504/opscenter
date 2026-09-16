@@ -13,13 +13,15 @@ function pad(value: number) {
   return String(value).padStart(2, "0");
 }
 
+const chicagoDayFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "America/Chicago",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
 export function chicagoDateKey(reference: Date = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(reference);
+  return chicagoDayFormatter.format(reference);
 }
 
 export function addDays(dateKey: string, days: number): string {

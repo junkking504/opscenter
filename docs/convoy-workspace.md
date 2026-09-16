@@ -18,6 +18,17 @@ trucks first. Count filters show all trucks, attention needed, out-of-service tr
 and missing inspections. Opening a truck brings its inspection and active repairs
 together, with direct report, checklist and add/update controls. Resolved repairs
 are hidden until requested. Back to trucks restores the overview filter.
+Truck cards preview the actual inspection section and inspector notes; the selected
+truck shows all findings from the same report used for its inspection status, plus
+general notes and the original report link. A later clear report cannot hide an
+earlier stop/problem report. When no phone report exists, daily checklist attention
+items and notes supply the findings. Photo payloads remain outside the desktop read.
+
+Trucks, Inspections & Repairs, and Service share one daily snapshot and pending read.
+Switching these tabs preserves the screen and original retrieval timestamp. Date,
+Driving and History & Costs retain separate keys. Fresh authenticated polling,
+write invalidation, error retention and authorization checks remain unchanged.
+A direct Convoy visit starts its read alongside shell rendering and code loading.
 
 Inspections links to original phone reports and photos. Repairs offers direct
 updates without requiring an owner or decision workflow. Existing shop/contact

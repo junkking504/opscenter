@@ -119,3 +119,8 @@
   .convoy-inspection-banner { flex-wrap: wrap; }
   .convoy-inspection-banner > .convoy-actions { margin-left: 0; width: 100%; }
 }
+
+.convoy-workspace .convoy-inspection-preview { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; color: var(--foreground); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.convoy-workspace .convoy-inspection-findings { display: grid; gap: 12px; margin: 14px 0; }
+.convoy-workspace .convoy-inspection-findings dt { font-weight: 650; font-size: 12px; }
+.convoy-workspace .convoy-inspection-findings dd { margin: 3px 0 0; font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }

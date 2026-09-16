@@ -1,4 +1,5 @@
 'use client';
+import { fleetSnapshotUrl } from '../lib/fleet-snapshot';
 import { convoyTabs } from '../lib/convoy-presentation';
 import { workspaceLabel } from '../lib/workspace-labels';
 import { WorkspaceBoundary } from '../workspace-boundary';
@@ -1083,7 +1084,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
         if (name === activeNav) continue;
         const endpoint = name.toLowerCase();
         const view = name === 'Fleet' ? `&view=${encodeURIComponent(params.get('fleetView') || 'overview')}` : name === 'Krewe' ? `&view=${encodeURIComponent(params.get('kreweView') || 'today')}` : '';
-        const url = `/api/desktop/${endpoint}?date=${encodeURIComponent(date)}${view}`;
+        const url = name === 'Fleet' ? fleetSnapshotUrl(date, params.get('fleetView') || 'overview') : `/api/desktop/${endpoint}?date=${encodeURIComponent(date)}${view}`;
         const key = name === 'Schedule' ? `${url}&load=1` : url;
         if (cachedWorkspace(key)) continue;
         try { await preloadWorkspace[name]?.(); await fetchWorkspace(url, abort.signal, key); } catch { /* Foreground refresh owns user-visible errors. */ }

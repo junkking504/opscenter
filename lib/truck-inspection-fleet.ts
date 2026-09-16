@@ -1,4 +1,4 @@
-import { type TruckInspectionReport } from "./truck-inspection";
+import { INSPECTION_SECTIONS, type TruckInspectionReport } from "./truck-inspection";
 import { normalizeTruckLoadLabel, type TruckLoadEvent } from "./truck-load-status";
 
 export function inspectionReportHref(report: TruckInspectionReport): string {
@@ -30,5 +30,9 @@ export function inspectionFleetEvidence(reports: TruckInspectionReport[], truck:
   return report ? { report, stop: Boolean(stop), problem: Boolean(problem),
     label: stop ? "Do not operate" : problem ? "Problem reported" : "Complete",
     source: `Five Point Inspection · ${report.inspector}`, href: inspectionReportHref(report),
+    findings: [...report.answers.filter(answer => answer.status === "problem" || answer.notes.trim()).map(answer => ({
+      label: INSPECTION_SECTIONS.find(section => section.id === answer.id)?.label || answer.id,
+      notes: answer.notes.trim() || "Problem reported; no additional detail recorded.",
+    })), ...(report.notes.trim() ? [{ label: "Inspector notes", notes: report.notes.trim() }] : [])],
   } : null;
 }

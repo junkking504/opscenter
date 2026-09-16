@@ -1,3 +1,4 @@
+import { fleetSnapshotUrl } from '../desktop-ui/lib/fleet-snapshot';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -14,6 +15,22 @@ async function main() {
   Date.now = () => time;
   const signal = new AbortController().signal;
   try {
+    const fleetUrl = fleetSnapshotUrl('2026-09-16', 'maintenance');
+    assert.equal(fleetUrl, fleetSnapshotUrl('2026-09-16', 'overview'));
+    assert.equal(fleetUrl, fleetSnapshotUrl('2026-09-16', 'service'));
+    assert.notEqual(fleetUrl, fleetSnapshotUrl('2026-09-17', 'service'));
+    assert.notEqual(fleetUrl, fleetSnapshotUrl('2026-09-16', 'scores'));
+    assert.notEqual(fleetUrl, fleetSnapshotUrl('2026-09-16', 'reports'));
+    let finishFleet!: (response: Response) => void;
+    let fleetCalls = 0;
+    globalThis.fetch = () => { fleetCalls++; return new Promise(resolve => { finishFleet = resolve; }); };
+    const firstTab = fetchWorkspace(fleetSnapshotUrl('2026-09-16', 'overview'), signal);
+    const secondTab = fetchWorkspace(fleetSnapshotUrl('2026-09-16', 'maintenance'), signal);
+    assert.equal(fleetCalls, 1, 'Switching daily Convoy tabs during loading shares the pending read');
+    finishFleet(Response.json({ trucks: ['fixture'] }));
+    assert.deepEqual(await firstTab, await secondTab);
+    assert.ok(cachedWorkspace(fleetSnapshotUrl('2026-09-16', 'service')), 'Daily tabs can display the same completed snapshot immediately');
+    clearWorkspaceCache();
     let calls = 0;
     globalThis.fetch = async () => { calls++; return Response.json({ date: '2026-09-11', sourceAt: '2026-09-11T12:00:00Z', version: calls }); };
     const first = await fetchWorkspace<{ version: number }>('/api/desktop/fleet?date=A', signal);

@@ -1,3 +1,5 @@
+import { fleetSnapshotUrl } from './lib/fleet-snapshot';
+import { fetchWorkspace } from './lib/workspace-cache';
 import { createRoot } from 'react-dom/client';
 import Home from './app/page';
 import LiveCommand from './live-command';
@@ -23,6 +25,11 @@ if (bootstrap.mode === 'reference') {
   createRoot(root).render(<Home />);
 } else if (bootstrap.mode === 'command-live') {
   installMaintenanceTelemetry();
+  // Start the selected Convoy read alongside shell rendering and code loading.
+  const navigation = new URLSearchParams(window.location.search);
+  if (bootstrap.workspace && navigation.get('workspace') === 'Fleet') {
+    void fetchWorkspace(fleetSnapshotUrl(bootstrap.workspace.date, navigation.get('fleetView') || 'overview'), AbortSignal.timeout(30_000)).catch(() => {});
+  }
   createRoot(root).render(<WorkspaceBoundary root><LiveCommand bootstrap={bootstrap.workspace} /></WorkspaceBoundary>);
 } else {
   root.textContent = 'The desktop release is not ready. No operational changes were made.';

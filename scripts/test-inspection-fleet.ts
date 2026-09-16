@@ -28,6 +28,13 @@ assert.equal(deriveCloseoutTruckLoads('2026-09-17',['3'],[],[],[],0,[derive()])[
 assert.equal(inspectionFleetEvidence([report],'Truck# 3')?.label,'Complete');
 assert.equal(inspectionFleetEvidence([{...report,status:'stop'}, {...report,requestId:randomUUID(),startedAt:`${date}T13:00:00Z`}],'3')?.stop,true);
 assert.equal(inspectionFleetEvidence([{...report,answers:report.answers.map((a,i)=>({...a,notes:i===0?'Bent rim':''}))}],'3')?.problem,true);
+const defect = {...report, status: 'reported' as const, notes: 'Check before next route.', answers: report.answers.map((answer, index) => index === 1 ? {...answer, status: 'problem' as const, notes: 'Rear tire has a cut.'} : answer)};
+assert.deepEqual(inspectionFleetEvidence([defect], '3')?.findings, [
+ {label: 'Wheels & tires', notes: 'Rear tire has a cut.'}, {label: 'Inspector notes', notes: 'Check before next route.'},
+]);
+assert.equal(inspectionFleetEvidence([defect], '4'), null, 'Findings cannot leak across trucks');
+assert.deepEqual(inspectionFleetEvidence([report], '3')?.findings, []);
+assert.equal(inspectionFleetEvidence([{...defect, status: 'stop'}, {...report, startedAt: `${date}T14:00:00Z`}], '3')?.findings[0].notes, 'Rear tire has a cut.', 'A later clear inspection cannot hide the stop report findings');
 const root=fs.mkdtempSync(path.join(os.tmpdir(),'inspection-fleet-'));
 const cwd=process.cwd();
 try {
@@ -39,7 +46,11 @@ try {
  const loads=readOperationalTruckLoads(date,[],[]);
  assert.deepEqual(loads.map(r=>[r.truck,r.capacityPercent]),[['Truck# 2',50],['Truck# 3',75],['Truck# 4',100],['Truck# 8',100],['Truck# 9',75]]);
  assert.equal(readOperationalTruckLoads('2026-09-17',[],[]).find(r=>r.truck==='Truck# 3')?.capacityPercent,75,'Inspection-only history participates in carry-forward');
+ submitTruckInspection({...defect, truck:'Truck 4',requestId:randomUUID()},device,now);
  const fleet=readDesktopFleet(date,'overview','admin');
+ assert.deepEqual(fleet.trucks.find(t=>t.id==='Truck# 4')?.inspectionFindings, inspectionFleetEvidence([defect],'3')?.findings);
+ assert.deepEqual(fleet.trucks.find(t=>t.id==='Truck# 3')?.inspectionFindings, []);
+ assert.ok(!JSON.stringify(fleet).includes('photos'), 'Desktop projection excludes inspection photo payloads');
  assert.equal(fleet.trucks.find(t=>t.id==='Truck# 3')?.checklist,'Complete');
  assert.equal(fleet.trucks.find(t=>t.id==='Truck# 3')?.loadPercent,75);
  assert.equal(fleet.trucks.find(t=>t.id==='Truck# 3')?.readiness,'Ready');

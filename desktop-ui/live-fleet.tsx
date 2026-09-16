@@ -1,3 +1,4 @@
+import { fleetSnapshotUrl } from './lib/fleet-snapshot';
 import { ConvoyViews, ConvoyHistory, type FleetRecord } from './convoy-views';
 import { convoyWarnings, truckLoadLabel, recordedValue } from './lib/convoy-presentation';
 import { workspaceReady } from './navigation-performance';
@@ -17,13 +18,14 @@ type Drawer=FleetRecord;
 export default function LiveFleet({date,view,report,onBusyChange}:DesktopWorkspaceProps<FleetView>){
   const deepLinkApplied=useRef('');
   const selectedDate=view==='reports'&&report&&/^\d{4}-\d{2}/.test(report)?`${report.slice(0,7)}-01`:date;
-  const snapshotKey=`/api/desktop/fleet?date=${encodeURIComponent(selectedDate)}&view=${view}`;
+  const snapshotKey=fleetSnapshotUrl(selectedDate,view);
   const [snapshot,setSnapshot]=useWorkspaceSnapshot<DesktopFleetSnapshot>(snapshotKey);const [error,setError]=useState('');const [pending,setPending]=useState(false);const [active,setActive]=useState<Drawer|null>(null);const [serviceTruck,setServiceTruck]=useState('');const [draft,setDraft]=useState<Record<string,string>>({});const [answers,setAnswers]=useState<Record<string,{status:string;notes:string}>>({});const busy=useRef(false);const generation=useRef(0);const opener=useRef<HTMLElement|null>(null);const drawer=useRef<HTMLElement|null>(null);
   const loadSnapshot=useCallback(async(signal:AbortSignal)=>{const run=++generation.current;const body=await fetchWorkspace<DesktopFleetSnapshot>(snapshotKey,signal);if(run===generation.current&&!signal.aborted){setSnapshot(body);setActive(previous=>{if(!previous)return null;const truck=body.trucks.find((row:DesktopFleetTruck)=>row.id===previous.truck.id);if(previous.issue&&!body.issues.some(row=>row.issueId===previous.issue?.issueId))return null;return truck?{...previous,truck,issue:previous.issue?body.issues.find((row:FleetIssueRow)=>row.issueId===previous.issue?.issueId):undefined,record:previous.record?body.maintenance.find((row:FleetMaintenanceRow)=>row.recordId===previous.record?.recordId):undefined}:null;});}},[snapshotKey,setSnapshot]);
   const invalidate=useCallback(()=>{generation.current+=1;},[]);
-  useEffect(()=>{setActive(null);setError('');return invalidate;},[selectedDate,view,invalidate]);
+  useEffect(()=>{setActive(null);setError('');},[selectedDate,view]);
+  useEffect(()=>invalidate,[snapshotKey,invalidate]);
   useEffect(() => { if (snapshot) workspaceReady('Fleet'); }, [snapshot]);
-  const freshness=useWorkspaceRefresh(loadSnapshot,`${selectedDate}:${view}`,Boolean(active)||pending,30_000,snapshotKey);
+  const freshness=useWorkspaceRefresh(loadSnapshot,snapshotKey,Boolean(active)||pending,30_000,snapshotKey);
   const refresh=freshness.refresh;
   useEffect(()=>{onBusyChange?.(Boolean(active)||pending);return()=>onBusyChange?.(false);},[Boolean(active),pending,onBusyChange]);
   const dialogKey=active?`${active.truck.id}:${active.kind}`:'';

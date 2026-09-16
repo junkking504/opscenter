@@ -13,6 +13,12 @@ Ready describes inspection/repair evidence; it does not establish current GPS.
 Load notes are expandable and do not repeat above unrelated tabs. Missing repair
 or GPS sources remain explicitly visible.
 
+Inspections & Repairs starts with a compact truck grid, sorted with out-of-service
+trucks first. Count filters show all trucks, attention needed, out-of-service trucks,
+and missing inspections. Opening a truck brings its inspection and active repairs
+together, with direct report, checklist and add/update controls. Resolved repairs
+are hidden until requested. Back to trucks restores the overview filter.
+
 Inspections links to original phone reports and photos. Repairs offers direct
 updates without requiring an owner or decision workflow. Existing shop/contact
 and planned-date values remain available in optional details and are preserved

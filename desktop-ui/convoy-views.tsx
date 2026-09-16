@@ -1,12 +1,13 @@
+import { ConvoyRepairs } from './convoy-repairs';
 import { Truck } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { DrivingScoreDetails } from './driving-scores';
-import { sameTruck, truckCondition, truckLoadLabel, duplicateRepair, recordedValue } from './lib/convoy-presentation';
+import { sameTruck, truckCondition, truckLoadLabel, recordedValue } from './lib/convoy-presentation';
 import type { DesktopFleetSnapshot, DesktopFleetTruck, FleetIssueRow, FleetMaintenanceRow, FleetView } from './lib/people-fleet-contract';
 import './convoy.css';
 
 export type FleetRecord = { kind: 'truck' | 'load' | 'history' | 'issue' | 'checklist' | 'maintenance'; truck: DesktopFleetTruck; issue?: FleetIssueRow; record?: FleetMaintenanceRow; initialStatus?: 'scheduled' | 'completed' };
-type Props = { snapshot: DesktopFleetSnapshot; trucks: DesktopFleetTruck[]; view: FleetView; truckId: string; onTruck: (id: string) => void; open: (record: FleetRecord) => void; issueFilter: string; setIssueFilter: (value: string) => void };
+type Props = { snapshot: DesktopFleetSnapshot; trucks: DesktopFleetTruck[]; view: FleetView; truckId: string; onTruck: (id: string) => void; open: (record: FleetRecord) => void };
 const money = (n: number | null) => n === null ? 'Not recorded' : n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 const number = (n: number | null) => n === null ? 'Not recorded' : n.toLocaleString('en-US', { maximumFractionDigits: 1 });
 const dateLabel = (date: string) => date ? new Date(`${date.slice(0,10)}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Date not recorded';
@@ -20,7 +21,7 @@ export function ConvoyHistory({ snapshot, truck, open }: { snapshot: DesktopFlee
   return <section className="convoy-history"><h3>Truck history</h3><p>Service dates and latest repair updates. Scheduled work remains separate from completed work.</p>{records.length ? records.map(row => <article className="convoy-row" key={row.id}><div><small>{dateLabel(row.date)}</small><strong>{row.title}</strong><p>{row.note}</p></div><Button variant="outline" size="sm" onClick={row.action}>{row.label}</Button></article>) : <p className="convoy-empty">No repair or service records have been recorded for this truck.</p>}</section>;
 }
 
-export function ConvoyViews({snapshot,trucks,view,truckId,onTruck,open,issueFilter,setIssueFilter}:Props) {
+export function ConvoyViews({snapshot,trucks,view,truckId,onTruck,open}:Props) {
   const visible = trucks.filter(truck => !truckId || truck.id === truckId);
   const repairs = snapshot.issues.filter(row => row.status !== 'resolved');
   const scopedRepairs = snapshot.issues.filter(row => !truckId || sameTruck(row.truck, truckId));
@@ -36,13 +37,7 @@ export function ConvoyViews({snapshot,trucks,view,truckId,onTruck,open,issueFilt
         <div className="convoy-actions"><Button variant="outline" size="sm" onClick={()=>open({kind:'truck',truck})}>View truck</Button><Button variant="ghost" size="sm" onClick={()=>open({kind:'load',truck})}>Record current load</Button></div>
       </article>;})}</div>
     </>}
-    {view==='maintenance'&&<div className="convoy-section-stack">
-      <section className="convoy-panel"><header><h2>Inspections</h2><p>{dateLabel(snapshot.date)} · Submitted checks and reported problems.</p></header>{visible.map(truck=><article className="convoy-row" key={truck.id}><div><strong>{truck.label}</strong><p>{truck.checklist} · {repairs.filter(row=>sameTruck(row.truck,truck.id)).length} active repair records</p></div><div className="convoy-actions">{truck.inspectionHref&&<a className="convoy-link" href={truck.inspectionHref}>View inspection & photos</a>}<Button variant="outline" size="sm" onClick={()=>open({kind:'checklist',truck})}>{truck.inspectionHref?'Open checklist':'View checklist'}</Button></div></article>)}</section>
-      <section className="convoy-panel"><header className="convoy-heading"><div><h2>Repairs</h2><p>What is broken, work in progress, and completed repairs.</p></div><div className="convoy-actions"><Button variant={issueFilter==='active'?'default':'outline'} size="sm" aria-pressed={issueFilter==='active'} onClick={()=>setIssueFilter('active')}>Active</Button><Button variant={issueFilter==='all'?'default':'outline'} size="sm" aria-pressed={issueFilter==='all'} onClick={()=>setIssueFilter('all')}>All history</Button>{visible.length===1&&<Button variant="outline" size="sm" onClick={()=>open({kind:'issue',truck:visible[0]})}>Add repair</Button>}</div></header>
-        {scopedRepairs.filter(row=>issueFilter==='all'||row.status!=='resolved').map(issue=>{const truck=trucks.find(t=>sameTruck(t.id,issue.truck));return <article className="convoy-row" key={issue.issueId}><div><strong>{issue.truck} · {issue.title}</strong><p>{issue.severity.replaceAll('_',' ')} · {issue.status.replaceAll('_',' ')}{issue.cost!==null?` · ${money(issue.cost)}`:''}</p>{issue.description&&<p>{issue.description}</p>}{duplicateRepair(issue,snapshot.issues)&&<small>Similar active repair also recorded. Check both records before closing either.</small>}</div><Button variant="outline" size="sm" disabled={!truck} onClick={()=>truck&&open({kind:'issue',truck,issue})}>Update repair</Button></article>;})}
-        {!scopedRepairs.some(row=>issueFilter==='all'||row.status!=='resolved')&&<p className="convoy-empty">No {issueFilter==='active'?'active ':''}repairs recorded.</p>}{visible.length!==1&&<p className="convoy-hint">Select a truck above to add a repair.</p>}
-      </section>
-    </div>}
+    {view==='maintenance'&&<ConvoyRepairs snapshot={snapshot} trucks={trucks} truckId={truckId} onTruck={onTruck} open={open}/>}
     {view==='service'&&<section className="convoy-panel"><header><h2>Service schedule</h2><p>Schedule upcoming work or record service already completed.</p></header>{visible.map(truck=>{const records=snapshot.maintenance.filter(row=>sameTruck(row.truck,truck.id));const completed=records.filter(r=>r.status==='completed').sort((a,b)=>b.serviceDate.localeCompare(a.serviceDate));const latest=[...new Map(completed.map(r=>r.serviceType).map(type=>[type,completed.find(r=>r.serviceType===type)!])).values()];const scheduled=records.filter(r=>r.status==='scheduled').sort((a,b)=>a.serviceDate.localeCompare(b.serviceDate));return <section className="convoy-service-truck" key={truck.id}><header className="convoy-heading"><div><h3>{truck.label}</h3><p>Odometer: {recordedValue(truck.odometer)} · Source service target: {recordedValue(truck.nextService,'Not available')}</p></div><div className="convoy-actions"><Button variant="outline" size="sm" onClick={()=>open({kind:'maintenance',truck,initialStatus:'scheduled'})}>Schedule service</Button><Button variant="outline" size="sm" onClick={()=>open({kind:'maintenance',truck,initialStatus:'completed'})}>Record completed service</Button></div></header>
         {!records.length&&<p className="convoy-empty">No service history recorded. Add the last completed service and its next date or mileage target.</p>}
         {latest.map(record=><p className="convoy-service-target" key={record.recordId}><strong>{record.serviceType}</strong> · Next date: {record.nextServiceDate?dateLabel(record.nextServiceDate):'Not recorded'}{record.nextServiceDate&&record.nextServiceDate<=snapshot.date?' · date target reached':''} · Next mileage: {number(record.nextServiceOdometer)}</p>)}

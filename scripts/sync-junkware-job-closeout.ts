@@ -217,6 +217,28 @@ async function fill(page: Page, selector: string, value: string): Promise<void> 
   await control.fill(value);
 }
 
+async function restoreAppointmentWindow(page: Page, before: Record<string, unknown>): Promise<void> {
+  const window = before.appointmentWindow as { date?: string; startTime?: string; durationHours?: string } | undefined;
+  // These text inputs live in JunkWare's inactive Map & Schedule tab. Restore
+  // only the saved baseline without visibility-dependent fill or change events:
+  // a scheduling postback here could reset the closeout fields just staged.
+  for (const [selector, value] of [
+    ['#ctl00_Content_AppointmentDateTB', window?.date],
+    ['#ctl00_Content_StartTimeTB', window?.startTime],
+  ] as const) {
+    if (!value) continue;
+    const control = page.locator(selector);
+    if (await control.count() !== 1) throw new Error('JunkWare appointment scheduling fields are unavailable. The closeout was not submitted.');
+    const restored = await control.evaluate((node, savedValue) => {
+      if (!(node instanceof HTMLInputElement) || node.disabled || node.readOnly) return false;
+      if (node.value !== savedValue) node.value = savedValue;
+      return node.value === savedValue;
+    }, value);
+    if (!restored) throw new Error('JunkWare could not preserve the saved appointment window. The closeout was not submitted.');
+  }
+  if (window?.durationHours) await selectWithoutPostback(page, '#ctl00_Content_DurationDD', window.durationHours);
+}
+
 function parsePayload(): CloseoutInput {
   const encoded = argument("payload-base64");
   if (!encoded) throw new Error("The closeout details are unavailable.");
@@ -383,10 +405,7 @@ export async function applyCloseout(page: Page, input: CloseoutInput, before: Re
     await clickWithWebFormsCompletion(page, selector, description);
   };
   // Dependent postbacks can reset status. Stage completion only after them.
-  const window = before.appointmentWindow as { date?: string; startTime?: string; durationHours?: string } | undefined;
-  if (window?.date) await fill(page, '#ctl00_Content_AppointmentDateTB', window.date);
-  if (window?.startTime) await fill(page, '#ctl00_Content_StartTimeTB', window.startTime);
-  if (window?.durationHours) await selectWithoutPostback(page, '#ctl00_Content_DurationDD', window.durationHours);
+  await restoreAppointmentWindow(page, before);
   if (truckOption) await selectWithoutPostback(page, '#ctl00_Content_TruckDD', truckOption.value);
   await selectWithoutPostback(page, '#ctl00_Content_StatusDD', targetStatus);
   await submit('#ctl00_Content_SaveAppointmentBtn', 'the closeout save');

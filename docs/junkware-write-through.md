@@ -222,6 +222,15 @@ Live source confirmation is separate from these automated checks.
 
 ## Dispatch recovery and canceled appointments
 
+Closeout preserves the saved appointment date, start time, and duration after
+dependent truck/payment postbacks. JunkWare keeps those controls in its inactive
+Map & Schedule tab, so restoration stages the saved values without requiring
+visibility or firing a scheduling change event. Missing or locked date/time
+controls stop before Save. A fresh source read after Save still verifies the
+entire appointment window; a timeout never triggers an automatic resubmission.
+`scripts/test-closeout-payments.ts` covers hidden scheduling controls, truck
+postbacks that change defaults, and locked-field rejection using synthetic data.
+
 The appointment drawer offers **Restore Appointment** for canceled appointments,
 with date/time review and a separate confirmation. It changes the original
 appointment to Confirmed, preserves truck and duration, reopens JunkWare for

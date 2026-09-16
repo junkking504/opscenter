@@ -11,10 +11,11 @@ const methods = [{value:'1',label:'Billed'}, {value:'2',label:'Cash'}, {value:'3
 const input = { appointmentType:'Job', driverId:'d', navigatorIds:[] as string[], loadQuantity:'1',loadSize:'',loadPrice:'1200.00',bedloadQuantity:'',bedloadSize:'',bedloadPrice:'',otherChargesToAdd:[],discount:'',tip:'',jobCategoryId:'',actualStartHour:'12',actualStartMinute:'00',actualEndHour:'13',actualEndMinute:'00' };
 type Payment = {description:string;amount:string};
 let persisted = new URLSearchParams(), payments:Payment[] = [], pending:Payment[] = [], saves = 0, adds = 0, truckPosts = 0;
+let lockedSchedule = false;
 const esc = (s:string) => s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 function html(fields:URLSearchParams) {
   const value = (key:string) => fields.get(`ctl00$Content$${key}`) || (key==='StartTimeTB'?'09:00 AM':key==='AppointmentDateTB'?'09/12/2026':'');
-  const control = (key:string) => `<input id="ctl00_Content_${key}" name="ctl00$Content$${key}" value="${esc(value(key))}">`;
+  const control = (key:string) => `<input ${lockedSchedule && key==='AppointmentDateTB'?'readonly':''} id="ctl00_Content_${key}" name="ctl00$Content$${key}" value="${esc(value(key))}">`;
   const select = (key:string, options:{value:string;label:string}[]) => `<select id="ctl00_Content_${key}" name="ctl00$Content$${key}" ${['StatusDD','AppointmentTypeDD','TruckDD','PaymentMethodDD'].includes(key)?`onchange="this.form.elements.namedItem('__EVENTTARGET').value=this.name;this.form.submit()"`:""}>${options.map(o=>`<option value="${o.value}" ${value(key)===o.value?'selected':''}>${o.label}</option>`).join('')}</select>`;
   const submit = (key:string) => `<input type="submit" id="ctl00_Content_${key}" name="ctl00$Content$${key}" value="${key}">`;
   const status = value('StatusDD');
@@ -22,7 +23,7 @@ function html(fields:URLSearchParams) {
   ${select('StatusDD',[{value:'1',label:'Confirmed'},{value:'8',label:'Completed'}])}
   ${select('AppointmentTypeDD',[{value:'2',label:'Job'},{value:'1',label:'Estimate'}])}
   <div>${select('TruckDD',[{value:'',label:''},{value:'t',label:'Truck# 1'},{value:'u',label:'Truck# 6'}])}${status==='1' ? 'Assigned: '+(persisted.get('ctl00$Content$TruckDD')==='u'?'Truck# 6':'Truck# 1') : ''}</div>
-  ${control('AppointmentDateTB')}${control('StartTimeTB')}${select('DurationDD',[{value:'1',label:'1 hour'}])}
+  <div hidden>${control('AppointmentDateTB')}${control('StartTimeTB')}${select('DurationDD',[{value:'1',label:'1 hour'}])}</div>
   ${select('DriverDD',[{value:'d',label:'Synthetic Driver'}])}
   ${select('AppointmentTechniciansLV_ctrl0_NavigatorDD',[{value:'',label:''}])}
   ${['LoadSizeTruckQtyTB','BillingAmountTB','BedloadTruckQtyTB','BedLoadPriceTB','DiscountsTB','TipsTB'].map(control).join('')}
@@ -54,6 +55,7 @@ async function main() {
   const browser=await chromium.launch({headless:true});
   try {
     const page=await browser.newPage();
+    page.setDefaultTimeout(5000);
     for(const method of methods) {
       persisted=new URLSearchParams({'ctl00$Content$StatusDD':'1','ctl00$Content$AppointmentTypeDD':'2','ctl00$Content$LoadSizeTruckQtyTB':'1','ctl00$Content$BillingAmountTB':'1200.00'});
       payments=[{description:'Cash',amount:'100.00'}];adds=0;saves=0;truckPosts=0;
@@ -81,6 +83,7 @@ async function main() {
       const request={...input,targetStatus,truck:'Truck 6'};
       const result=await saveAndVerifyCloseout(baseline,()=>applyCloseout(page,request,baseline),async()=>{await page.goto(url);return captureCloseoutSource(page,capture);},result=>verifyCloseoutFields(result,request,baseline));
       assert.equal(result.status.value,targetStatus);assert.equal(result.truck,'Truck 6');
+      assert.deepEqual(result.appointmentWindow,baseline.appointmentWindow,'Hidden scheduling fields must retain the saved date, time and duration after truck postbacks');
       assert.equal(saves,1);assert.equal(adds,0);
       assert.throws(()=>verifyCloseoutFields({...result,truck:'Truck 1'},request,baseline),/selected truck/);
       assert.throws(()=>verifyCloseoutFields({...result,appointmentWindow:{startTime:'10:00 AM',durationHours:'1'}},request,baseline),/appointment window/);
@@ -124,11 +127,18 @@ async function main() {
         assert.equal(saves,1);assert.equal(adds,0,'Editing a completed estimate preserves no-payment state');
       }
     }
+    persisted=new URLSearchParams({'ctl00$Content$StatusDD':'1','ctl00$Content$AppointmentTypeDD':'2'});
+    payments=[];saves=0;adds=0;lockedSchedule=true;
+    await page.goto(url);
+    const locked=await captureCloseoutSource(page,capture);
+    await assert.rejects(applyCloseout(page,input,locked),/could not preserve the saved appointment window/);
+    assert.equal(saves,0,'A locked schedule must stop before Save');
+    lockedSchedule=false;
     for(const amount of ['','0','-1','NaN','1.001','1000001']) assert.ok(validateCloseoutPayment({methodId:'2',amount},methods));
     assert.ok(validateCloseoutPayment({methodId:'unknown',amount:'1'},methods));
     assert.ok(validateCloseoutPayment({methodId:'3',amount:'1',reference:'1234567890123456'},methods));
     assert.ok(validateCloseoutPayment({methodId:'4',amount:'1'},methods));
-    console.log('Closeout payment browser fixtures passed: unsaved option discovery, stable source baseline, existing payments, Billed/Cash/Card/Check save and fresh read-back, references, duplicate rejection, and invalid input. No live writes.');
+    console.log('Closeout payment browser fixtures passed: hidden appointment-window preservation, truck postback restoration, locked-window rejection, unsaved option discovery, stable source baseline, existing payments, Billed/Cash/Card/Check save and fresh read-back, references, duplicate rejection, and invalid input. No live writes.');
   } finally {await browser.close();await new Promise<void>(r=>server.close(()=>r()));}
 }
 void main();

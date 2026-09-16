@@ -1,0 +1,83 @@
+.ops-live .convoy-workspace { gap: 12px; }
+.convoy-workspace :is(h2,h3,p,dl) { margin: 0; }
+.convoy-workspace :is(h2,h3) { font-size: 15px; line-height: 1.4; font-weight: 700; }
+.convoy-workspace :is(p,dd,button,select) { font-size: 12px; line-height: 1.45; }
+.convoy-workspace :is(small,dt) { color: #59675f; font-size: 11px; line-height: 1.45; }
+.convoy-workspace :is(article,section,header,dl,dd) { min-width: 0; }
+.convoy-workspace :is(p,dd,strong,small) { overflow-wrap: anywhere; }
+.convoy-workspace button[data-slot=button] { height: auto; min-height: 32px; white-space: normal; padding: 6px 10px; font-size: 12px; }
+.convoy-toolbar,.convoy-actions,.convoy-heading,.convoy-summary { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.convoy-toolbar { padding: 3px 0 8px; border-bottom: 1px solid var(--border); }
+.convoy-toolbar label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 650; }
+.convoy-toolbar select { max-width: 100%; min-height: 34px; padding: 6px 28px 6px 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); }
+.convoy-toolbar > span { font-size: 11px; color: #59675f; }
+.convoy-toolbar > a { margin-left: auto; }
+.convoy-workspace a { color: #315f4b; text-decoration: underline; text-underline-offset: 3px; font-size: 12px; }
+.convoy-summary { padding: 4px 0; font-size: 12px; gap: 8px 24px; }
+.convoy-summary strong { font-size: 18px; margin-right: 4px; }
+.convoy-trucks { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.convoy-truck { padding: 14px; display: flex; flex-direction: column; gap: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; }
+.convoy-truck > header { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; justify-content: space-between; }
+.convoy-truck h2 { display: flex; align-items: center; gap: 7px; }
+.convoy-status { padding: 3px 7px; border-radius: 4px; font-size: 11px; background: #edf0ed; color: #46534c; }
+.convoy-status.stop { background: #fbe8e8; color: #8b2631; }
+.convoy-status.ready { background: #e7f2eb; color: #285b41; }
+.convoy-status.attention { background: #fff0d1; color: #775217; }
+.convoy-condition { min-height: 18px; }
+.convoy-truck dl,.convoy-report dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px 18px; }
+.convoy-workspace dd { margin: 3px 0 0; font-weight: 600; }
+.convoy-load-meter { display: block; margin-top: 7px; height: 4px; background: #e6ebe6; border-radius: 3px; }
+.convoy-load-meter i { display: block; height: 100%; border-radius: inherit; background: #508b6b; }
+.convoy-truck > .convoy-actions { margin-top: auto; }
+.convoy-section-stack { display: grid; gap: 16px; }
+.convoy-panel { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.convoy-panel > header { padding: 13px 15px; border-bottom: 1px solid var(--border); }
+.convoy-panel header p { margin-top: 4px; color: #59675f; }
+.convoy-heading { justify-content: space-between; align-items: flex-start; }
+.convoy-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 15px; border-bottom: 1px solid #e6eae6; }
+.convoy-row > div:first-child { min-width: 0; }
+.convoy-row > div > strong { display: block; font-size: 12px; }
+.convoy-row p { margin-top: 4px; color: #59675f; }
+.convoy-row small { display: block; margin-top: 3px; }
+.convoy-row > button { flex-shrink: 0; }
+.convoy-workspace :is(.convoy-empty,.convoy-hint) { padding: 14px 15px; color: #59675f; }
+.convoy-service-truck { padding: 14px 15px; border-bottom: 1px solid var(--border); }
+.convoy-service-truck .convoy-row { padding-inline: 0; }
+.convoy-service-truck .convoy-empty { padding: 12px 0 0; }
+.convoy-workspace summary { cursor: pointer; font-size: 12px; padding: 10px 0; }
+.convoy-driving > details { border-bottom: 1px solid var(--border); }
+.convoy-driving > details > summary { display: grid; grid-template-columns: 100px minmax(140px,1fr) minmax(110px,1fr) 115px; gap: 10px; padding: 14px 15px; align-items: center; }
+.convoy-driving > details > summary > span:last-child { text-decoration: underline; text-underline-offset: 3px; color: #315f4b; }
+.convoy-driving > details[open] > summary { background: #f2f6f2; }
+.convoy-workspace .driving-score-details { margin: 0 14px 14px; border: 0; padding: 8px 0; }
+.convoy-workspace .driving-score-details h3 { margin: 0; }
+.convoy-report { padding: 14px 15px; border-bottom: 1px solid var(--border); }
+.convoy-report dl { margin-top: 12px; }
+.convoy-history { padding: 14px 15px; }
+.convoy-history > p { margin-top: 6px; color: #59675f; }
+.convoy-history .convoy-row { padding-inline: 0; }
+.convoy-source-details { padding: 0 4px; }
+.convoy-source-details > summary { color: #59675f; }
+.convoy-source-details p { padding: 8px 10px; margin-top: 4px; background: #eef2ee; border-left: 2px solid #ab8338; }
+.convoy-source-alert { padding: 10px 12px; background: #fff0d1; color: #775217; border-radius: 6px; }
+.convoy-drawer-load { padding: 14px 0; border-block: 1px solid var(--border); }
+.convoy-extra-fields { margin: 12px 0; }
+.convoy-extra-fields > p { margin: 6px 0 12px; }
+.convoy-workspace .record-drawer-body .convoy-history { padding-inline: 0; }
+.convoy-workspace .fleet-form-grid :is(label,input,select,textarea),.convoy-workspace .fleet-load-form :is(label,input,select) { min-width: 0; max-width: 100%; }
+@media (min-width: 1700px) { .convoy-trucks { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+@media (max-width: 1000px) { .convoy-driving > details > summary { grid-template-columns: 90px 1fr; } }
+@media (max-width: 760px) {
+  .convoy-trucks { grid-template-columns: 1fr; }
+  .convoy-row { align-items: flex-start; flex-wrap: wrap; }
+  .convoy-row > .convoy-actions { width: 100%; }
+  .convoy-toolbar > a { margin-left: 0; }
+  .convoy-toolbar label { max-width: 100%; }
+  .convoy-workspace .fleet-load-form { grid-template-columns: 1fr; }
+  .convoy-workspace .record-drawer-body .fleet-form-grid { grid-template-columns: 1fr; }
+  .convoy-workspace button[data-slot=button] { min-height: 36px; }
+}
+
+.ops-live .workspace-tabs.convoy-tabs { display: flex; flex-wrap: wrap; width: auto; max-width: 100%; gap: 3px; }
+.ops-live .workspace-tabs.convoy-tabs > button { flex: 0 0 auto; width: auto; min-width: 0; white-space: normal; height: auto; min-height: 30px; padding: 6px 10px; }
+.convoy-workspace .convoy-service-target { margin-top: 10px; }

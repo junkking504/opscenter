@@ -1,0 +1,23 @@
+import assert from 'node:assert/strict';
+import { convoyTabs, convoyWarnings, duplicateRepair, recordedValue, sameTruck, truckCondition, truckLoadLabel } from '../desktop-ui/lib/convoy-presentation';
+import type { DesktopFleetTruck, FleetIssueRow } from '../desktop-ui/lib/people-fleet-contract';
+
+assert.deepEqual(convoyTabs.map(([key])=>key),['overview','maintenance','service','scores','reports']);
+assert.equal(sameTruck('Truck# 4','Truck 4'),true);
+assert.equal(sameTruck('Truck 4','Truck 14'),false);
+assert.equal(sameTruck('Virtual Truck','Virtual Truck'),false);
+const warnings=['Truck# 4: load reconciliation needs attention.','Truck# 14: load is unknown.','Repair source is unavailable.','Fleet telemetry source is unavailable.'];
+assert.deepEqual(convoyWarnings(warnings,'scores'),warnings.slice(2));
+assert.deepEqual(convoyWarnings(warnings,'overview','Truck 4'),[warnings[0],...warnings.slice(2)]);
+assert.equal(truckLoadLabel({loadPercent:0,loadLabel:'Empty · provisional',loadNeedsVerification:true} as DesktopFleetTruck),'Load needs confirmation');
+assert.equal(truckLoadLabel({loadPercent:null,loadLabel:'Load unknown'} as DesktopFleetTruck),'Load unknown');
+assert.equal(truckLoadLabel({loadPercent:0,loadLabel:'Empty'} as DesktopFleetTruck),'Empty');
+assert.equal(truckCondition({readiness:'Out of service',checklist:'Complete'} as DesktopFleetTruck),'Out of service');
+assert.equal(truckCondition({readiness:'Attention',checklist:'Missing'} as DesktopFleetTruck),'Inspection missing');
+const issue={issueId:'one',truck:'Truck 4',title:'Tire',description:'Front',status:'open'} as FleetIssueRow;
+assert.equal(duplicateRepair(issue,[issue]),false);
+assert.equal(duplicateRepair(issue,[issue,{...issue,issueId:'two',truck:'Truck# 4'}]),true);
+assert.equal(duplicateRepair(issue,[issue,{...issue,issueId:'two',status:'resolved'}]),false);
+assert.equal(recordedValue('— · —'),'Not recorded');
+assert.equal(recordedValue('0 mi'),'0 mi');
+console.log('Convoy presentation passed: stable routes, truck identity, scoped warnings, load uncertainty, repair status, duplicate hints and missing values.');

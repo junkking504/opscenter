@@ -1,4 +1,5 @@
 'use client';
+import { convoyTabs } from '../lib/convoy-presentation';
 import { workspaceLabel } from '../lib/workspace-labels';
 import { WorkspaceBoundary } from '../workspace-boundary';
 import { cachedWorkspace, fetchWorkspace } from '../lib/workspace-cache';
@@ -1183,7 +1184,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       : activeNav === 'Krewe'
         ? `Krewe · ${kreweView === 'today' ? 'Today' : kreweView === 'callin' ? 'Call-In Plan' : kreweView === 'payperiod' ? 'Pay Period' : 'Monthly'}`
         : activeNav === 'Fleet'
-          ? `Fleet · ${fleetView === 'scores' ? 'Driving Scores' : fleetView === 'overview' ? 'Overview' : fleetView === 'maintenance' ? 'Maintenance' : fleetView === 'service' ? 'Service' : 'Reports'}`
+          ? `Convoy · ${convoyTabs.find(([key]) => key === fleetView)?.[1] || 'Trucks'}`
           : activeNav === 'Marketing'
             ? `Campaign · ${marketingView === 'reviews' ? 'Reviews' : marketingView === 'performance' ? 'Results' : 'Follow up'}`
             : `Finance · ${financeView === 'overview' ? 'Overview' : financeView === 'payments' ? 'Payments' : financeView === 'resale' ? 'Resale' : financeView === 'recycling' ? 'Recycling' : financeView === 'accounting' ? 'Accounting' : financeView === 'expenses' ? 'Expenses' : 'Trends'}`;
@@ -4295,11 +4296,11 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   : kreweView === 'callin' ? 'Plan tomorrow’s coverage and record each availability decision.'
                     : kreweView === 'payperiod' ? 'Reconcile hours, production, earnings, and exceptions across the current pay period.'
                       : 'Review monthly labor, production, payroll, and individual performance.'
-                : activeNav === 'Fleet' ? fleetView === 'scores' ? 'Daily driving scores, event deductions, and driver attribution.' : fleetView === 'overview'
-                  ? 'Vehicle readiness, live work, load status, service risk, and next actions.'
-                  : fleetView === 'maintenance' ? 'Daily inspections and repair work orders with accountable ownership.'
-                    : fleetView === 'service' ? 'Mileage and date-based preventive-service planning by truck.'
-                      : 'Monthly production, driving, downtime, and fleet cost signals.'
+                : activeNav === 'Fleet' ? fleetView === 'scores' ? 'Driving activity, scores, and the records behind them.' : fleetView === 'overview'
+                  ? 'Condition, load, inspections, and activity for every truck.'
+                  : fleetView === 'maintenance' ? 'Submitted inspections, reported problems, and repair updates.'
+                    : fleetView === 'service' ? 'Schedule upcoming service or record completed work.'
+                      : 'Truck history, recorded costs, downtime, and monthly activity.'
                 : activeNav === 'Marketing' ? 'Turn interest into booked work. Give great service its credit.'
                 : activeNav === 'Finance' ? financeView === 'overview'
                   ? 'Performance, payments and financial decisions. All in one place.'
@@ -4339,8 +4340,8 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
               </div>
             ) : activeNav === 'Fleet' ? (
               <div className="fleet-heading-actions">
-                <div className="fleet-view-switcher workspace-tabs" role="tablist" aria-label="Convoy views">
-                  {([['overview', 'Overview'], ['scores', 'Driving Scores'], ['maintenance', 'Maintenance'], ['service', 'Service'], ['reports', 'Reports']] as const).map(([key, label]) => <button className={fleetView === key ? 'active' : ''} onClick={() => setFleetView(key)} role="tab" aria-selected={fleetView === key} key={key}>{label}{!live && key === 'maintenance' && <span>{activeFleetIssues.length}</span>}</button>)}
+                <div className="fleet-view-switcher workspace-tabs convoy-tabs" role="tablist" aria-label="Convoy views">
+                  {(convoyTabs).map(([key, label]) => <button className={fleetView === key ? 'active' : ''} onClick={() => setFleetView(key)} role="tab" aria-selected={fleetView === key} key={key}>{label}{!live && key === 'maintenance' && <span>{activeFleetIssues.length}</span>}</button>)}
                 </div>
               </div>
             ) : activeNav === 'Marketing' ? (

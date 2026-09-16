@@ -13,10 +13,10 @@ try {
   assert.ok(label && box && label.y>=box.y && label.y+label.height<=box.y+box.height,'Load fits inside the truck row');
   await page.screenshot({path:'/tmp/opscenter-truck-load-schedule.png',fullPage:true});
   await page.getByRole('button',{name:'Fleet preview',exact:true}).click();
-  await page.getByRole('heading',{name:'Truck Load Status',exact:true}).waitFor();
+  await page.getByRole('heading',{name:'Truck 2',exact:true}).waitFor();
   assert.equal(await page.getByText('1/4 full',{exact:true}).isVisible(),true);
   assert.equal(await page.getByText('1/2 full',{exact:true}).isVisible(),true);
-  assert.equal(await page.getByText('Verify load',{exact:true}).isVisible(),true);
+  assert.equal(await page.getByText('Load needs confirmation',{exact:true}).isVisible(),true);
   await page.setViewportSize({width:390,height:844});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   await page.getByRole('button',{name:'Schedule preview',exact:true}).click();

@@ -56,6 +56,16 @@ Do not copy credentials, cookies, tokens, customer records, employee payroll,
 financial exports, raw telemetry, logs, or live runtime data into this
 repository or a Business share bundle.
 
+## Second Brain continuity
+
+For OpsCenter work, consult relevant records in the private Second Brain alongside
+canonical docs before diagnosing a recurring issue. After a meaningful fix or
+operating decision, capture the dated source, symptom, cause, action, evidence,
+remaining work and prevention lesson through [the history workflow](docs/second-brain.md).
+Keep runtime knowledge and conversation details outside Git. Historical fixes
+are diagnostic evidence, not current verification or authorization to replay an
+action. Preserve manager edits and label incomplete outcomes honestly.
+
 ## Documentation
 
 Update the relevant document in `docs/` when changing architecture,

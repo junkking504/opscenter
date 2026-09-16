@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { KNOWLEDGE_KINDS, KNOWLEDGE_WORKSPACES, type KnowledgeAction, type KnowledgeDraft, type KnowledgeEntry } from '../desktop-ui/lib/knowledge-contract';
+import { KNOWLEDGE_KINDS, KNOWLEDGE_WORKSPACES, KNOWLEDGE_OUTCOMES, type KnowledgeAction, type KnowledgeDraft, type KnowledgeEntry } from '../desktop-ui/lib/knowledge-contract';
 import { knowledgeSeeds } from './knowledge-seeds';
 
 export class KnowledgeError extends Error {
@@ -25,7 +25,16 @@ export function validateKnowledgeDraft(value: unknown): KnowledgeDraft {
     try { url = new URL(sourceUrl); } catch { throw new KnowledgeError('Use a complete HTTPS source URL.'); }
     if (url.protocol !== 'https:' || url.username || url.password) throw new KnowledgeError('Use an HTTPS source URL without credentials.');
   }
-  return { title: field(draft.title, 'a title', 160), kind: draft.kind, workspace: draft.workspace,
+  let learning: KnowledgeDraft['learning'];
+  if (draft.learning !== undefined) {
+    const value = draft.learning;
+    if (!value || typeof value !== 'object' || !KNOWLEDGE_OUTCOMES.includes(value.outcome)
+      || typeof value.recordedAt !== 'string' || !/^\d{4}-\d{2}-\d{2}T/.test(value.recordedAt) || !Number.isFinite(Date.parse(value.recordedAt))
+      || !Array.isArray(value.topics) || value.topics.length > 12) throw new KnowledgeError('Provide valid historical evidence metadata.');
+    learning = { sourceKey: field(value.sourceKey, 'a historical source key', 240), recordedAt: new Date(value.recordedAt).toISOString(),
+      outcome: value.outcome, topics: [...new Set(value.topics.map(topic => field(topic, 'a topic', 80)))] };
+  }
+  return { ...(learning ? { learning } : {}), title: field(draft.title, 'a title', 160), kind: draft.kind, workspace: draft.workspace,
     summary: field(draft.summary, 'a short summary', 400), body: field(draft.body, 'steps, reasoning or resolution', 16000),
     owner: field(draft.owner, 'an owner', 120), sourceLabel: field(draft.sourceLabel, 'a source name', 200), sourceUrl,
     sourceNote: field(draft.sourceNote, 'a source reference or evidence description', 3000) };

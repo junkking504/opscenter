@@ -1,0 +1,35 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { importKnowledgeHistory, knowledgeSourceId } from '../lib/knowledge-import';
+import { executeKnowledgeAction, readKnowledgeEntries, knowledgeSnapshot } from '../lib/knowledge-store';
+import { relatedKnowledge, searchKnowledge, type KnowledgeDraft } from '../desktop-ui/lib/knowledge-contract';
+const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'knowledge-import-'));
+const draft: KnowledgeDraft = { title: 'Historic recovery', summary: 'Recorded outcome only', body: 'Read the source first.', kind: 'incident', workspace: 'Schedule', owner: 'Unassigned', sourceLabel: 'Synthetic historical discussion', sourceUrl: '', sourceNote: 'Synthetic dated evidence.', learning: { sourceKey: 'test:one', recordedAt: '2026-09-01T00:00:00Z', outcome: 'follow-up', topics: ['receipt-recovery'] } };
+const manifest = { schema: 1, records: [draft] };
+try {
+  assert.equal(importKnowledgeHistory(manifest, directory).created, 1);
+  assert.equal(readKnowledgeEntries(directory).length, 0, 'dry run cannot write');
+  assert.throws(() => importKnowledgeHistory({ schema: 1, records: [draft, {...draft, learning: {...draft.learning!, sourceKey: 'second', recordedAt: 'bad'}}]}, directory, true));
+  assert.equal(readKnowledgeEntries(directory).length, 0, 'invalid batch cannot partially publish');
+  assert.throws(() => importKnowledgeHistory({schema: 1, records: [draft, draft]}, directory, true), /Duplicate/);
+  assert.equal(importKnowledgeHistory(manifest, directory, true).created, 1);
+  assert.equal(importKnowledgeHistory(manifest, directory, true).unchanged, 1);
+  let entries = readKnowledgeEntries(directory);
+  assert.equal(entries[0].status, 'draft'); assert.equal(entries[0].verifiedAt, null, 'historical fix is not live verification');
+  assert.equal(knowledgeSnapshot(false, directory).entries.some(entry => entry.learning), false, 'history remains manager-only');
+  assert.equal(searchKnowledge(entries, 'receipt-recovery', 'All', 'all', 'all', 'follow-up').length, 1);
+  assert.equal(searchKnowledge(entries, '', 'All', 'all', 'all', 'fixed').length, 0);
+  const revised = {...draft, body: 'Later evidence with an explicit remaining action.'};
+  assert.equal(importKnowledgeHistory({schema: 1, records: [revised]}, directory, true).revised, 1);
+  assert.equal(readKnowledgeEntries(directory)[0].version, 2);
+  executeKnowledgeAction({action: 'verify', id: knowledgeSourceId('test:one'), expectedVersion: 2, requestId: crypto.randomUUID(), verificationNote: 'Manager checked evidence.'}, {id:'manager',canManage:true}, directory);
+  assert.deepEqual(importKnowledgeHistory(manifest,directory,true).conflicts,['test:one']);
+  assert.equal(readKnowledgeEntries(directory)[0].version,3, 'reimport cannot overwrite human verification');
+  importKnowledgeHistory({schema:1,records:[{...draft,kind:'pattern',learning:{...draft.learning!,sourceKey:'test:two'}}]},directory,true);
+  entries = readKnowledgeEntries(directory);
+  assert.equal(relatedKnowledge(entries[0], entries).length, 1);
+  console.log('Knowledge import passed: dry run, full validation, stable dedupe, revisions, manager ownership, historical outcome filtering, related experience, and private access.');
+} finally { fs.rmSync(directory,{recursive:true,force:true}); }

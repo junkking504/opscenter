@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "verify:knowledge": "node --import tsx scripts/test-knowledge.ts",
+    "verify:knowledge": "node --import tsx scripts/test-knowledge.ts && node --import tsx scripts/test-knowledge-import.ts",
     "verify:inspection-slack": "node --import tsx scripts/test-inspection-slack.ts",
     "verify:inspection-fleet": "node --import tsx scripts/test-inspection-fleet.ts",
     "verify:truck-inspections": "node --import tsx scripts/test-truck-inspections.ts",
@@ -115,7 +115,8 @@
     "verify:closeout-reliability": "node --import tsx scripts/test-closeout-reliability.ts && node --import tsx scripts/test-closeout-payment-verification.ts && node --import tsx scripts/test-closeout-draft-summary.ts",
     "verify:continuity": "python3 scripts/test-continuity-monitor.py && node --import tsx scripts/test-continuity-monitor.ts && node --test scripts/test-continuity-proxy.mjs",
     "verify:assignment-recovery": "node --import tsx scripts/test-automatic-move-recovery.ts && node --import tsx scripts/test-appointment-recovery.ts && node --import tsx scripts/test-desktop-schedule-operations.ts",
-    "verify:visit-tracking-agent": "node --import tsx scripts/test-visit-tracking-agent.ts"
+    "verify:visit-tracking-agent": "node --import tsx scripts/test-visit-tracking-agent.ts",
+    "import:knowledge": "node --import tsx scripts/import-knowledge-history.ts"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

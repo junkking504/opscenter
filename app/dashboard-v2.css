@@ -6,7 +6,7 @@
 .ops-daily-dashboard .ops-page-header.has-subnav {
   border-color: rgba(255, 255, 255, 0.1);
   background:
-    linear-gradient(105deg, rgba(237, 28, 36, 0.07), transparent 36%),
+    linear-gradient(105deg, rgb(var(--ops-brand-red-rgb) / 0.07), transparent 36%),
     #0e131a;
 }
 

@@ -8,7 +8,7 @@
 .live-schedule .readable-appointment { min-height: 126px; margin: 3px 6px; border: 1px solid #c2cdd5; border-left: 3px solid #92a6b4; border-radius: 6px; background: #fff; color: #26332d; box-shadow: none; cursor: pointer; transition: background-color 140ms ease, border-color 140ms ease, box-shadow 140ms ease; }
 .live-schedule .readable-appointment:nth-of-type(even) { background: #f1f5f8; }
 .live-schedule .readable-appointment.estimate-closed { border-left-color: #8662b1; background: #faf5ff; }
-.live-schedule .readable-appointment.canceled { border-left-color: #c52a34; background: #fff3f3; }
+.live-schedule .readable-appointment.canceled { border-left-color: var(--ops-brand-red); background: #fff3f3; }
 .live-schedule .appointment-register-row.readable-appointment.route-selected { border-color: #477d9f; border-left-color: #174e77; background: #dcecf7; box-shadow: inset 0 0 0 1px #477d9f; }
 .live-schedule .readable-appointment:focus-within { outline: 2px solid #6495b5; outline-offset: -2px; }
 @media (hover: hover) and (pointer: fine) {
@@ -40,7 +40,7 @@
 .live-schedule .readable-appointment .payment-due .register-payment-balance { color: #805000; }
 .live-schedule .readable-appointment .appointment-state { font-size: 12px; line-height: 1.4; white-space: normal; padding: 5px 8px; }
 .live-schedule .readable-appointment .register-open { color: #204e71; min-height: 32px; margin-top: 5px; }
-.live-schedule .readable-appointment .register-warning { color: #9b2430; font-weight: 650; }
+.live-schedule .readable-appointment .register-warning { color: var(--ops-brand-red); font-weight: 650; }
 .live-schedule .readable-appointment .register-route { color: #53615a; }
 .live-schedule .readable-appointment .register-mobile-label { display: none; }
 .live-schedule .readable-appointment button:focus-visible { outline: 2px solid #1a638d; outline-offset: 4px; }

@@ -20,7 +20,7 @@
 .convoy-truck > header { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; justify-content: space-between; }
 .convoy-truck h2 { display: flex; align-items: center; gap: 7px; }
 .convoy-status { padding: 3px 7px; border-radius: 4px; font-size: 11px; background: #edf0ed; color: #46534c; }
-.convoy-status.stop { background: #fbe8e8; color: #8b2631; }
+.convoy-status.stop { background: #fbe8e8; color: var(--ops-brand-red); }
 .convoy-status.ready { background: #e7f2eb; color: #285b41; }
 .convoy-status.attention { background: #fff0d1; color: #775217; }
 .convoy-condition { min-height: 18px; }

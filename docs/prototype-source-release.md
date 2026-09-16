@@ -10,6 +10,16 @@ selects the 192px and 512px app icons for installation. These assets are public
 before login and use versioned URLs. The prior SVG URL carries the same artwork
 for compatibility. The inspection app retains its own route-specific identity.
 
+## Shared red palette
+
+`styles/brand-tokens.css` defines the OpsCenter UI red as `#B51935`. Both
+CSS entry points import it so desktop workspaces, navigation, dialogs, login
+and server-rendered controls resolve the same `--ops-brand-red` value.
+Hover shades and translucent red accents derive from that token. Use it for
+new UI accents instead of introducing another red literal. Light status tints,
+gold accents, source/territory chart colors and official logo artwork retain
+their separate roles.
+
 ## Workspace display names
 
 Primary navigation uses Command, Control, Crew, Convoy, Capital, Campaign, in

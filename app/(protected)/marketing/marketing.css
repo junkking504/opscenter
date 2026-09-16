@@ -46,7 +46,7 @@
 }
 
 .ops-marketing-recovery-alert-actions strong {
-  color: #9f1f28;
+  color: var(--ops-brand-red);
   white-space: nowrap;
 }
 
@@ -521,7 +521,7 @@
 
 .ops-marketing-phone {
   width: fit-content;
-  color: #9f1118;
+  color: var(--ops-brand-red);
   font-size: 1.05rem;
   font-weight: 900;
   letter-spacing: 0.015em;
@@ -531,12 +531,12 @@
 }
 
 .ops-marketing-phone:hover {
-  color: #d71920;
+  color: var(--ops-brand-red-hover);
 }
 
 .ops-marketing-phone:focus-visible {
   border-radius: 3px;
-  outline: 3px solid rgba(215, 25, 32, 0.24);
+  outline: 3px solid rgb(var(--ops-brand-red-rgb) / 0.24);
   outline-offset: 3px;
 }
 
@@ -602,8 +602,8 @@
 }
 
 .ops-marketing-recovery-filters .ops-button.is-active {
-  border-color: #9f1f28;
-  background: #9f1f28;
+  border-color: var(--ops-brand-red);
+  background: var(--ops-brand-red);
   color: #fff;
 }
 
@@ -642,7 +642,7 @@
 .ops-lead-status.is-lost {
   border-color: #e1a8ac;
   background: #fff0f1;
-  color: #9f1f28;
+  color: var(--ops-brand-red);
 }
 
 .ops-lead-status.is-booked,
@@ -675,13 +675,13 @@
 }
 
 .ops-marketing-call-button {
-  background: #9f1f28;
+  background: var(--ops-brand-red);
   color: #fff;
   text-decoration: none;
 }
 
 .ops-marketing-call-button:hover {
-  background: #7f1720;
+  background: var(--ops-brand-red-hover);
   color: #fff;
 }
 
@@ -747,7 +747,7 @@
   border-radius: 8px;
   padding: 9px 11px;
   background: #fff4f4;
-  color: #9f1f28;
+  color: var(--ops-brand-red);
   cursor: pointer;
 }
 
@@ -775,7 +775,7 @@
 }
 
 .ops-franchise-contact-status {
-  color: #9f1f28;
+  color: var(--ops-brand-red);
   font-size: 0.875rem;
   font-weight: 800;
   white-space: nowrap;

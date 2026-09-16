@@ -32,8 +32,8 @@
 .ops-daily-dashboard > .ops-page-header .ops-page-subnav a.active {
   border-color: transparent;
   background: transparent;
-  color: #b0121a;
-  box-shadow: inset 0 -2px #ef233c;
+  color: var(--ops-brand-red);
+  box-shadow: inset 0 -2px var(--ops-brand-red);
 }
 
 .ops-daily-dashboard > .ops-supporting-metrics { margin-top: 2px; }

@@ -47,7 +47,7 @@
 .estimate-form .estimate-checkbox input { width: 16px; height: 16px; }
 .estimate-form .estimate-save { background: #264f80; border-color: #264f80; color: #fff; width: 100%; }
 .estimate-form > small { display: block; margin-top: 10px; }
-.estimate-error { background: #fff0ed; color: #963b2d; padding: 12px; margin-top: 12px; }
+.estimate-error { background: #fff0ed; color: var(--ops-brand-red); padding: 12px; margin-top: 12px; }
 .estimate-save-message { font-size: 13px; padding: 12px; background: #edf3fb; }
 .estimate-history { margin-top: 18px; }
 .estimate-history article { border-top: 1px solid #dce2e8; padding: 12px 0; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }

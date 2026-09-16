@@ -11,8 +11,8 @@
 .ops-live .live-schedule.schedule-dispatch .schedule-search-actions { display: flex; flex: 0 1 370px; min-width: 0; gap: 8px; align-items: center; }
 .ops-live .live-schedule.schedule-dispatch .schedule-control-actions input { flex: 1 1 140px; width: 0 !important; min-width: 0; max-width: 260px !important; height: 36px; font-size: 12px; padding: 7px 10px; background: #fff; }
 .ops-live .live-schedule.schedule-dispatch .schedule-control-actions button { height: 36px; min-height: 36px; padding: 7px 10px; font-size: 12px; }
-.ops-live .live-schedule.schedule-dispatch .schedule-control-actions .schedule-add-appointment { flex-shrink: 0; color: #fff; background: #a43b35; border: 1px solid #a43b35; display: inline-flex; gap: 6px; align-items: center; min-height: 32px; height: 32px; padding: 5px 10px; font-size: 12px; font-weight: 750; border-radius: 6px; box-shadow: 0 1px 2px #51101a20; }
-.ops-live .live-schedule.schedule-dispatch .schedule-control-actions .schedule-add-appointment:hover:not(:disabled) { background: #89312c; border-color: #89312c; }
+.ops-live .live-schedule.schedule-dispatch .schedule-control-actions .schedule-add-appointment { flex-shrink: 0; color: #fff; background: var(--ops-brand-red); border: 1px solid var(--ops-brand-red); display: inline-flex; gap: 6px; align-items: center; min-height: 32px; height: 32px; padding: 5px 10px; font-size: 12px; font-weight: 750; border-radius: 6px; box-shadow: 0 1px 2px #51101a20; }
+.ops-live .live-schedule.schedule-dispatch .schedule-control-actions .schedule-add-appointment:hover:not(:disabled) { background: var(--ops-brand-red-hover); border-color: var(--ops-brand-red-hover); }
 .ops-live .live-schedule.schedule-dispatch .schedule-control-actions .schedule-refresh-action { color: #526571; background: transparent; border-color: transparent; }
 .ops-live .live-schedule.schedule-dispatch .schedule-control-actions .schedule-refresh-action:hover:not(:disabled) { background: #edf0f2; }
 .ops-live .live-schedule.schedule-dispatch .schedule-map-toggle { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; color: #365568; font-weight: 650; cursor: pointer; }

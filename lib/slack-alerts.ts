@@ -1,3 +1,4 @@
+import { truckInspectionSlackNotifications } from "./truck-inspection-notifications";
 import { truckExpenseSlackNotifications } from './truck-expense-notifications';
 import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
 import { isIgnoredIncidentFingerprint } from "@/lib/ignored-operational-alerts";
@@ -30,6 +31,7 @@ import { closeoutCompactSummary } from "@/lib/closeout-compact-summary";
 
 export type SlackAlertSeverity = "critical" | "warning";
 export type SlackAlertKind =
+  | "truck_inspection"
   | "truck_expense"
   | "add_on"
   | "cancellation"
@@ -1586,6 +1588,24 @@ async function runTruckCloseoutSlackAlerts(options: {
   return result;
 }
 
+async function runTruckInspectionSlackAlerts(date: string, dryRun: boolean, enabled: boolean): Promise<SlackAlertRunResult> {
+  const state = readState();
+  const alerts = truckInspectionSlackNotifications(date);
+  const pending = alerts.filter(alert => !state.notificationMessages[alert.fingerprint]);
+  const result = slackAlertRunResult(date, dryRun, enabled, pending);
+  result.unchanged = alerts.length - pending.length;
+  if (dryRun || !enabled || !pending.length) return result;
+  const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
+  if (!token) throw new Error("SLACK_BOT_TOKEN is required when Slack OpsCenter alerts are enabled.");
+  for (const alert of pending) {
+    await syncNotificationMessages(state, [alert], new Set(), token, result);
+    // Persist each acknowledged message before sending the next report.
+    state.updatedAt = new Date().toISOString();
+    writeState(state);
+  }
+  return result;
+}
+
 export async function runSlackOpsAlerts(options?: {
   date?: string;
   dryRun?: boolean;
@@ -1598,6 +1618,7 @@ export async function runSlackOpsAlerts(options?: {
   const enabled = boolEnv("SLACK_OPSCENTER_ALERTS_ENABLED");
   const onlyKinds = new Set(options?.onlyKinds || []);
   if (onlyKinds.size) {
+    if (onlyKinds.size === 1 && onlyKinds.has("truck_inspection")) return runTruckInspectionSlackAlerts(date, dryRun, enabled);
     if ([...onlyKinds].every(kind => kind === "truck_arrival" || kind === "truck_departure")) {
       return runTruckArrivalSlackAlerts({ date, dryRun, enabled, kinds: onlyKinds });
     }
@@ -1607,10 +1628,11 @@ export async function runSlackOpsAlerts(options?: {
       )),
     );
     if (closeoutKinds.size !== onlyKinds.size) {
-      throw new Error("Only truck_arrival, truck_departure, job_closed, or estimate_closed can be published independently.");
+      throw new Error("Only truck_inspection, truck_arrival, truck_departure, job_closed, or estimate_closed can be published independently.");
     }
     return runTruckCloseoutSlackAlerts({ date, dryRun, enabled, kinds: closeoutKinds });
   }
+  const inspections = await runTruckInspectionSlackAlerts(date, dryRun, enabled);
   const state = readState();
   const fastScheduleDeliveries = deliveredFastScheduleChanges(date);
   const incidents = collectIncidentAlerts(date);
@@ -1682,6 +1704,7 @@ export async function runSlackOpsAlerts(options?: {
   ];
   const notifications = notificationDeliveries.map(({ alert }) => alert);
   const preview = [
+    ...inspections.preview,
     ...expenseNotifications,
     ...incidents,
     ...notifications,
@@ -1700,10 +1723,10 @@ export async function runSlackOpsAlerts(options?: {
     bootstrappedIncidents: state.initializedAt ? 0 : incidents.length,
     bootstrappedTruckCloseouts: truckCloseoutNotificationsInitialized ? 0 : allTruckCloseoutNotifications.length,
     bootstrappedPayments: paymentNotificationsInitialized ? 0 : allPaymentNotifications.length,
-    posted: [],
+    posted: [...inspections.posted],
     resolved: [],
-    unchanged: 0,
-    failures: [],
+    unchanged: inspections.unchanged,
+    failures: [...inspections.failures],
     preview,
   };
 

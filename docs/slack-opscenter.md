@@ -186,6 +186,7 @@ stop rows and starting inside a geofence do not invent entry events.
 - Clocked-in employee without a truck -> retained in OpsCenter without a Slack alert because assignment normally follows closeout
 - Employee clock-in, clock-out with hours, and finalized daily-pay breakdown -> `#ops-command` (or `SLACK_OPS_CREW_CHANNEL_ID`)
 - Newly closed JunkWare job -> a separate finance detail in `#payment`, with each payment amount and method, check number for checks, card last four for cards, and any tip
+- Saved Five Point Inspection -> `#ops-fleet`, including clear reports and all recorded issue notes; [receipt delivery](truck-inspections.md#slack-receipt-alerts)
 - Open out-of-service fleet issue -> `#ops-fleet`
 - Red JunkWare or Linxup data health -> `#ops-data-health`
 - Cross-territory or unmapped operational exceptions -> `#dispatch`

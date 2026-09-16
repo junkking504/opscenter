@@ -16,6 +16,13 @@ export default function FleetInspectionReports() {
   const [filter, setFilter] = useState(""); const [statusFilter, setStatusFilter] = useState("");
   const [selected, setSelected] = useState(""); const [manageOpen, setManageOpen] = useState(false);
   const generation = useRef(0); const detail = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const linkedDate = params.get("date") || "";
+    const linkedReport = params.get("report") || "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(linkedDate)) setDate(linkedDate);
+    if (/^[a-f0-9-]{36}:[a-f0-9-]{36}$/.test(linkedReport)) setSelected(linkedReport);
+  }, []);
   useEffect(() => { const id = ++generation.current; setSnapshot(null); setError(""); request(undefined, date).then(value => { if (generation.current === id) setSnapshot(value); }).catch(e => { if (generation.current === id) setError(e.message); }); return () => { generation.current = id + 1; }; }, [date]);
   async function refresh() { const id = ++generation.current; setError(""); try { const value = await request(undefined, date); if (generation.current === id) setSnapshot(value); } catch (e) { if (generation.current === id) setError((e as Error).message); } }
   async function action(body: unknown) { setBusy(true); setError(""); try { const result = await request(body); await refresh(); return result; } catch (e) { setError((e as Error).message); } finally { setBusy(false); } }

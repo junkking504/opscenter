@@ -34,8 +34,8 @@ required in Dashboard (step 3). Both offer Empty, 1/4, 1/2, 3/4 and Full, with
 no default selection. Fullness describes occupied cargo space at inspection
 time, not the number of loads hauled. Both values survive draft recovery and
 appear separately in review, the saved receipt and the printable OpsCenter
-report. These observations do not change the separate calculated Fleet load
-state or fuel-purchase records.
+report. Fullness establishes a timestamped observation in the calculated Fleet load
+state. It does not change fuel-purchase records.
 
 ## Storage and verification
 
@@ -122,7 +122,7 @@ The historical daily/weekly/monthly checklist records remain separate. The
 five-point report does not rewrite those answers or automatically resolve repair
 work. A Do not operate report must be reviewed before operation; a later Good
 inspection is not evidence of a repair. No dispatch action, supervisor signature,
-repair resolution, email or Slack delivery is fabricated by submission.
+repair resolution or email is fabricated by submission. Slack delivery is verified separately as described below.
 
 ## Validation
 
@@ -168,3 +168,40 @@ the existing vector brand asset beside the app name and selected truck. The SVG
 source is `lib/truck-inspection-icon.ts`; PNG home-screen variants are 180, 192
 and 512 pixels. The 512-pixel icon has an opaque background and safe margins for
 launcher masks. The page supplies its own Apple touch icon and favicon.
+
+## Slack receipt alerts
+
+Every saved Five Point Inspection received on the current Chicago day sends a
+receipt alert to `#ops-fleet` (`SLACK_OPS_FLEET_CHANNEL_ID`). This includes reports
+already received earlier on the day this feature is enabled; older receipts are
+not backfilled. Drafts up to seven days old received today are included with their
+original inspection date. Clear reports, reported problems and Do not operate
+reports each notify, preserving the inspector's reported status and every note,
+including notes in sections marked Good. An alert is not supervisor clearance.
+The link opens the original dated report in authenticated OpsCenter.
+
+The existing minute collector runs `--only truck_inspection` before GPS/network
+work; the full Slack refresh is a fallback. Both use the existing shared publisher
+lock and notification receipt store. An acknowledged Slack timestamp is saved
+after each message; repeat passes skip it. Rejected deliveries remain eligible
+for retry. As with the existing publisher, an external send interrupted before
+its acknowledgement is saved does not have an exactly-once guarantee.
+No new service, paid provider, phone polling or report mutation is introduced.
+
+Verify with `npm run verify:inspection-slack`; this uses synthetic reports,
+isolated storage and mocked Slack responses.
+
+## Convoy load and readiness
+
+Saved fullness projects into the load history as an absolute observation at the
+recorded inspection start time, with inspector and receipt provenance. It replaces
+older carried load and carried uncertainty. Later confirmed pickups, unloads and
+manual observations still apply in order. A late upload uses its original start
+time and cannot erase newer load events. Historical reports without fullness do
+not invent a value; inspections also participate in next-day load carry-forward.
+The source report and stored manual load ledger are unchanged by this projection.
+
+Convoy shows Five Point Inspection completion and a link to the saved report.
+Reported issues require attention; any Do not operate report for the day blocks
+readiness. A later clear report does not erase earlier reported defects or open
+repair blocks. Legacy checklist answers remain separately editable.

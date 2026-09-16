@@ -30,6 +30,20 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Inspection receipts are local OpsCenter facts, independent of GPS health.
+# Use the existing minute tick and shared Slack publish lock; failures retry later.
+(
+  cd "$OPSCENTER_DIR"
+  if [ -f .env.slack.local ]; then
+    set -a
+    . ./.env.slack.local
+    set +a
+  fi
+  if [[ "${SLACK_OPSCENTER_ALERTS_ENABLED:-false}" =~ ^(1|true|yes|on)$ ]]; then
+    node --import tsx scripts/publish-slack-alerts.ts --date "$TARGET_DATE" --only truck_inspection
+  fi
+) || echo "Inspection Slack alerts pending; source refresh continues." >&2
+
 # Recover accepted events after a server restart or a busy processor. This is
 # local-only and runs before the network check, sharing the snapshot-write lock.
 drain_push_queue() {

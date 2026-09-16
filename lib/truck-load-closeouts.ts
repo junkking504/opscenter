@@ -1,3 +1,5 @@
+import { listTruckInspections, truckInspectionDates } from "./truck-inspection-store";
+import { inspectionLoadEvents } from "./truck-inspection-fleet";
 import { chicagoDateKey } from './chicago-date';
 import { readJobRows, junkwareScheduleUpdatedAt } from './desktop-schedule-source';
 import fs from 'node:fs';
@@ -24,7 +26,11 @@ export type OperationalTruckLoad = TruckLoadStatus & {
 };
 
 export function truckChargeSummary(load: OperationalTruckLoad): string {
-  return `${load.carriedFromDate ? `Starting load carried from ${load.carriedFromDate}. ` : ''}${load.chargesComplete ? 'Charged today' : 'Known charges today'}: ${load.chargedLoadLabel}. ${load.chargedLoadNote}`;
+  const inspection = load.events.filter(event=>event.eventId.startsWith('inspection:')).sort((a,b)=>b.occurredAt.localeCompare(a.occurredAt))[0];
+  const inspectionNote = inspection ? `Inspection baseline ${inspection.loadSize} · ${new Date(inspection.occurredAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})} CT · ${inspection.recordedBy}. ` : '';
+  const laterAbsolute = inspection && load.events.filter(event=>['yard_reset','manual_snapshot'].includes(event.kind) && event.occurredAt>inspection.occurredAt).sort((a,b)=>b.occurredAt.localeCompare(a.occurredAt))[0];
+  const laterNote = laterAbsolute ? `${laterAbsolute.kind==='yard_reset' ? 'Later unload reset' : 'Later load observation'} · ${new Date(laterAbsolute.occurredAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})} CT · ${laterAbsolute.recordedBy}. ` : '';
+  return `${inspectionNote}${laterNote}${!inspection && load.carriedFromDate ? `Starting load carried from ${load.carriedFromDate}. ` : ''}${load.chargesComplete ? 'Charged today' : 'Known charges today'}: ${load.chargedLoadLabel}. ${load.chargedLoadNote}`;
 }
 
 /** A single confirmed arrival/departure identifies the physical carrier even
@@ -164,7 +170,7 @@ function readLoadDay(date: string, trucks: string[], stored: TruckLoadEvent[], p
   const visits=readGeofenceEntries(date).trackedVisits;
   const expenses=readOperationalTruckExpenses(date);
   const result=runUnloadCostAgent(date,visits,expenses,readDumpFeePolicy());
-  const events = [...withoutDuplicateExpenseUnloads(stored,result.records,readExpenseUnloadLinks(date,expenses)),...result.unloads];
+  const events = [...withoutDuplicateExpenseUnloads(stored,result.records,readExpenseUnloadLinks(date,expenses)),...result.unloads,...inspectionLoadEvents(listTruckInspections(date))];
   const completions = readTruckCompletionEvidence(date,jobs);
   return deriveCloseoutTruckLoads(date,trucks,events,jobs.map(job=>({...job,completionObservedAt:completions.get(job.appointmentId)})),readScheduleVisits(date).visits,Date.parse(junkwareScheduleUpdatedAt(date) || '') || 0,previous);
 }
@@ -180,7 +186,7 @@ export function readOperationalTruckLoads(date: string, trucks: string[] = [], j
   const cached=historyCache.get(key);
   let previous=cached && Date.now()-cached.at<30_000 ? cached.loads : null;
   if (!previous) {
-    const dates=new Set(store.events.map(event=>event.date).filter(day=>day<date));
+    const dates=new Set([...store.events.map(event=>event.date),...truckInspectionDates()].filter(day=>day<date));
     const trackingStart=[...dates].sort()[0];
     for (const directory of [path.join(root,'history','junkware'),path.join(root,'history','linxup','alerts'),path.join(root,'history','linxup','geofence_positions'),...['352','477','399','484'].map(market=>path.join(root,'history','junkware','schedule-watchers',market))]) {
       try {for (const file of fs.readdirSync(directory)) {

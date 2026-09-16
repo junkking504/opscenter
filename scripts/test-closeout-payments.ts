@@ -12,6 +12,7 @@ const input = { appointmentType:'Job', driverId:'d', navigatorIds:[] as string[]
 type Payment = {description:string;amount:string};
 let persisted = new URLSearchParams(), payments:Payment[] = [], pending:Payment[] = [], saves = 0, adds = 0, truckPosts = 0;
 let lockedSchedule = false;
+let outcomeSaves = 0;
 const esc = (s:string) => s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 function html(fields:URLSearchParams) {
   const value = (key:string) => fields.get(`ctl00$Content$${key}`) || (key==='StartTimeTB'?'09:00 AM':key==='AppointmentDateTB'?'09/12/2026':'');
@@ -33,6 +34,7 @@ function html(fields:URLSearchParams) {
   <span id="ctl00_Content_TotalLbl">$1,200.00</span>
   ${status==='8' && value('AppointmentTypeDD')==='2'?`${select('PaymentMethodDD',[{value:'',label:''},...methods])}${['3','4'].includes(value('PaymentMethodDD'))?control('PaymentDescrTB'):''}${control('PaymentAmountTB')}${submit('AddPaymentBtn')}<input id="ctl00_Content_BalanceOwedHF" value="${1200-pending.reduce((s,p)=>s+Number(p.amount),0)}"><table>${pending.map((p,i)=>`<tr id="ctl00_Content_PaymentsLV_ctrl${i}_ItemRow"><td>${esc(p.description)}</td><td>${p.amount}</td></tr>`).join('')}</table>`:''}
   <input id="ctl00_Content_LoadSizeHF" name="ctl00$Content$LoadSizeHF" value="${value('LoadSizeHF')}">
+  ${fields.get('showOutcome')==='true'?`<div id="estimate-outcome" hidden>${select('UEReasonDD',[{value:'Date/Time',label:'Date/Time'}])}${control('UENoteTB')}${control('UENoDiscountTB')}${submit('UENoteOkBtn')}</div><script>setTimeout(()=>document.getElementById('estimate-outcome').hidden=false,350);</script>`:''}
   ${submit('SaveAppointmentBtn')}</form><script>document.getElementById('ctl00_Content_LoadSizeDD').addEventListener('change',()=>{ document.getElementById('ctl00_Content_LoadSizeHF').value=document.getElementById('ctl00_Content_LoadSizeTruckQtyTB').value;document.getElementById('ctl00_Content_BillingAmountTB').value='999'; });</script></body></html>`;
 }
 async function main() {
@@ -47,7 +49,12 @@ async function main() {
       const id=fields.get('ctl00$Content$PaymentMethodDD')!, reference=fields.get('ctl00$Content$PaymentDescrTB') || '';
       pending.push({description:methods.find(m=>m.value===id)!.label+(reference?`, ${id==='4'?'#':'***'}${reference}`:''),amount:fields.get('ctl00$Content$PaymentAmountTB')!});
     }
-    if(req.method==='POST' && fields.has('ctl00$Content$SaveAppointmentBtn')) { saves++;persisted=new URLSearchParams(fields);payments=pending.map(p=>({...p})); }
+    if(req.method==='POST' && fields.has('ctl00$Content$SaveAppointmentBtn')) {
+      saves++;
+      if(fields.get('ctl00$Content$AppointmentTypeDD')==='1' && fields.get('ctl00$Content$StatusDD')==='8' && persisted.get('ctl00$Content$StatusDD')!=='8') fields.set('showOutcome','true');
+      else {persisted=new URLSearchParams(fields);payments=pending.map(p=>({...p}));}
+    }
+    if(req.method==='POST' && fields.has('ctl00$Content$UENoteOkBtn')) {outcomeSaves++;persisted=new URLSearchParams(fields);payments=pending.map(p=>({...p}));}
     res.setHeader('Content-Type','text/html');res.end(html(fields));
   });
   await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));
@@ -88,14 +95,23 @@ async function main() {
       assert.throws(()=>verifyCloseoutFields({...result,truck:'Truck 1'},request,baseline),/selected truck/);
       assert.throws(()=>verifyCloseoutFields({...result,appointmentWindow:{startTime:'10:00 AM',durationHours:'1'}},request,baseline),/appointment window/);
     }
-    persisted = new URLSearchParams({'ctl00$Content$StatusDD':'1','ctl00$Content$AppointmentTypeDD':'2','ctl00$Content$BillingAmountTB':'478'});
+    for (const sourceType of ['1','2']) {
+    persisted = new URLSearchParams({'ctl00$Content$StatusDD':'1','ctl00$Content$AppointmentTypeDD':sourceType,'ctl00$Content$BillingAmountTB':'478'});
+    outcomeSaves=0;saves=0;
     payments=[];await page.goto(url);
     const job=await captureCloseoutSource(page,capture);
-    const estimateRequest={...input,appointmentType:'Estimate',loadPrice:'478',jobCategoryId:'job-only',estimateOutcome:{reason:'Date/Time' as const,explanation:'Booking for Monday',noDiscountReason:'Customer requested another day'}};
+    const estimateRequest={...input,truck:'Truck 6',appointmentType:'Estimate',loadPrice:'478',jobCategoryId:'job-only',estimateOutcome:{reason:'Date/Time' as const,explanation:'Booking for Monday',noDiscountReason:'Customer requested another day'}};
     const converted=await saveAndVerifyCloseout(job,()=>applyCloseout(page,estimateRequest,job),async()=>{await page.goto(url);return captureCloseoutSource(page,capture);},result=>verifyCloseoutFields(result,estimateRequest,job));
+    assert.equal(outcomeSaves,1,'The first Save only opens a delayed estimate outcome form; its confirmation must run once');
+    assert.equal(saves,1,'Never replay the initial estimate Save');
+    assert.equal(converted.truck,'Truck 6');
+    assert.deepEqual(converted.appointmentWindow,job.appointmentWindow);
+    assert.equal(persisted.get('ctl00$Content$UENoteTB'),estimateRequest.estimateOutcome.explanation);
+    assert.equal(persisted.get('ctl00$Content$UENoDiscountTB'),estimateRequest.estimateOutcome.noDiscountReason);
     assert.equal((converted.jobCategory as {options:unknown[]}).options.length,0,'Estimate omits the Job Category control');
     assert.equal((converted.appointmentType as {label:string}).label,'Estimate');
     assert.throws(()=>verifyCloseoutFields({...converted,appointmentType:{label:'Job'}},{...estimateRequest,appointmentType:'Job'},job),/jobCategory/,'Missing job field is still an error for Jobs');
+    }
     for (const [status, assigned, selected, expected] of [
       ['1','Assigned: Truck# 6','','Truck 6'],
       ['1','Assigned: Truck# 6','Truck# 1','Truck 6'],

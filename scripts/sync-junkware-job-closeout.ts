@@ -410,7 +410,17 @@ export async function applyCloseout(page: Page, input: CloseoutInput, before: Re
   await selectWithoutPostback(page, '#ctl00_Content_StatusDD', targetStatus);
   await submit('#ctl00_Content_SaveAppointmentBtn', 'the closeout save');
   // JunkWare opens a second form for completed estimates. The first save only
-  // presents that form; it does not complete the appointment yet.
+  // presents that form; it does not complete the appointment yet. The response
+  // can finish before its modal becomes visible, so an immediate isVisible()
+  // probe can discard the still-unsaved closeout by reopening too early.
+  if (completingEstimate) {
+    try { await page.locator('#ctl00_Content_UENoteOkBtn').waitFor({ state: 'visible', timeout: 15_000 }); }
+    catch {
+      const messages = await page.locator('[id*="Validation"], [id*="Error"], .alert-danger').allTextContents();
+      const details = messages.map(message => message.trim()).filter(Boolean).join(' ').slice(0, 300);
+      throw new Error(details ? `JunkWare validation: ${details}` : 'JunkWare did not open the required estimate outcome form. The saved result must be checked before retrying.');
+    }
+  }
   if (await page.locator('#ctl00_Content_UENoteOkBtn').isVisible()) {
     const outcome = input.estimateOutcome;
     if (!outcome) throw new Error('An estimate outcome and explanation are required before JunkWare can close this estimate.');

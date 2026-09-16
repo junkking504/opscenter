@@ -4,7 +4,7 @@ import path from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { matchesExactJkReference, type WhatsAppPhotoCategory } from "@/lib/whatsapp-job-photo-matching";
 import { newVerifiedAppointmentMedia } from "@/lib/verified-job-photos";
-import { junkwarePhotoPageIdentity, verifyJunkwarePhotoPostbackIdentity } from "@/lib/junkware-photo-identity";
+import { junkwarePhotoIdentityIssue, junkwarePhotoPageIdentity, verifyJunkwarePhotoPostbackIdentity } from "@/lib/junkware-photo-identity";
 
 const ORIGIN = "https://junkware.junk-king.com";
 const LOGIN = "/account/login.aspx";
@@ -106,13 +106,23 @@ export async function findJunkwareAppointmentIdByJkNumber(inputJkNumber: string)
   }
 }
 
-type PhotoUploadInput = {
+export type PhotoUploadInput = {
   appointmentId: string;
   jkNumber: string;
   filePath: string;
   category: WhatsAppPhotoCategory;
 };
-type PhotoUploadResult = { beforeCount: number; afterCount: number; mediaUrls: string[]; galleryUrls: string[]; galleryObservedAt: string; identityReadbackReason?: string };
+export type PhotoUploadResult = { beforeCount: number; afterCount: number; mediaUrls: string[]; galleryUrls: string[]; galleryObservedAt: string; submittedAt?: string; batchSize?: number; identityReadbackReason?: string };
+
+export type PhotoUploadBatchResult = {
+  submitted: true;
+  results: Array<
+    { filePath: string; status: "verified"; verification: PhotoUploadResult }
+    | { filePath: string; status: "uncertain"; error: string }
+  >;
+};
+export const JUNKWARE_PHOTO_BATCH_MAX_FILES = 5;
+export const JUNKWARE_PHOTO_BATCH_MAX_BYTES = 4.5 * 1024 * 1024;
 
 export function createJunkwarePhotoUploadSession(dependencies: {
   launch?: () => Promise<Browser>;
@@ -128,16 +138,32 @@ export function createJunkwarePhotoUploadSession(dependencies: {
     browser = undefined; context = undefined; page = undefined;
     await previous?.close().catch(() => {});
   };
-  const upload = async (input: PhotoUploadInput): Promise<PhotoUploadResult> => {
+  const uploadBatch = async (inputs: PhotoUploadInput[]): Promise<PhotoUploadBatchResult> => {
     if (closed) throw new Error("The JunkWare upload session is closed.");
     if (busy) throw new Error("JunkWare photo uploads must remain sequential.");
     busy = true;
+    let submitted = false;
     try {
+      if (!inputs.length || inputs.length > JUNKWARE_PHOTO_BATCH_MAX_FILES) throw new Error("A JunkWare photo batch must contain one to five files.");
+      const input = inputs[0];
       if (!/^\d{1,12}$/.test(input.appointmentId)) throw new Error("The JunkWare appointment ID is invalid.");
       if (!/^JK\d{4,12}$/i.test(input.jkNumber)) throw new Error("The JK number is invalid.");
-      const resolvedFile = fs.realpathSync(input.filePath);
-      const stats = fs.statSync(resolvedFile);
-      if (!stats.isFile() || !stats.size || stats.size > 5 * 1024 * 1024) throw new Error("The WhatsApp photo file is invalid.");
+      if (!["before", "after", "donation"].includes(input.category)) throw new Error("The JunkWare photo category is invalid.");
+      const resolvedFiles: string[] = [];
+      const stems = new Set<string>();
+      let totalBytes = 0;
+      for (const member of inputs) {
+        if (member.appointmentId !== input.appointmentId || member.jkNumber.toUpperCase() !== input.jkNumber.toUpperCase()
+          || member.category !== input.category) throw new Error("JunkWare photo batches must share the exact appointment, JK and category.");
+        const resolvedFile = fs.realpathSync(member.filePath);
+        const stats = fs.statSync(resolvedFile);
+        const stem = path.parse(resolvedFile).name;
+        if (!stats.isFile() || !stats.size || stats.size > 5 * 1024 * 1024
+          || !/^[a-f0-9]{64}$/.test(stem) || !/\.(?:jpe?g|png)$/i.test(resolvedFile)) throw new Error("The WhatsApp photo file is invalid.");
+        if (stems.has(stem)) throw new Error("A JunkWare photo batch contains duplicate message files.");
+        stems.add(stem); resolvedFiles.push(resolvedFile); totalBytes += stats.size;
+      }
+      if (inputs.length > 1 && totalBytes > JUNKWARE_PHOTO_BATCH_MAX_BYTES) throw new Error("The JunkWare photo batch exceeds the aggregate upload limit.");
 
       if (!browser) {
         const stateFile = storageStateFile();
@@ -158,6 +184,15 @@ export function createJunkwarePhotoUploadSession(dependencies: {
 
       const beforeMedia = await appointmentMediaUrls(activePage);
       const beforeCount = beforeMedia.length;
+      const hasStem = (url: string, stem: string) => {
+        const uploaded = path.parse(decodeURIComponent(new URL(url).pathname)).name;
+        // The message hash is a complete filename segment; source category
+        // suffixes vary (for example Donation Rcpt).
+        return uploaded.includes(`-${stem}-`) || uploaded.endsWith(`-${stem}`);
+      };
+      if (beforeMedia.some(url => [...stems].some(stem => hasStem(url, stem)))) {
+        throw new Error("A requested photo already appears on this appointment; reconcile it without repeating the upload.");
+      }
       const fileInput = activePage.locator("#ctl00_Content_FileUpload1");
       const uploadButton = activePage.locator("#ctl00_Content_AddImageBtn");
       const categorySelector = input.category === "before"
@@ -168,10 +203,12 @@ export function createJunkwarePhotoUploadSession(dependencies: {
       if (!(await fileInput.count()) || !(await uploadButton.count()) || !(await activePage.locator(categorySelector).count())) {
         throw new Error("The JunkWare photo upload controls are unavailable.");
       }
-      await fileInput.setInputFiles(resolvedFile);
-      // JunkWare visually hides these radio inputs behind their styled labels,
-      // so a normal Playwright click cannot reach them. Set the native form
-      // state and emit the same change event before submitting the form.
+      if (inputs.length > 1 && !await fileInput.evaluate(element => (element as HTMLInputElement).multiple)) {
+        throw new Error("The JunkWare photo input does not support multiple files.");
+      }
+      await fileInput.setInputFiles(resolvedFiles);
+      // JunkWare hides native radios behind styled labels. Set the form value
+      // and emit its change event once for this homogeneous group.
       const categorySelected = await activePage.locator(categorySelector).evaluate((element) => {
         const input = element as HTMLInputElement;
         input.checked = true;
@@ -179,41 +216,67 @@ export function createJunkwarePhotoUploadSession(dependencies: {
         return input.checked;
       });
       if (!categorySelected) throw new Error("The JunkWare photo category could not be selected.");
-      await Promise.all([
-        activePage.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
-        uploadButton.evaluate((element) => (element as HTMLInputElement).click()),
-      ]);
-      if (activePage.url().toLowerCase().includes(LOGIN)) throw new Error("JunkWare signed out during photo upload.");
-      const identityReadbackReason = await verifyJunkwarePhotoPostbackIdentity({
-        appointmentId: input.appointmentId,
-        jkNumber: input.jkNumber,
-        readIdentity: () => activePage.evaluate(() => ({ url: location.href, title: document.title })),
-        // A POST response can have temporary navigation/title state. Read the
-        // pre-verified appointment once; never repeat the upload to reconcile it.
-        readAppointment: async () => { await activePage.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 90_000 }); },
-      });
+      submitted = true;
+      const submittedAt = new Date().toISOString();
+      let navigationFailed = false;
+      try {
+        await Promise.all([
+          activePage.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
+          uploadButton.evaluate((element) => (element as HTMLInputElement).click()),
+        ]);
+      } catch { navigationFailed = true; }
+      let identityReadbackReason: string | null;
+      if (navigationFailed) {
+        // Submission may already have succeeded. One read-only navigation can
+        // reconcile every file; there is never another form submission.
+        await activePage.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
+        const state = await activePage.evaluate(() => ({ url: location.href, title: document.title }));
+        const issue = junkwarePhotoIdentityIssue(state.url, state.title, input.appointmentId, input.jkNumber);
+        if (issue) throw new Error(`JunkWare appointment identity did not verify after photo upload: ${issue}.`);
+        identityReadbackReason = "upload navigation did not complete";
+      } else {
+        identityReadbackReason = await verifyJunkwarePhotoPostbackIdentity({
+          appointmentId: input.appointmentId,
+          jkNumber: input.jkNumber,
+          readIdentity: () => activePage.evaluate(() => ({ url: location.href, title: document.title })),
+          readAppointment: async () => { await activePage.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 90_000 }); },
+        });
+      }
       const afterMedia = await appointmentMediaUrls(activePage);
       const galleryObservedAt = new Date().toISOString();
       const afterCount = afterMedia.length;
-      if (afterCount <= beforeCount) throw new Error("JunkWare did not confirm a new appointment photo.");
-      const fileStem = path.parse(resolvedFile).name;
-      const mediaUrls = newVerifiedAppointmentMedia(beforeMedia, afterMedia, input.appointmentId).filter(url => {
-        const uploaded = path.parse(decodeURIComponent(new URL(url).pathname)).name;
-        // JunkWare supplies its own category suffix (for example Donation Rcpt).
-        // The materialized message hash, bounded as a filename segment, is the
-        // ownership evidence; the selected radio already verifies the category.
-        return uploaded.includes(`-${fileStem}-`) || uploaded.endsWith(`-${fileStem}`);
+      const newMedia = newVerifiedAppointmentMedia(beforeMedia, afterMedia, input.appointmentId);
+      const results: PhotoUploadBatchResult["results"] = inputs.map((member, index) => {
+        const mediaUrls = newMedia.filter(url => hasStem(url, path.parse(resolvedFiles[index]).name));
+        const error = afterCount <= beforeCount ? "JunkWare did not confirm a new appointment photo."
+          : mediaUrls.length !== 1 ? "JunkWare did not expose a verified new image for this appointment." : "";
+        if (error) return { filePath: member.filePath, status: "uncertain", error };
+        return { filePath: member.filePath, status: "verified", verification: {
+          beforeCount, afterCount, mediaUrls, galleryUrls: afterMedia, galleryObservedAt, submittedAt, batchSize: inputs.length,
+          ...(identityReadbackReason ? { identityReadbackReason } : {}),
+        } };
       });
-      if (!mediaUrls.length) throw new Error("JunkWare did not expose a verified new image for this appointment.");
-      await (dependencies.persist || persistStorageState)(context!);
-      return { beforeCount, afterCount, mediaUrls, galleryUrls: afterMedia, galleryObservedAt, ...(identityReadbackReason ? { identityReadbackReason } : {}) };
+      if (results.some(result => result.status === "uncertain")) await discard();
+      else {
+        // Session persistence is not upload evidence. Preserve a verified source
+        // result if local browser-state persistence fails, and discard the session.
+        try { await (dependencies.persist || persistStorageState)(context!); }
+        catch { await discard(); }
+      }
+      return { submitted: true, results };
     } catch (error) {
-      // The owning queue records uncertain outcomes; discard state, never resubmit.
       await discard();
-      throw error;
+      if (!submitted) throw error;
+      const detail = error instanceof Error ? error.message : "JunkWare photo read-back failed.";
+      return { submitted: true, results: inputs.map(input => ({ filePath: input.filePath, status: "uncertain", error: detail })) };
     } finally { busy = false; }
   };
-  return { upload, close: async () => { closed = true; await discard(); } };
+  const upload = async (input: PhotoUploadInput): Promise<PhotoUploadResult> => {
+    const result = (await uploadBatch([input])).results[0];
+    if (result.status === "uncertain") throw new Error(result.error);
+    return result.verification;
+  };
+  return { upload, uploadBatch, close: async () => { closed = true; await discard(); } };
 }
 
 export async function uploadJunkwareJobPhoto(input: PhotoUploadInput): Promise<PhotoUploadResult> {

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { enqueueOpsBotReply } from "@/lib/whatsapp-crew-expenses";
 import { normalizePhone } from "@/lib/whatsapp-job-photo-matching";
-import { hasUnfinishedWhatsAppPhotosForSender, whatsappPhotoStateDirectory } from "@/lib/whatsapp-job-photo-queue";
+import { hasUnfinishedWhatsAppPhotosForSender, heldWhatsAppPhotosNearBatch, whatsappPhotoStateDirectory } from "@/lib/whatsapp-job-photo-queue";
 
 type BatchPhoto = {
   messageId: string;
@@ -22,6 +22,7 @@ type PhotoConfirmationBatch = {
   updatedAt: string;
   photos: BatchPhoto[];
   confirmationQueuedAt?: string;
+  reviewNoticeQueuedAt?: string;
 };
 
 const DEFAULT_BATCH_QUIET_SECONDS = 3;
@@ -144,6 +145,19 @@ export function queueVerifiedWhatsAppJobPhotoBatchConfirmations(
     if (batch.confirmationQueuedAt || !Number.isFinite(quietReferenceAt) || now.getTime() - quietReferenceAt < quietMs) continue;
     const firstPhoto = batch.photos[0];
     const count = batch.photos.length;
+    const held = heldWhatsAppPhotosNearBatch(batch);
+    if (held) {
+      if (!batch.reviewNoticeQueuedAt) {
+        enqueueOpsBotReply({ messageId: firstPhoto.messageId, senderPhone: batch.senderPhone, phoneNumberId: batch.phoneNumberId },
+          `${count} ${count === 1 ? 'photo is' : 'photos are'} verified for ${batch.jkNumber}; ${held} ${held === 1 ? 'photo is' : 'photos are'} held for review. This batch is not complete. Check the job number with dispatch.`,
+          'job-photo-batch-needs-review');
+        batch.reviewNoticeQueuedAt = now.toISOString();
+        writeJsonAtomic(file, batch);
+      }
+      // Keep the same pending batch so a verified recovery produces one final
+      // total, rather than a second unrelated success confirmation.
+      continue;
+    }
     enqueueOpsBotReply({
       messageId: firstPhoto.messageId,
       senderPhone: batch.senderPhone,

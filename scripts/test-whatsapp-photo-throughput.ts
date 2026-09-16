@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -42,30 +43,37 @@ async function main() {
     });
     const stats = { launches: 0, closes: 0, navigations: 0, submissions: 0, persisted: 0 };
     const galleries = new Map<string, string[]>();
-    let currentUrl = 'about:blank', title = '', selected = '', file = '';
-    let behavior: 'normal' | 'post-title' | 'wrong-title' | 'no-image' | 'human-image' = 'normal';
+    let currentUrl = 'about:blank', title = '', selected = '';
+    let selectedFiles: string[] = [];
+    let multipleSupported = true, navigationFails = false, wrongPostIdentity = false, persistFails = false;
+    let behavior: 'normal' | 'post-title' | 'wrong-title' | 'no-image' | 'human-image' | 'partial' | 'bad-post-identity' = 'normal';
     const categories: string[] = [];
     const currentId = () => new URL(currentUrl).searchParams.get('id') || '';
     const page = {
       url: () => currentUrl,
       goto: async (url: string) => { stats.navigations++; currentUrl = url; title = `Appointment JK${Number(currentId()) + 13178}`; },
-      evaluate: async (fn: unknown) => String(fn).includes('querySelectorAll') ? [...(galleries.get(currentId()) || [])] : { url: currentUrl, title: behavior === 'wrong-title' ? 'Appointment JK9999999' : title },
-      waitForNavigation: async () => {},
+      evaluate: async (fn: unknown) => String(fn).includes('querySelectorAll') ? [...(galleries.get(currentId()) || [])] : { url: currentUrl, title: behavior === 'wrong-title' || wrongPostIdentity ? 'Appointment JK9999999' : title },
+      waitForNavigation: async () => { if (navigationFails) throw new Error('Navigation timeout'); },
       locator: (selector: string) => ({
         count: async () => 1,
-        setInputFiles: async (value: string) => { file = value; },
+        setInputFiles: async (value: string | string[]) => { selectedFiles = Array.isArray(value) ? value : [value]; },
         evaluate: async () => {
+          if (selector.includes('FileUpload1')) return multipleSupported;
           if (selector.includes('ImageBeforeRB') || selector.includes('ImageAfterRB') || selector.includes('ImageDonationRB')) {
             selected = selector.includes('Before') ? 'before' : selector.includes('Donation') ? 'donation' : 'after'; return true;
           }
           if (selector.includes('AddImageBtn')) {
             stats.submissions++; categories.push(selected);
             if (behavior !== 'no-image') {
-              const stem = behavior === 'human-image' ? 'unrelated-human' : path.parse(file).name;
-              const suffix = selected === 'donation' ? 'donation-rcpt' : selected;
-              const url = `https://junkware.junk-king.com/system/aspnet/local/media/2026-09/test-${currentId()}-random-${stem}-${suffix}.jpg`;
-              galleries.set(currentId(), [...(galleries.get(currentId()) || []), url]);
+              const submittedFiles = behavior === 'partial' ? selectedFiles.slice(0, 1) : selectedFiles;
+              for (const file of submittedFiles) {
+                const stem = behavior === 'human-image' ? 'unrelated-human' : path.parse(file).name;
+                const suffix = selected === 'donation' ? 'donation-rcpt' : selected;
+                const url = `https://junkware.junk-king.com/system/aspnet/local/media/2026-09/test-${currentId()}-random-${stem}-${suffix}.jpg`;
+                galleries.set(currentId(), [...(galleries.get(currentId()) || []), url]);
+              }
             }
+            if (behavior === 'bad-post-identity') wrongPostIdentity = true;
             if (behavior === 'post-title') title = 'Image uploaded';
           }
           return undefined;
@@ -77,7 +85,7 @@ async function main() {
         stats.launches++; currentUrl = 'about:blank'; title = '';
         return { newContext: async () => ({ newPage: async () => page }), close: async () => { stats.closes++; } } as unknown as Browser;
       },
-      persist: async () => { stats.persisted++; },
+      persist: async () => { stats.persisted++; if (persistFails) throw new Error('Local storage unavailable'); },
     });
     const input = { appointmentId: '4075431', jkNumber: 'JK4088609', filePath: files[0], category: 'after' as const };
     const firstPending = session.upload(input);
@@ -109,6 +117,86 @@ async function main() {
     const beforeWrong = stats.submissions;
     await assert.rejects(session.upload(input), /different JK appointment/);
     assert.equal(stats.submissions, beforeWrong, 'Wrong job fails before submission');
+    behavior = 'normal';
+    const batchFile = (label: string, size = 16) => {
+      const file = path.join(root, `${crypto.createHash('sha256').update(label).digest('hex')}.jpg`);
+      fs.writeFileSync(file, Buffer.alloc(size, 1)); return file;
+    };
+    const member = (label: string, size = 16) => ({ ...input, filePath: batchFile(label, size) });
+    const group = ['batch-a', 'batch-b', 'batch-c', 'batch-d', 'batch-e'].map(label => member(label));
+    const beforeBatch = stats.submissions;
+    behavior = 'post-title';
+    const firstBatch = session.uploadBatch(group);
+    await assert.rejects(session.uploadBatch([member('parallel')]), /must remain sequential/);
+    await assert.rejects(session.upload(member('parallel-single')), /must remain sequential/);
+    const batch = await firstBatch;
+    assert.equal(stats.submissions, beforeBatch + 1, 'Five files use exactly one native form submission');
+    assert.equal(batch.submitted, true);
+    assert.deepEqual(batch.results.map(result => result.status), Array(5).fill('verified'));
+    assert.deepEqual(batch.results.map(result => result.filePath), group.map(item => item.filePath), 'Per-file results preserve input order');
+    for (const [index, result] of batch.results.entries()) {
+      assert.equal(result.status, 'verified');
+      if (result.status !== 'verified') throw new Error('Expected verified file');
+      assert.equal(result.verification.afterCount - result.verification.beforeCount, 5);
+      assert.equal(result.verification.mediaUrls.length, 1);
+      assert.ok(result.verification.mediaUrls[0].includes(path.parse(group[index].filePath).name));
+      assert.equal(result.verification.galleryUrls.length, result.verification.afterCount);
+      assert.equal(result.verification.identityReadbackReason, 'title JK missing');
+    }
+    const beforeReplay = stats.submissions;
+    await assert.rejects(session.uploadBatch(group), /already appears/, 'Already present hashes are held instead of uploaded again');
+    assert.equal(stats.submissions, beforeReplay);
+
+    behavior = 'partial';
+    const partialGroup = ['partial-a', 'partial-b', 'partial-c'].map(label => member(label));
+    const beforePartial = stats.submissions;
+    const partial = await session.uploadBatch(partialGroup);
+    assert.deepEqual(partial.results.map(result => result.status), ['verified', 'uncertain', 'uncertain']);
+    assert.equal(stats.submissions, beforePartial + 1, 'Partial server acceptance never resubmits missing files');
+    const launchesAfterPartial = stats.launches;
+    behavior = 'normal';
+    await session.uploadBatch([member('after-partial')]);
+    assert.equal(stats.launches, launchesAfterPartial + 1, 'Partial uncertainty discards the session');
+
+    behavior = 'human-image';
+    const human = await session.uploadBatch([member('human-a'), member('human-b')]);
+    assert.deepEqual(human.results.map(result => result.status), ['uncertain', 'uncertain'], 'A count increase from another upload cannot verify our files');
+    behavior = 'bad-post-identity';
+    const badIdentity = await session.uploadBatch([member('identity-a'), member('identity-b')]);
+    assert.ok(badIdentity.results.every(result => result.status === 'uncertain' && /identity did not verify/.test(result.error)));
+    wrongPostIdentity = false; behavior = 'normal'; navigationFails = true;
+    const beforeTimeout = stats.submissions, beforeTimeoutNavigation = stats.navigations;
+    const recovered = await session.uploadBatch([member('timeout-a'), member('timeout-b')]);
+    assert.ok(recovered.results.every(result => result.status === 'verified'));
+    assert.equal(stats.submissions, beforeTimeout + 1, 'A timed-out POST is reconciled once, never submitted again');
+    assert.equal(stats.navigations, beforeTimeoutNavigation + 2, 'One initial navigation and one owning GET after submission');
+    navigationFails = false;
+
+    const rejectsBeforeWrite = async (members: Parameters<typeof session.uploadBatch>[0], pattern: RegExp) => {
+      const count = stats.submissions;
+      await assert.rejects(session.uploadBatch(members), pattern);
+      assert.equal(stats.submissions, count, 'Invalid batch cannot reach form submission');
+    };
+    await rejectsBeforeWrite([], /one to five/);
+    await rejectsBeforeWrite(Array.from({ length: 6 }, (_, i) => member(`six-${i}`)), /one to five/);
+    await rejectsBeforeWrite([member('mixed-a'), { ...member('mixed-b'), category: 'before' }], /share the exact/);
+    await rejectsBeforeWrite([member('mixed-c'), { ...member('mixed-d'), appointmentId: '4075267' }], /share the exact/);
+    await rejectsBeforeWrite([member('mixed-e'), { ...member('mixed-f'), jkNumber: 'JK4088445' }], /share the exact/);
+    const duplicate = member('duplicate');
+    await rejectsBeforeWrite([duplicate, duplicate], /duplicate message/);
+    await rejectsBeforeWrite([member('aggregate-a', 3 * 1024 * 1024), member('aggregate-b', 2 * 1024 * 1024)], /aggregate upload limit/);
+    await rejectsBeforeWrite([member('oversize', 5 * 1024 * 1024 + 1)], /file is invalid/);
+    multipleSupported = false;
+    await rejectsBeforeWrite([member('no-multiple-a'), member('no-multiple-b')], /does not support multiple/);
+    multipleSupported = true;
+    const edge = await session.uploadBatch([member('limit-a', 3 * 1024 * 1024), member('limit-b', 1.5 * 1024 * 1024)]);
+    assert.ok(edge.results.every(result => result.status === 'verified'), 'Exactly 4.5 MiB aggregate is permitted');
+    assert.equal((await session.uploadBatch([member('single-limit', 5 * 1024 * 1024)])).results[0].status, 'verified', 'One existing valid 5 MiB photo remains supported');
+    persistFails = true;
+    const storageFailure = await session.uploadBatch([member('persist-a'), member('persist-b')]);
+    assert.ok(storageFailure.results.every(result => result.status === 'verified'), 'Local session persistence cannot erase proven source success');
+    persistFails = false;
+
     await session.close();
     await assert.rejects(session.upload(input), /session is closed/);
     assert.equal(stats.launches, stats.closes, 'Every allocated browser was closed');
@@ -117,6 +205,6 @@ async function main() {
     if (priorData === undefined) delete process.env.OPSBOT_DATA_DIR; else process.env.OPSBOT_DATA_DIR = priorData;
     fs.rmSync(root, { recursive: true, force: true });
   }
-  console.log('Photo throughput verified: FIFO, bounded fresh queue drain, no hot retries, sequential reusable sessions and exact media attribution.');
+  console.log('Photo throughput verified: FIFO, bounded fresh queue drain, no hot retries, sequential reusable sessions, bounded native batches, per-file partial outcomes and exact media attribution.');
 }
 void main();

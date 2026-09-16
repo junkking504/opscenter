@@ -1,7 +1,7 @@
 import { processRecyclingImage } from "@/lib/whatsapp-recycling";
 import { deliverRecyclingSlackAlerts } from "@/lib/recycling-slack";
 import { processResaleImage } from "@/lib/whatsapp-resale";
-import { createWhatsAppPhotoPrefetch, readJobPhotoPrefetchCandidate } from "@/lib/whatsapp-photo-prefetch";
+import { createPhotoDownloadPool, createPhotoUploadBatchQueue, drainConcurrentPhotoQueue } from "@/lib/whatsapp-photo-batch-pipeline";
 import { downloadWhatsAppImage } from "@/lib/whatsapp-photo-media";
 import { startWhatsAppReplyPump } from "@/lib/whatsapp-reply-pump";
 import { execFileSync } from "node:child_process";
@@ -23,7 +23,6 @@ import {
 import {
   claimWhatsAppImage,
   finishWhatsAppImage,
-  drainWhatsAppPhotoQueue,
   recentWhatsAppPhotoContext,
   requeueWhatsAppImage,
   whatsappQueueCounts,
@@ -192,9 +191,8 @@ function numberOption(name: string): number | undefined {
   return Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
-async function processOne(incomingFile: string, map: Record<string, string>, upload: ReturnType<typeof createJunkwarePhotoUploadSession>['upload'], media: ReturnType<typeof createWhatsAppPhotoPrefetch>, prefetchNext: () => void): Promise<"completed" | "review" | "retried" | "failed" | "skipped"> {
+async function processOne(incomingFile: string, map: Record<string, string>, upload: ReturnType<typeof createJunkwarePhotoUploadSession>['upload'], media: ReturnType<typeof createPhotoDownloadPool>, resolveAppointment: (jk: string) => Promise<string | null>): Promise<"completed" | "review" | "retried" | "failed" | "skipped"> {
   const claim = claimWhatsAppImage(incomingFile);
-  await media.discardExcept(claim?.message);
   if (!claim) return "skipped";
   const timing: Record<string, string> = { processingStartedAt: new Date().toISOString() };
   let stage: "matching" | "downloading" | "analyzing" | "uploading" = "matching";
@@ -234,7 +232,7 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
     // Retain the original even when matching requires human review. Provider
     // media availability must not be the only copy of a held photo.
     stage = "downloading";
-    const filePath = await media.download(claim.message, timing);
+    const filePath = await media.download(claim.message);
     timing.mediaReadyAt = new Date().toISOString();
     stage = "matching";
     if (matchingContext.reviewReason && !extractJkNumber(claim.message.caption)) {
@@ -260,7 +258,7 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
       recentText,
       receivedAt,
       appointments,
-      fleet: fleetLocations(date),
+      fleet: extractJkNumber(claim.message.caption) || extractJkNumber(recentText) ? [] : fleetLocations(date),
       senderTruckMap: map,
       options: {
         maxGpsAgeMinutes: numberOption("WHATSAPP_GPS_MAX_AGE_MINUTES"),
@@ -272,7 +270,7 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
       finishWhatsAppImage(claim.file, "review", { review: match });
       return "review";
     }
-    const appointmentId = match.appointmentId || await findJunkwareAppointmentIdByJkNumber(match.jkNumber);
+    const appointmentId = match.appointmentId || await resolveAppointment(match.jkNumber);
     if (!appointmentId) {
       finishWhatsAppImage(claim.file, "review", {
         review: {
@@ -295,9 +293,9 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
         status: "pending",
       });
     }
-    prefetchNext();
     stage = "uploading";
     timing.uploadStartedAt = new Date().toISOString();
+    timing.uploadQueuedAt = timing.uploadStartedAt;
     const verification = await upload({
       appointmentId,
       jkNumber: match.jkNumber,
@@ -305,6 +303,7 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
       category: match.category,
     });
     timing.verifiedAt = new Date().toISOString();
+    if (verification.submittedAt) timing.uploadStartedAt = verification.submittedAt;
     if (match.method === "jk_number") {
       recordVerifiedWhatsAppJobPhoto({
         messageId: claim.message.messageId,
@@ -366,7 +365,14 @@ async function main(): Promise<void> {
   const photoConfirmations = { pending: 0, queued: 0 };
   const expenseReplies = { sent: 0, retried: 0, failed: 0 };
   const photoUploads = createJunkwarePhotoUploadSession();
-  const media = createWhatsAppPhotoPrefetch(downloadWhatsAppImage);
+  const media = createPhotoDownloadPool(downloadWhatsAppImage);
+  const batches = createPhotoUploadBatchQueue(photoUploads.uploadBatch);
+  const appointmentLookups = new Map<string, Promise<string | null>>();
+  const resolveAppointment = (jk: string) => {
+    let lookup = appointmentLookups.get(jk);
+    if (!lookup) { lookup = findJunkwareAppointmentIdByJkNumber(jk); appointmentLookups.set(jk, lookup); }
+    return lookup;
+  };
   const replies = startWhatsAppReplyPump(async () => {
     const confirmations = queueVerifiedWhatsAppJobPhotoBatchConfirmations();
     photoConfirmations.pending = confirmations.pending;
@@ -380,15 +386,13 @@ async function main(): Promise<void> {
   });
   try {
     void replies.flush();
-    await drainWhatsAppPhotoQueue(async (incomingFile, next) => {
-      const result = await processOne(incomingFile, map, photoUploads.upload, media, () => {
-        const candidate = readJobPhotoPrefetchCandidate(next());
-        if (candidate) media.prefetch(candidate);
-      });
+    await drainConcurrentPhotoQueue(async incomingFile => {
+      const result = await processOne(incomingFile, map, batches.upload, media, resolveAppointment);
       results[result] += 1;
       void replies.flush();
     });
     await media.close();
+    await batches.close();
     await photoUploads.close();
     loadSlackBotToken();
     const recyclingSlack = await deliverRecyclingSlackAlerts().catch(error => ({
@@ -405,6 +409,7 @@ async function main(): Promise<void> {
     }
   } finally {
     await media.close();
+    await batches.close();
     await photoUploads.close();
     await replies.stop();
   }

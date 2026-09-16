@@ -283,41 +283,39 @@ filenames on the owning JunkWare appointment. Preserve the original outcome and
 read-back evidence, and never invent an observed per-photo count increase or
 repeat an upload simply to obtain confirmation.
 
-The worker processes photos in local intake order (`enqueuedAt`, falling back to
-the provider timestamp and then filename), rather than hash order. It drains up
-to 100 distinct queued files before ancillary work and does not retry a file in
-the same cycle. One browser session serves sequential appointment uploads during
-that drain; every image gets a fresh media baseline and identity/category checks.
-Switching appointments requires loading and verifying the new appointment. Any
-uncertain upload discards the browser session without repeating the write, and
-the session closes before ancillary work or process exit. These changes remove
-repeat browser startup and queue-chunk delays; they do not establish a real-world
-latency guarantee or make simultaneous writes to JunkWare and OpsCenter.
+The worker claims photos in local intake order (`enqueuedAt`, then provider
+timestamp and filename), with at most 100 distinct attempts per cycle. Up to
+eight uncomplicated explicit-JK photos may be in preparation or awaiting upload.
+The existing downloader runs at most four concurrent media acquisitions; it
+keeps the same inbox, host, size, signature and checksum checks and shares each
+message's success or failure without extra requests or background retries.
+Recycling, resale, truck-load and ambiguous contexts wait for active photo work
+and retain sequential processing. Retried files wait for another worker cycle.
 
-During a job upload, the worker may prepare the next queued photo's original
-bytes. This lookahead is limited to one reserved file within the same 100-file
-cycle budget, with a frozen, uncomplicated explicit-JK context, supported image
-type, inbound checksum, valid timestamp, and matching inbox. Recycling, resale,
-truck-load and ambiguous contexts keep their existing routing. Every download
-still uses the existing inbox, host, size, image-signature and checksum checks;
-all media consumers share one sequential downloader. There remains only one
-JunkWare upload at a time, with unchanged identity and source verification.
+Ready originals for the same exact appointment, JK and category may share one
+native JunkWare upload. Groups contain at most five files and 4.5 MiB total; one
+existing valid file up to 5 MiB may upload alone. Only one source writer is active.
+Grouping waits at most 100 ms when idle; ready files accumulate while another
+group writes. Identity and category are checked before submission, and every
+individual message hash must appear exactly once in newly observed owning-job
+media. One POST serves the group. A partial success publishes only exact proven
+files and holds the rest as uncertain; it never repeats the group automatically.
+A failed navigation gets one read-only reconciliation, never another POST.
+Complete-gallery receipts preserve immediate OpsCenter publication.
 
-A prepared record stays in `incoming` until normal processing claims it, so it
-continues blocking premature batch confirmation. Successful bytes and failed
-download results are consumed once; failures enter normal retry accounting and
-never cause a background retry. If the reserved record disappears or changes,
-the worker drains the orphan preparation before proceeding and relies on the
-existing verified cache for any later retry. Shutdown awaits outstanding media
-work. Lookahead does not add provider requests per normal photo or change paid
-analysis routes; it overlaps the next photo's existing media requests with the
-current source upload/read-back.
+Receipts retain per-photo processing/media-ready times, `uploadQueuedAt`, the
+actual group's `uploadStartedAt`/`submittedAt`, `batchSize`, gallery observation,
+and verification times. The operating acceptance target is at most 30 seconds
+from provider send time to source verification, OpsCenter visibility and reply
+acceptance for a normal batch with an identified job. Mocked concurrency and
+partial-success tests do not establish that live latency; measure a real batch.
+Missing identity or source outages must be reported honestly, never called a
+successful upload to satisfy a deadline.
 
-Prefetched receipts include `mediaPrefetchStartedAt` and, on success,
-`mediaPrefetchReadyAt`, representing the actual media preparation interval.
-`mediaReadyAt` remains the time normal processing consumes the validated file;
-subtracting `processingStartedAt` from it measures remaining worker wait, not
-necessarily the full media request duration. Receipt verification and OpsCenter
-publication continue through the same completed-receipt path. Mocked overlap
-tests establish the concurrency bounds; a new real batch is required to measure
-the resulting end-to-end latency.
+A pending confirmation also checks held/failed photos within ten seconds of its
+photo timestamps from the same sender and receiving inbox. Explicit other jobs,
+resale/recycling and older unrelated holds do not block it. A matching hold
+produces one review notice and retains the pending verified total. When held
+photos are explicitly resolved and verified, one final combined success total
+replaces the old split-success behavior. This check does not assign an unknown
+job, alter frozen context, or replay held or uncertain uploads.

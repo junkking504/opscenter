@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { chicagoDateKey } from "@/lib/chicago-date";
-import { normalizePhone } from "@/lib/whatsapp-job-photo-matching";
+import { extractJkNumbers, normalizePhone } from "@/lib/whatsapp-job-photo-matching";
 
 export type WhatsAppImageMessage = {
   version: 1;
@@ -328,6 +328,43 @@ export function hasUnfinishedWhatsAppPhotosForSender(batch: {
     }
   }
   return false;
+}
+
+/** Nearby held images from the same sender/inbox must not disappear from a
+ * completion decision. Old unrelated holds and explicit other jobs do not block. */
+export function heldWhatsAppPhotosNearBatch(batch: {
+  senderPhone: string; phoneNumberId: string; jkNumber: string;
+  photos: { receivedAt: string }[];
+}): number {
+  ensureDirectories();
+  const times = batch.photos.map(photo => Date.parse(photo.receivedAt)).filter(Number.isFinite);
+  if (!times.length) return 0;
+  const first = Math.min(...times) - 10_000, last = Math.max(...times) + 10_000;
+  let count = 0;
+  for (const state of ['review', 'failed'] as const) {
+    for (const name of fs.readdirSync(directory(state))) {
+      if (!/^[a-f0-9]{64}\.json$/.test(name)) continue;
+      const file = path.join(directory(state), name);
+      try {
+        const stat = fs.lstatSync(file);
+        if (!stat.isFile() || stat.size > 256_000) continue;
+        const message = JSON.parse(fs.readFileSync(file, 'utf8'));
+        const at = Date.parse(message.receivedAt || '');
+        if (normalizePhone(message.senderPhone) !== normalizePhone(batch.senderPhone)
+          || message.phoneNumberId !== batch.phoneNumberId || !Number.isFinite(at) || at < first || at > last) continue;
+        const context = message.matchingContext;
+        if (context?.recycling || context?.resale || /^(?:recycling|resale)\b/i.test(message.caption || '')) continue;
+        const captionJobs = extractJkNumbers(message.caption || '');
+        const jobs = captionJobs.length ? captionJobs : extractJkNumbers(context?.text || '');
+        if (jobs.length && !jobs.includes(batch.jkNumber)) continue;
+        count++;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') continue;
+        throw error;
+      }
+    }
+  }
+  return count;
 }
 
 export function claimWhatsAppImage(incomingFile: string): { file: string; message: WhatsAppImageMessage } | null {

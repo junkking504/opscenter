@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { LiveMarketing } from '../live-marketing';
 import type { CommercialOperation, CommercialReceipt, MarketingData, MarketingView } from '../lib/commercial-contract';
 import '../app/globals.css';
+import '../workspace-density.css';
 
 // Synthetic, in-memory API boundary: this fixture cannot call a real provider or save a real record.
 const data: MarketingData = {
@@ -36,7 +37,7 @@ window.fetch = async (input, init) => {
 function Fixture() {
   const [view, setView] = useState<MarketingView>('overview');
   const [locked, setLocked] = useState(false);
-  return <main style={{ maxWidth: 1280, margin: 'auto', padding: '24px clamp(12px, 3vw, 36px)' }}>
+  return <main className="ops-live" style={{ maxWidth: 1280, margin: 'auto', padding: '24px clamp(12px, 3vw, 36px)' }}>
     <div style={{ fontSize: 11, marginBottom: 18 }}><strong>SYNTHETIC TEST · No live requests or writes</strong> · <span id="fixture-posts">Mock saves: 0</span><label style={{ marginLeft: 16 }}><input type="checkbox" onChange={event => { uncertain = event.target.checked; }}/>Simulate uncertain save</label><button disabled={locked} onClick={() => { data.available = !data.available; }}>Toggle SearchKings availability (then Refresh)</button></div>
     <h1 style={{ fontSize: 32, fontWeight: 650 }}>Campaign</h1><p style={{ color: '#64706c', margin: '8px 0 20px' }}>Turn interest into booked work. Give great service its credit.</p>
     <nav className="workspace-tabs" role="tablist" style={{ marginBottom: 18 }}>{([['overview', 'Follow up'], ['reviews', 'Reviews'], ['performance', 'Results']] as const).map(([key, label]) => <button role="tab" aria-selected={view === key} className={view === key ? 'active' : ''} disabled={locked} key={key} onClick={() => setView(key)}>{label}</button>)}</nav>

@@ -3,6 +3,9 @@
 @@ -11 +11 @@
 -from linxup_common import keychain_secret
 +from linxup_common import LinxupError, keychain_secret
+@@ -15 +15 @@
+-BASE_URL = "https://www.awaregps.com/ibis/rest/api/v2"
++BASE_URL = "https://app03.linxup.com/ibis/rest/api/v2"
 @@ -27,0 +28,2 @@
 +from linxup_collection_safety import request_json as verified_request_json, run_collector
 +

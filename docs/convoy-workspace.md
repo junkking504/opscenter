@@ -17,7 +17,13 @@ Inspections links to original phone reports and photos. Repairs offers direct
 updates without requiring an owner or decision workflow. Existing shop/contact
 and planned-date values remain available in optional details and are preserved
 when other repair fields are saved. Similar active records are flagged for review,
-never merged or deleted automatically.
+never merged or deleted automatically. Existing repairs offer Delete repair with
+an explicit confirmation naming the repair and truck. A verified deletion removes
+the record from repair lists, history, readiness and repair-cost totals; original
+inspection evidence remains unchanged. The store retains a private deleted copy
+with actor/time and source links, preventing checklist replay from recreating it.
+Deleted copies cannot be edited or have attachments changed. The delete action
+uses the same permissions, record version, write lock and receipt as repair saves.
 
 Service separates Schedule service from Record completed service. Each action
 opens the same versioned record form with the appropriate status. Missing history,

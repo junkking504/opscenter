@@ -13,6 +13,8 @@ export type FleetIssueSeverity = (typeof FLEET_ISSUE_SEVERITIES)[number];
 export type FleetIssue = {
   issueId: string;
   submissionId?: string;
+  deletedAt?: string;
+  deletedBy?: string;
   truck: string;
   title: string;
   description: string;
@@ -131,6 +133,7 @@ function parseIssue(value: unknown): FleetIssue | null {
   if (!truck || !title) return null;
   const status = statusValue(row.status);
   return {
+    ...(row.deletedAt ? { deletedAt: String(row.deletedAt), deletedBy: String(row.deletedBy || "") } : {}),
     submissionId: String(row.submissionId || "").trim().slice(0, 80),
     issueId: String(row.issueId || randomUUID()).trim(),
     truck,
@@ -164,13 +167,13 @@ function sortIssues(issues: FleetIssue[]): FleetIssue[] {
   );
 }
 
-export function readFleetIssueStore(): FleetIssueStore {
+export function readFleetIssueStore(includeDeleted = false): FleetIssueStore {
   try {
     const filePath = storePath();
     if (!fs.existsSync(filePath)) return { version: 1, updatedAt: "", issues: [] };
     const payload = JSON.parse(fs.readFileSync(filePath, "utf8"));
     const issues = (Array.isArray(payload?.issues) ? payload.issues : []).map(parseIssue).filter(Boolean) as FleetIssue[];
-    return { version: 1, updatedAt: String(payload?.updatedAt || ""), issues: sortIssues(issues) };
+    return { version: 1, updatedAt: String(payload?.updatedAt || ""), issues: sortIssues(includeDeleted ? issues : issues.filter(issue => !issue.deletedAt)) };
   } catch {
     return { version: 1, updatedAt: "", issues: [] };
   }
@@ -187,7 +190,7 @@ function writeStore(store: FleetIssueStore): void {
 }
 
 export function syncFleetIssuesFromChecklist(entry: FleetChecklistEntry): FleetIssueStore {
-  const store = readFleetIssueStore();
+  const store = readFleetIssueStore(true);
   const definitions = effectiveFleetChecklistDefinitions(entry.truck, entry.cadence, readFleetChecklistTemplateStore().customizations);
   const definitionById = new Map(definitions.map((item) => [item.itemId, item]));
   const attentionAnswers = entry.answers.filter((answer) => answer.status === "attention");
@@ -202,6 +205,7 @@ export function syncFleetIssuesFromChecklist(entry: FleetChecklistEntry): FleetI
       issue.sourceChecklistEntryId === entry.entryId && issue.sourceChecklistItemId === answer.itemId
     );
     const existing = index >= 0 ? store.issues[index] : null;
+    if (existing?.deletedAt) continue;
     const shouldReopen = existing?.status === "resolved" && existing.resolution === "Checklist item was cleared.";
     const issue: FleetIssue = {
       issueId: existing?.issueId || randomUUID(),
@@ -230,7 +234,7 @@ export function syncFleetIssuesFromChecklist(entry: FleetChecklistEntry): FleetI
   }
 
   store.issues = store.issues.map((issue) => {
-    if (issue.sourceChecklistEntryId !== entry.entryId || !answeredIds.has(issue.sourceChecklistItemId) || attentionIds.has(issue.sourceChecklistItemId) || issue.status === "resolved") return issue;
+    if (issue.deletedAt || issue.sourceChecklistEntryId !== entry.entryId || !answeredIds.has(issue.sourceChecklistItemId) || attentionIds.has(issue.sourceChecklistItemId) || issue.status === "resolved") return issue;
     return { ...issue, status: "resolved", resolution: "Checklist item was cleared.", resolvedAt: now, updatedAt: now };
   });
   writeStore({ version: 1, updatedAt: now, issues: store.issues });
@@ -242,10 +246,11 @@ export function syncFleetIssuesFromChecklist(entry: FleetChecklistEntry): FleetI
 const DUPLICATE_ISSUE_WINDOW_MS = 5 * 60 * 1000;
 
 export function upsertFleetIssue(input: Record<string, unknown>): FleetIssue | null {
-  const store = readFleetIssueStore();
+  const store = readFleetIssueStore(true);
   const issueId = String(input.issueId || "").trim();
   const index = issueId ? store.issues.findIndex((issue) => issue.issueId === issueId) : -1;
   const existing = index >= 0 ? store.issues[index] : null;
+  if (existing?.deletedAt) return null;
   const truck = normalizeTruck(input.truck || existing?.truck);
   const title = String(input.title || existing?.title || "").trim().slice(0, 160);
   if (!truck || !title) return null;
@@ -293,6 +298,19 @@ export function upsertFleetIssue(input: Record<string, unknown>): FleetIssue | n
   return issue;
 }
 
+/** Retain source links and an audit copy so checklist sync cannot recreate a deleted repair. */
+export function deleteFleetIssue(issueId: string, actor: string): FleetIssue | null {
+  const store = readFleetIssueStore(true);
+  const issue = store.issues.find(row => row.issueId === issueId && !row.deletedAt);
+  if (!issue) return null;
+  const now = new Date().toISOString();
+  issue.deletedAt = now;
+  issue.deletedBy = actor;
+  issue.updatedAt = now;
+  writeStore({ ...store, updatedAt: now });
+  return readFleetIssueStore(true).issues.find(row => row.issueId === issueId) || null;
+}
+
 export function fleetIssuePhotoDirectory(): string {
   return path.join(process.cwd(), "data", "fleet", "issue_photos");
 }
@@ -310,9 +328,9 @@ export function fleetIssueAttachmentFilePath(attachment: FleetIssueAttachment): 
 }
 
 export function attachFleetIssuePhoto(issueId: string, input: Omit<FleetIssuePhoto, "photoId" | "uploadedAt">): FleetIssuePhoto | null {
-  const store = readFleetIssueStore();
+  const store = readFleetIssueStore(true);
   const index = store.issues.findIndex((issue) => issue.issueId === issueId);
-  if (index < 0) return null;
+  if (index < 0 || store.issues[index].deletedAt) return null;
   const now = new Date().toISOString();
   const photo: FleetIssuePhoto = { photoId: randomUUID(), fileName: path.basename(input.fileName).slice(0, 160), storageName: path.basename(input.storageName), mimeType: input.mimeType, size: Math.max(0, input.size), uploadedAt: now };
   store.issues[index].photos.push(photo);
@@ -330,8 +348,9 @@ export function findFleetIssuePhoto(photoId: string): { issue: FleetIssue; photo
 }
 
 export function detachFleetIssuePhoto(photoId: string): FleetIssuePhoto | null {
-  const store = readFleetIssueStore();
+  const store = readFleetIssueStore(true);
   for (let index = 0; index < store.issues.length; index += 1) {
+    if (store.issues[index].deletedAt) continue;
     const photoIndex = store.issues[index].photos.findIndex((photo) => photo.photoId === photoId);
     if (photoIndex < 0) continue;
     const [photo] = store.issues[index].photos.splice(photoIndex, 1);
@@ -344,9 +363,9 @@ export function detachFleetIssuePhoto(photoId: string): FleetIssuePhoto | null {
 }
 
 export function attachFleetIssueAttachment(issueId: string, input: Omit<FleetIssueAttachment, "attachmentId" | "uploadedAt">): FleetIssueAttachment | null {
-  const store = readFleetIssueStore();
+  const store = readFleetIssueStore(true);
   const index = store.issues.findIndex((issue) => issue.issueId === issueId);
-  if (index < 0 || !ISSUE_ATTACHMENT_TYPES.has(input.mimeType)) return null;
+  if (index < 0 || store.issues[index].deletedAt || !ISSUE_ATTACHMENT_TYPES.has(input.mimeType)) return null;
   const now = new Date().toISOString();
   const attachment: FleetIssueAttachment = { attachmentId: randomUUID(), fileName: path.basename(input.fileName).slice(0, 160), storageName: path.basename(input.storageName), mimeType: input.mimeType, size: Math.max(0, input.size), uploadedAt: now };
   store.issues[index].attachments.push(attachment);
@@ -364,8 +383,9 @@ export function findFleetIssueAttachment(attachmentId: string): { issue: FleetIs
 }
 
 export function detachFleetIssueAttachment(attachmentId: string): FleetIssueAttachment | null {
-  const store = readFleetIssueStore();
+  const store = readFleetIssueStore(true);
   for (let index = 0; index < store.issues.length; index += 1) {
+    if (store.issues[index].deletedAt) continue;
     const attachmentIndex = store.issues[index].attachments.findIndex((attachment) => attachment.attachmentId === attachmentId);
     if (attachmentIndex < 0) continue;
     const [attachment] = store.issues[index].attachments.splice(attachmentIndex, 1);

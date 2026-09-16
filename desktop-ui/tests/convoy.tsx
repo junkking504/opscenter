@@ -20,6 +20,7 @@ window.fetch=async(input,init)=>{
   const request=JSON.parse(String(init.body));
   const receipt={status:'verified',requestId:request.requestId};receipts.set(request.requestId,receipt);
   if(request.action==='maintenance')snapshot.maintenance.push({recordId:request.requestId,truck:request.truck,...request.values,odometer:null,cost:null,nextServiceOdometer:null,version:'fixture-new'});
+  if(request.action==='issue_delete')snapshot.issues=snapshot.issues.filter(issue=>issue.issueId!==request.values.issueId);
   if(request.action==='issue')snapshot.issues=snapshot.issues.map(issue=>issue.issueId===request.values.issueId?{...issue,...request.values,version:'fixture-new'}:issue);
   if(request.action==='load_snapshot')snapshot.trucks=snapshot.trucks.map(truck=>truck.id===request.truck?{...truck,loadPercent:request.values.loadFraction*100,loadLabel:`${request.values.loadFraction*100}% full`,loadNeedsVerification:false,loadVersion:'fixture-new'}:truck);
   return Response.json({receipt});

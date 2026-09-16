@@ -27,6 +27,7 @@ export const DESKTOP_PEOPLE_FLEET_ACTIONS = {
   'krewe.bonus': { permission: 'sensitive.write', risk: 3, authority: 'opscenter_authoritative', verifier: 'manualBonusEntriesForEmployee' },
   'krewe.callin': { permission: 'operations.write', risk: 1, authority: 'opscenter_authoritative', verifier: 'call-in decision read-back' },
   'fleet.maintenance': { permission: 'operations.write', risk: 1, authority: 'opscenter_authoritative', verifier: 'readFleetMaintenanceStore' },
+  'fleet.issue_delete': { permission: 'operations.write', risk: 1, authority: 'opscenter_authoritative', verifier: 'deleted repair audit copy and absence from readFleetIssueStore' },
   'fleet.issue': { permission: 'operations.write', risk: 1, authority: 'opscenter_authoritative', verifier: 'readFleetIssueStore' },
   'fleet.checklist': { permission: 'operations.write', risk: 1, authority: 'opscenter_authoritative', verifier: 'readFleetChecklistStore' },
   'fleet.load_start': { permission: 'operations.write', risk: 1, authority: 'opscenter_authoritative', verifier: 'readTruckLoadStatuses' },

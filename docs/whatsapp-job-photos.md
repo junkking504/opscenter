@@ -200,6 +200,28 @@ The matching `whatsapp-crew-expenses/outbox-sent` record's `outcomeAt` and
 Compare the original sender's chat timestamp when investigating a delay before
 the webhook; a later intake timestamp cannot establish the original Send time.
 
+### Immediate gallery update after JunkWare verification
+
+JunkWare upload is the first step. The uploader captures newly added media URLs
+from its existing before/after page reads and verifies the exact appointment
+identity again after submission. This adds no navigation or provider request.
+The completed receipt retains the resolved appointment ID and verified URLs.
+
+Schedule can display those verified photos immediately without waiting for the
+full collector. A local filesystem event on durable receipt publication wakes
+connected screens through the existing authenticated `/api/desktop/events`
+stream. It triggers a fresh gallery read; the existing 15-second screen polling
+remains the fallback if the event stream is unavailable. No source upload waits
+for a gallery read, browser refresh, Slack delivery, or WhatsApp confirmation.
+
+Only completed, verified, increasing-media-count receipts for the exact JK and
+appointment can supply new photos. URLs must be recognized JunkWare media for
+that appointment, and duplicates are merged by canonical media URL. The receipt
+bridge lasts at most 30 minutes; a newer authoritative photo snapshot wins,
+including a recorded deletion or empty gallery. A schedule-only snapshot cannot
+claim to have refreshed photos. An audited gallery with unknown observation time
+does not accept an overlay. Overall collector freshness remains collector-owned.
+
 ## Slack receipt notifications
 
 When a sender supplies an explicit JK number in the image caption or in a recent text message, the worker can notify the appointment's assigned `#truck-N` channel after the full photo batch has been added. Each photo is tracked as pending until JunkWare verifies its upload. Once every photo in the JK batch is verified and no additional photo arrives for 60 seconds, OpsCenter sends one summary containing the JK number, photo count/categories, and an OpsCenter link. It does not include the sender phone number or customer data. A batch without a mapped physical truck falls back to `SLACK_WHATSAPP_PHOTO_CHANNEL_ID`, then `#ops-dispatch`.

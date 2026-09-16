@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { chromium, type BrowserContext, type Page } from "@playwright/test";
 import { matchesExactJkReference, type WhatsAppPhotoCategory } from "@/lib/whatsapp-job-photo-matching";
+import { newVerifiedAppointmentMedia } from "@/lib/verified-job-photos";
 
 const ORIGIN = "https://junkware.junk-king.com";
 const LOGIN = "/account/login.aspx";
@@ -57,8 +58,8 @@ async function ensureAuthenticated(page: Page, targetUrl: string): Promise<void>
   }
 }
 
-async function appointmentMediaCount(page: Page): Promise<number> {
-  return page.evaluate(() => new Set(
+async function appointmentMediaUrls(page: Page): Promise<string[]> {
+  return page.evaluate(() => [...new Set(
     Array.from(document.querySelectorAll("a[href],img[src]"))
       .map((node) => node.getAttribute(node instanceof HTMLAnchorElement ? "href" : "src") || "")
       .flatMap((raw) => {
@@ -73,7 +74,7 @@ async function appointmentMediaCount(page: Page): Promise<number> {
           return [];
         }
       }),
-  ).size);
+  )]);
 }
 
 async function persistStorageState(context: BrowserContext): Promise<void> {
@@ -109,7 +110,7 @@ export async function uploadJunkwareJobPhoto(input: {
   jkNumber: string;
   filePath: string;
   category: WhatsAppPhotoCategory;
-}): Promise<{ beforeCount: number; afterCount: number }> {
+}): Promise<{ beforeCount: number; afterCount: number; mediaUrls: string[] }> {
   if (!/^\d{1,12}$/.test(input.appointmentId)) throw new Error("The JunkWare appointment ID is invalid.");
   if (!/^JK\d{4,12}$/i.test(input.jkNumber)) throw new Error("The JK number is invalid.");
   const resolvedFile = fs.realpathSync(input.filePath);
@@ -128,7 +129,8 @@ export async function uploadJunkwareJobPhoto(input: {
       throw new Error("JunkWare loaded a different JK appointment than the matched job.");
     }
 
-    const beforeCount = await appointmentMediaCount(page);
+    const beforeMedia = await appointmentMediaUrls(page);
+    const beforeCount = beforeMedia.length;
     const fileInput = page.locator("#ctl00_Content_FileUpload1");
     const uploadButton = page.locator("#ctl00_Content_AddImageBtn");
     const categorySelector = input.category === "before"
@@ -155,10 +157,18 @@ export async function uploadJunkwareJobPhoto(input: {
       uploadButton.evaluate((element) => (element as HTMLInputElement).click()),
     ]);
     if (page.url().toLowerCase().includes(LOGIN)) throw new Error("JunkWare signed out during photo upload.");
-    const afterCount = await appointmentMediaCount(page);
+    if (!matchesExactJkReference(String(await page.title()), input.jkNumber)
+      || new URL(page.url()).origin !== ORIGIN
+      || new URL(page.url()).searchParams.get("id") !== input.appointmentId) {
+      throw new Error("JunkWare changed appointment identity during photo upload.");
+    }
+    const afterMedia = await appointmentMediaUrls(page);
+    const afterCount = afterMedia.length;
     if (afterCount <= beforeCount) throw new Error("JunkWare did not confirm a new appointment photo.");
+    const mediaUrls = newVerifiedAppointmentMedia(beforeMedia, afterMedia, input.appointmentId);
+    if (!mediaUrls.length) throw new Error("JunkWare did not expose a verified new image for this appointment.");
     await persistStorageState(context);
-    return { beforeCount, afterCount };
+    return { beforeCount, afterCount, mediaUrls };
   } finally {
     await browser.close();
   }

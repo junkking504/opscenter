@@ -325,7 +325,7 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
       });
     }
     finishWhatsAppImage(claim.file, "completed", {
-      match,
+      match: matchedJob,
       upload: { verified: true, ...verification },
       timing,
     });

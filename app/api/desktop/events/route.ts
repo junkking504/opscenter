@@ -2,6 +2,7 @@ import {cookies} from 'next/headers';
 import path from 'node:path';
 import {AUTH_SESSION_COOKIE, verifyAuthSessionCookie} from '@/lib/auth';
 import {subscribeLinxupUpdates} from '@/lib/linxup-update-stream';
+import {subscribeWhatsAppPhotoUpdates} from '@/lib/whatsapp-photo-update-stream';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -15,18 +16,20 @@ export async function GET(request: Request) {
     start(controller) {
       const encoder = new TextEncoder();
       let closed = false;
-      let unsubscribe = () => {};
+      const subscriptions: Array<() => void> = [];
       let heartbeat: ReturnType<typeof setInterval> | undefined;
       const close = () => {
         if (closed) return;
-        closed = true; unsubscribe(); clearInterval(heartbeat);
+        closed = true; for (const unsubscribe of subscriptions) unsubscribe(); clearInterval(heartbeat);
         request.signal.removeEventListener('abort', close);
         try { controller.close(); } catch { /* Already canceled by the client. */ }
       };
       cleanup = close;
       const send = (value: string) => { if (!closed) { try { controller.enqueue(encoder.encode(value)); } catch { close(); } } };
-      try { unsubscribe = subscribeLinxupUpdates(root, () => send('event: change\ndata: {}\n\n')); }
-      catch { close(); return; }
+      for (const subscribe of [subscribeLinxupUpdates, subscribeWhatsAppPhotoUpdates]) {
+        try { subscriptions.push(subscribe(root, () => send('event: change\ndata: {}\n\n'))); }
+        catch { /* Each unavailable source retains the screen's polling fallback. */ }
+      }
       request.signal.addEventListener('abort', close, {once:true});
       if (request.signal.aborted) { close(); return; }
       send(': connected\n\n');

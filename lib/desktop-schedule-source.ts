@@ -10,6 +10,7 @@ import { junkwareBookedAt } from "@/lib/junkware-booking-date";
 import { currentJunkwareScheduleSnapshot, readVerifiedJunkwareScheduleSnapshot, canonicalJunkwareUpdatedAtMs } from "@/lib/junkware-fast-schedule";
 import { applyVerifiedClassifications } from './appointment-classification';
 import { cleanJunkwareAddressText } from './junkware-address-text';
+import { applyVerifiedPhotoReceipts, readRecentVerifiedPhotoReceipts } from './verified-job-photos';
 
 const OPSBOT_DATA_DIR =
   process.env.OPSBOT_DATA_DIR ||
@@ -57,6 +58,7 @@ type JobRow = {
   chargeDetailsPending?: boolean;
   photos: JunkwareJobPhoto[];
   photoAuditAvailable: boolean;
+  photoObservedAt?: string;
   junkItems: string[];
   pickupItems?: string[];
   appointmentNotes: string[];
@@ -550,7 +552,7 @@ function readRawAppointmentLookup(date: string): Map<string, Record<string, any>
       ...(Array.isArray(payload?.cancelled) ? payload.cancelled : []),
     ];
     for (const source of rows) {
-      const row = source && typeof source === "object" ? source as Record<string, any> : {};
+      const row = source && typeof source === "object" ? { ...source, photo_observed_at: source.photo_observed_at || source.collection_timestamp || payload.scraped_at || '' } as Record<string, any> : {};
       const apptId = firstValue(row, ["appt_id", "appointment_id"]);
       const jobId = firstValue(row, ["job_id", "jk_number"]);
       if (apptId) lookup.set(`appt:${apptId}`, row);
@@ -726,6 +728,7 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
     closeoutObservedAt: String(row.closeout_verified_at || row.collection_timestamp || ''),
     photos: junkwareJobPhotos(row),
     photoAuditAvailable: junkwarePhotoAuditAvailable(row),
+    photoObservedAt: junkwarePhotoAuditAvailable(row) ? String(row.photo_observed_at || row.collection_timestamp || '') : undefined,
     junkItems: junkItemKeywords(row),
     pickupItems: appointmentPickupItems(row),
     appointmentNotes: appointmentNotes(row),
@@ -1039,6 +1042,7 @@ function readJobRows(date: string): JobRow[] {
         closeoutObservedAt: String(sourceRow.closeout_verified_at || sourceRow.collection_timestamp || ''),
         photos: junkwareJobPhotos(sourceRow),
         photoAuditAvailable: junkwarePhotoAuditAvailable(sourceRow),
+        photoObservedAt: junkwarePhotoAuditAvailable(sourceRow) ? String(sourceRow.photo_observed_at || sourceRow.collection_timestamp || '') : undefined,
         junkItems: junkItemKeywords(sourceRow),
         pickupItems: appointmentPickupItems(sourceRow),
         appointmentNotes: appointmentNotes(sourceRow),
@@ -1065,7 +1069,8 @@ function readJobRows(date: string): JobRow[] {
     ? mergeFastScheduleRows(resolvedJobs, fastSnapshot.appointments, fastSnapshot.cancelled, date)
     : resolvedJobs;
 
-  return applyVerifiedClassifications(date,currentJobs,Math.max(canonicalJunkwareUpdatedAtMs(OPSBOT_DATA_DIR,date),fastSnapshot?.updatedAtMs || 0)).sort((a, b) => {
+  const photoJobs = applyVerifiedPhotoReceipts(currentJobs, readRecentVerifiedPhotoReceipts(OPSBOT_DATA_DIR));
+  return applyVerifiedClassifications(date,photoJobs,Math.max(canonicalJunkwareUpdatedAtMs(OPSBOT_DATA_DIR,date),fastSnapshot?.updatedAtMs || 0)).sort((a, b) => {
     const territoryCompare = a.territory.localeCompare(b.territory);
     if (territoryCompare !== 0) return territoryCompare;
     return compareJobSchedule(a, b);
@@ -1109,9 +1114,14 @@ function mergeFastScheduleRows(
     fresh.sourceDate = date;
     fresh.appointmentId = firstValue(row, ["appt_id", "appointment_id", "appointmentId"]) || fresh.appointmentId;
     if (!existing) return [fresh];
+    const freshPhotos = fresh.photoAuditAvailable && Number.isFinite(Date.parse(fresh.photoObservedAt || ''))
+      && Date.parse(fresh.photoObservedAt || '') >= (Date.parse(existing.photoObservedAt || '') || 0);
 
     return [{
       ...existing,
+      photos: freshPhotos ? fresh.photos : existing.photos,
+      photoAuditAvailable: freshPhotos ? fresh.photoAuditAvailable : existing.photoAuditAvailable,
+      photoObservedAt: freshPhotos ? fresh.photoObservedAt : existing.photoObservedAt,
       chargeDetailsPending: fresh.chargeDetailsPending,
       closeout: fresh.closeout && Date.parse(fresh.closeoutObservedAt || '') >= (Date.parse(existing.closeoutObservedAt || '') || 0) ? fresh.closeout : existing.closeout,
       closeoutObservedAt: fresh.closeout && Date.parse(fresh.closeoutObservedAt || '') >= (Date.parse(existing.closeoutObservedAt || '') || 0) ? fresh.closeoutObservedAt : existing.closeoutObservedAt,

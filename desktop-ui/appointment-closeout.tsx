@@ -1,6 +1,7 @@
 "use client";
 
 import { closeoutGpsTimes, closeoutChargesSummary, type CloseoutTimeKey } from '../lib/closeout-draft-summary';
+import { automaticSizePrice } from '../lib/closeout-load-price';
 import { onsiteTimeFacts } from '../lib/appointment-onsite-time';
 import { paymentReferenceLabel, validateCloseoutPayment } from "../lib/closeout-payment";
 
@@ -48,17 +49,6 @@ type LiveCloseout = {
 
 function inputMoney(value: string): string {
   return String(value || "").replace(/[^0-9.-]/g, "");
-}
-
-function automaticSizePrice(size: string, quantity: string, options: Option[], prices: number[], kind: 'load' | 'bedload'): string {
-  const index = options.findIndex((option) => option.value === size);
-  if (index <= 0 || !prices.length) return '';
-  const units = Number.parseInt(quantity, 10);
-  const countedUnits = Number.isFinite(units) && units > 0 ? units : 0;
-  let price = countedUnits * prices.at(-1)!;
-  if (kind === 'load' && size === 'Bag(s)' && countedUnits) price = countedUnits * prices[0];
-  else if (size !== 'Bag(s)') price += prices[index - 1] || 0;
-  return price > 0 ? price.toFixed(2) : '';
 }
 
 export default function AppointmentCloseout({ job, date: serviceDate, saved, onBusyChange }: { job: ScheduleAppointment; date: string; saved: () => void; onBusyChange: (busy: boolean) => void }) {
@@ -497,7 +487,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               <div className="appointment-closeout-grid">
                 <label><span>Full trucks</span><input value={live.loadQuantity} inputMode="decimal" onChange={(event) => updateLoadQuantity(event.target.value)} /></label>
                 <label><span>Load size</span><select value={live.loadSize.value} onChange={(event) => updateLoadSize(event.target.value)}>{live.loadSize.options.map((option) => <option key={`load-${option.value}`} value={option.value}>{option.label || "Full truck / none"}</option>)}</select></label>
-                <p>For half a truck (3/6), enter 0 full trucks and select 3 (1/2). Enter the quoted load price before discount.</p>
+                <p>Truck count and load size fill the load price from JunkWare rates. You can adjust the quoted price before discount. For half a truck (3/6), enter 0 full trucks and select 3 (1/2).</p>
                 <label><span>Load price</span><input value={live.loadPrice} inputMode="decimal" onChange={(event) => update("loadPrice", event.target.value)} /></label>
                 <label><span>Bedload quantity</span><input value={live.bedloadQuantity} inputMode="decimal" onChange={(event) => updateBedloadQuantity(event.target.value)} /></label>
                 <label><span>Bedload size</span><select value={live.bedloadSize.value} onChange={(event) => updateBedloadSize(event.target.value)}>{live.bedloadSize.options.map((option) => <option key={`bed-${option.value}`} value={option.value}>{option.label || "None"}</option>)}</select></label>

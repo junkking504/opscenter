@@ -123,6 +123,13 @@ fields. Missing/non-JSON gateway responses show a retryable loading error.
 Full-truck quantity is separate from the partial load size: half a truck means
 0 full trucks plus JunkWare's `3 (1/2)` option, equivalent to 3/6. The load price
 is entered before the separate discount; the header labels the saved total.
+Changing truck count or load size fills the load price from the appointment's
+JunkWare price table: full-truck count times the full-truck rate, plus the
+selected partial-load rate. The default `Full truck / none` adds no partial
+load and still prices every full truck. The draft subtotal and review total
+update immediately. Operators can override the resulting load price; opening
+a saved closeout preserves its existing price. Bedload counts follow the same
+full-unit plus partial-size calculation using JunkWare's bedload rates.
 
 Closeout records the source payment method, positive amount, and check number
 or four trailing card digits when applicable. It does not charge a card.

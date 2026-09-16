@@ -19,6 +19,21 @@ def replace_once(source, old, new):
 
 
 def patch_refresh(source):
+    source = replace_once(source, 'LOCK_FILE="$LOCK_DIR/opscenter_refresh.lock"',
+        'LOCK_FILE="$LOCK_DIR/opscenter_refresh.lock"\n\n'
+        'if [ -z "${OPSCENTER_REFRESH_LOCK_FD:-}" ]; then\n'
+        '  exec python3 "$WORKDIR/scripts/run-opsbot-refresh-locked.py" "$WORKDIR" "$DATE"\n'
+        'fi')
+    legacy_lock = '''if ! mkdir "$LOCK_FILE" 2>/dev/null; then
+  echo "Another OpsCenter refresh is already running."
+  exit 0
+fi
+
+cleanup() {
+  rmdir "$LOCK_FILE" 2>/dev/null || true
+}
+trap cleanup EXIT'''
+    source = replace_once(source, legacy_lock, '# Refresh lock is owned by the inherited OS-lock launcher.')
     for label in ['LinxUp collection', 'LinxUp live refresh', 'LinxUp location history',
                   'LinxUp alert collection', 'Timesheet-rate collection']:
         source = replace_once(source,
@@ -70,7 +85,10 @@ def install(root, apply=False):
     for name, patch in [('run_opscenter_refresh.sh', patch_refresh), ('process_daily_metrics.py', patch_processor)]:
         path = directory / name
         updates[path] = patch(path.read_text())
-    updates[directory / 'source_aware_metrics.py'] = Path(__file__).with_name('source_aware_metrics.py').read_text()
+    for name in ['source_aware_metrics.py', 'run-opsbot-refresh-locked.py']:
+        updates[directory / name] = Path(__file__).with_name(name).read_text()
+    # Install helper dependencies before publishing the shell entrypoint.
+    updates = dict(sorted(updates.items(), key=lambda item: item[0].name == 'run_opscenter_refresh.sh'))
     for path, text in updates.items():
         if path.exists() and path.read_text() == text:
             print('Already installed: ' + path.name)

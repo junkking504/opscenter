@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "@playwright/test";
@@ -78,11 +79,16 @@ async function appointmentMediaUrls(page: Page): Promise<string[]> {
   )]);
 }
 
-async function persistStorageState(context: BrowserContext): Promise<void> {
+export async function persistJunkwareStorageState(context: BrowserContext): Promise<void> {
   const target = storageStateFile();
   fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
-  await context.storageState({ path: target });
-  fs.chmodSync(target, 0o600);
+  const temporary = `${target}.${randomUUID()}.tmp`;
+  fs.closeSync(fs.openSync(temporary, 'wx', 0o600));
+  try {
+    await context.storageState({ path: temporary });
+    fs.chmodSync(temporary, 0o600);
+    fs.renameSync(temporary, target);
+  } finally { fs.rmSync(temporary, { force: true }); }
 }
 
 export async function findJunkwareAppointmentIdByJkNumber(inputJkNumber: string): Promise<string | null> {
@@ -99,7 +105,7 @@ export async function findJunkwareAppointmentIdByJkNumber(inputJkNumber: string)
     const page = await context.newPage();
     await ensureAuthenticated(page, `${ORIGIN}/franchise/appointment.aspx?id=${encodeURIComponent(appointmentId)}`);
     const titleJk = String(await page.title());
-    await persistStorageState(context);
+    await persistJunkwareStorageState(context);
     return matchesExactJkReference(titleJk, jkNumber) ? appointmentId : null;
   } finally {
     await browser.close();
@@ -112,7 +118,7 @@ export type PhotoUploadInput = {
   filePath: string;
   category: WhatsAppPhotoCategory;
 };
-export type PhotoUploadResult = { beforeCount: number; afterCount: number; mediaUrls: string[]; galleryUrls: string[]; galleryObservedAt: string; submittedAt?: string; batchSize?: number; batchBytes?: number; postNavigationCompletedAt?: string; readbackStartedAt?: string; readbackCompletedAt?: string; identityReadbackReason?: string };
+export type PhotoUploadResult = { beforeCount: number; afterCount: number; mediaUrls: string[]; galleryUrls: string[]; galleryObservedAt: string; submittedAt?: string; batchSize?: number; batchBytes?: number; postNavigationCompletedAt?: string; readbackStartedAt?: string; readbackCompletedAt?: string; finalAuditStartedAt?: string; finalAuditCompletedAt?: string; identityReadbackReason?: string };
 
 export type PhotoUploadBatchResult = {
   submitted: true;
@@ -127,6 +133,7 @@ export const JUNKWARE_PHOTO_BATCH_MAX_BYTES = 4.5 * 1024 * 1024;
 export function createJunkwarePhotoUploadSession(dependencies: {
   launch?: () => Promise<Browser>;
   persist?: (context: BrowserContext) => Promise<void>;
+  isolatedServerSession?: boolean;
 } = {}) {
   let browser: Browser | undefined;
   let context: BrowserContext | undefined;
@@ -137,6 +144,38 @@ export function createJunkwarePhotoUploadSession(dependencies: {
     const previous = browser;
     browser = undefined; context = undefined; page = undefined;
     await previous?.close().catch(() => {});
+  };
+  const preparePage = async () => {
+    if (!browser) {
+      const stateFile = storageStateFile();
+      const state = fs.existsSync(stateFile) ? JSON.parse(fs.readFileSync(stateFile, 'utf8')) : undefined;
+      // ASP.NET serializes requests sharing a session cookie. Preserve the
+      // authenticated identity while each bounded lane gets its own session.
+      if (state && dependencies.isolatedServerSession) {
+        state.cookies = state.cookies.filter((cookie: { name: string; domain: string }) =>
+          !(cookie.name === 'ASP.NET_SessionId' && /(?:^|\.)junkware\.junk-king\.com$/i.test(cookie.domain)));
+      }
+      browser = await (dependencies.launch || (() => chromium.launch({ headless: true })))();
+      context = await browser.newContext(state ? { storageState: state } : {});
+      await context.route("**/*", route => {
+        const type = route.request().resourceType();
+        return ["image", "media", "font"].includes(type) ? route.abort() : route.continue();
+      });
+      page = await context.newPage();
+    }
+    return page!;
+  };
+  const prepareTarget = async (input: Pick<PhotoUploadInput, 'appointmentId' | 'jkNumber'>) => {
+    if (closed || busy) throw new Error('The JunkWare session cannot prepare while closed or busy.');
+    if (!/^\d{1,12}$/.test(input.appointmentId) || !/^JK\d{4,12}$/i.test(input.jkNumber)) throw new Error('Invalid JunkWare preparation target.');
+    busy = true;
+    try {
+      const activePage = await preparePage();
+      await ensureAuthenticated(activePage, `${ORIGIN}/franchise/appointment.aspx?id=${encodeURIComponent(input.appointmentId)}`);
+      const identity = await activePage.evaluate(() => ({ url: location.href, title: document.title }));
+      if (!junkwarePhotoPageIdentity(identity.url, identity.title, input.appointmentId, input.jkNumber)) throw new Error('JunkWare preparation loaded a different appointment.');
+    } catch (error) { await discard(); throw error; }
+    finally { busy = false; }
   };
   const uploadBatch = async (inputs: PhotoUploadInput[]): Promise<PhotoUploadBatchResult> => {
     if (closed) throw new Error("The JunkWare upload session is closed.");
@@ -165,20 +204,7 @@ export function createJunkwarePhotoUploadSession(dependencies: {
       }
       if (inputs.length > 1 && totalBytes > JUNKWARE_PHOTO_BATCH_MAX_BYTES) throw new Error("The JunkWare photo batch exceeds the aggregate upload limit.");
 
-      if (!browser) {
-        const stateFile = storageStateFile();
-        browser = await (dependencies.launch || (() => chromium.launch({ headless: true })))();
-        context = await browser.newContext(fs.existsSync(stateFile) ? { storageState: stateFile } : {});
-        // Verification reads source identity and exact media URLs from the DOM.
-        // Loading every existing gallery image after each POST/GET adds no
-        // evidence and competes with the originals being uploaded.
-        await context.route("**/*", route => {
-          const type = route.request().resourceType();
-          return ["image", "media", "font"].includes(type) ? route.abort() : route.continue();
-        });
-        page = await context.newPage();
-      }
-      const activePage = page!;
+      const activePage = await preparePage();
       const targetUrl = `${ORIGIN}/franchise/appointment.aspx?id=${encodeURIComponent(input.appointmentId)}`;
       const current = await activePage.evaluate(() => ({ url: location.href, title: document.title }));
       if (!junkwarePhotoPageIdentity(current.url, current.title, input.appointmentId, input.jkNumber)) {
@@ -279,7 +305,7 @@ export function createJunkwarePhotoUploadSession(dependencies: {
       else {
         // Session persistence is not upload evidence. Preserve a verified source
         // result if local browser-state persistence fails, and discard the session.
-        try { await (dependencies.persist || persistStorageState)(context!); }
+        try { await (dependencies.persist || persistJunkwareStorageState)(context!); }
         catch { await discard(); }
       }
       return { submitted: true, results };
@@ -295,7 +321,49 @@ export function createJunkwarePhotoUploadSession(dependencies: {
     if (result.status === "uncertain") throw new Error(result.error);
     return result.verification;
   };
-  return { upload, uploadBatch, close: async () => { closed = true; await discard(); } };
+  const auditVerifiedBatch = async (inputs: PhotoUploadInput[], result: Pick<PhotoUploadBatchResult, 'results'>): Promise<PhotoUploadBatchResult> => {
+    if (closed || busy) throw new Error('The JunkWare gallery audit requires an idle open session.');
+    const first = inputs[0];
+    if (!first || !/^\d{1,12}$/.test(first.appointmentId) || !/^JK\d{4,12}$/i.test(first.jkNumber)
+      || inputs.some(input => input.appointmentId !== first.appointmentId || input.jkNumber !== first.jkNumber || input.category !== first.category)
+      || new Set(inputs.map(input => input.filePath)).size !== inputs.length) throw new Error('The JunkWare gallery audit requires one exact job and category.');
+    if (!result.results.some(row => row.status === 'verified')) return { submitted: true, results: result.results };
+    busy = true;
+    try {
+      const activePage = await preparePage();
+      const finalAuditStartedAt = new Date().toISOString();
+      await ensureAuthenticated(activePage, `${ORIGIN}/franchise/appointment.aspx?id=${encodeURIComponent(first.appointmentId)}`);
+      const identity = await activePage.evaluate(() => ({ url: location.href, title: document.title }));
+      if (!junkwarePhotoPageIdentity(identity.url, identity.title, first.appointmentId, first.jkNumber)) {
+        throw new Error('JunkWare final gallery audit loaded a different appointment.');
+      }
+      const galleryUrls = await appointmentMediaUrls(activePage);
+      const finalAuditCompletedAt = new Date().toISOString();
+      return { submitted: true, results: inputs.map(input => {
+        const matches = result.results.filter(row => row.filePath === input.filePath);
+        const original = matches.length === 1 ? matches[0] : undefined;
+        if (original?.status === 'uncertain') return original;
+        const uncertain = { filePath: input.filePath, status: 'uncertain' as const, error: 'JunkWare final gallery did not verify this exact photo.' };
+        if (!original || !/^[a-f0-9]{64}$/.test(path.parse(input.filePath).name)) return uncertain;
+        const prior = original.verification;
+        const fresh = newVerifiedAppointmentMedia([], galleryUrls, input.appointmentId).filter(url => {
+          const stem = path.parse(decodeURIComponent(new URL(url).pathname)).name;
+          const expected = path.parse(input.filePath).name;
+          return stem.includes(`-${expected}-`) || stem.endsWith(`-${expected}`);
+        });
+        if (fresh.length !== 1 || prior.mediaUrls.length !== 1 || fresh[0] !== prior.mediaUrls[0]
+          || !Number.isSafeInteger(prior.beforeCount) || galleryUrls.length <= prior.beforeCount) return uncertain;
+        return { filePath: input.filePath, status: 'verified' as const, verification: {
+          ...prior, afterCount: galleryUrls.length, galleryUrls, galleryObservedAt: finalAuditStartedAt,
+          finalAuditStartedAt, finalAuditCompletedAt,
+        } };
+      }) };
+    } catch (error) {
+      await discard();
+      throw error;
+    } finally { busy = false; }
+  };
+  return { prepareTarget, upload, uploadBatch, auditVerifiedBatch, close: async () => { closed = true; await discard(); } };
 }
 
 export async function uploadJunkwareJobPhoto(input: PhotoUploadInput): Promise<PhotoUploadResult> {

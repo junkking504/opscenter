@@ -364,9 +364,21 @@ async function main(): Promise<void> {
   const attemptedReplies = new Set<string>();
   const photoConfirmations = { pending: 0, queued: 0 };
   const expenseReplies = { sent: 0, retried: 0, failed: 0 };
-  const photoUploads = createJunkwarePhotoUploadSession();
+  // Independent ASP.NET sessions prevent the server's per-session request lock
+  // from silently serializing the three bounded append-only photo lanes.
+  const photoUploads = Array.from({ length: 3 }, (_, lane) => createJunkwarePhotoUploadSession({
+    isolatedServerSession: true,
+    ...(lane ? { persist: async () => {} } : {}),
+  }));
   const media = createPhotoDownloadPool(downloadWhatsAppImage);
-  const batches = createPhotoUploadBatchQueue(photoUploads.uploadBatch);
+  const batches = createPhotoUploadBatchQueue(photoUploads.map(session => session.uploadBatch), {
+    prepare: async input => {
+      const prepared = await Promise.allSettled(photoUploads.map(session => session.prepareTarget(input)));
+      const failed = prepared.find(result => result.status === 'rejected');
+      if (failed?.status === 'rejected') throw failed.reason;
+    },
+    finalize: (inputs, result) => photoUploads[0].auditVerifiedBatch(inputs, result),
+  });
   const appointmentLookups = new Map<string, Promise<string | null>>();
   const resolveAppointment = (jk: string) => {
     let lookup = appointmentLookups.get(jk);
@@ -393,7 +405,7 @@ async function main(): Promise<void> {
     });
     await media.close();
     await batches.close();
-    await photoUploads.close();
+    await Promise.all(photoUploads.map(session => session.close()));
     loadSlackBotToken();
     const recyclingSlack = await deliverRecyclingSlackAlerts().catch(error => ({
       posted: 0, updated: 0, failures: [error instanceof Error ? error.message : String(error)], preview: [],
@@ -410,7 +422,7 @@ async function main(): Promise<void> {
   } finally {
     await media.close();
     await batches.close();
-    await photoUploads.close();
+    await Promise.all(photoUploads.map(session => session.close()));
     await replies.stop();
   }
 }

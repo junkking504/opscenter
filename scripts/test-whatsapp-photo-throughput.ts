@@ -3,8 +3,8 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { Browser, Route } from '@playwright/test';
-import { createJunkwarePhotoUploadSession } from '../lib/junkware-photo-uploader';
+import type { Browser, BrowserContext, BrowserContextOptions, Route } from '@playwright/test';
+import { createJunkwarePhotoUploadSession, persistJunkwareStorageState } from '../lib/junkware-photo-uploader';
 import { drainWhatsAppPhotoQueue, queuedWhatsAppImages } from '../lib/whatsapp-job-photo-queue';
 
 async function main() {
@@ -81,20 +81,55 @@ async function main() {
         },
       }),
     };
+    const stateFile = path.join(root, 'protected', 'junkware_storage_state.json');
+    fs.mkdirSync(path.dirname(stateFile), { recursive: true });
+    const fixtureState = JSON.stringify({ cookies: [
+      { name: 'ASP.NET_SessionId', value: 'fixture-shared-session', domain: 'junkware.junk-king.com' },
+      { name: '.ASPXAUTH', value: 'fixture-authentication', domain: 'junkware.junk-king.com' },
+      { name: 'ASP.NET_SessionId', value: 'unrelated', domain: 'example.com' },
+    ], origins: [] });
+    fs.writeFileSync(stateFile, fixtureState);
+    let partialWritten!: () => void, completeWrite!: () => void;
+    const partialReady = new Promise<void>(resolve => { partialWritten = resolve; });
+    const finishWrite = new Promise<void>(resolve => { completeWrite = resolve; });
+    const atomicSave = persistJunkwareStorageState({ storageState: async ({ path: temporary }: { path: string }) => {
+      assert.notEqual(temporary, stateFile);
+      assert.equal(fs.statSync(temporary).mode & 0o777, 0o600);
+      fs.writeFileSync(temporary, '{'); partialWritten(); await finishWrite;
+      fs.writeFileSync(temporary, fixtureState);
+    } } as unknown as BrowserContext);
+    await partialReady;
+    assert.equal(fs.readFileSync(stateFile, 'utf8'), fixtureState, 'Concurrent lane startup cannot see partially written browser state');
+    completeWrite(); await atomicSave;
+    await assert.rejects(persistJunkwareStorageState({ storageState: async ({ path: temporary }: { path: string }) => {
+      fs.writeFileSync(temporary, '{'); throw new Error('simulated persistence failure');
+    } } as unknown as BrowserContext), /simulated persistence/);
+    assert.equal(fs.readFileSync(stateFile, 'utf8'), fixtureState, 'Failed persistence retains the previous valid authentication state');
+    assert.deepEqual(fs.readdirSync(path.dirname(stateFile)), [path.basename(stateFile)], 'Private temporary files are cleaned after success and failure');
+    const contextOptions: BrowserContextOptions[] = [];
     const session = createJunkwarePhotoUploadSession({
+      isolatedServerSession: true,
       launch: async () => {
         stats.launches++; currentUrl = 'about:blank'; title = '';
-        return { newContext: async () => ({
+        return { newContext: async (options: BrowserContextOptions) => { contextOptions.push(options); return ({
           route: async (_pattern: string, handler: typeof routeHandler) => { routeHandler = handler; },
           newPage: async () => page,
-        }), close: async () => { stats.closes++; } } as unknown as Browser;
+        }); }, close: async () => { stats.closes++; } } as unknown as Browser;
       },
       persist: async () => { stats.persisted++; if (persistFails) throw new Error('Local storage unavailable'); },
     });
     const input = { appointmentId: '4075431', jkNumber: 'JK4088609', filePath: files[0], category: 'after' as const };
+    await session.prepareTarget(input);
+    assert.equal(stats.submissions, 0, 'Parallel startup preparation only reads the exact appointment');
+    assert.equal(stats.navigations, 1);
     const firstPending = session.upload(input);
     await assert.rejects(session.upload(input), /must remain sequential/);
     const first = await firstPending;
+    assert.equal(stats.navigations, 1, 'First upload reuses its prepared page without an extra GET');
+    assert.equal(fs.readFileSync(stateFile, 'utf8'), fixtureState, 'Session isolation never modifies shared authentication on disk');
+    const isolated = contextOptions[0].storageState;
+    assert.ok(isolated && typeof isolated !== 'string');
+    assert.deepEqual(isolated.cookies.map(cookie => [cookie.name, cookie.value]), [['.ASPXAUTH', 'fixture-authentication'], ['ASP.NET_SessionId', 'unrelated']], 'Only the owning server session cookie is removed; authentication remains');
     const ordered = (...values: (string | undefined)[]) => {
       const times = values.map(value => Date.parse(value || ''));
       assert.ok(times.every(Number.isFinite), 'Each recorded phase timestamp is valid');
@@ -225,6 +260,38 @@ async function main() {
     const storageFailure = await session.uploadBatch([member('persist-a'), member('persist-b')]);
     assert.ok(storageFailure.results.every(result => result.status === 'verified'), 'Local session persistence cannot erase proven source success');
     persistFails = false;
+
+    const auditInputs = [member('audit-a'), member('audit-b')];
+    const auditFirst = await session.uploadBatch(auditInputs);
+    const auditPeers = [member('audit-peer-a'), member('audit-peer-b')];
+    const auditSecond = await session.uploadBatch(auditPeers);
+    const auditMembers = [...auditInputs, ...auditPeers];
+    const priorResults = { results: [...auditFirst.results, ...auditSecond.results] };
+    const beforeAuditPosts = stats.submissions, beforeAuditGets = stats.navigations;
+    const audited = await session.auditVerifiedBatch(auditMembers, priorResults);
+    assert.equal(stats.submissions, beforeAuditPosts, 'Final audit never uploads or repeats a POST');
+    assert.equal(stats.navigations, beforeAuditGets + 1, 'One owning GET verifies the settled parallel gallery');
+    const finalGallery = galleries.get(input.appointmentId)!;
+    for (const result of audited.results) {
+      assert.equal(result.status, 'verified');
+      if (result.status !== 'verified') throw new Error('Expected final gallery verification');
+      assert.deepEqual(result.verification.galleryUrls, finalGallery, 'Every lane receives one complete settled gallery');
+      assert.equal(result.verification.afterCount, finalGallery.length);
+      ordered(result.verification.finalAuditStartedAt, result.verification.finalAuditCompletedAt);
+      assert.equal(result.verification.galleryObservedAt, result.verification.finalAuditStartedAt, 'Source observation predates the response completion');
+    }
+    const missingUrl = (auditFirst.results[0].status === 'verified' ? auditFirst.results[0].verification.mediaUrls[0] : '');
+    galleries.set(input.appointmentId, finalGallery.filter(url => url !== missingUrl));
+    const missing = await session.auditVerifiedBatch(auditMembers, priorResults);
+    assert.equal(missing.results[0].status, 'uncertain', 'A missing exact original cannot pass the final audit');
+    assert.ok(missing.results.slice(1).every(result => result.status === 'verified'));
+    galleries.set(input.appointmentId, finalGallery);
+    const uncertainOriginal = await session.auditVerifiedBatch(auditMembers, { results: priorResults.results.map((row, index) => index ? row : { filePath: row.filePath, status: 'uncertain', error: 'original uncertainty' }) });
+    assert.equal(uncertainOriginal.results[0].status, 'uncertain', 'An audit cannot erase original uncertainty');
+    behavior = 'wrong-title';
+    await assert.rejects(session.auditVerifiedBatch(auditMembers, priorResults), /different appointment/);
+    assert.equal(stats.submissions, beforeAuditPosts, 'Failed final audits cannot replay uploads');
+    behavior = 'normal';
 
     await session.close();
     await assert.rejects(session.upload(input), /session is closed/);

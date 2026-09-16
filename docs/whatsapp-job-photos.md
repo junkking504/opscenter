@@ -183,7 +183,8 @@ requests are awaiting the network, and immediately after each photo completes.
 One outbox drain runs at a time; failed messages are attempted at most once per
 worker cycle. The existing outer worker waits five seconds between cycles, so an
 idle worker can still add that pickup delay. No extra provider polling is added.
-Uploads remain serialized and retain exact-JK and increased-media-count checks.
+Uploads retain exact-JK and increased-media-count checks; bounded source lanes
+and their final audit are described below.
 Slack's separate batch timer is unchanged. A new photo after a confirmed batch
 starts another batch; no timer can identify future photos that have not arrived.
 
@@ -285,7 +286,7 @@ repeat an upload simply to obtain confirmation.
 
 The worker claims photos in local intake order (`enqueuedAt`, then provider
 timestamp and filename), with at most 100 attempts per cycle. Up to
-eight uncomplicated explicit-JK photos may be in preparation or awaiting upload.
+32 uncomplicated explicit-JK photos may be in preparation or awaiting upload.
 The existing downloader runs at most four concurrent media acquisitions; it
 keeps the same inbox, host, size, signature and checksum checks and shares each
 message's success or failure without extra requests or background retries.
@@ -294,9 +295,24 @@ and retain sequential processing. Retried files wait for another worker cycle.
 
 Ready originals for the same exact appointment, JK and category may share one
 native JunkWare upload. Groups contain at most five files and 4.5 MiB total; one
-existing valid file up to 5 MiB may upload alone. Only one source writer is active.
-Grouping waits at most 100 ms when idle; ready files accumulate while another
-group writes. The oldest ready photo starts each group; smaller ready photos
+existing valid file up to 5 MiB may upload alone. Three independent source sessions
+may upload groups concurrently for the same exact job and category. Each session
+has one writer; another job or category waits for all current writes and their
+final audit. The sessions retain authenticated cookies but acquire separate
+ASP.NET session cookies so the server session lock cannot serialize their requests.
+Only the first lane persists shared browser state; other lanes keep it private.
+Persistence uses a private temporary file and atomic rename so another lane or
+resolver cannot read a partially written authentication file.
+Original photo bytes remain unchanged; no resizing or recompression is allowed.
+
+The first queued original immediately prepares the three authenticated appointment
+pages, concurrently with a 500 ms initial collection window. Group membership is
+selected only after both finish, allowing downloads to fill capacity during browser
+startup rather than freezing a tiny group first. Preparation reuses the initial
+GET each uploader already requires. Failed preparation holds that target for the
+cycle without retries. Subsequent idle grouping waits 100 ms; ready groups dispatch
+as a lane becomes available.
+The oldest ready photo starts each group; smaller ready photos
 for the same job can fill remaining capacity around a larger photo, without
 crossing a different job or category. The uploader blocks gallery image, media
 and font downloads: source forms, scripts, identity and exact media URLs remain
@@ -306,7 +322,16 @@ individual message hash must appear exactly once in newly observed owning-job
 media. One POST serves the group. A partial success publishes only exact proven
 files and holds the rest as uncertain; it never repeats the group automatically.
 A failed navigation gets one read-only reconciliation, never another POST.
-Complete-gallery receipts preserve immediate OpsCenter publication.
+Before resolving any successful file in a concurrent group of work, all its
+writes settle and one authenticated owning-appointment GET checks the exact JK
+and every successfully uploaded message hash again. Each successful receipt gets
+the same final complete gallery, observed at the audit GET's start, so slower
+intermediate responses cannot overwrite newer gallery contents. Missing files or
+failed final identity checks remain uncertain; the audit never promotes an
+uncertain upload or resubmits a POST. New files arriving during the audit wait for
+the next group of work. Processing records remain pending until this audit ends,
+which prevents early confirmations and preserves crash-recovery boundaries.
+Complete-gallery receipts then update OpsCenter and release one confirmation.
 
 Receipts retain per-photo processing/media-ready times, `uploadQueuedAt`, the
 actual group's `uploadStartedAt`/`submittedAt`, `batchSize`, gallery observation,
@@ -318,6 +343,8 @@ absent if no GET occurs. A navigation failure recovered through source read-back
 has GET timings but no successful POST-navigation timestamp. These observations
 separate source upload response time from owning-gallery read-back without
 adding requests or changing verification/retry behavior.
+`finalAuditStartedAt` and `finalAuditCompletedAt` separately record the one added
+read-only audit after concurrent source writes finish.
 
 The operating acceptance target is at most 30 seconds
 from provider send time to source verification, OpsCenter visibility and reply

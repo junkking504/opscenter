@@ -31,70 +31,153 @@ export function createPhotoDownloadPool(download: (message: WhatsAppImageMessage
   };
 }
 
-type BatchResult = { results: ({ filePath: string; status: 'verified'; verification: PhotoUploadResult } | { filePath: string; status: 'uncertain'; error: string })[] };
+export type BatchResult = { results: ({ filePath: string; status: 'verified'; verification: PhotoUploadResult } | { filePath: string; status: 'uncertain'; error: string })[] };
 type Pending = { input: PhotoUploadInput; bytes: number; resolve: (result: PhotoUploadResult) => void; reject: (error: Error) => void };
 const GROUP_BYTES = Math.floor(4.5 * 1024 * 1024);
 const sameTarget = (a: PhotoUploadInput, b: PhotoUploadInput) => a.appointmentId === b.appointmentId && a.jkNumber === b.jkNumber && a.category === b.category;
 
-/** One native JunkWare request at a time. Only ready, same-target files group. */
-export function createPhotoUploadBatchQueue(uploadBatch: (inputs: PhotoUploadInput[]) => Promise<BatchResult>) {
+type UploadBatch = (inputs: PhotoUploadInput[]) => Promise<BatchResult>;
+
+/** Independent uploader sessions overlap only for the same exact job/category. */
+export function createPhotoUploadBatchQueue(upload: UploadBatch | UploadBatch[], options: {
+  prepare?: (input: PhotoUploadInput) => Promise<void>;
+  finalize?: (inputs: PhotoUploadInput[], result: BatchResult) => Promise<BatchResult>;
+} = {}) {
+  const lanes = Array.isArray(upload) ? [...upload] : [upload];
+  if (!lanes.length || lanes.length > 3) throw new Error('Photo batching requires one to three independent upload lanes.');
   const pending: Pending[] = [];
-  let running: Promise<void> | undefined, timer: ReturnType<typeof setTimeout> | undefined, closed = false;
-  async function drain() {
-    while (pending.length) {
-      const group = [pending.shift()!];
-      let bytes = group[0].bytes;
-      // Keep the oldest photo first, then fill spare capacity from ready photos
-      // for that same job. A large next photo must not force a nearly empty POST.
-      // Stop at a different target/category so unrelated work keeps its order.
-      for (let index = 0; index < pending.length && group.length < 5;) {
-        if (!sameTarget(group[0].input, pending[index].input)) break;
-        if (bytes + pending[index].bytes > GROUP_BYTES) { index++; continue; }
-        const [next] = pending.splice(index, 1); group.push(next); bytes += next.bytes;
+  const running = new Map<number, Promise<void>>();
+  let epoch: { target: PhotoUploadInput; items: Pending[]; results: BatchResult['results'] } | undefined;
+  let finalizing: Promise<void> | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined, closed = false, started = false;
+  let preparation: Promise<void> | undefined, preparationTarget: PhotoUploadInput | undefined;
+  let preparationDone = !options.prepare, initialWindowDone = !options.prepare;
+  let initialWindow: Promise<void> | undefined, finishInitialWindow: (() => void) | undefined;
+  let preparationFailure: Error | undefined;
+
+  function prepare(input: PhotoUploadInput) {
+    if (!options.prepare || preparation) return;
+    preparationTarget = input;
+    initialWindow = new Promise<void>(resolve => { finishInitialWindow = resolve; });
+    preparation = Promise.resolve().then(() => options.prepare!(input)).catch(error => {
+      preparationFailure = error instanceof Error ? error : new Error(String(error));
+      for (let index = pending.length - 1; index >= 0; index--) {
+        if (sameTarget(input, pending[index].input)) pending.splice(index, 1)[0].reject(preparationFailure);
       }
-      try {
-        const result = await uploadBatch(group.map(item => item.input));
-        for (const item of group) {
-          const matches = result.results.filter(row => row.filePath === item.input.filePath);
-          const match = matches.length === 1 ? matches[0] : undefined;
-          if (match?.status === 'verified') item.resolve(match.verification);
-          else item.reject(new Error(match?.status === 'uncertain' ? match.error : 'JunkWare did not verify this exact photo.'));
-        }
-      } catch (error) {
-        for (const item of group) item.reject(error instanceof Error ? error : new Error(String(error)));
-      }
+    }).finally(() => { preparationDone = true; pump(); });
+  }
+
+  function takeGroup(): Pending[] {
+    const group = [pending.shift()!];
+    let bytes = group[0].bytes;
+    // Keep the oldest ready photo first and fill spare capacity without crossing
+    // a different job/category. Original files are read, never transformed.
+    for (let index = 0; index < pending.length && group.length < 5;) {
+      if (!sameTarget(group[0].input, pending[index].input)) break;
+      if (bytes + pending[index].bytes > GROUP_BYTES) { index++; continue; }
+      const [next] = pending.splice(index, 1); group.push(next); bytes += next.bytes;
+    }
+    return group;
+  }
+  function exactResult(item: Pending, result: BatchResult): BatchResult['results'][number] {
+    const matches = (Array.isArray(result?.results) ? result.results : []).filter(row => row?.filePath === item.input.filePath);
+    return matches.length === 1 ? matches[0] : { filePath: item.input.filePath, status: 'uncertain', error: 'JunkWare did not verify this exact photo.' };
+  }
+  function settle(item: Pending, result: BatchResult['results'][number]) {
+    if (result.status === 'verified') item.resolve(result.verification);
+    else item.reject(new Error(result.error));
+  }
+  async function submit(lane: UploadBatch, group: Pending[]) {
+    let result: BatchResult;
+    try { result = await lane(group.map(item => item.input)); }
+    catch (error) {
+      // A rejected callback might have submitted. Never retry the group.
+      const detail = error instanceof Error ? error.message : String(error);
+      result = { results: group.map(item => ({ filePath: item.input.filePath, status: 'uncertain', error: detail })) };
+    }
+    for (const item of group) {
+      const row = exactResult(item, result);
+      if (options.finalize) { epoch!.items.push(item); epoch!.results.push(row); }
+      else settle(item, row);
     }
   }
-  function start() {
-    timer = undefined;
-    running = drain().finally(() => { running = undefined; if (pending.length) schedule(); });
+  function finishEpoch() {
+    const finished = epoch!;
+    finalizing = Promise.resolve().then(async () => {
+      try {
+        const audited = await options.finalize!(finished.items.map(item => item.input), { results: finished.results });
+        for (let index = 0; index < finished.items.length; index++) {
+          const original = finished.results[index];
+          // A final gallery cannot turn an uncertain POST into an automatic
+          // success. Its existing reconciliation policy remains authoritative.
+          settle(finished.items[index], original.status === 'uncertain' ? original : exactResult(finished.items[index], audited));
+        }
+      } catch (error) {
+        const failure = error instanceof Error ? error : new Error(String(error));
+        for (const item of finished.items) item.reject(failure);
+      }
+    }).finally(() => { epoch = undefined; finalizing = undefined; pump(); });
   }
-  function schedule() { if (!running && !timer) timer = setTimeout(start, 100); }
+  function pump() {
+    // Do not freeze a group while lazy browser authentication is still running.
+    if (!preparationDone || !initialWindowDone) return;
+    if (timer) { clearTimeout(timer); timer = undefined; }
+    if (finalizing) return;
+    if (epoch && !running.size && (!pending.length || !sameTarget(epoch.target, pending[0].input))) {
+      if (options.finalize) { finishEpoch(); return; }
+      epoch = undefined;
+    }
+    if (!pending.length) return;
+    epoch ||= { target: pending[0].input, items: [], results: [] };
+    started = true;
+    for (let index = 0; index < lanes.length && pending.length; index++) {
+      if (running.has(index)) continue;
+      // Another target waits for every active writer and the final source audit.
+      if (!sameTarget(epoch.target, pending[0].input)) break;
+      const group = takeGroup();
+      const task = Promise.resolve().then(() => submit(lanes[index], group)).finally(() => {
+        running.delete(index);
+        pump();
+      });
+      running.set(index, task);
+    }
+  }
+  function schedule() {
+    if (!preparationDone && initialWindowDone) return;
+    if (!timer && !finalizing && running.size < lanes.length) timer = setTimeout(() => {
+      timer = undefined;
+      initialWindowDone = true;
+      finishInitialWindow?.();
+      pump();
+    }, started ? 100 : 500);
+  }
   return {
     upload(input: PhotoUploadInput): Promise<PhotoUploadResult> {
       if (closed) return Promise.reject(new Error('Photo upload batching is closed.'));
+      if (preparationFailure && preparationTarget && sameTarget(preparationTarget, input)) return Promise.reject(preparationFailure);
       try {
         const stat = fs.lstatSync(input.filePath);
         if (!stat.isFile() || stat.size <= 0 || stat.size > 5 * 1024 * 1024) throw new Error('Photo size is outside the verified upload limits.');
-        return new Promise((resolve, reject) => { pending.push({ input, bytes: stat.size, resolve, reject }); schedule(); });
+        return new Promise((resolve, reject) => { pending.push({ input, bytes: stat.size, resolve, reject }); prepare(input); schedule(); });
       } catch (error) { return Promise.reject(error); }
     },
     async close() {
       closed = true;
-      if (timer) { clearTimeout(timer); start(); }
-      while (running) await running;
+      await Promise.all([preparation, initialWindow]);
+      pump();
+      while (running.size || finalizing) await Promise.all([...running.values(), ...(finalizing ? [finalizing] : [])]);
     },
   };
 }
 
 /** Only uncomplicated explicit-JK photos overlap; alternate workflows stay serial. */
-export async function drainConcurrentPhotoQueue(process: (file: string) => Promise<void>, limit = 100, concurrency = 8): Promise<number> {
+export async function drainConcurrentPhotoQueue(process: (file: string) => Promise<void>, limit = 100, concurrency = 32): Promise<number> {
   const attempted = new Set<string>();
   const attemptedWithBinding = new Set<string>();
   let attempts = 0;
   const running = new Set<Promise<void>>();
   const cap = Math.min(100, Math.max(0, Math.floor(limit)));
-  const lanes = Math.min(8, Math.max(1, Math.floor(concurrency)));
+  const lanes = Math.min(32, Math.max(1, Math.floor(concurrency)));
   let failure: unknown;
   try {
     while (attempts < cap && !failure) {

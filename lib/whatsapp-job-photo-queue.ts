@@ -1,3 +1,4 @@
+import { applyTrailingPhotoJobBinding, bindAvailableTrailingPhotoJobText, bindTrailingPhotoJobText, withPhotoContextClaimLock } from "./whatsapp-photo-trailing-context";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -16,10 +17,13 @@ export type WhatsAppImageMessage = {
   sha256: string;
   caption: string;
   enqueuedAt: string;
+  trailingJobBinding?: unknown;
   matchingContext?: { version: 1; text: string; sourceMessageIds: string[]; capturedAt: string; recycling?: { text: string; messageId: string }; resale?: { text: string; messageId: string }; reviewReason?: "ambiguous_context" };
 };
 
 export type WhatsAppTextMessage = {
+  timestampSource?: "provider" | "intake-fallback";
+  sourceType?: "text" | "image-caption";
   messageId: string;
   senderPhone: string;
   receivedAt: string;
@@ -117,7 +121,10 @@ function parseText(message: MetaMessage, phoneNumberId: string): WhatsAppTextMes
   const senderPhone = normalizePhone(message.from);
   const text = String(message.text?.body || "").trim().slice(0, 2_000);
   if (!messageId || !senderPhone || !text) return null;
-  return { messageId, senderPhone, receivedAt: safeTimestamp(message.timestamp), phoneNumberId, text };
+  const providerSeconds = Number(message.timestamp);
+  const timestampSource = Number.isFinite(providerSeconds) && providerSeconds > 0
+    && Number.isFinite(new Date(providerSeconds * 1_000).getTime()) ? "provider" : "intake-fallback";
+  return { messageId, senderPhone, receivedAt: safeTimestamp(message.timestamp), timestampSource, phoneNumberId, text };
 }
 
 export function parseWhatsAppWebhook(payload: unknown): {
@@ -175,6 +182,10 @@ export function verifyMetaSignature(rawBody: string, signatureHeader: string, ap
   return actualBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(actualBuffer, expectedBuffer);
 }
 
+function attemptPhotoContextBinding(action: () => void): void {
+  try { action(); } catch { process.stderr.write("[whatsapp-photo-context] Deferred trailing job binding; originals remain queued or held.\n"); }
+}
+
 export function recordWhatsAppTextContext(message: WhatsAppTextMessage): void {
   ensureDirectories();
   const at = Date.parse(message.receivedAt);
@@ -183,10 +194,22 @@ export function recordWhatsAppTextContext(message: WhatsAppTextMessage): void {
   fs.mkdirSync(history, { recursive: true, mode: 0o700 });
   const entry = path.join(history, `${String(at).padStart(13, '0')}-${recordKey(message.messageId)}.json`);
   try { fs.writeFileSync(entry, JSON.stringify({ version: 1, ...message }), { flag: 'wx', mode: 0o600 }); }
-  catch (error) { if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error; return; }
+  catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    try {
+      const existing = JSON.parse(fs.readFileSync(entry, 'utf8')) as WhatsAppTextMessage;
+      if (existing.text === message.text && existing.receivedAt === message.receivedAt && existing.phoneNumberId === message.phoneNumberId
+        && normalizePhone(existing.senderPhone) === normalizePhone(message.senderPhone)) {
+        attemptPhotoContextBinding(() => bindTrailingPhotoJobText(whatsappPhotoStateDirectory(), existing));
+      }
+    } catch { /* Existing history must be intact before retrying a binding. */ }
+    return;
+  }
   const target = path.join(directory("context"), `${recordKey(normalizePhone(message.senderPhone))}.json`);
-  try { if (Date.parse(JSON.parse(fs.readFileSync(target, 'utf8')).receivedAt) > at) return; } catch { /* First context. */ }
-  writeJsonAtomic(target, { version: 1, ...message });
+  let newer = false;
+  try { newer = Date.parse(JSON.parse(fs.readFileSync(target, 'utf8')).receivedAt) > at; } catch { /* First context. */ }
+  if (!newer) writeJsonAtomic(target, { version: 1, ...message });
+  attemptPhotoContextBinding(() => bindTrailingPhotoJobText(whatsappPhotoStateDirectory(), message));
 }
 
 export function recentWhatsAppPhotoContext(senderPhone: string, receivedAt: Date, maxAgeMinutes = 10, phoneNumberId?: string, excludedMessageId?: string): { text: string; sourceMessageIds: string[]; recycling?: { text: string; messageId: string }; resale?: { text: string; messageId: string }; reviewReason?: "ambiguous_context" } {
@@ -253,6 +276,7 @@ export function enqueueWhatsAppImage(message: WhatsAppImageMessage): { duplicate
   const bound = { ...message, matchingContext: { version: 1 as const, ...context, capturedAt: new Date().toISOString() } };
   try {
     fs.writeFileSync(target, `${JSON.stringify(bound, null, 2)}\n`, { flag: "wx", mode: 0o600 });
+    attemptPhotoContextBinding(() => bindAvailableTrailingPhotoJobText(whatsappPhotoStateDirectory(), bound));
     return { duplicate: false };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "EEXIST") return { duplicate: true };
@@ -373,9 +397,14 @@ export function claimWhatsAppImage(incomingFile: string): { file: string; messag
   if (!/^[a-f0-9]{64}\.json$/.test(base)) return null;
   const processingFile = path.join(directory("processing"), base);
   try {
-    fs.renameSync(incomingFile, processingFile);
-    const message = JSON.parse(fs.readFileSync(processingFile, "utf8")) as WhatsAppImageMessage;
-    return { file: processingFile, message };
+    return withPhotoContextClaimLock(whatsappPhotoStateDirectory(), base, () => {
+      if (["processing", "completed", "failed"].some(state => fs.existsSync(path.join(whatsappPhotoStateDirectory(), state, base)))) return null;
+      fs.renameSync(incomingFile, processingFile);
+      const original = JSON.parse(fs.readFileSync(processingFile, "utf8")) as WhatsAppImageMessage;
+      const message = applyTrailingPhotoJobBinding(original, whatsappPhotoStateDirectory());
+      if (message !== original) writeJsonAtomic(processingFile, message);
+      return { file: processingFile, message };
+    });
   } catch {
     return null;
   }
@@ -390,6 +419,7 @@ export function finishWhatsAppImage(
   const target = path.join(directory(outcome), path.basename(processingFile));
   writeJsonAtomic(target, { ...current, outcome, outcomeAt: new Date().toISOString(), ...details });
   fs.unlinkSync(processingFile);
+  if (outcome === "review") attemptPhotoContextBinding(() => bindAvailableTrailingPhotoJobText(whatsappPhotoStateDirectory(), { ...current, ...details }));
   return target;
 }
 

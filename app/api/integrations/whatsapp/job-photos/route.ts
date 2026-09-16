@@ -91,6 +91,8 @@ export async function POST(request: Request) {
       receivedAt: image.receivedAt,
       phoneNumberId: image.phoneNumberId,
       text: image.caption,
+      sourceType: "image-caption",
+      timestampSource: image.timestampSource,
     });
   }
   let enqueued = 0;

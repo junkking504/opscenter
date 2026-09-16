@@ -44,9 +44,13 @@ export function createPhotoUploadBatchQueue(uploadBatch: (inputs: PhotoUploadInp
     while (pending.length) {
       const group = [pending.shift()!];
       let bytes = group[0].bytes;
-      while (pending.length && group.length < 5 && sameTarget(group[0].input, pending[0].input)
-        && bytes + pending[0].bytes <= GROUP_BYTES) {
-        const next = pending.shift()!; group.push(next); bytes += next.bytes;
+      // Keep the oldest photo first, then fill spare capacity from ready photos
+      // for that same job. A large next photo must not force a nearly empty POST.
+      // Stop at a different target/category so unrelated work keeps its order.
+      for (let index = 0; index < pending.length && group.length < 5;) {
+        if (!sameTarget(group[0].input, pending[index].input)) break;
+        if (bytes + pending[index].bytes > GROUP_BYTES) { index++; continue; }
+        const [next] = pending.splice(index, 1); group.push(next); bytes += next.bytes;
       }
       try {
         const result = await uploadBatch(group.map(item => item.input));
@@ -86,30 +90,41 @@ export function createPhotoUploadBatchQueue(uploadBatch: (inputs: PhotoUploadInp
 /** Only uncomplicated explicit-JK photos overlap; alternate workflows stay serial. */
 export async function drainConcurrentPhotoQueue(process: (file: string) => Promise<void>, limit = 100, concurrency = 8): Promise<number> {
   const attempted = new Set<string>();
+  const attemptedWithBinding = new Set<string>();
+  let attempts = 0;
   const running = new Set<Promise<void>>();
   const cap = Math.min(100, Math.max(0, Math.floor(limit)));
   const lanes = Math.min(8, Math.max(1, Math.floor(concurrency)));
   let failure: unknown;
   try {
-    while (attempted.size < cap && !failure) {
+    while (attempts < cap && !failure) {
       if (running.size >= lanes) { await Promise.race(running); continue; }
-      const next = queuedWhatsAppImages(1, attempted)[0];
+      const next = queuedWhatsAppImages(1, attempted)[0]
+        || queuedWhatsAppImages(cap).find(file => attempted.has(file) && !attemptedWithBinding.has(file)
+          && Boolean(readJobPhotoPrefetchCandidate(file)?.trailingJobBinding));
       if (!next) {
         if (running.size) { await Promise.race(running); continue; }
         break;
       }
-      if (!readJobPhotoPrefetchCandidate(next)) {
+      const candidate = readJobPhotoPrefetchCandidate(next);
+      if (!candidate) {
         await Promise.all(running);
         if (failure) break;
         attempted.add(next);
+        attempts++;
         await process(next);
         continue;
       }
       attempted.add(next);
+      // A photo held earlier in this cycle may have received its first explicit
+      // trailing JK since then. Claim that newly authorized work once, without
+      // delaying it through another worker sleep. Unchanged retries still wait.
+      if (candidate.trailingJobBinding) attemptedWithBinding.add(next);
+      attempts++;
       const task = Promise.resolve().then(() => process(next)).catch(error => { failure ||= error || new Error('Photo task failed.'); }).finally(() => running.delete(task));
       running.add(task);
     }
   } finally { await Promise.all(running); }
   if (failure) throw failure;
-  return attempted.size;
+  return attempts;
 }

@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import type { Browser } from '@playwright/test';
+import type { Browser, Route } from '@playwright/test';
 import { createJunkwarePhotoUploadSession } from '../lib/junkware-photo-uploader';
 import { drainWhatsAppPhotoQueue, queuedWhatsAppImages } from '../lib/whatsapp-job-photo-queue';
 
@@ -48,6 +48,7 @@ async function main() {
     let multipleSupported = true, navigationFails = false, wrongPostIdentity = false, persistFails = false;
     let behavior: 'normal' | 'post-title' | 'wrong-title' | 'no-image' | 'human-image' | 'partial' | 'bad-post-identity' = 'normal';
     const categories: string[] = [];
+    let routeHandler: ((route: Route) => Promise<void>) | undefined;
     const currentId = () => new URL(currentUrl).searchParams.get('id') || '';
     const page = {
       url: () => currentUrl,
@@ -83,7 +84,10 @@ async function main() {
     const session = createJunkwarePhotoUploadSession({
       launch: async () => {
         stats.launches++; currentUrl = 'about:blank'; title = '';
-        return { newContext: async () => ({ newPage: async () => page }), close: async () => { stats.closes++; } } as unknown as Browser;
+        return { newContext: async () => ({
+          route: async (_pattern: string, handler: typeof routeHandler) => { routeHandler = handler; },
+          newPage: async () => page,
+        }), close: async () => { stats.closes++; } } as unknown as Browser;
       },
       persist: async () => { stats.persisted++; if (persistFails) throw new Error('Local storage unavailable'); },
     });
@@ -91,6 +95,12 @@ async function main() {
     const firstPending = session.upload(input);
     await assert.rejects(session.upload(input), /must remain sequential/);
     const first = await firstPending;
+    assert.ok(routeHandler);
+    for (const type of ['image', 'media', 'font', 'document', 'script', 'stylesheet', 'xhr', 'fetch']) {
+      let action = '';
+      await routeHandler({ request: () => ({ resourceType: () => type }), abort: async () => { action = 'abort'; }, continue: async () => { action = 'continue'; } } as unknown as Route);
+      assert.equal(action, ['image', 'media', 'font'].includes(type) ? 'abort' : 'continue', `Source forms and DOM stay available while ${type} is handled`);
+    }
     const second = await session.upload({ ...input, filePath: files[1], category: 'before' });
     assert.deepEqual([first.beforeCount, first.afterCount, second.beforeCount, second.afterCount], [0, 1, 1, 2], 'Each image uses a fresh count baseline');
     assert.equal(second.galleryUrls.length, 2, 'Each verified upload publishes the complete owning gallery');

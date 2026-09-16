@@ -1,3 +1,4 @@
+import { applyTrailingPhotoJobBinding } from "./whatsapp-photo-trailing-context";
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -27,7 +28,7 @@ export function readJobPhotoPrefetchCandidate(file: string | undefined): WhatsAp
   try {
     const stats = fs.lstatSync(file);
     if (!stats.isFile() || stats.size > 256_000) return null;
-    const message = JSON.parse(fs.readFileSync(file, 'utf8')) as WhatsAppImageMessage;
+    const message = applyTrailingPhotoJobBinding(JSON.parse(fs.readFileSync(file, 'utf8')) as WhatsAppImageMessage, path.dirname(path.dirname(file)));
     if (!jobPhotoPrefetchEligible(message)
       || `${crypto.createHash('sha256').update(message.messageId).digest('hex')}.json` !== path.basename(file)) return null;
     return message;

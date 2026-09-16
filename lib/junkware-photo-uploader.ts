@@ -169,6 +169,13 @@ export function createJunkwarePhotoUploadSession(dependencies: {
         const stateFile = storageStateFile();
         browser = await (dependencies.launch || (() => chromium.launch({ headless: true })))();
         context = await browser.newContext(fs.existsSync(stateFile) ? { storageState: stateFile } : {});
+        // Verification reads source identity and exact media URLs from the DOM.
+        // Loading every existing gallery image after each POST/GET adds no
+        // evidence and competes with the originals being uploaded.
+        await context.route("**/*", route => {
+          const type = route.request().resourceType();
+          return ["image", "media", "font"].includes(type) ? route.abort() : route.continue();
+        });
         page = await context.newPage();
       }
       const activePage = page!;

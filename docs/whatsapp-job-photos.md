@@ -284,7 +284,7 @@ read-back evidence, and never invent an observed per-photo count increase or
 repeat an upload simply to obtain confirmation.
 
 The worker claims photos in local intake order (`enqueuedAt`, then provider
-timestamp and filename), with at most 100 distinct attempts per cycle. Up to
+timestamp and filename), with at most 100 attempts per cycle. Up to
 eight uncomplicated explicit-JK photos may be in preparation or awaiting upload.
 The existing downloader runs at most four concurrent media acquisitions; it
 keeps the same inbox, host, size, signature and checksum checks and shares each
@@ -296,7 +296,12 @@ Ready originals for the same exact appointment, JK and category may share one
 native JunkWare upload. Groups contain at most five files and 4.5 MiB total; one
 existing valid file up to 5 MiB may upload alone. Only one source writer is active.
 Grouping waits at most 100 ms when idle; ready files accumulate while another
-group writes. Identity and category are checked before submission, and every
+group writes. The oldest ready photo starts each group; smaller ready photos
+for the same job can fill remaining capacity around a larger photo, without
+crossing a different job or category. The uploader blocks gallery image, media
+and font downloads: source forms, scripts, identity and exact media URLs remain
+available for verification without repeatedly downloading existing photos.
+Identity and category are checked before submission, and every
 individual message hash must appear exactly once in newly observed owning-job
 media. One POST serves the group. A partial success publishes only exact proven
 files and holds the rest as uncertain; it never repeats the group automatically.
@@ -319,3 +324,22 @@ produces one review notice and retains the pending verified total. When held
 photos are explicitly resolved and verified, one final combined success total
 replaces the old split-success behavior. This check does not assign an unknown
 job, alter frozen context, or replay held or uncertain uploads.
+
+### A JK number sent immediately after an album
+
+WhatsApp may deliver an album's images before the separate job-number message.
+A fresh standalone JK message can therefore identify one immediately preceding
+unassigned photo burst from the same sender and receiving inbox. This exception
+is bounded by provider timestamps and refuses conflicting job context, ambiguous
+bursts, alternate workflows and any prior assignment or upload uncertainty.
+Image captions do not act as standalone trailing messages.
+
+The association is stored separately with the exact text message and original
+context. The normal queue claim applies it; an already-processing record is never
+rewritten by the webhook. An eligible missing-context review can return to the
+queue through an exclusive, non-overwriting publication. Existing completed,
+processing or failed records prevent duplicate publication. A photo held earlier
+in the current worker cycle gets one attempt with its newly validated binding;
+that attempt counts toward the same cycle limit, and unchanged retries cannot
+loop. The explicit job
+still goes through the normal appointment identity and source verification path.

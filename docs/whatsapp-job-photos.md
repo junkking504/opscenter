@@ -275,3 +275,31 @@ uncertain upload discards the browser session without repeating the write, and
 the session closes before ancillary work or process exit. These changes remove
 repeat browser startup and queue-chunk delays; they do not establish a real-world
 latency guarantee or make simultaneous writes to JunkWare and OpsCenter.
+
+During a job upload, the worker may prepare the next queued photo's original
+bytes. This lookahead is limited to one reserved file within the same 100-file
+cycle budget, with a frozen, uncomplicated explicit-JK context, supported image
+type, inbound checksum, valid timestamp, and matching inbox. Recycling, resale,
+truck-load and ambiguous contexts keep their existing routing. Every download
+still uses the existing inbox, host, size, image-signature and checksum checks;
+all media consumers share one sequential downloader. There remains only one
+JunkWare upload at a time, with unchanged identity and source verification.
+
+A prepared record stays in `incoming` until normal processing claims it, so it
+continues blocking premature batch confirmation. Successful bytes and failed
+download results are consumed once; failures enter normal retry accounting and
+never cause a background retry. If the reserved record disappears or changes,
+the worker drains the orphan preparation before proceeding and relies on the
+existing verified cache for any later retry. Shutdown awaits outstanding media
+work. Lookahead does not add provider requests per normal photo or change paid
+analysis routes; it overlaps the next photo's existing media requests with the
+current source upload/read-back.
+
+Prefetched receipts include `mediaPrefetchStartedAt` and, on success,
+`mediaPrefetchReadyAt`, representing the actual media preparation interval.
+`mediaReadyAt` remains the time normal processing consumes the validated file;
+subtracting `processingStartedAt` from it measures remaining worker wait, not
+necessarily the full media request duration. Receipt verification and OpsCenter
+publication continue through the same completed-receipt path. Mocked overlap
+tests establish the concurrency bounds; a new real batch is required to measure
+the resulting end-to-end latency.

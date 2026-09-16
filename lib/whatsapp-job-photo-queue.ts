@@ -282,14 +282,22 @@ export function queuedWhatsAppImages(limit = 10, excluded: ReadonlySet<string> =
 
 /** Drain new arrivals before ancillary work, bounded so other work still runs.
  * Retried files are never attempted twice in this process cycle. */
-export async function drainWhatsAppPhotoQueue(process: (file: string) => Promise<void>, limit = 100): Promise<number> {
+export async function drainWhatsAppPhotoQueue(process: (file: string, next: () => string | undefined) => Promise<void>, limit = 100): Promise<number> {
   const attempted = new Set<string>();
   const cap = Math.min(100, Math.max(0, Math.floor(limit)));
+  let reservedNext: string | undefined;
   while (attempted.size < cap) {
-    const next = queuedWhatsAppImages(1, attempted)[0];
+    const next = reservedNext || queuedWhatsAppImages(1, attempted)[0];
+    reservedNext = undefined;
     if (!next) break;
     attempted.add(next);
-    await process(next);
+    await process(next, () => {
+      if (attempted.size >= cap) return undefined;
+      // Reserve just the next selected file without claiming it. It remains an
+      // incoming confirmation blocker while its bytes are prepared ahead.
+      reservedNext ||= queuedWhatsAppImages(1, attempted)[0];
+      return reservedNext;
+    });
   }
   return attempted.size;
 }

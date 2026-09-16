@@ -1,6 +1,7 @@
 import { processRecyclingImage } from "@/lib/whatsapp-recycling";
 import { deliverRecyclingSlackAlerts } from "@/lib/recycling-slack";
 import { processResaleImage } from "@/lib/whatsapp-resale";
+import { createWhatsAppPhotoPrefetch, readJobPhotoPrefetchCandidate } from "@/lib/whatsapp-photo-prefetch";
 import { downloadWhatsAppImage } from "@/lib/whatsapp-photo-media";
 import { startWhatsAppReplyPump } from "@/lib/whatsapp-reply-pump";
 import { execFileSync } from "node:child_process";
@@ -191,8 +192,9 @@ function numberOption(name: string): number | undefined {
   return Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
-async function processOne(incomingFile: string, map: Record<string, string>, upload: ReturnType<typeof createJunkwarePhotoUploadSession>['upload']): Promise<"completed" | "review" | "retried" | "failed" | "skipped"> {
+async function processOne(incomingFile: string, map: Record<string, string>, upload: ReturnType<typeof createJunkwarePhotoUploadSession>['upload'], media: ReturnType<typeof createWhatsAppPhotoPrefetch>, prefetchNext: () => void): Promise<"completed" | "review" | "retried" | "failed" | "skipped"> {
   const claim = claimWhatsAppImage(incomingFile);
+  await media.discardExcept(claim?.message);
   if (!claim) return "skipped";
   const timing: Record<string, string> = { processingStartedAt: new Date().toISOString() };
   let stage: "matching" | "downloading" | "analyzing" | "uploading" = "matching";
@@ -201,9 +203,9 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
   try {
     const receivedAt = new Date(claim.message.receivedAt);
     if (Number.isNaN(receivedAt.getTime())) throw new Error("The WhatsApp message timestamp is invalid.");
-    const recycling = await processRecyclingImage(claim.message);
+    const recycling = await processRecyclingImage(claim.message, media.download);
     if (recycling) { finishWhatsAppImage(claim.file, "completed", { recycling }); return "completed"; }
-    const resale = await processResaleImage(claim.message);
+    const resale = await processResaleImage(claim.message, media.download);
     if (resale) {
       const outcome = resale.status === "review" ? "review" : "completed";
       finishWhatsAppImage(claim.file, outcome, { resale });
@@ -232,7 +234,7 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
     // Retain the original even when matching requires human review. Provider
     // media availability must not be the only copy of a held photo.
     stage = "downloading";
-    const filePath = await downloadWhatsAppImage(claim.message);
+    const filePath = await media.download(claim.message, timing);
     timing.mediaReadyAt = new Date().toISOString();
     stage = "matching";
     if (matchingContext.reviewReason && !extractJkNumber(claim.message.caption)) {
@@ -293,6 +295,7 @@ async function processOne(incomingFile: string, map: Record<string, string>, upl
         status: "pending",
       });
     }
+    prefetchNext();
     stage = "uploading";
     timing.uploadStartedAt = new Date().toISOString();
     const verification = await upload({
@@ -363,6 +366,7 @@ async function main(): Promise<void> {
   const photoConfirmations = { pending: 0, queued: 0 };
   const expenseReplies = { sent: 0, retried: 0, failed: 0 };
   const photoUploads = createJunkwarePhotoUploadSession();
+  const media = createWhatsAppPhotoPrefetch(downloadWhatsAppImage);
   const replies = startWhatsAppReplyPump(async () => {
     const confirmations = queueVerifiedWhatsAppJobPhotoBatchConfirmations();
     photoConfirmations.pending = confirmations.pending;
@@ -376,11 +380,15 @@ async function main(): Promise<void> {
   });
   try {
     void replies.flush();
-    await drainWhatsAppPhotoQueue(async incomingFile => {
-      const result = await processOne(incomingFile, map, photoUploads.upload);
+    await drainWhatsAppPhotoQueue(async (incomingFile, next) => {
+      const result = await processOne(incomingFile, map, photoUploads.upload, media, () => {
+        const candidate = readJobPhotoPrefetchCandidate(next());
+        if (candidate) media.prefetch(candidate);
+      });
       results[result] += 1;
       void replies.flush();
     });
+    await media.close();
     await photoUploads.close();
     loadSlackBotToken();
     const recyclingSlack = await deliverRecyclingSlackAlerts().catch(error => ({
@@ -396,6 +404,7 @@ async function main(): Promise<void> {
       process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: photoQueue, recyclingSlack: recyclingDelivery, slack, photoConfirmations, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
     }
   } finally {
+    await media.close();
     await photoUploads.close();
     await replies.stop();
   }

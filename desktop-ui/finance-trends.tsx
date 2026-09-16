@@ -66,7 +66,7 @@ export default function FinanceTrends({ data }: { data: FinanceData }) {
       <div className="finance-performance-chart" role="img" aria-label={`${metrics.find(m => m.key === chartMetric)?.label} by full calendar month, ${year} and ${year - 1}. Exact amounts are in monthly history.`}>
         <ResponsiveContainer width="100%" height="100%"><BarChart data={chart} margin={{ top: 12, right: 4, bottom: 0, left: 0 }} accessibilityLayer>
           <CartesianGrid vertical={false} stroke="var(--border)" /><XAxis dataKey="month" tickLine={false} axisLine={false} minTickGap={15} /><YAxis width={62} tickLine={false} axisLine={false} tickFormatter={value => chartMetric === 'jobs' ? String(value) : Math.abs(value) >= 1000 ? `$${value / 1000}k` : `$${value}`} /><Tooltip formatter={value => format(chartMetric, typeof value === 'number' ? value : null)} contentStyle={{ background: 'var(--card)', color: 'var(--foreground)', border: '1px solid var(--border)', borderRadius: 8 }} />
-          <Bar name={String(year)} dataKey="current" fill="#477661" radius={[3, 3, 0, 0]} isAnimationActive={false} /><Bar name={String(year - 1)} dataKey="prior" fill="#b3c8b8" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+          <Bar name={String(year)} dataKey="current" fill="var(--capital-gold, #e3aa32)" radius={[3, 3, 0, 0]} isAnimationActive={false} /><Bar name={String(year - 1)} dataKey="prior" fill="var(--capital-gold-soft, #fff1cf)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
         </BarChart></ResponsiveContainer>
       </div>
     </section>

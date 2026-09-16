@@ -1,132 +1,91 @@
-import { LeadBrowser } from './lead-browser';
-import { ReviewBrowser } from './review-browser';
+import { CampaignLeads, CampaignResults, CampaignReviews, campaignOutcomes } from './campaign-workspace';
 import { workspaceReady } from './navigation-performance';
 import { useWorkspaceSnapshot } from './use-workspace-snapshot';
 import { fetchWorkspace } from './lib/workspace-cache';
 import { useWorkspaceRefresh, WorkspaceFreshness } from './workspace-freshness';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Check, PhoneCall, Play, ShieldCheck, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from './components/ui/button';
-import { Badge } from './components/ui/badge';
-import { commercialMoney as moneyValue, commercialDate, type MarketingData, type MarketingView, type Lead, type CommercialOperation, type CommercialReceipt } from './lib/commercial-contract';
-/** Root owns navigation; report receives action status messages. */
+import { commercialDate, type MarketingData, type MarketingView, type Lead, type Review, type CommercialOperation, type CommercialReceipt } from './lib/commercial-contract';
+
 export type LiveMarketingProps = { date: string; view?: string; report?: (message: string) => void; onBusyChange?: (busy: boolean) => void; onViewChange?: (view: MarketingView) => void };
-const safeUrl = (url: string) => /^https?:\/\//i.test(url) ? url : undefined;
-const safeRate = (n: number, d: number | null) => d ? (100 * n / d).toFixed(1) : '—';
-const safeRatio = (n: number, d: number) => d ? (n / d).toFixed(2) : '—';
-const operatingDayFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' });
-const label = (status: string) => status === 'needs_follow_up' ? 'Needs follow-up' : status === 'unqualified' ? 'Not qualified' : status === 'booked' || status === 'recovered' ? 'Booked' : 'Lost';
-function PhoneContact({ phone }: { phone: string }) { return phone ? <a href={`tel:${phone.replace(/[^+\d]/g, '')}`}>{phone}</a> : <span>Phone unavailable</span>; }
-const renderJkLink = (jk: string) => jk ? <a href={`/schedule?job=${encodeURIComponent(jk)}`}>{jk}</a> : <span>No appointment selected</span>;
-export function LiveMarketing({ date, view, report, onViewChange, onBusyChange }: LiveMarketingProps) {
+export function LiveMarketing({ date, view = 'overview', report, onBusyChange }: LiveMarketingProps) {
   const snapshotKey = `/api/desktop/marketing?date=${date}`;
   const [data, setData] = useWorkspaceSnapshot<MarketingData>(snapshotKey);
-  const [error, setError] = useState(''), [revision, setRevision] = useState(0);
-  const [localView, setLocalView] = useState<MarketingView>('overview');
-  const marketingView = (view && ['overview', 'leads', 'reviews', 'performance'].includes(view) ? view : localView) as MarketingView;
-  const setMarketingView = (next: MarketingView) => { setLocalView(next); onViewChange?.(next); };
-  const [actionFeedback, setActionFeedback] = useState(''), [busy, setBusy] = useState(false), [draft, setDraft] = useState<Lead | null>(null), [selections, setSelections] = useState<Record<string, string>>({});
-  useEffect(() => { setError(''); setDraft(null); }, [date]);
+  const [revision, setRevision] = useState(0);
+  const [actionFeedback, setActionFeedback] = useState(''), [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState<Lead | null>(null), [selections, setSelections] = useState<Record<string, string>>({});
+  const [confirmation, setConfirmation] = useState<'lead' | Review | null>(null);
+  const [lastRequest, setLastRequest] = useState(''), [unresolved, setUnresolved] = useState(false);
+  const confirmationDialog = useRef<HTMLDialogElement>(null);
+  const locked = busy || unresolved;
+  const editing = locked || Boolean(draft) || Boolean(confirmation) || Object.keys(selections).length > 0;
   const loadSnapshot = useCallback(async (signal: AbortSignal) => {
     const payload = await fetchWorkspace<MarketingData>(snapshotKey, signal);
     if (!signal.aborted) setData(payload);
   }, [snapshotKey, setData]);
   useEffect(() => { if (data) workspaceReady('Marketing'); }, [data]);
-  const freshness = useWorkspaceRefresh(loadSnapshot,`${date}:${revision}`,busy || Boolean(draft) || Object.keys(selections).length > 0,30_000,snapshotKey);
-
-  useEffect(() => { if (!draft) return; const prior = document.activeElement as HTMLElement | null; document.querySelector<HTMLElement>('[aria-labelledby="commercial-lead-title"] button')?.focus(); return () => { if (prior?.isConnected) prior.focus({ preventScroll: true }); }; }, [draft?.id]);
-  useEffect(() => { const listener = (event: KeyboardEvent) => { if (event.key === 'Escape' && !busy) setDraft(null); }; window.addEventListener('keydown', listener); return () => window.removeEventListener('keydown', listener); }, [busy]);
+  const freshness = useWorkspaceRefresh(loadSnapshot, `${date}:${revision}`, editing, 30_000, snapshotKey);
   useEffect(() => { if (actionFeedback) report?.(actionFeedback); }, [actionFeedback, report]);
-  useEffect(() => { onBusyChange?.(busy || Boolean(draft) || Object.keys(selections).length > 0); return () => onBusyChange?.(false); }, [busy, Boolean(draft), Object.keys(selections).length, onBusyChange]);
-  const [lastRequest, setLastRequest] = useState('');
+  useEffect(() => { onBusyChange?.(editing); return () => onBusyChange?.(false); }, [editing, onBusyChange]);
+  useEffect(() => {
+    if (!confirmation) return;
+    const prior = document.activeElement as HTMLElement | null;
+    confirmationDialog.current?.showModal();
+    return () => { confirmationDialog.current?.close(); if (prior?.isConnected) prior.focus({ preventScroll: true }); };
+  }, [confirmation]);
+  function acceptReceipt(receipt: CommercialReceipt) {
+    setActionFeedback(receipt.message);
+    setUnresolved(receipt.status !== 'verified');
+    if (receipt.status === 'verified') { setDraft(null); setSelections({}); setConfirmation(null); setRevision(value => value + 1); }
+  }
   async function checkReceipt() {
-    if (!lastRequest || busy) return; setBusy(true); onBusyChange?.(true);
-    try { const response = await fetch(`/api/desktop/marketing?date=${date}&receipt=${lastRequest}`, { cache: 'no-store', signal: AbortSignal.timeout(30_000) }); const result = await response.json(); if (!response.ok) throw new Error(result.error); setActionFeedback(result.receipt.message); if (result.receipt.status === 'verified') {setDraft(null);setSelections({});setRevision(value => value + 1);} }
-    catch (error) { setActionFeedback(error instanceof Error ? error.message : 'Saved receipt unavailable.'); } finally { setBusy(false); onBusyChange?.(false); }
+    if (!lastRequest || busy) return;
+    setBusy(true);
+    try {
+      const response = await fetch(`/api/desktop/marketing?date=${date}&receipt=${lastRequest}`, { cache: 'no-store', signal: AbortSignal.timeout(30_000) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Saved result unavailable.');
+      acceptReceipt(result.receipt);
+    } catch (error) { setActionFeedback(error instanceof Error ? error.message : 'Saved result unavailable.'); }
+    finally { setBusy(false); }
   }
   async function mutate(operation: Omit<CommercialOperation, 'date' | 'requestId'>) {
-    setBusy(true); onBusyChange?.(true); setActionFeedback(''); const requestId = crypto.randomUUID(); setLastRequest(requestId);
-    try { const response = await fetch('/api/desktop/marketing', { method: 'POST', signal: AbortSignal.timeout(30_000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...operation, date, requestId }) }); const result = await response.json(); if (!response.ok) throw new Error(result.error); const receipt: CommercialReceipt = result.receipt; setActionFeedback(receipt.message); if (receipt.status === 'verified') { setSelections({}); setDraft(null); setRevision(value => value + 1); } }
-    catch (error) { setActionFeedback(`${error instanceof Error ? error.message : 'Result unavailable.'} Check saved receipt ${requestId} before retrying.`); } finally { setBusy(false); onBusyChange?.(false); }
+    if (locked) return;
+    setBusy(true); setUnresolved(true); onBusyChange?.(true); setActionFeedback('');
+    const requestId = crypto.randomUUID(); setLastRequest(requestId);
+    try {
+      const response = await fetch('/api/desktop/marketing', { method: 'POST', signal: AbortSignal.timeout(30_000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...operation, date, requestId }) });
+      const result = await response.json();
+      if (!response.ok) {
+        // Only a definite pre-write rejection permits editing/retrying. An uncertain
+        // response stays locked to its receipt and must never replay the write.
+        if (result.stage === 'preflight' || [401, 403].includes(response.status)) { setUnresolved(false); setLastRequest(''); setActionFeedback(result.error || 'Change rejected before saving.'); return; }
+        throw new Error(result.error || 'Save result unavailable.');
+      }
+      acceptReceipt(result.receipt);
+    } catch (error) { setActionFeedback(`${error instanceof Error ? error.message : 'Result unavailable.'} Check the saved result before continuing.`); }
+    finally { setBusy(false); }
   }
-  const editLead = (id: string) => setDraft(data?.leads.find(lead => lead.id === id) || null);
-  const confirmMarketingReview = (id: string) => { const review = data?.reviews.find(review => review.id === id); if (review) void mutate({ action: 'review.assign', recordId: id, expectedVersion: review.version, values: { appointmentId: selections[id] ?? review.attribution?.appointmentId ?? '' } }); };
-  const marketingLeads = useMemo(() => (data?.leads ?? []).map(lead => ({ ...lead, status: label(lead.status), age: commercialDate(lead.calledAt), lastContact: lead.contacted ? `Franchise contacted · ${commercialDate(lead.updatedAt)}` : 'No recorded franchise contact', callDuration: 'Source' })), [data]);
-  const marketingRecoveryLeads = marketingLeads.filter(lead => ['Lost', 'Needs follow-up', 'Contacted'].includes(lead.status));
-  const marketingLostCount = marketingLeads.filter(lead => lead.status === 'Lost').length;
-  const marketingReviews = useMemo(() => (data?.reviews ?? []).map(review => ({ ...review, status: review.attribution?.status === 'matched' ? 'Attributed' : 'Needs attribution', age: commercialDate(review.createdAt), selectedAppointment: review.attribution?.appointmentId || '', jk: review.attribution?.jkNumber || '' })), [data]);
-  const marketingReviewCount = marketingReviews.filter(review => review.status !== 'Attributed').length;
-  const todaysMarketingReviews = useMemo(() => marketingReviews.filter(review => operatingDayFormatter.format(new Date(review.createdAt)) === date), [marketingReviews, date]);
-  const todaysReviewAverage = todaysMarketingReviews.length ? todaysMarketingReviews.reduce((sum, review) => sum + review.stars, 0) / todaysMarketingReviews.length : null;
-  if (!data) return <section className="marketing-workspace"><WorkspaceFreshness state={freshness}/><div className="marketing-empty" role="status">{error || freshness.error || 'Loading Marketing sources…'}</div></section>;
-  const marketingTotals = data.totals, marketingSources = data.sources;
-  return <>
-    <WorkspaceFreshness state={freshness} sourceAt={data.fetchedAt} budgetMinutes={20}/>
-    {Object.keys(selections).length > 0 && <Button variant="outline" size="sm" disabled={busy} onClick={()=>setSelections({})}>Clear review selections</Button>}
-    <p className="marketing-source-note" role="status">{data.available ? `${data.range} · SearchKings observed ${commercialDate(data.fetchedAt || '')}` : data.error || 'SearchKings source unavailable.'} · {data.reviewAvailable ? `Podium snapshot ${commercialDate(data.reviewFetchedAt || '')}` : data.reviewError || 'Podium unavailable.'}</p>
-            <section className={`marketing-workspace live-marketing marketing-view-${marketingView}`}>
-              {actionFeedback && <p className="marketing-feedback" role="status"><Check size={14} />{actionFeedback}</p>}
-
-              {marketingView === 'overview' && data.available && <>
-                <div className="marketing-kpi-strip" aria-label="Marketing operating summary">
-                  <button className="critical" onClick={() => setMarketingView('leads')}><span>Leads to Recover</span><strong>{marketingRecoveryLeads.length}</strong><small>{marketingLostCount} lost · Highest priority first</small></button>
-                  <button onClick={() => setMarketingView('performance')}><span>Qualified Calls</span><strong>{marketingTotals.qualified}</strong><small>{marketingTotals.calls} total SearchKings calls</small></button>
-                  <button onClick={() => setMarketingView('performance')}><span>Matched JunkWare Bookings</span><strong>{marketingTotals.bookings}</strong><small>{data.jobChange}</small></button>
-                  <button onClick={() => setMarketingView('performance')}><span>Attributed Completed Revenue</span><strong>{moneyValue(marketingTotals.revenue)}</strong><small>Completed JunkWare appointments only</small></button>
-                  <button className="attention" onClick={() => setMarketingView('reviews')}><span>Reviews on Selected Day</span><strong>{data.reviewAvailable ? todaysMarketingReviews.length : 'Unavailable'}</strong><small>{!data.reviewAvailable ? 'Podium source unavailable' : todaysReviewAverage == null ? 'No reviews on selected day' : `${todaysReviewAverage.toFixed(1)} average · ${todaysMarketingReviews.filter((review) => review.status === 'Needs attribution').length} need attribution`}</small></button>
-                </div>
-
-                <div className="marketing-overview-grid">
-                  <section className="marketing-recovery-shell">
-                    <div className="section-title"><div><span className="section-kicker">SearchKings · Lost first</span><h2>Lead Recovery</h2><p>Customer, intent, value, contact history, and outcome controls stay in one row.</p></div><Button variant="ghost" size="sm" onClick={() => setMarketingView('leads')}>View All <ArrowRight /></Button></div>
-                    <div className="marketing-lead-head"><span>Lead</span><span>Need</span><span>Quoted Value</span><span>Contact</span><span>Status</span><span /></div>
-                    <div className="marketing-lead-list">{marketingRecoveryLeads.slice(0, 4).map((lead) => <article className={lead.status === 'Lost' ? 'lost' : 'followup'} key={lead.id}>
-                      <div><strong>{lead.customer}</strong><small>{lead.territory} · {lead.age}</small></div>
-                      <div className="live-lead-need"><p>{lead.intent}</p><small>{lead.reason}</small></div>
-                      <strong>{moneyValue(lead.quotedValue)}</strong>
-                      <div><PhoneContact phone={lead.phone} /><small>{lead.lastContact}</small></div>
-                      <span className={`marketing-lead-status ${lead.status.toLowerCase().replaceAll(' ', '-')}`}>{lead.status}</span>
-                      <div className="marketing-row-actions"><a href={`tel:+1${lead.phone.replace(/\D/g, '')}`} aria-label={`Call ${lead.customer}`}><PhoneCall size={13} /></a><button onClick={() => editLead(lead.id)}>Update</button></div>
-                    </article>)}</div>
-                  </section>
-
-                  <aside className="marketing-attention-shell">
-                    <div className="section-title"><div><span className="section-kicker">Needs action</span><h2>Marketing Exceptions</h2></div></div>
-                    <button onClick={() => setMarketingView('reviews')}><span className="exception-count attention">{marketingReviewCount}</span><div><strong>Reviews need attribution</strong><small>Confirm the proposed customer and JK number.</small></div><ArrowRight size={14} /></button>
-                    <button onClick={() => setMarketingView('leads')}><span className="exception-count critical">{marketingRecoveryLeads.filter(lead => !lead.contacted).length}</span><div><strong>Lost leads have no outbound contact</strong><small>Source-recorded franchise contact flag.</small></div><ArrowRight size={14} /></button>
-                    <button onClick={() => setMarketingView('performance')}><span className="exception-count">{data.leads.filter(lead => !lead.appointmentId).length}</span><div><strong>Calls without matched appointments</strong><small>Review phone matches before crediting a booking.</small></div><ArrowRight size={14} /></button>
-                    <div className="marketing-source-note"><span>Source boundary</span><strong>SearchKings identifies demand. JunkWare confirms bookings and completed revenue.</strong></div>
-                  </aside>
-                </div>
-
-                <section className="marketing-funnel-shell">
-                  <div className="section-title"><div><span className="section-kicker">Selected month · Reconciled funnel</span><h2>Demand to Completed Revenue</h2></div><Button variant="ghost" size="sm" onClick={() => setMarketingView('performance')}>Performance Detail <ArrowRight /></Button></div>
-                  <div className="marketing-funnel">
-                    <article><span>SearchKings Calls</span><strong>{marketingTotals.calls}</strong><small>All tracked calls</small></article>
-                    <i><ArrowRight /></i><article><span>Qualified Calls</span><strong>{marketingTotals.qualified}</strong><small>{safeRate(marketingTotals.qualified, marketingTotals.calls)}% of calls</small></article>
-                    <i><ArrowRight /></i><article><span>Matched Bookings</span><strong>{marketingTotals.bookings}</strong><small>{safeRate(marketingTotals.bookings, marketingTotals.qualified)}% of qualified</small></article>
-                    <i><ArrowRight /></i><article><span>Completed Jobs</span><strong>{marketingTotals.completed}</strong><small>Verified in JunkWare</small></article>
-                    <i><ArrowRight /></i><article><span>Completed Revenue</span><strong>{moneyValue(marketingTotals.revenue)}</strong><small>Revenue authority: JunkWare</small></article>
-                  </div>
-                </section>
-              </>}
-
-              {marketingView === 'leads' && <LeadBrowser key={date} leads={data.leads} onEdit={editLead} />}
-
-              {marketingView === 'reviews' && data.reviewAvailable && <ReviewBrowser reviews={data.reviews} canAssign={data.canAssignReviews} busy={busy} selections={selections} onSelect={(id, appointment) => setSelections(current => ({ ...current, [id]: appointment }))} onConfirm={confirmMarketingReview} />}
-
-              {marketingView === 'performance' && data.available && <section className="marketing-performance-shell">
-                <div className="section-title"><div><span className="section-kicker">{data.range} · Source comparison</span><h2>Marketing Performance</h2><p>Calls and demand remain separate from JunkWare-authoritative bookings and completed revenue.</p></div><Badge variant="outline">Selected month</Badge></div>
-                <div className="marketing-performance-kpis"><article><span>Total Calls</span><strong>{marketingTotals.calls}</strong><small>SearchKings reporting</small></article><article><span>Qualified</span><strong>{marketingTotals.qualified}</strong><small>{safeRate(marketingTotals.qualified, marketingTotals.calls)}% qualification</small></article><article><span>Matched Bookings</span><strong>{marketingTotals.bookings}</strong><small>Phone match within 7 days</small></article><article><span>Completed Jobs</span><strong>{marketingTotals.completed}</strong><small>Verified in JunkWare</small></article><article><span>Completed Revenue</span><strong>{moneyValue(marketingTotals.revenue)}</strong><small>Attributed completed revenue</small></article><article><span>Paid Media Cost</span><strong>{moneyValue(marketingTotals.cost)}</strong><small>{safeRatio(marketingTotals.revenue, marketingTotals.cost)}× completed ROAS</small></article></div>
-                <div className="marketing-performance-head"><span>Territory</span><span>Calls</span><span>Qualified</span><span>Bookings</span><span>Completed</span><span>Completed Revenue</span><span>Cost</span><span>ROAS</span></div>
-                <div className="marketing-performance-table">{marketingSources.map((source) => <article key={source.source}><strong>{source.source}</strong><span>{source.calls ?? 'Unavailable'}</span><span>{source.qualified} · {safeRate(source.qualified, source.calls)}%</span><span>{source.bookings}</span><span>{source.completed ?? 'Unavailable'}</span><strong>{moneyValue(source.revenue)}</strong><span>{moneyValue(source.cost)}</span><strong>{source.cost ? `${(source.revenue / source.cost).toFixed(2)}×` : 'No recorded spend'}</strong></article>)}</div>
-                <footer className="marketing-performance-note"><ShieldCheck size={14} /><span>Attribution uses normalized phone matching within seven days. A match is a booking signal; revenue appears only after JunkWare marks the appointment completed.</span></footer>
-              </section>}
-            </section>
-
-    {marketingView === 'reviews' && !data.reviewAvailable && <div className="marketing-empty">Podium reviews unavailable. No review counts or attributions are assumed.</div>}
-    {lastRequest && <Button disabled={busy} variant="outline" size="sm" onClick={() => { void checkReceipt(); }}>Check Saved Result</Button>}
-    {!data.available && ['overview', 'performance'].includes(marketingView) && <div className="marketing-empty">SearchKings metrics unavailable for this period. No sample metrics are substituted.</div>}
-    {draft && <><button className="record-drawer-backdrop" aria-label="Close lead" disabled={busy} onClick={() => setDraft(null)} /><aside className="record-drawer" role="dialog" aria-modal="true" aria-labelledby="commercial-lead-title" onKeyDown={event => { if (event.key !== 'Tab') return; const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), a[href]')]; const first = controls[0], last = controls.at(-1); if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); } }}><header className="record-drawer-header"><div><span className="section-kicker">SearchKings · Lead recovery</span><h2 id="commercial-lead-title">{draft.customer}</h2></div><button disabled={busy} onClick={() => setDraft(null)} aria-label="Close"><X /></button></header><form onSubmit={event => { event.preventDefault(); void mutate({ action: 'lead.update', recordId: draft.id, expectedVersion: draft.version, values: { status: draft.status, reason: draft.reason, note: draft.note, contacted: draft.contacted } }); }}><div className="record-drawer-body appointment-create-grid"><p>{draft.intent}</p><p><PhoneContact phone={draft.phone} /> · {moneyValue(draft.quotedValue)}</p><label>Recovery outcome<select disabled={Boolean(draft.appointmentId)} value={draft.status} onChange={event => setDraft({ ...draft, status: event.target.value })}>{[['needs_follow_up', 'Needs follow-up'], ['lost', 'Lost'], ['booked', 'Booked (operator reported)'], ['recovered', 'Recovered (operator reported)'], ['unqualified', 'Not qualified']].map(([value, name]) => <option value={value} key={value}>{name}</option>)}</select></label><label>Reason<select value={draft.reason} onChange={event => setDraft({ ...draft, reason: event.target.value })}>{["", "availability", "pricing", "missed_call", "no_follow_up", "competitor", "out_of_area", "service_not_offered", "customer_declined", "other"].map(reason => <option key={reason} value={reason}>{reason ? reason.replaceAll("_", " ") : "No reason recorded"}</option>)}</select></label><label><input type="checkbox" checked={draft.contacted} onChange={event => setDraft({ ...draft, contacted: event.target.checked })} />Franchise contacted</label><label>Contact history / outcome note<textarea required maxLength={2000} value={draft.note} onChange={event => setDraft({ ...draft, note: event.target.value })} /></label><p>Outcome is OpsCenter-owned. Matched appointments keep their JunkWare booking status; contact notes remain editable.</p>{draft.appointmentId && <p>Matched appointment {draft.appointmentId} · {renderJkLink(draft.jk || '')}</p>}</div><footer className="record-drawer-actions"><Button type="submit" disabled={busy}>{busy ? 'Verifying…' : 'Save Recovery Outcome'}</Button></footer></form></aside></>}
-  </>;
+  function confirmSave() {
+    if (confirmation === 'lead' && draft) void mutate({ action: 'lead.update', recordId: draft.id, expectedVersion: draft.version, values: { status: draft.status, reason: draft.reason, note: draft.note, contacted: draft.contacted } });
+    else if (confirmation && confirmation !== 'lead') void mutate({ action: 'review.assign', recordId: confirmation.id, expectedVersion: confirmation.version, values: { appointmentId: selections[confirmation.id] ?? confirmation.attribution?.appointmentId ?? '' } });
+  }
+  const selectedAppointment = confirmation && confirmation !== 'lead' ? selections[confirmation.id] ?? confirmation.attribution?.appointmentId ?? '' : '';
+  const selectedCandidate = confirmation && confirmation !== 'lead' ? confirmation.candidates.find(candidate => candidate.appointmentId === selectedAppointment) : null;
+  if (!data) return <section className="campaign-workspace"><WorkspaceFreshness state={freshness}/><div className="campaign-empty" role="status">{freshness.error || 'Loading Campaign sources…'}</div></section>;
+  return <section className="campaign-workspace" aria-label="Campaign">
+    <WorkspaceFreshness state={freshness} sourceAt={view === 'reviews' ? data.reviewFetchedAt : data.fetchedAt} budgetMinutes={20}/>
+    {actionFeedback && <div className="campaign-save-status" role="status"><span>{actionFeedback}</span>{lastRequest && <Button disabled={busy} variant="outline" size="sm" onClick={() => void checkReceipt()}>Check saved result</Button>}</div>}
+    {Object.keys(selections).length > 0 && !confirmation && <div className="campaign-save-status"><span>Job match not saved yet.</span><Button variant="outline" size="sm" disabled={locked} onClick={() => setSelections({})}>Discard match changes</Button></div>}
+    {['overview', 'leads'].includes(view) && (data.available ? <CampaignLeads key={date} leads={data.leads} draft={draft} locked={locked} onDraft={setDraft} onReview={() => { setActionFeedback(''); setConfirmation('lead'); }}/> : <div className="campaign-panel campaign-empty"><h2>Lead source unavailable</h2><p>{data.error || 'SearchKings leads are unavailable for this period.'}</p></div>)}
+    {view === 'reviews' && (data.reviewAvailable ? <CampaignReviews reviews={data.reviews} canAssign={data.canAssignReviews} locked={locked} selections={selections} onSelect={(id, appointment) => setSelections(current => ({ ...current, [id]: appointment }))} onReview={review => { setActionFeedback(''); setConfirmation(review); }}/> : <div className="campaign-panel campaign-empty"><h2>Reviews unavailable</h2><p>{data.reviewError || 'Podium has not supplied reviews. No counts or job matches are assumed.'}</p></div>)}
+    {view === 'performance' && (data.available ? <CampaignResults data={data}/> : <div className="campaign-panel campaign-empty"><h2>Results unavailable</h2><p>{data.error || 'SearchKings metrics are unavailable for this period. No sample metrics are substituted.'}</p></div>)}
+    <footer className="campaign-source-footer"><span>{data.available ? `${data.range} · SearchKings observed ${commercialDate(data.fetchedAt || '')}` : data.error || 'SearchKings unavailable'}</span><span>{data.reviewAvailable ? `Podium snapshot ${commercialDate(data.reviewFetchedAt || '')}` : data.reviewError || 'Podium unavailable'}</span></footer>
+    {confirmation && <dialog ref={confirmationDialog} className="campaign-confirm" aria-labelledby="campaign-confirm-title" onCancel={event => { event.preventDefault(); if (!locked) setConfirmation(null); }}>
+      <span className="campaign-eyebrow">Review before saving</span><h2 id="campaign-confirm-title">{confirmation === 'lead' ? 'Save this conversation?' : 'Confirm this job match?'}</h2>
+      {confirmation === 'lead' && draft ? <><p>{draft.customer} · {draft.territory}</p><dl><dt>Outcome</dt><dd>{campaignOutcomes.find(([value]) => value === draft.status)?.[1] || draft.status}</dd><dt>Contact</dt><dd>{draft.contacted ? 'Franchise contacted' : 'No contact recorded'}</dd><dt>Reason</dt><dd>{draft.reason.replaceAll('_', ' ') || 'Not recorded'}</dd><dt>Note</dt><dd>{draft.note}</dd></dl><p>This saves the contact outcome in OpsCenter. {draft.appointmentId ? 'The matched JunkWare appointment remains unchanged.' : 'It does not create a booking in JunkWare.'}</p></> : confirmation !== 'lead' && <><p>Review by {confirmation.customer} · {confirmation.location} · {confirmation.stars}/5</p><dl><dt>Appointment</dt><dd>{selectedCandidate?.label || selectedAppointment}</dd></dl><p>This credits the review to the selected completed JunkWare appointment in OpsCenter. The original review stays unchanged.</p></>}
+      {actionFeedback && <p role="status">{actionFeedback}</p>}{lastRequest && unresolved && <p className="campaign-receipt">Receipt: {lastRequest}. This save is still unverified; another save is blocked.</p>}
+      <footer><Button variant="outline" disabled={locked} onClick={() => setConfirmation(null)}>Back to edit</Button>{unresolved ? <Button disabled={busy} onClick={() => void checkReceipt()}>{busy ? 'Checking…' : 'Check saved result'}</Button> : <Button className="campaign-primary" disabled={busy} onClick={confirmSave}>Confirm & save</Button>}</footer>
+    </dialog>}
+  </section>;
 }

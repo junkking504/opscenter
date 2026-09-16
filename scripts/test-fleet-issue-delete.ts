@@ -1,0 +1,53 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { readFleetIssueStore, upsertFleetIssue, syncFleetIssuesFromChecklist, attachFleetIssuePhoto } from '../lib/fleet-issues';
+import { readDesktopFleet, runDesktopFleetAction } from '../lib/desktop-fleet';
+import { desktopVersion, readDesktopLocalReceipt } from '../lib/desktop-krewe';
+import { upsertFleetChecklist } from '../lib/fleet-checklists';
+import { effectiveFleetChecklistDefinitions } from '../lib/fleet-checklist-definitions';
+
+const cwd=process.cwd(), root=fs.mkdtempSync(path.join(os.tmpdir(),'repair-delete-'));
+const originalEnv={...process.env};
+try {
+  process.chdir(root);
+  process.env.OPSBOT_DATA_DIR=path.join(root,'data');
+  process.env.OPSCENTER_DATA_DIR=path.join(root,'data');
+  process.env.OPSCENTER_DESKTOP_PEOPLE_FLEET_DIR=path.join(root,'receipts');
+  const date='2026-09-16', truck='Truck# 4', actor='test-manager';
+  const item=effectiveFleetChecklistDefinitions(truck,'daily',[])[0];
+  const checklist=upsertFleetChecklist({truck,cadence:'daily',inspectionDate:date,inspector:'Fixture',answers:[{itemId:item.itemId,status:'attention',notes:'Fixture repair'}]})!;
+  syncFleetIssuesFromChecklist(checklist);
+  const issue=readFleetIssueStore().issues[0];
+  assert.ok(issue);
+  const other=upsertFleetIssue({truck:'Truck# 2',title:'Keep this repair'})!;
+  const request={date,truck,action:'issue_delete',values:{issueId:issue.issueId},expectedVersion:desktopVersion(issue),requestId:randomUUID()};
+  assert.throws(()=>runDesktopFleetAction({...request,truck:'Truck# 2'},actor,'admin'),/another truck/);
+  assert.throws(()=>runDesktopFleetAction({...request,expectedVersion:desktopVersion(null)},actor,'admin'),/changed/);
+  assert.throws(()=>runDesktopFleetAction({...request,values:{}},actor,'admin'),/Choose a repair/);
+  const updated=upsertFleetIssue({issueId:issue.issueId,cost:125})!;
+  assert.throws(()=>runDesktopFleetAction(request,actor,'admin'),/changed/);
+  request.expectedVersion=desktopVersion(updated);
+  const receipt=runDesktopFleetAction(request,actor,'admin');
+  assert.equal(receipt.status,'verified');
+  assert.equal(readDesktopLocalReceipt(request.requestId,actor,'fleet')?.status,'verified');
+  assert.deepEqual(runDesktopFleetAction(request,actor,'admin'),receipt,'Retry returns saved receipt');
+  assert.equal(readFleetIssueStore().issues.some(row=>row.issueId===issue.issueId),false);
+  assert.ok(readFleetIssueStore().issues.some(row=>row.issueId===other.issueId));
+  assert.equal(readDesktopFleet(date,'reports','admin').issues.some(row=>row.issueId===issue.issueId),false);
+  const deleted=readFleetIssueStore(true).issues.find(row=>row.issueId===issue.issueId)!;
+  assert.equal(deleted.deletedBy,actor);
+  assert.ok(deleted.deletedAt);
+  assert.equal(deleted.cost,125);
+  assert.equal(upsertFleetIssue({issueId:issue.issueId,title:'Resurrect'}),null);
+  assert.equal(attachFleetIssuePhoto(issue.issueId,{fileName:'test.jpg',storageName:'test.jpg',mimeType:'image/jpeg',size:1}),null);
+  syncFleetIssuesFromChecklist(checklist);
+  assert.equal(readFleetIssueStore().issues.some(row=>row.issueId===issue.issueId),false,'Checklist replay must not recreate deleted repair');
+  assert.deepEqual(readFleetIssueStore(true).issues.find(row=>row.issueId===issue.issueId),deleted,'Other writes preserve audit copy');
+  assert.throws(()=>runDesktopFleetAction({...request,requestId:randomUUID()},actor,'admin'),/changed/);
+  console.log('Repair deletion passed: stale versions, truck scope, receipt replay, read-back, history exclusion, audit preservation and checklist replay.');
+} finally {
+  process.chdir(cwd);process.env=originalEnv;fs.rmSync(root,{recursive:true,force:true});
+}

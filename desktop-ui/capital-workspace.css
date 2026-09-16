@@ -1,5 +1,5 @@
 /* Shared Capital language. All rules stay inside the live financial workspace. */
-.ops-live .finance-workspace.capital-workspace { --capital-ink:var(--foreground); --capital-accent:#b51935; --capital-accent-hover:#9c2630; --capital-gold:#e3aa32; --capital-gold-soft:#fff1cf; --capital-surface:#f8f9f7; --capital-muted:var(--muted-foreground); --capital-border:var(--border); color:var(--capital-ink); font-variant-numeric:tabular-nums; gap:10px; }
+.ops-live .finance-workspace.capital-workspace { --capital-ink:var(--foreground); --capital-accent:var(--ops-brand-red); --capital-accent-hover:var(--ops-brand-red-hover); --capital-gold:#e3aa32; --capital-gold-soft:#fff1cf; --capital-surface:#f8f9f7; --capital-muted:var(--muted-foreground); --capital-border:var(--border); color:var(--capital-ink); font-variant-numeric:tabular-nums; gap:10px; }
 .capital-page { display:grid; gap:10px; min-width:0; }
 .capital-page-header { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:4px 0 0; }
 .capital-page-header h2 { margin:4px 0 !important; color:var(--capital-ink); font-size:18px !important; font-weight:650; letter-spacing:-.045em; line-height:1.2; }

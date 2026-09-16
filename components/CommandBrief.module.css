@@ -438,7 +438,7 @@
 }
 
 .newAppointmentMessage { background-color: rgba(250, 204, 21, 0.25); }
-.cancellationMessage { background-color: rgba(239, 68, 68, 0.25); }
+.cancellationMessage { background-color: rgb(var(--ops-brand-red-rgb) / 0.25); }
 .completedMessage { background-color: rgba(34, 197, 94, 0.25); }
 
 .digestMessage:last-child { border-bottom: 0; }

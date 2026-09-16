@@ -190,7 +190,7 @@
 }
 
 .statusReview {
-  background: rgba(235, 83, 83, 0.12);
+  background: rgb(var(--ops-brand-red-rgb) / 0.12);
   color: #ff9999;
 }
 
@@ -543,10 +543,10 @@
 .page { background: #eceeeb; color: #20242b; }
 .topbar { border-bottom-color: rgba(255,255,255,.1); background: rgba(24,27,33,.96); }
 .brand { color: #fff; }
-.brandMark { background: #ed1c24; }
+.brandMark { background: var(--ops-brand-red); }
 .logout { color: #adb4be; }
 .main { padding-top: 24px; }
-.eyebrow { color: #d8222a; }
+.eyebrow { color: var(--ops-brand-red); }
 .updated, .sectionHeader p, .notice { color: #737b86; }
 .viewToggle { border-color: #d7dad6; background: #fff; }
 .viewOption { color: #68717c; }
@@ -574,7 +574,7 @@
 .leaderboardTable .youRow, .leaderboardTable .youRow:hover { background: #fff1f1; }
 .rank { background: #eff1ee; color: #5f6873; }
 .leaderboardTable tr:nth-child(1) .rank { background: #f7e8c5; color: #8d650c; }
-.youBadge { background: #fee8e8; color: #bd2027; }
+.youBadge { background: #fee8e8; color: var(--ops-brand-red); }
 .historyItem:hover { border-color: #aeb4bd; }
 .notice { background: rgba(255,255,255,.6); }
 

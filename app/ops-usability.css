@@ -206,7 +206,7 @@ body {
 .ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-good { color: #087849; }
 
 .ops-main .ops-dashboard > .ops-kpi-row > .ops-card .ops-kpi-danger,
-.ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-danger { color: #c32f3a; }
+.ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-danger { color: var(--ops-brand-red); }
 
 .ops-main .ops-dashboard > .ops-kpi-row > .ops-card .ops-kpi-sub,
 .ops-main .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-sub,
@@ -346,7 +346,7 @@ body {
 
 .ops-notification-trigger.is-offline {
   border-color: #e8b8bb;
-  color: #a1262c;
+  color: var(--ops-brand-red);
 }
 
 .ops-notification-trigger-label,
@@ -382,9 +382,9 @@ body {
 
 .ops-main .ops-finance-page .ops-finance-brief a { min-height: 112px; }
 
-.ops-main .ops-page-subnav a.needs-attention:not(.active) { color: #a1262c; }
+.ops-main .ops-page-subnav a.needs-attention:not(.active) { color: var(--ops-brand-red); }
 .ops-main .ops-page-subnav small { background: #dce6ef; color: #263849; }
-.ops-main .ops-page-subnav a.needs-attention small { background: #a1262c; color: #fff; }
+.ops-main .ops-page-subnav a.needs-attention small { background: var(--ops-brand-red); color: #fff; }
 
 /* Tables are operational reading surfaces, not decorative micro-copy. */
 .ops-main .ops-table {

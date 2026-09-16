@@ -151,7 +151,7 @@
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #22c55e 0%, #eab308 70%, #ef4444 100%);
+  background: linear-gradient(90deg, #22c55e 0%, #eab308 70%, var(--ops-brand-red) 100%);
 }
 
 .overCapacity {
@@ -160,7 +160,7 @@
 }
 
 .overCapacity .current b {
-  color: #b91c1c;
+  color: var(--ops-brand-red);
 }
 
 .latest {

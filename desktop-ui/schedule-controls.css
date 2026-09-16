@@ -4,9 +4,9 @@
 .ops-live .drawer-secondary-controls > summary:focus-visible { outline: 2px solid #576e60; outline-offset: 2px; }
 .ops-live .drawer-cancel-row { margin-top: 16px; padding: 12px; border: 1px solid #e0b5b5; border-radius: 8px; background: #fffafa; scroll-margin-block: 12px; }
 .ops-live .drawer-cancel-row > h3, .ops-live .drawer-cancel-row > p { grid-column: 1 / -1; margin: 0 0 8px; }
-.ops-live .drawer-cancel-row > h3 { color: #912e32; font-size: 14px; }
+.ops-live .drawer-cancel-row > h3 { color: var(--ops-brand-red); font-size: 14px; }
 .ops-live .drawer-cancel-row > p { color: #635758; font-size: 12px; }
-.ops-live .record-drawer-actions .drawer-cancel-shortcut { grid-column: 1 / -1; color: #912e32; border-color: #d4a7aa; background: #fffafa; }
+.ops-live .record-drawer-actions .drawer-cancel-shortcut { grid-column: 1 / -1; color: var(--ops-brand-red); border-color: #d4a7aa; background: #fffafa; }
 .ops-live .drawer-reschedule { padding: 12px; margin: 12px 0; border: 1px solid #b6cddd; border-radius: 8px; background: #f5faff; scroll-margin-block: 12px; }
 .ops-live .drawer-reschedule h3 { margin: 0 0 8px; font-size: 16px; }
 .ops-live .drawer-reschedule p { margin: 8px 0; font-size: 14px; }

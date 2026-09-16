@@ -20,5 +20,5 @@
 .ops-live .route-connector-records { display: grid; gap: 6px; margin: 10px 0; }
 .ops-live .route-connector-records > div { display: flex; align-items: center; gap: 6px; }
 .ops-live .route-connector-records span { padding: 2px 5px; background: #edf1ee; border-radius: 3px; }
-.ops-live .route-connector-records button { border: 0; padding: 2px; background: transparent; color: #a51c30; text-decoration: underline; font-size: 12px; font-weight: 700; }
+.ops-live .route-connector-records button { border: 0; padding: 2px; background: transparent; color: var(--ops-brand-red); text-decoration: underline; font-size: 12px; font-weight: 700; }
 .ops-live .route-connector-records small { margin-left: auto; font-size: 10px; }

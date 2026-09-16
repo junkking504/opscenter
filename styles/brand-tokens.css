@@ -1,0 +1,6 @@
+/* Shared by the desktop client and server-rendered OpsCenter surfaces. */
+:root {
+  --ops-brand-red: #b51935;
+  --ops-brand-red-rgb: 181 25 53;
+  --ops-brand-red-hover: color-mix(in srgb, var(--ops-brand-red) 88%, #000);
+}

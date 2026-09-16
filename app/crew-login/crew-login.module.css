@@ -112,7 +112,7 @@
   padding: 12px 14px;
   border: 1px solid rgba(255, 115, 115, 0.35);
   border-radius: 10px;
-  background: rgba(126, 33, 33, 0.2);
+  background: rgb(var(--ops-brand-red-rgb) / 0.2);
   color: #ffb4b4;
   font-size: 0.88rem;
   line-height: 1.45;
@@ -176,12 +176,12 @@
   box-shadow: 0 24px 60px rgba(25, 28, 35, 0.12);
 }
 
-.brand { color: #d8222a; }
-.brandMark { background: #ed1c24; box-shadow: none; }
+.brand { color: var(--ops-brand-red); }
+.brandMark { background: var(--ops-brand-red); box-shadow: none; }
 .lead { color: #6f7782; }
 .button { background: #20242b; color: #fff; }
-.button:hover { background: #ed1c24; }
-.error { border-color: #edc5c6; background: #fff3f3; color: #b52027; }
+.button:hover { background: var(--ops-brand-red-hover); }
+.error { border-color: #edc5c6; background: #fff3f3; color: var(--ops-brand-red); }
 .finePrint { color: #858d97; }
 .secondaryLink { color: #5b6470; }
-.secondaryLink:hover { color: #d8222a; }
+.secondaryLink:hover { color: var(--ops-brand-red-hover); }

@@ -39,7 +39,7 @@
 
 .ops-maintenance-kpi.is-overdue {
   border-color: rgba(248, 113, 113, 0.35);
-  background: linear-gradient(145deg, rgba(127, 29, 29, 0.16), rgba(255, 255, 255, 0.02));
+  background: linear-gradient(145deg, rgb(var(--ops-brand-red-rgb) / 0.16), rgba(255, 255, 255, 0.02));
 }
 
 .ops-maintenance-kpi.is-overdue > strong {
@@ -232,7 +232,7 @@
 
 .ops-maintenance-status.overdue {
   color: #fca5a5;
-  background: rgba(239, 68, 68, 0.15);
+  background: rgb(var(--ops-brand-red-rgb) / 0.15);
 }
 
 .ops-maintenance-row-actions button {
@@ -550,7 +550,7 @@
 }
 
 .ops-checklist-item.status-attention {
-  background: linear-gradient(90deg, rgba(239, 68, 68, 0.075), var(--ops-card, #141414) 36%);
+  background: linear-gradient(90deg, rgb(var(--ops-brand-red-rgb) / 0.075), var(--ops-card, #141414) 36%);
 }
 
 .ops-checklist-item-copy {
@@ -595,8 +595,8 @@
 }
 
 .ops-checklist-status-buttons button.active.attention {
-  border-color: rgba(239, 68, 68, 0.32);
-  background: rgba(239, 68, 68, 0.14);
+  border-color: rgb(var(--ops-brand-red-rgb) / 0.32);
+  background: rgb(var(--ops-brand-red-rgb) / 0.14);
   color: #fca5a5;
 }
 
@@ -964,7 +964,7 @@
 }
 
 .ops-fleet-action-counts .stop,
-.ops-fleet-action-row.priority-stop .ops-fleet-action-priority { color: #fecaca; background: rgba(239, 68, 68, 0.18); }
+.ops-fleet-action-row.priority-stop .ops-fleet-action-priority { color: #fecaca; background: rgb(var(--ops-brand-red-rgb) / 0.18); }
 .ops-fleet-action-counts .urgent,
 .ops-fleet-action-row.priority-urgent .ops-fleet-action-priority { color: #fed7aa; background: rgba(249, 115, 22, 0.18); }
 .ops-fleet-action-row.priority-next .ops-fleet-action-priority { color: #fde68a; background: rgba(245, 158, 11, 0.16); }
@@ -1093,7 +1093,7 @@
 .ops-readiness-truck.state-missing > div span { color: #fcd34d; }
 .ops-readiness-truck.state-attention { border-color: rgba(249, 115, 22, 0.25); }
 .ops-readiness-truck.state-attention > div span { color: #fdba74; }
-.ops-readiness-truck.state-out { border-color: rgba(239, 68, 68, 0.34); background: rgba(127, 29, 29, 0.1); }
+.ops-readiness-truck.state-out { border-color: rgb(var(--ops-brand-red-rgb) / 0.34); background: rgb(var(--ops-brand-red-rgb) / 0.1); }
 .ops-readiness-truck.state-out > div span { color: #fca5a5; }
 
 .ops-repair-queue-header {
@@ -1133,7 +1133,7 @@
 
 .ops-issue-severity.monitor { color: #cbd5e1; background: rgba(148, 163, 184, 0.13); }
 .ops-issue-severity.repair_soon { color: #fdba74; background: rgba(249, 115, 22, 0.14); }
-.ops-issue-severity.out_of_service { color: #fca5a5; background: rgba(239, 68, 68, 0.16); }
+.ops-issue-severity.out_of_service { color: #fca5a5; background: rgb(var(--ops-brand-red-rgb) / 0.16); }
 
 .ops-service-truck-tabs-wrap { margin-bottom: 12px; }
 .ops-service-truck-tabs-label { display: block; margin-bottom: 7px; color: var(--ops-muted-2); font-size: 0.63rem; font-weight: 850; letter-spacing: 0.06em; text-transform: uppercase; }
@@ -1148,7 +1148,7 @@
 .ops-service-table { min-width: 760px; }
 .ops-service-status.current { color: #86efac; background: rgba(34, 197, 94, 0.13); }
 .ops-service-status.soon { color: #fcd34d; background: rgba(245, 158, 11, 0.13); }
-.ops-service-status.overdue, .ops-service-status.baseline { color: #fca5a5; background: rgba(239, 68, 68, 0.14); }
+.ops-service-status.overdue, .ops-service-status.baseline { color: #fca5a5; background: rgb(var(--ops-brand-red-rgb) / 0.14); }
 .ops-service-status.scheduled { color: #93c5fd; background: rgba(59, 130, 246, 0.14); }
 .ops-service-disclaimer { margin: 8px 0 0; color: var(--ops-muted-2); font-size: 0.66rem; }
 
@@ -1425,7 +1425,7 @@ body.ops-fleet-driver-mode .ops-checklist-status-buttons button { min-height: 44
 }
 
 .ops-maintenance-page .ops-issue-severity.out_of_service {
-  color: #9e1c24;
+  color: var(--ops-brand-red);
   background: #ffe1e3;
 }
 

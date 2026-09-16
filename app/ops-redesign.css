@@ -654,7 +654,7 @@ textarea {
 
 .ops-dashboard > .ops-kpi-row > .ops-card:has(.ops-kpi-danger)::before,
 .ops-dashboard > .ops-crew-kpi-row > .ops-card:has(.ops-kpi-danger)::before {
-  background: #d8222a;
+  background: var(--ops-brand-red);
 }
 
 .ops-dashboard > .ops-kpi-row > .ops-card .ops-card-title,
@@ -685,7 +685,7 @@ textarea {
 
 .ops-dashboard > .ops-kpi-row > .ops-card .ops-kpi-danger,
 .ops-dashboard > .ops-crew-kpi-row > .ops-card .ops-kpi-danger {
-  color: #d8222a;
+  color: var(--ops-brand-red);
 }
 
 .ops-table tbody tr:nth-child(even) {
@@ -812,7 +812,7 @@ textarea {
 
 .ops-login-brand-panel {
   background:
-    radial-gradient(circle at 84% 20%, rgba(237, 28, 36, 0.17), transparent 25rem),
+    radial-gradient(circle at 84% 20%, rgb(var(--ops-brand-red-rgb) / 0.17), transparent 25rem),
     linear-gradient(135deg, #15181e, #242831);
 }
 

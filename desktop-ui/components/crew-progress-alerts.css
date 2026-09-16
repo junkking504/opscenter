@@ -23,7 +23,7 @@
 .crew-update { display: grid; grid-template-columns: 70px minmax(0,1fr); gap: 10px; padding: 9px 8px; margin-inline: -8px; }
 .crew-update+.crew-update { border-top: 1px solid #e6ecef; }
 .crew-update-new-appointment { background-color: rgba(250,204,21,.125); }
-.crew-update-cancellation { background-color: rgba(239,68,68,.25); }
+.crew-update-cancellation { background-color: rgb(var(--ops-brand-red-rgb) / .25); }
 .crew-update-completed { background-color: #edf8f0; border-left: 3px solid #348653; }
 .crew-update-estimate { background-color: #f4f0fb; border-left-color: #8261ae; }
 .crew-update-time { display: flex; align-items: flex-start; justify-content: space-between; gap: 5px; font-size: 12px; color: var(--crew-muted); padding-top: 3px; }

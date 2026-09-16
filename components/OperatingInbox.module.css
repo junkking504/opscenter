@@ -604,7 +604,7 @@
   --inbox-text-muted: #667085;
   --inbox-text-subdued: #566174;
   --inbox-accent: #8a5d00;
-  --inbox-critical: #b4232b;
+  --inbox-critical: var(--ops-brand-red);
   --inbox-info: #245db7;
   gap: 16px;
   color: var(--inbox-text-primary);
@@ -830,7 +830,7 @@
 }
 
 .standalone .action.danger {
-  border-color: rgba(180, 35, 43, 0.45);
+  border-color: rgb(var(--ops-brand-red-rgb) / 0.45);
   color: var(--inbox-critical);
 }
 
@@ -846,7 +846,7 @@
 }
 
 .standalone .error {
-  border-color: rgba(180, 35, 43, 0.4);
+  border-color: rgb(var(--ops-brand-red-rgb) / 0.4);
   background: #fff0f1;
   color: var(--inbox-critical);
 }

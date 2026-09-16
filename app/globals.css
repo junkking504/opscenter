@@ -1,3 +1,5 @@
+@import "../styles/brand-tokens.css";
+
 /* ==================================================
    Jobs workspace cleanup
    Keep schedule content primary and supporting tools compact.
@@ -663,7 +665,7 @@ body {
   margin: 0;
   min-height: 100%;
   background:
-    radial-gradient(circle at top left, rgba(215, 25, 32, 0.16), transparent 34rem),
+    radial-gradient(circle at top left, rgb(var(--ops-brand-red-rgb) / 0.16), transparent 34rem),
     radial-gradient(circle at top right, rgba(246, 195, 67, 0.12), transparent 28rem),
     var(--ops-bg);
   color: var(--ops-text);
@@ -765,9 +767,9 @@ a {
 }
 
 .ops-health-red {
-  background: rgba(215, 25, 32, 0.14);
+  background: rgb(var(--ops-brand-red-rgb) / 0.14);
   color: #ff7b81;
-  border: 1px solid rgba(215, 25, 32, 0.24);
+  border: 1px solid rgb(var(--ops-brand-red-rgb) / 0.24);
 }
 
 .ops-data-health-asof {
@@ -936,9 +938,9 @@ a {
 
 .ops-exception-chip.ops-exception-critical,
 .ops-exception-item.ops-exception-critical {
-  background: rgba(215, 25, 32, 0.12);
+  background: rgb(var(--ops-brand-red-rgb) / 0.12);
   color: #ff7b81;
-  border-color: rgba(215, 25, 32, 0.22);
+  border-color: rgb(var(--ops-brand-red-rgb) / 0.22);
 }
 
 .ops-exception-chip.ops-exception-warning,
@@ -1423,7 +1425,7 @@ a {
 
 .ops-fleet-marker.driving .ops-fleet-marker-dot { background: #22c55e; }
 .ops-fleet-marker.job .ops-fleet-marker-dot { background: #60a5fa; }
-.ops-fleet-marker.dump .ops-fleet-marker-dot { background: #ef4444; }
+.ops-fleet-marker.dump .ops-fleet-marker-dot { background: var(--ops-brand-red); }
 .ops-fleet-marker.yard .ops-fleet-marker-dot { background: #38bdf8; }
 .ops-fleet-marker.idle .ops-fleet-marker-dot { background: #94a3b8; }
 .ops-fleet-marker.offline .ops-fleet-marker-dot { background: #f97316; }
@@ -2803,7 +2805,7 @@ a {
 }
 .ops-call-in-role.driver { background: rgba(55, 214, 122, .12); color: var(--ops-green); }
 .ops-call-in-role.crew { background: rgba(246, 195, 67, .11); color: var(--ops-gold); }
-.ops-call-in-warning { background: rgba(215, 25, 32, .13); color: #ff9094; }
+.ops-call-in-warning { background: rgb(var(--ops-brand-red-rgb) / .13); color: #ff9094; }
 
 .ops-call-in-person-metrics {
   display: grid;
@@ -3629,7 +3631,7 @@ a {
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-westbank.is-assigned-unfinished { background: #f59e0b; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-east-metro.is-assigned-unfinished { background: #facc15; }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-northshore.is-assigned-unfinished { background: #a21caf; }
-:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-baton-rouge.is-assigned-unfinished { background: #ff3d50; }
+:is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-baton-rouge.is-assigned-unfinished { background: var(--ops-brand-red); }
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-unknown-territory.is-assigned-unfinished { background: #b6c1d1; }
 
 :is(.ops-jobs-map-board-block, .ops-jobs-map-selection-kicker i).is-new-orleans.is-unassigned { background: rgba(96, 165, 250, .5); }
@@ -3748,7 +3750,7 @@ a {
 .ops-jobs-map-pin.is-jefferson.is-assigned-unfinished { background: #00d8bd; }
 .ops-jobs-map-pin.is-westbank.is-assigned-unfinished { background: #f59e0b; }
 .ops-jobs-map-pin.is-northshore.is-assigned-unfinished { background: #a21caf; }
-.ops-jobs-map-pin.is-baton-rouge.is-assigned-unfinished { background: #ff3d50; }
+.ops-jobs-map-pin.is-baton-rouge.is-assigned-unfinished { background: var(--ops-brand-red); }
 .ops-jobs-map-pin.is-unknown-territory.is-assigned-unfinished { background: #b6c1d1; }
 .ops-jobs-map-pin.is-new-orleans.is-unassigned { background: rgba(96, 165, 250, .5); }
 .ops-jobs-map-pin.is-jefferson.is-unassigned { background: rgba(45, 212, 191, .5); }
@@ -3792,8 +3794,8 @@ a {
   height: 7px;
   border: 1px solid #fff;
   border-radius: 50%;
-  background: #ef233c;
-  box-shadow: 0 0 0 2px rgba(239, 35, 60, .24), 0 0 8px rgba(239, 35, 60, .95);
+  background: var(--ops-brand-red);
+  box-shadow: 0 0 0 2px rgb(var(--ops-brand-red-rgb) / .24), 0 0 8px rgb(var(--ops-brand-red-rgb) / .95);
   content: "";
   animation: ops-jobs-on-site-blink 1.15s ease-in-out infinite;
 }
@@ -3995,7 +3997,7 @@ a {
 .ops-jobs-map-board-state.is-canceled {
   border-color: rgba(255, 255, 255, .94);
   background: rgba(255, 255, 255, .94);
-  color: #dc2626;
+  color: var(--ops-brand-red);
   font-size: 1rem;
   text-shadow: none;
   box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
@@ -4003,7 +4005,7 @@ a {
 
 .ops-jobs-map-legend i.is-canceled {
   border-color: rgba(251, 113, 133, .92);
-  background: rgba(127, 29, 29, .94);
+  background: rgb(var(--ops-brand-red-rgb) / .94);
   color: #ffe4e6;
 }
 
@@ -4027,7 +4029,7 @@ a {
   padding: 10px 12px;
   border: 1px solid rgba(251, 113, 133, .48);
   border-radius: 8px;
-  background: rgba(127, 29, 29, .24);
+  background: rgb(var(--ops-brand-red-rgb) / .24);
   color: #ffe4e6;
 }
 
@@ -4037,7 +4039,7 @@ a {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #be123c;
+  background: var(--ops-brand-red);
   font-size: 1rem;
 }
 
@@ -4068,8 +4070,8 @@ a {
 .ops-jobs-map-board-state.is-on-site,
 .ops-jobs-map-legend i.is-on-site {
   border: 0;
-  background: #ef233c;
-  box-shadow: 0 0 0 3px rgba(239, 35, 60, .2), 0 0 10px rgba(239, 35, 60, .95);
+  background: var(--ops-brand-red);
+  box-shadow: 0 0 0 3px rgb(var(--ops-brand-red-rgb) / .2), 0 0 10px rgb(var(--ops-brand-red-rgb) / .95);
   animation: ops-jobs-on-site-blink 1.15s ease-in-out infinite;
 }
 
@@ -4108,8 +4110,8 @@ a {
   bottom: 0;
   z-index: 6;
   width: 2px;
-  background: #ef233c;
-  box-shadow: 0 0 7px rgba(239, 35, 60, .7);
+  background: var(--ops-brand-red);
+  box-shadow: 0 0 7px rgb(var(--ops-brand-red-rgb) / .7);
   pointer-events: none;
 }
 
@@ -4120,7 +4122,7 @@ a {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #ef233c;
+  background: var(--ops-brand-red);
   box-shadow: 0 0 0 2px #0b0e14;
   content: "";
 }
@@ -4131,7 +4133,7 @@ a {
   top: 4px;
   padding: 2px 5px;
   border-radius: 4px;
-  background: #ef233c;
+  background: var(--ops-brand-red);
   color: #fff;
   font-size: .6rem;
   font-weight: 950;
@@ -4857,7 +4859,7 @@ a.ops-jobs-map-selection-phone:focus-visible {
 .ops-closeout-editor-message { padding: 10px 12px; border-radius: 8px; font-size: 14px; line-height: 1.4; font-weight: 750; }
 .ops-closeout-editor-message.progress { background: rgba(59, 130, 246, .16); color: #dbeafe; }
 .ops-closeout-editor-message.success { background: rgba(16, 185, 129, .14); color: #6ee7b7; }
-.ops-closeout-editor-message.error { background: rgba(239, 68, 68, .14); color: #fca5a5; }
+.ops-closeout-editor-message.error { background: rgb(var(--ops-brand-red-rgb) / .14); color: #fca5a5; }
 
 @media (max-width: 720px) {
   .ops-closeout-editor-heading,
@@ -5252,8 +5254,8 @@ a.ops-jobs-map-selection-phone:focus-visible {
 
 .ops-page-subnav a:hover,
 .ops-page-subnav a:focus-visible {
-  border-color: rgba(237, 28, 36, 0.42);
-  background: rgba(237, 28, 36, 0.08);
+  border-color: rgb(var(--ops-brand-red-rgb) / 0.42);
+  background: rgb(var(--ops-brand-red-rgb) / 0.08);
   color: var(--ops-text);
   outline: none;
 }
@@ -7494,9 +7496,9 @@ a.ops-jobs-map-selection-phone:focus-visible {
 }
 
 .ops-appointment-card.is-on-site {
-  border-color: rgba(239, 35, 60, .68);
+  border-color: rgb(var(--ops-brand-red-rgb) / .68);
   box-shadow:
-    0 0 0 2px rgba(239, 35, 60, .12),
+    0 0 0 2px rgb(var(--ops-brand-red-rgb) / .12),
     0 9px 22px rgba(0, 0, 0, .2),
     inset 0 1px 0 rgba(255, 255, 255, .045);
 }
@@ -7505,7 +7507,7 @@ a.ops-jobs-map-selection-phone:focus-visible {
   padding-top: 17px;
   border-color: rgba(248, 113, 113, 0.44);
   background:
-    linear-gradient(180deg, rgba(127, 29, 29, 0.14), transparent 48%),
+    linear-gradient(180deg, rgb(var(--ops-brand-red-rgb) / 0.14), transparent 48%),
     rgba(15, 15, 20, 0.86);
 }
 
@@ -7515,19 +7517,19 @@ a.ops-jobs-map-selection-phone:focus-visible {
   height: 7px;
   background: repeating-linear-gradient(
     135deg,
-    #ef233c 0 11px,
-    #ef233c 11px 14px,
+    var(--ops-brand-red) 0 11px,
+    var(--ops-brand-red) 11px 14px,
     #4c0d17 14px 25px,
     #4c0d17 25px 28px
   );
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 8px rgba(127, 29, 29, 0.44);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 8px rgb(var(--ops-brand-red-rgb) / 0.44);
   content: "";
 }
 
 .ops-appointment-card.is-canceled:hover {
   border-color: rgba(248, 113, 113, 0.62);
   background:
-    linear-gradient(180deg, rgba(127, 29, 29, 0.2), transparent 48%),
+    linear-gradient(180deg, rgb(var(--ops-brand-red-rgb) / 0.2), transparent 48%),
     rgba(18, 17, 23, 0.94);
   box-shadow:
     0 0 0 3px rgba(248, 113, 113, 0.14),
@@ -7538,7 +7540,7 @@ a.ops-jobs-map-selection-phone:focus-visible {
 .ops-jobs-priority-card.has-attention {
   border-color: rgba(248, 113, 113, 0.48);
   background:
-    linear-gradient(135deg, rgba(127, 29, 29, 0.28), rgba(24, 28, 36, 0.84));
+    linear-gradient(135deg, rgb(var(--ops-brand-red-rgb) / 0.28), rgba(24, 28, 36, 0.84));
 }
 
 .ops-jobs-priority-card.has-attention .ops-kpi-value {
@@ -7775,8 +7777,8 @@ a.ops-jobs-map-selection-phone:focus-visible {
   flex: 0 0 auto;
   border: 2px solid #fff;
   border-radius: 50%;
-  background: #ef233c;
-  box-shadow: 0 0 0 3px rgba(239, 35, 60, .2), 0 0 10px rgba(239, 35, 60, .95);
+  background: var(--ops-brand-red);
+  box-shadow: 0 0 0 3px rgb(var(--ops-brand-red-rgb) / .2), 0 0 10px rgb(var(--ops-brand-red-rgb) / .95);
   animation: ops-jobs-on-site-blink 1.15s ease-in-out infinite;
 }
 
@@ -8551,8 +8553,8 @@ a.ops-appointment-card-address:hover {
 
 .ops-job-exception-badge.critical {
   color: #fca5a5;
-  background: rgba(220, 38, 38, 0.15);
-  border-color: rgba(220, 38, 38, 0.35);
+  background: rgb(var(--ops-brand-red-rgb) / 0.15);
+  border-color: rgb(var(--ops-brand-red-rgb) / 0.35);
 }
 
 .ops-job-exception-badge.warning {
@@ -8775,8 +8777,8 @@ a.ops-appointment-card-address:hover {
 
 .ops-status-tag.needs-attention {
   color: #fca5a5;
-  background: rgba(220, 38, 38, 0.10);
-  border-color: rgba(220, 38, 38, 0.26);
+  background: rgb(var(--ops-brand-red-rgb) / 0.10);
+  border-color: rgb(var(--ops-brand-red-rgb) / 0.26);
 }
 
 .ops-route-planner {
@@ -8812,7 +8814,7 @@ a.ops-appointment-card-address:hover {
 
 .ops-route-planner-stats .needs-attention {
   border-color: rgba(248, 113, 113, 0.34);
-  background: rgba(220, 38, 38, 0.09);
+  background: rgb(var(--ops-brand-red-rgb) / 0.09);
   color: #fca5a5;
 }
 
@@ -8837,7 +8839,7 @@ a.ops-appointment-card-address:hover {
 
 .ops-route-proximity-summary.has-error {
   border-color: rgba(248, 113, 113, 0.3);
-  background: rgba(220, 38, 38, 0.07);
+  background: rgb(var(--ops-brand-red-rgb) / 0.07);
   color: #fecaca;
 }
 
@@ -8901,7 +8903,7 @@ a.ops-appointment-card-address:hover {
   grid-column: 1 / -1;
   order: -1;
   border-color: rgba(248, 113, 113, 0.36);
-  background: rgba(127, 29, 29, 0.08);
+  background: rgb(var(--ops-brand-red-rgb) / 0.08);
 }
 
 .ops-route-plan-heading {
@@ -9071,7 +9073,7 @@ a.ops-appointment-card-address:hover {
 }
 
 .ops-route-unassigned .ops-route-stop-body > em {
-  background: rgba(220, 38, 38, 0.11);
+  background: rgb(var(--ops-brand-red-rgb) / 0.11);
   color: #fca5a5;
 }
 

@@ -47,7 +47,7 @@
 .ops-live .live-fleet .fleet-truck-row { min-height: 58px; padding: 7px 11px; font-size: 10px; }
 .ops-live .live-fleet .fleet-truck-row > div > strong { font-size: 10px; font-weight: 600; }
 .ops-live .live-fleet .fleet-readiness.attention { color: #805710; background: #fff1d0; }
-.ops-live .live-fleet .fleet-readiness.out-of-service { color: #a42331; background: #fde9ec; }
+.ops-live .live-fleet .fleet-readiness.out-of-service { color: var(--ops-brand-red); background: #fde9ec; }
 .ops-live .live-fleet .fleet-exceptions-shell:has(> .section-title:only-child) { display: none; }
 @media (max-width: 760px) {
   .ops-live .live-fleet .fleet-load-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }

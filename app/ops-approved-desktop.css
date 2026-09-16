@@ -18,14 +18,14 @@
   --oc-text-muted: #69716e;
   --oc-line: #d7dbd7;
   --oc-line-strong: #c9cfca;
-  --oc-brand: #e42a35;
+  --oc-brand: var(--ops-brand-red);
   --oc-brand-soft: #fff0f1;
   --oc-positive: #49c985;
   --oc-positive-text: #2d734a;
   --oc-warning: #e9ae3c;
   --oc-warning-text: #806019;
-  --oc-critical: #e42a35;
-  --oc-critical-text: #b6242e;
+  --oc-critical: var(--ops-brand-red);
+  --oc-critical-text: var(--ops-brand-red);
   --oc-focus: #477aa6;
   --oc-focus-text: #345f83;
   --oc-radius-sm: 6px;
@@ -484,7 +484,7 @@ body {
     border: 0;
     color: #fff;
     background: #242a30;
-    box-shadow: inset 3px 0 #e72d39;
+    box-shadow: inset 3px 0 var(--ops-brand-red);
   }
 
   .ops-nav-icon {
@@ -909,7 +909,7 @@ body {
     padding: 0 4px;
     border-radius: 9px;
     color: #fff;
-    background: #df2b36;
+    background: var(--ops-brand-red);
     font-size: 0.55rem;
     line-height: 1;
   }

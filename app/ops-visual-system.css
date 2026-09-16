@@ -16,14 +16,14 @@
   --oc-text-muted: #606873;
   --oc-line: #d6d9d5;
   --oc-line-strong: #bfc4bf;
-  --oc-brand: #ed1c24;
-  --oc-brand-soft: rgba(237, 28, 36, 0.1);
+  --oc-brand: var(--ops-brand-red);
+  --oc-brand-soft: rgb(var(--ops-brand-red-rgb) / 0.1);
   --oc-positive: #55d892;
   --oc-positive-text: #0e6a40;
   --oc-warning: #f4c45c;
   --oc-warning-text: #765000;
-  --oc-critical: #ed1c24;
-  --oc-critical-text: #a61d24;
+  --oc-critical: var(--ops-brand-red);
+  --oc-critical-text: var(--ops-brand-red);
   --oc-focus: #7aa2ff;
   --oc-focus-text: #315faa;
   --oc-radius-sm: 9px;
@@ -440,7 +440,7 @@ body {
 }
 .ops-map-cluster.is-at-job::after {
   background: var(--oc-critical);
-  box-shadow: 0 0 0 3px rgba(237, 28, 36, 0.2);
+  box-shadow: 0 0 0 3px rgb(var(--ops-brand-red-rgb) / 0.2);
 }
 .leaflet-control-zoom a {
   color: var(--oc-text);

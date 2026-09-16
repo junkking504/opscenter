@@ -12,7 +12,7 @@
 .duplicate-pair-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; padding: 0 16px 10px; }
 .duplicate-appointment { min-width: 0; display: flex; flex-direction: column; gap: 5px; padding: 12px; border: 1px solid #d9ddda; border-radius: 7px; background: white; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
 .duplicate-appointment > div:first-child { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
-.duplicate-reference { padding: 0; background: none; color: #a32431; font-size: 14px; font-weight: 700; text-decoration: underline; cursor: pointer; }
+.duplicate-reference { padding: 0; background: none; color: var(--ops-brand-red); font-size: 14px; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .duplicate-appointment a { color: #364e60; text-decoration: underline; }
 .duplicate-appointment dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0; }
 .duplicate-appointment dt { font-size: 11px; color: #606b68; font-weight: 600; }

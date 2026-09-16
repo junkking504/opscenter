@@ -1,3 +1,4 @@
+import { LeadBrowser } from './lead-browser';
 import { ReviewBrowser } from './review-browser';
 import { workspaceReady } from './navigation-performance';
 import { useWorkspaceSnapshot } from './use-workspace-snapshot';
@@ -24,7 +25,6 @@ export function LiveMarketing({ date, view, report, onViewChange, onBusyChange }
   const [localView, setLocalView] = useState<MarketingView>('overview');
   const marketingView = (view && ['overview', 'leads', 'reviews', 'performance'].includes(view) ? view : localView) as MarketingView;
   const setMarketingView = (next: MarketingView) => { setLocalView(next); onViewChange?.(next); };
-  const [marketingLeadFilter, setMarketingLeadFilter] = useState<'recover' | 'lost' | 'followup' | 'all'>('recover');
   const [actionFeedback, setActionFeedback] = useState(''), [busy, setBusy] = useState(false), [draft, setDraft] = useState<Lead | null>(null), [selections, setSelections] = useState<Record<string, string>>({});
   useEffect(() => { setError(''); setDraft(null); }, [date]);
   const loadSnapshot = useCallback(async (signal: AbortSignal) => {
@@ -54,7 +54,6 @@ export function LiveMarketing({ date, view, report, onViewChange, onBusyChange }
   const marketingLeads = useMemo(() => (data?.leads ?? []).map(lead => ({ ...lead, status: label(lead.status), age: commercialDate(lead.calledAt), lastContact: lead.contacted ? `Franchise contacted · ${commercialDate(lead.updatedAt)}` : 'No recorded franchise contact', callDuration: 'Source' })), [data]);
   const marketingRecoveryLeads = marketingLeads.filter(lead => ['Lost', 'Needs follow-up', 'Contacted'].includes(lead.status));
   const marketingLostCount = marketingLeads.filter(lead => lead.status === 'Lost').length;
-  const visibleMarketingLeads = marketingLeads.filter(lead => marketingLeadFilter === 'all' || marketingLeadFilter === 'lost' ? marketingLeadFilter === 'all' || lead.status === 'Lost' : marketingLeadFilter === 'followup' ? lead.status === 'Needs follow-up' : ['Lost', 'Needs follow-up', 'Contacted'].includes(lead.status));
   const marketingReviews = useMemo(() => (data?.reviews ?? []).map(review => ({ ...review, status: review.attribution?.status === 'matched' ? 'Attributed' : 'Needs attribution', age: commercialDate(review.createdAt), selectedAppointment: review.attribution?.appointmentId || '', jk: review.attribution?.jkNumber || '' })), [data]);
   const marketingReviewCount = marketingReviews.filter(review => review.status !== 'Attributed').length;
   const todaysMarketingReviews = useMemo(() => marketingReviews.filter(review => operatingDayFormatter.format(new Date(review.createdAt)) === date), [marketingReviews, date]);
@@ -112,19 +111,7 @@ export function LiveMarketing({ date, view, report, onViewChange, onBusyChange }
                 </section>
               </>}
 
-              {marketingView === 'leads' && <section className="marketing-leads-shell">
-                <div className="section-title"><div><span className="section-kicker">{visibleMarketingLeads.length} shown · SearchKings</span><h2>Leads to Recover</h2><p>Lost leads remain first; direct calling and outcome updates do not require another screen.</p></div><div className="marketing-filters">{([['recover', 'Recover'], ['lost', 'Lost'], ['followup', 'Follow-Up'], ['all', 'All']] as const).map(([key, label]) => <button className={marketingLeadFilter === key ? 'active' : ''} onClick={() => setMarketingLeadFilter(key)} key={key}>{label}</button>)}</div></div>
-                <div className="marketing-lead-head detailed"><span>Lead</span><span>Need</span><span>Quoted Value</span><span>Call</span><span>Contact History</span><span>Status</span><span>Outcome</span></div>
-                <div className="marketing-lead-list detailed">{visibleMarketingLeads.length ? visibleMarketingLeads.map((lead) => <article className={lead.status === 'Lost' ? 'lost' : lead.status === 'Needs follow-up' ? 'followup' : 'resolved'} key={lead.id}>
-                  <div><strong>{lead.customer}</strong><PhoneContact phone={lead.phone} /><small>{lead.territory} · {lead.source}</small></div>
-                  <div className="live-lead-need"><p>{lead.intent}</p><small>{lead.reason}</small></div>
-                  <strong>{moneyValue(lead.quotedValue)}</strong>
-                  <a className="marketing-recording" href={safeUrl(lead.sourceUrl)} target="_self" rel="noreferrer"><Play size={12} />Open Source</a>
-                  <div><strong>{lead.lastContact}</strong><small>Inbound call · {lead.age}</small></div>
-                  <span className={`marketing-lead-status ${lead.status.toLowerCase().replaceAll(' ', '-')}`}>{lead.status}</span>
-                  <div className="marketing-outcome-actions"><a href={`tel:+1${lead.phone.replace(/\D/g, '')}`}><PhoneCall size={12} />Call</a><button onClick={() => editLead(lead.id)}>Update</button></div>
-                </article>) : <div className="marketing-empty"><strong>No leads match this view.</strong><span>Change the filter or clear the global search.</span></div>}</div>
-              </section>}
+              {marketingView === 'leads' && <LeadBrowser key={date} leads={data.leads} onEdit={editLead} />}
 
               {marketingView === 'reviews' && data.reviewAvailable && <ReviewBrowser reviews={data.reviews} canAssign={data.canAssignReviews} busy={busy} selections={selections} onSelect={(id, appointment) => setSelections(current => ({ ...current, [id]: appointment }))} onConfirm={confirmMarketingReview} />}
 

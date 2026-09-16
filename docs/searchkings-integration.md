@@ -12,6 +12,23 @@ OpsCenter treats SearchKings as the paid-marketing source and JunkWare as the bo
 
 Call recordings are not copied into OpsCenter. The snapshot contains call metadata, score, tags, and the SearchKings-generated summary, plus a secure link back to SearchKings.
 
+## Desktop lead navigation
+
+Campaign's Lead Recovery view shows counted queues for recovery, lost,
+follow-up, booked/recovered, and all calls. Search covers names, formatted or
+unformatted phone numbers, call summaries, notes, territory, source, reasons,
+and matched JK numbers. Territory and recorded-contact filters combine with
+the selected queue. Queue totals describe the loaded month, while the result
+count reflects all active filters.
+
+The list starts with the newest calls and ten records per page. Operators can
+choose oldest calls, lost leads first, or highest quoted value, and display
+10, 25, or 50 records. Filters reset pagination; live data updates clamp the
+current page if its records disappear. Source and appointment links open a
+new tab so the working list stays in place. Outcome updates retain the existing
+review drawer and write-through receipt flow. These controls only browse the
+existing snapshot and add no provider requests.
+
 ## Collector setup
 
 The collector runs on the Mac connector and publishes both a current snapshot and a monthly snapshot. Store the SearchKings sign-in in the macOS keychain so it is not written to the repository or deployment environment:

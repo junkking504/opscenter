@@ -68,6 +68,7 @@ export function GpsRouteSummary({truck,route,error,selectedTrip,showTrip}:{date:
       <span><i className="gps-legend-route" aria-hidden="true"/>Solid lines · colors match trip numbers</span>
       {display?.isolated.length ? <span><i className="gps-legend-point" aria-hidden="true"/>{roadStatus==='partial'?'Dots · GPS awaiting road alignment':'Dots · recorded GPS positions'}</span>:null}
     </div>}
+    {display?.paths.some(path=>path.kind==='recorded') && <p>Recorded GPS trails connect frequent positions without waiting for road alignment.</p>}
     {estimated && <p>Road routes include inferred sections between GPS reports. Hover a line for details.</p>}
     {!!route?.gaps && <p>GPS coverage has gaps; long outages remain disconnected.</p>}
     {!!route?.points.length && !roadStatus && <p role="status">Loading road routes… Recorded GPS positions are shown.</p>}

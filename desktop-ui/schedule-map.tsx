@@ -11,7 +11,7 @@ import type { ScheduleAppointment, ScheduleTruck } from './lib/schedule-contract
 import { appointmentColorClass, appointmentStatus, scheduleStatusTone, truckLabel } from './lib/schedule-contract';
 import { locatorSize, truckLocatorSize, territoryMapCenters } from './lib/schedule-map-layout';
 import type {TruckGpsRoute} from './lib/gps-route-contract';
-import {gpsTripColor,gpsTripDisplay,unassignedGpsColor} from './lib/gps-trip-display';
+import {continuousGpsDisplayPaths,gpsTripColor,gpsTripDisplay,unassignedGpsColor} from './lib/gps-trip-display';
 
 type Props = {
   appointments: ScheduleAppointment[]; trucks: ScheduleTruck[];
@@ -235,7 +235,8 @@ export default function ScheduleMap(props: Props) {
     const {paths,isolated}=gpsTripDisplay(route,props.selectedTripId);
     // Paint all casings first, then continuous trip colors. Sparse GPS links
     // remain explicitly estimated in the tooltip and summary.
-    for(const casing of [true,false])for(const path of paths) {
+    const continuous=continuousGpsDisplayPaths(paths);
+    for(const casing of [true,false])for(const path of continuous) {
       const line=L.polyline(path.points.map(point=>[point.latitude,point.longitude] as L.LatLngTuple),{
         color:casing?'#fff':path.color,weight:casing?9:5,opacity:1,
         lineCap:'round',lineJoin:'round',interactive:!casing,

@@ -79,6 +79,7 @@
     "verify:accessibility": "node scripts/test-accessibility.mjs",
     "verify:linxup-camera": "node --import tsx scripts/test-linxup-camera.ts && node --import tsx scripts/test-linxup-camera-inventory.ts",
     "verify:job-route-history": "node --import tsx scripts/test-job-route-history.ts",
+    "verify:gps-routes": "node --import tsx scripts/test-linxup-route-detail.ts && node --import tsx scripts/test-desktop-gps-route.ts && node --import tsx scripts/test-desktop-street-route.ts && node --import tsx scripts/test-street-route-cache.ts && node --import tsx scripts/test-gps-trip-display.ts && node --import tsx scripts/test-gps-street-progress.ts",
     "verify:dispatch-map-marker-separation": "node --import tsx scripts/test-dispatch-map-marker-separation.ts",
     "verify:dispatch-map-manual-zoom": "node --import tsx scripts/test-dispatch-map-manual-zoom.ts",
     "verify:job-cancellations": "node --import tsx scripts/test-job-cancellations.ts",

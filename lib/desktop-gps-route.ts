@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import {withLinxupRouteDetail} from './linxup-route-detail';
 import {normalizeGpsTrips} from './linxup-trips';
 import path from 'node:path';
 import {chicagoDateKey} from './chicago-date';
@@ -24,21 +25,23 @@ export function normalizeTruckGpsRoute(payload:unknown,date:string,truck:string,
   // V2 polling can repeat an old coordinate with the current push timestamp.
   // When both sources report the same instant, the primary V3 report wins.
   // Raw history remains untouched; only conflicting fallback geometry is omitted.
-  const primaryTimes=new Set(source.points.flatMap(raw=>{
+  const primaryTimes=new Map<number,number>(source.points.flatMap(raw=>{
     if(!raw || typeof raw!=='object') return [];
     const row=raw as Record<string,unknown>,time=stamp(row.timestamp);
     const lat=coordinate(row.latitude),lng=coordinate(row.longitude);
-    return row.delivery_source==='v3_position_push' && label(row.truck_number || row.truck || row.truckNumber)===truck
+    const rank=row.delivery_source==='v3_position_push'?2:row.delivery_source==='v3_position_batch'?1:0;
+    return rank && label(row.truck_number || row.truck || row.truckNumber)===truck
       && Number.isFinite(time) && time<=now && Number.isFinite(lat) && Number.isFinite(lng)
-      && Math.abs(lat)<=90 && Math.abs(lng)<=180 && !(lat===0 && lng===0)?[time]:[];
-  }));
+      && Math.abs(lat)<=90 && Math.abs(lng)<=180 && !(lat===0 && lng===0)?[[time,rank] as [number,number]]:[];
+  }).sort((a,b)=>a[1]-b[1]));
   for(const raw of source.points) {
     if(!raw || typeof raw!=='object') continue;
     const row=raw as Record<string,unknown>;
     if(label(row.truck_number || row.truck || row.truckNumber)!==truck) continue;
     const time=stamp(row.timestamp),latitude=coordinate(row.latitude),longitude=coordinate(row.longitude);
     if(!Number.isFinite(time) || time>now || !Number.isFinite(latitude) || !Number.isFinite(longitude) || Math.abs(latitude)>90 || Math.abs(longitude)>180 || latitude===0 && longitude===0) {rejected++;continue;}
-    if(row.delivery_source==='v2_poll' && primaryTimes.has(time)) continue;
+    const rank=row.delivery_source==='v3_position_push'?2:row.delivery_source==='v3_position_batch'?1:0;
+    if((primaryTimes.get(time) || 0)>rank) continue;
     // Daily files can include a last-known point from a previous date. It must
     // never appear as travel on the selected Central operating date.
     if(chicagoDateKey(new Date(time))!==date) continue;
@@ -78,5 +81,5 @@ export function readTruckGpsRoute(date:string,truck:string,root=process.env.OPSC
   if(!gpsRouteDate(date) || gpsRouteTruck(truck)!==truck) throw new Error('Invalid GPS route selection');
   let payload:unknown=null;
   try {payload=JSON.parse(fs.readFileSync(path.join(root,'history','linxup',`linxup_location_${date}.json`),'utf8'));} catch { /* Missing or unreadable source stays unavailable. */ }
-  return normalizeTruckGpsRoute(payload,date,truck,now);
+  return normalizeTruckGpsRoute(withLinxupRouteDetail(payload,date,truck,root),date,truck,now);
 }

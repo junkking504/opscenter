@@ -25,6 +25,6 @@ export type StreetRoute={
   retryAfterMs?:number;
   sourceVersion:string;
   status:'available'|'partial'|'unavailable';
-  paths:{kind:'matched'|'estimated';points:RoadCoordinate[];sourceEdge?:number}[];
+  paths:{kind:'matched'|'estimated'|'recorded';points:RoadCoordinate[];sourceEdge?:number}[];
   unmatched:number;
 };

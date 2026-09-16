@@ -1,4 +1,5 @@
 import type {GpsRoutePoint,GpsTrip,RoadCoordinate,TruckGpsRoute} from './gps-route-contract';
+import {recordedGpsEdge} from './gps-recorded-edge';
 
 const tripColors=['#1d4ed8','#c2410c','#15803d','#9333ea','#be123c','#0e7490','#a16207','#4338ca','#047857','#c026d3','#475569','#9f1239','#4d7c0f','#7c3aed','#0369a1','#b45309'];
 export const gpsTripColor=(number:number)=>tripColors[number-1] || `hsl(${Math.round(number*137.508)%360} 70% 35%)`;
@@ -14,6 +15,18 @@ function edgeTrip(trips:GpsTrip[],a:GpsRoutePoint,b:GpsRoutePoint) {
   return best;
 }
 export type GpsDisplayPath={points:RoadCoordinate[];trip?:GpsTrip;color:string;kind:'matched'|'estimated'|'recorded'|'gap';sourceEdge:number};
+/** Keep the detailed trace without creating two Leaflet layers per GPS edge. */
+export function continuousGpsDisplayPaths(paths:GpsDisplayPath[]) {
+  const result:GpsDisplayPath[]=[];let lastEdge=-2;
+  for(const path of paths) {
+    const last=result.at(-1),end=last?.points.at(-1),start=path.points[0];
+    if(last && lastEdge+1===path.sourceEdge && last.kind===path.kind && last.color===path.color && last.trip?.id===path.trip?.id
+      && end?.latitude===start?.latitude && end?.longitude===start?.longitude)last.points.push(...path.points.slice(1));
+    else result.push({...path,points:[...path.points]});
+    lastEdge=path.sourceEdge;
+  }
+  return result;
+}
 export function gpsTripDisplay(route:TruckGpsRoute,selectedTripId?:string|null) {
   const indices=new Map(route.points.map((point,index)=>[point.timestamp,index]));
   const edges=new Map<number,'recorded'|'gap'>();
@@ -27,8 +40,9 @@ export function gpsTripDisplay(route:TruckGpsRoute,selectedTripId?:string|null) 
   for(const [index,kind] of [...edges].sort(([a],[b])=>a-b)) {
     const a=route.points[index],b=route.points[index+1],trip=edgeTrip(route.trips || [],a,b);
     if(selectedTripId && trip?.id!==selectedTripId)continue;
-    const street=streets.get(index);
-    // Unmatched fixes remain points; a straight chord is not a road route.
+    const street=streets.get(index) || (kind==='recorded' && recordedGpsEdge(a,b)?{points:[a,b],kind:'recorded' as const}:undefined);
+    // Sparse unmatched fixes remain points. Frequent fixes draw their own
+    // measured trace immediately, without claiming a road-matched route.
     if(!street)continue;
     paths.push({points:street.points,kind:street.kind,trip,color:trip?gpsTripColor(trip.number):unassignedGpsColor,sourceEdge:index});
     connected.add(index);connected.add(index+1);

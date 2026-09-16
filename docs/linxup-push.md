@@ -135,8 +135,21 @@ Native tiles stop at zoom 19 and are enlarged at zoom 20 so close inspection
 never requests nonexistent tiles. Truck and appointment markers retain their
 source coordinates. The map has no Google billing dependency.
 
-GPS trail lines prefer OpenStreetMap road geometry through the FOSSGIS OSRM
-service. The authenticated `/api/desktop/schedule/gps/streets` endpoint uses the
+GPS route reads also unpack `batchedPositions` from the durable V3 envelopes
+identified by each normalized truck report. Every batch fix keeps its own
+timestamp and coordinates; it never inherits the parent report's ignition or
+stop duration. Parent identity, coordinates, timestamp bounds, Central date,
+and truck isolation are checked. A bounded local cache keeps repeated reads fast.
+The normalized collector file and appointment visits are not rewritten by route
+reads, and no upstream request is needed to recover existing history.
+
+Frequent, plausible GPS edges (at most 15 seconds and 400 meters apart, with a
+100-mph plausibility ceiling and 30-meter jitter allowance) draw immediately as
+recorded trails. They are explicitly identified as GPS connections, not verified
+street paths. Adjacent edges with the same trip and evidence kind share a map
+layer while preserving every coordinate. Sparse edges still use OpenStreetMap
+road geometry through the FOSSGIS OSRM service. The authenticated
+`/api/desktop/schedule/gps/streets` endpoint uses the
 same truck/date/source version as the recorded GPS endpoint. Only coordinates
 are sent to the provider, never truck IDs, timestamps or appointment details.
 Requests are serialized at less than one per second and reused in bounded,
@@ -149,8 +162,9 @@ All trip routes use solid lines. Chronological trip numbers have distinct colors
 shared by their lines, list badges, and start/stop markers. Source-edge timestamps
 assign road geometry to trips, including repeat visits to the same street.
 Selecting a trip isolates its geometry without changing its number or color.
-When road alignment is missing, GPS fixes remain individual points; no straight
-lines are drawn across unverified streets. Partial road matching retains successful
+When road alignment is missing, sparse GPS fixes remain individual points;
+frequent recorded trails stay visible. Dense trace edges require no provider
+requests, leaving the existing queue for sparse sections and ETAs. Partial road matching retains successful
 source edges and resumes beyond slow or failed batches on subsequent reads so
 later trips are not starved. Successful partial slices continue after five
 seconds when the viewer next polls; slices with no new geometry retain the
@@ -166,6 +180,8 @@ retired with HTTP 410.
 
 Implementation: `lib/desktop-gps-route.ts`,
 `desktop-ui/schedule-gps-route.tsx`, and `desktop-ui/schedule-map.tsx`.
+Run `npm run verify:gps-routes` for detailed-envelope replay, recorded trails,
+provider-free dense traces, cache continuity, trip attribution and gap safety.
 Run `node --import tsx scripts/test-desktop-gps-route.ts` for date, truck,
 privacy, gap, stationary coverage, and missing-file contracts. The synthetic
 browser fixture at `desktop-ui/tests/gps-route.html` runs the production Leaflet

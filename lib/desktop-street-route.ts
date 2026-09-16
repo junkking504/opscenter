@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {recordedGpsEdge} from '../desktop-ui/lib/gps-recorded-edge';
 import type {GpsRoutePoint,RoadCoordinate,StreetRoute,TruckGpsRoute} from '../desktop-ui/lib/gps-route-contract';
 import {osmStreetJson} from './osm-street-transport';
 import {reuseStreetPaths} from '../desktop-ui/lib/gps-street-progress';
@@ -60,8 +61,13 @@ export function matchedStreetEdges(payload:unknown,source:GpsRoutePoint[]) {
   return result;
 }
 type StreetProgress = StreetRoute & {nextEdge?:number};
+function recordedStreetPaths(route:TruckGpsRoute,eligible:Set<number>) {
+  return [...eligible].filter(i=>recordedGpsEdge(route.points[i],route.points[i+1]))
+    .map(sourceEdge=>({sourceEdge,kind:'recorded' as const,points:route.points.slice(sourceEdge,sourceEdge+2)}));
+}
 export async function buildStreetRoute(route:TruckGpsRoute,send:typeof osmStreetJson=osmStreetJson,previous?:StreetProgress):Promise<StreetProgress>{
   const sourceVersion=gpsSourceVersion(route),eligible=eligibleStreetEdges(route),matched=new Map<number,StreetRoute['paths'][number]>();
+  for(const path of recordedStreetPaths(route,eligible))matched.set(path.sourceEdge,path);
   if(previous?.sourceVersion===sourceVersion)for(const path of previous.paths) {
     if(path.sourceEdge!==undefined && eligible.has(path.sourceEdge))matched.set(path.sourceEdge,path);
   }
@@ -134,7 +140,8 @@ export function readStreetRoute(route:TruckGpsRoute,send:typeof osmStreetJson=os
   const saved=latest.get(truckKey);
   const previous=cached?.route || reusableStreetProgress(route,saved);
   const eligible=eligibleStreetEdges(route);
-  const paths=(previous?.paths || []).filter(path=>path.sourceEdge!==undefined && eligible.has(path.sourceEdge));
+  const paths=[...new Map([...recordedStreetPaths(route,eligible),...(previous?.paths || [])]
+    .filter(path=>path.sourceEdge!==undefined && eligible.has(path.sourceEdge)).map(path=>[path.sourceEdge,path])).values()];
   const aligned=new Set(paths.map(path=>path.sourceEdge));
   const unmatched=[...eligible].filter(i=>!aligned.has(i) && meters(route.points[i],route.points[i+1])>30).length;
   const visible:StreetProgress={sourceVersion:key,paths,unmatched,status:unmatched?'partial':paths.length?'available':'unavailable'};

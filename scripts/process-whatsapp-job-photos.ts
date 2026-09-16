@@ -2,6 +2,7 @@ import { processRecyclingImage } from "@/lib/whatsapp-recycling";
 import { deliverRecyclingSlackAlerts } from "@/lib/recycling-slack";
 import { processResaleImage } from "@/lib/whatsapp-resale";
 import { downloadWhatsAppImage } from "@/lib/whatsapp-photo-media";
+import { startWhatsAppReplyPump } from "@/lib/whatsapp-reply-pump";
 import { execFileSync } from "node:child_process";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
 import { findJunkwareAppointmentIdByJkNumber, uploadJunkwareJobPhoto } from "@/lib/junkware-photo-uploader";
@@ -92,13 +93,16 @@ export function senderTruckMap(raw = process.env.WHATSAPP_TRUCK_PHONE_MAP): Reco
   }));
 }
 
-async function deliverCrewExpenseReplies(): Promise<{ sent: number; retried: number; failed: number }> {
+async function deliverCrewExpenseReplies(attempted: Set<string>): Promise<{ sent: number; retried: number; failed: number }> {
   const results = { sent: 0, retried: 0, failed: 0 };
+  const files = queuedCrewExpenseReplies(20).filter(file => !attempted.has(file));
+  if (!files.length) return results;
   const token = accessToken();
   const version = clean(process.env.WHATSAPP_GRAPH_API_VERSION);
   const configuredPhoneNumberId = clean(process.env.WHATSAPP_PHONE_NUMBER_ID);
   if (!token || !/^v\d+\.\d+$/.test(version) || !/^\d+$/.test(configuredPhoneNumberId)) return results;
-  for (const incomingFile of queuedCrewExpenseReplies(20)) {
+  for (const incomingFile of files) {
+    attempted.add(incomingFile);
     const claim = claimCrewExpenseReply(incomingFile);
     if (!claim) continue;
     try {
@@ -190,6 +194,7 @@ function numberOption(name: string): number | undefined {
 async function processOne(incomingFile: string, map: Record<string, string>): Promise<"completed" | "review" | "retried" | "failed" | "skipped"> {
   const claim = claimWhatsAppImage(incomingFile);
   if (!claim) return "skipped";
+  const timing: Record<string, string> = { processingStartedAt: new Date().toISOString() };
   let stage: "matching" | "downloading" | "analyzing" | "uploading" = "matching";
   let matchedJob: Record<string, unknown> | null = null;
   let loadPhotoTruck = "";
@@ -228,6 +233,7 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
     // media availability must not be the only copy of a held photo.
     stage = "downloading";
     const filePath = await downloadWhatsAppImage(claim.message);
+    timing.mediaReadyAt = new Date().toISOString();
     stage = "matching";
     if (matchingContext.reviewReason && !extractJkNumber(claim.message.caption)) {
       finishWhatsAppImage(claim.file, "review", { review: { reason: matchingContext.reviewReason, detail: "The preceding messages do not identify one reliable photo context. Supply the exact JK in the photo caption.", category: inferPhotoCategory(claim.message.caption) } });
@@ -288,12 +294,14 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
       });
     }
     stage = "uploading";
+    timing.uploadStartedAt = new Date().toISOString();
     const verification = await uploadJunkwareJobPhoto({
       appointmentId,
       jkNumber: match.jkNumber,
       filePath,
       category: match.category,
     });
+    timing.verifiedAt = new Date().toISOString();
     if (match.method === "jk_number") {
       recordVerifiedWhatsAppJobPhoto({
         messageId: claim.message.messageId,
@@ -319,6 +327,7 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
     finishWhatsAppImage(claim.file, "completed", {
       match,
       upload: { verified: true, ...verification },
+      timing,
     });
     return "completed";
   } catch (error) {
@@ -333,6 +342,7 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
     if (stage === "uploading") {
       finishWhatsAppImage(claim.file, "review", {
         match: matchedJob,
+        timing,
         review: {
           reason: "upload_outcome_uncertain",
           detail: clean(message).slice(0, 500),
@@ -349,23 +359,42 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
 async function main(): Promise<void> {
   const map = senderTruckMap();
   const results = { completed: 0, review: 0, retried: 0, failed: 0, skipped: 0 };
-  for (const incomingFile of queuedWhatsAppImages(10)) {
-    const result = await processOne(incomingFile, map);
-    results[result] += 1;
-  }
-  loadSlackBotToken();
-  const recyclingSlack = await deliverRecyclingSlackAlerts().catch(error => ({
-    posted: 0, updated: 0, failures: [error instanceof Error ? error.message : String(error)], preview: [],
-  }));
-  const crewExpenseTransactions = await processCrewExpenseTransactions();
-  const slack = await deliverWhatsAppPhotoSlackNotifications();
-  const photoQueue = whatsappQueueCounts();
-  const photoConfirmations = queueVerifiedWhatsAppJobPhotoBatchConfirmations();
-  const expenseReplies = await deliverCrewExpenseReplies();
-  const processedCount = Object.values(results).reduce((sum, count) => sum + count, 0);
-  if (processedCount || recyclingSlack.posted || recyclingSlack.updated || recyclingSlack.failures.length || slack.attempted || photoConfirmations.queued || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {
-    const { preview: _preview, ...recyclingDelivery } = recyclingSlack;
-    process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: photoQueue, recyclingSlack: recyclingDelivery, slack, photoConfirmations, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
+  const attemptedReplies = new Set<string>();
+  const photoConfirmations = { pending: 0, queued: 0 };
+  const expenseReplies = { sent: 0, retried: 0, failed: 0 };
+  const replies = startWhatsAppReplyPump(async () => {
+    const confirmations = queueVerifiedWhatsAppJobPhotoBatchConfirmations();
+    photoConfirmations.pending = confirmations.pending;
+    photoConfirmations.queued += confirmations.queued;
+    const delivered = await deliverCrewExpenseReplies(attemptedReplies);
+    expenseReplies.sent += delivered.sent;
+    expenseReplies.retried += delivered.retried;
+    expenseReplies.failed += delivered.failed;
+  }, error => {
+    process.stderr.write(`[whatsapp-photo-replies] ${error instanceof Error ? error.message : String(error)}\n`);
+  });
+  try {
+    void replies.flush();
+    for (const incomingFile of queuedWhatsAppImages(10)) {
+      const result = await processOne(incomingFile, map);
+      results[result] += 1;
+      void replies.flush();
+    }
+    loadSlackBotToken();
+    const recyclingSlack = await deliverRecyclingSlackAlerts().catch(error => ({
+      posted: 0, updated: 0, failures: [error instanceof Error ? error.message : String(error)], preview: [],
+    }));
+    const crewExpenseTransactions = await processCrewExpenseTransactions();
+    const slack = await deliverWhatsAppPhotoSlackNotifications();
+    const photoQueue = whatsappQueueCounts();
+    await replies.flush();
+    const processedCount = Object.values(results).reduce((sum, count) => sum + count, 0);
+    if (processedCount || recyclingSlack.posted || recyclingSlack.updated || recyclingSlack.failures.length || slack.attempted || photoConfirmations.queued || Object.values(crewExpenseTransactions).some(Boolean) || Object.values(expenseReplies).some(Boolean)) {
+      const { preview: _preview, ...recyclingDelivery } = recyclingSlack;
+      process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: photoQueue, recyclingSlack: recyclingDelivery, slack, photoConfirmations, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
+    }
+  } finally {
+    await replies.stop();
   }
 }
 

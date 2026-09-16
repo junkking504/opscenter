@@ -112,7 +112,7 @@ WHATSAPP_MINIMUM_JOB_MARGIN_MILES='0.15'
 # Wait for a quiet period after the most recent inbound photo before confirming
 # a verified explicit-JK photo batch. Upload and verification time counts toward
 # this window instead of starting another full wait afterward.
-WHATSAPP_JOB_PHOTO_BATCH_QUIET_SECONDS='60'
+WHATSAPP_JOB_PHOTO_BATCH_QUIET_SECONDS='3'
 ```
 
 Example decoded truck map shape (use real values only in the private environment, never Git):
@@ -176,6 +176,29 @@ Retries resume from the saved stage. A deterministic JunkWare receipt number pre
 Queue directories are `incoming`, `processing`, `completed`, `review`, and `failed`. A failure before JunkWare submission can retry up to three times. A failure during submission is treated as an uncertain outcome and moved to review to prevent duplicate customer photos.
 
 WhatsApp confirmation waits for unfinished photos from the same normalized sender, receiving WhatsApp number, and Chicago job date. Captionless images remain a blocker because they may belong to that sender's batch. Photos from other senders or dates cannot hold up a verified batch. This check reads both `incoming` and `processing` inside the confirmation function; it does not replay or discard orphaned uploads, whose JunkWare outcome may be uncertain.
+
+Verified WhatsApp receipts use a three-second inbound quiet window by default.
+The worker checks receipts every second while uploads and ancillary Slack/expense
+requests are awaiting the network, and immediately after each photo completes.
+One outbox drain runs at a time; failed messages are attempted at most once per
+worker cycle. The existing outer worker waits five seconds between cycles, so an
+idle worker can still add that pickup delay. No extra provider polling is added.
+Uploads remain serialized and retain exact-JK and increased-media-count checks.
+Slack's separate batch timer is unchanged. A new photo after a confirmed batch
+starts another batch; no timer can identify future photos that have not arrived.
+
+For timing investigations, `receivedAt` normally holds Meta's webhook message
+timestamp, not independently observed handset Send time. New records label
+`timestampSource` as `provider` or `intake-fallback` when the provider time was
+missing/invalid; older records cannot prove that distinction. `enqueuedAt`
+records OpsBot intake.
+Completed job-photo records include `timing.processingStartedAt`, `mediaReadyAt`,
+`uploadStartedAt`, and `verifiedAt`; `outcomeAt` records durable completion.
+The confirmation batch's `confirmationQueuedAt` is only an outbox enqueue.
+The matching `whatsapp-crew-expenses/outbox-sent` record's `outcomeAt` and
+`metaMessageId` prove provider acceptance, not handset delivery/read time.
+Compare the original sender's chat timestamp when investigating a delay before
+the webhook; a later intake timestamp cannot establish the original Send time.
 
 ## Slack receipt notifications
 

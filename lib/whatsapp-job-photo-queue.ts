@@ -9,6 +9,7 @@ export type WhatsAppImageMessage = {
   messageId: string;
   senderPhone: string;
   receivedAt: string;
+  timestampSource?: "provider" | "intake-fallback";
   phoneNumberId: string;
   mediaId: string;
   mimeType: string;
@@ -51,7 +52,8 @@ function clean(value: unknown): string {
 
 function safeTimestamp(value: unknown): string {
   const seconds = Number(value);
-  const parsed = Number.isFinite(seconds) && seconds > 0 ? new Date(seconds * 1_000) : new Date();
+  const parsed = Number.isFinite(seconds) && seconds > 0 && Number.isFinite(new Date(seconds * 1_000).getTime())
+    ? new Date(seconds * 1_000) : new Date();
   return parsed.toISOString();
 }
 
@@ -91,11 +93,15 @@ function parseImage(message: MetaMessage, phoneNumberId: string): WhatsAppImageM
   const senderPhone = normalizePhone(message.from);
   const mediaId = clean(message.image?.id);
   if (!messageId || !senderPhone || !mediaId) return null;
+  const providerSeconds = Number(message.timestamp);
+  const timestampSource = Number.isFinite(providerSeconds) && providerSeconds > 0
+    && Number.isFinite(new Date(providerSeconds * 1_000).getTime()) ? "provider" : "intake-fallback";
   return {
     version: 1,
     messageId,
     senderPhone,
     receivedAt: safeTimestamp(message.timestamp),
+    timestampSource,
     phoneNumberId,
     mediaId,
     mimeType: clean(message.image?.mime_type),

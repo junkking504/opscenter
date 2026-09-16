@@ -137,6 +137,15 @@ const webhookPayload = {
 };
 const parsed = parseWhatsAppWebhook(webhookPayload);
 assert.equal(parsed.images.length, 1);
+assert.equal(parsed.images[0].timestampSource, "provider");
+assert.equal(parsed.images[0].receivedAt, new Date(1786460160 * 1_000).toISOString());
+for (const timestamp of [undefined, "bad", "1e100"]) {
+  const invalid = structuredClone(webhookPayload);
+  invalid.entry[0].changes[0].value.messages[1].timestamp = timestamp as string;
+  const image = parseWhatsAppWebhook(invalid).images[0];
+  assert.equal(image.timestampSource, "intake-fallback");
+  assert.ok(Number.isFinite(Date.parse(image.receivedAt)));
+}
 assert.equal(parsed.texts.length, 1);
 assert.equal(parsed.messages.length, 2);
 assert.deepEqual(parsed.messages.map((message) => message.type), ["text", "image"]);
@@ -193,6 +202,17 @@ try {
   assert.equal(confirmationFiles.length, 1);
   const confirmation = JSON.parse(fs.readFileSync(path.join(confirmationOutbox, confirmationFiles[0]), "utf8")) as { text?: string };
   assert.equal(confirmation.text, "2 photos for JK4025001 uploaded and verified in JunkWare.");
+
+  // Default receipts are ready after three seconds of inbound quiet, and a
+  // slow JunkWare upload does not start another timer after verification.
+  delete process.env.WHATSAPP_JOB_PHOTO_BATCH_QUIET_SECONDS;
+  const fastPhoto = { ...confirmationPhoto, senderPhone: "5045550188", messageId: "fast-photo" };
+  recordVerifiedWhatsAppJobPhoto({ ...fastPhoto, now: new Date(now.getTime() + 1_000) });
+  assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 2_999)).queued, 0);
+  assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 3_000)).queued, 1);
+  assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 4_000)).queued, 0);
+  recordVerifiedWhatsAppJobPhoto({ ...fastPhoto, messageId: "slow-verified-photo", now: new Date(now.getTime() + 10_000) });
+  assert.equal(queueVerifiedWhatsAppJobPhotoBatchConfirmations(new Date(now.getTime() + 10_000)).queued, 1);
 
   // Chicago's job date, not UTC's date, controls the unfinished-photo guard.
   enqueueWhatsAppImage({ ...parsed.images[0], messageId: "late-night", caption: "", receivedAt: "2026-08-12T04:59:00Z" });

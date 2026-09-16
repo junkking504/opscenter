@@ -3,6 +3,22 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { applyVerifiedPhotoReceipts, newVerifiedAppointmentMedia, readRecentVerifiedPhotoReceipts, verifiedAppointmentMedia } from '../lib/verified-job-photos';
+import { junkwarePhotoPageIdentity, verifyJunkwarePhotoPostbackIdentity } from '../lib/junkware-photo-identity';
+
+for (const key of ['id', 'ID', 'Id', 'iD']) {
+  assert.equal(junkwarePhotoPageIdentity(`https://junkware.junk-king.com/franchise/appointment.aspx?${key}=4075431`, 'Appointment JK4088609', '4075431', 'JK4088609'), true, 'ASP.NET query-key casing does not change appointment identity');
+}
+for (const badUrl of [
+  'https://junkware.junk-king.com/franchise/appointment.aspx?ID=4075432',
+  'https://junkware.junk-king.com/franchise/appointment.aspx?id=4075431&ID=4075432',
+  'https://junkware.junk-king.com/franchise/appointment.aspx?id=4075431&ID=4075431',
+  'https://junkware.junk-king.com/franchise/appointment.aspx',
+  'https://junkware.junk-king.com/account/login.aspx?id=4075431',
+  'https://evil.example/franchise/appointment.aspx?id=4075431',
+  'http://junkware.junk-king.com/franchise/appointment.aspx?id=4075431',
+  'https://user:password@junkware.junk-king.com/franchise/appointment.aspx?id=4075431',
+]) assert.equal(junkwarePhotoPageIdentity(badUrl, 'Appointment JK4088609', '4075431', 'JK4088609'), false, 'Wrong, missing or ambiguous appointment identity fails closed');
+assert.equal(junkwarePhotoPageIdentity('https://junkware.junk-king.com/franchise/appointment.aspx?ID=4075431', 'Appointment JK4088608', '4075431', 'JK4088609'), false, 'Correct ID cannot excuse wrong JK title');
 
 const now = Date.now();
 const at = (offset: number) => new Date(now + offset).toISOString();
@@ -39,6 +55,20 @@ assert.deepEqual(newVerifiedAppointmentMedia([`${url}?v=old`], [`${url}?v=new`],
 assert.deepEqual(newVerifiedAppointmentMedia([], [url, url], job.appointmentId), [url]);
 
 async function main() {
+  const correctIdentity = { url: 'https://junkware.junk-king.com/franchise/appointment.aspx?id=4075431', title: 'Appointment JK4088609' };
+  let identity = correctIdentity;
+  let reads = 0;
+  const identityPolicy = { appointmentId: '4075431', jkNumber: 'JK4088609', readIdentity: async () => identity, readAppointment: async () => { reads++; identity = correctIdentity; } };
+  assert.equal(await verifyJunkwarePhotoPostbackIdentity(identityPolicy), null);
+  assert.equal(reads, 0, 'Normal upload response adds no source navigation');
+  identity = { ...correctIdentity, title: 'Image uploaded' };
+  assert.equal(await verifyJunkwarePhotoPostbackIdentity(identityPolicy), 'title JK missing');
+  assert.equal(reads, 1, 'A transient POST response gets exactly one owning-appointment GET');
+  identity = { ...correctIdentity, url: correctIdentity.url.replace('4075431', '4075432') };
+  await assert.rejects(verifyJunkwarePhotoPostbackIdentity({ ...identityPolicy, readAppointment: async () => { reads++; } }), /URL appointment ID differs/);
+  assert.equal(reads, 2, 'Failed read-back does not loop or retry upload');
+  await assert.rejects(verifyJunkwarePhotoPostbackIdentity({ ...identityPolicy, readAppointment: async () => { reads++; throw new Error('private source exception'); } }), error => error instanceof Error && error.message.includes('read-back failed') && !error.message.includes('private source exception'));
+  assert.equal(reads, 3, 'Failed navigation remains uncertain without another attempt');
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'verified-photo-'));
   const previous = process.env.OPSBOT_DATA_DIR;
   const previousState = process.env.WHATSAPP_JOB_PHOTO_STATE_DIR;

@@ -260,13 +260,38 @@ export function enqueueWhatsAppImage(message: WhatsAppImageMessage): { duplicate
   }
 }
 
-export function queuedWhatsAppImages(limit = 10): string[] {
+export function queuedWhatsAppImages(limit = 10, excluded: ReadonlySet<string> = new Set()): string[] {
   ensureDirectories();
   return fs.readdirSync(directory("incoming"))
     .filter((name) => /^[a-f0-9]{64}\.json$/.test(name))
-    .sort()
+    .map(name => path.join(directory("incoming"), name))
+    .filter(file => !excluded.has(file))
+    .map(file => {
+      let timestamp = Number.POSITIVE_INFINITY;
+      try {
+        const record = JSON.parse(fs.readFileSync(file, "utf8"));
+        const enqueued = Date.parse(record.enqueuedAt || ''), received = Date.parse(record.receivedAt || '');
+        timestamp = Number.isFinite(enqueued) ? enqueued : Number.isFinite(received) ? received : timestamp;
+      } catch { /* Malformed records sort last, then the existing claim path handles them. */ }
+      return { file, timestamp };
+    })
+    .sort((a, b) => (a.timestamp === b.timestamp ? a.file.localeCompare(b.file) : a.timestamp - b.timestamp))
     .slice(0, Math.max(0, limit))
-    .map((name) => path.join(directory("incoming"), name));
+    .map(({ file }) => file);
+}
+
+/** Drain new arrivals before ancillary work, bounded so other work still runs.
+ * Retried files are never attempted twice in this process cycle. */
+export async function drainWhatsAppPhotoQueue(process: (file: string) => Promise<void>, limit = 100): Promise<number> {
+  const attempted = new Set<string>();
+  const cap = Math.min(100, Math.max(0, Math.floor(limit)));
+  while (attempted.size < cap) {
+    const next = queuedWhatsAppImages(1, attempted)[0];
+    if (!next) break;
+    attempted.add(next);
+    await process(next);
+  }
+  return attempted.size;
 }
 
 export function hasUnfinishedWhatsAppPhotosForSender(batch: {

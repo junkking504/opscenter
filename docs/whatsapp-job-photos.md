@@ -252,4 +252,26 @@ npm run lint
 npm run build
 ```
 
-For the live acceptance test, send a JPEG or PNG from one mapped truck phone with an explicit test-safe JK number in the caption. Confirm the signed webhook queues it, the worker reports a verified upload, JunkWare shows one new photo on the intended appointment, and OpsCenter reflects the new photo after the next authoritative collector cycle.
+For the live acceptance test, send a JPEG or PNG from one mapped truck phone with an explicit test-safe JK number in the caption. Confirm the signed webhook queues it, the worker reports a verified upload, JunkWare shows one new photo on the intended appointment, and OpsCenter reflects the verified image through its event stream without waiting for the authoritative collector cycle.
+
+After upload, a temporary or unexpected POST response must not trigger another
+upload. If its identity does not match, the uploader reads the previously
+verified appointment once and checks the exact origin, appointment path, unique
+appointment ID and JK title again. It then requires an increased image count and
+new media URLs belonging to that appointment. A failed read-back remains uncertain;
+sanitized identity diagnostics describe the mismatch without exposing page data.
+Existing uncertain receipts may be reconciled only against exact message-derived
+filenames on the owning JunkWare appointment. Preserve the original outcome and
+read-back evidence, and never invent an observed per-photo count increase or
+repeat an upload simply to obtain confirmation.
+
+The worker processes photos in local intake order (`enqueuedAt`, falling back to
+the provider timestamp and then filename), rather than hash order. It drains up
+to 100 distinct queued files before ancillary work and does not retry a file in
+the same cycle. One browser session serves sequential appointment uploads during
+that drain; every image gets a fresh media baseline and identity/category checks.
+Switching appointments requires loading and verifying the new appointment. Any
+uncertain upload discards the browser session without repeating the write, and
+the session closes before ancillary work or process exit. These changes remove
+repeat browser startup and queue-chunk delays; they do not establish a real-world
+latency guarantee or make simultaneous writes to JunkWare and OpsCenter.

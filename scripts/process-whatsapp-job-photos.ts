@@ -5,7 +5,7 @@ import { downloadWhatsAppImage } from "@/lib/whatsapp-photo-media";
 import { startWhatsAppReplyPump } from "@/lib/whatsapp-reply-pump";
 import { execFileSync } from "node:child_process";
 import { buildFleetMapPayload } from "@/lib/fleet-map";
-import { findJunkwareAppointmentIdByJkNumber, uploadJunkwareJobPhoto } from "@/lib/junkware-photo-uploader";
+import { createJunkwarePhotoUploadSession, findJunkwareAppointmentIdByJkNumber } from "@/lib/junkware-photo-uploader";
 import { uploadJunkwareTruckRecord } from "@/lib/junkware-truck-record-uploader";
 import { readMetrics, type AnyRecord } from "@/lib/opsData";
 import { chicagoDateKey } from "@/lib/report-dates";
@@ -22,7 +22,7 @@ import {
 import {
   claimWhatsAppImage,
   finishWhatsAppImage,
-  queuedWhatsAppImages,
+  drainWhatsAppPhotoQueue,
   recentWhatsAppPhotoContext,
   requeueWhatsAppImage,
   whatsappQueueCounts,
@@ -191,7 +191,7 @@ function numberOption(name: string): number | undefined {
   return Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
-async function processOne(incomingFile: string, map: Record<string, string>): Promise<"completed" | "review" | "retried" | "failed" | "skipped"> {
+async function processOne(incomingFile: string, map: Record<string, string>, upload: ReturnType<typeof createJunkwarePhotoUploadSession>['upload']): Promise<"completed" | "review" | "retried" | "failed" | "skipped"> {
   const claim = claimWhatsAppImage(incomingFile);
   if (!claim) return "skipped";
   const timing: Record<string, string> = { processingStartedAt: new Date().toISOString() };
@@ -295,7 +295,7 @@ async function processOne(incomingFile: string, map: Record<string, string>): Pr
     }
     stage = "uploading";
     timing.uploadStartedAt = new Date().toISOString();
-    const verification = await uploadJunkwareJobPhoto({
+    const verification = await upload({
       appointmentId,
       jkNumber: match.jkNumber,
       filePath,
@@ -362,6 +362,7 @@ async function main(): Promise<void> {
   const attemptedReplies = new Set<string>();
   const photoConfirmations = { pending: 0, queued: 0 };
   const expenseReplies = { sent: 0, retried: 0, failed: 0 };
+  const photoUploads = createJunkwarePhotoUploadSession();
   const replies = startWhatsAppReplyPump(async () => {
     const confirmations = queueVerifiedWhatsAppJobPhotoBatchConfirmations();
     photoConfirmations.pending = confirmations.pending;
@@ -375,11 +376,12 @@ async function main(): Promise<void> {
   });
   try {
     void replies.flush();
-    for (const incomingFile of queuedWhatsAppImages(10)) {
-      const result = await processOne(incomingFile, map);
+    await drainWhatsAppPhotoQueue(async incomingFile => {
+      const result = await processOne(incomingFile, map, photoUploads.upload);
       results[result] += 1;
       void replies.flush();
-    }
+    });
+    await photoUploads.close();
     loadSlackBotToken();
     const recyclingSlack = await deliverRecyclingSlackAlerts().catch(error => ({
       posted: 0, updated: 0, failures: [error instanceof Error ? error.message : String(error)], preview: [],
@@ -394,6 +396,7 @@ async function main(): Promise<void> {
       process.stdout.write(`${JSON.stringify({ ok: true, processed: results, queue: photoQueue, recyclingSlack: recyclingDelivery, slack, photoConfirmations, crewExpenseTransactions, expenseReplies, crewExpenses: crewExpenseQueueCounts() })}\n`);
     }
   } finally {
+    await photoUploads.close();
     await replies.stop();
   }
 }

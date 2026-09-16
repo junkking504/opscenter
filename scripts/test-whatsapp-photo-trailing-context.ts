@@ -39,6 +39,36 @@ try {
       finishWhatsAppImage(claim.file, 'completed', { match: { status: 'matched' }, upload: { verified: true } });
     }
   });
+  for (const variant of ['same-context', 'same-assigned', 'different-text', 'different-job', 'workflow', 'assigned-conflict', 'caption-conflict']) scenario(`mixed-${variant}`, () => {
+    enqueueWhatsAppImage(photo('earlier', 0));
+    const earlier = claimWhatsAppImage(file('earlier'))!;
+    enqueueWhatsAppImage(photo('bound', 1));
+    recordWhatsAppTextContext(text('shared-job', 3));
+    assert.equal(readJobPhotoPrefetchCandidate(file('bound'))?.matchingContext?.text, 'JK4088445');
+    enqueueWhatsAppImage(photo('normal', 3));
+    const normal = read('normal');
+    assert.equal(normal.matchingContext.sourceMessageIds[0], 'shared-job');
+    assert.equal(normal.trailingJobBinding, undefined, 'Last photo uses normal intake context');
+    if (variant === 'different-text') normal.matchingContext.sourceMessageIds = ['another-text'];
+    if (variant === 'different-job') normal.matchingContext.text = 'JK9999999';
+    if (variant === 'workflow') normal.matchingContext.resale = { text: 'resale', messageId: 'resale-text' };
+    if (variant === 'assigned-conflict') normal.match = { status: 'matched', jkNumber: 'JK9999999' };
+    if (variant === 'caption-conflict') normal.caption = 'JK9999999';
+    fs.writeFileSync(file('normal'), JSON.stringify(normal));
+    const inFlight = claimWhatsAppImage(file('normal'))!;
+    let preservedFile = inFlight.file;
+    if (variant === 'same-assigned') preservedFile = finishWhatsAppImage(inFlight.file, 'completed', { match: { status: 'matched', jkNumber: 'JK4088445' }, upload: { verified: true } });
+    const original = fs.readFileSync(preservedFile, 'utf8');
+    finishWhatsAppImage(earlier.file, 'review', { review: { reason: 'sender_not_mapped_to_truck' } });
+    assert.equal(fs.readFileSync(preservedFile, 'utf8'), original, 'Consistent processing/assigned members are never rewritten');
+    if (variant === 'same-context' || variant === 'same-assigned') {
+      assert.ok(fs.existsSync(file('earlier')), 'Same exact normal context cannot strand an earlier missing-context review');
+      assert.equal(claimWhatsAppImage(file('earlier'))!.message.matchingContext?.text, 'JK4088445');
+    } else {
+      assert.equal(fs.existsSync(file('earlier')), false, 'Different provenance, job, workflow or assignment keeps review held');
+      assert.ok(fs.existsSync(file('earlier', 'review')));
+    }
+  });
   scenario('delayed-image-webhook', () => { recordWhatsAppTextContext(text('earlier-arrival')); enqueueWhatsAppImage(photo('late-image')); assert.equal(claimWhatsAppImage(file('late-image'))!.message.matchingContext?.text, 'JK4088445'); });
   scenario('later-conflicting-job', () => {
     enqueueWhatsAppImage(photo('ambiguous')); recordWhatsAppTextContext(text('job-a')); recordWhatsAppTextContext(text('job-b', 8, 'JK9999999'));

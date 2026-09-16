@@ -95,6 +95,16 @@ async function main() {
     const firstPending = session.upload(input);
     await assert.rejects(session.upload(input), /must remain sequential/);
     const first = await firstPending;
+    const ordered = (...values: (string | undefined)[]) => {
+      const times = values.map(value => Date.parse(value || ''));
+      assert.ok(times.every(Number.isFinite), 'Each recorded phase timestamp is valid');
+      assert.ok(times.every((at, index) => !index || at >= times[index - 1]), 'Recorded phases preserve observed order');
+    };
+    ordered(first.submittedAt, first.postNavigationCompletedAt, first.galleryObservedAt);
+    assert.equal(first.readbackStartedAt, undefined, 'No GET timing is invented when the POST verifies directly');
+    assert.equal(first.readbackCompletedAt, undefined);
+    assert.equal(first.batchBytes, fs.statSync(files[0]).size);
+
     assert.ok(routeHandler);
     for (const type of ['image', 'media', 'font', 'document', 'script', 'stylesheet', 'xhr', 'fetch']) {
       let action = '';
@@ -113,6 +123,7 @@ async function main() {
     behavior = 'post-title';
     const readback = await session.upload({ ...input, filePath: files[3] });
     assert.equal(readback.identityReadbackReason, 'title JK missing');
+    ordered(readback.submittedAt, readback.postNavigationCompletedAt, readback.readbackStartedAt, readback.readbackCompletedAt, readback.galleryObservedAt);
     assert.equal(stats.submissions, 4, 'Postback read-back never resubmits');
     behavior = 'no-image';
     await assert.rejects(session.upload({ ...input, filePath: files[4] }), /did not confirm a new appointment photo/);
@@ -148,6 +159,8 @@ async function main() {
       assert.equal(result.status, 'verified');
       if (result.status !== 'verified') throw new Error('Expected verified file');
       assert.equal(result.verification.afterCount - result.verification.beforeCount, 5);
+      assert.equal(result.verification.batchBytes, group.reduce((bytes, item) => bytes + fs.statSync(item.filePath).size, 0));
+      ordered(result.verification.submittedAt, result.verification.postNavigationCompletedAt, result.verification.readbackStartedAt, result.verification.readbackCompletedAt, result.verification.galleryObservedAt);
       assert.equal(result.verification.mediaUrls.length, 1);
       assert.ok(result.verification.mediaUrls[0].includes(path.parse(group[index].filePath).name));
       assert.equal(result.verification.galleryUrls.length, result.verification.afterCount);
@@ -178,6 +191,12 @@ async function main() {
     const beforeTimeout = stats.submissions, beforeTimeoutNavigation = stats.navigations;
     const recovered = await session.uploadBatch([member('timeout-a'), member('timeout-b')]);
     assert.ok(recovered.results.every(result => result.status === 'verified'));
+    for (const result of recovered.results) {
+      if (result.status !== 'verified') throw new Error('Expected read-back recovery');
+      assert.equal(result.verification.postNavigationCompletedAt, undefined, 'Failed native navigation cannot acquire a POST completion stamp');
+      ordered(result.verification.submittedAt, result.verification.readbackStartedAt, result.verification.readbackCompletedAt, result.verification.galleryObservedAt);
+      assert.equal(result.verification.batchBytes, 32);
+    }
     assert.equal(stats.submissions, beforeTimeout + 1, 'A timed-out POST is reconciled once, never submitted again');
     assert.equal(stats.navigations, beforeTimeoutNavigation + 2, 'One initial navigation and one owning GET after submission');
     navigationFails = false;

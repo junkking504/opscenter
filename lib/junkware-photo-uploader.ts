@@ -112,7 +112,7 @@ export type PhotoUploadInput = {
   filePath: string;
   category: WhatsAppPhotoCategory;
 };
-export type PhotoUploadResult = { beforeCount: number; afterCount: number; mediaUrls: string[]; galleryUrls: string[]; galleryObservedAt: string; submittedAt?: string; batchSize?: number; identityReadbackReason?: string };
+export type PhotoUploadResult = { beforeCount: number; afterCount: number; mediaUrls: string[]; galleryUrls: string[]; galleryObservedAt: string; submittedAt?: string; batchSize?: number; batchBytes?: number; postNavigationCompletedAt?: string; readbackStartedAt?: string; readbackCompletedAt?: string; identityReadbackReason?: string };
 
 export type PhotoUploadBatchResult = {
   submitted: true;
@@ -226,17 +226,26 @@ export function createJunkwarePhotoUploadSession(dependencies: {
       submitted = true;
       const submittedAt = new Date().toISOString();
       let navigationFailed = false;
+      let postNavigationCompletedAt: string | undefined;
+      let readbackStartedAt: string | undefined;
+      let readbackCompletedAt: string | undefined;
+      const readAppointment = async () => {
+        readbackStartedAt = new Date().toISOString();
+        await activePage.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
+        readbackCompletedAt = new Date().toISOString();
+      };
       try {
         await Promise.all([
           activePage.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 90_000 }),
           uploadButton.evaluate((element) => (element as HTMLInputElement).click()),
         ]);
+        postNavigationCompletedAt = new Date().toISOString();
       } catch { navigationFailed = true; }
       let identityReadbackReason: string | null;
       if (navigationFailed) {
         // Submission may already have succeeded. One read-only navigation can
         // reconcile every file; there is never another form submission.
-        await activePage.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 90_000 });
+        await readAppointment();
         const state = await activePage.evaluate(() => ({ url: location.href, title: document.title }));
         const issue = junkwarePhotoIdentityIssue(state.url, state.title, input.appointmentId, input.jkNumber);
         if (issue) throw new Error(`JunkWare appointment identity did not verify after photo upload: ${issue}.`);
@@ -246,7 +255,7 @@ export function createJunkwarePhotoUploadSession(dependencies: {
           appointmentId: input.appointmentId,
           jkNumber: input.jkNumber,
           readIdentity: () => activePage.evaluate(() => ({ url: location.href, title: document.title })),
-          readAppointment: async () => { await activePage.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 90_000 }); },
+          readAppointment,
         });
       }
       const afterMedia = await appointmentMediaUrls(activePage);
@@ -259,7 +268,10 @@ export function createJunkwarePhotoUploadSession(dependencies: {
           : mediaUrls.length !== 1 ? "JunkWare did not expose a verified new image for this appointment." : "";
         if (error) return { filePath: member.filePath, status: "uncertain", error };
         return { filePath: member.filePath, status: "verified", verification: {
-          beforeCount, afterCount, mediaUrls, galleryUrls: afterMedia, galleryObservedAt, submittedAt, batchSize: inputs.length,
+          beforeCount, afterCount, mediaUrls, galleryUrls: afterMedia, galleryObservedAt, submittedAt, batchSize: inputs.length, batchBytes: totalBytes,
+          ...(postNavigationCompletedAt ? { postNavigationCompletedAt } : {}),
+          ...(readbackStartedAt ? { readbackStartedAt } : {}),
+          ...(readbackCompletedAt ? { readbackCompletedAt } : {}),
           ...(identityReadbackReason ? { identityReadbackReason } : {}),
         } };
       });

@@ -310,7 +310,16 @@ Complete-gallery receipts preserve immediate OpsCenter publication.
 
 Receipts retain per-photo processing/media-ready times, `uploadQueuedAt`, the
 actual group's `uploadStartedAt`/`submittedAt`, `batchSize`, gallery observation,
-and verification times. The operating acceptance target is at most 30 seconds
+and verification times. `batchBytes` records the sum of original file sizes in
+that POST. `postNavigationCompletedAt` is recorded only when native POST navigation
+completes successfully. When reconciliation reads the owning appointment,
+`readbackStartedAt` and `readbackCompletedAt` bracket that GET; these fields are
+absent if no GET occurs. A navigation failure recovered through source read-back
+has GET timings but no successful POST-navigation timestamp. These observations
+separate source upload response time from owning-gallery read-back without
+adding requests or changing verification/retry behavior.
+
+The operating acceptance target is at most 30 seconds
 from provider send time to source verification, OpsCenter visibility and reply
 acceptance for a normal batch with an identified job. Mocked concurrency and
 partial-success tests do not establish that live latency; measure a real batch.
@@ -333,6 +342,12 @@ unassigned photo burst from the same sender and receiving inbox. This exception
 is bounded by provider timestamps and refuses conflicting job context, ambiguous
 bursts, alternate workflows and any prior assignment or upload uncertainty.
 Image captions do not act as standalone trailing messages.
+
+A burst can contain both normally captured job context and later bindings. They
+are consistent only when they reference the exact same text message ID and sole
+JK number, with no conflicting caption, assignment or alternate workflow. This
+allows an earlier missing-context hold to recover after a later image already
+captured that same text, without changing processing or assigned records.
 
 The association is stored separately with the exact text message and original
 context. The normal queue claim applies it; an already-processing record is never

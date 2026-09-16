@@ -33,6 +33,20 @@ function missingContext(message: RecordValue): boolean {
     && modifier(message.caption) && (!context || (context.version === 1 && modifier(context.text) && !context.reviewReason && !context.recycling && !context.resale))
     && (!review || ['sender_not_mapped_to_truck', 'truck_gps_unavailable', 'truck_gps_stale', 'job_coordinates_unavailable', 'truck_not_near_active_job', 'nearest_job_ambiguous'].includes(review.reason || ''));
 }
+/** Normal intake and trailing binding can freeze the same explicit text.
+ * Treat that shared provenance as consistent without mutating assigned members. */
+function sameExplicitJobContext(message: RecordValue, text: WhatsAppTextMessage): boolean {
+  const context = message.matchingContext, job = explicitJob(text.text);
+  const match = message.match as { status?: string; jkNumber?: string } | undefined;
+  if (!job || !context || context.version !== 1 || context.reviewReason || context.recycling || context.resale
+    || message.recycling || message.resale || message.truckLoadPhoto || message.truckLoadStatus
+    || !Array.isArray(context.sourceMessageIds) || !context.sourceMessageIds.includes(text.messageId)
+    || (match && (match.status !== 'matched' || match.jkNumber !== job))
+    || (!modifier(message.caption) && explicitJob(message.caption) !== job)) return false;
+  const jobs = extractJkNumbers(context.text);
+  return jobs.length === 1 && jobs[0] === job
+    && modifier(context.text.replace(/\bJK\s*[-#:]*\s*\d{4,12}\b/gi, '').replace(/#/g, ''));
+}
 function history(root: string, message: { senderPhone: string; phoneNumberId: string }, first: number, last: number): WhatsAppTextMessage[] {
   const folder = path.join(root, 'context-history', hash(normalizePhone(message.senderPhone)), hash(message.phoneNumberId));
   try {
@@ -82,10 +96,9 @@ export function bindTrailingPhotoJobText(root: string, text: WhatsAppTextMessage
   rows.sort((a, b) => a.at - b.at);
   const first = rows[0].at, last = rows[rows.length - 1].at;
   if (at - last > 10_000 || last - first > 10_000 || rows.some((row, i) => i > 0 && row.at - rows[i - 1].at > 3_000)) return 0;
-  // A previously bound member of this same burst is consistent, but another
-  // assignment/workflow makes the album identity ambiguous.
-  if (rows.some(({ message }) => !missingContext(message)
-    && !(message.trailingJobBinding && (message.trailingJobBinding as Binding).text?.messageId === text.messageId))) return 0;
+  // Both normal intake and a trailing binding may reference the exact same JK
+  // text. Another text, assignment or workflow still makes the burst ambiguous.
+  if (rows.some(({ message }) => !missingContext(message) && !sameExplicitJobContext(message, text))) return 0;
   if (rows.some(({ message }) => !unambiguousHistory(root, message, text))) return 0;
   const folder = path.join(root, 'context-bindings'); fs.mkdirSync(folder, { recursive: true, mode: 0o700 });
   let bound = 0;

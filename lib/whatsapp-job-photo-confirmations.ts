@@ -24,7 +24,7 @@ type PhotoConfirmationBatch = {
   confirmationQueuedAt?: string;
 };
 
-const DEFAULT_BATCH_QUIET_SECONDS = 60;
+const DEFAULT_BATCH_QUIET_SECONDS = 3;
 
 function clean(value: unknown): string {
   return String(value || "").replace(/\s+/g, " ").trim();

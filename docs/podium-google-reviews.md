@@ -89,14 +89,22 @@ remain editable from the attributed review card after later Podium refreshes.
 
 ## Campaign review navigation
 
-The desktop Reviews tab lists the collected reviews newest first across all
-locations, with 20 reviews per page. Search includes reviewer, text, confirmed
-JK number, appointment ID, and recorded crew. Location and exact-rating filters
-combine with quick filters for low ratings (1–3 stars), Podium-reported response
-needs, and reviews awaiting attribution. Counts cover the latest 100 collected
-Google reviews per location, not every review in the location's lifetime total.
+The desktop **Reviews** tab uses a queue beside the full review and job match.
+Quick filters show all collected reviews, reviews Podium explicitly flags as
+needing response, and reviews without a confirmed job match. Search covers the
+reviewer, feedback, job number and recorded crew. Location, exact star rating,
+and date order combine with those queues. Twenty reviews appear per page; the
+queue scrolls independently on desktop, while phones show the selected review
+with a back button that preserves the filters.
 
-Confirmed reviews display the JK number and the crew stored in the appointment
-attribution. Missing crew is shown as “Crew not recorded”; reviewer text and
-unconfirmed name suggestions never provide employee credit. Attribution controls
-expand on each review and retain the existing explicit confirmation workflow.
+Crew credit is displayed only for confirmed attribution. The original-review
+link opens the source for reading/responding; Campaign does not post a reply.
+Managers can choose a name-match suggestion or enter a completed appointment ID,
+open the appointment for review, and confirm the selection in a separate dialog.
+Uncertain saves stay attached to their receipt and block repeat submissions;
+**Check saved result** reads the original receipt without replaying the write.
+
+Counts describe the loaded Podium snapshot (latest 100 reviews per location),
+not all historical reviews. SearchKings failure does not hide available reviews.
+The synthetic Campaign fixture documented in [SearchKings integration](searchkings-integration.md)
+exercises attribution and uncertain receipt recovery without live writes.

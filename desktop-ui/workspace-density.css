@@ -110,3 +110,75 @@
 }
 .ops-live .command-metrics .kpi-heading { min-height: 12px; }
 .ops-live .command-metrics > button > small { white-space: normal; }
+
+/* Campaign's conversation layout follows the shared operating scale too.
+   Keep these rules in this density layer so lazy-loaded page CSS cannot
+   restore the roomier design-prototype spacing. */
+.ops-live .campaign-workspace { padding: 0 0 8px; }
+.ops-live .campaign-split, .ops-live .campaign-results { gap: var(--ops-section-gap); }
+.ops-live .campaign-panel, .ops-live .campaign-detail { padding: 10px 12px; border-radius: 8px; }
+.ops-live .campaign-panel > header { gap: 4px; margin-bottom: 10px; }
+.ops-live .campaign-workspace h2 { font-size: 14px; line-height: 1.25; }
+.ops-live .campaign-workspace h3 { font-size: 13px; line-height: 1.3; }
+.ops-live .campaign-detail > header h2 { font-size: 20px; margin: 2px 0; }
+.ops-live .campaign-workspace p, .ops-live .campaign-workspace dd { font-size: 11px; line-height: 1.4; }
+.ops-live .campaign-workspace small { font-size: 10px; line-height: 1.35; }
+.ops-live .campaign-eyebrow { font-size: 8px; line-height: 1.2; }
+.ops-live .campaign-workspace label { gap: 4px; font-size: 10px; }
+.ops-live .campaign-workspace :is(input:not([type=checkbox]), select, textarea) { padding: 5px 8px; font-size: 11px; border-radius: 5px; }
+.ops-live .campaign-workspace :is(select, input:not([type=checkbox])) { min-height: 28px; height: 28px; }
+.ops-live .campaign-workspace button[data-slot=button] { min-height: 28px; height: 28px; padding: 3px 8px; font-size: 11px; }
+.ops-live .campaign-filters, .ops-live .campaign-filter-pair { gap: 6px; }
+.ops-live .campaign-search svg { top: 7px; left: 8px; width: 14px; height: 14px; }
+.ops-live .campaign-search input { padding-left: 28px !important; }
+.ops-live .campaign-queue-tabs button { min-height: 28px; padding: 4px 6px; font-size: 10px; }
+.ops-live .campaign-more-filters { font-size: 10px; }
+.ops-live .campaign-more-filters summary { padding: 2px 0; }
+.ops-live .campaign-more-filters .campaign-filter-pair { margin-top: 4px; }
+.ops-live .campaign-count { font-size: 10px !important; margin: 8px 0 5px !important; }
+.ops-live .campaign-queue-list { gap: 3px; }
+.ops-live .campaign-queue-row { padding: 8px 10px; gap: 3px; border-radius: 6px; font-size: 10px; line-height: 1.35; }
+.ops-live .campaign-row-heading strong { font-size: 11px; }
+.ops-live .campaign-pages { gap: 6px; margin-top: 8px; padding-top: 6px; font-size: 10px; }
+.ops-live .campaign-next-action { padding: 10px; gap: 6px; border-radius: 6px; }
+.ops-live .campaign-actions { gap: 6px 10px; }
+.ops-live .campaign-primary-link, .ops-live .campaign-primary { min-height: 28px; padding: 5px 10px; font-size: 11px !important; border-radius: 5px; }
+.ops-live .campaign-source-link { gap: 4px; font-size: 11px; }
+.ops-live .campaign-context { margin: 12px 0; }
+.ops-live .campaign-context dl { gap: 6px 10px; margin-top: 8px; }
+.ops-live .campaign-context dt { font-size: 10px; line-height: 1.4; }
+.ops-live .campaign-context > p { margin-top: 6px; }
+.ops-live .campaign-outcome { gap: 8px; padding-top: 10px; }
+.ops-live .campaign-outcome fieldset { gap: 8px; }
+.ops-live .campaign-outcome textarea { min-height: 60px; }
+.ops-live .campaign-review-quote { padding: 10px 12px; gap: 8px; border-radius: 6px; }
+.ops-live .campaign-review-quote blockquote { font-size: 12px; line-height: 1.45; }
+.ops-live .campaign-match { padding-top: 10px; gap: 8px; }
+.ops-live .campaign-results-hero { padding: 12px; gap: 12px; border-radius: 8px; }
+.ops-live .campaign-results-hero > div { gap: 6px; }
+.ops-live .campaign-results-hero strong { font-size: 26px; }
+.ops-live .campaign-funnel { gap: 6px; margin-top: 8px; }
+.ops-live .campaign-funnel article { min-height: var(--ops-kpi-height); padding: 5px 8px; gap: 1px; font-size: 10px; justify-content: center; border-radius: 6px; }
+.ops-live .campaign-funnel strong { font-size: 20px; line-height: 1.05; }
+.ops-live .campaign-stage { font-size: 8px; }
+.ops-live .campaign-workspace .campaign-footnote { font-size: 10px; margin-top: 8px; }
+.ops-live .campaign-table-scroll { margin-top: 8px; }
+.ops-live .campaign-table-scroll table { font-size: 11px; }
+.ops-live .campaign-table-scroll :is(th, td) { padding: 8px 10px; }
+.ops-live .campaign-table-scroll thead th { font-size: 10px; }
+.ops-live .campaign-source-footer { gap: 4px 12px; margin-top: 8px; font-size: 9px; line-height: 1.35; }
+.ops-live .campaign-save-status { margin-bottom: 8px; padding: 8px 10px; gap: 8px; font-size: 11px; }
+.ops-live .campaign-confirm { padding: 12px; border-radius: 8px; }
+.ops-live .campaign-confirm h2 { font-size: 20px; margin-bottom: 8px; }
+.ops-live .campaign-confirm p { font-size: 11px; line-height: 1.4; }
+.ops-live .campaign-confirm dl { padding: 10px; gap: 8px; font-size: 11px; }
+.ops-live .campaign-confirm footer { gap: 6px; margin-top: 12px; }
+.ops-live .campaign-empty { padding: 16px 10px; gap: 8px; }
+@media (max-width: 760px) {
+  .ops-live .campaign-detail .campaign-back { margin: 0 0 10px -6px; }
+  .ops-live .campaign-context dl { gap: 6px 8px; }
+  .ops-live .campaign-workspace :is(select, input:not([type=checkbox])),
+  .ops-live .campaign-workspace button[data-slot=button],
+  .ops-live .campaign-primary-link { min-height: 36px; height: auto; }
+  .ops-live .campaign-search svg { top: 11px; }
+}

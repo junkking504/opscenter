@@ -23,7 +23,7 @@ assert.equal(junkwarePhotoPageIdentity('https://junkware.junk-king.com/franchise
 const now = Date.now();
 const at = (offset: number) => new Date(now + offset).toISOString();
 const url = 'https://junkware.junk-king.com/system/aspnet/local/media/2026-09/test-4075431-unique-after.jpg';
-const job = { appointmentId: '4075431', jkNumber: 'JK4088609', photos: [], photoAuditAvailable: true, photoObservedAt: at(-60_000) };
+const job = { appointmentId: '4075431', jkNumber: 'JK4088609', photos: [] as ReturnType<typeof verifiedAppointmentMedia>, photoAuditAvailable: true, photoObservedAt: at(-60_000) };
 const receipt = { outcome: 'completed', outcomeAt: at(-1000), match: { status: 'matched', appointmentId: job.appointmentId, jkNumber: job.jkNumber }, upload: { verified: true, beforeCount: 0, afterCount: 1, mediaUrls: [url] } };
 const project = (input: unknown, override = {}) => applyVerifiedPhotoReceipts([{ ...job, ...override }], [input], now)[0];
 
@@ -48,6 +48,21 @@ assert.equal(project(receipt, { photoObservedAt: undefined, photoAuditAvailable:
 const photo = verifiedAppointmentMedia([url], job.appointmentId)[0];
 assert.equal(project(receipt, { photos: [{ ...photo, url: `${url}?v=source` }] }).photos.length, 1, 'Query versions do not duplicate source photos');
 assert.equal(applyVerifiedPhotoReceipts([job], [receipt, receipt], now)[0].photos.length, 1, 'Duplicate receipts do not duplicate media');
+const removedUrl = url.replace('unique', 'removed');
+const removedPhoto = verifiedAppointmentMedia([removedUrl], job.appointmentId)[0];
+const galleryReceipt = { ...receipt, upload: { ...receipt.upload, galleryUrls: [url], galleryObservedAt: at(-2000) } };
+assert.deepEqual(project(galleryReceipt, { photos: [removedPhoto] }).photos.map(photo => photo.url), [url], 'Complete newer gallery replaces removed source photos instead of appending');
+assert.equal(project(galleryReceipt).photoObservedAt, at(-2000), 'Gallery age is its source observation, not receipt publication');
+const olderGallery = { ...galleryReceipt, outcomeAt: at(-500), upload: { ...galleryReceipt.upload, mediaUrls: [removedUrl], galleryUrls: [removedUrl], galleryObservedAt: at(-3000) } };
+assert.deepEqual(applyVerifiedPhotoReceipts([job], [galleryReceipt, olderGallery], now)[0].photos.map(photo => photo.url), [url], 'Late publication of an older observation cannot resurrect removed photos');
+assert.equal(project(galleryReceipt, { photoObservedAt: at(-1500) }).photos.length, 0, 'A newer source deletion wins over a later-published older gallery receipt');
+for (const invalidGallery of [
+  { galleryUrls: [], galleryObservedAt: at(-2000) },
+  { galleryUrls: [url, url], afterCount: 2, galleryObservedAt: at(-2000) },
+  { galleryUrls: [removedUrl], galleryObservedAt: at(-2000) },
+  { galleryUrls: [url], galleryObservedAt: at(1000) },
+  { galleryUrls: [url], galleryObservedAt: 'invalid' },
+]) assert.deepEqual(project({ ...galleryReceipt, upload: { ...galleryReceipt.upload, ...invalidGallery } }, { photos: [removedPhoto] }).photos, [removedPhoto], 'Partial or invalid full-gallery evidence cannot replace existing photos');
 for (const unsafe of [url.replace('https:', 'http:'), url.replace('junkware.junk-king.com', 'evil.example'), url.replace('https://', 'https://user:password@'), url.replace('.com/', '.com:8443/'), url.replace('/media/', '/other/'), url.replace('4075431', '4075432'), url.replace('.jpg', '.svg'), `${url}#fragment`, '/system/aspnet/local/media/test-4075431-photo.jpg']) {
   assert.equal(project({ ...receipt, upload: { ...receipt.upload, mediaUrls: [unsafe] } }).photos.length, 0, `Reject unsafe image: ${unsafe}`);
 }

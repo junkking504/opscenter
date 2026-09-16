@@ -34,8 +34,8 @@ function record(value: unknown): Record<string, unknown> {
 /** A temporary read projection; never changes collector files or replays an upload. */
 export function applyVerifiedPhotoReceipts<T extends PhotoJob>(jobs: T[], receipts: unknown[], now = Date.now()): T[] {
   return jobs.map(job => {
-    const additions: JunkwareJobPhoto[] = [];
     const sourceAt = Date.parse(job.photoObservedAt || '');
+    const candidates: { photos: JunkwareJobPhoto[]; completedAt: number; gallery?: JunkwareJobPhoto[]; observedAt?: number }[] = [];
     for (const value of receipts) {
       const receipt = record(value), match = record(receipt.match), upload = record(receipt.upload);
       const completedAt = Date.parse(String(receipt.outcomeAt || ''));
@@ -46,16 +46,37 @@ export function applyVerifiedPhotoReceipts<T extends PhotoJob>(jobs: T[], receip
         || Number(upload.beforeCount) < 0 || Number(upload.afterCount) <= Number(upload.beforeCount)
         || !Number.isFinite(completedAt) || completedAt > now || now - completedAt > MAX_RECEIPT_AGE_MS
         || (job.photoAuditAvailable && (!Number.isFinite(sourceAt) || sourceAt >= completedAt))) continue;
-      additions.push(...verifiedAppointmentMedia(upload.mediaUrls, job.appointmentId));
+      const photos = verifiedAppointmentMedia(upload.mediaUrls, job.appointmentId);
+      if (!photos.length) continue;
+      if (upload.galleryUrls !== undefined) {
+        const gallery = verifiedAppointmentMedia(upload.galleryUrls, job.appointmentId);
+        const observedAt = Date.parse(String(upload.galleryObservedAt || ''));
+        const keys = new Set(gallery.map(photo => photo.url.split('?')[0]));
+        // A full owning-source observation may replace a stale gallery, but a
+        // partial/malformed receipt must never remove source photos.
+        if (!Array.isArray(upload.galleryUrls) || gallery.length !== upload.afterCount
+          || gallery.length !== upload.galleryUrls.length || keys.size !== gallery.length
+          || !photos.every(photo => keys.has(photo.url.split('?')[0]))
+          || !Number.isFinite(observedAt) || observedAt > completedAt
+          || (job.photoAuditAvailable && observedAt <= sourceAt)) continue;
+        candidates.push({ photos, completedAt, gallery, observedAt });
+      } else candidates.push({ photos, completedAt });
     }
-    if (!additions.length) return job;
-    const seen = new Set(job.photos.map(photo => photo.url.split('?')[0]));
-    const photos = [...job.photos];
+    const snapshot = candidates.filter(candidate => candidate.gallery)
+      .sort((a, b) => b.observedAt! - a.observedAt!)[0];
+    const additions = candidates.filter(candidate => !snapshot || (candidate.observedAt ?? candidate.completedAt) > snapshot.observedAt!)
+      .flatMap(candidate => candidate.photos);
+    if (!snapshot && !additions.length) return job;
+    const photos = [...(snapshot?.gallery || job.photos)];
+    const seen = new Set(photos.map(photo => photo.url.split('?')[0]));
     for (const photo of additions) {
       const key = photo.url.split('?')[0];
       if (!seen.has(key)) { seen.add(key); photos.push(photo); }
     }
-    return photos.length === job.photos.length ? job : { ...job, photos, photoAuditAvailable: true };
+    return !snapshot && photos.length === job.photos.length ? job : {
+      ...job, photos, photoAuditAvailable: true,
+      ...(snapshot ? { photoObservedAt: new Date(snapshot.observedAt!).toISOString() } : {}),
+    };
   });
 }
 

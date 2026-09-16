@@ -85,6 +85,8 @@ async function main() {
     const first = await firstPending;
     const second = await session.upload({ ...input, filePath: files[1], category: 'before' });
     assert.deepEqual([first.beforeCount, first.afterCount, second.beforeCount, second.afterCount], [0, 1, 1, 2], 'Each image uses a fresh count baseline');
+    assert.equal(second.galleryUrls.length, 2, 'Each verified upload publishes the complete owning gallery');
+    assert.ok(Number.isFinite(Date.parse(second.galleryObservedAt)), 'Complete gallery has its own observation timestamp');
     assert.deepEqual(categories, ['after', 'before'], 'Category resets for each photo');
     assert.deepEqual([stats.launches, stats.navigations, stats.closes], [1, 1, 0], 'Same job reuses one browser and appointment page');
     const donation = await session.upload({ ...input, appointmentId: '4075267', jkNumber: 'JK4088445', filePath: files[2], category: 'donation' });

@@ -205,7 +205,10 @@ the webhook; a later intake timestamp cannot establish the original Send time.
 JunkWare upload is the first step. The uploader captures newly added media URLs
 from its existing before/after page reads and verifies the exact appointment
 identity again after submission. This adds no navigation or provider request.
-The completed receipt retains the resolved appointment ID and verified URLs.
+The completed receipt retains the resolved appointment ID, newly verified URLs,
+and complete owning-appointment gallery with its own observation time. A newer
+complete gallery replaces an older gallery, so photos removed in JunkWare are
+not retained merely because an older collector snapshot still contains them.
 
 Schedule can display those verified photos immediately without waiting for the
 full collector. A local filesystem event on durable receipt publication wakes
@@ -221,6 +224,21 @@ bridge lasts at most 30 minutes; a newer authoritative photo snapshot wins,
 including a recorded deletion or empty gallery. A schedule-only snapshot cannot
 claim to have refreshed photos. An audited gallery with unknown observation time
 does not accept an overlay. Overall collector freshness remains collector-owned.
+Full-gallery receipts require every URL to pass appointment/media validation,
+an exact unique count, and inclusion of the newly uploaded photo. Invalid or
+partial snapshots cannot remove existing photos. Receipt publication time must
+not be substituted for gallery observation time.
+
+The external daily collector must retain `photo_observed_at` from immediately
+before each appointment-detail navigation, paired with that page's photos.
+The end-of-run `collection_timestamp` can be later than uploads that the page
+never observed and must not override that per-gallery timestamp. Install the
+reviewed source migration from a task checkout with
+`python3 scripts/install-junkware-photo-observation.py` (dry run), followed by
+the same command with `--apply`. It pins reviewed source hashes, preserves a
+private backup and refuses source drift. It does not collect or restart any
+service; future existing collection cycles use the new source. Validate with
+`python3 scripts/test-junkware-photo-observation.py`.
 
 ## Slack receipt notifications
 

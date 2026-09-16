@@ -112,7 +112,7 @@ type PhotoUploadInput = {
   filePath: string;
   category: WhatsAppPhotoCategory;
 };
-type PhotoUploadResult = { beforeCount: number; afterCount: number; mediaUrls: string[]; identityReadbackReason?: string };
+type PhotoUploadResult = { beforeCount: number; afterCount: number; mediaUrls: string[]; galleryUrls: string[]; galleryObservedAt: string; identityReadbackReason?: string };
 
 export function createJunkwarePhotoUploadSession(dependencies: {
   launch?: () => Promise<Browser>;
@@ -193,6 +193,7 @@ export function createJunkwarePhotoUploadSession(dependencies: {
         readAppointment: async () => { await activePage.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 90_000 }); },
       });
       const afterMedia = await appointmentMediaUrls(activePage);
+      const galleryObservedAt = new Date().toISOString();
       const afterCount = afterMedia.length;
       if (afterCount <= beforeCount) throw new Error("JunkWare did not confirm a new appointment photo.");
       const fileStem = path.parse(resolvedFile).name;
@@ -205,7 +206,7 @@ export function createJunkwarePhotoUploadSession(dependencies: {
       });
       if (!mediaUrls.length) throw new Error("JunkWare did not expose a verified new image for this appointment.");
       await (dependencies.persist || persistStorageState)(context!);
-      return { beforeCount, afterCount, mediaUrls, ...(identityReadbackReason ? { identityReadbackReason } : {}) };
+      return { beforeCount, afterCount, mediaUrls, galleryUrls: afterMedia, galleryObservedAt, ...(identityReadbackReason ? { identityReadbackReason } : {}) };
     } catch (error) {
       // The owning queue records uncertain outcomes; discard state, never resubmit.
       await discard();

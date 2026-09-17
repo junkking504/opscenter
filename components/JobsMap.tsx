@@ -919,18 +919,20 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     };
   }, [date]);
 
+  const addressTruck = selectedTruck?.truck;
+  const addressLatitude = selectedTruck?.latitude;
+  const addressLongitude = selectedTruck?.longitude;
   useEffect(() => {
-    if (!selectedTruck) {
+    if (!addressTruck || addressLatitude == null || addressLongitude == null) {
       setSelectedTruckAddress({ key: "", address: "", loading: false, error: "" });
       return;
     }
-
-    const key = `${selectedTruck.truck}:${selectedTruck.latitude.toFixed(5)},${selectedTruck.longitude.toFixed(5)}`;
+    const key = `${addressTruck}:${addressLatitude.toFixed(5)},${addressLongitude.toFixed(5)}`;
     setSelectedTruckAddress(current => current.key === key ? current : { key, address: "", loading: true, error: "" });
-    return watchTruckAddress(selectedTruck.latitude, selectedTruck.longitude, ({address, stale}) => {
+    return watchTruckAddress(addressLatitude, addressLongitude, ({address, stale}) => {
       setSelectedTruckAddress({key, address: stale ? `${address} · Saved address; refreshing…` : address, loading:false, error:""});
     });
-  }, [selectedTruck?.truck, selectedTruck?.latitude, selectedTruck?.longitude]);
+  }, [addressTruck, addressLatitude, addressLongitude]);
 
   async function assignJob(job: JobsMapPoint, truck: string, appointmentStartMinutes?: number) {
     const previousTruck = assignments[job.key] || "";

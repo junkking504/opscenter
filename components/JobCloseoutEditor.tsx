@@ -1,5 +1,7 @@
 "use client";
 
+import { automaticSizePrice } from "../lib/closeout-load-price";
+
 import { paymentReferenceLabel, validateCloseoutPayment } from "../lib/closeout-payment";
 
 import { useState } from "react";
@@ -17,6 +19,7 @@ type LiveCloseout = {
   loadQuantity: string;
   loadSize: { value: string; label: string; options: Option[] };
   loadPrices: number[];
+  dryRunFee?: string;
   loadPrice: string;
   bedloadQuantity: string;
   bedloadSize: { value: string; label: string; options: Option[] };
@@ -40,17 +43,6 @@ type LiveCloseout = {
 
 function inputMoney(value: string): string {
   return String(value || "").replace(/[^0-9.-]/g, "");
-}
-
-function automaticSizePrice(size: string, quantity: string, options: Option[], prices: number[], kind: 'load' | 'bedload'): string {
-  const index = options.findIndex((option) => option.value === size);
-  if (index <= 0 || !prices.length) return '';
-  const units = Number.parseInt(quantity, 10);
-  const countedUnits = Number.isFinite(units) && units > 0 ? units : 0;
-  let price = countedUnits * prices.at(-1)!;
-  if (kind === 'load' && size === 'Bag(s)' && countedUnits) price = countedUnits * prices[0];
-  else if (size !== 'Bag(s)') price += prices[index - 1] || 0;
-  return price > 0 ? price.toFixed(2) : '';
 }
 
 export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initialStatus, serviceDate }: { appointmentId: string; appointmentUrl: string; initialStatus: string; serviceDate: string }) {
@@ -107,11 +99,11 @@ export default function JobCloseoutEditor({ appointmentId, appointmentUrl, initi
   }
 
   function updateLoadSize(value: string) {
-    setLive((current) => current ? { ...current, loadSize: { ...current.loadSize, value }, loadPrice: automaticSizePrice(value, current.loadQuantity, current.loadSize.options, current.loadPrices, 'load') } : current);
+    setLive((current) => current ? { ...current, loadSize: { ...current.loadSize, value }, loadPrice: automaticSizePrice(value, current.loadQuantity, current.loadSize.options, current.loadPrices, 'load', current.dryRunFee) } : current);
   }
 
   function updateLoadQuantity(value: string) {
-    setLive((current) => current ? { ...current, loadQuantity: value, loadPrice: automaticSizePrice(current.loadSize.value, value, current.loadSize.options, current.loadPrices, 'load') } : current);
+    setLive((current) => current ? { ...current, loadQuantity: value, loadPrice: automaticSizePrice(current.loadSize.value, value, current.loadSize.options, current.loadPrices, 'load', current.dryRunFee) } : current);
   }
 
   function updateBedloadSize(value: string) {

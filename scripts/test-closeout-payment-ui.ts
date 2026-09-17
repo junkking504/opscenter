@@ -11,7 +11,26 @@ async function main(){
  const server=createServer(async(req,res)=>{if(req.method==='POST'){posts++;res.writeHead(400);res.end('{}');return;}if(req.url?.includes('/api/desktop/schedule/closeout')){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({closeout:fixture,sourceVersion:'a'.repeat(64),canWrite:true}));return;}if(req.url==='/app.js'){res.setHeader('Content-Type','text/javascript');res.end(js);return;}res.setHeader('Content-Type','text/html');res.end(`<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0;font-family:Arial}*{box-sizing:border-box}.job-record-drawer{height:100dvh;max-width:560px;margin-left:auto;display:flex;flex-direction:column}.fixture-scroll{flex:1;overflow:auto;min-height:0}.record-drawer-actions{padding:12px;border-top:1px solid #ddd;flex-shrink:0}${css}</style></head><body><div id="root"></div><script src="/app.js"></script></body></html>`);});
  await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));const url=`http://127.0.0.1:${(server.address() as {port:number}).port}`;
  const browser=await chromium.launch({headless:true});
- try{for(const width of [390,1280]){const page=await browser.newPage({viewport:{width,height:844}});await page.goto(url);await page.getByText('Appointment Closeout',{exact:true}).click();await page.getByRole('radio',{name:'Completed',exact:true}).check();await page.getByRole('checkbox',{name:'Add a payment'}).check();
+ try{
+ for(const width of [390,1280]) {
+  const page=await browser.newPage({viewport:{width,height:844}});
+  const sizes=['','Dry Run','Bag(s)','Minimum','.5 (1/12)','1 (1/6)','1.5 (1/4)','2 (1/3)','2.5 (3/8)','3 (1/2)','3.5 (5/8)','4 (2/3)','4.5 (3/4)','5 (5/6)','5.5 (7/8)'];
+  const pricingFixture={...fixture,loadQuantity:'0',loadSize:field('','',sizes.map(value=>({value,label:value}))),loadPrices:[40,100,150,200,250,300,350,400,450,500,550,600,650,700],dryRunFee:'75',loadPrice:'123.45'};
+  await page.route('**/api/desktop/schedule/closeout?*',route=>route.fulfill({json:{closeout:pricingFixture,sourceVersion:'a'.repeat(64),canWrite:true}}));
+  await page.goto(url);await page.getByText('Appointment Closeout',{exact:true}).click();
+  const price=page.getByRole('textbox',{name:'Load price',exact:true});
+  await expect(price).toHaveValue('123.45');
+  for (const [size,amount] of [['Minimum','100.00'],['1 (1/6)','200.00'],['3 (1/2)','400.00'],['5.5 (7/8)','650.00'],['Dry Run','75.00']]) {
+   await page.getByRole('combobox',{name:'Load size',exact:true}).selectOption(size);await expect(price).toHaveValue(amount);
+   await expect(page.getByLabel('Draft charge totals')).toContainText(`$${amount}`);
+  }
+  await page.getByRole('combobox',{name:'Load size',exact:true}).selectOption('3 (1/2)');
+  await page.getByRole('textbox',{name:'Full trucks',exact:true}).fill('2');await expect(price).toHaveValue('1800.00');
+  await price.fill('321.00');await expect(price).toHaveValue('321.00');
+  await page.getByRole('button',{name:'Reload from JunkWare',exact:true}).click();await expect(price).toHaveValue('123.45');
+  assert.equal(posts,0,'Selecting prices never submits a source change');await page.close();
+ }
+ for(const width of [390,1280]){const page=await browser.newPage({viewport:{width,height:844}});await page.goto(url);await page.getByText('Appointment Closeout',{exact:true}).click();await page.getByRole('radio',{name:'Completed',exact:true}).check();await page.getByRole('checkbox',{name:'Add a payment'}).check();
   const methods=page.getByRole('group',{name:'Payment method',exact:true});assert.equal(await methods.getByRole('radio').count(),4);
   const method={selectOption:async(value:string)=>{const labels:Record<string,string>={'1':'Billed','2':'Cash','3':'Credit Card','4':'Check'};const radio=methods.getByRole('radio',{name:labels[value],exact:true});await radio.click();await expect(radio).toBeChecked();}};
   await method.selectOption('4');await page.getByRole('textbox',{name:'Payment amount',exact:true}).fill('1200');await page.getByRole('textbox',{name:'Check number',exact:true}).fill('009924');await page.getByRole('button',{name:'Review Closeout',exact:true}).click();await page.getByRole('button',{name:'Confirm Job Closeout in JunkWare',exact:true}).waitFor();assert.ok((await page.getByRole('status').textContent())?.includes('Check number: 009924'));

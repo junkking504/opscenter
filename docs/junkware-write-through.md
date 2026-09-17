@@ -125,7 +125,11 @@ Full-truck quantity is separate from the partial load size: half a truck means
 is entered before the separate discount; the header labels the saved total.
 Changing truck count or load size fills the load price from the appointment's
 JunkWare price table: full-truck count times the full-truck rate, plus the
-selected partial-load rate. The default `Full truck / none` adds no partial
+selected partial-load rate. The optional Dry Run dropdown entry is excluded from
+the standard rate-array index and uses the appointment's separate dry-run fee.
+Both closeout editors share this lookup. Missing rates remain unavailable.
+Quoted or negotiated prices in appointment notes remain separate from standard
+source rates; the operator can enter the reviewed quote explicitly. The default `Full truck / none` adds no partial
 load and still prices every full truck. The draft subtotal and review total
 update immediately. Operators can override the resulting load price; opening
 a saved closeout preserves its existing price. Bedload counts follow the same

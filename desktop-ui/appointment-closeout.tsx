@@ -26,6 +26,7 @@ type LiveCloseout = {
   loadQuantity: string;
   loadSize: { value: string; label: string; options: Option[] };
   loadPrices: number[];
+  dryRunFee?: string;
   loadPrice: string;
   bedloadQuantity: string;
   bedloadSize: { value: string; label: string; options: Option[] };
@@ -154,12 +155,12 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
 
   function updateLoadSize(value: string) {
     setReviewing(false);
-    setLive((current) => current ? { ...current, loadSize: { ...current.loadSize, value }, loadPrice: automaticSizePrice(value, current.loadQuantity, current.loadSize.options, current.loadPrices, 'load') } : current);
+    setLive((current) => current ? { ...current, loadSize: { ...current.loadSize, value }, loadPrice: automaticSizePrice(value, current.loadQuantity, current.loadSize.options, current.loadPrices, 'load', current.dryRunFee) } : current);
   }
 
   function updateLoadQuantity(value: string) {
     setReviewing(false);
-    setLive((current) => current ? { ...current, loadQuantity: value, loadPrice: automaticSizePrice(current.loadSize.value, value, current.loadSize.options, current.loadPrices, 'load') } : current);
+    setLive((current) => current ? { ...current, loadQuantity: value, loadPrice: automaticSizePrice(current.loadSize.value, value, current.loadSize.options, current.loadPrices, 'load', current.dryRunFee) } : current);
   }
 
   function updateBedloadSize(value: string) {

@@ -153,6 +153,7 @@ export async function capture(page: Page): Promise<{ status: { value: string; la
       loadQuantity: input("ctl00_Content_LoadSizeTruckQtyTB"),
       loadSize: selectData("ctl00_Content_LoadSizeDD"),
       loadPrices: priceList('Prices'),
+      dryRunFee: input('ctl00_Content_DryRunFeeHF'),
       loadPrice: input("ctl00_Content_BillingAmountTB"),
       bedloadQuantity: input("ctl00_Content_BedloadTruckQtyTB"),
       bedloadSize: selectData("ctl00_Content_BedloadDD"),

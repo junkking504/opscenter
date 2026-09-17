@@ -587,3 +587,20 @@ includes full payroll records, appointment references, photos, maps, and externa
 source links from the desktop workspace and older detail pages. Links explicitly
 target the current tab; programmatic source navigation uses the current window.
 The browser Back button returns from a source page to OpsCenter.
+
+## Crew pay navigation (September 17, 2026)
+
+Crew's Pay period view separates Pay & hours, Payroll review, and Production &
+driving. Pay & hours shows a searchable employee picker and one employee's
+record, with period totals, two week selectors, and compact daily summaries.
+Each date has a direct Edit hours action; pay components, source evidence and
+bonus controls expand beneath that date. The week containing the selected date
+opens by default. Missing source dates remain visible above the employee view.
+
+Payroll review retains its session review marks when switching between these
+sections. Source days opens and focuses the selected employee's pay record.
+The review table retains its own horizontal scroller on phones. Today's
+employee drawer separates Pay details, Edit hours and Driving; driving badges
+open the Driving section directly. These are presentation changes: source
+precedence, payroll calculations, permissions, write verification and exports
+retain their existing behavior.

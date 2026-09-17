@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import {useWorkspaceRefresh} from './workspace-freshness';
 import type { KreweHoursSnapshot } from './lib/krewe-hours-contract';
 import type { DesktopKreweSnapshot } from './lib/people-fleet-contract';
 import { payForDays, payBreakdownDifference, type PayBreakdown } from './lib/krewe-pay-breakdown';
 import './live-krewe-hours.css';
+import './crew-navigation.css';
 import { recordedPayrollClock } from './lib/payroll-review';
 import PayrollReview from './payroll-review';
 import KreweDayEditor from './krewe-day-editor';
@@ -24,7 +25,7 @@ function PayWarning({ pay }: { pay: PayBreakdown }) {
   if (difference !== null && Math.abs(difference) > .01) return <p className="hours-record-warning">Source Total Differs By {money(difference)} · Review Payroll</p>;
   return null;
 }
-export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh, onEditingChange, sourceError, sourcePending }: { date: string; onDateChange?: (date: string) => void; payroll?: DesktopKreweSnapshot; onRefresh?: () => void | Promise<void>; onEditingChange?: (editing: boolean) => void; sourceError?: string; sourcePending?: boolean }) {
+export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh, onEditingChange, sourceError, sourcePending, panel = 'pay', onShowPay }: { panel?: 'pay' | 'review'; onShowPay?: () => void; date: string; onDateChange?: (date: string) => void; payroll?: DesktopKreweSnapshot; onRefresh?: () => void | Promise<void>; onEditingChange?: (editing: boolean) => void; sourceError?: string; sourcePending?: boolean }) {
   const [editing, setEditing] = useState<{date:string;name:string;action:'correction'|'bonus'} | null>(null);
   const isEditing = Boolean(editing);
   useEffect(() => { onEditingChange?.(isEditing); return () => onEditingChange?.(false); },[isEditing,onEditingChange]);
@@ -36,6 +37,16 @@ export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh,
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
   const [search, setSearch] = useState('');
+  const [employeeId, setEmployeeId] = useState('');
+  const [weekIndex, setWeekIndex] = useState<number | null>(null);
+  const employeeCard = useRef<HTMLElement>(null);
+  const [focusEmployee, setFocusEmployee] = useState(false);
+  useEffect(() => {
+    if (focusEmployee && panel === 'pay') {
+      employeeCard.current?.focus();
+      setFocusEmployee(false);
+    }
+  }, [focusEmployee, panel]);
   useEffect(() => { setSnapshot(null); },[selectedDate]);
   const load = useCallback(async (signal:AbortSignal) => {
     if (sharedHours) return;
@@ -46,6 +57,8 @@ export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh,
   const freshness=useWorkspaceRefresh(load,`${selectedDate}:${refresh}`,Boolean(editing) || Boolean(sharedHours));
   const loading=sharedHours ? Boolean(sourcePending) : freshness.pending;
   const employees = snapshot?.employees.filter(employee => employee.name.toLowerCase().includes(search.toLowerCase())) || [];
+  const missingDates = [...new Set([...(snapshot?.missingDates || []), ...(payroll?.missingDates || [])])].sort();
+  const selectedEmployee = employees.find(employee => employee.id === employeeId) || employees[0];
   const payMembers = new Map((payroll?.date === selectedDate ? payroll.members : []).map(member => [member.id, member]));
   return <section className="live-krewe-hours" aria-label="Pay-Period Hours and Pay">
     <header><div><h2>Pay-Period Hours and Pay</h2><p>{snapshot ? `${dayLabel(snapshot.start)} – ${dayLabel(snapshot.end)}, ${snapshot.end.slice(0, 4)}` : 'Employee Hours and Earnings'}</p></div><div className="hours-period-controls"><button disabled={loading || Boolean(editing)} onClick={() => changeDate(offsetDay(snapshot?.start || selectedDate, -14))} aria-label="Previous pay period">←</button><label>Pay-Period Date<input type="date" disabled={Boolean(editing)} value={selectedDate} onChange={event => { if (event.target.value) changeDate(event.target.value); }} /></label><button disabled={loading || Boolean(editing)} onClick={() => changeDate(offsetDay(snapshot?.start || selectedDate, 14))} aria-label="Next pay period">→</button><button disabled={loading || Boolean(editing)} onClick={() => { if (!sharedHours) setRefresh(value => value + 1); void Promise.resolve(onRefresh?.()).then(() => setError('')).catch(failure => setError(failure instanceof Error ? failure.message : 'Payroll could not refresh.')); }}>Refresh</button></div></header>
@@ -53,41 +66,54 @@ export default function LiveKreweHours({ date, onDateChange, payroll, onRefresh,
     {loading && <p role="status" className="hours-source-note">Loading Employee Hours…</p>}
     {(error||freshness.error) && <p role="alert" className="hours-source-note hours-attention">{error||freshness.error} · Last retrieved hours retained.</p>}
     {snapshot && <>
-      {!payroll && snapshot.missingDates.length > 0 && <p className="hours-source-note hours-attention">Daily Source Unavailable: {snapshot.missingDates.map(dayLabel).join(', ')}. Totals include available records only.</p>}
-      {payroll && <PayrollReview search={search} hours={snapshot} payroll={payroll} unavailable={sourceError || error || freshness.error} pending={loading || Boolean(editing)} onOpen={id => {
-        const card = document.getElementById(`payroll-source-${id}`);
-        card?.querySelectorAll('details').forEach(detail => { detail.open = true; });
-        card?.scrollIntoView({ behavior: 'smooth', block: 'start' }); card?.focus({ preventScroll: true });
-      }} />}
-      <div className="hours-employee-cards">{employees.map(employee => {
+      {missingDates.length > 0 && panel === 'pay' && <p className="hours-source-note hours-attention">Source unavailable: {missingDates.map(dayLabel).join(', ')}. Totals include available records only.</p>}
+      <div hidden={panel !== 'review'}>{payroll && <PayrollReview search={search} hours={snapshot} payroll={payroll} unavailable={sourceError || error || freshness.error} pending={loading || Boolean(editing)} onOpen={id => {
+        setSearch(''); setEmployeeId(id); setWeekIndex(null); setFocusEmployee(true); onShowPay?.();
+      }} />}</div>
+      <div hidden={panel !== 'pay'}>
+      <div className="crew-pay-workspace">
+        <aside className="crew-employee-picker" aria-label="Choose employee">
+          <h3>Employees <span>{employees.length}</span></h3>
+          <div className="crew-employee-list">{employees.map(employee => <button type="button" key={employee.id} aria-pressed={selectedEmployee?.id === employee.id} onClick={() => { setEmployeeId(employee.id); setWeekIndex(null); }}><strong>{employee.name}</strong><span>{hours(employee.total)}{payroll && <> · {money(payForDays(payMembers.get(employee.id)?.days || [], snapshot.start, snapshot.end).totalPay)}</>}</span></button>)}</div>
+        </aside>
+      <div className="hours-employee-cards">{(selectedEmployee ? [selectedEmployee] : []).map(employee => {
         const days = payMembers.get(employee.id)?.days || [];
         const periodPay = payForDays(days, snapshot.start, snapshot.end);
-        return <article className="hours-employee-card" key={employee.id} id={`payroll-source-${employee.id}`} tabIndex={-1} aria-label={employee.name}>
+        return <article className="hours-employee-card" ref={employeeCard} key={employee.id} id={`payroll-source-${employee.id}`} tabIndex={-1} aria-label={employee.name}>
           <header><h3>{employee.name}</h3><span>Pay-Period Totals · {dayLabel(snapshot.start)} – {dayLabel(snapshot.end)}</span></header>
           <div className="hours-total-grid"><Fact label="Total Hours" note={`${hours(employee.weeks.reduce((sum, week) => sum + week.regular, 0))} regular · ${hours(employee.weeks.reduce((sum, week) => sum + week.overtime, 0))} OT`}>{hours(employee.total)}</Fact>{payroll && <PayFacts pay={periodPay} />}</div>
           {payroll && <PayWarning pay={periodPay} />}
+          <nav className="crew-week-nav" aria-label={`${employee.name} weeks`}>{employee.weeks.map((week, index) => {
+            const selectedWeek = weekIndex ?? Math.max(0, employee.weeks.findIndex(candidate => selectedDate >= candidate.start && selectedDate <= candidate.end));
+            return <button type="button" key={week.start} aria-pressed={selectedWeek === index} onClick={() => setWeekIndex(index)}><strong>Week {index + 1}</strong><span>{dayLabel(week.start)} – {dayLabel(week.end)}</span></button>;
+          })}</nav>
           {employee.weeks.map((week, index) => {
+            const selectedWeek = weekIndex ?? Math.max(0, employee.weeks.findIndex(candidate => selectedDate >= candidate.start && selectedDate <= candidate.end));
+            if (index !== selectedWeek) return null;
             const weekPay = payForDays(days, week.start, week.end);
-            return <details className="hours-week-dropdown" key={week.start}>
-              <summary><span><strong>Week {index + 1}</strong><small>{dayLabel(week.start)} – {dayLabel(week.end)}</small></span><span>{hours(week.total)}</span>{payroll && <strong>{money(weekPay.totalPay)}</strong>}</summary>
+            return <section className="crew-selected-week" key={week.start} aria-label={`Week ${index + 1}`}>
+
               <div className="hours-week-content"><h4>Week {index + 1} Totals</h4><div className="hours-total-grid"><Fact label="Hours" note={`${hours(week.regular)} regular · ${hours(week.overtime)} OT`}>{hours(week.total)}</Fact>{payroll && <PayFacts pay={weekPay} />}</div>{payroll && <PayWarning pay={weekPay} />}
                 <h4>Daily Totals</h4><div className="hours-daily-records" aria-label={`Week ${index + 1} daily breakdowns`}>{week.days.map(day => {
                   const pay = payForDays(days, day.date, day.date);
                   const evidence = days.find(record => record.date === day.date);
                   return <section className="hours-day-card" key={day.date} aria-label={`${day.date} daily totals`}>
-                    <div className="hours-day-grid"><Fact label="Date" note={`${day.status}${day.corrected ? ' · Corrected' : ''}`}>{day.date}</Fact><Fact label="Clock In">{recordedPayrollClock(day.clockIn) || recordedPayrollClock(evidence?.clockIn) || day.clockIn || '—'}</Fact><Fact label="Clock Out">{recordedPayrollClock(day.clockOut) || recordedPayrollClock(evidence?.clockOut) || day.clockOut || '—'}</Fact><Fact label="Hours" note={day.overtime > 0 ? `${hours(day.overtime)} OT` : undefined}>{hours(day.hours)}</Fact><Fact label="Role">{day.role}</Fact><Fact label="Truck">{day.truck}</Fact>
+                    <header className="crew-day-header"><div><strong>{new Date(`${day.date}T12:00:00Z`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' })}</strong><small>{day.status}{day.corrected ? ' · Corrected' : ''}</small></div><span>{hours(day.hours)}</span>{payroll && <strong>{money(pay.totalPay)}</strong>}{payroll?.canWrite && <button type="button" aria-label={`Edit hours for ${employee.name} on ${day.date}`} onClick={() => setEditing({date:day.date,name:employee.name,action:'correction'})}>Edit hours</button>}</header>
+                    <details className="crew-day-details"><summary>Pay breakdown & source details{evidence?.issue ? ' · Needs attention' : ''}</summary><div className="hours-day-grid"><Fact label="Date" note={`${day.status}${day.corrected ? ' · Corrected' : ''}`}>{day.date}</Fact><Fact label="Clock In">{recordedPayrollClock(day.clockIn) || recordedPayrollClock(evidence?.clockIn) || day.clockIn || '—'}</Fact><Fact label="Clock Out">{recordedPayrollClock(day.clockOut) || recordedPayrollClock(evidence?.clockOut) || day.clockOut || '—'}</Fact><Fact label="Hours" note={day.overtime > 0 ? `${hours(day.overtime)} OT` : undefined}>{hours(day.hours)}</Fact><Fact label="Role">{day.role}</Fact><Fact label="Truck">{day.truck}</Fact>
                       <Fact label="Jobs">{day.jobs ?? '—'}</Fact><Fact label="Job Revenue Worked">{money(day.jobRevenueWorked)}</Fact>{payroll && <PayFacts pay={pay} />}
                     </div>{payroll && day.status !== 'Upcoming' && day.status !== 'No Record' && <PayWarning pay={pay} />}
                   {evidence && <div className="hours-day-evidence">{evidence.issue && <p className="hours-record-warning">{evidence.issue}</p>}<p>{evidence.payNote || 'Recorded daily payroll'}{evidence.sourceAt ? ` · Source observed ${evidence.sourceAt}` : ' · Source time unavailable'}</p>{evidence.hourlyRate != null && <p>Shift rate: {money(evidence.hourlyRate)}</p>}{evidence.correctionNote && <p>Correction: {evidence.correctionNote} · {evidence.correctionBy || 'Actor unavailable'} · JunkWare {evidence.syncStatus || 'not verified'}</p>}{evidence.manualBonuses?.map(bonus => <p key={bonus.entryId}>Manual bonus: {money(bonus.amount)} · {bonus.note}</p>)}</div>}
-                  {payroll?.canWrite && <div className="hours-day-actions"><button type="button" onClick={() => setEditing({date:day.date,name:employee.name,action:'correction'})}>Edit hours</button><button type="button" onClick={() => setEditing({date:day.date,name:employee.name,action:'bonus'})}>Add bonus</button></div>}
+                  {payroll?.canWrite && <div className="hours-day-actions"><button type="button" onClick={() => setEditing({date:day.date,name:employee.name,action:'bonus'})}>Add bonus</button></div>}
+                    </details>
                   </section>;
                 })}</div>
               </div>
-            </details>;
+            </section>;
           })}
         </article>;
-      })}</div>
+      })}</div></div>
       {!employees.length && <p className="hours-source-note">{snapshot.employees.length ? 'No employees match your search.' : 'No employee records are available for this pay period.'}</p>}
+      </div>
       <footer className="hours-source-note">{employees.length} Employees · Hours Updated {new Date(snapshot.generatedAt).toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' })} · Payroll Records and OpsCenter Corrections</footer>
     </>}
     {editing && <KreweDayEditor {...editing} periodDate={selectedDate} onClose={() => setEditing(null)} onSaved={async () => { await Promise.all([freshness.refresh(), onRefresh?.()]); }} />}

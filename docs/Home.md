@@ -31,6 +31,7 @@ without mixing live runtime data or secrets into Git.
 ## Integrations and operating areas
 
 - [Krewe Pay Portal](crew-pay-portal.md)
+- [Mobile job closeout design preview](mobile-job-closeout.md)
 - [JunkWare write-through](junkware-write-through.md)
 - [Payment reconciliation](payment-reconciliation.md)
 - [Metal recycling revenue](recycling-revenue.md)

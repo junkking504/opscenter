@@ -1,0 +1,10 @@
+import { build } from 'esbuild';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+const outputDirectory = path.resolve(process.argv[2] || '/tmp/opscenter-mobile-closeout-preview');
+const result = await build({entryPoints:['desktop-ui/mobile-closeout/preview.tsx'],bundle:true,write:false,outdir:'preview',jsx:'automatic',minify:true,define:{'process.env.NODE_ENV':'"production"'},alias:{react:path.resolve('desktop-ui/node_modules/react'),'react-dom':path.resolve('desktop-ui/node_modules/react-dom')}});
+const js=result.outputFiles.find(file=>file.path.endsWith('.js')).text;
+const css=result.outputFiles.find(file=>file.path.endsWith('.css')).text;
+await mkdir(outputDirectory,{recursive:true});
+await writeFile(path.join(outputDirectory,'index.html'),`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>OpsCenter Mobile · Design Preview</title><style>body{margin:0;background:#e9ece4}${css}</style></head><body><div id="root"></div><script>${js.replaceAll('</script','<\\/script')}</script></body></html>`);
+console.log(path.join(outputDirectory,'index.html'));

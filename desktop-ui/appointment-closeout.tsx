@@ -52,11 +52,15 @@ function inputMoney(value: string): string {
   return String(value || "").replace(/[^0-9.-]/g, "");
 }
 
-export default function AppointmentCloseout({ job, date: serviceDate, saved, onBusyChange }: { job: ScheduleAppointment; date: string; saved: () => void; onBusyChange: (busy: boolean) => void }) {
+export default function AppointmentCloseout({ job, date: serviceDate, saved, onBusyChange, presentation = 'drawer', onBackToAppointment }: { job: ScheduleAppointment; date: string; saved: () => void; onBusyChange: (busy: boolean) => void; presentation?: 'drawer' | 'mobile'; onBackToAppointment?: () => void }) {
   const { appointmentId, appointmentUrl, status: initialStatus } = job;
   const panel = useRef<HTMLDetailsElement>(null);
   const reviewPanel = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
+  const [mobileStep, setMobileStep] = useState(0);
+  const mobile = presentation === 'mobile';
+  useEffect(() => { if (mobile && panel.current) panel.current.open = true; }, [mobile]);
+  useEffect(() => { if (mobile) panel.current?.scrollIntoView({ block: 'start' }); }, [mobile, mobileStep]);
   const [actionHost, setActionHost] = useState<Element | null>(null);
   const [differenceReviewed, setDifferenceReviewed] = useState(false);
   useEffect(() => { setActionHost(panel.current?.closest('.job-record-drawer')?.querySelector('.closeout-footer-slot') || null); }, []);
@@ -372,17 +376,19 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   const draftBalance = totals && live ? totals.total-live.payments.filter(payment=>!/^billed/i.test(payment.description)).reduce((sum,payment)=>sum+Number(inputMoney(payment.amount)),0) : 0;
   const paymentDifference = addPayment && targetStatus !== '9' ? Number(inputMoney(paymentAmount))-draftBalance : 0;
   const timeLabel = (hour:string,minute:string) => hour && minute ? `${Number(hour)%12 || 12}:${minute.padStart(2,'0')} ${Number(hour)>=12?'PM':'AM'}` : 'Not entered';
+  const nextMobileStep = mobile && mobileStep < 2 && !reviewing && !pendingReceipt && !verified && targetStatus !== '9';
   const actions = expanded && live ? <div className="closeout-primary-actions">
     <div className="closeout-action-context"><strong>{pendingReceipt ? 'Check the previous save' : verified ? 'Saved and verified' : reviewing ? 'Ready to confirm' : 'Review before saving'}</strong>{totals && targetStatus!=='9' && <span>{money(totals.total)}{totals.estimated ? ' estimated' : ''}</span>}</div>
     {error && <p role="alert">{error}</p>}
-    <button type="button" className="ops-button closeout-primary-button" onClick={()=>void (pendingReceipt ? check() : verified ? load() : save())} disabled={saving || loading || (!pendingReceipt && !verified && !canWrite)}>{saving ? "Saving and checking JunkWare…" : pendingReceipt ? 'Check Saved Result' : verified ? 'Reload saved closeout' : targetStatus === '9' ? reviewing ? 'Confirm Cancellation in JunkWare' : 'Review Cancellation' : targetStatus === '1' ? reviewing ? 'Confirm Changes in JunkWare' : 'Review Changes' : reviewing ? `Confirm ${category} Closeout in JunkWare` : "Review Closeout"}</button>
-    <div className="closeout-secondary-actions">{reviewing && <button type="button" onClick={()=>{setReviewing(false);setDifferenceReviewed(false);}} disabled={saving}>Edit details</button>}<button type="button" onClick={()=>{if(panel.current)panel.current.open=false;}} disabled={saving || loading}>Back to appointment</button></div>
+    <button type="button" className="ops-button closeout-primary-button" onClick={()=>void (nextMobileStep ? setMobileStep(mobileStep + 1) : pendingReceipt ? check() : verified ? load() : save())} disabled={saving || loading || (!pendingReceipt && !verified && !canWrite)}>{nextMobileStep ? `Continue to ${mobileStep === 0 ? 'charges' : 'payment'}` : saving ? "Saving and checking JunkWare…" : pendingReceipt ? 'Check Saved Result' : verified ? 'Reload saved closeout' : targetStatus === '9' ? reviewing ? 'Confirm Cancellation in JunkWare' : 'Review Cancellation' : targetStatus === '1' ? reviewing ? 'Confirm Changes in JunkWare' : 'Review Changes' : reviewing ? `Confirm ${category} Closeout in JunkWare` : "Review Closeout"}</button>
+    <div className="closeout-secondary-actions">{mobile && mobileStep > 0 && !reviewing && (!receipt || receipt.status==='failed') && <button type="button" disabled={saving || loading} onClick={()=>setMobileStep(mobileStep-1)}>Previous step</button>}{reviewing && <button type="button" onClick={()=>{setReviewing(false);setDifferenceReviewed(false);}} disabled={saving}>Edit details</button>}<button type="button" onClick={()=>{if(mobile && onBackToAppointment) onBackToAppointment(); else if(panel.current)panel.current.open=false;}} disabled={saving || loading}>Back to appointment</button></div>
   </div> : null;
 
   return (
-    <details ref={panel} className="appointment-closeout-panel" data-appointment-id={resolvedAppointmentId} aria-busy={loading || saving} onToggle={event => { setExpanded(event.currentTarget.open); if (event.currentTarget.open && !live && !loading && !saving) void load(); }}>
+    <details ref={panel} data-mobile-step={mobile ? reviewing ? "review" : mobileStep : undefined} className={`appointment-closeout-panel${mobile ? " mobile-closeout-panel" : ""}`} data-appointment-id={resolvedAppointmentId} aria-busy={loading || saving} onToggle={event => { setExpanded(event.currentTarget.open); if (event.currentTarget.open && !live && !loading && !saving) void load(); }}>
       <summary><span className="closeout-summary-title">Appointment Closeout</span><span className="closeout-summary-action" aria-hidden="true"><span className="closeout-open-label">Open</span><span className="closeout-hide-label">Hide</span><span className="closeout-summary-chevron">⌄</span></span></summary>
       <div className="appointment-closeout-body">
+        {mobile && live && <nav className="mobile-closeout-steps" aria-label="Closeout steps">{['Details','Charges','Payment','Review'].map((label,index)=><button key={label} type="button" aria-current={(reviewing ? index===3 : mobileStep===index) ? 'step' : undefined} disabled={saving || loading || Boolean(receipt && receipt.status !== 'failed') || index===3} onClick={()=>{setMobileStep(index);setReviewing(false);}}><span>{index+1}</span>{label}</button>)}</nav>}
         {receipt && <>{receipt.action && receipt.action !== 'closeout' && ['pending', 'uncertain'].includes(receipt.status) && <p role="alert">Closeout is locked until the earlier {receipt.action === 'move' ? 'assignment change' : 'appointment change'} is checked in JunkWare. This is not a closeout result.</p>}<ChangeReceipt receipt={receipt} onCheck={() => { void check(); }} /></>}
         {!live ? (
           loading ? <p role="status">Loading current JunkWare closeout…</p> : error ? (
@@ -411,29 +417,29 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               <p className="closeout-confirm-note">Confirmation saves this {targetStatus==='9' ? 'cancellation' : 'appointment'} in JunkWare.{targetStatus==='8' ? ' Completion may send the normal closeout alert.' : ''}</p>
             </div>}
             <p className="closeout-step-note">{reviewing ? 'Review the summary above, or edit any field below.' : '1. Job details and charges → 2. Review → 3. Confirm in JunkWare'}</p>
-            <fieldset className="ops-closeout-status-options"><legend>Status</legend>
+            <fieldset data-closeout-step="0" className="ops-closeout-status-options"><legend>Status</legend>
               {[['1', 'Confirmed'], ['8', 'Completed'], ['9', 'Cancelled']].map(([value, label]) => <label key={value}><input type="radio" name={statusGroupId} value={value} checked={targetStatus === value} disabled={live.status.value === '8' && value !== '8'} onChange={() => { setTargetStatus(value); setReviewing(false); setError(''); }} /><span>{label}</span></label>)}
             </fieldset>
             {targetStatus === '9' ? <section className="appointment-create-section">
               <label><span>Cancellation reason</span><textarea aria-label="Closeout cancellation reason" maxLength={500} rows={2} value={cancellationReason} onChange={event => { setCancellationReason(event.target.value); setReviewing(false); }} /></label>
               <p>Cancellation saves only the status and reason. Charges, payments and crew edits in this draft are not submitted.</p>
             </section> : <>
-            <label><span>Final appointment category</span><select value={category} onChange={event => { setCategory(event.target.value); setReviewing(false); setEstimateReason(''); setEstimateExplanation(''); setNoDiscountReason(''); }}><option>Job</option><option>Estimate</option></select></label>
-            <div className="drawer-facts">
+            <label data-closeout-step="0"><span>Final appointment category</span><select value={category} onChange={event => { setCategory(event.target.value); setReviewing(false); setEstimateReason(''); setEstimateExplanation(''); setNoDiscountReason(''); }}><option>Job</option><option>Estimate</option></select></label>
+            <div data-closeout-step="0" className="drawer-facts">
               <div><span>Junkware status</span><strong>{live.status.label || "Unavailable"}</strong></div>
               <div><span>Saved total</span><strong>{live.total || "Unavailable"}</strong></div>
               <div><span>Balance</span><strong>{live.balance || "Unavailable"}</strong></div>
             </div>
             {saving ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">Saving changes and checking them in JunkWare…</div> : null}
 
-            {targetStatus === '8' && category === 'Estimate' && live.status.value !== '8' ? <section className="appointment-create-section estimate-outcome-fields">
+            {targetStatus === '8' && category === 'Estimate' && live.status.value !== '8' ? <section data-closeout-step="0" className="appointment-create-section estimate-outcome-fields">
               <h4>Estimate outcome required by JunkWare</h4>
               <label><span>Why did this remain an estimate?</span><select value={estimateReason} onChange={event => { setEstimateReason(event.target.value); setReviewing(false); }}><option value="">Select reason</option><option>Price/Budget</option><option>Date/Time</option><option>Other</option></select></label>
               <label><span>Outcome notes</span><textarea rows={2} maxLength={2000} value={estimateExplanation} onChange={event => { setEstimateExplanation(event.target.value); setReviewing(false); }} /></label>
               {!(Number(inputMoney(live.discount)) > 0) ? <label><span>Why was no discount offered?</span><textarea rows={2} maxLength={2000} value={noDiscountReason} onChange={event => { setNoDiscountReason(event.target.value); setReviewing(false); }} /></label> : null}
             </section> : null}
 
-            <section className="appointment-create-section">
+            <section data-closeout-step="0" className="appointment-create-section">
               <label><span>Truck</span><select aria-label="Appointment truck" value={truck} onChange={event => {
                 setTruck(event.target.value); setReviewing(false);
                 setLive(current => { if (!current) return current; const next={...current};
@@ -468,7 +474,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               <button type="button" className="ops-button subtle" onClick={addNavigator}>+ Add another navigator</button>
             </section>
 
-            <section className="appointment-create-section">
+            <section data-closeout-step="0" className="appointment-create-section">
               <h4>Actual Job Time</h4>
               {hasGpsTimes ? <><p>Truck GPS: {onsiteTimeFacts(job.onsiteTime!).filter(fact=>fact.label!=='On-site time').map(fact=>`${fact.label} ${fact.value}`).join(' · ')}. Rounded to JunkWare’s available minutes.</p>
                 <button type="button" className="ops-button subtle" onClick={()=>{setReviewing(false);gpsDefaults.current={...gpsTimes};setLive(current=>{if(!current)return current;const next={...current};for(const key of Object.keys(gpsTimes) as CloseoutTimeKey[])next[key]={...next[key],value:gpsTimes[key]!};return next;});}}>Use GPS times</button></> : <p>Confirmed GPS visit times are unavailable for this truck. Enter the actual job times.</p>}
@@ -483,7 +489,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               </div>
             </section>
 
-            <section className="appointment-create-section">
+            <section data-closeout-step="1" className="appointment-create-section">
               <h4>Job Charges</h4>
               <div className="appointment-closeout-grid">
                 <label><span>Full trucks</span><input value={live.loadQuantity} inputMode="decimal" onChange={(event) => updateLoadQuantity(event.target.value)} /></label>
@@ -534,14 +540,14 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               </div>
             </section>
 
-            {totals && <div className="ops-closeout-totals" aria-label="Draft charge totals" aria-live="polite">
+            {totals && <div data-closeout-step="1" className="ops-closeout-totals" aria-label="Draft charge totals" aria-live="polite">
               <div><span>Subtotal</span><strong>{money(totals.subtotal)}</strong></div>
               <small>Before discount and tip{totals.estimated ? ' · Percentage fees estimated' : ''}</small>
                 <label><span>Discount</span><input value={live.discount} inputMode="decimal" onChange={(event) => update("discount", event.target.value)} /></label>
                 <label><span>Tip</span><input value={live.tip} inputMode="decimal" onChange={(event) => update("tip", event.target.value)} /></label>
               <div><span>Total after discount and tip</span><strong>{money(totals.total)}</strong></div>
             </div>}
-            <section className="appointment-create-section">
+            <section data-closeout-step="2" className="appointment-create-section">
               <h4>Payments</h4>
               {live.payments.length ? <div className="ops-closeout-payments">{live.payments.map((payment, index) => <div key={`payment-${index}`}><span>{payment.description}</span><strong>{payment.amount}</strong></div>)}</div> : <p>No payment has been entered in Junkware.</p>}
               <label className="ops-closeout-payment-toggle"><input type="checkbox" checked={addPayment} disabled={!live.paymentMethods.some(option => option.value)} onChange={(event) => setAddPayment(event.target.checked)} /> <span>Add a payment</span></label>

@@ -37,7 +37,7 @@ export default function TruckAgents({ date, truck, compact = false }: { date: st
   const overdueView = freshness.now - Date.parse(snapshot.generatedAt) > 180_000;
   const urgent = agents.filter(a => a.recommendations.some(r => r.priority === 'urgent')).length;
   return <section className={`truck-agents${compact ? ' truck-agents-compact' : ''}`} aria-label="Truck agents">
-    <header><div><h2>{truck ? `${truck.replace('# ', '')} agent` : 'Truck agents'}</h2><p>{agents.length} assigned · {urgent} need urgent review · advisory actions</p></div><Button variant="outline" size="sm" disabled={pending || freshness.pending} onClick={() => void freshness.refresh().catch(() => {})}>Refresh agents</Button></header>
+    <header><div><h2>{truck ? `Truck ${agentTruckNumber(truck)} agent` : 'Truck agents'}</h2><p>{agents.length} assigned · {urgent} need urgent review · advisory actions</p></div><Button variant="outline" size="sm" disabled={pending || freshness.pending} onClick={() => void freshness.refresh().catch(() => {})}>Refresh agents</Button></header>
     <p className="truck-agent-timing">Background check: {time(snapshot.heartbeatAt)}{stale ? ' · heartbeat needs attention' : ''}{overdueView ? ' · displayed assessment is stale' : ''}</p>
     {freshness.error && <p role="alert">Refresh failed; retained recommendations may be outdated. {freshness.error}</p>}
     {snapshot.warnings.map(w => <p className="truck-agent-warning" key={w}>{w}</p>)}

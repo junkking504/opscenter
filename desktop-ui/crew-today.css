@@ -1,0 +1,52 @@
+.crew-today { display: grid; gap: 16px; min-width: 0; }
+.crew-today-roster { min-width: 0; border: 1px solid #c9d7ce; border-radius: 10px; background: #fff; overflow: hidden; }
+.crew-today-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; background: #edf3ef; border-bottom: 1px solid #c9d7ce; }
+.crew-today-heading h2 { margin: 0; font-size: 19px; color: #213b2c; }
+.crew-today-heading p { margin: 5px 0 0; color: #617268; font-size: 12px; }
+.crew-today-heading .crew-section-nav { margin: 0; padding: 4px; }
+.crew-today-toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; padding: 14px 16px; border-bottom: 1px solid #d7e1da; }
+.crew-today-toolbar label { display: grid; gap: 5px; font-size: 11px; font-weight: 650; color: #4e6457; }
+.crew-today-toolbar label:first-child { flex: 1; min-width: 160px; max-width: 340px; }
+.crew-today-toolbar :is(input,select) { min-width: 0; width: 100%; height: 36px; border: 1px solid #bbccc0; border-radius: 6px; padding: 7px 10px; background: #fff; color: #273e30; font-size: 13px; }
+.crew-today-toolbar > button { min-height: 36px; padding: 6px 10px; font-size: 12px; color: #285e3c; text-decoration: underline; cursor: pointer; }
+.crew-today-row { display: grid; grid-template-columns: minmax(180px,1.4fr) minmax(150px,1fr) minmax(100px,.7fr) auto; align-items: center; gap: 18px; padding: 18px 16px; border-bottom: 1px solid #dce4df; }
+.crew-today-row:last-child { border-bottom: 0; }
+.crew-today-row:nth-child(even) { background: #f7faf8; }
+.crew-today-person { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.crew-today-avatar { flex-shrink: 0; display: grid; place-items: center; width: 36px; height: 36px; background: #e7eee9; border: 1px solid #ccd9d0; border-radius: 8px; color: #34553f; font-size: 12px; font-weight: 700; }
+.crew-today-person h3 { margin: 0; color: #203929; font-size: 15px; font-weight: 650; }
+.crew-today-person p { margin: 5px 0 0; font-size: 11px; color: #586e60; overflow-wrap: anywhere; }
+.crew-today-fact { display: grid; gap: 4px; min-width: 0; font-variant-numeric: tabular-nums; }
+.crew-today-fact > span, .crew-today-driving > span { font-size: 11px; color: #617268; }
+.crew-today-fact strong { color: #243e2e; font-size: 16px; }
+.crew-today-fact small { color: #617268; font-size: 11px; }
+.crew-today-pay strong { color: #17613b; font-size: 19px; }
+.crew-today-actions { display: flex; gap: 8px; }
+.crew-today-actions button, .crew-today-empty button { min-height: 36px; border: 1px solid #b4c8bb; border-radius: 6px; padding: 8px 11px; background: #fff; color: #285e3c; cursor: pointer; white-space: nowrap; font-size: 12px; font-weight: 650; }
+.crew-today-actions .crew-today-edit { background: #285e3c; color: #fff; border-color: #285e3c; }
+.crew-today-driving { display: grid; gap: 5px; min-width: 0; }
+.crew-today-issue { grid-column: 1 / -1; margin: 0; border-left: 3px solid #a27324; padding: 8px 10px; background: #fff6e6; color: #78521b; font-size: 12px; }
+.crew-today-empty { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; padding: 30px 16px; color: #586e60; font-size: 13px; }
+.crew-today :is(button,input,select):focus-visible { outline: 2px solid #285e3c; outline-offset: 2px; }
+@media (max-width: 1150px) {
+  .crew-today-row { grid-template-columns: minmax(160px,1.2fr) minmax(130px,1fr) minmax(90px,.7fr); gap: 12px; }
+  .crew-today-actions { grid-column: 1 / -1; justify-content: flex-end; }
+  .crew-today-production .crew-today-driving { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+  .crew-today-heading { padding: 12px; }
+  .crew-today-heading .crew-section-nav { width: 100%; }
+  .crew-today-toolbar { padding: 12px; gap: 10px; }
+  .crew-today-toolbar label:first-child { min-width: 100%; }
+  .crew-today-row { grid-template-columns: minmax(0,1fr) minmax(0,1fr); padding: 14px 12px; gap: 14px; }
+  .crew-today-person { grid-column: 1 / -1; }
+  .crew-today-actions { justify-content: stretch; }
+  .crew-today-actions button { flex: 1; min-height: 40px; }
+  .crew-today-fact strong { font-size: 15px; }
+  .crew-today-pay strong { font-size: 19px; }
+}
+@media (max-width: 600px) {
+  .crew-today .krewe-kpi-strip { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .crew-today .krewe-kpi-strip article { min-width: 0; }
+  .crew-today .krewe-kpi-strip strong { overflow-wrap: anywhere; }
+}

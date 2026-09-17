@@ -63,7 +63,33 @@ async function main() { try {
   problem.answers[0].notes = "Fluid leak";
   assert.throws(() => validateTruckInspection(problem, now), /problem was marked/);
   problem.status = "stop";
-  assert.equal(submitTruckInspection(problem, phone.device, now).status, "stop");
+  assert.throws(() => submitTruckInspection(problem, phone.device, now), /photo for Walk-around/);
+  assert.equal(findTruckInspection(phone.device.deviceId, problem.requestId), null, "missing evidence must not save a report");
+  const photo = { section: "walk-around", data: "data:image/jpeg;base64,/9j/AA==" };
+  assert.throws(() => validateTruckInspection({ ...problem, photos: [{ ...photo, section: "wheels-tires" }] }, now), /photo for Walk-around/);
+  const photographed = { ...problem, photos: [photo] };
+  assert.equal(submitTruckInspection(photographed, phone.device, now).status, "stop");
+  assert.throws(() => submitTruckInspection(problem, phone.device, now), /different answers/, "removing a saved photo cannot alter a receipt");
+  const allProblems = { ...valid(), status: "reported", answers: INSPECTION_SECTIONS.map(s => ({ id: s.id, status: "problem", notes: "Issue found" })), photos: INSPECTION_SECTIONS.map(s => ({ ...photo, section: s.id })) };
+  assert.equal(submitTruckInspection(allProblems, phone.device, now).photos.length, 5);
+  for (const section of INSPECTION_SECTIONS) {
+    assert.throws(() => validateTruckInspection({ ...allProblems, photos: allProblems.photos.filter(p => p.section !== section.id) }, now), /Add a photo/);
+  }
+  assert.throws(() => validateTruckInspection({ ...allProblems, photos: [...allProblems.photos, photo] }, now), /up to five/);
+  const stop = { ...valid(), status: "stop", notes: "Unsafe condition" };
+  assert.throws(() => validateTruckInspection(stop, now), /photo showing why/);
+  assert.equal(validateTruckInspection({ ...stop, photos: [photo] }, now).photos.length, 1);
+  // Before this requirement, both report versions could be received without photos.
+  for (const version of [1, 2]) {
+    const oldProblem = { ...problem, requestId: randomUUID() };
+    const oldReceipt = { ...oldProblem, version, deviceId: phone.device.deviceId, receivedAt: now.toISOString(), inspectionDate: "2026-09-15" };
+    const oldPath = path.join(directory, "reports", `${createHash("sha256").update(`${phone.device.deviceId}:${oldProblem.requestId}`).digest("hex")}.json`);
+    fs.writeFileSync(oldPath, JSON.stringify(oldReceipt));
+    assert.deepEqual(submitTruckInspection(oldProblem, phone.device, now), oldReceipt);
+    assert.equal(fs.readFileSync(oldPath, "utf8"), JSON.stringify(oldReceipt));
+    assert.throws(() => submitTruckInspection({ ...oldProblem, notes: "Changed" }, phone.device, now), /different answers/);
+    assert.throws(() => submitTruckInspection({ ...oldProblem, requestId: randomUUID(), version }, phone.device, now), /photo for Walk-around/, "client version cannot bypass photo validation");
+  }
   assert.throws(() => validateTruckInspection({ ...valid(), status: "stop" }, now), /notes/);
   assert.throws(() => validateTruckInspection({ ...valid(), photos: [{ section: "walk-around", data: "data:image/svg+xml,<svg/>" }] }, now), /JPEG/);
   assert.equal(inspectionDate(new Date("2026-09-15T03:00:00Z")), "2026-09-14");

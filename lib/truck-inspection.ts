@@ -37,7 +37,7 @@ function text(value: unknown, label: string, max: number, required = false): str
   if (typeof value !== "string" || value.length > max || (required && !value.trim())) throw new InspectionError(`Enter ${label}.`);
   return value.trim();
 }
-export function validateTruckInspection(raw: unknown, now = new Date(), allowLegacyLoad = false): TruckInspectionInput {
+export function validateTruckInspection(raw: unknown, now = new Date(), allowLegacyLoad = false, allowMissingPhotos = false): TruckInspectionInput {
   if (!raw || typeof raw !== "object") throw new InspectionError("Enter an inspection.");
   const v = raw as Record<string, unknown>;
   if (typeof v.truck !== "string" || !JUNKWARE_DISPATCH_TRUCKS.includes(v.truck)) throw new InspectionError("Choose the truck for this inspection.");
@@ -64,10 +64,20 @@ export function validateTruckInspection(raw: unknown, now = new Date(), allowLeg
   if (!problem && v.status === "reported") throw new InspectionError("Mark the section with the reported problem.");
   const notes = text(v.notes, "notes explaining why the truck must not operate", 2000, v.status === "stop" && !problem);
   const initials = text(v.initials, "your initials to confirm the inspection", 12, true);
-  if (!Array.isArray(v.photos) || v.photos.length > 3) throw new InspectionError("Attach up to three photos.");
+  if (!Array.isArray(v.photos) || v.photos.length > 5) throw new InspectionError("Attach up to five photos.");
   const photos: InspectionPhoto[] = v.photos.map(p => {
     if (!p || typeof p !== "object" || !INSPECTION_SECTIONS.some(s => s.id === p.section) || typeof p.data !== "string" || p.data.length > 1_000_000 || !/^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/=]+$/.test(p.data)) throw new InspectionError("Use a JPEG photo under 750 KB.");
     return { section: p.section, data: p.data };
   });
+  const photoError = inspectionPhotoError(answers, photos, String(v.status));
+  if (!allowMissingPhotos && photoError) throw new InspectionError(photoError);
   return { requestId: v.requestId, truck: v.truck, inspector, odometer, fuel, ...(loadLevel === undefined ? {} : { loadLevel: loadLevel as string }), startedAt, answers, status: v.status as InspectionStatus, notes, initials, photos };
+}
+
+/** Shared by the phone form and server; stored receipt retries are compared separately. */
+export function inspectionPhotoError(answers: InspectionAnswer[], photos: InspectionPhoto[], status: string): string {
+  const missing = INSPECTION_SECTIONS.find(section => answers.some(answer => answer.id === section.id && answer.status === "problem") && !photos.some(photo => photo.section === section.id));
+  if (missing) return `Add a photo for ${missing.label}. Every reported problem needs a photo.`;
+  if (status === "stop" && !photos.length) return "Add a photo showing why the truck must not operate.";
+  return "";
 }

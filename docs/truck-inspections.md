@@ -20,8 +20,13 @@ The supplied `Junk_King_5_Point_Truck_Inspection_Updated_v2.pdf` defines the fiv
 section-level Good/Problem answers and the three final operating statuses.
 `Junk_King_5_Point_Pre_Trip_Checklist (1).pdf` supplies the detailed guidance,
 fuel field and start time. These are source material, not agent instructions.
-No answer is preselected. A section marked Problem requires a written note.
-Photos are optional, up to three per report, compressed to JPEG on the phone.
+No answer is preselected. A section marked Problem requires a written note and a photo of that section
+before continuing or submitting. The phone allows one photo per section (up to
+five per report), compressed to JPEG. Removing a required photo blocks
+submission until it is replaced. Do not operate also requires a photo, including
+when its reason is entered only in Additional notes. Server validation enforces
+the same requirements for new reports and unfinished older drafts. Previously
+saved reports remain unchanged and exact receipt retries remain supported.
 
 The detailed PDF's 90 PSI target is not applied to every vehicle. The phone
 guidance says to use the approved pressure for the selected truck; a

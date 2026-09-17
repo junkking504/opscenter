@@ -70,7 +70,13 @@ async function main() {
     await page.getByRole("button", { name: "! Report a problem", exact: true }).click();
     assert.equal(await page.getByRole("button", { name: "Save problem & continue" }).isDisabled(), true);
     await page.getByLabel("What did you find?").fill("Synthetic test: tire damage requires supervisor review.");
+    assert.equal(await page.getByRole("button", { name: "Save problem & continue" }).isDisabled(), true, "a note alone cannot complete a problem");
     const photo = await page.screenshot({ clip: { x: 0, y: 0, width: 200, height: 120 } });
+    await page.locator('input[type="file"]').setInputFiles({ name: "test-photo.png", mimeType: "image/png", buffer: photo });
+    await page.getByRole("img", { name: "Wheels & tires problem photo" }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Save problem & continue" }).isDisabled(), false);
+    await page.getByRole("button", { name: "Remove photo 1", exact: true }).click();
+    assert.equal(await page.getByRole("button", { name: "Save problem & continue" }).isDisabled(), true, "removing the photo blocks continuation");
     await page.locator('input[type="file"]').setInputFiles({ name: "test-photo.png", mimeType: "image/png", buffer: photo });
     await page.getByRole("img", { name: "Wheels & tires problem photo" }).waitFor();
     await page.getByText("Draft saved on this phone", { exact: true }).waitFor();
@@ -104,6 +110,22 @@ async function main() {
     await page.getByRole("button", { name: "Review report" }).click();
     assert.equal(await page.getByRole("button", { name: "Send to OpsCenter", exact: true }).isDisabled(), true);
     await page.getByLabel("Your initials", { exact: true }).fill("TD");
+    // Incomplete evidence remains blocked on review and after draft recovery.
+    await page.getByRole("button", { name: "Edit Wheels & tires", exact: true }).click();
+    await page.getByRole("button", { name: "! Report a problem", exact: true }).click();
+    await page.getByRole("button", { name: "Remove photo 1", exact: true }).click();
+    await page.getByRole("button", { name: "← Back", exact: true }).click();
+    await page.getByRole("alert").filter({ hasText: "Add a photo for Wheels & tires" }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Send to OpsCenter", exact: true }).isDisabled(), true);
+    await page.waitForFunction(async () => new Promise<boolean>(resolve => { const open = indexedDB.open("junk-king-truck-inspection", 1); open.onsuccess = () => { const db = open.result; const req = db.transaction("drafts").objectStore("drafts").getAll(); req.onsuccess = () => { const ok = req.result.some(d => d.step === 6 && d.photos.length === 0); db.close(); resolve(ok); }; }; }));
+    await page.reload();
+    await page.getByRole("alert").filter({ hasText: "Add a photo for Wheels & tires" }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Send to OpsCenter", exact: true }).isDisabled(), true);
+    await page.getByRole("button", { name: "Edit Wheels & tires", exact: true }).click();
+    await page.getByRole("button", { name: "! Report a problem", exact: true }).click();
+    await page.locator('input[type="file"]').setInputFiles({ name: "test-photo.png", mimeType: "image/png", buffer: photo });
+    await page.getByRole("img", { name: "Wheels & tires problem photo" }).waitFor();
+    await page.getByRole("button", { name: "Save problem & continue" }).click();
     // Editing a result returns to review and requires a new operating decision.
     await page.getByRole("button", { name: "Edit Dashboard check", exact: true }).click();
     assert.equal(await page.getByRole("button", { name: "Fuel tank 1/2", exact: true }).getAttribute("aria-pressed"), "true");
@@ -138,6 +160,9 @@ async function main() {
     assert.equal(saved.reports[0].loadLevel, "3/4");
     assert.equal(saved.reports[0].fuel, "1/2");
     assert.equal(saved.reports[0].version, 2);
+    const missingPhoto = await mobile.request.post(`${base}/api/truck-inspection`, { data: { action: "submit", report: { ...saved.reports[0], requestId: crypto.randomUUID(), photos: [] } } });
+    assert.equal(missingPhoto.status(), 400);
+    assert.match((await missingPhoto.json()).error, /photo for Wheels & tires/);
     const duplicate = await mobile.request.post(`${base}/api/truck-inspection`, { data: { action: "submit", report: saved.reports[0] } });
     assert.equal(duplicate.status(), 200);
     assert.equal((await mobile.request.post(`${base}/api/truck-inspection`, { data: { action: "submit", report: { ...saved.reports[0], truck: "Truck 8" } } })).status(), 409);
@@ -223,6 +248,15 @@ async function main() {
       await page.getByRole("button", { name: step === 5 ? "✓ Good — finish checks" : "✓ Good — next check", exact: true }).click();
     }
     assert.equal(await page.getByRole("radio", { name: "Safe to operate — problem reported", exact: true }).isDisabled(), true);
+    await page.getByRole("radio", { name: "Do not operate", exact: true }).check();
+    await page.getByLabel("Additional notes").fill("Synthetic stop-only condition");
+    assert.equal(await page.getByRole("button", { name: "Review report" }).isDisabled(), true, "stop-only reports also need a photo");
+    await page.locator('input[type="file"]').setInputFiles({ name: "stop-photo.png", mimeType: "image/png", buffer: photo });
+    await page.getByRole("img", { name: "Do not operate photo" }).waitFor();
+    assert.equal(await page.getByRole("button", { name: "Review report" }).isDisabled(), false);
+    await page.getByRole("button", { name: "Remove photo 1", exact: true }).click();
+    assert.equal(await page.getByRole("button", { name: "Review report" }).isDisabled(), true);
+    await page.getByLabel("Additional notes").fill("");
     await page.getByRole("radio", { name: "No problems", exact: true }).check();
     await page.getByRole("button", { name: "Review report" }).click();
     await page.getByLabel("Your initials", { exact: true }).fill("TT");

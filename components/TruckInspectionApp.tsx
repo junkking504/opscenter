@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { INSPECTION_SECTIONS, INSPECTION_STATUSES, INSPECTION_LEVELS, inspectionDate, type InspectionDevice, type InspectionStatus, type InspectionSectionId, type TruckInspectionInput, type TruckInspectionReport } from "@/lib/truck-inspection";
+import { INSPECTION_SECTIONS, INSPECTION_STATUSES, INSPECTION_LEVELS, inspectionDate, inspectionPhotoError, type InspectionDevice, type InspectionStatus, type InspectionSectionId, type TruckInspectionInput, type TruckInspectionReport } from "@/lib/truck-inspection";
 import { inspectionDraft } from "@/lib/truck-inspection-draft";
 import styles from "./truck-inspection.module.css";
 
@@ -110,18 +110,20 @@ export default function TruckInspectionApp() {
   }
   async function addPhoto(file: File | undefined, section: InspectionSectionId) {
     if (!file || !draft || busy) return; setBusy(true); setError("");
-    try { if (draft.photos.length >= 3) throw new Error("You can attach up to three photos."); const data = await photoData(file); change({ photos: [...draft.photos, { section, data }] }); }
+    try { if (draft.photos.length >= 5 || draft.photos.some(photo => photo.section === section)) throw new Error("Use one photo per section. Remove the current photo to replace it."); const data = await photoData(file); change({ photos: [...draft.photos, { section, data }] }); }
     catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
   const section = draft && draft.step >= 1 && draft.step <= 5 ? INSPECTION_SECTIONS[draft.step - 1] : null;
   const answer = draft?.answers.find(a => a.id === section?.id);
   const problemCount = draft?.answers.filter(a => a.status === "problem").length || 0;
+  const sectionHasPhoto = draft?.photos.some(photo => photo.section === section?.id);
+  const photoError = draft ? inspectionPhotoError(draft.answers, draft.photos, draft.status) : "";
   const complete = draft && INSPECTION_SECTIONS.every(s => draft.answers.some(a => a.id === s.id && (a.status === "good" || (a.status === "problem" && a.notes.trim()))));
   const missingSectionLevel = (section?.id === "dashboard" && !draft?.fuel) || (section?.id === "operation" && !draft?.loadLevel);
-  const canSend = draft && context?.trucks.includes(draft.truck) && complete && draft.inspector.trim() && /^\d{1,8}$/.test(draft.odometer) && draft.fuel && draft.loadLevel && draft.initials.trim() && draft.status && !(problemCount && draft.status === "clear") && !(draft.status === "reported" && !problemCount) && !(draft.status === "stop" && !problemCount && !draft.notes.trim());
+  const canSend = draft && context?.trucks.includes(draft.truck) && complete && !photoError && draft.inspector.trim() && /^\d{1,8}$/.test(draft.odometer) && draft.fuel && draft.loadLevel && draft.initials.trim() && draft.status && !(problemCount && draft.status === "clear") && !(draft.status === "reported" && !problemCount) && !(draft.status === "stop" && !problemCount && !draft.notes.trim());
   function nextSection(good: boolean, eventTime: number) {
     if (!draft || !section || busy || draft.sent || missingSectionLevel) return;
-    if (!good && (!answer || (answer.status === "problem" && !answer.notes.trim()))) return;
+    if (!good && (!answer || (answer.status === "problem" && (!answer.notes.trim() || !sectionHasPhoto)))) return;
     // A double tap must not mark two different inspection sections good.
     if (good && eventTime - lastAdvance.current < 450) return;
     lastAdvance.current = eventTime;
@@ -175,10 +177,10 @@ export default function TruckInspectionApp() {
           </> : section ? <>
             <div className={styles.checkHeading}><h1 ref={heading} tabIndex={-1}>{draft.problemEditing ? "What needs attention?" : section.label}</h1><span className={styles.eyebrow}>{draft.step} of 5</span></div>
             <div className={styles.progress} aria-label={`Check ${draft.step} of 5`}>{INSPECTION_SECTIONS.map((s, i) => <span key={s.id} data-current={i + 1 === draft.step} data-result={draft.answers.find(a => a.id === s.id)?.status || ""} />)}</div>
-            {draft.problemEditing && <p className={styles.intro}>Tell OpsCenter what you found during {section.label.toLowerCase()}. Add a photo if it helps.</p>}
+            {draft.problemEditing && <p className={styles.intro}>Tell OpsCenter what you found during {section.label.toLowerCase()}. Add a photo of the problem to continue.</p>}
             {!draft.problemEditing ? <ol className={styles.checks}>{section.checks.map(check => <li key={check}>{check}</li>)}</ol> : <>
               <label className={styles.inputCard}>What did you find?<textarea required maxLength={1000} value={answer?.notes || ""} placeholder="Include the location and what looks wrong." onChange={e => change({ answers: draft.answers.map(a => a.id === section.id ? { ...a, notes: e.target.value } : a) })} /></label>
-              <label className={styles.photoButton}>＋ Take or add a photo<input type="file" accept="image/*" capture="environment" disabled={busy || draft.photos.length >= 3} onChange={e => { void addPhoto(e.target.files?.[0], section.id); e.target.value = ""; }} /></label><p className={styles.muted}>Optional · Up to 3 photos per report</p>
+              <label className={styles.photoButton}>＋ Take or add a photo<input type="file" accept="image/*" capture="environment" disabled={busy || draft.photos.length >= 5 || sectionHasPhoto} onChange={e => { void addPhoto(e.target.files?.[0], section.id); e.target.value = ""; }} /></label><p className={styles.muted}>Required · One photo for this section</p>
               <div className={styles.photos}>{draft.photos.map((p, index) => p.section === section.id && <figure key={index}><img src={p.data} alt={`${section.label} problem photo`} /><button aria-label={`Remove photo ${index + 1}`} disabled={busy} onClick={() => change({ photos: draft.photos.filter((_, i) => i !== index) })}>Remove</button></figure>)}</div>
             </>}
             {section.id === "dashboard" && <fieldset className={styles.fuel}><legend>Fuel tank level <span>· required</span></legend><div>{INSPECTION_LEVELS.map((f, i) => <button type="button" key={f} aria-label={`Fuel tank ${f}`} aria-pressed={draft.fuel === f} onClick={() => change({ fuel: f })}>{["Empty", "¼", "½", "¾", "Full"][i]}</button>)}</div></fieldset>}
@@ -189,9 +191,12 @@ export default function TruckInspectionApp() {
             <fieldset className={styles.statusChoices}><legend className={styles.srOnly}>Final operating status</legend>{Object.entries(INSPECTION_STATUSES).map(([value, label]) => <label className={styles.radio} key={value}><input type="radio" name="final-status" value={value} checked={draft.status === value} disabled={(value === "clear" && problemCount > 0) || (value === "reported" && !problemCount)} onChange={() => change({ status: value as InspectionStatus })} />{label}</label>)}</fieldset>
             <p className={styles.muted}>{problemCount ? "A problem was reported. No problems is unavailable." : "Choose Do not operate if the truck should stay parked."}</p>
             <label>Additional notes{draft.status === "stop" && !problemCount ? " · required" : " · optional"}<textarea maxLength={2000} value={draft.notes} onChange={e => change({ notes: e.target.value })} /></label>
+            {draft.status === "stop" && !problemCount && !draft.photos.length && <><p className={styles.muted}>Add a photo showing why the truck must not operate.</p><label className={styles.photoButton}>＋ Take or add a photo<input type="file" accept="image/*" capture="environment" disabled={busy} onChange={e => { void addPhoto(e.target.files?.[0], "walk-around"); e.target.value = ""; }} /></label></>}
+            {draft.status === "stop" && !problemCount && <div className={styles.photos}>{draft.photos.map((p, index) => <figure key={index}><img src={p.data} alt="Do not operate photo" /><button aria-label={`Remove photo ${index + 1}`} disabled={busy} onClick={() => change({ photos: draft.photos.filter((_, i) => i !== index) })}>Remove</button></figure>)}</div>}
           </> : <>
             <div className={styles.eyebrow}>{complete ? "ALL 5 CHECKS COMPLETE" : "COMPLETE EVERY CHECK"}</div><h1 ref={heading} tabIndex={-1}>Review & send.</h1><p className={styles.intro}>{draft.truck} · {draft.inspector}<br />{Number(draft.odometer).toLocaleString()} miles<br />Truck fullness: {draft.loadLevel || "not selected"} · Fuel tank: {draft.fuel || "not selected"}</p>
             <div className={styles.card}>{INSPECTION_SECTIONS.map((s, i) => { const a = draft.answers.find(a => a.id === s.id); return <div className={styles.reviewRow} key={s.id}><div><strong>{s.label}</strong><p data-status={a?.status === "problem" ? "reported" : "clear"}>{a?.status === "good" ? "✓ Good" : `! ${a?.notes || "Not checked"}`}</p></div><button aria-label={`Edit ${s.label}`} disabled={busy} onClick={() => change({ step: i + 1, returnToReview: true, problemEditing: false })}>Edit</button></div>; })}</div>
+            {photoError && <p role="alert" className={styles.error}>{photoError} {problemCount ? "Use Edit to add the missing photo." : "Open Operating status to add the photo."}</p>}
             <button className={styles.statusSummary} data-status={draft.status} onClick={() => change({ step: 7 })}><span>OPERATING STATUS · CHANGE</span><strong>{draft.status ? INSPECTION_STATUSES[draft.status] : "Choose operating status"}</strong></button>
             {draft.notes && <p>{draft.notes}</p>}
             <label className={styles.inputCard}>Your initials<input maxLength={12} value={draft.initials} onChange={e => change({ initials: e.target.value })} autoComplete="off" placeholder="Initial here" /></label><p className={styles.muted}>By initialing, I confirm I performed these checks and recorded the conditions I found.</p>
@@ -201,10 +206,10 @@ export default function TruckInspectionApp() {
         <div className={`${styles.actionBar} ${section && !draft.problemEditing ? styles.checkActions : ""}`}>
           {draft.step === 0 ? <button form="start-inspection" className={styles.primary} disabled={!draft.truck}>Start inspection →</button>
           : section ? <>
-            {draft.problemEditing ? <><button className={styles.primary} disabled={busy || !answer?.notes.trim() || missingSectionLevel} onClick={e => nextSection(false, e.timeStamp)}>Save problem & continue →</button><button onClick={() => change({ problemEditing: false })} disabled={busy}>Back to {section.label.toLowerCase()}</button></>
+            {draft.problemEditing ? <><button className={styles.primary} disabled={busy || !answer?.notes.trim() || !sectionHasPhoto || missingSectionLevel} onClick={e => nextSection(false, e.timeStamp)}>Save problem & continue →</button><button onClick={() => change({ problemEditing: false })} disabled={busy}>Back to {section.label.toLowerCase()}</button></>
             : <><button className={styles.goodButton} disabled={busy || missingSectionLevel} onClick={e => nextSection(true, e.timeStamp)}>✓ Good <span className={styles.srOnly}>— {draft.returnToReview ? "review" : draft.step === 5 ? "finish checks" : "next check"}</span><span aria-hidden="true">→</span></button><button disabled={busy} onClick={() => change({ problemEditing: true, answers: [...draft.answers.filter(a => a.id !== section.id), { id: section.id, status: "problem", notes: answer?.notes || "" }], status: "" })}>! Report a problem</button></>}
             <div className={styles.actionMeta}>{back(draft.returnToReview ? 6 : draft.step - 1)}{saveStatus}</div>
-          </> : draft.step === 7 ? <><button className={styles.primary} disabled={!draft.status || (draft.status === "stop" && !problemCount && !draft.notes.trim())} onClick={() => change({ step: 6 })}>Review report →</button><div className={styles.actionMeta}>{back(complete ? 6 : 5)}{saveStatus}</div></>
+          </> : draft.step === 7 ? <><button className={styles.primary} disabled={busy || !draft.status || (draft.status === "stop" && !problemCount && (!draft.notes.trim() || !draft.photos.length))} onClick={() => change({ step: 6 })}>Review report →</button><div className={styles.actionMeta}>{back(complete ? 6 : 5)}{saveStatus}</div></>
           : <><button className={styles.primary} disabled={busy || !canSend} onClick={() => void submit()}>Send to OpsCenter</button><p className={styles.muted}>Wait for your receipt before closing.</p><div className={styles.actionMeta}>{back(7, "Operating status")}{saveStatus}</div></>}
         </div>
       </>}

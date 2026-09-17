@@ -46,7 +46,7 @@ try {
  const loads=readOperationalTruckLoads(date,[],[]);
  assert.deepEqual(loads.map(r=>[r.truck,r.capacityPercent]),[['Truck# 2',50],['Truck# 3',75],['Truck# 4',100],['Truck# 8',100],['Truck# 9',75]]);
  assert.equal(readOperationalTruckLoads('2026-09-17',[],[]).find(r=>r.truck==='Truck# 3')?.capacityPercent,75,'Inspection-only history participates in carry-forward');
- submitTruckInspection({...defect, truck:'Truck 4',requestId:randomUUID()},device,now);
+ submitTruckInspection({...defect, truck:'Truck 4',requestId:randomUUID(),photos:[{section:'wheels-tires',data:'data:image/jpeg;base64,/9j/AA=='}]},device,now);
  const fleet=readDesktopFleet(date,'overview','admin');
  assert.deepEqual(fleet.trucks.find(t=>t.id==='Truck# 4')?.inspectionFindings, inspectionFleetEvidence([defect],'3')?.findings);
  assert.deepEqual(fleet.trucks.find(t=>t.id==='Truck# 3')?.inspectionFindings, []);

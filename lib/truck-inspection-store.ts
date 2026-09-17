@@ -90,14 +90,14 @@ export function submitTruckInspection(raw: unknown, device: InspectionDevice, no
   const compatible = raw && typeof raw === "object" && !("truck" in raw) && device.truck ? { ...raw, truck: device.truck } : raw;
   const requestId = compatible && typeof compatible === "object" && "requestId" in compatible ? compatible.requestId : undefined;
   const existing = typeof requestId === "string" ? read<TruckInspectionReport>(reportFile(device.deviceId, requestId)) : null;
-  const input = validateTruckInspection(compatible, now, existing?.version === 1 && existing.loadLevel === undefined);
+  const input = validateTruckInspection(compatible, now, existing?.version === 1 && existing.loadLevel === undefined, Boolean(existing));
   const file = reportFile(device.deviceId, input.requestId);
   const report: TruckInspectionReport = { ...input, version: 2, deviceId: device.deviceId, receivedAt: now.toISOString(), inspectionDate: inspectionDate(new Date(input.startedAt)) };
   writeOnce(file, report);
   const saved = read<TruckInspectionReport>(file);
   if (!saved) throw new Error("Inspection save could not be verified.");
   // A retry returns the existing receipt. Changed content must never overwrite it.
-  const previous = validateTruckInspection(saved, new Date(saved.receivedAt), saved.version === 1);
+  const previous = validateTruckInspection(saved, new Date(saved.receivedAt), saved.version === 1, true);
   if (JSON.stringify(previous) !== JSON.stringify(input)) throw new InspectionError("This report was already received with different answers. Check the saved result before starting another inspection.", 409);
   indexReport(file, saved);
   return saved;

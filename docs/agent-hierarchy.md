@@ -72,6 +72,10 @@ their existing scheduling policy. Final live cycles must separately verify
 recovery; this scheduling correction does not prove every historical timeout
 had the same cause.
 
+The production build command gives its Next.js compiler a bounded 6 GiB V8
+heap after a 4 GiB build-time allocation failure. This flag is on `npm run build`
+only; the deployed `next start` process and worker deadlines are unchanged.
+
 ## Reconciliation corrections
 
 A named receipt within five minutes before the same truck's first recorded

@@ -15,6 +15,17 @@ Existing bookings do not become new-appointment alerts at midnight. The main
 publisher posts one Schedule Summary after 6 AM; actual additions, cancellations,
 and reschedules after the baseline continue immediately.
 
+Command independently includes canceled appointments from the selected day's
+JunkWare schedule when no matching cancellation notification is available. This
+also covers cancellations already present in the detector's opening baseline and
+partial Slack history. Matching uses appointment identity, or an unambiguous JK
+number within the operating day. A later notification retains the schedule entry's
+review/Control alias, without adding a second fallback card. Schedule-only entries
+show an unavailable cancellation time; neither the service window nor the scrape
+time is presented as the event time. Reviews re-read the canceled source status
+and record the schedule observation time separately. Restored appointments no
+longer produce the fallback. This does not send or replay Slack notifications.
+
 Clock-ins use one updating Krewe Summary per day. Recorded clock-outs/final pay
 retain their existing combined shift record. Attendance summaries do not infer
 lateness or absent employees without an authoritative expected roster.

@@ -1,5 +1,6 @@
 import { streamlineOperationalAlerts } from '@/lib/streamlined-operational-alerts';
-import { readJobRows } from '@/lib/desktop-schedule-source';
+import { readJobRows, junkwareScheduleUpdatedAt } from '@/lib/desktop-schedule-source';
+import { commandCancellationAlerts } from '@/lib/command-cancellations';
 import { consolidateConfirmedVisitAlerts } from '@/lib/confirmed-visit-alerts';
 import { readScheduleVisits } from '@/lib/desktop-schedule-visits';
 import { NextResponse } from "next/server";
@@ -57,6 +58,13 @@ export async function POST(request: Request) {
       if (!entry) return NextResponse.json({error:'The source geofence entry is unavailable. Refresh and try again.'},{status:404,headers});
       alert = geofenceOperationalAlert(entry,date);
       sourceObservedAt = entry.timestamp;
+    } else if (String(body.alertId).startsWith('appointment-cancellation:')) {
+      const cancellation = commandCancellationAlerts([], readJobRows(date), date).find(candidate => candidate.id === body.alertId);
+      if (!cancellation) return NextResponse.json({error:'The appointment is no longer canceled in the available schedule. Refresh and try again.'},{status:404,headers});
+      const observedAt = junkwareScheduleUpdatedAt(date);
+      if (!observedAt) return NextResponse.json({error:'The schedule source timestamp is unavailable. Refresh before saving a review or follow-up.'},{status:503,headers});
+      alert = cancellation;
+      sourceObservedAt = observedAt;
     } else {
       const digest = await readSlackDailyDigest(date);
       if (digest.status !== 'ready') return NextResponse.json({ error: 'Update history is unavailable. Refresh before saving a review or follow-up.' }, { status: 503, headers });

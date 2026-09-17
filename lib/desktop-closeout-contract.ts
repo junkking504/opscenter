@@ -23,17 +23,33 @@ function paymentMethod(row: Row, source: Row): string {
   if (!candidates.length || candidates.length > 1 && normalized(candidates[0].label) === normalized(candidates[1].label)) throw new Error('The added payment method could not be verified from the source row.');
   return String(candidates[0].value);
 }
+/** JunkWare's percentage picker appends the rate; saved rows omit that suffix. */
+function chargeLabels(option: Row): string[] {
+  const label = normalized(option.label);
+  const [, rate, percentage] = String(option.value).split('|');
+  const suffix = label.match(/,\s*(\d+(?:\.\d+)?)\s*%$/);
+  return percentage === '1' && suffix && Number(suffix[1]) === Number(rate)
+    ? [label, label.slice(0, suffix.index).trim()] : [label];
+}
 export function verifyAddedCloseoutCharges(closeout: Row, before: Row, requested: Row[], allowSourceCalculatedPrice = false): Row[] {
   const options = Array.isArray(before.otherChargeOptions) ? before.otherChargeOptions as Row[] : [];
+  const matchingOptions = (row: Row) => options.filter(option => chargeLabels(option).includes(normalized(row.label)));
   // Existing percentage fees legitimately recalculate when the operator changes base charges.
-  const percentageLabels = new Set(options.filter(option => String(option.value).split('|')[2] === '1').map(option => normalized(option.label)));
-  const chargeKey = (row: Row) => percentageLabels.has(normalized(row.label)) ? JSON.stringify([normalized(row.label), amount(row.quantity)]) : JSON.stringify([normalized(row.label), amount(row.quantity), amount(row.price), amount(row.total)]);
+  const chargeKey = (row: Row) => {
+    const matches = matchingOptions(row);
+    return matches.length === 1 && String(matches[0].value).split('|')[2] === '1'
+      ? JSON.stringify([String(matches[0].value), amount(row.quantity)])
+      : JSON.stringify([normalized(row.label), amount(row.quantity), amount(row.price), amount(row.total)]);
+  };
   const added = addedRows(rows(before, 'otherCharges'), rows(closeout, 'otherCharges'), chargeKey);
   if (added.length !== requested.length) throw new Error('JunkWare did not retain exactly the requested added charges.');
   return requested.map(request => {
     const option = options.find(option => String(option.value) === String(request.typeValue));
     if (!option) throw new Error('The requested charge type is missing from the source options.');
-    const index = added.findIndex(row => normalized(row.label) === normalized(option.label) && sameAmount(row.quantity, request.quantity));
+    const index = added.findIndex(row => {
+      const matches = matchingOptions(row);
+      return matches.length === 1 && String(matches[0].value) === String(option.value) && sameAmount(row.quantity, request.quantity);
+    });
     if (index < 0) throw new Error('JunkWare did not retain the requested charge type and quantity.');
     const row = added.splice(index, 1)[0];
     const percentage = String(request.typeValue).split('|')[2] === '1';

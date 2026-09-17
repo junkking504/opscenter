@@ -347,7 +347,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       const result = await checkScheduleChange(receipt.requestId);
       setReceipt(result);
       if (result.status === 'verified' || result.status === 'failed' || result.status === 'reconciled') {
-        if (result.action && result.action !== 'closeout') {
+        if (result.status === 'reconciled' || result.action && result.action !== 'closeout') {
           setReceipt(null); setLive(null); setSourceVersion(''); setCanWrite(false);
           await load(true);
         } else if (result.sourceResult?.closeout) {

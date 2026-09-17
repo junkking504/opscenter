@@ -114,7 +114,7 @@
     "verify:recycling": "node --import tsx scripts/test-recycling-income.ts && node --import tsx scripts/test-recycling-monthly.ts && node --import tsx scripts/test-whatsapp-recycling.ts && node --import tsx scripts/test-recycling-ticket-reconciliation.ts",
     "verify:merchant-evidence": "node --import tsx scripts/test-merchant-center-evidence.ts && python3 scripts/test-merchant-center-snapshot.py && python3 scripts/test-merchant-refresh-runner.py",
     "verify:address-research": "node --import tsx scripts/test-address-research.ts && node --import tsx scripts/test-address-publication-race.ts && python3 scripts/test-geocode-cache-transaction.py",
-    "verify:closeout-reliability": "node --import tsx scripts/test-closeout-reliability.ts && node --import tsx scripts/test-closeout-payment-verification.ts && node --import tsx scripts/test-closeout-draft-summary.ts && node --import tsx scripts/test-closeout-load-price.ts",
+    "verify:closeout-reliability": "node --import tsx scripts/test-closeout-charge-labels.ts && node --import tsx scripts/test-closeout-reliability.ts && node --import tsx scripts/test-closeout-payment-verification.ts && node --import tsx scripts/test-closeout-draft-summary.ts && node --import tsx scripts/test-closeout-load-price.ts",
     "verify:continuity": "python3 scripts/test-continuity-monitor.py && node --import tsx scripts/test-continuity-monitor.ts && node --test scripts/test-continuity-proxy.mjs",
     "verify:assignment-recovery": "node --import tsx scripts/test-automatic-move-recovery.ts && node --import tsx scripts/test-appointment-recovery.ts && node --import tsx scripts/test-desktop-schedule-operations.ts",
     "verify:visit-tracking-agent": "node --import tsx scripts/test-visit-tracking-agent.ts",

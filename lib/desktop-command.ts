@@ -134,7 +134,7 @@ export async function readDesktopCommand(date: string, actor: DesktopCommandSnap
       {name:'LinxUp geofences',area:'Facility entries and automatic load resets',workspace:'Fleet',action:'Open Fleet',state:geofences.available ? geofences.complete ? 'Available' : 'Incomplete' : 'Unavailable',tone:geofences.available && geofences.complete ? 'healthy' : 'warning',observedAt:geofences.observedAt || null,maxAgeSeconds:180},
       {name:'Slack',area:'Operational alerts',workspace:'Command',action:'Open alerts',state:digest.status==='ready'?(digest.complete === false ? 'Incomplete' : 'Current'):'Unavailable',tone:digest.status==='ready' && digest.complete !== false ?'healthy':'warning',observedAt:digest.refreshedAt,maxAgeSeconds:120},
       {name:'Control',area:'Shared database connection',workspace:'Command',action:'Open decisions',state:workflow.available?'Connected':'Unavailable',tone:workflow.available?'healthy':'warning',observedAt:new Date().toISOString(),maxAgeSeconds:120}],
-    sources: { metrics: Boolean(metrics), alerts: digest.status === 'ready' || geofences.available, workflow: workflow.available },
+    sources: { metrics: Boolean(metrics), alerts: digest.status === 'ready' || geofences.available || alerts.length > 0, workflow: workflow.available },
     alerts,
     crewProgress,
     estimates: readEstimateSummary(),

@@ -1,5 +1,6 @@
 import type { OperationalAlert } from './operational-alert-presentation';
 import type { readJobRows } from './desktop-schedule-source';
+import { commandCancellationAlerts } from './command-cancellations';
 
 type Job = ReturnType<typeof readJobRows>[number];
 const reference = (alert: OperationalAlert) => alert.title.match(/\bJK\d+\b/i)?.[0]?.toUpperCase();
@@ -13,7 +14,7 @@ const appointmentId = (alert: OperationalAlert) => {
 /** Presentation only: preserve source identities so existing reviews and owned
  * follow-ups survive consolidation. Ambiguous appointments and visits stay visible. */
 export function streamlineOperationalAlerts(input: OperationalAlert[], jobs: Job[], date: string): OperationalAlert[] {
-  let alerts = input.map(alert=>({...alert}));
+  let alerts = commandCancellationAlerts(input, jobs, date);
   const closeoutId = (job: Job) => `appointment-closeout:${date}:${job.appointmentId}`;
   // A verified JunkWare closeout can precede its Slack report. Do not leave
   // visit alerts stranded while that message is waiting to be published.

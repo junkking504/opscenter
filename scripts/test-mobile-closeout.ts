@@ -25,7 +25,7 @@ try {
     const price=page.getByRole('textbox',{name:'Load price',exact:true});
     await price.fill('425');
     await page.getByRole('button',{name:'Back to appointment',exact:true}).click();
-    await expect(page.getByRole('heading',{name:'What we’re picking up'})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'Items to remove'})).toBeVisible();
     await page.getByRole('button',{name:'Close out',exact:true}).click();
     await expect(price).toHaveValue('425');
     await page.getByRole('button',{name:'Continue to payment',exact:true}).click();

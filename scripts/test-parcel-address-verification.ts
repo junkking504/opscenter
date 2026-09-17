@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {parcelAnchorMatches,verifyParcelPayload} from '../lib/parcel-address-verification';
+const address='Partner1 123 Example Lane Slidell, LA 70461';
+const anchor={street:'123 EXAMPLE LN',city:'SLIDELL',zip:'70461',latitude:30.2,longitude:-89.8};
+const payload={spatialReference:{wkid:4326},features:[{attributes:{OBJECTID:1,Assessment_Num:1,Physical_Address1:'123 EXAMPLE LN'},geometry:{rings:[[[-89.8001,30.1999],[-89.7999,30.1999],[-89.7999,30.2001],[-89.8001,30.2001],[-89.8001,30.1999]]]}}]};
+assert.ok(parcelAnchorMatches(address,anchor));
+assert.ok(verifyParcelPayload(address,anchor,payload).location);
+for(const patch of [{street:'124 EXAMPLE LN'},{zip:'70458'},{city:'COVINGTON'},{latitude:30.25},{longitude:NaN}])assert.equal(verifyParcelPayload(address,{...anchor,...patch},payload).location,null);
+for(const modified of [{...payload,features:[...payload.features,...payload.features]},{...payload,exceededTransferLimit:true},{...payload,spatialReference:{wkid:3857}},{...payload,features:[{...payload.features[0],attributes:{...payload.features[0].attributes,Physical_Address1:'124 EXAMPLE LN'}}]}])assert.equal(verifyParcelPayload(address,anchor,modified).location,null);
+const large=structuredClone(payload);large.features[0].geometry.rings[0][1][0]=-89.79;assert.equal(verifyParcelPayload(address,anchor,large).location,null);
+assert.equal(verifyParcelPayload('123 Example Lane and 456 Other Road Slidell LA 70461',anchor,payload).location,null);
+assert.equal(verifyParcelPayload('123 Example Lane Apt 2 Slidell LA 70461',anchor,payload).location,null);
+console.log('Parcel verification passed: exact street, locality/ZIP corroboration, small polygon, nearby GPS, ambiguity and wrong-premises rejection.');

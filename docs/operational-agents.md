@@ -44,3 +44,11 @@ inspectable decision state, while current reads avoid waiting for the next tick.
 
 Validation: `npm run verify:visit-tracking`, `npm run verify:dump-expenses`,
 `npm run verify:truck-load-status`, and the existing LinxUp refresh/lock tests.
+
+## Dedicated address verification
+
+The independent [address verification agent](address-verification-agent.md) owns
+the address worklist and verified locations. It has a separate one-minute
+schedule, OS lock and request budget. Visit tracking consumes its coordinates
+and correction intents; neither the address worker nor visit replay sends
+messages or modifies operational provider records.

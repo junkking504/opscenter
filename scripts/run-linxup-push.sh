@@ -28,6 +28,7 @@ trap run_operational_agents EXIT
 
 cd "$OPSBOT_DIR"
 export PYTHONPYCACHEPREFIX="/private/tmp/opscenter-linxup-pycache"
+python3 "$OPSCENTER_DIR/scripts/replay-address-visits.py" || echo "Address visit replay pending; requests retained." >&2
 for target_date in $target_dates; do
 [[ "$target_date" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || exit 64
 cd "$OPSBOT_DIR"

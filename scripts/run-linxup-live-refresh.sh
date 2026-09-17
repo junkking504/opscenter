@@ -57,6 +57,7 @@ run_operational_agents
 # connectivity probe, tracker-map request or history poll must not skip it.
 # Keep visit matching and automatic address checks aligned with the live board.
 (cd "$OPSCENTER_DIR" && OPSCENTER_DATA_DIR="$OPSBOT_DIR/data" OPSBOT_DATA_DIR="$OPSBOT_DIR/data" node --import tsx scripts/refresh-schedule-map-inputs.ts "$TARGET_DATE") || echo "Schedule map inputs pending; retaining previous verified data." >&2
+python3 "$OPSCENTER_DIR/scripts/replay-address-visits.py" || echo "Address visit replay pending; requests retained." >&2
 
 if ! /usr/sbin/scutil -r www.awaregps.com 2>/dev/null | /usr/bin/grep -q '^Reachable'; then
   echo "LinxUp refresh deferred until network connectivity returns."

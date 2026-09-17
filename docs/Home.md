@@ -45,6 +45,7 @@ without mixing live runtime data or secrets into Git.
 - [OpsBot Resale photos and sales](whatsapp-resale.md)
 - [LinxUp live GPS push](linxup-push.md)
 - [Visit tracking and unload agents](visit-tracking-agents.md)
+- [Address verification agent](address-verification-agent.md)
 - [WEX fleet fuel](wex-fuel.md)
 - [Driving scores](driving-scores.md)
 - [Truck load status](truck-load-status.md)

@@ -118,7 +118,8 @@
     "verify:assignment-recovery": "node --import tsx scripts/test-automatic-move-recovery.ts && node --import tsx scripts/test-appointment-recovery.ts && node --import tsx scripts/test-desktop-schedule-operations.ts",
     "verify:visit-tracking-agent": "node --import tsx scripts/test-visit-tracking-agent.ts",
     "import:knowledge": "node --import tsx scripts/import-knowledge-history.ts",
-    "verify:truck-street-address": "node --import tsx scripts/test-truck-street-address.ts"
+    "verify:truck-street-address": "node --import tsx scripts/test-truck-street-address.ts",
+    "verify:address-agent": "node --import tsx scripts/test-address-verification-agent.ts && node --import tsx scripts/test-parcel-address-verification.ts && python3 scripts/test-linxup-stop-visit-recovery.py && python3 scripts/test-address-visit-replay.py && python3 scripts/test-address-agent-lock.py"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

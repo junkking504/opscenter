@@ -61,6 +61,17 @@ busy, but contention was not proven as the exact cause. Stage timing and
 isolation contain and identify recurrences without discarding
 historical load baselines or increasing the individual stage deadline.
 
+The minute collector uses launchd `ProcessType=Standard`, which retains light
+resource limits, rather than the more restrictive Background classification.
+Its local agent children maintain interactive dashboard freshness. Background
+classification reproduced a slower input read (about 3.8 seconds versus 0.54
+seconds normally); production samples showed CPU work in parsing/assessment.
+The configured 60-second collection interval, network requests, ownership lock
+and individual 20-second deadlines are unchanged. Other collectors retain
+their existing scheduling policy. Final live cycles must separately verify
+recovery; this scheduling correction does not prove every historical timeout
+had the same cause.
+
 ## Reconciliation corrections
 
 A named receipt within five minutes before the same truck's first recorded

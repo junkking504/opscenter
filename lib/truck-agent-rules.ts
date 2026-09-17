@@ -1,8 +1,12 @@
+import { truckAgentProgress } from './truck-agent-progress';
+import type { ParkedPoint } from './parked-onsite-presence';
+import type { Coordinates } from './job-route-proximity';
 import { createHash } from 'node:crypto';
 import { agentTruckNumber, agentFleetHref, agentScheduleHref, type TruckAgent, type TruckRecommendation, type AgentEvidence, type AgentPriority } from '../desktop-ui/lib/truck-agent-contract';
 
 export type AgentSource<T> = { available: boolean; observedAt: string | null; note: string; data: T };
-export type AgentJob = { id: string; number: string; truck: string; status: string; crew: string; end: number | null; time: string; photosMissing: boolean; chargesPending: boolean };
+export type AgentGps = { truck: string; at: string | null; speed: number | null; ignition: string; latitude?: number | null; longitude?: number | null; points?: ParkedPoint[] };
+export type AgentJob = { location?: Coordinates | null; start?: number | null; id: string; number: string; truck: string; status: string; crew: string; end: number | null; time: string; photosMissing: boolean; chargesPending: boolean };
 export type AgentRepair = { id: string; truck: string; title: string; status: string; severity: string; owner: string; due: string; at: string };
 export type AgentInspection = { truck: string; at: string; href: string; status: string; fuel: string; odometer: string; findings: string[] };
 export type TruckAgentInputs = {
@@ -11,9 +15,9 @@ export type TruckAgentInputs = {
   maintenance: AgentSource<Array<{ truck: string; id: string; status: string; date: string; type: string; vendor: string; at: string }>>;
   inspections: AgentSource<AgentInspection[]>;
   schedule: AgentSource<AgentJob[]>;
-  gps: AgentSource<Array<{ truck: string; at: string | null; speed: number | null; ignition: string }>>;
+  gps: AgentSource<AgentGps[]>;
   loads: AgentSource<Array<{ truck: string; label: string; percent: number | null; at: string | null; uncertain: boolean; note: string }>>;
-  visits: AgentSource<Array<{ truck: string; name: string; entered: string; departed: string | null }>>;
+  visits: AgentSource<Array<{ appointmentId?: string; conflict?: boolean; superseded?: boolean; truck: string; name: string; entered: string; departed: string | null }>>;
   costs: AgentSource<Array<{ id: string; truck: string; note: string; at: string | null }>>;
 };
 export const agentHash = (value: unknown) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -36,6 +40,7 @@ export function assessTruck(n: number, date: string, input: TruckAgentInputs, no
   const gps = forTruck(input.gps.data)[0], load = forTruck(input.loads.data)[0];
   const today = date === agentDay(now), scheduleCurrent = input.schedule.available && (!today || agentFresh(input.schedule.observedAt, now, 120));
   const mapped = input.identity.available && forTruck(input.identity.data).length === 1;
+  const progress = today && mapped && scheduleCurrent && input.gps.available && gps ? truckAgentProgress(n, input.schedule.data, gps, input.visits, now) : null;
   const recs: TruckRecommendation[] = [];
   const evidence = (source: keyof TruckAgentInputs, value: string, href = fleet, at = input[source].observedAt): AgentEvidence => ({ source, value, href, observedAt: at });
   function add(rule: string, subject: string, priority: AgentPriority, title: string, detail: string, facts: AgentEvidence[], owner = 'Dispatch', href = fleet, due: string | null = null) {
@@ -74,7 +79,10 @@ export function assessTruck(n: number, date: string, input: TruckAgentInputs, no
     const missingCrew = openJobs.filter(j => !j.crew || /unassigned|unavailable/i.test(j.crew));
     if (missingCrew.length) add('crew', 'route', 'next', 'Verify crew assignment', 'Confirm the source crew assignment for the route; telemetry attribution is not a crew assignment.', [evidence('schedule', missingCrew.map(j => j.number).join(', '))], 'Dispatcher', agentScheduleHref(date));
     if (today && (!input.gps.available || !agentFresh(gps?.at || null, now))) add('gps', 'route', 'next', 'Current route position unavailable', 'Use the last GPS observation as history. Do not publish a current on-site claim or precise ETA from it.', [evidence('gps', 'No position within three minutes', fleet, gps?.at || null)], 'Dispatcher');
-    for (const job of openJobs) if (today && job.end !== null && minuteOfDay(now) > job.end) add('window', job.id, 'next', `Check progress: ${job.number}`, 'The scheduled window has ended while the source appointment remains open. Check actual progress or closeout; this alone does not prove a missed visit.', [evidence('schedule', `${job.number} · ${job.time} · ${job.status}`, agentScheduleHref(date, job.id))], 'Dispatcher', agentScheduleHref(date, job.id));
+    if (progress) add('appointment-progress', progress.jobIds.join(','), 'next', `${progress.label}${progress.kind === 'nearby' ? `: ${progress.jobNumbers.join(', ')}` : ''}`, progress.detail,
+      [evidence(progress.kind === 'visited' ? 'visits' : 'gps', progress.kind === 'nearby' ? `Stopped near ${progress.jobNumbers.join(', ')}; arrival unconfirmed` : progress.label, fleet, progress.observedAt),
+        ...openJobs.filter(j => progress.jobIds.includes(j.id)).map(j => evidence('schedule', `${j.number} · ${j.time} · ${j.status}`, agentScheduleHref(date, j.id)))], 'Dispatcher', agentScheduleHref(date, progress.jobIds[0]));
+    for (const job of openJobs) if (!progress?.jobIds.includes(job.id) && today && job.end !== null && minuteOfDay(now) > job.end) add('window', job.id, 'next', `Check progress: ${job.number}`, 'The scheduled window has ended while the source appointment remains open. Check actual progress or closeout; this alone does not prove a missed visit.', [evidence('schedule', `${job.number} · ${job.time} · ${job.status}`, agentScheduleHref(date, job.id))], 'Dispatcher', agentScheduleHref(date, job.id));
   }
   for (const job of jobs.filter(j => complete(j.status))) {
     if (job.chargesPending) add('closeout', job.id, 'next', `Verify closeout detail: ${job.number}`, 'Completion is recorded but charge detail is still pending. Review the saved result rather than resubmitting.', [evidence('schedule', `${job.number} · charge detail pending`, agentScheduleHref(date, job.id))], 'Dispatcher', agentScheduleHref(date, job.id));
@@ -83,11 +91,11 @@ export function assessTruck(n: number, date: string, input: TruckAgentInputs, no
   for (const cost of forTruck(input.costs.data)) add('receipt', cost.id, 'next', 'Review disposal receipt evidence', cost.note, [evidence('costs', cost.note, fleet, cost.at)], 'Dispatcher');
   if (today && minuteOfDay(now) >= 17 * 60 && openJobs.length && scheduleCurrent) add('shift-close', 'route', 'next', 'Reconcile open work before shift close', 'Review remaining appointments, closeouts, load and repair notes before preparing the next shift.', [evidence('schedule', `${openJobs.length} source appointments remain open`)], 'Dispatcher', agentScheduleHref(date));
   if (!recs.some(r => r.priority !== 'watch')) add('route-review', 'truck', 'watch', openJobs.length ? 'Review the next assigned stop' : 'Maintain readiness for the next assignment', openJobs.length ? 'Check current route evidence and required pickup capacity with dispatch.' : 'No open physical assignment appears in the available schedule. This does not prove the truck is idle or available.', [evidence('schedule', openJobs.map(j => `${j.number} · ${j.time}`).join('; ') || 'No open assignment in the retained schedule')], 'Dispatcher', agentScheduleHref(date));
-  const order = ['assigned-restriction', 'inspection-stop', 'repair', 'identity', 'inspection-defect', 'fuel', 'inspection-missing', 'window', 'crew', 'gps', 'capacity'];
+  const order = ['assigned-restriction', 'inspection-stop', 'repair', 'identity', 'inspection-defect', 'fuel', 'appointment-progress', 'inspection-missing', 'window', 'crew', 'gps', 'capacity'];
   recs.sort((a, b) => priorities[a.priority] - priorities[b.priority] || (order.indexOf(a.rule) < 0 ? 99 : order.indexOf(a.rule)) - (order.indexOf(b.rule) < 0 ? 99 : order.indexOf(b.rule)) || a.id.localeCompare(b.id));
   const activeIds = new Set(recs.map(r => `${r.id}:${r.version}`));
   const history = [...(prior?.history || []), ...(prior?.recommendations || []).filter(r => !activeIds.has(`${r.id}:${r.version}`)).map(r => ({ id: r.id, title: r.title, version: r.version, at: stamp, outcome: 'superseded' as const }))].slice(-100);
   return { id: `truck-${n}`, truck, mode: !mapped ? 'Identity review' : stop || openRepairs.some(r => r.severity === 'out_of_service') ? 'Repair recovery' : today && minuteOfDay(now) >= 17 * 60 ? 'Shift reconciliation' : openJobs.length ? 'Assigned route' : 'Readiness review', status: Object.values(input).every(s => s.available) && scheduleCurrent ? 'ok' : 'degraded', heartbeatAt: stamp, lastSuccessAt: stamp,
-    summary: { assigned: input.schedule.available ? jobs.length : null, completed: input.schedule.available ? jobs.filter(j => complete(j.status)).length : null, nextJob: scheduleCurrent ? openJobs[0]?.number || null : null, load: load ? `${load.label}${!loadUsable ? ' · needs confirmation' : ''}` : 'Unknown', gpsAt: gps?.at || null, inspectionAt: inspection?.at || null },
+    summary: { assigned: input.schedule.available ? jobs.length : null, completed: input.schedule.available ? jobs.filter(j => complete(j.status)).length : null, nextJob: scheduleCurrent ? openJobs.find(j => progress?.kind !== 'on_site' && progress?.kind !== 'visited' || !progress.jobIds.includes(j.id))?.number || null : null, progress, load: load ? `${load.label}${!loadUsable ? ' · needs confirmation' : ''}` : 'Unknown', gpsAt: gps?.at || null, inspectionAt: inspection?.at || null },
     sources: Object.entries(input).map(([name, s]) => ({ name, observedAt: name === 'gps' ? gps?.at || null : name === 'inspections' ? inspection?.at || null : name === 'loads' ? load?.at || null : s.observedAt, available: s.available, note: s.note })), recommendations: recs, history };
 }

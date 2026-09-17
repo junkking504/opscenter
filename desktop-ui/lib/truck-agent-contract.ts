@@ -1,3 +1,8 @@
+export type TruckAgentProgress = {
+  kind: 'nearby' | 'on_site' | 'visited'; label: string; detail: string;
+  jobIds: string[]; jobNumbers: string[]; observedAt: string;
+  stoppedSince: string | null; distanceMeters: number | null;
+};
 export type AgentPriority = 'urgent' | 'next' | 'watch';
 export type AgentEvidence = { source: string; value: string; observedAt: string | null; href: string };
 export type TruckRecommendation = {
@@ -10,7 +15,7 @@ export type TruckRecommendation = {
 export type TruckAgent = {
   id: string; truck: string; mode: string; status: 'ok' | 'degraded' | 'error';
   heartbeatAt: string; lastSuccessAt: string | null; error?: string;
-  summary: { assigned: number | null; completed: number | null; nextJob: string | null; load: string; gpsAt: string | null; inspectionAt: string | null };
+  summary: { assigned: number | null; completed: number | null; nextJob: string | null; load: string; gpsAt: string | null; inspectionAt: string | null; progress?: TruckAgentProgress | null };
   sources: Array<{ name: string; observedAt: string | null; available: boolean; note: string }>;
   recommendations: TruckRecommendation[];
   history: Array<{ id: string; title: string; at: string; outcome: 'superseded'; version: string }>;

@@ -14,7 +14,9 @@ and planned dates, scheduled service, recorded fuel, supported load, source
 assignments, appointment windows and closeout/photo evidence. It recommends
 capacity confirmation or disposal review and consolidates open work after 5 p.m.
 Central. Historical values and missing data remain explicit. It does not predict
-pickup volume, invent an ETA, certify a repair, or establish physical presence.
+pickup volume, invent an ETA, certify a repair, or write a physical visit.
+It explains nearby stops and consumes the shared Schedule presence and visit
+tracking rules for appointment progress.
 
 Command shows one primary recommendation per truck and the shared count of open
 appointments without a physical truck. Expand a truck for all recommendations,
@@ -57,6 +59,38 @@ get silently claimed by an agent.
 Stored repair records are current retained records. A past-day selection is not
 a reconstruction of the truck's mechanical condition on that date; the screen
 labels this limitation.
+
+## Nearby stops and appointment progress
+
+All nine truck agents compare fresh truck coordinates with the same verified
+appointment pins used by Schedule. This uses existing local geocode caches and
+LinxUp route points, with no provider request or new polling. Missing identity,
+ambiguous tracker mappings, unavailable/stale schedule or GPS, historical days,
+and unverified locations cannot create a current progress claim.
+
+A stationary stop within 300 metres of an assigned open appointment can produce
+**Stopped nearby — arrival unconfirmed**. The advisory radius does not change
+the shared 125-metre arrival boundary. A stop requires zero speed and two minutes
+of observed stationary points within 30 metres, with no gap over five minutes;
+a stationary ON-to-OFF transition also establishes a stop. A passing truck or a
+single zero-speed report does not. Stop duration ends at the actual GPS report,
+never the worker heartbeat. Only the last two hours of route evidence are retained
+in truck-agent inputs.
+
+The summary shows distance to the nearest assigned pin, GPS observation time,
+supported stop span and the reason arrival is unconfirmed. Multiple open nearby
+appointments remain explicitly ambiguous, including jobs assigned to other trucks.
+Parking/loading access and large premises prompt review; proximity alone never
+moves a pin, enlarges a geofence or records a visit. A stale displayed observation
+becomes **Last report** until a fresh assessment is available.
+
+Shared Schedule presence replaces nearby status when its existing rules establish
+on-site GPS presence. A shared recorded departure corroborated by a later position
+outside the arrival boundary produces **Visit recorded** with a closeout check.
+Conflicted/superseded visits cannot do so. Source completion removes the open-job
+recommendation. Context replaces the generic ended-window warning for the same
+appointment. Higher-priority safety and repair recommendations remain first.
+Repeated ticks and longer dwell alone do not reopen a reviewed recommendation.
 
 ## Execution and private state
 

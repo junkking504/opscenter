@@ -1,3 +1,4 @@
+import { planningLocation } from './planning-geocodes';
 import fs from 'node:fs';
 import path from 'node:path';
 import { readJobRows, junkwareScheduleUpdatedAt } from './desktop-schedule-source';
@@ -48,7 +49,9 @@ export function readTruckAgentInputs(date: string, now = Date.now()): TruckAgent
     const snapshot = verified && (!canonical || verified.updatedAtMs > canonical.updatedAtMs) ? verified : canonical!;
     // Use the oldest verified market observation, not the new worker heartbeat.
     const at = Number.isFinite(snapshot.freshnessAtMs) ? new Date(snapshot.freshnessAtMs).toISOString() : junkwareScheduleUpdatedAt(date);
-    return { at, data: jobs.map(j => ({ id: j.appointmentId, number: j.jkNumber, truck: j.assignedTruck || j.truck,
+    let pins: Record<string, Record<string, unknown>> = {};
+    try { pins = json('cache/appointment_geocodes.json').addresses as typeof pins || {}; } catch { /* Unverified addresses have no location. */ }
+    return { at, data: jobs.map(j => ({ location: planningLocation(j.address, pins), start: j.appointmentStartMinutes, id: j.appointmentId, number: j.jkNumber, truck: j.assignedTruck || j.truck,
       status: j.status, crew: [j.driver, j.navigator, ...(j.additionalCrew || [])].filter(v => v && !/^(unassigned|unavailable|—)$/i.test(v)).join(', '),
       end: j.appointmentEndMinutes, time: j.appointmentTime, photosMissing: j.photoAuditAvailable && !j.photos.length, chargesPending: Boolean(j.chargeDetailsPending) })) };
   });
@@ -88,7 +91,8 @@ export function readTruckAgentInputs(date: string, now = Date.now()): TruckAgent
   });
   const gps: TruckAgentInputs['gps'] = source(() => {
     const map = buildFleetMapPayload(date); if (!map) throw new Error('GPS unavailable');
-    return { at: map.lastUpdatedAt || null, data: map.trucks.map(t => ({ truck: t.truck, at: t.hasCoordinates ? t.lastGpsUpdate : null, speed: t.speed, ignition: t.ignition })) };
+    return { at: map.lastUpdatedAt || null, data: map.trucks.map(t => ({ truck: t.truck, at: t.hasCoordinates ? t.lastGpsUpdate : null, speed: t.speed, ignition: t.ignition, latitude: t.latitude, longitude: t.longitude,
+      points: t.routePoints.filter(p => Date.parse(p.timestamp) >= now - 2 * 3600_000).map(p => ({ timestamp: p.timestamp, latitude: p.latitude, longitude: p.longitude, speed: p.speed, ignition: p.ignition, deliverySource: p.deliverySource, continuousUntil: p.continuousUntil })) })) };
   });
   const loads: TruckAgentInputs['loads'] = source(() => {
     const ledger = json('fleet/truck_load_status.json'); rows(ledger.events);
@@ -101,7 +105,7 @@ export function readTruckAgentInputs(date: string, now = Date.now()): TruckAgent
   try { operational = json(`fleet/agents/${date}.json`) as unknown as OperationalAgentState; } catch { /* Independently unavailable below. */ }
   const visits: TruckAgentInputs['visits'] = source(() => {
     const value = operational?.agents['visit-tracking']; if (!value?.result || value.status !== 'ok') throw new Error('Visit projection unavailable');
-    return { at: latest(Object.values(value.watermarks).map(v => v > 0 ? new Date(v).toISOString() : null)), data: value.result.visits.filter(v => v.firstObservedAt?.startsWith(date) || v.departedAt?.startsWith(date)).map(v => ({ truck: v.truck, name: v.name, entered: v.enteredAt || v.firstObservedAt || '', departed: v.departedAt })) };
+    return { at: latest(Object.values(value.watermarks).map(v => v > 0 ? new Date(v).toISOString() : null)), data: value.result.visits.filter(v => v.firstObservedAt?.startsWith(date) || v.departedAt?.startsWith(date)).map(v => ({ appointmentId: v.kind === 'appointment' ? v.appointmentId : undefined, conflict: v.conflict, superseded: Boolean(v.supersededAt), truck: v.truck, name: v.name, entered: v.enteredAt || v.firstObservedAt || '', departed: v.departedAt })) };
   });
   const costs: TruckAgentInputs['costs'] = source(() => {
     const value = operational?.agents['unload-cost']; if (!value?.result || value.status !== 'ok' || value.dependency === 'retained') throw new Error('Cost projection unavailable');

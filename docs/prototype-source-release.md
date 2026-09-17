@@ -604,3 +604,11 @@ employee drawer separates Pay details, Edit hours and Driving; driving badges
 open the Driving section directly. These are presentation changes: source
 precedence, payroll calculations, permissions, write verification and exports
 retain their existing behavior.
+
+Today uses one searchable crew roster instead of stacking the ranking and
+performance tables. Pay & hours shows each person's shift, recorded total pay,
+and direct View pay / Edit hours actions. Production & driving shows credited
+revenue rank, jobs, revenue per hour, and the driving breakdown. Both views
+share name/truck search and All crew, Needs attention, and Unassigned filters.
+Summary cards continue to describe the full day's crew; filtered counts are
+shown beside the roster heading. Source issues appear on the employee's row.

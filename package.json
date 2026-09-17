@@ -117,7 +117,8 @@
     "verify:continuity": "python3 scripts/test-continuity-monitor.py && node --import tsx scripts/test-continuity-monitor.ts && node --test scripts/test-continuity-proxy.mjs",
     "verify:assignment-recovery": "node --import tsx scripts/test-automatic-move-recovery.ts && node --import tsx scripts/test-appointment-recovery.ts && node --import tsx scripts/test-desktop-schedule-operations.ts",
     "verify:visit-tracking-agent": "node --import tsx scripts/test-visit-tracking-agent.ts",
-    "import:knowledge": "node --import tsx scripts/import-knowledge-history.ts"
+    "import:knowledge": "node --import tsx scripts/import-knowledge-history.ts",
+    "verify:truck-street-address": "node --import tsx scripts/test-truck-street-address.ts"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

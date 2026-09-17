@@ -1,23 +1,23 @@
 import { useEffect, useState } from 'react';
 import type { ScheduleTruck } from './lib/schedule-contract';
+import { watchTruckAddress } from '../lib/truck-address-client';
 
 // Reuse Fleet's existing non-Google lookup for the selected truck only.
 export function TruckPosition({ truck }: { truck?: ScheduleTruck }) {
   const latitude = truck?.latitude, longitude = truck?.longitude;
   const reportedAddress = truck?.lastKnownAddress;
+  const truckName = truck?.truck || '';
   const key = latitude != null && longitude != null ? `${latitude.toFixed(5)},${longitude.toFixed(5)}` : '';
-  const [result, setResult] = useState({ key: '', address: '' });
+  const [result, setResult] = useState({ truck: '', key: '', address: '', stale: false });
   useEffect(() => {
-    if (!key || reportedAddress) return;
-    const controller = new AbortController();
+    if (!key) return;
+    if (reportedAddress) {
+      setResult({truck:truckName, key, address:reportedAddress, stale:false});
+      return;
+    }
     const [lat, lon] = key.split(',').map(Number);
-    fetch('/api/fleet-location-address', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ latitude: lat, longitude: lon }), signal: controller.signal,
-    }).then(async response => response.ok ? response.json() : null)
-      .then(payload => { if (!controller.signal.aborted) setResult({ key, address: String(payload?.address || '').trim() }); })
-      .catch(() => { if (!controller.signal.aborted) setResult({ key, address: '' }); });
-    return () => controller.abort();
-  }, [key, reportedAddress]);
-  return <div><dt>Last position</dt><dd aria-live="polite">{reportedAddress || (!key ? 'Position unavailable' : result.key !== key ? 'Finding street address…' : result.address ? `Near ${result.address}` : 'Street address unavailable for this GPS position')}</dd></div>;
+    return watchTruckAddress(lat, lon, address => setResult({truck:truckName, key, ...address}));
+  }, [key, reportedAddress, truckName]);
+  const saved = result.truck === truckName ? result.address : '';
+  return <div><dt>Street address</dt><dd aria-live="polite">{reportedAddress || (saved ? <>{`Near ${saved}`}{result.key !== key ? ' · Previous location; updating street address…' : result.stale ? ' · Saved address; refreshing…' : ''}</> : !key ? 'Position unavailable' : 'Finding street address · retrying automatically…')}</dd></div>;
 }

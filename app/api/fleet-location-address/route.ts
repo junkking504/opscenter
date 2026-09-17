@@ -3,20 +3,16 @@ import { NextResponse } from "next/server";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
 import { osmAddressJson } from '@/lib/osm-address-transport';
 
-type CachedAddress = { address: string | null; expiresAt: number };
-
-const addressCache = new Map<string, CachedAddress>();
-const CACHE_TTL_MS = 10 * 60_000;
-
 function validCoordinate(value: unknown, minimum: number, maximum: number): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed >= minimum && parsed <= maximum ? parsed : null;
 }
 
-async function openStreetMapAddress(latitude: number, longitude: number): Promise<string | null> {
+async function openStreetMapAddress(latitude: number, longitude: number) {
   const params = new URLSearchParams({
-    lat: String(latitude),
-    lon: String(longitude),
+    lat: String(Number(latitude.toFixed(5))),
+    lon: String(Number(longitude.toFixed(5))),
     format: "jsonv2",
     addressdetails: "1",
     zoom: "18",
@@ -24,9 +20,10 @@ async function openStreetMapAddress(latitude: number, longitude: number): Promis
   try {
     const result = await osmAddressJson('reverse',params);
     const payload = result.payload as {display_name?:string}|null;
-    return String(payload?.display_name || "").trim() || null;
+    const address = String(payload?.display_name || "").trim() || null;
+    return {address, stale: Boolean(result.stale), ...(!address || result.retryAfterMs ? {retryAfterMs: result.retryAfterMs || 60_000} : {})};
   } catch {
-    return null;
+    return {address:null, retryAfterMs:60_000};
   }
 }
 
@@ -50,16 +47,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const cacheKey = `${latitude.toFixed(5)},${longitude.toFixed(5)}`;
-  const cached = addressCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) {
-    return NextResponse.json({ address: cached.address }, { headers: { "Cache-Control": "private, max-age=300" } });
-  }
-
-  const address = await openStreetMapAddress(latitude, longitude);
-  if(address)addressCache.set(cacheKey, { address, expiresAt: Date.now() + CACHE_TTL_MS });
+  const result = await openStreetMapAddress(latitude, longitude);
   return NextResponse.json(
-    { address, coordinates: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}` },
-    { headers: { "Cache-Control": "private, max-age=300" } },
+    { ...result, coordinates: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}` },
+    { headers: { "Cache-Control": "private, no-store" } },
   );
 }

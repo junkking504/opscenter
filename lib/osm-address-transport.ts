@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 
-type Lookup = { payload: unknown; retryAfterMs?: number };
+type Lookup = { payload: unknown; retryAfterMs?: number; stale?: boolean };
 const SLOT_MS = 20_000;
 // A single shared disk reservation admits one request in the first five seconds
 // of each 20-second slot. Starts are >=15 seconds apart across server/collector
@@ -12,13 +12,15 @@ export async function osmAddressJson(endpoint: 'search' | 'reverse', params: URL
   const root=process.env.OSM_ADDRESS_CACHE_DIR || path.join(process.env.OPSBOT_DATA_DIR || path.join(process.env.HOME || '', '.openclaw/workspace/opsbot/data'),'cache/osm-address-lookups');
   const now=Date.now(),slot=Math.floor(now/SLOT_MS),phase=now%SLOT_MS;
   const file=path.join(root,createHash('sha256').update(endpoint+'?'+params).digest('hex')+'.json');
+  let previous:unknown=null;
   try {
     const cached=JSON.parse(fs.readFileSync(file,'utf8'));
     if(cached.expires>now)return {payload:cached.payload,...(cached.retryable?{retryAfterMs:cached.expires-now}:{})};
+    if(endpoint==='reverse' && cached.payload?.display_name)previous=cached.payload;
   } catch { /* An absent cache enters the bounded provider path. */ }
   if(phase>=5000) {
     const wait=SLOT_MS-phase+100;
-    if(wait>waitBudgetMs)return {payload:null,retryAfterMs:wait};
+    if(wait>waitBudgetMs)return {payload:previous,retryAfterMs:wait,...(previous?{stale:true}:{})};
     await new Promise(resolve=>setTimeout(resolve,wait));
     // Recheck the disk cache and reservation after the wait. This also prevents
     // a fixed-cadence background caller from repeatedly missing admission.
@@ -30,7 +32,7 @@ export async function osmAddressJson(endpoint: 'search' | 'reverse', params: URL
     for(const old of fs.readdirSync(reservations))if(/^\d+$/.test(old) && Number(old)<slot-6) {
       try {fs.rmdirSync(path.join(reservations,old));} catch { /* Another process may have pruned this empty reservation. */ }
     }
-  } catch {return {payload:null,retryAfterMs:SLOT_MS-phase+100};}
+  } catch {return {payload:previous,retryAfterMs:SLOT_MS-phase+100,...(previous?{stale:true}:{})};}
   let payload:unknown=null,failed=false;
   try {
     const response=await fetch(`https://nominatim.openstreetmap.org/${endpoint}?${params}`,{
@@ -38,7 +40,10 @@ export async function osmAddressJson(endpoint: 'search' | 'reverse', params: URL
     });
     if(response.ok)payload=await response.json();else failed=true;
   } catch {failed=true;}
-  const ttl=failed?60_000:endpoint==='reverse'?600_000:Array.isArray(payload)&&payload.length?7*86400_000:6*3600_000;
+  // Street names for an exact coordinate outlive a GPS report. Keep successful
+  // reverse lookups across restarts, and never erase them during an outage.
+  if(previous && (failed || !(payload as {display_name?:string})?.display_name))return {payload:previous,stale:true,retryAfterMs:60_000};
+  const ttl=failed?60_000:endpoint==='reverse'?((payload as {display_name?:string})?.display_name?30*86400_000:60_000):Array.isArray(payload)&&payload.length?7*86400_000:6*3600_000;
   const temp=file+'.'+randomUUID()+'.tmp';
   try {fs.writeFileSync(temp,JSON.stringify({expires:Date.now()+ttl,payload,retryable:failed}),{mode:0o660});fs.renameSync(temp,file);} catch {try{fs.unlinkSync(temp);}catch{/* Provider result remains usable. */}}
   return {payload,...(failed?{retryAfterMs:60_000}:{})};

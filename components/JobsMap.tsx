@@ -1,4 +1,5 @@
 "use client";
+import { watchTruckAddress } from "@/lib/truck-address-client";
 import { gpsDwellAtPosition, GPS_PRESENCE_MAX_AGE_MS, GPS_SITE_RADIUS_METERS, GPS_MINIMUM_DWELL_MS } from '@/lib/gps-presence-policy';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
@@ -925,45 +926,11 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
     }
 
     const key = `${selectedTruck.truck}:${selectedTruck.latitude.toFixed(5)},${selectedTruck.longitude.toFixed(5)}`;
-    let active = true;
-    const controller = new AbortController();
-    setSelectedTruckAddress({ key, address: "", loading: true, error: "" });
-
-    fetch("/api/fleet-location-address", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ latitude: selectedTruck.latitude, longitude: selectedTruck.longitude }),
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(payload?.error || "Current address is unavailable.");
-        return String(payload?.address || "").trim();
-      })
-      .then((address) => {
-        if (!active) return;
-        setSelectedTruckAddress({
-          key,
-          address,
-          loading: false,
-          error: address ? "" : "Street address unavailable for this GPS point.",
-        });
-      })
-      .catch((error) => {
-        if (!active || controller.signal.aborted) return;
-        setSelectedTruckAddress({
-          key,
-          address: "",
-          loading: false,
-          error: error instanceof Error ? error.message : "Current address is unavailable.",
-        });
-      });
-
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, [selectedTruck]);
+    setSelectedTruckAddress(current => current.key === key ? current : { key, address: "", loading: true, error: "" });
+    return watchTruckAddress(selectedTruck.latitude, selectedTruck.longitude, ({address, stale}) => {
+      setSelectedTruckAddress({key, address: stale ? `${address} · Saved address; refreshing…` : address, loading:false, error:""});
+    });
+  }, [selectedTruck?.truck, selectedTruck?.latitude, selectedTruck?.longitude]);
 
   async function assignJob(job: JobsMapPoint, truck: string, appointmentStartMinutes?: number) {
     const previousTruck = assignments[job.key] || "";

@@ -283,3 +283,21 @@ Reviewed per-premise evidence uses an atomic create-if-absent publication. Two
 conflicting proposals cannot replace one another; a coordinate correction needs
 explicit review. Both stores have independent-process conflict regression tests
 under `npm run verify:address-research`.
+
+### Selected truck street address
+
+Control prefers a LinxUp trip address matched to the reported GPS position.
+Otherwise the selected truck uses the existing OpenStreetMap reverse lookup.
+The API returns the shared limiter's retry delay; both map clients retry while
+selected and cancel pending work when the position changes or the card closes.
+A lookup delay or network failure does not erase a successful address. Reverse
+lookups persist for 30 days by coordinate and survive release restarts. Expired
+successful lookups remain labeled as saved addresses while refreshing; failures
+cannot overwrite them. No provider rate limit or paid integration is changed.
+
+While a selected truck moves, Control retains its previously displayed address
+with an explicit **Previous location** label until the new position resolves.
+It never carries that address to a different truck, substitutes a scheduled job
+address, or implies an exact premise from a reverse lookup (shown as **Near**).
+If no address has ever resolved, the card shows automatic lookup recovery rather
+than declaring a temporary admission delay a permanent missing address.

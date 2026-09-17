@@ -61,5 +61,14 @@ assert.deepEqual(first.agents[2].recommendations.map(r => [r.id, r.version]), se
 const later = fixture(); later.gps.data[0].at = new Date(now + 60_000).toISOString(); later.gps.data[0].points!.push({ ...truckLocation, timestamp: at, speed: 0, ignition: 'ON' });
 const extended = assess(later, now + 60_000);
 assert.equal(extended.recommendations.find(r => r.rule === 'appointment-progress')?.version, first.agents[2].recommendations.find(r => r.rule === 'appointment-progress')?.version, 'Longer dwell alone does not reopen acknowledgment');
+const parked = fixture(); parked.gps.data[0].ignition = 'OFF';
+const parkedReport = assess(parked, now + 4 * 60_000);
+// Keep the schedule current while exercising only the parked GPS heartbeat.
+parked.schedule.observedAt = new Date(now + 4 * 60_000).toISOString();
+assert.equal(assess(parked, now + 4 * 60_000).summary.progress?.label, 'Last report: stopped nearby — arrival unconfirmed');
+assert.match(assess(parked, now + 4 * 60_000).summary.progress!.detail, /current position is unconfirmed/);
+assert.equal(parkedReport.summary.progress, null, 'Stale schedule still prevents attribution');
+parked.schedule.observedAt = new Date(now + 76 * 60_000).toISOString();
+assert.equal(assess(parked, now + 76 * 60_000).summary.progress, null, 'Expired parked evidence cannot support nearby reporting');
 const closed = fixture(); closed.schedule.data[0].status = 'Completed'; assert.equal(assess(closed).summary.progress, null);
 console.log('Truck agent progress: all nine trucks, 136m boundary, stop evidence, ambiguous jobs, freshness, identity, arrival/departure and deduplication passed.');

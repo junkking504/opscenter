@@ -1,6 +1,7 @@
 import { agentTruckNumber, type TruckAgentProgress } from '../desktop-ui/lib/truck-agent-contract';
 import type { AgentJob, AgentGps, TruckAgentInputs } from './truck-agent-rules';
 import { gpsDistanceMeters, validGpsCoordinates, GPS_SITE_RADIUS_METERS, GPS_PRESENCE_MAX_AGE_MS, GPS_MAX_POINT_GAP_MS, GPS_MINIMUM_DWELL_MS } from './gps-presence-policy';
+import { parkedTruckObservation, PARKED_GPS_MAX_AGE_MS } from './truck-gps-status';
 import { currentGpsPresence } from './schedule-gps-presence';
 
 // Advisory search distance only. This never changes the shared arrival geofence.
@@ -29,14 +30,16 @@ function stoppedSince(gps: AgentGps) {
 /** Describe source-supported progress without publishing an arrival or changing a job. */
 export function truckAgentProgress(n: number, jobs: AgentJob[], gps: AgentGps, visits: TruckAgentInputs['visits'], now: number): TruckAgentProgress | null {
   const stamp = Date.parse(gps.at || '');
-  if (!Number.isFinite(stamp) || stamp > now || now - stamp > GPS_PRESENCE_MAX_AGE_MS || !validGpsCoordinates(gps)) return null;
+  const current = now - stamp <= GPS_PRESENCE_MAX_AGE_MS;
+  if (!Number.isFinite(stamp) || stamp > now || !validGpsCoordinates(gps)
+    || (!current && (!parkedTruckObservation(gps) || now - stamp > PARKED_GPS_MAX_AGE_MS))) return null;
   const open = jobs.filter(j => !/cancel|no.?show|complet|closed/i.test(j.status));
   const own = open.filter(j => agentTruckNumber(j.truck) === n);
   const position = { ...gps, lastGpsUpdate: gps.at, routePoints: gps.points };
   const presenceJobs = open.map(j => ({ ...j, appointmentId: j.id, appointmentStartMinutes: j.start, appointmentEndMinutes: j.end,
     onsiteTime: { departure: visits.available ? visits.data.filter(v => v.appointmentId === j.id && agentTruckNumber(v.truck) === n && v.departed)
       .map(v => v.departed!).sort().at(-1) : null } }));
-  for (const job of own) {
+  for (const job of current ? own : []) {
     const presence = currentGpsPresence(presenceJobs.find(j => j.id === job.id)!, [position], presenceJobs, now);
     if (presence?.current) return { kind: 'on_site', label: `On site: ${job.number}`, jobIds: [job.id], jobNumbers: [job.number],
       observedAt: gps.at!, stoppedSince: presence.arrival, distanceMeters: Math.round(gpsDistanceMeters(gps, job.location!)),
@@ -50,10 +53,10 @@ export function truckAgentProgress(n: number, jobs: AgentJob[], gps: AgentGps, v
       const ambiguous = nearby.length > 1;
       const distanceMeters = Math.round(Math.min(...assigned.map(j => gpsDistanceMeters(gps, j.location!))));
       const outside = assigned.every(j => gpsDistanceMeters(gps, j.location!) > GPS_SITE_RADIUS_METERS);
-      return { kind: 'nearby', label: 'Stopped nearby — arrival unconfirmed', jobIds: nearby.map(j => j.id), jobNumbers: nearby.map(j => j.number), observedAt: gps.at!, stoppedSince: since, distanceMeters,
-        detail: ambiguous ? 'Multiple open appointments are nearby; GPS does not identify which appointment this stop serves.'
+      return { kind: 'nearby', label: current ? 'Stopped nearby — arrival unconfirmed' : 'Last report: stopped nearby — arrival unconfirmed', jobIds: nearby.map(j => j.id), jobNumbers: nearby.map(j => j.number), observedAt: gps.at!, stoppedSince: since, distanceMeters,
+        detail: (!current ? 'The last engine-off report showed this stop; current position is unconfirmed. ' : '') + (ambiguous ? 'Multiple open appointments are nearby; GPS does not identify which appointment this stop serves.'
           : outside ? `Outside the ${GPS_SITE_RADIUS_METERS}-metre arrival boundary. Review parking or loading access and the verified address pin.`
-            : 'Inside the arrival boundary, but the shared Schedule presence rules have not established this arrival.' };
+            : 'Inside the arrival boundary, but the shared Schedule presence rules have not established this arrival.') };
     }
   }
   // Consume the shared tracker rather than inventing departure times. A newer

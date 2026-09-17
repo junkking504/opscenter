@@ -7,7 +7,7 @@ import { agentFleetHref, agentScheduleHref, agentTruckNumber, type TruckAgentSna
 import './truck-agents.css';
 
 const time = (at: string | null) => at && Number.isFinite(Date.parse(at)) ? new Date(at).toLocaleString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) + ' CT' : 'Unavailable';
-const progressLabel = (progress: TruckAgentProgress, now: number) => `${progress.kind !== 'visited' && (now - Date.parse(progress.observedAt) > 180_000 || now < Date.parse(progress.observedAt)) ? 'Last report: ' : ''}${progress.label}`;
+const progressLabel = (progress: TruckAgentProgress, now: number) => `${progress.kind !== 'visited' && !progress.label.startsWith('Last report:') && (now - Date.parse(progress.observedAt) > 180_000 || now < Date.parse(progress.observedAt)) ? 'Last report: ' : ''}${progress.label}`;
 export default function TruckAgents({ date, truck, compact = false }: { date: string; truck?: string; compact?: boolean }) {
   const key = `/api/desktop/truck-agents?date=${encodeURIComponent(date)}`;
   const [snapshot, setSnapshot] = useWorkspaceSnapshot<TruckAgentSnapshot>(key);

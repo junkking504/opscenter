@@ -81,8 +81,12 @@ The summary shows distance to the nearest assigned pin, GPS observation time,
 supported stop span and the reason arrival is unconfirmed. Multiple open nearby
 appointments remain explicitly ambiguous, including jobs assigned to other trucks.
 Parking/loading access and large premises prompt review; proximity alone never
-moves a pin, enlarges a geofence or records a visit. A stale displayed observation
-becomes **Last report** until a fresh assessment is available.
+moves a pin, enlarges a geofence or records a visit. An established stop with explicit zero speed and ignition OFF remains
+**Last report: stopped nearby** for the existing 75-minute parked heartbeat
+interval after its three-minute live window. It explicitly says current position
+is unconfirmed and never becomes a current on-site claim. Moving, engine-on,
+unknown-ignition and expired reports cannot use that tolerance. A stale displayed
+observation also becomes **Last report** until a fresh assessment is available.
 
 Shared Schedule presence replaces nearby status when its existing rules establish
 on-site GPS presence. A shared recorded departure corroborated by a later position

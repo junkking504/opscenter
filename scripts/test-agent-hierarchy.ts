@@ -37,3 +37,14 @@ try {
   fs.writeFileSync(path.join(root,'fleet/agent-hierarchy/state.json'),'{');assert.throws(()=>readHierarchy(now),/preserved/);
 }finally{fs.rmSync(root,{recursive:true,force:true});}
 console.log('Hierarchy passed: 27 tabs, valid reporting tree, accepted handoffs, single owner, source failure retention, overdue escalation, reopening, monotonic state, private persistence and manager boundary.');
+async function checkRunnerHistory() {
+  const {runnerFindings}=await import('../lib/agent-hierarchy-inputs');
+  const stages={shared:{status:'ok'},trucks:{status:'ok'},hierarchy:{status:'running'}};
+  const failures=[{stage:'trucks',status:'timed_out',finishedAt:at,durationMs:20_000}];
+  const recovered=runnerFindings({stages,failures},now+1000);
+  assert.equal(recovered.length,1);assert.equal(recovered[0].target,'release');assert.equal(recovered[0].priority,'watch');
+  assert.equal(runnerFindings({stages,failures},now+3601_000).length,0,'Successful cycles do not immediately hide a recent failure');
+  assert.equal(runnerFindings({stages:{...stages,trucks:{status:'timed_out'}},failures},now+1000).length,1,'Current and historical failure share one issue');
+  console.log('Runner supervision passed: recent failure retained, routed to release, deduplicated and aged out after recovery.');
+}
+checkRunnerHistory().catch(error=>{console.error(error);process.exitCode=1;});

@@ -47,13 +47,18 @@ runs shared, truck and hierarchy assessments in separate processes. Each has a
 A worst-case cycle is approximately 60 seconds plus startup. The existing lock
 prevents overlapping cycles. No new scheduler or provider polling is added.
 `data/fleet/agents/worker-status.json` records stage starts, results, durations,
-exit codes and the last 20 failures using private atomic writes. A killed parent
+exit codes and the last 20 failures using private atomic writes. Recent failures
+remain assigned to Release for one hour after recovery; an intervening success
+does not immediately hide them. A killed parent
 leaves a visible running/stale stage rather than a fabricated success. The
 hierarchy and existing truck views identify heartbeats over three minutes old.
 
 An audit observed a transient timeout; a subsequent fresh-process input read
 completed in under one second. Its original root cause was not established.
-Stage timing and isolation contain and identify recurrences without discarding
+A production recurrence was captured during release activation, followed by
+successful cycles and a 0.54-second independent input read. Host indexing was
+busy, but contention was not proven as the exact cause. Stage timing and
+isolation contain and identify recurrences without discarding
 historical load baselines or increasing the individual stage deadline.
 
 ## Reconciliation corrections

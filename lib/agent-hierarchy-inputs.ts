@@ -10,6 +10,17 @@ import type {HierarchyFeed,HierarchyFinding} from '../desktop-ui/lib/agent-hiera
 import type {TruckAgent} from '../desktop-ui/lib/truck-agent-contract';
 import type {OperationalAgentState} from './operational-agents';
 const monitor='/desktop?data=live&workspace=Command&commandView=monitor';
+type RunnerStage={status:string;startedAt?:string;finishedAt?:string;durationMs?:number};
+export function runnerFindings(state:{stages:Record<string,RunnerStage>;failures?:Array<RunnerStage&{stage:string}>},now:number):HierarchyFinding[] {
+  return ['shared','trucks','hierarchy'].flatMap(id=>{
+    const stage=state.stages[id];
+    const failure=state.failures?.filter(f=>f.stage===id&&hierarchyFresh(f.finishedAt||null,now,3600_000)).at(-1);
+    const failed=!!stage&&['failed','timed_out'].includes(stage.status);
+    if(!failed&&!failure)return [];
+    const detail=failed?`Last stage duration: ${stage.durationMs??'unknown'} ms. Prior successful evidence is retained.`:`A ${failure!.status} run ended at ${failure!.finishedAt}. Later stages have continued. Confirm stable recovery; this recent failure remains visible for one hour.`;
+    return [{id:`runner:${id}`,feed:'runner',title:failed?`Agent runner ${id}: ${stage.status}`:`Recent agent runner failure: ${id}`,detail,href:monitor,origin:'engineering',target:'release',priority:failed?'urgent' as const:'watch' as const}];
+  });
+}
 const read=(relative:string)=>JSON.parse(fs.readFileSync(path.join(truckAgentRoot(),relative),'utf8'));
 const targetForRule:Record<string,string>={repair:'maintenance',service:'maintenance','inspection-stop':'inspection','inspection-defect':'inspection',odometer:'inspection','inspection-missing':'staffing',fuel:'staffing',crew:'staffing',capacity:'capacity',disposal:'capacity',receipt:'expenses',identity:'integrations',source:'integrations',gps:'integrations',photos:'control',closeout:'control','appointment-progress':'dispatch','assigned-restriction':'dispatch',window:'dispatch','schedule-freshness':'integrations'};
 export async function readHierarchyFeeds(date:string,now=Date.now()):Promise<HierarchyFeed[]> {
@@ -38,9 +49,9 @@ export async function readHierarchyFeeds(date:string,now=Date.now()):Promise<Hie
     feeds.push({id:'maintenance-observer',available:hierarchyFresh(state.checkedAt,now),observedAt:state.checkedAt,detail:'Existing maintenance observations; engineering execution requires a scoped task.',findings:state.incidents.filter(i=>i.status!=='resolved').map(i=>({id:`maintenance:${i.key}`,feed:'maintenance-observer',title:i.title,detail:`${i.evidence} ${i.nextStep}`,href:monitor,origin:'engineering',target:i.key.startsWith('client-')?'verification':/source|sync|gps|queue|collector/i.test(i.key)?'integrations':'implementation',priority:i.kind==='technical'?'next':'watch'}))});
   }catch {unavailable('maintenance-observer','Maintenance observations could not be read.');}
   try {
-    const state=read('fleet/agents/worker-status.json') as {startedAt:string;stages:Record<string,{status:string;finishedAt?:string;durationMs?:number}>};
+    const state=read('fleet/agents/worker-status.json') as {startedAt:string;stages:Record<string,RunnerStage>;failures?:Array<RunnerStage&{stage:string}>};
     if(!state.stages)throw new Error('Runner state missing');
-    feeds.push({id:'runner',available:hierarchyFresh(state.startedAt,now),observedAt:state.startedAt,detail:'Per-stage local deadlines and last execution results.',findings:Object.entries(state.stages).filter(([id,s])=>id!=='hierarchy'&&s.status!=='ok').map(([id,s])=>({id:`runner:${id}`,feed:'runner',title:`Agent runner ${id}: ${s.status}`,detail:`Last stage duration: ${s.durationMs??'unknown'} ms. Prior successful evidence is retained.`,href:monitor,origin:'engineering',target:'release',priority:'urgent'}))});
+    feeds.push({id:'runner',available:hierarchyFresh(state.startedAt,now),observedAt:state.startedAt,detail:'Per-stage execution results; recent failures remain visible for one hour after recovery.',findings:runnerFindings(state,now)});
   }catch {unavailable('runner','Runner execution evidence unavailable.');}
   if(resolveKernelDatabaseConfig().status==='ready') {
     try {

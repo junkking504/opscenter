@@ -433,6 +433,15 @@ The Gonzales hospital's 1014 W St Clare/Claire Blvd spelling alias is limited to
 that house and locality; FMOL publishes both spellings in its general-surgery and
 thoracic-surgery location directories.
 
+Written street ordinals (First through Ninety-Ninth) match their numeric forms
+only in a house-number/street-type expression, including an optional direction.
+For example, `100 Sixth St` matches `100 6th St`. House numbers, different
+ordinals, road types, directions, locality and ZIP remain subject to the existing
+checks. Business names, units and longer road names are not rewritten. The
+source scanner recognizes numeric ordinal streets and still rejects two street
+addresses in one field. Policy 7 invalidates prior negative verification caches
+and sweep backoff so these addresses recover automatically on deployment.
+
 For a single Census address match, automatic verification also accepts one
 inserted/missing letter or adjacent letter transposition in one alphabetic street
 name token of at least six letters (both spellings). A single duplicated letter

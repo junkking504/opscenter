@@ -82,3 +82,8 @@ async function main() {
   console.log('OSM fallback passed: exact building and postal correction, locality/precision/ambiguity guards, automatic fallback, durable caching, shared rate limit and off switch.');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});
+
+const ordinalBuilding = {...building, address:{...building.address, road:'6th Drive'}};
+assert.ok(verifyOsmServiceAddress('100 Sixth Dr Baton Rouge LA 70808',[ordinalBuilding]).location);
+assert.ok(verifyOsmServiceAddress('100 6th Dr Baton Rouge LA 70808',[ordinalBuilding]).location);
+assert.equal(verifyOsmServiceAddress('100 Seventh Dr Baton Rouge LA 70808',[ordinalBuilding]).location,null);

@@ -18,7 +18,7 @@ export function appointmentPartner(job: PartnerSource) {
 export function serviceStreetCandidates(address: string): number[] {
   // Scan the whole field. A number inside a business label or suite is not a
   // street number unless followed by a recognizable street expression.
-  const ordinary = [...address.matchAll(/\b\d+[A-Z]?\s+(?:[A-Z][A-Z.'’-]*\s+){0,8}?(?:st(?:reet)?|rd|road|ave(?:nue)?|dr(?:ive)?|ln|lane|ct|court|blvd|boulevard|hwy|highway|pl(?:ace)?|pkwy|pky|parkway|ter(?:race)?|cir(?:cle)?|trl|trail|way)\b/ig)].map(match=>match.index!);
+  const ordinary = [...address.matchAll(/\b\d+[A-Z]?\s+(?:(?:[A-Z][A-Z.'’-]*|\d+(?:st|nd|rd|th))\s+){0,8}?(?:st(?:reet)?|rd|road|ave(?:nue)?|dr(?:ive)?|ln|lane|ct|court|blvd|boulevard|hwy|highway|pl(?:ace)?|pkwy|pky|parkway|ter(?:race)?|cir(?:cle)?|trl|trail|way)\b/ig)].map(match=>match.index!);
   const highways = [...address.matchAll(/\b\d+[A-Z]?\s+(?:LA|Louisiana|US|U\.S\.|State)\s*(?:-\s*|(?:Highway|Hwy|Route|Rte|Rt)\s*)?\d+\b/ig)].map(match=>match.index!);
   return [...new Set([...ordinary,...highways])].sort((a,b)=>a-b);
 }

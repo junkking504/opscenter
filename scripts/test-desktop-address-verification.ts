@@ -111,19 +111,19 @@ async function verifyAutomaticCache() {
   const {verifyDesktopAddress}=await import('../lib/desktop-address-verification');
   const directory=fs.mkdtempSync(path.join(os.tmpdir(),'address-correction-test-'));
   const previousDirectory=process.env.SERVICE_ADDRESS_CACHE_DIR,previousFetch=globalThis.fetch;
-  const address='100 Pensrose Street New Orleans LA 70125';
+  const address='100 Sixth Street New Orleans LA 70125';
   const file=path.join(directory,createHash('sha256').update(address).digest('hex')+'.json');
   let calls=0;
   try {
     process.env.SERVICE_ADDRESS_CACHE_DIR=directory;
-    fs.writeFileSync(file,JSON.stringify({schema:3,address,expires:Date.now()+300000,verified:{location:null,reason:'Address Needs Exact House, Street, And ZIP Match'}}));
-    globalThis.fetch=async()=>{calls++;return new Response(JSON.stringify(spellingPayload));};
+    fs.writeFileSync(file,JSON.stringify({schema:6,address,expires:Date.now()+300000,verified:{location:null,reason:'Address Needs Exact House, Street, And ZIP Match'}}));
+    globalThis.fetch=async()=>{calls++;return new Response(JSON.stringify({result:{addressMatches:[{...censusMatch,matchedAddress:'100 6TH ST, NEW ORLEANS, LA, 70125'}]}}));};
     const first=await verifyDesktopAddress(address);
     assert.ok(first.location,'Old cached rejection is reconsidered automatically');
     assert.deepEqual(await verifyDesktopAddress(address),first);
     assert.equal(calls,1,'Accepted correction is reused without another provider request');
     const saved=JSON.parse(fs.readFileSync(file,'utf8'));
-    assert.equal(saved.schema,6);
+    assert.equal(saved.schema,7);
     assert.equal(saved.address,address,'Source spelling is retained');
     assert.deepEqual(saved.verified,first,'Matched spelling and point persist atomically');
   } finally {
@@ -148,3 +148,19 @@ assert.equal(appointmentServiceAddress({address:'Business 100 Exmaple Rd, Apt 15
 assert.equal(appointmentServiceAddress({address:'100 Exmaple Rd Apt 156 New Orleans LA 70125'}),'100 Exmaple Rd Apt 156 New Orleans LA 70125','Unverified spelling stays intact');
 console.log('Address formatting passed: building/unit preservation, parkway/highway/Saint aliases, repeated locality and corrected display.');
 verifyAutomaticCache().catch(error=>{console.error(error);process.exitCode=1;});
+
+// Synthetic numbered streets: matching spelling cannot change the premises.
+for (const [written, numeric] of [['Sixth','6TH'],['First','1ST'],['Twelfth','12TH'],['Twentieth','20TH'],['Twenty-First','21ST'],['Ninety Ninth','99TH']]) {
+  const match = {...censusMatch, matchedAddress:`100 ${numeric} ST, NEW ORLEANS, LA, 70125`};
+  const fixture = {result:{addressMatches:[match]}};
+  assert.ok(verifyCensusAddress(`100 ${written} Street New Orleans LA 70125`,fixture).location);
+  assert.ok(verifyCensusAddress(`100 ${numeric} St New Orleans LA 70125`,{result:{addressMatches:[{...match,matchedAddress:`100 ${written} ST, NEW ORLEANS, LA, 70125`}]}}).location);
+  assert.equal(serviceStreetCandidates(`Business 84 Location 2, 100 ${numeric} St Apt 3 New Orleans LA 70125`).length,1);
+  for (const input of [`101 ${written} St New Orleans LA 70125`,`100 ${written} St New Orleans LA 70124`,`100 N ${written} St New Orleans LA 70125`,`100 ${written} Ave New Orleans LA 70125`,`100 ${written} Heights St New Orleans LA 70125`,`100 ${written} St New Orleans LA 70125 or 200 7th St New Orleans LA 70125`]) {
+    assert.equal(verifyCensusAddress(input,fixture).location,null,input);
+  }
+  assert.equal(verifyCensusAddress('100 Seventh St New Orleans LA 70125',{result:{addressMatches:[{...match,matchedAddress:'100 6TH ST, NEW ORLEANS, LA, 70125'}]}}).location,null);
+}
+assert.equal(normalizeServiceAddress('Sixth Company 100 Example St Apt Sixth Sixth City'), 'SIXTH COMPANY 100 EXAMPLE ST APT SIXTH SIXTH CITY');
+assert.equal(normalizeServiceAddress('100 First Colony St'), '100 FIRST COLONY ST');
+console.log('Numbered streets passed: written/numeric ordinals, reverse matching, compound ordinals, business/unit preservation and conflicting-premises rejection.');

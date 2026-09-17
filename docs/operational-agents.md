@@ -1,6 +1,6 @@
 # Visit and unload/cost agents
 
-OpsCenter runs two deterministic local agents using existing collected evidence.
+OpsCenter runs two shared evidence agents and nine truck agents using existing collected evidence. See [per-truck agents](truck-agents.md) for the truck responsibilities, review state, and UI.
 They have separate responsibilities and add no AI calls, provider requests,
 service, daemon, or Slack messages.
 

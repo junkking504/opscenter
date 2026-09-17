@@ -1,3 +1,4 @@
+import TruckAgents from './truck-agents';
 import { fleetSnapshotUrl } from './lib/fleet-snapshot';
 import { ConvoyViews, ConvoyHistory, type FleetRecord } from './convoy-views';
 import { convoyWarnings, truckLoadLabel, recordedValue } from './lib/convoy-presentation';
@@ -57,12 +58,14 @@ export default function LiveFleet({date,view,report,onBusyChange}:DesktopWorkspa
     {lastRequest&&<Button variant="outline" size="sm" disabled={pending} onClick={()=>void checkSavedResult()}>Check Saved Result</Button>}
     {!snapshot.sourceAvailable&&<p className="convoy-source-alert">GPS source unavailable. Stored inspection and repair records remain visible.</p>}
     {snapshot.warnings.filter(warning=>warning.startsWith('Repair source')).map(warning=><p className="convoy-source-alert" key={warning}>{warning}</p>)}
+    {view==='overview'&&<TruckAgents date={selectedDate} truck={serviceTruck||undefined}/>}
     <ConvoyViews snapshot={snapshot} trucks={trucks} view={view} truckId={serviceTruck} onTruck={setServiceTruck} open={open}/>
     {convoyWarnings(snapshot.warnings,view,serviceTruck).length>0&&<details className="convoy-source-details"><summary>Source details · {convoyWarnings(snapshot.warnings,view,serviceTruck).length} notes</summary>{convoyWarnings(snapshot.warnings,view,serviceTruck).map(warning=><p key={warning}>{warning}</p>)}</details>}
     {!trucks.length&&<div className="job-record-empty-row">No source fleet records are available.</div>}
     {active&&<div><button className="record-drawer-backdrop" aria-label="Close record" disabled={pending} onClick={()=>{setActive(null);opener.current?.focus();}}/><aside className="record-drawer truck-record-drawer" role="dialog" aria-modal="true" aria-label={`${active.truck.label} ${active.kind}`} ref={drawer} tabIndex={-1}><header className="record-drawer-header"><div><span>Convoy · {date}</span><h2>{active.issue?.title||active.truck.label}</h2></div><Button variant="ghost" size="icon" aria-label="Close Fleet record" disabled={pending} onClick={()=>{setActive(null);opener.current?.focus();}}><X/></Button></header><div className="record-drawer-body"><section className="fleet-drawer-overview">{[['Readiness',active.truck.readiness],['Assignment',active.truck.assignment],['GPS coordinates',recordedValue(active.truck.location,'Unavailable')],['GPS observation',active.truck.gpsAt||'Unavailable'],['Vehicle',recordedValue(active.truck.vehicle)],['Inspection',active.truck.checklist]].map(([label,value])=><div key={label}><span>{label}</span><strong>{value}</strong></div>)}</section>
       {active.truck.inspectionHref&&<a href={active.truck.inspectionHref}>View submitted Five Point Inspection</a>}
       {active.kind==='truck'&&<>
+        <TruckAgents date={selectedDate} truck={active.truck.id}/>
         <div className="truck-record-actions">
           <Button variant="outline" size="sm" onClick={()=>open({...active,kind:'load'})}>Record current load</Button>
           <Button variant="outline" size="sm" onClick={()=>open({...active,kind:'checklist'})}>View checklist</Button>

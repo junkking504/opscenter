@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Bounded, crash-safe ownership for the two local operational agents."""
+"""Bounded, crash-safe ownership for the shared and per-truck local operational agents."""
 import fcntl
 import os
 import pathlib

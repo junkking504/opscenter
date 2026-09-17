@@ -23,6 +23,7 @@ import { nullableNumber as num, sumObserved, validDesktopDate, type CrewAmounts,
  * operator repairs the receipt. Never retry the writer to discover its result.
  */
 export const DESKTOP_PEOPLE_FLEET_ACTIONS = {
+  'fleet.agent_review': { permission: 'operations.write', risk: 1, authority: 'opscenter_authoritative', verifier: 'truck recommendation review read-back' },
   'krewe.correction': { permission: 'sensitive.write', risk: 3, authority: 'junkware_authoritative', verifier: 'JunkWare timesheet read-back' },
   'krewe.bonus': { permission: 'sensitive.write', risk: 3, authority: 'opscenter_authoritative', verifier: 'manualBonusEntriesForEmployee' },
   'krewe.callin': { permission: 'operations.write', risk: 1, authority: 'opscenter_authoritative', verifier: 'call-in decision read-back' },

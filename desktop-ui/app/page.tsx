@@ -1,4 +1,5 @@
 'use client';
+import TruckAgents from '../truck-agents';
 import { fleetSnapshotUrl } from '../lib/fleet-snapshot';
 import { convoyTabs } from '../lib/convoy-presentation';
 import { workspaceLabel } from '../lib/workspace-labels';
@@ -4703,6 +4704,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
             </div>
           )}
 
+          {live && activeNav === 'Command' && (view === 'now' || view === 'today') && <TruckAgents date={live.snapshot.date} compact />}
           {live && activeNav === 'Command' && view === 'today' && <LivePhotoReview canReview={canFinance} />}
           {live && activeNav === 'Command' && view === 'monitor' && <MaintenanceMonitor />}
           {live && activeNav === 'Command' && view !== 'now' && <LiveControl date={live.snapshot.date} view={view} report={setActionFeedback} onNavigate={setActiveNav} onBusyChange={onBusyChange} />}

@@ -1,3 +1,4 @@
+import { JUNKWARE_DISPATCH_TRUCKS } from './junkware-trucks';
 import { listTruckInspections } from "./truck-inspection-store";
 import { inspectionFleetEvidence } from "./truck-inspection-fleet";
 import { readDesktopDrivingScores } from './desktop-driving-scores';
@@ -23,7 +24,7 @@ export function readDesktopFleet(date:string, report:string, role:InteractiveOps
   const inspections=listTruckInspections(date);
   const map=buildFleetMapPayload(date); const issues=readFleetIssueStore().issues; const maintenance=readFleetMaintenanceStore().records; const entries=readFleetChecklistStore().entries; const customizations=readFleetChecklistTemplateStore().customizations;
   const loads=readOperationalTruckLoads(date,[...inspections.map(row=>row.truck),...(map?.trucks.map(row=>row.truck)||[]),...issues.map(row=>row.truck),...maintenance.map(row=>row.truck),...entries.map(row=>row.truck)]);
-  const names=[...new Set([...(map?.trucks.map(row=>row.truck)||[]),...issues.map(row=>row.truck),...maintenance.map(row=>row.truck),...entries.map(row=>row.truck),...loads.map(row=>row.truck)].map(normalizeTruckLoadLabel).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+  const names=[...new Set([...JUNKWARE_DISPATCH_TRUCKS,...(map?.trucks.map(row=>row.truck)||[]),...issues.map(row=>row.truck),...maintenance.map(row=>row.truck),...entries.map(row=>row.truck),...loads.map(row=>row.truck)].map(normalizeTruckLoadLabel).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
   const storedLoads=readTruckLoadStatuses(date,names); const summary=report==='reports'?buildFleetMonthlySummary(date):null;
   return {date,report,drivingScores:report==='scores'?readDesktopDrivingScores(date):undefined,sourceUpdatedAt:map?.lastUpdatedAt||null,sourceAvailable:Boolean(map),canWrite:opsRoleCan(role,'operations.write'),trucks:names.map(name=>{
     const source=map?.trucks.find(row=>normalizeTruckLoadLabel(row.truck)===name); const checklist=entries.find(row=>normalizeTruckLoadLabel(row.truck)===name&&row.cadence==='daily'&&row.periodKey===date)||null; const load=loads.find(row=>normalizeTruckLoadLabel(row.truck)===name)||null; const repairs=issues.filter(row=>normalizeTruckLoadLabel(row.truck)===name&&row.status!=='resolved'); const definitions=effectiveFleetChecklistDefinitions(name,'daily',customizations);

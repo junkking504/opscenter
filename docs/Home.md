@@ -54,6 +54,7 @@ without mixing live runtime data or secrets into Git.
 - [JunkWare appointment creation](junkware-appointment-creation.md)
 - [Fleet Action Center](fleet-action-center.md)
 - [Convoy truck workspace](convoy-workspace.md)
+- [Per-truck operational agents](truck-agents.md)
 - [Truck phone inspections](truck-inspections.md)
 - [Operational readiness](operational-readiness.md)
 - [Background maintenance pilot](background-maintenance.md)

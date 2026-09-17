@@ -108,7 +108,7 @@ export function readTruckAgentInputs(date: string, now = Date.now()): TruckAgent
     return { at: latest(Object.values(value.watermarks).map(v => v > 0 ? new Date(v).toISOString() : null)), data: value.result.visits.filter(v => v.firstObservedAt?.startsWith(date) || v.departedAt?.startsWith(date)).map(v => ({ appointmentId: v.kind === 'appointment' ? v.appointmentId : undefined, conflict: v.conflict, superseded: Boolean(v.supersededAt), truck: v.truck, name: v.name, entered: v.enteredAt || v.firstObservedAt || '', departed: v.departedAt })) };
   });
   const costs: TruckAgentInputs['costs'] = source(() => {
-    const value = operational?.agents['unload-cost']; if (!value?.result || value.status !== 'ok' || value.dependency === 'retained') throw new Error('Cost projection unavailable');
+    const value = operational?.agents['unload-cost']; if (!value?.result || !['ok', 'degraded'].includes(value.status) || value.dependency !== 'current') throw new Error('Cost projection unavailable');
     return { at: latest(Object.values(value.watermarks).map(v => v > 0 ? new Date(v).toISOString() : null)), data: value.result.records.filter(r => r.date === date && (Boolean(r.reconciliationNote) || r.status === 'minimum_missing' || r.status === 'assumed' && r.departedAt && now - Date.parse(r.departedAt) > 3600_000)).map(r => ({ id: r.id, truck: r.truck, at: r.transactionAt, note: `${r.location}: ${r.reconciliationNote || (r.status === 'assumed' ? 'Expense remains assumed more than one hour after recorded departure. Match the actual receipt.' : 'Disposal expense requires source review.')}` })) };
   });
   return { identity, repairs, maintenance, inspections, schedule, gps, loads, visits, costs };

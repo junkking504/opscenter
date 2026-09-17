@@ -39,6 +39,7 @@ export type OpsAccessDecision = {
 };
 
 const FINANCE_RESOURCE_PREFIXES = [
+  "/api/desktop/agent-hierarchy",
   "/api/manual-bonuses",
   "/api/payroll-corrections",
   "/api/resale-items",

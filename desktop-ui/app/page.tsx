@@ -1,5 +1,6 @@
 'use client';
 import TruckAgents from '../truck-agents';
+import AgentHierarchy from '../agent-hierarchy';
 import { fleetSnapshotUrl } from '../lib/fleet-snapshot';
 import { convoyTabs } from '../lib/convoy-presentation';
 import { workspaceLabel } from '../lib/workspace-labels';
@@ -4706,7 +4707,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
 
           {live && activeNav === 'Command' && (view === 'now' || view === 'today') && <TruckAgents date={live.snapshot.date} compact />}
           {live && activeNav === 'Command' && view === 'today' && <LivePhotoReview canReview={canFinance} />}
-          {live && activeNav === 'Command' && view === 'monitor' && <MaintenanceMonitor />}
+          {live && activeNav === 'Command' && view === 'monitor' && <>{canFinance && <AgentHierarchy />}<MaintenanceMonitor /></>}
           {live && activeNav === 'Command' && view !== 'now' && <LiveControl date={live.snapshot.date} view={view} report={setActionFeedback} onNavigate={setActiveNav} onBusyChange={onBusyChange} />}
           <WorkspaceBoundary key={activeNav}><Suspense fallback={<div className="workspace-loading" role="status">Loading {workspaceLabel(activeNav)}…</div>}>
           {live && activeNav === 'Krewe' && <LiveKrewe date={live.snapshot.date} view={kreweView} onViewChange={setKreweView} onBusyChange={onBusyChange} />}

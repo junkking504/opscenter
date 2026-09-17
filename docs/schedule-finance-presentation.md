@@ -424,8 +424,8 @@ suggestion is bounded to 12 stops and is not a global route optimization.
 ## Shared full-field address verification
 
 `lib/desktop-address-verification.ts` processes the entire source field for every
-lookup. It tries the full business/street/suite/locality text first, followed by
-a unique street candidate and an explicitly unit-free query if needed. Every
+lookup. It tries the unit-free routing query first and retains the full source
+field for validation and subsequent query variants. Every
 provider response is checked against the original field's house, street and ZIP;
 business and suite numbers cannot become the house number. Multiple street
 addresses or ambiguous provider matches stay unresolved. Source text is retained.
@@ -433,14 +433,39 @@ The Gonzales hospital's 1014 W St Clare/Claire Blvd spelling alias is limited to
 that house and locality; FMOL publishes both spellings in its general-surgery and
 thoracic-surgery location directories.
 
-Written street ordinals (First through Ninety-Ninth) match their numeric forms
+Written street ordinals (First through Nine Thousand Nine Hundred Ninety-Ninth) match their numeric forms
 only in a house-number/street-type expression, including an optional direction.
 For example, `100 Sixth St` matches `100 6th St`. House numbers, different
 ordinals, road types, directions, locality and ZIP remain subject to the existing
 checks. Business names, units and longer road names are not rewritten. The
 source scanner recognizes numeric ordinal streets and still rejects two street
-addresses in one field. Policy 7 invalidates prior negative verification caches
-and sweep backoff so these addresses recover automatically on deployment.
+addresses in one field. Policy 8 rechecks legacy successful evidence against the complete source
+identity before reuse; a saved point alone is insufficient. Legacy failed checks
+and sweep backoff are reconsidered automatically. Planning caches require current
+verification policy metadata or independently revalidated provider/source evidence.
+The refresh worker and shared collector bridge publish the policy and matched
+address with each new verified point.
+
+House ranges, fractions and alphabetic suffixes stay intact through extraction
+and must match the provider's entire house identifier. For example, `100 1/2`
+cannot match `2` or `100`, and `98-100` cannot match `100`. The full source city
+and any supplied state must agree with the returned Louisiana address; an exact
+street/ZIP match cannot discard a conflicting locality. Northeast/Northwest and
+Southeast/Southwest use their corresponding two-letter abbreviations.
+
+Explicit units, including `Apt #2`, `Unit #B`, `#3` and hyphenated suite IDs,
+are omitted only from lookup queries. They remain in the displayed service
+address, including when the provider omits them or supplies a different unit.
+An unlabeled extra number is not silently treated as a unit. A verified premises
+point does not establish a particular unit entrance.
+
+Census/network errors and malformed responses produce a short retryable result,
+not a definitive no-match. The existing serialized worker persists that delay
+and retries after one minute (or a longer fallback-provider delay). Authoritative
+no-match/ambiguous results retain the existing six-hour sweep backoff. The four
+addresses per sweep cap and all paid-research approvals and lifetime limits are
+unchanged. Recovery is covered with mocked providers through the real worker,
+including a restart between failed lookup, cooldown, recovery and cache reuse.
 
 For a single Census address match, automatic verification also accepts one
 inserted/missing letter or adjacent letter transposition in one alphabetic street
@@ -458,7 +483,7 @@ instead of asking the operator to verify an address; missing locations still do
 not produce a fabricated pin, ETA or arrival. A single geocoder result is not by
 itself sufficient proof.
 
-Census sometimes returns spaced/unspaced street aliases twice. They count as one
+Census sometimes returns spaced/unspaced or written/numeric ordinal street aliases twice. They count as one
 location only when house, street name (ignoring spaces), all directional/type
 components, city/state/ZIP, TIGER road segment and side, and exact coordinates
 agree. Each alias still goes through full address validation against the source;

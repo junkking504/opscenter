@@ -1,3 +1,4 @@
+import { serviceHouseAndStreet, normalizeHouseNumber } from './service-house-number';
 import { fullFieldStreetAddress, serviceStreetCandidates } from './appointment-partner';
 import { cleanJunkwareAddressText } from './junkware-address-text';
 import { osmAddressJson } from './osm-address-transport';
@@ -27,6 +28,8 @@ export function verifyOsmServiceAddress(address:string,payload:unknown):AddressV
   const identities=new Set(rows.map(row=>JSON.stringify([row.osm_type,row.osm_id,row.lat,row.lon,row.address])));
   if(identities.size!==1)return {location:null,reason:'Multiple Address Matches'};
   const row=rows[0],a=row.address || {},city=a.city||a.town||a.village||'';
+  const sourceHouse=serviceHouseAndStreet(query);
+  if (!sourceHouse || normalizeHouseNumber(sourceHouse.house)!==normalizeHouseNumber(a.house_number || '')) return unavailable;
   const requested=normalize(query).replace(/ (?:LA|LOUISIANA)$/,'');
   const matched=normalize(`${a.house_number||''} ${a.road||''} ${city}`);
   const zip=a.postcode?.match(/^\d{5}(?:-\d{4})?$/)?.[0].slice(0,5);

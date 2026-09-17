@@ -4,7 +4,7 @@ import {addressQueries} from '../lib/desktop-address-verification';
 import {appointmentServiceAddress,normalizeServiceAddress} from '../lib/service-address-format';
 import {serviceStreetCandidates} from '../lib/appointment-partner';
 const component=(type:string,value:string)=>({types:[type],long_name:value,short_name:value});
-const result={address_components:[component('street_number','100'),component('route','Example Street'),component('postal_code','70125'),component('administrative_area_level_1','LA'),component('country','US')],geometry:{location:{lat:29.95,lng:-90.1},location_type:'ROOFTOP'}};
+const result={address_components:[component('street_number','100'),component('route','Example Street'),component('locality','New Orleans'),component('postal_code','70125'),component('administrative_area_level_1','LA'),component('country','US')],geometry:{location:{lat:29.95,lng:-90.1},location_type:'ROOFTOP'}};
 const payload={status:'OK',results:[result]};
 assert.ok(verifyAddressResult('100 Example St, New Orleans, LA 70125',payload).location);
 assert.ok(verifyAddressResult('Business Name 100 Example Street New Orleans, 70125',payload).location);
@@ -123,7 +123,7 @@ async function verifyAutomaticCache() {
     assert.deepEqual(await verifyDesktopAddress(address),first);
     assert.equal(calls,1,'Accepted correction is reused without another provider request');
     const saved=JSON.parse(fs.readFileSync(file,'utf8'));
-    assert.equal(saved.schema,7);
+    assert.equal(saved.schema,8);
     assert.equal(saved.address,address,'Source spelling is retained');
     assert.deepEqual(saved.verified,first,'Matched spelling and point persist atomically');
   } finally {

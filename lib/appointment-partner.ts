@@ -1,3 +1,5 @@
+import { HOUSE_NUMBER_PATTERN } from './service-house-number';
+import { withoutServiceUnit } from './service-address-format';
 import { cleanJunkwareAddressText } from './junkware-address-text';
 type PartnerSource = { address: string; customerName: string };
 
@@ -18,9 +20,10 @@ export function appointmentPartner(job: PartnerSource) {
 export function serviceStreetCandidates(address: string): number[] {
   // Scan the whole field. A number inside a business label or suite is not a
   // street number unless followed by a recognizable street expression.
-  const ordinary = [...address.matchAll(/\b\d+[A-Z]?\s+(?:(?:[A-Z][A-Z.'’-]*|\d+(?:st|nd|rd|th))\s+){0,8}?(?:st(?:reet)?|rd|road|ave(?:nue)?|dr(?:ive)?|ln|lane|ct|court|blvd|boulevard|hwy|highway|pl(?:ace)?|pkwy|pky|parkway|ter(?:race)?|cir(?:cle)?|trl|trail|way)\b/ig)].map(match=>match.index!);
-  const highways = [...address.matchAll(/\b\d+[A-Z]?\s+(?:LA|Louisiana|US|U\.S\.|State)\s*(?:-\s*|(?:Highway|Hwy|Route|Rte|Rt)\s*)?\d+\b/ig)].map(match=>match.index!);
-  return [...new Set([...ordinary,...highways])].sort((a,b)=>a-b);
+  const start = `(?<![A-Z0-9/#-])${HOUSE_NUMBER_PATTERN}`;
+  const ordinary = [...address.matchAll(new RegExp(`${start}\\s+(?:(?:[A-Z][A-Z.'’-]*|\\d+(?:st|nd|rd|th))\\s+){0,10}?(?:st(?:reet)?|rd|road|ave(?:nue)?|dr(?:ive)?|ln|lane|ct|court|blvd|boulevard|hwy|highway|pl(?:ace)?|pkwy|pky|parkway|ter(?:race)?|cir(?:cle)?|trl|trail|way)\\b`, 'ig'))].map(match=>match.index!);
+  const highways = [...address.matchAll(new RegExp(`${start}\\s+(?:LA|Louisiana|US|U\\.S\\.|State)\\s*(?:-\\s*|(?:Highway|Hwy|Route|Rte|Rt)\\s*)?\\d+\\b`, 'ig'))].map(match=>match.index!);
+  return [...new Set([...ordinary,...highways])].filter(index => !/\d+\s*[-/–]\s*$/.test(address.slice(0,index))).sort((a,b)=>a-b);
 }
 
 // Public address links and duplicate checks retain their conservative handling
@@ -28,10 +31,10 @@ export function serviceStreetCandidates(address: string): number[] {
 export function serviceAddressForGeocoding(address: string): string {
   address = cleanJunkwareAddressText(address);
   const candidates = serviceStreetCandidates(address);
-  return candidates.length === 1 && !/\d/.test(address.slice(0,candidates[0])) && /\b\d{5}(?:-\d{4})?\s*$/.test(address) ? address.slice(candidates[0]).trim() : address;
+  return candidates.length === 1 && !/\d/.test(address.slice(0,candidates[0])) && /\b\d{5}(?:-\d{4})?\s*$/.test(withoutServiceUnit(address)) ? address.slice(candidates[0]).trim() : address;
 }
 export function fullFieldStreetAddress(address: string): string {
   address = cleanJunkwareAddressText(address);
   const candidates = serviceStreetCandidates(address);
-  return candidates.length === 1 && /\b\d{5}(?:-\d{4})?\s*$/.test(address) ? address.slice(candidates[0]).trim() : address;
+  return candidates.length === 1 && /\b\d{5}(?:-\d{4})?\s*$/.test(withoutServiceUnit(address)) ? address.slice(candidates[0]).trim() : address;
 }

@@ -41,9 +41,9 @@ async function main() {
     const reviewed = cachedAddressVerification(address);
     if (!reviewed?.location) continue;
     const old = geocodes[hash(address)];
-    if (old?.latitude === reviewed.location.latitude && old?.longitude === reviewed.location.longitude && old?.house_street_verified) continue;
+    if (old?.latitude === reviewed.location.latitude && old?.longitude === reviewed.location.longitude && old?.house_street_verified && old?.verification_policy === ADDRESS_VERIFICATION_POLICY) continue;
     const cache = read(geocodeFile);
-    cache.addresses = { ...cache.addresses, [hash(address)]: { ...reviewed.location, normalized_address: normalize(address), match_confidence: 'confirmed', house_street_verified: true, geocoder_source: 'Shared full-address verifier', reason: reviewed.reason, collection_timestamp: new Date().toISOString() } };
+    cache.addresses = { ...cache.addresses, [hash(address)]: { ...reviewed.location, normalized_address: normalize(address), match_confidence: 'confirmed', house_street_verified: true, verification_policy: ADDRESS_VERIFICATION_POLICY, matched_address: reviewed.matchedAddress, geocoder_source: 'Shared full-address verifier', reason: reviewed.reason, collection_timestamp: new Date().toISOString() } };
     write(geocodeFile, cache);
     geocodes[hash(address)] = cache.addresses[hash(address)];
   }
@@ -56,7 +56,7 @@ async function main() {
     if (result.location) {
       // Reload immediately before the atomic write to preserve other entries.
       const cache = read(geocodeFile);
-      cache.addresses = { ...cache.addresses, [hash(address)]: { ...result.location, normalized_address: normalize(address), match_confidence: 'confirmed', house_street_verified: true, geocoder_source: 'Shared full-address verifier', reason: result.reason, collection_timestamp: new Date().toISOString() } };
+      cache.addresses = { ...cache.addresses, [hash(address)]: { ...result.location, normalized_address: normalize(address), match_confidence: 'confirmed', house_street_verified: true, verification_policy: ADDRESS_VERIFICATION_POLICY, matched_address: result.matchedAddress, geocoder_source: 'Shared full-address verifier', reason: result.reason, collection_timestamp: new Date().toISOString() } };
       write(geocodeFile, cache); verified++;
     }
   }

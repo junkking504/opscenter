@@ -22,6 +22,7 @@ BRIDGE = '''def geocode(address: str, *, allow_local_cache: bool = True) -> dict
             "latitude": point["latitude"], "longitude": point["longitude"],
             "geocoder_source": "Shared full-address verifier / Census",
             "match_confidence": "confirmed", "house_street_verified": True,
+            "verification_policy": result.get("verificationPolicy"), "matched_address": result.get("matchedAddress"),
             "normalized_address": normalize_address(address),
             "collection_timestamp": collected_at(), "reason": result.get("reason", "verified"),
         })

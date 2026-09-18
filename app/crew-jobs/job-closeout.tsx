@@ -10,7 +10,7 @@ import styles from './phone-access.module.css';
 
 export default function JobCloseout({job,truck,deviceId,onBusyChange,onBack,onNext}:{job:CrewCurrentJob;truck:string;deviceId:string;onBusyChange:(busy:boolean)=>void;onBack:()=>void;onNext:()=>void}) {
   const [completed,setCompleted]=useState(false);
-  const verified=useRef(false),jobVersion=useRef('');
+  const verified=useRef(false),jobVersion=useRef(''),crewVersion=useRef(0);
   const key=crewCloseoutKey(deviceId,job.assignmentId);
   const endpoint=`/api/crew-jobs/closeout?assignmentId=${encodeURIComponent(job.assignmentId)}`;
   const transport=useMemo<CloseoutTransport>(()=>{
@@ -23,7 +23,7 @@ export default function JobCloseout({job,truck,deviceId,onBusyChange,onBack,onNe
       async load(){
         const response=await fetch(endpoint,{cache:'no-store',signal:AbortSignal.timeout(210_000)});
         const body=await response.json();if(!response.ok || !body.closeout)throw new Error(body.error || 'The closeout could not be loaded.');
-        jobVersion.current=body.jobVersion;
+        jobVersion.current=body.jobVersion;crewVersion.current=body.crewVersion;
         const local=readCloseoutLocal<Receipt>(`${key}:receipt`);
         if(body.pendingReceipt)keep(body.pendingReceipt);
         else if(local && local.status!=='failed'){
@@ -35,7 +35,7 @@ export default function JobCloseout({job,truck,deviceId,onBusyChange,onBack,onNe
       async send(values,requestId){
         // Retain the request identity BEFORE the only POST, including across page reload.
         keep({requestId,action:'closeout',status:'pending',message:'Checking the saved closeout. Do not record another payment.'});
-        const receipt=await submitScheduleOperation({assignmentId:job.assignmentId,requestId,expectedVersion:jobVersion.current,values},{endpoint});
+        const receipt=await submitScheduleOperation({assignmentId:job.assignmentId,requestId,expectedVersion:jobVersion.current,crewVersion:crewVersion.current,values},{endpoint});
         return keep(receipt);
       },
       check,

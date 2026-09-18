@@ -9,6 +9,7 @@ async function main(){
    const context=await browser.newContext({viewport:{width,height:844}}),page=await context.newPage();
    const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
    let connected=true,uploads=0,uncertain=false,waiting=false;
+   let day:any=null;
    const phone={deviceId:randomUUID(),truck:'Truck 6',label:'Synthetic company phone',enrolledAt:new Date().toISOString(),expiresAt:'2027-01-01T00:00:00Z'};
    const assignmentId=randomUUID(),receipts:Array<{requestId:string;category:string;status:string}>=[];
    await page.route('**/api/**',async route=>{
@@ -18,6 +19,7 @@ async function main(){
      if(request.method()==='POST'){connected=false;return send({disconnected:true});}
      return connected?send({phone}):send({error:'This phone needs manager setup.'},401);
     }
+    if(url.pathname==='/api/crew-jobs/day'){if(request.method()==='POST'){const b=request.postDataJSON();day={...b,version:1,deviceId:phone.deviceId,truck:phone.truck};return send({day});}return send({date:'2026-09-18',day,roster:['Sample Driver','Sample Navigator']});}
     if(url.pathname==='/api/crew-jobs/current')return send(waiting?{state:'waiting',truck:'Truck 6',job:null}:{state:'assigned',truck:'Truck 6',observedAt:new Date().toISOString(),job:{assignmentId,appointmentId:'900001',date:'2026-09-18',jkNumber:'SAMPLE-01',customerName:'Sample current customer',address:'100 Sample Street',appointmentTime:'10 AM–12 PM',junkItems:['Garage cleanout'],appointmentNotes:['Side door'],driver:'Sample Driver',navigator:'Sample Navigator'}});
     if(url.pathname==='/api/crew-jobs/photos'){
      if(request.method()==='POST'){
@@ -30,6 +32,8 @@ async function main(){
     throw new Error(`Unexpected API ${request.method()} ${url.pathname}`);
    });
    await page.goto(`${origin}/crew-jobs`);
+   await expect(page.getByRole('heading',{name:'Enable phone for today',exact:true})).toBeVisible();
+   await page.getByRole('combobox',{name:'Person responsible for this phone',exact:true}).selectOption('Sample Driver');await page.getByRole('combobox',{name:'Driver',exact:true}).selectOption('Sample Driver');await page.getByRole('combobox',{name:'Navigator',exact:true}).selectOption('Sample Navigator');await page.getByRole('button',{name:'Enable phone for today',exact:true}).click();
    await expect(page.getByRole('heading',{name:'Current job',exact:true})).toBeVisible();
    await page.getByRole('button',{name:'View job',exact:true}).click();
    await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled();

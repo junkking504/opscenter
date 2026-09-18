@@ -57,7 +57,7 @@ function inputMoney(value: string): string {
 
 export type CloseoutJob = Pick<ScheduleAppointment,'appointmentId'|'appointmentUrl'|'status'|'appointmentType'|'onsiteTime'|'truck'|'jkNumber'|'customerName'|'recordId'|'version'>;
 export type CloseoutTransport = {
-  load: () => Promise<{closeout:LiveCloseout;sourceVersion:string;canWrite:boolean;pendingReceipt?:Receipt|null;message?:string}>;
+  load: () => Promise<{closeout:LiveCloseout;sourceVersion:string;canWrite:boolean;crewDefaults?:{version:number;driver:Option;navigators:Option[]};pendingReceipt?:Receipt|null;message?:string}>;
   send: (values:Record<string,unknown>,requestId:string)=>Promise<Receipt>;
   check: (requestId:string)=>Promise<Receipt>;
 };
@@ -95,6 +95,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   const sourceBaseline = useRef<LiveCloseout | null>(null);
   const previousPhotoRevision = useRef(photoRevision);
   const draftReady=useRef(false);
+  const dailyCrew=useRef<{version:number;driver:Option;navigators:Option[]}|null>(null);
   const [draftNotice,setDraftNotice]=useState('');
   useEffect(() => {
     if (previousPhotoRevision.current === photoRevision) return;
@@ -140,7 +141,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       const fields:Record<string,unknown>={};
       for(const key of ['loadQuantity','loadPrice','bedloadQuantity','bedloadPrice','discount','tip'] as const)fields[key]=live[key];
       for(const key of ['loadSize','bedloadSize','jobCategory','howHeard','actualStartHour','actualStartMinute','actualEndHour','actualEndMinute'] as const)fields[key]=live[key]?.value;
-      writeCloseoutLocal(`${draftKey}:draft`,{sourceVersion,fields,driverId:live.driver.value,navigatorIds:live.navigators.map(row=>row.value),category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentReference,pendingOtherCharges,mobileStep});
+      writeCloseoutLocal(`${draftKey}:draft`,{sourceVersion,crewVersion:dailyCrew.current?.version || 0,fields,driverId:live.driver.value,navigatorIds:live.navigators.map(row=>row.value),category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentReference,pendingOtherCharges,mobileStep});
     }catch {setDraftNotice('This browser cannot retain the draft. Keep this page open until the saved result is verified.');}
   },[draftKey,live,loading,receipt,sourceVersion,category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentReference,pendingOtherCharges,mobileStep]);
 
@@ -174,6 +175,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       const suggestions = closeoutGpsTimes(job.onsiteTime, job.truck, source.truck || '', serviceDate, source);
       gpsDefaults.current = {};
       const withTimes = {...source};
+      dailyCrew.current=payload.crewDefaults || null;
+      if(crewMode && payload.canWrite && !payload.pendingReceipt && dailyCrew.current){withTimes.driver=dailyCrew.current.driver;withTimes.navigators=[...dailyCrew.current.navigators];}
       for (const pair of [['actualStartHour','actualStartMinute'],['actualEndHour','actualEndMinute']] as const) {
         if (pair.every(key => !source[key].value && suggestions[key] !== undefined)) {
           for (const key of pair) { withTimes[key] = {...source[key],value:suggestions[key]!};gpsDefaults.current[key]=suggestions[key]; }
@@ -199,7 +202,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       setMessage(payload.message || '');
       if(draftKey && !payload.pendingReceipt && payload.canWrite){
         const draft=readCloseoutLocal<Record<string,unknown>>(`${draftKey}:draft`);
-        if(draft && draft.sourceVersion===payload.sourceVersion){
+        if(draft && draft.sourceVersion===payload.sourceVersion && Number(draft.crewVersion || 0)===(dailyCrew.current?.version || 0)){
           try {
             const fields=draft.fields as Record<string,string>;
             const restored={...withTimes};
@@ -217,7 +220,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             if(Number.isInteger(draft.mobileStep) && Number(draft.mobileStep)>=0 && Number(draft.mobileStep)<=2)setMobileStep(Number(draft.mobileStep));
             setDraftNotice('Draft restored against the current JunkWare record. Review before saving.');
           }catch {setDraftNotice('The stored draft could not be restored. The current source is shown.');}
-        }else if(draft){localStorage.removeItem(`${draftKey}:draft`);setDraftNotice('JunkWare changed since this draft. Current saved values are shown; review before entering a payment.');}
+        }else if(draft){localStorage.removeItem(`${draftKey}:draft`);setDraftNotice('JunkWare or today’s crew changed since this draft. Current values are shown; review before entering a payment.');}
       }
       draftReady.current=true;
     } catch (loadError) {
@@ -538,10 +541,10 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
                 {(live.truckOptions || []).filter(option => option.value && /truck\s*#?\s*\d+/i.test(option.label)).map(option => { const label = option.label.replace(/Truck#?\s*/i, 'Truck ').trim(); return <option key={option.value} value={label}>{label}</option>; })}
                 {truck && !(live.truckOptions || []).some(option => option.label.replace(/Truck#?\s*/i, 'Truck ').trim() === truck) && <option value={truck}>{truck}</option>}
               </select></label>
-              <h4>Krewe Assigned to This Job</h4>
+              <h4>Krewe Assigned to This Job</h4>{crewMode && dailyCrew.current && <p>Today’s driver and navigator are filled in from this phone. Add any extra crew who worked this job.</p>}
               <label>
                 <span>Driver</span>
-                <select value={live.driver.value} onChange={(event) => update("driver", { value: event.target.value, label: event.target.selectedOptions[0]?.text || "" })}>
+                <select disabled={crewMode && Boolean(dailyCrew.current)} value={live.driver.value} onChange={(event) => update("driver", { value: event.target.value, label: event.target.selectedOptions[0]?.text || "" })}>
                   {live.drivers.map((option) => <option key={`driver-${option.value}`} value={option.value}>{option.label || "Choose driver"}</option>)}
                 </select>
               </label>
@@ -549,16 +552,16 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
                 {live.navigators.map((navigator, index) => (
                   <div className="ops-closeout-crew-row" key={`navigator-${index}`}>
                     <label>
-                      <span>Navigator {index + 1}</span>
-                      <select value={navigator.value} onChange={(event) => setNavigator(index, event.target.value)}>
+                      <span>{crewMode && index>=(dailyCrew.current?.navigators.length || 0)?`Additional crew ${index-(dailyCrew.current?.navigators.length || 0)+1}`:`Navigator ${index + 1}`}</span>
+                      <select disabled={crewMode && index<(dailyCrew.current?.navigators.length || 0)} value={navigator.value} onChange={(event) => setNavigator(index, event.target.value)}>
                         {live.navigatorOptions.map((option) => <option key={`navigator-${index}-${option.value}`} value={option.value}>{option.label || "Choose navigator"}</option>)}
                       </select>
                     </label>
-                    <button type="button" className="ops-button subtle" onClick={() => removeNavigator(index)}>Remove</button>
+                    <button type="button" className="ops-button subtle" disabled={crewMode && index<(dailyCrew.current?.navigators.length || 0)} onClick={() => removeNavigator(index)}>Remove</button>
                   </div>
                 ))}
               </div>
-              <button type="button" className="ops-button subtle" onClick={addNavigator}>+ Add another navigator</button>
+              <button type="button" className="ops-button subtle" onClick={addNavigator}>{crewMode?'+ Add additional crew':'+ Add another navigator'}</button>
             </section>
 
             <section data-closeout-step="0" className="appointment-create-section">

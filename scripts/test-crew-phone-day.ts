@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {randomUUID} from 'node:crypto';
+import {readCrewDay,saveCrewDay,closeoutCrewDefaults,requireCrewDay,crewDayRoster} from '../lib/crew-phone-day';
+import {chicagoDateKey} from '../lib/chicago-date';
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'crew-day-'));
+process.env.OPS_CREW_PHONE_DIR=root;
+const roster=['Sample Driver','Sample Navigator','Extra Crew'];
+process.env.OPS_CREW_ROSTER_JSON=JSON.stringify(roster.map((employee,index)=>({employee,username:`sample${index}`,active:true})));
+try{
+ const phone={deviceId:randomUUID(),truck:'Truck 6',label:'Sample phone',enrolledAt:new Date().toISOString(),expiresAt:'2027-01-01T00:00:00Z'};
+ const date=chicagoDateKey(),base={date,requestId:randomUUID(),expectedVersion:0,responsible:'Sample Driver',driver:'Sample Driver',navigators:['Sample Navigator']};
+ assert.equal(readCrewDay(phone),null);assert.throws(()=>requireCrewDay(phone),/today/);
+ assert.deepEqual(crewDayRoster().sort(),roster.sort());
+ assert.throws(()=>saveCrewDay(phone,{...base,driver:'Unknown'}),/crew list/);
+ assert.throws(()=>saveCrewDay(phone,{...base,navigators:['Sample Driver']}),/one position/);
+ assert.throws(()=>saveCrewDay(phone,{...base,date:'2000-01-01'}),/Refresh/);
+ const day=saveCrewDay(phone,base);assert.equal(day.version,1);assert.deepEqual(saveCrewDay(phone,base),day,'Same request is idempotent');assert.deepEqual(requireCrewDay(phone),day);
+ assert.equal(readCrewDay({...phone,deviceId:randomUUID()}),null,'Another phone has no crew assignment');
+ assert.throws(()=>saveCrewDay(phone,{...base,requestId:randomUUID()}),/changed/);
+ const options={drivers:[{value:'D',label:'Driver, Sample'}],navigatorOptions:[{value:'N',label:'Sample Navigator'},{value:'E',label:'Extra Crew'}]};
+ assert.deepEqual(closeoutCrewDefaults(day,options),{version:1,driver:{value:'D',label:'Driver, Sample'},navigators:[{value:'N',label:'Sample Navigator'}]});
+ assert.throws(()=>closeoutCrewDefaults(day,{...options,drivers:[...options.drivers,{value:'D2',label:'Sample Driver'}]}),/uniquely/);
+ const updated=saveCrewDay(phone,{...base,requestId:randomUUID(),expectedVersion:1,driver:'Extra Crew'});assert.equal(updated.version,2);assert.equal(readCrewDay(phone)?.driver,'Extra Crew');
+ const before=new Date('2026-09-19T04:59:00Z'),after=new Date('2026-09-19T05:00:00Z');
+ assert.equal(chicagoDateKey(before),'2026-09-18');assert.equal(chicagoDateKey(after),'2026-09-19');
+ const boundaryPhone={...phone,deviceId:randomUUID()};saveCrewDay(boundaryPhone,{...base,date:chicagoDateKey(before)},before);
+ assert.equal(readCrewDay(boundaryPhone,chicagoDateKey(after)),null,'Crew does not carry across Central midnight');
+ console.log('PASS: daily crew scope, responsible person, roster validation, duplicate roles, version conflicts, idempotency, exact source ID mapping and ambiguity rejection, Central-day reset. No source writes.');
+}finally{fs.rmSync(root,{recursive:true,force:true});}

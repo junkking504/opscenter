@@ -1,3 +1,4 @@
+import { requireCrewDay,closeoutCrewDefaults } from './crew-phone-day';
 import { CrewPhoneError } from './crew-phone';
 import { requireCrewPhone } from './crew-phone-http';
 import { readCrewDispatch } from './crew-dispatch-store';
@@ -34,7 +35,8 @@ export async function loadCrewCloseout(request:Request,assignmentId:string,deps=
     const result=await deps.read(current.appointmentId);
     if(result.appointmentId!==current.appointmentId || result.closeout?.truck!==phone.truck)throw new CrewPhoneError('The source appointment changed. Contact dispatch.',409);
     const pending=await readPendingScheduleReceipt(job.recordId),actor=actorFor(phone.deviceId,current.assignmentId);
-    return {closeout:result.closeout,sourceVersion:closeoutSourceVersion(result.closeout),jobVersion:job.version,
+    const day=result.closeout.status?.value==='1' && !pending?requireCrewDay(phone,current.date):null;
+    return {crewVersion:day?.version || 0,crewDefaults:day?closeoutCrewDefaults(day,result.closeout):undefined,closeout:result.closeout,sourceVersion:closeoutSourceVersion(result.closeout),jobVersion:job.version,
       canWrite:result.closeout.status?.value==='1' && (!pending || pending.actor===actor),pendingReceipt:pending?.actor===actor?crewReceiptProjection(pending):null,
       message:pending && pending.actor!==actor?'The office must verify an earlier change before this appointment can be closed.':result.closeout.status?.value==='8'?'This appointment is already completed in JunkWare. Refresh your assignment.':undefined};
   });
@@ -43,7 +45,7 @@ export async function submitCrewCloseout(request:Request,body:Record<string,unkn
   const phone=requireCrewPhone(request),assignmentId=String(body.assignmentId || '');
   const current=readCrewDispatch(phone.truck).current;
   if(!current || current.assignmentId!==assignmentId)throw new CrewPhoneError('Dispatch changed. Refresh your assignment.',409);
-  if(Object.keys(body).some(key=>!['assignmentId','requestId','expectedVersion','values'].includes(key)))throw new CrewPhoneError('Use the current closeout screen.');
+  if(Object.keys(body).some(key=>!['assignmentId','requestId','expectedVersion','crewVersion','values'].includes(key)))throw new CrewPhoneError('Use the current closeout screen.');
   const operation=parseScheduleOperation({requestId:body.requestId,date:current.date,recordId:`${current.date}:appointment:${current.appointmentId}`,expectedVersion:body.expectedVersion,action:'closeout',values:body.values});
   validateCrewCloseout(operation.values,phone.truck,current.appointmentId,current.date);
   const actor=actorFor(phone.deviceId,assignmentId);
@@ -69,6 +71,14 @@ export async function submitCrewCloseout(request:Request,body:Record<string,unkn
           if(error)throw new CrewPhoneError(error);
           if(/billed/i.test(methods.find(method=>method.value===payment.methodId)?.label || ''))throw new CrewPhoneError('Record only money already collected. The office handles billing.');
         }
+        const day=requireCrewDay(phone,current.date),defaults=closeoutCrewDefaults(day,before.closeout);
+        const navigatorIds=operation.values.navigatorIds;
+        const available=before.closeout.navigatorOptions as Array<{value:string}>;
+        if(body.crewVersion!==day.version)throw new CrewPhoneError('Today’s crew changed. Reload the closeout before saving.',409);
+        if(operation.values.driverId!==defaults.driver.value || !Array.isArray(navigatorIds) || navigatorIds.length>10
+          || new Set([operation.values.driverId,...navigatorIds]).size!==navigatorIds.length+1
+          || defaults.navigators.some(row=>!navigatorIds.includes(row.value))
+          || navigatorIds.some(id=>typeof id!=='string' || !available.some(row=>row.value===id)))throw new CrewPhoneError('Use today’s assigned driver and navigator. You may add additional crew for this job.',409);
         // Recheck revocation immediately before the source write, after the read.
         requireCrewPhone(request);
         writeStarted=true;
@@ -76,7 +86,7 @@ export async function submitCrewCloseout(request:Request,body:Record<string,unkn
         let truckLoadStatus;
         try {truckLoadStatus=deps.updateLoad(current.date,current.appointmentId,result.closeout,String(result.verifiedAt || ''),actor);}
         catch {truckLoadStatus={updated:false,reason:'Closeout saved; truck load reconciliation is pending.'};}
-        return {status:200,body:{...result,truckLoadStatus,crewContext:{deviceId:phone.deviceId,assignmentId,truck:phone.truck,sourceDriver:job.driver,sourceNavigator:job.navigator}}};
+        return {status:200,body:{...result,truckLoadStatus,crewContext:{deviceId:phone.deviceId,assignmentId,truck:phone.truck,sourceDriver:job.driver,sourceNavigator:job.navigator,dailyCrew:day}}};
       });
     }catch(error){
       const preflight=!writeStarted || error instanceof JunkwareCloseoutError && error.stage==='preflight';

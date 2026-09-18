@@ -57,6 +57,12 @@ does not add personal accounts or silently sign a phone in as a manager.
 
 The enrollment store lives in `data/crew-phones`, outside immutable releases via
 the normal runtime data mount. `OPS_CREW_PHONE_DIR` provides isolated test storage.
+The manager-only phone directory is stored in `data/crew-phones/directory.json`
+with company phone/truck mappings and manager contact numbers. Selecting a
+company contact fills the setup form; directory entries do not enroll browsers
+or grant account permissions. Phone numbers and names remain in private runtime
+storage, outside Git.
+
 Atomic, immutable records retain issuing and revoking actors; corrupt storage
 fails closed. No service, subscription, polling or provider SDK is introduced.
 
@@ -113,6 +119,31 @@ tests the production-built phone UI with synthetic API responses at 320/390/430p
 `verify:crew-closeout` covers payment scope and receipt recovery, and
 `scripts/test-crew-closeout-browser.ts` covers collected-payment entry, source-
 versioned draft recovery, review and lost-response verification without replay.
+
+
+## Daily phone crew
+
+After one-time device enrollment, the phone must be enabled for each Central
+calendar day. The person taking responsibility selects their name, the driver
+and navigator (or driver only) from the active configured crew roster. The API
+returns only employee names, never usernames, payroll or credentials.
+
+Immutable daily revisions in `data/crew-phones/days/<device>/<date>` retain the
+responsible person, selected crew, device/truck, time and request identity. Reads
+recover a lost response; duplicate request IDs cannot create another revision.
+Day changes require a new selection. A shared-phone selection records a declared
+assignment, not independent proof of a person’s identity or a payroll clock-in.
+
+Each new closeout resolves these names uniquely against that appointment’s live
+JunkWare driver/navigator options. The daily driver and navigator are prefilled
+and retained; additional job crew can be added in the closeout. Extra job crew
+do not change tomorrow’s or the next job’s defaults. Missing or ambiguous source
+identities block saving. Updating the daily crew invalidates an older closeout
+draft and an older submitted crew version. Saved or uncertain closeouts retain
+their original receipt and crew evidence.
+
+Run `verify:crew-phone-day` and `verify:crew-closeout` for day/identity/payment
+contracts. Phone browser tests cover daily setup and additional job crew.
 
 ## Completion and next-assignment rules
 

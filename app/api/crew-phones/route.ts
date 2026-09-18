@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie, opsAuthRole } from '@/lib/auth';
 import { opsRoleCan } from '@/lib/ops-roles';
+import { readCrewPhoneDirectory } from '@/lib/crew-phone-directory';
 import { JUNKWARE_DISPATCH_TRUCKS } from '@/lib/junkware-trucks';
 import { CrewPhoneError } from '@/lib/crew-phone';
 import { createCrewPhoneEnrollment, listCrewPhones, revokeCrewPhone } from '@/lib/crew-phone-store';
@@ -16,7 +17,7 @@ async function manager() {
 export async function GET() {
   try {
     await manager();
-    return crewPhoneResponse({ phones: listCrewPhones(), trucks: JUNKWARE_DISPATCH_TRUCKS });
+    return crewPhoneResponse({ phones: listCrewPhones(), trucks: JUNKWARE_DISPATCH_TRUCKS, directory: readCrewPhoneDirectory() });
   } catch (error) { return crewPhoneFailure(error); }
 }
 export async function POST(request: Request) {

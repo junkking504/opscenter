@@ -48,6 +48,8 @@ async function main(){
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`No horizontal overflow at ${width}`);
    await page.getByRole('button',{name:'Disconnect company phone',exact:true}).click();
    await expect(page.getByRole('heading',{name:'Company phone setup',exact:true})).toBeVisible();
+   await expect(page.getByRole('link',{name:'Open full schedule',exact:true})).toHaveAttribute('href','/desktop?workspace=Schedule&scheduleDay=today&scheduleView=board');
+   await expect(page.getByText('Managers can use personal phones. Sign in with your manager account to access the full schedule.')).toBeVisible();
    const setupCode=page.getByLabel('Setup code',{exact:true});
    await expect(setupCode).toHaveAttribute('inputmode','numeric');
    await expect(setupCode).toHaveAttribute('maxlength','6');

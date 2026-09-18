@@ -20,7 +20,11 @@ Open the generated `index.html` locally. Test with
 
 ## Company-phone access — September 18, 2026
 
-The approved device scope is **company phones only**. `/crew-phones` is a
+Crew job access uses **company phones only**. Managers may use their personal
+phones and normal manager accounts to access the full schedule. The phone page
+links directly to the protected Schedule workspace, preserving the normal
+manager sign-in and server permissions. Setup codes grant only crew truck access;
+they never grant manager permissions. `/crew-phones` is a
 manager-only setup page; `/crew-jobs` is the phone setup page. A manager selects
 the truck and phone label and generates a six-digit numeric code valid for ten minutes.
 Codes preserve leading zeros and never reuse a previously issued value. Eight failed

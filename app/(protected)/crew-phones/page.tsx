@@ -40,7 +40,7 @@ export default function CompanyPhones() {
   }
   return <main className={styles.page}><div className={styles.content}>
     <h1>Company phones</h1><p>Set up job access on company-issued phones only. Each connection belongs to one truck.</p>
-    <p><a href="/crew-dispatch">Open crew dispatch</a></p>
+    <p>Managers can use personal phones with their manager accounts for <a href="/desktop?workspace=Schedule&scheduleDay=today&scheduleView=board">full schedule access</a>.</p><p><a href="/crew-dispatch">Open crew dispatch</a></p>
     {error && <p role="alert" className={styles.error}>{error}</p>}
     <section className={styles.card}><h2>Connect a phone</h2><form className={styles.form} onSubmit={event => { event.preventDefault(); void send({ action: 'enroll', truck, label }); }}>
       <label>Truck<select value={truck} onChange={event => setTruck(event.target.value)} required disabled={busy || loading}><option value="">Choose truck</option>{trucks.map(item => <option key={item}>{item}</option>)}</select></label>

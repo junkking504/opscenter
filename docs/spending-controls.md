@@ -82,3 +82,12 @@ Subscriptions, ad accounts, another machine and separately invoked tools have
 their own billing. New approved usage should use dedicated restricted provider
 credentials and provider-enforced quotas wherever available. Verify actual
 provider invoices separately; local estimates are not invoice reconciliation.
+
+## Crew jobs hostname — September 18, 2026
+
+The user explicitly approved adding only `jobs.junk-king.app` to the installed
+hostname inventory. It uses the existing Cloudflare DNS and Mission Control tunnel
+for the company-phone app, with zero new charges authorized. The checker is
+unchanged; no provider, dependency, paid service, quota or spending limit changes.
+The installed checker and one-hostname manifest update are backed up and recorded
+with SHA256 checksums in the external deployment-control installation record.

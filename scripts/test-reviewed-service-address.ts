@@ -20,6 +20,16 @@ try {
   assert.deepEqual(reviewedServiceAddress('Example Business 100 Example St New Orleans LA 70125')?.location,row.location);
   assert.equal(reviewedServiceAddress('101 Example St New Orleans 70125'),undefined);
   assert.deepEqual(planningLocation(address,{old:{normalized_address:address,match_confidence:'confirmed',house_street_verified:true,latitude:30.1,longitude:-90.2}}),row.location,'Recorded correction takes precedence over stale cache');
+  assert.equal(reviewedServiceAddress('100 Example St B115 New Orleans LA 70125'),undefined,'Legacy records cannot be reused for a different unit scope');
+  fs.writeFileSync(file,JSON.stringify({...row,scope:'premises'}));
+  for (const unit of ['B115','Apt B115','Unit B210']) assert.deepEqual(reviewedServiceAddress(`100 Example St ${unit} New Orleans LA 70125`)?.location,row.location,'Explicit property evidence can serve its source units');
+  for (const other of ['100 E Example St B115 New Orleans LA 70125','101 Example St B115 New Orleans LA 70125','100 Example St B115 Other City LA 70125','100 Example St B115 New Orleans LA 70124']) assert.equal(reviewedServiceAddress(other),undefined,'Property scope never changes premises identity');
+  const exact='100 Example St B115 New Orleans LA 70125';
+  const exactFile=path.join(dir,createHash('sha256').update(reviewedAddressIdentity(exact)).digest('hex')+'.json');
+  fs.writeFileSync(exactFile,JSON.stringify({...row,originalAddress:exact,location:{latitude:29.951,longitude:-90.101}}));
+  assert.equal(reviewedServiceAddress(exact)?.location.latitude,29.951,'More specific unit evidence takes precedence');
+  fs.writeFileSync(exactFile,'{');
+  assert.equal(reviewedServiceAddress(exact),undefined,'Damaged specific evidence cannot be hidden by a property fallback');
   for (const bad of [{...row,status:'pending'},{...row,sources:[]},{...row,location:{latitude:40,longitude:-80}},{...row,originalAddress:'101 Example St New Orleans 70125'}]) {
     fs.writeFileSync(file,JSON.stringify(bad));assert.equal(reviewedServiceAddress(address),undefined);
   }

@@ -175,6 +175,14 @@ estimate outcome notes. A matching saved record succeeds without submitting
 twice. An unchanged baseline establishes that the closeout was not applied;
 partial or unreadable results remain uncertain and protected against replay.
 
+Percentage-charge verification accepts the picker rate suffix (for example,
+`, 3.00%`) being absent from the saved row only when the suffix matches the
+selected source option's percentage metadata. The saved label must identify one
+option uniquely. Quantity, source-calculated price, preservation of existing
+rows and duplicate additions remain checked. A source-reviewed legacy receipt
+can be reconciled without replaying the closeout; the UI then reloads the saved
+source and clears the old payment/charge draft before allowing a new review.
+
 Schedule operations have per-request and per-appointment process locks rather
 than one global lock across all appointments. Source-specific locks remain in
 place. The browser submits once and, if the response is lost, checks the durable

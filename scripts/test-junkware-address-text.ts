@@ -50,7 +50,7 @@ try {
     assert.equal(cleanJunkwareAddressText(input), input, 'Unknown suffixes and additional premises cannot be silently discarded');
   }
   assert.equal(verifyAddressResult(`${address} Followup 200 Other Rd Mandeville LA 70448`, payload).location, null);
-  const cached = { normalized_address: facility, ...location, match_confidence: 'confirmed', house_street_verified: true, verification_policy: 8 };
+  const cached = { normalized_address: facility, ...location, match_confidence: 'confirmed', house_street_verified: true, verification_policy: ADDRESS_VERIFICATION_POLICY };
   assert.deepEqual(planningLocation(`${facility} Followup`, { old: cached }), location, 'Geocode cache formatting variants also recover');
   assert.equal(planningLocation(`${facility} Followup`, { old: { ...cached, house_street_verified: false } }), null);
   fs.mkdirSync(process.env.SERVICE_ADDRESS_CACHE_DIR, { recursive: true });

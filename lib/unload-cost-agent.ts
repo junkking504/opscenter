@@ -55,12 +55,22 @@ export function runUnloadCostAgent(date:string,inputVisits:TrackedVisit[],inputE
     expense.reconciliationNote='Receipt ownership conflict: this receipt is recorded on different trucks at the same facility. Review receipt or crew evidence; recorded ownership has not been changed.';
   const options=actuals.map(expense=>{
     const time=Date.parse(expense.transactionAt);
+    // Collection time is not exact arrival time. A named receipt just before
+    // the first GPS observation needs review, never automatic replacement.
+    const nearby=records.filter(record=>expense.location.trim() && record.date===expense.date
+      && truckKey(record.truck)===truckKey(expense.truck)
+      && facilityKey(record.location,policy)===facilityKey(expense.location,policy)
+      && Date.parse(record.enteredAt!)>time && Date.parse(record.enteredAt!)-time<=5*60_000);
     const candidates=records.filter(record=>truckKey(record.truck)===truckKey(expense.truck) && time>=Date.parse(record.enteredAt!)
       && (record.date===expense.date || (!!record.departedAt && chicagoDateKey(new Date(record.departedAt))===expense.date && Date.parse(record.departedAt)-Date.parse(record.enteredAt!)<=36*3600_000))
       && (!expense.location.trim() || facilityKey(record.location,policy)===facilityKey(expense.location,policy)));
     // Precise onsite timing can distinguish repeated named-site visits. A late
     // record without that evidence must have one possible visit for its day.
     const onsite=candidates.filter(record=>record.departedAt && time<=Date.parse(record.departureBounds?.after || record.departedAt));
+    if(nearby.length) {
+      expense.reconciliationNote ||= 'Receipt precedes the first recorded arrival by five minutes or less. Confirm the visit using receipt or crew evidence before combining costs; no assumption has been replaced.';
+      return [...new Set([...candidates,...nearby])];
+    }
     return expense.location.trim() && onsite.length===1 ? onsite : candidates;
   });
   const matched=new Set<string>();

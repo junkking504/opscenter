@@ -5,10 +5,11 @@ import { readPodiumGoogleReviewsSnapshot } from '@/lib/podium-reviews';
 import { sourceFreshness } from '@/lib/source-freshness';
 import { maintenanceSnapshot } from '@/lib/maintenance-monitor';
 import type { DesktopSourceHealth } from '../desktop-ui/lib/live-contract';
+import path from 'node:path';
 
 export function readDesktopSourceHealth(canFinance: boolean): DesktopSourceHealth[] {
   const health = getDataHealthReport();
-  const readiness = getOperationalReadiness();
+  const readiness = getOperationalReadiness(process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data'));
   const rows: DesktopSourceHealth[] = Object.values(health.sources).filter(row => canFinance || row.key !== 'qbo').map(row => ({
     name: row.key==='linxup'?'LinxUp':row.key==='qbo'?'QuickBooks':'JunkWare', area:row.details,
     workspace:row.key==='linxup'?'Fleet':row.key==='qbo'?'Finance':'Schedule', action:'Review source',

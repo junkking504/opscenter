@@ -54,6 +54,17 @@ for(const unit of ['Apt #2','Apt 2','Unit #B','Suite #A-2','#3','Bldg 1']) {
   }
 }
 assert.equal(appointmentServiceAddress({address:'100 Example St Apt #2 New Orleans LA 70125',mapAddress:'100 EXAMPLE ST Apt 20, NEW ORLEANS, LA, 70125'}), '100 EXAMPLE ST, Apt #2, NEW ORLEANS, LA, 70125');
+for (const tail of ['B115 New Orleans LA 70125','B115, New Orleans, 70125','AB115C New Orleans LA 70125']) {
+  const address=`100 Example St ${tail}`;
+  assert.ok(verify(address).location,'Bare alphanumeric unit is not part of the street');
+  assert(!cleanServiceQuery(address).includes(tail.split(/[ ,]/)[0]));
+  assert(appointmentServiceAddress({address,mapAddress:match().matchedAddress}).includes(`Unit ${tail.split(/[ ,]/)[0]}`),'Crew instructions preserve the unit');
+}
+for (const input of ['100 County Rd B115 New Orleans LA 70125','100 Parish Road A12 New Orleans LA 70125','100 Example Highway B115 New Orleans LA 70125','100 Example St B115','100 Example St 115 New Orleans LA 70125']) {
+  assert.equal(cleanServiceQuery(input),input,'Ambiguous route, incomplete locality and numeric suffix are not inferred units');
+}
+assert.equal(verify('100 E Example St B115 New Orleans LA 70125').location,null,'Unit repair must not erase a directional conflict');
+assert.equal(appointmentServiceAddress({address:'100 Example St B115 New Orleans LA 70125',mapAddress:'100 EXAMPLE ST B210, NEW ORLEANS, LA, 70125'}),'100 EXAMPLE ST, Unit B115, NEW ORLEANS, LA, 70125');
 
 const written=match('100 SIXTH ST','SIXTH'),numeric=match('100 6TH ST','6TH');
 assert.ok(verifyCensusAddress('100 Sixth St New Orleans LA 70125',{result:{addressMatches:[written,numeric]}}).location,'Same road, point and premises collapse ordinal aliases');

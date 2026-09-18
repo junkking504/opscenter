@@ -11,6 +11,7 @@ export type TruckRecommendation = {
   evidence: AgentEvidence[]; firstSeenAt: string; changedAt: string;
   review: { status: 'acknowledged' | 'open'; actor: string; at: string; version: string } | null;
   reviewVersion: string;
+  accountability?: { owner: string; proposedOwner: string | null; checkedAt: string; dueAt: string } | null;
 };
 export type TruckAgent = {
   id: string; truck: string; mode: string; status: 'ok' | 'degraded' | 'error';

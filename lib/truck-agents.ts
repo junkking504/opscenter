@@ -7,6 +7,7 @@ import { agentTruckNumber, type TruckAgentSnapshot, type TruckAgent } from '../d
 import { validDesktopDate } from '../desktop-ui/lib/people-fleet-contract';
 import { desktopVersion } from './desktop-krewe';
 import { opsRoleCan, type InteractiveOpsRole } from './ops-roles';
+import { readHierarchy } from './agent-hierarchy';
 
 type SavedAgents = { version: 1; date: string; heartbeatAt: string; inputs: TruckAgentInputs; agents: TruckAgent[] };
 type Review = { recommendationId: string; recommendationVersion: string; status: 'acknowledged' | 'open'; actor: string; at: string; requestId: string };
@@ -91,9 +92,13 @@ export function readTruckAgentReviewReceipt(requestId: string, actor: string) {
 export function readTruckAgents(date: string, role: InteractiveOpsRole, now = Date.now()): TruckAgentSnapshot {
   if (!validDesktopDate(date)) throw new Error('A valid operating date is required.');
   const prior = saved(date), result = projectTruckAgents(date, readTruckAgentInputs(date, now), now, prior);
+  let hierarchy: ReturnType<typeof readHierarchy> = null;
+  try { hierarchy = readHierarchy(now); } catch { /* Existing truck evidence remains available; ownership is explicitly unavailable. */ }
+  const agentName = (id: string) => hierarchy?.agents.find(a => a.id === id)?.name || id;
   const agents = result.agents.map(agent => ({ ...agent, recommendations: agent.recommendations.map(rec => {
     const review = reviewRevisions(date, rec.id, rec.version).at(-1)?.record || null;
-    return { ...rec, review: review ? { status: review.status, actor: review.actor, at: review.at, version: rec.version } : null, reviewVersion: desktopVersion(review) };
+    const owned = hierarchy?.issues.find(i => i.id === rec.id && i.status !== 'source_cleared');
+    return { ...rec, accountability: owned && hierarchy ? { owner: agentName(owned.owner), proposedOwner: owned.proposedOwner ? agentName(owned.proposedOwner) : null, checkedAt: hierarchy.checkedAt, dueAt: owned.dueAt } : null, review: review ? { status: review.status, actor: review.actor, at: review.at, version: rec.version } : null, reviewVersion: desktopVersion(review) };
   }) }));
   const schedule = result.inputs.schedule;
   return { version: 1, date, generatedAt: new Date(now).toISOString(), heartbeatAt: prior?.heartbeatAt || null, canWrite: opsRoleCan(role, 'operations.write'), agents,

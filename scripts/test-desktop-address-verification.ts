@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { verifyAddressResult,verifyCensusAddress } from '../lib/desktop-address-verification';
+import { verifyAddressResult,verifyCensusAddress,ADDRESS_VERIFICATION_POLICY } from '../lib/desktop-address-verification';
 import {addressQueries} from '../lib/desktop-address-verification';
 import {appointmentServiceAddress,normalizeServiceAddress} from '../lib/service-address-format';
 import {serviceStreetCandidates} from '../lib/appointment-partner';
@@ -123,7 +123,7 @@ async function verifyAutomaticCache() {
     assert.deepEqual(await verifyDesktopAddress(address),first);
     assert.equal(calls,1,'Accepted correction is reused without another provider request');
     const saved=JSON.parse(fs.readFileSync(file,'utf8'));
-    assert.equal(saved.schema,8);
+    assert.equal(saved.schema,ADDRESS_VERIFICATION_POLICY);
     assert.equal(saved.address,address,'Source spelling is retained');
     assert.deepEqual(saved.verified,first,'Matched spelling and point persist atomically');
   } finally {

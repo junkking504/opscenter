@@ -8,14 +8,15 @@ export type OperationReceipt = {
 /** Submit exactly once. A lost response is not evidence that JunkWare failed. */
 export async function submitScheduleOperation(
   payload: Record<string, unknown> & { requestId: string },
-  dependencies: { fetch?: typeof fetch; now?: () => number; pause?: (ms: number) => Promise<void> } = {},
+  dependencies: { endpoint?: string; fetch?: typeof fetch; now?: () => number; pause?: (ms: number) => Promise<void> } = {},
 ): Promise<OperationReceipt> {
   const request = dependencies.fetch || fetch;
+  const endpoint=dependencies.endpoint || '/api/desktop/schedule/operations';
   const now = dependencies.now || Date.now;
   const pause = dependencies.pause || ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)));
   const deadline = now() + 10 * 60_000;
   try {
-    const response = await request('/api/desktop/schedule/operations', {
+    const response = await request(endpoint, {
       method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload), signal: AbortSignal.timeout(210_000),
     });
@@ -30,7 +31,7 @@ export async function submitScheduleOperation(
   } catch { /* The durable receipt, not the connection, determines the outcome. */ }
   while (now() < deadline) {
     try {
-      const response = await request(`/api/desktop/schedule/operations?requestId=${encodeURIComponent(payload.requestId)}`, {
+      const response = await request(`${endpoint}${endpoint.includes("?")?"&":"?"}requestId=${encodeURIComponent(payload.requestId)}`, {
         credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(15_000),
       });
       if (response.status === 401 || response.status === 403) break;

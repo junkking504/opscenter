@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import './schedule-controls.css';
 import { Button } from "./components/ui/button";
-import { submitScheduleOperation } from './lib/schedule-operation-transport';
 import type { MoveProposal, ScheduleAppointment } from "./lib/schedule-contract";
 import {
   assignmentNeedsVerification,
@@ -11,68 +10,8 @@ import {
 } from "./lib/schedule-contract";
 
 export type { MoveProposal } from "./lib/schedule-contract";
-export type Receipt = {
-  action?: 'move' | 'reschedule' | 'restore' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify';
-  sourceResult?: Record<string, unknown>;
-  requestId: string;
-  status: "pending" | "verified" | "failed" | "uncertain" | "reconciled";
-  message: string;
-};
-export async function sendScheduleChange(
-  job: ScheduleAppointment,
-  date: string,
-  action: string,
-  values: Record<string, unknown>,
-  requestId: string,
-) {
-  return submitScheduleOperation({
-      requestId,
-      date,
-      recordId: job.recordId,
-      expectedVersion: job.version,
-      action,
-      values,
-  });
-}
-export function ChangeReceipt({ receipt, onCheck }: { receipt: Receipt; onCheck: () => void }) {
-  return (
-    <section
-      className={`schedule-change-receipt sync-${receipt.status === "verified" ? "verified" : "uncertain"}`}
-      role="status"
-    >
-      <header>
-        <div>
-          <span>
-            {receipt.status === "reconciled" ? "Current Schedule Verified" : receipt.status === "verified"
-              ? "Change Verified"
-              : receipt.status === "failed"
-                ? "Change Not Applied"
-                : "Verification Required"}
-          </span>
-          <strong>{receipt.message}</strong>
-        </div>
-      </header>
-      {(receipt.status === "pending" || receipt.status === "uncertain") && (
-        <footer>
-          <small>Do not repeat an unverified change.</small>
-          <Button variant="outline" size="sm" onClick={onCheck}>
-            Check Saved Result
-          </Button>
-        </footer>
-      )}
-    </section>
-  );
-}
-export async function checkScheduleChange(requestId: string) {
-  const response = await fetch(
-    `/api/desktop/schedule/operations?requestId=${encodeURIComponent(requestId)}&reconcile=1`,
-    { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(210_000) },
-  );
-  const body = await response.json();
-  if (!response.ok || !body.receipt)
-    throw new Error(body.error || "The saved result is unavailable.");
-  return body.receipt as Receipt;
-}
+import { sendScheduleChange, checkScheduleChange, ChangeReceipt, type Receipt } from './schedule-receipt';
+export { sendScheduleChange, checkScheduleChange, ChangeReceipt, type Receipt } from './schedule-receipt';
 export function MoveConfirmation({
   move,
   date,

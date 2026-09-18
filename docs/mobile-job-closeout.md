@@ -1,4 +1,4 @@
-# Mobile job closeout design preview
+# Mobile job closeout
 
 The mobile review surface presents only the current released job, appointment information,
 before/after photo selection, and a four-step closeout: Details, Charges, Payment,
@@ -38,8 +38,9 @@ read confirms enrollment. A lost response can be recovered using that same pair,
 including after the invitation expires. A second phone cannot reuse the code.
 Only hashes of keys and codes are stored on the server. The cookie is Secure,
 HTTP-only, SameSite Strict, host-only and scoped to `/api/crew-jobs`. Sessions and
-setup require HTTPS. All POST requests require an exact same-origin header and
-a JSON body of at most 4 KiB. Responses are private and never cached.
+setup require HTTPS. All POST requests require an exact same-origin header. Enrollment bodies are
+limited to 4 KiB, closeouts to 16 KiB and photo requests to 6 MiB (4 MiB decoded
+images). Responses are private and never cached.
 
 The manager can cancel an unused code or revoke a connected phone. A revoked
 connection/code cannot enroll again. To change trucks, revoke the old connection
@@ -72,10 +73,28 @@ release cycle and a fresh source check; an old receipt with a newly updated
 recovery timestamp cannot unlock the next customer. Legacy receipts without
 creation time do not establish the current cycle.
 
-Phone closeout submission and closeout-form draft recovery remain unfinished.
-The original crew-versus-office payment-authority question is still open. These
-changes are not deployed, and synthetic tests do not establish actual phone
-camera, authenticated production or live closeout acceptance.
+**Payment decision — September 18:** crews record payments already collected.
+Recording a card payment does not charge the card. The phone can record cash,
+card or check using the source payment options; office billing is excluded.
+Card references accept only the last four digits. Existing source payments are
+shown separately, and the user reviews the amount and balance before confirming.
+
+`/api/crew-jobs/closeout` uses the separate company-phone session. Server-owned
+truck, assignment, date and appointment scope are rechecked under the shared
+source lock. The phone can complete its current job; cancellation, reassignment
+and arbitrary schedule actions are rejected. Receipts record the device,
+assignment and source-assigned crew, which is not individual employee identity.
+The shared JunkWare writer performs source-version, payment and photo checks.
+
+The four-step editor uses Details, Charges, Payment and Review. Drafts are
+private to device/assignment and recover for 24 hours only against an identical
+source version. Assignment changes and disconnect clear local closeout drafts.
+A durable request identity is saved locally before submitting once; financial
+writes are never queued offline or automatically replayed. Lost responses poll
+only the saved receipt. Check Saved Result reads the source; ambiguous partial
+changes stay blocked for office review. Completed source records cannot receive
+another crew payment. Verified closeouts use the existing normal notification
+and truck-load reconciliation paths.
 
 Run `npm run verify:crew-phones` for isolated enrollment, race, cookie, origin,
 expiry, revocation and authorization tests. Run `npm run verify:mobile-closeout-rules`
@@ -83,6 +102,9 @@ for source-photo and next-assignment policy tests. These suites do not call a pr
 appointment. `verify:crew-dispatch` and `verify:crew-job-photos` cover durable
 dispatch, upload recovery and scope checks. `scripts/test-crew-jobs-browser.ts`
 tests the production-built phone UI with synthetic API responses at 320/390/430px.
+`verify:crew-closeout` covers payment scope and receipt recovery, and
+`scripts/test-crew-closeout-browser.ts` covers collected-payment entry, source-
+versioned draft recovery, review and lost-response verification without replay.
 
 ## Completion and next-assignment rules
 
@@ -105,27 +127,19 @@ tests the production-built phone UI with synthetic API responses at 320/390/430p
   schedule, queued customer data or a future address to the phone and hide it
   with CSS. Never accept completion evidence supplied by the phone.
 
-## Required before employee launch
+## Company-phone pilot acceptance
 
-- Connect the manager-enrolled company-phone session to appointment visibility
-  and write scope on the server. Record the phone and source-assigned crew on
-  closeouts; a crew selection is not independent proof of employee identity.
-- Confirm whether crews record collected payments or submit details for office
-  review. Payment recording does not itself charge a card.
-- Connect the scoped schedule read and closeout operation to current JunkWare
-  records. Preserve review, expected-source versions, durable receipt identity,
-  read-back, and prevention of duplicate uncertain writes.
-- Live-accept the implemented photo upload workflow on a company phone, with
-  camera/library selection and exact source read-back.
-- Add private draft persistence appropriate to shared phones, recovery after
-  lost connectivity, stale assignment handling, session expiry and sign-out.
-  Never silently queue or replay financial writes offline.
-- Test the authenticated full workflow on the actual company phones, including
-  keyboard, camera, poor network, repeated taps and verified saved results.
+Implementation and synthetic checks do not establish actual camera or customer
+source acceptance. On a manager-enrolled company phone, verify camera/library
+selection, keyboard visibility, poor connectivity, repeated taps and reopen/read-
+back of an authorized real closeout. Confirm source photos, payment reference,
+amount and balance, and reveal the queued customer only after verified completion.
+Never create a customer payment or closeout solely as a production test.
 
-The preview remains isolated. The company-phone routes use separate device
-authentication and do not expose management data. No paid service or background
-polling was introduced.
+Manager setup is `/crew-phones`; dispatch is `/crew-dispatch`; phones use
+`/crew-jobs`. Deploy through the normal immutable production controller. Keep
+release/service health, browser acceptance and actual phone pilot evidence
+separate. No paid provider, subscription or background polling was introduced.
 
 ## Product Design pass — September 17, 2026
 
@@ -133,9 +147,8 @@ polling was introduced.
 
 The intended user is a crew member finishing a job on site. The primary outcome
 is a correctly saved closeout with evidence and a clear result the employee can
-trust. The approved access model is a manager-enrolled company truck phone. Crew
-permission to record payments and any office-review requirement still need a
-product decision; individual employee login is not part of phone enrollment.
+trust. The approved access model is a manager-enrolled company truck phone. The September 18 decision authorizes crews to record collected payments;
+individual employee login is not part of phone enrollment.
 
 Preserve OpsCenter's brand tokens and existing JunkWare closeout rules. Prioritize
 readable controls in daylight, one-handed use, a visible primary action, and
@@ -155,24 +168,20 @@ brief; the existing source is the current implementation target.
 | 7. Review | Confirm closeout | Show identity, work, money and photo-upload status together. Provide an Edit link to each relevant step. |
 | 8. Saved result / Waiting | Open released job | Require verified completion with photos before revealing the next dispatched job. Wait if dispatch has not released one. Unknown outcomes offer Check saved result, never a fresh submission. |
 
-### Highest-priority implementation work
+### Original design priorities (implemented September 18)
 
-1. **Draft recovery.** Returning to the current assignment currently unmounts the editor,
-   losing its in-memory draft. Add a source-versioned draft owned by the verified
-   employee/device and appointment; reconcile it with fresh source data before
-   restoring. A saved draft never means the job was closed out.
-2. **Separate payment authority.** Do not reuse manager credentials or give an
-   inspection device general management access. Define employee closeout scope
-   separately from permission to record payments and change prices.
+1. **Draft recovery.** Source-versioned drafts belong to the enrolled phone and
+   appointment. A saved draft never means the job was closed out.
+2. **Separate payment authority.** Company-phone sessions authorize only their
+   current closeout and collected payments; manager and inspection credentials
+   are separate.
 3. **Step validation and recovery.** The existing save validation runs at Review.
    In the mobile presentation, direct each error back to its field and step;
    preserve inputs when the user checks another section or corrects an error.
-4. **Photo receipts.** The prototype only previews local images. Live integration
-   must report upload progress and server/source acknowledgment per photo.
-5. **Completion receipt.** The prototype intentionally declines live writes.
-   Production needs distinct verified, pending, failed and uncertain results,
-   plus a safe return to the current assignment. Never label pending source verification
-   as completion.
+4. **Photo receipts.** The company-phone implementation reports selection, upload
+   and exact source acknowledgment per photo.
+5. **Completion receipt.** The company-phone implementation distinguishes verified,
+   pending, failed and uncertain results. Only verified completion can advance.
 
 ### Design references and evidence limits
 

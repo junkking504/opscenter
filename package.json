@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "verify:crew-phones": "node --import tsx scripts/test-crew-phones.ts",
+    "verify:crew-dispatch": "node --import tsx scripts/test-crew-dispatch.ts",
     "verify:mobile-closeout-rules": "node --import tsx scripts/test-mobile-closeout-rules.ts",
     "verify:knowledge": "node --import tsx scripts/test-knowledge.ts && node --import tsx scripts/test-knowledge-import.ts && node --import tsx scripts/test-knowledge-troubleshooting.ts",
     "verify:inspection-slack": "node --import tsx scripts/test-inspection-slack.ts",
@@ -121,7 +122,8 @@
     "verify:visit-tracking-agent": "node --import tsx scripts/test-visit-tracking-agent.ts",
     "import:knowledge": "node --import tsx scripts/import-knowledge-history.ts",
     "verify:truck-street-address": "node --import tsx scripts/test-truck-street-address.ts",
-    "verify:truck-agents": "node --import tsx scripts/test-truck-agents.ts && node --import tsx scripts/test-truck-agent-progress.ts"
+    "verify:truck-agents": "node --import tsx scripts/test-truck-agents.ts && node --import tsx scripts/test-truck-agent-progress.ts",
+    "verify:crew-job-photos": "node --import tsx scripts/test-crew-job-photos.ts && node --import tsx scripts/test-crew-job-scope.ts"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

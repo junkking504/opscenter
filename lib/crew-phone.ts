@@ -13,4 +13,3 @@ export class CrewPhoneError extends Error {
 // Separate from inspection connections, employee payroll and manager sessions.
 export const CREW_PHONE_COOKIE = '__Secure-ops_crew_phone';
 export const CREW_PHONE_API = '/api/crew-jobs/session';
-export const CREW_PHONE_PUBLIC_PATHS = ['/crew-jobs', CREW_PHONE_API] as const;

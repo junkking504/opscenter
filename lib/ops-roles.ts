@@ -68,7 +68,7 @@ export function requiredOpsPermission(
 ): Omit<OpsAccessDecision, "allowed"> {
   const normalizedMethod = String(method || "GET").trim().toUpperCase();
 
-  if (pathname === '/crew-phones' || pathname === '/api/crew-phones') {
+  if (['/crew-phones','/api/crew-phones','/crew-dispatch','/api/crew-dispatch'].includes(pathname)) {
     return { permission: 'sensitive.write', requiredRole: 'manager' };
   }
 

@@ -51,16 +51,38 @@ the normal runtime data mount. `OPS_CREW_PHONE_DIR` provides isolated test stora
 Atomic, immutable records retain issuing and revoking actors; corrupt storage
 fails closed. No service, subscription, polling or provider SDK is introduced.
 
-**Implementation status:** enrollment APIs and setup pages are implemented in the
-task branch. The phone currently reports job access unavailable: the dispatch
-queue, scoped appointment API, upload transport and closeout transport are not
-connected to it yet. No phones have been enrolled and nothing is deployed by
-these changes. Generated page boards are design mockups, not browser acceptance.
+**Implementation status — resumed September 18:** enrollment, manager dispatch,
+current-assignment reads and photo uploads are implemented in the task branch.
+`/crew-dispatch` releases a source-confirmed truck appointment and optionally
+queues one next appointment. The phone receives only the current customer and
+address. Source reassignment, stale snapshots and revoked phones fail closed.
+
+Photo selection is private to the company browser and dispatch assignment, with
+24-hour recovery in IndexedDB. Expired records are purged on storage access;
+disconnection or rejected authentication clears all local photo drafts. Photos
+are compressed on the device and uploaded only on explicit action. The server
+binds uploads to the current truck/date/appointment under the shared appointment
+lock. Durable request receipts precede the source upload; uncertain outcomes
+require exact-filename source read-back and are never automatically resubmitted.
+No real phone was enrolled or customer photo uploaded during implementation.
+
+New closeout receipts retain their original `createdAt`. Dispatch advancement
+requires a verified Completed closeout with source photos from the current
+release cycle and a fresh source check; an old receipt with a newly updated
+recovery timestamp cannot unlock the next customer. Legacy receipts without
+creation time do not establish the current cycle.
+
+Phone closeout submission and closeout-form draft recovery remain unfinished.
+The original crew-versus-office payment-authority question is still open. These
+changes are not deployed, and synthetic tests do not establish actual phone
+camera, authenticated production or live closeout acceptance.
 
 Run `npm run verify:crew-phones` for isolated enrollment, race, cookie, origin,
 expiry, revocation and authorization tests. Run `npm run verify:mobile-closeout-rules`
-for source-photo and next-assignment policy tests. Neither suite launches a
-browser, calls a provider, enrolls a real phone or changes a real appointment.
+for source-photo and next-assignment policy tests. These suites do not call a provider, enroll a real phone or change a real
+appointment. `verify:crew-dispatch` and `verify:crew-job-photos` cover durable
+dispatch, upload recovery and scope checks. `scripts/test-crew-jobs-browser.ts`
+tests the production-built phone UI with synthetic API responses at 320/390/430px.
 
 ## Completion and next-assignment rules
 
@@ -77,10 +99,9 @@ browser, calls a provider, enrolls a real phone or changes a real appointment.
   Pending, failed, uncertain, canceled or merely reconciled changes do not unlock it.
 - Dispatch must explicitly release the next job. No released job means waiting.
   Missing or ambiguous current-job source data means unavailable, never advance.
-- The next-job projection is a tested domain rule, not a live authorization API.
-  Production integration must bind release state to the enrolled truck and the
-  current dispatch cycle, read receipts from durable server storage, recheck
-  source state and return only approved current-job fields. Never send the day
+- The current-job API binds release state to the enrolled truck and dispatch
+  cycle, reads receipts from durable server storage, rechecks source state and
+  returns only approved current-job fields. Never send the day
   schedule, queued customer data or a future address to the phone and hide it
   with CSS. Never accept completion evidence supplied by the phone.
 
@@ -94,16 +115,17 @@ browser, calls a provider, enrolls a real phone or changes a real appointment.
 - Connect the scoped schedule read and closeout operation to current JunkWare
   records. Preserve review, expected-source versions, durable receipt identity,
   read-back, and prevention of duplicate uncertain writes.
-- Connect photos to the existing verified appointment upload workflow, with
-  per-photo progress, retry/read-back and explicit upload completion.
+- Live-accept the implemented photo upload workflow on a company phone, with
+  camera/library selection and exact source read-back.
 - Add private draft persistence appropriate to shared phones, recovery after
   lost connectivity, stale assignment handling, session expiry and sign-out.
   Never silently queue or replay financial writes offline.
 - Test the authenticated full workflow on the actual company phones, including
   keyboard, camera, poor network, repeated taps and verified saved results.
 
-The prototype neither broadens authentication nor exposes management data.
-It does not add a provider, paid service, background polling or live API route.
+The preview remains isolated. The company-phone routes use separate device
+authentication and do not expose management data. No paid service or background
+polling was introduced.
 
 ## Product Design pass — September 17, 2026
 

@@ -8,10 +8,9 @@ export function crewPhoneResponse(body: unknown, status = 200, extra: Record<str
 export function crewPhoneFailure(error: unknown) {
   return crewPhoneResponse({ error: error instanceof CrewPhoneError ? error.message : 'Phone access could not be verified. Try again or contact your manager.' }, error instanceof CrewPhoneError ? error.status : 503);
 }
-export async function crewPhoneBody(request: Request) {
+export async function crewPhoneBody(request: Request, limit = 4096) {
   if (request.headers.get('origin') !== resolveRequestOrigin(request) || request.headers.get('sec-fetch-site') === 'cross-site') throw new CrewPhoneError('Open the company phone app to continue.', 403);
   if (request.headers.get('content-type')?.split(';')[0].trim() !== 'application/json') throw new CrewPhoneError('Send a JSON request.', 415);
-  const limit = 4096;
   if (Number(request.headers.get('content-length') || 0) > limit) throw new CrewPhoneError('The request is too large.', 413);
   const reader = request.body?.getReader();
   if (!reader) throw new CrewPhoneError('Enter a valid request.');
@@ -36,6 +35,7 @@ function phoneKey(request: Request) {
   return matches.length === 1 ? matches[0].slice(CREW_PHONE_COOKIE.length + 1) : '';
 }
 export function requireCrewPhone(request: Request) {
+  if (!resolveRequestOrigin(request).startsWith('https://')) throw new CrewPhoneError('Open the secure company phone address.', 403);
   const phone = crewPhone(phoneKey(request));
   if (!phone) throw new CrewPhoneError('This phone needs manager setup.', 401);
   return phone;

@@ -243,3 +243,23 @@ earlier synthetic browser checks remain separate evidence, not a current
 authenticated employee acceptance test. Actual phone-camera behavior, assistive
 technology, keyboard obstruction, loss of connectivity, employee scope and live
 source read-back remain to be tested before launch.
+
+## Crew jobs hostname
+
+`https://jobs.junk-king.app` is the company-phone entry address. Its root redirects
+into `/crew-jobs`; only that page, its exact crew-job API endpoints and Next assets
+are served there. Every crew API still requires its own phone session. Management,
+payroll, login and webhook routes return 404 on this hostname. The manager schedule
+link opens the existing authenticated Schedule at `ops.junk-king.app`.
+
+The manager setup page displays the new address. The existing
+`ops.junk-king.app/crew-jobs` entry remains available for enrolled devices and saved
+drafts: cookies and browser drafts are origin-bound and are not copied between
+hosts. Connect a phone on the new address using a new six-digit setup code; finish
+any outstanding draft on its original address before switching.
+
+DNS should be a proxied CNAME to the existing Mission Control tunnel
+`30d8a080-e2d1-4452-b463-4ba2ba8e57ba.cfargotunnel.com`. The private local tunnel
+configuration adds only `jobs.junk-king.app` forwarding to the existing loopback
+OpsCenter service on port 3000. No new cloud service or paid provider is required.
+Deployment readiness, public DNS/TLS and live page acceptance are separate checks.

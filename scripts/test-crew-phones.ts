@@ -141,6 +141,18 @@ async function main() {
       const denied = await middleware(new NextRequest(`https://${host}/api/crew-jobs/session`));
       assert.equal(denied.status, 404, 'Inspection/webhook origins do not expose crew job sessions');
     }
+    const jobsRoot=await middleware(new NextRequest('https://jobs.junk-king.app/'));
+    assert.equal(jobsRoot.headers.get('location'),'https://jobs.junk-king.app/crew-jobs');
+    for(const route of ['/crew-jobs','/api/crew-jobs/session','/api/crew-jobs/day','/api/crew-jobs/current','/api/crew-jobs/photos','/api/crew-jobs/closeout','/_next/static/sample.js']) {
+      const allowed=await middleware(new NextRequest(`https://jobs.junk-king.app${route}`));
+      assert.equal(allowed.headers.get('x-middleware-next'),'1',route);
+    }
+    for(const route of ['/desktop','/crew-phones','/login','/api/crew-phones','/api/crew-jobs/session/admin','/api/desktop/schedule','/api/integrations/whatsapp','/my-pay']) {
+      const denied=await middleware(new NextRequest(`https://jobs.junk-king.app${route}`));
+      assert.equal(denied.status,404,`Jobs origin denies ${route}`);
+    }
+    const forwarded=await middleware(new NextRequest('http://localhost:3000/',{headers:{'x-forwarded-host':'jobs.junk-king.app','x-forwarded-proto':'https'}}));
+    assert.equal(forwarded.headers.get('location'),'https://jobs.junk-king.app/crew-jobs');
     console.log('PASS: manager-only access, fixed truck, one-phone enrollment race, retry recovery, expiry, revocation, private cookies, bounded same-origin requests, no credential storage, corrupt-storage denial. No browser or live writes.');
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }

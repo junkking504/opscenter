@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
-import { CREW_PHONE_API, type CrewPhone, type CrewPhoneDay } from '@/lib/crew-phone';
+import { MANAGER_SCHEDULE_URL, CREW_PHONE_API, type CrewPhone, type CrewPhoneDay } from '@/lib/crew-phone';
 import type { CrewCurrent } from '@/lib/crew-dispatch';
 import styles from './phone-access.module.css';
 import JobCloseout from './job-closeout';
@@ -120,7 +120,7 @@ export default function CrewPhoneSetup() {
       <form className={styles.form} onSubmit={enroll}><label>Setup code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" spellCheck={false} value={code} maxLength={6} onChange={event => setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))} required disabled={busy}/></label>
       <button className={styles.primary} disabled={busy || !/^[0-9]{6}$/.test(code.trim())}>{busy ? 'Connecting…' : 'Connect phone'}</button></form>
     </>}
-    {!loading && !busy && <section className={styles.card}><h2>Manager access</h2><p>Managers can use personal phones. Sign in with your manager account to access the full schedule.</p><a className={styles.managerLink} href="/desktop?workspace=Schedule&scheduleDay=today&scheduleView=board">Open full schedule</a></section>}
+    {!loading && !busy && <section className={styles.card}><h2>Manager access</h2><p>Managers can use personal phones. Sign in with your manager account to access the full schedule.</p><a className={styles.managerLink} href={MANAGER_SCHEDULE_URL}>Open full schedule</a></section>}
     {phone && <button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>void disconnect()}>Disconnect company phone</button>}
     {error && <p className={styles.error} role="alert">{error}</p>}
     {!loading && <button className={styles.secondary} onClick={() => void refresh()} disabled={busy || jobLoading}>Check connection</button>}

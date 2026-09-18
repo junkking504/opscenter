@@ -48,6 +48,11 @@ async function main(){
    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`No horizontal overflow at ${width}`);
    await page.getByRole('button',{name:'Disconnect company phone',exact:true}).click();
    await expect(page.getByRole('heading',{name:'Company phone setup',exact:true})).toBeVisible();
+   const setupCode=page.getByLabel('Setup code',{exact:true});
+   await expect(setupCode).toHaveAttribute('inputmode','numeric');
+   await expect(setupCode).toHaveAttribute('maxlength','6');
+   await setupCode.fill('01234');await expect(page.getByRole('button',{name:'Connect phone',exact:true})).toBeDisabled();
+   await setupCode.fill('012345');await expect(setupCode).toHaveValue('012345');await expect(page.getByRole('button',{name:'Connect phone',exact:true})).toBeEnabled();
    await expect.poll(()=>page.evaluate(()=>new Promise<number>((resolve,reject)=>{const r=indexedDB.open('ops-crew-photo-drafts-v1');r.onsuccess=()=>{const db=r.result;const t=db.transaction('drafts');const q=t.objectStore('drafts').count();t.oncomplete=()=>{resolve(q.result);db.close();};};r.onerror=()=>reject(r.error);}))).toBe(0);
    connected=true;waiting=true;await page.reload();await expect(page.getByRole('heading',{name:'Waiting for assignment',exact:true})).toBeVisible();
    assert.deepEqual(errors,[]);await context.close();console.log(`PASS ${width}px: current-only view, durable photo selection, lost upload response -> read-only recovery, disconnect clears drafts, waiting state, no overflow.`);

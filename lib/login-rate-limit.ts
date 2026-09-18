@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { CrewPhoneError } from "./crew-phone";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -215,3 +216,20 @@ export function clearLoginFailures(
 
 export const LOGIN_RATE_LIMIT_WINDOW_MS = WINDOW_MS;
 export const LOGIN_RATE_LIMIT_MAX_FAILURES = MAX_FAILURES;
+
+/** Six-digit setup codes share one durable guess limit across IPs and processes.
+ * Reserve before checking; only a successful new binding resets the failures. */
+export function withCrewPhoneSetupLimit<T>(attempt: () => T, now = Date.now()): T {
+  return withStateLock(() => {
+    const state = readState(), key = 'crew-phone:setup';
+    if (blocked(state, key, now)) throw new CrewPhoneError('Too many setup attempts. Wait 15 minutes, then get a new code from your manager.', 429);
+    const previous = state[key];
+    const failures = !previous || now - previous.lastFailureAt > WINDOW_MS ? 1 : previous.failures + 1;
+    state[key] = {failures, lastFailureAt: now, blockedUntil: failures >= MAX_FAILURES ? now + LOCKOUT_MS : 0};
+    writeState(state, now);
+    const result = attempt();
+    delete state[key];
+    writeState(state, now);
+    return result;
+  });
+}

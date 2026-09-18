@@ -5,7 +5,7 @@ import path from 'node:path';
 import {randomBytes,randomUUID} from 'node:crypto';
 async function main(){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'crew-closeout-'));
- process.env.OPS_CREW_PHONE_DIR=path.join(dir,'phones');process.env.OPS_CREW_DISPATCH_DIR=path.join(dir,'dispatch');process.env.OPSCENTER_DESKTOP_OPERATIONS_DIR=path.join(dir,'operations');process.env.JOB_ROUTE_ASSIGNMENTS_FILE=path.join(dir,'routes.json');
+ process.env.OPSCENTER_LOGIN_RATE_LIMIT_FILE=path.join(dir,'login-attempts.json');process.env.OPS_CREW_PHONE_DIR=path.join(dir,'phones');process.env.OPS_CREW_DISPATCH_DIR=path.join(dir,'dispatch');process.env.OPSCENTER_DESKTOP_OPERATIONS_DIR=path.join(dir,'operations');process.env.JOB_ROUTE_ASSIGNMENTS_FILE=path.join(dir,'routes.json');
  try{
   const {createCrewPhoneEnrollment,enrollCrewPhone,revokeCrewPhone}=await import('../lib/crew-phone-store');
   const {releaseCrewJob}=await import('../lib/crew-dispatch-store');

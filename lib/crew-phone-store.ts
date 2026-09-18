@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomInt, randomUUID } from 'node:crypto';
+import { withCrewPhoneSetupLimit } from './login-rate-limit';
 import { JUNKWARE_DISPATCH_TRUCKS } from './junkware-trucks';
 import { CrewPhoneError, type CrewPhone } from './crew-phone';
 
@@ -27,7 +28,8 @@ function writeOnce(file: string, value: unknown) {
     fs.linkSync(temp, file);
     const parent = fs.openSync(path.dirname(file), 'r');
     try { fs.fsyncSync(parent); } finally { fs.closeSync(parent); }
-  } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error; }
+    return true;
+  } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error; return false; }
   finally { fs.unlinkSync(temp); }
 }
 function validPhone(phone: CrewPhone): boolean {
@@ -48,19 +50,29 @@ export function createCrewPhoneEnrollment(truck: string, label: string, actor: s
   if (!JUNKWARE_DISPATCH_TRUCKS.includes(truck)) throw new CrewPhoneError('Choose a truck.');
   if (!label.trim() || label.length > 80) throw new CrewPhoneError('Enter a phone name, up to 80 characters.');
   if (!actor.trim()) throw new CrewPhoneError('Manager access is required.', 403);
-  const code = randomBytes(18).toString('base64url');
   const enrollment: Enrollment = { schema: 1, deviceId: randomUUID(), truck, label: label.trim(), actor,
     createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + 10 * 60_000).toISOString() };
-  writeOnce(path.join(directory('enrollments'), `${hash(code)}.json`), enrollment);
-  return { code, deviceId: enrollment.deviceId, truck, label: enrollment.label, expiresAt: enrollment.expiresAt };
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    // Never overwrite or recycle an earlier code, including an expired one.
+    if (writeOnce(path.join(directory('enrollments'), `${hash(code)}.json`), enrollment))
+      return { code, deviceId: enrollment.deviceId, truck, label: enrollment.label, expiresAt: enrollment.expiresAt };
+  }
+  throw new CrewPhoneError('A setup code could not be created. Try again.', 503);
 }
 
 /** The phone generates and retains its random key before the first request.
  * Atomic binding permits only that phone to recover a lost response. */
 export function enrollCrewPhone(rawCode: unknown, rawKey: unknown, now = new Date()): CrewPhone {
-  if (typeof rawCode !== 'string' || !/^[A-Za-z0-9_-]{24}$/.test(rawCode.trim())
+  if (typeof rawCode !== 'string' || !/^(?:[0-9]{6}|[A-Za-z0-9_-]{24})$/.test(rawCode.trim())
     || typeof rawKey !== 'string' || !/^[a-f0-9]{64}$/.test(rawKey)) throw new CrewPhoneError('Enter the setup code from your manager.');
   const enrollmentHash = hash(rawCode.trim());
+  // An already-bound phone can recover a lost response without consuming guesses.
+  const connected = crewPhone(rawKey, now);
+  if (connected && read<Binding>(path.join(directory('bindings'), `${connected.deviceId}.json`))?.enrollmentHash === enrollmentHash) return connected;
+  return withCrewPhoneSetupLimit(() => completeEnrollment(enrollmentHash, rawKey, now), now.getTime());
+}
+function completeEnrollment(enrollmentHash: string, rawKey: string, now: Date): CrewPhone {
   const enrollment = read<Enrollment>(path.join(directory('enrollments'), `${enrollmentHash}.json`));
   if (!enrollment || enrollment.schema !== 1 || !uuid.test(enrollment.deviceId)
     || !JUNKWARE_DISPATCH_TRUCKS.includes(enrollment.truck) || !Number.isFinite(Date.parse(enrollment.expiresAt))

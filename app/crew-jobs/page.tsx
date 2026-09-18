@@ -105,9 +105,9 @@ export default function CrewPhoneSetup() {
         </section><p className={styles.muted}>Upload job photos and close this appointment before receiving your next assignment.</p>
       </> : <><h1>Assignment unavailable</h1><p>{assignment?.message || 'Your assignment could not be verified. Contact dispatch.'}</p></>}
       <button className={styles.primary} onClick={()=>void loadJob()} disabled={jobLoading || busy}>Refresh assignment</button>
-    </> : <><h1>Company phone setup</h1><p>Enter the setup code from your manager.</p>
-      <form className={styles.form} onSubmit={enroll}><label>Setup code<input autoComplete="off" autoCapitalize="none" spellCheck={false} value={code} maxLength={24} onChange={event => setCode(event.target.value)} required disabled={busy}/></label>
-      <button className={styles.primary} disabled={busy || code.trim().length !== 24}>{busy ? 'Connecting…' : 'Connect phone'}</button></form>
+    </> : <><h1>Company phone setup</h1><p>Enter the 6-digit setup code from your manager.</p>
+      <form className={styles.form} onSubmit={enroll}><label>Setup code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" spellCheck={false} value={code} maxLength={6} onChange={event => setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))} required disabled={busy}/></label>
+      <button className={styles.primary} disabled={busy || !/^[0-9]{6}$/.test(code.trim())}>{busy ? 'Connecting…' : 'Connect phone'}</button></form>
     </>}
     {phone && <button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>void disconnect()}>Disconnect company phone</button>}
     {error && <p className={styles.error} role="alert">{error}</p>}

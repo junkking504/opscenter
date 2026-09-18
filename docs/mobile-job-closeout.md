@@ -22,7 +22,11 @@ Open the generated `index.html` locally. Test with
 
 The approved device scope is **company phones only**. `/crew-phones` is a
 manager-only setup page; `/crew-jobs` is the phone setup page. A manager selects
-the truck and phone label and generates a 24-character code valid for ten minutes.
+the truck and phone label and generates a six-digit numeric code valid for ten minutes.
+Codes preserve leading zeros and never reuse a previously issued value. Eight failed
+setup attempts trigger a shared 15-minute lockout that survives server restarts
+and cannot be bypassed by changing IP addresses or connection keys. The already-
+bound phone can still recover a lost enrollment response.
 Only one phone can redeem a code. Managers should enter it on the company phone
 in their possession. The phone cannot self-register or select a truck.
 

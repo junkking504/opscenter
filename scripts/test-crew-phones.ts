@@ -28,6 +28,7 @@ async function main() {
   }
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'crew-phone-tests-'));
   process.env.OPS_CREW_PHONE_DIR = dir;
+  process.env.OPSCENTER_LOGIN_RATE_LIMIT_FILE = path.join(dir, 'attempts.json');
   try {
     const now = new Date();
     assert.equal(crewPhone(key()), null, 'Unknown/self-issued/inspection key cannot connect');
@@ -35,6 +36,7 @@ async function main() {
     assert.throws(() => createCrewPhoneEnrollment('Truck 6', '', manager), /phone name/);
     assert.throws(() => createCrewPhoneEnrollment('Truck 6', 'Phone', ''), /Manager/);
     const setup = createCrewPhoneEnrollment('Truck 6', 'Company phone 6', manager, now);
+    assert.match(setup.code, /^[0-9]{6}$/);
     const token = key();
     const phone = enrollCrewPhone(setup.code, token, now);
     assert.equal(phone.truck, 'Truck 6');
@@ -91,6 +93,25 @@ async function main() {
     assert.equal((await crewPhoneSession(request(undefined, cookieHeader))).status, 401);
     assert.equal((await crewPhoneSession(request(payload))).status, 403, 'Revoked code/key cannot reconnect');
 
+    // Rotating codes/connection keys cannot bypass the shared persistent limit.
+    const nextInvite = createCrewPhoneEnrollment('Truck 5', 'Rate limit test', manager);
+    const recoveryKey = key();
+    const recoverable = enrollCrewPhone(nextInvite.code, recoveryKey);
+    for (let i=0;i<8;i++) assert.throws(() => enrollCrewPhone('x'.repeat(24), key()));
+    const blockedInvite = createCrewPhoneEnrollment('Truck 5', 'Blocked invite', manager);
+    assert.throws(() => enrollCrewPhone(blockedInvite.code, key()), /Too many/);
+    assert.equal((await crewPhoneSession(request({action:'enroll',code:blockedInvite.code,connectionKey:key()}, {'cf-connecting-ip':'203.0.113.42'}))).status,429);
+    const restarted=await promisify(execFile)(process.execPath,['--import','tsx',path.resolve('scripts/test-crew-phones.ts'),'--race',blockedInvite.code,key()],{env:process.env});
+    assert.equal(restarted.stdout,'rejected','A new process cannot reset the guess limit');
+    assert.deepEqual(enrollCrewPhone(nextInvite.code, recoveryKey), recoverable, 'Already-bound recovery bypasses guess lockout');
+    const later = new Date(Date.now()+15*60_000+1);
+    const laterInvite = createCrewPhoneEnrollment('Truck 5', 'After lockout', manager, later);
+    assert.equal(enrollCrewPhone(laterInvite.code,key(),later).truck,'Truck 5');
+
+    const zeroInvite = createCrewPhoneEnrollment('Truck 5', 'Leading zeros', manager);
+    const digest=(value:string)=>createHash('sha256').update(value).digest('hex');
+    fs.copyFileSync(path.join(dir,'enrollments',`${digest(zeroInvite.code)}.json`),path.join(dir,'enrollments',`${digest('000123')}.json`));
+    assert.equal(enrollCrewPhone('000123',key()).deviceId,zeroInvite.deviceId,'Six-digit codes retain leading zeros');
     const damaged = createCrewPhoneEnrollment('Truck 5', 'Damaged record', manager);
     const damagedKey = key();
     const damagedPhone = enrollCrewPhone(damaged.code, damagedKey);

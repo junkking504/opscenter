@@ -1,5 +1,6 @@
 "use client";
 
+import { closeoutPhotoCount, CLOSEOUT_PHOTOS_REQUIRED, type CloseoutPhotoEvidence } from '../lib/closeout-photo-policy';
 import { closeoutGpsTimes, closeoutChargesSummary, type CloseoutTimeKey } from '../lib/closeout-draft-summary';
 import { automaticSizePrice } from '../lib/closeout-load-price';
 import { onsiteTimeFacts } from '../lib/appointment-onsite-time';
@@ -15,6 +16,7 @@ type Option = { value: string; label: string };
 type OtherCharge = { label: string; quantity: string; price: string; total: string };
 type PendingOtherCharge = OtherCharge & { clientId: string; typeValue: string };
 type LiveCloseout = {
+  photoEvidence?: CloseoutPhotoEvidence;
   truck?: string;
   truckOptions?: Option[];
   appointmentType?: { value: string; label: string; options: Option[] };
@@ -52,7 +54,7 @@ function inputMoney(value: string): string {
   return String(value || "").replace(/[^0-9.-]/g, "");
 }
 
-export default function AppointmentCloseout({ job, date: serviceDate, saved, onBusyChange, presentation = 'drawer', onBackToAppointment }: { job: ScheduleAppointment; date: string; saved: () => void; onBusyChange: (busy: boolean) => void; presentation?: 'drawer' | 'mobile'; onBackToAppointment?: () => void }) {
+export default function AppointmentCloseout({ job, date: serviceDate, saved, onBusyChange, presentation = 'drawer', onBackToAppointment, photoRevision }: { job: ScheduleAppointment; date: string; saved: () => void; onBusyChange: (busy: boolean) => void; presentation?: 'drawer' | 'mobile'; onBackToAppointment?: () => void; photoRevision?: number }) {
   const { appointmentId, appointmentUrl, status: initialStatus } = job;
   const panel = useRef<HTMLDetailsElement>(null);
   const reviewPanel = useRef<HTMLDivElement>(null);
@@ -82,6 +84,32 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   const gpsDefaults = useRef<Partial<Record<CloseoutTimeKey,string>>>({});
   const resolvedAppointmentId = appointmentId || String(appointmentUrl || "").match(/[?&]id=(\d{1,12})(?:&|$)/i)?.[1] || "";
   const [live, setLive] = useState<LiveCloseout | null>(null);
+  const sourceBaseline = useRef<LiveCloseout | null>(null);
+  const previousPhotoRevision = useRef(photoRevision);
+  useEffect(() => {
+    if (previousPhotoRevision.current === photoRevision) return;
+    previousPhotoRevision.current = photoRevision;
+    if (!sourceBaseline.current) return;
+    let canceled = false;
+    setCanWrite(false);
+    setReviewing(false);
+    void (async () => {
+      try {
+        const response = await fetch(`/api/desktop/schedule/closeout?appointmentId=${encodeURIComponent(resolvedAppointmentId)}`, {cache:'no-store'});
+        const payload = await response.json();
+        if (!response.ok || !payload.closeout) throw new Error('Could not verify uploaded photos. Reload from JunkWare before closing this job.');
+        const withoutPhotos = (value: LiveCloseout) => JSON.stringify({...value,photoEvidence:null});
+        if (!sourceBaseline.current || withoutPhotos(sourceBaseline.current) !== withoutPhotos(payload.closeout)) throw new Error('The source appointment changed. Reload from JunkWare and review it before saving.');
+        if (canceled) return;
+        sourceBaseline.current=payload.closeout;
+        setLive(current=>current ? {...current,photoEvidence:payload.closeout.photoEvidence} : current);
+        setSourceVersion(payload.sourceVersion || '');
+        setCanWrite(payload.canWrite===true);
+        setError('');
+      } catch (error) { if (!canceled) setError(error instanceof Error ? error.message : 'Photo verification unavailable.'); }
+    })();
+    return () => {canceled=true;};
+  }, [photoRevision, resolvedAppointmentId]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -113,6 +141,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       const payload = await response.json().catch(() => { throw new Error(`Closeout could not be loaded (HTTP ${response.status}). Retry loading the saved appointment.`); });
       if (!response.ok || !payload?.closeout) throw new Error(payload?.error || "The Junkware closeout could not be loaded.");
       const source = payload.closeout as LiveCloseout;
+      sourceBaseline.current = source;
       const suggestions = closeoutGpsTimes(job.onsiteTime, job.truck, source.truck || '', serviceDate, source);
       gpsDefaults.current = {};
       const withTimes = {...source};
@@ -244,6 +273,9 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       return;
     }
     const completing = targetStatus === '8';
+    if (completing && !closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId)) {
+      setError(CLOSEOUT_PHOTOS_REQUIRED); return;
+    }
     if ((completing || live.truck) && !truck) {
       setError('Choose the truck above Krewe Assigned to This Job.');
       return;
@@ -388,6 +420,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     <details ref={panel} data-mobile-step={mobile ? reviewing ? "review" : mobileStep : undefined} className={`appointment-closeout-panel${mobile ? " mobile-closeout-panel" : ""}`} data-appointment-id={resolvedAppointmentId} aria-busy={loading || saving} onToggle={event => { setExpanded(event.currentTarget.open); if (event.currentTarget.open && !live && !loading && !saving) void load(); }}>
       <summary><span className="closeout-summary-title">Appointment Closeout</span><span className="closeout-summary-action" aria-hidden="true"><span className="closeout-open-label">Open</span><span className="closeout-hide-label">Hide</span><span className="closeout-summary-chevron">⌄</span></span></summary>
       <div className="appointment-closeout-body">
+        {live && <p className="closeout-photo-requirement" role="status">{closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId) ? `${closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId)} uploaded job photo(s) verified.` : CLOSEOUT_PHOTOS_REQUIRED}</p>}
         {mobile && live && <nav className="mobile-closeout-steps" aria-label="Closeout steps">{['Details','Charges','Payment','Review'].map((label,index)=><button key={label} type="button" aria-current={(reviewing ? index===3 : mobileStep===index) ? 'step' : undefined} disabled={saving || loading || Boolean(receipt && receipt.status !== 'failed') || index===3} onClick={()=>{setMobileStep(index);setReviewing(false);}}><span>{index+1}</span>{label}</button>)}</nav>}
         {receipt && <>{receipt.action && receipt.action !== 'closeout' && ['pending', 'uncertain'].includes(receipt.status) && <p role="alert">Closeout is locked until the earlier {receipt.action === 'move' ? 'assignment change' : 'appointment change'} is checked in JunkWare. This is not a closeout result.</p>}<ChangeReceipt receipt={receipt} onCheck={() => { void check(); }} /></>}
         {!live ? (

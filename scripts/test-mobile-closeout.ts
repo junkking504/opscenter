@@ -11,7 +11,9 @@ try {
     const errors:string[]=[]; page.on('pageerror',error=>errors.push(error.message));
     const network:string[]=[];page.on('request',request=>{if(/^https?:/.test(request.url())) network.push(request.url());});
     await page.goto(pathToFileURL(html).href);
-    await expect(page.getByRole('heading',{name:'Today’s jobs'})).toBeVisible();
+    await expect(page.getByRole('heading',{name:'Current job'})).toBeVisible();
+    await expect(page.getByText('Sample Customer A',{exact:true})).toHaveCount(0);
+    await expect(page.getByText('Sample Customer C',{exact:true})).toHaveCount(0);
     if(width===390) await page.screenshot({path:path.join(path.dirname(html),'mobile-home.png'),fullPage:true});
     await page.getByRole('button').filter({has:page.getByRole('heading',{name:'Sample Customer B'})}).click();
     await page.getByRole('button',{name:'Photos',exact:true}).click();
@@ -37,6 +39,13 @@ try {
     await expect(page.getByRole('button',{name:'Confirm Job Closeout in JunkWare',exact:true})).toHaveCount(0);
     await page.locator('input[maxlength="4"]').fill('1234');
     await page.getByRole('button',{name:'Review Closeout',exact:true}).click();
+    await expect(page.getByRole('alert').last()).toContainText('Upload at least one job photo');
+    await expect(page.getByRole('button',{name:'Confirm Job Closeout in JunkWare',exact:true})).toHaveCount(0);
+    await page.getByRole('button',{name:'Photos',exact:true}).click();
+    await page.getByLabel('Add after photos',{exact:true}).setInputFiles({name:'sample.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aWQAAAABJRU5ErkJggg==','base64')});
+    await page.getByRole('button',{name:'Close out',exact:true}).click();
+    await expect(page.getByText('1 uploaded job photo(s) verified.',{exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'Review Closeout',exact:true}).click();
     await expect(page.getByLabel('Closeout review')).toContainText('$425.00');
     await expect(page.getByLabel('Closeout review')).toContainText('1234');
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`No horizontal overflow at ${width}`);
@@ -47,6 +56,9 @@ try {
     await expect(page.getByRole('combobox',{name:'Appointment truck'})).toBeEnabled();
     assert.deepEqual(network,[],'Preview never requests external services');
     assert.deepEqual(errors,[],'No browser runtime errors');
+    await page.goto(pathToFileURL(html).href+'?waiting=1');
+    await expect(page.getByRole('heading',{name:'Waiting for assignment'})).toBeVisible();
+    await expect(page.getByText('Sample Customer B',{exact:true})).toHaveCount(0);
     await page.close();
     console.log(`PASS ${width}px: navigation, draft retention, payment validation, review, isolated confirmation, no overflow`);
   }

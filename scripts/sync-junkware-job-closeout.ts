@@ -1,3 +1,4 @@
+import { closeoutPhotoEvidence, requireCloseoutPhotos } from '../lib/closeout-photo-policy';
 import { pathToFileURL } from 'node:url';
 import { captureCloseoutSource } from './junkware-closeout-source';
 import { validateCloseoutPayment, paymentReferenceLabel } from '../lib/closeout-payment';
@@ -96,7 +97,7 @@ async function ensureAuthenticated(page: Page, targetUrl: string): Promise<void>
 }
 
 export async function capture(page: Page): Promise<{ status: { value: string; label: string }; [key: string]: unknown }> {
-  return page.evaluate(String.raw`(() => {
+  const source = await page.evaluate(String.raw`(() => {
     const clean = (value) => String(value || "").replace(/\s+/g, " ").trim();
     const selectData = (id) => {
       const select = document.getElementById(id);
@@ -140,6 +141,7 @@ export async function capture(page: Page): Promise<{ status: { value: string; la
     const truckNumber = truckLabel.match(/truck\s*#?\s*(\d+)/i)?.[1];
     return {
       jobNumber,
+      photoUrls: Array.from(document.querySelectorAll('a[href],img[src]')).map(node => { try { return new URL(node.getAttribute(node.tagName === "A" ? "href" : "src") || "", location.href).href; } catch { return ""; } }),
       truck: truckNumber ? 'Truck ' + truckNumber : '',
       truckOptions: truckSelect instanceof HTMLSelectElement ? Array.from(truckSelect.options).map(option=>({value:option.value,label:clean(option.textContent)})) : [],
       appointmentType: selectData("ctl00_Content_AppointmentTypeDD"),
@@ -174,7 +176,9 @@ export async function capture(page: Page): Promise<{ status: { value: string; la
       balance: input("ctl00_Content_BalanceOwedHF"),
       total: clean(document.getElementById("ctl00_Content_TotalLbl")?.textContent),
     };
-  })()`) as Promise<{ status: { value: string; label: string }; [key: string]: unknown }>;
+  })()`) as { status: { value: string; label: string }; [key: string]: unknown };
+  const {photoUrls, ...fields} = source;
+  return {...fields, photoEvidence: closeoutPhotoEvidence(new URL(page.url()).searchParams.get('id') || '', photoUrls)};
 }
 
 async function captureSource(page: Page) { return captureCloseoutSource(page, capture); }
@@ -313,6 +317,7 @@ export async function applyCloseout(page: Page, input: CloseoutInput, before: Re
   // partial postback. Other fields are filled locally before the final Save.
   const priorStatus = String((before.status as { value?: unknown } | undefined)?.value || '');
   const targetStatus = input.targetStatus || '8';
+  requireCloseoutPhotos(before, targetStatus);
   const completingEstimate = targetStatus === '8' && input.appointmentType === 'Estimate' && priorStatus !== '8';
   const truck = input.truck || String(before.truck || '');
   const truckOption = (before.truckOptions as Option[] || []).find(option => option.value && option.label.replace(/Truck#?\s*/i, 'Truck ').trim() === truck);
@@ -467,6 +472,7 @@ async function applyClassification(page: Page, change: ClassificationChange, bef
   const currentType = before.appointmentType as {value:string;options:Option[]};
   const target = currentType.options.find(option=>option.label === change.appointmentType);
   const status = before.status as {value:string;label:string};
+  requireCloseoutPhotos(before, change.completeEstimate ? '8' : status.value);
   if (!target || !['1','8'].includes(status.value)) throw new Error('This appointment cannot change type from its current source status.');
   if ((change.completeEstimate || status.value === '8') && !before.truck && !change.truck) throw new Error('JunkWare requires a truck to complete this appointment. Select its completion truck and review the change.');
   if (change.truck && before.truck) throw new Error('Use dispatch controls to change an existing truck assignment.');
@@ -567,6 +573,11 @@ async function main(): Promise<void> {
     const classification = mode === 'classify' ? parseClassificationChange(JSON.parse(Buffer.from(argument('payload-base64'),'base64url').toString('utf8'))) : null;
     const before = input || classification ? await captureSource(page) : undefined;
     if (input?.expectedSourceVersion && before && closeoutSourceVersion(before) !== input.expectedSourceVersion) { failureCode = 'source_version_conflict'; throw new Error('This JunkWare closeout changed. Reload and review it before saving.'); }
+    if (input || classification) {
+      const target = input ? input.targetStatus || '8' : classification!.completeEstimate ? '8' : String(before!.status.value);
+      try { requireCloseoutPhotos(before!, target, appointmentId); }
+      catch (error) { failureCode = 'completion_photos_required'; throw error; }
+    }
     if (input) {
       const completing = input.targetStatus !== '1';
       if (!['1', '8'].includes(String(before?.status.value)) || (before?.status.value === '8' && !completing)) throw new Error('This saved appointment cannot change to that status here. Reload from JunkWare.');
@@ -585,7 +596,7 @@ async function main(): Promise<void> {
         await saveAndVerifyCloseout(before!, () => applyCloseout(page, input, before!), async () => {
           await ensureAuthenticated(page, targetUrl);
           return captureSource(page);
-        }, persisted => { verifyCloseout(persisted, input); verifyCloseoutFields(persisted, input, before); verifyEstimateOutcome(persisted, before!, input); });
+        }, persisted => { requireCloseoutPhotos(persisted, input.targetStatus || '8', appointmentId); verifyCloseout(persisted, input); verifyCloseoutFields(persisted, input, before); verifyEstimateOutcome(persisted, before!, input); });
       }
       catch (error) {
         if (error instanceof CloseoutNotAppliedError) { writeStarted = false; failureCode = 'source_closeout_not_applied'; }
@@ -597,8 +608,11 @@ async function main(): Promise<void> {
       await applyClassification(page,classification,before);
     }
     const closeout = await captureSource(page);
-    if (input) { verifyCloseout(closeout, input); verifyCloseoutFields(closeout, input, before); verifyEstimateOutcome(closeout, before!, input); }
-    if (classification && before) verifyClassificationChange(before,closeout,classification);
+    if (input) { requireCloseoutPhotos(closeout, input.targetStatus || '8', appointmentId); verifyCloseout(closeout, input); verifyCloseoutFields(closeout, input, before); verifyEstimateOutcome(closeout, before!, input); }
+    if (classification && before) {
+      requireCloseoutPhotos(closeout, classification.completeEstimate ? '8' : String(before.status.value), appointmentId);
+      verifyClassificationChange(before,closeout,classification);
+    }
     const warning = classification && before ? classificationCompletionTimeWarning(before,closeout,classification) : undefined;
     process.stdout.write(`${JSON.stringify({ ok: true, mode, appointmentId, closeout, ...(warning ? {warning} : {}), verifiedAt: new Date().toISOString() })}\n`);
     await context.close();

@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "verify:crew-phones": "node --import tsx scripts/test-crew-phones.ts",
+    "verify:mobile-closeout-rules": "node --import tsx scripts/test-mobile-closeout-rules.ts",
     "verify:knowledge": "node --import tsx scripts/test-knowledge.ts && node --import tsx scripts/test-knowledge-import.ts && node --import tsx scripts/test-knowledge-troubleshooting.ts",
     "verify:inspection-slack": "node --import tsx scripts/test-inspection-slack.ts",
     "verify:inspection-fleet": "node --import tsx scripts/test-inspection-fleet.ts",

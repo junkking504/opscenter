@@ -20,7 +20,7 @@ function html(fields:URLSearchParams) {
   const select = (key:string, options:{value:string;label:string}[]) => `<select id="ctl00_Content_${key}" name="ctl00$Content$${key}" ${['StatusDD','AppointmentTypeDD','TruckDD','PaymentMethodDD'].includes(key)?`onchange="this.form.elements.namedItem('__EVENTTARGET').value=this.name;this.form.submit()"`:""}>${options.map(o=>`<option value="${o.value}" ${value(key)===o.value?'selected':''}>${o.label}</option>`).join('')}</select>`;
   const submit = (key:string) => `<input type="submit" id="ctl00_Content_${key}" name="ctl00$Content$${key}" value="${key}">`;
   const status = value('StatusDD');
-  return `<!doctype html><html><body>JKTEST1234<form method="post"><input name="__EVENTTARGET"><input name="__EVENTARGUMENT">
+  return `<!doctype html><html><body>JKTEST1234<a href="https://junkware.junk-king.com/system/aspnet/local/media/before-1234-test.jpg">Uploaded job photo</a><form method="post"><input name="__EVENTTARGET"><input name="__EVENTARGUMENT">
   ${select('StatusDD',[{value:'1',label:'Confirmed'},{value:'8',label:'Completed'}])}
   ${select('AppointmentTypeDD',[{value:'2',label:'Job'},{value:'1',label:'Estimate'}])}
   <div>${select('TruckDD',[{value:'',label:''},{value:'t',label:'Truck# 1'},{value:'u',label:'Truck# 6'}])}${status==='1' ? 'Assigned: '+(persisted.get('ctl00$Content$TruckDD')==='u'?'Truck# 6':'Truck# 1') : ''}</div>
@@ -58,7 +58,7 @@ async function main() {
     res.setHeader('Content-Type','text/html');res.end(html(fields));
   });
   await new Promise<void>(r=>server.listen(0,'127.0.0.1',r));
-  const url=`http://127.0.0.1:${(server.address() as {port:number}).port}/appointment.aspx`;
+  const url=`http://127.0.0.1:${(server.address() as {port:number}).port}/appointment.aspx?id=1234`;
   const browser=await chromium.launch({headless:true});
   try {
     const page=await browser.newPage();

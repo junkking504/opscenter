@@ -605,6 +605,8 @@ export async function requireAuthSession(request: Request): Promise<AuthSession 
 }
 
 export function publicAuthRoute(pathname: string): boolean {
+  // Enrollment/session handlers enforce separate manager-issued phone access.
+  if (pathname === '/crew-jobs' || pathname === '/api/crew-jobs/session') return true;
   // The truck-phone surface has its own narrowly scoped device authentication.
   if (["/truck-inspection", "/truck-inspection/manifest.webmanifest", "/truck-inspection/icon.svg", "/truck-inspection/brand-logo.svg", "/truck-inspection/gear-wrench-clean-180.png", "/truck-inspection/gear-wrench-clean-192.png", "/truck-inspection/gear-wrench-clean-512.png", "/truck-inspection/junk-king-gear-wrench-180.png", "/truck-inspection/junk-king-gear-wrench-192.png", "/truck-inspection/junk-king-gear-wrench-512.png", "/truck-inspection/gear-wrench-180.png", "/truck-inspection/gear-wrench-192.png", "/truck-inspection/gear-wrench-512.png", "/api/truck-inspection"].includes(pathname)) return true;
   if (pathname === AUTH_LOGIN_PATH || pathname === AUTH_LOGOUT_PATH) return true;
@@ -616,5 +618,6 @@ export function publicAuthRoute(pathname: string): boolean {
 }
 
 export function protectedApiRoute(pathname: string): boolean {
+  if (pathname === '/api/crew-phones' || pathname.startsWith('/api/crew-jobs/')) return true;
   return AUTH_PROTECTED_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }

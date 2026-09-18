@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "verify:agent-hierarchy": "node --import tsx scripts/test-agent-audit-fixes.ts && node --import tsx scripts/test-agent-hierarchy.ts && python3 scripts/test-agent-runner.py",
+    "verify:agent-hierarchy": "node --import tsx scripts/test-agent-audit-fixes.ts && node --import tsx scripts/test-agent-hierarchy.ts && node --import tsx scripts/test-address-agent-coverage.ts && python3 scripts/test-agent-runner.py",
     "verify:knowledge": "node --import tsx scripts/test-knowledge.ts && node --import tsx scripts/test-knowledge-import.ts && node --import tsx scripts/test-knowledge-troubleshooting.ts",
     "verify:inspection-slack": "node --import tsx scripts/test-inspection-slack.ts",
     "verify:inspection-fleet": "node --import tsx scripts/test-inspection-fleet.ts",

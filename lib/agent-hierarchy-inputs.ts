@@ -9,6 +9,10 @@ import {hierarchyFresh,projectHierarchy,readHierarchy,saveHierarchy} from './age
 import type {HierarchyFeed,HierarchyFinding} from '../desktop-ui/lib/agent-hierarchy-contract';
 import type {TruckAgent} from '../desktop-ui/lib/truck-agent-contract';
 import type {OperationalAgentState} from './operational-agents';
+import {scheduleAddressFeed, addressResearchFeed} from './address-agent-findings';
+import {readJobRows} from './desktop-schedule-source';
+import {readVerifiedJunkwareScheduleSnapshot, readVerifiedJunkwareReconciliationSnapshot} from './junkware-fast-schedule';
+import {planningLocation} from './planning-geocodes';
 const monitor='/desktop?data=live&workspace=Command&commandView=monitor';
 type RunnerStage={status:string;startedAt?:string;finishedAt?:string;durationMs?:number};
 export function runnerFindings(state:{stages:Record<string,RunnerStage>;failures?:Array<RunnerStage&{stage:string}>},now:number):HierarchyFinding[] {
@@ -26,6 +30,14 @@ const targetForRule:Record<string,string>={repair:'maintenance',service:'mainten
 export async function readHierarchyFeeds(date:string,now=Date.now()):Promise<HierarchyFeed[]> {
   const feeds:HierarchyFeed[]=[], at=new Date(now).toISOString();
   const unavailable=(id:string,detail:string)=>feeds.push({id,available:false,observedAt:null,detail,findings:[]});
+  try {
+    const root=truckAgentRoot(), verified=readVerifiedJunkwareScheduleSnapshot(root,date), canonical=readVerifiedJunkwareReconciliationSnapshot(root,date);
+    const snapshot=verified && (!canonical || verified.updatedAtMs>canonical.updatedAtMs) ? verified : canonical;
+    if(!snapshot || !Number.isFinite(snapshot.freshnessAtMs))throw new Error('Schedule watermark unavailable');
+    const cache=read('cache/appointment_geocodes.json');
+    if(!cache.addresses || typeof cache.addresses!=='object' || Array.isArray(cache.addresses))throw new Error('Address cache unavailable');
+    feeds.push(scheduleAddressFeed(date,readJobRows(date).map(j=>({...j,located:Boolean(planningLocation(j.address,cache.addresses))})),new Date(snapshot.freshnessAtMs).toISOString(),now));
+  }catch {unavailable('schedule-addresses','Complete schedule and address evidence could not be read; prior findings are retained.');}
   try {for(const source of readDesktopSourceHealth(true)) {
     const available=hierarchyFresh(source.observedAt,now,source.maxAgeSeconds*1000);
     feeds.push({id:source.name,available,observedAt:source.observedAt,detail:source.state,findings:source.tone==='healthy'&&available?[]:[{id:`source:${source.name}`,feed:source.name,title:`${source.name}: ${source.state}`,detail:source.area,href:source.href||monitor,origin:'operations',target:'integrations',priority:'next'}]});
@@ -47,7 +59,8 @@ export async function readHierarchyFeeds(date:string,now=Date.now()):Promise<Hie
   try {
     const state=readMaintenanceState(path.join(truckAgentRoot(),'integrations/opscenter-maintenance'));
     feeds.push({id:'maintenance-observer',available:hierarchyFresh(state.checkedAt,now),observedAt:state.checkedAt,detail:'Existing maintenance observations; engineering execution requires a scoped task.',findings:state.incidents.filter(i=>i.status!=='resolved').map(i=>({id:`maintenance:${i.key}`,feed:'maintenance-observer',title:i.title,detail:`${i.evidence} ${i.nextStep}`,href:monitor,origin:'engineering',target:i.key.startsWith('client-')?'verification':/source|sync|gps|queue|collector/i.test(i.key)?'integrations':'implementation',priority:i.kind==='technical'?'next':'watch'}))});
-  }catch {unavailable('maintenance-observer','Maintenance observations could not be read.');}
+    try {feeds.push(addressResearchFeed(state,now));}catch {unavailable('address-research','Address research queue could not be read; prior findings are retained.');}
+  }catch {unavailable('maintenance-observer','Maintenance observations could not be read.');unavailable('address-research','Address research queue could not be read; prior findings are retained.');}
   try {
     const state=read('fleet/agents/worker-status.json') as {startedAt:string;stages:Record<string,RunnerStage>;failures?:Array<RunnerStage&{stage:string}>};
     if(!state.stages)throw new Error('Runner state missing');

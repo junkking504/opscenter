@@ -908,3 +908,23 @@ change.
 
 Validation: `npm run verify:service-addresses`, `npm run verify:service-territory`,
 `npm run verify:spending`, `npm run build:desktop`, and TypeScript checking.
+# Bare units and reviewed property evidence
+
+Address verification policy 9 recognizes an alphanumeric unit after a street
+suffix and before a complete city/ZIP tail (for example, `100 Example St B115
+New Orleans LA 70125`). It omits the unit from premises lookups and retains it as
+`Unit B115` in the crew-facing verified address. Numeric-only tails and highway
+route identifiers are not inferred units. House, direction, locality and ZIP
+conflicts remain rejected.
+
+A property operator's published premises map can support a reviewed runtime
+address record through the existing `cache/service-address-reviews` mechanism.
+Preserve the source URL, exact original address, verification date, reviewer,
+precision and coordinates. Only a review explicitly marked `scope: premises`
+can serve other units at the same house, street, city and ZIP; existing reviews
+retain their exact scope, and more specific unit evidence takes precedence.
+A conflicting Census candidate must not be accepted
+by globally stripping road directions. Property pins identify the premises, not
+an independently verified apartment entrance. Private appointment evidence stays
+outside Git. The agent hierarchy supervises missing locations and blocked research
+as described in [Agent hierarchy](agent-hierarchy.md).

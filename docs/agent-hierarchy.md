@@ -20,6 +20,20 @@ engineering work; a monitoring heartbeat does not mean implementation occurred.
 Tab coverage declares accountability and dependencies, not proof that every
 possible business error or UI interaction has been checked.
 
+The hierarchy also reads the complete current schedule and local address evidence.
+Every open appointment without a verified location, including unassigned jobs,
+gets an urgent Dispatch-owned finding linked to that appointment. It escalates
+to Control after 15 minutes. Canceled and completed records are excluded. Stale
+or unreadable schedules/caches retain prior findings as unconfirmed; only a fresh
+complete read can clear one.
+
+The address research queue is a separate feed. Failed, paused or stalled recovery
+and exhausted shared call/budget capacity produce one Integrations-owned finding,
+escalating to Engineering. The 500-call limit is identified separately from the
+dollar budget. Exhausted capacity remains a watch item even after current addresses
+resolve. This oversight only reads existing evidence: it cannot spend, increase a
+limit, retry paid research, or change the ledger.
+
 The private state is `data/fleet/agent-hierarchy/state.json`. Each finding keeps
 its existing source identity, one accountable agent, a proposed recipient,
 review deadline and a durable assignment/handoff history. The receiver accepts

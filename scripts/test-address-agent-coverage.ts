@@ -1,0 +1,50 @@
+import assert from 'node:assert/strict';
+import {scheduleAddressFeed,addressResearchFeed} from '../lib/address-agent-findings';
+import {projectHierarchy} from '../lib/agent-hierarchy';
+import {hierarchyAgents,type HierarchyFeed} from '../desktop-ui/lib/agent-hierarchy-contract';
+import {initialMaintenanceState,monthKey} from '../lib/maintenance-monitor';
+
+const now=Date.parse('2026-09-18T14:00:00Z'),date='2026-09-18',at=new Date(now).toISOString();
+const jobs=[{appointmentId:'test-unassigned',jkNumber:'TEST-1',status:'Confirmed',located:false},
+  {appointmentId:'test-located',jkNumber:'TEST-2',status:'Confirmed',located:true},
+  {appointmentId:'test-canceled',jkNumber:'TEST-3',status:'Canceled',located:false},
+  {appointmentId:'test-complete',jkNumber:'TEST-4',status:'Completed',located:false}];
+const schedule=scheduleAddressFeed(date,jobs,at,now);
+assert.equal(schedule.findings.length,1);
+assert.equal(schedule.findings[0].origin,'dispatch');
+assert(schedule.findings[0].href.includes('appointment=test-unassigned'));
+const state=initialMaintenanceState();
+state.months[monthKey(now)]={calls:500,committedMicros:3_000_000,estimatedMicros:200_000,inputTokens:0,outputTokens:0};
+state.addressResearch={version:1,checkedAt:at,status:'Shared budget or address allowance reached',items:{fixture:{address:'100 Example St B115 New Orleans LA 70125',dates:[date],status:'ready',firstSeenAt:at,updatedAt:at,attempts:0,committedMicros:0,estimatedMicros:0,reason:'No Exact Building Match'}}};
+const before=JSON.stringify(state),research=addressResearchFeed(state,now);
+assert.equal(JSON.stringify(state),before,'Oversight cannot change spending or consume an attempt');
+assert.equal(research.findings[0].target,'integrations');
+assert.match(research.findings[0].detail,/500\/500/);
+assert.equal(research.findings[0].priority,'urgent');
+const feeds:HierarchyFeed[]=[...new Set(hierarchyAgents.flatMap(a=>a.dependencies))].map(id=>({id,available:true,observedAt:at,detail:'Fixture',findings:[]}));
+const withFeeds=(s:HierarchyFeed,r:HierarchyFeed)=>feeds.map(f=>f.id===s.id?s:f.id===r.id?r:f);
+const first=projectHierarchy(date,withFeeds(schedule,research),now);
+const issue=first.issues.find(i=>i.feed==='schedule-addresses')!;
+assert.equal(issue.owner,'dispatch');
+assert.equal(first.issues.find(i=>i.feed==='address-research')!.owner,'integrations');
+const overdue=projectHierarchy(date,withFeeds(schedule,research),now+16*60_000,first);
+assert.equal(overdue.issues.find(i=>i.feed==='schedule-addresses')!.escalatedTo,'control');
+assert.equal(overdue.issues.find(i=>i.feed==='address-research')!.escalatedTo,'engineering');
+const stale=scheduleAddressFeed(date,[],at,now+20*60_000);
+assert.equal(stale.available,false);
+const retained=projectHierarchy(date,withFeeds(stale,{...research,available:false,findings:[]}),now+20*60_000,overdue);
+assert(retained.issues.every(i=>i.status==='unconfirmed'),'Unavailable reads cannot clear issues');
+const recovered=scheduleAddressFeed(date,jobs.map(j=>({...j,located:true})),new Date(now+21*60_000).toISOString(),now+21*60_000);
+const cleared=projectHierarchy(date,withFeeds(recovered,research),now+21*60_000,retained);
+assert.equal(cleared.issues.find(i=>i.id===issue.id)!.status,'source_cleared');
+state.months[monthKey(now)].calls=0;
+state.addressResearch.status='1 addresses queued for investigation';
+assert.equal(addressResearchFeed(state,now).findings.length,0,'New free lookup gets time to run');
+assert.equal(addressResearchFeed(state,now+16*60_000).findings.length,1,'Stalled free lookup is supervised too');
+state.addressResearch.items.fixture.status='provider_error';
+assert.equal(addressResearchFeed(state,now).findings.length,1,'Failed research cannot disappear');
+state.addressResearch.items.fixture.status='resolved';
+assert.equal(addressResearchFeed(state,now).findings.length,0);
+state.months[monthKey(now)].calls=500;
+assert.equal(addressResearchFeed(state,now).findings[0].priority,'watch','Exhausted fallback capacity stays visible after appointment recovery');
+console.log('Address oversight passed: unassigned coverage, single owners, Control/Engineering escalation, stale retention, verified clearance, call-cap and stalled research detection; no paid writes.');

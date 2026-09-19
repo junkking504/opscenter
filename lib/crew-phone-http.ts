@@ -1,3 +1,6 @@
+import {assertTruckNotSwitching} from './crew-truck-switch-store';
+import { readCrewDay } from './crew-phone-day';
+import { requireCrewInspection } from './crew-phone-inspection';
 import { resolveRequestOrigin } from './auth';
 import { CREW_PHONE_COOKIE, CrewPhoneError } from './crew-phone';
 import { crewPhone, enrollCrewPhone, revokeCrewPhone } from './crew-phone-store';
@@ -38,6 +41,13 @@ export function requireCrewPhone(request: Request) {
   if (!resolveRequestOrigin(request).startsWith('https://')) throw new CrewPhoneError('Open the secure company phone address.', 403);
   const phone = crewPhone(phoneKey(request));
   if (!phone) throw new CrewPhoneError('This phone needs manager setup.', 401);
+  const day=readCrewDay(phone);
+  return day ? {...phone,truck:day.truck} : phone;
+}
+export function requireCrewReady(request: Request) {
+  const phone=requireCrewPhone(request);
+  assertTruckNotSwitching(phone.truck);
+  requireCrewInspection(phone);
   return phone;
 }
 export async function crewPhoneSession(request: Request) {
@@ -53,7 +63,7 @@ export async function crewPhoneSession(request: Request) {
       return crewPhoneResponse({ disconnected: true }, 200, { 'Set-Cookie': `${CREW_PHONE_COOKIE}=; Path=/api/crew-jobs; HttpOnly; Secure; SameSite=Strict; Max-Age=0` });
     }
     if (body.action !== 'enroll' || Object.keys(body).some(key => !['action', 'code', 'connectionKey'].includes(key))) throw new CrewPhoneError('Choose a valid phone setup action.');
-    if (crewPhone(phoneKey(request))) throw new CrewPhoneError('This phone is already connected. A manager must change its truck.', 409);
+    if (crewPhone(phoneKey(request))) throw new CrewPhoneError('This phone is already connected. Choose today’s truck in daily setup.', 409);
     const phone = enrollCrewPhone(body.code, body.connectionKey);
     return crewPhoneResponse({ phone }, 200, { 'Set-Cookie': `${CREW_PHONE_COOKIE}=${body.connectionKey}; Path=/api/crew-jobs; HttpOnly; Secure; SameSite=Strict; Expires=${new Date(phone.expiresAt).toUTCString()}` });
   } catch (error) { return crewPhoneFailure(error); }

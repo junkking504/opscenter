@@ -2,7 +2,7 @@ import {crewCloseoutArrival,crewCloseoutTimes} from './crew-closeout-time';
 import { crewCheckoutDryRun } from './crew-checkout-dry-run';
 import { requireCrewDay,closeoutCrewDefaults } from './crew-phone-day';
 import { CrewPhoneError } from './crew-phone';
-import { requireCrewPhone } from './crew-phone-http';
+import { requireCrewPhone, requireCrewReady } from './crew-phone-http';
 import { readCrewDispatch } from './crew-dispatch-store';
 import { crewScheduleFresh } from './crew-dispatch-service';
 import { readDesktopSchedule } from './desktop-schedule';
@@ -86,7 +86,8 @@ export async function submitCrewCloseout(request:Request,body:Record<string,unkn
         // GPS fixes Start when available; otherwise validate the manual entry.
         const timing=crewCloseoutTimes(job,phone.truck,current.date,receipt.createdAt!,before.closeout as unknown as Parameters<typeof crewCloseoutTimes>[4],operation.values);
         // Recheck revocation immediately before the source write, after the read.
-        requireCrewPhone(request);
+        const active=requireCrewReady(request);
+        if(active.truck!==phone.truck || requireCrewDay(active).version!==day.version)throw new CrewPhoneError('Today’s truck or crew changed. Review setup before saving.',409);
         writeStarted=true;
         const result=await deps.write(current.appointmentId,{...operation.values,...timing});
         let truckLoadStatus;

@@ -2,38 +2,26 @@
 
 import { useState } from 'react';
 import CrewPhoneApp from '@/app/crew-jobs/crew-phone-app';
-import TruckInspectionApp from './TruckInspectionApp';
 import styles from './waypoint-app.module.css';
 import { CREW_JOBS_ORIGIN } from '@/lib/crew-phone';
+import TruckInspectionApp from './TruckInspectionApp';
 
-type View = 'jobs' | 'inspections';
+type Step = 'setup' | 'inspection' | 'jobs';
 
-export default function WaypointApp({ initialView, jobsHref }: { initialView: View; jobsHref?: string }) {
-  const [view, setView] = useState<View>(initialView);
-  const [visited, setVisited] = useState({ jobs: initialView === 'jobs', inspections: initialView === 'inspections' });
-  const [jobsBusy, setJobsBusy] = useState(false);
-  const [inspectionBusy, setInspectionBusy] = useState(false);
-  const busy = jobsBusy || inspectionBusy;
-
-  function select(next: View) {
-    if (busy) return;
-    setVisited(previous => ({ ...previous, [next]: true }));
-    setView(next);
-  }
-
+export default function WaypointApp({ jobsHref }: { initialView?: 'jobs' | 'inspections'; jobsHref?: string }) {
+  const [step, setStep] = useState<Step>('setup');
   return <div className={styles.app}>
     <header className={styles.header}>
       <div className={styles.brand}>
-        <img src={jobsHref ? `${CREW_JOBS_ORIGIN}/crew-jobs/waypoint-compass-crown-v2-192.png` : "/crew-jobs/waypoint-compass-crown-v2-192.png"} width="52" height="52" alt="" />
+        <img src={jobsHref ? `${CREW_JOBS_ORIGIN}/crew-jobs/waypoint-compass-crown-v2-192.png` : '/crew-jobs/waypoint-compass-crown-v2-192.png'} width="52" height="52" alt="" />
         <div><strong>Waypoint</strong><span>JUNK KING</span></div>
       </div>
-      <nav className={styles.navigation} aria-label="Waypoint">
-        {jobsHref ? <a href={jobsHref} target="_blank" rel="noopener noreferrer">Jobs ↗</a> : <button type="button" aria-current={view === 'jobs' ? 'page' : undefined} aria-controls="waypoint-jobs" disabled={busy} onClick={() => select('jobs')}>Jobs</button>}
-        <button type="button" aria-current={view === 'inspections' ? 'page' : undefined} aria-controls="waypoint-inspections" disabled={busy} onClick={() => select('inspections')}>Inspections</button>
-      </nav>
+      {jobsHref ? <a className={styles.legacyEntry} href={jobsHref}>Open Waypoint daily setup →</a> : <ol className={styles.steps} aria-label="Start your day">
+        <li aria-current={step === 'setup' ? 'step' : undefined}><span>1</span>Truck setup</li>
+        <li aria-current={step === 'inspection' ? 'step' : undefined}><span>2</span>Inspection</li>
+        <li aria-current={step === 'jobs' ? 'step' : undefined}><span>3</span>Jobs</li>
+      </ol>}
     </header>
-    {/* Keep visited workflows mounted: switching never discards a draft or receipt. */}
-    <div id="waypoint-jobs" hidden={view !== 'jobs'}>{visited.jobs && <CrewPhoneApp onBusyChange={setJobsBusy} />}</div>
-    <div id="waypoint-inspections" hidden={view !== 'inspections'}>{visited.inspections && <TruckInspectionApp onBusyChange={setInspectionBusy} />}</div>
+    <div>{jobsHref ? <TruckInspectionApp /> : <CrewPhoneApp onStepChange={setStep} />}</div>
   </div>;
 }

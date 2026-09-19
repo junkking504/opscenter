@@ -1,10 +1,11 @@
 # Five-point morning inspections
 
 Any company phone opens Waypoint at `https://waypoint.junk-king.app/truck-inspection`
-or chooses **Inspections** in Waypoint. The inspector selects the truck
-at the start of each inspection, then enters their name and mileage. There is
-no setup code, employee login or fixed phone-to-truck assignment. A new report
-starts with no truck selected. Reloading an unfinished draft preserves its
+and completes the daily **Truck setup → Inspection → Jobs** sequence.
+The enrolled crew chooses its truck and crew in daily setup; the inspection
+then fixes that truck and prefills the responsible person. See
+[Waypoint daily sequence](mobile-job-closeout.md#waypoint-daily-sequence--september-19-2026).
+The legacy standalone inspection API keeps its existing self-selected truck flow. Reloading an unfinished draft preserves its
 selected truck, answers and photos. Changing its truck after checks or photos
 have been entered asks before clearing the unfinished checklist and creating a
 new report reference; cancelling preserves the draft.

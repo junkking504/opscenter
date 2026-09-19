@@ -88,8 +88,9 @@ limited to 4 KiB, closeouts to 16 KiB and photo requests to 6 MiB (4 MiB decoded
 images). Responses are private and never cached.
 
 The manager can cancel an unused code or revoke a connected phone. A revoked
-connection/code cannot enroll again. To change trucks, revoke the old connection
-and issue a new code; local edits cannot change the server-owned truck. The UI
+connection/code cannot enroll again. The enrolled device remains manager-authorized. Its current daily setup selects
+the assigned truck from the server-owned dispatch truck list. Every job read and
+write resolves that saved daily truck; URL or job payload changes cannot change it. The UI
 does not add personal accounts or silently sign a phone in as a manager.
 
 The enrollment store lives in `data/crew-phones`, outside immutable releases via
@@ -387,19 +388,47 @@ manual provenance in the operation receipt; manual times never override GPS. Rec
 return the original result and never advance End or repeat a source write.
 The assignment-scoped dummy flow remains a simulation with no source writes.
 
-### Combined Waypoint app — September 19, 2026
+### Waypoint daily sequence — September 19, 2026
 
-Waypoint combines company-phone jobs/closeout and five-point truck inspections
-under one compass icon, header and Jobs / Inspections navigation. Opening
-`/crew-jobs` starts Jobs; `/truck-inspection` starts Inspections. Visited workflows
-stay mounted while switching so inputs, selected photos and receipt state survive.
-Navigation is disabled while either workflow is submitting or preparing a photo.
-The shared install manifest starts at `/crew-jobs` and covers both paths.
+Waypoint starts with **Truck setup → Inspection → Jobs** on both `/crew-jobs`
+and `/truck-inspection`. A new phone first enters its manager-issued code;
+a connected phone goes straight to daily setup. The crew explicitly selects its
+assigned truck, person responsible, driver and navigator. There is no preselected
+truck for a new day. The manager's enrollment truck remains a directory/default
+value; it no longer fixes the truck for every day of the device's lifetime.
 
-The Waypoint, Kingpin, jobs, Convoy and inspect hostnames serve both exact phone
-route allowlists, never management, payroll or webhook endpoints. Old inspection
-roots still open Inspections on their original host: cookies, IndexedDB drafts
-and receipt access are not transferred or discarded. New links use Waypoint.
-Job access still requires manager enrollment; the inspection connection grants
-no job, manager or payroll access. The OpsCenter Convoy fleet-management workspace
-remains separate from this combined phone app.
+Daily revisions remain immutable and versioned. Saving truck/crew setup advances
+to a five-point inspection with that truck fixed and the responsible person's
+name prefilled. A synthetic inspection device identity derived from phone, date
+and setup request binds the report to that exact setup. It has no public
+inspection connection token. `/api/crew-jobs/inspection` requires the enrolled
+phone, current daily setup, matching truck/date and setup version. It uses the
+existing durable inspection report/index store, report validation and receipt
+recovery. The normal inspection API and prior drafts/receipts remain intact.
+
+Only a saved `clear` or `reported` receipt for this setup unlocks Jobs. `stop`
+keeps jobs locked and directs the crew to their manager. Missing/unknown receipt
+state fails closed. Reopening recovers the saved daily setup and report; changing
+truck or crew creates a new setup version and requires a new inspection. A new
+Central calendar day requires daily setup again. Job API preflight and the shared
+photo/closeout scope enforce the gate independently of the screen, rechecking
+after awaited source reads. Prior closeout receipt recovery remains read-only
+and device/assignment scoped, so an uncertain payment is never replayed.
+
+Jobs keep the existing current-released-job rule: the next appointment remains
+hidden until source-verified completion and dispatch release. A prior-day current
+assignment is unavailable until dispatch resolves it. No full-day roster of
+customer addresses is sent to a phone. Daily truck selection changes phone access
+only, not source appointments, payroll clock-ins or dispatch assignments.
+
+Waypoint, Kingpin, jobs, Convoy and inspect hostnames serve the exact phone
+allowlists; management/payroll/webhook access stays denied. Legacy inspection
+roots remain on their original host. The hooks legacy inspection view remains
+available with a link to Waypoint setup. Browser drafts and cookies are never
+copied across origins. The OpsCenter Convoy fleet workspace remains separate.
+
+Validation: `verify:waypoint-day`, enrollment/day, inspection, scoped-photo and
+closeout suites cover ordering, no-setup/no-inspection direct access, mismatched
+truck/date/version, legacy report reuse, stop results, changed setup and receipt
+isolation. Tests use isolated stores and synthetic sources. Real customer
+closeouts and real inspection reports must never be submitted solely for testing.

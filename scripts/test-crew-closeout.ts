@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
+import {readyCrewInspection} from './fixtures/crew-ready';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {randomBytes,randomUUID} from 'node:crypto';
 async function main(){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'crew-closeout-'));
- process.env.OPSCENTER_LOGIN_RATE_LIMIT_FILE=path.join(dir,'login-attempts.json');process.env.OPS_CREW_PHONE_DIR=path.join(dir,'phones');process.env.OPS_CREW_DISPATCH_DIR=path.join(dir,'dispatch');process.env.OPSCENTER_DESKTOP_OPERATIONS_DIR=path.join(dir,'operations');process.env.JOB_ROUTE_ASSIGNMENTS_FILE=path.join(dir,'routes.json');
+ process.env.OPSCENTER_LOGIN_RATE_LIMIT_FILE=path.join(dir,'login-attempts.json');process.env.OPS_CREW_PHONE_DIR=path.join(dir,'phones');process.env.OPS_TRUCK_INSPECTION_DIR=path.join(dir,'inspections');process.env.OPS_CREW_DISPATCH_DIR=path.join(dir,'dispatch');process.env.OPSCENTER_DESKTOP_OPERATIONS_DIR=path.join(dir,'operations');process.env.JOB_ROUTE_ASSIGNMENTS_FILE=path.join(dir,'routes.json');
  try{
   const {createCrewPhoneEnrollment,enrollCrewPhone,revokeCrewPhone}=await import('../lib/crew-phone-store');
   const {saveCrewDay}=await import('../lib/crew-phone-day');
@@ -20,6 +21,7 @@ async function main(){
   const token=randomBytes(32).toString('hex'),phone=enrollCrewPhone(createCrewPhoneEnrollment('Truck 6','Test phone','manager').code,token);
   const date=chicagoDateKey(),id='900001',version='a'.repeat(64),current=releaseCrewJob({truck:phone.truck,date,appointmentId:id,expectedVersion:0,requestId:randomUUID()},'manager').current!;
   saveCrewDay(phone,{date,requestId:randomUUID(),expectedVersion:0,responsible:'Test Driver',driver:'Test Driver',navigators:['Test Navigator']});
+  readyCrewInspection(phone);
   const request=new Request('https://ops.example.invalid/api/crew-jobs/closeout',{headers:{Cookie:`${CREW_PHONE_COOKIE}=${token}`}});
   const arrival=new Date(Date.now()-60_000).toISOString();
   const job={truckVisits:[{truck:'Truck 6',arrival,departure:null,observedThrough:new Date().toISOString()}],appointmentId:id,recordId:`${date}:appointment:${id}`,version,truck:'Truck 6',status:'Confirmed',driver:'Test Driver',navigator:'Test Navigator'};

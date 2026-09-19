@@ -1,3 +1,4 @@
+import {assertTruckNotSwitching} from './crew-truck-switch-store';
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -36,7 +37,8 @@ function history(truck: string): Revision[] {
   });
 }
 function projection(value: CrewDispatch): CrewDispatch { return {truck:value.truck,version:value.version,current:value.current,queued:value.queued}; }
-export function readCrewDispatch(truck: string): CrewDispatch {
+export function readCrewDispatch(truck: string, switchId?: string): CrewDispatch {
+  assertTruckNotSwitching(truck,switchId);
   const latest = history(truck).at(-1);
   return latest ? projection(latest) : {truck,version:0,current:null,queued:null};
 }
@@ -46,7 +48,8 @@ export function readCrewDispatchRequest(truck: string, requestId: string): CrewD
   return saved ? projection(saved) : null;
 }
 function append(truck: string, requestId: string, expectedVersion: number, actor: string, input: unknown,
-  change: (current: CrewDispatch) => CrewDispatch, now = new Date(), completionReceiptId?: string): CrewDispatch {
+  change: (current: CrewDispatch) => CrewDispatch, now = new Date(), completionReceiptId?: string, switchId?: string): CrewDispatch {
+  assertTruckNotSwitching(truck,switchId);
   if (!uuid.test(requestId) || !Number.isSafeInteger(expectedVersion) || expectedVersion < 0 || !actor.trim()) throw new CrewPhoneError('A valid dispatch reference and manager are required.');
   const rows = history(truck);
   const fingerprint = createHash('sha256').update(JSON.stringify({actor,input,expectedVersion})).digest('hex');
@@ -71,7 +74,7 @@ function append(truck: string, requestId: string, expectedVersion: number, actor
     const saved = history(truck).find(row=>row.requestId===requestId);
     if (!saved || saved.fingerprint!==fingerprint) throw new CrewPhoneError('Dispatch changed. Refresh before assigning another job.',409);
   } finally {fs.unlinkSync(temp);}
-  return readCrewDispatch(truck);
+  return readCrewDispatch(truck,switchId);
 }
 /** Caller must verify the selected job still belongs to this truck in the current source. */
 export function releaseCrewJob(input: {truck:string;requestId:string;expectedVersion:number;appointmentId:string;date:string}, actor:string, now = new Date()) {
@@ -103,4 +106,16 @@ export function advanceCrewDispatch(state: CrewDispatch, receipt: Completion, so
   return append(state.truck,receipt.requestId,state.version,'verified-closeout', {action:'advance',assignmentId:state.current!.assignmentId,receiptId:receipt.requestId}, current=>({
     ...current,current:current.queued ? {...current.queued,releasedAt:now.toISOString()} : null,queued:null,
   }),now,receipt.requestId);
+}
+
+/** Preserve assignment identities and release order across a reserved truck handoff.
+ * Both trucks remain unavailable until the caller saves the completed switch. */
+export function transferCrewDispatch(from:CrewDispatch,to:CrewDispatch,requestId:string,appointmentIds:string[]) {
+ const actor=`waypoint-switch:${requestId}`;
+ const transferred=[from.current,from.queued].filter((a):a is CrewAssignment=>Boolean(a && appointmentIds.includes(a.appointmentId)));
+ append(from.truck,requestId,from.version,actor,{action:'truck-switch-out',to:to.truck},state=>({...state,current:null,queued:null}),new Date(),undefined,requestId);
+ return append(to.truck,requestId,to.version,actor,{action:'truck-switch-in',from:from.truck,transferred},state=>{
+  if(state.current || state.queued)throw new CrewPhoneError('The replacement truck has another crew assignment. Contact dispatch.',409);
+  return {...state,current:transferred[0] || null,queued:transferred[1] || null};
+ },new Date(),undefined,requestId);
 }

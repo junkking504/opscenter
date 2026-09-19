@@ -1,3 +1,4 @@
+import {assertAppointmentNotSwitching,assertTruckNotSwitching} from './crew-truck-switch-store';
 import { prepareScheduleCrewAssignment, applyScheduleCrewAssignment, type ScheduleCrewAssignment } from './schedule-crew-assignment';
 import type { CrewDispatchSources } from './crew-dispatch-service';
 import { JUNKWARE_DISPATCH_PREFLIGHT_REJECTION } from './junkware-assignment-failure';
@@ -93,6 +94,8 @@ export async function executeScheduleOperation(operation: ScheduleOperation, act
     // unresolved write for the same source appointment.
     const pending = await readPendingScheduleReceipt(operation.recordId);
     if (pending) throw new PendingScheduleOperationError(pending);
+    assertAppointmentNotSwitching(operation.recordId.split(':appointment:')[1],actor);
+    if(operation.action==='move')assertTruckNotSwitching(String(operation.values.truck || ''),actor.startsWith('waypoint-switch:')?actor.slice(16):undefined);
     const job = load();
     if (!job || job.version !== operation.expectedVersion) throw new Error('This appointment changed. Refresh and review the current source record.');
     if (['reschedule','restore'].includes(operation.action)) {

@@ -10,10 +10,10 @@ export const metadata: Metadata = {
   description: "OpsCenter for Junk King | Louisiana",
   applicationName: "OpsCenter",
   icons: {
-    icon: { url: "/opscenter-favicon.png?v=2", sizes: "32x32", type: "image/png" },
-    apple: { url: "/opscenter-apple-icon.png?v=2", sizes: "180x180", type: "image/png" },
+    icon: { url: "/opscenter-favicon.png?v=3", sizes: "32x32", type: "image/png" },
+    apple: { url: "/opscenter-apple-icon.png?v=3", sizes: "180x180", type: "image/png" },
   },
-  manifest: "/opscenter.webmanifest?v=2",
+  manifest: "/opscenter.webmanifest?v=3",
   appleWebApp: {
     capable: true,
     title: "OpsCenter",

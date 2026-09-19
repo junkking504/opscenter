@@ -29,12 +29,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     <main className="ops-login-shell">
       <div className="ops-login-grid" aria-hidden="true" />
       <section className="ops-login-brand-panel">
-        <div className="ops-login-brand">
-          <OpsCenterLogo className="opscenter-logo ops-login-opscenter-logo" />
-          <div>
-            <div className="ops-login-wordmark">OPSCENTER</div>
-            <div className="ops-login-designation">JUNK KING LOUISIANA</div>
-          </div>
+        <div className="ops-login-brand" style={{ display: "block", width: 360, maxWidth: "100%" }}>
+          <OpsCenterLogo />
+          <div className="ops-login-designation" style={{ marginTop: 12 }}>JUNK KING LOUISIANA</div>
         </div>
         <div className="ops-login-hero">
           <div className="ops-login-kicker"><span /> Louisiana Operations</div>

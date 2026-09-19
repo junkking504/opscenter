@@ -151,14 +151,14 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
   const jobsOrigin = [CREW_JOBS_ORIGIN, CREW_JOBS_KINGPIN_ORIGIN, CREW_JOBS_LEGACY_ORIGIN].find(origin => new URL(origin).hostname === hostname);
   if (jobsOrigin) {
     if (pathname === '/') return NextResponse.redirect(new URL('/crew-jobs', jobsOrigin));
-    if (CREW_JOBS_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
+    if (CREW_JOBS_PUBLIC_PATHS.includes(pathname) || INSPECTION_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
     return new NextResponse('Not Found', { status: 404 });
   }
 
   // Dedicated public inspection origin: never expose management or webhooks here.
   if (["convoy.junk-king.app", "inspect.junk-king.app"].includes(hostname)) {
     if (pathname === "/") return NextResponse.redirect(new URL("https://waypoint.junk-king.app/crew-jobs?tab=inspections"));
-    if (INSPECTION_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
+    if (INSPECTION_PUBLIC_PATHS.includes(pathname) || CREW_JOBS_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
     return new NextResponse("Not Found", { status: 404 });
   }
 

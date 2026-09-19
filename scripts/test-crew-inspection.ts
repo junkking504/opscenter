@@ -6,6 +6,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { crewInspection } from '../lib/crew-inspection';
 import { CREW_PHONE_COOKIE } from '../lib/crew-phone';
 import { createCrewPhoneEnrollment, enrollCrewPhone, revokeCrewPhone } from '../lib/crew-phone-store';
+import { saveCrewDay } from '../lib/crew-phone-day';
 import { INSPECTION_SECTIONS, inspectionDate } from '../lib/truck-inspection';
 import { listTruckInspections } from '../lib/truck-inspection-store';
 
@@ -31,6 +32,10 @@ async function main() {
     assert.equal(context.truckLocked, true);
     assert.match(contextResponse.headers.get('cache-control')!, /no-store/);
     assert.equal(contextResponse.headers.get('set-cookie'), null, 'Inspections do not create another login');
+    saveCrewDay(phone, {date:inspectionDate(),requestId:randomUUID(),expectedVersion:0,responsible:'Test Driver',driver:'Test Driver',navigators:['Test Navigator']},new Date(),['Test Driver','Test Navigator']);
+    const assigned = await (await crewInspection(request())).json();
+    assert.equal(assigned.defaultInspector,'Test Driver');
+    assert.deepEqual(assigned.inspectors,['Test Driver','Test Navigator']);
     assert.equal((await crewInspection(request(undefined, token, {Cookie: `ops_truck_inspection=${token}`}))).status, 401);
     assert.equal((await crewInspection(request({action: 'connect'}))).status, 400);
     const report = {requestId: randomUUID(), truck: 'Truck 6', inspector: 'Synthetic inspector', odometer: '123456', fuel: '1/2', loadLevel: 'Empty', startedAt: new Date().toISOString(), answers: INSPECTION_SECTIONS.map(section => ({id:section.id, status:'good', notes:''})), status:'clear', notes:'', initials:'TI', photos:[]};

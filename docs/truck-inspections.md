@@ -72,8 +72,8 @@ removed. Users should keep the page open if device storage is unavailable.
 ## Legacy inspection access boundary
 
 The dedicated public `convoy.junk-king.app` origin redirects `/` to Waypoint
-and retains only the exact legacy inspection page, manifest, icon,
-`/api/truck-inspection` and Next assets. Management, authentication and webhook
+and retains the exact legacy inspection and crew routes, manifests, icons,
+phone APIs and Next assets. Each API still enforces its own session. Management, authentication and webhook
 routes return 404 on this origin. OpsCenter's Truck Check entry opens Waypoint.
 The hostname uses a proxied CNAME to the existing `opscenter-mission-control`
 tunnel (`30d8a080-e2d1-4452-b463-4ba2ba8e57ba`). Its dedicated local ingress in

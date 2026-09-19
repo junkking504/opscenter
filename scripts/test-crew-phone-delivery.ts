@@ -16,11 +16,11 @@ async function main() {
     process.env.OPSCENTER_LOGIN_RATE_LIMIT_FILE = path.join(dir, 'rate-limit');
     process.env.WHATSAPP_ACCESS_TOKEN = 'mock-only'; delete process.env.WHATSAPP_ACCESS_TOKEN_BASE64;
     process.env.WHATSAPP_PHONE_NUMBER_ID = '12345'; process.env.WHATSAPP_GRAPH_API_VERSION = 'v24.0';
-    fs.writeFileSync(path.join(dir, 'directory.json'), JSON.stringify({schema:1,company:[{truck:'Truck 6',label:'Test phone',number:'504-555-0100'},{truck:'Truck 3',label:'Test phone 3',number:'504-555-0103'}],managers:[]}));
+    fs.writeFileSync(path.join(dir, 'directory.json'), JSON.stringify({schema:1,company:[{truck:'Truck 6',label:'Test phone',number:'504-555-0100'},{truck:'Truck 3',label:'Test phone 3',number:'504-555-0103'}],managers:[{name:'Synthetic Manager',number:'504-555-0199'}]}));
     globalThis.fetch = async (_url, init) => {
       calls++; const body = JSON.parse(String(init?.body));
       assert.equal(body.type, 'template'); assert.equal(body.template.name, 'test_crew_setup');
-      assert.equal(body.to, mode === 'ok' ? '15045550100' : '15045550103');
+      assert.equal(body.to, mode === 'manager-test' ? '15045550199' : mode === 'ok' ? '15045550100' : '15045550103');
       code = body.template.components[0].parameters[0].text;
       assert.match(code, /^\d{6}$/); assert.equal(body.template.components[1].parameters[0].text, code);
       if (mode === 'timeout') throw new Error('Synthetic timeout');
@@ -59,6 +59,15 @@ async function main() {
     assert.equal(rejected.status, 'failed');
     assert.throws(() => enrollCrewPhone(code, randomBytes(32).toString('hex')), /removed/);
     assert.equal(calls, 3);
+    Object.assign(policy, {maxAttemptsPerMonth:4,monthlyBudgetMicros:40000,testRecipientName:'Synthetic Manager',testRequestId:randomUUID()}); approve();
+    const configuredTest = policy as typeof policy & {testRequestId:string};
+    await assert.rejects(sendCrewPhoneSetup('Truck 1', randomUUID(), manager, true), /not been approved/);
+    mode = 'manager-test';
+    const testReceipt = await sendCrewPhoneSetup('Truck 1', configuredTest.testRequestId, manager, true);
+    assert.equal(testReceipt.number, '504-555-0199'); assert.equal(testReceipt.test, true);
+    assert.equal((await sendCrewPhoneSetup('Truck 1', configuredTest.testRequestId, manager, true)).deviceId, testReceipt.deviceId);
+    assert.equal(calls, 4, 'Approved test recipient has exactly one send attempt');
+    await assert.rejects(sendCrewPhoneSetup('Truck 1', configuredTest.testRequestId, manager), /another setup/);
     console.log('PASS setup delivery: approval denial, fixed recipient, one-use code, concurrent/lost response recovery, no code in receipts, cooldown, monthly cap, uncertain reservation and rejection revocation.');
   } finally { globalThis.fetch = originalFetch; process.env = previous; fs.rmSync(dir, {recursive:true,force:true}); }
 }

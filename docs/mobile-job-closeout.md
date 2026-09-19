@@ -48,6 +48,11 @@ configured in the private `crew-phone-delivery-approval.json` beside
 `production.env`. Routine releases must not create this file. See
 [Spending controls](spending-controls.md#company-phone-setup-delivery--prepared-september-18-2026).
 
+An explicitly approved test can expose a temporary manager-phone test action.
+Its recipient name and single request ID come from the private approval file;
+the number must match exactly one saved manager contact. The same spending and
+receipt rules apply. This does not change the normal company-phone destinations.
+
 Each send writes and fsyncs a receipt/reservation before contacting Meta, with
 the issuing manager, fixed destination, device, code expiry and request ID.
 Raw codes and credentials are not stored in receipts. Identical requests return

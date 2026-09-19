@@ -10,7 +10,7 @@ import { chicagoDateKey } from './chicago-date';
 // Separate, explicit approval: routine deployment must never create this file.
 const approvalPath = () => process.env.OPS_CREW_PHONE_DELIVERY_APPROVAL || path.join(process.env.HOME || '', 'Library/Application Support/OpsCenter/crew-phone-delivery-approval.json');
 const root = () => path.join(process.env.OPS_CREW_PHONE_DIR || path.join(process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(), 'data'), 'crew-phones'), 'deliveries');
-type Approval = { schema: 1; enabled: true; provider: 'meta-whatsapp'; purpose: 'crew-phone-setup'; approvedBy: string; approvedAt: string; validUntil: string; monthlyBudgetMicros: number; maxAttemptsPerMonth: number; reserveMicros: number; template: string; language: string };
+type Approval = { schema: 1; enabled: true; provider: 'meta-whatsapp'; purpose: 'crew-phone-setup'; approvedBy: string; approvedAt: string; validUntil: string; monthlyBudgetMicros: number; maxAttemptsPerMonth: number; reserveMicros: number; template: string; language: string; testRecipientName?: string; testRequestId?: string };
 type Saved = CrewPhoneDelivery & { schema: 1; actor: string; month: string; reservedMicros: number };
 function approval(): Approval {
   let value: Approval;
@@ -35,7 +35,7 @@ function configuration() {
   return { ...value, phoneNumberId, version };
 }
 export function crewPhoneDeliveryAvailability() {
-  try { configuration(); return { available: true, message: 'OpsBot sends the code to this company phone on WhatsApp.' }; }
+  try { const config = configuration(); return { available: true, message: 'OpsBot sends the code to this company phone on WhatsApp.', ...(config.testRecipientName && config.testRequestId ? {testRecipientName:config.testRecipientName,testRequestId:config.testRequestId}: {}) }; }
   catch (error) { return { available: false, message: error instanceof CrewPhoneError ? error.message : 'OpsBot setup-code delivery is unavailable.' }; }
 }
 function token() {
@@ -70,20 +70,22 @@ export function listCrewPhoneDeliveries(): CrewPhoneDelivery[] {
 }
 
 /** One durable reservation and one provider attempt per request; never replay an uncertain send. */
-export async function sendCrewPhoneSetup(truck: string, requestId: string, actor: string): Promise<CrewPhoneDelivery> {
+export async function sendCrewPhoneSetup(truck: string, requestId: string, actor: string, test = false): Promise<CrewPhoneDelivery> {
   if (!uuid.test(requestId) || !actor.trim()) throw new CrewPhoneError('A manager and valid send request are required.');
   fs.mkdirSync(root(), { recursive: true, mode: 0o700 });
   const file = path.join(root(), `${requestId}.json`);
   const existing = () => {
     if (!fs.existsSync(file)) return null;
     const saved = read(file);
-    if (saved.actor !== actor || saved.truck !== truck) throw new CrewPhoneError('This send request belongs to another setup.', 409);
+    if (saved.actor !== actor || saved.truck !== truck || Boolean(saved.test) !== test) throw new CrewPhoneError('This send request belongs to another setup.', 409);
     return project(saved);
   };
   const prior = existing();
   if (prior) return prior;
   const config = configuration();
-  const contacts = readCrewPhoneDirectory().company.filter(phone => phone.truck === truck);
+  if (test && (!config.testRecipientName || config.testRequestId !== requestId)) throw new CrewPhoneError('This test send has not been approved.', 403);
+  const directory = readCrewPhoneDirectory();
+  const contacts = test ? directory.managers.filter(phone => phone.name === config.testRecipientName).map(phone => ({label:`${phone.name} test`,number:phone.number})) : directory.company.filter(phone => phone.truck === truck);
   if (contacts.length !== 1) throw new CrewPhoneError('Choose a truck with exactly one saved company phone.');
   const contact = contacts[0];
   const accessToken = token();
@@ -102,7 +104,7 @@ export async function sendCrewPhoneSetup(truck: string, requestId: string, actor
     if (history.some(row => row.truck === truck && Date.now() - Date.parse(row.createdAt) < 60_000)) throw new CrewPhoneError('Wait one minute before sending another setup code to this truck.', 429);
     const enrollment = createCrewPhoneEnrollment(truck, contact.label, actor);
     code = enrollment.code;
-    receipt = { schema: 1, requestId, actor, month, reservedMicros: config.reserveMicros, truck, label: contact.label, number: contact.number,
+    receipt = { schema: 1, requestId, actor, month, reservedMicros: config.reserveMicros, truck, label: contact.label, number: contact.number, ...(test ? {test:true}: {}),
       deviceId: enrollment.deviceId, createdAt: new Date().toISOString(), expiresAt: enrollment.expiresAt, status: 'pending', message: 'Send started. Check WhatsApp before creating another code.' };
     save(receipt);
   } finally { fs.rmdirSync(lock); }

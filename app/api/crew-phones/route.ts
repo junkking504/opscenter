@@ -25,9 +25,9 @@ export async function POST(request: Request) {
   try {
     const actor = await manager();
     const body = await crewPhoneBody(request);
-    if (body.action === 'send-setup') {
+    if (body.action === 'send-setup' || body.action === 'send-test') {
       if (Object.keys(body).some(key => !['action', 'truck', 'requestId'].includes(key))) throw new CrewPhoneError('Use the saved company phone for setup delivery.');
-      return crewPhoneResponse({ deliveryReceipt: await sendCrewPhoneSetup(String(body.truck || ''), String(body.requestId || ''), actor.email) });
+      return crewPhoneResponse({ deliveryReceipt: await sendCrewPhoneSetup(String(body.truck || ''), String(body.requestId || ''), actor.email, body.action === 'send-test') });
     }
     if (body.action === 'enroll') return crewPhoneResponse({ enrollment: createCrewPhoneEnrollment(String(body.truck || ''), String(body.label || ''), actor.email) });
     if (body.action === 'revoke') {

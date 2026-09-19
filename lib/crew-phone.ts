@@ -22,7 +22,7 @@ export type CrewPhoneDirectory = {
 export type CrewPhoneDelivery = {
   requestId: string; truck: string; label: string; number: string; deviceId: string;
   createdAt: string; expiresAt: string; status: 'pending' | 'accepted' | 'failed' | 'uncertain';
-  message: string; providerMessageId?: string; cancelled?: boolean;
+  message: string; providerMessageId?: string; cancelled?: boolean; test?: boolean;
 };
 
 export type CrewPhoneDay = {deviceId:string;truck:string;date:string;version:number;requestId:string;responsible:string;driver:string;navigators:string[];savedAt:string};

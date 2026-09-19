@@ -8,7 +8,7 @@ type Enrollment = { code: string; deviceId: string; truck: string; label: string
 export default function CompanyPhones() {
   const [phones, setPhones] = useState<Phone[]>([]);
   const [directory,setDirectory]=useState<CrewPhoneDirectory>({company:[],managers:[]});
-  const [delivery, setDelivery] = useState({ available: false, message: 'Checking OpsBot delivery…' });
+  const [delivery, setDelivery] = useState<{available:boolean;message:string;testRecipientName?:string;testRequestId?:string}>({ available: false, message: 'Checking OpsBot delivery…' });
   const [deliveries, setDeliveries] = useState<CrewPhoneDelivery[]>([]);
   const [trucks, setTrucks] = useState<string[]>([]);
   const [truck, setTruck] = useState('');
@@ -54,6 +54,7 @@ export default function CompanyPhones() {
       <p>{directory.company.filter(phone => phone.truck === truck).length === 1 ? `Send to ${directory.company.find(phone => phone.truck === truck)!.number} on WhatsApp` : 'Select a truck with one saved company phone.'}</p>
       <p role="status">{delivery.message}</p>
       <button className={styles.primary} disabled={busy || loading || !delivery.available || directory.company.filter(phone => phone.truck === truck).length !== 1}>{busy ? 'Working…' : 'Generate & send via OpsBot'}</button>
+      {delivery.testRecipientName && delivery.testRequestId && <button type="button" className={styles.secondary} disabled={busy || loading || !delivery.available || !truck} onClick={() => void send({action:'send-test',truck,requestId:delivery.testRequestId})}>Send test code to {delivery.testRecipientName}</button>}
       <button type="button" className={styles.secondary} disabled={busy || loading || !truck || !label.trim()} onClick={() => void send({ action: 'enroll', truck, label })}>Create code for manual entry</button>
     </form></section>
     {deliveries.length > 0 && <section className={styles.card}><h2>Recent setup messages</h2><p>After a connection error, refresh this list before sending another code.</p><button className={styles.secondary} disabled={busy || loading} onClick={() => void load()}>Check send status</button><ul className={styles.list}>{deliveries.map(receipt => <li key={receipt.requestId}><strong>{receipt.truck} · {receipt.number}</strong><span>{receipt.message}</span>{receipt.cancelled ? <span>Setup code cancelled. Phone access removed.</span> : <span>Code expires {new Date(receipt.expiresAt).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'})}</span>}{receipt.status !== 'failed' && !receipt.cancelled && <button className={styles.secondary} disabled={busy} onClick={() => void send({action:'revoke',deviceId:receipt.deviceId})}>Cancel this setup code</button>}</li>)}</ul></section>}

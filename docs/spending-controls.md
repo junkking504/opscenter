@@ -91,3 +91,46 @@ for the company-phone app, with zero new charges authorized. The checker is
 unchanged; no provider, dependency, paid service, quota or spending limit changes.
 The installed checker and one-hostname manifest update are backed up and recorded
 with SHA256 checksums in the external deployment-control installation record.
+
+## Company-phone setup delivery — prepared September 18, 2026
+
+The user approved Meta WhatsApp authentication-template delivery for company-phone
+setup, capped at **$1 and 100 send attempts per Central calendar month**. The
+verified North America authentication rate was $0.0034 per delivered message on
+September 18. The implementation reserves $0.01 per attempt without refunds.
+Eugene Dabezies's saved manager phone was explicitly selected for one test.
+Template approval, protected configuration and deployment must be verified before
+claiming that sending is active or a message was delivered.
+
+The separate private approval file is
+`~/Library/Application Support/OpsCenter/crew-phone-delivery-approval.json`.
+It must contain `schema: 1`, `enabled: true`, `provider: "meta-whatsapp"`,
+`purpose: "crew-phone-setup"`, explicit `approvedBy`/`approvedAt`, a future
+`validUntil`, `monthlyBudgetMicros`, `maxAttemptsPerMonth`, `reserveMicros`, and
+the approved authentication `template` and `language`. This implementation permits
+at most $1 and 100 attempts per Central calendar month, reserves at least one
+cent per attempt, and never refunds uncertain or rejected attempts. The approved
+reservation must cover the verified recipient-market rate. Approval expiration
+requires a rate/template review before renewal. These application reservations
+are not a Meta account-wide billing cap. Test overrides must use isolated files.
+
+Do not install an approval file, change the separately installed spending gate,
+or enable paid sends as part of routine deployment. Activation remains a separate
+explicit user decision. A missing/corrupt/expired/disabled approval fails closed.
+
+The September 18 user approval authorizes installing this feature's private
+approval file; it does not authorize changing the separate deployment spending
+checker or existing AI budgets. Optional `testRecipientName` and `testRequestId`
+authorize exactly one idempotent test send to a uniquely matching saved manager
+contact. The browser cannot choose an arbitrary destination. Remove these test
+fields after acceptance; normal sends continue to use the company-phone directory.
+
+## Kingpin and Convoy hostnames — September 18, 2026
+
+The user explicitly approved adding only `kingpin.junk-king.app` and
+`convoy.junk-king.app` to the installed hostname inventory for the app rename.
+Both use the existing Cloudflare DNS and Mission Control tunnel, with $0 in new
+charges authorized. Legacy jobs and inspect origins remain available for existing
+phone sessions and drafts. The checker, provider permissions, dependencies, quotas
+and all spending limits remain unchanged. Back up the installed pair and record
+the approved inventory and checker SHA256 hashes in the external installation record.

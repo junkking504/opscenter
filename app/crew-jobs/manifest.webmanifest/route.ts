@@ -3,6 +3,9 @@ export function GET() {
     name: 'Waypoint', short_name: 'Waypoint',
     start_url: '/crew-jobs', scope: '/crew-jobs', display: 'standalone',
     background_color: '#f5f4f0', theme_color: '#171717',
-    icons: [{ src: '/crew-jobs/icon.png', sizes: '180x180', type: 'image/png' }],
+    icons: [
+      { src: '/crew-jobs/waypoint-compass-crown-v1-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/crew-jobs/waypoint-compass-crown-v1-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    ],
   }, { headers: { 'Content-Type': 'application/manifest+json' } });
 }

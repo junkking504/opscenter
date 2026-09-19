@@ -4221,7 +4221,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
       </aside>
 
       <section className="ops-content">
-        {live && <nav className="live-mobile-navigation" aria-label="Mobile workspaces"><label>Workspace<select aria-label="Choose workspace" value={activeNav} disabled={mutationBusy} onChange={event => setActiveNav(event.target.value)}>{nav.filter(item => item.label !== 'Finance' || canFinance).map(item => <option key={item.label} value={item.label}>{workspaceLabel(item.label)}</option>)}</select></label></nav>}
+        {live && <nav className="live-mobile-navigation" aria-label="Mobile workspaces"><img className="mobile-opscenter-wordmark" src="/opscenter-wordmark.png?v=3" alt="OpsCenter" width={1400} height={321} /><label><span className="sr-only">Workspace</span><select aria-label="Choose workspace" value={activeNav} disabled={mutationBusy} onChange={event => setActiveNav(event.target.value)}>{nav.filter(item => item.label !== 'Finance' || canFinance).map(item => <option key={item.label} value={item.label}>{workspaceLabel(item.label)}</option>)}</select></label></nav>}
         <header className="topbar">
           {live ? <LiveSearch date={live.snapshot.date} navigate={setActiveNav} disabled={mutationBusy} finance={canFinance} /> : <div className="global-search-shell">
             {searchOpen && <button className="global-search-backdrop" aria-label="Close search" onClick={closeGlobalSearch} />}

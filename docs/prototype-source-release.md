@@ -17,6 +17,20 @@ The full wordmark is an image to preserve the approved typography, with an
 OpsCenter text alternative. Palette targets are red `#B51935`, gold `#D9A526`,
 black `#111111` and white `#FFFFFF`. This replaces the former circuit artwork.
 
+### Compact layout and icon refresh
+
+At widths of 760px or less, the desktop sidebar is hidden. The compact
+workspace header therefore carries its own wordmark and stays visible while
+scrolling, above the operating-day bar. Verify the actual compact viewport as
+well as a full-width desktop before accepting a branding release.
+
+The favicon, Apple touch icon and manifest now use explicit
+`opscenter-red-gold-*` filenames rather than only changing a URL query.
+Manifest version 4 includes both ordinary and maskable app-icon declarations;
+the app id and start URL remain `/desktop` so existing installations retain
+their identity. Legacy asset URLs remain available. Installed-device icon
+refresh is separate from verifying the served manifest and icon files.
+
 ## Shared red palette
 
 `styles/brand-tokens.css` defines the OpsCenter UI red as `#B51935`. Both

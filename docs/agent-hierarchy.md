@@ -3,7 +3,7 @@
 Command → Monitor exposes the live hierarchy to managers and administrators.
 The operations and engineering branches have separate responsibilities. The
 registry in `desktop-ui/lib/agent-hierarchy-contract.ts` assigns all 27 primary
-tabs to named roles. Display tabs may share a specialist. Page heads supervise
+tabs and five Waypoint crew flows to named roles. Display tabs may share a specialist. Page heads supervise
 their specialists, and Command supervises both leads. Nine truck identities
 remain children of Convoy; visit tracking and unload/cost remain shared evidence
 producers under Operations.
@@ -19,6 +19,47 @@ Engineering roles own observed findings and acceptance requirements for scoped
 engineering work; a monitoring heartbeat does not mean implementation occurred.
 Tab coverage declares accountability and dependencies, not proof that every
 possible business error or UI interaction has been checked.
+
+## Waypoint ownership
+
+The **Waypoint reliability agent** reports to the Engineering lead and owns
+phone/truck setup, inspection access, jobs, truck switching and closeout reliability.
+It runs inside the existing minute hierarchy assessment, even while no manager
+has Command open. The operational hierarchy keeps its durable findings and
+escalates urgent items to Engineering after 15 minutes. Missing evidence
+escalates immediately as unconfirmed; stale worker assessments remain visible.
+The existing Integrations specialist still owns JunkWare source freshness,
+which is also a declared dependency of Waypoint.
+
+Eight concurrent, read-only loopback checks use the Waypoint hostname and HTTPS
+proxy headers: the crew page, manifest and unauthenticated session, day, inspection,
+current-job, switch-truck and closeout endpoints. Each has a three-second deadline,
+a one-MiB response bound, and no redirect following. The page and manifest must
+identify Waypoint; APIs must return the expected phone-setup 401. These probes
+send no phone cookie and cannot fetch customer data or trigger source actions.
+They verify origin routes and access boundaries, not public DNS/tunnel reachability
+or complete authenticated phone interactions. Production checks only run with
+the Mission Control runtime. No new scheduler, external polling, AI call or cost
+is introduced, and the hierarchy stage retains its existing 20-second limit.
+
+The agent also reads saved truck switches and crew closeout receipts across all
+dates. An attention switch, a moving switch idle over five minutes, an uncertain
+crew closeout, or a pending closeout over ten minutes becomes urgent owned work.
+Each finding includes its saved reference and recovery instruction. Missing
+inspection, a safety stop, an idle phone and ordinary in-progress work are not
+service outages. Damaged/unreadable/oversized history is unavailable evidence;
+it cannot clear earlier findings. Reads are capped at 10,000 receipts per ledger
+and two MiB per receipt. The agent also checks the existing OpsBot setup approval and monthly allowance,
+and flags each phone’s latest failed, uncertain or abandoned send. Provider
+acceptance remains distinct from receipt on the phone. The agent never retries a switch or payment, changes
+crew assignments, submits inspections, clears restrictions or deploys repairs.
+Engineering acceptance must still verify the actual affected workflow.
+
+In Command → Monitor, expand the Waypoint reliability agent, select its findings,
+or open page/tab ownership and Source coverage to see its scope and checks.
+`npm run verify:waypoint-agent` exercises failures, ownership, escalation,
+read-only monitoring, corrupted evidence retention and source clearance using
+isolated fixtures and mocked HTTP responses.
 
 The hierarchy also reads the complete current schedule and local address evidence.
 Every open appointment without a verified location, including unassigned jobs,

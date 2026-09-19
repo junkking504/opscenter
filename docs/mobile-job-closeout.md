@@ -35,6 +35,22 @@ Only one phone can redeem a code. The phone cannot self-register or select a tru
 
 ### OpsBot setup delivery
 
+Waypoint now starts with **Company phone number → Send setup code via OpsBot →
+enter the six-digit code**. Only one exact match in the private company-phone
+directory is eligible; manager contacts and unknown/ambiguous numbers receive no
+message. The public response never returns a code, company directory, provider
+receipt or phone binding. Possession of the single-use code establishes access,
+then the crew chooses today’s truck before inspection and jobs.
+
+The same-origin HTTPS session endpoint accepts `request-code` with number and a
+client-retained request ID. Retrying **Check send status** uses the saved send,
+including uncertain results, without contacting Meta again. Public requests have
+the existing durable per-address attempt limit plus a ten-minute per-phone
+cooldown and three sends per phone per Central day. The shared approved $1 /
+100-attempt monthly limits are unchanged. Tests mock Meta; a successful API
+acceptance is not proof that a WhatsApp message arrived.
+
+
 Company Phones has a **Generate & send via OpsBot** action. Its server selects
 exactly one company phone from the private directory for the selected truck;
 the browser cannot supply a destination or message text. A manager can still

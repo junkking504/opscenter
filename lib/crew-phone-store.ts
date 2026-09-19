@@ -46,7 +46,7 @@ function validBinding(binding: Binding): boolean {
 }
 function revoked(id: string) { return fs.existsSync(path.join(directory('revoked'), `${id}.json`)); }
 
-/** Only a manager-authorized server caller may issue an enrollment. */
+/** Server callers are manager setup or an allowlisted company-number delivery. */
 export function createCrewPhoneEnrollment(truck: string, label: string, actor: string, now = new Date()) {
   if (!JUNKWARE_DISPATCH_TRUCKS.includes(truck)) throw new CrewPhoneError('Choose a truck.');
   if (!label.trim() || label.length > 80) throw new CrewPhoneError('Enter a phone name, up to 80 characters.');

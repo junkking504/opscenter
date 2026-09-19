@@ -6,6 +6,7 @@ import styles from './phone-access.module.css';
 import JobCloseout from './job-closeout';
 import DailyCrew from './daily-crew';
 import SwitchTruck,{type SwitchSummary} from './switch-truck';
+import RequestSetupCode from './request-setup-code';
 import TruckInspectionApp from '@/components/TruckInspectionApp';
 import {chicagoDateKey} from '@/lib/chicago-date';
 import { clearCrewCloseoutDrafts } from '../../desktop-ui/lib/closeout-drafts';
@@ -132,7 +133,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange }: { onBusyC
       </> : <><h1>Assignment unavailable</h1><p>{assignment?.message || 'Your assignment could not be verified. Contact dispatch.'}</p></>}
       {day && !editingCrew && <section className={styles.card}><h2>{day.truck} · Today’s crew</h2><button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>setSwitching(true)}>Switch truck</button><p>{day.driver} · Driver<br/>{day.navigators.join(', ') || 'No navigator'} · Navigator</p><p>Responsible for phone: {day.responsible}</p><button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>{setEditingCrew(true);setCloseout(false);}}>Edit crew</button></section>}
       <button className={styles.primary} onClick={()=>void loadJob()} disabled={jobLoading || busy}>{day?'Refresh jobs':'Refresh setup'}</button>
-    </> : <><h1>Company phone setup</h1><p>Your manager generates the setup code in OpsCenter. Enter the 6-digit code sent by OpsBot on WhatsApp, or given to you by your manager.</p>
+    </> : <><h1>Company phone setup</h1><RequestSetupCode busy={busy} onBusy={setBusy}/><p>Enter the 6-digit code from OpsBot to connect this phone.</p>
       <form className={styles.form} onSubmit={enroll}><label>Setup code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" spellCheck={false} value={code} maxLength={6} onChange={event => setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))} required disabled={busy}/></label>
       <button className={styles.primary} disabled={busy || !/^[0-9]{6}$/.test(code.trim())}>{busy ? 'Connecting…' : 'Connect phone'}</button></form>
     </>}

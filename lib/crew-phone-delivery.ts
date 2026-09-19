@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { CrewPhoneError, type CrewPhoneDelivery } from './crew-phone';
 import { readCrewPhoneDirectory } from './crew-phone-directory';
@@ -38,6 +38,20 @@ export function crewPhoneDeliveryAvailability() {
   try { const config = configuration(); return { available: true, message: 'OpsBot sends the code to this company phone on WhatsApp.', ...(config.testRecipientName && config.testRequestId ? {testRecipientName:config.testRecipientName,testRequestId:config.testRequestId}: {}) }; }
   catch (error) { return { available: false, message: error instanceof CrewPhoneError ? error.message : 'OpsBot setup-code delivery is unavailable.' }; }
 }
+/** Number possession is proven by the one-use code, never by this public request. */
+export async function requestCrewPhoneSetup(rawNumber:unknown,rawRequestId:unknown) {
+  if(typeof rawNumber!=='string' || rawNumber.length>32 || typeof rawRequestId!=='string' || !uuid.test(rawRequestId))throw new CrewPhoneError('Enter this company phone’s number.');
+  const digits=rawNumber.replace(/[^0-9]/g,'').replace(/^1(?=\d{10}$)/,'');
+  if(!/^[2-9]\d{2}[2-9]\d{6}$/.test(digits))throw new CrewPhoneError('Enter a valid 10-digit company phone number.');
+  const contacts=readCrewPhoneDirectory().company.filter(p=>p.number.replace(/-/g,'')===digits);
+  const message='If this is a registered company phone, check WhatsApp for your 6-digit OpsBot code. The code expires in 10 minutes. If it does not arrive, contact your manager.';
+  if(contacts.length!==1)return {message};
+  const actor=`crew-self-setup:${createHash('sha256').update(digits).digest('hex')}`;
+  const receipt=await sendCrewPhoneSetup(contacts[0].truck,rawRequestId,actor);
+  if(receipt.status==='failed')throw new CrewPhoneError('OpsBot could not send the setup code. Contact your manager.',503);
+  if(receipt.status==='pending' || receipt.status==='uncertain')return {message:'The send is not yet confirmed. Check WhatsApp first, then use Check send status. Do not request another code while this send is uncertain.'};
+  return {message};
+}
 function token() {
   const configured = process.env.WHATSAPP_ACCESS_TOKEN_BASE64 ? Buffer.from(process.env.WHATSAPP_ACCESS_TOKEN_BASE64, 'base64').toString('utf8').trim() : process.env.WHATSAPP_ACCESS_TOKEN?.trim();
   if (configured) return configured;
@@ -67,6 +81,23 @@ export function listCrewPhoneDeliveries(): CrewPhoneDelivery[] {
   if (!fs.existsSync(root())) return [];
   return fs.readdirSync(root()).filter(name => name.endsWith('.json')).map(name => project(read(path.join(root(), name))))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 20);
+}
+
+/** Local oversight only; never reads a token or contacts the provider. */
+export function crewPhoneDeliveryHealth(now=Date.now()) {
+  let policy:Approval|null=null;
+  try {policy=approval();}catch{/* Still read the complete ledger so prior send failures remain visible. */}
+  let names:string[]=[];
+  try {names=fs.readdirSync(root()).filter(n=>n.endsWith('.json'));}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e;}
+  if(names.length>10_000)throw new Error('Delivery history exceeds monitoring bound');
+  const rows=names.map(name=>{const file=path.join(root(),name);if(fs.statSync(file).size>2*1024*1024)throw new Error('Oversized delivery receipt');return read(file);});
+  const latest=new Map<string,Saved>();
+  for(const row of rows.filter(r=>!r.test).sort((a,b)=>a.createdAt.localeCompare(b.createdAt)))latest.set(row.number,row);
+  const exceptions=[...latest.values()].filter(row=>row.status==='failed' || row.status==='uncertain' || (row.status==='pending' && now-Date.parse(row.createdAt)>2*60_000)).map(row=>({requestId:row.requestId,status:row.status,createdAt:row.createdAt}));
+  if(!policy)return {ready:false,reason:'Setup-code delivery approval is unavailable or expired.',exceptions};
+  const monthly=rows.filter(r=>r.month===chicagoDateKey(new Date(now)).slice(0,7));
+  const limited=monthly.length>=policy.maxAttemptsPerMonth || monthly.reduce((sum,row)=>sum+row.reservedMicros,0)+policy.reserveMicros>policy.monthlyBudgetMicros;
+  return {ready:!limited,reason:limited?'The existing monthly setup delivery limit is reached.':'Setup delivery approval is current; receipt acceptance does not confirm arrival on the phone.',exceptions};
 }
 
 /** One durable reservation and one provider attempt per request; never replay an uncertain send. */
@@ -101,6 +132,11 @@ export async function sendCrewPhoneSetup(truck: string, requestId: string, actor
     const monthly = history.filter(row => row.month === month);
     if (monthly.length >= config.maxAttemptsPerMonth || monthly.reduce((sum, row) => sum + row.reservedMicros, 0) + config.reserveMicros > config.monthlyBudgetMicros)
       throw new CrewPhoneError('The approved monthly setup-code sending limit has been reached.', 429);
+    if(actor.startsWith('crew-self-setup:')) {
+      const recent=history.filter(row=>row.number===contact.number && !row.test);
+      if(recent.some(row=>Date.now()-Date.parse(row.createdAt)<10*60_000))throw new CrewPhoneError('A setup code was already requested for this phone. Check WhatsApp or wait 10 minutes before requesting a new one.',429);
+      if(recent.filter(row=>chicagoDateKey(new Date(row.createdAt))===chicagoDateKey()).length>=3)throw new CrewPhoneError('This phone has reached today’s setup-code limit. Contact your manager.',429);
+    }
     if (history.some(row => row.truck === truck && Date.now() - Date.parse(row.createdAt) < 60_000)) throw new CrewPhoneError('Wait one minute before sending another setup code to this truck.', 429);
     const enrollment = createCrewPhoneEnrollment(truck, contact.label, actor);
     code = enrollment.code;

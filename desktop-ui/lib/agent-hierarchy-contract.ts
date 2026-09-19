@@ -5,6 +5,7 @@ export const hierarchyAgents: AgentDefinition[] = [
   role('command','Command coordinator',null,'Surface unresolved priorities and supervise both branches.'),
   role('operations','Operations lead','command','Coordinate page heads and cross-page ownership.'),
   role('engineering','Engineering lead','command','Coordinate implementation, source reliability, acceptance and releases.'),
+  role('waypoint','Waypoint reliability agent','engineering','Keep the crew app operational: monitor local app availability, OpsBot setup delivery, phone access boundaries, truck-switch recovery and uncertain closeouts. Own findings through Engineering escalation and verified recovery.',['waypoint-page','waypoint-manifest','waypoint-session','waypoint-day','waypoint-inspection','waypoint-current','waypoint-switch-truck','waypoint-closeout','waypoint-switches','waypoint-closeouts','waypoint-delivery','JunkWare']),
   role('control','Control head','operations','Review dispatch, appointment and closeout exceptions.',['JunkWare']),
   role('crew','Crew head','operations','Review staffing and crew follow-through.',['JunkWare','Crew Portal']),
   role('convoy','Convoy head','operations','Supervise fleet restrictions and truck readiness.',['truck-assessments']),
@@ -38,6 +39,7 @@ export const hierarchyTabs: AgentTab[] = [
   ...tabs('Convoy',[['Trucks','convoy'],['Inspections & Repairs','inspection'],['Service','maintenance'],['Driving','convoy'],['History & Costs','capacity']]),
   ...tabs('Capital',[['Overview','capital'],['Payments','payments'],['Expenses','expenses'],['Accounting','accounting'],['Resale','accounting'],['Recycling','accounting'],['Trends','accounting']]),
   ...tabs('Campaign',[['Follow up','leads'],['Reviews','reviews'],['Results','campaign']]),
+  ...tabs('Waypoint',[['Phone & truck setup','waypoint'],['Truck inspection','waypoint'],['Jobs','waypoint'],['Switch truck','waypoint'],['Closeout','waypoint']]),
 ];
 export type HierarchyFinding = { id: string; feed: string; title: string; detail: string; href: string; target: string; origin: string; priority: 'urgent'|'next'|'watch' };
 export type HierarchyFeed = { id: string; available: boolean; observedAt: string | null; detail: string; findings: HierarchyFinding[] };

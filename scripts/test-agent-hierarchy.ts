@@ -6,7 +6,7 @@ import {hierarchyAgents,hierarchyTabs,type HierarchyFeed,type HierarchyFinding} 
 import {projectHierarchy,saveHierarchy,readHierarchy} from '../lib/agent-hierarchy';
 import {requiredOpsPermission} from '../lib/ops-roles';
 const now=Date.parse('2026-09-17T15:00:00Z'),date='2026-09-17',at=new Date(now).toISOString();
-assert.equal(hierarchyTabs.length,27);assert.equal(new Set(hierarchyTabs.map(t=>`${t.page}:${t.tab}`)).size,27);
+assert.equal(hierarchyTabs.length,32);assert.equal(new Set(hierarchyTabs.map(t=>`${t.page}:${t.tab}`)).size,32);
 assert.equal(new Set(hierarchyAgents.map(a=>a.id)).size,hierarchyAgents.length);
 for(const a of hierarchyAgents){const visited=new Set<string>();let id:string|null=a.id;while(id){assert(!visited.has(id),'No hierarchy cycles');visited.add(id);const row=hierarchyAgents.find(x=>x.id===id);assert(row,'Parent exists');id=row.parent;}}
 for(const tab of hierarchyTabs)assert(hierarchyAgents.some(a=>a.id===tab.owner));
@@ -36,7 +36,7 @@ try {
   assert(readHierarchy(now+5*60_000)!.agents.every(a=>a.status==='unavailable'));
   fs.writeFileSync(path.join(root,'fleet/agent-hierarchy/state.json'),'{');assert.throws(()=>readHierarchy(now),/preserved/);
 }finally{fs.rmSync(root,{recursive:true,force:true});}
-console.log('Hierarchy passed: 27 tabs, valid reporting tree, accepted handoffs, single owner, source failure retention, overdue escalation, reopening, monotonic state, private persistence and manager boundary.');
+console.log('Hierarchy passed: 32 tabs and crew flows, valid reporting tree, accepted handoffs, single owner, source failure retention, overdue escalation, reopening, monotonic state, private persistence and manager boundary.');
 async function checkRunnerHistory() {
   const {runnerFindings}=await import('../lib/agent-hierarchy-inputs');
   const stages={shared:{status:'ok'},trucks:{status:'ok'},hierarchy:{status:'running'}};

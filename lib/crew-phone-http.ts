@@ -4,6 +4,7 @@ import { requireCrewInspection } from './crew-phone-inspection';
 import { resolveRequestOrigin } from './auth';
 import { CREW_PHONE_COOKIE, CrewPhoneError } from './crew-phone';
 import { crewPhone, enrollCrewPhone, revokeCrewPhone } from './crew-phone-store';
+import {loginAllowed,recordLoginFailure} from './login-rate-limit';
 
 export function crewPhoneResponse(body: unknown, status = 200, extra: Record<string, string> = {}) {
   return Response.json(body, { status, headers: { 'Cache-Control': 'private, no-store, max-age=0', ...extra } });
@@ -57,6 +58,14 @@ export async function crewPhoneSession(request: Request) {
     if (request.method === 'GET') return crewPhoneResponse({ phone: requireCrewPhone(request) });
     if (request.method !== 'POST') return crewPhoneResponse({ error: 'Method not allowed.' }, 405, { Allow: 'GET, POST' });
     const body = await crewPhoneBody(request);
+    if(body.action==='request-code') {
+      if(Object.keys(body).some(key=>!['action','number','requestId'].includes(key)))throw new CrewPhoneError('Enter this company phone’s number.');
+      if(!loginAllowed('crew-setup',request.headers,''))throw new CrewPhoneError('Too many setup requests. Wait 15 minutes or contact your manager.',429);
+      // Count every request, including unknown numbers, before any provider attempt.
+      recordLoginFailure('crew-setup',request.headers,'');
+      const {requestCrewPhoneSetup}=await import('./crew-phone-delivery');
+      return crewPhoneResponse(await requestCrewPhoneSetup(body.number,body.requestId));
+    }
     if (body.action === 'disconnect') {
       const phone = requireCrewPhone(request);
       revokeCrewPhone(phone.deviceId, `device:${phone.deviceId}`);

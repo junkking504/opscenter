@@ -16,7 +16,7 @@ import path from "node:path";
  * persistence failures abort authentication instead of silently losing limits.
  */
 
-export type RateLimitScope = "ops" | "crew";
+export type RateLimitScope = "ops" | "crew" | "crew-setup";
 
 type Attempt = {
   failures: number;

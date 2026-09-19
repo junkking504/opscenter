@@ -13,6 +13,7 @@ import {scheduleAddressFeed, addressResearchFeed} from './address-agent-findings
 import {readJobRows} from './desktop-schedule-source';
 import {readVerifiedJunkwareScheduleSnapshot, readVerifiedJunkwareReconciliationSnapshot} from './junkware-fast-schedule';
 import {planningLocation} from './planning-geocodes';
+import {readWaypointFeeds} from './waypoint-agent';
 const monitor='/desktop?data=live&workspace=Command&commandView=monitor';
 type RunnerStage={status:string;startedAt?:string;finishedAt?:string;durationMs?:number};
 export function runnerFindings(state:{stages:Record<string,RunnerStage>;failures?:Array<RunnerStage&{stage:string}>},now:number):HierarchyFinding[] {
@@ -30,6 +31,7 @@ const targetForRule:Record<string,string>={repair:'maintenance',service:'mainten
 export async function readHierarchyFeeds(date:string,now=Date.now()):Promise<HierarchyFeed[]> {
   const feeds:HierarchyFeed[]=[], at=new Date(now).toISOString();
   const unavailable=(id:string,detail:string)=>feeds.push({id,available:false,observedAt:null,detail,findings:[]});
+  feeds.push(...await readWaypointFeeds(truckAgentRoot(),now));
   try {
     const root=truckAgentRoot(), verified=readVerifiedJunkwareScheduleSnapshot(root,date), canonical=readVerifiedJunkwareReconciliationSnapshot(root,date);
     const snapshot=verified && (!canonical || verified.updatedAtMs>canonical.updatedAtMs) ? verified : canonical;
@@ -81,7 +83,7 @@ export async function readHierarchyFeeds(date:string,now=Date.now()):Promise<Hie
     }catch {unavailable('operating-queue','Existing operating queue could not be read; prior assignments remain.');}
   }else unavailable('operating-queue','Existing operating queue is not configured for this runtime.');
   // Every unavailable dependency becomes owned work, even without prior findings.
-  for(const feed of feeds)if(!feed.available)feed.findings.push({id:`coverage:${feed.id}`,feed:feed.id,title:`Evidence unavailable: ${feed.id}`,detail:feed.detail,href:monitor,origin:'engineering',target:'integrations',priority:'next'});
+  for(const feed of feeds)if(!feed.available && !feed.id.startsWith('waypoint-'))feed.findings.push({id:`coverage:${feed.id}`,feed:feed.id,title:`Evidence unavailable: ${feed.id}`,detail:feed.detail,href:monitor,origin:'engineering',target:'integrations',priority:'next'});
   return feeds;
 }
 export async function runHierarchy(date:string,now=Date.now()) {

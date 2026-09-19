@@ -216,15 +216,16 @@ repair blocks. Legacy checklist answers remain separately editable.
 
 ## Convoy app icon
 
-Convoy uses its red gear with gold trim and a centered red-and-white JK crown
+Convoy uses its red gear with gold trim and a centered solid red crown with a gold outline
 on a charcoal background. The versioned
-`public/truck-inspection/convoy-gear-crown-v1-*.png` assets supply 32px browser,
+`public/truck-inspection/convoy-gear-crown-v2-*.png` assets supply 32px browser,
 180px Apple and 192px/512px manifest sizes. The manifest retains its existing
 identity, start URL and scope. Earlier icon URLs remain available for cached
 pages; current metadata uses the approved gear-and-crown design.
 
-Original artwork: `assets/convoy/convoy-gear-crown-v1-source.png`. The built-in
+Original artwork: `assets/convoy/convoy-gear-crown-v2-source.png`. The built-in
 image generation tool combined the original gear icon and supplied JK crown
 reference: preserve the red gear, gold outline and dark background; replace the
-white wrench with the red crown and white JK monogram, centered within the ring.
+white wrench with a solid red crown bordered in gold, centered within the ring.
+The crown has no JK lettering, white markings or other interior details.
 The user selected this preview on September 19, 2026.

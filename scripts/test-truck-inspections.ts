@@ -105,7 +105,7 @@ async function main() { try {
   await assert.rejects(() => inspectionRequestBody(new Request("https://example.invalid/api/truck-inspection", { method: "POST", headers: { "Content-Type": "text/plain" }, body: "{}" })), /JSON/);
   await assert.rejects(() => inspectionRequestBody(new Request("https://example.invalid/api/truck-inspection", { method: "POST", headers: { "Content-Type": "application/json", Origin: "https://evil.invalid" }, body: "{}" })), /inspection app/);
   await assert.rejects(() => inspectionRequestBody(new Request("https://example.invalid/api/truck-inspection", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: "X".repeat(100) }) }), 10), /too large/);
-  for (const route of ["/truck-inspection", "/api/truck-inspection", "/truck-inspection/manifest.webmanifest", "/truck-inspection/convoy-gear-crown-v1-32.png", "/truck-inspection/convoy-gear-crown-v1-180.png", "/truck-inspection/convoy-gear-crown-v1-192.png", "/truck-inspection/convoy-gear-crown-v1-512.png"]) assert.equal(publicAuthRoute(route), true);
+  for (const route of ["/truck-inspection", "/api/truck-inspection", "/truck-inspection/manifest.webmanifest", "/truck-inspection/convoy-gear-crown-v2-32.png", "/truck-inspection/convoy-gear-crown-v2-180.png", "/truck-inspection/convoy-gear-crown-v2-192.png", "/truck-inspection/convoy-gear-crown-v2-512.png"]) assert.equal(publicAuthRoute(route), true);
   for (const route of ["/truck-inspection/admin", "/api/fleet-inspections", "/fleet-inspections"]) assert.equal(publicAuthRoute(route), false);
   console.log("Truck inspection storage, validation, retry, identity and request boundary checks passed.");
 } finally { fs.rmSync(directory, { recursive: true, force: true }); } }

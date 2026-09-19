@@ -321,7 +321,9 @@ request ID; unknown source writes never release a job. A changed dispatch queue 
 unavailable source after a saved move is shown separately as phone-assignment
 attention, with a link to Crew Dispatch. It must not be fixed by repeating the move.
 Legacy receipts do not acquire phone assignments on read-back. Recorded visits
-remain evidence and do not prevent confirmed jobs from being assigned.
+remain evidence and do not prevent confirmed jobs from being assigned. Open visit
+blocks can be dragged to assign the underlying appointment; this does not move
+or rewrite the GPS visit. Closed visit blocks remain read-only.
 
 The crew app has no Manager access card or full-schedule link, including setup.
 Managers enter through OpsCenter. Photo-history load failures offer a read-only

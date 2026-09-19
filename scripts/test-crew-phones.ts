@@ -158,7 +158,7 @@ async function main() {
     for (const host of ['convoy.junk-king.app', 'inspect.junk-king.app']) {
       const root = await middleware(new NextRequest(`https://${host}/`));
       assert.equal(root.headers.get('location'), `https://${host}/truck-inspection`);
-      for (const route of ['/truck-inspection', '/truck-inspection/manifest.webmanifest', '/truck-inspection/icon.svg', '/truck-inspection/gear-wrench-clean-180.png', '/api/truck-inspection']) {
+      for (const route of ['/truck-inspection', '/truck-inspection/manifest.webmanifest', '/truck-inspection/icon.svg', '/truck-inspection/gear-wrench-clean-180.png', '/truck-inspection/convoy-truck-v1-32.png', '/truck-inspection/convoy-truck-v1-180.png', '/truck-inspection/convoy-truck-v1-192.png', '/truck-inspection/convoy-truck-v1-512.png', '/api/truck-inspection']) {
         const response = await middleware(new NextRequest(`https://${host}${route}`));
         assert.equal(response.headers.get('x-middleware-next'), '1', `${host}${route}`);
       }

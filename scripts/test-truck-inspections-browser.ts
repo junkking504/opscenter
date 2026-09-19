@@ -174,7 +174,7 @@ async function main() {
     await stranger.request.post(`${base}/api/truck-inspection`, { data: { action: "connect", connectionToken: "c".repeat(64) } });
     assert.equal((await (await stranger.request.get(`${base}/api/truck-inspection?requestId=${saved.reports[0].requestId}`)).json()).report, null, "a second phone selecting the same truck cannot read the first phone’s report");
     const inspectHeaders = { "x-forwarded-host": "inspect.junk-king.app", "x-forwarded-proto": "https" };
-    for (const inspectionPath of ["/truck-inspection", "/truck-inspection/manifest.webmanifest", "/truck-inspection/gear-wrench-180.png", "/truck-inspection/gear-wrench-192.png", "/truck-inspection/gear-wrench-512.png", "/api/truck-inspection"]) {
+    for (const inspectionPath of ["/truck-inspection", "/truck-inspection/manifest.webmanifest", "/truck-inspection/convoy-truck-v1-32.png", "/truck-inspection/convoy-truck-v1-180.png", "/truck-inspection/convoy-truck-v1-192.png", "/truck-inspection/convoy-truck-v1-512.png", "/truck-inspection/gear-wrench-180.png", "/truck-inspection/gear-wrench-192.png", "/truck-inspection/gear-wrench-512.png", "/api/truck-inspection"]) {
       const response = await fetch(`${base}${inspectionPath}`, { headers: inspectHeaders, redirect: "manual" });
       assert.equal(response.status, 200, `inspection origin serves ${inspectionPath}`);
     }

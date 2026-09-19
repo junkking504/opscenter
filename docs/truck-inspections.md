@@ -213,3 +213,15 @@ Convoy shows Five Point Inspection completion and a link to the saved report.
 Reported issues require attention; any Do not operate report for the day blocks
 readiness. A later clear report does not erase earlier reported defects or open
 repair blocks. Legacy checklist answers remain separately editable.
+
+## Convoy app icon
+
+Convoy uses a red dump truck on a dark background for its browser and phone
+home-screen icons. The versioned `public/truck-inspection/convoy-truck-v1-*.png`
+assets supply 32px browser, 180px Apple and 192px/512px manifest sizes. The
+manifest retains its existing identity, start URL and scope. Old gear-and-wrench
+URLs remain available for cached pages; current metadata uses the truck assets.
+The original artwork is `assets/convoy/convoy-truck-v1-source.png`, created with
+the built-in image generation tool. Direction: a bold red junk-hauling dump truck
+in front three-quarter view, white accents, charcoal background, no text, gear,
+wrench or crown, with padding for home-screen cropping.

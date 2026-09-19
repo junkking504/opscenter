@@ -499,3 +499,38 @@ unchanged: later jobs appear only after the current job closes.
 Validation: `npm run verify:waypoint-sandbox` exercises all six real API handlers
 with isolated storage and a provider-call trap, plus legacy test enrollment,
 inspection gating/reuse, truck switches, sequential completion and receipt retry.
+
+
+### Waypoint day results and bonus progress
+
+After readiness, Assignments includes this truck's completed appointments and
+reported revenue/tips for the current Central date. Address links open Google
+Maps directions without calling a paid Maps API. Upcoming assignments remain
+behind current-job completion. The server projects daily metrics to the selected
+truck and current crew only; salary, hourly rates and unrelated employees are
+never returned. Source timestamp and stale status accompany results. Missing
+metrics remain unavailable rather than becoming zero.
+
+Revenue bonus progress uses each crew member's `individual_revenue` and
+`revenue_bonus` from OpsBot daily metrics, retaining explicit revenue allocations
+and credits across truck switches. The tier table matches
+`process_daily_metrics.py::calculate_daily_individual_revenue_bonus` (effective
+2026-07-13); highest tier only, capped at $400 on $4,000 credited revenue. A
+policy disagreement or ineligible/salary row suppresses tier predictions for
+office confirmation. The displayed crew bonus total is revenue bonuses only.
+
+Test phones use no live financial records. Their completed simulations record
+charges, tips, selected test crew and completion truck within sandbox state.
+Truck totals stay with the completion truck, while equal-cent test crew credits
+follow the person. Reset clears results. Legacy completions without financial
+values show unavailable amounts until the user resets. Sandbox prices and Other
+charge choices come from a sanitized, manually verified JunkWare price book at
+`data/waypoint-test-pricing.json` (override `OPS_WAYPOINT_TEST_PRICING_FILE`),
+containing source, verification time, options and rates only. Missing/corrupt
+pricing blocks test checkout; its hash participates in draft/source versioning.
+No sandbox request contacts JunkWare to obtain prices.
+
+Waypoint hides Job category and How heard, retaining office-owned source values.
+Server preflight rejects altered classifications/referrals; if JunkWare has no
+required referral value, the office must complete it rather than asking the crew
+to invent customer history.

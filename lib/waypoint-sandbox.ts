@@ -1,3 +1,4 @@
+import {testCompletion,testDaySummary,type TestCompletion} from './waypoint-sandbox-summary';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
@@ -11,7 +12,7 @@ import {sandboxCloseout} from './waypoint-sandbox-closeout';
 const roster=['Test Driver','Test Navigator','Test Helper'];
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 type Receipt={requestId:string;assignmentId:string;action:string;status:'verified';dryRun:true;message:string};
-type State={schema:1;day:CrewPhoneDay|null;reports:TruckInspectionReport[];completed:string[];receipts:Receipt[];switches:Array<{requestId:string;from:string;to:string;status:'complete';message:string;total:number;moved:number}>;generation:number};
+type State={schema:1;day:CrewPhoneDay|null;reports:TruckInspectionReport[];completed:string[];receipts:Receipt[];switches:Array<{requestId:string;from:string;to:string;status:'complete';message:string;total:number;moved:number}>;generation:number;completions?:TestCompletion[]};
 function location(phone:CrewPhone) {
   if(phone.test!==true || !uuid.test(phone.deviceId))throw new CrewPhoneError('A test phone is required.',403);
   const root=process.env.OPS_CREW_PHONE_DIR || path.join(process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data'),'crew-phones');
@@ -48,7 +49,7 @@ export function waypointSandbox(phone:CrewPhone,endpoint:string,params=new URLSe
 function run(phone:CrewPhone,state:State,endpoint:string,params:URLSearchParams,body?:Record<string,unknown>):unknown {
   if(endpoint==='day'){
     if(!body)return {test:true,date:chicagoDateKey(),day:state.day,roster,trucks:JUNKWARE_DISPATCH_TRUCKS,phone:{...phone,truck:state.day?.truck || phone.truck},inspection:inspection(state),switch:null};
-    if(body.action==='reset-test-assignments'){state.completed=[];state.receipts=[];state.generation++;return {reset:true};}
+    if(body.action==='reset-test-assignments'){state.completed=[];state.completions=[];state.receipts=[];state.generation++;return {reset:true};}
     if(body.date!==chicagoDateKey() || !uuid.test(String(body.requestId)) || !JUNKWARE_DISPATCH_TRUCKS.includes(String(body.truck)))throw new CrewPhoneError('Choose today’s test truck.');
     if(state.day?.requestId===body.requestId)return {day:state.day};
     if(body.expectedVersion!==(state.day?.version || 0))throw new CrewPhoneError('Refresh your test setup.',409);
@@ -79,7 +80,7 @@ function run(phone:CrewPhone,state:State,endpoint:string,params:URLSearchParams,
     const saved={requestId:String(body.requestId),from:day.truck,to,status:'complete' as const,message:'Test assignments moved. No live truck or job was changed.',total:count,moved:count};
     state.switches.push(saved);state.day={...day,truck:to,version:day.version+1,requestId:saved.requestId,savedAt:new Date().toISOString()};return {switch:saved};
   }
-  if(endpoint==='current'){requireReady(state);if(params.size)throw new CrewPhoneError('Use the current test assignment.');const job=current(phone,state);return {test:true,state:job?'assigned':'waiting',truck:state.day!.truck,job,observedAt:new Date().toISOString(),message:job?'Fictional test assignment':'All three test assignments are complete.'};}
+  if(endpoint==='current'){requireReady(state);if(params.size)throw new CrewPhoneError('Use the current test assignment.');const job=current(phone,state);return {summary:testDaySummary(state.day!,state.completions || [],state.completed.length-(state.completions?.length || 0)),test:true,state:job?'assigned':'waiting',truck:state.day!.truck,job,observedAt:new Date().toISOString(),message:job?'Fictional test assignment':'All three test assignments are complete.'};}
   if(endpoint==='photos'){if(body)throw new CrewPhoneError('Test photos stay on your phone. Uploads to live jobs are disabled.',403);assigned(phone,state,params.get('assignmentId'));return {photos:[]};}
   if(endpoint==='closeout'){
     const id=body?.assignmentId || params.get('assignmentId'),requestId=body?.requestId || params.get('requestId');
@@ -89,6 +90,9 @@ function run(phone:CrewPhone,state:State,endpoint:string,params:URLSearchParams,
     if(!body)return sandboxCloseout(job,day);
     const values=body.values as Record<string,unknown> | undefined;
     if(!uuid.test(String(requestId)) || body.crewVersion!==day.version || body.expectedVersion!==`sandbox:${job.assignmentId}:${day.version}` || !values || values.appointmentId!==job.appointmentId || values.truck!==day.truck || values.serviceDate!==day.date || values.targetStatus!=='8')throw new CrewPhoneError('Reload the test closeout before saving.',409);
+    if(values.expectedSourceVersion!==sandboxCloseout(job,day).sourceVersion)throw new CrewPhoneError('Test pricing changed. Reload and review the closeout.',409);
+    const completion=testCompletion(job,day,values);
+    state.completions=[...(state.completions || []),completion];
     const receipt:Receipt={requestId:String(requestId),assignmentId:job.assignmentId,action:'closeout',status:'verified',dryRun:true,message:'Test complete. No live job, payment, photo or customer message was sent.'};state.receipts.push(receipt);state.completed.push(job.assignmentId);return {receipt};
   }
   throw new CrewPhoneError('This operation is unavailable in test mode.',403);

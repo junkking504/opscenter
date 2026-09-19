@@ -88,6 +88,11 @@ export async function submitCrewCloseout(request:Request,body:Record<string,unkn
         // Recheck revocation immediately before the source write, after the read.
         const active=requireCrewReady(request);
         if(active.truck!==phone.truck || requireCrewDay(active).version!==day.version)throw new CrewPhoneError('Today’s truck or crew changed. Review setup before saving.',409);
+        // Keep the durable receipt and provider write identical for source-owned fields.
+        const jobCategory=before.closeout.jobCategory as {value?:string}|undefined;
+        const howHeard=before.closeout.howHeard as {value?:string}|undefined;
+        if(String(operation.values.jobCategoryId || '')!==String(jobCategory?.value || '') || String(operation.values.howHeardId || '')!==String(howHeard?.value || ''))throw new CrewPhoneError('Office appointment information changed. Reload the closeout.',409);
+        if(howHeard && !howHeard.value)throw new CrewPhoneError('The office must complete the customer referral information in JunkWare before checkout.',409);
         writeStarted=true;
         const result=await deps.write(current.appointmentId,{...operation.values,...timing});
         let truckLoadStatus;

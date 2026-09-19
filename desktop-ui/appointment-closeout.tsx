@@ -214,6 +214,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             const restored={...withTimes};
             for(const key of ['loadQuantity','loadPrice','bedloadQuantity','bedloadPrice','discount','tip'] as const)if(typeof fields[key]==='string')restored[key]=fields[key];
             for(const key of ['loadSize','bedloadSize','jobCategory','howHeard','actualStartHour','actualStartMinute','actualEndHour','actualEndMinute'] as const){
+              if(crewMode && (key==='jobCategory' || key==='howHeard'))continue;
               if(restored[key] && typeof fields[key]==='string' && restored[key]!.options.some(option=>option.value===fields[key]))restored[key]={...restored[key]!,value:fields[key]};
             }
             restored.driver=source.drivers.find(row=>row.value===draft.driverId) || source.driver;
@@ -355,7 +356,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     if (completing && !crewMode && ![live.actualStartHour.value, live.actualStartMinute.value, live.actualEndHour.value, live.actualEndMinute.value].every(Boolean)) {
       setError('Enter actual start and finish times before reviewing the closeout.'); return;
     }
-    if (completing && live.howHeard && !live.howHeard.value) { setError('Choose how the customer heard about us.'); return; }
+    if (completing && !crewMode && live.howHeard && !live.howHeard.value) { setError('Choose how the customer heard about us.'); return; }
     if (completing && !inputMoney(live.loadPrice) && !inputMoney(live.bedloadPrice)) { setError('Enter a load or bedload price.'); return; }
     if (addPayment) {
       const paymentError = validateCloseoutPayment({ methodId: paymentMethod, amount: inputMoney(paymentAmount), reference: paymentReference.trim() }, live.paymentMethods);
@@ -411,8 +412,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
           })),
           discount: inputMoney(live.discount),
           tip: inputMoney(live.tip),
-          jobCategoryId: category === 'Estimate' ? '' : live.jobCategory.value,
-          ...(live.howHeard ? { howHeardId: live.howHeard.value } : {}),
+          jobCategoryId: crewMode ? sourceBaseline.current?.jobCategory.value || '' : category === 'Estimate' ? '' : live.jobCategory.value,
+          ...(live.howHeard ? { howHeardId: crewMode ? sourceBaseline.current?.howHeard?.value || '' : live.howHeard.value } : {}),
           actualStartHour: live.actualStartHour.value,
           actualStartMinute: live.actualStartMinute.value,
           actualEndHour: live.actualEndHour.value,
@@ -612,8 +613,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
                 <label><span>Bedload quantity</span><input value={live.bedloadQuantity} inputMode="decimal" onChange={(event) => updateBedloadQuantity(event.target.value)} /></label>
                 <label><span>Bedload size</span><select value={live.bedloadSize.value} onChange={(event) => updateBedloadSize(event.target.value)}>{live.bedloadSize.options.map((option) => <option key={`bed-${option.value}`} value={option.value}>{option.label || "None"}</option>)}</select></label>
                 <label><span>Bedload price</span><input value={live.bedloadPrice} inputMode="decimal" onChange={(event) => update("bedloadPrice", event.target.value)} /></label>
-                {category === 'Job' && <label><span>Job category</span><select value={live.jobCategory.value} onChange={(event) => updateSelect("jobCategory", event.target.value)}>{live.jobCategory.options.map((option) => <option key={`category-${option.value}`} value={option.value}>{option.label || "Choose category"}</option>)}</select></label>}
-                {live.howHeard && <label><span>How heard</span><select value={live.howHeard.value} onChange={event => update("howHeard", { ...live.howHeard!, value: event.target.value })}>{live.howHeard.options.map(option => <option key={option.value} value={option.value}>{option.label || "Choose how heard"}</option>)}</select></label>}
+                {!crewMode && category === 'Job' && <label><span>Job category</span><select value={live.jobCategory.value} onChange={(event) => updateSelect("jobCategory", event.target.value)}>{live.jobCategory.options.map((option) => <option key={`category-${option.value}`} value={option.value}>{option.label || "Choose category"}</option>)}</select></label>}
+                {!crewMode && live.howHeard && <label><span>How heard</span><select value={live.howHeard.value} onChange={event => update("howHeard", { ...live.howHeard!, value: event.target.value })}>{live.howHeard.options.map(option => <option key={option.value} value={option.value}>{option.label || "Choose how heard"}</option>)}</select></label>}
               </div>
               <div className="ops-closeout-other-charges">
                 <h5>Other Charges</h5>

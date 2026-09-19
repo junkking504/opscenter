@@ -1,3 +1,4 @@
+import { readWaypointDay } from '@/lib/waypoint-day-summary-source';
 import { waypointSandbox } from '@/lib/waypoint-sandbox';
 import { requireCrewPhone, requireCrewReady, crewPhoneFailure, crewPhoneResponse } from '@/lib/crew-phone-http';
 import { crewCurrentPayload } from '@/lib/crew-dispatch-service';
@@ -18,8 +19,9 @@ export async function GET(request:Request) {
     if(new URL(request.url).search) throw new CrewPhoneError('Use the current assignment screen.');
     if(readCrewDispatch(phone.truck).current && readCrewDispatch(phone.truck).current?.date!==day.date)throw new CrewPhoneError('Dispatch has not released a current job for today. Contact dispatch.',409);
     const payload=await crewCurrentPayload(phone,crewDispatchSources);
+    const summary=readWaypointDay(day);
     const current=requireCrewReady(request);
     if(current.deviceId!==phone.deviceId || current.truck!==phone.truck || requireCrewDay(current).version!==day.version) throw new CrewPhoneError('Today’s truck setup changed. Refresh your assignment.',409);
-    return crewPhoneResponse(payload);
+    return crewPhoneResponse({...payload,summary});
   } catch(error) {return crewPhoneFailure(error);}
 }

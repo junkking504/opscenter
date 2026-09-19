@@ -1,3 +1,4 @@
+import {writeTestPricing} from './fixtures/waypoint-pricing';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -19,7 +20,7 @@ async function main(){
  const root=fs.mkdtempSync(path.join(os.tmpdir(),'waypoint-sandbox-')),previous={...process.env},originalFetch=globalThis.fetch;
  try{
   process.env.OPS_CREW_PHONE_DIR=path.join(root,'phones');process.env.OPSCENTER_DATA_DIR=root;
-  process.env.OPSCENTER_LOGIN_RATE_LIMIT_FILE=path.join(root,'limits.json');
+  process.env.OPSCENTER_LOGIN_RATE_LIMIT_FILE=path.join(root,'limits.json');writeTestPricing(root);
   globalThis.fetch=async()=>{throw new Error('Sandbox must never call a provider');};
   const key=randomBytes(32).toString('hex'),enrollment=createCrewPhoneEnrollment('Truck 6','Test phone','test',new Date(),true);
   const phone=enrollCrewPhone(enrollment.code,key);assert.equal(phone.test,true);
@@ -52,15 +53,15 @@ async function main(){
   await truckSwitch.POST(request('switch-truck',{action:'confirm',requestId:randomUUID(),to:'Truck 6',fingerprint:back.preview.fingerprint}));
   for(let i=1;i<=3;i++){
    const assignment=await (await current.GET(request('current'))).json();assert.equal(assignment.job.appointmentId,`TEST-${i}`);
-   const fixture=await (await closeout.GET(request('closeout',undefined,`?assignmentId=${assignment.job.assignmentId}`))).json();assert.equal(fixture.dryRun,true);
-   const body={assignmentId:assignment.job.assignmentId,requestId:randomUUID(),expectedVersion:fixture.jobVersion,crewVersion:fixture.crewVersion,values:{appointmentId:assignment.job.appointmentId,truck:'Truck 6',serviceDate:chicagoDateKey(),targetStatus:'8'},dryRun:false};
+   const fixture=await (await closeout.GET(request('closeout',undefined,`?assignmentId=${assignment.job.assignmentId}`))).json();assert.equal(fixture.dryRun,true);assert.equal(fixture.closeout.loadPrice,'500.00');assert.equal(fixture.closeout.otherChargeOptions.length,3);
+   const body={assignmentId:assignment.job.assignmentId,requestId:randomUUID(),expectedVersion:fixture.jobVersion,crewVersion:fixture.crewVersion,values:{appointmentId:assignment.job.appointmentId,truck:'Truck 6',serviceDate:chicagoDateKey(),targetStatus:'8',driverId:'test-0',navigatorIds:['test-1'],loadPrice:'700',tip:'20',otherChargesToAdd:[{typeValue:'1|75.00',quantity:'2',price:'75'}],expectedSourceVersion:fixture.sourceVersion},dryRun:false};
    const saved=await (await closeout.POST(request('closeout',body))).json();assert.equal(saved.receipt.dryRun,true,'Client cannot opt out of test isolation');
    const retry=await (await closeout.POST(request('closeout',body))).json();assert.deepEqual(retry,saved,'Retry does not finish another assignment');
    assert.deepEqual(await (await closeout.GET(request('closeout',undefined,`?assignmentId=${body.assignmentId}&requestId=${body.requestId}&reconcile=1`))).json(),saved);
   }
-  assert.equal((await (await current.GET(request('current'))).json()).state,'waiting');
+  const finished=await (await current.GET(request('current'))).json();assert.equal(finished.state,'waiting');assert.equal(finished.summary.revenue,2550);assert.equal(finished.summary.tips,60);assert.equal(finished.summary.completed.length,3);assert.equal(finished.summary.crew[0].revenue,1275);assert.equal(finished.summary.crew[0].progress.bonus,40);assert.equal(finished.summary.crew[0].progress.next.remaining,225);
   await day.POST(request('day',{action:'reset-test-assignments'}));
-  const reset=await (await current.GET(request('current'))).json();assert.equal(reset.job.appointmentId,'TEST-1');assert.notEqual(reset.job.assignmentId,first.job.assignmentId,'Reset gets fresh draft identities');
+  const reset=await (await current.GET(request('current'))).json();assert.equal(reset.job.appointmentId,'TEST-1');assert.notEqual(reset.job.assignmentId,first.job.assignmentId,'Reset gets fresh draft identities');assert.equal(reset.summary.revenue,0);assert.equal(reset.summary.completed.length,0);
   assert.equal((await (await day.GET(request('day',undefined,'',legacyKey))).json()).day,null,'Test phones do not share setup');
   const paths=fs.readdirSync(path.join(root,'phones'));assert(!paths.includes('days'));assert(!fs.existsSync(path.join(root,'truck-inspections')));assert(!fs.existsSync(path.join(root,'crew-dispatch')));
   console.log('PASS: legacy test migration; all six API boundaries; setup/inspection gating; 3 sequential dummy assignments; same-day inspection reuse; isolated switch, simulated closeout, receipt recovery, reset; no provider calls or live stores.');

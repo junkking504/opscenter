@@ -244,9 +244,9 @@ authenticated employee acceptance test. Actual phone-camera behavior, assistive
 technology, keyboard obstruction, loss of connectivity, employee scope and live
 source read-back remain to be tested before launch.
 
-## Crew jobs hostname
+## Kingpin company-phone app
 
-`https://jobs.junk-king.app` is the company-phone entry address. Its root redirects
+`https://kingpin.junk-king.app` is the company-phone entry address. The app header, browser title and installed-app name are Kingpin. Its root redirects
 into `/crew-jobs`; only that page, its exact crew-job API endpoints and Next assets
 are served there. Every crew API still requires its own phone session. Management,
 payroll, login and webhook routes return 404 on this hostname. The manager schedule
@@ -260,6 +260,11 @@ any outstanding draft on its original address before switching.
 
 DNS should be a proxied CNAME to the existing Mission Control tunnel
 `30d8a080-e2d1-4452-b463-4ba2ba8e57ba.cfargotunnel.com`. The private local tunnel
-configuration adds only `jobs.junk-king.app` forwarding to the existing loopback
+configuration includes `kingpin.junk-king.app` and the legacy `jobs.junk-king.app` forwarding to the existing loopback
 OpsCenter service on port 3000. No new cloud service or paid provider is required.
 Deployment readiness, public DNS/TLS and live page acceptance are separate checks.
+
+The legacy jobs hostname remains an isolated app alias so existing phone cookies,
+drafts and receipts are still accessible there. It does not redirect an active
+phone session across origins. Opening Kingpin on a new origin requires company-phone
+setup; browser storage and host-only cookies do not move between hostnames.

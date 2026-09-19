@@ -165,7 +165,8 @@ the app.
 
 ## App identity
 
-The banner and installed app are named Five Point Inspection. A gear-and-wrench
+The banner, browser title and installed app are named Convoy. The existing
+`inspect.junk-king.app` address and five-point inspection workflow are unchanged. A gear-and-wrench
 icon uses Junk King red `#EC2027`, gold `#E2C675`, black and white.
 The icon contains only the gear and wrench, with no crown, wordmark or tagline.
 Versioned gear-and-wrench URLs allow browsers to load the new artwork. The banner displays

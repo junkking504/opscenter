@@ -192,7 +192,7 @@ async function main() {
     }
     const inspectionEntry = await fetch(`${base}/truck-inspection`, { headers: { "x-forwarded-host": "ops.junk-king.app" }, redirect: "manual" });
     assert.equal(inspectionEntry.status, 307);
-    assert.equal(inspectionEntry.headers.get("location"), "https://inspect.junk-king.app/");
+    assert.equal(inspectionEntry.headers.get("location"), "https://convoy.junk-king.app/");
     const hooksManagement = await fetch(`${base}/fleet-inspections`, { headers: { "x-forwarded-host": "hooks.junk-king.app" } });
     assert.equal(hooksManagement.status, 404);
     await management.getByRole("button", { name: "Refresh reports" }).click();

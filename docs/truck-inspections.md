@@ -1,6 +1,6 @@
 # Five-point morning inspections
 
-Any company phone opens `https://inspect.junk-king.app/`. The inspector selects the truck
+Any company phone opens `https://convoy.junk-king.app/`. The inspector selects the truck
 at the start of each inspection, then enters their name and mileage. There is
 no setup code, employee login or fixed phone-to-truck assignment. A new report
 starts with no truck selected. Reloading an unfinished draft preserves its
@@ -73,7 +73,7 @@ removed. Users should keep the page open if device storage is unavailable.
 
 ## Access boundary
 
-The dedicated public `inspect.junk-king.app` origin redirects `/` to the inspection
+The dedicated public `convoy.junk-king.app` origin redirects `/` to the inspection
 page and permits only the exact inspection page, manifest, icon,
 `/api/truck-inspection` and Next assets. Management, authentication and webhook
 routes return 404 on this origin. OpsCenter's Truck Check entry redirects here.
@@ -84,9 +84,11 @@ the existing OpsCenter service at `http://127.0.0.1:3000`. Existing ops/hooks DN
 records and the shared tunnel remain unchanged. No new Worker, cloud
 subscription or metered provider is used.
 
-The old `hooks.junk-king.app/truck-inspection` address remains usable for existing
-drafts and receipt recovery. Browser storage and phone cookies belong to their
-origin; they are not copied across domains. Saved reports remain in OpsCenter.
+The legacy `inspect.junk-king.app` and `hooks.junk-king.app/truck-inspection`
+addresses remain usable for existing drafts and receipt recovery. The inspect
+origin keeps its own root redirect and the same narrow inspection route allowlist;
+it does not force an unfinished inspection across origins. Browser storage and
+phone cookies belong to their origin; they are not copied across domains. Saved reports remain in OpsCenter.
 Existing webhook routes are unchanged. OpsCenter's management origin serves `/fleet-inspections`.
 The Crew Portal and its authentication are not modified.
 
@@ -165,8 +167,8 @@ the app.
 
 ## App identity
 
-The banner, browser title and installed app are named Convoy. The existing
-`inspect.junk-king.app` address and five-point inspection workflow are unchanged. A gear-and-wrench
+The banner, browser title and installed app are named Convoy, served at
+`convoy.junk-king.app`. The five-point inspection workflow is unchanged. A gear-and-wrench
 icon uses Junk King red `#EC2027`, gold `#E2C675`, black and white.
 The icon contains only the gear and wrench, with no crown, wordmark or tagline.
 Versioned gear-and-wrench URLs allow browsers to load the new artwork. The banner displays

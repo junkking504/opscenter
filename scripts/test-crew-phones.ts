@@ -137,7 +137,7 @@ async function main() {
     delete process.env.OPS_ACCESS_TEAM_DOMAIN; delete process.env.OPS_ACCESS_AUD;
     const unauthorized = await middleware(new NextRequest(`${origin}/api/crew-phones`, { headers: cookieHeader }));
     assert.equal(unauthorized.status, 401, 'Phone cookie never authenticates a manager request');
-    for (const host of ['inspect.junk-king.app', 'hooks.junk-king.app']) {
+    for (const host of ['convoy.junk-king.app', 'inspect.junk-king.app', 'hooks.junk-king.app']) {
       const denied = await middleware(new NextRequest(`https://${host}/api/crew-jobs/session`));
       assert.equal(denied.status, 404, 'Inspection/webhook origins do not expose crew job sessions');
     }
@@ -155,6 +155,21 @@ async function main() {
       const forwarded=await middleware(new NextRequest('http://localhost:3000/',{headers:{'x-forwarded-host':new URL(jobsOrigin).host,'x-forwarded-proto':'https'}}));
       assert.equal(forwarded.headers.get('location'),`${jobsOrigin}/crew-jobs`);
     }
+    for (const host of ['convoy.junk-king.app', 'inspect.junk-king.app']) {
+      const root = await middleware(new NextRequest(`https://${host}/`));
+      assert.equal(root.headers.get('location'), `https://${host}/truck-inspection`);
+      for (const route of ['/truck-inspection', '/truck-inspection/manifest.webmanifest', '/truck-inspection/icon.svg', '/truck-inspection/gear-wrench-clean-180.png', '/api/truck-inspection']) {
+        const response = await middleware(new NextRequest(`https://${host}${route}`));
+        assert.equal(response.headers.get('x-middleware-next'), '1', `${host}${route}`);
+      }
+      for (const route of ['/desktop', '/fleet-inspections', '/api/fleet-inspections', '/login', '/api/auth/login', '/api/crew-jobs/session', '/api/integrations/whatsapp/job-photos']) {
+        assert.equal((await middleware(new NextRequest(`https://${host}${route}`))).status, 404, `${host} denies ${route}`);
+      }
+      const forwarded = await middleware(new NextRequest('http://localhost:3000/', { headers: { 'x-forwarded-host': host, 'x-forwarded-proto': 'https' } }));
+      assert.equal(forwarded.headers.get('location'), `https://${host}/truck-inspection`);
+    }
+    const convoyEntry = await middleware(new NextRequest('https://ops.junk-king.app/truck-inspection'));
+    assert.equal(convoyEntry.headers.get('location'), 'https://convoy.junk-king.app/');
     console.log('PASS: manager-only access, fixed truck, one-phone enrollment race, retry recovery, expiry, revocation, private cookies, bounded same-origin requests, no credential storage, corrupt-storage denial. No browser or live writes.');
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }

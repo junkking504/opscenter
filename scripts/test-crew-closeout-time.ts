@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {crewCloseoutArrival,crewCloseoutTimes} from '../lib/crew-closeout-time';
+const date='2026-09-09',arrival='2026-09-09T14:26:24Z',submitted='2026-09-09T16:12:34Z';
+const visit={truck:'Truck 6',arrival,departure:'2026-09-09T15:00:00Z',observedThrough:'2026-09-09T15:00:00Z'};
+const job={truck:'Truck 6',truckVisits:[{...visit,truck:'Truck 9',arrival:'2026-09-09T13:00:00Z'},visit,{...visit,arrival:'2026-09-09T15:30:00Z',departure:null}]};
+const field=(count:number,step=1)=>({value:'',options:Array.from({length:count},(_,i)=>({value:String(i*step).padStart(2,'0'),label:String(i*step)}))});
+const fields={actualStartHour:field(24),actualStartMinute:field(12,5),actualEndHour:field(24),actualEndMinute:field(12,5)};
+assert.equal(crewCloseoutArrival(job,'Truck 6',date,Date.parse(submitted)),new Date(arrival).toISOString());
+assert.deepEqual(crewCloseoutTimes(job,'Truck 6',date,submitted,fields),{actualStartHour:'09',actualStartMinute:'25',actualEndHour:'11',actualEndMinute:'10'},'Start is first assigned-truck arrival; End is submission, ignoring departure and later return');
+assert.equal(crewCloseoutArrival(job,'Truck 9',date),null,'Source assignment must match the phone');
+assert.equal(crewCloseoutArrival({...job,truckVisits:[{...visit,truck:'Truck 9'}]},'Truck 6',date),null);
+assert.equal(crewCloseoutArrival(job,'Truck 6','2026-09-08'),null);
+assert.throws(()=>crewCloseoutTimes(job,'Truck 6',date,'2026-09-10T16:12:00Z',fields),/service day/);
+assert.throws(()=>crewCloseoutTimes(job,'Truck 6',date,arrival,fields),/follow arrival/);
+assert.throws(()=>crewCloseoutTimes({...job,truckVisits:[]},'Truck 6',date,submitted,fields),/arrival/);
+assert.throws(()=>crewCloseoutTimes(job,'Truck 6',date,submitted,{...fields,actualEndHour:{value:'',options:[]}}),/options/);
+console.log('PASS: GPS arrival, assigned-truck provenance, operating day, earliest visit, closeout timestamp rather than departure, JunkWare option rounding and absent evidence.');

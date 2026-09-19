@@ -81,7 +81,7 @@ async function writeReceipt(receipt: ScheduleReceipt) {
   await fs.writeFile(temporary, JSON.stringify(receipt), { mode: 0o600 });
   await fs.rename(temporary, target);
 }
-export async function executeScheduleOperation(operation: ScheduleOperation, actor: string, load: () => DesktopAppointment | undefined, run: (job: DesktopAppointment) => Promise<{ status: number; body: Record<string, unknown> }>): Promise<ScheduleReceipt> {
+export async function executeScheduleOperation(operation: ScheduleOperation, actor: string, load: () => DesktopAppointment | undefined, run: (job: DesktopAppointment, receipt: ScheduleReceipt) => Promise<{ status: number; body: Record<string, unknown> }>): Promise<ScheduleReceipt> {
   return withScheduleOperationLock(`request-${operation.requestId}`, () => withScheduleOperationLock(`appointment-${operation.recordId.split(':appointment:')[1]}`, async () => {
     const fingerprint = createHash('sha256').update(JSON.stringify(operation)).digest('hex');
     const existing = await readScheduleReceipt(operation.requestId);
@@ -110,7 +110,7 @@ export async function executeScheduleOperation(operation: ScheduleOperation, act
     if (['reschedule','restore'].includes(operation.action)) receipt.sourceResult = {expected:rescheduleTarget(job,operation.date,operation.values,operation.action === 'restore')};
     await writeReceipt(receipt);
     try {
-      const result = await run(job);
+      const result = await run(job, receipt);
       const verified = result.status >= 200 && result.status < 300 && result.status !== 202 && result.body.ok !== false;
       receipt = { ...receipt, status: verified ? 'verified' : result.status === 202 || result.status >= 500 ? 'uncertain' : 'failed', updatedAt: new Date().toISOString(), message: verified ? operation.action === 'call_ahead' ? 'Call-ahead recorded in OpsCenter.' : 'JunkWare verified the appointment change.' : String(result.body.warning || result.body.error || 'The source result needs verification.'), sourceResult: result.body };
       if (verified && operation.action === 'classify' && typeof result.body.warning === 'string') receipt.message += ` ${result.body.warning}`;

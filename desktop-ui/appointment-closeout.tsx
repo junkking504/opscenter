@@ -58,13 +58,15 @@ function inputMoney(value: string): string {
 
 export type CloseoutJob = Pick<ScheduleAppointment,'appointmentId'|'appointmentUrl'|'status'|'appointmentType'|'onsiteTime'|'truck'|'jkNumber'|'customerName'|'recordId'|'version'>;
 export type CloseoutTransport = {
-  load: () => Promise<{closeout:LiveCloseout;sourceVersion:string;canWrite:boolean;dryRun?:boolean;crewDefaults?:{version:number;driver:Option;navigators:Option[]};pendingReceipt?:Receipt|null;message?:string}>;
+  load: () => Promise<{closeout:LiveCloseout;sourceVersion:string;canWrite:boolean;arrival?:string|null;dryRun?:boolean;crewDefaults?:{version:number;driver:Option;navigators:Option[]};pendingReceipt?:Receipt|null;message?:string}>;
   prepare?:()=>Promise<void>;
   send: (values:Record<string,unknown>,requestId:string)=>Promise<Receipt>;
   check: (requestId:string)=>Promise<Receipt>;
 };
 export default function AppointmentCloseout({ job, date: serviceDate, saved, onBusyChange, presentation = 'drawer', onBackToAppointment, photoRevision, transport, draftKey, photoSteps, dryRun=false }: { job: CloseoutJob; date: string; saved: () => void; onBusyChange: (busy: boolean) => void; presentation?: 'drawer' | 'mobile'; onBackToAppointment?: () => void; photoRevision?: number; transport?:CloseoutTransport; draftKey?:string;dryRun?:boolean; photoSteps?:{render:(category:'before'|'after')=>ReactNode;hasPhotos:boolean;busy:boolean} }) {
   const crewMode=Boolean(transport);
+  const [arrival,setArrival]=useState<string|null>(null);
+  const arrivalLabel=arrival?new Intl.DateTimeFormat('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}).format(new Date(arrival)):'Awaiting confirmed truck arrival';
   const photoWorkflow=Boolean(photoSteps);
   const { appointmentId, appointmentUrl, status: initialStatus } = job;
   const panel = useRef<HTMLDetailsElement>(null);
@@ -174,6 +176,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     try {
       const payload = await readSource();
       const source = payload.closeout as LiveCloseout;
+      if(crewMode)setArrival(payload.arrival || null);
       sourceBaseline.current = source;
       const suggestions = closeoutGpsTimes(job.onsiteTime, job.truck, source.truck || '', serviceDate, source);
       gpsDefaults.current = {};
@@ -348,7 +351,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       setError("Each assigned person can only appear once on the job.");
       return;
     }
-    if (completing && ![live.actualStartHour.value, live.actualStartMinute.value, live.actualEndHour.value, live.actualEndMinute.value].every(Boolean)) {
+    if (completing && !crewMode && ![live.actualStartHour.value, live.actualStartMinute.value, live.actualEndHour.value, live.actualEndMinute.value].every(Boolean)) {
       setError('Enter actual start and finish times before reviewing the closeout.'); return;
     }
     if (completing && live.howHeard && !live.howHeard.value) { setError('Choose how the customer heard about us.'); return; }
@@ -508,7 +511,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               <h3>{targetStatus === '9' ? 'Review cancellation' : 'Review closeout'}</h3>
               <p>{job.jkNumber} · {job.customerName}</p>
               <div className="closeout-review-facts"><div><span>Status</span><strong>{live.status.label} → {targetStatus === '8' ? 'Completed' : targetStatus === '9' ? 'Cancelled' : 'Confirmed'}</strong></div>
-              {targetStatus !== '9' && <><div><span>Category</span><strong>{category}</strong></div><div><span>Truck</span><strong>{live.truck || 'Unassigned'} → {truck || 'Unassigned'}</strong></div><div><span>Krewe</span><strong>{[live.driver.label,...live.navigators.filter(person=>person.value).map(person=>person.label)].filter(Boolean).join(' · ') || 'Not assigned'}</strong></div><div><span>Actual job time</span><strong>{timeLabel(live.actualStartHour.value,live.actualStartMinute.value)} – {timeLabel(live.actualEndHour.value,live.actualEndMinute.value)}</strong></div></>}
+              {targetStatus !== '9' && <><div><span>Category</span><strong>{category}</strong></div><div><span>Truck</span><strong>{live.truck || 'Unassigned'} → {truck || 'Unassigned'}</strong></div><div><span>Krewe</span><strong>{[live.driver.label,...live.navigators.filter(person=>person.value).map(person=>person.label)].filter(Boolean).join(' · ') || 'Not assigned'}</strong></div><div><span>Actual job time</span><strong>{crewMode?`${arrivalLabel} → time of closeout`: `${timeLabel(live.actualStartHour.value,live.actualStartMinute.value)} – ${timeLabel(live.actualEndHour.value,live.actualEndMinute.value)}`}</strong></div></>}
               </div>
               {targetStatus === '9' ? <p>{cancellationReason.trim()}</p> : <>
               <div className="closeout-review-facts"><div><span>Load · {live.loadQuantity || '0'} full trucks{live.loadSize.value ? ` + ${live.loadSize.value}` : ''}</span><strong>{money(Number(inputMoney(live.loadPrice)))}</strong></div>
@@ -583,6 +586,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
 
             <section data-closeout-step={photoSteps ? "1" : "0"} className="appointment-create-section">
               <h4>Actual Job Time</h4>
+              {crewMode ? <><p><strong>Start:</strong> {arrivalLabel}</p><p><strong>End:</strong> Set automatically when you submit checkout.</p><p>Start uses this truck’s recorded on-site arrival. Times are rounded to JunkWare’s available minutes.</p></> : <>
               {hasGpsTimes ? <><p>Truck GPS: {onsiteTimeFacts(job.onsiteTime!).filter(fact=>fact.label!=='On-site time').map(fact=>`${fact.label} ${fact.value}`).join(' · ')}. Rounded to JunkWare’s available minutes.</p>
                 <button type="button" className="ops-button subtle" onClick={()=>{setReviewing(false);gpsDefaults.current={...gpsTimes};setLive(current=>{if(!current)return current;const next={...current};for(const key of Object.keys(gpsTimes) as CloseoutTimeKey[])next[key]={...next[key],value:gpsTimes[key]!};return next;});}}>Use GPS times</button></> : <p>Confirmed GPS visit times are unavailable for this truck. Enter the actual job times.</p>}
               {hasGpsTimes && !gpsTimes.actualEndHour && <p>GPS departure has not been recorded. Enter the finish time when confirmed.</p>}
@@ -594,6 +598,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
                 <select aria-label="Actual finish hour" value={live.actualEndHour.value} onChange={(event) => updateSelect("actualEndHour", event.target.value)}>{live.actualEndHour.options.map((option) => <option key={`eh-${option.value}`} value={option.value}>{option.label || "Hour"}</option>)}</select>
                 <select aria-label="Actual finish minute" value={live.actualEndMinute.value} onChange={(event) => updateSelect("actualEndMinute", event.target.value)}>{live.actualEndMinute.options.map((option) => <option key={`em-${option.value}`} value={option.value}>{option.label || "Minute"}</option>)}</select>
               </div>
+              </>}
             </section>
 
             <section data-closeout-step="1" className="appointment-create-section">

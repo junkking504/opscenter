@@ -125,7 +125,7 @@
     "verify:truck-street-address": "node --import tsx scripts/test-truck-street-address.ts",
     "verify:truck-agents": "node --import tsx scripts/test-truck-agents.ts && node --import tsx scripts/test-truck-agent-progress.ts",
     "verify:crew-job-photos": "node --import tsx scripts/test-crew-job-photos.ts && node --import tsx scripts/test-crew-job-scope.ts",
-    "verify:crew-closeout": "node --import tsx scripts/test-crew-closeout.ts",
+    "verify:crew-closeout": "node --import tsx scripts/test-crew-closeout.ts && node --import tsx scripts/test-crew-closeout-time.ts",
     "verify:crew-phone-day": "node --import tsx scripts/test-crew-phone-day.ts",
     "verify:crew-checkout": "node --import tsx scripts/test-checkout-photo-submit.ts && node --import tsx scripts/test-crew-checkout-dry-run.ts"
   },

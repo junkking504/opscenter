@@ -7,7 +7,7 @@ import JobCloseout from './job-closeout';
 import DailyCrew from './daily-crew';
 import {chicagoDateKey} from '@/lib/chicago-date';
 import { clearCrewCloseoutDrafts, crewCloseoutKey } from '../../desktop-ui/lib/closeout-drafts';
-import JobPhotos, { clearCrewPhotoDrafts } from './job-photos';
+import { clearCrewPhotoDrafts } from './job-photos';
 
 const pendingKey = 'ops-crew-phone-enrollment-v1';
 type Pending = { code: string; connectionKey: string };
@@ -111,7 +111,7 @@ export default function CrewPhoneSetup() {
         <h1>{details?'Job details':'Current job'}</h1>
         <section className={styles.card}><p className={styles.muted}>{assignment.job.jkNumber} · {assignment.job.appointmentTime}</p><h2>{assignment.job.customerName}</h2><p>{assignment.job.address}</p>
           {details && closeout ? <JobCloseout key={assignment.job.assignmentId} job={assignment.job} truck={phone.truck} deviceId={phone.deviceId} onBusyChange={setBusy} onBack={()=>setCloseout(false)} onNext={()=>void loadJob()}/> : details ? <><h2>Items to remove</h2><p>{assignment.job.junkItems.join(', ') || 'See job notes.'}</p><h2>Job notes</h2>{assignment.job.appointmentNotes.length?assignment.job.appointmentNotes.map((note,index)=><p key={index}>{note}</p>):<p>No job notes.</p>}<h2>Assigned crew</h2><p>{day?.driver || assignment.job.driver} · Driver</p><p>{day?.navigators.join(', ') || 'No navigator'} · Navigator</p>
-          <JobPhotos key={assignment.job.assignmentId} deviceId={phone.deviceId} assignmentId={assignment.job.assignmentId} onBusyChange={setBusy}/><button className={styles.primary} disabled={busy} onClick={()=>setCloseout(true)}>Close out job</button><button className={styles.secondary} disabled={busy} onClick={()=>setDetails(false)}>Back to current job</button></> : <><p>{assignment.job.junkItems.join(' · ')}</p><button className={styles.primary} onClick={()=>setDetails(true)}>View job</button></>}
+          <button className={styles.primary} disabled={busy} onClick={()=>setCloseout(true)}>Start closeout · Before photos</button><button className={styles.secondary} disabled={busy} onClick={()=>setDetails(false)}>Back to current job</button></> : <><p>{assignment.job.junkItems.join(' · ')}</p><button className={styles.primary} onClick={()=>setDetails(true)}>View job</button></>}
         </section><p className={styles.muted}>Upload job photos and close this appointment before receiving your next assignment.</p>
       </> : <><h1>Assignment unavailable</h1><p>{assignment?.message || 'Your assignment could not be verified. Contact dispatch.'}</p></>}
       {day && !editingCrew && <section className={styles.card}><h2>Today’s crew</h2><p>{day.driver} · Driver<br/>{day.navigators.join(', ') || 'No navigator'} · Navigator</p><p>Responsible for phone: {day.responsible}</p><button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>{setEditingCrew(true);setCloseout(false);}}>Change today’s crew</button></section>}

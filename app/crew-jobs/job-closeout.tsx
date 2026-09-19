@@ -1,15 +1,21 @@
 'use client';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useCallback, useMemo, useRef, useState } from 'react';
 import AppointmentCloseout, {type CloseoutJob, type CloseoutTransport} from '../../desktop-ui/appointment-closeout';
 import type { CrewCurrentJob } from '@/lib/crew-dispatch';
 import type { Receipt } from '../../desktop-ui/schedule-receipt';
 import { submitScheduleOperation } from '../../desktop-ui/lib/schedule-operation-transport';
 import { crewCloseoutKey, readCloseoutLocal, writeCloseoutLocal } from '../../desktop-ui/lib/closeout-drafts';
 import '../../desktop-ui/mobile-closeout/mobile-closeout.css';
+import JobPhotos, {type PhotoProgress} from './job-photos';
 import styles from './phone-access.module.css';
 
 export default function JobCloseout({job,truck,deviceId,onBusyChange,onBack,onNext}:{job:CrewCurrentJob;truck:string;deviceId:string;onBusyChange:(busy:boolean)=>void;onBack:()=>void;onNext:()=>void}) {
   const [completed,setCompleted]=useState(false);
+  const [photos,setPhotos]=useState<PhotoProgress>({ready:false,before:false,after:false,verified:0});
+  const [photoBusy,setPhotoBusy]=useState(false),[formBusy,setFormBusy]=useState(false);
+  const busy=photoBusy || formBusy;
+  const reportPhotos=useCallback((progress:PhotoProgress)=>setPhotos(progress),[]);
+  useEffect(()=>{onBusyChange(busy);return()=>onBusyChange(false);},[busy,onBusyChange]);
   const verified=useRef(false),jobVersion=useRef(''),crewVersion=useRef(0);
   const key=crewCloseoutKey(deviceId,job.assignmentId);
   const endpoint=`/api/crew-jobs/closeout?assignmentId=${encodeURIComponent(job.assignmentId)}`;
@@ -43,8 +49,8 @@ export default function JobCloseout({job,truck,deviceId,onBusyChange,onBack,onNe
   },[endpoint,key,job.assignmentId]);
   const closeoutJob:CloseoutJob={appointmentId:job.appointmentId,appointmentUrl:'',status:'Confirmed',appointmentType:'Job',truck,jkNumber:job.jkNumber,customerName:job.customerName,recordId:`${job.date}:appointment:${job.appointmentId}`,version:''};
   return <section className="company-phone-closeout crew-mobile ops-live"><div className="job-record-drawer mobile-closeout-host">
-    <h2>Job closeout</h2><p>Record collected payments, then review before saving.</p>
-    <AppointmentCloseout job={closeoutJob} date={job.date} presentation="mobile" transport={transport} draftKey={key} onBusyChange={onBusyChange} onBackToAppointment={onBack} saved={()=>setCompleted(verified.current)}/>
+    <h2>Job closeout</h2><p>Before photos → Charges → After photos → Payment. Review before saving.</p>
+    <AppointmentCloseout job={closeoutJob} date={job.date} presentation="mobile" transport={transport} draftKey={key} onBusyChange={setFormBusy} photoRevision={photos.verified} photoSteps={{render:category=><JobPhotos deviceId={deviceId} assignmentId={job.assignmentId} category={category} onBusyChange={setPhotoBusy} onProgress={reportPhotos}/>,canContinue:category=>photos[category],busy:photoBusy}} onBackToAppointment={onBack} saved={()=>setCompleted(verified.current)}/>
     <footer className="record-drawer-actions"><div className="closeout-footer-slot"/></footer>
     {completed && <div className={styles.card}><h2>Closeout verified</h2><p>The saved work and payment are confirmed in JunkWare.</p><button className={styles.primary} onClick={onNext}>Check next assignment</button></div>}
   </div></section>;

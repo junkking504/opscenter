@@ -11,3 +11,5 @@
 @media(min-width:600px){.crew-mobile{box-shadow:0 0 60px #28352114;border-inline:1px solid #dde1d6}.mobile-preview-banner{font-size:11px}}
 
 .crew-mobile .closeout-primary-actions{grid-template-columns:minmax(0,1fr);min-width:0}.crew-mobile .closeout-primary-actions .closeout-primary-button{white-space:normal;min-width:0}.crew-mobile .closeout-secondary-actions{flex-wrap:wrap;gap:8px}.crew-mobile .closeout-review-facts strong{flex-shrink:0;overflow-wrap:normal}.company-phone-closeout.crew-mobile{min-height:0}
+
+.crew-mobile [data-mobile-step='3'] [data-closeout-step]:not([data-closeout-step='3']){display:none}.crew-mobile .closeout-photo-step[hidden]{display:none}.crew-mobile [data-photo-workflow] .closeout-photo-step input[type='file']{width:100%;max-width:100%;font-size:14px}.crew-mobile [data-photo-workflow] .mobile-closeout-steps button{min-width:0;overflow-wrap:anywhere}.crew-mobile [data-photo-workflow] .closeout-photo-step img{max-width:100%}

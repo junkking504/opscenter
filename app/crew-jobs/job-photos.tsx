@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './phone-access.module.css';
 import { readPhotoResponse } from './photo-response';
 
+export type PhotoProgress = {ready:boolean;before:boolean;after:boolean;verified:number};
 type Photo = {requestId:string;category:'before'|'after';status:'selected'|'pending'|'verified'|'uncertain';image?:string};
 const database='ops-crew-photo-drafts-v1';
 function db():Promise<IDBDatabase> {return new Promise((resolve,reject)=>{const request=indexedDB.open(database,1);request.onupgradeneeded=()=>request.result.createObjectStore('drafts');request.onsuccess=()=>{const database=request.result;const transaction=database.transaction('drafts','readwrite');const cursor=transaction.objectStore('drafts').openCursor();cursor.onsuccess=()=>{const row=cursor.result;if(row){if(!row.value?.at || Date.now()-row.value.at>=24*60*60_000)row.delete();row.continue();}};transaction.oncomplete=()=>resolve(database);transaction.onerror=()=>{database.close();reject(transaction.error);};};request.onerror=()=>reject(request.error);});}
@@ -30,7 +31,7 @@ async function photoImage(file:File):Promise<string> {
     return result;
   }finally{URL.revokeObjectURL(url);}
 }
-export default function JobPhotos({deviceId,assignmentId,onBusyChange}:{deviceId:string;assignmentId:string;onBusyChange:(busy:boolean)=>void}) {
+export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:visibleCategory,onProgress}:{deviceId:string;assignmentId:string;onBusyChange:(busy:boolean)=>void;category?:'before'|'after';onProgress?:(progress:PhotoProgress)=>void}) {
   const [photos,setPhotos]=useState<Photo[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[ready,setReady]=useState(false),[reload,setReload]=useState(0);
   const inFlight=useRef(false),rows=useRef<Photo[]>([]);
   const key=`${deviceId}:${assignmentId}`;
@@ -52,6 +53,10 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange}:{deviceId
       }catch(error){if(!canceled)setError(error instanceof Error?error.message:'Photo history unavailable.');}
     })();return()=>{canceled=true;};
   },[key,assignmentId,save,reload]);
+  useEffect(()=>{
+    const complete=(category:'before'|'after')=>ready && photos.some(row=>row.category===category && row.status==='verified') && photos.filter(row=>row.category===category).every(row=>row.status==='verified');
+    onProgress?.({ready,before:complete('before'),after:complete('after'),verified:photos.filter(row=>row.status==='verified').length});
+  },[photos,ready,onProgress]);
   async function work(action:()=>Promise<void>) {
     if(inFlight.current)return;inFlight.current=true;setBusy(true);onBusyChange(true);setError('');
     try{await action();}catch(error){setError(error instanceof Error?error.message:'Photo result unavailable. Check saved result before retrying.');}
@@ -85,9 +90,9 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange}:{deviceId
     if(!response.ok || !body.receipt)throw new Error(body.error || 'Saved photo result unavailable.');
     await save(rows.current.map(item=>item.requestId===row.requestId?{...item,...(body.receipt as Photo),...((body.receipt as Photo).status==='verified'?{image:undefined}:{})}:item));
   }
-  return <section className={styles.card}><h2>Job photos</h2><p>At least one photo must be saved in JunkWare before closeout.</p>
+  return <section className={styles.card}><h2>{visibleCategory==='before'?'Before photos':visibleCategory==='after'?'After photos':'Job photos'}</h2><p>{visibleCategory ? `Upload ${visibleCategory} photos, then continue when they show Saved in JunkWare.` : 'At least one photo must be saved in JunkWare before closeout.'}</p>
     {!ready && !error && <p role="status">Checking saved photos…</p>}
-    {(['before','after'] as const).map(category=><div className={styles.photoSection} key={category}><h3>{category==='before'?'Before':'After'}</h3>
+    {(visibleCategory ? [visibleCategory] : ['before','after'] as const).map(category=><div className={styles.photoSection} key={category}><h3>{category==='before'?'Before':'After'}</h3>
       <label className={styles.secondary}>Add {category} photos<input aria-label={`Add ${category} photos`} type="file" accept="image/*" multiple disabled={busy || !ready} onChange={event=>{const files=Array.from(event.target.files || []);event.target.value='';void work(()=>select(files,category));}}/></label>
       {photos.filter(row=>row.category===category).map(row=><div className={styles.photo} key={row.requestId}>
         {/* Local camera/library preview; never sent to an image optimization service. */}

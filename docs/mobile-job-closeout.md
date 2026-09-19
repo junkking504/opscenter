@@ -330,3 +330,20 @@ Managers enter through OpsCenter. Photo-history load failures offer a read-only
 retry; invalid gateway responses and unavailable local storage have actionable
 messages instead of raw browser parsing errors. Selected/uncertain upload IDs are
 preserved; retrying history never submits a photo.
+
+### Company-phone photo and closeout sequence
+
+The company-phone closeout starts with **Before photos**, then **Charges**
+(including required job details, crew and actual times), **After photos**, and
+**Payment**, followed by the existing final review. Photos are uploaded inside
+these steps rather than in a separate job-details section. Each photo step
+requires a verified upload in its category; selected, pending and uncertain
+photos keep the forward action disabled. Check saved photo remains a read-only
+recovery action. The source closeout photo requirement and payment receipt
+protections remain enforced.
+
+One photo component stays mounted while navigating, retaining selections and
+upload identities across the steps. Verified uploads refresh the source photo
+evidence and source version while preserving the charge and payment draft.
+Older drafts retain their fields when their source still matches, but start at
+Before photos because their previous step numbers used a different sequence.

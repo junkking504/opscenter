@@ -125,6 +125,16 @@ authorize exactly one idempotent test send to a uniquely matching saved manager
 contact. The browser cannot choose an arbitrary destination. Remove these test
 fields after acceptance; normal sends continue to use the company-phone directory.
 
+On September 19, the user explicitly enabled their saved manager phone ending
+2072 for Waypoint testing after an ineligible-number request silently produced no
+send. The private `selfSetupTestRecipientName` permits exactly one uniquely
+matching saved manager contact to request its own code. It does not allow all
+manager phones or arbitrary destinations. The existing expiry, $1/100-attempt
+monthly cap, one-cent reservation, ten-minute self-request cooldown and three
+sends per phone per day apply. Removing that field stops new test sends. This
+setting is separate from the older single-request manager test action and must
+not be enabled for other recipients by a routine deployment.
+
 ## Kingpin and Convoy hostnames — September 18, 2026
 
 The user explicitly approved adding only `kingpin.junk-king.app` and

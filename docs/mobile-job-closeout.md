@@ -37,8 +37,10 @@ Only one phone can redeem a code. The phone cannot self-register or select a tru
 
 Waypoint now starts with **Company phone number → Send setup code via OpsBot →
 enter the six-digit code**. Only one exact match in the private company-phone
-directory is eligible; manager contacts and unknown/ambiguous numbers receive no
-message. The public response never returns a code, company directory, provider
+directory is eligible; unknown/ambiguous numbers receive no message and an explicit
+“No code was sent” error. A separately approved manager test phone can use the
+same flow through the private `selfSetupTestRecipientName` setting. Other manager
+numbers remain ineligible. The public response never returns a code, company directory, provider
 receipt or phone binding. Possession of the single-use code establishes access,
 then the crew chooses today’s truck before inspection and jobs.
 
@@ -72,7 +74,7 @@ receipt rules apply. This does not change the normal company-phone destinations.
 Each send writes and fsyncs a receipt/reservation before contacting Meta, with
 the issuing manager, fixed destination, device, code expiry and request ID.
 Raw codes and credentials are not stored in receipts. Identical requests return
-the existing receipt; they never send again. One-minute per-truck throttling and
+the existing receipt; they never send again. One-minute per-recipient throttling and
 a serialized monthly attempt/budget reservation apply across processes. Unknown
 outcomes keep their full reservation and are not retried. An orphaned reservation
 lock blocks new sends for operator review rather than reclaiming uncertain work.

@@ -216,12 +216,15 @@ repair blocks. Legacy checklist answers remain separately editable.
 
 ## Convoy app icon
 
-Convoy uses a red dump truck on a dark background for its browser and phone
-home-screen icons. The versioned `public/truck-inspection/convoy-truck-v1-*.png`
-assets supply 32px browser, 180px Apple and 192px/512px manifest sizes. The
-manifest retains its existing identity, start URL and scope. Old gear-and-wrench
-URLs remain available for cached pages; current metadata uses the truck assets.
-The original artwork is `assets/convoy/convoy-truck-v1-source.png`, created with
-the built-in image generation tool. Direction: a bold red junk-hauling dump truck
-in front three-quarter view, white accents, charcoal background, no text, gear,
-wrench or crown, with padding for home-screen cropping.
+Convoy uses its red gear with gold trim and a centered red-and-white JK crown
+on a charcoal background. The versioned
+`public/truck-inspection/convoy-gear-crown-v1-*.png` assets supply 32px browser,
+180px Apple and 192px/512px manifest sizes. The manifest retains its existing
+identity, start URL and scope. Earlier icon URLs remain available for cached
+pages; current metadata uses the approved gear-and-crown design.
+
+Original artwork: `assets/convoy/convoy-gear-crown-v1-source.png`. The built-in
+image generation tool combined the original gear icon and supplied JK crown
+reference: preserve the red gear, gold outline and dark background; replace the
+white wrench with the red crown and white JK monogram, centered within the ring.
+The user selected this preview on September 19, 2026.

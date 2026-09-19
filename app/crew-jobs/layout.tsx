@@ -5,7 +5,10 @@ export const metadata: Metadata = {
   applicationName: 'Waypoint',
   description: 'Junk King company-phone jobs and closeout.',
   manifest: '/crew-jobs/manifest.webmanifest',
-  icons: { icon: '/crew-jobs/icon.png', apple: '/crew-jobs/icon.png' },
+  icons: {
+    icon: { url: '/crew-jobs/waypoint-compass-crown-v1-32.png', sizes: '32x32', type: 'image/png' },
+    apple: { url: '/crew-jobs/waypoint-compass-crown-v1-180.png', sizes: '180x180', type: 'image/png' },
+  },
   appleWebApp: { capable: true, title: 'Waypoint', statusBarStyle: 'default' },
   robots: { index: false, follow: false },
 };

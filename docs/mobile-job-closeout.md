@@ -289,6 +289,14 @@ are served there. Every crew API still requires its own phone session. Managemen
 payroll, login and webhook routes return 404 on this hostname. The manager schedule
 link opens the existing authenticated Schedule at `ops.junk-king.app`.
 
+Waypoint's icon is the red-and-gold compass with the Junk King crown and white
+accents on charcoal. The original artwork is preserved at
+`assets/waypoint/waypoint-compass-crown-v1-source.png`. Uncropped PNG exports at
+`public/crew-jobs/waypoint-compass-crown-v1-{32,180,192,512}.png` supply the browser
+favicon, Apple touch icon and install manifest. Versioned URLs refresh icon
+references; the legacy `/crew-jobs/icon.png` also serves the new 180px artwork.
+Only these exact public asset paths are allowed on all three phone hostnames.
+
 The manager setup page displays the new address. The existing
 `ops.junk-king.app/crew-jobs` entry remains available for enrolled devices and saved
 drafts: cookies and browser drafts are origin-bound and are not copied between

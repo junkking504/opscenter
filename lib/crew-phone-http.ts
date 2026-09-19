@@ -42,11 +42,13 @@ export function requireCrewPhone(request: Request) {
   if (!resolveRequestOrigin(request).startsWith('https://')) throw new CrewPhoneError('Open the secure company phone address.', 403);
   const phone = crewPhone(phoneKey(request));
   if (!phone) throw new CrewPhoneError('This phone needs manager setup.', 401);
+  if(phone.test)return phone;
   const day=readCrewDay(phone);
   return day ? {...phone,truck:day.truck} : phone;
 }
 export function requireCrewReady(request: Request) {
   const phone=requireCrewPhone(request);
+  if(phone.test)throw new CrewPhoneError('Test phones cannot access live operations.',403);
   assertTruckNotSwitching(phone.truck);
   requireCrewInspection(phone);
   return phone;

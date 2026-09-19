@@ -1,3 +1,4 @@
+import { waypointSandbox } from '@/lib/waypoint-sandbox';
 import { after } from 'next/server';
 import { crewPhoneBody, crewPhoneFailure, crewPhoneResponse, requireCrewPhone } from '@/lib/crew-phone-http';
 import { CrewPhoneError } from '@/lib/crew-phone';
@@ -8,6 +9,9 @@ export const runtime='nodejs';
 export const dynamic='force-dynamic';
 export async function GET(request:Request) {
   try {
+    const testPhone=requireCrewPhone(request);
+    if(testPhone.test)return crewPhoneResponse(waypointSandbox(testPhone,'closeout',new URL(request.url).searchParams));
+
     requireCrewPhone(request);
     const params=new URL(request.url).searchParams;
     if([...params.keys()].some(key=>!['assignmentId','requestId','reconcile'].includes(key)))throw new CrewPhoneError('Use the current closeout screen.');
@@ -17,6 +21,9 @@ export async function GET(request:Request) {
 }
 export async function POST(request:Request) {
   try {
+    const testPhone=requireCrewPhone(request);
+    if(testPhone.test)return crewPhoneResponse(waypointSandbox(testPhone,'closeout',new URL(request.url).searchParams,await crewPhoneBody(request,16384)));
+
     requireCrewPhone(request);
     const body=await crewPhoneBody(request,16*1024);
     const simulated=await simulateCrewCloseout(request,body);

@@ -1,3 +1,4 @@
+import { waypointSandbox } from '@/lib/waypoint-sandbox';
 import {readCrewDispatch} from '@/lib/crew-dispatch-store';
 import {crewCheckoutDryRun} from '@/lib/crew-checkout-dry-run';
 import { crewPhoneBody, crewPhoneFailure, crewPhoneResponse, requireCrewPhone } from '@/lib/crew-phone-http';
@@ -10,6 +11,9 @@ export const runtime='nodejs';
 export const dynamic='force-dynamic';
 export async function GET(request:Request) {
   try {
+    const testPhone=requireCrewPhone(request);
+    if(testPhone.test)return crewPhoneResponse(waypointSandbox(testPhone,'photos',new URL(request.url).searchParams));
+
     requireCrewPhone(request);
     const params=new URL(request.url).searchParams;
     if([...params.keys()].some(key=>!['assignmentId','requestId'].includes(key)))throw new CrewPhoneError('Use the current assignment screen.');
@@ -28,6 +32,9 @@ export async function GET(request:Request) {
 }
 export async function POST(request:Request) {
   try {
+    const testPhone=requireCrewPhone(request);
+    if(testPhone.test)return crewPhoneResponse(waypointSandbox(testPhone,'photos',new URL(request.url).searchParams,await crewPhoneBody(request,6291456)));
+
     const phone=requireCrewPhone(request);
     const body=parseCrewPhoto(await crewPhoneBody(request,6*1024*1024));
     const current=readCrewDispatch(phone.truck).current;

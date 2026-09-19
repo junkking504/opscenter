@@ -153,7 +153,7 @@ export async function sendCrewPhoneSetup(truck: string, requestId: string, actor
       if(recent.filter(row=>chicagoDateKey(new Date(row.createdAt))===chicagoDateKey()).length>=3)throw new CrewPhoneError('This phone has reached today’s setup-code limit. Contact your manager.',429);
     }
     if (history.some(row => row.number === contact.number && Date.now() - Date.parse(row.createdAt) < 60_000)) throw new CrewPhoneError('Wait one minute before sending another setup code to this phone.', 429);
-    const enrollment = createCrewPhoneEnrollment(truck, contact.label, actor);
+    const enrollment = createCrewPhoneEnrollment(truck, contact.label, actor, new Date(), test);
     code = enrollment.code;
     receipt = { schema: 1, requestId, actor, month, reservedMicros: config.reserveMicros, truck, label: contact.label, number: contact.number, ...(test ? {test:true}: {}),
       deviceId: enrollment.deviceId, createdAt: new Date().toISOString(), expiresAt: enrollment.expiresAt, status: 'pending', message: 'Send started. Check WhatsApp before creating another code.' };

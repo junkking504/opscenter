@@ -6,7 +6,7 @@ import { withCrewPhoneSetupLimit } from './login-rate-limit';
 import { JUNKWARE_DISPATCH_TRUCKS } from './junkware-trucks';
 import { CrewPhoneError, type CrewPhone } from './crew-phone';
 
-type Enrollment = { schema: 1; deviceId: string; truck: string; label: string; actor: string; createdAt: string; expiresAt: string };
+type Enrollment = { test?: boolean; schema: 1; deviceId: string; truck: string; label: string; actor: string; createdAt: string; expiresAt: string };
 type Binding = { schema: 1; keyHash: string; enrollmentHash: string; actor: string; phone: CrewPhone };
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
@@ -47,11 +47,11 @@ function validBinding(binding: Binding): boolean {
 function revoked(id: string) { return fs.existsSync(path.join(directory('revoked'), `${id}.json`)); }
 
 /** Server callers are manager setup or an allowlisted company-number delivery. */
-export function createCrewPhoneEnrollment(truck: string, label: string, actor: string, now = new Date()) {
+export function createCrewPhoneEnrollment(truck: string, label: string, actor: string, now = new Date(), test = false) {
   if (!JUNKWARE_DISPATCH_TRUCKS.includes(truck)) throw new CrewPhoneError('Choose a truck.');
   if (!label.trim() || label.length > 80) throw new CrewPhoneError('Enter a phone name, up to 80 characters.');
   if (!actor.trim()) throw new CrewPhoneError('Manager access is required.', 403);
-  const enrollment: Enrollment = { schema: 1, deviceId: randomUUID(), truck, label: label.trim(), actor,
+  const enrollment: Enrollment = { ...(test ? {test: true} : {}), schema: 1, deviceId: randomUUID(), truck, label: label.trim(), actor,
     createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + 10 * 60_000).toISOString() };
   for (let attempt = 0; attempt < 100; attempt++) {
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
@@ -89,7 +89,7 @@ function completeEnrollment(enrollmentHash: string, rawKey: string, now: Date): 
     const keyFile = path.join(directory('keys'), `${keyHash}.json`);
     writeOnce(keyFile, { deviceId: enrollment.deviceId });
     if (read<{deviceId: string}>(keyFile)?.deviceId !== enrollment.deviceId) throw new CrewPhoneError('Use a new connection for this phone.', 409);
-    const phone: CrewPhone = { deviceId: enrollment.deviceId, truck: enrollment.truck, label: enrollment.label,
+    const phone: CrewPhone = { ...(enrollment.test ? {test: true} : {}), deviceId: enrollment.deviceId, truck: enrollment.truck, label: enrollment.label,
       enrolledAt: now.toISOString(), expiresAt: new Date(now.getTime() + 90 * 86400_000).toISOString() };
     if (!validPhone(phone)) throw new Error('Invalid enrollment record.');
     writeOnce(bindingFile, { schema: 1, keyHash, enrollmentHash, actor: enrollment.actor, phone } satisfies Binding);
@@ -112,15 +112,16 @@ export function crewPhone(key: string, now = new Date()): CrewPhone | null {
   if (!saved || !validBinding(saved) || saved.keyHash !== keyHash || saved.phone.deviceId !== index.deviceId
     || Date.parse(saved.phone.enrolledAt) > now.getTime() || Date.parse(saved.phone.expiresAt) <= now.getTime()
     || revoked(index.deviceId)) return null;
-  return saved.phone;
+  return testPhone(saved.phone);
 }
 export function listCrewPhones(now = new Date()): Array<CrewPhone & { state: 'active' | 'expired' | 'revoked' }> {
   return fs.readdirSync(directory('bindings')).filter(name => uuid.test(name.replace(/\.json$/, '')) && name.endsWith('.json')).map(name => {
     const saved = read<Binding>(path.join(directory('bindings'), name));
     if (!saved || !validBinding(saved)) throw new Error('Phone enrollment needs recovery.');
     const state = revoked(saved.phone.deviceId) ? 'revoked' as const : Date.parse(saved.phone.expiresAt) <= now.getTime() ? 'expired' as const : 'active' as const;
-    const day=readCrewDay(saved.phone);
-    return { ...saved.phone, ...(day?{truck:day.truck}:{}), state };
+    const phone=testPhone(saved.phone);
+    const day=phone.test ? null : readCrewDay(phone);
+    return { ...phone, ...(day?{truck:day.truck}:{}), state };
   }).sort((a, b) => a.truck.localeCompare(b.truck) || a.label.localeCompare(b.label));
 }
 export function revokeCrewPhone(deviceId: string, actor: string, now = new Date()) {
@@ -128,4 +129,14 @@ export function revokeCrewPhone(deviceId: string, actor: string, now = new Date(
   if (!actor.trim()) throw new CrewPhoneError('Manager access is required.', 403);
   writeOnce(path.join(directory('revoked'), `${deviceId}.json`), { actor, revokedAt: now.toISOString() });
   if (!revoked(deviceId)) throw new Error('Phone removal could not be verified.');
+}
+
+/** Legacy delivered test codes retain their isolation after connection or permission removal. */
+function testPhone(phone: CrewPhone): CrewPhone {
+  if (phone.test) return phone;
+  const deliveredTest = fs.readdirSync(directory('deliveries')).filter(name => name.endsWith('.json')).some(name => {
+    const receipt = read<{ deviceId?: string; test?: boolean }>(path.join(directory('deliveries'), name));
+    return receipt?.deviceId === phone.deviceId && receipt.test === true;
+  });
+  return deliveredTest ? {...phone, test: true} : phone;
 }

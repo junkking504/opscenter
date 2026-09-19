@@ -467,3 +467,35 @@ closeout suites cover ordering, no-setup/no-inspection direct access, mismatched
 truck/date/version, legacy report reuse, stop results, changed setup and receipt
 isolation. Tests use isolated stores and synthetic sources. Real customer
 closeouts and real inspection reports must never be submitted solely for testing.
+
+
+### Waypoint test mode and Assignments (September 19, 2026)
+
+All OpsBot test deliveries enroll into a server-enforced sandbox. Earlier test
+connections are also identified by their durable delivery receipt, so removing
+send permission cannot turn a test session into live access. The approved manager
+phone ending 2072 retains its connection but starts separate test truck setup.
+Test status is server-owned, never supplied by a query parameter or client flag.
+
+The six crew endpoints route test phones before any live fleet, roster, dispatch,
+photo or closeout access. Test setup, inspection receipts, truck switches and
+completion receipts live only in `crew-phones/sandbox/<device>/<Central-date>`.
+No JunkWare, payroll, customer message, load or Fleet write occurs. The same
+inspection and closeout UI is used; job photos stay on the test phone and payment
+entry is simulated. A same-day test inspection applies when switching back to
+that test truck; live inspections never satisfy a test gate or vice versa.
+
+Each test phone gets three fictional assignments: sofa pickup, garage cleanout
+and appliance pickup, with TEST identifiers and fictional addresses. Closing the
+current example reveals the next. Truck & phone contains Reset three test
+assignments; reset creates fresh assignment IDs to avoid reusing drafts/receipts.
+Test data resets by Central date. Test mode remains visible throughout the flow.
+
+After setup and inspection, the start-of-day progress strip disappears and the
+main screen is Assignments. Truck/crew changes, connection management and test
+reset are collapsed under Truck & phone. The live current-assignment gate remains
+unchanged: later jobs appear only after the current job closes.
+
+Validation: `npm run verify:waypoint-sandbox` exercises all six real API handlers
+with isolated storage and a provider-call trap, plus legacy test enrollment,
+inspection gating/reuse, truck switches, sequential completion and receipt retry.

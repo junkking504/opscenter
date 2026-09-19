@@ -1,4 +1,5 @@
 export type CrewPhone = {
+  test?: boolean;
   deviceId: string;
   truck: string;
   label: string;

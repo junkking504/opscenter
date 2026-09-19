@@ -131,6 +131,7 @@
     "verify:waypoint-day": "node --import tsx scripts/test-waypoint-day.ts",
     "verify:crew-truck-switch": "tsx scripts/test-crew-truck-switch.ts",
     "verify:waypoint-agent": "node --import tsx scripts/test-waypoint-agent.ts",
+    "verify:waypoint-sandbox": "node --import tsx scripts/test-waypoint-sandbox.ts",
     "verify:crew-self-setup": "node --import tsx scripts/test-crew-self-setup.ts"
   },
   "dependencies": {

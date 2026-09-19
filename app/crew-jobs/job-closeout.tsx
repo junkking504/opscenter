@@ -9,7 +9,7 @@ import '../../desktop-ui/mobile-closeout/mobile-closeout.css';
 import JobPhotos, {type PhotoProgress, type PhotoCheckoutHandle} from './job-photos';
 import styles from './phone-access.module.css';
 
-export default function JobCloseout({job,truck,deviceId,onBusyChange,onBack,onNext}:{job:CrewCurrentJob;truck:string;deviceId:string;onBusyChange:(busy:boolean)=>void;onBack:()=>void;onNext:()=>void}) {
+export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,onBack,onNext}:{job:CrewCurrentJob;truck:string;deviceId:string;test?:boolean;onBusyChange:(busy:boolean)=>void;onBack:()=>void;onNext:()=>void}) {
   const [completed,setCompleted]=useState(false);
   const [photos,setPhotos]=useState<PhotoProgress>({ready:false,count:0,verified:0});
   const [dryRun,setDryRun]=useState(false);
@@ -67,6 +67,6 @@ export default function JobCloseout({job,truck,deviceId,onBusyChange,onBack,onNe
     {formBusy && submissionMessage && <p role="status">{submissionMessage}</p>}
     <AppointmentCloseout dryRun={dryRun} job={closeoutJob} date={job.date} presentation="mobile" transport={transport} draftKey={key} onBusyChange={setFormBusy} photoSteps={{render:category=><JobPhotos ref={photoSubmit} dryRun={dryRun} deferred locked={formBusy} deviceId={deviceId} assignmentId={job.assignmentId} category={category} onBusyChange={setPhotoBusy} onProgress={reportPhotos}/>,hasPhotos:photos.count>0,busy:photoBusy}} onBackToAppointment={onBack} saved={()=>{setCompleted(dryRunMode.current || verified.current);setSubmissionMessage(verified.current?'Checkout saved and verified in JunkWare.':'');}}/>
     <footer className="record-drawer-actions"><div className="closeout-footer-slot"/></footer>
-    {completed && <div className={styles.card}><h2>{dryRun?'Dry run complete':'Closeout verified'}</h2><p>{dryRun?'Nothing was uploaded or saved to JunkWare. No customer receipt was sent.':'The saved work and payment are confirmed in JunkWare.'}</p>{!dryRun && <button className={styles.primary} onClick={onNext}>Check next assignment</button>}</div>}
+    {completed && <div className={styles.card}><h2>{dryRun?'Dry run complete':'Closeout verified'}</h2><p>{dryRun?'Nothing was uploaded or saved to JunkWare. No customer receipt was sent.':'The saved work and payment are confirmed in JunkWare.'}</p>{(!dryRun || test) && <button className={styles.primary} onClick={onNext}>Check next assignment</button>}</div>}
   </div></section>;
 }

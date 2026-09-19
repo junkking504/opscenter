@@ -1,4 +1,5 @@
-import { requireCrewReady, crewPhoneFailure, crewPhoneResponse } from '@/lib/crew-phone-http';
+import { waypointSandbox } from '@/lib/waypoint-sandbox';
+import { requireCrewPhone, requireCrewReady, crewPhoneFailure, crewPhoneResponse } from '@/lib/crew-phone-http';
 import { crewCurrentPayload } from '@/lib/crew-dispatch-service';
 import { crewDispatchSources } from '@/lib/crew-dispatch-sources';
 import { requireCrewDay } from '@/lib/crew-phone-day';
@@ -8,6 +9,9 @@ export const runtime='nodejs';
 export const dynamic='force-dynamic';
 export async function GET(request:Request) {
   try {
+    const testPhone=requireCrewPhone(request);
+    if(testPhone.test)return crewPhoneResponse(waypointSandbox(testPhone,'current',new URL(request.url).searchParams));
+
     const phone=requireCrewReady(request);
     const day=requireCrewDay(phone);
     // The phone cannot choose another truck, date or appointment through a URL.

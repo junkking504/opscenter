@@ -1,3 +1,4 @@
+import { waypointSandbox } from '@/lib/waypoint-sandbox';
 import { crewPhoneBody, crewPhoneFailure, crewPhoneResponse, requireCrewPhone } from '@/lib/crew-phone-http';
 import { requireCrewDay } from '@/lib/crew-phone-day';
 import { crewInspectionDevice, crewInspectionReport } from '@/lib/crew-phone-inspection';
@@ -14,6 +15,9 @@ function failure(error: unknown) {
 
 export async function GET(request: Request) {
   try {
+    const testPhone=requireCrewPhone(request);
+    if(testPhone.test)return crewPhoneResponse(waypointSandbox(testPhone,'inspection',new URL(request.url).searchParams));
+
     const phone = requireCrewPhone(request), day = requireCrewDay(phone), device = crewInspectionDevice(phone, day);
     const params = new URL(request.url).searchParams;
     if ([...params.keys()].some(key => key !== 'requestId')) throw new CrewPhoneError('Use today’s truck inspection.');
@@ -25,6 +29,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const testPhone=requireCrewPhone(request);
+    if(testPhone.test)return crewPhoneResponse(waypointSandbox(testPhone,'inspection',new URL(request.url).searchParams,await crewPhoneBody(request,5100000)));
+
     const body = await crewPhoneBody(request, 5_100_000);
     const phone = requireCrewPhone(request), day = requireCrewDay(phone), device = crewInspectionDevice(phone, day);
     if (body.action !== 'submit' || body.dayVersion !== day.version) throw new CrewPhoneError('Today’s truck setup changed. Return to setup before inspecting.', 409);

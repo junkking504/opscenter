@@ -50,6 +50,11 @@ async function main(){
   const savedVisits=job.truckVisits;job.truckVisits=[];
   const missingArrival=await submitCrewCloseout(request,body(),deps);assert.equal(missingArrival.status,'failed');assert.match(missingArrival.message,/arrival/);assert.equal(writes,0);
   job.truckVisits=[{...savedVisits[0],truck:'Truck 9'}];assert.equal((await submitCrewCloseout(request,body(),deps)).status,'failed');assert.equal(writes,0,'Other truck arrival never authorizes time');
+  job.truckVisits=[];
+  let manualWrites=0;
+  const manualBody=body();manualBody.values.actualStartHour='0';manualBody.values.actualStartMinute='0';
+  const manualReceipt=await submitCrewCloseout(request,manualBody,{...deps,write:async(_id,input)=>{manualWrites++;assert.equal(input!.actualStartHour,'0');assert.equal(input!.actualStartMinute,'0');assert.notEqual(input!.actualEndHour,'99');return{ok:true,appointmentId:id,closeout:{...source,status:{value:'8'}},verifiedAt:new Date().toISOString()};}});
+  assert.equal(manualReceipt.status,'verified');assert.equal(manualWrites,1);assert.equal((manualReceipt.sourceResult?.jobTiming as {startSource:string}).startSource,'manual');
   job.truckVisits=savedVisits;
   assert.equal((await loadCrewCloseout(request,current.assignmentId,deps)).arrival,arrival);
   lose=true;const uncertain=body();assert.equal((await submitCrewCloseout(request,uncertain,deps)).status,'uncertain');assert.equal(writes,1);

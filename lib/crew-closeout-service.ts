@@ -83,8 +83,8 @@ export async function submitCrewCloseout(request:Request,body:Record<string,unkn
           || defaults.navigators.some(row=>!navigatorIds.includes(row.value))
           || navigatorIds.some(id=>typeof id!=='string' || !available.some(row=>row.value===id)))throw new CrewPhoneError('Use today’s assigned driver and navigator. You may add additional crew for this job.',409);
         // Time is server-owned. The durable receipt fixes End across retries;
-        // the scoped GPS visits fix Start independently of client-entered values.
-        const timing=crewCloseoutTimes(job,phone.truck,current.date,receipt.createdAt!,before.closeout as unknown as Parameters<typeof crewCloseoutTimes>[4]);
+        // GPS fixes Start when available; otherwise validate the manual entry.
+        const timing=crewCloseoutTimes(job,phone.truck,current.date,receipt.createdAt!,before.closeout as unknown as Parameters<typeof crewCloseoutTimes>[4],operation.values);
         // Recheck revocation immediately before the source write, after the read.
         requireCrewPhone(request);
         writeStarted=true;
@@ -92,7 +92,7 @@ export async function submitCrewCloseout(request:Request,body:Record<string,unkn
         let truckLoadStatus;
         try {truckLoadStatus=deps.updateLoad(current.date,current.appointmentId,result.closeout,String(result.verifiedAt || ''),actor);}
         catch {truckLoadStatus={updated:false,reason:'Closeout saved; truck load reconciliation is pending.'};}
-        return {status:200,body:{...result,truckLoadStatus,jobTiming:{arrival:crewCloseoutArrival(job,phone.truck,current.date),submittedAt:receipt.createdAt,...timing},crewContext:{deviceId:phone.deviceId,assignmentId,truck:phone.truck,sourceDriver:job.driver,sourceNavigator:job.navigator,dailyCrew:day}}};
+        return {status:200,body:{...result,truckLoadStatus,jobTiming:{startSource:crewCloseoutArrival(job,phone.truck,current.date)?'gps':'manual',arrival:crewCloseoutArrival(job,phone.truck,current.date),submittedAt:receipt.createdAt,...timing},crewContext:{deviceId:phone.deviceId,assignmentId,truck:phone.truck,sourceDriver:job.driver,sourceNavigator:job.navigator,dailyCrew:day}}};
       });
     }catch(error){
       const preflight=!writeStarted || error instanceof JunkwareCloseoutError && error.stage==='preflight';

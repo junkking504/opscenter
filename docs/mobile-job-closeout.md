@@ -370,9 +370,10 @@ it never silently becomes a live save.
 
 Start is the first confirmed GPS arrival for this appointment, assigned truck and
 service day. End is the server time recorded on the durable closeout request,
-after final photo submission. Crew phones display these rules instead of manual
-time pickers. The source writer overrides client time fields and verifies the
-saved times using JunkWare's available minute options. Missing or mismatched
-arrival evidence blocks a real closeout before any payment write. Receipt retries
+after final photo submission. Crew phones display GPS Start when available. If arrival is missing, they show
+manual start hour and minute fields; End remains automatic. The source writer overrides client time fields and verifies the
+saved times using JunkWare's available minute options. When GPS arrival is missing, the server accepts a manual Start only if it matches
+JunkWare options and is no later than Closeout on the service day. It records
+manual provenance in the operation receipt; manual times never override GPS. Receipt retries
 return the original result and never advance End or repeat a source write.
 The assignment-scoped dummy flow remains a simulation with no source writes.

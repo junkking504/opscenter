@@ -57,12 +57,9 @@ export default function OpsShell({
       />
       <label htmlFor="ops-sidebar-toggle" className="ops-sidebar-backdrop" aria-hidden="true" />
       <aside className="ops-sidebar">
-        <div className="ops-brand">
-          <OpsCenterLogo className="opscenter-logo" />
-          <div className="ops-brand-product">
-            <div className="ops-brand-title">OpsCenter</div>
-            <div className="ops-brand-subtitle">Junk King Louisiana</div>
-          </div>
+        <div className="ops-brand" style={{ display: "block" }}>
+          <OpsCenterLogo />
+          <div className="ops-brand-subtitle" style={{ marginTop: 8 }}>Junk King Louisiana</div>
         </div>
 
         <Suspense fallback={<nav className="ops-nav" aria-hidden="true" />}>
@@ -88,8 +85,7 @@ export default function OpsShell({
       <main className="ops-main">
         <div className="ops-main-frame">
           <div className="ops-mobile-brand" aria-label="Junk King OpsCenter">
-            <OpsCenterLogo className="opscenter-logo ops-mobile-opscenter-logo" />
-            <span>OpsCenter</span>
+            <div style={{ width: 180, maxWidth: "100%" }}><OpsCenterLogo /></div>
           </div>
           <header className="ops-topbar">
             <div className="ops-topbar-search">

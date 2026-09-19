@@ -290,10 +290,9 @@ are served there. Every crew API still requires its own phone session. Managemen
 payroll, login and webhook routes return 404 on this hostname. The manager schedule
 link opens the existing authenticated Schedule at `ops.junk-king.app`.
 
-Waypoint's icon is the red-and-gold compass with the Junk King crown and white
-accents on charcoal. Red compass faces and thick gold borders retain the approved crown treatment. The original artwork is preserved at
-`assets/waypoint/waypoint-compass-crown-v2-source.png`. Uncropped PNG exports at
-`public/crew-jobs/waypoint-compass-crown-v2-{32,180,192,512}.png` supply the browser
+Waypoint's icon is the approved red crown with gold trim above a winding white road on charcoal. The original artwork is preserved at
+`assets/waypoint/waypoint-crown-road-v1-source.png`. Uncropped PNG exports at
+`public/crew-jobs/waypoint-crown-road-v1-{32,180,192,512}.png` supply the browser
 favicon, Apple touch icon and install manifest. Versioned URLs refresh icon
 references; the legacy `/crew-jobs/icon.png` also serves the new 180px artwork.
 The prior v1 exports remain available for cached references. Only the exact

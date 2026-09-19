@@ -13,7 +13,7 @@ export default function WaypointApp({ jobsHref }: { initialView?: 'jobs' | 'insp
   return <div className={styles.app}>
     <header className={styles.header}>
       <div className={styles.brand}>
-        <img src={jobsHref ? `${CREW_JOBS_ORIGIN}/crew-jobs/waypoint-compass-crown-v2-192.png` : '/crew-jobs/waypoint-compass-crown-v2-192.png'} width="52" height="52" alt="" />
+        <img src={jobsHref ? `${CREW_JOBS_ORIGIN}/crew-jobs/waypoint-crown-road-v1-192.png` : '/crew-jobs/waypoint-crown-road-v1-192.png'} width="52" height="52" alt="" />
         <div><strong>Waypoint</strong><span>JUNK KING</span></div>
       </div>
       {jobsHref ? <a className={styles.legacyEntry} href={jobsHref}>Open Waypoint daily setup →</a> : <ol className={styles.steps} aria-label="Start your day">

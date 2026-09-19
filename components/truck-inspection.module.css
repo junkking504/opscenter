@@ -184,3 +184,6 @@
   .decisionCard { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .photos figure, .reviewRow { break-inside: avoid; }
 }
+
+.embedded { min-height: 0; border-radius: 16px; overflow: clip; font-family: inherit; }
+.legacyNotice { padding: 16px; max-width: 680px; margin: auto; }

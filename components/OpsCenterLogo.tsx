@@ -2,11 +2,11 @@ type OpsCenterLogoProps = {
   className?: string;
 };
 
-/** Approved JK crown and circuit artwork shared by the application shells. */
+/** Approved red-and-gold identity, including the custom OpsCenter wordmark. */
 export default function OpsCenterLogo({ className = "" }: OpsCenterLogoProps) {
   return (
-    // Static branding is served directly so the same asset works before login.
+    // Public static artwork is also available before login.
     // eslint-disable-next-line @next/next/no-img-element
-    <img className={className} src="/opscenter-logo.png?v=2" alt="OpsCenter" width={512} height={512} />
+    <img className={className} src="/opscenter-wordmark.png?v=3" alt="OpsCenter" width={1400} height={321} style={{ display: "block", width: "100%", height: "auto", filter: "none" }} />
   );
 }

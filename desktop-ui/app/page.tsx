@@ -4196,9 +4196,9 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
   return (
     <main className={live ? 'ops-app ops-live' : 'ops-app'}>
       <aside className="ops-sidebar">
-        <div className="brand-lockup">
-          <img className="brand-mark opscenter-brand-image" src="/opscenter-logo.png?v=2" alt="OpsCenter" width={39} height={39} />
-          <div><strong>OpsCenter</strong><small>Junk King Louisiana</small></div>
+        <div className="brand-lockup" style={{ display: 'block' }}>
+          <img src="/opscenter-wordmark.png?v=3" alt="OpsCenter" width={1400} height={321} style={{ display: 'block', width: '100%', height: 'auto' }} />
+          <small style={{ marginTop: 8 }}>Junk King Louisiana</small>
         </div>
 
         <NavigationDiagnostics />

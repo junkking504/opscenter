@@ -2,13 +2,20 @@
 
 ## OpsCenter icons
 
-The desktop sidebar, login page and legacy shells use `/opscenter-logo.png`,
-the approved red-and-gold circuit artwork with the JK crown. The 32px
-`/opscenter-favicon.png` and `/favicon.ico` serve browser tabs; the 180px
-`/opscenter-apple-icon.png` serves Apple home screens. `/opscenter.webmanifest`
-selects the 192px and 512px app icons for installation. These assets are public
-before login and use versioned URLs. The prior SVG URL carries the same artwork
-for compatibility. The inspection app retains its own route-specific identity.
+The desktop sidebar, login page and legacy shells use
+`/opscenter-wordmark.png`: the approved segmented red O, gold JK crown and
+custom OpsCenter wordmark (Ops red, Center gold), with black and white accents.
+The square `/opscenter-logo.png` carries the same identity for icon consumers.
+The 32px `/opscenter-favicon.png` and `/favicon.ico` serve browser tabs; the
+180px `/opscenter-apple-icon.png` serves Apple home screens.
+`/opscenter.webmanifest` selects the 192px and 512px app icons for installation.
+These assets are public before login and use version 3 URLs. The prior SVG URL
+embeds the new icon for compatibility. Phone-app branding remains separate.
+
+The September 19, 2026 artwork is packaged from the user-approved image concept.
+The full wordmark is an image to preserve the approved typography, with an
+OpsCenter text alternative. Palette targets are red `#B51935`, gold `#D9A526`,
+black `#111111` and white `#FFFFFF`. This replaces the former circuit artwork.
 
 ## Shared red palette
 

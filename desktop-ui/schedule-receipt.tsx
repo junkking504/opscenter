@@ -3,6 +3,7 @@ import type { ScheduleAppointment } from "./lib/schedule-contract";
 import { submitScheduleOperation } from "./lib/schedule-operation-transport";
 
 export type Receipt = {
+  dryRun?: boolean;
   action?: 'move' | 'reschedule' | 'restore' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify';
   crewAssignment?: {state:'pending'|'assigned'|'queued'|'attention';message:string};
   sourceResult?: Record<string, unknown>;
@@ -35,7 +36,7 @@ export function ChangeReceipt({ receipt, onCheck }: { receipt: Receipt; onCheck:
       <header>
         <div>
           <span>
-            {receipt.status === "reconciled" ? "Current Schedule Verified" : receipt.status === "verified"
+            {receipt.dryRun ? "Dry run complete" : receipt.status === "reconciled" ? "Current Schedule Verified" : receipt.status === "verified"
               ? "Change Verified"
               : receipt.status === "failed"
                 ? "Change Not Applied"

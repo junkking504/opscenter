@@ -333,17 +333,35 @@ preserved; retrying history never submits a photo.
 
 ### Company-phone photo and closeout sequence
 
-The company-phone closeout starts with **Before photos**, then **Charges**
-(including required job details, crew and actual times), **After photos**, and
-**Payment**, followed by the existing final review. Photos are uploaded inside
-these steps rather than in a separate job-details section. Each photo step
-requires a verified upload in its category; selected, pending and uncertain
-photos keep the forward action disabled. Check saved photo remains a read-only
-recovery action. The source closeout photo requirement and payment receipt
-protections remain enforced.
+The company-phone workflow is **Before photos → Charges → After photos →
+Payment → Review**. Photos are selected and kept in the phone's 24-hour draft
+storage. Moving between steps does not upload photos or require upload
+verification. Required job details, crew and actual times are in Charges.
 
-One photo component stays mounted while navigating, retaining selections and
-upload identities across the steps. Verified uploads refresh the source photo
-evidence and source version while preserving the charge and payment draft.
-Older drafts retain their fields when their source still matches, but start at
-Before photos because their previous step numbers used a different sequence.
+Only **Submit checkout**, after final review, starts uploading all selected
+photos. It reuses their durable request IDs, checks pending/uncertain results,
+and then refreshes the source photo evidence before the existing closeout and
+payment save. Verification happens as part of this final submission. The UI
+reports completion only after the saved source results verify. An interrupted
+photo batch retains its progress; retry checks saved photos without replaying
+uncertain uploads. No payment request is created while photo results remain
+uncertain. An interrupted payment retains its original receipt identity.
+
+One photo component stays mounted across steps. Charge/payment drafts also
+retain a comparison of the original source fields excluding photo evidence, so
+a reload after partial uploads restores the draft only when the other source
+fields and daily crew still match. New payments or manager edits require a new
+review. The existing backend photo prerequisite remains enforced for real saves.
+
+### Assignment-scoped dummy closeouts
+
+The server-owned runtime file `data/crew-checkout-dry-runs.json` has schema 1
+and an `assignments` array of exact `assignmentId`, `appointmentId`, `date` and
+`truck` records. It is not controlled by the phone or a URL. Invalid policy
+content blocks writes. A configured assignment displays a Dry run banner,
+keeps photo files on the phone, and returns a clearly labeled simulated result
+on final submission. Photo POSTs are blocked server-side, and the real closeout
+writer/publisher is never called. A dummy result is not a verified source
+receipt, is not persisted as real completion, and cannot unlock the next job.
+A request marked as dry-run is rejected if its protection has been removed;
+it never silently becomes a live save.

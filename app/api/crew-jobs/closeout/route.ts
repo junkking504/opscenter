@@ -1,7 +1,7 @@
 import { after } from 'next/server';
 import { crewPhoneBody, crewPhoneFailure, crewPhoneResponse, requireCrewPhone } from '@/lib/crew-phone-http';
 import { CrewPhoneError } from '@/lib/crew-phone';
-import { checkCrewCloseout, crewReceiptProjection, loadCrewCloseout, submitCrewCloseout } from '@/lib/crew-closeout-service';
+import { checkCrewCloseout, crewReceiptProjection, loadCrewCloseout, submitCrewCloseout, simulateCrewCloseout } from '@/lib/crew-closeout-service';
 import { PendingScheduleOperationError } from '@/lib/desktop-schedule-operations';
 import { publishVerifiedCloseout } from '@/lib/publish-closeout';
 export const runtime='nodejs';
@@ -18,7 +18,10 @@ export async function GET(request:Request) {
 export async function POST(request:Request) {
   try {
     requireCrewPhone(request);
-    const receipt=await submitCrewCloseout(request,await crewPhoneBody(request,16*1024));
+    const body=await crewPhoneBody(request,16*1024);
+    const simulated=await simulateCrewCloseout(request,body);
+    if(simulated)return crewPhoneResponse({receipt:simulated});
+    const receipt=await submitCrewCloseout(request,body);
     if(receipt.status==='verified' && receipt.sourceResult)after(async()=>{await publishVerifiedCloseout(receipt.sourceResult!,receipt.recordId.split(':appointment:')[1]);});
     requireCrewPhone(request);
     return crewPhoneResponse({receipt:crewReceiptProjection(receipt)},receipt.status==='verified'?200:receipt.status==='failed'?422:202);

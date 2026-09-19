@@ -1,3 +1,4 @@
+import { crewCheckoutDryRun } from './crew-checkout-dry-run';
 import { requireCrewDay,closeoutCrewDefaults } from './crew-phone-day';
 import { CrewPhoneError } from './crew-phone';
 import { requireCrewPhone } from './crew-phone-http';
@@ -36,7 +37,7 @@ export async function loadCrewCloseout(request:Request,assignmentId:string,deps=
     if(result.appointmentId!==current.appointmentId || result.closeout?.truck!==phone.truck)throw new CrewPhoneError('The source appointment changed. Contact dispatch.',409);
     const pending=await readPendingScheduleReceipt(job.recordId),actor=actorFor(phone.deviceId,current.assignmentId);
     const day=result.closeout.status?.value==='1' && !pending?requireCrewDay(phone,current.date):null;
-    return {crewVersion:day?.version || 0,crewDefaults:day?closeoutCrewDefaults(day,result.closeout):undefined,closeout:result.closeout,sourceVersion:closeoutSourceVersion(result.closeout),jobVersion:job.version,
+    return {dryRun:crewCheckoutDryRun(current,phone.truck),crewVersion:day?.version || 0,crewDefaults:day?closeoutCrewDefaults(day,result.closeout):undefined,closeout:result.closeout,sourceVersion:closeoutSourceVersion(result.closeout),jobVersion:job.version,
       canWrite:result.closeout.status?.value==='1' && (!pending || pending.actor===actor),pendingReceipt:pending?.actor===actor?crewReceiptProjection(pending):null,
       message:pending && pending.actor!==actor?'The office must verify an earlier change before this appointment can be closed.':result.closeout.status?.value==='8'?'This appointment is already completed in JunkWare. Refresh your assignment.':undefined};
   });
@@ -45,6 +46,7 @@ export async function submitCrewCloseout(request:Request,body:Record<string,unkn
   const phone=requireCrewPhone(request),assignmentId=String(body.assignmentId || '');
   const current=readCrewDispatch(phone.truck).current;
   if(!current || current.assignmentId!==assignmentId)throw new CrewPhoneError('Dispatch changed. Refresh your assignment.',409);
+  if(crewCheckoutDryRun(current,phone.truck))throw new CrewPhoneError('This is a dry run. Live closeout writes are disabled.',409);
   if(Object.keys(body).some(key=>!['assignmentId','requestId','expectedVersion','crewVersion','values'].includes(key)))throw new CrewPhoneError('Use the current closeout screen.');
   const operation=parseScheduleOperation({requestId:body.requestId,date:current.date,recordId:`${current.date}:appointment:${current.appointmentId}`,expectedVersion:body.expectedVersion,action:'closeout',values:body.values});
   validateCrewCloseout(operation.values,phone.truck,current.appointmentId,current.date);
@@ -101,4 +103,14 @@ export async function checkCrewCloseout(request:Request,assignmentId:string,requ
   const receipt=reconcile?await reconcileCloseoutReceipt(requestId,actor,id=>withJunkwareAppointmentSyncLock(id,async()=>{requireCrewPhone(request);return(await deps.read(id)).closeout;})):initial;
   requireCrewPhone(request);
   return receipt!;
+}
+
+export async function simulateCrewCloseout(request:Request,body:Record<string,unknown>) {
+  const phone=requireCrewPhone(request),current=readCrewDispatch(phone.truck).current;
+  if(!current || current.assignmentId!==body.assignmentId)throw new CrewPhoneError('Dispatch changed. Refresh your assignment.',409);
+  const dryRun=crewCheckoutDryRun(current,phone.truck);
+  if(!dryRun){if(body.dryRun===true)throw new CrewPhoneError('Dry-run protection changed. Reload before continuing.',409);return null;}
+  const operation=parseScheduleOperation({requestId:body.requestId,date:current.date,recordId:`${current.date}:appointment:${current.appointmentId}`,expectedVersion:body.expectedVersion,action:'closeout',values:body.values});
+  validateCrewCloseout(operation.values,phone.truck,current.appointmentId,current.date);
+  return {requestId:operation.requestId,action:'closeout',status:'reconciled',dryRun:true,message:'Dry run complete. Nothing was uploaded or saved to JunkWare. No customer receipt was sent.'};
 }

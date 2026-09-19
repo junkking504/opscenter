@@ -1,4 +1,5 @@
 export type OperationReceipt = {
+  dryRun?: boolean;
   requestId: string;
   status: 'pending' | 'verified' | 'failed' | 'uncertain' | 'reconciled';
   message: string;

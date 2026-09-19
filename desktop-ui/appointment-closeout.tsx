@@ -1,5 +1,6 @@
 "use client";
 
+import { checkoutFieldsKey, sameCheckoutFields } from '../app/crew-jobs/photo-checkout';
 import { closeoutPhotoCount, CLOSEOUT_PHOTOS_REQUIRED, type CloseoutPhotoEvidence } from '../lib/closeout-photo-policy';
 import { closeoutGpsTimes, closeoutChargesSummary, type CloseoutTimeKey } from '../lib/closeout-draft-summary';
 import { automaticSizePrice } from '../lib/closeout-load-price';
@@ -57,11 +58,12 @@ function inputMoney(value: string): string {
 
 export type CloseoutJob = Pick<ScheduleAppointment,'appointmentId'|'appointmentUrl'|'status'|'appointmentType'|'onsiteTime'|'truck'|'jkNumber'|'customerName'|'recordId'|'version'>;
 export type CloseoutTransport = {
-  load: () => Promise<{closeout:LiveCloseout;sourceVersion:string;canWrite:boolean;crewDefaults?:{version:number;driver:Option;navigators:Option[]};pendingReceipt?:Receipt|null;message?:string}>;
+  load: () => Promise<{closeout:LiveCloseout;sourceVersion:string;canWrite:boolean;dryRun?:boolean;crewDefaults?:{version:number;driver:Option;navigators:Option[]};pendingReceipt?:Receipt|null;message?:string}>;
+  prepare?:()=>Promise<void>;
   send: (values:Record<string,unknown>,requestId:string)=>Promise<Receipt>;
   check: (requestId:string)=>Promise<Receipt>;
 };
-export default function AppointmentCloseout({ job, date: serviceDate, saved, onBusyChange, presentation = 'drawer', onBackToAppointment, photoRevision, transport, draftKey, photoSteps }: { job: CloseoutJob; date: string; saved: () => void; onBusyChange: (busy: boolean) => void; presentation?: 'drawer' | 'mobile'; onBackToAppointment?: () => void; photoRevision?: number; transport?:CloseoutTransport; draftKey?:string; photoSteps?:{render:(category:'before'|'after')=>ReactNode;canContinue:(category:'before'|'after')=>boolean;busy:boolean} }) {
+export default function AppointmentCloseout({ job, date: serviceDate, saved, onBusyChange, presentation = 'drawer', onBackToAppointment, photoRevision, transport, draftKey, photoSteps, dryRun=false }: { job: CloseoutJob; date: string; saved: () => void; onBusyChange: (busy: boolean) => void; presentation?: 'drawer' | 'mobile'; onBackToAppointment?: () => void; photoRevision?: number; transport?:CloseoutTransport; draftKey?:string;dryRun?:boolean; photoSteps?:{render:(category:'before'|'after')=>ReactNode;hasPhotos:boolean;busy:boolean} }) {
   const crewMode=Boolean(transport);
   const photoWorkflow=Boolean(photoSteps);
   const { appointmentId, appointmentUrl, status: initialStatus } = job;
@@ -142,7 +144,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       const fields:Record<string,unknown>={};
       for(const key of ['loadQuantity','loadPrice','bedloadQuantity','bedloadPrice','discount','tip'] as const)fields[key]=live[key];
       for(const key of ['loadSize','bedloadSize','jobCategory','howHeard','actualStartHour','actualStartMinute','actualEndHour','actualEndMinute'] as const)fields[key]=live[key]?.value;
-      writeCloseoutLocal(`${draftKey}:draft`,{sourceVersion,crewVersion:dailyCrew.current?.version || 0,fields,driverId:live.driver.value,navigatorIds:live.navigators.map(row=>row.value),category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentReference,pendingOtherCharges,mobileStep,photoWorkflow});
+      writeCloseoutLocal(`${draftKey}:draft`,{sourceVersion,crewVersion:dailyCrew.current?.version || 0,fields,driverId:live.driver.value,navigatorIds:live.navigators.map(row=>row.value),category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentReference,pendingOtherCharges,mobileStep,photoWorkflow,sourceFields:photoWorkflow && sourceBaseline.current?checkoutFieldsKey(sourceBaseline.current):undefined});
     }catch {setDraftNotice('This browser cannot retain the draft. Keep this page open until the saved result is verified.');}
   },[draftKey,live,loading,receipt,sourceVersion,category,estimateReason,estimateExplanation,noDiscountReason,addPayment,paymentMethod,paymentAmount,paymentReference,pendingOtherCharges,mobileStep,photoWorkflow]);
 
@@ -203,7 +205,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       setMessage(payload.message || '');
       if(draftKey && !payload.pendingReceipt && payload.canWrite){
         const draft=readCloseoutLocal<Record<string,unknown>>(`${draftKey}:draft`);
-        if(draft && draft.sourceVersion===payload.sourceVersion && Number(draft.crewVersion || 0)===(dailyCrew.current?.version || 0)){
+        if(draft && (draft.sourceVersion===payload.sourceVersion || (photoWorkflow && draft.sourceFields===checkoutFieldsKey(source))) && Number(draft.crewVersion || 0)===(dailyCrew.current?.version || 0)){
           try {
             const fields=draft.fields as Record<string,string>;
             const restored={...withTimes};
@@ -330,8 +332,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       return;
     }
     const completing = targetStatus === '8';
-    if (completing && !closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId)) {
-      setError(CLOSEOUT_PHOTOS_REQUIRED); return;
+    if (completing && !closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId) && !(transport?.prepare && photoSteps?.hasPhotos)) {
+      setError(transport?.prepare?'Add job photos before submitting checkout. They upload after final confirmation.':CLOSEOUT_PHOTOS_REQUIRED); return;
     }
     if ((completing || live.truck) && !truck) {
       setError('Choose the truck above Krewe Assigned to This Job.');
@@ -374,6 +376,15 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     setError("");
     setMessage("");
     try {
+      let preparedSourceVersion=sourceVersion;
+      if(transport?.prepare){
+        await transport.prepare();
+        const fresh=await readSource();
+        if(!fresh.canWrite || fresh.pendingReceipt || !sourceBaseline.current || !sameCheckoutFields(sourceBaseline.current,fresh.closeout) || (dailyCrew.current?.version || 0)!==(fresh.crewDefaults?.version || 0))throw new Error('The appointment or crew changed during submission. Reload from JunkWare and review before saving. Your payment has not been submitted.');
+        if(!fresh.dryRun && !closeoutPhotoCount(fresh.closeout.photoEvidence,resolvedAppointmentId))throw new Error('JunkWare has not verified the photos yet. Submit checkout again to check their saved result. Your payment has not been submitted.');
+        sourceBaseline.current=fresh.closeout;preparedSourceVersion=fresh.sourceVersion;
+        setLive(current=>current?{...current,photoEvidence:fresh.closeout.photoEvidence}:current);setSourceVersion(fresh.sourceVersion);
+      }
       const requestId = crypto.randomUUID();
       const result = await send('closeout', {
         ...{
@@ -403,13 +414,14 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
           actualEndHour: live.actualEndHour.value,
           actualEndMinute: live.actualEndMinute.value,
           addPayment: addPayment ? { methodId: paymentMethod, amount: inputMoney(paymentAmount), reference: paymentReference.trim() } : null,
-        }, expectedSourceVersion: sourceVersion, appointmentType: category, ...(completingEstimate ? { estimateOutcome: {
+        }, expectedSourceVersion: preparedSourceVersion, appointmentType: category, ...(completingEstimate ? { estimateOutcome: {
           reason: estimateReason,
           explanation: estimateExplanation.trim(),
           ...(noDiscountRequired ? { noDiscountReason: noDiscountReason.trim() } : {}),
         } } : {}),
       }, requestId).catch(() => ({ requestId, status: 'uncertain', message: 'The closeout result could not be confirmed. Check Saved Result before another change.' } as Receipt));
       setReceipt(result);
+      if(result.dryRun){setMessage(result.message || 'Dry run complete. Nothing was saved to JunkWare.');saved();return;}
       if (result.status === 'failed') { setReviewing(false); setDifferenceReviewed(false); }
       if (result.status !== 'verified' || !result.sourceResult?.closeout) return;
       const payload = result.sourceResult as { closeout: LiveCloseout; truckLoadStatus?: { updated?: boolean; status?: { truck?: string; currentLoadLabel?: string }; reason?: string } };
@@ -461,19 +473,18 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   const money = (amount:number) => Number.isFinite(amount) ? new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(amount) : 'Check amounts';
 
   const pendingReceipt = Boolean(receipt && ['pending','uncertain'].includes(receipt.status));
-  const verified = receipt?.status === 'verified';
+  const verified = receipt?.status === 'verified' || receipt?.dryRun===true;
   const draftBalance = totals && live ? totals.total-live.payments.filter(payment=>!/^billed/i.test(payment.description)).reduce((sum,payment)=>sum+Number(inputMoney(payment.amount)),0) : 0;
   const paymentDifference = addPayment && targetStatus !== '9' ? Number(inputMoney(paymentAmount))-draftBalance : 0;
   const timeLabel = (hour:string,minute:string) => hour && minute ? `${Number(hour)%12 || 12}:${minute.padStart(2,'0')} ${Number(hour)>=12?'PM':'AM'}` : 'Not entered';
   const stepLabels=photoSteps ? ['Before photos','Charges','After photos','Payment','Review'] : ['Details','Charges','Payment','Review'];
   const currentPhotoCategory=photoSteps && (mobileStep===0 || mobileStep===2) ? mobileStep===0?'before':'after' : null;
-  const photoBlocked=Boolean(photoSteps && (photoSteps.busy || (currentPhotoCategory && !photoSteps.canContinue(currentPhotoCategory)) || (mobileStep>0 && !photoSteps.canContinue('before')) || (mobileStep>2 && !photoSteps.canContinue('after'))));
+  const photoBlocked=Boolean(photoSteps?.busy);
   const nextMobileStep = mobile && mobileStep < stepLabels.length-2 && !reviewing && !pendingReceipt && !verified && targetStatus !== '9';
   const actions = expanded && live ? <div className="closeout-primary-actions">
-    <div className="closeout-action-context"><strong>{pendingReceipt ? 'Check the previous save' : verified ? 'Saved and verified' : reviewing ? 'Ready to confirm' : 'Review before saving'}</strong>{totals && targetStatus!=='9' && <span>{money(totals.total)}{totals.estimated ? ' estimated' : ''}</span>}</div>
+    <div className="closeout-action-context"><strong>{pendingReceipt ? 'Check the previous save' : receipt?.dryRun ? 'Dry run complete' : verified ? 'Saved and verified' : reviewing ? 'Ready to confirm' : 'Review before saving'}</strong>{totals && targetStatus!=='9' && <span>{money(totals.total)}{totals.estimated ? ' estimated' : ''}</span>}</div>
     {error && <p role="alert">{error}</p>}
-    {photoSteps && photoBlocked && !photoSteps.busy && <p role="status">{currentPhotoCategory ? `Save the ${currentPhotoCategory} photos in JunkWare to continue.` : 'Return to the photo step to finish uploading or check the saved result.'}</p>}
-    <button type="button" className="ops-button closeout-primary-button" onClick={()=>void (nextMobileStep ? setMobileStep(mobileStep + 1) : pendingReceipt ? check() : verified ? load() : save())} disabled={saving || loading || (!pendingReceipt && !verified && (!canWrite || photoBlocked))}>{nextMobileStep ? `Continue to ${stepLabels[mobileStep+1].toLowerCase()}` : saving ? "Saving and checking JunkWare…" : pendingReceipt ? 'Check Saved Result' : verified ? 'Reload saved closeout' : targetStatus === '9' ? reviewing ? 'Confirm Cancellation in JunkWare' : 'Review Cancellation' : targetStatus === '1' ? reviewing ? 'Confirm Changes in JunkWare' : 'Review Changes' : reviewing ? `Confirm ${category} Closeout in JunkWare` : "Review Closeout"}</button>
+    <button type="button" className="ops-button closeout-primary-button" onClick={()=>void (nextMobileStep ? setMobileStep(mobileStep + 1) : pendingReceipt ? check() : verified ? load() : save())} disabled={saving || loading || (!pendingReceipt && !verified && (!canWrite || photoBlocked))}>{nextMobileStep ? `Continue to ${stepLabels[mobileStep+1].toLowerCase()}` : saving ? "Uploading and verifying checkout…" : pendingReceipt ? 'Check Saved Result' : verified ? receipt?.dryRun ? 'Start another dry run' : 'Reload saved closeout' : targetStatus === '9' ? reviewing ? 'Confirm Cancellation in JunkWare' : 'Review Cancellation' : targetStatus === '1' ? reviewing ? 'Confirm Changes in JunkWare' : 'Review Changes' : reviewing ? crewMode ? "Submit checkout" : `Confirm ${category} Closeout in JunkWare` : "Review Closeout"}</button>
     <div className="closeout-secondary-actions">{mobile && mobileStep > 0 && !reviewing && (!receipt || receipt.status==='failed') && <button type="button" disabled={saving || loading || photoSteps?.busy} onClick={()=>setMobileStep(mobileStep-1)}>Previous step</button>}{reviewing && <button type="button" onClick={()=>{setReviewing(false);setDifferenceReviewed(false);}} disabled={saving}>Edit details</button>}<button type="button" onClick={()=>{if(mobile && onBackToAppointment) onBackToAppointment(); else if(panel.current)panel.current.open=false;}} disabled={saving || loading || photoSteps?.busy}>Back to appointment</button></div>
   </div> : null;
 
@@ -482,14 +493,14 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       <summary><span className="closeout-summary-title">Appointment Closeout</span><span className="closeout-summary-action" aria-hidden="true"><span className="closeout-open-label">Open</span><span className="closeout-hide-label">Hide</span><span className="closeout-summary-chevron">⌄</span></span></summary>
       <div className="appointment-closeout-body">
         {draftNotice && <p role="status">{draftNotice}</p>}
-        {live && <p className="closeout-photo-requirement" role="status">{closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId) ? `${closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId)} uploaded job photo(s) verified.` : CLOSEOUT_PHOTOS_REQUIRED}</p>}
-        {mobile && live && <nav className="mobile-closeout-steps" aria-label="Closeout steps">{stepLabels.map((label,index)=><button key={label} type="button" aria-current={(reviewing ? index===stepLabels.length-1 : mobileStep===index) ? 'step' : undefined} disabled={saving || loading || Boolean(receipt && receipt.status !== 'failed') || index===stepLabels.length-1 || Boolean(photoSteps && (photoSteps.busy || index>mobileStep+1 || (index>mobileStep && photoBlocked)))} onClick={()=>{setMobileStep(index);setReviewing(false);}}><span>{index+1}</span>{label}</button>)}</nav>}
+        {live && !photoSteps && <p className="closeout-photo-requirement" role="status">{closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId) ? `${closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId)} uploaded job photo(s) verified.` : CLOSEOUT_PHOTOS_REQUIRED}</p>}
+        {mobile && live && <nav className="mobile-closeout-steps" aria-label="Closeout steps">{stepLabels.map((label,index)=><button key={label} type="button" aria-current={(reviewing ? index===stepLabels.length-1 : mobileStep===index) ? 'step' : undefined} disabled={saving || loading || photoSteps?.busy || Boolean(receipt && receipt.status !== 'failed') || index===stepLabels.length-1 || Boolean(photoSteps && (photoSteps.busy || index>mobileStep+1 || (index>mobileStep && photoBlocked)))} onClick={()=>{setMobileStep(index);setReviewing(false);}}><span>{index+1}</span>{label}</button>)}</nav>}
         {live && photoSteps && <div hidden={!currentPhotoCategory || reviewing || Boolean(receipt && receipt.status!=='failed')} className="closeout-photo-step">{photoSteps.render(mobileStep>=2?'after':'before')}</div>}
         {receipt && <>{receipt.action && receipt.action !== 'closeout' && ['pending', 'uncertain'].includes(receipt.status) && <p role="alert">Closeout is locked until the earlier {receipt.action === 'move' ? 'assignment change' : 'appointment change'} is checked in JunkWare. This is not a closeout result.</p>}<ChangeReceipt receipt={receipt} onCheck={() => { void check(); }} /></>}
         {!live ? (
           loading ? <p role="status">Loading current JunkWare closeout…</p> : error ? (
             <button type="button" className="ops-button" onClick={() => void load()} disabled={!resolvedAppointmentId}>Retry loading closeout</button>
-          ) : message ? <button type="button" className="ops-button" onClick={() => void load()} disabled={saving || !resolvedAppointmentId}>Reload from JunkWare</button> : null
+          ) : message ? <button type="button" className="ops-button" onClick={() => void load()} disabled={saving || photoSteps?.busy || !resolvedAppointmentId}>Reload from JunkWare</button> : null
         ) : (
           <>
             <fieldset onChange={() => { setReviewing(false); setDifferenceReviewed(false); }} className="desktop-closeout-fields" disabled={saving || Boolean(receipt && receipt.status !== 'failed')}>
@@ -510,7 +521,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               {addPayment && Math.abs(paymentDifference)>0.01 && <div className="closeout-payment-difference"><strong>{paymentDifference>0 ? `${money(paymentDifference)} above the draft balance` : `${money(-paymentDifference)} remains after this entry`}</strong><p>Draft balance {money(draftBalance)} · Payment entered {money(Number(inputMoney(paymentAmount)))}. Check charges, tip and payment amount{totals!.estimated ? '; percentage fees are estimates' : ''}.</p>{paymentDifference>0 && <label><input type="checkbox" checked={differenceReviewed} onChange={event=>{event.stopPropagation();setDifferenceReviewed(event.target.checked);setError('');}}/><span>I checked this payment difference</span></label>}</div>}
               {category==='Estimate' && targetStatus==='8' && <p>Estimate outcome: {estimateReason} · {estimateExplanation}{noDiscountReason ? ` · No discount: ${noDiscountReason}` : ''}</p>}
               </>}
-              <p className="closeout-confirm-note">Confirmation saves this {targetStatus==='9' ? 'cancellation' : 'appointment'} in JunkWare.{targetStatus==='8' ? ' Completion may send the normal closeout alert.' : ''}</p>
+              <p className="closeout-confirm-note">{dryRun ? "Dry run only. Nothing will be uploaded or saved to JunkWare, and no customer receipt will be sent." : <>Confirmation saves this {targetStatus==='9' ? 'cancellation' : 'appointment'} in JunkWare.{targetStatus==='8' ? ' Completion may send the normal closeout alert.' : ''}</>}</p>
             </div>}
             <p className="closeout-step-note">{reviewing ? 'Review the summary above, or edit any field below.' : '1. Job details and charges → 2. Review → 3. Confirm in JunkWare'}</p>
             <fieldset data-closeout-step={photoSteps ? "1" : "0"} className="ops-closeout-status-options"><legend>Status</legend>
@@ -661,7 +672,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             </>}
             {!canWrite && <p role="status">{crewMode?"This closeout is read-only. Check the saved result or contact dispatch.":"Your role can read this closeout. A manager must save changes."}</p>}
             </fieldset>
-            <button type="button" className="ops-button subtle" onClick={() => void load()} disabled={saving || loading || Boolean(receipt && ['pending', 'uncertain'].includes(receipt.status))}>Reload from JunkWare</button>
+            <button type="button" className="ops-button subtle" onClick={() => void load()} disabled={saving || loading || photoSteps?.busy || Boolean(receipt && ['pending', 'uncertain'].includes(receipt.status))}>Reload from JunkWare</button>
           </>
         )}
         {message ? <div className="ops-closeout-editor-message success">{message}</div> : null}

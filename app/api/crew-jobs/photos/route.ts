@@ -1,3 +1,5 @@
+import {readCrewDispatch} from '@/lib/crew-dispatch-store';
+import {crewCheckoutDryRun} from '@/lib/crew-checkout-dry-run';
 import { crewPhoneBody, crewPhoneFailure, crewPhoneResponse, requireCrewPhone } from '@/lib/crew-phone-http';
 import { withCrewJob } from '@/lib/crew-job-scope';
 import { CrewPhoneError } from '@/lib/crew-phone';
@@ -26,9 +28,12 @@ export async function GET(request:Request) {
 }
 export async function POST(request:Request) {
   try {
-    requireCrewPhone(request);
+    const phone=requireCrewPhone(request);
     const body=parseCrewPhoto(await crewPhoneBody(request,6*1024*1024));
+    const current=readCrewDispatch(phone.truck).current;
+    if(current?.assignmentId===body.assignmentId && crewCheckoutDryRun(current,phone.truck))throw new CrewPhoneError('This is a dry run. Photos stay on the phone and are not uploaded to JunkWare.',409);
     return await withCrewJob(request,body.assignmentId,async({phone,current,job})=>{
+      if(crewCheckoutDryRun(current,phone.truck))throw new CrewPhoneError('This is a dry run. Photos stay on the phone and are not uploaded to JunkWare.',409);
       const receipt=await uploadCrewPhoto(body,{deviceId:phone.deviceId,appointmentId:current.appointmentId},filePath=>uploadJunkwareJobPhoto({appointmentId:current.appointmentId,jkNumber:job.jkNumber,filePath,category:body.category}));
       return crewPhoneResponse({receipt:crewPhotoProjection(receipt)},receipt.status==='verified'?200:202);
     });

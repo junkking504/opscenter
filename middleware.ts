@@ -157,14 +157,14 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
 
   // Dedicated public inspection origin: never expose management or webhooks here.
   if (["convoy.junk-king.app", "inspect.junk-king.app"].includes(hostname)) {
-    if (pathname === "/") return NextResponse.redirect(new URL(`https://${hostname}/truck-inspection`));
+    if (pathname === "/") return NextResponse.redirect(new URL("https://waypoint.junk-king.app/crew-jobs?tab=inspections"));
     if (INSPECTION_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
     return new NextResponse("Not Found", { status: 404 });
   }
 
   // OpsCenter's same-origin entry link opens the dedicated phone app.
   if (hostname === "ops.junk-king.app" && pathname === "/truck-inspection") {
-    return NextResponse.redirect(new URL("https://convoy.junk-king.app/"));
+    return NextResponse.redirect(new URL("https://waypoint.junk-king.app/crew-jobs?tab=inspections"));
   }
 
   if (isSmsHostname) {

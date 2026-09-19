@@ -387,3 +387,31 @@ JunkWare options and is no later than Closeout on the service day. It records
 manual provenance in the operation receipt; manual times never override GPS. Receipt retries
 return the original result and never advance End or repeat a source write.
 The assignment-scoped dummy flow remains a simulation with no source writes.
+
+## Unified Waypoint crew app — September 19, 2026
+
+Waypoint at `https://waypoint.junk-king.app/crew-jobs` contains Jobs,
+Inspections and Crew. All three use the existing manager-enrolled, truck-scoped
+company-phone session. The inspection endpoint `/api/crew-jobs/inspection`
+uses that session and enforces its assigned truck before writing to the existing
+Fleet inspection store. It retains same-origin writes, bounded photo payloads,
+idempotent report references and device-scoped receipt recovery. An old
+self-issued inspection session cannot access the crew app.
+
+Tab switches keep the jobs and inspection components mounted so unfinished
+work survives navigation. Crew setup remains required to retrieve assignments;
+inspection completion does not introduce a new job gate.
+
+The approved five-point crown and winding road use red, gold and charcoal.
+Source: `assets/waypoint/waypoint-crown-road-v1-source.png`. Versioned PNGs
+in `public/crew-jobs/` provide 32, 180, 192 and 512 pixel icons. The manifest,
+Apple icon, favicon and header use this mark. Prior versioned icons remain
+available for cached clients.
+
+Convoy and Inspect hostname roots open Waypoint's Inspections section. Existing
+installed inspection apps can finish a saved draft on their original
+`/truck-inspection` page, then open Waypoint. Cookies and IndexedDB drafts are
+origin-bound and are not silently transferred. Old shortcuts are not automatically
+merged: install Waypoint from its canonical address and retire the old shortcut
+after any pending receipt is recovered. Legacy Kingpin/jobs links remain available;
+phones should use the canonical Waypoint origin for the unified installation.

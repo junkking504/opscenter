@@ -1,18 +1,16 @@
 # Five-point morning inspections
 
-Any company phone opens `https://convoy.junk-king.app/`. The inspector selects the truck
-at the start of each inspection, then enters their name and mileage. There is
-no setup code, employee login or fixed phone-to-truck assignment. A new report
-starts with no truck selected. Reloading an unfinished draft preserves its
-selected truck, answers and photos. Changing its truck after checks or photos
-have been entered asks before clearing the unfinished checklist and creating a
-new report reference; cancelling preserves the draft.
+Company phones use [Waypoint](https://waypoint.junk-king.app/crew-jobs?tab=inspections),
+which combines jobs, inspections and daily crew. Managers enroll each phone to
+one truck. The inspector enters their name and mileage; the phone's assigned
+truck is fixed for the report. Each morning they complete five sections, record
+truck fullness and fuel, choose an operating status and initial the report.
+Inspector names remain self-reported. Crew suggestions come only from that
+phone's daily crew assignment.
 
-Each morning, the inspector checks five sections, records truck fullness and
-fuel-tank level, chooses a final
-operating status and initials the report. Names and truck selections are
-self-reported, not proof of identity or company ownership. The public phone API
-does not expose the crew roster.
+Drafts remain on the phone while switching sections or reloading. Older Convoy
+installations can finish drafts on their original `/truck-inspection` page.
+See the consolidation section below for origin and shortcut migration.
 
 ## Source forms
 
@@ -71,12 +69,12 @@ added. A draft is not represented as received by OpsCenter. Photos and answers
 remain on the phone until receipt is confirmed; the completed draft is then
 removed. Users should keep the page open if device storage is unavailable.
 
-## Access boundary
+## Legacy inspection access boundary
 
-The dedicated public `convoy.junk-king.app` origin redirects `/` to the inspection
-page and permits only the exact inspection page, manifest, icon,
+The dedicated public `convoy.junk-king.app` origin redirects `/` to Waypoint
+and retains only the exact legacy inspection page, manifest, icon,
 `/api/truck-inspection` and Next assets. Management, authentication and webhook
-routes return 404 on this origin. OpsCenter's Truck Check entry redirects here.
+routes return 404 on this origin. OpsCenter's Truck Check entry opens Waypoint.
 The hostname uses a proxied CNAME to the existing `opscenter-mission-control`
 tunnel (`30d8a080-e2d1-4452-b463-4ba2ba8e57ba`). Its dedicated local ingress in
 `~/.cloudflared/opscenter-mission-control.yml` forwards only this hostname to
@@ -86,13 +84,13 @@ subscription or metered provider is used.
 
 The legacy `inspect.junk-king.app` and `hooks.junk-king.app/truck-inspection`
 addresses remain usable for existing drafts and receipt recovery. The inspect
-origin keeps its own root redirect and the same narrow inspection route allowlist;
-it does not force an unfinished inspection across origins. Browser storage and
+origin also redirects its root to Waypoint and retains the same narrow legacy
+inspection route allowlist. Direct legacy page URLs remain on their original origin. Browser storage and
 phone cookies belong to their origin; they are not copied across domains. Saved reports remain in OpsCenter.
 Existing webhook routes are unchanged. OpsCenter's management origin serves `/fleet-inspections`.
 The Crew Portal and its authentication are not modified.
 
-The browser connects automatically with a random 256-bit key and a Secure,
+Previously loaded legacy clients can connect with a random 256-bit key and a Secure,
 HTTP-only, SameSite Strict cookie over HTTPS. The key is retained locally until
 connection is confirmed so a retry returns the same device. Only its hash is
 stored on the server. This connection identifies the phone for drafts and
@@ -229,3 +227,13 @@ reference: preserve the red gear, gold outline and dark background; replace the
 white wrench with a solid red crown bordered in gold, centered within the ring.
 The crown has no JK lettering, white markings or other interior details.
 The user selected this preview on September 19, 2026.
+
+## Waypoint consolidation — September 19, 2026
+
+New phone inspections live in Waypoint alongside Jobs and Crew. See
+[Unified Waypoint crew app](mobile-job-closeout.md#unified-waypoint-crew-app--september-19-2026)
+for session, truck assignment, icon and migration details. The previous
+`/truck-inspection` client opens existing drafts only; it no longer creates new
+self-service phone connections. Legacy APIs remain available for already-loaded
+clients and receipt recovery. Fleet/Convoy manager reporting continues to read
+the same durable inspection store, including reports from enrolled crew phones.

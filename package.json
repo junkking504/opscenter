@@ -127,7 +127,8 @@
     "verify:crew-job-photos": "node --import tsx scripts/test-crew-job-photos.ts && node --import tsx scripts/test-crew-job-scope.ts",
     "verify:crew-closeout": "node --import tsx scripts/test-crew-closeout.ts && node --import tsx scripts/test-crew-closeout-time.ts",
     "verify:crew-phone-day": "node --import tsx scripts/test-crew-phone-day.ts",
-    "verify:crew-checkout": "node --import tsx scripts/test-checkout-photo-submit.ts && node --import tsx scripts/test-crew-checkout-dry-run.ts"
+    "verify:crew-checkout": "node --import tsx scripts/test-checkout-photo-submit.ts && node --import tsx scripts/test-crew-checkout-dry-run.ts",
+    "verify:crew-inspection": "node --import tsx scripts/test-crew-inspection.ts"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

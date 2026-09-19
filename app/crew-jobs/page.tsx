@@ -5,6 +5,7 @@ import type { CrewCurrent } from '@/lib/crew-dispatch';
 import styles from './phone-access.module.css';
 import JobCloseout from './job-closeout';
 import DailyCrew from './daily-crew';
+import TruckInspectionApp from '@/components/TruckInspectionApp';
 import {chicagoDateKey} from '@/lib/chicago-date';
 import { clearCrewCloseoutDrafts, crewCloseoutKey } from '../../desktop-ui/lib/closeout-drafts';
 import { clearCrewPhotoDrafts } from './job-photos';
@@ -12,6 +13,14 @@ import { clearCrewPhotoDrafts } from './job-photos';
 const pendingKey = 'ops-crew-phone-enrollment-v1';
 type Pending = { code: string; connectionKey: string };
 export default function CrewPhoneSetup() {
+  const [tab, setTab] = useState<'jobs' | 'inspections' | 'crew'>('jobs');
+  const [inspectionVisited, setInspectionVisited] = useState(false);
+  const [inspectionBusy, setInspectionBusy] = useState(false);
+  function selectTab(next: 'jobs' | 'inspections' | 'crew') {
+    setTab(next); if (next === 'inspections') setInspectionVisited(true);
+    history.replaceState(null, '', `${location.pathname}?tab=${next}`);
+  }
+  useEffect(() => { const initial = new URLSearchParams(location.search).get('tab'); if (initial === 'inspections' || initial === 'crew') selectTab(initial); }, []);
   const [phone, setPhone] = useState<CrewPhone | null>(null);
   const [day,setDay]=useState<CrewPhoneDay|null>(null),[dayDate,setDayDate]=useState(''),[roster,setRoster]=useState<string[]>([]),[editingCrew,setEditingCrew]=useState(false);
   const [code, setCode] = useState('');
@@ -94,7 +103,7 @@ export default function CrewPhoneSetup() {
     finally { inFlight.current = false; setBusy(false); }
   }
   async function disconnect() {
-    if(inFlight.current || busy)return;
+    if(inFlight.current || busy || inspectionBusy)return;
     inFlight.current=true;setBusy(true);setError('');
     try {
       const response=await fetch(CREW_PHONE_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'disconnect'})});
@@ -105,23 +114,32 @@ export default function CrewPhoneSetup() {
     finally{inFlight.current=false;setBusy(false);}
   }
   return <main className={styles.page}><div className={styles.content}>
-    <header className={styles.header}><div className={styles.brand}>Waypoint<small>JUNK KING</small></div><span className={styles.badge}>{phone?.truck || 'Company phone'}</span></header>
+    <header className={styles.header}><div className={styles.brandLockup}><img src="/crew-jobs/waypoint-crown-road-v1-180.png" width="52" height="52" alt=""/><div className={styles.brand}>Waypoint<small>JUNK KING</small></div></div><span className={styles.badge}>{phone?.truck || 'Company phone'}</span></header>
+    <p className={styles.tagline}>Jobs · Inspections · Crew</p>
     {loading ? <p role="status">Checking this phone…</p> : phone ? <>
-      {jobLoading ? <p role="status">Checking today’s crew and current assignment…</p> : dayDate && (!day || editingCrew) ? <DailyCrew key={`${phone.deviceId}:${dayDate}:${day?.version || 0}`} date={dayDate} roster={roster} day={day} onBusy={setBusy} onSaved={()=>void loadJob()} onCancel={()=>setEditingCrew(false)}/> : assignment?.state==='waiting' ? <><h1>Waiting for assignment</h1><p>Dispatch will send your next job here.</p></> : assignment?.state==='assigned' && assignment.job ? <>
+      <nav className={styles.tabs} aria-label="Waypoint sections">{(['jobs', 'inspections', 'crew'] as const).map(section => <button key={section} aria-current={tab === section ? 'page' : undefined} disabled={busy || inspectionBusy} onClick={() => selectTab(section)}>{section === 'jobs' ? 'Jobs' : section === 'inspections' ? 'Inspections' : 'Crew'}</button>)}</nav>
+      <section hidden={tab !== 'jobs'} aria-label="Jobs">
+      {jobLoading ? <p role="status">Checking today’s crew and current assignment…</p> : !day ? <><h1>Set up today’s crew</h1><p>Confirm the driver and navigator before opening your jobs.</p><button className={styles.primary} onClick={() => selectTab('crew')}>Set up today’s crew</button></> : assignment?.state==='waiting' ? <><h1>Waiting for assignment</h1><p>Dispatch will send your next job here.</p></> : assignment?.state==='assigned' && assignment.job ? <>
         <h1>{details?'Job details':'Current job'}</h1>
         <section className={styles.card}><p className={styles.muted}>{assignment.job.jkNumber} · {assignment.job.appointmentTime}</p><h2>{assignment.job.customerName}</h2><p>{assignment.job.address}</p>
           {details && closeout ? <JobCloseout key={assignment.job.assignmentId} job={assignment.job} truck={phone.truck} deviceId={phone.deviceId} onBusyChange={setBusy} onBack={()=>setCloseout(false)} onNext={()=>void loadJob()}/> : details ? <><h2>Items to remove</h2><p>{assignment.job.junkItems.join(', ') || 'See job notes.'}</p><h2>Job notes</h2>{assignment.job.appointmentNotes.length?assignment.job.appointmentNotes.map((note,index)=><p key={index}>{note}</p>):<p>No job notes.</p>}<h2>Assigned crew</h2><p>{day?.driver || assignment.job.driver} · Driver</p><p>{day?.navigators.join(', ') || 'No navigator'} · Navigator</p>
           <button className={styles.primary} disabled={busy} onClick={()=>setCloseout(true)}>Start closeout · Before photos</button><button className={styles.secondary} disabled={busy} onClick={()=>setDetails(false)}>Back to current job</button></> : <><p>{assignment.job.junkItems.join(' · ')}</p><button className={styles.primary} onClick={()=>setDetails(true)}>View job</button></>}
         </section><p className={styles.muted}>Upload job photos and close this appointment before receiving your next assignment.</p>
       </> : <><h1>Assignment unavailable</h1><p>{assignment?.message || 'Your assignment could not be verified. Contact dispatch.'}</p></>}
-      {day && !editingCrew && <section className={styles.card}><h2>Today’s crew</h2><p>{day.driver} · Driver<br/>{day.navigators.join(', ') || 'No navigator'} · Navigator</p><p>Responsible for phone: {day.responsible}</p><button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>{setEditingCrew(true);setCloseout(false);}}>Change today’s crew</button></section>}
-      <button className={styles.primary} onClick={()=>void loadJob()} disabled={jobLoading || busy}>{day?'Refresh assignment':'Refresh crew setup'}</button>
+      <button className={styles.primary} onClick={()=>void loadJob()} disabled={jobLoading || busy || inspectionBusy}>{day?'Refresh assignment':'Refresh crew setup'}</button>
+      </section>
+      <div hidden={tab !== 'inspections'}>{inspectionVisited && <TruckInspectionApp key={phone.deviceId} embedded onBusyChange={setInspectionBusy}/>}</div>
+      <section hidden={tab !== 'crew'} aria-label="Crew">
+        <h1>Today’s crew</h1>
+        {jobLoading ? <p role="status">Checking today’s crew…</p> : dayDate && (!day || editingCrew) ? <DailyCrew key={`${phone.deviceId}:${dayDate}:${day?.version || 0}`} date={dayDate} roster={roster} day={day} onBusy={setBusy} onSaved={()=>{void loadJob();selectTab('jobs');}} onCancel={()=>setEditingCrew(false)}/> : day ? <section className={styles.card}><p>{day.driver} · Driver<br/>{day.navigators.join(', ') || 'No navigator'} · Navigator</p><p>Responsible for phone: {day.responsible}</p><button className={styles.secondary} disabled={busy || inspectionBusy || jobLoading} onClick={()=>setEditingCrew(true)}>Change today’s crew</button></section> : <p>Today’s crew could not be loaded. Check connection to try again.</p>}
+        <button className={styles.secondary} disabled={busy || inspectionBusy || jobLoading} onClick={()=>void disconnect()}>Disconnect company phone</button>
+      </section>
     </> : <><h1>Company phone setup</h1><p>Your manager generates the setup code in OpsCenter. Enter the 6-digit code sent by OpsBot on WhatsApp, or given to you by your manager.</p>
       <form className={styles.form} onSubmit={enroll}><label>Setup code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" spellCheck={false} value={code} maxLength={6} onChange={event => setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))} required disabled={busy}/></label>
       <button className={styles.primary} disabled={busy || !/^[0-9]{6}$/.test(code.trim())}>{busy ? 'Connecting…' : 'Connect phone'}</button></form>
     </>}
-    {phone && <button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>void disconnect()}>Disconnect company phone</button>}
     {error && <p className={styles.error} role="alert">{error}</p>}
-    {!loading && <button className={styles.secondary} onClick={() => void refresh()} disabled={busy || jobLoading}>Check connection</button>}
+    {!phone && !loading && <p className={styles.muted}><a href="https://convoy.junk-king.app/truck-inspection">Finish an inspection started in Convoy</a></p>}
+    {!loading && <button className={styles.secondary} onClick={() => void refresh()} disabled={busy || inspectionBusy || jobLoading}>Check connection</button>}
   </div></main>;
 }

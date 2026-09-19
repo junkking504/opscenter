@@ -128,7 +128,8 @@
     "verify:crew-closeout": "node --import tsx scripts/test-crew-closeout.ts && node --import tsx scripts/test-crew-closeout-time.ts",
     "verify:crew-phone-day": "node --import tsx scripts/test-crew-phone-day.ts",
     "verify:crew-checkout": "node --import tsx scripts/test-checkout-photo-submit.ts && node --import tsx scripts/test-crew-checkout-dry-run.ts",
-    "verify:waypoint-day": "node --import tsx scripts/test-waypoint-day.ts"
+    "verify:waypoint-day": "node --import tsx scripts/test-waypoint-day.ts",
+    "verify:crew-truck-switch": "tsx scripts/test-crew-truck-switch.ts"
   },
   "dependencies": {
     "@types/node": "^20.14.10",

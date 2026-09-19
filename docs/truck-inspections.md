@@ -2,8 +2,12 @@
 
 Any company phone opens Waypoint at `https://waypoint.junk-king.app/truck-inspection`
 and completes the daily **Truck setup → Inspection → Jobs** sequence.
-The enrolled crew chooses its truck and crew in daily setup; the inspection
-then fixes that truck and prefills the responsible person. See
+The enrolled crew chooses its truck and crew in daily setup. Waypoint reuses the
+latest inspection for that truck on the current Central calendar day, even when
+a different crew performed it. If none exists, the inspection fixes that truck
+and prefills the responsible person. The latest Do not operate report blocks
+jobs. Switching trucks follows the same rule; crew edits do not require another
+inspection of an already-inspected truck. See
 [Waypoint daily sequence](mobile-job-closeout.md#waypoint-daily-sequence--september-19-2026).
 The legacy standalone inspection API keeps its existing self-selected truck flow. Reloading an unfinished draft preserves its
 selected truck, answers and photos. Changing its truck after checks or photos

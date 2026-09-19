@@ -300,3 +300,23 @@ export async function finishScheduleCrewAssignment(id: string, actor: string, so
     return saved;
   });
 }
+
+/** Recover only the exact move recorded in a confirmed Waypoint truck switch. */
+export async function reconcileTruckSwitchMove(id:string,actor:string,readSource:(id:string)=>Promise<SavedJunkwareAssignment>) {
+ const {readTruckSwitch}=await import('./crew-truck-switch-store');
+ if(!actor.startsWith('waypoint-switch:'))return null;
+ const handoff=readTruckSwitch(actor.slice(16)),intent=handoff?.jobs.find(j=>j.requestId===id);
+ if(!handoff || !intent || intent.start===undefined || intent.end===undefined)return null;
+ return withScheduleOperationLock(`appointment-${intent.appointmentId}`,async()=>{
+  const receipt=await readScheduleReceipt(id);
+  if(!receipt || receipt.actor!==actor || receipt.action!=='move' || receipt.recordId!==`${handoff.date}:appointment:${intent.appointmentId}`)return null;
+  const source=await readSource(intent.appointmentId);
+  if(source.truck!==handoff.to || source.date!==handoff.date || !/^confirmed$/i.test(source.status || '') || source.appointmentStartMinutes!==intent.start || source.appointmentEndMinutes!==intent.end)return null;
+  const current=readJobRouteAssignmentOverrides(handoff.date).get(`appt:${intent.appointmentId}`);
+  if(current && current.truck!==handoff.to && current.truck!==handoff.from)return null;
+  const assignment=saveJobRouteAssignment({date:handoff.date,jobKey:`appt:${intent.appointmentId}`,appointmentId:intent.appointmentId,truck:handoff.to,appointmentStartMinutes:intent.start,appointmentEndMinutes:intent.end,junkwareSyncStatus:'verified',junkwareVerifiedAt:source.verifiedAt,...(current?{expectedUpdatedAt:current.updatedAt}:{})});
+  if(!assignment)return null;
+  const saved:ScheduleReceipt={...receipt,status:'verified',updatedAt:new Date().toISOString(),message:'JunkWare confirms the truck switch. The move was not resubmitted.',sourceResult:{...receipt.sourceResult,assignment,junkwareSynced:true},priorResult:{status:receipt.status,message:receipt.message,updatedAt:receipt.updatedAt}};
+  await writeReceipt(saved);return saved;
+ });
+}

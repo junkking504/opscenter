@@ -18,13 +18,13 @@ export default function DailyCrew({date,roster,trucks,day,onSaved,onCancel,onBus
   }catch(e){setError(e instanceof Error?e.message:'Crew setup was not confirmed. Check saved crew before trying again.');}
   finally{inFlight.current=false;setBusy(false);onBusy(false);}
  }
- return <section className={styles.card}><h1>{day?'Change today’s truck & crew':'Set up your truck phone'}</h1><p>{date} · Central time</p><p>Choose your assigned truck and crew for today, then continue to the truck inspection.</p>
+ return <section className={styles.card}><h1>{day?'Edit today’s crew':'Set up your truck phone'}</h1><p>{date} · Central time</p><p>Choose your assigned truck and crew. Waypoint checks whether this truck has already been inspected today.</p>
   <form className={styles.form} onSubmit={save}>
-   <label>Assigned truck<select required disabled={busy} value={truck} onChange={e=>setTruck(e.target.value)}><option value="">Choose your truck</option>{trucks.map(name=><option key={name}>{name}</option>)}</select></label>
+   <label>Assigned truck<select required disabled={busy || Boolean(day)} value={truck} onChange={e=>setTruck(e.target.value)}><option value="">Choose your truck</option>{trucks.map(name=><option key={name}>{name}</option>)}</select></label>
    <label>Person responsible for this phone<select required disabled={busy} value={responsible} onChange={e=>setResponsible(e.target.value)}><option value="">Choose person</option>{roster.map(name=><option key={name}>{name}</option>)}</select></label>
    <label>Driver<select required disabled={busy} value={driver} onChange={e=>setDriver(e.target.value)}><option value="">Choose driver</option>{roster.map(name=><option key={name}>{name}</option>)}</select></label>
    <label>Navigator<select disabled={busy} value={navigator} onChange={e=>setNavigator(e.target.value)}><option value="">No navigator — driver only</option>{roster.filter(name=>name!==driver).map(name=><option key={name}>{name}</option>)}</select></label>
-   <button className={styles.primary} disabled={busy || !truck || !responsible || !driver || driver===navigator}>{busy?'Saving setup…':'Continue to inspection'}</button>
+   <button className={styles.primary} disabled={busy || !truck || !responsible || !driver || driver===navigator}>{busy?'Saving setup…':day?'Save crew':'Continue'}</button>
   </form>
   {!roster.length && <p role="alert">The crew list is unavailable. Contact your manager.</p>}
   {error && <p className={styles.error} role="alert">{error}</p>}

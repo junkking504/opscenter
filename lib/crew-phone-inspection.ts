@@ -13,11 +13,11 @@ export function crewInspectionDevice(phone: CrewPhone, day: CrewPhoneDay): Inspe
 
 export function crewInspectionReport(phone: CrewPhone, day = readCrewDay(phone)) {
   if (!day) return null;
-  return listTruckInspections(day.date).find(report => report.truck === day.truck && report.inspectionDate === day.date) || null;
+  return listTruckInspections(day.date).filter(report => report.truck === day.truck && report.inspectionDate === day.date).sort((a,b)=>b.receivedAt.localeCompare(a.receivedAt) || Number(b.status==='stop')-Number(a.status==='stop'))[0] || null;
 }
 
-export function crewInspectionState(phone: CrewPhone): CrewInspectionState {
-  const report = crewInspectionReport(phone);
+export function crewInspectionState(phone: CrewPhone, day = readCrewDay(phone)): CrewInspectionState {
+  const report = crewInspectionReport(phone, day);
   if (!report) return { status: 'required' };
   if (!['clear','reported','stop'].includes(report.status) || !Number.isFinite(Date.parse(report.receivedAt))) throw new CrewPhoneError('The inspection receipt needs recovery. Contact your manager.',503);
   return { status: report.status === 'stop' ? 'blocked' : 'ready', requestId: report.requestId, truck: report.truck, receivedAt: report.receivedAt };

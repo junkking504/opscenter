@@ -66,7 +66,7 @@ async function main() {
     const other=enrollCrewPhone(createCrewPhoneEnrollment('Truck 7','Other phone','manager').code,randomBytes(32).toString('hex'));
     saveCrewDay(other,{...setup,truck:'Truck 7',requestId:randomUUID()});
     assert.equal(crewInspectionState(other).status,'blocked','The same-day stop report applies across crews');
-    console.log('PASS: setup → assigned truck inspection → jobs; direct bypass, wrong truck/date/version, public report reuse, stop status, setup changes and cross-phone receipt isolation. Synthetic storage only.');
+    console.log('PASS: setup → assigned truck inspection → jobs; direct bypass, wrong truck/date/version, shared daily inspection, stop status, truck changes and scoped receipt recovery. Synthetic storage only.');
   } finally { fs.rmSync(root,{recursive:true,force:true}); }
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

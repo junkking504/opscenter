@@ -396,8 +396,8 @@ assigned truck, person responsible, driver and navigator. There is no preselecte
 truck for a new day. The manager's enrollment truck remains a directory/default
 value; it no longer fixes the truck for every day of the device's lifetime.
 
-Daily revisions remain immutable and versioned. Saving truck/crew setup advances
-to a five-point inspection with that truck fixed and the responsible person's
+Daily revisions remain immutable and versioned. Saving truck/crew setup checks the truck’s latest inspection for the current
+Central calendar day. If none exists, it advances to a five-point inspection with that truck fixed and the responsible person's
 name prefilled. A synthetic inspection device identity derived from phone, date
 and setup request binds the report to that exact setup. It has no public
 inspection connection token. `/api/crew-jobs/inspection` requires the enrolled
@@ -405,10 +405,13 @@ phone, current daily setup, matching truck/date and setup version. It uses the
 existing durable inspection report/index store, report validation and receipt
 recovery. The normal inspection API and prior drafts/receipts remain intact.
 
-Only a saved `clear` or `reported` receipt for this setup unlocks Jobs. `stop`
+Only the latest saved `clear` or `reported` receipt for this truck and Central
+calendar day unlocks Jobs. The report follows the truck and is reusable across
+crews and phone sessions. `stop`
 keeps jobs locked and directs the crew to their manager. Missing/unknown receipt
 state fails closed. Reopening recovers the saved daily setup and report; changing
-truck or crew creates a new setup version and requires a new inspection. A new
+truck or crew creates a new setup version. A replacement truck already inspected
+today does not need another inspection; its latest `stop` report still blocks jobs. A new
 Central calendar day requires daily setup again. Job API preflight and the shared
 photo/closeout scope enforce the gate independently of the screen, rechecking
 after awaited source reads. Prior closeout receipt recovery remains read-only
@@ -417,8 +420,21 @@ and device/assignment scoped, so an uncertain payment is never replayed.
 Jobs keep the existing current-released-job rule: the next appointment remains
 hidden until source-verified completion and dispatch release. A prior-day current
 assignment is unavailable until dispatch resolves it. No full-day roster of
-customer addresses is sent to a phone. Daily truck selection changes phone access
-only, not source appointments, payroll clock-ins or dispatch assignments.
+customer addresses is sent to a phone. Initial daily truck selection sets phone access. Later changes use **Switch truck**
+and a separate confirmation to move all current and remaining confirmed jobs
+in JunkWare, preserving appointment windows. Completed jobs remain on their
+original truck. The current and queued dispatch assignment IDs and release order
+are retained, keeping photos and closeout drafts attached to the same jobs.
+Crew members remain selected. Payroll clock-ins are not changed.
+
+The switch preview shows old/new truck, unfinished-job count and today’s inspection
+state. Trucks with other active phone crews or unfinished jobs require dispatch
+resolution first. A durable switch receipt reserves both trucks while source
+moves are verified one at a time. Pending/uncertain closeouts prevent a switch;
+uncertain moves are read back using the original request and never resubmitted.
+Both job access and competing dispatch edits stay blocked until the switch
+finishes. An interrupted browser resumes the saved switch. New daily setup or
+source conflicts keep the switch visible for review rather than guessing.
 
 Waypoint, Kingpin, jobs, Convoy and inspect hostnames serve the exact phone
 allowlists; management/payroll/webhook access stays denied. Legacy inspection
@@ -426,7 +442,7 @@ roots remain on their original host. The hooks legacy inspection view remains
 available with a link to Waypoint setup. Browser drafts and cookies are never
 copied across origins. The OpsCenter Convoy fleet workspace remains separate.
 
-Validation: `verify:waypoint-day`, enrollment/day, inspection, scoped-photo and
+Validation: `verify:crew-truck-switch`, `verify:waypoint-day`, enrollment/day, inspection, scoped-photo and
 closeout suites cover ordering, no-setup/no-inspection direct access, mismatched
 truck/date/version, legacy report reuse, stop results, changed setup and receipt
 isolation. Tests use isolated stores and synthetic sources. Real customer

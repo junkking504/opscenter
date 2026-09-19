@@ -1,3 +1,4 @@
+import {assertAppointmentNotSwitching,assertTruckNotSwitching} from '@/lib/crew-truck-switch-store';
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from "@/lib/auth";
@@ -57,6 +58,9 @@ export async function POST(request: Request) {
       { status: 400, headers: { "Cache-Control": "no-store, max-age=0" } },
     );
   }
+
+  try { assertAppointmentNotSwitching(appointmentId); assertTruckNotSwitching(truck); }
+  catch(error){return NextResponse.json({ok:false,error:error instanceof Error?error.message:'Truck switch pending.'},{status:409});}
 
   // Persist the dispatch decision before calling JunkWare. The local schedule is
   // the operator's source of truth while the external verification is in flight,

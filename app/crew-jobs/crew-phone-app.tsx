@@ -5,6 +5,7 @@ import type { CrewCurrent } from '@/lib/crew-dispatch';
 import styles from './phone-access.module.css';
 import JobCloseout from './job-closeout';
 import DailyCrew from './daily-crew';
+import SwitchTruck,{type SwitchSummary} from './switch-truck';
 import TruckInspectionApp from '@/components/TruckInspectionApp';
 import {chicagoDateKey} from '@/lib/chicago-date';
 import { clearCrewCloseoutDrafts } from '../../desktop-ui/lib/closeout-drafts';
@@ -16,6 +17,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange }: { onBusyC
   const [phone, setPhone] = useState<CrewPhone | null>(null);
   const [day,setDay]=useState<CrewPhoneDay|null>(null),[dayDate,setDayDate]=useState(''),[roster,setRoster]=useState<string[]>([]),[editingCrew,setEditingCrew]=useState(false);
   const [trucks,setTrucks]=useState<string[]>([]),[inspectionRequired,setInspectionRequired]=useState(true);
+  const [switching,setSwitching]=useState(false),[truckSwitch,setTruckSwitch]=useState<SwitchSummary|null>(null);
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -27,7 +29,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange }: { onBusyC
   const [details,setDetails]=useState(false);
   const [closeout,setCloseout]=useState(false);
   const jobRequest=useRef(0);
-  const step=!phone || !day || editingCrew ? 'setup' : inspectionRequired ? 'inspection' : 'jobs';
+  const step=!phone || !day || editingCrew || switching ? 'setup' : inspectionRequired ? 'inspection' : 'jobs';
   useEffect(()=>{onStepChange?.(step);},[step,onStepChange]);
   async function loadJob() {
     const request=++jobRequest.current;
@@ -39,6 +41,8 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange }: { onBusyC
       if(!dayResponse.ok)throw new Error(dayBody.error || 'Today’s crew could not be loaded.');
       setDay(dayBody.day);setDayDate(dayBody.date);setRoster(dayBody.roster);setTrucks(dayBody.trucks);setEditingCrew(false);
       if(dayBody.phone)setPhone(dayBody.phone);
+      setTruckSwitch(dayBody.switch || null);setSwitching(Boolean(dayBody.switch));
+      if(dayBody.switch)return;
       setInspectionRequired(dayBody.inspection?.status!=='ready');
       if(!dayBody.day || dayBody.inspection?.status!=='ready')return;
       const response=await fetch('/api/crew-jobs/current',{cache:'no-store'});
@@ -111,9 +115,10 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange }: { onBusyC
     }catch(error){setError(error instanceof Error?error.message:'Disconnect could not be confirmed.');}
     finally{inFlight.current=false;setBusy(false);}
   }
+  if (!loading && phone && day && switching) return <main className={styles.page}><div className={styles.content}><SwitchTruck day={day} trucks={trucks} pending={truckSwitch} onBusy={setBusy} onDone={()=>{setSwitching(false);void loadJob();}} onCancel={()=>setSwitching(false)}/></div></main>;
   if (!loading && phone && day && !editingCrew && inspectionRequired) return <>
     <TruckInspectionApp key={`${phone.deviceId}:${day.date}:${day.version}`} apiPath="/api/crew-jobs/inspection" onBusyChange={setBusy} onContinue={()=>void loadJob()}/>
-    <div className={styles.workflowActions}><button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>setEditingCrew(true)}>Change truck & crew</button><button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>void loadJob()}>Check inspection status</button>{error && <p role="alert">{error}</p>}</div>
+    <div className={styles.workflowActions}><button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>setSwitching(true)}>Switch truck</button><button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>setEditingCrew(true)}>Edit crew</button><button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>void loadJob()}>Check inspection status</button>{error && <p role="alert">{error}</p>}</div>
   </>;
   return <main className={styles.page}><div className={styles.content}>
     <p><span className={styles.badge}>{day?.truck || 'Company phone'}</span></p>
@@ -125,7 +130,7 @@ export default function CrewPhoneSetup({ onBusyChange, onStepChange }: { onBusyC
           <button className={styles.primary} disabled={busy} onClick={()=>setCloseout(true)}>Start closeout · Before photos</button><button className={styles.secondary} disabled={busy} onClick={()=>setDetails(false)}>Back to current job</button></> : <><p>{assignment.job.junkItems.join(' · ')}</p><button className={styles.primary} onClick={()=>setDetails(true)}>View job</button></>}
         </section><p className={styles.muted}>Upload job photos and close this appointment before receiving your next assignment.</p>
       </> : <><h1>Assignment unavailable</h1><p>{assignment?.message || 'Your assignment could not be verified. Contact dispatch.'}</p></>}
-      {day && !editingCrew && <section className={styles.card}><h2>Today’s crew</h2><p>{day.driver} · Driver<br/>{day.navigators.join(', ') || 'No navigator'} · Navigator</p><p>Responsible for phone: {day.responsible}</p><button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>{setEditingCrew(true);setCloseout(false);}}>Change truck & crew</button></section>}
+      {day && !editingCrew && <section className={styles.card}><h2>{day.truck} · Today’s crew</h2><button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>setSwitching(true)}>Switch truck</button><p>{day.driver} · Driver<br/>{day.navigators.join(', ') || 'No navigator'} · Navigator</p><p>Responsible for phone: {day.responsible}</p><button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>{setEditingCrew(true);setCloseout(false);}}>Edit crew</button></section>}
       <button className={styles.primary} onClick={()=>void loadJob()} disabled={jobLoading || busy}>{day?'Refresh jobs':'Refresh setup'}</button>
     </> : <><h1>Company phone setup</h1><p>Your manager generates the setup code in OpsCenter. Enter the 6-digit code sent by OpsBot on WhatsApp, or given to you by your manager.</p>
       <form className={styles.form} onSubmit={enroll}><label>Setup code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" spellCheck={false} value={code} maxLength={6} onChange={event => setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))} required disabled={busy}/></label>

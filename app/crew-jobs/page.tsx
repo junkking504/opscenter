@@ -105,7 +105,7 @@ export default function CrewPhoneSetup() {
     finally{inFlight.current=false;setBusy(false);}
   }
   return <main className={styles.page}><div className={styles.content}>
-    <header className={styles.header}><div className={styles.brand}>Kingpin<small>JUNK KING</small></div><span className={styles.badge}>{phone?.truck || 'Company phone'}</span></header>
+    <header className={styles.header}><div className={styles.brand}>Waypoint<small>JUNK KING</small></div><span className={styles.badge}>{phone?.truck || 'Company phone'}</span></header>
     {loading ? <p role="status">Checking this phone…</p> : phone ? <>
       {jobLoading ? <p role="status">Checking today’s crew and current assignment…</p> : dayDate && (!day || editingCrew) ? <DailyCrew key={`${phone.deviceId}:${dayDate}:${day?.version || 0}`} date={dayDate} roster={roster} day={day} onBusy={setBusy} onSaved={()=>void loadJob()} onCancel={()=>setEditingCrew(false)}/> : assignment?.state==='waiting' ? <><h1>Waiting for assignment</h1><p>Dispatch will send your next job here.</p></> : assignment?.state==='assigned' && assignment.job ? <>
         <h1>{details?'Job details':'Current job'}</h1>

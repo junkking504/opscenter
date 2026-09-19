@@ -27,7 +27,8 @@ export type CrewPhoneDelivery = {
 
 export type CrewPhoneDay = {deviceId:string;truck:string;date:string;version:number;requestId:string;responsible:string;driver:string;navigators:string[];savedAt:string};
 
-export const CREW_JOBS_ORIGIN = 'https://kingpin.junk-king.app';
+export const CREW_JOBS_ORIGIN = 'https://waypoint.junk-king.app';
+export const CREW_JOBS_KINGPIN_ORIGIN = 'https://kingpin.junk-king.app';
 export const CREW_JOBS_LEGACY_ORIGIN = 'https://jobs.junk-king.app';
 export const MANAGER_SCHEDULE_URL = 'https://ops.junk-king.app/desktop?workspace=Schedule&scheduleDay=today&scheduleView=board';
 export const CREW_JOBS_PUBLIC_PATHS = ['/crew-jobs', '/crew-jobs/manifest.webmanifest', '/crew-jobs/icon.png', '/api/crew-jobs/session', '/api/crew-jobs/day', '/api/crew-jobs/current', '/api/crew-jobs/photos', '/api/crew-jobs/closeout'];

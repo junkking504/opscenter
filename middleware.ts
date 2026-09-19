@@ -35,7 +35,7 @@ import {
 import { JUNKWARE_SMS_API_PREFIX } from "@/lib/junkware-sms-constants";
 import { WHATSAPP_JOB_PHOTO_API_PREFIX } from "@/lib/whatsapp-job-photo-constants";
 import { LINXUP_PUSH_API_PREFIX } from "@/lib/linxup-push-constants";
-import { CREW_JOBS_ORIGIN, CREW_JOBS_LEGACY_ORIGIN, CREW_JOBS_PUBLIC_PATHS } from '@/lib/crew-phone';
+import { CREW_JOBS_ORIGIN, CREW_JOBS_KINGPIN_ORIGIN, CREW_JOBS_LEGACY_ORIGIN, CREW_JOBS_PUBLIC_PATHS } from '@/lib/crew-phone';
 import { INSPECTION_PUBLIC_PATHS } from "@/lib/truck-inspection-http";
 
 const authDebug = process.env.OPS_AUTH_DEBUG === "1";
@@ -148,7 +148,7 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
   }
 
   // Company-phone origin exposes only the crew app; endpoint handlers require its phone session.
-  const jobsOrigin = [CREW_JOBS_ORIGIN, CREW_JOBS_LEGACY_ORIGIN].find(origin => new URL(origin).hostname === hostname);
+  const jobsOrigin = [CREW_JOBS_ORIGIN, CREW_JOBS_KINGPIN_ORIGIN, CREW_JOBS_LEGACY_ORIGIN].find(origin => new URL(origin).hostname === hostname);
   if (jobsOrigin) {
     if (pathname === '/') return NextResponse.redirect(new URL('/crew-jobs', jobsOrigin));
     if (CREW_JOBS_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();

@@ -141,7 +141,7 @@ async function main() {
       const denied = await middleware(new NextRequest(`https://${host}/api/crew-jobs/session`));
       assert.equal(denied.status, 404, 'Inspection/webhook origins do not expose crew job sessions');
     }
-    for (const jobsOrigin of ['https://kingpin.junk-king.app', 'https://jobs.junk-king.app']) {
+    for (const jobsOrigin of ['https://waypoint.junk-king.app', 'https://kingpin.junk-king.app', 'https://jobs.junk-king.app']) {
       const jobsRoot=await middleware(new NextRequest(`${jobsOrigin}/`));
       assert.equal(jobsRoot.headers.get('location'),`${jobsOrigin}/crew-jobs`);
       for(const route of ['/crew-jobs','/crew-jobs/manifest.webmanifest','/crew-jobs/icon.png','/api/crew-jobs/session','/api/crew-jobs/day','/api/crew-jobs/current','/api/crew-jobs/photos','/api/crew-jobs/closeout','/_next/static/sample.js']) {

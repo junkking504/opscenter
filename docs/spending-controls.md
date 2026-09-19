@@ -134,3 +134,13 @@ charges authorized. Legacy jobs and inspect origins remain available for existin
 phone sessions and drafts. The checker, provider permissions, dependencies, quotas
 and all spending limits remain unchanged. Back up the installed pair and record
 the approved inventory and checker SHA256 hashes in the external installation record.
+
+## Waypoint hostname — September 19, 2026
+
+The user explicitly approved adding only `waypoint.junk-king.app` to the
+protected hostname inventory and existing Cloudflare DNS/Mission Control tunnel
+for the Kingpin-to-Waypoint rename, with $0 in new charges. The Kingpin and jobs
+origins remain available for existing sessions and drafts. No paid service,
+provider permissions, budget, quota, checker or other policy changes are included.
+The installed inventory backup and unchanged checker hash are recorded in the
+external deployment-control installation record.

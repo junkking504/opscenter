@@ -1,1 +1,2 @@
-export function GET() { return Response.json({ name: "Convoy", short_name: "Convoy", start_url: "/truck-inspection", scope: "/truck-inspection", display: "standalone", background_color: "#f5f4f0", theme_color: "#171717", icons: [{ src: "/truck-inspection/convoy-gear-crown-v2-192.png", sizes: "192x192", type: "image/png", purpose: "any" }, { src: "/truck-inspection/convoy-gear-crown-v2-512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" }] }, { headers: { "Content-Type": "application/manifest+json" } }); }
+// Existing installs receive the same Waypoint identity and both phone workflows.
+export { GET } from '../../crew-jobs/manifest.webmanifest/route';

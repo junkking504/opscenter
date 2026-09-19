@@ -284,14 +284,13 @@ source read-back remain to be tested before launch.
 ## Waypoint company-phone app
 
 `https://waypoint.junk-king.app` is the company-phone entry address. The app header, browser title and installed-app name are Waypoint. Its root redirects
-into `/crew-jobs`; only that page, its exact crew-job API endpoints and Next assets
+into `/crew-jobs`; both the Jobs and Inspections workflows, their exact phone API endpoints and Next assets
 are served there. Every crew API still requires its own phone session. Management,
 payroll, login and webhook routes return 404 on this hostname. The manager schedule
 link opens the existing authenticated Schedule at `ops.junk-king.app`.
 
 Waypoint's icon is the red-and-gold compass with the Junk King crown and white
-accents on charcoal. Red compass faces and thick gold borders match Convoy’s
-red-and-gold crown treatment. The original artwork is preserved at
+accents on charcoal. Red compass faces and thick gold borders retain the approved crown treatment. The original artwork is preserved at
 `assets/waypoint/waypoint-compass-crown-v2-source.png`. Uncropped PNG exports at
 `public/crew-jobs/waypoint-compass-crown-v2-{32,180,192,512}.png` supply the browser
 favicon, Apple touch icon and install manifest. Versioned URLs refresh icon
@@ -387,3 +386,20 @@ JunkWare options and is no later than Closeout on the service day. It records
 manual provenance in the operation receipt; manual times never override GPS. Receipt retries
 return the original result and never advance End or repeat a source write.
 The assignment-scoped dummy flow remains a simulation with no source writes.
+
+### Combined Waypoint app — September 19, 2026
+
+Waypoint combines company-phone jobs/closeout and five-point truck inspections
+under one compass icon, header and Jobs / Inspections navigation. Opening
+`/crew-jobs` starts Jobs; `/truck-inspection` starts Inspections. Visited workflows
+stay mounted while switching so inputs, selected photos and receipt state survive.
+Navigation is disabled while either workflow is submitting or preparing a photo.
+The shared install manifest starts at `/crew-jobs` and covers both paths.
+
+The Waypoint, Kingpin, jobs, Convoy and inspect hostnames serve both exact phone
+route allowlists, never management, payroll or webhook endpoints. Old inspection
+roots still open Inspections on their original host: cookies, IndexedDB drafts
+and receipt access are not transferred or discarded. New links use Waypoint.
+Job access still requires manager enrollment; the inspection connection grants
+no job, manager or payroll access. The OpsCenter Convoy fleet-management workspace
+remains separate from this combined phone app.

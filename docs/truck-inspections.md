@@ -1,6 +1,7 @@
 # Five-point morning inspections
 
-Any company phone opens `https://convoy.junk-king.app/`. The inspector selects the truck
+Any company phone opens Waypoint at `https://waypoint.junk-king.app/truck-inspection`
+or chooses **Inspections** in Waypoint. The inspector selects the truck
 at the start of each inspection, then enters their name and mileage. There is
 no setup code, employee login or fixed phone-to-truck assignment. A new report
 starts with no truck selected. Reloading an unfinished draft preserves its
@@ -73,10 +74,11 @@ removed. Users should keep the page open if device storage is unavailable.
 
 ## Access boundary
 
-The dedicated public `convoy.junk-king.app` origin redirects `/` to the inspection
-page and permits only the exact inspection page, manifest, icon,
-`/api/truck-inspection` and Next assets. Management, authentication and webhook
-routes return 404 on this origin. OpsCenter's Truck Check entry redirects here.
+Waypoint serves jobs and inspections through the same phone app and compass icon.
+The legacy `convoy.junk-king.app` origin still redirects `/` to the inspection
+view and permits the exact inspection and crew-job route allowlists, manifests,
+icons and Next assets. Crew-job API handlers independently require enrollment. Management, authentication and webhook
+routes return 404 on this origin. OpsCenter's Truck Check entry redirects to Waypoint's inspection view.
 The hostname uses a proxied CNAME to the existing `opscenter-mission-control`
 tunnel (`30d8a080-e2d1-4452-b463-4ba2ba8e57ba`). Its dedicated local ingress in
 `~/.cloudflared/opscenter-mission-control.yml` forwards only this hostname to
@@ -86,10 +88,12 @@ subscription or metered provider is used.
 
 The legacy `inspect.junk-king.app` and `hooks.junk-king.app/truck-inspection`
 addresses remain usable for existing drafts and receipt recovery. The inspect
-origin keeps its own root redirect and the same narrow inspection route allowlist;
+origin keeps its own root redirect and the same narrow combined phone route allowlists;
 it does not force an unfinished inspection across origins. Browser storage and
 phone cookies belong to their origin; they are not copied across domains. Saved reports remain in OpsCenter.
-Existing webhook routes are unchanged. OpsCenter's management origin serves `/fleet-inspections`.
+The legacy hooks inspection view keeps its draft on that origin; Jobs opens Waypoint
+in a new tab. The hooks origin serves the Waypoint manifest/icon assets but continues
+to reject crew-job pages and APIs. Existing webhook routes are unchanged. OpsCenter's management origin serves `/fleet-inspections`.
 The Crew Portal and its authentication are not modified.
 
 The browser connects automatically with a random 256-bit key and a Secure,

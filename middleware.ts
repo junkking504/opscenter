@@ -147,24 +147,24 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
     return NextResponse.next();
   }
 
-  // Company-phone origin exposes only the crew app; endpoint handlers require its phone session.
+  // Waypoint combines the phone workflows; each API retains its own session checks.
   const jobsOrigin = [CREW_JOBS_ORIGIN, CREW_JOBS_KINGPIN_ORIGIN, CREW_JOBS_LEGACY_ORIGIN].find(origin => new URL(origin).hostname === hostname);
   if (jobsOrigin) {
     if (pathname === '/') return NextResponse.redirect(new URL('/crew-jobs', jobsOrigin));
-    if (CREW_JOBS_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
+    if (CREW_JOBS_PUBLIC_PATHS.includes(pathname) || INSPECTION_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
     return new NextResponse('Not Found', { status: 404 });
   }
 
-  // Dedicated public inspection origin: never expose management or webhooks here.
+  // Keep legacy inspection origins in place for host-bound drafts and receipts.
   if (["convoy.junk-king.app", "inspect.junk-king.app"].includes(hostname)) {
     if (pathname === "/") return NextResponse.redirect(new URL(`https://${hostname}/truck-inspection`));
-    if (INSPECTION_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
+    if (INSPECTION_PUBLIC_PATHS.includes(pathname) || CREW_JOBS_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
     return new NextResponse("Not Found", { status: 404 });
   }
 
   // OpsCenter's same-origin entry link opens the dedicated phone app.
   if (hostname === "ops.junk-king.app" && pathname === "/truck-inspection") {
-    return NextResponse.redirect(new URL("https://convoy.junk-king.app/"));
+    return NextResponse.redirect(new URL("/truck-inspection", CREW_JOBS_ORIGIN));
   }
 
   if (isSmsHostname) {
@@ -174,6 +174,7 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
       || pathname === WHATSAPP_JOB_PHOTO_API_PREFIX
       || pathname === LINXUP_PUSH_API_PREFIX
       || INSPECTION_PUBLIC_PATHS.includes(pathname)
+      || (pathname.startsWith("/crew-jobs/") && CREW_JOBS_PUBLIC_PATHS.includes(pathname))
     ) {
       return NextResponse.next();
     }

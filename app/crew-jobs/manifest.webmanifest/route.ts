@@ -1,7 +1,7 @@
 export function GET() {
   return Response.json({
     name: 'Waypoint', short_name: 'Waypoint',
-    start_url: '/crew-jobs', scope: '/crew-jobs', display: 'standalone',
+    id: '/crew-jobs', start_url: '/crew-jobs', scope: '/', display: 'standalone',
     background_color: '#f5f4f0', theme_color: '#171717',
     icons: [
       { src: '/crew-jobs/waypoint-compass-crown-v2-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },

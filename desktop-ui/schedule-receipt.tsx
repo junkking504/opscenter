@@ -4,6 +4,7 @@ import { submitScheduleOperation } from "./lib/schedule-operation-transport";
 
 export type Receipt = {
   action?: 'move' | 'reschedule' | 'restore' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify';
+  crewAssignment?: {state:'pending'|'assigned'|'queued'|'attention';message:string};
   sourceResult?: Record<string, unknown>;
   requestId: string;
   status: "pending" | "verified" | "failed" | "uncertain" | "reconciled";
@@ -43,6 +44,8 @@ export function ChangeReceipt({ receipt, onCheck }: { receipt: Receipt; onCheck:
           <strong>{receipt.message}</strong>
         </div>
       </header>
+      {receipt.crewAssignment && <p>{receipt.crewAssignment.message}</p>}
+      {receipt.crewAssignment?.state === 'attention' && <a href="/crew-dispatch">Open Crew Dispatch</a>}
       {(receipt.status === "pending" || receipt.status === "uncertain") && (
         <footer>
           <small>Do not repeat an unverified change.</small>

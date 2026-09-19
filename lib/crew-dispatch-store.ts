@@ -40,6 +40,11 @@ export function readCrewDispatch(truck: string): CrewDispatch {
   const latest = history(truck).at(-1);
   return latest ? projection(latest) : {truck,version:0,current:null,queued:null};
 }
+/** Read one durable request for crash recovery without replaying a release. */
+export function readCrewDispatchRequest(truck: string, requestId: string): CrewDispatch | null {
+  const saved = history(truck).find(row => row.requestId === requestId);
+  return saved ? projection(saved) : null;
+}
 function append(truck: string, requestId: string, expectedVersion: number, actor: string, input: unknown,
   change: (current: CrewDispatch) => CrewDispatch, now = new Date(), completionReceiptId?: string): CrewDispatch {
   if (!uuid.test(requestId) || !Number.isSafeInteger(expectedVersion) || expectedVersion < 0 || !actor.trim()) throw new CrewPhoneError('A valid dispatch reference and manager are required.');

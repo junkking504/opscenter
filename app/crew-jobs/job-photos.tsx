@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './phone-access.module.css';
+import { readPhotoResponse } from './photo-response';
 
 type Photo = {requestId:string;category:'before'|'after';status:'selected'|'pending'|'verified'|'uncertain';image?:string};
 const database='ops-crew-photo-drafts-v1';
@@ -30,7 +31,7 @@ async function photoImage(file:File):Promise<string> {
   }finally{URL.revokeObjectURL(url);}
 }
 export default function JobPhotos({deviceId,assignmentId,onBusyChange}:{deviceId:string;assignmentId:string;onBusyChange:(busy:boolean)=>void}) {
-  const [photos,setPhotos]=useState<Photo[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[ready,setReady]=useState(false);
+  const [photos,setPhotos]=useState<Photo[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[ready,setReady]=useState(false),[reload,setReload]=useState(0);
   const inFlight=useRef(false),rows=useRef<Photo[]>([]);
   const key=`${deviceId}:${assignmentId}`;
   const save=useCallback(async(next:Photo[])=>{await stored(key,next);rows.current=next;setPhotos(next);},[key]);
@@ -38,16 +39,19 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange}:{deviceId
     let canceled=false;
     void(async()=>{
       try{
-        const local=await stored(key);
+        setError('');setReady(false);
+        let local:Photo[];
+        try { local=await stored(key); } catch { throw new Error('Photo storage is unavailable on this phone. Allow website storage, then check saved photos again.'); }
         const response=await fetch(`/api/crew-jobs/photos?assignmentId=${encodeURIComponent(assignmentId)}`,{cache:'no-store'});
-        const body=await response.json();if(!response.ok)throw new Error(body.error || 'Photo history unavailable.');
+        const body=await readPhotoResponse(response);if(!response.ok)throw new Error(body.error || 'Photo history unavailable.');
+        if(!Array.isArray(body.photos))throw new Error('Photo history could not be checked. Try again.');
         const remote=body.photos as Photo[];
         const merged=local.map(row=>{const saved=remote.find(item=>item.requestId===row.requestId);return saved?{...row,...saved,...(saved.status==='verified'?{image:undefined}:{})}:row;});
         for(const row of remote)if(!merged.some(item=>item.requestId===row.requestId))merged.push(row);
         if(canceled)return;await save(merged);setReady(true);
       }catch(error){if(!canceled)setError(error instanceof Error?error.message:'Photo history unavailable.');}
     })();return()=>{canceled=true;};
-  },[key,assignmentId,save]);
+  },[key,assignmentId,save,reload]);
   async function work(action:()=>Promise<void>) {
     if(inFlight.current)return;inFlight.current=true;setBusy(true);onBusyChange(true);setError('');
     try{await action();}catch(error){setError(error instanceof Error?error.message:'Photo result unavailable. Check saved result before retrying.');}
@@ -65,21 +69,21 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange}:{deviceId
     await save(rows.current.map(item=>item.requestId===row.requestId?pending:item));
     try {
       const response=await fetch('/api/crew-jobs/photos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:row.requestId,assignmentId,category:row.category,image:row.image}),signal:AbortSignal.timeout(210_000)});
-      const body=await response.json();
+      const body=await readPhotoResponse(response);
       if(!body.receipt)throw new Error(body.error || 'Photo result unavailable. Check saved result.');
-      await save(rows.current.map(item=>item.requestId===row.requestId?{...item,...body.receipt,...(body.receipt.status==='verified'?{image:undefined}:{})}:item));
+      await save(rows.current.map(item=>item.requestId===row.requestId?{...item,...(body.receipt as Photo),...((body.receipt as Photo).status==='verified'?{image:undefined}:{})}:item));
     }catch(error){await save(rows.current.map(item=>item.requestId===row.requestId?{...item,status:'uncertain'}:item));throw error;}
   }
   async function check(row:Photo) {
     const response=await fetch(`/api/crew-jobs/photos?assignmentId=${encodeURIComponent(assignmentId)}&requestId=${encodeURIComponent(row.requestId)}`,{cache:'no-store',signal:AbortSignal.timeout(210_000)});
-    const body=await response.json();
+    const body=await readPhotoResponse(response);
     if(response.status===404 && row.image){
       // No source write is retried here. The next explicit upload reuses this UUID;
       // the server returns its durable receipt if the original request is still arriving.
       await save(rows.current.map(item=>item.requestId===row.requestId?{...item,status:'selected'}:item));return;
     }
     if(!response.ok || !body.receipt)throw new Error(body.error || 'Saved photo result unavailable.');
-    await save(rows.current.map(item=>item.requestId===row.requestId?{...item,...body.receipt,...(body.receipt.status==='verified'?{image:undefined}:{})}:item));
+    await save(rows.current.map(item=>item.requestId===row.requestId?{...item,...(body.receipt as Photo),...((body.receipt as Photo).status==='verified'?{image:undefined}:{})}:item));
   }
   return <section className={styles.card}><h2>Job photos</h2><p>At least one photo must be saved in JunkWare before closeout.</p>
     {!ready && !error && <p role="status">Checking saved photos…</p>}
@@ -95,6 +99,7 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange}:{deviceId
     </div>)}
     {busy && <p role="status">Working on this photo…</p>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
+    {!ready && error && <button className={styles.secondary} disabled={busy} onClick={()=>setReload(value=>value+1)}>Check saved photos again</button>}
     <p className={styles.muted}>Selected photos can be recovered on this company phone for 24 hours. Uploads start only when you tap Upload photo.</p>
   </section>;
 }

@@ -33,8 +33,8 @@ export function MoveConfirmation({
   const savedRef = useRef(saved);
   savedRef.current = saved;
   useEffect(() => {
-    if (receipt?.status === 'verified') savedRef.current();
-  }, [receipt?.status]);
+    if (receipt?.status === 'verified' && !receipt.crewAssignment) savedRef.current();
+  }, [receipt?.status, receipt?.crewAssignment]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     cancelButton.current?.focus({ preventScroll: true });
@@ -73,6 +73,7 @@ export function MoveConfirmation({
         "move",
         {
           truck: move.truck === "Unassigned" ? "" : move.truck,
+          ...(/^confirmed$/i.test(move.job.status) && move.truck !== "Unassigned" ? {assignCrew:true} : {}),
           ...(window.changed
             ? { appointmentStartMinutes: move.start, durationHours: window.durationHours }
             : {}),
@@ -140,7 +141,9 @@ export function MoveConfirmation({
         </p>
       )}
       <p>
-        This changes the appointment in JunkWare. Customer and Krewe communications remain separate.
+        {/^confirmed$/i.test(move.job.status) && move.truck !== "Unassigned"
+          ? "Confirming assigns this job to the truck in JunkWare and its crew phone. If a job is active, this job queues until closeout with photos."
+          : "This changes the appointment in JunkWare."}
       </p>
       {receipt ? (
         <ChangeReceipt

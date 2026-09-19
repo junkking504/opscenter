@@ -165,7 +165,7 @@ export function useScheduleDrag(
       if (
         moved &&
         result &&
-        (result.truck !== truckLabel(job.truck) || result.start !== job.appointmentStartMinutes)
+        (result.truck !== truckLabel(job.truck) || result.start !== job.appointmentStartMinutes || (/^confirmed$/i.test(job.status) && result.truck !== "Unassigned"))
       )
         onDrop(result);
     };

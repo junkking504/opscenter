@@ -1,3 +1,5 @@
+import { prepareScheduleCrewAssignment, applyScheduleCrewAssignment, type ScheduleCrewAssignment } from './schedule-crew-assignment';
+import type { CrewDispatchSources } from './crew-dispatch-service';
 import { JUNKWARE_DISPATCH_PREFLIGHT_REJECTION } from './junkware-assignment-failure';
 import { parseClassificationChange } from './appointment-classification';
 import { validRescheduleDate, rescheduleTarget } from './appointment-reschedule';
@@ -10,7 +12,7 @@ import type { SavedJunkwareAssignment } from '@/lib/junkware-truck-assignment';
 import { closeoutSourceVersion } from '@/lib/desktop-closeout-contract';
 
 export type ScheduleOperation = { requestId: string; date: string; recordId: string; expectedVersion: string; action: 'move' | 'reschedule' | 'restore' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify'; values: Record<string, unknown> };
-export type ScheduleReceipt = { requestId: string; actor: string; action: ScheduleOperation['action']; recordId: string; date: string; fingerprint: string; expectedCloseoutSourceVersion?: string; createdAt?: string; status: 'pending' | 'verified' | 'failed' | 'uncertain' | 'reconciled'; updatedAt: string; message: string; sourceResult?: Record<string, unknown>; automaticMoveCheck?: { attempts: number; checkedAt: string }; priorResult?: { status: string; message: string; updatedAt: string } };
+export type ScheduleReceipt = { requestId: string; actor: string; action: ScheduleOperation['action']; recordId: string; date: string; fingerprint: string; expectedCloseoutSourceVersion?: string; createdAt?: string; status: 'pending' | 'verified' | 'failed' | 'uncertain' | 'reconciled'; updatedAt: string; message: string; sourceResult?: Record<string, unknown>; crewAssignment?: ScheduleCrewAssignment; automaticMoveCheck?: { attempts: number; checkedAt: string }; priorResult?: { status: string; message: string; updatedAt: string } };
 export class PendingScheduleOperationError extends Error {
   constructor(public readonly receipt: ScheduleReceipt) {
     super('This appointment has an unverified change. Check its saved result before another change.');
@@ -33,6 +35,7 @@ export function parseScheduleOperation(value: unknown): ScheduleOperation {
   if (action === 'note' && (typeof values.note !== 'string' || !values.note.trim() || values.note.length > 2000)) throw new Error('A note of 1 to 2000 characters is required.');
   if (action === 'cancel' && (typeof values.reason !== 'string' || !values.reason.trim() || values.reason.length > 500)) throw new Error('A cancellation reason of 1 to 500 characters is required.');
   if (['closeout','classify'].includes(action) && !/^[a-f0-9]{64}$/.test(String(values.expectedSourceVersion || ''))) throw new Error('A current JunkWare closeout source version is required.');
+  if (values.assignCrew !== undefined && (action !== 'move' || typeof values.assignCrew !== 'boolean')) throw new Error('A valid crew assignment action is required.');
   if (action === 'move') {
     if (typeof values.truck !== 'string' || (values.truck && !/^Truck [1-9][0-9]?$/.test(values.truck))) throw new Error('A valid truck assignment is required.');
     if (values.appointmentStartMinutes !== undefined) {
@@ -100,7 +103,9 @@ export async function executeScheduleOperation(operation: ScheduleOperation, act
     if (/cancel/i.test(job.status) && !['note','restore'].includes(operation.action)) throw new Error('Canceled appointments cannot be changed through dispatch controls.');
     if (/complete|closed/i.test(job.status) && !['note', 'closeout', 'classify', 'move'].includes(operation.action)) throw new Error('Closed appointments cannot be changed through dispatch controls.');
     if (operation.action === 'move' && job.junkwareSyncStatus && job.junkwareSyncStatus !== 'verified') throw new Error('This appointment has an unverified change to its assignment. Verify it in JunkWare before another move.');
+    const crewAssignment = operation.action === 'move' && operation.values.assignCrew === true ? prepareScheduleCrewAssignment(job, String(operation.values.truck || '')) : undefined;
     let receipt: ScheduleReceipt = { requestId: operation.requestId, actor, action: operation.action, date: operation.date, recordId: operation.recordId, fingerprint, createdAt: new Date().toISOString(), status: 'pending', updatedAt: new Date().toISOString(), message: 'Source verification in progress. Do not submit another change.' };
+    if (crewAssignment) receipt.crewAssignment = crewAssignment;
     if (operation.action === 'closeout') receipt.expectedCloseoutSourceVersion = String(operation.values.expectedSourceVersion);
     if (['reschedule','restore'].includes(operation.action)) receipt.sourceResult = {expected:rescheduleTarget(job,operation.date,operation.values,operation.action === 'restore')};
     await writeReceipt(receipt);
@@ -277,4 +282,18 @@ export function assertRecoveredScheduleMatches(job: DesktopAppointment | undefin
   if (!job || !source || source.appointmentId!==job.appointmentId || source.date!==date || source.truck!==(job.truck==='Unassigned'?'':job.truck) || source.appointmentStartMinutes!==job.appointmentStartMinutes || source.appointmentEndMinutes!==job.appointmentEndMinutes) {
     throw new Error('This appointment changed in JunkWare. Refresh and review its current date, time and truck before another change.');
   }
+}
+
+/** Resume only the phone assignment recorded with this move; never replay JunkWare. */
+export async function finishScheduleCrewAssignment(id: string, actor: string, sources: CrewDispatchSources): Promise<ScheduleReceipt | null> {
+  const initial = await readScheduleReceipt(id);
+  if (!initial || initial.actor !== actor || initial.action !== 'move' || initial.status !== 'verified' || initial.crewAssignment?.state !== 'pending') return initial;
+  return withScheduleOperationLock(`appointment-${initial.recordId.split(':appointment:')[1]}`, async () => {
+    const receipt = await readScheduleReceipt(id);
+    if (!receipt || receipt.actor !== actor || receipt.status !== 'verified' || receipt.crewAssignment?.state !== 'pending') return receipt;
+    const crewAssignment = await applyScheduleCrewAssignment(receipt, sources);
+    const saved = {...receipt, crewAssignment, updatedAt:new Date().toISOString()};
+    await writeReceipt(saved);
+    return saved;
+  });
 }

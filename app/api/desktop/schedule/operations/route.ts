@@ -2,9 +2,11 @@ import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { cookies } from 'next/headers';
 import { after } from 'next/server';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
+import { CrewPhoneError } from '@/lib/crew-phone';
+import { crewDispatchSources } from '@/lib/crew-dispatch-sources';
 import { authorizeOpsRequest } from '@/lib/ops-roles';
 import { readDesktopSchedule } from '@/lib/desktop-schedule';
-import { automaticallyCheckMove, executeScheduleOperation, parseScheduleOperation, readScheduleReceipt, reconcileCloseoutReceipt, reconcileMoveReceipt, PendingScheduleOperationError } from '@/lib/desktop-schedule-operations';
+import { finishScheduleCrewAssignment, automaticallyCheckMove, executeScheduleOperation, parseScheduleOperation, readScheduleReceipt, reconcileCloseoutReceipt, reconcileMoveReceipt, PendingScheduleOperationError } from '@/lib/desktop-schedule-operations';
 import { readJunkwareTruckAssignment } from '@/lib/junkware-truck-assignment';
 import { rescheduleAppointment } from '@/lib/appointment-reschedule';
 import { reconcileRescheduleReceipt, reconcileStaleRescheduleForAppointment, assertRecoveredScheduleMatches } from '@/lib/desktop-schedule-operations';
@@ -22,7 +24,7 @@ export const dynamic = 'force-dynamic';
 const sources = { move: ['/api/job-route-assignments', assign], cancel: ['/api/job-cancellation', cancel], call_ahead: ['/api/job-call-ahead', callAhead], note: ['/api/junkware-appointment-note', note], closeout: ['/api/job-closeout', closeout], classify: ['/api/job-closeout', classify] } as const;
 function checkMoveAfterResponse(requestId: string, actor: string) {
   after(async () => {
-    try { await automaticallyCheckMove(requestId, actor, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id))); }
+    try { await automaticallyCheckMove(requestId, actor, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id))); await finishScheduleCrewAssignment(requestId, actor, crewDispatchSources); }
     catch { /* Preserve the durable receipt; later reads can recover without replaying the move. */ }
   });
 }
@@ -43,6 +45,7 @@ export async function GET(request: Request) {
     if (receipt.status === 'uncertain') checkMoveAfterResponse(requestId, actor.email);
   }
   if(parameters.get('reconcile')==='1' && ['reschedule','restore'].includes(receipt.action) && authorizeOpsRequest(actor.role,'/api/job-route-assignments','POST').allowed) receipt=await reconcileRescheduleReceipt(requestId,actor.email,id=>withJunkwareAppointmentSyncLock(id,()=>readJunkwareTruckAssignment(id)));
+  if (receipt?.crewAssignment && authorizeOpsRequest(actor.role,'/api/crew-dispatch','POST').allowed) receipt = await finishScheduleCrewAssignment(requestId, actor.email, crewDispatchSources);
   return Response.json({ receipt }, { headers });
 }
 export async function POST(request: Request) {
@@ -53,8 +56,9 @@ export async function POST(request: Request) {
     const operation = parseScheduleOperation(await request.json());
     const [sourcePath, handler] = sources[operation.action === 'reschedule' || operation.action === 'restore' ? 'move' : operation.action];
     if (!authorizeOpsRequest(actor.role, sourcePath, 'POST').allowed) return Response.json({ error: 'Your role does not include this action.' }, { status: 403, headers });
+    if (operation.values.assignCrew === true && !authorizeOpsRequest(actor.role,'/api/crew-dispatch','POST').allowed) return Response.json({error:'Manager access is required to assign a crew phone.'},{status:403,headers});
     const recovered = await reconcileStaleRescheduleForAppointment(operation.recordId, actor.email, id => withJunkwareAppointmentSyncLock(id, () => readJunkwareTruckAssignment(id)));
-    const receipt = await executeScheduleOperation(operation, actor.email, () => {
+    let receipt = await executeScheduleOperation(operation, actor.email, () => {
       const job=readDesktopSchedule(operation.date).appointments.find(job => job.recordId === operation.recordId);
       assertRecoveredScheduleMatches(job,operation.date,recovered);
       return job;
@@ -68,9 +72,11 @@ export async function POST(request: Request) {
       const response = await handler(new Request(new URL(sourcePath, request.url), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, date: operation.date, appointmentId: job.appointmentId, jobKey: `appt:${job.appointmentId}` }) }));
       return { status: response.status, body: await response.json() };
     });
+    if (receipt.crewAssignment) receipt = await finishScheduleCrewAssignment(receipt.requestId, actor.email, crewDispatchSources) || receipt;
     if (receipt.action === 'move' && receipt.status === 'uncertain') checkMoveAfterResponse(receipt.requestId, actor.email);
     return Response.json({ receipt }, { status: receipt.status === 'verified' ? 200 : receipt.status === 'failed' ? 422 : 202, headers });
   } catch (error) {
+    if (error instanceof CrewPhoneError) return Response.json({error:error.message},{status:error.status,headers});
     if (error instanceof PendingScheduleOperationError) {
       return Response.json({ error: error.message, ...(error.receipt.actor === actor.email ? { receipt: error.receipt } : {}) }, { status: 409, headers });
     }

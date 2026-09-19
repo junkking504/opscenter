@@ -305,3 +305,26 @@ The legacy jobs hostname remains an isolated app alias so existing phone cookies
 drafts and receipts are still accessible there. It does not redirect an active
 phone session across origins. Opening Kingpin on a new origin requires company-phone
 setup; browser storage and host-only cookies do not move between hostnames.
+
+### Schedule drag and crew assignment
+
+For confirmed appointments, dropping onto a truck and confirming the move now
+also releases that job to the truck phone after JunkWare verifies the move.
+Dropping onto its existing truck can release an already scheduled job. An empty
+phone gets the current job; a busy phone gets one queued job, hidden until verified
+closeout with photos. A full queue blocks before the source move. Completed jobs
+and Unassigned moves only change the schedule. The manager role remains required.
+
+The move receipt captures phone-assignment intent and the dispatch version before
+the source write. Verified receipt read-back finishes this intent using the same
+request ID; unknown source writes never release a job. A changed dispatch queue or
+unavailable source after a saved move is shown separately as phone-assignment
+attention, with a link to Crew Dispatch. It must not be fixed by repeating the move.
+Legacy receipts do not acquire phone assignments on read-back. Recorded visits
+remain evidence and do not prevent confirmed jobs from being assigned.
+
+The crew app has no Manager access card or full-schedule link, including setup.
+Managers enter through OpsCenter. Photo-history load failures offer a read-only
+retry; invalid gateway responses and unavailable local storage have actionable
+messages instead of raw browser parsing errors. Selected/uncertain upload IDs are
+preserved; retrying history never submits a photo.

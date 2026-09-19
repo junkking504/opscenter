@@ -116,7 +116,7 @@ export default function CrewPhoneSetup() {
       </> : <><h1>Assignment unavailable</h1><p>{assignment?.message || 'Your assignment could not be verified. Contact dispatch.'}</p></>}
       {day && !editingCrew && <section className={styles.card}><h2>Today’s crew</h2><p>{day.driver} · Driver<br/>{day.navigators.join(', ') || 'No navigator'} · Navigator</p><p>Responsible for phone: {day.responsible}</p><button className={styles.secondary} disabled={busy || jobLoading} onClick={()=>{setEditingCrew(true);setCloseout(false);}}>Change today’s crew</button></section>}
       <button className={styles.primary} onClick={()=>void loadJob()} disabled={jobLoading || busy}>{day?'Refresh assignment':'Refresh crew setup'}</button>
-    </> : <><h1>Company phone setup</h1><p>Enter the 6-digit setup code from your manager.</p>
+    </> : <><h1>Company phone setup</h1><p>Your manager generates the setup code in OpsCenter. Enter the 6-digit code sent by OpsBot on WhatsApp, or given to you by your manager.</p>
       <form className={styles.form} onSubmit={enroll}><label>Setup code<input inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" spellCheck={false} value={code} maxLength={6} onChange={event => setCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))} required disabled={busy}/></label>
       <button className={styles.primary} disabled={busy || !/^[0-9]{6}$/.test(code.trim())}>{busy ? 'Connecting…' : 'Connect phone'}</button></form>
     </>}

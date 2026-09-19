@@ -1,0 +1,65 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { randomUUID, randomBytes } from 'node:crypto';
+import { crewPhoneDeliveryAvailability, listCrewPhoneDeliveries, sendCrewPhoneSetup } from '../lib/crew-phone-delivery';
+import { enrollCrewPhone } from '../lib/crew-phone-store';
+
+async function main() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'crew-delivery-test-'));
+  const previous = { ...process.env }, originalFetch = globalThis.fetch;
+  let calls = 0, code = '', mode = 'ok';
+  try {
+    process.env.OPS_CREW_PHONE_DIR = dir;
+    process.env.OPS_CREW_PHONE_DELIVERY_APPROVAL = path.join(dir, 'approval');
+    process.env.OPSCENTER_LOGIN_RATE_LIMIT_FILE = path.join(dir, 'rate-limit');
+    process.env.WHATSAPP_ACCESS_TOKEN = 'mock-only'; delete process.env.WHATSAPP_ACCESS_TOKEN_BASE64;
+    process.env.WHATSAPP_PHONE_NUMBER_ID = '12345'; process.env.WHATSAPP_GRAPH_API_VERSION = 'v24.0';
+    fs.writeFileSync(path.join(dir, 'directory.json'), JSON.stringify({schema:1,company:[{truck:'Truck 6',label:'Test phone',number:'504-555-0100'},{truck:'Truck 3',label:'Test phone 3',number:'504-555-0103'}],managers:[]}));
+    globalThis.fetch = async (_url, init) => {
+      calls++; const body = JSON.parse(String(init?.body));
+      assert.equal(body.type, 'template'); assert.equal(body.template.name, 'test_crew_setup');
+      assert.equal(body.to, mode === 'ok' ? '15045550100' : '15045550103');
+      code = body.template.components[0].parameters[0].text;
+      assert.match(code, /^\d{6}$/); assert.equal(body.template.components[1].parameters[0].text, code);
+      if (mode === 'timeout') throw new Error('Synthetic timeout');
+      if (mode === 'reject') return Response.json({error:{code:132001}}, {status:400});
+      return Response.json({messages:[{id:'wamid.synthetic'}]});
+    };
+    const manager = 'manager@example.invalid', first = randomUUID();
+    assert.equal(crewPhoneDeliveryAvailability().available, false);
+    await assert.rejects(sendCrewPhoneSetup('Truck 6', first, manager), /spending approval/);
+    assert.equal(calls, 0); assert.equal(fs.existsSync(path.join(dir, 'enrollments')), false);
+    const policy = {schema:1,enabled:true,provider:'meta-whatsapp',purpose:'crew-phone-setup',approvedBy:'synthetic-test',approvedAt:new Date(Date.now()-1000).toISOString(),validUntil:new Date(Date.now()+86400000).toISOString(),monthlyBudgetMicros:20000,maxAttemptsPerMonth:2,reserveMicros:10000,template:'test_crew_setup',language:'en_US'};
+    const approve = () => fs.writeFileSync(process.env.OPS_CREW_PHONE_DELIVERY_APPROVAL!, JSON.stringify(policy));
+    approve(); assert.equal(crewPhoneDeliveryAvailability().available, true);
+    await assert.rejects(sendCrewPhoneSetup('Truck 2', randomUUID(), manager), /saved company phone/);
+    const [sent, concurrent] = await Promise.all([sendCrewPhoneSetup('Truck 6', first, manager), sendCrewPhoneSetup('Truck 6', first, manager)]);
+    assert.equal(sent.status, 'accepted'); assert.equal(concurrent.deviceId, sent.deviceId); assert.equal(calls, 1);
+    assert.deepEqual(await sendCrewPhoneSetup('Truck 6', first, manager), sent); assert.equal(calls, 1);
+    await assert.rejects(sendCrewPhoneSetup('Truck 3', first, manager), /another setup/);
+    await assert.rejects(sendCrewPhoneSetup('Truck 6', randomUUID(), manager), /one minute/);
+    const raw = fs.readFileSync(path.join(dir, 'deliveries', `${first}.json`), 'utf8');
+    assert.equal(raw.includes(code), false, 'Receipt never persists raw code');
+    assert.equal(enrollCrewPhone(code, randomBytes(32).toString('hex')).truck, 'Truck 6');
+    mode = 'timeout'; const second = randomUUID();
+    const uncertain = await sendCrewPhoneSetup('Truck 3', second, manager);
+    assert.equal(uncertain.status, 'uncertain'); assert.equal(calls, 2);
+    assert.deepEqual(await sendCrewPhoneSetup('Truck 3', second, manager), uncertain); assert.equal(calls, 2);
+    await assert.rejects(sendCrewPhoneSetup('Truck 3', randomUUID(), manager), /monthly/);
+    assert.equal(listCrewPhoneDeliveries().length, 2);
+    policy.enabled = false; approve();
+    assert.equal(crewPhoneDeliveryAvailability().available, false);
+    assert.equal((await sendCrewPhoneSetup('Truck 6', first, manager)).status, 'accepted', 'Saved result remains readable when disabled');
+    policy.enabled = true; policy.maxAttemptsPerMonth = 3; policy.monthlyBudgetMicros = 30000; approve();
+    const file = path.join(dir, 'deliveries', `${second}.json`), receipt = JSON.parse(fs.readFileSync(file, 'utf8'));
+    receipt.createdAt = new Date(Date.now()-61000).toISOString(); fs.writeFileSync(file, JSON.stringify(receipt));
+    mode = 'reject'; const rejected = await sendCrewPhoneSetup('Truck 3', randomUUID(), manager);
+    assert.equal(rejected.status, 'failed');
+    assert.throws(() => enrollCrewPhone(code, randomBytes(32).toString('hex')), /removed/);
+    assert.equal(calls, 3);
+    console.log('PASS setup delivery: approval denial, fixed recipient, one-use code, concurrent/lost response recovery, no code in receipts, cooldown, monthly cap, uncertain reservation and rejection revocation.');
+  } finally { globalThis.fetch = originalFetch; process.env = previous; fs.rmSync(dir, {recursive:true,force:true}); }
+}
+void main().catch(error => {console.error(error);process.exitCode=1;});

@@ -91,3 +91,26 @@ for the company-phone app, with zero new charges authorized. The checker is
 unchanged; no provider, dependency, paid service, quota or spending limit changes.
 The installed checker and one-hostname manifest update are backed up and recorded
 with SHA256 checksums in the external deployment-control installation record.
+
+## Company-phone setup delivery — prepared September 18, 2026
+
+OpsBot authentication-template delivery is implemented but **not approved or
+enabled**. Existing credentials and ordinary free-form replies do not authorize
+this paid message category. No template send may occur until the user approves
+Meta WhatsApp, company-phone enrollment, per-delivered-message pricing and a cap.
+
+The separate private approval file is
+`~/Library/Application Support/OpsCenter/crew-phone-delivery-approval.json`.
+It must contain `schema: 1`, `enabled: true`, `provider: "meta-whatsapp"`,
+`purpose: "crew-phone-setup"`, explicit `approvedBy`/`approvedAt`, a future
+`validUntil`, `monthlyBudgetMicros`, `maxAttemptsPerMonth`, `reserveMicros`, and
+the approved authentication `template` and `language`. This implementation permits
+at most $1 and 100 attempts per Central calendar month, reserves at least one
+cent per attempt, and never refunds uncertain or rejected attempts. The approved
+reservation must cover the verified recipient-market rate. Approval expiration
+requires a rate/template review before renewal. These application reservations
+are not a Meta account-wide billing cap. Test overrides must use isolated files.
+
+Do not install an approval file, change the separately installed spending gate,
+or enable paid sends as part of routine deployment. Activation remains a separate
+explicit user decision. A missing/corrupt/expired/disabled approval fails closed.

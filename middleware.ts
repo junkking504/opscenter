@@ -174,6 +174,7 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
       || pathname === WHATSAPP_JOB_PHOTO_API_PREFIX
       || pathname === LINXUP_PUSH_API_PREFIX
       || INSPECTION_PUBLIC_PATHS.includes(pathname)
+      || (pathname.startsWith("/crew-jobs/") && CREW_JOBS_PUBLIC_PATHS.includes(pathname))
     ) {
       return NextResponse.next();
     }

@@ -293,7 +293,9 @@ link opens the existing authenticated Schedule at `ops.junk-king.app`.
 Waypoint's icon is the approved red crown with gold trim above a winding white road on charcoal. The original artwork is preserved at
 `assets/waypoint/waypoint-crown-road-v1-source.png`. Uncropped PNG exports at
 `public/crew-jobs/waypoint-crown-road-v1-{32,180,192,512}.png` supply the browser
-favicon, Apple touch icon and install manifest. Versioned URLs refresh icon
+Apple touch icon and install manifest. The browser favicon uses the dedicated
+`/crew-jobs/waypoint-favicon-v2.png` URL. Phone-host `/favicon.ico` requests
+resolve to that same Waypoint mark; OpsCenter retains its own favicon. Versioned URLs refresh icon
 references; the legacy `/crew-jobs/icon.png` also serves the new 180px artwork.
 The prior v1 exports remain available for cached references. Only the exact
 public asset paths are allowed on all three phone hostnames.

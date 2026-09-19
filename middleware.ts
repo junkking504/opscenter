@@ -143,6 +143,10 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
   const isCrewHostname = hostname === crewHostname;
   const isSmsHostname = hostname === smsHostname;
 
+  if (pathname === '/favicon.ico') {
+    const phoneHost=[CREW_JOBS_ORIGIN,CREW_JOBS_KINGPIN_ORIGIN,CREW_JOBS_LEGACY_ORIGIN].some(origin=>new URL(origin).hostname===hostname) || ['convoy.junk-king.app','inspect.junk-king.app'].includes(hostname);
+    return phoneHost ? NextResponse.rewrite(new URL('/crew-jobs/waypoint-favicon-v2.png',request.url)) : NextResponse.next();
+  }
   if (pathname.startsWith("/_next/")) {
     return NextResponse.next();
   }
@@ -414,5 +418,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
+  matcher: ["/favicon.ico", "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
 };

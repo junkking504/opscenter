@@ -6,7 +6,8 @@ export const metadata: Metadata = {
   description: 'Junk King company-phone jobs, inspections and crew.',
   manifest: '/crew-jobs/manifest.webmanifest',
   icons: {
-    icon: { url: '/crew-jobs/waypoint-crown-road-v1-32.png', sizes: '32x32', type: 'image/png' },
+    icon: { url: '/crew-jobs/waypoint-favicon-v2.png', sizes: '32x32', type: 'image/png' },
+    shortcut: '/crew-jobs/waypoint-favicon-v2.png',
     apple: { url: '/crew-jobs/waypoint-crown-road-v1-180.png', sizes: '180x180', type: 'image/png' },
   },
   appleWebApp: { capable: true, title: 'Waypoint', statusBarStyle: 'default' },

@@ -45,7 +45,7 @@ export default function CompanyPhones() {
     finally { inFlight.current = false; setBusy(false); }
   }
   return <main className={styles.page}><div className={styles.content}>
-    <h1>Company phones</h1><p>Waypoint: <a href={CREW_JOBS_ORIGIN}>waypoint.junk-king.app</a></p><p>Set up job access on company-issued phones only. Each connection belongs to one truck.</p>
+    <h1>Company phones</h1><p>Waypoint: <a href={CREW_JOBS_ORIGIN}>waypoint.junk-king.app</a></p><p>Set up job access on company-issued phones only. The crew selects its assigned truck during daily Waypoint setup.</p>
     <p>Managers can use personal phones with their manager accounts for <a href="/desktop?workspace=Schedule&scheduleDay=today&scheduleView=board">full schedule access</a>.</p><p><a href="/crew-dispatch">Open crew dispatch</a></p>
     {error && <p role="alert" className={styles.error}>{error}</p>}
     <section className={styles.card}><h2>Send setup code with OpsBot</h2><p>Select the truck. OpsCenter generates a code and OpsBot sends it to the saved company phone on WhatsApp.</p><form id="phone-setup-form" className={styles.form} onSubmit={event => { event.preventDefault(); void send({ action: 'send-setup', truck, requestId: crypto.randomUUID() }); }}>
@@ -64,6 +64,6 @@ export default function CompanyPhones() {
     <h2>Enrolled phones</h2><button className={styles.secondary} onClick={() => void load()} disabled={busy || loading}>{loading ? 'Loading…' : 'Refresh phones'}</button>
     {!loading && !phones.length && !error && <p>No company phones enrolled.</p>}
     <ul className={styles.list}>{phones.map(phone => <li key={phone.deviceId}><strong>{phone.label}</strong><span>{phone.truck} · {phone.state}</span>{phone.state === 'active' && <button className={styles.secondary} disabled={busy} onClick={() => void send({ action: 'revoke', deviceId: phone.deviceId })}>Remove access</button>}</li>)}</ul>
-    <p className={styles.muted}>To change trucks, remove the old connection and create a new setup code.</p>
+    <p className={styles.muted}>Crews change trucks in Waypoint’s daily setup and complete a new inspection before accessing jobs.</p>
   </div></main>;
 }

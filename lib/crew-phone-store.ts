@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { readCrewDay } from './crew-phone-day';
 import path from 'node:path';
 import { createHash, randomInt, randomUUID } from 'node:crypto';
 import { withCrewPhoneSetupLimit } from './login-rate-limit';
@@ -118,7 +119,8 @@ export function listCrewPhones(now = new Date()): Array<CrewPhone & { state: 'ac
     const saved = read<Binding>(path.join(directory('bindings'), name));
     if (!saved || !validBinding(saved)) throw new Error('Phone enrollment needs recovery.');
     const state = revoked(saved.phone.deviceId) ? 'revoked' as const : Date.parse(saved.phone.expiresAt) <= now.getTime() ? 'expired' as const : 'active' as const;
-    return { ...saved.phone, state };
+    const day=readCrewDay(saved.phone);
+    return { ...saved.phone, ...(day?{truck:day.truck}:{}), state };
   }).sort((a, b) => a.truck.localeCompare(b.truck) || a.label.localeCompare(b.label));
 }
 export function revokeCrewPhone(deviceId: string, actor: string, now = new Date()) {

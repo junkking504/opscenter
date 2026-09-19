@@ -1,6 +1,8 @@
+import {assertTruckNotSwitching} from './crew-truck-switch-store';
 import fs from 'node:fs';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
+import {JUNKWARE_DISPATCH_TRUCKS} from './junkware-trucks';
 import {crewRoster} from './crew-auth';
 import {chicagoDateKey} from './chicago-date';
 import {CrewPhoneError,type CrewPhone,type CrewPhoneDay} from './crew-phone';
@@ -17,7 +19,7 @@ function history(phone:CrewPhone,date:string):CrewPhoneDay[] {
  catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')return [];throw error;}
  return names.map((name,index)=>{
   const row=JSON.parse(fs.readFileSync(path.join(dir,name),'utf8')) as CrewPhoneDay;
-  if(row.deviceId!==phone.deviceId || row.truck!==phone.truck || row.date!==date || row.version!==index+1 || parseInt(name)!==index+1 || !uuid.test(row.requestId) || typeof row.driver!=='string' || !row.driver || typeof row.responsible!=='string' || !row.responsible || !Array.isArray(row.navigators) || row.navigators.some(n=>typeof n!=='string' || !n) || new Set([row.driver,...row.navigators]).size!==1+row.navigators.length || !Number.isFinite(Date.parse(row.savedAt)))throw new Error('Daily crew history needs recovery.');
+  if(row.deviceId!==phone.deviceId || !JUNKWARE_DISPATCH_TRUCKS.includes(row.truck) || row.date!==date || row.version!==index+1 || parseInt(name)!==index+1 || !uuid.test(row.requestId) || typeof row.driver!=='string' || !row.driver || typeof row.responsible!=='string' || !row.responsible || !Array.isArray(row.navigators) || row.navigators.some(n=>typeof n!=='string' || !n) || new Set([row.driver,...row.navigators]).size!==1+row.navigators.length || !Number.isFinite(Date.parse(row.savedAt)))throw new Error('Daily crew history needs recovery.');
   return row;
  });
 }
@@ -29,22 +31,26 @@ export function requireCrewDay(phone:CrewPhone,date=chicagoDateKey()) {
  if([day.responsible,day.driver,...day.navigators].some(name=>!roster.includes(name)))throw new CrewPhoneError('The crew list changed. Review today’s crew on this phone.',409);
  return day;
 }
-export function saveCrewDay(phone:CrewPhone,body:Record<string,unknown>,now=new Date(),roster=crewDayRoster()):CrewPhoneDay {
+export function saveCrewDay(phone:CrewPhone,body:Record<string,unknown>,now=new Date(),roster=crewDayRoster(),switchId?:string):CrewPhoneDay {
+ assertTruckNotSwitching(phone.truck,switchId);
  const date=chicagoDateKey(now);
- if(Object.keys(body).some(key=>!['date','requestId','expectedVersion','responsible','driver','navigators'].includes(key)) || body.date!==date || !uuid.test(String(body.requestId)) || !Number.isSafeInteger(body.expectedVersion) || Number(body.expectedVersion)<0)throw new CrewPhoneError('Refresh today’s crew before saving.',409);
+ if(Object.keys(body).some(key=>!['date','requestId','expectedVersion','responsible','driver','navigators','truck'].includes(key)) || body.date!==date || !uuid.test(String(body.requestId)) || !Number.isSafeInteger(body.expectedVersion) || Number(body.expectedVersion)<0)throw new CrewPhoneError('Refresh today’s crew before saving.',409);
+ const truck=body.truck===undefined?phone.truck:body.truck;
+ if(typeof truck!=='string' || !JUNKWARE_DISPATCH_TRUCKS.includes(truck))throw new CrewPhoneError('Choose the truck assigned to you today.');
+ assertTruckNotSwitching(truck,switchId);
  const {driver,responsible,navigators}=body;
  if(typeof driver!=='string' || typeof responsible!=='string' || !Array.isArray(navigators) || navigators.length>5 || [driver,responsible,...navigators].some(name=>typeof name!=='string' || !roster.includes(name)))throw new CrewPhoneError('Choose the responsible person, driver and navigator from the crew list.');
  if(new Set([driver,...navigators]).size!==1+navigators.length)throw new CrewPhoneError('Each person can have only one position.');
  const rows=history(phone,date),latest=rows.at(-1);
  const prior=rows.find(row=>row.requestId===body.requestId);
- if(prior){if(prior.driver!==driver || prior.responsible!==responsible || JSON.stringify(prior.navigators)!==JSON.stringify(navigators))throw new CrewPhoneError('This crew setup request was already used.',409);return latest!;}
+ if(prior){if(prior.truck!==truck || prior.driver!==driver || prior.responsible!==responsible || JSON.stringify(prior.navigators)!==JSON.stringify(navigators))throw new CrewPhoneError('This crew setup request was already used.',409);return latest!;}
  if((latest?.version || 0)!==body.expectedVersion)throw new CrewPhoneError('Today’s crew changed. Refresh before saving.',409);
- const row:CrewPhoneDay={deviceId:phone.deviceId,truck:phone.truck,date,version:Number(body.expectedVersion)+1,requestId:String(body.requestId),responsible,driver,navigators,savedAt:now.toISOString()};
+ const row:CrewPhoneDay={deviceId:phone.deviceId,truck,date,version:Number(body.expectedVersion)+1,requestId:String(body.requestId),responsible,driver,navigators,savedAt:now.toISOString()};
  const dir=directory(phone,date);fs.mkdirSync(dir,{recursive:true,mode:0o700});
  const file=path.join(dir,`${row.version}.json`),temp=`${file}.${randomUUID()}.tmp`;
  const fd=fs.openSync(temp,'wx',0o600);try{fs.writeFileSync(fd,JSON.stringify(row));fs.fsyncSync(fd);}finally{fs.closeSync(fd);}
  try{fs.linkSync(temp,file);const parent=fs.openSync(dir,'r');try{fs.fsyncSync(parent);}finally{fs.closeSync(parent);}}
- catch(error){if((error as NodeJS.ErrnoException).code!=='EEXIST')throw error;const saved=readCrewDay(phone,date);if(saved?.requestId!==row.requestId || saved.driver!==row.driver || saved.responsible!==row.responsible || JSON.stringify(saved.navigators)!==JSON.stringify(row.navigators))throw new CrewPhoneError('Today’s crew changed. Refresh before saving.',409);}
+ catch(error){if((error as NodeJS.ErrnoException).code!=='EEXIST')throw error;const saved=readCrewDay(phone,date);if(saved?.requestId!==row.requestId || saved.truck!==row.truck || saved.driver!==row.driver || saved.responsible!==row.responsible || JSON.stringify(saved.navigators)!==JSON.stringify(row.navigators))throw new CrewPhoneError('Today’s crew changed. Refresh before saving.',409);}
  finally{fs.unlinkSync(temp);}
  return readCrewDay(phone,date)!;
 }

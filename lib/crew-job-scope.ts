@@ -1,4 +1,5 @@
-import { requireCrewPhone } from './crew-phone-http';
+import { requireCrewReady } from './crew-phone-http';
+import { requireCrewDay } from './crew-phone-day';
 import { CrewPhoneError } from './crew-phone';
 import { readCrewDispatch } from './crew-dispatch-store';
 import { readDesktopSchedule } from './desktop-schedule';
@@ -9,14 +10,15 @@ import { withJunkwareAppointmentSyncLock } from './job-route-assignments';
 const sources = { schedule: readDesktopSchedule, assignment: readJunkwareTruckAssignment };
 /** Resolve authority from the cookie and durable dispatch state, never a phone-supplied appointment. */
 export async function withCrewJob<T>(request: Request, assignmentId: string,
-  run: (scope: { phone: ReturnType<typeof requireCrewPhone>; current: NonNullable<ReturnType<typeof readCrewDispatch>['current']>; job: ReturnType<typeof readDesktopSchedule>['appointments'][number] }) => Promise<T>, dependencies = sources): Promise<T> {
-  const phone = requireCrewPhone(request);
+  run: (scope: { phone: ReturnType<typeof requireCrewReady>; current: NonNullable<ReturnType<typeof readCrewDispatch>['current']>; job: ReturnType<typeof readDesktopSchedule>['appointments'][number] }) => Promise<T>, dependencies = sources): Promise<T> {
+  const phone = requireCrewReady(request);
+  const day = requireCrewDay(phone);
   const current = readCrewDispatch(phone.truck).current;
-  if (!current || current.assignmentId !== assignmentId) throw new CrewPhoneError('Dispatch changed. Refresh your assignment.', 409);
+  if (!current || current.assignmentId !== assignmentId || current.date !== day.date) throw new CrewPhoneError('Dispatch changed. Refresh your assignment.', 409);
   return withJunkwareAppointmentSyncLock(current.appointmentId, async () => {
     const assertScope = () => {
-      const active = requireCrewPhone(request);
-      if (active.deviceId !== phone.deviceId || active.truck !== phone.truck || readCrewDispatch(phone.truck).current?.assignmentId !== assignmentId) throw new CrewPhoneError('Phone access or dispatch changed. Contact dispatch.', 409);
+      const active = requireCrewReady(request);
+      if (active.deviceId !== phone.deviceId || active.truck !== phone.truck || requireCrewDay(active).version !== day.version || readCrewDispatch(phone.truck).current?.assignmentId !== assignmentId) throw new CrewPhoneError('Phone access or dispatch changed. Contact dispatch.', 409);
     };
     assertScope();
     const source = await dependencies.assignment(current.appointmentId);

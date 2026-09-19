@@ -2,11 +2,11 @@
 import { useEffect, useRef, useState } from "react";
 import { INSPECTION_SECTIONS, INSPECTION_STATUSES, INSPECTION_LEVELS, inspectionDate, inspectionPhotoError, type InspectionDevice, type InspectionStatus, type InspectionSectionId, type TruckInspectionInput, type TruckInspectionReport } from "@/lib/truck-inspection";
 import { inspectionDraft } from "@/lib/truck-inspection-draft";
-import { CREW_JOBS_ORIGIN } from "@/lib/crew-phone";
 import styles from "./truck-inspection.module.css";
 
 type Draft = Omit<TruckInspectionInput, "status"> & { status: InspectionStatus | ""; step: number; sent: boolean; problemEditing?: boolean; returnToReview?: boolean };
-type Context = { device: InspectionDevice; trucks: string[]; inspectors: string[]; date: string; defaultInspector?: string; truckLocked?: boolean };
+type Context = { device: InspectionDevice; trucks: string[]; inspectors: string[]; date: string; dayVersion?: number; report?: TruckInspectionReport | null };
+const CONNECTION_KEY = "truck-inspection-connection";
 function emptyDraft(): Draft { return { requestId: crypto.randomUUID(), truck: "", inspector: "", odometer: "", fuel: "", loadLevel: "", startedAt: new Date().toISOString(), answers: [], photos: [], status: "", notes: "", initials: "", step: 0, sent: false }; }
 async function api(url: string, body?: unknown) {
   const response = await fetch(url, { method: body ? "POST" : "GET", headers: body ? { "Content-Type": "application/json" } : {}, body: body ? JSON.stringify(body) : undefined, cache: "no-store", signal: AbortSignal.timeout(25_000) });
@@ -29,14 +29,14 @@ async function photoData(file: File): Promise<string> {
     return data;
   } finally { URL.revokeObjectURL(url); }
 }
-export default function TruckInspectionApp({ embedded = false, onBusyChange }: { embedded?: boolean; onBusyChange?: (busy: boolean) => void }) {
-  const endpoint = embedded ? "/api/crew-jobs/inspection" : "/api/truck-inspection";
-  const [legacyLanding, setLegacyLanding] = useState(false);
+export default function TruckInspectionApp({ onBusyChange, apiPath = "/api/truck-inspection", onContinue }: { onBusyChange?: (busy: boolean) => void; apiPath?: string; onContinue?: () => void }) {
   const [context, setContext] = useState<Context | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [receipt, setReceipt] = useState<TruckInspectionReport | null>(null);
+  const connection = useRef<{ token: string } | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   const [saved, setSaved] = useState("");
   const [online, setOnline] = useState(true);
   const [showReport, setShowReport] = useState(false);
@@ -46,24 +46,30 @@ export default function TruckInspectionApp({ embedded = false, onBusyChange }: {
   const heading = useRef<HTMLHeadingElement>(null);
   async function load() {
     try {
-      const data = await api(endpoint);
+      let data = await api(apiPath);
       if (!data.device) {
-        if (embedded) throw new Error("This phone needs manager setup. Check your connection in Crew.");
-        setLegacyLanding(true); return;
+        if (apiPath !== "/api/truck-inspection") throw new Error("Set up today’s truck phone first.");
+        try { const pending = JSON.parse(localStorage.getItem(CONNECTION_KEY) || "null"); if (pending && /^[a-f0-9]{64}$/.test(pending.token)) connection.current = pending; } catch { /* The connection also works without localStorage. */ }
+        if (!connection.current) connection.current = { token: Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, "0")).join("") };
+        try { localStorage.setItem(CONNECTION_KEY, JSON.stringify(connection.current)); } catch { /* The HTTP-only cookie remembers a successful connection. */ }
+        await api(apiPath, { action: "connect", connectionToken: connection.current.token });
+        data = await api(apiPath);
+        if (!data.device) throw new Error("The browser did not keep the phone connection.");
       }
+      try { if (apiPath === "/api/truck-inspection") localStorage.removeItem(CONNECTION_KEY); } catch { /* No pending connection to recover. */ }
+      connection.current = null;
       setContext(data);
+      if (data.report) { setReceipt(data.report); setDraft(emptyDraft()); return; }
       try {
         const stored = await inspectionDraft<Draft>(data.device.deviceId, "read");
         // Preserve the truck on unfinished drafts from the old phone-assignment flow.
-        if (!embedded && !stored) { setLegacyLanding(true); return; }
-        if (data.truckLocked && stored && stored.truck && stored.truck !== data.device.truck) throw new Error("This draft belongs to another truck. Contact your manager.");
-        setDraft(stored ? { ...stored, truck: stored.truck || data.device.truck || "" } : { ...emptyDraft(), truck: data.device.truck || "", inspector: data.defaultInspector || "" });
-      } catch (e) { setError(e instanceof Error ? e.message : "Phone storage unavailable. Reopen this app to recover the draft."); }
+        setDraft(stored ? { ...stored, truck: stored.truck ?? (stored.step > 0 ? data.device.truck || "" : "") } : { ...emptyDraft(), ...(apiPath !== "/api/truck-inspection" ? { truck: data.device.truck, inspector: data.inspectors[0] || "" } : {}) });
+      } catch { setSaved("Phone storage unavailable. Keep this page open until OpsCenter receives the report."); setDraft({ ...emptyDraft(), ...(apiPath !== "/api/truck-inspection" ? { truck: data.device.truck, inspector: data.inspectors[0] || "" } : {}) }); }
     } catch (e) {
+      if ((e as { status?: number }).status === 403) { connection.current = null; try { if (apiPath === "/api/truck-inspection") localStorage.removeItem(CONNECTION_KEY); } catch { /* Retry with a fresh connection. */ } }
       setError(e instanceof Error ? e.message : "Cannot connect to OpsCenter. Reconnect and try again.");
     }
   }
-  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   useEffect(() => { if (location.hash) history.replaceState(null, "", location.pathname); void load(); const update = () => setOnline(navigator.onLine); update(); window.addEventListener("online", update); window.addEventListener("offline", update); return () => { window.removeEventListener("online", update); window.removeEventListener("offline", update); }; }, []);
   useEffect(() => {
     if (!draft || !context || receipt) return;
@@ -92,7 +98,7 @@ export default function TruckInspectionApp({ embedded = false, onBusyChange }: {
     try {
       if (context) { await saveSequence.current; await inspectionDraft(context.device.deviceId, "write", frozen).catch(() => undefined); }
       const { step: _step, sent: _sent, ...report } = frozen;
-      const body = await api(endpoint, { action: "submit", report });
+      const body = await api(apiPath, { action: "submit", report, ...(context?.dayVersion ? {dayVersion: context.dayVersion} : {}) });
       await confirmReport(body.report);
     } catch (e) {
       const status = (e as { status?: number }).status;
@@ -102,7 +108,7 @@ export default function TruckInspectionApp({ embedded = false, onBusyChange }: {
   }
   async function checkResult() {
     if (!draft || mutex.current) return; mutex.current = true; setBusy(true); setError("");
-    try { const body = await api(`${endpoint}?requestId=${encodeURIComponent(draft.requestId)}`); if (body.report) await confirmReport(body.report); else setError("OpsCenter has no saved report with this reference yet. Use Send same report to retry safely."); }
+    try { const body = await api(`${apiPath}?requestId=${encodeURIComponent(draft.requestId)}`); if (body.report) await confirmReport(body.report); else setError("OpsCenter has no saved report with this reference yet. Use Send same report to retry safely."); }
     catch (e) { setError((e as Error).message); } finally { mutex.current = false; setBusy(false); }
   }
   async function addPhoto(file: File | undefined, section: InspectionSectionId) {
@@ -140,11 +146,7 @@ export default function TruckInspectionApp({ embedded = false, onBusyChange }: {
     <div className={styles.photos}>{report.photos.map((p, i) => <figure key={i}><img src={p.data} alt={`${INSPECTION_SECTIONS.find(s => s.id === p.section)?.label} inspection photo ${i + 1}`} /></figure>)}</div>
     <p className={styles.reference}>Report reference: {report.requestId}</p>
   </>;
-  if (legacyLanding) return <main className={styles.app}><section className={styles.phoneContent}><h1>Inspections are now in Waypoint</h1><p>Use one company-phone app for jobs, inspections and today’s crew.</p><a href={`${CREW_JOBS_ORIGIN}/crew-jobs?tab=inspections`}>Open Waypoint</a></section></main>;
-  const Container = embedded ? 'section' : 'main';
-  return <Container aria-label={embedded ? 'Truck inspection' : undefined} className={`${styles.app} ${styles.phoneApp} ${embedded ? styles.embedded : ''}`} data-check={section && !draft?.problemEditing && !receipt && !draft?.sent ? section.id : undefined}>
-    {!embedded && <header className={`${styles.brand} ${styles.inspectionBrand}`}><img className={styles.brandLogo} src="/truck-inspection/brand-logo.svg" width="182" height="40" alt="Junk King" /><div className={styles.brandName}><b>Waypoint</b>{(receipt?.truck || draft?.truck) && <span>{receipt?.truck || draft?.truck}</span>}</div></header>}
-    {!embedded && <p className={styles.legacyNotice}>Finish this inspection here. For your next inspection, <a href={`${CREW_JOBS_ORIGIN}/crew-jobs?tab=inspections`}>open Waypoint</a>.</p>}
+  return <main className={`${styles.app} ${styles.phoneApp}`} data-check={section && !draft?.problemEditing && !receipt && !draft?.sent ? section.id : undefined}>
     <div className={styles.phoneShell}>
       {!context || !draft ? <section className={styles.phoneContent}><div className={styles.eyebrow}>FIVE POINT INSPECTION</div><h1>Morning inspection</h1><p>{error || "Connecting to OpsCenter…"}</p>{error && <button onClick={() => { setError(""); void load(); }}>Try again</button>}</section>
       : receipt ? <>
@@ -155,7 +157,7 @@ export default function TruckInspectionApp({ embedded = false, onBusyChange }: {
           {showReport && <section className={styles.card} aria-label="Submitted report">{reportBody(receipt)}</section>}
           {errors}
         </section>
-        <div className={styles.actionBar}><button aria-expanded={showReport} onClick={() => setShowReport(!showReport)}>{showReport ? "Hide submitted report" : "View submitted report"}</button><p className={styles.muted}>You can close this app.</p>{embedded ? <button className={styles.backButton} onClick={() => { setReceipt(null); setShowReport(false); setDraft({ ...emptyDraft(), truck: context.device.truck || "", inspector: context.defaultInspector || "" }); }}>Start another inspection</button> : <a href={`${CREW_JOBS_ORIGIN}/crew-jobs?tab=inspections`}>Continue in Waypoint</a>}</div>
+        <div className={styles.actionBar}><button aria-expanded={showReport} onClick={() => setShowReport(!showReport)}>{showReport ? "Hide submitted report" : "View submitted report"}</button><p className={styles.muted}>{onContinue ? receipt.status === "stop" ? "Jobs are locked. Contact your manager before operating this truck." : "Inspection complete. Your jobs are ready." : "You can close this app."}</p>{onContinue ? receipt.status !== "stop" && <button className={styles.primary} onClick={onContinue}>Continue to jobs →</button> : <button className={styles.backButton} onClick={() => { setReceipt(null); setShowReport(false); setDraft(emptyDraft()); }}>Start another inspection</button>}</div>
       </> : draft.sent ? <>
         <section className={styles.phoneContent}>
           <div className={styles.eyebrow}>AWAITING OPSCENTER</div><h1 ref={heading} tabIndex={-1}>{busy ? "Sending your report…" : "Receipt not confirmed."}</h1>
@@ -170,10 +172,10 @@ export default function TruckInspectionApp({ embedded = false, onBusyChange }: {
           {draft.step === 0 ? <>
             <div className={styles.eyebrow}>{inspectionDate(new Date(draft.startedAt))} · {draft.truck}</div><h1 ref={heading} tabIndex={-1}>Morning, crew.</h1><p className={styles.intro}>Complete your truck’s five-point check before the day begins.</p>
             <form id="start-inspection" onSubmit={e => { e.preventDefault(); if (context.trucks.includes(draft.truck) && draft.inspector.trim() && /^\d{1,8}$/.test(draft.odometer)) change({ step: 1, startedAt: new Date().toISOString() }); }}>
-              <label className={styles.inputCard}>Truck for this inspection<select disabled={context.truckLocked} required value={draft.truck} onChange={e => chooseTruck(e.target.value)}><option value="">Choose truck</option>{context.trucks.map(t => <option key={t}>{t}</option>)}</select></label>
+              <label className={styles.inputCard}>Truck for this inspection<select disabled={apiPath !== "/api/truck-inspection"} required value={draft.truck} onChange={e => chooseTruck(e.target.value)}><option value="">Choose truck</option>{context.trucks.map(t => <option key={t}>{t}</option>)}</select></label>
               <label className={styles.inputCard}>Your name<input list="inspection-crew" value={draft.inspector} onChange={e => change({ inspector: e.target.value })} required maxLength={100} autoComplete="off" placeholder="Your name or initials" /></label><datalist id="inspection-crew">{context.inspectors.map(name => <option key={name} value={name} />)}</datalist>
               <label className={styles.inputCard}>Odometer · miles<input inputMode="numeric" pattern="[0-9]{1,8}" value={draft.odometer} onChange={e => change({ odometer: e.target.value })} required maxLength={8} placeholder="Enter the mileage" /></label>
-            </form><p className={styles.muted}>{embedded ? 'This inspection is for the truck assigned to this company phone.' : 'Finish the inspection for the truck selected in this draft.'}</p>
+            </form><p className={styles.muted}>{apiPath !== "/api/truck-inspection" ? "Inspect the truck selected during today’s setup." : "Choose the truck you are inspecting today. Any company phone can be used for any truck."}</p>
           </> : section ? <>
             <div className={styles.checkHeading}><h1 ref={heading} tabIndex={-1}>{draft.problemEditing ? "What needs attention?" : section.label}</h1><span className={styles.eyebrow}>{draft.step} of 5</span></div>
             <div className={styles.progress} aria-label={`Check ${draft.step} of 5`}>{INSPECTION_SECTIONS.map((s, i) => <span key={s.id} data-current={i + 1 === draft.step} data-result={draft.answers.find(a => a.id === s.id)?.status || ""} />)}</div>
@@ -214,5 +216,5 @@ export default function TruckInspectionApp({ embedded = false, onBusyChange }: {
         </div>
       </>}
     </div>
-  </Container>;
+  </main>;
 }

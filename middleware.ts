@@ -143,11 +143,15 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
   const isCrewHostname = hostname === crewHostname;
   const isSmsHostname = hostname === smsHostname;
 
+  if (pathname === '/favicon.ico') {
+    const phoneHost=[CREW_JOBS_ORIGIN,CREW_JOBS_KINGPIN_ORIGIN,CREW_JOBS_LEGACY_ORIGIN].some(origin=>new URL(origin).hostname===hostname) || ['convoy.junk-king.app','inspect.junk-king.app'].includes(hostname);
+    return phoneHost ? NextResponse.rewrite(new URL('/crew-jobs/waypoint-favicon-v2.png',request.url)) : NextResponse.next();
+  }
   if (pathname.startsWith("/_next/")) {
     return NextResponse.next();
   }
 
-  // Company-phone origin exposes only the crew app; endpoint handlers require its phone session.
+  // Waypoint combines the phone workflows; each API retains its own session checks.
   const jobsOrigin = [CREW_JOBS_ORIGIN, CREW_JOBS_KINGPIN_ORIGIN, CREW_JOBS_LEGACY_ORIGIN].find(origin => new URL(origin).hostname === hostname);
   if (jobsOrigin) {
     if (pathname === '/') return NextResponse.redirect(new URL('/crew-jobs', jobsOrigin));
@@ -155,16 +159,16 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
     return new NextResponse('Not Found', { status: 404 });
   }
 
-  // Dedicated public inspection origin: never expose management or webhooks here.
+  // Keep legacy inspection origins in place for host-bound drafts and receipts.
   if (["convoy.junk-king.app", "inspect.junk-king.app"].includes(hostname)) {
-    if (pathname === "/") return NextResponse.redirect(new URL("https://waypoint.junk-king.app/crew-jobs?tab=inspections"));
+    if (pathname === "/") return NextResponse.redirect(new URL(`https://${hostname}/truck-inspection`));
     if (INSPECTION_PUBLIC_PATHS.includes(pathname) || CREW_JOBS_PUBLIC_PATHS.includes(pathname)) return NextResponse.next();
     return new NextResponse("Not Found", { status: 404 });
   }
 
   // OpsCenter's same-origin entry link opens the dedicated phone app.
   if (hostname === "ops.junk-king.app" && pathname === "/truck-inspection") {
-    return NextResponse.redirect(new URL("https://waypoint.junk-king.app/crew-jobs?tab=inspections"));
+    return NextResponse.redirect(new URL("/truck-inspection", CREW_JOBS_ORIGIN));
   }
 
   if (isSmsHostname) {
@@ -414,5 +418,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
+  matcher: ["/favicon.ico", "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)"],
 };

@@ -1,18 +1,24 @@
 import assert from 'node:assert/strict';
+import {readyCrewInspection} from './fixtures/crew-ready';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {randomBytes,randomUUID} from 'node:crypto';
 async function main(){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'crew-job-scope-'));
- process.env.OPSCENTER_LOGIN_RATE_LIMIT_FILE=path.join(dir,'login-attempts.json');process.env.OPS_CREW_PHONE_DIR=path.join(dir,'phones');process.env.OPS_CREW_DISPATCH_DIR=path.join(dir,'dispatch');process.env.JOB_ROUTE_ASSIGNMENTS_FILE=path.join(dir,'routes.json');
+ process.env.OPSCENTER_LOGIN_RATE_LIMIT_FILE=path.join(dir,'login-attempts.json');process.env.OPS_CREW_PHONE_DIR=path.join(dir,'phones');process.env.OPS_TRUCK_INSPECTION_DIR=path.join(dir,'inspections');process.env.OPS_CREW_DISPATCH_DIR=path.join(dir,'dispatch');process.env.JOB_ROUTE_ASSIGNMENTS_FILE=path.join(dir,'routes.json');
  try{
+  const {saveCrewDay}=await import('../lib/crew-phone-day');
+  const {chicagoDateKey}=await import('../lib/chicago-date');
+  process.env.OPS_CREW_ROSTER_JSON=JSON.stringify([{employee:'Test Driver',username:'test',active:true}]);
   const {withCrewJob}=await import('../lib/crew-job-scope');
   const {createCrewPhoneEnrollment,enrollCrewPhone,revokeCrewPhone}=await import('../lib/crew-phone-store');
   const {releaseCrewJob}=await import('../lib/crew-dispatch-store');
   const {CREW_PHONE_COOKIE}=await import('../lib/crew-phone');
   const token=randomBytes(32).toString('hex'),invite=createCrewPhoneEnrollment('Truck 6','Test company phone','test-manager');
-  const phone=enrollCrewPhone(invite.code,token),date=new Date().toISOString().slice(0,10);
+  const phone=enrollCrewPhone(invite.code,token),date=chicagoDateKey();
+  saveCrewDay(phone,{date,requestId:randomUUID(),expectedVersion:0,responsible:'Test Driver',driver:'Test Driver',navigators:[]});
+  readyCrewInspection(phone);
   const state=releaseCrewJob({truck:'Truck 6',date,appointmentId:'900001',expectedVersion:0,requestId:randomUUID()},'test-manager');
   const current=state.current!;
   const request=new Request('https://ops.example.invalid/api/crew-jobs/photos',{headers:{Cookie:`${CREW_PHONE_COOKIE}=${token}`}});

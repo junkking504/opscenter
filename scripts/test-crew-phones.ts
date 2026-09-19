@@ -128,12 +128,17 @@ async function main() {
     const phoneFiles = fs.readdirSync(path.join(dir, 'bindings')).map(name => fs.readFileSync(path.join(dir, 'bindings', name), 'utf8')).join('');
     assert.equal(phoneFiles.includes(token), false);
     assert.ok(fs.existsSync(path.join(dir, 'keys', `${createHash('sha256').update(token).digest('hex')}.json`)));
-    for (const route of ['/crew-jobs', '/crew-jobs/manifest.webmanifest', '/crew-jobs/icon.png', '/crew-jobs/waypoint-crown-road-v1-32.png', '/crew-jobs/waypoint-crown-road-v1-180.png', '/crew-jobs/waypoint-crown-road-v1-192.png', '/crew-jobs/waypoint-crown-road-v1-512.png', '/crew-jobs/waypoint-compass-crown-v2-32.png', '/crew-jobs/waypoint-compass-crown-v2-180.png', '/crew-jobs/waypoint-compass-crown-v2-192.png', '/crew-jobs/waypoint-compass-crown-v2-512.png', '/crew-jobs/waypoint-compass-crown-v1-32.png', '/crew-jobs/waypoint-compass-crown-v1-180.png', '/crew-jobs/waypoint-compass-crown-v1-192.png', '/crew-jobs/waypoint-compass-crown-v1-512.png', '/api/crew-jobs/session']) assert.equal(publicAuthRoute(route), true);
+    for (const route of ['/crew-jobs', '/crew-jobs/manifest.webmanifest', '/crew-jobs/icon.png', '/crew-jobs/waypoint-favicon-v2.png', '/crew-jobs/waypoint-crown-road-v1-32.png', '/crew-jobs/waypoint-crown-road-v1-180.png', '/crew-jobs/waypoint-crown-road-v1-192.png', '/crew-jobs/waypoint-crown-road-v1-512.png', '/crew-jobs/waypoint-compass-crown-v2-32.png', '/crew-jobs/waypoint-compass-crown-v2-180.png', '/crew-jobs/waypoint-compass-crown-v2-192.png', '/crew-jobs/waypoint-compass-crown-v2-512.png', '/crew-jobs/waypoint-compass-crown-v1-32.png', '/crew-jobs/waypoint-compass-crown-v1-180.png', '/crew-jobs/waypoint-compass-crown-v1-192.png', '/crew-jobs/waypoint-compass-crown-v1-512.png', '/api/crew-jobs/session', '/api/crew-jobs/inspection']) assert.equal(publicAuthRoute(route), true);
     for (const route of ['/crew-phones', '/api/crew-phones', '/api/crew-jobs/session/admin', '/api/crew-jobs/operations']) assert.equal(publicAuthRoute(route), false);
     for (const route of ['/crew-phones', '/api/crew-phones']) for (const method of ['GET', 'POST']) {
       assert.equal(authorizeOpsRequest('operator', route, method).allowed, false);
       assert.equal(authorizeOpsRequest('manager', route, method).allowed, true);
     }
+    for(const host of ['waypoint.junk-king.app','kingpin.junk-king.app','jobs.junk-king.app','convoy.junk-king.app','inspect.junk-king.app']) {
+      const favicon=await middleware(new NextRequest(`https://${host}/favicon.ico`));
+      assert.equal(favicon.headers.get('x-middleware-rewrite'),`https://${host}/crew-jobs/waypoint-favicon-v2.png`);
+    }
+    assert.equal((await middleware(new NextRequest('https://ops.junk-king.app/favicon.ico'))).headers.get('x-middleware-rewrite'),null,'OpsCenter retains its separate favicon');
     delete process.env.OPS_ACCESS_TEAM_DOMAIN; delete process.env.OPS_ACCESS_AUD;
     const unauthorized = await middleware(new NextRequest(`${origin}/api/crew-phones`, { headers: cookieHeader }));
     assert.equal(unauthorized.status, 401, 'Phone cookie never authenticates a manager request');
@@ -141,11 +146,10 @@ async function main() {
       const denied = await middleware(new NextRequest(`https://${host}/api/crew-jobs/session`));
       assert.equal(denied.status, 404, 'Webhook origin does not expose crew job sessions');
     }
-    assert.equal((await middleware(new NextRequest('https://hooks.junk-king.app/crew-jobs/waypoint-crown-road-v1-192.png'))).headers.get('x-middleware-next'), '1', 'Legacy webhook-origin manifest assets remain available');
     for (const jobsOrigin of ['https://waypoint.junk-king.app', 'https://kingpin.junk-king.app', 'https://jobs.junk-king.app']) {
       const jobsRoot=await middleware(new NextRequest(`${jobsOrigin}/`));
       assert.equal(jobsRoot.headers.get('location'),`${jobsOrigin}/crew-jobs`);
-      for(const route of ['/truck-inspection','/api/truck-inspection','/crew-jobs','/crew-jobs/manifest.webmanifest','/crew-jobs/icon.png', '/crew-jobs/waypoint-crown-road-v1-32.png', '/crew-jobs/waypoint-crown-road-v1-180.png', '/crew-jobs/waypoint-crown-road-v1-192.png', '/crew-jobs/waypoint-crown-road-v1-512.png', '/crew-jobs/waypoint-compass-crown-v2-32.png', '/crew-jobs/waypoint-compass-crown-v2-180.png', '/crew-jobs/waypoint-compass-crown-v2-192.png', '/crew-jobs/waypoint-compass-crown-v2-512.png', '/crew-jobs/waypoint-compass-crown-v1-32.png', '/crew-jobs/waypoint-compass-crown-v1-180.png', '/crew-jobs/waypoint-compass-crown-v1-192.png', '/crew-jobs/waypoint-compass-crown-v1-512.png','/api/crew-jobs/session','/api/crew-jobs/day','/api/crew-jobs/inspection','/api/crew-jobs/current','/api/crew-jobs/photos','/api/crew-jobs/closeout','/_next/static/sample.js']) {
+      for(const route of ['/truck-inspection','/api/truck-inspection','/truck-inspection/manifest.webmanifest', '/truck-inspection/brand-logo.svg', '/crew-jobs','/crew-jobs/manifest.webmanifest','/crew-jobs/icon.png', '/crew-jobs/waypoint-favicon-v2.png', '/crew-jobs/waypoint-crown-road-v1-32.png', '/crew-jobs/waypoint-crown-road-v1-180.png', '/crew-jobs/waypoint-crown-road-v1-192.png', '/crew-jobs/waypoint-crown-road-v1-512.png', '/crew-jobs/waypoint-compass-crown-v2-32.png', '/crew-jobs/waypoint-compass-crown-v2-180.png', '/crew-jobs/waypoint-compass-crown-v2-192.png', '/crew-jobs/waypoint-compass-crown-v2-512.png', '/crew-jobs/waypoint-compass-crown-v1-32.png', '/crew-jobs/waypoint-compass-crown-v1-180.png', '/crew-jobs/waypoint-compass-crown-v1-192.png', '/crew-jobs/waypoint-compass-crown-v1-512.png','/api/crew-jobs/session','/api/crew-jobs/day','/api/crew-jobs/inspection', '/api/crew-jobs/switch-truck','/api/crew-jobs/current','/api/crew-jobs/photos','/api/crew-jobs/closeout','/_next/static/sample.js']) {
         const allowed=await middleware(new NextRequest(`${jobsOrigin}${route}`));
         assert.equal(allowed.headers.get('x-middleware-next'),'1',route);
       }
@@ -158,8 +162,8 @@ async function main() {
     }
     for (const host of ['convoy.junk-king.app', 'inspect.junk-king.app']) {
       const root = await middleware(new NextRequest(`https://${host}/`));
-      assert.equal(root.headers.get('location'), 'https://waypoint.junk-king.app/crew-jobs?tab=inspections');
-      for (const route of ['/crew-jobs','/api/crew-jobs/session','/api/crew-jobs/inspection','/crew-jobs/waypoint-crown-road-v1-192.png','/truck-inspection', '/truck-inspection/manifest.webmanifest', '/truck-inspection/icon.svg', '/truck-inspection/gear-wrench-clean-180.png', '/truck-inspection/convoy-gear-crown-v2-32.png', '/truck-inspection/convoy-gear-crown-v2-180.png', '/truck-inspection/convoy-gear-crown-v2-192.png', '/truck-inspection/convoy-gear-crown-v2-512.png', '/api/truck-inspection']) {
+      assert.equal(root.headers.get('location'), `https://${host}/truck-inspection`);
+      for (const route of ['/crew-jobs', '/crew-jobs/manifest.webmanifest', '/crew-jobs/waypoint-compass-crown-v2-192.png', '/api/crew-jobs/session', '/api/crew-jobs/current', '/api/crew-jobs/inspection', '/api/crew-jobs/switch-truck', '/api/crew-jobs/photos', '/api/crew-jobs/closeout', '/truck-inspection', '/truck-inspection/manifest.webmanifest', '/truck-inspection/icon.svg', '/truck-inspection/gear-wrench-clean-180.png', '/truck-inspection/convoy-gear-crown-v2-32.png', '/truck-inspection/convoy-gear-crown-v2-180.png', '/truck-inspection/convoy-gear-crown-v2-192.png', '/truck-inspection/convoy-gear-crown-v2-512.png', '/api/truck-inspection']) {
         const response = await middleware(new NextRequest(`https://${host}${route}`));
         assert.equal(response.headers.get('x-middleware-next'), '1', `${host}${route}`);
       }
@@ -167,10 +171,10 @@ async function main() {
         assert.equal((await middleware(new NextRequest(`https://${host}${route}`))).status, 404, `${host} denies ${route}`);
       }
       const forwarded = await middleware(new NextRequest('http://localhost:3000/', { headers: { 'x-forwarded-host': host, 'x-forwarded-proto': 'https' } }));
-      assert.equal(forwarded.headers.get('location'), 'https://waypoint.junk-king.app/crew-jobs?tab=inspections');
+      assert.equal(forwarded.headers.get('location'), `https://${host}/truck-inspection`);
     }
     const convoyEntry = await middleware(new NextRequest('https://ops.junk-king.app/truck-inspection'));
-    assert.equal(convoyEntry.headers.get('location'), 'https://waypoint.junk-king.app/crew-jobs?tab=inspections');
+    assert.equal(convoyEntry.headers.get('location'), 'https://waypoint.junk-king.app/truck-inspection');
     console.log('PASS: manager-only access, fixed truck, one-phone enrollment race, retry recovery, expiry, revocation, private cookies, bounded same-origin requests, no credential storage, corrupt-storage denial. No browser or live writes.');
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 }

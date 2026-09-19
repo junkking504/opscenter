@@ -1,0 +1,56 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {randomBytes,randomUUID} from 'node:crypto';
+async function main(){
+ const root=fs.mkdtempSync(path.join(os.tmpdir(),'waypoint-switch-'));
+ Object.assign(process.env,{OPS_CREW_PHONE_DIR:path.join(root,'phones'),OPS_CREW_DISPATCH_DIR:path.join(root,'dispatch'),OPS_TRUCK_INSPECTION_DIR:path.join(root,'inspections'),OPSCENTER_DESKTOP_OPERATIONS_DIR:path.join(root,'operations'),JOB_ROUTE_ASSIGNMENTS_FILE:path.join(root,'routes','assignments.json'),OPSCENTER_LOGIN_RATE_LIMIT_FILE:path.join(root,'limits.json'),OPS_CREW_ROSTER_JSON:JSON.stringify([{employee:'Test Driver',username:'test.driver',active:true}])});
+ const {createCrewPhoneEnrollment,enrollCrewPhone}=await import('../lib/crew-phone-store');
+ const {saveCrewDay,readCrewDay}=await import('../lib/crew-phone-day');
+ const {releaseCrewJob,readCrewDispatch}=await import('../lib/crew-dispatch-store');
+ const {previewTruckSwitch,beginTruckSwitch,continueTruckSwitch}=await import('../lib/crew-truck-switch');
+ const {assertAppointmentNotSwitching,pendingTruckSwitch}=await import('../lib/crew-truck-switch-store');
+ const {readPendingScheduleReceipt}=await import('../lib/desktop-schedule-operations');
+ const {chicagoDateKey}=await import('../lib/chicago-date');
+ const {crewInspectionState}=await import('../lib/crew-phone-inspection');
+ const {connectInspectionPhone,submitTruckInspection}=await import('../lib/truck-inspection-store');
+ const {INSPECTION_SECTIONS}=await import('../lib/truck-inspection');
+ const date=chicagoDateKey(),phone=enrollCrewPhone(createCrewPhoneEnrollment('Truck 1','Synthetic switch phone','manager').code,randomBytes(32).toString('hex'));
+ try{
+  const day=saveCrewDay(phone,{date,truck:'Truck 6',expectedVersion:0,requestId:randomUUID(),driver:'Test Driver',responsible:'Test Driver',navigators:[]});
+  const jobs=[1,2,3].map(n=>({appointmentId:`99900${n}`,recordId:`${date}:appointment:99900${n}`,version:String(n).repeat(64),truck:'Truck 6',status:n===3?'Completed':'Confirmed',appointmentStartMinutes:600,appointmentEndMinutes:660}));
+  let moved=0,drop=true;
+  const sources={schedule:()=>({observedAt:new Date().toISOString(),appointments:jobs}),assignment:async(id:string)=>{const job=jobs.find(j=>j.appointmentId===id)!;return {...job,date,verifiedAt:new Date().toISOString()};},move:async(input:{appointmentId:string;truck:string})=>{moved++;const job=jobs.find(j=>j.appointmentId===input.appointmentId)!;const previousTruck=job.truck;job.truck=input.truck;if(drop){drop=false;throw new Error('Synthetic lost response after source saved');}return{...input,previousTruck,changed:true,verifiedAt:new Date().toISOString()};}} as unknown as typeof import('../lib/crew-truck-switch').truckSwitchSources;
+  const first=releaseCrewJob({truck:'Truck 6',date,appointmentId:jobs[0].appointmentId,expectedVersion:0,requestId:randomUUID()},'manager');
+  const queued=releaseCrewJob({truck:'Truck 6',date,appointmentId:jobs[1].appointmentId,expectedVersion:1,requestId:randomUUID()},'manager');
+  const preview=previewTruckSwitch(phone,'Truck 7',sources);assert.equal(preview.count,2);assert.equal(preview.inspection.status,'required');
+  const body={action:'confirm',to:'Truck 7',requestId:randomUUID(),fingerprint:preview.fingerprint};
+  await assert.rejects(beginTruckSwitch(phone,{...body,fingerprint:'stale'},sources),/changed/);
+  const saved=await beginTruckSwitch(phone,body,sources);
+  assert.equal((await beginTruckSwitch(phone,body,sources)).requestId,saved.requestId);
+  assert.throws(()=>readCrewDispatch('Truck 6'),/switch/);assert.throws(()=>readCrewDispatch('Truck 7'),/switch/);
+  assert.throws(()=>saveCrewDay(phone,{date,truck:day.truck,responsible:day.responsible,driver:day.driver,navigators:day.navigators,expectedVersion:1,requestId:randomUUID()}),/switch/);
+  assert.throws(()=>assertAppointmentNotSwitching(jobs[0].appointmentId),/switch/);
+  const interrupted=await continueTruckSwitch(phone,saved.requestId,sources);assert.equal(interrupted.status,'attention');assert.equal(moved,1);
+  assert.equal(readCrewDay(phone)?.truck,'Truck 6','Phone not rebound while source verification incomplete');
+  assert.ok(await readPendingScheduleReceipt(jobs[0].recordId));
+  const recovered=await continueTruckSwitch(phone,saved.requestId,sources);assert.equal(recovered.jobs[0].state,'verified');assert.equal(moved,1,'Lost response checked, never replayed');
+  assert.equal(await readPendingScheduleReceipt(jobs[0].recordId),null,'Recovered move no longer blocks closeout');
+  await continueTruckSwitch(phone,saved.requestId,sources);const done=await continueTruckSwitch(phone,saved.requestId,sources);
+  assert.equal(done.status,'complete');assert.equal(moved,2);assert.equal(jobs[2].truck,'Truck 6','Completed history stays with original truck');
+  assert.equal(readCrewDispatch('Truck 6').current,null);
+  assert.deepEqual(readCrewDispatch('Truck 7').current,first.current,'Current assignment identity and release timestamp preserved');
+  assert.deepEqual(readCrewDispatch('Truck 7').queued,queued.queued,'Queued job remains queued');
+  assert.equal(readCrewDay(phone)?.truck,'Truck 7');assert.equal(readCrewDay(phone)?.driver,'Test Driver');assert.equal(pendingTruckSwitch(phone.deviceId),null);
+  assert.equal(crewInspectionState(phone).status,'required');
+  const legacy=connectInspectionPhone(randomBytes(32).toString('hex'));
+  submitTruckInspection({requestId:randomUUID(),truck:'Truck 7',inspector:'Another crew',odometer:'12345',fuel:'Full',loadLevel:'Empty',startedAt:new Date().toISOString(),answers:INSPECTION_SECTIONS.map(s=>({id:s.id,status:'good',notes:''})),photos:[],status:'clear',notes:'',initials:'AC'},legacy.device);
+  assert.equal(crewInspectionState(phone).status,'ready','Inspection from another crew today is reusable');
+  assert.equal((await continueTruckSwitch(phone,saved.requestId,sources)).status,'complete');assert.equal(moved,2,'Completed retry never moves jobs again');
+  jobs.push({...jobs[0],appointmentId:'999004',truck:'Truck 8'});
+  assert.throws(()=>previewTruckSwitch({...phone,truck:'Truck 7'},'Truck 8',sources),/unfinished jobs/);
+  console.log('PASS: confirmed truck switch; completed history and current/queued IDs preserved; source loss recovery without replay; reservations, stale confirmation, occupied destination and shared daily inspection. Synthetic data only.');
+ }finally{fs.rmSync(root,{recursive:true,force:true});}
+}
+void main().catch(e=>{console.error(e);process.exitCode=1;});

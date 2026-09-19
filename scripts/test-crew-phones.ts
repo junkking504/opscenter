@@ -135,8 +135,10 @@ async function main() {
       assert.equal(authorizeOpsRequest('manager', route, method).allowed, true);
     }
     for(const host of ['waypoint.junk-king.app','kingpin.junk-king.app','jobs.junk-king.app','convoy.junk-king.app','inspect.junk-king.app']) {
-      const favicon=await middleware(new NextRequest(`https://${host}/favicon.ico`));
-      assert.equal(favicon.headers.get('x-middleware-rewrite'),`https://${host}/crew-jobs/waypoint-favicon-v2.png`);
+      const favicon=await middleware(new NextRequest(`https://${host}/favicon.ico`,{headers:{'x-forwarded-proto':'https'}}));
+      assert.equal(favicon.status,307);
+      assert.equal(favicon.headers.get('cache-control'),'no-store');
+      assert.equal(favicon.headers.get('location'),`https://${host}/crew-jobs/waypoint-favicon-v2.png`);
     }
     assert.equal((await middleware(new NextRequest('https://ops.junk-king.app/favicon.ico'))).headers.get('x-middleware-rewrite'),null,'OpsCenter retains its separate favicon');
     delete process.env.OPS_ACCESS_TEAM_DOMAIN; delete process.env.OPS_ACCESS_AUD;

@@ -145,7 +145,10 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
 
   if (pathname === '/favicon.ico') {
     const phoneHost=[CREW_JOBS_ORIGIN,CREW_JOBS_KINGPIN_ORIGIN,CREW_JOBS_LEGACY_ORIGIN].some(origin=>new URL(origin).hostname===hostname) || ['convoy.junk-king.app','inspect.junk-king.app'].includes(hostname);
-    return phoneHost ? NextResponse.rewrite(new URL('/crew-jobs/waypoint-favicon-v2.png',request.url)) : NextResponse.next();
+    if(!phoneHost)return NextResponse.next();
+    const response=NextResponse.redirect(new URL(`https://${hostname}/crew-jobs/waypoint-favicon-v2.png`));
+    response.headers.set('Cache-Control','no-store');
+    return response;
   }
   if (pathname.startsWith("/_next/")) {
     return NextResponse.next();

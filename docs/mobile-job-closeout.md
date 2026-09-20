@@ -38,8 +38,10 @@ Only one phone can redeem a code. The phone cannot self-register or select a tru
 Waypoint now starts with **Company phone number → Send setup code via OpsBot →
 enter the six-digit code**. Only one exact match in the private company-phone
 directory is eligible; unknown/ambiguous numbers receive no message and an explicit
-“No code was sent” error. A separately approved manager test phone can use the
-same flow through the private `selfSetupTestRecipientName` setting. Other manager
+“No code was sent” error. Separately approved manager test phones can use the
+same flow through the private `selfSetupTestRecipientNames` list. The legacy
+`selfSetupTestRecipientName` remains supported alongside that list. Each approved
+name and phone number must uniquely match the saved manager directory. Other manager
 numbers remain ineligible. The public response never returns a code, company directory, provider
 receipt or phone binding. Possession of the single-use code establishes access,
 then the crew chooses today’s truck before inspection and jobs.

@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {randomUUID,randomBytes} from 'node:crypto';
+import {randomUUID,randomBytes,createHash} from 'node:crypto';
 import {crewPhoneSession} from '../lib/crew-phone-http';
-import {requestCrewPhoneSetup,crewPhoneDeliveryHealth} from '../lib/crew-phone-delivery';
+import {requestCrewPhoneSetup,crewPhoneDeliveryHealth,sendCrewPhoneSetup} from '../lib/crew-phone-delivery';
 import {enrollCrewPhone} from '../lib/crew-phone-store';
 
 async function main(){
@@ -59,6 +59,41 @@ async function main(){
     assert.equal(crewPhoneDeliveryHealth().exceptions.length,2,'Explicit test-phone failures are monitored');
     fs.writeFileSync(process.env.OPS_CREW_PHONE_DELIVERY_APPROVAL,JSON.stringify(policy));
     await assert.rejects(requestCrewPhoneSetup('5045550199',randomUUID()),/No code was sent/);assert.equal(calls,2,'Removing test permission immediately stops new sends');
+    const managers=[{name:'Synthetic manager',number:'504-555-0199'},{name:'Second manager',number:'504-555-0198'},{name:'Third manager',number:'504-555-0197'},{name:'Unapproved manager',number:'504-555-0196'}];
+    const writeDirectory=(rows=managers)=>fs.writeFileSync(path.join(dir,'directory.json'),JSON.stringify({schema:1,company:[],managers:rows}));
+    const multiPolicy={...policy,selfSetupTestRecipientName:'Synthetic manager',selfSetupTestRecipientNames:['Second manager','Third manager']};
+    const approve=(value:unknown)=>fs.writeFileSync(process.env.OPS_CREW_PHONE_DELIVERY_APPROVAL!,JSON.stringify(value));
+    writeDirectory();approve(multiPolicy);
+    await assert.rejects(requestCrewPhoneSetup('5045550196',randomUUID()),/No code was sent/);
+    // Neither duplicate directory names nor shared manager numbers may broaden access.
+    writeDirectory([...managers,{name:'Second manager',number:'504-555-0195'}]);
+    await assert.rejects(requestCrewPhoneSetup('5045550198',randomUUID()),/No code was sent/);
+    writeDirectory([...managers,{name:'Duplicate number',number:'504-555-0198'}]);
+    await assert.rejects(requestCrewPhoneSetup('5045550198',randomUUID()),/No code was sent/);
+    writeDirectory();
+    for(const names of ['Second manager',[null],[''],Array(51).fill('Second manager')]) {
+      approve({...multiPolicy,selfSetupTestRecipientNames:names});
+      await assert.rejects(requestCrewPhoneSetup('5045550198',randomUUID()),/approval is unavailable/);
+    }
+    approve(multiPolicy);assert.equal(calls,2);
+    const unapprovedActor=`crew-self-setup:${createHash('sha256').update('5045550196').digest('hex')}`;
+    await assert.rejects(sendCrewPhoneSetup('Truck 6',randomUUID(),unapprovedActor,true),/not been approved/);
+    for(const digits of ['5045550198','5045550197']) {
+      expectedTo=`1${digits}`;
+      const id=randomUUID();
+      const before:number=calls;
+      assert.match((await requestCrewPhoneSetup(digits,id)).message,/WhatsApp accepted/);
+      assert.equal(calls,before+1,'Each approved phone receives only its own setup code');
+      assert.equal(enrollCrewPhone(code,randomBytes(32).toString('hex')).truck,'Truck 6');
+      assert.match((await requestCrewPhoneSetup(digits,id)).message,/WhatsApp accepted/);
+      await assert.rejects(requestCrewPhoneSetup(digits,randomUUID()),/already requested/);
+      assert.equal(calls,before+1,'Each phone independently recovers and throttles without replay');
+    }
+    assert.match((await requestCrewPhoneSetup('5045550199',testId)).message,/not yet confirmed/,'Legacy test recipient remains enabled');
+    approve({...multiPolicy,selfSetupTestRecipientNames:['Third manager']});
+    await assert.rejects(requestCrewPhoneSetup('5045550198',randomUUID()),/No code was sent/);
+    approve({...multiPolicy,maxAttemptsPerMonth:1});
+    await assert.rejects(requestCrewPhoneSetup('5045550197',randomUUID()),/monthly/);assert.equal(calls,4,'All test phones share the original monthly ledger');
     console.log('Self setup passed: same-origin boundary, registered-number routing, clear no-send response, approved test phone, real enrollment from mocked message, saved-send recovery, uncertain no replay, phone/day and address limits, unchanged approval gate and delivery monitoring.');
   }finally{globalThis.fetch=originalFetch;process.env=previous;fs.rmSync(dir,{recursive:true,force:true});}
 }

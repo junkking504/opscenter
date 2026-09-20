@@ -135,6 +135,15 @@ sends per phone per day apply. Removing that field stops new test sends. This
 setting is separate from the older single-request manager test action and must
 not be enabled for other recipients by a routine deployment.
 
+On September 20, the user explicitly requested enabling two additional saved
+manager phones for Waypoint testing. `selfSetupTestRecipientNames` supports an
+explicit list alongside the existing singular setting, preserving the original
+recipient. Each name and number must uniquely match the private manager directory;
+requests select only the matching caller number. All recipients share the same
+existing $1/100-attempt monthly ledger, expiration and per-phone limits. This
+recipient-only approval does not raise spending limits or enable arbitrary manager
+numbers. Tests use mocked sends; do not claim handset delivery from eligibility.
+
 ## Kingpin and Convoy hostnames — September 18, 2026
 
 The user explicitly approved adding only `kingpin.junk-king.app` and

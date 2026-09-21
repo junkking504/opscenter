@@ -3,6 +3,7 @@ import { reviewedServiceAddress } from './reviewed-service-address';
 import { cleanJunkwareAddressText } from './junkware-address-text';
 import { cleanServiceQuery, normalizeServiceAddress, withoutServiceUnit } from './service-address-format';
 import { verifyOsmAddressFallback } from './osm-service-address';
+import { verifyParishAddressFallback } from './parish-service-address';
 import { hasMinorStreetCorrection } from './address-spelling-correction';
 import { sameCensusAddress, type CensusAddressMatch } from './census-address-matches';
 import type { PlanningLocation } from './planning-geocodes';
@@ -14,7 +15,7 @@ import { createHash, randomUUID } from 'node:crypto';
 type Component = { long_name: string; short_name: string; types: string[] };
 type Result = { partial_match?: boolean; address_components?: Component[]; geometry?: { location?: { lat: number; lng: number }; location_type?: string } };
 type Payload = { status?: string; results?: Result[] };
-export const ADDRESS_VERIFICATION_POLICY = 9;
+export const ADDRESS_VERIFICATION_POLICY = 10;
 export type AddressVerification = { location: PlanningLocation | null; reason: string; matchedAddress?: string; source?: string; sourceUrl?: string; retryAfterMs?: number };
 const normalize = normalizeServiceAddress;
 const normalizeRouteName = (text: string) => normalize(text).replace(/\bS NORMAN FRANCIS PKWY\b/g, 'S NORMAN C FRANCIS PKWY');
@@ -154,16 +155,24 @@ export async function verifyDesktopAddress(address:string):Promise<AddressVerifi
     let verified:AddressVerification={location:null,reason:'Precise Service Location Unavailable'};
     let ambiguous=false, transientFailure=false;
     const started=Date.now();
+    // Free parish evidence is independent of the paid research queue. Check
+    // it first where supported, within the existing 27-second lookup budget.
+    const parish = await verifyParishAddressFallback(address);
+    if (parish.location) verified = parish;
     for(const query of addressQueries(address)) {
-      if(Date.now()-started>=16000)break;
+      if(verified.location || Date.now()-started>=16000)break;
       const response = await requestGeocode(query);
       if (response.failed) { transientFailure=true; break; }
       verified=verifyCensusAddress(address,response.payload);
       if(verified.reason==='Multiple Address Matches')ambiguous=true;
       if(verified.location) break;
     }
+    // Free official address points run even when Census is ambiguous and the
+    // separately capped paid research queue is exhausted. The minute sweep
+    // calls this for all collected future dates without an open browser.
     if(!verified.location && !ambiguous)verified=await verifyOsmAddressFallback(address,Math.max(0,27000-(Date.now()-started)-8000));
     if(!verified.location && ambiguous)verified={location:null,reason:'Multiple Address Matches'};
+    if (!verified.location && parish?.retryAfterMs) verified = {...verified,retryAfterMs:Math.max(60_000,parish.retryAfterMs)};
     if (!verified.location && transientFailure) verified = {...verified, reason:'Address Provider Temporarily Unavailable', retryAfterMs:Math.max(60_000, verified.retryAfterMs || 0)};
     entry.verified=verified;entry.expires=Date.now()+(verified.retryAfterMs || (verified.location?7*86_400_000:300_000));
     const file=cacheFile(address), temporary=file+'.'+randomUUID()+'.tmp';

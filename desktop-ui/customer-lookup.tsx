@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import type { CustomerDetails, CustomerLookupResult, CustomerSelection } from '../lib/junkware-customer-contract';
@@ -10,6 +10,7 @@ export default function CustomerLookup({ selected }: { selected: (customer: Cust
   const [used, setUsed] = useState('');
   const generation = useRef(0);
   const pending = useRef(false);
+  useEffect(() => () => { generation.current++; }, []);
   async function search(key?: string) {
     if (pending.current || query.trim().length < 2) return;
     pending.current = true; setBusy(true); setError(''); setUsed('');

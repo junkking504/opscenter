@@ -8,9 +8,9 @@ export const serviceTerritoryLabels: Record<string, string> = {
 type Area = { code: string; areaCode: string; area: string };
 const rules: Array<[string, string, string, string]> = [
   ['greenwell springs', 'BR', 'GWS', 'Greenwell Springs'],
-  ['denham springs|walker', 'BR', 'LIV', 'Livingston'],
+  ['denham springs|port vincent|walker', 'BR', 'LIV', 'Livingston'],
   ['prairieville|gonzales', 'BR', 'ASC', 'Ascension'],
-  ['baton rouge', 'BR', 'BR', 'Baton Rouge'],
+  ['baton rouge|baker|central|zachary', 'BR', 'BR', 'Baton Rouge'],
   ['saint gabriel|st\\.? gabriel', 'BR', 'IBV', 'Iberville'],
   ['lafayette', 'LF', 'LAF', 'Lafayette'],
   ['algiers|avondale|barataria|belle chasse|bridge city|crown point|estelle|gretna|harvey|jean lafitte|lafitte|marrero|terrytown|timberlane|waggaman|westwego|woodmere', 'JP', 'WB', 'Westbank'],
@@ -33,6 +33,8 @@ const rules: Array<[string, string, string, string]> = [
 const zipAreas: Record<string, Area> = {
   '70776': { code: 'BR', areaCode: 'IBV', area: 'Iberville' },
   '70739': { code: 'BR', areaCode: 'GWS', area: 'Greenwell Springs' },
+  '70726': { code: 'BR', areaCode: 'LIV', area: 'Livingston' },
+  '70791': { code: 'BR', areaCode: 'BR', area: 'Baton Rouge' },
   '70508': { code: 'LF', areaCode: 'LAF', area: 'Lafayette' },
   '70121': { code: 'JP', areaCode: 'EB', area: 'Eastbank' },
   '70123': { code: 'JP', areaCode: 'EB', area: 'Eastbank' },

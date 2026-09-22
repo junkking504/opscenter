@@ -14,6 +14,9 @@ import {
   setInputWithWebFormsPostback,
 } from "./junkware-webforms";
 
+import { searchCustomerRows, selectCustomerRow, customerResultsHaveMore } from './junkware-customer-lookup';
+import { customerSearchFields, normalizeCustomerSelection } from '../lib/junkware-customer-contract';
+
 const ORIGIN = "https://junkware.junk-king.com";
 const LOGIN = "/account/login.aspx";
 const NEW_APPOINTMENT_URL = `${ORIGIN}/franchise/new-appointment.aspx`;
@@ -166,6 +169,14 @@ async function chooseFranchise(page: Page, input: JunkwareAppointmentCreationInp
 }
 
 async function chooseCustomer(page: Page, input: JunkwareAppointmentCreationInput): Promise<"existing" | "new"> {
+  if (input.customerSelection) {
+    const matches = await searchCustomerRows(page, input.customerSelection.query);
+    const customer = await selectCustomerRow(page, matches, input.customerSelection.key);
+    if (normalized(customer.firstName) !== normalized(input.firstName) || normalized(customer.lastName) !== normalized(input.lastName) || phoneDigits(customer.phone) !== input.phone) {
+      throw new Error("The selected customer's name or phone changed. Search and select again.");
+    }
+    return "existing";
+  }
   await page.locator("#ctl00_Content_FirstNameTB").fill(input.firstName);
   await page.locator("#ctl00_Content_LastNameTB").fill(input.lastName);
   await page.locator("#ctl00_Content_Phone1TB").fill(input.phone);
@@ -394,7 +405,27 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error) => {
+async function lookupCustomer(): Promise<void> {
+  let source = '';
+  for await (const chunk of process.stdin) source += chunk;
+  const input = JSON.parse(source);
+  customerSearchFields(input.query);
+  const selection = input.key ? normalizeCustomerSelection(input) : undefined;
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext({ ...(fs.existsSync(STORAGE_STATE) ? { storageState: STORAGE_STATE } : {}) });
+    const page = await context.newPage();
+    page.setDefaultTimeout(30000);
+    await ensureAuthenticated(page, NEW_APPOINTMENT_URL);
+    const matches = await searchCustomerRows(page, input.query);
+    const hasMore = await customerResultsHaveMore(page, matches.length);
+    const customer = selection ? await selectCustomerRow(page, matches, selection.key) : undefined;
+    // Read only: never New Account, Save, or persist a modified source record.
+    process.stdout.write(JSON.stringify({ matches: matches.slice(0, 20), hasMore, checkedAt: new Date().toISOString(), customer }));
+    await context.close();
+  } finally { await browser.close(); }
+}
+(process.argv.includes('--customer-lookup') ? lookupCustomer() : main()).catch((error) => {
   const message = error instanceof Error ? error.message : String(error);
   const code = /available|offer/i.test(message) ? "appointment_option_unavailable" : "appointment_creation_failed";
   process.stderr.write(`${JSON.stringify({ ok: false, stage, code, error: message.slice(0, 300) })}\n`);

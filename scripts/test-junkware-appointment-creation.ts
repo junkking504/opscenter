@@ -56,6 +56,9 @@ async function main() {
   };
 
   const normalized = normalizeJunkwareAppointmentCreationInput(input);
+  const customerSelection = { query: 'Test Customer', key: 'a'.repeat(64) };
+  assert.deepEqual(normalizeJunkwareAppointmentCreationInput({ ...input, customerSelection }).customerSelection, customerSelection);
+  assert.throws(() => normalizeJunkwareAppointmentCreationInput({ ...input, customerSelection: { ...customerSelection, key: 'invalid' } }), /select the customer again/);
   assert.equal(normalized.phone, "5045550199");
   assert.equal(normalized.appointmentType, "Estimate");
   assert.equal(normalized.estimatedPickups, 1.5);

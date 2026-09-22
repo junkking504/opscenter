@@ -4,6 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { JUNKWARE_DISPATCH_TRUCKS } from './junkware-trucks';
 
+import { normalizeCustomerSelection, type CustomerSelection } from './junkware-customer-contract';
+
 export const JUNKWARE_FRANCHISES = [
   "Baton Rouge",
   "Jefferson Parish",
@@ -18,6 +20,7 @@ export type JunkwareAppointmentType = (typeof JUNKWARE_APPOINTMENT_TYPES)[number
 
 export type JunkwareAppointmentCreationInput = {
   requestId: string;
+  customerSelection?: CustomerSelection;
   franchise: JunkwareFranchise;
   date: string;
   startTime: string;
@@ -167,7 +170,11 @@ export function normalizeJunkwareAppointmentCreationInput(value: unknown): Junkw
     throw new JunkwareAppointmentCreationError("Choose an estimated volume from 0.5 to 6 pickup-truck loads.", "invalid_appointment", "validation");
   }
 
+  let customerSelection: CustomerSelection | undefined;
+  try { customerSelection = normalizeCustomerSelection(input.customerSelection); }
+  catch { throw new JunkwareAppointmentCreationError("Search for and select the customer again.", "invalid_appointment", "validation"); }
   return {
+    ...(customerSelection ? { customerSelection } : {}),
     requestId,
     franchise,
     date,

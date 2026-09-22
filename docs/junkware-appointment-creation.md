@@ -20,6 +20,29 @@ successful merely because a form submission completed.
 `Job` and `Estimate` are separate appointment categories. Creating an Estimate
 does not create completed-job production or revenue.
 
+## Existing customer lookup
+
+The desktop booking drawer searches live JunkWare customer records through
+`POST /api/desktop/schedule/customers`, independently of the selected Schedule
+day. Operators explicitly search by full name, surname, phone or email and
+select a source row. The lookup reuses the existing protected JunkWare session
+and never creates an account or saves an appointment. Search terms travel in a
+bounded, authenticated, same-origin POST body; responses are private/no-store.
+There is no polling, new provider or metered service. One lookup runs at a time,
+with a 90-second limit and at most 20 visible results. Narrow broad searches.
+
+Selecting a result loads its saved contact, service and billing fields. Job and
+Estimate source rows remain distinct. A fingerprint of all eight source columns
+plus the query travels through review and creation; creation re-searches and
+requires exactly that row and the same name/phone. Changed or ambiguous records
+stop before Save; a selected existing record never falls back to New Account.
+Changing the draft name or phone clears that selection. Search failures remain
+separate from an empty result. No customer records or searches are stored in Git.
+
+Validation: `node --import tsx scripts/test-junkware-customer-lookup.ts` and
+`npm run verify:junkware-appointment-creation`, followed by authenticated live
+search and selection in the booking drawer.
+
 ## Duplicate and retry safety
 
 ### Desktop Prebooking Review

@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../lib/junkware-trucks';
 import { useEffect, useRef, useState } from "react";
 import './schedule-controls.css';
 import { Button } from "./components/ui/button";
@@ -122,12 +123,12 @@ export function MoveConfirmation({
       <div className="schedule-move-path">
         <span>
           <b>From</b>
-          {truckLabel(move.job.truck)} · {move.job.appointmentTime}
+          {truckDisplayText(truckLabel(move.job.truck))} · {move.job.appointmentTime}
         </span>
         <span>→</span>
         <span>
           <b>To</b>
-          {move.truck} · {window.label}
+          {truckDisplayText(move.truck)} · {window.label}
         </span>
       </div>
       {move.conflicts.length > 0 && (
@@ -271,7 +272,7 @@ export default function ScheduleControls({
                 disabled={blocked || assignmentNeedsVerification(job)}
               >
                 {[...new Set([...trucks, truckLabel(job.truck), "Unassigned"])].map((value) => (
-                  <option key={value}>{value}</option>
+                  <option key={value} value={value}>{truckDisplayText(value)}</option>
                 ))}
               </select>
             </label>

@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../lib/junkware-trucks';
 import { dumpTruckMapSvg } from './lib/truck-map-icon';
 import { truckGpsStatus } from '../lib/truck-gps-status';
 import { appointmentPartner } from '../lib/appointment-partner';
@@ -101,7 +102,7 @@ export default function ScheduleMap(props: Props) {
       pins.push({ id: `truck:${name}`, coordinate: [truck.latitude, truck.longitude], text: name.replace('Truck ', 'T'),
         speed: telemetry.markerLabel,
         tooltipTitle: name, tooltipDetail: `${gps.label} · ${telemetry.markerLabel}`,
-        label: `Select ${name}, ${gps.label}, ${telemetry.markerLabel}`,
+        label: `Select ${truckDisplayText(name)}, ${gps.label}, ${telemetry.markerLabel}`,
         className: `truck-marker${fresh ? '' : ' stale'}`, selected: selectedTruck === name,
         select: () => current.current.onSelectTruck(name, 'overview'),
         zoom: () => current.current.onSelectTruck(name, 'location') });

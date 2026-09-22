@@ -1,4 +1,5 @@
 "use client";
+import { truckDisplayText } from '../lib/junkware-trucks';
 /* eslint-disable @next/next/no-img-element -- authenticated local photo endpoints are not compatible with the Next image optimizer */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -319,7 +320,7 @@ export default function FleetControlCenter({
             {workItems.map((action) => (
               <div className={`ops-fleet-action-row priority-${action.priority}`} key={action.id}>
                 <span className="ops-fleet-action-priority">{workBucketLabel(action.priority)}</span>
-                <div className="ops-fleet-action-detail"><strong>{action.truck} · {action.title}</strong><small>{action.detail}</small></div>
+                <div className="ops-fleet-action-detail"><strong>{truckDisplayText(action.truck)} · {action.title}</strong><small>{action.detail}</small></div>
                 <button type="button" className="ops-checklist-load" onClick={() => openAction(action)}>{action.actionLabel}</button>
               </div>
             ))}
@@ -338,7 +339,7 @@ export default function FleetControlCenter({
         <div className="ops-repair-form">
           <div className="ops-maintenance-form-title">{draft.issueId ? "Update repair work order" : "New repair work order"}</div>
           <div className="ops-repair-form-grid">
-            <label><span>Truck *</span><select value={draft.truck} onChange={(event) => setDraft({ ...draft, truck: event.target.value })}>{truckOptions.map((truck) => <option key={truck}>{truck}</option>)}</select></label>
+            <label><span>Truck *</span><select value={draft.truck} onChange={(event) => setDraft({ ...draft, truck: event.target.value })}>{truckOptions.map((truck) => <option key={truck} value={truck}>{truckDisplayText(truck)}</option>)}</select></label>
             <label className="wide"><span>Issue *</span><input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} placeholder="What needs repair?" /></label>
             <label><span>Severity</span><select value={draft.severity} onChange={(event) => setDraft({ ...draft, severity: event.target.value as FleetIssueSeverity })}><option value="monitor">Monitor</option><option value="repair_soon">Repair soon</option><option value="out_of_service">Out of service</option></select></label>
             <label><span>Status</span><select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as FleetIssueStatus })}><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></label>
@@ -369,7 +370,7 @@ export default function FleetControlCenter({
           <thead><tr><th>Truck</th><th>Issue</th><th>Severity</th><th>Status</th><th>Owner / due</th><th>Source</th><th></th></tr></thead>
           <tbody>
             {visibleIssues.map((issue) => <tr key={issue.issueId}>
-              <td><strong>{issue.truck}</strong></td>
+              <td><strong>{truckDisplayText(issue.truck)}</strong></td>
               <td><strong>{issue.title}</strong><small>{issue.description || "No description"}</small>{issue.resolution ? <small>Resolution: {issue.resolution}</small> : null}</td>
               <td><span className={`ops-issue-severity ${issue.severity}`}>{severityLabel(issue.severity)}</span></td>
               <td><span className={`ops-maintenance-status ${issue.status === "resolved" ? "completed" : "scheduled"}`}>{statusLabel(issue.status)}</span></td>

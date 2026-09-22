@@ -1,5 +1,6 @@
 "use client";
 
+import { truckDisplayText } from '../lib/junkware-trucks';
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { jobRouteAssignmentKey } from "@/lib/job-route-key";
@@ -318,7 +319,7 @@ export default function JobRoutePlanner({
             >
               <div className="ops-route-plan-heading">
                 <div>
-                  <strong>{truck}</strong>
+                  <strong>{truckDisplayText(truck)}</strong>
                   <span>{stops.length} scheduled stop{stops.length === 1 ? "" : "s"}</span>
                   {draggedJobKey ? <small>{proximityText(truckProximity(draggedJobKey, truck), proximityLoading)}</small> : null}
                 </div>
@@ -354,14 +355,14 @@ export default function JobRoutePlanner({
                           <span>{stop.job.address && stop.job.address !== "—" ? stop.job.address : "Address unavailable"}</span>
                           <small>{index === 0 ? `First stop · ${stop.job.territory}` : stop.distanceFromPreviousMiles != null ? `Approx. ${stop.distanceFromPreviousMiles.toFixed(1)} mi from prior stop` : `Travel check updates after assignment · ${stop.job.territory}`}</small>
                           {stop.warning && serverAssignments[jobKey] === truck ? <em>{stop.warning}</em> : null}
-                          <small className="ops-route-nearest-truck">{nearestTruckLabel(jobKey)}</small>
+                          <small className="ops-route-nearest-truck">{truckDisplayText(nearestTruckLabel(jobKey))}</small>
                           <details className="ops-route-reassign">
                             <summary>Change truck</summary>
                             <label className="ops-route-assignment-control">
                               <span className="ops-visually-hidden">Assign {stop.job.jkNumber} to truck</span>
                               <select value={assignments[jobKey] || ""} disabled={pending || proximityLoading} onChange={(event) => void assignJob(jobKey, event.target.value)}>
                                 <option value="">Needs assignment</option>
-                                {trucks.map((option) => <option value={option} key={option}>{truckOptionLabel(jobKey, option)}</option>)}
+                                {trucks.map((option) => <option value={option} key={option}>{truckDisplayText(truckOptionLabel(jobKey, option))}</option>)}
                               </select>
                             </label>
                           </details>
@@ -401,18 +402,18 @@ export default function JobRoutePlanner({
                       <div className="ops-route-stop-topline"><strong>{stop.job.appointmentTime || "—"}</strong><a href={`#${jobAnchor(stop.job)}`}>{stop.job.jkNumber || "—"}</a></div>
                       <span>{stop.job.territory} · {stop.job.address && stop.job.address !== "—" ? stop.job.address : "Address unavailable"}</span>
                       <em>{pending ? "Saving assignment…" : "Drag onto a truck or choose one below"}</em>
-                      <small className="ops-route-nearest-truck">{nearestTruckLabel(jobKey)}</small>
+                      <small className="ops-route-nearest-truck">{truckDisplayText(nearestTruckLabel(jobKey))}</small>
                       <div className="ops-route-assignment-actions">
                         {suggestedTruck ? (
                           <button type="button" disabled={pending} onClick={() => void assignJob(jobKey, suggestedTruck)}>
-                            Assign {suggestedTruck}
+                            Assign {truckDisplayText(suggestedTruck)}
                           </button>
                         ) : null}
                         <label className="ops-route-assignment-control">
                           <span className="ops-visually-hidden">Assign {stop.job.jkNumber} to truck</span>
                           <select value="" disabled={pending || proximityLoading} onChange={(event) => void assignJob(jobKey, event.target.value)}>
                             <option value="">{proximityLoading ? "Checking truck distances…" : "Choose another truck…"}</option>
-                            {trucks.map((option) => <option value={option} key={option}>{truckOptionLabel(jobKey, option)}</option>)}
+                            {trucks.map((option) => <option value={option} key={option}>{truckDisplayText(truckOptionLabel(jobKey, option))}</option>)}
                           </select>
                         </label>
                       </div>

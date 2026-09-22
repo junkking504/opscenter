@@ -553,3 +553,21 @@ Old pending combined receipts recover only an already-saved dispatch request;
 checking a move never creates a new Waypoint release. Existing releases, queues,
 phone setup, drafts and receipts are preserved. A saved release is not evidence
 that a handset received or opened the appointment.
+
+
+### Truck naming continuity (2026-09-22)
+
+JunkWare's visible label is `Truck# 1` through `Truck# 9`. OpsCenter,
+Waypoint, Fleet/Krewe views and Slack use the shared presentation helpers in
+`lib/junkware-trucks.ts`. Select controls retain their explicit stable values;
+labels never become a new phone identity or dispatch history directory. Existing
+`Truck 1` storage keys, receipts, pending requests and credentials remain valid.
+
+Source-backed release, current-job access, photos, closeout and truck switching
+compare parsed physical truck identity using `sameTruck`. `Truck 1`, `Truck# 1`
+and `Truck #1` identify the same truck; missing, unassigned, ambiguous and different
+trucks never match. Source freshness, dates, versions, photos and confirmed
+closeout gates still apply. New Slack output uses the source label while channel
+IDs, URLs and delivery identities stay stable. Validation uses synthetic messages and sends no Slack messages. Existing
+notification identities remain stable, so the normal publisher updates a saved
+message instead of duplicating it when its displayed label changes.

@@ -1,5 +1,6 @@
 "use client";
 
+import { truckDisplayText } from '../lib/junkware-trucks';
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { TruckLoadEvent, TruckLoadResetLocation } from "@/lib/truck-load-status";
@@ -108,7 +109,7 @@ export default function TruckLoadStatusPanel({
             <article className={`${styles.truck}${status.isOverCapacity ? ` ${styles.overCapacity}` : ""}`} key={status.truck} aria-busy={saving}>
               <div className={styles.current}>
                 <div>
-                  <strong>{status.truck}</strong>
+                  <strong>{truckDisplayText(status.truck)}</strong>
                   <span>{status.displayLoadLabel || status.currentLoadLabel}</span>
                 </div>
                 <b>{`${status.capacityPercent}%${status.needsVerification ? ' · provisional' : ''}`}</b>

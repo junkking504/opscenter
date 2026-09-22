@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../lib/junkware-trucks';
 import type { FuelReconciliation as FuelData, FuelMatchStatus } from './lib/fuel-reconciliation-contract';
 import { commercialMoney as money } from './lib/commercial-contract';
 const labels: Record<FuelMatchStatus, string> = { matched: 'Matched', amount_difference: 'Amount difference', ambiguous: 'Review match', awaiting_wex: 'Awaiting WEX match', wex_only: 'No reported match' };
@@ -9,7 +10,7 @@ export function FuelReconciliation({ data }: { data?: FuelData }) {
     <div className="capital-inline-totals"><div><span>Reported detail</span><strong>{money(data.reportedTotal)}</strong></div><div><span>WEX fuel</span><strong>{money(data.wexFuelTotal)}</strong></div><div><span>Matched entries</span><strong>{data.matchedCount}</strong></div></div><p>Reported and WEX totals are separate; they are not added together.</p>
     <p>{data.wexImportedAt ? `WEX last imported ${new Date(data.wexImportedAt).toLocaleString('en-US', { timeZone: 'America/Chicago' })} CT.` : 'WEX source unavailable.'} Reported detail may have incomplete coverage.</p>
     <div className="finance-cost-list">{data.rows.map(row => <article key={row.id}>
-      <div><strong>{row.truck} · {row.location || 'Location not recorded'}</strong><small>{labels[row.status]}</small><small>{row.reason}</small>
+      <div><strong>{truckDisplayText(row.truck)} · {row.location || 'Location not recorded'}</strong><small>{labels[row.status]}</small><small>{row.reason}</small>
         <small>Reported {money(row.reportedAmount)} · WEX fuel {money(row.wexFuelAmount)}{row.difference !== null ? ` · Difference ${money(row.difference)}` : ''}</small>
         {row.wexId && <small>WEX transaction {row.wexId} · Net charge {money(row.wexNetAmount)}</small>}
       </div><span>{row.reportedId ? <a href="https://junkware.junk-king.com/franchise/accounting/truck-records.aspx" target="_blank" rel="noreferrer">Review reported expense</a> : 'Review receipt'}</span>

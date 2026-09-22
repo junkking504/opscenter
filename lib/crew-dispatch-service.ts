@@ -1,3 +1,4 @@
+import { sameTruck } from './junkware-trucks';
 import type { CrewPhone } from './crew-phone';
 import { CrewPhoneError } from './crew-phone';
 import type { CrewAssignment, CrewCurrent, CrewCurrentJob } from './crew-dispatch';
@@ -21,10 +22,10 @@ export async function dispatchCrewJob(input:{truck:string;requestId:string;expec
   const snapshot = sources.schedule(input.date);
   const matches = snapshot.appointments.filter(job=>job.appointmentId===input.appointmentId);
   const job = matches.length===1 ? matches[0] : null;
-  if (!crewScheduleFresh(snapshot.observedAt) || !job || job.version!==input.expectedJobVersion || job.truck!==input.truck
+  if (!crewScheduleFresh(snapshot.observedAt) || !job || job.version!==input.expectedJobVersion || !sameTruck(job.truck,input.truck)
     || !/^confirmed$/i.test(job.status) || (job.junkwareSyncStatus && job.junkwareSyncStatus!=='verified')) throw new CrewPhoneError('Refresh the schedule and choose a confirmed job assigned to this truck.',409);
   const source = await sources.assignment(job.appointmentId);
-  if (source.appointmentId!==job.appointmentId || source.truck!==input.truck || source.date!==input.date || !/^confirmed$/i.test(source.status || '')) throw new CrewPhoneError('JunkWare no longer confirms this appointment for the selected truck and date.',409);
+  if (source.appointmentId!==job.appointmentId || !sameTruck(source.truck,input.truck) || source.date!==input.date || !/^confirmed$/i.test(source.status || '')) throw new CrewPhoneError('JunkWare no longer confirms this appointment for the selected truck and date.',409);
   // Re-read the local version after source verification; a concurrent office edit
   // cannot be accepted from the stale menu the manager started with.
   const latest = sources.schedule(input.date);
@@ -47,11 +48,11 @@ export async function crewCurrentPayload(phone: CrewPhone, sources:CrewDispatchS
   if (!state.current) return {state:'waiting',truck:phone.truck,job:null,observedAt:null};
   const current = state.current;
   const source = await sources.assignment(current.appointmentId);
-  if (source.appointmentId!==current.appointmentId || source.truck!==phone.truck || source.date!==current.date
+  if (source.appointmentId!==current.appointmentId || !sameTruck(source.truck,phone.truck) || source.date!==current.date
     || !/^(confirmed|completed)$/i.test(source.status || '')) return unavailable();
   // A server-side whitelist, not a serialized schedule with hidden rows.
   const snapshot = sources.schedule(current.date);
-  const matches = snapshot.appointments.filter(job=>job.appointmentId===current.appointmentId && job.truck===phone.truck);
+  const matches = snapshot.appointments.filter(job=>job.appointmentId===current.appointmentId && sameTruck(job.truck,phone.truck));
   const job = matches.length===1 ? matches[0] : null;
   if (!crewScheduleFresh(snapshot.observedAt) || !job || (job.junkwareSyncStatus && job.junkwareSyncStatus!=='verified')) return unavailable();
   const finalState = readCrewDispatch(phone.truck);

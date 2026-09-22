@@ -1,4 +1,5 @@
 "use client";
+import { truckDisplayText } from '../lib/junkware-trucks';
 /* eslint-disable @next/next/no-img-element -- authenticated local photo endpoints are not compatible with the Next image optimizer */
 
 import { useEffect, useMemo, useState } from "react";
@@ -319,7 +320,7 @@ export default function FleetMaintenanceChecklists({
           <div className="ops-muted">Complete routine safety and condition checks for each truck. Progress saves by truck and checklist period.</div>
         </div>
         <div className="ops-checklist-header-actions">
-          <button type="button" className="ops-button" onClick={openTemplateEditor}>Customize {selectedTruck}</button>
+          <button type="button" className="ops-button" onClick={openTemplateEditor}>Customize {truckDisplayText(selectedTruck)}</button>
           <button type="button" className={driverMode ? "ops-refresh-button" : "ops-button"} onClick={() => setDriverMode(!driverMode)}>{driverMode ? "Exit driver mode" : "Driver mode"}</button>
           <div className="ops-checklist-fleet-progress">
             <strong>{completedTruckCount}/{truckOptions.length}</strong>
@@ -328,7 +329,7 @@ export default function FleetMaintenanceChecklists({
         </div>
       </div>
 
-      {driverMode ? <div className="ops-driver-mode-banner"><div><strong>Driver mode · {selectedTruck}</strong><span>Complete this truck’s inspection, document exceptions, and save before leaving.</span></div><button type="button" className="ops-button" onClick={copyDriverLink}>Copy assigned-truck link</button></div> : null}
+      {driverMode ? <div className="ops-driver-mode-banner"><div><strong>Driver mode · {truckDisplayText(selectedTruck)}</strong><span>Complete this truck’s inspection, document exceptions, and save before leaving.</span></div><button type="button" className="ops-button" onClick={copyDriverLink}>Copy assigned-truck link</button></div> : null}
 
       <div className="ops-checklist-period-controls">
         <div className="ops-checklist-cadence" aria-label="Checklist frequency">
@@ -343,7 +344,7 @@ export default function FleetMaintenanceChecklists({
 
       {templateOpen ? (
         <div className="ops-template-editor">
-          <div className="ops-card-header compact"><div><div className="ops-maintenance-form-title">Customize {selectedTruck} · {fleetChecklistCadenceLabel(cadence)}</div><div className="ops-muted">Turn standard items on or off and add equipment-specific checks for this truck.</div></div><button type="button" className="ops-button" onClick={() => setTemplateOpen(false)}>Close</button></div>
+          <div className="ops-card-header compact"><div><div className="ops-maintenance-form-title">Customize {truckDisplayText(selectedTruck)} · {fleetChecklistCadenceLabel(cadence)}</div><div className="ops-muted">Turn standard items on or off and add equipment-specific checks for this truck.</div></div><button type="button" className="ops-button" onClick={() => setTemplateOpen(false)}>Close</button></div>
           <div className="ops-template-standard-items">
             {FLEET_CHECKLIST_DEFINITIONS[cadence].map((item) => {
               const enabled = !templateHidden.includes(item.itemId);
@@ -368,7 +369,7 @@ export default function FleetMaintenanceChecklists({
           const vehicle = vehicleByTruck.get(truck);
           return (
             <button type="button" key={truck} className={`ops-checklist-truck ${selectedTruck === truck ? "active" : ""} ${progress.complete ? "complete" : progress.answered ? "started" : ""}`} onClick={() => { setSelectedTruck(truck); setMessage(""); }}>
-              <span className="ops-checklist-truck-top"><strong>{truck}</strong><em>{progress.complete ? "Complete" : progress.answered ? "In progress" : "Not started"}</em></span>
+              <span className="ops-checklist-truck-top"><strong>{truckDisplayText(truck)}</strong><em>{progress.complete ? "Complete" : progress.answered ? "In progress" : "Not started"}</em></span>
               <span>{vehicle?.licensePlate || mileage(vehicle?.odometer ?? null)}</span>
               <span className="ops-checklist-truck-bottom"><small>{progress.answered}/{progress.total} checked</small>{progress.attention ? <b>{progress.attention} attention</b> : null}</span>
             </button>
@@ -380,7 +381,7 @@ export default function FleetMaintenanceChecklists({
         <div className="ops-checklist-workspace">
           <div className="ops-checklist-workspace-header">
             <div>
-              <h2>{selectedTruck} · {fleetChecklistCadenceLabel(cadence)} Checklist</h2>
+              <h2>{truckDisplayText(selectedTruck)} · {fleetChecklistCadenceLabel(cadence)} Checklist</h2>
               <p>{dateLabel(inspectionDate)}{currentEntry?.updatedAt ? ` · Last saved ${new Date(currentEntry.updatedAt).toLocaleString("en-US")}` : " · Not yet saved"}</p>
             </div>
             <div className={`ops-checklist-count ${answeredCount === definitions.length ? "complete" : ""}`}><strong>{answeredCount}/{definitions.length}</strong><span>items checked</span></div>
@@ -441,7 +442,7 @@ export default function FleetMaintenanceChecklists({
               <tbody>{entries.slice(0, 20).map((entry) => {
                 const progress = entryProgress(entry, effectiveFleetChecklistDefinitions(entry.truck, entry.cadence, customizations));
                 return <tr key={entry.entryId}>
-                  <td>{dateLabel(entry.inspectionDate)}</td><td><strong>{entry.truck}</strong></td><td>{fleetChecklistCadenceLabel(entry.cadence)}</td>
+                  <td>{dateLabel(entry.inspectionDate)}</td><td><strong>{truckDisplayText(entry.truck)}</strong></td><td>{fleetChecklistCadenceLabel(entry.cadence)}</td>
                   <td><span className={`ops-checklist-history-status ${progress.complete ? "complete" : "started"}`}>{progress.complete ? "Complete" : `${progress.answered}/${progress.total}`}</span></td>
                   <td>{progress.attention ? <strong className="ops-checklist-attention-text">{progress.attention} need attention</strong> : "None"}</td><td>{entry.inspector || "—"}</td><td>{entry.completedAt ? new Date(entry.completedAt).toLocaleString("en-US") : "Incomplete"}<small>{entry.submittedByEmail || ""}</small></td>
                   <td><button type="button" className="ops-checklist-load" onClick={() => loadEntry(entry)}>Open</button></td>

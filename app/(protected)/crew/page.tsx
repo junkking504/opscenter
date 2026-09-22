@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../../../lib/junkware-trucks';
 import fs from "fs";
 import path from "path";
 import Link from "next/link";
@@ -115,12 +116,12 @@ function employeeTruckLabels(row: AnyRecord): string[] {
 
 function CrewTruckLinks({ date, row }: { date: string; row: AnyRecord }) {
   const trucks = employeeTruckLabels(row);
-  if (!trucks.length) return <>{employeeTruck(row)}</>;
+  if (!trucks.length) return <>{truckDisplayText(employeeTruck(row))}</>;
   return <>{trucks.map((truck, index) => (
     <span key={truck}>
       {index > 0 ? ", " : null}
       <Link className={relatedStyles.relatedLink} href={fleetTruckHref(date, truck)} title={`Open ${truck} on the live Fleet map`}>
-        {truck}
+        {truckDisplayText(truck)}
       </Link>
     </span>
   ))}</>;
@@ -1862,7 +1863,7 @@ export default async function CrewPage({
                         <div className="ops-crew-summary-main">
                           <div className="ops-crew-employee-name">{name}</div>
                           <div className="ops-crew-employee-subtitle">
-                            {crewRole(row)} · {textOrUnavailable(employeeTruck(row))}
+                            {crewRole(row)} · {truckDisplayText(textOrUnavailable(employeeTruck(row)))}
                           </div>
                         </div>
                       </div>

@@ -1,3 +1,4 @@
+import { truckDisplayText } from './junkware-trucks';
 import type { OperationalAlert } from './operational-alert-presentation';
 
 type SavedAppointment = { status: string; truck: string };
@@ -10,5 +11,5 @@ export function withSavedCloseoutTruck(alert: OperationalAlert, matches: SavedAp
   const number = matches[0].truck.match(/^Truck\s*#?\s*(\d+)$/i)?.[1];
   if (!number || Number(number) <= 0) return alert;
   const truck = `Truck ${Number(number)}`;
-  return { ...alert, truck, title: alert.title.replace(/\bTruck\s*#?\s*\d+\b/gi, truck) };
+  return { ...alert, truck, title: truckDisplayText(alert.title.replace(/\bTruck\s*#?\s*\d+\b/gi, truck)) };
 }

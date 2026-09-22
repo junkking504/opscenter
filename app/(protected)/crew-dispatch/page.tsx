@@ -1,4 +1,5 @@
 'use client';
+import { truckDisplayText } from '../../../lib/junkware-trucks';
 import { useEffect, useRef, useState } from 'react';
 import type { CrewDispatch } from '@/lib/crew-dispatch';
 import styles from '../../crew-jobs/phone-access.module.css';
@@ -43,7 +44,7 @@ export default function CrewDispatchPage(){
   const label=(id:string)=>snapshot?.jobs.find(job=>job.appointmentId===id)?.customerName || `Appointment ${id}`;
   const jobs=snapshot?.jobs.filter(job=>/^confirmed$/i.test(job.status) && job.appointmentId!==snapshot.dispatch.current?.appointmentId && job.appointmentId!==snapshot.dispatch.queued?.appointmentId) || [];
   return <main className={styles.page}><div className={styles.content}><h1>Crew dispatch</h1><p>Each truck phone sees one job at a time.</p>
-    <div className={styles.form}><label>Truck<select value={truck} disabled={busy || loading} onChange={event=>{setTruck(event.target.value);void load(event.target.value,date);}}>{(snapshot?.trucks || [truck]).map(value=><option key={value}>{value}</option>)}</select></label><label>Appointment date<input type="date" value={date} disabled={busy || loading} onChange={event=>{setDate(event.target.value);if(event.target.value)void load(truck,event.target.value);}}/></label></div>
+    <div className={styles.form}><label>Truck<select value={truck} disabled={busy || loading} onChange={event=>{setTruck(event.target.value);void load(event.target.value,date);}}>{(snapshot?.trucks || [truck]).map(value=><option key={value} value={value}>{truckDisplayText(value)}</option>)}</select></label><label>Appointment date<input type="date" value={date} disabled={busy || loading} onChange={event=>{setDate(event.target.value);if(event.target.value)void load(truck,event.target.value);}}/></label></div>
     <button className={styles.secondary} disabled={busy || loading} onClick={()=>void load()}>{loading?'Loading…':'Refresh dispatch'}</button>
     {error && <p className={styles.error} role="alert">{error}</p>}
     {snapshot && <><section className={styles.card}><h2>Current assignment</h2>{snapshot.dispatch.current?<><p>{label(snapshot.dispatch.current.appointmentId)}</p><p>{snapshot.dispatch.current.date}</p><p className={styles.muted}>The crew must finish this appointment with photos before seeing another job.</p></>:<p>No current assignment.</p>}</section>

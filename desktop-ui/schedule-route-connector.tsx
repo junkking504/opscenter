@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../lib/junkware-trucks';
 import { useId } from 'react';
 import { unavailableRoute, type ScheduleAppointment } from './lib/schedule-contract';
 import type { TimelineConnector } from './lib/schedule-travel-layout';
@@ -18,7 +19,7 @@ export default function ScheduleRouteConnector({ connector: c, jobs, select }: {
       </button>
     </div>
     <div id={id} popover="auto" className="schedule-route-popover" role="dialog" aria-labelledby={`${id}-title`}>
-      <header><h3 id={`${id}-title`}>Travel · {leg.truck}</h3><button type="button" popoverTarget={id} popoverTargetAction="hide" aria-label="Close travel details">×</button></header>
+      <header><h3 id={`${id}-title`}>Travel · {truckDisplayText(leg.truck)}</h3><button type="button" popoverTarget={id} popoverTargetAction="hide" aria-label="Close travel details">×</button></header>
       <div className="route-connector-records">{[c.from, c.to].map((item, index) => <div key={item.job.recordId}><span>{index + 1}</span><button type="button" onClick={event => { event.currentTarget.closest<HTMLElement>('[popover]')?.hidePopover(); select(item.job.recordId); }}>{item.job.jkNumber}</button><small>{item.job.appointmentTime}</small></div>)}</div>
       <strong>{estimate}</strong><p>{orderLabel} · {c.vertical ? 'Overlapping appointment windows' : leg.gapMinutes === 0 ? 'Adjacent appointment windows' : 'Between appointment windows'}.</p>
       <p>{leg.travelMinutes === null ? unavailable.detail : 'Estimated road travel without live traffic. Appointment windows do not establish service duration or available buffer time.'}</p>

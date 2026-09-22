@@ -5,7 +5,7 @@ import type {OperationalAlert} from '../lib/operational-alert-presentation';
 const event = {id:'completion',label:'Job Completed',title:'Truck 9 · JK4087819',truck:'Truck 9',facts:[{label:'Payment',value:'$328.00 Cash'}],timestamp:'2026-09-14T23:08:00Z'} as OperationalAlert;
 const corrected = withSavedCloseoutTruck(event,[{status:'Completed',truck:'Truck# 4'}]);
 assert.equal(corrected.truck,'Truck 4');
-assert.equal(corrected.title,'Truck 4 · JK4087819');
+assert.equal(corrected.title,'Truck# 4 · JK4087819');
 assert.equal(corrected.id,event.id);
 assert.equal(corrected.timestamp,event.timestamp);
 assert.deepEqual(corrected.facts,event.facts);

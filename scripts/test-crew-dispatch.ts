@@ -18,7 +18,7 @@ async function main(){
     const version='a'.repeat(64);
     const jobs=[
       {appointmentId:'900001',version,truck,status:'Confirmed',jkNumber:'SAMPLE-01',customerName:'Current customer',address:'Current address',appointmentTime:'10 AM–12 PM',junkItems:['Garage cleanout'],appointmentNotes:['Side entrance'],driver:'Driver',navigator:'Navigator',futureMetadata:'NEVER DISCLOSE',financialData:'NEVER DISCLOSE'},
-      {appointmentId:'900002',version,truck,status:'Confirmed',jkNumber:'SAMPLE-02',customerName:'FUTURE CUSTOMER',address:'FUTURE ADDRESS',appointmentTime:'1–3 PM',junkItems:[],appointmentNotes:[],driver:'Driver',navigator:'Navigator'},
+      {appointmentId:'900002',version,truck:'Truck# 6',status:'Confirmed',jkNumber:'SAMPLE-02',customerName:'FUTURE CUSTOMER',address:'FUTURE ADDRESS',appointmentTime:'1–3 PM',junkItems:[],appointmentNotes:[],driver:'Driver',navigator:'Navigator'},
     ];
     const phone:CrewPhone={deviceId:randomUUID(),truck,label:'Synthetic company phone',enrolledAt:now.toISOString(),expiresAt:new Date(now.getTime()+86400_000).toISOString()};
     let receipts:DispatchReceipt[]=[];
@@ -43,7 +43,8 @@ async function main(){
     await assert.rejects(dispatchCrewJob(first,'manager',sources),/JunkWare/);
     sourceDate=date;sourceStatus='Completed';
     await assert.rejects(dispatchCrewJob(first,'manager',sources),/JunkWare/);
-    sourceStatus='Confirmed';
+    sourceStatus='Confirmed';sourceTruck='Truck #6';
+    jobs[0].truck='Truck# 6';
     const one=await dispatchCrewJob(first,'manager',sources);
     assert.equal(one.current?.appointmentId,'900001');
     assert.deepEqual(await dispatchCrewJob(first,'manager',sources),one,'Lost dispatch response reuses the same receipt');
@@ -71,7 +72,7 @@ async function main(){
     assert.equal((await crewCurrentPayload(phone,sources)).state,'unavailable','Source photos must still exist');
     sourcePhotos=true;sourceTruck='Truck 2';
     assert.equal((await crewCurrentPayload(phone,sources)).state,'unavailable','Wrong source truck cannot advance');
-    sourceTruck=truck;sourceUnavailable=true;
+    sourceTruck='Truck #6';sourceUnavailable=true;
     await assert.rejects(crewCurrentPayload(phone,sources),/Source unavailable/);
     assert.equal(readCrewDispatch(truck).current?.appointmentId,'900001');
     sourceUnavailable=false;

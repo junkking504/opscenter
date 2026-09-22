@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../lib/junkware-trucks';
 import { useState } from 'react';
 import { DrivingScoreBadge } from './driving-scores';
 import { clockDurationLabel } from './lib/krewe-clock-duration';
@@ -48,7 +49,7 @@ export default function CrewToday({ snapshot, date, now, onOpen }: {
       </div>
       <div className={`crew-today-list crew-today-${view}`}>
         {visible.map(member => <article key={member.id} className={`crew-today-row${member.issue ? ' needs-attention' : ''}`} aria-label={member.name}>
-          <div className="crew-today-person"><span className="crew-today-avatar">{member.initials}</span><div><h3>{member.name}</h3><p>{member.role} · {member.truck || 'Unassigned'}</p></div></div>
+          <div className="crew-today-person"><span className="crew-today-avatar">{member.initials}</span><div><h3>{member.name}</h3><p>{member.role} · {truckDisplayText(member.truck || 'Unassigned')}</p></div></div>
           {view === 'pay' ? <>
             <div className="crew-today-fact"><span>{member.status}</span><strong>{clockDurationLabel(member, date, now)}</strong><small>{member.clockIn || 'No clock-in'}{member.clockOut ? ` – ${member.clockOut}` : ''}</small></div>
             <div className="crew-today-fact crew-today-pay"><span>Total pay</span><strong>{money(member.totalPay)}</strong><small>Before deductions</small></div>

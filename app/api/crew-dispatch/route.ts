@@ -1,3 +1,4 @@
+import { sameTruck } from '@/lib/junkware-trucks';
 import { cookies } from 'next/headers';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie, opsAuthRole } from '@/lib/auth';
 import { opsRoleCan } from '@/lib/ops-roles';
@@ -25,7 +26,7 @@ export async function GET(request:Request) {
     if(!validCrewDate(date))throw new CrewPhoneError('Choose a valid date.');
     const dispatch=readCrewDispatch(truck);
     const snapshot=crewDispatchSources.schedule(date);
-    return crewPhoneResponse({dispatch,trucks:JUNKWARE_DISPATCH_TRUCKS,date,observedAt:snapshot.observedAt,sourceFresh:crewScheduleFresh(snapshot.observedAt),jobs:snapshot.appointments.filter(job=>job.truck===truck).map(job=>({
+    return crewPhoneResponse({dispatch,trucks:JUNKWARE_DISPATCH_TRUCKS,date,observedAt:snapshot.observedAt,sourceFresh:crewScheduleFresh(snapshot.observedAt),jobs:snapshot.appointments.filter(job=>sameTruck(job.truck,truck)).map(job=>({
       appointmentId:job.appointmentId,version:job.version,customerName:job.customerName,appointmentTime:job.appointmentTime,status:job.status,
     }))});
   }catch(error){return crewPhoneFailure(error);}

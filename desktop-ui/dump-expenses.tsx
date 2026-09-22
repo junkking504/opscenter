@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../lib/junkware-trucks';
 import type { DumpExpenseSummary } from './lib/dump-expense-contract';
 import { commercialMoney as money } from './lib/commercial-contract';
 const clock = (value: string) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
@@ -13,7 +14,7 @@ export function DumpExpenses({ data }: { data?: DumpExpenseSummary }) {
     {!!data.needsReviewCount && <p role="status">Some expenses need a visit or duplicate check. Combined cost is unavailable until those matches are resolved.</p>}
     {data.missingMinimumCount > 0 && <p role="status">{data.missingMinimumCount} visit(s) need a facility minimum; combined total is incomplete.</p>}
     <div className="finance-cost-list">{data.records.map(record => <article key={record.id}>
-      <div><strong>{record.truck} · {record.location || 'Location not recorded'}</strong>
+      <div><strong>{truckDisplayText(record.truck)} · {record.location || 'Location not recorded'}</strong>
         <small>{record.status === 'actual' ? record.assumedAmount === null ? 'Actual · JunkWare' : `Actual · replaces ${money(record.assumedAmount)} minimum` : record.status === 'minimum_missing' ? 'Minimum fee needed' : 'Assumed minimum'}</small>
         <details className="capital-record-evidence"><summary>Visit & source evidence</summary><small>{record.enteredAt ? `Entered ${clock(record.enteredAt)}` : `Recorded ${clock(record.transactionAt)}`}{record.departureBounds ? ` · Left between ${clock(record.departureBounds.after)} and ${clock(record.departureBounds.by)}` : record.departedAt ? ` · Left ${clock(record.departedAt)}` : record.enteredAt ? ' · Awaiting departure evidence' : ''}</small></details>
         {record.reconciliationNote ? <small role="status">{record.reconciliationNote}</small> : record.status !== 'actual' && <small>A matching actual expense replaces this estimate whenever recorded.</small>}

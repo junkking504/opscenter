@@ -1,4 +1,5 @@
 "use client";
+import { truckDisplayText } from '../lib/junkware-trucks';
 /* eslint-disable @next/next/no-img-element -- authenticated local photo endpoints are not compatible with the Next image optimizer */
 
 import { FormEvent, useMemo, useState } from "react";
@@ -299,7 +300,7 @@ export default function FleetMaintenanceRecords({
             <thead><tr><th>Truck</th><th>Vehicle</th><th>VIN</th><th>License plate</th><th>Linxup odometer</th><th>GPS status</th></tr></thead>
             <tbody>
               {linxupInventory.vehicles.map((vehicle) => <tr key={vehicle.truck}>
-                <td><strong>{vehicle.truck}</strong></td>
+                <td><strong>{truckDisplayText(vehicle.truck)}</strong></td>
                 <td>{vehicleDescription(vehicle)}</td>
                 <td className="ops-linxup-vin">{vehicle.vin || <span className="ops-linxup-missing">Not set in Linxup</span>}</td>
                 <td>{vehicle.licensePlate || <span className="ops-linxup-missing">Not set in Linxup</span>}</td>
@@ -335,7 +336,7 @@ export default function FleetMaintenanceRecords({
               <label><span>Truck *</span><select value={draft.truck} onChange={(event) => {
                 const truck = event.target.value;
                 setDraft((current) => ({ ...current, truck, odometer: odometerForTruck(linxupInventory.vehicles, truck) }));
-              }} required>{allTruckOptions.map((truck) => <option key={truck}>{truck}</option>)}</select></label>
+              }} required>{allTruckOptions.map((truck) => <option key={truck} value={truck}>{truckDisplayText(truck)}</option>)}</select></label>
               <label><span>Status *</span><select value={draft.status} onChange={(event) => setField("status", event.target.value as MaintenanceStatus)}><option value="completed">Completed</option><option value="scheduled">Scheduled</option></select></label>
               <label><span>{draft.status === "scheduled" ? "Scheduled date *" : "Service date *"}</span><input type="date" value={draft.serviceDate} onChange={(event) => setField("serviceDate", event.target.value)} required /></label>
               <label><span>Service type *</span><select value={draft.serviceType} onChange={(event) => setField("serviceType", event.target.value)}>{SERVICE_TYPES.map((type) => <option key={type}>{type}</option>)}</select></label>
@@ -360,7 +361,7 @@ export default function FleetMaintenanceRecords({
         )}
 
         <div className="ops-maintenance-toolbar">
-          <label><span>Truck</span><select value={truckFilter} onChange={(event) => setTruckFilter(event.target.value)}><option value="all">All trucks</option>{allTruckOptions.map((truck) => <option key={truck}>{truck}</option>)}</select></label>
+          <label><span>Truck</span><select value={truckFilter} onChange={(event) => setTruckFilter(event.target.value)}><option value="all">All trucks</option>{allTruckOptions.map((truck) => <option key={truck} value={truck}>{truckDisplayText(truck)}</option>)}</select></label>
           <label><span>Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All records</option><option value="completed">Completed</option><option value="scheduled">Scheduled</option></select></label>
           <div className="ops-maintenance-message" aria-live="polite">{message}</div>
         </div>
@@ -373,7 +374,7 @@ export default function FleetMaintenanceRecords({
                 const overdue = record.status === "scheduled" && record.serviceDate < today;
                 return <tr key={record.recordId}>
                   <td><strong>{dateLabel(record.serviceDate)}</strong></td>
-                  <td><strong>{record.truck}</strong>{vehiclesByTruck.get(record.truck)?.licensePlate ? <small>{vehiclesByTruck.get(record.truck)?.licensePlate}</small> : null}</td>
+                  <td><strong>{truckDisplayText(record.truck)}</strong>{vehiclesByTruck.get(record.truck)?.licensePlate ? <small>{vehiclesByTruck.get(record.truck)?.licensePlate}</small> : null}</td>
                   <td><span className={`ops-maintenance-status ${record.status} ${overdue ? "overdue" : ""}`}>{overdue ? "Overdue" : record.status === "completed" ? "Completed" : "Scheduled"}</span></td>
                   <td><strong>{record.serviceType}</strong>{record.description ? <small>{record.description}</small> : null}{record.notes ? <small>{record.notes}</small> : null}{record.photos.length ? <small>{record.photos.length} photo{record.photos.length === 1 ? "" : "s"} attached</small> : null}</td>
                   <td>{mileage(record.odometer)}</td>

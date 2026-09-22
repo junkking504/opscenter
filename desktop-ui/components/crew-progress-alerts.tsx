@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../../lib/junkware-trucks';
 import { crewAlertContext } from '../lib/crew-alert-context';
 import { requiresAlertAttention } from '../lib/alert-attention';
 import { useMemo, useState } from 'react';
@@ -51,8 +52,8 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
         <div>{alert.label === 'Geofence' ? <strong className="crew-update-label">Geofence - {alert.title}</strong> : presentation ?
           <div className="crew-event-header">
             <div className="crew-event-title"><strong className="crew-update-label">{presentation.label}</strong><a className="crew-event-job" href={presentation.href}>{presentation.jobNumber}</a></div>
-            <div className="crew-event-meta"><span className={`crew-territory-pill ${territoryClass(presentation.territoryTone)}`}>{presentation.territory}</span><span className="crew-event-window">{presentation.timeSlot}</span>{presentation.truck && <span className="crew-event-truck">{presentation.truck}</span>}</div>
-          </div> : <><strong className="crew-update-label">{alert.label}</strong><span>{alert.title === alert.label ? '' : alert.title}{job && !alert.truck && !alert.title.includes(job.truck) ? ` · ${job.truck}` : ''}</span></>}
+            <div className="crew-event-meta"><span className={`crew-territory-pill ${territoryClass(presentation.territoryTone)}`}>{presentation.territory}</span><span className="crew-event-window">{presentation.timeSlot}</span>{presentation.truck && <span className="crew-event-truck">{truckDisplayText(presentation.truck)}</span>}</div>
+          </div> : <><strong className="crew-update-label">{alert.label}</strong><span>{alert.title === alert.label ? '' : alert.title}{truckDisplayText(job && !alert.truck && !alert.title.includes(job.truck) ? ` · ${job.truck}` : '')}</span></>}
         </div>
         {alert.corrected && <em>Updated · {clock(alert.updatedAt)}</em>}
       </header>
@@ -80,7 +81,7 @@ export function CrewProgressAlerts({live, openAlert, openControl}: {live: Deskto
     <div className="crew-alert-controls">
     <header className="crew-alert-heading"><h2 id="crew-alert-title">Operational updates</h2><div className="crew-alert-counts"><strong>{snapshot.sources.alerts ? snapshot.alerts.length : '—'}</strong> updates<span>· Newest first</span></div></header>
     <div className="crew-alert-toolbar">
-      <label className="crew-truck-filter">Truck<select aria-label="Filter by truck" value={truck} onChange={event => setTruck(event.target.value)}><option value="all">All trucks</option>{trucks.map(label => <option key={label}>{label}</option>)}</select></label>
+      <label className="crew-truck-filter">Truck<select aria-label="Filter by truck" value={truck} onChange={event => setTruck(event.target.value)}><option value="all">All trucks</option>{trucks.map(label => <option key={label} value={label}>{truckDisplayText(label)}</option>)}</select></label>
       <label className="crew-alert-search"><Search size={15}/><input type="search" aria-label="Search operational updates" placeholder="Search job, crew, or update" value={query} onChange={event => setQuery(event.target.value)}/></label>
       <button type="button" className="crew-follow-filter" aria-pressed={followUp} onClick={() => setFollowUp(!followUp)}>Follow-up only</button>
       {(truck !== 'all' || query || followUp) && <button type="button" className="crew-clear" onClick={() => {setTruck('all');setQuery('');setFollowUp(false);}}>Clear filters</button>}

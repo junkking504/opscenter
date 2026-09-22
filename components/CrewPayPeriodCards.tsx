@@ -1,5 +1,6 @@
 "use client";
 
+import { truckDisplayText } from '../lib/junkware-trucks';
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { calculateWeeklyOvertime } from "@/lib/overtime";
@@ -479,7 +480,7 @@ export default function CrewPayPeriodCards({
                     <span className="ops-crew-summary-label">Employee</span>
                     <div className="ops-crew-summary-main">
                       <div className="ops-crew-employee-name">{employee.name}</div>
-                      <div className="ops-crew-employee-subtitle">{summaryRoleTruck}</div>
+                      <div className="ops-crew-employee-subtitle">{truckDisplayText(summaryRoleTruck)}</div>
                     </div>
                   </div>
 
@@ -632,7 +633,7 @@ export default function CrewPayPeriodCards({
                                         </div>
                                         <div className="ops-crew-period-day-summary-cell">
                                           <span className="ops-crew-period-day-summary-label">Truck</span>
-                                          <span className="ops-crew-period-day-summary-value">{day.truckDisplay}</span>
+                                          <span className="ops-crew-period-day-summary-value">{truckDisplayText(day.truckDisplay)}</span>
                                         </div>
                                         <div className="ops-crew-period-day-summary-cell">
                                           <span className="ops-crew-period-day-summary-label">Jobs</span>
@@ -671,7 +672,7 @@ export default function CrewPayPeriodCards({
                                           <DetailRow label="Clock Out" value={day.clockOutDisplay} />
                                           <DetailRow label="Hours" value={day.hoursDisplay} />
                                           <DetailRow label="Role" value={day.roleDisplay} />
-                                          <DetailRow label="Truck" value={day.truckDisplay} />
+                                          <DetailRow label="Truck" value={truckDisplayText(day.truckDisplay)} />
                                         </div>
                                         {day.timeCard ? (
                                           <PayrollDiscrepancyEditor

@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../lib/junkware-trucks';
 import {appointmentServiceAddress} from '../lib/service-address-format';
 import { useEffect, useRef, useState } from 'react';
 import { serviceAddressForGeocoding } from '../lib/appointment-partner';
@@ -53,7 +54,7 @@ export default function ScheduleDuplicates({snapshot,busy,open}:{snapshot:Schedu
         <div><button className="duplicate-reference" disabled={busy} onClick={()=>open(job.recordId)}>{job.jkNumber||'JK Pending'}</button><span>{appointmentCategory(job)} · {appointmentStatus(job)}</span></div>
         <strong>{job.customerName||'Customer Unavailable'}</strong><span>{job.phone||'Phone Unavailable'}</span>
         <a href={'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(serviceAddressForGeocoding(appointmentServiceAddress(job)))} target="_self" rel="noopener noreferrer">{appointmentServiceAddress(job)}</a>
-        <dl><div><dt>Window</dt><dd>{job.appointmentTime}</dd></div><div><dt>Truck</dt><dd>{truckLabel(job.truck)}</dd></div><div><dt>Service Territory</dt><dd>{appointmentRegion(job).label}</dd></div><div><dt>JunkWare Franchise</dt><dd>{job.sourceTerritory||job.territory||'Unavailable'}</dd></div></dl>
+        <dl><div><dt>Window</dt><dd>{job.appointmentTime}</dd></div><div><dt>Truck</dt><dd>{truckDisplayText(truckLabel(job.truck))}</dd></div><div><dt>Service Territory</dt><dd>{appointmentRegion(job).label}</dd></div><div><dt>JunkWare Franchise</dt><dd>{job.sourceTerritory||job.territory||'Unavailable'}</dd></div></dl>
         <div className="duplicate-record-actions"><Button variant="outline" size="sm" disabled={busy} onClick={()=>open(job.recordId)}>Open Appointment</Button>{job.appointmentUrl&&/^https:\/\/junkware\.junk-king\.com\//i.test(job.appointmentUrl)&&<a href={job.appointmentUrl} target="_self" rel="noopener noreferrer">Review in JunkWare ↗</a>}</div>
       </div>)}</div>
       <footer>{isKept?<><span>Kept by {decision.actor} · {new Date(decision.at).toLocaleString('en-US',{timeZone:'America/Chicago'})}</span><Button variant="outline" size="sm" disabled={busy||!!saving} onClick={()=>decide(review!,'review')}>Reopen Review</Button></>:confirm===pair.key?<><span>I reviewed both appointments and intend to keep both. This saves an OpsCenter decision only.</span><Button size="sm" disabled={busy||!!saving||!review} onClick={()=>decide(review!,'keep_both')}>{saving===pair.key?'Saving…':'Confirm Keep Both'}</Button><Button variant="outline" size="sm" disabled={!!saving} onClick={()=>setConfirm('')}>Back</Button></>:<><span>Nothing is merged, canceled, or reassigned.</span><Button variant="outline" size="sm" disabled={busy||!!saving||!review} onClick={()=>setConfirm(pair.key)}>Keep Both</Button></>}</footer>

@@ -1,20 +1,22 @@
 export type CheckoutPhoto = {requestId:string;category:'before'|'after';status:'selected'|'pending'|'verified'|'uncertain';image?:string};
 
-/** Final-confirmation only. Resume saved upload identities; never replay an uncertain write. */
-export async function submitCheckoutPhotos(photos:CheckoutPhoto[],actions:{
+/** Final-confirmation only. Transfer each selected image to durable OpsCenter
+ * storage, then let the server finish JunkWare upload and verification. */
+export async function stageCheckoutPhotos(photos:CheckoutPhoto[],actions:{
   upload:(photo:CheckoutPhoto)=>Promise<CheckoutPhoto>;
   check:(photo:CheckoutPhoto)=>Promise<CheckoutPhoto>;
   progress:(message:string)=>void;
-}) {
+}):Promise<string[]> {
   for(const [index,initial] of photos.entries()) {
     let photo=initial;
     if(photo.status==='verified')continue;
-    actions.progress(`Uploading and verifying photo ${index+1} of ${photos.length}…`);
-    if(photo.status==='pending' || photo.status==='uncertain')photo=await actions.check(photo);
+    actions.progress(`Transferring photo ${index+1} of ${photos.length}…`);
+    if(photo.status==='uncertain')photo=await actions.check(photo);
     if(photo.status==='selected')photo=await actions.upload(photo);
-    if(photo.status!=='verified')photo=await actions.check(photo);
-    if(photo.status!=='verified')throw new Error('Photo verification is pending. Submit checkout again to check the saved result. Payment has not been submitted.');
+    if(photo.status==='uncertain')throw new Error('A photo result needs verification. Check the saved photo before submitting checkout.');
+    if(!['pending','verified'].includes(photo.status))throw new Error('A photo could not be transferred. Check the saved photo before submitting checkout.');
   }
+  return photos.map(photo=>photo.requestId);
 }
 
 /** Only our photo writes may change the source while preparing the final closeout. */

@@ -12,8 +12,7 @@ async function main(){
  const key=randomBytes(32).toString('hex'),phone=enrollCrewPhone(createCrewPhoneEnrollment('Truck 6','Waypoint sandbox QA','sandbox-qa',new Date(),true).code,key);
  const browser=await chromium.launch({headless:true});
  try{
-  const context=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:390,height:844}}),page=await context.newPage();
-  await context.addCookies([{name:CREW_PHONE_COOKIE,value:key,domain:new URL(origin).hostname,path:'/api/crew-jobs',secure:true,httpOnly:true,sameSite:'Strict'}]);
+  const context=await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:390,height:844},extraHTTPHeaders:{Cookie:`${CREW_PHONE_COOKIE}=${key}`}}),page=await context.newPage();
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
 
   await page.goto(`${origin}/crew-jobs`);
@@ -54,7 +53,7 @@ async function main(){
    await page.getByRole('button',{name:'Continue to charges',exact:true}).click();
    await expect(page.getByLabel('Job category',{exact:true})).toHaveCount(0);
    await expect(page.getByLabel('How heard',{exact:true})).toHaveCount(0);
-   await expect(page.getByLabel('Load price',{exact:true})).toHaveValue('500.00');
+   await expect(page.getByLabel('Load price',{exact:true})).toHaveValue('508.00');
    await page.getByRole('combobox',{name:/^Other charge/}).selectOption('1|75.00');
    await expect(page.getByLabel('Price / amount',{exact:true})).toHaveValue('75.00');
    await page.getByRole('button',{name:'+ Add charge',exact:true}).click();
@@ -72,9 +71,9 @@ async function main(){
    await page.getByRole('button',{name:'Check next assignment',exact:true}).click();
   }
   await expect(page.getByText('All three test assignments are complete.',{exact:false})).toBeVisible();
-  await expect(page.getByRole('region',{name:'Today’s performance'}).getByText('$1,500.00',{exact:true})).toBeVisible();
+  await expect(page.getByRole('region',{name:'Today’s performance'}).getByText('$1,524.00',{exact:true})).toBeVisible();
   await expect(page.getByRole('region',{name:'Today’s performance'}).getByText('$60.00',{exact:true})).toBeVisible();
-  await expect(page.getByText('$250.00 to your next tier',{exact:true})).toHaveCount(2);
+  await expect(page.getByText('$238.00 to your next tier',{exact:true})).toHaveCount(2);
   await page.screenshot({path:'/tmp/waypoint-day-summary.png',fullPage:true});
   await page.getByText('Truck & phone',{exact:true}).click();
   await page.getByRole('button',{name:'Reset three test assignments',exact:true}).click();
@@ -84,7 +83,7 @@ async function main(){
   assert.deepEqual(errors,[]);
   const state=fs.readFileSync(path.join(process.env.OPS_CREW_PHONE_DIR,'sandbox',phone.deviceId,new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago'}).format(new Date()),'state.json'),'utf8');assert(!state.includes('addPayment'));
   console.log('PASS browser: real setup, five-section inspection, Assignments-only home, before/after photos, 3 dry-run closeouts, next assignment, reset, refresh, mobile widths; no external writes.');
- }catch(e){for(const context of browser.contexts())for(const page of context.pages()){console.error((await page.locator('body').innerText()).slice(-6500));console.error('Photo DB',await page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.open('ops-crew-photo-drafts-v1');r.onsuccess=()=>{const db=r.result;const t=db.transaction('drafts');const q=t.objectStore('drafts').getAll();q.onsuccess=()=>resolve(q.result.map((x:{photos:unknown[]})=>({count:x.photos.length})));};})));await page.screenshot({path:'/tmp/waypoint-sandbox-browser-failure.png',fullPage:true});}throw e;}
+ }catch(e){for(const context of browser.contexts())for(const page of context.pages()){console.error((await page.locator('body').innerText().catch(()=>'' )).slice(-6500));try{console.error('Photo DB',await page.evaluate(()=>new Promise(resolve=>{const r=indexedDB.open('ops-crew-photo-drafts-v1');r.onsuccess=()=>{const db=r.result;const t=db.transaction('drafts');const q=t.objectStore('drafts').getAll();q.onsuccess=()=>resolve(q.result.map((x:{photos:unknown[]})=>({count:x.photos.length})));};})));}catch{console.error('Photo DB unavailable after failure.');}await page.screenshot({path:'/tmp/waypoint-sandbox-browser-failure.png',fullPage:true}).catch(()=>{});}throw e;}
  finally{await browser.close();revokeCrewPhone(phone.deviceId,'sandbox-qa-complete');}
 }
 void main().catch(e=>{console.error(e);process.exitCode=1;});

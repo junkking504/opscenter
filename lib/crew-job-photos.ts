@@ -4,7 +4,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { CrewPhoneError } from './crew-phone';
 import { closeoutPhotoEvidence } from './closeout-photo-policy';
 
-export type CrewPhotoReceipt = { requestId:string; deviceId:string; assignmentId:string; appointmentId:string; category:'before'|'after'; hash:string; status:'pending'|'verified'|'uncertain'; createdAt:string; updatedAt:string; urls:string[] };
+export type CrewPhotoReceipt = { requestId:string; deviceId:string; assignmentId:string; appointmentId:string; category:'before'|'after'; hash:string; extension?:'jpg'|'png'; status:'pending'|'verified'|'uncertain'; createdAt:string; updatedAt:string; urls:string[] };
 const root = () => process.env.OPS_CREW_PHOTO_DIR || path.join(process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data'),'crew-job-photos');
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 function file(id:string) { if(!uuid.test(id))throw new CrewPhoneError('A photo request reference is required.');return path.join(root(),`${id}.json`); }
@@ -23,8 +23,12 @@ function write(receipt:CrewPhotoReceipt, exclusive = false) {
 }
 export function readCrewPhoto(id:string):CrewPhotoReceipt|null {
   try {
-    const value=JSON.parse(fs.readFileSync(file(id),'utf8')) as CrewPhotoReceipt;
-    if(value.requestId!==id || !uuid.test(value.deviceId) || !uuid.test(value.assignmentId) || !/^\d{1,12}$/.test(value.appointmentId) || !/^[a-f0-9]{64}$/.test(value.hash) || !['before','after'].includes(value.category) || !['pending','verified','uncertain'].includes(value.status) || !Array.isArray(value.urls))throw new Error('Photo receipt needs recovery.');
+    let value=JSON.parse(fs.readFileSync(file(id),'utf8')) as CrewPhotoReceipt;
+    if(value.requestId!==id || !uuid.test(value.deviceId) || !uuid.test(value.assignmentId) || !/^\d{1,12}$/.test(value.appointmentId) || !/^[a-f0-9]{64}$/.test(value.hash) || (value.extension!==undefined && !['jpg','png'].includes(value.extension)) || !['before','after'].includes(value.category) || !['pending','verified','uncertain'].includes(value.status) || !Array.isArray(value.urls))throw new Error('Photo receipt needs recovery.');
+    if(value.status==='pending' && Date.now()-Date.parse(value.updatedAt)>10*60_000){
+      value={...value,status:'uncertain',updatedAt:new Date().toISOString()};
+      write(value);
+    }
     return value;
   }catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT')return null;throw error;}
 }
@@ -44,28 +48,66 @@ export function parseCrewPhoto(body:Record<string,unknown>) {
   if(!valid)throw new CrewPhoneError('The photo could not be read. Choose a JPEG or PNG photo.');
   return {requestId:String(body.requestId),assignmentId:String(body.assignmentId),category:body.category as 'before'|'after',bytes,extension:match[1]==='jpeg'?'jpg':'png'};
 }
-/** Caller holds the appointment lock. Persist uncertainty before handing off to the existing source uploader. */
-export async function uploadCrewPhoto(input:ReturnType<typeof parseCrewPhoto>,scope:{deviceId:string;appointmentId:string},upload:(file:string)=>Promise<{mediaUrls:string[]}>) {
+/** Store the phone transfer durably before any slow JunkWare work begins. */
+export function stageCrewPhoto(input:ReturnType<typeof parseCrewPhoto>,scope:{deviceId:string;appointmentId:string}) {
   const hash=createHash('sha256').update(scope.appointmentId).update(input.assignmentId).update(input.bytes).digest('hex');
   const prior=readCrewPhoto(input.requestId);
   if(prior){
     if(prior.deviceId!==scope.deviceId || prior.assignmentId!==input.assignmentId || prior.appointmentId!==scope.appointmentId || prior.category!==input.category || prior.hash!==hash)throw new CrewPhoneError('This photo request belongs to another upload.',409);
-    return prior;
+    return {receipt:prior,created:false};
   }
   const duplicate=crewPhotos(scope.deviceId,input.assignmentId).find(row=>row.hash===hash);
-  if(duplicate)return duplicate;
+  if(duplicate)return {receipt:duplicate,created:false};
   const at=new Date().toISOString();
-  let receipt:CrewPhotoReceipt={...scope,requestId:input.requestId,assignmentId:input.assignmentId,category:input.category,hash,status:'pending',createdAt:at,updatedAt:at,urls:[]};
-  write(receipt,true);
+  const receipt:CrewPhotoReceipt={...scope,requestId:input.requestId,assignmentId:input.assignmentId,category:input.category,hash,extension:input.extension as 'jpg'|'png',status:'pending',createdAt:at,updatedAt:at,urls:[]};
   const media=path.join(root(),`${hash}.${input.extension}`);
+  fs.mkdirSync(root(),{recursive:true,mode:0o700});
+  const temporary=`${media}.${randomUUID()}.tmp`;
+  const descriptor=fs.openSync(temporary,'wx',0o600);
+  try{fs.writeFileSync(descriptor,input.bytes);fs.fsyncSync(descriptor);}finally{fs.closeSync(descriptor);}
+  fs.renameSync(temporary,media);
+  try{write(receipt,true);}catch(error){fs.rmSync(media,{force:true});throw error;}
+  return {receipt,created:true};
+}
+
+/** Caller holds the appointment lock. A pending staged photo is attempted once;
+ * uncertain and verified receipts are never replayed. */
+export async function processStagedCrewPhoto(requestId:string,upload:(file:string)=>Promise<{mediaUrls:string[]}>) {
+  let receipt=readCrewPhoto(requestId);
+  if(!receipt)throw new CrewPhoneError('Photo receipt not found.',404);
+  if(receipt.status!=='pending')return receipt;
+  const extension=receipt.extension || (fs.existsSync(path.join(root(),`${receipt.hash}.jpg`))?'jpg':fs.existsSync(path.join(root(),`${receipt.hash}.png`))?'png':null);
+  const media=extension?path.join(root(),`${receipt.hash}.${extension}`):'';
+  if(!media || !fs.existsSync(media)){
+    receipt={...receipt,status:'uncertain',updatedAt:new Date().toISOString()};write(receipt);return receipt;
+  }
+  const staged=receipt;
   try {
-    fs.writeFileSync(media,input.bytes,{mode:0o600});
     const result=await upload(media);
-    const urls=closeoutPhotoEvidence(scope.appointmentId,result.mediaUrls).urls.filter(url=>url.includes(`-${hash}-`) || new URL(url).pathname.endsWith(`-${hash}.${input.extension}`));
-    receipt={...receipt,status:urls.length===1?'verified':'uncertain',urls,updatedAt:new Date().toISOString()};
-  }catch {receipt={...receipt,status:'uncertain',updatedAt:new Date().toISOString()};}
+    const urls=closeoutPhotoEvidence(staged.appointmentId,result.mediaUrls).urls.filter(url=>url.includes(`-${staged.hash}-`) || new URL(url).pathname.endsWith(`-${staged.hash}.${extension}`));
+    receipt={...staged,status:urls.length===1?'verified':'uncertain',urls,updatedAt:new Date().toISOString()};
+  }catch {receipt={...staged,status:'uncertain',updatedAt:new Date().toISOString()};}
   finally {fs.rmSync(media,{force:true});}
   write(receipt);return receipt;
+}
+
+/** Compatibility wrapper for synchronous callers and focused tests. */
+export async function uploadCrewPhoto(input:ReturnType<typeof parseCrewPhoto>,scope:{deviceId:string;appointmentId:string},upload:(file:string)=>Promise<{mediaUrls:string[]}>) {
+  const staged=stageCrewPhoto(input,scope);
+  return staged.created?processStagedCrewPhoto(staged.receipt.requestId,upload):staged.receipt;
+}
+
+export async function waitForCrewPhotos(deviceId:string,assignmentId:string,appointmentId:string,requestIds:string[],timeoutMs=10*60_000) {
+  const unique=[...new Set(requestIds)];
+  const deadline=Date.now()+timeoutMs;
+  while(true){
+    const receipts=unique.map(id=>readCrewPhoto(id));
+    if(receipts.some(receipt=>!receipt || receipt.deviceId!==deviceId || receipt.assignmentId!==assignmentId || receipt.appointmentId!==appointmentId))throw new CrewPhoneError('One or more checkout photos do not belong to this assignment.',409);
+    if(receipts.some(receipt=>receipt?.status==='uncertain'))throw new CrewPhoneError('A photo result needs verification. Check the saved photo before another checkout.',409);
+    if(receipts.every(receipt=>receipt?.status==='verified'))return receipts as CrewPhotoReceipt[];
+    if(Date.now()>=deadline)throw new Error('Photo processing did not finish before the checkout worker timed out.');
+    await new Promise(resolve=>setTimeout(resolve,1000));
+  }
 }
 /** A GET may verify a saved filename, but never upload again. Absence remains uncertain. */
 export function reconcileCrewPhoto(receipt:CrewPhotoReceipt,urls:string[]) {

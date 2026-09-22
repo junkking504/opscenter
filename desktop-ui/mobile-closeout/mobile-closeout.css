@@ -13,3 +13,17 @@
 .crew-mobile .closeout-primary-actions{grid-template-columns:minmax(0,1fr);min-width:0}.crew-mobile .closeout-primary-actions .closeout-primary-button{white-space:normal;min-width:0}.crew-mobile .closeout-secondary-actions{flex-wrap:wrap;gap:8px}.crew-mobile .closeout-review-facts strong{flex-shrink:0;overflow-wrap:normal}.company-phone-closeout.crew-mobile{min-height:0}
 
 .crew-mobile [data-mobile-step='3'] [data-closeout-step]:not([data-closeout-step='3']){display:none}.crew-mobile .closeout-photo-step[hidden]{display:none}.crew-mobile [data-photo-workflow] .closeout-photo-step input[type='file']{width:100%;max-width:100%;font-size:14px}.crew-mobile [data-photo-workflow] .mobile-closeout-steps button{min-width:0;overflow-wrap:anywhere}.crew-mobile [data-photo-workflow] .closeout-photo-step img{max-width:100%}
+
+/* Company-phone checkout: compact, safe mobile controls. */
+.crew-mobile [data-photo-workflow] .mobile-closeout-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:2px;margin-bottom:14px}
+.crew-mobile [data-photo-workflow] .mobile-closeout-steps button{display:flex;min-width:0;flex-direction:column;align-items:center;gap:5px;padding:2px 0;min-height:52px;font-size:10px;overflow-wrap:normal}
+.crew-mobile [data-photo-workflow] .mobile-closeout-steps button>span:first-child{display:grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#e7eadf;font-size:12px}
+.crew-mobile [data-photo-workflow] .mobile-closeout-steps button[aria-current]>span:first-child{background:var(--ops-brand-red);color:#fff}
+.crew-mobile [data-photo-workflow] .mobile-closeout-step-label{display:block;width:auto;height:auto;border-radius:0;background:transparent;white-space:nowrap;word-break:normal;overflow-wrap:normal;font-size:10px}
+.crew-mobile [data-photo-workflow] .appointment-closeout-body label{gap:6px;padding:10px 0;min-height:44px}
+.crew-mobile [data-photo-workflow] .appointment-closeout-body :is(h4,h5){padding:11px 0}
+.crew-mobile [data-photo-workflow] .appointment-closeout-body p{padding:8px 0}
+.crew-mobile [data-photo-workflow] .record-drawer-actions{padding:10px 0 max(10px,env(safe-area-inset-bottom));margin-top:10px}
+.crew-mobile [data-photo-workflow] .closeout-primary-actions .closeout-primary-button{min-height:52px}
+.crew-mobile [data-photo-workflow] .closeout-photo-step input[type='file']{position:absolute;inset:0;width:100%;height:100%;max-width:none;margin:0;padding:0;border:0;opacity:0;cursor:pointer}
+.company-phone-closeout .record-drawer-actions{position:static;bottom:auto}

@@ -9,7 +9,7 @@ export type OperationReceipt = {
 /** Submit exactly once. A lost response is not evidence that JunkWare failed. */
 export async function submitScheduleOperation(
   payload: Record<string, unknown> & { requestId: string },
-  dependencies: { endpoint?: string; fetch?: typeof fetch; now?: () => number; pause?: (ms: number) => Promise<void> } = {},
+  dependencies: { endpoint?: string; fetch?: typeof fetch; now?: () => number; pause?: (ms: number) => Promise<void>; waitForCompletion?: boolean } = {},
 ): Promise<OperationReceipt> {
   const request = dependencies.fetch || fetch;
   const endpoint=dependencies.endpoint || '/api/desktop/schedule/operations';
@@ -25,7 +25,7 @@ export async function submitScheduleOperation(
     // A conflict may belong to an older request, including on another day.
     // Keep its ID so recovery checks that receipt, never the rejected new UUID.
     if (response.status === 409 && body.receipt) return body.receipt;
-    if (body.receipt && body.receipt.status !== 'pending') return body.receipt;
+    if (body.receipt && (body.receipt.status !== 'pending' || dependencies.waitForCompletion===false)) return body.receipt;
     if (!body.receipt && [400, 401, 403, 404, 409, 422].includes(response.status)) {
       return { requestId: payload.requestId, status: 'failed', message: body.error || 'The appointment change was rejected.' };
     }

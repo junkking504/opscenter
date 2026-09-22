@@ -9,12 +9,13 @@ import '../../desktop-ui/mobile-closeout/mobile-closeout.css';
 import JobPhotos, {type PhotoProgress, type PhotoCheckoutHandle} from './job-photos';
 import styles from './phone-access.module.css';
 
-export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,onBack,onNext}:{job:CrewCurrentJob;truck:string;deviceId:string;test?:boolean;onBusyChange:(busy:boolean)=>void;onBack:()=>void;onNext:()=>void}) {
+export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,onBack,onNext,onHandoffStarted,onHandoffFailed,onQueued}:{job:CrewCurrentJob;truck:string;deviceId:string;test?:boolean;onBusyChange:(busy:boolean)=>void;onBack:()=>void;onNext:()=>void;onHandoffStarted?:()=>void;onHandoffFailed?:(message:string)=>void;onQueued?:(requestId:string)=>void}) {
   const [completed,setCompleted]=useState(false);
   const [photos,setPhotos]=useState<PhotoProgress>({ready:false,count:0,verified:0});
   const [dryRun,setDryRun]=useState(false);
   const dryRunMode=useRef(false);
   const photoSubmit=useRef<PhotoCheckoutHandle>(null);
+  const stagedPhotoIds=useRef<string[]>([]);
   const [submissionMessage,setSubmissionMessage]=useState('');
   const [photoBusy,setPhotoBusy]=useState(false),[formBusy,setFormBusy]=useState(false);
   const busy=photoBusy || formBusy;
@@ -33,9 +34,10 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
       async prepare(){
         if(dryRunMode.current){setSubmissionMessage('Checking the dry run. No live results will be posted.');return;}
         if(!photoSubmit.current)throw new Error('Photo selection is unavailable. Return to photos before submitting.');
-        setSubmissionMessage('Preparing checkout…');
-        try {await photoSubmit.current.submit(setSubmissionMessage);setSubmissionMessage('Verifying and saving checkout in JunkWare…');}
-        catch(error){setSubmissionMessage('Submission paused. Photos already saved will not be uploaded again. Your payment has not been submitted.');throw error;}
+        onHandoffStarted?.();
+        setSubmissionMessage('Transferring checkout to OpsCenter…');
+        try {stagedPhotoIds.current=await photoSubmit.current.submit(setSubmissionMessage);setSubmissionMessage('Checkout accepted. Waypoint will finish it in the background.');return {background:true};}
+        catch(error){const message=error instanceof Error?error.message:'Submission paused. Check the saved photos before trying again.';setSubmissionMessage('Submission paused. Photos already transferred will not be uploaded again. Your payment has not been submitted.');onHandoffFailed?.(message);throw error;}
       },
       async load(){
         setCompleted(false);
@@ -54,15 +56,17 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
       async send(values,requestId){
         // Retain the request identity BEFORE the only POST, including across page reload.
         if(!dryRunMode.current)keep({requestId,action:'closeout',status:'pending',message:'Checking the saved closeout. Do not record another payment.'});
-        const receipt=await submitScheduleOperation({assignmentId:job.assignmentId,requestId,expectedVersion:jobVersion.current,crewVersion:crewVersion.current,values,...(dryRunMode.current?{dryRun:true}:{})},{endpoint});
-        return keep(receipt);
+        const receipt=await submitScheduleOperation({assignmentId:job.assignmentId,requestId,expectedVersion:jobVersion.current,crewVersion:crewVersion.current,values,photoRequestIds:stagedPhotoIds.current,...(dryRunMode.current?{dryRun:true}:{})},{endpoint,waitForCompletion:false});
+        const saved=keep(receipt);
+        if(!dryRunMode.current)queueMicrotask(()=>saved.status==='failed'?onHandoffFailed?.(saved.message):onQueued?.(saved.requestId));
+        return saved;
       },
       check,
     };
-  },[endpoint,key,job.assignmentId]);
+  },[endpoint,key,job.assignmentId,onHandoffStarted,onHandoffFailed,onQueued]);
   const closeoutJob:CloseoutJob={appointmentId:job.appointmentId,appointmentUrl:'',status:'Confirmed',appointmentType:'Job',truck,jkNumber:job.jkNumber,customerName:job.customerName,recordId:`${job.date}:appointment:${job.appointmentId}`,version:''};
   return <section className="company-phone-closeout crew-mobile ops-live"><div className="job-record-drawer mobile-closeout-host">
-    <h2>Job closeout</h2><p>Before photos → Charges → After photos → Payment. {dryRun?"Test the complete flow without posting results.":"Everything uploads after your final confirmation."}</p>
+    <h2>Job closeout</h2><p>Before photos → Charges → After photos → Payment. {dryRun?"Test the complete flow without posting results.":"Submit once, then return to Assignments while Waypoint finishes in the background."}</p>
     {dryRun && <p role="status"><strong>Dry run</strong> — Photos, charges and payment will not be posted to JunkWare. No customer receipt will be sent.</p>}
     {formBusy && submissionMessage && <p role="status">{submissionMessage}</p>}
     <AppointmentCloseout dryRun={dryRun} job={closeoutJob} date={job.date} presentation="mobile" transport={transport} draftKey={key} onBusyChange={setFormBusy} photoSteps={{render:category=><JobPhotos ref={photoSubmit} dryRun={dryRun} deferred locked={formBusy} deviceId={deviceId} assignmentId={job.assignmentId} category={category} onBusyChange={setPhotoBusy} onProgress={reportPhotos}/>,hasPhotos:photos.count>0,busy:photoBusy}} onBackToAppointment={onBack} saved={()=>{setCompleted(dryRunMode.current || verified.current);setSubmissionMessage(verified.current?'Checkout saved and verified in JunkWare.':'');}}/>

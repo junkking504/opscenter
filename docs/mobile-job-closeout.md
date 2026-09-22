@@ -369,14 +369,24 @@ Payment → Review**. Photos are selected and kept in the phone's 24-hour draft
 storage. Moving between steps does not upload photos or require upload
 verification. Required job details, crew and actual times are in Charges.
 
-Only **Submit checkout**, after final review, starts uploading all selected
-photos. It reuses their durable request IDs, checks pending/uncertain results,
-and then refreshes the source photo evidence before the existing closeout and
-payment save. Verification happens as part of this final submission. The UI
-reports completion only after the saved source results verify. An interrupted
-photo batch retains its progress; retry checks saved photos without replaying
-uncertain uploads. No payment request is created while photo results remain
-uncertain. An interrupted payment retains its original receipt identity.
+Only **Submit checkout**, after final review, starts the handoff. Waypoint
+immediately returns the crew to Assignments while the same page transfers all
+selected photos to durable server storage and queues one assignment-scoped
+closeout receipt. The phone must stay on Waypoint until that short transfer
+becomes the server-owned queue; a failed transfer re-enables the assignment with
+an explicit saved-state warning. The server then finishes the exact JunkWare
+photo uploads, closeout, payment and source verification in the background. The
+next queued assignment remains hidden until the receipt verifies Completed with
+the required photos; the phone polls that receipt read-only and releases the
+next assignment automatically.
+
+Every photo and the closeout retain their original durable request IDs. A
+pending result is never submitted a second time. An interrupted worker checks
+saved source evidence without replaying an uncertain upload or payment; an old
+pending photo becomes uncertain rather than waiting forever. No payment request
+is created while photo results remain pending or uncertain. If processing needs
+attention, Waypoint shows the saved receipt state and the crew can continue
+viewing their other available work without repeating the write.
 
 One photo component stays mounted across steps. Charge/payment drafts also
 retain a comparison of the original source fields excluding photo evidence, so

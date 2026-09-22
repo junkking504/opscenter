@@ -1,14 +1,16 @@
 import { waypointSandbox } from '@/lib/waypoint-sandbox';
+import { after } from 'next/server';
 import {readCrewDispatch} from '@/lib/crew-dispatch-store';
 import {crewCheckoutDryRun} from '@/lib/crew-checkout-dry-run';
 import { crewPhoneBody, crewPhoneFailure, crewPhoneResponse, requireCrewPhone } from '@/lib/crew-phone-http';
 import { withCrewJob } from '@/lib/crew-job-scope';
 import { CrewPhoneError } from '@/lib/crew-phone';
-import { crewPhotos, crewPhotoProjection, parseCrewPhoto, readCrewPhoto, reconcileCrewPhoto, uploadCrewPhoto } from '@/lib/crew-job-photos';
+import { crewPhotos, crewPhotoProjection, parseCrewPhoto, processStagedCrewPhoto, readCrewPhoto, reconcileCrewPhoto, stageCrewPhoto } from '@/lib/crew-job-photos';
 import { uploadJunkwareJobPhoto } from '@/lib/junkware-photo-uploader';
 import { junkwareJobCloseout } from '@/lib/junkware-job-closeout';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
+export const maxDuration=600;
 export async function GET(request:Request) {
   try {
     const testPhone=requireCrewPhone(request);
@@ -41,8 +43,13 @@ export async function POST(request:Request) {
     if(current?.assignmentId===body.assignmentId && crewCheckoutDryRun(current,phone.truck))throw new CrewPhoneError('This is a dry run. Photos stay on the phone and are not uploaded to JunkWare.',409);
     return await withCrewJob(request,body.assignmentId,async({phone,current,job})=>{
       if(crewCheckoutDryRun(current,phone.truck))throw new CrewPhoneError('This is a dry run. Photos stay on the phone and are not uploaded to JunkWare.',409);
-      const receipt=await uploadCrewPhoto(body,{deviceId:phone.deviceId,appointmentId:current.appointmentId},filePath=>uploadJunkwareJobPhoto({appointmentId:current.appointmentId,jkNumber:job.jkNumber,filePath,category:body.category}));
-      return crewPhoneResponse({receipt:crewPhotoProjection(receipt)},receipt.status==='verified'?200:202);
+      const staged=stageCrewPhoto(body,{deviceId:phone.deviceId,appointmentId:current.appointmentId});
+      if(staged.created)after(async()=>{
+        await withCrewJob(request,body.assignmentId,async({current,job})=>{
+          await processStagedCrewPhoto(staged.receipt.requestId,filePath=>uploadJunkwareJobPhoto({appointmentId:current.appointmentId,jkNumber:job.jkNumber,filePath,category:body.category}));
+        }).catch(()=>undefined);
+      });
+      return crewPhoneResponse({receipt:crewPhotoProjection(staged.receipt)},staged.receipt.status==='verified'?200:202);
     });
   }catch(error){return crewPhoneFailure(error);}
 }

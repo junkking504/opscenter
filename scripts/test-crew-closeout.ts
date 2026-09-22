@@ -15,7 +15,7 @@ async function main(){
   const {releaseCrewJob}=await import('../lib/crew-dispatch-store');
   const {CREW_PHONE_COOKIE}=await import('../lib/crew-phone');
   const {withCrewJob}=await import('../lib/crew-job-scope');
-  const {loadCrewCloseout,submitCrewCloseout,checkCrewCloseout,crewReceiptProjection}=await import('../lib/crew-closeout-service');
+  const {loadCrewCloseout,submitCrewCloseout,queueCrewCloseout,checkCrewCloseout,crewReceiptProjection}=await import('../lib/crew-closeout-service');
   const {closeoutSourceVersion}=await import('../lib/desktop-closeout-contract');
   const {JunkwareCloseoutError}=await import('../lib/junkware-job-closeout');
   const token=randomBytes(32).toString('hex'),phone=enrollCrewPhone(createCrewPhoneEnrollment('Truck 6','Test phone','manager').code,token);
@@ -59,6 +59,8 @@ async function main(){
   assert.equal(manualReceipt.status,'verified');assert.equal(manualWrites,1);assert.equal((manualReceipt.sourceResult?.jobTiming as {startSource:string}).startSource,'manual');
   job.truckVisits=savedVisits;
   assert.equal((await loadCrewCloseout(request,current.assignmentId,deps)).arrival,arrival);
+  const queued=await queueCrewCloseout(request,body(),deps);assert.equal(queued.receipt.status,'pending');assert.equal(writes,0,'Queue response precedes the provider write');assert.ok(queued.run);
+  const backgroundReceipt=await queued.run!();assert.equal(backgroundReceipt.status,'verified');assert.equal(writes,1,'Background worker owns the one closeout write');source=structuredClone(baseline);writes=0;
   const tampered=await submitCrewCloseout(request,{...body(),values:{...values,jobCategoryId:'changed'}},deps);assert.equal(tampered.status,'failed');assert.equal(writes,0);
   lose=true;const uncertain=body();assert.equal((await submitCrewCloseout(request,uncertain,deps)).status,'uncertain');assert.equal(writes,1);
   assert.equal((await submitCrewCloseout(request,uncertain,deps)).status,'uncertain');assert.equal(writes,1,'Same request is never replayed');

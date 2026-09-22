@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 
 export const metadata: Metadata = {
   title: { absolute: 'Waypoint' },
@@ -10,9 +10,11 @@ export const metadata: Metadata = {
     shortcut: '/crew-jobs/waypoint-favicon-v2.png',
     apple: { url: '/crew-jobs/waypoint-crown-road-v1-180.png', sizes: '180x180', type: 'image/png' },
   },
-  appleWebApp: { capable: true, title: 'Waypoint', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'Waypoint', statusBarStyle: 'black' },
   robots: { index: false, follow: false },
 };
+
+export const viewport:Viewport={width:'device-width',initialScale:1,viewportFit:'cover',themeColor:'#171717',colorScheme:'light'};
 
 export default function WaypointLayout({ children }: { children: React.ReactNode }) {
   return children;

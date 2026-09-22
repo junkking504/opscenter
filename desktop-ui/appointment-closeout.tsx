@@ -60,7 +60,7 @@ function inputMoney(value: string): string {
 export type CloseoutJob = Pick<ScheduleAppointment,'appointmentId'|'appointmentUrl'|'status'|'appointmentType'|'onsiteTime'|'truck'|'jkNumber'|'customerName'|'recordId'|'version'>;
 export type CloseoutTransport = {
   load: () => Promise<{closeout:LiveCloseout;sourceVersion:string;canWrite:boolean;arrival?:string|null;dryRun?:boolean;crewDefaults?:{version:number;driver:Option;navigators:Option[]};pendingReceipt?:Receipt|null;message?:string}>;
-  prepare?:()=>Promise<void>;
+  prepare?:()=>Promise<{background?:boolean}|void>;
   send: (values:Record<string,unknown>,requestId:string)=>Promise<Receipt>;
   check: (requestId:string)=>Promise<Receipt>;
 };
@@ -384,12 +384,14 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     try {
       let preparedSourceVersion=sourceVersion;
       if(transport?.prepare){
-        await transport.prepare();
-        const fresh=await readSource();
-        if(!fresh.canWrite || fresh.pendingReceipt || !sourceBaseline.current || !sameCheckoutFields(sourceBaseline.current,fresh.closeout) || (dailyCrew.current?.version || 0)!==(fresh.crewDefaults?.version || 0))throw new Error('The appointment or crew changed during submission. Reload from JunkWare and review before saving. Your payment has not been submitted.');
-        if(!fresh.dryRun && !closeoutPhotoCount(fresh.closeout.photoEvidence,resolvedAppointmentId))throw new Error('JunkWare has not verified the photos yet. Submit checkout again to check their saved result. Your payment has not been submitted.');
-        sourceBaseline.current=fresh.closeout;preparedSourceVersion=fresh.sourceVersion;
-        setLive(current=>current?{...current,photoEvidence:fresh.closeout.photoEvidence}:current);setSourceVersion(fresh.sourceVersion);
+        const prepared=await transport.prepare();
+        if(!prepared?.background){
+          const fresh=await readSource();
+          if(!fresh.canWrite || fresh.pendingReceipt || !sourceBaseline.current || !sameCheckoutFields(sourceBaseline.current,fresh.closeout) || (dailyCrew.current?.version || 0)!==(fresh.crewDefaults?.version || 0))throw new Error('The appointment or crew changed during submission. Reload from JunkWare and review before saving. Your payment has not been submitted.');
+          if(!fresh.dryRun && !closeoutPhotoCount(fresh.closeout.photoEvidence,resolvedAppointmentId))throw new Error('JunkWare has not verified the photos yet. Submit checkout again to check their saved result. Your payment has not been submitted.');
+          sourceBaseline.current=fresh.closeout;preparedSourceVersion=fresh.sourceVersion;
+          setLive(current=>current?{...current,photoEvidence:fresh.closeout.photoEvidence}:current);setSourceVersion(fresh.sourceVersion);
+        }
       }
       const requestId = crypto.randomUUID();
       const result = await send('closeout', {
@@ -500,7 +502,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       <div className="appointment-closeout-body">
         {draftNotice && <p role="status">{draftNotice}</p>}
         {live && !photoSteps && <p className="closeout-photo-requirement" role="status">{closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId) ? `${closeoutPhotoCount(live.photoEvidence, resolvedAppointmentId)} uploaded job photo(s) verified.` : CLOSEOUT_PHOTOS_REQUIRED}</p>}
-        {mobile && live && <nav className="mobile-closeout-steps" aria-label="Closeout steps">{stepLabels.map((label,index)=><button key={label} type="button" aria-current={(reviewing ? index===stepLabels.length-1 : mobileStep===index) ? 'step' : undefined} disabled={saving || loading || photoSteps?.busy || Boolean(receipt && receipt.status !== 'failed') || index===stepLabels.length-1 || Boolean(photoSteps && (photoSteps.busy || index>mobileStep+1 || (index>mobileStep && photoBlocked)))} onClick={()=>{setMobileStep(index);setReviewing(false);}}><span>{index+1}</span>{label}</button>)}</nav>}
+        {mobile && live && <nav className="mobile-closeout-steps" aria-label="Closeout steps">{stepLabels.map((label,index)=><button key={label} type="button" aria-label={label} aria-current={(reviewing ? index===stepLabels.length-1 : mobileStep===index) ? 'step' : undefined} disabled={saving || loading || photoSteps?.busy || Boolean(receipt && receipt.status !== 'failed') || index===stepLabels.length-1 || Boolean(photoSteps && (photoSteps.busy || index>mobileStep+1 || (index>mobileStep && photoBlocked)))} onClick={()=>{setMobileStep(index);setReviewing(false);}}><span>{index+1}</span><span className="mobile-closeout-step-label">{label.replace(' photos','')}</span></button>)}</nav>}
         {live && photoSteps && <div hidden={!currentPhotoCategory || reviewing || Boolean(receipt && receipt.status!=='failed')} className="closeout-photo-step">{photoSteps.render(mobileStep>=2?'after':'before')}</div>}
         {receipt && <>{receipt.action && receipt.action !== 'closeout' && ['pending', 'uncertain'].includes(receipt.status) && <p role="alert">Closeout is locked until the earlier {receipt.action === 'move' ? 'assignment change' : 'appointment change'} is checked in JunkWare. This is not a closeout result.</p>}<ChangeReceipt receipt={receipt} onCheck={() => { void check(); }} /></>}
         {!live ? (

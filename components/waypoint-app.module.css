@@ -1,4 +1,5 @@
-.app { display: flex; flex-direction: column; min-height: 100dvh; background: #f5f4f0; }
+.app { display: flex; flex-direction: column; min-height: 100dvh; background: #f5f4f0; isolation: isolate; }
+.app::before { content: ''; position: fixed; inset: 0 0 auto; z-index: 1000; height: env(safe-area-inset-top); background: #171717; pointer-events: none; }
 .app > div:not([hidden]) { display: flex; flex-direction: column; flex: 1; }
 .app > div > main { min-height: 0; flex: 1; }
 .app > [hidden] { display: none !important; }

@@ -13,6 +13,7 @@ import { closeoutSourceVersion } from '@/lib/desktop-closeout-contract';
 
 export type ScheduleOperation = { requestId: string; date: string; recordId: string; expectedVersion: string; action: 'move' | 'reschedule' | 'restore' | 'call_ahead' | 'cancel' | 'note' | 'closeout' | 'classify'; values: Record<string, unknown> };
 export type ScheduleReceipt = { requestId: string; actor: string; action: ScheduleOperation['action']; recordId: string; date: string; fingerprint: string; expectedCloseoutSourceVersion?: string; createdAt?: string; status: 'pending' | 'verified' | 'failed' | 'uncertain' | 'reconciled'; updatedAt: string; message: string; sourceResult?: Record<string, unknown>; crewAssignment?: ScheduleCrewAssignment; automaticMoveCheck?: { attempts: number; checkedAt: string }; priorResult?: { status: string; message: string; updatedAt: string } };
+export type QueuedScheduleOperation = { operation: ScheduleOperation; actor: string; receipt: ScheduleReceipt; job: DesktopAppointment | null; created: boolean };
 export class PendingScheduleOperationError extends Error {
   constructor(public readonly receipt: ScheduleReceipt) {
     super('This appointment has an unverified change. Check its saved result before another change.');
@@ -81,13 +82,22 @@ async function writeReceipt(receipt: ScheduleReceipt) {
   await fs.writeFile(temporary, JSON.stringify(receipt), { mode: 0o600 });
   await fs.rename(temporary, target);
 }
-export async function executeScheduleOperation(operation: ScheduleOperation, actor: string, load: () => DesktopAppointment | undefined, run: (job: DesktopAppointment, receipt: ScheduleReceipt) => Promise<{ status: number; body: Record<string, unknown> }>): Promise<ScheduleReceipt> {
+/** The caller must already hold this receipt's operation locks. Persist the
+ * final pre-write source version so a lost closeout response can be reconciled
+ * without replaying a payment or closeout. */
+export async function setPendingCloseoutSourceVersion(receipt:ScheduleReceipt,sourceVersion:string) {
+  if(receipt.action!=='closeout' || receipt.status!=='pending' || !/^[a-f0-9]{64}$/.test(sourceVersion))throw new Error('A pending closeout and current source version are required.');
+  receipt.expectedCloseoutSourceVersion=sourceVersion;
+  receipt.updatedAt=new Date().toISOString();
+  await writeReceipt(receipt);
+}
+export async function queueScheduleOperation(operation: ScheduleOperation, actor: string, load: () => DesktopAppointment | undefined): Promise<QueuedScheduleOperation> {
   return withScheduleOperationLock(`request-${operation.requestId}`, () => withScheduleOperationLock(`appointment-${operation.recordId.split(':appointment:')[1]}`, async () => {
     const fingerprint = createHash('sha256').update(JSON.stringify(operation)).digest('hex');
     const existing = await readScheduleReceipt(operation.requestId);
     if (existing) {
       if (existing.fingerprint !== fingerprint || existing.actor !== actor) throw new Error('This request ID already belongs to a different change.');
-      return existing; // Never replay an uncertain source write.
+      return { operation, actor, receipt: existing, job: null, created: false }; // Never replay an uncertain source write.
     }
     // A new browser, request UUID, or operating date must not bypass an
     // unresolved write for the same source appointment.
@@ -111,8 +121,19 @@ export async function executeScheduleOperation(operation: ScheduleOperation, act
     if (operation.action === 'closeout') receipt.expectedCloseoutSourceVersion = String(operation.values.expectedSourceVersion);
     if (['reschedule','restore'].includes(operation.action)) receipt.sourceResult = {expected:rescheduleTarget(job,operation.date,operation.values,operation.action === 'restore')};
     await writeReceipt(receipt);
+    return { operation, actor, receipt, job, created: true };
+  }));
+}
+
+export async function finishQueuedScheduleOperation(queued: QueuedScheduleOperation, run: (job: DesktopAppointment, receipt: ScheduleReceipt) => Promise<{ status: number; body: Record<string, unknown> }>): Promise<ScheduleReceipt> {
+  const {operation,actor}=queued;
+  if(!queued.created || !queued.job)return queued.receipt;
+  return withScheduleOperationLock(`request-${operation.requestId}`, () => withScheduleOperationLock(`appointment-${operation.recordId.split(':appointment:')[1]}`, async () => {
+    let receipt=await readScheduleReceipt(operation.requestId);
+    if(!receipt || receipt.actor!==actor || receipt.fingerprint!==queued.receipt.fingerprint)throw new Error('The queued appointment change could not be recovered.');
+    if(receipt.status!=='pending')return receipt;
     try {
-      const result = await run(job, receipt);
+      const result = await run(queued.job!, receipt);
       const verified = result.status >= 200 && result.status < 300 && result.status !== 202 && result.body.ok !== false;
       receipt = { ...receipt, status: verified ? 'verified' : result.status === 202 || result.status >= 500 ? 'uncertain' : 'failed', updatedAt: new Date().toISOString(), message: verified ? operation.action === 'call_ahead' ? 'Call-ahead recorded in OpsCenter.' : 'JunkWare verified the appointment change.' : String(result.body.warning || result.body.error || 'The source result needs verification.'), sourceResult: result.body };
       if (verified && operation.action === 'classify' && typeof result.body.warning === 'string') receipt.message += ` ${result.body.warning}`;
@@ -122,6 +143,10 @@ export async function executeScheduleOperation(operation: ScheduleOperation, act
     await writeReceipt(receipt);
     return receipt;
   }));
+}
+
+export async function executeScheduleOperation(operation: ScheduleOperation, actor: string, load: () => DesktopAppointment | undefined, run: (job: DesktopAppointment, receipt: ScheduleReceipt) => Promise<{ status: number; body: Record<string, unknown> }>): Promise<ScheduleReceipt> {
+  return finishQueuedScheduleOperation(await queueScheduleOperation(operation,actor,load),run);
 }
 
 /** Checking a saved result never replays the write. Only an identical, freshly

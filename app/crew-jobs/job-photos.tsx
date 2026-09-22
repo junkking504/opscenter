@@ -3,9 +3,9 @@ import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref
 import styles from './phone-access.module.css';
 import { readPhotoResponse } from './photo-response';
 
-import {submitCheckoutPhotos, type CheckoutPhoto as Photo} from './photo-checkout';
+import {stageCheckoutPhotos, type CheckoutPhoto as Photo} from './photo-checkout';
 export type PhotoProgress = {ready:boolean;count:number;verified:number};
-export type PhotoCheckoutHandle = {submit:(progress:(message:string)=>void)=>Promise<void>};
+export type PhotoCheckoutHandle = {submit:(progress:(message:string)=>void)=>Promise<string[]>};
 const database='ops-crew-photo-drafts-v1';
 function db():Promise<IDBDatabase> {return new Promise((resolve,reject)=>{const request=indexedDB.open(database,1);request.onupgradeneeded=()=>request.result.createObjectStore('drafts');request.onsuccess=()=>{const database=request.result;const transaction=database.transaction('drafts','readwrite');const cursor=transaction.objectStore('drafts').openCursor();cursor.onsuccess=()=>{const row=cursor.result;if(row){if(!row.value?.at || Date.now()-row.value.at>=24*60*60_000)row.delete();row.continue();}};transaction.oncomplete=()=>resolve(database);transaction.onerror=()=>{database.close();reject(transaction.error);};};request.onerror=()=>reject(request.error);});}
 export async function clearCrewPhotoDrafts() {const database=await db();try{await new Promise<void>((resolve,reject)=>{const transaction=database.transaction('drafts','readwrite');transaction.objectStore('drafts').clear();transaction.oncomplete=()=>resolve();transaction.onerror=()=>reject(transaction.error);});}finally{database.close();}}
@@ -76,7 +76,7 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
       const response=await fetch('/api/crew-jobs/photos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({requestId:row.requestId,assignmentId,category:row.category,image:row.image}),signal:AbortSignal.timeout(210_000)});
       const body=await readPhotoResponse(response);
       if(!body.receipt)throw new Error(body.error || 'Photo result unavailable. Check saved result.');
-      const result={...row,...(body.receipt as Photo),...((body.receipt as Photo).status==='verified'?{image:undefined}:{})};
+      const result={...row,...(body.receipt as Photo),...(['pending','verified'].includes((body.receipt as Photo).status)?{image:undefined}:{})};
       await save(rows.current.map(item=>item.requestId===row.requestId?result:item));return result;
     }catch(error){const uncertain={...row,status:'uncertain' as const};await save(rows.current.map(item=>item.requestId===row.requestId?uncertain:item));if(deferred)return uncertain;throw error;}
   }
@@ -95,25 +95,25 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
   useImperativeHandle(ref,()=>({submit:async(progress)=>{
     if(!ready || inFlight.current)throw new Error('Photos are still loading. Wait a moment, then submit checkout.');
     inFlight.current=true;setBusy(true);onBusyChange(true);setError('');
-    try {await submitCheckoutPhotos([...rows.current],{upload,check,progress});}
+    try {return await stageCheckoutPhotos([...rows.current],{upload,check,progress});}
     catch(error){setError(error instanceof Error?error.message:'Photo verification is pending.');throw error;}
     finally{inFlight.current=false;setBusy(false);onBusyChange(false);}
   }}));
   return <section className={styles.card}><h2>{visibleCategory==='before'?'Before photos':visibleCategory==='after'?'After photos':'Job photos'}</h2><p>{dryRun ? "Choose photos to test this checkout. The files will stay on this phone." : deferred ? `Choose ${visibleCategory || 'job'} photos now. They will upload when you submit the completed checkout.` : 'Upload job photos and check the saved result.'}</p>
     {!ready && !error && <p role="status">Checking saved photos…</p>}
     {(visibleCategory ? [visibleCategory] : ['before','after'] as const).map(category=><div className={styles.photoSection} key={category}><h3>{category==='before'?'Before':'After'}</h3>
-      <label className={styles.secondary}>Add {category} photos<input aria-label={`Add ${category} photos`} type="file" accept="image/*" multiple disabled={busy || locked || !ready} onChange={event=>{const files=Array.from(event.target.files || []);event.target.value='';void work(()=>select(files,category));}}/></label>
+      <label className={styles.photoPicker}><strong>Add {category} photos</strong><span>Take photos or choose from this phone</span><input aria-label={`Add ${category} photos`} type="file" accept="image/*" multiple disabled={busy || locked || !ready} onChange={event=>{const files=Array.from(event.target.files || []);event.target.value='';void work(()=>select(files,category));}}/></label>
       {photos.filter(row=>row.category===category).map(row=><div className={styles.photo} key={row.requestId}>
         {/* Local camera/library preview; never sent to an image optimization service. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {row.image && <img src={row.image} alt={`${category} job photo selected for upload`}/>}
-        <p role="status">{row.status==='verified'?'Saved in JunkWare':row.status==='selected'?(deferred?'Ready to submit':'Selected · not uploaded'):row.status==='pending'?'Upload result pending':deferred?'Will check the saved result when you submit checkout':'Verification required · do not upload again'}</p>
+        <p role="status">{row.status==='verified'?'Saved in JunkWare':row.status==='selected'?(deferred?'Ready to submit':'Selected · not uploaded'):row.status==='pending'?'Finishing in background':deferred?'Check the saved result before checkout':'Verification required · do not upload again'}</p>
         {row.status==='selected'?<>{!deferred && <button className={styles.primary} disabled={busy || locked} onClick={()=>void work(async()=>{await upload(row);})}>Upload photo</button>}<button className={styles.secondary} disabled={busy || locked} onClick={()=>void work(()=>save(rows.current.filter(item=>item.requestId!==row.requestId)))}>Remove selected photo</button></>:!deferred && row.status!=='verified'?<button className={styles.secondary} disabled={busy || locked} onClick={()=>void work(async()=>{await check(row);})}>Check saved photo</button>:null}
       </div>)}
     </div>)}
     {busy && <p role="status">Working on this photo…</p>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {!ready && error && <button className={styles.secondary} disabled={busy || locked} onClick={()=>setReload(value=>value+1)}>Check saved photos again</button>}
-    <p className={styles.muted}>Selected photos stay on this phone for 24 hours. {dryRun?'This is a dry run. No photos will be uploaded.':deferred?'Finish Charges and Payment, then submit checkout to upload everything. Keep this page open until the result is shown.':'Uploads start only when you tap Upload photo.'}</p>
+    <p className={styles.muted}>Selected photos stay on this phone for 24 hours. {dryRun?'This is a dry run. No photos will be uploaded.':deferred?'Tap Submit once. Waypoint will transfer the photos, return to Assignments, and finish JunkWare verification in the background.':'Uploads start only when you tap Upload photo.'}</p>
   </section>;
 }

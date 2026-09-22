@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
-import {crewPhotoProjection,crewPhotos,parseCrewPhoto,readCrewPhoto,reconcileCrewPhoto,uploadCrewPhoto} from '../lib/crew-job-photos';
+import {crewPhotoProjection,crewPhotos,parseCrewPhoto,readCrewPhoto,reconcileCrewPhoto,stageCrewPhoto,uploadCrewPhoto} from '../lib/crew-job-photos';
 async function main(){
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'crew-photo-test-'));process.env.OPS_CREW_PHOTO_DIR=dir;
  try{
@@ -34,8 +34,11 @@ async function main(){
   const wrong=await uploadCrewPhoto({...input,requestId:randomUUID(),bytes:Buffer.from([255,216,255,4,5])},scope,async()=>({mediaUrls:['https://junkware.junk-king.com/system/aspnet/local/media/photo-900001-unrelated.jpg']}));
   assert.equal(wrong.status,'uncertain','Only this filename in the owning gallery counts');
   assert.equal(fs.readdirSync(dir).some(file=>file.endsWith('.jpg')),false,'Temporary source-upload media is removed');
+  const stale=stageCrewPhoto({...input,requestId:randomUUID(),bytes:Buffer.from([255,216,255,6,7])},scope).receipt;
+  fs.writeFileSync(path.join(dir,`${stale.requestId}.json`),JSON.stringify({...stale,updatedAt:new Date(Date.now()-11*60_000).toISOString()}));
+  assert.equal(readCrewPhoto(stale.requestId)?.status,'uncertain','An abandoned background photo cannot remain pending forever');
   fs.writeFileSync(path.join(dir,`${saved.requestId}.json`),'{bad');assert.throws(()=>readCrewPhoto(saved.requestId));
-  console.log('PASS: scoped photo receipts, exact-file source verification, no duplicate/replayed upload, lost-response read-back, invalid input and private projections. Synthetic uploads only.');
+  console.log('PASS: scoped photo receipts, exact-file source verification, no duplicate/replayed upload, stale pending recovery, lost-response read-back, invalid input and private projections. Synthetic uploads only.');
  }finally{fs.rmSync(dir,{recursive:true,force:true});}
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

@@ -2,11 +2,12 @@ import { waypointSandbox } from '@/lib/waypoint-sandbox';
 import { after } from 'next/server';
 import { crewPhoneBody, crewPhoneFailure, crewPhoneResponse, requireCrewPhone } from '@/lib/crew-phone-http';
 import { CrewPhoneError } from '@/lib/crew-phone';
-import { checkCrewCloseout, crewReceiptProjection, loadCrewCloseout, submitCrewCloseout, simulateCrewCloseout } from '@/lib/crew-closeout-service';
+import { checkCrewCloseout, crewReceiptProjection, loadCrewCloseout, queueCrewCloseout, simulateCrewCloseout } from '@/lib/crew-closeout-service';
 import { PendingScheduleOperationError } from '@/lib/desktop-schedule-operations';
 import { publishVerifiedCloseout } from '@/lib/publish-closeout';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
+export const maxDuration=600;
 export async function GET(request:Request) {
   try {
     const testPhone=requireCrewPhone(request);
@@ -28,8 +29,11 @@ export async function POST(request:Request) {
     const body=await crewPhoneBody(request,16*1024);
     const simulated=await simulateCrewCloseout(request,body);
     if(simulated)return crewPhoneResponse({receipt:simulated});
-    const receipt=await submitCrewCloseout(request,body);
-    if(receipt.status==='verified' && receipt.sourceResult)after(async()=>{await publishVerifiedCloseout(receipt.sourceResult!,receipt.recordId.split(':appointment:')[1]);});
+    const queued=await queueCrewCloseout(request,body),receipt=queued.receipt;
+    if(queued.run)after(async()=>{
+      const completed=await queued.run!();
+      if(completed.status==='verified' && completed.sourceResult)await publishVerifiedCloseout(completed.sourceResult,completed.recordId.split(':appointment:')[1]);
+    });
     requireCrewPhone(request);
     return crewPhoneResponse({receipt:crewReceiptProjection(receipt)},receipt.status==='verified'?200:receipt.status==='failed'?422:202);
   }catch(error){

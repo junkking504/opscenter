@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "verify:crew-phones": "node --import tsx scripts/test-crew-phones.ts",
-    "verify:crew-dispatch": "node --import tsx scripts/test-crew-dispatch.ts && node --import tsx scripts/test-schedule-crew-assignment.ts",
+    "verify:crew-dispatch": "node --import tsx scripts/test-crew-dispatch.ts && node --import tsx scripts/test-schedule-crew-assignment.ts && node --import tsx scripts/test-crew-assigned-day.ts",
     "verify:mobile-closeout-rules": "node --import tsx scripts/test-mobile-closeout-rules.ts",
     "verify:agent-hierarchy": "node --import tsx scripts/test-agent-audit-fixes.ts && node --import tsx scripts/test-agent-hierarchy.ts && node --import tsx scripts/test-address-agent-coverage.ts && python3 scripts/test-agent-runner.py && npm run verify:waypoint-agent",
     "verify:knowledge": "node --import tsx scripts/test-knowledge.ts && node --import tsx scripts/test-knowledge-import.ts && node --import tsx scripts/test-knowledge-troubleshooting.ts",

@@ -127,8 +127,9 @@ fails closed. No service, subscription, polling or provider SDK is introduced.
 **Implementation status — resumed September 18:** enrollment, manager dispatch,
 current-assignment reads and photo uploads are implemented in the task branch.
 `/crew-dispatch` releases a source-confirmed truck appointment and optionally
-queues one next appointment. The phone receives only the current customer and
-address. Source reassignment, stale snapshots and revoked phones fail closed.
+queues one next appointment. This initial version exposed only the current
+customer; the full assigned-day browsing update below supersedes that visibility
+restriction. Source reassignment, stale snapshots and revoked phones fail closed.
 
 Photo selection is private to the company browser and dispatch assignment, with
 24-hour recovery in IndexedDB. Expired records are purged on storage access;
@@ -214,15 +215,15 @@ contracts. Phone browser tests cover daily setup and additional job crew.
   This applies to Completed closeouts and classification paths completing an
   estimate. Saving a Confirmed draft remains possible without photos.
 - A server-owned verified closeout receipt must identify the current appointment,
-  Completed source status and saved photos before unlocking another assignment.
+  Completed source status and saved photos before unlocking another closeout.
   Pending, failed, uncertain, canceled or merely reconciled changes do not unlock it.
-- Dispatch must explicitly release the next job. No released job means waiting.
+- Dispatch must explicitly release the next closeout. Unreleased jobs remain viewable.
   Missing or ambiguous current-job source data means unavailable, never advance.
 - The current-job API binds release state to the enrolled truck and dispatch
   cycle, reads receipts from durable server storage, rechecks source state and
-  returns only approved current-job fields. Never send the day
-  schedule, queued customer data or a future address to the phone and hide it
-  with CSS. Never accept completion evidence supplied by the phone.
+  returns only approved customer fields for the enrolled truck's current day.
+  Never send another truck's customer data and hide it with CSS. Never accept
+  completion evidence supplied by the phone.
 
 ## Company-phone pilot acceptance
 
@@ -230,7 +231,7 @@ Implementation and synthetic checks do not establish actual camera or customer
 source acceptance. On a manager-enrolled company phone, verify camera/library
 selection, keyboard visibility, poor connectivity, repeated taps and reopen/read-
 back of an authorized real closeout. Confirm source photos, payment reference,
-amount and balance, and reveal the queued customer only after verified completion.
+amount and balance, and unlock the queued closeout only after verified completion.
 Never create a customer payment or closeout solely as a production test.
 
 Manager setup is `/crew-phones`; dispatch is `/crew-dispatch`; phones use
@@ -337,7 +338,10 @@ drafts and receipts are still accessible there. It does not redirect an active
 phone session across origins. Opening Waypoint on a new origin requires company-phone
 setup; browser storage and host-only cookies do not move between hostnames.
 
-### Schedule drag and crew assignment
+### Original schedule drag and crew assignment (superseded)
+
+The independent schedule assignment policy later in this document supersedes
+this original coupling. Current full-day browsing is described below.
 
 For confirmed appointments, dropping onto a truck and confirming the move now
 also releases that job to the truck phone after JunkWare verifies the move.
@@ -364,6 +368,18 @@ preserved; retrying history never submits a photo.
 
 ### Company-phone photo and closeout sequence
 
+Assignments shows the truck's full current-day confirmed and completed schedule,
+including appointments that have not been individually released in Crew Dispatch.
+It reads the existing verified schedule detector feed (all markets, no older than
+two minutes), overlays pending-move exclusions and returns only that truck's
+customer fields. Opening the list does not launch JunkWare or take its appointment
+lock. Missing, stale or ambiguous source data returns an immediate refresh state.
+Details for every listed appointment remain available while a submitted checkout
+finishes. Individual closeout authority still uses the current released assignment;
+browsing another appointment does not authorize a payment or advance the release.
+Completion recovery runs after the list response and refreshes the released
+closeout state separately.
+
 The company-phone workflow is **Before photos → Charges → After photos →
 Payment → Review**. Photos are selected and kept in the phone's 24-hour draft
 storage. Moving between steps does not upload photos or require upload
@@ -376,9 +392,9 @@ closeout receipt. The phone must stay on Waypoint until that short transfer
 becomes the server-owned queue; a failed transfer re-enables the assignment with
 an explicit saved-state warning. The server then finishes the exact JunkWare
 photo uploads, closeout, payment and source verification in the background. The
-next queued assignment remains hidden until the receipt verifies Completed with
-the required photos; the phone polls that receipt read-only and releases the
-next assignment automatically.
+next queued assignment can be viewed immediately, but closeout remains locked
+until the receipt verifies Completed with the required photos; the phone polls
+that receipt read-only and releases the next closeout automatically.
 
 Every photo and the closeout retain their original durable request IDs. A
 pending result is never submitted a second time. An interrupted worker checks
@@ -449,10 +465,12 @@ photo/closeout scope enforce the gate independently of the screen, rechecking
 after awaited source reads. Prior closeout receipt recovery remains read-only
 and device/assignment scoped, so an uncertain payment is never replayed.
 
-Jobs keep the existing current-released-job rule: the next appointment remains
-hidden until source-verified completion and dispatch release. A prior-day current
-assignment is unavailable until dispatch resolves it. No full-day roster of
-customer addresses is sent to a phone. Initial daily truck selection sets phone access. Later changes use **Switch truck**
+Jobs show the enrolled truck's full current-day verified schedule. The existing
+current-released-job rule controls closeout authority, not browsing: the next
+appointment's closeout remains locked until source-verified completion and
+dispatch release. A prior-day release never grants today's closeout authority.
+Other trucks' customer addresses are never sent to the phone. Initial daily truck
+selection sets phone access. Later changes use **Switch truck**
 and a separate confirmation to move all current and remaining confirmed jobs
 in JunkWare, preserving appointment windows. Completed jobs remain on their
 original truck. The current and queued dispatch assignment IDs and release order

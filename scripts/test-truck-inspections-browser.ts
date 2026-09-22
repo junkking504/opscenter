@@ -99,10 +99,10 @@ async function main() {
     await page.getByRole("button", { name: "✓ Good — next check", exact: true }).click();
     await mobile.setOffline(false);
     // Wait for the actual IndexedDB write before testing a reload.
-    await page.waitForFunction(async () => new Promise<boolean>(resolve => { const open = indexedDB.open("junk-king-truck-inspection", 1); open.onsuccess = () => { const db = open.result; const req = db.transaction("drafts").objectStore("drafts").getAll(); req.onsuccess = () => { const ok = req.result.some(d => d.fuel === "1/2" && d.answers.some((a: {id:string;status:string}) => a.id === "dashboard" && a.status === "good")); db.close(); resolve(ok); }; }; }));
+    await page.waitForFunction(async () => new Promise<boolean>(resolve => { const open = indexedDB.open("junk-king-truck-inspection", 1); open.onsuccess = () => { const db = open.result; const req = db.transaction("drafts").objectStore("drafts").getAll(); req.onsuccess = () => { const ok = req.result.some(d => d.truck === "Truck 4" && d.fuel === "1/2" && d.answers.some((a: {id:string;status:string}) => a.id === "dashboard" && a.status === "good")); db.close(); resolve(ok); }; }; }));
     await page.reload();
     await page.getByRole("heading", { name: "Truck & dump body" }).waitFor();
-    await page.locator("header").getByText("Truck 4", { exact: true }).waitFor();
+    await page.locator("header").getByText("Convoy", { exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "✓ Good — next check", exact: true }).isDisabled(), true);
     await page.getByRole("button", { name: "Truck fullness 3/4", exact: true }).click();
     await page.waitForFunction(async () => new Promise<boolean>(resolve => { const open = indexedDB.open("junk-king-truck-inspection", 1); open.onsuccess = () => { const db = open.result; const req = db.transaction("drafts").objectStore("drafts").getAll(); req.onsuccess = () => { const ok = req.result.some(d => d.loadLevel === "3/4" && d.fuel === "1/2"); db.close(); resolve(ok); }; }; }));

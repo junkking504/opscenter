@@ -21,7 +21,7 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
   const busy=photoBusy || formBusy;
   const reportPhotos=useCallback((progress:PhotoProgress)=>setPhotos(progress),[]);
   useEffect(()=>{onBusyChange(busy);return()=>onBusyChange(false);},[busy,onBusyChange]);
-  const verified=useRef(false),jobVersion=useRef(''),crewVersion=useRef(0);
+  const verified=useRef(false),jobVersion=useRef(''),crewVersion=useRef(0),sourceFieldsVersion=useRef('');
   const key=crewCloseoutKey(deviceId,job.assignmentId);
   const endpoint=`/api/crew-jobs/closeout?assignmentId=${encodeURIComponent(job.assignmentId)}`;
   const transport=useMemo<CloseoutTransport>(()=>{
@@ -44,7 +44,7 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
         const response=await fetch(endpoint,{cache:'no-store',signal:AbortSignal.timeout(210_000)});
         const body=await response.json();if(!response.ok || !body.closeout)throw new Error(body.error || 'The closeout could not be loaded.');
         dryRunMode.current=body.dryRun===true;setDryRun(dryRunMode.current);
-        jobVersion.current=body.jobVersion;crewVersion.current=body.crewVersion;
+        jobVersion.current=body.jobVersion;crewVersion.current=body.crewVersion;sourceFieldsVersion.current=body.sourceFieldsVersion || '';
         const local=readCloseoutLocal<Receipt>(`${key}:receipt`);
         if(body.pendingReceipt)keep(body.pendingReceipt);
         else if(local && local.status!=='failed'){
@@ -56,9 +56,9 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
       async send(values,requestId){
         // Retain the request identity BEFORE the only POST, including across page reload.
         if(!dryRunMode.current)keep({requestId,action:'closeout',status:'pending',message:'Checking the saved closeout. Do not record another payment.'});
-        const receipt=await submitScheduleOperation({assignmentId:job.assignmentId,requestId,expectedVersion:jobVersion.current,crewVersion:crewVersion.current,values,photoRequestIds:stagedPhotoIds.current,...(dryRunMode.current?{dryRun:true}:{})},{endpoint,waitForCompletion:false});
+        const receipt=await submitScheduleOperation({assignmentId:job.assignmentId,requestId,expectedVersion:jobVersion.current,crewVersion:crewVersion.current,values:{...values,...(sourceFieldsVersion.current?{expectedSourceFieldsVersion:sourceFieldsVersion.current}:{})},photoRequestIds:stagedPhotoIds.current,...(dryRunMode.current?{dryRun:true}:{})},{endpoint,waitForCompletion:false});
         const saved=keep(receipt);
-        if(!dryRunMode.current)queueMicrotask(()=>saved.status==='failed'?onHandoffFailed?.(saved.message):onQueued?.(saved.requestId));
+        if(!dryRunMode.current)queueMicrotask(()=>saved.status==='failed'?onHandoffFailed?.(`Checkout was not saved. ${saved.message} Reopen this assignment to review the retained draft.`):onQueued?.(saved.requestId));
         return saved;
       },
       check,

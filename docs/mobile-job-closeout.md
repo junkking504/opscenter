@@ -380,6 +380,16 @@ browsing another appointment does not authorize a payment or advance the release
 Completion recovery runs after the list response and refreshes the released
 closeout state separately.
 
+Completed cards identify **Closed as estimate** or **Closed as job**, the saved
+source total when available, and saved estimate-outcome notes. Missing amount
+details remain explicitly pending; an entered draft never proves completion.
+Previously verified photo history is excluded from the ten new-transfer limit.
+Duplicate photo content uses the server's canonical receipt once. A separate
+server-provided fields version allows only photo-evidence changes while the
+reviewed price, crew, payment and all other source fields remain protected.
+Rejected submissions explicitly say the checkout was not saved and retain the
+phone-local draft; those draft values are not a server-side receipt.
+
 The company-phone workflow is **Before photos → Charges → After photos →
 Payment → Review**. Photos are selected and kept in the phone's 24-hour draft
 storage. Moving between steps does not upload photos or require upload

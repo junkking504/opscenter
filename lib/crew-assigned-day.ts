@@ -40,6 +40,11 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps = sources, 
       appointmentId: row.appointmentId, date, jkNumber: row.jkNumber, customerName: row.customerName,
       address: row.address, appointmentTime: row.appointmentTime, junkItems: row.junkItems,
       appointmentNotes: row.appointmentNotes, driver: row.driver, navigator: row.navigator, status: row.status,
+      appointmentType:row.appointmentType,
+      ...(/^completed$/i.test(row.status) ? {
+        ...(row.closeout && Number.isFinite(row.closeout.total) ? {closedTotal:row.closeout.total} : {}),
+        ...(/^estimate$/i.test(row.appointmentType) ? {estimateOutcomes:row.appointmentNotes.filter(note=>/^(Price\/Budget|Date\/Time|Other):/i.test(note))} : {}),
+      } : {}),
       ...(current?.date === date && current.appointmentId === row.appointmentId ? { assignmentId: current.assignmentId } : {}),
     }));
   const active = jobs.find(job => job.assignmentId);

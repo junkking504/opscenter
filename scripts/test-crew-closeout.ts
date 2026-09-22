@@ -36,6 +36,16 @@ async function main(){
   const values={jobCategoryId:'house',howHeardId:'ref',actualStartHour:'99',actualStartMinute:'99',actualEndHour:'99',actualEndMinute:'99',driverId:'d',navigatorIds:['n','e'],appointmentId:id,serviceDate:date,targetStatus:'8',truck:'Truck 6',appointmentType:'Job',expectedSourceVersion:closeoutSourceVersion(source),addPayment:{methodId:'card',amount:'350.00',reference:'1234'}};
   const body=()=>({assignmentId:current.assignmentId,requestId:randomUUID(),expectedVersion:version,crewVersion:1,values:{...values,expectedSourceVersion:closeoutSourceVersion(source)}});
   assert.equal((await loadCrewCloseout(request,current.assignmentId,deps)).canWrite,true);
+  const reviewed=await loadCrewCloseout(request,current.assignmentId,deps);
+  const photoOnlyBody=body();
+  source={...source,photoEvidence:{appointmentId:id,urls:[...baseline.photoEvidence.urls,`https://junkware.junk-king.com/system/aspnet/local/media/photo-${id}-after.jpg`]}};
+  let photoOnlyWrites=0;
+  const photoOnly=await submitCrewCloseout(request,{...photoOnlyBody,values:{...photoOnlyBody.values,expectedSourceFieldsVersion:reviewed.sourceFieldsVersion}}, {...deps,write:async()=>{photoOnlyWrites++;return {ok:true,appointmentId:id,closeout:{...source,status:{value:'8'}},verifiedAt:new Date().toISOString()};}});
+  assert.equal(photoOnly.status,'verified','Our completed photo uploads do not invalidate the reviewed fields');assert.equal(photoOnlyWrites,1);
+  source={...source,loadPrice:'999'};
+  const changedFields=await submitCrewCloseout(request,{...body(),values:{...values,expectedSourceFieldsVersion:reviewed.sourceFieldsVersion}},deps);
+  assert.equal(changedFields.status,'failed');assert.equal(writes,0,'A concurrent price change still prevents a write');
+  source=structuredClone(baseline);
   await assert.rejects(submitCrewCloseout(request,{...body(),values:{...values,truck:'Truck 5'}},deps),/current appointment/);
   await assert.rejects(submitCrewCloseout(request,{...body(),values:{...values,targetStatus:'9'}},deps),/current appointment/);
   await assert.rejects(submitCrewCloseout(request,{...body(),appointmentId:'900002'},deps),/current closeout/);

@@ -36,7 +36,7 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
   const [photos,setPhotos]=useState<Photo[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[ready,setReady]=useState(false),[reload,setReload]=useState(0);
   const inFlight=useRef(false),rows=useRef<Photo[]>([]);
   const key=`${deviceId}:${assignmentId}`;
-  const save=useCallback(async(next:Photo[])=>{await stored(key,next);rows.current=next;setPhotos(next);},[key]);
+  const save=useCallback(async(next:Photo[])=>{const unique=[...new Map(next.map(row=>[row.requestId,row])).values()];await stored(key,unique);rows.current=unique;setPhotos(unique);},[key]);
   useEffect(()=>{
     let canceled=false;
     void(async()=>{

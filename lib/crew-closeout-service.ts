@@ -28,10 +28,11 @@ export function crewReceiptProjection(receipt:ScheduleReceipt) {
     ...(result?.closeout ? {sourceResult:{appointmentId:result.appointmentId,closeout:result.closeout,truckLoadStatus:result.truckLoadStatus}} : {})};
 }
 export function validateCrewCloseout(values:Record<string,unknown>,truck:string,id:string,date:string) {
-  const allowed=['appointmentId','targetStatus','truck','serviceDate','driverId','navigatorIds','loadQuantity','loadSize','loadPrice','bedloadQuantity','bedloadSize','bedloadPrice','otherChargesToAdd','discount','tip','jobCategoryId','howHeardId','actualStartHour','actualStartMinute','actualEndHour','actualEndMinute','addPayment','expectedSourceVersion','appointmentType','estimateOutcome','photoRequestIds'];
+  const allowed=['appointmentId','targetStatus','truck','serviceDate','driverId','navigatorIds','loadQuantity','loadSize','loadPrice','bedloadQuantity','bedloadSize','bedloadPrice','otherChargesToAdd','discount','tip','jobCategoryId','howHeardId','actualStartHour','actualStartMinute','actualEndHour','actualEndMinute','addPayment','expectedSourceVersion','expectedSourceFieldsVersion','appointmentType','estimateOutcome','photoRequestIds'];
   if(Object.keys(values).some(key=>!allowed.includes(key)) || values.targetStatus!=='8' || !sameTruck(values.truck,truck) || values.appointmentId!==id || values.serviceDate!==date
     || !['Job','Estimate'].includes(String(values.appointmentType)))throw new CrewPhoneError('Close only your current appointment using its assigned truck.',403);
   const payment=values.addPayment;
+  if(values.expectedSourceFieldsVersion!==undefined && !/^[a-f0-9]{64}$/.test(String(values.expectedSourceFieldsVersion)))throw new CrewPhoneError('Reload the closeout before saving.');
   if(payment!==null && payment!==undefined && (typeof payment!=='object' || Array.isArray(payment) || Object.keys(payment).some(key=>!['methodId','amount','reference'].includes(key))))throw new CrewPhoneError('Enter a collected payment with its method, amount and reference.');
   if(!Array.isArray(values.photoRequestIds) || values.photoRequestIds.length>10 || values.photoRequestIds.some(value=>typeof value!=='string' || !/^[0-9a-f-]{36}$/i.test(value)) || new Set(values.photoRequestIds).size!==values.photoRequestIds.length)throw new CrewPhoneError('Use the photos selected for this checkout.');
 }
@@ -41,7 +42,7 @@ export async function loadCrewCloseout(request:Request,assignmentId:string,deps=
     if(result.appointmentId!==current.appointmentId || !sameTruck(result.closeout?.truck,phone.truck))throw new CrewPhoneError('The source appointment changed. Contact dispatch.',409);
     const pending=await readPendingScheduleReceipt(job.recordId),actor=actorFor(phone.deviceId,current.assignmentId);
     const day=result.closeout.status?.value==='1' && !pending?requireCrewDay(phone,current.date):null;
-    return {arrival:crewCloseoutArrival(job,phone.truck,current.date),dryRun:crewCheckoutDryRun(current,phone.truck),crewVersion:day?.version || 0,crewDefaults:day?closeoutCrewDefaults(day,result.closeout):undefined,closeout:result.closeout,sourceVersion:closeoutSourceVersion(result.closeout),jobVersion:job.version,
+    return {arrival:crewCloseoutArrival(job,phone.truck,current.date),dryRun:crewCheckoutDryRun(current,phone.truck),crewVersion:day?.version || 0,crewDefaults:day?closeoutCrewDefaults(day,result.closeout):undefined,closeout:result.closeout,sourceVersion:closeoutSourceVersion(result.closeout),sourceFieldsVersion:closeoutSourceVersion({...result.closeout,photoEvidence:null}),jobVersion:job.version,
       canWrite:result.closeout.status?.value==='1' && (!pending || pending.actor===actor),pendingReceipt:pending?.actor===actor?crewReceiptProjection(pending):null,
       message:pending && pending.actor!==actor?'The office must verify an earlier change before this appointment can be closed.':result.closeout.status?.value==='8'?'This appointment is already completed in JunkWare. Refresh your assignment.':undefined};
   });
@@ -57,11 +58,14 @@ async function crewCloseoutTask(request:Request,body:Record<string,unknown>,deps
   validateCrewCloseout(operation.values,phone.truck,current.appointmentId,current.date);
   const actor=actorFor(phone.deviceId,assignmentId);
   const photoRequestIds=operation.values.photoRequestIds as string[];
+  const reviewedSourceMatches=(source:Record<string,unknown>)=>operation.values.expectedSourceFieldsVersion
+    ?closeoutSourceVersion({...source,photoEvidence:null})===operation.values.expectedSourceFieldsVersion
+    :closeoutSourceVersion(source)===operation.values.expectedSourceVersion;
   // A repeated request ID must return its durable receipt without waiting on
   // the provider or competing with the already-running background worker.
   const existingReceipt=await readScheduleReceipt(operation.requestId);
   const baseline=!existingReceipt && photoRequestIds.length?await deps.read(current.appointmentId):null;
-  if(baseline && (baseline.appointmentId!==current.appointmentId || !sameTruck(baseline.closeout?.truck,phone.truck) || baseline.closeout?.status?.value!=='1' || closeoutSourceVersion(baseline.closeout)!==operation.values.expectedSourceVersion))throw new CrewPhoneError('This closeout changed. Reload and review the saved appointment.',409);
+  if(baseline && (baseline.appointmentId!==current.appointmentId || !sameTruck(baseline.closeout?.truck,phone.truck) || baseline.closeout?.status?.value!=='1' || !reviewedSourceMatches(baseline.closeout)))throw new CrewPhoneError('This closeout changed. Reload and review the saved appointment.',409);
   const load=()=>{
     requireCrewPhone(request);
     if(readCrewDispatch(phone.truck).current?.assignmentId!==assignmentId)throw new CrewPhoneError('Dispatch changed. Refresh your assignment.',409);
@@ -77,7 +81,7 @@ async function crewCloseoutTask(request:Request,body:Record<string,unknown>,deps
       return await deps.scope(request,assignmentId,async({phone,current,job})=>{
         const before=await deps.read(current.appointmentId);
         if(before.appointmentId!==current.appointmentId || !sameTruck(before.closeout?.truck,phone.truck) || before.closeout?.status?.value!=='1'
-          || (baseline ? JSON.stringify({...baseline.closeout,photoEvidence:null})!==JSON.stringify({...before.closeout,photoEvidence:null}) : closeoutSourceVersion(before.closeout)!==operation.values.expectedSourceVersion))throw new CrewPhoneError('This closeout changed. Reload and review the saved appointment.',409);
+          || (baseline ? JSON.stringify({...baseline.closeout,photoEvidence:null})!==JSON.stringify({...before.closeout,photoEvidence:null}) : !reviewedSourceMatches(before.closeout)))throw new CrewPhoneError('This closeout changed. Reload and review the saved appointment.',409);
         requireCloseoutPhotos(before.closeout,'8',current.appointmentId);
         if(operation.values.addPayment){
           const payment=operation.values.addPayment as CloseoutPayment,methods=before.closeout.paymentMethods as PaymentOption[];
@@ -104,7 +108,7 @@ async function crewCloseoutTask(request:Request,body:Record<string,unknown>,deps
         const howHeard=before.closeout.howHeard as {value?:string}|undefined;
         if(String(operation.values.jobCategoryId || '')!==String(jobCategory?.value || '') || String(operation.values.howHeardId || '')!==String(howHeard?.value || ''))throw new CrewPhoneError('Office appointment information changed. Reload the closeout.',409);
         if(howHeard && !howHeard.value)throw new CrewPhoneError('The office must complete the customer referral information in JunkWare before checkout.',409);
-        const {photoRequestIds:_photoRequestIds,...writeValues}=operation.values;
+        const {photoRequestIds:_photoRequestIds,expectedSourceFieldsVersion:_fieldsVersion,...writeValues}=operation.values;
         writeValues.expectedSourceVersion=closeoutSourceVersion(before.closeout);
         await setPendingCloseoutSourceVersion(receipt,String(writeValues.expectedSourceVersion));
         writeStarted=true;

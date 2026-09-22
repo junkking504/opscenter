@@ -15,6 +15,11 @@ async function main(){
   assert.deepEqual(await stageCheckoutPhotos(rows,actions),['before','after']);
   assert.deepEqual(writes,['before','after'],'One submit transfers each selected photo once');
   assert.deepEqual([...checks],[],'A durable pending transfer does not block on JunkWare verification');
+  const history=Array.from({length:12},(_,i)=>({...selected(`history-${i}`),status:'verified' as const}));
+  assert.deepEqual(await stageCheckoutPhotos([...history,selected('duplicate-a'),selected('duplicate-b')],{
+    progress:()=>{},check:async row=>row,upload:async row=>({...row,requestId:'canonical-receipt',status:'pending'}),
+  }),['canonical-receipt'],'Saved history does not consume the new transfer limit and duplicate content uses one canonical receipt');
+  assert.deepEqual(await stageCheckoutPhotos(history,{progress:()=>{},check:async row=>row,upload:async()=>{throw new Error('Never reupload saved history');}}),[]);
   await stageCheckoutPhotos([{...selected('before'),status:'pending'}],{
     progress:()=>{},check:async (row:CheckoutPhoto)=>{checks.push(row.requestId);return {...row,status:'verified' as const};},
     upload:async(_row:CheckoutPhoto):Promise<CheckoutPhoto>=>{throw new Error('Must not repeat a staged transfer');},

@@ -7,6 +7,7 @@ export async function stageCheckoutPhotos(photos:CheckoutPhoto[],actions:{
   check:(photo:CheckoutPhoto)=>Promise<CheckoutPhoto>;
   progress:(message:string)=>void;
 }):Promise<string[]> {
+  const requestIds=new Set<string>();
   for(const [index,initial] of photos.entries()) {
     let photo=initial;
     if(photo.status==='verified')continue;
@@ -15,8 +16,13 @@ export async function stageCheckoutPhotos(photos:CheckoutPhoto[],actions:{
     if(photo.status==='selected')photo=await actions.upload(photo);
     if(photo.status==='uncertain')throw new Error('A photo result needs verification. Check the saved photo before submitting checkout.');
     if(!['pending','verified'].includes(photo.status))throw new Error('A photo could not be transferred. Check the saved photo before submitting checkout.');
+    // The server may return an existing receipt for identical photo content.
+    // Wait on that canonical receipt, not the superseded local selection UUID.
+    requestIds.add(photo.requestId);
   }
-  return photos.map(photo=>photo.requestId);
+  // Previously verified history is already covered by the source-photo gate.
+  // It must not consume the ten-photo limit for this checkout's new transfers.
+  return [...requestIds];
 }
 
 /** Only our photo writes may change the source while preparing the final closeout. */

@@ -27,7 +27,7 @@ async function main(){
    if(u.pathname==='/api/crew-jobs/day')return send({date:'2026-09-18',phone:{deviceId:'sample-phone',truck:'Truck 6',label:'Sample phone'},day:{date:'2026-09-18',version:1,responsible:'Sample Driver',driver:'Sample Driver',navigators:['Sample Navigator'],truck:'Truck 6'},inspection:{status:'ready'},trucks:['Truck 6'],roster:['Sample Driver','Sample Navigator','Extra Crew']});
    if(u.pathname==='/api/crew-jobs/current'){
     const job=completed?{assignmentId:'next-assignment',appointmentId:'900002',date:'2026-09-18',jkNumber:'SAMPLE-02',customerName:'Next Sample Customer',address:'200 Sample Street',appointmentTime:'12–2 PM',junkItems:['Second job'],appointmentNotes:[],driver:'Sample Driver',navigator:'Sample Navigator'}:{assignmentId:'sample-assignment',appointmentId:'900001',date:'2026-09-18',jkNumber:'SAMPLE-01',customerName:'Sample Customer',address:'100 Sample Street',appointmentTime:'10 AM–12 PM',junkItems:[],appointmentNotes:[],driver:'Sample Driver',navigator:'Sample Navigator'};
-    return send({state:'assigned',truck:'Truck 6',job,jobs:[{...job,status:'Confirmed'},{...job,assignmentId:undefined,appointmentId:'900003',jkNumber:'SAMPLE-03',customerName:'Later Sample Customer',address:'300 Sample Street',appointmentNotes:['Use the side gate'],status:'Confirmed'}]});
+    return send({state:'assigned',truck:'Truck 6',job,jobs:[{...job,status:'Confirmed'},{...job,assignmentId:undefined,appointmentId:'900003',jkNumber:'SAMPLE-03',customerName:'Later Sample Customer',address:'300 Sample Street',appointmentNotes:['Use the side gate'],status:'Confirmed'},...(completed?[{...job,assignmentId:undefined,appointmentId:'900001',jkNumber:'SAMPLE-01',customerName:'Closed Sample Estimate',status:'Completed',appointmentType:'Estimate',closedTotal:568,estimateOutcomes:['Other: Training only, no discount: internal test']}]:[])]});
    }
    if(u.pathname==='/api/crew-jobs/photos')return send({photos:[]});
    if(u.pathname==='/api/crew-jobs/closeout'){
@@ -58,6 +58,12 @@ async function main(){
   const started=Date.now();await page.getByRole('button',{name:'Submit checkout',exact:true}).click();await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();assert.equal(closeoutResponded,false,'Assignments returns before the closeout request finishes');assert.ok(Date.now()-started<2000,'Submit returns to Assignments without waiting for JunkWare');await expect(page.getByText('Checkout is finishing in the background.',{exact:false})).toBeVisible();assert.equal(closeoutResponded,true);assert.equal(posts,1);
   await page.getByRole('button',{name:'View assignment',exact:true}).last().click();await expect(page.getByText('Use the side gate',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Start closeout · Before photos',exact:true})).toHaveCount(0);await page.getByRole('button',{name:'Back to Assignments',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Next Sample Customer',exact:true})).toBeVisible({timeout:10_000});assert.equal(posts,1);assert.deepEqual(errors,[]);
+  await expect(page.getByText('Closed as estimate · $568.00',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'View assignment',exact:true}).last().click();
+  await expect(page.getByText('Other: Training only, no discount: internal test',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Start closeout · Before photos',exact:true})).toHaveCount(0);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+  if(width===390)await page.screenshot({path:'/tmp/waypoint-closed-estimate.png',fullPage:true});
   await context.close();console.log(`PASS ${width}px: compact mobile review, one-click durable queue, immediate Assignments return, background receipt polling, automatic next assignment, one payment write, no overflow.`);
  }}finally{await browser.close();}
 }

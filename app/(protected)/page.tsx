@@ -733,7 +733,7 @@ export default async function DashboardPage({
             <a className="ops-card ops-daily-kpi-card" href={`/fleet?date=${date}`}>
               <div className="ops-daily-kpi-heading">
                 <div className="ops-card-title">Revenue / Truck</div>
-                <span className={`ops-daily-kpi-status is-${revenuePerTruckStatus}`} aria-label={operatingStatusLabel(revenuePerTruckStatus)} title={operatingStatusLabel(revenuePerTruckStatus)} />
+                <span className={`ops-daily-kpi-status is-${revenuePerTruckStatus}`} aria-label={truckDisplayText(operatingStatusLabel(revenuePerTruckStatus))} title={truckDisplayText(operatingStatusLabel(revenuePerTruckStatus))} />
               </div>
               <div className="ops-kpi-value">{money(dailyRevenuePerTruck)}</div>
               <div className={`ops-daily-kpi-progress is-${revenuePerTruckStatus}`} role="progressbar" aria-label="Revenue per truck progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.round(revenuePerTruckTarget > 0 ? (dailyRevenuePerTruck / revenuePerTruckTarget) * 100 : 0))}>

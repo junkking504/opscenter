@@ -1727,8 +1727,8 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                       type="button"
                       className={rowClassName}
                       data-schedule-drop-key={scheduleDropTargetKey(column)}
-                      aria-label={`Show ${liveTruck.truck} on map`}
-                      title={`Show ${liveTruck.truck} on map`}
+                      aria-label={truckDisplayText(`Show ${liveTruck.truck} on map`)}
+                      title={truckDisplayText(`Show ${liveTruck.truck} on map`)}
                       onClick={() => selectLiveTruck(liveTruck.truck)}
                       {...dropHandlers}
                     >
@@ -1766,7 +1766,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                             onPointerDown={(event) => handleAppointmentPointerDown(event, job)}
                             onDragStart={(event) => handleAppointmentDragStart(event, job)}
                             onDragEnd={() => clearDragGesture()}
-                            aria-label={`${job.appointmentTime}, ${job.customerName}, ${job.truck}, ${scheduleJobState(job).label}, ${job.junkItems.length ? `items: ${job.junkItems.join(", ")}` : "items not listed"}`}
+                            aria-label={truckDisplayText(`${job.appointmentTime}, ${job.customerName}, ${job.truck}, ${scheduleJobState(job).label}, ${job.junkItems.length ? `items: ${job.junkItems.join(", ")}` : "items not listed"}`)}
                             title={`${job.appointmentTime} · ${job.customerName} · ${scheduleJobState(job).label} · ${job.junkItems.length ? job.junkItems.join(", ") : "Items not listed"}`}
                             key={job.key}
                           >
@@ -1796,7 +1796,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                             onPointerDown={(event) => handleAppointmentPointerDown(event, job)}
                             onDragStart={(event) => handleAppointmentDragStart(event, job)}
                             onDragEnd={() => clearDragGesture()}
-                            aria-label={`Unscheduled, ${job.customerName}, ${job.truck}, ${scheduleJobState(job).label}, ${job.junkItems.length ? `items: ${job.junkItems.join(", ")}` : "items not listed"}`}
+                            aria-label={truckDisplayText(`Unscheduled, ${job.customerName}, ${job.truck}, ${scheduleJobState(job).label}, ${job.junkItems.length ? `items: ${job.junkItems.join(", ")}` : "items not listed"}`)}
                             title={`Unscheduled · ${job.customerName} · ${scheduleJobState(job).label} · ${job.junkItems.length ? job.junkItems.join(", ") : "Items not listed"}`}
                             key={job.key}
                           >
@@ -1837,7 +1837,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
               <div><span>Truck status</span><strong>{selectedTruck.status}</strong></div>
               <div><span>GPS freshness</span><strong>{selectedTruck.freshness}</strong></div>
             </div>
-            <div className="ops-jobs-map-route-history" aria-label={`${selectedTruck.truck} route taken today`}>
+            <div className="ops-jobs-map-route-history" aria-label={truckDisplayText(`${selectedTruck.truck} route taken today`)}>
               <span className="ops-jobs-map-route-history-title">Route taken today</span>
               {selectedTruckRoutes.length ? (
                 <ol>
@@ -1856,7 +1856,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                 type="button"
                 className="ops-jobs-map-truck-live-camera"
                 data-truck-camera={selectedTruckCameraNumber}
-                aria-label={`View live video for ${selectedTruck.truck}`}
+                aria-label={truckDisplayText(`View live video for ${selectedTruck.truck}`)}
               >
                 <span aria-hidden="true">▶</span>
                 View live video

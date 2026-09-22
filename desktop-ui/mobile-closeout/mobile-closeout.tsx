@@ -21,7 +21,7 @@ export default function MobileCloseoutPreview({ assignedJob, date, onPhotosChang
   useEffect(() => { setSelected(null);setScreen('job'); }, [assignedJob?.appointmentId]);
   return <div className="crew-mobile ops-live">
     <div className="mobile-preview-banner">DESIGN PREVIEW · SAMPLE JOBS · NO LIVE SAVES</div>
-    <header className="mobile-header"><div className="mobile-brand"><ClipboardCheck size={23}/><strong>OpsCenter<span>CREW</span></strong></div><span className="mobile-truck"><Truck size={17}/> Truck 6</span></header>
+    <header className="mobile-header"><div className="mobile-brand"><ClipboardCheck size={23}/><strong>OpsCenter<span>CREW</span></strong></div><span className="mobile-truck"><Truck size={17}/> Truck# 6</span></header>
     {!selected ? <main className="mobile-home">
       <p className="mobile-eyebrow">THURSDAY, SEPTEMBER 17</p>
       <h1 ref={heading} tabIndex={-1}>{job ? 'Current job' : 'Waiting for assignment'}</h1>

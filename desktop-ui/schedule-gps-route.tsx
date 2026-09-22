@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../lib/junkware-trucks';
 import {useEffect,useRef,useState} from 'react';
 import type {StreetRoute,TruckGpsRoute} from './lib/gps-route-contract';
 import './schedule-gps-route.css';
@@ -62,7 +63,7 @@ export function GpsRouteSummary({truck,route,error,selectedTrip,showTrip}:{date:
   const estimated=display?.paths.some(path=>path.kind==='estimated' || path.kind==='gap');
   const roadStatus=route?.streets?.status;
   const unmatched=route?.streets?.unmatched || 0;
-  return <section className="schedule-gps-summary" aria-label={`${truck} trips`}>
+  return <section className="schedule-gps-summary" aria-label={truckDisplayText(`${truck} trips`)}>
     <header><strong>Trips</strong>{trips.length>0 && <button type="button" onClick={()=>showTrip(null)}>Show all trips</button>}</header>
     {!!route?.points.length && <div className="schedule-gps-legend" aria-label="Route legend">
       <span><i className="gps-legend-route" aria-hidden="true"/>Solid lines · colors match trip numbers</span>

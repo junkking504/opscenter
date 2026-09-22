@@ -2583,7 +2583,7 @@ function AppointmentCardCompletedCrew({ job }: { job: JobRow }) {
   const navigator = safeText(job.navigatorName || job.navigator);
 
   return (
-    <div className="ops-appointment-card-completed-crew" aria-label={`Completed Krewe: ${truck}, driver ${driver}, navigator ${navigator}`}>
+    <div className="ops-appointment-card-completed-crew" aria-label={truckDisplayText(`Completed Krewe: ${truck}, driver ${driver}, navigator ${navigator}`)}>
       <span>{truckDisplayText(truck)}</span>
       <span>D: {driver}</span>
       <span>N: {navigator}</span>

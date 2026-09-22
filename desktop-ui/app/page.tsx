@@ -4787,7 +4787,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                         ))}
                       </div>
                       {routeFocusAppointment ? (
-                        <section className="route-intelligence-panel" aria-label={`Closest trucks to ${routeFocusAppointment.jk}`}>
+                        <section className="route-intelligence-panel" aria-label={truckDisplayText(`Closest trucks to ${routeFocusAppointment.jk}`)}>
                           <header>
                             <div><span>Closest Trucks</span><strong>{renderJkLink(routeFocusAppointment.jk, 'JunkWare schedule', 'Live')} · {routeFocusAppointment.area}</strong></div>
                             <div><button onClick={openRouteFocusAppointment}>Open</button><button aria-label="Clear route comparison" onClick={() => setRouteFocusAppointmentId(null)}>×</button></div>
@@ -4806,9 +4806,9 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                         </section>
                       ) : (
                         <div className="map-status-list">{scheduleDay === 'today' ? <>
-                          <span><i className="healthy" />Truck 2 · Covington · 42 sec</span>
-                          <span><i className="healthy" />Truck 8 · New Orleans · 1 min</span>
-                          <span><i className="warning" />Truck 4 · Position stale · 18 min</span>
+                          <span><i className="healthy" />Truck# 2 · Covington · 42 sec</span>
+                          <span><i className="healthy" />Truck# 8 · New Orleans · 1 min</span>
+                          <span><i className="warning" />Truck# 4 · Position stale · 18 min</span>
                         </> : <>
                           <span><i className="healthy" />8 trucks have planned work</span>
                           <span><i className="healthy" />5 territories represented</span>
@@ -4831,7 +4831,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                       )}
                       {scheduleRows.map((row) => (
                         <div className={`schedule-truck-row${bestRouteCandidate?.truck === row.truck ? ' route-best-truck' : routeFocusAppointment && routeCandidateTruckLabels.has(row.truck) ? ' route-candidate-truck' : ''}`} data-schedule-truck={row.truck} key={row.truck}>
-                          <button type="button" className="schedule-truck-cell" disabled={!fleetTruckRows.some((truck) => truck.label === row.truck)} onClick={() => openFleetTruckByLabel(row.truck)} aria-label={`Open ${row.truck} record`}><i className={row.tone} /><strong>{truckDisplayText(row.truck)}</strong><span>{row.crew}</span><small>{row.status}</small></button>
+                          <button type="button" className="schedule-truck-cell" disabled={!fleetTruckRows.some((truck) => truck.label === row.truck)} onClick={() => openFleetTruckByLabel(row.truck)} aria-label={truckDisplayText(`Open ${row.truck} record`)}><i className={row.tone} /><strong>{truckDisplayText(row.truck)}</strong><span>{row.crew}</span><small>{row.status}</small></button>
                           {scheduleTimes.map((time, slot) => (
                             <div
                               className="schedule-drop-zone"

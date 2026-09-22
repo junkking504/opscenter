@@ -582,7 +582,7 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
           </div>
 
           {(selectedTruckRecord.relatedAppointments.length > 0 || selectedTruckRecord.crewMembers.length > 0) && (
-            <div className={relatedStyles.records} aria-label={`Related records for ${selectedTruckRecord.truck}`}>
+            <div className={relatedStyles.records} aria-label={truckDisplayText(`Related records for ${selectedTruckRecord.truck}`)}>
               <div className="ops-driver-panel-title">Related operations</div>
               {selectedTruckRecord.relatedAppointments.length > 0 ? (
                 <div className={relatedStyles.group}>

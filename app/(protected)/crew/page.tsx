@@ -120,7 +120,7 @@ function CrewTruckLinks({ date, row }: { date: string; row: AnyRecord }) {
   return <>{trucks.map((truck, index) => (
     <span key={truck}>
       {index > 0 ? ", " : null}
-      <Link className={relatedStyles.relatedLink} href={fleetTruckHref(date, truck)} title={`Open ${truck} on the live Fleet map`}>
+      <Link className={relatedStyles.relatedLink} href={fleetTruckHref(date, truck)} title={truckDisplayText(`Open ${truck} on the live Fleet map`)}>
         {truckDisplayText(truck)}
       </Link>
     </span>

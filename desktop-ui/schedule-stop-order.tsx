@@ -60,7 +60,7 @@ export default function ScheduleStopOrder({snapshot,truck,selectedAppointmentId,
   },[sourceKey,draftKey,stale,refresh]);
   useEffect(()=>()=>{cancelPreview(); active.current?.abort();},[]);
   return <>
-    <button type="button" className="schedule-stop-order-trigger" disabled={busy || !truck} title={truck ? `Order stops for ${truck}` : "Select a truck or an assigned appointment first"} onClick={()=>{if(groups[0])choose(groups[0]);dialog.current?.showModal();}}>Stop Order</button>
+    <button type="button" className="schedule-stop-order-trigger" disabled={busy || !truck} title={truckDisplayText(truck ? `Order stops for ${truck}` : "Select a truck or an assigned appointment first")} onClick={()=>{if(groups[0])choose(groups[0]);dialog.current?.showModal();}}>Stop Order</button>
     <dialog ref={dialog} className="schedule-stop-order" aria-labelledby="stop-order-title" onCancel={event=>{event.preventDefault();close();}}>
       <header><h2 id="stop-order-title">{truckDisplayText(truck)} · Stop Order</h2><button type="button" aria-label="Close stop order" disabled={working === 'save'} onClick={close}>×</button></header>
       <p>Order appointments in the same time slot. Move stops up or down. Times and truck assignments stay the same. Save to update the schedule and travel estimates.</p>

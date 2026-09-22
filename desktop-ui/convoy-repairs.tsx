@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../lib/junkware-trucks';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, ClipboardCheck, Truck, Wrench } from 'lucide-react';
 import { Button } from './components/ui/button';
@@ -57,7 +58,7 @@ export function ConvoyRepairs({ snapshot, trucks, truckId, onTruck, open }: Prop
   return <section className="convoy-repair-board" aria-label="Inspections and repairs by truck">
     <div className="convoy-repair-filters" aria-label="Filter trucks by condition">{filters.map(([key, label]) => <button key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}><strong>{trucks.filter(truck => matches(truck, key)).length}</strong><span>{label}</span></button>)}</div>
     <div className="convoy-heading"><div><h2 ref={heading} tabIndex={-1}>{filter === 'all' ? 'Choose a truck' : filters.find(([key]) => key === filter)?.[1]}</h2><p className="convoy-repair-caption">Inspection and repairs together. Open a truck to take action.</p></div><small>{shown.length} of {trucks.length} trucks</small></div>
-    <div className="convoy-repair-trucks">{shown.map(truck => { const repairs = activeFor(truck); return <button className="convoy-repair-truck" key={truck.id} onClick={() => chooseTruck(truck.id)} aria-label={`Open ${truck.label} inspections and repairs`}>
+    <div className="convoy-repair-trucks">{shown.map(truck => { const repairs = activeFor(truck); return <button className="convoy-repair-truck" key={truck.id} onClick={() => chooseTruck(truck.id)} aria-label={truckDisplayText(`Open ${truck.label} inspections and repairs`)}>
       <span className="convoy-repair-truck-heading"><strong><Truck size={17}/>{truck.label}</strong><span className={`convoy-status ${truck.readiness === 'Out of service' ? 'stop' : truck.readiness === 'Ready' ? 'ready' : 'attention'}`}>{truckCondition(truck)}</span></span>
       <span className="convoy-repair-inspection"><ClipboardCheck size={15}/>Inspection: {truck.checklist}</span>
       {Boolean(truck.inspectionFindings?.length) && <span className="convoy-inspection-preview">{truck.inspectionFindings!.map(finding => `${finding.label}: ${finding.notes}`).join(' · ')}</span>}

@@ -210,7 +210,7 @@ export default function TruckCameraController({ children, className = "ops-app" 
         <div className={styles.backdrop} role="presentation" onMouseDown={(event) => {
           if (event.target === event.currentTarget) closeCamera();
         }}>
-          <section className={styles.dialog} role="dialog" aria-modal="true" aria-label={`${truckCameraLabel(truck || 0)} live camera`}>
+          <section className={styles.dialog} role="dialog" aria-modal="true" aria-label={truckDisplayText(`${truckCameraLabel(truck || 0)} live camera`)}>
         <header className={styles.header}>
           <div>
             <div className="ops-eyebrow">LinxUp live camera</div>

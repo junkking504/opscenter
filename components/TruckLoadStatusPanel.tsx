@@ -116,7 +116,7 @@ export default function TruckLoadStatusPanel({
               </div>
               {status.chargedLoadLabel && <p>Charged today: {status.chargedLoadLabel}</p>}
               {status.verificationNote && <details className={styles.verification}><summary>Load needs verification</summary><p>{status.verificationNote}</p></details>}
-              <div className={styles.meter} aria-label={status.needsVerification ? `${status.truck} load needs verification` : `${status.truck} is ${status.capacityPercent}% full`}>
+              <div className={styles.meter} aria-label={truckDisplayText(status.needsVerification ? `${status.truck} load needs verification` : `${status.truck} is ${status.capacityPercent}% full`)}>
                 <i style={{ width: meterWidth }} />
               </div>
               <details className={styles.controls}>

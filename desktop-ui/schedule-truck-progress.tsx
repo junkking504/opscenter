@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../lib/junkware-trucks';
 import { currentOnsiteTruckGps, freshTruckGps, nextTruckStop, truckProgressGpsState, type TruckProgress } from '../lib/schedule-next-stop';
 import { parkedTruckObservation } from '../lib/truck-gps-status';
 import { truckLabel, type ScheduleSnapshot } from './lib/schedule-contract';
@@ -24,6 +25,6 @@ export default function ScheduleTruckProgress({truck,snapshot,progress,now,selec
   const gpsAt=status==='available'?result?.gpsAt:gps?.lastGpsUpdate;
   const observed=gpsAt?`GPS ${new Date(gpsAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit',second:'2-digit'})}`:'No GPS position';
   const explanation=gpsState==='parked'?'Last report: zero speed, ignition off. Within the parked reporting window; departure is not confirmed. ETA resumes with a recent non-parked report.':status==='stale_gps'?'Position report is older than the reporting window. Current motion is unconfirmed; live ETA is unavailable.':status==='available'?'Road estimate from GPS if continuing to the next scheduled stop, without live traffic. Destination is not confirmed.':'';
-  const detail=`${truck} · ${label}: ${plan.job.customerName} · ${plan.job.jkNumber}${eta?' · '+eta:''}. ${observed}. ${explanation}`;
+  const detail=`${truckDisplayText(truck)} · ${label}: ${plan.job.customerName} · ${plan.job.jkNumber}${eta?' · '+eta:''}. ${observed}. ${explanation}`;
   return <button type="button" className={`schedule-truck-progress ${status} ${gpsState==='parked'?'parked-report':''}`} aria-label={detail} title={detail} onClick={()=>select(plan.job.recordId)}><span className="truck-progress-customer">{status==='on_site'?'On site':status==='last_seen'?'Last on site':between?'Between jobs →':'Next'}{between && status!=='on_site' && status!=='last_seen'?' ':': '}{plan.job.customerName || plan.job.jkNumber}</span>{eta && <strong>{eta}</strong>}</button>;
 }

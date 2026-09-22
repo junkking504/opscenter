@@ -83,9 +83,13 @@ service or Cloudflare Tunnel, install the production controller, or deploy.
 After bootstrap, run the explicit controller-install command below and then the
 normal production deployment command.
 
-The production build uses Next.js Webpack memory optimizations to reduce duplicate
-string/buffer caching during compilation. This keeps the existing 6 GiB compiler
-heap cap and does not change the running service heap.
+The production build keeps its 6 GiB compiler heap cap and enables Next.js
+Webpack memory optimizations. Runtime `data/` and `logs/` links are excluded
+from dependency tracing: their contents stay external and available at runtime.
+Next.js 16 applies public trace exclusions after its initial entrypoint scan,
+so `next.config.mjs` also applies them to the entrypoint tracing plugin. The
+guard deliberately fails if that plugin changes; review it when upgrading Next.js.
+This prevents compilation from exhausting memory while traversing live records.
 
 For production deployments:
 

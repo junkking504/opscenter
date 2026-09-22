@@ -6,7 +6,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { NextRequest } from 'next/server';
-import { createCrewPhoneEnrollment, enrollCrewPhone, crewPhone, listCrewPhones, revokeCrewPhone } from '../lib/crew-phone-store';
+import { authorizeCrewPhoneLive, createCrewPhoneEnrollment, enrollCrewPhone, crewPhone, listCrewPhones, revokeCrewPhone } from '../lib/crew-phone-store';
 import { CREW_PHONE_COOKIE } from '../lib/crew-phone';
 import { crewPhoneSession } from '../lib/crew-phone-http';
 import { publicAuthRoute } from '../lib/auth';
@@ -57,6 +57,25 @@ async function main() {
     assert.equal(crewPhone(token), null);
     assert.throws(() => enrollCrewPhone(setup.code, token), /removed/);
     assert.equal(listCrewPhones().find(item => item.deviceId === phone.deviceId)?.state, 'revoked');
+
+    const sandboxSetup=createCrewPhoneEnrollment('Truck 1','Manager sandbox phone',manager,now,true);
+    const sandboxKey=key(),sandboxPhone=enrollCrewPhone(sandboxSetup.code,sandboxKey,now);
+    assert.equal(crewPhone(sandboxKey,now)?.test,true,'Test enrollment stays isolated by default');
+    assert.equal(listCrewPhones(now).find(item=>item.deviceId===sandboxPhone.deviceId)?.access,'sandbox');
+    assert.throws(()=>authorizeCrewPhoneLive('not-a-device',manager,now),/Choose an enrolled/);
+    assert.throws(()=>authorizeCrewPhoneLive(sandboxPhone.deviceId,'',now),/Manager/);
+    const expiredSetup=createCrewPhoneEnrollment('Truck 1','Expired sandbox phone',manager,now,true);
+    const expiredPhone=enrollCrewPhone(expiredSetup.code,key(),now);
+    assert.throws(()=>authorizeCrewPhoneLive(expiredPhone.deviceId,manager,new Date(now.getTime()+91*86400_000)),/expired/);
+    const livePhone=authorizeCrewPhoneLive(sandboxPhone.deviceId,manager,now);
+    assert.equal(livePhone.test,undefined,'Explicit manager grant promotes only this enrolled phone');
+    assert.equal(crewPhone(sandboxKey,now)?.test,undefined,'Promoted phone reaches live APIs with its existing key');
+    assert.equal(listCrewPhones(now).find(item=>item.deviceId===sandboxPhone.deviceId)?.access,'live');
+    assert.throws(()=>authorizeCrewPhoneLive(sandboxPhone.deviceId,manager,now),/already has live access/);
+    assert.equal(crewPhone(token,now),null,'An unrelated revoked phone is not changed by promotion');
+    revokeCrewPhone(sandboxPhone.deviceId,manager,now);
+    assert.equal(crewPhone(sandboxKey,now),null,'Revocation still overrides a live-access grant');
+    assert.throws(()=>authorizeCrewPhoneLive(sandboxPhone.deviceId,manager,now),/removed/);
 
     // Two distinct processes compete for the same one-use code.
     const contested = createCrewPhoneEnrollment('Truck 3', 'Concurrent phones', manager);

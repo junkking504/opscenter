@@ -5,7 +5,7 @@ import { readCrewPhoneDirectory } from '@/lib/crew-phone-directory';
 import { crewPhoneDeliveryAvailability, listCrewPhoneDeliveries, sendCrewPhoneSetup } from '@/lib/crew-phone-delivery';
 import { JUNKWARE_DISPATCH_TRUCKS } from '@/lib/junkware-trucks';
 import { CrewPhoneError } from '@/lib/crew-phone';
-import { createCrewPhoneEnrollment, listCrewPhones, revokeCrewPhone } from '@/lib/crew-phone-store';
+import { authorizeCrewPhoneLive, createCrewPhoneEnrollment, listCrewPhones, revokeCrewPhone } from '@/lib/crew-phone-store';
 import { crewPhoneBody, crewPhoneFailure, crewPhoneResponse } from '@/lib/crew-phone-http';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,6 +30,11 @@ export async function POST(request: Request) {
       return crewPhoneResponse({ deliveryReceipt: await sendCrewPhoneSetup(String(body.truck || ''), String(body.requestId || ''), actor.email, body.action === 'send-test') });
     }
     if (body.action === 'enroll') return crewPhoneResponse({ enrollment: createCrewPhoneEnrollment(String(body.truck || ''), String(body.label || ''), actor.email) });
+    if (body.action === 'authorize-live') {
+      if (Object.keys(body).some(key => !['action','deviceId'].includes(key))) throw new CrewPhoneError('Choose one enrolled sandbox phone.');
+      authorizeCrewPhoneLive(String(body.deviceId || ''),actor.email);
+      return crewPhoneResponse({ phones: listCrewPhones(), deliveries: listCrewPhoneDeliveries() });
+    }
     if (body.action === 'revoke') {
       revokeCrewPhone(String(body.deviceId || ''), actor.email);
       return crewPhoneResponse({ phones: listCrewPhones(), deliveries: listCrewPhoneDeliveries() });

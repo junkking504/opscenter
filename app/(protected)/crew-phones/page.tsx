@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CREW_JOBS_ORIGIN, type CrewPhone, type CrewPhoneDirectory, type CrewPhoneDelivery } from '@/lib/crew-phone';
 import styles from '../../crew-jobs/phone-access.module.css';
 
-type Phone = CrewPhone & { state: 'active' | 'expired' | 'revoked' };
+type Phone = CrewPhone & { access: 'live' | 'sandbox'; state: 'active' | 'expired' | 'revoked' };
 type Enrollment = { code: string; deviceId: string; truck: string; label: string; expiresAt: string };
 export default function CompanyPhones() {
   const [phones, setPhones] = useState<Phone[]>([]);
@@ -64,7 +64,7 @@ export default function CompanyPhones() {
     {directory.managers.length>0 && <section className={styles.card}><h2>Manager phones</h2><p>Personal phones · full schedule through manager sign-in.</p><ul className={styles.list}>{directory.managers.map(contact=><li key={contact.name}><strong>{contact.name}</strong><a href={`tel:+1${contact.number.replace(/-/g,'')}`}>{contact.number}</a></li>)}</ul></section>}
     <h2>Enrolled phones</h2><button className={styles.secondary} onClick={() => void load()} disabled={busy || loading}>{loading ? 'Loading…' : 'Refresh phones'}</button>
     {!loading && !phones.length && !error && <p>No company phones enrolled.</p>}
-    <ul className={styles.list}>{phones.map(phone => <li key={phone.deviceId}><strong>{phone.label}</strong><span>{truckDisplayText(phone.truck)} · {phone.state}</span>{phone.state === 'active' && <button className={styles.secondary} disabled={busy} onClick={() => void send({ action: 'revoke', deviceId: phone.deviceId })}>Remove access</button>}</li>)}</ul>
+    <ul className={styles.list}>{phones.map(phone => <li key={phone.deviceId}><strong>{phone.label}</strong><span>{truckDisplayText(phone.truck)} · {phone.state} · {phone.access==='sandbox'?'Sandbox':'Live OpsCenter + JunkWare'}</span><span>Enrolled {new Date(phone.enrolledAt).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}</span>{phone.state==='active' && phone.access==='sandbox' && <><p>This phone currently sees fictional jobs and test crew only. Live access exposes current customer/job data and permits authorized JunkWare closeout writes for the truck selected in daily setup.</p><button className={styles.secondary} disabled={busy} onClick={() => {if(window.confirm(`Enable live customer/job access and authorized JunkWare closeout writes for ${phone.label}, enrolled ${new Date(phone.enrolledAt).toLocaleString()}?`))void send({action:'authorize-live',deviceId:phone.deviceId});}}>Enable live OpsCenter + JunkWare</button></>}{phone.state === 'active' && <button className={styles.secondary} disabled={busy} onClick={() => void send({ action: 'revoke', deviceId: phone.deviceId })}>Remove access</button>}</li>)}</ul>
     <p className={styles.muted}>Crews change trucks in Waypoint’s daily setup and complete a new inspection before accessing jobs.</p>
   </div></main>;
 }

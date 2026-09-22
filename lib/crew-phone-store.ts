@@ -8,6 +8,7 @@ import { CrewPhoneError, type CrewPhone } from './crew-phone';
 
 type Enrollment = { test?: boolean; schema: 1; deviceId: string; truck: string; label: string; actor: string; createdAt: string; expiresAt: string };
 type Binding = { schema: 1; keyHash: string; enrollmentHash: string; actor: string; phone: CrewPhone };
+type LiveAccess = { schema: 1; deviceId: string; actor: string; authorizedAt: string };
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const root = () => process.env.OPS_CREW_PHONE_DIR || path.join(process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(), 'data'), 'crew-phones');
@@ -45,6 +46,13 @@ function validBinding(binding: Binding): boolean {
     && validPhone(binding.phone));
 }
 function revoked(id: string) { return fs.existsSync(path.join(directory('revoked'), `${id}.json`)); }
+function liveAccess(id: string) {
+  const saved = read<LiveAccess>(path.join(directory('live'), `${id}.json`));
+  if (!saved) return false;
+  if (saved.schema !== 1 || saved.deviceId !== id || !uuid.test(saved.deviceId) || typeof saved.actor !== 'string' || !saved.actor
+    || !Number.isFinite(Date.parse(saved.authorizedAt))) throw new Error('Phone live access needs recovery.');
+  return true;
+}
 
 /** Server callers are manager setup or an allowlisted company-number delivery. */
 export function createCrewPhoneEnrollment(truck: string, label: string, actor: string, now = new Date(), test = false) {
@@ -112,17 +120,35 @@ export function crewPhone(key: string, now = new Date()): CrewPhone | null {
   if (!saved || !validBinding(saved) || saved.keyHash !== keyHash || saved.phone.deviceId !== index.deviceId
     || Date.parse(saved.phone.enrolledAt) > now.getTime() || Date.parse(saved.phone.expiresAt) <= now.getTime()
     || revoked(index.deviceId)) return null;
-  return testPhone(saved.phone);
+  return effectivePhone(saved.phone);
 }
-export function listCrewPhones(now = new Date()): Array<CrewPhone & { state: 'active' | 'expired' | 'revoked' }> {
+export function listCrewPhones(now = new Date()): Array<CrewPhone & { access: 'live' | 'sandbox'; state: 'active' | 'expired' | 'revoked' }> {
   return fs.readdirSync(directory('bindings')).filter(name => uuid.test(name.replace(/\.json$/, '')) && name.endsWith('.json')).map(name => {
     const saved = read<Binding>(path.join(directory('bindings'), name));
     if (!saved || !validBinding(saved)) throw new Error('Phone enrollment needs recovery.');
     const state = revoked(saved.phone.deviceId) ? 'revoked' as const : Date.parse(saved.phone.expiresAt) <= now.getTime() ? 'expired' as const : 'active' as const;
-    const phone=testPhone(saved.phone);
+    const phone=effectivePhone(saved.phone);
     const day=phone.test ? null : readCrewDay(phone);
-    return { ...phone, ...(day?{truck:day.truck}:{}), state };
+    return { ...phone, ...(day?{truck:day.truck}:{}), access: phone.test ? 'sandbox' as const : 'live' as const, state };
   }).sort((a, b) => a.truck.localeCompare(b.truck) || a.label.localeCompare(b.label));
+}
+/** A manager may promote one already-enrolled sandbox device after reviewing
+ * the exact access expansion. The original binding and sandbox history remain
+ * immutable; this audited device-specific grant only changes future requests. */
+export function authorizeCrewPhoneLive(deviceId: string, actor: string, now = new Date()) {
+  if (!uuid.test(deviceId)) throw new CrewPhoneError('Choose an enrolled sandbox phone.');
+  if (!actor.trim()) throw new CrewPhoneError('Manager access is required.', 403);
+  const saved = read<Binding>(path.join(directory('bindings'), `${deviceId}.json`));
+  if (!saved || !validBinding(saved) || saved.phone.deviceId !== deviceId) throw new CrewPhoneError('Choose an enrolled sandbox phone.', 404);
+  if (revoked(deviceId)) throw new CrewPhoneError('This phone access was removed. Enroll the phone again before enabling live access.', 409);
+  if (Date.parse(saved.phone.enrolledAt) > now.getTime() || Date.parse(saved.phone.expiresAt) <= now.getTime())
+    throw new CrewPhoneError('This phone enrollment expired. Enroll the phone again before enabling live access.', 409);
+  if (liveAccess(deviceId)) throw new CrewPhoneError('This phone already has live access.', 409);
+  if (testPhone(saved.phone).test !== true) throw new CrewPhoneError('This phone already has live access.', 409);
+  const file=path.join(directory('live'),`${deviceId}.json`);
+  writeOnce(file,{schema:1,deviceId,actor:actor.trim(),authorizedAt:now.toISOString()} satisfies LiveAccess);
+  if (!liveAccess(deviceId)) throw new Error('Phone live access could not be verified.');
+  return effectivePhone(saved.phone);
 }
 export function revokeCrewPhone(deviceId: string, actor: string, now = new Date()) {
   if (!uuid.test(deviceId)) throw new CrewPhoneError('Choose a company phone.');
@@ -139,4 +165,10 @@ function testPhone(phone: CrewPhone): CrewPhone {
     return receipt?.deviceId === phone.deviceId && receipt.test === true;
   });
   return deliveredTest ? {...phone, test: true} : phone;
+}
+function effectivePhone(phone: CrewPhone): CrewPhone {
+  const projected=testPhone(phone);
+  if (!projected.test || !liveAccess(phone.deviceId)) return projected;
+  const {test:_test,...live}=projected;
+  return live;
 }

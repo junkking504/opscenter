@@ -548,6 +548,16 @@ Stop Order controls their sequence. Managers release jobs separately through
 Crew Dispatch. An enrolled phone accesses the truck selected in its saved daily
 setup, regardless of its device label, phone number or enrollment truck default.
 
+Manager test-phone enrollment remains sandboxed by default: it receives
+fictional appointments and test crew and cannot write to JunkWare. Company
+Phones identifies that state explicitly. After reviewing the named enrolled
+device, a manager may grant live OpsCenter + JunkWare access to that one device.
+The immutable enrollment and sandbox history remain intact, the grant is
+audited separately, and every other test phone stays sandboxed. The promoted
+phone must complete a fresh live daily truck/crew setup and the normal truck
+inspection before it can receive a released job. Revocation continues to take
+precedence over the live grant.
+
 Older browser tabs may still submit `assignCrew`; new schedule operations ignore
 that flag while preserving it in request fingerprints for exact receipt recovery.
 Old pending combined receipts recover only an already-saved dispatch request;

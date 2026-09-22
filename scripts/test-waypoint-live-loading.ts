@@ -35,6 +35,12 @@ async function main(){
     await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();
     const readyMs=Math.round(performance.now()-started);
     const currentTiming=await page.evaluate(()=>performance.getEntriesByType('resource').filter(entry=>new URL(entry.name).pathname==='/api/crew-jobs/current').map(entry=>Math.round(entry.duration)));
+    const apiTiming=await page.evaluate(()=>performance.getEntriesByType('resource').filter(entry=>new URL(entry.name).pathname.startsWith('/api/crew-jobs/')).map(entry=>({path:new URL(entry.name).pathname,ms:Math.round(entry.duration)})));
+    const localStarted=performance.now();
+    const localResponse=await fetch('http://127.0.0.1:3000/api/crew-jobs/current',{headers:{Cookie:`${CREW_PHONE_COOKIE}=${token}`,'x-forwarded-proto':'https','x-forwarded-host':'waypoint.junk-king.app'}});
+    await localResponse.arrayBuffer();
+    const localCurrentMs=Math.round(performance.now()-localStarted);
+    assert.equal(localResponse.status,200);
     if(process.argv[2]!=='before'){
       assert.deepEqual(payload.jobs.map((job:{appointmentId:string})=>job.appointmentId).sort(),expected.jobs!.map(job=>job.appointmentId).sort());
       for(const job of expected.jobs!)await expect(page.getByText(new RegExp(job.jkNumber))).toBeVisible();
@@ -45,7 +51,7 @@ async function main(){
       await page.screenshot({path:'/tmp/waypoint-truck1-live-assignments.png',fullPage:true});
     }
     assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({truck,readyMs,currentRequestMs:currentTiming,shown:(payload.jobs || [payload.job]).filter(Boolean).map((job:{jkNumber:string})=>job.jkNumber),expected:expected.jobs!.map(job=>job.jkNumber),mode:process.argv[2] || 'after',writes:'Browser GET only; temporary QA enrollment revoked on exit'}));
+    console.log(JSON.stringify({truck,readyMs,currentRequestMs:currentTiming,apiTiming,localCurrentMs,localStatus:localResponse.status,shown:(payload.jobs || [payload.job]).filter(Boolean).map((job:{jkNumber:string})=>job.jkNumber),expected:expected.jobs!.map(job=>job.jkNumber),mode:process.argv[2] || 'after',writes:'Browser GET only; temporary QA enrollment revoked on exit'}));
   }finally{await browser?.close();revokeCrewPhone(phone.deviceId,'waypoint-loading-qa-complete');}
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

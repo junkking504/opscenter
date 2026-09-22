@@ -816,14 +816,15 @@ Completed job badges include confirmed GPS time on site, rounded to whole
 minutes. Missing or incomplete visit evidence displays **Time unavailable**;
 scheduled appointment duration is not substituted for actual time on site.
 
-### Completed blocks show actual visits
+### Assigned completed blocks show actual visits
 
-Truck Schedule positions completed jobs at confirmed GPS arrival and sizes each
-block through departure. Separate confirmed visits appear as separate segments;
-time away is left empty. The axis includes recorded visits outside booked hours,
-and overlapping actual visits use separate lanes. Missing, incomplete, mismatched
-or inconsistent visit evidence keeps the booked window. Open jobs and estimates
-continue to use their booked windows.
+Within the appointment's current JunkWare truck lane, Truck Schedule positions
+completed jobs at confirmed GPS arrival and sizes each block through departure.
+Separate confirmed visits by that assigned truck appear as separate segments;
+time away is left empty. The axis includes its recorded visits outside booked
+hours, and overlapping actual visits use separate lanes. Missing, incomplete,
+mismatched, cross-truck, or inconsistent visit evidence keeps the booked window.
+Open jobs and estimates continue to use their booked windows.
 
 The source on-site summary exposes its merged confirmed intervals for this
 rendering; totals still exclude gaps and duplicate GPS observations. Hover text
@@ -839,21 +840,26 @@ and selected summary when confirmed timestamps are available. These are separate
 from the unchanged booked appointment window.
 
 
-## Truck visit blocks
+## Truck assignment blocks and visit evidence
 
-The Truck Schedule uses each truck's confirmed GPS visit intervals, regardless
-of the appointment's booked truck, appointment type, or closeout status. A job
-visited by multiple trucks appears on each truck's row using that truck's own
-arrival and departure. Return visits remain separate blocks, leaving time away
-blank. Overlapping duplicate observations for the same truck are merged.
+Truck Schedule is an assignment view: every appointment appears only in its
+current JunkWare truck lane. A GPS visit by another truck remains source
+evidence on the appointment but does not duplicate that booking into a second
+schedule lane. This prevents a shared or test address visited by multiple trucks
+from making one appointment look multiply assigned.
+
+Confirmed visits by the assigned truck can still size that lane's block using
+its arrival and departure. Return visits remain separate segments, leaving time
+away blank. Overlapping duplicate observations for the assigned truck are
+merged.
 
 An active qualified visit grows from its arrival to now within the existing
-GPS/parked presence policy. An open visit without current presence stops at the
-last recorded inside observation and says departure is unconfirmed. It does not
-invent a departure or change recorded duration. Recorded blocks cannot be dragged;
-clicking any visit opens the original appointment. Appointments with no usable
-visit times retain a dashed planned window. Booked assignment, time, closeout,
-visit accounting and source records remain unchanged.
+GPS/parked presence policy. An open assigned-truck visit without current presence
+stops at the last recorded inside observation and says departure is unconfirmed.
+It does not invent a departure or change recorded duration. Recorded blocks
+cannot be dragged. Appointments with no usable assigned-truck visit times retain
+a dashed planned window. Booked assignment, time, closeout, visit accounting and
+source records remain unchanged.
 
 Short visit blocks have a 22px minimum display width so the status check mark fits;
 blocks with an Amazon marker reserve 34px to keep both symbols separate.

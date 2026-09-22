@@ -169,6 +169,14 @@ export function scheduleTruckNames(snapshot?: Pick<ScheduleSnapshot,'fleet'|'app
   return [...new Set([...JUNKWARE_DISPATCH_TRUCKS,...(snapshot?.fleet.trucks.map(truck=>truck.truck)||[]),...(snapshot?.appointments.flatMap(job=>[job.truck,...(job.truckVisits || []).map(v=>v.truck)])||[]),'Unassigned'].map(truckLabel))]
     .sort((a,b)=>a===b?0:a==='Unassigned'?1:b==='Unassigned'?-1:a.localeCompare(b,undefined,{numeric:true}));
 }
+
+/** Schedule lanes are an assignment view. GPS evidence from a different truck
+ * remains on the appointment record, but must not place that appointment in a
+ * second lane and make one booking look multiply assigned. */
+export function scheduleBoardJobs(jobs: ScheduleAppointment[], truck: string, now = Date.now()) {
+  const lane = truckLabel(truck);
+  return jobs.filter(job => truckLabel(job.truck) === lane && timelineWindow(job, lane, now) !== null);
+}
 /** Completed blocks use confirmed visit intervals; source appointment windows remain unchanged. */
 export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.truck || ''), now = Date.now()) {
   if (job.truckVisits?.length) {
@@ -231,10 +239,7 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
 }
 export function timelineRange(jobs: ScheduleAppointment[], now = Date.now()) {
   const windows = jobs.flatMap(job => {
-    if (job.truckVisits?.length) return [...new Set([job.truck,...job.truckVisits.map(v=>v.truck)])].flatMap(truck=>{
-      const window=timelineWindow(job,truck,now); return window?[window]:[];
-    });
-    const display = timelineWindow(job,undefined,now);
+    const display = timelineWindow(job,truckLabel(job.truck || ''),now);
     const booked = job.hasScheduledTime && job.appointmentStartMinutes !== null && job.appointmentEndMinutes !== null
       ? [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes}] : [];
     return display ? [...booked,display] : booked;

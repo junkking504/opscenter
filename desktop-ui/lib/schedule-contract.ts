@@ -185,7 +185,14 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
       const end = Math.min(2880,local(ongoing ? new Date(now).toISOString() : visit.departure || visit.observedThrough));
       return Number.isFinite(start) && Number.isFinite(end) && end>start ? [{start,end,ongoing,complete:Boolean(visit.departure)}] : [];
     }).sort((a,b)=>a.start-b.start);
-    if (!intervals.length) return null;
+    if (!intervals.length) {
+      // GPS history belongs to the truck that physically visited the address. It
+      // must not hide the appointment's current JunkWare assignment when a
+      // different truck happened to visit the same premises.
+      if (truckLabel(job.truck || '') !== truckLabel(truck) || !job.hasScheduledTime || job.appointmentStartMinutes === null || job.appointmentEndMinutes === null) return null;
+      return { actual: false, start: job.appointmentStartMinutes, end: job.appointmentEndMinutes,
+        intervals: [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes,ongoing:false,complete:false}], label: 'Planned · booked window' };
+    }
     const minutes = intervals.reduce((sum,v)=>sum+v.end-v.start,0);
     return {actual:true,start:intervals[0].start,end:intervals.at(-1)!.end,intervals,
       label:`${minutes<1?'<1':Math.round(minutes)} min on site${intervals.some(v=>v.ongoing)?' · ongoing':intervals.some(v=>!v.complete)?' · departure unconfirmed':''}${intervals.length>1?` · ${intervals.length} visits`:''}`};
@@ -224,7 +231,7 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
 }
 export function timelineRange(jobs: ScheduleAppointment[], now = Date.now()) {
   const windows = jobs.flatMap(job => {
-    if (job.truckVisits?.length) return [...new Set(job.truckVisits.map(v=>v.truck))].flatMap(truck=>{
+    if (job.truckVisits?.length) return [...new Set([job.truck,...job.truckVisits.map(v=>v.truck)])].flatMap(truck=>{
       const window=timelineWindow(job,truck,now); return window?[window]:[];
     });
     const display = timelineWindow(job,undefined,now);
@@ -235,6 +242,9 @@ export function timelineRange(jobs: ScheduleAppointment[], now = Date.now()) {
   const start = Math.min(480, ...windows.map(row => Math.floor(row.start / 60) * 60));
   const end = Math.max(1020, ...windows.map(row => Math.ceil(row.end / 60) * 60));
   return { start, end, duration: end - start };
+}
+export function scheduleTimelineBlockMovable(job: ScheduleAppointment, actual: boolean, busy = false) {
+  return !actual && !isClosed(job) && !scheduleMoveRestriction(job) && !busy;
 }
 export function timelinePlacement(job: ScheduleAppointment, range: ReturnType<typeof timelineRange>, truck?: string, now = Date.now()) {
   const window = timelineWindow(job, truck, now);

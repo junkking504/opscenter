@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../../../lib/junkware-trucks';
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import CrewDataRefresh from "@/components/CrewDataRefresh";
@@ -783,7 +784,7 @@ async function renderFinancePageForRole({
           <table className="ops-table">
             <thead><tr><th>Truck</th><th>Recycling Income</th></tr></thead>
             <tbody>
-              {dailyRecyclingRows.map((row: { truck: string; value: number }) => <tr key={row.truck}><td><strong>{row.truck}</strong></td><td className="ops-money">{money(row.value)}</td></tr>)}
+              {dailyRecyclingRows.map((row: { truck: string; value: number }) => <tr key={row.truck}><td><strong>{truckDisplayText(row.truck)}</strong></td><td className="ops-money">{money(row.value)}</td></tr>)}
               {dailyRecyclingRows.length === 0 ? <tr><td colSpan={2} className="ops-muted">No truck-level recycling income is recorded for this date.</td></tr> : null}
             </tbody>
           </table>
@@ -940,7 +941,7 @@ async function renderFinancePageForRole({
               <tbody>
                 {crewTruckRecords.map((record) => (
                   <tr key={record.messageId}>
-                    <td><strong>{record.truck}</strong></td>
+                    <td><strong>{truckDisplayText(record.truck)}</strong></td>
                     <td>{record.kind === "dump" ? "Dump" : "Fuel"}</td>
                     <td>{record.location}</td>
                     <td className="ops-money">{money(record.cost)}</td>

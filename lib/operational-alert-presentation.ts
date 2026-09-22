@@ -1,3 +1,4 @@
+import { truckDisplayText } from './junkware-trucks';
 import type { SlackDigestMessage } from "@/lib/slack-digest";
 
 export type AlertWorkflowState = "active" | "in-control" | "acknowledged" | "resolved";
@@ -214,8 +215,8 @@ export function toOperationalAlert(message: SlackDigestMessage): OperationalAler
       : undefined,
     photos: ["Job Closed", "Estimate Closed", "Job Completed", "Estimate Completed"].includes(classification.label) ? message.photos : undefined,
     detected: messageTime(message.timestamp),
-    title: reference === "Operational alert" ? (crewMember || lines[0] || "Operational Alert") : truck ? `${truck} · ${reference}` : window ? `${reference} · ${window}` : reference,
-    facts: factsForAlert(message, lines),
+    title: truckDisplayText(reference === "Operational alert" ? (crewMember || lines[0] || "Operational Alert") : truck ? `${truck} · ${reference}` : window ? `${reference} · ${window}` : reference),
+    facts: factsForAlert(message, lines).map(fact => ({...fact,value:truckDisplayText(fact.value)})),
     href,
   };
 }

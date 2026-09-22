@@ -1,3 +1,4 @@
+import { sameTruck } from './junkware-trucks';
 import { createHash } from 'node:crypto';
 import { CrewPhoneError, type CrewPhone, type CrewPhoneDay, type CrewInspectionState } from './crew-phone';
 import { readCrewDay, requireCrewDay } from './crew-phone-day';
@@ -13,7 +14,7 @@ export function crewInspectionDevice(phone: CrewPhone, day: CrewPhoneDay): Inspe
 
 export function crewInspectionReport(phone: CrewPhone, day = readCrewDay(phone)) {
   if (!day) return null;
-  return listTruckInspections(day.date).filter(report => report.truck === day.truck && report.inspectionDate === day.date).sort((a,b)=>b.receivedAt.localeCompare(a.receivedAt) || Number(b.status==='stop')-Number(a.status==='stop'))[0] || null;
+  return listTruckInspections(day.date).filter(report => sameTruck(report.truck,day.truck) && report.inspectionDate === day.date).sort((a,b)=>b.receivedAt.localeCompare(a.receivedAt) || Number(b.status==='stop')-Number(a.status==='stop'))[0] || null;
 }
 
 export function crewInspectionState(phone: CrewPhone, day = readCrewDay(phone)): CrewInspectionState {

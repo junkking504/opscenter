@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../../../../lib/junkware-trucks';
 import Link from "next/link";
 import PageHeader from "@/components/PageHeader";
 import { getCrewPayPeriodMetrics } from "@/lib/crew-pay-period";
@@ -115,7 +116,7 @@ export default async function CrewMemberPage({ params, searchParams }: PageProps
               <div><div className="ops-card-title">Safety Score</div><div className="ops-employee-stat-value">{safetyScore?.toFixed(1) ?? "Unavailable"}</div><div className="ops-kpi-sub">90% of overall score</div></div>
               <div><div className="ops-card-title">Idling Score</div><div className="ops-employee-stat-value">{idleScore?.toFixed(0) ?? "Unavailable"}</div><div className="ops-kpi-sub">10% of overall score</div></div>
               <div><div className="ops-card-title">Miles</div><div className="ops-employee-stat-value">{Number(driverTelemetry.miles_driven || 0).toFixed(2)}</div></div>
-              <div><div className="ops-card-title">Truck</div><div className="ops-employee-stat-value">{assignedTrucks.join(", ") || "Unavailable"}</div></div>
+              <div><div className="ops-card-title">Truck</div><div className="ops-employee-stat-value">{truckDisplayText(assignedTrucks.join(", ") || "Unavailable")}</div></div>
             </div>
 
             <div className="ops-employee-driving-summary">

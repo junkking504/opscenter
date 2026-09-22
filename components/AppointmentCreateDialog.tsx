@@ -1,5 +1,6 @@
 "use client";
 
+import { truckDisplayText } from '../lib/junkware-trucks';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -284,7 +285,7 @@ export default function AppointmentCreateDialog({ selectedDate }: { selectedDate
                 <section className="ops-appointment-create-confirmed" aria-live="polite">
                   <span>Created and Verified in JunkWare</span>
                   <strong>{result.jkNumber}</strong>
-                  <p>{result.appointmentType} · {result.date} · {timeLabel(result.startTime, result.durationHours)} · {result.truck}</p>
+                  <p>{result.appointmentType} · {result.date} · {timeLabel(result.startTime, result.durationHours)} · {truckDisplayText(result.truck)}</p>
                   <div>
                     <span>Customer</span><strong>{result.customerMode === "existing" ? "Matched to existing customer" : result.customerMode === "recovered" ? "Recovered from JunkWare source" : "New customer record"}</strong>
                     <span>Read-back</span><strong>JK number, customer, address, date, time, category, franchise, and truck match</strong>
@@ -337,7 +338,7 @@ export default function AppointmentCreateDialog({ selectedDate }: { selectedDate
                       <label><span>Date</span><input name="date" type="date" min={todayInLouisiana()} value={form.date} onChange={(event) => update("date", event.target.value)} /></label>
                       <label><span>Start Time</span><select name="startTime" value={form.startTime} onChange={(event) => update("startTime", event.target.value)}>{TIMES.map((time) => <option value={time} key={time}>{timeLabel(time, 1).split("–")[0]}</option>)}</select></label>
                       <label><span>Duration</span><select name="durationHours" value={form.durationHours} onChange={(event) => update("durationHours", event.target.value)}>{Array.from({ length: 12 }, (_, index) => index + 1).map((hours) => <option value={hours} key={hours}>{hours} hour{hours === 1 ? "" : "s"}</option>)}</select></label>
-                      <label><span>Truck</span><select name="truck" value={form.truck} onChange={(event) => update("truck", event.target.value)}>{Array.from({ length: 9 }, (_, index) => `Truck ${index + 1}`).map((truck) => <option key={truck}>{truck}</option>)}</select></label>
+                      <label><span>Truck</span><select name="truck" value={form.truck} onChange={(event) => update("truck", event.target.value)}>{Array.from({ length: 9 }, (_, index) => `Truck ${index + 1}`).map((truck) => <option key={truck} value={truck}>{truckDisplayText(truck)}</option>)}</select></label>
                     </div>
                     <p className="ops-appointment-create-help">JunkWare performs the final availability check. If the time or truck is no longer available, nothing is created.</p>
                   </section>

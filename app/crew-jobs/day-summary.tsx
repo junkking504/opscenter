@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../../lib/junkware-trucks';
 import type {WaypointDaySummary} from '@/lib/waypoint-day-summary';
 import {mapsDirections} from '@/lib/waypoint-day-summary';
 import styles from './phone-access.module.css';
@@ -6,7 +7,7 @@ export function AddressLink({address}:{address:string}){const href=mapsDirection
 export default function DaySummary({summary:s}:{summary:WaypointDaySummary}){
  const bonus=s.crew.length && s.crew.every(person=>person.bonus!==null)?s.crew.reduce((sum,person)=>sum+person.bonus!,0):null;
  return <section aria-label="Today’s performance" className={styles.card}>
-  <h2>{s.truck} · Today{ s.test?' · Test':''}</h2>
+  <h2>{truckDisplayText(s.truck)} · Today{ s.test?' · Test':''}</h2>
   <div className={styles.stats}><div><span>Truck revenue</span><strong>{money(s.revenue)}</strong></div><div><span>Truck tips</span><strong>{money(s.tips)}</strong></div><div><span>Crew revenue bonuses</span><strong>{money(bonus)}</strong></div><div><span>Completed</span><strong>{s.completed?.length ?? 'Pending'}</strong></div></div>
   <p className={styles.muted}>{s.message} {s.observedAt && <>As of {new Date(s.observedAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})} Central.</>}</p>
   <h2>Next bonus tier</h2>

@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../lib/junkware-trucks';
 import {useEffect,useRef,useState} from 'react';
 import {Button} from './components/ui/button';
 import {ChangeReceipt,checkScheduleChange,sendScheduleChange,type Receipt} from './schedule-controls';
@@ -34,7 +35,7 @@ export function AppointmentReschedule({job,date,saved,onBusyChange,onOpenDate}:{
   if(isClosed(job) && !restore) return null;
   return <section id="appointment-reschedule" className="drawer-reschedule" aria-label={actionLabel}>
     <h3>{actionLabel}</h3>
-    <p>Current: {date} · {job.appointmentTime} · {truckLabel(job.truck)}</p>
+    <p>Current: {date} · {job.appointmentTime} · {truckDisplayText(truckLabel(job.truck))}</p>
     <div className="drawer-control-fields">
       <label><span>New Appointment Date</span><input id="appointment-reschedule-date" type="date" value={destination} disabled={blocked} onChange={event=>{setDestination(event.target.value);setReview(false);setReceipt(null);}} /></label>
       <label><span>New Appointment Window</span><select value={start} disabled={blocked} onChange={event=>{setStart(event.target.value);setReview(false);setReceipt(null);}}>

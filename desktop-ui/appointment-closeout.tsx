@@ -1,5 +1,6 @@
 "use client";
 
+import { truckDisplayText } from '../lib/junkware-trucks';
 import { checkoutFieldsKey, sameCheckoutFields } from '../app/crew-jobs/photo-checkout';
 import { closeoutPhotoCount, CLOSEOUT_PHOTOS_REQUIRED, type CloseoutPhotoEvidence } from '../lib/closeout-photo-policy';
 import { closeoutGpsTimes, closeoutChargesSummary, type CloseoutTimeKey } from '../lib/closeout-draft-summary';
@@ -513,7 +514,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               <h3>{targetStatus === '9' ? 'Review cancellation' : 'Review closeout'}</h3>
               <p>{job.jkNumber} · {job.customerName}</p>
               <div className="closeout-review-facts"><div><span>Status</span><strong>{live.status.label} → {targetStatus === '8' ? 'Completed' : targetStatus === '9' ? 'Cancelled' : 'Confirmed'}</strong></div>
-              {targetStatus !== '9' && <><div><span>Category</span><strong>{category}</strong></div><div><span>Truck</span><strong>{live.truck || 'Unassigned'} → {truck || 'Unassigned'}</strong></div><div><span>Krewe</span><strong>{[live.driver.label,...live.navigators.filter(person=>person.value).map(person=>person.label)].filter(Boolean).join(' · ') || 'Not assigned'}</strong></div><div><span>Actual job time</span><strong>{crewMode?`${arrival?arrivalLabel:timeLabel(live.actualStartHour.value,live.actualStartMinute.value)+' (manual)'} → time of closeout`: `${timeLabel(live.actualStartHour.value,live.actualStartMinute.value)} – ${timeLabel(live.actualEndHour.value,live.actualEndMinute.value)}`}</strong></div></>}
+              {targetStatus !== '9' && <><div><span>Category</span><strong>{category}</strong></div><div><span>Truck</span><strong>{truckDisplayText(live.truck || 'Unassigned')} → {truckDisplayText(truck || 'Unassigned')}</strong></div><div><span>Krewe</span><strong>{[live.driver.label,...live.navigators.filter(person=>person.value).map(person=>person.label)].filter(Boolean).join(' · ') || 'Not assigned'}</strong></div><div><span>Actual job time</span><strong>{crewMode?`${arrival?arrivalLabel:timeLabel(live.actualStartHour.value,live.actualStartMinute.value)+' (manual)'} → time of closeout`: `${timeLabel(live.actualStartHour.value,live.actualStartMinute.value)} – ${timeLabel(live.actualEndHour.value,live.actualEndMinute.value)}`}</strong></div></>}
               </div>
               {targetStatus === '9' ? <p>{cancellationReason.trim()}</p> : <>
               <div className="closeout-review-facts"><div><span>Load · {live.loadQuantity || '0'} full trucks{live.loadSize.value ? ` + ${live.loadSize.value}` : ''}</span><strong>{money(Number(inputMoney(live.loadPrice)))}</strong></div>
@@ -560,8 +561,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
                 });
               }}>
                 <option value="">Select truck</option>
-                {(live.truckOptions || []).filter(option => option.value && /truck\s*#?\s*\d+/i.test(option.label)).map(option => { const label = option.label.replace(/Truck#?\s*/i, 'Truck ').trim(); return <option key={option.value} value={label}>{label}</option>; })}
-                {truck && !(live.truckOptions || []).some(option => option.label.replace(/Truck#?\s*/i, 'Truck ').trim() === truck) && <option value={truck}>{truck}</option>}
+                {(live.truckOptions || []).filter(option => option.value && /truck\s*#?\s*\d+/i.test(option.label)).map(option => { const label = option.label.replace(/Truck#?\s*/i, 'Truck ').trim(); return <option key={option.value} value={label}>{truckDisplayText(label)}</option>; })}
+                {truck && !(live.truckOptions || []).some(option => option.label.replace(/Truck#?\s*/i, 'Truck ').trim() === truck) && <option value={truck}>{truckDisplayText(truck)}</option>}
               </select></label>
               <h4>Krewe Assigned to This Job</h4>{crewMode && dailyCrew.current && <p>Today’s driver and navigator are filled in from this phone. Add any extra crew who worked this job.</p>}
               <label>

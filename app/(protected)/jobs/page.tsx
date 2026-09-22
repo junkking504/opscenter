@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../../../lib/junkware-trucks';
 /* eslint-disable @next/next/no-img-element -- JunkWare job photos are public closeout media URLs. */
 import fs from "fs";
 import path from "path";
@@ -2556,7 +2557,7 @@ function AppointmentCardScanSummary({ job, siteTime }: { job: JobRow; siteTime: 
         <div className="ops-appointment-visit-summary" title={primaryVisit.state}>
           <span className="ops-appointment-visit-time">{siteWindow}{duration !== "—" ? ` · ${duration}` : ""}</span>
           <span className="ops-appointment-visit-crew">
-            <strong>{primaryVisit.truck}</strong>
+            <strong>{truckDisplayText(primaryVisit.truck)}</strong>
             {crew.length ? <>{" · "}{crew.join(" · ")}</> : " · Krewe not recorded"}
           </span>
           {visitTrucks.length > 1 ? <span className="ops-appointment-visit-extra">+{visitTrucks.length - 1} truck</span> : null}
@@ -2583,7 +2584,7 @@ function AppointmentCardCompletedCrew({ job }: { job: JobRow }) {
 
   return (
     <div className="ops-appointment-card-completed-crew" aria-label={`Completed Krewe: ${truck}, driver ${driver}, navigator ${navigator}`}>
-      <span>{truck}</span>
+      <span>{truckDisplayText(truck)}</span>
       <span>D: {driver}</span>
       <span>N: {navigator}</span>
     </div>
@@ -2627,7 +2628,7 @@ function AppointmentSiteTimeDetails({ siteTime }: { siteTime: SiteTimeAppointmen
           return (
             <div className="ops-site-time-truck" key={`${siteTime.appointmentId}-${truck.truck}-${truckIndex}`}>
               <div className="ops-site-time-truck-summary">
-                <span className="ops-site-time-truck-name">{truck.truck}</span>
+                <span className="ops-site-time-truck-name">{truckDisplayText(truck.truck)}</span>
                 <span className="ops-site-time-truck-window">{summaryWindow}</span>
                 {durationMinutes != null ? <span className={`ops-site-time-truck-duration${durationClass}`}>{durationText}</span> : null}
                 <span className="ops-site-time-truck-status">{statusText}</span>
@@ -2684,7 +2685,7 @@ function AppointmentMoreDetails({
         </div>
         <div>
           <span>Truck</span>
-          <strong>{safeText(job.assignedTruck || job.truck)}</strong>
+          <strong>{truckDisplayText(safeText(job.assignedTruck || job.truck))}</strong>
         </div>
         <div>
           <span>Driver</span>
@@ -3752,7 +3753,7 @@ export default async function JobsPage({
                 <tbody>
                   {Array.from(monthlySummary.siteTimeByTruck.entries()).map(([truck, minutes]) => (
                     <tr key={truck}>
-                      <td>{truck}</td>
+                      <td>{truckDisplayText(truck)}</td>
                       <td>{siteDurationLabel(minutes)}</td>
                     </tr>
                   ))}
@@ -3838,7 +3839,7 @@ export default async function JobsPage({
             <select id="jobs-truck" name="truck" defaultValue={filters.truck}>
               <option value="">All trucks</option>
               {allTrucks.map((truck) => (
-                <option key={truck} value={truck}>{truck}</option>
+                <option key={truck} value={truck}>{truckDisplayText(truck)}</option>
               ))}
             </select>
           </div>
@@ -3863,7 +3864,7 @@ export default async function JobsPage({
             {filters.territory ? <a href={buildJobsHref({ date, view, workspace, ...filters, territory: "" })}>{filters.territory} ×</a> : null}
             {filters.status ? <a href={buildJobsHref({ date, view, workspace, ...filters, status: "" })}>{filters.status} ×</a> : null}
             {filters.paymentType ? <a href={buildJobsHref({ date, view, workspace, ...filters, paymentType: "" })}>{filters.paymentType} ×</a> : null}
-            {filters.truck ? <a href={buildJobsHref({ date, view, workspace, ...filters, truck: "" })}>{filters.truck} ×</a> : null}
+            {filters.truck ? <a href={buildJobsHref({ date, view, workspace, ...filters, truck: "" })}>{truckDisplayText(filters.truck)} ×</a> : null}
             {filters.siteTime ? <a href={buildJobsHref({ date, view, workspace, ...filters, siteTime: "" })}>Over one hour ×</a> : null}
           </div>
         ) : null}
@@ -4097,7 +4098,7 @@ export default async function JobsPage({
                                     return (
                                       <div className="ops-site-time-truck" key={`${siteTime.appointmentId}-${truck.truck}-${truckIndex}`}>
                                         <div className="ops-site-time-truck-summary">
-                                          <span className="ops-site-time-truck-name">{truck.truck}</span>
+                                          <span className="ops-site-time-truck-name">{truckDisplayText(truck.truck)}</span>
                                           <span className="ops-site-time-truck-window">{summaryWindow}</span>
                                           {durationMinutes != null ? (
                                             <span className={`ops-site-time-truck-duration${durationClass}`}>{summaryDuration.replace(/^ · /, "")}</span>
@@ -4158,7 +4159,7 @@ export default async function JobsPage({
                                 </div>
                                 <div>
                                   <span>Truck</span>
-                                  <strong>{safeText(job.assignedTruck || job.truck)}</strong>
+                                  <strong>{truckDisplayText(safeText(job.assignedTruck || job.truck))}</strong>
                                 </div>
                                 <div>
                                   <span>Driver</span>
@@ -4370,7 +4371,7 @@ export default async function JobsPage({
                                   return (
                                     <div className="ops-site-time-truck" key={`${siteTime.appointmentId}-${truck.truck}-${truckIndex}`}>
                                       <div className="ops-site-time-truck-summary">
-                                        <span className="ops-site-time-truck-name">{truck.truck}</span>
+                                        <span className="ops-site-time-truck-name">{truckDisplayText(truck.truck)}</span>
                                         <span className="ops-site-time-truck-window">{summaryWindow}</span>
                                         {durationMinutes != null ? (
                                           <span className={`ops-site-time-truck-duration${durationClass}`}>{summaryDuration.replace(/^ · /, "")}</span>
@@ -4431,7 +4432,7 @@ export default async function JobsPage({
                               </div>
                               <div>
                                 <span>Truck</span>
-                                <strong>{safeText(job.assignedTruck || job.truck)}</strong>
+                                <strong>{truckDisplayText(safeText(job.assignedTruck || job.truck))}</strong>
                               </div>
                               <div>
                                 <span>Driver</span>

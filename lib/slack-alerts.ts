@@ -1,3 +1,4 @@
+import { truckDisplayText } from './junkware-trucks';
 import { truckInspectionSlackNotifications } from "./truck-inspection-notifications";
 import { truckExpenseSlackNotifications } from './truck-expense-notifications';
 import { appointmentOnsiteTime, onsiteTimeFacts } from './appointment-onsite-time';
@@ -1242,7 +1243,7 @@ function collectIncidentAlerts(date: string): SlackOpsAlert[] {
 }
 
 export function formatSlackAlert(alert: SlackOpsAlert): string {
-  if (alert.plainText) return alert.plainText;
+  if (alert.plainText) return truckDisplayText(alert.plainText);
   const icon = alert.severity === "critical" ? ":rotating_light:" : ":warning:";
   return formatSlackMessage({
     icon,

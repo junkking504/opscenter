@@ -1,4 +1,5 @@
 "use client";
+import { truckDisplayText } from '../lib/junkware-trucks';
 import { watchTruckAddress } from "@/lib/truck-address-client";
 import { gpsDwellAtPosition, GPS_PRESENCE_MAX_AGE_MS, GPS_SITE_RADIUS_METERS, GPS_MINIMUM_DWELL_MS } from '@/lib/gps-presence-policy';
 
@@ -1503,7 +1504,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
             <span>
               <strong>Krewe visited this address</strong>
               Appointment is not closed out in JunkWare
-              {selectedJob.visitedTrucks.length ? <small>{selectedJob.visitedTrucks.join(", ")}</small> : null}
+              {selectedJob.visitedTrucks.length ? <small>{truckDisplayText(selectedJob.visitedTrucks.join(", "))}</small> : null}
             </span>
           </div>
         ) : null}
@@ -1522,7 +1523,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
         {selectedJob.statusBucket !== "Canceled" ? <div className="ops-jobs-map-selection-truck">
           <span>Closest truck</span>
           <strong>
-            {!scheduleView
+            {truckDisplayText(!scheduleView
               ? "Open the daily schedule for live proximity"
               : proximityLoading
                 ? "Checking current truck locations…"
@@ -1530,7 +1531,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                   ? "Truck locations unavailable"
                   : closestTruck
                     ? `${closestTruck.truck} · ${proximityText(closestTruck.proximity)}`
-                    : unavailableProximityText(selectedJob.key, proximity)}
+                    : unavailableProximityText(selectedJob.key, proximity))}
           </strong>
         </div> : null}
         {scheduleView && selectedJob.statusBucket !== "Canceled" ? (
@@ -1543,7 +1544,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
                 onChange={(event) => void assignJob(selectedJob, event.target.value)}
               >
                 <option value="">Virtual / unassigned</option>
-                {trucks.map((truck) => <option value={truck} key={truck}>{truck}</option>)}
+                {trucks.map((truck) => <option value={truck} key={truck}>{truckDisplayText(truck)}</option>)}
               </select>
             </label>
             <label className="ops-jobs-map-selection-assign">
@@ -1819,7 +1820,7 @@ export function JobsMap({ date, jobs, scheduleView, trucks, truckLocations }: Jo
               <span className="ops-jobs-map-selection-truck-icon" aria-hidden="true">🚚</span>
               Live truck
             </div>
-            <strong className="ops-jobs-map-selection-customer">{selectedTruck.truck}</strong>
+            <strong className="ops-jobs-map-selection-customer">{truckDisplayText(selectedTruck.truck)}</strong>
             <div className="ops-jobs-map-truck-details">
               <div><span>Driver</span><strong>{selectedTruck.driver && selectedTruck.driver !== "—" ? selectedTruck.driver : "Unassigned"}</strong></div>
               <div><span>Navigator</span><strong>{selectedTruck.navigator && selectedTruck.navigator !== "—" ? selectedTruck.navigator : "Unassigned"}</strong></div>

@@ -24,7 +24,7 @@ async function main(){
   const request=new Request('https://ops.example.invalid/api/crew-jobs/photos',{headers:{Cookie:`${CREW_PHONE_COOKIE}=${token}`}});
   let calls=0,sourceTruck='Truck 6',sourceDate=date,observedAt:string|null=new Date().toISOString(),revokeDuringRead=false;
   const deps={
-   schedule:()=>({observedAt,appointments:[{appointmentId:'900001',truck:'Truck 6'}]}),
+   schedule:()=>({observedAt,appointments:[{appointmentId:'900001',truck:'Truck# 6'}]}),
    assignment:async()=>{if(revokeDuringRead)revokeCrewPhone(phone.deviceId,'manager');return{appointmentId:'900001',truck:sourceTruck,date:sourceDate,status:'Confirmed'};},
   } as unknown as NonNullable<Parameters<typeof withCrewJob>[3]>;
   const action=async()=>{calls++;return 'success';};
@@ -34,6 +34,7 @@ async function main(){
   sourceDate='2020-01-01';await assert.rejects(withCrewJob(request,current.assignmentId,action,deps),/no longer assigned/);sourceDate=date;
   observedAt=null;await assert.rejects(withCrewJob(request,current.assignmentId,action,deps),/source is unavailable/);observedAt=new Date().toISOString();
   assert.equal(calls,0,'Invalid authority never calls source mutation');
+  sourceTruck='Truck #6';
   assert.equal(await withCrewJob(request,current.assignmentId,action,deps),'success');assert.equal(calls,1);
   revokeDuringRead=true;await assert.rejects(withCrewJob(request,current.assignmentId,action,deps),/manager setup/);assert.equal(calls,1,'Revocation during source lookup prevents mutation');
   console.log('PASS: current assignment only, truck/date source checks, stale source rejection, unauthorized access and mid-read revocation before mutation. Synthetic sources only.');

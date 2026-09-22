@@ -1,3 +1,4 @@
+import { truckDisplayText } from './junkware-trucks';
 export type SlackMessageField = {
   label: string;
   value: string | number | null | undefined;
@@ -30,7 +31,7 @@ export function formatSlackMessage({
   href = "",
 }: SlackMessageOptions): string {
   const fieldLines = fields.flatMap(({ label, value, href: fieldHref }) => {
-    const text = String(value ?? "").trim();
+    const text = truckDisplayText(String(value ?? "").trim());
     if (!text) return [];
     const href = String(fieldHref || "").trim();
     const renderedValue = href ? `<${href}|${slackEscape(text)}>` : slackEscape(text);
@@ -40,13 +41,13 @@ export function formatSlackMessage({
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
-    .map(slackEscape);
+    .map(line => slackEscape(truckDisplayText(line)));
 
   return [
-    `${icon} *${slackEscape(title)}*`,
+    `${icon} *${slackEscape(truckDisplayText(title))}*`,
     ...fieldLines,
     ...bodyLines,
-    nextAction ? `*Next:* ${slackEscape(nextAction)}` : "",
+    nextAction ? `*Next:* ${slackEscape(truckDisplayText(nextAction))}` : "",
     href ? `<${href}|Open in OpsCenter>` : "",
   ].filter(Boolean).join("\n");
 }

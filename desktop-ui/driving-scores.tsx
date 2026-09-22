@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../lib/junkware-trucks';
 import type { DrivingScore } from './lib/driving-score';
 import { drivingSummary } from './lib/driving-score';
 import { DRIVING_SCORE_COMPENSATION_COPY, drivingScoreCompensationLabel } from '../lib/driving-score-policy';
@@ -11,7 +12,7 @@ export function DrivingScoreBadge({rows, onClick}: {rows: DrivingScore[]; onClic
 }
 export function DrivingScoreDetails({rows}: {rows: DrivingScore[]}) {
   return <section className="driving-score-details"><header><h3>Driving score breakdown</h3><p>{DRIVING_SCORE_COMPENSATION_COPY}</p></header>{!rows.length && <p>No driving data available for this member and day.</p>}{rows.map(row => <article key={`${row.date}:${row.truck}`}>
-    <h4>{row.truck} · {row.date}</h4><strong className="driving-score-value">{row.display}</strong>
+    <h4>{truckDisplayText(row.truck)} · {row.date}</h4><strong className="driving-score-value">{row.display}</strong>
     <p>{row.attribution === 'confirmed' ? `Driver: ${row.drivers.join(', ')}` : `Truck score · attribution needs review${row.drivers.length ? ` · ${row.drivers.join(', ')}` : ' · no confirmed driver'}`}</p>
     {row.score !== null && <p>{row.attribution === 'confirmed' ? drivingScoreCompensationLabel(row.score) : 'Individual bonus status requires confirmed attribution.'}</p>}
     <small>{row.status} · {row.source}</small>{row.warning && <p>{row.warning}</p>}
@@ -24,5 +25,5 @@ export function DrivingPeriodSummary({members}: {members: Array<{id:string;name:
   return <section className="driving-period-summary"><h3>Pay-period driving review</h3><p>Confirmed, scorable days only. A day below 60 means at least one confirmed truck score was below 60. Review does not change payroll.</p><div className="driving-table-scroll"><table><thead><tr><th>Krewe member</th><th>Scored days</th><th>Days below 60</th><th>Attribution review days</th><th>Breakdown</th></tr></thead><tbody>{members.map(member => {const rows=member.drivingScores||[];const summary=drivingSummary(rows);return <tr key={member.id}><th>{member.name}</th><td>{summary.scoredDays}</td><td>{summary.belowDays}</td><td>{summary.reviewDays}</td><td><details><summary>View driving days</summary><DrivingScoreDetails rows={rows}/></details></td></tr>;})}</tbody></table></div></section>;
 }
 export function FleetDrivingScores({rows}: {rows: DrivingScore[]}) {
-  return <section className="fleet-driving-scores"><h2>Driving Scores</h2><p>{DRIVING_SCORE_COMPENSATION_COPY}</p><p>Scores reflect each truck’s recorded driving. Shared or unconfirmed assignments require attribution review.</p>{!rows.length && <p>No truck scoring records are available for this day.</p>}<div className="driving-score-grid">{rows.map(row => <details key={row.truck}><summary><strong>{row.truck}</strong><b>{row.display}</b><span>{row.drivers.join(', ') || 'Unassigned'}</span><small>{row.attribution === 'confirmed' && row.score !== null ? drivingScoreCompensationLabel(row.score) : 'Truck score · review attribution'}</small><span>View breakdown</span></summary><DrivingScoreDetails rows={[row]}/></details>)}</div></section>;
+  return <section className="fleet-driving-scores"><h2>Driving Scores</h2><p>{DRIVING_SCORE_COMPENSATION_COPY}</p><p>Scores reflect each truck’s recorded driving. Shared or unconfirmed assignments require attribution review.</p>{!rows.length && <p>No truck scoring records are available for this day.</p>}<div className="driving-score-grid">{rows.map(row => <details key={row.truck}><summary><strong>{truckDisplayText(row.truck)}</strong><b>{row.display}</b><span>{row.drivers.join(', ') || 'Unassigned'}</span><small>{row.attribution === 'confirmed' && row.score !== null ? drivingScoreCompensationLabel(row.score) : 'Truck score · review attribution'}</small><span>View breakdown</span></summary><DrivingScoreDetails rows={[row]}/></details>)}</div></section>;
 }

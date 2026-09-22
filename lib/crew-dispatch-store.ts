@@ -1,3 +1,4 @@
+import { sameTruck } from './junkware-trucks';
 import {assertTruckNotSwitching} from './crew-truck-switch-store';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -101,7 +102,7 @@ export function matchingCrewCompletion(state: CrewDispatch, receipt: Completion,
 /** Both inputs come from server-owned receipt storage and a fresh source GET.
  * No phone endpoint accepts these as supplied completion evidence. */
 export function advanceCrewDispatch(state: CrewDispatch, receipt: Completion, source: CrewCompletionReceipt['sourceResult'], now = new Date()) {
-  if (!matchingCrewCompletion(state,receipt,now) || !source || (source.closeout as {truck?:string} | undefined)?.truck!==state.truck
+  if (!matchingCrewCompletion(state,receipt,now) || !source || !sameTruck((source.closeout as {truck?:string} | undefined)?.truck,state.truck)
     || !nextCrewJobUnlocked({currentAppointmentId:state.current!.appointmentId,nextAppointmentId:null,nextReleased:false},{action:'closeout',status:'verified',sourceResult:source})) throw new CrewPhoneError('The current appointment is not verified complete with photos.',409);
   return append(state.truck,receipt.requestId,state.version,'verified-closeout', {action:'advance',assignmentId:state.current!.assignmentId,receiptId:receipt.requestId}, current=>({
     ...current,current:current.queued ? {...current.queued,releasedAt:now.toISOString()} : null,queued:null,

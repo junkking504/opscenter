@@ -1,5 +1,6 @@
 "use client";
 
+import { truckDisplayText } from '../lib/junkware-trucks';
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -469,7 +470,7 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
           <span className="ops-fleet-map-badge">{payload.gpsDataStatus}</span>
           {payload.trucksWithoutCoordinates.length > 0 && (
             <span className="ops-fleet-map-note">
-              Trucks without verified coordinates: {payload.trucksWithoutCoordinates.join(", ")}. GPS totals can still appear
+              Trucks without verified coordinates: {truckDisplayText(payload.trucksWithoutCoordinates.join(", "))}. GPS totals can still appear
               in the tables while the tracker-to-truck mapping awaits verification.
             </span>
           )}
@@ -479,7 +480,7 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
       {selectedTruckRecord && !fleetMode && (
         <div className="ops-fleet-selected-panel">
           <div className="ops-driver-panel-title">
-            Selected Truck: <strong>{selectedTruckRecord.truck}</strong>
+            Selected Truck: <strong>{truckDisplayText(selectedTruckRecord.truck)}</strong>
           </div>
           <div className="ops-fleet-detail-grid">
             <div>
@@ -612,8 +613,8 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
                         href={crewMemberHref(payload.date, name)}
                         title={`Open ${name} in Today’s Krewe`}
                       >
-                        <strong>{name}</strong>
-                        <small>{selectedTruckRecord.truck}</small>
+                        <strong>{truckDisplayText(name)}</strong>
+                        <small>{truckDisplayText(selectedTruckRecord.truck)}</small>
                       </Link>
                     ))}
                   </div>
@@ -638,7 +639,7 @@ export default function FleetMap({ payload }: { payload: FleetMapPayload }) {
                   <div key={alert.alert_id || `${alert.alert_type}-${alert.occurred_at}-${alert.truck_number}`} className="ops-alert-detail-row">
                     <div><span>Time</span><strong>{formatTimestamp(alert.occurred_at)}</strong></div>
                     <div><span>Type</span><strong>{alert.alert_type_normalized || alert.alert_type || "unknown"}</strong></div>
-                    <div><span>Truck</span><strong>{alert.truck_number || "—"}</strong></div>
+                    <div><span>Truck</span><strong>{truckDisplayText(alert.truck_number || "—")}</strong></div>
                     <div><span>Driver</span><strong>{alert.driver_name || "—"}</strong></div>
                     <div><span>Location</span><strong>{alert.address || alert.geofence_name || "—"}</strong></div>
                     <div><span>Severity</span><strong>{alert.severity || "—"}</strong></div>

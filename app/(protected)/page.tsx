@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../../lib/junkware-trucks';
 import { redirect } from "next/navigation";
 import PageHeader from "@/components/PageHeader";
 import DataHealth from "@/components/DataHealth";
@@ -838,7 +839,7 @@ export default async function DashboardPage({
                       <strong>{employeeName(row)}</strong>
                       <small>{String(row.shift_status || row.clock_out_display || "Daily Krewe")}</small>
                     </td>
-                    <td>{employeeTruck(row)}</td>
+                    <td>{truckDisplayText(employeeTruck(row))}</td>
                     <td className="ops-daily-leaderboard-jobs">{employeeJobs(row)}</td>
                     <td className="ops-money ops-daily-leaderboard-revenue">{money(employeeRevenue(row))}</td>
                     <td className="ops-money">{money(employeeRph(row))}</td>

@@ -1,4 +1,5 @@
 'use client';
+import { truckDisplayText } from '../../lib/junkware-trucks';
 import TruckAgents from '../truck-agents';
 import AgentHierarchy from '../agent-hierarchy';
 import { fleetSnapshotUrl } from '../lib/fleet-snapshot';
@@ -4507,7 +4508,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                         <article className={item.priority} key={item.id}>
                           <span className={`closeout-category ${item.category.toLowerCase()}`}>{item.category}</span>
                           <div className="closeout-appointment"><strong>{renderJkLink(item.appointmentId, item.source, item.due)}</strong><small>{item.customer}</small></div>
-                          <div className="closeout-route"><strong>{item.truck}</strong><small>{item.window}</small></div>
+                          <div className="closeout-route"><strong>{truckDisplayText(item.truck)}</strong><small>{item.window}</small></div>
                           <strong className="closeout-amount">{item.amount}</strong>
                           <div className="closeout-exception"><strong>{item.exception}</strong><span>{item.detail}</span><small>{item.source}</small></div>
                           <div className="closeout-owner"><strong>{linkedDecision?.owner || item.owner}</strong><small>{linkedDecision?.status || 'Queue Only'}</small></div>
@@ -4560,7 +4561,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <div className="control-route-list">
                   {schedule.map((route) => (
                     <article className={route.tone} key={route.truck}>
-                      <header><div><span className={`route-state ${route.tone}`}>{route.status}</span><strong>{route.truck}</strong><small>{route.crew}</small></div><button onClick={() => openFleetTruckByLabel(route.truck)}>Open <ArrowRight size={12} /></button></header>
+                      <header><div><span className={`route-state ${route.tone}`}>{route.status}</span><strong>{truckDisplayText(route.truck)}</strong><small>{route.crew}</small></div><button onClick={() => openFleetTruckByLabel(route.truck)}>Open <ArrowRight size={12} /></button></header>
                       <div><span>Current</span><strong>{renderLinkedJkText(route.current, 'JunkWare schedule', 'Live')}</strong><small>{route.currentMeta}</small></div>
                       <div><span>Next</span><strong>{route.next}</strong><small>Confirmed</small></div>
                       <footer><strong>{route.stops}</strong><span><i style={{ width: `${route.progress}%` }} /></span></footer>
@@ -4795,7 +4796,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                             {routeCandidates.map((candidate, index) => (
                               <div className={`route-candidate-row ${candidate.tone}${index === 0 ? ' best' : ''}`} key={candidate.truckId}>
                                 <span className="route-rank">{index + 1}</span>
-                                <div><strong>{candidate.truck}</strong><small>{renderLinkedJkText(candidate.reason, 'JunkWare schedule', 'Route comparison')}</small></div>
+                                <div><strong>{truckDisplayText(candidate.truck)}</strong><small>{renderLinkedJkText(candidate.reason, 'JunkWare schedule', 'Route comparison')}</small></div>
                                 <div><b>{candidate.minutes} min · {candidate.miles} mi</b><small>Free {candidate.available} · {candidate.origin} → {candidate.arrival}</small></div>
                                 <em>{candidate.buffer === null ? 'Conflict' : candidate.buffer < 0 ? `${Math.abs(candidate.buffer)}m late` : `${candidate.buffer}m buffer`}</em>
                               </div>
@@ -4830,7 +4831,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                       )}
                       {scheduleRows.map((row) => (
                         <div className={`schedule-truck-row${bestRouteCandidate?.truck === row.truck ? ' route-best-truck' : routeFocusAppointment && routeCandidateTruckLabels.has(row.truck) ? ' route-candidate-truck' : ''}`} data-schedule-truck={row.truck} key={row.truck}>
-                          <button type="button" className="schedule-truck-cell" disabled={!fleetTruckRows.some((truck) => truck.label === row.truck)} onClick={() => openFleetTruckByLabel(row.truck)} aria-label={`Open ${row.truck} record`}><i className={row.tone} /><strong>{row.truck}</strong><span>{row.crew}</span><small>{row.status}</small></button>
+                          <button type="button" className="schedule-truck-cell" disabled={!fleetTruckRows.some((truck) => truck.label === row.truck)} onClick={() => openFleetTruckByLabel(row.truck)} aria-label={`Open ${row.truck} record`}><i className={row.tone} /><strong>{truckDisplayText(row.truck)}</strong><span>{row.crew}</span><small>{row.status}</small></button>
                           {scheduleTimes.map((time, slot) => (
                             <div
                               className="schedule-drop-zone"
@@ -5007,7 +5008,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                                 <div>{renderJkLink(appointment.jk, 'JunkWare schedule', 'Live')}</div>
                                 <div><strong>{appointment.customer}</strong><PhoneContact phone={appointment.details.phone} /></div>
                                 <div><GoogleMapsAddress address={appointment.details.address} /><small>{appointment.area}</small></div>
-                                <div><strong>{appointment.truck}</strong><small>{appointment.crew}</small></div>
+                                <div><strong>{truckDisplayText(appointment.truck)}</strong><small>{appointment.crew}</small></div>
                                 <div><strong>{appointment.details.scope}</strong><small>{appointment.details.value}</small></div>
                                 <div><span className={`appointment-state ${appointment.state.toLowerCase().replaceAll(' ', '-')}`}>{appointment.state}</span><small>{appointment.cancellationReason ? appointment.cancellationReason : `${appointment.addressVerified ? 'Address verified · ' : ''}${appointment.details.notes}`}</small></div>
                               </article>
@@ -5156,7 +5157,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   <div className="section-title"><div><span className="section-kicker">Ranked by credited revenue</span><h2>Krewe Snapshot</h2></div><span className="krewe-live-label">{rankedKrewe.length} ranked</span></div>
                   <div className="krewe-snapshot-table">
                     <div className="krewe-snapshot-head"><span>Rank</span><span>Krewe member</span><span>Truck</span><span>Jobs</span><span>Revenue</span><span>Revenue / hr</span><span>Average job</span><span>Daily earnings</span></div>
-                    {rankedKrewe.map((member, index) => <button className={index < 3 ? `rank-${index + 1}` : ''} onClick={() => openKreweMember(member)} key={member.id}><span className="krewe-rank">{String(index + 1).padStart(2, '0')}</span><span className="snapshot-person"><strong>{member.name}</strong><small>{member.status}</small></span><span>{member.truck}</span><span>{member.jobs ?? '—'}</span><strong>{moneyValue(member.revenue)}</strong><span>{moneyValue(member.rph)}</span><span>{moneyValue(member.averageJob)}</span><strong>{moneyValue(member.totalPay)}</strong></button>)}
+                    {rankedKrewe.map((member, index) => <button className={index < 3 ? `rank-${index + 1}` : ''} onClick={() => openKreweMember(member)} key={member.id}><span className="krewe-rank">{String(index + 1).padStart(2, '0')}</span><span className="snapshot-person"><strong>{member.name}</strong><small>{member.status}</small></span><span>{truckDisplayText(member.truck)}</span><span>{member.jobs ?? '—'}</span><strong>{moneyValue(member.revenue)}</strong><span>{moneyValue(member.rph)}</span><span>{moneyValue(member.averageJob)}</span><strong>{moneyValue(member.totalPay)}</strong></button>)}
                   </div>
                 </section>
 
@@ -5179,7 +5180,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                         <article className={`krewe-performance-row${member.issue ? ' attention' : ''}`} key={member.id}>
                           <div className="krewe-identity"><i>{member.initials}</i><span><strong>{member.name}</strong><small>{member.role} · {member.id}</small></span></div>
                           <div className="krewe-time"><span className={`krewe-status ${member.status.toLowerCase().replaceAll(' ', '-')}`}>{member.status}</span><small>{member.clockIn === '—' ? 'No clock-in' : `${member.clockIn}${member.clockOut !== '—' ? `–${member.clockOut}` : ' · On shift'}`}</small></div>
-                          <label className="krewe-assignment"><span className="sr-only">Truck assignment for {member.name}</span><select value={member.truck} disabled={member.status === 'Off today'} onChange={(event) => assignKreweMember(member.id, event.target.value)}>{member.status === 'Off today' && <option>Not scheduled</option>}{kreweTruckOptions.map((truck) => <option value={truck} key={truck}>{truck}</option>)}</select><small>{member.assignmentConfidence}</small></label>
+                          <label className="krewe-assignment"><span className="sr-only">Truck assignment for {member.name}</span><select value={member.truck} disabled={member.status === 'Off today'} onChange={(event) => assignKreweMember(member.id, event.target.value)}>{member.status === 'Off today' && <option>Not scheduled</option>}{kreweTruckOptions.map((truck) => <option value={truck} key={truck}>{truckDisplayText(truck)}</option>)}</select><small>{member.assignmentConfidence}</small></label>
                           <div className="krewe-number"><strong>{member.jobs == null ? '—' : `${member.jobs} · ${moneyValue(member.jobRevenue)}`}</strong><small>{member.revenue == null ? 'Roster only' : `${moneyValue(member.revenue)} credited`}</small></div>
                           <div className="krewe-number"><strong>{moneyValue(member.regularPay == null ? null : member.regularPay + (member.overtimeAdditional || 0))}</strong><small>{member.regularPay == null ? 'Unavailable' : `${moneyValue(member.regularPay)} regular + ${moneyValue(member.overtimeAdditional)} OT`}</small></div>
                           <div className="krewe-number"><strong>{moneyValue(member.tips)}</strong><small>today</small></div>
@@ -5197,7 +5198,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                     {kreweMembers.filter((member) => member.issue).map((member) => (
                       <article className="krewe-exception" key={member.id}>
                         <div><Badge variant="outline">{member.status === 'Missing clock-in' ? 'Time record' : 'Assignment'}</Badge><span>{member.role}</span></div>
-                        <strong>{member.name}</strong><p>{member.issue}</p><small>{member.truck} · {member.territory}</small>
+                        <strong>{member.name}</strong><p>{member.issue}</p><small>{truckDisplayText(member.truck)} · {member.territory}</small>
                         <Button variant="outline" size="sm" onClick={() => openKreweMember(member)}>{member.status === 'Missing clock-in' ? 'Correct time' : 'Assign truck'} <ArrowRight /></Button>
                       </article>
                     ))}
@@ -5457,7 +5458,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 <div className="section-title"><div><span className="section-kicker">{financePayments.length} jobs · {financeMatchedCount} reconciled</span><h2>Payments by Job</h2><p>JK number, customer, job total, payment, adjustment, and review state remain visible together.</p></div><Badge variant="outline">Sunday, Aug 31</Badge></div>
                 <div className="finance-payment-summary"><article><span>Job Totals</span><strong>{moneyValue(financeJobTotal)}</strong><small>JunkWare closeouts</small></article><article><span>Captured Payments</span><strong>{moneyValue(financePayments.reduce((sum, payment) => sum + payment.paymentAmount, 0))}</strong><small>Card and cash records</small></article><article><span>Verified Adjustments</span><strong>{moneyValue(financePayments.reduce((sum, payment) => sum + payment.adjustment, 0))}</strong><small>Explicit reconciliation entries</small></article><article className={financeDifference ? 'attention' : ''}><span>Difference</span><strong>{moneyValue(financeDifference)}</strong><small>{financeDifference ? 'Needs review' : 'Fully reconciled'}</small></article></div>
                 <div className="finance-payment-head"><span>JK Number</span><span>Customer</span><span>Truck</span><span>Job Total</span><span>Payment</span><span>Adjustment</span><span>Difference</span><span>Method / Reference</span><span>Status</span><span /></div>
-                <div className="finance-payment-list">{financePayments.map((payment) => { const difference = payment.jobTotal - payment.paymentAmount - payment.adjustment; return <article className={payment.status === 'Matched' ? 'matched' : 'review'} key={payment.id}><button className="finance-job-link" onClick={() => openUnifiedJobRecord(payment.id, 'JunkWare + QBO', 'Current daily close')}>{payment.id}</button><div><strong>{payment.customer}</strong><small>{payment.note}</small></div><button className="finance-truck-link" onClick={() => openFleetTruckByLabel(payment.truck)}>{payment.truck}</button><strong>{moneyValue(payment.jobTotal)}</strong><span>{moneyValue(payment.paymentAmount)}</span><span>{moneyValue(payment.adjustment)}</span><strong className={difference ? 'difference' : ''}>{moneyValue(Math.abs(difference))}</strong><div><strong>{payment.method}</strong><small>{payment.reference}</small></div><span className={`finance-payment-status ${payment.status.toLowerCase().replaceAll(' ', '-')}`}>{payment.status}</span>{payment.status === 'Matched' ? <small className="finance-balanced"><Check size={12} />Balanced</small> : <Button variant="outline" size="sm" onClick={() => confirmFinanceAdjustment(payment.id)}>Confirm Adjustment</Button>}</article>; })}</div>
+                <div className="finance-payment-list">{financePayments.map((payment) => { const difference = payment.jobTotal - payment.paymentAmount - payment.adjustment; return <article className={payment.status === 'Matched' ? 'matched' : 'review'} key={payment.id}><button className="finance-job-link" onClick={() => openUnifiedJobRecord(payment.id, 'JunkWare + QBO', 'Current daily close')}>{payment.id}</button><div><strong>{payment.customer}</strong><small>{payment.note}</small></div><button className="finance-truck-link" onClick={() => openFleetTruckByLabel(payment.truck)}>{truckDisplayText(payment.truck)}</button><strong>{moneyValue(payment.jobTotal)}</strong><span>{moneyValue(payment.paymentAmount)}</span><span>{moneyValue(payment.adjustment)}</span><strong className={difference ? 'difference' : ''}>{moneyValue(Math.abs(difference))}</strong><div><strong>{payment.method}</strong><small>{payment.reference}</small></div><span className={`finance-payment-status ${payment.status.toLowerCase().replaceAll(' ', '-')}`}>{payment.status}</span>{payment.status === 'Matched' ? <small className="finance-balanced"><Check size={12} />Balanced</small> : <Button variant="outline" size="sm" onClick={() => confirmFinanceAdjustment(payment.id)}>Confirm Adjustment</Button>}</article>; })}</div>
                 <footer className="finance-payment-note"><ShieldCheck size={14} /><span>A payment difference is never hidden. Confirming an adjustment records it separately from the captured payment and balances it against the JunkWare job total.</span></footer>
               </section>}
 
@@ -5609,7 +5610,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   <label><span>Estimated volume</span><select value={newAppointment.loadPickups} onChange={(event) => setNewAppointment((form) => ({ ...form, loadPickups: Number(event.target.value) }))}>{[1, 2, 3, 4, 5, 6].map((pickups) => <option value={pickups} key={pickups}>{pickups} pickup equivalent{pickups === 1 ? '' : 's'} · {Math.round((pickups / 6) * 100)}%</option>)}</select></label>
                   <label><span>Load type</span><select value={newAppointment.loadStream} onChange={(event) => setNewAppointment((form) => ({ ...form, loadStream: event.target.value as AppointmentLoadStream }))}><option value="mixed">Mixed material</option><option value="metal">Metal-heavy</option><option value="donation">Donation / resale</option></select></label>
                   <label><span>Appointment window</span><select value={newAppointment.window} onChange={(event) => setNewAppointment((form) => ({ ...form, window: event.target.value }))}>{scheduleWindowOptions.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label>
-                  <label><span>Truck assignment</span><select value={newAppointment.truck} onChange={(event) => { setNewAppointment((form) => ({ ...form, truck: event.target.value })); setNewAppointmentError(''); }}>{scheduleRows.map((row) => { const truck = fleetTruckRows.find((item) => item.label === row.truck); return <option value={row.truck} key={row.truck}>{row.truck} · {row.crew}{truck ? ` · ${truck.loadPercent}% loaded` : ''}</option>; })}</select></label>
+                  <label><span>Truck assignment</span><select value={newAppointment.truck} onChange={(event) => { setNewAppointment((form) => ({ ...form, truck: event.target.value })); setNewAppointmentError(''); }}>{scheduleRows.map((row) => { const truck = fleetTruckRows.find((item) => item.label === row.truck); return <option value={row.truck} key={row.truck}>{truckDisplayText(row.truck)} · {row.crew}{truck ? ` · ${truck.loadPercent}% loaded` : ''}</option>; })}</select></label>
                 </div>
                 <div className="appointment-placement-assist">
                   <header>
@@ -5630,7 +5631,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                             key={`${placement.truck}-${placement.window}`}
                           >
                             <i>{index === 0 ? 'Best Fit' : `Option ${index + 1}`}</i>
-                            <div><strong>{placement.truck} · {placement.windowLabel}</strong><span>{placement.crew} · {placement.reason}</span></div>
+                            <div><strong>{truckDisplayText(placement.truck)} · {placement.windowLabel}</strong><span>{placement.crew} · {placement.reason}</span></div>
                             <div><strong>{placement.minutes} min · {placement.miles} mi</strong><span>{placement.buffer < 0 ? `${Math.abs(placement.buffer)} min route shortfall` : `${placement.buffer} min route buffer`} · {placement.sameTerritory ? 'Same territory' : 'Cross-territory'}</span></div>
                             <div className="appointment-placement-load"><strong>{placement.currentLoad}% → {placement.projectedLoad}%</strong><span className="appointment-load-track"><b style={{ width: `${Math.min(100, placement.projectedLoad)}%` }} /></span><small>{placement.jobLoad}% job · {placement.capacityMessage}</small></div>
                             <em>{placement.capacityStatus === 'insufficient' ? 'No Fit' : selected ? <><Check size={11} /> Selected</> : 'Use'}</em>
@@ -5702,7 +5703,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                     </article>
                     <article>
                       <span>Assignment</span>
-                      <strong>{newAppointment.truck} · {newAppointmentAssignedRow?.crew || 'Crew Pending'}</strong>
+                      <strong>{truckDisplayText(newAppointment.truck)} · {newAppointmentAssignedRow?.crew || 'Crew Pending'}</strong>
                       <small>{selectedNewAppointmentPlacement
                         ? `${selectedNewAppointmentPlacement.minutes} min · ${selectedNewAppointmentPlacement.miles} mi · ${selectedNewAppointmentPlacement.buffer} min buffer`
                         : newAppointmentDirectEstimate
@@ -5789,7 +5790,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                 </div>
                 <h2 id="record-drawer-title">{drawer.title}</h2>
                 {activeAppointment && <p>{activeAppointment.customer} · {activeAppointment.area}</p>}
-                {activeKrewe && <p>{activeKrewe.role} · {activeKrewe.truck}</p>}
+                {activeKrewe && <p>{activeKrewe.role} · {truckDisplayText(activeKrewe.truck)}</p>}
                 {activeFleetTruck && <p>{activeFleetIssue ? `${activeFleetTruck.label} · ${activeFleetIssue.status}` : `${activeFleetTruck.vehicle} · ${activeFleetTruck.operatingStatus}`}</p>}
                 {activeActionQueueItem && <p>{activeActionQueueItem.workspace} · {renderLinkedJkText(activeActionQueueItem.record, activeActionQueueItem.source, activeActionQueueItem.due)}</p>}
                 {activeCustomer && <p><PhoneContact phone={activeCustomer.phone} /> · {activeCustomer.appointments.length} linked appointment{activeCustomer.appointments.length === 1 ? '' : 's'}</p>}
@@ -5884,7 +5885,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   <section className="job-record-section area-record-section" aria-label="Area appointments">
                     <header><div><span>Schedule</span><strong>Today and Tomorrow</strong></div><Badge variant="outline">{activeAreaAppointments.length} appointment{activeAreaAppointments.length === 1 ? '' : 's'}</Badge></header>
                     <div className="territory-record-appointment-list area-record-appointment-list">
-                      {activeAreaAppointments.map((appointment) => <button onClick={() => openUnifiedJobRecord(appointment.jk, 'Area Record + JunkWare', appointment.day === 'today' ? 'Today · Live' : 'Tomorrow plan')} key={`${appointment.day}-${appointment.jk}`}><time><strong>{appointment.day === 'today' ? 'Today' : 'Tomorrow'}</strong><span>{appointment.time}</span></time><div><strong>{appointment.jk} · {appointment.customer}</strong><span>{appointment.area} · {appointment.truck} · {appointment.details.scope}</span></div><em className={appointment.state.toLowerCase().replaceAll(' ', '-')}>{appointment.state}</em><ArrowRight size={14} /></button>)}
+                      {activeAreaAppointments.map((appointment) => <button onClick={() => openUnifiedJobRecord(appointment.jk, 'Area Record + JunkWare', appointment.day === 'today' ? 'Today · Live' : 'Tomorrow plan')} key={`${appointment.day}-${appointment.jk}`}><time><strong>{appointment.day === 'today' ? 'Today' : 'Tomorrow'}</strong><span>{appointment.time}</span></time><div><strong>{appointment.jk} · {appointment.customer}</strong><span>{appointment.area} · {truckDisplayText(appointment.truck)} · {appointment.details.scope}</span></div><em className={appointment.state.toLowerCase().replaceAll(' ', '-')}>{appointment.state}</em><ArrowRight size={14} /></button>)}
                       {!activeAreaAppointments.length && <div className="job-record-empty-row">No appointments are currently linked to this area.</div>}
                     </div>
                   </section>
@@ -5899,7 +5900,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                     <section className="job-record-section area-record-section" aria-label="Area Krewe">
                       <header><div><span>Krewe</span><strong>Working this area</strong></div><Badge variant="outline">{activeAreaKrewe.length}</Badge></header>
                       <div className="territory-record-asset-list area-record-asset-list">
-                        {activeAreaKrewe.map((member) => <button className="krewe" onClick={() => { setActiveNav('Krewe'); setKreweView('today'); openKreweMember(member); }} key={member.id}><i>{member.initials}</i><div><strong>{member.name}</strong><span>{member.role} · {member.truck}</span></div><em className={member.issue ? 'attention' : 'healthy'}>{member.status}</em><ArrowRight size={13} /></button>)}
+                        {activeAreaKrewe.map((member) => <button className="krewe" onClick={() => { setActiveNav('Krewe'); setKreweView('today'); openKreweMember(member); }} key={member.id}><i>{member.initials}</i><div><strong>{member.name}</strong><span>{member.role} · {truckDisplayText(member.truck)}</span></div><em className={member.issue ? 'attention' : 'healthy'}>{member.status}</em><ArrowRight size={13} /></button>)}
                         {!activeAreaKrewe.length && <div className="job-record-empty-row">No active Krewe record is linked to this area.</div>}
                       </div>
                     </section>
@@ -5948,7 +5949,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   <section className="job-record-section territory-record-section" aria-label="Territory appointments">
                     <header><div><span>Schedule</span><strong>Today and Tomorrow</strong></div><Badge variant="outline">{activeTerritoryAppointments.length} appointment{activeTerritoryAppointments.length === 1 ? '' : 's'}</Badge></header>
                     <div className="territory-record-appointment-list">
-                      {activeTerritoryAppointments.map((appointment) => <button onClick={() => openUnifiedJobRecord(appointment.jk, 'Territory Record + JunkWare', appointment.day === 'today' ? 'Today · Live' : 'Tomorrow plan')} key={`${appointment.day}-${appointment.jk}`}><time><strong>{appointment.day === 'today' ? 'Today' : 'Tomorrow'}</strong><span>{appointment.time}</span></time><div><strong>{appointment.jk} · {appointment.customer}</strong><span>{appointment.areaDesignator.code} · {appointment.area} · {appointment.truck}</span></div><em className={appointment.state.toLowerCase().replaceAll(' ', '-')}>{appointment.state}</em><ArrowRight size={14} /></button>)}
+                      {activeTerritoryAppointments.map((appointment) => <button onClick={() => openUnifiedJobRecord(appointment.jk, 'Territory Record + JunkWare', appointment.day === 'today' ? 'Today · Live' : 'Tomorrow plan')} key={`${appointment.day}-${appointment.jk}`}><time><strong>{appointment.day === 'today' ? 'Today' : 'Tomorrow'}</strong><span>{appointment.time}</span></time><div><strong>{appointment.jk} · {appointment.customer}</strong><span>{appointment.areaDesignator.code} · {appointment.area} · {truckDisplayText(appointment.truck)}</span></div><em className={appointment.state.toLowerCase().replaceAll(' ', '-')}>{appointment.state}</em><ArrowRight size={14} /></button>)}
                       {!activeTerritoryAppointments.length && <div className="job-record-empty-row">No appointments are currently linked to this territory.</div>}
                     </div>
                   </section>
@@ -5963,7 +5964,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                     <section className="job-record-section territory-record-section" aria-label="Territory Krewe">
                       <header><div><span>Krewe</span><strong>Working in territory</strong></div><Badge variant="outline">{activeTerritoryKrewe.length}</Badge></header>
                       <div className="territory-record-asset-list">
-                        {activeTerritoryKrewe.map((member) => <button className="krewe" onClick={() => { setActiveNav('Krewe'); setKreweView('today'); openKreweMember(member); }} key={member.id}><i>{member.initials}</i><div><strong>{member.name}</strong><span>{member.role} · {member.truck}</span></div><em className={member.issue ? 'attention' : 'healthy'}>{member.status}</em><ArrowRight size={13} /></button>)}
+                        {activeTerritoryKrewe.map((member) => <button className="krewe" onClick={() => { setActiveNav('Krewe'); setKreweView('today'); openKreweMember(member); }} key={member.id}><i>{member.initials}</i><div><strong>{member.name}</strong><span>{member.role} · {truckDisplayText(member.truck)}</span></div><em className={member.issue ? 'attention' : 'healthy'}>{member.status}</em><ArrowRight size={13} /></button>)}
                         {!activeTerritoryKrewe.length && <div className="job-record-empty-row">No active Krewe records are linked to this territory.</div>}
                       </div>
                     </section>
@@ -6030,7 +6031,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                       </header>
                       <div className="appointment-creation-proof">
                         <article><span>JK Record</span><strong>{activeAppointment.jk}</strong><small>Exact identifier returned</small></article>
-                        <article><span>Schedule Position</span><strong>{activeAppointment.time} · {activeAppointment.truck}</strong><small>{activeAppointment.crew}</small></article>
+                        <article><span>Schedule Position</span><strong>{activeAppointment.time} · {truckDisplayText(activeAppointment.truck)}</strong><small>{activeAppointment.crew}</small></article>
                         <article><span>Service Location</span><strong>{activeAppointment.areaDesignator.code} · {activeAppointment.area}</strong><small>{activeAppointment.addressVerified ? 'Address verified' : 'Address review required'}</small></article>
                         <article><span>Call Ahead</span><strong>{activeCreationReceipt.callAheadRequired ? 'Required' : 'Not requested'}</strong><small>{activeCreationReceipt.callAheadRequired ? 'Included in message context' : 'No call-ahead note found'}</small></article>
                       </div>
@@ -6042,7 +6043,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                           </Button>
                         </article>
                         <article className={activeCreationReceipt.crewDelivery}>
-                          <div><span>Crew Notification</span><strong>{activeAppointment.truck === 'Unassigned' ? 'Assignment Required' : activeCreationReceipt.crewDelivery === 'delivered' ? 'Delivered' : activeCreationReceipt.crewDelivery === 'sending' ? 'Sending…' : 'Not Sent'}</strong><small>{activeAppointment.truck} · {activeAppointment.crew}</small></div>
+                          <div><span>Crew Notification</span><strong>{activeAppointment.truck === 'Unassigned' ? 'Assignment Required' : activeCreationReceipt.crewDelivery === 'delivered' ? 'Delivered' : activeCreationReceipt.crewDelivery === 'sending' ? 'Sending…' : 'Not Sent'}</strong><small>{truckDisplayText(activeAppointment.truck)} · {activeAppointment.crew}</small></div>
                           <Button variant="outline" size="sm" disabled={activeAppointment.truck === 'Unassigned' || activeCreationReceipt.crewDelivery !== 'not-sent'} onClick={() => sendCreatedAppointmentMessage('crew')}>
                             {activeCreationReceipt.crewDelivery === 'delivered' ? <><Check /> Delivered</> : activeCreationReceipt.crewDelivery === 'sending' ? 'Sending…' : 'Notify Crew'}
                           </Button>
@@ -6056,7 +6057,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   )}
                   <section className="drawer-appointment-overview" aria-label="Appointment summary">
                     <div><span>Window</span><strong>{activeAppointment.time}</strong><small>{activeAppointment.kind}</small></div>
-                    <div><span>Assignment</span><strong>{activeAppointment.truck}</strong><small>{activeAppointment.crew}</small></div>
+                    <div><span>Assignment</span><strong>{truckDisplayText(activeAppointment.truck)}</strong><small>{activeAppointment.crew}</small></div>
                     <div><span>Territory / Area</span><button className="job-area-link" onClick={() => openAreaRecord(activeAppointment.territory, activeAppointment.areaDesignator.code)}>{territoryDesignators[activeAppointment.territory]} · {activeAppointment.areaDesignator.code}<ArrowRight size={11} /></button><small>{activeAppointment.territory} · {activeAppointment.areaDesignator.label}</small></div>
                     <div><span>Status</span><strong className={`drawer-status ${activeAppointment.state.toLowerCase().replaceAll(' ', '-')}`}>{activeAppointment.state}</strong><small>{activeAppointment.addressVerified ? 'Address verified' : 'Verify address'}</small></div>
                   </section>
@@ -6150,7 +6151,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   <section className="job-record-section" aria-label="Operating connections">
                     <header><div><span>Operating Connections</span><strong>Truck, Krewe, photos, and appointment closeout</strong></div><Badge variant="outline">Reconciled by JK number</Badge></header>
                     <div className="job-record-connection-grid">
-                      <div><span>Truck</span>{activeJobTruck ? <button className="job-record-linked-record" onClick={() => openFleetTruck(activeJobTruck)}><strong>{activeJobTruck.label}</strong><ArrowRight size={12} /></button> : <strong>{activeAppointment.truck}</strong>}<small>{activeJobTruck ? `${activeJobTruck.operatingStatus} · ${activeJobTruck.location}` : 'No Fleet record linked'}</small><em className={activeJobTruck?.gpsFresh ? 'healthy' : 'attention'}>{activeJobTruck ? (activeJobTruck.gpsFresh ? `LinxUp · ${activeJobTruck.gpsAge} ago` : `Position stale · ${activeJobTruck.gpsAge}`) : 'Schedule assignment only'}</em></div>
+                      <div><span>Truck</span>{activeJobTruck ? <button className="job-record-linked-record" onClick={() => openFleetTruck(activeJobTruck)}><strong>{activeJobTruck.label}</strong><ArrowRight size={12} /></button> : <strong>{truckDisplayText(activeAppointment.truck)}</strong>}<small>{activeJobTruck ? `${activeJobTruck.operatingStatus} · ${activeJobTruck.location}` : 'No Fleet record linked'}</small><em className={activeJobTruck?.gpsFresh ? 'healthy' : 'attention'}>{activeJobTruck ? (activeJobTruck.gpsFresh ? `LinxUp · ${activeJobTruck.gpsAge} ago` : `Position stale · ${activeJobTruck.gpsAge}`) : 'Schedule assignment only'}</em></div>
                       <div><span>Krewe</span><strong>{activeJobKrewe.length ? activeJobKrewe.map((member) => member.name).join(' · ') : activeAppointment.crew}</strong><small>{activeJobKrewe.length ? activeJobKrewe.map((member) => member.role).join(' · ') : 'No attendance rows linked'}</small><em className={activeJobKrewe.some((member) => Boolean(member.issue)) ? 'attention' : 'healthy'}>{activeJobKrewe.some((member) => Boolean(member.issue)) ? 'Attendance needs review' : 'Assignment connected'}</em></div>
                       <div><span>Photos</span><strong>{activeJobPhotoAlert?.facts.find((fact) => fact.label === 'Photos')?.value || 'No verified batch'}</strong><small>{activeJobPhotoAlert?.detail || 'JunkWare photo status unavailable'}</small><em className={activeJobPhotoAlert ? 'healthy' : 'attention'}>{activeJobPhotoAlert ? 'Verified in JunkWare' : 'Verification pending'}</em></div>
                       <div><span>Closeout</span><strong>{activeAppointment.kind === 'Estimate' ? activeAppointment.state : activeJobPayment?.status || (activeAppointment.state === 'Completed' ? 'Payment not linked' : 'Not due')}</strong><small>{activeAppointment.kind === 'Estimate' ? (activeAppointment.state === 'Estimate Closed' ? 'Schedule work closed · no job revenue' : 'Estimate outcome is still open') : activeJobPayment ? `${moneyValue(activeJobPayment.jobTotal)} job total` : 'No QBO reconciliation record'}</small><em className={activeAppointment.kind === 'Estimate' ? 'estimate' : activeJobPayment?.status === 'Matched' ? 'healthy' : activeJobPayment ? 'attention' : ''}>{activeAppointment.kind === 'Estimate' ? 'Estimate · no payment closeout' : activeJobPayment ? `${activeJobPayment.method} · ${activeJobPayment.reference}` : 'JunkWare + QBO'}</em></div>
@@ -6203,7 +6204,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                       <label>
                         <span>Truck Assignment</span>
                         <select value={appointmentChangeDraft.truck} onChange={(event) => setAppointmentChangeDraft((draft) => ({ ...draft, truck: event.target.value }))} disabled={appointmentChangeLocked || appointmentChangeDraft.cancel}>
-                          {scheduleRows.map((row) => <option value={row.truck} key={row.truck}>{row.truck} · {row.crew}</option>)}
+                          {scheduleRows.map((row) => <option value={row.truck} key={row.truck}>{truckDisplayText(row.truck)} · {row.crew}</option>)}
                         </select>
                       </label>
                       <label>
@@ -6319,7 +6320,7 @@ export default function Home({ live }: { live?: DesktopLiveProps } = {}) {
                   {activeKrewe && (
                     <section className="krewe-drawer-controls" aria-label="Krewe controls">
                       <div className="drawer-control-heading"><span>Manager controls</span><strong>Assignment, time, and bonus</strong><small>Every correction keeps its manager reason. Time corrections override OpsCenter calculations without altering the JunkWare source record in this prototype.</small></div>
-                      <label className="krewe-drawer-assignment"><span>Truck assignment</span><select value={activeKrewe.truck} disabled={activeKrewe.status === 'Off today'} onChange={(event) => assignKreweMember(activeKrewe.id, event.target.value)}>{activeKrewe.status === 'Off today' && <option>Not scheduled</option>}{kreweTruckOptions.map((truck) => <option value={truck} key={truck}>{truck}</option>)}</select></label>
+                      <label className="krewe-drawer-assignment"><span>Truck assignment</span><select value={activeKrewe.truck} disabled={activeKrewe.status === 'Off today'} onChange={(event) => assignKreweMember(activeKrewe.id, event.target.value)}>{activeKrewe.status === 'Off today' && <option>Not scheduled</option>}{kreweTruckOptions.map((truck) => <option value={truck} key={truck}>{truckDisplayText(truck)}</option>)}</select></label>
                       <div className="krewe-time-fields">
                         <label><span>Corrected clock-in</span><Input type="time" value={timeCorrection.clockIn} onChange={(event) => setTimeCorrection((correction) => ({ ...correction, clockIn: event.target.value }))} /></label>
                         <label><span>Corrected clock-out</span><Input type="time" value={timeCorrection.clockOut} onChange={(event) => setTimeCorrection((correction) => ({ ...correction, clockOut: event.target.value }))} /></label>

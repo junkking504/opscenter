@@ -1,3 +1,4 @@
+import { sameTruck } from './junkware-trucks';
 import {crewCloseoutArrival,crewCloseoutTimes} from './crew-closeout-time';
 import { crewCheckoutDryRun } from './crew-checkout-dry-run';
 import { requireCrewDay,closeoutCrewDefaults } from './crew-phone-day';
@@ -27,7 +28,7 @@ export function crewReceiptProjection(receipt:ScheduleReceipt) {
 }
 export function validateCrewCloseout(values:Record<string,unknown>,truck:string,id:string,date:string) {
   const allowed=['appointmentId','targetStatus','truck','serviceDate','driverId','navigatorIds','loadQuantity','loadSize','loadPrice','bedloadQuantity','bedloadSize','bedloadPrice','otherChargesToAdd','discount','tip','jobCategoryId','howHeardId','actualStartHour','actualStartMinute','actualEndHour','actualEndMinute','addPayment','expectedSourceVersion','appointmentType','estimateOutcome'];
-  if(Object.keys(values).some(key=>!allowed.includes(key)) || values.targetStatus!=='8' || values.truck!==truck || values.appointmentId!==id || values.serviceDate!==date
+  if(Object.keys(values).some(key=>!allowed.includes(key)) || values.targetStatus!=='8' || !sameTruck(values.truck,truck) || values.appointmentId!==id || values.serviceDate!==date
     || !['Job','Estimate'].includes(String(values.appointmentType)))throw new CrewPhoneError('Close only your current appointment using its assigned truck.',403);
   const payment=values.addPayment;
   if(payment!==null && payment!==undefined && (typeof payment!=='object' || Array.isArray(payment) || Object.keys(payment).some(key=>!['methodId','amount','reference'].includes(key))))throw new CrewPhoneError('Enter a collected payment with its method, amount and reference.');
@@ -35,7 +36,7 @@ export function validateCrewCloseout(values:Record<string,unknown>,truck:string,
 export async function loadCrewCloseout(request:Request,assignmentId:string,deps=crewCloseoutDependencies) {
   return deps.scope(request,assignmentId,async({phone,current,job})=>{
     const result=await deps.read(current.appointmentId);
-    if(result.appointmentId!==current.appointmentId || result.closeout?.truck!==phone.truck)throw new CrewPhoneError('The source appointment changed. Contact dispatch.',409);
+    if(result.appointmentId!==current.appointmentId || !sameTruck(result.closeout?.truck,phone.truck))throw new CrewPhoneError('The source appointment changed. Contact dispatch.',409);
     const pending=await readPendingScheduleReceipt(job.recordId),actor=actorFor(phone.deviceId,current.assignmentId);
     const day=result.closeout.status?.value==='1' && !pending?requireCrewDay(phone,current.date):null;
     return {arrival:crewCloseoutArrival(job,phone.truck,current.date),dryRun:crewCheckoutDryRun(current,phone.truck),crewVersion:day?.version || 0,crewDefaults:day?closeoutCrewDefaults(day,result.closeout):undefined,closeout:result.closeout,sourceVersion:closeoutSourceVersion(result.closeout),jobVersion:job.version,
@@ -58,14 +59,14 @@ export async function submitCrewCloseout(request:Request,body:Record<string,unkn
     if(readCrewDispatch(phone.truck).current?.assignmentId!==assignmentId)throw new CrewPhoneError('Dispatch changed. Refresh your assignment.',409);
     const snapshot=deps.schedule(current.date);
     if(!crewScheduleFresh(snapshot.observedAt))throw new CrewPhoneError('The appointment source is unavailable. Contact dispatch.',409);
-    const matches=snapshot.appointments.filter(job=>job.appointmentId===current.appointmentId && job.truck===phone.truck);
+    const matches=snapshot.appointments.filter(job=>job.appointmentId===current.appointmentId && sameTruck(job.truck,phone.truck));
     return matches.length===1?matches[0]:undefined;
   },async(_job,receipt)=>{
     let writeStarted=false;
     try {
       return await deps.scope(request,assignmentId,async({phone,current,job})=>{
         const before=await deps.read(current.appointmentId);
-        if(before.appointmentId!==current.appointmentId || before.closeout?.truck!==phone.truck || before.closeout?.status?.value!=='1'
+        if(before.appointmentId!==current.appointmentId || !sameTruck(before.closeout?.truck,phone.truck) || before.closeout?.status?.value!=='1'
           || closeoutSourceVersion(before.closeout)!==operation.values.expectedSourceVersion)throw new CrewPhoneError('This closeout changed. Reload and review the saved appointment.',409);
         requireCloseoutPhotos(before.closeout,'8',current.appointmentId);
         if(operation.values.addPayment){

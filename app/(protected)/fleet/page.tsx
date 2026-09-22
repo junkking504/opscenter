@@ -1,3 +1,4 @@
+import { truckDisplayText } from '../../../lib/junkware-trucks';
 import Link from "next/link";
 import { Fragment } from "react";
 import "./maintenance.css";
@@ -488,7 +489,7 @@ function renderJulySummaryPage({
                     </details>
                   </td>
                   <td>{row.daysAssigned}</td>
-                  <td>{row.trucks.join(", ") || "—"}</td>
+                  <td>{truckDisplayText(row.trucks.join(", ") || "—")}</td>
                   <td>{formatMaybeNumber(row.milesDriven, 2)} mi</td>
                   <td>{row.averageDriverScore == null ? "Insufficient driving data" : formatScore(row.averageDriverScore)}</td>
                   <td>{row.speedingEvents + row.severeSpeedingEvents + row.afterHoursEvents + (row.hardBrakingEvents || 0)}</td>
@@ -533,7 +534,7 @@ function renderJulySummaryPage({
                       }) + `&truck=${encodeURIComponent(truckParam(row.truck))}`}
                       className="ops-fleet-truck-link"
                     >
-                      <strong>{row.truck}</strong>
+                      <strong>{truckDisplayText(row.truck)}</strong>
                     </FleetTruckLink>
                     <details className="ops-inline-details">
                       <summary>Daily results</summary>
@@ -929,7 +930,7 @@ export default async function FleetPage({
                           <div className="ops-driver-panel-heading">
                             <div>
                               <span>Truck driving score</span>
-                              <strong>{truckLabel}</strong>
+                              <strong>{truckDisplayText(truckLabel)}</strong>
                             </div>
                             <div className={`ops-driver-score-status ${hasScore ? scoreTone : "ops-score-neutral"}`}>
                               {hasScore ? drivingScoreCompensationLabel(numericScore) : "No score"}
@@ -994,7 +995,7 @@ export default async function FleetPage({
         {selectedDriverRow && (
           <div className="ops-driver-panel">
             <div className="ops-driver-panel-title">
-              Selected Truck: <strong>{selectedTruck}</strong>
+              Selected Truck: <strong>{truckDisplayText(selectedTruck)}</strong>
             </div>
             <div className="ops-driver-panel-grid">
               <div><span>Assigned Driver</span><strong>{selectedDriverRow.assigned_driver || "—"}</strong></div>
@@ -1015,7 +1016,7 @@ export default async function FleetPage({
                     <div key={alert.alert_id || `${alert.alert_type}-${alert.occurred_at}-${alert.truck_number}`} className="ops-alert-detail-row">
                       <div><span>Time</span><strong>{String(alert.occurred_at || '—')}</strong></div>
                       <div><span>Type</span><strong>{String(alert.alert_type_normalized && alert.alert_type_normalized !== "unknown" ? alert.alert_type_normalized : alert.alert_type || 'unknown')}</strong></div>
-                      <div><span>Truck</span><strong>{String(alert.truck_number || '—')}</strong></div>
+                      <div><span>Truck</span><strong>{truckDisplayText(String(alert.truck_number || '—'))}</strong></div>
                       <div><span>Driver</span><strong>{String(alert.driver_name || '—')}</strong></div>
                       <div><span>Location</span><strong>{String(alert.address || alert.geofence_name || '—')}</strong></div>
                       <div><span>Severity</span><strong>{String(alert.severity || '—')}</strong></div>

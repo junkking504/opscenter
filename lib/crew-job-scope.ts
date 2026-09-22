@@ -1,3 +1,4 @@
+import { sameTruck } from './junkware-trucks';
 import { requireCrewReady } from './crew-phone-http';
 import { requireCrewDay } from './crew-phone-day';
 import { CrewPhoneError } from './crew-phone';
@@ -22,9 +23,9 @@ export async function withCrewJob<T>(request: Request, assignmentId: string,
     };
     assertScope();
     const source = await dependencies.assignment(current.appointmentId);
-    if (source.appointmentId !== current.appointmentId || source.truck !== phone.truck || source.date !== current.date || !/^(confirmed|completed)$/i.test(source.status || '')) throw new CrewPhoneError('This appointment is no longer assigned to this truck. Contact dispatch.', 409);
+    if (source.appointmentId !== current.appointmentId || !sameTruck(source.truck,phone.truck) || source.date !== current.date || !/^(confirmed|completed)$/i.test(source.status || '')) throw new CrewPhoneError('This appointment is no longer assigned to this truck. Contact dispatch.', 409);
     const snapshot = dependencies.schedule(current.date);
-    const matches = snapshot.appointments.filter(job => job.appointmentId === current.appointmentId && job.truck === phone.truck);
+    const matches = snapshot.appointments.filter(job => job.appointmentId === current.appointmentId && sameTruck(job.truck,phone.truck));
     if (!crewScheduleFresh(snapshot.observedAt) || matches.length !== 1 || (matches[0].junkwareSyncStatus && matches[0].junkwareSyncStatus !== 'verified')) throw new CrewPhoneError('The appointment source is unavailable. Contact dispatch.', 409);
     assertScope();
     const result = await run({ phone, current, job: matches[0] });

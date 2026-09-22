@@ -1,5 +1,6 @@
 "use client";
 
+import { truckDisplayText } from '../lib/junkware-trucks';
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { truckCameraLabel } from "../lib/linxup-truck-label";
 import styles from "./TruckCameraController.module.css";
@@ -213,7 +214,7 @@ export default function TruckCameraController({ children, className = "ops-app" 
         <header className={styles.header}>
           <div>
             <div className="ops-eyebrow">LinxUp live camera</div>
-            <h2>{truckCameraLabel(truck || 0)}</h2>
+            <h2>{truckDisplayText(truckCameraLabel(truck || 0))}</h2>
           </div>
           <button type="button" className={styles.close} onClick={closeCamera} aria-label="Close live camera">×</button>
         </header>
@@ -221,7 +222,7 @@ export default function TruckCameraController({ children, className = "ops-app" 
         {camera.status === "loading" ? (
           <div className={styles.message} aria-live="polite">
             <span className={styles.spinner} />
-            <strong>Connecting to {truckCameraLabel(camera.truck)}…</strong>
+            <strong>Connecting to {truckDisplayText(truckCameraLabel(camera.truck))}…</strong>
             <span>This can take up to 20 seconds.</span>
           </div>
         ) : null}

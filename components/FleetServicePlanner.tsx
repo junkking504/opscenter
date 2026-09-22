@@ -1,5 +1,6 @@
 "use client";
 
+import { truckDisplayText } from '../lib/junkware-trucks';
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FleetMaintenanceRecord } from "@/lib/fleet-maintenance";
@@ -122,13 +123,13 @@ export default function FleetServicePlanner({ initialRecords, truckOptions, inve
               onClick={() => selectTruck(option)}
               onKeyDown={(event) => navigateTruckTabs(event, index)}
             >
-              {option}
+              {truckDisplayText(option)}
             </button>
           ))}
         </div>
       </div>
       <div id="service-truck-panel" role="tabpanel" aria-labelledby={`service-truck-tab-${Math.max(0, truckOptions.indexOf(truck))}`}>
-        <div className="ops-service-vehicle-summary"><strong>{truck}</strong><span>{vehicle?.odometer == null ? "Odometer unavailable" : `${Math.round(vehicle.odometer).toLocaleString("en-US")} current miles`}</span><span>{vehicle ? [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ") : "Vehicle details unavailable"}</span></div>
+        <div className="ops-service-vehicle-summary"><strong>{truckDisplayText(truck)}</strong><span>{vehicle?.odometer == null ? "Odometer unavailable" : `${Math.round(vehicle.odometer).toLocaleString("en-US")} current miles`}</span><span>{vehicle ? [vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(" ") : "Vehicle details unavailable"}</span></div>
         <div className="ops-wide-table-wrap"><table className="ops-table ops-service-table"><thead><tr><th>Service</th><th>Last completed</th><th>Next target</th><th>Status</th><th></th></tr></thead><tbody>
         {rows.map((row) => <tr key={row.rule.serviceType}>
           <td><strong>{row.rule.label}</strong><small>{row.rule.miles ? `Every ${row.rule.miles.toLocaleString("en-US")} miles or ${row.rule.days} days` : `Every ${row.rule.days} days`}</small></td>

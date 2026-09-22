@@ -400,7 +400,7 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
       text: [
-        ":moneybag: *Job Completed - Westbank -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051000|JK4051000>* *- 1:00 PM - 2:00 PM - Truck 1*",
+        ":moneybag: *Job Completed - Westbank -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051000|JK4051000>* *- 1:00 PM - 2:00 PM - Truck# 1*",
         "*C:* Closeout Customer  |  *D:* Driver One  |  *N:* Navigator One",
         "*Load:* $538.00 (1/2)  |  *Labor:* $225.00",
         "*Payment:* $558.80 (xx-3013)",
@@ -410,7 +410,7 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_6",
       text: [
-        ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051001|JK4051001>* *- Time unavailable - Truck 6*",
+        ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051001|JK4051001>* *- Time unavailable - Truck# 6*",
         "*C:* Check Customer  |  *D:* Driver Six  |  *N:* Navigator Six",
         "*Payment:* $198.00 (Check #1487)",
       ].join("\n"),
@@ -419,7 +419,7 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_1",
       text: [
-        ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051003|JK4051003>* *- Time unavailable - Truck 1*",
+        ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051003|JK4051003>* *- Time unavailable - Truck# 1*",
         "*C:* Payment Customer  |  *D:* Driver Payment  |  *N:* Navigator Payment",
         "*Payment:* $150.00 (2 payments)",
       ].join("\n"),
@@ -428,7 +428,7 @@ assert.deepEqual(
       kind: "job_closed",
       channelId: "C_TEST_TRUCK_4",
       text: [
-        ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051005|JK4051005>* *- Time unavailable - Truck 4*",
+        ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051005|JK4051005>* *- Time unavailable - Truck# 4*",
         "*C:* No Payment Customer  |  *D:* Driver Four  |  *N:* Navigator Four",
         "*Payment:* Not recorded",
       ].join("\n"),
@@ -466,7 +466,7 @@ assert.deepEqual(
     kind: "estimate_closed",
     channelId: "C_TEST_TRUCK_6",
     text: [
-      ":moneybag: *Estimate Completed - Westbank -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051006|JK4051006>* *- 8:00 AM - 9:00 AM - Truck 6*",
+      ":moneybag: *Estimate Completed - Westbank -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051006|JK4051006>* *- 8:00 AM - 9:00 AM - Truck# 6*",
       "*C:* Estimate Customer  |  *D:* Estimate Driver  |  *N:* Estimate Navigator",
       "*Load:* $328.00 (1/4)  |  *Misc:* $60.00",
       "*Total:* $358.00",
@@ -522,7 +522,7 @@ assert.deepEqual(
       kind: "truck_arrival",
       channelId: "C_TEST_TRUCK_4",
       text: [
-        ":truck: *Truck 4 Arrival*",
+        ":truck: *Truck# 4 Arrival*",
         "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4050424|JK4050424>*",
         "1:06 PM",
         "Test Customer",
@@ -534,7 +534,7 @@ assert.deepEqual(
       kind: "truck_arrival",
       channelId: "C_TEST_TRUCK_4",
       text: [
-        ":truck: *Truck 4 Arrival*",
+        ":truck: *Truck# 4 Arrival*",
         "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4050424|JK4050424>*",
         "1:41 PM",
         "Test Customer",
@@ -647,12 +647,12 @@ const newEstimateCloseout = {
   },
 };
 const expectedNewCloseoutMessage = [
-  ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|JK4051502>* *- Time unavailable - Truck 6*",
+  ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051502|JK4051502>* *- Time unavailable - Truck# 6*",
   "*C:* New Closeout Customer  |  *D:* New Driver  |  *N:* New Navigator",
   "*Payment:* $220.00 (Check #2201)",
 ].join("\n");
 const expectedNewEstimateCloseoutMessage = [
-  ":moneybag: *Estimate Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051504|JK4051504>* *- Time unavailable - Truck 6*",
+  ":moneybag: *Estimate Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051504|JK4051504>* *- Time unavailable - Truck# 6*",
   "*C:* New Estimate Customer  |  *D:* Estimate Driver  |  *N:* Estimate Navigator",
   "*Load:* $180.00 (1/4)",
   "*Total:* $180.00",
@@ -721,7 +721,7 @@ try {
   assert.deepEqual(arrivalRun.posted.map((alert) => alert.kind), ["truck_arrival"]);
   assert.deepEqual(postedMessages, [
     [
-      ":truck: *Truck 6 Arrival*",
+      ":truck: *Truck# 6 Arrival*",
       "*<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|JK4051503>*",
       "1:47 PM",
       "Arrival Customer",
@@ -843,7 +843,7 @@ try {
   });
   assert.deepEqual(directCloseout, { attempted: true, posted: true, duplicate: false });
   assert.equal(postedMessages.at(-1), [
-    ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|JK4051503>* *- Time unavailable - Truck 6*",
+    ":moneybag: *Job Completed - Unknown territory -* *<https://ops.junk-king.app/jobs?date=2026-08-12#job-jk4051503|JK4051503>* *- Time unavailable - Truck# 6*",
     "*C:* Direct Closeout Customer  |  *D:* Direct Driver  |  *N:* Direct Navigator",
     "*Load:* $100.00 (1/6)",
     "*Payment:* $110.00 (xx-1503)",

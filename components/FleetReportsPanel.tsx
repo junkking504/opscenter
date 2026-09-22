@@ -1,5 +1,6 @@
 "use client";
 
+import { truckDisplayText } from '../lib/junkware-trucks';
 import type { FleetChecklistEntry } from "@/lib/fleet-checklists";
 import type { FleetIssue } from "@/lib/fleet-issues";
 import type { FleetMaintenanceRecord } from "@/lib/fleet-maintenance";
@@ -63,7 +64,7 @@ export default function FleetReportsPanel({ entries, issues, records, today }: {
       </div>
       <div className="ops-report-grid">
         <div><div className="ops-section-title">Inspector Activity · 30 Days</div>{inspectors.length ? <table className="ops-table"><thead><tr><th>Inspector</th><th>Completed</th><th>Issues found</th></tr></thead><tbody>{inspectors.slice(0, 10).map((row) => <tr key={row.name}><td><strong>{row.name}</strong></td><td>{row.completed}</td><td>{row.attention}</td></tr>)}</tbody></table> : <p className="ops-muted">No completed inspections yet.</p>}</div>
-        <div><div className="ops-section-title">Repeat Problems</div>{repeats.length ? <table className="ops-table"><thead><tr><th>Truck</th><th>Problem</th><th>Occurrences</th></tr></thead><tbody>{repeats.map((row) => <tr key={`${row.truck}-${row.title}`}><td><strong>{row.truck}</strong></td><td>{row.title}{row.active ? <small>{row.active} still active</small> : null}</td><td>{row.count}</td></tr>)}</tbody></table> : <p className="ops-muted">No repeat repair patterns yet.</p>}</div>
+        <div><div className="ops-section-title">Repeat Problems</div>{repeats.length ? <table className="ops-table"><thead><tr><th>Truck</th><th>Problem</th><th>Occurrences</th></tr></thead><tbody>{repeats.map((row) => <tr key={`${row.truck}-${row.title}`}><td><strong>{truckDisplayText(row.truck)}</strong></td><td>{row.title}{row.active ? <small>{row.active} still active</small> : null}</td><td>{row.count}</td></tr>)}</tbody></table> : <p className="ops-muted">No repeat repair patterns yet.</p>}</div>
       </div>
     </section>
   );

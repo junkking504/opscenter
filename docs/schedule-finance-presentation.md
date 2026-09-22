@@ -816,20 +816,23 @@ Completed job badges include confirmed GPS time on site, rounded to whole
 minutes. Missing or incomplete visit evidence displays **Time unavailable**;
 scheduled appointment duration is not substituted for actual time on site.
 
-### Assigned completed blocks show actual visits
+### Completed blocks default to the GPS-confirmed truck
 
-Within the appointment's current JunkWare truck lane, Truck Schedule positions
-completed jobs at confirmed GPS arrival and sizes each block through departure.
-Separate confirmed visits by that assigned truck appear as separate segments;
-time away is left empty. The axis includes its recorded visits outside booked
-hours, and overlapping actual visits use separate lanes. Missing, incomplete,
-mismatched, cross-truck, or inconsistent visit evidence keeps the booked window.
-Open jobs and estimates continue to use their booked windows.
+For completed work with one uniquely confirmed appointment visit, Truck Schedule
+uses the physical GPS truck as the operational truck of record. The appointment
+appears once in that truck's lane at confirmed arrival and is sized through
+departure. If JunkWare still names another truck, Schedule labels the mismatch
+and prefills the verified assignment correction. Conflicting visits by multiple
+trucks do not choose a default. Missing or inconsistent visit evidence keeps the
+saved JunkWare assignment and booked window. Open work continues to use its
+booked assignment unless it is completed.
 
 The source on-site summary exposes its merged confirmed intervals for this
 rendering; totals still exclude gaps and duplicate GPS observations. Hover text
-and the selected appointment retain the original booking. Drag review continues
-to use the booked duration; resizing the display never reschedules a job.
+and the selected appointment retain the original booking. Completed blocks are
+draggable: review changes the JunkWare assignment or booked window while GPS
+history, completion status and closeout evidence stay unchanged. Source read-back
+must verify the saved move.
 
 Validation: `npx tsx scripts/test-schedule-actual-blocks.ts`,
 `npx tsx scripts/test-schedule-travel-layout.ts`, and
@@ -842,16 +845,15 @@ from the unchanged booked appointment window.
 
 ## Truck assignment blocks and visit evidence
 
-Truck Schedule is an assignment view: every appointment appears only in its
-current JunkWare truck lane. A GPS visit by another truck remains source
-evidence on the appointment but does not duplicate that booking into a second
-schedule lane. This prevents a shared or test address visited by multiple trucks
-from making one appointment look multiply assigned.
+Truck Schedule shows every appointment once. Open work follows its current
+JunkWare assignment. Completed work with one unique confirmed visit follows the
+physical GPS truck; the stale JunkWare value remains visible until corrected
+through the verified move workflow. This prevents a mismatch from hiding the
+actual visit without duplicating the appointment across lanes.
 
-Confirmed visits by the assigned truck can still size that lane's block using
-its arrival and departure. Return visits remain separate segments, leaving time
-away blank. Overlapping duplicate observations for the assigned truck are
-merged.
+Confirmed visits by the operational GPS truck size that lane's block using
+arrival and departure. Return visits remain separate segments, leaving time
+away blank. Overlapping duplicate observations for that truck are merged.
 
 An active qualified visit grows from its arrival to now within the existing
 GPS/parked presence policy. An open assigned-truck visit without current presence

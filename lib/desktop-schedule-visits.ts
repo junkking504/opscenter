@@ -85,5 +85,9 @@ export function scheduleVisitState(
   const boundedDeparture = trackedForJob?.filter(visit=>visit.departureBounds).sort((a,b)=>(b.departedAt || '').localeCompare(a.departedAt || ''))[0];
   const hasSuperseded = trackedForJob?.some(visit=>!!visit.supersededAt);
   const onsiteTime = boundedDeparture ? {minutes:null,arrival:boundedDeparture.enteredAt,departure:null,label:'Departure confirmed · exact time unavailable'} : hasSuperseded ? {minutes:null,arrival:trackedForJob?.[0]?.enteredAt || null,departure:null,label:'Recorded GPS segments · departure timing incomplete'} : appointmentOnsiteTime(job, visits, now);
-  return { onsiteGpsAt: onsiteObservation?.lastGpsUpdate || undefined, onsiteGpsParked: onsiteObservation ? parkedTruckObservation(onsiteObservation) : undefined, hasVisit: confirmed.length > 0, hasDepartedVisit, truckOnSite: Boolean(activeVisit), onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, onsiteTime };
+  // Keep the assignment-scoped value above for closeout suggestions. This
+  // second value is display-only evidence and may identify the physical truck
+  // even when JunkWare's current assignment differs.
+  const recordedOnsiteTime = boundedDeparture || hasSuperseded ? onsiteTime : appointmentOnsiteTime(job, visits, now, true);
+  return { onsiteGpsAt: onsiteObservation?.lastGpsUpdate || undefined, onsiteGpsParked: onsiteObservation ? parkedTruckObservation(onsiteObservation) : undefined, hasVisit: confirmed.length > 0, hasDepartedVisit, truckOnSite: Boolean(activeVisit), onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, onsiteTime, recordedOnsiteTime };
 }

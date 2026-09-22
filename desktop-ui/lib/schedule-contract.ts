@@ -47,6 +47,7 @@ export type ScheduleAppointment = {
   onsiteGpsAt?: string;
   onsiteGpsParked?: boolean;
   onsiteTime?: AppointmentOnsiteTime;
+  recordedOnsiteTime?: AppointmentOnsiteTime;
   truckVisits?: ScheduleTruckVisit[];
   truck: string;
   driver: string;
@@ -163,6 +164,17 @@ export function scheduleMoveWindow(job: Pick<ScheduleAppointment, 'appointmentSt
   return { changed, supported, durationHours: duration === null ? null : duration / 60, label: !changed ? job.appointmentTime || 'Time Not Set' : `${format(start!)}${duration === null ? '' : `–${format(start! + duration)}`}` };
 }
 export function truckLabel(value: string) { const raw=value.trim(); const match = raw.match(/^(?:truck\s*#?\s*|t\s*|#\s*)?(\d+)$/i); return match ? Number(match[1])===0?'Unassigned':`Truck ${Number(match[1])}` : !raw || /unassigned|virtual|^—$/i.test(raw) ? 'Unassigned' : raw; }
+/** For completed work, a unique confirmed GPS visit is the operational truck
+ * of record. Keep the current JunkWare value available so the UI can expose
+ * and correct a source mismatch through the verified move workflow. */
+export function scheduleDisplayTruck(job: Pick<ScheduleAppointment,'status'|'truck'|'recordedOnsiteTime'>) {
+  const gpsTruck = truckLabel(job.recordedOnsiteTime?.truck || '');
+  return /complete|closed/i.test(job.status || '') && gpsTruck !== 'Unassigned' ? gpsTruck : truckLabel(job.truck || '');
+}
+export function scheduleTruckMismatch(job: Pick<ScheduleAppointment,'status'|'truck'|'recordedOnsiteTime'>) {
+  const displayed = scheduleDisplayTruck(job), source = truckLabel(job.truck || '');
+  return displayed !== source ? {gpsTruck:displayed,junkwareTruck:source} : null;
+}
 /** Empty trucks are still dispatch destinations. Source-only trucks are retained
  * and Unassigned stays available even after its last appointment is assigned. */
 export function scheduleTruckNames(snapshot?: Pick<ScheduleSnapshot,'fleet'|'appointments'>): string[] {
@@ -170,12 +182,11 @@ export function scheduleTruckNames(snapshot?: Pick<ScheduleSnapshot,'fleet'|'app
     .sort((a,b)=>a===b?0:a==='Unassigned'?1:b==='Unassigned'?-1:a.localeCompare(b,undefined,{numeric:true}));
 }
 
-/** Schedule lanes are an assignment view. GPS evidence from a different truck
- * remains on the appointment record, but must not place that appointment in a
- * second lane and make one booking look multiply assigned. */
+/** Schedule lanes show one operational truck per appointment. Completed work
+ * follows unique confirmed GPS evidence; other work follows JunkWare. */
 export function scheduleBoardJobs(jobs: ScheduleAppointment[], truck: string, now = Date.now()) {
   const lane = truckLabel(truck);
-  return jobs.filter(job => truckLabel(job.truck) === lane && timelineWindow(job, lane, now) !== null);
+  return jobs.filter(job => scheduleDisplayTruck(job) === lane && timelineWindow(job, lane, now) !== null);
 }
 /** Completed blocks use confirmed visit intervals; source appointment windows remain unchanged. */
 export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.truck || ''), now = Date.now()) {
@@ -239,7 +250,7 @@ export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.
 }
 export function timelineRange(jobs: ScheduleAppointment[], now = Date.now()) {
   const windows = jobs.flatMap(job => {
-    const display = timelineWindow(job,truckLabel(job.truck || ''),now);
+    const display = timelineWindow(job,scheduleDisplayTruck(job),now);
     const booked = job.hasScheduledTime && job.appointmentStartMinutes !== null && job.appointmentEndMinutes !== null
       ? [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes}] : [];
     return display ? [...booked,display] : booked;
@@ -249,7 +260,13 @@ export function timelineRange(jobs: ScheduleAppointment[], now = Date.now()) {
   return { start, end, duration: end - start };
 }
 export function scheduleTimelineBlockMovable(job: ScheduleAppointment, actual: boolean, busy = false) {
-  return !actual && !isClosed(job) && !scheduleMoveRestriction(job) && !busy;
+  return (!actual || /complete|closed/i.test(job.status)) && !scheduleMoveRestriction(job) && !busy;
+}
+export function displayedOnsiteTime(job: Pick<ScheduleAppointment,'onsiteTime'|'recordedOnsiteTime'>) {
+  const assigned = job.onsiteTime;
+  if (assigned?.minutes !== null && assigned?.minutes !== undefined && assigned.arrival && assigned.departure) return assigned;
+  const recorded = job.recordedOnsiteTime;
+  return recorded?.minutes !== null && recorded?.minutes !== undefined && recorded.arrival && recorded.departure ? recorded : assigned || recorded;
 }
 export function timelinePlacement(job: ScheduleAppointment, range: ReturnType<typeof timelineRange>, truck?: string, now = Date.now()) {
   const window = timelineWindow(job, truck, now);

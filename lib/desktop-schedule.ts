@@ -21,7 +21,7 @@ import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-a
 import { readScheduleVisits, scheduleVisitState } from '@/lib/desktop-schedule-visits';
 import { readOperationalTruckLoads, truckChargeSummary } from './truck-load-closeouts';
 
-export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
+export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
   truck: string;
   fromAppointmentId: string;

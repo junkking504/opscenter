@@ -3,7 +3,7 @@ import {appointmentServiceAddress} from '../lib/service-address-format';
 import { completedOnsiteClockRange } from '../lib/appointment-onsite-time';
 import { ArrowRight, MapPin, Phone, Clock3, Truck, X } from 'lucide-react';
 import { appointmentPartner, serviceAddressForGeocoding } from '../lib/appointment-partner';
-import { appointmentCategory, appointmentStatus, appointmentRegion, appointmentColorClass, isClosed, assignmentNeedsVerification, scheduleCustomerLabel, truckLabel, type ScheduleAppointment, type ClosestTruck } from './lib/schedule-contract';
+import { appointmentCategory, appointmentStatus, appointmentRegion, appointmentColorClass, displayedOnsiteTime, isClosed, assignmentNeedsVerification, scheduleCustomerLabel, scheduleDisplayTruck, scheduleTruckMismatch, truckLabel, type ScheduleAppointment, type ClosestTruck } from './lib/schedule-contract';
 import { schedulePayment } from './lib/schedule-payment';
 import './schedule-appointment-summary.css';
 
@@ -17,7 +17,8 @@ export default function ScheduleAppointmentSummary({job,closest,loading,isToday,
 }) {
   const partner = appointmentPartner(job);
   const status = appointmentStatus(job);
-  const onsiteClocks = status === 'Completed' ? completedOnsiteClockRange(job.onsiteTime) : null;
+  const onsiteClocks = status === 'Completed' ? completedOnsiteClockRange(displayedOnsiteTime(job)) : null;
+  const truckMismatch = scheduleTruckMismatch(job);
   const onsiteGps = job.onsiteGpsAt && Number.isFinite(Date.parse(job.onsiteGpsAt)) ? new Date(job.onsiteGpsAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}) : null;
   const onsite = isToday && !isClosed(job) ? job.truckOnSite ? job.onsiteTruck || truckLabel(job.truck) : job.lastSeenOnsiteTruck : undefined;
   const items = (job.pickupItems?.length ? job.pickupItems : job.junkItems).join(' · ');
@@ -31,7 +32,7 @@ export default function ScheduleAppointmentSummary({job,closest,loading,isToday,
     <div className="selected-job-main">
       <span className="selected-job-area">{appointmentRegion(job).area}</span>
       <header><div className="selected-job-heading"><span>{job.jkNumber} · {appointmentCategory(job)}</span><h2>{scheduleCustomerLabel(job)}</h2></div><span className="selected-job-status">{status}</span><button className="selected-job-clear" aria-label="Clear appointment selection" disabled={busy} onClick={clear}><X size={17} /></button></header>
-      <div className="selected-job-facts"><span><Clock3 size={14} />{job.appointmentTime || 'Time not set'}</span><span><Truck size={14} />{truckDisplayText(truckLabel(job.truck))}</span>{job.truckOnSite && job.onsiteTruck && truckLabel(job.onsiteTruck) !== truckLabel(job.truck) && <span>{truckDisplayText(truckLabel(job.onsiteTruck))} on site</span>}{partner && <span className="appointment-partner-badge">{partner.name}</span>}{assignmentNeedsVerification(job) && <strong className="selected-job-warning">Assignment not verified</strong>}</div>
+      <div className="selected-job-facts"><span><Clock3 size={14} />{job.appointmentTime || 'Time not set'}</span><span><Truck size={14} />{truckDisplayText(scheduleDisplayTruck(job))}</span>{truckMismatch && <strong className="selected-job-warning">GPS confirmed · JunkWare says {truckDisplayText(truckMismatch.junkwareTruck)}</strong>}{job.truckOnSite && job.onsiteTruck && truckLabel(job.onsiteTruck) !== truckLabel(job.truck) && <span>{truckDisplayText(truckLabel(job.onsiteTruck))} on site</span>}{partner && <span className="appointment-partner-badge">{partner.name}</span>}{assignmentNeedsVerification(job) && <strong className="selected-job-warning">Assignment not verified</strong>}</div>
       {onsiteClocks && <div className="selected-job-facts"><span>{onsiteClocks}</span></div>}
       <div className="selected-job-contact">{job.address ? <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(serviceAddressForGeocoding(appointmentServiceAddress(job)))}`} target="_self" rel="noopener noreferrer"><MapPin size={14} />{appointmentServiceAddress(job)}</a> : <span>Address unavailable</span>}{phone.length >= 7 && <a href={`tel:+${phone.length === 10 ? '1' : ''}${phone}`}><Phone size={14} />{job.phone}</a>}</div>
 

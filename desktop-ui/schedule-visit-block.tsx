@@ -14,7 +14,7 @@ export default function ScheduleVisitBlock({job,truck,position,segmentIndex,top,
   const state=position.actual ? interval.ongoing?'On site':interval.complete?'Recorded visit':'Departure unconfirmed' : appointmentStatus(job);
   const partner=appointmentPartner(job);
   const movable=scheduleTimelineBlockMovable(job,position.actual,busy);
-  const description=position.actual ? `Recorded GPS visit. JunkWare assignment is ${truckDisplayText(job.truck)}. Click to open appointment details.` : scheduleMoveRestriction(job) || 'Drag to change truck or time; click to open appointment details.';
+  const description=position.actual ? movable ? `Recorded GPS visit. Drag to change the completed appointment's JunkWare assignment or window; GPS history stays unchanged.` : `Recorded GPS visit. JunkWare assignment is ${truckDisplayText(job.truck)}. Click to open appointment details.` : scheduleMoveRestriction(job) || 'Drag to change truck or time; click to open appointment details.';
   const minutes=interval.end-interval.start;
   const time=position.actual ? `${clock(interval.start)}–${interval.ongoing?'now':clock(interval.end)} · ${minutes<1?'<1':Math.round(minutes)} min on site` : `${job.appointmentTime} · Planned booked window`;
   const assignment=position.actual && truckDisplayText(job.truck)!==truckDisplayText(truck) ? ` · Assigned ${truckDisplayText(job.truck)}` : '';

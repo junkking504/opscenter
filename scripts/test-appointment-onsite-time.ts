@@ -11,6 +11,10 @@ assert.equal(appointmentOnsiteTime(job,[row,row],now).minutes,21.5,'Duplicate GP
 assert.equal(appointmentOnsiteTime(job,[{...row,visit_intervals:[interval,{arrival:'2026-09-06T14:00:00Z',departure:'2026-09-06T14:10:00Z'}]}],now).minutes,31.5,'Time away is excluded');
 assert.equal(appointmentOnsiteTime(job,[{...row,visit_intervals:[interval,{arrival:'2026-09-06T13:40:00Z',departure:'2026-09-06T13:50:00Z'}]}],now).minutes,23.6,'Overlaps count once');
 for (const patch of [{appointment_id:'999'},{match_confidence:'ambiguous'},{pass_by_only:true},{truck_number:'Truck 6'}]) assert.equal(appointmentOnsiteTime(job,[{...row,...patch}],now).minutes,null);
+const mismatch={...row,truck_number:'Truck 6'};
+assert.equal(appointmentOnsiteTime(job,[mismatch],now).minutes,null,'Assignment-scoped time stays unavailable for closeout safety');
+assert.deepEqual(appointmentOnsiteTime(job,[mismatch],now,true),{...time,truck:'Truck 6'},'Display-only evidence follows the unique truck that physically visited');
+assert.match(appointmentOnsiteTime(job,[mismatch,{...mismatch,truck_number:'Truck 8'}],now,true).label,/multiple trucks/,'Conflicting physical trucks do not produce a default');
 assert.equal(appointmentOnsiteTime({jkNumber:job.jkNumber},[row,{...row,appointment_id:'999'}],now).minutes,null,'A shared JK cannot identify one appointment');
 for (const departure of [null,'invalid','2026-09-06T12:00:00Z','2026-09-06T21:00:00Z']) assert.equal(appointmentOnsiteTime(job,[{...row,visit_intervals:[{...interval,departure}]}],now).minutes,null);
 assert.match(appointmentOnsiteTime(job,[{...row,visit_intervals:[{...interval,departure:null}]}],now).label,/Awaiting/);

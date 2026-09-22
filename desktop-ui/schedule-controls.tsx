@@ -5,6 +5,8 @@ import { Button } from "./components/ui/button";
 import type { MoveProposal, ScheduleAppointment } from "./lib/schedule-contract";
 import {
   assignmentNeedsVerification,
+  scheduleDisplayTruck,
+  scheduleTruckMismatch,
   scheduleMoveWindow,
   truckLabel,
   isClosed,
@@ -141,7 +143,9 @@ export function MoveConfirmation({
         </p>
       )}
       <p>
-        {/^confirmed$/i.test(move.job.status) && move.truck !== "Unassigned"
+        {/complete|closed/i.test(move.job.status)
+          ? "This changes the completed appointment in JunkWare. Its recorded GPS visit, completion status, and closeout evidence stay unchanged."
+          : /^confirmed$/i.test(move.job.status) && move.truck !== "Unassigned"
           ? "This assigns the appointment to the truck in JunkWare. Release it separately in Crew Dispatch for Waypoint. The phone uses the truck selected in its daily setup."
           : "This changes the appointment in JunkWare."}
       </p>
@@ -196,7 +200,7 @@ export default function ScheduleControls({
   saved: () => void;
   onBusyChange: (busy: boolean) => void;
 }) {
-  const [truck, setTruck] = useState(truckLabel(job.truck));
+  const [truck, setTruck] = useState(scheduleDisplayTruck(job));
   const [start, setStart] = useState(
     job.appointmentStartMinutes === null ? "" : String(job.appointmentStartMinutes),
   );
@@ -259,6 +263,11 @@ export default function ScheduleControls({
       {assignmentNeedsVerification(job) && (
         <p className="drawer-action-feedback" role="status">
           Assignment Not Verified in JunkWare. Check the source before another move.
+        </p>
+      )}
+      {scheduleTruckMismatch(job) && (
+        <p className="drawer-action-feedback" role="status">
+          GPS confirms {truckDisplayText(scheduleTruckMismatch(job)!.gpsTruck)} visited this completed appointment. JunkWare still says {truckDisplayText(scheduleTruckMismatch(job)!.junkwareTruck)}; review the prefilled correction below.
         </p>
       )}
       {!/cancel/i.test(job.status) && (

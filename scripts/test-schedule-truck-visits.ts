@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { scheduleTruckVisits } from '../lib/schedule-visit-intervals';
-import { scheduleBoardJobs, scheduleTimelineBlockMovable, timelinePlacement, timelineRange, timelineWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
+import { scheduleBoardJobs, scheduleDisplayTruck, scheduleTimelineBlockMovable, scheduleTruckMismatch, timelinePlacement, timelineRange, timelineWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
 import { scheduleTravelLayout } from '../desktop-ui/lib/schedule-travel-layout';
 const now=Date.parse('2026-09-14T18:00:00Z');
 const location={latitude:30,longitude:-90};
@@ -50,6 +50,12 @@ assert.equal(scheduleBoardJobs([sharedPremises],'Truck 8',now).length,0,'Prior G
 assert.equal(scheduleTravelLayout(scheduleBoardJobs([sharedPremises],'Truck 3',now),[],range,'Truck 3',now).placed.length,0,'Board layout cannot reintroduce cross-truck visit blocks');
 assert.equal(scheduleTimelineBlockMovable(sharedPremises,false),true,'The booked assignment remains draggable');
 assert.equal(scheduleTimelineBlockMovable(sharedPremises,true),false,'Recorded GPS history is never draggable');
+const completedMismatch={...sharedPremises,status:'Completed',recordedOnsiteTime:{minutes:60,arrival:'2026-09-14T14:00:00Z',departure:'2026-09-14T15:00:00Z',label:'60 min',truck:'Truck 8'}};
+assert.equal(scheduleDisplayTruck(completedMismatch),'Truck 8','Completed work defaults to the unique GPS-confirmed truck');
+assert.deepEqual(scheduleTruckMismatch(completedMismatch),{gpsTruck:'Truck 8',junkwareTruck:'Truck 1'});
+assert.equal(scheduleBoardJobs([completedMismatch],'Truck 1',now).length,0,'A completed mismatch does not remain on the stale JunkWare lane');
+assert.deepEqual(scheduleBoardJobs([completedMismatch],'Truck 8',now).map(row=>row.appointmentId),['1'],'The completed appointment appears once on the GPS truck lane');
+assert.equal(scheduleTimelineBlockMovable(completedMismatch,true),true,'A completed GPS block can correct its JunkWare assignment or window');
 assert.equal(JSON.stringify({job,ledger,truck}),original,'Rendering cannot mutate booking, GPS or visit history');
 const shortArrival={...truck,speed:0,ignition:'OFF',routePoints:[{...location,timestamp:'2026-09-14T17:59:01Z',speed:1,ignition:'ON'}]};
 const shortLedger=[{...ledger[1],visit_intervals:[{arrival:'2026-09-14T17:59:01Z',departure:null,source_timestamps:['2026-09-14T18:00:00Z']}]}];

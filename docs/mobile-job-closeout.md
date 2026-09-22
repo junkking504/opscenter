@@ -460,8 +460,9 @@ source conflicts keep the switch visible for review rather than guessing.
 
 Waypoint, Kingpin, jobs, Convoy and inspect hostnames serve the exact phone
 allowlists; management/payroll/webhook access stays denied. Legacy inspection
-roots remain on their original host. The hooks legacy inspection view remains
-available with a link to Waypoint setup. Browser drafts and cookies are never
+roots remain on their original host. Convoy, inspect and hooks inspection entry points open standalone Convoy without
+Waypoint enrollment while Waypoint retains its integrated daily inspection. Both
+flows use the existing OpsCenter reports and same-day inspection safety checks. Browser drafts and cookies are never
 copied across origins. The OpsCenter Convoy fleet workspace remains separate.
 
 Validation: `verify:crew-truck-switch`, `verify:waypoint-day`, enrollment/day, inspection, scoped-photo and

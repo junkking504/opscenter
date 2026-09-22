@@ -9,7 +9,13 @@ and prefills the responsible person. The latest Do not operate report blocks
 jobs. Switching trucks follows the same rule; crew edits do not require another
 inspection of an already-inspected truck. See
 [Waypoint daily sequence](mobile-job-closeout.md#waypoint-daily-sequence--september-19-2026).
-The legacy standalone inspection API keeps its existing self-selected truck flow. Reloading an unfinished draft preserves its
+Convoy remains a separate inspection app at `https://convoy.junk-king.app/truck-inspection`
+until Waypoint is ready for full adoption. It opens the five-point checklist directly,
+with its own Convoy name, icon and install manifest, without Waypoint enrollment or
+daily crew setup. Inspections remain integrated in Waypoint. Both entry points save
+to the same OpsCenter inspection store, so a saved Convoy report can satisfy
+Waypoint’s existing same-day truck inspection check; Do not operate still blocks jobs.
+Convoy keeps its existing self-selected truck flow. Reloading an unfinished draft preserves its
 selected truck, answers and photos. Changing its truck after checks or photos
 have been entered asks before clearing the unfinished checklist and creating a
 new report reference; cancelling preserves the draft.
@@ -79,11 +85,12 @@ removed. Users should keep the page open if device storage is unavailable.
 
 ## Access boundary
 
-Waypoint serves jobs and inspections through the same phone app and compass icon.
-The legacy `convoy.junk-king.app` origin still redirects `/` to the inspection
-view and permits the exact inspection and crew-job route allowlists, manifests,
-icons and Next assets. Crew-job API handlers independently require enrollment. Management, authentication and webhook
-routes return 404 on this origin. OpsCenter's Truck Check entry redirects to Waypoint's inspection view.
+Waypoint serves jobs and inspections through its combined phone app.
+The standalone `convoy.junk-king.app` origin redirects `/` to Convoy’s
+`/truck-inspection` checklist. Convoy and inspect retain the exact inspection and
+crew-job route allowlists for existing sessions, drafts and installed shortcuts;
+new Convoy installs start directly at `/truck-inspection` with Convoy branding. Crew-job API handlers independently require enrollment. Management, authentication and webhook
+routes return 404 on this origin. OpsCenter's Truck Check entry redirects to Convoy's inspection view.
 The hostname uses a proxied CNAME to the existing `opscenter-mission-control`
 tunnel (`30d8a080-e2d1-4452-b463-4ba2ba8e57ba`). Its dedicated local ingress in
 `~/.cloudflared/opscenter-mission-control.yml` forwards only this hostname to
@@ -96,8 +103,8 @@ addresses remain usable for existing drafts and receipt recovery. The inspect
 origin keeps its own root redirect and the same narrow combined phone route allowlists;
 it does not force an unfinished inspection across origins. Browser storage and
 phone cookies belong to their origin; they are not copied across domains. Saved reports remain in OpsCenter.
-The legacy hooks inspection view keeps its draft on that origin; Jobs opens Waypoint
-in a new tab. The hooks origin serves the Waypoint manifest/icon assets but continues
+The legacy hooks inspection view also opens standalone Convoy and keeps its draft
+on that origin. The hooks origin retains existing phone assets but continues
 to reject crew-job pages and APIs. Existing webhook routes are unchanged. OpsCenter's management origin serves `/fleet-inspections`.
 The Crew Portal and its authentication are not modified.
 

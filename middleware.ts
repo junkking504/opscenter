@@ -146,7 +146,9 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
   if (pathname === '/favicon.ico') {
     const phoneHost=[CREW_JOBS_ORIGIN,CREW_JOBS_KINGPIN_ORIGIN,CREW_JOBS_LEGACY_ORIGIN].some(origin=>new URL(origin).hostname===hostname) || ['convoy.junk-king.app','inspect.junk-king.app'].includes(hostname);
     if(!phoneHost)return NextResponse.next();
-    const response=NextResponse.redirect(new URL(`https://${hostname}/crew-jobs/waypoint-favicon-v2.png`));
+    const icon = ['convoy.junk-king.app','inspect.junk-king.app'].includes(hostname)
+      ? '/truck-inspection/convoy-gear-crown-v2-32.png' : '/crew-jobs/waypoint-favicon-v2.png';
+    const response=NextResponse.redirect(new URL(`https://${hostname}${icon}`));
     response.headers.set('Cache-Control','no-store');
     return response;
   }
@@ -171,7 +173,7 @@ async function routeRequest(request: NextRequest): Promise<NextResponse> {
 
   // OpsCenter's same-origin entry link opens the dedicated phone app.
   if (hostname === "ops.junk-king.app" && pathname === "/truck-inspection") {
-    return NextResponse.redirect(new URL("/truck-inspection", CREW_JOBS_ORIGIN));
+    return NextResponse.redirect(new URL("https://convoy.junk-king.app/truck-inspection"));
   }
 
   if (isSmsHostname) {

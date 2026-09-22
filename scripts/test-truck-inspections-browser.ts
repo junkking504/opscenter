@@ -22,6 +22,16 @@ async function main() {
     let ready = false;
     for (let i = 0; i < 60; i++) { try { const r = await fetch(`${base}/truck-inspection`); if (r.ok) { ready = true; break; } } catch {} await new Promise(r => setTimeout(r, 1000)); }
     assert.equal(ready, true, "preview must be ready");
+    for (const host of ["convoy.junk-king.app", "inspect.junk-king.app", "hooks.junk-king.app", "waypoint.junk-king.app", "kingpin.junk-king.app", "jobs.junk-king.app"]) {
+      const headers = { "x-forwarded-host": host, "x-forwarded-proto": "https" };
+      const standalone = ["convoy.junk-king.app", "inspect.junk-king.app", "hooks.junk-king.app"].includes(host);
+      const html = await (await fetch(`${base}/truck-inspection`, { headers })).text();
+      assert.ok(html.includes(`<title>${standalone ? "Convoy" : "Waypoint"}</title>`), `${host} identity`);
+      assert.equal(html.includes('aria-label="Start your day"'), !standalone, `${host} enrollment boundary`);
+      const manifest = await (await fetch(`${base}/truck-inspection/manifest.webmanifest`, { headers })).json();
+      assert.equal(manifest.name, standalone ? "Convoy" : "Waypoint");
+      assert.equal(manifest.start_url, standalone ? "/truck-inspection" : "/crew-jobs");
+    }
     const manager = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
     await manager.addCookies([{ name: AUTH_SESSION_COOKIE, value: await createAuthSessionCookieValue(opsAuthIdentity()), url: base }]);
     const management = await manager.newPage();
@@ -192,7 +202,7 @@ async function main() {
     }
     const inspectionEntry = await fetch(`${base}/truck-inspection`, { headers: { "x-forwarded-host": "ops.junk-king.app" }, redirect: "manual" });
     assert.equal(inspectionEntry.status, 307);
-    assert.equal(inspectionEntry.headers.get("location"), "https://convoy.junk-king.app/");
+    assert.equal(inspectionEntry.headers.get("location"), "https://convoy.junk-king.app/truck-inspection");
     const hooksManagement = await fetch(`${base}/fleet-inspections`, { headers: { "x-forwarded-host": "hooks.junk-king.app" } });
     assert.equal(hooksManagement.status, 404);
     await management.getByRole("button", { name: "Refresh reports" }).click();

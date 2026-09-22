@@ -5,7 +5,7 @@ try {
   const page=await browser.newPage();
   // Real rendering, synthetic appointments, and no external map/provider requests.
   await page.route('**/*', route=>new URL(route.request().url()).hostname==='127.0.0.1'?route.continue():route.abort());
-  const colors=['#fbbf24','#fbbf24','#facc15','#facc15','#2dd4bf','#60a5fa','#fbbf24','#facc15','#d946ef','#d946ef','#9ca3af','#9ca3af'];
+  const colors=['#fbbf24','#fbbf24','#facc15','#facc15','#2dd4bf','#60a5fa','#fbbf24','#facc15','#7c3aed','#7c3aed','#9ca3af','#9ca3af'];
   const areas=['Westbank','Westbank','East Metro','East Metro','Metairie','New Orleans','Westbank','East Metro','Ponchatoula / Bedico','Hammond','River Parishes','River Parishes'];
   for(const width of [1280,390]) {
     await page.setViewportSize({width,height:900});

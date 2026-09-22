@@ -83,9 +83,9 @@ service or Cloudflare Tunnel, install the production controller, or deploy.
 After bootstrap, run the explicit controller-install command below and then the
 normal production deployment command.
 
-The production build caps the Next.js compiler heap at 8 GiB. The 6 GiB cap
-was exhausted by the current application during Webpack compilation on Node 26;
-this build-only cap does not change the running service heap.
+The production build uses Next.js Webpack memory optimizations to reduce duplicate
+string/buffer caching during compilation. This keeps the existing 6 GiB compiler
+heap cap and does not change the running service heap.
 
 For production deployments:
 

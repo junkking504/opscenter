@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  experimental: { webpackMemoryOptimizations: true },
   distDir: process.env.NEXT_DIST_DIR || ".next",
   async headers() {
     return [{ source: '/desktop-assets/assets/:asset', headers: [

@@ -21,6 +21,10 @@ try {
       await page.waitForFunction(()=>!document.querySelector('.drawer-cancel-shortcut'));
       assert.equal(await drawer.getByRole('region',{name:'Cancel Appointment',exact:true}).count(),0,'Canceled appointment cannot be canceled again');
       assert.match(await drawer.innerText(),/Canceled/,'Verified source read-back updates the drawer');
+      const recordId='2026-09-07:appointment:1001';
+      await page.locator(`[data-schedule-truck="Unassigned"] [data-schedule-appointment="${recordId}"]`).waitFor();
+      assert.equal(await page.locator(`[data-schedule-truck="Truck 8"] [data-schedule-appointment="${recordId}"]`).count(),0,'Canceled appointment leaves its former truck lane');
+      assert.match(await drawer.innerText(),/Unassigned/,'Canceled appointment details show the operational assignment');
     } else {
       await drawer.getByRole('button',{name:'Check Saved Result',exact:true}).waitFor();
       assert.equal(await drawer.getByRole('button',{name:'Confirm Cancellation',exact:true}).isEnabled(),false,'Uncertain cancellation cannot be resubmitted');
@@ -29,5 +33,5 @@ try {
     assert.match(await page.locator('#fixture-writes').innerText(),/^Writes: 1/,'Exactly one synthetic cancellation was submitted');
     await page.close();
   }
-  console.log('Cancellation UI passed: visible shortcut, required reason, review without write, verified read-back, and uncertain no-replay. Synthetic only.');
+  console.log('Cancellation UI passed: visible shortcut, required reason, review without write, verified read-back to Unassigned, and uncertain no-replay. Synthetic only.');
 } finally {await browser.close();}

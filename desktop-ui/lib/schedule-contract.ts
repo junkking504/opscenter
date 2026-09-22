@@ -168,6 +168,7 @@ export function truckLabel(value: string) { const raw=value.trim(); const match 
  * of record. Keep the current JunkWare value available so the UI can expose
  * and correct a source mismatch through the verified move workflow. */
 export function scheduleDisplayTruck(job: Pick<ScheduleAppointment,'status'|'truck'|'recordedOnsiteTime'>) {
+  if (/cancel/i.test(job.status || '')) return 'Unassigned';
   const gpsTruck = truckLabel(job.recordedOnsiteTime?.truck || '');
   return /complete|closed/i.test(job.status || '') && gpsTruck !== 'Unassigned' ? gpsTruck : truckLabel(job.truck || '');
 }
@@ -190,6 +191,11 @@ export function scheduleBoardJobs(jobs: ScheduleAppointment[], truck: string, no
 }
 /** Completed blocks use confirmed visit intervals; source appointment windows remain unchanged. */
 export function timelineWindow(job: ScheduleAppointment, truck = truckLabel(job.truck || ''), now = Date.now()) {
+  if (/cancel/i.test(job.status || '')) {
+    if (truckLabel(truck) !== 'Unassigned' || !job.hasScheduledTime || job.appointmentStartMinutes === null || job.appointmentEndMinutes === null) return null;
+    return { actual: false, start: job.appointmentStartMinutes, end: job.appointmentEndMinutes,
+      intervals: [{start:job.appointmentStartMinutes,end:job.appointmentEndMinutes,ongoing:false,complete:false}], label: 'Planned · booked window' };
+  }
   if (job.truckVisits?.length) {
     const day = job.recordId.slice(0,10);
     const local = (value: string) => {

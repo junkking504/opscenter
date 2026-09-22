@@ -20,8 +20,8 @@ try {
     };
   });
   await page.getByRole('button',{name:'Refresh day',exact:true}).click();
-  const block=page.locator('[data-schedule-appointment]').first();
-  await page.waitForFunction(()=>document.querySelector('[data-schedule-appointment]')?.getAttribute('aria-label')?.includes('Canceled'));
+  const block=page.locator('[data-schedule-appointment$=":appointment:1001"]');
+  await page.waitForFunction(()=>document.querySelector('[data-schedule-appointment$=":appointment:1001"]')?.getAttribute('aria-label')?.includes('Canceled'));
   const verify=page.getByRole('button',{name:/Location pending/}).first();
   assert.match(await verify.innerText(),/3/,'Only the three active unverified appointments count');
   await block.click();

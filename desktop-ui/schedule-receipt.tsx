@@ -45,7 +45,9 @@ export function ChangeReceipt({ receipt, onCheck }: { receipt: Receipt; onCheck:
           <strong>{receipt.message}</strong>
         </div>
       </header>
-      {receipt.crewAssignment && <p>{receipt.crewAssignment.message}</p>}
+      {receipt.crewAssignment && <p>{['assigned', 'queued'].includes(receipt.crewAssignment.state)
+        ? 'A Waypoint release was previously saved for this truck. Phone access follows the truck selected in its daily setup.'
+        : receipt.crewAssignment.message}</p>}
       {receipt.crewAssignment?.state === 'attention' && <a href="/crew-dispatch">Open Crew Dispatch</a>}
       {(receipt.status === "pending" || receipt.status === "uncertain") && (
         <footer>

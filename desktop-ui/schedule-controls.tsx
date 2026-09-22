@@ -73,7 +73,6 @@ export function MoveConfirmation({
         "move",
         {
           truck: move.truck === "Unassigned" ? "" : move.truck,
-          ...(/^confirmed$/i.test(move.job.status) && move.truck !== "Unassigned" ? {assignCrew:true} : {}),
           ...(window.changed
             ? { appointmentStartMinutes: move.start, durationHours: window.durationHours }
             : {}),
@@ -93,7 +92,7 @@ export function MoveConfirmation({
   };
   return (
     <section
-      className={`schedule-move-confirmation${move.conflicts.length ? " has-conflict" : ""}`}
+      className="schedule-move-confirmation"
       role="dialog"
       aria-label="Confirm schedule move"
       onKeyDownCapture={(event) => {
@@ -106,7 +105,7 @@ export function MoveConfirmation({
     >
       <header>
         <div>
-          <span>{move.conflicts.length ? "Schedule Conflict" : "Confirm Move"}</span>
+          <span>Confirm Move</span>
           <strong>
             {move.job.jkNumber} · {move.job.customerName}
           </strong>
@@ -132,7 +131,7 @@ export function MoveConfirmation({
         </span>
       </div>
       {move.conflicts.length > 0 && (
-        <p>Overlaps {move.conflicts.join(", ")}. Verify the route before confirming.</p>
+        <p>Also booked in this window: {move.conflicts.join(", ")}. Multiple jobs can share a truck’s appointment window. Use Stop Order to set their sequence.</p>
       )}
       {!window.supported && (
         <p>
@@ -142,7 +141,7 @@ export function MoveConfirmation({
       )}
       <p>
         {/^confirmed$/i.test(move.job.status) && move.truck !== "Unassigned"
-          ? "Confirming assigns this job to the truck in JunkWare and its crew phone. If a job is active, this job queues until closeout with photos."
+          ? "This assigns the appointment to the truck in JunkWare. Release it separately in Crew Dispatch for Waypoint. The phone uses the truck selected in its daily setup."
           : "This changes the appointment in JunkWare."}
       </p>
       {receipt ? (
@@ -171,11 +170,7 @@ export function MoveConfirmation({
               void confirm();
             }}
           >
-            {busy
-              ? "Verifying in JunkWare…"
-              : move.conflicts.length
-                ? "Move Anyway"
-                : "Confirm Move"}
+            {busy ? "Verifying in JunkWare…" : "Confirm Move"}
           </Button>
         </footer>
       )}

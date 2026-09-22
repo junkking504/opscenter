@@ -536,3 +536,20 @@ Waypoint hides Job category and How heard, retaining office-owned source values.
 Server preflight rejects altered classifications/referrals; if JunkWare has no
 required referral value, the office must complete it rather than asking the crew
 to invent customer history.
+
+## Truck assignment and Waypoint release — September 22, 2026
+
+A Control board move assigns the appointment to a truck in JunkWare only.
+It does not release or queue the appointment in Waypoint, and a full Waypoint
+queue cannot block a schedule move. Multiple jobs may share the same truck and
+appointment window; the move dialog lists those bookings as information, and
+Stop Order controls their sequence. Managers release jobs separately through
+Crew Dispatch. An enrolled phone accesses the truck selected in its saved daily
+setup, regardless of its device label, phone number or enrollment truck default.
+
+Older browser tabs may still submit `assignCrew`; new schedule operations ignore
+that flag while preserving it in request fingerprints for exact receipt recovery.
+Old pending combined receipts recover only an already-saved dispatch request;
+checking a move never creates a new Waypoint release. Existing releases, queues,
+phone setup, drafts and receipts are preserved. A saved release is not evidence
+that a handset received or opened the appointment.

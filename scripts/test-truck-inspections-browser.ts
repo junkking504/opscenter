@@ -22,6 +22,16 @@ async function main() {
     let ready = false;
     for (let i = 0; i < 60; i++) { try { const r = await fetch(`${base}/truck-inspection`); if (r.ok) { ready = true; break; } } catch {} await new Promise(r => setTimeout(r, 1000)); }
     assert.equal(ready, true, "preview must be ready");
+    for (const host of ["convoy.junk-king.app", "inspect.junk-king.app", "hooks.junk-king.app", "waypoint.junk-king.app", "kingpin.junk-king.app", "jobs.junk-king.app"]) {
+      const headers = { "x-forwarded-host": host, "x-forwarded-proto": "https" };
+      const standalone = ["convoy.junk-king.app", "inspect.junk-king.app", "hooks.junk-king.app"].includes(host);
+      const html = await (await fetch(`${base}/truck-inspection`, { headers })).text();
+      assert.ok(html.includes(`<title>${standalone ? "Convoy" : "Waypoint"}</title>`), `${host} identity`);
+      assert.equal(html.includes('aria-label="Start your day"'), !standalone, `${host} enrollment boundary`);
+      const manifest = await (await fetch(`${base}/truck-inspection/manifest.webmanifest`, { headers })).json();
+      assert.equal(manifest.name, standalone ? "Convoy" : "Waypoint");
+      assert.equal(manifest.start_url, standalone ? "/truck-inspection" : "/crew-jobs");
+    }
     const manager = await browser.newContext({ viewport: { width: 1280, height: 1000 } });
     await manager.addCookies([{ name: AUTH_SESSION_COOKIE, value: await createAuthSessionCookieValue(opsAuthIdentity()), url: base }]);
     const management = await manager.newPage();
@@ -89,10 +99,10 @@ async function main() {
     await page.getByRole("button", { name: "✓ Good — next check", exact: true }).click();
     await mobile.setOffline(false);
     // Wait for the actual IndexedDB write before testing a reload.
-    await page.waitForFunction(async () => new Promise<boolean>(resolve => { const open = indexedDB.open("junk-king-truck-inspection", 1); open.onsuccess = () => { const db = open.result; const req = db.transaction("drafts").objectStore("drafts").getAll(); req.onsuccess = () => { const ok = req.result.some(d => d.fuel === "1/2" && d.answers.some((a: {id:string;status:string}) => a.id === "dashboard" && a.status === "good")); db.close(); resolve(ok); }; }; }));
+    await page.waitForFunction(async () => new Promise<boolean>(resolve => { const open = indexedDB.open("junk-king-truck-inspection", 1); open.onsuccess = () => { const db = open.result; const req = db.transaction("drafts").objectStore("drafts").getAll(); req.onsuccess = () => { const ok = req.result.some(d => d.truck === "Truck 4" && d.fuel === "1/2" && d.answers.some((a: {id:string;status:string}) => a.id === "dashboard" && a.status === "good")); db.close(); resolve(ok); }; }; }));
     await page.reload();
     await page.getByRole("heading", { name: "Truck & dump body" }).waitFor();
-    await page.locator("header").getByText("Truck 4", { exact: true }).waitFor();
+    await page.locator("header").getByText("Convoy", { exact: true }).waitFor();
     assert.equal(await page.getByRole("button", { name: "✓ Good — next check", exact: true }).isDisabled(), true);
     await page.getByRole("button", { name: "Truck fullness 3/4", exact: true }).click();
     await page.waitForFunction(async () => new Promise<boolean>(resolve => { const open = indexedDB.open("junk-king-truck-inspection", 1); open.onsuccess = () => { const db = open.result; const req = db.transaction("drafts").objectStore("drafts").getAll(); req.onsuccess = () => { const ok = req.result.some(d => d.loadLevel === "3/4" && d.fuel === "1/2"); db.close(); resolve(ok); }; }; }));
@@ -192,19 +202,19 @@ async function main() {
     }
     const inspectionEntry = await fetch(`${base}/truck-inspection`, { headers: { "x-forwarded-host": "ops.junk-king.app" }, redirect: "manual" });
     assert.equal(inspectionEntry.status, 307);
-    assert.equal(inspectionEntry.headers.get("location"), "https://convoy.junk-king.app/");
+    assert.equal(inspectionEntry.headers.get("location"), "https://convoy.junk-king.app/truck-inspection");
     const hooksManagement = await fetch(`${base}/fleet-inspections`, { headers: { "x-forwarded-host": "hooks.junk-king.app" } });
     assert.equal(hooksManagement.status, 404);
     await management.getByRole("button", { name: "Refresh reports" }).click();
-    await management.getByRole("button", { name: /Truck 4 · Test Driver/ }).click();
+    await management.getByRole("button", { name: /Truck# 4 · Test Driver/ }).click();
     await management.getByRole("region", { name: "Selected inspection report" }).getByText("Synthetic test: tire damage recorded offline.", { exact: true }).waitFor();
     const levels = await management.getByRole("region", { name: "Selected inspection report" }).locator("dl").innerText();
     assert.match(levels, /Truck fullness\s+3\/4/);
     assert.match(levels, /Fuel tank\s+1\/2/);
     await management.getByRole("combobox", { name: /^Status/ }).selectOption("missing");
-    assert.equal(await management.getByRole("button", { name: /Truck 4 · Test Driver/ }).count(), 0);
+    assert.equal(await management.getByRole("button", { name: /Truck# 4 · Test Driver/ }).count(), 0);
     await management.getByRole("combobox", { name: /^Status/ }).selectOption("stop");
-    await management.getByRole("button", { name: /Truck 4 · Test Driver/ }).click();
+    await management.getByRole("button", { name: /Truck# 4 · Test Driver/ }).click();
     await management.screenshot({ path: "/tmp/five-point-inspection-review/management-report.png", fullPage: true });
     await page.getByRole("button", { name: "Start another inspection", exact: true }).click();
     assert.equal(await page.getByRole("combobox", { name: /Truck for this inspection/ }).inputValue(), "", "each new inspection asks for its truck");
@@ -273,8 +283,8 @@ async function main() {
     assert.deepEqual(afterClear.reports.find((r: {requestId:string}) => r.requestId === saved.reports[0].requestId), saved.reports[0], "switching trucks must preserve the original report");
     await management.getByRole("button", { name: "Refresh reports" }).click();
     await management.getByRole("combobox", { name: /^Status/ }).selectOption("clear");
-    await management.getByRole("button", { name: /Truck 8 · Test Driver Two/ }).click();
-    await management.getByRole("region", { name: "Selected inspection report" }).getByRole("heading", { name: "Truck 8", exact: true }).waitFor();
+    await management.getByRole("button", { name: /Truck# 8 · Test Driver Two/ }).click();
+    await management.getByRole("region", { name: "Selected inspection report" }).getByRole("heading", { name: "Truck# 8", exact: true }).waitFor();
     assert.equal(afterClear.reports.filter((r: {status:string}) => r.status === "stop").length, 1, "a clear report cannot erase the original stop report");
     await manager.request.post(`${base}/api/fleet-inspections`, { data: { action: "revoke", deviceId: saved.devices[0].deviceId } });
     assert.equal((await (await mobile.request.get(`${base}/api/truck-inspection`)).json()).device, null);

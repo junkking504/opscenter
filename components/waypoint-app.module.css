@@ -19,4 +19,9 @@
 .steps li span { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: #444; flex-shrink: 0; }
 .steps li[aria-current] span { background: #b51935; }
 .legacyEntry { display: block; max-width: 584px; margin: auto; color: white; }
+.convoyHeader { padding: max(8px, env(safe-area-inset-top)) 16px 8px; }
+.convoyHeader .brand { margin-bottom: 0; }
+.convoyHeader .brand img { width: 40px; height: 40px; }
+.convoyHeader .brand strong { font-size: 22px; }
+.convoyHeader .brand span { font-size: 9px; letter-spacing: 2px; }
 @media (max-width: 360px) { .steps { gap: 6px; } .steps li { flex-direction: column; font-size: 12px; } }

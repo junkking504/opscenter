@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { scheduleTruckNames, truckLabel, assignmentNeedsVerification, scheduleMoveRestriction, scheduleCustomerLabel, scheduleStatusTone, unavailableRoute, isClosed, scheduleMoveWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
+import { scheduleBoardJobs, scheduleDisplayTruck, scheduleTruckNames, timelineWindow, truckLabel, assignmentNeedsVerification, scheduleMoveRestriction, scheduleCustomerLabel, scheduleStatusTone, unavailableRoute, isClosed, scheduleMoveWindow, type ScheduleAppointment } from '../desktop-ui/lib/schedule-contract';
 import { scheduleMoveProposal, scheduleDragScrollStep } from '../desktop-ui/schedule-drag';
 
 const job = { recordId: '2026-09-03:appointment:1234', appointmentId: '1234', jkNumber: 'JK1234567', truck: 'Truck 4', appointmentStartMinutes: 840, appointmentEndMinutes: 960, appointmentTime: '2:00 PM–4:00 PM', appointmentType: 'Estimate', status: 'Confirmed' } as ScheduleAppointment;
@@ -11,6 +11,15 @@ assert.deepEqual(scheduleTruckNames({fleet:noGps,appointments:[job]}),dispatchTr
 assert.deepEqual(scheduleTruckNames({fleet:noGps,appointments:[{...job,truck:'Truck# 12'},{...job,truck:'t2'}]}),[...dispatchTrucks.slice(0,-1),'Truck 12','Unassigned'],'Keep source-only trucks and deduplicate aliases');
 assert.equal(truckLabel('Truck 0'),'Unassigned');
 assert.equal(truckLabel(' Truck# 2 '),'Truck 2');
+const canceled = { ...job, status: 'Cancelled by Dispatcher', truck: 'Truck 4', hasScheduledTime: true };
+assert.equal(scheduleDisplayTruck(canceled), 'Unassigned', 'Canceled appointments leave their former truck lane');
+assert.deepEqual(scheduleBoardJobs([canceled], 'Truck 4'), [], 'Canceled appointments do not remain on their former truck');
+assert.deepEqual(scheduleBoardJobs([canceled], 'Unassigned'), [canceled], 'Canceled appointments move to Unassigned');
+assert.deepEqual(timelineWindow(canceled, 'Unassigned'), {
+  actual: false, start: 840, end: 960,
+  intervals: [{ start: 840, end: 960, ongoing: false, complete: false }],
+  label: 'Planned · booked window',
+});
 assert.equal(scheduleDragScrollStep(350,0,700),0,'Dragging in the middle must not scroll');
 assert.equal(scheduleDragScrollStep(0,0,700),-14);
 assert.equal(scheduleDragScrollStep(700,0,700),14);

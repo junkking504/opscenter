@@ -83,6 +83,10 @@ service or Cloudflare Tunnel, install the production controller, or deploy.
 After bootstrap, run the explicit controller-install command below and then the
 normal production deployment command.
 
+The production build uses Next.js Webpack memory optimizations to reduce duplicate
+string/buffer caching during compilation. This keeps the existing 6 GiB compiler
+heap cap and does not change the running service heap.
+
 For production deployments:
 
 Run the launcher from the reviewed source checkout or task worktree. Its Git

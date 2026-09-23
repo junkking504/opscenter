@@ -42,6 +42,11 @@ export type ScheduleAppointment = {
   lastSeenOnsiteTruck?: string;
   lastSeenOnsiteAt?: string;
   truckOnSite?: boolean;
+  // A timestamped parked report at the assigned job. This confirms location,
+  // not continuous dwell, arrival time or on-site duration.
+  truckAtJob?: boolean;
+  atJobTruck?: string;
+  atJobGpsAt?: string;
   // The physically verified truck can differ from the pending JunkWare assignment.
   onsiteTruck?: string;
   onsiteGpsAt?: string;
@@ -122,19 +127,21 @@ export function appointmentColorClass(job: Pick<ScheduleAppointment, 'address' |
 export function appointmentCategory(job: Pick<ScheduleAppointment, 'appointmentType'>) {
   return /estimate/i.test(job.appointmentType) ? 'Estimate' : /job|junk|removal/i.test(job.appointmentType) ? 'Job' : job.appointmentType || 'Unspecified';
 }
-export function appointmentStatus(job: Pick<ScheduleAppointment, 'appointmentType' | 'status' | 'hasVisit' | 'hasDepartedVisit' | 'truckOnSite' | 'lastSeenOnsiteTruck'>) {
+export function appointmentStatus(job: Pick<ScheduleAppointment, 'appointmentType' | 'status' | 'hasVisit' | 'hasDepartedVisit' | 'truckOnSite' | 'truckAtJob' | 'lastSeenOnsiteTruck'>) {
   if (/cancel/i.test(job.status)) return 'Canceled';
   if (/complete|closed/i.test(job.status)) return appointmentCategory(job) === 'Estimate' ? 'Estimate Closed' : 'Completed';
   if (job.truckOnSite) return 'On Site';
+  if (job.truckAtJob) return 'At Job';
   if (job.lastSeenOnsiteTruck) return 'Last reported on site';
   if (job.hasDepartedVisit) return 'Visited · Closeout Pending';
   if (job.hasVisit) return 'Departure unconfirmed';
   return job.status || 'Status Unavailable';
 }
-export function scheduleStatusTone(job: Pick<ScheduleAppointment, 'status' | 'hasVisit' | 'hasDepartedVisit' | 'truckOnSite'>) {
+export function scheduleStatusTone(job: Pick<ScheduleAppointment, 'status' | 'hasVisit' | 'hasDepartedVisit' | 'truckOnSite' | 'truckAtJob'>) {
   if (/cancel/i.test(job.status)) return 'canceled';
   if (/complete|closed/i.test(job.status)) return 'completed';
   if (job.truckOnSite || /on[ _-]?site|on location/i.test(job.status)) return 'on-site';
+  if (job.truckAtJob) return 'at-job';
   if (job.hasDepartedVisit || (!job.hasVisit && /visited/i.test(job.status))) return 'visited';
   return 'waiting';
 }

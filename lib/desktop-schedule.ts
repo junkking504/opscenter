@@ -1,6 +1,6 @@
 import {readVisitTrackingAgent} from './visit-tracking-reader';
 import { scheduleTruckVisits, type ScheduleTruckVisit } from './schedule-visit-intervals';
-import { currentGpsPresence } from './schedule-gps-presence';
+import { currentGpsJobLocation, currentGpsPresence } from './schedule-gps-presence';
 import { calculateTruckProgress } from './desktop-truck-progress';
 import { compareStops } from './schedule-stop-order';
 import { applyStopOrders } from './desktop-stop-order-store';
@@ -21,7 +21,7 @@ import { cachedAddressVerification, verifyDesktopAddress } from '@/lib/desktop-a
 import { readScheduleVisits, scheduleVisitState } from '@/lib/desktop-schedule-visits';
 import { readOperationalTruckLoads, truckChargeSummary } from './truck-load-closeouts';
 
-export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
+export type DesktopAppointment = JobRow & { truckVisits?: ScheduleTruckVisit[]; recordId: string; mapAddress?: string; addressCheckPending?: boolean; version: string; stopOrder?: number; callAhead: 'called' | 'not_called'; location: Coordinates | null; hasVisit?: boolean; truckOnSite?: boolean; onsiteTruck?: string; onsiteGpsAt?: string; onsiteGpsParked?: boolean; truckAtJob?: boolean; atJobTruck?: string; atJobGpsAt?: string; lastSeenOnsiteTruck?: string; lastSeenOnsiteAt?: string; onsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime; recordedOnsiteTime?: import('./appointment-onsite-time').AppointmentOnsiteTime };
 export type DesktopRouteLeg = {
   truck: string;
   fromAppointmentId: string;
@@ -80,8 +80,10 @@ export function readDesktopSchedule(date: string) {
   // dispatch move, without modifying JunkWare or inventing a ledger event.
   if (fleet.isToday) for (const job of appointments) {
     const presence = currentGpsPresence(job, fleet.trucks, appointments);
-    if (presence?.current) Object.assign(job, { hasVisit: true, truckOnSite: true, onsiteTruck: presence.truck, onsiteGpsAt: presence.observedAt, onsiteGpsParked: presence.parked, lastSeenOnsiteTruck: undefined, lastSeenOnsiteAt: undefined });
-    else if (presence && !job.truckOnSite) Object.assign(job, { hasVisit: true, truckOnSite: false, onsiteTruck: undefined, lastSeenOnsiteTruck: presence.truck, lastSeenOnsiteAt: presence.observedAt });
+    const location = presence?.current ? undefined : currentGpsJobLocation(job, fleet.trucks, appointments);
+    if (presence?.current) Object.assign(job, { hasVisit: true, truckOnSite: true, onsiteTruck: presence.truck, onsiteGpsAt: presence.observedAt, onsiteGpsParked: presence.parked, truckAtJob: false, atJobTruck: undefined, atJobGpsAt: undefined, lastSeenOnsiteTruck: undefined, lastSeenOnsiteAt: undefined });
+    else if (location) Object.assign(job, { truckOnSite: false, onsiteTruck: undefined, truckAtJob: true, atJobTruck: location.truck, atJobGpsAt: location.observedAt, lastSeenOnsiteTruck: undefined, lastSeenOnsiteAt: undefined });
+    else if (presence && !job.truckOnSite) Object.assign(job, { hasVisit: true, truckOnSite: false, onsiteTruck: undefined, truckAtJob: false, atJobTruck: undefined, atJobGpsAt: undefined, lastSeenOnsiteTruck: presence.truck, lastSeenOnsiteAt: presence.observedAt });
   }
   for (const job of appointments) job.truckVisits = scheduleTruckVisits(job, visits.visits, fleet.isToday ? fleet.trucks : [], appointments);
   return {
@@ -208,6 +210,6 @@ export async function readDesktopScheduleRouting(date: string, recordId: string 
   // promote a now-stale truck to a live nearest-truck recommendation.
   const now = Date.now();
   const closest = target ? await cachedRouting(['closest', date, target.recordId, target.location, snapshot.fleet.isToday, snapshot.fleet.trucks.map(truck => [truck.truck, truck.latitude, truck.longitude, truck.lastGpsUpdate, now - Date.parse(truck.lastGpsUpdate || '') <= LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS * 1000])], () => calculateClosestTrucks(target, snapshot.fleet.trucks, snapshot.fleet.isToday)) : null;
-  const progress = await cachedRouting(['truck-progress',date,snapshot.fleet.isToday,snapshot.appointments.map(j=>[j.recordId,j.version,j.truck,j.status,j.onsiteTruck,j.lastSeenOnsiteTruck,j.appointmentStartMinutes,j.appointmentEndMinutes,j.stopOrder,j.junkwareSyncStatus,j.location,j.truckOnSite,j.onsiteTime]),snapshot.fleet.trucks.map(t=>[t.truck,t.latitude,t.longitude,t.lastGpsUpdate,t.speed,t.ignition,now-Date.parse(t.lastGpsUpdate || '')<=LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS*1000])],()=>calculateTruckProgress(snapshot.appointments,snapshot.fleet.trucks,snapshot.fleet.isToday));
+  const progress = await cachedRouting(['truck-progress',date,snapshot.fleet.isToday,snapshot.appointments.map(j=>[j.recordId,j.version,j.truck,j.status,j.onsiteTruck,j.truckAtJob,j.atJobTruck,j.atJobGpsAt,j.lastSeenOnsiteTruck,j.appointmentStartMinutes,j.appointmentEndMinutes,j.stopOrder,j.junkwareSyncStatus,j.location,j.truckOnSite,j.onsiteTime]),snapshot.fleet.trucks.map(t=>[t.truck,t.latitude,t.longitude,t.lastGpsUpdate,t.speed,t.ignition,now-Date.parse(t.lastGpsUpdate || '')<=LINXUP_V3_AUTHORITY_MAX_AGE_SECONDS*1000])],()=>calculateTruckProgress(snapshot.appointments,snapshot.fleet.trucks,snapshot.fleet.isToday));
   return { date, truckProgress: progress.data, calculatedAt: legs.calculatedAt, closestCalculatedAt: closest?.calculatedAt || null, appointmentId: target?.recordId || null, legs: legs.data, closest: closest?.data || [] };
 }

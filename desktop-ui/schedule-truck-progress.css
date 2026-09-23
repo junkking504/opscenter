@@ -2,6 +2,7 @@
 .ops-live .schedule-truck-progress .truck-progress-customer { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
 .ops-live .schedule-truck-progress strong { flex-shrink: 0; font-size: 10px; font-weight: 700; }
 .ops-live .live-schedule.schedule-dispatch .schedule-truck-progress.on_site { background: #eaf3ed; color: #27633b; }
+.ops-live .live-schedule.schedule-dispatch .schedule-truck-progress.at_job.parked-report { background: #eaf3ed; color: #27633b; }
 .ops-live .live-schedule.schedule-dispatch .schedule-truck-progress.stale_gps,
 .ops-live .live-schedule.schedule-dispatch .schedule-truck-progress.last_seen,
 .ops-live .live-schedule.schedule-dispatch .schedule-truck-progress.unverified { background: #fff6dd; color: #755b18; }

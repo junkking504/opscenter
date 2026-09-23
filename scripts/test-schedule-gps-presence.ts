@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { currentGpsPresence } from '../lib/schedule-gps-presence';
+import { currentGpsJobLocation, currentGpsPresence } from '../lib/schedule-gps-presence';
 const now = Date.parse('2026-09-10T16:02:00Z');
 const job = { appointmentId: 'one', location: { latitude: 29.97, longitude: -90.07 }, appointmentStartMinutes: 660, appointmentEndMinutes: 720, status: 'Confirmed' };
 const points = [0,1,2,3].map(i => ({ ...job.location, timestamp: new Date(now - (3-i)*60_000).toISOString(), continuousUntil: null }));
@@ -9,6 +9,18 @@ assert.equal(currentGpsPresence(job, [{ ...truck, routePoints: points.slice(-1) 
 assert.equal(currentGpsPresence(job, [{ ...truck, routePoints: [] }], [job], now), undefined, 'Missing route evidence cannot prove continuous presence');
 assert.equal(currentGpsPresence(job, [truck], [job], now + 11*60_000)?.current, false, 'Preserve stale position as last reported, never current');
 const parked = {...truck, speed: 0, ignition: 'OFF'};
+const assignedJob = {...job, truck:'Truck #3'};
+const singlePointParked = {...parked, routePoints:points.slice(-1)};
+assert.equal(currentGpsPresence(assignedJob,[singlePointParked],[assignedJob],now),undefined,'A single parked point still cannot prove dwell');
+assert.deepEqual(currentGpsJobLocation(assignedJob,[singlePointParked],[assignedJob],now),{truck:'Truck 3',observedAt:truck.lastGpsUpdate,parked:true},'A timestamped parked report can confirm the assigned truck location without inventing dwell');
+assert.deepEqual(currentGpsJobLocation({...assignedJob,status:'Completed'},[singlePointParked],[{...assignedJob,status:'Completed'}],now),{truck:'Truck 3',observedAt:truck.lastGpsUpdate,parked:true},'Completing the source record does not erase the truck location');
+assert.equal(currentGpsJobLocation({...assignedJob,status:'Canceled'},[singlePointParked],[{...assignedJob,status:'Canceled'}],now),undefined,'Canceled work cannot claim a truck location');
+assert.equal(currentGpsJobLocation({...assignedJob,truck:'Unassigned'},[singlePointParked],[{...assignedJob,truck:'Unassigned'}],now),undefined,'Location-only confirmation requires the assigned truck');
+assert.equal(currentGpsJobLocation(assignedJob,[{...singlePointParked,ignition:'ON'}],[assignedJob],now),undefined,'A non-parked point can be a pass-by and does not qualify');
+assert.equal(currentGpsJobLocation(assignedJob,[singlePointParked],[assignedJob,{...assignedJob,appointmentId:'nearby'}],now),undefined,'Two assigned jobs at the same place remain ambiguous');
+assert.equal(currentGpsJobLocation({...assignedJob,onsiteTime:{departure:truck.lastGpsUpdate}},[singlePointParked],[assignedJob],now),undefined,'A recorded departure supersedes the parked location report');
+assert.equal(currentGpsJobLocation(assignedJob,[singlePointParked],[assignedJob],now+76*60_000),undefined,'A missed parked heartbeat cannot remain at job');
+assert.equal(currentGpsJobLocation(assignedJob,[{...singlePointParked,latitude:30.4}],[assignedJob],now),undefined,'A newer parked report elsewhere cannot claim the job location');
 assert.equal(currentGpsPresence(job, [parked], [job], now + 42*60_000)?.current, true, 'Established parked presence survives the normal heartbeat interval');
 assert.equal(currentGpsPresence(job, [parked], [job], now + 75*60_000)?.current, true, 'Established parked presence remains on site through the heartbeat limit');
 assert.equal(currentGpsPresence(job, [parked], [job], now + 76*60_000)?.current, false, 'A missed parked heartbeat remains last reported, not current');

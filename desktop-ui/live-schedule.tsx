@@ -188,7 +188,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     setSearchQuery(target.query); setLinkNotice(target.notice);
     if (target.recordId) { setSelectedId(target.recordId); setDrawerId(target.recordId); }
   }, [snapshot, date, baseDate, setDrawerId, mapOnly]);
-  const routingKey = snapshot ? JSON.stringify(snapshot.appointments.map(job => [job.recordId, job.version, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.location, job.junkwareSyncStatus, job.truckOnSite, job.onsiteTruck, job.lastSeenOnsiteTruck, job.onsiteTime?.departure])) : '';
+  const routingKey = snapshot ? JSON.stringify(snapshot.appointments.map(job => [job.recordId, job.version, job.truck, job.status, job.appointmentStartMinutes, job.appointmentEndMinutes, job.stopOrder, job.location, job.junkwareSyncStatus, job.truckOnSite, job.onsiteTruck, job.truckAtJob, job.atJobTruck, job.atJobGpsAt, job.lastSeenOnsiteTruck, job.onsiteTime?.departure])) : '';
   useEffect(() => {
     if (!routingKey || (mapOnly && !selectedId)) return;
     const abort = new AbortController();
@@ -425,6 +425,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const closestTruckText = (job: ScheduleAppointment) => {
     if (selectedId !== job.recordId || /cancel/i.test(job.status)) return '';
     if (snapshot?.fleet.isToday && !isClosed(job) && job.truckOnSite) return `${job.onsiteTruck || truckLabel(job.truck)} on site`;
+    if (snapshot?.fleet.isToday && job.truckAtJob) return `${job.atJobTruck || truckLabel(job.truck)} at job · Parked report ${job.atJobGpsAt ? new Date(job.atJobGpsAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'}) : 'time unavailable'} · Arrival and duration unconfirmed`;
     if (snapshot?.fleet.isToday && !isClosed(job) && job.lastSeenOnsiteTruck) return `${job.lastSeenOnsiteTruck} last reported on site · Awaiting fresh GPS`;
     if (routeState || routing?.appointmentId !== job.recordId) return 'Closest truck: checking current distance…';
     const closest = closestTruckFor(job);

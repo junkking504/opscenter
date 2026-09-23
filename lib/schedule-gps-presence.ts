@@ -14,6 +14,29 @@ export function gpsPositionAtAppointment(location: Coordinates | null | undefine
   return { stamp, inside: distance(location, truck) <= GPS_SITE_RADIUS_METERS, current: now - stamp <= onsiteGpsMaxAge(truck) };
 }
 
+// A parked provider report can answer the narrower dispatch question "where
+// was the assigned truck reported?" even when sparse telemetry cannot prove
+// continuous dwell. Keep this separate from currentGpsPresence so it never
+// creates an arrival time, on-site duration, map beacon or visit interval.
+export function currentGpsJobLocation(job: PresenceJob, trucks: PresenceTruck[], appointments: PresenceJob[], now = Date.now()) {
+  if (!job.location || /cancel/i.test(job.status || '')) return undefined;
+  const assignedTruck = truckLabel(job.truck || '');
+  if (assignedTruck === 'Unassigned') return undefined;
+  const candidates = trucks.flatMap(truck => {
+    if (truckLabel(truck.truck) !== assignedTruck || !parkedTruckObservation(truck)) return [];
+    const observation = gpsPositionAtAppointment(job.location, truck, now);
+    if (!observation?.inside || !observation.current) return [];
+    if (Date.parse(job.onsiteTime?.departure || '') >= observation.stamp) return [];
+    const position = { latitude: truck.latitude!, longitude: truck.longitude! };
+    const nearby = appointments.filter(row => row.location && !/cancel/i.test(row.status || '')
+      && truckLabel(row.truck || '') === assignedTruck
+      && distance(position, row.location) <= GPS_SITE_RADIUS_METERS);
+    if (nearby.length !== 1 || nearby[0].appointmentId !== job.appointmentId) return [];
+    return [{ truck: assignedTruck, observedAt: truck.lastGpsUpdate!, parked: true as const }];
+  });
+  return candidates.length === 1 ? candidates[0] : undefined;
+}
+
 // Current Schedule data can lead the slower visit ledger after a dispatch move.
 // Require continuous dwell at one eligible appointment before current presence.
 // Visit-duration accounting remains in the separately confirmed visit ledger.

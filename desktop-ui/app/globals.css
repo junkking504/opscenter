@@ -2246,6 +2246,7 @@ button { cursor: pointer; }
 .schedule-summary-button.estimate.active strong { color: #fff; }
 .schedule-appointment.estimate.estimate-closed { opacity: .72; border-color: #cdbbde; border-left-color: #7954a3; background: #f1ebf7; }
 .appointment-state.estimate-closed, .drawer-status.estimate-closed { color: #69458f; background: #f0e8f7; }
+.appointment-state.at-job, .drawer-status.at-job { color: #236642; background: #e8f5ed; }
 .appointment-register-row.estimate-closed { box-shadow: inset 3px 0 #8662b1; background: #fdfbff; }
 .territory-record-appointment-list > button > em.estimate-closed { color: #69458f; background: #f0e8f7; }
 

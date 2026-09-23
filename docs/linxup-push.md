@@ -74,6 +74,17 @@ mappings. Pre-policy visits (before September 10, 2026, 3:33 PM Chicago) keep
 the former two-point/two-minute qualification so this change does not replay
 earlier drive-bys as new notifications. Departure evidence remains separate.
 
+Schedule also presents a narrower **At job** location fact when the latest
+report is zero-speed with ignition OFF, lies within 125 meters of exactly one
+non-canceled appointment assigned to that truck, and remains inside the
+75-minute parked heartbeat window. This timestamped fact may remain visible
+after JunkWare marks the appointment complete because completion is not GPS
+departure evidence. It never creates `On site`, an arrival clock, visit
+duration, map beacon, ETA, notification or assignment; those continue to
+require the source-backed dwell and freshness rules above. Unassigned trucks,
+ambiguous co-located appointments, newer outside positions, recorded
+departures and missed parked heartbeats do not qualify.
+
 A positive V3 `geofence.name` is also saved in a separate local observation
 stream. Command announces the first facility report without waiting for the
 V2 alert collector. Repeated reports do not duplicate arrivals; explicit V2
@@ -89,7 +100,8 @@ explicit ignition OFF and its last report is within the existing 75-minute
 parked heartbeat window. The appointment, map beacon and truck-progress row show
 On site while keeping the actual parked GPS time visible. Successive parked
 heartbeats within 30 meters can retain earlier qualified dwell across the hourly
-reporting interval; sparse heartbeats alone cannot establish a new visit.
+reporting interval; sparse heartbeats alone cannot establish a new visit, even
+when Schedule separately shows their timestamped **At job** location fact.
 A newer outside position, intervening movement, recorded departure,
 closed appointment, or missed heartbeat prevents retained current presence.
 Starting the engine at the same position does not invent departure; moving and

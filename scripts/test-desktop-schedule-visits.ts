@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { scheduleVisitState as fullScheduleVisitState } from '../lib/desktop-schedule-visits';
 import { appointmentStatus, scheduleStatusTone } from '../desktop-ui/lib/schedule-contract';
 
-const scheduleVisitState = (...args: Parameters<typeof fullScheduleVisitState>) => { const {hasDepartedVisit, onsiteGpsAt, onsiteGpsParked, onsiteTime, onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, ...state} = fullScheduleVisitState(...args); return state; };
+const scheduleVisitState = (...args: Parameters<typeof fullScheduleVisitState>) => { const {hasDepartedVisit, onsiteGpsAt, onsiteGpsParked, onsiteTime, recordedOnsiteTime, onsiteTruck, lastSeenOnsiteTruck, lastSeenOnsiteAt, ...state} = fullScheduleVisitState(...args); return state; };
 const now = Date.parse('2026-09-06T16:00:00Z');
 const recent = '2026-09-06T15:59:30Z';
 const location = { latitude: 29.97, longitude: -90.07 };
@@ -14,6 +14,9 @@ const visit = { appointment_id: '1234', jk_number: 'JK4000001', truck_number: 'T
 const active = scheduleVisitState(job, [visit], recent, trucks, now);
 assert.deepEqual(active, { hasVisit: true, truckOnSite: true });
 assert.equal(scheduleStatusTone({ status: 'Confirmed', ...active }), 'on-site');
+assert.equal(appointmentStatus({ status: 'Confirmed', appointmentType: 'Job', truckAtJob: true }), 'At Job');
+assert.equal(scheduleStatusTone({ status: 'Confirmed', truckAtJob: true }), 'at-job');
+assert.equal(appointmentStatus({ status: 'Completed', appointmentType: 'Job', truckAtJob: true }), 'Completed','Source completion remains distinct from the current truck-location note');
 assert.equal(scheduleStatusTone({ status: 'Completed', ...active }), 'completed');
 assert.equal(scheduleStatusTone({ status: 'Canceled', ...active }), 'canceled');
 const departed = scheduleVisitState(job, [{ ...visit, visit_intervals: [{ arrival: visit.first_arrival, departure: recent }] }], recent, trucks, now);

@@ -37,6 +37,8 @@ assert.equal(currentOnsiteTruckGps(expiredParked,now),false);
 assert.equal((await get([job('onsite',{truckOnSite:true}),second],[expiredParked]))[0].status,'last_seen');
 assert.equal((await get([job('onsite',{truckOnSite:true}),second],[{...parked,ignition:'ON'}]))[0].status,'last_seen');
 assert.equal((await get([job('seen',{lastSeenOnsiteTruck:'Truck 9'}),second],[parked]))[0].status,'last_seen','Parked telemetry alone cannot establish on-site presence');
+assert.equal((await get([job('at-job',{status:'Completed',truckAtJob:true,atJobTruck:'Truck 9',atJobGpsAt:parked.lastGpsUpdate}),second],[parked]))[0].status,'at_job','A parked assigned-truck observation is surfaced separately from on-site dwell');
+assert.equal(nextTruckStop([job('at-job',{status:'Completed',truckAtJob:true,atJobTruck:'Truck 9'}),second],'Truck 9',true,now)?.job.recordId,'at-job','Current job location outranks the next planned stop even after source completion');
 assert.equal(calls,1,'Retaining parked on-site presence never requests an ETA');
 await get(jobs,[{...gps,lastGpsUpdate:new Date(now+1000).toISOString()}]);assert.equal(calls,1,'Future GPS cannot generate an ETA');
 assert.deepEqual(await get(jobs,[gps],false),[]);

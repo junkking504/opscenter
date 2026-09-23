@@ -104,11 +104,11 @@ async function main() {
       address: "100 Test Street",
       appointment_time: "9:00 AM",
       appointment_type: "Estimate",
-      truck: "Truck# 2",
+      truck: "Virtual Truck",
     }],
   }));
 
-  assert.deepEqual(sourceAppointment(normalized), { appointmentId: "4100000", jkNumber: "JK4113178" });
+  assert.deepEqual(sourceAppointment(normalized), { appointmentId: "4100000", jkNumber: "JK4113178" }, "Creation recovery must survive a later verified truck move.");
 
   const replayedAfterSourceRefresh = await createJunkwareAppointment(input);
   assert.equal(replayedAfterSourceRefresh.replayed, true);

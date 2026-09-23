@@ -5,6 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { createJunkwareAppointment, normalizeJunkwareAppointmentCreationInput, JunkwareAppointmentCreationError, type JunkwareAppointmentCreationInput, type JunkwareAppointmentCreationResult } from './junkware-appointment-creation';
 
 export type DesktopCreationReceipt = { requestId: string; actor: string; fingerprint: string; identity?: string; status: 'pending' | 'verified' | 'failed' | 'uncertain'; updatedAt: string; error?: string; code?: string; result?: JunkwareAppointmentCreationResult };
+export type DesktopCreationStart = { receipt: DesktopCreationReceipt; input: JunkwareAppointmentCreationInput; execute: boolean };
 const directory = () => process.env.OPSCENTER_DESKTOP_CREATIONS_DIR || path.join(process.cwd(), 'data', 'desktop-creations');
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const RECENT_VERIFIED_MS = 24 * 60 * 60 * 1000;
@@ -44,7 +45,7 @@ async function writeReceipt(receipt: DesktopCreationReceipt) {
   const target = path.join(directory(), `${receipt.requestId}.json`), temporary = `${target}.${process.pid}.tmp`;
   await fs.writeFile(temporary, JSON.stringify(receipt), { mode: 0o600 }); await fs.rename(temporary, target);
 }
-export async function executeDesktopCreation(value: unknown, actor: string, create: (input: JunkwareAppointmentCreationInput) => Promise<{ result: JunkwareAppointmentCreationResult; replayed: boolean }> = createJunkwareAppointment, beforeReserve: (input:JunkwareAppointmentCreationInput)=>void = ()=>{}): Promise<DesktopCreationReceipt> {
+export async function startDesktopCreation(value: unknown, actor: string, beforeReserve: (input:JunkwareAppointmentCreationInput)=>void = ()=>{}): Promise<DesktopCreationStart> {
   const input = normalizeJunkwareAppointmentCreationInput(value);
   const fingerprint = createHash('sha256').update(JSON.stringify(input)).digest('hex'), identity = desktopCreationIdentity(input);
   await fs.mkdir(directory(), { recursive: true, mode: 0o700 });
@@ -65,13 +66,19 @@ export async function executeDesktopCreation(value: unknown, actor: string, crea
     }
     await writeReceipt(receipt); return { receipt, execute: receipt.status === 'pending' };
   });
-  if (!reservation.execute) return reservation.receipt;
-  let receipt = reservation.receipt;
-  try { receipt = { ...receipt, status: 'verified', result: (await create(input)).result }; }
+  return { ...reservation, input };
+}
+export async function finishDesktopCreation(start: DesktopCreationStart, create: (input: JunkwareAppointmentCreationInput) => Promise<{ result: JunkwareAppointmentCreationResult; replayed: boolean }> = createJunkwareAppointment): Promise<DesktopCreationReceipt> {
+  if (!start.execute) return start.receipt;
+  let receipt = start.receipt;
+  try { receipt = { ...receipt, status: 'verified', result: (await create(start.input)).result }; }
   catch (error) {
     const known = error instanceof JunkwareAppointmentCreationError;
     const uncertain = !known || error.stage === 'saving' || error.stage === 'verifying';
     receipt = { ...receipt, status: uncertain ? 'uncertain' : 'failed', error: known ? error.message : 'The source result could not be confirmed. Check JunkWare before creating another appointment.', code: known ? error.code : 'verification_required' };
   }
   receipt.updatedAt = new Date().toISOString(); await writeReceipt(receipt); return receipt;
+}
+export async function executeDesktopCreation(value: unknown, actor: string, create: (input: JunkwareAppointmentCreationInput) => Promise<{ result: JunkwareAppointmentCreationResult; replayed: boolean }> = createJunkwareAppointment, beforeReserve: (input:JunkwareAppointmentCreationInput)=>void = ()=>{}): Promise<DesktopCreationReceipt> {
+  return finishDesktopCreation(await startDesktopCreation(value, actor, beforeReserve), create);
 }

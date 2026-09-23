@@ -317,8 +317,7 @@ export function sourceAppointment(input: JunkwareAppointmentCreationInput): Sour
       return digits(row.phone || row.customer_phone) === input.phone
         && normalizeAddress(row.address || row.service_address || row.appointment_address) === normalizeAddress(input.serviceAddress)
         && time24(row.appointment_time || row.start_time) === input.startTime
-        && normalizedAppointmentType(row) === normalized(input.appointmentType)
-        && normalizedTruck(row) === normalized(input.truck);
+        && normalizedAppointmentType(row) === normalized(input.appointmentType);
     });
     const jkNumber = clean(match?.job_id || match?.jk_number, 40);
     const appointmentId = clean(match?.appt_id || match?.appointment_id, 20);
@@ -333,10 +332,6 @@ export function sourceAppointment(input: JunkwareAppointmentCreationInput): Sour
 
 function normalizedAppointmentType(row: Record<string, unknown>): string {
   return normalized(row.final_appointment_type || row.appointment_type || row.job_type);
-}
-
-function normalizedTruck(row: Record<string, unknown>): string {
-  return normalized(row.assigned_truck || row.truck || row.truck_number);
 }
 
 function recoveredResult(input: JunkwareAppointmentCreationInput, source: SourceAppointment): JunkwareAppointmentCreationResult {

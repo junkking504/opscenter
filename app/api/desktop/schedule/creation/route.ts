@@ -1,12 +1,14 @@
 import { isDesktopWriteOriginAllowed } from '@/lib/desktop-request-origin';
 import { cookies } from 'next/headers';
+import { after } from 'next/server';
 import { AUTH_SESSION_COOKIE, verifyAuthSessionCookie } from '@/lib/auth';
 import { authorizeOpsRequest } from '@/lib/ops-roles';
-import { executeDesktopCreation, readDesktopCreation } from '@/lib/desktop-creation';
+import { finishDesktopCreation, readDesktopCreation, startDesktopCreation } from '@/lib/desktop-creation';
 import { JunkwareAppointmentCreationError } from '@/lib/junkware-appointment-creation';
 import {prebookingCheck,requirePrebookingReview,PrebookingReviewRequired} from '@/lib/prebooking-duplicates';
 import {readDesktopSchedule} from '@/lib/desktop-schedule';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 const headers = { 'Cache-Control': 'private, no-store, max-age=0' };
 async function actor() { return verifyAuthSessionCookie((await cookies()).get(AUTH_SESSION_COOKIE)?.value || ''); }
 export async function GET(request: Request) {
@@ -21,7 +23,12 @@ export async function POST(request: Request) {
   if (!authorizeOpsRequest(auth.role, '/api/appointments', 'POST').allowed || !isDesktopWriteOriginAllowed(request)) return Response.json({ error: 'Booking is not permitted.' }, { status: 403, headers });
   try {
     const body=await request.json();
-    const receipt = await executeDesktopCreation(body, auth.email, undefined, input=>requirePrebookingReview(input,prebookingCheck(input,readDesktopSchedule(input.date)),body.duplicateReview));
+    const start = await startDesktopCreation(body, auth.email, input=>requirePrebookingReview(input,prebookingCheck(input,readDesktopSchedule(input.date)),body.duplicateReview));
+    if (start.execute) after(async () => {
+      try { await finishDesktopCreation(start); }
+      catch (error) { console.error('[desktop-creation] background verification failed', { requestId: start.receipt.requestId, error: error instanceof Error ? error.message : 'Unknown error' }); }
+    });
+    const receipt = start.receipt;
     return Response.json({ receipt }, { status: receipt.status === 'verified' ? 200 : receipt.status === 'failed' ? 422 : 202, headers });
   } catch (error) {
     if(error instanceof PrebookingReviewRequired)return Response.json({error:error.message},{status:409,headers});

@@ -13,19 +13,19 @@ import {appointmentCategory,appointmentStatus} from './lib/schedule-contract';
 import './prebooking-duplicates.css';
 import {serviceAddressForGeocoding} from '../lib/appointment-partner';
 
-type Receipt = { requestId: string; status: 'pending' | 'verified' | 'failed' | 'uncertain'; error?: string; code?: string; result?: { appointmentId: string; jkNumber: string; appointmentUrl: string; verifiedAt: string; date: string; truck: string } };
+export type AppointmentCreationReceipt = { requestId: string; status: 'pending' | 'verified' | 'failed' | 'uncertain'; error?: string; code?: string; result?: { appointmentId: string; jkNumber: string; appointmentUrl: string; verifiedAt: string; date: string; truck: string } };
 const franchises = ['New Orleans', 'Jefferson Parish', 'Northshore', 'Baton Rouge'];
 const heard = ['Returning', 'Referral', 'Google - Search', 'Google - Ads', 'Google - Local Service Ad', 'Google - Maps', 'Website', 'Saw Trucks/Company Vehicle', 'Yelp', 'Thumbtack', 'TV/Radio', 'Online - Social', 'Angi Leads', 'Angi Ads', 'National Account', 'Neighborly', 'Networking/Events', 'Email/SMS', 'ChatGPT', 'Unknown'];
 const freshForm = (date: string) => ({ franchise: '', date, startTime: '09:00', durationHours: 1, truck: '', appointmentType: 'Job', firstName: '', lastName: '', business: false, company: '', phone: '', email: '', billingSame: true, billingAddress: '', billingZip: '', billingEmail: '', howHeard: '', serviceAddress: '', serviceZip: '', serviceContactName: '', serviceContactPhone: '', estimatedPickups: 1, scope: '', notes: '', duplicateOverrideReason: '', customerSelection: undefined as CustomerSelection | undefined });
 export function creationPayload(form: ReturnType<typeof freshForm>, requestId: string) {
   return { ...form, requestId, billingAddress: form.billingSame ? form.serviceAddress : form.billingAddress, billingZip: form.billingSame ? form.serviceZip : form.billingZip };
 }
-export default function AppointmentCreation({ date, close, saved, onBusyChange }: { date: string; appointments: ScheduleAppointment[]; close: () => void; saved: () => void; onBusyChange: (busy: boolean) => void }) {
+export default function AppointmentCreation({ date, close, saved, background, onBusyChange }: { date: string; appointments: ScheduleAppointment[]; close: () => void; saved: () => void; background: (receipt: AppointmentCreationReceipt) => void; onBusyChange: (busy: boolean) => void }) {
   const [form, setForm] = useState(() => freshForm(date));
   const [mode, setMode] = useState<'edit' | 'review' | 'result'>('edit');
   const [busy, setBusy] = useState(false);
   const pending = useRef(false);
-  const [receipt, setReceipt] = useState<Receipt | null>(null);
+  const [receipt, setReceipt] = useState<AppointmentCreationReceipt | null>(null);
   const [requestId, setRequestId] = useState('');
   const [error, setError] = useState('');
   const [duplicateCheck,setDuplicateCheck]=useState<PrebookingCheck|null>(null);
@@ -53,7 +53,7 @@ export default function AppointmentCreation({ date, close, saved, onBusyChange }
     }catch(failure){setError(failure instanceof Error?failure.message:'Duplicate check unavailable. No appointment was created.');}
     finally{pending.current=false;setBusy(false);}
   };
-  const accept = async (body: { receipt?: Receipt; error?: string }, status: number) => {
+  const accept = async (body: { receipt?: AppointmentCreationReceipt; error?: string }, status: number) => {
     if (!body.receipt) {
       if ([400, 401, 403, 409, 422].includes(status)) { setError(body.error || 'Booking was rejected.'); setMode('edit'); return; }
       throw new Error('The booking result could not be confirmed. Check Saved Result before doing anything else.');
@@ -66,7 +66,9 @@ export default function AppointmentCreation({ date, close, saved, onBusyChange }
     pending.current = true; setBusy(true); setError('');
     try {
       const response = await fetch('/api/desktop/schedule/creation', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({...creationPayload(form, requestId),duplicateReview:{fingerprint:duplicateCheck.fingerprint,createSeparate}}), signal: AbortSignal.timeout(240_000) });
-      await accept(await response.json(), response.status);
+      const body = await response.json() as { receipt?: AppointmentCreationReceipt; error?: string };
+      if (response.status === 202 && body.receipt?.status === 'pending') { background(body.receipt); return; }
+      await accept(body, response.status);
     } catch { setReceipt({ requestId, status: 'uncertain', error: 'The booking result could not be confirmed. Check Saved Result and JunkWare before creating another appointment.' }); setMode('result'); }
     finally { pending.current = false; setBusy(false); }
   };

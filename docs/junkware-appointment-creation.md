@@ -12,10 +12,18 @@ successful merely because a form submission completed.
 3. Review the complete booking before creating it.
 4. OpsCenter searches for a matching customer, creates or reuses the customer
    record, and submits the appointment to JunkWare.
-5. JunkWare assigns the JK number.
-6. OpsCenter opens the returned appointment and verifies the JK number,
+5. OpsCenter durably reserves the request, closes the booking drawer, and lets
+   the operator continue using Schedule while JunkWare saves and source
+   verification continue in the background.
+6. JunkWare assigns the JK number.
+7. OpsCenter opens the returned appointment and verifies the JK number,
    customer, phone, service address, date, start time, category, franchise, and
-   truck before reporting success.
+   reviewed truck before reporting success. A later independently verified
+   truck move does not invalidate creation recovery.
+
+Schedule polls only the local durable receipt while this runs. It refreshes the
+selected JunkWare day and reports the JK number when verification finishes; a
+failed or uncertain result is surfaced without replaying the creation request.
 
 `Job` and `Estimate` are separate appointment categories. Creating an Estimate
 does not create completed-job production or revenue.
@@ -93,6 +101,10 @@ customer payload in the idempotency record.
 - A failure during Save or read-back is **uncertain**. OpsCenter blocks blind
   retry and directs the operator to search JunkWare for the same date, phone,
   service address, and time.
+- A source-backed recovery matches the immutable booking identity (phone,
+  address, date, start time, and category). The appointment may be moved after
+  it appears on Schedule without causing its still-running creation read-back
+  to fail merely because the current truck changed.
 
 ## Integration boundary
 

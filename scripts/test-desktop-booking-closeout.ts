@@ -11,12 +11,20 @@ import { JunkwareAppointmentCreationError } from '../lib/junkware-appointment-cr
 async function main() {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'desktop-booking-test-'));
   process.env.OPSCENTER_DESKTOP_CREATIONS_DIR = directory;
-  const { executeDesktopCreation, readDesktopCreation } = await import('../lib/desktop-creation');
+  const { executeDesktopCreation, finishDesktopCreation, readDesktopCreation, startDesktopCreation } = await import('../lib/desktop-creation');
   const date = new Date(Date.now() + 172800000).toISOString().slice(0, 10);
   const input = { requestId: randomUUID(), franchise: 'New Orleans', date, startTime: '09:00', durationHours: 1, truck: 'Truck 2', appointmentType: 'Estimate', firstName: 'Synthetic', lastName: 'Booking', business: false, company: '', phone: '5045550199', email: '', billingAddress: '100 Test Street', billingZip: '70119', billingEmail: '', howHeard: 'Referral', serviceAddress: '100 Test Street', serviceZip: '70119', serviceContactName: '', serviceContactPhone: '', estimatedPickups: 1, scope: 'Synthetic test only', notes: '', duplicateOverrideReason: '' };
   let calls = 0;
   const create = async () => { calls++; return { result: { appointmentId: '1234', jkNumber: 'JKTEST1234', appointmentUrl: 'https://example.invalid/appointment/1234', franchise: 'New Orleans' as const, date, startTime: '09:00', durationHours: 1, truck: 'Truck 2', appointmentType: 'Estimate' as const, customerMode: 'new' as const, verifiedAt: new Date().toISOString() }, replayed: false }; };
   try {
+    const backgroundInput = { ...input, requestId: randomUUID(), phone: '5045550196' };
+    const backgroundStart = await startDesktopCreation(backgroundInput, 'actor-a');
+    assert.equal(backgroundStart.receipt.status, 'pending'); assert.equal(calls, 0, 'Reservation must return before the provider write starts');
+    assert.equal((await readDesktopCreation(backgroundInput.requestId, 'actor-a'))?.status, 'pending');
+    const backgroundResult = await finishDesktopCreation(backgroundStart, create);
+    assert.equal(backgroundResult.status, 'verified'); assert.equal(calls, 1);
+    assert.equal((await startDesktopCreation(backgroundInput, 'actor-a')).execute, false, 'A verified background request must not run twice');
+    calls = 0;
     const [first, concurrent] = await Promise.all([executeDesktopCreation(input, 'actor-a', create), executeDesktopCreation(input, 'actor-a', create)]);
     assert.equal(calls, 1); assert.equal(first.status, 'verified'); assert.ok(['pending', 'verified'].includes(concurrent.status));
     assert.equal((await executeDesktopCreation(input, 'actor-a', create)).result?.appointmentId, '1234');

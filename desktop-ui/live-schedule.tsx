@@ -19,7 +19,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { ArrowDown, ArrowRight, Check, GripVertical, Plus, X } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
-import AppointmentCreation from './appointment-creation';
+import AppointmentCreation, { type AppointmentCreationReceipt } from './appointment-creation';
 import AppointmentCloseout from './appointment-closeout';
 import AppointmentNotes from './appointment-notes';
 import { AlertPhotos } from './components/alert-details';
@@ -279,9 +279,12 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const truckNames = scheduleTruckNames(snapshot);
   const range = timelineRange(jobs, now.getTime());
   const movePolls = useRef(new Map<string, number>());
+  const creationPolls = useRef(new Map<string, number>());
   useEffect(() => () => {
     for (const timer of movePolls.current.values()) window.clearTimeout(timer);
     movePolls.current.clear();
+    for (const timer of creationPolls.current.values()) window.clearTimeout(timer);
+    creationPolls.current.clear();
   }, []);
   const finishBackgroundMove = (move: BackgroundScheduleMove, receipt: Receipt) => {
     if (receipt.status === 'verified') {
@@ -322,6 +325,43 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
         .catch(() => pollBackgroundMove(move, 15_000));
     }, delay);
     movePolls.current.set(move.requestId, timer);
+  };
+  const finishBackgroundCreation = (receipt: AppointmentCreationReceipt) => {
+    if (receipt.status === 'verified') {
+      setDragNotice(`${receipt.result?.jkNumber || 'Appointment'} created and verified in JunkWare.`);
+      refreshSourceDate.current = receipt.result?.date || date;
+      refresh();
+      return true;
+    }
+    if (receipt.status === 'failed' || receipt.status === 'uncertain') {
+      setDragNotice(receipt.status === 'failed'
+        ? `Appointment was not created. ${receipt.error || 'JunkWare rejected the booking.'}`
+        : `Appointment verification needs source review. No retry was sent. ${receipt.error || 'Check JunkWare before creating another appointment.'}`);
+      refreshSourceDate.current = date;
+      refresh();
+      return true;
+    }
+    return false;
+  };
+  const pollBackgroundCreation = (requestId: string, delay = 2_500) => {
+    const existing = creationPolls.current.get(requestId);
+    if (existing) window.clearTimeout(existing);
+    const timer = window.setTimeout(() => {
+      creationPolls.current.delete(requestId);
+      void fetch(`/api/desktop/schedule/creation?requestId=${encodeURIComponent(requestId)}`, { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(20_000) })
+        .then(async response => { const body = await response.json(); if (!response.ok || !body.receipt) throw new Error(body.error || 'Saved result unavailable.'); return body.receipt as AppointmentCreationReceipt; })
+        .then(receipt => { if (!finishBackgroundCreation(receipt)) pollBackgroundCreation(requestId, 10_000); })
+        .catch(() => pollBackgroundCreation(requestId, 15_000));
+    }, delay);
+    creationPolls.current.set(requestId, timer);
+  };
+  const startBackgroundCreation = (receipt: AppointmentCreationReceipt) => {
+    setCreationOpen(false);
+    onOperationBusyChange(false);
+    setDragNotice('Appointment submitted. JunkWare verification is running in the background; you can keep working.');
+    refreshSourceDate.current = date;
+    refresh();
+    pollBackgroundCreation(receipt.requestId);
   };
   const commitScheduleMove = (proposal: Parameters<typeof backgroundScheduleMove>[0]) => {
     const window = scheduleMoveWindow(proposal.job, proposal.start);
@@ -487,7 +527,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     {view === 'calendar' && <ScheduleCalendar date={date} openDate={value => onOpenDate?.(value)} />}
     {view === 'history' && <ScheduleHistory date={date} jobs={jobs} open={setDrawerId} />}
     {view === 'followup' && <ScheduleFollowup jobs={jobs} open={setDrawerId} />}
-    {creationOpen && <AppointmentCreation date={date} appointments={jobs} close={() => { if (!operationBusyRef.current) setCreationOpen(false); }} saved={refresh} onBusyChange={onOperationBusyChange} />}
+    {creationOpen && <AppointmentCreation date={date} appointments={jobs} close={() => { if (!operationBusyRef.current) setCreationOpen(false); }} saved={refresh} background={startBackgroundCreation} onBusyChange={onOperationBusyChange} />}
     {drawer && <><button className="record-drawer-backdrop" aria-label="Close appointment" disabled={operationBusy} onClick={() => setDrawerId(null)} /><aside className="record-drawer job-record-drawer" role="dialog" aria-modal="true" aria-labelledby="live-appointment-title" onKeyDown={event => { if (event.key !== 'Tab') return; const focusable = [...event.currentTarget.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex="0"]')].filter(element => !element.hasAttribute('disabled') && element.getClientRects().length > 0); const first = focusable[0], last = focusable[focusable.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); } }}><header className="record-drawer-header"><div><span>{appointmentCategory(drawer)} · {appointmentStatus(drawer)}</span><h2 id="live-appointment-title">{drawer.jkNumber}</h2><p>{scheduleCustomerLabel(drawer)}</p><PartnerBadge job={drawer} /></div><Button ref={closeButton} variant="ghost" size="icon" aria-label="Close" disabled={operationBusy} onClick={() => setDrawerId(null)}><X /></Button></header><div className="record-drawer-body"><AppointmentCloseout key={`closeout:${date}:${drawer.recordId}`} job={drawer} date={date} saved={refresh} onBusyChange={onOperationBusyChange} /><SourceEstimateSummary job={drawer} showPhotos /><section className="drawer-facts" aria-label="Record details">{[
       ['Appointment ID', drawer.appointmentId || 'Unavailable'], ['Time', drawer.appointmentTime], ['Customer', scheduleCustomerLabel(drawer)], ['Phone', <Phone key="phone" value={drawer.phone} />], ['Email', drawer.customerEmail || 'Not Recorded'], ['Address', <Address key="address" value={appointmentServiceAddress(drawer)} />], ['Truck', scheduleDisplayTruck(drawer)], ['Krewe', crew(drawer)], ['Category', appointmentCategory(drawer)], ['Status', appointmentStatus(drawer)], ['Work', (drawer.pickupItems?.length ? drawer.pickupItems : drawer.junkItems).join(' · ') || 'Not Recorded'], [schedulePayment(drawer).label, schedulePayment(drawer).amount || 'See payment detail'], ['Payment detail', [...schedulePayment(drawer).details, schedulePayment(drawer).balance].filter(Boolean).join(' · ') || 'Not recorded'], ['Tip', money(drawer.closeout?.tip ?? drawer.tipAmount)],
     ].map(([label, value]) => <div key={String(label)}><span>{label}</span><strong>{truckDisplayText(String(value || 'Unavailable'))}</strong></div>)}{scheduleTruckMismatch(drawer) && <div><span>JunkWare truck</span><strong>{truckDisplayText(scheduleTruckMismatch(drawer)!.junkwareTruck)}</strong></div>}{['Completed', 'Estimate Closed'].includes(appointmentStatus(drawer)) && onsiteTimeFacts(displayedOnsiteTime(drawer) || {minutes:null,arrival:null,departure:null,label:'Unavailable · no confirmed visit'}).map(fact=><div key={fact.label}><span>{fact.label}</span><strong>{fact.value}</strong></div>)}</section><AppointmentNotes notes={drawer.appointmentNotes} />{<AlertPhotos photos={drawer.photos?.filter(photo => !drawer.sourceEstimate?.photos.some(estimatePhoto => estimatePhoto.url.split('?')[0] === photo.url.split('?')[0]))} />}<AppointmentReschedule key={'reschedule:'+drawer.recordId} job={drawer} date={date} saved={destination => { setRescheduleNotice({date:destination,jk:drawer.jkNumber}); refreshSourceDate.current=date; refresh(); }} onBusyChange={onOperationBusyChange} onOpenDate={onOpenDate ? destination => { setDrawerId(null); onOpenDate(destination); } : undefined} /><ScheduleControls key={drawer.recordId} job={drawer} date={date} trucks={truckNames} saved={refresh} onBusyChange={onOperationBusyChange} onMove={proposal => commitScheduleMove(scheduleMoveProposal(proposal.job, proposal.truck, proposal.start, jobs))} /><AppointmentClassification key={`type:${drawer.recordId}`} job={drawer} date={date} saved={refresh} onBusyChange={onOperationBusyChange} /></div><footer className="record-drawer-actions"><div className="closeout-footer-slot" />{(!isClosed(drawer) || /cancel(?:ed|led)/i.test(drawer.status)) && <Button className="drawer-reschedule-shortcut" variant="outline" disabled={operationBusy} onClick={() => { document.getElementById("appointment-reschedule")?.scrollIntoView({block:"nearest",behavior:"instant"}); document.getElementById("appointment-reschedule-date")?.focus({preventScroll:true}); }}>{/cancel(?:ed|led)/i.test(drawer.status)?'Restore Appointment':'Reschedule Appointment'}</Button>}{!isClosed(drawer) && <Button className="drawer-cancel-shortcut" variant="outline" disabled={operationBusy} onClick={() => { document.getElementById("appointment-cancellation")?.scrollIntoView({block:"nearest",behavior:"instant"}); document.getElementById("appointment-cancellation-reason")?.focus({preventScroll:true}); }}>Cancel Appointment</Button>}<Button variant="outline" disabled={operationBusy} onClick={() => setDrawerId(null)}>Close</Button>{safeSourceHref(drawer) && <Button onClick={() => window.location.assign(safeSourceHref(drawer)!)}>Open in JunkWare <ArrowRight /></Button>}</footer></aside></>}

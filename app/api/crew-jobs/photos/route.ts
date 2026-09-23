@@ -3,7 +3,7 @@ import { after } from 'next/server';
 import {readCrewDispatch} from '@/lib/crew-dispatch-store';
 import {crewCheckoutDryRun} from '@/lib/crew-checkout-dry-run';
 import { crewPhoneBody, crewPhoneFailure, crewPhoneResponse, requireCrewPhone } from '@/lib/crew-phone-http';
-import { withCrewJob } from '@/lib/crew-job-scope';
+import { withCrewJob,readCrewJobScope } from '@/lib/crew-job-scope';
 import { CrewPhoneError } from '@/lib/crew-phone';
 import { crewPhotos, crewPhotoProjection, parseCrewPhoto, processStagedCrewPhoto, readCrewPhoto, reconcileCrewPhoto, stageCrewPhoto } from '@/lib/crew-job-photos';
 import { uploadJunkwareJobPhoto } from '@/lib/junkware-photo-uploader';
@@ -19,6 +19,10 @@ export async function GET(request:Request) {
     requireCrewPhone(request);
     const params=new URL(request.url).searchParams;
     if([...params.keys()].some(key=>!['assignmentId','requestId'].includes(key)))throw new CrewPhoneError('Use the current assignment screen.');
+    if(!params.has('requestId')){
+      const {phone,current}=readCrewJobScope(request,params.get('assignmentId') || '');
+      return crewPhoneResponse({photos:crewPhotos(phone.deviceId,current.assignmentId).map(crewPhotoProjection)});
+    }
     return await withCrewJob(request,params.get('assignmentId') || '',async({phone,current})=>{
       const id=params.get('requestId');
       if(id){
@@ -41,7 +45,11 @@ export async function POST(request:Request) {
     const body=parseCrewPhoto(await crewPhoneBody(request,6*1024*1024));
     const current=readCrewDispatch(phone.truck).current;
     if(current?.assignmentId===body.assignmentId && crewCheckoutDryRun(current,phone.truck))throw new CrewPhoneError('This is a dry run. Photos stay on the phone and are not uploaded to JunkWare.',409);
-    return await withCrewJob(request,body.assignmentId,async({phone,current,job})=>{
+    {
+      // Accept bytes durably without waiting behind a provider upload. The
+      // background writer independently rechecks the live source and phone.
+      const {phone,current,job}=readCrewJobScope(request,body.assignmentId);
+      if(!/^confirmed$/i.test(job.status))throw new CrewPhoneError('This appointment is already closed.',409);
       if(crewCheckoutDryRun(current,phone.truck))throw new CrewPhoneError('This is a dry run. Photos stay on the phone and are not uploaded to JunkWare.',409);
       const staged=stageCrewPhoto(body,{deviceId:phone.deviceId,appointmentId:current.appointmentId});
       if(staged.created)after(async()=>{
@@ -50,6 +58,6 @@ export async function POST(request:Request) {
         }).catch(()=>undefined);
       });
       return crewPhoneResponse({receipt:crewPhotoProjection(staged.receipt)},staged.receipt.status==='verified'?200:202);
-    });
+    }
   }catch(error){return crewPhoneFailure(error);}
 }

@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react';
 import styles from './phone-access.module.css';
 import { readPhotoResponse } from './photo-response';
+import {MAX_CHECKOUT_PHOTOS} from '@/lib/crew-photo-limits';
 
 import {stageCheckoutPhotos, type CheckoutPhoto as Photo} from './photo-checkout';
 export type PhotoProgress = {ready:boolean;count:number;verified:number};
@@ -27,13 +28,15 @@ async function photoImage(file:File):Promise<string> {
     const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.width*scale));canvas.height=Math.max(1,Math.round(image.height*scale));
     const context=canvas.getContext('2d');if(!context)throw new Error('Photo preparation is unavailable.');
     context.fillStyle='white';context.fillRect(0,0,canvas.width,canvas.height);context.drawImage(image,0,0,canvas.width,canvas.height);
-    const result=canvas.toDataURL('image/jpeg',.85);
+    const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error('This photo could not be prepared.')),'image/jpeg',.85));
+    const result=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(new Error('This photo could not be read.'));reader.readAsDataURL(blob);});
     if(result.length>5.5*1024*1024)throw new Error('This image is too large. Choose a smaller photo.');
     return result;
   }finally{URL.revokeObjectURL(url);}
 }
 export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:visibleCategory,onProgress,deferred=false,locked=false,dryRun=false,ref}:{deviceId:string;assignmentId:string;onBusyChange:(busy:boolean)=>void;category?:'before'|'after';onProgress?:(progress:PhotoProgress)=>void;deferred?:boolean;locked?:boolean;dryRun?:boolean;ref?:Ref<PhotoCheckoutHandle>}) {
   const [photos,setPhotos]=useState<Photo[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[ready,setReady]=useState(false),[reload,setReload]=useState(0);
+  const [previews,setPreviews]=useState<Array<{url:string;category:'before'|'after'}>>([]),[preparing,setPreparing]=useState('');
   const inFlight=useRef(false),rows=useRef<Photo[]>([]);
   const key=`${deviceId}:${assignmentId}`;
   const save=useCallback(async(next:Photo[])=>{const unique=[...new Map(next.map(row=>[row.requestId,row])).values()];await stored(key,unique);rows.current=unique;setPhotos(unique);},[key]);
@@ -63,10 +66,24 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
     finally{inFlight.current=false;setBusy(false);onBusyChange(false);}
   }
   async function select(files:File[],category:'before'|'after') {
-    if(rows.current.filter(row=>row.status!=='verified').length+files.length>10)throw new Error('Choose up to 10 photos for this checkout. Remove a selected photo before adding more.');
+    const remaining=MAX_CHECKOUT_PHOTOS-rows.current.filter(row=>row.status!=='verified').length;
+    if(files.length>remaining)throw new Error(`You can add ${remaining} more photos. The ${MAX_CHECKOUT_PHOTOS}-photo limit includes Before and After together.`);
+    if(files.some(file=>!file.type.startsWith('image/') || file.size>25*1024*1024))throw new Error('Choose images smaller than 25 MB each.');
+    const selected=files.map(file=>({url:URL.createObjectURL(file),category}));
+    setPreviews(selected);
     const added:Photo[]=[];
-    for(const file of files)added.push({requestId:crypto.randomUUID(),category,status:'selected',image:await photoImage(file)});
-    await save([...rows.current,...added]);
+    try{
+      // Paint camera/library previews immediately, before decoding and resizing.
+      await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));
+      for(const [index,file] of files.entries()){
+        setPreparing(`Preparing photo ${index+1} of ${files.length}…`);
+        added.push({requestId:crypto.randomUUID(),category,status:'selected',image:await photoImage(file)});
+      }
+    }finally{
+      // Keep successfully prepared photos even if a later file cannot decode.
+      try{if(added.length)await save([...rows.current,...added]);}
+      finally{setPreviews([]);setPreparing('');selected.forEach(row=>URL.revokeObjectURL(row.url));}
+    }
   }
   async function upload(row:Photo) {
     if(!row.image || row.status!=='selected')throw new Error('This photo is unavailable. Return to photos and choose it again.');
@@ -101,8 +118,14 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
   }}));
   return <section className={styles.card}><h2>{visibleCategory==='before'?'Before photos':visibleCategory==='after'?'After photos':'Job photos'}</h2><p>{dryRun ? "Choose photos to test this checkout. The files will stay on this phone." : deferred ? `Choose ${visibleCategory || 'job'} photos now. They will upload when you submit the completed checkout.` : 'Upload job photos and check the saved result.'}</p>
     {!ready && !error && <p role="status">Checking saved photos…</p>}
-    {(visibleCategory ? [visibleCategory] : ['before','after'] as const).map(category=><div className={styles.photoSection} key={category}><h3>{category==='before'?'Before':'After'}</h3>
+    <p className={styles.muted}>{photos.filter(row=>row.status!=='verified').length} of {MAX_CHECKOUT_PHOTOS} selected · Before and After combined</p>
+    {(visibleCategory ? [visibleCategory] : ['before','after'] as const).map(category=><div className={styles.photoSection} key={category}>
       <label className={styles.photoPicker}><strong>Add {category} photos</strong><span>Take photos or choose from this phone</span><input aria-label={`Add ${category} photos`} type="file" accept="image/*" multiple disabled={busy || locked || !ready} onChange={event=>{const files=Array.from(event.target.files || []);event.target.value='';void work(()=>select(files,category));}}/></label>
+      <div className={styles.photoGrid}>
+      {previews.filter(row=>row.category===category).map(row=><div className={styles.photo} key={row.url}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={row.url} alt={`${category} photo preview`}/><p>Preparing for checkout…</p>
+      </div>)}
       {photos.filter(row=>row.category===category).map(row=><div className={styles.photo} key={row.requestId}>
         {/* Local camera/library preview; never sent to an image optimization service. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -110,8 +133,9 @@ export default function JobPhotos({deviceId,assignmentId,onBusyChange,category:v
         <p role="status">{row.status==='verified'?'Saved in JunkWare':row.status==='selected'?(deferred?'Ready to submit':'Selected · not uploaded'):row.status==='pending'?'Finishing in background':deferred?'Check the saved result before checkout':'Verification required · do not upload again'}</p>
         {row.status==='selected'?<>{!deferred && <button className={styles.primary} disabled={busy || locked} onClick={()=>void work(async()=>{await upload(row);})}>Upload photo</button>}<button className={styles.secondary} disabled={busy || locked} onClick={()=>void work(()=>save(rows.current.filter(item=>item.requestId!==row.requestId)))}>Remove selected photo</button></>:!deferred && row.status!=='verified'?<button className={styles.secondary} disabled={busy || locked} onClick={()=>void work(async()=>{await check(row);})}>Check saved photo</button>:null}
       </div>)}
+      </div>
     </div>)}
-    {busy && <p role="status">Working on this photo…</p>}
+    {busy && <p role="status">{preparing || 'Saving photo selection…'}</p>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
     {!ready && error && <button className={styles.secondary} disabled={busy || locked} onClick={()=>setReload(value=>value+1)}>Check saved photos again</button>}
     <p className={styles.muted}>Selected photos stay on this phone for 24 hours. {dryRun?'This is a dry run. No photos will be uploaded.':deferred?'Tap Submit once. Waypoint will transfer the photos, return to Assignments, and finish JunkWare verification in the background.':'Uploads start only when you tap Upload photo.'}</p>

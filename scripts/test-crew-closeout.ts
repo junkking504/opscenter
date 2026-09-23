@@ -15,7 +15,7 @@ async function main(){
   const {releaseCrewJob}=await import('../lib/crew-dispatch-store');
   const {CREW_PHONE_COOKIE}=await import('../lib/crew-phone');
   const {withCrewJob}=await import('../lib/crew-job-scope');
-  const {loadCrewCloseout,submitCrewCloseout,queueCrewCloseout,checkCrewCloseout,crewReceiptProjection}=await import('../lib/crew-closeout-service');
+  const {loadCrewCloseout,submitCrewCloseout,queueCrewCloseout,checkCrewCloseout,crewReceiptProjection,validateCrewCloseout}=await import('../lib/crew-closeout-service');
   const {closeoutSourceVersion}=await import('../lib/desktop-closeout-contract');
   const {JunkwareCloseoutError}=await import('../lib/junkware-job-closeout');
   const token=randomBytes(32).toString('hex'),phone=enrollCrewPhone(createCrewPhoneEnrollment('Truck 6','Test phone','manager').code,token);
@@ -35,6 +35,9 @@ async function main(){
   };
   const values={jobCategoryId:'house',howHeardId:'ref',actualStartHour:'99',actualStartMinute:'99',actualEndHour:'99',actualEndMinute:'99',driverId:'d',navigatorIds:['n','e'],appointmentId:id,serviceDate:date,targetStatus:'8',truck:'Truck 6',appointmentType:'Job',expectedSourceVersion:closeoutSourceVersion(source),addPayment:{methodId:'card',amount:'350.00',reference:'1234'}};
   const body=()=>({assignmentId:current.assignmentId,requestId:randomUUID(),expectedVersion:version,crewVersion:1,values:{...values,expectedSourceVersion:closeoutSourceVersion(source)}});
+  const photoRequestIds=Array.from({length:25},()=>randomUUID());
+  assert.doesNotThrow(()=>validateCrewCloseout({...values,photoRequestIds},'Truck 6',id,date));
+  assert.throws(()=>validateCrewCloseout({...values,photoRequestIds:[...photoRequestIds,randomUUID()]},'Truck 6',id,date),/photos selected/);
   assert.equal((await loadCrewCloseout(request,current.assignmentId,deps)).canWrite,true);
   const reviewed=await loadCrewCloseout(request,current.assignmentId,deps);
   const photoOnlyBody=body();
@@ -60,13 +63,11 @@ async function main(){
   assert.equal((await submitCrewCloseout(request,{...body(),values:{...values,navigatorIds:['e']}},deps)).status,'failed');assert.equal(writes,0,'Daily crew cannot be dropped and changed-day forms cannot write');
   assert.equal((await loadCrewCloseout(request,current.assignmentId,deps)).crewDefaults?.driver.value,'d');
   const savedVisits=job.truckVisits;job.truckVisits=[];
-  const missingArrival=await submitCrewCloseout(request,body(),deps);assert.equal(missingArrival.status,'failed');assert.match(missingArrival.message,/arrival/);assert.equal(writes,0);
-  job.truckVisits=[{...savedVisits[0],truck:'Truck 9'}];assert.equal((await submitCrewCloseout(request,body(),deps)).status,'failed');assert.equal(writes,0,'Other truck arrival never authorizes time');
-  job.truckVisits=[];
+  job.truckVisits=[{...savedVisits[0],truck:'Truck 9'}];
   let manualWrites=0;
   const manualBody=body();manualBody.values.actualStartHour='0';manualBody.values.actualStartMinute='0';
-  const manualReceipt=await submitCrewCloseout(request,manualBody,{...deps,write:async(_id,input)=>{manualWrites++;assert.equal(input!.actualStartHour,'0');assert.equal(input!.actualStartMinute,'0');assert.notEqual(input!.actualEndHour,'99');return{ok:true,appointmentId:id,closeout:{...source,status:{value:'8'}},verifiedAt:new Date().toISOString()};}});
-  assert.equal(manualReceipt.status,'verified');assert.equal(manualWrites,1);assert.equal((manualReceipt.sourceResult?.jobTiming as {startSource:string}).startSource,'manual');
+  const manualReceipt=await submitCrewCloseout(request,manualBody,{...deps,write:async(_id,input)=>{manualWrites++;assert.equal(input!.actualStartHour,'');assert.equal(input!.actualStartMinute,'');assert.equal(input!.arrivalUnavailable,true);assert.notEqual(input!.actualEndHour,'99');return{ok:true,appointmentId:id,closeout:{...source,status:{value:'8'}},verifiedAt:new Date().toISOString()};}});
+  assert.equal(manualReceipt.status,'verified');assert.equal(manualWrites,1);assert.equal((manualReceipt.sourceResult?.jobTiming as {startSource:string}).startSource,'unknown','Other-truck GPS and phone input never invent an arrival');
   job.truckVisits=savedVisits;
   assert.equal((await loadCrewCloseout(request,current.assignmentId,deps)).arrival,arrival);
   const queued=await queueCrewCloseout(request,body(),deps);assert.equal(queued.receipt.status,'pending');assert.equal(writes,0,'Queue response precedes the provider write');assert.ok(queued.run);

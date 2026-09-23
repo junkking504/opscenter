@@ -7,6 +7,15 @@ import { readDesktopSchedule } from './desktop-schedule';
 import { crewScheduleFresh } from './crew-dispatch-service';
 import { readJunkwareTruckAssignment } from './junkware-truck-assignment';
 import { withJunkwareAppointmentSyncLock } from './job-route-assignments';
+import {crewAssignedDay} from './crew-assigned-day';
+
+/** Local read/staging gate only. JunkWare writes still use withCrewJob below. */
+export function readCrewJobScope(request:Request,assignmentId:string) {
+  const phone=requireCrewReady(request),day=requireCrewDay(phone),current=readCrewDispatch(phone.truck).current;
+  const job=crewAssignedDay(phone,day.date).jobs?.find(row=>row.assignmentId===assignmentId);
+  if(!current || current.assignmentId!==assignmentId || current.date!==day.date || !job || job.appointmentId!==current.appointmentId)throw new CrewPhoneError('Dispatch changed or assignments are updating. Refresh your assignment.',409);
+  return {phone,day,current,job};
+}
 
 const sources = { schedule: readDesktopSchedule, assignment: readJunkwareTruckAssignment };
 /** Resolve authority from the cookie and durable dispatch state, never a phone-supplied appointment. */

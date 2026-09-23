@@ -9,8 +9,10 @@ import { CrewPhoneError } from '@/lib/crew-phone';
 import { after } from 'next/server';
 import { crewAssignedDay } from '@/lib/crew-assigned-day';
 import { matchingCrewCompletion } from '@/lib/crew-dispatch-store';
+import {warmCrewCloseout} from '@/lib/crew-closeout-service';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
+export const maxDuration=600;
 const completionChecks=new Map<string,Promise<unknown>>();
 const completionRetryAfter=new Map<string,number>();
 export async function GET(request:Request) {
@@ -41,6 +43,7 @@ export async function GET(request:Request) {
       completionChecks.set(key,check);
       await check;
     });
+    if(!completionPending && payload.job && payload.jobs?.some(job=>job.assignmentId===payload.job?.assignmentId && /^confirmed$/i.test(job.status)))after(()=>warmCrewCloseout(request,payload.job!.assignmentId));
     return crewPhoneResponse({...payload,summary,completionPending});
   } catch(error) {return crewPhoneFailure(error);}
 }

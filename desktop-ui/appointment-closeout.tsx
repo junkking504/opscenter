@@ -59,7 +59,7 @@ function inputMoney(value: string): string {
 
 export type CloseoutJob = Pick<ScheduleAppointment,'appointmentId'|'appointmentUrl'|'status'|'appointmentType'|'onsiteTime'|'truck'|'jkNumber'|'customerName'|'recordId'|'version'>;
 export type CloseoutTransport = {
-  load: () => Promise<{closeout:LiveCloseout;sourceVersion:string;canWrite:boolean;arrival?:string|null;dryRun?:boolean;crewDefaults?:{version:number;driver:Option;navigators:Option[]};pendingReceipt?:Receipt|null;message?:string}>;
+  load: (refresh?:boolean) => Promise<{closeout:LiveCloseout;sourceVersion:string;canWrite:boolean;arrival?:string|null;dryRun?:boolean;crewDefaults?:{version:number;driver:Option;navigators:Option[]};pendingReceipt?:Receipt|null;message?:string}>;
   prepare?:()=>Promise<{background?:boolean}|void>;
   send: (values:Record<string,unknown>,requestId:string)=>Promise<Receipt>;
   check: (requestId:string)=>Promise<Receipt>;
@@ -154,8 +154,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   useEffect(() => { onBusyChange(loading || saving); return () => onBusyChange(false); }, [loading, saving, onBusyChange]);
   if (/cancel(?:ed|led)/i.test(initialStatus)) return null;
 
-  async function readSource() {
-    if(transport)return transport.load();
+  async function readSource(refresh=false) {
+    if(transport)return transport.load(refresh);
     const response=await fetch(`/api/desktop/schedule/closeout?appointmentId=${encodeURIComponent(resolvedAppointmentId)}`,{cache:'no-store'});
     const payload=await response.json().catch(()=>{throw new Error(`Closeout could not be loaded (HTTP ${response.status}). Retry loading the saved appointment.`);});
     if(!response.ok || !payload?.closeout)throw new Error(payload?.error || 'The JunkWare closeout could not be loaded.');
@@ -164,7 +164,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
   const send = (action:string,values:Record<string,unknown>,requestId:string) => transport
     ? transport.send(values,requestId) : sendScheduleChange(job,serviceDate,action,values,requestId);
 
-  async function load(reconciled = false) {
+  async function load(reconciled = false, refresh=false) {
     if (!reconciled && receipt && ['pending', 'uncertain'].includes(receipt.status)) return;
     if (!resolvedAppointmentId) {
       setError("This job does not have a Junkware appointment link yet.");
@@ -175,7 +175,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
     setError("");
     setMessage("");
     try {
-      const payload = await readSource();
+      const payload = await readSource(refresh || reconciled);
       const source = payload.closeout as LiveCloseout;
       if(crewMode)setArrival(payload.arrival || null);
       sourceBaseline.current = source;
@@ -353,7 +353,6 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       setError("Each assigned person can only appear once on the job.");
       return;
     }
-    if (completing && crewMode && !arrival && ![live.actualStartHour.value,live.actualStartMinute.value].every(Boolean)) {setError('GPS arrival is unavailable. Enter the actual arrival time before reviewing closeout.');return;}
     if (completing && !crewMode && ![live.actualStartHour.value, live.actualStartMinute.value, live.actualEndHour.value, live.actualEndMinute.value].every(Boolean)) {
       setError('Enter actual start and finish times before reviewing the closeout.'); return;
     }
@@ -386,7 +385,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
       if(transport?.prepare){
         const prepared=await transport.prepare();
         if(!prepared?.background){
-          const fresh=await readSource();
+          const fresh=await readSource(true);
           if(!fresh.canWrite || fresh.pendingReceipt || !sourceBaseline.current || !sameCheckoutFields(sourceBaseline.current,fresh.closeout) || (dailyCrew.current?.version || 0)!==(fresh.crewDefaults?.version || 0))throw new Error('The appointment or crew changed during submission. Reload from JunkWare and review before saving. Your payment has not been submitted.');
           if(!fresh.dryRun && !closeoutPhotoCount(fresh.closeout.photoEvidence,resolvedAppointmentId))throw new Error('JunkWare has not verified the photos yet. Submit checkout again to check their saved result. Your payment has not been submitted.');
           sourceBaseline.current=fresh.closeout;preparedSourceVersion=fresh.sourceVersion;
@@ -508,7 +507,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
         {!live ? (
           loading ? <p role="status">Loading current JunkWare closeout…</p> : error ? (
             <button type="button" className="ops-button" onClick={() => void load()} disabled={!resolvedAppointmentId}>Retry loading closeout</button>
-          ) : message ? <button type="button" className="ops-button" onClick={() => void load()} disabled={saving || photoSteps?.busy || !resolvedAppointmentId}>Reload from JunkWare</button> : null
+          ) : message ? <button type="button" className="ops-button" onClick={() => void load(false,true)} disabled={saving || photoSteps?.busy || !resolvedAppointmentId}>Reload from JunkWare</button> : null
         ) : (
           <>
             <fieldset onChange={() => { setReviewing(false); setDifferenceReviewed(false); }} className="desktop-closeout-fields" disabled={saving || Boolean(receipt && receipt.status !== 'failed')}>
@@ -516,7 +515,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               <h3>{targetStatus === '9' ? 'Review cancellation' : 'Review closeout'}</h3>
               <p>{job.jkNumber} · {job.customerName}</p>
               <div className="closeout-review-facts"><div><span>Status</span><strong>{live.status.label} → {targetStatus === '8' ? 'Completed' : targetStatus === '9' ? 'Cancelled' : 'Confirmed'}</strong></div>
-              {targetStatus !== '9' && <><div><span>Category</span><strong>{category}</strong></div><div><span>Truck</span><strong>{truckDisplayText(live.truck || 'Unassigned')} → {truckDisplayText(truck || 'Unassigned')}</strong></div><div><span>Krewe</span><strong>{[live.driver.label,...live.navigators.filter(person=>person.value).map(person=>person.label)].filter(Boolean).join(' · ') || 'Not assigned'}</strong></div><div><span>Actual job time</span><strong>{crewMode?`${arrival?arrivalLabel:timeLabel(live.actualStartHour.value,live.actualStartMinute.value)+' (manual)'} → time of closeout`: `${timeLabel(live.actualStartHour.value,live.actualStartMinute.value)} – ${timeLabel(live.actualEndHour.value,live.actualEndMinute.value)}`}</strong></div></>}
+              {targetStatus !== '9' && <><div><span>Category</span><strong>{category}</strong></div><div><span>Truck</span><strong>{truckDisplayText(live.truck || 'Unassigned')} → {truckDisplayText(truck || 'Unassigned')}</strong></div><div><span>Krewe</span><strong>{[live.driver.label,...live.navigators.filter(person=>person.value).map(person=>person.label)].filter(Boolean).join(' · ') || 'Not assigned'}</strong></div><div><span>Actual job time</span><strong>{crewMode?`${arrival?arrivalLabel:live.actualStartHour.value?timeLabel(live.actualStartHour.value,live.actualStartMinute.value)+' (saved)':'Arrival unknown'} → time of closeout`: `${timeLabel(live.actualStartHour.value,live.actualStartMinute.value)} – ${timeLabel(live.actualEndHour.value,live.actualEndMinute.value)}`}</strong></div></>}
               </div>
               {targetStatus === '9' ? <p>{cancellationReason.trim()}</p> : <>
               <div className="closeout-review-facts"><div><span>Load · {live.loadQuantity || '0'} full trucks{live.loadSize.value ? ` + ${live.loadSize.value}` : ''}</span><strong>{money(Number(inputMoney(live.loadPrice)))}</strong></div>
@@ -532,19 +531,19 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               <p className="closeout-confirm-note">{dryRun ? "Dry run only. Nothing will be uploaded or saved to JunkWare, and no customer receipt will be sent." : <>Confirmation saves this {targetStatus==='9' ? 'cancellation' : 'appointment'} in JunkWare.{targetStatus==='8' ? ' Completion may send the normal closeout alert.' : ''}</>}</p>
             </div>}
             <p className="closeout-step-note">{reviewing ? 'Review the summary above, or edit any field below.' : '1. Job details and charges → 2. Review → 3. Confirm in JunkWare'}</p>
-            <fieldset data-closeout-step={photoSteps ? "1" : "0"} className="ops-closeout-status-options"><legend>Status</legend>
+            {!crewMode && <fieldset data-closeout-step={photoSteps ? "1" : "0"} className="ops-closeout-status-options"><legend>Status</legend>
               {(crewMode?[['8','Completed']]:[['1', 'Confirmed'], ['8', 'Completed'], ['9', 'Cancelled']]).map(([value, label]) => <label key={value}><input type="radio" name={statusGroupId} value={value} checked={targetStatus === value} disabled={live.status.value === '8' && value !== '8'} onChange={() => { setTargetStatus(value); setReviewing(false); setError(''); }} /><span>{label}</span></label>)}
-            </fieldset>
+            </fieldset>}
             {targetStatus === '9' ? <section className="appointment-create-section">
               <label><span>Cancellation reason</span><textarea aria-label="Closeout cancellation reason" maxLength={500} rows={2} value={cancellationReason} onChange={event => { setCancellationReason(event.target.value); setReviewing(false); }} /></label>
               <p>Cancellation saves only the status and reason. Charges, payments and crew edits in this draft are not submitted.</p>
             </section> : <>
             <label data-closeout-step={photoSteps ? "1" : "0"}><span>Final appointment category</span><select value={category} onChange={event => { setCategory(event.target.value); setReviewing(false); setEstimateReason(''); setEstimateExplanation(''); setNoDiscountReason(''); }}><option>Job</option><option>Estimate</option></select></label>
-            <div data-closeout-step={photoSteps ? "1" : "0"} className="drawer-facts">
+            {!crewMode && <div data-closeout-step={photoSteps ? "1" : "0"} className="drawer-facts">
               <div><span>Junkware status</span><strong>{live.status.label || "Unavailable"}</strong></div>
               <div><span>Saved total</span><strong>{live.total || "Unavailable"}</strong></div>
               <div><span>Balance</span><strong>{live.balance || "Unavailable"}</strong></div>
-            </div>
+            </div>}
             {saving ? <div className="ops-closeout-editor-message progress" role="status" aria-live="polite">Saving changes and checking them in JunkWare…</div> : null}
 
             {targetStatus === '8' && category === 'Estimate' && live.status.value !== '8' ? <section data-closeout-step={photoSteps ? "1" : "0"} className="appointment-create-section estimate-outcome-fields">
@@ -555,7 +554,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             </section> : null}
 
             <section data-closeout-step={photoSteps ? "1" : "0"} className="appointment-create-section">
-              <label><span>Truck</span><select aria-label="Appointment truck" disabled={crewMode} value={truck} onChange={event => {
+              <label hidden={crewMode}><span>Truck</span><select aria-label="Appointment truck" disabled={crewMode} value={truck} onChange={event => {
                 setTruck(event.target.value); setReviewing(false);
                 setLive(current => { if (!current) return current; const next={...current};
                   for (const key of Object.keys(gpsDefaults.current) as CloseoutTimeKey[]) if (next[key].value===gpsDefaults.current[key]) next[key]={...next[key],value:''};
@@ -566,8 +565,8 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
                 {(live.truckOptions || []).filter(option => option.value && /truck\s*#?\s*\d+/i.test(option.label)).map(option => { const label = option.label.replace(/Truck#?\s*/i, 'Truck ').trim(); return <option key={option.value} value={label}>{truckDisplayText(label)}</option>; })}
                 {truck && !(live.truckOptions || []).some(option => option.label.replace(/Truck#?\s*/i, 'Truck ').trim() === truck) && <option value={truck}>{truckDisplayText(truck)}</option>}
               </select></label>
-              <h4>Krewe Assigned to This Job</h4>{crewMode && dailyCrew.current && <p>Today’s driver and navigator are filled in from this phone. Add any extra crew who worked this job.</p>}
-              <label>
+              <h4>{crewMode?'Assigned crew':'Krewe Assigned to This Job'}</h4>{crewMode && dailyCrew.current && <p>{truckDisplayText(truck)} · {dailyCrew.current.driver.label} (driver){dailyCrew.current.navigators.length?` · ${dailyCrew.current.navigators.map(person=>person.label).join(', ')} (navigator)`:''}</p>}
+              <label hidden={crewMode && Boolean(dailyCrew.current)}>
                 <span>Driver</span>
                 <select disabled={crewMode && Boolean(dailyCrew.current)} value={live.driver.value} onChange={(event) => update("driver", { value: event.target.value, label: event.target.selectedOptions[0]?.text || "" })}>
                   {live.drivers.map((option) => <option key={`driver-${option.value}`} value={option.value}>{option.label || "Choose driver"}</option>)}
@@ -575,7 +574,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               </label>
               <div className="ops-closeout-crew-list">
                 {live.navigators.map((navigator, index) => (
-                  <div className="ops-closeout-crew-row" key={`navigator-${index}`}>
+                  <div className="ops-closeout-crew-row" key={`navigator-${index}`} hidden={crewMode && index<(dailyCrew.current?.navigators.length || 0)}>
                     <label>
                       <span>{crewMode && index>=(dailyCrew.current?.navigators.length || 0)?`Additional crew ${index-(dailyCrew.current?.navigators.length || 0)+1}`:`Navigator ${index + 1}`}</span>
                       <select disabled={crewMode && index<(dailyCrew.current?.navigators.length || 0)} value={navigator.value} onChange={(event) => setNavigator(index, event.target.value)}>
@@ -589,9 +588,9 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
               <button type="button" className="ops-button subtle" onClick={addNavigator}>{crewMode?'+ Add additional crew':'+ Add another navigator'}</button>
             </section>
 
-            <section data-closeout-step={photoSteps ? "1" : "0"} className="appointment-create-section">
+            <section hidden={crewMode} data-closeout-step={photoSteps ? "1" : "0"} className="appointment-create-section">
               <h4>Actual Job Time</h4>
-              {crewMode ? <>{arrival?<p><strong>Start:</strong> {arrivalLabel}</p>:<><p>GPS arrival was not recorded. Enter the time the truck arrived on site.</p><div className="ops-closeout-time-grid"><span>Started</span><select aria-label="Actual start hour" value={live.actualStartHour.value} onChange={event=>updateSelect('actualStartHour',event.target.value)}><option value="">Hour</option>{live.actualStartHour.options.filter(option=>option.value).map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select><select aria-label="Actual start minute" value={live.actualStartMinute.value} onChange={event=>updateSelect('actualStartMinute',event.target.value)}><option value="">Minute</option>{live.actualStartMinute.options.filter(option=>option.value).map(option=><option key={option.value} value={option.value}>{option.label}</option>)}</select></div></>}<p><strong>End:</strong> Set automatically when you submit checkout.</p><p>Start uses GPS arrival when available, or your manual entry when it is missing. Automatic times are rounded to JunkWare’s available minutes.</p></> : <>
+              {crewMode ? <p>Job times are handled automatically. {arrival?`GPS arrival: ${arrivalLabel}.`:'If arrival is unavailable, it stays marked unknown for office review.'} No time entry is needed.</p> : <>
               {hasGpsTimes ? <><p>Truck GPS: {onsiteTimeFacts(job.onsiteTime!).filter(fact=>fact.label!=='On-site time').map(fact=>`${fact.label} ${fact.value}`).join(' · ')}. Rounded to JunkWare’s available minutes.</p>
                 <button type="button" className="ops-button subtle" onClick={()=>{setReviewing(false);gpsDefaults.current={...gpsTimes};setLive(current=>{if(!current)return current;const next={...current};for(const key of Object.keys(gpsTimes) as CloseoutTimeKey[])next[key]={...next[key],value:gpsTimes[key]!};return next;});}}>Use GPS times</button></> : <p>Confirmed GPS visit times are unavailable for this truck. Enter the actual job times.</p>}
               {hasGpsTimes && !gpsTimes.actualEndHour && <p>GPS departure has not been recorded. Enter the finish time when confirmed.</p>}
@@ -682,7 +681,7 @@ export default function AppointmentCloseout({ job, date: serviceDate, saved, onB
             </>}
             {!canWrite && <p role="status">{crewMode?"This closeout is read-only. Check the saved result or contact dispatch.":"Your role can read this closeout. A manager must save changes."}</p>}
             </fieldset>
-            <button type="button" className="ops-button subtle" onClick={() => void load()} disabled={saving || loading || photoSteps?.busy || Boolean(receipt && ['pending', 'uncertain'].includes(receipt.status))}>Reload from JunkWare</button>
+            <button type="button" className="ops-button subtle" onClick={() => void load(false,true)} disabled={saving || loading || photoSteps?.busy || Boolean(receipt && ['pending', 'uncertain'].includes(receipt.status))}>Reload from JunkWare</button>
           </>
         )}
         {message ? <div className="ops-closeout-editor-message success">{message}</div> : null}

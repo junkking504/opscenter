@@ -25,6 +25,8 @@ async function main(){
     const context=await browser.newContext({viewport:{width:390,height:844},extraHTTPHeaders:{Cookie:`${CREW_PHONE_COOKIE}=${token}`}});
     const page=await context.newPage();
     const errors:string[]=[];page.on('pageerror',error=>errors.push(error.message));
+    const actionTimings:Array<{action:string;ms:number}>=[];
+    const time=async(action:string,run:()=>Promise<void>)=>{const start=performance.now();await run();actionTimings.push({action,ms:Math.round(performance.now()-start)});};
     await page.route('**/api/**',route=>route.request().method()==='GET'?route.continue():route.abort('blockedbyclient'));
     const started=performance.now();
     const responsePromise=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/crew-jobs/current',{timeout:60_000});
@@ -49,9 +51,23 @@ async function main(){
       await page.getByRole('button',{name:'Back to Assignments',exact:true}).click();
       for(const width of [320,390,430]){await page.setViewportSize({width,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);}
       await page.screenshot({path:'/tmp/waypoint-truck1-live-assignments.png',fullPage:true});
+      const activeIndex=payload.jobs.findIndex((job:{assignmentId?:string;status:string})=>job.assignmentId===payload.job?.assignmentId && /^confirmed$/i.test(job.status));
+      if(process.argv.includes('--closeout') && activeIndex>=0){
+        await time('Live assignment details',async()=>{await page.getByRole('button',{name:'View assignment',exact:true}).nth(activeIndex).click();await expect(page.getByRole('button',{name:'Start closeout · Before photos',exact:true})).toBeVisible();});
+        for(let i=0;i<2;i++){
+          await time(i?'Reopen saved closeout':'First closeout open (including any preparation)',async()=>{await page.getByRole('button',{name:'Start closeout · Before photos',exact:true}).click();await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled({timeout:210_000});});
+          await time('Closeout to appointment',async()=>{await page.getByRole('button',{name:'Back to appointment',exact:true}).click();await expect(page.getByRole('button',{name:'Start closeout · Before photos',exact:true})).toBeVisible();});
+        }
+        await page.getByRole('button',{name:'Start closeout · Before photos',exact:true}).click();await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled();
+        await time('Explicit Reload from JunkWare',async()=>{
+          const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/crew-jobs/closeout' && new URL(r.url()).searchParams.get('refresh')==='1',{timeout:210_000});
+          await page.getByRole('button',{name:'Reload from JunkWare',exact:true}).click();assert.equal((await response).status(),200);await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled();
+        });
+        await page.screenshot({path:'/tmp/waypoint-audit-live-closeout.png',fullPage:true});
+      }
     }
     assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({truck,readyMs,currentRequestMs:currentTiming,apiTiming,localCurrentMs,localStatus:localResponse.status,shown:(payload.jobs || [payload.job]).filter(Boolean).map((job:{jkNumber:string})=>job.jkNumber),expected:expected.jobs!.map(job=>job.jkNumber),mode:process.argv[2] || 'after',writes:'Browser GET only; temporary QA enrollment revoked on exit'}));
+    console.log(JSON.stringify({truck,readyMs,currentRequestMs:currentTiming,apiTiming,localCurrentMs,actionTimings,resources:await page.evaluate(()=>performance.getEntriesByType('resource').filter(entry=>new URL(entry.name).pathname.startsWith('/api/crew-jobs/')).map(entry=>({path:new URL(entry.name).pathname,ms:Math.round(entry.duration)}))),localStatus:localResponse.status,shown:(payload.jobs || [payload.job]).filter(Boolean).map((job:{jkNumber:string})=>job.jkNumber),expected:expected.jobs!.map(job=>job.jkNumber),mode:process.argv[2] || 'after',writes:'Browser GET only; temporary QA enrollment revoked on exit'}));
   }finally{await browser?.close();revokeCrewPhone(phone.deviceId,'waypoint-loading-qa-complete');}
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

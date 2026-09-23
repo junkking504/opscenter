@@ -12,10 +12,10 @@ assert.equal(crewCloseoutArrival({...job,truckVisits:[{...visit,truck:'Truck 9'}
 assert.equal(crewCloseoutArrival(job,'Truck 6','2026-09-08'),null);
 assert.throws(()=>crewCloseoutTimes(job,'Truck 6',date,'2026-09-10T16:12:00Z',fields),/service day/);
 assert.throws(()=>crewCloseoutTimes(job,'Truck 6',date,arrival,fields),/follow arrival/);
-assert.throws(()=>crewCloseoutTimes({...job,truckVisits:[]},'Truck 6',date,submitted,fields),/arrival/);
+assert.equal(crewCloseoutTimes({...job,truckVisits:[]},'Truck 6',date,submitted,fields).actualStartHour,'','Missing evidence remains unknown without blocking the crew');
 assert.throws(()=>crewCloseoutTimes(job,'Truck 6',date,submitted,{...fields,actualEndHour:{value:'',options:[]}}),/options/);
 const noGps={...job,truckVisits:[]};
-assert.deepEqual(crewCloseoutTimes(noGps,'Truck 6',date,submitted,fields,{actualStartHour:'08',actualStartMinute:'30'}),{actualStartHour:'08',actualStartMinute:'30',actualEndHour:'11',actualEndMinute:'10'});
+assert.deepEqual(crewCloseoutTimes(noGps,'Truck 6',date,submitted,{...fields,actualStartHour:{...fields.actualStartHour,value:'08'},actualStartMinute:{...fields.actualStartMinute,value:'30'}}),{actualStartHour:'08',actualStartMinute:'30',actualEndHour:'11',actualEndMinute:'10'},'Saved source time is retained');
 assert.deepEqual(crewCloseoutTimes(job,'Truck 6',date,submitted,fields,{actualStartHour:'08',actualStartMinute:'30'}),crewCloseoutTimes(job,'Truck 6',date,submitted,fields),'Manual entry cannot override GPS');
-for(const manual of [{actualStartHour:'23',actualStartMinute:'00'},{actualStartHour:'99',actualStartMinute:'00'},{actualStartHour:'08',actualStartMinute:'31'},{actualStartHour:'08'},{}])assert.throws(()=>crewCloseoutTimes(noGps,'Truck 6',date,submitted,fields,manual),/Arrival time|actual arrival/);
+for(const manual of [{actualStartHour:'23',actualStartMinute:'00'},{actualStartHour:'99',actualStartMinute:'00'},{actualStartHour:'08',actualStartMinute:'31'},{actualStartHour:'08'},{}])assert.equal(crewCloseoutTimes(noGps,'Truck 6',date,submitted,fields,manual).actualStartHour,'','Phone input cannot invent arrival');
 console.log('PASS: GPS arrival, assigned-truck provenance, operating day, earliest visit, closeout timestamp rather than departure, JunkWare option rounding and absent evidence.');

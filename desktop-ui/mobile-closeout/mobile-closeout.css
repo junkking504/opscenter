@@ -27,3 +27,18 @@
 .crew-mobile [data-photo-workflow] .closeout-primary-actions .closeout-primary-button{min-height:52px}
 .crew-mobile [data-photo-workflow] .closeout-photo-step input[type='file']{position:absolute;inset:0;width:100%;height:100%;max-width:none;margin:0;padding:0;border:0;opacity:0;cursor:pointer}
 .company-phone-closeout .record-drawer-actions{position:static;bottom:auto}
+/* Desktop charge colors and circular-step styling must not leak into phone labels. */
+.crew-mobile .ops-closeout-charge-list{color:#25312c}
+.crew-mobile .ops-closeout-charge-list>div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:start;padding:12px;border-bottom:1px solid #d7ddcf}
+.crew-mobile .ops-closeout-charge-list>div>span{min-width:0;color:#25312c;overflow-wrap:break-word}
+.crew-mobile .ops-closeout-charge-list>div>span:nth-child(2){grid-column:1;font-variant-numeric:tabular-nums}
+.crew-mobile .ops-closeout-charge-list>div>:last-child:not(span){grid-column:2;grid-row:1 / span 2;align-self:center}
+.crew-mobile .ops-closeout-charge-list.pending>div{background:#fff4dc;border:1px solid #cfb778;border-radius:8px;margin-top:8px}
+.crew-mobile .ops-closeout-charge-list small{display:block;color:#58604c;font-size:11px;font-weight:700;letter-spacing:.04em}
+.crew-mobile .ops-closeout-charge-list button{min-height:44px;color:#25312c;background:#fff;border:1px solid #b9c4b9;border-radius:8px;padding:8px 12px}
+.crew-mobile [data-photo-workflow] .mobile-closeout-steps button>.mobile-closeout-step-label{display:block;width:auto;height:auto;background:transparent;color:#4b5846;line-height:1.4}
+.crew-mobile [data-photo-workflow] .mobile-closeout-steps button[aria-current]>.mobile-closeout-step-label{background:transparent;color:#a4112d}
+.crew-mobile [data-photo-workflow] .mobile-closeout-step-label{font-size:11px}
+.crew-mobile [data-photo-workflow] .appointment-closeout-body label>span{font-size:14px}
+.crew-mobile [data-photo-workflow] .appointment-closeout-body p{font-size:14px}
+.crew-mobile [data-photo-workflow] .closeout-primary-actions .closeout-primary-button{font-size:16px}

@@ -15,9 +15,9 @@ export async function GET(request:Request) {
 
     requireCrewPhone(request);
     const params=new URL(request.url).searchParams;
-    if([...params.keys()].some(key=>!['assignmentId','requestId','reconcile'].includes(key)))throw new CrewPhoneError('Use the current closeout screen.');
+    if([...params.keys()].some(key=>!['assignmentId','requestId','reconcile','refresh'].includes(key)) || (params.has('refresh')&&params.get('refresh')!=='1'))throw new CrewPhoneError('Use the current closeout screen.');
     const assignmentId=params.get('assignmentId') || '',requestId=params.get('requestId');
-    return crewPhoneResponse(requestId?{receipt:crewReceiptProjection(await checkCrewCloseout(request,assignmentId,requestId,params.get('reconcile')==='1'))}:await loadCrewCloseout(request,assignmentId));
+    return crewPhoneResponse(requestId?{receipt:crewReceiptProjection(await checkCrewCloseout(request,assignmentId,requestId,params.get('reconcile')==='1'))}:await loadCrewCloseout(request,assignmentId,undefined,params.get('refresh')==='1'));
   }catch(error){return crewPhoneFailure(error);}
 }
 export async function POST(request:Request) {

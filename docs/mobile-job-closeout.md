@@ -437,13 +437,38 @@ it never silently becomes a live save.
 
 Start is the first confirmed GPS arrival for this appointment, assigned truck and
 service day. End is the server time recorded on the durable closeout request,
-after final photo submission. Crew phones display GPS Start when available. If arrival is missing, they show
-manual start hour and minute fields; End remains automatic. The source writer overrides client time fields and verifies the
-saved times using JunkWare's available minute options. When GPS arrival is missing, the server accepts a manual Start only if it matches
-JunkWare options and is no later than Closeout on the service day. It records
-manual provenance in the operation receipt; manual times never override GPS. Receipt retries
+after final photo submission. Crews never enter arrival/departure. Start uses GPS,
+then an already-saved valid JunkWare start, otherwise remains blank with `unknown`
+provenance in the durable receipt for office review. End remains automatic. The
+source writer overrides phone time values and verifies saved values against
+JunkWare's options. Only the server's crew adapter can allow unknown arrival;
+desktop manual closeout still validates its entered times. Receipt retries
 return the original result and never advance End or repeat a source write.
 The assignment-scoped dummy flow remains a simulation with no source writes.
+
+### Saved closeout forms and photo responsiveness — September 22, 2026
+
+The current released appointment is prepared after Assignments returns. Its form
+and options are stored privately under `crew-closeout-cache` in the runtime data
+directory, bound to assignment ID, appointment ID, truck and day, expiring after
+24 hours. Concurrent warm/open calls share one read; failed warmups back off five
+minutes. Reopening rechecks phone, crew, dispatch, fresh detector membership and
+pending receipts locally. Explicit Reload bypasses the snapshot; submission still
+reads JunkWare and checks the reviewed fields/version before any write. Cached
+forms are not fresh-source authority. Submission invalidates the saved copy.
+
+Photo history and durable byte staging use the same local scope gate, without
+waiting for a provider browser or write lock. The background upload still checks
+the live appointment under the existing write lock. The limit is 25 newly
+selected photos across Before and After combined; verified history is excluded.
+Object-URL previews paint before sequential asynchronous JPEG preparation;
+prepared photos persist in the existing 24-hour phone draft. No photo service,
+paid image API or new provider is used.
+
+Completed assignment cards show a prominent source-confirmed closed banner,
+appointment type, total, load and recorded payment. Details include bedload,
+individual charges, discount, tip and balance. Estimates are explicitly not
+collected revenue; unknown saved details remain unknown rather than zero-filled.
 
 ### Waypoint daily sequence — September 19, 2026
 
@@ -605,6 +630,14 @@ that a handset received or opened the appointment.
 
 
 ### Truck naming continuity (2026-09-22)
+
+Completed source rows may include `Completed Duration: 585 min(s)` rather than
+the bare status. Waypoint normalizes that recognized suffix so a verified closed
+appointment remains in the truck's daily history with its saved closeout facts.
+Unknown statuses are still excluded. `scripts/test-crew-assigned-day.ts` covers
+this regression; browser timing audits use `scripts/test-waypoint-live-loading.ts`
+for read-only live checks and `scripts/test-waypoint-sandbox-browser.ts` for
+synthetic end-to-end actions without real customer or payment writes.
 
 JunkWare's visible label is `Truck# 1` through `Truck# 9`. OpsCenter,
 Waypoint, Fleet/Krewe views and Slack use the shared presentation helpers in

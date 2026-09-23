@@ -13,6 +13,11 @@ const sources = {
   overrides: readJobRouteAssignmentOverrides,
   dispatch: readCrewDispatch,
 };
+/** The schedule appends its duration to status text after completion. */
+export function crewAppointmentStatus(value:string) {
+  const match=/^(confirmed|completed)(?:\s+duration:\s*\d+\s*min\(s\))?$/i.exec(value.trim());
+  return match?match[1].toLowerCase()==='completed'?'Completed':'Confirmed':null;
+}
 
 /** Read-only daily browsing uses the detector's complete, recent JunkWare feed.
  * It never starts a provider browser or takes a photo/closeout write lock. */
@@ -33,16 +38,16 @@ export function crewAssignedDay(phone: CrewPhone, date: string, deps = sources, 
   const jobs: CrewScheduledJob[] = rows.filter(row => {
     const override = overrides.get(`appt:${row.appointmentId}`);
     return /^\d{1,12}$/.test(row.appointmentId) && counts.get(row.appointmentId) === 1
-      && sameTruck(row.assignedTruck || row.truck, phone.truck) && /^(confirmed|completed)$/i.test(row.status)
+      && sameTruck(row.assignedTruck || row.truck, phone.truck) && Boolean(crewAppointmentStatus(row.status))
       && (!override || (override.junkwareSyncStatus === 'verified' && sameTruck(override.truck, phone.truck)));
   }).sort((a, b) => (a.appointmentStartMinutes ?? 1440) - (b.appointmentStartMinutes ?? 1440) || a.appointmentId.localeCompare(b.appointmentId))
     .map(row => ({
       appointmentId: row.appointmentId, date, jkNumber: row.jkNumber, customerName: row.customerName,
       address: row.address, appointmentTime: row.appointmentTime, junkItems: row.junkItems,
-      appointmentNotes: row.appointmentNotes, driver: row.driver, navigator: row.navigator, status: row.status,
+      appointmentNotes: row.appointmentNotes, driver: row.driver, navigator: row.navigator, status: crewAppointmentStatus(row.status)!,
       appointmentType:row.appointmentType,
-      ...(/^completed$/i.test(row.status) ? {
-        ...(row.closeout && Number.isFinite(row.closeout.total) ? {closedTotal:row.closeout.total} : {}),
+      ...(crewAppointmentStatus(row.status)==='Completed' ? {
+        ...(row.closeout && Number.isFinite(row.closeout.total) ? {closedTotal:row.closeout.total,closeout:{...row.closeout,payments:row.closeout.payments.map(payment=>({method:payment.method,amount:payment.amount}))}} : {}),
         ...(/^estimate$/i.test(row.appointmentType) ? {estimateOutcomes:row.appointmentNotes.filter(note=>/^(Price\/Budget|Date\/Time|Other):/i.test(note))} : {}),
       } : {}),
       ...(current?.date === date && current.appointmentId === row.appointmentId ? { assignmentId: current.assignmentId } : {}),

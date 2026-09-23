@@ -39,9 +39,9 @@ export default function JobCloseout({job,truck,deviceId,test=false,onBusyChange,
         try {stagedPhotoIds.current=await photoSubmit.current.submit(setSubmissionMessage);setSubmissionMessage('Checkout accepted. Waypoint will finish it in the background.');return {background:true};}
         catch(error){const message=error instanceof Error?error.message:'Submission paused. Check the saved photos before trying again.';setSubmissionMessage('Submission paused. Photos already transferred will not be uploaded again. Your payment has not been submitted.');onHandoffFailed?.(message);throw error;}
       },
-      async load(){
+      async load(refresh=false){
         setCompleted(false);
-        const response=await fetch(endpoint,{cache:'no-store',signal:AbortSignal.timeout(210_000)});
+        const response=await fetch(`${endpoint}${refresh?'&refresh=1':''}`,{cache:'no-store',signal:AbortSignal.timeout(210_000)});
         const body=await response.json();if(!response.ok || !body.closeout)throw new Error(body.error || 'The closeout could not be loaded.');
         dryRunMode.current=body.dryRun===true;setDryRun(dryRunMode.current);
         jobVersion.current=body.jobVersion;crewVersion.current=body.crewVersion;sourceFieldsVersion.current=body.sourceFieldsVersion || '';

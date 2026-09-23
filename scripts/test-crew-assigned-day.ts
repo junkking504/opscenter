@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { crewAssignedDay } from '../lib/crew-assigned-day';
+import { crewAssignedDay,crewAppointmentStatus } from '../lib/crew-assigned-day';
 import type { CrewPhone } from '../lib/crew-phone';
 
 const date='2026-09-22',now=Date.parse(`${date}T18:00:00Z`);
@@ -30,6 +30,11 @@ snapshot={...snapshot,appointments:[{...row('103','Truck 1','Completed'),appoint
 const closed=crewAssignedDay(phone,date,deps,now).jobs![0];
 assert.equal(closed.appointmentType,'Estimate');assert.equal(closed.closedTotal,568);
 assert.deepEqual(closed.estimateOutcomes,['Other: Training only, no discount: internal test (9/22/2026)']);
+snapshot={...snapshot,appointments:[{...snapshot.appointments[0],job_status:'Completed Duration: 585 min(s)'}]};
+const withDuration=crewAssignedDay(phone,date,deps,now).jobs![0];
+assert.equal(withDuration.status,'Completed');assert.equal(withDuration.closedTotal,568);
+assert.equal(crewAppointmentStatus('Not Completed'),null);
+assert.equal(crewAppointmentStatus('Cancelled'),null);
 snapshot={...snapshot,appointments:[{...snapshot.appointments[0],job_status:'Confirmed'}]};
 assert.equal(crewAssignedDay(phone,date,deps,now).jobs![0].closedTotal,undefined,'An open appointment never claims a saved closeout amount');
 console.log('PASS: full assigned day, truck isolation, verified feed freshness, pending move exclusion, duplicate identity rejection, and independent closeout authority; no provider calls.');

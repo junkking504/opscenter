@@ -21,7 +21,7 @@ export async function stageCheckoutPhotos(photos:CheckoutPhoto[],actions:{
     requestIds.add(photo.requestId);
   }
   // Previously verified history is already covered by the source-photo gate.
-  // It must not consume the ten-photo limit for this checkout's new transfers.
+  // It must not consume the per-checkout limit for new transfers.
   return [...requestIds];
 }
 

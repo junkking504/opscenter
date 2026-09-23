@@ -22,6 +22,7 @@ const STORAGE_STATE = path.join(
 type Option = { value: string; label: string };
 type OtherChargeInput = { typeValue: string; quantity: string; price: string; sourceCalculatedPrice?: string };
 type CloseoutInput = {
+  arrivalUnavailable?: boolean;
   expectedSourceVersion?: string;
   targetStatus?: "1" | "8";
   truck?: string;
@@ -304,6 +305,7 @@ function parsePayload(): CloseoutInput {
     actualStartMinute: String(row.actualStartMinute || "").trim(),
     actualEndHour: String(row.actualEndHour || "").trim(),
     actualEndMinute: String(row.actualEndMinute || "").trim(),
+    ...(row.arrivalUnavailable===true?{arrivalUnavailable:true}:{}),
     addPayment: row.addPayment && typeof row.addPayment === "object" ? {
       methodId: String((row.addPayment as Record<string, unknown>).methodId || "").trim(),
       amount: String((row.addPayment as Record<string, unknown>).amount ?? "").replace(/[$,\s]/g, ""),
@@ -560,6 +562,8 @@ async function main(): Promise<void> {
     await ensureAuthenticated(page, targetUrl);
     if (mode === 'read' && argument('diagnostics') === 'classification') {
       const diagnostics = await page.evaluate(() => ({
+        clientValidation: String((window as unknown as {ValidateForm?:unknown}).ValidateForm || ''),
+        requiredControls: Array.from(document.querySelectorAll('[id*="Validator"]')).map(node=>{const validator=node as HTMLElement & {controltovalidate?:string;errormessage?:string};return {id:node.id,control:validator.controltovalidate,message:validator.errormessage};}),
         save: document.getElementById('ctl00_Content_SaveAppointmentBtn')?.outerHTML,
         type: document.getElementById('ctl00_Content_AppointmentTypeDD')?.getAttribute('onchange'),
         status: document.getElementById('ctl00_Content_StatusDD')?.getAttribute('onchange'),
@@ -584,7 +588,8 @@ async function main(): Promise<void> {
       if (!completing && (input.addPayment || input.otherChargesToAdd.length)) throw new Error('Select Completed before adding a payment or additional charge.');
       if (completing && !input.truck && !before?.truck) { failureCode = 'completion_truck_required'; throw new Error('Assign a truck in JunkWare before closing this appointment.'); }
       if ((completing && !input.driverId) || input.navigatorIds.includes(input.driverId)) throw new Error('Choose a driver and assign each person only once.');
-      if (completing && ![input.actualStartHour, input.actualStartMinute, input.actualEndHour, input.actualEndMinute].every(Boolean)) throw new Error('Enter actual start and finish times before reviewing the closeout.');
+      const unknownArrival=input.arrivalUnavailable===true && !input.actualStartHour && !input.actualStartMinute;
+      if (completing && (!input.actualEndHour || !input.actualEndMinute || (!unknownArrival && (!input.actualStartHour || !input.actualStartMinute)))) throw new Error('Enter actual start and finish times before reviewing the closeout.');
       if (completing && !(input.howHeardId ?? (before!.howHeard as Option)?.value)) throw new Error('Choose how the customer heard about us before closing the appointment.');
       if (completing && !input.loadPrice && !input.bedloadPrice) throw new Error('Enter a load or bedload price before closing the appointment.');
       if (input.addPayment) {

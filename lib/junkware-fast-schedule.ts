@@ -119,8 +119,12 @@ function readVerifiedSnapshotFile(
       updatedAt: stats.mtime.toISOString(),
       updatedAtMs: stats.mtimeMs,
       freshnessAtMs: stats.mtimeMs,
-      appointments: recordRows(payload?.appointments),
-      cancelled: recordRows(payload?.cancelled),
+      // Preserve each market/row's observation before combining snapshots. The
+      // combined file's mtime may be newer than this appointment's actual read.
+      appointments: recordRows(payload?.appointments).map(row => ({ ...row,
+        status_observed_at: row.collection_timestamp || scrapedAt })),
+      cancelled: recordRows(payload?.cancelled).map(row => ({ ...row,
+        status_observed_at: row.collection_timestamp || scrapedAt })),
     };
   } catch {
     return null;

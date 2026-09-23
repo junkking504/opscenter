@@ -4,7 +4,7 @@
 import fs from "fs";
 import path from "path";
 import { appointmentTerritoryForLocation } from "@/lib/appointment-territory";
-import { readVerifiedJobCancellations } from "@/lib/job-cancellations";
+import { applyVerifiedJobCancellations, readVerifiedJobCancellations } from "@/lib/job-cancellations";
 import { appointmentNotes, appointmentPickupItems, junkItemKeywords, junkwareJobPhotos, junkwarePhotoAuditAvailable, type JunkwareJobPhoto } from "@/lib/junkware-job-details";
 import { junkwareBookedAt } from "@/lib/junkware-booking-date";
 import { currentJunkwareScheduleSnapshot, readVerifiedJunkwareScheduleSnapshot, canonicalJunkwareUpdatedAtMs } from "@/lib/junkware-fast-schedule";
@@ -36,6 +36,7 @@ type JobRow = {
   sourceTerritory?: string;
   appointmentType: string;
   status: string;
+  statusObservedAt?: string;
   truck: string;
   assignedTruck?: string;
   junkwareSyncStatus?: "pending" | "verified" | "manual_correction";
@@ -552,7 +553,9 @@ function readRawAppointmentLookup(date: string): Map<string, Record<string, any>
       ...(Array.isArray(payload?.cancelled) ? payload.cancelled : []),
     ];
     for (const source of rows) {
-      const row = source && typeof source === "object" ? { ...source, photo_observed_at: source.photo_observed_at || source.collection_timestamp || payload.scraped_at || '' } as Record<string, any> : {};
+      const row = source && typeof source === "object" ? { ...source,
+        status_observed_at: source.collection_timestamp || payload.scraped_at || '',
+        photo_observed_at: source.photo_observed_at || source.collection_timestamp || payload.scraped_at || '' } as Record<string, any> : {};
       const apptId = firstValue(row, ["appt_id", "appointment_id"]);
       const jobId = firstValue(row, ["job_id", "jk_number"]);
       if (apptId) lookup.set(`appt:${apptId}`, row);
@@ -708,6 +711,7 @@ function normalizeJobRow(row: Record<string, string>): JobRow {
     sourceTerritory: firstValue(row, ['franchise', 'market', 'territory', 'Franchise', 'Market', 'Territory']) || territory,
     appointmentType,
     status,
+    statusObservedAt: firstValue(row, ["status_observed_at", "collection_timestamp", "scraped_at"]),
     truck: firstValue(row, ["truck", "assigned_truck", "truck_name"]) || "—",
     assignedTruck: firstValue(row, ["assigned_truck", "truck", "truck_name"]) || "—",
     driver: firstValue(row, ["driver", "driver_name", "driver_normalized_name", "assigned_driver"]) || "—",
@@ -1004,6 +1008,7 @@ function readJobRows(date: string): JobRow[] {
             : rowSource.source === "cancelled"
               ? "Canceled"
               : "Completed"),
+        statusObservedAt: firstValue(row, ["collection_timestamp", "scraped_at"]) || String(sourceRow.status_observed_at || ''),
         truck:
           sourceValue(["truck", "assigned_truck", "truck_name", "vehicle"]) || "—",
         driver:
@@ -1051,26 +1056,14 @@ function readJobRows(date: string): JobRow[] {
     }
   }
 
-  // Bridge the short collector delay after a verified JunkWare write. After
-  // thirty minutes the collected schedule becomes authoritative again, so a
-  // later manual reactivation in JunkWare cannot be masked forever.
-  const recentCancellationCutoff = Date.now() - 30 * 60_000;
-  const verifiedCancellationIds = new Set(
-    readVerifiedJobCancellations(date)
-      .filter((entry) => Date.parse(entry.canceledAt) >= recentCancellationCutoff)
-      .map((entry) => entry.appointmentId),
-  );
-  const resolvedJobs = verifiedCancellationIds.size
-    ? jobs.map((job) => verifiedCancellationIds.has(job.appointmentId) ? { ...job, status: "Canceled" } : job)
-    : jobs;
-
   const fastSnapshot = currentJunkwareScheduleSnapshot(OPSBOT_DATA_DIR, date);
   const currentJobs = fastSnapshot
-    ? mergeFastScheduleRows(resolvedJobs, fastSnapshot.appointments, fastSnapshot.cancelled, date)
-    : resolvedJobs;
+    ? mergeFastScheduleRows(jobs, fastSnapshot.appointments, fastSnapshot.cancelled, date)
+    : jobs;
 
   const photoJobs = applyVerifiedPhotoReceipts(currentJobs, readRecentVerifiedPhotoReceipts(OPSBOT_DATA_DIR));
-  return applyVerifiedClassifications(date,photoJobs,Math.max(canonicalJunkwareUpdatedAtMs(OPSBOT_DATA_DIR,date),fastSnapshot?.updatedAtMs || 0)).sort((a, b) => {
+  const classifiedJobs = applyVerifiedClassifications(date,photoJobs,Math.max(canonicalJunkwareUpdatedAtMs(OPSBOT_DATA_DIR,date),fastSnapshot?.updatedAtMs || 0));
+  return applyVerifiedJobCancellations(classifiedJobs, readVerifiedJobCancellations(date)).sort((a, b) => {
     const territoryCompare = a.territory.localeCompare(b.territory);
     if (territoryCompare !== 0) return territoryCompare;
     return compareJobSchedule(a, b);
@@ -1141,6 +1134,7 @@ function mergeFastScheduleRows(
       sourceTerritory: present(fresh.sourceTerritory || '') ? fresh.sourceTerritory : existing.sourceTerritory,
       appointmentType: present(fresh.appointmentType) ? fresh.appointmentType : existing.appointmentType,
       status: present(fresh.status) ? fresh.status : existing.status,
+      statusObservedAt: present(fresh.status) ? fresh.statusObservedAt : existing.statusObservedAt,
       truck: present(fresh.truck) ? fresh.truck : existing.truck,
       assignedTruck: present(fresh.assignedTruck) ? fresh.assignedTruck : existing.assignedTruck,
       driver: present(fresh.driver) ? fresh.driver : existing.driver,

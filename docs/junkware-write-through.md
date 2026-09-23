@@ -234,6 +234,15 @@ Live source confirmation is separate from these automated checks.
 
 ## Dispatch recovery and canceled appointments
 
+Verified cancellations are applied after schedule and classification merges.
+An older snapshot cannot restore an active status, even on a historical day or
+after thirty minutes. Precedence uses the appointment's collection time (or its
+own market scrape time), never a file modification time or another market's
+heartbeat. A strictly newer source observation can supersede cancellation after
+a legitimate restoration. The saved cancellation reason is shown while the
+collector catches up. Canceled records remain in historical lists but do not
+remain active truck stops. Synthetic regression: `test-cancellation-precedence.ts`.
+
 Closeout preserves the saved appointment date, start time, and duration after
 dependent truck/payment postbacks. JunkWare keeps those controls in its inactive
 Map & Schedule tab, so restoration stages the saved values without requiring

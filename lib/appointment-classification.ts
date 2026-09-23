@@ -72,7 +72,7 @@ export function applyVerifiedClassifications<T extends {appointmentId:string;app
     if (!/^\d{1,12}$/.test(job.appointmentId)) return job;
     try {
       const record = JSON.parse(fs.readFileSync(path.join(directory(),`${date}-${job.appointmentId}.json`),'utf8')) as VerifiedClassification;
-      return record.appointmentId === job.appointmentId && Date.parse(record.verifiedAt) > sourceObservedAt ? {...job,appointmentType:record.appointmentType,status:record.status,...(record.truck ? {truck:record.truck,assignedTruck:record.truck} : {})} : job;
+      return record.appointmentId === job.appointmentId && Date.parse(record.verifiedAt) > sourceObservedAt ? {...job,appointmentType:record.appointmentType,status:record.status,statusObservedAt:record.verifiedAt,...(record.truck ? {truck:record.truck,assignedTruck:record.truck} : {})} : job;
     } catch {return job;}
   });
 }

@@ -86,7 +86,7 @@
     "verify:gps-routes": "node --import tsx scripts/test-linxup-route-detail.ts && node --import tsx scripts/test-desktop-gps-route.ts && node --import tsx scripts/test-desktop-street-route.ts && node --import tsx scripts/test-street-route-cache.ts && node --import tsx scripts/test-gps-trip-display.ts && node --import tsx scripts/test-gps-street-progress.ts",
     "verify:dispatch-map-marker-separation": "node --import tsx scripts/test-dispatch-map-marker-separation.ts",
     "verify:dispatch-map-manual-zoom": "node --import tsx scripts/test-dispatch-map-manual-zoom.ts",
-    "verify:job-cancellations": "node --import tsx scripts/test-job-cancellations.ts",
+    "verify:job-cancellations": "node --import tsx scripts/test-job-cancellations.ts && node --import tsx scripts/test-cancellation-precedence.ts",
     "verify:service-addresses": "python3 scripts/test-schedule-address-refresh-isolation.py && node --import tsx scripts/test-junkware-address-text.ts && node --import tsx scripts/test-desktop-address-verification.ts && node --import tsx scripts/test-osm-service-address.ts && node --import tsx scripts/test-planning-geocodes.ts && node --import tsx scripts/test-reviewed-service-address.ts && node --import tsx scripts/test-address-pipeline-hardening.ts && node --import tsx scripts/test-address-refresh-recovery.ts",
     "verify:planning-geocodes": "node --import tsx scripts/test-planning-geocodes.ts",
     "verify:dispatch-map-quality": "node --import tsx scripts/test-dispatch-map-quality.ts",

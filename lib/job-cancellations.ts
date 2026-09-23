@@ -104,6 +104,24 @@ export function readVerifiedJobCancellations(date?: string): VerifiedJobCancella
   return date ? entries.filter((entry) => entry.date === date) : entries;
 }
 
+/** Apply after every schedule merge. Only a later observation of this record,
+ * not a file rewrite, another market's heartbeat or elapsed time, can supersede
+ * the verified source write (for example a subsequent restoration). */
+export function applyVerifiedJobCancellations<T extends {
+  appointmentId: string; status: string; cancellationReason: string; statusObservedAt?: string;
+}>(jobs: T[], cancellations: VerifiedJobCancellation[]): T[] {
+  const byId = new Map(cancellations.map(entry => [entry.appointmentId, entry]));
+  return jobs.map(job => {
+    const entry = byId.get(job.appointmentId);
+    const verifiedAt = Date.parse(entry?.junkwareVerifiedAt || "");
+    if (!entry || !Number.isFinite(verifiedAt)) return job;
+    const observedAt = Date.parse(job.statusObservedAt || "");
+    if (Number.isFinite(observedAt) && observedAt > verifiedAt) return job;
+    return { ...job, status: "Canceled", cancellationReason: entry.cancellationReason,
+      statusObservedAt: entry.junkwareVerifiedAt };
+  });
+}
+
 export function saveVerifiedJobCancellation(input: VerifiedJobCancellation): VerifiedJobCancellation {
   const normalized = normalizedEntry(input);
   if (!normalized) throw new Error("The verified cancellation could not be recorded.");

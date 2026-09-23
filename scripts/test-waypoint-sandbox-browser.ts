@@ -68,8 +68,10 @@ async function main(){
    await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled();
    const selectedAt=Date.now();
    await page.getByLabel('Add before photos',{exact:true}).setInputFiles(Array.from({length:i===1?12:1},(_,n)=>({name:`test-${n}.jpg`,mimeType:'image/jpeg',buffer:Buffer.from(data,'base64')})));
-   await expect(page.getByRole('img').filter({visible:true}).first()).toBeVisible({timeout:2000});
-   console.log(`Photo selection visible within ${Date.now()-selectedAt}ms`);
+   await expect(page.locator('img[alt^="before"][alt*="photo"]').first()).toBeVisible({timeout:2000});
+   const previewMs=Date.now()-selectedAt;
+   console.log(`Photo selection visible within ${previewMs}ms`);
+   timings.push({action:`Job ${i}: first photo preview visible`,ms:previewMs});
    await expect(page.getByText('Ready to submit',{exact:true})).toHaveCount(i===1?12:1);
    timings.push({action:`Job ${i}: prepare ${i===1?12:1} before photos`,ms:Date.now()-selectedAt});
    if(i===1){

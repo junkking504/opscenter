@@ -42,3 +42,7 @@
 .crew-mobile [data-photo-workflow] .appointment-closeout-body label>span{font-size:14px}
 .crew-mobile [data-photo-workflow] .appointment-closeout-body p{font-size:14px}
 .crew-mobile [data-photo-workflow] .closeout-primary-actions .closeout-primary-button{font-size:16px}
+.crew-mobile .ops-closeout-editor-message.success{color:#195135;background:#edf6ef;border:1px solid #82a790}
+.crew-mobile .ops-closeout-editor-message.error{color:#8b1730;background:#fff1f3;border:1px solid #c76d7e}
+.crew-mobile .ops-closeout-editor-message.progress{color:#243f56;background:#eaf2f8;border:1px solid #93b3cb}
+.crew-mobile [data-photo-workflow] .mobile-closeout-steps button[aria-current]:disabled{opacity:1}

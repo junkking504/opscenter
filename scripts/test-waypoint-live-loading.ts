@@ -73,6 +73,7 @@ async function main(){
           await page.getByRole('button',{name:'Reload from JunkWare',exact:true}).click();assert.equal((await response).status(),200);await expect(page.getByLabel('Add before photos',{exact:true})).toBeEnabled();
         });
         await page.screenshot({path:'/tmp/waypoint-audit-live-closeout.png',fullPage:true});
+        assert.equal(await page.locator('.ops-closeout-editor-message.success').evaluate(el=>getComputedStyle(el).color),'rgb(25, 81, 53)','Saved-form notice stays readable on its pale background');
       }
     }
     assert.deepEqual(errors,[]);

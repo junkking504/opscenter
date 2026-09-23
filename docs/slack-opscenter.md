@@ -157,7 +157,7 @@ The full appointment remains available through Open record. Uploaded JunkWare
 photos use the existing URL allowlist; private Slack download URLs are not
 exposed. Photo availability depends on the job collector capturing the upload.
 
-OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. Confirmed LinxUp truck-arrival alerts are published separately by the one-minute LinxUp collector, immediately after visit matching. New appointments, reschedules, cancellations, and closeouts are checked by a persistent verified JunkWare schedule detector; it reads schedule pages only and does not wait for detail pages, GPS, payroll, QBO, Krewe Portal, marketing, or VPS work. It uses one browser because JunkWare serializes concurrent logins, but publishes each market immediately after that market is verified instead of waiting for the other three. A sweep starts five seconds after the preceding sweep completes. The production in-session sweep measured 17.2 seconds total and about 4.3 seconds per market, producing a roughly 22-second same-market read cadence before the five-second OpsCenter browser check. This targets about 30 seconds and keeps the operating requirement below 60 seconds. Slack is the action and escalation layer; OpsCenter remains the source of truth.
+OpsCenter checks operational alerts during each live-data refresh cycle, including failed source-refresh attempts so data-health incidents can still reach Slack. Confirmed LinxUp truck-arrival alerts are published separately by the one-minute LinxUp collector, immediately after visit matching. Native LinxUp geofence entry and matching exit notifications are published after the collector's bounded geofence refresh completes. New appointments, reschedules, cancellations, and closeouts are checked by a persistent verified JunkWare schedule detector; it reads schedule pages only and does not wait for detail pages, GPS, payroll, QBO, Krewe Portal, marketing, or VPS work. It uses one browser because JunkWare serializes concurrent logins, but publishes each market immediately after that market is verified instead of waiting for the other three. A sweep starts five seconds after the preceding sweep completes. The production in-session sweep measured 17.2 seconds total and about 4.3 seconds per market, producing a roughly 22-second same-market read cadence before the five-second OpsCenter browser check. This targets about 30 seconds and keeps the operating requirement below 60 seconds. Slack is the action and escalation layer; OpsCenter remains the source of truth.
 
 ## LinxUp facility entries
 
@@ -180,7 +180,12 @@ plus the previous operating day's history for visits crossing midnight. Missing
 or ambiguous entry events produce a departure summary with duration unavailable.
 Only the original entry affects truck load; departure never applies another reset.
 Entry and completed-visit alerts support the same review/Control actions, with server-side source
-lookup and LinxUp provenance. No Slack post or source record mutation is made.
+lookup and LinxUp provenance. Each new native entry and matching native exit also
+posts once to that truck's Slack channel after the alert refresh. First enablement
+silently baselines existing same-day events so deployment cannot replay the day's
+history. The entry message includes location, facility, time and load effect; the
+exit includes departure and confirmed time on site. Inferred GPS-bounded visits do
+not produce geofence Slack notifications. No source record mutation is made.
 Unavailable or partial LinxUp alert collections remain explicit in Source Health;
 stop rows and starting inside a geofence do not invent entry events.
 
@@ -193,6 +198,7 @@ stop rows and starting inside a geofence do not invent entry events.
   - Northshore -> `#jobs-ns`
   - Unknown or unsupported territories -> `#dispatch`
 - Confirmed truck arrival -> that truck's `#truck-N` channel, with JK number, customer name, and service address
+- Native LinxUp geofence entry or matching exit -> that truck's `#truck-N` channel, with facility, event time, load effect or time on site
 - Newly closed job -> a short operational completion notice in that truck's `#truck-N` channel
 - Fuel and dump receipts -> that truck's `#truck-N` channel
 - Verified WhatsApp job-photo batch -> that truck's `#truck-N` channel

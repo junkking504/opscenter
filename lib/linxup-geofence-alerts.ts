@@ -77,7 +77,7 @@ export function geofencePositionArrivals(date: string, observations: SourceRow[]
 }
 
 export function readGeofenceEntries(date: string) {
-  const unavailable = {entries:[] as GeofenceEntry[],arrivals:[] as GeofenceEntry[],visits:[] as GeofenceVisit[],trackedVisits:[] as TrackedVisit[],sourceHealth:{alerts:'missing',alertsObservedAt:'',positionsObservedAt:''},available:false,complete:false,observedAt:''};
+  const unavailable = {entries:[] as GeofenceEntry[],arrivals:[] as GeofenceEntry[],visits:[] as GeofenceVisit[],nativeVisits:[] as GeofenceVisit[],trackedVisits:[] as TrackedVisit[],sourceHealth:{alerts:'missing',alertsObservedAt:'',positionsObservedAt:''},available:false,complete:false,observedAt:''};
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return unavailable;
   const root = process.env.OPSCENTER_DATA_DIR || process.env.OPSBOT_DATA_DIR || path.join(process.cwd(),'data');
   try {
@@ -104,6 +104,7 @@ export function readGeofenceEntries(date: string) {
       } catch { /* Position observations supplement the existing alert feed. */ }
     }
     const entries = geofenceEntries(date, rows);
+    const nativeVisits = geofenceVisits(date,[...previous,...rows]);
     const trackedVisits = trackedGeofenceVisits(date,observations,[...previous,...rows],Date.now(),locationRows);
     const arrivals: GeofenceEntry[] = trackedVisits.filter(visit=>!visit.departedAt).map(visit=>({
       id:visit.id,truck:visit.truck,name:visit.name,timestamp:visit.firstObservedAt,facility:visit.facility!,
@@ -115,7 +116,7 @@ export function readGeofenceEntries(date: string) {
     const failed = status.date === date && (status.source_status === 'failed' || status.validation_status === 'failed');
     const stale = date === visitDay(new Date().toISOString()) && (!Number.isFinite(Date.parse(observedAt)) || Date.now()-Date.parse(observedAt) > 30*60*1000);
     const positionsObservedAt = observations.map(row=>String(row.occurred_at || '')).filter(stamp=>Number.isFinite(Date.parse(stamp)) && Date.parse(stamp)<=Date.now()).sort().at(-1) || '';
-    return {entries,arrivals,visits,trackedVisits,available,
+    return {entries,arrivals,visits,nativeVisits,trackedVisits,available,
       complete:available && !failed && !stale && data.pagination_completed === true && data.validation_status === 'passed',observedAt,
       sourceHealth:{alerts:failed ? 'failed' : stale ? 'stale' : available ? 'available' : 'missing',alertsObservedAt:observedAt,positionsObservedAt}};
   } catch { return unavailable; }

@@ -102,4 +102,12 @@ fi
 
 wait "$geofence_pid" || true
 geofence_pid=""
+if [[ "${SLACK_OPSCENTER_ALERTS_ENABLED:-false}" =~ ^(1|true|yes|on)$ ]]; then
+  (
+    cd "$OPSCENTER_DIR"
+    node --import tsx scripts/publish-slack-alerts.ts \
+      --date "$TARGET_DATE" \
+      --only geofence_entry,geofence_exit
+  ) || echo "Geofence Slack alerts pending; source refresh continues." >&2
+fi
 echo "LinxUp live refresh completed at $(TZ=America/Chicago date '+%Y-%m-%d %H:%M:%S %Z')."

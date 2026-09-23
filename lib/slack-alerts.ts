@@ -29,6 +29,7 @@ import { formatSlackMessage, slackEscape, type SlackMessageField } from "@/lib/s
 import { normalizeSlackTruckNumber, truckSlackChannelId } from "@/lib/slack-truck-channels";
 import { junkwareJobPhotos } from "./junkware-job-details";
 import { closeoutCompactSummary } from "@/lib/closeout-compact-summary";
+import { geofenceFacility, readGeofenceEntries, type GeofenceEntry, type GeofenceVisit } from "@/lib/linxup-geofence-alerts";
 
 export type SlackAlertSeverity = "critical" | "warning";
 export type SlackAlertKind =
@@ -47,6 +48,8 @@ export type SlackAlertKind =
   | "payroll_exception"
   | "truck_departure"
   | "truck_arrival"
+  | "geofence_entry"
+  | "geofence_exit"
   | "crew_summary"
   | "schedule_summary"
   | "crew_clock_in"
@@ -92,6 +95,8 @@ type SlackAlertState = {
   truckArrivalNotificationsInitializedAt: string;
   truckVisitFingerprintVersion: number;
   deliveredTruckArrivalsByDate: Record<string, string[]>;
+  geofenceNotificationsInitializedAt: string;
+  deliveredGeofenceNotificationsByDate: Record<string, string[]>;
   truckCloseoutNotificationsInitializedAt: string;
   deliveredTruckCloseoutsByDate: Record<string, string[]>;
   notificationMessages: Record<string, { channelId: string; ts: string; hash: string }>;
@@ -175,6 +180,8 @@ function emptyState(): SlackAlertState {
     truckArrivalNotificationsInitializedAt: "",
     truckVisitFingerprintVersion: 2,
     deliveredTruckArrivalsByDate: {},
+    geofenceNotificationsInitializedAt: "",
+    deliveredGeofenceNotificationsByDate: {},
     truckCloseoutNotificationsInitializedAt: "",
     deliveredTruckCloseoutsByDate: {},
     notificationMessages: {},
@@ -240,6 +247,11 @@ function readState(): SlackAlertState {
       deliveredTruckArrivalsByDate:
         payload?.deliveredTruckArrivalsByDate && typeof payload.deliveredTruckArrivalsByDate === "object"
           ? payload.deliveredTruckArrivalsByDate
+          : {},
+      geofenceNotificationsInitializedAt: String(payload?.geofenceNotificationsInitializedAt || ""),
+      deliveredGeofenceNotificationsByDate:
+        payload?.deliveredGeofenceNotificationsByDate && typeof payload.deliveredGeofenceNotificationsByDate === "object"
+          ? payload.deliveredGeofenceNotificationsByDate
           : {},
       truckCloseoutNotificationsInitializedAt: String(payload?.truckCloseoutNotificationsInitializedAt || ""),
       deliveredTruckCloseoutsByDate:
@@ -335,6 +347,10 @@ function pruneCrewNotificationDates(values: Record<string, string[]>): Record<st
 }
 
 function pruneTruckArrivalDates(values: Record<string, string[]>): Record<string, string[]> {
+  return Object.fromEntries(Object.entries(values).sort(([left], [right]) => right.localeCompare(left)).slice(0, 8));
+}
+
+function pruneGeofenceNotificationDates(values: Record<string, string[]>): Record<string, string[]> {
   return Object.fromEntries(Object.entries(values).sort(([left], [right]) => right.localeCompare(left)).slice(0, 8));
 }
 
@@ -1151,6 +1167,90 @@ function allTruckVisitNotifications(date: string, state: SlackAlertState): Slack
   return [...buildTruckArrivalSlackNotifications(date, rows), ...departures];
 }
 
+function formatGeofenceDuration(seconds: number | null): string {
+  if (seconds === null) return "Unavailable - matching entry not confirmed";
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remaining = Math.floor(seconds % 60);
+  return [hours ? `${hours}h` : "", minutes ? `${minutes}m` : "", remaining || (!hours && !minutes) ? `${remaining}s` : ""]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function geofenceOpsHref(date: string, truck: string): string {
+  return absoluteOpsHref(`/desktop?workspace=Fleet&date=${encodeURIComponent(date)}&truck=${encodeURIComponent(truck.replace("Truck ", "Truck# "))}`);
+}
+
+export function buildGeofenceSlackNotifications(
+  date: string,
+  entries: GeofenceEntry[],
+  visits: GeofenceVisit[],
+): SlackOpsAlert[] {
+  const notifications: SlackOpsAlert[] = [];
+  for (const entry of entries) {
+    const href = geofenceOpsHref(date, entry.truck);
+    const plainText = formatSlackMessage({
+      icon: ":round_pushpin:",
+      title: `${entry.truck} Geofence Entry`,
+      fields: [
+        { label: "Location", value: entry.name },
+        { label: "Facility", value: entry.facility },
+        { label: "Entered", value: formatTruckArrivalTime(entry.timestamp) },
+        { label: "Truck load", value: entry.resetLocation ? "Reset to empty" : "Unchanged" },
+      ],
+      href,
+    });
+    notifications.push({
+      fingerprint: `geofence_entry:${date}:${entry.id}`,
+      kind: "geofence_entry",
+      lifecycle: "notification",
+      severity: "warning",
+      channelId: truckSlackChannelId(entry.truck, channel("dispatch")),
+      title: plainText,
+      detail: "",
+      nextAction: "",
+      href: "",
+      plainText,
+    });
+  }
+  for (const visit of visits) {
+    const href = geofenceOpsHref(date, visit.truck);
+    const plainText = formatSlackMessage({
+      icon: ":checkered_flag:",
+      title: `${visit.truck} Geofence Exit`,
+      fields: [
+        { label: "Location", value: visit.name },
+        { label: "Facility", value: geofenceFacility(visit.name).facility },
+        { label: "Departed", value: formatTruckArrivalTime(visit.departedAt) },
+        { label: "Time on site", value: formatGeofenceDuration(visit.durationSeconds) },
+      ],
+      href,
+    });
+    notifications.push({
+      fingerprint: `geofence_exit:${date}:${visit.id}`,
+      kind: "geofence_exit",
+      lifecycle: "notification",
+      severity: "warning",
+      channelId: truckSlackChannelId(visit.truck, channel("dispatch")),
+      title: plainText,
+      detail: "",
+      nextAction: "",
+      href: "",
+      plainText,
+    });
+  }
+  return notifications.sort((left, right) => left.fingerprint.localeCompare(right.fingerprint));
+}
+
+function allGeofenceNotifications(date: string): { notifications: SlackOpsAlert[]; available: boolean } {
+  if (date !== chicagoDateKey()) return { notifications: [], available: false };
+  const source = readGeofenceEntries(date);
+  return {
+    notifications: buildGeofenceSlackNotifications(date, source.entries, source.nativeVisits),
+    available: source.available,
+  };
+}
+
 /**
  * Critical pay-affecting exceptions.
  *
@@ -1531,6 +1631,45 @@ async function runTruckArrivalSlackAlerts(options: {
   return result;
 }
 
+async function runGeofenceSlackAlerts(options: {
+  date: string;
+  dryRun: boolean;
+  enabled: boolean;
+  kinds: ReadonlySet<SlackAlertKind>;
+}): Promise<SlackAlertRunResult> {
+  const { date, dryRun, enabled, kinds } = options;
+  if (date !== chicagoDateKey()) return slackAlertRunResult(date, dryRun, enabled, []);
+  const state = readState();
+  const source = allGeofenceNotifications(date);
+  const allNotifications = source.notifications;
+  const initialized = Boolean(state.geofenceNotificationsInitializedAt);
+  const delivered = new Set(state.deliveredGeofenceNotificationsByDate[date] || []);
+  const selected = allNotifications.filter((alert) => kinds.has(alert.kind));
+  const pending = initialized ? selected.filter((alert) => !delivered.has(alert.fingerprint)) : [];
+  const result = slackAlertRunResult(date, dryRun, enabled, initialized ? pending : selected);
+
+  if (dryRun || !enabled || !source.available) return result;
+  const token = String(process.env.SLACK_BOT_TOKEN || "").trim();
+  if (!token) throw new Error("SLACK_BOT_TOKEN is required when Slack OpsCenter alerts are enabled.");
+
+  const now = new Date().toISOString();
+  if (!initialized) {
+    state.geofenceNotificationsInitializedAt = now;
+    state.deliveredGeofenceNotificationsByDate[date] = allNotifications.map((alert) => alert.fingerprint);
+    state.deliveredGeofenceNotificationsByDate = pruneGeofenceNotificationDates(state.deliveredGeofenceNotificationsByDate);
+    state.updatedAt = now;
+    writeState(state);
+    return result;
+  }
+
+  await syncNotificationMessages(state, selected, delivered, token, result);
+  state.deliveredGeofenceNotificationsByDate[date] = Array.from(delivered);
+  state.deliveredGeofenceNotificationsByDate = pruneGeofenceNotificationDates(state.deliveredGeofenceNotificationsByDate);
+  state.updatedAt = now;
+  writeState(state);
+  return result;
+}
+
 async function runTruckCloseoutSlackAlerts(options: {
   date: string;
   dryRun: boolean;
@@ -1623,13 +1762,16 @@ export async function runSlackOpsAlerts(options?: {
     if ([...onlyKinds].every(kind => kind === "truck_arrival" || kind === "truck_departure")) {
       return runTruckArrivalSlackAlerts({ date, dryRun, enabled, kinds: onlyKinds });
     }
+    if ([...onlyKinds].every(kind => kind === "geofence_entry" || kind === "geofence_exit")) {
+      return runGeofenceSlackAlerts({ date, dryRun, enabled, kinds: onlyKinds });
+    }
     const closeoutKinds = new Set(
       Array.from(onlyKinds).filter((kind): kind is TruckCloseoutAlertKind => (
         kind === "job_closed" || kind === "estimate_closed"
       )),
     );
     if (closeoutKinds.size !== onlyKinds.size) {
-      throw new Error("Only truck_inspection, truck_arrival, truck_departure, job_closed, or estimate_closed can be published independently.");
+      throw new Error("Only truck_inspection, truck_arrival, truck_departure, geofence_entry, geofence_exit, job_closed, or estimate_closed can be published independently.");
     }
     return runTruckCloseoutSlackAlerts({ date, dryRun, enabled, kinds: closeoutKinds });
   }

@@ -18,6 +18,7 @@ import {
   summarizeCrewClockIns,
   buildTruckArrivalSlackNotifications,
   buildTruckDepartureSlackNotifications,
+  buildGeofenceSlackNotifications,
   recordFastCloseoutMessage,
   buildTruckCloseoutSlackNotifications,
   buildTruckEstimateCloseoutSlackNotifications,
@@ -52,6 +53,27 @@ assert.equal(
   }),
   "Baton Rouge",
 );
+const geofenceEntry = {
+  id: "entry-1",
+  truck: "Truck 4",
+  name: "Warehouse",
+  facility: "Junk King warehouse",
+  timestamp: "2026-08-12T18:00:00Z",
+  resetLocation: null,
+} as const;
+const geofenceNotifications = buildGeofenceSlackNotifications("2026-08-12", [geofenceEntry], [{
+  id: "entry-1",
+  truck: "Truck 4",
+  name: "Warehouse",
+  enteredAt: "2026-08-12T18:00:00Z",
+  departedAt: "2026-08-12T18:31:16Z",
+  durationSeconds: 1876,
+  entryIds: ["entry-1"],
+}]);
+assert.deepEqual(geofenceNotifications.map((alert) => alert.kind), ["geofence_entry", "geofence_exit"]);
+assert.ok(geofenceNotifications.every((alert) => alert.channelId === "C_TEST_TRUCK_4"));
+assert.match(geofenceNotifications[0].plainText || "", /Truck# 4 Geofence Entry[\s\S]*Warehouse[\s\S]*\*Truck load:\* Unchanged/);
+assert.match(geofenceNotifications[1].plainText || "", /Truck# 4 Geofence Exit[\s\S]*\*Time on site:\* 31m 16s/);
 assert.equal(appointmentTerritory({}), "Unknown territory");
 assert.equal(
   appointmentTerritoryForLocation("Northshore", "Denham Springs", "LA 70726"),
@@ -693,6 +715,33 @@ globalThis.fetch = (async (_input, init) => {
 }) as typeof fetch;
 
 try {
+  const geofenceAlertsFile = path.join(
+    temporaryDataDir,
+    "history",
+    "linxup",
+    "alerts",
+    "linxup_alerts_2026-08-12.json",
+  );
+  assert.equal((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.length, 0);
+  assert.equal(fs.existsSync(paymentStateFile), false, "An unavailable geofence source cannot establish an empty baseline");
+  fs.mkdirSync(path.dirname(geofenceAlertsFile), { recursive: true });
+  const nativeEntry = {
+    alert_type: "GEOFENCE_ENTERED",
+    truck_number: "Truck 4",
+    geofence_name: "Warehouse",
+    occurred_at: "2026-08-12T18:00:00Z",
+  };
+  fs.writeFileSync(geofenceAlertsFile, JSON.stringify({ date: "2026-08-12", alerts: [nativeEntry] }));
+  assert.equal((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.length, 0, "Existing geofence history is baselined silently");
+  const nativeExit = { ...nativeEntry, alert_type: "GEOFENCE_EXITED", occurred_at: "2026-08-12T18:31:16Z" };
+  fs.writeFileSync(geofenceAlertsFile, JSON.stringify({ date: "2026-08-12", alerts: [nativeEntry, nativeExit] }));
+  assert.deepEqual((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.map((alert) => alert.kind), ["geofence_exit"]);
+  const nativeReentry = { ...nativeEntry, occurred_at: "2026-08-12T19:00:00Z" };
+  fs.writeFileSync(geofenceAlertsFile, JSON.stringify({ date: "2026-08-12", alerts: [nativeEntry, nativeExit, nativeReentry] }));
+  assert.deepEqual((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.map((alert) => alert.kind), ["geofence_entry"]);
+  assert.equal((await runSlackOpsAlerts({ date: "2026-08-12", onlyKinds: ["geofence_entry", "geofence_exit"] })).posted.length, 0, "Geofence notifications deduplicate across minute refreshes");
+  postedMessages.length = 0;
+
   const arrivalVisitsFile = path.join(
     temporaryDataDir,
     "history",

@@ -79,7 +79,10 @@ try {
   fs.writeFileSync(path.join(dir,'linxup_alerts_2026-09-05.json'),JSON.stringify({date:'2026-09-05',alerts:[row('Gentilly','2026-09-06T04:45:00Z')]}));
   fs.writeFileSync(file,JSON.stringify({date,alerts:[row('Gentilly','2026-09-06T05:15:00Z',{alert_type:'GEOFENCE_EXITED'})],pagination_completed:true,validation_status:'passed'}));
   assert.equal(readGeofenceEntries(date).visits[0].durationSeconds,1800,'Reader includes prior-day entry context');
+  assert.equal(readGeofenceEntries(date).nativeVisits[0].durationSeconds,1800,'Reader exposes native-only visits for outbound notifications');
   fs.writeFileSync(file,JSON.stringify({date:'wrong',alerts:[row('Warehouse')]}));
   assert.equal(readGeofenceEntries(date).available,false);
 } finally {fs.rmSync(root,{recursive:true,force:true});delete process.env.OPSCENTER_DATA_DIR;}
+const liveRunner=fs.readFileSync('scripts/run-linxup-live-refresh.sh','utf8');
+assert.ok(liveRunner.indexOf('wait "$geofence_pid"') < liveRunner.indexOf('--only geofence_entry,geofence_exit'),'Geofence Slack delivery runs after the native alert refresh completes');
 console.log('Geofence checks passed: native entries, dates, identity, retries, warehouse preservation, disposal resets, subsequent jobs, source coverage and review identity.');

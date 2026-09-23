@@ -19,7 +19,7 @@ type Props = {
   selected: string | null; selectedTruck: string | null;
   gpsRoute?:TruckGpsRoute|null;
   truckMapView?:'location'|'route'|'overview';
-  selectedTripId?:string|null; onSelectTrip?:(id:string)=>void;
+  selectedTripId?:string|null; onSelectTrip?:(id:string|null)=>void;
   scope: string; resetKey: number; date: string;
   onSelect: (id: string) => void; onSelectTruck: (truck: string, view?: 'location' | 'overview') => void;
 };
@@ -54,7 +54,7 @@ export default function ScheduleMap(props: Props) {
     // The Schedule panel changes height after its first layout. Fit against
     // the final container size, but never undo a dispatcher's own pan/zoom.
     const stopAutoFit = (event?: { target?: unknown }) => {
-      if (event?.target instanceof Element && event.target.closest('.truck-follow-control')) return;
+      if (event?.target instanceof Element && event.target.closest('.truck-map-view-controls')) return;
       manualViewport.current = true;
       setFollowing(false);
     };
@@ -277,14 +277,27 @@ export default function ScheduleMap(props: Props) {
     }
     return()=>{layer.clearLayers();};
   },[props.gpsRoute,props.selectedTruck,props.date,props.resetKey,props.truckMapView,props.trucks,props.selectedTripId]);
-  const canFollow = props.selectedTruck && !props.selected && props.truckMapView !== 'route'
+  const canFollow = props.selectedTruck && !props.selected
     && props.trucks.some(truck => truckLabel(truck.truck) === props.selectedTruck && truck.latitude != null && truck.longitude != null);
+  const viewingRoutes = props.truckMapView === 'route';
   return <div ref={host} className="live-schedule-map" aria-label="Verified appointment locations and truck GPS">
-    {canFollow && <button type="button" className="truck-follow-control" aria-pressed={following}
-      onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}
-      onDoubleClick={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); setFollowing(value => !value); }}
-      title="Keep the selected truck centered as GPS reports arrive. Pan or zoom to pause.">
-      {following ? 'Following' : 'Follow'} {props.selectedTruck}
-    </button>}
+    {props.selectedTruck && !props.selected && <div className="truck-map-view-controls" role="group" aria-label={`${truckDisplayText(props.selectedTruck)} map view`}>
+      {canFollow && <button type="button" className="truck-follow-control" aria-pressed={!viewingRoutes && following}
+        onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}
+        onDoubleClick={event => event.stopPropagation()} onClick={event => {
+          event.stopPropagation();
+          if(viewingRoutes) current.current.onSelectTruck(props.selectedTruck!, 'overview');
+          else setFollowing(value => !value);
+        }}
+        title="Keep the selected truck centered as GPS reports arrive. Pan or zoom to pause.">
+        {!viewingRoutes && following ? 'Following' : 'Follow'} {props.selectedTruck}
+      </button>}
+      <button type="button" className="truck-routes-control" aria-pressed={viewingRoutes}
+        onPointerDown={event => event.stopPropagation()} onKeyDown={event => event.stopPropagation()}
+        onDoubleClick={event => event.stopPropagation()} onClick={event => { event.stopPropagation(); current.current.onSelectTrip?.(null); }}
+        title={`Fit the map to every recorded route for ${truckDisplayText(props.selectedTruck)} so far today.`}>
+        View Routes
+      </button>
+    </div>}
   </div>;
 }

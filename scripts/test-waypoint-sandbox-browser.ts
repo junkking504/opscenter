@@ -50,6 +50,7 @@ async function main(){
   await page.getByRole('radio',{name:'No problems',exact:true}).check();
   await page.getByRole('button',{name:'Review report →',exact:true}).click();
   await page.getByLabel('Your initials').fill('TD');
+  assert.equal(await page.getByRole('button',{name:'Send to OpsCenter',exact:true}).evaluate(button=>getComputedStyle(button.parentElement!).position),'static','Embedded inspection actions must not cover initials');
   await capture('03-inspection-review');
   await time('Submit simulated inspection and verify receipt',async()=>{await page.getByRole('button',{name:'Send to OpsCenter',exact:true}).click();await expect(page.getByRole('button',{name:'Continue to Assignments →',exact:true})).toBeVisible();});
   await time('Open Assignments',async()=>{await page.getByRole('button',{name:'Continue to Assignments →',exact:true}).click();await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();});

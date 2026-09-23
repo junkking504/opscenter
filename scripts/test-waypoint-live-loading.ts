@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomBytes, randomUUID } from 'node:crypto';
+import {writeFileSync} from 'node:fs';
 import { chromium, expect } from '@playwright/test';
 import { createCrewPhoneEnrollment, enrollCrewPhone, listCrewPhones, revokeCrewPhone } from '../lib/crew-phone-store';
 import { readCrewDay, saveCrewDay } from '../lib/crew-phone-day';
@@ -51,6 +52,14 @@ async function main(){
       await page.getByRole('button',{name:'Back to Assignments',exact:true}).click();
       for(const width of [320,390,430]){await page.setViewportSize({width,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);}
       await page.screenshot({path:'/tmp/waypoint-truck1-live-assignments.png',fullPage:true});
+      const closedIndex=payload.jobs.findIndex((job:{status:string})=>job.status==='Completed');
+      if(closedIndex>=0){
+        await time('Open saved closed appointment',async()=>{await page.getByRole('button',{name:'View assignment',exact:true}).nth(closedIndex).click();await expect(page.getByText('Closed out · Confirmed in JunkWare',{exact:true})).toBeVisible();});
+        await expect(page.getByRole('button',{name:'Start closeout · Before photos',exact:true})).toHaveCount(0);
+        await page.screenshot({path:'/tmp/waypoint-live-closed-details.png',fullPage:true});
+        await page.getByRole('button',{name:'Back to Assignments',exact:true}).click();
+      }
+      await time('Refresh live assignments',async()=>{const response=page.waitForResponse(r=>new URL(r.url()).pathname==='/api/crew-jobs/current');await page.getByRole('button',{name:'Refresh assignments',exact:true}).click();assert.equal((await response).status(),200);await expect(page.getByRole('heading',{name:'Assignments',exact:true})).toBeVisible();});
       const activeIndex=payload.jobs.findIndex((job:{assignmentId?:string;status:string})=>job.assignmentId===payload.job?.assignmentId && /^confirmed$/i.test(job.status));
       if(process.argv.includes('--closeout') && activeIndex>=0){
         await time('Live assignment details',async()=>{await page.getByRole('button',{name:'View assignment',exact:true}).nth(activeIndex).click();await expect(page.getByRole('button',{name:'Start closeout · Before photos',exact:true})).toBeVisible();});
@@ -67,7 +76,8 @@ async function main(){
       }
     }
     assert.deepEqual(errors,[]);
-    console.log(JSON.stringify({truck,readyMs,currentRequestMs:currentTiming,apiTiming,localCurrentMs,actionTimings,resources:await page.evaluate(()=>performance.getEntriesByType('resource').filter(entry=>new URL(entry.name).pathname.startsWith('/api/crew-jobs/')).map(entry=>({path:new URL(entry.name).pathname,ms:Math.round(entry.duration)}))),localStatus:localResponse.status,shown:(payload.jobs || [payload.job]).filter(Boolean).map((job:{jkNumber:string})=>job.jkNumber),expected:expected.jobs!.map(job=>job.jkNumber),mode:process.argv[2] || 'after',writes:'Browser GET only; temporary QA enrollment revoked on exit'}));
+    const result={truck,readyMs,currentRequestMs:currentTiming,apiTiming,localCurrentMs,actionTimings,resources:await page.evaluate(()=>performance.getEntriesByType('resource').filter(entry=>new URL(entry.name).pathname.startsWith('/api/crew-jobs/')).map(entry=>({path:new URL(entry.name).pathname,ms:Math.round(entry.duration)}))),localStatus:localResponse.status,shown:(payload.jobs || [payload.job]).filter(Boolean).map((job:{jkNumber:string})=>job.jkNumber),expected:expected.jobs!.map(job=>job.jkNumber),mode:process.argv[2] || 'after',writes:'Browser GET only; temporary QA enrollment revoked on exit'};
+    writeFileSync('/tmp/waypoint-live-timings.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result));
   }finally{await browser?.close();revokeCrewPhone(phone.deviceId,'waypoint-loading-qa-complete');}
 }
 void main().catch(error=>{console.error(error);process.exitCode=1;});

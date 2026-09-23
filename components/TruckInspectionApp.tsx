@@ -147,7 +147,7 @@ export default function TruckInspectionApp({ onBusyChange, apiPath = "/api/truck
     <div className={styles.photos}>{report.photos.map((p, i) => <figure key={i}><img src={p.data} alt={`${INSPECTION_SECTIONS.find(s => s.id === p.section)?.label} inspection photo ${i + 1}`} /></figure>)}</div>
     <p className={styles.reference}>Report reference: {report.requestId}</p>
   </>;
-  return <main className={`${styles.app} ${styles.phoneApp}`} data-check={section && !draft?.problemEditing && !receipt && !draft?.sent ? section.id : undefined}>
+  return <main className={`${styles.app} ${styles.phoneApp} ${onContinue ? styles.embedded : ''}`} data-check={section && !draft?.problemEditing && !receipt && !draft?.sent ? section.id : undefined}>
     <div className={styles.phoneShell}>
       {!context || !draft ? <section className={styles.phoneContent}><div className={styles.eyebrow}>FIVE POINT INSPECTION</div><h1>Morning inspection</h1><p>{error || "Connecting to OpsCenter…"}</p>{error && <button onClick={() => { setError(""); void load(); }}>Try again</button>}</section>
       : receipt ? <>

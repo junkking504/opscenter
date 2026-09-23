@@ -1,10 +1,8 @@
 import {useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import ScheduleRoutePlan from '../schedule-route-plan';
-import {MoveConfirmation} from '../schedule-controls';
-import {scheduleMoveProposal} from '../schedule-drag';
 import {proposeRoutes,routePlanSourceKey,type PlanRoute} from '../lib/route-plan';
-import type {ScheduleAppointment,ScheduleSnapshot,MoveProposal} from '../lib/schedule-contract';
+import type {ScheduleAppointment,ScheduleSnapshot} from '../lib/schedule-contract';
 import '../app/globals.css';
 import '../live-schedule.css';
 import '../live-responsive.css';
@@ -21,10 +19,9 @@ window.fetch=async(input,init)=>{
   return Response.json({sourceKey:routePlanSourceKey(snapshot.appointments),calculatedAt:new Date().toISOString(),excluded:0,routes:routes.map(r=>({...r,stops:r.appointmentIds.map((id,i)=>({id,arrival:options.start+i*55,travelMinutes:i?10:null,miles:i?4.2:null,warnings:i?['Overlapping Windows']:[]}))}))});
 };
 function Fixture(){
-  const [data,setData]=useState(snapshot); const [move,setMove]=useState<MoveProposal|null>(null);const [message,setMessage]=useState('');
+  const [data,setData]=useState(snapshot); const [message,setMessage]=useState('');
   return <main className="ops-live" style={{padding:20}}><h1>Route Planner · Synthetic QA · No Live Writes</h1><div style={{display:'flex',gap:20,padding:12}}><button onClick={()=>{snapshot={...snapshot,appointments:snapshot.appointments.map(j=>({...j,version:j.version+'x'}))};setData(snapshot);}}>Simulate Source Change</button><label><input type="checkbox" onChange={e=>{fail=e.target.checked;}}/>Simulate Failure</label></div><p>{message}</p>
-    <div className="live-schedule"><ScheduleRoutePlan snapshot={data} busy={!!move} select={id=>setMessage(`Opened synthetic appointment ${id}`)} review={(job,truck)=>setMove(scheduleMoveProposal(job,truck,job.appointmentStartMinutes,data.appointments))}/>
-    {move&&<MoveConfirmation move={move} date={data.date} cancel={()=>setMove(null)} saved={()=>{}} onBusyChange={()=>{}}/>}</div>
+    <div className="live-schedule"><ScheduleRoutePlan snapshot={data} busy={false} select={id=>setMessage(`Opened synthetic appointment ${id}`)} review={(job,truck)=>setMessage(`${job.jkNumber} would move directly to ${truck}; this fixture disables source writes.`)}/></div>
   </main>;
 }
 const root=createRoot(document.getElementById('root')!);root.render(<Fixture/>);import.meta.hot?.dispose(()=>root.unmount());

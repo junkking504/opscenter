@@ -70,3 +70,16 @@ export async function checkScheduleChange(requestId: string) {
     throw new Error(body.error || "The saved result is unavailable.");
   return body.receipt as Receipt;
 }
+
+/** Read the durable receipt without forcing a source read. The API owns the
+ * bounded background reconciliation budget and never replays the write. */
+export async function readScheduleChange(requestId: string) {
+  const response = await fetch(
+    `/api/desktop/schedule/operations?requestId=${encodeURIComponent(requestId)}`,
+    { credentials: "same-origin", cache: "no-store", signal: AbortSignal.timeout(15_000) },
+  );
+  const body = await response.json();
+  if (!response.ok || !body.receipt)
+    throw new Error(body.error || "The saved result is unavailable.");
+  return body.receipt as Receipt;
+}

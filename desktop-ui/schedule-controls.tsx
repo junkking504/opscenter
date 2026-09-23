@@ -1,5 +1,5 @@
 import { truckDisplayText } from '../lib/junkware-trucks';
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import './schedule-controls.css';
 import { Button } from "./components/ui/button";
 import type { MoveProposal, ScheduleAppointment } from "./lib/schedule-contract";
@@ -15,176 +15,6 @@ import {
 export type { MoveProposal } from "./lib/schedule-contract";
 import { sendScheduleChange, checkScheduleChange, ChangeReceipt, type Receipt } from './schedule-receipt';
 export { sendScheduleChange, checkScheduleChange, ChangeReceipt, type Receipt } from './schedule-receipt';
-export function MoveConfirmation({
-  move,
-  date,
-  cancel,
-  saved,
-  onBusyChange,
-}: {
-  move: MoveProposal;
-  date: string;
-  cancel: () => void;
-  saved: () => void;
-  onBusyChange: (busy: boolean) => void;
-}) {
-  const [requestId] = useState(() => crypto.randomUUID());
-  const [busy, setBusy] = useState(false);
-  const [receipt, setReceipt] = useState<Receipt | null>(null);
-  const [error, setError] = useState("");
-  const cancelButton = useRef<HTMLButtonElement>(null);
-  const savedRef = useRef(saved);
-  savedRef.current = saved;
-  useEffect(() => {
-    if (receipt?.status === 'verified' && !receipt.crewAssignment) savedRef.current();
-  }, [receipt?.status, receipt?.crewAssignment]);
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    cancelButton.current?.focus({ preventScroll: true });
-    return () => {
-      if (previous?.isConnected) previous.focus({ preventScroll: true });
-    };
-  }, []);
-  useEffect(() => {
-    onBusyChange(busy);
-    return () => onBusyChange(false);
-  }, [busy, onBusyChange]);
-  useEffect(() => {
-    if (!receipt || !['pending', 'uncertain'].includes(receipt.status)) return;
-    const abort = new AbortController();
-    let timer: ReturnType<typeof setTimeout>;
-    const poll = async () => {
-      try {
-        const response = await fetch(`/api/desktop/schedule/operations?requestId=${encodeURIComponent(receipt.requestId)}`, {credentials:'same-origin', cache:'no-store', signal:AbortSignal.any([abort.signal, AbortSignal.timeout(15_000)])});
-        const body = await response.json();
-        if (!abort.signal.aborted && response.ok && body.receipt) setReceipt(body.receipt);
-      } catch { /* Keep the existing receipt; never repeat the submission. */ }
-      if (!abort.signal.aborted) timer = setTimeout(poll, 5_000);
-    };
-    timer = setTimeout(poll, 5_000);
-    return () => { abort.abort(); clearTimeout(timer); };
-  }, [receipt?.requestId, receipt?.status]);
-  const window = scheduleMoveWindow(move.job, move.start);
-  const confirm = async () => {
-    if (busy || receipt) return;
-    setBusy(true);
-    setError("");
-    try {
-      const result = await sendScheduleChange(
-        move.job,
-        date,
-        "move",
-        {
-          truck: move.truck === "Unassigned" ? "" : move.truck,
-          ...(window.changed
-            ? { appointmentStartMinutes: move.start, durationHours: window.durationHours }
-            : {}),
-        },
-        requestId,
-      );
-      setReceipt(result);
-    } catch (failure) {
-      setReceipt({
-        requestId,
-        status: "uncertain",
-        message: failure instanceof Error ? failure.message : "The source result is uncertain.",
-      });
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <section
-      className="schedule-move-confirmation"
-      role="dialog"
-      aria-label="Confirm schedule move"
-      onKeyDownCapture={(event) => {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          event.stopPropagation();
-          if (!busy) cancel();
-        }
-      }}
-    >
-      <header>
-        <div>
-          <span>Confirm Move</span>
-          <strong>
-            {move.job.jkNumber} · {move.job.customerName}
-          </strong>
-        </div>
-        <button
-          ref={cancelButton}
-          aria-label="Cancel schedule move"
-          disabled={busy}
-          onClick={cancel}
-        >
-          ×
-        </button>
-      </header>
-      <div className="schedule-move-path">
-        <span>
-          <b>From</b>
-          {truckDisplayText(truckLabel(move.job.truck))} · {move.job.appointmentTime}
-        </span>
-        <span>→</span>
-        <span>
-          <b>To</b>
-          {truckDisplayText(move.truck)} · {window.label}
-        </span>
-      </div>
-      {move.conflicts.length > 0 && (
-        <p>Also booked in this window: {move.conflicts.join(", ")}. Multiple jobs can share a truck’s appointment window. Use Stop Order to set their sequence.</p>
-      )}
-      {!window.supported && (
-        <p>
-          This appointment has a non-hourly window. Keep its time unchanged to reassign the truck;
-          JunkWare’s current editor requires hourly time slots.
-        </p>
-      )}
-      <p>
-        {/complete|closed/i.test(move.job.status)
-          ? "This changes the completed appointment in JunkWare. Its recorded GPS visit, completion status, and closeout evidence stay unchanged."
-          : /^confirmed$/i.test(move.job.status) && move.truck !== "Unassigned"
-          ? "This assigns the appointment to the truck in JunkWare. Release it separately in Crew Dispatch for Waypoint. The phone uses the truck selected in its daily setup."
-          : "This changes the appointment in JunkWare."}
-      </p>
-      {receipt ? (
-        <ChangeReceipt
-          receipt={receipt}
-          onCheck={() => {
-            if (busy) return;
-            setBusy(true);
-            void checkScheduleChange(receipt.requestId)
-              .then((value) => {
-                setReceipt(value);
-              })
-              .catch((failure) => setError(failure.message))
-              .finally(() => setBusy(false));
-          }}
-        />
-      ) : (
-        <footer>
-          <Button variant="outline" size="sm" disabled={busy} onClick={cancel}>
-            Cancel
-          </Button>
-          <Button
-            size="sm"
-            disabled={busy || !window.supported || assignmentNeedsVerification(move.job)}
-            onClick={() => {
-              void confirm();
-            }}
-          >
-            {busy ? "Verifying in JunkWare…" : "Confirm Move"}
-          </Button>
-        </footer>
-      )}
-      {error && <p role="alert">{error}</p>}
-      {(receipt?.status === 'verified' || receipt?.status === 'reconciled' || receipt?.sourceResult?.assignmentReconciled === true) && <Button variant="outline" disabled={busy} onClick={saved}>Review Current Schedule</Button>}
-    </section>
-  );
-}
-
 export default function ScheduleControls({
   job,
   date,
@@ -244,6 +74,7 @@ export default function ScheduleControls({
   const unchangedAssignment =
     truck === truckLabel(job.truck) &&
     (start === "" || Number(start) === job.appointmentStartMinutes);
+  const assignmentWindow = scheduleMoveWindow(job, start === "" ? null : Number(start));
   return (
     <section className="drawer-dispatch-controls">
       <div className="drawer-control-heading">
@@ -310,12 +141,12 @@ export default function ScheduleControls({
           <div className="drawer-quick-actions">
             <Button
               variant="outline"
-              disabled={blocked || unchangedAssignment || assignmentNeedsVerification(job)}
+              disabled={blocked || unchangedAssignment || assignmentNeedsVerification(job) || !assignmentWindow.supported}
               onClick={() =>
                 onMove({ job, truck, start: start === "" ? null : Number(start), conflicts: [] })
               }
             >
-              Review Assignment Change
+              Move Appointment
             </Button>
             {!isClosed(job) && <Button
               variant="outline"

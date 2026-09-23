@@ -21,11 +21,9 @@ try {
   await drawer.getByText('Assignment & call-ahead',{exact:true}).click();
   assert.equal(await drawer.getByRole('combobox',{name:'Truck Assignment',exact:true}).inputValue(),'Truck 3','GPS truck is the prefilled correction');
   assert.match(await drawer.innerText(),/GPS confirms Truck# 3[\s\S]*JunkWare still says Truck# 6/);
-  await drawer.getByRole('button',{name:'Review Assignment Change',exact:true}).click();
-  const review=page.getByRole('dialog',{name:'Confirm schedule move',exact:true});
-  assert.match(await review.innerText(),/From[\s\S]*Truck# 6[\s\S]*To[\s\S]*Truck# 3[\s\S]*GPS visit, completion status, and closeout evidence stay unchanged/i);
-  await review.getByRole('button',{name:'Confirm Move',exact:true}).click();
+  await drawer.getByRole('button',{name:'Move Appointment',exact:true}).click();
+  assert.equal(await page.getByRole('dialog',{name:'Confirm schedule move',exact:true}).count(),0,'A move does not open a confirmation dialog');
   await page.waitForFunction(()=>document.querySelector('#fixture-writes')?.textContent?.includes('Writes: 1'));
   assert.match(await page.locator('#fixture-writes').innerText(),/→ Truck 3$/,'The verified write corrects JunkWare to the GPS truck');
-  console.log('Completed GPS mismatch browser PASS: one GPS lane, exact times, mismatch label, prefilled correction, preserved evidence copy, and verified Truck 3 write.');
+  console.log('Completed GPS mismatch browser PASS: one GPS lane, exact times, mismatch label, one-click correction, no confirmation dialog, and verified Truck 3 write.');
 } finally {await browser.close();}

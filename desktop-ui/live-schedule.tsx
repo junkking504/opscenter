@@ -29,10 +29,12 @@ import ScheduleRouteConnector from './schedule-route-connector';
 import { scheduleViewportLayout } from './lib/schedule-viewport-layout';
 import { scheduleTravelLayout } from './lib/schedule-travel-layout';
 import TruckCameraController from '../components/TruckCameraController';
-import ScheduleControls, { MoveConfirmation, type MoveProposal } from './schedule-controls';
+import ScheduleControls, { sendScheduleChange, type Receipt } from './schedule-controls';
+import { readScheduleChange } from './schedule-receipt';
 import { AppointmentReschedule } from './appointment-reschedule';
 import { scheduleMoveProposal, useScheduleDrag } from './schedule-drag';
-import { displayedOnsiteTime, needsScheduleAddressVerification, scheduleBoardJobs, scheduleDisplayTruck, scheduleTruckMismatch, scheduleTruckNames, resolveScheduleDeepLink, scheduleMatchesQuery, scheduleStatusTone, scheduleCustomerLabel, scheduleMoveRestriction, unavailableRoute, assignmentNeedsVerification, appointmentCategory, appointmentColorClass, appointmentRegion, appointmentStatus, isClosed, timelineRange, territoryLabels, territoryOrder, truckLabel, type ScheduleAppointment, type ScheduleRouting, type ScheduleSnapshot } from './lib/schedule-contract';
+import { applyBackgroundScheduleMove, backgroundScheduleMove, sourceMatchesBackgroundScheduleMove, type BackgroundScheduleMove } from './lib/schedule-move-background';
+import { displayedOnsiteTime, needsScheduleAddressVerification, scheduleBoardJobs, scheduleDisplayTruck, scheduleTruckMismatch, scheduleTruckNames, scheduleMoveWindow, resolveScheduleDeepLink, scheduleMatchesQuery, scheduleStatusTone, scheduleCustomerLabel, scheduleMoveRestriction, unavailableRoute, assignmentNeedsVerification, appointmentCategory, appointmentColorClass, appointmentRegion, appointmentStatus, isClosed, timelineRange, territoryLabels, territoryOrder, truckLabel, type ScheduleAppointment, type ScheduleRouting, type ScheduleSnapshot } from './lib/schedule-contract';
 import './live-schedule.css';
 import './schedule-board.css';
 import './schedule-selection.css';
@@ -59,7 +61,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const [snapshots, setSnapshots] = useState<Record<string, ScheduleSnapshot>>(() => Object.fromEntries([baseDate,dateForDay(baseDate,'tomorrow')].flatMap(date => { const cached=cachedWorkspace<ScheduleSnapshot>(`/api/desktop/schedule?date=${date}&load=1`); return cached ? [[date,cached.value]] : []; })));
   const [refreshKey, setRefreshKey] = useState(0);
   const refreshSourceDate = useRef('');
-  const [pendingMove, setPendingMove] = useState<MoveProposal | null>(null);
+  const [backgroundMoves, setBackgroundMoves] = useState<Record<string, BackgroundScheduleMove>>({});
   const [rescheduleNotice,setRescheduleNotice]=useState<{date:string;jk:string}|null>(null);
   const refresh = () => setRefreshKey(value => value + 1);
   const [error, setError] = useState('');
@@ -167,7 +169,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     const interval = window.setInterval(() => { setNow(new Date()); void load(); }, 15_000);
     return () => { unsubscribe(); abort.abort(); window.clearInterval(interval); };
   }, [baseDate, refreshKey, mapOnly]);
-  useEffect(() => { setSelectedId(null); setSelectedTruck(null); setDrawerId(null); setPendingMove(null); setScope('ALL'); setPriority(null); setFilter('all'); setSearchQuery(''); setLinkNotice(''); setRouting(null); }, [date, setDrawerId]);
+  useEffect(() => { setSelectedId(null); setSelectedTruck(null); setDrawerId(null); setScope('ALL'); setPriority(null); setFilter('all'); setSearchQuery(''); setLinkNotice(''); setRouting(null); }, [date, setDrawerId]);
   useEffect(() => {
     if (mapOnly || !snapshot || snapshot.date !== date || date !== baseDate || deepLinkApplied.current || operationBusyRef.current) return;
     // A queued date can initially contain no appointments. Keep the navigation
@@ -219,7 +221,24 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     window.addEventListener('keydown', escape);
     return () => { window.removeEventListener('keydown', escape); if (previous?.isConnected) previous.focus({ preventScroll: true }); };
   }, [drawerId, setDrawerId]);
-  const jobs = snapshot?.appointments || [];
+  useEffect(() => {
+    if (!snapshot) return;
+    setBackgroundMoves(previous => {
+      let changed = false;
+      const next = { ...previous };
+      for (const [recordId, move] of Object.entries(previous)) {
+        const source = snapshot.appointments.find(job => job.recordId === recordId);
+        if (move.phase === 'verified' && source && sourceMatchesBackgroundScheduleMove(source, move)) {
+          delete next[recordId];
+          changed = true;
+        }
+      }
+      return changed ? next : previous;
+    });
+  }, [snapshot]);
+  const jobs = (snapshot?.appointments || []).map(job => backgroundMoves[job.recordId]
+    ? applyBackgroundScheduleMove(job, backgroundMoves[job.recordId])
+    : job);
   const regions = jobs.map(job => ({ job, ...appointmentRegion(job) }));
   const groups = territoryOrder.map(code => ({ code, label: regions.find(region => region.code === code)?.label || '', jobs: regions.filter(region => region.code === code) })).filter(group => group.jobs.length);
   const match = (job: ScheduleAppointment) => {
@@ -259,7 +278,99 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
   const drawer = jobs.find(job => job.recordId === drawerId);
   const truckNames = scheduleTruckNames(snapshot);
   const range = timelineRange(jobs, now.getTime());
-  const drag = useScheduleDrag(jobs, range, setPendingMove, date, operationBusy || Boolean(pendingMove), setDragNotice);
+  const movePolls = useRef(new Map<string, number>());
+  useEffect(() => () => {
+    for (const timer of movePolls.current.values()) window.clearTimeout(timer);
+    movePolls.current.clear();
+  }, []);
+  const finishBackgroundMove = (move: BackgroundScheduleMove, receipt: Receipt) => {
+    if (receipt.status === 'verified') {
+      setBackgroundMoves(previous => previous[move.recordId]
+        ? { ...previous, [move.recordId]: { ...previous[move.recordId], phase: 'verified' } }
+        : previous);
+      setDragNotice(`${jobs.find(job => job.recordId === move.recordId)?.jkNumber || 'Appointment'} move verified in JunkWare.`);
+      refreshSourceDate.current = date;
+      refresh();
+      return true;
+    }
+    if (receipt.status === 'failed' || receipt.status === 'reconciled' || receipt.sourceResult?.assignmentReconciled === true) {
+      setBackgroundMoves(previous => {
+        if (!previous[move.recordId]) return previous;
+        const next = { ...previous };
+        delete next[move.recordId];
+        return next;
+      });
+      setDragNotice(receipt.message || 'JunkWare could not apply the move. The current source assignment is being restored.');
+      refreshSourceDate.current = date;
+      refresh();
+      return true;
+    }
+    setBackgroundMoves(previous => previous[move.recordId]
+      ? { ...previous, [move.recordId]: { ...previous[move.recordId], phase: 'verifying' } }
+      : previous);
+    return false;
+  };
+  const pollBackgroundMove = (move: BackgroundScheduleMove, delay = 5_000) => {
+    const existing = movePolls.current.get(move.requestId);
+    if (existing) window.clearTimeout(existing);
+    const timer = window.setTimeout(() => {
+      movePolls.current.delete(move.requestId);
+      void readScheduleChange(move.requestId)
+        .then(receipt => {
+          if (!finishBackgroundMove(move, receipt)) pollBackgroundMove(move, 15_000);
+        })
+        .catch(() => pollBackgroundMove(move, 15_000));
+    }, delay);
+    movePolls.current.set(move.requestId, timer);
+  };
+  const commitScheduleMove = (proposal: Parameters<typeof backgroundScheduleMove>[0]) => {
+    const window = scheduleMoveWindow(proposal.job, proposal.start);
+    if (!window.supported || assignmentNeedsVerification(proposal.job) || backgroundMoves[proposal.job.recordId]) {
+      if (!window.supported) setDragNotice('This appointment window cannot be moved through JunkWare. Keep its current time or choose a supported hourly window.');
+      return;
+    }
+    const requestId = crypto.randomUUID();
+    const move = backgroundScheduleMove(proposal, requestId);
+    setBackgroundMoves(previous => ({ ...previous, [move.recordId]: move }));
+    setDrawerId(null);
+    setDragNotice(`${proposal.job.jkNumber} moved to ${truckDisplayText(proposal.truck)} · ${move.label}. JunkWare verification is running in the background.`);
+    void sendScheduleChange(
+      proposal.job,
+      date,
+      'move',
+      {
+        truck: proposal.truck === 'Unassigned' ? '' : proposal.truck,
+        ...(window.changed ? { appointmentStartMinutes: proposal.start, durationHours: window.durationHours } : {}),
+      },
+      requestId,
+    ).then(receipt => {
+      // A 409 can return the older receipt that already protects this
+      // appointment. The rejected new UUID was never submitted, so restore the
+      // source-backed row and continue checking only that durable receipt.
+      if (receipt.requestId !== move.requestId) {
+        setBackgroundMoves(previous => {
+          if (!previous[move.recordId]) return previous;
+          const next = { ...previous };
+          delete next[move.recordId];
+          return next;
+        });
+        setDragNotice(receipt.message || 'A previous move is still being verified in JunkWare.');
+        refreshSourceDate.current = date;
+        refresh();
+        const existing = { ...move, requestId: receipt.requestId };
+        if (!finishBackgroundMove(existing, receipt)) pollBackgroundMove(existing);
+        return;
+      }
+      if (!finishBackgroundMove(move, receipt)) pollBackgroundMove(move);
+    }).catch(failure => {
+      setBackgroundMoves(previous => previous[move.recordId]
+        ? { ...previous, [move.recordId]: { ...previous[move.recordId], phase: 'verifying' } }
+        : previous);
+      setDragNotice(failure instanceof Error ? `${proposal.job.jkNumber} moved in OpsCenter. ${failure.message}` : `${proposal.job.jkNumber} moved in OpsCenter. JunkWare verification is still running.`);
+      pollBackgroundMove(move);
+    });
+  };
+  const drag = useScheduleDrag(jobs, range, commitScheduleMove, date, operationBusy, setDragNotice);
   const ticks = Array.from({ length: (range.end - range.start) / 60 }, (_, index) => range.start + index * 60);
   const nowParts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now);
   const nowMinutes = Number(nowParts.find(part => part.type === 'hour')?.value) * 60 + Number(nowParts.find(part => part.type === 'minute')?.value);
@@ -322,7 +433,7 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
           </section> : selected ? null : <div className="map-status-list"><span><i className={snapshot.fleet.isToday ? 'healthy' : 'warning'} />{snapshot.fleet.isToday ? 'Truck markers show GPS; amber marks last-known positions' : 'Planning day · Current GPS is not a planned truck origin'}</span><span>{visible.filter(needsScheduleAddressVerification).length} appointments need verified coordinates</span><span>Locators are centered on their recorded locations.</span></div>}
         </aside>
       </section>}
-      {!mapOnly && <div className="schedule-board-shell"><div className="section-title"><div><span className="section-kicker">{date} · JunkWare Snapshot</span><h2>Truck Schedule</h2><small className="schedule-time-basis" title="Completed appointments default to a unique GPS-confirmed truck. Other appointments remain under their current JunkWare assignment.">Completed jobs default to the GPS-confirmed truck</small></div><div className="schedule-board-actions"><ScheduleStopOrder key={`${date}:${stopOrderTruck}`} truck={stopOrderTruck} selectedAppointmentId={selectedId} snapshot={snapshot} busy={operationBusy || Boolean(pendingMove)} onBusyChange={onOperationBusyChange} saved={updated=>{setSnapshots(prior=>({...prior,[date]:updated}));refresh();}} /><span className="schedule-drag-help"><GripVertical size={13} />Drag Appointment → Truck + Time</span></div></div>
+      {!mapOnly && <div className="schedule-board-shell"><div className="section-title"><div><span className="section-kicker">{date} · JunkWare Snapshot</span><h2>Truck Schedule</h2><small className="schedule-time-basis" title="Completed appointments default to a unique GPS-confirmed truck. Other appointments remain under their current JunkWare assignment.">Completed jobs default to the GPS-confirmed truck</small></div><div className="schedule-board-actions"><ScheduleStopOrder key={`${date}:${stopOrderTruck}`} truck={stopOrderTruck} selectedAppointmentId={selectedId} snapshot={snapshot} busy={operationBusy} onBusyChange={onOperationBusyChange} saved={updated=>{setSnapshots(prior=>({...prior,[date]:updated}));refresh();}} /><span className="schedule-drag-help"><GripVertical size={13} />Drag Appointment → Truck + Time</span></div></div>
         <div className="schedule-board-scroll"><div className={`schedule-board ${truckNames.length >= 10 ? 'ultra' : truckNames.length >= 7 ? 'compact' : 'comfortable'}`} style={{ '--schedule-hour-count': ticks.length } as CSSProperties}>
           <div className="schedule-time-row" style={{ gridTemplateColumns: `var(--schedule-route-width) repeat(${ticks.length}, minmax(0, 1fr))` }}><span>Route</span>{ticks.map(tick => <span key={tick}>{clock(tick)}</span>)}</div>
           {truckNames.map((truck, index) => {
@@ -340,13 +451,12 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
 
               {connectors.map(connector => <ScheduleRouteConnector key={`${connector.leg.fromAppointmentId}:${connector.leg.toAppointmentId}`} connector={connector} jobs={jobs} select={selectAppointment} />)}
               {hasProgress && <ScheduleTruckProgress truck={truck} snapshot={snapshot} progress={routing?.date===date?routing.truckProgress:undefined} now={now.getTime()} select={selectAppointment} />}
-              {ghost && ghostStart != null && <div className={`schedule-drag-preview${ghost.conflicts.length ? ' conflict' : ''}`} style={{ left: `${(ghostStart - range.start) / range.duration * 100}%`, width: `${ghostDuration / range.duration * 100}%` }}><strong>{ghost.job.jkNumber}</strong><small>{clock(ghostStart)} · {ghost.conflicts.length ? `Conflicts ${ghost.conflicts.join(', ')}` : 'Drop to Review'}</small></div>}
+              {ghost && ghostStart != null && <div className={`schedule-drag-preview${ghost.conflicts.length ? ' conflict' : ''}`} style={{ left: `${(ghostStart - range.start) / range.duration * 100}%`, width: `${ghostDuration / range.duration * 100}%` }}><strong>{ghost.job.jkNumber}</strong><small>{clock(ghostStart)} · {ghost.conflicts.length ? `Conflicts ${ghost.conflicts.join(', ')}` : 'Drop to Move'}</small></div>}
             </div></div></div>;
           })}
         </div></div>
       </div>}
       {dragNotice && <div className="schedule-drag-notice" role="status"><span>{dragNotice}</span><button type="button" aria-label="Dismiss drag notice" onClick={() => setDragNotice('')}>×</button></div>}
-      {pendingMove && <MoveConfirmation key={`${pendingMove.job.recordId}:${pendingMove.truck}:${pendingMove.start}`} move={pendingMove} date={date} cancel={() => setPendingMove(null)} saved={() => { setPendingMove(null); refresh(); }} onBusyChange={onOperationBusyChange} />}
       {rescheduleNotice && <section className="schedule-change-receipt sync-verified" role="status"><header><strong>{rescheduleNotice.jk} rescheduled to {rescheduleNotice.date} · Verified in JunkWare</strong></header><footer>{onOpenDate && <Button onClick={() => onOpenDate(rescheduleNotice.date)}>View Rescheduled Day →</Button>}<Button variant="outline" onClick={() => setRescheduleNotice(null)}>Dismiss</Button></footer></section>}
     </div>
     </div>
@@ -380,6 +490,6 @@ export default function LiveSchedule({ baseDate, day, onDayChange, onCounts, rep
     {creationOpen && <AppointmentCreation date={date} appointments={jobs} close={() => { if (!operationBusyRef.current) setCreationOpen(false); }} saved={refresh} onBusyChange={onOperationBusyChange} />}
     {drawer && <><button className="record-drawer-backdrop" aria-label="Close appointment" disabled={operationBusy} onClick={() => setDrawerId(null)} /><aside className="record-drawer job-record-drawer" role="dialog" aria-modal="true" aria-labelledby="live-appointment-title" onKeyDown={event => { if (event.key !== 'Tab') return; const focusable = [...event.currentTarget.querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, [tabindex="0"]')].filter(element => !element.hasAttribute('disabled') && element.getClientRects().length > 0); const first = focusable[0], last = focusable[focusable.length - 1]; if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); } else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); } }}><header className="record-drawer-header"><div><span>{appointmentCategory(drawer)} · {appointmentStatus(drawer)}</span><h2 id="live-appointment-title">{drawer.jkNumber}</h2><p>{scheduleCustomerLabel(drawer)}</p><PartnerBadge job={drawer} /></div><Button ref={closeButton} variant="ghost" size="icon" aria-label="Close" disabled={operationBusy} onClick={() => setDrawerId(null)}><X /></Button></header><div className="record-drawer-body"><AppointmentCloseout key={`closeout:${date}:${drawer.recordId}`} job={drawer} date={date} saved={refresh} onBusyChange={onOperationBusyChange} /><SourceEstimateSummary job={drawer} showPhotos /><section className="drawer-facts" aria-label="Record details">{[
       ['Appointment ID', drawer.appointmentId || 'Unavailable'], ['Time', drawer.appointmentTime], ['Customer', scheduleCustomerLabel(drawer)], ['Phone', <Phone key="phone" value={drawer.phone} />], ['Email', drawer.customerEmail || 'Not Recorded'], ['Address', <Address key="address" value={appointmentServiceAddress(drawer)} />], ['Truck', scheduleDisplayTruck(drawer)], ['Krewe', crew(drawer)], ['Category', appointmentCategory(drawer)], ['Status', appointmentStatus(drawer)], ['Work', (drawer.pickupItems?.length ? drawer.pickupItems : drawer.junkItems).join(' · ') || 'Not Recorded'], [schedulePayment(drawer).label, schedulePayment(drawer).amount || 'See payment detail'], ['Payment detail', [...schedulePayment(drawer).details, schedulePayment(drawer).balance].filter(Boolean).join(' · ') || 'Not recorded'], ['Tip', money(drawer.closeout?.tip ?? drawer.tipAmount)],
-    ].map(([label, value]) => <div key={String(label)}><span>{label}</span><strong>{truckDisplayText(String(value || 'Unavailable'))}</strong></div>)}{scheduleTruckMismatch(drawer) && <div><span>JunkWare truck</span><strong>{truckDisplayText(scheduleTruckMismatch(drawer)!.junkwareTruck)}</strong></div>}{['Completed', 'Estimate Closed'].includes(appointmentStatus(drawer)) && onsiteTimeFacts(displayedOnsiteTime(drawer) || {minutes:null,arrival:null,departure:null,label:'Unavailable · no confirmed visit'}).map(fact=><div key={fact.label}><span>{fact.label}</span><strong>{fact.value}</strong></div>)}</section><AppointmentNotes notes={drawer.appointmentNotes} />{<AlertPhotos photos={drawer.photos?.filter(photo => !drawer.sourceEstimate?.photos.some(estimatePhoto => estimatePhoto.url.split('?')[0] === photo.url.split('?')[0]))} />}<AppointmentReschedule key={'reschedule:'+drawer.recordId} job={drawer} date={date} saved={destination => { setRescheduleNotice({date:destination,jk:drawer.jkNumber}); refreshSourceDate.current=date; refresh(); }} onBusyChange={onOperationBusyChange} onOpenDate={onOpenDate ? destination => { setDrawerId(null); onOpenDate(destination); } : undefined} /><ScheduleControls key={drawer.recordId} job={drawer} date={date} trucks={truckNames} saved={refresh} onBusyChange={onOperationBusyChange} onMove={proposal => { setPendingMove(scheduleMoveProposal(proposal.job, proposal.truck, proposal.start, jobs)); setDrawerId(null); }} /><AppointmentClassification key={`type:${drawer.recordId}`} job={drawer} date={date} saved={refresh} onBusyChange={onOperationBusyChange} /></div><footer className="record-drawer-actions"><div className="closeout-footer-slot" />{(!isClosed(drawer) || /cancel(?:ed|led)/i.test(drawer.status)) && <Button className="drawer-reschedule-shortcut" variant="outline" disabled={operationBusy} onClick={() => { document.getElementById("appointment-reschedule")?.scrollIntoView({block:"nearest",behavior:"instant"}); document.getElementById("appointment-reschedule-date")?.focus({preventScroll:true}); }}>{/cancel(?:ed|led)/i.test(drawer.status)?'Restore Appointment':'Reschedule Appointment'}</Button>}{!isClosed(drawer) && <Button className="drawer-cancel-shortcut" variant="outline" disabled={operationBusy} onClick={() => { document.getElementById("appointment-cancellation")?.scrollIntoView({block:"nearest",behavior:"instant"}); document.getElementById("appointment-cancellation-reason")?.focus({preventScroll:true}); }}>Cancel Appointment</Button>}<Button variant="outline" disabled={operationBusy} onClick={() => setDrawerId(null)}>Close</Button>{safeSourceHref(drawer) && <Button onClick={() => window.location.assign(safeSourceHref(drawer)!)}>Open in JunkWare <ArrowRight /></Button>}</footer></aside></>}
+    ].map(([label, value]) => <div key={String(label)}><span>{label}</span><strong>{truckDisplayText(String(value || 'Unavailable'))}</strong></div>)}{scheduleTruckMismatch(drawer) && <div><span>JunkWare truck</span><strong>{truckDisplayText(scheduleTruckMismatch(drawer)!.junkwareTruck)}</strong></div>}{['Completed', 'Estimate Closed'].includes(appointmentStatus(drawer)) && onsiteTimeFacts(displayedOnsiteTime(drawer) || {minutes:null,arrival:null,departure:null,label:'Unavailable · no confirmed visit'}).map(fact=><div key={fact.label}><span>{fact.label}</span><strong>{fact.value}</strong></div>)}</section><AppointmentNotes notes={drawer.appointmentNotes} />{<AlertPhotos photos={drawer.photos?.filter(photo => !drawer.sourceEstimate?.photos.some(estimatePhoto => estimatePhoto.url.split('?')[0] === photo.url.split('?')[0]))} />}<AppointmentReschedule key={'reschedule:'+drawer.recordId} job={drawer} date={date} saved={destination => { setRescheduleNotice({date:destination,jk:drawer.jkNumber}); refreshSourceDate.current=date; refresh(); }} onBusyChange={onOperationBusyChange} onOpenDate={onOpenDate ? destination => { setDrawerId(null); onOpenDate(destination); } : undefined} /><ScheduleControls key={drawer.recordId} job={drawer} date={date} trucks={truckNames} saved={refresh} onBusyChange={onOperationBusyChange} onMove={proposal => commitScheduleMove(scheduleMoveProposal(proposal.job, proposal.truck, proposal.start, jobs))} /><AppointmentClassification key={`type:${drawer.recordId}`} job={drawer} date={date} saved={refresh} onBusyChange={onOperationBusyChange} /></div><footer className="record-drawer-actions"><div className="closeout-footer-slot" />{(!isClosed(drawer) || /cancel(?:ed|led)/i.test(drawer.status)) && <Button className="drawer-reschedule-shortcut" variant="outline" disabled={operationBusy} onClick={() => { document.getElementById("appointment-reschedule")?.scrollIntoView({block:"nearest",behavior:"instant"}); document.getElementById("appointment-reschedule-date")?.focus({preventScroll:true}); }}>{/cancel(?:ed|led)/i.test(drawer.status)?'Restore Appointment':'Reschedule Appointment'}</Button>}{!isClosed(drawer) && <Button className="drawer-cancel-shortcut" variant="outline" disabled={operationBusy} onClick={() => { document.getElementById("appointment-cancellation")?.scrollIntoView({block:"nearest",behavior:"instant"}); document.getElementById("appointment-cancellation-reason")?.focus({preventScroll:true}); }}>Cancel Appointment</Button>}<Button variant="outline" disabled={operationBusy} onClick={() => setDrawerId(null)}>Close</Button>{safeSourceHref(drawer) && <Button onClick={() => window.location.assign(safeSourceHref(drawer)!)}>Open in JunkWare <ArrowRight /></Button>}</footer></aside></>}
   </section></TruckCameraController>;
 }
